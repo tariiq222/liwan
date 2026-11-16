@@ -24,8 +24,8 @@ function saved() { void navigateTo(backTo.value, { replace: true }) }
 <template>
   <SharedPageContainer>
     <SharedPageHeader :title="t('customers.edit')" :back-to="backTo" />
-    <SharedPageState v-if="!canManage" :empty="true" :empty-text="t('errors.forbidden')" />
-    <SharedPageState v-else :loading="query.isLoading.value || settings.isLoading.value" :error="query.error.value ?? settings.error.value" :empty="!customer || !settings.data.value" @retry="() => { query.refetch(); settings.refetch() }">
+    <SharedPageState empty-icon="i-lucide-lock" v-if="!canManage" :empty="true" :empty-text="t('errors.forbidden')" />
+    <SharedPageState empty-icon="i-lucide-contact-round" v-else :loading="query.isLoading.value || settings.isLoading.value" :error="query.error.value ?? settings.error.value" :empty="!customer || !settings.data.value" @retry="() => { query.refetch(); settings.refetch() }">
       <CustomerForm v-if="customer && settings.data.value" :customer="customer" :settings="settings.data.value" :back-to="backTo" @saved="saved" />
     </SharedPageState>
   </SharedPageContainer>

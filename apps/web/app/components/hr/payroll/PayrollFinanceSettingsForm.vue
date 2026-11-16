@@ -61,21 +61,21 @@ const submit = () => {
 <template>
   <SharedSettingsCard id="payroll-finance" v-bind="state" :title="t('hrPayroll.financeSettings.title')" :description="t('hrPayroll.financeSettings.hint')" :can-edit="canEdit" data-testid="hr-payroll-finance-form" @save="submit" @revert="revert" @reload="reload">
     <UAlert v-if="truncated" color="info" variant="subtle" icon="i-lucide-info" :title="t('hrPayroll.financeSettings.truncated')" data-testid="hr-payroll-finance-truncated" />
-    <UFormField orientation="horizontal" :label="t('hrPayroll.financeSettings.journal')" name="hr-payroll-finance-journal" :error="fieldError('journal_id')">
+    <div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
+    <UFormField :label="t('hrPayroll.financeSettings.journal')" name="hr-payroll-finance-journal" :error="fieldError('journal_id')">
       <USelect v-if="journals" id="hr-payroll-finance-journal" v-model="draft.journal" class="w-full" :items="items(journals, settings.journal)" :placeholder="t('hrPayroll.financeSettings.journalPlaceholder')" :disabled="disabled" data-testid="hr-payroll-finance-journal" />
       <UInput v-else id="hr-payroll-finance-journal" class="w-full" :model-value="readOnly(settings.journal)" readonly disabled />
     </UFormField>
-    <UFormField orientation="horizontal" :label="t('hrPayroll.financeSettings.entryDetail')" name="hr-payroll-finance-detail" :error="fieldError('entry_detail')">
+    <UFormField :label="t('hrPayroll.financeSettings.entryDetail')" name="hr-payroll-finance-detail" :error="fieldError('entry_detail')">
       <USelect id="hr-payroll-finance-detail" v-model="draft.entryDetail" class="w-full" :items="detailItems" :disabled="disabled" data-testid="hr-payroll-finance-detail" />
     </UFormField>
-    <UFormField orientation="horizontal" :label="t('hrPayroll.financeSettings.defaultAnalytic')" name="hr-payroll-finance-analytic" :description="t('hrPayroll.financeSettings.defaultAnalyticHint')" :error="fieldError('default_analytic_account_id')">
+    <UFormField :label="t('hrPayroll.financeSettings.defaultAnalytic')" name="hr-payroll-finance-analytic" :help="t('hrPayroll.financeSettings.defaultAnalyticHint')" :error="fieldError('default_analytic_account_id')">
       <USelect v-if="analyticAccounts" id="hr-payroll-finance-analytic" v-model="draft.defaultAnalytic" class="w-full" :items="items(analyticAccounts, settings.default_analytic_account)" :disabled="disabled" data-testid="hr-payroll-finance-analytic" />
       <UInput v-else id="hr-payroll-finance-analytic" class="w-full" :model-value="readOnly(settings.default_analytic_account)" readonly disabled />
     </UFormField>
     <UFormField
       v-for="role in HR_PAYROLL_ACCOUNT_ROLES"
       :key="role"
-      orientation="horizontal"
       :label="t(`hrPayroll.financeSettings.roles.${role}`)"
       :name="`hr-payroll-finance-account-${role}`"
       :error="fieldError(`accounts.${role}`)"
@@ -83,5 +83,6 @@ const submit = () => {
       <USelect v-if="accounts" :id="`hr-payroll-finance-account-${role}`" v-model="draft.accounts[role]" class="w-full" :items="items(accountChoicesFor(role, accounts), settings.accounts[role])" :disabled="disabled" :data-testid="`hr-payroll-finance-account-${role}`" />
       <UInput v-else :id="`hr-payroll-finance-account-${role}`" class="w-full" :model-value="readOnly(settings.accounts[role])" readonly disabled />
     </UFormField>
+    </div>
   </SharedSettingsCard>
 </template>

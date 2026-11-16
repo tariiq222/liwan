@@ -151,7 +151,7 @@ const actionsOf = (run: AiRunSummary) => [
         />
       </div>
       <p class="sr-only" role="status" data-testid="ai-run-announcement">{{ announcement }}</p>
-      <SharedPageState
+      <SharedPageState empty-icon="i-lucide-sparkles"
         :loading="!hydrated || isLoading"
         :error="isError ? error : undefined"
         :empty="!groups.length"

@@ -27,6 +27,6 @@ watch(candidates.data, (data) => {
 <template>
   <SharedPageContainer>
     <SharedPageHeader :title="t('hr.employee.access')" :back-to="backTo" />
-    <SharedPageState :loading="candidates.isLoading.value" :error="candidates.error.value" :empty="!candidates.data.value?.items.length" @retry="candidates.refetch" />
+    <SharedPageState empty-icon="i-lucide-users" :loading="candidates.isLoading.value" :error="candidates.error.value" :empty="!candidates.data.value?.items.length" @retry="candidates.refetch" />
   </SharedPageContainer>
 </template>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { countLabel, hasCount } from '../../utils/shellCount'
+
 // An icon button of the top bar with an optional badge: a number, or `dot` for "something new". Every tool of the bar is
 // this one 40px button (no background at rest, a light fill on hover); it toggles a slide-over (`aria-expanded`, `aria-controls`).
 const props = defineProps<{
@@ -15,8 +17,8 @@ const props = defineProps<{
   badgeTestId?: string
 }>()
 const emit = defineEmits<{ click: [event: MouseEvent] }>()
-const badgeText = computed(() => (typeof props.badge === 'number' ? (props.badge > 99 ? '99+' : String(props.badge)) : ''))
-const hasBadge = computed(() => props.badge === 'dot' || (typeof props.badge === 'number' && props.badge > 0))
+const badgeText = computed(() => (typeof props.badge === 'number' ? countLabel(props.badge) : ''))
+const hasBadge = computed(() => props.badge === 'dot' || hasCount(props.badge))
 </script>
 
 <template>

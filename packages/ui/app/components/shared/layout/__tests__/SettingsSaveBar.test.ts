@@ -1,4 +1,4 @@
-import { defineComponent, h, reactive } from 'vue'
+import { defineComponent, h, nextTick, reactive } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import * as settingsSave from '../../../../composables/useSettingsSave'
 import type { SettingsSaveEntry } from '../../../../composables/useSettingsSave'
@@ -54,6 +54,35 @@ describe('SharedSettingsSaveBar', () => {
     expect(findNode(host, node => node.text === 'Unsaved changes: 2')).toBeTruthy()
     expect(byTestId(host, 'settings-save-bar-revert')).toBeTruthy()
     expect(byTestId(host, 'settings-save-bar-save')).toBeTruthy()
+  })
+
+  it('keeps one polite live region mounted, filled while the bar shows and empty once it hides', async () => {
+    const card = entry({ id: 'a' })
+    const host = mountBar([card])
+    const live = () => byTestId(host, 'settings-save-bar-announcement')!
+    expect(live().props['aria-live']).toBe('polite')
+    expect(live().props.class).toContain('sr-only')
+    expect(findNode(live(), node => node.text === 'Unsaved changes: 1')).toBeTruthy()
+    // The visible sentence is not a live region, so the count is not read twice.
+    const bar = byTestId(host, 'settings-save-bar')!
+    expect(findNode(bar, node => node.props['aria-live'] !== undefined)).toBeUndefined()
+
+    card.dirty = false
+    await nextTick()
+    expect(byTestId(host, 'settings-save-bar')).toBeUndefined()
+    expect(live()).toBeTruthy()
+    expect(findNode(live(), node => node.text === 'Unsaved changes: 0')).toBeUndefined()
+  })
+
+  it('exposes the stable slot hook and a visible focus ring on both buttons', () => {
+    const host = mountBar([entry()])
+    expect(byTestId(host, 'settings-save-bar')!.props['data-slot']).toBe('settings-save-bar')
+    for (const id of ['settings-save-bar-revert', 'settings-save-bar-save']) {
+      const cls = byTestId(host, id)!.props.class as string
+      expect(cls).toContain('focus-visible:outline-default')
+      expect(cls).toContain('focus-visible:outline-2')
+      expect(cls).toContain('focus-visible:outline-offset-2')
+    }
   })
 
   it('reports a failed card instead of the count', () => {

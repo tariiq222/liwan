@@ -31,7 +31,7 @@ const planActions = (plan: FinanceAnalyticPlan): RowAction[] => canWritePlan(can
       <AnalyticPlanEditor :key="editing === 'new' ? 'new' : editing.id" :plan="editing === 'new' ? undefined : editing" :plans="plans" @done="editing = null" @cancel="editing = null" />
     </div>
     <SharedPageState :loading="query.isPending.value" :error="query.error.value" @retry="query.refetch">
-      <SharedEmptyState v-if="plans.length === 0" class="m-(--liwan-card-pad-dense)" :title="t('financeAnalytic.plans.empty')" />
+      <SharedEmptyState icon="i-lucide-chart-pie" v-if="plans.length === 0" class="m-(--liwan-card-pad-dense)" :title="t('financeAnalytic.plans.empty')" />
       <div v-for="plan in plans" :key="plan.id" class="flex min-w-0 items-center justify-between gap-3 p-(--liwan-card-pad-dense)" :data-testid="`finance-analytic-plan-${plan.id}`">
         <div class="flex min-w-0 flex-col">
           <span class="truncate font-semibold text-highlighted">{{ plan.name }}</span>

@@ -16,7 +16,7 @@ const backTo = computed(() => recordParentTo(`/projects/${projectId.value}/chang
 <template>
   <SharedPageContainer>
     <SharedPageHeader :title="t('projects.changes.edit')" :back-to="backTo" :back-label="t('projects.changes.title')" />
-    <SharedPageState
+    <SharedPageState empty-icon="i-lucide-file-question"
       :loading="item.isLoading.value"
       :error="item.error.value"
       :empty="!item.isLoading.value && !item.data.value"

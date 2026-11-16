@@ -24,7 +24,7 @@ const canManage = computed(() => project.value?.can_manage ?? false)
     <SharedPageHeader
       :title="t('projects.settings.title')"
     />
-    <SharedPageState
+    <SharedPageState empty-icon="i-lucide-file-question"
       :loading="!project && !error && (isLoading || !hydrated)"
       :error="error"
       :empty="hydrated && !isLoading && !error && !project"

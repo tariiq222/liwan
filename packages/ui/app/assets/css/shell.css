@@ -82,6 +82,21 @@
 .liwan-side-swap-enter-from { opacity: 0; translate: calc(var(--liwan-motion-inline-distance) * var(--liwan-inline-sign)) 0; }
 .liwan-side-swap[data-mode="global"].liwan-side-swap-enter-from { translate: calc(var(--liwan-motion-inline-distance) * var(--liwan-inline-sign) * -1) 0; }
 .liwan-side-body::-webkit-scrollbar { display: none; }
+/* The application list dissolves at an edge only when rows are hidden past it. A scroll-driven animation on the scroller itself
+   grows --side-fade-start over the first 28px scrolled and shrinks --side-fade-end over the last 28px, so a list that fits
+   (no scroll range, the animations do not run) keeps both at 0 and shows no fade. Browsers without scroll timelines show the plain clip. */
+@property --side-fade-start { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@property --side-fade-end { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@keyframes liwan-side-fade-start { to { --side-fade-start: 28px; } }
+@keyframes liwan-side-fade-end { from { --side-fade-end: 28px; } to { --side-fade-end: 0px; } }
+@supports (animation-timeline: scroll()) {
+  .liwan-side-body {
+    mask-image: linear-gradient(to bottom, transparent 0, #000 var(--side-fade-start), #000 calc(100% - var(--side-fade-end)), transparent 100%);
+    animation: liwan-side-fade-start linear both, liwan-side-fade-end linear both;
+    animation-timeline: scroll(self block), scroll(self block);
+    animation-range: 0 28px, calc(100% - 28px) 100%;
+  }
+}
 .liwan-side-footer { display: grid; flex: none; gap: 2px; margin-block-start: auto; padding-block-start: 12px; border-block-start: 1px solid var(--liwan-rail-border); }
 .liwan-side-org { display: flex; align-items: center; gap: 10px; margin-block-end: 16px; padding: 8px 10px; border: 1px solid var(--liwan-rail-border); border-radius: var(--radius-control); background: var(--ui-bg); font-size: var(--text-sm); font-weight: 600; }
 .liwan-side-org [data-slot="initial"] { display: grid; width: 28px; height: 28px; flex: none; place-items: center; overflow: hidden; border-radius: var(--radius-tile); background: var(--ui-bg-muted); color: var(--liwan-ink); font-size: var(--text-sm); font-weight: 700; }
@@ -104,8 +119,10 @@
 .liwan-side-group { display: grid; gap: 2px; }
 .liwan-side-heading { display: flex; align-items: center; justify-content: space-between; padding: 18px 10px 6px; color: var(--ui-text-muted); font-size: var(--text-xs); font-weight: 600; letter-spacing: .02em; }
 .liwan-side-heading h3 { margin: 0; font: inherit; }
-.liwan-side-heading a { color: var(--liwan-rail-active-ink); font-weight: 500; text-decoration: none; }
-.liwan-side-heading a:hover { text-decoration: underline; }
+.liwan-side-action { display: inline-grid; place-items: center; width: 28px; height: 28px; margin-block: -6px; border-radius: var(--radius-control); color: var(--ui-text-muted); transition: color var(--liwan-motion-feedback), background-color var(--liwan-motion-feedback); }
+.liwan-side-action:hover { color: var(--ui-text-highlighted); background: var(--ui-bg-muted); }
+.liwan-side-action:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.liwan-sidebar[data-surface="drawer"] .liwan-side-action { width: 44px; height: 44px; margin-block: -12px; }
 
 /* Rows: 40px high, 12px radius; the open one is a surface with a 1px ring. */
 .liwan-side-row {
@@ -115,7 +132,7 @@
   height: 40px;
   align-items: center;
   gap: 10px;
-  padding-inline: 10px;
+  padding-inline: 10px calc(10px + var(--liwan-side-end-reserve, 0px));
   border-radius: var(--radius-control);
   color: color-mix(in srgb, var(--ui-text) 82%, var(--ui-bg));
   font-size: .875rem;
@@ -133,9 +150,15 @@ button.liwan-side-row { border: 0; background: transparent; cursor: pointer; }
 .liwan-side-row[data-active="true"] [data-slot="icon"] { color: var(--app-accent, var(--liwan-rail-active-ink)); }
 /* A paid application's open row also carries a thin bar of its colour on the start edge. */
 .liwan-side-row[data-active="true"]::before { content: ""; position: absolute; inset-block: 9px; inset-inline-start: 0; width: 3px; border-radius: 3px; background: var(--app-accent, transparent); }
-.liwan-side-row [data-slot="label"] { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.liwan-side-row [data-slot="count"] { margin-inline-start: auto; border-radius: var(--radius-inner); background: var(--primary-solid); color: var(--primary-solid-foreground); padding-inline: 7px; font-size: var(--text-xs); font-weight: 600; line-height: 19px; font-variant-numeric: tabular-nums; }
-.liwan-side-row [data-slot="chevron"] { margin-inline-start: auto; color: var(--ui-text-muted); transition: rotate var(--shell-duration) var(--shell-ease); }
+/* The label takes the free space, so the count (and a chevron) sit at the row's end whatever the label length. The count is
+   `dir="ltr"` for its digits, which flips what `margin-inline-start: auto` means on it, so it must not position itself. */
+.liwan-side-row [data-slot="label"] { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.liwan-side-row [data-slot="count"] { flex: none; min-width: 24px; text-align: right; border-radius: var(--radius-inner); background: var(--primary-solid); color: var(--primary-solid-foreground); padding-inline: 7px; font-size: var(--text-xs); font-weight: 600; line-height: 19px; font-variant-numeric: tabular-nums; }
+/* When any row of the menu carries a chevron, the rows without one reserve the chevron's slot (16px + the 10px gap), so every
+   count lands in one column: right before the chevron on expandable rows, in the same place on the others. */
+.liwan-sidebar:has(.liwan-side-row [data-slot="chevron"]) { --liwan-side-end-reserve: 26px; }
+.liwan-side-row:has([data-slot="chevron"]) { --liwan-side-end-reserve: 0px; }
+.liwan-side-row [data-slot="chevron"] { color: var(--ui-text-muted); transition: rotate var(--shell-duration) var(--shell-ease); }
 .liwan-side-row[aria-expanded="true"] [data-slot="chevron"] { rotate: 180deg; }
 /* The create action reads as a link: the label and the icon take the brand link colour. */
 .liwan-side-row[data-primary="true"] { color: var(--brand-link); font-weight: 600; }

@@ -53,14 +53,18 @@ const toolDisabled = (kind: string) => locked.value || !draft.value.enabled || (
     <UFormField v-if="!agent.memory_fixed" orientation="horizontal" :label="t('ai.settings.agents.memory')" :name="`${agent.key}-memory`" :description="t('ai.settings.agents.memoryHint')">
       <USwitch v-model="draft.memory" :disabled="locked || !draft.enabled" :aria-label="t('ai.settings.agents.memory')" />
     </UFormField>
-    <UFormField v-if="roles !== null" orientation="horizontal" :label="t('ai.settings.agents.roles')" :name="`${agent.key}-roles`" :description="t('ai.settings.agents.rolesHint')">
-      <USelectMenu v-model="draft.role_ids" multiple value-key="value" class="w-full" :items="roleItems" :disabled="locked || !draft.enabled" :placeholder="t('ai.settings.agents.allRoles')" :aria-label="t('ai.settings.agents.roles')" />
-    </UFormField>
+    <div v-if="roles !== null" class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
+      <UFormField :label="t('ai.settings.agents.roles')" :name="`${agent.key}-roles`" :help="t('ai.settings.agents.rolesHint')">
+        <USelectMenu v-model="draft.role_ids" multiple value-key="value" class="w-full" :items="roleItems" :disabled="locked || !draft.enabled" :placeholder="t('ai.settings.agents.allRoles')" :aria-label="t('ai.settings.agents.roles')" />
+      </UFormField>
+    </div>
     <div class="grid gap-3" role="group" :aria-label="t('ai.settings.agents.tools')">
       <h3 class="text-sm font-medium">{{ t('ai.settings.agents.tools') }}</h3>
-      <UFormField v-for="tool in agent.tools" :key="tool.name" orientation="horizontal" :label="text(tool.description)" :name="tool.name" :description="t(`ai.settings.agents.kind.${tool.kind}`)">
-        <USelect v-model="draft.tools[tool.name]" class="w-full" :items="modes" :disabled="toolDisabled(tool.kind)" :aria-label="text(tool.description)" />
-      </UFormField>
+      <div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
+        <UFormField v-for="tool in agent.tools" :key="tool.name" :label="text(tool.description)" :name="tool.name" :help="t(`ai.settings.agents.kind.${tool.kind}`)">
+          <USelect v-model="draft.tools[tool.name]" class="w-full" :items="modes" :disabled="toolDisabled(tool.kind)" :aria-label="text(tool.description)" />
+        </UFormField>
+      </div>
     </div>
   </SharedSettingsCard>
 </template>

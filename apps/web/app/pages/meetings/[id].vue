@@ -247,7 +247,7 @@ function displayValue(value: string | null | undefined) {
             <div class="grid min-w-0 gap-3">
               <UAlert v-if="doneWithoutSnapshot" color="neutral" variant="subtle" icon="i-lucide-info" :title="`${t('meetingsUx.historyUnavailable')} ${t('meetingsUx.currentContentAfterMissingHistory')}`" />
               <SharedRichText v-if="richTextHasContent(historicalSnapshot ? historicalSnapshot.agenda : query.data.value.agenda)" :html="historicalSnapshot ? historicalSnapshot.agenda : query.data.value.agenda" size="sm" />
-              <SharedEmptyState v-else :title="t('meetingsUi.emptyAgenda')" />
+              <SharedEmptyState icon="i-lucide-list-checks" v-else :title="t('meetingsUi.emptyAgenda')" />
             </div>
           </SharedRecordSection>
         </template>
@@ -268,11 +268,11 @@ function displayValue(value: string | null | undefined) {
             <div class="grid min-w-0 gap-3">
               <UAlert v-if="doneWithoutSnapshot" color="neutral" variant="subtle" icon="i-lucide-info" :title="`${t('meetingsUx.historyUnavailable')} ${t('meetingsUx.currentContentAfterMissingHistory')}`" />
               <SharedRichText v-if="richTextHasContent(query.data.value.minutes)" :html="query.data.value.minutes" size="sm" />
-              <SharedEmptyState v-else :title="t('meetingsUi.emptyMinutes')" />
+              <SharedEmptyState icon="i-lucide-file-text" v-else :title="t('meetingsUi.emptyMinutes')" />
             </div>
           </SharedRecordSection>
           <SharedRecordSection v-if="historicalSnapshot" id="meeting-snapshot" variant="list" :title="t('meetingsUx.historicalDecisionStates')" :description="t('meetingsUx.historicalMinutesTitle')">
-            <div v-if="!historicalSnapshot.resolutions.length" class="p-(--liwan-card-pad)"><SharedEmptyState :title="t('meetingsUi.emptyResolutions')" /></div>
+            <div v-if="!historicalSnapshot.resolutions.length" class="p-(--liwan-card-pad)"><SharedEmptyState icon="i-lucide-gavel" :title="t('meetingsUi.emptyResolutions')" /></div>
             <div v-for="item in historicalSnapshot.resolutions" :key="item.id" class="grid min-w-0 gap-1 px-(--liwan-card-pad) py-3 text-sm">
               <div class="flex min-w-0 flex-wrap items-center gap-2">
                 <span class="font-semibold text-highlighted">{{ item.name }}</span>

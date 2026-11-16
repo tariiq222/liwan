@@ -47,12 +47,12 @@ const eventRows = computed(() => (events.data.value?.items ?? []).map(event => e
       </section>
       <section v-if="shows('users')" id="users" class="liwan-settings-anchor">
         <SettingsPreviewCard :title="t('access.users.title')" :all-label="t('settings.preview.allUsers')" all-to="/settings/team/users" test-id="team-users-preview">
-          <SettingsPreviewList :items="userRows" :loading="users.isLoading.value" :error="users.error.value" :empty-text="t('access.users.empty')" @retry="users.refetch" />
+          <SettingsPreviewList :items="userRows" :loading="users.isLoading.value" :error="users.error.value" :empty-text="t('access.users.empty')" empty-icon="i-lucide-users" @retry="users.refetch" />
         </SettingsPreviewCard>
       </section>
       <section v-if="shows('roles')" id="roles" class="liwan-settings-anchor">
         <SettingsPreviewCard :title="t('access.roles.title')" :all-label="t('settings.preview.allRoles')" all-to="/settings/team/roles" test-id="team-roles-preview">
-          <SettingsPreviewList :items="roleRows" :loading="roles.isLoading.value" :error="roles.error.value" :empty-text="t('access.roles.empty')" @retry="roles.refetch" />
+          <SettingsPreviewList :items="roleRows" :loading="roles.isLoading.value" :error="roles.error.value" :empty-text="t('access.roles.empty')" empty-icon="i-lucide-shield" @retry="roles.refetch" />
         </SettingsPreviewCard>
       </section>
       <section v-if="shows('access-policy')" id="access-policy" class="liwan-settings-anchor">
@@ -62,7 +62,7 @@ const eventRows = computed(() => (events.data.value?.items ?? []).map(event => e
       </section>
       <section v-if="shows('access-log')" id="access-log" class="liwan-settings-anchor">
         <SettingsPreviewCard :title="t('access.audit.title')" :all-label="t('settings.preview.allAccessLog')" all-to="/settings/team/access-log" test-id="team-access-log-preview">
-          <SettingsPreviewList :items="eventRows" :loading="events.isLoading.value" :error="events.error.value" :empty-text="t('access.audit.empty')" @retry="events.refetch" />
+          <SettingsPreviewList :items="eventRows" :loading="events.isLoading.value" :error="events.error.value" :empty-text="t('access.audit.empty')" empty-icon="i-lucide-history" @retry="events.refetch" />
         </SettingsPreviewCard>
       </section>
     </template>

@@ -33,7 +33,7 @@ const hasProperties = computed(() => !!(document.value?.expiry_date || document.
 <template>
   <SharedRecordPage :title="document?.name || t('documents.personal.label')" :back-to="backTo" :back-label="t('documents.personal.back')" :loading="employee.isLoading.value || (hasEmployee && query.isLoading.value)" :error="pageError" :keep-content="!!document" @retry="employee.error.value ? employee.refetch() : query.refetch()">
     <template v-if="document" #summary><SharedRecordNumber :value="`#${document.id}`" /></template>
-    <SharedEmptyState v-if="noEmployee" :title="t('documents.personal.noEmployee')" :description="t('documents.personal.noEmployeeHelp')" />
+    <SharedEmptyState icon="i-lucide-user-x" v-if="noEmployee" :title="t('documents.personal.noEmployee')" :description="t('documents.personal.noEmployeeHelp')" />
     <template v-if="document">
       <UAlert v-if="!document.active" color="neutral" :title="t('documents.archived')" />
       <SharedRecordSection variant="panel" :title="t('documents.body')"><DocumentReader :document="document" /></SharedRecordSection>

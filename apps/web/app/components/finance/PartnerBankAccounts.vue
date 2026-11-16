@@ -52,7 +52,7 @@ const title = (account: FinancePartnerBank) => account.bank_name || t('finance.p
     </template>
     <PartnerBankForm v-if="editing === 'new'" :partner-id="partnerId" @done="editing = null" @cancel="editing = null" />
     <SharedPageState :loading="banks.isLoading.value" :error="banks.error.value" :keep-content="items.length > 0" @retry="banks.refetch">
-      <SharedEmptyState v-if="!items.length && editing !== 'new'" class="m-(--liwan-card-pad-dense)" :title="t('finance.partners.banks.empty')" />
+      <SharedEmptyState icon="i-lucide-landmark" v-if="!items.length && editing !== 'new'" class="m-(--liwan-card-pad-dense)" :title="t('finance.partners.banks.empty')" />
       <template v-for="account in items" :key="account.id">
         <PartnerBankForm v-if="editing === account.id" :partner-id="partnerId" :account="account" @done="editing = null" @cancel="editing = null" />
         <div v-else class="grid gap-3 p-(--liwan-card-pad)" :data-testid="`finance-partner-bank-${account.id}`">

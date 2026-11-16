@@ -88,7 +88,7 @@ const showReconcile = (line: FinanceBankLine) => canReconcile.value && !line.is_
         @cancel="undoing = null"
       />
       <BankAutoMatch v-if="canReconcile && hasOpenLines" :statement-id="record.id" />
-      <SharedEmptyState v-if="!statement.lines.length" class="m-(--liwan-card-pad-dense)" :title="t('financeBank.noLines')" />
+      <SharedEmptyState icon="i-lucide-list" v-if="!statement.lines.length" class="m-(--liwan-card-pad-dense)" :title="t('financeBank.noLines')" />
       <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,560px)]">
         <SharedDataTable bare :rows="statement.lines" :columns="columns" row-key="id" :caption="t('financeBank.linesTitle')">
           <template #date-cell="{ row }"><bdi class="tabular-nums">{{ row.original.date }}</bdi></template>

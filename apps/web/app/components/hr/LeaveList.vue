@@ -189,7 +189,7 @@ const allocationsTo = { path: '/hr/leave/allocations' }
 
     <div class="liwan-page-stack">
       <SharedPageState v-if="props.personal" :loading="profile.isLoading.value" :error="profile.error.value" @retry="profile.refetch">
-        <SharedEmptyState v-if="profile.data.value === null" bordered :title="t('hr.self.noEmployee')" :description="t('hr.self.noEmployeeHint')" />
+        <SharedEmptyState icon="i-lucide-user-x" v-if="profile.data.value === null" bordered :title="t('hr.self.noEmployee')" :description="t('hr.self.noEmployeeHint')" />
       </SharedPageState>
       <section v-if="props.personal && ready" :aria-label="t('hr.leave.balancesTitle')" data-testid="hr-leave-balances">
         <!-- Hiding the figures hides the tiles only: a failed balance load still shows its error and retry. -->
@@ -209,7 +209,7 @@ const allocationsTo = { path: '/hr/leave/allocations' }
                 :progress="balance.allocated > 0 ? Math.round((balance.remaining / balance.allocated) * 100) : undefined"
               />
             </div>
-            <SharedEmptyState v-else bordered :title="t('hr.leave.noBalances')" :description="t('hr.leave.noBalancesHint')" />
+            <SharedEmptyState icon="i-lucide-calendar-days" v-else bordered :title="t('hr.leave.noBalances')" :description="t('hr.leave.noBalancesHint')" />
           </template>
         </SharedPageState>
       </section>
@@ -232,7 +232,7 @@ const allocationsTo = { path: '/hr/leave/allocations' }
           />
         </template>
         <SharedPageState :error="requests.error.value" :keep-content="items.length > 0" @retry="requests.refetch">
-          <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(`hr.leave.empty.${scope}`)" />
+          <SharedEmptyState icon="i-lucide-calendar-off" v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(`hr.leave.empty.${scope}`)" />
           <SharedDataTable
             v-else
             bare

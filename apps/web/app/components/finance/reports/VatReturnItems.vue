@@ -32,7 +32,7 @@ const dash = computed(() => t('app.notAvailable'))
       <UButton color="neutral" variant="ghost" size="sm" icon="i-lucide-x" :label="t('financeReports.vatReturn.close')" @click="emit('close')" />
     </div>
     <SharedPageState :loading="query.isPending.value" :error="query.error.value" :keep-content="items.length > 0" @retry="query.refetch">
-      <SharedEmptyState v-if="!items.length" :title="t('financeReports.vatReturn.noItems')" />
+      <SharedEmptyState icon="i-lucide-percent" v-if="!items.length" :title="t('financeReports.vatReturn.noItems')" />
       <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,640px)]">
         <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :caption="t('financeReports.vatReturn.itemsCaption')">
           <template #date-cell="{ row }"><bdi class="tabular-nums">{{ row.original.date }}</bdi></template>

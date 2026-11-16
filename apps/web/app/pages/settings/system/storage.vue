@@ -96,7 +96,7 @@ const stateLabel = (overLimit: boolean) => t(overLimit ? 'settings.storage.overL
         <template #filters>
           <SharedSegmentedControl :label="t('settings.storage.filter')" :items="filters" :model-value="filter" @update:model-value="setFilter" />
         </template>
-        <SharedEmptyState v-if="inventory && !rows.length" class="m-(--liwan-card-pad)" :title="t('settings.storage.empty')" />
+        <SharedEmptyState icon="i-lucide-hard-drive" v-if="inventory && !rows.length" class="m-(--liwan-card-pad)" :title="t('settings.storage.empty')" />
         <SharedDataTable v-else bare :rows="rows" :columns="columns" row-key="id" :caption="t('settings.storage.title')" :loading="query.isLoading.value" :error="query.error.value" @retry="query.refetch()">
           <template #name-cell="{ row }"><bdi class="break-words font-medium">{{ row.original.name }}</bdi></template>
           <template #size_bytes-cell="{ row }">{{ bytes(row.original.size_bytes) }}</template>

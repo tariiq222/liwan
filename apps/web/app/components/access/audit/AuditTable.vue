@@ -34,7 +34,7 @@ const columns = computed<TableColumn<AccessAuditSummary>[]>(() => [
 </script>
 
 <template>
-  <SharedEmptyState v-if="!loading && !error && !events.length" class="m-(--liwan-card-pad-dense)" :title="emptyText ?? t('app.noResults')" />
+  <SharedEmptyState icon="i-lucide-history" v-if="!loading && !error && !events.length" class="m-(--liwan-card-pad-dense)" :title="emptyText ?? t('app.noResults')" />
   <SharedDataTable
     v-else
     bare

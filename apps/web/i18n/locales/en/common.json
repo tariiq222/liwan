@@ -21,6 +21,7 @@
     "search": "Search",
     "confirm": "Confirm",
     "save": "Save",
+    "fieldHelp": "Help",
     "settingsConflict": "Someone else changed these settings after you opened the page. Load the current values, then make your change again.",
     "list": {
       "newName": "New name"
@@ -396,7 +397,7 @@
   },
   "launcher": {
     "title": "All apps",
-    "subtitle": "Pin up to {count} apps to show in your sidebar.",
+    "subtitle": "Pin the apps you want to show in your sidebar.",
     "included": {
       "title": "Core",
       "subtitle": "Included with the Liwan platform."
@@ -435,7 +436,6 @@
     "openShort": "Open",
     "pin": "Pin to the rail",
     "unpin": "Remove from the rail",
-    "pinLimit": "You can pin up to 6 applications",
     "apps": {
       "appointments": {
         "description": "Customer bookings in one calendar."

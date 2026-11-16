@@ -138,7 +138,7 @@ async function submit() {
     <SharedFormSection panel :title="t('financeBank.import.fileSection')">
       <div class="liwan-auto-grid gap-4">
         <UFormField :label="t('financeBank.form.journal')" name="finance-bank-import-journal" required class="liwan-span-full">
-          <SharedPageState :loading="journals.isLoading.value" :error="journals.error.value" :empty="!journals.isLoading.value && !journalItems.length" :empty-text="t('financeBank.form.noJournals')" @retry="journals.refetch">
+          <SharedPageState empty-icon="i-lucide-notebook" :loading="journals.isLoading.value" :error="journals.error.value" :empty="!journals.isLoading.value && !journalItems.length" :empty-text="t('financeBank.form.noJournals')" @retry="journals.refetch">
             <USelect id="finance-bank-import-journal" :model-value="draft.journalId ?? undefined" :items="journalItems" class="w-full" :disabled="!hydrated || pending" @update:model-value="value => { draft.journalId = Number(value); reset() }" />
           </SharedPageState>
         </UFormField>

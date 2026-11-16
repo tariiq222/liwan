@@ -225,7 +225,7 @@ function openLiveTask(_event: MouseEvent, task: (typeof items.value)[number]) { 
         <template #deadline-cell="{ row }"><MyTaskRow :task="row.original" :to="rowTo(row.original)" :today="today" part="deadline" /></template>
         <template #assignees-cell="{ row }"><MyTaskRow :task="row.original" :to="rowTo(row.original)" :today="today" part="assignees" /></template>
       </SharedDataTable>
-      <SharedPageState v-else :loading="query.isLoading.value" :error="query.error.value" :keep-content="items.length > 0" :empty="!items.length" :empty-text="emptyText" @retry="query.refetch()">
+      <SharedPageState :empty-icon="state.q ? 'i-lucide-filter-x' : 'i-lucide-check-square'" v-else :loading="query.isLoading.value" :error="query.error.value" :keep-content="items.length > 0" :empty="!items.length" :empty-text="emptyText" @retry="query.refetch()">
         <template v-if="showEmptyAction" #emptyAction>
           <UButton v-if="state.q || state.scope !== 'all'" type="button" color="neutral" variant="outline" :label="t('filterCard.clear')" :disabled="!hydrated" @click="clearFilters" />
           <UButton v-else :to="createTo" icon="i-lucide-plus" :label="t('myTasks.new')" />

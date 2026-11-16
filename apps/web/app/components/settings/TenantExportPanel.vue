@@ -66,7 +66,7 @@ const countsLabel = (counts: TenantExport['counts']) => counts
       </div>
     </SharedRecordSection>
     <SharedRecordSection variant="list" :title="t('settings.tenantExport.history')">
-      <SharedEmptyState v-if="!loading && !error && !exports.length" class="m-(--liwan-card-pad)" :title="t('settings.tenantExport.empty')" data-testid="tenant-export-empty" />
+      <SharedEmptyState icon="i-lucide-download" v-if="!loading && !error && !exports.length" class="m-(--liwan-card-pad)" :title="t('settings.tenantExport.empty')" data-testid="tenant-export-empty" />
       <SharedDataTable v-else bare :rows="exports" :columns="columns" row-key="id" :caption="t('settings.tenantExport.history')" :loading="loading" :error="error" @retry="emit('retry')">
         <template #state-cell="{ row }">
           <div class="grid gap-1">

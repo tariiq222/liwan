@@ -17,7 +17,7 @@ const currency = computed(() => setup.data.value?.company.currency)
 </script>
 
 <template>
-  <SharedPageState :loading="years.isLoading.value" :error="years.error.value" :empty="!items.length" :empty-text="t('financeGovernance.closing.empty')" @retry="years.refetch">
+  <SharedPageState empty-icon="i-lucide-calendar-check" :loading="years.isLoading.value" :error="years.error.value" :empty="!items.length" :empty-text="t('financeGovernance.closing.empty')" @retry="years.refetch">
     <div class="grid gap-(--liwan-gap-card)">
       <ClosingYears :years="items" :currency="currency" :selected="selected" />
       <ClosingPreview v-if="selected" :year="selected" :currency="currency" />

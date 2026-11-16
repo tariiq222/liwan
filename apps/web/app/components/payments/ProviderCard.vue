@@ -213,23 +213,26 @@ function credentialLabel(field: string): string {
       <UAlert v-else role="alert" color="error" variant="subtle" :title="t('payments.mode.failed')" :description="modeFailure || undefined" data-testid="payments-mode-error" />
     </div>
 
-    <UFormField v-if="countries.length" orientation="horizontal" :label="t('payments.country.label')" :description="t('payments.country.hint')">
+    <div v-if="countries.length" class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
+      <UFormField :label="t('payments.country.label')" :help="t('payments.country.hint')">
       <USelect
         :id="`${idBase}-country`"
         :model-value="draft.account_country ?? undefined"
         :items="countries"
         :disabled="locked"
-        class="w-full sm:w-64"
+        class="w-full"
         data-testid="payments-country"
         @update:model-value="draft.account_country = $event"
       />
-    </UFormField>
+      </UFormField>
+    </div>
 
     <div>
       <h3 class="text-sm font-semibold text-highlighted">{{ t('payments.credentials.title') }}</h3>
       <p class="mt-1 text-sm text-muted">{{ t('payments.credentials.hint', { gateway: provider.name }) }}</p>
     </div>
-    <UFormField v-for="credential in provider.credentials" :key="credential.field" orientation="horizontal" :name="credential.field" :label="credentialLabel(credential.field)" :error="fieldErrors[credential.field]">
+    <div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
+    <UFormField v-for="credential in provider.credentials" :key="credential.field" :name="credential.field" :label="credentialLabel(credential.field)" :error="fieldErrors[credential.field]">
       <template #hint>
         <SharedStatusBadge size="sm" :tone="credential.present ? 'success' : 'neutral'" :label="t(credential.present ? 'payments.credentials.present' : 'payments.credentials.absent')" :data-testid="`payments-present-${credential.field}`" />
       </template>
@@ -245,6 +248,7 @@ function credentialLabel(field: string): string {
         :data-testid="`payments-credential-${credential.field}`"
       />
     </UFormField>
+    </div>
     <p v-if="testHint" class="text-sm text-muted">{{ testHint }}</p>
     <UAlert v-if="outcome" role="status" :color="outcome.color" variant="subtle" :title="t(outcome.titleKey)" :description="t(outcome.descriptionKey)" :data-testid="`payments-sync-${syncOutcome}`" />
     <UAlert v-if="syncFailure !== null" role="alert" color="error" variant="subtle" :title="t('payments.sync.failed')" :description="syncFailure || undefined" data-testid="payments-sync-error" />

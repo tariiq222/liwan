@@ -11,7 +11,7 @@ const { t } = useI18n()
 
 <template>
   <SharedRecordSection variant="panel" :title="t('crm.dashboard.manager.conversionTitle')" :description="t('crm.dashboard.manager.conversionHint')" data-testid="crm-conversion">
-    <SharedEmptyState v-if="!sources.length" :title="t('crm.dashboard.manager.conversionEmpty')" />
+    <SharedEmptyState icon="i-lucide-chart-column" v-if="!sources.length" :title="t('crm.dashboard.manager.conversionEmpty')" />
     <ul v-else class="grid gap-4">
       <li v-for="source in sources" :key="source.source_id ?? 'none'" class="grid gap-1.5">
         <div class="flex min-w-0 items-baseline justify-between gap-3 text-sm">

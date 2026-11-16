@@ -59,7 +59,7 @@ const emptyText = computed(() => t(activeCount.value ? 'app.noResults' : state.v
         </SharedFilterBar>
       </template>
       <SharedPageState v-if="query.error.value && !query.data.value" :error="query.error.value" @retry="query.refetch()" />
-      <SharedEmptyState v-else-if="!query.isPending.value && !items.length" class="m-(--liwan-card-pad-dense)" :title="emptyText">
+      <SharedEmptyState :icon="activeCount ? 'i-lucide-filter-x' : 'i-lucide-package'" v-else-if="!query.isPending.value && !items.length" class="m-(--liwan-card-pad-dense)" :title="emptyText">
         <template v-if="activeCount" #action><UButton color="neutral" variant="outline" size="sm" :disabled="!hydrated" :label="t('products.clear')" @click="clearFilters" /></template>
       </SharedEmptyState>
       <ProductTable v-else :rows="items" :loading="query.isPending.value" :error="null" :record-to="recordTo" @retry="query.refetch()" />

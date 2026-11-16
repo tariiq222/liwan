@@ -45,7 +45,7 @@ describe('MeetingScheduleCard', () => {
     for (const name of ['reminder_hours', 'reference_prefix']) {
       const field = template.match(new RegExp(`<UFormField[^>]*name="${name}"[^>]*>`))?.[0] ?? ''
       expect(field, name).toMatch(/\srequired[\s>]/)
-      expect(field, name).toContain(':description=')
+      expect(field, name).toContain(':help=')
     }
   })
 

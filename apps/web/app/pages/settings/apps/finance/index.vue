@@ -52,7 +52,7 @@ const ZATCA_TONE = { not_started: 'neutral', compliance_checked: 'info', onboard
     <template v-else>
     <SharedRouteTabs :items="tabItems" :ariaLabel="t('finance.settingsGroups.label')" />
     <section v-if="shows('setup')" v-show="inTab('setup')" id="setup" class="liwan-settings-anchor">
-    <SharedPageState :loading="setup.isLoading.value" :error="setup.error.value" :empty="!data" @retry="setup.refetch">
+    <SharedPageState empty-icon="i-lucide-settings" :loading="setup.isLoading.value" :error="setup.error.value" :empty="!data" @retry="setup.refetch">
       <div v-if="data" class="grid gap-(--liwan-gap-card)">
         <SharedRecordSection variant="panel" :title="t('finance.setup.stepsTitle')" :description="progress ? t('finance.overview.setupProgress', { done: progress.done, total: progress.total }) : undefined" data-testid="finance-setup-steps">
           <SetupChecklist :setup="data" />

@@ -44,6 +44,9 @@ const vatReason = computed(() => {
 })
 const fieldErrors = ref<Record<string, string>>({})
 const logoError = ref('')
+// Ids of the hidden explanation each help button's control is described by.
+const vatHelpId = useId()
+const countryHelpId = useId()
 const logoInput = ref<{ reset: () => void } | null>(null)
 
 // The fields installed applications add to this card, in the server's order.
@@ -178,59 +181,87 @@ async function onLogo(event: Event) {
 <template>
   <SharedSettingsCard :id="section" v-bind="state" :title="heading.title" :description="heading.description" :can-edit="editable" :data-testid="`company-${section}`" @save="save" @revert="revert" @reload="reload">
     <template v-if="section === 'profile'">
-      <UFormField orientation="horizontal" name="logo" :label="t('settings.company.logo')" :description="t('settings.company.logoHint')" :error="logoError || undefined">
-        <SharedFileField ref="logoInput" accept="image/png,image/jpeg" :label="t('settings.company.logoChoose')" :show-file-name="false" data-testid="company-logo" :disabled="locked || uploadLogo.isPending.value" @change="onLogo" />
-      </UFormField>
-      <UFormField orientation="horizontal" name="name" :label="t('settings.company.name')" required :error="fieldErrors.name">
-        <UInput id="company-name" v-model="fields.name.value" class="w-full" data-testid="company-name" :disabled="locked" />
-      </UFormField>
-      <UFormField orientation="horizontal" name="report_header" :label="t('settings.company.tagline')" :description="t('settings.company.taglineHint')" :error="fieldErrors.report_header">
-        <UInput id="company-tagline" v-model="fields.report_header.value" class="w-full" data-testid="company-tagline" :disabled="locked" />
-      </UFormField>
-      <UFormField orientation="horizontal" name="company_registry" :label="t('settings.company.registry')" :error="fieldErrors.company_registry">
-        <UInput id="company-registry" v-model="fields.company_registry.value" class="w-full" dir="ltr" inputmode="numeric" data-testid="company-registry" :disabled="locked" />
-      </UFormField>
-      <SharedSettingRow v-if="!taxOwnsVat" name="vat_registered" :label="t('settings.company.vatRegistered')" :description="t('settings.company.vatRegisteredHint')" :disabled-reason="vatEditable ? undefined : vatReason">
-        <USwitch id="company-vat-registered" v-model="vatRegistered" :aria-label="t('settings.company.vatRegistered')" data-testid="company-vat-registered" :disabled="vatLocked" />
+      <SharedSettingRow :label="t('settings.company.logo')" :description="t('settings.company.logoHint')">
+        <div class="flex flex-col items-end gap-1.5">
+          <SharedFileField ref="logoInput" accept="image/png,image/jpeg" :label="t('settings.company.logoChoose')" :show-file-name="false" data-testid="company-logo" :disabled="locked || uploadLogo.isPending.value" @change="onLogo" />
+          <p v-if="logoError" role="alert" class="text-sm text-error">{{ logoError }}</p>
+        </div>
       </SharedSettingRow>
-      <UFormField v-if="showVatNumber" orientation="horizontal" name="vat" :label="t('settings.company.vat')" :description="t('settings.company.vatHint')" :required="registrationOn" :error="fieldErrors.vat">
-        <UInput id="company-vat" v-model="fields.vat.value" class="w-full" dir="ltr" inputmode="numeric" data-testid="company-vat" :disabled="vatNumberLocked" />
-      </UFormField>
+      <div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
+        <UFormField name="name" :label="t('settings.company.name')" required :error="fieldErrors.name">
+          <UInput id="company-name" required v-model="fields.name.value" class="w-full" data-testid="company-name" :disabled="locked" />
+        </UFormField>
+        <UFormField name="report_header" :label="t('settings.company.tagline')" :error="fieldErrors.report_header">
+          <UInput id="company-tagline" v-model="fields.report_header.value" class="w-full" :placeholder="t('settings.company.taglineHint')" data-testid="company-tagline" :disabled="locked" />
+        </UFormField>
+        <UFormField name="company_registry" :label="t('settings.company.registry')" :error="fieldErrors.company_registry">
+          <UInput id="company-registry" v-model="fields.company_registry.value" class="w-full" dir="ltr" inputmode="numeric" data-testid="company-registry" :disabled="locked" />
+        </UFormField>
+        <CompanyExtensionField v-for="extension in extensions" :key="extension.name" :extension="extension" :model-value="extensionValue(extension.name)" :error="fieldErrors[extension.name]" :disabled="locked" @update:model-value="setField(extension.name, $event)" />
+        <!-- A switch that gates one field is a cell: the VAT number opens in the next cell. The switch sits on the height of an input beside it. -->
+        <UFormField v-if="!taxOwnsVat" name="vat_registered" :label="t('settings.company.vatRegistered')" :help="vatEditable ? undefined : vatReason">
+          <template #hint>
+            <!-- The help button becomes a shared `SharedFieldHelp` when the rule is rolled out. On focus the control is announced with its label, its state and this explanation as its description: the `hidden` copy below is the one node the control's aria-describedby points at (an element hidden with display:none is still used when referenced directly, and it stays out of browse mode, so nothing is read twice). Nuxt UI only wires the field's hint, help and error ids itself, and only when the `hint` PROP is set, so the description is passed to the control explicitly. The button's own name is "field help: <label>"; the popover copy appears only after the user opens it. -->
+            <UPopover :content="{ side: 'top', align: 'end' }">
+              <UButton type="button" class="liwan-setting-help" color="neutral" variant="link" size="xs" square icon="i-lucide-circle-help" :aria-label="`${t('app.fieldHelp')}: ${t('settings.company.vatRegistered')}`" data-testid="company-vat-registered-help" />
+              <template #content>
+                <p class="max-w-64 p-3 text-sm text-default" data-testid="company-vat-registered-help-text">{{ t('settings.company.vatRegisteredHint') }}</p>
+              </template>
+            </UPopover>
+            <span :id="vatHelpId" class="hidden">{{ t('settings.company.vatRegisteredHint') }}</span>
+          </template>
+          <div class="flex min-h-(--liwan-control-h) items-center">
+            <USwitch id="company-vat-registered" v-model="vatRegistered" :aria-label="t('settings.company.vatRegistered')" :aria-describedby="vatHelpId" data-testid="company-vat-registered" :disabled="vatLocked" />
+          </div>
+        </UFormField>
+        <UFormField v-if="showVatNumber" name="vat" :label="t('settings.company.vat')" :help="t('settings.company.vatHint')" :required="registrationOn" :error="fieldErrors.vat">
+          <UInput id="company-vat" v-model="fields.vat.value" class="w-full" dir="ltr" inputmode="numeric" :required="registrationOn" data-testid="company-vat" :disabled="vatNumberLocked" />
+        </UFormField>
+      </div>
     </template>
 
-    <template v-else-if="section === 'address'">
-      <SharedSettingRow name="country_id" :label="t('settings.company.country')" :description="t('settings.company.countryFixed')">
-        <UInput id="company-country" :model-value="country?.name ?? ''" class="w-full" data-testid="company-country" readonly disabled />
-      </SharedSettingRow>
-      <UFormField orientation="horizontal" name="state_id" :label="t('settings.company.state')" :error="fieldErrors.state_id">
-        <USelectMenu id="company-state" :model-value="(draft.state_id as number | null) ?? undefined" class="w-full" value-key="value" :items="stateItems" data-testid="company-state" :disabled="locked || !countryId" @update:model-value="setField('state_id', $event as number | undefined)" />
-      </UFormField>
-      <UFormField orientation="horizontal" name="city" :label="t('settings.company.city')" :error="fieldErrors.city">
-        <UInput id="company-city" v-model="fields.city.value" class="w-full" data-testid="company-city" :disabled="locked" />
-      </UFormField>
-      <UFormField orientation="horizontal" name="street2" :label="t('settings.company.district')" :error="fieldErrors.street2">
-        <UInput id="company-district" v-model="fields.street2.value" class="w-full" data-testid="company-district" :disabled="locked" />
-      </UFormField>
-      <UFormField orientation="horizontal" name="street" :label="t('settings.company.street')" :error="fieldErrors.street">
-        <UInput id="company-street" v-model="fields.street.value" class="w-full" data-testid="company-street" :disabled="locked" />
-      </UFormField>
-      <UFormField orientation="horizontal" name="zip" :label="t('settings.company.zip')" :error="fieldErrors.zip">
-        <UInput id="company-zip" v-model="fields.zip.value" class="w-full" dir="ltr" inputmode="numeric" data-testid="company-zip" :disabled="locked" />
-      </UFormField>
-    </template>
-
-    <template v-else>
-      <UFormField orientation="horizontal" name="email" :label="t('settings.company.email')" :error="fieldErrors.email">
-        <UInput id="company-email" v-model="fields.email.value" type="email" class="w-full" dir="ltr" data-testid="company-email" :disabled="locked" />
-      </UFormField>
-      <UFormField orientation="horizontal" name="phone" :label="t('settings.company.phone')" :error="fieldErrors.phone">
-        <UInput id="company-phone" v-model="fields.phone.value" type="tel" class="w-full" dir="ltr" data-testid="company-phone" :disabled="locked" />
-      </UFormField>
-      <UFormField orientation="horizontal" name="website" :label="t('settings.company.website')" :error="fieldErrors.website">
-        <UInput id="company-website" v-model="fields.website.value" type="url" class="w-full" dir="ltr" data-testid="company-website" :disabled="locked" />
-      </UFormField>
-    </template>
-
-    <CompanyExtensionField v-for="extension in extensions" :key="extension.name" :extension="extension" :model-value="extensionValue(extension.name)" :error="fieldErrors[extension.name]" :disabled="locked" @update:model-value="setField(extension.name, $event)" />
+    <div v-else class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
+      <template v-if="section === 'address'">
+        <UFormField name="country_id" :label="t('settings.company.country')">
+          <template #hint>
+            <UPopover :content="{ side: 'top', align: 'end' }">
+              <UButton type="button" class="liwan-setting-help" color="neutral" variant="link" size="xs" square icon="i-lucide-circle-help" :aria-label="`${t('app.fieldHelp')}: ${t('settings.company.country')}`" data-testid="company-country-help" />
+              <template #content>
+                <p class="max-w-64 p-3 text-sm text-default" data-testid="company-country-help-text">{{ t('settings.company.countryFixed') }}</p>
+              </template>
+            </UPopover>
+            <span :id="countryHelpId" class="hidden">{{ t('settings.company.countryFixed') }}</span>
+          </template>
+          <UInput id="company-country" :aria-describedby="countryHelpId" :model-value="country?.name ?? ''" class="w-full" data-testid="company-country" readonly disabled />
+        </UFormField>
+        <UFormField name="state_id" :label="t('settings.company.state')" :error="fieldErrors.state_id">
+          <USelectMenu id="company-state" :model-value="(draft.state_id as number | null) ?? undefined" class="w-full" value-key="value" :items="stateItems" data-testid="company-state" :disabled="locked || !countryId" @update:model-value="setField('state_id', $event as number | undefined)" />
+        </UFormField>
+        <UFormField name="city" :label="t('settings.company.city')" :error="fieldErrors.city">
+          <UInput id="company-city" v-model="fields.city.value" class="w-full" data-testid="company-city" :disabled="locked" />
+        </UFormField>
+        <UFormField name="street2" :label="t('settings.company.district')" :error="fieldErrors.street2">
+          <UInput id="company-district" v-model="fields.street2.value" class="w-full" data-testid="company-district" :disabled="locked" />
+        </UFormField>
+        <UFormField name="street" :label="t('settings.company.street')" :error="fieldErrors.street">
+          <UInput id="company-street" v-model="fields.street.value" class="w-full" data-testid="company-street" :disabled="locked" />
+        </UFormField>
+        <UFormField name="zip" :label="t('settings.company.zip')" :error="fieldErrors.zip">
+          <UInput id="company-zip" v-model="fields.zip.value" class="w-full" dir="ltr" inputmode="numeric" data-testid="company-zip" :disabled="locked" />
+        </UFormField>
+      </template>
+      <template v-else>
+        <UFormField name="email" :label="t('settings.company.email')" :error="fieldErrors.email">
+          <UInput id="company-email" v-model="fields.email.value" type="email" class="w-full" dir="ltr" data-testid="company-email" :disabled="locked" />
+        </UFormField>
+        <UFormField name="phone" :label="t('settings.company.phone')" :error="fieldErrors.phone">
+          <UInput id="company-phone" v-model="fields.phone.value" type="tel" class="w-full" dir="ltr" data-testid="company-phone" :disabled="locked" />
+        </UFormField>
+        <UFormField name="website" :label="t('settings.company.website')" :error="fieldErrors.website">
+          <UInput id="company-website" v-model="fields.website.value" type="url" class="w-full" dir="ltr" data-testid="company-website" :disabled="locked" />
+        </UFormField>
+      </template>
+      <CompanyExtensionField v-for="extension in extensions" :key="extension.name" :extension="extension" :model-value="extensionValue(extension.name)" :error="fieldErrors[extension.name]" :disabled="locked" @update:model-value="setField(extension.name, $event)" />
+    </div>
   </SharedSettingsCard>
 </template>

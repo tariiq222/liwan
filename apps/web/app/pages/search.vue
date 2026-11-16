@@ -51,7 +51,7 @@ useEventListener('keydown', (event: KeyboardEvent) => {
 <template>
   <SharedRecordPage data-testid="search-page" :title="t('app.search')" :back-to="backTo">
     <UInput id="navigation-search" data-shortcut-search v-model="query" class="w-full" size="lg" icon="i-lucide-search" :placeholder="t('nav.typeToNavigate')" :aria-label="t('nav.typeToNavigate')" />
-    <SharedEmptyState v-if="noResults" bordered :title="t('app.noResults')" />
+    <SharedEmptyState icon="i-lucide-filter-x" v-if="noResults" bordered :title="t('app.noResults')" />
     <div v-else ref="resultsEl">
     <SharedListCard>
       <template v-if="providerItems.length > 1" #filters>

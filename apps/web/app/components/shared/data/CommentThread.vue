@@ -18,7 +18,7 @@ defineEmits<{ retry: [] }>()
 
 <template>
   <div class="space-y-3">
-    <SharedPageState :loading="loading" :error="error" :empty="!props.comments.length" :empty-text="emptyText" @retry="$emit('retry')">
+    <SharedPageState empty-icon="i-lucide-message-square" :loading="loading" :error="error" :empty="!props.comments.length" :empty-text="emptyText" @retry="$emit('retry')">
       <ul class="divide-y divide-default">
         <li v-for="comment in props.comments" :key="comment.id" class="grid gap-1 py-3">
           <div class="flex flex-wrap items-baseline gap-x-2 text-xs text-muted">

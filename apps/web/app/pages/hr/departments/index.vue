@@ -95,7 +95,7 @@ async function confirmDelete() {
         @confirm="confirmDelete"
         @cancel="deleting = null"
       />
-      <SharedPageState v-if="query.isLoading.value || query.error.value || !departments.length" class="m-(--liwan-card-pad-dense)" :loading="query.isLoading.value" :error="query.error.value" :empty="!departments.length" @retry="query.refetch" />
+      <SharedPageState empty-icon="i-lucide-network" v-if="query.isLoading.value || query.error.value || !departments.length" class="m-(--liwan-card-pad-dense)" :loading="query.isLoading.value" :error="query.error.value" :empty="!departments.length" @retry="query.refetch" />
       <DepartmentOrgChart v-else-if="canvasView" :roots="roots" :query="search" :hydrated="hydrated" :return-to="route.fullPath" />
       <DepartmentTree v-else-if="treeView" :roots="roots" :query="search" :hydrated="hydrated" :can-manage="can('hr.departments.manage')" :can-read-employees="can('hr.employees.read')" :can-read-documents="can('documents.items.read')" @select="openDepartment" @edit="editDepartment" @create-child="createChild" />
       <DepartmentTable v-else :departments="filtered" :can-manage="can('hr.departments.manage')" @delete="askDelete" />

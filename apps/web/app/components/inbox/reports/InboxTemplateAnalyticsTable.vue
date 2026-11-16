@@ -30,7 +30,7 @@ const rowTo = (row: Row) => ({ path: `/inbox/reports/templates/${row.template.id
   <SharedRecordSection variant="list" :title="t('inbox.reports.templates.title')" :description="t('inbox.reports.templates.hint')" data-testid="inbox-template-analytics">
     <SharedPageState v-if="error" class="m-4" :error="error" @retry="emit('retry')" />
     <SharedLoadingSkeleton v-else-if="loading" class="m-4" />
-    <SharedEmptyState v-else-if="!rows.length" bordered class="m-4" :title="t('inbox.reports.templates.empty')" :description="t('inbox.reports.templates.emptyHint')" />
+    <SharedEmptyState icon="i-lucide-chart-column" v-else-if="!rows.length" bordered class="m-4" :title="t('inbox.reports.templates.empty')" :description="t('inbox.reports.templates.emptyHint')" />
     <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,900px)]">
       <SharedDataTable bare :rows="[...rows]" :columns="columns" :row-key="(row: Row) => row.template.id" :caption="t('inbox.reports.templates.caption')">
         <template #template-cell="{ row }">

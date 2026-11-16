@@ -44,17 +44,19 @@ const stageItems = computed(() => (stages.data.value?.items ?? [])
 
 <template>
   <SharedSettingsCard id="distribution" v-bind="state" :title="t('crm.settings.distribution.title')" :description="t('crm.settings.distribution.hint')" :can-edit="canEdit" @save="save" @revert="revert" @reload="reload">
-    <SharedSettingRow :label="t('crm.settings.distribution.mode')" name="distribution-mode" :description="modeHint">
-      <USelect id="distribution-mode" v-model="draft.distribution_mode" class="w-full min-w-44" :items="modeItems" :disabled="locked" />
-    </SharedSettingRow>
-    <SharedSettingRow :label="t('crm.settings.distribution.members')" name="distribution-members" :description="t('crm.settings.distribution.membersHint')">
-      <SharedPersonPicker id="distribution-members" v-model="members" multiple value-key="user_id" :known="props.settings.distribution_users" :disabled="locked" />
-    </SharedSettingRow>
-    <SharedSettingRow :label="t('crm.settings.distribution.startStage')" name="start-stage-mode" :description="t('crm.settings.distribution.startStageHint')">
-      <USelect id="start-stage-mode" :model-value="draft.start_stage_mode" class="w-full min-w-44" :items="startModeItems" :disabled="locked" @update:model-value="value => { draft.start_stage_mode = value as 'auto' | 'stage'; if (value === 'auto') draft.start_stage_id = null }" />
-    </SharedSettingRow>
-    <SharedSettingRow v-if="draft.start_stage_mode === 'stage'" :label="t('crm.settings.distribution.startStageChosen')" name="start-stage-id">
-      <USelect id="start-stage-id" :model-value="draft.start_stage_id ?? undefined" class="w-full min-w-44" :items="stageItems" :disabled="locked" @update:model-value="value => (draft.start_stage_id = value ?? null)" />
-    </SharedSettingRow>
+    <div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
+      <UFormField :label="t('crm.settings.distribution.mode')" name="distribution-mode" :help="modeHint">
+        <USelect id="distribution-mode" v-model="draft.distribution_mode" class="w-full" :items="modeItems" :disabled="locked" />
+      </UFormField>
+      <UFormField :label="t('crm.settings.distribution.members')" name="distribution-members" :help="t('crm.settings.distribution.membersHint')">
+        <SharedPersonPicker id="distribution-members" v-model="members" multiple value-key="user_id" :known="props.settings.distribution_users" :disabled="locked" />
+      </UFormField>
+      <UFormField :label="t('crm.settings.distribution.startStage')" name="start-stage-mode" :help="t('crm.settings.distribution.startStageHint')">
+        <USelect id="start-stage-mode" :model-value="draft.start_stage_mode" class="w-full" :items="startModeItems" :disabled="locked" @update:model-value="value => { draft.start_stage_mode = value as 'auto' | 'stage'; if (value === 'auto') draft.start_stage_id = null }" />
+      </UFormField>
+      <UFormField v-if="draft.start_stage_mode === 'stage'" :label="t('crm.settings.distribution.startStageChosen')" name="start-stage-id">
+        <USelect id="start-stage-id" :model-value="draft.start_stage_id ?? undefined" class="w-full" :items="stageItems" :disabled="locked" @update:model-value="value => (draft.start_stage_id = value ?? null)" />
+      </UFormField>
+    </div>
   </SharedSettingsCard>
 </template>

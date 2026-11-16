@@ -130,7 +130,7 @@ function jobTo(job: HrRecruitmentJob) {
       </template>
 
       <SharedPageState :error="jobs.error.value" :keep-content="items.length > 0" @retry="jobs.refetch">
-        <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('hrRecruitment.jobs.emptyTitle')" :description="t('hrRecruitment.jobs.emptyHint')" />
+        <SharedEmptyState icon="i-lucide-briefcase" v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('hrRecruitment.jobs.emptyTitle')" :description="t('hrRecruitment.jobs.emptyHint')" />
         <SharedDataTable
           v-else
           bare

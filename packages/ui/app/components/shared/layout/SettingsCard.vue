@@ -1,17 +1,20 @@
 <script setup lang="ts">
 /*
- * One card of a settings page (DESIGN.md §6): the panel card with a stable anchor `id` and its fields as horizontal rows
- * (`.liwan-setting-rows`). Inside a settings page the card has no footer of its own: it registers with the page's
+ * One card of a settings page (DESIGN.md §6): the panel card with a stable anchor `id` and its content as rows (`.liwan-setting-rows`):
+ * a decision is a `SharedSettingRow`, and data-entry fields sit in a block `<div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">`
+ * of vertical `UFormField`s in equal cells (label, then control; a text field's hint is its placeholder, a hint that cannot be one is a help button in the label's hint slot; one, two, three, then four columns as the card widens), one block per card; a switch that gates one field is a cell followed by that field; a switch with no dependent field, and file pickers, are `SharedSettingRow` rows. Inside a settings page the card has no footer of its own: it registers with the page's
  * `useSettingsSave` registry and the page's one `SharedSettingsSaveBar` saves and reverts every edited card, so the card
  * only shows an «Unsaved» badge while it has edits. Outside a settings page, and for an action card with its own `saveLabel`
  * (applying a preset, which needs its own confirm), the card keeps its footer of «Revert» and «Save changes».
  * A viewer who may not edit sees the same fields disabled, a «View only» badge and no footer. A failed save shows inside
  * the card; a 409 locks the card until the manager reloads the current values, so a stale draft never overwrites a change
- * made elsewhere. The state comes from the page's form composable; the card only draws it. UForm's own submit loading is
- * off: it would disable every field for a tick, so a card could not move focus to its first invalid field.
+ * made elsewhere. The state comes from the page's form composable; the card only draws it. When a save fails, the card
+ * moves focus to its first `aria-invalid` control once the DOM has updated (`focusFirstInvalidControl`), which makes
+ * the screen reader read that field's error; the page bar's «save all» asks only the first failing card to do so.
+ * UForm's own submit loading is off: it would disable every field for a tick, so the control could not take focus.
  */
-import { reactive, watch, watchEffect } from 'vue'
-import { useSettingsSaveRegistry, type SettingsSaveEntry } from '../../../composables/useSettingsSave'
+import { nextTick, reactive, useTemplateRef, watch, watchEffect } from 'vue'
+import { focusFirstInvalidControl, useSettingsSaveRegistry, type SettingsSaveEntry } from '../../../composables/useSettingsSave'
 
 const props = withDefaults(defineProps<{
   id: string
@@ -38,16 +41,23 @@ const { t } = useI18n()
 const hydrated = useHydrated()
 const busy = computed(() => !hydrated.value || props.saving || props.reloading)
 // Resolves once the card's save handler returned and its `saving` state settled, so the next card starts afterwards.
-async function runSave() {
+// A failed save then moves focus to the card's first invalid control, unless `focus` is false (the bar saving every card).
+const form = useTemplateRef<{ $el: ParentNode }>('form')
+async function runSave(options?: { focus?: boolean }) {
   await props.onSave?.()
-  if (!props.saving) return
-  await new Promise<void>((done) => {
-    const stop = watch(() => props.saving, (saving) => {
-      if (saving) return
-      stop()
-      done()
+  if (props.saving) {
+    await new Promise<void>((done) => {
+      const stop = watch(() => props.saving, (saving) => {
+        if (saving) return
+        stop()
+        done()
+      })
     })
-  })
+  }
+  // The failure message and the field errors reach the DOM on the next render, so the control exists only after it.
+  await nextTick()
+  if (options?.focus === false || !props.message) return false
+  return focusFirstInvalidControl(form.value?.$el)
 }
 const registry = useSettingsSaveRegistry()
 // An action card with its own label owns its button and confirm, so it keeps its footer even inside a settings page.
@@ -71,7 +81,7 @@ watchEffect(() => {
 </script>
 
 <template>
-  <UForm novalidate :state="{}" :loading-auto="false" class="liwan-form" method="post" data-slot="settings-card" @submit="runSave">
+  <UForm ref="form" novalidate :state="{}" :loading-auto="false" class="liwan-form" method="post" data-slot="settings-card" @submit="runSave()">
     <SharedUnsavedChanges :dirty="canEdit && (dirty || saving)" />
     <SharedRecordSection :id="id" variant="panel" class="liwan-settings-anchor" :title="title" :description="description">
       <template v-if="!canEdit || $slots.actions || (managed && dirty)" #actions>

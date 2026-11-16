@@ -242,7 +242,7 @@ const emptiness = computed(() => summary.value
       <ProjectNotFoundState v-else-if="notFound && !list.isLoading.value" embedded />
       <template v-else>
         <FinanceSummaryCards v-if="summary && projectId" :project-id="projectId" :summary="summary" />
-        <SharedEmptyState v-if="emptiness === 'bare'" bordered :title="t('projects.finance.empty')" :description="canManage ? t('projects.finance.emptyHint') : undefined" />
+        <SharedEmptyState icon="i-lucide-wallet" v-if="emptiness === 'bare'" bordered :title="t('projects.finance.empty')" :description="canManage ? t('projects.finance.emptyHint') : undefined" />
         <SharedListCard v-else-if="emptiness === 'none'">
           <template #filters>
             <FilterBar embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
@@ -260,7 +260,7 @@ const emptiness = computed(() => summary.value
           </template>
           <SharedPageState :loading="list.isLoading.value && !list.data.value" :error="notFound || forbidden ? null : list.error.value" :empty="false" @retry="list.refetch">
             <div v-if="summary && showEmpty" class="p-(--liwan-card-pad)">
-              <SharedEmptyState :title="t('projects.finance.filteredEmpty')" :description="t('projects.finance.filteredEmptyHint')" />
+              <SharedEmptyState icon="i-lucide-filter-x" :title="t('projects.finance.filteredEmpty')" :description="t('projects.finance.filteredEmptyHint')" />
             </div>
             <FinanceEntryTable v-else-if="summary && projectId" :project-id="projectId" :items="items" :summary="summary" :is-loading="list.isLoading.value" :row-to="entryTo" :can-manage="canManage" />
           </SharedPageState>

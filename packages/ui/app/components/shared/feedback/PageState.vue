@@ -8,7 +8,7 @@ import NotFoundState from './NotFoundState.vue'
 
 // A thin facade over the shared states (Tasmim spec §6). The props and the retry
 // event its call sites use do not change; each branch is one shared state.
-const props = defineProps<{ loading?: boolean; error?: unknown; empty?: boolean; emptyText?: string; emptyDescription?: string; keepContent?: boolean }>()
+const props = defineProps<{ loading?: boolean; error?: unknown; empty?: boolean; emptyText?: string; emptyDescription?: string; emptyIcon?: string; keepContent?: boolean }>()
 defineEmits<{ retry: [] }>()
 const { t } = useI18n()
 const kind = computed(() => errorStateKind(props.error))
@@ -19,6 +19,6 @@ const kind = computed(() => errorStateKind(props.error))
   <ForbiddenState v-else-if="error && kind === 'forbidden'" />
   <NotFoundState v-else-if="error && kind === 'notFound'" />
   <template v-else-if="error"><ErrorState :error="error" @retry="$emit('retry')" /><slot v-if="keepContent" /></template>
-  <EmptyState v-else-if="empty" :title="emptyText ?? t('app.noResults')" :description="emptyDescription"><template v-if="$slots.emptyAction" #action><slot name="emptyAction" /></template></EmptyState>
+  <EmptyState v-else-if="empty" :title="emptyText ?? t('app.noResults')" :description="emptyDescription" :icon="emptyIcon"><template v-if="$slots.emptyAction" #action><slot name="emptyAction" /></template></EmptyState>
   <slot v-else />
 </template>

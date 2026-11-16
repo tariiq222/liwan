@@ -47,7 +47,7 @@ useHead(() => ({
   htmlAttrs: htmlAttrsFor({ mode: mode.value, fontSize: fontSize.value, lang: locale.value, dir: localeProperties.value.dir ?? 'rtl' }),
 }))
 
-const icon = computed(() => (forbidden.value ? 'i-lucide-lock' : notFound.value ? 'i-lucide-search-x' : 'i-lucide-triangle-alert'))
+const icon = computed(() => (forbidden.value ? 'i-lucide-lock' : notFound.value ? 'i-lucide-file-question' : 'i-lucide-triangle-alert'))
 const hydrated = useHydrated()
 const canGoBack = computed(() => hydrated.value && window.history.length > 1)
 // The same body in the shell and on the standalone card.

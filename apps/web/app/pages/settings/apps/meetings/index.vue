@@ -22,7 +22,7 @@ async function reloadSettings() {
     <SharedForbiddenState v-if="!parts.length" :description="t('errors.forbidden')" />
     <template v-else>
       <section v-if="shows('schedule')" id="schedule" class="liwan-settings-anchor grid gap-(--liwan-gap-card)">
-        <SharedPageState :loading="settings.isLoading.value" :error="settings.data.value ? null : settings.error.value" :empty="!settings.data.value" @retry="settings.refetch()">
+        <SharedPageState empty-icon="i-lucide-settings" :loading="settings.isLoading.value" :error="settings.data.value ? null : settings.error.value" :empty="!settings.data.value" @retry="settings.refetch()">
           <MeetingScheduleCard v-if="settings.data.value" :settings="settings.data.value" :can-edit="can('meetings.settings.manage')" :reload-settings="reloadSettings" />
         </SharedPageState>
       </section>

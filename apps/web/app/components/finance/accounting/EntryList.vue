@@ -95,7 +95,7 @@ const label = (entry: JournalEntry) => entryTitle(entry, t('financeAccounting.dr
         </SharedFilterBar>
       </template>
       <SharedPageState :error="query.error.value" :keep-content="items.length > 0" @retry="query.refetch">
-        <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(activeCount ? 'app.noResults' : 'financeAccounting.entries.empty')" />
+        <SharedEmptyState :icon="activeCount ? 'i-lucide-filter-x' : 'i-lucide-notebook-pen'" v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(activeCount ? 'app.noResults' : 'financeAccounting.entries.empty')" />
         <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,820px)]">
           <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :row-to="recordTo" :loading="query.isPending.value" :caption="t('financeAccounting.entries.title')">
             <template #record_number-cell="{ row }"><SharedRecordNumber :value="row.original.id" /></template>

@@ -66,7 +66,7 @@ const sections = computed(() => app.value?.sections ?? [])
       <ShellCoreApps :label="t('nav.coreApps')" :items="coreItems" :test-id-prefix="prefix" @navigate="emit('navigate')" />
     </template>
 
-    <ShellNavSection v-if="navigation.mode.value === 'global'" :label="t('nav.myApps')" :title="t('nav.myApps')" :action="{ label: t('nav.editApps'), to: '/apps' }" :items="pinnedRows" :test-id-prefix="prefix" :hydrated="hydrated" @navigate="emit('navigate')" />
+    <ShellNavSection v-if="navigation.mode.value === 'global'" :label="t('nav.myApps')" :title="t('nav.myApps')" :action="{ label: t('nav.editApps'), to: '/apps', icon: 'i-lucide-pencil' }" :items="pinnedRows" :test-id-prefix="prefix" :hydrated="hydrated" @navigate="emit('navigate')" />
     <template v-else-if="app">
       <div class="liwan-side-back"><ShellNavSection :label="t('nav.allApps')" :items="backRows" :test-id-prefix="prefix" :hydrated="hydrated" @navigate="emit('navigate')" /></div>
       <ShellTip :label="app.label">

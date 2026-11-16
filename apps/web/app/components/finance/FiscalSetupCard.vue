@@ -144,16 +144,16 @@ const monthOptions = computed(() => Array.from({ length: 12 }, (_, index) => ({
         </ul>
       </template>
     </UAlert>
-    <UFormField orientation="horizontal" :label="t('finance.setup.fiscal.yearEndDay')" name="finance-fiscal-fiscalyear_last_day" :description="t('finance.setup.fiscal.yearEndHint')" :error="fieldMessage('fiscalyear_last_day')">
+    <div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
+    <UFormField :label="t('finance.setup.fiscal.yearEndDay')" name="finance-fiscal-fiscalyear_last_day" :help="t('finance.setup.fiscal.yearEndHint')" :error="fieldMessage('fiscalyear_last_day')">
       <UInput id="finance-fiscal-fiscalyear_last_day" v-model="draft.fiscalyear_last_day" class="w-full" dir="ltr" inputmode="numeric" :disabled="locked" />
     </UFormField>
-    <UFormField orientation="horizontal" :label="t('finance.setup.fiscal.yearEndMonth')" name="finance-fiscal-fiscalyear_last_month" :error="fieldMessage('fiscalyear_last_month')">
+    <UFormField :label="t('finance.setup.fiscal.yearEndMonth')" name="finance-fiscal-fiscalyear_last_month" :error="fieldMessage('fiscalyear_last_month')">
       <USelect id="finance-fiscal-fiscalyear_last_month" v-model="draft.fiscalyear_last_month" class="w-full" :items="monthOptions" :disabled="locked" />
     </UFormField>
     <UFormField
       v-for="field in FINANCE_FISCAL_LOCK_FIELDS"
       :key="field"
-      orientation="horizontal"
       :label="t(`finance.setup.fiscal.${field}`)"
       :name="`finance-fiscal-${field}`"
       :error="fieldMessage(field)"
@@ -165,7 +165,7 @@ const monthOptions = computed(() => Array.from({ length: 12 }, (_, index) => ({
         :aria-label="t(`finance.setup.fiscal.${field}`)"
       />
     </UFormField>
-    <UFormField orientation="horizontal" :label="t('finance.setup.fiscal.transfer_account_id')" name="finance-fiscal-transfer_account_id" :description="t(canPickAccount ? 'finance.setup.fiscal.transferAccountHint' : 'finance.setup.fiscal.transferAccountReadOnly')" :error="fieldMessage('transfer_account_id')">
+    <UFormField :label="t('finance.setup.fiscal.transfer_account_id')" name="finance-fiscal-transfer_account_id" :help="t(canPickAccount ? 'finance.setup.fiscal.transferAccountHint' : 'finance.setup.fiscal.transferAccountReadOnly')" :error="fieldMessage('transfer_account_id')">
       <UInput v-if="!canPickAccount" id="finance-fiscal-transfer_account_id" class="w-full" disabled :model-value="setup.fiscal.transfer_account?.name ?? ''" :aria-label="t('finance.setup.fiscal.transfer_account_id')" />
       <AccountPicker
         v-else
@@ -180,5 +180,6 @@ const monthOptions = computed(() => Array.from({ length: 12 }, (_, index) => ({
         :aria-label="t('finance.setup.fiscal.transfer_account_id')"
       />
     </UFormField>
+    </div>
   </SharedSettingsCard>
 </template>

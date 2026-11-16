@@ -51,7 +51,7 @@ const actions = (profile: FinanceAssetProfile): RowAction[] => [
       </template>
       <RecordsFilters id-prefix="finance-record-asset-profiles" :filters="list.filters.value" :active-count="list.activeCount.value" :hydrated="list.hydrated.value" @clear="list.clearFilters" @kind="list.setKind" @state="list.setState" />
       <SharedPageState :error="list.query.error.value" :keep-content="list.items.value.length > 0" @retry="list.query.refetch">
-        <SharedEmptyState v-if="list.showEmpty.value" :title="t(list.activeCount.value ? 'app.noResults' : 'financeRecords.assetProfiles.empty')" />
+        <SharedEmptyState :icon="list.activeCount.value ? 'i-lucide-filter-x' : 'i-lucide-layers'" v-if="list.showEmpty.value" :title="t(list.activeCount.value ? 'app.noResults' : 'financeRecords.assetProfiles.empty')" />
         <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,640px)]">
           <SharedDataTable bare :rows="list.items.value" :columns="columns" row-key="id" :loading="list.query.isPending.value" :caption="t('financeRecords.assetProfiles.title')">
             <template #name-cell="{ row }"><span class="font-semibold text-highlighted">{{ row.original.name }}</span></template>

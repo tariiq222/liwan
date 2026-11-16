@@ -172,8 +172,8 @@ async function confirmResolutionAction() {
       </FilterBar>
     </div>
     <p v-if="conversionError" role="alert" class="px-(--liwan-card-pad) py-3 text-sm text-error">{{ conversionError }}</p>
-    <div v-if="!meeting.resolutions.length" class="p-(--liwan-card-pad)"><SharedEmptyState :title="t('meetingsUi.emptyResolutions')" /></div>
-    <div v-else-if="!filteredResolutions.length" class="p-(--liwan-card-pad)"><SharedEmptyState :title="t('meetingsUx.noMatchingRecommendations')" /></div>
+    <div v-if="!meeting.resolutions.length" class="p-(--liwan-card-pad)"><SharedEmptyState icon="i-lucide-gavel" :title="t('meetingsUi.emptyResolutions')" /></div>
+    <div v-else-if="!filteredResolutions.length" class="p-(--liwan-card-pad)"><SharedEmptyState icon="i-lucide-filter-x" :title="t('meetingsUx.noMatchingRecommendations')" /></div>
     <template v-else>
       <article v-for="item in filteredResolutions" :key="item.id" class="grid min-w-0 gap-3 px-(--liwan-card-pad) py-4">
         <div class="flex min-w-0 flex-wrap items-center justify-between gap-2">

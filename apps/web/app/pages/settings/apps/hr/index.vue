@@ -170,7 +170,7 @@ function retry() {
     <template v-else>
     <SharedRouteTabs :items="tabItems" :ariaLabel="t('hr.settingsGroups.label')" />
     <section v-if="shows('payroll')" v-show="inTab('payroll')" id="payroll" class="liwan-settings-anchor grid gap-(--liwan-gap-card)">
-    <SharedPageState :loading="settings.isLoading.value || rates.isLoading.value || bankProfiles.isLoading.value || eosCases.isLoading.value" :error="error" :empty="!settings.data.value" @retry="retry">
+    <SharedPageState empty-icon="i-lucide-settings" :loading="settings.isLoading.value || rates.isLoading.value || bankProfiles.isLoading.value || eosCases.isLoading.value" :error="error" :empty="!settings.data.value" @retry="retry">
       <PayrollGeneralSettingsForm v-if="settings.data.value" :settings="settings.data.value" :leave-types="leaveTypeRefs" :structures="structures.data.value?.items ?? []" :can-edit="canConfig" :reload-settings="reloadPayrollSettings" />
       <BranchStrictCard scope="payroll" path="/api/v1/hr/payroll/branch-strictness" :can-read="can('hr.payroll.read')" :can-edit="canConfig" />
       <GosiRateTable :rates="rates.data.value?.items ?? []" :can-edit="canConfig" :reload-rates="reloadRates" />
@@ -209,30 +209,30 @@ function retry() {
       <BranchStrictCard scope="hr" path="/api/v1/hr/branch-strictness" :can-read="can('hr.employees.manage')" :can-edit="can('hr.employees.manage')" />
     </section>
     <section v-if="shows('leave')" v-show="inTab('leave')" id="leave" class="liwan-settings-anchor">
-      <SharedPageState :loading="leaveSettings.isLoading.value" :error="leaveSettings.error.value" :empty="!leaveSettings.data.value" :keep-content="!!leaveSettings.data.value" @retry="leaveSettings.refetch">
+      <SharedPageState empty-icon="i-lucide-settings" :loading="leaveSettings.isLoading.value" :error="leaveSettings.error.value" :empty="!leaveSettings.data.value" :keep-content="!!leaveSettings.data.value" @retry="leaveSettings.refetch">
         <LeaveSettingsForm v-if="leaveSettings.data.value" :settings="leaveSettings.data.value" :can-edit="canConfigLeave" :reload-settings="reloadLeaveSettings" />
       </SharedPageState>
       <SharedPageState v-if="leaveApprovalError" :error="leaveApprovalError" @retry="leaveApproval.refetch" />
       <LeaveApprovalCard v-if="leaveApproval.data.value" :approval="leaveApproval.data.value" />
     </section>
     <section v-if="shows('shifts')" v-show="inTab('shifts')" id="shifts" class="liwan-settings-anchor">
-      <SharedPageState :loading="shiftSettings.isLoading.value" :error="shiftSettings.data.value ? null : shiftSettings.error.value" :empty="!shiftSettings.data.value" @retry="shiftSettings.refetch">
+      <SharedPageState empty-icon="i-lucide-settings" :loading="shiftSettings.isLoading.value" :error="shiftSettings.data.value ? null : shiftSettings.error.value" :empty="!shiftSettings.data.value" @retry="shiftSettings.refetch">
         <ShiftSettingsForm v-if="shiftSettings.data.value" :settings="shiftSettings.data.value" :can-edit="canManageShifts" :reload-settings="reloadShiftSettings" />
       </SharedPageState>
     </section>
     <section v-if="shows('warnings')" v-show="inTab('warnings')" id="warnings" class="liwan-settings-anchor grid gap-(--liwan-gap-card)">
-      <SharedPageState :loading="warningSettings.isLoading.value" :error="warningSettings.data.value ? null : warningSettings.error.value" :empty="!warningSettings.data.value" @retry="warningSettings.refetch">
+      <SharedPageState empty-icon="i-lucide-settings" :loading="warningSettings.isLoading.value" :error="warningSettings.data.value ? null : warningSettings.error.value" :empty="!warningSettings.data.value" @retry="warningSettings.refetch">
         <WarningSettingsForm v-if="warningSettings.data.value" :settings="warningSettings.data.value" :can-edit="canManageWarnings" :reload-settings="reloadWarningSettings" />
       </SharedPageState>
-      <SharedPageState :loading="warningTypes.isLoading.value" :error="warningTypes.data.value ? null : warningTypes.error.value" :empty="!warningTypes.data.value" @retry="warningTypes.refetch">
+      <SharedPageState empty-icon="i-lucide-settings" :loading="warningTypes.isLoading.value" :error="warningTypes.data.value ? null : warningTypes.error.value" :empty="!warningTypes.data.value" @retry="warningTypes.refetch">
         <WarningTypesCard v-if="warningTypes.data.value" :types="warningTypes.data.value.items" :can-edit="canManageWarnings" :reload-types="reloadWarningTypes" />
       </SharedPageState>
     </section>
     <section v-if="shows('insurance')" v-show="inTab('insurance')" id="insurance" class="liwan-settings-anchor grid gap-(--liwan-gap-card)">
-      <SharedPageState :loading="insuranceSettings.isLoading.value" :error="insuranceSettings.data.value ? null : insuranceSettings.error.value" :empty="!insuranceSettings.data.value" @retry="insuranceSettings.refetch">
+      <SharedPageState empty-icon="i-lucide-settings" :loading="insuranceSettings.isLoading.value" :error="insuranceSettings.data.value ? null : insuranceSettings.error.value" :empty="!insuranceSettings.data.value" @retry="insuranceSettings.refetch">
         <InsuranceSettingsForm v-if="insuranceSettings.data.value" :settings="insuranceSettings.data.value" :can-edit="canManageInsurance" :reload-settings="reloadInsuranceSettings" />
       </SharedPageState>
-      <SharedPageState :loading="insuranceProviders.isLoading.value" :error="insuranceProviders.data.value ? null : insuranceProviders.error.value" :empty="!insuranceProviders.data.value" @retry="insuranceProviders.refetch">
+      <SharedPageState empty-icon="i-lucide-settings" :loading="insuranceProviders.isLoading.value" :error="insuranceProviders.data.value ? null : insuranceProviders.error.value" :empty="!insuranceProviders.data.value" @retry="insuranceProviders.refetch">
         <InsuranceProvidersCard v-if="insuranceProviders.data.value" :providers="insuranceProviders.data.value.items" :can-edit="canManageInsurance" :reload-providers="reloadInsuranceProviders" />
       </SharedPageState>
     </section>

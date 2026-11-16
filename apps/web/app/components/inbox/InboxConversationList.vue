@@ -156,12 +156,9 @@ const empty = computed(() => hydrated.value && !isLoading.value && !isError.valu
         />
       </div>
     </div>
-    <EmptyState v-if="empty && !filtered" class="m-4" :title="t('inbox.list.empty')" :description="t('inbox.list.emptyDescription')">
-      <template #icon>
-        <UIcon name="i-lucide-messages-square" class="size-8" />
-      </template>
+    <EmptyState v-if="empty && !filtered" icon="i-lucide-messages-square" class="m-4" :title="t('inbox.list.empty')" :description="t('inbox.list.emptyDescription')">
     </EmptyState>
-    <SharedPageState
+    <SharedPageState empty-icon="i-lucide-filter-x"
       v-else
       :loading="isLoading || !hydrated"
       :error="isError ? error : undefined"

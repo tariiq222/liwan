@@ -57,9 +57,9 @@ async function save() {
 </script>
 <template>
   <SharedSettingsCard v-if="optional.length" id="project-tools" :title="t('projects.tools.title')" :description="t('projects.tools.hint')" :dirty="dirty" :saving="isPending" :conflict="conflict" :message="error" :can-edit="project.can_manage && project.active" data-testid="project-tools-card" @save="save" @revert="reset" @reload="reload">
-    <UFormField v-for="key in optional" :key="key" orientation="horizontal" :label="t(`projects.tools.${key}`)">
+    <SharedSettingRow v-for="key in optional" :key="key" :label="t(`projects.tools.${key}`)">
       <USwitch v-model="preferences[key]" :disabled="!hydrated || isPending || conflict || !project.active || !project.can_manage || !project.tools[key].can_toggle" :aria-label="t(`projects.tools.${key}`)" :data-testid="`project-tool-${key}`" />
-    </UFormField>
+    </SharedSettingRow>
   </SharedSettingsCard>
   <SharedUnsavedChanges :dirty="dirty" guard-route-updates />
   <p v-if="dirty && !optional.length" role="alert" class="text-sm text-muted">{{ t('projects.tools.policyChanged') }}</p>

@@ -1,7 +1,9 @@
-import { defineComponent, h } from 'vue'
-import { describe, expect, it } from 'vitest'
+import { defineComponent, getCurrentInstance, h, onMounted, ref } from 'vue'
+import { describe, expect, it, vi } from 'vitest'
 import type { SettingsSaveEntry, SettingsSaveRegistry } from '../../../../composables/useSettingsSave'
-import { renderShared } from '../../../../../test/helpers/renderShared'
+import { DEFAULT_STUBS, loadShared, renderShared } from '../../../../../test/helpers/renderShared'
+import { createHostNode, hostRenderer } from '../../../../../test/helpers/hostRenderer'
+import * as settingsSave from '../../../../composables/useSettingsSave'
 
 // The section stub draws its actions slot too, where the view-only and unsaved badges sit.
 const SharedRecordSection = defineComponent({
@@ -92,6 +94,50 @@ describe('SharedSettingsCard', () => {
     expect(html.indexOf('app.revert')).toBeLessThan(html.indexOf('APPLY PRESET'))
     expect(html).not.toContain('app.unsaved')
     expect(page.entries.size).toBe(0)
+  })
+})
+
+describe('SharedSettingsCard focus after a failed save', () => {
+  type Control = { focus: ReturnType<typeof vi.fn>, scrollIntoView: ReturnType<typeof vi.fn> }
+  const makeControl = (): Control => ({ focus: vi.fn(), scrollIntoView: vi.fn() })
+
+  /** Mounts the card against the host tree; the UForm stub answers `querySelector` with a fake invalid control. */
+  function mountCard(failure: string, control: Control | null): SettingsSaveEntry {
+    const UForm = defineComponent({
+      inheritAttrs: false,
+      setup(_, { attrs, slots }) {
+        const instance = getCurrentInstance()!
+        onMounted(() => { (instance.proxy!.$el as { querySelector: unknown }).querySelector = () => control })
+        return () => h('form', attrs, slots.default?.())
+      },
+    })
+    const quiet = defineComponent(() => () => h('i'))
+    const page = pageRegistry()
+    const Card = loadShared('SettingsCard', { modules: { '../../../composables/useSettingsSave': { ...settingsSave, useSettingsSaveRegistry: () => page.registry } } })
+    const message = ref('')
+    const Host = defineComponent({
+      setup: () => () => h(Card, { id: 'c', title: 'C', canEdit: true, dirty: true, message: message.value, onSave: async () => { message.value = failure } }),
+    })
+    const app = hostRenderer.createApp(Host)
+    for (const [name, stub] of Object.entries({ ...DEFAULT_STUBS, UForm, SharedUnsavedChanges: quiet, SharedRecordSection, SharedFormActions: quiet })) app.component(name, stub)
+    app.mount(createHostNode())
+    return page.entries.get('c')!
+  }
+
+  it('moves focus to the first invalid control and centres it once a save fails', async () => {
+    const control = makeControl()
+    const entry = mountCard('NO', control)
+    expect(await entry.submit()).toBe(true)
+    expect(control.focus).toHaveBeenCalledWith({ preventScroll: true })
+    expect(control.scrollIntoView).toHaveBeenCalledWith({ block: 'center' })
+  })
+
+  it('leaves focus alone when the bar says another card takes it, when the save succeeded, or when nothing is invalid', async () => {
+    const control = makeControl()
+    expect(await mountCard('NO', control).submit({ focus: false })).toBe(false)
+    expect(await mountCard('', control).submit()).toBe(false)
+    expect(await mountCard('NO', null).submit()).toBe(false)
+    expect(control.focus).not.toHaveBeenCalled()
   })
 })
 

@@ -124,7 +124,7 @@ async function submit() {
           </UFormField>
         </div>
         <UFormField :label="t('financeDocuments.payments.form.journal')" name="finance-payment-journal" required :error="shown.journalId ? t('financeDocuments.payments.form.journalRequired') : undefined">
-          <SharedPageState :loading="journals.isLoading.value" :error="journals.error.value" :empty="!journals.isLoading.value && !journalItems.length" :empty-text="t('financeDocuments.payments.form.noJournals')" @retry="journals.refetch">
+          <SharedPageState empty-icon="i-lucide-notebook" :loading="journals.isLoading.value" :error="journals.error.value" :empty="!journals.isLoading.value && !journalItems.length" :empty-text="t('financeDocuments.payments.form.noJournals')" @retry="journals.refetch">
             <USelect id="finance-payment-journal" :model-value="draft.journalId ?? undefined" :items="journalItems" class="w-full" :disabled="!hydrated || pending" @update:model-value="value => { draft.journalId = Number(value) }" />
           </SharedPageState>
         </UFormField>

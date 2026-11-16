@@ -367,7 +367,7 @@ function setHistoryPage(page: number) {
               </template>
             </FilterBar>
           </template>
-          <SharedPageState :loading="followupQuery.isLoading.value" :error="followupQuery.error.value" :empty="!followupQuery.isLoading.value && !followupQuery.data.value?.items.length" :empty-text="t('meetingTimeline.noFollowup')" @retry="followupQuery.refetch">
+          <SharedPageState empty-icon="i-lucide-list-checks" :loading="followupQuery.isLoading.value" :error="followupQuery.error.value" :empty="!followupQuery.isLoading.value && !followupQuery.data.value?.items.length" :empty-text="t('meetingTimeline.noFollowup')" @retry="followupQuery.refetch">
             <ul class="divide-y divide-default">
               <li v-for="item in followupQuery.data.value?.items" :key="`${item.meeting_id}-${item.id}`" class="grid gap-2 px-(--liwan-card-pad) py-4">
                 <div class="flex flex-wrap items-start justify-between gap-2">

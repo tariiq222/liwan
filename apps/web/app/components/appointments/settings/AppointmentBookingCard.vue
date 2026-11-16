@@ -32,8 +32,10 @@ const submit = () => { if (bookingDraftValid(draft.value)) return save() }
 
 <template>
   <SharedSettingsCard id="booking" v-bind="state" :title="t('appointments.settings.booking.title')" :description="t('appointments.settings.booking.hint')" :can-edit="canEdit" data-testid="appointments-booking" @save="submit" @revert="revert" @reload="reload">
-    <UFormField v-for="key in fields" :key="key" orientation="horizontal" :label="t(`appointments.settings.booking.${key}.label`)" :name="key" :description="t(`appointments.settings.booking.${key}.hint`)" :error="errorOf(key)">
+    <div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
+    <UFormField v-for="key in fields" :key="key" :label="t(`appointments.settings.booking.${key}.label`)" :name="key" :help="t(`appointments.settings.booking.${key}.hint`)" :error="errorOf(key)">
       <UInputNumber :id="`appointments-${key}`" v-model="draft[key]" class="w-full" :min="APPOINTMENT_RANGES[key].min" :max="APPOINTMENT_RANGES[key].max" :disabled="locked" />
     </UFormField>
+    </div>
   </SharedSettingsCard>
 </template>

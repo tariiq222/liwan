@@ -109,7 +109,7 @@ const createTo = computed(() => canManage.value ? { path: '/hr/shifts/schedules/
           />
         </template>
         <SharedPageState :error="query.error.value" :keep-content="schedules.length > 0" @retry="query.refetch">
-          <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('hrShifts.schedulesEmpty')" :description="t('hrShifts.schedulesEmptyHint')" />
+          <SharedEmptyState icon="i-lucide-calendar-clock" v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('hrShifts.schedulesEmpty')" :description="t('hrShifts.schedulesEmptyHint')" />
           <ShiftScheduleTable
             v-else
             :schedules="schedules"

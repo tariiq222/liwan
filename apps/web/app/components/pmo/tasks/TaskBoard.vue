@@ -305,7 +305,7 @@ function dropGroup(lane: Lane) {
         </div>
       </template>
     </div>
-    <EmptyState
+    <EmptyState icon="i-lucide-columns-3"
       v-if="grouping === 'stage' && kind === 'project' && sortedStages.length === 0"
       :title="t('tasks.kanban.noStages')"
       class="py-6"

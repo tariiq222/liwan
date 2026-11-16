@@ -34,7 +34,7 @@ async function reloadSettings() {
     <SharedPageHeader :title="t('nav.crm')" />
     <SharedForbiddenState v-if="!parts.length" :description="t('errors.forbidden')" />
     <template v-else>
-      <SharedPageState :loading="settings.isLoading.value" :error="settings.data.value ? null : settings.error.value" :empty="!settings.data.value" @retry="settings.refetch">
+      <SharedPageState empty-icon="i-lucide-settings" :loading="settings.isLoading.value" :error="settings.data.value ? null : settings.error.value" :empty="!settings.data.value" @retry="settings.refetch">
         <template v-if="settings.data.value">
           <CrmPresetCard v-if="shows('preset')" :settings="settings.data.value" :can-edit="canManage" :reload-settings="reloadSettings" />
           <SharedRouteTabs :items="tabItems" :ariaLabel="t('crm.settings.groups.label')" />

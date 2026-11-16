@@ -18,7 +18,7 @@ const access = useProject(projectId)
 <template>
   <SharedPageContainer>
     <SharedPageHeader :title="t('projects.governance.stakeholder.editTitle')" :back-to="backTo" :back-label="t('projects.governance.stakeholder.title')" />
-    <SharedPageState
+    <SharedPageState empty-icon="i-lucide-file-question"
       :loading="item.isLoading.value || access.isLoading.value"
       :error="item.error.value || access.error.value"
       :empty="!item.isLoading.value && !access.isLoading.value && !item.data.value"

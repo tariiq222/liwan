@@ -106,7 +106,7 @@ function askToggle(plan: { id: number, name: string, active: boolean }) {
         @confirm="confirmToggle(pendingToggle)"
         @cancel="pendingToggle = null"
       />
-      <SharedPageState
+      <SharedPageState empty-icon="i-lucide-list-checks"
         v-if="query.isLoading.value || query.error.value || !plans.length"
         class="m-(--liwan-card-pad-dense)"
         :loading="query.isLoading.value"

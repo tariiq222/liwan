@@ -1,12 +1,14 @@
 import { resolve } from 'node:path'
 import * as Vue from 'vue'
 import { describe, expect, it } from 'vitest'
+import * as shellCount from '../../../utils/shellCount'
 import { dropDuplicatedDescription } from '../../../utils/tooltipDescription'
 import { loadShared, renderShared } from '../../../../test/helpers/renderShared'
 
 const file = (name: string) => resolve(import.meta.dirname, `../${name}.vue`)
 const passthrough = (tag: string) => Vue.defineComponent({ inheritAttrs: false, setup(_, { attrs, slots }) { return () => Vue.h(tag, attrs, slots.default?.()) } })
 const slotOnly = Vue.defineComponent({ setup(_, { slots }) { return () => slots.default?.() } })
+const countModule = { modules: { '../../utils/shellCount': shellCount } }
 const stubs = { ShellAppTile: passthrough('span'), ShellTip: slotOnly }
 // The real ShellTip over a UTooltip stand-in that draws its tooltip text (role=tooltip) only while the tooltip is enabled.
 const tooltipStub = Vue.defineComponent({
@@ -21,7 +23,7 @@ const tipStubs = (collapsed: boolean, dir = 'rtl') => ({ ...stubs, UTooltip: too
 const row = (id: string, extra: Record<string, unknown> = {}) => ({ id, label: id, icon: 'i-lucide-circle', to: `/${id}`, active: false, testId: `row-${id}`, ...extra })
 
 describe('ShellNavRow', () => {
-  const render = (item: Record<string, unknown>) => renderShared(file('ShellNavRow'), { item, testId: 'hook' }, {}, { stubs })
+  const render = (item: Record<string, unknown>) => renderShared(file('ShellNavRow'), { item, testId: 'hook' }, {}, { stubs, ...countModule })
 
   it('marks the open page with aria-current and the active flag', async () => {
     const html = await render(row('tasks', { active: true }))
@@ -38,7 +40,7 @@ describe('ShellNavRow', () => {
   })
 
   describe('name tooltip of the icon-only strip', () => {
-    const renderTip = (collapsed: boolean, dir?: string) => renderShared(file('ShellNavRow'), { item: row('tasks', { label: 'مهامي' }) }, {}, { stubs: tipStubs(collapsed, dir) })
+    const renderTip = (collapsed: boolean, dir?: string) => renderShared(file('ShellNavRow'), { item: row('tasks', { label: 'مهامي' }) }, {}, { stubs: tipStubs(collapsed, dir), ...countModule })
 
     it('shows the label as a tooltip when the sidebar is collapsed, 300ms after hover, on the inline-end side', async () => {
       const html = await renderTip(true)
@@ -79,6 +81,12 @@ describe('ShellNavRow', () => {
     expect(await render(row('inbox', { count: 250 }))).toContain('>99+<')
     expect(await render(row('new', { primary: true }))).toContain('data-primary="true"')
   })
+
+  it('draws no count for zero, and still draws a positive one', async () => {
+    expect(await render(row('tasks', { count: 0 }))).not.toContain('data-slot="count"')
+    expect(await render(row('tasks', { count: 1 }))).toContain('data-slot="count"')
+    expect(await render(row('tasks', { count: 100 }))).toContain('>99+<')
+  })
 })
 
 describe('ShellNavSection', () => {
@@ -86,10 +94,12 @@ describe('ShellNavSection', () => {
   const render = (items: unknown[], extra: Record<string, unknown> = {}) => renderShared(file('ShellNavSection'), { label: 'المشاريع', items, ...extra }, {}, { stubs: { ...stubs, ShellNavRow: passthrough('a') } })
 
   it('lists flat rows under a heading with an optional edit link', async () => {
-    const html = await render([row('a'), row('b')], { title: 'تطبيقاتي', action: { label: 'تعديل', to: '/apps' } })
+    const html = await render([row('a'), row('b')], { title: 'تطبيقاتي', action: { label: 'تعديل', to: '/apps', icon: 'i-lucide-pencil' } })
     expect(html).toContain('role="group"')
     expect(html).toContain('<h3>تطبيقاتي</h3>')
-    expect(html).toContain('تعديل')
+    expect(html).toContain('aria-label="تعديل"')
+    expect(html).toContain('data-testid="side-section-action"')
+    expect(html).not.toContain('>تعديل<')
   })
 
   it('opens the branch that holds the current page and shows its children', async () => {
@@ -113,7 +123,7 @@ describe('ShellNavSection', () => {
 
 describe('ShellCoreApps', () => {
   const items = [row('home', { label: 'يومي', active: true }), row('tasks', { label: 'مهامي', count: 4 }), row('chat', { label: 'المحادثات', count: 250 })]
-  const render = (props: Record<string, unknown> = {}, stubOptions = { stubs: { ...stubs, NuxtLink: passthrough('a') } }) =>
+  const render = (props: Record<string, unknown> = {}, stubOptions: Record<string, unknown> = { stubs: { ...stubs, NuxtLink: passthrough('a') }, ...countModule }) =>
     renderShared(file('ShellCoreApps'), { label: 'التطبيقات الأساسية', items, ...props }, {}, stubOptions)
 
   it('is a named group with one link per core application to its own page, in the order given', async () => {
@@ -146,13 +156,24 @@ describe('ShellCoreApps', () => {
     expect(html).toContain('>99+</span>')
   })
 
+  it('draws no badge and no (0) in the name for a zero count, and still draws a positive one', async () => {
+    const zero = await render({ items: [row('tasks', { label: 'مهامي', count: 0 })] })
+    expect(zero).not.toContain('data-slot="badge"')
+    expect(zero).not.toContain('(0)')
+    expect(zero).toContain('aria-label="مهامي"')
+    const one = await render({ items: [row('tasks', { label: 'مهامي', count: 1 })] })
+    expect(one).toContain('data-slot="badge"')
+    expect(one).toContain('aria-label="مهامي (1)"')
+    expect(await render({ items: [row('tasks', { label: 'مهامي', count: 100 })] })).toContain('aria-label="مهامي (99+)"')
+  })
+
   it('prefixes the test ids for the drawer copy and draws nothing for an empty row', async () => {
     expect(await render({ testIdPrefix: 'mobile-' })).toContain('data-testid="mobile-core-app-tasks"')
     expect(await render({ items: [] })).not.toContain('liwan-side-core')
   })
 
   it('always shows the name tooltip, below the tile while the sidebar is expanded and on the inline-end side in the strip', async () => {
-    const withTips = (collapsed: boolean) => ({ stubs: { ...stubs, NuxtLink: passthrough('a'), UTooltip: tooltipStub, ShellTip: loadShared(resolve(import.meta.dirname, '../ShellTip.vue'), tipOptions(collapsed)) } }) as never
+    const withTips = (collapsed: boolean) => ({ stubs: { ...stubs, NuxtLink: passthrough('a'), UTooltip: tooltipStub, ShellTip: loadShared(resolve(import.meta.dirname, '../ShellTip.vue'), tipOptions(collapsed)) }, ...countModule }) as never
     const expanded = await render({}, withTips(false))
     expect(expanded).toContain('role="tooltip"')
     expect(expanded).toContain('data-side="bottom"')
@@ -206,7 +227,7 @@ describe('ShellSlideOver', () => {
 })
 
 describe('ShellToolButton', () => {
-  const render = (props: Record<string, unknown>) => renderShared(file('ShellToolButton'), { icon: 'i-lucide-bell', label: 'الإشعارات', ...props })
+  const render = (props: Record<string, unknown>) => renderShared(file('ShellToolButton'), { icon: 'i-lucide-bell', label: 'الإشعارات', ...props }, {}, countModule)
 
   it('puts the count in the badge and in the accessible name', async () => {
     const html = await render({ badge: 3 })

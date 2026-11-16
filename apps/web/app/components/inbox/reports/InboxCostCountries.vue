@@ -20,7 +20,7 @@ const columns = computed<TableColumn<Row>[]>(() => [
 
 <template>
   <SharedRecordSection variant="list" :title="t('inbox.reports.costs.countries.title')" :description="t('inbox.reports.costs.countries.description')" data-testid="inbox-cost-countries">
-    <SharedEmptyState v-if="!props.rows.length" bordered class="m-4" :title="t('inbox.reports.costs.countries.empty')" />
+    <SharedEmptyState icon="i-lucide-globe" v-if="!props.rows.length" bordered class="m-4" :title="t('inbox.reports.costs.countries.empty')" />
     <div v-else class="min-w-0 [&_table]:w-full">
       <SharedDataTable bare :rows="[...props.rows]" :columns="columns" row-key="country" :caption="t('inbox.reports.costs.countries.caption')">
         <template #country-cell="{ row }"><span class="truncate text-sm font-medium text-highlighted">{{ label(row.original.country) }} <bdi dir="ltr" class="text-muted">({{ row.original.country }})</bdi></span></template>

@@ -91,7 +91,7 @@ async function reload() {
   <SharedFormSection panel :title="t('hrWarnings.types.title')" :description="t('hrWarnings.types.hint')">
     <UAlert v-if="message" role="alert" color="error" variant="subtle" :title="t('hrWarnings.types.saveError')" :description="message" data-testid="hr-warning-types-error" />
     <UButton v-if="conflict" color="neutral" variant="outline" :label="t('hrWarnings.types.reload')" :loading="reloading" :disabled="reloading" data-testid="hr-warning-types-reload" @click="reload" />
-    <SharedEmptyState v-if="!rows.length" :title="t('hrWarnings.types.emptyTitle')" :description="t('hrWarnings.types.emptyHint')" />
+    <SharedEmptyState icon="i-lucide-triangle-alert" v-if="!rows.length" :title="t('hrWarnings.types.emptyTitle')" :description="t('hrWarnings.types.emptyHint')" />
     <ul v-else class="grid gap-4" data-testid="hr-warning-types">
       <li v-for="type in rows" :key="type.id" class="grid items-end gap-3 sm:grid-cols-[1fr_8rem_13rem]" :data-testid="`hr-warning-type-${type.id}`">
         <UFormField :label="t('hrWarnings.types.name')" :name="`hr-warning-type-name-${type.id}`">

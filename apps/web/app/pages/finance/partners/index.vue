@@ -132,7 +132,7 @@ async function confirmArchive() {
         @cancel="cancelArchive"
       />
 
-      <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(hasActiveFilters ? 'finance.partners.filteredEmpty' : state.archived ? 'finance.partners.emptyArchived' : 'finance.partners.empty')" :description="hasActiveFilters ? t('finance.partners.filteredEmptyHint') : undefined">
+      <SharedEmptyState :icon="hasActiveFilters ? 'i-lucide-filter-x' : 'i-lucide-contact'" v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(hasActiveFilters ? 'finance.partners.filteredEmpty' : state.archived ? 'finance.partners.emptyArchived' : 'finance.partners.empty')" :description="hasActiveFilters ? t('finance.partners.filteredEmptyHint') : undefined">
         <template v-if="hasActiveFilters" #action><UButton color="neutral" variant="outline" size="sm" :disabled="!hydrated" :label="t('finance.partners.clear')" @click="clearFilters" /></template>
       </SharedEmptyState>
       <PartnerTable v-else :rows="items" :loading="isLoading" :error="error" :can-manage="canManage" @edit="editPartner" @archive="pendingId = $event" @retry="refetch" />

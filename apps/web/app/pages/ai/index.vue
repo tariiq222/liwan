@@ -183,7 +183,7 @@ watch(status, (now, before) => {
 <template>
   <SharedPageContainer data-template="ai-conversation">
     <SharedPageHeader :title="t('ai.title')" />
-    <SharedEmptyState v-if="showUnavailable" bordered :title="t('ai.errors.unavailable')" data-testid="ai-unavailable" />
+    <SharedEmptyState icon="i-lucide-sparkles" v-if="showUnavailable" bordered :title="t('ai.errors.unavailable')" data-testid="ai-unavailable" />
     <template v-else>
       <AiRunList v-if="!isWide" disclosure />
       <div class="grid min-w-0 items-start gap-4" :class="{ 'grid-cols-[minmax(0,1fr)_320px]': isWide }">

@@ -137,7 +137,7 @@ function runTo(row: HrPayrollRunSummary) {
       </template>
 
       <SharedPageState :error="runs.error.value" :keep-content="items.length > 0" @retry="runs.refetch">
-        <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('hrPayroll.runs.emptyTitle')" :description="t('hrPayroll.runs.emptyHint')" />
+        <SharedEmptyState icon="i-lucide-banknote" v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('hrPayroll.runs.emptyTitle')" :description="t('hrPayroll.runs.emptyHint')" />
         <PayrollRunTable v-else :runs="items" :row-to="runTo" :loading="runs.isLoading.value" :caption="t('hrPayroll.title')" />
       </SharedPageState>
       <template v-if="runs.data.value && !showEmpty" #footer>

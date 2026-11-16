@@ -24,7 +24,7 @@ function openRecord(connection: IntegrationConnection) {
 <template>
   <SharedCreatePanel :title="title" :back-to="BACK_TO">
     <SharedForbiddenState v-if="forbidden" :description="t('integrations.errors.forbidden')" />
-    <SharedPageState v-else :loading="providers.isLoading.value" :error="providers.error.value" :empty="!provider" :empty-text="t('integrations.new.unknownProvider')" @retry="providers.refetch()">
+    <SharedPageState empty-icon="i-lucide-plug" v-else :loading="providers.isLoading.value" :error="providers.error.value" :empty="!provider" :empty-text="t('integrations.new.unknownProvider')" @retry="providers.refetch()">
       <IntegrationConnectionForm v-if="provider" :provider="provider" :back-to="BACK_TO" @created="openRecord" />
     </SharedPageState>
   </SharedCreatePanel>

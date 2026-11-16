@@ -12,6 +12,6 @@ if (first) await navigateTo(first.parts[0]!.to ?? first.page.to, { replace: true
 <template>
   <SharedSettingsPage v-if="!first">
     <SharedPageHeader :title="t('settings.title')" />
-    <SharedEmptyState bordered :title="t('settings.forbidden')" />
+    <SharedEmptyState icon="i-lucide-lock" bordered :title="t('settings.forbidden')" />
   </SharedSettingsPage>
 </template>

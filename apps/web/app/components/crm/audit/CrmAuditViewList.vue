@@ -36,7 +36,7 @@ const columns = computed<TableColumn<CrmViewLog>[]>(() => [
   <SharedForbiddenState v-if="!allowed" />
   <SharedListCard v-else>
     <SharedPageState :error="query.error.value" :keep-content="items.length > 0" @retry="query.refetch()">
-      <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('crm.audit.empty')" />
+      <SharedEmptyState icon="i-lucide-history" v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('crm.audit.empty')" />
       <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,560px)]">
         <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :loading="query.isPending.value" :caption="t('crm.audit.title')">
           <template #user-cell="{ row }"><span class="text-sm text-highlighted">{{ row.original.user.name }}</span></template>

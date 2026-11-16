@@ -131,5 +131,5 @@ function toggle(node: DepartmentTreeNode) {
       />
     </div>
   </div>
-  <SharedEmptyState v-else class="m-(--liwan-card-pad-dense)" :title="$t('hr.depts.empty')" />
+  <SharedEmptyState icon="i-lucide-network" v-else class="m-(--liwan-card-pad-dense)" :title="$t('hr.depts.empty')" />
 </template>

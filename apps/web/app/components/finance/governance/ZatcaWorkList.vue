@@ -40,7 +40,7 @@ function choose(value: unknown) { state.value = String(value); page.value = 1 }
         <USelect id="finance-zatca-work-state" :model-value="state" :items="stateItems" class="w-full" :disabled="!hydrated" @update:model-value="choose" />
       </UFormField>
       <SharedPageState :loading="query.isPending.value" :error="query.error.value" :keep-content="items.length > 0" @retry="query.refetch">
-        <SharedEmptyState v-if="!items.length" :title="t('financeGovernance.zatca.work.empty')" />
+        <SharedEmptyState icon="i-lucide-qr-code" v-if="!items.length" :title="t('financeGovernance.zatca.work.empty')" />
         <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,720px)]">
           <SharedDataTable bare :rows="items" :columns="columns" :row-key="row => row.invoice.id" :caption="t('financeGovernance.zatca.work.title')">
             <template #invoice-cell="{ row }">

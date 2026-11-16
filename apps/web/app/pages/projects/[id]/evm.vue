@@ -28,7 +28,7 @@ const chartLabel = computed(() => data.value && data.value.pv !== null && data.v
 <template>
   <ProjectNotFoundState v-if="notFound" />
   <SharedListPage v-else hide-header :title="t('projects.evm.title')">
-    <SharedEmptyState v-if="noBaseline" bordered :title="t('projects.evm.noBaseline')" :description="t('projects.evm.noBaselineHint')" data-testid="evm-no-baseline">
+    <SharedEmptyState icon="i-lucide-chart-line" v-if="noBaseline" bordered :title="t('projects.evm.noBaseline')" :description="t('projects.evm.noBaselineHint')" data-testid="evm-no-baseline">
       <template #action><UButton color="neutral" variant="outline" :to="`/projects/${id}/baselines`" :label="t('nav.projectBaselines')" /></template>
     </SharedEmptyState>
     <SharedPageState v-else-if="evm.error.value" :error="evm.error.value" @retry="evm.refetch" />

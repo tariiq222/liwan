@@ -116,7 +116,7 @@ function createRecommendation(topicKey?: string) {
 <template>
   <SharedPageContainer>
     <SharedPageHeader :title="t(editableMinutes ? 'meetingsUx.minutesEditorTitle' : 'meetingsUx.minutesLabel')" :back-to="backTo" />
-    <SharedPageState :loading="query.isLoading.value" :error="pageError" :empty="!query.isLoading.value && !pageError && !query.data.value" @retry="query.refetch">
+    <SharedPageState empty-icon="i-lucide-file-question" :loading="query.isLoading.value" :error="pageError" :empty="!query.isLoading.value && !pageError && !query.data.value" @retry="query.refetch">
       <form novalidate v-if="query.data.value" class="liwan-form" @submit.prevent="save(false)">
         <SharedUnsavedChanges :dirty="dirty" />
         <UAlert v-if="editableMinutes" color="neutral" variant="subtle" icon="i-lucide-info" :title="t('meetingsUx.minutesEditorContext', { name: query.data.value.name })" />
