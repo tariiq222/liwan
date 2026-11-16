@@ -96,6 +96,10 @@ def run_command(command: Command, log_dir: Path):
     except FileNotFoundError:
         detail.update(status='not_verified', reason=f'{command.argv[0]} is not installed', seconds=0.0)
         return detail
+    except OSError as error:
+        # E2BIG and friends: the OS refused to start the process, so no verdict exists for this run.
+        detail.update(status='not_verified', reason=f'{command.name} could not start: {error}', seconds=0.0)
+        return detail
     except subprocess.TimeoutExpired:
         detail.update(status='failed', reason=f'timed out after {command.timeout}s', seconds=time.time() - started)
         return detail

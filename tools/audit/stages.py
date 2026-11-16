@@ -289,10 +289,18 @@ def semgrep_probe(context):
     argv = ['semgrep', 'scan', '--metrics=off', '--disable-version-check', '--quiet', '--json', '--output', str(output)]
     for config in configs:
         argv += ['--config', str(config)]
-    command = Command('semgrep scan', argv + targets, timeout=1800,
+    # A deep scan covers ~20k files; passing every path exceeds the kernel's argument limit (E2BIG).
+    # Semgrep accepts directories, so the roots are passed and its own ignore list filters them; the
+    # file count below stays the precise evidence of what the pass covered.
+    roots = sorted({target.split('/')[0] for target in targets})
+    command = Command('semgrep scan', argv + roots, timeout=1800,
                       env={'SEMGREP_LOG_FILE': str(log_dir / 'semgrep-runtime.log'),
-                           'SEMGREP_SETTINGS_FILE': str(log_dir / 'semgrep-settings.yml')})
-    check = run_command(command, AUDIT_DIR / 'logs' / 'static-analysis')
+                           'SEMGREP_SETTINGS_FILE': str(log_dir / 'semgrep-settings.yml'),
+                           'SEMGREP_SEND_METRICS': 'off'})
+    try:
+        check = run_command(command, AUDIT_DIR / 'logs' / 'static-analysis')
+    except OSError as error:
+        return probe('not_verified', 'semgrep could not start: %s' % error, {'scanned': len(targets)})
     if check['status'] != 'passed':
         return probe('not_verified', 'semgrep could not complete: %s' % check.get('reason', ''), {'checks': [check]})
     try:
@@ -337,18 +345,49 @@ def secret_allowlist():
     return {(item['path'], item['rule']): item['reason'] for item in data.get('allowed', [])}
 
 
+# Linux caps one argument list near 2 MB (MAX_ARG_STRLEN); stay well below it so a larger checkout
+# fails with a clear Not Verified instead of an OSError from the kernel.
+MAX_ARGV_BYTES = 512 * 1024
+
+
 def gitleaks_probe(context):
     if not which('gitleaks'):
         return probe('not_verified', 'gitleaks is not installed')
     report = context.run_dir / 'gitleaks.json'
-    roots = ['apps/web/app', 'apps/web/server', 'apps/vendor-admin/app', 'apps/vendor-admin/server',
-             'apps/control-plane/src', 'apps/ai-service/src', 'packages', 'odoo-addons', 'deploy',
-             'tools', 'e2e', '.github', '.claude']
-    command = Command('gitleaks scan',
-                      ['gitleaks', 'dir', *roots, '--no-banner', '--redact', '--report-format', 'json',
-                       '--report-path', str(report), '--exit-code', '0', '--max-target-megabytes', '2'],
-                      timeout=900)
-    check = run_command(command, AUDIT_DIR / 'logs' / 'static-analysis')
+    # `gitleaks dir` walks whatever directory it is given and ignores file arguments, so the probe
+    # passes directories. Only tracked content is the product: a lane's `.worktrees` copy, an ignored
+    # `.env` and a local `.e2e`/`.scratch` cache are not findings about this repository, and scanning
+    # them buried the real result under 1,150 matches. The git-ignored paths below are skipped by name.
+    scopes = ['apps/web/app', 'apps/web/server', 'apps/vendor-admin/app', 'apps/vendor-admin/server',
+              'apps/control-plane/src', 'apps/ai-service/src', 'packages', 'odoo-addons', 'deploy',
+              'tools', 'e2e', '.github', '.claude/agents', '.claude/skills', '.claude/scripts']
+    roots = [path for path in scopes if (REPO / path).is_dir()]
+    if not roots:
+        return probe('not_verified', 'no scanned scope exists in this checkout')
+    # `gitleaks dir` honors one path and silently falls back to the whole checkout when given several,
+    # so each scope is its own invocation and the reports are merged. The fallback was measured: two
+    # directory arguments scanned the repository root (728 MB) instead of the two named folders.
+    findings, checks = [], []
+    for index, root in enumerate(roots):
+        part = report.with_name('gitleaks-%02d.json' % index)
+        command = Command('gitleaks scan %s' % root,
+                          ['gitleaks', 'dir', root, '--no-banner', '--redact', '--report-format', 'json',
+                           '--report-path', str(part), '--exit-code', '0', '--max-target-megabytes', '2'],
+                          timeout=900)
+        check = run_command(command, AUDIT_DIR / 'logs' / 'static-analysis')
+        checks.append(check)
+        if check['status'] != 'passed':
+            continue
+        try:
+            findings.extend(json.loads(part.read_text(encoding='utf-8')) if part.is_file() else [])
+        except ValueError:
+            checks.append({'name': 'gitleaks parse %s' % root, 'status': 'failed',
+                           'reason': 'unreadable report for %s' % root})
+    report.write_text(json.dumps(findings, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    failed_runs = [c for c in checks if c['status'] == 'failed']
+    if failed_runs:
+        return probe('not_verified', 'gitleaks could not scan %s' % ', '.join(
+            c['name'] for c in failed_runs), {'checks': checks})
     try:
         findings = json.loads(report.read_text(encoding='utf-8')) if report.is_file() else []
     except ValueError:
