@@ -310,6 +310,12 @@ test('[HD-50] a supervisor merges a duplicate, then reads the queue, the reports
     await expect(screen.getByTestId(card)).toBeVisible(slow);
   }
   await expect(screen.getByText('عرض فقط').first()).toBeVisible(slow);
+  // Each section draws its own heading (they lost it once, when the cards were built on the wrong box: a plain
+  // sub-card drops the title and the actions slot, so the page showed four unlabelled blocks).
+  for (const heading of ['فرق الدعم', 'المراحل', 'اتفاقيات مستوى الخدمة']) {
+    await expect(screen.getByRole('heading', { name: heading }).first()).toBeVisible(slow);
+  }
+  // A reader adds nothing: the buttons exist for a manager and stay absent here.
   await expect(screen.getByTestId('helpdesk-team-add')).toHaveCount(0, slow);
   await expect(screen.getByTestId('helpdesk-stage-add')).toHaveCount(0, slow);
   await expect(screen.getByTestId('helpdesk-sla-add')).toHaveCount(0, slow);

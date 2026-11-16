@@ -96,7 +96,7 @@ const busy = computed(() => save.isPending.value || archive.isPending.value)
 </script>
 
 <template>
-  <SharedSubCard :title="t('helpdesk.settings.sla.title')" data-testid="helpdesk-settings-sla">
+  <SharedRecordSection variant="panel" :title="t('helpdesk.settings.sla.title')" data-testid="helpdesk-settings-sla">
     <template #actions>
       <UButton v-if="props.canEdit && editing === null" color="neutral" variant="outline" icon="i-lucide-plus" size="xs" :label="t('helpdesk.settings.sla.add')" data-testid="helpdesk-sla-add" @click="start()" />
     </template>
@@ -154,5 +154,5 @@ const busy = computed(() => save.isPending.value || archive.isPending.value)
         <UButton type="submit" :loading="busy" :label="t('helpdesk.settings.resources.save')" data-testid="helpdesk-sla-save" />
       </div>
     </form>
-  </SharedSubCard>
+  </SharedRecordSection>
 </template>

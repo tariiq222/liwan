@@ -68,7 +68,7 @@ const addLabel = computed(() => t(`helpdesk.settings.values.${props.kind}.add`))
 </script>
 
 <template>
-  <SharedSubCard :title="title" :data-testid="`helpdesk-settings-${props.kind}`">
+  <SharedRecordSection variant="panel" :title="title" :data-testid="`helpdesk-settings-${props.kind}`">
     <template #actions>
       <UButton v-if="props.canEdit && !adding && editing === null" color="neutral" variant="outline" icon="i-lucide-plus" size="xs" :label="addLabel" :data-testid="`helpdesk-${props.kind}-add`" @click="start()" />
     </template>
@@ -95,5 +95,5 @@ const addLabel = computed(() => t(`helpdesk.settings.values.${props.kind}.add`))
         <UButton type="submit" :loading="save.isPending.value" :label="t('helpdesk.settings.resources.save')" :data-testid="`helpdesk-${props.kind}-save`" />
       </div>
     </form>
-  </SharedSubCard>
+  </SharedRecordSection>
 </template>

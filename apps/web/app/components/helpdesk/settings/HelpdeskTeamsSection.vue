@@ -57,7 +57,7 @@ const memberOptions = computed(() => known.value.map(member => ({ id: member.id,
 </script>
 
 <template>
-  <SharedSubCard :title="t('helpdesk.settings.teams.title')" data-testid="helpdesk-settings-teams">
+  <SharedRecordSection variant="panel" :title="t('helpdesk.settings.teams.title')" data-testid="helpdesk-settings-teams">
     <template #actions>
       <UButton v-if="props.canEdit && editing === null" color="neutral" variant="outline" icon="i-lucide-plus" size="xs" :label="t('helpdesk.settings.teams.add')" data-testid="helpdesk-team-add" @click="start()" />
     </template>
@@ -91,5 +91,5 @@ const memberOptions = computed(() => known.value.map(member => ({ id: member.id,
         <UButton type="submit" :loading="save.isPending.value" :label="t('helpdesk.settings.resources.save')" data-testid="helpdesk-team-save" />
       </div>
     </form>
-  </SharedSubCard>
+  </SharedRecordSection>
 </template>

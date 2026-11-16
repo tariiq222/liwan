@@ -59,7 +59,7 @@ const teamOptions = computed(() => props.teams.map(team => ({ value: team.id, la
 </script>
 
 <template>
-  <SharedSubCard :title="t('helpdesk.settings.stages.title')" data-testid="helpdesk-settings-stages">
+  <SharedRecordSection variant="panel" :title="t('helpdesk.settings.stages.title')" data-testid="helpdesk-settings-stages">
     <template #actions>
       <UButton v-if="props.canEdit && editing === null" color="neutral" variant="outline" icon="i-lucide-plus" size="xs" :label="t('helpdesk.settings.stages.add')" data-testid="helpdesk-stage-add" @click="start()" />
     </template>
@@ -99,5 +99,5 @@ const teamOptions = computed(() => props.teams.map(team => ({ value: team.id, la
         <UButton type="submit" :loading="save.isPending.value" :label="t('helpdesk.settings.resources.save')" data-testid="helpdesk-stage-save" />
       </div>
     </form>
-  </SharedSubCard>
+  </SharedRecordSection>
 </template>
