@@ -77,11 +77,20 @@ async function grantRole(browser: PageContext, login: string, roleKey: string) {
   });
 }
 
-/** A support request opened by the signed-in employee, with a unique subject. */
-async function openRequest(browser: PageContext, subject: string, description = 'الجهاز لا يبدأ بعد التحديث الأخير.') {
+/**
+ * A support request opened by the signed-in employee, with a unique subject.
+ *
+ * `assignee` is the caller when the caller is an agent (the service gives the ticket to whoever opened it with the
+ * write right) and null for an employee opening their own request. The expectation is passed in, because which one
+ * it is depends on the account the journey signed in as, never on the subject.
+ */
+async function openRequest(
+  browser: PageContext, subject: string, assignedToSelf: boolean, description = 'الجهاز لا يبدأ بعد التحديث الأخير.',
+) {
   const created = await ok(browser, 'POST', TICKETS, { subject, description });
   const stage = created.stage as Json;
-  expect([created.subject, stage.closed, created.assignee]).toEqual([subject, false, null]);
+  const assignee = created.assignee as Json | null;
+  expect([created.subject, stage.closed, assignee === null]).toEqual([subject, false, !assignedToSelf]);
   // The stage a new ticket lands on is whatever the team's first open stage is, so it is read, never assumed:
   // the engine's shared stages are applicable to every team as well (register row HD-103).
   return { id: created.id as number, number: created.number as string, stage: stage.name as string };
@@ -107,8 +116,9 @@ test('[HD-24] an employee opens a request and follows it without the desk’s ag
   expectCapabilities(me.capabilities, ['helpdesk.requests.read', 'helpdesk.requests.create']);
   expect(me.capabilities.filter(key => /^helpdesk\.(tickets|reports|settings)\./.test(key))).toEqual([]);
 
-  // The request the panel's form would send: the server makes the employee the requester and assigns nobody.
-  const request = await openRequest(browser, subject);
+  // The request the panel's form would send: the server makes the employee the requester and assigns nobody, since
+  // the employee holds no desk write right to take it.
+  const request = await openRequest(browser, subject, false);
   const body = await ok(browser, 'GET', `${TICKETS}/${request.id}`);
   expect([(body.requester as Json).kind, (body.requester as Json).name, body.assignee, body.assigned_at])
     .toEqual(['employee', EMPLOYEE, null, null]);
@@ -160,7 +170,7 @@ test('[HD-30] a manager takes the request through assignment, stage, reply, note
   await grantRole(browser, 'e2e_crm_manager', 'helpdesk_manager');
   // The request is the employee's, so the manager meets a ticket nobody answers yet.
   await signInAs('staff2', stage);
-  const request = await openRequest(browser, subject);
+  const request = await openRequest(browser, subject, false);
 
   await signInAs('crm_manager', stage);
   expectCapabilities((await identity(browser)).capabilities, DESK_KEYS);
@@ -245,8 +255,9 @@ test('[HD-50] a supervisor merges a duplicate, then reads the queue, the reports
   expectCapabilities((await identity(browser)).capabilities,
     [...DESK_KEYS, 'helpdesk.reports.read', 'helpdesk.settings.read']);
 
-  const kept = await openRequest(browser, keptSubject);
-  const duplicate = await openRequest(browser, duplicateSubject);
+  // The supervisor opens both with the write right, so each becomes theirs: that is the desk's rule for an agent.
+  const kept = await openRequest(browser, keptSubject, true);
+  const duplicate = await openRequest(browser, duplicateSubject, true);
 
   // The merge closes the duplicate and leaves the merge note on the ticket that stays, and the duplicate is
   // closed, so it offers no merge section of its own.
@@ -281,8 +292,8 @@ test('[HD-50] a supervisor merges a duplicate, then reads the queue, the reports
   await app.open('/helpdesk/reports');
   await expect(screen.getByRole('heading', { level: 1, name: 'تقارير الدعم' })).toBeVisible(slow);
   await expect(screen.getByTestId('metric-tile')).toHaveCount(4, slow);
-  await expect(screen.getByText('حِمل الموظفين')).toBeVisible(slow);
-  await expect(screen.getByText('التذاكر بحسب المرحلة')).toBeVisible(slow);
+  await expect(screen.getByTestId('helpdesk-report-agents')).toBeVisible(slow);
+  await expect(screen.getByTestId('helpdesk-report-stages')).toBeVisible(slow);
   await expect(screen.getByTestId('helpdesk-report-period')).toContainText('آخر ٣٠ يومًا', slow);
   await screen.getByTestId('helpdesk-report-period').tap();
   await screen.getByRole('option', 'آخر ٧ أيام').tap();

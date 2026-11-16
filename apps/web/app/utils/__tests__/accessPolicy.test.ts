@@ -322,4 +322,19 @@ describe('personal pages follow the home company', () => {
       expect(canReachPath(home, path), path).toBe(true)
     }
   })
+
+  it('opens an application page that serves two rights to whoever holds one of them', () => {
+    // The desk's queue is the landing of an agent (helpdesk.tickets.read) and of an employee following their own
+    // requests (helpdesk.requests.read): a route rule names the alternatives and either one opens the page.
+    const employee = {
+      id: 1, role: 'employee', capabilities: ['helpdesk.requests.read', 'helpdesk.requests.create'],
+      platform: { readable_features: ['helpdesk.enabled'], writable_features: [] },
+    } as never
+    expect(canReachPath(employee, '/helpdesk')).toBe(true)
+    const stranger = {
+      id: 1, role: 'employee', capabilities: [],
+      platform: { readable_features: ['helpdesk.enabled'], writable_features: [] },
+    } as never
+    expect(canReachPath(stranger, '/helpdesk')).toBe(false)
+  })
 })

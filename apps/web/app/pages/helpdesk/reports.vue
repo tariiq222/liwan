@@ -66,7 +66,7 @@ function setPeriod(value: string) {
         <template v-if="data">
           <SharedKpiStrip :tiles="kpis" />
           <div class="mt-4 grid gap-4 lg:grid-cols-2">
-            <SharedListCard :title="t('helpdesk.reports.agents')">
+            <SharedListCard :title="t('helpdesk.reports.agents')" data-testid="helpdesk-report-agents">
               <SharedEmptyState v-if="!data.agents.length" :title="t('helpdesk.reports.empty')" />
               <SharedDataTable
                 v-else
@@ -88,7 +88,7 @@ function setPeriod(value: string) {
                 </template>
               </SharedDataTable>
             </SharedListCard>
-            <SharedListCard :title="t('helpdesk.reports.byStage')">
+            <SharedListCard :title="t('helpdesk.reports.byStage')" data-testid="helpdesk-report-stages">
               <SharedEmptyState v-if="!data.stages.length" :title="t('helpdesk.reports.empty')" />
               <ul v-else class="flex flex-col gap-2">
                 <li v-for="stage in data.stages" :key="stage.name" class="flex items-center justify-between gap-3">

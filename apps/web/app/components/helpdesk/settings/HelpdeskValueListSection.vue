@@ -19,9 +19,10 @@ const adding = ref(false)
 const failure = ref<string | null>(null)
 
 const isCategories = computed(() => props.kind === 'categories')
+const NO_PARENT = 'none'
 const parentItems = computed(() => [
-  { value: 0, label: t('helpdesk.settings.values.noParent') },
-  ...(props.rows as HelpdeskCategoryResource[]).map(row => ({ value: row.id, label: row.name })),
+  { value: NO_PARENT, label: t('helpdesk.settings.values.noParent') },
+  ...(props.rows as HelpdeskCategoryResource[]).map(row => ({ value: String(row.id), label: row.name })),
 ])
 const parentOf = (row: HelpdeskResource | HelpdeskCategoryResource) =>
   (row as HelpdeskCategoryResource).parent_id ?? null
@@ -87,7 +88,7 @@ const addLabel = computed(() => t(`helpdesk.settings.values.${props.kind}.add`))
         <UInput v-model="name" class="w-full" :maxlength="64" :data-testid="`helpdesk-${props.kind}-name`" />
       </UFormField>
       <UFormField v-if="isCategories" :label="t('helpdesk.settings.values.parent')" class="min-w-40">
-        <USelect :model-value="parentId ?? 0" :items="parentItems" class="w-full" @update:model-value="value => { parentId = Number(value) || null }" />
+        <USelect :model-value="parentId === null ? NO_PARENT : String(parentId)" :items="parentItems" class="w-full" @update:model-value="value => { parentId = value === NO_PARENT ? null : Number(value) }" />
       </UFormField>
       <div class="flex gap-2">
         <UButton color="neutral" variant="outline" :label="t('app.cancel')" :disabled="save.isPending.value" @click="cancel" />

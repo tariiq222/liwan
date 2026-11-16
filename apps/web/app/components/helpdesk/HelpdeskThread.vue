@@ -8,6 +8,9 @@ import { useHelpdeskAttachments, useHelpdeskComment, useHelpdeskMessages } from 
 // ticket; the server decides that again.
 const props = defineProps<{ ticketId: number; attachments: HelpdeskAttachment[]; closed: boolean; canWrite: boolean; canRequest: boolean }>()
 const { t } = useI18n()
+// Nothing is typed into a field the server rendered a different value for: the composer opens once the page is
+// hydrated, the same rule every other form in the product follows.
+const hydrated = useHydrated()
 const messages = useHelpdeskMessages(() => props.ticketId)
 const comment = useHelpdeskComment()
 const files = useHelpdeskAttachments(() => props.ticketId)
@@ -83,10 +86,10 @@ const busy = computed(() => files.upload.isPending.value || files.remove.isPendi
       </ul>
       <template v-if="mayComment">
         <div class="mt-4 flex flex-col gap-2">
-          <UTextarea v-model="body" class="w-full" :rows="3" :disabled="comment.isPending.value" :placeholder="t('helpdesk.thread.placeholder')" data-testid="helpdesk-comment" />
+          <UTextarea v-model="body" class="w-full" :rows="3" :disabled="comment.isPending.value || !hydrated" :placeholder="t('helpdesk.thread.placeholder')" data-testid="helpdesk-comment" />
           <div class="flex flex-wrap items-center justify-between gap-2">
-            <UCheckbox v-if="canWrite" v-model="internal" :label="t('helpdesk.thread.note')" data-testid="helpdesk-note" />
-            <UButton :loading="comment.isPending.value" :disabled="!body.trim()" :label="t('helpdesk.thread.send')" data-testid="helpdesk-comment-send" @click="send" />
+            <UCheckbox v-if="canWrite" v-model="internal" :disabled="!hydrated" :label="t('helpdesk.thread.note')" data-testid="helpdesk-note" />
+            <UButton :loading="comment.isPending.value" :disabled="!hydrated || !body.trim()" :label="t('helpdesk.thread.send')" data-testid="helpdesk-comment-send" @click="send" />
           </div>
         </div>
       </template>

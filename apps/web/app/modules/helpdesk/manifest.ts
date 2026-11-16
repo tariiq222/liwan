@@ -35,7 +35,8 @@ const manifest: AppManifest = {
     { id: 'helpdesk-tickets', labelKey: 'helpdesk.nav.tickets', icon: 'i-lucide-life-buoy', to: '/helpdesk', capability: READ, anyCapabilities: [REQUESTS_READ] },
     { id: 'helpdesk-reports', labelKey: 'helpdesk.nav.reports', icon: 'i-lucide-chart-column', to: '/helpdesk/reports', capability: REPORTS, feature: 'helpdesk.reports' },
   ],
-  landing: [{ path: '/helpdesk', capability: READ }],
+  // The queue is the landing of an agent and of an employee following their own requests.
+  landing: [{ path: '/helpdesk', capability: READ, anyCapabilities: [REQUESTS_READ] }],
   // Merging needs both its capability and the merge sub-feature the server checks on the same route.
   subFeatures: {
     'helpdesk.tickets.merge': 'helpdesk.merge', 'helpdesk.tickets.merge.': 'helpdesk.merge',

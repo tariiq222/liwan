@@ -34,20 +34,21 @@ const queueItems = computed(() => [
   { value: 'closed', label: t('helpdesk.queue.closed') },
   { value: 'all', label: t('helpdesk.queue.all') },
 ])
+const ANY = 'any'
 const teamItems = computed(() => [
-  { value: 0, label: t('helpdesk.filters.anyTeam') },
-  ...(reference.data.value?.teams ?? []).map(team => ({ value: team.id, label: team.name })),
+  { value: ANY, label: t('helpdesk.filters.anyTeam') },
+  ...(reference.data.value?.teams ?? []).map(team => ({ value: String(team.id), label: team.name })),
 ])
 const stageItems = computed(() => [
-  { value: 0, label: t('helpdesk.filters.anyStage') },
-  ...(reference.data.value?.stages ?? []).map(stage => ({ value: stage.id, label: stage.name })),
+  { value: ANY, label: t('helpdesk.filters.anyStage') },
+  ...(reference.data.value?.stages ?? []).map(stage => ({ value: String(stage.id), label: stage.name })),
 ])
 const priorityItems = computed(() => [
-  { value: '', label: t('helpdesk.filters.anyPriority') },
+  { value: ANY, label: t('helpdesk.filters.anyPriority') },
   ...(['urgent', 'high', 'medium', 'low'] as const).map(value => ({ value, label: t(`helpdesk.priority.${value}`) })),
 ])
 const assigneeItems = computed(() => [
-  { value: 'any', label: t('helpdesk.filters.anyAssignee') },
+  { value: ANY, label: t('helpdesk.filters.anyAssignee') },
   { value: 'me', label: t('helpdesk.filters.mine') },
   { value: 'none', label: t('helpdesk.filters.unassigned') },
 ])
@@ -75,10 +76,10 @@ const emptyText = computed(() => t(activeCount.value ? 'app.noResults' : 'helpde
               <UInput v-model="search" class="w-full" icon="i-lucide-search" :placeholder="t('helpdesk.search')" :aria-label="t('helpdesk.search')" :disabled="!hydrated" data-testid="helpdesk-search" />
             </form>
           </template>
-          <USelect :model-value="state.team ?? 0" :items="teamItems" :aria-label="t('helpdesk.columns.team')" :disabled="!hydrated" data-testid="helpdesk-team" @update:model-value="value => update({ team: Number(value) > 0 ? String(value) : undefined, page: undefined })" />
-          <USelect :model-value="state.stage ?? 0" :items="stageItems" :aria-label="t('helpdesk.columns.stage')" :disabled="!hydrated" data-testid="helpdesk-stage" @update:model-value="value => update({ stage: Number(value) > 0 ? String(value) : undefined, page: undefined })" />
-          <USelect :model-value="state.priority ?? ''" :items="priorityItems" :aria-label="t('helpdesk.columns.priority')" :disabled="!hydrated" data-testid="helpdesk-priority" @update:model-value="value => update({ priority: value ? String(value) : undefined, page: undefined })" />
-          <USelect :model-value="state.assignee ?? 'any'" :items="assigneeItems" :aria-label="t('helpdesk.columns.assignee')" :disabled="!hydrated" data-testid="helpdesk-assignee" @update:model-value="value => update({ assignee: value === 'any' ? undefined : String(value), page: undefined })" />
+          <USelect :model-value="state.team === null ? ANY : String(state.team)" :items="teamItems" :aria-label="t('helpdesk.columns.team')" :disabled="!hydrated" data-testid="helpdesk-team" @update:model-value="value => update({ team: value === ANY ? undefined : String(value), page: undefined })" />
+          <USelect :model-value="state.stage === null ? ANY : String(state.stage)" :items="stageItems" :aria-label="t('helpdesk.columns.stage')" :disabled="!hydrated" data-testid="helpdesk-stage" @update:model-value="value => update({ stage: value === ANY ? undefined : String(value), page: undefined })" />
+          <USelect :model-value="state.priority ?? ANY" :items="priorityItems" :aria-label="t('helpdesk.columns.priority')" :disabled="!hydrated" data-testid="helpdesk-priority" @update:model-value="value => update({ priority: value === ANY ? undefined : String(value), page: undefined })" />
+          <USelect :model-value="state.assignee ?? ANY" :items="assigneeItems" :aria-label="t('helpdesk.columns.assignee')" :disabled="!hydrated" data-testid="helpdesk-assignee" @update:model-value="value => update({ assignee: value === ANY ? undefined : String(value), page: undefined })" />
         </SharedFilterBar>
       </template>
       <SharedPageState v-if="query.error.value && !query.data.value" :error="query.error.value" @retry="query.refetch()" />

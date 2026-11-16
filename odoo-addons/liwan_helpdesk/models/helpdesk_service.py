@@ -123,9 +123,19 @@ class LiwanHelpdeskService(models.AbstractModel):
 
     @api.model
     def _liwan_default_stage(self, team, *, closed=False):
+        """The first open (or closed) stage a ticket of ``team`` lands on.
+
+        Ordered explicitly: the engine returns its applicable stages in its own order, which is not the sequence the
+        tenant arranged, so an unsorted pick would close a ticket in the engine's "Cancelled" instead of the tenant's
+        own closed stage.
+        """
         stages = team._get_applicable_stages() if team else self.env['helpdesk.ticket.stage'].search(
-            [('company_id', 'in', [False, self.env.company.id])], order='sequence, id')
-        stage = stages.filtered(lambda item: item.closed == closed)[:1]
+            [('company_id', 'in', [False, self.env.company.id])])
+        # A stage of the company itself wins the tie against a shared engine stage of the same sequence: the tenant's
+        # own set is what its screens offer, and the engine's shared rows are the ones its hook parks on the team.
+        stage = stages.sorted(lambda item: (
+            item.sequence, 0 if item.company_id else 1, item.id,
+        )).filtered(lambda item: item.closed == closed)[:1]
         if not stage:
             raise invalid(
                 'the team has no %s stage' % ('closed' if closed else 'open'),

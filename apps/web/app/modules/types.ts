@@ -129,6 +129,8 @@ export interface AppBellKind {
 }
 export interface AppLandingEntry {
   path: string; capability: string
+  /** Further rights that open the same landing (an application whose page serves two capabilities). */
+  anyCapabilities?: string[]
   /** Ordered after the foundation destinations (settings, access) instead of in rail order. */
   late?: boolean
 }
