@@ -40,7 +40,7 @@ holds may go back (`amount_refundable`); a confirmed one keeps its total, as an 
 
 Any money a quotation holds once it is cancelled (declined included), expired or reopened to a draft is due back, whatever
 its amount: `held` names the state, `amount_to_refund` equals `amount_refundable`, and each payment that arrives on such a
-quotation gets one chatter note. Sending it again (when its amount is reached) confirms it with that money instead.
+quotation gets one chatter note. Sending it again does not confirm it (see "Sending again").
 
 ## What each page says
 
@@ -50,7 +50,8 @@ quotation gets one chatter note. Sending it again (when its amount is reached) c
   no live gateway, the check the pay page makes), `awaiting_signature` or `unavailable`. `held` says why money that reached
   what the quotation asks did not confirm it: `expired`, `reopened`, `cancelled` (any amount held) or `awaiting_signature`.
   `attention` is `payment_not_recorded` (money received but not recorded for an hour), `payment_reversed` (confirmed, then a
-  payment it counted was voided, so it holds less than it asked) or null; `needs_attention` is true exactly when it is set.
+  payment it counted was voided, so it holds less than it asked), `payment_awaits_confirmation` (sent again without an
+  answer mode, it holds what it asks and waits for a staff confirm) or null; `needs_attention` is true exactly when it is set.
   `amount_to_refund` is what must go back (all the money of an expired, reopened or cancelled quotation that holds what it
   asks, or what a confirmed order received beyond its total); `amount_refundable` is the most one refund may record now;
   `can_refund` is true when the reader may change the quotation in Sales, holds `payments.refund` in its company, the
@@ -87,15 +88,29 @@ quotation asks received. The customer then gets the Sales confirmation e-mail on
 (`liwan.sales.document._liwan_queue_confirmation_mail`): the tenant's outbound sender, the quotation's own `/quote/<id>`
 link and no Odoo portal link, built like the send e-mail. Without a sender the order is still confirmed and a chatter note
 says no e-mail went. A repeated callback finds the order confirmed and sends nothing. A row another transaction holds
-raises `LockError` on the payment callback (stock retries it) and answers 409 `conflict` on the customer's acceptance and
-the staff send.
+raises `LockError` on the payment callback (stock retries it) and answers 409 `conflict` on the customer's acceptance.
 Every other order, online orders and transactions shared by several orders included, is stock's.
 
 A payment for a quotation that cannot be confirmed now (expired, reopened to a draft, or cancelled) is never refused and
 never confirms the order, as `liwan_payments` does for its own late payments: the transaction stays recorded on the order,
-one chatter note per transaction says why, and the staff record shows `held` and `amount_to_refund`. Sending the quotation
-again (after extending its validity) confirms it with the money already on it, through the same path; or the staff give the
-money back.
+one chatter note per transaction says why, and the staff record shows `held` and `amount_to_refund`. The staff send the
+quotation again (below) or give the money back.
+
+## Sending again
+
+A send never confirms by itself: confirming needs `sales.orders.confirm`, and the reopened quotation may carry new terms the
+money was not paid against. The send clears the answer as Sales does; the money already received stays recorded and is never
+taken as an acceptance, and the customer's page reads `received` (or `payable` for a difference). Then:
+
+- `accept` or `accept_and_sign`: the customer's new acceptance, or signature, confirms it through the payment path, with one
+  confirmation e-mail, since the amount is reached.
+- `none`: nobody answers, so staff with `sales.orders.confirm` confirm it; until then the staff shape reads `attention`
+  `payment_awaits_confirmation` (`needs_attention` true).
+- A payment that arrives on the sent, unexpired quotation still confirms it, as any payment does.
+
+A draft that holds money keeps its customer (422 `invalid` on `customer_id`: the money belongs to the payer). Its lines and
+percentage stay editable: priced higher, it is payable again for the difference after the send; priced lower, the surplus is
+due back once it is confirmed (`amount_to_refund`).
 
 ## Refunds
 

@@ -32,8 +32,12 @@ export const SalesOrderPaymentStatusSchema = z.enum(['none', 'payable', 'process
  * paid or confirmed), `no_gateway` (payable but no live gateway: switch one to live) or `unavailable` (expired, not sent).
  */
 export const SalesOrderPaymentLinkSchema = z.enum(['none', 'ready', 'awaiting_signature', 'no_gateway', 'unavailable'])
-/** Why a person must look at the money of an order: received but not recorded for an hour, or confirmed and then a payment it counted was voided. */
-export const SalesOrderPaymentAttentionSchema = z.enum(['payment_not_recorded', 'payment_reversed'])
+/**
+ * Why a person must look at the money of an order: received but not recorded for an hour, confirmed and then a payment it
+ * counted was voided, or (`payment_awaits_confirmation`) a quotation sent again without an answer mode holds what it asks
+ * and waits for staff to confirm it, since a send never confirms.
+ */
+export const SalesOrderPaymentAttentionSchema = z.enum(['payment_not_recorded', 'payment_reversed', 'payment_awaits_confirmation'])
 /** Why money on a quotation does not confirm it: `expired`, `reopened`, `cancelled` (any amount, due back) or `awaiting_signature` (what it asks arrived, the customer signs first). */
 export const SalesOrderPaymentHeldSchema = z.enum(['expired', 'reopened', 'cancelled', 'awaiting_signature'])
 

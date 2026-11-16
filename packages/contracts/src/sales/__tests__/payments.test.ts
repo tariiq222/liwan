@@ -60,6 +60,7 @@ describe('SalesOrderPaymentSchema', () => {
     expect(() => SalesOrderPaymentSchema.parse({ ...PAYMENT, held: 'late' })).toThrow()
     expect(() => SalesOrderPaymentSchema.parse({ ...PAYMENT, amount_refundable: -1 })).toThrow()
     expect(SalesOrderPaymentSchema.parse({ ...PAYMENT, needs_attention: true, attention: 'payment_reversed' }).attention).toBe('payment_reversed')
+    expect(SalesOrderPaymentSchema.parse({ ...PAYMENT, needs_attention: true, attention: 'payment_awaits_confirmation' }).attention).toBe('payment_awaits_confirmation')
     expect(() => SalesOrderPaymentSchema.parse({ ...PAYMENT, attention: 'stuck' })).toThrow()
     expect(() => SalesOrderPaymentSchema.parse({ ...PAYMENT, link: 'open' })).toThrow()
     expect(() => SalesOrderPaymentSchema.parse({ ...PAYMENT, extra: 1 })).toThrow()

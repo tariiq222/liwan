@@ -19,7 +19,7 @@ NO_SENDER_NOTE = 'The order was confirmed by its payment, but no confirmation e-
 
 
 def confirm_or_conflict(order):
-    """``order._liwan_confirm_by_payment()`` for a customer or staff request: a row another transaction holds is a 409
+    """``order._liwan_confirm_by_payment()`` for the customer's acceptance: a row another transaction holds is a 409
     ``conflict`` to retry, not a server error. The payment callback calls it directly, so stock retries it."""
     try:
         return order._liwan_confirm_by_payment()
@@ -149,11 +149,16 @@ class SaleOrder(models.Model):
 
     def _liwan_attention(self, summary):
         """Why a person must look at this order's money, or None: ``payment_not_recorded`` (money received but not recorded
-        on the order for an hour) or ``payment_reversed`` (confirmed, then a payment it counted was voided, so it holds less
-        than it asked)."""
+        on the order for an hour), ``payment_reversed`` (confirmed, then a payment it counted was voided, so it holds less
+        than it asked) or ``payment_awaits_confirmation`` (sent again without an answer mode, it holds what it asks and only
+        staff confirm it: a send never confirms)."""
         self.ensure_one()
         if summary['needs_attention']:
             return 'payment_not_recorded'
+        if (
+            self.state == 'sent' and not self.is_expired and self.liwan_answer_mode == 'none' and self._liwan_reached()
+        ):
+            return 'payment_awaits_confirmation'
         if self.state == 'sale' and self._liwan_asks_payment() and not self._liwan_reached() and self._liwan_own_payments(('cancel',)):
             return 'payment_reversed'
         return None

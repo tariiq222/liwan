@@ -1,7 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, models
 
-from .sale_order import confirm_or_conflict
 from .sales_settings import (
     FEATURE,
     parse_payment_mode,
@@ -52,12 +51,15 @@ class LiwanSalesService(models.AbstractModel):
         order.with_context(**QUIET).write(self._liwan_payment_values(mode, percent))
 
     @api.model
-    def _liwan_send(self, order_id):
-        """Send as Sales does, then confirm the quotation if the money it asks is already on it (a payment that arrived
-        after it expired or while it was a draft): the customer who still has to sign confirms it by signing."""
-        order = super()._liwan_send(order_id)
-        confirm_or_conflict(order)
-        return order
+    def _liwan_update(self, order_id, values):
+        """Edit as Sales does, but a draft that holds money keeps its customer: the money belongs to the payer (422
+        ``invalid`` on ``customer_id``). Lines and the percentage stay editable; the customer answers the new terms again."""
+        if 'customer_id' in values:
+            order = self._liwan_order(order_id)
+            if order.liwan_staff_document and order.partner_id.id != values['customer_id'] and order._liwan_holds_money():
+                code = 'invalid'
+                raise LiwanAccessRule(code, 'this quotation holds a payment from its customer; the customer cannot change', field='customer_id', status=422)
+        return super()._liwan_update(order_id, values)
 
     @api.model
     def _liwan_refund(self, order_id, amount, reference):

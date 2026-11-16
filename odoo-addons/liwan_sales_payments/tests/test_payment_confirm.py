@@ -78,10 +78,10 @@ class TestConfirmByPayment(SalesPaymentsCase):
         self.assertEqual(self.note_count(order, 'after the quotation expired'), 1)
         payment = self.staff_payment(order)
         self.assertEqual((payment['held'], payment['amount_received']), ('expired', TOTAL))
-        # Staff extend it the way they always do, and the order confirms with the money already on it.
+        # Staff extend it the way they always do; the send itself confirms nothing.
         self.act(self.agent, order.id, 'reopen')
         self.assertEqual(self.staff_payment(order)['held'], 'reopened')
-        self.assertEqual(self.extend_and_send(order, reopen=False)['state'], 'confirmed')
+        self.assertEqual(self.extend_and_send(order, reopen=False)['state'], 'sent')
 
     def test_a_payment_on_a_reopened_or_cancelled_quotation_is_recorded_and_not_confirmed(self):
         reopened = self.payable('full')
@@ -162,30 +162,80 @@ class TestConfirmByPayment(SalesPaymentsCase):
         self.assertEqual((payment['link'], payment['amount_due'], payment['held']), ('none', 0.0, None))
         self.assertIsNone(self.public_payment(order))
 
-    def test_money_held_on_an_expired_quotation_confirms_it_when_it_is_sent_again(self):
-        order = self.payable('full')
+    def held_then_resent(self, answer='accept', user=None, edit=None):
+        """A quotation of ``answer`` paid in full after it expired, then reopened, extended (and ``edit``ed) and sent again
+        by ``user`` (default: its salesperson), under the same answer mode."""
+        order = self.payable('full', answer=answer)
         self.lapse(order)
         self.pay(order, TOTAL)
-        self.assertEqual(self.public_payment(order)['state'], 'received')
-        body = self.extend_and_send(order)
-        order.invalidate_recordset()
-        self.assertEqual((body['state'], order.liwan_answer), ('confirmed', 'accepted'))
-        self.assertEqual(len(self.confirmation_mails(order)), 1)
-        self.assertEqual(self.public_payment(order)['state'], 'paid')
-
-    def test_money_held_on_a_quotation_to_sign_confirms_it_when_the_customer_signs_after_the_new_send(self):
-        order = self.payable('full', answer='accept_and_sign')
         self.act(self.agent, order.id, 'reopen')
-        self.pay(order, TOTAL)
-        self.assertEqual(self.staff_payment(order)['held'], 'reopened')
-        self.send_via_api(self.agent, order.id)
+        future = fields.Date.to_string(fields.Date.today() + timedelta(days=10))
+        self.patch_order(user or self.agent, order.id, {'validity_date': future, **(edit or {})})
+        self.send_via_api(user or self.agent, order.id)
         order.invalidate_recordset()
-        self.assertEqual((order.state, self.staff_payment(order)['held']), ('sent', 'awaiting_signature'))
-        public = self.public(order).json()
-        self.assertEqual((public['payment']['state'], public['can_accept']), ('received', True))
+        return order
+
+    def test_a_send_never_confirms_with_or_without_the_confirm_capability(self):
+        self.give_custom_role(self.agent2, ['sales.read', 'sales.quotations.manage', 'sales.documents.assign'])
+        for user in (self.agent2, self.agent):
+            with self.subTest(user=user.login):
+                order = self.held_then_resent(user=user)
+                self.assertEqual((order.state, order.liwan_answer), ('sent', False))
+                self.assertFalse(self.confirmation_mails(order))
+                self.assertEqual(self.public_payment(order)['state'], 'received')
+
+    def test_after_a_resend_the_new_acceptance_confirms(self):
+        order = self.held_then_resent('accept')
+        self.assertEqual(self.accept(order).status_code, 200)
+        order.invalidate_recordset()
+        self.assertEqual((order.state, order.liwan_answer), ('sale', 'accepted'))
+        self.assertEqual(len(self.confirmation_mails(order)), 1)
+
+    def test_after_a_resend_the_signature_confirms(self):
+        order = self.held_then_resent('accept_and_sign')
+        self.assertEqual((self.staff_payment(order)['held'], self.public(order).json()['can_accept']), ('awaiting_signature', True))
         self.assertEqual(self.accept(order, self.sign_body()).status_code, 200)
         order.invalidate_recordset()
+        self.assertEqual((order.state, order.signed_by), ('sale', 'Mona'))
+
+    def test_without_an_answer_mode_staff_are_told_the_money_waits_for_their_confirm(self):
+        order = self.held_then_resent('none')
+        payment = self.staff_payment(order)
+        self.assertEqual((order.state, payment['needs_attention'], payment['attention']), ('sent', True, 'payment_awaits_confirmation'))
+        self.act(self.agent, order.id, 'confirm')
+        order.invalidate_recordset()
+        payment = self.staff_payment(order)
+        self.assertEqual((order.state, payment['attention'], payment['needs_attention']), ('sale', None, False))
+
+    def test_a_draft_that_holds_money_keeps_its_customer(self):
+        order = self.payable('full')
+        self.act(self.agent, order.id, 'reopen')
+        self.pay(order, TOTAL)
+        other = self.party('Another payer')
+        self.refused(self.api_as(self.agent, 'PATCH', f'{ORDERS}/{order.id}', {'customer_id': other.id}), 422, 'invalid', 'customer_id')
+        empty = self.payable('full')
+        self.act(self.agent, empty.id, 'reopen')
+        self.assertEqual(self.patch_order(self.agent, empty.id, {'customer_id': other.id})['customer']['id'], other.id)
+
+    def test_a_resend_priced_higher_asks_for_the_difference(self):
+        dearer = [self.product_line(self.plain, quantity=3)]
+        order = self.held_then_resent('accept', edit={'lines': dearer})
+        self.assertGreater(order.amount_total, TOTAL)
+        public = self.public_payment(order)
+        self.assertEqual((public['state'], public['amount']), ('payable', order.amount_total - TOTAL))
+        self.pay(order, order.amount_total - TOTAL)
         self.assertEqual(order.state, 'sale')
+
+    def test_a_resend_priced_lower_reports_the_surplus_once_confirmed(self):
+        cheaper = [self.product_line(self.plain, quantity=1)]
+        order = self.held_then_resent('accept', edit={'lines': cheaper})
+        self.assertLess(order.amount_total, TOTAL)
+        self.assertEqual(self.public_payment(order)['state'], 'received')
+        self.assertEqual(self.accept(order).status_code, 200)
+        order.invalidate_recordset()
+        payment = self.staff_payment(order)
+        surplus = TOTAL - order.amount_total
+        self.assertEqual((order.state, payment['amount_to_refund'], payment['amount_refundable']), ('sale', surplus, surplus))
 
     def test_a_payment_that_confirms_sends_one_sales_confirmation_mail(self):
         order = self.payable('full')
@@ -212,14 +262,10 @@ class TestConfirmByPayment(SalesPaymentsCase):
         self.assertFalse(self.confirmation_mails(order))
         self.assertEqual(self.note_count(order, 'no confirmation e-mail was sent'), 1)
 
-    def test_a_contended_row_is_a_conflict_for_the_customer_and_the_staff(self):
+    def test_a_contended_row_is_a_conflict_for_the_customer(self):
         accepted = self.payable('full', answer='accept_and_sign')
-        resent = self.payable('full')
         self.patch(type(self.env['sale.order']), 'lock_for_update', lambda records, **_: (_ for _ in ()).throw(LockError('held')))
         self.refused(self.accept(accepted, self.sign_body()), 409, 'conflict')
-        with self.pdf_engine():
-            response = self.api_as(self.agent, 'POST', f'{ORDERS}/{resent.id}/send')
-        self.refused(response, 409, 'conflict')
 
     def test_a_payment_callback_on_a_contended_row_raises_so_stock_retries(self):
         order = self.payable('full')
