@@ -20,7 +20,6 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
-from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_finance.serializers.invoice import (
     WRITABLE_MOVE_TYPES,
     dump_invoice_detail,
@@ -120,20 +119,9 @@ def _line_product(line, index, company, kept):
     ``kept`` holds the products the draft already carries, which an edit may send back even after the product was
     archived. A line names a template and takes its one variant (variants come with a later pull request).
     """
-    field = f'lines[{index}].product_id'
-    service = request.env['liwan.products.service']
-    try:
-        service._liwan_require_pick()
-        product = service._liwan_product(line['product_id'], include_archived=line['product_id'] in kept)
-    except LiwanAccessRule as error:
-        if error.status == 404:
-            raise ApiError(422, 'invalid', 'the product does not exist', field=field) from error
-        raise
-    if product.company_id and product.company_id not in company.parent_ids:
-        raise ApiError(422, 'invalid', 'the product belongs to another company', field=field)
-    if len(product.with_context(active_test=False).product_variant_ids) > 1:
-        raise ApiError(422, 'invalid', 'products with variants are not supported yet', field=field)
-    return product
+    return request.env['liwan.products.service']._liwan_usable_product(
+        line['product_id'], company, f'lines[{index}].product_id', include_archived=line['product_id'] in kept,
+    )
 
 
 def resolve_line_products(parsed, move_type, company, invoice=None):

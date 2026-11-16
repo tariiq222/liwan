@@ -74,6 +74,7 @@ application that calls them from its own route cannot skip the checks.
 | `_liwan_require_price()` | | 403 `forbidden` unless `_liwan_can_price()` |
 | `_liwan_product(product_id, include_archived=False)` | record rules and the company fence | the `product.template`, or 404 `not_found` |
 | `_liwan_search(query=None, archived=False, type=None, limit=50, offset=0)` | record rules and the fence | `(products, total)` by name; `type` is `goods` or `service`, else 422 `invalid` on `type` |
+| `_liwan_usable_product(product_id, company, field, include_archived=False)` | `_liwan_require_pick()` | the service product a document of `company` may name on `field` (the one check every consumer line uses: sales, finance); 422 `invalid` on `field` when it does not exist (an archived one counts with `include_archived`), belongs to a company other than `company` or its ancestors, or has several variants |
 | `_liwan_pick_search(query=None, limit=50, offset=0)` | `_liwan_require_pick()` | `(products, total)` of the active products |
 | `_liwan_pick_product(product_id)` | `_liwan_require_pick()` | the active service product, or 404 `not_found` |
 | `_liwan_require_write(company, values)` | | 403 unless the caller may write those keys on a product owned by `company` (D23 and the capabilities); public: a consumer calls it before writing its own link field on a service product |
