@@ -196,10 +196,7 @@ never add an entry or raise a count to make a check pass.
   A bridge links two addons of the same layer only (owner decision 2026-11-16): application with application, or
   shared service with shared service or a stock Odoo module (the foundation `liwan_api` with a stock module counts,
   as `liwan_api_account`). An application connects to a foundation or shared-service addon from inside its own
-  addon, never through a bridge. A bridge checks the feature of both sides on every route it adds. Six bridges
-  predate this rule and are folded into their applications, and no new one of their kind is added:
-  `liwan_access_hr`, `liwan_documents_hr` and `liwan_hr_operations` into `liwan_hr`, `liwan_documents_pmo` into
-  `liwan_pmo`, `liwan_appointments_payments` into `liwan_appointments`, `liwan_inbox_payments` into `liwan_inbox`.
+  addon, never through a bridge. A bridge checks the feature of both sides on every route it adds.
 - **R4** Dependencies point down only: foundation (`liwan_core` ← `liwan_platform` ← `liwan_api`) ← shared
   services ← applications ← bridges ← `customer_<name>_*`.
 - **R5** The product runs without the control plane. Nothing in `odoo-addons` or `apps/web/app` imports
