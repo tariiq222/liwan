@@ -376,7 +376,7 @@
       "domain": "Domain",
       "domainPlaceholder": "example.com",
       "localPart": "Sender name",
-      "localPartHint": "The part before @ in the address, such as info.",
+      "localPartHint": "The part before {'@'} in the address, such as info.",
       "start": "Start verification",
       "state": {
         "not_started": "Not started",

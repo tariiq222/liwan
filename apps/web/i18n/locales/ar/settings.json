@@ -376,7 +376,7 @@
       "domain": "النطاق",
       "domainPlaceholder": "example.com",
       "localPart": "اسم المرسل",
-      "localPartHint": "الجزء الذي يسبق @ في العنوان، مثل info.",
+      "localPartHint": "الجزء الذي يسبق {'@'} في العنوان، مثل info.",
       "start": "ابدأ التوثيق",
       "state": {
         "not_started": "لم يبدأ",
