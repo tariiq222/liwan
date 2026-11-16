@@ -1,9 +1,15 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.addons.liwan_api.controllers.common import ApiError
-from odoo.addons.liwan_sales.models.sales_settings import ANSWER_MODES, VISIBILITY_MODES
+from odoo.addons.liwan_sales.models.sales_settings import (
+    ANSWER_MODES,
+    RESEND_MODES,
+    SIGNATURE_MODES,
+    VISIBILITY_MODES,
+)
 
 WRITABLE_KEYS = (
     'visibility', 'validity_days', 'discount_limit_percent', 'default_terms', 'customer_answer', 'acceptance_confirms',
+    'answered_resend', 'signature_methods',
 )
 INTEGER_RANGES = {'validity_days': (0, 3650), 'discount_limit_percent': (0, 100)}
 
@@ -17,6 +23,8 @@ def dump_settings(settings, can_manage):
         'default_terms': settings.default_terms or '',
         'customer_answer': settings.customer_answer,
         'acceptance_confirms': settings.acceptance_confirms,
+        'answered_resend': settings.answered_resend,
+        'signature_methods': settings.signature_methods,
         'can_manage': can_manage,
         'revision': settings.revision,
     }
@@ -29,6 +37,12 @@ def _parse_value(key, value):
     elif key == 'customer_answer':
         if value not in ANSWER_MODES:
             raise ApiError(422, 'invalid', f'customer_answer must be one of {ANSWER_MODES}', field=key)
+    elif key == 'answered_resend':
+        if value not in RESEND_MODES:
+            raise ApiError(422, 'invalid', f'answered_resend must be one of {RESEND_MODES}', field=key)
+    elif key == 'signature_methods':
+        if value not in SIGNATURE_MODES:
+            raise ApiError(422, 'invalid', f'signature_methods must be one of {SIGNATURE_MODES}', field=key)
     elif key == 'acceptance_confirms':
         if not isinstance(value, bool):
             raise ApiError(422, 'invalid', 'acceptance_confirms must be true or false', field=key)

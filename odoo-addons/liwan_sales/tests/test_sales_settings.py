@@ -6,7 +6,7 @@ from .common import LiwanSalesCase
 SETTINGS = '/api/v1/sales/settings'
 KEYS = {
     'visibility', 'validity_days', 'discount_limit_percent', 'default_terms', 'customer_answer', 'acceptance_confirms',
-    'can_manage', 'revision',
+    'answered_resend', 'signature_methods', 'can_manage', 'revision',
 }
 
 
@@ -28,7 +28,8 @@ class TestSalesSettings(LiwanSalesCase):
             reader.json(),
             {
                 'visibility': 'own', 'validity_days': 30, 'discount_limit_percent': 0, 'default_terms': '',
-                'customer_answer': 'accept', 'acceptance_confirms': False, 'can_manage': False, 'revision': 1,
+                'customer_answer': 'accept', 'acceptance_confirms': False, 'answered_resend': 'allow',
+                'signature_methods': 'draw_or_type', 'can_manage': False, 'revision': 1,
             },
         )
         manager = self.api_as(self.manager, 'GET', SETTINGS).json()
@@ -44,6 +45,8 @@ class TestSalesSettings(LiwanSalesCase):
             {'visibility': 'all'}, {'validity_days': 0}, {'validity_days': 3650}, {'discount_limit_percent': 100},
             {'default_terms': 'Payment within 30 days'}, {'default_terms': ''}, {'customer_answer': 'none'},
             {'customer_answer': 'accept_and_sign'}, {'acceptance_confirms': True}, {'acceptance_confirms': False},
+            {'answered_resend': 'refuse'}, {'answered_resend': 'allow'}, {'signature_methods': 'draw'},
+            {'signature_methods': 'draw_or_type'},
         ):
             with self.subTest(payload=payload):
                 response = self.patch(self.manager, revision=revision, **payload)
@@ -59,7 +62,9 @@ class TestSalesSettings(LiwanSalesCase):
             ('visibility', 'team'), ('validity_days', -1), ('validity_days', 3651), ('validity_days', True),
             ('validity_days', '5'), ('discount_limit_percent', 101), ('discount_limit_percent', -1),
             ('default_terms', 5), ('revision', 0), ('customer_answer', 'sign'), ('customer_answer', None),
-            ('acceptance_confirms', 'yes'), ('acceptance_confirms', 1),
+            ('acceptance_confirms', 'yes'), ('acceptance_confirms', 1), ('answered_resend', 'block'),
+            ('answered_resend', None), ('answered_resend', True), ('signature_methods', 'type'), ('signature_methods', None),
+            ('signature_methods', 'drawn'),
         ):
             with self.subTest(field=field, value=value):
                 payload = {'revision': 1, 'validity_days': 10} if field == 'revision' else {'revision': 1}

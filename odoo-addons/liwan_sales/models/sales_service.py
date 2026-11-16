@@ -2,10 +2,19 @@
 from datetime import timedelta
 
 from odoo import api, fields, models
-from odoo.tools import html2plaintext, plaintext2html
+from odoo.tools import (
+    email_normalize,
+    html2plaintext,
+    plaintext2html,
+)
 
 from .access_service import DISCOUNTS_APPROVE, QUOTATIONS_MANAGE
-from .sale_order import ANSWER_RESET, DISCOUNT_BOUNDS, LINE_KINDS, valid_discount
+from .sale_order import (
+    ANSWER_RESET,
+    DISCOUNT_BOUNDS,
+    LINE_KINDS,
+    valid_discount,
+)
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_products.models.products_service import (
     QUANTITY_BOUNDS,
@@ -29,6 +38,14 @@ EXPIRY_REFUSED = ('send', 'confirm')
 def _invalid(field, message):
     code = 'invalid'
     raise LiwanAccessRule(code, message, field=field, status=422)
+
+
+def _deliverable_email(text):
+    """Whether ``text`` holds exactly one address the mail queue can send to. The queue itself splits the field with
+    ``email_split`` (``getaddresses``), so ``email_normalize`` (strict: one address, none otherwise) decides; what it
+    still lets through, such as ``a@b@c`` read as ``@c``, needs a local part and a domain."""
+    local, _, domain = (email_normalize(text) or '').partition('@')
+    return bool(local and domain and '@' not in domain)
 
 
 def _invalid_code(code, message):
@@ -65,11 +82,16 @@ class LiwanSalesService(models.AbstractModel):
     @api.model
     def _liwan_writable(self, order_id, action):
         """The order, once the caller may do ``action`` on it: 404 unreadable, 403 ``forbidden`` not theirs to write,
-        403 ``transition_forbidden`` when the state table refuses the move."""
+        422 ``quotation_expired`` (before any answered check), 409 ``quotation_answered`` and last 403
+        ``transition_forbidden`` when the state table refuses the move. The 409 applies only to a caller for whom
+        refusing the resend is the sole reason send is not offered; one who lacks the send capability gets the 403."""
         order = self._liwan_order(order_id)
         self.env['liwan.sales.visibility']._liwan_check_write(order, self.env.user)
         if action in EXPIRY_REFUSED and order.is_expired:
             _invalid_code('quotation_expired', 'the quotation has expired; reopen it and extend its validity date')
+        if action == 'send' and order._liwan_resend_blocked(self.env.user):
+            code = 'quotation_answered'
+            raise LiwanAccessRule(code, 'the customer has answered this quotation; reopen it before sending it again', status=409)
         if not order._liwan_actions(self.env.user)[action]:
             code = 'transition_forbidden'
             raise LiwanAccessRule(code, f'{action} is not allowed in this state', status=403)
@@ -148,11 +170,11 @@ class LiwanSalesService(models.AbstractModel):
         """Send the draft or sent ``order_id`` to its customer, again when it was sent before.
 
         Moves a draft to ``sent``, copies the settings of the customer's answer onto the order (clearing any earlier
-        answer and signature), makes the access token and queues the e-mail with the PDF and the link of the public page.
+        answer and signature; 409 ``quotation_answered`` first when the tenant refuses to resend an answered one), makes the access token and queues the e-mail with the PDF and the link of the public page.
         """
         order = self._liwan_writable(order_id, 'send')
-        if not order.partner_id.email:
-            _invalid_code('customer_email_missing', 'the customer has no e-mail address')
+        if not _deliverable_email(order.partner_id.email):
+            _invalid_code('customer_email_missing', 'the customer has no usable e-mail address')
         self._liwan_require_product_line(order)
         if not self.env['liwan.outbound.mail']._liwan_sender():
             code = 'mail_unavailable'
@@ -163,6 +185,7 @@ class LiwanSalesService(models.AbstractModel):
             **ANSWER_RESET,
             'liwan_answer_mode': settings.customer_answer,
             'liwan_acceptance_confirms': settings.acceptance_confirms,
+            'liwan_signature_methods': settings.signature_methods,
             'require_signature': settings.customer_answer == 'accept_and_sign',
         })
         if order.state == 'draft':

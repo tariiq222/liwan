@@ -46,7 +46,7 @@ class SalesPublicController(http.Controller):
         answers = _answers()
         order = answers._liwan_open(order_id, token)
         answers._liwan_require_answerable(order, accepting=True)
-        signature = parse_signature(payload, order.liwan_answer_mode)
+        signature = parse_signature(payload, order.liwan_answer_mode, order.liwan_signature_methods)
         return dump_public_quotation(answers._liwan_accept(order, signature))
 
     @http.route(PUBLIC + '/decline', type='json2', auth='public', methods=['POST'], readonly=False, save_session=False)

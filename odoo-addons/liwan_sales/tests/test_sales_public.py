@@ -14,7 +14,7 @@ from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTE
 PUBLIC = '/api/v1/public/sales/quotations'
 PUBLIC_KEYS = {
     'id', 'number', 'state', 'expired', 'company_name', 'customer_name', 'date', 'validity_date', 'terms', 'currency',
-    'amount_untaxed', 'amount_tax', 'amount_total', 'lines', 'answer_mode', 'answer', 'answered_at', 'signed_by',
+    'amount_untaxed', 'amount_tax', 'amount_total', 'lines', 'answer_mode', 'signature_methods', 'answer', 'answered_at', 'signed_by',
     'can_accept', 'can_decline',
 }
 LINE_KEYS = {
@@ -190,7 +190,7 @@ class TestPublicAccept(PublicCase):
 
     def test_a_mode_accept_refuses_the_signature_fields(self):
         order = self.sent('accept')
-        for field in ('signed_by', 'signature'):
+        for field in ('signed_by', 'signature', 'signature_method'):
             with self.subTest(field=field):
                 self.refusal(self.answer(order, 'accept', {field: 'x'}), 422, 'unknown_field', field)
         self.refusal(self.answer(order, 'accept', {'reason': 'x'}), 422, 'unknown_field', 'reason')
@@ -199,11 +199,11 @@ class TestPublicAccept(PublicCase):
 
     def test_a_signed_acceptance_stores_the_signature(self):
         order = self.sent('accept_and_sign', True)
-        body = self.ok(self.answer(order, 'accept', {'signed_by': '  Layla Buyer ', 'signature': png_base64()}))
+        body = self.ok(self.answer(order, 'accept', {'signed_by': '  Layla Buyer ', 'signature': png_base64(), 'signature_method': 'drawn'}))
         self.assertEqual((body['answer'], body['signed_by'], body['state']), ('accepted', 'Layla Buyer', 'confirmed'))
         order.invalidate_recordset()
         self.assertTrue(order.signature)
-        self.assertEqual(order.signed_by, 'Layla Buyer')
+        self.assertEqual((order.signed_by, order.liwan_signature_method), ('Layla Buyer', 'drawn'))
         self.assertTrue(order.signed_on)
 
     def test_a_signature_is_required_and_validated(self):
@@ -230,7 +230,40 @@ class TestPublicAccept(PublicCase):
                 self.refusal(self.answer(order, 'accept', body), 422, code)
         order.invalidate_recordset()
         self.assertEqual((order.state, order.liwan_answer, order.signature), ('sent', False, False))
-        self.ok(self.answer(order, 'accept', {'signed_by': 'x' * 120, 'signature': good}))
+        self.ok(self.answer(order, 'accept', {'signed_by': 'x' * 120, 'signature': good, 'signature_method': 'typed'}))
+
+    def test_the_signature_method_is_required_with_a_signature_and_refused_without_one(self):
+        order = self.sent('accept_and_sign')
+        signed = {'signed_by': 'Buyer', 'signature': png_base64()}
+        for body in (signed, {**signed, 'signature_method': 'scribble'}, {**signed, 'signature_method': None},
+                     {**signed, 'signature_method': 'draw'}, {**signed, 'signature_method': 5}):
+            with self.subTest(body=body):
+                self.refusal(self.answer(order, 'accept', body), 422, 'invalid', 'signature_method')
+        for body in ({'signature_method': 'drawn'}, {'signed_by': 'Buyer', 'signature_method': 'typed'}):
+            with self.subTest(body=body):
+                self.refusal(self.answer(order, 'accept', body), 422, 'invalid', 'signature_method')
+        order.invalidate_recordset()
+        self.assertEqual((order.liwan_answer, order.liwan_signature_method), (False, False))
+
+    def test_typed_signatures_follow_the_snapshot_taken_at_send(self):
+        typed = {'signed_by': 'Buyer', 'signature': png_base64(), 'signature_method': 'typed'}
+        drawn = {**typed, 'signature_method': 'drawn'}
+        draw_only = self.sent('accept_and_sign', signature_methods='draw')
+        self.assertEqual(self.ok(self.get(draw_only))['signature_methods'], 'draw')
+        self.refusal(self.answer(draw_only, 'accept', typed), 422, 'invalid', 'signature_method')
+        draw_only.invalidate_recordset()
+        self.assertFalse(draw_only.liwan_answer)
+        self.ok(self.answer(draw_only, 'accept', drawn))
+        draw_only.invalidate_recordset()
+        self.assertEqual(draw_only.liwan_signature_method, 'drawn')
+        both = self.sent('accept_and_sign', signature_methods='draw_or_type')
+        self.assertEqual(self.ok(self.get(both))['signature_methods'], 'draw_or_type')
+        self.set_signature_methods('draw')
+        self.ok(self.answer(both, 'accept', typed))
+        both.invalidate_recordset()
+        self.assertEqual(both.liwan_signature_method, 'typed')
+        staff = self.api_as(self.agent, 'GET', f'/api/v1/sales/orders/{both.id}').json()['customer_answer']
+        self.assertEqual(staff['signature_method'], 'typed')
 
     def test_a_none_mode_allows_no_answer_at_all(self):
         order = self.sent('none')
@@ -318,7 +351,7 @@ class TestPublicDeclineAndPdf(PublicCase):
         order = self.sent('accept_and_sign')
         with patch.object(report, '_render_qweb_pdf', autospec=True, side_effect=render):
             unsigned_get = self.get(order, suffix='/pdf')
-            self.ok(self.answer(order, 'accept', {'signed_by': 'Buyer', 'signature': png_base64()}))
+            self.ok(self.answer(order, 'accept', {'signed_by': 'Buyer', 'signature': png_base64(), 'signature_method': 'drawn'}))
             signed_get = self.get(order, suffix='/pdf')
         self.assertEqual((unsigned_get.status_code, signed_get.status_code), (200, 200))
         self.assertEqual([bool(flag) for flag in seen], [False, True])

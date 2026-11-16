@@ -24,15 +24,16 @@ const ITEM = {
   salesperson: { id: 2, name: 'Maha', user_id: 2 }, validity_date: '2026-12-14', date: '2026-11-14T08:00:00Z', terms: '',
   currency: { id: 2, name: 'SAR', symbol: 'ر.س' }, amount_untaxed: 180, amount_tax: 27, amount_total: 207,
 }
-const ORDER = { ...ITEM, lines: [SECTION, LINE], actions: ACTIONS }
+const ORDER = { ...ITEM, lines: [SECTION, LINE], actions: ACTIONS, resend_refused: false }
 
 describe('SalesOrderSchema', () => {
   it('accepts the serializer fields and refuses any other', () => {
     expect(SalesOrderSchema.parse(ORDER)).toEqual(ORDER)
     expect(Object.keys(SalesOrderSchema.shape).sort()).toEqual([
       'actions', 'amount_tax', 'amount_total', 'amount_untaxed', 'currency', 'customer', 'customer_answer', 'date', 'expired', 'id', 'lines',
-      'locked', 'number', 'salesperson', 'source', 'state', 'terms', 'validity_date',
+      'locked', 'number', 'resend_refused', 'salesperson', 'source', 'state', 'terms', 'validity_date',
     ])
+    expect(() => SalesOrderSchema.parse({ ...ORDER, resend_refused: undefined })).toThrow()
     expect(() => SalesOrderSchema.parse({ ...ORDER, state: 'sale' })).toThrow()
     expect(() => SalesOrderSchema.parse({ ...ORDER, source: 'shop' })).toThrow()
     expect(() => SalesOrderSchema.parse({ ...ORDER, actions: { ...ACTIONS, print: true } })).toThrow()
@@ -46,10 +47,11 @@ describe('SalesOrderSchema', () => {
   })
 
   it('carries the customer answer once the quotation was sent', () => {
-    const waiting = { mode: 'accept_and_sign', acceptance_confirms: true, answer: null, answered_at: null, signed_by: null, decline_reason: null }
+    const waiting = { mode: 'accept_and_sign', acceptance_confirms: true, answer: null, answered_at: null, signed_by: null, signature_method: null, decline_reason: null }
     expect(SalesOrderSchema.parse({ ...ORDER, state: 'sent', expired: true, customer_answer: waiting }).customer_answer).toEqual(waiting)
-    const accepted = { ...waiting, answer: 'accepted', answered_at: '2026-11-15T10:00:00Z', signed_by: 'Mona' }
-    expect(SalesOrderSchema.parse({ ...ORDER, customer_answer: accepted }).customer_answer?.signed_by).toBe('Mona')
+    const accepted = { ...waiting, answer: 'accepted', answered_at: '2026-11-15T10:00:00Z', signed_by: 'Mona', signature_method: 'typed' }
+    expect(SalesOrderSchema.parse({ ...ORDER, customer_answer: accepted }).customer_answer?.signature_method).toBe('typed')
+    expect(() => SalesOrderSchema.parse({ ...ORDER, customer_answer: { ...accepted, signature_method: 'scanned' } })).toThrow()
     expect(() => SalesOrderSchema.parse({ ...ORDER, customer_answer: { ...waiting, mode: 'sign' } })).toThrow()
     expect(() => SalesOrderSchema.parse({ ...ORDER, customer_answer: { ...waiting, answer: 'maybe' } })).toThrow()
     expect(() => SalesOrderSchema.parse({ ...ORDER, customer_answer: { ...waiting, ip: '::1' } })).toThrow()
@@ -101,13 +103,17 @@ describe('SalesOrderAssignSchema', () => {
 })
 
 describe('SalesSettingsSchema', () => {
-  const settings = { visibility: 'own', validity_days: 30, discount_limit_percent: 0, default_terms: '', customer_answer: 'accept', acceptance_confirms: false, revision: 1, can_manage: true }
+  const settings = { visibility: 'own', validity_days: 30, discount_limit_percent: 0, default_terms: '', customer_answer: 'accept', acceptance_confirms: false, answered_resend: 'allow', signature_methods: 'draw_or_type', revision: 1, can_manage: true }
 
   it('reads the settings with the revision', () => {
     expect(SalesSettingsSchema.parse(settings)).toEqual(settings)
     expect(() => SalesSettingsSchema.parse({ ...settings, visibility: 'team' })).toThrow()
     expect(() => SalesSettingsSchema.parse({ ...settings, discount_limit_percent: 12.5 })).toThrow()
     expect(() => SalesSettingsSchema.parse({ ...settings, customer_answer: 'sign' })).toThrow()
+    expect(() => SalesSettingsSchema.parse({ ...settings, answered_resend: 'ask' })).toThrow()
+    expect(() => SalesSettingsSchema.parse({ ...settings, signature_methods: 'type' })).toThrow()
+    expect(() => SalesSettingsSchema.parse({ ...settings, answered_resend: undefined })).toThrow()
+    expect(() => SalesSettingsSchema.parse({ ...settings, signature_methods: undefined })).toThrow()
   })
 
   it('patches any of them with the revision, and refuses an empty patch', () => {
@@ -121,6 +127,9 @@ describe('SalesSettingsSchema', () => {
     expect(SalesSettingsPatchSchema.parse({ customer_answer: 'accept_and_sign', acceptance_confirms: true, revision: 1 })).toEqual({ customer_answer: 'accept_and_sign', acceptance_confirms: true, revision: 1 })
     expect(() => SalesSettingsPatchSchema.parse({ customer_answer: 'sign', revision: 1 })).toThrow()
     expect(() => SalesSettingsPatchSchema.parse({ acceptance_confirms: 'yes', revision: 1 })).toThrow()
+    expect(SalesSettingsPatchSchema.parse({ answered_resend: 'refuse', signature_methods: 'draw', revision: 1 })).toEqual({ answered_resend: 'refuse', signature_methods: 'draw', revision: 1 })
+    expect(() => SalesSettingsPatchSchema.parse({ answered_resend: 'ask', revision: 1 })).toThrow()
+    expect(() => SalesSettingsPatchSchema.parse({ signature_methods: 'type', revision: 1 })).toThrow()
   })
 })
 
@@ -128,7 +137,7 @@ const PUBLIC_LINE = { kind: 'product', name: 'Haircut', quantity: 2, unit: 'Unit
 const PUBLIC = {
   id: 7, number: 'S00007', state: 'sent', expired: false, company_name: 'Liwan', customer_name: 'Acme', date: '2026-11-14T08:00:00Z', validity_date: '2026-12-14',
   terms: '', currency: { id: 2, name: 'SAR', symbol: 'ر.س' }, amount_untaxed: 180, amount_tax: 27, amount_total: 207, lines: [PUBLIC_LINE],
-  answer_mode: 'accept', answer: null, answered_at: null, signed_by: null, can_accept: true, can_decline: true,
+  answer_mode: 'accept', signature_methods: 'draw_or_type', answer: null, answered_at: null, signed_by: null, can_accept: true, can_decline: true,
 }
 
 describe('SalesPublicQuotationSchema', () => {
@@ -139,26 +148,34 @@ describe('SalesPublicQuotationSchema', () => {
     expect(() => SalesPublicQuotationSchema.parse({ ...PUBLIC, access_token: 'x' })).toThrow()
     expect(() => SalesPublicQuotationSchema.parse({ ...PUBLIC, lines: [{ ...PUBLIC_LINE, id: 3 }] })).toThrow()
     expect(() => SalesPublicQuotationSchema.parse({ ...PUBLIC, answer_mode: 'sign' })).toThrow()
+    expect(SalesPublicQuotationSchema.parse({ ...PUBLIC, signature_methods: 'draw' }).signature_methods).toBe('draw')
+    expect(SalesPublicQuotationSchema.parse({ ...PUBLIC, signature_methods: null }).signature_methods).toBeNull()
+    expect(() => SalesPublicQuotationSchema.parse({ ...PUBLIC, signature_methods: 'type' })).toThrow()
+    expect(() => SalesPublicQuotationSchema.parse({ ...PUBLIC, signature_methods: undefined })).toThrow()
   })
 })
 
 describe('SalesQuotationAcceptSchema', () => {
   const png = btoa('a'.repeat(1024))
 
-  it('takes the token alone, or the name with the signature', () => {
+  it('takes the token alone, or the name with the signature and its method', () => {
     expect(SalesQuotationAcceptSchema.parse({ access_token: 'tok' })).toEqual({ access_token: 'tok' })
-    expect(SalesQuotationAcceptSchema.parse({ access_token: 'tok', signed_by: ' Mona ', signature: png }).signed_by).toBe('Mona')
+    expect(SalesQuotationAcceptSchema.parse({ access_token: 'tok', signed_by: ' Mona ', signature: png, signature_method: 'drawn' }).signed_by).toBe('Mona')
+    expect(SalesQuotationAcceptSchema.parse({ access_token: 'tok', signed_by: 'Mona', signature: png, signature_method: 'typed' }).signature_method).toBe('typed')
+    expect(() => SalesQuotationAcceptSchema.parse({ access_token: 'tok', signed_by: 'Mona', signature: png })).toThrow()
+    expect(() => SalesQuotationAcceptSchema.parse({ access_token: 'tok', signed_by: 'Mona', signature: png, signature_method: 'scanned' })).toThrow()
+    expect(() => SalesQuotationAcceptSchema.parse({ access_token: 'tok', signature_method: 'drawn' })).toThrow()
     expect(() => SalesQuotationAcceptSchema.parse({ access_token: 'tok', signed_by: 'Mona' })).toThrow()
     expect(() => SalesQuotationAcceptSchema.parse({ access_token: 'tok', signature: png })).toThrow()
     expect(() => SalesQuotationAcceptSchema.parse({ signed_by: 'Mona', signature: png })).toThrow()
   })
 
   it('bounds the name and refuses a data URL or an oversized signature', () => {
-    expect(() => SalesQuotationAcceptSchema.parse({ access_token: 'tok', signed_by: 'x'.repeat(121), signature: png })).toThrow()
-    expect(() => SalesQuotationAcceptSchema.parse({ access_token: 'tok', signed_by: ' ', signature: png })).toThrow()
-    expect(() => SalesQuotationAcceptSchema.parse({ access_token: 'tok', signed_by: 'Mona', signature: `data:image/png;base64,${png}` })).toThrow()
-    expect(SalesQuotationAcceptSchema.parse({ access_token: 'tok', signed_by: 'Mona', signature: btoa('a'.repeat(48 * 1024)) }).signature).toBeTruthy()
-    expect(() => SalesQuotationAcceptSchema.parse({ access_token: 'tok', signed_by: 'Mona', signature: btoa('a'.repeat(48 * 1024 + 3)) })).toThrow()
+    expect(() => SalesQuotationAcceptSchema.parse({ access_token: 'tok', signed_by: 'x'.repeat(121), signature: png, signature_method: 'drawn' })).toThrow()
+    expect(() => SalesQuotationAcceptSchema.parse({ access_token: 'tok', signed_by: ' ', signature: png, signature_method: 'drawn' })).toThrow()
+    expect(() => SalesQuotationAcceptSchema.parse({ access_token: 'tok', signed_by: 'Mona', signature: `data:image/png;base64,${png}`, signature_method: 'drawn' })).toThrow()
+    expect(SalesQuotationAcceptSchema.parse({ access_token: 'tok', signed_by: 'Mona', signature: btoa('a'.repeat(48 * 1024)), signature_method: 'drawn' }).signature).toBeTruthy()
+    expect(() => SalesQuotationAcceptSchema.parse({ access_token: 'tok', signed_by: 'Mona', signature: btoa('a'.repeat(48 * 1024 + 3)), signature_method: 'drawn' })).toThrow()
   })
 })
 

@@ -7,10 +7,16 @@ from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 VISIBILITY_MODES = ('own', 'all')
 # What the customer may do on the public page of a sent quotation: nothing, accept, or accept with a signature.
 ANSWER_MODES = ('none', 'accept', 'accept_and_sign')
+# What staff sending again a quotation the customer already answered does: send and clear the answer, or refuse.
+RESEND_MODES = ('allow', 'refuse')
+# How a customer may sign under ``accept_and_sign``: by hand-drawing only, or by drawing or typing their name.
+SIGNATURE_MODES = ('draw', 'draw_or_type')
+# How a signature was made.
+SIGNATURE_METHODS = ('drawn', 'typed')
 
 
 class LiwanSalesSettings(models.Model):
-    """The tenant's Sales policy: who reads which document, the defaults of a new quotation and what a customer may answer.
+    """The tenant's Sales policy: who reads which document, the defaults of a new quotation, what a customer may answer and how they sign.
 
     One record per tenant database, changed only by a holder of ``sales.settings.manage`` in the working company and
     in the root company. ``revision`` refuses a write based on a stale read.
@@ -31,6 +37,10 @@ class LiwanSalesSettings(models.Model):
     customer_answer = fields.Selection([(mode, mode) for mode in ANSWER_MODES], required=True, default='accept')
     # Whether the customer's acceptance confirms the order by itself, or leaves it to staff.
     acceptance_confirms = fields.Boolean(required=True, default=False)
+    # Read at send time: whether staff may send again a quotation the customer already answered.
+    answered_resend = fields.Selection([(mode, mode) for mode in RESEND_MODES], required=True, default='allow')
+    # Copied onto a quotation when it is sent, like ``customer_answer``.
+    signature_methods = fields.Selection([(mode, mode) for mode in SIGNATURE_MODES], required=True, default='draw_or_type')
     revision = fields.Integer(required=True, default=1)
 
     _revision_positive = models.Constraint('CHECK(revision > 0)', 'the revision is a positive number')

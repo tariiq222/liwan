@@ -66,6 +66,7 @@ def dump_customer_answer(order):
         'answer': order.liwan_answer or None,
         'answered_at': iso(order.liwan_answered_on),
         'signed_by': order.signed_by or None,
+        'signature_method': order.liwan_signature_method or None,
         'decline_reason': order.liwan_decline_reason or None,
     }
 
@@ -94,11 +95,13 @@ def dump_order_item(order):
 
 
 def dump_order(order, user):
-    """The full order shape: the row, its lines in order, and what ``user`` may do with it."""
+    """The full order shape: the row, its lines in order, what ``user`` may do with it, and whether only the tenant's
+    resend setting keeps them from sending it."""
     return {
         **dump_order_item(order),
         'lines': [_dump_line(line) for line in order.order_line],
         'actions': order._liwan_actions(user),
+        'resend_refused': order._liwan_resend_blocked(user),
     }
 
 

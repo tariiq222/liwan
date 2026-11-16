@@ -10,8 +10,9 @@ Plan: `docs/superpowers/plans/2026-11-14-liwan-sales.md`. Design: `docs/superpow
 - `liwan.sales.visibility` (who reads and writes which document) and `liwan.sales.service` (the write side).
 - `sale.order.liwan_staff_document`: set on create by the service. The wire `source` is `staff` when it is set and
   `online` otherwise. Every write route refuses a document without it.
-- The send state of a quotation on `sale.order`: `liwan_answer_mode` and `liwan_acceptance_confirms` (the two settings
-  copied at send, empty before the first send), `liwan_answer` (`accepted` or `declined`), `liwan_answered_on` and
+- The send state of a quotation on `sale.order`: `liwan_answer_mode`, `liwan_acceptance_confirms` and
+  `liwan_signature_methods` (the three settings copied at send, empty before the first send), `liwan_answer`
+  (`accepted` or `declined`), `liwan_answered_on`, `liwan_signature_method` (`drawn` or `typed`) and
   `liwan_decline_reason`. The signature is stock's `require_signature`, `signature`, `signed_by` and `signed_on`.
   Expiry is stock's computed `is_expired`; nothing stores it and no cron runs.
 - `liwan.sales.document` (the PDF and the e-mail) and `liwan.sales.answer` (the customer's side, by access token).
@@ -34,10 +35,18 @@ The tax rule of an order line belongs to `liwan_orders`.
 
 `visibility` (`own` or `all`), `validity_days` (30; 0 gives no validity date), `discount_limit_percent` (0, no limit),
 `default_terms`, `customer_answer` (`none`, `accept` or `accept_and_sign`; default `accept`), `acceptance_confirms`
-(default false), `revision`. Changed only in the root company by a holder of `sales.settings.manage`.
+(default false), `answered_resend` (`allow` or `refuse`; default `allow`), `signature_methods` (`draw` or
+`draw_or_type`; default `draw_or_type`), `revision`. Changed only in the root company by a holder of
+`sales.settings.manage`.
 
-`customer_answer` and `acceptance_confirms` apply to quotations sent after the change: each send copies them onto the
-order, so a sent quotation keeps the terms it was sent under until it is sent again.
+`customer_answer`, `acceptance_confirms` and `signature_methods` apply to quotations sent after the change: each send
+copies them onto the order, so a sent quotation keeps the terms it was sent under until it is sent again.
+
+`answered_resend` is read at send time, never snapshotted. `allow` lets staff send again a quotation the customer has
+answered (the send clears the answer and the signature); `refuse` makes that send 409 `quotation_answered` before any
+write and takes `send` out of the order's `actions`, so staff reopen the quotation first. A quotation without an answer
+is unaffected. `signature_methods` says how a customer may sign under `accept_and_sign`: `draw` accepts a hand-drawn
+signature only, `draw_or_type` also accepts a typed name that the page renders as the signature image.
 
 ## Visibility
 
@@ -61,7 +70,7 @@ the routes authorise each move from it.
 | --- | --- | --- | --- |
 | none | create | `draft` | `sales.quotations.manage` |
 | `draft` | edit | `draft` | `sales.quotations.manage` |
-| `draft`, `sent` | send (not expired, a customer e-mail and a product line) | `sent` | `sales.quotations.manage` |
+| `draft`, `sent` | send (not expired, a usable customer e-mail and a product line; not answered when `answered_resend` is `refuse`) | `sent` | `sales.quotations.manage` |
 | `draft`, `sent` | confirm (needs a product line, not expired) | `confirmed` | `sales.orders.confirm` |
 | `draft`, `sent` | cancel | `cancelled` | `sales.quotations.manage` |
 | `confirmed`, not locked | cancel | `cancelled` | `sales.orders.confirm` |
@@ -80,7 +89,8 @@ the table's 403. Only send mails the customer; confirm, cancel, reopen, lock and
 ## Sending a quotation
 
 `POST /api/v1/sales/orders/{id}/send` (`sales.quotations.manage`, own document, from `draft` or `sent`; a second send
-is a resend). 422 `customer_email_missing` when the customer has no e-mail, `quotation_expired`, and `invalid` on
+is a resend). 422 `customer_email_missing` when the customer has no e-mail or one that is not a usable address,
+409 `quotation_answered` when the customer answered and the tenant refuses a resend, 422 `quotation_expired`, and `invalid` on
 `lines` without a product line; 503 `mail_unavailable` when no sender address is configured (checked before any
 write, so the order stays as it was). In one transaction it makes the access token, copies the two answer settings onto the
 order (`require_signature` only for `accept_and_sign`), clears any earlier answer and signature, moves a draft to
@@ -103,8 +113,8 @@ Unknown body fields are 422 `unknown_field`.
 
 | Route | Effect |
 | --- | --- |
-| `GET ?access_token=` | The public shape: figures, lines, `answer_mode`, `answer`, `can_accept`, `can_decline`; no salesperson, contact data or partner ids |
-| `POST /accept` `{access_token, signed_by?, signature?}` | Records `accepted`; with `acceptance_confirms` it confirms the order through the staff confirm path and sends no stock mail. 422 `answer_not_allowed` (mode `none`), `already_answered`, `quotation_expired`, and for `accept_and_sign` `signature_required` or `signature_invalid` (a base64 PNG of at most 48 KB, no `data:` prefix); in mode `accept` the signature fields are unknown |
+| `GET ?access_token=` | The public shape: figures, lines, `answer_mode`, `signature_methods` (the snapshot), `answer`, `can_accept`, `can_decline`; no salesperson, contact data or partner ids |
+| `POST /accept` `{access_token, signed_by?, signature?, signature_method?}` | Records `accepted`; with `acceptance_confirms` it confirms the order through the staff confirm path and sends no stock mail. 422 `answer_not_allowed` (mode `none`), `already_answered`, `quotation_expired`, and for `accept_and_sign` `signature_required` or `signature_invalid` (a base64 PNG of at most 48 KB, no `data:` prefix), and 422 `invalid` on `signature_method` (`drawn` or `typed`, required with the signature, refused without one, `typed` refused when `signature_methods` is `draw`); in mode `accept` the signature fields are unknown |
 | `POST /decline` `{access_token, reason?}` | Records `declined` with the reason (at most 1000 characters) and cancels the quotation; allowed while sent and unanswered, expired or not |
 | `GET /pdf?access_token=` | The same report; it prints the signature once the quotation is signed |
 

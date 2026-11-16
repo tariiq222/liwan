@@ -34,7 +34,7 @@ class TestSalesOrdersShape(LiwanSalesCase):
         item = next(row for row in listed['items'] if row['id'] == order.id)
         self.assertEqual(set(item), ITEM_KEYS)
         detail = self.detail(self.agent, order)
-        self.assertEqual(set(detail), ITEM_KEYS | {'lines', 'actions'})
+        self.assertEqual(set(detail), ITEM_KEYS | {'lines', 'actions', 'resend_refused'})
         self.assertEqual(set(detail['actions']), ACTION_KEYS)
         self.assertEqual(set(detail['lines'][0]), LINE_KEYS)
         self.assertEqual(detail['number'], order.name)

@@ -9,6 +9,7 @@ from odoo.tools import html2plaintext
 
 from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_api.serializers.common import iso
+from odoo.addons.liwan_sales.models.sales_settings import SIGNATURE_METHODS
 from odoo.addons.liwan_sales.serializers.order import (
     STATE_WIRE,
     dump_currency,
@@ -16,7 +17,7 @@ from odoo.addons.liwan_sales.serializers.order import (
 )
 
 TOKEN_KEY = 'access_token'
-SIGNATURE_KEYS = ('signed_by', 'signature')
+SIGNATURE_KEYS = ('signed_by', 'signature', 'signature_method')
 MAX_SIGNER = 120
 MAX_SIGNATURE_BYTES = 48 * 1024
 # A signature pad is a few hundred pixels; a small file may still declare a huge canvas that stock would decode.
@@ -47,6 +48,7 @@ def dump_public_quotation(order):
         'amount_total': currency.round(order.amount_total),
         'lines': [dump_line_values(line) for line in order.order_line],
         'answer_mode': order.liwan_answer_mode,
+        'signature_methods': order.liwan_signature_methods or None,
         'answer': order.liwan_answer or None,
         'answered_at': iso(order.liwan_answered_on),
         'signed_by': order.signed_by or None,
@@ -95,18 +97,32 @@ def _parse_png(value):
     return value
 
 
-def parse_signature(payload, mode):
-    """``(signed_by, signature)`` an acceptance carries under the answer ``mode``, or None when the mode takes none.
+def _parse_method(value, methods):
+    """The ``signature_method`` ``value`` once the order's snapshot ``methods`` allows it, else 422 ``invalid``."""
+    if value not in SIGNATURE_METHODS:
+        raise ApiError(422, 'invalid', f'signature_method must be one of {SIGNATURE_METHODS}', field='signature_method')
+    if value == 'typed' and methods == 'draw':
+        raise ApiError(422, 'invalid', 'this quotation takes a hand-drawn signature only', field='signature_method')
+    return value
 
-    ``accept_and_sign`` needs both (422 ``signature_required`` or ``signature_invalid``); ``accept`` refuses them as
-    unknown fields.
+
+def parse_signature(payload, mode, methods):
+    """``(signed_by, signature, method)`` an acceptance carries under the answer ``mode`` and the order's signature
+    ``methods``, or None when the mode takes none.
+
+    ``accept_and_sign`` needs all three (422 ``signature_required``, ``signature_invalid`` or, on ``signature_method``,
+    ``invalid``); ``accept`` refuses them as unknown fields.
     """
     if mode != 'accept_and_sign':
         given = [key for key in SIGNATURE_KEYS if key in payload]
         if given:
             raise ApiError(422, 'unknown_field', f'field {given[0]!r} is not accepted', field=given[0])
         return None
-    return _parse_signer(payload.get('signed_by')), _parse_png(payload.get('signature'))
+    if 'signature_method' in payload and payload.get('signature') is None:
+        raise ApiError(422, 'invalid', 'signature_method comes with a signature', field='signature_method')
+    signer = _parse_signer(payload.get('signed_by'))
+    image = _parse_png(payload.get('signature'))
+    return signer, image, _parse_method(payload.get('signature_method'), methods)
 
 
 def parse_reason(payload):

@@ -24,6 +24,12 @@ export const SalesVisibilitySchema = z.enum(['own', 'all'])
 /** What a sent quotation lets the customer do: nothing, accept it, or accept it with a drawn signature and a name. */
 export const SalesAnswerModeSchema = z.enum(['none', 'accept', 'accept_and_sign'])
 export const SalesAnswerSchema = z.enum(['accepted', 'declined'])
+/** Whether a quotation re-sent after the customer answered is allowed (the answer is then cleared) or refused. */
+export const SalesAnsweredResendSchema = z.enum(['allow', 'refuse'])
+/** How a signing customer may sign: by drawing only, or by drawing or by typing a name written as a signature. */
+export const SalesSignatureMethodsSchema = z.enum(['draw', 'draw_or_type'])
+/** How a signature was made: drawn by hand, or typed as a name. */
+export const SalesSignatureMethodSchema = z.enum(['drawn', 'typed'])
 
 export const SalesCurrencySchema = z.object({ id: Id, name: z.string().min(1), symbol: z.string() }).strict()
 
@@ -63,6 +69,8 @@ export const SalesCustomerAnswerSchema = z.object({
   answer: SalesAnswerSchema.nullable(),
   answered_at: z.string().nullable(),
   signed_by: z.string().nullable(),
+  // Null while unsigned.
+  signature_method: SalesSignatureMethodSchema.nullable(),
   decline_reason: z.string().nullable(),
 }).strict()
 
@@ -93,6 +101,8 @@ export const SalesOrderSchema = z.object({
   ...OrderFields,
   lines: z.array(SalesOrderLineSchema),
   actions: SalesOrderActionsSchema,
+  // True when only the tenant's `answered_resend: refuse` keeps the caller from sending this answered quotation again.
+  resend_refused: z.boolean(),
 }).strict()
 
 export const SalesOrderListSchema = z.object({
@@ -141,6 +151,8 @@ export const SalesSettingsSchema = z.object({
   default_terms: z.string(),
   customer_answer: SalesAnswerModeSchema,
   acceptance_confirms: z.boolean(),
+  answered_resend: SalesAnsweredResendSchema,
+  signature_methods: SalesSignatureMethodsSchema,
   revision: z.number().int().positive(),
   // Whether this session may change the settings: the capability, in the root company.
   can_manage: z.boolean(),
@@ -153,6 +165,8 @@ export const SalesSettingsPatchSchema = z.object({
   default_terms: z.string().max(SALES_LIMITS.terms).optional(),
   customer_answer: SalesAnswerModeSchema.optional(),
   acceptance_confirms: z.boolean().optional(),
+  answered_resend: SalesAnsweredResendSchema.optional(),
+  signature_methods: SalesSignatureMethodsSchema.optional(),
   revision: z.number().int().positive(),
 }).strict().refine(patch => Object.keys(patch).some(key => key !== 'revision'), { message: 'nothing to change' })
 
@@ -186,6 +200,8 @@ export const SalesPublicQuotationSchema = z.object({
   amount_total: Amount,
   lines: z.array(SalesPublicLineSchema),
   answer_mode: SalesAnswerModeSchema,
+  // The signing methods in force when the quotation was sent; null only for an order that was never sent.
+  signature_methods: SalesSignatureMethodsSchema.nullable(),
   answer: SalesAnswerSchema.nullable(),
   answered_at: z.string().nullable(),
   signed_by: z.string().nullable(),
@@ -198,13 +214,14 @@ const SIGNATURE_BASE64_MAX = Math.ceil(SALES_LIMITS.signatureBytes / 3) * 4
 
 /**
  * The body of `POST .../quotations/<id>/accept`. In mode `accept_and_sign` the signer's name and the drawn signature
- * (base64 PNG, no `data:` prefix) travel together; in mode `accept` neither does.
+ * (base64 PNG, no `data:` prefix) and how the signature was made travel together; in mode `accept` none of them does.
  */
 export const SalesQuotationAcceptSchema = z.object({
   access_token: AccessToken,
   signed_by: z.string().trim().min(1).max(SALES_LIMITS.signedBy).optional(),
   signature: z.string().regex(/^[A-Za-z0-9+/]+={0,2}$/).max(SIGNATURE_BASE64_MAX).optional(),
-}).strict().refine(body => (body.signed_by === undefined) === (body.signature === undefined), { message: 'the name and the signature come together' })
+  signature_method: SalesSignatureMethodSchema.optional(),
+}).strict().refine(body => (body.signed_by === undefined) === (body.signature === undefined) && (body.signature === undefined) === (body.signature_method === undefined), { message: 'the name, the signature and its method come together' })
 
 export const SalesQuotationDeclineSchema = z.object({
   access_token: AccessToken,
@@ -217,6 +234,9 @@ export type SalesLineKind = z.infer<typeof SalesLineKindSchema>
 export type SalesVisibility = z.infer<typeof SalesVisibilitySchema>
 export type SalesAnswerMode = z.infer<typeof SalesAnswerModeSchema>
 export type SalesAnswer = z.infer<typeof SalesAnswerSchema>
+export type SalesAnsweredResend = z.infer<typeof SalesAnsweredResendSchema>
+export type SalesSignatureMethods = z.infer<typeof SalesSignatureMethodsSchema>
+export type SalesSignatureMethod = z.infer<typeof SalesSignatureMethodSchema>
 export type SalesCustomerAnswer = z.infer<typeof SalesCustomerAnswerSchema>
 export type SalesPublicLine = z.infer<typeof SalesPublicLineSchema>
 export type SalesPublicQuotation = z.infer<typeof SalesPublicQuotationSchema>

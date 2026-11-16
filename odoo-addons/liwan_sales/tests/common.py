@@ -277,6 +277,14 @@ class QuotationCase(SalesWriteCase):
     def set_answer(cls, mode='accept', confirms=False):
         cls.env['liwan.sales.settings']._liwan_current().write({'customer_answer': mode, 'acceptance_confirms': confirms})
 
+    @classmethod
+    def set_signature_methods(cls, methods):
+        cls.env['liwan.sales.settings']._liwan_current().signature_methods = methods
+
+    @classmethod
+    def set_answered_resend(cls, mode):
+        cls.env['liwan.sales.settings']._liwan_current().answered_resend = mode
+
     @contextmanager
     def pdf_engine(self):
         """The stock report render replaced by a fixed PDF; yields the mock."""
@@ -295,10 +303,12 @@ class QuotationCase(SalesWriteCase):
         company = company or user.company_id
         return self.env['liwan.sales.service'].with_user(user).with_context(allowed_company_ids=[company.id])
 
-    def sent(self, mode='accept', confirms=False, scope=None, **values):
-        """A quotation sent under the settings ``mode`` and ``confirms``, returned in the superuser environment."""
+    def sent(self, mode='accept', confirms=False, scope=None, signature_methods='draw_or_type', **values):
+        """A quotation sent under the settings ``mode``, ``confirms`` and ``signature_methods``, returned in the superuser
+        environment."""
         scope = scope or self.root
         self.set_answer(mode, confirms)
+        self.set_signature_methods(signature_methods)
         order = self.quotation(scope, **values)
         with self.pdf_engine():
             self.service_as(scope.agent, scope.company)._liwan_send(order.id)

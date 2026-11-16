@@ -57,12 +57,12 @@ class LiwanSalesAnswer(models.AbstractModel):
 
     @api.model
     def _liwan_accept(self, order, signature):
-        """Record the acceptance, with ``(signed_by, image)`` when the quotation is signed, and confirm the order when
+        """Record the acceptance, with ``(signed_by, image, method)`` when the quotation is signed, and confirm the order when
         the snapshot taken at send says acceptance confirms it. Stock's confirmation mail is not sent."""
         now = fields.Datetime.now()
         values = {'liwan_answer': 'accepted', 'liwan_answered_on': now}
         if signature:
-            values.update(signed_by=signature[0], signature=signature[1], signed_on=now)
+            values.update(signed_by=signature[0], signature=signature[1], liwan_signature_method=signature[2], signed_on=now)
         order.write(values)
         if order.liwan_acceptance_confirms:
             self.env['liwan.sales.service']._liwan_move(order, 'confirm')

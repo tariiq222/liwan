@@ -7,6 +7,7 @@ from odoo import fields
 from odoo.tests import tagged
 
 from .common import FAKE_PDF, MODES, SENDER, QuotationCase
+from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
 ORDERS = '/api/v1/sales/orders'
 ANSWER_MODES = ('none', 'accept', 'accept_and_sign')
@@ -27,7 +28,7 @@ class TestSalesSend(QuotationCase):
         self.assertEqual(first['state'], 'sent')
         self.assertEqual(first['customer_answer'], {
             'mode': 'accept', 'acceptance_confirms': False, 'answer': None, 'answered_at': None,
-            'signed_by': None, 'decline_reason': None,
+            'signed_by': None, 'signature_method': None, 'decline_reason': None,
         })
         order.invalidate_recordset()
         token = order.access_token
@@ -67,6 +68,16 @@ class TestSalesSend(QuotationCase):
                     self.assertEqual((answer['mode'], answer['acceptance_confirms']), (mode, confirms))
                     self.assertEqual(order.require_signature, mode == 'accept_and_sign')
 
+    def test_the_signature_methods_are_snapshotted_and_a_later_change_does_not_touch_them(self):
+        order = self.sent('accept_and_sign', signature_methods='draw')
+        self.assertEqual(order.liwan_signature_methods, 'draw')
+        self.set_signature_methods('draw_or_type')
+        order.invalidate_recordset()
+        self.assertEqual(order.liwan_signature_methods, 'draw')
+        self.send_via_api(self.agent, order.id)
+        order.invalidate_recordset()
+        self.assertEqual(order.liwan_signature_methods, 'draw_or_type')
+
     def test_a_later_settings_change_does_not_touch_a_sent_quotation(self):
         order = self.sent('accept_and_sign', True)
         self.set_answer('none', False)
@@ -83,12 +94,112 @@ class TestSalesSend(QuotationCase):
         order = self.sent('accept_and_sign')
         order.write({
             'liwan_answer': 'accepted', 'liwan_answered_on': fields.Datetime.now(), 'signed_by': 'Buyer',
-            'signed_on': fields.Datetime.now(), 'liwan_decline_reason': 'old',
+            'signed_on': fields.Datetime.now(), 'liwan_decline_reason': 'old', 'liwan_signature_method': 'typed',
         })
         body = self.send_via_api(self.agent, order.id)
         self.assertIsNone(body['customer_answer']['answer'])
         order.invalidate_recordset()
-        self.assertEqual((order.signed_by, order.signed_on, order.signature, order.liwan_decline_reason), (False,) * 4)
+        self.assertEqual(
+            (order.signed_by, order.signed_on, order.signature, order.liwan_decline_reason, order.liwan_signature_method),
+            (False,) * 5,
+        )
+
+    def answer_it(self, order, answer='accepted'):
+        order.write({
+            'liwan_answer': answer, 'liwan_answered_on': fields.Datetime.now(), 'signed_by': 'Buyer',
+            'signed_on': fields.Datetime.now(), 'liwan_signature_method': 'typed',
+        })
+
+    def test_an_answered_quotation_is_sent_again_when_the_tenant_allows_it(self):
+        order = self.sent('accept_and_sign')
+        self.answer_it(order)
+        detail = self.api_as(self.agent, 'GET', f'{ORDERS}/{order.id}').json()
+        self.assertTrue(detail['actions']['send'])
+        body = self.send_via_api(self.agent, order.id)
+        self.assertEqual((body['state'], body['customer_answer']['answer'], body['customer_answer']['signature_method']), ('sent', None, None))
+        order.invalidate_recordset()
+        self.assertEqual((order.liwan_answer, order.signed_by, order.liwan_signature_method), (False,) * 3)
+
+    def test_an_answered_quotation_is_refused_a_resend_when_the_tenant_says_so(self):
+        order = self.sent('accept_and_sign')
+        self.answer_it(order)
+        self.set_answered_resend('refuse')
+        mails = self.env['mail.mail'].search_count([])
+        detail = self.api_as(self.agent, 'GET', f'{ORDERS}/{order.id}').json()
+        self.assertFalse(detail['actions']['send'])
+        with self.pdf_engine():
+            self.refused(self.api_as(self.agent, 'POST', f'{ORDERS}/{order.id}/send'), 409, 'quotation_answered')
+        order.invalidate_recordset()
+        self.assertEqual((order.liwan_answer, order.signed_by, order.liwan_signature_method), ('accepted', 'Buyer', 'typed'))
+        self.assertEqual(self.env['mail.mail'].search_count([]), mails)
+        self.assertEqual(self.act(self.agent, order.id, 'reopen')['state'], 'draft')
+        self.assertTrue(self.api_as(self.agent, 'GET', f'{ORDERS}/{order.id}').json()['actions']['send'])
+        self.assertEqual(self.send_via_api(self.agent, order.id)['state'], 'sent')
+
+    def test_the_refuse_mode_leaves_an_unanswered_quotation_alone(self):
+        self.set_answered_resend('refuse')
+        order = self.sent()
+        detail = self.api_as(self.agent, 'GET', f'{ORDERS}/{order.id}').json()
+        self.assertTrue(detail['actions']['send'])
+        self.assertEqual(self.send_via_api(self.agent, order.id)['state'], 'sent')
+
+    def test_a_declined_cancelled_quotation_keeps_its_state_refusal_in_refuse_mode(self):
+        order = self.sent()
+        self.answer_it(order, 'declined')
+        order.action_cancel()
+        self.set_answered_resend('refuse')
+        self.refused(self.api_as(self.agent, 'POST', f'{ORDERS}/{order.id}/send'), 403, 'transition_forbidden')
+
+    def test_an_apostrophe_and_other_valid_addresses_are_accepted(self):
+        for email in ("o'brien@example.test", 'Buyer <buyer+tag@example.test>', 'first.last@sub.example.test'):
+            with self.subTest(email=email):
+                order = self.quotation(email=email)
+                self.assertEqual(self.send_via_api(self.agent, order.id)['state'], 'sent')
+
+    def test_the_resend_refusal_gives_way_to_a_403_and_to_expiry(self):
+        order = self.sent('accept_and_sign')
+        self.answer_it(order)
+        self.set_answered_resend('refuse')
+        confirmer = self.custom_user('sales_send_confirmer', ['sales.read', 'sales.orders.confirm'])
+        order.user_id = confirmer
+        self.refused(self.api_as(confirmer, 'POST', f'{ORDERS}/{order.id}/send'), 403, 'forbidden')
+        # The service itself, reached without the route's capability gate, refuses with the state table's 403, not the 409.
+        with self.assertRaises(LiwanAccessRule) as refusal:
+            self.service_as(confirmer)._liwan_send(order.id)
+        self.assertEqual((refusal.exception.status, refusal.exception.code), (403, 'transition_forbidden'))
+        self.assertFalse(self.api_as(confirmer, 'GET', f'{ORDERS}/{order.id}').json()['resend_refused'])
+        order.user_id = self.agent
+        with self.pdf_engine():
+            self.refused(self.api_as(self.agent, 'POST', f'{ORDERS}/{order.id}/send'), 409, 'quotation_answered')
+        order.validity_date = yesterday()
+        with self.pdf_engine():
+            self.refused(self.api_as(self.agent, 'POST', f'{ORDERS}/{order.id}/send'), 422, 'quotation_expired')
+
+    def test_resend_refused_is_true_only_when_the_setting_alone_removes_send(self):
+        url = f'{ORDERS}/{{}}'
+        order = self.sent('accept_and_sign')
+        self.answer_it(order)
+        self.assertFalse(self.api_as(self.agent, 'GET', url.format(order.id)).json()['resend_refused'])
+        self.set_answered_resend('refuse')
+        detail = self.api_as(self.agent, 'GET', url.format(order.id)).json()
+        self.assertEqual((detail['resend_refused'], detail['actions']['send']), (True, False))
+        order.validity_date = yesterday()
+        self.assertFalse(self.api_as(self.agent, 'GET', url.format(order.id)).json()['resend_refused'])
+        self.set_answered_resend('allow')
+        self.assertFalse(self.api_as(self.agent, 'GET', url.format(order.id)).json()['resend_refused'])
+        unanswered = self.sent()
+        self.set_answered_resend('refuse')
+        self.assertFalse(self.api_as(self.agent, 'GET', url.format(unanswered.id)).json()['resend_refused'])
+
+    def test_a_malformed_customer_email_is_refused_before_any_write(self):
+        mails = self.env['mail.mail'].search_count([])
+        for email in ('not-an-address', 'a@b@c', 'two@example.test, other@example.test', '   '):
+            with self.subTest(email=email):
+                order = self.quotation(email=email)
+                self.refused(self.api_as(self.agent, 'POST', f'{ORDERS}/{order.id}/send'), 422, 'customer_email_missing')
+                order.invalidate_recordset()
+                self.assertEqual((order.state, order.liwan_answer_mode, order.access_token), ('draft', False, False))
+        self.assertEqual(self.env['mail.mail'].search_count([]), mails)
 
     def test_the_refusals_have_their_own_codes_and_leave_the_order_alone(self):
         mails = self.env['mail.mail'].search_count([])
@@ -182,14 +293,17 @@ class TestSalesSend(QuotationCase):
 
     def test_reopening_a_sent_quotation_clears_the_answer_and_the_snapshots(self):
         order = self.sent('accept_and_sign')
-        order.write({'liwan_answer': 'accepted', 'liwan_answered_on': fields.Datetime.now(), 'signed_by': 'Buyer'})
+        order.write({
+            'liwan_answer': 'accepted', 'liwan_answered_on': fields.Datetime.now(), 'signed_by': 'Buyer',
+            'liwan_signature_method': 'drawn',
+        })
         body = self.act(self.agent, order.id, 'reopen')
         self.assertEqual((body['state'], body['customer_answer']), ('draft', None))
         order.invalidate_recordset()
         self.assertEqual(
             (order.liwan_answer_mode, order.liwan_answer, order.liwan_answered_on, order.signed_by, order.signature,
-             order.require_signature),
-            (False,) * 6,
+             order.require_signature, order.liwan_signature_methods, order.liwan_signature_method),
+            (False,) * 8,
         )
 
     def test_a_declined_quotation_reopens_without_its_answer(self):
