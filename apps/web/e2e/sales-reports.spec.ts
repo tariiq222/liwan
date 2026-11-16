@@ -101,7 +101,7 @@ test('an export of more rows than one file carries names the limit and downloads
   await page.goto('/sales/reports?state=all')
   await page.context().addCookies([{ name: 'mock_export', value: 'too_large', url: new URL(page.url()).origin }])
   await page.getByTestId('sales-report-export').click()
-  await expect(page.getByText(/النتائج أكثر من .*50.*صف\. ضيّق التصفية ثم صدّر من جديد\./)).toBeVisible()
+  await expect(page.locator('[data-slot="title"]').filter({ hasText: /النتائج أكثر من .*50.*صف\. ضيّق التصفية ثم صدّر من جديد\./ })).toBeVisible()
   await expect(page.getByTestId('sales-report-export')).toBeEnabled()
 })
 
