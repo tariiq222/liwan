@@ -12,7 +12,7 @@ const hydrated = useHydrated()
 
 <template>
   <SharedRecordSection variant="panel" :title="t('crm.opportunities.call.log')">
-    <SharedEmptyState v-if="!calls.length" :title="t('crm.opportunities.call.logEmpty')" />
+    <SharedEmptyState icon="i-lucide-phone" v-if="!calls.length" :title="t('crm.opportunities.call.logEmpty')" />
     <ol v-else class="divide-y divide-default" data-testid="crm-call-log">
       <li v-for="call in calls" :key="call.id" class="grid gap-1 py-3 first:pt-0 last:pb-0">
         <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">

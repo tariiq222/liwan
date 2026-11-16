@@ -26,9 +26,11 @@ const chosen = computed({
 
 <template>
   <SharedSettingsCard id="phoneCountry" v-bind="state" :title="t('customers.settings.phoneCountry.title')" :description="t('customers.settings.phoneCountry.hint')" :can-edit="canEdit" @save="save" @revert="revert" @reload="reload">
-    <SharedSettingRow :label="t('customers.settings.phoneCountry.current')" :description="t('customers.settings.phoneCountry.help')">
-      <USelectMenu v-model="chosen" value-key="value" :items="items" :search-input="{ placeholder: t('customers.settings.phoneCountry.search') }" :loading="countries.isFetching.value" :aria-label="t('customers.settings.phoneCountry.current')" class="w-full min-w-56" :disabled="locked" data-testid="customers-phone-country" />
-    </SharedSettingRow>
+    <div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
+    <UFormField :label="t('customers.settings.phoneCountry.current')" :help="t('customers.settings.phoneCountry.help')">
+      <USelectMenu v-model="chosen" value-key="value" :items="items" :search-input="{ placeholder: t('customers.settings.phoneCountry.search') }" :loading="countries.isFetching.value" :aria-label="t('customers.settings.phoneCountry.current')" class="w-full" :disabled="locked" data-testid="customers-phone-country" />
+    </UFormField>
+    </div>
     <UAlert v-if="countries.error.value" role="alert" color="error" variant="subtle" :title="t('customers.settings.phoneCountry.loadError')">
       <template #actions><UButton type="button" color="neutral" variant="outline" size="sm" :label="t('customers.settings.phoneCountry.retry')" @click="countries.refetch()" /></template>
     </UAlert>

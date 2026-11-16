@@ -70,9 +70,9 @@ async function retryNextPage() {
     <template #actions>
       <UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated || isLoading || isFetching" :label="t('notifications.retry')" @click="retryDigest" />
     </template>
-    <SharedEmptyState v-if="idInvalid" bordered :title="t('tasks.digest.invalid')" data-testid="digest-invalid" />
+    <SharedEmptyState icon="i-lucide-file-question" v-if="idInvalid" bordered :title="t('tasks.digest.invalid')" data-testid="digest-invalid" />
     <SharedErrorState v-else-if="isError && !items.length" :title="queryErrorMessage" data-testid="digest-error" @retry="retryDigest" />
-    <SharedEmptyState v-else-if="!items.length" bordered :title="t('tasks.digest.empty')" data-testid="digest-empty" />
+    <SharedEmptyState icon="i-lucide-bell" v-else-if="!items.length" bordered :title="t('tasks.digest.empty')" data-testid="digest-empty" />
     <SharedListCard v-else>
       <p v-if="digestDate" class="border-b border-default px-(--liwan-card-pad-dense) py-2 text-sm text-muted tabular-nums" data-testid="digest-date">
         <time :datetime="digestIso ?? undefined">{{ digestDate }}</time>

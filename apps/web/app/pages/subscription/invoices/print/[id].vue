@@ -20,7 +20,7 @@ definePageMeta({ middleware: 'customer-commercial' })
   <SharedStandalonePage variant="print">
     <h1 class="sr-only">{{ t('subscription.invoices.print.title') }}</h1>
     <SharedForbiddenState v-if="!allowed" />
-    <SharedPageState v-else :loading="pending" :error="error" :empty="!data" :empty-text="t('subscription.invoices.empty')" @retry="refresh">
+    <SharedPageState empty-icon="i-lucide-receipt-text" v-else :loading="pending" :error="error" :empty="!data" :empty-text="t('subscription.invoices.empty')" @retry="refresh">
       <InvoiceDocument v-if="data" :invoice="data" />
     </SharedPageState>
     <template #footer>

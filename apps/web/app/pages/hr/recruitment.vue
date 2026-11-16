@@ -190,7 +190,7 @@ function applicantTo(applicant: HrApplicant) {
       </template>
 
       <SharedPageState :error="applicants.error.value" :keep-content="items.length > 0" @retry="applicants.refetch">
-        <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('hrRecruitment.emptyTitle')" :description="t('hrRecruitment.emptyHint')" />
+        <SharedEmptyState icon="i-lucide-user-search" v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('hrRecruitment.emptyTitle')" :description="t('hrRecruitment.emptyHint')" />
         <SharedDataTable
           v-else
           bare

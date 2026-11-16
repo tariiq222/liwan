@@ -41,7 +41,7 @@ async function finish(step: HrOwnOnboardingStep) {
     <UAlert v-if="actionError" role="alert" color="error" variant="subtle" :title="actionError" data-testid="hr-onboarding-mine-error" />
     <SharedListCard>
       <SharedPageState :error="steps.error.value" :keep-content="items.length > 0" @retry="steps.refetch">
-        <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('hr.self.onboardingEmptyTitle')" :description="t('hr.self.onboardingEmptyHint')" />
+        <SharedEmptyState icon="i-lucide-user-plus" v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('hr.self.onboardingEmptyTitle')" :description="t('hr.self.onboardingEmptyHint')" />
         <SharedDataTable v-else bare :rows="items" :columns="columns" row-key="id" :loading="steps.isLoading.value" :caption="t('hr.self.onboarding')" data-testid="hr-onboarding-mine-table">
           <template #summary-cell="{ row }"><span class="font-semibold text-highlighted">{{ row.original.summary }}</span></template>
           <template #date_deadline-cell="{ row }">

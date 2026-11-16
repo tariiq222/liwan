@@ -78,7 +78,7 @@ const days = (value: number) => value === 0 ? '0' : `${value > 0 ? '+' : '−'}$
     :create-label="t('projects.changes.create')"
     create-test-id="change-create"
   >
-    <SharedEmptyState v-if="bareEmpty" bordered :title="t('projects.changes.empty')" :description="t('projects.changes.emptyHint')" />
+    <SharedEmptyState icon="i-lucide-git-pull-request-arrow" v-if="bareEmpty" bordered :title="t('projects.changes.empty')" :description="t('projects.changes.emptyHint')" />
     <SharedListCard v-else>
       <template #filters>
         <FilterBar embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
@@ -90,7 +90,7 @@ const days = (value: number) => value === 0 ? '0' : `${value > 0 ? '+' : '−'}$
       </template>
       <SharedPageState v-if="list.error.value" :error="list.error.value" @retry="list.refetch" />
       <div v-else-if="!list.isLoading.value && !items.length" class="p-(--liwan-card-pad)">
-        <SharedEmptyState :title="t('projects.clarity.filteredEmpty')" />
+        <SharedEmptyState icon="i-lucide-filter-x" :title="t('projects.clarity.filteredEmpty')" />
       </div>
       <SharedDataTable v-else bare :rows="items" :columns="columns" row-key="id" :row-to="itemTo" :loading="list.isLoading.value" :caption="t('projects.changes.title')">
         <template #number-cell="{ row }"><RecordNumber :value="row.original.number" /></template>

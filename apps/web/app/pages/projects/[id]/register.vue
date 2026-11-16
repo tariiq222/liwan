@@ -105,7 +105,7 @@ const bareEmpty = computed(() => Boolean(list.data.value) && !items.value.length
     </SharedInlineConfirm>
     <p v-else-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
 
-    <SharedEmptyState v-if="bareEmpty" bordered :title="t('projects.clarity.registerEmpty')" />
+    <SharedEmptyState icon="i-lucide-circle-alert" v-if="bareEmpty" bordered :title="t('projects.clarity.registerEmpty')" />
     <SharedListCard v-else>
       <template #filters>
         <FilterBar embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
@@ -127,7 +127,7 @@ const bareEmpty = computed(() => Boolean(list.data.value) && !items.value.length
       </template>
       <SharedPageState v-if="list.error.value" :error="list.error.value" @retry="list.refetch" />
       <div v-else-if="!list.isLoading.value && !items.length" class="p-(--liwan-card-pad)">
-        <SharedEmptyState :title="t(activeFilterCount ? 'projects.clarity.filteredEmpty' : 'projects.clarity.registerEmpty')" />
+        <SharedEmptyState :icon="activeFilterCount ? 'i-lucide-filter-x' : 'i-lucide-circle-alert'" :title="t(activeFilterCount ? 'projects.clarity.filteredEmpty' : 'projects.clarity.registerEmpty')" />
       </div>
       <SharedDataTable v-else bare :rows="items" :columns="columns" row-key="id" :row-to="itemTo" :loading="list.isLoading.value" :caption="t('projects.refresh.workspace.registerTitle')">
         <template #id-cell="{ row }"><RecordNumber :value="row.original.id" /></template>

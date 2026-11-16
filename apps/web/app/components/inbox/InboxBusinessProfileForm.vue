@@ -16,6 +16,10 @@ const hydrated = useHydrated()
 const toast = useToast()
 
 const MAX_PICTURE_BYTES = 5 * 1024 * 1024
+// The website fields are `website1`/`website2` on the draft while the limit key is `website`; the
+// template checker conflates the two names in this file, so the limit is bound once here.
+const WEBSITE_LIMIT = PROFILE_LIMITS.website
+
 const NONE = 'none'
 const base = ref<ProfileDraft>(profileToDraft(props.profile))
 const draft = ref<ProfileDraft>({ ...base.value })
@@ -35,6 +39,12 @@ const invalid = (field: ProfileField) => errors.value.has(field)
 const message = (field: ProfileField, key: string) => invalid(field) ? t(`inbox.profile.invalid.${key}`) : undefined
 // Isolated left-to-right so "37 / 139" is not mirrored in an Arabic line.
 const counter = (field: 'about' | 'address' | 'description') => `\u2066${t('inbox.profile.counter', { used: draft.value[field].length, max: PROFILE_LIMITS[field] })}\u2069`
+
+// Comparing against NONE in an inline handler lost the scoped `NONE` binding in the template
+// checker; a named handler keeps the narrowing explicit and the template readable.
+const onVertical = (value: unknown) => {
+  draft.value.vertical = value === NONE ? '' : (value as ProfileDraft['vertical'])
+}
 
 const verticalItems = computed(() => [
   { value: NONE, label: t('inbox.profile.hints.noVertical') },
@@ -103,13 +113,13 @@ function onPicture(event: Event) {
               <UInput v-model="draft.email" type="email" class="w-full" dir="ltr" :maxlength="PROFILE_LIMITS.email" autocomplete="off" :disabled="busy" data-testid="inbox-profile-email" />
             </UFormField>
             <UFormField :label="t('inbox.profile.fields.website1')" :description="t('inbox.profile.hints.websites')" :error="message('website1', 'website')">
-              <UInput v-model="draft.website1" type="url" class="w-full" dir="ltr" placeholder="https://" :maxlength="PROFILE_LIMITS.website" autocomplete="off" :disabled="busy" data-testid="inbox-profile-website1" />
+              <UInput v-model="draft.website1" type="url" class="w-full" dir="ltr" placeholder="https://" :maxlength="WEBSITE_LIMIT" autocomplete="off" :disabled="busy" data-testid="inbox-profile-website1" />
             </UFormField>
             <UFormField :label="t('inbox.profile.fields.website2')" :error="message('website2', 'website')">
-              <UInput v-model="draft.website2" type="url" class="w-full" dir="ltr" placeholder="https://" :maxlength="PROFILE_LIMITS.website" autocomplete="off" :disabled="busy" data-testid="inbox-profile-website2" />
+              <UInput v-model="draft.website2" type="url" class="w-full" dir="ltr" placeholder="https://" :maxlength="WEBSITE_LIMIT" autocomplete="off" :disabled="busy" data-testid="inbox-profile-website2" />
             </UFormField>
             <UFormField :label="t('inbox.profile.fields.vertical')">
-              <USelect :model-value="draft.vertical || NONE" :items="verticalItems" class="w-full" :disabled="busy" data-testid="inbox-profile-vertical" @update:model-value="draft.vertical = $event === NONE ? '' : ($event as ProfileDraft['vertical'])" />
+              <USelect :model-value="draft.vertical || NONE" :items="verticalItems" class="w-full" :disabled="busy" data-testid="inbox-profile-vertical" @update:model-value="onVertical" />
             </UFormField>
             <div class="flex flex-wrap justify-end gap-2">
               <UButton type="button" color="neutral" variant="ghost" :disabled="busy || !dirty" :label="t('inbox.profile.reset')" data-testid="inbox-profile-reset" @click="discard" />

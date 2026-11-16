@@ -42,7 +42,7 @@ const columns = computed<TableColumn<FinanceReconcileProposal>[]>(() => [
       <UAlert v-if="page.actionError" role="alert" color="error" variant="subtle" :title="page.actionError" data-testid="finance-bank-reconcile-error" />
 
       <SharedRecordSection variant="list" :title="t('financeBank.reconcile.proposals')" :description="t('financeBank.reconcile.proposalsHint')" data-testid="finance-bank-proposals">
-        <SharedPageState :loading="page.proposalsQuery.isLoading" :error="page.proposalsQuery.error" :empty="!page.proposalsQuery.isLoading && !page.proposals.length" :empty-text="t('financeBank.reconcile.noProposals')" @retry="page.proposalsQuery.refetch">
+        <SharedPageState empty-icon="i-lucide-landmark" :loading="page.proposalsQuery.isLoading" :error="page.proposalsQuery.error" :empty="!page.proposalsQuery.isLoading && !page.proposals.length" :empty-text="t('financeBank.reconcile.noProposals')" @retry="page.proposalsQuery.refetch">
           <div class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,820px)]">
             <SharedDataTable v-model:selected="page.selected" bare selectable :rows="page.proposals" :columns="columns" row-key="id" :caption="t('financeBank.reconcile.proposals')">
               <template #date-cell="{ row }"><bdi class="tabular-nums">{{ row.original.date }}</bdi></template>

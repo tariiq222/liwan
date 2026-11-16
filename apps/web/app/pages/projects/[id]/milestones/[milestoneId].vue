@@ -111,7 +111,7 @@ const menuItems = computed(() => [
       </UDropdownMenu>
     </template>
     <template #main>
-      <SharedEmptyState v-if="notFound" bordered :title="t('projects.milestones.notFound')" />
+      <SharedEmptyState icon="i-lucide-file-question" v-if="notFound" bordered :title="t('projects.milestones.notFound')" />
       <template v-else-if="milestone">
         <UAlert v-if="mutationError" role="alert" color="error" variant="subtle" :title="mutationError" />
         <SharedInlineConfirm v-if="confirmingDelete" :title="t('projects.milestones.deleteConfirm', { name: milestone.name })" :confirm-label="t('projects.milestones.delete')" :pending="pending" @cancel="confirmingDelete = false" @confirm="deleteMilestone" />

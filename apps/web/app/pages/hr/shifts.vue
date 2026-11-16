@@ -209,7 +209,7 @@ async function confirmRemove() {
         </template>
 
         <SharedPageState :error="source.error.value" :keep-content="items.length > 0" @retry="source.refetch">
-          <SharedEmptyState
+          <SharedEmptyState icon="i-lucide-calendar-clock"
             v-if="showEmpty"
             class="m-(--liwan-card-pad-dense)"
             :title="t('hrShifts.empty')"

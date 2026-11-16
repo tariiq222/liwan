@@ -64,7 +64,7 @@ function meetingTo(meeting: MeetingListItem, tab?: string) {
 </script>
 
 <template>
-  <div v-if="!meetings.length" class="p-(--liwan-card-pad)"><SharedEmptyState :title="t('meetingTimeline.empty')" /></div>
+  <div v-if="!meetings.length" class="p-(--liwan-card-pad)"><SharedEmptyState icon="i-lucide-history" :title="t('meetingTimeline.empty')" /></div>
   <SharedDataTable
     v-else-if="view === 'table'"
     :bare="bare"

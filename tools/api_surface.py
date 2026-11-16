@@ -373,6 +373,51 @@ def auth_requirement(route: dict) -> dict:
         ) from None
 
 
+def operation_slug(path: str) -> str:
+    """A stable, readable disambiguator from the literal segments of an API path.
+
+    Parameter segments name no operation, so they are dropped; what remains names the action
+    (``roles.disable``, ``documents.files.archive``). Two operations of one handler always differ
+    in a literal segment, because a path that differed only in its converters would be the same route.
+    """
+    segments = [part for part in path.strip("/").split("/")
+                if part and not (part.startswith("{") and part.endswith("}"))]
+    if segments[:2] == ["api", "v1"]:
+        segments = segments[2:]
+    return ".".join(segments).lower()
+
+
+def disambiguate_operation_ids(paths: dict) -> list[str]:
+    """Make every ``operationId`` unique, keeping each existing id that is already unique.
+
+    OpenAPI requires an operation id to identify one operation, and a generated client keys its
+    methods by it. One handler serving several paths (archive/restore, lock/unlock) produced one id
+    for all of them, so only a colliding id gains a path-derived suffix. Returns the rewritten ids and
+    stops the generator when a suffix cannot separate two operations.
+    """
+    occurrences: dict = {}
+    for path, entry in paths.items():
+        for method, operation in entry.items():
+            occurrences.setdefault(operation["operationId"], []).append((path, method, operation))
+    rewritten = []
+    for operation_id, sites in occurrences.items():
+        if len(sites) == 1:
+            continue
+        seen = set()
+        for path, _method, operation in sites:
+            suffix = operation_slug(path)
+            candidate = "%s.%s" % (operation_id, suffix)
+            if not suffix or candidate in seen or candidate in occurrences:
+                raise SystemExit(
+                    "api_surface: cannot disambiguate operationId %r: %r collides"
+                    % (operation_id, candidate)
+                )
+            seen.add(candidate)
+            operation["operationId"] = candidate
+            rewritten.append(candidate)
+    return rewritten
+
+
 def build_document(routes: list[dict], contract_schemas: dict) -> dict:
     paths: dict = {}
     for route in sorted(routes, key=lambda r: (r["addon"], r["paths"][0], r["handler"])):
@@ -416,6 +461,8 @@ def build_document(routes: list[dict], contract_schemas: dict) -> dict:
                 if description:
                     operation["description"] = description
                 entry[method.lower()] = operation
+
+    disambiguate_operation_ids(paths)
 
     components = {
         "securitySchemes": {

@@ -76,7 +76,7 @@ function outcomeLabel(outcome: string) {
       </SharedFilterBar>
     </template>
     <SharedPageState :error="query.error.value" :keep-content="items.length > 0" @retry="query.refetch">
-      <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(activeCount ? 'app.noResults' : 'financeGovernance.audit.empty')" />
+      <SharedEmptyState :icon="activeCount ? 'i-lucide-filter-x' : 'i-lucide-history'" v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(activeCount ? 'app.noResults' : 'financeGovernance.audit.empty')" />
       <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,900px)]">
         <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :loading="query.isPending.value" :caption="t('financeGovernance.audit.title')">
           <template #created_at-cell="{ row }"><bdi class="whitespace-nowrap tabular-nums">{{ time(row.original) }}</bdi></template>

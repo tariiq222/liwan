@@ -46,7 +46,7 @@ const columns = computed<TableColumn<AdminUserSummary>[]>(() => [
 </script>
 
 <template>
-  <SharedEmptyState v-if="!loading && !error && !users.length" class="m-(--liwan-card-pad-dense)" :title="emptyText ?? t('app.noResults')" />
+  <SharedEmptyState icon="i-lucide-users" v-if="!loading && !error && !users.length" class="m-(--liwan-card-pad-dense)" :title="emptyText ?? t('app.noResults')" />
   <SharedDataTable
     v-else
     bare

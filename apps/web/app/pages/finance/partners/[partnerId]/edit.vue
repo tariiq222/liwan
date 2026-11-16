@@ -22,8 +22,8 @@ function saved() { void navigateTo(backTo.value) }
 <template>
   <SharedPageContainer>
     <SharedPageHeader :title="t('finance.partners.edit')" :back-to="backTo" />
-    <SharedPageState v-if="!canManage" :empty="true" :empty-text="t('errors.forbidden')" />
-    <SharedPageState v-else :loading="query.isLoading.value" :error="query.error.value" :empty="!partner" @retry="query.refetch">
+    <SharedPageState empty-icon="i-lucide-lock" v-if="!canManage" :empty="true" :empty-text="t('errors.forbidden')" />
+    <SharedPageState v-else empty-icon="i-lucide-contact" :loading="query.isLoading.value" :error="query.error.value" :empty="!partner" @retry="query.refetch">
       <PartnerForm v-if="partner" :partner="partner" :back-to="backTo" @saved="saved" />
     </SharedPageState>
   </SharedPageContainer>

@@ -15,7 +15,7 @@ const items = computed(() => data.value?.items ?? [])
 
 <template>
   <SharedRecordSection id="connections" variant="list" class="liwan-settings-anchor" :title="t('integrations.connections.title')" :description="t('integrations.connections.hint')">
-    <SharedPageState :loading="isLoading" :error="error" :empty="items.length === 0" :empty-text="t('integrations.connections.empty')" :empty-description="t('integrations.connections.emptyHint')" @retry="refetch()">
+    <SharedPageState empty-icon="i-lucide-plug" :loading="isLoading" :error="error" :empty="items.length === 0" :empty-text="t('integrations.connections.empty')" :empty-description="t('integrations.connections.emptyHint')" @retry="refetch()">
       <ul class="divide-y divide-default" data-testid="integration-connections">
         <li v-for="item in items" :key="item.ref" class="flex min-w-0 flex-col gap-3 px-(--liwan-card-pad-dense) py-3 text-start sm:flex-row sm:items-center sm:justify-between" :data-testid="`integration-${item.ref}`">
           <div class="min-w-0">

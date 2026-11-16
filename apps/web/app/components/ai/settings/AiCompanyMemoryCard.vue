@@ -29,7 +29,7 @@ async function act(note: AiCompanyNote, approve: boolean) {
 
 <template>
   <SharedRecordSection id="company-memory" variant="panel" class="liwan-settings-anchor" :title="t('ai.settings.companyMemory.title')" :description="t('ai.settings.companyMemory.hint')" data-testid="ai-settings-company-memory">
-    <SharedPageState v-if="!notes.data.value" :loading="notes.isLoading.value" :error="notes.error.value" :empty="true" @retry="notes.refetch()" />
+    <SharedPageState empty-icon="i-lucide-brain" v-if="!notes.data.value" :loading="notes.isLoading.value" :error="notes.error.value" :empty="true" @retry="notes.refetch()" />
     <div v-else class="grid gap-(--liwan-gap-card)">
       <div class="grid gap-2" data-testid="ai-company-proposed">
         <h3 class="text-sm font-medium">{{ t('ai.settings.companyMemory.proposed') }}</h3>

@@ -32,12 +32,59 @@
 .liwan-form { gap: var(--liwan-gap-card); width: 100%; }
 
 .liwan-form-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-block-start: 20px; border-block-start: 1px solid var(--border); }
-/* A settings panel as a list of rows: name and hint at the start, the control at the end, a rule between rows. */
-.liwan-setting-rows { display: grid; }
+/* A settings panel as a list of rows: name and hint at the start, the control at the end, a rule between rows. The panel is a size container
+   of its own (`setting-rows`), so the field grid below follows the width of the card content, not of the page: the sidebar, the page padding
+   and the card padding no longer change how many columns fit. Queries named `settings` still reach the page container through it. */
+.liwan-setting-rows { display: grid; container: setting-rows / inline-size; }
 .liwan-setting-rows > * { padding-block: 16px; border-block-start: 1px solid var(--border); }
 .liwan-setting-rows > :first-child { padding-block-start: 0; border-block-start: 0; }
 .liwan-setting-rows > :last-child { padding-block-end: 0; }
 .liwan-setting-rows > [data-orientation="horizontal"] { align-items: center; gap: 24px; }
+/* One block of data-entry fields per settings card (`class="liwan-auto-grid liwan-field-grid liwan-setting-fields"`, inside the card's rows, normally a direct child;
+   a grid nested in a titled group matches too): equal cells, one column, two from 580px of card content, three from 880px, four from 1180px (a cell stays near 280px or more: n cells
+   plus (n-1) gaps of 16px). Each field is label then control. The hint of a text field is its placeholder when it is an example and hides while
+   the box is focused (password inputs keep it: there it states that a stored credential is kept); an instruction that must stay visible while typing is the field's `help` text under the control, and a hint that cannot be
+   either (a read-only value, a select) is a help button in the label's `hint` slot. Cells align to the top. A switch that gates one field is a
+   cell too (its label above, the switch on the height of an input) and its field opens in the next cell; a switch with no dependent field, options
+   that need explanation and file pickers stay `SharedSettingRow` rows beside the block. */
+.liwan-setting-rows .liwan-setting-fields { grid-template-columns: minmax(0, 1fr); align-items: start; row-gap: 1rem; }
+/* The label row is at least one text line (1.25rem) and starts at the top, so a label that wraps grows its row downwards. A help button in the `hint`
+   slot sits right after the label text, centred on the first line and overflowing it (the button is 24px). */
+.liwan-setting-fields [data-slot="labelWrapper"] { justify-content: flex-start; align-items: flex-start; gap: 4px; min-block-size: 1.25rem; }
+.liwan-setting-fields [data-slot="hint"] { display: inline-flex; align-items: center; block-size: 1.25rem; }
+.liwan-setting-fields :is(input:not([type="password"]), textarea):focus::placeholder { color: transparent; }
+/* Controls of one grid row share one top edge even when a label wraps: each field spans two rows (label row, control row) of the grid through a
+   subgrid, so the label row is as tall as the tallest label in that grid row and the control row starts below it for every field. `align-items: end`
+   was rejected: it lines the bottoms up, so an error or help text under one control would push its neighbours' controls out of line.
+   The grid keeps its own `row-gap` (16px) between grid rows and nothing else leaks out of it: the divider rule and the 16px padding of
+   `.liwan-setting-rows > *` frame the grid like any other row, and the last grid row adds no trailing band. The subgrid inherits that 16px between
+   its label row and control row, so the control wrapper pulls itself back up by the difference (its own 0.25rem top margin is replaced by
+   -0.75rem, which leaves 0.25rem under the label). The pull is on the control wrapper only, so it moves no sibling of the grid.
+   Without subgrid support the fields keep the plain stacked layout (the 0.25rem margin) and the minimum label row above. */
+@supports (grid-template-rows: subgrid) {
+  .liwan-setting-fields > [data-slot="root"][data-orientation="vertical"] { display: grid; grid-row: span 2; grid-template-rows: subgrid; align-content: start; }
+  .liwan-setting-fields > [data-slot="root"][data-orientation="vertical"] > :last-child { margin-block-start: -0.75rem; }
+}
+@container setting-rows (min-width: 580px) {
+  .liwan-setting-rows .liwan-setting-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container setting-rows (min-width: 880px) {
+  .liwan-setting-rows .liwan-setting-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@container setting-rows (min-width: 1180px) {
+  .liwan-setting-rows .liwan-setting-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+/* Colour swatch buttons: the presets of the branding card and the swatch inside the hex field, laid out by their own gap. */
+.liwan-swatch-group { gap: 6px; }
+/* A focused field is never left under the sticky save bar (the bar is `sticky bottom-4` and about 3.5rem tall; the page scrolls the document). The bar
+   is found by its `data-slot`. */
+html:has([data-slot="settings-save-bar"]) { scroll-padding-block-end: 5.5rem; }
+/* Touch: help buttons and swatches keep their look and gain a 44px hit area (DESIGN.md: icon-only buttons are 44px on touch). */
+@media (pointer: coarse) {
+  .liwan-setting-help, .liwan-swatch-button { position: relative; }
+  .liwan-setting-help::after, .liwan-swatch-button::after { content: ""; position: absolute; inset: 50% auto auto 50%; translate: -50% -50%; min-inline-size: 44px; min-block-size: 44px; }
+  .liwan-swatch-group { gap: 12px; }
+}
 .schedule-gantt { overflow-x: auto; }
 /* max-content: the grid must span every track, or its sticky name column stops at the scroller's width. */
 .schedule-gantt-grid { display: grid; width: max-content; min-width: max(720px, 100%); }

@@ -32,7 +32,7 @@ describe('SharedRecordSection variants', () => {
 
   it('list is a card whose body has no padding and divides its rows', async () => {
     const html = await render({ variant: 'list' })
-    expect(html).toContain('overflow-hidden')
+    expect(html).not.toContain('overflow-hidden')
     expect(html).toContain('<div class="divide-y divide-default">')
     expect(html).not.toContain('<div class="p-(--liwan-card-pad)')
     expect(html).toContain('border-b border-default')

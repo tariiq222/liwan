@@ -134,7 +134,7 @@ const deliveryLabel = (item: InboxMessage) => t(`inbox.delivery.${item.delivery_
   <div class="flex min-h-0 flex-1 flex-col">
     <SharedErrorState v-if="isError && !items.length" :error="error" class="m-4" @retry="refetch()" />
     <SharedLoadingSkeleton v-else-if="isLoading" class="m-4" />
-    <SharedEmptyState v-else-if="!items.length" :title="t('inbox.thread.empty')" class="m-4" />
+    <SharedEmptyState icon="i-lucide-message-square" v-else-if="!items.length" :title="t('inbox.thread.empty')" class="m-4" />
     <div v-else ref="scroller" class="min-h-0 flex-1 overflow-y-auto bg-elevated px-5 py-4 dark:bg-(--liwan-canvas)" data-testid="inbox-thread-scroller">
       <div v-if="hasNextPage" class="flex justify-center p-2">
         <UButton type="button" color="neutral" variant="ghost" size="sm" :disabled="!hydrated || isFetchingNextPage" :label="t('inbox.thread.loadOlder')" @click="loadOlder" />

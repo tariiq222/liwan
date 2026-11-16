@@ -33,7 +33,7 @@ async function reloadSettings() {
     <SharedPageHeader :title="t('sales.title')" />
     <SharedForbiddenState v-if="!parts.length" :description="t('errors.forbidden')" />
     <template v-else>
-      <SharedPageState :loading="settings.isLoading.value" :error="settings.data.value ? null : settings.error.value" :empty="!settings.data.value" @retry="settings.refetch">
+      <SharedPageState empty-icon="i-lucide-settings" :loading="settings.isLoading.value" :error="settings.data.value ? null : settings.error.value" :empty="!settings.data.value" @retry="settings.refetch">
         <template v-if="settings.data.value">
           <UAlert v-if="!settings.data.value.can_manage" color="info" variant="subtle" icon="i-lucide-lock" :title="t('sales.settings.readOnlyTitle')" :description="t('sales.settings.readOnly')" data-testid="sales-settings-readonly" />
           <SalesPresetsCard v-if="shows('presets') && presets.data.value" :settings="settings.data.value" :presets="presets.data.value.items" :can-edit="settings.data.value.can_manage" :reload-settings="reloadSettings" :reload-presets="reloadPresets" />

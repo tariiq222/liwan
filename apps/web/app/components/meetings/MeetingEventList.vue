@@ -57,7 +57,7 @@ function hasInformativeSummary(event: MeetingEvent) {
 
 <template>
   <SharedRecordSection data-testid="meeting-event-list" variant="list" :title="title || t('meetingMinutesForm.history')" :description="description">
-    <SharedPageState :loading="loading" :error="error" :empty="!events.length" :empty-text="t('meetingMinutesForm.noHistory')" @retry="emit('retry')">
+    <SharedPageState empty-icon="i-lucide-history" :loading="loading" :error="error" :empty="!events.length" :empty-text="t('meetingMinutesForm.noHistory')" @retry="emit('retry')">
       <ol class="divide-y divide-default">
         <li v-for="event in events" :key="event.id" class="grid min-w-0 gap-1 px-(--liwan-card-pad) py-3">
           <div class="flex min-w-0 flex-wrap items-center justify-between gap-2">

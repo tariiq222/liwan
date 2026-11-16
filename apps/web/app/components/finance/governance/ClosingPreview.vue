@@ -44,7 +44,7 @@ const resultClass = computed(() => (preview.value?.result ?? 0) < 0 ? 'text-erro
 </script>
 
 <template>
-  <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!preview" @retry="query.refetch">
+  <SharedPageState empty-icon="i-lucide-calendar-check" :loading="query.isLoading.value" :error="query.error.value" :empty="!preview" @retry="query.refetch">
     <div v-if="preview" class="grid gap-(--liwan-gap-card)" data-testid="finance-closing-preview">
       <SharedRecordSection variant="panel" :title="t('financeGovernance.closing.preview.title', { year: preview.year })" :description="t('financeGovernance.closing.preview.hint')">
         <SharedPropertiesPanel>
@@ -69,7 +69,7 @@ const resultClass = computed(() => (preview.value?.result ?? 0) < 0 ? 'text-erro
       </UAlert>
 
       <SharedRecordSection variant="list" :title="t('financeGovernance.closing.preview.linesTitle')">
-        <SharedEmptyState v-if="!preview.lines.length" class="m-(--liwan-card-pad-dense)" :title="t('financeGovernance.closing.preview.noLines')" />
+        <SharedEmptyState icon="i-lucide-list" v-if="!preview.lines.length" class="m-(--liwan-card-pad-dense)" :title="t('financeGovernance.closing.preview.noLines')" />
         <template v-else>
           <SharedDataTable bare :rows="preview.lines" :columns="columns" :row-key="line => line.account.id" :caption="t('financeGovernance.closing.preview.linesTitle')">
             <template #code-cell="{ row }"><bdi dir="ltr" class="tabular-nums">{{ row.original.account.code }}</bdi></template>

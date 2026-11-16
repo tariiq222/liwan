@@ -44,7 +44,7 @@ const columns = computed<TableColumn<RoleSummary>[]>(() => [
 </script>
 
 <template>
-  <SharedEmptyState v-if="!loading && !error && !roles.length" class="m-(--liwan-card-pad-dense)" :title="emptyText ?? t('app.noResults')" />
+  <SharedEmptyState icon="i-lucide-shield" v-if="!loading && !error && !roles.length" class="m-(--liwan-card-pad-dense)" :title="emptyText ?? t('app.noResults')" />
   <SharedDataTable
     v-else
     bare

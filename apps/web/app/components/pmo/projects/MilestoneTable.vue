@@ -103,7 +103,7 @@ const columns = computed<TableColumn<Milestone>[]>(() => [
 <template>
   <div class="grid min-w-0 gap-(--liwan-gap-card)" data-testid="milestone-table">
     <SharedPageState v-if="error" :error="error" @retry="refetch" />
-    <SharedEmptyState
+    <SharedEmptyState icon="i-lucide-flag"
       v-else-if="hydrated && !isLoading && items.length === 0"
       bordered
       :title="t('projects.milestones.empty')"

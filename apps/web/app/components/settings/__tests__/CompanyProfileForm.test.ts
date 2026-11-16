@@ -17,6 +17,10 @@ const PROFILE = {
   email: null, phone: null, website: null, extensions: [], completeness: { done: 1, total: 2 },
 } as unknown as CompanyProfile
 
+// Vue's `useId` needs a mounted component; the card only stores the ids, so a counter stands in.
+let idCounter = 0
+const nextId = () => `help-${++idCounter}`
+
 const filename = new URL('../CompanyProfileForm.vue', import.meta.url).pathname
 const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
 const transpile = (source: string) => ts.transpileModule(source, {
@@ -32,7 +36,7 @@ function run(capabilities: string[], profile: CompanyProfile = PROFILE, taxOwnsV
   let options: { save: (draft: Record<string, unknown>, latest: CompanyProfile) => Promise<CompanyProfile> } | undefined
   const draft = Vue.ref<Record<string, unknown>>({})
   const base = {
-    _defineComponent: Vue.defineComponent, ref: Vue.ref, computed: Vue.computed, ApiError, CompanyExtensionField: {}, companyPatch, profileToForm, SECTION_FIELDS, sectionExtensions, vatNumberMissing,
+    _defineComponent: Vue.defineComponent, useId: nextId, ref: Vue.ref, computed: Vue.computed, ApiError, CompanyExtensionField: {}, companyPatch, profileToForm, SECTION_FIELDS, sectionExtensions, vatNumberMissing,
     useI18n: () => ({ t: (key: string) => key }), useToast: () => ({ add: vi.fn() }), useHydrated: () => Vue.ref(true),
     useAccess: () => ({ can: (capability: string) => capabilities.includes(capability) }),
     useCompanyProfile: () => ({ refetch: vi.fn() }), useUpdateCompany: () => ({ mutateAsync }), useUploadCompanyLogo: () => ({ isPending: Vue.ref(false), mutateAsync: vi.fn() }),
@@ -52,7 +56,7 @@ function runWithRealForm(profile: CompanyProfile, taxOwnsVat: boolean, capabilit
   const script = compileScript(descriptor, { id: 'CompanyProfileForm' }).content
     .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replace('export default', 'return')
   const base = {
-    _defineComponent: Vue.defineComponent, ref: Vue.ref, computed: Vue.computed, ApiError, CompanyExtensionField: {}, companyPatch, profileToForm, SECTION_FIELDS, sectionExtensions, vatNumberMissing,
+    _defineComponent: Vue.defineComponent, useId: nextId, ref: Vue.ref, computed: Vue.computed, ApiError, CompanyExtensionField: {}, companyPatch, profileToForm, SECTION_FIELDS, sectionExtensions, vatNumberMissing,
     useI18n: () => ({ t: (key: string) => key }), useToast: () => ({ add: vi.fn() }), useHydrated: () => Vue.ref(true),
     useAccess: () => ({ can: (capability: string) => capabilities.includes(capability) }),
     useCompanyProfile: () => ({ refetch: vi.fn() }), useUpdateCompany: () => ({ mutateAsync: vi.fn(async (patch: object) => ({ ...profile, ...patch })) }), useUploadCompanyLogo: () => ({ isPending: Vue.ref(false), mutateAsync: vi.fn() }),
@@ -66,9 +70,9 @@ function runWithRealForm(profile: CompanyProfile, taxOwnsVat: boolean, capabilit
 }
 
 // The card's template with named stubs that record their props, so a test reads the form's controls as rendered.
-async function renderControls(capabilities: string[], profile: CompanyProfile = PROFILE, taxOwnsVat = false) {
+async function renderControls(capabilities: string[], profile: CompanyProfile = PROFILE, taxOwnsVat = false, section = 'profile', allSlots = false) {
   const card = run(capabilities, profile, taxOwnsVat)
-  const props = { profile, section: 'profile', taxOwnsVat }
+  const props = { profile, section, taxOwnsVat }
   const compiled = compileTemplate({
     source: descriptor.template!.content, filename, id: 'CompanyProfileForm', compilerOptions: { mode: 'function', expressionPlugins: ['typescript'] },
   })
@@ -82,13 +86,13 @@ async function renderControls(capabilities: string[], profile: CompanyProfile = 
     app.component(name, Vue.defineComponent({
       inheritAttrs: false,
       setup(_, { attrs, slots }) {
-        return () => { captured.push({ name, props: { ...attrs } }); return Vue.h('div', slots.default?.()) }
+        return () => { captured.push({ name, props: { ...attrs } }); return Vue.h('div', allSlots ? Object.values(slots).map(slot => slot?.({})) : slots.default?.()) }
       },
     }))
   }
-  await renderToString(app)
+  const html = await renderToString(app)
   card.stop()
-  return captured
+  return Object.assign(captured, { html })
 }
 
 beforeEach(() => { vi.stubGlobal('useI18n', () => ({ t: (key: string) => key })) })
@@ -141,13 +145,16 @@ describe('CompanyProfileForm: who may change the VAT status', () => {
 describe('CompanyProfileForm: the VAT controls as rendered', () => {
   const find = (nodes: { name: string, props: Record<string, unknown> }[], name: string, testId?: string) =>
     nodes.find(node => node.name === name && (!testId || node.props['data-testid'] === testId))?.props
+  // The VAT switch is a cell of the fields grid: the form field named vat_registered, whose `help` is the disabled reason.
+  const vatRow = (nodes: { name: string, props: Record<string, unknown> }[]) =>
+    nodes.find(node => node.name === 'UFormField' && node.props.name === 'vat_registered')?.props
 
   it('shows the branch switch read-only with its reason and keeps the VAT number editable', async () => {
     const nodes = await renderControls(
       ['settings.company.manage', 'settings.company.vat.manage'],
       { ...PROFILE, vat_registered: true, vat_registration_editable: false, is_root_company: false } as CompanyProfile,
     )
-    expect(find(nodes, 'SharedSettingRow')).toMatchObject({ name: 'vat_registered', 'disabled-reason': 'settings.company.tax.changedFromRoot' })
+    expect(vatRow(nodes)).toMatchObject({ name: 'vat_registered', help: 'settings.company.tax.changedFromRoot' })
     expect(find(nodes, 'USwitch', 'company-vat-registered')).toMatchObject({ 'data-testid': 'company-vat-registered', disabled: true })
     // A branch keeps its own number; the server accepts that write, so only the card's own lock disables the field.
     expect(find(nodes, 'UInput', 'company-vat')).toMatchObject({ 'data-testid': 'company-vat', disabled: false })
@@ -158,7 +165,7 @@ describe('CompanyProfileForm: the VAT controls as rendered', () => {
       ['settings.company.manage', 'settings.company.vat.manage'],
       { ...PROFILE, vat_registered: true, vat_registration_editable: true } as CompanyProfile,
     )
-    expect(find(nodes, 'SharedSettingRow')).toMatchObject({ 'disabled-reason': undefined })
+    expect(vatRow(nodes)).toMatchObject({ help: undefined })
     expect(find(nodes, 'USwitch', 'company-vat-registered')).toMatchObject({ 'data-testid': 'company-vat-registered', disabled: false })
     expect(find(nodes, 'UInput', 'company-vat')).toMatchObject({ 'data-testid': 'company-vat', disabled: false })
   })
@@ -169,7 +176,7 @@ describe('CompanyProfileForm: the VAT controls as rendered', () => {
       { ...PROFILE, vat_registered: true, vat_registration_editable: true, vat: '300000000000003' } as CompanyProfile,
       true,
     )
-    expect(find(nodes, 'SharedSettingRow')).toBeUndefined()
+    expect(vatRow(nodes)).toBeUndefined()
     expect(find(nodes, 'USwitch', 'company-vat-registered')).toBeUndefined()
     expect(find(nodes, 'UInput', 'company-vat')).toMatchObject({ 'data-testid': 'company-vat', disabled: false })
   })
@@ -241,5 +248,42 @@ describe('CompanyProfileForm: the VAT number check', () => {
     const { save, mutateAsync } = run(caps, branch)
     await save({ vat: '' })
     expect(mutateAsync).toHaveBeenCalledWith({ vat: null })
+  })
+})
+
+describe('CompanyProfileForm: hints, required and help as rendered', () => {
+  type Nodes = Awaited<ReturnType<typeof renderControls>>
+  const props = (nodes: Nodes, name: string, testId: string) => nodes.find(node => node.name === name && node.props['data-testid'] === testId)?.props
+  const caps = ['settings.company.manage', 'settings.company.vat.manage']
+  const registered = { ...PROFILE, vat_registered: true, vat_registration_editable: true } as CompanyProfile
+
+  it('keeps the tagline example as its placeholder and the VAT format as help text that stays visible', async () => {
+    const nodes = await renderControls(caps, registered)
+    expect(props(nodes, 'UInput', 'company-tagline')).toMatchObject({ placeholder: 'settings.company.taglineHint' })
+    expect(props(nodes, 'UInput', 'company-vat')?.placeholder).toBeUndefined()
+    expect(nodes.find(node => node.name === 'UFormField' && node.props.name === 'vat')?.props).toMatchObject({ help: 'settings.company.vatHint' })
+  })
+
+  it('exposes the required fields on the inputs: the name always, the VAT number only while registered', async () => {
+    const on = await renderControls(caps, registered)
+    expect(props(on, 'UInput', 'company-name')).toHaveProperty('required')
+    expect(props(on, 'UInput', 'company-vat')).toMatchObject({ required: true })
+    const off = await renderControls(caps, { ...PROFILE, vat_registered: false } as CompanyProfile, true)
+    expect(props(off, 'UInput', 'company-vat')).toMatchObject({ required: false })
+  })
+
+  it('names the VAT help button and describes the switch by the hidden explanation it points at', async () => {
+    const nodes = await renderControls(caps, registered, false, 'profile', true)
+    expect(props(nodes, 'UButton', 'company-vat-registered-help')).toMatchObject({ 'aria-label': 'app.fieldHelp: settings.company.vatRegistered' })
+    const describedBy = props(nodes, 'USwitch', 'company-vat-registered')?.['aria-describedby'] as string
+    expect(describedBy).toMatch(/^help-\d+$/)
+    expect(nodes.html).toContain(`<span id="${describedBy}" class="hidden">settings.company.vatRegisteredHint</span>`)
+  })
+
+  it('names the country help button and describes the country input by the hidden explanation', async () => {
+    const nodes = await renderControls(caps, PROFILE, false, 'address', true)
+    expect(props(nodes, 'UButton', 'company-country-help')).toMatchObject({ 'aria-label': 'app.fieldHelp: settings.company.country' })
+    const describedBy = props(nodes, 'UInput', 'company-country')?.['aria-describedby'] as string
+    expect(nodes.html).toContain(`<span id="${describedBy}" class="hidden">settings.company.countryFixed</span>`)
   })
 })

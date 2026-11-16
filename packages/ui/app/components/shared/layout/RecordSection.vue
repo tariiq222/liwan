@@ -15,7 +15,7 @@
 type Variant = 'flat' | 'panel' | 'list' | 'tinted' | 'action'
 const CARD: Record<Exclude<Variant, 'flat'>, string> = {
   panel: 'liwan-card',
-  list: 'liwan-card overflow-hidden',
+  list: 'liwan-card',
   tinted: 'bg-elevated/40',
   action: 'border-[1.5px] border-primary/30 border-s-4 border-s-primary bg-primary/5',
 }

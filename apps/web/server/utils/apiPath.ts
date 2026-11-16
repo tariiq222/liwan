@@ -5,16 +5,16 @@ const ESCAPE = /%([0-9a-fA-F]{2})/g
 // RFC 3986 unreserved: decoding these never changes what a path means.
 const UNRESERVED = /^[A-Za-z0-9\-._~]$/
 // Characters that would let a decoded path name a different route or hide a byte from the proxy:
-// slash and backslash separate segments, `%` would be decoded twice, controls are never part of a route.
-const FORBIDDEN_ESCAPED = /^[/\\%\x00-\x1f\x7f]$/
-const FORBIDDEN_LITERAL = /[\\\x00-\x1f\x7f]/
+// slash and backslash separate segments, `%` would be decoded twice, `#` starts a fragment, controls are never part of a route.
+const FORBIDDEN_ESCAPED = /^[/\\%#\x00-\x1f\x7f]$/
+const FORBIDDEN_LITERAL = /[\\#\x00-\x1f\x7f]/
 
 const invalidPath = () => createError({ statusCode: 400, data: { code: 'invalid_path', message: 'The request path is not valid.' } })
 
 /** The one form of an `/api/v1` request path used for classification AND forwarding, so that what the proxy
  * classifies is exactly what Odoo (which decodes escapes and ignores one trailing slash) receives.
  * Decodes only unreserved escapes, strips at most one trailing slash and leaves the query string untouched.
- * Rejects (400 `invalid_path`) escaped or literal separators, `%`, controls, malformed escapes and `//`.
+ * Rejects (400 `invalid_path`) escaped or literal separators, `%`, `#` (literal or `%23`) in the path part, controls, malformed escapes, `//` and `.` or `..` segments.
  * Paths outside `/api/v1/` are returned unchanged. @param target request path with optional query string */
 export function canonicalApiPath(target: string): string {
   if (!target.startsWith(API_PREFIX)) return target
@@ -27,7 +27,7 @@ export function canonicalApiPath(target: string): string {
     if (FORBIDDEN_ESCAPED.test(char)) throw invalidPath()
     return UNRESERVED.test(char) ? char : escape
   })
-  if (FORBIDDEN_LITERAL.test(decoded) || decoded.includes('//')) throw invalidPath()
+  if (FORBIDDEN_LITERAL.test(decoded) || decoded.includes('//') || decoded.split('/').some(segment => segment === '.' || segment === '..')) throw invalidPath()
   const trimmed = decoded.length > API_PREFIX.length && decoded.endsWith('/') ? decoded.slice(0, -1) : decoded
   return trimmed + query
 }

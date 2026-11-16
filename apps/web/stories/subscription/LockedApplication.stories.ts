@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import LockedApplication from '../../app/components/subscription/LockedApplication.vue'
 import { storyContext } from '../support/context'
-const meta = { title: 'Subscription/LockedApplication', component: LockedApplication, parameters: { layout: 'padded', ...storyContext('apps/web/app/error.vue:71') },
+const meta = { title: 'Subscription/LockedApplication', component: LockedApplication, parameters: { layout: 'padded', ...storyContext('apps/web/app/error.vue:72') },
   args: { application: 'إدارة العملاء', cause: 'not_in_plan', audience: 'manager', dataPath: null, heading: true } } satisfies Meta<typeof LockedApplication>
 export default meta
 type Story = StoryObj<typeof meta>

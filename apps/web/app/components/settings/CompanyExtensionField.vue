@@ -18,7 +18,7 @@ const options = computed(() => (props.extension.kind === 'selection' ? props.ext
 </script>
 
 <template>
-  <UFormField orientation="horizontal" :name="extension.name" :label="extension.label" :error="error">
+  <UFormField :name="extension.name" :label="extension.label" :error="error">
     <USelect
       v-if="extension.kind === 'selection'"
       :id="`company-${extension.name}`"

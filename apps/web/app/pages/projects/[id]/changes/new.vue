@@ -20,7 +20,7 @@ function created(item: { id: number }) {
 
 <template>
   <SharedCreatePanel :title="t('projects.changes.create')" :back-to="backTo">
-    <SharedPageState
+    <SharedPageState empty-icon="i-lucide-lock"
       :loading="access.isLoading.value"
       :error="access.error.value"
       :empty="!access.isLoading.value && !access.error.value && !access.data.value"

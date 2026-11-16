@@ -82,7 +82,7 @@ async function reload() {
   <SharedFormSection panel :title="t('hrInsurance.providers.title')" :description="t('hrInsurance.providers.hint')">
     <UAlert v-if="message" role="alert" color="error" variant="subtle" :title="t('hrInsurance.providers.saveError')" :description="message" data-testid="hr-insurance-providers-error" />
     <UButton v-if="conflict" color="neutral" variant="outline" :label="t('hrInsurance.providers.reload')" :loading="reloading" :disabled="reloading" data-testid="hr-insurance-providers-reload" @click="reload" />
-    <SharedEmptyState v-if="!props.providers.length" :title="t('hrInsurance.providers.emptyTitle')" :description="t('hrInsurance.providers.emptyHint')" />
+    <SharedEmptyState icon="i-lucide-heart-pulse" v-if="!props.providers.length" :title="t('hrInsurance.providers.emptyTitle')" :description="t('hrInsurance.providers.emptyHint')" />
     <ul v-else class="grid gap-4" data-testid="hr-insurance-providers">
       <li v-for="provider in props.providers" :key="provider.id" class="grid items-end gap-3 sm:grid-cols-[1fr_13rem]" :data-testid="`hr-insurance-provider-${provider.id}`">
         <UFormField :label="t('hrInsurance.providers.name')" :name="`hr-insurance-provider-name-${provider.id}`">

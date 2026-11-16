@@ -23,7 +23,7 @@ function saved() { void navigateTo(backTo.value) }
   <SharedPageContainer>
     <SharedPageHeader :title="t('hr.employee.editTitle')" :back-to="backTo" />
     <SharedForbiddenState v-if="!canManage" />
-    <SharedPageState
+    <SharedPageState empty-icon="i-lucide-users"
       v-else
       :loading="query.isLoading.value || departments.isLoading.value || employees.isLoading.value"
       :error="initialDataReady ? undefined : dependencyError"

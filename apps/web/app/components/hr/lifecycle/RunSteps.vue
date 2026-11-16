@@ -29,7 +29,7 @@ function markDone(step: HrPlanRunStep) {
 
 <template>
   <div class="min-w-0">
-    <SharedPageState v-if="!run.steps.length" :empty="true" :empty-text="t(`${namespace}.run.noSteps`)" />
+    <SharedPageState empty-icon="i-lucide-list-checks" v-if="!run.steps.length" :empty="true" :empty-text="t(`${namespace}.run.noSteps`)" />
     <ul v-else class="min-w-0 divide-y divide-default">
       <li v-for="step in run.steps" :key="step.id" class="flex flex-wrap items-start gap-3 py-3">
         <SharedStatusBadge size="sm" :tone="TONES[step.state] ?? 'neutral'" :label="t(`${namespace}.states.${step.state}`)" />

@@ -22,7 +22,7 @@ async function reloadSettings() {
     <SharedForbiddenState v-if="!parts.length" :description="t('errors.forbidden')" />
     <template v-else>
       <section v-if="shows('messages')" id="messages" class="liwan-settings-anchor">
-        <SharedPageState :loading="settings.isLoading.value" :error="settings.data.value ? null : settings.error.value" :empty="!settings.data.value" @retry="settings.refetch()">
+        <SharedPageState empty-icon="i-lucide-settings" :loading="settings.isLoading.value" :error="settings.data.value ? null : settings.error.value" :empty="!settings.data.value" @retry="settings.refetch()">
           <ChatSettingsCard v-if="settings.data.value" :settings="settings.data.value" :can-edit="can('chat.settings.manage')" :reload-settings="reloadSettings" />
         </SharedPageState>
       </section>

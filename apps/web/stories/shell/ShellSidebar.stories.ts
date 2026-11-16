@@ -28,7 +28,7 @@ export const Global: Story = {
     template: `<div class="liwan-shell min-h-svh"><ShellSidebar v-bind="args" mode="global">
       <template #org><ShellOrgCard name="شركة الندى للتجارة" initial="ن" /></template>
       <template #core><ShellCoreApps label="التطبيقات الأساسية" :items="coreAppRows" /></template>
-      <ShellNavSection label="تطبيقاتي" title="تطبيقاتي" :action="{ label: 'تعديل', to: '/apps' }" :items="pinnedRows" />
+      <ShellNavSection label="تطبيقاتي" title="تطبيقاتي" :action="{ label: 'تعديل', to: '/apps', icon: 'i-lucide-pencil' }" :items="pinnedRows" />
       ${footer}
     </ShellSidebar></div>`,
   }),

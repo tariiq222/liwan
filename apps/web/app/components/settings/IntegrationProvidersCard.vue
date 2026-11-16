@@ -30,7 +30,7 @@ async function connectOAuth(code: string, uses: string[]) {
 
 <template>
   <SharedRecordSection id="providers" variant="list" class="liwan-settings-anchor" :title="t('integrations.providers.title')" :description="t('integrations.providers.hint')">
-    <SharedPageState :loading="isLoading" :error="error" :empty="items.length === 0" :empty-text="t('integrations.providers.empty')" @retry="refetch()">
+    <SharedPageState empty-icon="i-lucide-plug" :loading="isLoading" :error="error" :empty="items.length === 0" :empty-text="t('integrations.providers.empty')" @retry="refetch()">
       <ul class="divide-y divide-default" data-testid="integration-providers">
         <li v-for="provider in items" :key="provider.code" class="flex min-w-0 flex-wrap items-center justify-between gap-3 px-(--liwan-card-pad-dense) py-3 text-start" :data-testid="`integration-provider-${provider.code}`">
           <div class="min-w-0">

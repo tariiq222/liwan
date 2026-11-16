@@ -30,9 +30,11 @@ async function submit() {
 
 <template>
   <SharedSettingsCard id="leave-policy" v-bind="state" :title="t('hr.leaveSettings.title')" :description="t('hr.leaveSettings.hint')" :can-edit="canEdit" @save="submit" @revert="revert" @reload="reload">
-    <SharedSettingRow :label="t('hr.leaveSettings.reference')" name="leave-cancellation-policy" :description="t('hr.leaveSettings.defaultHint')">
+    <div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
+    <UFormField :label="t('hr.leaveSettings.reference')" name="leave-cancellation-policy" :help="t('hr.leaveSettings.defaultHint')">
       <USelect id="leave-cancellation-policy" v-model="draft.cancellation_policy" class="w-full" :items="items" :disabled="locked" />
-    </SharedSettingRow>
+    </UFormField>
+    </div>
     <p class="text-sm text-muted">{{ t('hr.leaveSettings.managerApprovalHint') }}</p>
     <p class="text-sm text-muted">{{ t('hr.leaveSettings.directEmployeeHint') }}</p>
     <p class="text-sm text-muted">{{ t('hr.leaveSettings.managerOnlyHint') }}</p>

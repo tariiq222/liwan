@@ -28,7 +28,7 @@ const actionLabels = AUDIT_ACTION_LABELS
     @retry="event.refetch"
   >
     <SharedForbiddenState v-if="forbidden" :description="t('access.forbidden')" />
-    <SharedPageState v-else :empty="!event.data.value" :empty-text="t('access.notFound')">
+    <SharedPageState empty-icon="i-lucide-file-question" v-else :empty="!event.data.value" :empty-text="t('access.notFound')">
       <template v-if="event.data.value">
         <SharedRecordSection v-for="side in (['before', 'after'] as const)" :id="side" :key="side" variant="panel" :title="t(`access.audit.${side}`)">
           <template #actions>

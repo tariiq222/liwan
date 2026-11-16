@@ -33,7 +33,7 @@ const days = (value: number) => value === 0 ? '0' : `${value > 0 ? '+' : '−'}$
     <template v-if="item.data?.value?.can_edit && hydrated" #actions>
       <UButton data-testid="change-detail-edit" :to="editTo">{{ t('app.edit') }}</UButton>
     </template>
-    <SharedEmptyState v-if="!item.data?.value" :title="t('app.noResults')" />
+    <SharedEmptyState icon="i-lucide-file-question" v-if="!item.data?.value" :title="t('app.noResults')" />
     <template v-else>
       <ChangeDecisionPanel :item="item.data.value" />
       <SharedRecordSection variant="panel" :title="t('projects.changes.fields.description')">

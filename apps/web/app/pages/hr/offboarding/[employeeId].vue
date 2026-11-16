@@ -154,7 +154,7 @@ async function confirmEos() {
     <SharedRecordSection v-if="departure" :title="t(`${NAMESPACE}.departures.clearance`)">
       <UAlert v-if="stepError" role="alert" color="error" variant="subtle" :title="t(`${NAMESPACE}.form.saveError`)" />
       <template v-else-if="!clearanceId">
-        <SharedPageState :empty="true" :empty-text="t(`${NAMESPACE}.run.noSteps`)" />
+        <SharedPageState empty-icon="i-lucide-list-checks" :empty="true" :empty-text="t(`${NAMESPACE}.run.noSteps`)" />
         <div v-if="canManage" class="flex flex-wrap items-end gap-2" data-testid="hr-clearance-launch">
           <UFormField class="min-w-56 flex-1" :label="t(`${NAMESPACE}.form.clearancePlan`)" name="hr-clearance-plan">
             <USelect

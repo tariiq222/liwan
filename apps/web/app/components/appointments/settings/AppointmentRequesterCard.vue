@@ -31,8 +31,10 @@ const fieldKeys = ['phone_field', 'email_field', 'national_id_field', 'notes_fie
     <SharedSettingRow :label="t('appointments.settings.requester.confirmation')" :description="t('appointments.settings.requester.confirmationHint')">
       <USwitch id="appointments-confirmation" v-model="draft.requester_confirmation" :disabled="locked" :aria-label="t('appointments.settings.requester.confirmation')" />
     </SharedSettingRow>
-    <UFormField v-for="key in fieldKeys" :key="key" orientation="horizontal" :label="t(`appointments.settings.requester.fields.${key}`)" :name="key">
+    <div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
+    <UFormField v-for="key in fieldKeys" :key="key" :label="t(`appointments.settings.requester.fields.${key}`)" :name="key">
       <USelect :id="`appointments-${key}`" v-model="draft[key]" class="w-full" :items="requirementItems" :disabled="locked" />
     </UFormField>
+    </div>
   </SharedSettingsCard>
 </template>

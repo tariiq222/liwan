@@ -17,7 +17,7 @@ function created(partner: { id: number }) { void navigateTo({ path: `/finance/pa
 
 <template>
   <SharedCreatePanel :title="t('finance.partners.createTitle')" :back-to="backTo">
-    <SharedPageState v-if="!canManage" :empty="true" :empty-text="t('errors.forbidden')" />
+    <SharedPageState empty-icon="i-lucide-lock" v-if="!canManage" :empty="true" :empty-text="t('errors.forbidden')" />
     <PartnerForm v-else :back-to="backTo" :initial-kind="initialKind && FINANCE_PARTNER_KINDS.includes(initialKind) ? initialKind : null" @saved="created" />
   </SharedCreatePanel>
 </template>

@@ -27,7 +27,7 @@ async function reloadRole() {
   <SharedSettingsPage>
     <SharedPageHeader :title="t('access.roles.editTitle')" :back-to="backTo" />
     <SharedForbiddenState v-if="forbidden" :description="t('access.forbidden')" />
-    <SharedPageState v-else :loading="role.isLoading.value" :error="role.error.value" :empty="!role.data.value" :empty-text="t('access.notFound')" @retry="role.refetch">
+    <SharedPageState empty-icon="i-lucide-file-question" v-else :loading="role.isLoading.value" :error="role.error.value" :empty="!role.data.value" :empty-text="t('access.notFound')" @retry="role.refetch">
       <RolePermissionForm v-if="role.data.value" :role="role.data.value" :permissions="catalog.data.value?.items ?? []" :reload-role="reloadRole" @saved="navigateTo(backTo)" />
     </SharedPageState>
   </SharedSettingsPage>

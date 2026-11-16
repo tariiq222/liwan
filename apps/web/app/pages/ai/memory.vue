@@ -24,14 +24,14 @@ async function remove(target: number | 'all') {
 <template>
   <SharedPageContainer>
     <SharedPageHeader :title="t('ai.memory.title')" back-to="/ai" :back-label="t('ai.title')" />
-    <SharedPageState v-if="!notes.data.value" :loading="notes.isLoading.value" :error="notes.error.value" :empty="true" @retry="notes.refetch()" />
+    <SharedPageState empty-icon="i-lucide-brain" v-if="!notes.data.value" :loading="notes.isLoading.value" :error="notes.error.value" :empty="true" @retry="notes.refetch()" />
     <SharedRecordSection v-else variant="panel" :title="t('ai.memory.notes', { count: notes.data.value.total })" :description="t('ai.memory.description')" data-testid="ai-memory">
       <template v-if="notes.data.value.items.length" #actions>
         <UButton v-if="confirming !== 'all'" type="button" color="error" variant="outline" size="sm" :label="t('ai.memory.deleteAll')" :disabled="!hydrated || isPending" @click="confirming = 'all'" />
       </template>
       <div class="grid gap-2">
         <SharedInlineConfirm v-if="confirming === 'all'" :title="t('ai.memory.deleteAllTitle')" :confirm-label="t('ai.memory.deleteAll')" :pending="isPending" @cancel="confirming = null" @confirm="remove('all')" />
-        <SharedEmptyState v-if="!notes.data.value.items.length" :title="t('ai.memory.empty')" />
+        <SharedEmptyState icon="i-lucide-brain" v-if="!notes.data.value.items.length" :title="t('ai.memory.empty')" />
         <template v-for="note in notes.data.value.items" :key="note.id">
           <SharedInlineConfirm v-if="confirming === note.id" :title="t('ai.memory.deleteTitle')" :description="note.content" :confirm-label="t('ai.memory.delete')" :pending="isPending" @cancel="confirming = null" @confirm="remove(note.id)" />
           <SharedSubCard v-else>

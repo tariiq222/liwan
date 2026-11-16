@@ -67,7 +67,7 @@ const signatures = computed(() => [t('meetingMinutesForm.chairperson'), t('meeti
 <template>
   <SharedStandalonePage variant="print" class="liwan-print-landscape">
     <h1 class="sr-only">{{ t('meetingMinutesForm.printTitle') }}</h1>
-    <SharedPageState :loading="meetingQuery.isLoading.value || versionQuery.isLoading.value" :error="printError" :empty-text="t('meetingMinutesForm.printEmpty')" :empty="!meetingQuery.isLoading.value && !versionQuery.isLoading.value && !printReady" @retry="() => { meetingQuery.refetch(); versionQuery.refetch() }">
+    <SharedPageState empty-icon="i-lucide-file-text" :loading="meetingQuery.isLoading.value || versionQuery.isLoading.value" :error="printError" :empty-text="t('meetingMinutesForm.printEmpty')" :empty="!meetingQuery.isLoading.value && !versionQuery.isLoading.value && !printReady" @retry="() => { meetingQuery.refetch(); versionQuery.refetch() }">
       <div v-if="meetingQuery.data.value && printReady" class="grid min-w-0 gap-4.5 print:gap-[10mm]" data-testid="meeting-print-sheet">
         <header class="flex min-w-0 items-center gap-3 border-b-2 border-primary pb-3">
           <img v-if="branding?.logo_url" :src="branding.logo_url" :alt="branding.name" class="size-13 object-contain">

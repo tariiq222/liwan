@@ -70,7 +70,7 @@ async function submit() {
       <div class="grid gap-4">
         <div class="liwan-auto-grid gap-4">
           <UFormField :label="t('financeBank.form.journal')" name="finance-bank-journal" required :error="shown.journal_id ? t('financeBank.form.journalRequired') : undefined">
-            <SharedPageState :loading="journals.isLoading.value" :error="journals.error.value" :empty="!journals.isLoading.value && !journalItems.length" :empty-text="t('financeBank.form.noJournals')" @retry="journals.refetch">
+            <SharedPageState empty-icon="i-lucide-notebook" :loading="journals.isLoading.value" :error="journals.error.value" :empty="!journals.isLoading.value && !journalItems.length" :empty-text="t('financeBank.form.noJournals')" @retry="journals.refetch">
               <USelect id="finance-bank-journal" :model-value="draft.journalId ?? undefined" :items="journalItems" class="w-full" :color="shown.journal_id ? 'error' : undefined" :disabled="!hydrated || pending" @update:model-value="value => { draft.journalId = Number(value) }" />
             </SharedPageState>
           </UFormField>

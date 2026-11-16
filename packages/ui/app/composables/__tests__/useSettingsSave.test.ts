@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, reactive } from 'vue'
 import { createHostNode, hostRenderer } from '../../../test/helpers/hostRenderer'
-import { provideSettingsSave, type SettingsSaveEntry, type SettingsSaveRegistry } from '../useSettingsSave'
+import { focusFirstInvalidControl, provideSettingsSave, type SettingsSaveEntry, type SettingsSaveRegistry } from '../useSettingsSave'
 
 const entry = (id: string, patch: Partial<SettingsSaveEntry> = {}): SettingsSaveEntry => reactive({
   id, dirty: false, saving: false, conflict: false, failed: false, submit: vi.fn(async () => undefined), revert: vi.fn(), ...patch,
@@ -112,5 +112,39 @@ describe('useSettingsSaveRegistry', () => {
     expect(registry.pending.value).toBe(1)
     unregisterSecond()
     expect(registry.pending.value).toBe(0)
+  })
+})
+
+describe('focusFirstInvalidControl', () => {
+  it('focuses the first invalid control without scrolling to it, then centres it instantly', () => {
+    const control = { focus: vi.fn(), scrollIntoView: vi.fn() }
+    const root = { querySelector: vi.fn(() => control) }
+    expect(focusFirstInvalidControl(root as never)).toBe(true)
+    expect(root.querySelector).toHaveBeenCalledWith('[aria-invalid="true"]')
+    expect(control.focus).toHaveBeenCalledWith({ preventScroll: true })
+    expect(control.scrollIntoView).toHaveBeenCalledWith({ block: 'center' })
+  })
+
+  it('does nothing when no control is invalid', () => {
+    expect(focusFirstInvalidControl({ querySelector: () => null } as never)).toBe(false)
+    expect(focusFirstInvalidControl(null)).toBe(false)
+  })
+})
+
+describe('saveAll focus', () => {
+  it('asks only the first card that focuses an invalid control to do so', async () => {
+    const registry = withRegistry()
+    const calls: Array<boolean | undefined> = []
+    const failing = (id: string, focuses: boolean) => entry(id, {
+      dirty: true,
+      failed: true,
+      submit: vi.fn(async (options?: { focus?: boolean }) => { calls.push(options?.focus); return focuses && options?.focus !== false }),
+    })
+    registry.register(failing('a', false))
+    registry.register(failing('b', true))
+    registry.register(failing('c', true))
+    await registry.saveAll()
+    // `a` has no invalid control and is asked; `b` focuses; `c` is told not to.
+    expect(calls).toEqual([true, true, false])
   })
 })

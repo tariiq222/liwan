@@ -31,9 +31,11 @@ async function apply() {
 
 <template>
   <SharedSettingsCard id="preset" v-bind="state" :title="t('crm.settings.preset.title')" :description="t('crm.settings.preset.hint')" :can-edit="canEdit" :save-label="t('crm.settings.preset.apply')" @save="confirming = true" @revert="revert" @reload="reload">
-    <SharedSettingRow :label="t('crm.settings.preset.choose')" name="crm-preset" :description="labels[draft.preset].hint">
-      <USelect id="crm-preset" v-model="draft.preset" class="w-full min-w-44" :items="items" :disabled="locked" />
-    </SharedSettingRow>
+    <div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
+      <UFormField :label="t('crm.settings.preset.choose')" name="crm-preset" :help="labels[draft.preset].hint">
+        <USelect id="crm-preset" v-model="draft.preset" class="w-full" :items="items" :disabled="locked" />
+      </UFormField>
+    </div>
     <SharedInlineConfirm
       v-if="confirming && state.dirty"
       color="warning"

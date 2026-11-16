@@ -2,7 +2,6 @@
 import type { ShellRailItem } from '@liwan/ui/app/types/shell'
 import type { ShellRailModel } from './sidebarModel'
 
-export const MAX_RAIL_PINS = 6
 export const RAIL_PINS_COOKIE = 'liwan-rail-pins'
 
 /** Pins are presentation ids of one person in one company; permissions always supply the available set. */
@@ -16,16 +15,16 @@ export function savedRailPins(cookie: RailPinsCookie | null | undefined, owner: 
   return owner && cookie?.owner === owner && Array.isArray(cookie.ids) ? cookie.ids : null
 }
 
-/** Someone who never pinned starts with every permitted application up to the maximum; a saved empty list stays empty. */
+/** Someone who never pinned starts with every permitted application; a saved empty list stays empty. */
 export function resolveRailPins(available: readonly string[], saved: readonly string[] | null): string[] {
-  if (saved === null) return available.slice(0, MAX_RAIL_PINS)
+  if (saved === null) return [...available]
   const permitted = new Set(available)
-  return [...new Set(saved)].filter(id => permitted.has(id)).slice(0, MAX_RAIL_PINS)
+  return [...new Set(saved)].filter(id => permitted.has(id))
 }
 
 export function toggleRailPin(pins: readonly string[], id: string): string[] {
   if (pins.includes(id)) return pins.filter(pin => pin !== id)
-  return pins.length < MAX_RAIL_PINS ? [...pins, id] : [...pins]
+  return [...pins, id]
 }
 
 /**

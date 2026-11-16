@@ -103,7 +103,7 @@ async function save() {
 <template>
   <SharedPageContainer>
     <SharedPageHeader :title="t('meetingsUi.editResolution')" :back-to="backTo" />
-    <SharedPageState :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !resolution" @retry="query.refetch">
+    <SharedPageState empty-icon="i-lucide-file-question" :loading="query.isLoading.value" :error="query.error.value" :empty="!query.isLoading.value && !query.error.value && !resolution" @retry="query.refetch">
       <UAlert v-if="resolution && !canEditDecision && !canEditResult" color="neutral" variant="subtle" :title="t('meetingsUi.resolutionReadOnly')" />
       <form ref="formElement" novalidate v-else-if="resolution" class="liwan-form" @submit.prevent="save">
         <SharedUnsavedChanges :dirty="dirty" />

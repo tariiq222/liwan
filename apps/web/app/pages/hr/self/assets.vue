@@ -23,11 +23,11 @@ const columns = computed<TableColumn<HrEquipment>[]>(() => [
 <template>
   <SharedListPage :title="t('nav.myAssets')">
     <SharedPageState :loading="profile.isLoading.value" :error="profile.error.value" @retry="profile.refetch">
-      <SharedEmptyState v-if="profile.data.value === null" bordered :title="t('hr.self.noEmployee')" :description="t('hr.self.noEmployeeHint')" />
+      <SharedEmptyState icon="i-lucide-user-x" v-if="profile.data.value === null" bordered :title="t('hr.self.noEmployee')" :description="t('hr.self.noEmployeeHint')" />
     </SharedPageState>
     <SharedListCard v-if="profile.data.value">
       <SharedPageState :error="mine.error.value" :keep-content="items.length > 0" @retry="mine.refetch">
-        <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('hrAssets.mine.emptyTitle')" :description="t('hrAssets.mine.emptyHint')" />
+        <SharedEmptyState icon="i-lucide-laptop" v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('hrAssets.mine.emptyTitle')" :description="t('hrAssets.mine.emptyHint')" />
         <SharedDataTable
           v-else
           bare

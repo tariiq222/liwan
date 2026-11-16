@@ -15,7 +15,7 @@ const openJournal = ref<number | null>(null)
 
 <template>
   <SharedRecordSection variant="panel" :title="t('financeGovernance.zatca.journals.title')" :description="t('financeGovernance.zatca.journals.hint')" data-testid="finance-zatca-journals">
-    <SharedEmptyState v-if="!journals.length" :title="t('financeGovernance.zatca.journals.empty')" />
+    <SharedEmptyState icon="i-lucide-notebook" v-if="!journals.length" :title="t('financeGovernance.zatca.journals.empty')" />
     <ul v-else class="divide-y divide-default">
       <li v-for="item in journals" :key="item.journal.id" class="py-3 first:pt-0 last:pb-0" :data-testid="`finance-zatca-journal-${item.journal.id}`">
         <div class="flex flex-wrap items-center justify-between gap-2">

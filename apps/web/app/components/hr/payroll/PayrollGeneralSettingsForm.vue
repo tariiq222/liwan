@@ -74,15 +74,17 @@ const submit = () => {
 
 <template>
   <SharedSettingsCard id="payroll-general" v-bind="state" :title="t('hrPayroll.settings.generalTitle')" :description="t('hrPayroll.settings.generalHint')" :can-edit="canEdit" data-testid="hr-payroll-settings-form" @save="submit" @revert="revert" @reload="reload">
-    <UFormField orientation="horizontal" :label="t('hrPayroll.settings.dayDivisor')" name="hr-payroll-divisor" :description="t('hrPayroll.settings.dayDivisorHint')" :error="fieldError('day_divisor')">
+    <div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
+    <UFormField :label="t('hrPayroll.settings.dayDivisor')" name="hr-payroll-divisor" :help="t('hrPayroll.settings.dayDivisorHint')" :error="fieldError('day_divisor')">
       <USelect id="hr-payroll-divisor" v-model="draft.dayDivisor" class="w-full" :items="divisorOptions" :disabled="locked" data-testid="hr-payroll-divisor" />
     </UFormField>
-    <UFormField orientation="horizontal" :label="t('hrPayroll.settings.structure')" name="hr-payroll-structure" :description="t('hrPayroll.settings.structureHint')" :error="fieldError('structure_id')">
+    <UFormField :label="t('hrPayroll.settings.structure')" name="hr-payroll-structure" :help="t('hrPayroll.settings.structureHint')" :error="fieldError('structure_id')">
       <USelect id="hr-payroll-structure" v-model="draft.structure" class="w-full" :items="structureItems" :placeholder="t('hrPayroll.settings.chooseStructure')" :disabled="locked" data-testid="hr-payroll-structure" />
     </UFormField>
-    <UFormField orientation="horizontal" :label="t('hrPayroll.settings.annualLeaveType')" name="hr-payroll-annual" required :description="t('hrPayroll.settings.annualLeaveTypeHint')" :error="fieldError('annual_leave_type_id')">
-      <USelect id="hr-payroll-annual" v-model="draft.annualLeaveType" class="w-full" :items="annualItems" :placeholder="t('hrPayroll.settings.chooseAnnualLeave')" :disabled="locked" data-testid="hr-payroll-annual" />
+    <UFormField :label="t('hrPayroll.settings.annualLeaveType')" name="hr-payroll-annual" required :help="t('hrPayroll.settings.annualLeaveTypeHint')" :error="fieldError('annual_leave_type_id')">
+      <USelect id="hr-payroll-annual" v-model="draft.annualLeaveType" class="w-full" :items="annualItems" :placeholder="t('hrPayroll.settings.chooseAnnualLeave')" :disabled="locked" data-testid="hr-payroll-annual" required />
     </UFormField>
+    </div>
     <UFormField orientation="horizontal" :label="t('hrPayroll.settings.unpaidLeaveTypes')" name="hr-payroll-unpaid" :description="t('hrPayroll.settings.unpaidLeaveTypesHint')" :error="fieldError('unpaid_leave_type_ids')">
       <UCheckboxGroup v-model="draft.unpaidLeaveTypes" :items="unpaidItems" :disabled="locked" data-testid="hr-payroll-unpaid" />
     </UFormField>

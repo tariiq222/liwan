@@ -36,7 +36,7 @@ function onSaved() {
   <SharedSettingsPage>
     <SharedPageHeader :title="t('settings.projects.catalogs.editTitle')" :back-to="returnTo" :back-label="t('settings.projects.catalogs.back')" />
     <p v-if="forbidden" class="text-muted">{{ t('settings.forbidden') }}</p>
-    <SharedPageState
+    <SharedPageState empty-icon="i-lucide-file-question"
       v-else
       :loading="query.isLoading.value"
       :error="notFound ? null : query.error.value"

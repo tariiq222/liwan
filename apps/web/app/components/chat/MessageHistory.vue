@@ -330,7 +330,7 @@ watch(() => props.denied, (value) => { if (value) seal() })
       <UButton type="button" color="neutral" variant="ghost" size="sm" :disabled="!hydrated || isFetching || loadingOlder || !items.length || sealed" :label="t('chat.loadOlder')" @click="loadOlder" />
     </div>
     <SharedErrorState v-if="isError && !items.length" :error="error" :title="t('chat.unavailable')" class="m-4" @retry="refetch()" />
-    <SharedEmptyState v-else-if="sealed && !items.length" :title="t('chat.unavailable')" class="m-4" />
+    <SharedEmptyState icon="i-lucide-lock" v-else-if="sealed && !items.length" :title="t('chat.unavailable')" class="m-4" />
     <div ref="scroller" class="liwan-chat-scroller min-h-0 flex-1 overflow-y-auto px-4 py-2" data-testid="chat-scroller" @scroll="onScroll">
       <ol class="flex flex-col gap-1">
         <template v-for="row in rows" :key="row.kind === 'day' ? row.key : row.item.id">

@@ -138,7 +138,7 @@ const tabs = computed(() => {
   >
     <template #tabs><SharedRouteTabs :items="tabs" :ariaLabel="t('access.users.accountNavigation')" /></template>
     <SharedForbiddenState v-if="forbidden" :description="t('access.forbidden')" />
-    <SharedPageState v-else :empty="!query.data.value" :empty-text="t('access.notFound')">
+    <SharedPageState empty-icon="i-lucide-file-question" v-else :empty="!query.data.value" :empty-text="t('access.notFound')">
       <template v-if="query.data.value">
         <SharedIdentityCard :id="query.data.value.id" :name="query.data.value.name">
           <template #badge><SharedStatusBadge size="sm" :tone="badge.tone" :label="t(badge.labelKey)" :icon="badge.icon" /></template>

@@ -25,7 +25,7 @@ const { cards } = useAppCards({ assistant: false })
     <HomeFocus />
     <HomeAssistantBanner />
     <HomeApps v-if="cards.length" :cards="cards" />
-    <SharedEmptyState v-else bordered :title="t('home.empty')" data-testid="home-empty-no-apps">
+    <SharedEmptyState icon="i-lucide-layout-grid" v-else bordered :title="t('home.empty')" data-testid="home-empty-no-apps">
       <template #action><UButton to="/account" color="neutral" variant="outline" :label="t('nav.account')" /></template>
     </SharedEmptyState>
   </SharedPageContainer>

@@ -30,7 +30,7 @@ const dates = (start: string | null, end: string | null) => start || end ? `${st
     :error="item.error.value"
     @retry="item.refetch"
   >
-    <SharedEmptyState v-if="!item.data.value" :title="t('app.noResults')" />
+    <SharedEmptyState icon="i-lucide-file-question" v-if="!item.data.value" :title="t('app.noResults')" />
     <template v-else>
       <SharedRecordSection v-if="item.data.value.note" variant="panel" :title="t('projects.baselines.fields.note')">
         <p class="whitespace-pre-wrap text-sm">{{ item.data.value.note }}</p>
@@ -39,7 +39,7 @@ const dates = (start: string | null, end: string | null) => start || end ? `${st
         <BaselineVarianceTable :rows="taskRows" :project-id="projectId" />
       </SharedRecordSection>
       <SharedRecordSection v-else variant="panel" :title="t('projects.baselines.snapshotTitle')" :description="t('projects.baselines.snapshotHint')">
-        <SharedEmptyState v-if="!item.data.value.tasks.length" :title="t('projects.baselines.noTasks')" />
+        <SharedEmptyState icon="i-lucide-check-square" v-if="!item.data.value.tasks.length" :title="t('projects.baselines.noTasks')" />
         <ul v-else class="divide-y divide-default" data-testid="baseline-snapshot-tasks">
           <li v-for="line in item.data.value.tasks" :key="line.id" class="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
             <span class="min-w-0 font-medium text-highlighted">{{ line.name }}</span>

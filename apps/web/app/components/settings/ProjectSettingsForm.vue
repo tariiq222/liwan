@@ -230,14 +230,17 @@ function onDeleteStage(id: number | string) {
   <ChangeCategoriesPanel :can-edit="canEdit" />
 
   <SharedSettingsCard id="project-reminders" v-bind="reminders.state.value" :title="t('settings.projects.reminders.label')" :description="t('settings.projects.reminders.hint')" :can-edit="canEdit" @save="reminders.save" @revert="reminders.revert" @reload="reminders.reload">
-    <SharedSettingRow :label="t('settings.projects.reminders.enabled')" :description="t('settings.projects.reminders.enabledHint')">
-      <USwitch id="settings-deadline-reminders" v-model="reminders.draft.value.deadline_reminders_enabled" :aria-label="t('settings.projects.reminders.enabled')" :disabled="remindersLocked" />
-    </SharedSettingRow>
-    <SharedSettingRow :label="t('settings.projects.reminders.daysBefore')" :description="t('settings.projects.reminders.daysBeforeHint')">
-      <UFormField :error="daysError || undefined">
-        <UInputNumber id="reminder-days" v-model="reminders.draft.value.deadline_reminders_days_before" :min="0" :max="30" :disabled="remindersLocked" class="w-32" />
+    <!-- The switch gates one field: the days field opens in the next cell. -->
+    <div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
+      <UFormField name="deadline_reminders_enabled" :label="t('settings.projects.reminders.enabled')" :help="t('settings.projects.reminders.enabledHint')">
+        <div class="flex min-h-(--liwan-control-h) items-center">
+          <USwitch id="settings-deadline-reminders" v-model="reminders.draft.value.deadline_reminders_enabled" :aria-label="t('settings.projects.reminders.enabled')" :disabled="remindersLocked" />
+        </div>
       </UFormField>
-    </SharedSettingRow>
+      <UFormField name="deadline_reminders_days_before" :label="t('settings.projects.reminders.daysBefore')" :help="t('settings.projects.reminders.daysBeforeHint')" :error="daysError || undefined">
+        <UInputNumber id="reminder-days" v-model="reminders.draft.value.deadline_reminders_days_before" :min="0" :max="30" :disabled="remindersLocked" class="w-full" />
+      </UFormField>
+    </div>
     <SharedSettingRow :label="t('settings.projects.reminders.digest')">
       <USwitch id="settings-overdue-digest" v-model="reminders.draft.value.overdue_digest_enabled" :aria-label="t('settings.projects.reminders.digest')" :disabled="remindersLocked" />
     </SharedSettingRow>

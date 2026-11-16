@@ -97,7 +97,7 @@ async function save() {
 <template>
   <SharedPageContainer>
     <SharedPageHeader :title="t('meetingsUx.seriesSettingsTitle')" :back-to="backTo" />
-    <SharedPageState :loading="query.isLoading.value" :error="pageError" :empty="!query.isLoading.value && !pageError && !query.data.value" @retry="query.refetch">
+    <SharedPageState empty-icon="i-lucide-file-question" :loading="query.isLoading.value" :error="pageError" :empty="!query.isLoading.value && !pageError && !query.data.value" @retry="query.refetch">
       <form ref="formElement" novalidate v-if="query.data.value" class="liwan-form" @submit.prevent="save">
         <SharedUnsavedChanges :dirty="dirty" />
       <UAlert v-if="attemptedSubmit && Object.values(formErrors).filter(Boolean).length > 1" color="error" variant="subtle" role="alert" :title="t('meetingsUx.validationSummary', { count: Object.values(formErrors).filter(Boolean).length })" />

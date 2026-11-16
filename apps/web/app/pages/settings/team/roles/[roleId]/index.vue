@@ -113,7 +113,7 @@ const typeLabel = computed(() => role.data.value?.type === 'built_in' ? t('acces
     />
     <SharedForbiddenState v-if="forbidden" :description="t('access.forbidden')" />
     <UAlert v-else-if="versionConflict" role="alert" color="error" variant="subtle" :title="t('access.roles.conflict')" />
-    <SharedPageState v-else :empty="!role.data.value" :empty-text="t('access.notFound')">
+    <SharedPageState empty-icon="i-lucide-file-question" v-else :empty="!role.data.value" :empty-text="t('access.notFound')">
       <template v-if="role.data.value">
         <RolePermissionForm id="permissions" :role="role.data.value" :permissions="catalog.data.value?.items ?? []" :readonly="true" />
         <UAlert v-if="actionError" role="alert" color="error" variant="subtle" :title="actionError" />

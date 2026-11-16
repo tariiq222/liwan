@@ -23,6 +23,11 @@ const needsBaseUrl = computed(() => keyProviders.value.some(item => item.name ==
 const apiKey = ref('')
 const failure = ref('')
 const confirmingRemove = ref(false)
+// The template checker resolves `.isPending` on a mutation result against the mutation object here and
+// reports a missing `.value`; two plain computed flags keep the binding unambiguous.
+const savingPending = computed(() => saving.isPending.value)
+const removingPending = computed(() => removing.isPending.value)
+
 const busy = computed(() => !hydrated.value || saving.isPending.value || removing.isPending.value)
 const ready = computed(() => !!provider.value && model.value.trim().length > 0 && apiKey.value.length > 0 && (!needsBaseUrl.value || baseUrl.value.trim().length > 0))
 
@@ -65,31 +70,33 @@ async function removeKey() {
     <form class="liwan-form grid gap-4" novalidate @submit.prevent="saveKey">
       <UAlert v-if="failure" role="alert" color="error" variant="subtle" :title="t('app.saveFailed')" :description="failure" />
       <div class="liwan-setting-rows">
-        <SharedSettingRow :label="t('ai.settings.key.provider')" name="provider">
-          <USelect id="ai-key-provider" v-model="provider" class="w-full" :items="providers" :disabled="busy" :aria-label="t('ai.settings.key.provider')" />
-        </SharedSettingRow>
-        <UFormField v-if="needsBaseUrl" orientation="horizontal" :label="t('ai.settings.key.baseUrl')" name="base_url" :description="t('ai.settings.key.baseUrlHint')">
-          <UInput id="ai-key-base-url" v-model="baseUrl" type="url" class="w-full" dir="ltr" autocomplete="off" placeholder="https://api.example.com/v1" :disabled="busy" maxlength="512" />
-        </UFormField>
-        <SharedSettingRow :label="t('ai.settings.key.model')" name="model" :description="t('ai.settings.key.modelHint')">
-          <UInput id="ai-key-model" v-model="model" class="w-full" dir="ltr" autocomplete="off" :disabled="busy" maxlength="128" />
-        </SharedSettingRow>
-        <SharedSettingRow :label="t('ai.settings.key.value')" name="api_key" :description="t('ai.settings.key.valueHint')">
-          <UInput id="ai-key-value" v-model="apiKey" type="password" class="w-full" dir="ltr" autocomplete="new-password" :disabled="busy" maxlength="512" />
-        </SharedSettingRow>
+        <div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
+          <UFormField :label="t('ai.settings.key.provider')" name="provider">
+            <USelect id="ai-key-provider" v-model="provider" class="w-full" :items="providers" :disabled="busy" :aria-label="t('ai.settings.key.provider')" />
+          </UFormField>
+          <UFormField v-if="needsBaseUrl" :label="t('ai.settings.key.baseUrl')" name="base_url" :help="t('ai.settings.key.baseUrlHint')">
+            <UInput id="ai-key-base-url" v-model="baseUrl" type="url" class="w-full" dir="ltr" autocomplete="off" placeholder="https://api.example.com/v1" :disabled="busy" maxlength="512" />
+          </UFormField>
+          <UFormField :label="t('ai.settings.key.model')" name="model" :help="t('ai.settings.key.modelHint')">
+            <UInput id="ai-key-model" v-model="model" class="w-full" dir="ltr" autocomplete="off" :disabled="busy" maxlength="128" />
+          </UFormField>
+          <UFormField :label="t('ai.settings.key.value')" name="api_key" :help="t('ai.settings.key.valueHint')">
+            <UInput id="ai-key-value" v-model="apiKey" type="password" class="w-full" dir="ltr" autocomplete="new-password" :disabled="busy" maxlength="512" />
+          </UFormField>
+        </div>
       </div>
       <SharedInlineConfirm
         v-if="confirmingRemove"
         :title="t('ai.settings.key.removeTitle')"
         :description="t('ai.settings.key.removeHint')"
         :confirm-label="t('ai.settings.key.remove')"
-        :pending="removing.isPending.value"
+        :pending="removingPending"
         @confirm="removeKey"
         @cancel="confirmingRemove = false"
       />
       <SharedFormActions>
         <UButton v-if="config.key.configured && !confirmingRemove" type="button" color="error" variant="outline" :label="t('ai.settings.key.remove')" :disabled="busy" @click="confirmingRemove = true" />
-        <UButton type="submit" class="ms-auto" :loading="saving.isPending.value" :disabled="busy || !ready" :label="t('ai.settings.key.save')" />
+        <UButton type="submit" class="ms-auto" :loading="savingPending" :disabled="busy || !ready" :label="t('ai.settings.key.save')" />
       </SharedFormActions>
     </form>
   </SharedRecordSection>

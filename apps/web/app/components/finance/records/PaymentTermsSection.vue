@@ -56,7 +56,7 @@ const actions = (term: FinancePaymentTerm): RowAction[] => term.shared
         @update:search="value => { list.search.value = value }" @submit="list.submitSearch" @clear="list.clearFilters" @state="list.setState"
       />
       <SharedPageState :error="list.query.error.value" :keep-content="list.items.value.length > 0" @retry="list.query.refetch">
-        <SharedEmptyState v-if="list.showEmpty.value" :title="t(list.activeCount.value ? 'app.noResults' : 'financeRecords.paymentTerms.empty')" />
+        <SharedEmptyState :icon="list.activeCount.value ? 'i-lucide-filter-x' : 'i-lucide-calendar-clock'" v-if="list.showEmpty.value" :title="t(list.activeCount.value ? 'app.noResults' : 'financeRecords.paymentTerms.empty')" />
         <div v-else class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,640px)]">
           <SharedDataTable bare :rows="list.items.value" :columns="columns" row-key="id" :loading="list.query.isPending.value" :caption="t('financeRecords.paymentTerms.title')">
             <template #name-cell="{ row }">

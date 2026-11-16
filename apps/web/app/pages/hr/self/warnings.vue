@@ -40,10 +40,10 @@ async function answer(id: number, action: () => Promise<unknown>) {
 <template>
   <SharedListPage :title="t('nav.myWarnings')" :create-to="canIssue ? '/hr/warnings/new' : undefined" :create-label="t('hrWarnings.new')" create-test-id="hr-warning-new">
     <SharedPageState :loading="profile.isLoading.value" :error="profile.error.value" @retry="profile.refetch">
-      <SharedEmptyState v-if="profile.data.value === null" bordered :title="t('hr.self.noEmployee')" :description="t('hr.self.noEmployeeHint')" />
+      <SharedEmptyState icon="i-lucide-user-x" v-if="profile.data.value === null" bordered :title="t('hr.self.noEmployee')" :description="t('hr.self.noEmployeeHint')" />
     </SharedPageState>
     <SharedPageState v-if="profile.data.value" :loading="mine.isLoading.value" :error="mine.error.value" :keep-content="items.length > 0" @retry="mine.refetch">
-      <SharedEmptyState v-if="showEmpty" bordered :title="t('hrWarnings.mine.emptyTitle')" :description="t('hrWarnings.mine.emptyHint')" />
+      <SharedEmptyState icon="i-lucide-triangle-alert" v-if="showEmpty" bordered :title="t('hrWarnings.mine.emptyTitle')" :description="t('hrWarnings.mine.emptyHint')" />
       <div v-else class="liwan-page-stack" data-testid="hr-my-warnings">
         <OwnWarningCard
           v-for="warning in items"

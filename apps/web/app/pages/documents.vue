@@ -232,8 +232,7 @@ function openLiveCreate(event: MouseEvent) {
         </div>
       </template>
       <SharedPageState :error="query.error.value" :keep-content="items.length > 0" @retry="query.refetch">
-        <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t(activeFilterCount ? 'documents.noResults' : params.archived ? 'documents.emptyArchive' : 'documents.empty')" :description="t(activeFilterCount ? 'documents.noResultsHelp' : 'documents.emptyHelp')">
-          <template #icon><UIcon :name="activeFilterCount ? 'i-lucide-search' : 'i-lucide-files'" class="size-6" /></template>
+        <SharedEmptyState v-if="showEmpty" :icon="activeFilterCount ? 'i-lucide-filter-x' : 'i-lucide-files'" class="m-(--liwan-card-pad-dense)" :title="t(activeFilterCount ? 'documents.noResults' : params.archived ? 'documents.emptyArchive' : 'documents.empty')" :description="t(activeFilterCount ? 'documents.noResultsHelp' : 'documents.emptyHelp')">
           <template v-if="activeFilterCount || (createTo && !params.archived)" #action>
             <UButton v-if="activeFilterCount" type="button" color="neutral" variant="outline" :label="t('documents.clearFilters')" :disabled="!hydrated" @click="clearFilters" />
             <UButton v-else :to="createTo" icon="i-lucide-plus" :label="t('documents.createFirst')" :disabled="!hydrated" />

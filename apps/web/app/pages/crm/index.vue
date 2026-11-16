@@ -23,7 +23,7 @@ const managerTiles = computed(() => (dashboard.data.value?.manager ? managerKpiT
   <SharedPageContainer>
     <SharedPageHeader :title="t('crm.nav.dashboard')" kpi-toggle />
     <SharedForbiddenState v-if="!can('crm.leads.read')" />
-    <SharedPageState v-else :loading="dashboard.isLoading.value" :error="dashboard.data.value ? null : dashboard.error.value" :empty="!dashboard.data.value" @retry="dashboard.refetch()">
+    <SharedPageState empty-icon="i-lucide-layout-dashboard" v-else :loading="dashboard.isLoading.value" :error="dashboard.data.value ? null : dashboard.error.value" :empty="!dashboard.data.value" @retry="dashboard.refetch()">
       <template v-if="dashboard.data.value">
         <SharedKpiStrip :tiles="agentTiles" :label="t('crm.dashboard.agent.title')" data-testid="crm-agent-kpis" />
         <CrmDashboardDueList :items="due.data.value?.items ?? []" :total="due.data.value?.total ?? 0" :view-all-to="`${CRM_LIST_PATH}?due=1`" />

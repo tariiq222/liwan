@@ -89,7 +89,7 @@ async function confirmRemove() {
 <template>
   <div v-if="canGrant" class="grid gap-3" data-testid="company-members">
     <UAlert v-if="message" role="alert" color="warning" variant="subtle" :title="message" />
-    <SharedPageState :loading="list.isLoading.value" :error="list.error.value" :empty="!items.length" :empty-text="t('access.members.empty')" @retry="list.refetch">
+    <SharedPageState empty-icon="i-lucide-users" :loading="list.isLoading.value" :error="list.error.value" :empty="!items.length" :empty-text="t('access.members.empty')" @retry="list.refetch">
       <ul class="grid gap-(--liwan-gap-card)">
         <SharedSubCard v-for="member in items" :key="member.id" as="li" :data-testid="`member-${member.id}`">
           <div class="flex flex-wrap items-start justify-between gap-2">

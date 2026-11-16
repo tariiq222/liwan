@@ -216,7 +216,7 @@ function equipmentTo(row: HrEquipment) {
       </template>
 
       <SharedPageState :error="equipment.error.value" :keep-content="items.length > 0" @retry="equipment.refetch">
-        <SharedEmptyState v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('hrAssets.emptyTitle')" :description="t('hrAssets.emptyHint')" />
+        <SharedEmptyState icon="i-lucide-laptop" v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('hrAssets.emptyTitle')" :description="t('hrAssets.emptyHint')" />
         <EquipmentTable v-else :equipment="items" :row-to="equipmentTo" :loading="equipment.isLoading.value" :caption="t('hrAssets.title')" />
       </SharedPageState>
       <template v-if="equipment.data.value && !showEmpty" #footer>

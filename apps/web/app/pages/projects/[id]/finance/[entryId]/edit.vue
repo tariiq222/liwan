@@ -69,7 +69,7 @@ function retry() {
     <SharedPageHeader :title="t('projects.finance.editTitle')" :back-to="backTo" :back-label="t('projects.finance.backToLedger')" />
     <ProjectNotFoundState v-if="notFound || projectId === null || entryId === null" embedded />
     <template v-else>
-      <SharedPageState
+      <SharedPageState empty-icon="i-lucide-lock"
         v-if="!keepForm"
         :loading="initialLoading"
         :error="pageError"
