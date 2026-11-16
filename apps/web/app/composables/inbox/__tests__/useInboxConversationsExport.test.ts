@@ -23,6 +23,10 @@ describe('inboxExportQuery', () => {
     expect(inboxExportQuery(route({ assignee: 'me', state: 'open', q: 'أحمد', departmentId: 3 }))).toEqual({ assignee: 'me', state: 'open', department_id: 3, q: 'أحمد' })
   })
 
+  it('leaves out the order of the list', () => {
+    expect(inboxExportQuery(route({ sort: 'waiting' }))).toEqual({})
+  })
+
   it('is empty when no filter is set', () => {
     expect(inboxExportQuery(route())).toEqual({})
   })

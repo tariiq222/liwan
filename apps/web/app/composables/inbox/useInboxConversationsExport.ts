@@ -5,9 +5,9 @@ import { inboxListQuery, type InboxListRoute } from './inboxListRoute'
 export const INBOX_CONVERSATIONS_EXPORT_PATH = '/api/v1/inbox/conversations/export.csv'
 const FALLBACK_FILENAME = 'inbox-conversations.csv'
 
-/** The export takes the list's filters, not its page window. */
+/** The export takes the list's filters, not its page window or its order. */
 export function inboxExportQuery(route: InboxListRoute): Record<string, string | number> {
-  const { limit: _limit, offset: _offset, ...filters } = inboxListQuery(route)
+  const { limit: _limit, offset: _offset, sort: _sort, ...filters } = inboxListQuery(route)
   return filters
 }
 

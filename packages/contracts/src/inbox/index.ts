@@ -66,6 +66,9 @@ export const InboxConversationSchema = z.object({
   // Counts the changes of state, priority, tags, assignee and department; a PATCH names the one it was made from.
   revision: z.number().int().positive(),
   last_message_at: UtcDateTime.nullable(),
+  // Since when the customer waits for an agent (null once an agent replied), and whether that wait passed the company's first-response alert threshold.
+  waiting_since: UtcDateTime.nullable(),
+  waiting_overdue: z.boolean(),
   last_message_preview: z.string().nullable(),
   // The kind of the last customer-visible message, so a list row of a file without a caption can name the file.
   last_message_kind: InboxMessageKindSchema.nullable(),

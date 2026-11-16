@@ -51,6 +51,8 @@ from odoo.addons.liwan_inbox.serializers.settings import dump_canned_reply
 
 PRIORITIES = ('low', 'normal', 'high', 'urgent')
 CSAT_SCORES = ('good', 'neutral', 'bad')
+# `waiting`: customers waiting for an agent first, the longest wait first, then the rest in the default order.
+CONVERSATION_SORTS = {'recent': None, 'waiting': 'waiting_since asc nulls last, last_message_at desc, id desc'}
 LINK_FIELDS = {'customer_id', 'create_new'}
 PATCH_FIELDS = {'revision', 'state', 'priority', 'tag_ids', 'assignee_id', 'department_id'}
 REPLY_FIELDS = {'state', 'priority', 'tag_ids'}
@@ -88,6 +90,14 @@ def conversation_domain(args):
             ('last_message_preview', 'ilike', args['q']),
         ]
     return domain
+
+
+def conversation_order(args):
+    """The ORM order of the `sort` query value (none for the model default)."""
+    sort = args.get('sort', 'recent')
+    if sort not in CONVERSATION_SORTS:
+        reject(f'sort must be one of {tuple(CONVERSATION_SORTS)}', 'sort')
+    return CONVERSATION_SORTS[sort]
 
 
 def detail(conversation):
@@ -155,9 +165,10 @@ class ConversationController(http.Controller):
         args = request.httprequest.args
         limit, offset = parse_page(args)
         domain = conversation_domain(args)
+        order = conversation_order(args)
         Conversation = request.env['liwan.inbox.conversation']
         return {
-            'items': [dump_conversation(c) for c in Conversation._liwan_search_visible(domain, limit=limit, offset=offset)],
+            'items': [dump_conversation(c) for c in Conversation._liwan_search_visible(domain, limit=limit, offset=offset, order=order)],
             'total': Conversation._liwan_count_visible(domain),
         }
 

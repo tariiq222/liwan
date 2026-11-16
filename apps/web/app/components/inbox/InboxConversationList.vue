@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxMessageKind } from '@liwan/contracts'
+import type { InboxConversation, InboxMessageKind } from '@liwan/contracts'
 import { useDebounceFn } from '@vueuse/core'
 import { avatarProps } from '@liwan/ui/app/utils/avatarTone'
 import EmptyState from '@liwan/ui/app/components/shared/feedback/EmptyState.vue'
@@ -10,10 +10,10 @@ import { CONVERSATION_STATES, CONVERSATION_STATE_TONE, CSAT_SCORES, CSAT_TONE, D
 import { inboxContactName } from '@/composables/inbox/inboxContactName'
 import { useInboxConversationsExport } from '@/composables/inbox/useInboxConversationsExport'
 import { exportTooLargeMessage } from '@/utils/exportErrors'
-import { INBOX_PAGE_SIZE, inboxPageOffset, serializeInboxListRoute, type InboxListRoute } from '@/composables/inbox/inboxListRoute'
+import { DEFAULT_INBOX_LIST_ROUTE, INBOX_PAGE_SIZE, inboxPageOffset, serializeInboxListRoute, type InboxListRoute } from '@/composables/inbox/inboxListRoute'
 
 // The conversation list pane of the inbox page (its left column): filters (scope, state, department, priority, rating, search) are the URL query, owned by the page
-// that hosts this list. The component only reads them and emits the next filter state; whether the four secondary filters are folded away is local UI state.
+// that hosts this list. The component only reads them and emits the next filter state; whether the secondary filters and the sort are folded away is local UI state.
 const props = defineProps<{ routeState: InboxListRoute; selectedId?: number }>()
 const emit = defineEmits<{ 'update:routeState': [InboxListRoute, options?: { replace: boolean }] }>()
 const { t, n, locale } = useI18n()
@@ -35,7 +35,7 @@ watch(q, (value) => {
 })
 
 const ALL = 'all'
-// Four filters share the pane's width as soft chips, two to a row.
+// The four filters and the sort share the pane's width as soft chips, two to a row.
 const FILTER_REGION_ID = 'inbox-list-filters'
 const FILTER_SELECT = 'min-w-0 flex-[1_1_calc(50%-4px)]'
 const scopeItems = computed(() => [
@@ -60,9 +60,14 @@ const csatItems = computed(() => [
   ...CSAT_SCORES.map(value => ({ value, label: t(`inbox.csat.${value}`) })),
 ])
 const activeFilterCount = computed(() => [props.routeState.state, props.routeState.departmentId, props.routeState.priority, props.routeState.csat].filter(Boolean).length)
-const canClear = computed(() => activeFilterCount.value > 0 || !!props.routeState.q)
-// A deep link shows the filters it carries; after that the agent folds the region open or shut.
-const filtersOpen = ref(activeFilterCount.value > 0)
+const sorted = computed(() => props.routeState.sort !== DEFAULT_INBOX_LIST_ROUTE.sort)
+const canClear = computed(() => activeFilterCount.value > 0 || !!props.routeState.q || sorted.value)
+// A deep link shows the filters and the sort it carries; after that the agent folds the region open or shut.
+const filtersOpen = ref(activeFilterCount.value > 0 || sorted.value)
+const sortItems = computed(() => [
+  { value: 'recent', label: t('inbox.list.sortRecent') },
+  { value: 'waiting', label: t('inbox.list.sortWaiting') },
+])
 const showDepartments = computed(() => (departments.data.value?.items.length ?? 0) > 0)
 
 function update(patch: Partial<InboxListRoute>) {
@@ -75,7 +80,7 @@ function applySearch() {
   emit('update:routeState', { ...props.routeState, q: term, offset: 0 }, term && props.routeState.q ? { replace: true } : undefined)
 }
 function clearFilters() {
-  update({ state: '', departmentId: null, priority: '', csat: '', q: '' })
+  update({ state: '', departmentId: null, priority: '', csat: '', q: '', sort: DEFAULT_INBOX_LIST_ROUTE.sort })
 }
 // Arrow keys move between the rows' links; Tab order and the links themselves are untouched.
 const rowList = useTemplateRef<HTMLUListElement>('rowList')
@@ -87,9 +92,18 @@ function moveRowFocus(event: KeyboardEvent) {
   event.preventDefault()
   links[Math.min(Math.max(target, 0), links.length - 1)]?.focus()
 }
-// An unread row shows how long the customer has waited; a read row shows when the last message came.
-function rowTime(item: { unread: boolean; last_message_at: string }) {
-  return item.unread && hydrated.value ? inboxWaitingTime(item.last_message_at, locale.value) : inboxListTime(item.last_message_at, locale.value)
+// A row whose customer waits for an agent shows how long; any other row shows when the last message came.
+function rowStamp(item: InboxConversation) {
+  return item.waiting_since ?? item.last_message_at
+}
+function rowTime(item: InboxConversation) {
+  const stamp = rowStamp(item)
+  if (!stamp) return ''
+  return item.waiting_since && hydrated.value ? inboxWaitingTime(stamp, locale.value) : inboxListTime(stamp, locale.value)
+}
+function rowTimeTone(item: InboxConversation) {
+  if (item.waiting_overdue) return 'font-semibold text-warning'
+  return item.unread ? 'font-semibold text-highlighted' : 'text-muted'
 }
 const rowTimeTitle = (value: string) => (hydrated.value ? inboxAbsoluteTime(value, locale.value) : undefined)
 const currentPage = computed(() => Math.floor(props.routeState.offset / INBOX_PAGE_SIZE) + 1)
@@ -201,6 +215,16 @@ const empty = computed(() => hydrated.value && !isLoading.value && !isError.valu
               data-testid="inbox-csat-filter"
               @update:model-value="update({ csat: $event === ALL ? '' : ($event as InboxListRoute['csat']) })"
             />
+            <USelect
+              :model-value="props.routeState.sort"
+              :items="sortItems"
+              variant="soft"
+              :class="FILTER_SELECT"
+              :aria-label="t('inbox.list.sort')"
+              :disabled="!hydrated"
+              data-testid="inbox-sort"
+              @update:model-value="update({ sort: $event as InboxListRoute['sort'] })"
+            />
           </div>
         </template>
       </UCollapsible>
@@ -231,7 +255,10 @@ const empty = computed(() => hydrated.value && !isLoading.value && !isError.valu
             <span class="min-w-0 flex-1">
               <span class="flex items-center justify-between gap-2">
                 <span class="truncate" :class="item.unread ? 'font-bold' : 'font-medium'">{{ inboxContactName(item.contact, t) }}</span>
-                <time v-if="item.last_message_at" :datetime="item.last_message_at" :title="rowTimeTitle(item.last_message_at)" class="shrink-0 text-xs" :class="item.unread ? 'font-semibold text-highlighted' : 'text-muted'">{{ rowTime({ unread: item.unread, last_message_at: item.last_message_at }) }}</time>
+                <span v-if="rowStamp(item)" class="flex shrink-0 items-center gap-1 text-xs" :class="rowTimeTone(item)">
+                  <UIcon v-if="item.waiting_overdue" name="i-lucide-clock-alert" class="size-3.5" role="img" :aria-label="t('inbox.list.waitingOverdue')" :data-testid="`inbox-conversation-overdue-${item.id}`" />
+                  <time :datetime="rowStamp(item)!" :title="rowTimeTitle(rowStamp(item)!)">{{ rowTime(item) }}</time>
+                </span>
               </span>
               <span class="flex items-center justify-between gap-2">
                 <span class="truncate text-(length:--liwan-fs-small-label) text-muted">{{ item.last_message_preview || fileLabel(item.last_message_kind) || item.contact.phone || t('inbox.list.noMessages') }}</span>

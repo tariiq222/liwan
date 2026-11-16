@@ -6,7 +6,7 @@ import { storyContext } from '../../support/context'
 const base = {
   contact: { id: 4, name: 'منى العتيبي', phone: '+966500000001', email: null, erased: false },
   channel: { id: 1, name: 'واتساب الرياض', kind: 'whatsapp' },
-  department: null, assignee: null, priority: 'normal', tags: [], revision: 1, reply_window_ends_at: null, csat: null, referral_source: null, referral_ref: null, last_message_kind: 'text',
+  department: null, assignee: null, priority: 'normal', tags: [], revision: 1, reply_window_ends_at: null, waiting_since: null, waiting_overdue: false, csat: null, referral_source: null, referral_ref: null, last_message_kind: 'text',
 } as const
 const conversations = [
   { ...base, id: 12, state: 'open', unread: true, last_message_at: '2026-11-14T10:00:00Z', last_message_preview: 'أريد عرض سعر للباقة المتقدمة' },

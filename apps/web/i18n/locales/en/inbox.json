@@ -238,6 +238,10 @@
       "exportFailed": "Could not export the conversations. Try again.",
       "csat": "Customer satisfaction",
       "anyCsat": "Any rating",
+      "sort": "Sort",
+      "sortRecent": "Newest first",
+      "sortWaiting": "Longest waiting first",
+      "waitingOverdue": "Waiting too long",
       "filters": "Filters",
       "clearFilters": "Clear filters",
       "resultCount": "{count} result | {count} results"

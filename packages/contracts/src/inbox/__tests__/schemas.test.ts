@@ -33,6 +33,8 @@ const CONVERSATION = {
   last_message_kind: 'text',
   unread: true,
   reply_window_ends_at: '2026-10-29T09:00:00Z',
+  waiting_since: null,
+  waiting_overdue: false,
   csat: null,
   referral_source: null,
   referral_ref: null,
@@ -47,6 +49,11 @@ describe('InboxConversationListSchema', () => {
   it('requires the erased flag of the contact', () => {
     const { erased: _erased, ...unflagged } = CONVERSATION.contact
     expect(() => InboxConversationListSchema.parse({ items: [{ ...CONVERSATION, contact: unflagged }], total: 1 })).toThrow()
+  })
+
+  it('accepts a waiting, overdue conversation', () => {
+    const waiting = { ...CONVERSATION, waiting_since: '2026-10-28T08:00:00Z', waiting_overdue: true }
+    expect(InboxConversationListSchema.parse({ items: [waiting], total: 1 }).items[0]).toEqual(waiting)
   })
 
   it('requires UTC timestamps', () => {

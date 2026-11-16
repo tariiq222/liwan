@@ -39,6 +39,8 @@ def dump_conversation(conversation):
         'tags': [dump_ref(tag) for tag in conversation.tag_ids],
         'revision': conversation.revision,
         'last_message_at': iso(conversation.last_message_at),
+        'waiting_since': iso(conversation.waiting_since),
+        'waiting_overdue': conversation.waiting_overdue,
         'last_message_preview': conversation.last_message_preview or None,
         'last_message_kind': conversation.last_message_kind or None,
         'unread': conversation.unread,

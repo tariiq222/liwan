@@ -7,18 +7,19 @@ describe('inbox list route', () => {
   })
 
   it('round-trips every filter through the URL query', () => {
-    const route = { assignee: 'me', state: 'pending', priority: 'urgent', departmentId: 4, csat: 'bad', q: 'سارة', offset: 30 } as const
+    const route = { assignee: 'me', state: 'pending', priority: 'urgent', departmentId: 4, csat: 'bad', q: 'سارة', sort: 'waiting', offset: 30 } as const
     expect(parseInboxListRoute(serializeInboxListRoute(route))).toEqual(route)
   })
 
   it('serializes only filters that differ from the defaults', () => {
     expect(serializeInboxListRoute(DEFAULT_INBOX_LIST_ROUTE)).toEqual({})
     expect(serializeInboxListRoute({ ...DEFAULT_INBOX_LIST_ROUTE, state: 'open' })).toEqual({ state: 'open' })
+    expect(serializeInboxListRoute({ ...DEFAULT_INBOX_LIST_ROUTE, sort: 'waiting' })).toEqual({ sort: 'waiting' })
   })
 
   it('ignores values the list does not know instead of sending them to the server', () => {
-    expect(parseInboxListRoute({ assignee: '7', state: 'archived', priority: 'critical', department_id: '-3', offset: 'x', csat: 'great', q: '  hi ' }))
-      .toEqual({ assignee: 'all', state: '', priority: '', departmentId: null, csat: '', q: 'hi', offset: 0 })
+    expect(parseInboxListRoute({ assignee: '7', state: 'archived', priority: 'critical', department_id: '-3', offset: 'x', csat: 'great', q: '  hi ', sort: 'oldest' }))
+      .toEqual({ assignee: 'all', state: '', priority: '', departmentId: null, csat: '', q: 'hi', sort: 'recent', offset: 0 })
   })
 
   it('takes the first value of a repeated parameter', () => {
@@ -26,8 +27,8 @@ describe('inbox list route', () => {
   })
 
   it('builds the list endpoint query with the page window', () => {
-    expect(inboxListQuery({ assignee: 'unassigned', state: 'open', priority: 'high', departmentId: 2, csat: 'good', q: 'x', offset: 60 }))
-      .toEqual({ assignee: 'unassigned', state: 'open', priority: 'high', department_id: 2, csat: 'good', q: 'x', limit: INBOX_PAGE_SIZE, offset: 60 })
+    expect(inboxListQuery({ assignee: 'unassigned', state: 'open', priority: 'high', departmentId: 2, csat: 'good', q: 'x', sort: 'waiting', offset: 60 }))
+      .toEqual({ assignee: 'unassigned', state: 'open', priority: 'high', department_id: 2, csat: 'good', q: 'x', sort: 'waiting', limit: INBOX_PAGE_SIZE, offset: 60 })
     expect(inboxListQuery(DEFAULT_INBOX_LIST_ROUTE)).toEqual({ limit: INBOX_PAGE_SIZE, offset: 0 })
   })
 
