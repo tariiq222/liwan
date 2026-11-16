@@ -21,7 +21,7 @@
     "@simplewebauthn/browser": "14.0.0",
     "@tailwindcss/vite": "^4.3.4",
     "@vueuse/core": "^14.4.0",
-    "@vueuse/nuxt": "^14.4.0",
+    "@vueuse/nuxt": "^15.0.0",
     "h3": "^1.15.11",
     "nuxt": "^4.6.4",
     "qrcode-generator": "2.0.4",

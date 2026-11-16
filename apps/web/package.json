@@ -33,7 +33,7 @@
     "@unovis/ts": "^1.7.1",
     "@unovis/vue": "^1.7.1",
     "@vueuse/core": "^14.4.0",
-    "@vueuse/nuxt": "^14.4.0",
+    "@vueuse/nuxt": "^15.0.0",
     "h3": "^1.15.11",
     "moyasar-payment-form": "2.3.0",
     "nuxt": "^4.6.4",
