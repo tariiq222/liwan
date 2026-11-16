@@ -323,18 +323,28 @@ describe('personal pages follow the home company', () => {
     }
   })
 
-  it('opens an application page that serves two rights to whoever holds one of them', () => {
-    // The desk's queue is the landing of an agent (helpdesk.tickets.read) and of an employee following their own
-    // requests (helpdesk.requests.read): a route rule names the alternatives and either one opens the page.
-    const employee = {
-      id: 1, role: 'employee', capabilities: ['helpdesk.requests.read', 'helpdesk.requests.create'],
-      platform: { readable_features: ['helpdesk.enabled'], writable_features: [] },
-    } as never
+  it('opens an application page to whoever holds one of the rights it serves', () => {
+    // The desk's queue is `requires_capability(READ, REQUESTS_READ, match='any')` on the server: an agent holding
+    // helpdesk.tickets.read and an employee holding helpdesk.requests.read both open it, and the manifest states the
+    // same pair with `match: 'any'`. A stranger holding neither still meets the refusal.
+    const features = { readable_features: ['helpdesk.enabled'], writable_features: ['helpdesk.enabled'] }
+    const agent = { id: 1, role: 'employee', capabilities: ['helpdesk.tickets.read'], platform: features } as never
+    const employee = { id: 2, role: 'employee', capabilities: ['helpdesk.requests.read'], platform: features } as never
+    const stranger = { id: 3, role: 'employee', capabilities: [], platform: features } as never
+    expect(canReachPath(agent, '/helpdesk')).toBe(true)
     expect(canReachPath(employee, '/helpdesk')).toBe(true)
-    const stranger = {
-      id: 1, role: 'employee', capabilities: [],
-      platform: { readable_features: ['helpdesk.enabled'], writable_features: [] },
-    } as never
     expect(canReachPath(stranger, '/helpdesk')).toBe(false)
+  })
+  it('opens the request form to an employee who may ask but not work the queue', () => {
+    // `create_ticket` calls require_capabilities(WRITE, REQUESTS_CREATE, match='any'), and the page's own guard is
+    // `can(tickets.write) || can(requests.create)`. An employee must reach the form; without the requests-create key
+    // they must not.
+    const features = { readable_features: ['helpdesk.enabled'], writable_features: ['helpdesk.enabled'] }
+    const employee = {
+      id: 1, role: 'employee', capabilities: ['helpdesk.requests.read', 'helpdesk.requests.create'], platform: features,
+    } as never
+    const readerOnly = { id: 2, role: 'employee', capabilities: ['helpdesk.requests.read'], platform: features } as never
+    expect(canReachPath(employee, '/helpdesk/new')).toBe(true)
+    expect(canReachPath(readerOnly, '/helpdesk/new')).toBe(false)
   })
 })

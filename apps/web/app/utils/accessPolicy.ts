@@ -179,18 +179,20 @@ export function canReachPath(identity: AccessIdentity, path: string): boolean {
     return (canReach(identity, 'access.users.assign_roles', path) && hasCapability(identity, 'access.roles.read')) || canReach(identity, 'settings.company.manage', path)
   }
   const rule = ownedRouteRule(path)
+  const feature = requiredFeatureForPath(path)
+  // A rule's keys are read as the server reads them (`liwan_api` `requires_capability`): with `match: 'any'` holding
+  // one of the capability or its alternatives opens the route, and by default the capability and one alternative are
+  // both required (CRM's create route needs read *and* work-or-assign).
+  if (rule?.match === 'any') {
+    return [rule.capability, ...(rule.anyCapabilities ?? [])].some(key => canReach(identity, key, path, feature))
+      && (rule.requiredCapabilities ?? []).every(key => canReach(identity, key))
+  }
   if (rule?.anyCapabilities && !rule.anyCapabilities.some(key => hasCapability(identity, key))) return false
   if (rule?.requiredCapabilities && !rule.requiredCapabilities.every(key => canReach(identity, key))) return false
   const cards = settingsCardsOpeningPage(path)
   if (cards) return cards.some(capability => canReach(identity, capability, normalizedPath(path)))
   const capability = requiredCapabilityForPath(path)
-  if (capability) {
-    // A path whose rule names alternatives is open to whoever holds one of them (an application page that serves
-    // two rights, such as the desk's queue for an agent and for an employee following their own requests).
-    const feature = requiredFeatureForPath(path)
-    if (canReach(identity, capability, path, feature)) return true
-    return (rule?.anyCapabilities ?? []).some(key => canReach(identity, key, path, feature))
-  }
+  if (capability) return canReach(identity, capability, path, feature)
   const manifest = manifestForPath(path)
   return !manifest || hasFeature(identity, manifest.feature, pathIsWrite(path))
 }

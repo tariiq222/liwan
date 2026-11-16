@@ -18,7 +18,7 @@ const manifest: AppManifest = {
   nav: [
     {
       to: '/helpdesk', labelKey: 'helpdesk.nav.tickets', icon: 'i-lucide-life-buoy', shortcut: '',
-      capability: READ, anyCapabilities: [REQUESTS_READ],
+      capability: REQUESTS_READ, anyCapabilities: [READ],
     },
     {
       to: '/helpdesk/reports', labelKey: 'helpdesk.nav.reports', icon: 'i-lucide-chart-column', shortcut: '',
@@ -32,11 +32,11 @@ const manifest: AppManifest = {
     ],
   },
   contextLinks: () => [
-    { id: 'helpdesk-tickets', labelKey: 'helpdesk.nav.tickets', icon: 'i-lucide-life-buoy', to: '/helpdesk', capability: READ, anyCapabilities: [REQUESTS_READ] },
+    { id: 'helpdesk-tickets', labelKey: 'helpdesk.nav.tickets', icon: 'i-lucide-life-buoy', to: '/helpdesk', capability: REQUESTS_READ, anyCapabilities: [READ] },
     { id: 'helpdesk-reports', labelKey: 'helpdesk.nav.reports', icon: 'i-lucide-chart-column', to: '/helpdesk/reports', capability: REPORTS, feature: 'helpdesk.reports' },
   ],
   // The queue is the landing of an agent and of an employee following their own requests.
-  landing: [{ path: '/helpdesk', capability: READ, anyCapabilities: [REQUESTS_READ] }],
+  landing: [{ path: '/helpdesk', capability: REQUESTS_READ, anyCapabilities: [READ] }],
   // Merging needs both its capability and the merge sub-feature the server checks on the same route.
   subFeatures: {
     'helpdesk.tickets.merge': 'helpdesk.merge', 'helpdesk.tickets.merge.': 'helpdesk.merge',
@@ -45,10 +45,12 @@ const manifest: AppManifest = {
   routeCapabilities: [
     // The reports have their own capability and sub-feature, matched before the generic helpdesk rule.
     { pattern: /^\/helpdesk\/reports(?:\/|$)/, capability: REPORTS, feature: 'helpdesk.reports' },
-    // The panel's form and the server both open a ticket for whoever may answer or ask.
-    { pattern: /^\/helpdesk\/new$/, capability: REQUESTS_CREATE, anyCapabilities: [WRITE] },
+    // The server opens a ticket with `match='any'` on the write or the requests-create key, so the form follows it.
+    { pattern: /^\/helpdesk\/new$/, capability: REQUESTS_CREATE, anyCapabilities: [WRITE], match: 'any' },
+    // Editing a ticket is `liwan.helpdesk.service._liwan_update`, which requires the write key alone.
     { pattern: /^\/helpdesk\/[^/]+\/edit$/, capability: WRITE },
-    { pattern: /^\/helpdesk(?:\/|$)/, capability: READ, anyCapabilities: [REQUESTS_READ] },
+    // The queue and the ticket: `requires_capability(READ, REQUESTS_READ, match='any')` on the routes.
+    { pattern: /^\/helpdesk(?:\/|$)/, capability: READ, anyCapabilities: [REQUESTS_READ], match: 'any' },
     { pattern: /^\/settings\/apps\/helpdesk(?:\/|$)/, capability: 'helpdesk.settings.read' },
   ],
   commands: [
