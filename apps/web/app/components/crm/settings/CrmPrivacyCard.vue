@@ -24,19 +24,18 @@ const visibilityHint = computed(() => ({
 
 <template>
   <SharedSettingsCard id="privacy" v-bind="state" :title="t('crm.settings.privacy.title')" :description="t('crm.settings.privacy.hint')" :can-edit="canEdit" @save="save" @revert="revert" @reload="reload">
-    <SharedSettingRow :label="t('crm.settings.privacy.visibility')" name="visibility" :description="visibilityHint">
-      <USelect id="visibility" v-model="draft.visibility" class="w-full min-w-44" :items="visibilityItems" :disabled="locked" />
-    </SharedSettingRow>
-    <SharedSettingRow :label="t('crm.settings.privacy.viewLog')" :description="t('crm.settings.privacy.viewLogHint')">
-      <USwitch v-model="draft.view_log_enabled" :disabled="locked" :aria-label="t('crm.settings.privacy.viewLog')" />
-    </SharedSettingRow>
-    <SharedSettingRow
-      v-if="draft.view_log_enabled"
-      :label="t('crm.settings.privacy.viewLogRetention')"
-      :description="t('crm.settings.privacy.viewLogRetentionHint')"
-      name="view_log_retention_months"
-    >
-      <UInput id="view-log-retention" v-model.number="draft.view_log_retention_months" type="number" min="1" max="60" class="w-24" :disabled="locked" />
-    </SharedSettingRow>
+    <div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
+      <UFormField :label="t('crm.settings.privacy.visibility')" name="visibility" :help="visibilityHint">
+        <USelect id="visibility" v-model="draft.visibility" class="w-full" :items="visibilityItems" :disabled="locked" />
+      </UFormField>
+      <UFormField :label="t('crm.settings.privacy.viewLog')" name="view_log_enabled" :help="t('crm.settings.privacy.viewLogHint')">
+        <div class="flex min-h-(--liwan-control-h) items-center">
+          <USwitch v-model="draft.view_log_enabled" :disabled="locked" :aria-label="t('crm.settings.privacy.viewLog')" />
+        </div>
+      </UFormField>
+      <UFormField v-if="draft.view_log_enabled" :label="t('crm.settings.privacy.viewLogRetention')" name="view_log_retention_months" :help="t('crm.settings.privacy.viewLogRetentionHint')">
+        <UInput id="view-log-retention" v-model.number="draft.view_log_retention_months" type="number" min="1" max="60" class="w-full" :disabled="locked" />
+      </UFormField>
+    </div>
   </SharedSettingsCard>
 </template>

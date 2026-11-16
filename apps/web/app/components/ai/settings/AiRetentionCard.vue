@@ -35,11 +35,13 @@ const submit = () => { if (valid.value && leaverValid.value) return save() }
 
 <template>
   <SharedSettingsCard id="retention" v-bind="state" :title="t('ai.settings.retention.title')" :description="t('ai.settings.retention.hint')" :can-edit="true" data-testid="ai-settings-retention" @save="submit" @revert="revert" @reload="reload">
-    <UFormField orientation="horizontal" :label="t('ai.settings.retention.label')" name="retention_days" :description="t('ai.settings.retention.bounds', bounds)" :error="valid ? undefined : t('ai.settings.retention.invalid', bounds)">
-      <UInputNumber id="ai-retention-days" v-model="draft.retention_days" class="w-full" :min="bounds.min" :max="bounds.max" :disabled="!hydrated || state.saving" />
-    </UFormField>
-    <UFormField orientation="horizontal" :label="t('ai.settings.retention.leaverLabel')" name="leaver_retention_days" :description="t('ai.settings.retention.leaverHint', leaverBounds)" :error="leaverValid ? undefined : t('ai.settings.retention.invalid', leaverBounds)">
-      <UInputNumber id="ai-leaver-retention-days" v-model="draft.leaver_retention_days" class="w-full" :min="leaverBounds.min" :max="leaverBounds.max" :disabled="!hydrated || state.saving" />
-    </UFormField>
+    <div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
+      <UFormField :label="t('ai.settings.retention.label')" name="retention_days" :help="t('ai.settings.retention.bounds', bounds)" :error="valid ? undefined : t('ai.settings.retention.invalid', bounds)">
+        <UInputNumber id="ai-retention-days" v-model="draft.retention_days" class="w-full" :min="bounds.min" :max="bounds.max" :disabled="!hydrated || state.saving" />
+      </UFormField>
+      <UFormField :label="t('ai.settings.retention.leaverLabel')" name="leaver_retention_days" :help="t('ai.settings.retention.leaverHint', leaverBounds)" :error="leaverValid ? undefined : t('ai.settings.retention.invalid', leaverBounds)">
+        <UInputNumber id="ai-leaver-retention-days" v-model="draft.leaver_retention_days" class="w-full" :min="leaverBounds.min" :max="leaverBounds.max" :disabled="!hydrated || state.saving" />
+      </UFormField>
+    </div>
   </SharedSettingsCard>
 </template>

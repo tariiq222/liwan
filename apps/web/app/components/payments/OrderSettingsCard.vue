@@ -48,7 +48,8 @@ const submit = () => { if (validExpiry.value) return save() }
 
 <template>
   <SharedSettingsCard id="orders" v-bind="state" :title="t('payments.orders.title')" :description="t('payments.orders.hint')" :can-edit="canEdit" data-testid="payments-orders" @save="submit" @revert="revert" @reload="reload">
-    <UFormField orientation="horizontal" :label="t('payments.orders.expiry.label')" name="unpaid_order_expiry_minutes" :description="t('payments.orders.expiry.hint', PAYMENT_ORDER_EXPIRY_MINUTES)" :error="expiryError">
+    <div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
+    <UFormField :label="t('payments.orders.expiry.label')" name="unpaid_order_expiry_minutes" :help="t('payments.orders.expiry.hint', PAYMENT_ORDER_EXPIRY_MINUTES)" :error="expiryError">
       <UInputNumber
         id="payments-order-expiry"
         v-model="draft.unpaid_order_expiry_minutes"
@@ -58,6 +59,7 @@ const submit = () => { if (validExpiry.value) return save() }
         :disabled="locked"
       />
     </UFormField>
+    </div>
     <SharedSettingRow :label="t('payments.orders.systemAdminLinks.label')" :description="t('payments.orders.systemAdminLinks.hint')">
       <USwitch id="payments-system-admin-links" v-model="draft.system_admin_links" :disabled="locked" :aria-label="t('payments.orders.systemAdminLinks.label')" />
     </SharedSettingRow>

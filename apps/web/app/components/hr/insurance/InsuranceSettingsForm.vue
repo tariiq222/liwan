@@ -44,12 +44,14 @@ async function submit() {
 
 <template>
   <SharedSettingsCard id="insurance-policy" v-bind="state" :title="t('hrInsurance.settings.title')" :description="t('hrInsurance.settings.hint')" :can-edit="canEdit" data-testid="hr-insurance-settings" @save="submit" @revert="revert" @reload="reload">
-    <SharedSettingRow :label="t('hrInsurance.settings.visibility')" name="insurance-visibility" :description="t('hrInsurance.settings.visibilityHint')">
+    <div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
+    <UFormField :label="t('hrInsurance.settings.visibility')" name="insurance-visibility" :help="t('hrInsurance.settings.visibilityHint')">
       <USelect id="insurance-visibility" v-model="draft.insurance_visibility" class="w-full" :items="visibilityItems" :disabled="locked" data-testid="hr-insurance-visibility" />
-    </SharedSettingRow>
-    <UFormField orientation="horizontal" :label="t('hrInsurance.settings.alertDays')" name="insurance-alert-days" :description="t('hrInsurance.settings.alertDaysHint')" :error="daysError">
+    </UFormField>
+    <UFormField :label="t('hrInsurance.settings.alertDays')" name="insurance-alert-days" :help="t('hrInsurance.settings.alertDaysHint')" :error="daysError">
       <UInputNumber id="insurance-alert-days" v-model="draft.insurance_expiry_alert_days" class="w-full" :min="ALERT_DAYS.min" :max="ALERT_DAYS.max" :step="1" :disabled="locked" data-testid="hr-insurance-alert-days" />
     </UFormField>
+    </div>
     <SharedSettingRow name="insurance-require-id" :label="t('hrInsurance.settings.requireId')" :description="t('hrInsurance.settings.requireIdHint')">
       <USwitch v-model="draft.insurance_require_dependent_id" :aria-label="t('hrInsurance.settings.requireId')" :disabled="locked" data-testid="hr-insurance-require-id" />
     </SharedSettingRow>

@@ -85,11 +85,13 @@ async function saveRole() {
   <SharedSettingsCard id="role" v-bind="state" :title="t('access.roles.details')" :can-edit="canEdit" @save="saveRole" @revert="revert" @reload="reload">
     <UAlert v-if="!canEdit && role.protected" color="neutral" variant="subtle" icon="i-lucide-lock" :title="t('access.protectedRole')" />
     <UAlert v-if="!role.active" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('access.roles.disabledExistingAssignments')" />
-    <SharedSettingRow :label="t('access.roles.nameArabic')" name="nameAr"><UInput v-model="draft.nameAr" class="w-full" :disabled="locked" /></SharedSettingRow>
-    <SharedSettingRow :label="t('access.roles.nameEnglish')" name="nameEn"><UInput v-model="draft.nameEn" dir="ltr" class="w-full" :disabled="locked" /></SharedSettingRow>
-    <SharedSettingRow :label="t('access.roles.descriptionLabel')" name="description">
-      <UTextarea :model-value="descriptionView" class="w-full" :disabled="locked" @update:model-value="(value) => { draft.description = String(value ?? '') }" />
-    </SharedSettingRow>
+    <div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
+      <UFormField name="nameAr" :label="t('access.roles.nameArabic')"><UInput v-model="draft.nameAr" class="w-full" :disabled="locked" /></UFormField>
+      <UFormField name="nameEn" :label="t('access.roles.nameEnglish')"><UInput v-model="draft.nameEn" dir="ltr" class="w-full" :disabled="locked" /></UFormField>
+      <UFormField name="description" :label="t('access.roles.descriptionLabel')">
+        <UTextarea :model-value="descriptionView" class="w-full" :disabled="locked" @update:model-value="(value) => { draft.description = String(value ?? '') }" />
+      </UFormField>
+    </div>
     <fieldset class="grid min-w-0 gap-3" :disabled="locked">
       <legend class="mb-1 text-sm font-medium text-highlighted">{{ t('access.roles.permissions') }}</legend>
       <UAlert v-if="canEdit && permissions.some((permission) => permission.sensitive)" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('access.roles.sensitiveNotice')" />

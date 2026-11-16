@@ -61,11 +61,13 @@ async function submitReminders() {
     </SharedSettingRow>
   </SharedSettingsCard>
   <SharedSettingsCard id="meetings-reminders" v-bind="reminders.state.value" :title="t('meetingsSettings.reminders.title')" :description="t('meetingsSettings.reminders.hint')" :can-edit="canEdit" @save="submitReminders" @revert="reminders.revert" @reload="reminders.reload">
-    <UFormField orientation="horizontal" :label="t('meetingsSettings.reminders.hoursLabel')" name="reminder_hours" required :description="t('meetingsSettings.reminders.hoursHelp')" :error="reminderError">
-      <UInputNumber v-model="reminders.draft.value.reminder_hours" :min="hoursRange.min" :max="hoursRange.max" :step="1" class="w-full" :disabled="locked(reminders)" data-testid="meetings-reminder-hours" />
+    <div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
+    <UFormField :label="t('meetingsSettings.reminders.hoursLabel')" name="reminder_hours" required :help="t('meetingsSettings.reminders.hoursHelp')" :error="reminderError">
+      <UInputNumber v-model="reminders.draft.value.reminder_hours" required :min="hoursRange.min" :max="hoursRange.max" :step="1" class="w-full" :disabled="locked(reminders)" data-testid="meetings-reminder-hours" />
     </UFormField>
-    <UFormField orientation="horizontal" :label="t('meetingsSettings.reminders.prefixLabel')" name="reference_prefix" required :description="t('meetingsSettings.reminders.prefixHelp')" :error="prefixError">
-      <UInput v-model="reminders.draft.value.reference_prefix" dir="ltr" :maxlength="settings.options.reference_prefix.max_length" class="w-full" :disabled="locked(reminders)" data-testid="meetings-reference-prefix" />
+    <UFormField :label="t('meetingsSettings.reminders.prefixLabel')" name="reference_prefix" required :help="t('meetingsSettings.reminders.prefixHelp')" :error="prefixError">
+      <UInput v-model="reminders.draft.value.reference_prefix" required dir="ltr" :maxlength="settings.options.reference_prefix.max_length" class="w-full" :disabled="locked(reminders)" data-testid="meetings-reference-prefix" />
     </UFormField>
+    </div>
   </SharedSettingsCard>
 </template>

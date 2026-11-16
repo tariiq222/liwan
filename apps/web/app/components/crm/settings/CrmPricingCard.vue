@@ -22,14 +22,18 @@ const locked = computed(() => !hydrated.value || !props.canEdit || state.value.s
 
 <template>
   <SharedSettingsCard id="pricing" v-bind="state" :title="t('crm.settings.pricing.title')" :description="t('crm.settings.pricing.hint')" :can-edit="canEdit" @save="save" @revert="revert" @reload="reload">
-    <SharedSettingRow :label="t('crm.settings.pricing.discountAllowed')" :description="t('crm.settings.pricing.discountAllowedHint')">
-      <USwitch v-model="draft.discount_allowed" :disabled="locked" :aria-label="t('crm.settings.pricing.discountAllowed')" />
-    </SharedSettingRow>
-    <UFormField orientation="horizontal" v-if="draft.discount_allowed" :label="t('crm.settings.pricing.discountMax')" name="discount-max" :description="t('crm.settings.pricing.discountMaxHint')">
-      <UInputNumber id="discount-max" v-model="draft.discount_max_percent" class="w-full" :min="range.min" :max="range.max" :disabled="locked" />
-    </UFormField>
-    <SharedSettingRow :label="t('crm.settings.pricing.aboveList')" name="price-above-list" :description="t('crm.settings.pricing.aboveListHint')">
-      <USelect id="price-above-list" v-model="draft.price_above_list" class="w-full min-w-44" :items="aboveListItems" :disabled="locked" />
-    </SharedSettingRow>
+    <div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
+      <UFormField :label="t('crm.settings.pricing.discountAllowed')" name="discount-allowed" :help="t('crm.settings.pricing.discountAllowedHint')">
+        <div class="flex min-h-(--liwan-control-h) items-center">
+          <USwitch v-model="draft.discount_allowed" :disabled="locked" :aria-label="t('crm.settings.pricing.discountAllowed')" />
+        </div>
+      </UFormField>
+      <UFormField v-if="draft.discount_allowed" :label="t('crm.settings.pricing.discountMax')" name="discount-max" :help="t('crm.settings.pricing.discountMaxHint')">
+        <UInputNumber id="discount-max" v-model="draft.discount_max_percent" class="w-full" :min="range.min" :max="range.max" :disabled="locked" />
+      </UFormField>
+      <UFormField :label="t('crm.settings.pricing.aboveList')" name="price-above-list" :help="t('crm.settings.pricing.aboveListHint')">
+        <USelect id="price-above-list" v-model="draft.price_above_list" class="w-full" :items="aboveListItems" :disabled="locked" />
+      </UFormField>
+    </div>
   </SharedSettingsCard>
 </template>
