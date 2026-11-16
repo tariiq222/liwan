@@ -42,7 +42,8 @@
     "liwan_api_account": 5,
     "liwan_products_account": 5,
     "liwan_payments_customers": 5,
-    "liwan_integrations_payments": 5
+    "liwan_integrations_payments": 5,
+    "liwan_helpdesk_tasks": 5
   },
   "exempt": [],
   "web_apps": {
