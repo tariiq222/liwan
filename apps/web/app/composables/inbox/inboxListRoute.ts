@@ -1,24 +1,28 @@
 import type { LocationQuery } from 'vue-router'
-import { InboxConversationStateSchema, InboxPrioritySchema, type InboxConversationState, type InboxPriority } from '@liwan/contracts'
+import { InboxChannelKindSchema, InboxConversationStateSchema, InboxPrioritySchema, type InboxChannelKind, type InboxConversationState, type InboxPriority } from '@liwan/contracts'
 import { CSAT_SCORES, type CsatScore } from './inboxPresentation'
 
 /** Conversations per list page. */
 export const INBOX_PAGE_SIZE = 30
 
 export type InboxAssigneeScope = 'all' | 'me' | 'unassigned'
+/** The list order: the latest message first, or the customer who has waited longest first. */
+export type InboxListSort = 'recent' | 'waiting'
 
 /** The list filters of the inbox. They live in the URL query, so a direct link, a refresh and Back keep them. */
 export interface InboxListRoute {
   assignee: InboxAssigneeScope
   state: InboxConversationState | ''
   priority: InboxPriority | ''
+  channel: InboxChannelKind | ''
   departmentId: number | null
   csat: CsatScore | ''
   q: string
+  sort: InboxListSort
   offset: number
 }
 
-export const DEFAULT_INBOX_LIST_ROUTE: InboxListRoute = { assignee: 'all', state: '', priority: '', departmentId: null, csat: '', q: '', offset: 0 }
+export const DEFAULT_INBOX_LIST_ROUTE: InboxListRoute = { assignee: 'all', state: '', priority: '', channel: '', departmentId: null, csat: '', q: '', sort: 'recent', offset: 0 }
 
 function single(value: LocationQuery[string] | undefined): string {
   return (Array.isArray(value) ? value[0] : value) ?? ''
@@ -33,15 +37,18 @@ export function parseInboxListRoute(query: LocationQuery): InboxListRoute {
   const assignee = single(query.assignee)
   const state = InboxConversationStateSchema.safeParse(single(query.state))
   const priority = InboxPrioritySchema.safeParse(single(query.priority))
+  const channel = InboxChannelKindSchema.safeParse(single(query.channel))
   const csat = CSAT_SCORES.find(score => score === single(query.csat))
   const offset = Number(single(query.offset))
   return {
     assignee: assignee === 'me' || assignee === 'unassigned' ? assignee : 'all',
     state: state.success ? state.data : '',
     priority: priority.success ? priority.data : '',
+    channel: channel.success ? channel.data : '',
     departmentId: positiveInt(single(query.department_id)),
     csat: csat ?? '',
     q: single(query.q).trim(),
+    sort: single(query.sort) === 'waiting' ? 'waiting' : 'recent',
     offset: Number.isSafeInteger(offset) && offset > 0 ? offset : 0,
   }
 }
@@ -52,22 +59,26 @@ export function serializeInboxListRoute(route: InboxListRoute): Record<string, s
     ...(route.assignee !== 'all' ? { assignee: route.assignee } : {}),
     ...(route.state ? { state: route.state } : {}),
     ...(route.priority ? { priority: route.priority } : {}),
+    ...(route.channel ? { channel: route.channel } : {}),
     ...(route.departmentId ? { department_id: String(route.departmentId) } : {}),
     ...(route.csat ? { csat: route.csat } : {}),
     ...(route.q ? { q: route.q } : {}),
+    ...(route.sort !== 'recent' ? { sort: route.sort } : {}),
     ...(route.offset ? { offset: String(route.offset) } : {}),
   }
 }
 
-/** The query the list endpoint takes (the same filters drive the CSV export). */
+/** The query the list endpoint takes (the same filters drive the CSV export, which is not ordered). */
 export function inboxListQuery(route: InboxListRoute): Record<string, string | number> {
   return {
     ...(route.assignee !== 'all' ? { assignee: route.assignee } : {}),
     ...(route.state ? { state: route.state } : {}),
     ...(route.priority ? { priority: route.priority } : {}),
+    ...(route.channel ? { channel_kind: route.channel } : {}),
     ...(route.departmentId ? { department_id: route.departmentId } : {}),
     ...(route.csat ? { csat: route.csat } : {}),
     ...(route.q ? { q: route.q } : {}),
+    ...(route.sort === 'waiting' ? { sort: route.sort } : {}),
     limit: INBOX_PAGE_SIZE,
     offset: route.offset,
   }

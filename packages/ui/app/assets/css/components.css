@@ -458,6 +458,20 @@ ul.list-disc > li::marker { content: "◆  "; color: var(--primary); font-size: 
   }
 }
 
+/* The conversation frame (SharedConversationLayout): below 768px a fixed-height card above the tab bar; from 768px the page
+   stack that holds it becomes a column filling the area under the floating header, and the frame takes what the page header
+   leaves, so its bottom edge sits one shell inset above the viewport bottom (the main area's 80px bottom padding is cancelled). */
+.liwan-conversation-fill { height: max(540px, calc(100svh - 340px)); }
+@media (min-width: 768px) {
+  .liwan-page-stack:has(> .liwan-conversation-fill) {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100svh - var(--shell-top) - var(--liwan-pad-top) - var(--shell-inset));
+    margin-block-end: calc(var(--shell-inset) - 80px);
+  }
+  .liwan-conversation-fill { flex: 1 1 0; height: auto; min-height: 540px; }
+}
+
 /* Touch targets below 768px are 44px (DESIGN.md): `.liwan-touch-target` on a control, `-buttons` on a wrapper of
    buttons, `-row-actions` where the buttons also need a 44px width. */
 @media (max-width: 767px) {

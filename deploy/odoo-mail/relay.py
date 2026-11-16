@@ -10,15 +10,20 @@ upstream smarthost the operator configured, over STARTTLS. It is not a mail serv
   transaction is reset before DATA and nobody receives the message.
 * It listens only on the addresses of its internal network: every non-loopback address except the one on the interface
   that holds the default route (the routed edge). Without a default route it refuses to start rather than guess.
-* It refuses a message whose envelope sender or `From` header is not the configured platform address, so one tenant
-  cannot send as another domain. A mismatch is rejected, not rewritten: a rewrite would deliver a message under an
-  identity the sender did not choose, and would hide the misconfiguration. The display name is NOT checked.
+* The envelope sender, the `From` header and every identity header must name ONE same address. That address is allowed
+  when it is the configured platform address, or when its domain is neither a reserved domain nor a subdomain of one
+  (a tenant's own verified domain). The platform domain is always reserved, so nobody but the platform address sends
+  as it. The relay has no database: which tenant owns which domain is checked by the provider and by Odoo, not here.
+  A mismatch is rejected, not rewritten: a rewrite would deliver a message under an identity the sender did not
+  choose, and would hide the misconfiguration. The display name is NOT checked.
 * The message must be strict CRLF text: a bare CR, a bare LF, a NUL byte or a terminator other than CRLF.CRLF refuses
   the message and closes the connection (SMTP smuggling). The header block is parsed by hand and must be unambiguous.
 * STARTTLS to the upstream is mandatory and its certificate and host name are verified. There is no plaintext path.
 
 Everything comes from the environment (the compose file passes it); nothing is read from or written to disk.
   ODOO_MAIL_SENDER            the platform address, for example no-reply@liwanos.com
+  ODOO_MAIL_RESERVED_DOMAINS  comma-separated lower-case domains no tenant may send from; the domain of
+                              ODOO_MAIL_SENDER is always reserved, so the default is that domain alone
   ODOO_MAIL_UPSTREAM_HOST     the smarthost (OCI Email Delivery in Jeddah)
   ODOO_MAIL_UPSTREAM_PORT     default 587
   ODOO_MAIL_UPSTREAM_USER, ODOO_MAIL_UPSTREAM_PASSWORD   both or neither
@@ -69,6 +74,7 @@ SIOCGIFADDR = 0x8915
 
 _ADDR = r'[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+'
 ADDRESS = re.compile(rf'^{_ADDR}$')
+DOMAIN = re.compile(r'^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$')
 HOSTNAME = re.compile(r'^(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$')
 MAIL_COMMAND = re.compile(r'^MAIL FROM:\s*<([^<>\s]*)>((?:\s+[A-Za-z0-9-]+(?:=\S*)?)*)\s*$', re.IGNORECASE)
 RCPT_COMMAND = re.compile(r'^RCPT TO:\s*<([^<>\s,;"@]+@[^<>\s,;"@]+)>\s*$', re.IGNORECASE)
@@ -115,8 +121,20 @@ class Config:
             raise ConfigError('ODOO_MAIL_SENDER is not a plain address')
         if self.host and not HOSTNAME.match(self.host):
             raise ConfigError('ODOO_MAIL_UPSTREAM_HOST is not a host name')
+        self.reserved_domains = self._reserved(environ.get('ODOO_MAIL_RESERVED_DOMAINS') or '', self.sender)
         if bool(self.user) != bool(self.password):
             raise ConfigError('ODOO_MAIL_UPSTREAM_USER and ODOO_MAIL_UPSTREAM_PASSWORD are set together or not at all')
+
+    @staticmethod
+    def _reserved(raw, sender):
+        domains = {item.strip() for item in raw.split(',') if item.strip()}
+        for domain in domains:
+            if not DOMAIN.match(domain):
+                message = 'ODOO_MAIL_RESERVED_DOMAINS holds a domain that is not lower-case ASCII with a dot'
+                raise ConfigError(message)
+        if sender:
+            domains.add(sender.rpartition('@')[2])
+        return frozenset(domains)
 
     @staticmethod
     def _number(environ, name, default, low, high):
@@ -130,6 +148,16 @@ class Config:
     @property
     def ready(self):
         return bool(self.sender and self.host)
+
+    def permits(self, address):
+        """True for the platform address, or an address on a strictly valid domain that is not reserved or under one."""
+        address = address.lower()
+        if address == self.sender:
+            return True
+        domain = address.rpartition('@')[2]
+        if not ADDRESS.match(address) or not DOMAIN.match(domain):
+            return False
+        return not any(domain == reserved or domain.endswith('.' + reserved) for reserved in self.reserved_domains)
 
 
 def default_route_interface(route_table):
@@ -203,7 +231,7 @@ def mailbox_address(value):
 
 
 def check_message(data, sender):
-    """Return ``None`` when the message names the platform address as its only author, else the reason."""
+    """Return ``None`` when the message names the envelope sender as its only author, else the reason."""
     try:
         headers = split_headers(data)
     except ValueError as error:
@@ -212,12 +240,12 @@ def check_message(data, sender):
     if len(authors) != 1:
         return 'exactly one From header is required'
     if mailbox_address(authors[0]) != sender:
-        return 'the From header is not the platform address'
+        return 'the From header is not the envelope sender'
     for name, value in headers:
         if name == 'return-path' and not value.strip():
             continue  # stock mail.mail writes an empty one when no bounce address is set; it names nobody
         if name in IDENTITY_HEADERS and mailbox_address(value) != sender:
-            return f'the {name} header is not the platform address'
+            return f'the {name} header is not the envelope sender'
     return None
 
 
@@ -467,7 +495,7 @@ class Session(socketserver.BaseRequestHandler):
         match = MAIL_COMMAND.match(command)
         if not match:
             return self.reply(501, '5.5.4 syntax: MAIL FROM:<address>')
-        if match.group(1).lower() != config.sender:
+        if not config.permits(match.group(1)):
             return self.reply(553, '5.7.1 sender address not permitted')
         size = 0
         for parameter in match.group(2).split():
@@ -481,7 +509,7 @@ class Session(socketserver.BaseRequestHandler):
                 return self.reply(555, '5.5.4 parameter not supported')
         if size > config.max_bytes:
             return self.reply(552, '5.3.4 message too large')
-        self.mail_from = config.sender
+        self.mail_from = match.group(1).lower()
         self.reply(250, '2.1.0 ok')
 
     def on_rcpt(self, command):

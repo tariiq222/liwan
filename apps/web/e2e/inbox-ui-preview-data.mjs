@@ -18,6 +18,16 @@ const AGENTS = [{ id: 5, name: 'نورة الحربي' }, { id: 6, name: 'سار
 const HOUR = 3_600_000
 const iso = ms => new Date(Math.floor(ms / 1000) * 1000).toISOString().replace('.000Z', 'Z')
 const ago = hours => iso(Date.now() - hours * HOUR)
+// The wait after which a row is overdue (the mock's own threshold; the settings answer stays at its default).
+const WAITING_OVERDUE_MS = 1.5 * HOUR
+
+// Since when the customer waits: the first customer message after the last reply of an agent (a conversation nobody waits in has none).
+function refreshWaiting(conv, thread) {
+  const lastReply = thread.findLast(item => item.direction === 'out' && item.author)
+  const waiting = thread.find(item => item.direction === 'in' && (!lastReply || Date.parse(item.created_at) > Date.parse(lastReply.created_at)))
+  conv.waiting_since = waiting?.created_at ?? null
+  conv.waiting_overdue = !!waiting && Date.now() - Date.parse(waiting.created_at) >= WAITING_OVERDUE_MS
+}
 
 // The provider accounts the channels run on, as the integrations mock serves them (apps/web/e2e/integrations-mock-routes.mjs;
 // its state is private to that module, so the accounts are repeated here): 1 is the `meta` account (Meta app id 555),
@@ -58,7 +68,7 @@ function seed() {
   ]
   const conversation = (id, contact, rest) => ({
     id, contact, channel: { id: 1, name: channels[0].name, kind: 'whatsapp' }, department: null, assignee: null, state: 'open', priority: 'normal', tags: [], revision: 1,
-    last_message_at: null, last_message_preview: null, last_message_kind: null, unread: false, reply_window_ends_at: null, csat: null, referral_source: null, referral_ref: null, ...rest,
+    last_message_at: null, waiting_since: null, waiting_overdue: false, last_message_preview: null, last_message_kind: null, unread: false, reply_window_ends_at: null, csat: null, referral_source: null, referral_ref: null, ...rest,
   })
   const conversations = [
     conversation(1, contacts[0], { assignee: ME, department: { id: 1, name: 'الاستقبال' }, tags: [tags[1]], unread: true, reply_window_ends_at: iso(Date.now() + 20 * HOUR) }),
@@ -213,6 +223,7 @@ function seed() {
     c.last_message_at = last.created_at
     c.last_message_preview = last.body.slice(0, 140) || null
     c.last_message_kind = last.kind
+    refreshWaiting(c, messages[c.id])
   }
   const sample = { id: 7, name: 'عينة-العيادة.jpg', mimetype: 'image/jpeg', size: 90000 }
   const template = (id, name, rest) => ({
@@ -324,17 +335,21 @@ function conversationList(url) {
   const wanted = {
     state: url.searchParams.get('state'),
     priority: url.searchParams.get('priority'),
+    channelKind: url.searchParams.get('channel_kind'),
     department: Number(url.searchParams.get('department_id')) || null,
     csat: url.searchParams.get('csat'),
   }
   const items = state.conversations
     .filter(c => !wanted.state || c.state === wanted.state)
     .filter(c => !wanted.priority || c.priority === wanted.priority)
+    .filter(c => !wanted.channelKind || c.channel.kind === wanted.channelKind)
     .filter(c => !wanted.department || c.department?.id === wanted.department)
     .filter(c => !wanted.csat || c.csat?.score === wanted.csat)
     .filter(c => !assignee || (assignee === 'me' ? c.assignee?.id === ME.id : assignee === 'unassigned' ? !c.assignee : c.assignee?.id === Number(assignee)))
     .filter(c => !q || [c.contact.name, c.contact.phone, c.last_message_preview].some(text => text?.includes(q)))
     .sort((a, b) => Date.parse(b.last_message_at) - Date.parse(a.last_message_at))
+  const waitingStart = c => (c.waiting_since ? Date.parse(c.waiting_since) : Number.MAX_SAFE_INTEGER)
+  if (url.searchParams.get('sort') === 'waiting') items.sort((a, b) => waitingStart(a) - waitingStart(b))
   return page(items, url)
 }
 
@@ -371,6 +386,7 @@ function appendMessage(conv, fields) {
     conv.last_message_kind = created.kind
     state.statuses.set(created.id, Date.now())
   }
+  refreshWaiting(conv, state.messages[conv.id])
   return created
 }
 

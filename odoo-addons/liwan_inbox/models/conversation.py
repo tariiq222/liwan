@@ -76,6 +76,8 @@ class LiwanInboxConversation(models.Model):
     # answer to the satisfaction survey.
     away_sent_at = fields.Datetime(copy=False)
     waiting_since = fields.Datetime(compute='_compute_waiting_since', store=True, index=True)
+    # Whether the wait passed the company's first-response threshold: computed on read from the setting, never stored.
+    waiting_overdue = fields.Boolean(compute='_compute_waiting_overdue')
     first_response_alerted = fields.Boolean(default=False, copy=False)
     csat_score = fields.Selection([('good', 'Good'), ('neutral', 'Neutral'), ('bad', 'Bad')], copy=False, index=True)
     csat_at = fields.Datetime(copy=False)
@@ -135,6 +137,17 @@ class LiwanInboxConversation(models.Model):
                 lambda m: m.direction == 'in' and m.selected_option_id not in CSAT_SCORES and (not last_reply or m.date > last_reply),
             )
             conversation.waiting_since = min(waiting.mapped('date'), default=False)
+
+    @api.depends('waiting_since', 'company_id')
+    def _compute_waiting_overdue(self):
+        now = fields.Datetime.now()
+        Settings = self.env['liwan.inbox.settings']
+        minutes = {company: Settings._liwan_read_for_company(company).first_response_alert_minutes for company in self.company_id}
+        for conversation in self:
+            threshold = minutes[conversation.company_id]
+            conversation.waiting_overdue = bool(
+                threshold and conversation.waiting_since and conversation.waiting_since <= now - relativedelta(minutes=threshold),
+            )
 
     def _liwan_latest_inbound(self):
         """The newest inbound message the provider knows (a read receipt or typing call names it)."""

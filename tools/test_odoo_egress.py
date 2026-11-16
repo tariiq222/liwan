@@ -29,6 +29,8 @@ EXPECTED_HOSTS = (
     'uae.paymob.com',
     'accept.paymob.com',
     'oman.paymob.com',
+    'ctrl.email.me-jeddah-1.oci.oraclecloud.com',  # liwan_notify/models/mail_domain_oci.py EMAIL_API at DEFAULT_REGION
+    'logging.me-jeddah-1.oci.oraclecloud.com',  # liwan_notify/models/mail_domain_oci.py LOGGING_API and LOG_SEARCH_API at DEFAULT_REGION
 )
 # What the ai service may reach by default; none of it belongs to Odoo.
 AI_PROVIDER_HOSTS = ('api.openai.com', 'api.anthropic.com', 'openrouter.ai')

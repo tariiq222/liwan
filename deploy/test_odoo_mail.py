@@ -216,9 +216,72 @@ class ProtocolCase(unittest.TestCase):
     def test_another_envelope_sender_is_refused_and_nothing_is_sent(self):
         smtp = self.client(self.start())
         with self.assertRaises(smtplib.SMTPSenderRefused) as raised:
-            smtp.sendmail('boss@other.example', ['a@example.org'], self.message())
+            smtp.sendmail('boss@liwanos.com', ['a@example.org'], self.message())
         self.assertEqual(raised.exception.smtp_code, 553)
         self.assertEqual(self.sent, [])
+
+    def tenant_message(self, address, header=None, **kwargs):
+        return self.message(f'From: {address}' if header is None else header, **kwargs)
+
+    def test_a_tenant_address_on_another_domain_is_relayed_with_one_identity(self):
+        smtp = self.client(self.start())
+        tenant = 'billing@acme.example'
+        self.assertEqual(smtp.sendmail(tenant, ['a@example.org'], self.tenant_message(
+            tenant, extra=f'Sender: {tenant}\r\nReturn-Path: <{tenant}>\r\n')), {})
+        self.assertEqual(self.sent[0][0], tenant)
+
+    def test_another_address_on_the_platform_domain_or_below_it_is_refused(self):
+        port = self.start()
+        for address in ('boss@liwanos.com', 'x@mail.liwanos.com', 'x@a.b.liwanos.com', 'x@LIWANOS.COM', 'x@liwanos.com.'):
+            with self.subTest(address=address):
+                with self.assertRaises(smtplib.SMTPSenderRefused) as raised:
+                    self.client(port).sendmail(address, ['a@example.org'], self.tenant_message(address))
+                self.assertEqual(raised.exception.smtp_code, 553)
+        self.assertEqual(self.sent, [])
+
+    def test_a_domain_that_only_ends_like_a_reserved_one_is_not_reserved(self):
+        smtp = self.client(self.start())
+        smtp.sendmail('x@notliwanos.com', ['a@example.org'], self.tenant_message('x@notliwanos.com'))
+        self.assertEqual(self.sent[0][0], 'x@notliwanos.com')
+
+    def test_an_extra_reserved_domain_from_the_environment_is_refused_with_its_subdomains(self):
+        port = self.start(ODOO_MAIL_RESERVED_DOMAINS='bank.example, other.example')
+        for address in ('x@bank.example', 'x@other.example', 'x@mail.bank.example'):
+            with self.subTest(address=address):
+                with self.assertRaises(smtplib.SMTPSenderRefused):
+                    self.client(port).sendmail(address, ['a@example.org'], self.tenant_message(address))
+        self.client(port).sendmail('x@acme.example', ['a@example.org'], self.tenant_message('x@acme.example'))
+        self.client(port).sendmail(SENDER, ['a@example.org'], self.message())
+        self.assertEqual([item[0] for item in self.sent], ['x@acme.example', SENDER])
+
+    def test_the_from_header_must_equal_the_envelope_sender(self):
+        port = self.start()
+        smtp = self.client(port)
+        for header in ('From: other@acme.example', f'From: {SENDER}', 'From: a@acme.example.evil.example'):
+            with self.subTest(header=header):
+                smtp = self.client(port)
+                with self.assertRaises(smtplib.SMTPDataError) as raised:
+                    smtp.sendmail('billing@acme.example', ['a@example.org'], self.tenant_message('', header=header))
+                self.assertEqual(raised.exception.smtp_code, 554)
+        self.refused(port, self.tenant_message('billing@acme.example', extra='Sender: other@acme.example\r\n'))
+        self.assertEqual(self.sent, [])
+
+    def test_mixed_case_addresses_are_one_address(self):
+        smtp = self.client(self.start())
+        smtp.sendmail('Billing@Acme.Example', ['a@example.org'], self.tenant_message('BILLING@acme.EXAMPLE'))
+        self.assertEqual(self.sent[0][0], 'billing@acme.example')
+        with self.assertRaises(smtplib.SMTPSenderRefused):
+            self.client(self.start()).sendmail('X@Mail.LiwanOS.com', ['a@example.org'], self.message())
+
+    def test_a_reserved_domain_setting_must_be_a_strict_lower_case_domain(self):
+        for bad in ('Bank.example', 'bank', 'ban k.example', 'b\u00fcrger.example', '.bank.example', 'bank.example.'):
+            with self.subTest(value=bad):
+                with self.assertRaises(relay.ConfigError):
+                    relay.Config({'ODOO_MAIL_SENDER': SENDER, 'ODOO_MAIL_RESERVED_DOMAINS': bad})
+        config = relay.Config({'ODOO_MAIL_SENDER': SENDER})
+        self.assertEqual(config.reserved_domains, frozenset({'liwanos.com'}))
+        config = relay.Config({'ODOO_MAIL_SENDER': SENDER, 'ODOO_MAIL_RESERVED_DOMAINS': 'bank.example'})
+        self.assertEqual(config.reserved_domains, frozenset({'liwanos.com', 'bank.example'}))
 
     def test_an_oversized_message_is_refused_when_declared_and_when_not(self):
         port = self.start()
@@ -332,7 +395,7 @@ class ProtocolCase(unittest.TestCase):
         port = self.start()
         head = b'EHLO x\r\n', f'MAIL FROM:<{SENDER}>\r\n'.encode(), b'RCPT TO:<a@example.org>\r\n', b'DATA\r\n'
         prefix = f'From: {SENDER}\r\n\r\nhello\r\n'.encode()
-        smuggled = b'MAIL FROM:<boss@other.example>\r\nRCPT TO:<c@example.org>\r\nDATA\r\nFrom: x\r\n\r\nevil\r\n.\r\n'
+        smuggled = b'MAIL FROM:<boss@liwanos.com>\r\nRCPT TO:<c@example.org>\r\nDATA\r\nFrom: x\r\n\r\nevil\r\n.\r\n'
         payloads = {
             'bare LF terminator': prefix + b'.\n' + smuggled,
             'LF dot CR terminator': prefix + b'\n.\r' + smuggled,
@@ -351,7 +414,7 @@ class ProtocolCase(unittest.TestCase):
     def test_the_dot_terminator_is_the_only_end_and_what_follows_it_is_a_new_command(self):
         port = self.start()
         replies = self.raw(port, b'EHLO x\r\n', f'MAIL FROM:<{SENDER}>\r\n'.encode(), b'RCPT TO:<a@example.org>\r\n', b'DATA\r\n',
-                           f'From: {SENDER}\r\n\r\nhi\r\n.\r\nMAIL FROM:<boss@other.example>\r\n'.encode())
+                           f'From: {SENDER}\r\n\r\nhi\r\n.\r\nMAIL FROM:<boss@liwanos.com>\r\n'.encode())
         self.assertIn('250 2.0.0 accepted', replies)
         self.assertIn('553 5.7.1', replies)
         self.assertEqual(len(self.sent), 1)

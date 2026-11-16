@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_liwan_mail_domain_manager,liwan.mail.domain.manager,model_liwan_mail_domain,group_cap_mail_domain_manage,1,1,1,1
+access_liwan_mail_domain_system,liwan.mail.domain.system,model_liwan_mail_domain,base.group_system,1,1,1,1
+access_liwan_mail_domain_attempt_manager,liwan.mail.domain.attempt.manager,model_liwan_mail_domain_attempt,group_cap_mail_domain_manage,1,0,0,0
+access_liwan_mail_domain_attempt_system,liwan.mail.domain.attempt.system,model_liwan_mail_domain_attempt,base.group_system,1,1,1,1

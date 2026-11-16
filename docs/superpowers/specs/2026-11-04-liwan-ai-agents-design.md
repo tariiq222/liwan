@@ -83,7 +83,7 @@ A second driver is tenant isolation. Today the AI service keeps all tenants' con
 ### 6.5 Agents
 
 - New `liwan.ai.agent.registry` (composed through `super()` like the tool registry). Each agent: key, owner addon, instructions, its tools, RAG sources, sensitive fields.
-- Each application registers its agent in its `liwan_<app>_ai` bridge (rank 5, auto_install), keeping R3.
+- Each application registers its agent, tools, RAG sources and sensitive fields inside its own addon, in the `liwan_api` registries (`liwan.ai.tool.registry`, `liwan.ai.knowledge.registry`), without depending on `liwan_ai`. No AI bridge remains, keeping R3.
 - **One smart conversation (owner decision 2026-11-04):** the user talks to one conversation, in `/ai` and in the header sheet. A router inside the run picks the specialist agent for each request and hands over between agents automatically within the same run; the user does not choose an agent. The current page is a routing hint, not a restriction. Each specialist uses its own app's tools plus the read tools of other apps the user can use; a write in another app is performed by that app's specialist after the same approval. The monthly message limit counts user messages, not agent turns.
 - Agents and their tools exist only for applications the tenant has enabled (`<app>.enabled` entitlement); a disabled application contributes no agent, tool, setting or RAG source.
 - **Settings registry (owner direction 2026-11-04):** a new registry where each application declares its settings (key, type, allowed values, default, scope, impact text, required capability), composed through `super()`. Only enabled applications appear. The first release covers the applications that declare; the rest join as they are touched, and `tools/new_app.py` generates the declaration.
@@ -91,7 +91,7 @@ A second driver is tenant isolation. Today the AI service keeps all tenants' con
 
 ### 6.6 One file per application
 
-A new application declares, in `liwan_<app>_ai`: its agent, its tools, its RAG sources and its sensitive fields. `tools/new_app.py` generates this bridge with a ready test proving that a user without the capability neither sees nor runs the tool. A CI check fails on a tool without a registered capability, a route that does not exist, or a sensitive field appearing in a `result_summary`.
+A new application declares, inside its own addon: its agent, its tools, its RAG sources and its sensitive fields. `tools/new_app.py` generates the agent with one read tool and a ready test proving that a user without the capability neither sees nor runs the tool. A CI check fails on a tool without a registered capability, a route that does not exist, or a sensitive field appearing in a `result_summary`.
 
 ### 6.7 Control: two layers
 

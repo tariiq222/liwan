@@ -144,7 +144,8 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   dependency list into prose. Ranks are in
   `tools/arch_layers.json`. Preserve pillar direction:
   shared `liwan_api` and the shared services never import a pillar, and one
-  application never imports another; only a bridge imports both.
+  application never imports another; only a bridge imports both. A bridge links two addons of the same layer, and
+  an application reaches a foundation or shared-service addon from inside its own addon (R3 in `AGENTS.md` owns the rule).
 - Keep `models/`, `security/`, `data/`, `tests/`; API pillars additionally use
   `controllers/` and whitelist-based `serializers/`; addons with user-facing strings have `i18n/`, and
   `migrations/` follow `docs/migrations.md`; `liwan_meetings` has `report/` (the meeting report moved there). Import Python modules through their `__init__.py` files;

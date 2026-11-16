@@ -20,7 +20,11 @@ beforeEach(() => {
 
 describe('inboxExportQuery', () => {
   it('carries the list filters and leaves out the page window', () => {
-    expect(inboxExportQuery(route({ assignee: 'me', state: 'open', q: 'أحمد', departmentId: 3 }))).toEqual({ assignee: 'me', state: 'open', department_id: 3, q: 'أحمد' })
+    expect(inboxExportQuery(route({ assignee: 'me', state: 'open', q: 'أحمد', departmentId: 3, channel: 'tiktok' }))).toEqual({ assignee: 'me', state: 'open', channel_kind: 'tiktok', department_id: 3, q: 'أحمد' })
+  })
+
+  it('leaves out the order of the list', () => {
+    expect(inboxExportQuery(route({ sort: 'waiting' }))).toEqual({})
   })
 
   it('is empty when no filter is set', () => {

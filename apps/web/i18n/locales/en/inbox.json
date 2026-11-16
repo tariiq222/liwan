@@ -227,6 +227,8 @@
       "anyState": "Any status",
       "priority": "Priority",
       "anyPriority": "Any priority",
+      "channel": "Channel",
+      "anyChannel": "All channels",
       "department": "Department",
       "anyDepartment": "Any department",
       "empty": "No conversations yet",
@@ -237,7 +239,14 @@
       "export": "Export conversations (CSV)",
       "exportFailed": "Could not export the conversations. Try again.",
       "csat": "Customer satisfaction",
-      "anyCsat": "Any rating"
+      "anyCsat": "Any rating",
+      "sort": "Sort",
+      "sortRecent": "Newest first",
+      "sortWaiting": "Longest waiting first",
+      "waitingOverdue": "Waiting too long",
+      "filters": "Filters",
+      "clearFilters": "Clear filters",
+      "resultCount": "{count} result | {count} results"
     },
     "thread": {
       "label": "Conversation messages",
@@ -2247,7 +2256,9 @@
         "unavailable": "This opportunity cannot be linked: it is archived or belongs to another company.",
         "missing": "The conversation or the opportunity was not found, or you cannot see it."
       }
-    }
+    },
+    "showUnassigned": "Show unassigned",
+    "connectChannel": "Connect a channel"
   },
   "errors": {
     "reasons": {

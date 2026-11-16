@@ -125,6 +125,16 @@ services:
       ODOO_SMTP_SERVER: odoo-mail
       ODOO_SMTP_PORT: "2525"
       ODOO_EMAIL_FROM: "${ODOO_MAIL_SENDER:-}"
+      # Tenant mail domains: operator secrets for the OCI control calls liwan_notify makes through odoo-egress
+      # (docs/operations/odoo-mail.md). All empty means the provider is not configured. Never stored per tenant.
+      LIWAN_OCI_EMAIL_REGION: "${LIWAN_OCI_EMAIL_REGION:-me-jeddah-1}"
+      LIWAN_OCI_EMAIL_COMPARTMENT_ID: "${LIWAN_OCI_EMAIL_COMPARTMENT_ID:-}"
+      LIWAN_OCI_TENANCY_ID: "${LIWAN_OCI_TENANCY_ID:-}"
+      LIWAN_OCI_USER_ID: "${LIWAN_OCI_USER_ID:-}"
+      LIWAN_OCI_KEY_FINGERPRINT: "${LIWAN_OCI_KEY_FINGERPRINT:-}"
+      LIWAN_OCI_PRIVATE_KEY: "${LIWAN_OCI_PRIVATE_KEY:-}"
+      LIWAN_OCI_LOG_GROUP_ID: "${LIWAN_OCI_LOG_GROUP_ID:-}"
+      LIWAN_OCI_EMAIL_SPF_INCLUDE: "${LIWAN_OCI_EMAIL_SPF_INCLUDE:-}"
     ports: !reset []
     # `relay_odoo` carries the TikTok relay's binding calls (D13). It is internal and reaches only the
     # relay, so Odoo keeps it whether or not this deployment runs the app. `odoo_egress` is internal too and reaches
@@ -178,7 +188,7 @@ services:
     restart: unless-stopped
     logging: *liwan-logging
     environment:
-      AI_EGRESS_HOSTS: "${ODOO_EGRESS_HOSTS:-api.authentica.sa,graph.facebook.com,lookaside.fbsbx.com,business-api.tiktok.com,.tiktokcdn.com,.tiktokcdn-us.com,.tiktokv.com,ksa.paymob.com,uae.paymob.com,accept.paymob.com,oman.paymob.com}"
+      AI_EGRESS_HOSTS: "${ODOO_EGRESS_HOSTS:-api.authentica.sa,graph.facebook.com,lookaside.fbsbx.com,business-api.tiktok.com,.tiktokcdn.com,.tiktokcdn-us.com,.tiktokv.com,ksa.paymob.com,uae.paymob.com,accept.paymob.com,oman.paymob.com,ctrl.email.me-jeddah-1.oci.oraclecloud.com,logging.me-jeddah-1.oci.oraclecloud.com}"
       EGRESS_DENY_PRIVATE: "yes"
       # No tenant host files: nothing writes a tenant's own hosts for Odoo.
       AI_TENANT_EGRESS_DIR: ""
@@ -194,7 +204,7 @@ services:
 
   # The send-only SMTP relay: the one way mail leaves Odoo (relay.py states its rules). It listens only on the internal
   # network it shares with Odoo, relays to the single upstream smarthost over verified STARTTLS and refuses any sender
-  # but the platform address. Unset ODOO_MAIL_* values start it in refuse-everything mode, never as an open relay.
+  # but the platform address or an address on a domain that is not reserved. Unset ODOO_MAIL_* values start it in refuse-everything mode, never as an open relay.
   # Credentials come from deploy/.env like DB_PASSWORD; they are never in the image or in git.
   odoo-mail:
     build: { context: ./odoo-mail }
@@ -202,6 +212,7 @@ services:
     logging: *liwan-logging
     environment:
       ODOO_MAIL_SENDER: "${ODOO_MAIL_SENDER:-}"
+      ODOO_MAIL_RESERVED_DOMAINS: "${ODOO_MAIL_RESERVED_DOMAINS:-}"
       ODOO_MAIL_UPSTREAM_HOST: "${ODOO_MAIL_UPSTREAM_HOST:-}"
       ODOO_MAIL_UPSTREAM_PORT: "${ODOO_MAIL_UPSTREAM_PORT:-587}"
       ODOO_MAIL_UPSTREAM_USER: "${ODOO_MAIL_UPSTREAM_USER:-}"

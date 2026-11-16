@@ -35,6 +35,12 @@ describe('ConversationLayout', () => {
     expect(paneTag(html, 'thread')).toContain(`class="min-h-0 min-w-0 flex-col ${threadClass}"`)
   })
 
+  it('takes its height from the named fill class, not an arbitrary value', async () => {
+    const html = await render({ hasSelection: true })
+    expect(html).toContain('liwan-conversation-fill')
+    expect(html).not.toContain('h-[max(')
+  })
+
   it('is one list | 1fr grid, with the info column only from 1280px', async () => {
     expect(await render({ hasSelection: false })).toContain('grid-cols-1 md:grid-cols-[clamp(260px,34vw,360px)_minmax(0,1fr)]')
     expect(await render({ hasSelection: true })).toContain('grid-cols-1 md:grid-cols-[clamp(260px,34vw,360px)_minmax(0,1fr)]')

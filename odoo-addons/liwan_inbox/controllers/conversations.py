@@ -51,6 +51,8 @@ from odoo.addons.liwan_inbox.serializers.settings import dump_canned_reply
 
 PRIORITIES = ('low', 'normal', 'high', 'urgent')
 CSAT_SCORES = ('good', 'neutral', 'bad')
+# `waiting`: customers waiting for an agent first, the longest wait first, then the rest in the default order.
+CONVERSATION_SORTS = {'recent': None, 'waiting': 'waiting_since asc nulls last, last_message_at desc, id desc'}
 LINK_FIELDS = {'customer_id', 'create_new'}
 PATCH_FIELDS = {'revision', 'state', 'priority', 'tag_ids', 'assignee_id', 'department_id'}
 REPLY_FIELDS = {'state', 'priority', 'tag_ids'}
@@ -58,7 +60,7 @@ ASSIGN_FIELDS = {'assignee_id', 'department_id'}
 
 
 def conversation_domain(args):
-    """The list filters of the query string (state, priority, assignee, department_id, channel_id, csat, q)."""
+    """The list filters of the query string (state, priority, assignee, department_id, channel_id, channel_kind, csat, q)."""
     domain = []
     if args.get('state'):
         if args['state'] not in CONVERSATION_STATES:
@@ -82,12 +84,25 @@ def conversation_domain(args):
     for key in ('department_id', 'channel_id'):
         if args.get(key):
             domain.append((key, '=', parse_positive_int(args[key], key)))
+    if args.get('channel_kind'):
+        kinds = request.env['liwan.inbox.channel']._fields['kind'].get_values(request.env)
+        if args['channel_kind'] not in kinds:
+            reject(f'channel_kind must be one of {tuple(kinds)}', 'channel_kind')
+        domain.append(('channel_id.kind', '=', args['channel_kind']))
     if args.get('q'):
         domain += [
             '|', '|', ('contact_id.name', 'ilike', args['q']), ('contact_id.phone', 'ilike', args['q']),
             ('last_message_preview', 'ilike', args['q']),
         ]
     return domain
+
+
+def conversation_order(args):
+    """The ORM order of the `sort` query value (none for the model default)."""
+    sort = args.get('sort', 'recent')
+    if sort not in CONVERSATION_SORTS:
+        reject(f'sort must be one of {tuple(CONVERSATION_SORTS)}', 'sort')
+    return CONVERSATION_SORTS[sort]
 
 
 def detail(conversation):
@@ -155,9 +170,10 @@ class ConversationController(http.Controller):
         args = request.httprequest.args
         limit, offset = parse_page(args)
         domain = conversation_domain(args)
+        order = conversation_order(args)
         Conversation = request.env['liwan.inbox.conversation']
         return {
-            'items': [dump_conversation(c) for c in Conversation._liwan_search_visible(domain, limit=limit, offset=offset)],
+            'items': [dump_conversation(c) for c in Conversation._liwan_search_visible(domain, limit=limit, offset=offset, order=order)],
             'total': Conversation._liwan_count_visible(domain),
         }
 

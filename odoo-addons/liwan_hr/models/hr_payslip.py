@@ -10,6 +10,7 @@ from odoo.tools.misc import format_amount
 
 from .payroll_math import money
 from odoo.addons.liwan_hr.rules import LiwanHrRule
+from odoo.addons.liwan_notify.models.mail_domain import LiwanMailRefused
 
 _logger = logging.getLogger(__name__)
 
@@ -208,15 +209,16 @@ class HrPayslip(models.Model):
                 continue
             # `private_email` is readable by HR users only, which a payroll approver is not.
             address = (employee.sudo().private_email or '').strip()
-            if address:
+            if not address:
+                continue
+            try:
                 slip._liwan_queue_payslip_mail(address)
+            except LiwanMailRefused as refusal:
+                # The approval must complete; the leaver's payslip is not mailed while the tenant may not send.
+                _logger.warning('final payslip %s not mailed: %s (%s)', slip.id, refusal.code, refusal)
 
     def _liwan_queue_payslip_mail(self, address):
         self.ensure_one()
-        sender = self.env['liwan.outbound.mail']._liwan_sender()
-        if not sender:
-            _logger.warning('final payslip email skipped: no sender address is configured (mail.default.from)')
-            return
         amounts = self._liwan_amounts()[self.id]
         currency = self.company_id.currency_id
         lines = self.line_ids.filtered(
@@ -231,15 +233,11 @@ class HrPayslip(models.Model):
                                 name=self.employee_id.name, month=self.date_from.strftime('%Y-%m'), company=self.company_id.name),
             rows=rows, net_label=self.env._('Net pay'), net=format_amount(self.env, amounts['net'], currency),
         )
-        # Mailing needs the outgoing-mail right, which no payroll capability carries.
-        self.env['mail.mail'].sudo().create({
-            'subject': self.env._('Your final payslip for %(month)s', month=self.date_from.strftime('%Y-%m')),
-            'body_html': body,
-            'email_from': sender,
-            'email_to': address,
-            'author_id': self.env.user.partner_id.id,
-            'auto_delete': True,
-        })
+        self.env['liwan.mail.send']._liwan_send(
+            'hr.payslip', self.id, 'hr.final_payslip', [address],
+            self.env._('Your final payslip for %(month)s', month=self.date_from.strftime('%Y-%m')), body,
+            sensitive=True,
+        )
 
     def _liwan_amounts(self):
         """``{payslip_id: {gross, deductions, gosi_employee, gosi_employer, net}}`` from the computed lines.

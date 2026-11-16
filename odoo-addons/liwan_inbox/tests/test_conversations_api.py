@@ -10,7 +10,7 @@ from odoo.addons.liwan_inbox.models.privacy_hooks import ERASED_CONTACT
 
 CONVERSATION_KEYS = {
     'id', 'contact', 'channel', 'department', 'assignee', 'state', 'priority', 'tags', 'revision', 'last_message_at',
-    'last_message_preview', 'last_message_kind', 'unread', 'reply_window_ends_at', 'csat',
+    'waiting_since', 'waiting_overdue', 'last_message_preview', 'last_message_kind', 'unread', 'reply_window_ends_at', 'csat',
     'referral_source', 'referral_ref',
 }
 
@@ -45,6 +45,70 @@ class TestConversationsApi(LiwanInboxCase):
         self.assertEqual([row['id'] for row in by_query['items']], [self.conversation.id])
         self.assertError(self.get('/api/v1/inbox/conversations?state=bogus'), 422, 'invalid')
         self.assertError(self.get('/api/v1/inbox/conversations?limit=-1'), 422, 'invalid')
+
+    def answered_conversation(self, minutes_ago):
+        """A conversation whose customer message an agent already answered: nobody waits."""
+        conversation = self.make_conversation(minutes_ago=minutes_ago)
+        self.env['liwan.inbox.message'].create({
+            'conversation_id': conversation.id, 'company_id': conversation.company_id.id, 'direction': 'out',
+            'author_id': self.agent.id, 'body': 'Answer', 'delivery_state': 'sent', 'date': fields.Datetime.now(),
+        })
+        return conversation
+
+    def listed(self, query=''):
+        return self.get(f'/api/v1/inbox/conversations?{query}').json()
+
+    def test_list_reports_the_wait_and_when_it_is_overdue(self):
+        waiting = self.make_conversation(minutes_ago=30)
+        answered = self.answered_conversation(minutes_ago=30)
+        self.login(self.agent)
+        rows = {row['id']: row for row in self.listed()['items']}
+        self.assertEqual(rows[waiting.id]['waiting_since'], fields.Datetime.to_datetime(waiting.waiting_since).isoformat(timespec='seconds') + 'Z')
+        self.assertIsNone(rows[answered.id]['waiting_since'])
+        self.assertEqual((rows[waiting.id]['waiting_overdue'], rows[answered.id]['waiting_overdue']), (False, False), 'the alert is off by default')
+        self.settings.first_response_alert_minutes = 20
+        rows = {row['id']: row for row in self.listed()['items']}
+        self.assertTrue(rows[waiting.id]['waiting_overdue'])
+        self.assertFalse(rows[answered.id]['waiting_overdue'])
+        self.assertFalse(rows[self.conversation.id]['waiting_overdue'], 'five minutes is before the threshold')
+        self.assertTrue(self.get(f'/api/v1/inbox/conversations/{waiting.id}').json()['waiting_overdue'])
+
+    def test_waiting_overdue_follows_a_reply_without_a_manual_invalidation(self):
+        self.settings.first_response_alert_minutes = 20
+        conversation = self.make_conversation(minutes_ago=30)
+        self.assertTrue(conversation.waiting_overdue)
+        self.env['liwan.inbox.message'].create({
+            'conversation_id': conversation.id, 'company_id': conversation.company_id.id, 'direction': 'out',
+            'author_id': self.agent.id, 'body': 'Answer', 'delivery_state': 'sent', 'date': fields.Datetime.now(),
+        })
+        self.assertFalse(conversation.waiting_overdue)
+
+    def test_sort_waiting_puts_the_longest_wait_first_and_the_rest_last(self):
+        oldest = self.make_conversation(minutes_ago=50)
+        newer = self.make_conversation(minutes_ago=10)
+        answered = self.answered_conversation(minutes_ago=90)
+        mine = {oldest.id, newer.id, answered.id, self.conversation.id}
+        self.login(self.agent)
+        expected = [oldest.id, newer.id, self.conversation.id, answered.id]
+        ordered = [row['id'] for row in self.listed('sort=waiting')['items'] if row['id'] in mine]
+        self.assertEqual(ordered, expected, 'longest wait first, the answered conversation last')
+        total = self.listed('sort=waiting')['total']
+        pages = [row['id'] for offset in range(total) for row in self.listed(f'sort=waiting&limit=1&offset={offset}')['items']]
+        self.assertEqual([i for i in pages if i in mine], expected, 'one-row pages follow the same order')
+        self.assertEqual(self.listed('sort=waiting')['total'], self.listed()['total'])
+
+    def test_default_order_is_the_most_recent_message(self):
+        older = self.make_conversation(minutes_ago=50)
+        newest = self.make_conversation(minutes_ago=1)
+        self.login(self.agent)
+        mine = {older.id, newest.id, self.conversation.id}
+        for query in ('', 'sort=recent'):
+            ordered = [row['id'] for row in self.listed(query)['items'] if row['id'] in mine]
+            self.assertEqual(ordered, [newest.id, self.conversation.id, older.id])
+
+    def test_an_unknown_sort_is_422(self):
+        self.login(self.agent)
+        self.assertError(self.get('/api/v1/inbox/conversations?sort=oldest'), 422, 'invalid')
 
     def test_assignee_filters(self):
         mine = self.make_conversation(assignee_id=self.agent.id)
@@ -127,6 +191,31 @@ class TestConversationsApi(LiwanInboxCase):
         self.assertIn(urgent.id, ids)
         self.assertNotIn(self.conversation.id, ids)
         self.assertError(self.get('/api/v1/inbox/conversations?priority=critical'), 422, 'invalid')
+
+    def test_channel_kind_filter(self):
+        tiktok = self.make_conversation(channel=self.make_tiktok_channel(), priority='urgent')
+        urgent_whatsapp = self.make_conversation(priority='urgent')
+        self.login(self.agent)
+
+        def ids(query):
+            return {row['id'] for row in self.get(f'/api/v1/inbox/conversations?{query}').json()['items']}
+
+        self.assertEqual(ids('channel_kind=tiktok'), {tiktok.id})
+        self.assertEqual(ids('channel_kind=whatsapp'), {self.conversation.id, urgent_whatsapp.id})
+        self.assertEqual(ids('channel_kind=whatsapp&priority=urgent'), {urgent_whatsapp.id})
+        self.assertEqual(ids('channel_kind=tiktok&priority=normal'), set())
+        self.assertError(self.get('/api/v1/inbox/conversations?channel_kind=sms'), 422, 'invalid')
+
+    def test_export_honours_the_channel_kind_filter(self):
+        tiktok = self.make_conversation(channel=self.make_tiktok_channel())
+        self.login(self.supervisor)
+        export = self.get('/api/v1/inbox/conversations/export.csv?channel_kind=tiktok')
+        self.assertIn(tiktok.contact_id.name, export.text)
+        self.assertNotIn(self.conversation.contact_id.name, export.text)
+        whatsapp_export = self.get('/api/v1/inbox/conversations/export.csv?channel_kind=whatsapp')
+        self.assertIn(self.conversation.contact_id.name, whatsapp_export.text)
+        self.assertNotIn(tiktok.contact_id.name, whatsapp_export.text)
+        self.assertError(self.get('/api/v1/inbox/conversations/export.csv?channel_kind=sms'), 422, 'invalid')
 
     def test_reopening_beside_a_newer_open_conversation_is_a_clear_refusal(self):
         """INB-113: the one-open-conversation-per-customer rule answers with a code the page maps, not SQL text."""
