@@ -22,6 +22,14 @@ it.each([
   // Escapes of other characters are not unreserved and are left alone.
   ['/api/v1/tasks/a%20b', '/api/v1/tasks/a%20b'],
   ['/api/v1/tasks/%C3%A9', '/api/v1/tasks/%C3%A9'],
+  // A segment that merely contains dots is an ordinary name.
+  ['/api/v1/files/file..name', '/api/v1/files/file..name'],
+  ['/api/v1/files/v1.2/x', '/api/v1/files/v1.2/x'],
+  ['/api/v1/files/..x/y..', '/api/v1/files/..x/y..'],
+  // Dot segments in the query string are not part of the path.
+  [`${BASE}?next=../x`, `${BASE}?next=../x`],
+  // A `#` after the `?` belongs to the query string and is forwarded untouched.
+  [`${BASE}?a=#b%23`, `${BASE}?a=#b%23`],
   // Paths outside the API are not this function's business.
   ['/dashboard/%2F%zz//', '/dashboard/%2F%zz//'],
   ['/_nuxt/x%2F', '/_nuxt/x%2F'],
@@ -46,16 +54,22 @@ it.each([
   '/api/v1/finance/x%',
   '/api/v1/finance//reports/trial-balance',
   '/api/v1/finance/reports/trial-balance//',
+  '/api/v1/finance/../x',
+  '/api/v1/finance/%2E%2E/x',
+  '/api/v1/finance/%2e%2E/x',
+  '/api/v1/finance/%2e%2e/x',
+  '/api/v1/finance/./x',
+  '/api/v1/finance/%2E/x',
+  '/api/v1/finance/x/..',
+  '/api/v1/finance/x/%2e%2E/',
+  '/api/v1/public/..#',
+  '/api/v1/x#y',
+  '/api/v1/x%23y',
 ])('rejects %j with the structured 400', raw => {
   expect(() => canonicalApiPath(raw)).toThrowError(expect.objectContaining({
     statusCode: 400,
     data: { code: 'invalid_path', message: 'The request path is not valid.' },
   }))
-})
-
-// Dot segments are not rejected here: decoded they become a literal `..`, which the transport refuses.
-it('decodes an encoded dot segment so the transport sees it', () => {
-  expect(canonicalApiPath('/api/v1/finance/%2E%2E/x')).toBe('/api/v1/finance/../x')
 })
 
 // What is classified must be what Odoo receives, so every spelling of a heavy route classifies the same.
