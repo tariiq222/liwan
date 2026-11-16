@@ -15,6 +15,8 @@
         'data/trial_expiry_cron.xml',
         'data/storage_recount_cron.xml',
     ],
+    # Every request line reaches the werkzeug log: the hook masks secret query values before any application is served.
+    'post_load': 'post_load',
     'post_init_hook': 'post_init_hook',
     'installable': True,
     'application': False,

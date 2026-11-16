@@ -1,10 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import logging
 
-from odoo.tests import TransactionCase, tagged
+from odoo.tests import HttpCase, TransactionCase, tagged
 
-from odoo.addons.liwan_api.tests.common import LiwanApiCase
-from odoo.addons.liwan_appointments.hooks import (
+from odoo.addons.liwan_platform.hooks import (
     AccessTokenLogFilter,
     mask_access_tokens,
     post_load,
@@ -95,8 +94,8 @@ class TestAccessTokenLogMask(TransactionCase):
 
 
 @tagged('post_install', '-at_install', 'liwan')
-class TestEveryPublicFamilyLogsNoSecret(LiwanApiCase):
-    """#543 end to end: the request line of each public path family reaches the werkzeug log masked."""
+class TestRequestLineLogsNoSecret(HttpCase):
+    """#543 end to end: a request line reaches the werkzeug log masked, with no application installed beyond the platform."""
 
     def _logged(self, path):
         """The werkzeug lines written while ``path`` is requested, captured on the real logger."""
@@ -113,16 +112,11 @@ class TestEveryPublicFamilyLogsNoSecret(LiwanApiCase):
         self.url_open(path)
         return [line for line in records if path.split('?')[0] in line]
 
-    def test_the_payer_pay_link_is_masked(self):
-        lines = self._logged('/pay/invoice/7?access_token=pay-link-secret')
+    def test_the_access_token_is_masked_and_other_parameters_are_kept(self):
+        lines = self._logged('/liwan-log-mask-probe?lang=ar&access_token=probe-secret&page=2')
         self.assertTrue(lines)
         for line in lines:
-            self.assertNotIn('pay-link-secret', line)
+            self.assertNotIn('probe-secret', line)
             self.assertIn('access_token=***', line)
-
-    def test_the_public_api_token_is_masked(self):
-        lines = self._logged('/api/v1/public/payments/invoices/7?access_token=api-secret')
-        self.assertTrue(lines)
-        for line in lines:
-            self.assertNotIn('api-secret', line)
-            self.assertIn('access_token=***', line)
+            self.assertIn('lang=ar', line)
+            self.assertIn('page=2', line)
