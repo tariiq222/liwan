@@ -72,7 +72,8 @@ file the tool does not scan).
    first click must not be lost; no stacked business dialogs; direct links, refresh and list
    filters preserved.
 5. **Independence.** An application importing another application (R3), a condition on a
-   customer name (R6), a feature that breaks `non_saas` (R8).
+   customer name (R6), a new bridge between an application and a foundation or shared-service addon (R3), a feature that
+   breaks `non_saas` (R8).
 
 ## Jev review signal: suspended
 
