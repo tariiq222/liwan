@@ -6,7 +6,7 @@ class LiwanAiKnowledgeCursor(models.Model):
     """How far the bootstrap scan has read one knowledge source in one company: the id of the last record it queued.
 
     After the knowledge is turned on, or the index rebuilt, the indexer reads every existing record in id order; this
-    cursor is where it stopped. Changes after that are not found by scanning: the bridges mark them in
+    cursor is where it stopped. Changes after that are not found by scanning: the applications that declare a source mark them in
     ``liwan.ai.knowledge.pending`` in the transaction that makes them. The rebuild action clears the cursors. The company
     is not called ``company_id`` on purpose: this table belongs to the tenant, and a ``company_id`` would put it behind
     the per-company access fence that the technical indexer user only passes in one company.

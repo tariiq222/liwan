@@ -1,6 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """The knowledge source of the tasks application (spec 2026-11-04 §6.3): the text of a task. Personal tasks stay private
-to their participants (the record rule hides them from the technical indexer and from every other reader)."""
+to their participants (the record rule hides them from the technical indexer and from every other reader).
+
+The index runs in liwan_ai. Without it the change hooks of liwan_api do nothing; the AI indexer group of liwan_api reads
+a task, its project and its stage through security/ir.model.access.csv."""
 from odoo import api, models
 
 TASKS_SOURCE = {

@@ -1,6 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """The knowledge source of the CRM application (spec 2026-11-04 §6.3): the text of an opportunity. Contact data (phone,
-email) is not declared, and the visibility policy of the opportunity decides who reads which one."""
+email) is not declared, and the visibility policy of the opportunity decides who reads which one.
+
+The index runs in liwan_ai. Without it the change hooks of liwan_api do nothing; the AI indexer group of liwan_api reads
+an opportunity and its stage through security/ir.model.access.csv."""
 from odoo import api, models
 
 CRM_SOURCE = {

@@ -38,7 +38,7 @@ class TestAiKnowledgeIndex(AiProbe, TransactionCase):
                 return
 
     def _mark(self, record, vals=None):
-        """What the bridge of the source does after a write of ``vals`` (every field when none are given)."""
+        """What the application that declares the source does after a write of ``vals`` (every field when none are given)."""
         self.env['liwan.ai.knowledge.registry']._liwan_ai_knowledge_changed(record, vals)
 
     def _clear_queue(self):
@@ -300,7 +300,7 @@ class TestAiKnowledgeIndex(AiProbe, TransactionCase):
     def test_the_indexer_is_an_inactive_technical_user_in_its_own_group_only(self):
         indexer = self.env.ref('liwan_ai.user_ai_indexer')
         self.assertFalse(indexer.active)
-        self.assertEqual(indexer.group_ids, self.env.ref('liwan_ai.group_ai_indexer'))
+        self.assertEqual(indexer.group_ids, self.env.ref('liwan_api.group_ai_indexer'))
         cron = self.env.ref('liwan_ai.ir_cron_ai_knowledge')
         self.assertEqual((cron.user_id, cron.interval_number, cron.interval_type), (indexer, 5, 'minutes'))
 
