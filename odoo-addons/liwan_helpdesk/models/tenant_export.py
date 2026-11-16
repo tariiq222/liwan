@@ -16,7 +16,7 @@ TICKET_FIELDS = (
     'id', 'number', 'name', 'company_id', 'team_id', 'stage_id', 'priority', 'partner_id',
     'partner_name', 'partner_email', 'user_id', 'liwan_requester_user_id', 'category_id', 'type_id',
     'channel_id', 'tag_ids', 'last_stage_update', 'assigned_date', 'closed_date', 'liwan_first_response_at',
-    'liwan_last_activity_at', 'liwan_portal_token',
+    'liwan_last_activity_at',
     'create_date', 'create_uid', 'write_date', 'write_uid',
 )
 SETTINGS_FIELDS = (
