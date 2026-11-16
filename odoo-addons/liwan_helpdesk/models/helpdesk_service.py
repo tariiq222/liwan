@@ -73,8 +73,17 @@ class LiwanHelpdeskService(models.AbstractModel):
 
     @api.model
     def _liwan_visible(self, ticket_id, *capabilities):
-        """The ticket, when the caller may read it; 404 for a hidden or missing one alike."""
+        """The ticket, when the caller may read it; 404 for a hidden or missing one alike.
+
+        A bridge whose route already gated the two sides it joins passes ``gate=False`` through
+        ``_liwan_visible_to`` instead, so the lookup is the desk's visibility alone.
+        """
         self._liwan_require(*capabilities or (READ, REQUESTS_READ))
+        return self._liwan_visible_to(ticket_id)
+
+    @api.model
+    def _liwan_visible_to(self, ticket_id):
+        """The ticket inside the caller's visibility (404 otherwise), with no capability check of its own."""
         domain = Domain('id', '=', ticket_id) & self.env['liwan.helpdesk.visibility']._liwan_domain()
         ticket = self.env['helpdesk.ticket'].search(domain, limit=1)
         if not ticket:

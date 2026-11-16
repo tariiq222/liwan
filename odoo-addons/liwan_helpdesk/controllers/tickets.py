@@ -72,6 +72,11 @@ def find(ticket_id, *capabilities):
     return service()._liwan_visible(ticket_id, *capabilities)
 
 
+def find_visible(ticket_id):
+    """The ticket inside the caller's visibility, for a route that already gated its own capabilities."""
+    return service()._liwan_visible_to(ticket_id)
+
+
 def list_domain(args):
     """The domain of the list filters; every choice is validated, an unknown value is a 422."""
     domain = []
