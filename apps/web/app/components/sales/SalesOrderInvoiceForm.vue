@@ -27,9 +27,15 @@ const method = ref<Method>(methods.value[0] ?? 'order')
 // longer offered, and the form closes when nothing is offered any more. While its own save runs it waits: that answer is what
 // takes the offer away, and the page closes the form when the form reports it.
 const saving = ref(false)
+watch([methods, saving], ([offered, busy]) => {
+  if (busy) return
+  if (!offered.length) emit('cancel')
+  else if (!offered.includes(method.value)) method.value = offered[0]!
+})
 const percent = ref<number | null>(30)
 const left = computed(() => props.invoicing.amount_to_invoice)
 const amount = ref<number | null>(left.value)
+watch(left, value => { if ((amount.value ?? 0) > value) amount.value = value })
 const checked = ref(false)
 const failure = ref<unknown>(null)
 const items = computed(() => methods.value.map(value => ({ value, label: t(`sales.invoicing.form.${value}`), description: t(`sales.invoicing.form.${value}Hint`) })))

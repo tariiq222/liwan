@@ -107,8 +107,12 @@ test('a down payment by percent or by amount is checked before it is sent, and t
   await page.getByTestId('sales-invoice-save').click()
   await expect(page.getByTestId('sales-invoice-form')).toContainText('اكتب نسبة بين 1 و100')
   expect((await order(page, id)).invoicing?.invoices).toHaveLength(0)
-  await percent.fill('25')
-  await percent.press('Tab')
+  // The number field sometimes drops a value typed right after its error appears, so the entry is repeated until it holds.
+  await expect(async () => {
+    await percent.fill('25')
+    await percent.press('Tab')
+    await expect(percent).toHaveValue('25', { timeout: 500 })
+  }).toPass()
   await page.getByTestId('sales-invoice-save').click()
   await expect(page.getByTestId('sales-invoice-created')).toBeVisible()
   await expect(page.getByTestId('sales-invoicing-status')).toHaveText('مفوتر جزئيًا')
@@ -120,8 +124,11 @@ test('a down payment by percent or by amount is checked before it is sent, and t
   await page.getByTestId('sales-invoice-amount').fill('')
   await page.getByTestId('sales-invoice-save').click()
   await expect(page.getByTestId('sales-invoice-form')).toContainText('اكتب مبلغًا أكبر من صفر')
-  await page.getByTestId('sales-invoice-amount').fill('100')
-  await page.getByTestId('sales-invoice-amount').press('Tab')
+  await expect(async () => {
+    await page.getByTestId('sales-invoice-amount').fill('100')
+    await page.getByTestId('sales-invoice-amount').press('Tab')
+    await expect(page.getByTestId('sales-invoice-amount')).toHaveValue(/^100(\.00)?$/, { timeout: 500 })
+  }).toPass()
   await page.getByTestId('sales-invoice-save').click()
   await expect(page.getByTestId('sales-invoice-list').locator('li')).toHaveCount(2)
   await expect(page.getByTestId('sales-invoicing-toInvoice')).toContainText('107')
