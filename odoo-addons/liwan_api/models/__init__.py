@@ -6,6 +6,7 @@ from . import (
     ai_setting_registry,
     ai_tool_registry,
     country_names,
+    public_limit,
     res_users,
     tenant_export,
     tenant_export_access,
