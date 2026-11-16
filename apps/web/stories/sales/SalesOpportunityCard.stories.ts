@@ -10,7 +10,7 @@ const save = http.patch('/api/v1/sales/settings', async ({ request }) => HttpRes
 const meta = {
   title: 'Sales/SalesOpportunityCard',
   component: SalesOpportunityCard,
-  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/settings/apps/sales/index.vue:34', 'إعداد ربح الفرصة بالطلب: متى يربح الطلب المؤكد الفرصة التي كُتب منها، وبأي مبلغ.'), msw: { handlers: { api: [manage, save] } } },
+  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/settings/apps/sales/index.vue:43', 'إعداد ربح الفرصة بالطلب: متى يربح الطلب المؤكد الفرصة التي كُتب منها، وبأي مبلغ.'), msw: { handlers: { api: [manage, save] } } },
   args: { settings: salesSettingsWithOpportunity, canEdit: true, reloadSettings: async () => ({ ...salesSettingsWithOpportunity, revision: 4 }) },
 } satisfies Meta<typeof SalesOpportunityCard>
 export default meta

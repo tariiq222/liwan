@@ -137,3 +137,5 @@ sales.spec.ts
 sales-quote-mocked.spec.ts
 sales-crm.spec.ts
 sales-finance.spec.ts
+sales-reports.spec.ts
+sales-templates.spec.ts

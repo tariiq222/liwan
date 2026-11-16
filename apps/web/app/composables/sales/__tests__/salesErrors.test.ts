@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '../../useApi'
-import { isSalesDiscountAboveLimit, salesFieldRef, salesFormField, salesInvoiceErrorKey, salesInvoiceField, salesRefundErrorKey, salesRefundField, salesRefusalKey } from '../salesErrors'
+import { isSalesDiscountAboveLimit, salesFieldRef, salesFormField, salesInvoiceErrorKey, salesInvoiceField, salesRefundErrorKey, salesRefundField, salesRefusalKey, salesRefusalParams } from '../salesErrors'
 
 describe('salesFormField', () => {
   it('reads a header field and a line field of a 422', () => {
@@ -40,6 +40,11 @@ describe('salesRefusalKey', () => {
     expect(salesRefusalKey(new ApiError(422, 'invalid', 'bad', 'terms'))).toBeNull()
     expect(salesRefusalKey(new ApiError(503, 'pdf_unavailable', 'no engine'))).toBe('sales.errors.pdfUnavailable')
     expect(salesRefusalKey(new ApiError(503, 'mail_unavailable', 'no mail'))).toBe('sales.errors.mailUnavailable')
+    const unusable = (details?: Record<string, unknown>) => new ApiError(422, 'template_unusable', 'no', 'template_id', details)
+    expect(salesRefusalKey(unusable({ product: 'Audit' }))).toBe('sales.errors.templateUnusableProduct')
+    expect(salesRefusalParams(unusable({ product: ' Audit ' }))).toEqual({ product: 'Audit' })
+    expect(salesRefusalKey(unusable())).toBe('sales.errors.templateUnusable')
+    expect(salesRefusalKey(unusable({ product: '' }))).toBe('sales.errors.templateUnusable')
   })
 })
 

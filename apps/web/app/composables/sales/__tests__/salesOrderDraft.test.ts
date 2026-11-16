@@ -104,3 +104,26 @@ describe('sales order draft', () => {
     expect(salesDraftSnapshot({ ...salesDraftFromOrder(ORDER), terms: 'x' })).not.toBe(salesDraftSnapshot(salesDraftFromOrder(ORDER)))
   })
 })
+
+describe('a quotation started from a template', () => {
+  const started = { ...emptySalesDraft(), customerId: 5, templateId: 4 }
+
+  it('needs no line of its own and sends the template instead of lines', () => {
+    expect(hasSalesDraftErrors(validateSalesDraft({ ...started, lines: [] }))).toBe(false)
+    expect(hasSalesDraftErrors(validateSalesDraft(started))).toBe(false)
+    const body = salesCreateBody({ ...started, terms: '  Own terms ' }, false)
+    expect(body).toEqual({ customer_id: 5, template_id: 4, terms: 'Own terms' })
+    expect(body).not.toHaveProperty('lines')
+  })
+
+  it('is a hand-made quotation again once the template is dropped', () => {
+    const dropped = { ...started, templateId: null, lines: [] }
+    expect(validateSalesDraft(dropped).noLines).toBe(true)
+    expect(salesCreateBody({ ...dropped, lines: [withPickedProduct(newSalesLine(), PICK)] }, false)).not.toHaveProperty('template_id')
+  })
+
+  it('is never part of a saved order', () => {
+    expect(salesDraftFromOrder(ORDER).templateId).toBeNull()
+  })
+})
+

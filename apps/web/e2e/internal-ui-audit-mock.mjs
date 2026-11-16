@@ -25,7 +25,7 @@ import { URL } from 'node:url'
 
 // The three row exports (CRM, customers, conversations) refuse like the server when the filters keep more rows than one file
 // carries. The cookie `mock_export=too_large` switches that on for a spec.
-const EXPORT_PATHS = new Set(['/api/v1/crm/export', '/api/v1/customers/export', '/api/v1/inbox/conversations/export.csv'])
+const EXPORT_PATHS = new Set(['/api/v1/crm/export', '/api/v1/customers/export', '/api/v1/inbox/conversations/export.csv', '/api/v1/sales/reports/export'])
 const EXPORT_TOO_LARGE = { code: 'export_too_large', message: 'the filters keep more rows than one file carries', details: { rows: 61000, max_rows: 50000 } }
 
 const PORT = Number(process.env.MOCK_PORT || 4388)

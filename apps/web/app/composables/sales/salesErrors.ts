@@ -1,13 +1,13 @@
 interface Refusal { status?: number; code?: string; field?: string; details?: unknown }
 
 /** The header fields of the order form a 422 can name. */
-export type SalesOrderField = 'customer_id' | 'validity_date' | 'terms' | 'salesperson_id' | 'payment_to_confirm' | 'prepayment_percent'
+export type SalesOrderField = 'customer_id' | 'template_id' | 'validity_date' | 'terms' | 'salesperson_id' | 'payment_to_confirm' | 'prepayment_percent'
 /** The fields of one line a refusal can name, as `lines.<index>.<field>`. */
 export type SalesLineField = 'kind' | 'product_id' | 'name' | 'quantity' | 'discount_percent'
 
 export type SalesFieldRef = { kind: 'order'; field: SalesOrderField } | { kind: 'line'; index: number; field: SalesLineField }
 
-const ORDER_FIELDS: readonly string[] = ['customer_id', 'validity_date', 'terms', 'salesperson_id', 'payment_to_confirm', 'prepayment_percent'] satisfies readonly SalesOrderField[]
+const ORDER_FIELDS: readonly string[] = ['customer_id', 'template_id', 'validity_date', 'terms', 'salesperson_id', 'payment_to_confirm', 'prepayment_percent'] satisfies readonly SalesOrderField[]
 const LINE_FIELDS: readonly string[] = ['kind', 'product_id', 'name', 'quantity', 'discount_percent'] satisfies readonly SalesLineField[]
 const LINE_PATH = /^lines\.(\d+)\.(\w+)$/
 
@@ -25,6 +25,19 @@ export function salesFormField(error: unknown): SalesFieldRef | null {
   const failure = error as Refusal | null
   if (failure?.status === 422 || isSalesDiscountAboveLimit(error)) return salesFieldRef(failure?.field)
   return null
+}
+
+/** The header fields of the template form a 422 can name. */
+export type SalesTemplateField = 'name' | 'validity_days' | 'terms'
+const TEMPLATE_FIELDS: readonly string[] = ['name', 'validity_days', 'terms'] satisfies readonly SalesTemplateField[]
+
+/** The field of the template form a 422 names, as a header field or as `lines.<index>.<field>`; null for any other refusal. */
+export function salesTemplateFormField(error: unknown): { kind: 'template'; field: SalesTemplateField } | Extract<SalesFieldRef, { kind: 'line' }> | null {
+  const failure = error as Refusal | null
+  if (failure?.status !== 422 || !failure.field) return null
+  if (TEMPLATE_FIELDS.includes(failure.field)) return { kind: 'template', field: failure.field as SalesTemplateField }
+  const ref = salesFieldRef(failure.field)
+  return ref?.kind === 'line' ? ref : null
 }
 
 /** The 403 of a discount above the tenant's limit by a user who may not approve it. */
@@ -47,6 +60,16 @@ export function salesRefundErrorKey(error: unknown): string | null {
   return failure?.status === 409 && failure.code === 'conflict' ? 'sales.refund.errors.conflict' : null
 }
 
+const unusableProduct = (failure: Refusal): string => {
+  const product = (failure.details as { product?: unknown } | undefined)?.product
+  return typeof product === 'string' ? product.trim() : ''
+}
+
+/** The values the message of `salesRefusalKey` needs: the product a template refuses a quotation for. */
+export function salesRefusalParams(error: unknown): { product: string } {
+  return { product: unusableProduct(error as Refusal) }
+}
+
 /** The locale key of a refusal the sales screens explain in their own words; null for one the generic message covers. */
 export function salesRefusalKey(error: unknown): string | null {
   const failure = error as Refusal | null
@@ -54,6 +77,7 @@ export function salesRefusalKey(error: unknown): string | null {
   if (failure?.status === 403 && failure.code === 'transition_forbidden') return 'sales.errors.transitionForbidden'
   if (failure?.status === 503 && failure.code === 'mail_unavailable') return 'sales.errors.mailUnavailable'
   if (failure?.status === 422 && failure.code === 'customer_email_missing') return 'sales.errors.customerEmailMissing'
+  if (failure?.status === 422 && failure.code === 'template_unusable') return unusableProduct(failure) ? 'sales.errors.templateUnusableProduct' : 'sales.errors.templateUnusable'
   if (failure?.status === 409 && failure.code === 'quotation_answered') return 'sales.errors.quotationAnswered'
   if (failure?.status === 422 && failure.code === 'quotation_expired') return 'sales.errors.quotationExpired'
   // The send queues the mail with the quotation PDF, so a missing PDF engine refuses the send (the staff PDF link is a plain download).

@@ -2,16 +2,18 @@
 import type { RouteLocationRaw } from 'vue-router'
 import { SALES_LIMITS, type CustomerPick, type SalesOrder } from '@liwan/contracts'
 import { saveErrorMessage } from '@/utils/formFeedback'
-import { salesFormField, salesRefusalKey, type SalesOrderField } from '@/composables/sales/salesErrors'
+import { salesFormField, salesRefusalKey, salesRefusalParams, type SalesOrderField } from '@/composables/sales/salesErrors'
 import { emptySalesDraft, hasSalesDraftErrors, salesCreateBody, salesDraftFromOrder, salesDraftSnapshot, salesPatchBody, salesPaymentWithDefaultPercent, validateSalesDraft, type SalesDraftErrors, type SalesOrderDraft, type SalesPaymentDraft } from '@/composables/sales/salesOrderDraft'
 import { useCreateSalesOrder, useUpdateSalesOrder } from '@/composables/sales/useSalesOrders'
 import { useSalesSettings } from '@/composables/sales/useSalesSettings'
 import SalesLinesEditor from './SalesLinesEditor.vue'
 import SalesPaymentChoice from './SalesPaymentChoice.vue'
+import SalesTemplatePicker from './SalesTemplatePicker.vue'
 
 // The create form of the route-backed panel and the edit page of a quotation: the customer, the salesperson (for a
 // holder of the assign right), the validity date, the terms, how it asks to be paid (while the tenant can take payments)
-// and the lines. The body carries no price and no tax; the server prices every product line. A refusal on a field is
+// and the lines, or a quotation template that gives them (a new quotation only). The body carries no price and no tax;
+// the server prices every product line. A refusal on a field is
 // shown at that field, any other at the top.
 const props = defineProps<{ order?: SalesOrder | null; backTo: RouteLocationRaw }>()
 const emit = defineEmits<{ saved: [order: SalesOrder] }>()
@@ -51,7 +53,7 @@ const refusedField = computed(() => salesFormField(formError.value))
 const refusalMessage = computed(() => {
   if (!formError.value) return ''
   const key = salesRefusalKey(formError.value)
-  return key ? t(key) : saveErrorMessage(formError.value, t('errors.generic'), t('errors.saveUncertain'))
+  return key ? t(key, salesRefusalParams(formError.value)) : saveErrorMessage(formError.value, t('errors.generic'), t('errors.saveUncertain'))
 })
 const refusedLine = computed(() => refusedField.value?.kind === 'line' && refusedField.value.index < draft.value.lines.length
   ? { index: refusedField.value.index, field: refusedField.value.field, message: refusalMessage.value }
@@ -110,9 +112,12 @@ async function submit() {
     <SharedFormSection v-if="paymentOffered" panel :title="t('sales.form.payment.title')" :description="t('sales.form.payment.hint')">
       <SalesPaymentChoice v-model="payment" :disabled="off" :percent-error="errors.payment ? t('sales.form.payment.shareRequired') : headerError('prepayment_percent')" />
     </SharedFormSection>
-    <SharedFormSection panel :title="t('sales.form.lines')" :description="t('sales.form.linesHint')">
-      <p v-if="errors.noLines" role="alert" class="text-sm text-error">{{ t('sales.lines.errors.none') }}</p>
-      <SalesLinesEditor v-model="draft.lines" :errors="errors.lines" :refused="refusedLine" :disabled="off" />
+    <SharedFormSection panel :title="t('sales.form.lines')" :description="t(draft.templateId ? 'sales.templates.picker.linesFromTemplate' : 'sales.form.linesHint')">
+      <SalesTemplatePicker v-if="!props.order" v-model="draft.templateId" :disabled="off" :error="headerError('template_id')" />
+      <template v-if="!draft.templateId">
+        <p v-if="errors.noLines" role="alert" class="text-sm text-error">{{ t('sales.lines.errors.none') }}</p>
+        <SalesLinesEditor v-model="draft.lines" :errors="errors.lines" :refused="refusedLine" :disabled="off" />
+      </template>
     </SharedFormSection>
     <SharedFormActions>
       <UButton type="button" color="neutral" variant="outline" :to="props.backTo" :label="t('app.cancel')" />

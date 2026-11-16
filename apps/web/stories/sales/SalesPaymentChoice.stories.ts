@@ -6,7 +6,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Sales/SalesPaymentChoice',
   component: SalesPaymentChoice,
-  parameters: { layout: 'padded', ...storyContext('apps/web/app/components/sales/SalesOrderForm.vue:111', 'اختيار طريقة دفع عرض السعر: بلا دفع، أو كامل الإجمالي، أو نسبة منه.') },
+  parameters: { layout: 'padded', ...storyContext('apps/web/app/components/sales/SalesOrderForm.vue:113', 'اختيار طريقة دفع عرض السعر: بلا دفع، أو كامل الإجمالي، أو نسبة منه.') },
   args: { modelValue: { mode: 'off', percent: 50 } },
   render: args => ({ components: { SalesPaymentChoice }, setup: () => ({ args, value: ref(args.modelValue) }), template: '<SalesPaymentChoice v-bind="args" v-model="value" />' }),
 } satisfies Meta<typeof SalesPaymentChoice>

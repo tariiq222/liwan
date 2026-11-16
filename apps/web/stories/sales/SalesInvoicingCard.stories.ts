@@ -10,7 +10,7 @@ const save = http.patch('/api/v1/sales/settings', async ({ request }) => HttpRes
 const meta = {
   title: 'Sales/SalesInvoicingCard',
   component: SalesInvoicingCard,
-  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/settings/apps/sales/index.vue:33', 'إعداد فوترة الطلبات: هل يجوز فوترة الطلب المؤكد بدفعة مقدمة أم كاملًا فقط، ومن يفوتر طلب زميله.'), msw: { handlers: { api: [manage, save] } } },
+  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/settings/apps/sales/index.vue:42', 'إعداد فوترة الطلبات: هل يجوز فوترة الطلب المؤكد بدفعة مقدمة أم كاملًا فقط، ومن يفوتر طلب زميله.'), msw: { handlers: { api: [manage, save] } } },
   args: { settings: salesSettingsWithInvoicing, canEdit: true, reloadSettings: async () => ({ ...salesSettingsWithInvoicing, revision: 4 }) },
 } satisfies Meta<typeof SalesInvoicingCard>
 export default meta

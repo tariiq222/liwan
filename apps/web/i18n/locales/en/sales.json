@@ -1,6 +1,11 @@
 {
   "sales": {
     "title": "Sales",
+    "bell": {
+      "accepted": "Customer accepted quotation",
+      "signed": "Customer signed quotation",
+      "declined": "Customer declined quotation"
+    },
     "new": "New quotation",
     "edit": "Edit quotation",
     "recordTitle": "Sales document",
@@ -161,7 +166,9 @@
       "quotationExpired": "The quotation's validity date has passed. Edit the date or duplicate the quotation.",
       "linesRequired": "Add at least one product line first.",
       "pdfUnavailable": "The quotation PDF could not be made, so nothing was sent. Try again shortly.",
-      "mailUnavailable": "Outgoing mail is not set up, so nothing was sent and the quotation is unchanged. Ask your administrator to set up mail."
+      "mailUnavailable": "Outgoing mail is not set up, so nothing was sent and the quotation is unchanged. Ask your administrator to set up mail.",
+      "templateUnusable": "The template cannot start a quotation: one of its products is archived or not available to this company.",
+      "templateUnusableProduct": "The template cannot start a quotation: the product \"{product}\" is archived or not available to this company."
     },
     "settings": {
       "readOnlyTitle": "Read-only",
@@ -261,6 +268,26 @@
         "ownerHint": "The order's salesperson, or anyone who may assign orders, invoices it.",
         "any_biller": "Any biller",
         "any_billerHint": "Anyone who can read the order and holds both rights invoices it, even if it is a colleague's."
+      },
+      "presets": {
+        "title": "Sector presets",
+        "hint": "A preset sets several of the settings below at once. Choose one to see what it would change; nothing is written until you confirm. The default terms are never changed.",
+        "apply": "Apply preset",
+        "current": "current",
+        "nothingToChange": "The settings already match this preset.",
+        "preview": "{count} setting would change | {count} settings would change",
+        "confirmTitle": "Apply the {name} preset?",
+        "confirmBody": "Only the settings listed above are written. Quotations already sent keep the terms they were sent under.",
+        "yes": "Yes",
+        "no": "No",
+        "noValidity": "No validity date",
+        "noLimit": "No limit",
+        "services": "Services and consulting",
+        "servicesHint": "Consulting, agencies and studios: the customer signs the proposal, each salesperson sees their own documents, and the team reviews an order before it is confirmed.",
+        "trading": "Trading and retail",
+        "tradingHint": "Shops and wholesale: short-lived quotations, everyone sees every document, and the customer accepting a quotation confirms the order.",
+        "contracting": "Contracting and projects",
+        "contractingHint": "Contracting and project work: long-lived bids shared by the team, signed by hand, and a signed quotation changes only by reopening it."
       }
     },
     "expired": "Expired",
@@ -539,6 +566,119 @@
         "online": "An online order is invoiced when it is paid, so no invoice is made for it here.",
         "notSalesperson": "Only the order's salesperson, or someone who may assign orders, invoices it in this company.",
         "financeNotIncluded": "The Finance application is not included in your subscription."
+      }
+    },
+    "reports": {
+      "title": "Sales reports",
+      "description": "Orders and amounts of the sales documents you can read.",
+      "export": "Export CSV",
+      "exporting": "Exporting…",
+      "exportFailed": "Could not export the report. Try again.",
+      "empty": "There are no documents for these filters.",
+      "pick": "Narrow the report to this row",
+      "footer": "{shown} of 1 group | {shown} of {total} groups",
+      "ordersCount": "{count} order | {count} orders",
+      "tiles": {
+        "confirmedOrders": "Confirmed orders",
+        "confirmedTotal": "Confirmed total",
+        "quotations": "Open quotations",
+        "cancelled": "Cancelled",
+        "untaxed": "{amount} before tax",
+        "total": "{amount} total"
+      },
+      "stage": {
+        "confirmed": "Orders",
+        "quotations": "Quotations",
+        "cancelled": "Cancelled",
+        "all": "All"
+      },
+      "filters": {
+        "title": "Filters",
+        "from": "From date",
+        "to": "To date",
+        "picked": {
+          "salesperson": "One salesperson",
+          "customer": "One customer",
+          "product": "One product"
+        }
+      },
+      "by": {
+        "label": "Group by",
+        "period": "Period",
+        "salesperson": "Salesperson",
+        "customer": "Customer",
+        "product": "Product"
+      },
+      "period": {
+        "label": "Period size",
+        "day": "Day",
+        "week": "Week",
+        "month": "Month"
+      },
+      "columns": {
+        "orders": "Orders",
+        "quantity": "Quantity",
+        "untaxed": "Before tax",
+        "total": "Total"
+      },
+      "none": {
+        "period": "No date",
+        "salesperson": "Online orders (no salesperson)",
+        "customer": "No customer",
+        "product": "No product"
+      }
+    },
+    "templates": {
+      "title": "Quotation templates",
+      "new": "New template",
+      "edit": "Edit template",
+      "recordTitle": "Quotation template",
+      "empty": "There are no templates yet. A template keeps the lines, validity and terms you use often, so a new quotation can start from it.",
+      "search": "Search by name",
+      "archivedOnly": "Archived only",
+      "archived": "Archived",
+      "ready": "Ready",
+      "needsAttention": "Needs attention",
+      "footer": "{shown} of 1 template | {shown} of {total} templates",
+      "columns": {
+        "name": "Name",
+        "lines": "Lines",
+        "validity": "Validity",
+        "state": "Status"
+      },
+      "lineCount": "{count} line | {count} lines",
+      "days": "{count} day | {count} days",
+      "settingsValidity": "As set in the Sales settings",
+      "lineUnusable": "Product unavailable",
+      "unusableTitle": "This template cannot start a quotation",
+      "unusable": "A product in it is archived or no longer available to this company. Edit the template and replace the product.",
+      "archive": "Archive",
+      "restore": "Restore",
+      "archiveConfirm": "Archive {name}?",
+      "archiveHint": "An archived template leaves the list of a new quotation. Quotations already made from it stay as they are, and you can restore it later.",
+      "archivedNotEditable": "An archived template is restored before it is edited.",
+      "actionError": "The change was not saved",
+      "form": {
+        "header": "Template",
+        "headerHint": "The name, validity and terms a quotation takes when it starts from this template.",
+        "name": "Name",
+        "nameRequired": "Enter a name for the template",
+        "validityDays": "Validity in days",
+        "validityDaysHint": "Enter 0 to keep the validity set in the Sales settings.",
+        "validityDaysInvalid": "Enter a whole number from 0 to 3650",
+        "terms": "Terms and conditions",
+        "termsHint": "Left empty, the default terms of the Sales settings apply.",
+        "lines": "Lines",
+        "linesHint": "Choose the products and quantities. There are no prices here: a quotation prices every line when it starts.",
+        "create": "Create template",
+        "saveError": "The template could not be saved"
+      },
+      "picker": {
+        "label": "Start from a template",
+        "none": "No template",
+        "hint": "A template gives the new quotation its lines, terms and validity. Prices and taxes are set when it is saved.",
+        "chosen": "{lines}. Validity: {validity}. Prices and taxes are set when the quotation is saved.",
+        "linesFromTemplate": "The lines come from the template. Edit them on the quotation once it is saved."
       }
     }
   }

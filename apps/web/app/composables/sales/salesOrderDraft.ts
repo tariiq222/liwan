@@ -26,6 +26,8 @@ export interface SalesPaymentDraft { mode: SalesPaymentToConfirm; percent: numbe
 export interface SalesOrderDraft {
   customerId: number | null
   customerName: string
+  /** The quotation template that gives a new quotation its lines, terms and validity; null for a hand-made quotation. */
+  templateId: number | null
   salespersonId: number | null
   validityDate: string | null
   terms: string
@@ -44,7 +46,7 @@ export function newSalesLine(kind: SalesLineKind = 'product'): SalesLineDraft {
 }
 
 export function emptySalesDraft(): SalesOrderDraft {
-  return { customerId: null, customerName: '', salespersonId: null, validityDate: null, terms: '', lines: [newSalesLine()], payment: null }
+  return { customerId: null, customerName: '', templateId: null, salespersonId: null, validityDate: null, terms: '', lines: [newSalesLine()], payment: null }
 }
 
 /** The editor state of a saved document. A quotation that does not ask for a percentage holds none: the tenant's default is applied when the user chooses one. */
@@ -53,6 +55,7 @@ export function salesDraftFromOrder(order: SalesOrder): SalesOrderDraft {
     payment: order.payment ? { mode: order.payment.mode, percent: order.payment.mode === 'percent' ? order.payment.percent : null } : null,
     customerId: order.customer.id,
     customerName: order.customer.name,
+    templateId: null,
     salespersonId: order.salesperson?.id ?? null,
     validityDate: order.validity_date,
     terms: order.terms,
@@ -89,7 +92,8 @@ export function moveSalesLine(lines: SalesLineDraft[], index: number, delta: num
 
 const decimal = (value: string) => value.trim() === '' ? Number.NaN : Number(value)
 
-function lineProblems(line: SalesLineDraft): Partial<Record<SalesLineProblem, true>> {
+/** What is wrong with one line: a product line needs a product, a quantity and a discount in range; a section or note its text. */
+export function salesLineProblems(line: SalesLineDraft): Partial<Record<SalesLineProblem, true>> {
   if (line.kind !== 'product') return line.name.trim() ? {} : { name: true }
   const quantity = decimal(line.quantity)
   const discount = decimal(line.discount)
@@ -108,7 +112,7 @@ export function salesPaymentWithDefaultPercent(next: SalesPaymentDraft, previous
 const validPercent = (percent: number | null) => percent !== null && Number.isInteger(percent) && percent >= SALES_PREPAYMENT_PERCENT.min && percent <= SALES_PREPAYMENT_PERCENT.max
 
 export function validateSalesDraft(draft: SalesOrderDraft): SalesDraftErrors {
-  return { customer: !draft.customerId, noLines: !draft.lines.length, payment: draft.payment?.mode === 'percent' && !validPercent(draft.payment.percent), lines: draft.lines.map(lineProblems) }
+  return { customer: !draft.customerId, noLines: !draft.templateId && !draft.lines.length, payment: draft.payment?.mode === 'percent' && !validPercent(draft.payment.percent), lines: draft.templateId ? [] : draft.lines.map(salesLineProblems) }
 }
 
 export function hasSalesDraftErrors(errors: SalesDraftErrors): boolean {
@@ -131,7 +135,7 @@ export function salesLinePayload(line: SalesLineDraft): SalesOrderLineInput {
 
 /**
  * The create body. An empty validity date, empty terms and an unchosen payment are left out, so the server applies the
- * tenant's defaults; the salesperson is sent only by a holder of the assign right who chose one.
+ * template's or the tenant's defaults; the salesperson is sent only by a holder of the assign right who chose one.
  */
 export function salesCreateBody(draft: SalesOrderDraft, canAssign: boolean, paymentOffered = false): SalesOrderCreate {
   return {
@@ -140,7 +144,8 @@ export function salesCreateBody(draft: SalesOrderDraft, canAssign: boolean, paym
     ...(canAssign && draft.salespersonId ? { salesperson_id: draft.salespersonId } : {}),
     ...(draft.validityDate ? { validity_date: draft.validityDate } : {}),
     ...(draft.terms.trim() ? { terms: draft.terms.trim() } : {}),
-    lines: draft.lines.map(salesLinePayload),
+    // A template gives the lines (the server prices them now); a hand-made quotation sends its own.
+    ...(draft.templateId ? { template_id: draft.templateId } : { lines: draft.lines.map(salesLinePayload) }),
   }
 }
 

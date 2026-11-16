@@ -45,9 +45,11 @@ import { findMockProduct } from './products-mock-routes.mjs'
 import { crmPreviewLead, crmPreviewWin } from './crm-ui-preview-data.mjs'
 import { salesCrmPlan, setSalesCrmWin } from './sales-crm-mock-state.mjs'
 import { salesFinancePlan, setSalesFinancePlan } from './sales-finance-mock-state.mjs'
+import { handleSalesReports } from './sales-reports-mock-routes.mjs'
+import { handleSalesTemplateHooks, handleSalesTemplates, resetSalesTemplates, startFromTemplate } from './sales-templates-mock-routes.mjs'
 import { cancelDraftInvoices, creditInvoice, handleSalesFinance, idempotentInvoice, invoiceOrder, invoicesBlockCancel, invoicingOf, payInvoice, resetSalesFinance } from './sales-finance-mock-routes.mjs'
 
-export const SALES_CAPABILITIES = ['sales.read', 'sales.quotations.manage', 'sales.orders.confirm', 'sales.discounts.approve', 'sales.documents.assign', 'sales.settings.manage', 'payments.refund']
+export const SALES_CAPABILITIES = ['sales.read', 'sales.quotations.manage', 'sales.orders.confirm', 'sales.discounts.approve', 'sales.documents.assign', 'sales.reports.read', 'sales.settings.manage', 'payments.refund']
 
 // Answers without a session, so a spec that never signs in (the customer's quotation page) can reset it too.
 const RESET_PATH = '/api/v1/public/sales/__mock/reset'
@@ -123,7 +125,7 @@ const hasCookie = (cookie, value) => new RegExp(`(?:^|;\\s*)${value}(?:;|$)`).te
 
 function capabilities(cookie) {
   const caps = capabilitiesForRequest(cookie, SALES_CAPABILITIES)
-  if (hasCookie(cookie, 'mock_caps=reader')) return caps.filter(cap => cap === 'sales.read')
+  if (hasCookie(cookie, 'mock_caps=reader')) return caps.filter(cap => cap === 'sales.read' || cap === 'sales.reports.read')
   if (hasCookie(cookie, 'mock_sales=agent')) return caps.filter(cap => ['sales.read', 'sales.quotations.manage', 'sales.orders.confirm'].includes(cap))
   return caps
 }
@@ -277,7 +279,10 @@ function parseLines(lines, previous, caps) {
     }
     // A line keeps the price it was created with until its product changes.
     const unitPrice = old && old.product_id === product.id ? old.unit_price ?? product.unit_price : product.unit_price
-    stored.push(line(old?.id ?? nextLineId++, 'product', { product_id: product.id, name: product.name, quantity: input.quantity, discount_percent: discount, unit_price: unitPrice }))
+    // The server keeps the text staff wrote on a product line; otherwise the line shows the product's current description.
+    const own = typeof input.name === 'string' ? input.name.trim() : ''
+    const name = own && own !== product.name ? own : product.name
+    stored.push(line(old?.id ?? nextLineId++, 'product', { product_id: product.id, name, quantity: input.quantity, discount_percent: discount, unit_price: unitPrice }))
   }
   return { stored }
 }
@@ -339,6 +344,12 @@ function validityFromSettings() {
 
 function create(body, caps, cookie) {
   if (!('customer_id' in body)) return invalid('customer_id', 'customer_id is required')
+  // A template (sales-templates-mock-routes.mjs) gives the lines, terms and validity the body leaves out; the lines are priced below.
+  if ('template_id' in body) {
+    const started = startFromTemplate(body)
+    if (started.failure) return started.failure
+    body = started.body
+  }
   const parsed = parseWrite(body, [], caps, cookie)
   if (parsed.failure) return parsed.failure
   const id = nextOrderId++
@@ -442,9 +453,24 @@ function leadOrders(req, leadId, url, caps) {
   return { status: 200, body: dump(stored, caps) }
 }
 
+/** The product lines of the documents the caller reads, one row each: what the Sales reports add up (sales-reports-mock-routes.mjs). */
+function reportRows(caps) {
+  return orders.filter(order => visible(order, caps)).flatMap(order => order.lines.filter(stored => stored.kind === 'product').map((stored) => {
+    const shown = dumpLine(stored)
+    return {
+      lineId: stored.id, orderId: order.id, number: order.number, state: order.state, source: order.source, date: order.date,
+      customer: { id: order.customer_id, name: order.customer_name }, salesperson: order.salesperson, product: shown.product,
+      quantity: shown.quantity, unit_price: shown.unit_price, discount_percent: shown.discount_percent,
+      amount_untaxed: shown.amount_untaxed, amount_total: shown.amount_total,
+    }
+  }))
+}
+
 /** Answers a sales request and returns true; any other path is not this stub's. */
 export async function handleSales(req, res, path, url, { json, readBody }) {
   if (handleSalesFinance(req, path, (status, body) => json(res, status, body))) return true
+  if (handleSalesReports(req, res, path, url, json, capabilities(req.headers.cookie), reportRows)) return true
+  if (await handleSalesTemplates(req, res, path, url, { json, readBody }, capabilities(req.headers.cookie), () => { paymentsOn = paymentsSwitch && !paymentsOff(req.headers.cookie); return settingsView(false) })) return true
   const record = path.match(RECORD_PATH)
   const ofLead = path.match(LEAD_ORDERS_PATH)
   if (!(path === LIST_PATH || path === SETTINGS_PATH || path === SALESPEOPLE_PATH || record || ofLead)) return false
@@ -658,12 +684,14 @@ function answerQuotation(order, action, body) {
 
 /** The routes of the customer's quotation link: no session, the access token `tok-<id>` is the only credential. */
 export async function handlePublicSales(req, res, path, url, { json, readBody }) {
+  if (await handleSalesTemplateHooks(req, res, path, { json, readBody })) return true
   if (path === RESET_PATH && req.method === 'POST') {
     orders = withPay([...freshOrders(), ...sentOrders()])
     paymentsSwitch = true
     setSalesFinancePlan(false)
     resetSalesFinance()
     settings = freshSettings()
+    resetSalesTemplates()
     setSalesCrmWin(settings.opportunity_win)
     nextOrderId = 100
     nextLineId = 1000
