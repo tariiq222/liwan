@@ -33,7 +33,7 @@ const threadClass = computed(() => {
 </script>
 
 <template>
-  <div data-template="conversation-layout" class="grid h-[max(540px,calc(100svh-340px))] min-w-0 overflow-hidden rounded-surface border-[1.5px] border-default bg-default" :class="columns">
+  <div data-template="conversation-layout" class="liwan-conversation-fill grid min-w-0 overflow-hidden rounded-surface border-[1.5px] border-default bg-default" :class="columns">
     <div data-template="conversation-list" class="min-h-0 min-w-0 flex-col md:border-e-[1.5px] md:border-default" :class="listClass">
       <slot name="list" />
     </div>
