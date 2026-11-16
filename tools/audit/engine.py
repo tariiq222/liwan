@@ -15,7 +15,6 @@ import os
 import re
 import shutil
 import subprocess
-import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -26,8 +25,8 @@ REPO = Path(__file__).resolve().parents[2]
 def evidence_root() -> Path:
     """Where this framework keeps its evidence, shared by every worktree of one checkout.
 
-    A lane is disposable (``wt lane finish`` returns it to origin/main and ``wt gc`` removes a task
-    worktree), so evidence written inside a lane disappears with it. The audit history belongs to the
+    A lane is disposable (``wt done`` returns it to origin/main, ``wt lane remove`` deletes it and ``wt gc``
+    removes a leftover worktree), so evidence written inside a lane disappears with it. The audit history belongs to the
     repository, not to a lane: the default is the canonical checkout's ``.audit``, found through the
     shared git directory, and ``LIWAN_AUDIT_DIR`` overrides it for a team that keeps evidence
     elsewhere. Nothing here is tracked by git.
@@ -51,7 +50,7 @@ def evidence_root() -> Path:
 AUDIT_DIR = evidence_root()
 GENERATED_SKIP = re.compile(
     r'(^|/)(node_modules|\.nuxt|\.output|\.nitro|storybook-static|dist|coverage|test-results|\.git|\.worktrees|\.audit)'
-    r'(/|$)|(^|/)vendor(/|$)'
+    r'(/|$)|(^|/)vendor(/|$)',
 )
 
 
@@ -136,6 +135,7 @@ def crashed(log: Path) -> bool:
     except OSError:
         return False
     return any(marker in text for marker in CRASH_MARKERS)
+
 
 def tail(path: Path, lines: int = 12) -> str:
     try:
