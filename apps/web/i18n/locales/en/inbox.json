@@ -227,6 +227,8 @@
       "anyState": "Any status",
       "priority": "Priority",
       "anyPriority": "Any priority",
+      "channel": "Channel",
+      "anyChannel": "All channels",
       "department": "Department",
       "anyDepartment": "Any department",
       "empty": "No conversations yet",

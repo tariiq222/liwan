@@ -335,12 +335,14 @@ function conversationList(url) {
   const wanted = {
     state: url.searchParams.get('state'),
     priority: url.searchParams.get('priority'),
+    channelKind: url.searchParams.get('channel_kind'),
     department: Number(url.searchParams.get('department_id')) || null,
     csat: url.searchParams.get('csat'),
   }
   const items = state.conversations
     .filter(c => !wanted.state || c.state === wanted.state)
     .filter(c => !wanted.priority || c.priority === wanted.priority)
+    .filter(c => !wanted.channelKind || c.channel.kind === wanted.channelKind)
     .filter(c => !wanted.department || c.department?.id === wanted.department)
     .filter(c => !wanted.csat || c.csat?.score === wanted.csat)
     .filter(c => !assignee || (assignee === 'me' ? c.assignee?.id === ME.id : assignee === 'unassigned' ? !c.assignee : c.assignee?.id === Number(assignee)))

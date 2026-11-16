@@ -192,6 +192,31 @@ class TestConversationsApi(LiwanInboxCase):
         self.assertNotIn(self.conversation.id, ids)
         self.assertError(self.get('/api/v1/inbox/conversations?priority=critical'), 422, 'invalid')
 
+    def test_channel_kind_filter(self):
+        tiktok = self.make_conversation(channel=self.make_tiktok_channel(), priority='urgent')
+        urgent_whatsapp = self.make_conversation(priority='urgent')
+        self.login(self.agent)
+
+        def ids(query):
+            return {row['id'] for row in self.get(f'/api/v1/inbox/conversations?{query}').json()['items']}
+
+        self.assertEqual(ids('channel_kind=tiktok'), {tiktok.id})
+        self.assertEqual(ids('channel_kind=whatsapp'), {self.conversation.id, urgent_whatsapp.id})
+        self.assertEqual(ids('channel_kind=whatsapp&priority=urgent'), {urgent_whatsapp.id})
+        self.assertEqual(ids('channel_kind=tiktok&priority=normal'), set())
+        self.assertError(self.get('/api/v1/inbox/conversations?channel_kind=sms'), 422, 'invalid')
+
+    def test_export_honours_the_channel_kind_filter(self):
+        tiktok = self.make_conversation(channel=self.make_tiktok_channel())
+        self.login(self.supervisor)
+        export = self.get('/api/v1/inbox/conversations/export.csv?channel_kind=tiktok')
+        self.assertIn(tiktok.contact_id.name, export.text)
+        self.assertNotIn(self.conversation.contact_id.name, export.text)
+        whatsapp_export = self.get('/api/v1/inbox/conversations/export.csv?channel_kind=whatsapp')
+        self.assertIn(self.conversation.contact_id.name, whatsapp_export.text)
+        self.assertNotIn(tiktok.contact_id.name, whatsapp_export.text)
+        self.assertError(self.get('/api/v1/inbox/conversations/export.csv?channel_kind=sms'), 422, 'invalid')
+
     def test_reopening_beside_a_newer_open_conversation_is_a_clear_refusal(self):
         """INB-113: the one-open-conversation-per-customer rule answers with a code the page maps, not SQL text."""
         closed = self.make_conversation(state='closed')

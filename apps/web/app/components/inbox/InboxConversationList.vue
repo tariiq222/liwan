@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InboxConversation, InboxMessageKind } from '@liwan/contracts'
+import { InboxChannelKindSchema, type InboxConversation, type InboxMessageKind } from '@liwan/contracts'
 import { useDebounceFn } from '@vueuse/core'
 import { avatarProps } from '@liwan/ui/app/utils/avatarTone'
 import EmptyState from '@liwan/ui/app/components/shared/feedback/EmptyState.vue'
@@ -12,7 +12,7 @@ import { useInboxConversationsExport } from '@/composables/inbox/useInboxConvers
 import { exportTooLargeMessage } from '@/utils/exportErrors'
 import { DEFAULT_INBOX_LIST_ROUTE, INBOX_PAGE_SIZE, inboxPageOffset, serializeInboxListRoute, type InboxListRoute } from '@/composables/inbox/inboxListRoute'
 
-// The conversation list pane of the inbox page (its left column): filters (scope, state, department, priority, rating, search) are the URL query, owned by the page
+// The conversation list pane of the inbox page (its left column): filters (scope, state, department, priority, channel, rating, search) are the URL query, owned by the page
 // that hosts this list. The component only reads them and emits the next filter state; whether the secondary filters and the sort are folded away is local UI state.
 const props = defineProps<{ routeState: InboxListRoute; selectedId?: number }>()
 const emit = defineEmits<{ 'update:routeState': [InboxListRoute, options?: { replace: boolean }] }>()
@@ -23,7 +23,7 @@ const { data, isLoading, isError, isPlaceholderData, error, refetch } = useInbox
 const departments = useInboxDepartments()
 const items = computed(() => data.value?.items ?? [])
 const total = computed(() => data.value?.total ?? 0)
-const filtered = computed(() => props.routeState.assignee !== 'all' || !!props.routeState.state || !!props.routeState.priority || !!props.routeState.departmentId || !!props.routeState.csat || !!props.routeState.q)
+const filtered = computed(() => props.routeState.assignee !== 'all' || !!props.routeState.state || !!props.routeState.priority || !!props.routeState.channel || !!props.routeState.departmentId || !!props.routeState.csat || !!props.routeState.q)
 const q = ref(props.routeState.q)
 watch(() => props.routeState.q, (value) => { q.value = value })
 // Typing applies the search after a short pause, Enter applies it at once and clearing the box resets the results at once.
@@ -35,7 +35,7 @@ watch(q, (value) => {
 })
 
 const ALL = 'all'
-// The four filters and the sort share the pane's width as soft chips, two to a row.
+// The five filters and the sort share the pane's width as soft chips, two to a row.
 const FILTER_REGION_ID = 'inbox-list-filters'
 const FILTER_SELECT = 'min-w-0 flex-[1_1_calc(50%-4px)]'
 const scopeItems = computed(() => [
@@ -51,6 +51,10 @@ const priorityItems = computed(() => [
   { value: ALL, label: t('inbox.list.anyPriority') },
   ...PRIORITIES.map(value => ({ value, label: t(`inbox.priorities.${value}`) })),
 ])
+const channelItems = computed(() => [
+  { value: ALL, label: t('inbox.list.anyChannel') },
+  ...InboxChannelKindSchema.options.map(value => ({ value, label: t(channelKindLabelKey(value)), icon: CHANNEL_KIND_ICON[value] })),
+])
 const departmentItems = computed(() => [
   { value: ALL, label: t('inbox.list.anyDepartment') },
   ...(departments.data.value?.items ?? []).map(department => ({ value: String(department.id), label: department.name })),
@@ -59,7 +63,7 @@ const csatItems = computed(() => [
   { value: ALL, label: t('inbox.list.anyCsat') },
   ...CSAT_SCORES.map(value => ({ value, label: t(`inbox.csat.${value}`) })),
 ])
-const activeFilterCount = computed(() => [props.routeState.state, props.routeState.departmentId, props.routeState.priority, props.routeState.csat].filter(Boolean).length)
+const activeFilterCount = computed(() => [props.routeState.state, props.routeState.departmentId, props.routeState.priority, props.routeState.channel, props.routeState.csat].filter(Boolean).length)
 const sorted = computed(() => props.routeState.sort !== DEFAULT_INBOX_LIST_ROUTE.sort)
 const canClear = computed(() => activeFilterCount.value > 0 || !!props.routeState.q || sorted.value)
 // A deep link shows the filters and the sort it carries; after that the agent folds the region open or shut.
@@ -80,7 +84,7 @@ function applySearch() {
   emit('update:routeState', { ...props.routeState, q: term, offset: 0 }, term && props.routeState.q ? { replace: true } : undefined)
 }
 function clearFilters() {
-  update({ state: '', departmentId: null, priority: '', csat: '', q: '', sort: DEFAULT_INBOX_LIST_ROUTE.sort })
+  update({ state: '', departmentId: null, priority: '', channel: '', csat: '', q: '', sort: DEFAULT_INBOX_LIST_ROUTE.sort })
 }
 // Arrow keys move between the rows' links; Tab order and the links themselves are untouched.
 const rowList = useTemplateRef<HTMLUListElement>('rowList')
@@ -204,6 +208,16 @@ const empty = computed(() => hydrated.value && !isLoading.value && !isError.valu
               :disabled="!hydrated"
               data-testid="inbox-priority-filter"
               @update:model-value="update({ priority: $event === ALL ? '' : ($event as InboxListRoute['priority']) })"
+            />
+            <USelect
+              :model-value="props.routeState.channel || ALL"
+              :items="channelItems"
+              variant="soft"
+              :class="FILTER_SELECT"
+              :aria-label="t('inbox.list.channel')"
+              :disabled="!hydrated"
+              data-testid="inbox-channel-filter"
+              @update:model-value="update({ channel: $event === ALL ? '' : ($event as InboxListRoute['channel']) })"
             />
             <USelect
               :model-value="props.routeState.csat || ALL"

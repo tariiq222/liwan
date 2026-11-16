@@ -60,7 +60,7 @@ ASSIGN_FIELDS = {'assignee_id', 'department_id'}
 
 
 def conversation_domain(args):
-    """The list filters of the query string (state, priority, assignee, department_id, channel_id, csat, q)."""
+    """The list filters of the query string (state, priority, assignee, department_id, channel_id, channel_kind, csat, q)."""
     domain = []
     if args.get('state'):
         if args['state'] not in CONVERSATION_STATES:
@@ -84,6 +84,11 @@ def conversation_domain(args):
     for key in ('department_id', 'channel_id'):
         if args.get(key):
             domain.append((key, '=', parse_positive_int(args[key], key)))
+    if args.get('channel_kind'):
+        kinds = request.env['liwan.inbox.channel']._fields['kind'].get_values(request.env)
+        if args['channel_kind'] not in kinds:
+            reject(f'channel_kind must be one of {tuple(kinds)}', 'channel_kind')
+        domain.append(('channel_id.kind', '=', args['channel_kind']))
     if args.get('q'):
         domain += [
             '|', '|', ('contact_id.name', 'ilike', args['q']), ('contact_id.phone', 'ilike', args['q']),

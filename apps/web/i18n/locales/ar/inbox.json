@@ -227,6 +227,8 @@
       "anyState": "كل الحالات",
       "priority": "الأولوية",
       "anyPriority": "كل الأولويات",
+      "channel": "القناة",
+      "anyChannel": "كل القنوات",
       "department": "القسم",
       "anyDepartment": "كل الأقسام",
       "empty": "لا توجد محادثات بعد",
