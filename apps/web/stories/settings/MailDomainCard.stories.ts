@@ -46,6 +46,7 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const NotStarted: Story = { name: 'لم يبدأ', ...serve(domain()) }
+export const Expired: Story = { name: 'انتهت مهلة التوثيق', ...serve(domain({ domain: 'example.com', from_local_part: 'info', last_error: 'انتهت مهلة التوثيق بعد 7 أيام. ابدأ من جديد.' })) }
 export const PendingDns: Story = {
   name: 'بانتظار سجلات النطاق',
   ...serve(domain({ state: 'pending_dns', domain: 'example.com', from_local_part: 'info', sender_address: 'info@example.com', records: RECORDS, return_path_expires_at: '2099-01-01T00:00:00Z', return_path_recreated_at: '2026-11-15T10:00:00Z' })),

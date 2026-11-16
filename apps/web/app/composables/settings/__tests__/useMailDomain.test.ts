@@ -20,6 +20,7 @@ describe('mailDomainErrorKey', () => {
     expect(mailDomainErrorKey(new ApiError(502, 'provider_error', 'x'))).toBe('settings.mail.errors.providerError')
     expect(mailDomainErrorKey(new ApiError(503, 'provider_unavailable', 'x'))).toBe('settings.mail.errors.providerUnavailable')
     expect(mailDomainErrorKey(new ApiError(422, 'mail_paused', 'x'))).toBe('settings.mail.errors.paused')
+    expect(mailDomainErrorKey(new ApiError(409, 'mail_paused', 'x', undefined, { reason: 'bounces' }))).toBe('settings.mail.errors.paused')
     expect(mailDomainErrorKey(new ApiError(409, 'busy', 'x'))).toBe('settings.mail.errors.busy')
   })
 

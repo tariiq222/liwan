@@ -35,6 +35,13 @@ const failure = ref('')
 const confirmingRemove = ref(false)
 const copiedName = ref('')
 
+// An unverified domain that expired comes back as not started with its old values: they prefill the form.
+watch(domain, (current) => {
+  if (current?.state !== 'not_started') return
+  if (!form.domain && current.domain) form.domain = current.domain
+  if (!form.from_local_part && current.from_local_part) form.from_local_part = current.from_local_part
+}, { immediate: true })
+
 const shown = computed(() => mailDomainShown(domain.value))
 const working = computed(() => start.isPending.value || verify.isPending.value || remove.isPending.value || testSend.isPending.value)
 const locked = computed(() => !hydrated.value || working.value)
@@ -91,6 +98,7 @@ async function copy(name: string, value: string) {
       <SharedStatusBadge :tone="stateTone[domain.state]" :label="t(`settings.mail.state.${domain.state}`)" data-testid="mail-state" />
 
       <form v-if="domain.state === 'not_started'" class="grid gap-4" data-testid="mail-start" @submit.prevent="submitStart">
+        <UAlert v-if="domain.last_error" color="warning" variant="subtle" :description="domain.last_error" data-testid="mail-expired" />
         <p class="text-sm text-muted">{{ t('settings.mail.intro') }}</p>
         <UFormField name="mail-domain" :label="t('settings.mail.domain')">
           <UInput v-model="form.domain" dir="ltr" autocomplete="off" :placeholder="t('settings.mail.domainPlaceholder')" :disabled="locked" data-testid="mail-domain-input" />
