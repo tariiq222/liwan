@@ -1,10 +1,13 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.tests import tagged
 
-from .common import LiwanSalesCase
+from .common import BRIDGE_KEYS, LiwanSalesCase
 
 SETTINGS = '/api/v1/sales/settings'
-KEYS = {'visibility', 'validity_days', 'discount_limit_percent', 'default_terms', 'can_manage', 'revision'}
+KEYS = {
+    'visibility', 'validity_days', 'discount_limit_percent', 'default_terms', 'customer_answer', 'acceptance_confirms',
+    'answered_resend', 'signature_methods', 'can_manage', 'revision',
+}
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -20,12 +23,13 @@ class TestSalesSettings(LiwanSalesCase):
     def test_a_reader_and_a_manager_read_the_defaults(self):
         reader = self.api_as(self.agent, 'GET', SETTINGS)
         self.assertEqual(reader.status_code, 200, reader.text)
-        self.assertEqual(set(reader.json()), KEYS)
+        self.assertEqual(set(reader.json()) - BRIDGE_KEYS, KEYS)
         self.assertEqual(
-            reader.json(),
+            {key: value for key, value in reader.json().items() if key not in BRIDGE_KEYS},
             {
                 'visibility': 'own', 'validity_days': 30, 'discount_limit_percent': 0, 'default_terms': '',
-                'can_manage': False, 'revision': 1,
+                'customer_answer': 'accept', 'acceptance_confirms': False, 'answered_resend': 'allow',
+                'signature_methods': 'draw_or_type', 'can_manage': False, 'revision': 1,
             },
         )
         manager = self.api_as(self.manager, 'GET', SETTINGS).json()
@@ -39,7 +43,10 @@ class TestSalesSettings(LiwanSalesCase):
         revision = 1
         for payload in (
             {'visibility': 'all'}, {'validity_days': 0}, {'validity_days': 3650}, {'discount_limit_percent': 100},
-            {'default_terms': 'Payment within 30 days'}, {'default_terms': ''},
+            {'default_terms': 'Payment within 30 days'}, {'default_terms': ''}, {'customer_answer': 'none'},
+            {'customer_answer': 'accept_and_sign'}, {'acceptance_confirms': True}, {'acceptance_confirms': False},
+            {'answered_resend': 'refuse'}, {'answered_resend': 'allow'}, {'signature_methods': 'draw'},
+            {'signature_methods': 'draw_or_type'},
         ):
             with self.subTest(payload=payload):
                 response = self.patch(self.manager, revision=revision, **payload)
@@ -54,7 +61,10 @@ class TestSalesSettings(LiwanSalesCase):
         for field, value in (
             ('visibility', 'team'), ('validity_days', -1), ('validity_days', 3651), ('validity_days', True),
             ('validity_days', '5'), ('discount_limit_percent', 101), ('discount_limit_percent', -1),
-            ('default_terms', 5), ('revision', 0),
+            ('default_terms', 5), ('revision', 0), ('customer_answer', 'sign'), ('customer_answer', None),
+            ('acceptance_confirms', 'yes'), ('acceptance_confirms', 1), ('answered_resend', 'block'),
+            ('answered_resend', None), ('answered_resend', True), ('signature_methods', 'type'), ('signature_methods', None),
+            ('signature_methods', 'drawn'),
         ):
             with self.subTest(field=field, value=value):
                 payload = {'revision': 1, 'validity_days': 10} if field == 'revision' else {'revision': 1}

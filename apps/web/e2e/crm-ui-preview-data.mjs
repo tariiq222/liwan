@@ -2,6 +2,7 @@
 // Shapes follow packages/contracts/src/crm. It keeps state, so the settings page can save against it; POST
 // /api/v1/__mock/reset-crm restores the seeds between spec runs. Revision conflicts answer 409 like the server.
 import { findMockProduct } from './products-mock-routes.mjs'
+import { salesCrmCanQuote, salesCrmWinByOrder, setSalesCrmPlan, setSalesCrmWin } from './sales-crm-mock-state.mjs'
 
 const SEED_PROPERTIES = [
   { key: 'sector', label: 'القطاع', type: 'selection', options: [{ key: 'retail', label: 'تجزئة' }, { key: 'services', label: 'خدمات' }] },
@@ -117,9 +118,14 @@ const serverKey = () => `p${nextPropertyKey++}`
 const withKeys = ({ key, options, ...field }) => ({
   key: key ?? serverKey(), ...field, ...(options && { options: options.map(({ key, label }) => ({ key: key ?? serverKey(), label })) }),
 })
+// The two flags of the shape follow the Sales bridge at every read: a record keeps no copy of them.
+const withWinFlags = row => Object.defineProperties(row, {
+  win_by_order: { get: () => salesCrmWinByOrder(), enumerable: true },
+  can_quote: { get: () => salesCrmWinByOrder() && salesCrmCanQuote(), enumerable: true },
+})
 const seedOpportunities = () => {
   const base = { email: '', notes: '', lost_reason: null, customer: null, package: null, list_price: 0, discount_percent: 0, final_price: 0, expected_revenue: 0, probability: 0, attempt_count: 0, next_call_at: null, cycle: 0, recycle_at: null, needs_manager: false, active: true, status: 'pending' }
-  const row = (id, contact_name, phone, stageId, userId, sourceId, extra = {}) => ({
+  const row = (id, contact_name, phone, stageId, userId, sourceId, extra = {}) => withWinFlags({
     ...base, id, contact_name, phone, stage: ref(seedLists().stages, stageId), user: mockUserRef(userId), source: ref(seedLists().sources, sourceId),
     properties: propertiesOf(SEED_PROPERTIES), created_at: seededCreatedAt(id), ...extra,
   })
@@ -153,6 +159,24 @@ let mappings = []
 // When a won record was closed (the contract's opportunity has no such field); the seeded sale closed today, so the month figures hold on the first of a month.
 const seedClosedAt = () => new Map([[5, iso(0)]])
 let closedAt = seedClosedAt()
+// Whether Sales is in the plan beside CRM (the bridge): off, an opportunity is won with a package. The switch
+// `POST /api/v1/__mock/crm-win-by-order {on, can_quote}` puts Sales in the plan and links the second record to the customer
+// «مؤسسة النخيل» (id 2), so a quotation can be written for it; `reset-crm` turns it off again. Whether an order then wins
+// follows the Sales setting `opportunity_win` (sales-crm-mock-state.mjs), and a package win is refused with 409
+// `crm_win_by_order` while it does.
+
+/** The opportunity `id` as the mock keeps it, or undefined: the Sales bridge mock reads its customer and status. */
+export const crmPreviewLead = id => opportunities.find(item => item.id === id)
+
+/** Win the opportunity for `amount`, as an order does: no package, the won stage and no follow-up. A closed one stays as it is. */
+export function crmPreviewWin(id, amount) {
+  const lead = crmPreviewLead(id)
+  if (!lead || !lead.active || lead.status === 'lost') return false
+  if (lead.status === 'pending') closedAt.set(lead.id, iso(0))
+  Object.assign(lead, { status: 'won', stage: ref(lists.stages, wonStage().id), package: null, list_price: 0, discount_percent: 0, final_price: amount, expected_revenue: amount, next_call_at: null, needs_manager: false })
+  return true
+}
+
 
 const dumpSettings = () => ({
   values: settings.values,
@@ -249,8 +273,16 @@ export function crmPreviewWrite(method, path, body) {
     batches = []
     mappings = []
     closedAt = seedClosedAt()
+    setSalesCrmPlan(false)
+    setSalesCrmWin('order_confirmed')
     nextPropertyKey = 1
     return { status: 200, body: { reset: true } }
+  }
+  if (method === 'POST' && path === '/api/v1/__mock/crm-win-by-order') {
+    setSalesCrmPlan(body.on === true, body.can_quote !== false)
+    const linked = crmPreviewLead(2)
+    if (body.on === true && linked && !linked.customer) linked.customer = { id: 2, name: 'مؤسسة النخيل' }
+    return { status: 200, body: { on: body.on === true } }
   }
   const opportunityWrite = crmOpportunityWrite(method, path, body)
   if (opportunityWrite) return opportunityWrite
@@ -296,6 +328,7 @@ export function crmPreviewWrite(method, path, body) {
 }
 
 const invalid = (field, message, reason) => ({ status: 422, body: { code: 'invalid', message, field, ...(reason && { details: { reason } }) } })
+const byOrder = () => (salesCrmWinByOrder() ? { status: 409, body: { code: 'conflict', message: 'this opportunity is won with an order', details: { reason: 'crm_win_by_order' } } } : undefined)
 const closed = { status: 409, body: { code: 'conflict', message: 'the opportunity is closed' } }
 const wonStage = () => lists.stages.find(stage => stage.is_won)
 const firstStage = () => [...lists.stages].filter(stage => stage.active && !stage.is_won).sort((a, b) => a.sequence - b.sequence)[0]
@@ -329,12 +362,12 @@ function followUp(lead) {
 function crmOpportunityWrite(method, path, body) {
   if (method === 'POST' && path === '/api/v1/crm/opportunities') {
     if (opportunities.some(item => item.phone === body.phone)) return invalid('phone', 'duplicate phone', 'duplicate_phone')
-    const created = {
+    const created = withWinFlags({
       id: Math.max(0, ...opportunities.map(item => item.id)) + 1, contact_name: body.contact_name, phone: body.phone, email: body.email ?? '', notes: '',
       stage: ref(lists.stages, firstStage().id), user: mockUserRef('user_id' in body ? body.user_id : 2), source: ref(lists.sources, body.source_id),
       package: null, lost_reason: null, customer: null, status: 'pending', list_price: 0, discount_percent: 0, final_price: 0, expected_revenue: 0, probability: 0, attempt_count: 0,
       next_call_at: null, cycle: 0, recycle_at: null, needs_manager: false, active: true, created_at: iso(0), properties: propertiesOf(settings.values.lead_properties),
-    }
+    })
     opportunities.unshift(created)
     return { status: 200, body: created }
   }
@@ -379,7 +412,7 @@ function crmOpportunityWrite(method, path, body) {
     closeLost(lead, body.lost_reason_id)
     return { status: 200, body: lead }
   }
-  if (action === 'won') return sell(lead, body) ?? { status: 200, body: lead }
+  if (action === 'won') return byOrder() ?? sell(lead, body) ?? { status: 200, body: lead }
   const outcome = lists.outcomes.find(item => item.id === body.outcome_id)
   if (!outcome) return invalid('outcome_id', 'outcome does not exist')
   const saleFields = body.package_id !== undefined
@@ -389,6 +422,7 @@ function crmOpportunityWrite(method, path, body) {
   if (reasonId !== undefined && !lists['lost-reasons'].some(reason => reason.id === reasonId && reason.active)) return invalid('lost_reason_id', 'lost reason does not exist')
   if (outcome.effect === 'lost' && !outcome.lost_reason_id && reasonId === undefined) return invalid('lost_reason_id', 'a losing outcome without a reason needs lost_reason_id')
   if (outcome.effect === 'won') {
+    if (byOrder()) return byOrder()
     if (!saleFields) return invalid('package_id', 'a sold outcome needs a package and a final price')
     const refused = sell(lead, body)
     if (refused) return refused
@@ -498,12 +532,12 @@ function commitImport(body, checked) {
   let nextId = Math.max(0, ...opportunities.map(item => item.id))
   for (const item of fresh) {
     nextId += 1
-    opportunities.unshift({
+    opportunities.unshift(withWinFlags({
       id: nextId, contact_name: item.name, phone: item.phone, email: item.email, notes: item.notes, stage: ref(lists.stages, firstStage().id), user: mockUserRef(agentId),
       source: ref(lists.sources, body.source_id), package: null, lost_reason: null, customer: null, status: 'pending', list_price: 0, discount_percent: 0, final_price: 0,
       expected_revenue: 0, probability: 0, attempt_count: 0, next_call_at: null, cycle: 0, recycle_at: null, needs_manager: false, active: true, created_at: iso(0),
       properties: propertiesOf(settings.values.lead_properties),
-    })
+    }))
   }
   const batch = {
     id: Math.max(0, ...batches.map(item => item.id)) + 1, file_name: body.file_name, user: mockUserRef(2), source: ref(lists.sources, body.source_id),

@@ -22,6 +22,9 @@ MANUAL_ACTUAL_SOURCE = {
 }
 
 
+OVERDUE_FIXTURE_DAYS = 3  # how long before its creation `task_overdue` is due
+
+
 class LiwanPmoCase(LiwanApiCase):
     """The shared liwan_api fixture plus the project/task records the PMO
     endpoints are exercised against.
@@ -40,6 +43,18 @@ class LiwanPmoCase(LiwanApiCase):
         self.patch(source, '_liwan_set_actual_account', _no_actual_source)
         self.patch(type(self.env['liwan.pmo.settings']), '_liwan_settings_extensions', lambda _model: [])
 
+    def freeze_today(self, day):
+        """Make the server's "today" a fixed day, so a midnight rollover between fixture setup and a request
+        cannot shift day counts. Only the no-timestamp form is frozen; converting a given timestamp is untouched."""
+        convert = fields.Date.context_today
+        self.patch(fields.Date, 'context_today',
+                   staticmethod(lambda record, timestamp=None: convert(record, timestamp) if timestamp else day))
+
+    def freeze_today_at_fixture(self):
+        """Freeze "today" to the day the `task_overdue` fixture was dated against."""
+        deadline_day = fields.Date.context_today(self.task_overdue, self.task_overdue.date_deadline)
+        self.freeze_today(deadline_day + timedelta(days=OVERDUE_FIXTURE_DAYS))
+
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -54,7 +69,7 @@ class LiwanPmoCase(LiwanApiCase):
         now = fields.Datetime.now()
         cls.task_overdue = cls.env['project.task'].create({
             'name': 'Overdue task', 'project_id': cls.project.id,
-            'user_ids': [(4, cls.employee.id)], 'date_deadline': now - timedelta(days=3), 'priority': '1',
+            'user_ids': [(4, cls.employee.id)], 'date_deadline': now - timedelta(days=OVERDUE_FIXTURE_DAYS), 'priority': '1',
         })
         cls.task_done = cls.env['project.task'].create({
             'name': 'Done task', 'project_id': cls.project.id,

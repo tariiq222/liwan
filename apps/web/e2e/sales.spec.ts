@@ -1,8 +1,9 @@
 import { test, expect, type Page } from '@playwright/test'
 
 // Runs against the isolated synthetic stack (MODULE_UI_PREVIEW=1): sales-mock-routes.mjs keeps state, reset before each
-// test. Seed: S00001 draft (mine, a section, a product and a note), S00002 confirmed (another salesperson), S00003
-// cancelled, S00004 an online order, confirmed and locked. `mock_caps=reader` drops every write capability and
+// test. Seed: S00001 draft (mine, a section, a product and a note; its customer has no email), S00002 confirmed (another
+// salesperson), S00003 cancelled, S00004 an online order, confirmed and locked, and four quotations already sent by another
+// salesperson: S00005 (accept or decline), S00006 (accept with a signature), S00007 (expired) and S00008 (read only). `mock_caps=reader` drops every write capability and
 // `mock_sales=branch` reads the settings with `can_manage: false`.
 test.skip(process.env.E2E_PROJECT_POPUPS !== '1', 'the sales checks run on the isolated mock stack (npm run e2e:mock)')
 
@@ -25,13 +26,13 @@ const heading = (page: Page) => page.locator('main h1')
 
 test.beforeEach(async ({ page }) => {
   await login(page)
-  const reset = await page.request.post('/api/v1/__mock/reset-sales', { data: {} })
+  const reset = await page.request.post('/api/v1/public/sales/__mock/reset', { data: {} })
   expect(reset.ok()).toBe(true)
 })
 
 test('the list keeps its filters in the address and Back from a record returns to the same filtered list', async ({ page }) => {
   await page.goto('/sales')
-  await expect(numbers(page)).toHaveText(['S00001', 'S00002', 'S00003', 'S00004'])
+  await expect(numbers(page)).toHaveText(['S00001', 'S00002', 'S00003', 'S00004', 'S00005', 'S00006', 'S00007', 'S00008'])
 
   await page.getByTestId('sales-search').fill('النخيل')
   await expect(page).toHaveURL(/q=/)
@@ -131,7 +132,7 @@ test('the record buttons follow the order actions, and the moves, the cancel con
   await expect(heading(page)).toHaveText('S00004')
   await expect(shown('sales-online')).toBeVisible()
   // Read-only: no write or move; copying it into a new staff quotation is the one action the server keeps.
-  for (const id of ['sales-edit', 'sales-confirm', 'sales-cancel', 'sales-lock', 'sales-unlock', 'sales-reopen', 'sales-assign-open']) {
+  for (const id of ['sales-edit', 'sales-confirm', 'sales-send', 'sales-pdf', 'sales-cancel', 'sales-lock', 'sales-unlock', 'sales-reopen', 'sales-assign-open']) {
     await expect(shown(id), id).toHaveCount(0)
   }
   await expect(shown('sales-duplicate')).toBeVisible()
@@ -149,7 +150,7 @@ test('the record buttons follow the order actions, and the moves, the cancel con
 
   await page.goto('/sales/1')
   await expect(heading(page)).toHaveText('S00001')
-  for (const id of ['sales-edit', 'sales-confirm', 'sales-cancel', 'sales-duplicate']) await expect(shown(id), id).toBeVisible()
+  for (const id of ['sales-edit', 'sales-send', 'sales-confirm', 'sales-cancel', 'sales-duplicate', 'sales-pdf']) await expect(shown(id), id).toBeVisible()
   for (const id of ['sales-lock', 'sales-unlock', 'sales-reopen']) await expect(shown(id), id).toHaveCount(0)
 
   await shown('sales-confirm').click()
@@ -205,7 +206,7 @@ test('a reader sees no create or edit and is refused /sales/new', async ({ page 
 
   await page.goto('/sales/1')
   await expect(heading(page)).toHaveText('S00001')
-  for (const id of ['sales-edit', 'sales-confirm', 'sales-cancel', 'sales-duplicate']) await expect(page.getByTestId(id), id).toHaveCount(0)
+  for (const id of ['sales-edit', 'sales-send', 'sales-confirm', 'sales-cancel', 'sales-duplicate']) await expect(page.getByTestId(id), id).toHaveCount(0)
 
   await page.goto('/sales/new')
   await expect(page.locator('main h1')).toHaveText('لا تملك صلاحية فتح هذه الصفحة')
@@ -230,4 +231,311 @@ test('the settings page is read-only without can_manage and saves for a manager'
   await expect.poll(async () => (await (await page.request.get('/api/v1/sales/settings')).json()).validity_days).toBe(45)
   await page.reload()
   await expect(page.getByTestId('sales-validity-days')).toHaveValue('45')
+})
+
+test('a draft is sent to the customer, shows its answer once the customer answers, and goes back to a draft', async ({ page }) => {
+  // S00001's customer has no email: the send is refused in words and the quotation stays a draft.
+  await page.goto('/sales/1')
+  await expect(page.getByTestId('sales-send')).toHaveText('إرسال للعميل')
+  await page.getByTestId('sales-send').click()
+  await expect(page.getByTestId('sales-action-error')).toContainText('ليس للعميل بريد إلكتروني')
+  await expect(page.getByTestId('sales-answer-status')).toHaveCount(0)
+
+  const created = await page.request.post('/api/v1/sales/orders', { data: { customer_id: 1, lines: [{ kind: 'product', product_id: 1, quantity: 1 }] } })
+  const { id } = await created.json() as { id: number }
+  await page.goto(`/sales/${id}`)
+  await page.getByTestId('sales-send').click()
+  await expect(page.getByTestId('sales-answer-status')).toHaveText('بانتظار العميل')
+  await expect(page.locator('main').getByText('مُرسَل').first()).toBeVisible()
+  await expect(page.getByTestId('sales-send')).toHaveText('إعادة الإرسال')
+  await expect(page.getByTestId('sales-edit')).toHaveCount(0)
+  await expect(page.getByTestId('sales-pdf')).toHaveAttribute('href', `/api/v1/sales/orders/${id}/pdf`)
+
+  // The customer declines at the link; the record shows it after a reload.
+  const declined = await page.request.post(`/api/v1/public/sales/quotations/${id}/decline`, { data: { access_token: `tok-${id}`, reason: 'السعر مرتفع' } })
+  expect(declined.ok()).toBe(true)
+  await page.reload()
+  await expect(page.getByTestId('sales-answer-status')).toHaveText('رفض العرض')
+  await expect(page.getByTestId('sales-answer-reason')).toContainText('السعر مرتفع')
+  // A declined quotation is cancelled on the server: it is reopened, never sent again.
+  await expect(page.getByTestId('sales-send')).toHaveCount(0)
+  await expect(page.getByTestId('sales-send-refused')).toHaveCount(0)
+  await expect(page.getByTestId('sales-reopen')).toBeVisible()
+})
+
+test('sending a quotation again asks first, because the customer\'s earlier answer is removed; cancelling the question sends nothing', async ({ page }) => {
+  const sends: string[] = []
+  page.on('request', request => { if (request.method() === 'POST' && request.url().endsWith('/api/v1/sales/orders/5/send')) sends.push(request.url()) })
+  const confirmation = page.getByTestId('inline-confirm')
+
+  await page.goto('/sales/5')
+  await page.getByTestId('sales-send').click()
+  await expect(confirmation).toContainText('هل تريد إعادة إرسال S00005 للعميل؟')
+  await expect(confirmation).toContainText('سيصل العميل بريد إلكتروني جديد. إن كان قد ردّ على العرض فسيُحذف ردّه وتوقيعه.')
+  await page.getByTestId('inline-confirm-cancel').click()
+  await expect(confirmation).toHaveCount(0)
+  expect(sends).toEqual([])
+
+  await page.getByTestId('sales-send').click()
+  await page.getByTestId('inline-confirm-action').click()
+  await expect(confirmation).toHaveCount(0)
+  await expect(page.getByTestId('sales-answer-status')).toHaveText('بانتظار العميل')
+  expect(sends).toHaveLength(1)
+
+  // Only one question is open at a time: asking to cancel replaces the question about sending again.
+  await page.getByTestId('sales-send').click()
+  await page.getByTestId('sales-cancel').click()
+  await expect(confirmation).toHaveCount(1)
+  await expect(confirmation).toContainText('هل تريد إلغاء S00005؟')
+})
+
+test('a sent quotation can be reopened as a draft, an acceptance shows its signer, and an expired one is marked and cannot be confirmed', async ({ page }) => {
+  await page.goto('/sales/5')
+  await expect(page.getByTestId('sales-reopen')).toHaveText('إعادة إلى مسودة')
+  await expect(page.getByTestId('sales-confirm')).toBeVisible()
+  await expect(page.getByTestId('sales-send')).toHaveText('إعادة الإرسال')
+  await page.getByTestId('sales-reopen').click()
+  await expect(page.getByTestId('sales-edit')).toBeVisible()
+  await expect(page.getByTestId('sales-answer-status')).toHaveCount(0)
+
+  const accepted = await page.request.post('/api/v1/public/sales/quotations/6/accept', { data: { access_token: 'tok-6', signed_by: 'منى العتيبي', signature: 'iVBORw0KGgoAAAANSUhEUg', signature_method: 'drawn' } })
+  expect(accepted.ok()).toBe(true)
+  await page.goto('/sales/6')
+  await expect(page.getByTestId('sales-answer-status')).toHaveText('قبل العرض')
+  await expect(page.getByTestId('sales-answer-signer')).toContainText('منى العتيبي')
+  await expect(page.getByTestId('sales-answer-signature-method')).toContainText('وقّع بالرسم')
+
+  await page.goto('/sales/7')
+  await expect(heading(page)).toHaveText('S00007')
+  await expect(page.locator('main').getByText('منتهي الصلاحية').first()).toBeVisible()
+  await expect(page.getByTestId('sales-confirm')).toHaveCount(0)
+  await page.goto('/sales?state=quotations')
+  await expect(page.getByTestId('sales-expired')).toHaveCount(1)
+})
+
+test('the quotation settings choose how the customer answers, and acceptance confirming the order needs an answer', async ({ page }) => {
+  await page.goto('/settings/apps/sales')
+  const confirms = page.getByTestId('sales-acceptance-confirms')
+  await expect(page.getByTestId('sales-customer-answer').getByRole('radio', { name: /القبول أو الرفض/ })).toBeChecked()
+  await expect(confirms).toBeEnabled()
+  await page.getByTestId('sales-customer-answer').getByText('القراءة فقط').click()
+  await expect(confirms).toBeDisabled()
+  await page.getByTestId('sales-customer-answer').getByText('القبول بتوقيع').click()
+  await expect(confirms).toBeEnabled()
+  await confirms.click()
+  await page.getByRole('button', { name: /^حفظ/ }).first().click()
+  await expect.poll(async () => (await (await page.request.get('/api/v1/sales/settings')).json()))
+    .toMatchObject({ customer_answer: 'accept_and_sign', acceptance_confirms: true })
+})
+
+test('the quotation settings choose whether an answered quotation can be sent again, and how the customer signs', async ({ page }) => {
+  await page.goto('/settings/apps/sales')
+  const methods = page.getByTestId('sales-signature-methods')
+  const resend = page.getByTestId('sales-answered-resend')
+  await expect(resend.getByRole('radio', { name: /السماح/ })).toBeChecked()
+  await expect(methods.getByRole('radio', { name: /بالرسم أو بكتابة الاسم/ })).toBeChecked()
+  // The way of signing only applies while the customer signs.
+  await expect(methods.getByRole('radio', { name: /بالرسم فقط/ })).toBeDisabled()
+  await page.getByTestId('sales-customer-answer').getByText('القبول بتوقيع').click()
+  await methods.getByText('بالرسم فقط').click()
+  await resend.getByText('المنع').click()
+  await page.getByRole('button', { name: /^حفظ/ }).first().click()
+  await expect.poll(async () => (await (await page.request.get('/api/v1/sales/settings')).json()))
+    .toMatchObject({ customer_answer: 'accept_and_sign', signature_methods: 'draw', answered_resend: 'refuse' })
+})
+
+test('under the refuse setting an answered quotation has no send button, says why, and is sent again after it is reopened', async ({ page }) => {
+  const settings = await (await page.request.get('/api/v1/sales/settings')).json() as { revision: number }
+  expect((await page.request.patch('/api/v1/sales/settings', { data: { answered_resend: 'refuse', revision: settings.revision } })).ok()).toBe(true)
+  const accepted = await page.request.post('/api/v1/public/sales/quotations/6/accept', { data: { access_token: 'tok-6', signed_by: 'منى العتيبي', signature: 'iVBORw0KGgoAAAANSUhEUg', signature_method: 'typed' } })
+  expect(accepted.ok()).toBe(true)
+
+  await page.goto('/sales/6')
+  await expect(page.getByTestId('sales-answer-signature-method')).toContainText('وقّع بكتابة الاسم')
+  await expect(page.getByTestId('sales-send')).toHaveCount(0)
+  await expect(page.getByTestId('sales-send-refused')).toContainText('ردّ العميل على هذا العرض. أعد فتحه لإرساله من جديد.')
+  const refused = await page.request.post('/api/v1/sales/orders/6/send')
+  expect(refused.status()).toBe(409)
+  expect(await refused.json()).toMatchObject({ code: 'quotation_answered' })
+
+  await page.getByTestId('sales-reopen').click()
+  await expect(page.getByTestId('sales-edit')).toBeVisible()
+  await expect(page.getByTestId('sales-send-refused')).toHaveCount(0)
+  await page.getByTestId('sales-send').click()
+  await expect(page.getByTestId('sales-answer-status')).toHaveText('بانتظار العميل')
+})
+
+test('the settings choose how a new quotation asks to be paid, and the percentage only applies to a percentage', async ({ page }) => {
+  await page.goto('/settings/apps/sales')
+  const mode = page.getByTestId('sales-payment-default')
+  const percent = page.getByTestId('sales-payment-default-percent')
+  await expect(mode.getByRole('radio', { name: /بلا دفع/ })).toBeChecked()
+  await expect(percent).toBeDisabled()
+  await mode.getByText('نسبة من الإجمالي').click()
+  await expect(percent).toBeEnabled()
+  await percent.fill('30')
+  await percent.blur()
+  await page.getByRole('button', { name: /^حفظ/ }).first().click()
+  await expect.poll(async () => (await (await page.request.get('/api/v1/sales/settings')).json()))
+    .toMatchObject({ payment_to_confirm: 'percent', prepayment_percent: 30 })
+  await page.reload()
+  await expect(page.getByTestId('sales-payment-default').getByRole('radio', { name: /نسبة من الإجمالي/ })).toBeChecked()
+  await expect(page.getByTestId('sales-payment-default-percent')).toHaveValue('30')
+})
+
+test('a tenant that cannot take payments has no payment card in the settings and no payment choice on the form', async ({ page }) => {
+  await useCookie(page, 'mock_payments', 'off')
+  await page.goto('/settings/apps/sales')
+  await expect(page.getByTestId('sales-validity-days')).toBeVisible()
+  await expect(page.getByTestId('sales-payment-default')).toHaveCount(0)
+  await page.goto('/sales/new')
+  await expect(panel(page)).toBeVisible()
+  await expect(page.getByTestId('sales-payment-choice')).toHaveCount(0)
+})
+
+test('a quotation is made to be paid, shows its payment on the record, and a payment confirms it', async ({ page }) => {
+  await page.goto('/sales/new')
+  const form = panel(page)
+  // A new quotation starts with the tenant's default: no payment.
+  await expect(form.getByTestId('sales-payment-mode-choice').getByRole('radio', { name: /بلا دفع/ })).toBeChecked()
+  await form.getByText('منى العتيبي').first().click()
+  await form.getByTestId('sales-line-0').getByTestId('product-picker-search').click()
+  await form.getByTestId('sales-line-0').getByText('باقة أساسية').first().click()
+  await form.getByTestId('sales-payment-mode-choice').getByText('نسبة من الإجمالي').click()
+  await form.getByTestId('sales-payment-percent').fill('40')
+  await form.getByTestId('sales-submit').click()
+  await expect(page).toHaveURL(/\/sales\/100/)
+  await expect(page.getByTestId('sales-payment-mode')).toContainText('40% من الإجمالي')
+  await expect(page.getByTestId('sales-payment-status')).toHaveText('لا يمكن دفعه الآن')
+
+  await page.getByTestId('sales-send').click()
+  await expect(page.getByTestId('sales-payment-status')).toHaveText('بانتظار الدفع')
+  await expect(page.getByTestId('sales-payment-link')).toContainText('يستطيع العميل الدفع')
+  await expect(page.getByTestId('sales-payment-due')).toContainText('55.20')
+
+  expect((await page.request.post('/api/v1/public/sales/__mock/pay', { data: { id: 100 } })).ok()).toBe(true)
+  await page.reload()
+  await expect(page.getByTestId('sales-payment-status')).toHaveText('مدفوع')
+  await expect(page.getByTestId('sales-payment-received')).toContainText('55.20')
+  await expect(page.getByTestId('sales-payment-due')).toHaveCount(0)
+  await expect(page.getByTestId('sales-payment-held')).toHaveCount(0)
+  await expect(page.locator('main').getByText('مؤكَّد').first()).toBeVisible()
+})
+
+test('the choice of a draft is edited, and a quotation that asks for nothing shows no payment panel', async ({ page }) => {
+  await page.goto('/sales/1')
+  await expect(page.getByTestId('sales-payment')).toHaveCount(0)
+  await page.goto('/sales/1/edit')
+  const choice = page.getByTestId('sales-payment-mode-choice')
+  await choice.getByText('كامل الإجمالي').click()
+  await page.getByTestId('sales-submit').click()
+  await expect(page).toHaveURL(/\/sales\/1(\?|$)/)
+  await expect(page.getByTestId('sales-payment-mode')).toContainText('كامل الإجمالي')
+})
+
+test('a payment that arrives after the quotation can no longer be confirmed is reported to the staff', async ({ page }) => {
+  const created = await page.request.post('/api/v1/sales/orders', { data: { customer_id: 1, payment_to_confirm: 'full', lines: [{ kind: 'product', product_id: 1, quantity: 1 }] } })
+  const { id } = await created.json() as { id: number }
+  expect((await page.request.post(`/api/v1/sales/orders/${id}/send`)).ok()).toBe(true)
+  // The staff reopen it (back to a draft); the customer pays with the old link, so the money is recorded and not confirmed.
+  expect((await page.request.post(`/api/v1/sales/orders/${id}/reopen`)).ok()).toBe(true)
+  expect((await page.request.post('/api/v1/public/sales/__mock/pay', { data: { id } })).ok()).toBe(true)
+  await page.goto(`/sales/${id}`)
+  await expect(page.getByTestId('sales-payment-held')).toContainText('وصل الدفع ولم يتأكد الطلب')
+  await expect(page.getByTestId('sales-payment-received')).toContainText('138.00')
+})
+
+
+// A quotation sent and paid, then reopened as a draft: the money is on it and the order is not confirmed, so all of it may go back.
+async function paidAndHeld(page: Page) {
+  const created = await page.request.post('/api/v1/sales/orders', { data: { customer_id: 1, payment_to_confirm: 'full', lines: [{ kind: 'product', product_id: 1, quantity: 1 }] } })
+  const { id } = await created.json() as { id: number }
+  expect((await page.request.post(`/api/v1/sales/orders/${id}/send`)).ok()).toBe(true)
+  expect((await page.request.post(`/api/v1/sales/orders/${id}/reopen`)).ok()).toBe(true)
+  expect((await page.request.post('/api/v1/public/sales/__mock/pay', { data: { id } })).ok()).toBe(true)
+  return id
+}
+
+test('a quotation sent again with no answer to wait for is not confirmed by the send: the staff are asked to confirm it', async ({ page }) => {
+  const settings = await (await page.request.get('/api/v1/sales/settings')).json() as { revision: number }
+  expect((await page.request.patch('/api/v1/sales/settings', { data: { customer_answer: 'none', revision: settings.revision } })).ok()).toBe(true)
+  const id = await paidAndHeld(page)
+  expect((await page.request.post(`/api/v1/sales/orders/${id}/send`)).ok()).toBe(true)
+  await page.goto(`/sales/${id}`)
+  await expect(page.getByTestId('sales-payment-attention')).toContainText('ينتظر التأكيد')
+  await page.getByTestId('sales-confirm').click()
+  await expect(page.getByTestId('sales-payment-attention')).toHaveCount(0)
+})
+
+test('a draft that holds money keeps its customer: the server refuses another one', async ({ page }) => {
+  const id = await paidAndHeld(page)
+  const change = await page.request.patch(`/api/v1/sales/orders/${id}`, { data: { customer_id: 2 } })
+  expect(change.status()).toBe(422)
+  expect(await change.json()).toMatchObject({ code: 'invalid', field: 'customer_id' })
+})
+
+test('a payable quotation with no live gateway says so and points to the payments settings', async ({ page }) => {
+  const created = await page.request.post('/api/v1/sales/orders', { data: { customer_id: 1, payment_to_confirm: 'full', lines: [{ kind: 'product', product_id: 1, quantity: 1 }] } })
+  const { id } = await created.json() as { id: number }
+  expect((await page.request.post(`/api/v1/sales/orders/${id}/send`)).ok()).toBe(true)
+  await page.goto(`/sales/${id}`)
+  await expect(page.getByTestId('sales-payment-no-gateway')).toHaveCount(0)
+  await useCookie(page, 'mock_gateway', 'none')
+  await page.reload()
+  await expect(page.getByTestId('sales-payment-no-gateway')).toContainText('لا توجد بوابة دفع جاهزة')
+  await expect(page.getByTestId('sales-payment-link')).toContainText('لا توجد بوابة دفع جاهزة')
+  await expect(page.getByTestId('sales-payment-gateway-settings')).toHaveAttribute('href', '/settings/apps/payments')
+})
+
+test('money that arrived is recorded as refunded: the form starts at the most that may go back and refuses more', async ({ page }) => {
+  const id = await paidAndHeld(page)
+  await page.goto(`/sales/${id}`)
+  await expect(page.getByTestId('sales-payment-held')).toBeVisible()
+  await expect(page.getByTestId('sales-refund')).toHaveCount(0)
+  await expect(page.getByTestId('sales-refund-open')).toBeEnabled()
+  await page.getByTestId('sales-refund-open').click()
+  await expect(page.getByTestId('sales-refund-hint')).toContainText('لوحة بوابة الدفع')
+  await expect(page.getByTestId('sales-refund-amount')).toHaveValue(/^138/)
+
+  // The field holds the amount to its limit, and a missing reference is refused in words before anything is sent.
+  const writes: string[] = []
+  page.on('request', request => { if (request.method() === 'POST' && request.url().endsWith('/refunds')) writes.push(request.url()) })
+  await page.getByTestId('sales-refund-amount').fill('200')
+  await page.getByTestId('sales-refund-save').click()
+  await expect(page.getByTestId('sales-refund-amount')).toHaveValue(/^138/)
+  await expect(page.getByTestId('sales-refund').getByText('اكتب مرجع الرد من البوابة')).toBeVisible()
+  expect(writes).toEqual([])
+  // The server says the same to a client that does not check.
+  const over = await page.request.post(`/api/v1/sales/orders/${id}/refunds`, { data: { amount: 200, reference: 'RF-X' } })
+  expect(over.status()).toBe(422)
+  expect(await over.json()).toMatchObject({ code: 'invalid', field: 'amount' })
+
+  await page.getByTestId('sales-refund-amount').fill('38')
+  await page.getByTestId('sales-refund-reference').fill('  RF-1  ')
+  await page.getByTestId('sales-refund-save').click()
+  await expect(page.getByTestId('sales-refund')).toHaveCount(0)
+  await expect(page.getByTestId('sales-payment-received')).toContainText('100.00')
+  expect(writes).toHaveLength(1)
+  // The same refund again is a repeat: 409.
+  const again = await page.request.post(`/api/v1/sales/orders/${id}/refunds`, { data: { amount: 38, reference: 'RF-1' } })
+  expect(again.status()).toBe(409)
+  expect(await again.json()).toMatchObject({ code: 'conflict' })
+})
+
+test('the refund action is absent without the refund right and when nothing may go back', async ({ page }) => {
+  const id = await paidAndHeld(page)
+  await page.goto(`/sales/${id}`)
+  await expect(page.getByTestId('sales-refund-open')).toBeVisible()
+  await useCookie(page, 'mock_caps', 'reader')
+  await page.reload()
+  await expect(page.getByTestId('sales-payment')).toBeVisible()
+  await expect(page.getByTestId('sales-refund-open')).toHaveCount(0)
+  expect((await page.request.post(`/api/v1/sales/orders/${id}/refunds`, { data: { amount: 1, reference: 'RF-2' } })).status()).toBe(403)
+
+  await page.context().clearCookies({ name: 'mock_caps' })
+  expect((await page.request.post(`/api/v1/sales/orders/${id}/refunds`, { data: { amount: 138, reference: 'RF-ALL' } })).ok()).toBe(true)
+  await page.reload()
+  await expect(page.getByTestId('sales-refund-open')).toHaveCount(0)
+  // Everything went back: the received row stays and reads zero.
+  await expect(page.getByTestId('sales-payment-received')).toContainText('0.00')
 })

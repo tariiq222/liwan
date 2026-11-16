@@ -17,11 +17,6 @@ from odoo.addons.liwan_appointments.controllers.records import (
     require_combination_links,
     slot_conflicts,
 )
-from odoo.addons.liwan_appointments.models.guest_limit import (
-    COUNTER_BOOKING,
-    COUNTER_LIMITS,
-    COUNTER_SLOTS,
-)
 from odoo.addons.liwan_appointments.serializers.appointment_guest import (
     awaits_confirmation,
     dump_guest_booking,
@@ -45,6 +40,19 @@ FEATURE = 'appointments.enabled'
 TOKEN = 'access_token'
 BOOKING_PATH = '/api/v1/public/appointments/bookings/<int:booking_id>'
 
+# The two budgets a booking's public token keeps on the shared public counter (``liwan.api.public.limit``), each counted
+# over its own minute window: reads and writes of the booking itself (its view, schedule, confirm and cancel), and reads
+# of the company calendar (its free slots).
+COUNTER_BOOKING = 'appointments.booking'
+COUNTER_SLOTS = 'appointments.slots'
+# The requester's page reads the booking once and acts on it a few times a minute.
+GUEST_READ_LIMIT = 30
+# A dense grid is answered one whole day at a time (``MAX_SLOT_ITEMS``), so a week costs up to seven answers and a
+# requester walking several weeks in a row would otherwise lock their own link. 240 answers a minute reaches the longest
+# window (31 days) several times over, while the booking's own routes keep their 30.
+GUEST_SLOT_READ_LIMIT = 240
+COUNTER_LIMITS = {COUNTER_BOOKING: GUEST_READ_LIMIT, COUNTER_SLOTS: GUEST_SLOT_READ_LIMIT}
+
 
 def _guest_booking(booking_id, token, counter=COUNTER_BOOKING):
     """The booking behind a valid access token, after its per-token budget for ``counter`` is charged; every other case is
@@ -62,7 +70,7 @@ def _charge_token(booking, counter):
 
     The counter is written in the booking's own elevated environment, which the token check already opened: the public
     user holds no ACL on it."""
-    reads = booking.env['liwan.appointment.guest.limit']._liwan_count_read(booking, fields.Datetime.now(), counter)
+    reads = booking.env['liwan.api.public.limit']._liwan_count_read(counter, booking.id)
     if reads > COUNTER_LIMITS[counter]:
         raise ApiError(429, 'rate_limited', 'too many requests for this link; wait a minute')
 

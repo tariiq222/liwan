@@ -5,8 +5,11 @@ import { day, id, money, PATCH_MESSAGE, requirePatchField, text } from './shared
 export const FinanceWritableMoveTypeSchema = z.enum(['out_invoice', 'in_invoice', 'out_refund', 'in_refund'])
 
 export const FinanceInvoiceLineInputSchema = z.object({
-  name: text.trim().min(1),
-  price_unit: money,
+  // Both are required unless the line names a product, which gives its label and its unit price as typed on it.
+  name: text.trim().min(1).optional(),
+  price_unit: money.optional(),
+  // Customer invoices and credit notes only (a vendor bill line answers 422): a product of the products service.
+  product_id: id.optional(),
   quantity: money.nonnegative().optional(),
   discount: z.number().min(0).max(100).optional(),
   // Omitted: the account's default taxes apply. An empty list: no tax.
@@ -15,7 +18,11 @@ export const FinanceInvoiceLineInputSchema = z.object({
   analytic_distribution: FinanceAnalyticDistributionInputSchema.optional(),
   // Vendor bills only: posting the bill creates a draft asset on this profile.
   asset_profile_id: id.optional(),
-}).strict()
+}).strict().superRefine((line, ctx) => {
+  if (line.product_id !== undefined) return
+  if (line.name === undefined) ctx.addIssue({ code: 'custom', path: ['name'], message: 'a line without a product needs a name' })
+  if (line.price_unit === undefined) ctx.addIssue({ code: 'custom', path: ['price_unit'], message: 'a line without a product needs a unit price' })
+})
 
 // A body that carries `lines` replaces every line of the draft; one without keeps them.
 const lines = z.array(FinanceInvoiceLineInputSchema).min(1)

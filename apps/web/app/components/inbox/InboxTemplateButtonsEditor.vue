@@ -85,19 +85,17 @@ function addUrlVariable(button: ButtonDraft) {
             <UInput v-model="button.text" class="w-full" :maxlength="TEMPLATE_LIMITS.buttonText" :disabled="props.disabled" />
             <template #hint><span class="text-xs text-muted">{{ button.text.length }}/{{ TEMPLATE_LIMITS.buttonText }}</span></template>
           </UFormField>
-          <template v-if="button.type === 'url'">
-            <UFormField :label="t('inbox.templates.button.url')" required>
-              <div class="flex gap-2">
-                <UInput v-model="button.url" class="min-w-0 flex-1" dir="ltr" inputmode="url" placeholder="https://" :maxlength="TEMPLATE_LIMITS.url" :disabled="props.disabled" />
-                <UButton type="button" color="neutral" variant="outline" :label="t('inbox.templates.button.addUrlVariable')" :disabled="props.disabled || hasVariable(button)" @click="addUrlVariable(button)" />
-              </div>
-            </UFormField>
-            <UFormField v-if="hasVariable(button)" :label="t('inbox.templates.button.urlExample')" :description="t('inbox.templates.button.urlExampleHint')" required>
-              <UInput v-model="button.example" class="w-full" dir="ltr" inputmode="url" placeholder="https://" :maxlength="TEMPLATE_LIMITS.url" :disabled="props.disabled" />
-            </UFormField>
-          </template>
-          <UFormField v-else-if="button.type === 'phone_number'" :label="t('inbox.templates.button.phone')" :description="t('inbox.templates.button.phoneHint')" required>
+          <UFormField v-if="button.type === 'url'" :label="t('inbox.templates.button.url')" required>
+            <div class="flex gap-2">
+              <UInput v-model="button.url" class="min-w-0 flex-1" dir="ltr" inputmode="url" placeholder="https://" :maxlength="TEMPLATE_LIMITS.url" :disabled="props.disabled" />
+              <UButton type="button" color="neutral" variant="outline" :label="t('inbox.templates.button.addUrlVariable')" :disabled="props.disabled || hasVariable(button)" @click="addUrlVariable(button)" />
+            </div>
+          </UFormField>
+          <UFormField v-if="button.type === 'phone_number'" :label="t('inbox.templates.button.phone')" :description="t('inbox.templates.button.phoneHint')" required>
             <UInput v-model="button.phone_number" class="w-full" dir="ltr" inputmode="tel" placeholder="+966500000000" :disabled="props.disabled" />
+          </UFormField>
+          <UFormField v-if="button.type === 'url' && hasVariable(button)" :label="t('inbox.templates.button.urlExample')" :description="t('inbox.templates.button.urlExampleHint')" required>
+            <UInput v-model="button.example" class="w-full" dir="ltr" inputmode="url" placeholder="https://" :maxlength="TEMPLATE_LIMITS.url" :disabled="props.disabled" />
           </UFormField>
         </template>
       </li>

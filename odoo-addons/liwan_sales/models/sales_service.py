@@ -2,10 +2,19 @@
 from datetime import timedelta
 
 from odoo import api, fields, models
-from odoo.tools import html2plaintext, plaintext2html
+from odoo.tools import (
+    email_normalize,
+    html2plaintext,
+    plaintext2html,
+)
 
 from .access_service import DISCOUNTS_APPROVE, QUOTATIONS_MANAGE
-from .sale_order import DISCOUNT_BOUNDS, LINE_KINDS, valid_discount
+from .sale_order import (
+    ANSWER_RESET,
+    DISCOUNT_BOUNDS,
+    LINE_KINDS,
+    valid_discount,
+)
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_products.models.products_service import (
     QUANTITY_BOUNDS,
@@ -22,11 +31,25 @@ TRANSITIONS = {
     'unlock': 'action_unlock',
 }
 QUIET = {'mail_auto_subscribe_no_notify': True}
+# The actions an expired quotation is refused with 422 `quotation_expired`, ahead of the state table's 403.
+EXPIRY_REFUSED = ('send', 'confirm')
 
 
 def _invalid(field, message):
     code = 'invalid'
     raise LiwanAccessRule(code, message, field=field, status=422)
+
+
+def _deliverable_email(text):
+    """Whether ``text`` holds exactly one address the mail queue can send to. The queue itself splits the field with
+    ``email_split`` (``getaddresses``), so ``email_normalize`` (strict: one address, none otherwise) decides; what it
+    still lets through, such as ``a@b@c`` read as ``@c``, needs a local part and a domain."""
+    local, _, domain = (email_normalize(text) or '').partition('@')
+    return bool(local and domain and '@' not in domain)
+
+
+def _invalid_code(code, message):
+    raise LiwanAccessRule(code, message, status=422)
 
 
 def _forbidden(message, field=None, details=None):
@@ -59,9 +82,16 @@ class LiwanSalesService(models.AbstractModel):
     @api.model
     def _liwan_writable(self, order_id, action):
         """The order, once the caller may do ``action`` on it: 404 unreadable, 403 ``forbidden`` not theirs to write,
-        403 ``transition_forbidden`` when the state table refuses the move."""
+        422 ``quotation_expired`` (before any answered check), 409 ``quotation_answered`` and last 403
+        ``transition_forbidden`` when the state table refuses the move. The 409 applies only to a caller for whom
+        refusing the resend is the sole reason send is not offered; one who lacks the send capability gets the 403."""
         order = self._liwan_order(order_id)
         self.env['liwan.sales.visibility']._liwan_check_write(order, self.env.user)
+        if action in EXPIRY_REFUSED and order.is_expired:
+            _invalid_code('quotation_expired', 'the quotation has expired; reopen it and extend its validity date')
+        if action == 'send' and order._liwan_resend_blocked(self.env.user):
+            code = 'quotation_answered'
+            raise LiwanAccessRule(code, 'the customer has answered this quotation; reopen it before sending it again', status=409)
         if not order._liwan_actions(self.env.user)[action]:
             code = 'transition_forbidden'
             raise LiwanAccessRule(code, f'{action} is not allowed in this state', status=403)
@@ -74,11 +104,14 @@ class LiwanSalesService(models.AbstractModel):
         customer = self._liwan_customer(values['customer_id'], company)
         salesperson = self._liwan_salesperson(values.get('salesperson_id'), company, self.env.user)
         settings = self.env['liwan.sales.settings']._liwan_current()
+        if 'template_id' in values:
+            # What the body leaves out, the template gives: its lines, its terms and its validity days.
+            values = {**self.env['liwan.sales.template']._liwan_start(values['template_id'], company), **values}
         plan = self._liwan_line_plan(values['lines'], self.env['sale.order.line'], company, customer)
         if 'validity_date' in values:
             validity = self._liwan_validity(values['validity_date'])
         else:
-            days = settings.validity_days
+            days = values.get('validity_days', settings.validity_days)
             validity = fields.Date.context_today(self) + timedelta(days=days) if days else False
         # Stock defaults the validity, the note and the signature from the company: each is written here.
         order = self.env['sale.order'].with_context(**QUIET).create({
@@ -92,7 +125,19 @@ class LiwanSalesService(models.AbstractModel):
             'note': self._liwan_note(values.get('terms', settings.default_terms)),
         })
         self._liwan_write_lines(order, plan)
+        self._liwan_write_extras(order, values.get('extras', {}), creating=True)
         return order
+
+    @api.model
+    def _liwan_order_parsers(self):
+        """The keys an installed bridge accepts in the body of an order write, as ``{key: parser}``. A parser takes the raw
+        value and returns the checked one or raises ``LiwanAccessRule`` (422 on the key)."""
+        return {}
+
+    @api.model
+    def _liwan_write_extras(self, order, extras, creating=False):
+        """Apply the parsed ``extras`` of a write to ``order``, once its lines are saved; a bridge adds its own values
+        (and, with ``creating``, its tenant defaults). Nothing here is a Sales value."""
 
     @api.model
     def _liwan_update(self, order_id, values):
@@ -113,20 +158,62 @@ class LiwanSalesService(models.AbstractModel):
             header['note'] = self._liwan_note(values['terms'])
         plan = None
         if 'lines' in values:
-            plan = self._liwan_line_plan(values['lines'], order.order_line, order.company_id, customer)
+            plan = self._liwan_line_plan(values['lines'], order._liwan_lines(), order.company_id, customer)
         if header:
             order.with_context(**QUIET).write(header)
         self._liwan_write_lines(order, plan, retax=retax)
+        self._liwan_write_extras(order, values.get('extras', {}))
         return order
 
     @api.model
     def _liwan_transition(self, order_id, action):
         """Move the order by the stock method of ``action`` (``TRANSITIONS``), in the caller's environment."""
-        order = self._liwan_writable(order_id, action)
-        if action == 'confirm' and not order.order_line.filtered(lambda line: not line.display_type):
-            _invalid('lines', 'an order needs a product line to be confirmed')
+        return self._liwan_move(self._liwan_writable(order_id, action), action)
+
+    @api.model
+    def _liwan_move(self, order, action):
+        """Move ``order`` by ``action`` once the caller's checks have passed: the one path a staff move and the
+        customer's confirming acceptance share. Stock sends no confirmation mail from it. A reopen leaves no answer."""
+        if action == 'confirm':
+            self._liwan_require_product_line(order)
         getattr(order, TRANSITIONS[action])()
+        if action == 'reopen':
+            order.write(ANSWER_RESET)
         return order
+
+    @api.model
+    def _liwan_send(self, order_id):
+        """Send the draft or sent ``order_id`` to its customer, again when it was sent before.
+
+        Moves a draft to ``sent``, copies the settings of the customer's answer onto the order (clearing any earlier
+        answer and signature; 409 ``quotation_answered`` first when the tenant refuses to resend an answered one), makes the access token and queues the e-mail with the PDF and the link of the public page.
+        """
+        order = self._liwan_writable(order_id, 'send')
+        if not _deliverable_email(order.partner_id.email):
+            _invalid_code('customer_email_missing', 'the customer has no usable e-mail address')
+        self._liwan_require_product_line(order)
+        if not self.env['liwan.outbound.mail']._liwan_sender():
+            code = 'mail_unavailable'
+            raise LiwanAccessRule(code, 'no sender address is configured, the quotation cannot be mailed', status=503)
+        settings = self.env['liwan.sales.settings']._liwan_current()
+        order = order.with_context(**QUIET)
+        order.write({
+            **ANSWER_RESET,
+            'liwan_answer_mode': settings.customer_answer,
+            'liwan_acceptance_confirms': settings.acceptance_confirms,
+            'liwan_signature_methods': settings.signature_methods,
+            'require_signature': settings.customer_answer == 'accept_and_sign',
+        })
+        if order.state == 'draft':
+            order.action_quotation_sent()
+        order._portal_ensure_token()
+        self.env['liwan.sales.document']._liwan_queue_mail(order)
+        return order
+
+    @api.model
+    def _liwan_require_product_line(self, order):
+        if not order._liwan_lines().filtered(lambda line: not line.display_type):
+            _invalid('lines', 'an order needs a product line to be confirmed or sent')
 
     @api.model
     def _liwan_duplicate(self, order_id):
@@ -205,22 +292,6 @@ class LiwanSalesService(models.AbstractModel):
         return customer
 
     @api.model
-    def _liwan_product(self, product_id, company, field):
-        """The product service's product ``product_id`` usable in ``company``, else 422 on ``field``."""
-        try:
-            product = self.env['liwan.products.service']._liwan_pick_product(product_id)
-        except LiwanAccessRule as error:
-            if error.status == 404:
-                _invalid(field, 'the product does not exist')
-            raise
-        if product.company_id and product.company_id not in company.parent_ids:
-            _invalid(field, 'the product belongs to another company')
-        # A line names a template and takes its one variant; products with variants come with a later pull request.
-        if len(product.product_variant_ids) > 1:
-            _invalid(field, 'products with variants are not supported yet')
-        return product
-
-    @api.model
     def _liwan_validity(self, value):
         if value and value < fields.Date.context_today(self):
             _invalid('validity_date', 'the validity date is in the past')
@@ -252,7 +323,9 @@ class LiwanSalesService(models.AbstractModel):
                     vals['display_type'] = DISPLAY_TYPES[entry['kind']]
                 plan.append((line, vals))
                 continue
-            product = self._liwan_product(entry['product_id'], company, f'{field}.product_id')
+            product = self.env['liwan.products.service']._liwan_usable_product(
+                entry['product_id'], company, f'{field}.product_id',
+            )
             variant = product.product_variant_id
             vals.update(product_uom_qty=entry['quantity'], discount=entry['discount'])
             if line and line.product_id == variant:
@@ -298,7 +371,7 @@ class LiwanSalesService(models.AbstractModel):
         elevated = order.sudo().with_company(order.company_id)
         if plan is not None:
             kept = {line.id for line, _vals in plan if line}
-            (elevated.order_line.filtered(lambda line: line.id not in kept)).unlink()
+            (elevated._liwan_lines().filtered(lambda line: line.id not in kept)).unlink()
             Line = elevated.env['sale.order.line']
             for line, vals in plan:
                 if line:

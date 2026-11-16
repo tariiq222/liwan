@@ -26,6 +26,8 @@ const opportunity = {
   package: null,
   lost_reason: null,
   status: 'pending',
+  win_by_order: false,
+  can_quote: false,
   list_price: 0,
   discount_percent: 0,
   final_price: 0,
@@ -49,6 +51,16 @@ describe('CrmOpportunitySchema', () => {
   it('accepts the serializer shape', () => {
     expect(CrmOpportunitySchema.parse(opportunity)).toEqual(opportunity)
     expect(CrmOpportunityListSchema.parse({ items: [opportunity], total: 1 }).total).toBe(1)
+  })
+
+  it('says whether an order, not a package, wins the opportunity', () => {
+    expect(CrmOpportunitySchema.parse({ ...opportunity, win_by_order: true }).win_by_order).toBe(true)
+    const { win_by_order: _flag, ...without } = opportunity
+    expect(() => CrmOpportunitySchema.parse(without)).toThrow()
+    expect(() => CrmOpportunitySchema.parse({ ...opportunity, win_by_order: 'yes' })).toThrow()
+    const { can_quote: _quote, ...withoutQuote } = opportunity
+    expect(() => CrmOpportunitySchema.parse(withoutQuote)).toThrow()
+    expect(CrmOpportunitySchema.parse({ ...opportunity, win_by_order: true, can_quote: true }).can_quote).toBe(true)
   })
 
   it('rejects an unknown key and an unknown status', () => {

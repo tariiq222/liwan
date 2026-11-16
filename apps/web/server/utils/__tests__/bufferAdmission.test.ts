@@ -127,8 +127,9 @@ const DEFAULT_LIMITS = {
   public: { active: 2, queued: 16 },
   booking: { active: 2, queued: 16 },
   heavy: { active: 2, queued: 8 },
+  pdf: { active: 1, queued: 4 },
 }
-const POOLS = ['session', 'public', 'booking', 'heavy'] as const
+const POOLS = ['session', 'public', 'booking', 'heavy', 'pdf'] as const
 const DIMENSIONS = [['active', '9'], ['queued', '0']] as const
 const variable = (pool: string, dimension: string) => `NUXT_ODOO_POOL_${pool.toUpperCase()}_${dimension.toUpperCase()}`
 

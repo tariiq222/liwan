@@ -129,9 +129,9 @@ function nuxt(mode: string) {
 }
 it('only removes the dedicated /web proxy rule, keeps the security headers, and enforces same-origin WS in shared compile', () => {
   const dedicated = nuxt('dedicated'); const shared = nuxt('shared')
-  // The public pay, booking, invitation and password-reset pages carry a token in their address; both lanes keep their security headers.
+  // The public pay, booking, quotation, invitation and password-reset pages carry a token in their address; both lanes keep their security headers.
   const tokenPage = { headers: { 'referrer-policy': 'no-referrer', 'cache-control': 'no-store' } }
-  const kept = { '/pay/**': tokenPage, '/book/**': tokenPage, '/join': tokenPage, '/reset-password': tokenPage }
+  const kept = { '/pay/**': tokenPage, '/book/**': tokenPage, '/quote/**': tokenPage, '/join': tokenPage, '/reset-password': tokenPage }
   const proxies = Object.entries(dedicated.routeRules).filter(([k]) => !(k in kept))
   expect(proxies.map(([path]) => path)).toEqual(['/web/**'])
   expect(proxies.every(([, v]: [string, any]) => v.proxy)).toBe(true)

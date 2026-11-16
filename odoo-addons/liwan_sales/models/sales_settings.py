@@ -5,10 +5,18 @@ from .access_service import SETTINGS_MANAGE
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
 VISIBILITY_MODES = ('own', 'all')
+# What the customer may do on the public page of a sent quotation: nothing, accept, or accept with a signature.
+ANSWER_MODES = ('none', 'accept', 'accept_and_sign')
+# What staff sending again a quotation the customer already answered does: send and clear the answer, or refuse.
+RESEND_MODES = ('allow', 'refuse')
+# How a customer may sign under ``accept_and_sign``: by hand-drawing only, or by drawing or typing their name.
+SIGNATURE_MODES = ('draw', 'draw_or_type')
+# How a signature was made.
+SIGNATURE_METHODS = ('drawn', 'typed')
 
 
 class LiwanSalesSettings(models.Model):
-    """The tenant's Sales policy: who reads which document, and the defaults of a new quotation.
+    """The tenant's Sales policy: who reads which document, the defaults of a new quotation, what a customer may answer and how they sign.
 
     One record per tenant database, changed only by a holder of ``sales.settings.manage`` in the working company and
     in the root company. ``revision`` refuses a write based on a stale read.
@@ -25,6 +33,14 @@ class LiwanSalesSettings(models.Model):
     # The highest discount percent a line may carry without sales.discounts.approve; 0 means no limit.
     discount_limit_percent = fields.Integer(required=True, default=0)
     default_terms = fields.Text()
+    # Copied onto a quotation when it is sent; a later change leaves a sent quotation as it was.
+    customer_answer = fields.Selection([(mode, mode) for mode in ANSWER_MODES], required=True, default='accept')
+    # Whether the customer's acceptance confirms the order by itself, or leaves it to staff.
+    acceptance_confirms = fields.Boolean(required=True, default=False)
+    # Read at send time: whether staff may send again a quotation the customer already answered.
+    answered_resend = fields.Selection([(mode, mode) for mode in RESEND_MODES], required=True, default='allow')
+    # Copied onto a quotation when it is sent, like ``customer_answer``.
+    signature_methods = fields.Selection([(mode, mode) for mode in SIGNATURE_MODES], required=True, default='draw_or_type')
     revision = fields.Integer(required=True, default=1)
 
     _revision_positive = models.Constraint('CHECK(revision > 0)', 'the revision is a positive number')
@@ -51,6 +67,23 @@ class LiwanSalesSettings(models.Model):
             access._liwan_has_capability(self.env.user, SETTINGS_MANAGE, company=company)
             for company in (self.env.company, root)
         )
+
+    @api.model
+    def _liwan_patch_parsers(self):
+        """The keys an installed bridge accepts in a settings write, as ``{key: parser}``. A parser takes the raw value and
+        returns the checked one or raises ``LiwanAccessRule`` (422 on the key); each key is also a field of this model."""
+        return {}
+
+    def _liwan_wire_extras(self):
+        """The settings an installed bridge adds to the wire shape, as ``{key: value}``."""
+        self.ensure_one()
+        return {}
+
+    def _liwan_preset_extras(self):
+        """The values an installed bridge adds to the sector presets (``models/sales_presets.py``), as ``{preset: {key: value}}``.
+        Each key is one the bridge adds to the settings, so a tenant that does not carry it never sees the value."""
+        self.ensure_one()
+        return {}
 
     def _liwan_apply(self, values, revision):
         """Write ``values`` read at ``revision``.

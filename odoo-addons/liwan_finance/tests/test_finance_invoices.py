@@ -4,7 +4,12 @@ import base64
 from odoo import fields
 from odoo.tests import tagged
 
-from .common import MANAGER_LOGIN, MANAGER_PASSWORD, LiwanFinanceCase
+from .common import (
+    BRIDGE_DETAIL_KEYS,
+    MANAGER_LOGIN,
+    MANAGER_PASSWORD,
+    LiwanFinanceCase,
+)
 
 INVOICES = '/api/v1/finance/invoices'
 INVOICE_KEYS = {
@@ -12,7 +17,7 @@ INVOICE_KEYS = {
     'invoice_date_due', 'payment_term', 'currency', 'amount_untaxed', 'amount_tax', 'amount_total', 'amount_residual',
 }
 LINE_KEYS = {
-    'id', 'name', 'account', 'quantity', 'price_unit', 'discount', 'taxes', 'price_subtotal', 'price_total',
+    'id', 'name', 'product', 'account', 'quantity', 'price_unit', 'discount', 'taxes', 'price_subtotal', 'price_total',
     'analytic_distribution', 'asset_profile', 'asset',
 }
 
@@ -65,7 +70,7 @@ class TestFinanceInvoices(LiwanFinanceCase):
 
     def test_the_detail_carries_the_lines_with_their_taxes(self):
         body = self.api('GET', f'{INVOICES}/{self.invoice.id}').json()
-        self.assertEqual(set(body), INVOICE_KEYS | {'ref', 'debit_origin', 'credit_origin', 'zatca', 'lines', 'allowed_actions', 'blocked_actions'})
+        self.assertEqual(set(body) - BRIDGE_DETAIL_KEYS, INVOICE_KEYS | {'ref', 'debit_origin', 'credit_origin', 'zatca', 'lines', 'allowed_actions', 'blocked_actions'})
         (line,) = body['lines']
         self.assertEqual(set(line), LINE_KEYS)
         self.assertEqual((line['price_subtotal'], line['price_total']), (1000, 1150))

@@ -11,7 +11,7 @@ const conflict = http.patch('/api/v1/sales/settings', () => HttpResponse.json({ 
 const meta = {
   title: 'Sales/SalesVisibilityCard',
   component: SalesVisibilityCard,
-  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/settings/apps/sales/index.vue:28'), msw: { handlers: { api: [manage, save] } } },
+  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/settings/apps/sales/index.vue:40'), msw: { handlers: { api: [manage, save] } } },
   args: { settings: salesSettings, canEdit: true, reloadSettings: async () => ({ ...salesSettings, revision: 4 }) },
 } satisfies Meta<typeof SalesVisibilityCard>
 export default meta

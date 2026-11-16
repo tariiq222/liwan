@@ -15,7 +15,7 @@ from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_api.serializers.common import iso
 
 WRITABLE_MOVE_TYPES = ('out_invoice', 'in_invoice', 'out_refund', 'in_refund')
-LINE_FIELDS = frozenset({'name', 'quantity', 'price_unit', 'discount', 'tax_ids', 'account_id', 'analytic_distribution', 'asset_profile_id'})
+LINE_FIELDS = frozenset({'name', 'quantity', 'price_unit', 'discount', 'tax_ids', 'account_id', 'analytic_distribution', 'asset_profile_id', 'product_id'})
 EDITABLE_FIELDS = frozenset({'partner_id', 'invoice_date', 'invoice_date_due', 'payment_term_id', 'currency', 'ref', 'lines'})
 # The journal is chosen when the document is created; moving a draft to another journal would renumber it.
 CREATE_FIELDS = EDITABLE_FIELDS | {'move_type', 'journal_id'}
@@ -48,11 +48,18 @@ def _can_read_assets(line):
     )
 
 
+def dump_product(variant):
+    """The product service's product a line names, as a ref; None for no product and for a product stock made."""
+    product = variant.product_tmpl_id
+    return dump_ref(product) if product.liwan_product else None
+
+
 def dump_invoice_line(line, shares):
     assets = _can_read_assets(line)
     return {
         'id': line.id,
         'name': line.name or '',
+        'product': dump_product(line.product_id),
         'account': dump_ref(line.account_id),
         'quantity': line.quantity,
         'price_unit': line.price_unit,
@@ -91,6 +98,7 @@ def dump_invoice_detail(move):
         'zatca': dump_invoice_zatca(move),
         'lines': [dump_invoice_line(line, shares) for line in move.invoice_line_ids],
         **move.env['liwan.finance.actions']._liwan_invoice_actions(move),
+        **move._liwan_detail_extras(),
     }
 
 
@@ -103,13 +111,19 @@ def _parse_line(raw, index):
     if not isinstance(raw, dict):
         raise ApiError(422, 'invalid', f'{prefix} must be an object', field=prefix)
     reject_unknown(raw, LINE_FIELDS, prefix=f'{prefix}.')
-    require_keys(raw, ('name', 'price_unit'), prefix=f'{prefix}.')
+    # A line with a product takes its label and unit price from it unless they are typed.
+    named_product = raw.get('product_id') is not None
+    require_keys(raw, () if named_product else ('name', 'price_unit'), prefix=f'{prefix}.')
     line = {
-        'name': parse_text(raw['name'], f'{prefix}.name', required=True),
-        'price_unit': parse_number(raw['price_unit'], f'{prefix}.price_unit'),
         'quantity': parse_number(raw.get('quantity', 1), f'{prefix}.quantity', minimum=0),
         'discount': parse_number(raw.get('discount', 0), f'{prefix}.discount', minimum=0, maximum=100),
     }
+    if 'name' in raw:
+        line['name'] = parse_text(raw['name'], f'{prefix}.name', required=True)
+    if 'price_unit' in raw:
+        line['price_unit'] = parse_number(raw['price_unit'], f'{prefix}.price_unit')
+    if named_product:
+        line['product_id'] = parse_id(raw['product_id'], f'{prefix}.product_id')
     if 'tax_ids' in raw:
         line['tax_ids'] = parse_id_list(raw['tax_ids'], f'{prefix}.tax_ids')
     if raw.get('account_id') is not None:

@@ -12,7 +12,7 @@ vi.mock('@tanstack/vue-query', () => ({
 }))
 
 const $api = vi.fn()
-const { useSalesOrders, useSalesOrder, useCreateSalesOrder, useUpdateSalesOrder, useSalesTransition, useAssignSalesOrder, useDuplicateSalesOrder } = await import('../useSalesOrders')
+const { useSalesOrders, useSalesOrder, useCreateSalesOrder, useUpdateSalesOrder, useSalesTransition, useAssignSalesOrder, useDuplicateSalesOrder, useRefundSalesOrder } = await import('../useSalesOrders')
 const { useSalesSettings, useSaveSalesSettings } = await import('../useSalesSettings')
 
 type Options = { queryFn: () => Promise<unknown>; queryKey: { value: readonly unknown[] } | readonly unknown[]; enabled?: { value: boolean }; mutationFn: (args: unknown) => Promise<unknown>; onSuccess: (saved: { id: number }) => Promise<void>; onError: (failure: unknown, args: unknown) => Promise<void> }
@@ -57,8 +57,16 @@ describe('sales writes', () => {
     expect($api).toHaveBeenLastCalledWith('/api/v1/sales/orders/7/confirm', { method: 'POST', schema: SalesOrderSchema })
     await as(useAssignSalesOrder()).mutationFn({ id: 7, salespersonId: 8 })
     expect($api).toHaveBeenLastCalledWith('/api/v1/sales/orders/7/assign', { method: 'POST', body: { salesperson_id: 8 }, schema: SalesOrderSchema })
+    await as(useRefundSalesOrder()).mutationFn({ id: 7, refund: { amount: 38, reference: '  RF-1 ' } })
+    expect($api).toHaveBeenLastCalledWith('/api/v1/sales/orders/7/refunds', { method: 'POST', body: { amount: 38, reference: 'RF-1' }, schema: SalesOrderSchema })
     await as(useDuplicateSalesOrder()).mutationFn(7)
     expect($api).toHaveBeenLastCalledWith('/api/v1/sales/orders/7/duplicate', { method: 'POST', schema: SalesOrderSchema })
+  })
+
+  it('checks a refund against the contract before it is sent', async () => {
+    const send = as(useRefundSalesOrder()).mutationFn
+    for (const refund of [{ amount: 0, reference: 'RF' }, { amount: 5, reference: '  ' }, { amount: 5, reference: 'x'.repeat(129) }]) await expect((async () => send({ id: 7, refund }))()).rejects.toThrow()
+    expect($api).not.toHaveBeenCalled()
   })
 
   it('replaces the record with the answer and refetches the lists only', async () => {

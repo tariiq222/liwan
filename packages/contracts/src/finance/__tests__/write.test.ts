@@ -74,6 +74,15 @@ describe('finance invoice request schemas', () => {
     expect(() => FinanceInvoiceCreateSchema.parse({ ...INVOICE, lines: [{ ...LINE, discount: 101 }] })).toThrow()
   })
 
+  it('let a line name a product instead of a label and a unit price, and require them without one', () => {
+    const named = { product_id: 9 }
+    expect(FinanceInvoiceCreateSchema.parse({ ...INVOICE, lines: [named] }).lines).toEqual([named])
+    expect(FinanceInvoiceCreateSchema.parse({ ...INVOICE, lines: [{ ...named, name: 'Audit', price_unit: 150, tax_ids: [] }] }).lines[0].price_unit).toBe(150)
+    expect(() => FinanceInvoiceCreateSchema.parse({ ...INVOICE, lines: [{ price_unit: 5 }] })).toThrow()
+    expect(() => FinanceInvoiceCreateSchema.parse({ ...INVOICE, lines: [{ name: 'x' }] })).toThrow()
+    expect(() => FinanceInvoiceCreateSchema.parse({ ...INVOICE, lines: [{ ...named, product_id: '9' }] })).toThrow()
+  })
+
   it('a patch cannot change the move type and needs at least one field', () => {
     expect(FinanceInvoicePatchSchema.parse({ ref: 'PO-1' })).toEqual({ ref: 'PO-1' })
     expect(FinanceInvoicePatchSchema.parse({ lines: [LINE] })).toEqual({ lines: [LINE] })

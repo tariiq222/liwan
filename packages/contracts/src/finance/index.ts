@@ -41,6 +41,8 @@ export const FinanceInvoiceSchema = z.object({
 export const FinanceInvoiceLineSchema = z.object({
   id,
   name: z.string(),
+  /** The product of the products service the line names (customer invoices and credit notes only); null otherwise. */
+  product: FinanceRefSchema.nullable(),
   account: FinanceRefSchema.nullable(),
   quantity: z.number(),
   price_unit: z.number(),
@@ -61,8 +63,13 @@ export const FinanceInvoiceZatcaSchema = z.object({
   submission: FinanceZatcaSubmissionSchema,
 }).strict()
 
+/** The sales order an invoice was made from, named only to a caller who reads that order in Sales (the finance bridge). */
+export const FinanceSourceOrderSchema = z.object({ id, number: z.string().min(1) }).strict()
+
 export const FinanceInvoiceDetailSchema = FinanceInvoiceSchema.extend({
   ref: z.string(),
+  /** The sales order it was made from; present only with the sales bridge, null for a caller who cannot read that order. */
+  source_order: FinanceSourceOrderSchema.nullable().optional(),
   debit_origin: FinanceRefSchema.nullable(),
   credit_origin: FinanceRefSchema.nullable(),
   /** Null for every document that is not a Saudi sale document. */
@@ -160,6 +167,7 @@ export const FinanceJournalListSchema = list(FinanceJournalSchema)
 export const FinanceTaxListSchema = list(FinanceTaxSchema)
 export const FinancePaymentTermListSchema = list(FinancePaymentTermSchema)
 
+export type FinanceSourceOrder = z.infer<typeof FinanceSourceOrderSchema>
 export type FinanceRef = z.infer<typeof FinanceRefSchema>
 export type FinanceActionBlockReason = z.infer<typeof FinanceActionBlockReasonSchema>
 export type FinanceInvoiceAction = z.infer<typeof FinanceInvoiceActionSchema>

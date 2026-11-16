@@ -1,5 +1,11 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import base64
+import io
+from contextlib import contextmanager
 from typing import NamedTuple
+from unittest.mock import patch
+
+from PIL import Image
 
 from odoo import Command
 from odoo.models import BaseModel
@@ -18,6 +24,12 @@ class Scope(NamedTuple):
 
 
 MODES = {'saas': 'control_plane', 'non_saas': 'local_policy'}
+# What a bridge installed in the same database adds to the wire shapes (`liwan_sales_payments`, `liwan_sales_crm`,
+# `liwan_sales_finance`); Sales tests compare the keys Sales itself owns, so they pass with or without them.
+BRIDGE_KEYS = frozenset({
+    'payment', 'payment_to_confirm', 'prepayment_percent', 'opportunity', 'opportunity_win', 'opportunity_win_amount',
+    'invoicing', 'invoice_down_payment', 'invoice_actor',
+})
 
 
 class LiwanSalesCase(LiwanApiCase):
@@ -245,3 +257,70 @@ class SalesWriteCase(LiwanSalesCase):
         company = company or self.company
         service = self.env['liwan.products.service'].with_company(company)
         return service._liwan_price(product, quantity=quantity, company=company, customer=self.customer)['unit_price']
+
+
+FAKE_PDF = b'%PDF-1.4 quotation'
+BUYER_EMAIL = 'buyer@example.test'
+SENDER = 'no-reply@liwanos.test'
+
+
+def png_base64(size=4):
+    """A real PNG of ``size`` pixels square, as the base64 text a signature pad sends."""
+    buffer = io.BytesIO()
+    Image.new('RGB', (size, size), 'white').save(buffer, 'PNG')
+    return base64.b64encode(buffer.getvalue()).decode()
+
+
+class QuotationCase(SalesWriteCase):
+    """Quotations the Sales service sends as their salesperson, in any scope, with the PDF engine replaced."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.env['ir.config_parameter'].set_param('mail.default.from', SENDER)
+
+    @classmethod
+    def set_answer(cls, mode='accept', confirms=False):
+        cls.env['liwan.sales.settings']._liwan_current().write({'customer_answer': mode, 'acceptance_confirms': confirms})
+
+    @classmethod
+    def set_signature_methods(cls, methods):
+        cls.env['liwan.sales.settings']._liwan_current().signature_methods = methods
+
+    @classmethod
+    def set_answered_resend(cls, mode):
+        cls.env['liwan.sales.settings']._liwan_current().answered_resend = mode
+
+    @contextmanager
+    def pdf_engine(self):
+        """The stock report render replaced by a fixed PDF; yields the mock."""
+        report = type(self.env['ir.actions.report'])
+        with patch.object(report, '_render_qweb_pdf', autospec=True, return_value=(FAKE_PDF, 'pdf')) as render:
+            yield render
+
+    def quotation(self, scope=None, email=BUYER_EMAIL, **values):
+        """A draft staff quotation of ``scope``'s agent for a customer with ``email``."""
+        scope = scope or self.root
+        order = self.make_order(scope.agent, scope.company, **values)
+        order.partner_id.email = email
+        return order
+
+    def service_as(self, user, company=None):
+        company = company or user.company_id
+        return self.env['liwan.sales.service'].with_user(user).with_context(allowed_company_ids=[company.id])
+
+    def sent(self, mode='accept', confirms=False, scope=None, signature_methods='draw_or_type', **values):
+        """A quotation sent under the settings ``mode``, ``confirms`` and ``signature_methods``, returned in the superuser
+        environment."""
+        scope = scope or self.root
+        self.set_answer(mode, confirms)
+        self.set_signature_methods(signature_methods)
+        order = self.quotation(scope, **values)
+        with self.pdf_engine():
+            self.service_as(scope.agent, scope.company)._liwan_send(order.id)
+        order.invalidate_recordset()
+        return order
+
+    def send_via_api(self, user, order_id, expect=200):
+        with self.pdf_engine():
+            return self.act(user, order_id, 'send', expect=expect)

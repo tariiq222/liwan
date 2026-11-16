@@ -247,7 +247,8 @@
         "closedLost": "Closed as lost.",
         "probabilitySaved": "Probability saved",
         "customFieldsSaved": "Fields saved",
-        "notes": "Imported notes"
+        "notes": "Imported notes",
+        "wonAmount": "Won amount"
       },
       "call": {
         "title": "Record a call",
@@ -321,7 +322,12 @@
         "discountApproval": "This discount is above the allowed limit and needs someone who can approve discounts.",
         "forbidden": "You cannot do this on this record.",
         "stage": "A record is not moved to the sold stage here. Use the sale action.",
-        "alreadyLinked": "The opportunity is already linked to a customer, which cannot be changed here."
+        "alreadyLinked": "The opportunity is already linked to a customer, which cannot be changed here.",
+        "orderClosed": "A closed or archived opportunity takes no new quotation.",
+        "orderNoCustomer": "Link the opportunity to a customer first, then write its quotation.",
+        "winByOrder": "An opportunity is won with a quotation now. Write a quotation and confirm its order.",
+        "noSales": "Your plan does not include Sales, so a quotation cannot be written.",
+        "notFound": "This opportunity no longer exists, or you cannot read it."
       },
       "customer": {
         "linked": "The opportunity is linked to the customer"
@@ -387,6 +393,27 @@
           "closed": "Closed"
         },
         "count": "Showing {shown} of {total} conversations"
+      },
+      "orders": {
+        "title": "Quotations and orders",
+        "add": "New quotation",
+        "added": "The quotation was created. The opportunity is won when its order is confirmed.",
+        "empty": "This opportunity has no quotations.",
+        "noSalesperson": "No salesperson",
+        "count": "Showing {shown} of {total}",
+        "winAction": "Win with a quotation",
+        "winHint": "The opportunity is won when one of its orders is confirmed. The amount is the total of its confirmed orders.",
+        "state": {
+          "draft": "Draft",
+          "sent": "Sent",
+          "confirmed": "Confirmed",
+          "cancelled": "Cancelled"
+        },
+        "blocked": {
+          "closed": "A closed or archived opportunity takes no new quotation. Reopen it first.",
+          "noCustomer": "Link the opportunity to a customer first, then write its quotation."
+        },
+        "cannotQuote": "This opportunity is won with a quotation, and you may not write quotations. Ask a sales manager."
       }
     },
     "imports": {
