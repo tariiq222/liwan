@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <record id="ir_cron_liwan_mail_retry" model="ir.cron">
+        <field name="name">liwan: retry tenant mail after a transient failure</field>
+        <field name="model_id" ref="mail.model_mail_mail"/>
+        <field name="state">code</field>
+        <field name="code">model._liwan_retry_failed()</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">5</field>
+        <field name="interval_type">minutes</field>
+        <field name="active" eval="True"/>
+    </record>
+    <record id="ir_cron_liwan_mail_purge" model="ir.cron">
+        <field name="name">liwan: remove tenant mail rows past the retention</field>
+        <field name="model_id" ref="mail.model_mail_mail"/>
+        <field name="state">code</field>
+        <field name="code">model._liwan_purge_old()</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

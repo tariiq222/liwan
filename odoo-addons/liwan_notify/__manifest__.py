@@ -2,7 +2,7 @@
 {
     'name': 'liwan Notify',
     'summary': 'liwan platform: the shared notification bell — delivery, type registry, /api/v1/notifications',
-    'version': '19.0.1.1.0',
+    'version': '19.0.1.2.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -11,6 +11,7 @@
     # liwan_api: api_handler, the registry-driven feature gate and LiwanApiCase.
     # mail: a bell row is a mail.message plus an inbox mail.notification.
     'depends': ['liwan_api', 'mail'],
+    'data': ['data/mail_crons.xml'],
     'installable': True,
     'application': False,
 }

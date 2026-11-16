@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from odoo.tests import tagged
 from odoo.tools import config
+from odoo.tools.misc import format_amount
 
 from .payroll_common import PayrollCase
 
@@ -64,6 +65,21 @@ class TestPayrollFinalPayslip(PayrollCase):
     def test_the_final_payslip_leaves_from_the_platform_sender(self):
         self._approve_the_run()
         self.assertEqual(self._mails_to('leaver.personal@example.com').email_from, SENDER)
+
+    def test_the_final_payslip_goes_through_the_tenant_mail_contract(self):
+        self._approve_the_run()
+        mail = self._mails_to('leaver.personal@example.com')
+        self.assertEqual(mail.liwan_kind, 'hr.final_payslip')
+        self.assertEqual(mail.liwan_attempts, 1)
+        self.assertTrue(mail.message_id)
+        self.assertEqual(mail.model, 'hr.payslip')
+        self.assertEqual(mail.email_to, 'leaver.personal@example.com')
+        self.assertEqual(mail.subject, f'Your final payslip for {MONTH}')
+        # Payroll data: stock Odoo removes the row after a successful send and a failed one stays visible.
+        self.assertTrue(mail.auto_delete)
+        slip = self.env['hr.payslip'].search([('employee_id', '=', self.leaver.id)])
+        net = format_amount(self.env, slip._liwan_amounts()[slip.id]['net'], slip.company_id.currency_id)
+        self.assertIn(net, mail.body_html)
 
     def test_no_final_payslip_is_queued_without_a_configured_sender(self):
         self.env['ir.config_parameter'].set_param('mail.default.from', '')

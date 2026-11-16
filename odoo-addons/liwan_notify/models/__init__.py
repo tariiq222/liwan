@@ -1,6 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from . import (
+    mail_mail,
     mail_message,
+    mail_send,
     notify_mail,
     notify_registry,
     notify_service,

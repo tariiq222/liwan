@@ -1,6 +1,6 @@
 # Tenant mail from the tenant's own domain
 
-Status: owner decisions D1 to D6 recorded on 2026-11-16. Nothing in this document is implemented in any branch. No environment is deployed and no tenant exists. Three claims stay separate throughout: what the owner decided (section 2), what was read in provider documentation or in code (sections 3 and 4), and what is built (nothing).
+Status: owner decisions D1 to D6 recorded on 2026-11-16, and the recommended defaults for Q1, Q3, Q4 and Q5 approved the same day. Phase 1 (section 5.1, the send contract) is implemented in branch `api-ai-bridges-fold`, uncommitted and not merged, and verified by the `liwan_notify` and payslip Odoo tests run in that branch; nothing else in this document is implemented in any branch. No environment is deployed and no tenant exists. Three claims stay separate throughout: what the owner decided (section 2), what was read in provider documentation or in code (sections 3 and 4), and what is built (phase 1 only, in the branch above).
 
 The hosting contract ([liwan-shared-saas-and-sovereign-deployment.md](liwan-shared-saas-and-sovereign-deployment.md)) owns the shared-SaaS requirements. [Odoo outgoing mail](../../operations/odoo-mail.md) and [Odoo outbound route](../../operations/odoo-egress.md) describe the current route. This file does not change them.
 
@@ -15,6 +15,7 @@ Code facts that shape the answer:
 - `deploy/odoo-mail/relay.py:13-14` and `:205-220` refuse any message whose `From`, envelope sender or identity headers are not the one platform address. A tenant-domain message is rejected today.
 - Even before the relay, Odoo itself rewrites the sender. With no `ir.mail_server` record (the shared overlay sets only `ODOO_SMTP_SERVER`, `deploy/docker-compose.shared.yml:123-127`), `_find_mail_server` falls to its last branch and, when the `From` does not match `from_filter`, sends under `notifications_email or email_from` (`/Users/tariq/code/odoo/odoo/addons/base/models/ir_mail_server.py:919-935`). The filter is read from the per-database parameter `mail.default.from_filter`, then the server config (`:650-662`). A verified tenant domain must therefore be written into that per-database parameter, or Odoo silently replaces the tenant's address with the platform's.
 - `odoo-addons/liwan_hr/models/hr_payslip.py:235` already creates a `mail.mail` with `sudo()`, a second path beside the thread path. AGENTS.md ("Clean pre-release codebase") forbids two parallel paths, which is why section 5.1 plans one contract.
+- The unmerged Codex branch `codex/sales-quotation-send` already emails quotations by creating a `mail.mail` with `sudo()` from the platform sender (`odoo-addons/liwan_sales/models/quotation_document.py:110-113` on that branch). That is a third path, and it must move onto this contract before or when it merges.
 
 ## 2. Owner decisions (2026-11-16)
 
@@ -26,8 +27,10 @@ Code facts that shape the answer:
 | D4 | The sender identity is scoped to the tenant root. Child companies inherit it. No per-company override is built and no schema room is left for one. |
 | D5 | Email cost is included in the subscription and is not sold as an add-on. There is no monthly allowance or quota shown to the tenant, because the cost is negligible (section 8). The real risks are the shared sending IPs and the one account-wide OCI daily limit (50,000 a day on a paid account), so protection ceilings apply instead: (a) a daily ceiling of 2,000 emails per tenant per day, counted per recipient and per 2 MB chunk with the billing weights, not shown to the tenant until reached; at the ceiling messages are not lost, they wait in the queue and leave the next day, and the tenant admin sees a notice; the vendor can raise the ceiling for one tenant from the vendor side; (b) a per-minute ceiling of 60 emails per tenant, where the excess waits in the queue and nothing is shown; (c) an automatic pause when the bounce or complaint rate is high, with a clear reason shown to the admin (thresholds are a phase 2 decision). There are no 80% or 95% warnings, since there is no monthly quota. |
 | D6 | This contract is for transactional mail: invoices, quotes, invites and notifications. Marketing campaigns are out of its scope and belong to the customer-messages application, with recipient opt-in. |
-
-Assumption pending owner confirmation (coordinator, not an owner decision): a tenant with no verified domain, or with only a public mailbox domain such as `gmail.com`, cannot email its customers from LiwanOS. It keeps the share link and the PDF download. OCI itself refuses public mailbox domains. Open question Q1 asks for confirmation.
+| Q1 | A tenant with no verified domain, or with only a public mailbox domain such as `gmail.com`, cannot email its customers from LiwanOS. It keeps the share link and the PDF download. OCI itself refuses public mailbox domains. |
+| Q3 | Platform mail stays on `liwan.outbound.mail`: a different responsibility (no log, no count, no retry). |
+| Q4 | The OCI client lives inside `liwan_notify` behind the provider interface (section 5.2), consistent with the R3 text added to AGENTS.md on 2026-11-16: a bridge links addons of the same layer, and none is needed here. |
+| Q5 | Phases 1 and 2 ship at release 1, plus the quote email if quotes are emailed at launch. |
 
 ## 3. Verified provider facts (2026-11-16)
 
@@ -71,7 +74,7 @@ LiwanOS today:
 
 Decision: extend `mail.mail` with `_inherit` (a public extension point, R9) and add one service in `liwan_notify`. No new outbox table: `mail.mail` already is the queue, the failure record and the link to the business document, and a second table would duplicate it (AGENTS.md "Clean pre-release codebase", "reuse engines").
 
-Where the delivery log lives: on the `mail.mail` row itself, with these added fields: `liwan_kind` (the sending feature, for example `meeting.invite`), `liwan_attempts` (integer), `liwan_provider_status` (selection: `submitted`, `accepted`, `relayed`, `bounced`, `complained`, `suppressed`) and `liwan_provider_checked_at`. The business record is `model` and `res_id`, which Odoo already provides. Reasons: one source of truth per fact, Odoo's own list and retry behaviour keeps working, and the daily and per-minute counts are reads over these rows, never a second stored counter. Rows are kept 90 days (the length of OCI metrics) by one cron and then removed. The counters read the current day and the last minute only.
+Where the delivery log lives: on the `mail.mail` row itself, with these added fields: `liwan_kind` (the sending feature, for example `meeting.invite`), `liwan_attempts` (integer) and `liwan_weight` (integer, the billed weight fixed at creation, which the ceilings sum in the database). Phase 2 adds `liwan_provider_status` (selection: `submitted`, `accepted`, `relayed`, `bounced`, `complained`, `suppressed`) and `liwan_provider_checked_at` together with the code that fills them. The business record is `model` and `res_id`, which Odoo already provides. Reasons: one source of truth per fact, Odoo's own list and retry behaviour keeps working, and the daily and per-minute counts are reads over these rows, never a second stored counter. Rows are kept 90 days (the length of OCI metrics) by one cron and then removed. A caller may mark a send `sensitive` (payroll, per the payroll rule in AGENTS.md): its row has `auto_delete`, so stock Odoo removes it after a successful send, which also takes it out of the ceiling count, and a failed one stays visible; business mail keeps its row the full 90 days. The "day" of the daily ceiling is the tenant's day: the root company's timezone, default Asia/Riyadh. A retry goes through the same slot logic as a new row, so it respects both ceilings. The counters read the current day and the last minute only.
 
 What stock Odoo gives (section 4) and what LiwanOS adds on top:
 
@@ -81,11 +84,11 @@ What stock Odoo gives (section 4) and what LiwanOS adds on top:
 | Retry | None; manual `action_retry` | A cron that moves rows in `exception` with failure type `mail_smtp` or `unknown` back to `outgoing`, up to 3 attempts with growing delay through `scheduled_date`. Invalid-address failures are final |
 | Sender and server choice | `_find_mail_server` by `from_filter` (see section 1) | The sender comes from the tenant's verified domain. The service writes the tenant's per-database `mail.default.from_filter` (platform domain plus verified domain) on verify and on removal |
 | Attachments | `attachment_ids` | A size rule: above about 1.5 MB (trial `max-message-size` is 2,008,192 bytes, and base64 adds a third) send a download link instead of the file |
-| Protection ceilings (D5) | None | A computed count over rows of the current day, weighted per recipient and per 2 MB chunk, checked when the row is created. Over the daily ceiling the row is still created in `outgoing` with `scheduled_date` set to the start of the next day, so it waits and is sent by the stock queue cron (`mail_mail.py:205-211` reads only `outgoing` rows whose `scheduled_date` is empty or past; the field is at `:97`). The per-minute ceiling uses the same mechanism with a date a minute ahead. That the cron honours a future `scheduled_date` is read in source; the whole deferral flow is unverified until it runs in phase 1 |
+| Protection ceilings (D5) | None | A computed count over rows of the current day, weighted per recipient and per 2 MB chunk, checked when the row is created. Over the daily ceiling the row is still created in `outgoing` with `scheduled_date` set to the start of the next day, so it waits and is sent by the stock queue cron (`mail_mail.py:205-211` reads only `outgoing` rows whose `scheduled_date` is empty or past; the field is at `:97`). The per-minute ceiling uses the same mechanism with a date a minute ahead. That the cron honours a future `scheduled_date` is read in source; the whole deferral flow is unverified until it runs in phase 1. As built, every contract row stores its leaving moment in `scheduled_date` (now when not deferred), and the counts read that one field |
 | Correlation | `message_id` stored after send | We generate the `Message-Id` before sending and store it, so OCI logs (`messageId`) match the row |
 | Gate | None | Feature and capability checks (section 7), and the verified-domain rule on every send |
 
-Platform mail (D3) stays on `liwan.outbound.mail`. The two paths differ in responsibility: platform mail is composed from a fixed bilingual template and needs no log row, no count and no retry because the user simply asks for another code; tenant mail is a business document with a record, a count and a retry. Whether platform mail should move to the same queue is open question Q3. `hr_payslip.py:235` moves to the contract in phase 1, which removes the `sudo()` there. The contract itself needs one elevated `mail.mail` create, documented in `tools/arch_documented_sudo.json` with the blocking ACL named, as R7 requires.
+Platform mail (D3) stays on `liwan.outbound.mail`. The two paths differ in responsibility: platform mail is composed from a fixed bilingual template and needs no log row, no count and no retry because the user simply asks for another code; tenant mail is a business document with a record, a count and a retry. Platform mail stays on its own path (Q3, decided). `hr_payslip.py:235` moves to the contract in phase 1, which removes the `sudo()` there. The contract itself needs one elevated `mail.mail` create, documented in `tools/arch_documented_sudo.json` with the blocking ACL named, as R7 requires.
 
 ### 5.2 Domain model and ownership
 
@@ -95,7 +98,7 @@ Platform mail (D3) stays on `liwan.outbound.mail`. The two paths differ in respo
 | `mail.mail` (inherit) | `liwan_notify` | Fields in section 5.1 |
 | `liwan.mail.domain.provider` | `liwan_notify` | Abstract model, the provider interface: `create_domain`, `read_records`, `check`, `recreate_return_path`, `delete_domain`, `fetch_delivery_status` |
 
-Disagreement with the settled direction, reported rather than silently changed: the brief puts the provider integration in `liwan_integrations_sa` with a bridge. Two code facts argue against it. `liwan_notify` and `liwan_integrations_sa` are both rank 3, and `tools/arch_policy.py:175-186` forbids a dependency between equal ranks, so the only way to join them is a new rank 5 bridge that, by R3, defines no model and so cannot own `liwan.mail.domain`. And the contents of `liwan_integrations_sa` are tenant-owned secrets and connections, while the OCI signing key is an operator secret (section 6.2); the module would contribute nothing the OCI client uses. So the OCI client is one implementation of `liwan.mail.domain.provider` inside `liwan_notify`, selected by operator configuration. If a second provider ever needs a separate addon, a bridge can be added then. No new addon is registered in `tools/arch_layers.json` by this plan; this is unverified against the owner's wish to keep `liwan_notify` free of vendor code, and is raised as Q4.
+Disagreement with the settled direction, reported rather than silently changed: the brief puts the provider integration in `liwan_integrations_sa` with a bridge. Two code facts argue against it. `liwan_notify` and `liwan_integrations_sa` are both rank 3, and `tools/arch_policy.py:175-186` forbids a dependency between equal ranks, so the only way to join them is a new rank 5 bridge that, by R3, defines no model and so cannot own `liwan.mail.domain`. And the contents of `liwan_integrations_sa` are tenant-owned secrets and connections, while the OCI signing key is an operator secret (section 6.2); the module would contribute nothing the OCI client uses. So the OCI client is one implementation of `liwan.mail.domain.provider` inside `liwan_notify`, selected by operator configuration. If a second provider ever needs a separate addon, a bridge can be added then. No new addon is registered in `tools/arch_layers.json` by this plan (Q4, decided).
 
 ### 5.3 Domain verification flow (phase 2)
 
@@ -174,7 +177,7 @@ Isolation stays database per tenant, with one OCI email domain per tenant. A dom
 | --- | --- |
 | Tenant lifecycle | `requires_tenant_access` on every route (base service, R10) |
 | Manage domain | The dedicated capability in 6.1 |
-| Send | The caller's own application capability and feature (for example the meetings feature for an invite), then the verified-domain check and the protection ceilings and pause of 6.2 |
+| Send | The caller's own application capability and feature (for example the meetings feature for an invite), then the verified-domain check and the protection ceilings and pause of 6.2. The contract itself checks nothing about the caller's right to the business record or the feature: every caller checks both first, and no route passes a client-supplied `model`, `res_id`, sender or raw HTML |
 | `non_saas` | The domain-verification routes and card are hidden. The contract works against the operator's server |
 
 ## 8. Cost
@@ -189,7 +192,7 @@ The count that matches billing is per recipient and per chunk, so the counters i
 
 ## 9. Phases
 
-Release 1 targets about 2026-12-06 with CRM, customer messages and the base. Phases 1 and 2 ship together. Phase 3 is the first user-facing mail and belongs in release 1 only if the owner wants meeting invites at launch; the CRM quote email (phase 4, first half) is the one launch feature that needs tenant-domain mail, if quotes are emailed at launch (Q5). Phases 5 to 7 come after release 1.
+Release 1 targets about 2026-12-06 with CRM, customer messages and the base. Phases 1 and 2 ship together. Phase 3 is the first user-facing mail and belongs in release 1 only if the owner wants meeting invites at launch; the CRM quote email (phase 4, first half) is the one launch feature that needs tenant-domain mail, if quotes are emailed at launch (Q5, decided). Phases 5 to 7 come after release 1.
 
 Verification command families are the ones in [testing.md](../../testing.md) and the scratch-database block in [odoo-rules.md](../../agents/odoo-rules.md): layer 1 Odoo tests for models, rules and routes, layer 2 `npm test` and `npm -w apps/web run lint` for contracts and the web page, and the `tools` unittest suite after any addon Python edit. Never against `liwan_dev` or `odoo19`.
 
@@ -209,11 +212,4 @@ Tenant-supplied SMTP credentials, the Moyasar gateway, ZATCA production, bank fe
 
 ## 11. Open questions for the owner
 
-Each has a recommended default, per [AGENTS.md](../../../AGENTS.md) "User-facing decisions". Q2 (the monthly allowance) was decided on 2026-11-16 and is recorded as D5 in section 2.
-
-| # | Question | Options | Recommended default |
-| --- | --- | --- | --- |
-| Q1 | A tenant with no verified domain, or a public mailbox domain only | (a) it cannot email its customers and keeps the share link and PDF; (b) it sends from the LiwanOS address with the company name (contradicts D1) | (a), as in section 2 |
-| Q3 | Platform mail (sign-in code and the like) on the same queue | (a) keep `liwan.outbound.mail` for platform mail, justified as a different responsibility (no log, no count, no retry); (b) move platform mail to the queue and delete the thread path so one path remains | (a) for launch; revisit when the thread path needs a retry, because two paths is a standing cost |
-| Q4 | OCI client inside `liwan_notify` versus a separate bridge addon | (a) inside `liwan_notify` behind a provider interface (section 5.2); (b) a rank 5 bridge with the provider logic and no model | (a), because of `tools/arch_policy.py:175-186` |
-| Q5 | Which phases ship at release 1 | (a) phases 1 and 2 only (the capability exists, no business feature uses it); (b) phases 1 to 3 (meeting invites); (c) phases 1, 2 and the CRM quote email | (c) if quotes are emailed at launch, otherwise (a) |
+None. Q1, Q3, Q4 and Q5 were decided on 2026-11-16 (section 2) and Q2 is D5.

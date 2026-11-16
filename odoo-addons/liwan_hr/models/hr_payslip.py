@@ -1,5 +1,4 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-import logging
 from decimal import Decimal
 
 from markupsafe import Markup
@@ -10,8 +9,6 @@ from odoo.tools.misc import format_amount
 
 from .payroll_math import money
 from odoo.addons.liwan_hr.rules import LiwanHrRule
-
-_logger = logging.getLogger(__name__)
 
 # Line codes of the Saudi structure (data/hr_payroll_structure_data.xml) that make up the figures
 # a payslip shows. Deductions are negative lines, the employer share is a positive statistical line.
@@ -213,10 +210,6 @@ class HrPayslip(models.Model):
 
     def _liwan_queue_payslip_mail(self, address):
         self.ensure_one()
-        sender = self.env['liwan.outbound.mail']._liwan_sender()
-        if not sender:
-            _logger.warning('final payslip email skipped: no sender address is configured (mail.default.from)')
-            return
         amounts = self._liwan_amounts()[self.id]
         currency = self.company_id.currency_id
         lines = self.line_ids.filtered(
@@ -231,15 +224,11 @@ class HrPayslip(models.Model):
                                 name=self.employee_id.name, month=self.date_from.strftime('%Y-%m'), company=self.company_id.name),
             rows=rows, net_label=self.env._('Net pay'), net=format_amount(self.env, amounts['net'], currency),
         )
-        # Mailing needs the outgoing-mail right, which no payroll capability carries.
-        self.env['mail.mail'].sudo().create({
-            'subject': self.env._('Your final payslip for %(month)s', month=self.date_from.strftime('%Y-%m')),
-            'body_html': body,
-            'email_from': sender,
-            'email_to': address,
-            'author_id': self.env.user.partner_id.id,
-            'auto_delete': True,
-        })
+        self.env['liwan.mail.send']._liwan_send(
+            'hr.payslip', self.id, 'hr.final_payslip', [address],
+            self.env._('Your final payslip for %(month)s', month=self.date_from.strftime('%Y-%m')), body,
+            sensitive=True,
+        )
 
     def _liwan_amounts(self):
         """``{payslip_id: {gross, deductions, gosi_employee, gosi_employer, net}}`` from the computed lines.
