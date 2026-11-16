@@ -553,6 +553,8 @@ Storybook هو فهرس المكونات الملزم، وقاعدة ما يُش
 
 | `apps/web/app/components/helpdesk/HelpdeskMergeSection.vue` | Merges duplicate tickets into the open one: a search over the reachable tickets, a ticked set to absorb, and the note the server writes on both sides while it moves the attachments | SharedRecordSection, UInput, UCheckbox, UButton |
 
+| `apps/web/app/components/helpdesk/settings/HelpdeskSlaSection.vue` | The service levels of the desk: each policy's target stage, its days and hours, the teams, categories and tags it covers and the stages that pause the clock, edited inline with an archive switch | SharedSubCard, SharedStatusBadge, SharedEmptyState, UFormField, UInput, UInputNumber, USelect, USelectMenu, UButton, USwitch |
+
 ## التنقل والانتباه والأعمال
 
 | المكون | المسؤولية والقصة | مكونات الأساس والوصفة |

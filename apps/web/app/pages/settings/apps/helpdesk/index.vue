@@ -3,6 +3,8 @@ import { reactive, watch } from 'vue'
 import type { HelpdeskSettings } from '@liwan/contracts'
 import { useHelpdeskReference, useHelpdeskSettings, useSaveHelpdeskSettings } from '@/composables/helpdesk/useHelpdesk'
 import { useHelpdeskResources } from '@/composables/helpdesk/useHelpdeskResources'
+import { useHelpdeskSla } from '@/composables/helpdesk/useHelpdeskSla'
+import HelpdeskSlaSection from '@/components/helpdesk/settings/HelpdeskSlaSection.vue'
 import HelpdeskStagesSection from '@/components/helpdesk/settings/HelpdeskStagesSection.vue'
 import HelpdeskTeamsSection from '@/components/helpdesk/settings/HelpdeskTeamsSection.vue'
 import HelpdeskValueListSection from '@/components/helpdesk/settings/HelpdeskValueListSection.vue'
@@ -16,6 +18,7 @@ const { can } = useAccess()
 const settings = useHelpdeskSettings()
 const reference = useHelpdeskReference()
 const resources = useHelpdeskResources(() => can('helpdesk.settings.read'))
+const sla = useHelpdeskSla(() => can('helpdesk.settings.read'))
 const save = useSaveHelpdeskSettings()
 const message = ref('')
 
@@ -130,6 +133,16 @@ function revert() {
             <HelpdeskValueListSection kind="tags" :rows="resources.data.value.tags" :can-edit="canManage" />
             <HelpdeskValueListSection kind="channels" :rows="resources.data.value.channels" :can-edit="canManage" />
             <HelpdeskValueListSection kind="types" :rows="resources.data.value.types" :can-edit="canManage" />
+          </SharedSettingsSection>
+          <SharedSettingsSection v-if="sla.data.value" id="sla" :title="t('helpdesk.settings.sla.section')" :description="t('helpdesk.settings.sla.sectionHint')">
+            <HelpdeskSlaSection
+              :rows="sla.data.value.items"
+              :stages="resources.data.value.stages"
+              :teams="resources.data.value.teams"
+              :categories="resources.data.value.categories"
+              :tags="resources.data.value.tags"
+              :can-edit="canManage"
+            />
           </SharedSettingsSection>
         </template>
       </SharedPageState>

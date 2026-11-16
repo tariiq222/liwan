@@ -196,3 +196,41 @@ export type HelpdeskTeamSave = z.infer<typeof HelpdeskTeamSaveSchema>
 export type HelpdeskStageSave = z.infer<typeof HelpdeskStageSaveSchema>
 export type HelpdeskCategorySave = z.infer<typeof HelpdeskCategorySaveSchema>
 export type HelpdeskValueSave = z.infer<typeof HelpdeskValueSaveSchema>
+
+// ---------------------------------------------------------------- service levels
+
+export const HelpdeskSlaPolicySchema = z.object({
+  id: z.number().int().positive(),
+  name: z.string(),
+  active: z.boolean(),
+  days: z.number().int().nonnegative(),
+  hours: z.number().int().nonnegative(),
+  stage_id: z.number().int().positive().nullable(),
+  team_ids: z.array(z.number().int().positive()),
+  category_ids: z.array(z.number().int().positive()),
+  tag_ids: z.array(z.number().int().positive()),
+  ignore_stage_ids: z.array(z.number().int().positive()),
+  ticket_count: z.number().int().nonnegative(),
+}).strict()
+
+export const HelpdeskSlaListSchema = z.object({
+  items: z.array(HelpdeskSlaPolicySchema),
+  targets: z.array(z.object({ code: z.string(), label_key: z.string() }).strict()),
+}).strict()
+
+export const HelpdeskSlaSaveSchema = z.object({
+  id: z.number().int().positive().optional(),
+  name: z.string().min(1).max(120),
+  days: z.number().int().min(0).max(365),
+  hours: z.number().int().min(0).max(23),
+  stage_id: z.number().int().positive(),
+  team_ids: z.array(z.number().int().positive()).optional(),
+  category_ids: z.array(z.number().int().positive()).optional(),
+  tag_ids: z.array(z.number().int().positive()).optional(),
+  ignore_stage_ids: z.array(z.number().int().positive()).optional(),
+  active: z.boolean().optional(),
+}).strict()
+
+export type HelpdeskSlaPolicy = z.infer<typeof HelpdeskSlaPolicySchema>
+export type HelpdeskSlaList = z.infer<typeof HelpdeskSlaListSchema>
+export type HelpdeskSlaSave = z.infer<typeof HelpdeskSlaSaveSchema>

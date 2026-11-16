@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { HelpdeskResourcesSchema, HelpdeskTeamSaveSchema } from '..'
+import { HelpdeskResourcesSchema, HelpdeskSlaSaveSchema, HelpdeskSlaListSchema, HelpdeskTeamSaveSchema } from '..'
 import { HelpdeskSettingsSchema } from '../settings'
 import { HelpdeskTicketPageSchema, HelpdeskTicketSchema, HelpdeskTicketCreateSchema } from '..'
 
@@ -86,5 +86,17 @@ describe('helpdesk contracts', () => {
     expect(HelpdeskTeamSaveSchema.safeParse({ name: 'Line 2', member_ids: [1, 2], leader_id: 1 }).success).toBe(true)
     expect(HelpdeskTeamSaveSchema.safeParse({ name: '' }).success).toBe(false)
     expect(HelpdeskTeamSaveSchema.safeParse({ name: 'Line 2', unknown: true }).success).toBe(false)
+  })
+
+  it('reads a service level and its target', () => {
+    const policy = {
+      id: 1, name: 'First response in 4h', active: true, days: 0, hours: 4, stage_id: 7,
+      team_ids: [2], category_ids: [], tag_ids: [], ignore_stage_ids: [], ticket_count: 3,
+    }
+    const list = { items: [policy], targets: [{ code: 'first_response', label_key: 'helpdesk.settings.sla.firstResponse' }] }
+    expect(HelpdeskSlaListSchema.parse(list).items[0].hours).toBe(4)
+    expect(HelpdeskSlaSaveSchema.safeParse({ name: 'x', days: 1, hours: 0, stage_id: 7 }).success).toBe(true)
+    expect(HelpdeskSlaSaveSchema.safeParse({ name: 'x', days: 0, hours: 24, stage_id: 7 }).success).toBe(false)
+    expect(HelpdeskSlaSaveSchema.safeParse({ name: 'x', days: 1, hours: 0 }).success).toBe(false)
   })
 })

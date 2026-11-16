@@ -29,10 +29,10 @@ def _seed_company(env, company):
         return
     team = env['helpdesk.ticket.team'].create({'name': DEFAULT_TEAM['name'], 'company_id': company.id})
     stages = env['helpdesk.ticket.stage']
-    for name, unattended, closed in STARTER_STAGES:
+    for sequence, (name, unattended, closed) in enumerate(STARTER_STAGES, start=1):
         stages |= env['helpdesk.ticket.stage'].create({
-            'name': name, 'company_id': company.id, 'unattended': unattended, 'closed': closed,
-            'team_ids': [(6, 0, team.ids)],
+            'name': name, 'sequence': sequence, 'company_id': company.id,
+            'unattended': unattended, 'closed': closed, 'team_ids': [(6, 0, team.ids)],
         })
     env['liwan.helpdesk.settings'].create({
         'company_id': company.id,

@@ -54,7 +54,7 @@ def sla(ticket, now=None):
     """``{state, deadline, rows}`` of a ticket, from the engine's per-ticket SLA rows."""
     now = now or fields.Datetime.now()
     rows, deadline, state = [], None, 'none'
-    for row in ticket.ticket_sla_ids:
+    for row in ticket.ticket_sla_ids.filtered(lambda item: item.sla_id.active):
         if row.state == 'expired' or (row.state == 'in_progress' and row.deadline and row.deadline < now):
             state = 'overdue'
         elif row.state == 'in_progress':

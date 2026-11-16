@@ -190,6 +190,33 @@
         "failed": "The record could not be saved.",
         "active": "Active",
         "archived": "Archived"
+      },
+      "sla": {
+        "section": "Service levels",
+        "sectionHint": "The deadlines the teams commit to, who they cover and where the clock pauses.",
+        "title": "Service levels",
+        "add": "New service level",
+        "hint": "A service level is met once the ticket reaches its target stage.",
+        "empty": "No service levels yet.",
+        "name": "Service level name",
+        "days": "{count} days",
+        "hours": "{count} hours",
+        "until": "until",
+        "paused": "paused in {count} stages",
+        "covered": "{count} tickets",
+        "everyTeam": "Every team",
+        "daysLabel": "Days",
+        "hoursLabel": "Hours",
+        "target": "Target stage",
+        "targetHint": "Reaching this stage meets the service level.",
+        "teams": "Teams",
+        "teamsHint": "With no team chosen it covers every team.",
+        "categories": "Categories",
+        "tags": "Tags",
+        "pauseStages": "Paused stages",
+        "pauseHint": "The stages where the clock stops (waiting on the customer, for example).",
+        "firstResponse": "First response",
+        "resolution": "Resolution"
       }
     },
     "merge": {

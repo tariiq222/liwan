@@ -7,6 +7,7 @@ from . import (
     helpdesk_resources,
     helpdesk_service,
     helpdesk_settings,
+    helpdesk_sla,
     helpdesk_ticket,
     mail_message,
     notification_types,
