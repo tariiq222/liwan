@@ -58,3 +58,14 @@ class LiwanSalesSettings(models.Model):
         if not self.env['liwan.entitlement.service']._liwan_feature_read(FEATURE):
             return extras
         return {**extras, 'invoice_down_payment': self.invoice_down_payment, 'invoice_actor': self.invoice_actor}
+
+    def _liwan_preset_extras(self):
+        """Services are invoiced by the consultant, in advance when agreed; goods are invoiced whole by the back office;
+        a contract is invoiced in stages by the finance team."""
+        presets = super()._liwan_preset_extras()
+        choices = {
+            'services': {'invoice_down_payment': 'allow', 'invoice_actor': 'owner'},
+            'trading': {'invoice_down_payment': 'refuse', 'invoice_actor': 'any_biller'},
+            'contracting': {'invoice_down_payment': 'allow', 'invoice_actor': 'any_biller'},
+        }
+        return {**presets, **{sector: {**presets.get(sector, {}), **values} for sector, values in choices.items()}}

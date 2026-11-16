@@ -79,6 +79,12 @@ class LiwanSalesSettings(models.Model):
         self.ensure_one()
         return {}
 
+    def _liwan_preset_extras(self):
+        """The values an installed bridge adds to the sector presets (``models/sales_presets.py``), as ``{preset: {key: value}}``.
+        Each key is one the bridge adds to the settings, so a tenant that does not carry it never sees the value."""
+        self.ensure_one()
+        return {}
+
     def _liwan_apply(self, values, revision):
         """Write ``values`` read at ``revision``.
 

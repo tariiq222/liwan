@@ -54,3 +54,9 @@ class LiwanSalesSettings(models.Model):
         if not self.env['liwan.entitlement.service']._liwan_feature_read(FEATURE):
             return extras
         return {**extras, 'opportunity_win': self.opportunity_win, 'opportunity_win_amount': self.opportunity_win_amount}
+
+    def _liwan_preset_extras(self):
+        """Every sector closes an opportunity with a confirmed order, for its untaxed amount."""
+        presets = super()._liwan_preset_extras()
+        won = {'opportunity_win': 'order_confirmed', 'opportunity_win_amount': 'untaxed'}
+        return {**presets, **{sector: {**presets.get(sector, {}), **won} for sector in ('services', 'trading', 'contracting')}}

@@ -1,8 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, fields, models
-from odoo.exceptions import MissingError
+from odoo.exceptions import LockError, MissingError
 from odoo.tools import consteq
 
+from .notification_types import KIND
 from .sales_service import QUIET
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
@@ -45,7 +46,17 @@ class LiwanSalesAnswer(models.AbstractModel):
 
     @api.model
     def _liwan_require_answerable(self, order, accepting):
-        """422 ``answer_not_allowed``, ``already_answered`` or, when ``accepting``, ``quotation_expired``."""
+        """422 ``answer_not_allowed``, ``already_answered`` or, when ``accepting``, ``quotation_expired``.
+
+        The order row is locked and read again first (409 ``conflict`` when another transaction holds it), so two
+        simultaneous answers never both pass: the second one sees the first.
+        """
+        try:
+            order.lock_for_update(allow_referencing=True)
+        except LockError as error:
+            code, message = 'conflict', 'this quotation is being answered right now; try again'
+            raise LiwanAccessRule(code, message, status=409) from error
+        order.invalidate_recordset()
         if order.liwan_answer_mode == 'none':
             _refused('answer_not_allowed', 'this quotation takes no answer')
         if order.state != 'sent' or order.liwan_answer:
@@ -64,6 +75,7 @@ class LiwanSalesAnswer(models.AbstractModel):
         order.write(values)
         if order._liwan_acceptance_confirms():
             self.env['liwan.sales.service']._liwan_move(order, 'confirm')
+        self._liwan_notify_salesperson(order, 'signed' if signature else 'accepted')
         return order
 
     @api.model
@@ -71,4 +83,20 @@ class LiwanSalesAnswer(models.AbstractModel):
         """Record the refusal with its ``reason`` and cancel the quotation, as stock's portal decline does."""
         order.write({'liwan_answer': 'declined', 'liwan_answered_on': fields.Datetime.now(), 'liwan_decline_reason': reason})
         order._action_cancel()
+        self._liwan_notify_salesperson(order, 'declined')
         return order
+
+    @api.model
+    def _liwan_notify_salesperson(self, order, answer):
+        """Put the customer's ``answer`` in the bell of the order's salesperson; an order with none, or whose salesperson
+        is archived, notifies nobody. Only the order's number travels, never the customer's name, reason or signature."""
+        if not order.user_id.active:
+            return
+        # The key holds the number of earlier answers of this order, so two deliveries of one answer collapse into one
+        # row while a quotation reopened, sent again and answered again rings again.
+        prefix = f'{KIND}:{order.id}:'
+        answered = order.env['mail.message'].search_count([('liwan_notification_key', '=like', f'{prefix}%')])
+        order.env['liwan.notify.service']._liwan_deliver(
+            'sale.order', order.id, KIND, order.user_id.partner_id, order.name, key=f'{prefix}{answered}',
+            values={'liwan_sales_answer': answer, 'liwan_sales_order_name': order.name},
+        )

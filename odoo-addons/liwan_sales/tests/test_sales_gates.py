@@ -8,6 +8,8 @@ from odoo.addons.liwan_api.tests.common import set_probe_feature
 ORDERS = '/api/v1/sales/orders'
 SETTINGS = '/api/v1/sales/settings'
 SALESPEOPLE = '/api/v1/sales/salespeople'
+TEMPLATES = '/api/v1/sales/templates'
+PRESETS = '/api/v1/sales/settings/presets'
 WRITE_ACTIONS = ('send', 'confirm', 'cancel', 'reopen', 'lock', 'unlock', 'duplicate')
 
 
@@ -26,6 +28,13 @@ class TestSalesGates(LiwanSalesCase):
             *(('POST', f'{ORDERS}/{order.id}/{action}', None) for action in WRITE_ACTIONS),
             ('POST', f'{ORDERS}/{order.id}/assign', {'salesperson_id': self.agent.id}),
             ('GET', SALESPEOPLE, None),
+            ('GET', TEMPLATES, None),
+            ('GET', f'{TEMPLATES}/1', None),
+            ('POST', TEMPLATES, {'name': 'x'}),
+            ('PATCH', f'{TEMPLATES}/1', {'name': 'x'}),
+            ('POST', f'{TEMPLATES}/1/archive', None),
+            ('POST', f'{TEMPLATES}/1/restore', None),
+            ('GET', PRESETS, None),
         )
 
     def test_a_closed_feature_refuses_every_route_with_the_feature_code(self):

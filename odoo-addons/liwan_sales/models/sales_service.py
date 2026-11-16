@@ -104,11 +104,14 @@ class LiwanSalesService(models.AbstractModel):
         customer = self._liwan_customer(values['customer_id'], company)
         salesperson = self._liwan_salesperson(values.get('salesperson_id'), company, self.env.user)
         settings = self.env['liwan.sales.settings']._liwan_current()
+        if 'template_id' in values:
+            # What the body leaves out, the template gives: its lines, its terms and its validity days.
+            values = {**self.env['liwan.sales.template']._liwan_start(values['template_id'], company), **values}
         plan = self._liwan_line_plan(values['lines'], self.env['sale.order.line'], company, customer)
         if 'validity_date' in values:
             validity = self._liwan_validity(values['validity_date'])
         else:
-            days = settings.validity_days
+            days = values.get('validity_days', settings.validity_days)
             validity = fields.Date.context_today(self) + timedelta(days=days) if days else False
         # Stock defaults the validity, the note and the signature from the company: each is written here.
         order = self.env['sale.order'].with_context(**QUIET).create({

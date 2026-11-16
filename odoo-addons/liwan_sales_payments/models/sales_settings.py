@@ -71,3 +71,13 @@ class LiwanSalesSettings(models.Model):
         if not payments_open(self.env):
             return extras
         return {**extras, 'payment_to_confirm': self.payment_to_confirm, 'prepayment_percent': self.prepayment_percent}
+
+    def _liwan_preset_extras(self):
+        """Selling goods takes the money before the order; services and contracts are paid by invoice, not by a link."""
+        presets = super()._liwan_preset_extras()
+        return {
+            **presets,
+            'services': {**presets.get('services', {}), 'payment_to_confirm': 'off'},
+            'trading': {**presets.get('trading', {}), 'payment_to_confirm': 'full'},
+            'contracting': {**presets.get('contracting', {}), 'payment_to_confirm': 'off'},
+        }

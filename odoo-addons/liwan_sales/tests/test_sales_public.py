@@ -5,11 +5,13 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from odoo import fields
+from odoo.exceptions import LockError
 from odoo.tests import tagged
 
 from .common import BRIDGE_KEYS, FAKE_PDF, MODES, QuotationCase, png_base64
 from odoo.addons.liwan_api.tests.common import set_probe_feature
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
+from odoo.addons.liwan_sales.controllers.public import PDF_COUNTER, PDF_LIMIT
 
 PUBLIC = '/api/v1/public/sales/quotations'
 PUBLIC_KEYS = {
@@ -355,3 +357,146 @@ class TestPublicDeclineAndPdf(PublicCase):
             signed_get = self.get(order, suffix='/pdf')
         self.assertEqual((unsigned_get.status_code, signed_get.status_code), (200, 200))
         self.assertEqual([bool(flag) for flag in seen], [False, True])
+
+
+@tagged('post_install', '-at_install', 'liwan')
+class TestPublicPdfLimit(PublicCase):
+
+    def pdfs(self, order, count, token=None):
+        with self.pdf_engine():
+            return [self.get(order, token=token, suffix='/pdf') for _ in range(count)]
+
+    def test_the_pdf_answers_429_past_its_budget_for_that_quotation_only(self):
+        order, other = self.sent(), self.sent()
+        self.assertEqual({response.status_code for response in self.pdfs(order, PDF_LIMIT)}, {200})
+        refused = self.pdfs(order, 1)[0]
+        self.assertEqual((refused.status_code, refused.json()['code']), (429, 'rate_limited'), refused.text)
+        # The page and the other quotation's PDF are not charged to this one.
+        self.assertEqual(self.get(order).status_code, 200)
+        self.assertEqual(self.pdfs(other, 1)[0].status_code, 200)
+
+    def test_the_budget_turns_with_the_minute_window(self):
+        order = self.sent()
+        self.pdfs(order, PDF_LIMIT + 1)
+        self.env.cr.execute(
+            'UPDATE liwan_api_public_limit SET window_start = window_start - interval %s WHERE scope = %s AND res_id = %s',
+            ['2 minutes', PDF_COUNTER, order.id],
+        )
+        self.assertEqual(self.pdfs(order, 1)[0].status_code, 200)
+
+    def test_a_wrong_token_is_a_404_and_spends_nothing(self):
+        order = self.sent()
+        for refused in self.pdfs(order, PDF_LIMIT + 2, token='nope'):
+            self.assertEqual(refused.status_code, 404)
+        self.assertFalse(self.env['liwan.api.public.limit'].search([('scope', '=', PDF_COUNTER), ('res_id', '=', order.id)]))
+        self.assertEqual(self.pdfs(order, 1)[0].status_code, 200)
+
+    def test_the_counter_never_holds_the_token(self):
+        order = self.sent()
+        self.pdfs(order, 1)
+        self.assertEqual(set(self.env['liwan.api.public.limit']._fields) & {'access_token', 'token'}, set())
+
+
+@tagged('post_install', '-at_install', 'liwan')
+class TestPublicAnswerBell(PublicCase):
+
+    def bell(self, user):
+        response = self.api_as(user, 'GET', '/api/v1/notifications')
+        self.assertEqual(response.status_code, 200, response.text)
+        return [item for item in response.json()['items'] if item['kind'] == 'sales.answered']
+
+    def test_each_answer_rings_the_salesperson_once_with_a_link_to_the_order(self):
+        accepted, signed, declined = self.sent(), self.sent('accept_and_sign'), self.sent()
+        self.ok(self.answer(accepted, 'accept'))
+        self.ok(self.answer(signed, 'accept', {'signed_by': 'Buyer', 'signature': png_base64(), 'signature_method': 'drawn'}))
+        self.ok(self.answer(declined, 'decline', {'reason': 'Too dear'}))
+        rows = {row['order_id']: row for row in self.bell(self.agent)}
+        self.assertEqual(
+            {order.id: (rows[order.id]['answer'], rows[order.id]['title']) for order in (accepted, signed, declined)},
+            {accepted.id: ('accepted', accepted.name), signed.id: ('signed', signed.name), declined.id: ('declined', declined.name)},
+        )
+        self.assertEqual(set(rows[accepted.id]) - {'id', 'created_at', 'is_read'}, {'kind', 'order_id', 'answer', 'title'})
+        self.assertNotIn('Too dear', str(rows))
+        self.assertEqual(self.bell(self.agent2), [])
+
+    def test_a_refused_answer_rings_nobody(self):
+        order = self.sent()
+        self.assertEqual(self.answer(order, 'accept', token='nope').status_code, 404)
+        self.assertEqual(self.bell(self.agent), [])
+
+    def test_an_order_with_no_salesperson_notifies_nobody(self):
+        order = self.sent()
+        order.user_id = False
+        messages = self.env['mail.message'].search_count([('liwan_notification_kind', '=', 'sales.answered')])
+        self.ok(self.answer(order, 'accept'))
+        self.assertEqual(self.env['mail.message'].search_count([('liwan_notification_kind', '=', 'sales.answered')]), messages)
+
+    def test_an_archived_salesperson_is_not_notified(self):
+        order = self.sent()
+        order.user_id.active = False
+        messages = self.env['mail.message'].search_count([('liwan_notification_kind', '=', 'sales.answered')])
+        self.ok(self.answer(order, 'accept'))
+        self.assertEqual(self.env['mail.message'].search_count([('liwan_notification_kind', '=', 'sales.answered')]), messages)
+
+    def test_an_acceptance_that_confirms_the_order_rings_the_salesperson_once(self):
+        order = self.sent(confirms=True)
+        self.ok(self.answer(order, 'accept'))
+        self.assertEqual(order.state, 'sale')
+        self.assertEqual([row['answer'] for row in self.bell(self.agent)], ['accepted'])
+
+    def test_the_row_hides_when_the_salesperson_loses_the_order(self):
+        order = self.sent()
+        self.ok(self.answer(order, 'accept'))
+        self.assertEqual(len(self.bell(self.agent)), 1)
+        order.user_id = self.agent2
+        self.assertEqual(self.bell(self.agent), [])
+
+    def messages(self, order):
+        return self.env['mail.message'].search([('liwan_notification_kind', '=', 'sales.answered'), ('res_id', '=', order.id)])
+
+    def test_a_reopened_quotation_answered_again_rings_again(self):
+        order = self.sent()
+        self.ok(self.answer(order, 'accept'))
+        self.act(self.agent, order.id, 'reopen')
+        self.send_via_api(self.agent, order.id)
+        self.ok(self.answer(order, 'accept'))
+        self.assertEqual(len(self.messages(order)), 2)
+        self.assertEqual(len(self.bell(self.agent)), 2)
+        # One key per answering round: a repeat inside a round would collapse into one row.
+        self.assertEqual(
+            sorted(self.messages(order).mapped('liwan_notification_key')),
+            [f'sales.answered:{order.id}:0', f'sales.answered:{order.id}:1'],
+        )
+
+    def test_the_bell_row_follows_the_company_of_the_order(self):
+        order = self.sent(scope=self.in_branch)
+        self.ok(self.answer(order, 'accept'))
+        message = self.messages(order)
+        # The row names the order and carries no company of its own: the order's company decides who sees it.
+        self.assertEqual((message.model, message.res_id, message.record_company_id), ('sale.order', order.id, self.env['res.company']))
+        self.assertEqual(order.company_id, self.branch)
+        self.assertEqual([row['order_id'] for row in self.bell(self.in_branch.agent)], [order.id])
+        self.assertEqual(self.bell(self.agent), [])
+
+    def test_the_row_lock_comes_before_the_answerable_check(self):
+        order = self.sent()
+        self.ok(self.answer(order, 'accept'))
+        calls = []
+
+        def held(records, **_):
+            calls.append(records.id)
+            message = 'held'
+            raise LockError(message)
+        with patch.object(type(self.env['sale.order']), 'lock_for_update', held):
+            response = self.answer(order, 'accept')
+        # Already answered, yet the held lock wins: the check never ran before the lock.
+        self.refusal(response, 409, 'conflict')
+        self.assertEqual(calls, [order.id])
+
+    def test_a_held_lock_is_a_conflict_that_answers_nothing(self):
+        order = self.sent()
+        with patch.object(type(self.env['sale.order']), 'lock_for_update', side_effect=LockError('held')):
+            self.refusal(self.answer(order, 'decline', {'reason': 'x'}), 409, 'conflict')
+        order.invalidate_recordset()
+        self.assertFalse(order.liwan_answer)
+        self.assertEqual(order.state, 'sent')

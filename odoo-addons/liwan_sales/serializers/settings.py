@@ -1,5 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.addons.liwan_api.controllers.common import ApiError
+from odoo.addons.liwan_sales.models.sales_presets import (
+    SECTOR_PRESETS,
+    preset_matches,
+    preset_values,
+)
 from odoo.addons.liwan_sales.models.sales_settings import (
     ANSWER_MODES,
     RESEND_MODES,
@@ -29,6 +34,19 @@ def dump_settings(settings, can_manage):
         'can_manage': can_manage,
         'revision': settings.revision,
     }
+
+
+def dump_presets(settings):
+    """The sector presets for this tenant: each as the values it would write (only the settings the tenant carries) and
+    whether the settings already hold all of them."""
+    keys = {*WRITABLE_KEYS, *settings._liwan_wire_extras()}
+    current = dump_settings(settings, can_manage=False)
+    extras = settings._liwan_preset_extras()
+    items = []
+    for key, own in SECTOR_PRESETS.items():
+        values = preset_values(keys, own, extras.get(key, {}))
+        items.append({'key': key, 'values': values, 'matches': preset_matches(values, current)})
+    return {'items': items, 'total': len(items)}
 
 
 def _parse_value(key, value):

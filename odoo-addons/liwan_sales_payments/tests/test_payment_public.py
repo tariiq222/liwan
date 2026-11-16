@@ -78,6 +78,14 @@ class TestPublicPayment(SalesPaymentsCase):
         self.assertEqual(self.payment(order)['state'], 'payable')
         self.assertEqual(self.pay_state(order).json()['status'], 'payable')
 
+    def test_a_signature_rings_the_salesperson_once_with_the_payments_bridge(self):
+        order = self.payable('full', answer='accept_and_sign')
+        self.assertEqual(self.accept(order, self.sign_body()).status_code, 200)
+        rows = self.env['mail.message'].search([
+            ('liwan_notification_kind', '=', 'sales.answered'), ('model', '=', 'sale.order'), ('res_id', '=', order.id),
+        ])
+        self.assertEqual(rows.mapped('liwan_sales_answer'), ['signed'])
+
     def test_a_paid_quotation_says_so(self):
         order = self.payable('full')
         self.pay(order, TOTAL)

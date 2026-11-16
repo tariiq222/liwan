@@ -7,6 +7,8 @@ import { SalesOrderPaymentSchema, SalesPaymentChoiceShape, SalesPaymentSettingsS
 export * from './crm'
 export * from './finance'
 export * from './payments'
+export * from './reports'
+export * from './templates'
 
 // liwan_sales: staff quotations and orders on sale.order, plus the online orders other channels made, read-only here.
 // Field for field with odoo-addons/liwan_sales/serializers. The wire never carries a price or a tax into a write: the
@@ -151,7 +153,12 @@ const WriteFields = {
   ...SalesPaymentChoiceShape,
 }
 
-export const SalesOrderCreateSchema = z.object({ customer_id: Id, ...WriteFields }).strict()
+export const SalesOrderCreateSchema = z.object({
+  customer_id: Id,
+  // Starts the quotation from a quotation template, which gives the lines, the terms and the validity the body leaves out.
+  template_id: Id.optional(),
+  ...WriteFields,
+}).strict().refine(body => body.template_id === undefined || body.lines === undefined, { path: ['template_id'], message: 'give the lines or a template, not both' })
 
 export const SalesOrderPatchSchema = z.object({ customer_id: Id.optional(), ...WriteFields }).strict()
   .refine(patch => Object.keys(patch).length > 0, { message: 'nothing to change' })
@@ -200,6 +207,38 @@ export const SalesSettingsPatchSchema = z.object({
   invoice_actor: SalesFinanceSettingsShape.invoice_actor.optional(),
   revision: z.number().int().positive(),
 }).strict().refine(patch => Object.keys(patch).some(key => key !== 'revision'), { message: 'nothing to change' })
+
+/** The sector preset keys: named bundles of settings values (`GET /sales/settings/presets`). */
+export const SalesPresetKeySchema = z.enum(['services', 'trading', 'contracting'])
+
+/**
+ * One sector preset: the values it writes (only the settings this tenant carries; the default terms are never in one) and
+ * whether the settings already hold all of them. Applying it is `PATCH /sales/settings` with these values and the revision.
+ */
+export const SalesSettingsPresetSchema = z.object({
+  key: SalesPresetKeySchema,
+  values: z.object({
+    visibility: SalesVisibilitySchema,
+    validity_days: z.number().int().min(0).max(SALES_LIMITS.validityDays),
+    discount_limit_percent: z.number().int().min(0).max(100),
+    customer_answer: SalesAnswerModeSchema,
+    acceptance_confirms: z.boolean(),
+    answered_resend: SalesAnsweredResendSchema,
+    signature_methods: SalesSignatureMethodsSchema,
+    payment_to_confirm: SalesPaymentSettingsShape.payment_to_confirm.optional(),
+    prepayment_percent: SalesPaymentSettingsShape.prepayment_percent.optional(),
+    opportunity_win: SalesCrmSettingsShape.opportunity_win.optional(),
+    opportunity_win_amount: SalesCrmSettingsShape.opportunity_win_amount.optional(),
+    invoice_down_payment: SalesFinanceSettingsShape.invoice_down_payment.optional(),
+    invoice_actor: SalesFinanceSettingsShape.invoice_actor.optional(),
+  }).strict(),
+  matches: z.boolean(),
+}).strict()
+
+export const SalesSettingsPresetListSchema = z.object({
+  items: z.array(SalesSettingsPresetSchema),
+  total: z.number().int().nonnegative(),
+}).strict()
 
 /** A line as the customer reads it: no ids, and the unit as a display string. */
 export const SalesPublicLineSchema = z.object({
@@ -287,3 +326,6 @@ export type SalesOrderPatch = z.infer<typeof SalesOrderPatchSchema>
 export type SalesOrderAssign = z.infer<typeof SalesOrderAssignSchema>
 export type SalesSettings = z.infer<typeof SalesSettingsSchema>
 export type SalesSettingsPatch = z.infer<typeof SalesSettingsPatchSchema>
+export type SalesPresetKey = z.infer<typeof SalesPresetKeySchema>
+export type SalesSettingsPreset = z.infer<typeof SalesSettingsPresetSchema>
+export type SalesSettingsPresetList = z.infer<typeof SalesSettingsPresetListSchema>

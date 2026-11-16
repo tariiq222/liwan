@@ -9,6 +9,7 @@ from odoo.addons.liwan_api.controllers.common import (
 )
 from odoo.addons.liwan_sales.models.access_service import READ, SETTINGS_MANAGE
 from odoo.addons.liwan_sales.serializers.settings import (
+    dump_presets,
     dump_settings,
     parse_settings_patch,
 )
@@ -37,3 +38,11 @@ class SalesSettingsController(http.Controller):
         values, revision = parse_settings_patch(payload, settings._liwan_patch_parsers())
         settings._liwan_current()._liwan_apply(values, revision)
         return dump_current()
+
+    @http.route('/api/v1/sales/settings/presets', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('sales.enabled', operation='read')
+    @requires_capability(SETTINGS_MANAGE)
+    def read_presets(self, **_):
+        """The sector presets: structured values the caller applies with an ordinary ``PATCH /settings``."""
+        return dump_presets(request.env['liwan.sales.settings']._liwan_current())

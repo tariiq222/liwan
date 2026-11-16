@@ -2,7 +2,11 @@
 from odoo import http
 from odoo.http import request
 
-from odoo.addons.liwan_api.controllers.common import api_handler, requires_feature
+from odoo.addons.liwan_api.controllers.common import (
+    ApiError,
+    api_handler,
+    requires_feature,
+)
 from odoo.addons.liwan_sales.controllers.pdf_response import pdf_response
 from odoo.addons.liwan_sales.serializers.public import (
     SIGNATURE_KEYS,
@@ -14,6 +18,12 @@ from odoo.addons.liwan_sales.serializers.public import (
 
 FEATURE = 'sales.enabled'
 PUBLIC = '/api/v1/public/sales/quotations/<int:order_id>'
+
+# The public quotation PDF is the costly public route (a wkhtmltopdf render on the heavy pool), so one quotation keeps its
+# own budget on the shared public counter (``liwan.api.public.limit``): the edge limit counts client addresses, and one
+# holder of a link answers from many.
+PDF_COUNTER = 'sales.quotation_pdf'
+PDF_LIMIT = 10
 
 
 def _answers():
@@ -30,11 +40,15 @@ class SalesPublicController(http.Controller):
         order = _answers()._liwan_open(order_id, request.httprequest.args.get('access_token'))
         return dump_public_quotation(order)
 
-    @http.route(PUBLIC + '/pdf', type='http', auth='public', methods=['GET'], readonly=True, save_session=False)
+    # Not readonly: the open link's read counter is written before the render.
+    @http.route(PUBLIC + '/pdf', type='http', auth='public', methods=['GET'], readonly=False, save_session=False)
     @api_handler
     @requires_feature(FEATURE, operation='read')
     def quotation_pdf(self, order_id, **_):
         order = _answers()._liwan_open(order_id, request.httprequest.args.get('access_token'))
+        # Charged after the token validates, keyed on the order id, so a wrong token spends nothing and no token is stored.
+        if request.env['liwan.api.public.limit']._liwan_count_read(PDF_COUNTER, order.id) > PDF_LIMIT:
+            raise ApiError(429, 'rate_limited', 'too many requests for this quotation; wait a minute')
         content = request.env['liwan.sales.document']._liwan_pdf(order, signed=bool(order.signature))
         return pdf_response(order, content)
 
