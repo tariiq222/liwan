@@ -91,7 +91,11 @@
       "release": "Unassign",
       "close": "Close the ticket",
       "reopen": "Reopen",
-      "failed": "The action could not be completed."
+      "failed": "The action could not be completed.",
+      "portal": "Customer page",
+      "portalHint": "A link that shows the ticket to the customer, who can reply and close it without an account. Share it only with them.",
+      "copy": "Copy",
+      "copied": "Link copied."
     },
     "thread": {
       "title": "Conversation",
@@ -218,7 +222,13 @@
         "pauseHint": "The stages where the clock stops (waiting on the customer, for example).",
         "firstResponse": "First response",
         "resolution": "Resolution"
-      }
+      },
+      "portalEnabled": "Customer page",
+      "portalEnabledHint": "A link through which the customer reads the ticket, replies and closes it without an account.",
+      "autoCloseDays": "Close inactive tickets after (days)",
+      "autoCloseDaysHint": "Zero turns automatic closing off.",
+      "autoCloseStages": "Auto-close stages",
+      "autoCloseStagesHint": "With no stage chosen it applies to every open stage."
     },
     "merge": {
       "title": "Merge duplicates",
@@ -254,6 +264,20 @@
       "firstResponseShort": "First response",
       "byStage": "Tickets by stage",
       "empty": "No data in this period."
+    },
+    "portal": {
+      "title": "Support",
+      "subtitle": "Follow your support request",
+      "invalidTitle": "This link is not usable",
+      "invalid": "The link has expired or does not belong to a live request.",
+      "request": "Your request",
+      "conversation": "Conversation",
+      "noReplies": "No replies yet.",
+      "placeholder": "Write a reply or more details",
+      "send": "Send",
+      "close": "Close the request",
+      "closeConfirm": "Close this request?",
+      "failed": "The request could not be completed."
     }
   }
 }

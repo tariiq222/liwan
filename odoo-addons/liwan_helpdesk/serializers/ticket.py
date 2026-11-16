@@ -96,7 +96,7 @@ def dump_row(ticket, settings, can_read_type=True):
     }
 
 
-def dump_ticket(ticket, settings, can_read_type=True):
+def dump_ticket(ticket, settings, can_read_type=True, portal_link=None):
     return {
         **dump_row(ticket, settings, can_read_type),
         'description': ticket.description or '',
@@ -105,6 +105,7 @@ def dump_ticket(ticket, settings, can_read_type=True):
         'first_response': first_response(ticket, settings),
         'assigned_at': iso(ticket.assigned_date),
         'closed_at': iso(ticket.closed_date),
+        'portal_link': portal_link,
     }
 
 

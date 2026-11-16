@@ -20,8 +20,13 @@ class HelpdeskTicket(models.Model):
     liwan_requester_user_id = fields.Many2one(
         'res.users', string='Requested by', index='btree_not_null', ondelete='set null', copy=False,
     )
+    # The last real activity of the ticket (opened, answered, assigned, moved). The engine's own bookkeeping
+    # touches write_date too, so the inactivity policy measures this stamp instead of the row's last write.
+    liwan_last_activity_at = fields.Datetime(default=fields.Datetime.now, copy=False, index=True)
     # The first public answer of an agent: set once, by the service, when a reply is posted.
     liwan_first_response_at = fields.Datetime(string='First response', readonly=True, copy=False)
+    # The customer's page token: created when the ticket gets one, never shown to an agent, cleared with the ticket.
+    liwan_portal_token = fields.Char(string='Customer page token', copy=False, index=True)
     liwan_related_ticket_ids = fields.Many2many(
         'helpdesk.ticket', RELATED_RELATION, 'ticket_id', 'related_id', string='Related tickets', copy=False,
     )

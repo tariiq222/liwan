@@ -59,6 +59,14 @@ def can_read_type():
     return READ in request.env['liwan.access.service']._liwan_capability_keys(request.env.user)
 
 
+def detail(ticket):
+    """The ticket's detail body; the customer's link only for whoever may write the ticket."""
+    link = None
+    if WRITE in request.env['liwan.access.service']._liwan_capability_keys(request.env.user):
+        link = request.env['liwan.helpdesk.portal']._liwan_link(ticket)
+    return dump_ticket(ticket, settings(), can_read_type(), link)
+
+
 def find(ticket_id, *capabilities):
     """The ticket the caller may read, or the capability the action needs."""
     return service()._liwan_visible(ticket_id, *capabilities)
@@ -130,7 +138,7 @@ class HelpdeskTicketsController(http.Controller):
     @requires_capability(READ, REQUESTS_READ, match='any')
     def get_ticket(self, ticket_id, **_):
         ticket = find(ticket_id)
-        return {**dump_ticket(ticket, settings(), can_read_type()), 'attachments': attachments(ticket)}
+        return {**detail(ticket), 'attachments': attachments(ticket)}
 
     @http.route('/api/v1/helpdesk/tickets', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -149,7 +157,7 @@ class HelpdeskTicketsController(http.Controller):
         ticket = find(ticket_id, READ)
         values = parse_update(body())
         service()._liwan_update(ticket, values)
-        return dump_ticket(ticket, settings(), can_read_type())
+        return detail(ticket)
 
     @http.route('/api/v1/helpdesk/tickets/<int:ticket_id>/<string:action>', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -162,18 +170,18 @@ class HelpdeskTicketsController(http.Controller):
             assignee = payload.get('assignee_id')
             if assignee is not None:
                 assignee = parse_positive_int(assignee, 'assignee_id')
-            return dump_ticket(service()._liwan_assign(ticket, assignee), settings(), can_read_type())
+            return detail(service()._liwan_assign(ticket, assignee))
         if action == 'stage':
             payload = body({'stage_id'})
             ticket = find(ticket_id, WRITE)
             stage_id = parse_positive_int(payload.get('stage_id'), 'stage_id')
-            return dump_ticket(service()._liwan_move_stage(ticket, stage_id), settings(), can_read_type())
+            return detail(service()._liwan_move_stage(ticket, stage_id))
         if action == 'close':
             body(set())
-            return dump_ticket(service()._liwan_close(find(ticket_id, CLOSE)), settings(), can_read_type())
+            return detail(service()._liwan_close(find(ticket_id, CLOSE)))
         if action == 'reopen':
             body(set())
-            return dump_ticket(service()._liwan_reopen(find(ticket_id, CLOSE)), settings(), can_read_type())
+            return detail(service()._liwan_reopen(find(ticket_id, CLOSE)))
         raise ApiError(404, 'not_found', 'Unknown ticket action.')
 
     @http.route('/api/v1/helpdesk/tickets/<int:ticket_id>/merge', type='json2', auth='user', methods=['POST'], readonly=False)
@@ -187,7 +195,7 @@ class HelpdeskTicketsController(http.Controller):
             raise ApiError(422, 'invalid', 'must be a list of ticket ids', field='source_ids')
         target = find(ticket_id, MERGE)
         service()._liwan_merge(target, source_ids)
-        return dump_ticket(target, settings(), can_read_type())
+        return detail(target)
 
     @http.route('/api/v1/helpdesk/tickets/<int:ticket_id>/messages', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler

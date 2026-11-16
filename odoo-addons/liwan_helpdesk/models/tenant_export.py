@@ -16,11 +16,13 @@ TICKET_FIELDS = (
     'id', 'number', 'name', 'company_id', 'team_id', 'stage_id', 'priority', 'partner_id',
     'partner_name', 'partner_email', 'user_id', 'liwan_requester_user_id', 'category_id', 'type_id',
     'channel_id', 'tag_ids', 'last_stage_update', 'assigned_date', 'closed_date', 'liwan_first_response_at',
+    'liwan_last_activity_at', 'liwan_portal_token',
     'create_date', 'create_uid', 'write_date', 'write_uid',
 )
 SETTINGS_FIELDS = (
     'id', 'company_id', 'revision', 'preset', 'visibility', 'default_team_id', 'default_priority',
-    'reference_prefix', 'reopen_days', 'first_response_hours', 'resolution_hours',
+    'reference_prefix', 'reopen_days', 'first_response_hours', 'resolution_hours', 'portal_enabled',
+    'auto_close_days', 'auto_close_stage_ids',
     'create_date', 'create_uid', 'write_date', 'write_uid',
 )
 # The contact values the ticket keeps next to the link to the party.

@@ -2,7 +2,7 @@ id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_helpdesk_ticket_read,helpdesk.ticket.read,helpdesk_mgmt.model_helpdesk_ticket,group_cap_helpdesk_tickets_read,1,0,0,0
 access_helpdesk_ticket_write,helpdesk.ticket.write,helpdesk_mgmt.model_helpdesk_ticket,group_cap_helpdesk_tickets_write,1,1,1,0
 access_helpdesk_ticket_requests_read,helpdesk.ticket.requests.read,helpdesk_mgmt.model_helpdesk_ticket,group_cap_helpdesk_requests_read,1,0,0,0
-access_helpdesk_ticket_requests_create,helpdesk.ticket.requests.create,helpdesk_mgmt.model_helpdesk_ticket,group_cap_helpdesk_requests_create,1,0,1,0
+access_helpdesk_ticket_requests_create,helpdesk.ticket.requests.create,helpdesk_mgmt.model_helpdesk_ticket,group_cap_helpdesk_requests_create,1,1,1,0
 access_helpdesk_ticket_merge,helpdesk.ticket.merge,helpdesk_mgmt.model_helpdesk_ticket,group_cap_helpdesk_tickets_merge,1,1,0,0
 access_helpdesk_ticket_stage_read,helpdesk.ticket.stage.read,helpdesk_mgmt.model_helpdesk_ticket_stage,group_cap_helpdesk_tickets_read,1,0,0,0
 access_helpdesk_ticket_stage_manage,helpdesk.ticket.stage.manage,helpdesk_mgmt.model_helpdesk_ticket_stage,group_cap_helpdesk_settings_manage,1,1,1,1

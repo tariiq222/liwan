@@ -50,6 +50,7 @@ export const HelpdeskTicketSchema = HelpdeskTicketRowSchema.extend({
   assigned_at: z.string().nullable(),
   closed_at: z.string().nullable(),
   attachments: z.array(HelpdeskAttachmentSchema),
+  portal_link: z.string().nullable(),
 }).strict()
 
 export const HelpdeskTicketPageSchema = z.object({
@@ -265,3 +266,24 @@ export const HelpdeskReportSchema = z.object({
 }).strict()
 
 export type HelpdeskReport = z.infer<typeof HelpdeskReportSchema>
+
+// ---------------------------------------------------------------- the customer's page
+
+export const HelpdeskPortalMessageSchema = z.object({
+  id: z.number().int().positive(), body: z.string(), author: z.string(), created_at: z.string(),
+}).strict()
+
+export const HelpdeskPortalTicketSchema = z.object({
+  number: z.string(),
+  subject: z.string(),
+  description: z.string(),
+  stage: z.object({ name: z.string(), closed: z.boolean() }).strict(),
+  priority: z.string(),
+  created_at: z.string(),
+  closed_at: z.string().nullable(),
+  company: z.object({ name: z.string(), logo: z.boolean() }).strict(),
+  messages: z.array(HelpdeskPortalMessageSchema),
+  actions: z.object({ reply: z.boolean(), close: z.boolean(), reopen: z.boolean() }).strict(),
+}).strict()
+
+export type HelpdeskPortalTicket = z.infer<typeof HelpdeskPortalTicketSchema>

@@ -22,7 +22,8 @@ from odoo.addons.liwan_helpdesk.serializers.ticket import PRIORITIES as PRIORITY
 
 SETTINGS_WRITE_FIELDS = frozenset({
     'revision', 'preset', 'visibility', 'default_team_id', 'default_priority', 'reference_prefix',
-    'reopen_days', 'first_response_hours', 'resolution_hours',
+    'reopen_days', 'first_response_hours', 'resolution_hours', 'portal_enabled', 'auto_close_days',
+    'auto_close_stage_ids',
 })
 
 
@@ -45,6 +46,9 @@ def dump_settings(row):
         'reopen_days': row.reopen_days,
         'first_response_hours': row.first_response_hours,
         'resolution_hours': row.resolution_hours,
+        'portal_enabled': row.portal_enabled,
+        'auto_close_days': row.auto_close_days,
+        'auto_close_stage_ids': row.auto_close_stage_ids.ids,
         'options': {
             'presets': [{'value': key, 'label': label} for key, label in PRESETS],
             'visibility': [{'value': key, 'label': label} for key, label in VISIBILITY],
@@ -84,6 +88,19 @@ def parse_settings(payload):
         if not isinstance(prefix, str) or not prefix.strip() or len(prefix.strip()) > 10:
             raise ApiError(422, 'invalid', 'must be 1 to 10 characters', field='reference_prefix')
         values['reference_prefix'] = prefix.strip()
+    for key in ('portal_enabled',):
+        if key in values and values[key] not in (True, False):
+            raise ApiError(422, 'invalid', 'must be true or false', field=key)
+    if 'auto_close_stage_ids' in values:
+        ids = values['auto_close_stage_ids']
+        if not isinstance(ids, list) or any(type(item) is not int or item <= 0 for item in ids):
+            raise ApiError(422, 'invalid', 'must be a list of stage ids', field='auto_close_stage_ids')
+        stages = request.env['helpdesk.ticket.stage'].search([
+            ('id', 'in', ids), ('company_id', 'in', [False, request.env.company.id]),
+        ])
+        if len(stages) != len(set(ids)):
+            raise ApiError(422, 'invalid', 'a stage does not exist', field='auto_close_stage_ids')
+        values['auto_close_stage_ids'] = [(6, 0, stages.ids)]
     if 'default_team_id' in values:
         values['default_team_id'] = parse_positive_int(values['default_team_id'], 'default_team_id') \
             if values['default_team_id'] else None

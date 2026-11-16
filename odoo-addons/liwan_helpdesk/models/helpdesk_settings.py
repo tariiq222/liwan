@@ -56,6 +56,7 @@ INTEGER_RANGES = {
     'reopen_days': (0, 90),
     'first_response_hours': (0, 720),
     'resolution_hours': (0, 8760),
+    'auto_close_days': (0, 365),
 }
 SEQUENCE_CODE = 'helpdesk.ticket.sequence'
 
@@ -85,11 +86,17 @@ class LiwanHelpdeskSettings(models.Model):
     reopen_days = fields.Integer(default=7, required=True)
     first_response_hours = fields.Integer(default=8, required=True)
     resolution_hours = fields.Integer(default=72, required=True)
+    # The customer's page: whether a ticket gets a link, and whether closing it from there needs no agent.
+    portal_enabled = fields.Boolean(default=True)
+    # Automatic closing of an inactive ticket: 0 keeps it off; the stages it applies to are its own list.
+    auto_close_days = fields.Integer(default=0, required=True)
+    auto_close_stage_ids = fields.Many2many('helpdesk.ticket.stage', string='Auto-close stages')
 
     _company_unique = models.Constraint('UNIQUE(company_id)', 'one Support Desk settings record per company')
     _reopen_days_range = _range_check('reopen_days')
     _first_response_range = _range_check('first_response_hours')
     _resolution_range = _range_check('resolution_hours')
+    _auto_close_range = _range_check('auto_close_days')
 
     @api.model
     def _liwan_current(self):

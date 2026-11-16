@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { HelpdeskReportSchema, HelpdeskResourcesSchema, HelpdeskSlaSaveSchema, HelpdeskSlaListSchema, HelpdeskTeamSaveSchema } from '..'
+import { HelpdeskPortalTicketSchema, HelpdeskReportSchema, HelpdeskResourcesSchema, HelpdeskSlaSaveSchema, HelpdeskSlaListSchema, HelpdeskTeamSaveSchema } from '..'
 import { HelpdeskSettingsSchema } from '../settings'
 import { HelpdeskTicketPageSchema, HelpdeskTicketSchema, HelpdeskTicketCreateSchema } from '..'
 
@@ -40,6 +40,7 @@ describe('helpdesk contracts', () => {
       assigned_at: null,
       closed_at: null,
       attachments: [],
+      portal_link: null,
     }
     expect(HelpdeskTicketSchema.parse(ticket).first_response.due).toBe('2026-11-16T16:00:00Z')
   })
@@ -61,6 +62,9 @@ describe('helpdesk contracts', () => {
       reopen_days: 7,
       first_response_hours: 8,
       resolution_hours: 72,
+      portal_enabled: true,
+      auto_close_days: 0,
+      auto_close_stage_ids: [],
       options: {
         presets: [{ value: 'general', label: 'General' }],
         visibility: [{ value: 'team', label: 'My teams' }],
@@ -115,5 +119,17 @@ describe('helpdesk contracts', () => {
     }
     expect(HelpdeskReportSchema.parse(report).kpis.sla_compliance_percent).toBeNull()
     expect(HelpdeskReportSchema.safeParse({ ...report, total: -1 }).success).toBe(false)
+  })
+
+  it('reads the customer page of one ticket', () => {
+    const page = {
+      number: 'HD00001', subject: 'Printer', description: '<p>d</p>',
+      stage: { name: 'New', closed: false }, priority: '1', created_at: '2026-11-16T08:00:00Z',
+      closed_at: null, company: { name: 'Acme', logo: true },
+      messages: [{ id: 1, body: '<p>Any update?</p>', author: 'Acme', created_at: '2026-11-16T09:00:00Z' }],
+      actions: { reply: true, close: true, reopen: false },
+    }
+    expect(HelpdeskPortalTicketSchema.parse(page).actions.reply).toBe(true)
+    expect(HelpdeskPortalTicketSchema.safeParse({ ...page, actions: { reply: 'yes' } }).success).toBe(false)
   })
 })

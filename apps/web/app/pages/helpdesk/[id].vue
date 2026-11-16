@@ -47,6 +47,15 @@ const stages = computed(() => (reference.data.value?.stages ?? []).filter(stage 
 const stageItems = computed(() => stages.value.map(stage => ({ value: stage.id, label: stage.name })))
 const assignedToMe = computed(() => ticket.value?.assignee?.id === me.value?.id)
 
+const copied = ref(false)
+async function copyLink(link: string) {
+  try {
+    await navigator.clipboard.writeText(link)
+    copied.value = true
+  } catch {
+    copied.value = false
+  }
+}
 async function run(body: HelpdeskAction) {
   if (!ticket.value || action.isPending.value) return
   failure.value = null
@@ -97,6 +106,13 @@ const reopen = () => run({ action: 'reopen' })
         <SharedPropertyRow v-if="ticket.sla.deadline" :label="t('helpdesk.record.slaDeadline')" :value="formatDate(ticket.sla.deadline)" />
         <SharedPropertyRow v-if="ticket.closed_at" :label="t('helpdesk.record.closedAt')" :value="formatDate(ticket.closed_at)" />
       </SharedRecordSection>
+      <SharedRecordSection v-if="ticket.portal_link" variant="panel" :title="t('helpdesk.record.portal')" data-testid="helpdesk-portal-link">
+        <p class="text-sm text-muted">{{ t('helpdesk.record.portalHint') }}</p>
+        <div class="mt-2 flex items-center gap-2">
+          <UInput :model-value="ticket.portal_link" readonly class="w-full" :aria-label="t('helpdesk.record.portal')" data-testid="helpdesk-portal-url" />
+          <UButton color="neutral" variant="outline" icon="i-lucide-copy" :label="t('helpdesk.record.copy')" :data-testid="'helpdesk-portal-copy'" @click="copyLink(ticket.portal_link)" />
+        </div>
+      </SharedRecordSection>
       <SharedRecordSection v-if="ticket.related.length" variant="panel" :title="t('helpdesk.record.related')">
         <ul class="flex flex-col gap-2">
           <li v-for="related in ticket.related" :key="related.id">
@@ -109,6 +125,7 @@ const reopen = () => run({ action: 'reopen' })
     </template>
     <template v-if="ticket">
       <p v-if="failure" class="mb-3 text-sm text-error" role="alert" data-testid="helpdesk-action-error">{{ failure }}</p>
+      <p v-if="copied" class="mb-3 text-sm text-success">{{ t('helpdesk.record.copied') }}</p>
       <SharedRecordSection variant="panel" :title="t('helpdesk.record.description')" data-testid="helpdesk-description">
         <SharedRichText :html="ticket.description" />
       </SharedRecordSection>

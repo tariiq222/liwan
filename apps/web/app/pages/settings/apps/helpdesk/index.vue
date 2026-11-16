@@ -23,7 +23,8 @@ const save = useSaveHelpdeskSettings()
 const message = ref('')
 
 type Draft = Pick<HelpdeskSettings, 'preset' | 'visibility' | 'default_team_id' | 'default_priority'
-  | 'reference_prefix' | 'reopen_days' | 'first_response_hours' | 'resolution_hours'>
+  | 'reference_prefix' | 'reopen_days' | 'first_response_hours' | 'resolution_hours' | 'portal_enabled'
+  | 'auto_close_days' | 'auto_close_stage_ids'>
 const draft = reactive<Draft>({
   preset: 'general',
   visibility: 'team',
@@ -33,6 +34,10 @@ const draft = reactive<Draft>({
   reopen_days: 7,
   first_response_hours: 8,
   resolution_hours: 72,
+  portal_enabled: true,
+  auto_close_days: 0,
+  auto_close_stage_ids: [] as number[],
+  // The number inputs hand back `number | null`; the server refuses null, so null means zero here.
 })
 const revision = ref(0)
 
@@ -47,6 +52,9 @@ watch(() => settings.data.value, (value) => {
     reopen_days: value.reopen_days,
     first_response_hours: value.first_response_hours,
     resolution_hours: value.resolution_hours,
+    portal_enabled: value.portal_enabled,
+    auto_close_days: value.auto_close_days,
+    auto_close_stage_ids: [...value.auto_close_stage_ids],
   })
   revision.value = value.revision
 }, { immediate: true })
@@ -59,6 +67,7 @@ const dirty = computed(() => {
 const presetItems = computed(() => (settings.data.value?.options.presets ?? []).map(item => ({ value: item.value, label: t(`helpdesk.settings.presets.${item.value}`) })))
 const visibilityItems = computed(() => (settings.data.value?.options.visibility ?? []).map(item => ({ value: item.value, label: t(`helpdesk.settings.visibility.${item.value}`) })))
 const priorityItems = computed(() => (settings.data.value?.options.priorities ?? []).map(item => ({ value: item.value, label: t(`helpdesk.priority.${settings.data.value?.options.priority_names[item.value] ?? 'medium'}`) })))
+const stageItems = computed(() => (reference.data.value?.stages ?? []).map(stage => ({ value: stage.id, label: stage.name })))
 const teamItems = computed(() => [{ value: 0, label: t('helpdesk.form.none') }, ...(reference.data.value?.teams ?? []).map(team => ({ value: team.id, label: team.name }))])
 const busy = computed(() => settings.isLoading.value || save.isPending.value)
 const canManage = computed(() => can('helpdesk.settings.manage'))
@@ -120,6 +129,15 @@ function revert() {
             </UFormField>
             <UFormField :label="t('helpdesk.settings.resolution')" name="helpdesk-resolution" :help="t('helpdesk.settings.resolutionHint')">
               <UInputNumber v-model="draft.resolution_hours" class="w-full" :min="0" :max="8760" :disabled="busy" data-testid="helpdesk-settings-resolution" />
+            </UFormField>
+            <UFormField :label="t('helpdesk.settings.portalEnabled')" name="helpdesk-portal" :help="t('helpdesk.settings.portalEnabledHint')">
+              <USwitch v-model="draft.portal_enabled" :disabled="busy" data-testid="helpdesk-settings-portal" />
+            </UFormField>
+            <UFormField :label="t('helpdesk.settings.autoCloseDays')" name="helpdesk-auto-close" :help="t('helpdesk.settings.autoCloseDaysHint')">
+              <UInputNumber :model-value="draft.auto_close_days" class="w-full" :min="0" :max="365" :disabled="busy" data-testid="helpdesk-settings-auto-close" @update:model-value="value => { draft.auto_close_days = Number(value ?? 0) }" />
+            </UFormField>
+            <UFormField :label="t('helpdesk.settings.autoCloseStages')" name="helpdesk-auto-close-stages" :help="t('helpdesk.settings.autoCloseStagesHint')">
+              <USelectMenu v-model="draft.auto_close_stage_ids" :items="stageItems" multiple value-key="value" class="w-full" data-testid="helpdesk-settings-auto-close-stages" />
             </UFormField>
           </SharedSettingsCard>
         </SharedSettingsSection>

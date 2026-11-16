@@ -252,7 +252,7 @@ class LiwanHelpdeskService(models.AbstractModel):
         if not changes:
             return ticket
         previous_assignee = ticket.user_id
-        ticket.write(changes)
+        ticket.write({**changes, 'liwan_last_activity_at': fields.Datetime.now()})
         if 'user_id' in changes and ticket.user_id and ticket.user_id != previous_assignee:
             self._liwan_notify(ticket, ticket.user_id, self.env._(
                 '%(actor)s assigned you the ticket %(ticket)s',
@@ -265,11 +265,11 @@ class LiwanHelpdeskService(models.AbstractModel):
         """Assign to somebody (``user_id``) or release the ticket (``None``)."""
         self._liwan_require(ASSIGN)
         if user_id is None:
-            ticket.write({'user_id': False})
+            ticket.write({'user_id': False, 'liwan_last_activity_at': fields.Datetime.now()})
             return ticket
         user = self._liwan_assignee(user_id)
         if ticket.user_id != user:
-            ticket.write({'user_id': user.id})
+            ticket.write({'user_id': user.id, 'liwan_last_activity_at': fields.Datetime.now()})
             self._liwan_notify(ticket, user, self.env._(
                 '%(actor)s assigned you the ticket %(ticket)s',
                 actor=self.env.user.name, ticket=ticket.display_name), key='%s:%s:%s' % (
@@ -280,7 +280,7 @@ class LiwanHelpdeskService(models.AbstractModel):
     def _liwan_move_stage(self, ticket, stage_id):
         self._liwan_require(WRITE)
         stage = self._liwan_stage_for(ticket, stage_id)
-        ticket.write({'stage_id': stage.id})
+        ticket.write({'stage_id': stage.id, 'liwan_last_activity_at': fields.Datetime.now()})
         return ticket
 
     @api.model
@@ -288,7 +288,8 @@ class LiwanHelpdeskService(models.AbstractModel):
         self._liwan_require(CLOSE)
         if ticket.stage_id.closed:
             raise LiwanAccessRule(CONFLICT, 'the ticket is already closed', status=409)
-        ticket.write({'stage_id': self._liwan_default_stage(ticket.team_id, closed=True).id})
+        ticket.write({'stage_id': self._liwan_default_stage(ticket.team_id, closed=True).id,
+                      'liwan_last_activity_at': fields.Datetime.now()})
         return ticket
 
     @api.model
@@ -300,7 +301,8 @@ class LiwanHelpdeskService(models.AbstractModel):
         closed_at = ticket.closed_date or ticket.write_date
         if days and closed_at and fields.Datetime.now() - closed_at > timedelta(days=days):
             raise invalid(self.env._('the ticket can no longer be reopened'))
-        ticket.write({'stage_id': self._liwan_default_stage(ticket.team_id).id})
+        ticket.write({'stage_id': self._liwan_default_stage(ticket.team_id).id,
+                      'liwan_last_activity_at': fields.Datetime.now()})
         return ticket
 
     @api.model
@@ -365,8 +367,10 @@ class LiwanHelpdeskService(models.AbstractModel):
             body=plaintext2html(text), message_type='comment', subtype_xmlid=subtype,
             author_id=self.env.user.partner_id.id,
         )
+        values = {'liwan_last_activity_at': fields.Datetime.now()}
         if agent and not internal and not ticket.liwan_first_response_at:
-            ticket.write({'liwan_first_response_at': fields.Datetime.now()})
+            values['liwan_first_response_at'] = fields.Datetime.now()
+        ticket.write(values)
         return ticket
 
     # ------------------------------------------------------------------ read helpers

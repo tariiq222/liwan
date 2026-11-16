@@ -12,6 +12,9 @@ export const HelpdeskSettingsSchema = z.object({
   reopen_days: z.number().int().nonnegative(),
   first_response_hours: z.number().int().nonnegative(),
   resolution_hours: z.number().int().nonnegative(),
+  portal_enabled: z.boolean(),
+  auto_close_days: z.number().int().nonnegative(),
+  auto_close_stage_ids: z.array(z.number().int().positive()),
   options: z.object({
     presets: z.array(OptionSchema),
     visibility: z.array(OptionSchema),
@@ -32,6 +35,9 @@ export const HelpdeskSettingsPatchSchema = z.object({
   reopen_days: z.number().int().min(0).max(90).optional(),
   first_response_hours: z.number().int().min(0).max(720).optional(),
   resolution_hours: z.number().int().min(0).max(8760).optional(),
+  portal_enabled: z.boolean().optional(),
+  auto_close_days: z.number().int().min(0).max(365).optional(),
+  auto_close_stage_ids: z.array(z.number().int().positive()).optional(),
 }).strict()
 
 export type HelpdeskSettings = z.infer<typeof HelpdeskSettingsSchema>

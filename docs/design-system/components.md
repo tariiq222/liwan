@@ -555,6 +555,8 @@ Storybook هو فهرس المكونات الملزم، وقاعدة ما يُش
 
 | `apps/web/app/components/helpdesk/settings/HelpdeskSlaSection.vue` | The service levels of the desk: each policy's target stage, its days and hours, the teams, categories and tags it covers and the stages that pause the clock, edited inline with an archive switch | SharedSubCard, SharedStatusBadge, SharedEmptyState, UFormField, UInput, UInputNumber, USelect, USelectMenu, UButton, USwitch |
 
+| `apps/web/app/pages/support/[id].vue` | The customer's page of one ticket, outside the shell: no account, the link's token is the credential, and the customer reads the thread, answers it or closes the ticket; an unusable link is one plain state | SharedStandalonePage, SharedPageHeader, SharedRecordSection, SharedRichText, SharedEmptyState, SharedInlineConfirm, UTextarea, UButton |
+
 ## التنقل والانتباه والأعمال
 
 | المكون | المسؤولية والقصة | مكونات الأساس والوصفة |

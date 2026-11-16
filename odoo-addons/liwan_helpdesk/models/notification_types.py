@@ -10,7 +10,8 @@ from odoo.addons.liwan_api.serializers.common import iso
 
 TICKET_MODEL = 'helpdesk.ticket'
 ASSIGNED = 'helpdesk.assigned'
-KINDS = (ASSIGNED,)
+AUTO_CLOSED = 'helpdesk.auto_closed'
+KINDS = (ASSIGNED, AUTO_CLOSED)
 READ_KEYS = ('helpdesk.tickets.read', 'helpdesk.requests.read')
 
 

@@ -208,3 +208,15 @@ class TicketApiTest(LiwanHelpdeskCase):
         denied = self.api('POST', f'/api/v1/helpdesk/tickets/{target["id"]}/merge',
                           json={'source_ids': [source['id']]})
         self.assertEqual((denied.status_code, denied.json()['code']), (403, 'forbidden'))
+
+    def test_the_customer_link_travels_to_a_writer_only(self):
+        self.as_user(self.agent)
+        ticket = self.ticket_body(customer_id=self.customer.id)
+        detail = self.api('GET', f'/api/v1/helpdesk/tickets/{ticket["id"]}').json()
+        self.assertTrue(detail['portal_link'].startswith('http'))
+        self.assertIn('/support/%s?token=' % ticket['id'], detail['portal_link'])
+        # A requester reads their own ticket without the link.
+        self.as_user(self.requester)
+        own = self.ticket_body(subject='Mine', description='Only mine.')
+        seen = self.api('GET', f'/api/v1/helpdesk/tickets/{own["id"]}').json()
+        self.assertIsNone(seen['portal_link'])

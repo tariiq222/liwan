@@ -8,4 +8,5 @@ class MailMessage(models.Model):
     # The Support Desk kinds, registered in models/notification_types.py.
     liwan_notification_kind = fields.Selection(selection_add=[
         ('helpdesk.assigned', 'Ticket assigned'),
+        ('helpdesk.auto_closed', 'Ticket closed for inactivity'),
     ])

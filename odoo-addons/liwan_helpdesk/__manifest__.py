@@ -25,6 +25,7 @@
         'security/ir.model.access.csv',
         'security/helpdesk_rules.xml',
         'data/helpdesk_access_permissions.xml',
+        'data/helpdesk_cron.xml',
     ],
     'post_init_hook': 'post_init_hook',
     'installable': True,

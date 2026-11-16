@@ -166,7 +166,9 @@
       "features": [
         "boolean:helpdesk.enabled",
         "boolean:helpdesk.merge",
-        "boolean:helpdesk.reports"
+        "boolean:helpdesk.reports",
+        "boolean:helpdesk.portal",
+        "boolean:helpdesk.auto_close"
       ]
     }
   ]
