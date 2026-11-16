@@ -99,7 +99,7 @@ def dump_order(order, user):
     resend setting keeps them from sending it."""
     return {
         **dump_order_item(order),
-        'lines': [_dump_line(line) for line in order.order_line],
+        'lines': [_dump_line(line) for line in order._liwan_lines()],
         'actions': order._liwan_actions(user),
         'resend_refused': order._liwan_resend_blocked(user),
         **order._liwan_staff_extras(user),

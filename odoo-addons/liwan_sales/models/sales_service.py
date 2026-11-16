@@ -155,7 +155,7 @@ class LiwanSalesService(models.AbstractModel):
             header['note'] = self._liwan_note(values['terms'])
         plan = None
         if 'lines' in values:
-            plan = self._liwan_line_plan(values['lines'], order.order_line, order.company_id, customer)
+            plan = self._liwan_line_plan(values['lines'], order._liwan_lines(), order.company_id, customer)
         if header:
             order.with_context(**QUIET).write(header)
         self._liwan_write_lines(order, plan, retax=retax)
@@ -209,7 +209,7 @@ class LiwanSalesService(models.AbstractModel):
 
     @api.model
     def _liwan_require_product_line(self, order):
-        if not order.order_line.filtered(lambda line: not line.display_type):
+        if not order._liwan_lines().filtered(lambda line: not line.display_type):
             _invalid('lines', 'an order needs a product line to be confirmed or sent')
 
     @api.model
@@ -368,7 +368,7 @@ class LiwanSalesService(models.AbstractModel):
         elevated = order.sudo().with_company(order.company_id)
         if plan is not None:
             kept = {line.id for line, _vals in plan if line}
-            (elevated.order_line.filtered(lambda line: line.id not in kept)).unlink()
+            (elevated._liwan_lines().filtered(lambda line: line.id not in kept)).unlink()
             Line = elevated.env['sale.order.line']
             for line, vals in plan:
                 if line:

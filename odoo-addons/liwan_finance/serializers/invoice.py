@@ -98,6 +98,7 @@ def dump_invoice_detail(move):
         'zatca': dump_invoice_zatca(move),
         'lines': [dump_invoice_line(line, shares) for line in move.invoice_line_ids],
         **move.env['liwan.finance.actions']._liwan_invoice_actions(move),
+        **move._liwan_detail_extras(),
     }
 
 

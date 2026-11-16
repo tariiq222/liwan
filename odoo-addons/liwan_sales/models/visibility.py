@@ -44,10 +44,14 @@ class LiwanSalesVisibility(models.AbstractModel):
         return [*scope, '|', ('user_id', '=', user.id), ('user_id', '=', False)]
 
     @api.model
+    def _liwan_acts_for(self, order, user):
+        """Whether ``user`` is the salesperson of ``order`` or may assign it: the actor rule of every Sales write."""
+        return order.user_id == user or self._liwan_can_assign(user, order.company_id)
+
+    @api.model
     def _liwan_check_write(self, orders, user):
         """403 ``forbidden`` unless every order is a staff document that ``user`` owns or may assign."""
         for order in orders:
-            owns = order.user_id == user or self._liwan_can_assign(user, order.company_id)
-            if not (order.liwan_staff_document and owns):
+            if not (order.liwan_staff_document and self._liwan_acts_for(order, user)):
                 code = 'forbidden'
                 raise LiwanAccessRule(code, 'only the salesperson of a staff document may change it', status=403)

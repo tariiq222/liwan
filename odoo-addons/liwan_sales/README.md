@@ -57,7 +57,14 @@ saved, with the tenant's defaults on create), `sale.order._liwan_staff_extras` a
 staff and the customer's wire shapes) and `liwan.sales.document._liwan_mail_notes` (notes in the quotation e-mail). The
 payments bridge `liwan_sales_payments` was the first user; the CRM bridge `liwan_sales_crm` uses the settings and the staff-shape hooks and
 extends `liwan.sales.service._liwan_move`, the one path a staff move, the customer's confirming acceptance and a payment's
-confirmation share.
+confirmation share. The finance bridge `liwan_sales_finance` uses the settings and the staff-shape hooks and extends
+`sale.order._liwan_actions` (an order with a posted invoice is not cancelled).
+
+`sale.order._liwan_lines()` is the lines Sales shows, edits and prints: the order lines without the section and the line
+stock adds for a down payment (`is_downpayment`). The staff and public shapes, the lines write (it never names or removes
+such a line), the product-line check and the quotation PDF (`_get_order_lines_to_report`, for a staff document) all use it,
+and a duplicate already skips them through stock's `_get_copiable_order_lines`. `liwan.sales.visibility._liwan_acts_for` is the
+actor rule (the salesperson, or an assign holder) that every write and a bridge's own check share.
 
 ## Visibility
 
@@ -166,4 +173,4 @@ passed. It is documented in `tools/arch_documented_sudo.json`, like the other tw
 
 ## Later pull requests
 
-Invoices and down payments (PR 4), templates and reports (PR 6). The CRM link and the payment links (PR 5) are the bridges `liwan_sales_crm` and `liwan_sales_payments`.
+Templates and reports (PR 6). The invoices and down payments (PR 4), the CRM link and the payment links (PR 5) are the bridges `liwan_sales_finance`, `liwan_sales_crm` and `liwan_sales_payments`.

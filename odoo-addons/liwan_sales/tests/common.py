@@ -24,10 +24,11 @@ class Scope(NamedTuple):
 
 
 MODES = {'saas': 'control_plane', 'non_saas': 'local_policy'}
-# What a bridge installed in the same database adds to the wire shapes (`liwan_sales_payments`, `liwan_sales_crm`); Sales
-# tests compare the keys Sales itself owns, so they pass with or without them.
+# What a bridge installed in the same database adds to the wire shapes (`liwan_sales_payments`, `liwan_sales_crm`,
+# `liwan_sales_finance`); Sales tests compare the keys Sales itself owns, so they pass with or without them.
 BRIDGE_KEYS = frozenset({
     'payment', 'payment_to_confirm', 'prepayment_percent', 'opportunity', 'opportunity_win', 'opportunity_win_amount',
+    'invoicing', 'invoice_down_payment', 'invoice_actor',
 })
 
 

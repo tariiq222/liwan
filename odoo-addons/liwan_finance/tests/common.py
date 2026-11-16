@@ -9,6 +9,10 @@ MANAGER_PASSWORD = 'finance_manager_pass_123'
 OUTSIDER_LOGIN = 'finance_outsider'
 OUTSIDER_PASSWORD = 'finance_outsider_pass_123'
 
+# What a bridge installed in the same database adds to the invoice detail (`liwan_sales_finance`: the order it came from); the
+# finance tests compare the keys finance itself owns, so they pass with or without it.
+BRIDGE_DETAIL_KEYS = frozenset({'source_order'})
+
 # The precondition the two fiscal setup writes state: the identity their screen was read for.
 SETUP_EXPECTED_USER_HEADER = 'X-Liwan-Expected-User-Id'
 SETUP_EXPECTED_COMPANY_HEADER = 'X-Liwan-Expected-Company-Id'

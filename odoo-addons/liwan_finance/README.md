@@ -13,6 +13,7 @@ statements with reconciliation and the Zakat base come from pinned, unmodified O
 | `GET /invoices`, `GET /invoices/<id>` (carries the `zatca` block), `GET /invoices/<id>/pdf` | `finance.invoices.read` |
 | `POST /invoices` (201, a draft), `PATCH /invoices/<id>`, `DELETE /invoices/<id>` (204) | `finance.invoices.manage` |
 | `POST /invoices/<id>/post`, `/cancel`, `/reset-to-draft` | `finance.invoices.post` |
+| `GET /invoices/<id>` also carries `source_order` (`{id, number}`, else `null`) when `liwan_sales_finance` is installed, for a caller who reads that order in Sales | `finance.invoices.read` |
 | `GET /payments` | `finance.payments.read` |
 | `POST /payments` (201), `POST /payments/standalone` (201), `PATCH /payments/<id>`, `POST /payments/<id>/cancel`, `/reset-to-draft`, `/post`, `/allocate`, `/unallocate` | `finance.payments.manage` |
 | `GET /accounts` (`archived=true\|false`, `account_type`, `q`), `GET /accounts/<id>` | `finance.accounts.read` |

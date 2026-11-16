@@ -52,6 +52,17 @@ class SaleOrder(models.Model):
     liwan_signature_method = fields.Selection([(mode, mode) for mode in SIGNATURE_METHODS], readonly=True, copy=False)
     liwan_decline_reason = fields.Text(readonly=True, copy=False)
 
+    def _liwan_lines(self):
+        """The lines Sales shows and edits: the section and the lines that stock adds for a down payment (``is_downpayment``)
+        are invoicing bookkeeping, not part of what was sold, and no Sales shape, write or document carries them."""
+        self.ensure_one()
+        return self.order_line.filtered(lambda line: not line.is_downpayment)
+
+    def _get_order_lines_to_report(self):
+        """The quotation PDF of a staff document lists what was sold, not stock's down payment section."""
+        lines = super()._get_order_lines_to_report()
+        return lines.filtered(lambda line: not (line.is_downpayment and line.order_id.liwan_staff_document))
+
     def _liwan_staff_extras(self, user):
         """What an installed bridge adds to the staff wire shape of this order for ``user``, as ``{key: value}``."""
         self.ensure_one()

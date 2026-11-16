@@ -46,7 +46,7 @@ def dump_public_quotation(order):
         'amount_untaxed': currency.round(order.amount_untaxed),
         'amount_tax': currency.round(order.amount_tax),
         'amount_total': currency.round(order.amount_total),
-        'lines': [dump_line_values(line) for line in order.order_line],
+        'lines': [dump_line_values(line) for line in order._liwan_lines()],
         'answer_mode': order.liwan_answer_mode,
         'signature_methods': order.liwan_signature_methods or None,
         'answer': order.liwan_answer or None,
