@@ -24,6 +24,9 @@ class Scope(NamedTuple):
 
 
 MODES = {'saas': 'control_plane', 'non_saas': 'local_policy'}
+# What a bridge installed in the same database adds to the wire shapes (`liwan_sales_payments`); Sales tests compare
+# the keys Sales itself owns, so they pass with or without it.
+BRIDGE_KEYS = frozenset({'payment', 'payment_to_confirm', 'prepayment_percent'})
 
 
 class LiwanSalesCase(LiwanApiCase):

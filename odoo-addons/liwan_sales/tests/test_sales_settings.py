@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.tests import tagged
 
-from .common import LiwanSalesCase
+from .common import BRIDGE_KEYS, LiwanSalesCase
 
 SETTINGS = '/api/v1/sales/settings'
 KEYS = {
@@ -23,9 +23,9 @@ class TestSalesSettings(LiwanSalesCase):
     def test_a_reader_and_a_manager_read_the_defaults(self):
         reader = self.api_as(self.agent, 'GET', SETTINGS)
         self.assertEqual(reader.status_code, 200, reader.text)
-        self.assertEqual(set(reader.json()), KEYS)
+        self.assertEqual(set(reader.json()) - BRIDGE_KEYS, KEYS)
         self.assertEqual(
-            reader.json(),
+            {key: value for key, value in reader.json().items() if key not in BRIDGE_KEYS},
             {
                 'visibility': 'own', 'validity_days': 30, 'discount_limit_percent': 0, 'default_terms': '',
                 'customer_answer': 'accept', 'acceptance_confirms': False, 'answered_resend': 'allow',

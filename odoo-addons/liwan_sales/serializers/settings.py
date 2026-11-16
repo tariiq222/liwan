@@ -25,6 +25,7 @@ def dump_settings(settings, can_manage):
         'acceptance_confirms': settings.acceptance_confirms,
         'answered_resend': settings.answered_resend,
         'signature_methods': settings.signature_methods,
+        **settings._liwan_wire_extras(),
         'can_manage': can_manage,
         'revision': settings.revision,
     }
@@ -56,15 +57,17 @@ def _parse_value(key, value):
     return value
 
 
-def parse_settings_patch(payload):
-    """``(values, revision)`` of a settings write, or a 422."""
-    unknown = sorted(set(payload) - {*WRITABLE_KEYS, 'revision'})
+def parse_settings_patch(payload, parsers):
+    """``(values, revision)`` of a settings write, or a 422. ``parsers`` are the keys an installed bridge adds, each
+    with the function that checks its value (``liwan.sales.settings._liwan_patch_parsers``)."""
+    unknown = sorted(set(payload) - {*WRITABLE_KEYS, *parsers, 'revision'})
     if unknown:
         raise ApiError(422, 'invalid', f'field {unknown[0]!r} is not accepted', field=unknown[0])
     revision = payload.get('revision')
     if not isinstance(revision, int) or isinstance(revision, bool) or revision < 1:
         raise ApiError(422, 'invalid', 'revision must be a positive integer', field='revision')
     values = {key: _parse_value(key, payload[key]) for key in WRITABLE_KEYS if key in payload}
+    values.update({key: parser(payload[key]) for key, parser in parsers.items() if key in payload})
     if not values:
         raise ApiError(422, 'invalid', 'nothing to change')
     return values, revision

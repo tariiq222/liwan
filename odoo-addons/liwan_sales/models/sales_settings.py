@@ -68,6 +68,17 @@ class LiwanSalesSettings(models.Model):
             for company in (self.env.company, root)
         )
 
+    @api.model
+    def _liwan_patch_parsers(self):
+        """The keys an installed bridge accepts in a settings write, as ``{key: parser}``. A parser takes the raw value and
+        returns the checked one or raises ``LiwanAccessRule`` (422 on the key); each key is also a field of this model."""
+        return {}
+
+    def _liwan_wire_extras(self):
+        """The settings an installed bridge adds to the wire shape, as ``{key: value}``."""
+        self.ensure_one()
+        return {}
+
     def _liwan_apply(self, values, revision):
         """Write ``values`` read at ``revision``.
 

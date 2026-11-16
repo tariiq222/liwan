@@ -7,8 +7,6 @@ from .sales_service import QUIET
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
 MAX_TOKEN_LENGTH = 128
-# The stock states a customer may still read: sent, confirmed and cancelled.
-PUBLIC_STATES = ('sent', 'sale', 'cancel')
 
 
 def _refused(code, message):
@@ -41,7 +39,7 @@ class LiwanSalesAnswer(models.AbstractModel):
         # Both sides are compared as UTF-8 bytes: ``consteq`` raises on a non-ASCII ``str``, which would not be a 404.
         if not order or not consteq((order.access_token or '').encode(), token.encode()):
             raise missing
-        if not (order.liwan_staff_document and order.liwan_answer_mode and order.state in PUBLIC_STATES):
+        if not order._liwan_public_open():
             raise missing
         return order.with_company(order.company_id).with_context(**QUIET)
 
@@ -64,7 +62,7 @@ class LiwanSalesAnswer(models.AbstractModel):
         if signature:
             values.update(signed_by=signature[0], signature=signature[1], liwan_signature_method=signature[2], signed_on=now)
         order.write(values)
-        if order.liwan_acceptance_confirms:
+        if order._liwan_acceptance_confirms():
             self.env['liwan.sales.service']._liwan_move(order, 'confirm')
         return order
 

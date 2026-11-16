@@ -21,6 +21,16 @@ class LiwanSalesDocument(models.AbstractModel):
     _description = 'LiwanOS Sales quotation document'
 
     @api.model
+    def _liwan_note_markup(self, notes, language):
+        """The e-mail paragraphs of ``notes`` in ``language``: the text and, under it, the address of the note if it has one."""
+        return Markup('').join(
+            Markup('<p>{text}</p>').format(text=note[language]) + (
+                Markup('<p><a href="{link}">{link}</a></p>').format(link=note['link']) if note['link'] else Markup('')
+            )
+            for note in notes
+        )
+
+    @api.model
     def _liwan_pdf(self, order, signed=False):
         """The stock quotation report of ``order``, rendered in the order's own environment.
 
@@ -48,27 +58,61 @@ class LiwanSalesDocument(models.AbstractModel):
         return f'{base or "quotation"}.pdf'
 
     @api.model
+    def _liwan_mail_notes(self, order):
+        """The notes an installed bridge adds to the e-mail of ``order``, each ``{'ar', 'en', 'link'}``: the text in both
+        languages and the address it points to (None for a note without one)."""
+        return []
+
+    @api.model
     def _liwan_queue_mail(self, order):
-        """Queue the e-mail that sends ``order`` to its customer: Arabic then English, the link of its public page and the PDF."""
-        link = f'{order.get_base_url()}/quote/{order.id}?access_token={order.access_token}'
+        """Queue the e-mail that sends ``order`` to its customer: Arabic then English, the link of its public page, any
+        notes of an installed bridge and the PDF."""
         customer, company = order.partner_id.name, order.company_id.name
+        return self._liwan_mail(
+            order,
+            f'عرض سعر {order.name} / Quotation {order.name}',
+            f'مرحبًا {customer}، أرسلت لك {company} عرض السعر {order.name}. افتح الرابط لقراءته.',
+            f'Hello {customer}, {company} sent you quotation {order.name}. Open the link to read it.',
+            attachments=[Command.create({
+                'name': self._liwan_filename(order), 'raw': self._liwan_pdf(order), 'mimetype': 'application/pdf',
+            })],
+        )
+
+    @api.model
+    def _liwan_queue_confirmation_mail(self, order):
+        """Queue the e-mail that tells the customer ``order`` is confirmed, with the link of its public page; False when
+        the tenant has no sender address (nothing is queued, the caller decides what that means)."""
+        if not self.env['liwan.outbound.mail']._liwan_sender():
+            return False
+        customer, company = order.partner_id.name, order.company_id.name
+        return self._liwan_mail(
+            order,
+            f'تأكيد الطلب {order.name} / Order {order.name} confirmed',
+            f'مرحبًا {customer}، أكّدت {company} طلبك {order.name}. افتح الرابط لقراءته.',
+            f'Hello {customer}, {company} confirmed your order {order.name}. Open the link to read it.',
+        )
+
+    @api.model
+    def _liwan_mail(self, order, subject, ar, en, attachments=()):
+        """Queue one bilingual e-mail about ``order`` to its customer from the tenant's outbound sender: ``ar`` then ``en``,
+        each followed by the link of the order's public page (never an Odoo portal link) and the notes of a bridge."""
+        link = f'{order.get_base_url()}/quote/{order.id}?access_token={order.access_token}'
+        notes = self._liwan_mail_notes(order)
         body = Markup(
-            '<div dir="rtl"><p>{ar}</p><p><a href="{link}">{link}</a></p></div><hr/>'
-            '<div dir="ltr"><p>{en}</p><p><a href="{link}">{link}</a></p></div>',
+            '<div dir="rtl"><p>{ar}</p><p><a href="{link}">{link}</a></p>{ar_notes}</div><hr/>'
+            '<div dir="ltr"><p>{en}</p><p><a href="{link}">{link}</a></p>{en_notes}</div>',
         ).format(
-            ar=f'مرحبًا {customer}، أرسلت لك {company} عرض السعر {order.name}. افتح الرابط لقراءته.',
-            en=f'Hello {customer}, {company} sent you quotation {order.name}. Open the link to read it.',
-            link=link,
+            ar=ar, en=en, link=link,
+            ar_notes=self._liwan_note_markup(notes, 'ar'),
+            en_notes=self._liwan_note_markup(notes, 'en'),
         )
         # Mailing needs the outgoing-mail right, which no Sales capability carries.
         return self.env['mail.mail'].sudo().create({
-            'subject': f'عرض سعر {order.name} / Quotation {order.name}',
+            'subject': subject,
             'body_html': body,
             'email_from': self.env['liwan.outbound.mail']._liwan_sender(),
             'email_to': order.partner_id.email,
             'author_id': self.env.user.partner_id.id,
             'auto_delete': True,
-            'attachment_ids': [Command.create({
-                'name': self._liwan_filename(order), 'raw': self._liwan_pdf(order), 'mimetype': 'application/pdf',
-            })],
+            'attachment_ids': list(attachments),
         })

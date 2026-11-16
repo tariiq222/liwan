@@ -48,6 +48,15 @@ write and takes `send` out of the order's `actions`, so staff reopen the quotati
 is unaffected. `signature_methods` says how a customer may sign under `accept_and_sign`: `draw` accepts a hand-drawn
 signature only, `draw_or_type` also accepts a typed name that the page renders as the signature image.
 
+## Extension points for bridges
+
+Sales names no other application. A bridge adds its own values through hooks that return nothing in Sales itself:
+`liwan.sales.settings._liwan_patch_parsers` and `_liwan_wire_extras` (keys of the settings write and read),
+`liwan.sales.service._liwan_order_parsers` and `_liwan_write_extras` (keys of an order write, applied after the lines are
+saved, with the tenant's defaults on create), `sale.order._liwan_staff_extras` and `_liwan_public_extras` (keys of the
+staff and the customer's wire shapes) and `liwan.sales.document._liwan_mail_notes` (notes in the quotation e-mail). The
+payments bridge `liwan_sales_payments` is the first user.
+
 ## Visibility
 
 - `own`: a reader sees the documents they are the salesperson of and the unassigned ones, which are the online orders.

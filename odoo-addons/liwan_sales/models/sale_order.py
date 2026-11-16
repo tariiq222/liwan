@@ -9,6 +9,8 @@ from odoo.addons.liwan_products.models.products_service import is_number
 LINE_KINDS = {False: 'product', 'line_section': 'section', 'line_subsection': 'section', 'line_note': 'note'}
 # The stock states of a quotation.
 QUOTATION_STATES = ('draft', 'sent')
+# The stock states a customer may still read: sent, confirmed and cancelled.
+PUBLIC_STATES = ('sent', 'sale', 'cancel')
 # The values a send and a reopen write to leave no answer, snapshot or signature of an earlier send on the order.
 ANSWER_RESET = {
     'liwan_answer_mode': False,
@@ -49,6 +51,27 @@ class SaleOrder(models.Model):
     # How the customer made the signature of an accepted, signed quotation.
     liwan_signature_method = fields.Selection([(mode, mode) for mode in SIGNATURE_METHODS], readonly=True, copy=False)
     liwan_decline_reason = fields.Text(readonly=True, copy=False)
+
+    def _liwan_staff_extras(self, user):
+        """What an installed bridge adds to the staff wire shape of this order for ``user``, as ``{key: value}``."""
+        self.ensure_one()
+        return {}
+
+    def _liwan_public_extras(self):
+        """What an installed bridge adds to the customer's page of this order, as ``{key: value}``."""
+        self.ensure_one()
+        return {}
+
+    def _liwan_public_open(self):
+        """Whether the customer's page of this order opens: a staff document sent for an answer and not reopened since."""
+        self.ensure_one()
+        return bool(self.liwan_staff_document and self.liwan_answer_mode and self.state in PUBLIC_STATES)
+
+    def _liwan_acceptance_confirms(self):
+        """Whether the customer's acceptance confirms this order: the snapshot taken at send. A bridge that owns another
+        way to confirm the order (a payment, say) narrows it."""
+        self.ensure_one()
+        return self.liwan_acceptance_confirms
 
     def _liwan_can_answer(self):
         """Whether the customer may still answer this sent quotation: an answer mode other than ``none``, no answer yet."""

@@ -7,7 +7,7 @@ from unittest.mock import patch
 from odoo import fields
 from odoo.tests import tagged
 
-from .common import FAKE_PDF, MODES, QuotationCase, png_base64
+from .common import BRIDGE_KEYS, FAKE_PDF, MODES, QuotationCase, png_base64
 from odoo.addons.liwan_api.tests.common import set_probe_feature
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
@@ -57,7 +57,7 @@ class TestPublicQuotation(PublicCase):
         response = self.get(order)
         self.assertNotIn('set-cookie', {key.lower() for key in response.headers})
         body = self.ok(response)
-        self.assertEqual(set(body), PUBLIC_KEYS)
+        self.assertEqual(set(body) - BRIDGE_KEYS, PUBLIC_KEYS)
         self.assertEqual(set(body['lines'][0]), LINE_KEYS)
         self.assertEqual((body['id'], body['number'], body['state']), (order.id, order.name, 'sent'))
         self.assertEqual((body['company_name'], body['customer_name']), (order.company_id.name, 'Customer'))

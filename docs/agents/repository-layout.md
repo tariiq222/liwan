@@ -223,6 +223,12 @@ application declares its AI agent and tools in its own addon (see `liwan_ai` bel
   type takes online payment (in full or a deposit) and the product that sells it; a booking of a paying
   type is held by an online order of `liwan.payments.service`, which the engine keeps `scheduled` until the
   order is paid, then `confirmed`; an unpaid order that expires cancels the booking and frees its slot.
+- `odoo-addons/liwan_sales_payments` (bridge, rank 5, `auto_install` on `liwan_sales` and the shared service
+  `liwan_payments`) owns whether a staff quotation asks to be paid before it becomes an order: the tenant's default
+  (`payment_to_confirm`, `prepayment_percent` on `liwan.sales.settings`), the per-quotation choice kept in stock's
+  `require_payment` and `prepayment_percent`, the `payment` of the staff and public wire shapes, the pay note of the
+  e-mail, and the confirmation of the order by the payment through the Sales path. It defines no model; it reuses
+  the pay page and the gateway of `liwan_payments`.
 - `odoo-addons/liwan_inbox_payments` (bridge, rank 5, `auto_install` on `liwan_inbox` and the shared service
   `liwan_payments`) owns the link to the tenant's Meta commerce catalog (one per WhatsApp business account), the
   catalog items and their push to Meta by cron, the public product image route Meta fetches from, a minimal editor

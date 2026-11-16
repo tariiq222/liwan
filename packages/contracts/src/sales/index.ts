@@ -1,5 +1,8 @@
 import { z } from 'zod'
 import { PersonRefSchema } from '../common/person'
+import { SalesOrderPaymentSchema, SalesPaymentChoiceShape, SalesPaymentSettingsShape, SalesPublicPaymentSchema } from './payments'
+
+export * from './payments'
 
 // liwan_sales: staff quotations and orders on sale.order, plus the online orders other channels made, read-only here.
 // Field for field with odoo-addons/liwan_sales/serializers. The wire never carries a price or a tax into a write: the
@@ -103,6 +106,8 @@ export const SalesOrderSchema = z.object({
   actions: SalesOrderActionsSchema,
   // True when only the tenant's `answered_resend: refuse` keeps the caller from sending this answered quotation again.
   resend_refused: z.boolean(),
+  // How the quotation asks to be paid; present only with the payments bridge, null while the tenant cannot take payments.
+  payment: SalesOrderPaymentSchema.nullable().optional(),
 }).strict()
 
 export const SalesOrderListSchema = z.object({
@@ -134,6 +139,8 @@ const WriteFields = {
   terms: z.string().max(SALES_LIMITS.terms).optional(),
   // The whole list in order: a line left out is removed.
   lines: z.array(SalesOrderLineInputSchema).optional(),
+  // How the quotation asks to be paid (the payments bridge); left out, a new quotation takes the tenant's default.
+  ...SalesPaymentChoiceShape,
 }
 
 export const SalesOrderCreateSchema = z.object({ customer_id: Id, ...WriteFields }).strict()
@@ -153,6 +160,9 @@ export const SalesSettingsSchema = z.object({
   acceptance_confirms: z.boolean(),
   answered_resend: SalesAnsweredResendSchema,
   signature_methods: SalesSignatureMethodsSchema,
+  // The default way a new quotation asks to be paid (the payments bridge); both are absent while the tenant cannot take payments.
+  payment_to_confirm: SalesPaymentSettingsShape.payment_to_confirm.optional(),
+  prepayment_percent: SalesPaymentSettingsShape.prepayment_percent.optional(),
   revision: z.number().int().positive(),
   // Whether this session may change the settings: the capability, in the root company.
   can_manage: z.boolean(),
@@ -167,6 +177,8 @@ export const SalesSettingsPatchSchema = z.object({
   acceptance_confirms: z.boolean().optional(),
   answered_resend: SalesAnsweredResendSchema.optional(),
   signature_methods: SalesSignatureMethodsSchema.optional(),
+  payment_to_confirm: SalesPaymentSettingsShape.payment_to_confirm.optional(),
+  prepayment_percent: SalesPaymentSettingsShape.prepayment_percent.optional(),
   revision: z.number().int().positive(),
 }).strict().refine(patch => Object.keys(patch).some(key => key !== 'revision'), { message: 'nothing to change' })
 
@@ -207,6 +219,8 @@ export const SalesPublicQuotationSchema = z.object({
   signed_by: z.string().nullable(),
   can_accept: z.boolean(),
   can_decline: z.boolean(),
+  // Present only with the payments bridge; null when the quotation asks for no payment or the tenant cannot take one.
+  payment: SalesPublicPaymentSchema.nullable().optional(),
 }).strict()
 
 const AccessToken = z.string().min(1).max(128)

@@ -102,6 +102,7 @@ def dump_order(order, user):
         'lines': [_dump_line(line) for line in order.order_line],
         'actions': order._liwan_actions(user),
         'resend_refused': order._liwan_resend_blocked(user),
+        **order._liwan_staff_extras(user),
     }
 
 
@@ -200,9 +201,13 @@ def _parse_line(index, line):
     return entry
 
 
-def parse_order_body(payload, creating):
-    """The whitelisted values of a create (``creating``) or a PATCH, or a 422 naming the field."""
-    _refuse_unknown(payload, ORDER_KEYS)
+def parse_order_body(payload, creating, parsers):
+    """The whitelisted values of a create (``creating``) or a PATCH, or a 422 naming the field.
+
+    ``parsers`` are the keys an installed bridge adds (``liwan.sales.service._liwan_order_parsers``), each with the
+    function that checks its value; they come back in ``values['extras']``.
+    """
+    _refuse_unknown(payload, (*ORDER_KEYS, *parsers))
     if creating and 'customer_id' not in payload:
         _invalid('customer_id', 'customer_id is required')
     values = {}
@@ -219,6 +224,9 @@ def parse_order_body(payload, creating):
         values['lines'] = [_parse_line(index, line) for index, line in enumerate(payload['lines'])]
     elif creating:
         values['lines'] = []
+    extras = {key: parser(payload[key]) for key, parser in parsers.items() if key in payload}
+    if extras:
+        values['extras'] = extras
     if not values:
         _invalid(None, 'nothing to change')
     return values

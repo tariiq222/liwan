@@ -122,7 +122,19 @@ class LiwanSalesService(models.AbstractModel):
             'note': self._liwan_note(values.get('terms', settings.default_terms)),
         })
         self._liwan_write_lines(order, plan)
+        self._liwan_write_extras(order, values.get('extras', {}), creating=True)
         return order
+
+    @api.model
+    def _liwan_order_parsers(self):
+        """The keys an installed bridge accepts in the body of an order write, as ``{key: parser}``. A parser takes the raw
+        value and returns the checked one or raises ``LiwanAccessRule`` (422 on the key)."""
+        return {}
+
+    @api.model
+    def _liwan_write_extras(self, order, extras, creating=False):
+        """Apply the parsed ``extras`` of a write to ``order``, once its lines are saved; a bridge adds its own values
+        (and, with ``creating``, its tenant defaults). Nothing here is a Sales value."""
 
     @api.model
     def _liwan_update(self, order_id, values):
@@ -147,6 +159,7 @@ class LiwanSalesService(models.AbstractModel):
         if header:
             order.with_context(**QUIET).write(header)
         self._liwan_write_lines(order, plan, retax=retax)
+        self._liwan_write_extras(order, values.get('extras', {}))
         return order
 
     @api.model

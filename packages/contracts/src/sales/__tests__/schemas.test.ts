@@ -31,7 +31,7 @@ describe('SalesOrderSchema', () => {
     expect(SalesOrderSchema.parse(ORDER)).toEqual(ORDER)
     expect(Object.keys(SalesOrderSchema.shape).sort()).toEqual([
       'actions', 'amount_tax', 'amount_total', 'amount_untaxed', 'currency', 'customer', 'customer_answer', 'date', 'expired', 'id', 'lines',
-      'locked', 'number', 'resend_refused', 'salesperson', 'source', 'state', 'terms', 'validity_date',
+      'locked', 'number', 'payment', 'resend_refused', 'salesperson', 'source', 'state', 'terms', 'validity_date',
     ])
     expect(() => SalesOrderSchema.parse({ ...ORDER, resend_refused: undefined })).toThrow()
     expect(() => SalesOrderSchema.parse({ ...ORDER, state: 'sale' })).toThrow()
