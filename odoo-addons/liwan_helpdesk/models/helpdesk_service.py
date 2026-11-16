@@ -16,7 +16,15 @@ from odoo import api, fields, models
 from odoo.fields import Domain
 from odoo.tools import html2plaintext, plaintext2html
 
-from .access_service import ASSIGN, CLOSE, READ, REQUESTS_CREATE, REQUESTS_READ, WRITE
+from .access_service import (
+    ASSIGN,
+    CLOSE,
+    MERGE,
+    READ,
+    REQUESTS_CREATE,
+    REQUESTS_READ,
+    WRITE,
+)
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
 MAX_SUBJECT = 200
@@ -294,6 +302,48 @@ class LiwanHelpdeskService(models.AbstractModel):
             raise invalid(self.env._('the ticket can no longer be reopened'))
         ticket.write({'stage_id': self._liwan_default_stage(ticket.team_id).id})
         return ticket
+
+    @api.model
+    def _liwan_merge(self, target, source_ids):
+        """Merge duplicate tickets into ``target``: attachments, tags and a note move, the sources close as duplicates."""
+        self._liwan_require(MERGE)
+        if target.stage_id.closed:
+            raise LiwanAccessRule(CONFLICT, self.env._('a closed ticket cannot absorb others'), status=409)
+        if not source_ids or any(type(item) is not int or item <= 0 for item in source_ids):
+            raise invalid(self.env._('name at least one ticket to merge'), field='source_ids')
+        sources = self.env['helpdesk.ticket'].search([
+            ('id', 'in', source_ids), ('id', '!=', target.id),
+            *self.env['liwan.helpdesk.visibility']._liwan_domain(),
+        ])
+        if len(sources) != len(set(source_ids)):
+            raise invalid(self.env._('a ticket to merge does not exist or is out of reach'), field='source_ids')
+        if any(source.company_id != target.company_id for source in sources):
+            raise invalid(self.env._('tickets of another company cannot be merged'), field='source_ids')
+        tags = target.tag_ids | sources.mapped('tag_ids')
+        attachments = self.env['ir.attachment'].search([
+            ('res_model', '=', 'helpdesk.ticket'), ('res_id', 'in', sources.ids), ('type', '=', 'binary'),
+        ])
+        closed_stage = self._liwan_default_stage(target.team_id, closed=True)
+        for source in sources:
+            source_attachments = attachments.filtered(lambda item: item.res_id == source.id)
+            source_attachments.write({'res_id': target.id})
+            source.write({
+                'duplicate_id': target.id,
+                'tag_ids': [(6, 0, tags.ids)],
+                'stage_id': closed_stage.id,
+            })
+            source.message_post(
+                body=plaintext2html(self.env._('Merged into %(ticket)s', ticket=target.display_name)),
+                message_type='comment', subtype_xmlid='mail.mt_note', author_id=self.env.user.partner_id.id,
+            )
+        if tags:
+            target.write({'tag_ids': [(6, 0, tags.ids)]})
+        target.message_post(
+            body=plaintext2html(self.env._('Merged tickets: %(tickets)s', tickets=', '.join(
+                source.display_name for source in sources))),
+            message_type='comment', subtype_xmlid='mail.mt_note', author_id=self.env.user.partner_id.id,
+        )
+        return target
 
     @api.model
     def _liwan_comment(self, ticket, body, internal=False):

@@ -1,9 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""The Support Desk feature a plan carries.
+"""The Support Desk features a plan carries.
 
-``helpdesk.enabled`` installs the application and gates every route of it. The sub-features (SLA,
-ratings, merging, automatic closing, the customer page, the email channel) are registered by the pull
-request that first uses one, so the catalog never carries a switch nothing reads.
+``helpdesk.enabled`` installs the application and gates every route of it; ``helpdesk.merge`` gates the
+routes that fold one ticket into another. Every other area (SLA policies, ratings, automatic closing, the
+customer page, the email channel) registers its key with the pull request that first uses it, so the
+catalog never carries a switch nothing reads.
 """
 from odoo import api, models
 
@@ -16,6 +17,12 @@ class LiwanHelpdeskFeatureRegistry(models.AbstractModel):
         return super()._liwan_feature_definitions() + (
             {
                 'key': 'helpdesk.enabled',
+                'type': 'boolean',
+                'owner': 'liwan_helpdesk',
+                'module': 'liwan_helpdesk',
+            },
+            {
+                'key': 'helpdesk.merge',
                 'type': 'boolean',
                 'owner': 'liwan_helpdesk',
                 'module': 'liwan_helpdesk',

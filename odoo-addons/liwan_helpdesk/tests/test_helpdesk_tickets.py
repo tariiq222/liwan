@@ -183,3 +183,28 @@ class TicketApiTest(LiwanHelpdeskCase):
         self.assertIn(self.team.id, [team['id'] for team in body['teams']])
         self.assertTrue(body['stages'])
         self.assertIn('closed', body['stages'][0])
+
+    def test_a_duplicate_is_merged_into_the_target(self):
+        self.as_user(self.supervisor)
+        target = self.ticket_body(subject='Printer is down')
+        source = self.ticket_body(subject='Printer does not print')
+        attachment = self.env['ir.attachment'].create({
+            'name': 'log.txt', 'raw': b'log', 'res_model': 'helpdesk.ticket', 'res_id': source['id'],
+            'type': 'binary', 'mimetype': 'text/plain',
+        })
+        merged = self.api('POST', f'/api/v1/helpdesk/tickets/{target["id"]}/merge',
+                          json={'source_ids': [source['id']]})
+        self.assertEqual(merged.status_code, 200, merged.text)
+        source_ticket = self.env['helpdesk.ticket'].browse(source['id'])
+        self.assertEqual(source_ticket.duplicate_id.id, target['id'])
+        self.assertTrue(source_ticket.stage_id.closed)
+        self.assertEqual(attachment.res_id, target['id'])
+        notes = self.env['mail.message'].search([
+            ('model', '=', 'helpdesk.ticket'), ('res_id', '=', target['id']), ('subtype_id.internal', '=', True),
+        ])
+        self.assertTrue(any('Merged' in (note.body or '') for note in notes))
+        # An agent answers but does not merge.
+        self.as_user(self.agent)
+        denied = self.api('POST', f'/api/v1/helpdesk/tickets/{target["id"]}/merge',
+                          json={'source_ids': [source['id']]})
+        self.assertEqual((denied.status_code, denied.json()['code']), (403, 'forbidden'))

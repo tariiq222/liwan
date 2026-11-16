@@ -30,6 +30,8 @@ const manifest: AppManifest = {
     { id: 'helpdesk-tickets', labelKey: 'helpdesk.nav.tickets', icon: 'i-lucide-life-buoy', to: '/helpdesk', capability: READ, anyCapabilities: [REQUESTS_READ] },
   ],
   landing: [{ path: '/helpdesk', capability: READ }],
+  // Merging needs both its capability and the merge sub-feature the server checks on the same route.
+  subFeatures: { 'helpdesk.tickets.merge': 'helpdesk.merge', 'helpdesk.tickets.merge.': 'helpdesk.merge' },
   routeCapabilities: [
     // The panel's form and the server both open a ticket for whoever may answer or ask.
     { pattern: /^\/helpdesk\/new$/, capability: REQUESTS_CREATE, anyCapabilities: [WRITE] },

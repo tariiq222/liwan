@@ -21,6 +21,7 @@ from odoo.addons.liwan_api.serializers.common import iso
 from odoo.addons.liwan_helpdesk.models.access_service import (
     ASSIGN,
     CLOSE,
+    MERGE,
     READ,
     REQUESTS_CREATE,
     REQUESTS_READ,
@@ -174,6 +175,19 @@ class HelpdeskTicketsController(http.Controller):
             body(set())
             return dump_ticket(service()._liwan_reopen(find(ticket_id, CLOSE)), settings(), can_read_type())
         raise ApiError(404, 'not_found', 'Unknown ticket action.')
+
+    @http.route('/api/v1/helpdesk/tickets/<int:ticket_id>/merge', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    @requires_feature('helpdesk.enabled', 'helpdesk.merge')
+    @requires_capability(MERGE)
+    def merge_tickets(self, ticket_id, **_):
+        payload = body({'source_ids'})
+        source_ids = payload.get('source_ids')
+        if not isinstance(source_ids, list):
+            raise ApiError(422, 'invalid', 'must be a list of ticket ids', field='source_ids')
+        target = find(ticket_id, MERGE)
+        service()._liwan_merge(target, source_ids)
+        return dump_ticket(target, settings(), can_read_type())
 
     @http.route('/api/v1/helpdesk/tickets/<int:ticket_id>/messages', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler

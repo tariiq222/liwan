@@ -5,6 +5,7 @@ import type { HelpdeskAction } from '@/composables/helpdesk/useHelpdesk'
 import { useHelpdeskAction, useHelpdeskReference, useHelpdeskTicket } from '@/composables/helpdesk/useHelpdesk'
 import { HELPDESK_LIST_PATH } from '@/composables/helpdesk/helpdeskKeys'
 import { HELPDESK_PRIORITY_TONE, HELPDESK_SLA_TONE } from '@/components/helpdesk/helpdeskStatus'
+import HelpdeskMergeSection from '@/components/helpdesk/HelpdeskMergeSection.vue'
 import HelpdeskThread from '@/components/helpdesk/HelpdeskThread.vue'
 import { STATUS_COLOR } from '@liwan/ui/app/utils/statusTone'
 import { recordParentTo } from '@/utils/recordListOrigin'
@@ -30,6 +31,8 @@ const canWrite = computed(() => can('helpdesk.tickets.write'))
 const canRequest = computed(() => can('helpdesk.requests.read'))
 const canAssign = computed(() => can('helpdesk.tickets.assign'))
 const canClose = computed(() => can('helpdesk.tickets.close'))
+const canMerge = computed(() => can('helpdesk.tickets.merge'))
+function reload() { void query.refetch() }
 
 const headerTags = computed<PageHeaderTag[]>(() => {
   if (!ticket.value) return []
@@ -109,6 +112,7 @@ const reopen = () => run({ action: 'reopen' })
       <SharedRecordSection variant="panel" :title="t('helpdesk.record.description')" data-testid="helpdesk-description">
         <SharedRichText :html="ticket.description" />
       </SharedRecordSection>
+      <HelpdeskMergeSection v-if="canMerge && !ticket.stage.closed" class="mt-4" :ticket-id="ticket.id" @merged="reload" />
       <HelpdeskThread
         class="mt-4"
         :ticket-id="ticket.id"

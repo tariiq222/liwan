@@ -191,6 +191,13 @@
         "active": "Active",
         "archived": "Archived"
       }
+    },
+    "merge": {
+      "title": "Merge duplicates",
+      "hint": "Search another ticket and tick it to merge it into this one; its attachments move and it closes as a duplicate.",
+      "search": "Search by number or subject",
+      "submit": "Merge {count} tickets",
+      "failed": "The merge could not be completed."
     }
   }
 }
