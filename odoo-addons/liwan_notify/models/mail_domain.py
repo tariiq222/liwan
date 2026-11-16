@@ -14,6 +14,13 @@ _logger = logging.getLogger(__name__)
 FROM_FILTER_PARAM = 'mail.default.from_filter'
 # A return path that is not active this long after its creation has failed at OCI and is recreated (spec 5.3 step 5).
 RETURN_PATH_DEADLINE = timedelta(hours=72)
+# A domain never verified this many days after its start is removed at the provider, so a tenant cannot hold a
+# domain it does not own (spec 6.3). The operator may change it through the parameter.
+PENDING_DAYS = 7
+PENDING_DAYS_PARAM = 'liwan_notify.mail_domain_pending_days'
+PROVIDER_ID_FIELDS = (
+    'provider_domain_id', 'provider_dkim_id', 'provider_return_path_id', 'provider_sender_id', 'provider_log_id',
+)
 DOMAIN_PATTERN = re.compile(r'^(?=.{4,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$')
 # The sender's local part: lower-case letters, digits and . _ - inside, no leading, trailing or doubled dot.
 LOCAL_PART_PATTERN = re.compile(r'^[a-z0-9](?:[a-z0-9_-]|\.(?!\.)){0,62}[a-z0-9]$|^[a-z0-9]$')
@@ -155,19 +162,42 @@ class LiwanMailDomain(models.Model):
         A held domain raises ``MailDomainTaken`` and leaves nothing behind. The provider creates its resources
         asynchronously and writes each id on the row as it gets it, so this call stops where the provider is not
         ready or fails (the failure is kept on the row, the request still commits) and the verify cron carries on.
+
+        The pending clock of each domain lives on its ``liwan.mail.domain.attempt``, which switching domains never
+        overwrites, so a domain it does not own cannot be held by restarting or alternating it.
         """
         domain, local_part = self._liwan_normalize(domain, local_part)
-        if self._liwan_current():
-            raise MailDomainInputError(self.env._('Remove the current domain before starting another.'), 'domain')
-        row = self.create({
-            'company_id': self._liwan_root().id, 'domain': domain, 'from_local_part': local_part, 'state': 'pending_dns',
-        })
+        row = self._liwan_current()
+        if row:
+            row._liwan_lock()
+            row._liwan_refuse_if_paused()
+            if row.state != 'not_started':
+                raise MailDomainInputError(self.env._('Remove the current domain before starting another.'), 'domain')
+        attempts = self.env['liwan.mail.domain.attempt']
+        attempts._liwan_check_cooldown(domain, self._liwan_pending_days())
+        values = {'domain': domain, 'from_local_part': local_part, 'state': 'pending_dns'}
+        previous = row.read(['domain', 'from_local_part', 'state', 'verified_at', 'last_error', 'records'])[0] if row else None
+        if row:
+            row.write({**values, 'verified_at': False, 'last_error': False, 'records': False})
+        else:
+            row = self.create({**values, 'company_id': self._liwan_root().id})
         try:
             row._liwan_progress()
         except MailDomainTaken:
-            row.unlink()
+            if previous:  # the tenant's earlier domain stays as it was
+                row.write({key: value for key, value in previous.items() if key != 'id'})
+            else:
+                row.unlink()
             raise
+        attempts._liwan_begin(domain)
         return row
+
+    def _liwan_refuse_if_paused(self):
+        """A paused domain is neither removed nor replaced by the tenant: the operator reviews and resumes it first."""
+        if self and self.paused:
+            raise LiwanMailRefused(
+                self.env._('Sending is paused: %(reason)s', reason=self.pause_reason or ''), 'mail_paused', self.pause_reason,
+            )
 
     def _liwan_progress(self):
         """Create the provider resources still missing, then refresh the records; a provider failure is kept on the row.
@@ -221,6 +251,7 @@ class LiwanMailDomain(models.Model):
         if ready:
             if self.state != 'verified':
                 self.write({'state': 'verified', 'verified_at': now, 'last_error': False})
+                self.env['liwan.mail.domain.attempt']._liwan_clear(self.domain)
                 self._liwan_write_from_filter()
             return
         if self.state == 'verified':
@@ -247,11 +278,59 @@ class LiwanMailDomain(models.Model):
         return True
 
     def _liwan_remove(self):
-        """Delete the provider resources, then the row, then take the domain out of the filter; a provider failure raises."""
+        """The tenant's removal: refused while paused (``mail_paused``); else the provider resources go and the row stays.
+
+        The row goes back to ``not_started`` with its domain; the domain's attempt keeps its pending clock. A provider
+        failure raises and changes nothing.
+        """
+        self._liwan_lock()
+        self._liwan_refuse_if_paused()
+        self._liwan_release({'last_error': False})
+
+    def _liwan_delete(self):
+        """Offboarding: delete the provider resources, then the row, then rewrite the filter; a provider failure raises."""
         self._liwan_lock()
         self._liwan_provider().delete_domain(self)
         self.unlink()
         self._liwan_write_from_filter()
+
+    def _liwan_expire(self):
+        """Delete the provider resources of a domain never verified in time and put the row back to ``not_started``.
+
+        A failed provider delete raises and keeps the row as it is, so the next run tries again.
+        """
+        self._liwan_lock()
+        self.env['liwan.mail.domain.attempt']._liwan_expire(self.domain)
+        self._liwan_release({
+            'last_error': self.env._(
+                'The domain was not verified within %(days)s days and was removed; it can be started again %(days)s days '
+                'from now.',
+                days=self._liwan_pending_days(),
+            ),
+        })
+
+    def _liwan_release(self, values):
+        """Delete the provider resources and keep the row as ``not_started`` with ``values``; then rewrite the filter."""
+        self._liwan_provider().delete_domain(self)
+        was_verified = self.state == 'verified'
+        self.write({
+            **dict.fromkeys(PROVIDER_ID_FIELDS, False),
+            'state': 'not_started', 'records': False, 'return_path_created_at': False, 'return_path_recreated_at': False,
+            **values,
+        })
+        if was_verified:
+            self._liwan_write_from_filter()
+
+    @api.model
+    def _liwan_pending_days(self):
+        """The pending days from the operator parameter; a bad value is logged (by name) and the default is used."""
+        value = self.env['ir.config_parameter']._get_param(PENDING_DAYS_PARAM)
+        if value is None:
+            return PENDING_DAYS
+        if not (value.isascii() and value.isdigit() and int(value) > 0):
+            _logger.warning('liwan_notify: the parameter %s is not a whole number of days; %s is used', PENDING_DAYS_PARAM, PENDING_DAYS)
+            return PENDING_DAYS
+        return int(value)
 
     @api.model
     def _liwan_offboard(self):
@@ -260,7 +339,7 @@ class LiwanMailDomain(models.Model):
         The tenant lifecycle (deletion) calls this first, as the superuser, and stops the deletion when it raises.
         """
         for row in self.search([]):
-            row._liwan_remove()
+            row._liwan_delete()
 
     def _liwan_resume(self):
         """Clear a pause after the operator's review (server shell); the pause rates then count from now.
@@ -273,13 +352,24 @@ class LiwanMailDomain(models.Model):
     def _liwan_cron_verify(self):
         """Every 15 minutes: carry on the pending domains and check that the verified ones still validate.
 
+        A domain never verified within the pending days is expired (``_liwan_expire``); a domain verified once and
+        failed later is not.
+
         One row's failure is recorded on that row and never stops the loop; each row runs in its own savepoint, so a
         database error on one row rolls back that row only.
         """
+        deadline = fields.Datetime.now() - timedelta(days=self._liwan_pending_days())
+        attempts = self.env['liwan.mail.domain.attempt']
         for row in self.search([('state', 'in', ('pending_dns', 'verified'))]):
+            # A never-verified pending domain without a clock counts as expired.
+            started = attempts._liwan_for(row.domain).first_started_at
+            expired = row.state == 'pending_dns' and not row.verified_at and (not started or started < deadline)
             try:
                 with self.env.cr.savepoint():
-                    row._liwan_check()
+                    if expired:
+                        row._liwan_expire()
+                    else:
+                        row._liwan_check()
             except MailDomainBusy:
                 _logger.info('mail domain %s: busy, checked on the next run', row.id)
             except MailDomainTaken:

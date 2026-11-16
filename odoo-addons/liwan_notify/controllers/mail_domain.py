@@ -54,7 +54,7 @@ def _dump(row):
         ],
         'return_path_expires_at': iso(row._liwan_return_path_expires_at()),
         'return_path_recreated_at': iso(row.return_path_recreated_at),
-        'verified_at': iso(row.verified_at),
+        'verified_at': iso(row.verified_at) if row.state in ('verified', 'failed') else None,
         'last_error': row.last_error or None,
         'paused': row.paused,
         'pause_reason': row.pause_reason or None,
@@ -67,6 +67,11 @@ def _current_or_404():
     if not row:
         raise ApiError(404, 'not_found', 'no mail domain is set')
     return row
+
+
+def _paused(refusal):
+    """409 ``mail_paused``: a paused domain is not removed or replaced until the operator resumes it."""
+    return ApiError(409, refusal.code, str(refusal), details={'reason': refusal.reason})
 
 
 def _busy():
@@ -103,6 +108,8 @@ class MailDomainController(http.Controller):
             raise ApiError(422, 'invalid', str(error), field=error.field) from None
         except MailDomainTaken:
             raise ApiError(409, 'domain_taken', 'this domain is already registered') from None
+        except LiwanMailRefused as refusal:
+            raise _paused(refusal) from None
 
     @http.route(f'{ROUTE}/verify', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
@@ -144,13 +151,17 @@ class MailDomainController(http.Controller):
     def remove(self, **_):
         _require_saas()
         row = _current_or_404()
+        if row.state == 'not_started':
+            raise ApiError(404, 'not_found', 'no mail domain is set')
         try:
             row._liwan_remove()
+        except LiwanMailRefused as refusal:
+            raise _paused(refusal) from None
         except MailDomainBusy:
             raise _busy() from None
         except MailProviderError:
             raise _provider_error() from None
-        return _dump(request.env['liwan.mail.domain'])
+        return _dump(row)
 
     @http.route(f'{ROUTE}/usage', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler

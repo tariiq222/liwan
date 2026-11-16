@@ -2,6 +2,7 @@
 from . import (
     access_service,
     mail_domain,
+    mail_domain_attempt,
     mail_domain_oci,
     mail_domain_provider,
     mail_mail,

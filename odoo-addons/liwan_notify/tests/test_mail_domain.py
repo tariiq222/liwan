@@ -8,6 +8,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
 from odoo import fields
+from odoo.exceptions import AccessError
 from odoo.tests import TransactionCase, new_test_user, tagged
 
 from odoo.addons.liwan_api.tests.common import LiwanApiCase
@@ -247,7 +248,8 @@ class TestMailDomain(DomainFixture, TransactionCase):
         row = self._verified()
         row._liwan_remove()
         self.assertEqual(self.provider.deleted, ['acme.example'])
-        self.assertFalse(self.domains.search([]))
+        self.assertEqual((row.state, row.domain), ('not_started', 'acme.example'))
+        self.assertFalse(row.provider_domain_id or row.records)
         self.assertEqual(self.env['ir.config_parameter'].sudo().get_param(FROM_FILTER_PARAM), 'liwanos.example')
 
     def test_offboarding_deletes_and_raises_on_a_provider_failure(self):
@@ -363,10 +365,157 @@ class TestMailDomainRecovery(DomainFixture, TransactionCase):
         third = self.domains.create({
             'company_id': third_company.id, 'domain': 'gamma.example', 'from_local_part': 'info', 'state': 'pending_dns',
         })
+        for domain in ('beta.example', 'gamma.example'):
+            self.env['liwan.mail.domain.attempt']._liwan_begin(domain)
         self.domains._liwan_cron_verify()
         self.assertEqual(first.state, 'failed')
         self.assertTrue(second.last_error)
         self.assertTrue(third.provider_domain_id)
+
+    def _attempt(self, domain='acme.example'):
+        return self.env['liwan.mail.domain.attempt']._liwan_for(domain)
+
+    def _age(self, days, domain='acme.example'):
+        self._attempt(domain).first_started_at = fields.Datetime.now() - timedelta(days=days)
+
+    def _cool(self, domain='acme.example'):
+        self._attempt(domain).expired_at = fields.Datetime.now() - timedelta(days=8)
+
+    def _fresh(self, domain='acme.example'):
+        return self._attempt(domain).first_started_at > fields.Datetime.now() - timedelta(minutes=1)
+
+    def test_a_domain_not_verified_in_time_expires_and_frees_the_name(self):
+        row = self.domains._liwan_start('acme.example', 'info')
+        self._age(6)
+        self.domains._liwan_cron_verify()
+        self.assertEqual(row.state, 'pending_dns')
+        self._age(8)
+        self.domains._liwan_cron_verify()
+        self.assertEqual(self.provider.deleted, ['acme.example'])
+        self.assertEqual(row.state, 'not_started')
+        self.assertFalse(row.provider_domain_id or row.records)
+        self.assertIn('7', row.last_error)
+        self.assertTrue(self._attempt().expired_at)
+        self._cool()
+        again = self.domains._liwan_start('acme.example', 'info')
+        self.assertEqual((again, again.state), (row, 'pending_dns'))
+        self.assertTrue(again.provider_domain_id and self._fresh())
+        self.assertFalse(self._attempt().expired_at)
+
+    def test_expiry_retries_after_a_provider_failure(self):
+        row = self.domains._liwan_start('acme.example', 'info')
+        self._age(8)
+
+        def refuse(provider, domain):
+            msg = 'provider down'
+            raise MailProviderError(msg, 500)
+        self.patch(FakeProvider, 'delete_domain', refuse)
+        self.domains._liwan_cron_verify()
+        self.assertEqual(row.state, 'pending_dns')
+        self.assertTrue(row.provider_domain_id and row.last_error)
+        self.assertFalse(self._attempt().expired_at)
+
+    def test_a_once_verified_domain_does_not_expire_and_has_no_clock(self):
+        row = self._verified()
+        self.assertFalse(self._attempt())
+        self.provider.status['spf'] = False
+        self.domains._liwan_cron_verify()
+        self.domains._liwan_cron_verify()
+        self.assertEqual(row.state, 'failed')
+        self.assertFalse(self.provider.deleted)
+
+    def test_a_pending_domain_without_a_clock_expires(self):
+        row = self.domains._liwan_start('acme.example', 'info')
+        self._attempt().unlink()
+        self.domains._liwan_cron_verify()
+        self.assertEqual(row.state, 'not_started')
+        self.assertTrue(self._attempt().expired_at)
+
+    def test_removing_and_restarting_the_same_domain_keeps_the_clock(self):
+        row = self.domains._liwan_start('acme.example', 'info')
+        self._age(6)
+        started = self._attempt().first_started_at
+        row._liwan_remove()
+        self.assertEqual((row.state, row.domain), ('not_started', 'acme.example'))
+        self.domains._liwan_start('acme.example', 'info')
+        self.assertEqual(self._attempt().first_started_at, started)
+        self._age(8)
+        self.domains._liwan_cron_verify()
+        self.assertEqual(row.state, 'not_started')
+
+    def test_alternating_domains_keeps_each_clock(self):
+        row = self.domains._liwan_start('acme.example', 'info')
+        self._age(6)
+        started = self._attempt().first_started_at
+        row._liwan_remove()
+        self.domains._liwan_start('beta.example', 'info')
+        self.assertTrue(self._fresh('beta.example'))
+        row._liwan_remove()
+        self.domains._liwan_start('acme.example', 'info')
+        self.assertEqual(self._attempt().first_started_at, started)
+        self._age(8)
+        self.domains._liwan_cron_verify()
+        self.assertEqual(row.state, 'not_started')
+
+    def test_expire_a_start_b_then_a_waits_the_cooldown(self):
+        row = self.domains._liwan_start('acme.example', 'info')
+        self._age(8)
+        self.domains._liwan_cron_verify()
+        other = self.domains._liwan_start('beta.example', 'info')
+        self.assertEqual((other, other.state), (row, 'pending_dns'))
+        self.assertTrue(self._fresh('beta.example'))
+        row._liwan_remove()
+        with self.assertRaises(MailDomainInputError) as caught:
+            self.domains._liwan_start('acme.example', 'info')
+        self.assertEqual(caught.exception.field, 'domain')
+        self._cool()
+        self.domains._liwan_start('acme.example', 'info')
+        self.assertTrue(self._fresh())
+
+    def test_a_taken_domain_leaves_the_reused_row_as_it_was(self):
+        row = self.domains._liwan_start('acme.example', 'info')
+        self._age(8)
+        self.domains._liwan_cron_verify()
+        error = row.last_error
+        self.provider.taken.add('held.example')
+        with self.assertRaises(MailDomainTaken):
+            self.domains._liwan_start('held.example', 'info')
+        self.assertEqual((row.exists(), row.domain, row.state, row.last_error), (row, 'acme.example', 'not_started', error))
+
+    def test_a_domain_manager_only_reads_the_clock(self):
+        user = new_test_user(self.env, login='attempt_reader', groups='liwan_core.group_employee,liwan_notify.group_cap_mail_domain_manage')
+        self.domains._liwan_start('acme.example', 'info')
+        attempt = self._attempt().with_user(user)
+        self.assertTrue(attempt.first_started_at)
+        with self.assertRaises(AccessError):
+            attempt.write({'first_started_at': fields.Datetime.now()})
+
+    def test_a_once_verified_domain_removed_starts_fresh(self):
+        row = self._verified()
+        row._liwan_remove()
+        again = self.domains._liwan_start('acme.example', 'info')
+        self.assertTrue(self._fresh())
+        self.assertFalse(again.verified_at)
+
+    def test_a_bad_pending_days_parameter_falls_back(self):
+        for value in ('abc', '0', '-3', '2.5'):
+            self.env['ir.config_parameter'].sudo().set_param('liwan_notify.mail_domain_pending_days', value)
+            with self.subTest(value=value):
+                self.assertEqual(self.domains._liwan_pending_days(), 7)
+        self.env['ir.config_parameter'].sudo().set_param('liwan_notify.mail_domain_pending_days', '3')
+        self.assertEqual(self.domains._liwan_pending_days(), 3)
+
+    def test_a_paused_domain_is_not_removed_but_offboarding_removes_it(self):
+        row = self._verified()
+        row.write({'paused': True, 'pause_reason': 'bounces'})
+        with self.assertRaises(LiwanMailRefused) as caught:
+            row._liwan_remove()
+        self.assertEqual(caught.exception.code, 'mail_paused')
+        with self.assertRaises(LiwanMailRefused):
+            self.domains._liwan_start('other.example', 'info')
+        self.domains._liwan_offboard()
+        self.assertFalse(row.exists())
+        self.assertEqual(self.provider.deleted, ['acme.example'])
 
     def test_a_held_row_spends_no_attempt_even_at_the_cap(self):
         self.env['ir.config_parameter'].sudo().set_param('mail.default.from', PLATFORM_SENDER)
@@ -585,6 +734,9 @@ class TestMailDomainRoutes(DomainFixture, LiwanApiCase):
         self.assertEqual(usage['today'], 1)
         removed = self.api('DELETE', ROUTE)
         self.assertEqual((removed.status_code, removed.json()['state']), (200, 'not_started'))
+        current = self.api('GET', ROUTE)
+        self.assertEqual(current.status_code, 200)
+        self.assertEqual((current.json()['state'], current.json()['domain']), ('not_started', 'acme.example'))
         self.assertEqual(self.api('DELETE', ROUTE).status_code, 404)
 
     def test_invalid_and_taken_domains(self):
@@ -622,3 +774,15 @@ class TestMailDomainRoutes(DomainFixture, LiwanApiCase):
     def test_the_return_path_route_is_gone(self):
         self._login()
         self.assertEqual(self.api('POST', f'{ROUTE}/recreate-return-path', {}).status_code, 404)
+
+    def test_a_paused_domain_answers_409_on_remove_and_start(self):
+        self._login()
+        self.api('POST', f'{ROUTE}/start', {'domain': 'acme.example', 'from_local_part': 'info'})
+        self.env['liwan.mail.domain']._liwan_current().write({'paused': True, 'pause_reason': 'bounces'})
+        for method, path, body in (
+            ('DELETE', ROUTE, None),
+            ('POST', f'{ROUTE}/start', {'domain': 'other.example', 'from_local_part': 'info'}),
+        ):
+            response = self.api(method, path, body)
+            self.assertEqual((response.status_code, response.json()['code']), (409, 'mail_paused'))
+        self.assertTrue(self.env['liwan.mail.domain']._liwan_current())
