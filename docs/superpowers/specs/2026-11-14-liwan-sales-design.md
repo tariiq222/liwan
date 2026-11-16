@@ -78,8 +78,12 @@ One record per tenant, changed in the root company by holders of `sales.settings
 | Quotation validity | Days | 30 | New quotations only |
 | Customer answer | `none`, `accept`, `accept_and_sign` | `accept` | Quotations sent after the change |
 | Acceptance confirms the order | Yes, no | No | Quotations sent after the change |
+| Answered quotation may be sent again | `answered_resend`: `allow`, `refuse` | `allow` | Read when staff send, so it applies to every existing answered quotation at once; `refuse` makes the send a 409 until the quotation is reopened |
+| How the customer may sign | `signature_methods`: `draw_or_type`, `draw` | `draw_or_type` | Copied onto the quotation when it is sent, so quotations already sent keep theirs |
 | Discount limit without approval | Percent | 0, meaning no limit | New and edited lines |
 | Default terms and conditions | Text | Empty | New quotations only |
+
+The two settings added in PR 3 (`answered_resend` and `signature_methods`) have tenant scope and are changed by holders of `sales.settings.manage`, like the others.
 
 Sector presets set several of these at once.
 
@@ -132,9 +136,9 @@ The owner approved each point as written here.
 | Products PR 1 is merged (#711, `65cb936d0`); PR 2 is merged (#722, `aa678e8ce`); PR 3 to PR 6 are not started | Read from Git on 2026-11-14 |
 | A role may imply the stock sales groups without opening stock routes | Inferred from CRM; the first test of PR 2 |
 | The public page can authorize by the order's access token alone | Built in PR 3 on `codex/sales-quotation-send`; its routes and tests ran locally on 2026-11-16 (rows below) |
-| Everything in sections 3 to 8 | Design. PR 1 is merged (#725, `3d9af4333`). PR 2 is built on `codex/sales-app` in local commits and checked locally ([plan](../plans/2026-11-14-liwan-sales.md), section 11); it is not pushed. PR 3 is built on `codex/sales-quotation-send` (base `origin/main` at `d4d310171`), uncommitted at the time of this entry and not pushed. PR 4 to PR 6 are not built |
-| PR 3 Odoo checks | Run locally on 2026-11-16 on the final working tree of `codex/sales-quotation-send`, not in CI and not in production: `python3 -B tools/odoo_test.py --addons liwan_sales --no-dependents` 129 tests, 0 failed, 0 errors; `deploy/ci/odoo-app-standalone.sh liwan_sales` passed (standalone install, tests, isolation, routes); `deploy/ci/odoo-bridge.sh liwan_sales_ai` passed |
-| PR 3 web checks | Run locally on 2026-11-16: `npm -w apps/web run lint` (vue-tsc) clean; `apps/web` vitest 782 files, 7037 tests passed; the sales tests of `packages/contracts` 14 passed; the mocked e2e `apps/web/e2e/sales-quote-mocked.spec.ts` and `apps/web/e2e/sales.spec.ts` 32 passed, 0 skipped |
+| Everything in sections 3 to 8 | Design. PR 1 is merged (#725, `3d9af4333`). PR 2 is built on `codex/sales-app` in local commits and checked locally ([plan](../plans/2026-11-14-liwan-sales.md), section 11); it is not pushed. PR 3 is built on `codex/sales-quotation-send` (base `origin/main` at `d4d310171`), committed locally (`c099df64b`, `331dfa6c1`, `4c950cd52`, `116599c20`) and not pushed. PR 4 to PR 6 are not built |
+| PR 3 Odoo checks | Run locally on 2026-11-16 on the final working tree of `codex/sales-quotation-send`, not in CI and not in production: `python3 -B tools/odoo_test.py --addons liwan_sales --no-dependents` 140 tests, 0 failed, 0 errors (re-run after the review fixes); `deploy/ci/odoo-app-standalone.sh liwan_sales` passed (standalone install, tests, isolation, routes); `deploy/ci/odoo-bridge.sh liwan_sales_ai` passed |
+| PR 3 web checks | Run locally on 2026-11-16: `npm -w apps/web run lint` (vue-tsc) clean; `apps/web` vitest 782 files, 7037 tests passed; the sales tests of `packages/contracts` 14 passed; after the review fixes, the sales and quote vitest files 80 passed, the contracts sales tests 14 passed, and the mocked e2e `apps/web/e2e/sales-quote-mocked.spec.ts` and `apps/web/e2e/sales.spec.ts` 35 passed, 0 skipped |
 | PR 3 repository checks | Run locally on 2026-11-16: the tools unittest suite 1533 tests OK (2 skipped); `arch_policy`, `route_gate_policy`, `sudo_gate`, `ui_policy`, `secret_guard`, `no_external_refs`, `docs_policy`, `migration_guard` against the merge base and `semgrep_gate` (50 files, 0 findings) all exit 0 |
 | PR 3 not verified | The real-Odoo e2e (`e2e-odoo`), the full CI workflow, real mail delivery, real wkhtmltopdf rendering under load, and a Storybook run of the new stories in RTL. `migration_guard --base origin/main` fails only because local `origin/main` is 21 commits ahead of the branch base (other addons' versions); `origin/main` must be merged into the branch before a pull request |
 
@@ -145,6 +149,12 @@ Added beyond the text of sections 4 and 7:
 - Staff send is refused with 503 `mail_unavailable` when no sender address is configured. The check runs before any write, so the quotation stays as it was.
 - A send from `sent` is a re-send. It clears the customer's earlier answer and signature, so the staff page asks the staff member to confirm before it sends.
 - The signature pad has a "sign with my name" button that draws the typed name as the signature, for a customer who cannot draw by keyboard. The drawing always uses dark ink, because it is shown on a white box and printed on white paper.
+- Two settings, `answered_resend` (`allow` or `refuse`, default `allow`) and `signature_methods` (`draw_or_type` or `draw`, default `draw_or_type`), are described in section 7. Both are tenant wide and changed by the holder of `sales.settings.manage`. `signature_methods` is snapshotted onto the quotation at send; `answered_resend` is read at send time.
+- Under `accept_and_sign` the accept request carries `signature_method` (`drawn` or `typed`), recorded as `signature_method` on the staff order's customer answer. The public page shows `signature_methods`, and a `typed` signature is refused with 422 `invalid` on `signature_method` when the quotation was sent under `draw`. Under `accept` the three signature fields are unknown fields.
+- The staff order shape has `resend_refused`: true when the only reason send is missing is `answered_resend: refuse`. The send route answers 403 for a caller who may not send at all, 422 `quotation_expired` for an expired quotation, and 409 `quotation_answered` only when the setting alone refuses it. The staff page shows its hint from this field.
+- Accepting without a signature asks the customer to confirm once, because the answer cannot be changed. Signing is its own confirmation.
+- A declined quotation is cancelled on the server, and the customer's page shows it as declined, not as cancelled.
+- Send refuses a customer e-mail that cannot be delivered (empty, no `@`, more than one address, or `a@b@c`) with 422 `customer_email_missing`, before any write. It uses `email_normalize`, which splits the field the way the mail queue does, and accepts any address that function accepts, such as `o'brien@example.test`.
 - The proxy takes bodies of up to 96 KB on `/api/v1/public/sales/`; other public routes keep 16 KB.
 - The staff PDF route (`/api/v1/sales/orders/{id}/pdf`) is in the heavy-route list.
 
@@ -152,11 +162,8 @@ Open for the owner. Nothing here is decided, and each point keeps today's behavi
 
 | # | Question | Today |
 | --- | --- | --- |
-| 1 | Should a re-send of an answered quotation stay allowed, or be refused until a reopen? | Allowed, and it clears the answer. Section 4 never said so |
-| 2 | Is a typed-name signature a valid signature, and does accepting without a signature need a confirmation step? | The typed name is accepted as a drawing; there is no extra step |
-| 3 | Should the public sales routes have a per-token rate limit? The PDF route is the costly one | Only the edge limit of 300 requests a minute per IP |
-| 4 | The werkzeug log filter that masks `access_token` in query strings is installed only by `liwan_appointments` (`hooks.py`). Should sales install it too? | A tenant without appointments logs quotation tokens; the pay routes share the gap |
-| 5 | Should staff be notified when a customer answers? | No notification is sent |
-| 6 | Should the public PDF use the heavy pool and its longer deadline? | The ordinary 15 s deadline and the public pool |
-| 7 | Should send validate the customer's e-mail address? | A malformed address that did not come through the customers service passes the send check and fails later in the mail queue |
-| 8 | `canonicalApiPath` does not reject `..` segments (existing code, low risk). Fix it in its own change? | Not rejected |
+| 1 | Should the public sales routes have a per-token rate limit? The PDF route is the costly one | Only the edge limit of 300 requests a minute per IP |
+| 2 | The werkzeug log filter that masks `access_token` in query strings is installed only by `liwan_appointments` (`hooks.py`). Should sales install it too? | A tenant without appointments logs quotation tokens; the pay routes share the gap |
+| 3 | Should staff be notified when a customer answers? | No notification is sent |
+| 4 | Should the public PDF use the heavy pool and its longer deadline? | The ordinary 15 s deadline and the public pool |
+| 5 | `canonicalApiPath` does not reject `..` segments (existing code, low risk). Fix it in its own change? | Not rejected |
