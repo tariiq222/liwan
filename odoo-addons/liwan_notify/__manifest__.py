@@ -2,7 +2,7 @@
 {
     'name': 'liwan Notify',
     'summary': 'liwan platform: the shared notification bell — delivery, type registry, /api/v1/notifications',
-    'version': '19.0.1.3.0',
+    'version': '19.0.1.2.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
