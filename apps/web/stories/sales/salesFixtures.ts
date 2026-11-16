@@ -55,3 +55,8 @@ export const publicQuote: SalesPublicQuotation = {
   lines: draftOrder.lines.map(({ id: _id, product: _product, ...line }) => line),
   answer_mode: 'accept', signature_methods: 'draw_or_type', answer: null, answered_at: null, signed_by: null, can_accept: true, can_decline: true,
 }
+
+/** The settings of a tenant that has CRM: an order wins its opportunity when confirmed, for the untaxed total. */
+export const salesSettingsWithOpportunity: SalesSettings = { ...salesSettings, opportunity_win: 'order_confirmed', opportunity_win_amount: 'untaxed' }
+/** The opportunity a quotation was written from, as the order page names it. */
+export const orderOpportunity = { id: 5, contact_name: 'فهد الحربي', status: 'pending', active: true } as const

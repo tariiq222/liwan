@@ -389,6 +389,22 @@ test('a payment that arrived on a cancelled quotation reads as received, with no
   await expect(page.getByTestId('quote-payment-unavailable')).toHaveCount(0)
 })
 
+test('a quotation sent again after the money arrived is not confirmed by the send: the customer accepts again to confirm it', async ({ page }) => {
+  const id = await sentForPayment(page, { payment_to_confirm: 'full' })
+  expect((await page.request.post(`/api/v1/sales/orders/${id}/reopen`)).ok()).toBe(true)
+  expect((await page.request.post('/api/v1/public/sales/__mock/pay', { data: { id } })).ok()).toBe(true)
+  expect((await page.request.post(`/api/v1/sales/orders/${id}/send`)).ok()).toBe(true)
+  const body = SalesPublicQuotationSchema.parse(await (await page.request.get(`${API}/${id}?access_token=tok-${id}`)).json())
+  expect(body).toMatchObject({ state: 'sent', can_accept: true, payment: { state: 'received' } })
+  await page.goto(QUOTE(id))
+  await expect(page.getByTestId('quote-payment-received')).toContainText('اقبل عرض السعر')
+  await expect(page.getByTestId('quote-payment-received')).not.toContainText('وقّع')
+  await accept(page).click()
+  await page.getByRole('button', { name: 'قبول عرض السعر' }).click()
+  await expect(page.getByTestId('quote-accepted')).toContainText('تأكد الطلب')
+  await expect(page.getByTestId('quote-payment-paid')).toBeVisible()
+})
+
 test('a quotation the staff confirmed without the payment, or the customer declined, says nothing about payment', async ({ page }) => {
   const confirmed = await sentForPayment(page, { payment_to_confirm: 'full' })
   expect((await page.request.post(`/api/v1/sales/orders/${confirmed}/confirm`)).ok()).toBe(true)

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { PersonRefSchema, SalesOrderListSchema, SalesOrderSchema, SalesPublicQuotationSchema, SalesQuotationAcceptSchema, SalesQuotationDeclineSchema, SalesSettingsSchema } from '@liwan/contracts'
+import { CrmOpportunitySchema, PersonRefSchema, SalesOrderListSchema, SalesOrderSchema, SalesPublicQuotationSchema, SalesQuotationAcceptSchema, SalesQuotationDeclineSchema, SalesSettingsSchema } from '@liwan/contracts'
+import { crmPreviewData, crmPreviewWrite } from '../../../../e2e/crm-ui-preview-data.mjs'
 import { handlePublicSales, handleSales } from '../../../../e2e/sales-mock-routes.mjs'
 
 // The sales mock answers the shapes of the contracts and follows the server's rules, so it cannot drift.
@@ -21,7 +22,10 @@ const call = (method: string, path: string, body?: object, cookie = '') => run(h
 const publicCall = (method: string, path: string, body?: object, cookie = '') => run(handlePublicSales, method, path, body, cookie)
 
 describe('sales mock', () => {
-  beforeEach(async () => { await publicCall('POST', '/api/v1/public/sales/__mock/reset') })
+  beforeEach(async () => {
+    await publicCall('POST', '/api/v1/public/sales/__mock/reset')
+    crmPreviewWrite('POST', '/api/v1/__mock/reset-crm', {})
+  })
 
   it('lists orders by stage, source, mine and search, in the contract shape', async () => {
     const all = SalesOrderListSchema.parse((await call('GET', '/api/v1/sales/orders')).body)
@@ -303,6 +307,49 @@ describe('sales mock', () => {
       expect((await quote(free.id)).state).toBe('confirmed')
     })
 
+    describe('sending again with the money already received', () => {
+      // Sent, reopened, paid on the old link (a draft holding the money), then sent again.
+      async function resent(answer: 'accept' | 'none') {
+        await call('PATCH', '/api/v1/sales/settings', { customer_answer: answer, revision: 1 })
+        const order = await create({ payment_to_confirm: 'full' })
+        await sendIt(order.id)
+        await call('POST', `/api/v1/sales/orders/${order.id}/reopen`)
+        await pay(order.id)
+        return { order, sent: await sendIt(order.id) }
+      }
+      const staff = async (id: number) => SalesOrderSchema.parse((await call('GET', `/api/v1/sales/orders/${id}`)).body)
+
+      it('never confirms by itself: the page reads received and the customer\'s new acceptance confirms', async () => {
+        const { order, sent } = await resent('accept')
+        expect(sent.state).toBe('sent')
+        expect(sent.payment).toMatchObject({ status: 'paid', held: null, needs_attention: false, attention: null })
+        expect(await quote(order.id)).toMatchObject({ state: 'sent', can_accept: true, payment: { state: 'received', pay_url: null } })
+        await publicCall('POST', `/api/v1/public/sales/quotations/${order.id}/accept`, { access_token: `tok-${order.id}` })
+        expect(await quote(order.id)).toMatchObject({ state: 'confirmed', payment: { state: 'paid' } })
+      })
+
+      it('under answer mode none asks the staff to confirm, who then confirm it', async () => {
+        const { order, sent } = await resent('none')
+        expect(sent.payment).toMatchObject({ status: 'paid', needs_attention: true, attention: 'payment_awaits_confirmation' })
+        expect(await quote(order.id)).toMatchObject({ state: 'sent', can_accept: false, payment: { state: 'received' } })
+        expect((await call('POST', `/api/v1/sales/orders/${order.id}/confirm`)).status).toBe(200)
+        expect((await staff(order.id)).payment).toMatchObject({ needs_attention: false, attention: null })
+      })
+
+      it('refuses another customer on a draft that holds money, and keeps the same one', async () => {
+        const order = await create({ payment_to_confirm: 'full' })
+        await sendIt(order.id)
+        await call('POST', `/api/v1/sales/orders/${order.id}/reopen`)
+        await pay(order.id)
+        const change = await call('PATCH', `/api/v1/sales/orders/${order.id}`, { customer_id: 2 })
+        expect(change.status).toBe(422)
+        expect(change.body).toMatchObject({ code: 'invalid', field: 'customer_id' })
+        expect((await call('PATCH', `/api/v1/sales/orders/${order.id}`, { customer_id: 1 })).status).toBe(200)
+        const free = await create({ payment_to_confirm: 'full' })
+        expect((await call('PATCH', `/api/v1/sales/orders/${free.id}`, { customer_id: 2 })).status).toBe(200)
+      })
+    })
+
     it('reads no_gateway while no gateway is live', async () => {
       const order = await create({ payment_to_confirm: 'full' })
       await sendIt(order.id)
@@ -350,6 +397,76 @@ describe('sales mock', () => {
         await refund(order.id, { amount: order.amount_total, reference: 'ALL' })
         expect(await read()).toMatchObject({ can_refund: false, amount_refundable: 0 })
       })
+    })
+  })
+
+  describe('the CRM bridge', () => {
+    const lead = (id: number) => CrmOpportunitySchema.parse(crmPreviewData(`/api/v1/crm/opportunities/${id}`, new URL('http://mock.example.test/')))
+    const turnOn = () => crmPreviewWrite('POST', '/api/v1/__mock/crm-win-by-order', { on: true })
+    const quote = async (id: number) => call('POST', `/api/v1/crm/opportunities/${id}/orders`)
+    const confirm = async (orderId: number, lines = [{ kind: 'product', product_id: 1, quantity: 2 }]) => {
+      await call('PATCH', `/api/v1/sales/orders/${orderId}`, { lines })
+      return call('POST', `/api/v1/sales/orders/${orderId}/confirm`)
+    }
+
+    it('is off by default: no routes, no settings, no opportunity on an order', async () => {
+      expect((await call('GET', '/api/v1/crm/opportunities/2/orders')).body).toMatchObject({ code: 'feature_not_included' })
+      expect((await call('POST', '/api/v1/crm/opportunities/2/orders')).body).toMatchObject({ code: 'feature_not_included' })
+      const settings = SalesSettingsSchema.parse((await call('GET', '/api/v1/sales/settings')).body)
+      expect(settings.opportunity_win).toBeUndefined()
+      expect((await call('PATCH', '/api/v1/sales/settings', { revision: 1, opportunity_win: 'manual' })).body).toMatchObject({ code: 'feature_not_included' })
+      expect(lead(2).win_by_order).toBe(false)
+    })
+
+    it('writes a draft quotation for the opportunity customer and lists it in the Sales shape', async () => {
+      turnOn()
+      expect(lead(2)).toMatchObject({ win_by_order: true, customer: { id: 2 } })
+      const created = await quote(2)
+      expect(created.status).toBe(200)
+      const order = SalesOrderSchema.parse(created.body)
+      expect(order).toMatchObject({ state: 'draft', lines: [], customer: { id: 2 }, opportunity: { id: 2, contact_name: 'سارة القحطاني', status: 'pending', active: true } })
+      const listed = SalesOrderListSchema.parse((await call('GET', '/api/v1/crm/opportunities/2/orders')).body)
+      expect(listed).toMatchObject({ total: 1, items: [{ id: order.id }] })
+      expect(SalesOrderListSchema.parse((await call('GET', '/api/v1/crm/opportunities/3/orders')).body).total).toBe(0)
+    })
+
+    it('refuses what the server refuses', async () => {
+      turnOn()
+      expect((await quote(1)).body).toMatchObject({ code: 'invalid', field: 'customer_id', details: { reason: 'crm_opportunity_without_customer' } })
+      expect((await quote(6)).body).toMatchObject({ code: 'invalid', details: { reason: 'crm_opportunity_closed' } })
+      expect((await quote(999)).status).toBe(404)
+      expect((await call('POST', '/api/v1/crm/opportunities/2/orders', undefined, 'mock_caps=reader')).status).toBe(403)
+      expect((await call('GET', '/api/v1/crm/opportunities/2/orders', undefined, 'mock_caps=reader')).status).toBe(200)
+    })
+
+    it('wins the opportunity when an order is confirmed, adds a second order and keeps the win after a cancel', async () => {
+      turnOn()
+      const first = SalesOrderSchema.parse((await quote(2)).body)
+      const confirmed = await confirm(first.id)
+      expect(SalesOrderSchema.parse(confirmed.body)).toMatchObject({ state: 'confirmed', opportunity: { status: 'won' } })
+      expect(lead(2)).toMatchObject({ status: 'won', final_price: 240, expected_revenue: 240, package: null })
+      const second = SalesOrderSchema.parse((await quote(2)).body)
+      await confirm(second.id, [{ kind: 'product', product_id: 1, quantity: 1 }])
+      expect(lead(2).final_price).toBe(360)
+      await call('POST', `/api/v1/sales/orders/${first.id}/cancel`)
+      expect(lead(2)).toMatchObject({ status: 'won', final_price: 120 })
+      await call('POST', `/api/v1/sales/orders/${second.id}/cancel`)
+      expect(lead(2)).toMatchObject({ status: 'won', final_price: 0 })
+    })
+
+    it('follows the settings: by hand wins nothing, the taxed total wins more', async () => {
+      turnOn()
+      const settings = SalesSettingsSchema.parse((await call('GET', '/api/v1/sales/settings')).body)
+      expect(settings).toMatchObject({ opportunity_win: 'order_confirmed', opportunity_win_amount: 'untaxed' })
+      const taxed = SalesSettingsSchema.parse((await call('PATCH', '/api/v1/sales/settings', { revision: settings.revision, opportunity_win_amount: 'total' })).body)
+      expect(taxed.opportunity_win_amount).toBe('total')
+      expect((await call('PATCH', '/api/v1/sales/settings', { revision: taxed.revision, opportunity_win: 'sometimes' })).body).toMatchObject({ code: 'invalid', field: 'opportunity_win' })
+      await confirm(SalesOrderSchema.parse((await quote(2)).body).id)
+      expect(lead(2).final_price).toBe(276)
+      const manual = SalesSettingsSchema.parse((await call('PATCH', '/api/v1/sales/settings', { revision: taxed.revision, opportunity_win: 'manual' })).body)
+      expect(manual.opportunity_win).toBe('manual')
+      await confirm(SalesOrderSchema.parse((await quote(2)).body).id)
+      expect(lead(2).final_price).toBe(276)
     })
   })
 })

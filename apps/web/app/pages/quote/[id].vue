@@ -53,7 +53,7 @@ const decline = (reason: string | undefined) => answer(() => answers.decline.mut
           <UButton color="neutral" variant="outline" icon="i-lucide-download" :href="quotePdfHref(link)" external :label="t('sales.quote.pdf')" data-testid="quote-pdf" />
         </div>
         <SalesQuoteAnswer v-if="open && (quote.can_accept || quote.can_decline)" class="liwan-print-hide" :quote="quote" :pending="pending" :error="actionError" @accept="accept" @decline="decline" />
-        <SalesQuotePayment class="liwan-print-hide" :payment="payment" :refreshing="isFetching" :sign-first="quoteNeedsSignature(quote)" @refresh="() => refetch()" />
+        <SalesQuotePayment class="liwan-print-hide" :payment="payment" :refreshing="isFetching" :sign-first="quoteNeedsSignature(quote)" :accept-first="open && quote.can_accept" @refresh="() => refetch()" />
       </div>
       <div v-else-if="isError" class="grid gap-4">
         <UAlert role="alert" color="warning" variant="subtle" icon="i-lucide-cloud-off" :title="t('sales.quote.states.unavailable.title')" :description="t('sales.quote.states.unavailable.body')" data-testid="quote-unavailable" />

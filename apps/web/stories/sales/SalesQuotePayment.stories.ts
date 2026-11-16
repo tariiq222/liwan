@@ -18,6 +18,7 @@ export const SignFirst: Story = { name: 'التوقيع أولًا', args: { pay
 export const Processing: Story = { name: 'الدفعة قيد المعالجة', args: { payment: { ...publicPayment, state: 'processing', pay_url: null } } }
 export const Received: Story = { name: 'وصلت الدفعة والطلب لم يتأكد', args: { payment: { ...publicPayment, state: 'received', amount: 0, pay_url: null } } }
 export const ReceivedSignFirst: Story = { name: 'وصلت الدفعة والتوقيع هو المتبقي', args: { signFirst: true, payment: { ...publicPayment, state: 'received', amount: 0, pay_url: null } } }
+export const ReceivedAcceptFirst: Story = { name: 'وصلت الدفعة والقبول هو المتبقي', args: { acceptFirst: true, payment: { ...publicPayment, state: 'received', amount: 0, pay_url: null } } }
 export const NothingToShow: Story = { name: 'لا شيء يُعرض (دفع غير متاح على عرض مؤكد أو مرفوض)', args: { payment: null } }
 export const Paid: Story = { name: 'مدفوع', args: { payment: { ...publicPayment, state: 'paid', amount: 0, pay_url: null } } }
 export const Unavailable: Story = { name: 'الدفع غير متاح', args: { payment: { ...publicPayment, state: 'unavailable', pay_url: null } } }

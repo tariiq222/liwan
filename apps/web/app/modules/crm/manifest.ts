@@ -11,6 +11,8 @@ const manifest: AppManifest = {
   id: 'crm',
   feature: 'crm.enabled',
   routePrefixes: ['/crm'],
+  // An opportunity lists its quotations (the Sales bridge): a quotation opened from it goes back to it.
+  recordListSources: [{ pattern: /^\/crm\/opportunities\/[1-9]\d*$/, capability: 'crm.leads.read' }],
   rail: [{ id: 'crm', labelKey: 'nav.crm', icon: 'i-lucide-handshake', to: '/crm', order: 85 }],
   nav: [
     { to: '/crm', labelKey: 'crm.nav.dashboard', icon: 'i-lucide-layout-dashboard', shortcut: 'x', capability: 'crm.leads.read' },

@@ -9,6 +9,7 @@ import SalesCustomerAnswer from '@/components/sales/SalesCustomerAnswer.vue'
 import SalesOrderAssign from '@/components/sales/SalesOrderAssign.vue'
 import SalesOrderDetails from '@/components/sales/SalesOrderDetails.vue'
 import SalesOrderLinesPanel from '@/components/sales/SalesOrderLinesPanel.vue'
+import SalesOrderOpportunity from '@/components/sales/SalesOrderOpportunity.vue'
 import SalesOrderPayment from '@/components/sales/SalesOrderPayment.vue'
 import SalesOrderRefund from '@/components/sales/SalesOrderRefund.vue'
 import { SALES_STATE_TONE } from '@/components/sales/salesStatus'
@@ -142,6 +143,7 @@ const headerTags = computed<PageHeaderTag[]>(() => {
     <template v-if="order" #aside>
       <SalesCustomerAnswer v-if="order.customer_answer" :answer="order.customer_answer" />
       <SalesOrderPayment v-if="order.payment && (order.payment.mode !== 'off' || order.payment.amount_received > 0)" :payment="order.payment" />
+      <SalesOrderOpportunity v-if="order.opportunity" :opportunity="order.opportunity" />
       <SalesOrderDetails :order="order" />
     </template>
   </SharedRecordPage>

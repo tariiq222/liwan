@@ -135,3 +135,4 @@ tasmim6-my-tasks-record.spec.ts
 customers.spec.ts
 sales.spec.ts
 sales-quote-mocked.spec.ts
+sales-crm.spec.ts

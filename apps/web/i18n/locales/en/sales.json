@@ -76,7 +76,16 @@
       "resendConfirmAction": "Send again",
       "sendRefused": "The customer answered this quotation. Reopen it to send it again.",
       "confirmKeep": "Keep it",
-      "notEditable": "This document cannot be edited now. A quotation is edited only while it is a draft."
+      "notEditable": "This document cannot be edited now. A quotation is edited only while it is a draft.",
+      "opportunity": "Opportunity",
+      "opportunityPanel": "Opportunity",
+      "opportunityStatus": {
+        "pending": "Open",
+        "won": "Won",
+        "lost": "Lost"
+      },
+      "opportunityArchived": "Archived",
+      "opportunityStatusLabel": "Opportunity status"
     },
     "form": {
       "header": "Quotation details",
@@ -220,6 +229,22 @@
         "shareHint": "Used when new quotations ask for a percentage.",
         "shareRequired": "Enter a number from 1 to 100.",
         "shareInvalid": "This value was refused. Enter a whole number from 1 to 100."
+      },
+      "opportunity": {
+        "title": "Winning an opportunity by order",
+        "hint": "When a confirmed order wins the CRM opportunity it was written from, and for what amount.",
+        "win": "Winning the opportunity",
+        "winHint": "A change applies to orders confirmed after it.",
+        "order_confirmed": "When the order is confirmed",
+        "order_confirmedHint": "The opportunity is won automatically when one of its orders is confirmed.",
+        "manual": "By hand",
+        "manualHint": "Confirming an order does not change the opportunity. Its agent wins it by hand, as in a company without Sales.",
+        "amount": "Won amount",
+        "amountHint": "The total of the opportunity's confirmed orders in the company currency.",
+        "untaxed": "Before tax",
+        "untaxedHint": "The orders' totals before tax.",
+        "total": "After tax",
+        "totalHint": "The orders' totals including tax."
       }
     },
     "expired": "Expired",
@@ -353,7 +378,8 @@
           "received": {
             "title": "We received your payment",
             "body": "You will get the order confirmation shortly.",
-            "signBody": "Sign the quotation above so your order can be confirmed."
+            "signBody": "Sign the quotation above so your order can be confirmed.",
+            "acceptBody": "We received your payment. Accept the quotation above so your order can be confirmed."
           },
           "unavailable": {
             "title": "Payment is not available now",
@@ -406,7 +432,8 @@
       "attention": {
         "title": "A payment needs attention",
         "payment_not_recorded": "Money was received but was not recorded on the order. Check it in payments.",
-        "payment_reversed": "A payment that counted toward confirming the order was voided, so the order now holds less than it asked. Check it in payments."
+        "payment_reversed": "A payment that counted toward confirming the order was voided, so the order now holds less than it asked. Check it in payments.",
+        "payment_awaits_confirmation": "The required amount arrived and the quotation is waiting to be confirmed. Confirm the order to complete it."
       }
     },
     "refund": {

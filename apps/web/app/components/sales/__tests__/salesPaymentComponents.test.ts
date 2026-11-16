@@ -87,8 +87,12 @@ describe('SalesQuotePayment', () => {
     expect(plain).toContain('sales.quote.payment.states.received.title')
     expect(plain).toContain('sales.quote.payment.states.received.body')
     expect(plain).not.toContain('signBody')
+    expect(plain).not.toContain('acceptBody')
     expect(plain).not.toContain('href=')
     expect(await render('SalesQuotePayment.vue', { payment: received, signFirst: true })).toContain('sales.quote.payment.states.received.signBody')
+    const accept = await render('SalesQuotePayment.vue', { payment: received, acceptFirst: true })
+    expect(accept).toContain('sales.quote.payment.states.received.acceptBody')
+    expect(accept).not.toContain('received.signBody')
   })
 
   it('offers a refresh only while the payment is processing or received', async () => {
@@ -136,6 +140,8 @@ describe('SalesOrderPayment', () => {
 
   it('flags a payment that needs attention and shows only the line "not asked" when nothing is asked', async () => {
     expect(await render('SalesOrderPayment.vue', { payment: { ...STAFF, needs_attention: true, attention: 'payment_not_recorded' } })).toContain('data-testid="sales-payment-attention"')
+    const waiting = await render('SalesOrderPayment.vue', { payment: { ...STAFF, needs_attention: true, attention: 'payment_awaits_confirmation' } })
+    expect(waiting).toContain('sales.payment.attention.payment_awaits_confirmation')
     const off = await render('SalesOrderPayment.vue', { payment: { ...STAFF, mode: 'off', percent: 100, status: 'none', link: 'none', amount_required: 0, amount_due: 0 } })
     expect(off).toContain('sales.payment.mode.off')
     expect(off).not.toContain('sales-payment-status')

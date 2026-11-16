@@ -456,6 +456,24 @@ async function paidAndHeld(page: Page) {
   return id
 }
 
+test('a quotation sent again with no answer to wait for is not confirmed by the send: the staff are asked to confirm it', async ({ page }) => {
+  const settings = await (await page.request.get('/api/v1/sales/settings')).json() as { revision: number }
+  expect((await page.request.patch('/api/v1/sales/settings', { data: { customer_answer: 'none', revision: settings.revision } })).ok()).toBe(true)
+  const id = await paidAndHeld(page)
+  expect((await page.request.post(`/api/v1/sales/orders/${id}/send`)).ok()).toBe(true)
+  await page.goto(`/sales/${id}`)
+  await expect(page.getByTestId('sales-payment-attention')).toContainText('ينتظر التأكيد')
+  await page.getByTestId('sales-confirm').click()
+  await expect(page.getByTestId('sales-payment-attention')).toHaveCount(0)
+})
+
+test('a draft that holds money keeps its customer: the server refuses another one', async ({ page }) => {
+  const id = await paidAndHeld(page)
+  const change = await page.request.patch(`/api/v1/sales/orders/${id}`, { data: { customer_id: 2 } })
+  expect(change.status()).toBe(422)
+  expect(await change.json()).toMatchObject({ code: 'invalid', field: 'customer_id' })
+})
+
 test('a payable quotation with no live gateway says so and points to the payments settings', async ({ page }) => {
   const created = await page.request.post('/api/v1/sales/orders', { data: { customer_id: 1, payment_to_confirm: 'full', lines: [{ kind: 'product', product_id: 1, quantity: 1 }] } })
   const { id } = await created.json() as { id: number }

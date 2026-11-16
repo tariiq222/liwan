@@ -26,9 +26,19 @@
 //    `POST /api/v1/sales/orders/{id}/refunds {amount, reference}` records a refund as the bridge does: 422 `invalid` on `amount` beyond
 //    `amount_refundable` or on `reference`, 409 `conflict` for an exact replay, 403 `forbidden` without the capability or for an online order,
 //    403 `feature_not_included` while the tenant cannot take payments. `mock_gateway=none` makes a payable quotation read `no_gateway`.
+//  - sending again never confirms by itself, even with the money received: the public state reads `received`, and the customer's new
+//    acceptance (or signature) confirms it; under answer mode `none` the staff payment carries `attention` `payment_awaits_confirmation`
+//    until a holder of `sales.orders.confirm` confirms. A draft that holds money refuses another customer (422 `invalid` on `customer_id`).
+//  - the CRM bridge, in the plan while `POST /api/v1/__mock/crm-win-by-order {on: true}` (crm-ui-preview-data.mjs) is: settings carry
+//    `opportunity_win` and `opportunity_win_amount`; `GET` and `POST /api/v1/crm/opportunities/{id}/orders` list the orders of an
+//    opportunity and write a draft quotation for its customer (422 `crm_opportunity_closed`, 422 `crm_opportunity_without_customer`);
+//    the cookie `mock_crm_assign=off` makes writing a quotation for another agent's opportunity 403 `forbidden`; the staff shape carries `opportunity`; and confirming an order of an opportunity wins it with the untaxed (or taxed) total of its
+//    confirmed orders, as the server does. Cancelling afterwards leaves the opportunity won.
 import { capabilitiesForRequest } from './mock-capabilities.mjs'
 import { findMockCustomer } from './customers-mock-routes.mjs'
 import { findMockProduct } from './products-mock-routes.mjs'
+import { crmPreviewLead, crmPreviewWin } from './crm-ui-preview-data.mjs'
+import { salesCrmPlan, setSalesCrmWin } from './sales-crm-mock-state.mjs'
 
 export const SALES_CAPABILITIES = ['sales.read', 'sales.quotations.manage', 'sales.orders.confirm', 'sales.discounts.approve', 'sales.documents.assign', 'sales.settings.manage', 'payments.refund']
 
@@ -40,6 +50,7 @@ const LIST_PATH = '/api/v1/sales/orders'
 const SETTINGS_PATH = '/api/v1/sales/settings'
 const SALESPEOPLE_PATH = '/api/v1/sales/salespeople'
 const SALESPEOPLE_LIMIT = 50
+const LEAD_ORDERS_PATH = /^\/api\/v1\/crm\/opportunities\/(\d+)\/orders$/
 const RECORD_PATH = /^\/api\/v1\/sales\/orders\/(\d+)(?:\/(confirm|cancel|reopen|lock|unlock|duplicate|assign|send|pdf|refunds))?$/
 const PUBLIC_PATH = /^\/api\/v1\/public\/sales\/quotations\/(\d+)(?:\/(accept|decline|pdf))?$/
 // The day of the mock's documents: a quotation whose validity date is before it has expired.
@@ -54,9 +65,11 @@ const PEOPLE = [ME, { id: 7, name: 'مها الثبيتي', user_id: 7 }, { id: 
 const LINE_KEYS = ['id', 'kind', 'product_id', 'name', 'quantity', 'discount_percent']
 const WRITE_KEYS = ['customer_id', 'salesperson_id', 'validity_date', 'terms', 'lines', 'payment_to_confirm', 'prepayment_percent']
 const PAYMENT_MODES = ['off', 'full', 'percent']
+const OPPORTUNITY_WINS = ['order_confirmed', 'manual']
+const WIN_AMOUNTS = ['untaxed', 'total']
 const round2 = value => Math.round(value * 100) / 100
 
-const freshSettings = () => ({ visibility: 'own', validity_days: 30, discount_limit_percent: 20, default_terms: 'الأسعار شاملة التوصيل داخل المدينة.', customer_answer: 'accept', acceptance_confirms: false, answered_resend: 'allow', signature_methods: 'draw_or_type', payment_to_confirm: 'off', prepayment_percent: 50, revision: 1 })
+const freshSettings = () => ({ visibility: 'own', validity_days: 30, discount_limit_percent: 20, default_terms: 'الأسعار شاملة التوصيل داخل المدينة.', customer_answer: 'accept', acceptance_confirms: false, answered_resend: 'allow', signature_methods: 'draw_or_type', payment_to_confirm: 'off', prepayment_percent: 50, opportunity_win: 'order_confirmed', opportunity_win_amount: 'untaxed', revision: 1 })
 const waiting = mode => ({ mode, acceptance_confirms: false, answer: null, answered_at: null, signed_by: null, signature_method: null, decline_reason: null })
 const line = (id, kind, fields) => ({ id, kind, product_id: null, name: '', quantity: 0, discount_percent: 0, ...fields })
 const freshOrders = () => [
@@ -184,16 +197,24 @@ function staffPayment(order, caps) {
   const paid = asks && required > 0 && order.pay.received >= required
   const status = !asks ? 'none' : order.state === 'cancelled' ? 'cancelled' : paid ? 'paid' : open && !needsSignature(order) ? 'payable' : 'not_payable'
   const held = order.state === 'cancelled' && order.pay.received > 0 ? 'cancelled' : paid && order.state !== 'confirmed' && order.state !== 'cancelled' ? (order.state === 'draft' ? 'reopened' : expired(order) ? 'expired' : needsSignature(order) ? 'awaiting_signature' : null) : null
+  // Sent again with no answer to wait for, holding what it asks: only a staff confirm can finish it.
+  const awaitsConfirmation = paid && open && order.answer?.mode === 'none'
   return {
     mode: order.pay.mode, percent: order.pay.mode === 'off' ? 100 : order.pay.percent, currency: CURRENCY.name, amount_required: required,
     amount_received: order.pay.received, amount_due: asks && order.state !== 'cancelled' && order.state !== 'confirmed' ? Math.max(round2(required - order.pay.received), 0) : 0,
     amount_to_refund: order.state === 'cancelled' || held ? order.pay.received : order.state === 'confirmed' ? Math.max(round2(order.pay.received - total), 0) : 0,
     amount_refundable: refundable(order, total), can_refund: caps.includes('payments.refund') && own(order, caps) && refundable(order, total) > 0, status,
-    link: !asks || paid || order.state === 'confirmed' ? 'none' : status === 'payable' ? (gatewayOn ? 'ready' : 'no_gateway') : open && needsSignature(order) ? 'awaiting_signature' : 'unavailable', held, needs_attention: false, attention: null,
+    link: !asks || paid || order.state === 'confirmed' ? 'none' : status === 'payable' ? (gatewayOn ? 'ready' : 'no_gateway') : open && needsSignature(order) ? 'awaiting_signature' : 'unavailable', held, needs_attention: awaitsConfirmation, attention: awaitsConfirmation ? 'payment_awaits_confirmation' : null,
   }
 }
 
-const dump = (order, caps) => ({ ...dumpItem(order), lines: order.lines.map(dumpLine), actions: actionsOf(order, caps), resend_refused: sendOpen(order, caps) && resendRefused(order), payment: staffPayment(order, caps) })
+/** The opportunity of an order as the bridge names it; null without the bridge, without a link or when the record is gone. */
+function opportunityOf(order) {
+  const lead = salesCrmPlan() && order.lead_id ? crmPreviewLead(order.lead_id) : undefined
+  return lead ? { id: lead.id, contact_name: lead.contact_name, status: lead.status, active: lead.active } : null
+}
+
+const dump = (order, caps) => ({ ...dumpItem(order), lines: order.lines.map(dumpLine), actions: actionsOf(order, caps), resend_refused: sendOpen(order, caps) && resendRefused(order), payment: staffPayment(order, caps), opportunity: opportunityOf(order) })
 
 /** Under `own` a reader sees their documents and the online orders; the assign holder and `all` see every one. */
 const visible = (order, caps) => settings.visibility === 'all' || caps.includes('sales.documents.assign') || order.salesperson === null || order.salesperson.id === ME.id
@@ -265,6 +286,8 @@ function parseWrite(body, previous, caps, cookie, order = null) {
   if ('customer_id' in body) {
     const customer = findMockCustomer(body.customer_id)
     if (!customer) return { failure: invalid('customer_id') }
+    // The money on a draft belongs to the payer who made it.
+    if (order && order.pay.received > 0 && customer.id !== order.customer_id) return { failure: invalid('customer_id', 'a quotation that holds a payment keeps its customer') }
     values.customer_id = customer.id
     values.customer_name = customer.name
   }
@@ -314,7 +337,7 @@ function create(body, caps, cookie) {
 
 const MOVES = {
   confirm: { allowed: actions => actions.confirm, apply: order => { order.state = 'confirmed' } },
-  cancel: { allowed: actions => actions.cancel, apply: order => { order.state = 'cancelled' } },
+  cancel: { allowed: actions => actions.cancel, apply: order => { const was = order.state === 'confirmed'; order.state = 'cancelled'; if (was) winOpportunity(order) } },
   reopen: { allowed: actions => actions.reopen, apply: order => { order.state = 'draft'; order.answer = null } },
   lock: { allowed: actions => actions.lock, apply: order => { order.locked = true } },
   unlock: { allowed: actions => actions.unlock, apply: order => { order.locked = false } },
@@ -334,8 +357,8 @@ function sendQuotation(order, caps) {
 }
 
 const settingsView = manage => {
-  const { payment_to_confirm: mode, prepayment_percent: percent, ...rest } = settings
-  return { ...rest, ...(paymentsOn ? { payment_to_confirm: mode, prepayment_percent: percent } : {}), can_manage: manage }
+  const { payment_to_confirm: mode, prepayment_percent: percent, opportunity_win: win, opportunity_win_amount: amount, ...rest } = settings
+  return { ...rest, ...(paymentsOn ? { payment_to_confirm: mode, prepayment_percent: percent } : {}), ...(salesCrmPlan() ? { opportunity_win: win, opportunity_win_amount: amount } : {}), can_manage: manage }
 }
 
 function updateSettings(body, manage) {
@@ -352,15 +375,58 @@ function updateSettings(body, manage) {
   if ('acceptance_confirms' in body) { if (typeof body.acceptance_confirms !== 'boolean') return invalid('acceptance_confirms'); next.acceptance_confirms = body.acceptance_confirms }
   if ('payment_to_confirm' in body) { if (!PAYMENT_MODES.includes(body.payment_to_confirm)) return invalid('payment_to_confirm'); next.payment_to_confirm = body.payment_to_confirm }
   if ('prepayment_percent' in body) { const value = body.prepayment_percent; if (!Number.isInteger(value) || value < 1 || value > 100) return invalid('prepayment_percent'); next.prepayment_percent = value }
+  if ('opportunity_win' in body) { if (!OPPORTUNITY_WINS.includes(body.opportunity_win)) return invalid('opportunity_win'); next.opportunity_win = body.opportunity_win }
+  if ('opportunity_win_amount' in body) { if (!WIN_AMOUNTS.includes(body.opportunity_win_amount)) return invalid('opportunity_win_amount'); next.opportunity_win_amount = body.opportunity_win_amount }
   if (!paymentsOn && ('payment_to_confirm' in body || 'prepayment_percent' in body)) return refusal(403, 'feature_not_included', 'this feature is not included')
+  if (!salesCrmPlan() && ('opportunity_win' in body || 'opportunity_win_amount' in body)) return refusal(403, 'feature_not_included', 'this feature is not included')
   settings = { ...next, revision: settings.revision + 1 }
+  setSalesCrmWin(settings.opportunity_win)
   return { status: 200, body: settingsView(true) }
+}
+
+/** What the opportunity is won for: its confirmed orders summed, untaxed or taxed as the settings say. */
+function wonAmount(leadId) {
+  const key = settings.opportunity_win_amount === 'total' ? 'amount_total' : 'amount_untaxed'
+  return round2(orders.filter(order => order.lead_id === leadId && order.state === 'confirmed').reduce((sum, order) => sum + dumpItem(order)[key], 0))
+}
+
+/** The server's win: a confirmed order wins its opportunity when the tenant lets it; a lost or archived one stays as it is. */
+function winOpportunity(order) {
+  if (!order.lead_id || !salesCrmPlan() || settings.opportunity_win !== 'order_confirmed') return
+  // An order that left the confirmed state only changes the amount of an opportunity that is already won.
+  if (order.state !== 'confirmed' && crmPreviewLead(order.lead_id)?.status !== 'won') return
+  crmPreviewWin(order.lead_id, wonAmount(order.lead_id))
+}
+
+/** The bridge's two routes: the orders of an opportunity, and a draft quotation written for its customer. */
+function leadOrders(req, leadId, url, caps) {
+  if (!salesCrmPlan()) return refusal(403, 'feature_not_included', 'this feature is not included')
+  const lead = crmPreviewLead(leadId)
+  if (!lead) return refusal(404, 'not_found', 'Record does not exist')
+  if (req.method === 'GET') {
+    if (!caps.includes('sales.read')) return refusal(403, 'forbidden', 'forbidden')
+    const found = orders.filter(order => order.lead_id === lead.id && visible(order, caps))
+    const offset = Math.max(0, Number(url.searchParams.get('offset') ?? 0) || 0)
+    const limit = Math.max(1, Number(url.searchParams.get('limit') ?? 25) || 25)
+    return { status: 200, body: { items: found.slice(offset, offset + limit).map(dumpItem), total: found.length } }
+  }
+  if (!caps.includes('sales.quotations.manage')) return refusal(403, 'forbidden', 'forbidden')
+  // Linking is a write on the opportunity: its agent or a holder of `crm.leads.assign` only.
+  if (lead.user?.id !== ME.id && hasCookie(req.headers.cookie, 'mock_crm_assign=off')) return refusal(403, 'forbidden', 'only the agent of this opportunity may change it')
+  if (!lead.active || lead.status === 'lost') return refusal(422, 'invalid', 'a lost or archived opportunity takes no new quotation', { details: { reason: 'crm_opportunity_closed' } })
+  if (!lead.customer) return refusal(422, 'invalid', 'link the opportunity to a customer before writing its quotation', { field: 'customer_id', details: { reason: 'crm_opportunity_without_customer' } })
+  const created = create({ customer_id: lead.customer.id, lines: [] }, caps, req.headers.cookie)
+  if (created.status !== 201) return created
+  const stored = orders.find(order => order.id === created.body.id)
+  stored.lead_id = lead.id
+  return { status: 200, body: dump(stored, caps) }
 }
 
 /** Answers a sales request and returns true; any other path is not this stub's. */
 export async function handleSales(req, res, path, url, { json, readBody }) {
   const record = path.match(RECORD_PATH)
-  if (!(path === LIST_PATH || path === SETTINGS_PATH || path === SALESPEOPLE_PATH || record)) return false
+  const ofLead = path.match(LEAD_ORDERS_PATH)
+  if (!(path === LIST_PATH || path === SETTINGS_PATH || path === SALESPEOPLE_PATH || record || ofLead)) return false
   const caps = capabilities(req.headers.cookie)
   paymentsOn = paymentsSwitch && !paymentsOff(req.headers.cookie)
   gatewayOn = !hasCookie(req.headers.cookie, 'mock_gateway=none')
@@ -375,6 +441,11 @@ export async function handleSales(req, res, path, url, { json, readBody }) {
     try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
   }
 
+  if (ofLead) {
+    if (req.method !== 'GET' && req.method !== 'POST') return false
+    send(leadOrders(req, Number(ofLead[1]), url, caps))
+    return true
+  }
   if (path === SALESPEOPLE_PATH && req.method === 'GET') {
     if (need('sales.documents.assign')) {
       const q = (url.searchParams.get('q') ?? '').trim().toLowerCase()
@@ -445,7 +516,7 @@ export async function handleSales(req, res, path, url, { json, readBody }) {
     const move = MOVES[action]
     if (action === 'confirm' && expiredOpen(order)) send(refusal(422, 'quotation_expired', 'the quotation has expired'))
     else if (!move.allowed(actionsOf(order, caps))) send(refusal(403, 'transition_forbidden', `${action} is not allowed now`))
-    else { move.apply(order); send({ status: 200, body: dump(order, caps) }) }
+    else { move.apply(order); if (action === 'confirm') winOpportunity(order); send({ status: 200, body: dump(order, caps) }) }
     return true
   }
   if (!need('sales.quotations.manage')) return true
@@ -565,6 +636,7 @@ export async function handlePublicSales(req, res, path, url, { json, readBody })
     orders = withPay([...freshOrders(), ...sentOrders()])
     paymentsSwitch = true
     settings = freshSettings()
+    setSalesCrmWin(settings.opportunity_win)
     nextOrderId = 100
     nextLineId = 1000
     json(res, 200, {})

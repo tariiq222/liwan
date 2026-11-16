@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SalesOpportunityCard from '@/components/sales/settings/SalesOpportunityCard.vue'
 import SalesPaymentCard from '@/components/sales/settings/SalesPaymentCard.vue'
 import SalesQuotationsCard from '@/components/sales/settings/SalesQuotationsCard.vue'
 import SalesVisibilityCard from '@/components/sales/settings/SalesVisibilityCard.vue'
@@ -28,6 +29,7 @@ async function reloadSettings() {
           <UAlert v-if="!settings.data.value.can_manage" color="info" variant="subtle" icon="i-lucide-lock" :title="t('sales.settings.readOnlyTitle')" :description="t('sales.settings.readOnly')" data-testid="sales-settings-readonly" />
           <SalesVisibilityCard v-if="shows('visibility')" :settings="settings.data.value" :can-edit="settings.data.value.can_manage" :reload-settings="reloadSettings" />
           <SalesQuotationsCard v-if="shows('quotations')" :settings="settings.data.value" :can-edit="settings.data.value.can_manage" :reload-settings="reloadSettings" />
+          <SalesOpportunityCard v-if="shows('opportunity') && settings.data.value.opportunity_win !== undefined" :settings="settings.data.value" :can-edit="settings.data.value.can_manage" :reload-settings="reloadSettings" />
           <SalesPaymentCard v-if="shows('payments') && settings.data.value.payment_to_confirm !== undefined" :settings="settings.data.value" :can-edit="settings.data.value.can_manage" :reload-settings="reloadSettings" />
         </template>
       </SharedPageState>

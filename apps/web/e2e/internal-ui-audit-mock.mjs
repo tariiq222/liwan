@@ -649,7 +649,7 @@ async function handle(req, res) {
     if (write) return json(res, write.status, write.body)
   }
 
-  if (process.env.MODULE_UI_PREVIEW === '1' && method !== 'GET' && /^\/api\/v1\/(crm\/|__mock\/reset-crm$)/.test(path)) {
+  if (process.env.MODULE_UI_PREVIEW === '1' && method !== 'GET' && /^\/api\/v1\/(crm\/|__mock\/(reset-crm|crm-win-by-order)$)/.test(path)) {
     let body = {}
     try { body = JSON.parse(await readBody(req) || '{}') } catch { body = {} }
     const write = crmPreviewWrite(method, path, body)

@@ -23,7 +23,7 @@ describe('the payment strings', () => {
 
   it('has a title and a body for every customer state that shows a notice', () => {
     expect(missing(SalesPublicPaymentStateSchema.options.filter(value => value !== 'payable').flatMap(value => [`quote.payment.states.${value}.title`, `quote.payment.states.${value}.body`]))).toEqual([])
-    expect(missing(['quote.payment.states.received.signBody'])).toEqual([])
+    expect(missing(['quote.payment.states.received.signBody', 'quote.payment.states.received.acceptBody'])).toEqual([])
   })
 
   it('reports a missing key by name', () => {
