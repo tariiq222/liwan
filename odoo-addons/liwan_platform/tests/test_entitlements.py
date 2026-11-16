@@ -40,7 +40,7 @@ class TestEntitlements(TransactionCase):
             'hr.enabled', 'hr.recruitment', 'hr.shifts', 'hr.onboarding', 'hr.offboarding', 'hr.assets', 'hr.warnings', 'hr.insurance', 'hr.payroll',
         },
         'liwan_chat': {'chat.enabled'},
-        'liwan_inbox': {'inbox.enabled', 'inbox.whatsapp', 'inbox.tiktok', 'inbox.templates', 'inbox.automation', 'inbox.flows', 'inbox.reports', 'inbox.campaigns'},
+        'liwan_inbox': {'inbox.enabled', 'inbox.whatsapp', 'inbox.tiktok', 'inbox.templates', 'inbox.automation', 'inbox.flows', 'inbox.reports', 'inbox.campaigns', 'inbox.catalog'},
     }
 
     def _release_boolean_keys(self):
