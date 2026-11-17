@@ -4,7 +4,7 @@ import { api, ODOO_ONLY, signInAs, slow, type Json, type PageContext, type Stage
 
 /**
  * Support Desk journeys on the scratch Odoo stack (`npm run e2e:odoo`), covering the register rows
- * HD-10, HD-11, HD-20, HD-21, HD-24, HD-30 to HD-33, HD-40, HD-41, HD-50, HD-60, HD-63, HD-70, HD-72 and HD-85 (e2e/scenarios/helpdesk.md).
+ * HD-10, HD-11, HD-20, HD-21, HD-22, HD-34 to HD-36, HD-42, HD-51, HD-52, HD-24, HD-30 to HD-33, HD-40, HD-41, HD-50, HD-60, HD-63, HD-70, HD-72 and HD-85 (e2e/scenarios/helpdesk.md).
  *
  * Personas come from tools/e2e_seed.py. No seeded account holds a desk role: each journey grants the built-in
  * role it needs to a seeded employee as `it_admin`, keeping that employee's existing assignments, and then
@@ -79,15 +79,18 @@ async function grantRole(browser: PageContext, login: string, roleKey: string) {
  *
  * `assignee` is the caller when the caller is an agent (the service gives the ticket to whoever opened it with the
  * write right) and null for an employee opening their own request. The expectation is passed in, because which one
- * it is depends on the account the journey signed in as, never on the subject.
+ * it depends on the account the journey signed in as, never on the subject. `null` asserts nothing about who takes
+ * the ticket, for an account whose desk roles depend on the journeys that ran before.
  */
 async function openRequest(
-  browser: PageContext, subject: string, assignedToSelf: boolean, description = 'الجهاز لا يبدأ بعد التحديث الأخير.',
+  browser: PageContext, subject: string, assignedToSelf: boolean | null, description = 'الجهاز لا يبدأ بعد التحديث الأخير.',
 ) {
   const created = await ok(browser, 'POST', TICKETS, { subject, description });
   const stage = created.stage as Json;
   const assignee = created.assignee as Json | null;
-  expect([created.subject, stage.closed, assignee === null]).toEqual([subject, false, !assignedToSelf]);
+  // `null`: the account's desk roles depend on which journeys ran before, so who takes the ticket is not asserted.
+  expect([created.subject, stage.closed, assignedToSelf === null ? null : assignee === null])
+    .toEqual([subject, false, assignedToSelf === null ? null : !assignedToSelf]);
   // The stage a new ticket lands on is whatever the team's first open stage is, so it is read, never assumed:
   // the engine's shared stages are applicable to every team as well (register row HD-103).
   return { id: created.id as number, number: created.number as string, stage: stage.name as string };
@@ -193,9 +196,7 @@ test('[HD-30] a manager takes the request through assignment, stage, reply, note
   await ok(browser, 'POST', `${TICKETS}/${request.id}/assign`, { assignee_id: me.id });
 
   // The stage moves to a stage of the ticket's team, and the select reads it after a reload. The reference lists
-  // every stage of the company plus the engine's own six (which the starter team does not name), so the four this
-  // application seeds are found by name. Only their own closed stage is told apart here: the engine adds three more
-  // closed ones (Done, Cancelled, Rejected) as shared records.
+  // the tenant's own stages only (the engine's six are archived at install), found here by name.
   const reference = await ok(browser, 'GET', '/api/v1/helpdesk/reference');
   const stages = reference.stages as Json[];
   expect(stages.map(item => item.name)).toEqual(expect.arrayContaining([NEW_STAGE, IN_PROGRESS_STAGE, 'بانتظار العميل', CLOSED_STAGE]));
@@ -467,4 +468,86 @@ test('[HD-10] an agent opens a ticket for a customer from the panel', {
   const row = (listed.items as Json[]).find(item => item.subject === subject) as Json;
   expect([row !== undefined, (row.requester as Json).kind, (row.requester as Json).name, (row.assignee as Json).name])
     .toEqual([true, 'customer', customerName, MANAGER]);
+});
+
+/** An API call that must be refused: its status, its code and the field it names (or null). */
+async function refused(browser: PageContext, method: string, path: string, payload?: Json) {
+  const answer = await api(browser, method, path, payload);
+  return [answer.status, answer.body.code, answer.body.field ?? null, answer.body.message];
+}
+
+test('[HD-22] an employee reads no request but their own', {
+  tags: ['helpdesk'], timeout: 300_000, session: 'staff2', skip: ODOO_ONLY,
+}, async ({ app, screen, browser }) => {
+  const stage = { app, screen, browser };
+  const stamp = Date.now().toString(36);
+  const foreign = `طلب يوسف ${stamp}`;
+  await signInAs('staff1', stage);
+  const other = await openRequest(browser, foreign, null);
+
+  await signInAs('staff2', stage);
+  const mine = await openRequest(browser, `طلب سارة ${stamp}`, false);
+  // Another employee's ticket is not found, as if it did not exist, and no list or search brings it back.
+  expect((await refused(browser, 'GET', `${TICKETS}/${other.id}`)).slice(0, 2)).toEqual([404, 'not_found']);
+  expect((await refused(browser, 'GET', `${TICKETS}/${other.id}/messages`)).slice(0, 2)).toEqual([404, 'not_found']);
+  const listed = await ok(browser, 'GET', `${TICKETS}?state=all&limit=100`);
+  const rows = listed.items as Json[];
+  expect(rows.some(row => row.id === mine.id)).toBe(true);
+  expect(rows.some(row => row.id === other.id)).toBe(false);
+  expect(rows.every(row => (row.requester as Json).name === EMPLOYEE)).toBe(true);
+  await app.open('/helpdesk');
+  await expect(screen.getByRole('heading', { level: 1, name: LIST_HEADING })).toBeVisible(slow);
+  await expect(screen.getByText(foreign)).toHaveCount(0, slow);
+});
+
+test('[HD-36] the desk refuses a foreign stage, a stranger as assignee, a bad reply, a merge into a closed ticket and a team move', {
+  tags: ['helpdesk'], timeout: 600_000, session: 'it_admin', skip: ODOO_ONLY,
+}, async ({ app, screen, browser }) => {
+  const stage = { app, screen, browser };
+  const stamp = Date.now().toString(36);
+  await app.open('/helpdesk');
+  await expect(screen.getByRole('heading', { level: 1, name: LIST_HEADING })).toBeVisible(slow);
+  await grantRole(browser, 'e2e_crm_manager', 'helpdesk_manager');
+  await grantRole(browser, 'e2e_staff1', 'helpdesk_agent');
+
+  await signInAs('crm_manager', stage);
+  const reference = await ok(browser, 'GET', '/api/v1/helpdesk/reference');
+  const home = (reference.teams as Json[])[0]!;
+  const side = await ok(browser, 'POST', '/api/v1/helpdesk/settings/teams', { name: `فريق الحدود ${stamp}` });
+  const sideStage = await ok(browser, 'POST', '/api/v1/helpdesk/settings/stages', { name: `مرحلة الحدود ${stamp}`, team_ids: [side.id] });
+  const first = await openRequest(browser, `تذكرة الحدود ${stamp}`, true);
+  const second = await openRequest(browser, `تذكرة أخرى ${stamp}`, true);
+
+  // HD-36: a stage another team owns is not a stage of this ticket.
+  expect((await refused(browser, 'POST', `${TICKETS}/${first.id}/stage`, { stage_id: sideStage.id })).slice(0, 4))
+    .toEqual([422, 'invalid', 'stage_id', 'the stage does not belong to the ticket team']);
+  // HD-35: an assignee has to be an internal user of the company.
+  expect((await refused(browser, 'POST', `${TICKETS}/${first.id}/assign`, { assignee_id: 999999999 })).slice(0, 4))
+    .toEqual([422, 'invalid', 'assignee_id', 'the assignee is not an internal user of the company']);
+  // HD-42: an empty reply, a reply over 5000 characters and an internal flag that is no boolean.
+  const reply = `${TICKETS}/${first.id}/messages`;
+  expect((await refused(browser, 'POST', reply, { body: '   ' })).slice(0, 3)).toEqual([422, 'invalid', 'body']);
+  expect((await refused(browser, 'POST', reply, { body: 'ا'.repeat(5001) })).slice(0, 3)).toEqual([422, 'invalid', 'body']);
+  expect((await refused(browser, 'POST', reply, { body: 'رد', internal: 'yes' })).slice(0, 2)).toEqual([422, 'invalid']);
+  // HD-52: a merge names tickets the caller reaches, and at least one.
+  const merge = `${TICKETS}/${first.id}/merge`;
+  expect((await refused(browser, 'POST', merge, { source_ids: [999999999] })).slice(0, 3)).toEqual([422, 'invalid', 'source_ids']);
+  expect((await refused(browser, 'POST', merge, { source_ids: [] })).slice(0, 3)).toEqual([422, 'invalid', 'source_ids']);
+  // HD-51: a closed ticket absorbs nobody.
+  await ok(browser, 'POST', `${TICKETS}/${second.id}/close`, {});
+  expect((await refused(browser, 'POST', `${TICKETS}/${second.id}/merge`, { source_ids: [first.id] })).slice(0, 4))
+    .toEqual([409, 'conflict', null, 'a closed ticket cannot absorb others']);
+
+  // HD-34: a manager moves a ticket to another team and back; a write-only agent is refused.
+  await ok(browser, 'PATCH', `${TICKETS}/${first.id}`, { team_id: side.id });
+  expect(((await ok(browser, 'GET', `${TICKETS}/${first.id}`)).team as Json).id).toBe(side.id);
+  await ok(browser, 'PATCH', `${TICKETS}/${first.id}`, { team_id: home.id });
+  await signInAs('staff1', stage);
+  const own = await openRequest(browser, `تذكرة الوكيل ${stamp}`, true);
+  expect((await refused(browser, 'PATCH', `${TICKETS}/${own.id}`, { team_id: side.id })).slice(0, 2)).toEqual([403, 'forbidden']);
+
+  // Put the settings back: the side team and its stage are archived, with no open ticket left on them.
+  await signInAs('crm_manager', stage);
+  await ok(browser, 'POST', '/api/v1/helpdesk/settings/stages', { id: sideStage.id, name: sideStage.name, active: false });
+  await ok(browser, 'POST', '/api/v1/helpdesk/settings/teams', { id: side.id, name: side.name, active: false });
 });
