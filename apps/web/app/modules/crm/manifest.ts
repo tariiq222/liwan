@@ -2,6 +2,7 @@ import { CrmBellKindSchema } from '@liwan/contracts'
 import { crmBellTitleInApp } from '../../utils/crmBell'
 import type { AppManifest } from '../types'
 import { crmAppCard } from './appCard'
+import { opportunitiesSearch } from './search'
 
 // The package sub-feature the server also requires for imports (`controllers/imports.py`), on top of `crm.leads.import`.
 // The create command carries no key of its own: the palette gates it by its target route's rule.
@@ -44,13 +45,16 @@ const manifest: AppManifest = {
     ],
   },
   contextLinks: () => [
+    { id: 'new-opportunity', labelKey: 'crm.newOpportunity', icon: 'i-lucide-plus', to: '/crm/opportunities/new', capability: 'crm.leads.read', anyCapabilities: ['crm.leads.work', 'crm.leads.assign'], pinned: true },
     { id: 'crm-dashboard', labelKey: 'crm.nav.dashboard', icon: 'i-lucide-layout-dashboard', to: '/crm', capability: 'crm.leads.read', exact: true },
     { id: 'crm-opportunities', labelKey: 'crm.nav.opportunities', icon: 'i-lucide-handshake', to: '/crm/opportunities', capability: 'crm.leads.read' },
     { id: 'crm-imports', labelKey: 'crm.nav.imports', icon: 'i-lucide-file-up', to: '/crm/imports', capability: 'crm.leads.import', feature: IMPORT_FEATURE },
   ],
   landing: [{ path: '/crm', capability: 'crm.leads.read' }],
   appCard: crmAppCard,
+  search: [opportunitiesSearch],
   commands: [
+    { id: 'crm.new-opportunity', labelKey: 'crm.newOpportunity', icon: 'i-lucide-handshake', to: '/crm/opportunities/new', capability: 'crm.leads.read', anyCapabilities: ['crm.leads.work', 'crm.leads.assign'] },
     { id: 'crm.import', labelKey: 'crm.imports.new', icon: 'i-lucide-file-up', to: '/crm/imports/new', capability: 'crm.leads.import' },
   ],
   routeCapabilities: [

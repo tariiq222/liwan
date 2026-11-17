@@ -212,7 +212,7 @@ describe('finance search providers', () => {
   }) as unknown as AppSearchApi
 
   it('is listed after the PMO providers, in rail order', () => {
-    expect(searchProviders().map(provider => provider.id)).toEqual(['pmo-projects', 'pmo-tasks', 'finance-partners', 'finance-invoices'])
+    expect(searchProviders().map(provider => provider.id)).toEqual(['pmo-projects', 'pmo-tasks', 'finance-partners', 'finance-invoices', 'crm-opportunities'])
   })
 
   it('searches partners on the server and links each row to its record', async () => {
