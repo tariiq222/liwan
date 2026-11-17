@@ -3,9 +3,9 @@
 
 ``helpdesk.enabled`` installs the application and gates every route of it; ``helpdesk.merge`` gates the
 routes that fold one ticket into another, ``helpdesk.reports`` the reports page, ``helpdesk.portal`` the
-customer's page of one ticket and ``helpdesk.auto_close`` the closing of an inactive ticket. Every other area (SLA policies, ratings, automatic closing, the
-customer page, the email channel) registers its key with the pull request that first uses it, so the
-catalog never carries a switch nothing reads.
+customer's page of one ticket and ``helpdesk.auto_close`` the closing of an inactive ticket. An area
+that has no key here (SLA policies, ratings, the email channel) is covered by ``helpdesk.enabled``; a key is
+added together with the code that reads it, so the catalog never carries a switch nothing reads.
 """
 from odoo import api, models
 
