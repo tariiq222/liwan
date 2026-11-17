@@ -4,7 +4,7 @@ import { api, ODOO_ONLY, signInAs, slow, type Json, type PageContext, type Stage
 
 /**
  * Support Desk journeys on the scratch Odoo stack (`npm run e2e:odoo`), covering the register rows
- * HD-21, HD-24, HD-30 to HD-32, HD-40, HD-41, HD-50, HD-60, HD-63, HD-70 and HD-85 (e2e/scenarios/helpdesk.md).
+ * HD-11, HD-20, HD-21, HD-24, HD-30 to HD-33, HD-40, HD-41, HD-50, HD-60, HD-63, HD-70 and HD-85 (e2e/scenarios/helpdesk.md).
  *
  * Personas come from tools/e2e_seed.py. No seeded account holds a desk role: each journey grants the built-in
  * role it needs to a seeded employee as `it_admin`, keeping that employee's existing assignments, and then
@@ -336,4 +336,66 @@ test('[HD-85] an agent without the settings key cannot open the policy page', {
     const refused = await api(browser, 'GET', path);
     expect([path, refused.status, refused.body.code]).toEqual([path, 403, 'forbidden']);
   }
+});
+
+test('[HD-20] an employee opens a request from the panel, and the form offers no customer', {
+  tags: ['helpdesk'], timeout: 300_000, session: 'staff2', skip: ODOO_ONLY,
+}, async ({ app, screen, browser }) => {
+  const stamp = Date.now().toString(36);
+  const subject = `طلب من اللوحة ${stamp}`;
+  const description = `الشاشة لا تستجيب بعد التحديث ${stamp}`;
+
+  await app.open('/helpdesk');
+  await expect(screen.getByRole('heading', { level: 1, name: LIST_HEADING })).toBeVisible(slow);
+  await screen.getByTestId('helpdesk-new').tap();
+  await expect(browser).toHaveURL(/\/helpdesk\/new/, slow);
+  await expect(screen.getByTestId('helpdesk-form')).toBeVisible(slow);
+  // Only an agent names a customer: the employee's form has no picker, the requester is the employee (register row HD-11).
+  await expect(screen.getByTestId('customer-picker')).toHaveCount(0, slow);
+
+  await screen.getByTestId('helpdesk-subject').fill(subject);
+  await screen.getByTestId('helpdesk-description').fill(description);
+  await screen.getByTestId('helpdesk-save').tap();
+
+  await expect(browser).toHaveURL(/\/helpdesk\/\d+(\?|$)/, slow);
+  await expect(screen.getByRole('heading', { level: 1 })).toContainText(subject, slow);
+  const details = screen.getByTestId('helpdesk-details');
+  await expect(details).toContainText(EMPLOYEE, slow);
+  await expect(details).toContainText(UNASSIGNED, slow);
+
+  // The record the panel saved is the employee's own request, found by its subject, on the first open stage.
+  const listed = await ok(browser, 'GET', `${TICKETS}?q=${encodeURIComponent(stamp)}`);
+  const row = (listed.items as Json[]).find(item => item.subject === subject) as Json;
+  expect([row !== undefined, (row.requester as Json).kind, row.assignee, (row.stage as Json).name])
+    .toEqual([true, 'employee', null, NEW_STAGE]);
+});
+
+test('[HD-33] an agent edits a ticket from its edit page', {
+  tags: ['helpdesk'], timeout: 300_000, session: 'it_admin', skip: ODOO_ONLY,
+}, async ({ app, screen, browser }) => {
+  const stage = { app, screen, browser };
+  const stamp = Date.now().toString(36);
+  const subject = `طابعة الطابق الثاني ${stamp}`;
+  const renamed = `طابعة الطابق الثالث ${stamp}`;
+  await app.open('/helpdesk');
+  await expect(screen.getByRole('heading', { level: 1, name: LIST_HEADING })).toBeVisible(slow);
+  await grantRole(browser, 'e2e_staff1', 'helpdesk_agent');
+  await signInAs('staff1', stage);
+  expectCapabilities((await identity(browser)).capabilities, ['helpdesk.tickets.read', 'helpdesk.tickets.write']);
+
+  const created = await ok(browser, 'POST', TICKETS, { subject, description: 'تتعطل عند الطباعة.', priority: 'low' });
+  await browser.goto(`/helpdesk/${created.id}/edit`, { waitUntil: 'domcontentloaded' });
+  await expect(screen.getByTestId('helpdesk-form')).toBeVisible(slow);
+  await expect(screen.getByTestId('helpdesk-subject')).toHaveValue(subject, slow);
+
+  await screen.getByTestId('helpdesk-subject').fill(renamed);
+  await screen.getByTestId('helpdesk-priority-select').tap();
+  await screen.getByRole('option', 'عالية').tap();
+  await screen.getByTestId('helpdesk-save').tap();
+
+  // The page returns to the record, which shows the saved subject and priority.
+  await expect(browser).toHaveURL(new RegExp(`/helpdesk/${created.id}(\\?|$)`), slow);
+  await expect(screen.getByRole('heading', { level: 1 })).toContainText(renamed, slow);
+  const saved = await ok(browser, 'GET', `${TICKETS}/${created.id}`);
+  expect([saved.subject, saved.priority]).toEqual([renamed, 'high']);
 });
