@@ -216,7 +216,7 @@
         "emptyColumn": "فارغة",
         "capped": "تُعرض أول {count} نتيجة. ضيّق البحث لرؤية الباقي.",
         "move": "نقل",
-        "actionsFor": "إجراءات {name}",
+        "moveFor": "نقل {name}",
         "winByOrder": "البيع يتم من أمر مؤكد، لا بالسحب."
       },
       "status": {

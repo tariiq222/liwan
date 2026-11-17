@@ -8,7 +8,6 @@ import { isCallDue } from '../../../../utils/crmOpportunity'
 
 // The draggable column stands in as a div carrying the group it was given, so the drop rules show in the markup.
 const Draggable = Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => Vue.h('div', { class: attrs.class, 'data-group': JSON.stringify(attrs.group), 'data-delay': attrs.delay }, slots.default?.()) })
-const RowActions = Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs }) => () => Vue.h('button', { 'data-testid': 'row-action' }, (attrs.actions as { label: string }[]).map(action => action.label).join()) })
 const Passthrough = Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs }) => () => Vue.h('span', String(attrs.label ?? '')) })
 
 const stages = [
@@ -34,7 +33,6 @@ async function boardHtml(items: unknown[], canMove?: (item: { id: number }) => b
   for (const [name, component] of Object.entries(DEFAULT_STUBS)) app.component(name, component)
   app.component('SharedStatusBadge', Passthrough)
   app.component('UAvatar', Passthrough)
-  app.component('SharedRowActions', RowActions)
   return renderToString(app)
 }
 
@@ -42,14 +40,14 @@ it('makes only the cards the user may work draggable and gives only those the mo
   const html = await boardHtml([mine, theirs], item => item.id === 1)
   expect(html.match(/data-readonly="false"/g)).toHaveLength(1)
   expect(html.match(/data-readonly="true"/g)).toHaveLength(1)
-  expect(html.match(/data-testid="row-action"/g)).toHaveLength(1)
-  expect(html).toContain('crm.opportunities.board.move')
+  expect(html.match(/data-testid="crm-card-move"/g)).toHaveLength(1)
+  expect(html).toContain('title="crm.opportunities.board.move"')
 })
 
 it('offers no drag and no move action when nothing may be moved', async () => {
   const html = await boardHtml([mine, theirs])
   expect(html).not.toContain('data-readonly="false"')
-  expect(html).not.toContain('row-action')
+  expect(html).not.toContain('crm-card-move')
 })
 
 it('takes drops on every stage column, delays a touch drag, and renders the lost zone hidden until a drag starts', async () => {

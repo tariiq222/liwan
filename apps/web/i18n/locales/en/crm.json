@@ -216,7 +216,7 @@
         "emptyColumn": "Empty",
         "capped": "Showing the first {count} results. Narrow the search to see the rest.",
         "move": "Move",
-        "actionsFor": "Actions for {name}",
+        "moveFor": "Move {name}",
         "winByOrder": "A sale comes from a confirmed order, not from dragging."
       },
       "status": {

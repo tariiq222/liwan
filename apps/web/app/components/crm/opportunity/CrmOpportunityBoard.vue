@@ -99,7 +99,7 @@ function onLost(event: { data?: CrmOpportunity }) {
           @add="(event: any) => onAdd(event, column)"
         >
           <div v-for="item in lists[column.key]" :key="item.id" :class="CARD" :data-readonly="!movable(item)" data-slot="crm-board-item">
-            <NuxtLink :to="to(item)" class="block min-w-0 rounded-card p-[14px] pe-[58px] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" data-testid="crm-board-card">
+            <NuxtLink :to="to(item)" :class="movable(item) ? 'pe-[104px]' : 'pe-[58px]'" class="block min-w-0 rounded-card p-[14px] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" data-testid="crm-board-card">
               <span class="block truncate text-(length:--liwan-fs-section) font-semibold text-highlighted">{{ item.contact_name }}</span>
               <span class="mt-0.5 block truncate text-end text-sm text-muted" dir="ltr"><bdi>{{ item.phone }}</bdi></span>
               <span class="mt-[10px] flex flex-wrap items-center gap-2 text-xs text-muted">
@@ -113,10 +113,10 @@ function onLost(event: { data?: CrmOpportunity }) {
                 <time v-else-if="item.next_call_at" :datetime="item.next_call_at">{{ formatDateTime(item.next_call_at, timeZone) }}</time>
               </span>
             </NuxtLink>
-            <CrmCallButton :phone="item.phone" :name="item.contact_name" class="absolute end-[10px] top-[10px]" />
-            <div v-if="movable(item)" class="flex justify-end px-[10px] pb-1.5">
-              <SharedRowActions :label="t('crm.opportunities.board.actionsFor', { name: item.contact_name })" :actions="[{ label: t('crm.opportunities.board.move'), icon: 'i-lucide-arrow-left-right', onSelect: () => emit('move', { item, to: 'pick', revert }) }]" class="max-sm:min-h-11" />
-            </div>
+            <div class="absolute end-[10px] top-[10px] flex gap-1.5">
+            <UButton v-if="movable(item)" type="button" color="neutral" variant="soft" square icon="i-lucide-arrow-left-right" class="size-(--liwan-card-action-size) shrink-0 bg-elevated text-muted hover:text-highlighted pointer-coarse:size-11" :aria-label="t('crm.opportunities.board.moveFor', { name: item.contact_name })" :title="t('crm.opportunities.board.move')" data-testid="crm-card-move" @click.stop="emit('move', { item, to: 'pick', revert })" />
+            <CrmCallButton :phone="item.phone" :name="item.contact_name" class="pointer-coarse:size-11" />
+          </div>
           </div>
         </VueDraggable>
         <NuxtLink v-if="createTo" :to="createTo" class="flex h-[46px] items-center justify-center gap-1.5 rounded-control border-[1.5px] border-dashed border-default text-sm text-muted transition-colors hover:border-(--primary-solid) hover:bg-[color-mix(in_srgb,var(--primary-solid)_5%,transparent)] hover:text-highlighted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none" data-testid="crm-board-add">

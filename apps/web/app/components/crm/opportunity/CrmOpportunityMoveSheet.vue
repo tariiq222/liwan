@@ -56,7 +56,7 @@ function submit() {
         <UFormField v-if="picker" :label="t('crm.opportunities.move.stage')" name="move-stage" required :error="attempted && !mode ? t('crm.opportunities.move.stageRequired') : undefined">
           <USelect id="move-stage" v-model="choice" class="w-full" :items="choiceItems" :placeholder="t('crm.opportunities.move.stagePlaceholder')" :disabled="pending" data-testid="crm-move-stage" />
         </UFormField>
-        <CrmOpportunitySaleForm v-if="mode === 'sale'" v-model="sale" :packages="packages" :disabled="pending" :show-errors="attempted" />
+        <CrmOpportunitySaleForm v-if="mode === 'sale'" v-model="sale" compact :packages="packages" :disabled="pending" :show-errors="attempted" />
         <UFormField v-else-if="mode === 'lost'" :label="t('crm.opportunities.lost.reason')" name="move-lost-reason" required :error="attempted && !reasonId ? t('crm.opportunities.lost.reasonRequired') : undefined">
           <USelect id="move-lost-reason" v-model="reasonId" class="w-full" :items="reasonItems" :placeholder="t('crm.opportunities.lost.reasonPlaceholder')" :disabled="pending" />
         </UFormField>

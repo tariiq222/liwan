@@ -14,3 +14,4 @@ type Story = StoryObj<typeof meta>
 export const Empty: Story = {}
 export const Discounted: Story = { args: { modelValue: { package_id: 2, final_price: 250 } } }
 export const MissingFields: Story = { args: { showErrors: true } }
+export const Compact: Story = { args: { compact: true, modelValue: { package_id: 2, final_price: 250 } } }
