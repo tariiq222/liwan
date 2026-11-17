@@ -54,7 +54,7 @@ def dump_public_quotation(order):
         'signed_by': order.signed_by or None,
         'can_accept': order._liwan_can_accept(),
         'can_decline': order._liwan_can_answer(),
-        **order._liwan_public_extras(),
+        'payment': order._liwan_public_payment(),
     }
 
 

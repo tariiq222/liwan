@@ -2,7 +2,7 @@
 """The tenant's default way of asking a customer to pay, read and written through the Sales settings route."""
 from odoo.tests import tagged
 
-from .common import SETTINGS, SalesPaymentsCase
+from .payment_common import SETTINGS, SalesPaymentsCase
 
 PAYMENT_KEYS = {'payment_to_confirm', 'prepayment_percent'}
 

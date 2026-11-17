@@ -1,7 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo.tests import tagged
 
-from .common import BRIDGE_KEYS, LiwanSalesCase
+from .common import BRIDGE_KEYS, PAYMENT_KEYS, LiwanSalesCase
+from odoo.addons.liwan_api.tests.common import set_probe_feature
 
 SETTINGS = '/api/v1/sales/settings'
 KEYS = {
@@ -23,9 +24,9 @@ class TestSalesSettings(LiwanSalesCase):
     def test_a_reader_and_a_manager_read_the_defaults(self):
         reader = self.api_as(self.agent, 'GET', SETTINGS)
         self.assertEqual(reader.status_code, 200, reader.text)
-        self.assertEqual(set(reader.json()) - BRIDGE_KEYS, KEYS)
+        self.assertEqual(set(reader.json()) - BRIDGE_KEYS - PAYMENT_KEYS, KEYS)
         self.assertEqual(
-            {key: value for key, value in reader.json().items() if key not in BRIDGE_KEYS},
+            {key: value for key, value in reader.json().items() if key not in BRIDGE_KEYS | PAYMENT_KEYS},
             {
                 'visibility': 'own', 'validity_days': 30, 'discount_limit_percent': 0, 'default_terms': '',
                 'customer_answer': 'accept', 'acceptance_confirms': False, 'answered_resend': 'allow',
@@ -34,6 +35,13 @@ class TestSalesSettings(LiwanSalesCase):
         )
         manager = self.api_as(self.manager, 'GET', SETTINGS).json()
         self.assertTrue(manager['can_manage'])
+
+    def test_the_payment_choice_is_carried_only_while_the_tenant_takes_payments(self):
+        for enabled in (True, False):
+            with self.subTest(payments=enabled):
+                set_probe_feature(self, key='payments.enabled', enabled=enabled)
+                carried = set(self.api_as(self.manager, 'GET', SETTINGS).json()) & PAYMENT_KEYS
+                self.assertEqual(carried, PAYMENT_KEYS if enabled else set())
 
     def test_a_settings_manager_without_read_reads_the_settings(self):
         user = self.custom_user('sales_settings_only', ['sales.settings.manage'])

@@ -67,7 +67,7 @@ class LiwanSalesService(models.AbstractModel):
 
     @api.model
     def _liwan_lock(self, order):
-        """``order`` locked and read again (a ``NO KEY UPDATE`` lock, as the payments bridge takes: the invoice only adds
+        """``order`` locked and read again (a ``NO KEY UPDATE`` lock, as Sales takes when a payment confirms an order: the invoice only adds
         lines that point at the row), else 409 ``conflict`` when another transaction holds it."""
         try:
             order.lock_for_update(allow_referencing=True)

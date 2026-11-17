@@ -17,7 +17,7 @@ PUBLIC = '/api/v1/public/sales/quotations'
 PUBLIC_KEYS = {
     'id', 'number', 'state', 'expired', 'company_name', 'customer_name', 'date', 'validity_date', 'terms', 'currency',
     'amount_untaxed', 'amount_tax', 'amount_total', 'lines', 'answer_mode', 'signature_methods', 'answer', 'answered_at', 'signed_by',
-    'can_accept', 'can_decline',
+    'can_accept', 'can_decline', 'payment',
 }
 LINE_KEYS = {
     'kind', 'name', 'quantity', 'unit', 'unit_price', 'discount_percent', 'amount_untaxed', 'amount_tax', 'amount_total',

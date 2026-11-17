@@ -30,6 +30,7 @@ def dump_settings(settings, can_manage):
         'acceptance_confirms': settings.acceptance_confirms,
         'answered_resend': settings.answered_resend,
         'signature_methods': settings.signature_methods,
+        **settings._liwan_payment_wire(),
         **settings._liwan_wire_extras(),
         'can_manage': can_manage,
         'revision': settings.revision,
@@ -39,7 +40,7 @@ def dump_settings(settings, can_manage):
 def dump_presets(settings):
     """The sector presets for this tenant: each as the values it would write (only the settings the tenant carries) and
     whether the settings already hold all of them."""
-    keys = {*WRITABLE_KEYS, *settings._liwan_wire_extras()}
+    keys = {*WRITABLE_KEYS, *settings._liwan_payment_wire(), *settings._liwan_wire_extras()}
     current = dump_settings(settings, can_manage=False)
     extras = settings._liwan_preset_extras()
     items = []
@@ -76,8 +77,8 @@ def _parse_value(key, value):
 
 
 def parse_settings_patch(payload, parsers):
-    """``(values, revision)`` of a settings write, or a 422. ``parsers`` are the keys an installed bridge adds, each
-    with the function that checks its value (``liwan.sales.settings._liwan_patch_parsers``)."""
+    """``(values, revision)`` of a settings write, or a 422. ``parsers`` are the keys beyond ``WRITABLE_KEYS`` (the payment
+    choice and the bridges' keys), each with the function that checks its value (``liwan.sales.settings``)."""
     unknown = sorted(set(payload) - {*WRITABLE_KEYS, *parsers, 'revision'})
     if unknown:
         raise ApiError(422, 'invalid', f'field {unknown[0]!r} is not accepted', field=unknown[0])

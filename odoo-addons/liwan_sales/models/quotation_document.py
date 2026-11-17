@@ -6,6 +6,7 @@ from markupsafe import Markup
 from odoo import Command, api, models
 from odoo.exceptions import UserError
 
+from .sales_settings import payments_open
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
 REPORT = 'sale.action_report_saleorder'
@@ -58,15 +59,35 @@ class LiwanSalesDocument(models.AbstractModel):
         return f'{base or "quotation"}.pdf'
 
     @api.model
-    def _liwan_mail_notes(self, order):
-        """The notes an installed bridge adds to the e-mail of ``order``, each ``{'ar', 'en', 'link'}``: the text in both
-        languages and the address it points to (None for a note without one)."""
-        return []
+    def _liwan_payment_notes(self, order):
+        """The notes added to the e-mail of ``order``, each ``{'ar', 'en', 'link'}``: the text in both languages and the
+        address it points to (None for a note without one). Tell the customer the quotation is confirmed by payment: how
+        much, and the pay link once nothing else is needed. A customer who still has to sign is told to sign first; the
+        link of the page is already in the mail."""
+        notes = []
+        if not (order._liwan_asks_payment() and payments_open(self.env)):
+            return notes
+        summary = self.env['liwan.payments.service']._liwan_summary(order)
+        link_state = order._liwan_payment_link_state(summary['status'])
+        amount = f"{summary['amount_due']:,.2f} {summary['currency']}"
+        if link_state == 'ready':
+            notes.append({
+                'ar': f'يُؤكَّد هذا العرض بالدفع. المبلغ المطلوب {amount}. ادفع من هذا الرابط:',
+                'en': f'This quotation is confirmed by payment. The amount due is {amount}. Pay with this link:',
+                'link': f'{order.get_base_url()}{order.get_portal_url()}',
+            })
+        elif link_state == 'awaiting_signature':
+            notes.append({
+                'ar': f'يُؤكَّد هذا العرض بالدفع. وقّعه أولًا من صفحته، ثم ادفع المبلغ المطلوب {amount}.',
+                'en': f'This quotation is confirmed by payment. Sign it first on its page, then pay the amount due, {amount}.',
+                'link': None,
+            })
+        return notes
 
     @api.model
     def _liwan_queue_mail(self, order):
         """Queue the e-mail that sends ``order`` to its customer: Arabic then English, the link of its public page, any
-        notes of an installed bridge and the PDF."""
+        notes and the PDF."""
         customer, company = order.partner_id.name, order.company_id.name
         return self._liwan_mail(
             order,
@@ -95,9 +116,9 @@ class LiwanSalesDocument(models.AbstractModel):
     @api.model
     def _liwan_mail(self, order, subject, ar, en, attachments=()):
         """Queue one bilingual e-mail about ``order`` to its customer from the tenant's outbound sender: ``ar`` then ``en``,
-        each followed by the link of the order's public page (never an Odoo portal link) and the notes of a bridge."""
+        each followed by the link of the order's public page (never an Odoo portal link) and the notes."""
         link = f'{order.get_base_url()}/quote/{order.id}?access_token={order.access_token}'
-        notes = self._liwan_mail_notes(order)
+        notes = self._liwan_payment_notes(order)
         body = Markup(
             '<div dir="rtl"><p>{ar}</p><p><a href="{link}">{link}</a></p>{ar_notes}</div><hr/>'
             '<div dir="ltr"><p>{en}</p><p><a href="{link}">{link}</a></p>{en_notes}</div>',

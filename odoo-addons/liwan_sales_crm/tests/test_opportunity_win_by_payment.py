@@ -1,15 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""A payment that confirms a quotation wins its opportunity too; runs only where the payments bridge is installed."""
-from unittest import SkipTest
+"""A payment that confirms a quotation wins its opportunity too; the payment flow belongs to liwan_sales."""
 from unittest.mock import patch
 
 from odoo.exceptions import ValidationError
-from odoo.modules.registry import Registry
 from odoo.tests import tagged
-from odoo.tests.common import get_db_name
 
 from .common import SalesCrmMixin
-from odoo.addons.liwan_sales_payments.tests.common import TOTAL, SalesPaymentsCase
+from odoo.addons.liwan_sales.tests.payment_common import TOTAL, SalesPaymentsCase
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -17,10 +14,6 @@ class TestOpportunityWinByPayment(SalesCrmMixin, SalesPaymentsCase):
 
     @classmethod
     def setUpClass(cls):
-        registry = Registry(get_db_name())
-        if 'payment_to_confirm' not in registry['liwan.sales.settings']._fields:
-            reason = 'liwan_sales_payments is not installed in this database'  # skipped: the bridge needs both of its sides
-            raise SkipTest(reason)
         super().setUpClass()
         cls.setup_crm()
 

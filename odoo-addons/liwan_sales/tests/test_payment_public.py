@@ -3,7 +3,7 @@
 from odoo import Command
 from odoo.tests import tagged
 
-from .common import PUBLIC, TOTAL, SalesPaymentsCase
+from .payment_common import PUBLIC, TOTAL, SalesPaymentsCase
 
 PAYMENT_KEYS = {'percent', 'amount', 'currency', 'pay_url', 'state'}
 
@@ -78,7 +78,7 @@ class TestPublicPayment(SalesPaymentsCase):
         self.assertEqual(self.payment(order)['state'], 'payable')
         self.assertEqual(self.pay_state(order).json()['status'], 'payable')
 
-    def test_a_signature_rings_the_salesperson_once_with_the_payments_bridge(self):
+    def test_a_signature_rings_the_salesperson_once_with_online_payments(self):
         order = self.payable('full', answer='accept_and_sign')
         self.assertEqual(self.accept(order, self.sign_body()).status_code, 200)
         rows = self.env['mail.message'].search([

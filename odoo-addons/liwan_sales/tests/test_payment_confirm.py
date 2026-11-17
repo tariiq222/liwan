@@ -7,8 +7,8 @@ from odoo import Command, fields
 from odoo.exceptions import LockError
 from odoo.tests import tagged
 
-from .common import ORDERS, TOTAL, SalesPaymentsCase
-from odoo.addons.liwan_sales.tests.common import SENDER
+from .common import SENDER
+from .payment_common import ORDERS, TOTAL, SalesPaymentsCase
 
 
 @tagged('post_install', '-at_install', 'liwan')

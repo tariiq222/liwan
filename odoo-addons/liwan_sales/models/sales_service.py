@@ -15,6 +15,10 @@ from .sale_order import (
     LINE_KINDS,
     valid_discount,
 )
+from .sales_settings import (
+    PAYMENTS_FEATURE,
+    payments_open,
+)
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_products.models.products_service import (
     QUANTITY_BOUNDS,
@@ -125,23 +129,59 @@ class LiwanSalesService(models.AbstractModel):
             'note': self._liwan_note(values.get('terms', settings.default_terms)),
         })
         self._liwan_write_lines(order, plan)
-        self._liwan_write_extras(order, values.get('extras', {}), creating=True)
+        self._liwan_write_payment(order, values.get('payment', {}), creating=True)
         return order
 
     @api.model
-    def _liwan_order_parsers(self):
-        """The keys an installed bridge accepts in the body of an order write, as ``{key: parser}``. A parser takes the raw
-        value and returns the checked one or raises ``LiwanAccessRule`` (422 on the key)."""
-        return {}
+    def _liwan_write_payment(self, order, extras, creating=False):
+        """Apply the parsed ``payment`` keys of a write to ``order``, once its lines are saved: how the quotation asks to be
+        paid, the staff's choice when they made one, else (on create) the tenant's default, which is ``off`` while the
+        tenant cannot take payments. A choice other than ``off`` needs online payments."""
+        if not extras and not creating:
+            return
+        settings = self.env['liwan.sales.settings']._liwan_current()
+        mode = extras.get('payment_to_confirm')
+        if not mode:
+            mode = settings.payment_to_confirm if creating else order._liwan_payment_mode()
+        if 'prepayment_percent' in extras:
+            percent = extras['prepayment_percent']
+        elif not creating and order._liwan_payment_mode() == 'percent':
+            percent = order._liwan_payment_percent()
+        else:
+            # A quotation that did not ask for a part yet takes the tenant's percentage, never the 100 of ``full``.
+            percent = settings.prepayment_percent
+        if 'prepayment_percent' in extras and mode != 'percent':
+            code = 'invalid'
+            raise LiwanAccessRule(code, 'the percentage applies only when the customer pays a part', field='prepayment_percent', status=422)
+        if mode != 'off':
+            if extras:
+                self.env['liwan.entitlement.service'].require(PAYMENTS_FEATURE)
+            elif not payments_open(self.env):
+                mode = 'off'
+        order.with_context(**QUIET).write(self._liwan_payment_values(mode, percent))
 
     @api.model
-    def _liwan_write_extras(self, order, extras, creating=False):
-        """Apply the parsed ``extras`` of a write to ``order``, once its lines are saved; a bridge adds its own values
-        (and, with ``creating``, its tenant defaults). Nothing here is a Sales value."""
+    def _liwan_payment_values(self, mode, percent):
+        """The stock fields that make a quotation ask for ``mode``: all of it, ``percent`` of it, or no payment."""
+        if mode == 'off':
+            return {'require_payment': False}
+        return {'require_payment': True, 'prepayment_percent': 1.0 if mode == 'full' else percent / 100}
+
+    @api.model
+    def _liwan_require_payer_kept(self, order_id, customer_id):
+        """422 ``invalid`` on ``customer_id`` when it changes the customer of a staff quotation that holds a payment: the
+        money belongs to the payer."""
+        order = self._liwan_order(order_id)
+        if order.liwan_staff_document and order.partner_id.id != customer_id and order._liwan_holds_money():
+            code = 'invalid'
+            raise LiwanAccessRule(code, 'this quotation holds a payment from its customer; the customer cannot change', field='customer_id', status=422)
 
     @api.model
     def _liwan_update(self, order_id, values):
-        """Write parsed ``values`` on the caller's draft ``order_id``; ``lines`` replaces the whole list."""
+        """Write parsed ``values`` on the caller's draft ``order_id``; ``lines`` replaces the whole list. A draft that holds
+        money keeps its customer; its lines and percentage stay editable and the customer answers the new terms again."""
+        if 'customer_id' in values:
+            self._liwan_require_payer_kept(order_id, values['customer_id'])
         order = self._liwan_writable(order_id, 'edit')
         header = {}
         if 'salesperson_id' in values:
@@ -162,7 +202,20 @@ class LiwanSalesService(models.AbstractModel):
         if header:
             order.with_context(**QUIET).write(header)
         self._liwan_write_lines(order, plan, retax=retax)
-        self._liwan_write_extras(order, values.get('extras', {}))
+        self._liwan_write_payment(order, values.get('payment', {}))
+        return order
+
+    @api.model
+    def _liwan_refund(self, order_id, amount, reference):
+        """Record ``amount`` refunded at the gateway under ``reference`` for the caller's staff quotation ``order_id``.
+
+        Sales decides who reaches the document (404 unreadable, 403 not theirs to change or not a staff document); the
+        payments service checks ``payments.refund`` in the order's company and the amount, and records the refund.
+        """
+        order = self._liwan_order(order_id)
+        self.env['liwan.sales.visibility']._liwan_check_write(order, self.env.user)
+        self.env['liwan.payments.service']._liwan_record_refund(order, amount, reference)
+        order.invalidate_recordset()
         return order
 
     @api.model

@@ -75,7 +75,7 @@ class SaleOrder(models.Model):
           does not open it again, as in stock: finance drafts a new invoice if the credited work is billed again;
         - ``paid``: what payments settled on the posted invoices, less what the posted credit notes gave back, never below
           zero. Money a customer paid at the gateway before an invoice existed is on the order's payment
-          (``liwan_sales_payments``) until the invoice is posted, when stock reconciles it with the invoice and it counts here.
+          (``liwan_sales``) until the invoice is posted, when stock reconciles it with the invoice and it counts here.
         Needs ``finance.invoices.read``: the caller has checked it.
         """
         self.ensure_one()
