@@ -7,7 +7,8 @@ import InboxContactMarketing from '@/components/inbox/campaigns/InboxContactMark
 import { useInboxCampaignsEnabled } from '@/composables/inbox/useInboxCampaigns'
 import { useCustomerConflict } from '@/composables/customers/useCustomerConflict'
 import { isCustomerAlreadyLinked } from '@/composables/customers/customerErrors'
-import { useInboxAgents, useInboxContact, useLinkInboxContactCustomer, usePatchInboxContact, usePatchInboxConversation, useInboxTags } from '@/composables/inbox/useInbox'
+import { useInboxAgents, useInboxContact, useLinkInboxContactCustomer, usePatchInboxContact, useInboxTags } from '@/composables/inbox/useInbox'
+import { useInboxConversationSave } from '@/composables/inbox/useInboxConversationSave'
 import { useInboxDepartments } from '@/composables/inbox/useInboxSettings'
 import { inboxContactName } from '@/composables/inbox/inboxContactName'
 import { CONVERSATION_STATES, PRIORITIES } from '@/composables/inbox/inboxPresentation'
@@ -20,9 +21,8 @@ const hydrated = useHydrated()
 const toast = useToast()
 const { me } = useMe()
 const { can } = useAccess()
-const id = computed(() => props.conversation.id)
 const campaignsOn = useInboxCampaignsEnabled()
-const { mutate: patch, isPending: patching } = usePatchInboxConversation(id)
+const { save, patching } = useInboxConversationSave(() => props.conversation)
 const { mutate: patchContact, isPending: savingContact } = usePatchInboxContact(() => props.conversation.contact.id)
 const contactId = computed(() => props.conversation.contact.id)
 const contactDetail = useInboxContact(contactId)
@@ -48,9 +48,6 @@ const tagItems = computed(() => tags.data.value?.items ?? props.conversation.tag
 const tagIds = computed(() => props.conversation.tags.map(tag => tag.id))
 const assigneeIds = computed(() => props.conversation.assignee ? [props.conversation.assignee.id] : [])
 
-function save(body: Omit<InboxConversationPatch, 'revision'>) {
-  patch({ ...body, revision: props.conversation.revision }, { onError: e => toast.add({ title: e instanceof Error ? e.message : t('errors.generic'), color: 'error' }) })
-}
 function assign(value: number | number[] | null) {
   const next = Array.isArray(value) ? (value[0] ?? null) : value
   if (next !== (props.conversation.assignee?.id ?? null)) save({ assignee_id: next })
@@ -104,40 +101,6 @@ function saveContact() {
 
 <template>
   <div class="flex flex-col gap-4 p-4" data-testid="inbox-contact-panel">
-    <SharedRecordSection variant="panel" :title="t('inbox.panel.contact')">
-      <form class="liwan-form" @submit.prevent="saveContact">
-        <UFormField :label="t('inbox.panel.name')">
-          <UInput v-model="name" class="w-full" :disabled="lockedContact" />
-        </UFormField>
-        <dl class="divide-y divide-default">
-          <SharedPropertyRow :label="t('inbox.panel.phone')"><bdi v-if="props.conversation.contact.phone" dir="ltr" class="whitespace-nowrap">{{ props.conversation.contact.phone }}</bdi></SharedPropertyRow>
-          <SharedPropertyRow :label="t('inbox.panel.channel')" :value="props.conversation.channel.name" />
-        </dl>
-        <UFormField :label="t('inbox.panel.email')">
-          <UInput v-model="email" type="email" class="w-full" dir="ltr" :disabled="lockedContact" />
-        </UFormField>
-        <p v-if="erased" class="text-sm text-muted" data-testid="inbox-contact-erased">{{ t('inbox.panel.contactErased') }}</p>
-        <UButton v-if="props.conversation.can_reply && !erased" type="submit" color="neutral" variant="outline" class="self-start" :disabled="!hydrated || !contactDirty || !name.trim()" :loading="savingContact" :label="t('inbox.panel.saveContact')" />
-      </form>
-    </SharedRecordSection>
-
-    <SharedRecordSection v-if="showCustomer" variant="panel" :title="t('customers.link.title')">
-      <CustomerLinkBlock
-        :customer="contactDetail.data.value?.customer ?? null"
-        :can-link="canLinkCustomer"
-        :can-open="can('customers.read')"
-        :candidates="conflict.candidates.value"
-        :pending="linking"
-        :error="linkError"
-        @link="onLink"
-        @dismiss="conflict.clear()"
-      />
-    </SharedRecordSection>
-
-    <InboxOpportunityCard :conversation-id="props.conversation.id" :contact-phone="props.conversation.contact.phone" :can-reply="props.conversation.can_reply" />
-
-    <InboxContactMarketing v-if="campaignsOn" :contact-id="props.conversation.contact.id" :can-write="props.conversation.can_reply" />
-
     <SharedRecordSection variant="panel" :title="t('inbox.panel.conversation')">
       <div class="flex flex-col gap-3">
         <UFormField :label="t('inbox.panel.assignee')" :description="props.conversation.can_assign ? undefined : t('inbox.panel.assignDenied')">
@@ -196,6 +159,40 @@ function saveContact() {
         </UFormField>
       </div>
     </SharedRecordSection>
+
+    <SharedRecordSection variant="panel" :title="t('inbox.panel.contact')">
+      <form class="liwan-form" @submit.prevent="saveContact">
+        <UFormField :label="t('inbox.panel.name')">
+          <UInput v-model="name" class="w-full" :disabled="lockedContact" />
+        </UFormField>
+        <dl class="divide-y divide-default">
+          <SharedPropertyRow :label="t('inbox.panel.phone')"><bdi v-if="props.conversation.contact.phone" dir="ltr" class="whitespace-nowrap">{{ props.conversation.contact.phone }}</bdi></SharedPropertyRow>
+          <SharedPropertyRow :label="t('inbox.panel.channel')" :value="props.conversation.channel.name" />
+        </dl>
+        <UFormField :label="t('inbox.panel.email')">
+          <UInput v-model="email" type="email" class="w-full" dir="ltr" :disabled="lockedContact" />
+        </UFormField>
+        <p v-if="erased" class="text-sm text-muted" data-testid="inbox-contact-erased">{{ t('inbox.panel.contactErased') }}</p>
+        <UButton v-if="props.conversation.can_reply && !erased" type="submit" color="neutral" variant="outline" class="self-start" :disabled="!hydrated || !contactDirty || !name.trim()" :loading="savingContact" :label="t('inbox.panel.saveContact')" />
+      </form>
+    </SharedRecordSection>
+
+    <SharedRecordSection v-if="showCustomer" variant="panel" :title="t('customers.link.title')">
+      <CustomerLinkBlock
+        :customer="contactDetail.data.value?.customer ?? null"
+        :can-link="canLinkCustomer"
+        :can-open="can('customers.read')"
+        :candidates="conflict.candidates.value"
+        :pending="linking"
+        :error="linkError"
+        @link="onLink"
+        @dismiss="conflict.clear()"
+      />
+    </SharedRecordSection>
+
+    <InboxOpportunityCard :conversation-id="props.conversation.id" :contact-phone="props.conversation.contact.phone" :can-reply="props.conversation.can_reply" />
+
+    <InboxContactMarketing v-if="campaignsOn" :contact-id="props.conversation.contact.id" :can-write="props.conversation.can_reply" />
 
     <InboxFlowSubmissionsSection :conversation-id="props.conversation.id" />
   </div>

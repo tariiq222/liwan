@@ -39,3 +39,20 @@ export function cannedSuggestions<T extends { shortcut: string }>(draft: string,
   const typed = match[1]!.toLowerCase()
   return replies.filter(reply => reply.shortcut.replace(/^\//, '').toLowerCase().startsWith(typed)).slice(0, limit)
 }
+
+const HOUR_SECONDS = 3_600
+const MINUTE_SECONDS = 60
+/** Under this much time left the countdown turns to the warning tone. */
+export const REPLY_WINDOW_WARNING_SECONDS = 2 * HOUR_SECONDS
+
+/**
+ * How long the free-form reply window stays open: whole hours above one hour, minutes (at least one) below. `seconds`
+ * is that rounded figure, ready for the shared duration formatter. Null when the window is closed or never opened.
+ */
+export function replyWindowRemaining(conversation: Pick<InboxConversation, 'reply_window_ends_at'>, now: number = Date.now()): { seconds: number, warning: boolean } | null {
+  if (!conversation.reply_window_ends_at) return null
+  const left = Math.floor((Date.parse(conversation.reply_window_ends_at) - now) / 1000)
+  if (left <= 0) return null
+  const seconds = left > HOUR_SECONDS ? Math.floor(left / HOUR_SECONDS) * HOUR_SECONDS : Math.max(1, Math.ceil(left / MINUTE_SECONDS)) * MINUTE_SECONDS
+  return { seconds, warning: left < REPLY_WINDOW_WARNING_SECONDS }
+}

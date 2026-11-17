@@ -26,12 +26,23 @@ let disposed = false
 let quoteRequest = 0
 let highlightTimer: ReturnType<typeof setTimeout> | undefined
 const pendingLayouts = new Set<() => void>()
+// How close to the bottom (px) the agent still counts as following the conversation.
+const NEAR_BOTTOM_PX = 120
+const nearBottom = ref(true)
+const hasNewMessages = ref(false)
+let justOpened = true
 function clearHighlight() {
   if (highlightTimer !== undefined) clearTimeout(highlightTimer)
   highlightTimer = undefined
   highlightedId.value = null
 }
-watch(() => props.conversationId, () => { quoteRequest += 1; clearHighlight() }, { flush: 'sync' })
+watch(() => props.conversationId, () => {
+  quoteRequest += 1
+  clearHighlight()
+  justOpened = true
+  nearBottom.value = true
+  hasNewMessages.value = false
+}, { flush: 'sync' })
 onScopeDispose(() => {
   disposed = true
   quoteRequest += 1
@@ -56,10 +67,31 @@ const rows = computed<Row[]>(() => {
   return result
 })
 
-// Keep the newest message in view when one arrives, but leave the reading position alone while older ones load.
+// A new message follows to the bottom when the conversation was just opened, the agent is already near the bottom, or the
+// message is the agent's own: a reply or an internal note they wrote. Otherwise the reading position stays and a chip offers the jump.
+const isOwnMessage = (message: InboxMessage | undefined) =>
+  message?.direction === 'out' ? !message.automated : message?.direction === 'note' && message.author !== null
+function onScroll() {
+  const element = scroller.value
+  if (!element) return
+  nearBottom.value = element.scrollHeight - element.scrollTop - element.clientHeight <= NEAR_BOTTOM_PX
+  if (nearBottom.value) hasNewMessages.value = false
+}
+function showNewest() {
+  hasNewMessages.value = false
+  scroller.value?.scrollTo({ top: scroller.value.scrollHeight, behavior: reducedMotion.value ? 'instant' : 'smooth' })
+}
 const newestId = computed(() => items.value.at(-1)?.id)
-watch(newestId, async (id) => {
+watch(newestId, async (id, previousId) => {
   const conversation = props.conversationId
+  const newest = items.value.at(-1)
+  const follow = justOpened || previousId === undefined || nearBottom.value || isOwnMessage(newest)
+  justOpened = false
+  if (!follow) {
+    hasNewMessages.value = true
+    return
+  }
+  hasNewMessages.value = false
   await nextTick()
   const element = scroller.value
   if (disposed || !element || props.conversationId !== conversation) return
@@ -131,11 +163,11 @@ const deliveryLabel = (item: InboxMessage) => t(`inbox.delivery.${item.delivery_
 </script>
 
 <template>
-  <div class="flex min-h-0 flex-1 flex-col">
+  <div class="relative flex min-h-0 flex-1 flex-col">
     <SharedErrorState v-if="isError && !items.length" :error="error" class="m-4" @retry="refetch()" />
     <SharedLoadingSkeleton v-else-if="isLoading" class="m-4" />
     <SharedEmptyState icon="i-lucide-message-square" v-else-if="!items.length" :title="t('inbox.thread.empty')" class="m-4" />
-    <div v-else ref="scroller" class="min-h-0 flex-1 overflow-y-auto bg-elevated px-5 py-4 dark:bg-(--liwan-canvas)" data-testid="inbox-thread-scroller">
+    <div v-else ref="scroller" class="min-h-0 flex-1 overflow-y-auto bg-elevated px-5 py-4 dark:bg-(--liwan-canvas)" data-testid="inbox-thread-scroller" @scroll.passive="onScroll">
       <div v-if="hasNextPage" class="flex justify-center p-2">
         <UButton type="button" color="neutral" variant="ghost" size="sm" :disabled="!hydrated || isFetchingNextPage" :label="t('inbox.thread.loadOlder')" @click="loadOlder" />
       </div>
@@ -243,6 +275,20 @@ const deliveryLabel = (item: InboxMessage) => t(`inbox.delivery.${item.delivery_
           </li>
         </template>
       </ol>
+    </div>
+    <div class="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center" aria-live="polite">
+      <UButton
+        v-if="hasNewMessages"
+        type="button"
+        size="sm"
+        color="neutral"
+        variant="solid"
+        icon="i-lucide-arrow-down"
+        class="pointer-events-auto max-md:min-h-11"
+        :label="t('inbox.thread.newMessages')"
+        data-testid="inbox-new-messages"
+        @click="showNewest"
+      />
     </div>
   </div>
 </template>

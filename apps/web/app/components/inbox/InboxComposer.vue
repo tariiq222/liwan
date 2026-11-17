@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useMediaQuery } from '@vueuse/core'
 import type { InboxAttachment, InboxConversationDetail, InboxReplyCreate, InboxTemplate } from '@liwan/contracts'
 import InboxTemplatePicker from '@/components/inbox/InboxTemplatePicker.vue'
 import { ApiError } from '@/composables/useApi'
@@ -12,7 +13,8 @@ import { buildInteractive, emptyInteractiveDraft } from '@/composables/inbox/inb
 import { buildLocation, emptyLocationDraft } from '@/composables/inbox/inboxLocation'
 import { TEMPLATE_CATEGORY_TONE, templatePreview } from '@/composables/inbox/inboxTemplate'
 import { HEADER_MEDIA_ACCEPT, buildTemplateReply, dynamicButtons, headerInput, templateReplyReady } from '@/composables/inbox/inboxTemplateSend'
-import { cannedSuggestions, replyWindowOpen, windowClosedDescriptionKey, windowClosedErrorKey } from '@/composables/inbox/inboxWindow'
+import { durationUnits, formatDuration } from '@/composables/inbox/inboxReportCharts'
+import { cannedSuggestions, replyWindowOpen, replyWindowRemaining, windowClosedDescriptionKey, windowClosedErrorKey } from '@/composables/inbox/inboxWindow'
 
 // Three ways to write: a reply (inside the customer-service window) that is text, a file with a caption, a location or
 // an interactive message and may quote one message, an approved template with its parameters (WhatsApp's only reply
@@ -23,7 +25,7 @@ import { cannedSuggestions, replyWindowOpen, windowClosedDescriptionKey, windowC
 // `commerceReady`: the conversation's channel has a catalog, so products can be sent from it.
 const props = defineProps<{ conversation: InboxConversationDetail; replyTo?: { id: number; preview: string } | null; commerceReady?: boolean }>()
 const emit = defineEmits<{ 'update:replyTo': [target: { id: number; preview: string } | null] }>()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const hydrated = useHydrated()
 const toast = useToast()
 const { me } = useMe()
@@ -70,8 +72,16 @@ function scheduleExpiry(endsAt: string | null) {
   if (remaining > 0) expiry = setTimeout(() => { now.value = Date.now() }, remaining + 50)
 }
 watch(() => props.conversation.reply_window_ends_at, scheduleExpiry, { immediate: true })
-onBeforeUnmount(() => clearTimeout(expiry))
+// The countdown line is minute-precise, so a one-minute tick refreshes it.
+const COUNTDOWN_TICK_MS = 60_000
+let ticker: ReturnType<typeof setInterval> | undefined
+onMounted(() => { ticker = setInterval(() => { now.value = Date.now() }, COUNTDOWN_TICK_MS) })
+onBeforeUnmount(() => { clearTimeout(expiry); clearInterval(ticker) })
 const windowOpen = computed(() => replyWindowOpen(props.conversation, now.value))
+const remaining = computed(() => mode.value === 'reply' ? replyWindowRemaining(props.conversation, now.value) : null)
+const remainingText = computed(() => remaining.value
+  ? t('inbox.composer.windowRemaining', { time: formatDuration(remaining.value.seconds, durationUnits(t), locale.value) })
+  : '')
 // A closed window means a template on WhatsApp and nothing at all on TikTok, which carries none (D4).
 const templateMode = computed(() => mode.value === 'reply' && !windowOpen.value && channelCarriesTemplates(kind.value))
 const blockedWindow = computed(() => mode.value === 'reply' && !windowOpen.value && tiktok.value)
@@ -80,9 +90,18 @@ const conversationId = computed(() => props.conversation.id)
 const { mutateAsync: sendReply, isPending: replying } = useSendInboxReply(conversationId)
 const { mutateAsync: sendNote, isPending: noting } = useSendInboxNote(conversationId)
 const sending = computed(() => replying.value || noting.value)
+// Below 768px the send button is an icon (its label stays as aria-label and tooltip) so the tools and send share one row.
+const isDesktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
+const sendLabel = computed(() => mode.value === 'note' ? t('inbox.composer.saveNote') : t('inbox.composer.send'))
 const { mutateAsync: uploadFile } = useUploadInboxFile(conversationId)
 const notifyTyping = useInboxTyping(conversationId)
 const { data: canned } = useInboxCannedReplies()
+const cannedOpen = ref(false)
+const textarea = ref<{ textareaRef?: HTMLTextAreaElement | null } | null>(null)
+// Closing the list, by a pick or Escape, hands focus back to the textarea rather than to the button that opened it.
+const cannedContent = {
+  onCloseAutoFocus: (event: Event) => { event.preventDefault(); textarea.value?.textareaRef?.focus() },
+}
 
 const suggestions = computed(() => mode.value === 'reply' && windowOpen.value && !suggestionsDismissed.value ? cannedSuggestions(draft.value, canned.value?.items ?? []) : [])
 const modeItems = computed(() => [
@@ -244,6 +263,12 @@ async function onHeaderPicked(event: Event) {
 function pickSuggestion(body: string) {
   draft.value = body
 }
+// A canned reply is text: it returns from a structured panel to text composition so the textarea shows it and send sends it.
+function pickCanned(body: string) {
+  panel.value = null
+  pickSuggestion(body)
+  cannedOpen.value = false
+}
 // The indicator follows real keystrokes only: restoring a draft or picking a canned reply is not typing.
 const isTypingKey = (event: KeyboardEvent) => !event.ctrlKey && !event.metaKey && (event.key.length === 1 || event.key === 'Backspace' || event.key === 'Process')
 function onKeydown(event: KeyboardEvent) {
@@ -317,7 +342,10 @@ async function submit() {
 
 <template>
   <form class="flex flex-col gap-[10px] border-t-[1.5px] border-default bg-default px-4 py-3" data-testid="inbox-composer" @submit.prevent="submit">
-    <SharedSegmentedControl v-model="mode" class="self-start" :items="modeItems" :label="t('inbox.composer.mode')" />
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <SharedSegmentedControl v-model="mode" :items="modeItems" :label="t('inbox.composer.mode')" />
+      <p v-if="remaining" class="text-xs" :class="remaining.warning ? 'text-warning' : 'text-muted'" data-testid="inbox-window-remaining">{{ remainingText }}</p>
+    </div>
     <UAlert
       v-if="closedWindow"
       color="info"
@@ -368,12 +396,6 @@ async function submit() {
         <p class="min-w-0 flex-1 truncate"><span class="font-medium">{{ t('inbox.composer.replyingTo') }}</span> <span class="text-muted">{{ quoted.preview || t('inbox.composer.quotedMedia') }}</span></p>
         <UButton type="button" color="neutral" variant="ghost" size="sm" icon="i-lucide-x" :aria-label="t('inbox.composer.cancelReplyTo')" @click="emit('update:replyTo', null)" />
       </div>
-      <div v-if="mode === 'reply'" class="flex flex-wrap items-center gap-2" role="toolbar" :aria-label="t('inbox.composer.attachments')">
-        <SharedFileField v-if="actions.includes('attach')" ref="fileField" :accept="inboxUploadAccept(kind)" :label="t('inbox.composer.attach')" :show-file-name="false" :disabled="!hydrated || sending || uploading" data-testid="inbox-attach" @change="onFilePicked" />
-        <UButton v-if="actions.includes('location')" type="button" color="neutral" variant="outline" icon="i-lucide-map-pin" :label="t('inbox.composer.location.title')" :aria-pressed="panel === 'location'" :disabled="!hydrated || sending" data-testid="inbox-location-toggle" @click="togglePanel('location')" />
-        <UButton v-if="actions.includes('interactive')" type="button" color="neutral" variant="outline" icon="i-lucide-list-checks" :label="t('inbox.composer.interactive.title')" :aria-pressed="panel === 'interactive'" :disabled="!hydrated || sending" data-testid="inbox-interactive-toggle" @click="togglePanel('interactive')" />
-        <UButton v-if="actions.includes('products')" type="button" color="neutral" variant="outline" icon="i-lucide-shopping-bag" :label="t('inbox.catalog.picker.title')" :aria-pressed="panel === 'products'" :disabled="!hydrated || sending" data-testid="inbox-products-toggle" @click="togglePanel('products')" />
-      </div>
       <p v-if="uploadError" class="text-sm text-error" role="alert" data-testid="inbox-upload-error">{{ uploadError }}</p>
       <div v-if="upload" class="flex items-center gap-2 rounded-control bg-elevated/50 px-3 py-1.5 text-sm" data-testid="inbox-upload">
         <UIcon name="i-lucide-paperclip" class="size-4 shrink-0 text-muted" aria-hidden="true" />
@@ -404,6 +426,7 @@ async function submit() {
       </ul>
       <UTextarea
         v-if="mode === 'note' || (!panel && captionAllowed)"
+        ref="textarea"
         v-model="draft"
         :rows="2"
         autoresize
@@ -421,11 +444,41 @@ async function submit() {
         @keydown="onKeydown"
       />
     </template>
-    <div v-if="(!templateMode || selectedTemplate) && !blockedWindow" class="flex items-center justify-between gap-2">
-      <p v-if="mode === 'reply' && !templateMode && !panel" class="text-xs text-muted">{{ t('inbox.composer.cannedHint') }}</p>
-      <p v-else-if="mode === 'note'" class="text-xs text-muted">{{ t('inbox.composer.noteHint') }}</p>
-      <span v-else />
-      <UButton type="submit" class="ms-auto" icon="i-lucide-send" :disabled="!canSend" :loading="sending" :label="mode === 'note' ? t('inbox.composer.saveNote') : t('inbox.composer.send')" />
+    <div v-if="(!templateMode || selectedTemplate) && !blockedWindow" class="liwan-touch-target-row-actions flex items-center gap-2">
+      <div v-if="mode === 'reply' && !templateMode" class="flex min-w-0 flex-wrap items-center gap-1" role="toolbar" :aria-label="t('inbox.composer.attachments')">
+        <UTooltip v-if="actions.includes('attach')" :text="t('inbox.composer.attach')">
+          <span class="inline-flex"><SharedFileField ref="fileField" icon-only :accept="inboxUploadAccept(kind)" :label="t('inbox.composer.attach')" :show-file-name="false" :disabled="!hydrated || sending || uploading" data-testid="inbox-attach" @change="onFilePicked" /></span>
+        </UTooltip>
+        <UTooltip v-if="actions.includes('location')" :text="t('inbox.composer.location.title')">
+          <UButton type="button" color="neutral" variant="outline" icon="i-lucide-map-pin" :aria-label="t('inbox.composer.location.title')" :aria-pressed="panel === 'location'" :disabled="!hydrated || sending" data-testid="inbox-location-toggle" @click="togglePanel('location')" />
+        </UTooltip>
+        <UTooltip v-if="actions.includes('interactive')" :text="t('inbox.composer.interactive.title')">
+          <UButton type="button" color="neutral" variant="outline" icon="i-lucide-list-checks" :aria-label="t('inbox.composer.interactive.title')" :aria-pressed="panel === 'interactive'" :disabled="!hydrated || sending" data-testid="inbox-interactive-toggle" @click="togglePanel('interactive')" />
+        </UTooltip>
+        <UTooltip v-if="actions.includes('products')" :text="t('inbox.catalog.picker.title')">
+          <UButton type="button" color="neutral" variant="outline" icon="i-lucide-shopping-bag" :aria-label="t('inbox.catalog.picker.title')" :aria-pressed="panel === 'products'" :disabled="!hydrated || sending" data-testid="inbox-products-toggle" @click="togglePanel('products')" />
+        </UTooltip>
+        <UPopover v-model:open="cannedOpen" :content="cannedContent">
+          <UTooltip :text="t('inbox.composer.cannedHint')">
+            <UButton type="button" color="neutral" variant="outline" icon="i-lucide-message-square-text" :aria-label="t('inbox.composer.cannedButton')" :disabled="!hydrated || sending" data-testid="inbox-canned-button" />
+          </UTooltip>
+          <template #content>
+            <ul v-if="canned?.items.length" class="max-h-64 w-72 max-w-[calc(100vw-2rem)] overflow-y-auto p-1 text-sm" role="list" :aria-label="t('inbox.composer.canned')" data-testid="inbox-canned-menu">
+              <li v-for="reply in canned.items" :key="reply.id">
+                <button type="button" class="flex w-full min-h-11 items-baseline gap-2 rounded-control px-2 py-1.5 text-start hover:bg-elevated focus-visible:bg-elevated md:min-h-0" @click="pickCanned(reply.body)">
+                  <span class="shrink-0 font-medium">/{{ reply.shortcut.replace(/^\//, '') }}</span>
+                  <span class="min-w-0 truncate text-muted">{{ reply.body }}</span>
+                </button>
+              </li>
+            </ul>
+            <p v-else class="w-72 max-w-[calc(100vw-2rem)] p-3 text-sm text-muted" data-testid="inbox-canned-empty">{{ t('inbox.composer.cannedEmpty') }}</p>
+          </template>
+        </UPopover>
+      </div>
+      <p v-else-if="mode === 'note'" class="min-w-0 text-xs text-muted">{{ t('inbox.composer.noteHint') }}</p>
+      <UTooltip :text="sendLabel" :disabled="isDesktop" class="ms-auto shrink-0">
+        <UButton type="submit" icon="i-lucide-send" :disabled="!canSend" :loading="sending" :label="isDesktop ? sendLabel : undefined" :aria-label="sendLabel" data-testid="inbox-send" />
+      </UTooltip>
     </div>
   </form>
 </template>

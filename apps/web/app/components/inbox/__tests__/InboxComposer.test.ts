@@ -11,10 +11,12 @@ import { buildInteractive, emptyInteractiveDraft } from '../../../composables/in
 import { buildLocation, emptyLocationDraft } from '../../../composables/inbox/inboxLocation'
 import { TEMPLATE_CATEGORY_TONE, templatePreview } from '../../../composables/inbox/inboxTemplate'
 import { HEADER_MEDIA_ACCEPT, buildTemplateReply, dynamicButtons, headerInput, templateReplyReady } from '../../../composables/inbox/inboxTemplateSend'
-import { cannedSuggestions, replyWindowOpen, windowClosedDescriptionKey, windowClosedErrorKey } from '../../../composables/inbox/inboxWindow'
+import { durationUnits, formatDuration } from '../../../composables/inbox/inboxReportCharts'
+import { cannedSuggestions, replyWindowOpen, replyWindowRemaining, windowClosedDescriptionKey, windowClosedErrorKey } from '../../../composables/inbox/inboxWindow'
 import { inboxTikTokErrorKey } from '../../../composables/inbox/inboxTikTok'
 
 const filename = new URL('../InboxComposer.vue', import.meta.url).pathname
+const desktop = Vue.ref(true)
 const NOW = Date.parse('2026-10-28T12:00:00Z')
 const TEMPLATE = {
   id: 7, name: 'reminder', language: 'ar', category: 'utility', status: 'approved', status_reason: null, quality: 'green', header: null,
@@ -41,8 +43,8 @@ function mountComposer(endsAt: string | null, store = new Map<string, string>(),
   const bindings = {
     _defineComponent: Vue.defineComponent, _unref: Vue.unref, ref: Vue.ref, reactive: Vue.reactive, computed: Vue.computed, watch: Vue.watch,
     onMounted: (fn: () => void) => mounted.push(fn), onBeforeUnmount: (fn: () => void) => unmounting.push(fn),
-    useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true), useToast: () => ({ add: toast }), useMe: () => ({ me: Vue.ref({ id: 3 }) }),
-    ApiError, InboxTemplatePicker: {}, useInboxTyping: () => notifyTyping, useUploadInboxFile: () => ({ mutateAsync: uploadInboxFile }), INBOX_CAPTION_MAX, inboxAcceptsCaption, inboxFileSize, inboxUploadProblem,
+    useI18n: () => ({ t: (key: string, params?: { time?: string }) => params?.time ? `${key}:${params.time}` : key, locale: Vue.ref('en') }), durationUnits, formatDuration, replyWindowRemaining, useHydrated: () => Vue.ref(true), useToast: () => ({ add: toast }), useMe: () => ({ me: Vue.ref({ id: 3 }) }),
+    useMediaQuery: () => desktop, ApiError, InboxTemplatePicker: {}, useInboxTyping: () => notifyTyping, useUploadInboxFile: () => ({ mutateAsync: uploadInboxFile }), INBOX_CAPTION_MAX, inboxAcceptsCaption, inboxFileSize, inboxUploadProblem,
     inboxUploadAccept, channelCarriesTemplates, inboxComposerActions, windowClosedDescriptionKey, windowClosedErrorKey, inboxTikTokErrorKey, emptyInboxDraft,
     buildCommerceContent, emptyCommerceDraft, buildInteractive, emptyInteractiveDraft, buildLocation, emptyLocationDraft,
     inboxDrafts, cannedSuggestions, replyWindowOpen, templatePreview, TEMPLATE_CATEGORY_TONE, HEADER_MEDIA_ACCEPT, buildTemplateReply, dynamicButtons, headerInput, templateReplyReady,
@@ -62,6 +64,19 @@ function mountComposer(endsAt: string | null, store = new Map<string, string>(),
 }
 
 describe('InboxComposer', () => {
+  it('shows the send label from 768px and only as aria-label and tooltip below it', () => {
+    const { state } = mountComposer('2026-10-28T20:00:00Z')
+    expect(state.sendLabel.value).toBe('inbox.composer.send')
+    expect(state.isDesktop.value).toBe(true)
+    desktop.value = false
+    expect(state.isDesktop.value).toBe(false)
+    expect(state.sendLabel.value).toBe('inbox.composer.send')
+    state.mode.value = 'note'
+    expect(state.sendLabel.value).toBe('inbox.composer.saveNote')
+    desktop.value = true
+    const source = readFileSync(filename, 'utf8')
+    expect(source).toContain(':label="isDesktop ? sendLabel : undefined" :aria-label="sendLabel"')
+  })
   beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(NOW) })
   afterEach(() => vi.useRealTimers())
 
@@ -83,6 +98,35 @@ describe('InboxComposer', () => {
     expect(state.templateMode.value).toBe(false)
     unmount()
     expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('shows the time left to reply, warns under two hours and refreshes every minute', async () => {
+    const { state, unmount } = mountComposer('2026-10-28T15:30:00Z')
+    expect(state.remainingText.value).toBe('inbox.composer.windowRemaining:3 inbox.reports.units.hour')
+    expect(state.remaining.value.warning).toBe(false)
+    vi.advanceTimersByTime(90 * 60_000)
+    expect(state.remainingText.value).toBe('inbox.composer.windowRemaining:2 inbox.reports.units.hour')
+    vi.advanceTimersByTime(90 * 60_000)
+    expect(state.remaining.value.warning).toBe(true)
+    expect(state.remainingText.value).toBe('inbox.composer.windowRemaining:30 inbox.reports.units.minute')
+    unmount()
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('hides the countdown in note mode, with a closed window and with no window', () => {
+    const { state } = mountComposer('2026-10-28T15:30:00Z')
+    state.mode.value = 'note'
+    expect(state.remaining.value).toBeNull()
+    expect(mountComposer('2026-10-27T11:00:00Z').state.remaining.value).toBeNull()
+    expect(mountComposer(null).state.remaining.value).toBeNull()
+  })
+
+  it('inserts a picked canned reply into the draft and closes the list', () => {
+    const { state } = mountComposer('2026-10-28T20:00:00Z')
+    state.cannedOpen.value = true
+    state.pickCanned('شكرا لتواصلك')
+    expect(state.draft.value).toBe('شكرا لتواصلك')
+    expect(state.cannedOpen.value).toBe(false)
   })
 
   it('is in template mode at once when the window never opened or already closed', () => {
@@ -252,6 +296,17 @@ describe('InboxComposer', () => {
     state.togglePanel('location')
     state.togglePanel('location')
     expect(state.location.value.latitude).toBe('')
+  })
+
+  it('returns to text when a canned reply is picked with the location panel open', async () => {
+    const { state, sendReply } = mountComposer('2026-10-28T20:00:00Z')
+    state.togglePanel('location')
+    state.location.value = { ...emptyLocationDraft(), latitude: '24.7', longitude: '46.6' }
+    state.pickCanned('شكرا لتواصلك')
+    expect(state.panel.value).toBeNull()
+    expect(state.draft.value).toBe('شكرا لتواصلك')
+    await state.submit()
+    expect(sendReply).toHaveBeenCalledWith({ body: 'شكرا لتواصلك' })
   })
 
   it('keeps typed text that a location reply did not carry', async () => {

@@ -107,8 +107,8 @@ function updateRoute(next: ChatListRoute) {
 
 <template>
   <SharedPageContainer>
-    <SharedPageHeader :title="t('chat.title')" />
-    <SharedConversationLayout :has-selection="hasSelection" :info-open="infoOpen">
+    <SharedPageHeader :title="t('chat.title')" :compact="hasSelection" />
+    <SharedConversationLayout :class="{ 'liwan-conversation-fill--open': hasSelection }" :has-selection="hasSelection" :info-open="infoOpen">
       <template #list>
         <ConversationList class="min-h-0 flex-1" :route-state="routeState" :selected-id="props.conversationId" @update:route-state="updateRoute" @denied="onDenied" />
       </template>
