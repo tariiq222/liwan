@@ -54,7 +54,7 @@ const manifest: AppManifest = {
   appCard: crmAppCard,
   search: [opportunitiesSearch],
   commands: [
-    { id: 'crm.new-opportunity', labelKey: 'crm.newOpportunity', icon: 'i-lucide-handshake', to: '/crm/opportunities/new', capability: 'crm.leads.read', anyCapabilities: ['crm.leads.work', 'crm.leads.assign'] },
+    { id: 'crm.new-opportunity', labelKey: 'crm.newOpportunity', icon: 'i-lucide-handshake', to: '/crm/opportunities/new', capability: 'crm.leads.read' },
     { id: 'crm.import', labelKey: 'crm.imports.new', icon: 'i-lucide-file-up', to: '/crm/imports/new', capability: 'crm.leads.import' },
   ],
   routeCapabilities: [
