@@ -22,7 +22,7 @@ paid APIs without explicit authorization.
 
 | Tool | Covers | Does not cover |
 | --- | --- | --- |
-| `tools/arch_policy.py` | Architecture rules R1-R10, baseline growth, `tools/arch_layers.json` weakening | Anything outside those rules |
+| `tools/arch_policy.py` | Architecture rules R1-R10 (including a bridge that links an application with a foundation or shared-service addon, a hard R3 failure), baseline growth, `tools/arch_layers.json` weakening | Anything outside those rules |
 | `tools/git_policy.py` | Branch name, commit subject format, `wip` commits | Commit content or message body quality |
 | `tools/secret_guard.py` | Tracked secret-bearing paths (env files, key files, deploy data); literal secrets in tracked conf, yml, yaml, env.example, sh, json and toml files under `deploy/` and `.github/`; credential fallback literals (`NAME = ... \|\| 'literal'`) in tracked js, mjs, cjs, ts, mts, cts and vue files there; in `apps/`, `packages/`, `odoo-addons/`, `tools/`, `e2e/` and the repository root (Python files too): literal secrets in config files, credentials that fall back to a literal (`\|\|`, `??`, Python `or`, an environment read with a literal default), provider token shapes and private key blocks, minus the reasoned entries of `LITERAL_EXCEPTIONS` (exact files, pinned by its test; `E2E_*` fallback lines). The daily `audit` workflow runs it over the whole tree | Plain `NAME = 'literal'` assignments in application code and tests, `docs/`, Markdown and other file types, git history, secrets that do not match the `password/secret/token/api_key` pattern or a known token shape, and fallbacks to an empty string or a template placeholder |
 | `tools/no_external_refs.py` | Third-party hosts in `apps/web/app`, `apps/web/public`, `apps/web/server` and `nuxt.config.ts` (`.vue .ts .js .mjs .css .scss .html`) | Other folders, other file types, hosts built at runtime |
@@ -72,7 +72,7 @@ file the tool does not scan).
    first click must not be lost; no stacked business dialogs; direct links, refresh and list
    filters preserved.
 5. **Independence.** An application importing another application (R3), a condition on a
-   customer name (R6), a new bridge between an application and a foundation or shared-service addon (R3), a feature that
+   customer name (R6), a feature that
    breaks `non_saas` (R8).
 
 ## Jev review signal: suspended
