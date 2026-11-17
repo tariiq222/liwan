@@ -246,6 +246,13 @@ class TicketApiTest(LiwanHelpdeskCase):
         moved = self.api('PATCH', f'/api/v1/helpdesk/tickets/{ticket["id"]}', json={'team_id': other.id})
         self.assertEqual((moved.status_code, moved.json()['code']), (403, 'forbidden'))
 
+    def test_only_an_agent_may_list_the_customers_a_ticket_is_opened_for(self):
+        """An employee names no customer on a request, so the customer list is not theirs to read either."""
+        self.as_user(self.requester)
+        self.assertEqual(self.api('GET', '/api/v1/customers/pick').status_code, 403)
+        self.as_user(self.agent)
+        self.assertEqual(self.api('GET', '/api/v1/customers/pick').status_code, 200)
+
     def test_every_write_answers_the_detail_shape_the_screen_parses(self):
         """The client's schema is strict: a write that omitted the attachments would land and then report failure."""
         self.as_user(self.agent)
