@@ -39306,17 +39306,13 @@
               "close": {
                 "type": "boolean"
               },
-              "reopen": {
-                "type": "boolean"
-              },
               "reply": {
                 "type": "boolean"
               }
             },
             "required": [
               "reply",
-              "close",
-              "reopen"
+              "close"
             ],
             "type": "object"
           },
