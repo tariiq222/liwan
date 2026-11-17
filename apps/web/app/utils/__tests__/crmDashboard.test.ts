@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { CrmDashboard } from '@liwan/contracts'
-import { agentKpiTiles, conversionPercent, managerKpiTiles } from '../crmDashboard'
+import { agentKpiTiles, agentListHref, conversionPercent, managerKpiTiles } from '../crmDashboard'
 
 const t = (key: string, named?: Record<string, unknown>) => (named ? `${key} ${JSON.stringify(named)}` : key)
 const agent: CrmDashboard['agent'] = { due_now: 2, new_today: 3, won_this_month: { count: 4, value: 12500.5 } }
@@ -34,5 +34,12 @@ describe('conversionPercent', () => {
   it('rounds to a whole percent and survives an empty source', () => {
     expect(conversionPercent(1, 3)).toBe(33)
     expect(conversionPercent(0, 0)).toBe(0)
+  })
+})
+
+describe('agentListHref', () => {
+  it('filters the list by agent and optionally by due follow-ups', () => {
+    expect(agentListHref(7)).toBe('/crm/opportunities?user_id=7')
+    expect(agentListHref(7, true)).toBe('/crm/opportunities?user_id=7&due=1')
   })
 })
