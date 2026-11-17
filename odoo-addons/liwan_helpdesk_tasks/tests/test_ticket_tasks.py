@@ -1,8 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """The follow-up tasks of one ticket, and the personal-task rule that keeps them private."""
+from odoo.tests import tagged
+
 from odoo.addons.liwan_helpdesk.tests.common import LiwanHelpdeskCase
 
 
+# After install: liwan_tasks_pmo lets the link field through PMO's create whitelist and loads after this bridge.
+@tagged('post_install', '-at_install', 'liwan')
 class TicketTasksTest(LiwanHelpdeskCase):
 
     @classmethod
