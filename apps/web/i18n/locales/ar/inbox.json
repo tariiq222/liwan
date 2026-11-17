@@ -273,7 +273,8 @@
       "unsupported": "نوع الرسالة هذا غير مدعوم.",
       "automated": "رد آلي",
       "system": "النظام",
-      "campaign": "حملة: {name}"
+      "campaign": "حملة: {name}",
+      "newMessages": "رسائل جديدة"
     },
     "composer": {
       "mode": "نوع الرسالة",
@@ -369,11 +370,14 @@
         "image": "الملف {name} ليس صورة.",
         "video": "الملف {name} ليس فيديو.",
         "document": "الملف {name} ليس مستندًا."
-      }
+      },
+      "cannedButton": "ردود جاهزة",
+      "cannedEmpty": "لا توجد ردود جاهزة بعد.",
+      "windowRemaining": "يتبقى {time} للرد الحر"
     },
     "panel": {
       "title": "بيانات العميل والمحادثة",
-      "contact": "العميل",
+      "contact": "بيانات التواصل",
       "conversation": "المحادثة",
       "name": "الاسم",
       "phone": "الجوال",
@@ -2258,7 +2262,13 @@
       }
     },
     "showUnassigned": "عرض غير المسندة",
-    "connectChannel": "ربط قناة"
+    "connectChannel": "ربط قناة",
+    "actions": {
+      "label": "إجراءات المحادثة",
+      "resolve": "حل المحادثة",
+      "reopen": "إعادة فتح",
+      "more": "إجراءات أخرى"
+    }
   },
   "errors": {
     "reasons": {
