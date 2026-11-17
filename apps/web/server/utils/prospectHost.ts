@@ -2,7 +2,7 @@ import { timingSafeEqual } from 'node:crypto'
 
 type ProspectConfig = { customerCommercialEnabled?: boolean | string; customerCommercialPublicOrigin?: string; publicSignupEnabled?: boolean | string }
 
-export const SIGNUP_API = /^\/api\/commercial\/signup\/(terms|start|verify-sms|send-email|verify-email)$/
+export const SIGNUP_API = /^\/api\/commercial\/signup\/(terms|offer|start|verify-sms|send-email|verify-email)$/
 export const isSignupPage = (pathname: string) => /^\/register\/?$/.test(pathname)
 /** "Find my workspace": the page and its relay. They live on the common host only, beside the sign-up they share the human check with. */
 export const FIND_WORKSPACE_API = /^\/api\/invitations\/find-workspace$/

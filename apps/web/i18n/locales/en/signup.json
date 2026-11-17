@@ -19,7 +19,6 @@
     "acceptTerms": "I accept the {terms} and the {privacy}",
     "termsLink": "Terms of Service",
     "privacyLink": "Privacy Policy",
-    "sendSms": "Send SMS code",
     "smsSent": "Enter the code we sent by SMS to {destination}.",
     "emailSent": "Enter the code we sent to {destination}.",
     "emailDestination": "We’ll use {destination} to verify your email address.",
@@ -48,8 +47,35 @@
       "trialAlreadyUsed": "Your company has already used its free trial. Sign in to your existing workspace, or ask your company's account administrator to invite you. If a different company shares this email domain, contact the LiwanOS team.",
       "expired": "Your registration session has expired. Start again below.",
       "humanCheckFailed": "The security check did not pass. Complete it again, then try once more.",
-      "humanCheckUnavailable": "We could not reach the security check, so we cannot send an SMS right now. Try again in a few minutes."
+      "humanCheckUnavailable": "We could not reach the security check, so we cannot send an SMS right now. Try again in a few minutes.",
+      "offerChanged": "The trial offer changed. Review the apps and price before starting signup again."
     },
-    "humanCheck": "Security check"
+    "humanCheck": "Security check",
+    "offer": {
+      "title": "Choose the apps you want to try",
+      "month": "{price} per month after the trial",
+      "base": "The free workspace includes {users} users, {storage} GB of storage and {branches} extra branches.",
+      "after": "Your workspace and data stay available after the trial. Paid apps start when you choose to subscribe and pay.",
+      "total": "Today {today} · If you subscribe after the trial {monthly} per month",
+      "unlimited": "Unlimited",
+      "loading": "Loading apps and prices",
+      "retry": "Reload offer",
+      "begin": "Start my free trial",
+      "apps": {
+        "crm": {
+          "name": "Customer Relationship Management (CRM)",
+          "description": "Create and track sales opportunities from first contact to close."
+        },
+        "inbox": {
+          "name": "Customer Messages",
+          "description": "Receive and reply to customer messages from one inbox."
+        }
+      },
+      "inboxLimits": {
+        "0": "Channels: {count}",
+        "1": "Outgoing messages per month (UTC): {count}",
+        "2": "Campaign recipients: {count}"
+      }
+    }
   }
 }

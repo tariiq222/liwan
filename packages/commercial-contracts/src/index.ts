@@ -120,3 +120,5 @@ export * from './packages.js'
 export * from './commercial/index.js'
 export * from './commercial/feature-descriptor.js'
 export * from './commercial-http.js'
+
+export * from './commercial/signup.js'

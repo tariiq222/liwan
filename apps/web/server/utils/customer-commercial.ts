@@ -1,6 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 import { isIP } from 'node:net'
 import type { H3Event } from 'h3'
+import { signupOfferSchema } from '@liwan/commercial-contracts'
 import { MeSchema } from '@liwan/contracts'
 import { signServiceRequest } from '@liwan/commercial-contracts/server'
 import { tenantRequest } from './tenantRequest'
@@ -316,10 +317,15 @@ export async function forwardSignupRequest(event: H3Event): Promise<unknown> {
   } catch { fail(503, 'unavailable', 'Signup is unavailable') }
   if (!response.ok) {
     const code = response._data?.code
-    if (code && ['invalid', 'invalid_code', 'rate_limited', 'trial_already_used', 'signup_expired', 'business_email_required', 'terms_not_accepted', 'terms_changed', 'human_check_failed', 'human_check_unavailable'].includes(code)) {
+    if (code && ['invalid', 'invalid_code', 'rate_limited', 'trial_already_used', 'signup_expired', 'business_email_required', 'terms_not_accepted', 'terms_changed', 'offer_changed', 'human_check_failed', 'human_check_unavailable'].includes(code)) {
       fail(response.status, code, 'Signup request rejected')
     }
     fail(503, 'unavailable', 'Signup is unavailable')
+  }
+  if (action === 'offer') {
+    const offer = signupOfferSchema.safeParse(response._data)
+    if (!offer.success) fail(503, 'unavailable', 'Signup offer is unavailable')
+    return offer.data
   }
   setResponseStatus(event, response.status)
   return response._data

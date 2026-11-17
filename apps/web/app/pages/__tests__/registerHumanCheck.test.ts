@@ -31,6 +31,7 @@ function mount(fetch: ReturnType<typeof vi.fn>) {
   state.widget.value = { reset }
   state.legal.value = config
   state.details.accept_terms = true
+  state.offer.value = { offer_revision: 'test-revision' }
   return { state, reset }
 }
 
@@ -98,7 +99,7 @@ describe('register page, bot check', () => {
       expect(locale.signup.errors.humanCheckFailed).toBeTruthy()
       expect(locale.signup.errors.humanCheckUnavailable).toBeTruthy()
     }
-    expect(page.indexOf('<AuthTurnstileWidget')).toBeLessThan(page.indexOf(`:label="t('signup.sendSms')"`))
+    expect(page.indexOf('<AuthTurnstileWidget')).toBeLessThan(page.indexOf(`:label="t('signup.offer.begin')"`))
     expect(page).toMatch(/step === 'sms' && humanCheck/)
   })
 })
