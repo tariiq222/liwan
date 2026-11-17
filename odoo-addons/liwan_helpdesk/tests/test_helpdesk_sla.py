@@ -6,8 +6,8 @@ from types import SimpleNamespace
 
 from odoo import fields
 
-from odoo.addons.liwan_helpdesk.serializers.ticket import sla as dump_sla
 from .common import LiwanHelpdeskCase
+from odoo.addons.liwan_helpdesk.serializers.ticket import sla as dump_sla
 
 
 class SlaApiTest(LiwanHelpdeskCase):
