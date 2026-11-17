@@ -54,11 +54,12 @@ export function useHelpdeskReference() {
   })
 }
 
-export function useHelpdeskSummary() {
+export function useHelpdeskSummary(enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   const { me } = useMe()
   return useQuery({
     queryKey: computed(() => helpdeskKeys.summary(me.value?.company.id)),
+    enabled: computed(() => Boolean(toValue(enabled))),
     queryFn: () => $api('/api/v1/helpdesk/summary', { schema: HelpdeskSummarySchema }),
   })
 }

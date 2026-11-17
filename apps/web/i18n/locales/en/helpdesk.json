@@ -2,6 +2,13 @@
   "helpdesk": {
     "title": "Support Desk",
     "subtitle": "Support tickets from arrival to closure.",
+    "summary": {
+      "label": "Queue figures",
+      "open": "Open",
+      "unassigned": "Unassigned",
+      "mine": "Assigned to me",
+      "overdue": "Past their deadline"
+    },
     "new": "New ticket",
     "edit": "Edit ticket",
     "search": "Search by ticket number, subject or requester",
