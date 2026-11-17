@@ -1,4 +1,4 @@
-import type { CrmOpportunity, CrmOpportunityFilters, CrmStage } from '@liwan/contracts'
+import type { CrmLostReason, CrmOpportunity, CrmOpportunityFilters, CrmStage } from '@liwan/contracts'
 
 export const CRM_LIST_PATH = '/crm/opportunities'
 const LIST_QUERY_KEYS = ['q', 'stage_id', 'user_id', 'source_id', 'due', 'unassigned', 'needs_manager', 'status', 'view', 'page'] as const
@@ -45,7 +45,7 @@ export function opportunityListLocation(query: Query, hash = '') {
 }
 
 export function safeCrmReturnTo(value: unknown, fallback: string) {
-  return typeof value === 'string' && /^\/crm\/opportunities(?:[?#]|$)/.test(value) ? value : fallback
+  return typeof value === 'string' && /^\/crm(?:\/opportunities)?(?:[?#]|$)/.test(value) ? value : fallback
 }
 
 /** The discount a sale grants, as the server derives it: the part of the package price given away, to two decimals. */
@@ -66,6 +66,9 @@ export function relativeTime(iso: string, now: number, locale: string): string {
 /** Whether a call is already due: it has a next-call time that has passed. */
 export const isCallDue = (opportunity: Pick<CrmOpportunity, 'next_call_at' | 'status'>, now: number) =>
   opportunity.status === 'pending' && opportunity.next_call_at !== null && new Date(opportunity.next_call_at).getTime() <= now
+
+/** The lost reasons a person may choose: the one the follow-up engine closes with is not a manual choice. */
+export const manualLostReasons = (reasons: CrmLostReason[]) => reasons.filter(reason => !reason.protected)
 
 /** The stages a record can be moved to by hand: a sale goes through the sale action, so the sold stage is not offered. */
 export const movableStages = (stages: CrmStage[]) => stages.filter(stage => stage.active && !stage.is_won)

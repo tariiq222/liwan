@@ -1,0 +1,55 @@
+import { resolve } from 'node:path'
+import { describe, expect, it } from 'vitest'
+import * as Vue from 'vue'
+import { DEFAULT_STUBS, renderShared } from '@liwan/ui/test/helpers/renderShared'
+import * as crmOpportunity from '../../../../utils/crmOpportunity'
+import * as crmOrderGate from '../../../../utils/crmOrderGate'
+
+const section = Vue.defineComponent({ setup: (_, { slots }) => () => Vue.h('section', [slots.default?.(), slots.actions?.()]) })
+const state = Vue.defineComponent({ props: ['loading', 'error'], setup: props => () => Vue.h('p', { 'data-testid': 'state' }, props.loading ? 'loading' : 'failed') })
+const form = Vue.defineComponent({ props: ['outcomes', 'error'], setup: props => () => Vue.h('form', { 'data-testid': 'call-form', 'data-outcomes': (props.outcomes as { id: number }[]).map(outcome => outcome.id).join(), 'data-error': props.error }) })
+const stubs = { ...DEFAULT_STUBS, SharedRecordSection: section, SharedPageState: state, SharedEmptyState: Vue.defineComponent({ setup: () => () => Vue.h('p', 'empty') }) }
+const item = { id: 1, contact_name: 'أحمد', phone: '0501234567', stage: { id: 1, name: 'جديد' }, next_call_at: '2026-10-28T09:00:00Z', win_by_order: false }
+const outcomes = [{ id: 1, effect: 'follow_up' }, { id: 3, effect: 'won' }]
+const render = (props: Record<string, unknown>) => renderShared(resolve(import.meta.dirname, '../CrmDashboardDueList.vue'), { items: [item], total: 1, viewAllTo: '/all', now: Date.parse('2026-10-28T12:00:00Z'), canRecord: true, outcomes, ...props }, {}, {
+  hydrated: true,
+  stubs,
+  modules: {
+    '@/components/crm/opportunity/CrmOpportunityCallForm.vue': { __esModule: true, default: form },
+    '@/utils/crmOpportunity': crmOpportunity,
+    '@/utils/crmOrderGate': crmOrderGate,
+  },
+})
+
+describe('CrmDashboardDueList', () => {
+  it('shows the stage beside the time and one record button per row, with no form until it is pressed', async () => {
+    const html = await render({})
+    expect(html).toContain('data-testid="crm-due-stage"')
+    expect(html).toContain('crm-due-record')
+    expect(html).not.toContain('call-form')
+  })
+
+  it('opens the form in the row, without the sold outcome while an order wins', async () => {
+    expect(await render({ openId: 1 })).toContain('data-outcomes="1,3"')
+    expect(await render({ openId: 1, items: [{ ...item, win_by_order: true }] })).toContain('data-outcomes="1"')
+  })
+
+  it('offers no record button to someone who may not work leads', async () => {
+    expect(await render({ canRecord: false, openId: 1 })).not.toContain('crm-due-record')
+  })
+
+  it('disables the other rows while the open form holds text', async () => {
+    const html = await render({ items: [item, { ...item, id: 2 }], openId: 1, dirty: true })
+    expect(html.match(/disabled/g)).toHaveLength(1)
+  })
+
+  it('links a refusal to the record', async () => {
+    const html = await render({ openId: 1, failure: 'closed' })
+    expect(html).toContain('data-error="closed"')
+    expect(html).toContain('crm-due-open-record')
+  })
+
+  it('shows the error state instead of an empty list when the query failed', async () => {
+    expect(await render({ items: [], total: 0, error: new Error('x') })).toContain('failed')
+  })
+})

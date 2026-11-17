@@ -20,9 +20,10 @@ import { useCrmTerms } from '@/composables/crm/useCrmTerms'
 import { useCrmCalls, useCrmOpportunity, useCrmOpportunityActions, useCrmOpportunityOpening } from '@/composables/crm/useOpportunities'
 import { owningListBack } from '@/utils/recordListOrigin'
 import { crmErrorMessage } from '@/utils/crmErrors'
+import { callRecordedText } from '@/utils/crmCallResult'
 import { callOutcomesFor, opportunityOrderGate } from '@/utils/crmOrderGate'
 import { ApiError } from '@/composables/useApi'
-import { CRM_LIST_PATH, formatPrice, isCallDue, movableStages, relativeTime } from '@/utils/crmOpportunity'
+import { CRM_LIST_PATH, formatPrice, isCallDue, manualLostReasons, movableStages, relativeTime } from '@/utils/crmOpportunity'
 
 const route = useRoute()
 const router = useRouter()
@@ -48,7 +49,7 @@ const outcomes = useCrmOutcomeChoices()
 const packages = useCrmPackageChoices()
 const lostReasons = useCrmLostReasonChoices()
 // The reason the follow-up engine closes with is not a manual choice.
-const manualLostReasons = computed(() => (lostReasons.data.value?.items ?? []).filter(reason => !reason.protected))
+const choosableLostReasons = computed(() => manualLostReasons(lostReasons.data.value?.items ?? []))
 const callOutcomes = computed(() => callOutcomesFor(outcomes.data.value?.items ?? [], winByOrder.value))
 const actions = useCrmOpportunityActions()
 const record = query.data
@@ -148,10 +149,7 @@ async function recordCall(draft: CrmCallDraft) {
   const result = await run('call', choice => actions.recordCall.mutateAsync({ id: id.value, body: { ...draft, ...choice } }), draft.package_id !== undefined)
   if (!result) return
   callFormKey.value++
-  const next = result.opportunity.next_call_at
-  recorded.value = next
-    ? t('crm.opportunities.call.nextCall', { relative: relativeTime(next, Date.now(), locale.value), absolute: formatDateTime(next) })
-    : t(result.opportunity.status === 'won' ? 'crm.opportunities.sale.sold' : 'crm.opportunities.call.recorded')
+  recorded.value = callRecordedText(result.opportunity, t, locale.value)
   now.value = Date.now()
 }
 
@@ -372,7 +370,7 @@ const stageItems = computed(() => movableStages(stages.data.value?.items ?? []).
       <UAlert v-if="gate?.cannotQuote" role="status" color="warning" variant="subtle" :description="t('crm.opportunities.orders.cannotQuote')" data-testid="crm-quote-forbidden" />
       <UAlert v-if="pageFailure" role="alert" color="error" variant="subtle" :description="failureText" data-testid="crm-failure" />
       <CustomerConflictStep v-if="stepOpen" :candidates="stepOpen" :pending="busy" :description="t('customers.link.conflictDescription')" :confirm-label="t('customers.link.conflictConfirm')" @open="conflict.choose({ customer_id: $event })" @create-new="conflict.choose({ create_new: true })" @cancel="conflict.clear()" />
-      <CrmOpportunityLostForm v-if="panel === 'lost' && canWork" v-model:dirty="lostDirty" :reasons="manualLostReasons" :pending="actions.lose.isPending.value" :error="textFor('lost')" @confirm="closeLost" @cancel="open('lost')" />
+      <CrmOpportunityLostForm v-if="panel === 'lost' && canWork" v-model:dirty="lostDirty" :reasons="choosableLostReasons" :pending="actions.lose.isPending.value" :error="textFor('lost')" @confirm="closeLost" @cancel="open('lost')" />
       <SharedRecordSection v-if="panel === 'sale' && canWork" variant="panel" :title="t('crm.opportunities.sale.title', { term: term('package', 'one') })">
         <div class="grid gap-4">
           <CrmOpportunitySaleForm v-model="saleDraft" :packages="packages.data.value?.items ?? []" :disabled="busy" :show-errors="saleAttempted" />
@@ -383,7 +381,7 @@ const stageItems = computed(() => movableStages(stages.data.value?.items ?? []).
           </div>
         </div>
       </SharedRecordSection>
-      <CrmOpportunityCallForm v-if="canWork && panel === null" :key="callFormKey" v-model:dirty="callDirty" :outcomes="callOutcomes" :packages="packages.data.value?.items ?? []" :lost-reasons="manualLostReasons" :pending="actions.recordCall.isPending.value" :error="textFor('call')" @record="recordCall" />
+      <CrmOpportunityCallForm v-if="canWork && panel === null" :key="callFormKey" v-model:dirty="callDirty" :outcomes="callOutcomes" :packages="packages.data.value?.items ?? []" :lost-reasons="choosableLostReasons" :pending="actions.recordCall.isPending.value" :error="textFor('call')" @record="recordCall" />
       <CrmOpportunityCallLog :calls="calls.items.value" :total="calls.data.value?.pages.at(-1)?.total ?? 0" :has-more="!!calls.hasNextPage.value" :loading-more="calls.isFetchingNextPage.value" @more="calls.fetchNextPage()" />
       <CrmOpportunityConversations v-if="showConversations" :conversations="conversationList.data.value?.items ?? []" :total="conversationList.data.value?.total ?? 0" :loading="conversationList.isPending.value && conversationList.isFetching.value" :error="conversationList.error.value" @retry="conversationList.refetch()" />
       <CrmOpportunityOrders v-if="showOrders" :orders="orderList.data.value?.items ?? []" :total="orderList.data.value?.total ?? 0" :loading="orderList.isPending.value && orderList.isFetching.value" :error="orderList.error.value" :can-write="orderAccess.write.value" :blocked="orderBlocked" :win-by-order="winByOrder && pending" :pending="createOrder.isPending.value" :form-error="orderError" @create="addOrder" @retry="orderList.refetch()" />

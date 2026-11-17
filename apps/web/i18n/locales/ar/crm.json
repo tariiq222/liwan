@@ -1,5 +1,7 @@
 {
   "crm": {
+    "newOpportunity": "فرصة جديدة",
+    "searchGroup": "الفرص",
     "bell": {
       "assigned": "تم إسناد {term} لك: {name}",
       "assignedMany": {
@@ -532,6 +534,8 @@
         "dueTitle": "اتصل الآن",
         "dueEmpty": "لا اتصالات مستحقة الآن.",
         "dueAll": "عرض كل المستحق",
+        "recordResult": "سجّل النتيجة",
+        "openRecord": "فتح السجل",
         "call": "اتصل بـ {name}"
       },
       "manager": {

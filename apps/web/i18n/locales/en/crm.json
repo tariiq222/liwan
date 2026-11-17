@@ -1,5 +1,7 @@
 {
   "crm": {
+    "newOpportunity": "New opportunity",
+    "searchGroup": "Opportunities",
     "bell": {
       "assigned": "New {term} assigned to you: {name}",
       "assignedMany": {
@@ -532,6 +534,8 @@
         "dueTitle": "Call now",
         "dueEmpty": "No calls due now.",
         "dueAll": "See everything due",
+        "recordResult": "Record the result",
+        "openRecord": "Open the record",
         "call": "Call {name}"
       },
       "manager": {

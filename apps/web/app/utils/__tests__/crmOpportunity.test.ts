@@ -31,8 +31,9 @@ describe('opportunityListLocation', () => {
 })
 
 describe('safeCrmReturnTo', () => {
-  it('accepts only the opportunity list', () => {
+  it('accepts only the opportunity list and the CRM home', () => {
     expect(safeCrmReturnTo('/crm/opportunities?due=1', '/f')).toBe('/crm/opportunities?due=1')
+    expect(safeCrmReturnTo('/crm', '/f')).toBe('/crm')
     expect(safeCrmReturnTo('/crm/imports', '/f')).toBe('/f')
     expect(safeCrmReturnTo('//evil.test', '/f')).toBe('/f')
   })
