@@ -32,13 +32,14 @@ useHead(() => ({ htmlAttrs: { 'data-app': appScope.value } }))
 const trail = computed(() => shellBreadcrumb({ path: route.path, pageTitle: hydrated.value ? pageTitle.value : null, t, rail: rail.value.all }))
 providePageTrail(trail)
 // The page header draws the tile and the one-line tagline before its title from the application that owns the
-// route; a page no application owns (account, search) gets the generic icon.
+// route; a page no application owns (account, search) gets the generic icon. The tagline belongs to the
+// application's landing page only (DESIGN.md §3); deeper pages of the application publish none.
 providePageApp(() => {
   if (route.path === '/account' || route.path.startsWith('/account/')) return { icon: 'i-lucide-user-round', label: t('nav.account'), to: '/account' }
   const owner = rail.value.all.find(item => item.id === activeModule.value)
   if (!owner) return { icon: 'i-lucide-layout-grid' }
   const taglineKey = `launcher.apps.${owner.id}.description`
-  return { icon: owner.icon, id: owner.id, label: t(owner.labelKey), to: owner.to, tagline: te(taglineKey) ? t(taglineKey) : undefined }
+  return { icon: owner.icon, id: owner.id, label: t(owner.labelKey), to: owner.to, tagline: route.path === owner.to && te(taglineKey) ? t(taglineKey) : undefined }
 })
 // The deleted route sheet restored focus when it closed; an ordinary page has
 // no such moment, so a keyboard or screen-reader user pressing Escape on a

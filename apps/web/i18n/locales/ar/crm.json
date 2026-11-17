@@ -1,5 +1,7 @@
 {
   "crm": {
+    "newOpportunity": "فرصة جديدة",
+    "searchGroup": "الفرص",
     "bell": {
       "assigned": "تم إسناد {term} لك: {name}",
       "assignedMany": {
@@ -198,10 +200,24 @@
         "agent": "المسؤول",
         "nextCall": "الاتصال القادم"
       },
+      "move": {
+        "title": "نقل {name} إلى {stage}",
+        "titlePick": "نقل {name}",
+        "titleLost": "إغلاق {name} بالخسارة",
+        "description": "أكمل الحقول المطلوبة لإتمام النقل.",
+        "stage": "المرحلة الجديدة",
+        "stagePlaceholder": "اختر المرحلة",
+        "stageRequired": "اختر المرحلة",
+        "confirm": "نقل",
+        "customerConflict": "يوجد عملاء بهذا الرقم. افتح السجل لاختيار العميل ثم أتمم البيع."
+      },
       "board": {
         "noStage": "بلا مرحلة",
         "emptyColumn": "فارغة",
-        "capped": "تُعرض أول {count} نتيجة. ضيّق البحث لرؤية الباقي."
+        "capped": "تُعرض أول {count} نتيجة. ضيّق البحث لرؤية الباقي.",
+        "move": "نقل",
+        "moveFor": "نقل {name}",
+        "winByOrder": "البيع يتم من أمر مؤكد، لا بالسحب."
       },
       "status": {
         "pending": "قيد المتابعة",
@@ -532,6 +548,8 @@
         "dueTitle": "اتصل الآن",
         "dueEmpty": "لا اتصالات مستحقة الآن.",
         "dueAll": "عرض كل المستحق",
+        "recordResult": "سجّل النتيجة",
+        "openRecord": "فتح السجل",
         "call": "اتصل بـ {name}"
       },
       "manager": {
