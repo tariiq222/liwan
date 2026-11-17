@@ -105,3 +105,28 @@ class SlaApiTest(LiwanHelpdeskCase):
         self.assertEqual(detail['sla']['state'], 'overdue')
         listed = self.api('GET', '/api/v1/helpdesk/tickets?sla=overdue').json()
         self.assertEqual(listed['total'], 1)
+
+    def test_a_policy_is_saved_over_rows_of_a_retired_policy(self):
+        """The engine drops the rows of a retired policy while it refreshes; the manager's save must not need ticket deletion."""
+        self.as_user(self.manager)
+        first = self.save(name='Old target', days=0, hours=4, stage_id=self.target.id, team_ids=[self.team.id])
+        self.assertEqual(first.status_code, 200, first.text)
+        self.as_user(self.requester)
+        ticket = self.env['helpdesk.ticket'].browse(self.ticket_body()['id'])
+        self.assertTrue(ticket.ticket_sla_ids, 'the new ticket takes the policy\'s row')
+        self.as_user(self.manager)
+        retired = self.api('POST', f'/api/v1/helpdesk/sla/{first.json()["id"]}/active', json={'active': False})
+        self.assertEqual(retired.status_code, 200, retired.text)
+        second = self.save(name='New target', days=0, hours=6, stage_id=self.target.id, team_ids=[self.team.id])
+        self.assertEqual(second.status_code, 200, second.text)
+        self.assertEqual(ticket.ticket_sla_ids.sla_id.mapped('name'), ['New target'])
+
+    def test_an_archived_policy_stays_listed_and_can_be_brought_back(self):
+        self.as_user(self.manager)
+        policy = self.save(name='Parked', days=0, hours=4, stage_id=self.target.id, team_ids=[self.team.id]).json()
+        off = self.api('POST', f'/api/v1/helpdesk/sla/{policy["id"]}/active', json={'active': False})
+        self.assertEqual((off.status_code, off.json()['active']), (200, False))
+        listed = {row['id']: row['active'] for row in self.policies()['items']}
+        self.assertEqual(listed[policy['id']], False)
+        on = self.api('POST', f'/api/v1/helpdesk/sla/{policy["id"]}/active', json={'active': True})
+        self.assertEqual((on.status_code, on.json()['active']), (200, True))

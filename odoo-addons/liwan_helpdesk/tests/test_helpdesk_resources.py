@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """The settings resource routes: teams, stages, categories, tags, channels and types."""
 from .common import LiwanHelpdeskCase
+from odoo.addons.liwan_helpdesk.hooks import ENGINE_STAGES
 
 
 class ResourcesApiTest(LiwanHelpdeskCase):
@@ -68,6 +69,26 @@ class ResourcesApiTest(LiwanHelpdeskCase):
         archived = self.save('stages', id=closed.json()['id'], name='Resolved', active=False)
         self.assertEqual(archived.status_code, 200, archived.text)
         self.assertFalse(archived.json()['active'])
+
+    def test_the_settings_list_keeps_archived_rows_and_the_pickers_leave_them_out(self):
+        """An archived row stays in Settings (its switch brings it back); a ticket picker never offers it."""
+        self.as_user(self.manager)
+        team = self.save('teams', name='Evening desk').json()
+        stage = self.save('stages', name='Parked', sequence=9).json()
+        for kind, row in (('teams', team), ('stages', stage)):
+            archived = self.save(kind, id=row['id'], name=row['name'], active=False)
+            self.assertEqual(archived.status_code, 200, archived.text)
+        listed = self.api('GET', '/api/v1/helpdesk/settings/resources').json()
+        self.assertEqual({row['id']: row['active'] for row in listed['teams']}[team['id']], False)
+        self.assertEqual({row['id']: row['active'] for row in listed['stages']}[stage['id']], False)
+        engine_ids = {self.env.ref(xmlid).id for xmlid in ENGINE_STAGES}
+        self.assertFalse(engine_ids & {row['id'] for row in listed['stages']}, "the engine's archived stages are not listed")
+        offered = self.api('GET', '/api/v1/helpdesk/reference').json()
+        self.assertNotIn(team['id'], [row['id'] for row in offered['teams']])
+        self.assertNotIn(stage['id'], [row['id'] for row in offered['stages']])
+        restored = self.save('teams', id=team['id'], name=team['name'], active=True)
+        self.assertEqual(restored.status_code, 200, restored.text)
+        self.assertTrue(restored.json()['active'])
 
     def test_a_stage_holding_open_tickets_is_not_archived(self):
         self.as_user(self.manager)

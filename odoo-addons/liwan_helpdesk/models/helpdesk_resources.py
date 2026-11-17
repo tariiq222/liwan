@@ -8,6 +8,7 @@ another company is out of reach.
 from odoo import api, models
 
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
+from odoo.addons.liwan_helpdesk.hooks import ENGINE_STAGES
 
 NAME_MAX = 64
 INVALID = 'invalid'
@@ -55,8 +56,9 @@ class LiwanHelpdeskResources(models.AbstractModel):
 
     @api.model
     def _liwan_own(self, model, record_id):
-        """The record of the working company; a shared or foreign row is not found, like a missing one."""
-        record = self.env[model].search([('id', '=', record_id), ('company_id', '=', self.env.company.id)], limit=1)
+        """The record of the working company, archived or not (a switch reactivates it); a shared or foreign row is not found."""
+        record = self.env[model].with_context(active_test=False).search(
+            [('id', '=', record_id), ('company_id', '=', self.env.company.id)], limit=1)
         if not record:
             code = NOT_FOUND
             raise LiwanAccessRule(code, self.env._('Record does not exist'), status=404)
@@ -64,19 +66,26 @@ class LiwanHelpdeskResources(models.AbstractModel):
 
     @api.model
     def _liwan_dump(self):
+        """Every record the settings surface edits, the archived ones included: a switch on its row brings one back.
+
+        The ticket pickers read ``/reference`` instead, which leaves archived rows out. The engine's own archived stages
+        are not the tenant's and never listed.
+        """
         company = self._liwan_company()
-        teams = self.env['helpdesk.ticket.team'].search([('company_id', '=', company.id)], order='sequence, name, id')
-        stages = self.env['helpdesk.ticket.stage'].search(
-            ['|', ('company_id', '=', False), ('company_id', '=', company.id)], order='sequence, name, id')
         shared = ['|', ('company_id', '=', False), ('company_id', '=', company.id)]
+        every = self.with_context(active_test=False).env
+        engine = [stage.id for stage in map(self.env.ref, ENGINE_STAGES) if stage]
+        teams = every['helpdesk.ticket.team'].search([('company_id', '=', company.id)], order='sequence, name, id')
+        stages = every['helpdesk.ticket.stage'].search([*shared, ('id', 'not in', engine)], order='sequence, name, id')
         return {
             'teams': [self._liwan_dump_team(team) for team in teams],
             'stages': [self._liwan_dump_stage(stage) for stage in stages],
             'categories': [self._liwan_dump_named(row, complete=True)
-                           for row in self.env['helpdesk.ticket.category'].search(shared, order='sequence, name, id')],
-            'tags': [self._liwan_dump_named(row) for row in self.env['helpdesk.ticket.tag'].search(shared, order='sequence, name, id')],
-            'channels': [self._liwan_dump_named(row) for row in self.env['helpdesk.ticket.channel'].search(shared, order='sequence, name, id')],
-            'types': [self._liwan_dump_named(row) for row in self.env['helpdesk.ticket.type'].search([], order='name, id')],
+                           for row in every['helpdesk.ticket.category'].search(shared, order='sequence, name, id')],
+            'tags': [self._liwan_dump_named(row) for row in every['helpdesk.ticket.tag'].search(shared, order='sequence, name, id')],
+            'channels': [self._liwan_dump_named(row)
+                         for row in every['helpdesk.ticket.channel'].search(shared, order='sequence, name, id')],
+            'types': [self._liwan_dump_named(row) for row in every['helpdesk.ticket.type'].search([], order='name, id')],
         }
 
     def _liwan_dump_team(self, team):

@@ -33,7 +33,9 @@ class LiwanHelpdeskSla(models.AbstractModel):
     @api.model
     def _liwan_dump(self):
         company = self.env.company
-        policies = self.env['helpdesk.sla'].search([('company_id', '=', company.id)], order='name, id')
+        # Archived policies stay listed: the switch on their row brings one back.
+        policies = self.env['helpdesk.sla'].with_context(active_test=False).search(
+            [('company_id', '=', company.id)], order='name, id')
         return {
             'items': [self._liwan_dump_one(policy) for policy in policies],
             'targets': [
@@ -56,7 +58,7 @@ class LiwanHelpdeskSla(models.AbstractModel):
 
     @api.model
     def _liwan_own(self, policy_id):
-        policy = self.env['helpdesk.sla'].search(
+        policy = self.env['helpdesk.sla'].with_context(active_test=False).search(
             [('id', '=', policy_id), ('company_id', '=', self.env.company.id)], limit=1)
         if not policy:
             raise not_found()
@@ -131,12 +133,13 @@ class LiwanHelpdeskSla(models.AbstractModel):
         """Recompute the engine's per-ticket rows for the tickets this policy covers.
 
         The engine's ``refresh_sla`` works on one ticket at a time, so the batch is walked here; a policy
-        edit is rare and a ticket count is bounded per team.
+        edit is rare and a ticket count is bounded per team. It runs elevated: the engine lets a row of
+        ``helpdesk.ticket.sla`` go only to whoever may delete its ticket, and no LiwanOS role deletes tickets.
         """
         teams = policy.team_ids or self.env['helpdesk.ticket.team'].search([('company_id', '=', self.env.company.id)])
         tickets = self.env['helpdesk.ticket'].search([('team_id', 'in', teams.ids), ('company_id', '=', self.env.company.id)])
         for ticket in tickets:
-            ticket.refresh_sla()
+            ticket.sudo().refresh_sla()
 
     @api.model
     def _liwan_archive(self, policy_id, active):
