@@ -16,7 +16,7 @@ const meta = {
   component: HelpdeskMergeSection,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/pages/helpdesk/[id].vue:132', 'دمج التذاكر المكرّرة في التذكرة المفتوحة: بحث في التذاكر التي يصلها المستخدم، ومجموعة تُختار للدمج، وزر يدمج المحدد.'),
+    ...storyContext('apps/web/app/pages/helpdesk/[id].vue:136', 'دمج التذاكر المكرّرة في التذكرة المفتوحة: بحث في التذاكر التي يصلها المستخدم، ومجموعة تُختار للدمج، وزر يدمج المحدد.'),
     msw: { handlers: { api: [search] } },
   },
   args: { ticketId: 101 },

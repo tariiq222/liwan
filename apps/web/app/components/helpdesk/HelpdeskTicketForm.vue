@@ -38,10 +38,11 @@ const categoryItems = computed(() => (reference.data.value?.categories ?? []).ma
 const typeItems = computed(() => (reference.data.value?.types ?? []).map(row => ({ value: row.id, label: row.name })))
 const channelItems = computed(() => (reference.data.value?.channels ?? []).map(row => ({ value: row.id, label: row.name })))
 
+// Immediate: the panel opens over the list, which has already loaded the reference, so no later change would fire.
 watch(() => reference.data.value, (value) => {
   if (editing.value || !value) return
   teamId.value ??= value.teams[0]?.id
-})
+}, { immediate: true })
 const canPickCustomer = computed(() => props.forCustomer ?? can('helpdesk.tickets.write'))
 const errors = computed(() => ({
   subject: attempted.value && !subject.value.trim(),
@@ -98,7 +99,7 @@ const saveLabel = computed(() => editing.value ? t('helpdesk.form.save') : t('he
       <UFormField :label="t('helpdesk.form.category')" name="helpdesk-category">
         <USelect v-model="categoryId" class="w-full" :items="categoryItems" :placeholder="t('helpdesk.form.none')" :disabled="off" data-testid="helpdesk-category" />
       </UFormField>
-      <UFormField :label="t('helpdesk.form.type')" name="helpdesk-type">
+      <UFormField v-if="can('helpdesk.tickets.read')" :label="t('helpdesk.form.type')" name="helpdesk-type">
         <USelect v-model="typeId" class="w-full" :items="typeItems" :placeholder="t('helpdesk.form.none')" :disabled="off" data-testid="helpdesk-type" />
       </UFormField>
       <UFormField :label="t('helpdesk.form.channel')" name="helpdesk-channel">

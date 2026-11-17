@@ -10,6 +10,7 @@ import HelpdeskThread from '@/components/helpdesk/HelpdeskThread.vue'
 import { STATUS_COLOR } from '@liwan/ui/app/utils/statusTone'
 import { recordParentTo } from '@/utils/recordListOrigin'
 import { safeListReturnTo } from '@/composables/useRouteListFilters'
+import { normalizedPath } from '@/utils/routePath'
 
 const route = useRoute()
 const router = useRouter()
@@ -17,6 +18,8 @@ const { t } = useI18n()
 const { can } = useAccess()
 const { me } = useMe()
 const id = computed(() => Number(route.params.id))
+// The edit page is a child route: this page draws the record only on the record's own path (a trailing slash included).
+const isDetail = computed(() => normalizedPath(route.path) === `${HELPDESK_LIST_PATH}/${route.params.id}`)
 const query = useHelpdeskTicket(id)
 const reference = useHelpdeskReference()
 const ticket = computed(() => query.data.value ?? null)
@@ -74,6 +77,7 @@ const reopen = () => run({ action: 'reopen' })
 
 <template>
   <SharedRecordPage
+    v-if="isDetail"
     :title="ticket ? `${ticket.number} · ${ticket.subject}` : t('helpdesk.record.loading')"
     :tags="headerTags"
     :back-to="backTo"
@@ -140,4 +144,5 @@ const reopen = () => run({ action: 'reopen' })
       />
     </template>
   </SharedRecordPage>
+  <NuxtPage v-else />
 </template>
