@@ -116,7 +116,6 @@ class LiwanHelpdeskPortal(models.AbstractModel):
             'actions': {
                 'reply': not ticket.stage_id.closed,
                 'close': not ticket.stage_id.closed,
-                'reopen': bool(ticket.stage_id.closed),
             },
         }
 

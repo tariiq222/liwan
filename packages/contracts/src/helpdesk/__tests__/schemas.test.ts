@@ -127,7 +127,7 @@ describe('helpdesk contracts', () => {
       stage: { name: 'New', closed: false }, priority: '1', created_at: '2026-11-16T08:00:00Z',
       closed_at: null, company: { name: 'Acme', logo: true },
       messages: [{ id: 1, body: '<p>Any update?</p>', author: 'Acme', created_at: '2026-11-16T09:00:00Z' }],
-      actions: { reply: true, close: true, reopen: false },
+      actions: { reply: true, close: true },
     }
     expect(HelpdeskPortalTicketSchema.parse(page).actions.reply).toBe(true)
     expect(HelpdeskPortalTicketSchema.safeParse({ ...page, actions: { reply: 'yes' } }).success).toBe(false)

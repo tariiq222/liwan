@@ -201,7 +201,7 @@ ticket's own token, never a session.
   documented in `tools/arch_documented_sudo.json`.
 - The page returns the number, subject, description, stage and its closed flag, priority, dates, the company
   name and whether it has a logo, the public comments (internal notes are filtered out) and the three
-  `actions` (`reply`, `close`, `reopen`). A reply is plain text escaped to HTML and limited to 5000 characters;
+  `actions` (`reply`, `close`). A reply is plain text escaped to HTML and limited to 5000 characters;
   a closed ticket refuses one with 422. A reply on an unattended stage (the engine's "waiting for the customer"
   flag) moves the ticket back to the team's first open stage. Closing writes the team's first closed stage.
 

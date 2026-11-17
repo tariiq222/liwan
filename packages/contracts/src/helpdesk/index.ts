@@ -283,7 +283,7 @@ export const HelpdeskPortalTicketSchema = z.object({
   closed_at: z.string().nullable(),
   company: z.object({ name: z.string(), logo: z.boolean() }).strict(),
   messages: z.array(HelpdeskPortalMessageSchema),
-  actions: z.object({ reply: z.boolean(), close: z.boolean(), reopen: z.boolean() }).strict(),
+  actions: z.object({ reply: z.boolean(), close: z.boolean() }).strict(),
 }).strict()
 
 export type HelpdeskPortalTicket = z.infer<typeof HelpdeskPortalTicketSchema>

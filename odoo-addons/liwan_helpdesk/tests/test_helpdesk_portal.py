@@ -77,7 +77,7 @@ class PortalApiTest(HttpCase):
         self.assertEqual(body['stage']['closed'], False)
         self.assertTrue(body['actions']['reply'])
         self.assertTrue(body['actions']['close'])
-        self.assertFalse(body['actions']['reopen'])
+        self.assertNotIn('reopen', body['actions'])
         self.assertEqual(len(body['messages']), 1)
         self.assertEqual(body['messages'][0]['body'], '<p>Any update?</p>')
         # A customer answer comes back as the page with the new message.

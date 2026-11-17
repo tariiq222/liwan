@@ -61,10 +61,7 @@ class TicketQuotationsController(http.Controller):
             raise ApiError(422, 'invalid', 'a ticket without a customer cannot be billed', field='customer_id')
         if ticket.stage_id.closed:
             raise ApiError(422, 'invalid', 'a closed ticket takes no new quotation', field='ticket_id')
-        values = parse_order_body(
-            {**payload, 'customer_id': ticket.partner_id.id}, creating=True,
-            parsers=request.env['liwan.sales.service']._liwan_order_parsers(),
-        )
+        values = parse_order_body({**payload, 'customer_id': ticket.partner_id.id}, True)
         order = request.env['liwan.sales.service']._liwan_create(values)
         order.write({'helpdesk_ticket_id': ticket.id})
         return _detail(order)
