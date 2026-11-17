@@ -11,6 +11,7 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
+from odoo.addons.liwan_helpdesk.controllers.tickets import can_read_type
 from odoo.addons.liwan_helpdesk.models.helpdesk_settings import (
     INTEGER_RANGES,
     PRESET_VALUES,
@@ -151,7 +152,8 @@ class HelpdeskSettingsController(http.Controller):
                 {'id': stage.id, 'name': stage.name, 'closed': bool(stage.closed)} for stage in stages
             ],
             'categories': named(request.env['helpdesk.ticket.category'].search(shared, order='name, id')),
-            'types': named(request.env['helpdesk.ticket.type'].search([], order='name, id')),
+            # The type is an agent's classification: a requester neither sees it nor picks it (the list hides it too).
+            'types': named(request.env['helpdesk.ticket.type'].search([], order='name, id')) if can_read_type() else [],
             'channels': named(request.env['helpdesk.ticket.channel'].search(shared, order='name, id')),
             'tags': named(request.env['helpdesk.ticket.tag'].search(shared, order='name, id')),
         }

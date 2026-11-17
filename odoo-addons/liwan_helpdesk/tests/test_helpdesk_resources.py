@@ -90,6 +90,19 @@ class ResourcesApiTest(LiwanHelpdeskCase):
         self.assertEqual(restored.status_code, 200, restored.text)
         self.assertTrue(restored.json()['active'])
 
+    def test_a_requester_reads_the_reference_lists_the_form_needs_but_not_the_types(self):
+        """An employee opens a request from a form that picks a team; the reference answers them, without the agent's types."""
+        self.env['helpdesk.ticket.type'].create({'name': 'Incident'})
+        self.as_user(self.requester)
+        answer = self.api('GET', '/api/v1/helpdesk/reference')
+        self.assertEqual(answer.status_code, 200, answer.text)
+        body = answer.json()
+        self.assertIn(self.team.id, [row['id'] for row in body['teams']])
+        self.assertTrue(body['stages'])
+        self.assertEqual(body['types'], [])
+        self.as_user(self.agent)
+        self.assertIn('Incident', [row['name'] for row in self.api('GET', '/api/v1/helpdesk/reference').json()['types']])
+
     def test_a_stage_holding_open_tickets_is_not_archived(self):
         self.as_user(self.manager)
         stage = self.save('stages', name='Triage', sequence=2).json()

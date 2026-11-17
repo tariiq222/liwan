@@ -234,6 +234,18 @@ class TicketApiTest(LiwanHelpdeskCase):
         offered = self.api('GET', '/api/v1/helpdesk/reference').json()['stages']
         self.assertFalse({'New', 'Done', 'Cancelled', 'Rejected'} & {stage['name'] for stage in offered})
 
+    def test_an_agent_without_assign_saves_the_form_with_the_same_team_but_cannot_move_it(self):
+        """The edit form always sends the team: naming the current one is no move, naming another one is."""
+        self.as_user(self.agent)
+        ticket = self.ticket_body()
+        same = self.api('PATCH', f'/api/v1/helpdesk/tickets/{ticket["id"]}',
+                        json={'subject': 'Renamed', 'team_id': self.team.id})
+        self.assertEqual(same.status_code, 200, same.text)
+        self.assertEqual(same.json()['subject'], 'Renamed')
+        other = self.env['helpdesk.ticket.team'].create({'name': 'Other desk', 'company_id': self.company.id})
+        moved = self.api('PATCH', f'/api/v1/helpdesk/tickets/{ticket["id"]}', json={'team_id': other.id})
+        self.assertEqual((moved.status_code, moved.json()['code']), (403, 'forbidden'))
+
     def test_every_write_answers_the_detail_shape_the_screen_parses(self):
         """The client's schema is strict: a write that omitted the attachments would land and then report failure."""
         self.as_user(self.agent)

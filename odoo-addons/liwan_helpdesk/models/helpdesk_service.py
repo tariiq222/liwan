@@ -252,7 +252,8 @@ class LiwanHelpdeskService(models.AbstractModel):
         ):
             if name not in values:
                 continue
-            if name == 'team_id' and ASSIGN not in keys:
+            # The edit form always names the team, so only a real move needs the assign capability.
+            if name == 'team_id' and ASSIGN not in keys and (values[name] or False) != (ticket.team_id.id or False):
                 raise forbidden(self.env._('moving the ticket to another team needs the assign capability'))
             changes[name] = self._liwan_reference(model, values[name], field).id if values[name] else False
         if 'tag_ids' in values:
