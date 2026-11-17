@@ -157,6 +157,18 @@ it('follows the own outbound message even when scrolled up', async () => {
   expect(view.state.hasNewMessages).toBe(false)
   view.stop()
 })
+it('follows the agent\'s own note even when scrolled up', async () => {
+  const { view, scroller } = await opened(600)
+  expect(await receive(view, scroller, { id: 2, direction: 'note', author: { id: 7, name: 'Agent' } })).toBeGreaterThan(0)
+  expect(view.state.hasNewMessages).toBe(false)
+  view.stop()
+})
+it('keeps the position for an automation note written without an author', async () => {
+  const { view, scroller } = await opened(600)
+  expect(await receive(view, scroller, { id: 2, direction: 'note', author: null })).toBe(0)
+  expect(view.state.hasNewMessages).toBe(true)
+  view.stop()
+})
 it('scrolls down smoothly from the chip and clears it on reaching the bottom', async () => {
   const { view, scroller } = await opened(600)
   await receive(view, scroller, { id: 2, direction: 'in' })

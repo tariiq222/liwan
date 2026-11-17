@@ -68,7 +68,9 @@ const rows = computed<Row[]>(() => {
 })
 
 // A new message follows to the bottom when the conversation was just opened, the agent is already near the bottom, or the
-// message is the agent's own reply. Otherwise the reading position stays and a chip offers the jump.
+// message is the agent's own: a reply or an internal note they wrote. Otherwise the reading position stays and a chip offers the jump.
+const isOwnMessage = (message: InboxMessage | undefined) =>
+  message?.direction === 'out' ? !message.automated : message?.direction === 'note' && message.author !== null
 function onScroll() {
   const element = scroller.value
   if (!element) return
@@ -83,7 +85,7 @@ const newestId = computed(() => items.value.at(-1)?.id)
 watch(newestId, async (id, previousId) => {
   const conversation = props.conversationId
   const newest = items.value.at(-1)
-  const follow = justOpened || previousId === undefined || nearBottom.value || (newest?.direction === 'out' && !newest.automated)
+  const follow = justOpened || previousId === undefined || nearBottom.value || isOwnMessage(newest)
   justOpened = false
   if (!follow) {
     hasNewMessages.value = true
