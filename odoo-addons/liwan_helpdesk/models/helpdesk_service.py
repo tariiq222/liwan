@@ -306,6 +306,8 @@ class LiwanHelpdeskService(models.AbstractModel):
         stage = self._liwan_stage_for(ticket, stage_id)
         if stage.closed:
             self._liwan_require(CLOSE)
+        elif ticket.stage_id.closed:
+            self._liwan_check_reopen(ticket)
         ticket.write({'stage_id': stage.id, 'liwan_last_activity_at': fields.Datetime.now()})
         return ticket
 
@@ -319,14 +321,20 @@ class LiwanHelpdeskService(models.AbstractModel):
         return ticket
 
     @api.model
-    def _liwan_reopen(self, ticket):
+    def _liwan_check_reopen(self, ticket):
+        """The rules of leaving a closed stage, shared by the reopen route and a stage move out of a closed stage."""
         self._liwan_require(CLOSE)
-        if not ticket.stage_id.closed:
-            raise LiwanAccessRule(CONFLICT, 'the ticket is not closed', status=409)
         days = self._liwan_settings(ticket.company_id).reopen_days
         closed_at = ticket.closed_date or ticket.write_date
         if days and closed_at and fields.Datetime.now() - closed_at > timedelta(days=days):
             raise invalid(self.env._('the ticket can no longer be reopened'))
+
+    @api.model
+    def _liwan_reopen(self, ticket):
+        self._liwan_require(CLOSE)
+        if not ticket.stage_id.closed:
+            raise LiwanAccessRule(CONFLICT, 'the ticket is not closed', status=409)
+        self._liwan_check_reopen(ticket)
         ticket.write({'stage_id': self._liwan_default_stage(ticket.team_id).id,
                       'liwan_last_activity_at': fields.Datetime.now()})
         return ticket
