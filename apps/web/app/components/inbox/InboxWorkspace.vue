@@ -66,32 +66,38 @@ function updateRoute(next: InboxListRoute, options?: { replace: boolean }) {
         <UButton to="/settings/apps/inbox#channels" color="neutral" variant="soft" icon="i-lucide-settings" :label="t('inbox.settings.channels.title')" data-testid="inbox-channels-link" />
       </template>
     </SharedPageHeader>
-    <SharedConversationLayout :has-selection="hasSelection" :info-open="panelOpen">
+    <SharedConversationLayout :class="{ 'liwan-conversation-fill--open': hasSelection }" :has-selection="hasSelection" :info-open="panelOpen">
       <template #list>
         <InboxConversationList class="min-h-0 flex-1" :route-state="routeState" :selected-id="props.conversationId" @update:route-state="updateRoute" />
       </template>
       <template #header>
-        <header class="flex flex-wrap items-center gap-2 border-b-[1.5px] border-default bg-default px-[18px] py-3">
+        <header class="flex items-center gap-1 border-b-[1.5px] border-default bg-default px-3 py-3 md:gap-2 md:px-[18px]">
           <UTooltip :text="t('app.back')">
             <UButton color="neutral" variant="ghost" square class="md:hidden" :to="{ path: '/inbox', query: listQuery }" :aria-label="t('app.back')">
               <UIcon name="i-lucide-arrow-left" class="size-5 rtl:rotate-180" aria-hidden="true" />
             </UButton>
           </UTooltip>
-          <UAvatar v-bind="avatarProps(contactName, data?.contact.id)" class="size-10 shrink-0" />
-          <div class="min-w-0 flex-1 text-start">
-            <h2 class="truncate text-(length:--liwan-fs-conversation-title)/[1.3] font-semibold text-highlighted">{{ contactName || t('inbox.title') }}</h2>
-            <p v-if="data" class="flex min-w-0 items-center gap-1 text-xs text-muted">
-              <UIcon :name="CHANNEL_KIND_ICON[data.channel.kind]" class="size-3.5 shrink-0" :class="{ 'text-(color:--liwan-whatsapp)': data.channel.kind === 'whatsapp' }" aria-hidden="true" />
-              <span class="truncate">{{ data.channel.name }}</span>
-              <template v-if="data.contact.phone">· <bdi dir="ltr" class="truncate">{{ data.contact.phone }}</bdi></template>
-            </p>
+          <UAvatar v-bind="avatarProps(contactName, data?.contact.id)" class="size-10 shrink-0 max-md:hidden" />
+          <!-- Phones: the name, then the channel line beside the badges, in one grid; from 768px the wrappers dissolve and the
+               name block and the badges are separate header items. -->
+          <div class="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 md:contents">
+            <div class="contents min-w-0 text-start md:block md:flex-1">
+              <h2 class="col-span-2 truncate text-start text-(length:--liwan-fs-conversation-title)/[1.3] font-semibold text-highlighted">{{ contactName || t('inbox.title') }}</h2>
+              <p v-if="data" class="flex min-w-0 items-center gap-1 text-start text-xs text-muted">
+                <UIcon :name="CHANNEL_KIND_ICON[data.channel.kind]" class="size-3.5 shrink-0" :class="{ 'text-(color:--liwan-whatsapp)': data.channel.kind === 'whatsapp' }" aria-hidden="true" />
+                <span class="truncate">{{ data.channel.name }}</span>
+                <template v-if="data.contact.phone">· <bdi dir="ltr" class="truncate">{{ data.contact.phone }}</bdi></template>
+              </p>
+            </div>
+            <div class="flex min-w-0 max-w-40 items-center gap-1 overflow-hidden md:contents">
+              <SharedStatusBadge v-if="data?.csat" :tone="CSAT_TONE[data.csat.score]" icon="i-lucide-star" :label="t('inbox.csat.badge', { score: t(`inbox.csat.${data.csat.score}`) })" data-testid="inbox-csat-badge" />
+              <UTooltip v-if="data?.referral_source" :text="data.referral_ref ? t('inbox.referral.ref', { ref: data.referral_ref }) : t('inbox.referral.badge', { source: t(`inbox.referral.${data.referral_source}`) })">
+                <SharedStatusBadge tone="info" icon="i-lucide-megaphone" :label="t('inbox.referral.badge', { source: t(`inbox.referral.${data.referral_source}`) })" data-testid="inbox-referral-badge" />
+              </UTooltip>
+              <SharedStatusBadge v-if="data" :tone="CONVERSATION_STATE_TONE[data.state]" :label="t(`inbox.states.${data.state}`)" />
+              <SharedStatusBadge v-if="data && INBOX_PRIORITY_TONE[data.priority]" :tone="INBOX_PRIORITY_TONE[data.priority]!" :label="t(`inbox.priorities.${data.priority}`)" data-testid="inbox-thread-priority-badge" />
+            </div>
           </div>
-          <SharedStatusBadge v-if="data?.csat" :tone="CSAT_TONE[data.csat.score]" icon="i-lucide-star" :label="t('inbox.csat.badge', { score: t(`inbox.csat.${data.csat.score}`) })" data-testid="inbox-csat-badge" />
-          <UTooltip v-if="data?.referral_source" :text="data.referral_ref ? t('inbox.referral.ref', { ref: data.referral_ref }) : t('inbox.referral.badge', { source: t(`inbox.referral.${data.referral_source}`) })">
-            <SharedStatusBadge tone="info" icon="i-lucide-megaphone" :label="t('inbox.referral.badge', { source: t(`inbox.referral.${data.referral_source}`) })" data-testid="inbox-referral-badge" />
-          </UTooltip>
-          <SharedStatusBadge v-if="data" :tone="CONVERSATION_STATE_TONE[data.state]" :label="t(`inbox.states.${data.state}`)" />
-          <SharedStatusBadge v-if="data && INBOX_PRIORITY_TONE[data.priority]" :tone="INBOX_PRIORITY_TONE[data.priority]!" :label="t(`inbox.priorities.${data.priority}`)" data-testid="inbox-thread-priority-badge" />
           <InboxConversationActions v-if="data" :conversation="data" />
           <UTooltip v-if="catalogOn" :text="t('inbox.orders.title')">
             <UButton color="neutral" :variant="ordersOpen ? 'soft' : 'ghost'" square :to="ordersOpen ? threadTo : ordersTo" :aria-expanded="ordersOpen" :aria-label="t('inbox.orders.title')" data-testid="inbox-orders-toggle">
