@@ -118,3 +118,55 @@ it('clears an active highlight timeout on disposal', async () => {
   expect(view.state.highlightedId).toBeNull()
   expect(vi.getTimerCount()).toBe(0)
 })
+
+// A scroller stub that reports how far the agent is from the bottom.
+const scrollerAt = (distance: number) => ({ scrollHeight: 2000, clientHeight: 500, scrollTop: 2000 - 500 - distance, scrollTo: vi.fn() })
+async function receive(view: ReturnType<typeof fixture>, scroller: ReturnType<typeof scrollerAt>, message: Record<string, unknown>) {
+  view.items.value = [...view.items.value, message]
+  await nextTick(); await nextTick()
+  await flushFrames()
+  return scroller.scrollTo.mock.calls.length
+}
+async function opened(distance: number) {
+  const view = fixture()
+  await nextTick()
+  view.items.value = [{ id: 1, direction: 'in' }]
+  await nextTick(); await nextTick()
+  await flushFrames()
+  const scroller = scrollerAt(distance)
+  view.state.scroller = scroller
+  view.state.onScroll()
+  return { view, scroller }
+}
+
+it('follows a new message to the bottom when the agent is near it', async () => {
+  const { view, scroller } = await opened(100)
+  expect(await receive(view, scroller, { id: 2, direction: 'in' })).toBeGreaterThan(0)
+  expect(view.state.hasNewMessages).toBe(false)
+  view.stop()
+})
+it('keeps the position and shows the new messages chip when the agent scrolled up', async () => {
+  const { view, scroller } = await opened(600)
+  expect(await receive(view, scroller, { id: 2, direction: 'in' })).toBe(0)
+  expect(view.state.hasNewMessages).toBe(true)
+  view.stop()
+})
+it('follows the own outbound message even when scrolled up', async () => {
+  const { view, scroller } = await opened(600)
+  expect(await receive(view, scroller, { id: 2, direction: 'out', automated: false })).toBeGreaterThan(0)
+  expect(view.state.hasNewMessages).toBe(false)
+  view.stop()
+})
+it('scrolls down smoothly from the chip and clears it on reaching the bottom', async () => {
+  const { view, scroller } = await opened(600)
+  await receive(view, scroller, { id: 2, direction: 'in' })
+  view.state.showNewest()
+  expect(view.state.hasNewMessages).toBe(false)
+  expect(scroller.scrollTo).toHaveBeenLastCalledWith({ top: 2000, behavior: 'smooth' })
+  await receive(view, scroller, { id: 3, direction: 'in' })
+  expect(view.state.hasNewMessages).toBe(true)
+  scroller.scrollTop = 1500
+  view.state.onScroll()
+  expect(view.state.hasNewMessages).toBe(false)
+  view.stop()
+})
