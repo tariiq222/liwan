@@ -4,18 +4,15 @@ import { api, ODOO_ONLY, signInAs, slow, type Json, type PageContext, type Stage
 
 /**
  * Support Desk journeys on the scratch Odoo stack (`npm run e2e:odoo`), covering the register rows
- * HD-24, HD-30, HD-50 and HD-60 (e2e/scenarios/helpdesk.md).
+ * HD-21, HD-24, HD-30 to HD-32, HD-40, HD-41, HD-50, HD-60, HD-63, HD-70 and HD-85 (e2e/scenarios/helpdesk.md).
  *
  * Personas come from tools/e2e_seed.py. No seeded account holds a desk role: each journey grants the built-in
  * role it needs to a seeded employee as `it_admin`, keeping that employee's existing assignments, and then
  * proves the grant from `/api/v1/me`. Every subject carries a timestamp because the database is reused.
  *
- * Every write goes through the page's own session (`api()`), so it carries the signed-in persona's cookie and
- * the same routes the screens call. The screens' create, edit, assignment, stage, close, reopen and merge
- * buttons cannot be used today: the composable parses those answers with a strict schema that requires
- * `attachments`, while the serializer omits them (register row HD-100). The journeys therefore assert the read
- * side through the rendered page, and the write side through the route the page would call. The reply and the
- * internal note are the exception: their mutation re-reads the ticket, so the composer works and is used.
+ * The write side of a ticket goes through the page's own session (`api()`), so it carries the signed-in persona's
+ * cookie and the same routes the screens call; the read side is asserted through the rendered page. The create,
+ * edit and settings forms are driven by their own journeys (HD-20, HD-33, and e2e/tests/helpdesk-settings.e2e.ts).
  */
 const TICKETS = '/api/v1/helpdesk/tickets';
 const EMPLOYEE = 'سارة العمري';

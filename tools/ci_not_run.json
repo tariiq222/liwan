@@ -69,6 +69,7 @@
       "reason": "deterministic register tests of the e2e runner for the scratch Odoo stack seeded by tools/e2e_seed.py (npm run e2e:odoo -- e2e/tests/<file>); they call no model, but no CI stage runs the e2e runner, the e2e-odoo stage runs the Playwright specs of apps/web/e2e only",
       "files": [
         "e2e/tests/documents-register.e2e.ts",
+        "e2e/tests/helpdesk-settings.e2e.ts",
         "e2e/tests/helpdesk.e2e.ts",
         "e2e/tests/operations-register.e2e.ts",
         "e2e/tests/projects-register.e2e.ts",
