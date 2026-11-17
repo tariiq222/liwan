@@ -298,6 +298,17 @@ describe('InboxComposer', () => {
     expect(state.location.value.latitude).toBe('')
   })
 
+  it('returns to text when a canned reply is picked with the location panel open', async () => {
+    const { state, sendReply } = mountComposer('2026-10-28T20:00:00Z')
+    state.togglePanel('location')
+    state.location.value = { ...emptyLocationDraft(), latitude: '24.7', longitude: '46.6' }
+    state.pickCanned('شكرا لتواصلك')
+    expect(state.panel.value).toBeNull()
+    expect(state.draft.value).toBe('شكرا لتواصلك')
+    await state.submit()
+    expect(sendReply).toHaveBeenCalledWith({ body: 'شكرا لتواصلك' })
+  })
+
   it('keeps typed text that a location reply did not carry', async () => {
     const { state, sendReply, inboxDrafts } = mountComposer('2026-10-28T20:00:00Z')
     state.draft.value = 'نص لم يُرسل'

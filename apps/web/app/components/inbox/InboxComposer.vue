@@ -263,7 +263,9 @@ async function onHeaderPicked(event: Event) {
 function pickSuggestion(body: string) {
   draft.value = body
 }
+// A canned reply is text: it returns from a structured panel to text composition so the textarea shows it and send sends it.
 function pickCanned(body: string) {
+  panel.value = null
   pickSuggestion(body)
   cannedOpen.value = false
 }
@@ -443,7 +445,7 @@ async function submit() {
       />
     </template>
     <div v-if="(!templateMode || selectedTemplate) && !blockedWindow" class="liwan-touch-target-row-actions flex items-center gap-2">
-      <div v-if="mode === 'reply' && !templateMode" class="flex min-w-0 flex-nowrap items-center gap-1" role="toolbar" :aria-label="t('inbox.composer.attachments')">
+      <div v-if="mode === 'reply' && !templateMode" class="flex min-w-0 flex-wrap items-center gap-1" role="toolbar" :aria-label="t('inbox.composer.attachments')">
         <UTooltip v-if="actions.includes('attach')" :text="t('inbox.composer.attach')">
           <span class="inline-flex"><SharedFileField ref="fileField" icon-only :accept="inboxUploadAccept(kind)" :label="t('inbox.composer.attach')" :show-file-name="false" :disabled="!hydrated || sending || uploading" data-testid="inbox-attach" @change="onFilePicked" /></span>
         </UTooltip>
@@ -474,7 +476,7 @@ async function submit() {
         </UPopover>
       </div>
       <p v-else-if="mode === 'note'" class="min-w-0 text-xs text-muted">{{ t('inbox.composer.noteHint') }}</p>
-      <UTooltip :text="sendLabel" :disabled="isDesktop" class="ms-auto">
+      <UTooltip :text="sendLabel" :disabled="isDesktop" class="ms-auto shrink-0">
         <UButton type="submit" icon="i-lucide-send" :disabled="!canSend" :loading="sending" :label="isDesktop ? sendLabel : undefined" :aria-label="sendLabel" data-testid="inbox-send" />
       </UTooltip>
     </div>
