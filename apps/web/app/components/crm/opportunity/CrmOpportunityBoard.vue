@@ -21,6 +21,7 @@ const emit = defineEmits<{ move: [move: BoardMove] }>()
 const CARD = 'relative overflow-hidden rounded-card border-[1.5px] border-default bg-default liwan-lift dark:shadow-(--liwan-card-highlight)'
 const GROUP = 'crm-opportunities'
 const { t } = useI18n()
+const hydrated = useHydrated()
 const { me } = useMe()
 const timeZone = computed(() => me.value?.tz || 'UTC')
 const clock = computed(() => props.now ?? Date.now())
@@ -114,7 +115,7 @@ function onLost(event: { data?: CrmOpportunity }) {
               </span>
             </NuxtLink>
             <div class="absolute end-[10px] top-[10px] flex gap-1.5">
-            <UButton v-if="movable(item)" type="button" color="neutral" variant="soft" square icon="i-lucide-arrow-left-right" class="size-(--liwan-card-action-size) shrink-0 bg-elevated text-muted hover:text-highlighted pointer-coarse:size-11" :aria-label="t('crm.opportunities.board.moveFor', { name: item.contact_name })" :title="t('crm.opportunities.board.move')" data-testid="crm-card-move" @click.stop="emit('move', { item, to: 'pick', revert })" />
+            <UButton v-if="movable(item)" type="button" color="neutral" variant="soft" square :disabled="!hydrated" icon="i-lucide-arrow-left-right" class="size-(--liwan-card-action-size) shrink-0 bg-elevated text-muted hover:text-highlighted pointer-coarse:size-11" :aria-label="t('crm.opportunities.board.moveFor', { name: item.contact_name })" :title="t('crm.opportunities.board.move')" data-testid="crm-card-move" @click.stop="emit('move', { item, to: 'pick', revert })" />
             <CrmCallButton :phone="item.phone" :name="item.contact_name" class="pointer-coarse:size-11" />
           </div>
           </div>

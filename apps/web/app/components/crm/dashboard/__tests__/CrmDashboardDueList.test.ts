@@ -11,8 +11,8 @@ const form = Vue.defineComponent({ props: ['outcomes', 'error'], setup: props =>
 const stubs = { ...DEFAULT_STUBS, SharedRecordSection: section, SharedPageState: state, SharedEmptyState: Vue.defineComponent({ setup: () => () => Vue.h('p', 'empty') }) }
 const item = { id: 1, contact_name: 'أحمد', phone: '0501234567', stage: { id: 1, name: 'جديد' }, next_call_at: '2026-10-28T09:00:00Z', win_by_order: false }
 const outcomes = [{ id: 1, effect: 'follow_up' }, { id: 3, effect: 'won' }]
-const render = (props: Record<string, unknown>) => renderShared(resolve(import.meta.dirname, '../CrmDashboardDueList.vue'), { items: [item], total: 1, viewAllTo: '/all', now: Date.parse('2026-10-28T12:00:00Z'), canRecord: true, outcomes, ...props }, {}, {
-  hydrated: true,
+const render = (props: Record<string, unknown>, hydrated = true) => renderShared(resolve(import.meta.dirname, '../CrmDashboardDueList.vue'), { items: [item], total: 1, viewAllTo: '/all', now: Date.parse('2026-10-28T12:00:00Z'), canRecord: true, outcomes, ...props }, {}, {
+  hydrated,
   stubs,
   modules: {
     '@/components/crm/opportunity/CrmOpportunityCallForm.vue': { __esModule: true, default: form },
@@ -38,9 +38,15 @@ describe('CrmDashboardDueList', () => {
     expect(await render({ canRecord: false, openId: 1 })).not.toContain('crm-due-record')
   })
 
-  it('disables the other rows while the open form holds text', async () => {
+  it('disables every record button, the open row included, while the open form holds text', async () => {
     const html = await render({ items: [item, { ...item, id: 2 }], openId: 1, dirty: true })
-    expect(html.match(/disabled/g)).toHaveLength(1)
+    expect(html.match(/disabled/g)).toHaveLength(2)
+    expect(await render({ openId: 1, dirty: false })).not.toContain('disabled')
+  })
+
+  it('keeps the record button disabled until the page is hydrated', async () => {
+    expect(await render({}, false)).toContain('disabled')
+    expect(await render({})).not.toContain('disabled')
   })
 
   it('links a refusal to the record', async () => {

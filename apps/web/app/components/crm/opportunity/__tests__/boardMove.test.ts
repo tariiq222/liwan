@@ -17,8 +17,9 @@ const stages = [
 const mine = { id: 1, stage: { id: 1 }, contact_name: 'Mine', phone: '+966500000001', user: { id: 3, name: 'Layla' }, needs_manager: false, status: 'pending', next_call_at: null, win_by_order: false }
 const theirs = { ...mine, id: 2, contact_name: 'Theirs', user: { id: 9, name: 'Sara' } }
 
-async function boardHtml(items: unknown[], canMove?: (item: { id: number }) => boolean) {
+async function boardHtml(items: unknown[], canMove?: (item: { id: number }) => boolean, hydrated = true) {
   const Board = loadShared(resolve(import.meta.dirname, '../CrmOpportunityBoard.vue'), {
+    hydrated,
     modules: {
       '@liwan/ui/app/utils/formatDate': { formatDateTime: () => '' },
       '@liwan/ui/app/utils/avatarTone': { avatarProps: () => ({}) },
@@ -42,6 +43,12 @@ it('makes only the cards the user may work draggable and gives only those the mo
   expect(html.match(/data-readonly="true"/g)).toHaveLength(1)
   expect(html.match(/data-testid="crm-card-move"/g)).toHaveLength(1)
   expect(html).toContain('title="crm.opportunities.board.move"')
+})
+
+it('keeps the move action disabled until the page is hydrated', async () => {
+  const move = (html: string) => html.match(/<button[^>]*crm-card-move[^>]*>/)![0]
+  expect(move(await boardHtml([mine], () => true, false))).toContain('disabled')
+  expect(move(await boardHtml([mine], () => true))).not.toContain('disabled')
 })
 
 it('offers no drag and no move action when nothing may be moved', async () => {

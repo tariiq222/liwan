@@ -26,6 +26,7 @@ const emit = defineEmits<{ retry: []; record: [id: number, call: CrmCallDraft] }
 const openId = defineModel<number | null>('openId', { default: null })
 const dirty = defineModel<boolean>('dirty', { default: false })
 const { t, locale } = useI18n()
+const hydrated = useHydrated()
 const clock = computed(() => props.now ?? Date.now())
 const formId = (id: number) => `crm-due-call-${id}`
 
@@ -58,7 +59,7 @@ function toggle(id: number) {
             :label="t('crm.dashboard.agent.recordResult')"
             :aria-expanded="openId === item.id"
             :aria-controls="formId(item.id)"
-            :disabled="dirty && openId !== item.id"
+            :disabled="!hydrated || dirty"
             data-testid="crm-due-record"
             @click="toggle(item.id)"
           />
