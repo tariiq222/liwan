@@ -1,0 +1,290 @@
+{
+  "helpdesk": {
+    "title": "Support Desk",
+    "subtitle": "Support tickets from arrival to closure.",
+    "summary": {
+      "label": "Queue figures",
+      "open": "Open",
+      "unassigned": "Unassigned",
+      "mine": "Assigned to me",
+      "overdue": "Past their deadline"
+    },
+    "new": "New ticket",
+    "edit": "Edit ticket",
+    "search": "Search by ticket number, subject or requester",
+    "searchProviders": {
+      "tickets": "Support tickets"
+    },
+    "empty": "No tickets in this queue.",
+    "clear": "Clear filters",
+    "unassigned": "Unassigned",
+    "footer": "{shown} of {total} tickets",
+    "nav": {
+      "tickets": "Tickets",
+      "reports": "Support reports"
+    },
+    "queue": {
+      "label": "Queue",
+      "open": "Open",
+      "closed": "Closed",
+      "all": "All"
+    },
+    "filters": {
+      "anyTeam": "Every team",
+      "anyStage": "Every stage",
+      "anyPriority": "Every priority",
+      "anyAssignee": "Everyone",
+      "mine": "Assigned to me",
+      "unassigned": "Unassigned"
+    },
+    "columns": {
+      "number": "Number",
+      "subject": "Subject",
+      "requester": "Requester",
+      "stage": "Stage",
+      "priority": "Priority",
+      "assignee": "Assignee",
+      "sla": "Service level",
+      "created": "Opened",
+      "team": "Team"
+    },
+    "priority": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "urgent": "Urgent"
+    },
+    "sla": {
+      "none": "No service level",
+      "on_track": "On track",
+      "due_soon": "Due soon",
+      "overdue": "Overdue"
+    },
+    "form": {
+      "subject": "Subject",
+      "description": "What is the request",
+      "subjectRequired": "Write a clear subject.",
+      "descriptionRequired": "Describe what you need.",
+      "team": "Team",
+      "teamRequired": "Pick the team that receives the request.",
+      "priority": "Priority",
+      "category": "Category",
+      "type": "Type",
+      "channel": "Channel",
+      "customer": "Customer",
+      "customerHelp": "Leave it empty for an internal request from an employee.",
+      "none": "None",
+      "create": "Open the ticket",
+      "save": "Save changes",
+      "failed": "The ticket could not be saved."
+    },
+    "record": {
+      "loading": "Support ticket",
+      "details": "Details",
+      "requester": "Requester",
+      "assignee": "Assignee",
+      "category": "Category",
+      "type": "Type",
+      "channel": "Channel",
+      "created": "Opened",
+      "firstResponse": "First response",
+      "pending": "Waiting for the first reply",
+      "slaDeadline": "Service-level deadline",
+      "closedAt": "Closed",
+      "related": "Related tickets",
+      "description": "What was asked",
+      "stage": "Stage",
+      "take": "Assign to me",
+      "release": "Unassign",
+      "close": "Close the ticket",
+      "reopen": "Reopen",
+      "failed": "The action could not be completed.",
+      "portal": "Customer page",
+      "portalHint": "A link that shows the ticket to the customer, who can reply and close it without an account. Share it only with them.",
+      "copy": "Copy",
+      "copied": "Link copied."
+    },
+    "thread": {
+      "title": "Conversation",
+      "empty": "No replies yet.",
+      "internal": "Internal note",
+      "placeholder": "Answer the requester or leave a note for the team.",
+      "note": "Internal note, hidden from the requester",
+      "send": "Send",
+      "failed": "The reply could not be sent.",
+      "uploadFailed": "The file could not be uploaded.",
+      "deleteFailed": "The file could not be deleted."
+    },
+    "attachments": {
+      "title": "Attachments",
+      "empty": "No attachments.",
+      "add": "Attach a file",
+      "remove": "Remove the attachment"
+    },
+    "settings": {
+      "policy": "Policy",
+      "policyHint": "Who sees which ticket, what a new ticket takes, and the service-level targets.",
+      "policyTitle": "Support policy",
+      "preset": "Preset",
+      "presetHint": "A starting point that sets several settings at once; every value stays editable.",
+      "visibility": {
+        "own": "Own tickets",
+        "team": "My teams",
+        "all": "Whole company"
+      },
+      "visibilityLabel": "Who sees the tickets",
+      "visibilityHint": "Own: assigned to me and unassigned in my team. Team: every ticket of my teams. Company: every ticket.",
+      "defaultTeam": "Default team",
+      "defaultPriority": "Default priority",
+      "prefix": "Ticket number prefix",
+      "prefixHint": "Precedes the number of every new ticket, up to ten characters.",
+      "reopenDays": "Reopen window (days)",
+      "reopenHint": "Zero means a closed ticket never reopens.",
+      "firstResponse": "First-response target (hours)",
+      "firstResponseHint": "From opening the ticket to the team's first reply; zero disables the measure.",
+      "resolution": "Resolution target (hours)",
+      "resolutionHint": "From opening the ticket to closing it; zero disables the measure.",
+      "saved": "The policy was saved.",
+      "failed": "The policy could not be saved.",
+      "presets": {
+        "general": "General",
+        "it": "IT service desk",
+        "maintenance": "Maintenance and facilities",
+        "public_sector": "Public sector service desk",
+        "retail": "Retail after-sales",
+        "care": "Care and clinics",
+        "education": "Education"
+      },
+      "teams": {
+        "section": "Teams",
+        "sectionHint": "Who receives the tickets and who leads each team.",
+        "title": "Support teams",
+        "add": "New team",
+        "leader": "Team leader",
+        "members": "Members"
+      },
+      "stages": {
+        "title": "Stages",
+        "add": "New stage",
+        "sequence": "Order",
+        "closed": "Closed",
+        "unattended": "Waiting on the customer",
+        "fold": "Folded in the board",
+        "teams": "Teams",
+        "teamsHint": "With no team chosen the stage serves every team.",
+        "shared": "Shared"
+      },
+      "values": {
+        "section": "Workflow and lists",
+        "sectionHint": "Stages, categories, tags, channels and ticket types.",
+        "parent": "Parent category",
+        "noParent": "No parent",
+        "categories": {
+          "title": "Categories",
+          "add": "New category"
+        },
+        "tags": {
+          "title": "Tags",
+          "add": "New tag"
+        },
+        "channels": {
+          "title": "Channels",
+          "add": "New channel"
+        },
+        "types": {
+          "title": "Ticket types",
+          "add": "New type"
+        }
+      },
+      "resources": {
+        "name": "Name",
+        "save": "Save",
+        "failed": "The record could not be saved.",
+        "active": "Active",
+        "archived": "Archived"
+      },
+      "sla": {
+        "section": "Service levels",
+        "sectionHint": "The deadlines the teams commit to, who they cover and where the clock pauses.",
+        "title": "Service levels",
+        "add": "New service level",
+        "hint": "A service level is met once the ticket reaches its target stage.",
+        "empty": "No service levels yet.",
+        "name": "Service level name",
+        "days": "{count} days",
+        "hours": "{count} hours",
+        "until": "until",
+        "paused": "paused in {count} stages",
+        "covered": "{count} tickets",
+        "everyTeam": "Every team",
+        "daysLabel": "Days",
+        "hoursLabel": "Hours",
+        "target": "Target stage",
+        "targetHint": "Reaching this stage meets the service level.",
+        "teams": "Teams",
+        "teamsHint": "With no team chosen it covers every team.",
+        "categories": "Categories",
+        "tags": "Tags",
+        "pauseStages": "Paused stages",
+        "pauseHint": "The stages where the clock stops (waiting on the customer, for example).",
+        "firstResponse": "First response",
+        "resolution": "Resolution"
+      },
+      "portalEnabled": "Customer page",
+      "portalEnabledHint": "A link through which the customer reads the ticket, replies and closes it without an account.",
+      "autoCloseDays": "Close inactive tickets after (days)",
+      "autoCloseDaysHint": "Zero turns automatic closing off.",
+      "autoCloseStages": "Auto-close stages",
+      "autoCloseStagesHint": "With no stage chosen it applies to every open stage."
+    },
+    "merge": {
+      "title": "Merge duplicates",
+      "hint": "Search another ticket and tick it to merge it into this one; its attachments move and it closes as a duplicate.",
+      "search": "Search by number or subject",
+      "submit": "Merge {count} tickets",
+      "failed": "The merge could not be completed."
+    },
+    "reports": {
+      "title": "Support reports",
+      "subtitle": "First response and resolution time, service-level compliance and each agent’s load.",
+      "periodLabel": "Period",
+      "period": {
+        "7": "Last 7 days",
+        "30": "Last 30 days",
+        "90": "Last 90 days",
+        "365": "Last year"
+      },
+      "firstResponse": "First response",
+      "resolution": "Resolution",
+      "sla": "Service levels",
+      "open": "Open tickets",
+      "hours": "{count}h",
+      "target": "Target {count}h",
+      "noTarget": "No target set",
+      "slaHint": "{met} met, {late} late",
+      "totalHint": "of {total} tickets in the period",
+      "agents": "Agent workload",
+      "agent": "Agent",
+      "openShort": "Open",
+      "closedShort": "Closed",
+      "overdueShort": "Overdue",
+      "firstResponseShort": "First response",
+      "byStage": "Tickets by stage",
+      "empty": "No data in this period."
+    },
+    "portal": {
+      "title": "Support",
+      "subtitle": "Follow your support request",
+      "invalidTitle": "This link is not usable",
+      "invalid": "The link has expired or does not belong to a live request.",
+      "request": "Your request",
+      "conversation": "Conversation",
+      "noReplies": "No replies yet.",
+      "placeholder": "Write a reply or more details",
+      "send": "Send",
+      "close": "Close the request",
+      "closeConfirm": "Close this request?",
+      "failed": "The request could not be completed."
+    }
+  }
+}

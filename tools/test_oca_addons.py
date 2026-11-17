@@ -4,6 +4,7 @@ import contextlib
 import copy
 import io
 import json
+import os
 import re
 import subprocess
 import sys
@@ -32,6 +33,13 @@ class ValidateTest(unittest.TestCase):
         self.assertTrue(oca_addons.validate({'repos': [dict(GOOD, commit='A' * 40)]}))
         self.assertTrue(oca_addons.validate({'repos': [dict(GOOD, repo='odoo/demo')]}))
         self.assertTrue(oca_addons.validate({'repos': [GOOD, copy.deepcopy(GOOD)]}))
+
+    def test_modules_are_optional_and_validated(self):
+        self.assertEqual(oca_addons.validate({'repos': [dict(GOOD, modules=['mod'])]}), [])
+        self.assertTrue(oca_addons.validate({'repos': [dict(GOOD, modules=[])]}))
+        self.assertTrue(oca_addons.validate({'repos': [dict(GOOD, modules='mod')]}))
+        self.assertTrue(oca_addons.validate({'repos': [dict(GOOD, modules=['Mod'])]}))
+        self.assertTrue(oca_addons.validate({'repos': [dict(GOOD, modules=['mod', 'mod'])]}))
 
     def test_python_requirements_must_name_a_pinned_repo(self):
         bad = {'repos': [GOOD], 'python_requirements': [{'module': 'm', 'repo': 'OCA/other', 'packages': ['x']}]}
@@ -131,12 +139,65 @@ class FetchTest(unittest.TestCase):
         self.assertEqual(out.getvalue().strip(), str(self.dest / 'demo'))
 
 
+class SelectionTest(unittest.TestCase):
+    """A repository that names `modules` contributes a directory of relative symlinks, not its root."""
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.dest = Path(tmp.name) / 'dest'
+        self.entry = {'repo': 'OCA/demo', 'branch': '19.0', 'commit': 'a' * 40, 'modules': ['mod', 'other']}
+        for module in ('mod', 'other', 'unused'):
+            (oca_addons.repo_dir(self.dest, 'OCA/demo') / module).mkdir(parents=True)
+            (oca_addons.repo_dir(self.dest, 'OCA/demo') / module / '__manifest__.py').write_text(
+                "{'name': '%s'}\n" % module, encoding='utf-8')
+
+    def test_path_prints_the_selection_directory_instead_of_the_repository(self):
+        pins = {'repos': [self.entry, dict(self.entry, repo='OCA/plain', modules=None)]}
+        self.assertEqual(oca_addons.addons_path(pins, self.dest),
+                         '%s,%s' % (self.dest / '.selected' / 'demo', self.dest / 'plain'))
+
+    def test_materialise_links_only_the_named_modules_with_relative_targets(self):
+        oca_addons.materialise_selection({'repos': [self.entry]}, self.dest)
+        selected = self.dest / '.selected' / 'demo'
+        self.assertEqual(sorted(path.name for path in selected.iterdir()), ['mod', 'other'])
+        link = selected / 'mod'
+        self.assertTrue(link.is_symlink())
+        self.assertEqual(os.readlink(link), '../../demo/mod')
+        self.assertTrue((link / '__manifest__.py').is_file())
+
+    def test_materialise_is_idempotent_and_drops_a_stale_selection(self):
+        oca_addons.materialise_selection({'repos': [self.entry]}, self.dest)
+        oca_addons.materialise_selection({'repos': [dict(self.entry, modules=['mod'])]}, self.dest)
+        self.assertEqual(sorted(path.name for path in (self.dest / '.selected' / 'demo').iterdir()), ['mod'])
+        oca_addons.materialise_selection({'repos': [dict(self.entry, modules=None)]}, self.dest)
+        self.assertFalse((self.dest / '.selected' / 'demo').exists())
+
+    def test_an_unknown_module_fails_and_leaves_no_selection_behind(self):
+        with self.assertRaisesRegex(oca_addons.OcaError, 'no module missing'):
+            oca_addons.materialise_selection(
+                {'repos': [dict(self.entry, modules=['mod', 'missing'])]}, self.dest)
+        self.assertFalse((self.dest / '.selected' / 'demo' / 'mod').exists())
+
+    def test_verify_selection_reports_the_fetch_command(self):
+        with self.assertRaisesRegex(oca_addons.OcaError, 'oca_addons.py fetch'):
+            oca_addons.verify_selection({'repos': [self.entry]}, self.dest)
+        oca_addons.materialise_selection({'repos': [self.entry]}, self.dest)
+        oca_addons.verify_selection({'repos': [self.entry]}, self.dest)
+
+
 class PinFileTest(unittest.TestCase):
     def test_dms_is_available_in_the_verified_runtime_path(self):
         pins = oca_addons.load_pins(oca_addons.PINS)
         self.assertIn('/opt/oca/dms', oca_addons.image_path().split(','))
         self.assertEqual(next(item for item in pins['repos'] if item['repo'] == 'OCA/dms')['commit'],
                          '42aec9613f64402ec702e8e21cfb643626a41056')
+
+    def test_helpdesk_exposes_only_the_modules_liwanos_uses(self):
+        pins = oca_addons.load_pins(oca_addons.PINS)
+        entry = next(item for item in pins['repos'] if item['repo'] == 'OCA/helpdesk')
+        self.assertEqual(entry['modules'], ['helpdesk_mgmt', 'helpdesk_mgmt_sla', 'helpdesk_type'])
+        self.assertTrue(oca_addons.image_path().endswith('/opt/oca/.selected/helpdesk'))
 
     def test_image_path_uses_the_image_destination(self):
         for part in oca_addons.image_path().split(','):

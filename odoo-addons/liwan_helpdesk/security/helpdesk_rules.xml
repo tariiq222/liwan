@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Who reads which ticket. Three rules, one per visibility mode, each scoped per company through the
+             computed company sets of models/res_users.py (capability groups are a union over the user's companies).
+             models/visibility.py `_liwan_domain` is their Python mirror for the routes; keep them in step.
+             The engine's own group rules never apply: nobody holds group_helpdesk_*.
+             - own: my tickets and the unassigned ones of my teams.
+             - team: my teams' tickets, my own, and the tickets no team has routed yet.
+             - all: every ticket of a company where I read them all (assign holder or the `all` setting). -->
+        <record id="rule_helpdesk_ticket_own" model="ir.rule">
+            <field name="name">liwan Support tickets: own mode</field>
+            <field name="model_id" ref="helpdesk_mgmt.model_helpdesk_ticket"/>
+            <field name="groups" eval="[Command.link(ref('group_cap_helpdesk_tickets_read'))]"/>
+            <field name="domain_force">[('company_id', 'in', user.liwan_helpdesk_own_company_ids.ids), '|', ('user_id', '=', user.id), '&amp;', ('user_id', '=', False), ('team_id', 'in', user.helpdesk_team_ids.ids)]</field>
+        </record>
+        <record id="rule_helpdesk_ticket_team" model="ir.rule">
+            <field name="name">liwan Support tickets: team mode</field>
+            <field name="model_id" ref="helpdesk_mgmt.model_helpdesk_ticket"/>
+            <field name="groups" eval="[Command.link(ref('group_cap_helpdesk_tickets_read'))]"/>
+            <field name="domain_force">[('company_id', 'in', user.liwan_helpdesk_team_company_ids.ids), '|', '|', ('team_id', 'in', user.helpdesk_team_ids.ids), ('user_id', '=', user.id), ('team_id', '=', False)]</field>
+        </record>
+        <record id="rule_helpdesk_ticket_all" model="ir.rule">
+            <field name="name">liwan Support tickets: whole company</field>
+            <field name="model_id" ref="helpdesk_mgmt.model_helpdesk_ticket"/>
+            <field name="groups" eval="[Command.link(ref('group_cap_helpdesk_tickets_read'))]"/>
+            <field name="domain_force">[('company_id', 'in', user.liwan_helpdesk_all_company_ids.ids)]</field>
+        </record>
+
+        <!-- The self-service half: every employee reads and opens the requests they made themselves. -->
+        <record id="rule_helpdesk_ticket_request" model="ir.rule">
+            <field name="name">liwan Support tickets: own requests</field>
+            <field name="model_id" ref="helpdesk_mgmt.model_helpdesk_ticket"/>
+            <field name="groups" eval="[Command.link(ref('group_cap_helpdesk_requests_read'))]"/>
+            <field name="domain_force">[('liwan_requester_user_id', '=', user.id)]</field>
+        </record>
+
+        <!-- Company scope of the application's own records; the engine's global company rules already scope its
+             models. Settings belong to their company, not to the whole subtree. -->
+        <record id="rule_liwan_helpdesk_settings_company" model="ir.rule">
+            <field name="name">Support settings: current company</field>
+            <field name="model_id" ref="model_liwan_helpdesk_settings"/>
+            <field name="global" eval="True"/>
+            <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        </record>
+
+        <!-- A settings manager writes the ticket sequence of its company and no other sequence. -->
+        <record id="rule_ir_sequence_helpdesk" model="ir.rule">
+            <field name="name">Support ticket sequence: the application's own code</field>
+            <field name="model_id" ref="base.model_ir_sequence"/>
+            <field name="groups" eval="[Command.link(ref('group_cap_helpdesk_settings_manage'))]"/>
+            <field name="domain_force">[('code', '=', 'helpdesk.ticket.sequence'), ('company_id', 'in', company_ids)]</field>
+        </record>
+    </data>
+</odoo>

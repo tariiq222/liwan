@@ -21,6 +21,22 @@ The destination is `--dest`, else `$LIWAN_OCA_DIR`, else `oca-19.0` next to the 
 (`/Users/tariq/code/oca-19.0` locally), so every worktree shares one fetch. CI uses
 `$RUNNER_TEMP/oca-19.0`, cached by the hash of the pin file.
 
+## Module selection
+
+Odoo installs every `auto_install` module whose dependencies are installed, wherever it sits on the
+addons path. A repository that carries such modules would therefore install them the moment one of its
+modules is installed, even though LiwanOS never chose them: OCA/helpdesk has four
+(`helpdesk_mgmt_project`, `helpdesk_mgmt_sale`, `helpdesk_mgmt_sale_project`, `helpdesk_product`), and
+each couples a ticket to `project.task`, `sale.order` or `product.template` outside the capabilities of
+the owning application.
+
+A pin entry may therefore name `modules`: the modules LiwanOS uses from that repository. `fetch`
+verifies every named module exists in the checkout and then materialises `DIR/.selected/<name>/` with one
+relative symlink per module; `path` prints that directory instead of the repository root, and the image
+copies it with the rest of `DIR`. The repository itself stays complete, unmodified and at its pin, and
+`check` refuses an empty, duplicated or malformed `modules` list. A pin without `modules` keeps its
+whole repository on the path, as the other pins do.
+
 ## Where the path is appended
 
 The OCA path always comes last, after the existing entries, so nothing existing changes behaviour:
@@ -57,6 +73,20 @@ reports, assets and bank"). Only modules a route uses are declared:
 | `account_reconcile_oca` (account-reconcile), with `account_statement_base` | bank statement line reconciliation |
 | `account_statement_import_camt` (bank-statement-import), with `account_statement_import_file` and `account_statement_import_base` | the CAMT parser (`account.statement.import.camt.parser`) and the `unique_import_id` line field behind the bank statement import; the OCA wizard and its menus are never used (OFX is read by `liwan_finance` itself, no OCA 19.0 module reads it) |
 | `mis_builder` (mis-builder) | profit and loss, balance sheet, Zakat base (templates shipped as data) |
+
+`liwan_helpdesk` uses three modules of OCA/helpdesk; its pin names them, so the repository's other
+fifteen never reach the addons path:
+
+| OCA module (repository) | Used for |
+|---|---|
+| `helpdesk_mgmt` (helpdesk) | the ticket engine of `liwan_helpdesk`: `helpdesk.ticket`, team, stage, category, tag, channel, the ticket sequence and the mail alias |
+| `helpdesk_mgmt_sla` (helpdesk) | SLA policies and the per-ticket SLA deadlines computed on the team's `resource.calendar` |
+| `helpdesk_type` (helpdesk) | the ticket type list (incident, request, change, problem) as a tenant value list |
+
+The other fifteen modules of OCA/helpdesk are not on the addons path: its merge, duplicate-response,
+auto-close, activity, rating and project/sale/product/crm bridges are engine behaviour LiwanOS either
+owns in `liwan_helpdesk` or adds with its own bridge addon, and `helpdesk_mgmt_timesheet` needs
+`hr_timesheet`, which has no product surface.
 
 `date_range` and `report_xlsx` (server-ux, reporting-engine) come in as their dependencies. `account_tax_balance` and
 `account_fiscal_year` are in the pinned repositories but unused.

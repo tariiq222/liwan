@@ -38993,6 +38993,3197 @@
         ],
         "type": "object"
       },
+      "HelpdeskAttachmentSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "mimetype": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "size": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "mimetype",
+          "size",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "HelpdeskAttachmentsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "created_at": {
+                  "type": "string"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "mimetype": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                },
+                "size": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "mimetype",
+                "size",
+                "created_at"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "HelpdeskCategoryResourceSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sequence": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "active",
+          "sequence",
+          "parent_id"
+        ],
+        "type": "object"
+      },
+      "HelpdeskCategorySaveSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sequence": {
+            "maximum": 9999,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "HelpdeskMessageSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "author": {
+            "type": "string"
+          },
+          "author_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "body": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "internal": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "body",
+          "author",
+          "author_id",
+          "internal",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "HelpdeskMessagesSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "author": {
+                  "type": "string"
+                },
+                "author_id": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "body": {
+                  "type": "string"
+                },
+                "created_at": {
+                  "type": "string"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "internal": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "body",
+                "author",
+                "author_id",
+                "internal",
+                "created_at"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "HelpdeskPortalMessageSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "author": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "body",
+          "author",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "HelpdeskPortalTicketSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "additionalProperties": false,
+            "properties": {
+              "close": {
+                "type": "boolean"
+              },
+              "reply": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "reply",
+              "close"
+            ],
+            "type": "object"
+          },
+          "closed_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "company": {
+            "additionalProperties": false,
+            "properties": {
+              "logo": {
+                "type": "boolean"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "logo"
+            ],
+            "type": "object"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "messages": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "author": {
+                  "type": "string"
+                },
+                "body": {
+                  "type": "string"
+                },
+                "created_at": {
+                  "type": "string"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "body",
+                "author",
+                "created_at"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "number": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "string"
+          },
+          "stage": {
+            "additionalProperties": false,
+            "properties": {
+              "closed": {
+                "type": "boolean"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "closed"
+            ],
+            "type": "object"
+          },
+          "subject": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "subject",
+          "description",
+          "stage",
+          "priority",
+          "created_at",
+          "closed_at",
+          "company",
+          "messages",
+          "actions"
+        ],
+        "type": "object"
+      },
+      "HelpdeskPrioritySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "low",
+          "medium",
+          "high",
+          "urgent"
+        ],
+        "type": "string"
+      },
+      "HelpdeskReferenceSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "categories": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "channels": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "stages": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "closed": {
+                  "type": "boolean"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "closed"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "tags": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "teams": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "types": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "teams",
+          "stages",
+          "categories",
+          "types",
+          "channels",
+          "tags"
+        ],
+        "type": "object"
+      },
+      "HelpdeskReportSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "agents": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "closed": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "first_response_hours": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                },
+                "open": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "overdue": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "name",
+                "open",
+                "closed",
+                "overdue",
+                "first_response_hours"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "closed": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "kpis": {
+            "additionalProperties": false,
+            "properties": {
+              "first_response_answered": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "first_response_hours": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "first_response_target": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "open_percent": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "resolution_hours": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "resolution_target": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "sla_compliance_percent": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "sla_late": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "sla_met": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "first_response_hours",
+              "first_response_target",
+              "first_response_answered",
+              "resolution_hours",
+              "resolution_target",
+              "sla_met",
+              "sla_late",
+              "sla_compliance_percent",
+              "open_percent"
+            ],
+            "type": "object"
+          },
+          "open": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "period": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "periods": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "value",
+                "label"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "stages": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "count"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "period",
+          "periods",
+          "total",
+          "open",
+          "closed",
+          "kpis",
+          "agents",
+          "stages"
+        ],
+        "type": "object"
+      },
+      "HelpdeskResourceSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sequence": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "active",
+          "sequence"
+        ],
+        "type": "object"
+      },
+      "HelpdeskResourcesSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "categories": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "active": {
+                  "type": "boolean"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "parent_id": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "sequence": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "active",
+                "sequence",
+                "parent_id"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "channels": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "active": {
+                  "type": "boolean"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "sequence": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "active",
+                "sequence"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "stages": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "active": {
+                  "type": "boolean"
+                },
+                "closed": {
+                  "type": "boolean"
+                },
+                "fold": {
+                  "type": "boolean"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "sequence": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                },
+                "shared": {
+                  "type": "boolean"
+                },
+                "team_ids": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "type": "array"
+                },
+                "unattended": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "active",
+                "sequence",
+                "closed",
+                "unattended",
+                "fold",
+                "team_ids",
+                "shared"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "tags": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "active": {
+                  "type": "boolean"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "sequence": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "active",
+                "sequence"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "teams": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "active": {
+                  "type": "boolean"
+                },
+                "calendar_id": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "leader_id": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "member_ids": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991,
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "sequence": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "active",
+                "sequence",
+                "member_ids",
+                "leader_id",
+                "calendar_id"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "types": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "active": {
+                  "type": "boolean"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "sequence": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "active",
+                "sequence"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "teams",
+          "stages",
+          "categories",
+          "tags",
+          "channels",
+          "types"
+        ],
+        "type": "object"
+      },
+      "HelpdeskSettingsPatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "auto_close_days": {
+            "maximum": 365,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "auto_close_stage_ids": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "default_priority": {
+            "enum": [
+              "0",
+              "1",
+              "2",
+              "3"
+            ],
+            "type": "string"
+          },
+          "default_team_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "first_response_hours": {
+            "maximum": 720,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "portal_enabled": {
+            "type": "boolean"
+          },
+          "preset": {
+            "type": "string"
+          },
+          "reference_prefix": {
+            "maxLength": 10,
+            "minLength": 1,
+            "type": "string"
+          },
+          "reopen_days": {
+            "maximum": 90,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "resolution_hours": {
+            "maximum": 8760,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "visibility": {
+            "enum": [
+              "own",
+              "team",
+              "all"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "revision"
+        ],
+        "type": "object"
+      },
+      "HelpdeskSettingsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "auto_close_days": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "auto_close_stage_ids": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "default_priority": {
+            "enum": [
+              "0",
+              "1",
+              "2",
+              "3"
+            ],
+            "type": "string"
+          },
+          "default_team_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "first_response_hours": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "options": {
+            "additionalProperties": false,
+            "properties": {
+              "presets": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "label": {
+                      "type": "string"
+                    },
+                    "value": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "label"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "priorities": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "label": {
+                      "type": "string"
+                    },
+                    "value": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "label"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "priority_names": {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "propertyNames": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              "ranges": {
+                "additionalProperties": {
+                  "items": {
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer"
+                  },
+                  "type": "array"
+                },
+                "propertyNames": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              "visibility": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "label": {
+                      "type": "string"
+                    },
+                    "value": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "label"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "presets",
+              "visibility",
+              "priorities",
+              "priority_names",
+              "ranges"
+            ],
+            "type": "object"
+          },
+          "portal_enabled": {
+            "type": "boolean"
+          },
+          "preset": {
+            "type": "string"
+          },
+          "reference_prefix": {
+            "type": "string"
+          },
+          "reopen_days": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "resolution_hours": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "revision": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "visibility": {
+            "enum": [
+              "own",
+              "team",
+              "all"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "revision",
+          "preset",
+          "visibility",
+          "default_team_id",
+          "default_priority",
+          "reference_prefix",
+          "reopen_days",
+          "first_response_hours",
+          "resolution_hours",
+          "portal_enabled",
+          "auto_close_days",
+          "auto_close_stage_ids",
+          "options"
+        ],
+        "type": "object"
+      },
+      "HelpdeskSlaListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "active": {
+                  "type": "boolean"
+                },
+                "category_ids": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "type": "array"
+                },
+                "days": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "hours": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "ignore_stage_ids": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "type": "array"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "stage_id": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "tag_ids": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "type": "array"
+                },
+                "team_ids": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "type": "array"
+                },
+                "ticket_count": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "active",
+                "days",
+                "hours",
+                "stage_id",
+                "team_ids",
+                "category_ids",
+                "tag_ids",
+                "ignore_stage_ids",
+                "ticket_count"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "targets": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "label_key": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "code",
+                "label_key"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items",
+          "targets"
+        ],
+        "type": "object"
+      },
+      "HelpdeskSlaPolicySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "category_ids": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "days": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "hours": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "ignore_stage_ids": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "stage_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tag_ids": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "team_ids": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "ticket_count": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "active",
+          "days",
+          "hours",
+          "stage_id",
+          "team_ids",
+          "category_ids",
+          "tag_ids",
+          "ignore_stage_ids",
+          "ticket_count"
+        ],
+        "type": "object"
+      },
+      "HelpdeskSlaSaveSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "category_ids": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "days": {
+            "maximum": 365,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "hours": {
+            "maximum": 23,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "ignore_stage_ids": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "stage_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "tag_ids": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "team_ids": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "days",
+          "hours",
+          "stage_id"
+        ],
+        "type": "object"
+      },
+      "HelpdeskSlaSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "deadline": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "rows": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "deadline": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "hours": {
+                  "type": "number"
+                },
+                "id": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "state": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "state",
+                "deadline",
+                "hours"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "state": {
+            "enum": [
+              "none",
+              "on_track",
+              "due_soon",
+              "overdue"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "deadline",
+          "rows"
+        ],
+        "type": "object"
+      },
+      "HelpdeskStageResourceSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "closed": {
+            "type": "boolean"
+          },
+          "fold": {
+            "type": "boolean"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sequence": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+          },
+          "shared": {
+            "type": "boolean"
+          },
+          "team_ids": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "unattended": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "active",
+          "sequence",
+          "closed",
+          "unattended",
+          "fold",
+          "team_ids",
+          "shared"
+        ],
+        "type": "object"
+      },
+      "HelpdeskStageSaveSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "closed": {
+            "type": "boolean"
+          },
+          "fold": {
+            "type": "boolean"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "sequence": {
+            "maximum": 9999,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "team_ids": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "unattended": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "HelpdeskSummarySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "mine": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "open": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "overdue": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "unassigned": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "open",
+          "unassigned",
+          "mine",
+          "overdue"
+        ],
+        "type": "object"
+      },
+      "HelpdeskTeamResourceSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "calendar_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "leader_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "member_ids": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sequence": {
+            "maximum": 9007199254740991,
+            "minimum": -9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "active",
+          "sequence",
+          "member_ids",
+          "leader_id",
+          "calendar_id"
+        ],
+        "type": "object"
+      },
+      "HelpdeskTeamSaveSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "calendar_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "leader_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "member_ids": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "sequence": {
+            "maximum": 9999,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "HelpdeskTicketCreateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "assignee_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "category_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "channel_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "customer_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "description": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "priority": {
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "urgent"
+            ],
+            "type": "string"
+          },
+          "subject": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "tag_ids": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "team_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "type_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "subject",
+          "description"
+        ],
+        "type": "object"
+      },
+      "HelpdeskTicketPageSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "assignee": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "category": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "channel": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "created_at": {
+                  "type": "string"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "last_activity_at": {
+                  "type": "string"
+                },
+                "number": {
+                  "type": "string"
+                },
+                "priority": {
+                  "enum": [
+                    "low",
+                    "medium",
+                    "high",
+                    "urgent"
+                  ],
+                  "type": "string"
+                },
+                "requester": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "kind": {
+                      "enum": [
+                        "customer",
+                        "employee",
+                        "guest"
+                      ],
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "sla": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "deadline": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "rows": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "deadline": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "hours": {
+                            "type": "number"
+                          },
+                          "id": {
+                            "maximum": 9007199254740991,
+                            "minimum": -9007199254740991,
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "state": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "state",
+                          "deadline",
+                          "hours"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "state": {
+                      "enum": [
+                        "none",
+                        "on_track",
+                        "due_soon",
+                        "overdue"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "deadline",
+                    "rows"
+                  ],
+                  "type": "object"
+                },
+                "stage": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "closed": {
+                      "type": "boolean"
+                    },
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "closed"
+                  ],
+                  "type": "object"
+                },
+                "subject": {
+                  "type": "string"
+                },
+                "tags": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "id": {
+                        "exclusiveMinimum": 0,
+                        "maximum": 9007199254740991,
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name"
+                    ],
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "team": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "number",
+                "subject",
+                "team",
+                "stage",
+                "priority",
+                "assignee",
+                "requester",
+                "category",
+                "type",
+                "channel",
+                "tags",
+                "sla",
+                "created_at",
+                "last_activity_at"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "HelpdeskTicketPatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "assignee_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "category_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "channel_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "customer_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "description": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "priority": {
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "urgent"
+            ],
+            "type": "string"
+          },
+          "related_ids": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "subject": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "tag_ids": {
+            "items": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "team_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "type_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "HelpdeskTicketRowSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "assignee": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "category": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "channel": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "last_activity_at": {
+            "type": "string"
+          },
+          "number": {
+            "type": "string"
+          },
+          "priority": {
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "urgent"
+            ],
+            "type": "string"
+          },
+          "requester": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "kind": {
+                "enum": [
+                  "customer",
+                  "employee",
+                  "guest"
+                ],
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "name"
+            ],
+            "type": "object"
+          },
+          "sla": {
+            "additionalProperties": false,
+            "properties": {
+              "deadline": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "rows": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "deadline": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "hours": {
+                      "type": "number"
+                    },
+                    "id": {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "state",
+                    "deadline",
+                    "hours"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "state": {
+                "enum": [
+                  "none",
+                  "on_track",
+                  "due_soon",
+                  "overdue"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "deadline",
+              "rows"
+            ],
+            "type": "object"
+          },
+          "stage": {
+            "additionalProperties": false,
+            "properties": {
+              "closed": {
+                "type": "boolean"
+              },
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "closed"
+            ],
+            "type": "object"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "team": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "type": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "subject",
+          "team",
+          "stage",
+          "priority",
+          "assignee",
+          "requester",
+          "category",
+          "type",
+          "channel",
+          "tags",
+          "sla",
+          "created_at",
+          "last_activity_at"
+        ],
+        "type": "object"
+      },
+      "HelpdeskTicketSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "assigned_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "assignee": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "attachments": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "created_at": {
+                  "type": "string"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "mimetype": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                },
+                "size": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "mimetype",
+                "size",
+                "created_at"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "channel": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "closed_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "first_response": {
+            "additionalProperties": false,
+            "properties": {
+              "at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "due": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "at",
+              "due"
+            ],
+            "type": "object"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "last_activity_at": {
+            "type": "string"
+          },
+          "number": {
+            "type": "string"
+          },
+          "portal_link": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "priority": {
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "urgent"
+            ],
+            "type": "string"
+          },
+          "related": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                },
+                "number": {
+                  "type": "string"
+                },
+                "subject": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "number",
+                "subject"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "requester": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "kind": {
+                "enum": [
+                  "customer",
+                  "employee",
+                  "guest"
+                ],
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "name"
+            ],
+            "type": "object"
+          },
+          "sla": {
+            "additionalProperties": false,
+            "properties": {
+              "deadline": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "rows": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "deadline": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "hours": {
+                      "type": "number"
+                    },
+                    "id": {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "state",
+                    "deadline",
+                    "hours"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "state": {
+                "enum": [
+                  "none",
+                  "on_track",
+                  "due_soon",
+                  "overdue"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "deadline",
+              "rows"
+            ],
+            "type": "object"
+          },
+          "stage": {
+            "additionalProperties": false,
+            "properties": {
+              "closed": {
+                "type": "boolean"
+              },
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "closed"
+            ],
+            "type": "object"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "name"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "team": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "type": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "subject",
+          "team",
+          "stage",
+          "priority",
+          "assignee",
+          "requester",
+          "category",
+          "type",
+          "channel",
+          "tags",
+          "sla",
+          "created_at",
+          "last_activity_at",
+          "description",
+          "related",
+          "first_response",
+          "assigned_at",
+          "closed_at",
+          "attachments",
+          "portal_link"
+        ],
+        "type": "object"
+      },
+      "HelpdeskValueSaveSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "sequence": {
+            "maximum": 9999,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
       "HrAccessRoleSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
@@ -131974,6 +135165,1508 @@
         }
       }
     },
+    "/api/v1/helpdesk/reference": {
+      "get": {
+        "operationId": "liwan_helpdesk.HelpdeskSettingsController.reference.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "reference",
+        "tags": [
+          "liwan_helpdesk"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskSettingsController",
+          "feature_keys": [
+            "helpdesk.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "reference",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/helpdesk/reports": {
+      "get": {
+        "operationId": "liwan_helpdesk.HelpdeskReportsController.reports.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "reports",
+        "tags": [
+          "liwan_helpdesk"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskReportsController",
+          "feature_keys": [
+            "helpdesk.enabled",
+            "helpdesk.reports"
+          ],
+          "feature_operation": "read",
+          "handler": "reports",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/helpdesk/settings": {
+      "get": {
+        "operationId": "liwan_helpdesk.HelpdeskSettingsController.get_settings.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_settings",
+        "tags": [
+          "liwan_helpdesk"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskSettingsController",
+          "feature_keys": [
+            "helpdesk.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_settings",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "liwan_helpdesk.HelpdeskSettingsController.patch_settings.patch",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "patch_settings",
+        "tags": [
+          "liwan_helpdesk"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskSettingsController",
+          "feature_keys": [
+            "helpdesk.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "patch_settings",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/helpdesk/settings/categories": {
+      "post": {
+        "operationId": "liwan_helpdesk.HelpdeskResourcesController.save_category.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "save_category",
+        "tags": [
+          "liwan_helpdesk"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskResourcesController",
+          "feature_keys": [
+            "helpdesk.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "save_category",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/helpdesk/settings/channels": {
+      "post": {
+        "operationId": "liwan_helpdesk.HelpdeskResourcesController.save_channel.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "save_channel",
+        "tags": [
+          "liwan_helpdesk"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskResourcesController",
+          "feature_keys": [
+            "helpdesk.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "save_channel",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/helpdesk/settings/resources": {
+      "get": {
+        "operationId": "liwan_helpdesk.HelpdeskResourcesController.list_resources.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_resources",
+        "tags": [
+          "liwan_helpdesk"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskResourcesController",
+          "feature_keys": [
+            "helpdesk.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_resources",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/helpdesk/settings/stages": {
+      "post": {
+        "operationId": "liwan_helpdesk.HelpdeskResourcesController.save_stage.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "save_stage",
+        "tags": [
+          "liwan_helpdesk"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskResourcesController",
+          "feature_keys": [
+            "helpdesk.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "save_stage",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/helpdesk/settings/tags": {
+      "post": {
+        "operationId": "liwan_helpdesk.HelpdeskResourcesController.save_tag.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "save_tag",
+        "tags": [
+          "liwan_helpdesk"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskResourcesController",
+          "feature_keys": [
+            "helpdesk.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "save_tag",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/helpdesk/settings/teams": {
+      "post": {
+        "operationId": "liwan_helpdesk.HelpdeskResourcesController.save_team.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "save_team",
+        "tags": [
+          "liwan_helpdesk"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskResourcesController",
+          "feature_keys": [
+            "helpdesk.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "save_team",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/helpdesk/settings/types": {
+      "post": {
+        "operationId": "liwan_helpdesk.HelpdeskResourcesController.save_type.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "save_type",
+        "tags": [
+          "liwan_helpdesk"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskResourcesController",
+          "feature_keys": [
+            "helpdesk.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "save_type",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/helpdesk/sla": {
+      "get": {
+        "operationId": "liwan_helpdesk.HelpdeskSlaController.list_sla.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_sla",
+        "tags": [
+          "liwan_helpdesk"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskSlaController",
+          "feature_keys": [
+            "helpdesk.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_sla",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "liwan_helpdesk.HelpdeskSlaController.save_sla.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "save_sla",
+        "tags": [
+          "liwan_helpdesk"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskSlaController",
+          "feature_keys": [
+            "helpdesk.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "save_sla",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/helpdesk/sla/{policy_id}/active": {
+      "post": {
+        "operationId": "liwan_helpdesk.HelpdeskSlaController.set_sla_active.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "policy_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "set_sla_active",
+        "tags": [
+          "liwan_helpdesk"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskSlaController",
+          "feature_keys": [
+            "helpdesk.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "set_sla_active",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/helpdesk/summary": {
+      "get": {
+        "operationId": "liwan_helpdesk.HelpdeskSettingsController.summary.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "summary",
+        "tags": [
+          "liwan_helpdesk"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskSettingsController",
+          "feature_keys": [
+            "helpdesk.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "summary",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/helpdesk/tickets": {
+      "get": {
+        "operationId": "liwan_helpdesk.HelpdeskTicketsController.list_tickets.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_tickets",
+        "tags": [
+          "liwan_helpdesk"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskTicketsController",
+          "feature_keys": [
+            "helpdesk.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_tickets",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "liwan_helpdesk.HelpdeskTicketsController.create_ticket.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "create_ticket",
+        "tags": [
+          "liwan_helpdesk"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskTicketsController",
+          "feature_keys": [
+            "helpdesk.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "create_ticket",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/helpdesk/tickets/{ticket_id}": {
+      "get": {
+        "operationId": "liwan_helpdesk.HelpdeskTicketsController.get_ticket.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticket_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_ticket",
+        "tags": [
+          "liwan_helpdesk"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskTicketsController",
+          "feature_keys": [
+            "helpdesk.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_ticket",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "liwan_helpdesk.HelpdeskTicketsController.update_ticket.patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticket_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "update_ticket",
+        "tags": [
+          "liwan_helpdesk"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskTicketsController",
+          "feature_keys": [
+            "helpdesk.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "update_ticket",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/helpdesk/tickets/{ticket_id}/attachments": {
+      "get": {
+        "operationId": "liwan_helpdesk.HelpdeskTicketsController.list_attachments.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticket_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_attachments",
+        "tags": [
+          "liwan_helpdesk"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskTicketsController",
+          "feature_keys": [
+            "helpdesk.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_attachments",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "liwan_helpdesk.HelpdeskTicketsController.upload_attachment.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticket_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "upload_attachment",
+        "tags": [
+          "liwan_helpdesk"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskTicketsController",
+          "feature_keys": [
+            "helpdesk.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "upload_attachment",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/helpdesk/tickets/{ticket_id}/attachments/{attachment_id}": {
+      "delete": {
+        "operationId": "liwan_helpdesk.HelpdeskTicketsController.delete_attachment.delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticket_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "delete_attachment",
+        "tags": [
+          "liwan_helpdesk"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskTicketsController",
+          "feature_keys": [
+            "helpdesk.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "delete_attachment",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/helpdesk/tickets/{ticket_id}/attachments/{attachment_id}/download": {
+      "get": {
+        "operationId": "liwan_helpdesk.HelpdeskTicketsController.download_attachment.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticket_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "download_attachment",
+        "tags": [
+          "liwan_helpdesk"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk",
+          "api_handler": true,
+          "auth": "user",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskTicketsController",
+          "feature_keys": [
+            "helpdesk.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "download_attachment",
+          "readonly": true,
+          "route_type": "http"
+        }
+      }
+    },
+    "/api/v1/helpdesk/tickets/{ticket_id}/merge": {
+      "post": {
+        "operationId": "liwan_helpdesk.HelpdeskTicketsController.merge_tickets.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticket_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "merge_tickets",
+        "tags": [
+          "liwan_helpdesk"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskTicketsController",
+          "feature_keys": [
+            "helpdesk.enabled",
+            "helpdesk.merge"
+          ],
+          "feature_operation": null,
+          "handler": "merge_tickets",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/helpdesk/tickets/{ticket_id}/messages": {
+      "get": {
+        "operationId": "liwan_helpdesk.HelpdeskTicketsController.list_messages.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticket_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_messages",
+        "tags": [
+          "liwan_helpdesk"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskTicketsController",
+          "feature_keys": [
+            "helpdesk.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_messages",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "liwan_helpdesk.HelpdeskTicketsController.post_message.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticket_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "post_message",
+        "tags": [
+          "liwan_helpdesk"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskTicketsController",
+          "feature_keys": [
+            "helpdesk.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "post_message",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/helpdesk/tickets/{ticket_id}/opportunity": {
+      "post": {
+        "operationId": "liwan_helpdesk_crm.HelpdeskOpportunityController.link_opportunity.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticket_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "link_opportunity",
+        "tags": [
+          "liwan_helpdesk_crm"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk_crm",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskOpportunityController",
+          "feature_keys": [
+            "helpdesk.enabled",
+            "crm.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "link_opportunity",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/helpdesk/tickets/{ticket_id}/quotations": {
+      "get": {
+        "operationId": "liwan_helpdesk_sales.TicketQuotationsController.list_quotations.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticket_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_quotations",
+        "tags": [
+          "liwan_helpdesk_sales"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk_sales",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "TicketQuotationsController",
+          "feature_keys": [
+            "helpdesk.enabled",
+            "sales.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_quotations",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "liwan_helpdesk_sales.TicketQuotationsController.create_quotation.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticket_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "create_quotation",
+        "tags": [
+          "liwan_helpdesk_sales"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk_sales",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "TicketQuotationsController",
+          "feature_keys": [
+            "helpdesk.enabled",
+            "sales.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "create_quotation",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/helpdesk/tickets/{ticket_id}/tasks": {
+      "get": {
+        "operationId": "liwan_helpdesk_tasks.HelpdeskTicketTasksController.list_ticket_tasks.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticket_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_ticket_tasks",
+        "tags": [
+          "liwan_helpdesk_tasks"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk_tasks",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskTicketTasksController",
+          "feature_keys": [
+            "helpdesk.enabled",
+            "tasks.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_ticket_tasks",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "liwan_helpdesk_tasks.HelpdeskTicketTasksController.create_ticket_task.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticket_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "create_ticket_task",
+        "tags": [
+          "liwan_helpdesk_tasks"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk_tasks",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskTicketTasksController",
+          "feature_keys": [
+            "helpdesk.enabled",
+            "tasks.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "create_ticket_task",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/helpdesk/tickets/{ticket_id}/{action}": {
+      "post": {
+        "operationId": "liwan_helpdesk.HelpdeskTicketsController.ticket_action.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticket_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "action",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "ticket_action",
+        "tags": [
+          "liwan_helpdesk"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskTicketsController",
+          "feature_keys": [
+            "helpdesk.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "ticket_action",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/hr/assets/categories": {
       "get": {
         "operationId": "liwan_hr.HrAssetsCategoryController.list_categories.get",
@@ -145685,6 +150378,60 @@
         }
       }
     },
+    "/api/v1/inbox/conversations/{conversation_id}/ticket": {
+      "post": {
+        "operationId": "liwan_helpdesk_inbox.ConversationTicketController.create_ticket.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "create_ticket",
+        "tags": [
+          "liwan_helpdesk_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "ConversationTicketController",
+          "feature_keys": [
+            "inbox.enabled",
+            "helpdesk.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "create_ticket",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/inbox/conversations/{conversation_id}/typing": {
       "post": {
         "operationId": "liwan_inbox.ReplyController.typing.post",
@@ -157911,6 +162658,129 @@
         }
       }
     },
+    "/api/v1/public/helpdesk/tickets/{ticket_id}": {
+      "get": {
+        "operationId": "liwan_helpdesk.HelpdeskPortalController.get_ticket.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticket_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          }
+        },
+        "security": [],
+        "summary": "get_ticket",
+        "tags": [
+          "liwan_helpdesk"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk",
+          "api_handler": true,
+          "auth": "public",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "HelpdeskPortalController",
+          "feature_keys": [
+            "helpdesk.enabled",
+            "helpdesk.portal"
+          ],
+          "feature_operation": "read",
+          "handler": "get_ticket",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/public/helpdesk/tickets/{ticket_id}/close": {
+      "post": {
+        "operationId": "liwan_helpdesk.HelpdeskPortalController.close.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticket_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          }
+        },
+        "security": [],
+        "summary": "close",
+        "tags": [
+          "liwan_helpdesk"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk",
+          "api_handler": true,
+          "auth": "public",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "HelpdeskPortalController",
+          "feature_keys": [
+            "helpdesk.enabled",
+            "helpdesk.portal"
+          ],
+          "feature_operation": null,
+          "handler": "close",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/public/helpdesk/tickets/{ticket_id}/messages": {
+      "post": {
+        "operationId": "liwan_helpdesk.HelpdeskPortalController.reply.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticket_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          }
+        },
+        "security": [],
+        "summary": "reply",
+        "tags": [
+          "liwan_helpdesk"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk",
+          "api_handler": true,
+          "auth": "public",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "HelpdeskPortalController",
+          "feature_keys": [
+            "helpdesk.enabled",
+            "helpdesk.portal"
+          ],
+          "feature_operation": null,
+          "handler": "reply",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/public/inbox/catalog/images/{item_id}/{token}": {
       "get": {
         "operationId": "liwan_inbox.CatalogImageController.product_image.get",
@@ -161493,6 +166363,11 @@
     "liwan_document_service",
     "liwan_documents",
     "liwan_finance",
+    "liwan_helpdesk",
+    "liwan_helpdesk_crm",
+    "liwan_helpdesk_inbox",
+    "liwan_helpdesk_sales",
+    "liwan_helpdesk_tasks",
     "liwan_hr",
     "liwan_hr_finance",
     "liwan_inbox",
