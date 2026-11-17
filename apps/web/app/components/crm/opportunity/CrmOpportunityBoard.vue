@@ -126,7 +126,7 @@ function onLost(event: { data?: CrmOpportunity }) {
       </section>
     </div>
     <!-- Only while a card is dragged: the one place a card can be dropped to close it as lost. The keyboard path is «move». -->
-    <div class="fixed inset-x-4 bottom-4 z-20 mx-auto h-14 max-w-md rounded-card border-[1.5px] border-dashed border-error bg-default text-error transition-opacity motion-reduce:transition-none" :class="dragging ? 'opacity-100' : 'invisible opacity-0'" aria-hidden="true" data-testid="crm-board-lost-zone">
+    <div class="fixed inset-x-4 bottom-[calc(var(--shell-tabbar-height)+env(safe-area-inset-bottom)+1rem)] z-20 md:bottom-4 mx-auto h-14 max-w-md rounded-card border-[1.5px] border-dashed border-error bg-default text-error transition-opacity motion-reduce:transition-none" :class="dragging ? 'opacity-100' : 'invisible opacity-0'" aria-hidden="true" data-testid="crm-board-lost-zone">
       <span class="pointer-events-none absolute inset-0 flex items-center justify-center gap-2 text-sm font-semibold"><UIcon name="i-lucide-circle-x" class="size-4" />{{ t('crm.opportunities.lost.action') }}</span>
       <VueDraggable v-model="lostDrop" class="absolute inset-0" :group="{ name: GROUP, pull: false, put: true }" :sort="false" :animation="0" @add="(event: any) => onLost(event)" />
     </div>
