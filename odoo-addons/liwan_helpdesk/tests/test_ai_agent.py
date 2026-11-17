@@ -23,3 +23,9 @@ class HelpdeskAiAgentTest(TransactionCase):
             self.assertEqual(tool['route']['method'], 'GET')
             self.assertTrue(tool['route']['path'].startswith('/api/v1/helpdesk/'))
             self.assertTrue(tool['result_summary'])
+
+    def test_the_assignee_options_are_the_ones_the_ticket_api_accepts(self):
+        tools = {item['name']: item for item in self.env['liwan.ai.tool.registry']._liwan_ai_tool_definitions()
+                 if item['owner'] == 'liwan_helpdesk'}
+        schema = tools['helpdesk.list_tickets']['input_schema']['properties']['assignee']
+        self.assertEqual(schema['enum'], ['me', 'none'])

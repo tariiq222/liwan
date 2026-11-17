@@ -50,18 +50,24 @@ def requester(ticket):
     return {'kind': 'guest', 'name': ticket.partner_name or ticket.partner_email or ''}
 
 
+SLA_URGENCY = ('none', 'on_track', 'due_soon', 'overdue')
+
+
 def sla(ticket, now=None):
     """``{state, deadline, rows}`` of a ticket, from the engine's per-ticket SLA rows."""
     now = now or fields.Datetime.now()
     rows, deadline, state = [], None, 'none'
     for row in ticket.ticket_sla_ids.filtered(lambda item: item.sla_id.active):
         if row.state == 'expired' or (row.state == 'in_progress' and row.deadline and row.deadline < now):
-            state = 'overdue'
+            row_state = 'overdue'
         elif row.state == 'in_progress':
-            if state != 'overdue':
-                state = 'due_soon' if row.deadline and row.deadline - now <= SLA_SOON else 'on_track'
+            row_state = 'due_soon' if row.deadline and row.deadline - now <= SLA_SOON else 'on_track'
             if row.deadline and (deadline is None or row.deadline < deadline):
                 deadline = row.deadline
+        else:
+            row_state = 'none'
+        if SLA_URGENCY.index(row_state) > SLA_URGENCY.index(state):
+            state = row_state
         rows.append({
             'id': row.id, 'name': row.name, 'state': row.state,
             'deadline': iso(row.deadline), 'hours': row.hours,

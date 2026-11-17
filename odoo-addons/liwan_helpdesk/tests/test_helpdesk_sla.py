@@ -1,6 +1,12 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """The service levels: the policy a tenant shapes, the deadlines it puts on a ticket, and its guard rails."""
 
+from datetime import timedelta
+from types import SimpleNamespace
+
+from odoo import fields
+
+from odoo.addons.liwan_helpdesk.serializers.ticket import sla as dump_sla
 from .common import LiwanHelpdeskCase
 
 
@@ -130,3 +136,23 @@ class SlaApiTest(LiwanHelpdeskCase):
         self.assertEqual(listed[policy['id']], False)
         on = self.api('POST', f'/api/v1/helpdesk/sla/{policy["id"]}/active', json={'active': True})
         self.assertEqual((on.status_code, on.json()['active']), (200, True))
+
+    def test_several_deadlines_keep_the_most_urgent_state(self):
+        now = fields.Datetime.now()
+
+        def row(state, hours):
+            return SimpleNamespace(id=1, name='r', state=state, hours=hours, deadline=now + timedelta(hours=hours),
+                                   sla_id=SimpleNamespace(active=True))
+
+        class Rows(list):
+            def filtered(self, func):
+                return Rows(item for item in self if func(item))
+
+        soon, later = row('in_progress', 1), row('in_progress', 48)
+        for rows in ([soon, later], [later, soon]):
+            result = dump_sla(SimpleNamespace(ticket_sla_ids=Rows(rows)), now)
+            self.assertEqual(result['state'], 'due_soon')
+            self.assertEqual(result['deadline'], dump_sla(SimpleNamespace(ticket_sla_ids=Rows([soon])), now)['deadline'])
+        late = row('in_progress', -1)
+        self.assertEqual(dump_sla(SimpleNamespace(ticket_sla_ids=Rows([late, later])), now)['state'], 'overdue')
+        self.assertEqual(dump_sla(SimpleNamespace(ticket_sla_ids=Rows([later, late])), now)['state'], 'overdue')

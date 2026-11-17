@@ -243,7 +243,7 @@ class LiwanHelpdeskResources(models.AbstractModel):
             domain = [('id', '=', payload['id'])]
             if 'company_id' in model._fields:
                 domain.append(('company_id', '=', self.env.company.id))
-            record = model.search(domain, limit=1)
+            record = model.with_context(active_test=False).search(domain, limit=1)
             if not record:
                 code = NOT_FOUND
                 raise LiwanAccessRule(code, self.env._('Record does not exist'), status=404)

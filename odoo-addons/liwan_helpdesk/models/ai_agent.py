@@ -36,7 +36,7 @@ HELPDESK_AI_TOOLS = (
         OWNER, FEATURE, 'helpdesk.list_tickets', 'helpdesk.tickets.read',
         ('يعرض التذاكر التي يراها المستخدم في الدعم الفني', 'List the support tickets the user may read'),
         '/api/v1/helpdesk/tickets',
-        {'assignee': {'type': 'string', 'enum': ['me', 'none', 'any']}, 'q': QUERY_SCHEMA,
+        {'assignee': {'type': 'string', 'enum': ['me', 'none']}, 'q': QUERY_SCHEMA,
          'limit': PAGE_SCHEMA},
         {'assignee': '$assignee', 'q': '$q', 'limit': '$limit'},
         ['items[].id', 'items[].number', 'items[].subject', 'items[].stage.name', 'items[].team.name',

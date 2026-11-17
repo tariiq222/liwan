@@ -135,6 +135,15 @@ class ResourcesApiTest(LiwanHelpdeskCase):
             self.assertEqual(archived.status_code, 200, archived.text)
             self.assertFalse(archived.json()['active'])
 
+    def test_an_archived_flat_value_can_be_brought_back(self):
+        self.as_user(self.manager)
+        for kind in ('tags', 'channels', 'types'):
+            record = self.save(kind, name='%s back' % kind).json()
+            self.save(kind, id=record['id'], name=record['name'], active=False)
+            restored = self.save(kind, id=record['id'], name=record['name'], active=True)
+            self.assertEqual(restored.status_code, 200, '%s: %s' % (kind, restored.text))
+            self.assertTrue(restored.json()['active'])
+
     def test_a_record_of_another_company_is_not_found(self):
         other = self._team(self.other_company, 'Other company team')
         self.as_user(self.manager)
