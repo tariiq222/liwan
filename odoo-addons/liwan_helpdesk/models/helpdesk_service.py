@@ -304,6 +304,8 @@ class LiwanHelpdeskService(models.AbstractModel):
     def _liwan_move_stage(self, ticket, stage_id):
         self._liwan_require(WRITE)
         stage = self._liwan_stage_for(ticket, stage_id)
+        if stage.closed:
+            self._liwan_require(CLOSE)
         ticket.write({'stage_id': stage.id, 'liwan_last_activity_at': fields.Datetime.now()})
         return ticket
 

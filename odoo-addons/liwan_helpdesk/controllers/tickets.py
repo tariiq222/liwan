@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """``/api/v1/helpdesk/tickets``: the ticket list, one ticket, its transitions and its thread."""
 from odoo import http
+from odoo.exceptions import MissingError
 from odoo.fields import Domain
 from odoo.http import request
 
@@ -63,11 +64,16 @@ def detail(ticket):
     """The ticket's detail body, the same shape for a read and for every write.
 
     A write answers the full detail so the screen can replace its copy at once; the attachments and the customer's link
-    belong to it. The link is issued only for whoever may write the ticket, since it is their tool to send.
+    belong to it. The link is issued only for whoever may write the ticket, since it is their tool to send, and only
+    while the customer page exists: a tenant without the portal (or with it switched off) has no link, and the ticket
+    still opens.
     """
     link = None
     if WRITE in request.env['liwan.access.service']._liwan_capability_keys(request.env.user):
-        link = request.env['liwan.helpdesk.portal']._liwan_link(ticket)
+        try:
+            link = request.env['liwan.helpdesk.portal']._liwan_link(ticket)
+        except MissingError:
+            link = None
     return {**dump_ticket(ticket, settings(), can_read_type(), link), 'attachments': attachments(ticket)}
 
 

@@ -8,7 +8,7 @@ ticket all answer the same 404, so the page never tells one from the other.
 """
 import secrets
 
-from odoo import api, models
+from odoo import api, fields, models
 from odoo.exceptions import MissingError
 from odoo.tools import consteq
 
@@ -137,10 +137,12 @@ class LiwanHelpdeskPortal(models.AbstractModel):
             message_type='comment', subtype_xmlid='mail.mt_comment',
             author_id=ticket.partner_id.id or ticket.create_uid.partner_id.id,
         )
+        changes = {'liwan_last_activity_at': fields.Datetime.now()}
         if ticket.stage_id.unattended:
             open_stage = ticket.team_id._get_applicable_stages().filtered(lambda stage: not stage.closed)[:1]
             if open_stage:
-                ticket.write({'stage_id': open_stage.id})
+                changes['stage_id'] = open_stage.id
+        ticket.write(changes)
         return self._liwan_dump(ticket)
 
     @api.model
