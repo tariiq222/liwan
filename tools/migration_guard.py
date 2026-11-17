@@ -27,6 +27,24 @@ def check_addon(addon: str, old: str | None, new: str, entries: set[str]) -> str
     return f'{addon}: version {old} -> {new} but migrations/{new}/ is missing or empty'
 
 
+def check_added_dirs(addon: str, old: str | None, added: set[str]) -> list[str]:
+    """A migrations/<version>/ directory added at or below the base version never runs on a database already there."""
+    if old is None:
+        return []
+    return [
+        f'{addon}: migrations/{version}/ is new but the base is already at {old}, so it never runs; bump above {old}'
+        for version in sorted(added) if _key(version) <= _key(old)
+    ]
+
+
+def _added_dirs(base: str, addon: str) -> set[str]:
+    listed = subprocess.run(
+        ['git', 'diff', '--name-only', '--diff-filter=A', base, '--', f'{ADDONS_ROOT.as_posix()}/{addon}/migrations'],
+        capture_output=True, text=True, check=False, shell=False,
+    )
+    return {Path(line).parts[3] for line in listed.stdout.splitlines() if len(Path(line).parts) > 4}
+
+
 def _version(text: str) -> str:
     return ast.literal_eval(text)['version']
 
@@ -49,9 +67,11 @@ def main(argv: list[str] | None = None) -> int:
         new = _version(manifest.read_text(encoding='utf-8'))
         directory = manifest.parent / 'migrations' / new
         entries = {p.name for p in directory.iterdir()} if directory.is_dir() else set()
-        problem = check_addon(addon, _old_version(args.base, manifest), new, entries)
+        old = _old_version(args.base, manifest)
+        problem = check_addon(addon, old, new, entries)
         if problem:
             problems.append(problem)
+        problems.extend(check_added_dirs(addon, old, _added_dirs(args.base, addon)))
     for problem in problems:
         print(problem, file=sys.stderr)
     return 1 if problems else 0
