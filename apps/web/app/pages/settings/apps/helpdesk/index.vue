@@ -2,6 +2,7 @@
 import { reactive, watch } from 'vue'
 import type { HelpdeskSettings } from '@liwan/contracts'
 import { useHelpdeskReference, useHelpdeskSettings, useSaveHelpdeskSettings } from '@/composables/helpdesk/useHelpdesk'
+import { buildHelpdeskSettingsPatch } from '@/utils/helpdeskSettingsPatch'
 import { useHelpdeskResources } from '@/composables/helpdesk/useHelpdeskResources'
 import { useHelpdeskSla } from '@/composables/helpdesk/useHelpdeskSla'
 import HelpdeskSlaSection from '@/components/helpdesk/settings/HelpdeskSlaSection.vue'
@@ -87,7 +88,7 @@ const locked = computed(() => busy.value || !canEditNow.value)
 async function submit() {
   message.value = ''
   try {
-    const saved = await save.mutateAsync({ revision: revision.value, ...draft })
+    const saved = await save.mutateAsync(buildHelpdeskSettingsPatch(draft, settings.data.value?.preset, revision.value))
     revision.value = saved.revision
     message.value = t('helpdesk.settings.saved')
   } catch (cause) {

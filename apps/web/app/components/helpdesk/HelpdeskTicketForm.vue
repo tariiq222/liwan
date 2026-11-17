@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
 import type { HelpdeskTicket, HelpdeskTicketCreate } from '@liwan/contracts'
+import { plainTextFromHtml } from '@/utils/meetingMinutesForm'
 import { useHelpdeskReference, useCreateHelpdeskTicket, useUpdateHelpdeskTicket } from '@/composables/helpdesk/useHelpdesk'
 
 // The create form of the route-backed panel and the edit page of a ticket: subject, description, the team and the
@@ -24,7 +25,7 @@ const editing = computed(() => Boolean(props.ticket))
 const off = computed(() => !hydrated.value || create.isPending.value || patch.isPending.value)
 
 const subject = ref(props.ticket?.subject ?? '')
-const description = ref(props.ticket?.description ?? '')
+const description = ref(plainTextFromHtml(props.ticket?.description))
 const teamId = ref<number | undefined>(props.ticket?.team?.id ?? undefined)
 const categoryId = ref<number | undefined>(props.ticket?.category?.id ?? undefined)
 const typeId = ref<number | undefined>(props.ticket?.type?.id ?? undefined)
