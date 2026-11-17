@@ -11,7 +11,8 @@ import { buildInteractive, emptyInteractiveDraft } from '../../../composables/in
 import { buildLocation, emptyLocationDraft } from '../../../composables/inbox/inboxLocation'
 import { TEMPLATE_CATEGORY_TONE, templatePreview } from '../../../composables/inbox/inboxTemplate'
 import { HEADER_MEDIA_ACCEPT, buildTemplateReply, dynamicButtons, headerInput, templateReplyReady } from '../../../composables/inbox/inboxTemplateSend'
-import { cannedSuggestions, replyWindowOpen, windowClosedDescriptionKey, windowClosedErrorKey } from '../../../composables/inbox/inboxWindow'
+import { durationUnits, formatDuration } from '../../../composables/inbox/inboxReportCharts'
+import { cannedSuggestions, replyWindowOpen, replyWindowRemaining, windowClosedDescriptionKey, windowClosedErrorKey } from '../../../composables/inbox/inboxWindow'
 import { inboxTikTokErrorKey } from '../../../composables/inbox/inboxTikTok'
 
 const filename = new URL('../InboxComposer.vue', import.meta.url).pathname
@@ -41,7 +42,7 @@ function mountComposer(endsAt: string | null, store = new Map<string, string>(),
   const bindings = {
     _defineComponent: Vue.defineComponent, _unref: Vue.unref, ref: Vue.ref, reactive: Vue.reactive, computed: Vue.computed, watch: Vue.watch,
     onMounted: (fn: () => void) => mounted.push(fn), onBeforeUnmount: (fn: () => void) => unmounting.push(fn),
-    useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true), useToast: () => ({ add: toast }), useMe: () => ({ me: Vue.ref({ id: 3 }) }),
+    useI18n: () => ({ t: (key: string, params?: { time?: string }) => params?.time ? `${key}:${params.time}` : key, locale: Vue.ref('en') }), durationUnits, formatDuration, replyWindowRemaining, useHydrated: () => Vue.ref(true), useToast: () => ({ add: toast }), useMe: () => ({ me: Vue.ref({ id: 3 }) }),
     ApiError, InboxTemplatePicker: {}, useInboxTyping: () => notifyTyping, useUploadInboxFile: () => ({ mutateAsync: uploadInboxFile }), INBOX_CAPTION_MAX, inboxAcceptsCaption, inboxFileSize, inboxUploadProblem,
     inboxUploadAccept, channelCarriesTemplates, inboxComposerActions, windowClosedDescriptionKey, windowClosedErrorKey, inboxTikTokErrorKey, emptyInboxDraft,
     buildCommerceContent, emptyCommerceDraft, buildInteractive, emptyInteractiveDraft, buildLocation, emptyLocationDraft,
@@ -83,6 +84,35 @@ describe('InboxComposer', () => {
     expect(state.templateMode.value).toBe(false)
     unmount()
     expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('shows the time left to reply, warns under two hours and refreshes every minute', async () => {
+    const { state, unmount } = mountComposer('2026-10-28T15:30:00Z')
+    expect(state.remainingText.value).toBe('inbox.composer.windowRemaining:3 inbox.reports.units.hour')
+    expect(state.remaining.value.warning).toBe(false)
+    vi.advanceTimersByTime(90 * 60_000)
+    expect(state.remainingText.value).toBe('inbox.composer.windowRemaining:2 inbox.reports.units.hour')
+    vi.advanceTimersByTime(90 * 60_000)
+    expect(state.remaining.value.warning).toBe(true)
+    expect(state.remainingText.value).toBe('inbox.composer.windowRemaining:30 inbox.reports.units.minute')
+    unmount()
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('hides the countdown in note mode, with a closed window and with no window', () => {
+    const { state } = mountComposer('2026-10-28T15:30:00Z')
+    state.mode.value = 'note'
+    expect(state.remaining.value).toBeNull()
+    expect(mountComposer('2026-10-27T11:00:00Z').state.remaining.value).toBeNull()
+    expect(mountComposer(null).state.remaining.value).toBeNull()
+  })
+
+  it('inserts a picked canned reply into the draft and closes the list', () => {
+    const { state } = mountComposer('2026-10-28T20:00:00Z')
+    state.cannedOpen.value = true
+    state.pickCanned('شكرا لتواصلك')
+    expect(state.draft.value).toBe('شكرا لتواصلك')
+    expect(state.cannedOpen.value).toBe(false)
   })
 
   it('is in template mode at once when the window never opened or already closed', () => {
