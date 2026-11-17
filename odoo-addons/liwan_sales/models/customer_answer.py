@@ -4,6 +4,7 @@ from odoo.exceptions import LockError, MissingError
 from odoo.tools import consteq
 
 from .notification_types import KIND
+from .sale_order import confirm_or_conflict
 from .sales_service import QUIET
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
@@ -67,7 +68,9 @@ class LiwanSalesAnswer(models.AbstractModel):
     @api.model
     def _liwan_accept(self, order, signature):
         """Record the acceptance, with ``(signed_by, image, method)`` when the quotation is signed, and confirm the order when
-        the snapshot taken at send says acceptance confirms it. Stock's confirmation mail is not sent."""
+        the snapshot taken at send says acceptance confirms it. Stock's confirmation mail is not sent. A customer who paid
+        before they signed has nothing left to do once they have: the payment found the signature missing, so the order
+        is confirmed now."""
         now = fields.Datetime.now()
         values = {'liwan_answer': 'accepted', 'liwan_answered_on': now}
         if signature:
@@ -76,6 +79,7 @@ class LiwanSalesAnswer(models.AbstractModel):
         if order._liwan_acceptance_confirms():
             self.env['liwan.sales.service']._liwan_move(order, 'confirm')
         self._liwan_notify_salesperson(order, 'signed' if signature else 'accepted')
+        confirm_or_conflict(order)
         return order
 
     @api.model

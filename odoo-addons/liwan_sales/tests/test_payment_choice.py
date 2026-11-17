@@ -2,7 +2,7 @@
 """How a quotation asks to be paid: the tenant's default at creation, the staff's choice, and what the staff page shows."""
 from odoo.tests import tagged
 
-from .common import ORDERS, TOTAL, SalesPaymentsCase
+from .payment_common import ORDERS, TOTAL, SalesPaymentsCase
 
 PAYMENT_KEYS = {
     'mode', 'percent', 'currency', 'amount_required', 'amount_received', 'amount_due', 'amount_to_refund', 'amount_refundable',

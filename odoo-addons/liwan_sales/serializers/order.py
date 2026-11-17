@@ -12,6 +12,10 @@ from odoo.addons.liwan_sales.models.sale_order import (
     LINE_KINDS,
     valid_discount,
 )
+from odoo.addons.liwan_sales.models.sales_settings import (
+    parse_payment_mode,
+    parse_prepayment_percent,
+)
 from odoo.addons.liwan_sales.serializers.parsing import (
     invalid,
     parse_id,
@@ -108,6 +112,7 @@ def dump_order(order, user):
         'lines': [_dump_line(line) for line in order._liwan_lines()],
         'actions': order._liwan_actions(user),
         'resend_refused': order._liwan_resend_blocked(user),
+        'payment': order._liwan_staff_payment(user),
         **order._liwan_staff_extras(user),
     }
 
@@ -137,7 +142,9 @@ def parse_order_filters(args):
 
 
 # ``template_id`` starts a quotation from a quotation template; it is a create key only.
-ORDER_KEYS = ('customer_id', 'salesperson_id', 'validity_date', 'terms', 'lines', 'template_id')
+# How a quotation asks to be paid: each key with the function that checks its value.
+PAYMENT_PARSERS = {'payment_to_confirm': parse_payment_mode, 'prepayment_percent': parse_prepayment_percent}
+ORDER_KEYS = ('customer_id', 'salesperson_id', 'validity_date', 'terms', 'lines', 'template_id', *PAYMENT_PARSERS)
 # The keys each kind of line accepts; a price or a tax is never one of them (D6, D8).
 LINE_KEYS = {
     'product': ('id', 'kind', 'product_id', 'name', 'quantity', 'discount_percent'),
@@ -181,13 +188,12 @@ def _parse_line(index, line):
     return entry
 
 
-def parse_order_body(payload, creating, parsers):
+def parse_order_body(payload, creating):
     """The whitelisted values of a create (``creating``) or a PATCH, or a 422 naming the field.
 
-    ``parsers`` are the keys an installed bridge adds (``liwan.sales.service._liwan_order_parsers``), each with the
-    function that checks its value; they come back in ``values['extras']``.
+    The payment keys (``payment_to_confirm``, ``prepayment_percent``) come back together in ``values['payment']``.
     """
-    refuse_unknown(payload, (*ORDER_KEYS, *parsers))
+    refuse_unknown(payload, ORDER_KEYS)
     if creating and 'customer_id' not in payload:
         invalid('customer_id', 'customer_id is required')
     values = {}
@@ -210,9 +216,9 @@ def parse_order_body(payload, creating, parsers):
         values['lines'] = [_parse_line(index, line) for index, line in enumerate(payload['lines'])]
     elif creating and 'template_id' not in payload:
         values['lines'] = []
-    extras = {key: parser(payload[key]) for key, parser in parsers.items() if key in payload}
-    if extras:
-        values['extras'] = extras
+    payment = {key: parser(payload[key]) for key, parser in PAYMENT_PARSERS.items() if key in payload}
+    if payment:
+        values['payment'] = payment
     if not values:
         invalid(None, 'nothing to change')
     return values

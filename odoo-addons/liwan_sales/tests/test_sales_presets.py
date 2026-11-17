@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 from odoo.tests import tagged
 
-from .common import BRIDGE_KEYS, MODES, LiwanSalesCase
+from .common import BRIDGE_KEYS, MODES, PAYMENT_KEYS, LiwanSalesCase
 from odoo.addons.liwan_sales.models.sales_presets import SECTOR_PRESETS
 from odoo.addons.liwan_sales.serializers.settings import WRITABLE_KEYS
 
@@ -126,18 +126,18 @@ class TestSalesPresets(PresetCase):
                 self.assertFalse(set(item['values']) & BRIDGE_KEYS, without)
 
     def test_the_bridge_values_in_a_preset_are_the_ones_its_settings_accept(self):
-        carried = set(self.api_as(self.manager, 'GET', SETTINGS).json()) & BRIDGE_KEYS
-        # Each installed bridge sets its main choice in every preset; one that is not installed adds nothing.
+        carried = set(self.api_as(self.manager, 'GET', SETTINGS).json()) & (PAYMENT_KEYS | BRIDGE_KEYS)
+        # The payment and each installed bridge set their main choice in every preset; one that is not carried adds nothing.
         main = carried & {'payment_to_confirm', 'opportunity_win', 'invoice_down_payment'}
         for key in SECTORS:
             with self.subTest(preset=key):
                 values = self.preset(key)['values']
-                self.assertLessEqual(set(values) & BRIDGE_KEYS, carried)
+                self.assertLessEqual(set(values) & (PAYMENT_KEYS | BRIDGE_KEYS), carried)
                 self.assertLessEqual(main, set(values))
                 self.apply(key)
 
     def test_the_catalog_of_presets_names_no_customer_and_only_known_settings(self):
-        known = set(WRITABLE_KEYS) | BRIDGE_KEYS
+        known = set(WRITABLE_KEYS) | PAYMENT_KEYS | BRIDGE_KEYS
         for key, values in SECTOR_PRESETS.items():
             with self.subTest(preset=key):
                 self.assertLessEqual(set(values), known)

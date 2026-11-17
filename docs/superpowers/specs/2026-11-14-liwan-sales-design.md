@@ -22,10 +22,9 @@ LiwanOS has no sales application. A tenant can win a CRM opportunity with a pack
 | Addon | Rank | Depends on | Owns |
 | --- | --- | --- | --- |
 | `liwan_orders` | 3 | `liwan_api`, `sale`; installs itself with the two | The tax rule of decision 4 on the order line. The order factory joins it when the store starts ([foundation design, section 5](2026-11-11-customers-and-products-foundation-design.md#5-orders)) |
-| `liwan_sales` | 4 | `liwan_orders`, `liwan_customers`, `liwan_products`, `sale_management` | Quotations and orders written by staff, their settings, capabilities, routes under `/api/v1/sales` and the pages under `/sales` |
+| `liwan_sales` | 4 | `liwan_orders`, `liwan_customers`, `liwan_products`, `liwan_payments`, `sale_management` | Quotations and orders written by staff, their settings, capabilities, routes under `/api/v1/sales` and the pages under `/sales`; the pay link of a quotation and its confirmation by payment |
 | `liwan_sales_finance` | 5 | `liwan_sales`, `liwan_finance` | Invoices made from an order, and the links between the two |
 | `liwan_sales_crm` | 5 | `liwan_sales`, `liwan_crm` | A quotation from an opportunity, and the opportunity won when its order is confirmed |
-| `liwan_sales_payments` | 5 | `liwan_sales`, `liwan_payments` | The pay link of a quotation and its confirmation by payment |
 | `liwan_sales_ai` | 5 | `liwan_sales`, `liwan_ai` | The agent and its read tool, as `tools/new_app.py` scaffolds them |
 
 `liwan_orders` is step 4 of the foundation design, brought forward for the tax rule. Without it the rule would live twice, in payments and in sales, or sales would depend on the payment gateway to tax a line.
@@ -52,7 +51,7 @@ Out of this design: sales teams (decision 10), pricelists (the product service a
 
 ## 5. Online orders
 
-An online order and a staff quotation are rows of the same model. Sales lists both and states the source of each. An online order is read-only in sales: its lines, payment, expiry and refunds stay with the channel that made it and with payments. The payments orders list remains the place for its refunds; money on a staff quotation is refunded from the quotation, through the payments bridge, by Sales staff who also hold `payments.refund`.
+An online order and a staff quotation are rows of the same model. Sales lists both and states the source of each. An online order is read-only in sales: its lines, payment, expiry and refunds stay with the channel that made it and with payments. The payments orders list remains the place for its refunds; money on a staff quotation is refunded from the quotation, from Sales (the payment flow lives in `liwan_sales`), by Sales staff who also hold `payments.refund`.
 
 ## 6. Capabilities
 
@@ -82,13 +81,13 @@ One record per tenant, changed in the root company by holders of `sales.settings
 | How the customer may sign | `signature_methods`: `draw_or_type`, `draw` | `draw_or_type` | Copied onto the quotation when it is sent, so quotations already sent keep theirs |
 | Discount limit without approval | Percent | 0, meaning no limit | New and edited lines |
 | Default terms and conditions | Text | Empty | New quotations only |
-| Payment to confirm (`liwan_sales_payments`) | `payment_to_confirm`: `off`, `full`, `percent`; with `prepayment_percent`, a whole number from 1 to 100 | `off`; 50 | New quotations only: each quotation keeps its own choice (stock `require_payment` and `prepayment_percent`), which staff change on a draft. Present only while the tenant can take online payments |
+| Payment to confirm (`liwan_sales`, payments part) | `payment_to_confirm`: `off`, `full`, `percent`; with `prepayment_percent`, a whole number from 1 to 100 | `off`; 50 | New quotations only: each quotation keeps its own choice (stock `require_payment` and `prepayment_percent`), which staff change on a draft. Present only while the tenant can take online payments |
 | Winning an opportunity by order (`liwan_sales_crm`) | `opportunity_win`: `order_confirmed`, `manual` | `order_confirmed` | Read at each confirmation: a confirmed order wins its CRM opportunity, or (`manual`) confirming changes nothing and the opportunity is won with a package. Present only while the tenant has CRM |
 | Amount an opportunity is won for (`liwan_sales_crm`) | `opportunity_win_amount`: `untaxed`, `total` | `untaxed` | Read at each confirmation: the sum of the opportunity's confirmed orders in the company's currency, untaxed or taxed. Present only while the tenant has CRM |
 | Down payments on an order (`liwan_sales_finance`) | `invoice_down_payment`: `allow`, `refuse` | `allow` | Read each time an invoice is made: `refuse` leaves only the whole order (422 `down_payment_refused` on a down payment). Present only while the tenant has Finance |
 | Who invoices an order (`liwan_sales_finance`) | `invoice_actor`: `owner`, `any_biller` | `owner` | Tenant scope, read each time an invoice is made and mirrored in `can_invoice` and `can_down_payment`. `owner`: the order's salesperson or a holder of `sales.documents.assign` (the actor rule Sales uses for confirm and cancel); `any_biller`: any caller who reads the order and holds `sales.orders.confirm` and `finance.invoices.manage`. A refused caller gets 403 `forbidden`, `details.reason` `not_the_salesperson`. Present only while the tenant has Finance |
 
-The two settings added in PR 3 (`answered_resend` and `signature_methods`) have tenant scope and are changed by holders of `sales.settings.manage`, like the others. The payment setting added by the payments bridge, the two settings added by the CRM bridge and the down payment setting added by the finance bridge have the same scope and right; the bridge adds its two fields to `liwan.sales.settings` and to the settings wire shape through hooks of `liwan_sales` (README of `liwan_sales`, "Extension points for bridges").
+The two settings added in PR 3 (`answered_resend` and `signature_methods`) have tenant scope and are changed by holders of `sales.settings.manage`, like the others. The payment setting (Sales' own since the payments bridge was folded into `liwan_sales`), the two settings added by the CRM bridge and the down payment setting added by the finance bridge have the same scope and right; the CRM and finance bridges add their fields to `liwan.sales.settings` and to the settings wire shape through hooks of `liwan_sales` (README of `liwan_sales`, "Extension points for bridges").
 
 Sector presets set several of these at once: three named bundles (`services`, `trading`, `contracting`) defined once in `models/sales_presets.py`, read at `GET /api/v1/sales/settings/presets` and applied by the ordinary settings write, so they add no setting and store no current preset (the match is derived). A bridge adds its own choices through a hook and a preset never holds a setting the tenant does not carry. The default terms are never part of a preset (`liwan_sales/README.md`, "Sector presets").
 
@@ -102,7 +101,7 @@ Sales changes authorization and money documents, so each pull request takes the 
 | 2 | `liwan_sales`: scaffold, capabilities, settings, quotations and orders with their lines and states, the list and record pages | Products PR 2 is merged; it brings the pick list and the price function |
 | 3 | Send, the public page, acceptance, signature and expiry | PR 2 |
 | 4 | `liwan_sales_finance`: invoices and down payments; built (see the status rows below) | PR 2 and products PR 6 (a product on finance invoice lines) |
-| 5 | `liwan_sales_crm` and `liwan_sales_payments`; both parts are built (see the status rows below) | PR 2 |
+| 5 | `liwan_sales_crm` and the payments part (now inside `liwan_sales`); both parts are built (see the status rows below) | PR 2 |
 | 6 | Templates and sector presets (built, see the status rows below); reports and export (built in the same pull request, see its rows) | PR 2 |
 
 Each pull request proves its lines in `saas` and `non_saas`, with a branch session and a root session, and with each value of the visibility setting.

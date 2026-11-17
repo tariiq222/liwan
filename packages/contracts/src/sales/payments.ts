@@ -1,8 +1,8 @@
 import { z } from 'zod'
 import { PaymentRefundCreateSchema } from '../payments'
 
-// The `liwan_sales_payments` bridge: a quotation that asks to be paid, and is confirmed by the payment. Every field here
-// is optional in the Sales shapes that carry it, because the bridge adds it only while online payments are installed
+// The payment part of `liwan_sales`: a quotation that asks to be paid, and is confirmed by the payment. Every field here
+// is optional in the Sales shapes that carry it, because Sales adds it only while online payments are installed
 // and included in the tenant's plan (R8, R10). A page that finds the field absent or null shows no payment at all.
 // Received money is what authorized and done payments brought, less done refunds; only done money can be refunded.
 

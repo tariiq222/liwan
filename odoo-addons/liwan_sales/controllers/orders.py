@@ -84,14 +84,14 @@ class SalesOrdersController(http.Controller):
     @requires_feature('sales.enabled', operation='write')
     @requires_capability(QUOTATIONS_MANAGE)
     def create_order(self, **payload):
-        return _detail(_service()._liwan_create(parse_order_body(payload, True, _service()._liwan_order_parsers())))
+        return _detail(_service()._liwan_create(parse_order_body(payload, True)))
 
     @http.route('/api/v1/sales/orders/<int:order_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
     @requires_feature('sales.enabled', operation='write')
     @requires_capability(QUOTATIONS_MANAGE)
     def update_order(self, order_id, **payload):
-        return _detail(_service()._liwan_update(order_id, parse_order_body(payload, False, _service()._liwan_order_parsers())))
+        return _detail(_service()._liwan_update(order_id, parse_order_body(payload, False)))
 
     @http.route('/api/v1/sales/orders/<int:order_id>/send', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

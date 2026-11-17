@@ -3,9 +3,9 @@ from datetime import timedelta
 
 from odoo import fields
 
+from .common import QuotationCase, png_base64
 from odoo.addons.liwan_api.tests.common import set_probe_feature
 from odoo.addons.liwan_payments.tests.common import LiwanOrderCase
-from odoo.addons.liwan_sales.tests.common import QuotationCase, png_base64
 
 SETTINGS = '/api/v1/sales/settings'
 ORDERS = '/api/v1/sales/orders'

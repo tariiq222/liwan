@@ -36,7 +36,7 @@ otherwise `null`, and the name never leaves the server.
 
 Every way an order enters or leaves the confirmed state ends in a write of `sale.order.state`, so the bridge extends
 `write` and nothing else: a staff confirm or cancel, the customer's confirming acceptance, a payment's confirmation
-(`liwan_sales_payments`), the customer's decline and the unpaid-order expiry (both call stock `_action_cancel`), a reopen.
+(`liwan_sales`), the customer's decline and the unpaid-order expiry (both call stock `_action_cancel`), a reopen.
 
 - An order that enters `sale` wins the opportunity (`crm.lead._liwan_win_with_amount`) when `opportunity_win` is
   `order_confirmed` and CRM can be written. No package is needed: the final price, and so the expected revenue, is the

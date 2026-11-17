@@ -7,6 +7,7 @@ from . import (
     feature_registry,
     mail_message,
     notification_types,
+    payment_transaction,
     products_service,
     quotation_document,
     reports_service,

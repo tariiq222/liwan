@@ -57,8 +57,8 @@ The policy is read on the server for the route and mirrored in `can_invoice` and
 
 ## Concurrency
 
-The route locks the order row (`lock_for_update(allow_referencing=True)`, the same `NO KEY UPDATE` lock the payments bridge
-takes: the invoice only adds lines that point at the row) right after the caller is allowed to act on it and reads the order
+The route locks the order row (`lock_for_update(allow_referencing=True)`, the same `NO KEY UPDATE` lock Sales takes when a
+payment confirms an order: the invoice only adds lines that point at the row) right after the caller is allowed to act on it and reads the order
 again before it counts anything. Two requests for one order therefore never both find room: the second finds the row held and
 answers 409 `conflict` (the client may retry; with an `Idempotency-Key` a retry of the first request replays its answer), and
 a later one finds the first invoice among the figures (422 `nothing_to_invoice`, or the down payment room that is left).
@@ -93,12 +93,12 @@ document's company and the visibility setting shows it to them); otherwise `null
 
 Money reaches an order through two doors and `amount_paid` counts one: what payments settled on the posted invoices, less
 what posted credit notes gave back. The bridge reads only finance (no payments table, no `sudo()`), so it works without
-`liwan_sales_payments` and cannot disagree with it.
+`liwan_sales` and cannot disagree with it.
 
 - `sale.automatic_invoice` on (the LiwanOS default, set by `liwan_payments`): a gateway payment on a confirmed staff order
   makes and posts its invoice at once through stock (a down payment while the order is partly paid, a final invoice when it
   is paid in full), reconciled with the payment, so the order shows invoiced and paid together.
-- Off: the transaction stays on the order and only the payment block of `liwan_sales_payments` shows it. When staff make the
+- Off: the transaction stays on the order and only the payment block of `liwan_sales` shows it. When staff make the
   invoice here, stock links the transaction to it, and when finance posts the invoice stock reconciles them: `amount_paid`
   counts the money from that moment. Until then `amount_paid` is 0 and the money is the order's `payment.amount_received`.
 - A payment registered in finance on a posted invoice counts at once; a partial one counts its part. A credit note posted

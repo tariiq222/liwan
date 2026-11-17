@@ -35,7 +35,7 @@ class SalesSettingsController(http.Controller):
     @requires_capability(SETTINGS_MANAGE)
     def write_settings(self, **payload):
         settings = request.env['liwan.sales.settings']
-        values, revision = parse_settings_patch(payload, settings._liwan_patch_parsers())
+        values, revision = parse_settings_patch(payload, {**settings._liwan_payment_parsers(), **settings._liwan_patch_parsers()})
         settings._liwan_current()._liwan_apply(values, revision)
         return dump_current()
 

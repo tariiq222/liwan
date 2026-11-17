@@ -270,7 +270,7 @@
     },
     "odoo-addons/liwan_sales/models/quotation_document.py": {
       "count": 1,
-      "reason": "liwan_sales quotation e-mail: `self.env['mail.mail'].sudo().create(...)` in `liwan.sales.document._liwan_mail`, which queues the e-mail that sends a quotation to its customer (`_liwan_queue_mail`) or tells them a payment confirmed it (`_liwan_queue_confirmation_mail`, called by the payments bridge); blocked by the ACL of `mail.mail` (odoo/addons/mail/security/ir.model.access.csv grants it only to `base.group_system`), which no Sales capability carries. The send runs only after `liwan.sales.service._liwan_send` has checked the capability, the salesperson's ownership, the state, the customer's address and the product lines; the confirmation only after the order was confirmed by its payment. Each creates one row addressed to the customer's own address."
+      "reason": "liwan_sales quotation e-mail: `self.env['mail.mail'].sudo().create(...)` in `liwan.sales.document._liwan_mail`, which queues the e-mail that sends a quotation to its customer (`_liwan_queue_mail`) or tells them a payment confirmed it (`_liwan_queue_confirmation_mail`, called by `sale.order._liwan_confirm_by_payment`); blocked by the ACL of `mail.mail` (odoo/addons/mail/security/ir.model.access.csv grants it only to `base.group_system`), which no Sales capability carries. The send runs only after `liwan.sales.service._liwan_send` has checked the capability, the salesperson's ownership, the state, the customer's address and the product lines; the confirmation only after the order was confirmed by its payment. Each creates one row addressed to the customer's own address."
     },
     "odoo-addons/liwan_sales/models/sales_service.py": {
       "count": 1,
@@ -284,9 +284,9 @@
       "count": 2,
       "reason": "liwan_sales_finance invoice from an order: `order.sudo()` and `self.env['sale.advance.payment.inv'].sudo()` in `liwan.sales.service._liwan_make_invoice`, the one environment, elevated with the order's company, in which stock's `sale.advance.payment.inv._create_invoices` prepares and creates the draft invoice of a confirmed order, as stock itself creates the invoice with `sudo()` so that a salesperson need not hold billing rights; blocked for a member of Sales and Finance by the ACL of `project.project` (stock `sale_project` reads it in `sale.order.line._prepare_invoice_line` to default the analytic distribution, and only project groups read it) and by the company fence of odoo-addons/liwan_core/models/ir_rule.py `_liwan_fresh_company_domain` on `account.tax`, which hides the root's sale taxes from a branch session so that a down payment's lines would carry no tax. It runs only after the checks of `_liwan_invoiceable` (the order is readable under the visibility setting, a confirmed staff document of the working company, the caller holds `sales.orders.confirm` and `finance.invoices.manage` there, the amounts and the settings allow it), touches that one order and the one invoice it makes, never posts it, and the invoice is returned in the caller's environment."
     },
-    "odoo-addons/liwan_sales_payments/models/sale_order.py": {
+    "odoo-addons/liwan_sales/models/sale_order.py": {
       "count": 1,
-      "reason": "liwan_sales_payments received amount: `self.sudo().transaction_ids` in `_liwan_own_payments`; blocked by stock sale's field-level group on `sale.order.transaction_ids` (accounting groups only), which no Sales capability carries; only the amounts of the order's own payments are summed for the confirmation threshold and the staff and customer payment shapes, on an order the caller already reads."
+      "reason": "liwan_sales received amount: `self.sudo().transaction_ids` in `_liwan_own_payments`; blocked by stock sale's field-level group on `sale.order.transaction_ids` (accounting groups only), which no Sales capability carries; only the amounts of the order's own payments are summed for the confirmation threshold and the staff and customer payment shapes, on an order the caller already reads."
     }
   }
 }

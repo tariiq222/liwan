@@ -63,7 +63,7 @@ class TestRemovedAddons(TransactionCase):
     def test_the_bridges_folded_into_their_applications_are_listed_and_forgotten(self):
         bridges = (
             'liwan_access_hr', 'liwan_documents_hr', 'liwan_hr_operations', 'liwan_documents_pmo',
-            'liwan_inbox_payments', 'liwan_appointments_payments',
+            'liwan_inbox_payments', 'liwan_appointments_payments', 'liwan_sales_payments',
         )
         for name in bridges:
             self.assertIn(name, REMOVED_ADDONS)

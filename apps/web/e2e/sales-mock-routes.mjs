@@ -289,7 +289,7 @@ function parseLines(lines, previous, caps) {
 
 const paymentsOff = cookie => hasCookie(cookie, 'mock_payments=off')
 
-/** The payment choice of a write, as `liwan_sales_payments` parses it, or null when the body makes none. */
+/** The payment choice of a write, as `liwan_sales` parses it, or null when the body makes none. */
 function parsePayment(body, order, cookie) {
   if (!('payment_to_confirm' in body) && !('prepayment_percent' in body)) return null
   if ('payment_to_confirm' in body && !PAYMENT_MODES.includes(body.payment_to_confirm)) return { failure: invalid('payment_to_confirm') }

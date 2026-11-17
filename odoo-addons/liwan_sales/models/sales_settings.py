@@ -13,6 +13,33 @@ RESEND_MODES = ('allow', 'refuse')
 SIGNATURE_MODES = ('draw', 'draw_or_type')
 # How a signature was made.
 SIGNATURE_METHODS = ('drawn', 'typed')
+PAYMENTS_FEATURE = 'payments.enabled'
+# Whether the customer must pay before the quotation becomes an order: not at all, all of it, or a percentage of it.
+PAYMENT_MODES = ('off', 'full', 'percent')
+MIN_PERCENT = 1
+MAX_PERCENT = 100
+
+
+def payments_open(env):
+    """Whether the tenant can take payments now: online payments are included in its plan and its lifecycle allows writes."""
+    return env['liwan.entitlement.service']._liwan_feature_write(PAYMENTS_FEATURE)
+
+
+def _invalid(field, message):
+    code = 'invalid'
+    raise LiwanAccessRule(code, message, field=field, status=422)
+
+
+def parse_payment_mode(value):
+    if value not in PAYMENT_MODES:
+        _invalid('payment_to_confirm', f'payment_to_confirm must be one of {PAYMENT_MODES}')
+    return value
+
+
+def parse_prepayment_percent(value):
+    if not isinstance(value, int) or isinstance(value, bool) or not MIN_PERCENT <= value <= MAX_PERCENT:
+        _invalid('prepayment_percent', f'prepayment_percent must be an integer from {MIN_PERCENT} to {MAX_PERCENT}')
+    return value
 
 
 class LiwanSalesSettings(models.Model):
@@ -41,6 +68,12 @@ class LiwanSalesSettings(models.Model):
     answered_resend = fields.Selection([(mode, mode) for mode in RESEND_MODES], required=True, default='allow')
     # Copied onto a quotation when it is sent, like ``customer_answer``.
     signature_methods = fields.Selection([(mode, mode) for mode in SIGNATURE_MODES], required=True, default='draw_or_type')
+    # The default way a new quotation asks the customer to pay before it becomes an order (off: not at all; full: all of
+    # it; percent: ``prepayment_percent`` of it). A new quotation takes these values once; the value kept on each
+    # quotation is what counts after that.
+    payment_to_confirm = fields.Selection([(mode, mode) for mode in PAYMENT_MODES], required=True, default='off')
+    # The share of the total a customer pays under ``percent``.
+    prepayment_percent = fields.Integer(required=True, default=50)
     revision = fields.Integer(required=True, default=1)
 
     _revision_positive = models.Constraint('CHECK(revision > 0)', 'the revision is a positive number')
@@ -50,6 +83,10 @@ class LiwanSalesSettings(models.Model):
     _discount_limit_range = models.Constraint(
         'CHECK(discount_limit_percent >= 0 AND discount_limit_percent <= 100)',
         'the discount limit is a percent between 0 and 100',
+    )
+    _prepayment_percent_range = models.Constraint(
+        f'CHECK(prepayment_percent >= {MIN_PERCENT} AND prepayment_percent <= {MAX_PERCENT})',
+        'the prepayment is a percent between 1 and 100',
     )
 
     @api.model
@@ -69,19 +106,46 @@ class LiwanSalesSettings(models.Model):
         )
 
     @api.model
+    def _liwan_payment_parsers(self):
+        """The payment keys a settings write accepts, as ``{key: parser}``. A parser takes the raw value and returns the
+        checked one or raises ``LiwanAccessRule`` (422 on the key); a tenant without online payments cannot set them."""
+        return {
+            'payment_to_confirm': self._liwan_parse_payment_setting(parse_payment_mode),
+            'prepayment_percent': self._liwan_parse_payment_setting(parse_prepayment_percent),
+        }
+
+    @api.model
+    def _liwan_parse_payment_setting(self, parse):
+        """``parse`` as a settings parser: the value is checked, and a tenant without online payments cannot set it."""
+        def parser(value):
+            checked = parse(value)
+            self.env['liwan.entitlement.service'].require(PAYMENTS_FEATURE)
+            return checked
+        return parser
+
+    def _liwan_payment_wire(self):
+        """The payment choice the wire shape carries, as ``{key: value}``: empty while the tenant cannot take payments."""
+        self.ensure_one()
+        if not payments_open(self.env):
+            return {}
+        return {'payment_to_confirm': self.payment_to_confirm, 'prepayment_percent': self.prepayment_percent}
+
+    @api.model
     def _liwan_patch_parsers(self):
-        """The keys an installed bridge accepts in a settings write, as ``{key: parser}``. A parser takes the raw value and
-        returns the checked one or raises ``LiwanAccessRule`` (422 on the key); each key is also a field of this model."""
+        """The keys a settings write accepts beyond Sales' own, as ``{key: parser}``: none here; the CRM and finance
+        bridges add theirs with ``super()``."""
         return {}
 
     def _liwan_wire_extras(self):
-        """The settings an installed bridge adds to the wire shape, as ``{key: value}``."""
+        """The settings the wire shape carries beyond Sales' own, as ``{key: value}``: none here; the CRM and finance
+        bridges add theirs with ``super()``."""
         self.ensure_one()
         return {}
 
     def _liwan_preset_extras(self):
-        """The values an installed bridge adds to the sector presets (``models/sales_presets.py``), as ``{preset: {key: value}}``.
-        Each key is one the bridge adds to the settings, so a tenant that does not carry it never sees the value."""
+        """The values the sector presets (``models/sales_presets.py``) hold beyond Sales' own, as ``{preset: {key: value}}``:
+        none here; the CRM and finance bridges add theirs with ``super()``. Each key is one the settings may not carry, so a
+        tenant that does not carry it never sees the value."""
         self.ensure_one()
         return {}
 

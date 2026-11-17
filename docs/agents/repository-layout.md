@@ -140,7 +140,11 @@ application declares its AI agent and tools in its own addon (see `liwan_ai` bel
   listed read-only. It writes order lines through one documented elevated helper
   (`tools/arch_documented_sudo.json`), because a branch session cannot write the root company's taxes. Pages are
   under `/sales` in `apps/web`, its settings at `/settings/apps/sales`; its AI agent and tool are registered
-  inside `liwan_sales` itself. Its contract is `odoo-addons/liwan_sales/README.md`. Plan:
+  inside `liwan_sales` itself. It also owns whether a staff quotation asks to be paid before it becomes an order: the
+  tenant's default (`payment_to_confirm`, `prepayment_percent` on `liwan.sales.settings`), the per-quotation choice kept
+  in stock's `require_payment` and `prepayment_percent`, the `payment` of the staff and public wire shapes, the pay note
+  of the e-mail, and the confirmation of the order by the payment through the Sales path; it reuses the pay page and the
+  gateway of the shared service `liwan_payments`. Its contract is `odoo-addons/liwan_sales/README.md`. Plan:
   `docs/superpowers/plans/2026-11-14-liwan-sales.md`.
 - `odoo-addons/liwan_chat` (application, rank 4) owns member-private chat over the native `discuss.channel`:
   conversations, messages, reactions and the `/api/v1/chat` routes, `chat.enabled` and the `chat.*` capabilities.
@@ -229,12 +233,6 @@ application declares its AI agent and tools in its own addon (see `liwan_ai` bel
   the neutral commerce hooks, and the carts that become online orders of `liwan.payments.service` (checkout, pay
   link, paid and cancelled notes). Feature `inbox.catalog`; capabilities `inbox.catalog.manage` and
   `inbox.orders.manage`.
-- `odoo-addons/liwan_sales_payments` (bridge, rank 5, `auto_install` on `liwan_sales` and the shared service
-  `liwan_payments`) owns whether a staff quotation asks to be paid before it becomes an order: the tenant's default
-  (`payment_to_confirm`, `prepayment_percent` on `liwan.sales.settings`), the per-quotation choice kept in stock's
-  `require_payment` and `prepayment_percent`, the `payment` of the staff and public wire shapes, the pay note of the
-  e-mail, and the confirmation of the order by the payment through the Sales path. It defines no model; it reuses
-  the pay page and the gateway of `liwan_payments`.
 - `odoo-addons/liwan_sales_crm` (bridge, rank 5, `auto_install` on `liwan_sales` and `liwan_crm`) owns the `liwan_lead_id`
   link of a quotation to an opportunity, the routes that list and create the quotations of an opportunity
   (`/api/v1/crm/opportunities/<id>/orders`), the win of the opportunity when one of its orders is confirmed (through the

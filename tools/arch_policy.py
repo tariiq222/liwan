@@ -30,6 +30,8 @@ BASE_APPLICATIONS = frozenset({'liwan_documents', 'liwan_operations'})
 FOUNDATION_MAX_RANK = 2
 # R3: the most lines of Python (outside tests and migrations) a bridge addon may hold before it counts as an application.
 BRIDGE_MAX_PYTHON_LINES = 700
+# R3 (hard, never baselined): a bridge links two addons of the same layer only (application with application, or
+# shared service/foundation with shared service/foundation/stock module); see bridge_layer_problems().
 # R3 baseline keys of the bridge limit. The marker key (always count 0) is written with the baseline once the
 # existing violations are recorded; only a baseline without it may take the bridge-limit counts for the first time.
 BRIDGE_LIMIT_KINDS = ('bridge-model ', 'bridge-size ')
@@ -246,6 +248,42 @@ def bridge_limit_violations(addon: str, files: list[Path]) -> dict[str, int]:
     _put(found, f'bridge-model odoo-addons/{addon}', sum(new_models(text) for text in sources))
     _put(found, f'bridge-size odoo-addons/{addon}', max(0, sum(len(text.splitlines()) for text in sources) - BRIDGE_MAX_PYTHON_LINES))
     return found
+
+
+def depends_closure(manifests: dict[str, list[str]]) -> dict[str, set[str]]:
+    """The addons each addon reaches through its manifest `depends`, directly or through other addons of MANIFESTS."""
+    def reach(addon: str, seen: set[str]) -> set[str]:
+        for dep in manifests.get(addon, []):
+            if dep not in seen:
+                seen.add(dep)
+                reach(dep, seen)
+        return seen
+
+    return {addon: reach(addon, set()) for addon in manifests}
+
+
+def bridge_layer_problems(addon: str, depends: list[str], ranks: dict[str, int], closure: dict[str, set[str]]) -> list[str]:
+    """R3: a bridge links applications with applications, or lower layers with lower layers, never both kinds.
+
+    Stock and OCA modules have no rank and are ignored. A lower-layer dependency that another listed lower-layer one
+    already brings in (CLOSURE) does not count, nor does one that every listed application brings in when two or more
+    applications are listed (an application pair that also lists `liwan_api`). A single application next to a
+    lower-layer addon it depends on is exactly the case this rule rejects, so it still counts.
+    """
+    listed = [dep for dep in dict.fromkeys(depends) if dep in ranks]
+    apps = [dep for dep in listed if ranks[dep] == APP_RANK]
+    lower = [dep for dep in listed if ranks[dep] < APP_RANK]
+    lower = [
+        dep for dep in lower
+        if not any(dep in closure.get(other, set()) for other in lower if other != dep)
+        and not (len(apps) > 1 and all(dep in closure.get(app, set()) for app in apps))
+    ]
+    if not (apps and lower):
+        return []
+    return [
+        f'bridge addon {addon} links application {", ".join(apps)} with lower-layer addon {", ".join(lower)}: '
+        f'the application must depend on {", ".join(lower)} from inside its own addon (R3)'
+    ]
 
 
 # R10: a route names its feature, or (requires_registered_feature) the features installed addons register for it.
@@ -849,6 +887,7 @@ def collect(root: Path, layers: dict) -> tuple[Violations, list[str]]:
     addons = sorted(p.parent.name for p in addons_root.glob('*/__manifest__.py'))
     hard = [f'unregistered addon {a}: add it to tools/arch_layers.json' for a in unregistered_addons(addons, ranks, exempt)]
     hard += [f'arch_layers.json lists missing addon {a}' for a in sorted(ranks) if a not in addons]
+    closure = depends_closure({a: manifest_depends(_read(addons_root / a / '__manifest__.py')) for a in addons})
     v: Violations = {rule: {} for rule in ('R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R8', 'R9', 'R10')}
 
     for addon in addons:
@@ -862,6 +901,8 @@ def collect(root: Path, layers: dict) -> tuple[Violations, list[str]]:
         v['R4'].update(layer_violations(addon, depends, ranks, 'depends on'))
         if ranks[addon] == BRIDGE_RANK and not manifest.get('auto_install'):
             hard.append(f'bridge addon {addon} must set auto_install')
+        if ranks[addon] == BRIDGE_RANK:
+            hard += bridge_layer_problems(addon, depends, ranks, closure)
         if ranks[addon] == APP_RANK and addon not in BASE_APPLICATIONS:
             registry = addon_dir / 'models' / 'feature_registry.py'
             text = _read(registry) if registry.is_file() else ''

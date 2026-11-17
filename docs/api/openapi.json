@@ -112872,7 +112872,7 @@
   "info": {
     "description": "Generated surface of every /api/v1 route across the liwan Odoo addons, with contract schemas harvested from @liwan/contracts. Regenerate with `python3 tools/api_surface.py`; never edit by hand.",
     "title": "liwan /api/v1",
-    "version": "19.0.1.6.0"
+    "version": "19.0.1.8.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -159001,7 +159001,7 @@
     },
     "/api/v1/sales/orders/{order_id}/refunds": {
       "post": {
-        "operationId": "liwan_sales_payments.SalesRefundsController.record_refund.post",
+        "operationId": "liwan_sales.SalesRefundsController.record_refund.post",
         "parameters": [
           {
             "in": "path",
@@ -159033,10 +159033,10 @@
         ],
         "summary": "record_refund",
         "tags": [
-          "liwan_sales_payments"
+          "liwan_sales"
         ],
         "x-liwan": {
-          "addon": "liwan_sales_payments",
+          "addon": "liwan_sales",
           "api_handler": true,
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
@@ -161508,7 +161508,6 @@
     "liwan_sales",
     "liwan_sales_crm",
     "liwan_sales_finance",
-    "liwan_sales_payments",
     "liwan_tasks",
     "liwan_tasks_pmo"
   ]

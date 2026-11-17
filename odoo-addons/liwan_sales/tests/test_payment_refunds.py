@@ -3,7 +3,7 @@
 from odoo import Command
 from odoo.tests import tagged
 
-from .common import ORDERS, TOTAL, SalesPaymentsCase
+from .payment_common import ORDERS, TOTAL, SalesPaymentsCase
 
 REFUNDER_KEYS = ['sales.read', 'sales.quotations.manage', 'sales.orders.confirm', 'payments.orders.read', 'payments.refund']
 

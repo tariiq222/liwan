@@ -12,6 +12,8 @@ from arch_policy import (
     BRIDGE_LIMIT_RECORDED,
     BRIDGE_MAX_PYTHON_LINES,
     app_token,
+    bridge_layer_problems,
+    depends_closure,
     collect,
     commit_parents,
     compare,
@@ -376,6 +378,26 @@ class TestCompare(unittest.TestCase):
     def test_rule_missing_from_either_side(self):
         self.assertEqual(compare({}, {}), [])
         self.assertEqual(compare({'R1': {'x': 1}}, {}), ['R1: x: 1 found, baseline allows 0'])
+
+
+class TestBridgeLayer(unittest.TestCase):
+    RANKS = {'liwan_api': 2, 'liwan_svc': 3, 'liwan_a': 4, 'liwan_b': 4}
+    CLOSURE = depends_closure({'liwan_api': [], 'liwan_svc': ['liwan_api'], 'liwan_a': ['liwan_api'], 'liwan_b': ['liwan_svc']})
+
+    def problems(self, depends):
+        return bridge_layer_problems('liwan_a_b', depends, self.RANKS, self.CLOSURE)
+
+    def test_closure_is_transitive(self):
+        self.assertEqual(depends_closure({'a': ['b'], 'b': ['c', 'base'], 'c': []})['a'], {'b', 'c', 'base'})
+
+    def test_mixed_layers_fail_and_same_layer_passes(self):
+        self.assertEqual(len(self.problems(['liwan_a', 'liwan_svc'])), 1)
+        self.assertEqual(len(self.problems(['liwan_a', 'liwan_api'])), 1)
+        self.assertEqual(self.problems(['liwan_svc', 'liwan_api', 'account']), [])
+
+    def test_a_dependency_another_listed_one_brings_in_is_ignored(self):
+        self.assertEqual(self.problems(['liwan_a', 'liwan_b', 'liwan_api']), [])
+        self.assertEqual(self.problems(['liwan_svc', 'liwan_api']), [])
 
 
 class TestCollect(unittest.TestCase):
@@ -805,6 +827,46 @@ class TestCollect(unittest.TestCase):
         self.addon('liwan_meetings_pmo', ['liwan_pmo'])
         _, hard = collect(self.root, self.layers)
         self.assertEqual(hard, ['bridge addon liwan_meetings_pmo must set auto_install'])
+
+    def bridge_tree(self, depends, extra_ranks, extra_addons):
+        self.clean_tree()
+        self.layers['ranks'].update({'liwan_api': 2, 'liwan_x': 4, 'liwan_svc': 3, 'liwan_svc2': 3, 'liwan_x_y': 5, **extra_ranks})
+        self.addon('liwan_api', ['liwan_core'])
+        for name, deps in extra_addons.items():
+            self.addon(name, deps)
+        self.write('odoo-addons/liwan_x_y/__manifest__.py', HEADER + repr({'name': 'b', 'depends': depends, 'auto_install': True}))
+        self.layers['ranks'] = {a: r for a, r in self.layers['ranks'].items() if (self.root / 'odoo-addons' / a).is_dir()}
+
+    def bridge_hard(self, depends, extra_addons):
+        self.bridge_tree(depends, {}, extra_addons)
+        return collect(self.root, self.layers)[1]
+
+    def test_bridge_of_application_and_service_is_a_hard_failure(self):
+        hard = self.bridge_hard(['liwan_x', 'liwan_svc'], {'liwan_x': ['liwan_api'], 'liwan_svc': ['liwan_api']})
+        self.assertEqual(hard, [
+            'bridge addon liwan_x_y links application liwan_x with lower-layer addon liwan_svc: '
+            'the application must depend on liwan_svc from inside its own addon (R3)'
+        ])
+
+    def test_bridge_of_two_applications_passes_even_when_it_lists_the_foundation(self):
+        apps = {'liwan_x': ['liwan_api'], 'liwan_z': ['liwan_api']}
+        self.layers['ranks']['liwan_z'] = 4
+        self.assertEqual(self.bridge_hard(['liwan_x', 'liwan_z', 'liwan_api'], apps), [])
+
+    def test_bridge_of_application_and_foundation_alone_is_a_hard_failure(self):
+        hard = self.bridge_hard(['liwan_x', 'liwan_api'], {'liwan_x': ['liwan_core']})
+        self.assertEqual(len(hard), 1)
+        self.assertIn('lower-layer addon liwan_api', hard[0])
+
+    def test_bridge_of_two_services_or_foundation_and_stock_module_passes(self):
+        self.assertEqual(self.bridge_hard(['liwan_svc', 'liwan_svc2'], {'liwan_svc': ['liwan_api'], 'liwan_svc2': ['liwan_api']}), [])
+        self.assertEqual(self.bridge_hard(['liwan_api', 'account'], {'liwan_x': ['liwan_api']}), [])
+
+    def test_bridge_layer_problem_is_not_baselined(self):
+        self.bridge_tree(['liwan_x', 'liwan_svc'], {}, {'liwan_x': ['liwan_api'], 'liwan_svc': ['liwan_api']})
+        violations, hard = collect(self.root, self.layers)
+        self.assertTrue(hard)
+        self.assertTrue(all('liwan_x_y' not in key for rule in violations.values() for key in rule))
 
     def test_migrations_may_use_sql(self):
         self.clean_tree()
