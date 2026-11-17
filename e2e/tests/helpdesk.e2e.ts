@@ -4,7 +4,7 @@ import { api, ODOO_ONLY, signInAs, slow, type Json, type PageContext, type Stage
 
 /**
  * Support Desk journeys on the scratch Odoo stack (`npm run e2e:odoo`), covering the register rows
- * HD-11, HD-20, HD-21, HD-24, HD-30 to HD-33, HD-40, HD-41, HD-50, HD-60, HD-63, HD-70 and HD-85 (e2e/scenarios/helpdesk.md).
+ * HD-10, HD-11, HD-20, HD-21, HD-24, HD-30 to HD-33, HD-40, HD-41, HD-50, HD-60, HD-63, HD-70, HD-72 and HD-85 (e2e/scenarios/helpdesk.md).
  *
  * Personas come from tools/e2e_seed.py. No seeded account holds a desk role: each journey grants the built-in
  * role it needs to a seeded employee as `it_admin`, keeping that employee's existing assignments, and then
@@ -108,6 +108,8 @@ test('[HD-24] an employee opens a request and follows it without the desk’s ag
 
   await app.open('/helpdesk');
   await expect(screen.getByRole('heading', { level: 1, name: LIST_HEADING })).toBeVisible(slow);
+  // The counters are an agent's view of the queue: the employee's list draws none (register row HD-72).
+  await expect(screen.getByTestId('helpdesk-counters')).toHaveCount(0, slow);
   // The employee holds the two request keys through the base role and no desk key.
   const me = await identity(browser);
   expectCapabilities(me.capabilities, ['helpdesk.requests.read', 'helpdesk.requests.create']);
@@ -398,4 +400,71 @@ test('[HD-33] an agent edits a ticket from its edit page', {
   await expect(screen.getByRole('heading', { level: 1 })).toContainText(renamed, slow);
   const saved = await ok(browser, 'GET', `${TICKETS}/${created.id}`);
   expect([saved.subject, saved.priority]).toEqual([renamed, 'high']);
+});
+
+test('[HD-72] an agent reads the queue counters above the list and follows two of them', {
+  tags: ['helpdesk'], timeout: 300_000, session: 'it_admin', skip: ODOO_ONLY,
+}, async ({ app, screen, browser }) => {
+  const stage = { app, screen, browser };
+  await app.open('/helpdesk');
+  await expect(screen.getByRole('heading', { level: 1, name: LIST_HEADING })).toBeVisible(slow);
+  await grantRole(browser, 'e2e_staff1', 'helpdesk_agent');
+  await signInAs('staff1', stage);
+  // The agent opens a ticket, which the desk assigns to them: it is open and theirs.
+  await ok(browser, 'POST', TICKETS, { subject: `عدّاد ${Date.now().toString(36)}`, description: 'للتحقق من أرقام الطابور.' });
+  const figures = await ok(browser, 'GET', '/api/v1/helpdesk/summary');
+  expect(figures.mine as number).toBeGreaterThan(0);
+
+  await app.open('/helpdesk');
+  const counters = screen.getByTestId('helpdesk-counters');
+  await expect(counters.getByTestId('metric-tile')).toHaveCount(4, slow);
+  await expect(counters).toContainText(String(figures.open), slow);
+  for (const label of ['مفتوحة', 'غير مسندة', 'مسندة إليّ', 'متأخرة عن المهلة']) {
+    await expect(counters).toContainText(label, slow);
+  }
+  // Two of the figures are links into the list, already filtered.
+  await counters.getByRole('link', `مسندة إليّ: ${figures.mine}`).tap();
+  await expect(browser).toHaveURL(/[?&]assignee=me/, slow);
+  await expect(screen.getByTestId('helpdesk-ticket-link').first()).toBeVisible(slow);
+});
+
+test('[HD-10] an agent opens a ticket for a customer from the panel', {
+  tags: ['helpdesk'], timeout: 300_000, session: 'it_admin', skip: ODOO_ONLY,
+}, async ({ app, screen, browser }) => {
+  const stage = { app, screen, browser };
+  const stamp = Date.now().toString(36);
+  const customerName = `عميل الدعم ${stamp}`;
+  const subject = `طلب عميل ${stamp}`;
+  await app.open('/helpdesk');
+  await expect(screen.getByRole('heading', { level: 1, name: LIST_HEADING })).toBeVisible(slow);
+  // The seed holds no customer: the administrator, who manages them, adds the one this journey picks.
+  const added = await api(browser, 'POST', '/api/v1/customers', { name: customerName });
+  expect([added.status, added.body.message]).toEqual([201, undefined]);
+  const customer = added.body;
+  await grantRole(browser, 'e2e_crm_manager', 'helpdesk_manager');
+  await signInAs('crm_manager', stage);
+  expectCapabilities((await identity(browser)).capabilities, DESK_KEYS);
+
+  // The panel opens over the list from a direct link and after a refresh.
+  await browser.goto('/helpdesk/new', { waitUntil: 'domcontentloaded' });
+  await expect(screen.getByTestId('helpdesk-form')).toBeVisible(slow);
+  await browser.reload();
+  await expect(screen.getByTestId('helpdesk-form')).toBeVisible(slow);
+
+  await screen.getByTestId('helpdesk-subject').fill(subject);
+  await screen.getByTestId('helpdesk-description').fill('الاتصال بالخدمة ينقطع كل ساعة.');
+  await screen.getByTestId('customer-picker-search').fill(stamp);
+  await screen.getByTestId(`customer-picker-option-${customer.id}`).tap();
+  await screen.getByTestId('helpdesk-save').tap();
+
+  await expect(browser).toHaveURL(/\/helpdesk\/\d+(\?|$)/, slow);
+  await expect(screen.getByRole('heading', { level: 1 })).toContainText(subject, slow);
+  const details = screen.getByTestId('helpdesk-details');
+  await expect(details).toContainText(customerName, slow);
+  await expect(details).toContainText(MANAGER, slow);
+
+  const listed = await ok(browser, 'GET', `${TICKETS}?q=${encodeURIComponent(stamp)}`);
+  const row = (listed.items as Json[]).find(item => item.subject === subject) as Json;
+  expect([row !== undefined, (row.requester as Json).kind, (row.requester as Json).name, (row.assignee as Json).name])
+    .toEqual([true, 'customer', customerName, MANAGER]);
 });
