@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test'
 // The page column is fluid, capped and centred, and no main route scrolls sideways at any common width, in RTL and LTR.
 // Isolated mock stack (admin / admin).
 const WIDTHS = [375, 768, 1280, 1440, 1920, 2560]
-const ROUTES = ['/', '/apps', '/projects', '/tasks', '/crm', '/crm/opportunities', '/inbox', '/chat', '/hr', '/finance', '/documents', '/meetings', '/appointments', '/ai', '/settings', '/settings/company', '/settings/apps/projects', '/settings/apps/inbox']
+const ROUTES = ['/', '/apps', '/projects', '/tasks', '/crm', '/crm/opportunities', '/inbox', '/chat', '/hr', '/finance', '/documents', '/meetings', '/appointments', '/ai', '/settings', '/settings/company', '/settings/apps/projects', '/settings/apps/inbox', '/helpdesk', '/helpdesk/reports', '/settings/apps/helpdesk']
 
 async function login(page: Page) {
   await page.goto('/login')

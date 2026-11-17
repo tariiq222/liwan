@@ -14,12 +14,14 @@
   --liwan-app-hr: #e0644f;
   --liwan-app-finance: #1f8a5b;
   --liwan-app-appointments: #8bb513;
+  --liwan-app-helpdesk: #0e808c;
   --liwan-app-crm-action: #2f62c9;
   --liwan-app-inbox-action: #15803d;
   --liwan-app-projects-action: #3d47b8;
   --liwan-app-hr-action: #c2412d;
   --liwan-app-finance-action: #166c47;
   --liwan-app-appointments-action: #557309;
+  --liwan-app-helpdesk-action: #0b6470;
 }
 .dark {
   --liwan-ink: #f3f3f6;
@@ -30,6 +32,7 @@
   --liwan-app-hr: #ef7d6a;
   --liwan-app-finance: #34b07a;
   --liwan-app-appointments: #9fca2a;
+  --liwan-app-helpdesk: #2a9aa8;
 }
 
 [data-app="crm"] { --app-tile: var(--liwan-app-crm); --app-action: var(--liwan-app-crm-action); }
@@ -38,6 +41,7 @@
 [data-app="hr"] { --app-tile: var(--liwan-app-hr); --app-action: var(--liwan-app-hr-action); }
 [data-app="finance"] { --app-tile: var(--liwan-app-finance); --app-action: var(--liwan-app-finance-action); }
 [data-app="appointments"] { --app-tile: var(--liwan-app-appointments); --app-action: var(--liwan-app-appointments-action); }
+[data-app="helpdesk"] { --app-tile: var(--liwan-app-helpdesk); --app-action: var(--liwan-app-helpdesk-action); }
 
 /* A paid application repaints the whole solid-primary family (buttons, create action, selected fills) in its button shade. */
 :is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"]) {

@@ -21,6 +21,7 @@
     "liwan_appointments": 4,
     "liwan_inbox": 4,
     "liwan_sales": 4,
+    "liwan_helpdesk": 4,
     "liwan_meetings_pmo": 5,
     "liwan_crm_tasks": 5,
     "liwan_crm_meetings": 5,
@@ -41,7 +42,12 @@
     "liwan_api_account": 5,
     "liwan_products_account": 5,
     "liwan_payments_customers": 5,
-    "liwan_integrations_payments": 5
+    "liwan_integrations_payments": 5,
+    "liwan_helpdesk_tasks": 5,
+    "liwan_helpdesk_crm": 5,
+    "liwan_helpdesk_documents": 5,
+    "liwan_helpdesk_inbox": 5,
+    "liwan_helpdesk_sales": 5
   },
   "exempt": [],
   "web_apps": {
@@ -193,6 +199,14 @@
       ],
       "pages": [
         "sales"
+      ]
+    },
+    "helpdesk": {
+      "components": [
+        "helpdesk"
+      ],
+      "pages": [
+        "helpdesk"
       ]
     }
   },

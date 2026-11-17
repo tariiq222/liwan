@@ -154,6 +154,22 @@
       "features": [
         "boolean:sales.enabled"
       ]
+    },
+    {
+      "id": "helpdesk",
+      "name": "Support Desk",
+      "description": "The Support Desk application.",
+      "sellable": false,
+      "modules": [
+        "liwan_helpdesk"
+      ],
+      "features": [
+        "boolean:helpdesk.enabled",
+        "boolean:helpdesk.merge",
+        "boolean:helpdesk.reports",
+        "boolean:helpdesk.portal",
+        "boolean:helpdesk.auto_close"
+      ]
     }
   ]
 }

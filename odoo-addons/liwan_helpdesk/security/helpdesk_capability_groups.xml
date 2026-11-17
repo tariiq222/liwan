@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- One group per capability, the ACLs and rules of security/ read them, and three built-in roles
+         (models/access_service.py) grant them. The group names say what the right is, never a job title. -->
+    <record id="group_cap_helpdesk_tickets_read" model="res.groups"><field name="name">Capability: read support tickets</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/></record>
+    <record id="group_cap_helpdesk_requests_read" model="res.groups"><field name="name">Capability: follow own support requests</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/></record>
+    <record id="group_cap_helpdesk_requests_create" model="res.groups"><field name="name">Capability: open a support request</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/></record>
+    <record id="group_cap_helpdesk_tickets_write" model="res.groups"><field name="name">Capability: answer support tickets</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/></record>
+    <record id="group_cap_helpdesk_tickets_assign" model="res.groups"><field name="name">Capability: assign support tickets</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/></record>
+    <record id="group_cap_helpdesk_tickets_close" model="res.groups"><field name="name">Capability: close support tickets</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/></record>
+    <record id="group_cap_helpdesk_tickets_merge" model="res.groups"><field name="name">Capability: merge support tickets</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/></record>
+    <record id="group_cap_helpdesk_reports_read" model="res.groups"><field name="name">Capability: read support reports</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/></record>
+    <record id="group_cap_helpdesk_settings_read" model="res.groups"><field name="name">Capability: read support settings</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/></record>
+    <record id="group_cap_helpdesk_settings_manage" model="res.groups"><field name="name">Capability: manage support settings</field><field name="privilege_id" ref="liwan_core.res_groups_privilege_liwan"/></record>
+
+</odoo>

@@ -20,7 +20,9 @@ limits describe implementation stages, not permanent product exclusions.
 
 The authoritative addon list and ranks (0-2 foundation, 3 shared service, 4 application, 5 bridge,
 6 customer overlay) are in `tools/arch_layers.json`; the entries below describe ownership, not the
-complete list. Application without an entry below: `liwan_finance` (Finance, `/api/v1/finance`); the shared
+complete list. Applications without an entry below: `liwan_finance` (Finance, `/api/v1/finance`) and
+`liwan_helpdesk` (Support Desk, `/api/v1/helpdesk`, on the OCA 19.0 helpdesk engine limited to
+`deploy/oca-addons.json`); the shared
 service `liwan_payments` (online payments through the
 tenant's own gateway account, `/api/v1/payments`). The AI registries live in `liwan_api`, and each
 application declares its AI agent and tools in its own addon (see `liwan_ai` below).
