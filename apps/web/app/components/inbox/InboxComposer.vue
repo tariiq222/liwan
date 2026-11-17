@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useMediaQuery } from '@vueuse/core'
 import type { InboxAttachment, InboxConversationDetail, InboxReplyCreate, InboxTemplate } from '@liwan/contracts'
 import InboxTemplatePicker from '@/components/inbox/InboxTemplatePicker.vue'
 import { ApiError } from '@/composables/useApi'
@@ -89,6 +90,9 @@ const conversationId = computed(() => props.conversation.id)
 const { mutateAsync: sendReply, isPending: replying } = useSendInboxReply(conversationId)
 const { mutateAsync: sendNote, isPending: noting } = useSendInboxNote(conversationId)
 const sending = computed(() => replying.value || noting.value)
+// Below 768px the send button is an icon (its label stays as aria-label and tooltip) so the tools and send share one row.
+const isDesktop = useMediaQuery('(min-width: 768px)', { ssrWidth: 1024 })
+const sendLabel = computed(() => mode.value === 'note' ? t('inbox.composer.saveNote') : t('inbox.composer.send'))
 const { mutateAsync: uploadFile } = useUploadInboxFile(conversationId)
 const notifyTyping = useInboxTyping(conversationId)
 const { data: canned } = useInboxCannedReplies()
@@ -439,7 +443,7 @@ async function submit() {
       />
     </template>
     <div v-if="(!templateMode || selectedTemplate) && !blockedWindow" class="liwan-touch-target-row-actions flex items-center gap-2">
-      <div v-if="mode === 'reply' && !templateMode" class="flex min-w-0 flex-wrap items-center gap-1" role="toolbar" :aria-label="t('inbox.composer.attachments')">
+      <div v-if="mode === 'reply' && !templateMode" class="flex min-w-0 flex-nowrap items-center gap-1" role="toolbar" :aria-label="t('inbox.composer.attachments')">
         <UTooltip v-if="actions.includes('attach')" :text="t('inbox.composer.attach')">
           <span class="inline-flex"><SharedFileField ref="fileField" icon-only :accept="inboxUploadAccept(kind)" :label="t('inbox.composer.attach')" :show-file-name="false" :disabled="!hydrated || sending || uploading" data-testid="inbox-attach" @change="onFilePicked" /></span>
         </UTooltip>
@@ -470,7 +474,9 @@ async function submit() {
         </UPopover>
       </div>
       <p v-else-if="mode === 'note'" class="min-w-0 text-xs text-muted">{{ t('inbox.composer.noteHint') }}</p>
-      <UButton type="submit" class="ms-auto" icon="i-lucide-send" :disabled="!canSend" :loading="sending" :label="mode === 'note' ? t('inbox.composer.saveNote') : t('inbox.composer.send')" />
+      <UTooltip :text="sendLabel" :disabled="isDesktop" class="ms-auto">
+        <UButton type="submit" icon="i-lucide-send" :disabled="!canSend" :loading="sending" :label="isDesktop ? sendLabel : undefined" :aria-label="sendLabel" data-testid="inbox-send" />
+      </UTooltip>
     </div>
   </form>
 </template>

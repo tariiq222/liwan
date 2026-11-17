@@ -16,6 +16,7 @@ import { cannedSuggestions, replyWindowOpen, replyWindowRemaining, windowClosedD
 import { inboxTikTokErrorKey } from '../../../composables/inbox/inboxTikTok'
 
 const filename = new URL('../InboxComposer.vue', import.meta.url).pathname
+const desktop = Vue.ref(true)
 const NOW = Date.parse('2026-10-28T12:00:00Z')
 const TEMPLATE = {
   id: 7, name: 'reminder', language: 'ar', category: 'utility', status: 'approved', status_reason: null, quality: 'green', header: null,
@@ -43,7 +44,7 @@ function mountComposer(endsAt: string | null, store = new Map<string, string>(),
     _defineComponent: Vue.defineComponent, _unref: Vue.unref, ref: Vue.ref, reactive: Vue.reactive, computed: Vue.computed, watch: Vue.watch,
     onMounted: (fn: () => void) => mounted.push(fn), onBeforeUnmount: (fn: () => void) => unmounting.push(fn),
     useI18n: () => ({ t: (key: string, params?: { time?: string }) => params?.time ? `${key}:${params.time}` : key, locale: Vue.ref('en') }), durationUnits, formatDuration, replyWindowRemaining, useHydrated: () => Vue.ref(true), useToast: () => ({ add: toast }), useMe: () => ({ me: Vue.ref({ id: 3 }) }),
-    ApiError, InboxTemplatePicker: {}, useInboxTyping: () => notifyTyping, useUploadInboxFile: () => ({ mutateAsync: uploadInboxFile }), INBOX_CAPTION_MAX, inboxAcceptsCaption, inboxFileSize, inboxUploadProblem,
+    useMediaQuery: () => desktop, ApiError, InboxTemplatePicker: {}, useInboxTyping: () => notifyTyping, useUploadInboxFile: () => ({ mutateAsync: uploadInboxFile }), INBOX_CAPTION_MAX, inboxAcceptsCaption, inboxFileSize, inboxUploadProblem,
     inboxUploadAccept, channelCarriesTemplates, inboxComposerActions, windowClosedDescriptionKey, windowClosedErrorKey, inboxTikTokErrorKey, emptyInboxDraft,
     buildCommerceContent, emptyCommerceDraft, buildInteractive, emptyInteractiveDraft, buildLocation, emptyLocationDraft,
     inboxDrafts, cannedSuggestions, replyWindowOpen, templatePreview, TEMPLATE_CATEGORY_TONE, HEADER_MEDIA_ACCEPT, buildTemplateReply, dynamicButtons, headerInput, templateReplyReady,
@@ -63,6 +64,19 @@ function mountComposer(endsAt: string | null, store = new Map<string, string>(),
 }
 
 describe('InboxComposer', () => {
+  it('shows the send label from 768px and only as aria-label and tooltip below it', () => {
+    const { state } = mountComposer('2026-10-28T20:00:00Z')
+    expect(state.sendLabel.value).toBe('inbox.composer.send')
+    expect(state.isDesktop.value).toBe(true)
+    desktop.value = false
+    expect(state.isDesktop.value).toBe(false)
+    expect(state.sendLabel.value).toBe('inbox.composer.send')
+    state.mode.value = 'note'
+    expect(state.sendLabel.value).toBe('inbox.composer.saveNote')
+    desktop.value = true
+    const source = readFileSync(filename, 'utf8')
+    expect(source).toContain(':label="isDesktop ? sendLabel : undefined" :aria-label="sendLabel"')
+  })
   beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(NOW) })
   afterEach(() => vi.useRealTimers())
 
