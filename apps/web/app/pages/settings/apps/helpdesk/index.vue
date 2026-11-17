@@ -15,6 +15,8 @@ import HelpdeskValueListSection from '@/components/helpdesk/settings/HelpdeskVal
 const { t } = useI18n()
 const { parts } = useSettingsPage('helpdesk')
 const { can } = useAccess()
+// Nothing is typed into a control the server rendered with another value: the page edits once it is hydrated.
+const hydrated = useHydrated()
 const settings = useHelpdeskSettings()
 const reference = useHelpdeskReference()
 const resources = useHelpdeskResources(() => can('helpdesk.settings.read'))
@@ -59,20 +61,28 @@ watch(() => settings.data.value, (value) => {
   revision.value = value.revision
 }, { immediate: true })
 
+// The stage list is copied into the draft, so it is the same list by its ids, not by identity.
+const sameValue = (a: unknown, b: unknown) => Array.isArray(a) && Array.isArray(b)
+  ? a.length === b.length && a.every((item, index) => item === b[index])
+  : a === b
 const dirty = computed(() => {
   const value = settings.data.value
   if (!value) return false
-  return (Object.keys(draft) as (keyof Draft)[]).some(key => draft[key] !== value[key])
+  return (Object.keys(draft) as (keyof Draft)[]).some(key => !sameValue(draft[key], value[key]))
 })
 const presetItems = computed(() => (settings.data.value?.options.presets ?? []).map(item => ({ value: item.value, label: t(`helpdesk.settings.presets.${item.value}`) })))
 const visibilityItems = computed(() => (settings.data.value?.options.visibility ?? []).map(item => ({ value: item.value, label: t(`helpdesk.settings.visibility.${item.value}`) })))
 const priorityItems = computed(() => (settings.data.value?.options.priorities ?? []).map(item => ({ value: item.value, label: t(`helpdesk.priority.${settings.data.value?.options.priority_names[item.value] ?? 'medium'}`) })))
 const stageItems = computed(() => (reference.data.value?.stages ?? []).map(stage => ({ value: stage.id, label: stage.name })))
-const teamItems = computed(() => [{ value: 0, label: t('helpdesk.form.none') }, ...(reference.data.value?.teams ?? []).map(team => ({ value: team.id, label: team.name }))])
+// The "no team" choice is a string: a numeric 0 is read as an empty value, so the server and the browser render it differently.
+const NO_TEAM = 'none'
+const teamItems = computed(() => [{ value: NO_TEAM, label: t('helpdesk.form.none') }, ...(reference.data.value?.teams ?? []).map(team => ({ value: String(team.id), label: team.name }))])
 const busy = computed(() => settings.isLoading.value || save.isPending.value)
 const canManage = computed(() => can('helpdesk.settings.manage'))
+// What the sections may change right now: the right to manage, once the page is hydrated.
+const canEditNow = computed(() => canManage.value && hydrated.value)
 // Every control of the policy card is read-only without the manage key, not merely while a save is in flight.
-const locked = computed(() => busy.value || !canManage.value)
+const locked = computed(() => busy.value || !canEditNow.value)
 
 async function submit() {
   message.value = ''
@@ -96,7 +106,8 @@ function revert() {
     <SharedForbiddenState v-if="!parts.length" :description="t('errors.forbidden')" />
     <template v-else>
       <SharedPageState :loading="settings.isLoading.value" :error="settings.data.value ? null : settings.error.value" :empty="!settings.data.value" @retry="settings.refetch">
-        <SharedSettingsSection v-if="settings.data.value" id="policy" :title="t('helpdesk.settings.policy')" :description="t('helpdesk.settings.policyHint')">
+        <!-- The draft is copied from the answer by a watcher, which the server render never re-runs: the card is drawn once hydrated. -->
+        <SharedSettingsSection v-if="settings.data.value && hydrated" id="policy" :title="t('helpdesk.settings.policy')" :description="t('helpdesk.settings.policyHint')">
           <SharedSettingsCard
             id="helpdesk-policy"
             :title="t('helpdesk.settings.policyTitle')"
@@ -104,18 +115,17 @@ function revert() {
             :dirty="dirty"
             :saving="save.isPending.value"
             :message="message"
-            :save-label="t('helpdesk.settings.save')"
             @save="submit"
             @revert="revert"
           >
             <UFormField :label="t('helpdesk.settings.preset')" name="helpdesk-preset" :help="t('helpdesk.settings.presetHint')">
               <USelect v-model="draft.preset" class="w-full" :items="presetItems" :disabled="locked" data-testid="helpdesk-settings-preset" />
             </UFormField>
-            <UFormField :label="t('helpdesk.settings.visibility')" name="helpdesk-visibility" :help="t('helpdesk.settings.visibilityHint')">
+            <UFormField :label="t('helpdesk.settings.visibilityLabel')" name="helpdesk-visibility" :help="t('helpdesk.settings.visibilityHint')">
               <USelect v-model="draft.visibility" class="w-full" :items="visibilityItems" :disabled="locked" data-testid="helpdesk-settings-visibility" />
             </UFormField>
             <UFormField :label="t('helpdesk.settings.defaultTeam')" name="helpdesk-team">
-              <USelect :model-value="draft.default_team_id ?? 0" class="w-full" :items="teamItems" :disabled="locked" data-testid="helpdesk-settings-team" @update:model-value="value => { draft.default_team_id = Number(value) || null }" />
+              <USelect :model-value="draft.default_team_id === null ? NO_TEAM : String(draft.default_team_id)" class="w-full" :items="teamItems" :disabled="locked" data-testid="helpdesk-settings-team" @update:model-value="value => { draft.default_team_id = value === NO_TEAM ? null : Number(value) }" />
             </UFormField>
             <UFormField :label="t('helpdesk.settings.defaultPriority')" name="helpdesk-priority">
               <USelect v-model="draft.default_priority" class="w-full" :items="priorityItems" :disabled="locked" data-testid="helpdesk-settings-priority" />
@@ -145,14 +155,14 @@ function revert() {
         </SharedSettingsSection>
         <template v-if="resources.data.value">
           <SharedSettingsSection id="teams" :title="t('helpdesk.settings.teams.section')" :description="t('helpdesk.settings.teams.sectionHint')">
-            <HelpdeskTeamsSection :rows="resources.data.value.teams" :can-edit="canManage" />
+            <HelpdeskTeamsSection :rows="resources.data.value.teams" :can-edit="canEditNow" />
           </SharedSettingsSection>
           <SharedSettingsSection id="workflow" :title="t('helpdesk.settings.values.section')" :description="t('helpdesk.settings.values.sectionHint')">
-            <HelpdeskStagesSection :rows="resources.data.value.stages" :teams="resources.data.value.teams" :can-edit="canManage" />
-            <HelpdeskValueListSection kind="categories" :rows="resources.data.value.categories" :can-edit="canManage" />
-            <HelpdeskValueListSection kind="tags" :rows="resources.data.value.tags" :can-edit="canManage" />
-            <HelpdeskValueListSection kind="channels" :rows="resources.data.value.channels" :can-edit="canManage" />
-            <HelpdeskValueListSection kind="types" :rows="resources.data.value.types" :can-edit="canManage" />
+            <HelpdeskStagesSection :rows="resources.data.value.stages" :teams="resources.data.value.teams" :can-edit="canEditNow" />
+            <HelpdeskValueListSection kind="categories" :rows="resources.data.value.categories" :can-edit="canEditNow" />
+            <HelpdeskValueListSection kind="tags" :rows="resources.data.value.tags" :can-edit="canEditNow" />
+            <HelpdeskValueListSection kind="channels" :rows="resources.data.value.channels" :can-edit="canEditNow" />
+            <HelpdeskValueListSection kind="types" :rows="resources.data.value.types" :can-edit="canEditNow" />
           </SharedSettingsSection>
           <SharedSettingsSection v-if="sla.data.value" id="sla" :title="t('helpdesk.settings.sla.section')" :description="t('helpdesk.settings.sla.sectionHint')">
             <HelpdeskSlaSection
@@ -161,7 +171,7 @@ function revert() {
               :teams="resources.data.value.teams"
               :categories="resources.data.value.categories"
               :tags="resources.data.value.tags"
-              :can-edit="canManage"
+              :can-edit="canEditNow"
             />
           </SharedSettingsSection>
         </template>

@@ -125,6 +125,7 @@
         "team": "My teams",
         "all": "Whole company"
       },
+      "visibilityLabel": "Who sees the tickets",
       "visibilityHint": "Own: assigned to me and unassigned in my team. Team: every ticket of my teams. Company: every ticket.",
       "defaultTeam": "Default team",
       "defaultPriority": "Default priority",
@@ -136,7 +137,6 @@
       "firstResponseHint": "From opening the ticket to the team's first reply; zero disables the measure.",
       "resolution": "Resolution target (hours)",
       "resolutionHint": "From opening the ticket to closing it; zero disables the measure.",
-      "save": "Save the policy",
       "saved": "The policy was saved.",
       "failed": "The policy could not be saved.",
       "presets": {
