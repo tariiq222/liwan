@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """The ticket routes: create, read, list, assign, move, close, reopen, answer, attach."""
 from .common import FEATURE, LiwanHelpdeskCase, set_feature
+from odoo.addons.liwan_helpdesk.hooks import ENGINE_STAGES
 
 
 class TicketApiTest(LiwanHelpdeskCase):
@@ -221,17 +222,17 @@ class TicketApiTest(LiwanHelpdeskCase):
         seen = self.api('GET', f'/api/v1/helpdesk/tickets/{own["id"]}').json()
         self.assertIsNone(seen['portal_link'])
 
-    def test_the_engine_english_stages_do_not_apply_to_every_team(self):
-        """The engine treats a teamless stage as applicable everywhere; the install hook ties its six to the seeded team."""
-        engine = self.env['helpdesk.ticket.stage'].search([
-            ('company_id', '=', self.company.id), ('name', 'in',
-                                                  ['New', 'In Progress', 'Awaiting', 'Done', 'Cancelled', 'Rejected']),
-        ])
-        if not engine:
-            self.skipTest('this database installed the engine before the hook bound its stages')
+    def test_the_engine_english_stages_are_archived_and_never_offered(self):
+        """The engine's six stages have no company and no team, so they would apply to every team; the hook archives them."""
+        for xmlid in ENGINE_STAGES:
+            stage = self.env.ref(xmlid)
+            self.assertFalse(stage.active, xmlid)
         applicable = self.team._get_applicable_stages()
-        self.assertFalse(engine & applicable, 'an engine stage still applies to the seeded team')
-        self.assertTrue(applicable, 'the seeded Arabic stages must stay applicable')
+        self.assertTrue(applicable, 'the seeded stages must stay applicable')
+        self.assertFalse(applicable.filtered(lambda stage: not stage.company_id), 'an engine stage still applies')
+        self.as_user(self.agent)
+        offered = self.api('GET', '/api/v1/helpdesk/reference').json()['stages']
+        self.assertFalse({'New', 'Done', 'Cancelled', 'Rejected'} & {stage['name'] for stage in offered})
 
     def test_every_write_answers_the_detail_shape_the_screen_parses(self):
         """The client's schema is strict: a write that omitted the attachments would land and then report failure."""

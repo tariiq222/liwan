@@ -7,9 +7,9 @@ independently of the capability catalog. It is neutralised here, once, because i
 requester takes its place.
 
 The starter team and its Arabic stages make the application usable on the day it is installed. The engine's
-own six English stages are then given that team: its ``_get_applicable_stages`` treats a stage with no team as
-applicable to *every* team, so leaving them untied would put them in every team's picker beside the Arabic set.
-A tenant that adds another team later reassigns them in Settings, where the stage list is editable.
+own six English stages ship with no company and no team, and its ``_get_applicable_stages`` treats a stage with no
+team as applicable to *every* team, so they are archived: left active they would sit in every picker and filter beside
+the Arabic set, and a ticket could close in the engine's "Cancelled" instead of the tenant's own closed stage.
 """
 
 DEFAULT_TEAM = {'name': 'الدعم الفني'}
@@ -20,6 +20,10 @@ STARTER_STAGES = (
     ('مغلق', False, True),
 )
 INTERNAL_USER_RULE = 'helpdesk_mgmt.helpdesk_ticket_rule_internal_user'
+ENGINE_STAGES = tuple(
+    f'helpdesk_mgmt.helpdesk_ticket_stage_{name}'
+    for name in ('new', 'in_progress', 'awaiting', 'done', 'cancelled', 'rejected')
+)
 
 
 def _neutralise_engine_rule(env):
@@ -33,17 +37,12 @@ def _seeded_team(env, company):
     return env['helpdesk.ticket.team'].search([('company_id', '=', company.id)], order='id', limit=1)
 
 
-def _bind_engine_stages(env, company):
-    """Give the engine's teamless stages of ``company`` its seeded team, so they stop applying to every team."""
-    team = _seeded_team(env, company)
-    if not team:
-        return
-    stages = env['helpdesk.ticket.stage'].search([
-        ('company_id', '=', company.id), ('team_ids', '=', False),
-        ('name', 'in', ['New', 'In Progress', 'Awaiting', 'Done', 'Cancelled', 'Rejected']),
-    ])
-    for stage in stages:
-        stage.write({'team_ids': [(4, team.id)]})
+def _archive_engine_stages(env):
+    """Archive the engine's six English stages: shared by every team and company, they are not the tenant's set."""
+    for xmlid in ENGINE_STAGES:
+        stage = env.ref(xmlid, raise_if_not_found=False)
+        if stage and stage.active:
+            stage.write({'active': False})
 
 
 def _seed_company(env, company):
@@ -65,6 +64,6 @@ def _seed_company(env, company):
 
 def post_init_hook(env):
     _neutralise_engine_rule(env)
+    _archive_engine_stages(env)
     for company in env['res.company'].search([]):
         _seed_company(env, company)
-        _bind_engine_stages(env, company)
