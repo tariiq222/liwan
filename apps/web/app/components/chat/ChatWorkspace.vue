@@ -107,7 +107,7 @@ function updateRoute(next: ChatListRoute) {
 
 <template>
   <SharedPageContainer>
-    <SharedPageHeader :title="t('chat.title')" />
+    <SharedPageHeader :title="t('chat.title')" :compact="hasSelection" />
     <SharedConversationLayout :has-selection="hasSelection" :info-open="infoOpen">
       <template #list>
         <ConversationList class="min-h-0 flex-1" :route-state="routeState" :selected-id="props.conversationId" @update:route-state="updateRoute" @denied="onDenied" />

@@ -2,6 +2,7 @@
 import EmptyState from '@liwan/ui/app/components/shared/feedback/EmptyState.vue'
 import { avatarProps } from '@liwan/ui/app/utils/avatarTone'
 import InboxComposer from '@/components/inbox/InboxComposer.vue'
+import InboxConversationActions from '@/components/inbox/InboxConversationActions.vue'
 import InboxContactPanel from '@/components/inbox/InboxContactPanel.vue'
 import InboxOrderPanel from '@/components/inbox/InboxOrderPanel.vue'
 import InboxConversationList from '@/components/inbox/InboxConversationList.vue'
@@ -9,7 +10,7 @@ import InboxThread from '@/components/inbox/InboxThread.vue'
 import { ApiError } from '@/composables/useApi'
 import { parseInboxListRoute, serializeInboxListRoute, type InboxListRoute } from '@/composables/inbox/inboxListRoute'
 import { CHANNEL_KIND_ICON } from '@/composables/inbox/inboxChannelKind'
-import { CONVERSATION_STATE_TONE, CSAT_TONE } from '@/composables/inbox/inboxPresentation'
+import { CONVERSATION_STATE_TONE, CSAT_TONE, INBOX_PRIORITY_TONE } from '@/composables/inbox/inboxPresentation'
 import { inboxContactName } from '@/composables/inbox/inboxContactName'
 import { replyWindowOpen } from '@/composables/inbox/inboxWindow'
 import { useInboxCatalogEnabled, useInboxChannelCommerce } from '@/composables/inbox/useInboxCatalog'
@@ -60,7 +61,7 @@ function updateRoute(next: InboxListRoute, options?: { replace: boolean }) {
 
 <template>
   <SharedPageContainer>
-    <SharedPageHeader :title="t('inbox.title')">
+    <SharedPageHeader :title="t('inbox.title')" :compact="hasSelection">
       <template v-if="can('inbox.channels.manage')" #actions>
         <UButton to="/settings/apps/inbox#channels" color="neutral" variant="soft" icon="i-lucide-settings" :label="t('inbox.settings.channels.title')" data-testid="inbox-channels-link" />
       </template>
@@ -90,6 +91,8 @@ function updateRoute(next: InboxListRoute, options?: { replace: boolean }) {
             <SharedStatusBadge tone="info" icon="i-lucide-megaphone" :label="t('inbox.referral.badge', { source: t(`inbox.referral.${data.referral_source}`) })" data-testid="inbox-referral-badge" />
           </UTooltip>
           <SharedStatusBadge v-if="data" :tone="CONVERSATION_STATE_TONE[data.state]" :label="t(`inbox.states.${data.state}`)" />
+          <SharedStatusBadge v-if="data && INBOX_PRIORITY_TONE[data.priority]" :tone="INBOX_PRIORITY_TONE[data.priority]!" :label="t(`inbox.priorities.${data.priority}`)" data-testid="inbox-thread-priority-badge" />
+          <InboxConversationActions v-if="data" :conversation="data" />
           <UTooltip v-if="catalogOn" :text="t('inbox.orders.title')">
             <UButton color="neutral" :variant="ordersOpen ? 'soft' : 'ghost'" square :to="ordersOpen ? threadTo : ordersTo" :aria-expanded="ordersOpen" :aria-label="t('inbox.orders.title')" data-testid="inbox-orders-toggle">
               <UIcon name="i-lucide-shopping-cart" class="size-5" aria-hidden="true" />

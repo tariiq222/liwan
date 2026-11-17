@@ -48,6 +48,7 @@ describe('chat stays on the conversation frame', () => {
   it('the workspace draws the page header and fills the shared conversation frame, and keeps chat-thread on the messages column', () => {
     const source = read('components/chat/ChatWorkspace.vue')
     expect(source).toContain('<SharedPageHeader')
+    expect(source, 'compact inside an open conversation').toContain(':compact="hasSelection"')
     expect(source).toContain('<SharedConversationLayout')
     expect(source).not.toContain('data-template="conversation-layout"')
     expect(source).toContain('data-testid="chat-thread"')

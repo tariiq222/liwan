@@ -28,7 +28,7 @@ async function mountPanel(contact: Record<string, unknown>, detail: Record<strin
     useI18n: () => ({ t: (key: string, values?: { id?: number }) => (messages[key] ?? key).replace('{id}', String(values?.id)) }),
     useHydrated: () => Vue.ref(true), useToast: () => ({ add: vi.fn() }), useMe: () => ({ me: Vue.ref({ id: 1 }) }),
     useInboxCampaignsEnabled: () => Vue.ref(false), usePatchInboxContact: () => ({ mutate: patchContact, isPending: Vue.ref(false) }),
-    usePatchInboxConversation: () => ({ mutate: vi.fn(), isPending: Vue.ref(false) }), useInboxAgents: () => query, useInboxDepartments: () => query, useInboxTags: () => query,
+    useInboxConversationSave: () => ({ save: vi.fn(), patching: Vue.ref(false) }), useInboxAgents: () => query, useInboxDepartments: () => query, useInboxTags: () => query,
     inboxContactName: (c: { id: number; name: string; erased: boolean }, t: (key: string, values?: object) => string) => c.erased ? t('inbox.erasedContact', { id: c.id }) : c.name,
     useAccess: () => ({ can: () => true }), useInboxContact: () => ({ data: Vue.ref(detail) }),
     useLinkInboxContactCustomer: () => ({ mutateAsync: vi.fn(), isPending: Vue.ref(false) }),
@@ -41,7 +41,7 @@ async function mountPanel(contact: Record<string, unknown>, detail: Record<strin
   if (template.errors.length) throw template.errors[0]
   const render = new Function('Vue', transpile(template.code))(Vue)
   const app = Vue.createSSRApp(Vue.defineComponent({ setup: () => ({ ...state, props: { conversation: conversation(contact, canReply) } }), render }))
-  const pass = Vue.defineComponent({ setup: (_, { slots }) => () => Vue.h('div', [slots.default?.()]) })
+  const pass = Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => Vue.h('div', { 'data-title': attrs.title as string | undefined }, [slots.default?.()]) })
   const linkBlock = Vue.defineComponent({ props: ['customer', 'canLink', 'canOpen'], setup: props => () => Vue.h('div', { 'data-testid': 'link-block', 'data-customer': (props.customer as { name: string } | null)?.name ?? 'none', 'data-can-link': String(props.canLink) }) })
   app.component('CustomerLinkBlock', linkBlock)
   for (const name of ['SharedRecordSection', 'InboxOpportunityCard', 'SharedPropertyRow', 'UFormField', 'InboxFlowSubmissionsSection', 'InboxContactMarketing', 'SharedPersonPicker', 'USelect', 'USelectMenu']) app.component(name, pass)
@@ -69,6 +69,14 @@ describe('InboxContactPanel contact fields', () => {
     state.name = 'Renamed'
     state.saveContact()
     expect(patchContact).not.toHaveBeenCalled()
+  })
+})
+
+describe('InboxContactPanel sections', () => {
+  it('puts the conversation controls first, then the contact details', async () => {
+    const { html } = await mountPanel({ name: 'Sara', erased: false })
+    expect(html.indexOf('data-title="inbox.panel.conversation"')).toBeGreaterThan(-1)
+    expect(html.indexOf('data-title="inbox.panel.conversation"')).toBeLessThan(html.indexOf('data-title="inbox.panel.contact"'))
   })
 })
 
