@@ -8,6 +8,7 @@ const props = withDefaults(defineProps<{
   accept?: string
   label?: string
   showFileName?: boolean
+  iconOnly?: boolean
   ariaLabel?: string
   disabled?: boolean
   id?: string
@@ -15,6 +16,7 @@ const props = withDefaults(defineProps<{
 }>(), {
   disabled: false,
   showFileName: true,
+  iconOnly: false,
 })
 
 const emit = defineEmits<{ change: [event: Event] }>()
@@ -83,8 +85,8 @@ function onChange(event: Event) {
       variant="outline"
       class="shrink-0"
       icon="i-lucide-paperclip"
-      :label="props.label || t('app.chooseFile')"
-      :aria-label="ariaLabel"
+      :label="iconOnly ? undefined : props.label || t('app.chooseFile')"
+      :aria-label="ariaLabel ?? (iconOnly ? props.label || t('app.chooseFile') : undefined)"
       :aria-controls="inputId"
       :highlight="formFieldHighlight"
       :disabled="formFieldDisabled"

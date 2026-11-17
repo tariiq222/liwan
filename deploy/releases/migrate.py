@@ -33,7 +33,8 @@ def pinned_oca_dirs(liwan_root, oca_dir):
         oca.verify_all(pins, oca_dir)
     except oca.OcaError:
         raise ValueError('addons_paths_rejected') from None
-    return {str(oca.repo_dir(oca_dir, entry['repo'])) for entry in pins['repos']}
+    oca.verify_selection(pins, oca_dir)
+    return set(oca.addons_path(pins, oca_dir).split(','))
 
 
 def source_tree_digest(liwan_root):

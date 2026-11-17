@@ -47,7 +47,7 @@ export function hasCapability(identity: AccessIdentity, capability: string): boo
   return identity?.capabilities?.includes(capability) ?? false
 }
 
-type Destination = readonly [path: string, capability: string]
+type Destination = readonly [path: string, capability: string, anyCapabilities?: readonly string[]]
 const FOUNDATION_RETURN_TO = ['/', '/account', '/search', '/notifications']
 /** The destinations of a settings page's parts: a part with its own or full list page opens it, a card opens the page. */
 function pageDestinations(pages: readonly SettingsPage[]): Destination[] {
@@ -57,7 +57,8 @@ const settingsPage = (id: string) => settingsPages().filter(page => page.id === 
 /** Application landings in rail order, then team settings, then the landings that sort after settings, the applications' settings pages, then company and system settings. */
 function destinations(): readonly Destination[] {
   const landing = activeManifests().flatMap(manifest => manifest.landing ?? [])
-  const toDestination = (entry: { path: string; capability: string }): Destination => [entry.path, entry.capability]
+  const toDestination = (entry: { path: string; capability: string; anyCapabilities?: string[] }): Destination =>
+    [entry.path, entry.capability, entry.anyCapabilities]
   return [
     ...landing.filter(entry => !entry.late).map(toDestination),
     ...pageDestinations(settingsPage('team')),
@@ -101,8 +102,13 @@ export function planDenialCode(identity: AccessIdentity, path: string): 'feature
   if (writeClosed) return identity?.platform?.read_only ? 'tenant_read_only' : 'feature_not_included'
   return null
 }
+/** The first destination the identity may open: its own right, or one of the alternatives it declares. */
 export function firstAllowedPath(identity: AccessIdentity): string {
-  return destinations().find(([path, capability]) => canReach(identity, capability, path) && canReachPath(identity, path))?.[0] ?? '/account'
+  const opened = destinations().find(([path, capability, anyCapabilities]) => (
+    (canReach(identity, capability, path) || (anyCapabilities ?? []).some(key => canReach(identity, key, path)))
+    && canReachPath(identity, path)
+  ))
+  return opened?.[0] ?? '/account'
 }
 /**
  * Where an application's rail root sends an identity that cannot open the root itself: the first landing of that
@@ -173,12 +179,20 @@ export function canReachPath(identity: AccessIdentity, path: string): boolean {
     return (canReach(identity, 'access.users.assign_roles', path) && hasCapability(identity, 'access.roles.read')) || canReach(identity, 'settings.company.manage', path)
   }
   const rule = ownedRouteRule(path)
+  const feature = requiredFeatureForPath(path)
+  // A rule's keys are read as the server reads them (`liwan_api` `requires_capability`): with `match: 'any'` holding
+  // one of the capability or its alternatives opens the route, and by default the capability and one alternative are
+  // both required (CRM's create route needs read *and* work-or-assign).
+  if (rule?.match === 'any') {
+    return [rule.capability, ...(rule.anyCapabilities ?? [])].some(key => canReach(identity, key, path, feature))
+      && (rule.requiredCapabilities ?? []).every(key => canReach(identity, key))
+  }
   if (rule?.anyCapabilities && !rule.anyCapabilities.some(key => hasCapability(identity, key))) return false
   if (rule?.requiredCapabilities && !rule.requiredCapabilities.every(key => canReach(identity, key))) return false
   const cards = settingsCardsOpeningPage(path)
   if (cards) return cards.some(capability => canReach(identity, capability, normalizedPath(path)))
   const capability = requiredCapabilityForPath(path)
-  if (capability) return canReach(identity, capability, path, requiredFeatureForPath(path))
+  if (capability) return canReach(identity, capability, path, feature)
   const manifest = manifestForPath(path)
   return !manifest || hasFeature(identity, manifest.feature, pathIsWrite(path))
 }

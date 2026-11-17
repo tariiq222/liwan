@@ -129,6 +129,8 @@ export interface AppBellKind {
 }
 export interface AppLandingEntry {
   path: string; capability: string
+  /** Further rights that open the same landing (an application whose page serves two capabilities). */
+  anyCapabilities?: string[]
   /** Ordered after the foundation destinations (settings, access) instead of in rail order. */
   late?: boolean
 }
@@ -351,7 +353,18 @@ export interface AppManifest {
   /** The configuration page this application adds to Settings > Applications. */
   settings?: AppSettingsPage
   contextLinks?: (path: string | undefined) => AppContextLink[]  // keyed by rail id via link module in nav
-  routeCapabilities?: Array<{ pattern: RegExp; capability: string; feature?: string; capabilityFeature?: string; anyCapabilities?: string[]; requiredCapabilities?: string[] }>
+  routeCapabilities?: Array<{
+    pattern: RegExp; capability: string; feature?: string; capabilityFeature?: string
+    /**
+     * Further keys the route accepts. Read as the server reads them (`liwan_api` `requires_capability`): with the
+     * default `match: 'all'` the capability and one of these are both required (CRM's create route needs read *and*
+     * work-or-assign), and with `match: 'any'` either one opens the route (the desk's queue serves an agent holding
+     * `helpdesk.tickets.read` and an employee holding `helpdesk.requests.read`).
+     */
+    anyCapabilities?: string[]
+    match?: 'all' | 'any'
+    requiredCapabilities?: string[]
+  }>
   /**
    * Dynamic list sources this application owns. A recognized pathname may return a record
    * to that list, after both its normal route access and this additional capability pass.

@@ -222,7 +222,8 @@
       "tasksEmpty": "No open tasks. Well done!",
       "meetingsEmpty": "No upcoming meetings.",
       "noDeadline": "No deadline"
-    }
+    },
+    "helpdesk": "Support Desk"
   },
   "auth": {
     "username": "Username",
@@ -430,6 +431,10 @@
       "projects": {
         "count": "projects",
         "attention": "need attention"
+      },
+      "helpdesk": {
+        "open": "Open tickets",
+        "unassigned": "Unassigned"
       }
     },
     "open": "Open application",

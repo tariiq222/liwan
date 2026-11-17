@@ -69,6 +69,16 @@
       "repo": "OCA/sale-workflow",
       "branch": "19.0",
       "commit": "babd720bc1ff3ce91b83203718fbf9d3ddff3cce"
+    },
+    {
+      "repo": "OCA/helpdesk",
+      "branch": "19.0",
+      "commit": "fac94fd71a79084980a7f688b08071bed136ab45",
+      "modules": [
+        "helpdesk_mgmt",
+        "helpdesk_mgmt_sla",
+        "helpdesk_type"
+      ]
     }
   ],
   "python_requirements": [

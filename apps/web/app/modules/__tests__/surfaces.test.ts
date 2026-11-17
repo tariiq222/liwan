@@ -26,15 +26,15 @@ const sales: AppManifest = {
 }
 
 describe('manifest search providers', () => {
-  it('lists PMO projects then tasks, then finance partners and invoices, then CRM opportunities, in rail order', () => {
-    expect(searchProviders().map(p => p.id)).toEqual(['pmo-projects', 'pmo-tasks', 'finance-partners', 'finance-invoices', 'crm-opportunities'])
+  it('lists PMO projects then tasks, then finance partners and invoices, then CRM opportunities, then support tickets, in rail order', () => {
+    expect(searchProviders().map(p => p.id)).toEqual(['pmo-projects', 'pmo-tasks', 'finance-partners', 'finance-invoices', 'crm-opportunities', 'helpdesk.tickets'])
   })
   it('adds a section for a fake application without touching foundation files', () => {
     withManifests([...activeManifests(), sales], () => {
-      expect(searchProviders().map(p => p.id)).toEqual(['pmo-projects', 'pmo-tasks', 'finance-partners', 'finance-invoices', 'crm-opportunities', 'sales-orders'])
+      expect(searchProviders().map(p => p.id)).toEqual(['pmo-projects', 'pmo-tasks', 'finance-partners', 'finance-invoices', 'crm-opportunities', 'sales-orders', 'helpdesk.tickets'])
       expect(manifestRoutePrefixes()).toContain('/sales')
     })
-    expect(searchProviders().map(p => p.id)).toEqual(['pmo-projects', 'pmo-tasks', 'finance-partners', 'finance-invoices', 'crm-opportunities'])
+    expect(searchProviders().map(p => p.id)).toEqual(['pmo-projects', 'pmo-tasks', 'finance-partners', 'finance-invoices', 'crm-opportunities', 'helpdesk.tickets'])
   })
   it('keeps the PMO API urls and shapes', async () => {
     const calls: Array<[string, unknown]> = []

@@ -208,6 +208,14 @@
         "liwan_api/controllers/auth.py:verify",
         "liwan_api/controllers/auth.py:remember_device"
       ]
+    },
+    {
+      "reason": "The customer's page of one ticket under /api/v1/public/ (auth='public', no session): the ticket's own access token, compared in constant time by liwan.helpdesk.portal, is the authorization and no capability applies to an anonymous visitor; the tenant's company tree bounds the read, the feature check runs inside the portal service, and a wrong token and a missing ticket answer the same 404.",
+      "routes": [
+        "liwan_helpdesk/controllers/portal.py:close",
+        "liwan_helpdesk/controllers/portal.py:get_ticket",
+        "liwan_helpdesk/controllers/portal.py:reply"
+      ]
     }
   ]
 }

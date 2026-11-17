@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import * as windowModule from '../inboxWindow'
-import { cannedSuggestions, renderTemplateBody, replyWindowOpen, windowClosedDescriptionKey, windowClosedErrorKey } from '../inboxWindow'
+import { REPLY_WINDOW_WARNING_SECONDS, cannedSuggestions, renderTemplateBody, replyWindowOpen, replyWindowRemaining, windowClosedDescriptionKey, windowClosedErrorKey } from '../inboxWindow'
 
 const NOW = Date.parse('2026-10-28T12:00:00Z')
 
@@ -17,6 +17,31 @@ describe('replyWindowOpen', () => {
 
   it('is closed when the customer never wrote', () => {
     expect(replyWindowOpen({ reply_window_ends_at: null }, NOW)).toBe(false)
+  })
+})
+
+describe('replyWindowRemaining', () => {
+  const ends = (seconds: number) => ({ reply_window_ends_at: new Date(NOW + seconds * 1000).toISOString() })
+
+  it('counts whole hours above one hour', () => {
+    expect(replyWindowRemaining(ends(5 * 3600 + 1800), NOW)).toEqual({ seconds: 5 * 3600, warning: false })
+  })
+
+  it('counts minutes, rounded up, within the last hour', () => {
+    expect(replyWindowRemaining(ends(45 * 60 - 10), NOW)).toEqual({ seconds: 45 * 60, warning: true })
+    expect(replyWindowRemaining(ends(10), NOW)).toEqual({ seconds: 60, warning: true })
+  })
+
+  it('turns to the warning tone under the threshold only', () => {
+    expect(REPLY_WINDOW_WARNING_SECONDS).toBe(2 * 3600)
+    expect(replyWindowRemaining(ends(2 * 3600 - 1), NOW)?.warning).toBe(true)
+    expect(replyWindowRemaining(ends(2 * 3600), NOW)?.warning).toBe(false)
+  })
+
+  it('is null for a closed window or no inbound message', () => {
+    expect(replyWindowRemaining(ends(0), NOW)).toBeNull()
+    expect(replyWindowRemaining(ends(-60), NOW)).toBeNull()
+    expect(replyWindowRemaining({ reply_window_ends_at: null }, NOW)).toBeNull()
   })
 })
 

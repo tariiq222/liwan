@@ -80,6 +80,7 @@ updating the definition does not implement or authorize them automatically.
 - Meetings: list, calendar, recurring series, minutes; print stays outside the record sheet.
 - Chat: conversation workspace (not the record-sheet recipe).
 - CRM (`liwan_crm`, `/crm`): opportunities, calls, imports, a dashboard and tenant settings.
+- Support Desk (`liwan_helpdesk`, `/helpdesk`, «الدعم الفني»): tickets with their teams, stages, categories, channels, SLA deadlines and thread; employees may open and follow their own requests. The OCA 19.0 helpdesk modules are its engine, limited to the four modules the application uses.
 - Customer messages (`liwan_inbox`, `/inbox`, «رسائل العملاء»): WhatsApp conversations, orders, campaigns, flows and reports.
 - Appointments (`liwan_appointments`, `/appointments`) with a public booking page at `/book/<id>`.
 - Online payments (`liwan_payments`): gateway settings under `/settings/apps/payments` and public payment pages under `/pay/`, each tenant using its own gateway account.

@@ -79,12 +79,18 @@ class TestOdooTest(unittest.TestCase):
             with self.assertRaisesRegex(odoo_test.OdooTestError, 'oca_addons.py fetch'):
                 odoo_test.oca_dirs()
 
-    def test_oca_dirs_return_the_verified_pinned_repositories(self):
+    def test_oca_dirs_return_the_verified_pinned_entries(self):
+        # A repository that names `modules` contributes its prepared selection, not its checkout root.
         with tempfile.TemporaryDirectory() as tmp, mock.patch.dict('os.environ', {'LIWAN_OCA_DIR': tmp}), \
-                mock.patch.object(oca_addons, 'verify_all') as verify:
+                mock.patch.object(oca_addons, 'verify_all') as verify, \
+                mock.patch.object(oca_addons, 'verify_selection') as verify_selection:
             dirs = odoo_test.oca_dirs()
         verify.assert_called_once()
-        self.assertTrue(dirs and all(d.parent == Path(tmp) for d in dirs))
+        verify_selection.assert_called_once()
+        pins = oca_addons.load_pins(oca_addons.PINS)
+        self.assertEqual(dirs, [oca_addons.addons_dir(Path(tmp), entry) for entry in pins['repos']])
+        self.assertTrue(any(d.name == 'helpdesk' and d.parent.name == '.selected' for d in dirs))
+        self.assertTrue(all(Path(tmp) == d.parent or Path(tmp) == d.parent.parent for d in dirs))
 
     def test_template_format_is_part_of_the_key(self):
         base = template_name('c1', ['a'], 't1', 'p1')

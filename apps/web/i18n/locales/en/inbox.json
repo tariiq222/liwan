@@ -273,7 +273,8 @@
       "unsupported": "This message type is not supported.",
       "automated": "Automatic reply",
       "system": "System",
-      "campaign": "Campaign: {name}"
+      "campaign": "Campaign: {name}",
+      "newMessages": "New messages"
     },
     "composer": {
       "mode": "Message type",
@@ -369,11 +370,14 @@
         "image": "{name} is not an image.",
         "video": "{name} is not a video.",
         "document": "{name} is not a document."
-      }
+      },
+      "cannedButton": "Canned replies",
+      "cannedEmpty": "No canned replies yet.",
+      "windowRemaining": "{time} left to reply freely"
     },
     "panel": {
       "title": "Customer and conversation",
-      "contact": "Customer",
+      "contact": "Contact details",
       "conversation": "Conversation",
       "name": "Name",
       "phone": "Phone",
@@ -2258,7 +2262,13 @@
       }
     },
     "showUnassigned": "Show unassigned",
-    "connectChannel": "Connect a channel"
+    "connectChannel": "Connect a channel",
+    "actions": {
+      "label": "Conversation actions",
+      "resolve": "Resolve",
+      "reopen": "Reopen",
+      "more": "More actions"
+    }
   },
   "errors": {
     "reasons": {

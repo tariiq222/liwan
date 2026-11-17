@@ -35,9 +35,9 @@ describe('manifest app cards', () => {
     }
   })
 
-  it('has figures for tasks, crm, inbox, chat, meetings and projects', () => {
+  it('has figures for tasks, crm, inbox, chat, meetings, projects and support', () => {
     const withFigures = withRail.filter(manifest => manifest.appCard?.figures?.length).map(manifest => manifest.id).sort()
-    expect(withFigures).toEqual(['chat', 'crm', 'inbox', 'meetings', 'pmo', 'tasks'])
+    expect(withFigures).toEqual(['chat', 'crm', 'helpdesk', 'inbox', 'meetings', 'pmo', 'tasks'])
   })
 
   it('reads each figure from its endpoint through the response schema', async () => {
@@ -49,6 +49,7 @@ describe('manifest app cards', () => {
       '/api/v1/meetings': { items: [], total: 7 },
       '/api/v1/meetings/resolutions': { items: [], total: 8 },
       '/api/v1/reports/projects/summary': { project_count: 6, attention_project_count: 1, overdue_task_count: null, status_counts: [], totals: [], attention: [] },
+      '/api/v1/helpdesk/summary': { open: 11, unassigned: 4, mine: 7, overdue: 2 },
     }
     const asked: Array<{ url: string; query?: Record<string, unknown> }> = []
     const api = vi.fn(async (url: string, options: { query?: Record<string, unknown>; schema: { parse: (value: unknown) => unknown } }) => {
@@ -63,6 +64,7 @@ describe('manifest app cards', () => {
       'launcher.figures.chat.unread': 4, 'launcher.figures.chat.channels': 4,
       'launcher.figures.meetings.upcoming': 7, 'launcher.figures.meetings.followup': 8,
       'launcher.figures.projects.count': 6, 'launcher.figures.projects.attention': 1,
+      'launcher.figures.helpdesk.open': 11, 'launcher.figures.helpdesk.unassigned': 4,
     })
     expect(asked.find(call => call.url === '/api/v1/inbox/conversations' && call.query?.assignee === 'unassigned')?.query).toEqual({ state: 'open', assignee: 'unassigned', limit: 1 })
     expect(asked.find(call => call.url === '/api/v1/chat/conversations' && call.query?.filter === 'unread')?.query).toEqual({ filter: 'unread', limit: 1 })

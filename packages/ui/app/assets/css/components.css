@@ -458,10 +458,22 @@ ul.list-disc > li::marker { content: "◆  "; color: var(--primary); font-size: 
   }
 }
 
-/* The conversation frame (SharedConversationLayout): below 768px a fixed-height card above the tab bar; from 768px the page
-   stack that holds it becomes a column filling the area under the floating header, and the frame takes what the page header
-   leaves, so its bottom edge sits one shell inset above the viewport bottom (the main area's 80px bottom padding is cancelled). */
+/* The conversation frame (SharedConversationLayout): below 768px a fixed-height card above the tab bar (an open conversation,
+   `--open`, instead fills the area under its compact page header down to one shell inset above the tab bar); from 768px the
+   page stack that holds it becomes a column filling the area under the floating header, and the frame takes what the page
+   header leaves, so its bottom edge sits one shell inset above the viewport bottom (the main area's 80px bottom padding is
+   cancelled). Both fills use the same formula: the stack's min-height is the viewport less the shell's top, the page's top
+   padding, the tab bar (phones only) and the inset; its bottom margin cancels the 80px padding down to the inset. */
 .liwan-conversation-fill { height: max(540px, calc(100svh - 340px)); }
+@media (max-width: 767px) {
+  .liwan-page-stack:has(> .liwan-conversation-fill--open) {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100svh - var(--shell-top) - var(--liwan-pad-top) - var(--shell-tabbar-height) - env(safe-area-inset-bottom) - var(--shell-inset));
+    margin-block-end: calc(var(--shell-inset) - 80px);
+  }
+  .liwan-conversation-fill--open { flex: 1 1 0; height: auto; min-height: 320px; }
+}
 @media (min-width: 768px) {
   .liwan-page-stack:has(> .liwan-conversation-fill) {
     display: flex;
