@@ -211,14 +211,14 @@ export class SignupService {
       // One trial per email, mobile and company (registrable domain). The unique keys decide a race; the refusal comes
       // only here, after both proofs, so an anonymous visitor cannot probe which companies already have an account.
       const domain = companyDomain(row.email) ?? refuse('invalid', 422)
-      const claim = await client.query(`INSERT INTO public_signup_trials(customer_id,email,mobile,company_domain,terms_version,terms_accepted_at,terms_accepted_ip)
-        VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT DO NOTHING RETURNING customer_id`,
+      const claim = await client.query(`INSERT INTO public_signup_trials(customer_id,email,mobile,company_domain,terms_version,terms_accepted_at,terms_accepted_ip,requires_first_login)
+        VALUES($1,$2,$3,$4,$5,$6,$7,true) ON CONFLICT DO NOTHING RETURNING customer_id`,
       [customerId, row.email, row.mobile, domain, row.terms_version, row.terms_accepted_at, row.terms_accepted_ip])
       if (!claim.rowCount) refuse('trial_already_used', 409)
       await client.query('INSERT INTO customers(id,name,admin_name,admin_login) VALUES($1,$2,$3,$4)',
         [customerId, row.company_name, row.admin_name, row.email])
       await startTrialOn(client, {
-        customer_id: customerId, now,
+        customer_id: customerId, now, waitForFirstLogin: true,
         principal: { kind: 'customer', actor_id: `public-signup:${id}`, customer_id: customerId, tenant_id: null, capabilities: [] },
         request: { kind: 'new', plan_revision_id: offer.offer_revision, bundle_revision_ids: chosen.map(bundle => bundle.id),
           cadence: signupCadence, requested_users: offer.included_users,

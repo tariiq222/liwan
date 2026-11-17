@@ -129,11 +129,11 @@ describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
     }
     await expect(f.service.verifyEmail(signup_id, f.email())).resolves.toEqual({ ok: true })
     const result = await pool.query(`SELECT o.payment_state,o.fulfillment_state,o.due_now_minor,s.state,
-      s.trial_ends_at > now()+interval '13 days' AS has_trial, c.tenant_id,
+      s.trial_ends_at IS NULL AS awaits_login, c.tenant_id,
       (SELECT count(*)::int FROM commercial_outbox WHERE aggregate_id=o.id::text AND kind='fulfillment.enqueue') AS jobs
       FROM customers c JOIN subscriptions s ON s.customer_id=c.id JOIN orders o ON o.customer_id=c.id WHERE c.admin_login=$1`, [f.input.email])
     expect(result.rows).toEqual([{ payment_state: 'not_required', fulfillment_state: 'queued', due_now_minor: '0',
-      state: 'trialing', has_trial: true, tenant_id: null, jobs: 1 }])
+      state: 'trialing', awaits_login: true, tenant_id: null, jobs: 1 }])
   })
 
   it('rejects multiline company names before sending', async () => {

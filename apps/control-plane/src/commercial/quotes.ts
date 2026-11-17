@@ -110,6 +110,9 @@ async function quoteForCustomerOn(client: PoolClient, value: QuoteInput, now: Da
     if (!applied) throw bad('subscription_required', 'kind', 409)
     if (JSON.stringify(applied.cadence) !== JSON.stringify(input.cadence)) throw bad('cadence_change_unsupported', 'cadence')
     period = appliedPeriod(s, applied)
+    if (s.state === 'trialing' && !s.trial_ends_at && (await client.query(
+      'SELECT 1 FROM public_signup_trials WHERE customer_id=$1 AND requires_first_login', [value.customer_id],
+    )).rowCount) throw bad('trial_awaiting_first_login', 'subscription_id', 409)
     if (s.state === 'trialing' && s.trial_ends_at)
       prorationCycleDays = daysBetween(period.end, addCadence(period.end, input.cadence, 1))
     if (await unresolvedFreeBaseLock(client, s)) throw bad('lock_pending', 'subscription_id', 409)

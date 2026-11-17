@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
 import type { Principal } from '@liwan/commercial-contracts'
 import { client, money, monthly, setup, url } from './commercial-helpers.js'
+import { activateSignupTrial } from '../commercial/trial-first-login.js'
 import { convertTrial, extendTrial, startTrial } from '../commercial/trial.js'
 import { endTrialOn, expireTrials } from '../commercial/trial-expiry.js'
 import { LOCK_RETRY_MS, processFreeBaseLocks } from '../commercial/free-base-lock.js'
@@ -70,7 +71,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 20480 })
 
   /** A customer whose trial of the paid application ended a day before `now`, with the trial order applied. */
-  async function endedTrial(over: Record<string, unknown> = {}, bound = true, start = new Date(now.getTime() - 15 * 86_400_000)) {
+  async function endedTrial(over: Record<string, unknown> = {}, bound = true, start = new Date(now.getTime() - 15 * 86_400_000), waitForFirstLogin = false) {
     const customer = randomUUID(), tenant = randomUUID()
     const slug = `t${tenant.replaceAll('-', '')}`
     await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled,post_trial_supported,excess_supported) VALUES($1,'Free base','saas','shared_managed',$2,true,true,true)", [tenant, slug])
@@ -78,7 +79,8 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     const bind = () => pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,true,1)', [tenant, slug, `${slug}.test`, `liwan_scratch_${slug.slice(1)}`])
     if (bound) await bind()
     const principal = { actor_id: '7', kind: 'customer', customer_id: customer, tenant_id: tenant, capabilities: ['subscription.manage'] } as unknown as Principal
-    await startTrial(pool, { customer_id: customer, request: { ...request(), ...over }, principal, now: start })
+    await startTrial(pool, { customer_id: customer, request: { ...request(), ...over }, principal, now: start, waitForFirstLogin })
+    if (waitForFirstLogin) return { customer, tenant, subscription: (await getSubscription(pool, customer)).id, bind, principal }
     await pool.query('UPDATE subscriptions SET applied_revision_id=target_revision_id,target_revision_id=NULL,revision=revision+1 WHERE customer_id=$1', [customer])
     await pool.query("UPDATE orders SET fulfillment_state='applied' WHERE customer_id=$1", [customer])
     await pool.query("UPDATE commercial_outbox SET status='done' WHERE kind='fulfillment.enqueue' AND aggregate_id IN (SELECT id::text FROM orders WHERE customer_id=$1)", [customer])
@@ -155,6 +157,38 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
   }
   const beforeEnd = new Date('2026-11-12T09:00:00Z')
   const later = (minutes: number) => new Date(now.getTime() + minutes * 60_000)
+
+  it('delivers an unopened signup with app writes locked and starts one clock for its administrator', async () => {
+    const f = await endedTrial({}, true, beforeEnd, true)
+    const first = (await pool.query('SELECT id FROM orders WHERE subscription_id=$1', [f.subscription])).rows[0].id
+    await pool.query(`INSERT INTO public_signup_trials(customer_id,email,mobile,requires_first_login,first_admin_user_id)
+      VALUES($1,$2,'+966555077771',true,7)`, [f.customer, `${f.customer}@example.test`])
+    expect(await runJob(first, async ({ job }) => {
+      expect(Date.parse(job.authority.trial_ends_at!)).toBeLessThan(+beforeEnd)
+      expect(job.authority.post_trial_features?.['pmo.enabled']).not.toBe(true)
+      return { ...await okRunner({ job }), observed_entitlement_digest: job.authority.post_trial_digest!, root_company_id: 1 }
+    })).toMatchObject({ state: 'verified' })
+    expect((await row(f.subscription)).trial_ends_at).toBeNull()
+    await expect(createQuoteForCustomer(pool, { customer_id: f.customer,
+      request: { ...request(), kind: 'change', subscription_id: f.subscription } }, beforeEnd))
+      .rejects.toMatchObject({ code: 'trial_awaiting_first_login' })
+    await activateSignupTrial(pool, { customerId: f.customer, actorId: '8', now: beforeEnd })
+    expect((await row(f.subscription)).trial_ends_at).toBeNull()
+    const input = { customerId: f.customer, actorId: '7', now: beforeEnd }
+    const end = new Date(+beforeEnd + 14 * 86_400_000).toISOString()
+    expect(await Promise.all([activateSignupTrial(pool, input), activateSignupTrial(pool, input)]))
+      .toEqual([{ state: 'applying', trial_ends_at: end }, { state: 'applying', trial_ends_at: end }])
+    const activate = (await pool.query("SELECT id FROM orders WHERE subscription_id=$1 AND kind='change'", [f.subscription])).rows
+    const events = await pool.query("SELECT action FROM audit_events WHERE subject=$1 AND action='trial.started'", [f.customer])
+    expect(events.rowCount).toBe(1)
+    expect(activate).toHaveLength(1)
+    expect(await runJob(activate[0].id, async ({ job }) => {
+      expect(job.authority.trial_ends_at).toBe(end)
+      expect(job.authority.entitlement.features['pmo.enabled']).toBe(true)
+      return okRunner({ job })
+    })).toMatchObject({ state: 'verified' })
+    expect(await activateSignupTrial(pool, { ...input, now })).toEqual({ state: 'ready', trial_ends_at: end })
+  })
 
   it('locks once under concurrent scans, applies exact limits and never queues a separate expiry clear', async () => {
     const f = await endedTrial({ requested_users: 8, requested_storage_mb: 40960 })

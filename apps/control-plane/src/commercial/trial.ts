@@ -20,7 +20,7 @@ function trialOrderKey(customerId: string) {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-8${h.slice(13, 16)}-${((parseInt(h[16]!, 16) & 3) | 8).toString(16)}${h.slice(17, 20)}-${h.slice(20, 32)}`
 }
 
-type TrialInput = { customer_id: string; request: unknown; principal: Principal; now?: Date }
+type TrialInput = { customer_id: string; request: unknown; principal: Principal; now?: Date; waitForFirstLogin?: boolean }
 
 export async function startTrial(pool: Pool, input: TrialInput) {
   const result = await transaction(pool, client => startTrialOn(client, input))
@@ -53,9 +53,10 @@ export async function startTrialOn(client: PoolClient, input: TrialInput) {
   await client.query('INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,$3,$4,$5)', [trialQuote.id, input.customer_id, JSON.stringify(quoteSchema.parse(trialQuote)), trialQuote.digest, trialQuote.expires_at])
   await client.query('UPDATE customers SET trial_used_at=now() WHERE id=$1', [input.customer_id])
   await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
-    [randomUUID(), input.principal.actor_id, 'trial.started', input.customer_id, `Trial started by ${input.principal.kind}`, JSON.stringify({ plan_revision_id: request.plan_revision_id, trial_days: plan.trial_days })])
+    [randomUUID(), input.principal.actor_id, input.waitForFirstLogin ? 'trial.enrolled' : 'trial.started', input.customer_id,
+      input.waitForFirstLogin ? 'Public signup awaiting first sign-in' : `Trial started by ${input.principal.kind}`, JSON.stringify({ plan_revision_id: request.plan_revision_id, trial_days: plan.trial_days })])
   const accepted = await acceptQuoteOn(client, acceptInput, digest, trialQuote, input.principal, now)
-  await client.query("UPDATE subscriptions SET state='trialing',trial_ends_at=$2,revision=revision+1 WHERE customer_id=$1", [input.customer_id, endsAt])
+  await client.query("UPDATE subscriptions SET state='trialing',trial_ends_at=$2,revision=revision+1 WHERE customer_id=$1", [input.customer_id, input.waitForFirstLogin ? null : endsAt])
   return accepted
 }
 

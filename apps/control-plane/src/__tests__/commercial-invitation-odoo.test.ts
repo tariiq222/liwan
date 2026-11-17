@@ -6,10 +6,10 @@ import { InvitationError } from '../commercial/invitations.js'
 const input = () => ({ tenant_id: 'tenant-id', admin_login: 'admin@example.test', password: randomBytes(24).toString('base64url'), token: randomBytes(32).toString('base64url') })
 
 describe('Odoo invitation password setter', () => {
-  it('forwards accepted identity and password without returning credentials', async () => {
+  it('returns only the verified user ID after setting the password', async () => {
     const value = input()
     const setAdminPassword = vi.fn(async () => ({ login: value.admin_login, user_id: 2, changed_at: '2026-10-02T12:00:00Z' }))
-    expect(await odooSetPassword({ setAdminPassword })(value)).toBeUndefined()
+    expect(await odooSetPassword({ setAdminPassword })(value)).toBe(2)
     expect(setAdminPassword.mock.calls.length).toBe(1)
     // Boolean checks keep test failure diagnostics secret-free.
     const actual = (setAdminPassword.mock.calls as unknown[][])[0][0] as typeof value

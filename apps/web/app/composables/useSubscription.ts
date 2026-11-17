@@ -15,6 +15,7 @@ export type BankTransferInstructions = {
   claim: BankTransferClaim | null
 }
 const CSRF_COOKIE = 'liwan_csrf'
+type TrialActivation = { state: 'not_required' | 'waiting' | 'applying' | 'ready' | 'failed'; trial_ends_at?: string }
 
 export function useSubscriptionApi() {
   const headers = import.meta.server ? useRequestHeaders(['cookie', 'host', 'x-liwan-proxy-token', 'x-liwan-tenant-revision']) : undefined
@@ -45,6 +46,8 @@ export function useSubscriptionApi() {
     quote: (body: unknown) => request<Quote>('quotes', { method: 'POST', body }),
     /** Prices the same request in memory; the control plane never writes a quote row for it. */
     preview: (body: unknown) => request<Quote>('preview', { method: 'POST', body }),
+    trialActivation: () => request<TrialActivation>('trial/activation'),
+    activateTrial: () => request<TrialActivation>('trial/activation', { method: 'POST', body: {} }),
     trialEndPreview: async () => trialEndPreviewSchema.parse(await request<unknown>('trial/end-preview')),
     retryTrialEnd: async () => trialEndPreviewSchema.parse(await request<unknown>('trial/retry', { method: 'POST', body: {} })),
     startTrial: (body: unknown) => request<{ order: NonNullable<SubscriptionView['pending_order']>; subscription: SubscriptionView }>('trial', { method: 'POST', body }),

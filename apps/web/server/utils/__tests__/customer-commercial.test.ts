@@ -178,6 +178,9 @@ describe('customer commercial BFF', () => {
     expect(customerRoute('POST', 'preview')).toEqual({ upstream: '/v1/customer/preview', needs: 'subscription.read' })
     expect(customerRoute('POST', 'trial')).toEqual({ upstream: '/v1/customer/trial', needs: 'subscription.manage' })
     expect(customerRoute('POST', 'trial/convert')).toEqual({ upstream: '/v1/customer/trial/convert', needs: 'subscription.manage' })
+    for (const method of ['GET', 'POST']) {
+      expect(customerRoute(method, 'trial/activation')).toEqual({ upstream: '/v1/customer/trial/activation', needs: 'subscription.manage' })
+    }
     expect(customerRoute('POST', 'orders/abc/payment-attempts')?.needs).toBe('subscription.manage')
     expect(customerRoute('POST', 'orders/abc/cancel')?.needs).toBe('subscription.manage')
     expect(customerRoute('GET', 'orders/abc/cancel')).toBeNull()
