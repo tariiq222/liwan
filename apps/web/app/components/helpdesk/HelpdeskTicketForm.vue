@@ -5,7 +5,11 @@ import { useHelpdeskReference, useCreateHelpdeskTicket, useUpdateHelpdeskTicket 
 
 // The create form of the route-backed panel and the edit page of a ticket: subject, description, the team and the
 // classification, plus the customer when an agent opens the ticket for one. The server validates every value again.
-const props = defineProps<{ ticket?: HelpdeskTicket | null; backTo: RouteLocationRaw; forCustomer?: boolean }>()
+// `forCustomer` stays undefined when absent (a Boolean prop would read false), so the agent's own right decides the picker.
+const props = withDefaults(
+  defineProps<{ ticket?: HelpdeskTicket | null; backTo: RouteLocationRaw; forCustomer?: boolean }>(),
+  { ticket: undefined, forCustomer: undefined },
+)
 const emit = defineEmits<{ saved: [ticket: HelpdeskTicket] }>()
 const { t } = useI18n()
 const { can } = useAccess()
