@@ -200,10 +200,24 @@
         "agent": "Agent",
         "nextCall": "Next call"
       },
+      "move": {
+        "title": "Move {name} to {stage}",
+        "titlePick": "Move {name}",
+        "titleLost": "Close {name} as lost",
+        "description": "Fill in the required fields to finish the move.",
+        "stage": "New stage",
+        "stagePlaceholder": "Choose a stage",
+        "stageRequired": "Choose a stage",
+        "confirm": "Move",
+        "customerConflict": "Customers already share this phone. Open the record to choose the customer, then finish the sale."
+      },
       "board": {
         "noStage": "No stage",
         "emptyColumn": "Empty",
-        "capped": "Showing the first {count} results. Narrow the search to see the rest."
+        "capped": "Showing the first {count} results. Narrow the search to see the rest.",
+        "move": "Move",
+        "actionsFor": "Actions for {name}",
+        "winByOrder": "A sale comes from a confirmed order, not from dragging."
       },
       "status": {
         "pending": "In progress",

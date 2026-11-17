@@ -22,6 +22,7 @@ import { owningListBack } from '@/utils/recordListOrigin'
 import { crmErrorMessage } from '@/utils/crmErrors'
 import { callRecordedText } from '@/utils/crmCallResult'
 import { callOutcomesFor, opportunityOrderGate } from '@/utils/crmOrderGate'
+import { canWorkOpportunity } from '@/utils/crmBoardMove'
 import { ApiError } from '@/composables/useApi'
 import { CRM_LIST_PATH, formatPrice, isCallDue, manualLostReasons, movableStages, relativeTime } from '@/utils/crmOpportunity'
 
@@ -64,7 +65,7 @@ const pending = computed(() => record.value?.status === 'pending')
 const gate = computed(() => (record.value ? opportunityOrderGate(record.value, orderAccess.write.value) : null))
 const winByOrder = computed(() => gate.value?.winByOrder === true)
 const canAssign = computed(() => can('crm.leads.assign'))
-const canWork = computed(() => Boolean(record.value) && pending.value && can('crm.leads.work') && (record.value?.user?.id === me.value?.id || canAssign.value))
+const canWork = computed(() => canWorkOpportunity(record.value, { work: can('crm.leads.work'), assign: canAssign.value, userId: me.value?.id }))
 const canReopen = computed(() => canAssign.value && (record.value?.status === 'lost' || (pending.value && record.value?.needs_manager)))
 const due = computed(() => (record.value ? isCallDue(record.value, now.value) : false))
 

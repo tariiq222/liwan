@@ -536,6 +536,7 @@ SEARCH_OVERLAY_OWNER = COMPONENTS + 'shell/GlobalSearch.vue'
 OVERLAY_OWNERS = {
     SEARCH_OVERLAY_OWNER,
     COMPONENTS + 'shell/AppDrawer.vue',
+    COMPONENTS + 'crm/opportunity/CrmOpportunityMoveSheet.vue',
     UI_COMPONENTS + 'shared/layout/CreatePanel.vue',
     UI_COMPONENTS + 'shared/form/UnsavedChanges.vue',
     VENDOR_ADMIN_COMPONENTS + 'AdminMobileNav.vue',
