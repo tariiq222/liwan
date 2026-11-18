@@ -199,8 +199,6 @@ class LiwanEntitlementService(models.AbstractModel):
         if not isinstance(retained, list):
             code = 'tenant_configuration_invalid'
             raise LiwanAccessRule(code, 'tenant retained-read payload is invalid', status=503)
-        if self._liwan_post_trial_due(profile):
-            retained = self._liwan_merge_retained(retained, profile.features)
         return tuple(retained)
 
     @api.model
