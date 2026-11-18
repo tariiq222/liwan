@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { canonicalPayRedirect, CARD_CONSENT_KEY, type CardFormSession, clearPaymentStarted, markPaymentStarted, payRefusal, paymentWasStarted } from '@/utils/cardPayment'
-import { formatSubscriptionMoney, orderOutcome } from '@/utils/subscription'
+import { formatSubscriptionMoney, orderOutcome, refusalCode } from '@/utils/subscription'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
-const { t, locale } = useI18n(); const route = useRoute(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()
+const { t, locale } = useI18n(); const toast = useToast(); const route = useRoute(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()
 const allowed = computed(() => can('subscription.read'))
 const canPay = computed(() => can('subscription.manage'))
 const orderId = computed(() => String(route.params.order ?? ''))
@@ -43,6 +43,11 @@ async function openForm(saving: boolean): Promise<void> {
     markPaymentStarted(window.sessionStorage, orderId.value)
     phase.value = 'form'
   } catch (cause) {
+    if (refusalCode(cause) === 'trial_checkout_expired') {
+      toast.add({ title: t('subscription.pay.checkoutExpired.title'), description: t('subscription.pay.checkoutExpired.description'), color: 'warning' })
+      await navigateTo('/subscription', { replace: true })
+      return
+    }
     const refusal = payRefusal(cause)
     if (refusal === 'auto_renew_not_allowed' && saving) { autoRenewDenied.value = true; saveCard.value = false; return await openForm(false) }
     if (refusal === 'in_progress') { phase.value = 'checking'; beginChecking(); return }
