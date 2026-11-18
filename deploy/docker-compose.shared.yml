@@ -189,6 +189,7 @@ services:
   # The variable name is the image's (render.sh); the value is Odoo's list. Default: each host an addon calls, with
   # the call site, in docs/operations/odoo-egress.md. An operator override replaces the whole list.
   odoo-egress:
+    image: liwan-ai-egress:${LIWAN_IMAGE_TAG:?set LIWAN_IMAGE_TAG to the built image tag}
     build: { context: ./ai-egress }
     restart: unless-stopped
     logging: *liwan-logging
@@ -212,6 +213,7 @@ services:
   # but the platform address or an address on a domain that is not reserved. Unset ODOO_MAIL_* values start it in refuse-everything mode, never as an open relay.
   # Credentials come from deploy/.env like DB_PASSWORD; they are never in the image or in git.
   odoo-mail:
+    image: liwan-odoo-mail:${LIWAN_IMAGE_TAG:?set LIWAN_IMAGE_TAG to the built image tag}
     build: { context: ./odoo-mail }
     restart: unless-stopped
     logging: *liwan-logging

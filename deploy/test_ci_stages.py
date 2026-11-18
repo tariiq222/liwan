@@ -380,9 +380,9 @@ if 'deploy/restore_verify.py' in args:
         self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
         calls = [json.loads(line) for line in self.calls.read_text().splitlines()]
         builds = {x[x.index('-t') + 1]: x for x in calls if x[:2] == ['docker', 'build']}
-        contexts = {'web': '.', 'vendor-admin': '.', 'ai-service': 'apps/ai-service', 'proxy': '.', 'guard': '.',
+        contexts = {'web': '.', 'control-plane': '.', 'vendor-admin': '.', 'ai-service': 'apps/ai-service', 'proxy': '.', 'guard': '.',
                     'ai-egress': 'deploy/ai-egress', 'odoo-mail': 'deploy/odoo-mail'}
-        dockerfiles = {'web': 'apps/web/Dockerfile', 'vendor-admin': 'apps/vendor-admin/Dockerfile',
+        dockerfiles = {'web': 'apps/web/Dockerfile', 'control-plane': 'deploy/control-plane/Dockerfile', 'vendor-admin': 'apps/vendor-admin/Dockerfile',
                        'ai-service': 'apps/ai-service/Dockerfile', 'proxy': 'deploy/proxy/Dockerfile',
                        'guard': 'deploy/shared/Dockerfile', 'ai-egress': 'deploy/ai-egress/Dockerfile',
                        'odoo-mail': 'deploy/odoo-mail/Dockerfile'}
@@ -396,7 +396,7 @@ if 'deploy/restore_verify.py' in args:
                 self.assertIn(['docker', 'rmi', '-f', tag], calls)
                 self.assertIn(['docker', 'image', 'inspect', '--format', '{{.Id}}', tag], calls)
                 self.assertIn('| %s | sha256:%s | not published | %s.cdx.json |' % (tag, tag, tag.split(':')[0]), process.stdout)
-                if name not in ('proxy', 'ai-egress', 'odoo-mail'):  # checked without a long-running container
+                if name not in ('proxy', 'ai-egress', 'odoo-mail', 'control-plane'):  # checked without a long-running container
                     started = next(x for x in calls if x[:3] == ['docker', 'run', '-d']
                                    and x[x.index('--name') + 1] == 'liwan-ci-123-' + name)
                     self.assertIn(tag, started)
@@ -448,7 +448,7 @@ if 'deploy/restore_verify.py' in args:
         self.environment['LIWAN_SBOM_DIR'] = str(sbom_dir)
         process = self.execute('image')
         self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
-        names = ('liwan-odoo', 'liwan-vendor-admin', 'liwan-web', 'liwan-proxy', 'liwan-guard', 'liwan-ai-service',
+        names = ('liwan-odoo', 'liwan-control-plane', 'liwan-vendor-admin', 'liwan-web', 'liwan-proxy', 'liwan-guard', 'liwan-ai-service',
                  'liwan-ai-egress', 'liwan-odoo-mail')
         self.assertEqual([x[-1] for x in self.sbom_runs()], ['%s:ci-123' % name for name in names])
         for name in names:
@@ -463,7 +463,7 @@ if 'deploy/restore_verify.py' in args:
         process = self.execute('image')
         self.assertNotEqual(process.returncode, 0)
         self.assertIn('liwan-guard:ci-123 sbom failed', process.stderr)
-        self.assertEqual(len(self.trivy_runs()), 8)
+        self.assertEqual(len(self.trivy_runs()), 9)
 
     def test_image_gate_scans_every_image_with_the_pinned_scanner_and_reports_counts(self):
         self.environment['TRIVY_FAKE'] = json.dumps({'liwan-web:ci-123': {'report': self.trivy_report('HIGH', 2)}})
@@ -472,7 +472,7 @@ if 'deploy/restore_verify.py' in args:
         process = self.execute('image')
         self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
         runs = self.trivy_runs()
-        tags = ['liwan-%s:ci-123' % n for n in ('odoo', 'vendor-admin', 'web', 'proxy', 'guard', 'ai-service', 'ai-egress', 'odoo-mail')]
+        tags = ['liwan-%s:ci-123' % n for n in ('odoo', 'control-plane', 'vendor-admin', 'web', 'proxy', 'guard', 'ai-service', 'ai-egress', 'odoo-mail')]
         self.assertEqual([x[-1] for x in runs], tags)
         for run in runs:
             with self.subTest(image=run[-1]):
@@ -496,7 +496,7 @@ if 'deploy/restore_verify.py' in args:
         self.assertNotEqual(process.returncode, 0)
         self.assertIn('liwan-web:ci-123 has 1 CRITICAL vulnerabilities with a fix available', process.stderr)
         self.assertIn('| liwan-web:ci-123 | 1 | 0 |', process.stdout)
-        self.assertEqual(len(self.trivy_runs()), 8)
+        self.assertEqual(len(self.trivy_runs()), 9)
 
     def test_image_gate_fails_with_a_message_when_the_scanner_errors(self):
         self.environment['TRIVY_FAKE'] = json.dumps({'liwan-proxy:ci-123': {'exit': 1, 'report': {}}})
@@ -504,7 +504,7 @@ if 'deploy/restore_verify.py' in args:
         self.assertNotEqual(process.returncode, 0)
         self.assertIn('liwan-proxy:ci-123 scan failed: trivy exited with an error', process.stderr)
         self.assertIn('| liwan-proxy:ci-123 | scan error | scan error |', process.stdout)
-        self.assertEqual(len(self.trivy_runs()), 8)
+        self.assertEqual(len(self.trivy_runs()), 9)
 
     def test_image_gate_fails_when_the_scanner_report_is_unreadable(self):
         self.fake('docker', """
@@ -722,7 +722,9 @@ class TestPublishWorkflow(unittest.TestCase):
                               check=True, cwd=ROOT)
         self.assertIn('registry: ghcr.io/tariiq222', plan.stdout)
         self.assertIn('image: ghcr.io/tariiq222/liwan-odoo (docker build -f deploy/odoo/Dockerfile .', plan.stdout)
-        self.assertNotIn('vendor-admin', plan.stdout)
+        # The control plane and the vendor console run in the production stack, so they are published too.
+        self.assertIn('image: ghcr.io/tariiq222/liwan-control-plane (docker build -f deploy/control-plane/Dockerfile .', plan.stdout)
+        self.assertIn('image: ghcr.io/tariiq222/liwan-vendor-admin (docker build -f apps/vendor-admin/Dockerfile .', plan.stdout)
         usage = subprocess.run(['bash', str(ROOT / 'deploy/ci/publish.sh'), 'nope'], capture_output=True, text=True,
                                check=False, cwd=ROOT)
         self.assertEqual(usage.returncode, 2)
