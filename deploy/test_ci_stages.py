@@ -651,8 +651,9 @@ class TestPublishWorkflow(unittest.TestCase):
 
     def test_the_arm_image_is_built_natively_not_emulated(self):
         document = yaml.safe_load(self.workflow)
-        legs = {leg['arch']: leg['runner'] for leg in document['jobs']['build']['strategy']['matrix']['include']}
-        self.assertEqual(legs, {'amd64': 'ubuntu-24.04', 'arm64': 'ubuntu-24.04-arm'})
+        self.assertEqual(document['jobs']['build']['runs-on'], 'ubuntu-24.04-arm')
+        self.assertNotIn('amd64', self.workflow)
+        self.assertIn('PLATFORM="linux/arm64"', self.script)
         for forbidden in ('qemu', 'binfmt'):
             self.assertNotIn(forbidden, self.workflow.lower())
             self.assertNotIn(forbidden, self.script.lower())
@@ -672,10 +673,10 @@ class TestPublishWorkflow(unittest.TestCase):
         merge = re.search(r'(?ms)^merge\(\) \{\n(.*?)^\}$', self.script).group(1)
         self.assertIn('release documents are published from main only', merge)
 
-    def test_the_index_is_checked_by_content_not_trusted_by_tag(self):
+    def test_the_commit_tag_is_checked_against_the_pushed_digest_not_trusted(self):
         merge = re.search(r'(?ms)^merge\(\) \{\n(.*?)^\}$', self.script).group(1)
-        self.assertIn('index_of "$image" "$amd64" "$arm64"', merge)
-        self.assertIn('imagetools inspect --raw "$image@$digest"', self.script)
+        self.assertIn('tag_holds "$image" "$digest"', merge)
+        self.assertIn('does not hold the image this run pushed', self.script)
 
     def test_the_branch_path_builds_and_the_tag_path_never_does(self):
         document = yaml.safe_load(self.workflow)['jobs']
@@ -701,9 +702,9 @@ class TestPublishWorkflow(unittest.TestCase):
         self.assertIn('--password-stdin', self.workflow)
         self.assertNotIn('--password ', self.workflow)
 
-    def test_images_are_pushed_by_digest_and_smoke_checked_by_the_image_stage(self):
+    def test_images_are_pushed_under_the_commit_tag_and_smoke_checked_by_the_image_stage(self):
         build = re.search(r'(?ms)^build\(\) \{\n(.*?)^\}$', self.script).group(1)
-        self.assertIn('push-by-digest=true', build)
+        self.assertIn('name=$image:$GITHUB_SHA,push=true', build)
         self.assertIn('LIWAN_IMAGE_PREBUILT=1 deploy/ci/image.sh', build)
         self.assertNotIn('docker build ', build)
 

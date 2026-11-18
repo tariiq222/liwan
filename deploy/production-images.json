@@ -6,55 +6,55 @@
       "service": "odoo",
       "reference": "liwan-odoo",
       "status": "released",
-      "evidence": "deploy/docker-compose.yml:49 runs liwan-odoo:${LIWAN_IMAGE_TAG}; deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-odoo for linux/amd64 and linux/arm64 on every main commit; its digest is recorded in that commit's signed release manifest."
+      "evidence": "deploy/docker-compose.yml:49 runs liwan-odoo:${LIWAN_IMAGE_TAG}; deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-odoo for linux/arm64 on every main commit; its digest is recorded in that commit's signed release manifest."
     },
     {
       "service": "web",
       "reference": "liwan-web",
       "status": "released",
-      "evidence": "deploy/docker-compose.yml:23 declares only a build (apps/web/Dockerfile); deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-web for linux/amd64 and linux/arm64 on every main commit; its digest is recorded in that commit's signed release manifest."
+      "evidence": "deploy/docker-compose.yml:23 declares only a build (apps/web/Dockerfile); deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-web for linux/arm64 on every main commit; its digest is recorded in that commit's signed release manifest."
     },
     {
       "service": "proxy",
       "reference": "liwan-caddy",
       "status": "released",
-      "evidence": "deploy/docker-compose.yml:3 runs liwan-caddy:${LIWAN_IMAGE_TAG}; deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-caddy for linux/amd64 and linux/arm64 on every main commit; its digest is recorded in that commit's signed release manifest."
+      "evidence": "deploy/docker-compose.yml:3 runs liwan-caddy:${LIWAN_IMAGE_TAG}; deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-caddy for linux/arm64 on every main commit; its digest is recorded in that commit's signed release manifest."
     },
     {
       "service": "guard",
       "reference": "liwan-guard",
       "status": "released",
-      "evidence": "deploy/docker-compose.shared.yml:20 runs liwan-guard:${LIWAN_IMAGE_TAG}; deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-guard for linux/amd64 and linux/arm64 on every main commit; its digest is recorded in that commit's signed release manifest."
+      "evidence": "deploy/docker-compose.shared.yml:20 runs liwan-guard:${LIWAN_IMAGE_TAG}; deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-guard for linux/arm64 on every main commit; its digest is recorded in that commit's signed release manifest."
     },
     {
       "service": "tiktok-relay",
       "reference": "liwan-guard",
       "status": "released",
-      "evidence": "deploy/docker-compose.shared.yml:144 runs liwan-guard:${LIWAN_IMAGE_TAG}; deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-guard for linux/amd64 and linux/arm64 on every main commit; its digest is recorded in that commit's signed release manifest."
+      "evidence": "deploy/docker-compose.shared.yml:144 runs liwan-guard:${LIWAN_IMAGE_TAG}; deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-guard for linux/arm64 on every main commit; its digest is recorded in that commit's signed release manifest."
     },
     {
       "service": "ai",
       "reference": "liwan-ai-service",
       "status": "released",
-      "evidence": "deploy/docker-compose.yml:83 declares only a build (apps/ai-service/Dockerfile); deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-ai-service for linux/amd64 and linux/arm64 on every main commit; its digest is recorded in that commit's signed release manifest."
+      "evidence": "deploy/docker-compose.yml:83 declares only a build (apps/ai-service/Dockerfile); deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-ai-service for linux/arm64 on every main commit; its digest is recorded in that commit's signed release manifest."
     },
     {
       "service": "ai-egress",
       "reference": "liwan-ai-egress",
       "status": "released",
-      "evidence": "deploy/docker-compose.yml:137 declares only a build (deploy/ai-egress/Dockerfile); deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-ai-egress for linux/amd64 and linux/arm64 on every main commit; its digest is recorded in that commit's signed release manifest."
+      "evidence": "deploy/docker-compose.yml:137 declares only a build (deploy/ai-egress/Dockerfile); deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-ai-egress for linux/arm64 on every main commit; its digest is recorded in that commit's signed release manifest."
     },
     {
       "service": "odoo-egress",
       "reference": "liwan-ai-egress",
       "status": "released",
-      "evidence": "deploy/docker-compose.shared.yml declares odoo-egress with only a build (context ./ai-egress); deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-ai-egress for linux/amd64 and linux/arm64 on every main commit; its digest is recorded in that commit's signed release manifest."
+      "evidence": "deploy/docker-compose.shared.yml declares odoo-egress with only a build (context ./ai-egress); deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-ai-egress for linux/arm64 on every main commit; its digest is recorded in that commit's signed release manifest."
     },
     {
       "service": "odoo-mail",
       "reference": "liwan-odoo-mail",
       "status": "released",
-      "evidence": "deploy/docker-compose.shared.yml declares odoo-mail with only a build (context ./odoo-mail); deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-odoo-mail for linux/amd64 and linux/arm64 on every main commit; its digest is recorded in that commit's signed release manifest."
+      "evidence": "deploy/docker-compose.shared.yml declares odoo-mail with only a build (context ./odoo-mail); deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-odoo-mail for linux/arm64 on every main commit; its digest is recorded in that commit's signed release manifest."
     },
     {
       "service": "db",
@@ -81,7 +81,7 @@
       "service": "restore-odoo",
       "reference": "liwan-odoo",
       "status": "released",
-      "evidence": "deploy/docker-compose.shared.yml:207 runs liwan-odoo:${LIWAN_IMAGE_TAG}; deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-odoo for linux/amd64 and linux/arm64 on every main commit; its digest is recorded in that commit's signed release manifest."
+      "evidence": "deploy/docker-compose.shared.yml:207 runs liwan-odoo:${LIWAN_IMAGE_TAG}; deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-odoo for linux/arm64 on every main commit; its digest is recorded in that commit's signed release manifest."
     }
   ],
   "builds": [
