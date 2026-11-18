@@ -67,7 +67,7 @@ class StagesForTest(unittest.TestCase):
             self.assert_stages(path, ('static',))
         # Only these two files are static-only; the rest of deploy/ still feeds the images and the stages.
         for path in ('deploy/backup.py', 'deploy/alerts_helper.py', 'deploy/ci/odoo.sh', 'deploy/shared/guard.mjs',
-                     'deploy/shared/guard.test.mjs', 'deploy/control-plane/test_resource_guard.py', 'deploy/staging/test_x.py'):
+                     'deploy/shared/guard.test.mjs', 'deploy/control-plane/test_resource_guard.py', 'deploy/environments/test_x.py'):
             self.assert_stages(path, ALL)
 
     def test_tools_that_steps_or_apps_run_select_all_thirteen(self):
@@ -100,8 +100,8 @@ class StagesForTest(unittest.TestCase):
 
     def test_every_stage_has_a_script_and_a_workflow_job(self):
         root = Path(ci_scope.__file__).resolve().parents[1]
-        # main-alert and the nightly contract-fixtures job are workflow jobs outside the scope stages.
-        scripts = sorted(path.stem for path in (root / 'deploy/ci').glob('*.sh') if path.stem not in ('main-alert', 'contract-fixtures'))
+        # main-alert, the nightly contract-fixtures job and the publish workflow's script are outside the scope stages.
+        scripts = sorted(path.stem for path in (root / 'deploy/ci').glob('*.sh') if path.stem not in ('main-alert', 'contract-fixtures', 'publish'))
         self.assertEqual(scripts, sorted(ALL))
         workflow = (root / '.github/workflows/ci.yml').read_text()
         for stage in ALL:

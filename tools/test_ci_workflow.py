@@ -81,7 +81,7 @@ class StaticStageTest(unittest.TestCase):
     workflow = (ROOT / '.github/workflows/ci.yml').read_text()
     # Everything the single serial script ran before it was split; none of it may drop out of a part.
     COMMANDS = {
-        'policies': ('ruff check odoo-addons', 'unittest deploy/test_*.py', 'discover -s deploy/staging',
+        'policies': ('ruff check odoo-addons', 'unittest deploy/test_*.py', 'discover -s deploy/environments',
                      'unittest tools/shared_saas_lifecycle/test_*.py', 'tools/catalog_check.py', 'tools/migration_guard.py',
                      'tools/git_policy.py', 'tools/arch_policy.py', 'tools/semgrep_gate.py', 'tools/forbidden_terms.py',
                      'deploy/image_pins.py', 'npm run check:audit', 'discover -s deploy/releases', 'node --test'),
