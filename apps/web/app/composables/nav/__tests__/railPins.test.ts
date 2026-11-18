@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { pinnedApplications, railPinsOwner, resolveRailPins, savedRailPins, toggleRailPin } from '../railPins'
 import type { ShellRailModel } from '../sidebarModel'
 
-const apps = ['tasks', 'projects', 'crm', 'chat', 'hr', 'finance', 'operations', 'inbox']
+const apps = ['tasks', 'projects', 'crm', 'chat', 'hr', 'finance', 'inbox']
 const item = (id: string) => ({ id, labelKey: id, icon: 'i-lucide-box', to: `/${id}` })
 const rail = (): ShellRailModel => {
   const applications = apps.map(item)
-  return { core: [item('home'), item('meetings')], applications, utility: [item('settings')], all: applications }
+  return { core: [item('home'), item('meetings')], footer: [item('documents'), item('operations')], applications, utility: [item('settings')], all: applications }
 }
 
 describe('rail pins', () => {
@@ -29,11 +29,15 @@ describe('rail pins', () => {
   it('toggles a pin without a limit', () => {
     expect(toggleRailPin(['tasks'], 'hr')).toEqual(['tasks', 'hr'])
     expect(toggleRailPin(['tasks', 'hr'], 'tasks')).toEqual(['hr'])
-    expect(toggleRailPin(apps.slice(0, 7), 'inbox')).toEqual(apps)
+    expect(toggleRailPin(apps.slice(0, 6), 'inbox')).toEqual(apps)
   })
   it('lists only the pinned applications in manifest order, never a core application, settings or an unpinned application', () => {
     const list = pinnedApplications(rail(), ['hr', 'tasks', 'meetings'])
     expect(list.map(entry => entry.id)).toEqual(['tasks', 'hr'])
     expect(pinnedApplications(rail(), [])).toEqual([])
+  })
+  it('keeps a stored pin of a footer application out of the pins and the list', () => {
+    expect(resolveRailPins(apps, ['operations', 'documents', 'hr'])).toEqual(['hr'])
+    expect(pinnedApplications(rail(), ['operations', 'documents', 'hr']).map(entry => entry.id)).toEqual(['hr'])
   })
 })

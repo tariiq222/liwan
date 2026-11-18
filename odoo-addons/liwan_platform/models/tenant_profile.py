@@ -414,17 +414,21 @@ class LiwanTenantProfile(models.Model):
             self._liwan_validate_suspension(next_vals)
         if 'features' in next_vals:
             next_vals['features'] = service._liwan_validate_features(next_vals['features'], commercial_mode=self.commercial_mode)
-            previous = self.retained_read_features or []
-            if 'retained_read_features' in next_vals:
-                retained = service._liwan_validate_retained(
-                    next_vals['retained_read_features'], next_vals['features'],
-                )
-            else:
-                retained = service._liwan_merge_retained(previous, next_vals['features'])
-            next_vals['retained_read_features'] = retained
-        elif 'retained_read_features' in next_vals:
+        if 'retained_read_features' in next_vals:
             next_vals['retained_read_features'] = service._liwan_validate_retained(
-                next_vals['retained_read_features'], self.features or {},
+                next_vals['retained_read_features'], next_vals.get('features', self.features or {}),
+            )
+        elif next_vals.get('trial_ends_at', self.trial_ends_at):
+            # Owner decision 2026-11-18: while a trial deadline is set (before or after it passes, until
+            # the cron applies the fallback) a trial grant never becomes readable after closing; only
+            # what the customer keeps after the trial (plan base and paid lines) does.
+            if {'features', 'post_trial_features'}.intersection(next_vals):
+                next_vals['retained_read_features'] = service._liwan_merge_retained(
+                    self.retained_read_features, next_vals.get('post_trial_features', self.post_trial_features),
+                )
+        elif 'features' in next_vals:
+            next_vals['retained_read_features'] = service._liwan_merge_retained(
+                self.retained_read_features, next_vals['features'],
             )
         if 'terminology' in next_vals:
             next_vals['terminology'] = service._liwan_validate_terminology(next_vals['terminology'])
@@ -513,9 +517,10 @@ class LiwanTenantProfile(models.Model):
         self._liwan_lock()
         if not service._liwan_post_trial_due(self):
             return False
+        kept = service._liwan_close_unlisted_features(service._liwan_features_payload(self))
         self.write({
-            'features': service._liwan_close_unlisted_features(service._liwan_features_payload(self)),
-            'retained_read_features': list(service._liwan_retained(self)),
+            'features': kept,
+            'retained_read_features': service._liwan_merge_retained(service._liwan_retained(self), kept),
             'commercial_digest': self.post_trial_digest,
             'commercial_valid_until': False,
             'trial_ends_at': False,

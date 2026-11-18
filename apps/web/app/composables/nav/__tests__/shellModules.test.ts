@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { allNavItems, contextLinksForModule, featureForRailModule, hidePinnedNewProject, shellModuleList, visibleSettingsPages, visibleShellModules, useNav } from '../shellModules'
-import { appManifests, withManifests } from '../../../modules/manifests'
+import { activeManifests, appManifests, withManifests } from '../../../modules/manifests'
 import type { AppManifest } from '../../../modules/types'
 import { activeShellModule } from '../activeRoute'
 
@@ -306,5 +306,61 @@ describe('navigation built from app manifests', () => {
       expect(featureForRailModule('ghost')).toBeUndefined()
       expect(useNav(pilotIdentity).map(item => item.to)).not.toContain('/pilot/ghost')
     })
+  })
+})
+
+describe('settings groups follow their application feature', () => {
+  const gated = activeManifests().filter(manifest => manifest.settings && manifest.feature)
+  const settingsOf = (manifest: AppManifest) => manifest.settings!
+  const allCapabilities = [...new Set(activeManifests().flatMap(manifest => (manifest.settings?.parts ?? []).flatMap(part => [part.capability, ...(part.anyCapabilities ?? [])])))]
+  const allFeatures = [...new Set([
+    ...activeManifests().flatMap(manifest => manifest.feature ? [manifest.feature] : []),
+    ...activeManifests().flatMap(manifest => (manifest.settings?.parts ?? []).flatMap(part => part.feature ? [part.feature] : [])),
+  ])]
+  const identityWithout = (closed: string[]) => {
+    const open = allFeatures.filter(feature => !closed.includes(feature))
+    return { role: 'admin', capabilities: allCapabilities, platform: { readable_features: open, writable_features: open } }
+  }
+  const readOnlyIdentity = (feature: string) => {
+    const { platform, ...rest } = identityWithout([])
+    return { ...rest, platform: { ...platform, writable_features: platform.writable_features.filter(key => key !== feature) } }
+  }
+  const visiblePageIds = (identity: ReturnType<typeof identityWithout>) => visibleSettingsPages(identity).map(({ page }) => page.id)
+
+  it('derives a non-empty list of feature-gated settings applications from the manifests', () => {
+    expect(gated.length).toBeGreaterThan(0)
+  })
+
+  it.each(gated.map(manifest => [manifest.id, manifest] as const))('%s: its settings group is listed with the feature open and gone with it closed', (_id, manifest) => {
+    const page = settingsOf(manifest)
+    const withAll = visibleSettingsPages(identityWithout([]))
+    expect(withAll.map(entry => entry.page.id)).toContain(page.id)
+
+    const closed = visibleSettingsPages(identityWithout([manifest.feature!]))
+    expect(closed.map(entry => entry.page.id)).not.toContain(page.id)
+    const leaked = closed.flatMap(entry => entry.parts.map(part => part.to ?? entry.page.to)).filter(path => path === page.to || path.startsWith(`${page.to}/`))
+    expect(leaked).toEqual([])
+    for (const other of gated.filter(candidate => candidate.id !== manifest.id)) {
+      expect(closed.map(entry => entry.page.id)).toContain(settingsOf(other).id)
+    }
+  })
+
+  it.each(gated.map(manifest => [manifest.id, manifest] as const))('%s: its settings group is gone while its feature is readable but not writable', (_id, manifest) => {
+    const page = settingsOf(manifest)
+    const readOnly = visibleSettingsPages(readOnlyIdentity(manifest.feature!))
+    expect(readOnly.map(entry => entry.page.id)).not.toContain(page.id)
+    const leaked = readOnly.flatMap(entry => entry.parts.map(part => part.to ?? entry.page.to)).filter(path => path === page.to || path.startsWith(`${page.to}/`))
+    expect(leaked).toEqual([])
+    for (const other of gated.filter(candidate => candidate.id !== manifest.id)) {
+      expect(readOnly.map(entry => entry.page.id)).toContain(settingsOf(other).id)
+    }
+  })
+
+  it('keeps the settings group of an application with no feature while every optional feature is closed', () => {
+    const always = activeManifests().filter(manifest => manifest.settings && manifest.feature === null)
+    expect(always.length).toBeGreaterThan(0)
+    const ids = visiblePageIds(identityWithout(allFeatures))
+    for (const manifest of always) expect(ids).toContain(settingsOf(manifest).id)
+    for (const manifest of gated) expect(ids).not.toContain(settingsOf(manifest).id)
   })
 })

@@ -14,14 +14,13 @@ const CORE = [
   { id: 'tasks', route: /\/my-tasks$/, name: 'مهامي' },
   { id: 'meetings', route: /\/meetings$/, name: 'الاجتماعات' },
   { id: 'chat', route: /\/chat$/, name: 'المحادثات' },
-  { id: 'documents', route: /\/documents$/, name: 'المستندات' },
 ] as const
 
 test.describe('core apps icon row', () => {
   test.use({ viewport: { width: 1440, height: 900 } })
   test.beforeEach(async ({ page }) => { await login(page) })
 
-  test('lists the six core applications in order under the organisation, each named by its label', async ({ page }) => {
+  test('lists the five core applications in order under the organisation, each named by its label', async ({ page }) => {
     await open(page, '/apps')
     const menu = page.getByTestId('application-navigation')
     const row = menu.getByTestId('core-apps')
@@ -30,7 +29,7 @@ test.describe('core apps icon row', () => {
     const ids = await row.locator('a').evaluateAll(links => links.map(link => link.getAttribute('data-testid')))
     expect(ids).toEqual(CORE.map(item => `core-app-${item.id}`))
     for (const item of CORE) await expect(row.getByTestId(`core-app-${item.id}`)).toHaveAccessibleName(new RegExp(`^${item.name}`))
-    // The row sits under the organisation card, and no tile wraps: all six share one line.
+    // The row sits under the organisation card, and no tile wraps: all five share one line.
     const org = (await menu.getByTestId('shell-org').boundingBox())!
     const tops = await row.locator('a').evaluateAll(links => links.map(link => Math.round(link.getBoundingClientRect().top)))
     expect(new Set(tops).size).toBe(1)
@@ -39,16 +38,16 @@ test.describe('core apps icon row', () => {
     expect(box.width).toBeLessThanOrEqual(264)
   })
 
-  test('the list «تطبيقاتي» no longer carries the day, the assistant or the free applications', async ({ page }) => {
+  test('the list «تطبيقاتي» no longer carries the day, the assistant, the free applications, the documents or the operations', async ({ page }) => {
     await open(page, '/apps')
     const menu = page.getByTestId('application-navigation')
-    for (const id of ['home', 'ai', 'tasks', 'meetings', 'chat', 'documents']) await expect(menu.getByTestId(`navigation-app-${id}`)).toHaveCount(0)
-    await expect(menu.getByTestId('navigation-app-projects')).toBeVisible()
-    await expect(menu.getByTestId('navigation-app-apps')).toBeVisible()
+    const lists = menu.locator('.liwan-side-body')
+    for (const id of ['home', 'ai', 'tasks', 'meetings', 'chat', 'documents', 'operations']) await expect(lists.getByTestId(`navigation-app-${id}`)).toHaveCount(0)
+    await expect(lists.getByTestId('navigation-app-projects')).toBeVisible()
     // The all-applications page offers no pin for a free application.
     for (const card of await page.getByTestId('launcher-row').all()) {
       const app = await card.getAttribute('data-app')
-      if (['ai', 'tasks', 'meetings', 'chat', 'documents'].includes(app!)) await expect(card.getByTestId('launcher-pin')).toHaveCount(0)
+      if (['ai', 'tasks', 'meetings', 'chat', 'documents', 'operations'].includes(app!)) await expect(card.getByTestId('launcher-pin')).toHaveCount(0)
     }
   })
 
@@ -64,6 +63,18 @@ test.describe('core apps icon row', () => {
       await expect(page.locator('[data-testid^="slide-over-"]:visible')).toHaveCount(0)
     })
   }
+
+  test('documents: a click on its footer row opens its own full page, not the slide-over, and lights the row', async ({ page }) => {
+    await open(page, '/apps')
+    const menu = page.getByTestId('application-navigation')
+    await expect(menu.getByTestId('core-app-documents')).toHaveCount(0)
+    await menu.locator('.liwan-side-footer').getByTestId('navigation-app-documents').click()
+    await expect(page).toHaveURL(/\/documents$/)
+    await expect(page.getByTestId('global-search-trigger')).toBeEnabled()
+    await expect(menu.getByTestId('navigation-app-documents')).toHaveAttribute('data-active', 'true')
+    await expect(menu.locator('[data-testid^="core-app-"][aria-current="page"]')).toHaveCount(0)
+    await expect(page.locator('[data-testid^="slide-over-"]:visible')).toHaveCount(0)
+  })
 
   test('the top-bar tools still open their slide-over panels', async ({ page }) => {
     await open(page, '/projects')
@@ -162,7 +173,7 @@ test.describe('sidebar footer', () => {
   test.use({ viewport: { width: 1440, height: 900 } })
   test.beforeEach(async ({ page }) => { await login(page) })
 
-  test('«كل التطبيقات» and the settings close the sidebar once each, below the lists, in both modes', async ({ page }) => {
+  test('the documents, «كل التطبيقات» and the settings close the sidebar once each, below the lists, in both modes', async ({ page }) => {
     for (const path of ['/apps', '/crm']) {
       await open(page, path)
       const menu = page.getByTestId('application-navigation')
@@ -170,7 +181,14 @@ test.describe('sidebar footer', () => {
       await expect(footer.getByTestId('navigation-app-apps')).toHaveAttribute('href', '/apps')
       await expect(footer.getByTestId('navigation-app-settings')).toHaveAttribute('href', /^\/settings/)
       await expect(menu.getByTestId('navigation-app-apps')).toHaveCount(1)
-      await expect(footer.getByRole('link')).toHaveCount(2)
+      // The base applications come first (operations only with its capability), then «كل التطبيقات», then the settings.
+      const ids = await footer.getByRole('link').evaluateAll(links => links.map(link => link.getAttribute('data-testid')))
+      expect(ids).toEqual([
+        'navigation-app-documents',
+        ...ids.filter(id => id === 'navigation-app-operations'),
+        'navigation-app-apps',
+        'navigation-app-settings',
+      ])
       await expect(menu.getByTestId('account-menu')).toHaveCount(0)
       const apps = (await footer.getByTestId('navigation-app-apps').boundingBox())!
       const last = (await menu.locator('.liwan-side-body a').last().boundingBox())!

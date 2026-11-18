@@ -5,10 +5,10 @@ import { useCoreApps } from '@/composables/useCoreApps'
 import { useShellModel } from '@/composables/useShellModel'
 
 // The one sidebar. Under the brand, in both modes, the organisation card and the icon row of the core applications
-// (يومي، Liwan AI، مهامي، الاجتماعات، المحادثات، المستندات), each opening its own page. Global mode (the day page, the
+// (يومي، Liwan AI، مهامي، الاجتماعات، المحادثات), each opening its own page. Global mode (the day page, the
 // start pages, search, notifications) then lists the pinned applications. App mode (an application, settings or the
 // self-service pages): a back row to «كل التطبيقات», the application's block, then its own links (create action first,
-// then sections). The footer carries «كل التطبيقات» and the settings in both; the account is in the top bar.
+// then sections). The footer carries the documents, the operations, «كل التطبيقات» and the settings in both; the account is in the top bar.
 // `surface="drawer"` is the same content inside the phone drawer.
 const props = withDefaults(defineProps<{ surface?: 'sidebar' | 'drawer' }>(), { surface: 'sidebar' })
 const emit = defineEmits<{ navigate: [] }>()
@@ -34,8 +34,10 @@ const link = (id: string, label: string, icon: string, to: string, active: boole
   ({ id, label, icon, to, active, app, testId: `navigation-app-${id}` })
 const pinnedRows = computed<ShellNavigationLink[]>(() => shell.pinned.value.map(item => link(item.id, t(item.labelKey), item.icon, item.to, shell.activeModule.value === item.id, item.id)))
 const settings = computed(() => shell.rail.value.utility[0])
-// The footer: «كل التطبيقات» and the settings (opening it enters the settings application's own menu).
+// The footer: the base applications (documents, operations), «كل التطبيقات» and the settings (opening it enters the
+// settings application's own menu).
 const footerRows = computed<ShellNavigationLink[]>(() => [
+  ...shell.rail.value.footer.map(item => link(item.id, t(item.labelKey), item.icon, item.to, shell.activeModule.value === item.id)),
   link('apps', t('nav.allApps'), 'i-lucide-layout-grid', '/apps', onAppsPage.value),
   ...(settings.value ? [link(settings.value.id, t(settings.value.labelKey), settings.value.icon, settings.value.to, navigation.activeId.value === settings.value.id)] : []),
 ])

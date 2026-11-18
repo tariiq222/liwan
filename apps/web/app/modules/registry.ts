@@ -93,8 +93,9 @@ export function subFeatureForCapability(
   return matched === null ? null : subFeatures[matched] ?? null
 }
 
+/** An application's settings page changes its configuration, so it needs the feature writable, not only readable. */
 export function pathIsWrite(path: string): boolean {
-  return /\/(new|edit|access)(?:\/|$)/.test(path)
+  return /\/(new|edit|access)(?:\/|$)/.test(path) || settingsPartForPath(path) !== null
 }
 
 export function hasFeature(identity: TenantIdentity, key: string | null, write = false): boolean {

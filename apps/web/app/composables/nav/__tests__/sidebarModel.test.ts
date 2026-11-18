@@ -8,22 +8,24 @@ const link = (id: string, extra: Partial<ShellContextLink> = {}): ShellContextLi
 describe('rail model', () => {
   const module = (id: string, extra: Partial<ShellModuleDefinition> = {}): ShellModuleDefinition => ({ id, labelKey: `nav.${id}`, icon: 'i-lucide-circle', to: `/${id}`, ...extra })
   const modules = [
-    module('home', { to: '/' }), module('tasks', { core: 2 }), module('meetings', { core: 3 }), module('projects'), module('documents', { core: 5 }),
+    module('home', { to: '/' }), module('tasks', { core: 2 }), module('meetings', { core: 3 }), module('projects'), module('documents', { footer: 1 }), module('operations', { footer: 2 }),
     module('chat', { core: 4 }), module('assistant', { core: 1 }), module('crm'), module('settings'),
   ]
 
-  it('puts home and the core applications by their position first, then the pinnable applications, then settings', () => {
+  it('puts home and the core applications by their position first, then the footer applications, the pinnable applications and settings', () => {
     const rail = railModel(modules)
-    expect(rail.core.map(item => item.id)).toEqual(['home', 'assistant', 'tasks', 'meetings', 'chat', 'documents'])
+    expect(rail.core.map(item => item.id)).toEqual(['home', 'assistant', 'tasks', 'meetings', 'chat'])
+    expect(rail.footer.map(item => item.id)).toEqual(['documents', 'operations'])
     expect(rail.applications.map(item => item.id)).toEqual(['projects', 'crm'])
     expect(rail.utility.map(item => item.id)).toEqual(['settings'])
-    expect(rail.all.map(item => item.id)).toEqual(['home', 'assistant', 'tasks', 'meetings', 'chat', 'documents', 'projects', 'crm', 'settings'])
+    expect(rail.all.map(item => item.id)).toEqual(['home', 'assistant', 'tasks', 'meetings', 'chat', 'documents', 'operations', 'projects', 'crm', 'settings'])
   })
 
   it('never inserts an application not supplied by the permission-filtered model', () => {
     const rail = railModel(modules.filter(item => item.id !== 'chat' && item.id !== 'crm'))
-    expect(rail.core.map(item => item.id)).toEqual(['home', 'assistant', 'tasks', 'meetings', 'documents'])
+    expect(rail.core.map(item => item.id)).toEqual(['home', 'assistant', 'tasks', 'meetings'])
     expect(rail.applications.map(item => item.id)).toEqual(['projects'])
+    expect(rail.footer.map(item => item.id)).toEqual(['documents', 'operations'])
     expect(railModel([]).applications).toEqual([])
     expect(railModel([]).core.map(item => item.id)).toEqual(['apps'])
   })

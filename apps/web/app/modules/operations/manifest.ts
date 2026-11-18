@@ -6,7 +6,7 @@ import { pendingReviewAttention } from './attention'
 const manifest: AppManifest = {
   id: 'operations', feature: null, routePrefixes: ['/operations', '/account/requests'],
   appCard: { category: 'team', plan: 'included', surface: 'sand' },
-  rail: [{ id: 'operations', labelKey: 'operations.title', icon: 'i-lucide-workflow', to: '/operations', order: 60 }],
+  rail: [{ id: 'operations', labelKey: 'operations.title', icon: 'i-lucide-workflow', to: '/operations', order: 60, footer: 2 }],
   nav: [
     { to: '/operations', labelKey: 'operations.nav.mine', icon: 'i-lucide-files', shortcut: 'o', capability: 'operations.requests.read' },
     { to: '/operations/pending', labelKey: 'operations.nav.pending', icon: 'i-lucide-list-checks', shortcut: 'p', capability: 'operations.requests.read' },
