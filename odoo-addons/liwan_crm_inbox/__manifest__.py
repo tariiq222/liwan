@@ -10,6 +10,7 @@
     # both installed. It owns the lead_id column of conversations and the routes that read, set and clear it;
     # neither application knows the other. Uninstalling it drops the column (spec 2.1).
     'depends': ['liwan_crm', 'liwan_inbox'],
+    'data': ['data/sources.xml'],
     'auto_install': True,
     'installable': True,
     'application': False,

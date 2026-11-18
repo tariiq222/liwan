@@ -23,6 +23,9 @@ from odoo.addons.liwan_inbox.serializers.conversation import dump_conversation
 
 LINK_FIELDS = {'opportunity_id'}
 
+# The xml id of the source an opportunity takes from the channel kind of its conversation.
+CHANNEL_SOURCES = {'whatsapp': 'liwan_crm.source_whatsapp', 'tiktok': 'liwan_crm_inbox.source_tiktok'}
+
 
 def dump_opportunity_ref(lead):
     """The row of an opportunity a conversation shows: who it is about, where it stands, whether it is archived."""
@@ -42,6 +45,12 @@ def require_same_customer(conversation, lead):
             'contact_customer': service._liwan_link_ref(contact._liwan_linked_customer()),
             'opportunity_customer': service._liwan_link_ref(lead._liwan_linked_customer()),
         })
+
+
+def channel_source(conversation):
+    """The active source of the conversation's channel kind; none when the tenant retired it."""
+    source = request.env.ref(CHANNEL_SOURCES[conversation.channel_id.kind], raise_if_not_found=False)
+    return source if source and source.active else request.env['utm.source']
 
 
 def writable_lead(lead_id):
@@ -104,7 +113,11 @@ class OpportunityConversationsController(http.Controller):
         if conversation.lead_id:
             raise ApiError(409, 'already_linked', 'the conversation is already linked to an opportunity')
         contact = conversation.contact_id
-        lead = create_opportunity_from_payload({'contact_name': contact.name, 'phone': contact.phone})
+        details = {'contact_name': contact.name, 'phone': contact.phone}
+        source = channel_source(conversation)
+        if source:
+            details['source_id'] = source.id
+        lead = create_opportunity_from_payload(details, partner=contact._liwan_linked_customer())
         conversation.lead_id = lead
         return dump_opportunity_ref(lead)
 

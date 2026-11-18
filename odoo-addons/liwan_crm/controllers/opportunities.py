@@ -187,8 +187,8 @@ def _merged_properties(lead, parsed):
     return values
 
 
-def create_opportunity_from_payload(payload):
-    """Create and assign a manual opportunity with the ordinary CRM checks."""
+def create_opportunity_from_payload(payload, partner=None):
+    """Create and assign a manual opportunity with the ordinary CRM checks, linked to ``partner`` when given."""
     check_can_create()
     parsed = parse_opportunity_body(payload, creating=True)
     _check_source(parsed.get('source_id'))
@@ -200,6 +200,7 @@ def create_opportunity_from_payload(payload):
         'company_id': request.env.company.id,
         'phone': _normalized_phone(parsed['phone']),
         'user_id': agent.id,
+        'partner_id': partner.id if partner else False,
     }
     Lead = request.env['crm.lead'].with_context(mail_auto_subscribe_no_notify=True)
     lead = _saved(lambda: Lead.create(vals))
