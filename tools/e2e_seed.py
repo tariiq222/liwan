@@ -84,6 +84,11 @@ INBOX_PERSONAS = (
 TASKS_PERSONAS = (
     ('tasks_only', 'هيفاء الشهراني', 'منسقة مهام', 'العمليات', 'ops_manager', ('e2e_tasks_only',)),
 )
+# Holds the capabilities of both the Customer Messages and the CRM application (the conversation-to-opportunity rows
+# CRM-140 and CRM-141): no other persona reaches both. Seeded last, like the tasks persona.
+BRIDGE_PERSONAS = (
+    ('inbox_crm_agent', 'سلمى المطيري', 'موظفة مبيعات ورسائل', 'المبيعات', 'crm_manager', ('employee', 'inbox_agent', 'crm_agent')),
+)
 # Branches (child companies of the root) and the people who work only there.
 BRANCHES = ('فرع جدة', 'فرع الدمام')
 BRANCH_PERSONAS = (
@@ -205,11 +210,50 @@ for key, name, job_title, department_name, manager_key, role_keys in PERSONAS + 
     ensure_persona(key, name, job_title, company, role_keys, departments[department_name], employees.get(manager_key, False))
 for key, name, job_title, branch_name, role_keys in BRANCH_PERSONAS:
     ensure_persona(key, name, job_title, branches[branch_name], role_keys)
-for key, name, job_title, department_name, manager_key, role_keys in INBOX_PERSONAS + TASKS_PERSONAS:
+for key, name, job_title, department_name, manager_key, role_keys in INBOX_PERSONAS + TASKS_PERSONAS + BRIDGE_PERSONAS:
     ensure_persona(key, name, job_title, company, role_keys, departments[department_name], employees.get(manager_key, False))
 
 for department_name, head_key in DEPARTMENT_HEADS.items():
     departments[department_name].manager_id = employees[head_key]
+
+# A WhatsApp channel with two conversations for the bridge rows CRM-140 and CRM-141. The Meta ids are made-up test
+# values and the connection holds no secrets (the scratch stack has no secret storage key): nothing here reaches Meta. The first contact has a fresh phone; the second one's phone is
+# already held by an opportunity, so creating one from that conversation answers the duplicate-phone refusal.
+BRIDGE_CHANNEL_NAME = 'واتساب الاختبار'
+BRIDGE_CONTACTS = (
+    ('سارة الحربي', '+966500200001', 'مرحبا، أرغب في عرض سعر'),
+    ('ماجد الفهد', '+966500200002', 'هل لديكم موعد هذا الأسبوع؟'),
+)
+bridge_agent = env['res.users'].search([('login', '=', 'e2e_inbox_crm_agent')])  # noqa: F821
+connection_model = env['liwan.integration.connection']  # noqa: F821
+connection = connection_model.search([('company_id', '=', company.id), ('provider', '=', 'meta'), ('external_id', '=', '200000000099')])
+if not connection:
+    connection = connection_model.create({'company_id': company.id, 'provider': 'meta', 'external_id': '200000000099', 'state': 'connected'})
+channel = env['liwan.inbox.channel'].search([('owner_company_id', '=', company.id), ('name', '=', BRIDGE_CHANNEL_NAME)], limit=1)  # noqa: F821
+if not channel:
+    channel = env['liwan.inbox.channel'].create({  # noqa: F821
+        'name': BRIDGE_CHANNEL_NAME, 'owner_company_id': company.id, 'kind': 'whatsapp', 'state': 'connected',
+        'phone_number_id': '100000000099', 'connection_id': connection.id,
+    })
+for name, phone, text in BRIDGE_CONTACTS:
+    if env['liwan.inbox.contact'].search_count([('company_id', '=', company.id), ('phone', '=', phone)]):  # noqa: F821
+        continue
+    contact = env['liwan.inbox.contact'].create({'name': name, 'phone': phone, 'company_id': company.id})  # noqa: F821
+    identity = env['liwan.inbox.contact.identity'].create({  # noqa: F821
+        'contact_id': contact.id, 'channel_kind': 'whatsapp', 'address': phone.lstrip('+'), 'company_id': company.id,
+    })
+    conversation = env['liwan.inbox.conversation'].create({  # noqa: F821
+        'channel_id': channel.id, 'contact_id': contact.id, 'identity_id': identity.id, 'company_id': company.id,
+    })
+    env['liwan.inbox.message'].create({  # noqa: F821
+        'conversation_id': conversation.id, 'company_id': company.id, 'direction': 'in', 'body': text, 'delivery_state': 'received',
+    })
+duplicate_phone = BRIDGE_CONTACTS[1][1]
+if not env['crm.lead'].with_context(active_test=False).search_count([('company_id', '=', company.id), ('phone', '=', duplicate_phone)]):  # noqa: F821
+    env['crm.lead'].create({  # noqa: F821
+        'name': 'فرصة ماجد الفهد', 'contact_name': BRIDGE_CONTACTS[1][0], 'phone': duplicate_phone, 'type': 'opportunity',
+        'stage_id': env['crm.lead']._liwan_first_stage().id, 'company_id': company.id, 'user_id': bridge_agent.id,  # noqa: F821
+    })
 
 # The self-service journeys sign in as `e2e_employee`, which needs an employee file of its own.
 self_service_user = env['res.users'].search([('login', '=', 'e2e_employee')])  # noqa: F821

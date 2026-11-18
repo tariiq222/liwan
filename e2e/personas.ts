@@ -18,6 +18,8 @@ export const PERSONA_KEYS = [
   'inbox_manager', 'inbox_supervisor', 'inbox_agent',
   // The personal-tasks capabilities with no project right (TSK-94); seeded last, like the inbox roles.
   'tasks_only',
+  // Both the inbox and the CRM capabilities (CRM-140, CRM-141); seeded after the tasks persona.
+  'inbox_crm_agent',
 ] as const;
 
 export type PersonaKey = typeof PERSONA_KEYS[number];
