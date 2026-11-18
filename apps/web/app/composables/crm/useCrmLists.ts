@@ -7,6 +7,7 @@ import {
   CrmPackageListSchema,
   CrmSourceListSchema,
   CrmStageListSchema,
+  CrmStageSchema,
   type CrmLostReason,
   type CrmOutcome,
   type CrmPackage,
@@ -85,6 +86,24 @@ export const useCrmOutcomeChoices = () => useCrmList<CrmOutcome>('outcomes', Crm
 export const useCrmLostReasonChoices = () => useCrmList<CrmLostReason>('lost-reasons', CrmLostReasonListSchema, true, 'choices')
 export const useCrmSourceChoices = () => useCrmList<CrmSource>('sources', CrmSourceListSchema, true, 'choices')
 export const useCrmPackageChoices = () => useCrmList<CrmPackage>('packages', CrmPackageListSchema, true, 'choices')
+
+/** Archives a stage; with `moveTo` its opportunities move to that stage first, in the same request. */
+export function useArchiveCrmStage() {
+  const { $api } = useApi()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, moveTo }: { id: number; moveTo?: number }) => $api(`/api/v1/crm/stages/${id}`, {
+      method: 'DELETE',
+      body: moveTo === undefined ? undefined : { move_to: moveTo },
+      schema: CrmStageSchema,
+    }),
+    onSuccess: () => Promise.all([
+      qc.invalidateQueries({ queryKey: crmKeys.list('stages') }),
+      qc.invalidateQueries({ queryKey: crmKeys.choices('stages') }),
+      qc.invalidateQueries({ queryKey: crmKeys.opportunities }),
+    ]),
+  })
+}
 
 export function useReorderCrmStages() {
   const { $api } = useApi()

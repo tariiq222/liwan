@@ -172,6 +172,51 @@ class TestCrmLists(LiwanCrmCase):
         lead.unlink()
         self.assertEqual(self.api('DELETE', f'{BASE}/stages/{stage.id}').status_code, 200)
 
+    def test_archive_with_move_to_moves_every_opportunity_then_archives(self):
+        self.as_manager()
+        stage, target = self._ref('stage_contacted'), self._ref('stage_interested')
+        open_lead, lost_lead, archived_lead = self._lead(stage), self._lead(stage), self._lead(stage)
+        lost_lead.active = False
+        archived_lead.active = False
+        foreign = self.make_lead(company=self.other_company, stage_id=stage.id)
+        response = self.api('DELETE', f'{BASE}/stages/{stage.id}', {'move_to': target.id})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(set(response.json()), {'id', 'name', 'sequence', 'is_won', 'active'})
+        self.assertFalse(response.json()['active'])
+        self.assertFalse(stage.active)
+        for lead in (open_lead, lost_lead, archived_lead, foreign):
+            self.assertEqual(lead.with_context(active_test=False).sudo().stage_id, target)
+
+    def test_archive_with_move_to_refuses_a_bad_target_and_changes_nothing(self):
+        self.as_manager()
+        stage, won = self._ref('stage_contacted'), self._ref('stage_won')
+        lead = self._lead(stage)
+        retired = self.env['crm.stage'].create({'name': 'Retired', 'active': False})
+        for target in (won.id, stage.id, retired.id, 999999999, 'x', None, True):
+            self.assertEqual(self._refusal('DELETE', f'{BASE}/stages/{stage.id}', {'move_to': target}), 'invalid_move_target', target)
+        self.assertEqual(self.api('DELETE', f'{BASE}/stages/{stage.id}', {'move_to': 1, 'x': 1}).status_code, 422)
+        self.assertTrue(stage.active)
+        self.assertEqual(lead.stage_id, stage)
+
+    def test_the_won_stage_cannot_be_archived_by_moving_its_opportunities(self):
+        self.as_manager()
+        won, interested = self._ref('stage_won'), self._ref('stage_interested')
+        deal = self._lead(won)
+        self.assertEqual(self._refusal('DELETE', f'{BASE}/stages/{won.id}', {'move_to': interested.id}), 'won_stage_required')
+        self.assertTrue(won.active)
+        self.assertEqual(deal.stage_id, won)
+
+    def test_archive_with_move_to_keeps_the_first_stage_open(self):
+        self.as_manager()
+        new, won = self._ref('stage_new'), self._ref('stage_won')
+        (self._ref('stage_contacted') | self._ref('stage_interested')).active = False
+        extra = self.env['crm.stage'].create({'name': 'Extra', 'sequence': won.sequence + 10})
+        lead = self._lead(new)
+        # The won stage would lead the pipeline: refused as a whole, the opportunity stays put.
+        self.assertEqual(self._refusal('DELETE', f'{BASE}/stages/{new.id}', {'move_to': extra.id}), 'first_stage_open')
+        self.assertTrue(new.active)
+        self.assertEqual(lead.stage_id, new)
+
     def test_a_deal_of_another_company_blocks_the_archive_and_the_won_flag_move(self):
         self.as_manager()
         contacted, interested = self._ref('stage_contacted'), self._ref('stage_interested')

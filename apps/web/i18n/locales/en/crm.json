@@ -138,11 +138,15 @@
         "won": "Sold",
         "moveUp": "Move {name} up",
         "moveDown": "Move {name} down",
+        "moveHint": "Pick the stage this stage's opportunities move to.",
+        "moveTo": "New stage for the opportunities",
+        "moveAndArchive": "Move the opportunities and archive the stage",
         "errors": {
           "hasOpportunities": "This stage still has opportunities. Move them to another stage, then archive it.",
           "wonRequired": "One active stage must be marked as won. Mark another stage as won first.",
           "wonHasOpportunities": "The current won stage still has opportunities. Move them to another stage, then change the won stage.",
-          "firstOpen": "The first stage must be an open stage, because new opportunities start there. Put an open stage first."
+          "firstOpen": "The first stage must be an open stage, because new opportunities start there. Put an open stage first.",
+          "moveTarget": "The stage the opportunities move to must be active, open and a different stage. Pick another one."
         }
       },
       "outcomes": {

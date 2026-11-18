@@ -29,3 +29,13 @@ class CrmStage(models.Model):
         return self.env['crm.lead'].sudo().with_context(active_test=False).search_count(
             [('stage_id', 'in', self.ids)], limit=1,
         ) > 0
+
+    def _liwan_move_opportunities(self, target):
+        """Move every opportunity of any company (open, won, lost or archived) from these stages to `target`.
+
+        Same reach as `_liwan_has_opportunities`: stages are tenant-wide, so the move must not stop at the caller's
+        visibility. Nothing about the opportunities is returned.
+        """
+        self.env['crm.lead'].sudo().with_context(active_test=False).search(
+            [('stage_id', 'in', self.ids)],
+        ).write({'stage_id': target.id})

@@ -140,8 +140,27 @@ class CrmListsController(http.Controller):
     @api_handler
     @requires_feature('crm.enabled', operation='write')
     @requires_capability('crm.settings.manage')
-    def archive_stage(self, stage_id, **_):
-        return self._write_stage(get_record('crm.stage', stage_id), {'active': False})
+    def archive_stage(self, stage_id, **payload):
+        """Archive a stage; `{"move_to": <stage id>}` first moves every opportunity of it to that open stage."""
+        stage = get_record('crm.stage', stage_id)
+        unknown = sorted(set(payload) - {'move_to'})
+        if unknown:
+            raise ApiError(422, 'invalid', 'field is not writable', field=unknown[0])
+        if 'move_to' in payload and stage.active and stage._liwan_has_opportunities():
+            self._move_opportunities(stage, payload['move_to'])
+        return self._write_stage(stage, {'active': False})
+
+    @staticmethod
+    def _move_opportunities(stage, target_id):
+        """Move every opportunity of `stage` to the active open stage `target_id`; the won stage never empties this way."""
+        if stage.is_won:
+            raise ApiError(422, 'invalid', 'exactly one active stage must be the won stage', field='id',
+                           details={'reason': 'won_stage_required'})
+        target = request.env['crm.stage'].browse(target_id) if type(target_id) is int else request.env['crm.stage']
+        if not target.exists() or not target.active or target.is_won or target == stage:
+            raise ApiError(422, 'invalid', 'move_to must be another active open stage', field='move_to',
+                           details={'reason': 'invalid_move_target'})
+        stage._liwan_move_opportunities(target)
 
     @staticmethod
     def _write_stage(stage, vals):
