@@ -10,18 +10,19 @@ fact: for every image the production stack runs, ``deploy/production-images.json
 records the registry reference and the digest that was published, with the command
 that resolved it. A pin that changes without the manifest changing is a failure.
 
-Two questions are kept apart, because only one of them the repository can answer:
+Two kinds of image are kept apart, because only one of them has a digest the repository
+can record:
 
-* Is every production image pinned, recorded and consistent with the manifest?
-  ``check`` answers that and every failure is reported with its next action.
-* Has every owned image been published? Not today: no registry account is chosen,
-  so the manifest records ``"status": "unpublished"`` for the images the CI builds
-  locally, and ``--check`` (the release gate) exits non-zero while any remains.
-  Without ``--check`` the report is printed and exits zero while only those
-  unpublished entries remain; the moment the manifest claims a registry account
-  they fail too, because claiming a registry claims the images are published.
-  ``deploy/ci/static.sh`` runs that report form, so CI is honest about the pending
-  decision without turning the whole stage red for a decision only the owner can make.
+* A third-party image (``published``) is pinned by the index digest recorded here, and
+  the compose file must carry the same digest.
+* An image this repository builds (``released``) is pushed to the GHCR account named in
+  ``registry`` by ``deploy/ci/publish.sh`` for every ``main`` commit. Its digest changes
+  with the commit, so it is recorded in the signed release manifest of that commit, never
+  in this file. ``builds`` records how each one is built (Dockerfile, context, build
+  arguments), so the publish workflow and this gate read one list.
+
+``check`` answers whether every production image is pinned, recorded and consistent with
+the manifest, and every failure is reported with its next action.
 
 The report carries image references and digests only. Nothing here reads an
 environment variable, a token or a credential, and the CLI must never print one.
@@ -35,6 +36,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from dataclasses import dataclass
@@ -54,10 +56,15 @@ COMPOSE_FILES = (
 )
 SCHEMA_VERSION = 1
 DIGEST = re.compile(r'^sha256:[0-9a-f]{64}$')
-# Images the repository builds itself: only these may be recorded as unpublished,
-# because only these are ours to publish. A registry prefix is allowed, so a name can
-# gain `ghcr.io/<account>/` when the owner chooses the registry.
-LOCAL_REFERENCE = re.compile(r'^(?:[a-z0-9.-]+(?:/[a-z0-9_.-]+)*/)?liwan-[a-z0-9-]+$')
+# The only registry the publish workflow pushes to: GHCR under one lowercase account.
+REGISTRY = re.compile(r'^ghcr\.io/[a-z0-9]+(?:-[a-z0-9]+)*$')
+# Images the repository builds itself: only these are ours to release. The registry comes
+# from the manifest, so the name carries no registry prefix.
+OWNED_REFERENCE = re.compile(r'^liwan-[a-z0-9-]+$')
+# A build input path: relative, inside the repository, no parent segment.
+BUILD_PATH = re.compile(r'^(?!/)(?!.*(?:^|/)\.\.(?:/|$))[A-Za-z0-9_./-]+$')
+BUILD_ARG = re.compile(r'^[A-Z][A-Z0-9_]*$')
+LOCAL_NAME = re.compile(r'^[a-z][a-z0-9-]*$')
 SERVICE_LINE = re.compile(r'^ {2}([\w-]+):\s*$')
 # Service properties sit at four spaces in every file of the production stack, so a
 # nested `image:` key (a build argument, say) is never read as the service's image.
@@ -66,8 +73,8 @@ SERVICE_LINE = re.compile(r'^ {2}([\w-]+):\s*$')
 IMAGE_LINE = re.compile(r'^ {4}image:\s*(.+?)\s*$')
 
 PUBLISHED = 'published'
-UNPUBLISHED = 'unpublished'
-STATUSES = (PUBLISHED, UNPUBLISHED)
+RELEASED = 'released'
+STATUSES = (PUBLISHED, RELEASED)
 
 # One rule name per way a production image can be unusable, so a report line and a
 # test name the same thing.
@@ -76,7 +83,7 @@ BUILT_LOCALLY = 'built_locally'
 DIGEST_MISMATCH = 'digest_mismatch'
 MISSING_ENTRY = 'missing_entry'
 STALE_ENTRY = 'stale_entry'
-UNPUBLISHED_PIN = 'unpublished'
+IMAGE_NAME_MISMATCH = 'image_name_mismatch'
 
 EXIT_OK = 0
 EXIT_FAILED = 1
@@ -96,7 +103,6 @@ class Entry:
     status: str
     evidence: str
     digest: str | None = None
-    reason: str | None = None
 
     @property
     def published(self) -> bool:
@@ -104,11 +110,26 @@ class Entry:
 
 
 @dataclass(frozen=True)
+class Build:
+    """How one owned image is built: the inputs ``deploy/ci/publish.sh`` hands to buildx."""
+
+    reference: str
+    dockerfile: str
+    context: str
+    # The name CI's image stage (``deploy/ci/image.sh``) checks and scans the image under (tag ``liwan-<local>:ci-<run>``).
+    local: str
+    args: tuple[str, ...] = ()
+    # False for an image CI builds and checks but the production stack never runs (the vendor console).
+    published: bool = True
+
+
+@dataclass(frozen=True)
 class Manifest:
-    """The recorded pins and the registry account they belong to, if one is chosen."""
+    """The recorded pins, the registry account owned images are pushed to, and their builds."""
 
     entries: tuple[Entry, ...]
-    registry: str | None = None
+    registry: str
+    builds: tuple[Build, ...] = ()
 
     def by_service(self) -> dict[str, Entry]:
         return {entry.service: entry for entry in self.entries}
@@ -146,17 +167,6 @@ class Report:
     declared: tuple[DeclaredImage, ...]
     findings: tuple[Finding, ...]
 
-    def failures(self, release: bool) -> tuple[Finding, ...]:
-        """The findings that fail this mode.
-
-        The release gate fails every finding. Otherwise an unpublished owned image
-        is reported, not failed: whether to buy a registry account is the owner's
-        decision, not a defect in this repository.
-        """
-        if release:
-            return self.findings
-        return tuple(finding for finding in self.findings if finding.rule != UNPUBLISHED_PIN)
-
 
 def _require(condition: bool, message: str) -> None:
     if not condition:
@@ -169,8 +179,8 @@ def parse_manifest(document: object) -> Manifest:
     _require(document.get('schemaVersion') == SCHEMA_VERSION,
              f'schemaVersion must be {SCHEMA_VERSION}')
     registry = document.get('registry')
-    _require(registry is None or (isinstance(registry, str) and registry.strip()),
-             'registry is null (none chosen) or a non-empty account name')
+    _require(isinstance(registry, str) and bool(REGISTRY.match(registry)),
+             'registry is a ghcr.io/<lowercase account> name')
     entries = document.get('images')
     _require(isinstance(entries, list) and entries, 'images is a non-empty list')
     parsed: list[Entry] = []
@@ -179,7 +189,9 @@ def parse_manifest(document: object) -> Manifest:
     names = [entry.service for entry in parsed]
     duplicated = sorted({name for name in names if names.count(name) > 1})
     _require(not duplicated, f'duplicate service entries: {", ".join(duplicated)}')
-    return Manifest(entries=tuple(parsed), registry=registry)
+    builds = _parse_builds(document.get('builds'))
+    _require_builds_match(parsed, builds)
+    return Manifest(entries=tuple(parsed), registry=registry, builds=builds)
 
 
 def _parse_entry(raw: object, position: int) -> Entry:
@@ -195,20 +207,56 @@ def _parse_entry(raw: object, position: int) -> Entry:
     status = raw.get('status')
     _require(status in STATUSES, f'{where}.status is one of {", ".join(STATUSES)}')
     digest = raw.get('digest')
-    reason = raw.get('reason')
     if status == PUBLISHED:
         _require(isinstance(digest, str) and DIGEST.match(digest),
                  f'{where}.digest is a sha256:<64 lowercase hex> index digest')
-        _require(reason is None, f'{where}.reason belongs to an unpublished entry only')
     else:
-        _require(digest is None, f'{where}.digest is null while the image is unpublished')
-        _require(isinstance(reason, str) and reason.strip(),
-                 f'{where}.reason states why no digest is recorded yet')
-        _require(bool(LOCAL_REFERENCE.match(reference)),
-                 f'{where}.reference is a liwan-* image: a third-party image is published by '
-                 'someone else and must carry a digest')
-    return Entry(service=service, reference=reference, status=status, evidence=evidence,
-                 digest=digest, reason=reason)
+        _require(digest is None,
+                 f'{where}.digest is null: a released image is identified by the signed release '
+                 'manifest of each commit, never by a digest recorded here')
+        _require(bool(OWNED_REFERENCE.match(reference)),
+                 f'{where}.reference is a bare liwan-* name (the registry comes from `registry`): '
+                 'a third-party image is published by someone else and must carry a digest')
+    return Entry(service=service, reference=reference, status=status, evidence=evidence, digest=digest)
+
+
+def _parse_builds(raw: object) -> tuple[Build, ...]:
+    _require(isinstance(raw, list), 'builds is a list')
+    builds: list[Build] = []
+    for position, item in enumerate(raw):
+        where = f'builds[{position}]'
+        _require(isinstance(item, dict), f'{where} is an object')
+        reference = item.get('reference')
+        _require(isinstance(reference, str) and bool(OWNED_REFERENCE.match(reference)),
+                 f'{where}.reference is a bare liwan-* name')
+        where = f'builds[{position}] ({reference})'
+        for field in ('dockerfile', 'context'):
+            value = item.get(field)
+            _require(isinstance(value, str) and bool(BUILD_PATH.match(value)),
+                     f'{where}.{field} is a relative path inside the repository')
+        args = item.get('args', [])
+        _require(isinstance(args, list) and all(isinstance(arg, str) and BUILD_ARG.match(arg) for arg in args),
+                 f'{where}.args is a list of build argument names')
+        local = item.get('local')
+        _require(isinstance(local, str) and bool(LOCAL_NAME.match(local)),
+                 f'{where}.local is a lowercase image stage name')
+        published = item.get('published', True)
+        _require(isinstance(published, bool), f'{where}.published is true or false')
+        builds.append(Build(reference=reference, dockerfile=item['dockerfile'], context=item['context'],
+                            args=tuple(args), local=local, published=published))
+    for label, names in (('builds', [build.reference for build in builds]),
+                         ('local names', [build.local for build in builds])):
+        duplicated = sorted({name for name in names if names.count(name) > 1})
+        _require(not duplicated, f'duplicate {label}: {", ".join(duplicated)}')
+    return tuple(builds)
+
+
+def _require_builds_match(entries: list[Entry], builds: tuple[Build, ...]) -> None:
+    """Every released image has exactly one build and every build serves a released image."""
+    released = {entry.reference for entry in entries if not entry.published}
+    built = {build.reference for build in builds if build.published}
+    _require(released <= built, f'released images without a build: {", ".join(sorted(released - built))}')
+    _require(built <= released, f'builds for no released image: {", ".join(sorted(built - released))}')
 
 
 def load_manifest(path: Path = MANIFEST_PATH) -> Manifest:
@@ -284,7 +332,7 @@ def check(texts: Mapping[str, str], manifest: Manifest) -> Report:
         if entry is None:
             findings.append(_missing_entry(item))
         else:
-            findings.extend(_entry_findings(item, entry))
+            findings.extend(_entry_findings(item, entry, manifest.registry))
     findings.extend(_stale_entry(entry) for entry in manifest.entries
                     if entry.service not in declared_services)
     return Report(declared=declared, findings=tuple(findings))
@@ -295,9 +343,9 @@ def _declared_subject(item: DeclaredImage) -> str:
     return item.image or f'built locally by {item.compose}'
 
 
-def _entry_findings(item: DeclaredImage, entry: Entry) -> tuple[Finding, ...]:
+def _entry_findings(item: DeclaredImage, entry: Entry, registry: str) -> tuple[Finding, ...]:
     if not entry.published:
-        return (_unpublished(item, entry),)
+        return _released_findings(item, entry, registry)
     if item.image is None:
         return (_built_locally(item, entry),)
     if item.digest is None:
@@ -307,18 +355,20 @@ def _entry_findings(item: DeclaredImage, entry: Entry) -> tuple[Finding, ...]:
     return ()
 
 
-def _unpublished(item: DeclaredImage, entry: Entry) -> Finding:
-    """The image this stack runs has never been published anywhere."""
-    return Finding(
-        rule=UNPUBLISHED_PIN,
+def _released_findings(item: DeclaredImage, entry: Entry, registry: str) -> tuple[Finding, ...]:
+    """A released image is run under the name the publish workflow pushes, so a typo is caught here."""
+    if item.image is None:
+        return ()
+    name = item.image.split('@', 1)[0].split(':', 1)[0]
+    if name in (entry.reference, f'{registry}/{entry.reference}'):
+        return ()
+    return (Finding(
+        rule=IMAGE_NAME_MISMATCH,
         service=item.service,
-        subject=_declared_subject(item),
-        detail=f'{entry.reference} has no published digest yet: {entry.reason}',
-        action=(f'publish {entry.reference} under the chosen registry account, resolve the index '
-                'digest with `docker buildx imagetools inspect`, then record it in '
-                f'deploy/production-images.json as reference "<registry>/{entry.reference}", '
-                'digest "sha256:<64 hex>", status "published"'),
-    )
+        subject=item.image,
+        detail=f'{item.compose} runs this service as {name} but the manifest releases it as {entry.reference}',
+        action=f'use `image: {entry.reference}:<tag>` (or {registry}/{entry.reference}) in {item.compose}',
+    ),)
 
 
 def _built_locally(item: DeclaredImage, entry: Entry) -> Finding:
@@ -388,13 +438,12 @@ def render_report(report: Report, manifest: Manifest) -> str:
     release engineer needs no other document to finish the work.
     """
     entries = manifest.by_service()
-    registry = manifest.registry or 'none chosen (every liwan-* image is still unpublished)'
-    recorded_count = f'{len(manifest.entries)} entries, schema {SCHEMA_VERSION}'
+    recorded_count = f'{len(manifest.entries)} entries, {len(manifest.builds)} builds, schema {SCHEMA_VERSION}'
     lines = [
         'production image pins',
         '=====================',
         f'manifest: deploy/production-images.json ({recorded_count})',
-        f'registry: {registry}',
+        f'registry: {manifest.registry}',
         f'declared services: {len(report.declared)}; findings: {len(report.findings)}',
         '',
         '| service | declared image | recorded pin |',
@@ -402,7 +451,7 @@ def render_report(report: Report, manifest: Manifest) -> str:
     ]
     for item in report.declared:
         entry = entries.get(item.service)
-        recorded = 'missing' if entry is None else (entry.digest or entry.status)
+        recorded = 'missing' if entry is None else (entry.digest or 'per release (signed release manifest)')
         lines.append(f'| {item.service} | {item.image or "(built locally)"} | {recorded} |')
     if report.findings:
         lines.extend(('', 'findings', '--------'))
@@ -416,30 +465,53 @@ def render_report(report: Report, manifest: Manifest) -> str:
 
 def _summary(report: Report) -> str:
     if not report.findings:
-        return 'Result: every production image is pinned by a digest the manifest records.'
-    unpublished = tuple(f for f in report.findings if f.rule == UNPUBLISHED_PIN)
-    others = tuple(f for f in report.findings if f.rule != UNPUBLISHED_PIN)
-    parts = []
-    if others:
-        parts.append(f'{len(others)} finding(s) fail the check now (see above)')
-    if unpublished:
-        parts.append(f'{len(unpublished)} image(s) are not published yet and block a release')
-    return 'Result: ' + '; '.join(parts) + '.'
+        return 'Result: every production image is pinned by a recorded digest or released per commit.'
+    return f'Result: {len(report.findings)} finding(s) fail the check (see above).'
+
+
+def build_argument_values() -> dict[str, str]:
+    """The value of every build argument a ``builds`` entry may name, from the checkout and ``GITHUB_SHA``."""
+    return {
+        'ODOO_COMMIT': (ROOT / 'deploy/odoo/ODOO_COMMIT').read_text(encoding='utf-8').strip(),
+        'LIWAN_REVISION': os.environ.get('GITHUB_SHA', '')[:12],
+        # Every published stack that runs the web image is the shared one, and the build mode is compiled in:
+        # apps/web/server/plugins/tenancy-build-mode.ts refuses to start when it differs from the runtime mode.
+        'LIWAN_TENANCY_MODE': 'shared',
+    }
+
+
+def render_builds(manifest: Manifest) -> str:
+    """One tab-separated line per build, for ``deploy/ci/publish.sh`` and ``deploy/ci/image.sh``.
+
+    Fields: registry image name (``-`` for a CI-only build), reference, local name for the image stage, Dockerfile,
+    context, comma-separated ``NAME=value`` build arguments.
+    """
+    values = build_argument_values()
+    for build in manifest.builds:
+        unknown = [arg for arg in build.args if arg not in values]
+        if unknown:
+            raise ManifestError(f'{build.reference} names build arguments with no value: {", ".join(unknown)}')
+    return ''.join(
+        '\t'.join((f'{manifest.registry}/{build.reference}' if build.published else '-', build.reference,
+                   build.local, build.dockerfile, build.context,
+                   ','.join(f'{arg}={values[arg]}' for arg in build.args))) + '\n'
+        for build in manifest.builds
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog='image_pins.py',
         description='Check that every production image is pinned by a digest recorded in '
-                    'deploy/production-images.json. The report is always printed; --check makes '
-                    'it the release gate, which also fails an image that is not published yet.',
+                    'deploy/production-images.json, or released per commit by the publish workflow. '
+                    'The report is always printed; the exit status is non-zero on any finding.',
     )
-    parser.add_argument('--check', action='store_true',
-                        help='release gate: fail on an unpublished pin too, not only on a broken one')
     parser.add_argument('--manifest', default=str(MANIFEST_PATH), help='manifest to read')
     parser.add_argument('--compose', nargs='+', default=[str(path) for path in COMPOSE_FILES],
                         help='compose files that make up the production stack, in the order '
                              'Compose applies them')
+    parser.add_argument('--print-builds', action='store_true',
+                        help='print the builds for deploy/ci/publish.sh and deploy/ci/image.sh and exit')
     return parser
 
 
@@ -448,23 +520,16 @@ def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
     try:
         manifest = load_manifest(Path(args.manifest))
+        if args.print_builds:
+            sys.stdout.write(render_builds(manifest))
+            return EXIT_OK
         texts = {str(Path(path)): Path(path).read_text(encoding='utf-8') for path in args.compose}
     except (OSError, ManifestError) as error:
         sys.stderr.write(f'image_pins: {error}\n')
         return EXIT_BAD_INPUT
     report = check(texts, manifest)
     sys.stdout.write(render_report(report, manifest))
-    return EXIT_OK if not report.failures(release=_is_release_gate(args, manifest)) else EXIT_FAILED
-
-
-def _is_release_gate(args: argparse.Namespace, manifest: Manifest) -> bool:
-    """Whether an unpublished pin fails this run.
-
-    ``--check`` always fails it. Otherwise it fails as soon as the manifest claims a
-    registry account, because then it claims those images exist there and a null
-    digest is a contradiction, not a pending decision.
-    """
-    return args.check or manifest.registry is not None
+    return EXIT_OK if not report.findings else EXIT_FAILED
 
 
 if __name__ == '__main__':

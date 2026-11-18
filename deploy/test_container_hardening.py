@@ -24,8 +24,6 @@ STACKS = {
     'shared': ('docker-compose.yml', 'docker-compose.shared.yml'),
     'shared production': ('docker-compose.yml', 'docker-compose.shared.yml', 'docker-compose.shared-commercial.yml',
                           'docker-compose.production.yml'),
-    'staging': ('staging/docker-compose.staging.yml',),
-    'staging classification': ('staging/docker-compose.staging.yml', 'docker-compose.classification.yml'),
 }
 PROXY_ADMISSION_SETTINGS = {
     'NUXT_ODOO_MAX_CONCURRENCY', 'NUXT_SESSION_CHECK_CACHE_SIZE', 'NUXT_SESSION_CHECK_CONCURRENCY',

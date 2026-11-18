@@ -425,8 +425,7 @@ def compose_probe(context):
     if not which('docker'):
         return probe('not_verified', 'docker CLI is missing')
     checks = []
-    for rel in ('deploy/docker-compose.yml', 'deploy/control-plane/compose.production.yml',
-                'deploy/staging/docker-compose.staging.yml'):
+    for rel in ('deploy/docker-compose.yml', 'deploy/control-plane/compose.production.yml'):
         if not file_exists(rel):
             continue
         checks.append(run_command(Command('compose ' + rel, ['docker', 'compose', '-f', rel, 'config', '--quiet'],

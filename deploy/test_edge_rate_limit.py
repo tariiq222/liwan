@@ -441,7 +441,9 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
             'LIWAN_TIKTOK_CLIENT_SECRET': 'test-only-client-secret',
             'LIWAN_SESSION_ACTIVE_KID': 'k1', 'LIWAN_SHARED_PROXY_TOKEN': 'dummy', 'LIWAN_TIKTOK_RELAY_TOKEN': 'test-only-relay-token',
             'LIWAN_SHARED_ODOO_CONFIG': '/tmp/dummy-odoo.conf', 'LIWAN_TENANT_REGISTRY_DIR': '/tmp',
-            'POSTGRES_PASSWORD': 'dummy', 'LIWAN_DOMAIN': 'example.test', **extra,
+            'POSTGRES_PASSWORD': 'dummy', 'LIWAN_DOMAIN': 'example.test',
+            # The edge address and ports have no default in the compose file; production's values here.
+            'LIWAN_EDGE_BIND': '0.0.0.0', 'LIWAN_EDGE_HTTP_PORT': '80', 'LIWAN_EDGE_HTTPS_PORT': '443', **extra,
         }
         with tempfile.TemporaryDirectory() as tmp:
             envfile = Path(tmp) / 'dummy.env'
