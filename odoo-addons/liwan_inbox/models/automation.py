@@ -27,7 +27,7 @@ NOTE_AWAY = 'رد آلي: رسالة خارج أوقات الدوام'
 NOTE_RULE_REPLY = 'رد آلي: القاعدة «%s»'
 NOTE_DEPARTMENT = 'القاعدة «%s» حوّلت المحادثة إلى القسم «%s»'
 NOTE_ASSIGNEE = 'القاعدة «%s» أسندت المحادثة إلى %s'
-NOTE_ASSIGNEE_SKIPPED = 'القاعدة «%s» لم تسند المحادثة إلى %s لأنه لم يعد يملك صلاحية الرد في هذه الشركة'
+NOTE_ASSIGNEE_SKIPPED = 'القاعدة «%s» لم تسند المحادثة إلى %s لأنه غير متاح أو لم يعد يملك صلاحية الرد في هذه الشركة'
 NOTE_TAGS = 'القاعدة «%s» أضافت الوسوم: %s'
 NOTE_PRIORITY = 'القاعدة «%s» ضبطت الأولوية: %s'
 NOTE_RESOLVE = 'القاعدة «%s» حلّت المحادثة'
@@ -204,8 +204,13 @@ class LiwanInboxAutomation(models.AbstractModel):
 
     @api.model
     def _liwan_can_take(self, user, conversation):
-        """True when `user` is active and still holds the reply capability in the conversation's company (a rule stores the user, not the grant)."""
-        return user.active and self.env['liwan.access.service']._liwan_has_capability(user, REPLY, company=conversation.company_id)
+        """True when `user` is active, still holds the reply capability in the conversation's company (a rule stores the user, not
+        the grant) and is effectively available there now."""
+        company = conversation.company_id
+        return (
+            user.active and self.env['liwan.access.service']._liwan_has_capability(user, REPLY, company=company)
+            and bool(self.env['liwan.inbox.agent']._liwan_available_agents(user, company))
+        )
 
     # auto-assignment
 
@@ -214,7 +219,7 @@ class LiwanInboxAutomation(models.AbstractModel):
         """Give an unassigned conversation to an agent by the company's policy (round robin or fewest open)."""
         if conversation.assignee_id or settings.assignment_policy == 'manual' or conversation.state != 'open':
             return
-        agents = conversation._liwan_agents().sorted('id')
+        agents = self.env['liwan.inbox.agent']._liwan_available_agents(conversation._liwan_agents(), conversation.company_id).sorted('id')
         if not agents:
             return
         holder = conversation.department_id or settings

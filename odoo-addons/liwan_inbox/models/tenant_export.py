@@ -53,6 +53,7 @@ CHANNEL_FIELDS = (
 )
 SETTINGS_FIELDS = (
     'id',
+    'agent_shifts_enabled',
     'assignment_policy',
     'auto_close_hours',
     'company_id',
@@ -69,6 +70,7 @@ SETTINGS_FIELDS = (
     'round_robin_user_id',
     'start_reply',
     'stop_reply',
+    'unavailable_release',
     'visibility_policy',
     'write_date',
 )
@@ -88,6 +90,7 @@ DATASETS = (
     ('inbox_campaigns', 'Campaigns', 'liwan.inbox.campaign', False),
     ('inbox_campaign_recipients', 'Campaign recipients', 'liwan.inbox.campaign.recipient', False),
     ('inbox_audiences', 'Audiences', 'liwan.inbox.audience', False),
+    ('inbox_agents', 'Agent availability', 'liwan.inbox.agent', False),
     ('inbox_hours_ranges', 'Hours ranges', 'liwan.inbox.hours.range', False),
     ('inbox_hours_holidays', 'Holidays', 'liwan.inbox.hours.holiday', False),
 )

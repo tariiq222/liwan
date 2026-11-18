@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import InboxCampaignSettingsForm from '@/components/inbox/campaigns/InboxCampaignSettingsForm.vue'
+import InboxAgentsSection from '@/components/inbox/InboxAgentsSection.vue'
 import InboxAutoMessagesSection from '@/components/inbox/InboxAutoMessagesSection.vue'
 import InboxCannedRepliesSection from '@/components/inbox/InboxCannedRepliesSection.vue'
 import InboxChannelsSection from '@/components/inbox/InboxChannelsSection.vue'
@@ -34,6 +35,7 @@ const isSubPage = computed(() => /^\/settings\/apps\/inbox\/(?:channels\/(?!new$
         <div v-show="activeTab === 'basics'" class="grid gap-(--liwan-gap-card)" data-testid="settings-panel-basics">
           <InboxPolicyForm v-if="shows('policy')" />
           <InboxDepartmentsSection v-if="shows('departments')" />
+          <InboxAgentsSection v-if="shows('agents')" />
           <InboxTagsSection v-if="shows('tags')" />
         </div>
         <div v-show="activeTab === 'replies'" class="grid gap-(--liwan-gap-card)" data-testid="settings-panel-replies">

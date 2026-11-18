@@ -26,6 +26,7 @@ const manifest: AppManifest = {
       { id: 'policy', labelKey: 'inbox.settings.policy.title', icon: 'i-lucide-shield-check', capability: 'inbox.settings.manage' },
       { id: 'presets', labelKey: 'inbox.settings.presets.title', icon: 'i-lucide-wand-sparkles', capability: 'inbox.settings.manage' },
       { id: 'departments', labelKey: 'inbox.settings.departments.title', icon: 'i-lucide-network', capability: 'inbox.settings.manage' },
+      { id: 'agents', labelKey: 'inbox.settings.agents.title', icon: 'i-lucide-user-round-check', capability: 'inbox.settings.manage', anyCapabilities: ['inbox.conversations.assign'] },
       { id: 'tags', labelKey: 'inbox.settings.tags.title', icon: 'i-lucide-tags', capability: 'inbox.settings.manage' },
       { id: 'canned-replies', labelKey: 'inbox.settings.canned.title', icon: 'i-lucide-message-square-quote', capability: 'inbox.settings.manage' },
       { id: 'working-hours', labelKey: 'inbox.automation.hours.title', icon: 'i-lucide-clock', capability: 'inbox.automation.manage', to: '/settings/apps/inbox/working-hours', within: '/settings/apps/inbox/working-hours' },
@@ -43,7 +44,7 @@ const manifest: AppManifest = {
     ],
     // The page's tabs; the presets sit above them, and the parts with a page of their own stay in the sidebar.
     groups: [
-      { id: 'basics', labelKey: 'inbox.settings.groups.basics', parts: ['policy', 'departments', 'tags'] },
+      { id: 'basics', labelKey: 'inbox.settings.groups.basics', parts: ['policy', 'departments', 'agents', 'tags'] },
       { id: 'replies', labelKey: 'inbox.settings.groups.replies', parts: ['canned-replies', 'auto-messages', 'campaigns'] },
       { id: 'channels', labelKey: 'inbox.settings.groups.channels', parts: ['channels'] },
     ],

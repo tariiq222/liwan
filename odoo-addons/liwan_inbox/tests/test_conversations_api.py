@@ -384,7 +384,7 @@ class TestConversationsApi(LiwanInboxCase):
         names = {row['name'] for row in body['items']}
         self.assertTrue({'inbox_agent', 'inbox_agent2', 'inbox_supervisor', 'inbox_manager'} <= names)
         self.assertNotIn('inbox_outsider', names)
-        self.assertEqual(set(body['items'][0]), {'id', 'name'})
+        self.assertEqual(set(body['items'][0]), {'id', 'name', 'available', 'in_shift', 'effective_available'})
         filtered = self.get('/api/v1/inbox/agents?q=SUPERV').json()
         self.assertEqual([row['name'] for row in filtered['items']], ['inbox_supervisor'])
         self.login(self.outsider)

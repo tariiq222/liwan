@@ -181,3 +181,16 @@ describe('inbox templates and forms settings entries', () => {
     expect(reach('/settings/apps/inbox/flows', 'inbox.templates.manage')).toBe(false)
   })
 })
+
+describe('inbox agents settings part', () => {
+  it('opens for settings managers and for assign holders, who see no other part', () => {
+    const part = manifest.settings?.parts.find(item => item.id === 'agents')
+    expect(part).toMatchObject({ capability: 'inbox.settings.manage', anyCapabilities: ['inbox.conversations.assign'] })
+    expect(manifest.settings?.groups?.find(group => group.id === 'basics')?.parts).toContain('agents')
+    expect(canReachPath({ capabilities: ['inbox.conversations.assign'] }, '/settings/apps/inbox')).toBe(true)
+    expect(canReachPath({ capabilities: ['inbox.settings.manage'] }, '/settings/apps/inbox')).toBe(true)
+    expect(canReachPath({ capabilities: ['inbox.conversations.reply'] }, '/settings/apps/inbox')).toBe(false)
+    const others = manifest.settings?.parts.filter(item => item.id !== 'agents') ?? []
+    expect(others.some(item => [item.capability, ...(item.anyCapabilities ?? [])].includes('inbox.conversations.assign'))).toBe(false)
+  })
+})

@@ -45,10 +45,11 @@ export const inboxSettingsKeys = {
   presetPreview: (key: InboxPresetKey) => ['inbox', 'preset-preview', key] as const,
 }
 
-export function useInboxSettings() {
+export function useInboxSettings(enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   return useQuery({
     queryKey: inboxSettingsKeys.settings,
+    enabled: () => toValue(enabled),
     queryFn: () => $api('/api/v1/settings/inbox', { schema: InboxSettingsSchema }),
   })
 }

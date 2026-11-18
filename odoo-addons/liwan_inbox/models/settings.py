@@ -16,6 +16,10 @@ ASSIGNMENT_POLICIES = [
     ('round_robin', 'Round robin'),
     ('least_open', 'Fewest open conversations'),
 ]
+UNAVAILABLE_RELEASES = [
+    ('keep', 'Keep the conversations'),
+    ('release', 'Release the open conversations'),
+]
 MAX_AUTO_CLOSE_HOURS = 720
 MAX_ALERT_MINUTES = 1440
 MAX_RETENTION_MONTHS = 120
@@ -39,6 +43,10 @@ class LiwanInboxSettings(models.Model):
     hours_range_ids = fields.One2many('liwan.inbox.hours.range', 'settings_id')
     holiday_ids = fields.One2many('liwan.inbox.hours.holiday', 'settings_id')
     assignment_policy = fields.Selection(ASSIGNMENT_POLICIES, required=True, default='manual')
+    # Agent availability: with shifts on, an agent is available only inside their own weekly ranges (none means always);
+    # `release` takes the open conversations off an agent who is switched to unavailable.
+    agent_shifts_enabled = fields.Boolean(default=False)
+    unavailable_release = fields.Selection(UNAVAILABLE_RELEASES, required=True, default='keep')
     # The agent who got the last conversation of a company without departments (the round robin pointer).
     round_robin_user_id = fields.Many2one('res.users', ondelete='set null')
     # How long the daily report rows are kept, and the timezone they were built in (a change rebuilds them).

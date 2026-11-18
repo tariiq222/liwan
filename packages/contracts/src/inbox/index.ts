@@ -233,8 +233,18 @@ export const InboxContactPatchSchema = z.object({
   email: z.email().nullable().optional(),
 }).strict()
 
-// Users of the current company who may reply: the assignee picker.
-export const InboxAgentListSchema = InboxRefListSchema
+// Users of the current company who may reply: the assignee picker. `available` is the agent's own switch,
+// `in_shift` follows their weekly shift (always true while shifts are off or the agent has none), and
+// `effective_available` is what automatic distribution uses.
+export const InboxAgentSchema = z.object({
+  id: Id,
+  name: z.string(),
+  available: z.boolean(),
+  in_shift: z.boolean(),
+  effective_available: z.boolean(),
+}).strict()
+export const InboxAgentListSchema = list(InboxAgentSchema)
+export const InboxAgentAvailabilityPatchSchema = z.object({ available: z.boolean() }).strict()
 
 export const InboxCannedReplySchema = z.object({
   id: Id,
@@ -410,6 +420,8 @@ export const InboxTagWriteSchema = z.object({ name: z.string().min(1).max(64) })
 
 export const InboxAssignmentPolicySchema = z.enum(['manual', 'round_robin', 'least_open'])
 
+export const InboxUnavailableReleaseSchema = z.enum(['keep', 'release'])
+
 export const InboxSettingsSchema = z.object({
   visibility_policy: InboxVisibilityPolicySchema,
   auto_close_hours: z.number().int().min(0).max(720),
@@ -420,6 +432,10 @@ export const InboxSettingsSchema = z.object({
   first_response_alert_minutes: z.number().int().min(0).max(1440),
   // How long the daily performance rows behind the reports are kept (12..120 months).
   report_retention_months: z.number().int().min(12).max(120),
+  // Whether each agent has a weekly shift that decides when they receive automatic assignments.
+  agent_shifts_enabled: z.boolean(),
+  // What happens to an agent's open and pending conversations when they become unavailable.
+  unavailable_release: InboxUnavailableReleaseSchema,
 }).strict()
 export const InboxSettingsPatchSchema = InboxSettingsSchema.partial().strict()
 
@@ -638,12 +654,18 @@ export const InboxChannelPatchSchema = z.object({
 const Clock = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$|^24:00$/)
 const IsoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 
+// One range of one weekday, shared by the working hours and the agent shifts.
+export const InboxWeekRangeSchema = z.object({ weekday: z.number().int().min(0).max(6), from: Clock, to: Clock }).strict()
+  .refine(range => range.from < range.to, 'a range ends after it starts')
+
+// An agent's weekly shift in the inbox timezone; no ranges means always in shift.
+export const InboxAgentShiftsSchema = z.object({ ranges: z.array(InboxWeekRangeSchema).max(42) }).strict()
+
 // Weekly working hours and holidays (a resource calendar on the server). No days means always open.
 export const InboxWorkingHoursSchema = z.object({
   timezone: z.string().min(1).max(64),
   // 0 = Monday ... 6 = Sunday, as Odoo counts; several ranges per day are allowed.
-  days: z.array(z.object({ weekday: z.number().int().min(0).max(6), from: Clock, to: Clock }).strict()
-    .refine(range => range.from < range.to, 'a range ends after it starts')).max(42),
+  days: z.array(InboxWeekRangeSchema).max(42),
   holidays: z.array(z.object({ name: z.string().min(1).max(128), date_from: IsoDate, date_to: IsoDate }).strict()
     .refine(holiday => holiday.date_from <= holiday.date_to, 'a holiday ends on or after its start')).max(100),
 }).strict()
@@ -797,6 +819,10 @@ export type InboxTag = z.infer<typeof InboxTagSchema>
 export type InboxTagWrite = z.infer<typeof InboxTagWriteSchema>
 export type InboxSettings = z.infer<typeof InboxSettingsSchema>
 export type InboxAssignmentPolicy = z.infer<typeof InboxAssignmentPolicySchema>
+export type InboxAgentAvailabilityPatch = z.infer<typeof InboxAgentAvailabilityPatchSchema>
+export type InboxAgent = z.infer<typeof InboxAgentSchema>
+export type InboxAgentShifts = z.infer<typeof InboxAgentShiftsSchema>
+export type InboxUnavailableRelease = z.infer<typeof InboxUnavailableReleaseSchema>
 export type InboxWorkingHours = z.infer<typeof InboxWorkingHoursSchema>
 export type InboxAutoContent = z.infer<typeof InboxAutoContentSchema>
 export type InboxChannelAutomation = z.infer<typeof InboxChannelAutomationSchema>

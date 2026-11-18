@@ -6,10 +6,11 @@ import { ApiError } from '../../useApi'
 // and the cache it refreshes.
 type Options = { mutationFn?: (input: never) => unknown; onSuccess?: (data: unknown) => unknown; onError?: (error: unknown) => unknown }
 const seen: Options[] = []
+const queries: Array<{ queryKey: unknown; enabled?: () => boolean; queryFn: (context: { signal?: undefined }) => Promise<unknown> }> = []
 const queryClient = { invalidateQueries: vi.fn(async () => {}), setQueryData: vi.fn() }
 vi.mock('@tanstack/vue-query', () => ({
   keepPreviousData: undefined,
-  useQuery: () => ({}),
+  useQuery: (options: (typeof queries)[number]) => { queries.push(options); return {} },
   useMutation: (options: Options) => { seen.push(options); return {} },
   useInfiniteQuery: () => ({}),
   useQueryClient: () => queryClient,
@@ -23,6 +24,7 @@ const { usePatchInboxConversation } = await import('../useInbox')
 
 beforeEach(() => {
   seen.length = 0
+  queries.length = 0
   $api.mockClear()
   Object.values(queryClient).forEach(fn => fn.mockClear())
 })
@@ -42,5 +44,56 @@ describe('patching a conversation', () => {
     usePatchInboxConversation(7)
     await seen.at(-1)!.onError!(new ApiError(403, 'forbidden', 'no'))
     expect(queryClient.invalidateQueries).not.toHaveBeenCalled()
+  })
+})
+
+describe('agent availability', () => {
+  it('patches one agent and reads the agents and the conversation lists again', async () => {
+    const { useSetInboxAgentAvailability } = await import('../useInbox')
+    useSetInboxAgentAvailability()
+    const options = seen.at(-1)!
+    await options.mutationFn!({ userId: 5, available: false } as never)
+    expect($api).toHaveBeenCalledWith('/api/v1/inbox/agents/5', expect.objectContaining({ method: 'PATCH', body: { available: false } }))
+    await options.onSuccess!({})
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['inbox', 'agents'] })
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['inbox', 'conversations'] })
+  })
+
+  it('saves a shift with PUT and keeps the saved ranges in the cache', async () => {
+    const { useSaveInboxAgentShifts } = await import('../useInboxAgentShifts')
+    useSaveInboxAgentShifts(5)
+    const options = seen.at(-1)!
+    await options.mutationFn!({ ranges: [] } as never)
+    expect($api).toHaveBeenCalledWith('/api/v1/inbox/agents/5/shifts', expect.objectContaining({ method: 'PUT', body: { ranges: [] } }))
+    await options.onSuccess!({ ranges: [] })
+    expect(queryClient.setQueryData).toHaveBeenCalledWith(['inbox', 'agents', 'shifts', 5], { ranges: [] })
+  })
+})
+
+describe('agent queries', () => {
+  it('reads every page of the agents until the total is reached', async () => {
+    const { useInboxAgents } = await import('../useInbox')
+    const row = (id: number) => ({ id, name: `a${id}`, available: true, in_shift: true, effective_available: true })
+    $api.mockImplementation(async (_path: string, options?: unknown) => {
+      const offset = (options as { query: { offset: number } }).query.offset
+      return { items: offset === 0 ? [row(1), row(2)] : [row(3)], total: 3 }
+    })
+    useInboxAgents()
+    const result = await queries.at(-1)!.queryFn({}) as { items: unknown[] }
+    expect(result.items).toHaveLength(3)
+    expect($api).toHaveBeenLastCalledWith('/api/v1/inbox/agents', expect.objectContaining({ query: { limit: 200, offset: 2 } }))
+    $api.mockImplementation(async () => ({}))
+  })
+
+  it('reads one agent by user id and stays off without the right or an id', async () => {
+    const { useInboxAgent } = await import('../useInbox')
+    useInboxAgent(() => 7, () => false)
+    expect(queries.at(-1)!.enabled!()).toBe(false)
+    useInboxAgent(() => undefined)
+    expect(queries.at(-1)!.enabled!()).toBe(false)
+    useInboxAgent(() => 7)
+    expect(queries.at(-1)!.enabled!()).toBe(true)
+    await queries.at(-1)!.queryFn({}).catch(() => {})
+    expect($api).toHaveBeenLastCalledWith('/api/v1/inbox/agents/7', expect.anything())
   })
 })

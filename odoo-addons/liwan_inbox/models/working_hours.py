@@ -22,7 +22,7 @@ def minutes_of(value):
 
 
 class LiwanInboxHoursRange(models.Model):
-    """One weekly range (Monday is 0) of the working hours of the company settings or of a department."""
+    """One weekly range (Monday is 0) of the working hours of the company settings or a department, or of an agent's shifts."""
     _name = 'liwan.inbox.hours.range'
     _description = 'Customer Messages working hours range'
     _order = 'weekday, start_minute, id'
@@ -31,20 +31,24 @@ class LiwanInboxHoursRange(models.Model):
     company_id = fields.Many2one('res.company', compute='_compute_company', store=True, index=True)
     settings_id = fields.Many2one('liwan.inbox.settings', index=True, ondelete='cascade')
     department_id = fields.Many2one('liwan.inbox.department', index=True, ondelete='cascade')
+    agent_id = fields.Many2one('liwan.inbox.agent', index=True, ondelete='cascade')
     weekday = fields.Integer(required=True)
     start_minute = fields.Integer(required=True)
     end_minute = fields.Integer(required=True)
 
-    _owner_check = models.Constraint('CHECK((settings_id IS NULL) <> (department_id IS NULL))', 'A range has one owner.')
+    _owner_check = models.Constraint(
+        'CHECK((settings_id IS NOT NULL)::int + (department_id IS NOT NULL)::int + (agent_id IS NOT NULL)::int = 1)',
+        'A range has one owner.',
+    )
     _range_check = models.Constraint(
         f'CHECK(weekday BETWEEN 0 AND 6 AND start_minute >= 0 AND end_minute <= {DAY_MINUTES} AND start_minute < end_minute)',
         'A range is within one day and ends after it starts.',
     )
 
-    @api.depends('settings_id.company_id', 'department_id.company_id')
+    @api.depends('settings_id.company_id', 'department_id.company_id', 'agent_id.company_id')
     def _compute_company(self):
         for row in self:
-            row.company_id = row.settings_id.company_id or row.department_id.company_id
+            row.company_id = row.settings_id.company_id or row.department_id.company_id or row.agent_id.company_id
 
 
 class LiwanInboxHoursHoliday(models.Model):
@@ -81,10 +85,7 @@ class LiwanInboxWorkingHours(models.AbstractModel):
         """The contract's working hours: timezone, weekly ranges and holidays."""
         return {
             'timezone': owner.hours_timezone,
-            'days': [
-                {'weekday': row.weekday, 'from': clock(row.start_minute), 'to': clock(row.end_minute)}
-                for row in owner.hours_range_ids
-            ],
+            'days': self._liwan_dump_days(owner.hours_range_ids),
             'holidays': [
                 {'name': row.name, 'date_from': row.date_from.isoformat(), 'date_to': row.date_to.isoformat()}
                 for row in owner.holiday_ids
@@ -92,13 +93,23 @@ class LiwanInboxWorkingHours(models.AbstractModel):
         }
 
     @api.model
+    def _liwan_dump_days(self, ranges):
+        """The contract's weekly ranges: `{weekday, from, to}` per range."""
+        return [{'weekday': row.weekday, 'from': clock(row.start_minute), 'to': clock(row.end_minute)} for row in ranges]
+
+    @api.model
+    def _liwan_range_commands(self, days):
+        """The commands that replace a one2many of ranges with validated contract `days`."""
+        return [(5, 0, 0), *((0, 0, {
+            'weekday': day['weekday'], 'start_minute': minutes_of(day['from']), 'end_minute': minutes_of(day['to']),
+        }) for day in days)]
+
+    @api.model
     def _liwan_write(self, owner, data):
         """Replace the working hours of `owner` with validated contract `data`; a department then has hours of its own."""
         values = {
             'hours_timezone': data['timezone'],
-            'hours_range_ids': [(5, 0, 0), *((0, 0, {
-                'weekday': day['weekday'], 'start_minute': minutes_of(day['from']), 'end_minute': minutes_of(day['to']),
-            }) for day in data['days'])],
+            'hours_range_ids': self._liwan_range_commands(data['days']),
             'holiday_ids': [(5, 0, 0), *((0, 0, {
                 'name': holiday['name'], 'date_from': holiday['date_from'], 'date_to': holiday['date_to'],
             }) for holiday in data['holidays'])],
@@ -118,11 +129,16 @@ class LiwanInboxWorkingHours(models.AbstractModel):
     @api.model
     def _liwan_is_open(self, owner, at):
         """Whether the UTC moment `at` is inside the owner's hours: no ranges means always open, a holiday closes its local days."""
-        if not owner.hours_range_ids:
+        return self._liwan_in_ranges(owner.hours_range_ids, owner.hours_timezone, owner.holiday_ids, at)
+
+    @api.model
+    def _liwan_in_ranges(self, ranges, zone, holidays, at):
+        """Whether the UTC moment `at` falls in `ranges` read in the timezone `zone`; no ranges means always, a holiday closes its local days."""
+        if not ranges:
             return True
-        local = at.replace(tzinfo=timezone.utc).astimezone(ZoneInfo(owner.hours_timezone))
+        local = at.replace(tzinfo=timezone.utc).astimezone(ZoneInfo(zone))
         day = date(local.year, local.month, local.day)
-        if any(holiday.date_from <= day <= holiday.date_to for holiday in owner.holiday_ids):
+        if any(holiday.date_from <= day <= holiday.date_to for holiday in holidays):
             return False
         minute = local.hour * 60 + local.minute
-        return any(row.weekday == local.weekday() and row.start_minute <= minute < row.end_minute for row in owner.hours_range_ids)
+        return any(row.weekday == local.weekday() and row.start_minute <= minute < row.end_minute for row in ranges)

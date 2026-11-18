@@ -61,8 +61,13 @@ test('a reader with no channel work capability gets no channels entry', async ({
   await signIn(page, 'reader')
   await open(page, '/settings/apps/inbox')
   // The channels card opens for channel administration or one of the three work capabilities; a reader holds none of
-  // them, so neither the settings page nor the reference list is offered.
-  await expect(page.getByTestId('inbox-settings')).toHaveCount(0)
+  // them, so the page offers no channels entry. The reader still holds the assign capability, which opens the agents
+  // part of the page, and only that part.
+  await expect(page.getByTestId('inbox-settings')).toBeVisible()
+  await expect(page.locator('#agents')).toBeVisible()
+  await expect(page.locator('#channels')).toHaveCount(0)
+  await expect(page.locator('a[href$="#channels"]')).toHaveCount(0)
+  await expect(page.locator('#policy')).toHaveCount(0)
   await expect(page.getByTestId('inbox-work-channel-1')).toHaveCount(0)
   await expect(page.getByTestId('inbox-channel-connect')).toHaveCount(0)
 })

@@ -13,6 +13,8 @@ def dump_settings(settings):
         'assignment_policy': settings.assignment_policy,
         'first_response_alert_minutes': settings.first_response_alert_minutes,
         'report_retention_months': settings.report_retention_months,
+        'agent_shifts_enabled': settings.agent_shifts_enabled,
+        'unavailable_release': settings.unavailable_release,
     }
 
 

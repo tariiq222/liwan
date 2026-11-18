@@ -377,6 +377,14 @@
       "cannedEmpty": "No canned replies yet.",
       "windowRemaining": "{time} left to reply freely"
     },
+    "agentStatus": {
+      "available": "Available",
+      "unavailable": "Unavailable",
+      "off_shift": "Off shift"
+    },
+    "availability": {
+      "label": "My availability for new conversations"
+    },
     "panel": {
       "title": "Customer and conversation",
       "contact": "Contact details",
@@ -440,7 +448,30 @@
         "firstResponse": "First-response alert (minutes)",
         "firstResponseHint": "The assignee is notified when a customer has waited this long without a reply. 0 turns the alert off.",
         "reportRetention": "Report history retention (months)",
-        "reportRetentionHint": "How long the daily performance rows behind the reports are kept. It does not affect conversations."
+        "reportRetentionHint": "How long the daily performance rows behind the reports are kept. It does not affect conversations.",
+        "shifts": "Agent shifts",
+        "shiftsHint": "When on, each agent gets a weekly shift in the inbox timezone and receives no new automatic assignments outside it. An agent with no ranges counts as always in shift.",
+        "releaseLabel": "When an agent becomes unavailable",
+        "releaseDescription": "What happens to their open and pending conversations when they switch to unavailable.",
+        "release": {
+          "keep": "Stay with them",
+          "release": "Take them back"
+        },
+        "releaseHint": {
+          "keep": "Conversations stay assigned to them until they return (default).",
+          "release": "They are unassigned and assigned again when the customer's next message arrives."
+        }
+      },
+      "agents": {
+        "title": "Agents",
+        "hint": "Automatic distribution skips an agent who is unavailable, or outside their shift when shifts are on. Manual assignment is still allowed.",
+        "empty": "No one can reply in the inbox yet.",
+        "available": "{name} is available for conversations",
+        "shift": "Shift",
+        "alwaysInShift": "No ranges: the agent is always in shift.",
+        "discardTitle": "Discard the changes to {name}'s shift?",
+        "discardDescription": "The shift has unsaved changes and they are lost if you continue.",
+        "discard": "Discard changes"
       },
       "presets": {
         "title": "Sector presets",

@@ -6,7 +6,7 @@ import {
   InboxBusinessProfileSchema, InboxChannelAlertListSchema, InboxCostReportSchema, InboxReportBreakdownSchema, InboxReportOverviewSchema,
   InboxTemplateAnalyticsDetailSchema, InboxTemplateAnalyticsListSchema, InboxChannelAutomationSchema, InboxDepartmentListSchema, InboxFlowListSchema,
   InboxFlowPreviewSchema, InboxFlowSchema, InboxFlowSubmissionListSchema, InboxDepartmentWorkingHoursSchema, InboxMessageListSchema, InboxRefSchema,
-  InboxRuleListSchema, InboxRuleSchema, InboxRuleTestResultSchema, InboxWorkingHoursSchema, InboxMessageSchema, InboxSettingsSchema,
+  InboxRuleListSchema, InboxRuleSchema, InboxRuleTestResultSchema, InboxWorkingHoursSchema, InboxMessageSchema, InboxSettingsSchema, InboxAgentListSchema, InboxAgentSchema, InboxAgentShiftsSchema,
   InboxTagListSchema, InboxTemplateListSchema, InboxTemplateSchema, InboxCatalogItemListSchema, InboxCatalogItemSchema, InboxCatalogListSchema,
   InboxCatalogPickItemListSchema, InboxCatalogSchema, InboxChannelCommerceSchema,
   InboxOrderCheckoutResultSchema, InboxOrderListSchema, InboxOrderSchema,
@@ -257,6 +257,17 @@ describe('inbox audit mock', () => {
       reply: { body: 'الأسعار في القائمة.' }, resolve: false, department_id: null, assignee_id: null, tag_ids: [], priority: null, ...extra,
     })
     const test = (body: object) => InboxRuleTestResultSchema.parse(call('POST', '/api/v1/inbox/rules/test', { channel_id: 1, text: null, option_id: null, flow_id: null, at: null, ...body }).body)
+
+    it('serves agent availability and shifts in the contract shape', () => {
+      expect(InboxSettingsSchema.parse(call('GET', '/api/v1/settings/inbox').body)).toMatchObject({ agent_shifts_enabled: false, unavailable_release: 'keep' })
+      expect(InboxAgentListSchema.parse(call('GET', '/api/v1/inbox/agents').body).items.every(agent => agent.effective_available)).toBe(true)
+      expect(InboxAgentSchema.parse(call('PATCH', '/api/v1/inbox/agents/5', { available: false }).body)).toMatchObject({ id: 5, available: false, effective_available: false })
+      expect(InboxAgentShiftsSchema.parse(call('PUT', '/api/v1/inbox/agents/5/shifts', { ranges: [{ weekday: 0, from: '08:00', to: '16:00' }] }).body).ranges).toHaveLength(1)
+      expect(InboxAgentShiftsSchema.parse(call('GET', '/api/v1/inbox/agents/5/shifts').body).ranges).toHaveLength(1)
+      expect(InboxAgentSchema.parse(call('GET', '/api/v1/inbox/agents/5').body).id).toBe(5)
+      expect(call('GET', '/api/v1/inbox/agents/999').status).toBe(404)
+      expect(call('PATCH', '/api/v1/inbox/agents/5', {}).status).toBe(422)
+    })
 
     it('serves the settings, hours, automatic messages and rules in the contract shape', () => {
       expect(InboxSettingsSchema.parse(call('GET', '/api/v1/settings/inbox').body)).toMatchObject({ assignment_policy: 'manual', first_response_alert_minutes: 0 })

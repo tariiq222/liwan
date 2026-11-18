@@ -31,7 +31,6 @@ from odoo.addons.liwan_inbox.controllers.helpers import (
 from odoo.addons.liwan_inbox.controllers.reply_parsing import MAX_BODY
 from odoo.addons.liwan_inbox.models.access_service import (
     ASSIGN,
-    MANAGE_AUTOMATION,
     MANAGE_SETTINGS,
     READ,
     REPLY,
@@ -45,7 +44,6 @@ from odoo.addons.liwan_inbox.serializers.conversation import (
     dump_conversation,
     dump_conversation_detail,
     dump_messages,
-    dump_ref,
 )
 from odoo.addons.liwan_inbox.serializers.settings import dump_canned_reply
 
@@ -310,21 +308,6 @@ class ConversationController(http.Controller):
         if not conversation:
             raise not_found()
         return conversation.contact_id
-
-    @http.route('/api/v1/inbox/agents', type='json2', auth='user', methods=['GET'], readonly=True)
-    @api_handler
-    @requires_feature('inbox.enabled', operation='read')
-    @requires_capability(READ, MANAGE_AUTOMATION, match='any')
-    def list_agents(self, **_):
-        """The assignee picker: active users of the company who can reply."""
-        args = request.httprequest.args
-        limit, offset = parse_page(args)
-        service = request.env['liwan.access.service']
-        candidates = request.env.ref('liwan_inbox.group_cap_inbox_conversations_reply').all_user_ids.filtered(
-            lambda user: user.active and (args.get('q', '').lower() in user.name.lower())
-            and service._liwan_has_capability(user, REPLY),
-        ).sorted('name')
-        return {'items': [dump_ref(user) for user in candidates[offset:offset + limit]], 'total': len(candidates)}
 
     @http.route('/api/v1/inbox/canned-replies', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler

@@ -36,6 +36,7 @@ from odoo.addons.liwan_inbox.models.settings import (
     MAX_AUTO_CLOSE_HOURS,
     MAX_RETENTION_MONTHS,
     MIN_REPORT_RETENTION_MONTHS,
+    UNAVAILABLE_RELEASES,
     VISIBILITY_POLICIES,
 )
 from odoo.addons.liwan_inbox.serializers.settings import (
@@ -48,7 +49,7 @@ from odoo.addons.liwan_inbox.serializers.settings import (
 
 SETTINGS_FIELDS = {
     'visibility_policy', 'auto_close_hours', 'retention_months', 'assignment_policy', 'first_response_alert_minutes',
-    'report_retention_months',
+    'report_retention_months', 'agent_shifts_enabled', 'unavailable_release',
 }
 
 
@@ -66,6 +67,10 @@ def parse_settings(payload):
         reject(f'visibility_policy must be one of {[key for key, _ in VISIBILITY_POLICIES]}', 'visibility_policy')
     if 'assignment_policy' in values and values['assignment_policy'] not in dict(ASSIGNMENT_POLICIES):
         reject(f'assignment_policy must be one of {[key for key, _ in ASSIGNMENT_POLICIES]}', 'assignment_policy')
+    if 'unavailable_release' in values and values['unavailable_release'] not in dict(UNAVAILABLE_RELEASES):
+        reject(f'unavailable_release must be one of {[key for key, _ in UNAVAILABLE_RELEASES]}', 'unavailable_release')
+    if 'agent_shifts_enabled' in values and not isinstance(values['agent_shifts_enabled'], bool):
+        reject('agent_shifts_enabled must be true or false', 'agent_shifts_enabled')
     for key, low, high in (
         ('auto_close_hours', 0, MAX_AUTO_CLOSE_HOURS), ('retention_months', 1, MAX_RETENTION_MONTHS),
         ('first_response_alert_minutes', 0, MAX_ALERT_MINUTES), ('report_retention_months', MIN_REPORT_RETENTION_MONTHS, MAX_RETENTION_MONTHS),
