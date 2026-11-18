@@ -13,17 +13,16 @@ IMAGE_ROOT="$(mktemp -d)"
 TRIVY_IMAGE="aquasec/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa"
 TRIVY_CACHE="liwan-ci-${GITHUB_RUN_ID}-trivy-cache"
 # Every image this stage builds and smoke-checks, and how, comes from the `builds` list of deploy/production-images.json
-# (the list deploy/ci/publish.sh pushes from). Odoo is built separately; OTHER_IMAGES holds name:Dockerfile:context.
+# (the list deploy/ci/publish.sh pushes from). Odoo is built separately; OTHER_IMAGES holds name:Dockerfile:context:NAME=value,... build arguments.
 OTHER_IMAGES=()
 ODOO_BUILD_ARGS=()
 while IFS=$'\t' read -r _ _ name dockerfile context args; do
-  [ "$name" != - ] || continue
   if [ "$name" = odoo ]; then
     ODOO_DOCKERFILE="$dockerfile"
     ODOO_CONTEXT="$context"
     for pair in ${args//,/ }; do ODOO_BUILD_ARGS+=(--build-arg "$pair"); done
   else
-    OTHER_IMAGES+=("$name:$dockerfile:$context")
+    OTHER_IMAGES+=("$name:$dockerfile:$context:$args")
   fi
 done < <(python3 -B deploy/image_pins.py --print-builds)
 : "${ODOO_DOCKERFILE:?deploy/production-images.json has no build for the odoo image}"
@@ -83,13 +82,23 @@ smoke_started() {
 }
 HTTP_PROBE='fetch(process.argv[1]).then(r => process.exit(r.status < 500 ? 0 : 1), () => process.exit(1))'
 for entry in "${OTHER_IMAGES[@]}"; do
-  IFS=: read -r name dockerfile context <<< "$entry"
-  build_image "$(tag_of "$name")" -f "$dockerfile" "$context"
+  IFS=: read -r name dockerfile context args <<< "$entry"
+  build_args=()
+  for pair in ${args//,/ }; do build_args+=(--build-arg "$pair"); done
+  build_image "$(tag_of "$name")" -f "$dockerfile" ${build_args[@]+"${build_args[@]}"} "$context"
 done
 
-# web: the Nitro server serves the public login page without Odoo (rendered without an upstream call).
-PROBE=(node -e "$HTTP_PROBE" http://127.0.0.1:3000/login)
-smoke_started web -e NUXT_ODOO_URL=http://127.0.0.1:1
+# web: the published build is the shared one (compiled tenancy mode `shared`; the server refuses to start when the runtime
+# mode differs), so it runs as the shared stack runs it. A public static file is answered by the Nitro server before the
+# tenant boundary, needing no upstream (the probe of deploy/docker-compose.shared.yml). Throwaway per-run token.
+printf '%s\n' '{"schemaVersion":1,"snapshotRevision":0,"targets":[]}' > "$IMAGE_ROOT/registry.json"
+chmod 644 "$IMAGE_ROOT/registry.json"
+PROXY_TOKEN="$(python3 -c 'import secrets; print(secrets.token_hex(24))')"
+SESSION_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(24))')"
+PROBE=(node -e "$HTTP_PROBE" http://127.0.0.1:3000/favicon.ico)
+smoke_started web -v "$IMAGE_ROOT/registry.json:/etc/liwan/registry.json:ro" \
+  -e LIWAN_TENANCY_MODE=shared -e LIWAN_TENANT_REGISTRY_PATH=/etc/liwan/registry.json \
+  -e "LIWAN_SHARED_PROXY_TOKEN=$PROXY_TOKEN" -e NUXT_ODOO_URL=http://127.0.0.1:1
 # vendor-admin: every page asks the control plane for a session first (503 without it), so probe a built static
 # asset that Nitro serves from .output/public.
 PROBE=(node -e "$HTTP_PROBE" http://127.0.0.1:3100/robots.txt)
@@ -108,13 +117,9 @@ smoke_started ai-service -v "$IMAGE_ROOT/ai:/etc/liwan-ai:ro" -e AI_PLATFORM_PRO
 
 # ai-egress: squid itself accepts the configuration rendered with tenant hosts (tools/test_ai_egress.py, SquidParseCase).
 LIWAN_AI_EGRESS_IMAGE_TEST=1 python3 -B -m unittest tools.test_ai_egress.SquidParseCase
-# guard: starts in shared mode with a deny-all bootstrap registry, and its own healthcheck answers.
-printf '%s\n' '{"schemaVersion":1,"snapshotRevision":0,"targets":[]}' > "$IMAGE_ROOT/registry.json"
-chmod 644 "$IMAGE_ROOT/registry.json"
+# guard: starts in shared mode with a deny-all bootstrap registry, and its own healthcheck answers (the registry file and
+# throwaway token and session key are the ones created for the web check above).
 PROBE=(node deploy/shared/healthcheck.mjs)
-# Throwaway per-run values for the guard's required token and session key.
-PROXY_TOKEN="$(python3 -c 'import secrets; print(secrets.token_hex(24))')"
-SESSION_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(24))')"
 smoke_started guard -v "$IMAGE_ROOT/registry.json:/etc/liwan/registry.json:ro" \
   -e LIWAN_TENANCY_MODE=shared -e LIWAN_TENANT_REGISTRY_PATH=/etc/liwan/registry.json \
   -e "LIWAN_SHARED_PROXY_TOKEN=$PROXY_TOKEN" \
@@ -122,6 +127,7 @@ smoke_started guard -v "$IMAGE_ROOT/registry.json:/etc/liwan/registry.json:ro" \
   -e LIWAN_GUARD_ODOO_URL=http://127.0.0.1:1 -e LIWAN_GUARD_WEB_URL=http://127.0.0.1:1
 # The guard denies an unknown host with 403 (a 5xx or no answer would be a broken guard).
 [ "$(docker exec "$(container_of guard)" node -e "fetch('http://127.0.0.1:8080/',{headers:{host:'unknown.invalid'}}).then(r => console.log(r.status))")" = 403 ]
+# odoo-mail: no start check (it needs an SMTP relay account); it is built, scanned and recorded like every other image.
 # proxy: both Caddyfiles validate against the image's Caddy, which has the rate-limit module compiled in.
 # Caddy runs as an unprivileged user; ports 80/443 are bound through its NET_BIND_SERVICE file capability.
 for caddyfile in deploy/Caddyfile deploy/shared/Caddyfile; do
@@ -148,7 +154,9 @@ case "$(proxy_answer)" in
 esac
 docker rm -fv "$PROXY_RUN" >/dev/null
 
-ALL_IMAGES=("$IMAGE" "$(tag_of web)" "$(tag_of vendor-admin)" "$(tag_of ai-service)" "$(tag_of proxy)" "$(tag_of guard)")
+# Every image of the build list is scanned and recorded, in that order (odoo first).
+ALL_IMAGES=("$IMAGE")
+for entry in "${OTHER_IMAGES[@]}"; do ALL_IMAGES+=("$(tag_of "${entry%%:*}")"); done
 
 # Scan one image with Trivy (through its official container and the Docker socket; the vulnerability database
 # lives in an owned volume so it downloads once). Findings with no fix available are ignored. Every HIGH and

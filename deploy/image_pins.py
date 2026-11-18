@@ -116,9 +116,9 @@ class Build:
     reference: str
     dockerfile: str
     context: str
+    # The name CI's image stage (``deploy/ci/image.sh``) checks and scans the image under (tag ``liwan-<local>:ci-<run>``).
+    local: str
     args: tuple[str, ...] = ()
-    # The name CI's image stage (``deploy/ci/image.sh``) smoke-checks the image under (tag ``liwan-<local>:ci-<run>``).
-    local: str | None = None
     # False for an image CI builds and checks but the production stack never runs (the vendor console).
     published: bool = True
 
@@ -238,15 +238,14 @@ def _parse_builds(raw: object) -> tuple[Build, ...]:
         _require(isinstance(args, list) and all(isinstance(arg, str) and BUILD_ARG.match(arg) for arg in args),
                  f'{where}.args is a list of build argument names')
         local = item.get('local')
-        _require(local is None or (isinstance(local, str) and bool(LOCAL_NAME.match(local))),
+        _require(isinstance(local, str) and bool(LOCAL_NAME.match(local)),
                  f'{where}.local is a lowercase image stage name')
         published = item.get('published', True)
         _require(isinstance(published, bool), f'{where}.published is true or false')
-        _require(published or local is not None, f'{where} is CI-only, so it needs a local name')
         builds.append(Build(reference=reference, dockerfile=item['dockerfile'], context=item['context'],
                             args=tuple(args), local=local, published=published))
     for label, names in (('builds', [build.reference for build in builds]),
-                         ('local names', [build.local for build in builds if build.local])):
+                         ('local names', [build.local for build in builds])):
         duplicated = sorted({name for name in names if names.count(name) > 1})
         _require(not duplicated, f'duplicate {label}: {", ".join(duplicated)}')
     return tuple(builds)
@@ -475,14 +474,17 @@ def build_argument_values() -> dict[str, str]:
     return {
         'ODOO_COMMIT': (ROOT / 'deploy/odoo/ODOO_COMMIT').read_text(encoding='utf-8').strip(),
         'LIWAN_REVISION': os.environ.get('GITHUB_SHA', '')[:12],
+        # Every published stack that runs the web image is the shared one, and the build mode is compiled in:
+        # apps/web/server/plugins/tenancy-build-mode.ts refuses to start when it differs from the runtime mode.
+        'LIWAN_TENANCY_MODE': 'shared',
     }
 
 
 def render_builds(manifest: Manifest) -> str:
     """One tab-separated line per build, for ``deploy/ci/publish.sh`` and ``deploy/ci/image.sh``.
 
-    Fields: registry image name (``-`` for a CI-only build), reference, local name for the image stage
-    (``-`` when it has no smoke check), Dockerfile, context, comma-separated ``NAME=value`` build arguments.
+    Fields: registry image name (``-`` for a CI-only build), reference, local name for the image stage, Dockerfile,
+    context, comma-separated ``NAME=value`` build arguments.
     """
     values = build_argument_values()
     for build in manifest.builds:
@@ -491,7 +493,7 @@ def render_builds(manifest: Manifest) -> str:
             raise ManifestError(f'{build.reference} names build arguments with no value: {", ".join(unknown)}')
     return ''.join(
         '\t'.join((f'{manifest.registry}/{build.reference}' if build.published else '-', build.reference,
-                   build.local or '-', build.dockerfile, build.context,
+                   build.local, build.dockerfile, build.context,
                    ','.join(f'{arg}={values[arg]}' for arg in build.args))) + '\n'
         for build in manifest.builds
     )

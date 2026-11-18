@@ -106,6 +106,9 @@
       "reference": "liwan-web",
       "dockerfile": "apps/web/Dockerfile",
       "context": ".",
+      "args": [
+        "LIWAN_TENANCY_MODE"
+      ],
       "local": "web"
     },
     {
@@ -129,12 +132,14 @@
     {
       "reference": "liwan-ai-egress",
       "dockerfile": "deploy/ai-egress/Dockerfile",
-      "context": "deploy/ai-egress"
+      "context": "deploy/ai-egress",
+      "local": "ai-egress"
     },
     {
       "reference": "liwan-odoo-mail",
       "dockerfile": "deploy/odoo-mail/Dockerfile",
-      "context": "deploy/odoo-mail"
+      "context": "deploy/odoo-mail",
+      "local": "odoo-mail"
     }
   ]
 }

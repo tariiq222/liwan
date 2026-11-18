@@ -14,7 +14,7 @@ cd "$(dirname "$0")/.."/..
 OIDC_ISSUER="https://token.actions.githubusercontent.com"
 ATTESTATION_BASE="https://liwanos.com/attestations/release-manifest"
 
-# One tab-separated line per published image: registry image, reference, local name for image.sh ("-" if none),
+# One tab-separated line per published image: registry image, reference, local name for image.sh,
 # Dockerfile, context, NAME=value build arguments (see deploy/image_pins.py --print-builds). CI-only builds are left out.
 builds() { python3 -B deploy/image_pins.py --print-builds | awk -F'\t' '$1 != "-"'; }
 registry() { builds | head -n 1 | cut -d/ -f1,2; }
@@ -51,11 +51,12 @@ build() {
         --output "type=image,name=$image,push-by-digest=true,name-canonical=true,push=true" "$context"
       digest="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["containerimage.digest"])' "$metadata")"
       printf '%s\n' "$digest" > "$out/$reference"
-      [ "$local_name" = - ] || { docker pull "$image@$digest"; docker tag "$image@$digest" "liwan-$local_name:ci-$GITHUB_RUN_ID"; }
+      docker pull "$image@$digest"
+      docker tag "$image@$digest" "liwan-$local_name:ci-$GITHUB_RUN_ID"
     else
       docker buildx build --platform "linux/$arch" -f "$dockerfile" ${argv[@]+"${argv[@]}"} --provenance=false --load \
         -t "$tag" "$context"
-      [ "$local_name" = - ] || docker tag "$tag" "liwan-$local_name:ci-$GITHUB_RUN_ID"
+      docker tag "$tag" "liwan-$local_name:ci-$GITHUB_RUN_ID"
     fi
   done < <(builds)
   rm -f "$metadata"

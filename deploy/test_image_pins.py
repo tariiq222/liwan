@@ -54,7 +54,8 @@ def released(service, reference='liwan-image'):
 
 
 def build(reference, **fields):
-    return {'reference': reference, 'dockerfile': 'apps/x/Dockerfile', 'context': '.', **fields}
+    return {'reference': reference, 'dockerfile': 'apps/x/Dockerfile', 'context': '.',
+            'local': reference.removeprefix('liwan-'), **fields}
 
 
 def manifest(entries, registry=REGISTRY, builds=None):
@@ -172,12 +173,13 @@ class TestReleasedImageName(unittest.TestCase):
 
 
 class TestBuilds(unittest.TestCase):
-    def test_a_ci_only_build_needs_a_local_name_and_no_released_entry(self):
+    def test_a_ci_only_build_needs_no_released_entry_and_every_build_needs_a_local_name(self):
         entries = [released('odoo', reference='liwan-odoo')]
-        builds = [build('liwan-odoo', local='odoo'), build('liwan-vendor-admin', local='vendor-admin', published=False)]
+        builds = [build('liwan-odoo'), build('liwan-vendor-admin', published=False)]
         self.assertEqual(len(manifest(entries, builds=builds).builds), 2)
+        without_local = {key: value for key, value in build('liwan-odoo').items() if key != 'local'}
         with self.assertRaises(image_pins.ManifestError):
-            manifest(entries, builds=[build('liwan-odoo'), build('liwan-vendor-admin', published=False)])
+            manifest(entries, builds=[without_local])
 
     def test_local_names_are_unique(self):
         entries = [released('odoo', reference='liwan-odoo'), released('web', reference='liwan-web')]
@@ -359,7 +361,7 @@ class TestCommandLine(unittest.TestCase):
         code, text = self.run_cli({'base.yml': compose({'odoo': 'liwan-odoo:release'})},
                                   [released('odoo', reference='liwan-odoo')], '--print-builds')
         self.assertEqual(code, image_pins.EXIT_OK)
-        self.assertEqual(text, f'{REGISTRY}/liwan-odoo\tliwan-odoo\t-\tapps/x/Dockerfile\t.\t\n')
+        self.assertEqual(text, f'{REGISTRY}/liwan-odoo\tliwan-odoo\todoo\tapps/x/Dockerfile\t.\t\n')
 
     def test_an_unreadable_manifest_is_a_usage_error_not_a_pass(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -404,8 +406,18 @@ class TestRecordedRepositoryState(unittest.TestCase):
         self.assertEqual({build.reference for build in self.manifest.builds if build.published}, released_references)
         for build in self.manifest.builds:
             with self.subTest(image=build.reference):
+                self.assertTrue(build.local)
                 self.assertTrue((image_pins.ROOT / build.dockerfile).is_file())
                 self.assertTrue((image_pins.ROOT / build.context).is_dir())
+
+    def test_the_published_web_build_is_the_shared_one(self):
+        # Staging and production run the shared stack only; apps/web refuses to start when its compiled tenancy mode
+        # differs from the runtime LIWAN_TENANCY_MODE=shared of docker-compose.shared.yml.
+        web = next(build for build in self.manifest.builds if build.reference == 'liwan-web')
+        self.assertTrue(web.published)
+        self.assertIn('LIWAN_TENANCY_MODE', web.args)
+        line = next(line for line in image_pins.render_builds(self.manifest).splitlines() if '\tliwan-web\t' in line)
+        self.assertIn('LIWAN_TENANCY_MODE=shared', line.split('\t')[-1].split(','))
 
     def test_the_pgbouncer_pin_is_the_digest_the_manifest_and_compose_both_carry(self):
         entry = self.manifest.by_service()['pgbouncer']
