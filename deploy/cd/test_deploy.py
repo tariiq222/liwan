@@ -20,6 +20,9 @@ BACKUP_SECRET = 'backup-token-never-logged'
 TYPE_STAGING = f'{deploy.ATTESTATION_BASE}/staging/v1'
 TYPE_PRODUCTION = f'{deploy.ATTESTATION_BASE}/production/v1'
 DIGEST = 'sha256:' + 'c' * 64
+BUILDS = ('ghcr.io/tariiq222/liwan-odoo\tliwan-odoo\todoo\tDockerfile\t.\t\n'
+          '-\tliwan-vendor-admin\tvendor-admin\tDockerfile\t.\t\n'
+          'ghcr.io/tariiq222/liwan-guard\tliwan-guard\tguard\tDockerfile\t.\t\n')
 
 
 def document(commit):
@@ -45,6 +48,36 @@ class FakePostgres:
 
     def __init__(self):
         self.databases = {'postgres', 'tenant_one', 'liwan_control'}
+        # Grants per database as {grantee: {(privilege, grantable)}}; None is NULL (PostgreSQL's default).
+        # tenant_one is isolated and carries the AI grant.
+        self.acls = {'postgres': None, 'liwan_control': None,
+                     'tenant_one': {'': {('TEMPORARY', False)}, 'liwan_ai': {('CONNECT', False)},
+                                    'odoo': {('CREATE', False), ('TEMPORARY', False), ('CONNECT', False)}}}
+
+    def materialized(self, name):
+        if self.acls.get(name) is None:
+            self.acls[name] = {'': {('TEMPORARY', False), ('CONNECT', False)},
+                               'odoo': {('CREATE', False), ('TEMPORARY', False), ('CONNECT', False)}}
+        return self.acls[name]
+
+    def acl_rows(self, name):
+        acl = self.materialized(name) if name in self.databases else {}
+        return sorted(f"{grantee}|{privilege}|{'t' if grantable else 'f'}"
+                      for grantee, grants in acl.items() for privilege, grantable in grants)
+
+    def change_acl(self, statement, names):
+        acl = self.materialized(names[0])
+        grantee = '' if statement.split(' WITH ')[0].endswith('PUBLIC') else names[-1]
+        held = acl.setdefault(grantee, set())
+        if statement.startswith('REVOKE ALL'):
+            held.clear()
+        elif statement.startswith('REVOKE'):
+            held.discard(('CONNECT', False))
+        else:
+            for word in statement.split(' ON ')[0].split()[1:]:
+                held.add((word.strip(','), 'WITH GRANT OPTION' in statement))
+        if not held:
+            del acl[grantee]
 
     def run(self, script, case):
         output = []
@@ -71,6 +104,7 @@ class FakePostgres:
             error = self.require(names[1], True) or self.require(names[0], False)
             if not error:
                 self.databases.add(names[0])
+                self.acls[names[0]] = None
             return error
         if statement.startswith('DROP DATABASE IF EXISTS'):
             self.databases.discard(names[0])
@@ -85,14 +119,19 @@ class FakePostgres:
             if not error:
                 self.databases.discard(names[0])
                 self.databases.add(names[1])
+                self.acls[names[1]] = self.acls.pop(names[0], None)
             return error
+        if statement.startswith(('GRANT', 'REVOKE')):
+            return self.require(names[0], True) or self.change_acl(statement, names)
         if statement.startswith('ALTER DATABASE'):
             return self.require(names[0], True)
         if 'count(*)' in statement:
             name = re.search(r"datname = '([^']+)'", statement).group(1)
             output.append('1' if name in self.databases else '0')
+        elif 'aclexplode' in statement:
+            output.extend(self.acl_rows(re.search(r"datname = '([^']+)'", statement).group(1)))
         elif 'pg_get_userbyid' in statement:
-            output.append('odoo|{odoo=CTc/odoo}')
+            output.append('odoo')
         return None
 
 
@@ -126,13 +165,20 @@ class FakeRunner:
         if argv[0] == 'tar':
             write_smoke(Path(argv[argv.index('-C') + 1]))
             return 0, ''
+        if 'deploy/image_pins.py' in joined:
+            return 0, case.builds
+        if argv[:2] == ['systemctl', 'is-active']:
+            return (0 if case.worker_ready else 3), ''
+        if argv[:2] == ['systemctl', 'start']:
+            case.worker_started_after_served.append((case.state / 'served.json').exists()
+                                                    and case.served_commit() == case.expected_worker_commit)
         if argv[:3] == ['docker', 'manifest', 'inspect']:
             return (0 if case.published else 1), ''
         if argv[0] == 'cosign':
             return (0, case.cosign_output) if case.signature_ok else (1, 'no matching signatures')
         if argv[0] == 'node':
             return 0, json.dumps([case.tenant_entry or {'tenantId': 't1', 'database': 'tenant_one', 'enabled': True,
-                                                        'filestore': str(case.filestore)}])
+                                                        'filestore': 'tenant_one'}])
         if 'psql' in argv:
             case.sql.append(stdin)
             return case.postgres.run(stdin, case)
@@ -166,6 +212,10 @@ class DeployTest(unittest.TestCase):
         self.signature_ok, self.fail_health = True, False
         self.cosign_output = attestation(document(NEW))
         self.alerts = []
+        self.builds = BUILDS
+        self.worker_ready = True
+        self.worker_started_after_served = []
+        self.expected_worker_commit = NEW
         self.tenant_entry = None
         self.registry_file = root / 'registry/registry.json'
         self.registry_file.parent.mkdir()
@@ -189,7 +239,7 @@ class DeployTest(unittest.TestCase):
             f'LIWAN_DEPLOY_MIRROR={root}/mirror.git\nLIWAN_DEPLOY_PROJECT=liwan\nLIWAN_SHARED_ENV_FILE={shared_env}\n'
             'LIWAN_DEPLOY_PG_DUMP=/usr/bin/pg_dump\nLIWAN_DEPLOY_PG_HOST=127.0.0.1\nLIWAN_DEPLOY_PG_PORT=5432\n'
             'LIWAN_DEPLOY_CONTROL_PG_HOST=127.0.0.1\nLIWAN_DEPLOY_CONTROL_PG_PORT=5433\n'
-            f'LIWAN_DEPLOY_DATA_ROOT={root}/data\n'
+            f'LIWAN_DEPLOY_ODOO_DATA_DIR={root}/data\n'
             f'LIWAN_BACKUP_S3_SECRET={BACKUP_SECRET}\n')
         config.chmod(0o600)
 
@@ -203,11 +253,17 @@ class DeployTest(unittest.TestCase):
         return deploy.main(list(argv) or ['run', '--environment', 'staging'], paths=self.paths, runner=self.runner,
                            log=lambda message: self.log_stream.write(message + '\n'))
 
+    def served_commit(self):
+        return json.loads((self.state / 'served.json').read_text())['commit']
+
     def served(self):
         return json.loads((self.state / 'served.json').read_text())['commit']
 
     def commands(self, word):
         return [call for call in self.runner.calls if word in call]
+
+    def compose_stops(self):
+        return [call for call in self.runner.calls if 'compose' in call and 'stop' in call]
 
     def alert_events(self):
         return [call[3] for call in self.alerts]
@@ -230,19 +286,19 @@ class DeployTest(unittest.TestCase):
     def test_no_change_stops_nothing(self):
         self.head = OLD
         self.assertEqual(self.main(), deploy.EXIT_OK)
-        self.assertFalse(self.commands('stop'))
+        self.assertFalse(self.compose_stops())
         self.assertFalse(self.commands('cosign'))
 
     def test_bad_signature_is_refused(self):
         self.signature_ok = False
         self.assertEqual(self.main(), deploy.EXIT_REFUSED)
         self.assertEqual(self.served(), OLD)
-        self.assertFalse(self.commands('stop'))
+        self.assertFalse(self.compose_stops())
 
     def test_document_for_another_commit_is_refused(self):
         self.cosign_output = attestation(document(OLD))
         self.assertEqual(self.main(), deploy.EXIT_REFUSED)
-        self.assertFalse(self.commands('stop'))
+        self.assertFalse(self.compose_stops())
 
     def test_wrong_attestation_type_is_refused(self):
         self.cosign_output = attestation(document(NEW), TYPE_PRODUCTION)
@@ -274,14 +330,18 @@ class DeployTest(unittest.TestCase):
         self.assertEqual(self.main(), deploy.EXIT_OK)
         self.assertEqual(self.served(), NEW)
 
+    def recorded_grants(self, name):
+        return [[grantee, privilege, grantable == 't']
+                for grantee, privilege, grantable in (row.split('|') for row in self.postgres.acl_rows(name))]
+
     def interrupted(self, phase):
         run = {'commit': NEW, 'ref': 'refs/heads/main', 'version': None, 'attestation': 'staging',
                'document': document(NEW), 'previous': {'commit': OLD, 'odooCommit': 'e' * 40, 'version': None},
                'previousReleaseEnv': deploy.release_env_text(OLD, 'e' * 40), 'phase': phase,
                'tenants': [{'tenantId': 't1', 'database': 'tenant_one', 'filestore': str(self.filestore)}],
                'snapshots': {'tenant_one': True, 'liwan_control': True},
-               'access': {'tenant_one': {'owner': 'odoo', 'acl': '{odoo=CTc/odoo}'},
-                          'liwan_control': {'owner': 'odoo', 'acl': '{odoo=CTc/odoo}'}}}
+               'access': {name: {'owner': 'odoo', 'grants': self.recorded_grants(name)}
+                          for name in ('tenant_one', 'liwan_control')}}
         write_smoke(self.paths.releases / NEW)
         self.postgres.databases |= {deploy.snapshot_name('tenant_one'), deploy.snapshot_name('liwan_control')}
         deploy.write_json(self.state / 'run.json', run)
@@ -458,7 +518,7 @@ class DeployTest(unittest.TestCase):
         self.registry_file.unlink()
         self.assertEqual(self.main(), deploy.EXIT_OK)
         self.assertEqual(self.served(), NEW)
-        self.assertFalse(self.commands('stop') or self.commands('capture') or self.sql)
+        self.assertFalse(self.compose_stops() or self.commands('capture') or self.sql)
 
     def test_first_deploy_failure_stops_and_halts(self):
         (self.state / 'served.json').unlink()
@@ -467,7 +527,7 @@ class DeployTest(unittest.TestCase):
         self.fail_health = True
         self.assertEqual(self.main(), deploy.EXIT_FAILED)
         self.assertEqual(self.alert_events(), ['deploy_failed'])
-        self.assertTrue(self.commands('stop'))
+        self.assertTrue(self.compose_stops())
         self.assertTrue(self.paths.maintenance.exists())
         self.assertFalse((self.state / 'run.json').exists())
 
@@ -476,13 +536,14 @@ class DeployTest(unittest.TestCase):
         (self.state / 'release.env').unlink()
         self.assertEqual(self.main(), deploy.EXIT_FAILED)
         self.assertEqual(json.loads((self.state / 'halted.json').read_text())['reason'], 'bootstrap_with_tenants')
-        self.assertFalse(self.commands('stop'))
+        self.assertFalse(self.compose_stops())
 
     def test_invalid_registry_entries_are_refused(self):
         root = Path(self.tmp.name)
-        bad = [{'tenantId': 't1', 'database': 'Bad-Name;', 'filestore': str(self.filestore)},
-               {'tenantId': 't1', 'database': 'tenant_one', 'filestore': str(root / 'data/../etc')},
-               {'tenantId': 't1', 'database': 'tenant_one', 'filestore': str(root / 'elsewhere')}]
+        bad = [{'tenantId': 't1', 'database': 'Bad-Name;', 'filestore': 'Bad-Name;'},
+               {'tenantId': 't1', 'database': 'tenant_one', 'filestore': '../etc'},
+               {'tenantId': 't1', 'database': 'tenant_one', 'filestore': str(root / 'data/filestore/tenant_one')},
+               {'tenantId': 't1', 'database': 'tenant_one', 'filestore': 'other_one'}]
         for entry in bad:
             with self.subTest(entry=entry):
                 (self.state / 'halted.json').unlink(missing_ok=True)
@@ -491,7 +552,7 @@ class DeployTest(unittest.TestCase):
                 self.assertEqual(self.main(), deploy.EXIT_FAILED)
                 halted = json.loads((self.state / 'halted.json').read_text())
                 self.assertEqual(halted['reason'], 'invalid_tenant_registry')
-                self.assertFalse(self.commands('stop') or self.commands('capture'))
+                self.assertFalse(self.compose_stops() or self.commands('capture'))
 
     def reopened(self):
         return any(sql == "ALTER DATABASE \"tenant_one\" ALLOW_CONNECTIONS true;\n" for sql in self.sql)
@@ -522,6 +583,132 @@ class DeployTest(unittest.TestCase):
         self.assertFalse(self.reopened())
         self.assertTrue([sql for sql in self.sql if 'RENAME TO "tenant_one"' in sql])
         self.assertEqual(self.served(), OLD)
+
+    def test_registry_filestore_name_resolves_under_the_odoo_data_dir(self):
+        self.assertEqual(self.main(), deploy.EXIT_OK)
+        capture = next(call for call in self.commands('capture') if '--tenant' in call)
+        self.assertEqual(capture[capture.index('--data-dir') + 1], str(Path(self.tmp.name) / 'data'))
+        self.assertFalse(self.filestore.with_name('tenant_one.pre').exists())
+
+    def test_every_published_image_is_pulled_and_tagged_before_anything_stops(self):
+        self.assertEqual(self.main(), deploy.EXIT_OK)
+        tags = [call for call in self.runner.calls if call[:2] == ['docker', 'tag']]
+        self.assertEqual([call[-1] for call in tags], [f'liwan-guard:{NEW}', f'liwan-odoo:{NEW}'])
+        first_stop = self.runner.calls.index(self.compose_stops()[0])
+        self.assertLess(self.runner.calls.index(tags[-1]), first_stop)
+
+    def test_document_missing_a_published_image_is_refused(self):
+        self.builds = BUILDS + 'ghcr.io/tariiq222/liwan-control-plane\tliwan-control-plane\tcontrol\tD\t.\t\n'
+        self.assertEqual(self.main(), deploy.EXIT_FAILED)
+        self.assertEqual(json.loads((self.state / 'halted.json').read_text())['reason'], 'document_images_mismatch')
+        self.assertFalse(self.commands('pull') or self.compose_stops())
+
+    def test_compose_never_builds_or_pulls(self):
+        self.assertEqual(self.main(), deploy.EXIT_OK)
+        for call in self.runner.calls:
+            if 'compose' in call and 'up' in call:
+                self.assertIn('--no-build', call)
+                self.assertEqual(call[call.index('--pull') + 1], 'never')
+            if 'compose' in call and 'run' in call:
+                self.assertEqual(call[call.index('--pull') + 1], 'never')
+
+    def test_rollback_replays_recorded_grants(self):
+        self.fail_health = True
+        self.assertEqual(self.main(), deploy.EXIT_FAILED)
+        self.assertEqual(json.loads((self.state / 'halted.json').read_text())['event'], 'deploy_failed')
+        self.assertEqual(self.postgres.acls['tenant_one'],
+                         {'': {('TEMPORARY', False)}, 'liwan_ai': {('CONNECT', False)},
+                          'odoo': {('CREATE', False), ('TEMPORARY', False), ('CONNECT', False)}})
+
+    def test_proxy_is_started_and_health_checked(self):
+        (self.state / 'served.json').unlink()
+        (self.state / 'release.env').unlink()
+        self.registry_file.unlink()
+        self.assertEqual(self.main(), deploy.EXIT_OK)
+        ups = [call for call in self.runner.calls if 'compose' in call and 'up' in call]
+        self.assertTrue(any('proxy' in call and '--wait' in call for call in ups))
+
+    def test_release_tree_is_readable_by_the_worker(self):
+        previous = os.umask(0o077)
+        try:
+            self.assertEqual(self.main(), deploy.EXIT_OK)
+        finally:
+            os.umask(previous)
+        release = self.paths.releases / NEW
+        smoke = release / 'deploy/odoo/upgrade_smoke.py'
+        self.assertEqual(release.stat().st_mode & 0o777, 0o755)
+        self.assertEqual(smoke.parent.stat().st_mode & 0o777, 0o755)
+        self.assertEqual(smoke.stat().st_mode & 0o777, 0o644)
+        self.assertEqual(self.state.stat().st_mode & 0o777, 0o700)
+        npm = self.commands('ci')[0]
+        self.assertEqual(npm[npm.index('--workspace') + 1], 'apps/control-plane')
+
+    def test_worker_starts_only_after_served_is_written(self):
+        self.assertEqual(self.main(), deploy.EXIT_OK)
+        self.assertEqual(self.worker_started_after_served, [True])
+
+    def test_worker_not_ready_halts_without_rollback(self):
+        self.worker_ready = False
+        self.assertEqual(self.main(), deploy.EXIT_FAILED)
+        self.assertEqual(self.served(), NEW)
+        self.assertEqual(json.loads((self.state / 'halted.json').read_text())['reason'], 'worker_not_ready')
+        self.assertFalse([sql for sql in self.sql if 'RENAME TO' in sql])
+
+    def test_rollback_starts_the_old_worker_after_the_swap(self):
+        self.fail_health = True
+        self.expected_worker_commit = OLD
+        self.main()
+        rename = max(i for i, call in enumerate(self.runner.calls) if 'psql' in call)
+        starts = [i for i, call in enumerate(self.runner.calls) if call[:2] == ['systemctl', 'start']]
+        self.assertEqual(len(starts), 1)
+        self.assertGreater(starts[0], rename)
+
+    def test_worker_is_stopped_before_the_tenant_inventory(self):
+        self.assertEqual(self.main(), deploy.EXIT_OK)
+        calls = self.runner.calls
+        stop = calls.index(['systemctl', 'stop', deploy.SHARED_WORKER_UNIT])
+        inventory = next(i for i, call in enumerate(calls) if call[0] == 'node')
+        self.assertLess(stop, inventory)
+
+    def test_resume_keeps_the_worker_stopped(self):
+        self.interrupted('captured')
+        self.assertEqual(self.main(), deploy.EXIT_OK)
+        self.assertEqual(self.runner.calls[0], ['systemctl', 'stop', deploy.SHARED_WORKER_UNIT])
+
+    def test_failed_backup_restarts_the_worker(self):
+        original = self.runner.answer
+
+        def failing(argv, stdin):
+            return (1, 'store down') if 'capture' in argv else original(argv, stdin)
+        self.runner.answer = failing
+        self.assertEqual(self.main(), deploy.EXIT_FAILED)
+        self.assertTrue([call for call in self.runner.calls if call[:2] == ['systemctl', 'start']])
+        self.assertFalse(self.compose_stops())
+
+    def test_rollback_restores_a_reduced_owner_entry(self):
+        self.postgres.acls['tenant_one'] = {'liwan_ai': {('CONNECT', True)}, 'odoo': {('CONNECT', False)}}
+        self.fail_health = True
+        self.assertEqual(self.main(), deploy.EXIT_FAILED)
+        self.assertEqual(json.loads((self.state / 'halted.json').read_text())['event'], 'deploy_failed')
+        self.assertEqual(self.postgres.acls['tenant_one'],
+                         {'liwan_ai': {('CONNECT', True)}, 'odoo': {('CONNECT', False)}})
+
+    def test_worker_that_does_not_restart_after_a_failed_backup_still_halts_and_alerts(self):
+        original = self.runner.answer
+
+        def failing(argv, stdin):
+            return (1, 'store down') if 'capture' in argv else original(argv, stdin)
+        self.runner.answer = failing
+        self.worker_ready = False
+        self.assertEqual(self.main(), deploy.EXIT_FAILED)
+        halted = json.loads((self.state / 'halted.json').read_text())
+        self.assertEqual((halted['reason'], halted['phase']), ('worker_not_ready', 'captured'))
+        self.assertEqual(self.alert_events(), ['deploy_failed'])
+        self.assertIn('worker_not_ready', self.alerts[0])
+
+    def test_forward_run_stops_the_worker_once(self):
+        self.assertEqual(self.main(), deploy.EXIT_OK)
+        self.assertEqual(self.runner.calls.count(['systemctl', 'stop', deploy.SHARED_WORKER_UNIT]), 1)
 
 
 if __name__ == '__main__':

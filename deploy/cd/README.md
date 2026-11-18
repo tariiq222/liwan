@@ -16,28 +16,42 @@ discover -s deploy/cd -t . -p 'test_*.py'`). The first real run happens during t
 Steps, each phase written to `run.json` before it acts:
 
 1. Verify: cosign attestation of the channel's type, signer identity and issuer, document commit equals the candidate,
-   every image `@sha256`. A candidate that is not newer than the served one is refused.
-2. Pull the images by digest.
-3. Capture: an encrypted `backup_pipeline.py` backup of every tenant database (listed with
-   `deploy/shared/backup-binding.mjs --list`) and of the control plane. A failure aborts before anything stops.
-4. Maintenance: create `/var/lib/liwan-deploy/maintenance/active` (Caddy shows the maintenance page only while it
-   exists), then stop `guard`, `web`, `ai`, `odoo`, `control-api` and the shared worker. Caddy and PostgreSQL stay up, so
-   visitors get the Arabic 503 with `Retry-After`.
-5. Snapshot every database (`ALLOW_CONNECTIONS false`, end its sessions, `CREATE DATABASE ... TEMPLATE`, reopen) and
+   every image `<registry>/<name>@sha256:<digest>`. A candidate that is not newer than the served one is refused.
+2. Prepare: extract the commit to `/opt/liwan/releases/<commit>`, install the shared worker's node dependencies there
+   (`npm ci --ignore-scripts --workspace apps/control-plane`; `tsx` is needed at run time), and set the tree to 0755
+   directories and 0644 files (exec bits kept) so the `liwan-worker` user can read it. The state directory stays 0700.
+   Then pull every image the document lists and tag it with its local name from
+   `deploy/image_pins.py --print-builds`; the document must list exactly the published builds. Compose never builds or
+   pulls on the server (`--no-build --pull never`).
+3. Quiesce: stop the shared worker (not user-facing), then read the tenant list with
+   `deploy/shared/backup-binding.mjs --list`. Each filestore name must equal its database name and resolves to
+   `<LIWAN_DEPLOY_ODOO_DATA_DIR>/filestore/<name>`, the rule `backup_pipeline.py` uses.
+4. Capture: an encrypted `backup_pipeline.py` backup of every tenant database and of the control plane. A failure here
+   or in step 3 restarts the worker and halts before anything else stops.
+5. Maintenance: create `/var/lib/liwan-deploy/maintenance/active` (Caddy shows the maintenance page only while it
+   exists), then stop `guard`, `web`, `ai`, `odoo` and `control-api`. Caddy and PostgreSQL stay up, so visitors get the
+   Arabic 503 with `Retry-After`.
+6. Snapshot every database (`ALLOW_CONNECTIONS false`, end its sessions, `CREATE DATABASE ... TEMPLATE`, reopen) and
    hard-link the filestores. A database counts as snapshotted in `run.json` only after the copy succeeded.
-6. Upgrade every tenant database and the control plane, then check the upgrade log and run the smoke check.
-7. Start, wait for health, start `guard` (the commit point), remove the maintenance marker, record
-   `served.json`, delete the snapshots.
+7. Upgrade every tenant database and the control plane, then check the upgrade log and run the smoke check.
+8. Start `proxy`, `odoo`, `web`, `ai` and `control-api` and wait for their health checks, then start `guard` (the
+   commit point) and remove the maintenance marker.
+9. Record `served.json`, then start the shared worker and check it is active. The worker can charge a saved card on its
+   first tick, so it never runs before the release is committed. A worker that does not start halts the run without a
+   rollback. Finally delete the snapshots.
 
-Rollback (health or upgrade failure): swap the snapshots and filestores back for all tenants, restore owners and grants,
-restart the previous release, send `deploy_failed`, and halt. If the rollback itself fails the service stays in
-maintenance (the marker stays) and `deploy_rollback_failed` is sent. The encrypted backup from step 3 is the last resort.
+A resumed run stops the worker again for every phase from quiesce to opening.
+
+Rollback (health or upgrade failure): swap the snapshots and filestores back for all tenants, restore owners, replay the
+recorded grants (for example `liwan_ai`'s `CONNECT`) and the isolation statements, check the ACL, restart the previous
+release, then start the old worker, send `deploy_failed`, and halt. If the rollback itself fails the service stays in
+maintenance (the marker stays) and `deploy_rollback_failed` is sent. The encrypted backup from step 4 is the last resort.
 
 ### First deploy
 
 With no `served.json` there is nothing to roll back to. The run skips the backup, the stop and the snapshots, and
-refuses (`bootstrap_with_tenants`) if the tenant registry already lists tenants. If the first release fails, its
-services are stopped, the maintenance marker stays, `deploy_failed` is sent and the environment is halted.
+refuses (`bootstrap_with_tenants`) if the tenant registry already lists tenants. It starts the proxy itself, and the
+worker after `served.json` is written. If the first release fails, its services are stopped, the maintenance marker stays, `deploy_failed` is sent and the environment is halted.
 
 ## State: `/var/lib/liwan-deploy/<environment>/`
 

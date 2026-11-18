@@ -46,18 +46,22 @@ CONTROL_DB_USER = 'liwan_control'
 CONTROL_PROJECT = 'liwan-control'
 SHARED_WORKER_UNIT = 'liwan-shared-worker.service'
 APP_SERVICES = ('odoo', 'web', 'ai')
+PROXY_SERVICE = 'proxy'
 EDGE_SERVICE = 'guard'
+UP = ('up', '-d', '--wait', '--no-build', '--pull', 'never')
+WORKER_WORKSPACE = 'apps/control-plane'
 CONTROL_SERVICE = 'control-api'
 MAINTENANCE_MARKER = Path('/var/lib/liwan-deploy/maintenance/active')
+WORKER_STOPPED_PHASES = ('quiescing', 'captured', 'stopping', 'snapshotted', 'upgrading', 'starting', 'opening')
 MAINTENANCE_PHASES = ('stopping', 'snapshotted', 'upgrading', 'starting', 'opening')
 CLASSIFICATION_DIR = '/run/liwan-runtime/classifications'
 SMOKE_MARKER = 'UPGRADE_SMOKE_OK'
-FORWARD_PHASES = ('verified', 'captured', 'stopping', 'snapshotted')
+FORWARD_PHASES = ('verified', 'quiescing', 'captured', 'stopping', 'snapshotted')
 ROLLBACK_PHASES = ('upgrading', 'starting', 'rolling_back')
 EXIT_OK, EXIT_REFUSED, EXIT_HALTED, EXIT_FAILED, EXIT_ROLLBACK_FAILED = 0, 2, 3, 4, 5
 CONFIG_KEYS = ('LIWAN_DEPLOY_CHANNEL', 'LIWAN_DEPLOY_REPOSITORY', 'LIWAN_DEPLOY_MIRROR', 'LIWAN_DEPLOY_PROJECT',
                'LIWAN_SHARED_ENV_FILE', 'LIWAN_DEPLOY_PG_DUMP', 'LIWAN_DEPLOY_PG_HOST', 'LIWAN_DEPLOY_PG_PORT',
-               'LIWAN_DEPLOY_CONTROL_PG_HOST', 'LIWAN_DEPLOY_CONTROL_PG_PORT', 'LIWAN_DEPLOY_DATA_ROOT')
+               'LIWAN_DEPLOY_CONTROL_PG_HOST', 'LIWAN_DEPLOY_CONTROL_PG_PORT', 'LIWAN_DEPLOY_ODOO_DATA_DIR')
 
 
 class DeployError(Exception):
@@ -163,6 +167,32 @@ def tag_order(tag: str) -> tuple[int, int, int]:
 
 def snapshot_name(database: str) -> str:
     return 'liwan_pre_' + hashlib.sha256(database.encode()).hexdigest()[:16]
+
+
+def grant_statements(database: str, grants: list[list], owner: str) -> list[str]:
+    """Rebuild recorded ``aclexplode`` rows on a database that has PostgreSQL's default ACL (a renamed copy).
+
+    PUBLIC and the owner start from nothing, so a reduced owner entry comes back exactly as it was.
+    """
+    db = identifier(database)
+    statements = [f'REVOKE ALL ON DATABASE {db} FROM PUBLIC', f'REVOKE ALL ON DATABASE {db} FROM {identifier(owner)}']
+    for grantee, privilege, grantable in grants:
+        target = 'PUBLIC' if grantee == '' else identifier(grantee)
+        option = ' WITH GRANT OPTION' if grantable else ''
+        statements.append(f'GRANT {privilege} ON DATABASE {db} TO {target}{option}')
+    return statements
+
+
+def normalize_tree(root: Path) -> None:
+    """Release trees are read by the liwan-worker user: 0755 directories, 0644 files, exec bits kept."""
+    root.chmod(0o755)
+    for directory, dirnames, filenames in os.walk(root):
+        for name in dirnames + filenames:
+            path = Path(directory) / name
+            if path.is_symlink():
+                continue
+            mode = path.stat().st_mode
+            path.chmod(0o755 if path.is_dir() or mode & 0o111 else 0o644)
 
 
 def release_env_text(commit: str, odoo_commit: str) -> str:
@@ -305,10 +335,12 @@ class Deployer:
         return self.forward(run)
 
     def forward(self, run: dict) -> int:
-        steps = (('verified', self.prepare), ('captured', self.capture), ('stopping', self.stop),
+        steps = (('verified', self.prepare), ('quiescing', self.quiesce), ('captured', self.capture), ('stopping', self.stop),
                  ('snapshotted', self.snapshot), ('upgrading', self.upgrade), ('starting', self.start),
                  ('opening', self.open), ('committed', self.commit), ('cleanup', self.cleanup))
         names = [name for name, _ in steps]
+        if run['phase'] in WORKER_STOPPED_PHASES[1:] and run['previous'] is not None:
+            self.stop_worker()  # a resumed run keeps the worker stopped, as the interrupted one had it
         for name, step in steps[names.index(run['phase']):]:
             if run['phase'] != name:
                 self.set_phase(run, name)
@@ -323,7 +355,9 @@ class Deployer:
         return EXIT_OK
 
     def fail(self, run: dict, phase: str, reason: str) -> int:
-        if phase in FORWARD_PHASES[:2]:
+        if phase in FORWARD_PHASES[:3]:
+            if phase != 'verified' and run['previous'] is not None:
+                reason = self.restart_worker(reason)
             self.halt(run, phase, reason, 'deploy_failed')
             self.file('run.json').unlink()
             return EXIT_FAILED
@@ -331,6 +365,14 @@ class Deployer:
             self.halt(run, phase, reason, 'deploy_failed')
             return EXIT_FAILED
         return self.rollback(run, reason)
+
+    def restart_worker(self, reason: str) -> str:
+        """Nothing else was stopped, so the served release keeps running; a worker that stays down is the reason."""
+        try:
+            self.start_worker()
+        except (DeployError, CommandFailed):
+            return 'worker_not_ready'
+        return reason
 
     def halt(self, run: dict, phase: str, reason: str, event: str) -> None:
         write_json(self.file('halted.json'), {'commit': run['commit'], 'phase': phase, 'reason': reason,
@@ -349,21 +391,50 @@ class Deployer:
         return self.paths.releases / commit
 
     def prepare(self, run: dict) -> None:
-        """Checkout, images by digest tagged to the local names, and the tenant list; nothing running changes."""
+        """Checkout with the worker's dependencies, and every image by digest; nothing running changes."""
         target = self.checkout(run['commit'])
         if not target.exists():
-            staging = target.with_name(target.name + '.partial')
-            shutil.rmtree(staging, ignore_errors=True)
-            staging.mkdir(parents=True)
-            archive = staging.parent / f'{run["commit"]}.tar'
-            self.git('archive', '--format=tar', '-o', str(archive), run['commit'])
-            self.run_command(['tar', '-x', '-f', str(archive), '-C', str(staging)])
-            archive.unlink()
-            os.replace(staging, target)
-        for reference, image in sorted(run['document']['images'].items()):
+            self.extract(run['commit'], target)
+        for reference, image in self.images(target, run['document']['images']):
             self.run_command(['docker', 'pull', image], env=self.child_env)
             self.run_command(['docker', 'tag', image, f'{reference}:{run["commit"]}'])
-        run['tenants'] = self.tenants(target)
+
+    def extract(self, commit: str, target: Path) -> None:
+        """git archive, the shared worker's node dependencies (tsx is needed at run time), readable modes."""
+        staging = target.with_name(target.name + '.partial')
+        if staging.exists():
+            shutil.rmtree(staging)
+        staging.mkdir(parents=True)
+        archive = staging.parent / f'{commit}.tar'
+        self.git('archive', '--format=tar', '-o', str(archive), commit)
+        self.run_command(['tar', '-x', '-f', str(archive), '-C', str(staging)])
+        archive.unlink()
+        try:
+            self.run_command(['npm', '--prefix', str(staging), 'ci', '--ignore-scripts', '--no-audit', '--no-fund',
+                              '--workspace', WORKER_WORKSPACE], env=self.child_env)
+        except CommandFailed:
+            raise DeployError('worker_dependencies_failed') from None
+        normalize_tree(staging)
+        self.paths.releases.chmod(0o755)
+        os.replace(staging, target)
+
+    def images(self, checkout: Path, images: dict[str, str]) -> list[tuple[str, str]]:
+        """(local name, registry image@digest) for every published build; the document must list exactly those."""
+        _, output = self.run_command(['python3', '-B', str(checkout / 'deploy/image_pins.py'), '--print-builds'])
+        published = {}
+        for line in output.splitlines():
+            registry_image, reference = line.split('\t')[:2]
+            if registry_image != '-':
+                published[reference] = registry_image
+        if set(published) != set(images) or any(not images[ref].startswith(published[ref] + '@') for ref in published):
+            raise DeployError('document_images_mismatch', EXIT_REFUSED)
+        return sorted(images.items())
+
+    def quiesce(self, run: dict) -> None:
+        """Stop the shared worker before the inventory, so no tenant is provisioned past the snapshot."""
+        if run['previous'] is not None:
+            self.stop_worker()
+        run['tenants'] = self.tenants(self.checkout(run['commit']))
         if run['previous'] is None and run['tenants']:
             raise DeployError('bootstrap_with_tenants', EXIT_REFUSED)
         write_json(self.file('run.json'), run)
@@ -381,14 +452,12 @@ class Deployer:
         return [self.checked_tenant(item) for item in json.loads(output)]
 
     def checked_tenant(self, item: dict) -> dict:
-        """A registry entry is used only with a plain database name and a filestore inside the data root."""
-        database, filestore = str(item.get('database', '')), str(item.get('filestore', ''))
-        data_root = Path(self.config['LIWAN_DEPLOY_DATA_ROOT']).resolve()
-        resolved = Path(filestore).resolve()
-        if (not TENANT_DATABASE.fullmatch(database) or '..' in Path(filestore).parts or not Path(filestore).is_absolute()
-                or data_root not in resolved.parents):
+        """The registry names the filestore like the database; backup_pipeline.py places it at <data>/filestore/<name>."""
+        database, name = str(item.get('database', '')), str(item.get('filestore', ''))
+        if not TENANT_DATABASE.fullmatch(database) or name != database:
             raise DeployError('invalid_tenant_registry', EXIT_REFUSED)
-        return {'tenantId': item['tenantId'], 'database': database, 'filestore': filestore}
+        filestore = Path(self.config['LIWAN_DEPLOY_ODOO_DATA_DIR']).resolve() / 'filestore' / name
+        return {'tenantId': item['tenantId'], 'database': database, 'filestore': str(filestore)}
 
     def capture(self, run: dict) -> None:
         """Encrypted disaster copy of every tenant and the control plane, through the existing pipeline."""
@@ -402,7 +471,7 @@ class Deployer:
         try:
             for tenant in run['tenants']:
                 self.run_command(pipeline + common + [
-                    '--tenant', tenant['tenantId'], '--data-dir', str(Path(tenant['filestore']).parent.parent),
+                    '--tenant', tenant['tenantId'], '--data-dir', self.config['LIWAN_DEPLOY_ODOO_DATA_DIR'],
                     '--pg-host', self.config['LIWAN_DEPLOY_PG_HOST'], '--pg-port', self.config['LIWAN_DEPLOY_PG_PORT'],
                     '--pg-user', DB_SUPERUSER], env=self.child_env)
             self.run_command(pipeline + common + [
@@ -430,7 +499,16 @@ class Deployer:
     def stop_services(self, checkout: Path) -> None:
         self.run_command(self.compose(checkout) + ['stop', EDGE_SERVICE, *APP_SERVICES], env=self.child_env)
         self.run_command(self.control_compose(checkout) + ['stop', CONTROL_SERVICE], env=self.child_env)
+
+    def stop_worker(self) -> None:
         self.run_command(['systemctl', 'stop', SHARED_WORKER_UNIT])
+
+    def start_worker(self) -> None:
+        """The worker can charge a saved card on its first tick, so it runs only on a committed release."""
+        self.run_command(['systemctl', 'start', SHARED_WORKER_UNIT])
+        code, _ = self.run_command(['systemctl', 'is-active', '--quiet', SHARED_WORKER_UNIT], check=False)
+        if code != 0:
+            raise DeployError('worker_not_ready')
 
     def stop(self, run: dict) -> None:
         """Maintenance: the edge (Caddy) and the databases stay up; Caddy answers 503 while the guard is down."""
@@ -454,10 +532,16 @@ class Deployer:
         return "'" + value.replace("'", "''") + "'"
 
     def acl(self, checkout: Path, database: str, control: bool) -> dict:
-        row = self.psql(checkout, 'SELECT pg_get_userbyid(datdba), COALESCE(datacl::text, \'\') FROM pg_database '
-                                  f'WHERE datname = {self.literal(database)};\n', control=control)
-        owner, _, acl = row.partition('|')
-        return {'owner': owner, 'acl': acl}
+        """Owner, then one ``aclexplode`` row per grant (PUBLIC as ''), NULL read as PostgreSQL's default."""
+        name = self.literal(database)
+        rows = self.psql(checkout, f'SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = {name};\n'
+                         "SELECT CASE WHEN a.grantee = 0 THEN '' ELSE pg_get_userbyid(a.grantee) END, a.privilege_type, "
+                         'a.is_grantable FROM pg_database d, '
+                         "LATERAL aclexplode(COALESCE(d.datacl, acldefault('d', d.datdba))) a "
+                         f'WHERE d.datname = {name} ORDER BY 1, 2, 3;\n', control=control).splitlines()
+        grants = [[grantee, privilege, grantable == 't']
+                  for grantee, privilege, grantable in (row.split('|') for row in rows[1:])]
+        return {'owner': rows[0], 'grants': grants}
 
     def terminate(self, database: str) -> str:
         return ('SELECT pg_terminate_backend(pid) FROM pg_stat_activity '
@@ -512,14 +596,14 @@ class Deployer:
         for tenant in run['tenants']:
             self.upgrade_tenant(run, checkout, tenant['database'], modules)
         try:
-            self.run_command(self.control_compose(checkout) + ['--profile', 'migrate', 'run', '--rm', '-T',
-                                                               'control-migrate'], env=self.child_env)
+            self.run_command(self.control_compose(checkout) + ['--profile', 'migrate', 'run', '--rm', '--pull',
+                                                               'never', '-T', 'control-migrate'], env=self.child_env)
         except CommandFailed:
             raise DeployError('control_migrate_failed') from None
 
     def odoo_run(self, checkout: Path, database: str, args: list[str], stdin: str | None = None) -> str:
         command = self.compose(checkout) + [
-            'run', '--rm', '--no-deps', '-T', '-e', f'LIWAN_COMMERCIAL_CONFIG={CLASSIFICATION_DIR}/{database}.json',
+            'run', '--rm', '--no-deps', '--pull', 'never', '-T', '-e', f'LIWAN_COMMERCIAL_CONFIG={CLASSIFICATION_DIR}/{database}.json',
             '--entrypoint', '/usr/local/bin/liwan-odoo', 'odoo', *args]
         return self.run_command(command, stdin=stdin, env=self.child_env)[1]
 
@@ -545,10 +629,10 @@ class Deployer:
             raise DeployError('upgrade_smoke_failed')
 
     def start_services(self, checkout: Path, with_edge: bool) -> None:
-        services = [*APP_SERVICES, EDGE_SERVICE] if with_edge else list(APP_SERVICES)
-        self.run_command(self.compose(checkout) + ['up', '-d', '--wait', *services], env=self.child_env)
-        self.run_command(self.control_compose(checkout) + ['up', '-d', '--wait', CONTROL_SERVICE], env=self.child_env)
-        self.run_command(['systemctl', 'start', SHARED_WORKER_UNIT])
+        """The proxy (80/443) and the applications, healthy; the guard too when ``with_edge``. Never the worker."""
+        services = [PROXY_SERVICE, *APP_SERVICES] + ([EDGE_SERVICE] if with_edge else [])
+        self.run_command(self.compose(checkout) + [*UP, *services], env=self.child_env)
+        self.run_command(self.control_compose(checkout) + [*UP, CONTROL_SERVICE], env=self.child_env)
 
     def start(self, run: dict) -> None:
         try:
@@ -559,7 +643,7 @@ class Deployer:
     def open(self, run: dict) -> None:
         """Starting the guard healthy is the commit point: customers reach the new release."""
         try:
-            self.run_command(self.compose(self.checkout(run['commit'])) + ['up', '-d', '--wait', EDGE_SERVICE],
+            self.run_command(self.compose(self.checkout(run['commit'])) + [*UP, EDGE_SERVICE],
                              env=self.child_env)
         except CommandFailed:
             raise DeployError('health_check_failed') from None
@@ -568,6 +652,7 @@ class Deployer:
     def commit(self, run: dict) -> None:
         write_json(self.file('served.json'), {'commit': run['commit'], 'ref': run['ref'], 'version': run['version'],
                                               'odooCommit': run['document']['release']['odooCommit'], 'at': now()})
+        self.start_worker()
 
     def drop_snapshots(self, run: dict, checkout: Path) -> None:
         for item in self.databases(run):
@@ -609,12 +694,16 @@ class Deployer:
     def stop_bootstrap(self, run: dict) -> None:
         """First deploy: nothing older exists, so the failed stack is stopped and left in maintenance."""
         if self.file('release.env').exists():
-            self.stop_services(self.checkout(run['commit']))
+            checkout = self.checkout(run['commit'])
+            self.run_command(self.compose(checkout) + ['stop', EDGE_SERVICE, PROXY_SERVICE, *APP_SERVICES],
+                             env=self.child_env)
+            self.run_command(self.control_compose(checkout) + ['stop', CONTROL_SERVICE], env=self.child_env)
 
     def restore(self, run: dict) -> None:
         """Swap every snapshot back, restore owner, grants and isolation, then restart the previous release."""
         previous = run['previous']
         checkout = self.checkout(previous['commit'])
+        self.stop_worker()  # a reboot during a resumed rollback starts the enabled unit again
         self.stop_services(self.paths.current.resolve())
         for item in self.databases(run):
             self.swap_back(run, checkout, item)
@@ -622,6 +711,7 @@ class Deployer:
                      or release_env_text(previous['commit'], previous['odooCommit']))
         self.point_current(checkout)
         self.start_services(checkout, with_edge=True)
+        self.start_worker()
 
     def swap_back(self, run: dict, checkout: Path, item: dict) -> None:
         database, snap = item['database'], snapshot_name(item['database'])
@@ -633,12 +723,15 @@ class Deployer:
         recorded = run['access'][database]
         if self.exists(checkout, snap, item['control']):
             self.psql(checkout, self.swap_sql(database, live), control=item['control'])
+        owner = recorded['owner']
         statements = [f'ALTER DATABASE {identifier(database)} ALLOW_CONNECTIONS true',
-                      f'ALTER DATABASE {identifier(database)} OWNER TO {identifier(recorded["owner"])}']
+                      f'ALTER DATABASE {identifier(database)} OWNER TO {identifier(owner)}']
         if not item['control']:
             statements += list(tenant_isolation_statements(database, DB_SUPERUSER))
+        statements += grant_statements(database, recorded['grants'], owner)  # last: the recorded ACL wins
         self.psql(checkout, ''.join(statement + ';\n' for statement in statements), control=item['control'])
-        if self.acl(checkout, database, item['control']) != recorded:
+        actual = self.acl(checkout, database, item['control'])
+        if actual != recorded:
             raise DeployError('acl_mismatch')
         if item['filestore']:
             restore_filestore(Path(item['filestore']))
@@ -693,6 +786,7 @@ class Lock:
     def __init__(self, path: Path):
         self.path = path
         path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        path.parent.chmod(0o700)  # the state directory stays private, whatever the release tree's modes
         self.handle = open(path, 'a+', encoding='utf-8')
 
     def __enter__(self) -> bool:
