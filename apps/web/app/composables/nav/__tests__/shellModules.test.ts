@@ -321,6 +321,10 @@ describe('settings groups follow their application feature', () => {
     const open = allFeatures.filter(feature => !closed.includes(feature))
     return { role: 'admin', capabilities: allCapabilities, platform: { readable_features: open, writable_features: open } }
   }
+  const readOnlyIdentity = (feature: string) => {
+    const { platform, ...rest } = identityWithout([])
+    return { ...rest, platform: { ...platform, writable_features: platform.writable_features.filter(key => key !== feature) } }
+  }
   const visiblePageIds = (identity: ReturnType<typeof identityWithout>) => visibleSettingsPages(identity).map(({ page }) => page.id)
 
   it('derives a non-empty list of feature-gated settings applications from the manifests', () => {
@@ -338,6 +342,17 @@ describe('settings groups follow their application feature', () => {
     expect(leaked).toEqual([])
     for (const other of gated.filter(candidate => candidate.id !== manifest.id)) {
       expect(closed.map(entry => entry.page.id)).toContain(settingsOf(other).id)
+    }
+  })
+
+  it.each(gated.map(manifest => [manifest.id, manifest] as const))('%s: its settings group is gone while its feature is readable but not writable', (_id, manifest) => {
+    const page = settingsOf(manifest)
+    const readOnly = visibleSettingsPages(readOnlyIdentity(manifest.feature!))
+    expect(readOnly.map(entry => entry.page.id)).not.toContain(page.id)
+    const leaked = readOnly.flatMap(entry => entry.parts.map(part => part.to ?? entry.page.to)).filter(path => path === page.to || path.startsWith(`${page.to}/`))
+    expect(leaked).toEqual([])
+    for (const other of gated.filter(candidate => candidate.id !== manifest.id)) {
+      expect(readOnly.map(entry => entry.page.id)).toContain(settingsOf(other).id)
     }
   })
 
