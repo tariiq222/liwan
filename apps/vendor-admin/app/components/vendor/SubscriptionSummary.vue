@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { customerDisplayBadge } from '@/utils/vendorBadges'
+import { customerDisplayBadge, trialOutcomeBadge } from '@/utils/vendorBadges'
 import { orderFulfillmentBadge, orderPaymentBadge } from '@/utils/vendorSubscriptions'
 import type { SubscriptionView } from '@liwan/commercial-contracts'
 import { cadenceLabel, formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
@@ -20,6 +20,7 @@ const order = computed(() => props.subscription.pending_order)
   <div class="space-y-4" data-slot="subscription-summary">
     <SharedPropertiesPanel>
       <SharedPropertyRow :label="t('vendor.common.status')"><SharedStatusBadge :tone="customerDisplayBadge(display).tone" :label="t(customerDisplayBadge(display).labelKey)" /></SharedPropertyRow>
+      <SharedPropertyRow v-if="subscription.trial_outcome" :label="t('vendor.customers.sub.trialOutcome')"><SharedStatusBadge :tone="trialOutcomeBadge(subscription.trial_outcome).tone" :label="t(trialOutcomeBadge(subscription.trial_outcome).labelKey)" /></SharedPropertyRow>
       <SharedPropertyRow :label="t('vendor.customers.plan')" :value="planName" />
       <SharedPropertyRow :label="t('commercial.pricing.quote.cadence')" :value="subscription.applied ? cadenceLabel(subscription.applied.cadence, t) : null" />
       <SharedPropertyRow :label="t('vendor.customers.sub.period')" :value="subscription.applied ? t('vendor.customers.sub.periodRange', { from: date(subscription.applied.period_start), to: date(subscription.applied.period_end) }) : null" />

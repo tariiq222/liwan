@@ -17,7 +17,7 @@ import { enqueueOutbox } from './outbox.js'
 import { enqueueBillingNotice } from './billing-notices.js'
 import { rearmUnpaidTrialLock } from './free-base-lock.js'
 import { loadRelease } from './bundles.js'
-import { compilePurchasedEntitlement, holdsFreeBaseLockSql, owesAtRenewal } from './free-base.js'
+import { compilePurchasedEntitlement, holdsFreeBaseLockSql, owesAtRenewal, purchasedQuantities } from './free-base.js'
 
 const date = (v: any): string => dateOnly(v)
 export function trialEndsAt(days: number, at: Date | string = new Date()): string {
@@ -55,8 +55,7 @@ export async function buildRenewalOn(client: PoolClient, sub: Record<string, any
   const paidThrough = trialCheckout
     ? trialLedger(await paidTrialLines(client, sub.id, now), pricing, sources.plan, pricing.paid_extra_branches).paid_through
     : sub.trial_paid_through ?? undefined
-  const extraBranches = Number(snapshot.included_extra_branches) + pricing.paid_extra_branches
-  const quantities = { users: sources.plan.included_users + pricing.paid_users, storage_mb: sources.plan.included_storage_mb + pricing.paid_storage_gb * 1024 }
+  const { extra_branches: extraBranches, ...quantities } = purchasedQuantities(sources.plan, snapshot, pricing)
   const entitlement = trialCheckout ? compilePurchasedEntitlement({ ...sources,
     release: await loadRelease(client, snapshot.entitlement.catalog_release_id), quantities, extraBranches }) : snapshot.entitlement
   const quote = computeQuote({ ...sources,kind:'new',cadence:snapshot.cadence,

@@ -31,7 +31,7 @@ const noticePreview: Awaited<ReturnType<typeof trialEndPreview>> = {
   kept: { bundle_revision_ids: [], paid_users: 0, paid_storage_gb: 0, paid_extra_branches: 0 },
   locked_bundle_revision_ids: [], limits: { users: 3, storage_mb: 1024, extra_branches: 0 },
   excess: { users: null, storage_bytes: null, extra_branches: null, sampled_at: null, source: 'unavailable', item_details: 'unavailable' },
-  first_invoice: null, next_attempt_at: null,
+  first_invoice: null, price_after_trial: null, next_attempt_at: null,
 }
 
 function noticeFixture(controller: AbortController, stopAfter?: 'lease' | 'preview' | 'preview-error') {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { customerDisplayBadge, operationStatusBadge, paymentAttemptBadge } from '../vendorBadges'
+import { customerDisplayBadge, operationStatusBadge, paymentAttemptBadge, trialOutcomeBadge } from '../vendorBadges'
 
 describe('vendor badge maps', () => {
   it('maps customer display states, operation statuses and payment attempts', () => {
@@ -9,6 +9,11 @@ describe('vendor badge maps', () => {
     expect(operationStatusBadge('verified').tone).toBe('success')
     expect(paymentAttemptBadge('canceled').tone).toBe('destructive')
     expect(paymentAttemptBadge('pending')).toEqual({ tone: 'info', labelKey: 'vendor.invoices.attemptStatus.pending' })
+  })
+  it('maps each trial outcome to its own label key', () => {
+    expect(trialOutcomeBadge('free_base')).toEqual({ tone: 'neutral', labelKey: 'vendor.customers.trialOutcomes.free_base' })
+    expect(trialOutcomeBadge('converted').tone).toBe('success')
+    expect(trialOutcomeBadge('kept_subset').tone).toBe('info')
   })
   it('shows an unknown value as a neutral badge with no key, never throwing', () => {
     expect(operationStatusBadge('newer')).toEqual({ tone: 'neutral', labelKey: '' })

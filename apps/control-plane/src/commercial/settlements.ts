@@ -46,7 +46,7 @@ export async function processRefundOutbox(pool: Pool, adapter?: PaymentAdapter):
     const reason = MANUAL_REVIEW_REASON
     for (const row of rows) {
       let rejected: string | null = null
-      if (row.kind === 'payment.intervention') rejected = await creditRefundedAfterFulfillment(client, row.payload)
+      if (row.kind === 'payment.intervention') rejected = await creditProviderRefund(client, row.payload)
       else if (row.payload?.duplicate) rejected = await creditDuplicatePayment(client, row.payload.attempt_id)
       else {
         // Lock invoices too: separate event ids can refer to the same invoice.
@@ -241,8 +241,8 @@ async function rejectOutboxRow(client: PoolClient, row: { id: string; kind: stri
   console.error(JSON.stringify({ event: 'commercial_refund_rejected', outbox_id: row.id, kind: row.kind, error: reason.slice(0, 200) }))
 }
 
-/** The human explanation of the credit notes the worker writes for a provider refund after fulfillment. */
-const PROVIDER_REFUND_REASON = 'payment refunded after fulfillment — manual review'
+/** The human explanation of the credit notes the worker writes for a provider refund of a paid invoice (a fulfilled order or a reverted trial checkout). */
+const PROVIDER_REFUND_REASON = 'payment refunded by the provider — manual review'
 
 /** Writes one pending system credit note on an invoice. */
 async function insertSystemCreditNote(client: PoolClient, invoice: { id: string; customer_id: string }, cause: CreditNoteCause, reason: string, amount: { minor: number | string; currency: string; exponent: number }) {
@@ -271,13 +271,13 @@ async function lockAttempt(client: PoolClient, attemptId: unknown) {
 }
 
 /**
- * The provider refunded a payment after the order was fulfilled: the money is gone but the subscription stays applied.
+ * The provider refunded the payment of a paid invoice (an order already fulfilled, or a trial checkout reverted by the refund): the money is gone.
  * The event carries the provider's cumulative refunded figure, and the note is only the part not credited yet, so a
  * replay credits nothing and each further partial refund credits its own part. A figure above what the attempt paid, or
  * in another currency, is rejected for the operator instead of crediting money that was never taken. The pending note
  * puts the invoice in the vendor's `credit_pending` list; the operator records the provider's refund reference on it.
  */
-async function creditRefundedAfterFulfillment(client: PoolClient, payload: any): Promise<string | null> {
+async function creditProviderRefund(client: PoolClient, payload: any): Promise<string | null> {
   const attempt = await lockAttempt(client, payload?.attempt_id)
   if (typeof attempt === 'string') return attempt
   const refunded = payload.refunded

@@ -66,6 +66,8 @@ export async function trialEndPreview(pool: Pool, customerId: string, now = new 
       sampled_at: usage.observed_at, source: available ? 'usage_snapshot' : 'unavailable', item_details: 'unavailable',
     },
     first_invoice: invoice?.due_now.minor ? invoice : null,
+    // The full chosen configuration at its own cadence, taxes included, whatever the trial keeps or the lock drops.
+    price_after_trial: lock.chosen.next_renewal.minor ? lock.chosen.next_renewal : null,
     next_attempt_at: !settled && row.next_attempt_at ? new Date(row.next_attempt_at).toISOString() : null,
   })
 }

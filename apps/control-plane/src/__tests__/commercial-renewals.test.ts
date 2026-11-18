@@ -4,7 +4,7 @@ import { Pool } from 'pg'
 import { setup, client, money, monthly, seedPaymentMethod, url } from './commercial-helpers.js'
 import { acceptQuote } from '../commercial/orders.js'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
-import { SimulatorAdapter, type SimCardOutcome } from '../commercial/payment-simulator.js'
+import { SimulatorAdapter } from '../commercial/payment-simulator.js'
 import { generateRenewals, applyDunning, trialEndsAt } from '../commercial/renewals.js'
 import { chargeSavedCards } from '../commercial/saved-card-charges.js'
 import { classifyDecline } from '../commercial/payment-decline.js'
@@ -16,7 +16,6 @@ import { PaymentError } from '../commercial/payment-adapter.js'
 import { disableAutoRenew, disableAutoRenewIfPlanForbids } from '../commercial/auto-renew.js'
 import { removePaymentMethod } from '../commercial/payment-method-removal.js'
 import { attention } from '../commercial/attention.js'
-import { buildAttemptDescription } from '../commercial/payment-description.js'
 import { CommercialHttpError } from '../commercial/lifecycle.js'
 import { fixedReturnOrigin } from '../commercial/return-origin.js'
 
@@ -59,7 +58,6 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
     expect(edited.status).toBe(200)
     const valid=await api('POST',`/plans/${revised.body.id}/validate`,{edit_revision:edited.body.edit_revision,reason:'New higher pricing'})
     suspend=(await api('POST',`/plans/${revised.body.id}/publish`,{edit_revision:valid.body.edit_revision,reason:'New higher pricing'})).body
-    const adapter=new SimulatorAdapter()
     await Promise.all([generateRenewals(pool,args()),generateRenewals(pool,args())]);await generateRenewals(pool,args())
     const rows=(await pool.query('SELECT i.total_minor,o.target_revision_id,s.applied_revision_id FROM renewals r JOIN invoices i ON i.id=r.invoice_id JOIN orders o ON o.id=r.order_id JOIN subscriptions s ON s.id=r.subscription_id WHERE r.subscription_id=$1',[s.id])).rows
     expect(rows).toHaveLength(1);expect(rows[0].total_minor).toBe('11500');expect(rows[0].target_revision_id).toBe(rows[0].applied_revision_id)

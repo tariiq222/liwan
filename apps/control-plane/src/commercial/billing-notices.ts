@@ -8,7 +8,7 @@ import { MIN_CHARGE_MINOR } from './payment-adapter.js'
 import { workspaceLines, workspaceOrigin, type ReturnOrigin } from './return-origin.js'
 
 export const BILLING_NOTICE_KIND = 'billing.notice'
-export type BillingNoticeType = 'renewal_upcoming' | 'overdue' | 'suspension_warning' | 'suspended' | 'payment_received' | 'card_charge_failed' | 'card_charge_skipped' | 'card_expiring'
+export type BillingNoticeType = 'renewal_upcoming' | 'overdue' | 'suspension_warning' | 'suspended' | 'payment_received' | 'payment_refunded' | 'card_charge_failed' | 'card_charge_skipped' | 'card_expiring'
 /** Why an automatic charge that was promised, or due, cannot be made: the invoice is paid by hand. */
 export type SkipReason = 'card_unusable' | 'plan_not_allowed' | 'amount_below_minimum' | 'charge_refused'
 type Money = { minor: number; currency: string; exponent: number }
@@ -18,7 +18,9 @@ type Payload = { type: BillingNoticeType; subscription_id: string; invoice_id?: 
   /** `card_charge_skipped`: why no automatic charge is made. */
   skip_reason?: SkipReason
   /** `card_expiring`: the saved card the notice is about, and the last day it is valid. */
-  payment_method_id?: string; expires_on?: string }
+  payment_method_id?: string; expires_on?: string
+  /** `payment_refunded`: the payment was a trial checkout that was reverted before delivery, so the trial goes on. */
+  trial_reverted?: boolean }
 
 /**
  * Queues one billing notice. The dedupe key names the event (the invoice, the renewal date, the grace end and the
@@ -80,25 +82,69 @@ export async function queueScheduledBillingNotices(pool: Pool, now: Date): Promi
   return queued
 }
 
-const formatMoney = (m: Money) => `${(m.minor / 10 ** m.exponent).toFixed(m.exponent)} ${m.currency}`
+/** An amount in the notice's language: Arabic names the riyal in words customers read ("ر.س."), other currencies keep their code. */
+export function formatMoney(m: Money, language: 'ar' | 'en'): string {
+  const amount = (m.minor / 10 ** m.exponent).toFixed(m.exponent)
+  return `${amount} ${language === 'ar' && m.currency === 'SAR' ? 'ر.س.' : m.currency}`
+}
 
-/** "1 day" / "2 days" / "N days" in each language: Arabic has its own forms for 1, 2, 3-10 and 11 or more. */
-export function daysText(days: number, language: 'ar' | 'en'): string {
-  if (language === 'en') return days === 1 ? '1 day' : `${days} days`
-  if (days === 1) return 'يوم واحد'
-  if (days === 2) return 'يومان'
-  return days <= 10 ? `${days} أيام` : `${days} يومًا`
+/** Which Arabic noun form a count takes: its own words for 0, 1 and 2; the plural for 3-10; the accusative singular for 11-99; and for a hundred
+ * or more the remainder decides (a round hundred and a remainder of 1 or 2 take the genitive singular, 3-10 the plural, 11-99 the accusative). */
+function arabicForm(count: number): 'zero' | 'one' | 'two' | 'few' | 'acc' | 'gen' {
+  if (count === 0) return 'zero'
+  if (count === 1) return 'one'
+  if (count === 2) return 'two'
+  const rest = count % 100
+  if (rest === 0 || (count > 100 && rest <= 2)) return 'gen'
+  return rest >= 3 && rest <= 10 ? 'few' : 'acc'
+}
+
+/** The unit words of a counted noun. Arabic: zero, one, two, plural (3-10), accusative singular (11-99), genitive singular (100, 101, 102, 200...). */
+const COUNTED = {
+  day: { ar: { zero: 'أقل من يوم', one: 'يوم واحد', two: 'يومان', few: 'أيام', acc: 'يومًا', gen: 'يوم' }, en: ['day', 'days'], enZero: 'less than a day' },
+  user: { ar: { zero: 'بلا مستخدمين', one: 'مستخدم واحد', two: 'مستخدمان', few: 'مستخدمين', acc: 'مستخدمًا', gen: 'مستخدم' }, en: ['user', 'users'], enZero: 'no users' },
+  branch: { ar: { zero: 'بلا فروع إضافية', one: 'فرع إضافي واحد', two: 'فرعان إضافيان', few: 'فروع إضافية', acc: 'فرعًا إضافيًا', gen: 'فرع إضافي' }, en: ['extra branch', 'extra branches'], enZero: 'no extra branches' },
+} as const
+
+/** "1 day" / "2 days" / "N days" and its Arabic forms: يوم واحد، يومان، 3 أيام، 14 يومًا، 100 يوم. */
+export function countText(count: number, unit: keyof typeof COUNTED, language: 'ar' | 'en'): string {
+  const words = COUNTED[unit]
+  if (language === 'en') return count === 0 ? words.enZero : `${count} ${words.en[count === 1 ? 0 : 1]}`
+  const form = arabicForm(count)
+  return form === 'zero' || form === 'one' || form === 'two' ? words.ar[form] : `${count} ${words.ar[form]}`
+}
+export const daysText = (days: number, language: 'ar' | 'en'): string => countText(days, 'day', language)
+
+/** A storage size a customer understands: whole gigabytes as GB, anything else as MB. */
+export function storageText(mb: number, language: 'ar' | 'en'): string {
+  const whole = mb > 0 && mb % 1024 === 0
+  return `${whole ? mb / 1024 : mb} ${language === 'ar' ? (whole ? 'جيجابايت' : 'ميجابايت') : (whole ? 'GB' : 'MB')}`
+}
+
+/** How often a price repeats: "شهريًا" / "monthly" for every month, "كل 3 أشهر" / "every 3 months" otherwise. */
+export function cadenceText(cadence: Cadence, language: 'ar' | 'en'): string {
+  const { unit, count } = cadence
+  if (language === 'en') return count === 1 ? (unit === 'month' ? 'monthly' : 'yearly') : `every ${count} ${unit}s`
+  if (count === 1) return unit === 'month' ? 'شهريًا' : 'سنويًا'
+  if (count === 2) return unit === 'month' ? 'كل شهرين' : 'كل سنتين'
+  const words = unit === 'month' ? { few: 'أشهر', acc: 'شهرًا', gen: 'شهر' } : { few: 'سنوات', acc: 'سنة', gen: 'سنة' }
+  return `كل ${count} ${words[arabicForm(count) as 'few' | 'acc' | 'gen']}`
 }
 
 /** What a notice may say about the saved card: its brand and last four digits, never more. */
 export type NoticeCard = { brand: string; last_four: string }
 /** What the notice needs beyond its payload, read from the live rows when it is sent. */
+export type NoticeInvoice = { number: string | null; period_start: string; period_end: string; subtotal: Money; tax: Money; total: Money }
 export type NoticeFacts = { autoSuspend: boolean; origin: string | null; autoRenewCard: NoticeCard | null; card: NoticeCard | null; renewalAmount: Money | null
   /** The day of the next automatic try, only while one can still happen before the subscription is suspended. */
   retryOn: string | null
   /** Automatic renewal is on but the renewal cannot be charged to the card, and why. */
-  autoRenewBlocked: SkipReason | null }
-const NO_FACTS: NoticeFacts = { autoSuspend: true, origin: null, autoRenewCard: null, card: null, renewalAmount: null, retryOn: null, autoRenewBlocked: null }
+  autoRenewBlocked: SkipReason | null
+  /** The invoice the notice is about, read live when it is sent (`payment_received` names its number, period and amounts). */
+  invoice: NoticeInvoice | null
+  /** The subscription's trial end while it is still trialing (the day a refunded trial checkout says the trial runs to). */
+  trialEnds: string | null }
+const NO_FACTS: NoticeFacts = { autoSuspend: true, origin: null, autoRenewCard: null, card: null, renewalAmount: null, retryOn: null, autoRenewBlocked: null, invoice: null, trialEnds: null }
 const SKIP_WORDS: Record<SkipReason, { ar: string; en: string }> = {
   card_unusable: { ar: 'بطاقتك المحفوظة لا يمكن خصمها (منتهية أو غير صالحة أو غير مدعومة عند مزود الدفع الحالي)', en: 'your saved card cannot be charged (expired, not valid or not supported by the current payment provider)' },
   plan_not_allowed: { ar: 'باقتك لا تتيح التجديد التلقائي', en: 'your plan does not allow automatic renewal' },
@@ -107,23 +153,33 @@ const SKIP_WORDS: Record<SkipReason, { ar: string; en: string }> = {
 }
 const cardText = (card: NoticeCard, language: 'ar' | 'en') => language === 'ar' ? `بطاقة ${card.brand} المنتهية بـ ${card.last_four}` : `your ${card.brand} card ending ${card.last_four}`
 
+/** The receipt line of a paid invoice: its number, the period it covers and the amounts. */
+function receiptText(invoice: NoticeInvoice, language: 'ar' | 'en'): string {
+  const number = invoice.number ? (language === 'ar' ? `رقم الفاتورة ${invoice.number}. ` : `Invoice ${invoice.number}. `) : ''
+  const period = language === 'ar' ? `تغطي الفترة من ${invoice.period_start} إلى ${invoice.period_end}. ` : `It covers ${invoice.period_start} to ${invoice.period_end}. `
+  const amounts = language === 'ar'
+    ? `المبلغ قبل الضريبة ${formatMoney(invoice.subtotal, 'ar')}، والضريبة ${formatMoney(invoice.tax, 'ar')}، والإجمالي ${formatMoney(invoice.total, 'ar')}.`
+    : `Amount before tax ${formatMoney(invoice.subtotal, 'en')}, tax ${formatMoney(invoice.tax, 'en')}, total ${formatMoney(invoice.total, 'en')}.`
+  return `${number}${period}${amounts}`
+}
+
 /**
  * The subject and body (Arabic, then English) of one notice; `origin` is the customer's workspace when it is known: the notice names it and
  * links its subscription page. `autoRenewCard` is the card an automatic renewal will charge, set only while automatic renewal is on and a card can be charged.
  */
 export function billingNotice(payload: Payload, daysLeft: number, facts: Partial<NoticeFacts> = {}): { subject: string; text: string } {
-  const { autoSuspend, origin, autoRenewCard, card, renewalAmount, retryOn, autoRenewBlocked } = { ...NO_FACTS, ...facts }
+  const { autoSuspend, origin, autoRenewCard, card, renewalAmount, retryOn, autoRenewBlocked, invoice, trialEnds } = { ...NO_FACTS, ...facts }
   const workspace = workspaceLines(origin)
   const tail = origin ? { ar: `${workspace.ar}\nصفحة الاشتراك: ${origin}/subscription`, en: `${workspace.en}\nSubscription: ${origin}/subscription` } : workspace
   const bodies: Record<BillingNoticeType, { subject: string; ar: string; en: string }> = {
     renewal_upcoming: { subject: 'اشتراكك في LiwanOS يتجدد قريبًا',
       ar: autoRenewCard
-        ? `يتجدد اشتراكك في ${payload.renewal_on} (المتبقي ${daysText(daysLeft, 'ar')}). ستصدر فاتورة التجديد في ذلك اليوم ونخصم ${renewalAmount ? formatMoney(renewalAmount) : 'قيمتها'} تلقائيًا من ${cardText(autoRenewCard, 'ar')}. لإيقاف التجديد التلقائي أو تغيير البطاقة افتح صفحة الاشتراك.`
+        ? `يتجدد اشتراكك في ${payload.renewal_on} (المتبقي ${daysText(daysLeft, 'ar')}). ستصدر فاتورة التجديد في ذلك اليوم ونخصم ${renewalAmount ? formatMoney(renewalAmount, 'ar') : 'قيمتها'} تلقائيًا من ${cardText(autoRenewCard, 'ar')}. لإيقاف التجديد التلقائي أو تغيير البطاقة افتح صفحة الاشتراك.`
         : autoRenewBlocked
           ? `يتجدد اشتراكك في ${payload.renewal_on} (المتبقي ${daysText(daysLeft, 'ar')}). لن نخصم التجديد تلقائيًا لأن ${SKIP_WORDS[autoRenewBlocked].ar}، فعليك دفع فاتورة التجديد بنفسك من صفحة الاشتراك بعد صدورها في ذلك اليوم.`
           : `يتجدد اشتراكك في ${payload.renewal_on} (المتبقي ${daysText(daysLeft, 'ar')}). التجديد التلقائي غير مفعّل، فعليك دفع فاتورة التجديد بنفسك من صفحة الاشتراك بعد صدورها في ذلك اليوم.`,
       en: autoRenewCard
-        ? `Your subscription renews on ${payload.renewal_on} (${daysText(daysLeft, 'en')} left). The renewal invoice is issued that day and ${renewalAmount ? formatMoney(renewalAmount) : 'its total'} is charged automatically to ${cardText(autoRenewCard, 'en')}. To turn automatic renewal off or change the card, open Subscription.`
+        ? `Your subscription renews on ${payload.renewal_on} (${daysText(daysLeft, 'en')} left). The renewal invoice is issued that day and ${renewalAmount ? formatMoney(renewalAmount, 'en') : 'its total'} is charged automatically to ${cardText(autoRenewCard, 'en')}. To turn automatic renewal off or change the card, open Subscription.`
         : autoRenewBlocked
           ? `Your subscription renews on ${payload.renewal_on} (${daysText(daysLeft, 'en')} left). We will not charge the renewal automatically because ${SKIP_WORDS[autoRenewBlocked].en}, so you pay the renewal invoice yourself from Subscription once it is issued that day.`
           : `Your subscription renews on ${payload.renewal_on} (${daysText(daysLeft, 'en')} left). Automatic renewal is off, so you pay the renewal invoice yourself from Subscription once it is issued that day.` },
@@ -148,23 +204,28 @@ export function billingNotice(payload: Payload, daysLeft: number, facts: Partial
       ar: 'عُلِّق اشتراكك بسبب فاتورة لم تُسدَّد، فصارت مساحة العمل للقراءة والتصدير فقط. ادفعها من صفحة الاشتراك، وتعود الكتابة تلقائيًا بعد وصول الدفعة.',
       en: 'Your subscription is suspended because an invoice is unpaid, so your workspace is read-only (you can still view and export). Pay it from Subscription and editing returns automatically once the payment arrives.' },
     payment_received: { subject: 'استلمنا دفعتك في LiwanOS',
-      ar: `استلمنا دفعتك${payload.amount ? ` بقيمة ${formatMoney(payload.amount)}` : ''}. شكرًا لك.`,
-      en: `We received your payment${payload.amount ? ` of ${formatMoney(payload.amount)}` : ''}. Thank you.` },
+      ar: `استلمنا دفعتك${payload.amount ? ` بقيمة ${formatMoney(payload.amount, 'ar')}` : ''}.${invoice ? ` ${receiptText(invoice, 'ar')}` : ''} شكرًا لك.`,
+      en: `We received your payment${payload.amount ? ` of ${formatMoney(payload.amount, 'en')}` : ''}.${invoice ? ` ${receiptText(invoice, 'en')}` : ''} Thank you.` },
+    payment_refunded: { subject: 'استرددنا دفعتك في LiwanOS',
+      ar: `سجّلنا استرداد دفعتك${payload.amount ? ` بقيمة ${formatMoney(payload.amount, 'ar')}` : ''}.${payload.trial_reverted && trialEnds ? ` تجربتك مستمرة حتى ${trialEnds}، ولم يتغيّر شيء في تطبيقاتك.` : ''}`,
+      en: `We recorded a refund of your payment${payload.amount ? ` of ${formatMoney(payload.amount, 'en')}` : ''}.${payload.trial_reverted && trialEnds ? ` Your trial continues until ${trialEnds}, and nothing changed in your apps.` : ''}` },
   }
   const body = bodies[payload.type]
   return { subject: body.subject, text: `${body.ar}${tail.ar}\n${body.en}${tail.en}` }
 }
 
-type Context = { customer_id: string; admin_login: string | null; state: string; manual_suspension: boolean; renewal_on: string | null; grace_ends_at: Date | null
+type Context = { customer_id: string; trial_ends_at: Date | null; invoice: { number: string | null; period_start: string; period_end: string; subtotal_minor: string; tax_minor: string; total_minor: string; currency: string; exponent: number } | null; admin_login: string | null; state: string; manual_suspension: boolean; renewal_on: string | null; grace_ends_at: Date | null
   pricing: any; auto_suspend: boolean; grace_days: number; plan_allows: boolean; locked: boolean; invoice_status: string | null; invoice_issued_at: Date | null; invoice_due_at: Date | null
   saved_attempts: number; auto_renew: boolean; renewal_amount: Money | null
   card_id: string | null; card_provider: string | null; card_mode: string | null; card_brand: string | null; card_last_four: string | null; card_exp_month: number | null; card_exp_year: number | null }
 
 async function contextOf(pool: Pool, payload: Payload): Promise<Context | undefined> {
-  return (await pool.query(`SELECT c.id AS customer_id,c.admin_login,s.state,s.manual_suspension,s.renewal_at::text AS renewal_on,s.grace_ends_at,sr.snapshot->'pricing' AS pricing,
+  return (await pool.query(`SELECT c.id AS customer_id,c.admin_login,s.trial_ends_at,s.state,s.manual_suspension,s.renewal_at::text AS renewal_on,s.grace_ends_at,sr.snapshot->'pricing' AS pricing,
       COALESCE(p.auto_suspend,false) AS auto_suspend,COALESCE(p.grace_days,0) AS grace_days,COALESCE(p.auto_renew_allowed,false) AS plan_allows,${holdsFreeBaseLockSql('s')} AS locked,
       (SELECT i.status FROM invoices i WHERE i.id=$2::uuid) AS invoice_status,(SELECT i.created_at FROM invoices i WHERE i.id=$2::uuid) AS invoice_issued_at,
       (SELECT i.due_at FROM invoices i WHERE i.id=$2::uuid) AS invoice_due_at,
+      (SELECT json_build_object('number',i.number,'period_start',i.period_start::text,'period_end',i.period_end::text,'subtotal_minor',i.subtotal_minor,
+        'tax_minor',i.tax_minor,'total_minor',i.total_minor,'currency',i.currency,'exponent',i.exponent) FROM invoices i WHERE i.id=$2::uuid) AS invoice,
       (SELECT count(*)::int FROM payment_attempts a JOIN invoices i ON i.order_id=a.order_id WHERE i.id=$2::uuid AND a.kind='saved_card') AS saved_attempts,s.auto_renew_enabled AS auto_renew,
       (SELECT q.payload->'next_renewal' FROM commercial_quotes q WHERE q.id::text=sr.snapshot->>'quote_id') AS renewal_amount,
       m.id AS card_id,m.provider AS card_provider,m.mode AS card_mode,m.brand AS card_brand,m.last_four AS card_last_four,m.exp_month AS card_exp_month,m.exp_year AS card_exp_year
@@ -200,6 +261,13 @@ function nextTryOn(payload: Payload, ctx: Context, today: string, target?: Charg
   return day
 }
 
+/** The invoice a notice is about, with its amounts, or null when it names none. */
+const noticeInvoice = (ctx: Context): NoticeInvoice | null => {
+  const i = ctx.invoice
+  if (!i) return null
+  const money = (minor: string): Money => ({ minor: Number(minor), currency: i.currency, exponent: i.exponent })
+  return { number: i.number, period_start: i.period_start, period_end: i.period_end, subtotal: money(i.subtotal_minor), tax: money(i.tax_minor), total: money(i.total_minor) }
+}
 /** The default saved card as a notice may name it, or null when there is none. */
 const noticeCard = (ctx: Context): NoticeCard | null => ctx.card_id && ctx.card_brand && ctx.card_last_four ? { brand: ctx.card_brand, last_four: ctx.card_last_four } : null
 /** The card an automatic renewal on `renewalOn` would charge: automatic renewal on and a default card that is still valid that day. */
@@ -212,6 +280,7 @@ function stillTrue(payload: Payload, ctx: Context, today: string): boolean {
     case 'card_charge_failed': case 'card_charge_skipped': return ['active', 'past_due'].includes(ctx.state) && !ctx.manual_suspension && ctx.invoice_status === 'issued'
     case 'card_expiring': return ctx.state !== 'cancelled' && ctx.auto_renew && ctx.card_id === payload.payment_method_id && daysBetween(today, payload.expires_on!) >= 0
     case 'payment_received': return ctx.invoice_status === 'paid'
+    case 'payment_refunded': return ctx.state !== 'cancelled'
     case 'suspended': return ctx.state === 'suspended' && !ctx.manual_suspension
     case 'overdue': return ctx.state === 'past_due' && !ctx.manual_suspension && !ctx.locked && ctx.invoice_status === 'issued'
     case 'suspension_warning': return ctx.state === 'past_due' && !ctx.manual_suspension && !ctx.locked && ctx.auto_suspend && !!ctx.grace_ends_at
@@ -243,6 +312,7 @@ export async function sendBillingNotices(pool: Pool, input: { now: Date; mail: M
       const anchor = row.payload.renewal_on ?? row.payload.grace_ends_on ?? row.payload.expires_on
       const notice = billingNotice(row.payload, anchor ? daysBetween(today, anchor) : 0, { autoSuspend: ctx.auto_suspend, origin: await workspaceOrigin(input.returnOrigin, ctx.customer_id),
         autoRenewCard: autoRenewCard(ctx, row.payload.renewal_on ?? null, input.chargeTarget), card: noticeCard(ctx), renewalAmount: ctx.renewal_amount,
+        invoice: noticeInvoice(ctx), trialEnds: ctx.state === 'trialing' && ctx.trial_ends_at ? riyadhDate(new Date(ctx.trial_ends_at)) : null,
         retryOn: row.payload.type === 'card_charge_failed' ? nextTryOn(row.payload, ctx, today, input.chargeTarget) : null,
         autoRenewBlocked: row.payload.type === 'renewal_upcoming' && ctx.auto_renew && row.payload.renewal_on ? chargeBlock(ctx, row.payload.renewal_on, ctx.renewal_amount, input.chargeTarget) : null })
       await input.mail.send({ to: ctx.admin_login, subject: notice.subject, text: notice.text, message_id: `billing-${row.id}@liwan` })

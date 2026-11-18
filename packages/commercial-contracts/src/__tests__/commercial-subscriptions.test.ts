@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { branchBillingCounts, branchQuoteRequestSchema, principalSchema, renewalKey, subscriptionDisplayState, subscriptionViewSchema, usageSnapshotSchema, type Order, type SubscriptionView } from '../commercial/index.js'
+import { trialEndPreviewSchema, branchBillingCounts, branchQuoteRequestSchema, principalSchema, renewalKey, subscriptionDisplayState, subscriptionViewSchema, usageSnapshotSchema, type Order, type SubscriptionView } from '../commercial/index.js'
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
 const sar = (minor: number) => ({ currency: 'SAR', exponent: 2, minor })
@@ -9,7 +9,7 @@ const rev = { id: id(1), subscription_id: 's', revision: 1, customer_id: 'c', te
   cadence: { unit: 'month', count: 1 }, term_start: '2026-10-01', term_end: '2027-09-30', period_start: '2026-10-01', period_end: '2026-10-31', included_extra_branches: 1, extra_branch_count: 0,
   entitlement: { catalog_release_id: id(4), modules: [], features: {}, compiler_version: 'x', digest: 'a'.repeat(64) }, quote_id: 'q', created_at: 'x' }
 const view = (o: Partial<SubscriptionView> = {}): SubscriptionView => ({ id: 's', customer_id: 'c', tenant_id: null, state: 'pending', applied: null, target: null, pending_order: null, order_cancelled: false, revision: 0,
-  renewal_at: null, auto_renew: { enabled: false, consent_at: null, payment_method: null }, trial_ends_at: null, grace_ends_at: null, ...o })
+  renewal_at: null, auto_renew: { enabled: false, consent_at: null, payment_method: null }, trial_ends_at: null, grace_ends_at: null, on_free_base: false, ...o })
 
 describe('subscription view + display state', () => {
   it('parses a view', () => { expect(subscriptionViewSchema.parse(view({ applied: rev as never, target: rev as never, state: 'active' })).state).toBe('active') })
@@ -19,6 +19,19 @@ describe('subscription view + display state', () => {
     expect(subscriptionViewSchema.parse(withCard).auto_renew.payment_method).toEqual(card)
     expect(subscriptionViewSchema.safeParse(view({ auto_renew: { enabled: true, consent_at: 'x', payment_method: { ...card, provider_token: 'tok_1' } } as never })).success).toBe(false)
     expect(subscriptionViewSchema.safeParse(view({ auto_renew: { enabled: true, consent_at: 'x', payment_method: { ...card, last_four: '42' } } as never })).success).toBe(false)
+  })
+  it('requires the free-base flag, so a view without it never parses', () => {
+    const { on_free_base: _flag, ...without } = view()
+    expect(subscriptionViewSchema.safeParse(without).success).toBe(false)
+    expect(subscriptionViewSchema.parse(view({ on_free_base: true })).on_free_base).toBe(true)
+  })
+  it('requires the price after the trial in a trial-end preview, null when nothing is owed', () => {
+    const preview = { status: 'trialing', trial_ends_at: 'x', outcome: null, kept: { bundle_revision_ids: [], paid_users: 0, paid_storage_gb: 0, paid_extra_branches: 0 },
+      locked_bundle_revision_ids: [], limits: { users: 1, storage_mb: 1, extra_branches: 0 },
+      excess: { users: null, storage_bytes: null, extra_branches: null, sampled_at: null, source: 'unavailable', item_details: 'unavailable' }, first_invoice: null, next_attempt_at: null }
+    expect(trialEndPreviewSchema.safeParse(preview).success).toBe(false)
+    expect(trialEndPreviewSchema.parse({ ...preview, price_after_trial: null }).price_after_trial).toBeNull()
+    expect(trialEndPreviewSchema.parse({ ...preview, price_after_trial: sar(34900) }).price_after_trial).toEqual(sar(34900))
   })
   it('maps order progress without premature active', () => {
     expect(subscriptionDisplayState(view({ pending_order: order('awaiting_payment', 'not_started') }))).toBe('awaiting_payment')

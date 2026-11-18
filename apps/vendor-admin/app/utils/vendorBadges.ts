@@ -11,6 +11,10 @@ const CUSTOMER: Record<string, StatusTone> = { awaiting_payment: 'warning', acti
 const CUSTOMER_MAP = entries(CUSTOMER, value => `vendor.customers.display.${value}`)
 export const customerDisplayBadge = (state: string): StatusBadgeEntry => statusBadgeEntry(CUSTOMER_MAP, state)
 
+const TRIAL_OUTCOME: Record<string, StatusTone> = { converted: 'success', kept_subset: 'info', free_base: 'neutral' }
+const TRIAL_OUTCOME_MAP = entries(TRIAL_OUTCOME, value => `vendor.customers.trialOutcomes.${value}`)
+export const trialOutcomeBadge = (outcome: string): StatusBadgeEntry => statusBadgeEntry(TRIAL_OUTCOME_MAP, outcome)
+
 const OPERATION: Record<string, StatusTone> = {
   registered: 'neutral', deleting: 'warning', deleted: 'neutral', queued: 'neutral', provisioning: 'info', running: 'info',
   active: 'success', succeeded: 'success', verified: 'success', needs_intervention: 'warning', failed: 'destructive',

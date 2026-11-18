@@ -5,7 +5,7 @@ import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBad
 import { formatLiwanDate } from '@liwan/ui/app/composables/calendarDate'
 import { sharedTenantLoginUrl } from '../../composables/useSharedTenantOnboarding'
 import * as subscriptions from '../../utils/vendorSubscriptions'
-import { customerDisplayBadge, operationStatusBadge } from '../../utils/vendorBadges'
+import { customerDisplayBadge, operationStatusBadge, trialOutcomeBadge } from '../../utils/vendorBadges'
 import { buildVendorPolicy } from '../../utils/vendorPolicy'
 import { loadSfc, stripImports, vueApi } from './sfc'
 import { readFileSync } from 'node:fs'
@@ -80,7 +80,7 @@ describe('provisioning poll', () => {
 })
 
 describe('customer glance', () => {
-  const glance = loadSfc('components/vendor/CustomerGlance.vue', { useI18n, cadenceLabel, formatCommercialMoney, invoiceStatusBadge, formatLiwanDate, customerDisplayBadge, ...subscriptions })
+  const glance = loadSfc('components/vendor/CustomerGlance.vue', { useI18n, cadenceLabel, formatCommercialMoney, invoiceStatusBadge, formatLiwanDate, customerDisplayBadge, trialOutcomeBadge, ...subscriptions })
   const base = { setupRequired: false, subscription: null, hasWorkspace: true, workspaceBadge: null, provisioningFailed: false, operationFailed: false, workspaceUnreadable: false, invoicesOffered: true, loginUrl: null, tabTo: (tab: string) => `/c?tab=${tab}` }
   const pastDue = { id: 's', state: 'past_due', applied: null, target: null, pending_order: null, revision: 1, auto_renew: { enabled: false } }
   it('never says there are no problems while the workspace state could not be read, and offers a retry', async () => {

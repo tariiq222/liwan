@@ -6,7 +6,7 @@ import { formatLiwanDate } from '@liwan/ui/app/composables/calendarDate'
 import type { RouteLocationRaw } from 'vue-router'
 import type { ClientTab } from '@/utils/vendorClients'
 import type { StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
-import { customerDisplayBadge } from '@/utils/vendorBadges'
+import { customerDisplayBadge, trialOutcomeBadge } from '@/utils/vendorBadges'
 import { daysUntilDate, isStalled, subscriptionDisplayState } from '@/utils/vendorSubscriptions'
 
 // The customer at a glance: plan, renewal, last invoice, workspace, and what needs attention, each linking to its tab.
@@ -79,7 +79,7 @@ const issues = computed(() => {
 
     <div class="grid gap-4 sm:grid-cols-2">
       <SharedMetricTile icon="i-lucide-package" :label="t('vendor.customers.plan')" :value="planName ?? t('vendor.customers.noPlan')" :hint="planPending ? t('vendor.customers.pendingActivation') : sub?.applied ? cadenceLabel(sub.applied.cadence, t) : undefined">
-        <div v-if="display" class="mt-1"><SharedStatusBadge :tone="customerDisplayBadge(display).tone" :label="t(customerDisplayBadge(display).labelKey)" /></div>
+        <div v-if="display" class="mt-1 flex flex-wrap gap-1.5"><SharedStatusBadge :tone="customerDisplayBadge(display).tone" :label="t(customerDisplayBadge(display).labelKey)" /><SharedStatusBadge v-if="sub?.trial_outcome" variant="outline" :tone="trialOutcomeBadge(sub.trial_outcome).tone" :label="t(trialOutcomeBadge(sub.trial_outcome).labelKey)" /></div>
         <NuxtLink :to="tabTo('subscription')" class="text-sm text-primary hover:underline">{{ t('vendor.customers.glance.view') }}</NuxtLink>
       </SharedMetricTile>
 

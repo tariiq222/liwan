@@ -4,7 +4,7 @@ import { completeOutbox, deferOutbox, failOutbox, leaseOutboxRow } from './outbo
 import type { FreeBaseLockCause } from '@liwan/commercial-contracts'
 import { workspaceLines, workspaceOrigin, type ReturnOrigin } from './return-origin.js'
 
-type LockNotice = { cause: FreeBaseLockCause }
+type LockNotice = { cause: FreeBaseLockCause; outcome?: 'converted' | 'kept_subset' | 'free_base' }
 
 /** The email subject and body for the cause that dropped the subscription to the free base, Arabic then English, naming the workspace when its origin is known. */
 export function overLimitNotice(payload: LockNotice, origin: string | null = null): { subject: string; text: string } {
@@ -24,9 +24,12 @@ function overLimitBody(payload: LockNotice): { subject: string; ar: string; en: 
   if (payload.cause === 'first_invoice_unpaid') return { subject,
     ar: 'انتهت مهلة دفع الفاتورة الأولى. يمكنك شراء المزايا مجددًا من صفحة الاشتراك.',
     en: 'The first invoice payment grace period ended. You can buy the features again from Subscription.' }
+  if (payload.outcome === 'kept_subset') return { subject,
+    ar: 'انتهت تجربتك وبقيت التطبيقات التي دفعت ثمنها. بياناتك محفوظة، والتطبيقات الأخرى للقراءة والتصدير فقط، ويُقيَّد الاستخدام الزائد على حدود باقتك. يمكنك إضافة أي تطبيق في أي وقت من صفحة الاشتراك.',
+    en: 'Your trial ended and the apps you paid for remain. Your data is kept, and the other apps are read-only and exportable. Usage above your plan limits is restricted. You can add any app at any time from Subscription.' }
   return { subject,
-    ar: 'انتهت تجربتك. أصبحت التطبيقات غير المشتراة للقراءة والتصدير، ويُقيَّد الاستخدام الزائد. راجع الاشتراك لمعرفة ما بقي متاحًا.',
-    en: 'Your trial ended. Unpurchased apps now allow reading and export. Excess usage is restricted. See Subscription for what remains available.' }
+    ar: 'انتهت تجربتك ولم يصلنا دفع، فعادت مساحة عملك إلى القاعدة المجانية. بياناتك محفوظة، والتطبيقات غير المشمولة فيها للقراءة والتصدير فقط. يمكنك الاشتراك في أي وقت من صفحة الاشتراك.',
+    en: 'Your trial ended and no payment arrived, so your workspace is back on the free base. Your data is kept, and apps the free base does not include are read-only and exportable. You can subscribe at any time from Subscription.' }
 }
 
 /**
