@@ -10,7 +10,7 @@ from fastapi import HTTPException
 from sentry_sdk.transport import Transport
 
 from liwan_ai_service import service
-from liwan_ai_service.error_reporting import ErrorReportingUnavailable, init_error_reporting, scan_text
+from liwan_ai_service.error_reporting import ErrorReportingUnavailable, init_error_reporting, scan_text, scrub_breadcrumb, scrub_event
 from liwan_ai_service.settings import Settings
 from tests.fakes import ScriptedChatModel, make_memory_app
 from tests.platform_file import platform_env
@@ -141,3 +141,30 @@ def test_the_scan_withholds_identifiers_and_keys():
     for forbidden in (EMAIL, PHONE, "123 4567", IBAN, NATIONAL_ID, "١٠١٠", "abc.def", PROVIDER_KEY, "api.example.com"):
         assert forbidden not in scanned
     assert scan_text("run failed in step 3") == "run failed in step 3"
+
+
+def test_a_log_entry_keeps_only_its_scanned_template():
+    event = {
+        "message": f"failed for {EMAIL} Ahmed Private",
+        "logentry": {"message": "failed for %s %s", "formatted": "failed for Ahmed Private x", "params": ["Ahmed Private", EMAIL]},
+    }
+    scrubbed = scrub_event(event, (), "rel")
+    assert scrubbed["logentry"] == {"message": "failed for %s %s"}
+    assert "message" not in scrubbed
+    payload = json.dumps(scrubbed)
+    assert "Ahmed" not in payload
+    assert EMAIL not in payload
+
+
+def test_texts_are_cut_and_url_credentials_and_bearer_tokens_are_masked():
+    event = {"exception": {"values": [
+        {"type": "RuntimeError", "value": "x" * 500},
+        {"type": "RuntimeError", "value": "GET https://user:hunter2@host.example/p with Authorization: Bearer abc.def-123"},
+    ]}}
+    values = scrub_event(event, (), "rel")["exception"]["values"]
+    assert len(values[0]["value"]) == 300
+    for secret in ("hunter2", "user:", "abc.def-123"):
+        assert secret not in values[1]["value"]
+    crumb = scrub_breadcrumb({"message": "y" * 500, "data": {"url": "/x"}}, ())
+    assert len(crumb["message"]) == 300
+    assert "data" not in crumb

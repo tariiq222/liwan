@@ -6,7 +6,7 @@ the ``runtime`` tag; never a body, a cookie, a header value beyond those, a loca
 Handled client errors (4xx ``HTTPException``) are not reported, nor are 5xx ``HTTPException`` answers such as a draining
 generation: only an exception that nobody handled and an ERROR log line become events.
 
-The scan is this service's own copy of the outbound data policy shapes (``odoo-addons/liwan_ai/models/outbound_scan.py``):
+The scan is this service's own copy of the outbound data policy shapes (``odoo-addons/liwan_platform/outbound_scan.py``):
 the service is a separate deployable and imports neither the Odoo nor the web copy. It errs towards withholding.
 """
 from __future__ import annotations
@@ -71,11 +71,14 @@ def scrub_event(event: dict[str, Any], secrets: tuple[str | None, ...], release:
             exception["value"] = "" if exception.get("type") in VALIDATION_ERRORS else scan_text(value, secrets)[:MAX_MESSAGE_LENGTH]
         for frame in (exception.get("stacktrace") or {}).get("frames") or []:
             frame.pop("vars", None)
-    if event.get("message"):
-        event["message"] = scan_text(event["message"], secrets)
     logentry = event.get("logentry")
     if logentry:
-        event["logentry"] = {"message": scan_text(logentry.get("formatted") or logentry.get("message") or "", secrets)}
+        # A log line's arguments and formatted text are free text (names, notes) that no pattern scan can vouch for:
+        # only the static template leaves, and the top-level message built from the formatted text goes with them.
+        event.pop("message", None)
+        event["logentry"] = {"message": scan_text(str(logentry.get("message") or ""), secrets)[:MAX_MESSAGE_LENGTH]}
+    elif event.get("message"):
+        event["message"] = scan_text(str(event["message"]), secrets)[:MAX_MESSAGE_LENGTH]
     return event
 
 
@@ -83,7 +86,7 @@ def scrub_breadcrumb(crumb: dict[str, Any], secrets: tuple[str | None, ...]) -> 
     """A breadcrumb keeps its category, level and scanned message; its data (URLs, payloads) is dropped."""
     crumb.pop("data", None)
     if crumb.get("message"):
-        crumb["message"] = scan_text(crumb["message"], secrets)
+        crumb["message"] = scan_text(str(crumb["message"]), secrets)[:MAX_MESSAGE_LENGTH]
     return crumb
 
 
@@ -103,7 +106,7 @@ def init_error_reporting(settings: SentrySettings, secrets: Callable[[], tuple[s
         dsn=settings.dsn,
         environment=settings.environment,
         release=release,
-        send_default_pii=False,
+        # send_default_pii stays unset: the SDK treats that as False and deprecates the option, so it is not passed.
         include_local_variables=False,
         max_request_body_size="never",
         traces_sample_rate=None,

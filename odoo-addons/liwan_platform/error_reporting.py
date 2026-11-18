@@ -12,6 +12,7 @@ are off, and ``before_send`` rebuilds everything an event may carry about the re
 """
 import logging
 import os
+import re
 import threading
 from typing import NamedTuple
 
@@ -26,6 +27,10 @@ ENVIRONMENT_ENV = 'LIWAN_SENTRY_ENVIRONMENT'
 RUNTIME_TAG = 'odoo'
 # Event sections that only carry context beyond the scrubbed ones: free-form extras, breadcrumbs, loaded modules, the host.
 DROPPED_SECTIONS = ('extra', 'breadcrumbs', 'modules', 'server_name')
+# An exception text is a hint to the stack, never a carrier of the data that broke it.
+MAX_TEXT_LENGTH = 300
+BEARER = re.compile(r'(?i)\bBearer\s+\S+')
+URL_USERINFO = re.compile(r'(?i)(\b[a-z][a-z0-9+.\-]*://)[^/\s@]+@')
 
 
 class EventContext(NamedTuple):
@@ -100,27 +105,20 @@ def scrub_event(event, context):
     event.pop('user', None)
     if context.uid:
         event['user'] = {'id': str(context.uid)}
-    if 'message' in event:
-        event['message'] = clean_text(event['message'])
     if 'logentry' in event:
-        event['logentry'] = clean_log_entry(event['logentry'])
+        # A log line's arguments and formatted text are free text (names, notes) that no pattern scan can vouch for:
+        # only the static template leaves, and the top-level message built from the formatted text goes with them.
+        event.pop('message', None)
+        event['logentry'] = {'message': clean_text(event['logentry'].get('message') or '')[:MAX_TEXT_LENGTH]}
+    elif 'message' in event:
+        event['message'] = clean_text(event['message'])[:MAX_TEXT_LENGTH]
     for exception in event.get('exception', {}).get('values', ()):
         if exception.get('value'):
-            exception['value'] = clean_text(exception['value'])
+            exception['value'] = clean_text(exception['value'])[:MAX_TEXT_LENGTH]
     return event
 
 
 def clean_text(text):
-    """``text`` with every private value and every secret query or path token replaced."""
-    return mask_access_tokens(withhold_text(str(text)))
-
-
-def clean_log_entry(entry):
-    """A log entry with its message, formatted text and arguments cleaned; arguments are kept as text."""
-    cleaned = {key: clean_text(value) for key, value in entry.items() if key in ('message', 'formatted') and value}
-    params = entry.get('params')
-    if isinstance(params, dict):
-        cleaned['params'] = {key: clean_text(value) for key, value in params.items()}
-    elif params:
-        cleaned['params'] = [clean_text(value) for value in params]
-    return cleaned
+    """``text`` with every private value, URL credential, Bearer token and secret query or path token replaced."""
+    text = BEARER.sub('Bearer [redacted]', URL_USERINFO.sub(r'\1[redacted]@', str(text)))
+    return mask_access_tokens(withhold_text(text))

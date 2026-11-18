@@ -119,7 +119,20 @@ class TestEventScrubber(TransactionCase):
             self.assertNotIn(leak, serialized)
         self.assertIn('[email withheld]', event['exception']['values'][0]['value'])
         self.assertIn('access_token=***', event['exception']['values'][0]['value'])
-        self.assertEqual(event['logentry']['params'][0], 'PATCH')
+        # Only the static template of a log entry leaves: no arguments, no formatted text, no message built from it.
+        self.assertEqual(event['logentry'], {'message': 'api internal error: %s %s'})
+        self.assertNotIn('message', event)
+
+    def test_an_exception_text_is_cut_and_credentials_in_it_are_masked(self):
+        long_text = 'x' * 500
+        credentials = 'call https://user:hunter2@host.example/path failed, Authorization: Bearer abc.def-123'
+        event = self._event()
+        event['exception']['values'] = [{'type': 'RuntimeError', 'value': long_text}, {'type': 'RuntimeError', 'value': credentials}]
+        values = scrub_event(event, EventContext(None, None, None, None, None))['exception']['values']
+        self.assertEqual(len(values[0]['value']), 300)
+        for secret in ('hunter2', 'user:', 'abc.def-123'):
+            self.assertNotIn(secret, values[1]['value'])
+        self.assertIn('https://[redacted]@host.example/path', values[1]['value'])
 
     def test_a_path_token_is_masked_and_a_worker_without_a_request_keeps_no_request_or_user(self):
         masked = scrub_event(self._event(), EventContext('tenant_a', 'GET', '/api/v1/public/inbox/catalog/images/3/tok-en', None, None))
