@@ -14,7 +14,7 @@ import re
 
 from odoo.tools.mail import html2plaintext
 
-from odoo.addons.liwan_ai.models.outbound_scan import withhold_text
+from odoo.addons.liwan_platform.outbound_scan import withhold_text
 
 CHUNK_CHARS = 1500
 MAX_CHUNKS = 20

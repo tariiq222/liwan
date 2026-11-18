@@ -1,0 +1,4 @@
+# Known npm advisories that tools/npm_audit_gate.py tolerates. One per line: <GHSA id> <reason and review date>.
+# A line without a reason, a malformed or duplicate id, or an id that no audit report mentions any more fails the gate.
+# The set only shrinks: remove a line when the package is upgraded.
+GHSA-fc5q-39xc-vjpf picomatch ReDoS through single-branch repeated extglobs; no patched release exists (latest 4.0.7 is affected); same result on main; owner decision 2026-11-18; review by 2026-12-18 or when picomatch ships a fix.

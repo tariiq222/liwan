@@ -542,6 +542,27 @@ values the owner provides.
 The operator procedure and the per-alert first action are in
 [operations/saas-commercial-runbook.md](../docs/operations/saas-commercial-runbook.md) §5.
 
+## Error reporting (owner decision 2026-11-18)
+
+Odoo, `apps/web` and `apps/ai-service` can report errors to a self-hosted Sentry. It runs on the owner's Openship server in
+Germany, outside Saudi Arabia, so this is a deliberate exception to in-Kingdom hosting, limited to the data below.
+
+| Item | Decision |
+| --- | --- |
+| Host | `https://sentry.liwanos.com` (Cloudflare Tunnel, TLS ends at Cloudflare) |
+| Projects | `liwan-odoo`, `liwan-web`, `liwan-ai-service`, one DSN each |
+| Retention | 30 days |
+| Scope | Errors only. No tracing, profiling, session replay or source maps. |
+| Scrubbing | Mandatory before send. The request is reduced to method, path and user agent; the user is the user id only; no bodies, cookies or local variables; identifiers are withheld; log events use their templates only. |
+| Switch | The DSN is optional per runtime and unset by default. Empty means nothing is initialised or sent, so customer-hosted installs make no vendor connection (R5, R8). |
+| Configuration | DSN values come from deployment configuration supplied by the owner and are never committed. |
+
+Variables (all empty by default, see `deploy/.env.example` and `deploy/ai/.env.example`): Odoo `LIWAN_SENTRY_DSN`,
+`LIWAN_SENTRY_ENVIRONMENT`; web `NUXT_SENTRY_DSN`, `NUXT_SENTRY_ENVIRONMENT` (release from `LIWAN_RELEASE_ID`; browser events
+use the same-origin `/api/error-reports` tunnel, so the Caddy CSP is unchanged); ai-service `AI_SENTRY_DSN`,
+`AI_SENTRY_ENVIRONMENT` (set both or neither). In shared hosting Odoo and the ai service leave only through their egress
+proxies, so the Sentry host must be added to each allowlist before a DSN is set there.
+
 ## Unresolved (do not invent answers)
 
 | Topic | Status |

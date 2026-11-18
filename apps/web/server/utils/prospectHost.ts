@@ -1,4 +1,5 @@
 import { timingSafeEqual } from 'node:crypto'
+import { ERROR_REPORT_PATH } from '../../shared/utils/errorReportScrub'
 
 type ProspectConfig = { customerCommercialEnabled?: boolean | string; customerCommercialPublicOrigin?: string; publicSignupEnabled?: boolean | string }
 
@@ -9,6 +10,8 @@ export const FIND_WORKSPACE_API = /^\/api\/invitations\/find-workspace$/
 export const isFindWorkspacePage = (pathname: string) => /^\/find-workspace\/?$/.test(pathname)
 /** The common host serves no sign-in: `/login` there leads to the find page (tenant hosts keep their own `/login`). */
 export const isProspectLogin = (pathname: string) => /^\/login\/?$/.test(pathname)
+/** The browser reporter's tunnel: the public pages report through it too, and it needs no tenant (its events carry no tenant tag there). */
+const isErrorReportPost = (request: { method?: string; pathname: string }) => request.method === 'POST' && request.pathname === ERROR_REPORT_PATH
 const PROSPECT_PATHS = [/^\/payment-done\/?$/, /^\/api\/commercial\/payment-callback$/, /^\/_nuxt\//]
 
 /** The `x-liwan-tenant` value signed for a payment return that arrives on the LiwanOS public host. */
@@ -20,7 +23,7 @@ export const PROSPECT_TENANT = 'public'
  * has to come through the shared proxy (token), and only the paths above are served; everything else on this host
  * goes on to the tenant boundary, which refuses it.
  */
-export function isProspectRequest(request: { host?: string; proxyToken?: string; pathname: string }, config: ProspectConfig): boolean {
+export function isProspectRequest(request: { host?: string; method?: string; proxyToken?: string; pathname: string }, config: ProspectConfig): boolean {
   if ((process.env.LIWAN_TENANCY_MODE ?? 'dedicated') !== 'shared') return false
   if (!(config.customerCommercialEnabled === true || config.customerCommercialEnabled === 'true')) return false
   let host: string
@@ -32,5 +35,6 @@ export function isProspectRequest(request: { host?: string; proxyToken?: string;
   if (isSignupPage(request.pathname) || SIGNUP_API.test(request.pathname) || isFindWorkspacePage(request.pathname) || FIND_WORKSPACE_API.test(request.pathname) || isProspectLogin(request.pathname)) {
     return config.publicSignupEnabled === true || config.publicSignupEnabled === 'true'
   }
+  if (isErrorReportPost(request)) return true
   return PROSPECT_PATHS.some(pattern => pattern.test(request.pathname))
 }

@@ -32,6 +32,11 @@ afterEach(() => {
 const get = (path: string, headers: Record<string, string>) => new Promise<{ status: number; location?: string }>((resolve, reject) => {
   http.get({ host: '127.0.0.1', port, path, headers }, res => { res.resume(); res.on('end', () => resolve({ status: res.statusCode!, location: res.headers.location })) }).on('error', reject)
 })
+const post = (path: string, headers: Record<string, string>) => new Promise<number>((resolve, reject) => {
+  const req = http.request({ host: '127.0.0.1', port, path, method: 'POST', headers }, res => { res.resume(); res.on('end', () => resolve(res.statusCode!)) })
+  req.on('error', reject)
+  req.end('{}')
+})
 const common = { host: 'app.liwan.example', 'x-liwan-proxy-token': TOKEN }
 
 describe('the common host sign-in', () => {
@@ -49,5 +54,17 @@ describe('the common host sign-in', () => {
     expect((await get('/find-workspace', tenant)).status).toBe(404)
     expect((await get('/login', tenant)).status).toBe(421)
     expect(reached).toEqual([])
+  })
+})
+
+describe('browser error reports on the common host', () => {
+  it('lets POST /api/error-reports reach the tunnel without a tenant, and nothing else of /api', async () => {
+    expect(await post('/api/error-reports', common)).toBe(200)
+    expect(reached).toEqual(['/api/error-reports'])
+    expect(await post('/api/v1/me', common)).toBe(421)
+    expect((await get('/api/error-reports', common)).status).toBe(421)
+  })
+  it('keeps a tenant host on the tenant boundary', async () => {
+    expect(await post('/api/error-reports', { host: 'tabc.liwan.example', 'x-liwan-proxy-token': TOKEN })).toBe(421)
   })
 })
