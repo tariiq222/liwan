@@ -1,3 +1,4 @@
+import { isTrialCheckout, isTrialCheckoutPayable, markTrialCheckoutPaidOn, revertTrialCheckoutOn, voidTrialCheckoutOn } from './trial-checkout.js'
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { z } from 'zod'
@@ -49,7 +50,7 @@ const matches = (a: any, e: ProviderEvent) => a.provider === e.provider && a.pro
   && (!e.attempt_id || e.attempt_id === a.id) && Number(a.amount_minor) === e.amount.minor
   && a.currency === e.amount.currency && a.exponent === e.amount.exponent && (a.mode === 'live') === e.live
 
-async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepted' | 'ignored' | 'rejected'> {
+async function apply(client: PoolClient, event: ProviderEvent, now = new Date()): Promise<'accepted' | 'ignored' | 'rejected'> {
   const found = (await client.query('SELECT order_id FROM payment_attempts WHERE provider=$1 AND provider_ref=$2', [event.provider, event.provider_ref])).rows[0]
   if (!found) return 'rejected'
   // Order-first lock order matches attempt creation and serializes separate attempts.
@@ -80,6 +81,13 @@ async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepte
   if (event.status === 'refunded' && order.paid_attempt_id === attempt.id && order.payment_state === 'refunded') {
     await flagRefundAfterFulfillment(client, order, attempt, event)
     return 'accepted'
+  }
+  const trialCheckout = isTrialCheckout(order)
+  if (trialCheckout && event.status === 'succeeded' && !order.cancelled && order.payment_state === 'awaiting_payment'
+    && !await isTrialCheckoutPayable(client, order, now, new Date(attempt.created_at))) {
+    await voidTrialCheckoutOn(client, order)
+    order.cancelled = true
+    order.automatic_refund = true
   }
   const type = event.status === 'succeeded' ? 'payment_succeeded' : event.status === 'refunded' ? 'payment_refunded' : 'payment_pending'
   const next = nextOrderState(order as OrderStateInput, { type })
@@ -121,6 +129,7 @@ async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepte
       } else {
         await enqueueOutbox(client, { kind: 'fulfillment.enqueue', aggregate_id: order.id, dedupe_key: order.target_revision_id,
           payload: { order_id: order.id, subscription_id: order.subscription_id, target_revision_id: order.target_revision_id } })
+        if (trialCheckout) await markTrialCheckoutPaidOn(client, order, now, { actor: 'system:payment', reason: 'First paid period confirmed' })
         if (order.kind === 'renewal') await onRenewalPaid(client, order.id)
         // A subscription invoice is acknowledged; an AI top-up has its own receipt in the ledger and gets no billing notice.
         if (topup === 'none') await enqueueBillingNotice(client, `payment_received:${attempt.invoice_id}`, { type: 'payment_received', subscription_id: order.subscription_id,
@@ -130,6 +139,7 @@ async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepte
   } else if (event.status === 'refunded') {
     // A refund or chargeback of a top-up order takes the balance back, whole: a provider refund is not reported per purchase.
     await markTopupRefunded(client, order.id, 'system', 'payment refunded at the provider')
+    if (trialCheckout && await revertTrialCheckoutOn(client, order)) order.cancelled = true
     await flagRefundAfterFulfillment(client, order, attempt, event)
   }
   return 'accepted'
@@ -141,7 +151,8 @@ async function apply(client: PoolClient, event: ProviderEvent): Promise<'accepte
  * partial refund adds one); the refund worker turns it into a pending credit note for the new part.
  */
 async function flagRefundAfterFulfillment(client: PoolClient, order: any, attempt: any, event: ProviderEvent) {
-  if (order.fulfillment_state !== 'applied') return
+  // A trial checkout refunded before delivery was cancelled by its revert: its paid invoice is credited the same way.
+  if (order.fulfillment_state !== 'applied' && !(isTrialCheckout(order) && order.cancelled)) return
   const refunded = refundedAmount(event)
   const reason = 'Payment refunded after fulfillment — manual review'
   // A refund the provider gave no figure for is still queued, so the refund worker rejects it visibly (`refund_amount_missing`).
@@ -175,7 +186,7 @@ export async function closeOtherAttempts(pool: Pool, adapter: PaymentAdapter, pa
   return closeSiblingAttempts(pool, adapter, paid)
 }
 
-export async function handleProviderEvent(pool: Pool, input: { provider: string; rawBody: Uint8Array | string; headers: AdapterHeaders; adapter: PaymentAdapter }) {
+export async function handleProviderEvent(pool: Pool, input: { provider: string; rawBody: Uint8Array | string; headers: AdapterHeaders; adapter: PaymentAdapter; now?: Date }) {
   // The provider's registration code is not a payment event: it is answered with success and goes to the operator, and nothing else changes.
   try {
     const verification = input.provider === input.adapter.provider ? input.adapter.webhookVerification(toBytes(input.rawBody), input.headers) : null
@@ -205,7 +216,7 @@ export async function handleProviderEvent(pool: Pool, input: { provider: string;
     ? (await pool.query('SELECT kind FROM payment_attempts WHERE id=$1', [event.attempt_id])).rows[0] : undefined
   if (!known && event.attempt_id && z.uuid().safeParse(event.attempt_id).success && (!owner || owner.kind === 'form')) {
     const resolved = await resolveFormPayment(pool, input.adapter, { payment_id: event.payment_id ?? event.provider_ref, source: 'webhook', event_id: event.event_id,
-      abandoned: event.raw_type === 'payment_abandoned', settle: apply })
+      abandoned: event.raw_type === 'payment_abandoned', settle: (db, payment) => apply(db, payment, input.now) })
     if (resolved.outcome === 'rejected') return { status: 409, outcome: 'unmatched' as const }
     if (resolved.outcome === 'not_paid' || resolved.outcome === 'declined') return { status: 200, outcome: 'ignored' as const }
     if (resolved.outcome === 'settled') await closeSiblingAttempts(pool, input.adapter, event)
@@ -230,7 +241,7 @@ export async function handleProviderEvent(pool: Pool, input: { provider: string;
     if (!confirmed) return { status: 200, outcome: 'rejected' as const }
     // apply() re-reads and locks the order and the attempt, so what it applies is judged against their state now.
     await lockSettlementOf(client, confirmed)
-    const outcome = await apply(client, { ...confirmed, event_id: event.event_id })
+    const outcome = await apply(client, { ...confirmed, event_id: event.event_id }, input.now)
     await client.query(`UPDATE payment_events SET outcome=$2,reason=$3,
       attempt_id=(SELECT id FROM payment_attempts WHERE provider=$4 AND provider_ref=$5) WHERE id=$1`,
     [id,outcome === 'rejected' ? 'rejected' : 'accepted',outcome === 'rejected' ? 'attempt_mismatch' : null,event.provider,event.provider_ref])
@@ -351,7 +362,7 @@ const HOSTED_ATTEMPT_LIFETIME_MS = 30 * 60_000
 /** What a new attempt row is: a hosted invoice, or a card form payment with what the customer asked and consented to. */
 type NewAttempt = { kind: 'hosted_invoice' } | { kind: 'form'; save_card: boolean; consent_text_version: string | null; actor: string }
 /** `actor` is the customer actor id of the person a card form is opened for: it is the consenting person when the form keeps the card. */
-type AttemptInput = { order_id: string; customer_id: string; adapter: PaymentAdapter; returnOrigin: ReturnOrigin; actor?: string }
+type AttemptInput = { order_id: string; customer_id: string; adapter: PaymentAdapter; returnOrigin: ReturnOrigin; actor?: string; now?: Date }
 
 /** Locks the order, checks it can be paid and returns its live attempt, or reserves a new one of the given kind. */
 function reserveAttempt(pool: Pool, input: AttemptInput, attemptId: string, spec: NewAttempt) {
@@ -359,6 +370,9 @@ function reserveAttempt(pool: Pool, input: AttemptInput, attemptId: string, spec
     const order = (await client.query('SELECT * FROM orders WHERE id=$1 AND customer_id=$2 FOR UPDATE', [input.order_id,input.customer_id])).rows[0]
     if (!order) throw new CommercialHttpError('not_found', 404)
     if (order.payment_state !== 'awaiting_payment' || order.cancelled) throw new CommercialHttpError('payment_not_awaiting', 409)
+    if (isTrialCheckout(order) && !await isTrialCheckoutPayable(client, order, input.now ?? new Date()))
+      throw new CommercialHttpError('trial_checkout_expired', 409)
+
     // A4/A7: never open a charge for a paid first order whose workspace could never invite anyone — the same predicate
     // fulfilment uses, with the subscription it will fulfil.
     if (isPaidFirstOrder({ kind: order.kind }, Number(order.due_now_minor), order.expected_applied_revision_id)) {

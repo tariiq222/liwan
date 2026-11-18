@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
-import type { Principal } from '@liwan/commercial-contracts'
+import { riyadhDate, type Principal } from '@liwan/commercial-contracts'
 import { client, money, monthly, setup, url } from './commercial-helpers.js'
 import { activateSignupTrial } from '../commercial/trial-first-login.js'
 import { convertTrial, extendTrial, startTrial } from '../commercial/trial.js'
@@ -10,15 +10,14 @@ import { LOCK_RETRY_MS, processFreeBaseLocks } from '../commercial/free-base-loc
 import { attention } from '../commercial/attention.js'
 import { assertReconfigureAuthority, runSubscriptionReconfigure, type SubscriptionRunner } from '../shared/subscription-reconfigure.js'
 import { applyDunning, generateRenewals } from '../commercial/renewals.js'
-import { applyReceipt, processFulfillmentOutbox } from '../commercial/fulfillment.js'
+import { processFulfillmentOutbox } from '../commercial/fulfillment.js'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
-import { acceptQuoteOn } from '../commercial/orders.js'
+import { acceptQuoteOn, cancelOrder } from '../commercial/orders.js'
 import { collectUsage } from '../commercial/usage-collector.js'
 import { recordUsage } from '../commercial/usage.js'
 import { resumeSubscription, suspendSubscription, syncTenantStatus } from '../commercial/suspension.js'
 import { getSubscription } from '../commercial/subscriptions.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
-import { sendTrialNotices } from '../commercial/trial-notices.js'
 import { fixedReturnOrigin } from '../commercial/return-origin.js'
 import { pushCommercialExpiry } from '../commercial/expiry-push.js'
 import { transaction } from '../db.js'
@@ -28,6 +27,13 @@ import { recoverPaidFulfillment } from '../commercial/paid-fulfillment-recovery.
 import { processRefundOutbox, refundCreditNote } from '../commercial/settlements.js'
 import { recoverCommercialSystemJobs } from '../shared/commercial-recovery.js'
 import { trialEndPreview } from '../commercial/trial-preview.js'
+import { getAnalytics } from '../commercial/analytics.js'
+
+// The deadline push stays real; a test can make one call fail.
+vi.mock('../commercial/expiry-push.js', async original => {
+  const real = await original<typeof import('../commercial/expiry-push.js')>()
+  return { ...real, pushCommercialExpiry: vi.fn(real.pushCommercialExpiry) }
+})
 
 const POLICY = '6f1c3d8e-0000-4000-8000-000000000001'
 const PAID_KEYS = ['pmo.enabled', 'pmo.change_control', 'pmo.baselines', 'pmo.evm']
@@ -261,18 +267,20 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     const conversionAt = new Date('2026-11-15T09:00:00Z')
     const converted = await convertTrial(pool, { customer_id: f.customer, now: conversionAt, returnOrigin: origin })
     expect(converted.order?.due_now.minor).toBe(Math.round((19900 + Math.round(5800 * 26 / 30)) * 1.15))
-    const job = (await pool.query("SELECT id,payload FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'origin'='trial-end'", [f.tenant])).rows[0]
-    expect(job.payload.authority).toMatchObject({ trial_ends_at: conversionAt.toISOString(), post_trial_features: { 'pmo.enabled': false, 'users.limit': 5 } })
-    expect((await getSubscription(pool, f.customer)).state).toBe('past_due')
+    expect((await getSubscription(pool, f.customer)).state).toBe('trialing')
+    expect((await pool.query("SELECT 1 FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'origin'='trial-end'", [f.tenant])).rowCount).toBe(0)
     const prior = (await getSubscription(pool, f.customer)).applied!.id
     expect(converted.order!.target_revision_id).not.toBe(prior)
     expect(converted.order!.expected_applied_revision_id).toBe(prior)
-    await runSubscriptionReconfigure(pool, job.id, async input => ({
-      ...await okRunner(input), observed_at: conversionAt.toISOString(), observed_entitlement_digest: job.payload.authority.post_trial_digest,
-    }))
-    const hosted = await createPaymentAttempt(pool, { order_id: converted.order!.id, customer_id: f.customer, adapter, returnOrigin: origin })
+    const replay = await convertTrial(pool, { customer_id: f.customer, now: conversionAt, returnOrigin: origin })
+    expect(replay.order?.id).toBe(converted.order?.id)
+    const declined = await openCheckoutPayment(f, converted.order!.id, conversionAt)
+    adapter.settle(declined.provider_ref!, 'failed')
+    await handleProviderEvent(pool, { provider: 'simulator', rawBody: adapter.webhookBody(declined.provider_ref!), headers: {}, adapter, now: conversionAt })
+    expect((await getSubscription(pool, f.customer)).state).toBe('trialing')
+    const hosted = await openCheckoutPayment(f, converted.order!.id, conversionAt)
     adapter.settle(hosted.provider_ref!, 'succeeded')
-    await handleProviderEvent(pool, { provider: 'simulator', rawBody: adapter.webhookBody(hosted.provider_ref!), headers: {}, adapter })
+    await handleProviderEvent(pool, { provider: 'simulator', rawBody: adapter.webhookBody(hosted.provider_ref!), headers: {}, adapter, now: conversionAt })
     expect(await runJob(converted.order!.id, async input => {
       expect(input.job.authority).toMatchObject({ previous_revision_id: prior,
         target_revision_id: converted.order!.target_revision_id, trial_ends_at: null,
@@ -355,15 +363,182 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     expect(rows).toEqual([{ order_id: oldOrder!.id, status: 'void' }, { order_id: conversion.order!.id, status: 'issued' }])
   })
 
-  it('returns the cutoff-day invoice when conversion occurs after Riyadh midnight', async () => {
+  it('voids an open checkout at expiry, and refunds a late successful capture', async () => {
     const f = await endedTrial()
-    const paid = await change(f, { requested_users: 5 }, beforeEnd)
-    expect(await runJob(paid.order.id, okRunner)).toMatchObject({ state: 'verified' })
+    const conversionAt = new Date('2026-11-18T11:00:00Z')
+    const conversion = await convertTrial(pool, { customer_id: f.customer, now: conversionAt, returnOrigin: origin })
+    const order = conversion.order!
+    const attempt = await createPaymentAttempt(pool, { order_id: order.id, customer_id: f.customer, adapter, returnOrigin: origin, now: conversionAt })
+    expect((await getSubscription(pool, f.customer)).state).toBe('trialing')
+    await lapse(f)
+    adapter.settle(attempt.provider_ref!, 'succeeded')
+    await handleProviderEvent(pool, { provider: 'simulator', rawBody: adapter.webhookBody(attempt.provider_ref!), headers: {}, adapter, now })
+    expect((await pool.query('SELECT cancelled,payment_state FROM orders WHERE id=$1', [order.id])).rows[0])
+      .toMatchObject({ cancelled: true, payment_state: 'refund_pending' })
+    expect((await row(f.subscription)).trial_outcome).not.toBe('converted')
+    expect(await lapseRow(f.subscription)).toMatchObject({ state: 'pending', cause: 'trial_end' })
+  })
 
-    const conversion = await convertTrial(pool, { customer_id: f.customer, now, returnOrigin: origin })
-    expect(conversion.pending).toBe(false)
-    const renewal = (await pool.query('SELECT period_start::text FROM renewals WHERE order_id=$1', [conversion.order!.id])).rows[0]
-    expect(renewal.period_start).toBe('2026-11-19')
+  /** Opens a checkout payment at `openedAt`, as the database would have stamped it then. */
+  async function openCheckoutPayment(f: Fixture, orderId: string, openedAt: Date) {
+    const attempt = await createPaymentAttempt(pool, { order_id: orderId, customer_id: f.customer, adapter, returnOrigin: origin, now: openedAt })
+    await pool.query('UPDATE payment_attempts SET created_at=$2 WHERE id=$1', [attempt.id, openedAt])
+    return attempt
+  }
+  async function capture(providerRef: string, at: Date) {
+    adapter.settle(providerRef, 'succeeded')
+    await handleProviderEvent(pool, { provider: 'simulator', rawBody: adapter.webhookBody(providerRef), headers: {}, adapter, now: at })
+  }
+  const orderRow = async (id: string) => (await pool.query('SELECT cancelled,payment_state FROM orders WHERE id=$1', [id])).rows[0]
+
+  it('reissues a checkout the next day, refunds a late capture of the first one and keeps the new one payable', async () => {
+    const f = await endedTrial()
+    const dayOne = new Date('2026-11-17T10:00:00Z'), dayTwo = new Date('2026-11-18T10:00:00Z')
+    const first = (await convertTrial(pool, { customer_id: f.customer, now: dayOne, returnOrigin: origin })).order!
+    await expect(cancelOrder(pool, { order_id: first.id, principal: f.principal, reason: 'Changed my mind' }))
+      .rejects.toMatchObject({ code: 'order_not_cancellable' })
+    const late = await openCheckoutPayment(f, first.id, dayOne)
+    const second = (await convertTrial(pool, { customer_id: f.customer, now: dayTwo, returnOrigin: origin })).order!
+    expect(second.id).not.toBe(first.id)
+    await capture(late.provider_ref!, dayTwo)
+    expect(await orderRow(first.id)).toMatchObject({ cancelled: true, payment_state: 'refund_pending' })
+    expect(await row(f.subscription)).toMatchObject({ state: 'trialing', target_revision_id: second.target_revision_id })
+    const fresh = await openCheckoutPayment(f, second.id, dayTwo)
+    await capture(fresh.provider_ref!, dayTwo)
+    expect(await orderRow(second.id)).toMatchObject({ cancelled: false, payment_state: 'paid' })
+    expect(await row(f.subscription)).toMatchObject({ state: 'active', trial_outcome: 'converted' })
+  })
+
+  it('settles a payment opened before Riyadh midnight and captured after it, and refuses one opened after it', async () => {
+    const before = new Date('2026-11-17T20:55:00Z'), after = new Date('2026-11-17T21:02:00Z')
+    const f = await endedTrial()
+    const order = (await convertTrial(pool, { customer_id: f.customer, now: new Date('2026-11-17T20:50:00Z'), returnOrigin: origin })).order!
+    const attempt = await openCheckoutPayment(f, order.id, before)
+    await capture(attempt.provider_ref!, after)
+    expect(await orderRow(order.id)).toMatchObject({ cancelled: false, payment_state: 'paid' })
+    expect((await row(f.subscription)).state).toBe('active')
+
+    const g = await endedTrial()
+    const other = (await convertTrial(pool, { customer_id: g.customer, now: new Date('2026-11-17T20:50:00Z'), returnOrigin: origin })).order!
+    await expect(createPaymentAttempt(pool, { order_id: other.id, customer_id: g.customer, adapter, returnOrigin: origin, now: after }))
+      .rejects.toMatchObject({ code: 'trial_checkout_expired' })
+    const stale = await openCheckoutPayment(g, other.id, before)
+    await pool.query('UPDATE payment_attempts SET created_at=$2 WHERE id=$1', [stale.id, after])
+    await capture(stale.provider_ref!, after)
+    expect(await orderRow(other.id)).toMatchObject({ cancelled: true, payment_state: 'refund_pending' })
+    expect((await row(g.subscription)).state).toBe('trialing')
+  })
+
+  it('lifts the trial deadline on the host at payment, so a fulfilment after the deadline never cuts the payer', async () => {
+    const f = await endedTrial()
+    const paidAt = new Date('2026-11-19T08:50:00Z'), pastDeadline = new Date('2026-11-19T09:30:00Z')
+    const order = (await convertTrial(pool, { customer_id: f.customer, now: paidAt, returnOrigin: origin })).order!
+    await capture((await openCheckoutPayment(f, order.id, paidAt)).provider_ref!, paidAt)
+    const lift = (await pool.query(`SELECT payload FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'origin'='trial-end'
+      ORDER BY created_at DESC LIMIT 1`, [f.tenant])).rows[0]?.payload
+    expect(lift?.authority).toMatchObject({ trial_ends_at: null, commercial_valid_until: null })
+    expect(lift.authority.target_revision_id).not.toBe(order.target_revision_id)
+    expect((await pool.query("SELECT actor,reason FROM audit_events WHERE action='trial.converted' AND subject=$1", [f.subscription])).rows)
+      .toEqual([{ actor: 'system:payment', reason: 'First paid period confirmed' }])
+    expect((await lapse(f, pastDeadline)).lapsed).toEqual([])
+    expect(await runJob(order.id, async input => {
+      expect(input.job.authority).toMatchObject({ trial_ends_at: null, commercial_valid_until: null })
+      return okRunner(input)
+    })).toMatchObject({ state: 'verified' })
+    expect(await getSubscription(pool, f.customer)).toMatchObject({ state: 'active', trial_ends_at: null })
+  })
+
+  it('records a failed deadline lift and still settles the payment', async () => {
+    const f = await endedTrial()
+    const paidAt = new Date('2026-11-18T10:00:00Z')
+    const order = (await convertTrial(pool, { customer_id: f.customer, now: paidAt, returnOrigin: origin })).order!
+    const attempt = await openCheckoutPayment(f, order.id, paidAt)
+    // A deadline push already running on the host holds the tenant's one open trial-end job.
+    await extendTrial(pool, { subscription_id: f.subscription, days: 1, reason: 'Vendor goodwill', actor: vendor.actor_id, now: paidAt })
+    await pool.query("UPDATE shared_jobs SET state='running' WHERE control_tenant_id=$1 AND payload->>'origin'='trial-end' AND state='queued'", [f.tenant])
+    await capture(attempt.provider_ref!, paidAt)
+    expect(await orderRow(order.id)).toMatchObject({ cancelled: false, payment_state: 'paid' })
+    expect(await row(f.subscription)).toMatchObject({ state: 'active', trial_outcome: 'converted' })
+    expect((await pool.query("SELECT status FROM commercial_outbox WHERE kind='fulfillment.enqueue' AND aggregate_id=$1", [order.id])).rows).toEqual([{ status: 'pending' }])
+    expect((await pool.query("SELECT reason FROM audit_events WHERE action='trial.expiry_push_failed' AND subject=$1", [f.subscription])).rows)
+      .toEqual([{ reason: '23505' }])
+  })
+
+  it('aborts the settlement when the deadline lift fails for a reason that is not operational', async () => {
+    const f = await endedTrial()
+    const paidAt = new Date('2026-11-18T10:00:00Z')
+    const order = (await convertTrial(pool, { customer_id: f.customer, now: paidAt, returnOrigin: origin })).order!
+    const attempt = await openCheckoutPayment(f, order.id, paidAt)
+    vi.mocked(pushCommercialExpiry).mockRejectedValueOnce(new TypeError('push bug'))
+    adapter.settle(attempt.provider_ref!, 'succeeded')
+    await expect(handleProviderEvent(pool, { provider: 'simulator', rawBody: adapter.webhookBody(attempt.provider_ref!), headers: {}, adapter, now: paidAt }))
+      .rejects.toBeInstanceOf(TypeError)
+    expect(await orderRow(order.id)).toMatchObject({ cancelled: false, payment_state: 'awaiting_payment' })
+    expect((await row(f.subscription)).state).toBe('trialing')
+    expect((await pool.query("SELECT 1 FROM audit_events WHERE action='trial.expiry_push_failed' AND subject=$1", [f.subscription])).rowCount).toBe(0)
+  })
+
+  /** Pays a checkout opened at `at`, then refunds it at the provider before anything is delivered. */
+  async function payThenRefund(f: Fixture, at: Date) {
+    const order = (await convertTrial(pool, { customer_id: f.customer, now: at, returnOrigin: origin })).order!
+    const attempt = await openCheckoutPayment(f, order.id, at)
+    await capture(attempt.provider_ref!, at)
+    await adapter.refund((await adapter.lookupAttempt(attempt.provider_ref!)).payment_id!)
+    await handleProviderEvent(pool, { provider: 'simulator', rawBody: adapter.webhookBody(attempt.provider_ref!), headers: {}, adapter, now: at })
+    return order
+  }
+
+  it('returns a checkout refunded before delivery to the running trial, which can pay again the same day', async () => {
+    const f = await endedTrial()
+    const at = new Date('2026-11-18T10:00:00Z')
+    const deadline = (await row(f.subscription)).trial_ends_at
+    const today = { from: riyadhDate(new Date()), to: riyadhDate(new Date()) }
+    const collected = async () => {
+      const figure = (await getAnalytics(pool, today)).current.collection.collected
+      return figure.available ? figure.value.minor : 0
+    }
+    await processRefundOutbox(pool)
+    const before = await collected()
+    const order = await payThenRefund(f, at)
+    expect(await orderRow(order.id)).toMatchObject({ cancelled: true, payment_state: 'refunded' })
+    await processRefundOutbox(pool)
+    const invoice = await invoiceOf(order.id)
+    expect(invoice.status).toBe('credit_pending')
+    expect((await pool.query("SELECT amount_minor,status,cause FROM invoice_adjustments WHERE invoice_id=$1 AND kind='credit_note'", [invoice.id])).rows)
+      .toEqual([{ amount_minor: invoice.total_minor, status: 'pending', cause: 'provider_refund' }])
+    // Collection and the signup funnel count only invoices still `paid`: the refunded checkout adds nothing to either.
+    expect(await collected()).toBe(before)
+    expect(await row(f.subscription)).toMatchObject({ state: 'trialing', trial_outcome: null, trial_ended_at: null, target_revision_id: null, trial_ends_at: deadline })
+    expect((await pool.query('SELECT status FROM renewals WHERE order_id=$1', [order.id])).rows).toEqual([{ status: 'superseded' }])
+    expect((await pool.query("SELECT status,payload->>'error' AS error FROM commercial_outbox WHERE kind='fulfillment.enqueue' AND aggregate_id=$1", [order.id])).rows)
+      .toEqual([{ status: 'failed', error: 'trial_checkout_refunded' }])
+    expect((await pool.query("SELECT actor FROM audit_events WHERE action='trial.conversion_reverted' AND subject=$1 AND metadata->>'order_id'=$2", [f.subscription, order.id])).rows)
+      .toEqual([{ actor: 'system:payment' }])
+    const restore = (await pool.query(`SELECT payload FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'origin'='trial-end' AND state='queued'`, [f.tenant])).rows
+    expect(restore).toHaveLength(1)
+    expect(new Date(restore[0].payload.authority.trial_ends_at).getTime()).toBe(new Date(deadline).getTime())
+
+    const again = (await convertTrial(pool, { customer_id: f.customer, now: at, returnOrigin: origin })).order!
+    expect(again.id).not.toBe(order.id)
+    await capture((await openCheckoutPayment(f, again.id, at)).provider_ref!, at)
+    expect(await row(f.subscription)).toMatchObject({ state: 'active', trial_outcome: 'converted', target_revision_id: again.target_revision_id })
+  })
+
+  it('lapses a trial whose checkout was refunded before delivery at its deadline, like any unpaid trial', async () => {
+    const f = await endedTrial()
+    await payThenRefund(f, new Date('2026-11-18T10:00:00Z'))
+    expect((await lapse(f, new Date('2026-11-19T09:30:00Z'))).lapsed).toEqual([f.subscription])
+    expect(await lapseRow(f.subscription)).toMatchObject({ state: 'pending', cause: 'trial_end' })
+  })
+
+  it('converts a checkout that owes nothing at once, queues its fulfilment and audits the customer', async () => {
+    const f = await endedTrial({ bundle_revision_ids: [] })
+    const order = (await convertTrial(pool, { customer_id: f.customer, now: beforeEnd, returnOrigin: origin })).order!
+    expect(order).toMatchObject({ payment_state: 'not_required', fulfillment_state: 'queued' })
+    expect(await row(f.subscription)).toMatchObject({ state: 'active', trial_outcome: 'converted' })
+    expect((await pool.query("SELECT 1 FROM commercial_outbox WHERE kind='fulfillment.enqueue' AND aggregate_id=$1", [order.id])).rowCount).toBe(1)
+    expect((await pool.query("SELECT actor,reason FROM audit_events WHERE action='trial.converted' AND subject=$1", [f.subscription])).rows)
+      .toEqual([{ actor: `customer:${f.customer}`, reason: 'First paid period already covered; nothing was charged' }])
   })
 
   it('cancels an unpaid order so the lock can proceed; a late paid receipt does not reopen the trial (L5)', async () => {
@@ -620,7 +795,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     const f = await endedTrial()
     const original = await row(f.subscription)
     await expect(transaction(pool, async client => {
-      expect(await endTrialOn(client, f.subscription, { now, convert: false })).toBe('lapsed')
+      expect(await endTrialOn(client, f.subscription, { now })).toBe('lapsed')
       throw Error('simulated crash')
     })).rejects.toThrow('simulated crash')
     expect(await row(f.subscription)).toEqual(original)
@@ -708,14 +883,12 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     const f = await endedTrial()
     const conversionAt = new Date('2026-11-15T09:00:00Z')
     const converted = await convertTrial(pool, { customer_id: f.customer, now: conversionAt, returnOrigin: origin })
-    const job = (await pool.query("SELECT id,payload FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'origin'='trial-end'", [f.tenant])).rows[0]
-    await runSubscriptionReconfigure(pool, job.id, async input => ({
-      ...await okRunner(input), observed_at: conversionAt.toISOString(), observed_entitlement_digest: job.payload.authority.post_trial_digest,
-    }))
-    const hosted = await createPaymentAttempt(pool, { order_id: converted.order!.id, customer_id: f.customer, adapter, returnOrigin: origin })
+    const hosted = await openCheckoutPayment(f, converted.order!.id, conversionAt)
     adapter.settle(hosted.provider_ref!, 'succeeded')
-    await handleProviderEvent(pool, { provider: 'simulator', rawBody: adapter.webhookBody(hosted.provider_ref!), headers: {}, adapter })
+    await handleProviderEvent(pool, { provider: 'simulator', rawBody: adapter.webhookBody(hosted.provider_ref!), headers: {}, adapter, now: conversionAt })
     expect(await runJob(converted.order!.id, okRunner)).toMatchObject({ state: 'verified' })
+    // The worker has delivered the deadline lift queued at payment.
+    await pool.query("UPDATE shared_jobs SET state='verified' WHERE control_tenant_id=$1 AND payload->>'origin'='trial-end' AND state='queued'", [f.tenant])
     expect(await row(f.subscription)).toMatchObject({ state: 'active', trial_outcome: 'converted' })
     await refundInvoice((await invoiceOf(converted.order!.id)).id)
     await settleRefundLock(f)
