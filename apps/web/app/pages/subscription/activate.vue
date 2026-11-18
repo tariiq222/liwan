@@ -46,6 +46,11 @@ async function openTrial(start: boolean) {
   }
 }
 
+async function continueWithoutTrial() {
+  if (me.value) checked.value = me.value.id
+  await router.replace('/')
+}
+
 onMounted(() => { void openTrial(true) })
 onBeforeUnmount(() => { disposed = true; clearTimeout(retryTimer) })
 </script>
@@ -59,7 +64,8 @@ onBeforeUnmount(() => { disposed = true; clearTimeout(retryTimer) })
     <p v-if="!failed" role="status" class="text-sm text-muted">{{ t('subscription.activation.wait') }}</p>
     <div v-else class="grid gap-3">
       <UAlert role="alert" color="error" variant="subtle" :title="t('subscription.activation.failed')" />
-      <UButton type="button" variant="outline" :loading="busy" :label="t('subscription.activation.retry')" @click="openTrial(true)" />
+      <UButton type="button" :loading="busy" :label="t('subscription.activation.retry')" @click="openTrial(true)" />
+      <UButton type="button" variant="outline" color="neutral" :label="t('subscription.activation.continue')" @click="continueWithoutTrial" />
     </div>
   </SharedStandalonePage>
 </template>
