@@ -6,11 +6,13 @@ import { opportunities, stages } from './crmOpportunityFixtures'
 const meta = {
   title: 'CRM/CrmOpportunityBoard',
   component: CrmOpportunityBoard,
-  parameters: storyContext('apps/web/app/components/crm/opportunity/CrmOpportunityList.vue:99', 'مراحل المسار أعمدة، والبطاقة تفتح الفرصة.'),
-  args: { stages, items: opportunities, to: (item) => `/crm/opportunities/${item.id}`, now: Date.parse('2026-10-29T10:00:00Z'), createTo: '/crm/opportunities/new', createLabel: 'فرصة' },
+  parameters: storyContext('apps/web/app/components/crm/opportunity/CrmOpportunityList.vue:108', 'مراحل المسار أعمدة، والبطاقة تفتح الفرصة وتُسحب إلى مرحلة أخرى أو تُنقل بإجراء «نقل».'),
+  args: { stages, items: opportunities, to: (item) => `/crm/opportunities/${item.id}`, now: Date.parse('2026-10-29T10:00:00Z'), createTo: '/crm/opportunities/new', createLabel: 'فرصة', canMove: () => true },
 } satisfies Meta<typeof CrmOpportunityBoard>
 export default meta
 type Story = StoryObj<typeof meta>
 export const Pipeline: Story = {}
 export const Empty: Story = { args: { items: [] } }
 export const WithoutCreate: Story = { args: { createTo: undefined, createLabel: undefined } }
+export const ReadOnly: Story = { args: { canMove: undefined } }
+export const SaleByOrder: Story = { args: { items: opportunities.map(item => ({ ...item, win_by_order: true })) } }

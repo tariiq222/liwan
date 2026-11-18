@@ -5,16 +5,20 @@ import type { CrmOpportunity } from '@liwan/contracts'
 import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
 import CrmCallButton from './CrmCallButton.vue'
 import CrmOpportunityBoard from './CrmOpportunityBoard.vue'
-import { useCrmOpportunities } from '@/composables/crm/useOpportunities'
-import { useCrmSourceChoices, useCrmStageChoices } from '@/composables/crm/useCrmLists'
+import CrmOpportunityMoveSheet from './CrmOpportunityMoveSheet.vue'
+import { useCrmBoardMove } from '@/composables/crm/useCrmBoardMove'
+import { useCrmOpportunities, useCrmOpportunityActions } from '@/composables/crm/useOpportunities'
+import { useCrmLostReasonChoices, useCrmPackageChoices, useCrmSourceChoices, useCrmStageChoices } from '@/composables/crm/useCrmLists'
 import { useCrmTerms } from '@/composables/crm/useCrmTerms'
 import { useRouteListFilters } from '@/composables/useRouteListFilters'
+import { canWorkOpportunity } from '@/utils/crmBoardMove'
 import { activeFilterCount, CRM_LIST_PATH, isCallDue, opportunityFilters, opportunityListLocation, relativeTime, safeCrmReturnTo } from '@/utils/crmOpportunity'
 
 // The body of the opportunities page: the filter bar on the page, then the stage board directly on the page or the
 // table in one card with its pager. `view` is the page's `?view=` choice. `createTo` (the page's create link) turns
 // the end of every board column into an add tile. `background` is the list behind the create panel: it reads its
-// filters from the panel's returnTo. The page owns the SharedListPage shell.
+// filters from the panel's returnTo. The page owns the SharedListPage shell. A board move that needs input (the sold
+// stage, the lost zone, the «move» action) asks in the move sheet; a plain stage move is sent at once.
 const props = defineProps<{ view?: string; background?: boolean; createTo?: RouteLocationRaw }>()
 const PAGE_SIZE = 20
 const BOARD_LIMIT = 200
@@ -32,6 +36,8 @@ const params = computed(() => ({ ...filters.value, limit: board.value ? BOARD_LI
 const query = useCrmOpportunities(params)
 const stages = useCrmStageChoices()
 const sources = useCrmSourceChoices()
+const packages = useCrmPackageChoices()
+const lostReasons = useCrmLostReasonChoices()
 const items = computed(() => query.data.value?.items ?? [])
 const total = computed(() => query.data.value?.total ?? 0)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
@@ -39,6 +45,9 @@ const count = computed(() => activeFilterCount(filterQuery.value))
 const canAssign = computed(() => can('crm.leads.assign'))
 const now = useState('crm-opportunity-list-now', () => Date.now())
 onMounted(() => { now.value = Date.now() })
+const toast = useToast()
+const mover = useCrmBoardMove({ actions: useCrmOpportunityActions(), t, notify: (title, tone) => toast.add({ title, color: tone }) })
+const canMove = (item: CrmOpportunity) => canWorkOpportunity(item, { work: can('crm.leads.work'), assign: canAssign.value, userId: me.value?.id })
 const backTo = computed(() => opportunityListLocation(filterQuery.value, route.hash))
 const recordTo = (item: CrmOpportunity) => ({ path: `${CRM_LIST_PATH}/${item.id}`, query: { returnTo: backTo.value } })
 
@@ -96,7 +105,8 @@ const statusTone = (item: CrmOpportunity) => (item.status === 'won' ? 'success' 
     <SharedPageState v-if="query.error.value" :error="query.error.value" @retry="query.refetch()" />
     <SharedEmptyState :icon="count ? 'i-lucide-filter-x' : 'i-lucide-handshake'" v-else-if="!query.isPending.value && !items.length" :title="t(count ? 'app.noResults' : 'crm.opportunities.list.empty')" />
     <template v-else-if="board">
-      <CrmOpportunityBoard :loading="query.isPending.value || stages.isLoading.value" :stages="stages.data.value?.items ?? []" :items="items" :to="recordTo" :now="now" :create-to="createTo" :create-label="createLabel" />
+      <CrmOpportunityBoard :loading="query.isPending.value || stages.isLoading.value" :stages="stages.data.value?.items ?? []" :items="items" :to="recordTo" :now="now" :create-to="createTo" :create-label="createLabel" :can-move="canMove" @move="mover.request" />
+      <CrmOpportunityMoveSheet :move="mover.active.value" :stages="stages.data.value?.items ?? []" :packages="packages.data.value?.items ?? []" :lost-reasons="lostReasons.data.value?.items ?? []" :pending="mover.pending.value" :error="mover.error.value" :conflict="mover.conflict.value" @confirm="mover.confirm" @cancel="mover.cancel" />
       <p v-if="!query.isPending.value" class="text-sm text-muted">{{ total > items.length ? t('crm.opportunities.board.capped', { count: items.length }) : t('crm.opportunities.list.results', { shown: items.length, total }) }}</p>
     </template>
     <SharedListCard v-else>

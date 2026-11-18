@@ -105,7 +105,12 @@ test('board and mobile cards carry a call action beside the link, not inside it'
   // Inline-end in a right-to-left page is the left edge of the card; the action never overlaps its text.
   const [cardBox, callBox] = [await card.boundingBox(), await call.boundingBox()]
   expect(callBox!.x + callBox!.width / 2).toBeLessThan(cardBox!.x + cardBox!.width / 2)
+  // The move button is disabled until hydration; tab order inside the card is link, move, call.
+  const move = page.getByRole('button', { name: 'نقل أحمد العتيبي' })
+  await expect(move).toBeEnabled()
   await card.focus()
+  await page.keyboard.press('Tab')
+  await expect(move).toBeFocused()
   await page.keyboard.press('Tab')
   await expect(call).toBeFocused()
   await call.evaluate(element => element.addEventListener('click', event => event.preventDefault()))

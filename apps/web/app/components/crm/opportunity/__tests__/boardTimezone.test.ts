@@ -5,6 +5,8 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { loadShared, DEFAULT_STUBS } from '../../../../../../../packages/ui/test/helpers/renderShared'
 import { isCallDue } from '../../../../utils/crmOpportunity'
 
+const Draggable = Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => Vue.h('div', { class: attrs.class }, slots.default?.()) })
+
 const NativeDateTimeFormat = Intl.DateTimeFormat
 
 const Badge = Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs }) => () => Vue.h('span', { 'data-tone': attrs.tone }, String(attrs.label)) })
@@ -26,6 +28,7 @@ async function boardHtml(runtimeZone: string, userZone?: string, extra: { items?
       '@liwan/ui/app/utils/avatarTone': avatarTone,
       './CrmCallButton.vue': { __esModule: true, default: CallButton },
       '@/utils/crmOpportunity': { isCallDue },
+      'vue-draggable-plus': { VueDraggable: Draggable },
     },
     globals: { useMe: () => ({ me: Vue.ref({ tz: userZone }) }) },
   })

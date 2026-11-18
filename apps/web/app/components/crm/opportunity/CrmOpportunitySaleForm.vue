@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import type { CrmPackage } from '@liwan/contracts'
-import { derivedDiscountPercent } from '@/utils/crmOpportunity'
+import { derivedDiscountPercent, formatPrice } from '@/utils/crmOpportunity'
 import { useCrmTerms } from '@/composables/crm/useCrmTerms'
 
 export interface CrmSaleDraft { package_id: number | null; final_price: number | null }
 
 // The sale fields shared by the call form (a sold outcome) and the sale action: the package, the final price
 // (filled from the package price) and the discount, which is worked out from the two prices and only shown.
-const props = defineProps<{ packages: CrmPackage[]; modelValue: CrmSaleDraft; disabled?: boolean; showErrors?: boolean }>()
+const props = defineProps<{ packages: CrmPackage[]; modelValue: CrmSaleDraft; disabled?: boolean; showErrors?: boolean; compact?: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [value: CrmSaleDraft] }>()
 const { t } = useI18n()
 const { term } = useCrmTerms()
@@ -15,6 +15,8 @@ const selected = computed(() => props.packages.find(item => item.id === props.mo
 const items = computed(() => props.packages.map(item => ({ value: item.id, label: `${item.name} (${item.price})` })))
 const discount = computed(() => (selected.value && props.modelValue.final_price !== null ? derivedDiscountPercent(selected.value.price, props.modelValue.final_price) : 0))
 const packageLabel = computed(() => term('package', 'one'))
+// The company's words are lowercase in English («plan»); a label starts with a capital.
+const packageTitle = computed(() => packageLabel.value.charAt(0).toLocaleUpperCase() + packageLabel.value.slice(1))
 
 function choose(value: unknown) {
   const next = props.packages.find(item => item.id === value)
@@ -27,11 +29,15 @@ function setPrice(value: number | null | undefined) {
 
 <template>
   <div class="grid gap-4" data-testid="crm-sale-form">
-    <UFormField :label="packageLabel" name="sale-package" required :error="showErrors && !modelValue.package_id ? t('crm.opportunities.sale.packageRequired', { term: packageLabel }) : undefined">
+    <UFormField :label="packageTitle" name="sale-package" required :error="showErrors && !modelValue.package_id ? t('crm.opportunities.sale.packageRequired', { term: packageLabel }) : undefined">
       <USelect id="sale-package" class="w-full" :model-value="modelValue.package_id ?? undefined" :items="items" :placeholder="t('crm.opportunities.sale.packagePlaceholder')" :disabled="disabled" @update:model-value="choose" />
     </UFormField>
-    <div class="liwan-auto-grid gap-4">
-      <UFormField :label="t('crm.opportunities.sale.listPrice', { term: packageLabel })" name="sale-list-price">
+    <UFormField v-if="compact" :label="t('crm.opportunities.sale.finalPrice')" name="sale-final-price" required :error="showErrors && modelValue.final_price === null ? t('crm.opportunities.sale.priceRequired') : undefined">
+      <UInputNumber id="sale-final-price" class="w-full" :model-value="modelValue.final_price ?? undefined" :min="0" :disabled="disabled || !selected" @update:model-value="setPrice" />
+      <template v-if="selected" #help><span class="text-xs text-muted" data-testid="crm-sale-summary">{{ t('crm.opportunities.sale.listPrice', { term: packageTitle }) }}: {{ formatPrice(selected.price) }} · {{ t('crm.opportunities.sale.discount') }}: {{ discount }}%</span></template>
+    </UFormField>
+    <div v-else class="liwan-auto-grid gap-4">
+      <UFormField :label="t('crm.opportunities.sale.listPrice', { term: packageTitle })" name="sale-list-price">
         <UInput id="sale-list-price" class="w-full" :model-value="selected ? String(selected.price) : ''" readonly disabled />
       </UFormField>
       <UFormField :label="t('crm.opportunities.sale.finalPrice')" name="sale-final-price" required :error="showErrors && modelValue.final_price === null ? t('crm.opportunities.sale.priceRequired') : undefined">

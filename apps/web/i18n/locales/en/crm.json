@@ -1,5 +1,7 @@
 {
   "crm": {
+    "newOpportunity": "New opportunity",
+    "searchGroup": "Opportunities",
     "bell": {
       "assigned": "New {term} assigned to you: {name}",
       "assignedMany": {
@@ -198,10 +200,24 @@
         "agent": "Agent",
         "nextCall": "Next call"
       },
+      "move": {
+        "title": "Move {name} to {stage}",
+        "titlePick": "Move {name}",
+        "titleLost": "Close {name} as lost",
+        "description": "Fill in the required fields to finish the move.",
+        "stage": "New stage",
+        "stagePlaceholder": "Choose a stage",
+        "stageRequired": "Choose a stage",
+        "confirm": "Move",
+        "customerConflict": "Customers already share this phone. Open the record to choose the customer, then finish the sale."
+      },
       "board": {
         "noStage": "No stage",
         "emptyColumn": "Empty",
-        "capped": "Showing the first {count} results. Narrow the search to see the rest."
+        "capped": "Showing the first {count} results. Narrow the search to see the rest.",
+        "move": "Move",
+        "moveFor": "Move {name}",
+        "winByOrder": "A sale comes from a confirmed order, not from dragging."
       },
       "status": {
         "pending": "In progress",
@@ -537,6 +553,8 @@
         "dueTitle": "Call now",
         "dueEmpty": "No calls due now.",
         "dueAll": "See everything due",
+        "recordResult": "Record the result",
+        "openRecord": "Open the record",
         "call": "Call {name}"
       },
       "manager": {

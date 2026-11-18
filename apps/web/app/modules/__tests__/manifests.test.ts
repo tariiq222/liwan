@@ -158,6 +158,31 @@ describe('app manifests', () => {
     })
   })
 
+  describe('the CRM create-opportunity surfaces need the read plus a work or assign key', () => {
+    const platform = { readable_features: ['crm.enabled'], writable_features: ['crm.enabled'] }
+    const identityOf = (capabilities: string[]) => ({ capabilities, platform })
+    const pinned = (identity: ReturnType<typeof identityOf>) => contextLinksForModule('crm', identity, '/crm').filter(link => link.id === 'new-opportunity')
+    const command = (identity: ReturnType<typeof identityOf>) => visibleCommands(identity).filter(entry => entry.id === 'crm.new-opportunity').map(entry => entry.id)
+
+    it('shows the pinned link and the command with read and work, or read and assign', () => {
+      for (const key of ['crm.leads.work', 'crm.leads.assign']) {
+        const identity = identityOf(['crm.leads.read', key])
+        expect(pinned(identity).map(link => [link.to, link.pinned]), key).toEqual([['/crm/opportunities/new', true]])
+        expect(command(identity), key).toEqual(['crm.new-opportunity'])
+      }
+    })
+    it('hides both without the read, or with the read alone', () => {
+      for (const capabilities of [['crm.leads.work'], ['crm.leads.read']]) {
+        expect(pinned(identityOf(capabilities)), capabilities.join()).toEqual([])
+        expect(command(identityOf(capabilities)), capabilities.join()).toEqual([])
+      }
+    })
+    it('registers one opportunities search provider gated by crm.leads.read', () => {
+      const crm = appManifests.find(manifest => manifest.id === 'crm')
+      expect(crm?.search?.map(provider => [provider.id, provider.capability, provider.serverSearch])).toEqual([['crm-opportunities', 'crm.leads.read', true]])
+    })
+  })
+
   describe('a manifest registered for a new application', () => {
     const identity = {
       capabilities: ['pilot.leads.read', 'pilot.leads.create'],

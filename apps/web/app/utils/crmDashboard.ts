@@ -24,5 +24,8 @@ export function managerKpiTiles(manager: NonNullable<CrmDashboard['manager']>, t
   ]
 }
 
+/** The opportunity list of one agent; `due` narrows it to the follow-ups due now. */
+export const agentListHref = (userId: number, due = false) => `${CRM_LIST_PATH}?user_id=${userId}${due ? '&due=1' : ''}`
+
 /** Won over total as a whole percent, 0 for a source with no records. */
 export const conversionPercent = (won: number, total: number) => (total > 0 ? Math.round((won / total) * 100) : 0)
