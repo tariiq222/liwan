@@ -6,8 +6,7 @@ export function formatCommercialMoney(money: Money, locale = 'ar'): string {
 }
 
 export function cadenceLabel(c: Cadence, t: (key: string, params?: Record<string, unknown>) => string): string {
-  if (c.count === 1) return t(`commercial.pricing.cadence.${c.unit}.one`)
-  return t(`commercial.pricing.cadence.${c.unit}.many`, { count: c.count })
+  return t(`commercial.pricing.cadence.${c.unit}`, { count: c.count })
 }
 
 export const quoteLinesByTiming = (quote: Quote, timing: 'now' | 'renewal') => quote.lines.filter(l => l.timing === timing)

@@ -2,14 +2,8 @@
   "commercial": {
     "pricing": {
       "cadence": {
-        "month": {
-          "one": "Monthly",
-          "many": "Every {count} months"
-        },
-        "year": {
-          "one": "Yearly",
-          "many": "Every {count} years"
-        }
+        "month": "Monthly | Every {count} months",
+        "year": "Yearly | Every {count} years"
       },
       "quote": {
         "hq": "Headquarters",
