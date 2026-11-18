@@ -7,6 +7,7 @@ import {
   InboxConversationListSchema,
   InboxConversationPatchSchema,
   InboxInteractiveSchema,
+  InboxPresetPreviewSchema,
   InboxReplyCreateSchema,
   InboxSettingsPatchSchema,
   InboxChannelAutomationSchema,
@@ -289,5 +290,29 @@ describe('InboxContactDetailSchema', () => {
     expect(InboxContactDetailSchema.parse({ ...contact, customer: { id: 9, name: 'Mona Co' } }).customer).toEqual({ id: 9, name: 'Mona Co' })
     expect(() => InboxContactDetailSchema.parse(contact)).toThrow()
     expect(() => InboxContactDetailSchema.parse({ ...contact, customer: { id: 9, name: 'x', phone: '1' } })).toThrow()
+  })
+})
+
+describe('InboxPresetPreviewSchema', () => {
+  const PREVIEW = {
+    key: 'clinic',
+    applied: false,
+    departments: [{ name: 'الاستقبال', exists: true }],
+    tags: [{ name: 'استفسار', exists: false }],
+    canned_replies: [{ shortcut: 'hours', body: 'ساعات الدوام: نستقبل رسائلكم في أي وقت.', exists: false }],
+    welcome: { body: 'أهلًا', buttons: ['حجز موعد', 'ساعات الدوام', 'التحدث مع موظف'] },
+    away: { body: 'نحن خارج الدوام' },
+    rules: [{ name: 'قائمة: حجز موعد', button: 'حجز موعد', reply: 'يسعدنا حجز موعد لك', department: 'المواعيد', tags: ['حجز موعد'], exists: false }],
+    campaigns: { stop_keywords: ['إيقاف التذكيرات'], start_keywords: ['تفعيل العروض'], stop_reply: 'تم الإيقاف', start_reply: 'تم التفعيل' },
+    settings: null,
+  }
+
+  it('accepts a preview and a policy change, and rejects an unknown preset, a fourth button or a stray field', () => {
+    expect(InboxPresetPreviewSchema.parse(PREVIEW)).toEqual(PREVIEW)
+    const policy = { visibility_policy: 'assigned_only', retention_months: 60 }
+    expect(InboxPresetPreviewSchema.parse({ ...PREVIEW, settings: policy }).settings).toEqual(policy)
+    expect(InboxPresetPreviewSchema.safeParse({ ...PREVIEW, key: 'bank' }).success).toBe(false)
+    expect(InboxPresetPreviewSchema.safeParse({ ...PREVIEW, welcome: { ...PREVIEW.welcome, buttons: ['a', 'b', 'c', 'd'] } }).success).toBe(false)
+    expect(InboxPresetPreviewSchema.safeParse({ ...PREVIEW, extra: 1 }).success).toBe(false)
   })
 })

@@ -444,22 +444,50 @@
       },
       "presets": {
         "title": "Sector presets",
-        "hint": "Set several options at once: departments, tags, canned replies and the visibility policy.",
+        "hint": "Each preset sets up departments, tags, canned replies, a welcome menu, routing rules, an away message and marketing stop words. Choose \"View details\" to see what will be added before you apply it.",
         "apply": "Apply",
         "applied": "{name} preset applied",
         "confirmTitle": "Apply the {name} preset?",
-        "confirmDescription": "Only missing items are added and nothing is deleted, but the visibility policy and retention change if the preset sets them.",
+        "confirmDescription": "Only missing items are added and nothing is deleted. Rules are added switched off until you turn them on. The visibility policy and retention change if the preset sets them.",
+        "showDetails": "View details",
+        "hideDetails": "Hide details",
+        "details": {
+          "loadError": "The preset details could not be loaded",
+          "exists": "Already there",
+          "willAdd": "Will be added",
+          "appliedBefore": "This preset was applied before, so items you deleted or renamed are not brought back.",
+          "departments": "Departments",
+          "tags": "Tags",
+          "canned": "Canned replies",
+          "welcome": "Welcome message and buttons",
+          "welcomeNote": "Added to channels that have no welcome message, and left switched off until you turn it on.",
+          "rules": "Rules",
+          "rulesNote": "Each rule runs when the customer taps a welcome button, and is added switched off.",
+          "ruleButton": "Button: {button}",
+          "ruleDepartment": "Department: {department}",
+          "ruleTags": "Tags: {tags}",
+          "away": "Away message",
+          "awayNote": "Added to channels that have no away message, and follows the saved working hours.",
+          "campaigns": "Marketing stop words",
+          "stopKeywords": "Stop words",
+          "startKeywords": "Opt-back-in words",
+          "stopReply": "Stop reply",
+          "startReply": "Opt-back-in reply",
+          "policy": "Policy changes",
+          "policyVisibility": "Visibility policy: {value}",
+          "policyRetention": "Conversation retention: {months} months"
+        },
         "clinic": {
           "name": "Clinic",
-          "description": "Reception and appointments departments, tags such as booking and cancellation, and canned replies for appointments."
+          "description": "Reception, appointments and accounts departments, tags for booking, changing and complaints, canned replies for the welcome, hours and booking, a welcome menu with three buttons and routing rules, an away message, and stop words for reminders."
         },
         "store": {
           "name": "Store",
-          "description": "Sales and support departments, tags such as order and complaint, and canned replies for orders."
+          "description": "Sales, support and shipping departments, tags for inquiries, orders, tracking and returns, canned replies for tracking and returns, a welcome menu with three buttons and routing rules, an away message, and stop words for offers."
         },
         "public_service": {
           "name": "Public service",
-          "description": "Assignee-only visibility, longer retention, and canned replies for transactions."
+          "description": "Beneficiary service and complaints departments, tags for requests, follow-up and complaints, canned replies for transactions, a welcome menu with three buttons and routing rules, an away message, and stop words for notices. It also limits visibility to the assignee and keeps conversations for 60 months."
         }
       },
       "departments": {

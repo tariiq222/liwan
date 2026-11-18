@@ -6588,6 +6588,20 @@
       "handler": "get_campaign_settings",
       "no_capability_reason": null
     },
+    "GET /api/v1/settings/inbox/presets/{key}": {
+      "addon": "liwan_inbox",
+      "auth": "user",
+      "capability_keys": [
+        "inbox.settings.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "preview_preset",
+      "no_capability_reason": null
+    },
     "GET /api/v1/settings/projects": {
       "addon": "liwan_pmo",
       "auth": "user",

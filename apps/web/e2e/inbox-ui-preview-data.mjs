@@ -261,6 +261,7 @@ function seed() {
   ]
   return {
     settings: { visibility_policy: 'department', auto_close_hours: 72, retention_months: 24, assignment_policy: 'manual', first_response_alert_minutes: 0, report_retention_months: 36 },
+    appliedPresets: new Set(),
     hours: { timezone: 'Asia/Riyadh', days: [0, 1, 2, 3, 6].map(weekday => ({ weekday, from: '09:00', to: '17:00' })), holidays: [{ name: 'اليوم الوطني', date_from: '2026-09-23', date_to: '2026-09-23' }] },
     // Department id -> its own hours; a department without an entry follows the company's.
     departmentHours: new Map(),
@@ -310,10 +311,23 @@ function freshState() {
 
 let state = freshState()
 
+const MOCK_CAMPAIGNS = { stop_keywords: ['إيقاف العروض'], start_keywords: ['تفعيل العروض'], stop_reply: 'تم إيقاف رسائل العروض. لإعادة تفعيلها أرسل «تفعيل العروض».', start_reply: 'تم تفعيل رسائل العروض من جديد.' }
 const PRESETS = {
-  clinic: { departments: ['الاستقبال', 'المواعيد'], tags: ['حجز', 'إلغاء', 'استفسار'], canned: [['appointment', 'يسعدنا حجز موعدك، ما اليوم الأنسب لك؟']], policy: 'department' },
-  store: { departments: ['المبيعات', 'الدعم'], tags: ['طلب', 'شكوى', 'استرجاع'], canned: [['order', 'يرجى تزويدنا برقم الطلب لنتحقق منه.']], policy: 'department' },
-  public_service: { departments: ['الخدمات'], tags: ['معاملة', 'شكوى'], canned: [['status', 'يمكنك متابعة حالة معاملتك برقمها.']], policy: 'assigned_only', retention: 60 },
+  clinic: {
+    departments: ['الاستقبال', 'المواعيد'], tags: ['حجز', 'إلغاء', 'استفسار'], canned: [['appointment', 'يسعدنا حجز موعدك، ما اليوم الأنسب لك؟'], ['hours', 'ساعات الدوام: من الأحد إلى الخميس، من 9:00 إلى 17:00.']], policy: 'department',
+    welcome: { body: 'أهلًا بك في عيادتنا، كيف نخدمك؟', buttons: ['حجز موعد', 'ساعات الدوام', 'التحدث مع موظف'] }, away: { body: 'نحن خارج ساعات الدوام الآن وسنرد عليك مع بداية الدوام.' },
+    rules: [{ name: 'قائمة: حجز موعد', button: 'حجز موعد', reply: 'يسعدنا حجز موعد لك، فضلًا أرسل لنا اسمك والوقت المناسب.', department: 'المواعيد', tags: ['حجز'] }, { name: 'قائمة: ساعات الدوام', button: 'ساعات الدوام', reply: 'ساعات الدوام: من الأحد إلى الخميس، من 9:00 إلى 17:00.', department: null, tags: [] }],
+  },
+  store: {
+    departments: ['المبيعات', 'الدعم'], tags: ['طلب', 'شكوى', 'استرجاع'], canned: [['order', 'يرجى تزويدنا برقم الطلب لنتحقق منه.']], policy: 'department',
+    welcome: { body: 'أهلًا بك في متجرنا، كيف نساعدك؟', buttons: ['طلب جديد', 'تتبع الشحنة', 'التحدث مع موظف'] }, away: { body: 'نحن خارج ساعات الدوام الآن وسنرد عليك مع بداية الدوام.' },
+    rules: [{ name: 'قائمة: طلب جديد', button: 'طلب جديد', reply: 'يسعدنا خدمتك، فضلًا أخبرنا بالمنتج الذي تريده.', department: 'المبيعات', tags: ['طلب'] }],
+  },
+  public_service: {
+    departments: ['الخدمات'], tags: ['معاملة', 'شكوى'], canned: [['status', 'يمكنك متابعة حالة معاملتك برقمها.']], policy: 'assigned_only', retention: 60,
+    welcome: { body: 'مرحبًا بك، كيف يمكننا خدمتك؟', buttons: ['طلب خدمة', 'متابعة معاملة', 'تقديم شكوى'] }, away: { body: 'نحن خارج أوقات الدوام الرسمي الآن وسنوافيك بالرد في أقرب وقت.' },
+    rules: [{ name: 'قائمة: طلب خدمة', button: 'طلب خدمة', reply: 'استلمنا طلبك، فضلًا اذكر الخدمة المطلوبة.', department: 'الخدمات', tags: ['معاملة'] }],
+  },
 }
 
 const ok = body => ({ status: 200, body })
@@ -533,7 +547,24 @@ function settleStatuses(conv) {
   }
 }
 
+function presetPreview(key) {
+  const preset = PRESETS[key]
+  return {
+    key,
+    applied: state.appliedPresets.has(key),
+    departments: preset.departments.map(name => ({ name, exists: state.departments.some(item => item.name === name) })),
+    tags: preset.tags.map(name => ({ name, exists: state.tags.some(item => item.name === name) })),
+    canned_replies: preset.canned.map(([shortcut, body]) => ({ shortcut, body, exists: state.canned.some(item => item.shortcut === shortcut) })),
+    welcome: preset.welcome,
+    away: preset.away,
+    rules: preset.rules.map(rule => ({ ...rule, exists: false })),
+    campaigns: MOCK_CAMPAIGNS,
+    settings: preset.policy === 'assigned_only' ? { visibility_policy: preset.policy, retention_months: preset.retention } : null,
+  }
+}
+
 function applyPreset(key) {
+  state.appliedPresets.add(key)
   const preset = PRESETS[key]
   for (const name of preset.departments) if (!state.departments.some(item => item.name === name)) state.departments.push({ id: state.ids.department++, name, members: [] })
   for (const name of preset.tags) if (!state.tags.some(item => item.name === name)) state.tags.push({ id: state.ids.tag++, name })
@@ -1135,8 +1166,9 @@ export function inboxPreviewData(method, path, url, body = {}) {
   const parts = segments(path)
   if (parts[2] === 'settings' && parts[3] === 'inbox') {
     if (parts[4] === 'campaigns') return campaignsRoute(mockContext(), method, parts, url, body)
-    if (parts[4] === 'presets' && method === 'POST') {
+    if (parts[4] === 'presets' && (method === 'POST' || method === 'GET')) {
       if (!PRESETS[parts[5]]) return fail(404, 'not_found', 'unknown preset')
+      if (method === 'GET') return ok(presetPreview(parts[5]))
       applyPreset(parts[5])
       return ok(state.settings)
     }

@@ -41,6 +41,7 @@ from odoo.addons.liwan_inbox.models.settings import (
 from odoo.addons.liwan_inbox.serializers.settings import (
     dump_canned_reply,
     dump_department,
+    dump_preset_preview,
     dump_settings,
     dump_tag,
 )
@@ -106,6 +107,15 @@ class SettingsController(http.Controller):
         settings = request.env['liwan.inbox.settings']._get_for_company()
         settings.write(parse_settings(payload))
         return dump_settings(settings)
+
+    @http.route('/api/v1/settings/inbox/presets/<string:key>', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('inbox.enabled', operation='read')
+    @requires_capability(MANAGE_SETTINGS)
+    def preview_preset(self, key, **_):
+        if key not in PRESETS:
+            raise ApiError(404, 'not_found', 'preset does not exist')
+        return dump_preset_preview(key, request.env['liwan.inbox.settings']._liwan_read_for_company()._liwan_preset_preview(key))
 
     @http.route('/api/v1/settings/inbox/presets/<string:key>', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

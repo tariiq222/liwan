@@ -16,6 +16,34 @@ def dump_settings(settings):
     }
 
 
+def dump_preset_preview(key, preview):
+    """What a sector preset adds or sets, from `_liwan_preset_preview`: each named item says whether the company has it already."""
+    preset, existing = preview['preset'], preview['existing']
+    automation = preset['automation']
+    buttons = {option['option_id']: option['title'] for _, _, option in automation['welcome']['option_ids']}
+    return {
+        'key': key,
+        'applied': preview['applied'],
+        'departments': [{'name': name, 'exists': name in existing['departments']} for name in preset['departments']],
+        'tags': [{'name': name, 'exists': name in existing['tags']} for name in preset['tags']],
+        'canned_replies': [
+            {'shortcut': shortcut, 'body': body, 'exists': shortcut in existing['canned_replies']}
+            for shortcut, body in preset['canned_replies']
+        ],
+        'welcome': {'body': automation['welcome']['body'], 'buttons': list(buttons.values())},
+        'away': {'body': automation['away']['body']},
+        'rules': [
+            {
+                'name': rule['name'], 'button': buttons[rule['option_id']], 'reply': rule['reply']['body'],
+                'department': rule['department'], 'tags': rule['tags'], 'exists': rule['name'] in existing['rules'],
+            }
+            for rule in automation['rules']
+        ],
+        'campaigns': {name: preset['campaigns'][name] for name in ('stop_keywords', 'start_keywords', 'stop_reply', 'start_reply')},
+        'settings': preset.get('settings'),
+    }
+
+
 def dump_department(department, members=True):
     """The department and, when the reader has a settings or agent right, its members."""
     return {

@@ -53,10 +53,12 @@ PREPARE_FAILURES = 3
 
 DEFAULT_STOP_REPLY = 'تم إيقاف الرسائل الترويجية. لإعادة تفعيلها أرسل «تفعيل العروض».'
 DEFAULT_START_REPLY = 'تم تفعيل الرسائل الترويجية من جديد.'
+# The word every stop reply tells the customer to send to opt back in.
+START_KEYWORD = 'تفعيل العروض'
 # Never «إلغاء» alone: it is a common word for cancelling an appointment.
 DEFAULT_KEYWORDS = {
     'stop': ('إيقاف', 'إلغاء الاشتراك', 'إيقاف العروض', 'stop', 'unsubscribe', 'stop promotions'),
-    'start': ('تفعيل العروض', 'start promotions'),
+    'start': (START_KEYWORD, 'start promotions'),
 }
 # The start words earlier versions seeded: ambiguous («اشتراك» is also a subscription request), so they are removed.
 RETIRED_START_KEYWORDS = ('اشتراك', 'start', 'subscribe')

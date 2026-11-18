@@ -3,7 +3,8 @@ from odoo import Command, api, fields, models
 from odoo.exceptions import ValidationError
 
 from .constants import DEFAULT_TIMEZONE
-from .presets import PRESETS
+from .hours_text import hours_sentence
+from .presets import PRESETS, fill_hours
 
 VISIBILITY_POLICIES = [
     ('assigned_only', 'Assigned conversations only'),
@@ -96,7 +97,7 @@ class LiwanInboxSettings(models.Model):
         `flows` adds the sector's missing starter forms to the channels as drafts, whenever it is asked for.
         """
         self.ensure_one()
-        preset = PRESETS[key]
+        preset = self._liwan_preset(key)
         first = key not in self.applied_preset_ids.mapped('key')
         if first:
             self._liwan_seed_preset_items(preset)
@@ -109,6 +110,26 @@ class LiwanInboxSettings(models.Model):
         if flows:
             self.env['liwan.inbox.flow']._liwan_seed_starters(self.company_id, key)
         return self
+
+    def _liwan_preset(self, key):
+        """The sector preset with the company's working hours written into its texts."""
+        self.ensure_one()
+        ranges = [(row.weekday, row.start_minute, row.end_minute) for row in self.hours_range_ids]
+        return fill_hours(PRESETS[key], hours_sentence(ranges))
+
+    def _liwan_preset_preview(self, key):
+        """What applying the sector preset would add or set: the preset itself and, per item, whether the company already has it."""
+        self.ensure_one()
+        preset = self._liwan_preset(key)
+        company = [('company_id', '=', self.company_id.id)]
+        Rule = self.env['liwan.inbox.rule'].with_context(active_test=False)
+        existing = {
+            'departments': set(self.env['liwan.inbox.department'].search(company).mapped('name')),
+            'tags': set(self.env['liwan.inbox.tag'].search(company).mapped('name')),
+            'canned_replies': set(self.env['liwan.inbox.canned.reply'].search(company).mapped('shortcut')),
+            'rules': set(Rule.search(company).mapped('name')),
+        }
+        return {'preset': preset, 'existing': existing, 'applied': key in self.applied_preset_ids.mapped('key')}
 
     def _liwan_seed_preset_items(self, preset):
         """Create the departments, tags and canned replies of `preset` that the company lacks."""
