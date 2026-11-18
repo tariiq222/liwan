@@ -55,6 +55,7 @@ test('a pending trial lock offers retry and refreshes the applied outcome', asyn
     limits: { users: 5, storage_mb: 20_480, extra_branches: 1 },
     excess: { users: null, storage_bytes: null, extra_branches: 1, sampled_at: null, source: 'unavailable', item_details: 'unavailable' },
     first_invoice: null,
+    price_after_trial: null,
     next_attempt_at: '2026-12-01T21:05:00Z',
   })
   let retries = 0

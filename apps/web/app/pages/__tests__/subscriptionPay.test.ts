@@ -20,7 +20,7 @@ const render = new Function('Vue', transpile(template.code))(Vue)
 
 const money = { minor: 34_500, currency: 'SAR', exponent: 2 }
 const unpaid = { id: 'order-1', kind: 'new', payment_state: 'awaiting_payment', fulfillment_state: 'not_started', cancelled: false, due_now: money, created_at: '2026-11-14T08:00:00.000Z' }
-const invoice = { id: 'inv-1', number: 'INV-0001', order_id: 'order-1', status: 'issued', total: money }
+const invoice = { id: 'inv-1', number: 'INV-0001', order_id: 'order-1', status: 'issued', total: money, period_start: '2026-11-14', period_end: '2026-12-14' }
 const session = { attempt_id: 'attempt-1', intent: { id: 'intent-1', client_secret: 'secret-1' }, publishable_key: 'pk_test_abc', amount: money, expires_at: '2099-01-01T00:00:00.000Z' }
 const refused = (code: string, statusCode = 409) => Object.assign(new Error(code), { statusCode, data: { code } })
 
@@ -28,12 +28,13 @@ const scopes: Vue.EffectScope[] = []
 beforeEach(() => vi.useFakeTimers())
 afterEach(() => { scopes.splice(0).forEach(scope => scope.stop()); vi.useRealTimers() })
 
-type Options = { capabilities?: string[]; order?: Record<string, unknown> | null; hydrated?: boolean }
+type Options = { capabilities?: string[]; order?: Record<string, unknown> | null; hydrated?: boolean; subscriptionState?: string }
 async function mountPage(options: Options = {}) {
   const current = { order: options.order === undefined ? { ...unpaid } : options.order }
   const api = {
     order: vi.fn(async () => { if (!current.order) throw Object.assign(new Error('missing'), { statusCode: 404 }); return { ...current.order } }),
     invoices: vi.fn(async () => ({ items: [invoice], total: 1 })),
+    subscription: vi.fn(async () => ({ state: options.subscriptionState ?? 'active' })),
     startCardPayment: vi.fn(async (_order: string, _saveCard: boolean) => session),
   }
   const capabilities = options.capabilities ?? ['subscription.read', 'subscription.manage', 'billing.read']
@@ -44,7 +45,7 @@ async function mountPage(options: Options = {}) {
   const toast = { add: vi.fn() }
   const bindings = {
     ...cardPayment, ...subscriptionUtils, _defineComponent: Vue.defineComponent, _withAsyncContext: (fn: () => unknown) => [fn(), () => {}],
-    ref: Vue.ref, computed: Vue.computed, watch: Vue.watch,
+    ref: Vue.ref, computed: Vue.computed, watch: Vue.watch, formatDate: (value: string) => `date:${value}`,
     onMounted: (fn: () => void) => mounted.push(fn), onBeforeUnmount: (fn: () => void) => unmounting.push(fn),
     definePageMeta: () => {}, navigateTo, useToast: () => toast,
     window: { sessionStorage: { getItem: (key: string) => store.get(key) ?? null, setItem: (key: string, value: string) => void store.set(key, value), removeItem: (key: string) => void store.delete(key) } },
@@ -73,7 +74,7 @@ async function mountPage(options: Options = {}) {
         setup(_, { attrs, slots, emit }) {
           return () => {
             if (name === 'SubscriptionPaymentForm') forms.push({ props: { ...attrs }, expire: () => emit('expired') })
-            const text = [attrs.title, attrs.description, attrs.label].filter(Boolean).join(' ')
+            const text = [attrs.title, attrs.description, attrs.label, attrs.value].filter(Boolean).join(' ')
             const hidden = name === 'SharedPageState' && (attrs.loading || attrs.error)
             return Vue.h('div', { 'data-testid': attrs['data-testid'] as string | undefined, 'data-component': name, 'data-save-card': attrs['save-card'] as string | undefined }, [text, hidden ? 'LOADING' : slots.default?.(), slots.actions?.()])
           }
@@ -110,6 +111,50 @@ describe('the pay page opened', () => {
     expect(html).toContain('data-testid="pay-no-permission"'); expect(html).not.toContain('pay-continue'); expect(html).not.toContain('pay-by-card')
     await page.state.start()
     expect(page.api.startCardPayment).not.toHaveBeenCalled()
+  })
+})
+
+describe('the pay page for a trial checkout', () => {
+  const trialOrder = { ...unpaid, kind: 'renewal' }
+  it('labels the first payment, shows the covered period and says the paid period starts today', async () => {
+    vi.setSystemTime(new Date('2026-11-14T10:00:00.000Z'))
+    const html = await (await mountPage({ order: trialOrder, subscriptionState: 'trialing' })).html()
+    expect(html).toContain('subscription.pay.kinds.first_payment'); expect(html).not.toContain('subscription.pay.kinds.renewal')
+    expect(html).toContain('data-testid="pay-period"'); expect(html).toContain('subscription.pay.period')
+    expect(html).toContain('data-testid="pay-trial-early"'); expect(html).toContain('data-testid="pay-continue"')
+    expect(html).not.toContain('pay-checkout-expired')
+  })
+  it('a checkout opened on an earlier Riyadh day shows the expired state on load and no payment actions', async () => {
+    vi.setSystemTime(new Date('2026-11-15T10:00:00.000Z'))
+    const page = await mountPage({ order: trialOrder, subscriptionState: 'trialing' })
+    const html = await page.html()
+    expect(html).toContain('data-testid="pay-checkout-expired"'); expect(html).toContain('subscription.pay.checkoutExpired.title')
+    expect(html).not.toContain('pay-continue'); expect(html).not.toContain('pay-by-transfer'); expect(html).not.toContain('pay-trial-early')
+    expect(page.api.startCardPayment).not.toHaveBeenCalled()
+  })
+  it('a user without billing.read still gets the expired state on load, and sees no covered period', async () => {
+    vi.setSystemTime(new Date('2026-11-15T10:00:00.000Z'))
+    const page = await mountPage({ order: trialOrder, subscriptionState: 'trialing', capabilities: ['subscription.read', 'subscription.manage'] })
+    const html = await page.html()
+    expect(page.api.invoices).not.toHaveBeenCalled()
+    expect(html).toContain('data-testid="pay-checkout-expired"'); expect(html).not.toContain('pay-continue'); expect(html).not.toContain('pay-period')
+  })
+  it.each(['new', 'change'])('a trialing customer opening a %s order keeps its label and sees neither the expired state nor the early-payment line', async (kind) => {
+    vi.setSystemTime(new Date('2026-11-20T10:00:00.000Z'))
+    const html = await (await mountPage({ order: { ...trialOrder, kind }, subscriptionState: 'trialing' })).html()
+    expect(html).toContain(`subscription.pay.kinds.${kind}`); expect(html).not.toContain('first_payment')
+    expect(html).not.toContain('pay-checkout-expired'); expect(html).not.toContain('pay-trial-early'); expect(html).toContain('pay-continue')
+  })
+  it('the Riyadh day, not the UTC day, decides', async () => {
+    vi.setSystemTime(new Date('2026-11-14T22:30:00.000Z'))
+    const html = await (await mountPage({ order: trialOrder, subscriptionState: 'trialing' })).html()
+    expect(html).toContain('data-testid="pay-checkout-expired"')
+  })
+  it('an ordinary renewal keeps its label, shows its period and has no early-payment line', async () => {
+    vi.setSystemTime(new Date('2026-12-30T10:00:00.000Z'))
+    const html = await (await mountPage({ order: trialOrder, subscriptionState: 'active' })).html()
+    expect(html).toContain('subscription.pay.kinds.renewal'); expect(html).toContain('data-testid="pay-period"')
+    expect(html).not.toContain('pay-trial-early'); expect(html).not.toContain('pay-checkout-expired'); expect(html).toContain('pay-continue')
   })
 })
 

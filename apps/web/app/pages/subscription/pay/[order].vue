@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { canonicalPayRedirect, CARD_CONSENT_KEY, type CardFormSession, clearPaymentStarted, markPaymentStarted, payRefusal, paymentWasStarted } from '@/utils/cardPayment'
-import { formatSubscriptionMoney, orderOutcome, refusalCode } from '@/utils/subscription'
+import { formatDate } from '@liwan/ui/app/utils/formatDate'
+import { formatSubscriptionMoney, isStaleTrialCheckout, orderOutcome, payKindKey, refusalCode } from '@/utils/subscription'
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
 const { t, locale } = useI18n(); const toast = useToast(); const route = useRoute(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities(); const hydrated = useHydrated()
 const allowed = computed(() => can('subscription.read'))
@@ -11,10 +12,16 @@ const statusTo = computed(() => ({ path: '/subscription/status', query: { order:
 const { data: loaded, error, pending, refresh } = await useAsyncData(() => `subscription:pay:${orderId.value}`, async () => {
   const order = await api.order(orderId.value).catch((cause: any) => { if ((cause?.statusCode ?? cause?.status) === 404) return null; throw cause })
   const invoices = order && can('billing.read') ? await api.invoices().then(list => list.items, () => []) : []
-  return { order, invoice: invoices.find(item => item.order_id === orderId.value && item.status === 'issued') ?? null }
+  // Only the state is read: it says whether this is the trial checkout. A failed read never blocks the payment.
+  const subscription = order ? await api.subscription().catch(() => null) : null
+  return { order, invoice: invoices.find(item => item.order_id === orderId.value && item.status === 'issued') ?? null, subscriptionState: subscription?.state ?? null }
 }, { immediate: allowed.value, watch: [orderId] })
 const order = computed(() => loaded.value?.order ?? null)
 const invoice = computed(() => loaded.value?.invoice ?? null)
+// The first payment of a trial checkout ends the trial at once and starts the paid period that day.
+const trialCheckout = computed(() => loaded.value?.subscriptionState === 'trialing' && order.value?.kind === 'renewal')
+// A trial checkout is payable only on the Riyadh day it was opened: say so on load instead of after the click.
+const staleCheckout = computed(() => trialCheckout.value && isStaleTrialCheckout(loaded.value?.subscriptionState, order.value?.created_at))
 const outcome = computed(() => (order.value ? orderOutcome(order.value) : null))
 const payable = computed(() => outcome.value === 'awaiting_payment')
 // A paid, activating or refunded order has nothing to pay: its status page says what happened.
@@ -98,15 +105,22 @@ definePageMeta({ middleware: ['customer-commercial', (to) => { const canonical =
       <div v-else-if="order && payable" class="grid gap-(--liwan-gap-card)">
         <SharedRecordSection variant="panel" :title="t('subscription.pay.order')">
           <SharedPropertiesPanel data-testid="pay-order">
-            <SharedPropertyRow :label="t('subscription.pay.what')" :value="t(`subscription.pay.kinds.${order.kind}`)" />
+            <SharedPropertyRow :label="t('subscription.pay.what')" :value="t(payKindKey(order.kind, loaded?.subscriptionState))" />
+            <SharedPropertyRow v-if="invoice?.period_start && invoice.period_end" :label="t('subscription.pay.period')" :value="t('subscription.pay.periodRange', { start: formatDate(invoice.period_start, 'Asia/Riyadh'), end: formatDate(invoice.period_end, 'Asia/Riyadh') })" data-testid="pay-period" />
             <SharedPropertyRow v-if="invoice?.number" :label="t('subscription.pay.invoice')"><NuxtLink :to="`/subscription/invoices/${encodeURIComponent(invoice.id)}`" class="hover:underline"><bdi dir="ltr">{{ invoice.number }}</bdi></NuxtLink></SharedPropertyRow>
             <SharedPropertyRow :label="t('subscription.pay.amount')"><bdi dir="ltr" class="font-semibold tabular-nums" data-testid="pay-amount">{{ formatSubscriptionMoney(invoice?.total ?? order.due_now, locale) }}</bdi></SharedPropertyRow>
           </SharedPropertiesPanel>
         </SharedRecordSection>
 
-        <UAlert v-if="!canPay" color="warning" variant="subtle" role="status" data-testid="pay-no-permission" :title="t('subscription.pay.noPermission.title')" :description="t('subscription.pay.noPermission.description')" />
+        <div v-if="staleCheckout" class="space-y-3" data-testid="pay-checkout-expired">
+          <UAlert color="warning" variant="subtle" role="alert" :title="t('subscription.pay.checkoutExpired.title')" :description="t('subscription.pay.checkoutExpired.description')" />
+          <UButton to="/subscription" color="neutral" variant="outline">{{ t('subscription.status.viewSubscription') }}</UButton>
+        </div>
+
+        <UAlert v-else-if="!canPay" color="warning" variant="subtle" role="status" data-testid="pay-no-permission" :title="t('subscription.pay.noPermission.title')" :description="t('subscription.pay.noPermission.description')" />
 
         <template v-else>
+          <UAlert v-if="trialCheckout" color="info" variant="subtle" role="status" data-testid="pay-trial-early" :title="t('subscription.pay.trialPaidStarts')" />
           <UAlert v-if="lastAttemptOpened && phase === 'choose'" color="warning" variant="subtle" role="status" data-testid="pay-not-completed" :title="t('subscription.status.notCompleted.title')" :description="t('subscription.status.notCompleted.description')" />
           <UAlert v-if="forbidden" color="error" variant="subtle" role="alert" :title="t('subscription.pay.forbidden')" />
           <UAlert v-if="failed" color="error" variant="subtle" role="alert" data-testid="pay-failed" :title="t('subscription.pay.failed')" />

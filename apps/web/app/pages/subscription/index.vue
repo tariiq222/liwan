@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { payPath } from '@/utils/cardPayment'
-import { dayBefore, subscriptionStateBadge } from '@/utils/subscription'
+import { dayBefore, FREE_BASE_BADGE, subscriptionStateBadge } from '@/utils/subscription'
 import { subscriptionDisplayState } from '@liwan/commercial-contracts'
 import { formatDate } from '@liwan/ui/app/utils/formatDate'
 import { deletionErrorKey, formatSubscriptionMoney, hasTrialPreview, orderOutcome, refusalCode, refusalKey, trialBundleNames, trialDaysRemaining, trialEndActions } from '@/utils/subscription'
@@ -36,6 +36,9 @@ const display = computed(() => {
   return sub.pending_order && orderOutcome(sub.pending_order) === 'recovering' ? 'activating' : subscriptionDisplayState(sub)
 })
 // The one action block: only when the customer must act on an order (payment due or activation failed).
+// An unpaid trial that lapsed leaves the workspace on the free base: nothing renews and the one next step is to subscribe.
+const onFreeBase = computed(() => data.value?.sub?.on_free_base === true && display.value === 'active')
+const stateBadge = computed(() => (display.value ? (onFreeBase.value ? FREE_BASE_BADGE : subscriptionStateBadge(display.value)) : null))
 const needsAction = computed(() => display.value === 'awaiting_payment' || display.value === 'failed')
 const entitlement = computed(() => data.value?.sub?.applied?.entitlement ?? null)
 const trialEndsAt = computed(() => data.value?.sub?.trial_ends_at ?? null)
@@ -111,7 +114,7 @@ definePageMeta({ middleware: 'customer-commercial' })
 <template>
   <SharedSettingsPage>
     <SharedPageHeader :title="t('subscription.title')">
-      <template #actions><UButton v-if="can('subscription.manage') && !trialActions.blocked && !data?.sub?.cancellation" to="/subscription/change" icon="i-lucide-repeat" :disabled="!hydrated">{{ t('subscription.summary.change') }}</UButton></template>
+      <template #actions><UButton v-if="can('subscription.manage') && !trialActions.blocked && !data?.sub?.cancellation" to="/subscription/change" icon="i-lucide-repeat" :disabled="!hydrated" :data-testid="onFreeBase ? 'subscribe-now' : 'change-subscription'">{{ t(onFreeBase ? 'subscription.summary.subscribeNow' : 'subscription.summary.change') }}</UButton></template>
     </SharedPageHeader>
     <SharedForbiddenState v-if="!allowed" />
     <SharedPageState v-else :loading="pending" :error="error" @retry="refresh">
@@ -132,6 +135,7 @@ definePageMeta({ middleware: 'customer-commercial' })
           :can-open-storage="canAccess('settings.company.manage')"
           :can-read-branches="allowed"
           :can-read-billing="can('billing.read')"
+          :cadence="data.sub.applied?.cadence"
         >
           <template #actions>
             <UButton v-if="trialActions.canRetry" data-testid="trial-retry" size="sm" :disabled="!hydrated || retryingTrial" :loading="retryingTrial" @click="retryTrial">{{ t('subscription.trialEnd.retry') }}</UButton>
@@ -155,11 +159,11 @@ definePageMeta({ middleware: 'customer-commercial' })
         >
           <template v-if="data.sub.pending_order" #actions><UButton size="sm" :color="needsAction ? 'primary' : 'neutral'" :variant="needsAction ? 'solid' : 'outline'" :to="{ path: '/subscription/status', query: { order: data.sub.pending_order.id } }">{{ t('subscription.summary.viewStatus') }}</UButton></template>
         </SharedRecordSection>
-        <SharedRecordSection variant="panel" :title="t('subscription.summary.plan')"><template #actions><SharedStatusBadge v-if="display" data-slot="subscription-state" :data-state="display" :tone="subscriptionStateBadge(display).tone" :label="t(subscriptionStateBadge(display).labelKey)" /></template>
+        <SharedRecordSection variant="panel" :title="t('subscription.summary.plan')"><template #actions><SharedStatusBadge v-if="display && stateBadge" data-slot="subscription-state" :data-state="onFreeBase ? 'free_base' : display" :tone="stateBadge.tone" :label="t(stateBadge.labelKey)" /></template>
           <p v-if="!data.sub.applied" class="text-sm text-muted">{{ t('subscription.summary.none') }}</p>
           <SharedPropertiesPanel v-else>
-            <SharedPropertyRow :label="t('subscription.summary.cadence')" :value="data.sub.applied.cadence.count === 1 ? t(`subscription.cadence.${data.sub.applied.cadence.unit}.one`) : t(`subscription.cadence.${data.sub.applied.cadence.unit}.many`, { count: data.sub.applied.cadence.count })" />
-            <SharedPropertyRow v-if="data.sub.renewal_at" :label="t('subscription.summary.renewal')">{{ formatDate(data.sub.renewal_at) }}</SharedPropertyRow><SharedPropertyRow v-else :label="t('subscription.summary.renewal')" :value="null" />
+            <SharedPropertyRow :label="t('subscription.summary.cadence')" :value="t(`subscription.cadence.${data.sub.applied.cadence.unit}`, { count: data.sub.applied.cadence.count })" />
+            <template v-if="!onFreeBase"><SharedPropertyRow v-if="data.sub.renewal_at" :label="t('subscription.summary.renewal')">{{ formatDate(data.sub.renewal_at) }}</SharedPropertyRow><SharedPropertyRow v-else :label="t('subscription.summary.renewal')" :value="null" /></template>
           </SharedPropertiesPanel>
         </SharedRecordSection>
         <SharedRecordSection variant="panel" :title="t('subscription.summary.services')">

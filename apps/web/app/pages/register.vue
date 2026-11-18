@@ -47,6 +47,7 @@ const privacyUrl = computed(() => legal.value ? `${legal.value.legal_base_url}${
 const verification = reactive({ code: '' })
 const signupId = ref<string>()
 const emailSent = ref(false)
+const verifiedEmail = ref('')
 const pending = ref<Action>()
 const errorKey = ref<string>()
 // The refusal the server states about the email field itself; its free-mail list stays on the server.
@@ -221,6 +222,7 @@ async function verifyCode() {
     if (action === 'verify-sms') {
       step.value = 'email'
     } else {
+      verifiedEmail.value = details.email.trim()
       signupId.value = undefined
       details.company_name = ''
       details.admin_name = ''
@@ -347,7 +349,7 @@ async function verifyCode() {
 
       <UAlert
         v-else role="status" color="success" variant="subtle" icon="i-lucide-mail-check"
-        :description="`${t('signup.invitation', { email: details.email.trim() })} ${t('signup.invitationLate')}`"
+        :description="`${t('signup.invitation', { email: verifiedEmail })} ${t('signup.invitationLate')} ${t('signup.trialStarts')}`"
       />
       <UButton v-if="step === 'done'" to="/find-workspace" color="neutral" variant="link" class="justify-center" :label="t('signup.findLater')" />
     </div>

@@ -15,6 +15,7 @@ const preview = trialEndPreviewSchema.parse({
   limits: { users: 5, storage_mb: 30_720, extra_branches: 1 },
   excess: { users: 1, storage_bytes: 5_242_880, extra_branches: 0, sampled_at: '2026-11-30T09:00:00Z', source: 'usage_snapshot', item_details: 'unavailable' },
   first_invoice: { ...quote, requested_users: 5, requested_storage_mb: 30_720 },
+  price_after_trial: { minor: 41_400, currency: 'SAR', exponent: 2 },
   next_attempt_at: null,
 })
 
@@ -28,6 +29,15 @@ export default meta
 
 type Story = StoryObj<typeof meta>
 export const TrialActive: Story = {}
+export const TrialActiveYearly: Story = {
+  args: { cadence: { unit: 'year', count: 1 } },
+}
+export const TrialActiveEveryThreeMonths: Story = {
+  args: { cadence: { unit: 'month', count: 3 } },
+}
+export const TrialPlanContinuesFree: Story = {
+  args: { preview: { ...preview, first_invoice: null, price_after_trial: null } },
+}
 export const ApplyingLock: Story = {
   args: { preview: { ...preview, status: 'lock_pending', next_attempt_at: '2026-12-01T21:05:00Z' } },
 }
@@ -38,5 +48,8 @@ export const UsageUnavailable: Story = {
   },
 }
 export const FreeBase: Story = {
-  args: { preview: { ...preview, status: 'settled', outcome: 'free_base', first_invoice: null, kept: { bundle_revision_ids: [], paid_users: 0, paid_storage_gb: 0, paid_extra_branches: 0 } } },
+  args: { preview: { ...preview, status: 'settled', outcome: 'free_base', first_invoice: null, price_after_trial: null, kept: { bundle_revision_ids: [], paid_users: 0, paid_storage_gb: 0, paid_extra_branches: 0 } } },
+}
+export const SettledConverted: Story = {
+  args: { preview: { ...preview, status: 'settled', outcome: 'converted', locked_bundle_revision_ids: [], price_after_trial: null } },
 }

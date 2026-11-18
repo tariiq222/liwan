@@ -101,7 +101,8 @@
       "payment_method": null
     },
     "trial_ends_at": null,
-    "grace_ends_at": null
+    "grace_ends_at": null,
+    "on_free_base": false
   },
   "invoices": {
     "items": [

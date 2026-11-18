@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { Invoice } from '@liwan/commercial-contracts'
 import { formatDate } from '@liwan/ui/app/utils/formatDate'
-import { csrfTokenFor, formatSubscriptionMoney, orderOutcome, refusalCode, refusalKey, sameQuoteEconomics, subscriptionInvoiceView, trialDaysRemaining } from '../subscription'
+import { csrfTokenFor, formatSubscriptionMoney, FREE_BASE_BADGE, isStaleTrialCheckout, orderOutcome, payKindKey, refusalCode, refusalKey, sameQuoteEconomics, subscriptionInvoiceView, trialDaysRemaining } from '../subscription'
 
 const money = (minor: number) => ({ currency: 'SAR', exponent: 2, minor })
 const t = (key: string) => `t:${key}`
@@ -124,5 +124,42 @@ describe('csrfTokenFor', () => {
   })
   it('sends no token when the cookie still cannot be set, so the server refuses the request', async () => {
     expect(await csrfTokenFor(undefined, async () => {}, () => undefined)).toBeNull()
+  })
+})
+
+describe('free base presentation', () => {
+  it('is a neutral badge that names the free base, never a paying state', () => {
+    expect(FREE_BASE_BADGE).toEqual({ tone: 'neutral', labelKey: 'subscription.state.freeBase' })
+  })
+})
+
+describe('payKindKey', () => {
+  it('names the trial checkout as the first subscription payment', () => {
+    expect(payKindKey('renewal', 'trialing')).toBe('subscription.pay.kinds.first_payment')
+  })
+  it('keeps every other label', () => {
+    expect(payKindKey('renewal', 'active')).toBe('subscription.pay.kinds.renewal')
+    expect(payKindKey('change', 'trialing')).toBe('subscription.pay.kinds.change')
+    expect(payKindKey('renewal', null)).toBe('subscription.pay.kinds.renewal')
+  })
+})
+
+describe('isStaleTrialCheckout', () => {
+  it('is stale when the invoice period began on another Riyadh day', () => {
+    const opened = '2026-11-14T08:00:00.000Z'
+    expect(isStaleTrialCheckout('trialing', opened, new Date('2026-11-14T20:59:00Z'))).toBe(false)
+    expect(isStaleTrialCheckout('trialing', opened, new Date('2026-11-14T21:00:00Z'))).toBe(true)
+    expect(isStaleTrialCheckout('trialing', opened, new Date('2026-11-13T20:59:00Z'))).toBe(true)
+  })
+  it('never applies outside a trial or without a period', () => {
+    expect(isStaleTrialCheckout('active', '2026-11-01T08:00:00.000Z', new Date('2026-11-14T10:00:00Z'))).toBe(false)
+    expect(isStaleTrialCheckout('trialing', null, new Date('2026-11-14T10:00:00Z'))).toBe(false)
+  })
+})
+
+describe('change-page refusals', () => {
+  it('explains an unavailable usage reading and a downgrade below usage', () => {
+    expect(refusalKey('usage_unavailable')).toBe('subscription.change.usageUnavailable')
+    expect(refusalKey('downgrade_below_usage')).toBe('subscription.change.downgradeBelowUsage')
   })
 })
