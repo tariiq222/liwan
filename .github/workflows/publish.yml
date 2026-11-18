@@ -12,6 +12,12 @@ name: publish
 # Push of a release/* tag: nothing is rebuilt. The staging attestation of the tagged commit is verified against the
 # main-branch identity of this workflow and re-attested with the production type (.../production/v1) under the tag
 # identity. A commit with no published document fails the run.
+# The workflow and script of a tag run come from the tagged commit, so the in-workflow checks only protect the reviewed
+# path. A verifier of the production attestation must also pass `--certificate-github-workflow-sha <commit>` (the commit
+# in the release document) and require the staging attestation of the same release document signed by the main
+# identity, so only code merged to main can produce a trusted production signature. The `production` environment
+# (required reviewers, deployment rule limited to `release/*` tags) and a tag ruleset restricting who creates
+# `release/*` tags are repository settings the owner configures.
 #
 # A server agent fetches without credentials: resolve ghcr.io/tariiq222/liwan-release:<commit>, then
 # `cosign verify-attestation --type <channel type> --certificate-oidc-issuer https://token.actions.githubusercontent.com
@@ -108,10 +114,13 @@ jobs:
 
   promote:
     if: github.ref_type == 'tag'
+    environment: production
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
       - name: Sign in to GHCR
         run: echo "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
         env:
