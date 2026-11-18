@@ -773,5 +773,57 @@ class TestReleaseDocument(unittest.TestCase):
         self.assertEqual(sorted(document['release']['moduleVersions']), sorted(versions))
 
 
+class TestPromoteTrust(unittest.TestCase):
+    """A release tag is only trusted for a commit on main: the reviewed path refuses anything else before signing."""
+    workflow = (ROOT / '.github/workflows/publish.yml').read_text()
+    script = commands('publish')
+
+    def promote_body(self):
+        return re.search(r'(?ms)^promote\(\) \{\n(.*?)^\}\n', self.script).group(1)
+
+    def test_promote_waits_for_the_production_environment_and_fetches_main(self):
+        promote = yaml.safe_load(self.workflow)['jobs']['promote']
+        self.assertEqual(promote['environment'], 'production')
+        checkout = next(step for step in promote['steps'] if step.get('uses', '').startswith('actions/checkout@'))
+        self.assertEqual(checkout['with'], {'fetch-depth': 0})
+
+    def test_a_commit_not_on_main_is_refused_before_any_signing_or_registry_call(self):
+        body = self.promote_body()
+        check = body.index('git merge-base --is-ancestor "$GITHUB_SHA" origin/main')
+        self.assertLess(check, body.index('registry'))
+        self.assertLess(check, body.index('cosign'))
+
+    def test_staging_verification_is_bound_to_the_commit_and_the_main_identity(self):
+        body = self.promote_body()
+        verify = body[body.index('cosign verify-attestation'):body.index('cosign attest')]
+        self.assertIn('--certificate-identity "$(signer refs/heads/main)"', verify)
+        self.assertIn('--certificate-github-workflow-sha "$GITHUB_SHA"', verify)
+
+    def test_the_production_attestation_is_written_after_the_verification(self):
+        body = self.promote_body()
+        self.assertLess(body.index('cosign verify-attestation'), body.index('cosign attest'))
+
+    def test_the_header_tells_verifiers_to_pin_the_workflow_commit(self):
+        header = self.workflow.split('\non:\n')[0]
+        self.assertIn('--certificate-github-workflow-sha', header)
+
+    def test_promote_exits_before_touching_docker_or_cosign_when_the_commit_is_not_on_main(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            bin_dir = Path(tmp) / 'bin'
+            bin_dir.mkdir()
+            marker = Path(tmp) / 'called'
+            for name in ('git', 'docker', 'cosign'):
+                action = 'exit 1' if name == 'git' else f'echo {name} >> {marker}'
+                (bin_dir / name).write_text(f'#!/bin/sh\n{action}\n')
+                (bin_dir / name).chmod(0o755)
+            result = subprocess.run(
+                ['bash', str(ROOT / 'deploy/ci/publish.sh'), 'promote'], capture_output=True, text=True,
+                env={**os.environ, 'PATH': str(bin_dir) + os.pathsep + os.environ['PATH'], 'GITHUB_SHA': 'a' * 40,
+                     'GITHUB_REF': 'refs/tags/release/19.0.1.0.0', 'GITHUB_REPOSITORY': 'tariiq222/liwan'})
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('is not on main', result.stderr)
+            self.assertFalse(marker.exists())
+
+
 if __name__ == '__main__':
     unittest.main()

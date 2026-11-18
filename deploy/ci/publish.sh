@@ -8,7 +8,8 @@
 #                            multi-arch index per image tagged with the commit, write the
 #                            release document and attest it keylessly on <registry>/liwan-release:<commit>
 #   promote                  on a release/* tag: re-attest the already published release document of the tagged commit for
-#                            production; nothing is rebuilt, and a commit with no published document is a failure
+#                            production, only for a commit on main; nothing is rebuilt, and a commit with no
+#                            published document is a failure
 set -euo pipefail
 cd "$(dirname "$0")/.."/..
 OIDC_ISSUER="https://token.actions.githubusercontent.com"
@@ -110,13 +111,16 @@ merge() {
 promote() {
   : "${GITHUB_SHA:?}" "${GITHUB_REF:?}" "${GITHUB_REPOSITORY:?}"
   case "$GITHUB_REF" in refs/tags/release/*) ;; *) fail "promote runs on a release/* tag, not $GITHUB_REF" ;; esac
+  git merge-base --is-ancestor "$GITHUB_SHA" origin/main ||
+    fail "commit $GITHUB_SHA is not on main: release tags may only point at commits merged to main"
   local anchor anchor_digest work
   anchor="$(registry)/liwan-release"
   anchor_digest="$(index_digest "$anchor:$GITHUB_SHA" 2>/dev/null)" ||
     fail "no published release document for commit $GITHUB_SHA: merge it to main and wait for the publish run before tagging"
   work="$(mktemp -d)"
   cosign verify-attestation --type "$(attestation_type staging)" --certificate-oidc-issuer "$OIDC_ISSUER" \
-    --certificate-identity "$(signer refs/heads/main)" "$anchor@$anchor_digest" > "$work/verified.jsonl" ||
+    --certificate-identity "$(signer refs/heads/main)" --certificate-github-workflow-sha "$GITHUB_SHA" \
+    "$anchor@$anchor_digest" > "$work/verified.jsonl" ||
     fail "the staging release document of $GITHUB_SHA is not signed by the main branch of this workflow"
   python3 -c '
 import base64, json, sys
