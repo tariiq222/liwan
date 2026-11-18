@@ -40,6 +40,6 @@ export function launcherEntries(identity: AccessIdentity, query: string, transla
         seen.add(action.to)
         return true
       }).slice(0, 3)
-      return { id: module.id, labelKey: module.labelKey, icon: module.icon, to: module.to, actions, pinnable: module.core === undefined }
+      return { id: module.id, labelKey: module.labelKey, icon: module.icon, to: module.to, actions, pinnable: module.core === undefined && module.footer === undefined }
     })
 }

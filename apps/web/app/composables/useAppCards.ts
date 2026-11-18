@@ -22,7 +22,7 @@ export interface AppCardModel {
   labelKey: string
   icon: AppIcon
   to: string
-  /** The core applications (the assistant, tasks, meetings, conversations, documents) are always in the sidebar's icon row, so they take no pin. */
+  /** The core applications (the assistant, tasks, meetings, conversations) are always in the sidebar's icon row, and documents and operations are in its bottom group, so they take no pin. */
   pinnable: boolean
   category: AppCardCategory
   plan: AppCard['plan']
@@ -41,7 +41,7 @@ export function appCardModels(identity: AccessIdentity, options: { assistant: bo
     .map((module): AppCardModel => {
       const card = activeManifests().find(manifest => manifest.rail.some(entry => entry.id === module.id))?.appCard ?? DEFAULT_CARD
       return {
-        id: module.id, labelKey: module.labelKey, icon: module.icon, to: module.to, pinnable: module.core === undefined,
+        id: module.id, labelKey: module.labelKey, icon: module.icon, to: module.to, pinnable: module.core === undefined && module.footer === undefined,
         category: card.category, plan: card.plan, surface: card.surface ?? 'lav', figures: (card.figures ?? []).slice(0, MAX_FIGURES),
       }
     })

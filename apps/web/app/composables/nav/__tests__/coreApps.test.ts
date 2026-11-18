@@ -6,13 +6,13 @@ import { visibleShellModules } from '../shellModules'
 import { withManifests } from '../../../modules/manifests'
 import type { AppManifest } from '../../../modules/types'
 
-const manifest = (id: string, core?: number, order = 10): AppManifest => ({
+const manifest = (id: string, core?: number, order = 10, footer?: number): AppManifest => ({
   id, feature: `${id}.enabled`, routePrefixes: [`/${id}`],
-  rail: [{ id, labelKey: `nav.${id}`, icon: `i-lucide-${id}`, to: `/${id}`, order, ...(core ? { core } : {}) }],
+  rail: [{ id, labelKey: `nav.${id}`, icon: `i-lucide-${id}`, to: `/${id}`, order, ...(core ? { core } : {}), ...(footer ? { footer } : {}) }],
   nav: [{ to: `/${id}`, labelKey: `nav.${id}`, icon: 'i-lucide-circle', shortcut: '', capability: `${id}.read` }],
 })
 // Declared out of order on purpose: the row follows `core`, not the manifest `order` or the declaration order.
-const manifests = [manifest('documents', 5, 70), manifest('projects', undefined, 20), manifest('chat', 4, 40), manifest('ai', 1, 60), manifest('meetings', 3, 30), manifest('tasks', 2, 15)]
+const manifests = [manifest('documents', undefined, 70, 1), manifest('operations', undefined, 80, 2), manifest('projects', undefined, 20), manifest('chat', 4, 40), manifest('ai', 1, 60), manifest('meetings', 3, 30), manifest('tasks', 2, 15)]
 const features = manifests.flatMap(item => item.feature ? [item.feature] : [])
 const me = (grants: string[]) => ({ capabilities: grants, platform: { state: 'active', read_only: false, readable_features: features, writable_features: features } })
 const everything = manifests.map(item => `${item.id}.read`)
@@ -24,7 +24,7 @@ const items = (grants: string[], extra: Partial<Parameters<typeof coreAppItems>[
 describe('core apps row', () => {
   it('lists «يومي» then the core applications by their manifest position, with the name, icon and route the manifest gives', () => {
     const row = items(everything)
-    expect(row.map(item => item.id)).toEqual(['home', 'ai', 'tasks', 'meetings', 'chat', 'documents'])
+    expect(row.map(item => item.id)).toEqual(['home', 'ai', 'tasks', 'meetings', 'chat'])
     expect(row[2]).toMatchObject({ label: 't:nav.tasks', icon: 'i-lucide-tasks', to: '/tasks' })
     expect(row[0]).toMatchObject({ label: 't:nav.home', to: '/' })
   })
@@ -45,9 +45,10 @@ describe('core apps row', () => {
     for (const id of ['chat', 'meetings', 'ai', 'home']) expect(row.find(item => item.id === id)!.count).toBeUndefined()
   })
 
-  it('leaves the core applications out of the «تطبيقاتي» list and the pins', () => {
+  it('leaves the core and footer applications out of the «تطبيقاتي» list and the pins', () => {
     const model = rail(everything)
+    expect(model.footer.map(item => item.id)).toEqual(['documents', 'operations'])
     expect(model.applications.map(item => item.id)).toEqual(['projects'])
-    expect(pinnedApplications(model, ['projects', 'tasks', 'ai']).map(item => item.id)).toEqual(['projects'])
+    expect(pinnedApplications(model, ['projects', 'tasks', 'ai', 'documents', 'operations']).map(item => item.id)).toEqual(['projects'])
   })
 })
