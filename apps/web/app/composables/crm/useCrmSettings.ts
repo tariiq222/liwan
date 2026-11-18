@@ -24,7 +24,7 @@ export function useSaveCrmSettings() {
       const companyId = me.value?.company?.id
       const saved = await $api('/api/v1/crm/settings', { method: 'PATCH', body, schema: CrmSettingsSchema })
       qc.setQueryData(crmKeys.settings(companyId), saved)
-      await qc.invalidateQueries({ queryKey: crmKeys.terms(companyId) })
+      await Promise.all([qc.invalidateQueries({ queryKey: crmKeys.terms(companyId) }), qc.invalidateQueries({ queryKey: crmKeys.access(companyId) })])
       return saved
     },
   })

@@ -86,7 +86,7 @@
         "roundRobin": "Round robin",
         "roundRobinHint": "Each new opportunity goes to the next agent in turn.",
         "manual": "Manual",
-        "manualHint": "Opportunities stay unassigned until a manager assigns them.",
+        "manualHint": "Only people who can assign create opportunities, and new ones stay unassigned until they are assigned.",
         "onImport": "Chosen at import",
         "onImportHint": "The person importing picks the assignment for each file.",
         "members": "Agents in the rotation",
@@ -164,6 +164,7 @@
       }
     },
     "opportunities": {
+      "createManualOnly": "With manual distribution, only people who can assign create opportunities.",
       "callAction": "Call {name}",
       "list": {
         "new": "Add {term}",

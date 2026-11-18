@@ -1389,6 +1389,20 @@
       "handler": "get_settings",
       "no_capability_reason": null
     },
+    "GET /api/v1/crm/access": {
+      "addon": "liwan_crm",
+      "auth": "user",
+      "capability_keys": [
+        "crm.leads.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "crm.enabled"
+      ],
+      "handler": "get_access",
+      "no_capability_reason": null
+    },
     "GET /api/v1/crm/agents": {
       "addon": "liwan_crm",
       "auth": "user",
@@ -4364,7 +4378,8 @@
       "auth": "user",
       "capability_keys": [
         "inbox.conversations.read",
-        "inbox.automation.manage"
+        "inbox.automation.manage",
+        "inbox.settings.manage"
       ],
       "capability_match": "any",
       "capability_source": "decorator",
@@ -4372,6 +4387,36 @@
         "inbox.enabled"
       ],
       "handler": "list_agents",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/agents/{user_id}": {
+      "addon": "liwan_inbox",
+      "auth": "user",
+      "capability_keys": [
+        "inbox.conversations.read",
+        "inbox.automation.manage",
+        "inbox.settings.manage"
+      ],
+      "capability_match": "any",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "get_agent",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/inbox/agents/{user_id}/shifts": {
+      "addon": "liwan_inbox",
+      "auth": "user",
+      "capability_keys": [
+        "inbox.settings.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "get_shifts",
       "no_capability_reason": null
     },
     "GET /api/v1/inbox/audiences": {
@@ -8016,6 +8061,21 @@
         "hr.warnings"
       ],
       "handler": "patch_settings",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/inbox/agents/{user_id}": {
+      "addon": "liwan_inbox",
+      "auth": "user",
+      "capability_keys": [
+        "inbox.conversations.reply",
+        "inbox.conversations.assign"
+      ],
+      "capability_match": "any",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "patch_agent",
       "no_capability_reason": null
     },
     "PATCH /api/v1/inbox/audiences/{audience_id}": {
@@ -12655,6 +12715,22 @@
       "handler": "add_note",
       "no_capability_reason": null
     },
+    "POST /api/v1/inbox/conversations/{conversation_id}/opportunity": {
+      "addon": "liwan_crm_inbox",
+      "auth": "user",
+      "capability_keys": [
+        "crm.leads.work",
+        "inbox.conversations.reply"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "crm.enabled",
+        "inbox.enabled"
+      ],
+      "handler": "create_conversation_opportunity",
+      "no_capability_reason": null
+    },
     "POST /api/v1/inbox/conversations/{conversation_id}/orders": {
       "addon": "liwan_inbox",
       "auth": "user",
@@ -14485,6 +14561,20 @@
         "hr.payroll"
       ],
       "handler": "put_settlement",
+      "no_capability_reason": null
+    },
+    "PUT /api/v1/inbox/agents/{user_id}/shifts": {
+      "addon": "liwan_inbox",
+      "auth": "user",
+      "capability_keys": [
+        "inbox.settings.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "inbox.enabled"
+      ],
+      "handler": "put_shifts",
       "no_capability_reason": null
     },
     "PUT /api/v1/inbox/channels/{channel_id}/profile/picture": {

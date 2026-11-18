@@ -13526,6 +13526,19 @@
         ],
         "type": "object"
       },
+      "CrmAccessSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "can_create": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "can_create"
+        ],
+        "type": "object"
+      },
       "CrmAfterAttemptsSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
@@ -57348,6 +57361,19 @@
         ],
         "type": "string"
       },
+      "InboxAgentAvailabilityPatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "available": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "available"
+        ],
+        "type": "object"
+      },
       "InboxAgentListSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -57356,10 +57382,19 @@
             "items": {
               "additionalProperties": false,
               "properties": {
+                "available": {
+                  "type": "boolean"
+                },
+                "effective_available": {
+                  "type": "boolean"
+                },
                 "id": {
                   "exclusiveMinimum": 0,
                   "maximum": 9007199254740991,
                   "type": "integer"
+                },
+                "in_shift": {
+                  "type": "boolean"
                 },
                 "name": {
                   "type": "string"
@@ -57367,7 +57402,10 @@
               },
               "required": [
                 "id",
-                "name"
+                "name",
+                "available",
+                "in_shift",
+                "effective_available"
               ],
               "type": "object"
             },
@@ -57382,6 +57420,75 @@
         "required": [
           "items",
           "total"
+        ],
+        "type": "object"
+      },
+      "InboxAgentSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "effective_available": {
+            "type": "boolean"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "in_shift": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "available",
+          "in_shift",
+          "effective_available"
+        ],
+        "type": "object"
+      },
+      "InboxAgentShiftsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "ranges": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "from": {
+                  "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$|^24:00$",
+                  "type": "string"
+                },
+                "to": {
+                  "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$|^24:00$",
+                  "type": "string"
+                },
+                "weekday": {
+                  "maximum": 6,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "weekday",
+                "from",
+                "to"
+              ],
+              "type": "object"
+            },
+            "maxItems": 42,
+            "type": "array"
+          }
+        },
+        "required": [
+          "ranges"
         ],
         "type": "object"
       },
@@ -82362,6 +82469,9 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "agent_shifts_enabled": {
+            "type": "boolean"
+          },
           "assignment_policy": {
             "enum": [
               "manual",
@@ -82389,6 +82499,13 @@
             "maximum": 120,
             "minimum": 1,
             "type": "integer"
+          },
+          "unavailable_release": {
+            "enum": [
+              "keep",
+              "release"
+            ],
+            "type": "string"
           },
           "visibility_policy": {
             "enum": [
@@ -82405,6 +82522,9 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "agent_shifts_enabled": {
+            "type": "boolean"
+          },
           "assignment_policy": {
             "enum": [
               "manual",
@@ -82433,6 +82553,13 @@
             "minimum": 1,
             "type": "integer"
           },
+          "unavailable_release": {
+            "enum": [
+              "keep",
+              "release"
+            ],
+            "type": "string"
+          },
           "visibility_policy": {
             "enum": [
               "assigned_only",
@@ -82448,7 +82575,9 @@
           "retention_months",
           "assignment_policy",
           "first_response_alert_minutes",
-          "report_retention_months"
+          "report_retention_months",
+          "agent_shifts_enabled",
+          "unavailable_release"
         ],
         "type": "object"
       },
@@ -85288,6 +85417,14 @@
         ],
         "type": "string"
       },
+      "InboxUnavailableReleaseSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "keep",
+          "release"
+        ],
+        "type": "string"
+      },
       "InboxUploadCreateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -85322,6 +85459,31 @@
           "all"
         ],
         "type": "string"
+      },
+      "InboxWeekRangeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "from": {
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$|^24:00$",
+            "type": "string"
+          },
+          "to": {
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$|^24:00$",
+            "type": "string"
+          },
+          "weekday": {
+            "maximum": 6,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "weekday",
+          "from",
+          "to"
+        ],
+        "type": "object"
       },
       "InboxWorkingHoursSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -122932,6 +123094,46 @@
         }
       }
     },
+    "/api/v1/crm/access": {
+      "get": {
+        "operationId": "liwan_crm.CrmOpportunitiesController.get_access.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "What the caller may do that the capability list alone does not say: today, create opportunities.",
+        "tags": [
+          "liwan_crm"
+        ],
+        "x-liwan": {
+          "addon": "liwan_crm",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "crm",
+          "controller": "CrmOpportunitiesController",
+          "feature_keys": [
+            "crm.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_access",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/crm/agents": {
       "get": {
         "operationId": "liwan_crm.CrmOpportunitiesController.list_agents.get",
@@ -145644,7 +145846,7 @@
     },
     "/api/v1/inbox/agents": {
       "get": {
-        "operationId": "liwan_inbox.ConversationController.list_agents.get",
+        "operationId": "liwan_inbox.AgentsController.list_agents.get",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -145661,7 +145863,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "The assignee picker: active users of the company who can reply.",
+        "summary": "The assignee picker: active users of the company who can reply, with their availability.",
         "tags": [
           "liwan_inbox"
         ],
@@ -145671,13 +145873,221 @@
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "inbox",
-          "controller": "ConversationController",
+          "controller": "AgentsController",
           "feature_keys": [
             "inbox.enabled"
           ],
           "feature_operation": "read",
           "handler": "list_agents",
           "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/inbox/agents/{user_id}": {
+      "get": {
+        "operationId": "liwan_inbox.AgentsController.get_agent.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_agent",
+        "tags": [
+          "liwan_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "AgentsController",
+          "feature_keys": [
+            "inbox.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_agent",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "liwan_inbox.AgentsController.patch_agent.patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "An agent switches their own status (reply right); anyone else's needs the assign right.",
+        "tags": [
+          "liwan_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "AgentsController",
+          "feature_keys": [
+            "inbox.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "patch_agent",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/inbox/agents/{user_id}/shifts": {
+      "get": {
+        "operationId": "liwan_inbox.AgentsController.get_shifts.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_shifts",
+        "tags": [
+          "liwan_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "AgentsController",
+          "feature_keys": [
+            "inbox.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_shifts",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "put": {
+        "operationId": "liwan_inbox.AgentsController.put_shifts.put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "put_shifts",
+        "tags": [
+          "liwan_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "AgentsController",
+          "feature_keys": [
+            "inbox.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "put_shifts",
+          "readonly": false,
           "route_type": "json2"
         }
       }
@@ -150387,6 +150797,58 @@
           "feature_operation": "read",
           "handler": "get_conversation_opportunity",
           "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "liwan_crm_inbox.OpportunityConversationsController.create_conversation_opportunity.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "create_conversation_opportunity",
+        "tags": [
+          "liwan_crm_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_crm_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "OpportunityConversationsController",
+          "feature_keys": [
+            "crm.enabled",
+            "inbox.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "create_conversation_opportunity",
+          "readonly": false,
           "route_type": "json2"
         }
       },

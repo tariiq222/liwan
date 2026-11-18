@@ -1,6 +1,6 @@
 # LiwanOS CRM, phase 1
 
-Status: approved by the owner on 2026-10-28. Nothing here is implemented yet.
+Status: approved by the owner on 2026-10-28. Phase 1 is implemented in `liwan_crm` and the web app; this spec is its design reference.
 
 ## Intent
 
@@ -265,7 +265,8 @@ cleared.
   `crm.leads.work` or are archived are skipped; when nobody is eligible the opportunity goes to the
   unassigned pool and the import summary says so (not an error). *(Claude's call.)*
 - `manual`: new opportunities stay unassigned in the "unassigned" list for holders of
-  `crm.leads.assign`.
+  `crm.leads.assign`; only those holders may create opportunities (an agent would lose what they create),
+  Inbox creation included, and an assigner who names no agent creates one unassigned.
 - `on_import`: the importer picks one agent for the whole batch.
 Follow-ups and recycled opportunities follow the rule in the follow-up engine.
 

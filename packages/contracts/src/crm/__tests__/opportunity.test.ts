@@ -1,4 +1,5 @@
 import {
+  CrmAccessSchema,
   ConversationOpportunityAnswerSchema,
   ConversationOpportunityConflictErrorSchema,
   ConversationOpportunityLinkSchema,
@@ -171,5 +172,14 @@ describe('the conversation opportunity bridge', () => {
     const conflict = { code: 'conflict', message: 'x', details: { contact_customer: { id: 1, name: 'A' }, opportunity_customer: null } }
     expect(ConversationOpportunityConflictErrorSchema.parse(conflict).details.contact_customer?.name).toBe('A')
     expect(() => ConversationOpportunityConflictErrorSchema.parse({ ...conflict, details: { contact_customer: null } })).toThrow()
+  })
+})
+
+describe('CrmAccessSchema', () => {
+  it('carries exactly can_create', () => {
+    expect(CrmAccessSchema.parse({ can_create: true })).toEqual({ can_create: true })
+    expect(CrmAccessSchema.safeParse({ can_create: 'yes' }).success).toBe(false)
+    expect(CrmAccessSchema.safeParse({ can_create: false, extra: 1 }).success).toBe(false)
+    expect(CrmAccessSchema.safeParse({}).success).toBe(false)
   })
 })

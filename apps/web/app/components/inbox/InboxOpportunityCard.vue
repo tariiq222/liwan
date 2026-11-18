@@ -80,9 +80,10 @@ const stageOf = (item: { stage: { name: string } | null }) => item.stage?.name ?
       <template v-else>
         <p class="text-muted" data-testid="inbox-opportunity-none">{{ t('inbox.opportunity.none') }}</p>
         <div v-if="canWrite && !picking" class="flex flex-wrap gap-2">
-          <UButton v-if="props.contactPhone" size="xs" icon="i-lucide-plus" :label="t('inbox.opportunity.create')" :loading="create.isPending.value" :disabled="locked" data-testid="inbox-opportunity-create" @click="createFromContact" />
+          <UButton v-if="props.contactPhone" size="xs" icon="i-lucide-plus" :label="t('inbox.opportunity.create')" :loading="create.isPending.value" :disabled="locked || !access.create.value" data-testid="inbox-opportunity-create" @click="createFromContact" />
           <UButton size="xs" color="neutral" variant="outline" icon="i-lucide-link" :label="t('inbox.opportunity.link')" :disabled="locked" data-testid="inbox-opportunity-link" @click="picking = true" />
         </div>
+        <p v-if="canWrite && props.contactPhone && access.createManualOnly.value" class="text-xs text-muted" data-testid="inbox-opportunity-create-reason">{{ t('inbox.opportunity.createManualOnly') }}</p>
         <div v-if="picking" class="grid gap-3" data-testid="inbox-opportunity-picker">
           <SharedPickList
             v-model="chosen"

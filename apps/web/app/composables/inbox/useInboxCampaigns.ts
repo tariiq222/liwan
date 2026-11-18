@@ -292,10 +292,11 @@ export function useRefreshInboxChannelSending(channelId: MaybeRefOrGetter<number
   })
 }
 
-export function useInboxCampaignSettings() {
+export function useInboxCampaignSettings(enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   return useQuery({
     queryKey: inboxCampaignKeys.settings,
+    enabled: () => toValue(enabled),
     retry: false,
     queryFn: () => $api('/api/v1/settings/inbox/campaigns', { schema: InboxCampaignSettingsSchema }),
   })

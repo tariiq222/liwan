@@ -5,6 +5,7 @@ export const crmKeys = {
   all: ['crm'] as const,
   settings: (companyId: number | undefined) => ['crm', 'settings', { companyId }] as const,
   terms: (companyId: number | undefined) => ['crm', 'terms', { companyId }] as const,
+  access: (companyId: number | undefined) => ['crm', 'access', { companyId }] as const,
   list: (name: CrmListName) => ['crm', 'lists', name] as const,
   choices: (name: CrmListName) => ['crm', 'choices', name] as const,
   opportunities: ['crm', 'opportunities'] as const,

@@ -31,7 +31,7 @@ Read it before any task; this plan only adds the implementation decisions.
 - Settings defaults (exact): `followup_attempts=2`, `followup_interval_hours=24`, `after_attempts='lost'`,
   `recycle_enabled=True`, `recycle_after_days=30`, `recycle_cycles=1`, `distribution_mode='round_robin'`,
   `visibility='own'`, `view_log_enabled=False`, `discount_allowed=False`, `discount_max_percent=0`,
-  `preset='general'`; terms عميل/عملاء (m), فرصة/فرص (f), باقة/باقات (f); English customer/customers,
+  `preset='phone_packages'`; terms عميل/عملاء (m), فرصة/فرص (f), باقة/باقات (f); English customer/customers,
   opportunity/opportunities, package/packages.
 - Ranges (422 outside): attempts 0–10, interval 1–720 h, recycle days 1–365, cycles 0–5, discount 0–100.
 - Import limits: 5,000 rows, 5 MB, `.csv` (UTF-8, UTF-8 BOM) and `.xlsx` only.

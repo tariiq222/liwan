@@ -5,6 +5,7 @@ import CrmDashboardDueList from '@/components/crm/dashboard/CrmDashboardDueList.
 import type { CrmCallDraft } from '@/components/crm/opportunity/CrmOpportunityCallForm.vue'
 import { useCrmDashboard } from '@/composables/crm/useCrmDashboard'
 import { useCrmLostReasonChoices, useCrmOutcomeChoices, useCrmPackageChoices } from '@/composables/crm/useCrmLists'
+import { useCrmCreateAccess } from '@/composables/crm/useCrmAccess'
 import { useCrmTerms } from '@/composables/crm/useCrmTerms'
 import { useCrmOpportunities, useCrmOpportunityActions } from '@/composables/crm/useOpportunities'
 import { callRecordedText } from '@/utils/crmCallResult'
@@ -27,7 +28,7 @@ const outcomes = useCrmOutcomeChoices()
 const packages = useCrmPackageChoices()
 const lostReasons = useCrmLostReasonChoices()
 const actions = useCrmOpportunityActions()
-const canCreate = computed(() => can('crm.leads.work') || can('crm.leads.assign'))
+const { canCreate } = useCrmCreateAccess()
 const existing = useCrmOpportunities(() => ({ status: 'all', limit: 1, offset: 0 }), canCreate)
 const showFirstOpportunity = computed(() => canCreate.value && existing.data.value?.total === 0)
 // One call form is open in the due list at a time. A refusal the form cannot settle shows under that row, with a link to the record.

@@ -39,6 +39,31 @@ class TestOpportunityConversations(CrmInboxCase):
         self.assertEqual((repeated.status_code, repeated.json()['code']), (409, 'already_linked'))
         self.assertEqual(self.api('GET', LIST.format(lead.id)).json()['total'], 1)
 
+    def test_manual_distribution_refuses_an_agent_and_lets_an_assigner_create_unassigned(self):
+        self.env['liwan.crm.settings'].search([('company_id', '=', self.env.company.id)]).distribution_mode = 'manual'
+        assigner = self.both_user('crm_inbox_assigner', [*BOTH, 'crm.leads.assign'])
+        refused = self.make_conversation()
+        self.as_user(self.rep)
+        result = self.api('POST', LINK.format(refused.id), {})
+        self.assertEqual((result.status_code, result.json()['code']), (403, 'forbidden'), result.text)
+        self.assertFalse(refused.lead_id)
+        allowed = self.make_conversation()
+        self.as_user(assigner)
+        result = self.api('POST', LINK.format(allowed.id), {})
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertFalse(allowed.lead_id.user_id)
+        self.assertEqual(allowed.lead_id.id, result.json()['id'])
+        self.assertEqual(self.api('GET', LINK.format(allowed.id)).json()['id'], allowed.lead_id.id)
+
+    def test_round_robin_lets_an_agent_create_from_the_conversation(self):
+        self.env['liwan.crm.settings'].search([('company_id', '=', self.env.company.id)]).distribution_mode = 'round_robin'
+        conversation = self.make_conversation()
+        self.as_user(self.rep)
+        result = self.api('POST', LINK.format(conversation.id), {})
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual(conversation.lead_id.id, result.json()['id'])
+        self.assertEqual(conversation.lead_id.user_id, self.rep)
+
     def test_duplicate_phone_leaves_the_conversation_unlinked(self):
         conversation = self.make_conversation()
         existing = self.make_lead(self.rep, phone=conversation.contact_id.phone)

@@ -1,6 +1,7 @@
 // Synthetic CRM for the isolated mock (MODULE_UI_PREVIEW=1): the settings, the terms and the five settings lists.
 // Shapes follow packages/contracts/src/crm. It keeps state, so the settings page can save against it; POST
 // /api/v1/__mock/reset-crm restores the seeds between spec runs. Revision conflicts answer 409 like the server.
+import { moduleUiCapabilities } from './module-ui-preview-data.mjs'
 import { findMockProduct } from './products-mock-routes.mjs'
 import { salesCrmCanQuote, salesCrmWinByOrder, setSalesCrmPlan, setSalesCrmWin } from './sales-crm-mock-state.mjs'
 
@@ -220,7 +221,14 @@ function exportFile(url) {
 // The view log lists the opportunities the mock admin opened, newest first.
 const viewLogs = () => [...opportunities].slice(0, 3).map((item, index) => ({ id: index + 1, user: mockUserRef(2), opportunity_id: item.id, viewed_at: iso(-(index + 1)) }))
 
+// The create right of the mock persona, as the server decides it: an assigner always, a worker unless distribution is manual.
+function canCreateOpportunity() {
+  const holds = capability => moduleUiCapabilities.includes(capability)
+  return holds('crm.leads.assign') || (settings.values.distribution_mode !== 'manual' && holds('crm.leads.work'))
+}
+
 export function crmPreviewData(path, url) {
+  if (path === '/api/v1/crm/access') return { can_create: canCreateOpportunity() }
   if (path === '/api/v1/crm/settings') return dumpSettings()
   if (path === '/api/v1/crm/terms') return settings.values.terms
   const list = path.match(/^\/api\/v1\/crm\/(stages|outcomes|lost-reasons|sources|packages)$/)
