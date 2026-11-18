@@ -8,6 +8,8 @@ from odoo.addons.liwan_inbox.models.privacy_hooks import is_erased_contact
 from odoo.addons.liwan_inbox.serializers.flows import dump_submission
 from odoo.addons.liwan_inbox.serializers.refs import dump_ref
 
+MEDIA_KINDS = frozenset({'image', 'video', 'audio', 'document', 'sticker'})
+
 
 def dump_contact(contact):
     return {
@@ -148,8 +150,10 @@ def dump_message(message, attachments, products):
         'campaign': dump_ref(message.campaign_recipient_ids[:1].campaign_id),
         'template': dump_message_template(message) if message.template_name else None,
         'delivery_state': message.delivery_state,
-        'error': message.error or None,
+        # An inbound message's error is its media fetch failure: the provider text stays on the record, never on the wire.
+        'error': message.error or None if message.direction == 'out' else None,
         'error_code': message.error_code or None,
+        'media_failed': message.direction == 'in' and message.kind in MEDIA_KINDS and bool(message.error) and not attachments,
         'unconfirmed': message.unconfirmed,
         'attachments': attachments,
         'reply_to': {'id': message.reply_to_id.id, 'preview': message.reply_to_id._liwan_reply_preview()}

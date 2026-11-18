@@ -255,7 +255,7 @@
       "note": "Internal note",
       "template": "Template: {name}",
       "failed": "The message could not be sent",
-      "mediaFailed": "The attachment of this message could not be downloaded from WhatsApp.",
+      "mediaFailed": "The attachment could not be loaded ({kind})",
       "retry": "Retry",
       "reply": "Reply",
       "react": "React",

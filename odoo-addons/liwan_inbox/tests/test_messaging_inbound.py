@@ -186,3 +186,20 @@ class TestMessageSerializer(LiwanInboxCase):
         })
         preview = self.messages()[reply.id]['reply_to']['preview']
         self.assertEqual((len(preview), '\n' in preview), (80, False))
+
+    def test_an_inbound_media_failure_is_a_flag_and_never_the_provider_text(self):
+        Message = self.env['liwan.inbox.message']
+        raw = 'Invalid OAuth access token - Cannot parse access token'
+        failed = Message.create({
+            'conversation_id': self.conversation.id, 'direction': 'in', 'kind': 'image', 'body': '[image]',
+            'delivery_state': 'received', 'error': raw,
+        })
+        outbound = Message.create({
+            'conversation_id': self.conversation.id, 'direction': 'out', 'kind': 'text', 'body': 'a',
+            'delivery_state': 'failed', 'error': raw,
+        })
+        items = self.messages()
+        self.assertEqual((items[failed.id]['media_failed'], items[failed.id]['error']), (True, None))
+        self.assertEqual((items[outbound.id]['media_failed'], items[outbound.id]['error']), (False, raw))
+        self.assertNotIn(raw, str(items[failed.id]))
+        self.assertFalse(next(iter(items.values()))['media_failed'])

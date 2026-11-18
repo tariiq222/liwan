@@ -256,7 +256,7 @@ const deliveryLabel = (item: InboxMessage) => t(`inbox.delivery.${item.delivery_
                 </template>
               </UPopover>
             </div>
-            <p v-if="row.item.direction === 'in' && row.item.error" class="text-xs text-error" role="alert" data-testid="inbox-inbound-error">{{ t('inbox.thread.mediaFailed') }}</p>
+            <p v-if="row.item.media_failed" class="text-xs text-error" role="alert" data-testid="inbox-inbound-error">{{ t('inbox.thread.mediaFailed', { kind: t(`inbox.kinds.${row.item.kind}`) }) }}</p>
             <div v-if="row.item.direction === 'out' && row.item.delivery_state === 'failed'" class="flex flex-wrap items-center gap-2 text-xs text-error" role="alert">
               <span>{{ row.item.unconfirmed ? t('inbox.providerError.uncertain') : row.item.error ? providerText(row.item.error, row.item.error_code) : t('inbox.thread.failed') }}</span>
               <UButton

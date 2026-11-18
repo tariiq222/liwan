@@ -168,6 +168,8 @@ export const InboxMessageSchema = z.object({
   error: z.string().nullable(),
   // Meta's numeric error code of a failed send.
   error_code: z.number().int().nullable(),
+  // An inbound media message whose file could not be fetched: kept without attachment, its provider error is never returned.
+  media_failed: z.boolean(),
   // The provider may have sent it (no answer arrived): never retried automatically.
   unconfirmed: z.boolean(),
   attachments: z.array(InboxAttachmentSchema),

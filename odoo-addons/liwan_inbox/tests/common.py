@@ -51,7 +51,7 @@ def store_event(env, channel, payload):
 MESSAGE_KEYS = {
     'id', 'direction', 'kind', 'body', 'author', 'template', 'delivery_state', 'error', 'error_code', 'unconfirmed',
     'attachments', 'reply_to', 'reactions', 'location', 'interactive', 'commerce', 'selected_option', 'flow_response',
-    'automated', 'campaign', 'created_at',
+    'automated', 'campaign', 'created_at', 'media_failed',
 }
 
 

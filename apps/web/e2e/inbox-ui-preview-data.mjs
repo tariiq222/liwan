@@ -91,7 +91,7 @@ function seed() {
   let nextMessageId = 100
   const message = (direction, body, hoursAgo, extra = {}) => ({
     id: nextMessageId++, direction, kind: 'text', body, author: direction === 'in' ? null : AGENTS[0], template: null, campaign: null,
-    delivery_state: direction === 'in' ? 'received' : 'sent', error: null, error_code: null, unconfirmed: false, attachments: [], reply_to: null,
+    delivery_state: direction === 'in' ? 'received' : 'sent', error: null, error_code: null, media_failed: false, unconfirmed: false, attachments: [], reply_to: null,
     reactions: { customer: null, agent: null }, location: null, interactive: null, selected_option: null, flow_response: null, automated: false, commerce: null, created_at: ago(hoursAgo), ...extra,
   })
   const quote = target => ({ id: target.id, preview: target.body.slice(0, 80) })
@@ -392,7 +392,7 @@ function patchConversation(conv, body) {
 
 function appendMessage(conv, fields) {
   const created = {
-    id: state.ids.message(), direction: 'out', kind: 'text', body: '', author: ME, template: null, campaign: null, delivery_state: 'queued', error: null, error_code: null, unconfirmed: false, attachments: [],
+    id: state.ids.message(), direction: 'out', kind: 'text', body: '', author: ME, template: null, campaign: null, delivery_state: 'queued', error: null, error_code: null, media_failed: false, unconfirmed: false, attachments: [],
     reply_to: null, reactions: { customer: null, agent: null }, location: null, interactive: null, selected_option: null, flow_response: null, automated: false, commerce: null, created_at: iso(Date.now()), ...fields,
   }
   state.messages[conv.id].push(created)
