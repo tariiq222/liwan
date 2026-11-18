@@ -44,3 +44,26 @@ describe('patching a conversation', () => {
     expect(queryClient.invalidateQueries).not.toHaveBeenCalled()
   })
 })
+
+describe('agent availability', () => {
+  it('patches one agent and reads the agents and the conversation lists again', async () => {
+    const { useSetInboxAgentAvailability } = await import('../useInbox')
+    useSetInboxAgentAvailability()
+    const options = seen.at(-1)!
+    await options.mutationFn!({ userId: 5, available: false } as never)
+    expect($api).toHaveBeenCalledWith('/api/v1/inbox/agents/5', expect.objectContaining({ method: 'PATCH', body: { available: false } }))
+    await options.onSuccess!({})
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['inbox', 'agents'] })
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['inbox', 'conversations'] })
+  })
+
+  it('saves a shift with PUT and keeps the saved ranges in the cache', async () => {
+    const { useSaveInboxAgentShifts } = await import('../useInboxAgentShifts')
+    useSaveInboxAgentShifts(5)
+    const options = seen.at(-1)!
+    await options.mutationFn!({ ranges: [] } as never)
+    expect($api).toHaveBeenCalledWith('/api/v1/inbox/agents/5/shifts', expect.objectContaining({ method: 'PUT', body: { ranges: [] } }))
+    await options.onSuccess!({ ranges: [] })
+    expect(queryClient.setQueryData).toHaveBeenCalledWith(['inbox', 'agents', 'shifts', 5], { ranges: [] })
+  })
+})

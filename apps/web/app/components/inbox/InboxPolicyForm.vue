@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { InboxSettingsPatchSchema, type InboxAssignmentPolicy, type InboxVisibilityPolicy } from '@liwan/contracts'
+import { InboxSettingsPatchSchema, type InboxAssignmentPolicy, type InboxUnavailableRelease, type InboxVisibilityPolicy } from '@liwan/contracts'
 import { useInboxSettings, useUpdateInboxSettings } from '@/composables/inbox/useInboxSettings'
 
 // Visibility, automatic closing, retention, who gets new conversations and the first-response alert: the tenant-wide
@@ -13,6 +13,9 @@ const { mutate: save, isPending } = useUpdateInboxSettings()
 
 const POLICIES: readonly InboxVisibilityPolicy[] = ['assigned_only', 'department', 'all']
 const ASSIGNMENTS: readonly InboxAssignmentPolicy[] = ['manual', 'round_robin', 'least_open']
+const RELEASES: readonly InboxUnavailableRelease[] = ['keep', 'release']
+const shiftsEnabled = ref(false)
+const release = ref<InboxUnavailableRelease>('keep')
 const visibility = ref<InboxVisibilityPolicy>('department')
 const assignment = ref<InboxAssignmentPolicy>('manual')
 const alertMinutes = ref(0)
@@ -27,22 +30,25 @@ watch(data, (settings) => {
   assignment.value = settings.assignment_policy
   alertMinutes.value = settings.first_response_alert_minutes
   reportRetention.value = settings.report_retention_months
+  shiftsEnabled.value = settings.agent_shifts_enabled
+  release.value = settings.unavailable_release
 }, { immediate: true })
 
 const draft = computed(() => ({
   visibility_policy: visibility.value, auto_close_hours: autoClose.value, retention_months: retention.value,
   assignment_policy: assignment.value, first_response_alert_minutes: alertMinutes.value,
-  report_retention_months: reportRetention.value,
+  report_retention_months: reportRetention.value, agent_shifts_enabled: shiftsEnabled.value, unavailable_release: release.value,
 }))
 const dirty = computed(() => !!data.value && JSON.stringify(draft.value) !== JSON.stringify({
   visibility_policy: data.value.visibility_policy, auto_close_hours: data.value.auto_close_hours, retention_months: data.value.retention_months,
   assignment_policy: data.value.assignment_policy, first_response_alert_minutes: data.value.first_response_alert_minutes,
-  report_retention_months: data.value.report_retention_months,
+  report_retention_months: data.value.report_retention_months, agent_shifts_enabled: data.value.agent_shifts_enabled, unavailable_release: data.value.unavailable_release,
 }))
 const valid = computed(() => InboxSettingsPatchSchema.safeParse(draft.value).success)
 const policyItems = computed(() => POLICIES.map(value => ({ value, label: t(`inbox.settings.policy.visibility.${value}`), description: t(`inbox.settings.policy.visibilityHint.${value}`) })))
 
 const assignmentItems = computed(() => ASSIGNMENTS.map(value => ({ value, label: t(`inbox.settings.policy.assignment.${value}`), description: t(`inbox.settings.policy.assignmentHint.${value}`) })))
+const releaseItems = computed(() => RELEASES.map(value => ({ value, label: t(`inbox.settings.policy.release.${value}`), description: t(`inbox.settings.policy.releaseHint.${value}`) })))
 
 function submit() {
   if (!hydrated.value || !dirty.value || !valid.value) return
@@ -72,6 +78,12 @@ function submit() {
       </div>
       <SharedSettingRow stacked :label="t('inbox.settings.policy.assignmentLabel')" :description="t('inbox.settings.policy.assignmentDescription')">
         <SharedOptionCards v-model="assignment" :options="assignmentItems" :label="t('inbox.settings.policy.assignmentLabel')" :disabled="!hydrated || isPending" data-testid="inbox-assignment" />
+      </SharedSettingRow>
+      <SharedSettingRow :label="t('inbox.settings.policy.shifts')" :description="t('inbox.settings.policy.shiftsHint')">
+        <USwitch v-model="shiftsEnabled" :aria-label="t('inbox.settings.policy.shifts')" :disabled="!hydrated || isPending" data-testid="inbox-agent-shifts-enabled" />
+      </SharedSettingRow>
+      <SharedSettingRow stacked :label="t('inbox.settings.policy.releaseLabel')" :description="t('inbox.settings.policy.releaseDescription')">
+        <SharedOptionCards v-model="release" :options="releaseItems" :label="t('inbox.settings.policy.releaseLabel')" :disabled="!hydrated || isPending" data-testid="inbox-unavailable-release" />
       </SharedSettingRow>
       <UFormField :label="t('inbox.settings.policy.reportRetention')" :description="t('inbox.settings.policy.reportRetentionHint')">
         <UInputNumber v-model="reportRetention" class="w-full sm:w-60" :min="12" :max="120" :disabled="!hydrated || isPending" data-testid="inbox-report-retention" />

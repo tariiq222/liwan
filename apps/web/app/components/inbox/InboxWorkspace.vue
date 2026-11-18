@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import EmptyState from '@liwan/ui/app/components/shared/feedback/EmptyState.vue'
 import { avatarProps } from '@liwan/ui/app/utils/avatarTone'
+import InboxAvailabilitySwitch from '@/components/inbox/InboxAvailabilitySwitch.vue'
 import InboxComposer from '@/components/inbox/InboxComposer.vue'
 import InboxConversationActions from '@/components/inbox/InboxConversationActions.vue'
 import InboxContactPanel from '@/components/inbox/InboxContactPanel.vue'
@@ -69,8 +70,9 @@ function updateRoute(next: InboxListRoute, options?: { replace: boolean }) {
 <template>
   <SharedPageContainer>
     <SharedPageHeader :title="t('inbox.title')" :compact="hasSelection">
-      <template v-if="can('inbox.channels.manage')" #actions>
-        <UButton to="/settings/apps/inbox#channels" color="neutral" variant="soft" icon="i-lucide-settings" :label="t('inbox.settings.channels.title')" data-testid="inbox-channels-link" />
+      <template v-if="can('inbox.channels.manage') || can('inbox.conversations.reply')" #actions>
+        <InboxAvailabilitySwitch />
+        <UButton v-if="can('inbox.channels.manage')" to="/settings/apps/inbox#channels" color="neutral" variant="soft" icon="i-lucide-settings" :label="t('inbox.settings.channels.title')" data-testid="inbox-channels-link" />
       </template>
     </SharedPageHeader>
     <SharedRecordSection v-if="firstUse && (canConnectChannel || canTryExample)" variant="panel" :title="t('inbox.firstUse.title')">

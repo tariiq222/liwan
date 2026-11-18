@@ -260,7 +260,9 @@ function seed() {
     { id: 2, shortcut: 'hours', body: 'ساعات العمل من 9 صباحًا حتى 5 مساءً، من الأحد إلى الخميس.' },
   ]
   return {
-    settings: { visibility_policy: 'department', auto_close_hours: 72, retention_months: 24, assignment_policy: 'manual', first_response_alert_minutes: 0, report_retention_months: 36 },
+    settings: { visibility_policy: 'department', auto_close_hours: 72, retention_months: 24, assignment_policy: 'manual', first_response_alert_minutes: 0, report_retention_months: 36, agent_shifts_enabled: false, unavailable_release: 'keep' },
+    // User id -> manual availability and weekly shift ranges; an agent without an entry is available with no shift.
+    agentStatus: new Map(),
     appliedPresets: new Set(),
     hours: { timezone: 'Asia/Riyadh', days: [0, 1, 2, 3, 6].map(weekday => ({ weekday, from: '09:00', to: '17:00' })), holidays: [{ name: 'اليوم الوطني', date_from: '2026-09-23', date_to: '2026-09-23' }] },
     // Department id -> its own hours; a department without an entry follows the company's.
@@ -1162,6 +1164,39 @@ function downloadOf(messageId, attachmentId) {
 }
 
 /** Answers an inbox route, or returns undefined for a path this module does not own. `{ status, body }` or `{ file }`. */
+// Availability: the manual switch, plus a shift that is checked against the clock only while the setting is on.
+function agentItem(person) {
+  const status = state.agentStatus.get(person.id) ?? { available: true, ranges: [] }
+  const inShift = !state.settings.agent_shifts_enabled || !status.ranges.length || status.ranges.some(range => inRange(range))
+  return { id: person.id, name: person.name, available: status.available, in_shift: inShift, effective_available: status.available && inShift }
+}
+function inRange(range) {
+  const now = new Date()
+  const weekday = (now.getDay() + 6) % 7
+  const clock = now.toTimeString().slice(0, 5)
+  return range.weekday === weekday && range.from <= clock && clock < range.to
+}
+function agentsRoute(method, id, tail, url, body) {
+  const people = [ME, ...AGENTS]
+  if (id === undefined && method === 'GET') {
+    const q = (url.searchParams.get('q') ?? '').trim()
+    return ok(page(people.filter(agent => !q || agent.name.includes(q)).map(agentItem), url))
+  }
+  const person = people.find(item => item.id === id)
+  if (!person) return fail(404, 'not_found', 'not found')
+  const status = state.agentStatus.get(id) ?? { available: true, ranges: [] }
+  if (tail === 'shifts' && (method === 'GET' || method === 'PUT')) {
+    if (method === 'PUT') state.agentStatus.set(id, { ...status, ranges: body.ranges })
+    return ok({ ranges: (state.agentStatus.get(id) ?? status).ranges })
+  }
+  if (method !== 'PATCH' || typeof body.available !== 'boolean') return fail(422, 'invalid', 'invalid', 'available')
+  state.agentStatus.set(id, { ...status, available: body.available })
+  if (!body.available && state.settings.unavailable_release === 'release') {
+    for (const conv of state.conversations) if (conv.assignee?.id === id && ['open', 'pending'].includes(conv.state)) conv.assignee = null
+  }
+  return ok(agentItem(person))
+}
+
 export function inboxPreviewData(method, path, url, body = {}) {
   const parts = segments(path)
   if (parts[2] === 'settings' && parts[3] === 'inbox') {
@@ -1242,10 +1277,7 @@ export function inboxPreviewData(method, path, url, body = {}) {
     for (const conv of state.conversations) if (conv.contact.id === id) conv.contact = { ...contact }
     return ok(contact)
   }
-  if (resource === 'agents' && method === 'GET') {
-    const q = (url.searchParams.get('q') ?? '').trim()
-    return ok(page([ME, ...AGENTS].filter(agent => !q || agent.name.includes(q)), url))
-  }
+  if (resource === 'agents') return agentsRoute(method, id, parts[5], url, body)
   if (resource === 'canned-replies') return crud('canned', method, id, body, (input, current) => ({ id: current?.id ?? state.ids.canned++, shortcut: input.shortcut ?? current.shortcut, body: input.body ?? current.body }))
   if (resource === 'tags') return crud('tags', method, id, body, (input, current) => ({ id: current?.id ?? state.ids.tag++, name: input.name ?? current.name }))
   if (resource === 'working-hours' && (method === 'GET' || method === 'PUT')) {

@@ -2,6 +2,7 @@ import { getCurrentInstance, onMounted, ref, type MaybeRefOrGetter } from 'vue'
 import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
   InboxAgentListSchema,
+  InboxAgentSchema,
   InboxAttachmentSchema,
   InboxCannedReplyListSchema,
   InboxContactDetailSchema,
@@ -11,6 +12,7 @@ import {
   InboxMessageSchema,
   InboxTagListSchema,
   type CustomerLink,
+  type InboxAgentAvailabilityPatch,
   type InboxContactPatch,
   type InboxMessage,
   type InboxConversationPatch,
@@ -160,6 +162,19 @@ export function useInboxAgents(enabled: MaybeRefOrGetter<boolean> = true) {
     queryKey: inboxKeys.agents,
     queryFn: ({ signal }) => $api('/api/v1/inbox/agents', { signal, query: { limit: 200 }, schema: InboxAgentListSchema }),
     enabled: () => toValue(enabled),
+  })
+}
+
+/** An agent's manual availability. The reply carries the effective status; releasing conversations on the server changes the lists too. */
+export function useSetInboxAgentAvailability() {
+  const { $api } = useApi()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ userId, ...body }: { userId: number } & InboxAgentAvailabilityPatch) => $api(`/api/v1/inbox/agents/${userId}`, { method: 'PATCH', body, schema: InboxAgentSchema }),
+    onSuccess: () => Promise.all([
+      qc.invalidateQueries({ queryKey: inboxKeys.agents }),
+      qc.invalidateQueries({ queryKey: ['inbox', 'conversations'] }),
+    ]),
   })
 }
 

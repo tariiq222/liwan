@@ -3,8 +3,9 @@ import { DEFAULT_RANGE, WEEK_ORDER, overlappingWeekdays, timezoneChoices, type H
 
 // The weekly hours grid (several ranges per day), the timezone and the holidays. A day with no range is closed; no
 // range at all means the inbox is always open. It only edits the draft: the page or form that hosts it saves.
+// With `rangesOnly` it edits just the weekly ranges (an agent's shift): no timezone and no holidays, and no range means always in shift.
 const draft = defineModel<HoursDraft>({ required: true })
-const props = defineProps<{ disabled?: boolean }>()
+const props = defineProps<{ disabled?: boolean; rangesOnly?: boolean }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const off = computed(() => !hydrated.value || props.disabled)
@@ -34,13 +35,13 @@ function removeHoliday(index: number) {
 
 <template>
   <div class="flex flex-col gap-5" data-testid="inbox-hours-editor">
-    <UFormField :label="t('inbox.automation.hours.timezone')">
+    <UFormField v-if="!props.rangesOnly" :label="t('inbox.automation.hours.timezone')">
       <USelect v-model="draft.timezone" :items="zoneItems" class="w-full sm:w-72" :disabled="off" dir="ltr" data-testid="inbox-hours-timezone" />
     </UFormField>
 
     <fieldset class="flex flex-col gap-1">
       <legend class="mb-1 text-sm font-medium text-highlighted">{{ t('inbox.automation.hours.week') }}</legend>
-      <p v-if="!draft.week.some(day => day.length)" class="text-sm text-muted" data-testid="inbox-hours-always-open">{{ t('inbox.automation.hours.alwaysOpen') }}</p>
+      <p v-if="!draft.week.some(day => day.length)" class="text-sm text-muted" data-testid="inbox-hours-always-open">{{ t(props.rangesOnly ? 'inbox.settings.agents.alwaysInShift' : 'inbox.automation.hours.alwaysOpen') }}</p>
       <div v-for="weekday in WEEK_ORDER" :key="weekday" class="flex flex-wrap items-start gap-3 border-b border-default py-2 last:border-b-0" :data-testid="`inbox-hours-day-${weekday}`">
         <div class="flex w-36 items-center gap-2 pt-1.5">
           <USwitch :model-value="draft.week[weekday]!.length > 0" :aria-label="weekdayName(weekday)" :disabled="off" @update:model-value="toggleDay(weekday, $event)" />
@@ -60,7 +61,7 @@ function removeHoliday(index: number) {
       </div>
     </fieldset>
 
-    <fieldset class="flex flex-col gap-2">
+    <fieldset v-if="!props.rangesOnly" class="flex flex-col gap-2">
       <legend class="mb-1 text-sm font-medium text-highlighted">{{ t('inbox.automation.hours.holidays') }}</legend>
       <p class="text-sm text-muted">{{ t('inbox.automation.hours.holidaysHint') }}</p>
       <div v-for="(holiday, index) in draft.holidays" :key="index" class="flex flex-wrap items-end gap-2" :data-testid="`inbox-holiday-${index}`">

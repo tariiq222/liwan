@@ -9,6 +9,9 @@ import {
   InboxInteractiveSchema,
   InboxPresetPreviewSchema,
   InboxReplyCreateSchema,
+  InboxAgentAvailabilityPatchSchema,
+  InboxAgentListSchema,
+  InboxAgentShiftsSchema,
   InboxSettingsPatchSchema,
   InboxChannelAutomationSchema,
   InboxRuleWriteSchema,
@@ -277,8 +280,32 @@ describe('automation schemas', () => {
   })
 
   it('carries the assignment policy in settings', () => {
-    const settings = { visibility_policy: 'department', auto_close_hours: 72, retention_months: 24, assignment_policy: 'round_robin', first_response_alert_minutes: 15, report_retention_months: 36 }
+    const settings = { visibility_policy: 'department', auto_close_hours: 72, retention_months: 24, assignment_policy: 'round_robin', first_response_alert_minutes: 15, report_retention_months: 36, agent_shifts_enabled: true, unavailable_release: 'release' }
     expect(InboxSettingsSchema.parse(settings)).toEqual(settings)
+    expect(InboxSettingsPatchSchema.parse({ agent_shifts_enabled: false, unavailable_release: 'keep' })).toEqual({ agent_shifts_enabled: false, unavailable_release: 'keep' })
+    expect(InboxSettingsPatchSchema.safeParse({ unavailable_release: 'drop' }).success).toBe(false)
+  })
+})
+
+describe('inbox agent availability', () => {
+  const agent = { id: 4, name: 'منى', available: true, in_shift: false, effective_available: false }
+
+  it('lists agents with their manual, shift and effective status', () => {
+    expect(InboxAgentListSchema.parse({ items: [agent], total: 1 }).items[0]).toEqual(agent)
+    expect(InboxAgentListSchema.safeParse({ items: [{ id: 4, name: 'منى' }], total: 1 }).success).toBe(false)
+  })
+
+  it('accepts only the available flag in the availability patch', () => {
+    expect(InboxAgentAvailabilityPatchSchema.parse({ available: false })).toEqual({ available: false })
+    expect(InboxAgentAvailabilityPatchSchema.safeParse({ available: false, in_shift: true }).success).toBe(false)
+  })
+
+  it('validates the ranges of a shift like the working hours do', () => {
+    const range = { weekday: 0, from: '08:00', to: '16:00' }
+    expect(InboxAgentShiftsSchema.parse({ ranges: [range] })).toEqual({ ranges: [range] })
+    expect(InboxAgentShiftsSchema.parse({ ranges: [] })).toEqual({ ranges: [] })
+    expect(InboxAgentShiftsSchema.safeParse({ ranges: [{ ...range, to: '07:00' }] }).success).toBe(false)
+    expect(InboxAgentShiftsSchema.safeParse({ ranges: [{ ...range, weekday: 7 }] }).success).toBe(false)
   })
 })
 

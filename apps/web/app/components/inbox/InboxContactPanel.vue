@@ -10,6 +10,7 @@ import { isCustomerAlreadyLinked } from '@/composables/customers/customerErrors'
 import { useInboxAgents, useInboxContact, useLinkInboxContactCustomer, usePatchInboxContact, useInboxTags } from '@/composables/inbox/useInbox'
 import { useInboxConversationSave } from '@/composables/inbox/useInboxConversationSave'
 import { useInboxDepartments } from '@/composables/inbox/useInboxSettings'
+import { inboxAgentOptionName } from '@/composables/inbox/inboxAgents'
 import { inboxContactName } from '@/composables/inbox/inboxContactName'
 import { CONVERSATION_STATES, PRIORITIES } from '@/composables/inbox/inboxPresentation'
 
@@ -46,6 +47,8 @@ const departmentItems = computed(() => [
 ])
 const tagItems = computed(() => tags.data.value?.items ?? props.conversation.tags)
 const tagIds = computed(() => props.conversation.tags.map(tag => tag.id))
+// An agent who is not available now carries the reason next to the name; assigning them by hand stays allowed.
+const agentOptions = computed(() => (agents.data.value?.items ?? []).map(agent => ({ id: agent.id, name: inboxAgentOptionName(agent, t) })))
 const assigneeIds = computed(() => props.conversation.assignee ? [props.conversation.assignee.id] : [])
 
 function assign(value: number | number[] | null) {
@@ -108,7 +111,7 @@ function saveContact() {
             :model-value="props.conversation.assignee?.id ?? null"
             value-key="user_id"
             :known="assigneeIds.length ? [props.conversation.assignee!] : []"
-            :options="agents.data.value?.items ?? []"
+            :options="agentOptions"
             :placeholder="t('inbox.unassigned')"
             :disabled="lockedAssign"
             :aria-label="t('inbox.panel.assignee')"
