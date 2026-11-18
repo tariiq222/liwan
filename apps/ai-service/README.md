@@ -71,6 +71,8 @@ must stay unset outside local development.
 | `AI_EMBEDDING_MODEL` | embedding model id; required with a provider. Vectors are tagged `<provider>:<model>` and searched only against the same tag: after changing the model, queue a rebuild from the AI settings page |
 | `AI_EMBEDDING_BASE_URL` | optional `http(s)` endpoint of the embedding server (default for `ollama`: `http://localhost:11434`) |
 | `AI_EMBEDDING_API_KEY` | required for `openai`, optional for `ollama`; never logged |
+| `AI_SENTRY_DSN` | optional; the DSN of the operator's self-hosted Sentry. Unset: the SDK is never imported and nothing is sent. Set: unexpected errors only (no tracing, no profiling), scrubbed in `error_reporting.py` (request cut to method, path and user agent; personal identifiers, keys and URLs withheld; user id and tenant as tags); a missing `sentry-sdk` stops the boot |
+| `AI_SENTRY_ENVIRONMENT` | optional label for the Sentry environment; requires `AI_SENTRY_DSN` |
 | `AI_DATABASE_URL` | Postgres for release control state (deployment `state_id`, generation draining); required unless `AI_ALLOW_MEMORY_STATE=true` |
 | `LIWAN_TENANCY_MODE` | `dedicated` (default) or `shared`; which tenant databases this deployment serves |
 | `AI_TENANT_DATABASE` | dedicated mode only: the one tenant database, also used as the tenant id; required with real state |

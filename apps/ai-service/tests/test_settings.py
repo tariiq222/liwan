@@ -1,7 +1,15 @@
 import pytest
 
 from liwan_ai_service.embeddings import build_embedder
-from liwan_ai_service.settings import PLATFORM_PROVIDER_FILE, CleanupSettings, EmbeddingSettings, Settings, SettingsError, bootstrap_retention_days
+from liwan_ai_service.settings import (
+    PLATFORM_PROVIDER_FILE,
+    CleanupSettings,
+    EmbeddingSettings,
+    SentrySettings,
+    Settings,
+    SettingsError,
+    bootstrap_retention_days,
+)
 from tests.platform_file import platform_env
 
 
@@ -142,3 +150,14 @@ def test_the_embedder_is_built_from_the_settings_without_a_network_call():
     assert openai.model_id == "openai:text-embedding-3-small" and openai.embeddings.check_embedding_ctx_length is False
     ollama = build_embedder(EmbeddingSettings.from_env({"AI_EMBEDDING_PROVIDER": "ollama", "AI_EMBEDDING_MODEL": "bge-m3"}))
     assert ollama.model_id == "ollama:bge-m3"
+
+
+def test_sentry_is_off_without_a_dsn_and_refuses_a_half_written_configuration():
+    assert SentrySettings.from_env({}) is None
+    assert SentrySettings.from_env({"AI_SENTRY_DSN": "https://k@sentry.example.net/1", "AI_SENTRY_ENVIRONMENT": "prod"}) == SentrySettings(
+        "https://k@sentry.example.net/1", "prod"
+    )
+    with pytest.raises(SettingsError, match="AI_SENTRY_DSN"):
+        SentrySettings.from_env({"AI_SENTRY_ENVIRONMENT": "prod"})
+    with pytest.raises(SettingsError, match="AI_SENTRY_DSN"):
+        SentrySettings.from_env({"AI_SENTRY_DSN": "not-a-dsn"})

@@ -43,6 +43,7 @@ from liwan_ai_service.contracts import (
 )
 from liwan_ai_service.control import ControlState, StateCompatibilityError, open_control
 from liwan_ai_service.embeddings import Embedder, build_embedder
+from liwan_ai_service.error_reporting import init_error_reporting
 from liwan_ai_service.errors import client_error, redact
 from liwan_ai_service.graph import (
     RunKnowledge,
@@ -134,6 +135,8 @@ def create_app(platform: PlatformModel, states: TenantStates, control: ControlSt
     ``app.state.watch_platform`` follows its file for the process's lifetime.
     """
     embedder = embedder or build_embedder(settings.embedding)
+    if settings.sentry is not None:
+        init_error_reporting(settings.sentry, lambda: secrets())
     if settings.generation_id is not None and not GENERATION_ID.fullmatch(settings.generation_id):
         raise SettingsError("AI_GENERATION_ID", "AI_GENERATION_ID is invalid")
     # A tenant's model on its own key, by tenant database, with the key's version and the key (redacted from every log
