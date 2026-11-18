@@ -1,12 +1,12 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 import { isIP } from 'node:net'
 import type { H3Event } from 'h3'
-import { signupOfferSchema } from '@liwan/commercial-contracts'
+import { publicPricingSchema, signupOfferSchema } from '@liwan/commercial-contracts'
 import { MeSchema } from '@liwan/contracts'
 import { signServiceRequest } from '@liwan/commercial-contracts/server'
 import { tenantRequest } from './tenantRequest'
 import { boundedTenantBody, tenantTransport, withTenantBody } from './tenantTransport'
-import { FIND_WORKSPACE_API, isProspectRequest, PROSPECT_TENANT, SIGNUP_API } from './prospectHost'
+import { FIND_WORKSPACE_API, isProspectRequest, PROSPECT_TENANT, PUBLIC_SITE_API, SIGNUP_API } from './prospectHost'
 import { deriveCustomerCapabilities, type CustomerCommercialCapability } from '../../app/utils/customerCapabilities'
 
 type CustomerConfig = {
@@ -17,6 +17,8 @@ type CustomerConfig = {
   customerCommercialPublicOrigin?: string
   /** Dedicated (non-shared) deployments only: the single tenant this web serves. Shared mode uses the host binding. */
   customerCommercialTenantId?: string
+  /** Comma separated origins of the marketing site; only these may read the public pricing and post the contact form. */
+  marketingSiteOrigins?: string
   odooUrl?: string
 }
 
@@ -333,6 +335,115 @@ export async function forwardSignupRequest(event: H3Event): Promise<unknown> {
   }
   setResponseStatus(event, response.status)
   return response._data
+}
+
+// The marketing site (its own origin) reads the published pricing and posts the contact form. Both arrive on the common host
+// through the same trust path as sign-up: the prospect-host check with the shared proxy token, and the control plane signs
+// every call. CORS is an allowlist of the site's origins; no cookie is read or forwarded.
+const PUBLIC_CONTACT_BODY_LIMIT = 12288
+const PUBLIC_PRICING_CACHE_SECONDS = 60
+const PUBLIC_PRICING_CACHE_MS = PUBLIC_PRICING_CACHE_SECONDS * 1000
+const PUBLIC_PRICING_CACHE_CONTROL = `public, max-age=${PUBLIC_PRICING_CACHE_SECONDS}`
+/** The codes the marketing site has its own messages for; anything else from the control plane is just "unavailable". */
+const PUBLIC_CONTACT_REFUSALS = ['validation_failed', 'invalid_email', 'invalid_mobile', 'consent_required', 'business_email_required', 'turnstile_required', 'turnstile_failed', 'rate_limited']
+let pricingCache: { at: number; body: unknown } | null = null
+export function resetPublicPricingCacheForTests() { pricingCache = null }
+
+function marketingOrigins(config: CustomerConfig): string[] {
+  return (config.marketingSiteOrigins ?? '').split(',').flatMap(value => { try { return [new URL(value.trim()).origin] } catch { return [] } })
+}
+/** The request's origin when it is one of the site's, and the CORS answer for it; null otherwise (the browser then blocks the read). */
+function allowSiteOrigin(event: H3Event, config: CustomerConfig): string | null {
+  setResponseHeader(event, 'vary', 'origin')
+  const origin = getHeader(event, 'origin')
+  if (!origin || !marketingOrigins(config).includes(origin)) return null
+  setResponseHeader(event, 'access-control-allow-origin', origin)
+  return origin
+}
+function publicSiteRequest(event: H3Event, config: CustomerConfig): void {
+  const incoming = getRequestURL(event)
+  if (incoming.search || !PUBLIC_SITE_API.test(incoming.pathname) || !isProspectRequest({
+    host: getHeader(event, 'host'), proxyToken: getHeader(event, 'x-liwan-proxy-token'), pathname: incoming.pathname,
+  }, config)) fail(404, 'not_found', 'Not found')
+}
+function serviceSigning(config: CustomerConfig): { key: string; issuer: string } {
+  const key = config.customerCommercialServiceKey
+  const issuer = config.customerCommercialIssuer
+  if (!key || Buffer.byteLength(key) < MIN_SERVICE_KEY_LENGTH || !issuer) fail(503, 'unavailable', 'Service unavailable')
+  return { key, issuer }
+}
+
+/** `GET /api/commercial/public/pricing`: the published offer in the marketing site's shape, checked again here against the contract
+ * so a control-plane answer that carries anything else is refused. Kept for a minute so a flood of reads cannot reach the database. */
+export async function forwardPublicPricing(event: H3Event): Promise<unknown> {
+  const config = useRuntimeConfig(event) as CustomerConfig
+  publicSiteRequest(event, config)
+  allowSiteOrigin(event, config)
+  setResponseHeader(event, 'cache-control', 'no-store')
+  if (pricingCache && Date.now() - pricingCache.at < PUBLIC_PRICING_CACHE_MS) { setResponseHeader(event, 'cache-control', PUBLIC_PRICING_CACHE_CONTROL); return pricingCache.body }
+  const { key, issuer } = serviceSigning(config)
+  const target = new URL('/v1/customer/public/pricing', customerControlBase(config))
+  const signed = signServiceRequest({ method: 'POST', path: target.pathname, body: 'liwan-public-pricing:\n{}', actor: 'anonymous', anonymous: true, issuer, key })
+  let response
+  try {
+    response = await $fetch.raw(target.toString(), {
+      method: 'POST', body: '{}', headers: { ...signed, 'content-type': 'application/json', accept: 'application/json' },
+      redirect: 'error', signal: AbortSignal.timeout(10_000), retry: 0, ignoreResponseError: true,
+    })
+  } catch { fail(503, 'unavailable', 'Pricing is unavailable') }
+  const pricing = response.ok ? publicPricingSchema.safeParse(response._data) : null
+  if (!pricing?.success) fail(503, 'unavailable', 'Pricing is unavailable')
+  pricingCache = { at: Date.now(), body: pricing.data }
+  setResponseHeader(event, 'cache-control', PUBLIC_PRICING_CACHE_CONTROL)
+  return pricing.data
+}
+
+/** `OPTIONS /api/commercial/public/contact`: the browser's check before the site posts JSON. */
+export function answerPublicContactPreflight(event: H3Event): null {
+  const config = useRuntimeConfig(event) as CustomerConfig
+  publicSiteRequest(event, config)
+  if (!allowSiteOrigin(event, config)) fail(403, 'forbidden', 'Origin denied')
+  setResponseHeader(event, 'access-control-allow-methods', 'POST')
+  setResponseHeader(event, 'access-control-allow-headers', 'content-type')
+  setResponseHeader(event, 'access-control-max-age', 600)
+  setResponseStatus(event, 204)
+  return null
+}
+
+/** `POST /api/commercial/public/contact`: the form of the marketing site. The body is passed on as typed (the control plane validates,
+ * stores and notifies the owner) with the edge-derived visitor address signed beside it. Refusals are flat `{code, message}` bodies, the
+ * shape the site reads; nothing the visitor typed is logged or echoed. */
+export async function forwardPublicContact(event: H3Event): Promise<unknown> {
+  const config = useRuntimeConfig(event) as CustomerConfig
+  publicSiteRequest(event, config)
+  setResponseHeader(event, 'cache-control', 'no-store')
+  if (!allowSiteOrigin(event, config)) fail(403, 'forbidden', 'Origin denied')
+  const refuse = (status: number, code: string, message: string) => { setResponseStatus(event, status); return { code, message } }
+  const type = getHeader(event, 'content-type')?.split(';', 1)[0]?.trim().toLowerCase()
+  if (type !== 'application/json') return refuse(415, 'validation_failed', 'JSON is required')
+  const ip = getHeader(event, INVITATION_CLIENT_HEADER)
+  if (!ip || !isIP(ip)) return refuse(503, 'unavailable', 'Service unavailable')
+  const { key, issuer } = serviceSigning(config)
+  const raw = await withTenantBody(event, 'public', () => boundedTenantBody(event, PUBLIC_CONTACT_BODY_LIMIT))
+  const body = raw?.toString('utf8') ?? ''
+  let parsed: unknown
+  try { parsed = JSON.parse(body) } catch { parsed = null }
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return refuse(422, 'validation_failed', 'Request could not be accepted')
+  const target = new URL('/v1/customer/public/contact', customerControlBase(config))
+  const signed = signServiceRequest({ method: 'POST', path: target.pathname, body: `liwan-public-contact:${ip}\n${body}`, actor: 'anonymous', anonymous: true, issuer, key })
+  let response
+  try {
+    response = await $fetch.raw<{ code?: string }>(target.toString(), {
+      method: 'POST', body, headers: { ...signed, [INVITATION_CLIENT_HEADER]: ip, 'content-type': 'application/json', accept: 'application/json' },
+      redirect: 'error', signal: AbortSignal.timeout(12_000), retry: 0, ignoreResponseError: true,
+    })
+  } catch { return refuse(503, 'unavailable', 'Service unavailable') }
+  if (!response.ok) {
+    const code = response._data?.code
+    return code && PUBLIC_CONTACT_REFUSALS.includes(code) ? refuse(response.status, code, 'Request rejected') : refuse(503, 'unavailable', 'Service unavailable')
+  }
+  setResponseStatus(event, 201)
+  return { ok: true }
 }
 
 const LOOKUP_BODY_LIMIT = 4096

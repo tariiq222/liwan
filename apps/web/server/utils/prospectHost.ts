@@ -5,6 +5,8 @@ type ProspectConfig = { customerCommercialEnabled?: boolean | string; customerCo
 
 export const SIGNUP_API = /^\/api\/commercial\/signup\/(terms|offer|start|verify-sms|send-email|verify-email)$/
 export const isSignupPage = (pathname: string) => /^\/register\/?$/.test(pathname)
+/** The marketing site's two public routes: the published pricing and the contact form. Served on the common host whenever the commercial integration is on. */
+export const PUBLIC_SITE_API = /^\/api\/commercial\/public\/(pricing|contact)$/
 /** "Find my workspace": the page and its relay. They live on the common host only, beside the sign-up they share the human check with. */
 export const FIND_WORKSPACE_API = /^\/api\/invitations\/find-workspace$/
 export const isFindWorkspacePage = (pathname: string) => /^\/find-workspace\/?$/.test(pathname)
@@ -12,7 +14,7 @@ export const isFindWorkspacePage = (pathname: string) => /^\/find-workspace\/?$/
 export const isProspectLogin = (pathname: string) => /^\/login\/?$/.test(pathname)
 /** The browser reporter's tunnel: the public pages report through it too, and it needs no tenant (its events carry no tenant tag there). */
 const isErrorReportPost = (request: { method?: string; pathname: string }) => request.method === 'POST' && request.pathname === ERROR_REPORT_PATH
-const PROSPECT_PATHS = [/^\/payment-done\/?$/, /^\/api\/commercial\/payment-callback$/, /^\/_nuxt\//]
+const PROSPECT_PATHS = [/^\/payment-done\/?$/, /^\/api\/commercial\/payment-callback$/, /^\/_nuxt\//, PUBLIC_SITE_API]
 
 /** The `x-liwan-tenant` value signed for a payment return that arrives on the LiwanOS public host. */
 export const PROSPECT_TENANT = 'public'

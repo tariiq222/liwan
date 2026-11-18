@@ -94,6 +94,8 @@ export default defineNuxtConfig({
     customerCommercialIssuer: '',
     customerCommercialPublicOrigin: '',
     customerCommercialTenantId: '',
+    // Origins of the marketing site (comma separated) that may read the public pricing and post the contact form.
+    marketingSiteOrigins: '',
     odooUrl: odoo,
     odooDb: shared ? '' : (process.env.NUXT_ODOO_DB ?? 'odoo19'),
     // Opt-in only behind the dedicated edge that overwrites private identity fields.

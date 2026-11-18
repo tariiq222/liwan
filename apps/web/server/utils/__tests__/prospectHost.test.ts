@@ -11,10 +11,10 @@ afterEach(() => {
 })
 
 describe('LiwanOS public host admission', () => {
-  it.each(['/payment-done', '/payment-done/', '/api/commercial/payment-callback', '/_nuxt/entry.js'])('serves %s without a tenant', pathname => {
+  it.each(['/payment-done', '/payment-done/', '/api/commercial/payment-callback', '/_nuxt/entry.js', '/api/commercial/public/pricing', '/api/commercial/public/contact'])('serves %s without a tenant', pathname => {
     expect(isProspectRequest(request({ pathname }), config)).toBe(true)
   })
-  it.each(['/api/v1/me', '/api/commercial/v1/subscription', '/subscription', '/login', '/payment-done/../api/v1/me', '/x/_nuxt/a.js'])('leaves %s to the tenant boundary', pathname => {
+  it.each(['/api/v1/me', '/api/commercial/v1/subscription', '/subscription', '/login', '/payment-done/../api/v1/me', '/x/_nuxt/a.js', '/api/commercial/public', '/api/commercial/public/other', '/api/commercial/public/pricing/x'])('leaves %s to the tenant boundary', pathname => {
     expect(isProspectRequest(request({ pathname }), config)).toBe(false)
   })
   it('compares the host exactly and ignores case', () => {

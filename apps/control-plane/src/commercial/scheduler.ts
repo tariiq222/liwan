@@ -14,6 +14,7 @@ import { syncTenantStatus, type TenantStatusRunner } from './suspension.js'
 import { returnOriginFromEnv, unusableReturnOrigin } from './return-origin.js'
 import { sendTrialNotices } from './trial-notices.js'
 import { sendWorkspaceDelayNotices } from './workspace-delay-notice.js'
+import { purgeContactRequests, sendContactNotices } from '../public-site/contact-requests.js'
 import { sendOverLimitNotices } from './over-limit-notices.js'
 import { sendBillingNotices } from './billing-notices.js'
 import { sendCancellationNotices } from './cancellation-notices.js'
@@ -129,6 +130,7 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
         const mail = o.mailAdapter
         await job('invitation.send', () => sendInvitationOutbox(pool, { mail, returnOrigin, smtpHost: env.LIWAN_MAIL_SMTP_HOST, signal: o.signal, log }))
         await job('workspace-lookup', () => runWorkspaceLookups(pool, { key: config.key, mail, returnOrigin, signal: o.signal, log }))
+        if (config.contactNotifyEmail) { const to = config.contactNotifyEmail; await job('contact-notices', () => sendContactNotices(pool, { mail, to, signal: o.signal, log })) }
         await job('workspace-delay-notices', () => sendWorkspaceDelayNotices(pool, { now: new Date(clock()), mail, signal: o.signal }))
         await job('trial-notices', () => sendTrialNotices(pool, { now: new Date(clock()), mail, returnOrigin, signal: o.signal }))
         await job('billing-notices', () => sendBillingNotices(pool, { now: new Date(clock()), mail, returnOrigin, chargeTarget: o.paymentAdapter ? { provider: o.paymentAdapter.provider, mode: o.paymentAdapter.mode } : undefined, signal: o.signal }))
@@ -155,6 +157,7 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
             if (Object.keys(failures).length) throw new Error(`payment_reconciliation_incomplete ${JSON.stringify(failures)}`)
           })
         }
+        await job('contact-purge', () => purgeContactRequests(pool, new Date(clock())))
         await job('recover-interrupted', () => recoverInterrupted(pool, { runner: o.subscriptionRunner }))
       }
       const statusRunner = o.tenantStatusRunner

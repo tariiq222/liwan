@@ -41,6 +41,7 @@ import { createServer as createHttpsServer } from 'node:https'
 import { execFile } from 'node:child_process'
 import { isIP } from 'node:net'
 import { clientAddressBucket } from './client-address-bucket.js'
+import { isPublicSiteEndpoint, PUBLIC_CONTACT_BODY_LIMIT, publicSiteHandler } from './public-site/http.js'
 import { promisify } from 'node:util'
 import type { Pool, PoolClient } from 'pg'
 import { abandonJobRequestSchema, auditListQuerySchema, operationListStatusSchema, operationRequestSchema, operationsGrantSchema, operationStatusesOf, reasonRequestSchema, retryRequestSchema, tenantCreateSchema, type VendorCapability } from '@liwan/commercial-contracts'
@@ -375,6 +376,8 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
   let lookupHumanCheck = deps?.humanCheck
   if (!lookupHumanCheck && signup) { try { lookupHumanCheck = humanCheckFromEnv(process.env).verify } catch { /* signup already reported its configuration */ } }
   const workspaceLookup = workspaceLookupHandler(pool, { service: bffService, humanCheck: lookupHumanCheck, overLimit, bucket: clientAddressBucket })
+  const pricingPlan = z.uuid().safeParse(process.env.LIWAN_SIGNUP_PLAN_REVISION_ID)
+  const publicSite = publicSiteHandler(pool, { service: bffService, humanCheck: lookupHumanCheck, planId: pricingPlan.success ? pricingPlan.data : undefined, notifyEmail: config.contactNotifyEmail, overLimit, bucket: clientAddressBucket })
   const handler = async (req: IncomingMessage, res: ServerResponse) => {
     try {
       const method = req.method ?? ''
@@ -413,6 +416,10 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       }
       if (pathname === FIND_WORKSPACE_PATH) {
         const answer = await workspaceLookup(method, await bodyBytes(req, FIND_WORKSPACE_BODY_LIMIT), req.headers)
+        return respond(res, answer.status, answer.data)
+      }
+      if (isPublicSiteEndpoint(pathname)) {
+        const answer = await publicSite(pathname, method, await bodyBytes(req, PUBLIC_CONTACT_BODY_LIMIT), req.headers)
         return respond(res, answer.status, answer.data)
       }
       if (isSignupEndpoint(pathname)) {
