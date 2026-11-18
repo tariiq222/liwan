@@ -117,6 +117,20 @@ function exportCsv() {
             <span v-if="data.excluded_subscriptions" class="text-warning">{{ t('analytics.excluded', { count: data.excluded_subscriptions }, data.excluded_subscriptions) }}</span>
           </p>
 
+          <SharedRecordSection v-if="data.signup_funnel.some(row => row.registered > 0)" variant="panel" :title="t('analytics.signupFunnel.title')">
+            <p class="mb-3 text-sm text-muted">{{ t('analytics.signupFunnel.window') }}</p>
+            <div class="grid gap-3 sm:grid-cols-3" data-testid="analytics-signup-funnel">
+              <div v-for="row in data.signup_funnel" :key="row.selection" class="rounded-inner border border-default p-3">
+                <h3 class="text-sm font-semibold">{{ t(`analytics.signupFunnel.apps.${row.selection}`) }}</h3>
+                <ul class="mt-2 grid gap-1 text-sm text-muted">
+                  <li>{{ t('analytics.signupFunnel.started', { count: number(row.started), total: number(row.registered) }) }}</li>
+                  <li>{{ t('analytics.signupFunnel.converted', { count: number(row.converted), total: number(row.conversion_eligible) }) }}</li>
+                  <li>{{ t('analytics.signupFunnel.renewed', { count: number(row.renewed), total: number(row.renewal_eligible) }) }}</li>
+                </ul>
+              </div>
+            </div>
+          </SharedRecordSection>
+
           <section v-for="group in GROUPS" :key="group" class="grid gap-3" :data-testid="`analytics-${group}`" :aria-labelledby="`analytics-${group}-title`">
             <h2 :id="`analytics-${group}-title`" class="text-lg font-semibold">{{ t(`analytics.groups.${group}`) }}</h2>
             <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

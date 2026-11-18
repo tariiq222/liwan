@@ -8,6 +8,7 @@ import {
 } from './analytics-model.js'
 import { CommercialHttpError } from './lifecycle.js'
 import { creditedMinorSql } from './refund-credit.js'
+import { signupFunnel } from './signup-funnel.js'
 import { usageOf, type SnapshotRow } from './usage.js'
 
 const FALLBACK_CURRENCY = { currency: 'SAR', exponent: 2 }
@@ -249,6 +250,7 @@ export async function getAnalytics(pool: Pool, period: Period, now: Date = new D
     current: await figuresFor(pool, book, unit, period, now),
     previous: await figuresFor(pool, book, unit, previous, now),
     trend,
+    signup_funnel: await signupFunnel(pool, period, now),
     snapshot: await snapshotOf(pool, live, book, unit, period, now),
   })
 }
