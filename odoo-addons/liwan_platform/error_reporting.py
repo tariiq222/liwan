@@ -25,8 +25,9 @@ DSN_ENV = 'LIWAN_SENTRY_DSN'
 ENVIRONMENT_ENV = 'LIWAN_SENTRY_ENVIRONMENT'
 # What an event keeps of the request, and the tag every event carries.
 RUNTIME_TAG = 'odoo'
-# Event sections that only carry context beyond the scrubbed ones: free-form extras, breadcrumbs, loaded modules, the host.
-DROPPED_SECTIONS = ('extra', 'breadcrumbs', 'modules', 'server_name')
+# Event fields copied unchanged; every other section (contexts, threads, extra, breadcrumbs, modules, server_name, sdk...) is dropped.
+KEPT_FIELDS = ('event_id', 'timestamp', 'level', 'platform', 'logger', 'environment', 'release')
+KEPT_FRAME_FIELDS = ('filename', 'module', 'function', 'lineno', 'in_app')
 # An exception text is a hint to the stack, never a carrier of the data that broke it.
 MAX_TEXT_LENGTH = 300
 BEARER = re.compile(r'(?i)\bBearer\s+\S+')
@@ -59,6 +60,7 @@ def init_error_reporting():
         environment=os.environ.get(ENVIRONMENT_ENV, '').strip() or None,
         # send_default_pii stays unset: the SDK treats that as False and deprecates the option, so it is not passed.
         include_local_variables=False,
+        include_source_context=False,
         max_breadcrumbs=0,
         default_integrations=False,
         auto_enabling_integrations=False,
@@ -88,34 +90,47 @@ def before_send(event, hint):
 
 
 def scrub_event(event, context):
-    """``event`` rebuilt to carry only what the policy allows: no body, cookie, header, variable, extra or personal value."""
-    for section in DROPPED_SECTIONS:
-        event.pop(section, None)
+    """A new event built from an allow-list: no body, cookie, header, variable, source line, extra or personal value."""
+    scrubbed = {field: event[field] for field in KEPT_FIELDS if field in event}
     tags = {'runtime': RUNTIME_TAG}
     if context.dbname:
-        tags['tenant_db'] = context.dbname
-    event['tags'] = tags
-    event.pop('request', None)
+        tags['tenant'] = context.dbname
+    scrubbed['tags'] = tags
     if context.method:
-        event['request'] = {
+        scrubbed['request'] = {
             'method': context.method,
             'url': mask_access_tokens(context.path),
             'headers': {'User-Agent': context.user_agent or ''},
         }
-    event.pop('user', None)
     if context.uid:
-        event['user'] = {'id': str(context.uid)}
+        scrubbed['user'] = {'id': str(context.uid)}
     if 'logentry' in event:
         # A log line's arguments and formatted text are free text (names, notes) that no pattern scan can vouch for:
         # only the static template leaves, and the top-level message built from the formatted text goes with them.
-        event.pop('message', None)
-        event['logentry'] = {'message': clean_text(event['logentry'].get('message') or '')[:MAX_TEXT_LENGTH]}
+        scrubbed['logentry'] = {'message': clean_text(event['logentry'].get('message') or '')[:MAX_TEXT_LENGTH]}
     elif 'message' in event:
-        event['message'] = clean_text(event['message'])[:MAX_TEXT_LENGTH]
-    for exception in event.get('exception', {}).get('values', ()):
-        if exception.get('value'):
-            exception['value'] = clean_text(exception['value'])[:MAX_TEXT_LENGTH]
-    return event
+        scrubbed['message'] = clean_text(event['message'])[:MAX_TEXT_LENGTH]
+    if 'exception' in event:
+        scrubbed['exception'] = {'values': [clean_exception(value) for value in event['exception'].get('values', ())]}
+    return scrubbed
+
+
+def clean_exception(exception):
+    """One exception reduced to its type, cut text, mechanism flags and frames of names and line numbers."""
+    cleaned = {}
+    if exception.get('type'):
+        cleaned['type'] = clean_text(exception['type'])[:MAX_TEXT_LENGTH]
+    if exception.get('value'):
+        cleaned['value'] = clean_text(exception['value'])[:MAX_TEXT_LENGTH]
+    mechanism = exception.get('mechanism')
+    if mechanism:
+        cleaned['mechanism'] = {key: mechanism[key] for key in ('type', 'handled') if key in mechanism}
+    frames = exception.get('stacktrace', {}).get('frames')
+    if frames is not None:
+        cleaned['stacktrace'] = {'frames': [
+            {key: frame[key] for key in KEPT_FRAME_FIELDS if key in frame} for frame in frames
+        ]}
+    return cleaned
 
 
 def clean_text(text):

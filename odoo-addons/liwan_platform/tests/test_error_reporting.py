@@ -89,6 +89,9 @@ class TestEventScrubber(TransactionCase):
             'extra': {'body': 'BODYSECRET', 'phone': PHONE},
             'breadcrumbs': {'values': [{'message': EMAIL}]},
             'modules': {'odoo': '19.0'},
+            'contexts': {'runtime': {'name': 'CPython'}, 'trace': {'trace_id': 'abc'}},
+            'threads': {'values': [{'stacktrace': {'frames': [{'abs_path': '/srv/private/app.py'}]}}]},
+            'sdk': {'name': 'sentry.python', 'integrations': ['logging']},
             'request': {
                 'method': 'PATCH', 'url': f'https://tenant.example/api/v1/me/profile?access_token={ACCESS_TOKEN}',
                 'query_string': f'access_token={ACCESS_TOKEN}', 'data': {'tz': BODY_VALUE},
@@ -101,7 +104,15 @@ class TestEventScrubber(TransactionCase):
                 'message': 'api internal error: %s %s', 'formatted': f'api internal error: {FAILURE}',
                 'params': ('PATCH', f'/book/4?access_token={ACCESS_TOKEN} {PHONE}'),
             },
-            'exception': {'values': [{'type': 'RuntimeError', 'value': FAILURE}]},
+            'exception': {'values': [{
+                'type': 'RuntimeError', 'value': FAILURE,
+                'mechanism': {'type': 'logging', 'handled': True, 'data': {'logger': 'x'}},
+                'stacktrace': {'frames': [{
+                    'filename': 'odoo/addons/x.py', 'abs_path': '/srv/private/x.py', 'module': 'x', 'function': 'run',
+                    'lineno': 3, 'in_app': True, 'context_line': 'secret()', 'pre_context': ['a'], 'post_context': ['b'],
+                    'vars': {'token': ACCESS_TOKEN},
+                }]},
+            }]},
         }
 
     def test_only_the_allowed_request_user_and_tags_remain(self):
@@ -111,9 +122,16 @@ class TestEventScrubber(TransactionCase):
             'method': 'PATCH', 'url': '/book/4', 'headers': {'User-Agent': 'Mozilla/5.0'},
         })
         self.assertEqual(event['user'], {'id': '7'})
-        self.assertEqual(event['tags'], {'runtime': 'odoo', 'tenant_db': 'tenant_a'})
-        for section in ('extra', 'breadcrumbs', 'modules', 'server_name'):
+        self.assertEqual(event['tags'], {'runtime': 'odoo', 'tenant': 'tenant_a'})
+        for section in ('extra', 'breadcrumbs', 'modules', 'server_name', 'contexts', 'threads', 'sdk'):
             self.assertNotIn(section, event)
+        self.assertEqual(event['level'], 'error')
+        self.assertEqual(event['logger'], API_LOGGER)
+        exception = event['exception']['values'][0]
+        self.assertEqual(exception['mechanism'], {'type': 'logging', 'handled': True})
+        self.assertEqual(exception['stacktrace']['frames'], [{
+            'filename': 'odoo/addons/x.py', 'module': 'x', 'function': 'run', 'lineno': 3, 'in_app': True,
+        }])
         serialized = json.dumps(event)
         for leak in (*LEAKS, 'BODYSECRET', '10.0.0.9', 'Bearer abc', 'ahmed'):
             self.assertNotIn(leak, serialized)
@@ -182,14 +200,17 @@ class TestErrorReportingEndToEnd(HttpCase):
         for leak in LEAKS:
             self.assertNotIn(leak, payload)
         event = events[0]
-        self.assertEqual(event['tags'], {'runtime': 'odoo', 'tenant_db': get_db_name()})
+        self.assertEqual(event['tags'], {'runtime': 'odoo', 'tenant': get_db_name()})
         self.assertEqual(event['environment'], 'test')
         self.assertEqual(event['request']['method'], 'PATCH')
         self.assertEqual(event['request']['url'], '/api/v1/me/profile')
         self.assertEqual(set(event['request']), {'method', 'url', 'headers'})
         self.assertEqual(list(event['user']), ['id'])
         for frame in event['exception']['values'][0]['stacktrace']['frames']:
-            self.assertNotIn('vars', frame)
+            for field in ('vars', 'abs_path', 'context_line', 'pre_context', 'post_context'):
+                self.assertNotIn(field, frame)
+        for section in ('contexts', 'threads', 'extra', 'modules', 'server_name', 'breadcrumbs'):
+            self.assertNotIn(section, event)
 
     def test_a_handled_refusal_makes_no_event(self):
         forbidden = self._call('/api/v1/admin/users')
