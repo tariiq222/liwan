@@ -2,6 +2,7 @@ import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ConversationOpportunityAnswerSchema, CrmOpportunityListSchema } from '@liwan/contracts'
 import { crmKeys } from '../crm/crmKeys'
+import { useCrmCreateAccess } from '../crm/useCrmAccess'
 import { opportunityConversationsKey } from '../opportunityConversationsKey'
 import { inboxKeys } from './useInbox'
 
@@ -13,9 +14,14 @@ export const OPPORTUNITY_PICK_LIMIT = 20
 
 export function useInboxOpportunityAccess() {
   const { can } = useAccess()
+  const create = useCrmCreateAccess()
   return {
     read: computed(() => can('crm.leads.read') && can('inbox.conversations.read')),
     write: computed(() => can('crm.leads.work') && can('inbox.conversations.reply')),
+    // Creating also needs the server's say: manual distribution lets only the holders of crm.leads.assign create.
+    create: create.canCreate,
+    createManualOnly: create.manualOnly,
+    createPending: create.pending,
   }
 }
 

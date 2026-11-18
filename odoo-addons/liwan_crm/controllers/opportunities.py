@@ -114,19 +114,49 @@ def _check_stage(stage_id):
         raise ApiError(422, 'invalid', 'an opportunity is won through the sale action', field='stage_id')
 
 
-def _assignee(parsed):
-    """Who takes a manual opportunity: the creator, or the chosen user when the caller may assign."""
+def _manual_distribution():
+    return request.env['liwan.crm.settings']._liwan_effective()['distribution_mode'] == 'manual'
+
+
+def can_create_opportunity():
+    """Whether the caller may create an opportunity in the current company.
+
+    In manual distribution an opportunity nobody holds is visible only to the holders of ``crm.leads.assign``, so
+    only they create; an agent would lose what they create. Otherwise ``crm.leads.work`` is enough.
+    """
     me = request.env.user
-    company = request.env.company
+    if _visibility()._liwan_can_assign(me, request.env.company):
+        return True
+    return not _manual_distribution() and request.env['liwan.access.service']._liwan_has_capability(me, 'crm.leads.work')
+
+
+def check_can_create():
+    """403 unless the caller may create an opportunity; the bridges call it before any side effect."""
+    if not can_create_opportunity():
+        message = 'crm.leads.assign capability is required while distribution is manual' if _manual_distribution() \
+            else 'crm.leads.work capability is required'
+        raise ApiError(403, 'forbidden', message)
+
+
+def _assignee(parsed):
+    """Who takes a new opportunity, once the caller may create it.
+
+    The creator by default, except in manual distribution where it waits unassigned for the assigner to hand out.
+    A ``user_id`` naming the creator needs ``crm.leads.work``; naming another user (or null for the pool) needs
+    ``crm.leads.assign`` and an eligible agent.
+    """
+    me = request.env.user
+    if 'user_id' not in parsed and _manual_distribution():
+        return request.env['res.users']
     if 'user_id' not in parsed or parsed['user_id'] == me.id:
         if not request.env['liwan.access.service']._liwan_has_capability(me, 'crm.leads.work'):
             raise ApiError(403, 'forbidden', 'crm.leads.work capability is required')
         return me
-    if not _visibility()._liwan_can_assign(me, company):
+    if not _visibility()._liwan_can_assign(me, request.env.company):
         raise ApiError(403, 'forbidden', 'crm.leads.assign capability is required')
     if not parsed['user_id']:
         return request.env['res.users']
-    agent = request.env['liwan.crm.distribution']._liwan_eligible_agents(company).filtered(
+    agent = request.env['liwan.crm.distribution']._liwan_eligible_agents(request.env.company).filtered(
         lambda user: user.id == parsed['user_id'],
     )
     if not agent:
@@ -159,6 +189,7 @@ def _merged_properties(lead, parsed):
 
 def create_opportunity_from_payload(payload):
     """Create and assign a manual opportunity with the ordinary CRM checks."""
+    check_can_create()
     parsed = parse_opportunity_body(payload, creating=True)
     _check_source(parsed.get('source_id'))
     agent = _assignee(parsed)
@@ -209,6 +240,14 @@ class CrmOpportunitiesController(http.Controller):
             {'id': user.id, 'name': user.name, 'user_id': user.id}
             for user in agents if term in user.name.casefold()
         ][:MAX_AGENTS]
+
+    @http.route('/api/v1/crm/access', type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('crm.enabled', operation='read')
+    @requires_capability('crm.leads.read')
+    def get_access(self, **_):
+        """What the caller may do that the capability list alone does not say: today, create opportunities."""
+        return {'can_create': can_create_opportunity()}
 
     @http.route('/api/v1/crm/opportunities', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler

@@ -18,7 +18,7 @@ const KpiStrip = Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs }
 const agent: CrmDashboard['agent'] = { due_now: 1, new_today: 0, won_this_month: { count: 0, value: 0 } }
 const manager: NonNullable<CrmDashboard['manager']> = { unassigned: 1, needs_manager: 0, due_follow_ups: 0, won_this_month: { count: 0, value: 0 }, conversion_by_source: [], agents: [] }
 
-function render(data: CrmDashboard, can: (capability: string) => boolean = () => true, { due = {}, opportunities = 0 }: { due?: Record<string, unknown>, opportunities?: number } = {}) {
+function render(data: CrmDashboard, can: (capability: string) => boolean = () => true, { due = {}, opportunities = 0, createAllowed }: { due?: Record<string, unknown>, opportunities?: number, createAllowed?: boolean } = {}) {
   const none = { data: Vue.ref(undefined), isLoading: Vue.ref(false), error: Vue.ref(null), refetch: () => {} }
   return renderShared(file, {}, {}, {
     stubs: {
@@ -33,6 +33,7 @@ function render(data: CrmDashboard, can: (capability: string) => boolean = () =>
       '@/components/crm/dashboard/CrmDashboardAgentTable.vue': { __esModule: true, default: marker('agent-table') },
       '@/components/crm/dashboard/CrmDashboardConversion.vue': { __esModule: true, default: marker('conversion') },
       '@/components/crm/dashboard/CrmDashboardDueList.vue': { __esModule: true, default: marker('due-list') },
+      '@/composables/crm/useCrmAccess': { useCrmCreateAccess: () => ({ canCreate: Vue.computed(() => createAllowed ?? (can('crm.leads.work') || can('crm.leads.assign'))), pending: Vue.ref(false) }) },
       '@/composables/crm/useCrmDashboard': { useCrmDashboard: () => ({ ...none, data: Vue.ref(data) }) },
       '@/composables/crm/useCrmLists': { useCrmOutcomeChoices: () => ({ data: Vue.ref({ items: [] }) }), useCrmPackageChoices: () => ({ data: Vue.ref({ items: [] }) }), useCrmLostReasonChoices: () => ({ data: Vue.ref({ items: [] }) }) },
       '@/composables/crm/useCrmTerms': { useCrmTerms: () => ({ term: (_key: string, form: string) => (form === 'one' ? 'فرصة' : 'فرص') }) },
@@ -73,6 +74,12 @@ describe('the CRM dashboard page', () => {
     expect(html).toContain('crm.opportunities.list.new')
     expect(await render({ agent, manager: null }, capability => capability === 'crm.leads.assign' || capability === 'crm.leads.read')).toContain('data-shortcut-create')
     expect(await render({ agent, manager: null }, capability => capability === 'crm.leads.read')).not.toContain('data-shortcut-create')
+  })
+
+  it('hides the create button and the first-opportunity guide when the server says the user cannot create', async () => {
+    const html = await render({ agent, manager: null }, () => true, { createAllowed: false })
+    expect(html).not.toContain('data-shortcut-create')
+    expect(html).not.toContain('crm-first-opportunity')
   })
 
   it('adds the manager block when the server sends one', async () => {

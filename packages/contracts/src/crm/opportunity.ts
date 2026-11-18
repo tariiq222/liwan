@@ -94,6 +94,12 @@ export const CrmOpportunityFiltersSchema = z.strictObject({
   q: z.string().max(NAME_MAX).optional(),
 })
 
+// What the caller may do beyond the capability list: whether they may create opportunities (manual distribution lets
+// only the holders of crm.leads.assign create, since an unassigned opportunity is invisible to everyone else).
+export const CrmAccessSchema = z.strictObject({
+  can_create: z.boolean(),
+})
+
 export const CrmViewLogSchema = z.strictObject({
   id: z.number().int(),
   user: RefSchema,
@@ -112,4 +118,5 @@ export type CrmOpportunityList = z.infer<typeof CrmOpportunityListSchema>
 export type CrmOpportunityCreate = z.infer<typeof CrmOpportunityCreateSchema>
 export type CrmOpportunityPatch = z.infer<typeof CrmOpportunityPatchSchema>
 export type CrmOpportunityFilters = z.infer<typeof CrmOpportunityFiltersSchema>
+export type CrmAccess = z.infer<typeof CrmAccessSchema>
 export type CrmViewLog = z.infer<typeof CrmViewLogSchema>

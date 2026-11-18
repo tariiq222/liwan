@@ -13,6 +13,7 @@ from odoo.addons.liwan_api.controllers.common import (
 )
 from odoo.addons.liwan_api.serializers.common import ref
 from odoo.addons.liwan_crm.controllers.opportunities import (
+    check_can_create,
     create_opportunity_from_payload,
     find_opportunity,
     visible_domain,
@@ -97,6 +98,7 @@ class OpportunityConversationsController(http.Controller):
     def create_conversation_opportunity(self, conversation_id, **payload):
         if payload:
             raise ApiError(422, 'invalid', 'the opportunity uses conversation details', field=sorted(payload)[0])
+        check_can_create()
         conversation = visible_conversation(conversation_id)
         if conversation.company_id != request.env.company:
             raise ApiError(404, 'not_found', 'conversation does not exist in this company')

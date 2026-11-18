@@ -1,4 +1,5 @@
 import { CRM_LIST_PATH, opportunityListLocation } from '@/utils/crmOpportunity'
+import { useCrmCreateAccess } from './useCrmAccess'
 import { useCrmTerms } from './useCrmTerms'
 
 // The heading, the create link and the two views of the opportunities list page; the page owns the SharedListPage shell
@@ -7,9 +8,9 @@ import { useCrmTerms } from './useCrmTerms'
 export function useOpportunityListPage() {
   const route = useRoute()
   const { t } = useI18n()
-  const { can } = useAccess()
+  const access = useCrmCreateAccess()
   const { term } = useCrmTerms()
-  const createTo = computed(() => can('crm.leads.work') || can('crm.leads.assign')
+  const createTo = computed(() => access.canCreate.value
     ? { path: `${CRM_LIST_PATH}/new`, query: { returnTo: opportunityListLocation(route.query, route.hash) } }
     : undefined)
   const views = computed(() => [

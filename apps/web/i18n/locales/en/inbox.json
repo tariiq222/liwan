@@ -2299,6 +2299,7 @@
       }
     },
     "opportunity": {
+      "createManualOnly": "With manual distribution, only people who can assign create opportunities.",
       "create": "Create opportunity from conversation",
       "created": "Opportunity created and linked",
       "title": "Sales opportunity",
