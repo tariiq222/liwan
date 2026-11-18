@@ -12,8 +12,8 @@ from odoo.addons.liwan_ai.models.knowledge_chunker import (
     record_text,
     split_text,
 )
-from odoo.addons.liwan_ai.models.outbound_scan import is_saudi_id, withhold_text
 from odoo.addons.liwan_ai.tests.common import PROBE_SOURCE
+from odoo.addons.liwan_platform.outbound_scan import is_saudi_id, withhold_text
 
 # Valid check digits (the Luhn rule on ten digits): a citizen ID and an iqama number. Mirrors outbound.test.ts.
 CITIZEN_ID = '1000000008'
