@@ -7,13 +7,22 @@ const iso = (value: Date | string | null): string | null => value === null ? nul
 /** The states of a request that has not ended: asked, confirmed, due or deleting. A customer has at most one. */
 export const OPEN_DELETION_STATES = ['requested', 'confirmed', 'due', 'deleting']
 
+/**
+ * The customer reference these correlated subqueries compare against: `alias.column` (never the subquery's own alias `d`) or a positional placeholder (`$1`). A bare column name would resolve to
+ * the subquery's own `d.customer_id` and make the condition true for every customer, so it is refused.
+ */
+function customerReference(customerColumn: string): string {
+  if (!/^(?:(?!d\.)[A-Za-z_]\w*\.[A-Za-z_]\w*|\$\d+)$/.test(customerColumn)) throw new Error(`The customer reference must be alias.column or a $n placeholder, got "${customerColumn}"`)
+  return customerColumn
+}
+
 /** SQL: the customer named by `customerColumn` has a deletion whose clock is running (confirmed, due or deleting). A paid period is never opened for it. */
 export const deletionClockRunningSql = (customerColumn: string) =>
-  `EXISTS (SELECT 1 FROM tenant_deletion_requests d WHERE d.customer_id=${customerColumn} AND d.state IN ('confirmed','due','deleting'))`
+  `EXISTS (SELECT 1 FROM tenant_deletion_requests d WHERE d.customer_id=${customerReference(customerColumn)} AND d.state IN ('confirmed','due','deleting'))`
 
 /** SQL: the workspace of the customer named by `customerColumn` is being or has been deleted (access stopped). Nothing may act on it any more. */
 export const tenantRetiringSql = (customerColumn: string) =>
-  `EXISTS (SELECT 1 FROM tenant_deletion_requests d WHERE d.customer_id=${customerColumn} AND d.state IN ('deleting','deleted'))`
+  `EXISTS (SELECT 1 FROM tenant_deletion_requests d WHERE d.customer_id=${customerReference(customerColumn)} AND d.state IN ('deleting','deleted'))`
 
 /** Refuses (409 `tenant_retiring`) anything that would create or change the customer's commercial state once its workspace is being or has been deleted. */
 export async function assertCustomerNotRetiring(pool: Pick<Pool, 'query'>, customerId: string): Promise<void> {

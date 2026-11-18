@@ -8,9 +8,9 @@ import { trialCheckoutOn, voidTrialCheckoutOn } from './trial-checkout.js'
 /** A failure for one tenant never rolls back another tenant's end. */
 export async function expireTrials(pool: Pool, input: { now: Date; subscription_id?: string }) {
   const lapsed: string[] = [], deferred: string[] = [], failures: unknown[] = []
-  const due = (await pool.query(`SELECT id FROM subscriptions
-    WHERE state='trialing' AND NOT manual_suspension AND applied_revision_id IS NOT NULL AND trial_ends_at <= $1 AND NOT ${tenantRetiringSql('customer_id')}
-      AND ($2::uuid IS NULL OR id=$2) ORDER BY id`, [input.now, input.subscription_id ?? null])).rows
+  const due = (await pool.query(`SELECT s.id FROM subscriptions s
+    WHERE s.state='trialing' AND NOT s.manual_suspension AND s.applied_revision_id IS NOT NULL AND s.trial_ends_at <= $1 AND NOT ${tenantRetiringSql('s.customer_id')}
+      AND ($2::uuid IS NULL OR s.id=$2) ORDER BY s.id`, [input.now, input.subscription_id ?? null])).rows
   for (const { id } of due) {
     try {
       const ended = await transaction(pool, client => endTrialOn(client, id, { now: input.now }))

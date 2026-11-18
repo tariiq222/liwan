@@ -167,6 +167,36 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
   const beforeEnd = new Date('2026-11-12T09:00:00Z')
   const later = (minutes: number) => new Date(now.getTime() + minutes * 60_000)
 
+  /** Runs `body` with a deletion request of `customer` in `state`, and removes exactly that row afterwards so no other test or file sharing the database sees it. */
+  async function withDeletion(customer: string, state: 'deleting' | 'deleted', body: () => Promise<void>) {
+    const id = randomUUID()
+    await pool.query(`INSERT INTO tenant_deletion_requests(id,customer_id,state,requested_at,requested_by,confirmed_at,confirmed_by,due_at,due_marked_at,hold_until,deleting_at,committed_at,deleted_at,plan,plan_digest,renewal_outcome,renewal_refusal)
+      VALUES($1,$2,$3,now(),'t',now(),'t',now(),now(),now(),now(),CASE WHEN $3='deleted' THEN now() END,CASE WHEN $3='deleted' THEN now() END,'{}'::jsonb,$4,'not_cancellable','no_subscription')`,
+    [id, customer, state, 'a'.repeat(64)])
+    try { await body() } finally { await pool.query('DELETE FROM tenant_deletion_requests WHERE id=$1', [id]) }
+  }
+
+  it("lapses a due trial although another customer's workspace is being or has been deleted", async () => {
+    const other = await endedTrial()
+    for (const state of ['deleting', 'deleted'] as const) {
+      const f = await endedTrial()
+      await withDeletion(other.customer, state, async () => {
+        expect(await lapse(f), state).toMatchObject({ lapsed: [f.subscription] })
+      })
+      expect((await row(f.subscription)).state, state).not.toBe('trialing')
+    }
+  })
+
+  it('does not lapse the due trial of a customer whose own workspace is being or has been deleted', async () => {
+    for (const state of ['deleting', 'deleted'] as const) {
+      const f = await endedTrial()
+      await withDeletion(f.customer, state, async () => {
+        expect(await lapse(f), state).toEqual({ lapsed: [], deferred: [] })
+        expect((await row(f.subscription)).state, state).toBe('trialing')
+      })
+    }
+  })
+
   it('delivers an unopened signup with app writes locked and starts one clock for its administrator', async () => {
     const f = await endedTrial({}, true, beforeEnd, true)
     const first = (await pool.query('SELECT id FROM orders WHERE subscription_id=$1', [f.subscription])).rows[0].id
