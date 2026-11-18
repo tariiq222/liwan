@@ -2,14 +2,8 @@
   "commercial": {
     "pricing": {
       "cadence": {
-        "month": {
-          "one": "شهري",
-          "many": "كل {count} أشهر"
-        },
-        "year": {
-          "one": "سنوي",
-          "many": "كل {count} سنوات"
-        }
+        "month": "شهري | شهري | كل شهرين | كل {count} أشهر | كل {count} شهرًا | كل {count} شهر",
+        "year": "سنوي | سنوي | كل سنتين | كل {count} سنوات | كل {count} سنة | كل {count} سنة"
       },
       "quote": {
         "hq": "المقر الرئيسي",

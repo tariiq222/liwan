@@ -129,7 +129,7 @@ suite('operator refund of a pending credit note on PostgreSQL', () => {
     expect(Object.keys((await getInvoice(pool, f.invoice))!)).not.toContain('adjustments')
   })
   const refundedPayload = (f: { order: string; attempt: string }, minor: number, extra: Record<string, unknown> = {}) =>
-    ({ order_id: f.order, attempt_id: f.attempt, reason: 'Payment refunded after fulfillment — manual review', refunded: { currency: 'SAR', exponent: 2, minor }, ...extra })
+    ({ order_id: f.order, attempt_id: f.attempt, reason: 'Payment refunded by the provider — manual review', refunded: { currency: 'SAR', exponent: 2, minor }, ...extra })
   const enqueueRefund = (f: { order: string; attempt: string }, payload: unknown, key = randomUUID()) =>
     enqueueOutbox(pool as never, { kind: 'payment.intervention', aggregate_id: f.order, dedupe_key: key, payload })
   const notesOf = async (invoice: string) => (await pool.query('SELECT * FROM invoice_adjustments WHERE invoice_id=$1 ORDER BY amount_minor', [invoice])).rows
@@ -365,7 +365,7 @@ suite('operator refund of a pending credit note on PostgreSQL', () => {
     expect(await lockOf(f.sub)).toMatchObject({ cause: 'refund', state: 'pending' })
   })
   it('turns no provider refund of an order still being delivered into a credit note', async () => {
-    // A provider refund becomes a note only after delivery (`flagRefundAfterFulfillment` returns for any other state);
+    // A provider refund becomes a note only after delivery (`flagProviderRefundForCredit` returns for any other state);
     // the vendor's own request waits for delivery too (the next test), so no refund note is recorded while the order is in flight.
     const f = await deliveredFirstPayment()
     await pool.query("UPDATE orders SET fulfillment_state='queued' WHERE id=$1", [f.order])

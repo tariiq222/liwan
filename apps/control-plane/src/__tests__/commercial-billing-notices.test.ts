@@ -7,7 +7,7 @@ import { createQuoteForCustomer } from '../commercial/quotes.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
 import { generateRenewals, applyDunning } from '../commercial/renewals.js'
 import { verifyReturnedAttempt } from '../commercial/payments.js'
-import { daysText, sendBillingNotices, billingNotice } from '../commercial/billing-notices.js'
+import { cadenceText, countText, daysText, formatMoney, sendBillingNotices, billingNotice, storageText } from '../commercial/billing-notices.js'
 import { fixedReturnOrigin } from '../commercial/return-origin.js'
 import { riyadhDate } from '@liwan/commercial-contracts'
 import { chargeSavedCards } from '../commercial/saved-card-charges.js'
@@ -341,5 +341,59 @@ suite('live PostgreSQL billing notices', () => {
       expect(skipped).toHaveLength(1)
       expect(skipped[0]!.text).toContain('your saved card cannot be charged')
     })
+  })
+  it('writes counts, sizes, cadences and amounts in correct Arabic and English', () => {
+    const counts = [0, 1, 2, 3, 10, 11, 99, 100, 101, 102, 103, 111, 200]
+    expect(counts.map(n => countText(n, 'user', 'ar'))).toEqual(['بلا مستخدمين', 'مستخدم واحد', 'مستخدمان', '3 مستخدمين', '10 مستخدمين', '11 مستخدمًا', '99 مستخدمًا',
+      '100 مستخدم', '101 مستخدم', '102 مستخدم', '103 مستخدمين', '111 مستخدمًا', '200 مستخدم'])
+    expect(counts.map(n => daysText(n, 'ar'))).toEqual(['أقل من يوم', 'يوم واحد', 'يومان', '3 أيام', '10 أيام', '11 يومًا', '99 يومًا', '100 يوم', '101 يوم', '102 يوم', '103 أيام', '111 يومًا', '200 يوم'])
+    expect(counts.slice(0, 5).map(n => countText(n, 'branch', 'ar'))).toEqual(['بلا فروع إضافية', 'فرع إضافي واحد', 'فرعان إضافيان', '3 فروع إضافية', '10 فروع إضافية'])
+    expect(countText(11, 'branch', 'ar')).toBe('11 فرعًا إضافيًا')
+    expect([0, 1, 5].map(n => countText(n, 'branch', 'en'))).toEqual(['no extra branches', '1 extra branch', '5 extra branches'])
+    expect(daysText(0, 'en')).toBe('less than a day')
+    expect([2, 3, 11, 12].map(count => cadenceText({ unit: 'month', count }, 'ar'))).toEqual(['كل شهرين', 'كل 3 أشهر', 'كل 11 شهرًا', 'كل 12 شهرًا'])
+    expect([1, 3].map(n => countText(n, 'user', 'en'))).toEqual(['1 user', '3 users'])
+    expect([1, 2, 5, 12].map(n => countText(n, 'branch', 'ar'))).toEqual(['فرع إضافي واحد', 'فرعان إضافيان', '5 فروع إضافية', '12 فرعًا إضافيًا'])
+    expect([1, 3].map(n => countText(n, 'day', 'en'))).toEqual(['1 day', '3 days'])
+    expect([20480, 1024, 1500].map(mb => storageText(mb, 'ar'))).toEqual(['20 جيجابايت', '1 جيجابايت', '1500 ميجابايت'])
+    expect([20480, 1500].map(mb => storageText(mb, 'en'))).toEqual(['20 GB', '1500 MB'])
+    expect(cadenceText({ unit: 'month', count: 1 }, 'ar')).toBe('شهريًا')
+    expect(cadenceText({ unit: 'year', count: 1 }, 'en')).toBe('yearly')
+    expect(cadenceText({ unit: 'month', count: 3 }, 'ar')).toBe('كل 3 أشهر')
+    expect(formatMoney({ minor: 34900, currency: 'SAR', exponent: 2 }, 'ar')).toBe('349.00 ر.س.')
+    expect(formatMoney({ minor: 34900, currency: 'SAR', exponent: 2 }, 'en')).toBe('349.00 SAR')
+  })
+
+  it('names the invoice number, the covered period and the amounts in the receipt', () => {
+    const sar = (minor: number) => ({ minor, currency: 'SAR', exponent: 2 })
+    const receipt = billingNotice({ type: 'payment_received', subscription_id: randomUUID(), amount: sar(11500) }, 0,
+      { invoice: { number: 'INV-2026-0042', period_start: '2026-10-02', period_end: '2026-11-02', subtotal: sar(10000), tax: sar(1500), total: sar(11500) } }).text
+    expect(receipt).toContain('رقم الفاتورة INV-2026-0042')
+    expect(receipt).toContain('تغطي الفترة من 2026-10-02 إلى 2026-11-02')
+    expect(receipt).toContain('المبلغ قبل الضريبة 100.00 ر.س.، والضريبة 15.00 ر.س.، والإجمالي 115.00 ر.س.')
+    expect(receipt).toContain('Invoice INV-2026-0042. It covers 2026-10-02 to 2026-11-02.')
+    expect(billingNotice({ type: 'payment_received', subscription_id: randomUUID(), amount: sar(11500) }, 0).text).not.toContain('الفاتورة')
+  })
+
+  it('sends the receipt of a paid renewal with its invoice number and period, read live when it is sent', async () => {
+    const s = await subscription('2026-10-05')
+    const invoice = (await pool.query('SELECT id,number,period_start::text AS start,period_end::text AS "end" FROM invoices WHERE subscription_id=$1', [s.id])).rows[0]
+    await pool.query("INSERT INTO commercial_outbox(id,kind,aggregate_id,dedupe_key,payload) VALUES($1,'billing.notice',$2,$3,$4)",
+      [randomUUID(), s.id, `payment_received:${invoice.id}`, JSON.stringify({ type: 'payment_received', subscription_id: s.id, invoice_id: invoice.id, amount: { minor: 10000, currency: 'SAR', exponent: 2 } })])
+    const { sent, mail } = mailbox()
+    await sendBillingNotices(pool, { now, mail, returnOrigin })
+    const receipt = sent.find(m => m.subject === 'استلمنا دفعتك في LiwanOS')
+    expect(receipt.text).toContain(`تغطي الفترة من ${invoice.start} إلى ${invoice.end}`)
+    if (invoice.number) expect(receipt.text).toContain(`رقم الفاتورة ${invoice.number}`)
+  })
+
+  it('tells the customer a refund was recorded, and that a reverted trial checkout leaves the trial running', () => {
+    const sar = (minor: number) => ({ minor, currency: 'SAR', exponent: 2 })
+    const plain = billingNotice({ type: 'payment_refunded', subscription_id: randomUUID(), amount: sar(22885) }, 0).text
+    expect(plain).toContain('سجّلنا استرداد دفعتك بقيمة 228.85 ر.س.')
+    expect(plain).not.toContain('تجربتك')
+    const trial = billingNotice({ type: 'payment_refunded', subscription_id: randomUUID(), amount: sar(22885), trial_reverted: true }, 0, { trialEnds: '2026-11-25' }).text
+    expect(trial).toContain('تجربتك مستمرة حتى 2026-11-25')
+    expect(trial).toContain('Your trial continues until 2026-11-25')
   })
 })

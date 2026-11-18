@@ -31,8 +31,8 @@ const usedKeys = (): string[] => {
   const keys = sourceFiles(join(root, 'app')).flatMap(file => [...readFileSync(file, 'utf8').matchAll(pattern)].map(m => m[1]!))
   return [...new Set(keys)].sort()
 }
-// Keys the components build from a variable (`commercial.pricing.cadence.${unit}.one`).
-const DYNAMIC = ['commercial.pricing.cadence.month.one', 'commercial.pricing.cadence.month.many', 'commercial.pricing.cadence.year.one', 'commercial.pricing.cadence.year.many']
+// Keys the components build from a variable (`commercial.pricing.cadence.${unit}`).
+const DYNAMIC = ['commercial.pricing.cadence.month', 'commercial.pricing.cadence.year']
 
 describe('commercial-ui messages', () => {
   it('resolves every key the layer uses, in both locales', () => {

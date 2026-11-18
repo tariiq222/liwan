@@ -48,6 +48,12 @@ export const trialOutcome = (kept: TrialLedger['kept']) =>
 type TrialLedger = ReturnType<typeof trialLedger>
 export type TrialEnd = Awaited<ReturnType<typeof keptAtTrialEnd>>
 
+/** The quantities a configuration was bought with: the plan's included amounts plus what its pricing baseline bills. The trial checkout and the price shown for after the trial both start from these. */
+export function purchasedQuantities(plan: { included_users: number; included_storage_mb: number }, snapshot: Record<string, any>, pricing: Pick<Pricing, 'paid_users' | 'paid_storage_gb' | 'paid_extra_branches'>) {
+  return { users: plan.included_users + pricing.paid_users, storage_mb: plan.included_storage_mb + pricing.paid_storage_gb * 1024,
+    extra_branches: Number(snapshot.included_extra_branches) + pricing.paid_extra_branches }
+}
+
 /** Both the host fallback and the final lock are priced from the same paid invoice lines. */
 export async function keptAtTrialEnd(client: Pick<PoolClient, 'query'>, input: {
   subscription: Record<string, any>; snapshot: Record<string, any>; start: string; cutoff: Date; forceEmpty?: boolean; paidAfter?: string
@@ -64,6 +70,7 @@ export async function keptAtTrialEnd(client: Pick<PoolClient, 'query'>, input: {
     FROM commercial_branches WHERE subscription_id=$1 AND kind='extra' AND state IN ('active','pending')
     AND NOT (id=ANY($2::uuid[]))`, [subscription.id, snapshot.branch_archive_ids ?? []])).rows[0]
   const ledger = trialLedger(input.forceEmpty ? [] : await paidTrialLines(client, subscription.id, cutoff, input.paidAfter), applied, plan, branches.paid)
+  const chosenBundles = sources.bundles
   const keptIds = new Set([...plan.included_bundle_revision_ids, ...ledger.kept.bundle_revision_ids])
   sources.bundles = sources.bundles.filter(bundle => keptIds.has(bundle.id))
   const included = sources.terms?.included_extra_branches ?? plan.included_extra_branches
@@ -78,7 +85,11 @@ export async function keptAtTrialEnd(client: Pick<PoolClient, 'query'>, input: {
   const full = computeQuote(quoteInput)
   const pricing = pricingBaseline(full, { extra_branches: included, users: plan.included_users, storage_mb: plan.included_storage_mb })
   const quote = computeQuote({ ...quoteInput, paid_through: ledger.paid_through })
-  return { quote, full, entitlement, pricing, start, end, ledger, included, liveBranches: branches.live as number }
+  // What the customer chose, whatever the trial ends up keeping: the purchased quantities and every bundle, at its own cadence.
+  const bought = purchasedQuantities(plan, snapshot, applied)
+  const chosen = computeQuote({ ...quoteInput, bundles: chosenBundles, requested_users: bought.users, requested_storage_mb: bought.storage_mb,
+    requested_extra_branches: bought.extra_branches })
+  return { quote, full, chosen, entitlement, pricing, start, end, ledger, included, liveBranches: branches.live as number }
 }
 
 /** The catalog limit is a sales ceiling. An applied post-trial entitlement grants the purchased capacity. */

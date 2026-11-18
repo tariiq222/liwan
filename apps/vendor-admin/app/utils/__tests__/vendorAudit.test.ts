@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import ar from '../../../i18n/locales/ar/vendor.json'
+import en from '../../../i18n/locales/en/vendor.json'
 import { auditActionParts, auditActor, auditFilterCount, auditFilters, auditListQuery, auditSubjectTo } from '../vendorAudit'
 
 const ID = '10000000-0000-4000-8000-000000000001'
@@ -35,5 +37,11 @@ describe('vendorAudit', () => {
     expect(auditSubjectTo(ref('plan'))).toEqual({ path: '/plans/s%2F1' })
     expect(auditSubjectTo(ref('account'))).toBeNull()
     expect(auditSubjectTo(ref('other'))).toBeNull()
+  })
+  it('labels every trial action the control plane writes, in both locales', () => {
+    for (const action of ['started', 'enrolled', 'extended', 'reopened', 'ended', 'lapsed', 'converted', 'conversion_reverted', 'expiry_push_failed', 'policy_bootstrap_queued']) {
+      expect((ar.vendor.audit.actions.trial as Record<string, string>)[action], `ar ${action}`).toBeTruthy()
+      expect((en.vendor.audit.actions.trial as Record<string, string>)[action], `en ${action}`).toBeTruthy()
+    }
   })
 })

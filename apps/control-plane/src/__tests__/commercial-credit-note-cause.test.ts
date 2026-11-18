@@ -45,7 +45,7 @@ suite('the kind of a credit note is its typed cause, never its wording (AUDIT-04
   })
   it('an operator reason equal to the provider-refund text neither hides nor replaces the provider refund note', async () => {
     const f = await paidInvoice()
-    await requestInvoiceRefund(pool, { invoice_id: f.invoice, actor, reason: 'payment refunded after fulfillment — manual review (attempt x)' })
+    await requestInvoiceRefund(pool, { invoice_id: f.invoice, actor, reason: 'payment refunded by the provider — manual review (attempt x)' })
     // The vendor note is the whole invoice, so the provider's event adds nothing; the request must not be taken for a provider note either.
     await enqueueOutbox(pool as any, { kind: 'payment.intervention', aggregate_id: f.order, dedupe_key: `${f.attempt}:11500`,
       payload: { order_id: f.order, attempt_id: f.attempt, refunded: { minor: 11500, currency: 'SAR', exponent: 2 } } })

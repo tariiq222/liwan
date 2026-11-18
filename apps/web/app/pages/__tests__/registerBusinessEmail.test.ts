@@ -13,11 +13,11 @@ import en from '../../../i18n/locales/en/signup.json'
 const transpile = (s: string) => ts.transpileModule(s, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None } }).outputText
 const stripImports = (s: string) => s.replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '')
 
-function mount(failure: unknown) {
+function mount(failure: unknown, answer?: unknown) {
   const filename = resolve(import.meta.dirname, '../register.vue')
   const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
   const script = stripImports(compileScript(descriptor, { id: 'register-business-email' }).content).replace('export default', 'return')
-  const fetch = vi.fn().mockRejectedValue(failure)
+  const fetch = answer === undefined ? vi.fn().mockRejectedValue(failure) : vi.fn().mockResolvedValue(answer)
   const bindings = {
     errorCode, errorSeconds, normalizeCode, normalizeMobileInput,
     ForgotPasswordInputSchema: { safeParse: () => ({ success: true }) },
@@ -70,7 +70,27 @@ describe('register page, free-mail refusal', () => {
       expect(locale.signup.invitationLate.length).toBeGreaterThan(60)
     }
     const page = readFileSync(resolve(import.meta.dirname, '../register.vue'), 'utf8')
-    expect(page).toContain("t('signup.invitation', { email: details.email.trim() })")
+    expect(page).toContain("t('signup.invitation', { email: verifiedEmail })")
     expect(page).toContain("t('signup.invitationLate')")
+  })
+  it('after a successful email verification the done step keeps the verified address and clears the form', async () => {
+    const state = mount(null, { ok: true })
+    state.details.email = '  owner@company.sa '
+    state.signupId.value = 'signup-1'
+    state.step.value = 'email'
+    state.verification.code = '123456'
+    await state.verifyCode()
+    expect(state.step.value).toBe('done')
+    expect(state.verifiedEmail.value).toBe('owner@company.sa')
+    expect(state.details.email).toBe('')
+    for (const locale of [ar, en]) expect(locale.signup.invitation.replace('{email}', state.verifiedEmail.value)).toContain('owner@company.sa')
+  })
+  it('says the trial starts at first sign-in, without numbers', () => {
+    const page = readFileSync(resolve(import.meta.dirname, '../register.vue'), 'utf8')
+    expect(page).toContain("t('signup.trialStarts')")
+    for (const locale of [ar, en]) {
+      expect(locale.signup.trialStarts.length).toBeGreaterThan(20)
+      expect(locale.signup.trialStarts).not.toMatch(/\d/)
+    }
   })
 })

@@ -11,9 +11,9 @@ describe('formatCommercialMoney', () => {
 })
 
 describe('cadenceLabel', () => {
-  it('uses the one/many keys of the commercial namespace', () => {
-    expect(cadenceLabel({ unit: 'month', count: 1 }, t)).toBe('commercial.pricing.cadence.month.one')
-    expect(cadenceLabel({ unit: 'year', count: 2 }, t)).toBe('commercial.pricing.cadence.year.many{"count":2}')
+  it('passes the count to the plural key of the commercial namespace', () => {
+    expect(cadenceLabel({ unit: 'month', count: 1 }, t)).toBe('commercial.pricing.cadence.month{"count":1}')
+    expect(cadenceLabel({ unit: 'year', count: 2 }, t)).toBe('commercial.pricing.cadence.year{"count":2}')
   })
 })
 

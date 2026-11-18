@@ -8,7 +8,7 @@ const view = (paymentMethod: unknown, enabled = true) => ({ state: 'active', app
 const savedCard = { id: 'pm-secret-id', brand: 'visa', last_four: '4242', exp_month: 3, exp_year: 2099, status: 'active', is_default: true }
 const sfc = loadSfc('components/vendor/SubscriptionSummary.vue', {
   useI18n: () => ({ t: (key: string) => key, locale: Vue.ref('en') }),
-  customerDisplayBadge: () => ({ tone: 'neutral', labelKey: 'badge' }), orderFulfillmentBadge: noop, orderPaymentBadge: noop,
+  customerDisplayBadge: () => ({ tone: 'neutral', labelKey: 'badge' }), trialOutcomeBadge: () => ({ tone: 'neutral', labelKey: 'outcome' }), orderFulfillmentBadge: noop, orderPaymentBadge: noop,
   subscriptionDisplayState: () => 'active', targetStatus: () => 'none', cadenceLabel: noop, formatCommercialMoney: noop, formatLiwanDate: noop,
   ...card,
 })

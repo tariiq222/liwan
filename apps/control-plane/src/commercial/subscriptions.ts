@@ -7,6 +7,7 @@ import { orderView } from './orders.js'
 import { cancelRefusal } from './cancellation-rules.js'
 import { defaultPaymentMethod, paymentMethodView } from './payment-methods.js'
 import { tenantDeletionOf } from './tenant-deletion-read.js'
+import { owesAtRenewal } from './free-base.js'
 
 const iso = (value: Date | string | null): string | null => value === null ? null : value instanceof Date ? value.toISOString() : value
 const date = (value: Date | string | null): string | null => value === null ? null : dateOnly(value)
@@ -26,6 +27,10 @@ export async function getSubscription(pool: Pool, customerId: string) {
   const pending = await pool.query("SELECT * FROM orders WHERE subscription_id=$1 AND NOT cancelled AND fulfillment_state<>'applied' ORDER BY created_at DESC,id DESC LIMIT 1", [row.id])
   const cancelled = row.applied_revision_id === null && (await pool.query('SELECT 1 FROM orders WHERE subscription_id=$1 AND cancelled LIMIT 1', [row.id])).rowCount === 1
   const pendingLock = (await pool.query("SELECT cause FROM free_base_locks WHERE subscription_id=$1 AND state IN ('pending','ordered')", [row.id])).rows[0]
+  const appliedSnapshot = revisions.rows.find(r => r.id === row.applied_revision_id)?.snapshot
+  // The applied pricing baseline is the one record of what a period costs (renewals read it the same way): the free base is exactly a
+  // configuration that owes nothing at renewal. Nothing applied yet, or no baseline, is never the free base.
+  const onFreeBase = appliedSnapshot?.pricing ? !owesAtRenewal(appliedSnapshot.pricing) : false
   const view = subscriptionViewSchema.parse({
     id: row.id, customer_id: row.customer_id, tenant_id: row.tenant_id, state: row.state,
     applied: revision(row.applied_revision_id), target: revision(row.target_revision_id), pending_order: pending.rows[0] ? orderView(pending.rows[0]) : null, order_cancelled: cancelled,
@@ -35,7 +40,7 @@ export async function getSubscription(pool: Pool, customerId: string) {
     deletion: await tenantDeletionOf(pool, row.customer_id),
     cancellable: !row.cancel_requested_at && await cancelRefusal(pool, row) === null,
     cancellation: row.cancel_requested_at ? { requested_at: iso(row.cancel_requested_at), requested_by: row.cancel_requested_by, effective_on: row.renewal_on } : null,
-    trial_outcome: row.trial_outcome, trial_ends_at: iso(row.trial_ends_at), grace_ends_at: iso(row.grace_ends_at),
+    on_free_base: onFreeBase, trial_outcome: row.trial_outcome, trial_ends_at: iso(row.trial_ends_at), grace_ends_at: iso(row.grace_ends_at),
   })
   // Consumers derive the display state without confusing paid with applied.
   subscriptionDisplayState(view)

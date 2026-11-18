@@ -131,7 +131,8 @@
             "payment_method": null
           },
           "trial_ends_at": null,
-          "grace_ends_at": null
+          "grace_ends_at": null,
+          "on_free_base": false
         }
       },
       {
@@ -213,7 +214,8 @@
             "payment_method": null
           },
           "trial_ends_at": null,
-          "grace_ends_at": null
+          "grace_ends_at": null,
+          "on_free_base": false
         }
       },
       {
@@ -1611,7 +1613,8 @@
         "payment_method": null
       },
       "trial_ends_at": null,
-      "grace_ends_at": null
+      "grace_ends_at": null,
+      "on_free_base": false
     },
     "sub-beta": {
       "id": "sub-beta",
@@ -1687,7 +1690,8 @@
         "payment_method": null
       },
       "trial_ends_at": null,
-      "grace_ends_at": null
+      "grace_ends_at": null,
+      "on_free_base": false
     }
   },
   "subscriptionParts": {

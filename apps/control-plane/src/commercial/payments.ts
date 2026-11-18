@@ -79,7 +79,8 @@ async function apply(client: PoolClient, event: ProviderEvent, now = new Date())
   // A further refund of the payment that paid the order (a second partial refund) finds the order already refunded,
   // which the order state machine ignores; the money still has to reach the operator.
   if (event.status === 'refunded' && order.paid_attempt_id === attempt.id && order.payment_state === 'refunded') {
-    await flagRefundAfterFulfillment(client, order, attempt, event)
+    await flagProviderRefundForCredit(client, order, attempt, event)
+    await noticeRefund(client, order, attempt, event)
     return 'accepted'
   }
   const trialCheckout = isTrialCheckout(order)
@@ -140,21 +141,35 @@ async function apply(client: PoolClient, event: ProviderEvent, now = new Date())
     // A refund or chargeback of a top-up order takes the balance back, whole: a provider refund is not reported per purchase.
     await markTopupRefunded(client, order.id, 'system', 'payment refunded at the provider')
     if (trialCheckout && await revertTrialCheckoutOn(client, order)) order.cancelled = true
-    await flagRefundAfterFulfillment(client, order, attempt, event)
+    await flagProviderRefundForCredit(client, order, attempt, event)
+    await noticeRefund(client, order, attempt, event)
   }
   return 'accepted'
 }
 
 /**
- * The provider refunded the payment of an order that was already applied: the money is gone but the subscription
- * stays. One outbox row per distinct cumulative refunded figure (a replay of the same state adds nothing, a further
+ * Tells the customer a refund of the payment that paid their order was recorded: one notice per cumulative refunded figure, like the operator's
+ * credit note. A refund with no figure sends nothing (the operator path still queues it). A trial checkout of a subscription that is trialing again
+ * says the trial goes on, whichever refund of it this is.
+ */
+async function noticeRefund(client: PoolClient, order: any, attempt: any, event: ProviderEvent) {
+  const refunded = refundedAmount(event)
+  if (!refunded) return
+  const trialing = isTrialCheckout(order) && (await client.query("SELECT 1 FROM subscriptions WHERE id=$1 AND state='trialing'", [order.subscription_id])).rowCount === 1
+  await enqueueBillingNotice(client, `payment_refunded:${attempt.id}:${refunded.minor}`, { type: 'payment_refunded', subscription_id: order.subscription_id,
+    invoice_id: attempt.invoice_id, amount: refunded, ...(trialing ? { trial_reverted: true } : {}) })
+}
+
+/**
+ * The provider refunded the payment of a paid invoice (an order already applied, or a trial checkout refunded before
+ * delivery): the money is gone, so the invoice is flagged for crediting. One outbox row per distinct cumulative refunded figure (a replay of the same state adds nothing, a further
  * partial refund adds one); the refund worker turns it into a pending credit note for the new part.
  */
-async function flagRefundAfterFulfillment(client: PoolClient, order: any, attempt: any, event: ProviderEvent) {
+async function flagProviderRefundForCredit(client: PoolClient, order: any, attempt: any, event: ProviderEvent) {
   // A trial checkout refunded before delivery was cancelled by its revert: its paid invoice is credited the same way.
   if (order.fulfillment_state !== 'applied' && !(isTrialCheckout(order) && order.cancelled)) return
   const refunded = refundedAmount(event)
-  const reason = 'Payment refunded after fulfillment — manual review'
+  const reason = 'Payment refunded by the provider — manual review'
   // A refund the provider gave no figure for is still queued, so the refund worker rejects it visibly (`refund_amount_missing`).
   const inserted = await enqueueOutbox(client, { kind: 'payment.intervention', aggregate_id: order.id,
     dedupe_key: `${attempt.id}:${refunded?.minor ?? 'unknown'}`, payload: { order_id: order.id, attempt_id: attempt.id, reason, refunded } })

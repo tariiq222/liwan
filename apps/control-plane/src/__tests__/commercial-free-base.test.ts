@@ -28,6 +28,9 @@ import { processRefundOutbox, refundCreditNote } from '../commercial/settlements
 import { recoverCommercialSystemJobs } from '../shared/commercial-recovery.js'
 import { trialEndPreview } from '../commercial/trial-preview.js'
 import { getAnalytics } from '../commercial/analytics.js'
+import { sendTrialNotices } from '../commercial/trial-notices.js'
+import { sendBillingNotices } from '../commercial/billing-notices.js'
+import { sendOverLimitNotices } from '../commercial/over-limit-notices.js'
 
 // The deadline push stays real; a test can make one call fail.
 vi.mock('../commercial/expiry-push.js', async original => {
@@ -164,16 +167,52 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
   const beforeEnd = new Date('2026-11-12T09:00:00Z')
   const later = (minutes: number) => new Date(now.getTime() + minutes * 60_000)
 
-  it('delivers an unopened signup with app writes locked and starts one clock for its administrator', async () => {
+  /** Runs `body` with a deletion request of `customer` in `state`, and removes exactly that row afterwards so no other test or file sharing the database sees it. */
+  async function withDeletion(customer: string, state: 'deleting' | 'deleted', body: () => Promise<void>) {
+    const id = randomUUID()
+    await pool.query(`INSERT INTO tenant_deletion_requests(id,customer_id,state,requested_at,requested_by,confirmed_at,confirmed_by,due_at,due_marked_at,hold_until,deleting_at,committed_at,deleted_at,plan,plan_digest,renewal_outcome,renewal_refusal)
+      VALUES($1,$2,$3,now(),'t',now(),'t',now(),now(),now(),now(),CASE WHEN $3='deleted' THEN now() END,CASE WHEN $3='deleted' THEN now() END,'{}'::jsonb,$4,'not_cancellable','no_subscription')`,
+    [id, customer, state, 'a'.repeat(64)])
+    try { await body() } finally { await pool.query('DELETE FROM tenant_deletion_requests WHERE id=$1', [id]) }
+  }
+
+  it("lapses a due trial although another customer's workspace is being or has been deleted", async () => {
+    const other = await endedTrial()
+    for (const state of ['deleting', 'deleted'] as const) {
+      const f = await endedTrial()
+      await withDeletion(other.customer, state, async () => {
+        expect(await lapse(f), state).toMatchObject({ lapsed: [f.subscription] })
+      })
+      expect((await row(f.subscription)).state, state).not.toBe('trialing')
+    }
+  })
+
+  it('does not lapse the due trial of a customer whose own workspace is being or has been deleted', async () => {
+    for (const state of ['deleting', 'deleted'] as const) {
+      const f = await endedTrial()
+      await withDeletion(f.customer, state, async () => {
+        expect(await lapse(f), state).toEqual({ lapsed: [], deferred: [] })
+        expect((await row(f.subscription)).state, state).toBe('trialing')
+      })
+    }
+  })
+
+  /** A delivered public signup whose administrator (user 7) has not signed in yet. */
+  async function unopenedSignup() {
     const f = await endedTrial({}, true, beforeEnd, true)
     const first = (await pool.query('SELECT id FROM orders WHERE subscription_id=$1', [f.subscription])).rows[0].id
     await pool.query(`INSERT INTO public_signup_trials(customer_id,email,mobile,requires_first_login,first_admin_user_id)
-      VALUES($1,$2,'+966555077771',true,7)`, [f.customer, `${f.customer}@example.test`])
+      VALUES($1,$2,$3,true,7)`, [f.customer, `${f.customer}@example.test`, `+9665${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`])
     expect(await runJob(first, async ({ job }) => {
       expect(Date.parse(job.authority.trial_ends_at!)).toBeLessThan(+beforeEnd)
       expect(job.authority.post_trial_features?.['pmo.enabled']).not.toBe(true)
       return { ...await okRunner({ job }), observed_entitlement_digest: job.authority.post_trial_digest!, root_company_id: 1 }
     })).toMatchObject({ state: 'verified' })
+    return f
+  }
+
+  it('delivers an unopened signup with app writes locked and starts one clock for its administrator', async () => {
+    const f = await unopenedSignup()
     expect((await row(f.subscription)).trial_ends_at).toBeNull()
     await expect(createQuoteForCustomer(pool, { customer_id: f.customer,
       request: { ...request(), kind: 'change', subscription_id: f.subscription } }, beforeEnd))
@@ -194,6 +233,28 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
       return okRunner({ job })
     })).toMatchObject({ state: 'verified' })
     expect(await activateSignupTrial(pool, { ...input, now })).toEqual({ state: 'ready', trial_ends_at: end })
+  })
+
+  it('tells a sign-in that waited on the activating one that the trial policy is still applying', async () => {
+    const f = await unopenedSignup()
+    const input = { customerId: f.customer, actorId: '7', now: beforeEnd }
+    const end = new Date(+beforeEnd + 14 * 86_400_000).toISOString()
+    const holder = await pool.connect()
+    let both: Promise<unknown[]>
+    try {
+      await holder.query('BEGIN')
+      await holder.query('SELECT 1 FROM subscriptions WHERE id=$1 FOR UPDATE', [f.subscription])
+      both = Promise.all([activateSignupTrial(pool, input), activateSignupTrial(pool, input)])
+      // Both sign-ins must be queued on the row lock before it is released, so the second always waits on the first.
+      await vi.waitFor(async () => expect(Number((await pool.query(`SELECT count(*) FROM pg_locks l JOIN pg_stat_activity a USING(pid)
+        WHERE NOT l.granted AND a.datname=current_database()`)).rows[0].count)).toBe(2), { timeout: 10_000, interval: 20 })
+      await holder.query('COMMIT')
+    } finally { holder.release() }
+    expect(await both).toEqual([{ state: 'applying', trial_ends_at: end }, { state: 'applying', trial_ends_at: end }])
+    const events = await pool.query("SELECT 1 FROM audit_events WHERE subject=$1 AND action='trial.started'", [f.customer])
+    const bootstrap = await pool.query("SELECT 1 FROM orders WHERE subscription_id=$1 AND idempotency_key LIKE 'trial-bootstrap:%'", [f.subscription])
+    expect(events.rowCount).toBe(1)
+    expect(bootstrap.rowCount).toBe(1)
   })
 
   it('locks once under concurrent scans, applies exact limits and never queues a separate expiry clear', async () => {
@@ -514,6 +575,15 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
       .toEqual([{ status: 'failed', error: 'trial_checkout_refunded' }])
     expect((await pool.query("SELECT actor FROM audit_events WHERE action='trial.conversion_reverted' AND subject=$1 AND metadata->>'order_id'=$2", [f.subscription, order.id])).rows)
       .toEqual([{ actor: 'system:payment' }])
+    // The customer is told once that the payment came back and that the trial runs to its original day.
+    const refundNotice = (await pool.query("SELECT payload FROM commercial_outbox WHERE kind='billing.notice' AND aggregate_id=$1 AND payload->>'type'='payment_refunded'", [f.subscription])).rows
+    expect(refundNotice).toHaveLength(1)
+    expect(refundNotice[0].payload).toMatchObject({ type: 'payment_refunded', invoice_id: invoice.id, trial_reverted: true, amount: { minor: Number(invoice.total_minor), currency: 'SAR' } })
+    const sentRefund: any[] = []
+    await sendBillingNotices(pool, { now: at, mail: { send: async (m: any) => { sentRefund.push(m); return { accepted: true, provider_message_id: 'p' } } } as any, returnOrigin: origin })
+    const refundMail = sentRefund.find(m => m.subject === 'استرددنا دفعتك في LiwanOS')
+    expect(refundMail.text).toContain(`تجربتك مستمرة حتى ${riyadhDate(new Date(deadline))}`)
+    expect(refundMail.text).toContain(`Your trial continues until ${riyadhDate(new Date(deadline))}`)
     const restore = (await pool.query(`SELECT payload FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'origin'='trial-end' AND state='queued'`, [f.tenant])).rows
     expect(restore).toHaveLength(1)
     expect(new Date(restore[0].payload.authority.trial_ends_at).getTime()).toBe(new Date(deadline).getTime())
@@ -961,5 +1031,112 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     expect(await lapseRow(f.subscription)).toMatchObject({ state: 'pending', reason: 'tenant_upgrade_required' })
     const { items } = await attention(pool, true)
     expect(items.find(item => item.customer_id === f.customer)).toMatchObject({ kind: 'free_base_blocked', detail: 'tenant_upgrade_required' })
+  })
+  describe('what the customer is told and shown around the trial end', () => {
+    const during = new Date(now.getTime() - 2 * 86_400_000)
+    const mailbox = () => { const sent: any[] = []; return { sent, mail: { send: async (m: any) => { sent.push(m); return { accepted: true, provider_message_id: 'p' } } } as any } }
+
+    it('shows the price after the trial in the preview, and null when the chosen configuration is free', async () => {
+      const paid = await endedTrial({}, true, during)
+      const preview = await trialEndPreview(pool, paid.customer, now)
+      expect(preview.status).toBe('trialing')
+      expect(preview.first_invoice).toBeNull()
+      expect(preview.price_after_trial).toEqual({ currency: 'SAR', exponent: 2, minor: Math.round(19900 * 1.15) })
+      const free = await endedTrial({ bundle_revision_ids: [] }, true, during)
+      expect((await trialEndPreview(pool, free.customer, now)).price_after_trial).toBeNull()
+    })
+
+    it('shows the price the trial checkout charges per period, with every paid quantity', async () => {
+      const f = await endedTrial({ requested_users: 5, requested_storage_mb: 40960, requested_extra_branches: 2 }, true, during)
+      const preview = await trialEndPreview(pool, f.customer, now)
+      expect(preview.price_after_trial!.minor).toBeGreaterThan(Math.round(19900 * 1.15))
+      const converted = await convertTrial(pool, { customer_id: f.customer, now, returnOrigin: origin })
+      const checkout = (await pool.query('SELECT payload FROM commercial_quotes WHERE id=(SELECT quote_id FROM orders WHERE id=$1)', [converted.order!.id])).rows[0].payload
+      expect(preview.price_after_trial).toEqual(checkout.next_renewal)
+    })
+
+    it('says the first invoice is lower once part of the configuration was bought during the trial', async () => {
+      const f = await endedTrial({ bundle_revision_ids: [] }, true, new Date(now.getTime() - 11 * 86_400_000))
+      const bought = await change(f, { bundle_revision_ids: [bundle.id] }, new Date(now.getTime() - 10 * 86_400_000))
+      expect(bought.quote.due_now.minor).toBeGreaterThan(0)
+      expect(await runJob(bought.order.id, okRunner)).toMatchObject({ state: 'verified' })
+      const { sent, mail } = mailbox()
+      await sendTrialNotices(pool, { now, mail, returnOrigin: origin })
+      const text: string = sent.find(m => m.to === `${f.customer}@example.test`).text
+      expect(text).toContain('ستكون الفاتورة الأولى أقل، لأن جزءًا من الفترة مدفوع بالفعل.')
+      expect(text).toContain('Your first invoice will be lower because part of the period is already paid.')
+    })
+
+    it('reports on_free_base from the applied pricing: false while trialing paid apps, true after the lapse, false once an app is bought again', async () => {
+      const f = await endedTrial({}, true, during)
+      expect(await getSubscription(pool, f.customer)).toMatchObject({ state: 'trialing', on_free_base: false })
+      const free = await endedTrial({ bundle_revision_ids: [] }, true, during)
+      expect((await getSubscription(pool, free.customer)).on_free_base).toBe(true)
+      const lapsed = await endedTrial()
+      await lapse(lapsed)
+      await lock(lapsed)
+      expect(await getSubscription(pool, lapsed.customer)).toMatchObject({ state: 'active', trial_outcome: 'free_base', on_free_base: true })
+      const bought = await change(lapsed, { bundle_revision_ids: [bundle.id] }, later(5))
+      expect(await runJob(bought.order.id, okRunner)).toMatchObject({ state: 'verified' })
+      expect(await getSubscription(pool, lapsed.customer)).toMatchObject({ trial_outcome: 'free_base', on_free_base: false })
+      const never = await paidCustomer()
+      expect((await getSubscription(pool, never.customer)).on_free_base).toBe(false)
+    })
+
+    it('lets a lapsed customer buy an app back: preview, quote, accept, pay, deliver, with the right invoice (item 6)', async () => {
+      const f = await endedTrial()
+      await lapse(f)
+      await lock(f)
+      expect((await getSubscription(pool, f.customer)).applied?.bundle_revision_ids).toEqual([])
+      // The usage collector keeps a sample younger than 15 minutes; `change` records one the way it would.
+      const bought = await change(f, { bundle_revision_ids: [bundle.id] }, later(5))
+      expect(bought.quote.due_now.minor).toBeGreaterThan(0)
+      expect(await runJob(bought.order.id, okRunner)).toMatchObject({ state: 'verified' })
+      const view = await getSubscription(pool, f.customer)
+      expect(view).toMatchObject({ state: 'active', on_free_base: false })
+      expect(view.applied?.bundle_revision_ids).toEqual([bundle.id])
+      const invoice = await invoiceOf(bought.order.id)
+      expect(invoice).toMatchObject({ status: 'paid', kind: 'change', total_minor: String(bought.quote.due_now.minor), currency: 'SAR' })
+      // The invoice covers the rest of the current period: from the day of the purchase to the period's end.
+      const covered = (await pool.query('SELECT period_start::text AS start,period_end::text AS end FROM invoices WHERE id=$1', [invoice.id])).rows[0]
+      expect(covered).toEqual({ start: riyadhDate(later(5)), end: view.applied!.period_end })
+    })
+
+    it('sends the trial reminder with the price after the trial, correct number forms and readable units', async () => {
+      const f = await endedTrial({}, true, new Date(now.getTime() - 11 * 86_400_000))
+      const { sent, mail } = mailbox()
+      await sendTrialNotices(pool, { now, mail, returnOrigin: origin })
+      const text: string = sent.find(m => m.to === `${f.customer}@example.test`).text
+      expect(text).toContain('لتستمر على تطبيقاتك بعد التجربة: 228.85 ر.س. شهريًا')
+      expect(text).toContain('«راجع الاشتراك»')
+      expect(text).toContain('with the button "Review subscription"')
+      expect(text).not.toContain('ستكون الفاتورة الأولى أقل')
+      expect(text).toContain('To keep your apps after the trial: 228.85 SAR monthly')
+      expect(text).toContain('3 مستخدمين، 20 جيجابايت للتخزين، فرع إضافي واحد')
+      expect(text).not.toMatch(/ميبيبايت|MiB|أول فاتورة|First invoice/)
+      expect(text).toMatch(/\((باقي|المتبقي) (3 أيام|يومان|يوم واحد)\)/)
+      expect(text).toMatch(/\((3|2|1) days? left\)/)
+      const free = await endedTrial({ bundle_revision_ids: [] }, true, new Date(now.getTime() - 11 * 86_400_000))
+      const freeMail = mailbox()
+      await sendTrialNotices(pool, { now, mail: freeMail.mail, returnOrigin: origin })
+      const freeText: string = freeMail.sent.find(m => m.to === `${free.customer}@example.test`).text
+      expect(freeText).toContain('تستمر خطتك مجانًا بعد التجربة.')
+      expect(freeText).toContain('Your plan continues free after the trial.')
+    })
+
+    it('tells a customer whose trial lapsed that the free base keeps their data and that they can subscribe at any time', async () => {
+      const f = await endedTrial()
+      await lapse(f)
+      await lock(f)
+      await pool.query("UPDATE commercial_outbox SET status='done' WHERE kind='free_base.locked' AND aggregate_id<>$1", [f.subscription])
+      const [queued] = (await pool.query("SELECT payload FROM commercial_outbox WHERE kind='free_base.locked' AND aggregate_id=$1", [f.subscription])).rows
+      expect(queued.payload).toMatchObject({ cause: 'trial_end', outcome: 'free_base' })
+      const { sent, mail } = mailbox()
+      await sendOverLimitNotices(pool, { mail, returnOrigin: origin })
+      const text: string = sent.find(m => m.to === `${f.customer}@example.test`).text
+      expect(text).toContain('عادت مساحة عملك إلى القاعدة المجانية')
+      expect(text).toContain('بياناتك محفوظة')
+      expect(text).toContain('يمكنك الاشتراك في أي وقت من صفحة الاشتراك')
+    })
   })
 })

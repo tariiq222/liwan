@@ -12,6 +12,7 @@ const props = defineProps<{
   canOpenStorage?: boolean
   canReadBranches?: boolean
   canReadBilling?: boolean
+  cadence?: { unit: 'month' | 'year'; count: number }
 }>()
 
 const { t, locale } = useI18n()
@@ -44,6 +45,15 @@ const resourceLinks = computed(() => [
   ...(props.canOpenStorage ? [{ value: 'storage', label: t('settings.storage.open'), to: '/settings/system/storage?over_limit=true' }] : []),
   ...(props.canOpenDocuments ? [{ value: 'documents', label: t('subscription.trialEnd.documents'), to: '/documents' }] : []),
 ])
+// A converted trial is a paid subscription now: its details must not say apps are read-only.
+const detailKey = computed(() => props.preview.status === 'settled' && props.preview.outcome === 'converted' ? 'settledConverted' : props.preview.status)
+const priceAfterTrial = computed(() => {
+  const price = props.preview.price_after_trial
+  if (!price) return null
+  const cadence = props.cadence
+  const cadenceLabel = cadence ? t(`subscription.trialEnd.cadence.${cadence.unit}`, { count: cadence.count }) : ''
+  return t('subscription.trialEnd.priceAfterTrial', { price: formatSubscriptionMoney(price, locale.value), cadence: cadenceLabel }).replace(/\s{2,}/g, ' ')
+})
 const totals = computed(() => props.preview.first_invoice ? [{
   label: t('subscription.trialEnd.firstInvoiceTotal'),
   value: formatSubscriptionMoney(props.preview.first_invoice.due_now, locale.value),
@@ -62,7 +72,7 @@ const totals = computed(() => props.preview.first_invoice ? [{
         :color="preview.status === 'trial_ending' || preview.status === 'lock_pending' ? 'warning' : 'info'"
         variant="subtle"
         :title="t(`subscription.trialEnd.states.${preview.status}`)"
-        :description="t(`subscription.trialEnd.details.${preview.status}`)"
+        :description="t(`subscription.trialEnd.details.${detailKey}`)"
       />
       <SharedPropertiesPanel>
         <SharedPropertyRow :label="t('subscription.trialEnd.cutoff')" :value="formatDateTime(preview.trial_ends_at, 'Asia/Riyadh')" />
@@ -117,11 +127,14 @@ const totals = computed(() => props.preview.first_invoice ? [{
         <SharedSegmentedControl class="mt-2 flex-wrap" mode="actions" :label="t('subscription.trialEnd.resourceLinks')" :items="resourceLinks" />
       </div>
 
-      <div>
-        <h3 class="mb-2 text-sm font-semibold">{{ t(ended ? 'subscription.trialEnd.firstInvoice' : 'subscription.trialEnd.firstInvoiceEstimate') }}</h3>
+      <div v-if="preview.first_invoice || !ended">
+        <h3 class="mb-2 text-sm font-semibold">{{ t(preview.first_invoice ? (ended ? 'subscription.trialEnd.firstInvoice' : 'subscription.trialEnd.firstInvoiceEstimate') : 'subscription.trialEnd.afterTrial') }}</h3>
         <SharedInvoiceLines v-if="preview.first_invoice" layout="list" :lines="lines" :totals="totals" />
-        <p v-else class="text-sm text-muted">{{ t('subscription.trialEnd.noInvoiceShown') }}</p>
-        <UButton v-if="canReadBilling && ended" to="/subscription/invoices" class="mt-2" size="sm" color="neutral" variant="link">{{ t('subscription.invoices.all') }}</UButton>
+        <p v-else-if="priceAfterTrial" class="text-sm" data-testid="trial-price-after">{{ priceAfterTrial }}</p>
+        <p v-else class="text-sm text-muted" data-testid="trial-free-after">{{ t('subscription.trialEnd.freeAfterTrial') }}</p>
+      </div>
+      <div v-if="canReadBilling && ended">
+        <UButton to="/subscription/invoices" size="sm" color="neutral" variant="link">{{ t('subscription.invoices.all') }}</UButton>
       </div>
     </div>
   </SharedRecordSection>

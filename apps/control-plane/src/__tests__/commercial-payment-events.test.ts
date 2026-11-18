@@ -399,6 +399,10 @@ suite('simulated payment settlement on live PostgreSQL', () => {
     expect((await pool.query('SELECT applied_revision_id FROM subscriptions WHERE id=$1',[order.subscription_id])).rows[0].applied_revision_id).toBe(order.target_revision_id)
     expect((await pool.query("SELECT count(*)::int AS n FROM commercial_outbox WHERE aggregate_id=$1 AND kind='payment.intervention'",[f.order_id])).rows[0].n).toBe(1)
     expect((await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE subject=$1 AND action='payment.intervention'",[f.order_id])).rows[0].n).toBe(1)
+    const notices=(await pool.query("SELECT payload FROM commercial_outbox WHERE kind='billing.notice' AND aggregate_id=$1 AND payload->>'type'='payment_refunded'",[order.subscription_id])).rows
+    expect(notices).toHaveLength(1)
+    expect(notices[0].payload).toMatchObject({type:'payment_refunded',subscription_id:order.subscription_id,amount:{currency:'SAR',exponent:2}})
+    expect(notices[0].payload.trial_reverted).toBeUndefined()
   })
   it('credits each partial provider refund after fulfillment by its own part, once per event',async()=>{
     const f=await fixture(),a=await createPaymentAttempt(pool,f.input)
@@ -416,6 +420,9 @@ suite('simulated payment settlement on live PostgreSQL', () => {
     // The same cumulative state seen again under a new event id adds nothing.
     expect(await deliver(f.adapter,f.adapter.webhookBody(a.provider_ref,{eventId:'evt-partial-2-again'}))).toEqual({status:200,outcome:'accepted'})
     expect((await pool.query("SELECT count(*)::int AS n FROM commercial_outbox WHERE aggregate_id=$1 AND kind='payment.intervention'",[f.order_id])).rows[0].n).toBe(2)
+    // One notice per cumulative refunded figure, naming that figure.
+    expect((await pool.query("SELECT payload->'amount'->>'minor' AS minor FROM commercial_outbox WHERE kind='billing.notice' AND aggregate_id=$1 AND payload->>'type'='payment_refunded' ORDER BY minor",[order.subscription_id])).rows)
+      .toEqual([{minor:'3000'},{minor:'5000'}])
     await processRefundOutbox(pool,f.adapter)
     expect((await pool.query("SELECT amount_minor::int AS minor,status FROM invoice_adjustments WHERE invoice_id=$1 ORDER BY amount_minor",[f.invoice])).rows).toEqual([{minor:2000,status:'pending'},{minor:3000,status:'pending'}])
     expect(await state(f.order_id)).toMatchObject({payment_state:'refunded',fulfillment_state:'applied'})

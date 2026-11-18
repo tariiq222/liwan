@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { cadenceSchema, entitlementSnapshotSchema, quoteSchema, revisionIdSchema } from './schemas.js'
+import { cadenceSchema, entitlementSnapshotSchema, moneySchema, quoteSchema, revisionIdSchema } from './schemas.js'
 import { orderSchema, type Order } from './orders.js'
 import { tenantDeletionSchema } from './tenant-deletion.js'
 
@@ -43,6 +43,9 @@ export const subscriptionViewSchema = z.strictObject({
   auto_renew: z.strictObject({ enabled: z.boolean(), consent_at: z.string().nullable(), payment_method: paymentMethodViewSchema.nullable() }),
   trial_ends_at: z.string().nullable(), grace_ends_at: z.string().nullable(),
   trial_outcome: trialOutcomeSchema.nullable().optional(),
+  // True when the applied configuration owes nothing per period (no paid app, user, storage or branch, and a free plan): the free base.
+  // Computed from the applied pricing, so it turns false once the customer buys something and is right for a customer who never had a trial.
+  on_free_base: z.boolean(),
   trial_reopenable: z.boolean().optional(),
   // The cause of a free-base lock whose settlement (pending or ordered) has not finished; null when none is armed. After a
   // trial end, trial_ends_at is already cleared while it runs.
@@ -69,6 +72,8 @@ export const trialEndPreviewSchema = z.strictObject({
     item_details: z.literal('unavailable'),
   }),
   first_invoice: quoteSchema.nullable(),
+  // The recurring charge per cadence for the configuration the customer chose, as it would renew after the trial; null when that is zero.
+  price_after_trial: moneySchema.nullable(),
   next_attempt_at: z.string().nullable(),
 })
 export type TrialEndPreview = z.infer<typeof trialEndPreviewSchema>

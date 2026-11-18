@@ -24,8 +24,10 @@ suite('commercial trial', () => {
   const now = new Date('2026-10-25T09:00:00Z')
   const request = () => ({ kind: 'new' as const, plan_revision_id: plan.id, bundle_revision_ids: [], cadence: monthly,
     requested_extra_branches: 0, requested_users: 3, requested_storage_mb: 5120 })
+  const owned = new Set<string>() // customers this file created: the only rows it may write to, other files share the database
   async function newCustomer(bind = true) {
     customer = randomUUID()
+    owned.add(customer)
     const ownTenant = randomUUID()
     await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled,post_trial_supported,excess_supported) VALUES($1,'Trial customer','saas','dedicated_managed',$2,true,true,true)", [ownTenant, `trial-${ownTenant}`])
     await pool.query('INSERT INTO customers(id,name,tenant_id,admin_login) VALUES($1,$2,$3,$4)', [customer, 'Trial customer', ownTenant, `${customer}@example.test`])
@@ -37,7 +39,6 @@ suite('commercial trial', () => {
   }
   beforeAll(async () => {
     const { version } = await setup(pool)
-    await pool.query('TRUNCATE commercial_outbox') // the notice assertions count outbox rows: start from none, whatever an earlier file left
     await api('POST', '/catalog/releases', { catalog_version: version, reason })
     const created = await api('POST', '/plans', { name: `Trial ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR',
       prices: [{ cadence: monthly, amount: money(30000) }], platform_limits: {}, included_bundle_revision_ids: [], optional_bundle_revision_ids: [],
@@ -84,8 +85,10 @@ suite('commercial trial', () => {
     expect(resent).toMatchObject({ replay: true, order: { id: first.order.id }, subscription: { state: 'trialing' } })
     expect((await pool.query('SELECT 1 FROM orders WHERE customer_id=$1', [c.id])).rowCount).toBe(1)
   })
+  // The notice sender scans every trialing subscription and has no filter: park this file's earlier trials so only
+  // `customerId` is due, and leave every row another file owns untouched.
   async function onlyTrial(customerId: string) {
-    await pool.query("UPDATE subscriptions SET state='past_due',revision=revision+1 WHERE state='trialing' AND customer_id<>$1", [customerId])
+    await pool.query("UPDATE subscriptions SET state='past_due',revision=revision+1 WHERE state='trialing' AND customer_id=ANY($1::uuid[]) AND customer_id<>$2", [[...owned], customerId])
   }
   async function trialAt(at: Date, daysLeft: number) {
     const c = await newCustomer()
@@ -308,10 +311,12 @@ suite('commercial trial', () => {
     let attempts = 0
     const mail = { send: async () => { attempts++; if (attempts === 1) throw new Error('smtp_down'); return { accepted: true, provider_message_id: 'p3' } } }
     expect(await sendTrialNotices(pool, { now, mail })).toBe(1)
-    expect((await pool.query("SELECT status FROM commercial_outbox WHERE kind='trial.notice' AND status='failed'")).rowCount).toBe(1)
+    const subscriptionId = (await getSubscription(pool, c.id)).id
+    const failedNotices = async () => (await pool.query("SELECT status FROM commercial_outbox WHERE kind='trial.notice' AND status='failed' AND aggregate_id=$1", [subscriptionId])).rowCount
+    expect(await failedNotices()).toBe(1)
     expect(await sendTrialNotices(pool, { now, mail })).toBe(1)
     expect(await sendTrialNotices(pool, { now, mail })).toBe(0)
-    expect((await pool.query("SELECT status FROM commercial_outbox WHERE kind='trial.notice' AND status='failed'")).rowCount).toBe(0)
+    expect(await failedNotices()).toBe(0)
   })
 
   it('never reopens a notice completed after another worker read the failed row', async () => {

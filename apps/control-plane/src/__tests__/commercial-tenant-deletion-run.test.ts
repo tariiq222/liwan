@@ -73,7 +73,8 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
 
   beforeAll(async () => { await migrate(pool) })
   beforeEach(async () => { effects = new FakeEffects(); cardFails = false; cardCalls.length = 0; await pool.query('TRUNCATE tenant_deletion_steps, tenant_deletion_requests'); await pool.query('TRUNCATE commercial_outbox'); await pool.query("UPDATE control_plane_state SET restored_at=NULL,deletion_enabled_since=now() - interval '10 days',marker_required_since=now() - interval '1 day'") })
-  afterAll(async () => { await pool.end() })
+  // Leave no request behind: 'due' rows crowd the vendor attention list and a 'deleted' one retires an unrelated database's later suites.
+  afterAll(async () => { await pool.query('TRUNCATE tenant_deletion_steps, tenant_deletion_requests'); await pool.end() })
 
   /** A customer with a workspace whose request is `due` and whose hold has ended `holdEnded` minutes ago (negative: still running). */
   async function fixture(opts: { holdEndedMinutes?: number; card?: boolean; backup?: boolean; dueNotice?: boolean; lastCall?: boolean } = {}) {

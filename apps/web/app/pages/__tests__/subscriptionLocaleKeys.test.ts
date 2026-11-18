@@ -56,4 +56,41 @@ describe('subscription translations resolve', () => {
     expect(locales.en.has('subscription.bankTransfer.copy')).toBe(true)
     expect(locales.ar.has('subscription.bankTransfer.copied')).toBe(true)
   })
+
+  it('names every application a tenant can be entitled to, so no Latin id reaches the customer', () => {
+    const ids = ['pmo', 'meetings', 'hr', 'chat', 'crm', 'inbox', 'finance', 'ai', 'tasks', 'documents', 'operations', 'appointments', 'helpdesk', 'sales', 'integrations', 'payments']
+    for (const id of ids) {
+      expect(locales.ar.has(`subscription.apps.${id}`), `ar ${id}`).toBe(true)
+      expect(locales.en.has(`subscription.apps.${id}`), `en ${id}`).toBe(true)
+    }
+  })
+
+  it('has the keys the dynamic lookups build (state, pay kind, cadence, settled details, refusals)', () => {
+    const keys = ['subscription.state.freeBase', 'subscription.summary.subscribeNow', 'subscription.pay.kinds.first_payment', 'subscription.pay.period', 'subscription.pay.periodRange',
+      'subscription.pay.trialPaidStarts', 'subscription.trialEnd.details.settledConverted', 'subscription.trialEnd.cadence.month', 'subscription.trialEnd.cadence.year', 'subscription.cadence.month', 'subscription.cadence.year',
+      'subscription.change.usageUnavailable', 'subscription.change.downgradeBelowUsage']
+    for (const key of keys) { expect(locales.ar.has(key), `ar ${key}`).toBe(true); expect(locales.en.has(key), `en ${key}`).toBe(true) }
+    expect(locales.ar.has('subscription.trialEnd.noInvoiceShown')).toBe(false)
+  })
+
+  it('cadence reads correctly for every count 1 to 12 in Arabic and English', async () => {
+    const { createI18n } = await import('vue-i18n')
+    const { pluralRules } = await import('../../../i18n/pluralRules')
+    const messages = { ar: JSON.parse(read('i18n/locales/ar/subscription.json')), en: JSON.parse(read('i18n/locales/en/subscription.json')) }
+    const i18n = createI18n({ legacy: false, locale: 'ar', fallbackLocale: 'en', messages, pluralRules }) as unknown as { global: { t: (key: string, params: Record<string, unknown>) => string; locale: { value: string } } }
+    const t = i18n.global.t
+    const ar = (unit: string, count: number) => t(`subscription.trialEnd.cadence.${unit}`, { count })
+    expect(ar('month', 1)).toBe('شهريًا'); expect(ar('month', 2)).toBe('كل شهرين'); expect(ar('month', 3)).toBe('كل 3 أشهر'); expect(ar('month', 10)).toBe('كل 10 أشهر')
+    expect(ar('month', 11)).toBe('كل 11 شهرًا'); expect(ar('month', 12)).toBe('كل 12 شهرًا'); expect(ar('year', 2)).toBe('كل سنتين')
+    expect(t('subscription.cadence.month', { count: 1 })).toBe('شهري'); expect(t('subscription.cadence.year', { count: 3 })).toBe('كل 3 سنوات')
+    i18n.global.locale.value = 'en'
+    expect(t('subscription.cadence.month', { count: 1 })).toBe('Monthly'); expect(t('subscription.cadence.month', { count: 3 })).toBe('Every 3 months')
+  })
+
+  it('the settled trial text is past tense: it ended, data is kept, apps are read-only now', () => {
+    const ar = JSON.parse(read('i18n/locales/ar/subscription.json')).subscription.trialEnd
+    expect(ar.details.settled).not.toContain('ستصبح')
+    expect(ar.details.settled).toContain('انتهت'); expect(ar.details.settled).toContain('أصبحت للقراءة فقط')
+    expect(ar.states.settled).not.toContain('اكتمل الانتقال')
+  })
 })

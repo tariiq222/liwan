@@ -14,6 +14,19 @@ const DISPLAY_STATE_TONES: Record<SubscriptionDisplayState, StatusBadgeEntry['to
   awaiting_payment: 'warning', activating: 'info', active: 'success', failed: 'destructive', inactive: 'neutral',
 }
 
+/** A workspace on the free base after an unpaid trial: nothing is billed and nothing renews, so it never reads as a paying one. */
+export const FREE_BASE_BADGE: StatusBadgeEntry = { tone: 'neutral', labelKey: 'subscription.state.freeBase' }
+
+/** The label key of the pay page's «why» row: the first payment of a trial checkout is the customer's first subscription payment. */
+export function payKindKey(kind: string, state: SubscriptionState | null | undefined): string {
+  return kind === 'renewal' && state === 'trialing' ? 'subscription.pay.kinds.first_payment' : `subscription.pay.kinds.${kind}`
+}
+
+/** A trial checkout is payable only on the Riyadh day it was opened: the order's `created_at` is that moment. The server stays the authority. */
+export function isStaleTrialCheckout(state: SubscriptionState | null | undefined, openedAt: string | null | undefined, now: Date = new Date()): boolean {
+  return state === 'trialing' && Boolean(openedAt) && riyadhDate(openedAt!) !== riyadhDate(now)
+}
+
 export function subscriptionStateBadge(state: SubscriptionDisplayState): StatusBadgeEntry {
   return statusBadgeEntry(
     Object.fromEntries((Object.keys(DISPLAY_STATE_TONES) as SubscriptionDisplayState[]).map(key => [key, { tone: DISPLAY_STATE_TONES[key], labelKey: DISPLAY_STATE_KEYS[key] }])) as Record<SubscriptionDisplayState, StatusBadgeEntry>,
@@ -49,6 +62,8 @@ export function refusalKey(code: unknown): string | null {
   // Release 1: the server refuses a quote above MAX_USERS; the customer is told the cap and who to contact.
   if (code === 'users_limit_exceeded') return 'subscription.change.usersCapNote'
   if (code === 'storage_step_invalid') return 'subscription.change.storageStepInvalid'
+  if (code === 'usage_unavailable') return 'subscription.change.usageUnavailable'
+  if (code === 'downgrade_below_usage') return 'subscription.change.downgradeBelowUsage'
   if (code === 'value_date_in_future' || code === 'value_date_before_invoice' || code === 'invalid_value_date' || code === 'invalid_sender_reference' || code === 'invoice_not_payable')
     return `subscription.bankTransfer.claim.${code}`
   if (code === 'trial_ending' || code === 'lock_pending') return `subscription.trialEnd.details.${code}`

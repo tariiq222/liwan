@@ -14,9 +14,11 @@ the reference. Recording the refund of a first payment changes the subscription.
   (`invoice_adjustments`, `kind='credit_note'`, `status='pending'`) for the full invoice total.
 - A payment that arrives after the order was cancelled (`reconcile.refund`): the same pending credit note, reason
   "payment after cancellation — manual review".
-- A payment the provider refunds after the order was fulfilled (`payment.intervention`): the invoice becomes
-  `credit_pending` with a pending credit note, reason "payment refunded after fulfillment — manual review". The money
-  has already left, so the operator reviews the entitlement and records the provider's refund reference on the note.
+- A payment the provider refunds (`payment.intervention`): any provider refund of a paid invoice, whether the order was
+  already fulfilled or it is a trial checkout refunded before delivery (which also returns the subscription to the running
+  trial), makes the invoice `credit_pending` with a pending credit note, reason "Payment refunded by the provider —
+  manual review". The money has already left, so the operator reviews the entitlement and records the provider's refund
+  reference on the note.
   The note carries the part the provider refunded, not the whole invoice: each further partial refund adds a note for
   its own part, a replay adds nothing, and the notes never add up to more than the attempt paid. Every non-void credit note of the invoice counts toward what is already credited, the vendor-requested one included (only a duplicate-charge note is other money): a refund the operator already recorded is not credited a second time when the provider's event arrives, and asking for a refund after the event attached to the existing pending note instead of opening a second one. A row that cannot
   become a note (a missing attempt, a refund above the payment, another currency) is closed as `failed` with its

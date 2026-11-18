@@ -30,7 +30,7 @@ describe('PriceBreakdown', () => {
     expect(html).toMatch(/Extra branch\|[^<]*60\.00/)
     expect(html).toContain('commercial.pricing.quote.dueNow|')
     expect(html).toContain('commercial.pricing.quote.nextRenewal · 2026-11-02|')
-    expect(html).toContain('commercial.pricing.cadence.month.one')
+    expect(html).toContain('commercial.pricing.cadence.month')
   })
 
   it('shows the renewal lines in a closed details block', async () => {
