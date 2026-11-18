@@ -1,6 +1,6 @@
 # LiwanOS CRM, phase 1
 
-Status: approved by the owner on 2026-10-28. Nothing here is implemented yet.
+Status: approved by the owner on 2026-10-28. Phase 1 is implemented in `liwan_crm` and the web app; this spec is its design reference.
 
 ## Intent
 
