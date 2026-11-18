@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { Pool } from 'pg'
 import { client, money, monthly, setup, url } from '../__tests__/commercial-helpers.js'
+import type { SignupApp } from '@liwan/commercial-contracts'
 import { SignupService } from './service.js'
 import { customerView } from '../commercial/customers.js'
 
@@ -17,15 +18,32 @@ describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
   beforeAll(async () => {
     const { version } = await setup(pool)
     const api = client(pool)
-    expect((await api('POST', '/catalog/releases', { catalog_version: version, reason: 'Signup regression' })).status).toBe(201)
+    const release = await api('POST', '/catalog/releases', { catalog_version: version, reason: 'Signup regression' })
+    expect(release.status).toBe(201)
+    const releaseId = release.body.id
+    const bundles = []
+    for (const [id, price] of [['crm', 9900], ['inbox', 25000]] as const) {
+      const bundle = await api('POST', '/bundles', {
+        name: id, description: id, audience: { kind: 'public' }, catalog_release_id: releaseId,
+        selections: [{ app_id: id, feature_keys: [id + '.enabled'] }], domain_limits: {},
+        prices: [{ cadence: monthly, amount: money(price) }], reason: 'Signup regression',
+      })
+      expect(bundle.status).toBe(201)
+      const path = '/bundles/' + bundle.body.id
+      const validated = await api('POST', path + '/validate', { edit_revision: 1, reason: 'Signup regression' })
+      expect(validated.status).toBe(200)
+      const published = await api('POST', path + '/publish', { edit_revision: validated.body.edit_revision, reason: 'Signup regression' })
+      expect(published.status).toBe(200)
+      bundles.push(bundle.body.id)
+    }
     const draft = await api('POST', '/plans', {
       name: `Trial ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR',
-      prices: [{ cadence: monthly, amount: money(10000) }], platform_limits: {},
-      included_bundle_revision_ids: [], optional_bundle_revision_ids: [], included_extra_branches: 0,
+      prices: [{ cadence: monthly, amount: money(0) }], platform_limits: {},
+      included_bundle_revision_ids: [], optional_bundle_revision_ids: bundles, included_extra_branches: 0,
       extra_branch_prices: [], extra_branches_limit: 0, included_users: 3, included_storage_mb: 0,
       storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400,
       user_prices: [{ cadence: monthly, amount: money(0) }], storage_prices: [{ cadence: monthly, amount: money(0) }],
-      policy_revision_id: '6f1c3d8e-0000-4000-8000-000000000001', trial_days: 14, grace_days: 0,
+      policy_revision_id: '6f1c3d8e-0000-4000-8000-000000000002', trial_days: 14, grace_days: 0,
       auto_suspend: true, auto_renew_allowed: false,
     })
     expect(draft.status).toBe(201)
@@ -39,15 +57,15 @@ describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
   beforeEach(async () => { await pool.query('TRUNCATE public_signup_deliveries') })
   afterAll(async () => { await pool.end() })
 
-  function fixture() {
+  function fixture(paused = false) {
     const n = ++testNumber
     const ip = `192.0.2.${n}`
     const input = { company_name: 'Signup company', admin_name: 'Administrator',
-      email: `trial-${randomUUID()}@${randomUUID()}.test`, mobile: `+966555000${String(n).padStart(3, '0')}`, ...accepted }
+      email: `trial-${randomUUID()}@${randomUUID()}.test`, mobile: `+966555000${String(n).padStart(3, '0')}`, ...accepted, offer_revision: planId, app_ids: ['crm'] as SignupApp[] }
     let now = new Date()
     let sms = '', email = ''
     const service = new SignupService(pool, {
-      planId, legal, humanCheck, secret: 'a'.repeat(32), dailyLimit: 100, now: () => now,
+      planId, legal, humanCheck, paused, secret: 'a'.repeat(32), dailyLimit: 100, now: () => now,
       sms: async (_mobile, code) => { sms = code },
       email: async (_address, code) => { email = code },
     })
@@ -61,6 +79,40 @@ describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
     return { input, ip, service, start, reachEmail, sms: () => sms, email: () => email,
       advance: (minutes: number) => { now = new Date(now.getTime() + minutes * 60_000) } }
   }
+
+  it.each([['crm'], ['inbox'], ['crm', 'inbox']].map(apps => ({ apps: apps as SignupApp[] })))(
+    'advertises optional apps and provisions only $apps', async ({ apps }) => {
+    const f = fixture()
+    f.input.app_ids = apps
+    const offer = await f.service.offer()
+    expect(offer).toMatchObject({ offer_revision: planId, trial_days: 14, apps: [
+      { id: 'crm', monthly_minor: 9900 }, { id: 'inbox', monthly_minor: 25000 },
+    ] })
+    const signupId = await f.reachEmail()
+    await f.service.verifyEmail(signupId, f.email())
+    const { rows: [result] } = await pool.query(`SELECT r.snapshot->'entitlement'->'features' AS features
+      FROM customers c JOIN subscriptions s ON s.customer_id=c.id
+      JOIN subscription_revisions r ON r.id=s.target_revision_id WHERE c.admin_login=$1`, [f.input.email])
+    expect(result.features['crm.enabled'] === true).toBe(apps.includes('crm'))
+    expect(result.features['inbox.enabled'] === true).toBe(apps.includes('inbox'))
+  })
+
+  it('can pause new signups while leaving the workspace lookup widget configuration available', async () => {
+    const f = fixture(true)
+    expect(f.service.terms()).toHaveProperty('human_check')
+    await expect(f.service.offer()).rejects.toMatchObject({ code: 'unavailable' })
+    await expect(f.start()).rejects.toMatchObject({ code: 'unavailable' })
+    expect(f.sms()).toBe('')
+  })
+
+  it('refuses stale or duplicate choices before spending a delivery', async () => {
+    const f = fixture()
+    await expect(f.service.start({ ...f.input, offer_revision: randomUUID() }, f.ip))
+      .rejects.toMatchObject({ code: 'offer_changed' })
+    await expect(f.service.start({ ...f.input, app_ids: ['crm', 'crm'] }, f.ip))
+      .rejects.toMatchObject({ name: 'ZodError' })
+    expect(f.sms()).toBe('')
+  })
 
   it('requires both proofs and completes concurrent email verification with one zero-due order', async () => {
     const f = fixture()
@@ -77,11 +129,11 @@ describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
     }
     await expect(f.service.verifyEmail(signup_id, f.email())).resolves.toEqual({ ok: true })
     const result = await pool.query(`SELECT o.payment_state,o.fulfillment_state,o.due_now_minor,s.state,
-      s.trial_ends_at > now()+interval '13 days' AS has_trial, c.tenant_id,
+      s.trial_ends_at IS NULL AS awaits_login, c.tenant_id,
       (SELECT count(*)::int FROM commercial_outbox WHERE aggregate_id=o.id::text AND kind='fulfillment.enqueue') AS jobs
       FROM customers c JOIN subscriptions s ON s.customer_id=c.id JOIN orders o ON o.customer_id=c.id WHERE c.admin_login=$1`, [f.input.email])
     expect(result.rows).toEqual([{ payment_state: 'not_required', fulfillment_state: 'queued', due_now_minor: '0',
-      state: 'trialing', has_trial: true, tenant_id: null, jobs: 1 }])
+      state: 'trialing', awaits_login: true, tenant_id: null, jobs: 1 }])
   })
 
   it('rejects multiline company names before sending', async () => {
@@ -356,7 +408,7 @@ describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
 
   describe('limits keyed on the requester', () => {
     const person = (n: number) => ({ company_name: 'Signup company', admin_name: 'Administrator',
-      email: `owner@d${n}.example.test`, mobile: `+9665660${String(n).padStart(5, '0')}`, ...accepted })
+      email: `owner@d${n}.example.test`, mobile: `+9665660${String(n).padStart(5, '0')}`, ...accepted, offer_revision: planId, app_ids: ['crm'] as SignupApp[] })
     const cheapService = (now: () => Date) => new SignupService(pool, { planId, legal, humanCheck, secret: 'a'.repeat(32), dailyLimit: 100, now, sms: async () => {}, email: async () => {} })
 
     it('one client address cannot send more than its daily share, and another address is unaffected', async () => {

@@ -86,6 +86,11 @@ export const analyticsSchema = z.strictObject({
   previous: analyticsFiguresSchema,
   /** Months whose book cannot be restated honestly carry unavailable figures. */
   trend: z.array(z.strictObject({ month: z.string().regex(/^\d{4}-\d{2}$/), mrr: money, customers: figure(count) })),
+  signup_funnel: z.array(z.strictObject({
+    selection: z.enum(['crm', 'inbox', 'both']),
+    registered: count, started: count, conversion_eligible: count, converted: count,
+    renewal_eligible: count, renewed: count,
+  })),
   snapshot: analyticsSnapshotSchema,
 })
 

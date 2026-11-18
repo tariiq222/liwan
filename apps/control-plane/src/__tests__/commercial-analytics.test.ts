@@ -2,10 +2,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
 import { setup, client, money, monthly } from './commercial-helpers.js'
-import { seedAttempt, seedCustomer, seedInvoice } from './analytics-fixtures.js'
+import { seedAttempt, seedCustomer, seedInvoice, seedSignup, type SignupInput } from './analytics-fixtures.js'
 import { routesB } from '../commercial/routes-b.js'
 import { CommercialHttpError } from '../commercial/lifecycle.js'
 import { getAnalytics } from '../commercial/analytics.js'
+import { signupFunnel } from '../commercial/signup-funnel.js'
 import { bookAt, monthEnds, periodBounds, previousPeriod, recurringOf, riyadhDay, settleTrials, toTimelines, type AppliedOrder } from '../commercial/analytics-model.js'
 
 const url = process.env.CONTROL_TEST_DATABASE_URL
@@ -297,5 +298,96 @@ suite('live PostgreSQL vendor analytics', () => {
     expect(minor(after.current.revenue.new_mrr)).toBe(minor(before.current.revenue.new_mrr))
     const autumn = await getAnalytics(pool, { from: '2026-10-01', to: '2026-10-15' }, now)
     expect(minor(autumn.current.revenue.churned_mrr)).toBeGreaterThanOrEqual(10000)
+  })
+
+  describe('signup funnel', () => {
+    /** Runs the seeding and the funnel inside one rolled-back transaction, so no signup outlives its test. */
+    async function funnel(seed: (db: Pool, base: Pick<SignupInput, 'plan_revision_id'>) => Promise<void>) {
+      const solo = new Pool({ connectionString: url, max: 1 })
+      try {
+        await solo.query('BEGIN')
+        await seed(solo, { plan_revision_id: p1 })
+        const rows = await signupFunnel(solo, period, now)
+        await solo.query('ROLLBACK')
+        expect(rows.map(row => row.selection)).toEqual(['both', 'crm', 'inbox'])
+        return Object.fromEntries(rows.map(({ selection, ...counts }) => [selection, counts])) as Record<'both' | 'crm' | 'inbox', typeof zero>
+      } finally { await solo.end() }
+    }
+    const zero = { registered: 0, started: 0, conversion_eligible: 0, converted: 0, renewal_eligible: 0, renewed: 0 }
+    const creditNote = (db: Pool, where: string, params: unknown[], amount: string, reference: string) => db.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin,cause,refund_reference,refunded_at,refunded_by)
+      SELECT $1,i.id,i.customer_id,'credit_note','Fixture refund',${amount},'SAR',2,'refunded','vendor-test','vendor','vendor_refund','${reference}',now(),'vendor-test' FROM invoices i WHERE ${where}`, [randomUUID(), ...params])
+
+    it('files a public signup under the apps it selected, and ignores one that selected none', async () => {
+      const rows = await funnel(async (db, base) => {
+        await seedSignup(db, { ...base, name: 'crm only', apps: { crm: true }, registered_at: '2026-10-02T09:00:00Z' })
+        await seedSignup(db, { ...base, name: 'inbox only', apps: { inbox: true }, registered_at: '2026-10-02T09:00:00Z' })
+        await seedSignup(db, { ...base, name: 'inbox two', apps: { inbox: true }, registered_at: '2026-10-03T09:00:00Z' })
+        await seedSignup(db, { ...base, name: 'both', apps: { crm: true, inbox: true }, registered_at: '2026-10-04T09:00:00Z' })
+        await seedSignup(db, { ...base, name: 'none', apps: {}, registered_at: '2026-10-04T09:00:00Z' })
+      })
+      expect(rows).toEqual({ crm: { ...zero, registered: 1 }, inbox: { ...zero, registered: 2 }, both: { ...zero, registered: 1 } })
+    })
+
+    it('counts a trial as started only once the first sign-in recorded its deadline', async () => {
+      const rows = await funnel(async (db, base) => {
+        await seedSignup(db, { ...base, name: 'signed in', apps: { crm: true }, registered_at: '2026-10-02T09:00:00Z', trial_ends_at: '2026-10-16T09:00:00Z' })
+        await seedSignup(db, { ...base, name: 'never signed in', apps: { crm: true }, registered_at: '2026-10-02T09:00:00Z' })
+      })
+      expect(rows.crm).toEqual({ ...zero, registered: 2, started: 1 })
+    })
+
+    it('counts conversion only after the trial deadline plus seven days, and only when paid inside that window', async () => {
+      const rows = await funnel(async (db, base) => {
+        const trial = (name: string, trial_ends_at: string, first_paid_at?: string) =>
+          seedSignup(db, { ...base, name, apps: { crm: true }, registered_at: '2026-10-01T09:00:00Z', trial_ends_at, first_paid_at })
+        await trial('paid in window', '2026-10-02T09:00:00Z', '2026-10-06T09:00:00Z')
+        await trial('paid at the edge', '2026-10-02T09:00:00Z', '2026-10-09T09:00:00Z')
+        await trial('paid too late', '2026-10-02T09:00:00Z', '2026-10-12T09:00:00Z')
+        await trial('never paid', '2026-10-02T09:00:00Z')
+        await trial('window still open', '2026-10-12T09:00:00Z', '2026-10-13T09:00:00Z')
+      })
+      expect(rows.crm).toMatchObject({ registered: 5, started: 5, conversion_eligible: 4, converted: 2 })
+    })
+
+    it('does not count a first invoice that was credited in full, but counts one credited in part', async () => {
+      const rows = await funnel(async (db, base) => {
+        const trial = (name: string) => seedSignup(db, { ...base, name, apps: { crm: true }, registered_at: '2026-10-01T09:00:00Z', trial_ends_at: '2026-10-02T09:00:00Z', first_paid_at: '2026-10-05T09:00:00Z' })
+        await creditNote(db, 'i.subscription_id=$2', [(await trial('refunded in full')).subscription_id], '11500', 'MOY-FULL')
+        await creditNote(db, 'i.subscription_id=$2', [(await trial('refunded in part')).subscription_id], '1500', 'MOY-PART')
+      })
+      expect(rows.crm).toMatchObject({ conversion_eligible: 2, converted: 1 })
+    })
+
+    it('makes the first renewal eligible after its due date plus the plan grace days, and renewed only when paid by then', async () => {
+      const rows = await funnel(async (db, base) => {
+        const renewal = (name: string, due_at: string, paid_at?: string) => seedSignup(db, { ...base, name, apps: { inbox: true }, registered_at: '2026-10-01T09:00:00Z',
+          trial_ends_at: '2026-10-02T09:00:00Z', first_paid_at: '2026-10-03T09:00:00Z', renewal: { due_at, paid_at } })
+        // The plan fixture grants five grace days, so a renewal due October 4 is measured from October 9.
+        await renewal('paid inside grace', '2026-10-04T00:00:00Z', '2026-10-08T00:00:00Z')
+        await renewal('paid after grace', '2026-10-04T00:00:00Z', '2026-10-10T00:00:00Z')
+        await renewal('unpaid', '2026-10-04T00:00:00Z')
+        await renewal('grace still running', '2026-10-12T00:00:00Z', '2026-10-13T00:00:00Z')
+      })
+      expect(rows.inbox).toMatchObject({ registered: 4, renewal_eligible: 3, renewed: 1 })
+    })
+
+    it('does not count a first renewal invoice that was credited in full as renewed', async () => {
+      const rows = await funnel(async (db, base) => {
+        const seeded = await seedSignup(db, { ...base, name: 'renewal refunded', apps: { crm: true, inbox: true }, registered_at: '2026-10-01T09:00:00Z',
+          trial_ends_at: '2026-10-02T09:00:00Z', first_paid_at: '2026-10-03T09:00:00Z', renewal: { due_at: '2026-10-04T00:00:00Z', paid_at: '2026-10-05T00:00:00Z' } })
+        await creditNote(db, "i.subscription_id=$2 AND i.paid_at='2026-10-05T00:00:00Z'", [seeded.subscription_id], 'i.total_minor', 'MOY-RENEWAL')
+      })
+      expect(rows.both).toMatchObject({ renewal_eligible: 1, renewed: 0 })
+    })
+
+    it('leaves out signups outside the period and trials that are not public first-login signups', async () => {
+      const rows = await funnel(async (db, base) => {
+        await seedSignup(db, { ...base, name: 'before the period', apps: { crm: true }, registered_at: '2026-09-20T09:00:00Z', trial_ends_at: '2026-09-21T09:00:00Z' })
+        await seedSignup(db, { ...base, name: 'after now', apps: { crm: true }, registered_at: '2026-10-16T09:00:00Z' })
+        await seedSignup(db, { ...base, name: 'vendor started', apps: { crm: true }, registered_at: '2026-10-02T09:00:00Z', trial_ends_at: '2026-10-03T09:00:00Z', requires_first_login: false })
+        await seedSignup(db, { ...base, name: 'counted', apps: { crm: true }, registered_at: '2026-10-02T09:00:00Z' })
+      })
+      expect(rows.crm).toEqual({ ...zero, registered: 1 })
+    })
   })
 })

@@ -1,17 +1,15 @@
 <script setup lang="ts">
 import { inboxOpportunityErrorMessage } from '@/composables/inbox/inboxOpportunityErrors'
-import { useConversationOpportunity, useInboxOpportunityAccess, useLinkConversationOpportunity, useOpportunityPick, useUnlinkConversationOpportunity } from '@/composables/inbox/useInboxOpportunity'
+import { useConversationOpportunity, useCreateConversationOpportunity, useInboxOpportunityAccess, useLinkConversationOpportunity, useOpportunityPick, useUnlinkConversationOpportunity } from '@/composables/inbox/useInboxOpportunity'
 
-// The CRM opportunity of a conversation (the inbox bridge to CRM): the linked one with its stage and status, linking to
-// its page, or an action that links an EXISTING opportunity (nothing is created here). The picker first lists the
-// opportunities of the contact's own phone and searches by name or phone as the user types. Shown only while the tenant
-// has CRM and the user may read both applications; the link and unlink need the reply and the work capabilities.
+// Both applications' permissions apply to the opportunity shown on this conversation.
 const props = defineProps<{ conversationId: number; contactPhone: string | null; canReply: boolean }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const toast = useToast()
 const access = useInboxOpportunityAccess()
 const current = useConversationOpportunity(() => props.conversationId, access.read)
+const create = useCreateConversationOpportunity()
 const link = useLinkConversationOpportunity(() => props.conversationId)
 const unlink = useUnlinkConversationOpportunity(() => props.conversationId)
 const STATUS_TONE = { pending: 'info', won: 'success', lost: 'destructive' } as const
@@ -27,7 +25,7 @@ const failure = ref('')
 const term = computed(() => search.value.trim() || props.contactPhone || '')
 const pick = useOpportunityPick(term, picking)
 const items = computed(() => pick.data.value?.items ?? [])
-const locked = computed(() => !hydrated.value || link.isPending.value || unlink.isPending.value)
+const locked = computed(() => !hydrated.value || create.isPending.value || link.isPending.value || unlink.isPending.value)
 
 function close() {
   picking.value = false
@@ -42,6 +40,20 @@ async function run(work: () => Promise<unknown>, done: string) {
     close()
     toast.add({ title: done, color: 'success' })
   } catch (error) {
+    failure.value = inboxOpportunityErrorMessage(error, t)
+  }
+}
+
+async function createFromContact() {
+  failure.value = ''
+  const conversationId = props.conversationId
+  try {
+    await create.mutateAsync(conversationId)
+    if (conversationId === props.conversationId) toast.add({ title: t('inbox.opportunity.created'), color: 'success' })
+  } catch (error) {
+    if (conversationId !== props.conversationId) return
+    const reason = (error as { details?: { reason?: string } } | null)?.details?.reason
+    if (reason === 'duplicate_phone') picking.value = true
     failure.value = inboxOpportunityErrorMessage(error, t)
   }
 }
@@ -67,7 +79,10 @@ const stageOf = (item: { stage: { name: string } | null }) => item.stage?.name ?
       </template>
       <template v-else>
         <p class="text-muted" data-testid="inbox-opportunity-none">{{ t('inbox.opportunity.none') }}</p>
-        <UButton v-if="canWrite && !picking" class="justify-self-start" size="xs" color="neutral" variant="outline" icon="i-lucide-link" :label="t('inbox.opportunity.link')" :disabled="!hydrated" data-testid="inbox-opportunity-link" @click="picking = true" />
+        <div v-if="canWrite && !picking" class="flex flex-wrap gap-2">
+          <UButton v-if="props.contactPhone" size="xs" icon="i-lucide-plus" :label="t('inbox.opportunity.create')" :loading="create.isPending.value" :disabled="locked" data-testid="inbox-opportunity-create" @click="createFromContact" />
+          <UButton size="xs" color="neutral" variant="outline" icon="i-lucide-link" :label="t('inbox.opportunity.link')" :disabled="locked" data-testid="inbox-opportunity-link" @click="picking = true" />
+        </div>
         <div v-if="picking" class="grid gap-3" data-testid="inbox-opportunity-picker">
           <SharedPickList
             v-model="chosen"

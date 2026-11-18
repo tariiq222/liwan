@@ -16,6 +16,7 @@ export interface Step {
   currency?: string
   /** When set, the order has a paid invoice at this instant (issued the same day at 00:00). */
   paid_at?: string
+  payment_state?: 'paid' | 'not_required'
 }
 
 export interface Seeded { customer_id: string, subscription_id: string, tenant_id: string | null, orders: { id: string, invoice_id: string | null }[] }
@@ -26,7 +27,7 @@ export interface Customer {
   steps?: Step[]
   renewal_at?: string
   trial_ends_at?: string
-  features?: Record<string, number>
+  features?: Record<string, number | boolean>
   usage?: Record<string, number>
 }
 
@@ -60,8 +61,8 @@ export async function seedCustomer(pool: Pool, input: Customer): Promise<Seeded>
     await pool.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id,created_at) VALUES($1,$2,$3,$4,$5,$6)', [revisions[index], subscription_id, index + 1, JSON.stringify(snapshot), quote, step.at])
     await pool.query(
       `INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,payment_state,fulfillment_state,idempotency_key,request_digest,due_now_minor,currency,exponent,created_at)
-       VALUES($1,$2,$3,$4,$5,$6,'paid',$7,$8,'digest',$9,$10,2,$11)`,
-      [order, customer_id, subscription_id, step.kind ?? (index === 0 ? 'new' : 'change'), quote, revisions[index], state, randomUUID(), step.base_minor, currency, step.at])
+       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'digest',$10,$11,2,$12)`,
+      [order, customer_id, subscription_id, step.kind ?? (index === 0 ? 'new' : 'change'), quote, revisions[index], step.payment_state ?? 'paid', state, randomUUID(), step.base_minor, currency, step.at])
     if (state === 'applied') await pool.query(`INSERT INTO fulfillment_effects(id,order_id,operation_id,applied_at) VALUES($1,$2,$3,$4)`, [randomUUID(), order, order, step.at])
     const invoice_id = step.paid_at ? await seedInvoice(pool, { customer_id, subscription_id, order_id: order, status: 'paid', total_minor: step.base_minor, issued_at: `${step.paid_at.slice(0, 10)}T00:00:00Z`, due_at: step.paid_at, paid_at: step.paid_at, currency }) : null
     orders.push({ id: order, invoice_id })
@@ -90,4 +91,51 @@ export async function seedAttempt(pool: Pool, input: { order_id: string, invoice
   await pool.query(
     `INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,amount_minor,currency,exponent,status,created_at,updated_at,kind) VALUES($1,$2,$3,'simulator','simulator',100,'SAR',2,$4,$5,$5,'hosted_invoice')`,
     [randomUUID(), input.order_id, input.invoice_id, input.status, input.at])
+}
+
+export interface SignupInput {
+  name: string
+  plan_revision_id: string
+  /** Apps selected at enrollment, as the first revision's entitlement features. */
+  apps: { crm?: boolean, inbox?: boolean }
+  /** When the public signup was enrolled (the first, unpaid `new` order). */
+  registered_at: string
+  /** When the first sign-in started the trial; omitted for a signup that never signed in. */
+  trial_ends_at?: string
+  /** Paid first invoice after the trial. */
+  first_paid_at?: string
+  /** First renewal: invoice due date, and when it was paid (omitted while unpaid). */
+  renewal?: { due_at: string, paid_at?: string }
+  /** False for a trial started by a vendor or invitation instead of a public signup waiting for first sign-in. */
+  requires_first_login?: boolean
+}
+
+/** A public self-service signup with its trial audit, first payment and first renewal, so a test fixes every funnel milestone. */
+export async function seedSignup(pool: Pool, input: SignupInput): Promise<Seeded> {
+  const seeded = await seedCustomer(pool, { name: input.name, state: 'trialing', features: { 'crm.enabled': input.apps.crm ?? false, 'inbox.enabled': input.apps.inbox ?? false }, steps: [
+    { at: input.registered_at, plan_revision_id: input.plan_revision_id, base_minor: 0, payment_state: 'not_required' }] })
+  await pool.query('INSERT INTO public_signup_trials(customer_id,email,mobile,requires_first_login) VALUES($1,$2,$3,$4)',
+    [seeded.customer_id, `${seeded.customer_id}@example.com`, seeded.customer_id.slice(0, 13), input.requires_first_login ?? true])
+  if (input.trial_ends_at) {
+    await pool.query(`INSERT INTO audit_events(id,actor,action,subject,reason,metadata,created_at) VALUES($1,'fixture','trial.started',$2,'Fixture',$3,$4)`,
+      [randomUUID(), seeded.customer_id, JSON.stringify({ trial_ends_at: input.trial_ends_at }), input.registered_at])
+  }
+  if (input.first_paid_at) {
+    await seedInvoice(pool, { customer_id: seeded.customer_id, subscription_id: seeded.subscription_id, status: 'paid', total_minor: 11500,
+      issued_at: input.first_paid_at, due_at: input.first_paid_at, paid_at: input.first_paid_at })
+  }
+  if (input.renewal) {
+    const { customer_id, subscription_id } = seeded
+    const order = randomUUID(), quote = randomUUID(), revision = randomUUID()
+    const snapshot = { plan_revision_id: input.plan_revision_id, cadence: { unit: 'month', count: 1 }, entitlement: { features: {} }, pricing: { base_minor: 10000, bundle_minor: {}, paid_extra_branches: 0, branch_unit_minor: 0 } }
+    await pool.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id,created_at) VALUES($1,$2,2,$3,$4,$5)', [revision, subscription_id, JSON.stringify(snapshot), quote, input.renewal.due_at])
+    await pool.query(
+      `INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,payment_state,fulfillment_state,idempotency_key,request_digest,due_now_minor,currency,exponent,created_at)
+       VALUES($1,$2,$3,'renewal',$4,$5,'paid','applied',$6,'digest',10000,'SAR',2,$7)`, [order, customer_id, subscription_id, quote, revision, randomUUID(), input.renewal.due_at])
+    const invoice = await seedInvoice(pool, { customer_id, subscription_id, order_id: order, status: input.renewal.paid_at ? 'paid' : 'issued', total_minor: 10000,
+      issued_at: input.renewal.due_at, due_at: input.renewal.due_at, paid_at: input.renewal.paid_at ?? null })
+    await pool.query(`INSERT INTO renewals(id,subscription_id,period_start,period_end,kind,invoice_id,order_id,status) VALUES($1,$2,$3,$3,'renewal',$4,$5,'invoiced')`,
+      [randomUUID(), subscription_id, input.renewal.due_at.slice(0, 10), invoice, order])
+  }
+  return seeded
 }

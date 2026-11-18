@@ -1,5 +1,17 @@
 {
   "analytics": {
+    "signupFunnel": {
+      "title": "Self-service signup through renewal",
+      "window": "Conversion includes payments through seven days after trial end. Renewals are measured after the grace period.",
+      "started": "{count} of {total} registrations started a trial",
+      "converted": "{count} of {total} eligible trials converted",
+      "renewed": "{count} of {total} eligible first renewals paid on time",
+      "apps": {
+        "crm": "CRM",
+        "inbox": "Customer messages",
+        "both": "Both apps"
+      }
+    },
     "title": "Analytics",
     "export": "Export CSV",
     "disclaimer": "These figures are commercial tracking computed from subscriptions and invoices. They are not official accounting or financial statements.",

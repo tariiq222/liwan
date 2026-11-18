@@ -178,6 +178,9 @@ describe('customer commercial BFF', () => {
     expect(customerRoute('POST', 'preview')).toEqual({ upstream: '/v1/customer/preview', needs: 'subscription.read' })
     expect(customerRoute('POST', 'trial')).toEqual({ upstream: '/v1/customer/trial', needs: 'subscription.manage' })
     expect(customerRoute('POST', 'trial/convert')).toEqual({ upstream: '/v1/customer/trial/convert', needs: 'subscription.manage' })
+    for (const method of ['GET', 'POST']) {
+      expect(customerRoute(method, 'trial/activation')).toEqual({ upstream: '/v1/customer/trial/activation', needs: 'subscription.manage' })
+    }
     expect(customerRoute('POST', 'orders/abc/payment-attempts')?.needs).toBe('subscription.manage')
     expect(customerRoute('POST', 'orders/abc/cancel')?.needs).toBe('subscription.manage')
     expect(customerRoute('GET', 'orders/abc/cancel')).toBeNull()
@@ -436,16 +439,25 @@ describe('issueCsrfCookie', () => {
 describe('signup relay', () => {
   const PROXY_TOKEN = 'p'.repeat(40)
   afterEach(() => vi.unstubAllEnvs())
-  function signup(answer: { status: number; _data: unknown }) {
+  function signup(answer: { status: number; _data: unknown }, action = 'start') {
     vi.stubEnv('LIWAN_TENANCY_MODE', 'shared'); vi.stubEnv('LIWAN_SHARED_PROXY_TOKEN', PROXY_TOKEN)
     const raw = setup({
-      method: 'POST', url: 'https://acme.example/api/commercial/signup/start', body: '{"email":"a@gmail.com"}',
+      method: 'POST', url: `https://acme.example/api/commercial/signup/${action}`, body: '{"email":"a@gmail.com"}',
       headers: { host: 'acme.example', 'x-liwan-proxy-token': PROXY_TOKEN, 'x-liwan-signup-client': '203.0.113.7' },
       cfg: { publicSignupEnabled: true },
     })
-    raw.mockResolvedValue(answer)
+    raw.mockResolvedValue({ ...answer, ok: answer.status >= 200 && answer.status < 300 })
     return raw
   }
+  it('relays a validated public offer and refuses a malformed one', async () => {
+    const offer = { offer_revision: '00000000-0000-4000-8000-000000000001', trial_days: 14, currency: 'SAR',
+      included_users: 3, included_storage_mb: 20480, included_extra_branches: 1,
+      apps: [{ id: 'crm', monthly_minor: 9900, limits: {} }, { id: 'inbox', monthly_minor: 25000, limits: {} }] }
+    signup({ status: 200, _data: offer }, 'offer')
+    await expect(forwardSignupRequest({} as never)).resolves.toEqual(offer)
+    signup({ status: 200, _data: { ...offer, currency: 'USD' } }, 'offer')
+    await expect(forwardSignupRequest({} as never)).rejects.toMatchObject({ statusCode: 503 })
+  })
   it('passes a refused free-mail address through as its own code and status', async () => {
     signup({ status: 422, _data: { code: 'business_email_required' } })
     await expect(forwardSignupRequest({} as never)).rejects.toMatchObject({ statusCode: 422, data: { code: 'business_email_required' } })

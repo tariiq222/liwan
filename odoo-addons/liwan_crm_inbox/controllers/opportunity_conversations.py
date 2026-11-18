@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import http
+from odoo.exceptions import LockError
 from odoo.http import request
 
 from odoo.addons.liwan_api.controllers.common import (
@@ -12,6 +13,7 @@ from odoo.addons.liwan_api.controllers.common import (
 )
 from odoo.addons.liwan_api.serializers.common import ref
 from odoo.addons.liwan_crm.controllers.opportunities import (
+    create_opportunity_from_payload,
     find_opportunity,
     visible_domain,
 )
@@ -49,6 +51,14 @@ def writable_lead(lead_id):
     return lead
 
 
+def lock_conversation(conversation):
+    conversation.check_access('write')
+    try:
+        conversation.lock_for_update(allow_referencing=True)
+    except LockError:
+        raise ApiError(409, 'opportunity_busy', 'this conversation is being updated') from None
+
+
 class OpportunityConversationsController(http.Controller):
 
     @http.route('/api/v1/crm/opportunities/<int:opportunity_id>/conversations', type='json2', auth='user',
@@ -80,6 +90,25 @@ class OpportunityConversationsController(http.Controller):
         return dump_opportunity_ref(lead) if lead else None
 
     @http.route('/api/v1/inbox/conversations/<int:conversation_id>/opportunity', type='json2', auth='user',
+                methods=['POST'], readonly=False)
+    @api_handler
+    @requires_feature('crm.enabled', 'inbox.enabled', operation='write')
+    @requires_capability('crm.leads.work', REPLY)
+    def create_conversation_opportunity(self, conversation_id, **payload):
+        if payload:
+            raise ApiError(422, 'invalid', 'the opportunity uses conversation details', field=sorted(payload)[0])
+        conversation = visible_conversation(conversation_id)
+        if conversation.company_id != request.env.company:
+            raise ApiError(404, 'not_found', 'conversation does not exist in this company')
+        lock_conversation(conversation)
+        if conversation.lead_id:
+            raise ApiError(409, 'already_linked', 'the conversation is already linked to an opportunity')
+        contact = conversation.contact_id
+        lead = create_opportunity_from_payload({'contact_name': contact.name, 'phone': contact.phone})
+        conversation.lead_id = lead
+        return dump_opportunity_ref(lead)
+
+    @http.route('/api/v1/inbox/conversations/<int:conversation_id>/opportunity', type='json2', auth='user',
                 methods=['PUT'], readonly=False)
     @api_handler
     @requires_feature('crm.enabled', 'inbox.enabled', operation='write')
@@ -99,6 +128,7 @@ class OpportunityConversationsController(http.Controller):
             raise ApiError(422, 'invalid', 'the opportunity belongs to another company', field='opportunity_id')
         if not lead.active:
             raise ApiError(422, 'invalid', 'an archived opportunity takes no conversation', field='opportunity_id')
+        lock_conversation(conversation)
         if conversation.lead_id and conversation.lead_id != lead:
             raise ApiError(409, 'already_linked', 'the conversation is already linked to an opportunity')
         require_same_customer(conversation, lead)
@@ -112,6 +142,7 @@ class OpportunityConversationsController(http.Controller):
     @requires_capability('crm.leads.work', REPLY)
     def unlink_conversation_opportunity(self, conversation_id, **_):
         conversation = visible_conversation(conversation_id)
+        lock_conversation(conversation)
         if conversation.lead_id:
             writable_lead(conversation.lead_id.id)
             conversation.lead_id = False

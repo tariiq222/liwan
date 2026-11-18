@@ -481,7 +481,8 @@ identity headers before forwarding.
 
 Set `LIWAN_PUBLIC_SIGNUP=true` for both Compose and the shared control API after configuring
 the customer-commercial issuer and signing key, a published public monthly
-14-day trial revision, a Liwan-specific Authentica key and approved SMS
+14-day trial revision with a zero-price SAR base and public, optional CRM and
+Customer Messages bundles, a Liwan-specific Authentica key and approved SMS
 template, and SMTP. The SMS template must accept Liwan's OTP and the Authentica
 application must allow SMS without alternate-channel recipient fields. The
 same SMTP setup is needed by the commercial worker to issue the administrator
@@ -489,6 +490,11 @@ invitation. The control API and web BFF share the customer-commercial signing
 key. Keep the Authentica key on the control API only. The delivery cap defaults
 to 100 per channel per rolling day and is configurable with
 `LIWAN_SIGNUP_DAILY_LIMIT`.
+
+Set `LIWAN_SIGNUP_ENROLLMENT_PAUSED=true` on the control API to pause new
+signup starts. Keep `LIWAN_PUBLIC_SIGNUP=true` for workspace lookup and
+existing verification challenges. The offer and new start endpoints return 503
+during the pause.
 
 Set `LIWAN_SIGNUP_LEGAL_BASE_URL` (an https URL, the site that hosts `/terms` and `/privacy`) and
 `LIWAN_SIGNUP_TERMS_VERSION` on the control API as well; sign-up stays off without them. The form requires

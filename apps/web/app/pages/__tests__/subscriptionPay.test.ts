@@ -41,11 +41,12 @@ async function mountPage(options: Options = {}) {
   const mounted: Array<() => void> = []
   const unmounting: Array<() => void> = []
   const navigateTo = vi.fn()
+  const toast = { add: vi.fn() }
   const bindings = {
     ...cardPayment, ...subscriptionUtils, _defineComponent: Vue.defineComponent, _withAsyncContext: (fn: () => unknown) => [fn(), () => {}],
     ref: Vue.ref, computed: Vue.computed, watch: Vue.watch,
     onMounted: (fn: () => void) => mounted.push(fn), onBeforeUnmount: (fn: () => void) => unmounting.push(fn),
-    definePageMeta: () => {}, navigateTo,
+    definePageMeta: () => {}, navigateTo, useToast: () => toast,
     window: { sessionStorage: { getItem: (key: string) => store.get(key) ?? null, setItem: (key: string, value: string) => void store.set(key, value), removeItem: (key: string) => void store.delete(key) } },
     useI18n: () => ({ t: (key: string) => key, locale: Vue.ref('en') }),
     useRoute: () => ({ params: { order: 'order-1' }, path: '/subscription/pay/order-1' }),
@@ -81,7 +82,7 @@ async function mountPage(options: Options = {}) {
     }
     return renderToString(app)
   }
-  return { state, api, current, navigateTo, unmounting, store, html, forms }
+  return { state, api, current, navigateTo, toast, unmounting, store, html, forms }
 }
 
 const settle = () => vi.advanceTimersByTimeAsync(0)
@@ -184,6 +185,13 @@ describe('opening the card form', () => {
     await settle()
     expect(page.api.order).toHaveBeenCalledTimes(2)
     expect(page.navigateTo).toHaveBeenCalledWith({ path: '/subscription/status', query: { order: 'order-1' } }, { replace: true })
+  })
+  it('an expired trial checkout explains itself and returns to the subscription page', async () => {
+    const page = await mountPage()
+    page.api.startCardPayment.mockRejectedValueOnce(refused('trial_checkout_expired'))
+    await page.state.start()
+    expect(page.toast.add).toHaveBeenCalledWith(expect.objectContaining({ title: 'subscription.pay.checkoutExpired.title', description: 'subscription.pay.checkoutExpired.description', color: 'warning' }))
+    expect(page.navigateTo).toHaveBeenCalledWith('/subscription', { replace: true })
   })
   it('an expired session offers to start again, and starting again returns to the choice', async () => {
     const page = await mountPage()

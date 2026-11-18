@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { SignupApp, SignupOffer } from '@/utils/subscription'
 import type { FormError } from '@nuxt/ui'
 import { ForgotPasswordInputSchema } from '@liwan/contracts'
 import { errorCode, errorSeconds, normalizeCode } from '@/components/auth/loginFlow'
@@ -8,7 +9,7 @@ import { normalizeMobileInput } from '@/composables/useMe'
 definePageMeta({ layout: false, access: 'public' })
 
 type Step = 'details' | 'sms' | 'email' | 'done'
-type Action = 'terms' | 'start' | 'verify-sms' | 'send-email' | 'verify-email'
+type Action = 'terms' | 'offer' | 'start' | 'verify-sms' | 'send-email' | 'verify-email'
 
 const { t, locale, setLocale } = useI18n()
 const otherLanguage = computed(() => locale.value === 'ar' ? { code: 'en', label: 'English' } as const : { code: 'ar', label: 'العربية' } as const)
@@ -19,6 +20,21 @@ const details = reactive({ company_name: '', admin_name: '', email: '', mobile: 
 // The legal pages and terms version the vendor currently sets; the server refuses a start that does not echo this version.
 type SignupConfig = { legal_base_url: string; terms_version: string; human_check?: { site_key: string; script_url: string } }
 const legal = ref<SignupConfig>()
+const offer = ref<SignupOffer>()
+const offerLoading = ref(false)
+const selectedApps = ref<SignupApp[]>(['crm', 'inbox'])
+const monthlyMinor = computed(() => offer.value?.apps.reduce(
+  (total, app) => total + (selectedApps.value.includes(app.id) ? app.monthly_minor : 0), 0,
+) ?? 0)
+const money = computed(() => new Intl.NumberFormat(locale.value, { style: 'currency', currency: 'SAR' }))
+const quantity = computed(() => new Intl.NumberFormat(locale.value))
+const inboxLimits = ['inbox.channels', 'inbox.messages_out', 'inbox.campaign_recipients'] as const
+
+function chooseApp(id: SignupApp, selected: boolean | 'indeterminate') {
+  selectedApps.value = selected === true
+    ? [...new Set([...selectedApps.value, id])]
+    : selectedApps.value.filter(app => app !== id)
+}
 // The Turnstile token of the last completed check. It is single-use: every start request spends it, success or not.
 const humanToken = ref<string>()
 const widget = ref<{ reset: () => void }>()
@@ -48,6 +64,7 @@ const errors: Record<string, string> = {
   signup_expired: 'signup.errors.expired',
   terms_not_accepted: 'signup.errors.termsRequired',
   terms_changed: 'signup.errors.termsChanged',
+  offer_changed: 'signup.errors.offerChanged',
   human_check_failed: 'signup.errors.humanCheckFailed',
   human_check_unavailable: 'signup.errors.humanCheckUnavailable',
 }
@@ -83,7 +100,7 @@ function editDetails() {
   step.value = 'details'
 }
 
-function request<T>(action: Action, body: Record<string, string | boolean>) {
+function request<T>(action: Action, body: Record<string, string | boolean | SignupApp[]>) {
   return $fetch<T>(`/api/commercial/signup/${action}`, { method: 'POST', body })
 }
 
@@ -95,7 +112,23 @@ function spendHumanToken() {
   humanToken.value = undefined
   widget.value?.reset()
 }
-onMounted(loadTerms)
+async function loadOffer() {
+  offerLoading.value = true
+  offer.value = undefined
+  try {
+    offer.value = await request<SignupOffer>('offer', {})
+  } catch {
+    errorKey.value = errors.unavailable
+  } finally {
+    offerLoading.value = false
+  }
+}
+
+async function loadRegistration() {
+  errorKey.value = undefined
+  await Promise.all([loadTerms(), loadOffer()])
+}
+onMounted(loadRegistration)
 
 async function run(action: Action, execute: () => Promise<void>) {
   if (!hydrated.value || pending.value) return
@@ -109,6 +142,12 @@ async function run(action: Action, execute: () => Promise<void>) {
     if (code === 'signup_expired') editDetails()
     if (code === 'rate_limited' && (action === 'start' || action === 'send-email') && step.value !== 'details') {
       resend.start(errorSeconds(error) || resendCooldownSeconds)
+    }
+    if (code === 'offer_changed') {
+      editDetails()
+      await loadOffer()
+      if (offer.value) errorKey.value = errors.offer_changed
+      return
     }
     if (code === 'terms_changed') {
       // The vendor published new terms while the form was open: show the new links and ask for a fresh acceptance.
@@ -131,10 +170,13 @@ async function run(action: Action, execute: () => Promise<void>) {
 async function startSignup() {
   const version = legal.value?.terms_version
   const token = humanToken.value
-  if (waitingToResend.value || !version || !details.accept_terms || !token) return
+  const revision = offer.value?.offer_revision
+  if (!revision || !selectedApps.value.length || waitingToResend.value || !version || !details.accept_terms || !token) return
   try {
     await run('start', async () => {
       const answer = await request<{ signup_id: string }>('start', {
+        offer_revision: revision,
+        app_ids: selectedApps.value,
         company_name: details.company_name.trim(),
         admin_name: details.admin_name.trim(),
         email: details.email.trim(),
@@ -212,6 +254,30 @@ async function verifyCode() {
       <UAlert v-if="errorKey" role="alert" color="error" variant="subtle" :title="t(errorKey)" />
 
       <UForm v-if="step === 'details'" :state="details" :validate="validateDetails" novalidate class="liwan-form" @submit="startSignup">
+        <fieldset v-if="offer" class="grid gap-3">
+          <legend class="mb-2 font-semibold text-highlighted">{{ t('signup.offer.title') }}</legend>
+          <div v-for="app in offer.apps" :key="app.id" class="rounded-inner border border-default p-3">
+            <UCheckbox :model-value="selectedApps.includes(app.id)" :disabled="!hydrated || !!pending"
+              :label="t(`signup.offer.apps.${app.id}.name`)" @update:model-value="chooseApp(app.id, $event)" />
+            <p class="mt-1 text-sm text-muted">{{ t(`signup.offer.apps.${app.id}.description`) }}</p>
+            <p class="mt-1 text-sm">{{ t('signup.offer.month', { price: money.format(app.monthly_minor / 100) }) }}</p>
+            <ul v-if="app.id === 'inbox'" class="mt-1 text-sm text-muted">
+              <li v-for="(key, index) in inboxLimits" :key="key" v-show="Object.hasOwn(app.limits, key)">
+                {{ t(`signup.offer.inboxLimits.${index}`, { count: app.limits[key] == null ? t('signup.offer.unlimited') : quantity.format(app.limits[key]!) }) }}
+              </li>
+            </ul>
+          </div>
+          <p class="text-sm text-muted">{{ t('signup.offer.base', {
+            users: quantity.format(offer.included_users), storage: quantity.format(offer.included_storage_mb / 1024),
+            branches: quantity.format(offer.included_extra_branches),
+          }) }}</p>
+          <p class="text-sm text-muted">{{ t('signup.offer.after') }}</p>
+          <p role="status" class="font-semibold text-highlighted">{{ t('signup.offer.total', {
+            today: money.format(0), monthly: money.format(monthlyMinor / 100),
+          }) }}</p>
+        </fieldset>
+        <p v-else-if="offerLoading" role="status" class="text-sm text-muted">{{ t('signup.offer.loading') }}</p>
+        <UButton v-if="!offerLoading && (!offer || !legal)" type="button" variant="outline" :label="t('signup.offer.retry')" @click="loadRegistration" />
         <UFormField name="company_name" :label="t('signup.companyName')" required>
           <UInput v-model="details.company_name" autocomplete="organization" class="w-full" :disabled="!!pending" />
         </UFormField>
@@ -238,7 +304,7 @@ async function verifyCode() {
           v-if="humanCheck" ref="widget" :site-key="humanCheck.site_key" :script-url="humanCheck.script_url" :language="widgetLanguage"
           :label="t('signup.humanCheck')" @verified="humanToken = $event" @cleared="humanToken = undefined" @failed="errorKey = errors.human_check_unavailable"
         />
-        <UButton type="submit" size="lg" class="w-full justify-center" :disabled="!hydrated || !!pending || !checkReady" :loading="pending === 'start'" :label="t('signup.sendSms')" />
+        <UButton type="submit" size="lg" class="w-full justify-center" :disabled="!hydrated || !!pending || !checkReady || !offer || !selectedApps.length" :loading="pending === 'start'" :label="t('signup.offer.begin')" />
       </UForm>
 
       <template v-else-if="step === 'sms' || step === 'email'">

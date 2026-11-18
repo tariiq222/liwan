@@ -5,9 +5,9 @@ import { transaction } from '../db.js'
 import { CommercialHttpError, digestOf } from './lifecycle.js'
 import { acceptQuoteOn, orderView } from './orders.js'
 import { buildQuoteOn } from './quotes.js'
-import { trialEndsAt } from './renewals.js'
+import { buildRenewalOn, trialEndsAt } from './renewals.js'
 import { endTrialOn } from './trial-expiry.js'
-import { generateRenewals } from './renewals.js'
+import { trialCheckoutOn, voidTrialCheckoutOn } from './trial-checkout.js'
 import type { ReturnOrigin } from './return-origin.js'
 import { getSubscription } from './subscriptions.js'
 import { reopenTrialOn } from './trial-reopen.js'
@@ -20,7 +20,7 @@ function trialOrderKey(customerId: string) {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-8${h.slice(13, 16)}-${((parseInt(h[16]!, 16) & 3) | 8).toString(16)}${h.slice(17, 20)}-${h.slice(20, 32)}`
 }
 
-type TrialInput = { customer_id: string; request: unknown; principal: Principal; now?: Date }
+type TrialInput = { customer_id: string; request: unknown; principal: Principal; now?: Date; waitForFirstLogin?: boolean }
 
 export async function startTrial(pool: Pool, input: TrialInput) {
   const result = await transaction(pool, client => startTrialOn(client, input))
@@ -53,38 +53,34 @@ export async function startTrialOn(client: PoolClient, input: TrialInput) {
   await client.query('INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,$3,$4,$5)', [trialQuote.id, input.customer_id, JSON.stringify(quoteSchema.parse(trialQuote)), trialQuote.digest, trialQuote.expires_at])
   await client.query('UPDATE customers SET trial_used_at=now() WHERE id=$1', [input.customer_id])
   await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
-    [randomUUID(), input.principal.actor_id, 'trial.started', input.customer_id, `Trial started by ${input.principal.kind}`, JSON.stringify({ plan_revision_id: request.plan_revision_id, trial_days: plan.trial_days })])
+    [randomUUID(), input.principal.actor_id, input.waitForFirstLogin ? 'trial.enrolled' : 'trial.started', input.customer_id,
+      input.waitForFirstLogin ? 'Public signup awaiting first sign-in' : `Trial started by ${input.principal.kind}`, JSON.stringify({ plan_revision_id: request.plan_revision_id, trial_days: plan.trial_days })])
   const accepted = await acceptQuoteOn(client, acceptInput, digest, trialQuote, input.principal, now)
-  await client.query("UPDATE subscriptions SET state='trialing',trial_ends_at=$2,revision=revision+1 WHERE customer_id=$1", [input.customer_id, endsAt])
+  await client.query("UPDATE subscriptions SET state='trialing',trial_ends_at=$2,revision=revision+1 WHERE customer_id=$1", [input.customer_id, input.waitForFirstLogin ? null : endsAt])
   return accepted
 }
 
-/** Customer conversion: end the trial now, in one transaction, and return the first invoice's order; the customer pays it through the card form. */
+/** Opening checkout reserves the priced order, while the trial keeps its original deadline until settlement. */
 export async function convertTrial(pool: Pool, input: { customer_id: string; now: Date; returnOrigin: ReturnOrigin }) {
-  await input.returnOrigin(input.customer_id) // an unusable origin refuses before any write
-  const sub = (await pool.query('SELECT * FROM subscriptions WHERE customer_id=$1', [input.customer_id])).rows[0]
-  if (!sub || sub.state !== 'trialing') throw new CommercialHttpError('trial_not_active', 409)
-  if (!sub.applied_revision_id) throw new CommercialHttpError('trial_not_applied', 409)
-  // The end date and the move out of `trialing` are one commit: the intent to pay is the state itself, so a scheduler run or a
-  // crash between the two can never lapse the trial onto the free base and lock what the customer chose to buy.
-  const periodStart = await transaction(pool, async client => {
-    const ended = await endTrialOn(client, sub.id, { now: input.now, convert: true })
-    if (ended === 'deferred') throw new CommercialHttpError('tenant_upgrade_required', 409)
-    if (ended !== 'expired') throw new CommercialHttpError('trial_not_active', 409)
-    const converted = (await client.query('SELECT renewal_at::text AS period_start,trial_ended_at FROM subscriptions WHERE id=$1', [sub.id])).rows[0]
-    await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
-      [randomUUID(), `customer:${input.customer_id}`, 'trial.converted', sub.id, 'Customer converted the trial', JSON.stringify({ converted_at: input.now.toISOString() })])
-    await pushCommercialExpiry(client, sub.id, new Date(converted.trial_ended_at).toISOString())
-    return converted.period_start as string
+  await input.returnOrigin(input.customer_id)
+  return transaction(pool, async client => {
+    const sub = (await client.query(`SELECT s.*,t.post_trial_supported,t.excess_supported FROM subscriptions s
+      LEFT JOIN tenants t ON t.id=s.tenant_id WHERE s.customer_id=$1 FOR UPDATE OF s`, [input.customer_id])).rows[0]
+    if (!sub || sub.state !== 'trialing' || sub.manual_suspension)
+      throw new CommercialHttpError('trial_not_active', 409)
+    if (!sub.applied_revision_id) throw new CommercialHttpError('trial_not_applied', 409)
+    if (!sub.trial_ends_at || input.now >= new Date(sub.trial_ends_at)) throw new CommercialHttpError('trial_not_active', 409)
+    if (sub.post_trial_supported !== true || sub.excess_supported !== true) throw new CommercialHttpError('tenant_upgrade_required', 409)
+    const start = riyadhDate(input.now)
+    const previous = await trialCheckoutOn(client, sub.id)
+    if (previous?.checkout_day === start) return { order: orderView(previous), pending: false }
+    if (previous) {
+      await voidTrialCheckoutOn(client, previous)
+      sub.revision += 1
+    } else if (sub.target_revision_id) throw new CommercialHttpError('subscription_change_pending', 409)
+    const result = await buildRenewalOn(client, sub, { now: input.now, start, trialCheckout: true })
+    return { order: result?.order ?? null, pending: !result }
   })
-  // The first invoice is generated after the commit; a crash before it leaves a past_due subscription the renewal run picks up.
-  await generateRenewals(pool, { now: input.now, returnOrigin: input.returnOrigin, subscription_id: sub.id })
-  // The renewal run may also create other due renewals: read this subscription's own first order, never index 0.
-  const row = (await pool.query(`SELECT o.* FROM orders o JOIN renewals r ON r.order_id=o.id
-    WHERE r.subscription_id=$1 AND r.period_start=$2 AND r.kind='renewal' AND r.status<>'superseded' AND NOT o.cancelled
-    LIMIT 1`, [sub.id, periodStart])).rows[0]
-  const order = row ? orderView(row) : null
-  return { order, pending: !order }
 }
 
 /** Vendor-only trial controls; each write is audited and only applies to a trialing subscription. */
@@ -112,10 +108,10 @@ export async function extendTrial(pool: Pool, input: { subscription_id: string; 
 export async function endTrial(pool: Pool, input: { subscription_id: string; reason: string; actor: string; now: Date }) {
   const owner = (await pool.query('SELECT customer_id,state,applied_revision_id FROM subscriptions WHERE id=$1', [input.subscription_id])).rows[0]
   if (!owner || owner.state !== 'trialing') throw new CommercialHttpError('trial_not_active', 409)
-  // The first invoice is built from the applied snapshot: ending a trial whose workspace is not active yet would leave a past-due subscription with nothing to pay.
+  // An early end lapses to the free base, whose lock is built from the applied revision: a trial whose workspace is not active yet has none.
   if (!owner.applied_revision_id) throw new CommercialHttpError('trial_not_applied', 409)
   await transaction(pool, async client => {
-    const ended = await endTrialOn(client, input.subscription_id, { now: input.now, convert: false, early: true })
+    const ended = await endTrialOn(client, input.subscription_id, { now: input.now, early: true })
     if (ended === 'deferred') throw new CommercialHttpError('tenant_upgrade_required', 409)
     if (ended !== 'lapsed') throw new CommercialHttpError('trial_not_active', 409)
     await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
