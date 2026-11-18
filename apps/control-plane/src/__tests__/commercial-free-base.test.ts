@@ -197,7 +197,8 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     }
   })
 
-  it('delivers an unopened signup with app writes locked and starts one clock for its administrator', async () => {
+  /** A delivered public signup whose administrator (user 7) has not signed in yet. */
+  async function unopenedSignup() {
     const f = await endedTrial({}, true, beforeEnd, true)
     const first = (await pool.query('SELECT id FROM orders WHERE subscription_id=$1', [f.subscription])).rows[0].id
     await pool.query(`INSERT INTO public_signup_trials(customer_id,email,mobile,requires_first_login,first_admin_user_id)
@@ -207,6 +208,11 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
       expect(job.authority.post_trial_features?.['pmo.enabled']).not.toBe(true)
       return { ...await okRunner({ job }), observed_entitlement_digest: job.authority.post_trial_digest!, root_company_id: 1 }
     })).toMatchObject({ state: 'verified' })
+    return f
+  }
+
+  it('delivers an unopened signup with app writes locked and starts one clock for its administrator', async () => {
+    const f = await unopenedSignup()
     expect((await row(f.subscription)).trial_ends_at).toBeNull()
     await expect(createQuoteForCustomer(pool, { customer_id: f.customer,
       request: { ...request(), kind: 'change', subscription_id: f.subscription } }, beforeEnd))
@@ -227,6 +233,28 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
       return okRunner({ job })
     })).toMatchObject({ state: 'verified' })
     expect(await activateSignupTrial(pool, { ...input, now })).toEqual({ state: 'ready', trial_ends_at: end })
+  })
+
+  it('tells a sign-in that waited on the activating one that the trial policy is still applying', async () => {
+    const f = await unopenedSignup()
+    const input = { customerId: f.customer, actorId: '7', now: beforeEnd }
+    const end = new Date(+beforeEnd + 14 * 86_400_000).toISOString()
+    const holder = await pool.connect()
+    let both: Promise<unknown[]>
+    try {
+      await holder.query('BEGIN')
+      await holder.query('SELECT 1 FROM subscriptions WHERE id=$1 FOR UPDATE', [f.subscription])
+      both = Promise.all([activateSignupTrial(pool, input), activateSignupTrial(pool, input)])
+      // Both sign-ins must be queued on the row lock before it is released, so the second always waits on the first.
+      await vi.waitFor(async () => expect(Number((await pool.query(`SELECT count(*) FROM pg_locks l JOIN pg_stat_activity a USING(pid)
+        WHERE NOT l.granted AND a.datname=current_database()`)).rows[0].count)).toBe(2), { timeout: 10_000, interval: 20 })
+      await holder.query('COMMIT')
+    } finally { holder.release() }
+    expect(await both).toEqual([{ state: 'applying', trial_ends_at: end }, { state: 'applying', trial_ends_at: end }])
+    const events = await pool.query("SELECT 1 FROM audit_events WHERE subject=$1 AND action='trial.started'", [f.customer])
+    const bootstrap = await pool.query("SELECT 1 FROM orders WHERE subscription_id=$1 AND idempotency_key LIKE 'trial-bootstrap:%'", [f.subscription])
+    expect(events.rowCount).toBe(1)
+    expect(bootstrap.rowCount).toBe(1)
   })
 
   it('locks once under concurrent scans, applies exact limits and never queues a separate expiry clear', async () => {

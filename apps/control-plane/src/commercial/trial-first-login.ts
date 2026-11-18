@@ -9,12 +9,15 @@ import { queueTrialPolicyRevision } from './trial-policy-order.js'
 // An unopened workspace delivers the fallback immediately. This date is never a customer deadline.
 export const unopenedTrialCutoff = '1970-01-01T00:00:00.000Z'
 
+// The lock is its own statement: after a lock wait, a joined read in the same statement keeps its old
+// snapshot of `orders` and would miss the bootstrap order the lock holder just committed.
 async function firstLoginTrial(client: Pick<PoolClient, 'query'>, customerId: string, lock = false) {
+  if (lock) await client.query('SELECT 1 FROM subscriptions WHERE customer_id=$1 FOR UPDATE', [customerId])
   return (await client.query(`SELECT s.id,s.customer_id,s.tenant_id,s.state,s.revision,s.applied_revision_id,s.target_revision_id,
     s.trial_ends_at,s.manual_suspension,t.first_admin_user_id,o.fulfillment_state
     FROM subscriptions s JOIN public_signup_trials t ON t.customer_id=s.customer_id AND t.requires_first_login
     LEFT JOIN orders o ON o.subscription_id=s.id AND o.target_revision_id=s.target_revision_id AND o.idempotency_key LIKE 'trial-bootstrap:%'
-    WHERE s.customer_id=$1${lock ? ' FOR UPDATE OF s' : ''}`, [customerId])).rows[0]
+    WHERE s.customer_id=$1`, [customerId])).rows[0]
 }
 
 function activationState(row: Awaited<ReturnType<typeof firstLoginTrial>>, actorId: string) {
