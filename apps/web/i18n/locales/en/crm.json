@@ -342,7 +342,7 @@
       },
       "errors": {
         "conflict": "This record changed or was closed. Reload the page and try again.",
-        "duplicatePhone": "This phone is already on another record.",
+        "duplicatePhone": "This phone already has another open opportunity.",
         "invalidPhone": "This phone number is not valid.",
         "invalidEmail": "This email address is not valid.",
         "discount": "The discount is not allowed or does not match the prices.",

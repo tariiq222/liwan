@@ -11,6 +11,8 @@ opportunity for an amount with no package, and ``_liwan_win_by_order`` / ``_liwa
 ``win_by_order`` and ``can_quote``, that an order wins now (``_liwan_mark_won`` then refuses with 409 ``crm_win_by_order``)
 and whether the caller may write it. CRM names no other application.
 """
+from psycopg2.errors import UniqueViolation
+
 from odoo import api, models
 from odoo.exceptions import UserError
 
@@ -193,7 +195,7 @@ class CrmLeadFlow(models.Model):
         self.ensure_one()
         agent = self.user_id
         if not self.active:
-            self.action_unarchive()
+            self._liwan_unarchive()
         self.with_context(mail_auto_subscribe_no_notify=True).write({
             'stage_id': self._liwan_first_stage().id,
             'liwan_cycle': self.liwan_cycle + cycles,
@@ -207,6 +209,17 @@ class CrmLeadFlow(models.Model):
         else:
             self._liwan_release_agent()
             distribution._liwan_assign(self)
+
+    def _liwan_unarchive(self):
+        """Unarchive; 422 ``duplicate_phone`` when another open opportunity holds the phone since it was closed."""
+        try:
+            with self.env.cr.savepoint():
+                self.action_unarchive()
+                self.env.flush_all()
+        except UniqueViolation as error:
+            if not self._liwan_is_duplicate_phone(error):
+                raise
+            raise self._liwan_duplicate_phone_error() from None
 
     def _liwan_reopen(self, user):
         """Reopen a lost opportunity, or the cycle of one waiting for a manager's decision."""

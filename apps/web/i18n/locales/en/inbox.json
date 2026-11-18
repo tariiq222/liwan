@@ -2322,7 +2322,7 @@
       },
       "errors": {
         "busy": "This conversation is being updated. Try again.",
-        "phoneAlreadyUsed": "This phone already has an opportunity. Find it and link it to this conversation.",
+        "phoneAlreadyUsed": "This phone already has an open opportunity. Find it and link it to this conversation.",
         "phoneInvalid": "Add a valid mobile number to the contact to create an opportunity.",
         "alreadyLinked": "The conversation is linked to another opportunity. Unlink it first, then link the new one.",
         "customerMismatch": "The contact belongs to customer \"{contact}\" and the opportunity to customer \"{opportunity}\". A conversation cannot be linked to an opportunity of a different customer.",

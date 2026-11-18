@@ -94,6 +94,15 @@ class TestOpportunityConversations(CrmInboxCase):
         self.assertFalse(conversation.lead_id)
         self.assertEqual(self.link(conversation, existing).status_code, 200)
 
+    def test_closed_opportunities_with_the_phone_do_not_block_a_new_one(self):
+        conversation = self.make_conversation()
+        lost = self.make_lead(self.rep, phone=conversation.contact_id.phone)
+        lost.action_set_lost()
+        self.as_user(self.rep)
+        result = self.api('POST', LINK.format(conversation.id), {})
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertNotEqual(conversation.lead_id, lost)
+
     def test_link_read_list_and_unlink(self):
         self.as_user(self.rep)
         self.assertIsNone(self.api('GET', LINK.format(self.conversation.id)).json())

@@ -8,9 +8,10 @@ import logging
 from contextlib import contextmanager
 from datetime import timedelta
 
-from odoo import api, fields, models
+from odoo import _, api, fields, models
 
 from odoo.addons.liwan_api.controllers.common import ApiError
+from odoo.addons.liwan_crm.models.crm_lead import DUPLICATE_PHONE_REASON
 
 _logger = logging.getLogger(__name__)
 WORK_CAPABILITY = 'crm.leads.work'
@@ -117,7 +118,16 @@ class LiwanCrmFollowup(models.AbstractModel):
         ])
         for lead in leads.with_context(active_test=True):
             with self._liwan_isolated(f'recycle of opportunity {lead.id}'):
-                lead._liwan_restart(cycles=1)
+                try:
+                    lead._liwan_restart(cycles=1)
+                except ApiError as error:
+                    if (error.details or {}).get('reason') != DUPLICATE_PHONE_REASON:
+                        raise
+                    # The customer came back as a new opportunity: the recycle is consumed, not retried every tick.
+                    lead.write({'liwan_recycle_at': False})
+                    lead.message_post(
+                        body=_('Not reopened: another open opportunity has this phone.'), subtype_xmlid='mail.mt_note',
+                    )
 
     @api.model
     def _liwan_due_follow_ups(self, company, now):

@@ -16,8 +16,6 @@ from odoo.addons.liwan_crm.models.crm_lead import PROPERTIES_FIELD
 from odoo.addons.liwan_crm.models.distribution import agent_not_eligible
 from odoo.addons.liwan_crm.serializers.call import CUSTOMER_FIELDS
 from odoo.addons.liwan_crm.serializers.opportunity import (
-    DUPLICATE_PHONE,
-    DUPLICATE_PHONE_REASON,
     INVALID_PHONE_REASON,
     dump_opportunity,
     parse_list_filters,
@@ -77,14 +75,14 @@ def filter_domain(filters, default_status='open'):
 
 
 def _normalized_phone(raw, lead=None):
-    """E.164 phone in the tenant's phone country; 422 when invalid or held by another opportunity."""
+    """E.164 phone in the tenant's phone country; 422 when invalid or held by another open opportunity."""
     company = request.env.company
     Lead = request.env['crm.lead']
     phone = request.env['liwan.customers.service']._liwan_phone_or_none(raw)
     if not phone:
         raise ApiError(422, 'invalid', 'invalid phone', field='phone', details={'reason': INVALID_PHONE_REASON})
     if (not lead or lead.phone_sanitized != phone) and Lead._liwan_find_duplicate(phone, company):
-        raise ApiError(422, 'invalid', DUPLICATE_PHONE, field='phone', details={'reason': DUPLICATE_PHONE_REASON})
+        raise Lead._liwan_duplicate_phone_error()
     return phone
 
 
@@ -97,7 +95,7 @@ def _saved(operation):
     except UniqueViolation as error:
         if not request.env['crm.lead']._liwan_is_duplicate_phone(error):
             raise
-        raise ApiError(422, 'invalid', DUPLICATE_PHONE, field='phone', details={'reason': DUPLICATE_PHONE_REASON}) from None
+        raise request.env['crm.lead']._liwan_duplicate_phone_error() from None
     return result
 
 

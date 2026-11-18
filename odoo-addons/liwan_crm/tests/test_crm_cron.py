@@ -79,6 +79,19 @@ class TestCrmCron(LiwanCrmCase):
         self.assertFalse(self.assignment_mails(lead), 'stock assignment mail is not sent')
         self.assertEqual(len(self.bell_rows(self.agent, lead, 'crm.assigned')), 1)
 
+    def test_a_due_recycle_whose_phone_has_an_open_opportunity_is_consumed_without_an_error(self):
+        lead = self.lost_for_recycle(phone='+966501234567')
+        self.make_lead(self.agent2, phone='+966501234567')
+        with self.assertNoLogs('odoo.addons.liwan_crm.models.followup', 'ERROR'):
+            self.Followup._liwan_cron_tick(now=NOW + timedelta(seconds=1))
+        self.assertFalse(lead.active)
+        self.assertEqual((lead.won_status, lead.liwan_cycle), ('lost', 0))
+        self.assertFalse(lead.liwan_recycle_at)
+        self.assertIn('Not reopened', lead.message_ids[0].body)
+        notes = len(lead.message_ids)
+        self.Followup._liwan_cron_tick(now=NOW + 2 * DAY)
+        self.assertEqual(len(lead.message_ids), notes)
+
     def test_a_recycle_not_yet_due_stays_closed(self):
         lead = self.lost_for_recycle(due=NOW + DAY)
         self.Followup._liwan_cron_tick(now=NOW)
