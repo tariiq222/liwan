@@ -20,7 +20,7 @@ function render({ read = true, write = true, create = true, manualOnly = !create
     globals: { useToast: () => ({ add: vi.fn() }) },
     modules: {
       '@/composables/inbox/inboxOpportunityErrors': { inboxOpportunityErrorMessage: () => '' },
-      '@/composables/inbox/useInboxOpportunity': {
+      '@/composables/useInboxOpportunity': {
         useInboxOpportunityAccess: () => ({ read: Vue.ref(read), write: Vue.ref(write), create: Vue.ref(create), createManualOnly: Vue.ref(manualOnly), createPending: Vue.ref(false) }),
         useConversationOpportunity: () => query,
         useCreateConversationOpportunity: () => mutation,

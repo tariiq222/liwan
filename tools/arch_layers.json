@@ -175,6 +175,9 @@
       ],
       "pages": [
         "crm"
+      ],
+      "composables": [
+        "composables/crm/*"
       ]
     },
     "appointments": {
@@ -191,6 +194,9 @@
       ],
       "pages": [
         "inbox"
+      ],
+      "composables": [
+        "composables/inbox/*"
       ]
     },
     "sales": {
