@@ -1,5 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 from odoo.tests import tagged
 
 from .automation_common import AutomationCase
@@ -140,6 +143,58 @@ class TestFirstResponseAlert(AutomationCase):
             set(self.alerts(conversation).mapped('liwan_notification_key')),
             {f'{FIRST_RESPONSE_KIND}:{conversation.id}:{user.partner_id.id}' for user in self.agent | self.agent2},
         )
+
+    def alerted_users(self, conversation):
+        keys = set(self.alerts(conversation).mapped('liwan_notification_key'))
+        return (self.agent | self.agent2).filtered(lambda user: f'{FIRST_RESPONSE_KIND}:{conversation.id}:{user.partner_id.id}' in keys)
+
+    def waiting_pair(self, **values):
+        self.settings.first_response_alert_minutes = 10
+        self.department.member_ids = self.agent | self.agent2
+        return self.make_conversation(minutes_ago=15, department_id=self.department.id, **values)
+
+    def set_available(self, user, available):
+        self.env['liwan.inbox.agent']._liwan_set_available(user, self.env.company, available)
+
+    def test_an_available_assignee_is_the_only_one_alerted(self):
+        conversation = self.waiting_pair(assignee_id=self.agent.id)
+        self.run_cron()
+        self.assertEqual(self.alerted_users(conversation), self.agent)
+
+    def test_an_unavailable_assignee_hands_the_alert_to_the_available_peers(self):
+        conversation = self.waiting_pair(assignee_id=self.agent.id)
+        self.set_available(self.agent, False)
+        self.run_cron()
+        self.assertEqual(self.alerted_users(conversation), self.agent2)
+        self.assertTrue(conversation.first_response_alerted)
+
+    def test_an_unassigned_conversation_alerts_only_the_available_agents(self):
+        conversation = self.waiting_pair()
+        self.set_available(self.agent2, False)
+        self.run_cron()
+        self.assertEqual(self.alerted_users(conversation), self.agent)
+
+    def test_an_agent_outside_the_shift_counts_only_while_shifts_are_on(self):
+        outside = [{'weekday': (datetime.now(ZoneInfo('Asia/Riyadh')).weekday() + 1) % 7, 'from': '00:00', 'to': '24:00'}]
+        self.env['liwan.inbox.agent']._liwan_write_shifts(self.agent, self.env.company, outside)
+        conversation = self.waiting_pair(assignee_id=self.agent.id)
+        self.run_cron()
+        self.assertEqual(self.alerted_users(conversation), self.agent)
+        conversation.first_response_alerted = False
+        self.settings.agent_shifts_enabled = True
+        self.run_cron()
+        self.assertEqual(self.alerted_users(conversation), self.agent | self.agent2)
+        self.assertEqual(len(self.alerts(conversation)), 2)
+
+    def test_nobody_available_falls_back_to_the_assignee_else_every_agent(self):
+        assigned = self.waiting_pair(assignee_id=self.agent.id)
+        unassigned = self.waiting_pair()
+        self.set_available(self.agent, False)
+        self.set_available(self.agent2, False)
+        self.run_cron()
+        self.assertEqual(self.alerted_users(assigned), self.agent)
+        self.assertEqual(self.alerted_users(unassigned), self.agent | self.agent2)
+        self.assertTrue(assigned.first_response_alerted and unassigned.first_response_alerted)
 
     def test_resolved_conversations_and_a_closed_sub_feature_do_not_alert(self):
         self.settings.first_response_alert_minutes = 10

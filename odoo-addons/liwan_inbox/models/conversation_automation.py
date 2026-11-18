@@ -64,9 +64,16 @@ class LiwanInboxConversationAutomation(models.Model):
     def _liwan_alert_failed(self, conversation, error):
         _logger.warning('first response alert of conversation %s failed: %s', conversation.id, type(error).__name__)
 
+    def _liwan_alert_recipients(self):
+        """The available assignee; else the available agents of the conversation; else (nobody is) the assignee or all its agents."""
+        self.ensure_one()
+        available = self.env['liwan.inbox.agent']._liwan_available_agents
+        recipients = available(self.assignee_id, self.company_id) or available(self._liwan_agents(), self.company_id)
+        return recipients or self.assignee_id or self._liwan_agents()
+
     def _liwan_alert(self, minutes):
         self.ensure_one()
-        for user in self.assignee_id or self._liwan_agents():
+        for user in self._liwan_alert_recipients():
             self.env['liwan.notify.service']._liwan_deliver(
                 self._name, self.id, FIRST_RESPONSE_KIND, user.partner_id,
                 self.env._('%(customer)s has waited %(minutes)s minutes for a reply', customer=self.contact_id.name, minutes=minutes),
