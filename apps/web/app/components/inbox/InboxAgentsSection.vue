@@ -6,16 +6,18 @@ import { useInboxSettings } from '@/composables/inbox/useInboxSettings'
 
 // The inbox agents with their availability. Automatic distribution skips an agent who is unavailable, or outside
 // their shift when shifts are on. A holder of the assign capability switches anyone; an agent switches only themselves.
-// The weekly shift of each agent is edited here and only when the company turned shifts on.
+// The weekly shift of each agent is edited here, by a holder of the settings capability, and only when the company turned
+// shifts on. A holder of the assign capability alone sees the list and the switches, not the settings.
 const { t } = useI18n()
 const hydrated = useHydrated()
 const toast = useToast()
 const { me } = useMe()
 const { can } = useAccess()
 const { data, isLoading, error, refetch } = useInboxAgents()
-const settings = useInboxSettings()
+const canManage = computed(() => can('inbox.settings.manage'))
+const settings = useInboxSettings(canManage)
 const { mutate: setAvailability, isPending } = useSetInboxAgentAvailability()
-const shiftsOn = computed(() => settings.data.value?.agent_shifts_enabled === true)
+const shiftsOn = computed(() => canManage.value && settings.data.value?.agent_shifts_enabled === true)
 const openShifts = ref<number | null>(null)
 const items = computed(() => data.value?.items ?? [])
 const canAssign = computed(() => can('inbox.conversations.assign'))

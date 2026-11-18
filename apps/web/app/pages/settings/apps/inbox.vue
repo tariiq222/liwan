@@ -34,7 +34,7 @@ const isSubPage = computed(() => /^\/settings\/apps\/inbox\/(?:channels\/(?!new$
         <SharedRouteTabs :items="tabItems" :ariaLabel="t('inbox.settings.groups.label')" />
         <div v-show="activeTab === 'basics'" class="grid gap-(--liwan-gap-card)" data-testid="settings-panel-basics">
           <InboxPolicyForm v-if="shows('policy')" />
-                    <InboxDepartmentsSection v-if="shows('departments')" />
+          <InboxDepartmentsSection v-if="shows('departments')" />
           <InboxAgentsSection v-if="shows('agents')" />
           <InboxTagsSection v-if="shows('tags')" />
         </div>
