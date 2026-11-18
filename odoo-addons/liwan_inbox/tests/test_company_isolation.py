@@ -24,7 +24,7 @@ from odoo.addons.liwan_inbox.adapters import whatsapp
 from odoo.addons.liwan_inbox.models.constants import TIKTOK_FEATURE
 from odoo.addons.liwan_inbox.tests.common import ACCESS_TOKEN, APP_SECRET, store_event
 
-EXPECTED_GET_RECORD_ROUTES = 38  # includes the failed-delivery list an operator re-runs and the catalog and order routes
+EXPECTED_GET_RECORD_ROUTES = 39  # includes the failed-delivery list an operator re-runs, the catalog and order routes and the preset preview
 PASSWORD = 'iso_inbox_nocap_pass_123'
 PROFILE = {'about': 'About', 'address': None, 'description': None, 'email': None, 'websites': [], 'vertical': None}
 PREVIEW = {'url': 'https://business.facebook.com/wa/manage/flows/preview/abc', 'expires_at': fields.Datetime.now()}

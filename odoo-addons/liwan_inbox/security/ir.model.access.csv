@@ -86,6 +86,7 @@ access_liwan_inbox_auto_message_flows,liwan.inbox.auto.message.flows,model_liwan
 access_liwan_inbox_template_flows,liwan.inbox.template.flows,model_liwan_inbox_template,group_cap_inbox_flows_manage,1,0,0,0
 access_liwan_inbox_template_button_flows,liwan.inbox.template.button.flows,model_liwan_inbox_template_button,group_cap_inbox_flows_manage,1,0,0,0
 access_liwan_inbox_hours_range_automation,liwan.inbox.hours.range.automation,model_liwan_inbox_hours_range,group_cap_inbox_automation_manage,1,1,1,1
+access_liwan_inbox_hours_range_settings,liwan.inbox.hours.range.settings,model_liwan_inbox_hours_range,group_cap_inbox_settings_manage,1,0,0,0
 access_liwan_inbox_hours_holiday_automation,liwan.inbox.hours.holiday.automation,model_liwan_inbox_hours_holiday,group_cap_inbox_automation_manage,1,1,1,1
 access_liwan_inbox_report_day_reports,liwan.inbox.report.day.reports,model_liwan_inbox_report_day,group_cap_inbox_reports_read,1,0,0,0
 access_liwan_inbox_cost_day_reports,liwan.inbox.cost.day.reports,model_liwan_inbox_cost_day,group_cap_inbox_reports_read,1,0,0,0

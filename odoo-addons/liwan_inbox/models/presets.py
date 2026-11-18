@@ -1,5 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""Sector presets: the departments, tags and canned replies a tenant of that sector starts with."""
+"""Sector presets: the departments, tags, replies, welcome menu and campaign words a tenant of that sector starts with."""
+from .campaign_constants import START_KEYWORD
+
+# Stands for the sentence built from the company's working hours (hours_text.py) in any text of a preset.
+HOURS_PLACEHOLDER = '{hours}'
+HOURS_REPLY = f'ساعات الدوام: {HOURS_PLACEHOLDER}.'
 
 
 def _buttons(body, *options):
@@ -22,12 +27,12 @@ PRESETS = {
         'tags': ['استفسار', 'حجز موعد', 'تغيير موعد', 'شكوى'],
         'canned_replies': [
             ('hello', 'أهلًا بك في عيادتنا، كيف نخدمك؟'),
-            ('hours', 'ساعات الدوام من الأحد إلى الخميس، من 9 صباحًا حتى 9 مساءً.'),
+            ('hours', HOURS_REPLY),
             ('book', 'يسعدنا حجز موعد لك، فضلًا أرسل لنا اسمك والوقت المناسب.'),
         ],
         'campaigns': {
-            'stop_keywords': ['إيقاف التذكيرات'], 'start_keywords': [],
-            'stop_reply': 'تم إيقاف رسائل العروض والتذكيرات من العيادة. لإعادة تفعيلها أرسل «تفعيل العروض».',
+            'stop_keywords': ['إيقاف التذكيرات'], 'start_keywords': [START_KEYWORD],
+            'stop_reply': f'تم إيقاف رسائل العروض والتذكيرات من العيادة. لإعادة تفعيلها أرسل «{START_KEYWORD}».',
             'start_reply': 'تم تفعيل رسائل العيادة من جديد.',
         },
         'automation': {
@@ -39,7 +44,7 @@ PRESETS = {
             'rules': [
                 _rule('قائمة: حجز موعد', 'menu_book', 'يسعدنا حجز موعد لك، فضلًا أرسل لنا اسمك والوقت المناسب.',
                       'المواعيد', ['حجز موعد']),
-                _rule('قائمة: ساعات الدوام', 'menu_hours', 'ساعات الدوام من الأحد إلى الخميس، من 9 صباحًا حتى 9 مساءً.'),
+                _rule('قائمة: ساعات الدوام', 'menu_hours', HOURS_REPLY),
                 _rule('قائمة: التحدث مع موظف', 'menu_staff', 'سيتواصل معك أحد موظفينا قريبًا.', 'الاستقبال'),
             ],
         },
@@ -53,8 +58,8 @@ PRESETS = {
             ('return', 'يمكنك استرجاع المنتج خلال 14 يومًا من الاستلام بحالته الأصلية.'),
         ],
         'campaigns': {
-            'stop_keywords': ['إيقاف العروض والتخفيضات'], 'start_keywords': [],
-            'stop_reply': 'تم إيقاف رسائل العروض من المتجر. لإعادة تفعيلها أرسل «تفعيل العروض».',
+            'stop_keywords': ['إيقاف العروض والتخفيضات'], 'start_keywords': [START_KEYWORD],
+            'stop_reply': f'تم إيقاف رسائل العروض من المتجر. لإعادة تفعيلها أرسل «{START_KEYWORD}».',
             'start_reply': 'تم تفعيل رسائل العروض من المتجر من جديد.',
         },
         'automation': {
@@ -79,8 +84,8 @@ PRESETS = {
             ('ticket', 'فضلًا أرسل لنا رقم المعاملة لنتابع طلبك.'),
         ],
         'campaigns': {
-            'stop_keywords': ['إيقاف الإشعارات'], 'start_keywords': [],
-            'stop_reply': 'تم إيقاف الإشعارات العامة. لإعادة تفعيلها أرسل «تفعيل العروض».',
+            'stop_keywords': ['إيقاف الإشعارات'], 'start_keywords': [START_KEYWORD],
+            'stop_reply': f'تم إيقاف الإشعارات العامة. لإعادة تفعيلها أرسل «{START_KEYWORD}».',
             'start_reply': 'تم تفعيل الإشعارات العامة من جديد.',
         },
         'automation': {
@@ -98,3 +103,14 @@ PRESETS = {
         'settings': {'visibility_policy': 'assigned_only', 'retention_months': 60},
     },
 }
+
+
+def fill_hours(value, hours):
+    """`value` (a preset or a part of one) with the hours placeholder replaced by the sentence `hours` in every text."""
+    if isinstance(value, str):
+        return value.replace(HOURS_PLACEHOLDER, hours)
+    if isinstance(value, dict):
+        return {key: fill_hours(item, hours) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return type(value)(fill_hours(item, hours) for item in value)
+    return value

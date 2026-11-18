@@ -12,6 +12,7 @@ import {
   InboxDepartmentListSchema,
   InboxDepartmentSchema,
   InboxAttachmentSchema,
+  InboxPresetPreviewSchema,
   InboxRefSchema,
   InboxSettingsSchema,
   InboxTagListSchema,
@@ -41,6 +42,7 @@ export const inboxSettingsKeys = {
   channelAccounts: (kind: InboxChannelKind) => ['inbox', 'channel-accounts', kind] as const,
   channelRef: (id: number) => ['inbox', 'channel-ref', id] as const,
   channelEvents: (id: number) => ['inbox', 'channel-events', id] as const,
+  presetPreview: (key: InboxPresetKey) => ['inbox', 'preset-preview', key] as const,
 }
 
 export function useInboxSettings() {
@@ -57,6 +59,17 @@ export function useUpdateInboxSettings() {
   return useMutation({
     mutationFn: (body: InboxSettingsPatch) => $api('/api/v1/settings/inbox', { method: 'PATCH', body, schema: InboxSettingsSchema }),
     onSuccess: settings => qc.setQueryData(inboxSettingsKeys.settings, settings),
+  })
+}
+
+/** What applying a sector preset would add or set, read when its details are opened. */
+export function useInboxPresetPreview(key: MaybeRefOrGetter<InboxPresetKey | null>) {
+  const { $api } = useApi()
+  return useQuery({
+    queryKey: computed(() => inboxSettingsKeys.presetPreview(toValue(key) ?? 'clinic')),
+    enabled: computed(() => toValue(key) !== null),
+    retry: false,
+    queryFn: () => $api(`/api/v1/settings/inbox/presets/${toValue(key)}`, { schema: InboxPresetPreviewSchema }),
   })
 }
 

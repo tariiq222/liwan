@@ -77448,6 +77448,230 @@
         ],
         "type": "string"
       },
+      "InboxPresetPreviewSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "applied": {
+            "type": "boolean"
+          },
+          "away": {
+            "additionalProperties": false,
+            "properties": {
+              "body": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "body"
+            ],
+            "type": "object"
+          },
+          "campaigns": {
+            "additionalProperties": false,
+            "properties": {
+              "start_keywords": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "start_reply": {
+                "type": "string"
+              },
+              "stop_keywords": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "stop_reply": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "stop_keywords",
+              "start_keywords",
+              "stop_reply",
+              "start_reply"
+            ],
+            "type": "object"
+          },
+          "canned_replies": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "body": {
+                  "type": "string"
+                },
+                "exists": {
+                  "type": "boolean"
+                },
+                "shortcut": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "shortcut",
+                "body",
+                "exists"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "departments": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "exists": {
+                  "type": "boolean"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "exists"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "key": {
+            "enum": [
+              "clinic",
+              "store",
+              "public_service"
+            ],
+            "type": "string"
+          },
+          "rules": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "button": {
+                  "type": "string"
+                },
+                "department": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "exists": {
+                  "type": "boolean"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "reply": {
+                  "type": "string"
+                },
+                "tags": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "name",
+                "button",
+                "reply",
+                "department",
+                "tags",
+                "exists"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "settings": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "retention_months": {
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer"
+                  },
+                  "visibility_policy": {
+                    "enum": [
+                      "assigned_only",
+                      "department",
+                      "all"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "visibility_policy",
+                  "retention_months"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tags": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "exists": {
+                  "type": "boolean"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "exists"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "welcome": {
+            "additionalProperties": false,
+            "properties": {
+              "body": {
+                "type": "string"
+              },
+              "buttons": {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 3,
+                "type": "array"
+              }
+            },
+            "required": [
+              "body",
+              "buttons"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "key",
+          "applied",
+          "departments",
+          "tags",
+          "canned_replies",
+          "welcome",
+          "away",
+          "rules",
+          "campaigns",
+          "settings"
+        ],
+        "type": "object"
+      },
       "InboxPricingCategorySchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
@@ -164807,6 +165031,57 @@
       }
     },
     "/api/v1/settings/inbox/presets/{key}": {
+      "get": {
+        "operationId": "liwan_inbox.SettingsController.preview_preset.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "preview_preset",
+        "tags": [
+          "liwan_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "SettingsController",
+          "feature_keys": [
+            "inbox.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "preview_preset",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
       "post": {
         "operationId": "liwan_inbox.SettingsController.apply_preset.post",
         "parameters": [

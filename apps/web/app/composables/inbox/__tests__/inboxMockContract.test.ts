@@ -11,7 +11,7 @@ import {
   InboxCatalogPickItemListSchema, InboxCatalogSchema, InboxChannelCommerceSchema,
   InboxOrderCheckoutResultSchema, InboxOrderListSchema, InboxOrderSchema,
   InboxTikTokShortcutEnableResultSchema, InboxTikTokShortcutListSchema, InboxTikTokSyncAnswerSchema,
-  InboxEventListSchema, InboxEventSchema, ApiErrorSchema, CustomerConflictDetailsSchema,
+  InboxEventListSchema, InboxEventSchema, InboxPresetPreviewSchema, ApiErrorSchema, CustomerConflictDetailsSchema,
 } from '@liwan/contracts'
 import { inboxPreviewData, resetInboxPreview, setInboxConnectionAppId } from '../../../../e2e/inbox-ui-preview-data.mjs'
 
@@ -156,6 +156,19 @@ describe('inbox audit mock', () => {
     call('POST', '/api/v1/settings/inbox/presets/clinic')
     expect((call('GET', '/api/v1/inbox/tags').body as { total: number }).total).toBe(once)
     expect(call('POST', '/api/v1/settings/inbox/presets/unknown').status).toBe(404)
+  })
+
+  it('previews a preset in the contract shape and marks what applying added', () => {
+    const before = InboxPresetPreviewSchema.parse(call('GET', '/api/v1/settings/inbox/presets/public_service').body)
+    expect(before.applied).toBe(false)
+    expect(before.settings).toEqual({ visibility_policy: 'assigned_only', retention_months: 60 })
+    expect(before.departments.every(item => !item.exists)).toBe(true)
+    call('POST', '/api/v1/settings/inbox/presets/public_service')
+    const after = InboxPresetPreviewSchema.parse(call('GET', '/api/v1/settings/inbox/presets/public_service').body)
+    expect(after.applied).toBe(true)
+    expect([...after.departments, ...after.tags, ...after.canned_replies].every(item => item.exists)).toBe(true)
+    expect(InboxPresetPreviewSchema.parse(call('GET', '/api/v1/settings/inbox/presets/clinic').body).settings).toBeNull()
+    expect(call('GET', '/api/v1/settings/inbox/presets/unknown').status).toBe(404)
   })
 
   it('refuses an assignee who is not an agent', () => {

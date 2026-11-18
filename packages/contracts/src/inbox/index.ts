@@ -423,6 +423,36 @@ export const InboxSettingsSchema = z.object({
 }).strict()
 export const InboxSettingsPatchSchema = InboxSettingsSchema.partial().strict()
 
+// What applying a sector preset would add or set. Each named item says whether the company has it already; the welcome
+// and away messages and the campaign words are filled only the first time a preset is applied.
+const PresetItem = z.object({ name: z.string(), exists: z.boolean() }).strict()
+export const InboxPresetPreviewSchema = z.object({
+  key: InboxPresetKeySchema,
+  applied: z.boolean(),
+  departments: z.array(PresetItem),
+  tags: z.array(PresetItem),
+  canned_replies: z.array(z.object({ shortcut: z.string(), body: z.string(), exists: z.boolean() }).strict()),
+  welcome: z.object({ body: z.string(), buttons: z.array(z.string()).max(3) }).strict(),
+  away: z.object({ body: z.string() }).strict(),
+  rules: z.array(z.object({
+    name: z.string(),
+    // The title of the welcome button that triggers the rule.
+    button: z.string(),
+    reply: z.string(),
+    department: z.string().nullable(),
+    tags: z.array(z.string()),
+    exists: z.boolean(),
+  }).strict()),
+  campaigns: z.object({
+    stop_keywords: z.array(z.string()),
+    start_keywords: z.array(z.string()),
+    stop_reply: z.string(),
+    start_reply: z.string(),
+  }).strict(),
+  // The policy the preset changes (only some sectors do).
+  settings: z.object({ visibility_policy: InboxVisibilityPolicySchema, retention_months: z.number().int() }).strict().nullable(),
+}).strict()
+
 // ---------------------------------------------------------------- number health and business profile
 
 export const InboxQualityRatingSchema = z.enum(['green', 'yellow', 'red', 'unknown'])
@@ -775,6 +805,7 @@ export type InboxRule = z.infer<typeof InboxRuleSchema>
 export type InboxRuleWrite = z.infer<typeof InboxRuleWriteSchema>
 export type InboxRuleTest = z.infer<typeof InboxRuleTestSchema>
 export type InboxRuleTestResult = z.infer<typeof InboxRuleTestResultSchema>
+export type InboxPresetPreview = z.infer<typeof InboxPresetPreviewSchema>
 export type InboxSettingsPatch = z.infer<typeof InboxSettingsPatchSchema>
 export type InboxChannel = z.infer<typeof InboxChannelSchema>
 export type InboxChannelAccountList = z.infer<typeof InboxChannelAccountListSchema>

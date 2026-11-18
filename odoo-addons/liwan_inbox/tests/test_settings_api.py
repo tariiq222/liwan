@@ -2,8 +2,11 @@
 from odoo.tests import tagged
 
 from .common import LiwanInboxCase
+from odoo.addons.liwan_api.tests.common import cover_isolation_routes, set_probe_feature
 from odoo.addons.liwan_inbox import hooks
 from odoo.addons.liwan_inbox.models.presets import PRESETS
+
+cover_isolation_routes(('/api/v1/settings/inbox/presets/<string:key>',), source='liwan_inbox/tests/test_settings_api.py')
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -71,6 +74,48 @@ class TestSettingsApi(LiwanInboxCase):
         for key in ('clinic', 'store'):
             self.assertEqual(self.api('POST', f'/api/v1/settings/inbox/presets/{key}').status_code, 200)
         self.assertError(self.api('POST', '/api/v1/settings/inbox/presets/bogus'), 404, 'not_found')
+
+    def test_a_preset_preview_lists_what_applying_would_set_and_what_the_company_has(self):
+        self.login(self.manager)
+        before = self.env['liwan.inbox.department'].search_count([])
+        preview = self.get('/api/v1/settings/inbox/presets/public_service').json()
+        self.assertEqual(self.env['liwan.inbox.department'].search_count([]), before)
+        self.assertEqual(set(preview), {
+            'key', 'applied', 'departments', 'tags', 'canned_replies', 'welcome', 'away', 'rules', 'campaigns', 'settings',
+        })
+        self.assertEqual((preview['key'], preview['applied']), ('public_service', False))
+        wanted = PRESETS['public_service']
+        self.assertEqual([item['name'] for item in preview['departments']], wanted['departments'])
+        self.assertEqual({item['exists'] for item in preview['departments']}, {False})
+        self.assertEqual(len(preview['welcome']['buttons']), 3)
+        self.assertEqual({rule['button'] for rule in preview['rules']} <= set(preview['welcome']['buttons']), True)
+        self.assertEqual(preview['settings'], {'visibility_policy': 'assigned_only', 'retention_months': 60})
+        self.assertIsNone(self.get('/api/v1/settings/inbox/presets/clinic').json()['settings'])
+        self.assertEqual(self.api('POST', '/api/v1/settings/inbox/presets/public_service').status_code, 200)
+        after = self.get('/api/v1/settings/inbox/presets/public_service').json()
+        self.assertTrue(after['applied'])
+        self.assertEqual({item['exists'] for item in after['departments'] + after['tags'] + after['canned_replies']}, {True})
+
+    def test_a_preset_preview_marks_only_what_the_session_company_has(self):
+        other = self.env['res.company'].create({'name': 'Another company'})
+        self.env['liwan.inbox.department'].create({'name': PRESETS['clinic']['departments'][0], 'company_id': other.id})
+        self.login(self.manager)
+        departments = self.get('/api/v1/settings/inbox/presets/clinic').json()['departments']
+        self.assertEqual({item['exists'] for item in departments}, {False})
+
+    def test_the_clinic_preview_shows_the_hours_sentence_applying_would_write(self):
+        self.login(self.manager)
+        replies = {item['shortcut']: item['body'] for item in self.get('/api/v1/settings/inbox/presets/clinic').json()['canned_replies']}
+        self.assertEqual(replies['hours'], 'ساعات الدوام: نستقبل رسائلكم في أي وقت.')
+
+    def test_a_preset_preview_needs_the_settings_capability_the_feature_and_a_real_key(self):
+        for user in (self.agent, self.supervisor, self.outsider):
+            self.login(user)
+            self.assertError(self.get('/api/v1/settings/inbox/presets/clinic'), 403, 'forbidden')
+        self.login(self.manager)
+        self.assertError(self.get('/api/v1/settings/inbox/presets/bogus'), 404, 'not_found')
+        set_probe_feature(self, key='inbox.enabled', enabled=False)
+        self.assertError(self.get('/api/v1/settings/inbox/presets/clinic'), 403, 'feature_not_included')
 
     def test_departments_crud(self):
         self.login(self.manager)

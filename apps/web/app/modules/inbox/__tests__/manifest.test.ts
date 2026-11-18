@@ -159,3 +159,25 @@ describe('inbox campaigns', () => {
     expect(manifest.settings?.parts.find(part => part.id === 'campaigns')?.capability).toBe('inbox.campaigns.manage')
   })
 })
+
+describe('inbox templates and forms settings entries', () => {
+  const part = (id: string) => manifest.settings?.parts.find(item => item.id === id)
+
+  it('lists templates and forms as sidebar parts of their own pages, gated like the channel pages', () => {
+    expect(part('templates')).toMatchObject({ capability: 'inbox.templates.manage', anyCapabilities: ['inbox.channels.manage'], feature: 'inbox.templates', to: '/settings/apps/inbox/templates', within: '/settings/apps/inbox/templates' })
+    expect(part('flows')).toMatchObject({ capability: 'inbox.flows.manage', anyCapabilities: ['inbox.channels.manage'], feature: 'inbox.flows', to: '/settings/apps/inbox/flows', within: '/settings/apps/inbox/flows' })
+  })
+
+  it.each([['templates', 'inbox.templates.manage'], ['flows', 'inbox.flows.manage']])('the %s picker opens for its manager and for a channels manager only', (page, capability) => {
+    const path = `/settings/apps/inbox/${page}`
+    expect(reach(path, capability)).toBe(true)
+    expect(reach(path, 'inbox.channels.manage')).toBe(true)
+    expect(reach(path, 'inbox.conversations.read')).toBe(false)
+    expect(reach(path)).toBe(false)
+  })
+
+  it('the forms manager does not reach the templates picker, nor the reverse', () => {
+    expect(reach('/settings/apps/inbox/templates', 'inbox.flows.manage')).toBe(false)
+    expect(reach('/settings/apps/inbox/flows', 'inbox.templates.manage')).toBe(false)
+  })
+})

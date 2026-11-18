@@ -32,6 +32,10 @@ const manifest: AppManifest = {
       { id: 'rules', labelKey: 'inbox.automation.rules.title', icon: 'i-lucide-list-checks', capability: 'inbox.automation.manage', to: '/settings/apps/inbox/rules', within: '/settings/apps/inbox/rules' },
       { id: 'auto-messages', labelKey: 'inbox.automation.messages.title', icon: 'i-lucide-bot-message-square', capability: 'inbox.automation.manage', within: '/settings/apps/inbox/auto-messages' },
       { id: 'catalog', labelKey: 'inbox.catalog.title', icon: 'i-lucide-store', capability: 'inbox.catalog.manage', to: '/settings/apps/inbox/catalog', within: '/settings/apps/inbox/catalog' },
+      // Templates and forms belong to a WhatsApp channel; these pages lead to the channel's own list, so a manager of either
+      // right (or of the channels) reaches them without opening a channel first.
+      { id: 'templates', labelKey: 'inbox.templates.title', icon: 'i-lucide-file-text', capability: 'inbox.templates.manage', anyCapabilities: ['inbox.channels.manage'], feature: 'inbox.templates', to: '/settings/apps/inbox/templates', within: '/settings/apps/inbox/templates' },
+      { id: 'flows', labelKey: 'inbox.flows.title', icon: 'i-lucide-clipboard-list', capability: 'inbox.flows.manage', anyCapabilities: ['inbox.channels.manage'], feature: 'inbox.flows', to: '/settings/apps/inbox/flows', within: '/settings/apps/inbox/flows' },
       { id: 'campaigns', labelKey: 'inbox.campaigns.settings.title', icon: 'i-lucide-megaphone', capability: 'inbox.campaigns.manage' },
       // Channel administration, or the read-only reference list of the channels a templates, forms or automation
       // manager may work on; those roles never receive channel administration.
@@ -70,6 +74,9 @@ const manifest: AppManifest = {
     // A channel of either kind is created here: the page offers the kinds whose feature is on and refuses when none is,
     // and the server checks the chosen kind's feature, so the route itself needs the capability only.
     { pattern: /^\/settings\/apps\/inbox\/channels\/new$/, capability: 'inbox.channels.manage' },
+    // The channel pickers in front of the per-channel template and form pages: the same pair of rights and feature as those pages.
+    { pattern: /^\/settings\/apps\/inbox\/templates$/, capability: 'liwan.internal', anyCapabilities: ['inbox.templates.manage', 'inbox.channels.manage'], feature: 'inbox.templates' },
+    { pattern: /^\/settings\/apps\/inbox\/flows$/, capability: 'liwan.internal', anyCapabilities: ['inbox.flows.manage', 'inbox.channels.manage'], feature: 'inbox.flows' },
     // A templates-only manager has no channel administration, so the template pages are not under the channels part's
     // capability; both the feature and the page's own capability decide, and the server checks the same pair.
     { pattern: /^\/settings\/apps\/inbox\/channels\/[^/]+\/templates\/new$/, capability: 'inbox.templates.manage', feature: 'inbox.templates' },
