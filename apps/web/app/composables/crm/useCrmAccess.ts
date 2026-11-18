@@ -4,8 +4,9 @@ import { CrmAccessSchema } from '@liwan/contracts'
 import { crmKeys } from './crmKeys'
 
 /**
- * Whether the user may create opportunities, as the server decides it (it depends on the company's distribution
- * mode, so the capability list alone cannot say). Nothing is guessed while it loads or when it cannot be read.
+ * Whether the user may create opportunities: the server must allow it (it depends on the company's distribution
+ * mode, so the capability list alone cannot say) and the user must hold a write capability on a writable CRM (the
+ * access route needs read only). Nothing is guessed while it loads or when it cannot be read.
  */
 export function useCrmCreateAccess() {
   const { $api } = useApi()
@@ -17,7 +18,8 @@ export function useCrmCreateAccess() {
     queryFn: ({ signal }) => $api('/api/v1/crm/access', { signal, schema: CrmAccessSchema }),
     staleTime: 60_000,
   })
-  const canCreate = computed(() => query.data.value?.can_create === true)
+  const canWrite = () => can('crm.leads.work') || can('crm.leads.assign')
+  const canCreate = computed(() => query.data.value?.can_create === true && canWrite())
   return {
     canCreate,
     /** The server answered "no" to a user who holds crm.leads.work: only manual distribution refuses such a user. */

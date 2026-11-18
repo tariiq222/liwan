@@ -1,7 +1,7 @@
 import * as Vue from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-// The create right comes from the server answer alone: nothing is guessed while it loads, when it fails or from the capabilities.
+// The create right needs the server answer and a write capability: nothing is guessed while it loads or when it fails.
 let answer: { data?: { can_create: boolean }, isPending: boolean, fetchStatus: string } = { isPending: true, fetchStatus: 'fetching' }
 const useQuery = vi.fn((options: unknown) => ({
   data: Vue.ref(answer.data), isPending: Vue.ref(answer.isPending), fetchStatus: Vue.ref(answer.fetchStatus), options,
@@ -9,7 +9,10 @@ const useQuery = vi.fn((options: unknown) => ({
 vi.mock('@tanstack/vue-query', () => ({ useQuery }))
 vi.stubGlobal('useApi', () => ({ $api: vi.fn() }))
 let canWork = true
-vi.stubGlobal('useAccess', () => ({ can: (key: string) => key !== 'crm.leads.work' || canWork }))
+let canAssign = true
+vi.stubGlobal('useAccess', () => ({
+  can: (key: string) => (key === 'crm.leads.work' ? canWork : key === 'crm.leads.assign' ? canAssign : true),
+}))
 vi.stubGlobal('useMe', () => ({ me: Vue.ref({ company: { id: 4 } }) }))
 vi.stubGlobal('computed', Vue.computed)
 
@@ -19,6 +22,7 @@ describe('useCrmCreateAccess', () => {
   beforeEach(() => {
     useQuery.mockClear()
     canWork = true
+    canAssign = true
   })
 
   it('is closed and pending while the answer loads', () => {
@@ -32,6 +36,16 @@ describe('useCrmCreateAccess', () => {
     expect(useCrmCreateAccess().canCreate.value).toBe(true)
     answer = { data: { can_create: false }, isPending: false, fetchStatus: 'idle' }
     expect(useCrmCreateAccess().canCreate.value).toBe(false)
+  })
+
+  it('stays closed when the server allows it but the user holds no write capability (a read-only tenant)', () => {
+    answer = { data: { can_create: true }, isPending: false, fetchStatus: 'idle' }
+    canWork = false
+    canAssign = false
+    const access = useCrmCreateAccess()
+    expect([access.canCreate.value, access.manualOnly.value]).toEqual([false, false])
+    canAssign = true
+    expect(useCrmCreateAccess().canCreate.value).toBe(true)
   })
 
   it('stays closed and not pending when the query is off or failed', () => {
