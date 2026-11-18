@@ -157,6 +157,25 @@ def _merged_properties(lead, parsed):
     return values
 
 
+def create_opportunity_from_payload(payload):
+    """Create and assign a manual opportunity with the ordinary CRM checks."""
+    parsed = parse_opportunity_body(payload, creating=True)
+    _check_source(parsed.get('source_id'))
+    agent = _assignee(parsed)
+    vals = {
+        **_vals(parsed),
+        'type': 'opportunity',
+        'stage_id': request.env['crm.lead']._liwan_first_stage().id,
+        'company_id': request.env.company.id,
+        'phone': _normalized_phone(parsed['phone']),
+        'user_id': agent.id,
+    }
+    Lead = request.env['crm.lead'].with_context(mail_auto_subscribe_no_notify=True)
+    lead = _saved(lambda: Lead.create(vals))
+    lead._liwan_notify_assigned()
+    return lead
+
+
 class CrmOpportunitiesController(http.Controller):
 
     @http.route('/api/v1/crm/opportunities', type='json2', auth='user', methods=['GET'], readonly=True)
@@ -196,21 +215,7 @@ class CrmOpportunitiesController(http.Controller):
     @requires_feature('crm.enabled', operation='write')
     @requires_capability('crm.leads.work', 'crm.leads.assign', match='any')
     def create_opportunity(self, **payload):
-        parsed = parse_opportunity_body(payload, creating=True)
-        _check_source(parsed.get('source_id'))
-        agent = _assignee(parsed)
-        vals = {
-            **_vals(parsed),
-            'type': 'opportunity',
-            'stage_id': request.env['crm.lead']._liwan_first_stage().id,
-            'company_id': request.env.company.id,
-            'phone': _normalized_phone(parsed['phone']),
-            'user_id': agent.id,
-        }
-        Lead = request.env['crm.lead'].with_context(mail_auto_subscribe_no_notify=True)
-        lead = _saved(lambda: Lead.create(vals))
-        lead._liwan_notify_assigned()
-        return dump_opportunity(lead)
+        return dump_opportunity(create_opportunity_from_payload(payload))
 
     @http.route('/api/v1/crm/opportunities/<int:lead_id>', type='json2', auth='user', methods=['GET'],
                 readonly=True)

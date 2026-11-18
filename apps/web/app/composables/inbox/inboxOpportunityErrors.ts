@@ -23,6 +23,12 @@ export function inboxOpportunityErrorMessage(error: unknown, t: Translate): stri
       })
     }
   }
+  if (failure.status === 409 && failure.code === 'opportunity_busy') return t('inbox.opportunity.errors.busy')
+  if (failure.status === 422 && failure.field === 'phone') {
+    return t((failure.details as { reason?: string } | undefined)?.reason === 'duplicate_phone'
+      ? 'inbox.opportunity.errors.phoneAlreadyUsed'
+      : 'inbox.opportunity.errors.phoneInvalid')
+  }
   if (failure.status === 403) return t('inbox.opportunity.errors.notYours')
   if (failure.status === 422 && failure.field === 'opportunity_id') return t('inbox.opportunity.errors.unavailable')
   if (failure.status === 404) return t('inbox.opportunity.errors.missing')

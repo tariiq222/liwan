@@ -9,6 +9,7 @@ import InboxConversationList from '@/components/inbox/InboxConversationList.vue'
 import InboxThread from '@/components/inbox/InboxThread.vue'
 import { ApiError } from '@/composables/useApi'
 import { parseInboxListRoute, serializeInboxListRoute, type InboxListRoute } from '@/composables/inbox/inboxListRoute'
+import { useInboxWhatsAppEnabled } from '@/composables/inbox/inboxFeatures'
 import { CHANNEL_KIND_ICON } from '@/composables/inbox/inboxChannelKind'
 import { CONVERSATION_STATE_TONE, CSAT_TONE, INBOX_PRIORITY_TONE } from '@/composables/inbox/inboxPresentation'
 import { inboxContactName } from '@/composables/inbox/inboxContactName'
@@ -22,6 +23,7 @@ import { useInboxConversation, useInboxConversations, useMarkInboxConversationRe
 // direct link, a refresh and Back all work and the list filters stay in the query.
 const props = defineProps<{ conversationId?: number; infoOpen?: boolean; ordersOpen?: boolean }>()
 const { t } = useI18n()
+const hydrated = useHydrated()
 const route = useRoute()
 const router = useRouter()
 const { can } = useAccess()
@@ -48,6 +50,11 @@ const ordersTo = computed(() => ({ path: `/inbox/${props.conversationId}/orders`
 const replyTo = ref<{ id: number; preview: string } | null>(null)
 watch(() => props.conversationId, () => { replyTo.value = null })
 const canConnectChannel = computed(() => !hasConversations.value && can('inbox.channels.manage'))
+const whatsApp = useInboxWhatsAppEnabled()
+const firstUse = computed(() => conversations.value?.total === 0 && !hasConversations.value && !hasSelection.value)
+const canTryExample = computed(() => firstUse.value && can('inbox.conversations.reply'))
+const canTryCrm = computed(() => can('crm.leads.work'))
+const example = ref<'closed' | 'message' | 'replied' | 'linked'>('closed')
 const canShowUnassigned = computed(() => hasConversations.value && routeState.value.assignee !== 'unassigned')
 const status = computed(() => error.value instanceof ApiError ? error.value.status : undefined)
 // Escape leaves the open contact panel for the thread, as it leaves a record page for its list.
@@ -66,6 +73,30 @@ function updateRoute(next: InboxListRoute, options?: { replace: boolean }) {
         <UButton to="/settings/apps/inbox#channels" color="neutral" variant="soft" icon="i-lucide-settings" :label="t('inbox.settings.channels.title')" data-testid="inbox-channels-link" />
       </template>
     </SharedPageHeader>
+    <SharedRecordSection v-if="firstUse && (canConnectChannel || canTryExample)" variant="panel" :title="t('inbox.firstUse.title')">
+      <div class="grid gap-3">
+        <p class="text-sm text-muted">{{ t(canConnectChannel && whatsApp ? 'inbox.firstUse.description' : 'inbox.list.emptyDescription') }}</p>
+        <div class="flex flex-wrap gap-2">
+          <UButton v-if="canConnectChannel" to="/settings/apps/inbox#channels" icon="i-lucide-plug"
+            :label="t(whatsApp ? 'inbox.firstUse.connectWhatsApp' : 'inbox.connectChannel')" data-testid="inbox-connect-channel" />
+          <UButton v-if="canTryExample && example === 'closed'" color="neutral" variant="outline" :disabled="!hydrated" :label="t('inbox.firstUse.try')"
+            data-testid="inbox-try-example" @click="example = 'message'" />
+        </div>
+        <SharedRecordSection v-if="canTryExample && example !== 'closed'" class="mt-3 w-full" variant="panel"
+          :title="t('inbox.firstUse.example')" data-testid="inbox-example">
+          <div class="grid gap-3 text-start text-sm">
+            <p>{{ t('inbox.firstUse.exampleMessage') }}</p>
+            <p v-if="example !== 'message'" role="status">{{ t('inbox.firstUse.exampleReply') }}</p>
+            <p v-if="example === 'linked'" role="status">{{ t('inbox.firstUse.exampleLinked') }}</p>
+            <div class="flex flex-wrap gap-2">
+              <UButton v-if="example === 'message'" size="sm" :label="t('inbox.firstUse.reply')" @click="example = 'replied'" />
+              <UButton v-if="example === 'replied' && canTryCrm" size="sm" :label="t('inbox.firstUse.createOpportunity')" @click="example = 'linked'" />
+              <UButton color="neutral" variant="outline" size="sm" :label="t('inbox.firstUse.close')" @click="example = 'closed'" />
+            </div>
+          </div>
+        </SharedRecordSection>
+      </div>
+    </SharedRecordSection>
     <SharedConversationLayout :class="{ 'liwan-conversation-fill--open': hasSelection }" :has-selection="hasSelection" :info-open="panelOpen">
       <template #list>
         <InboxConversationList class="min-h-0 flex-1" :route-state="routeState" :selected-id="props.conversationId" @update:route-state="updateRoute" />
@@ -144,9 +175,8 @@ function updateRoute(next: InboxListRoute, options?: { replace: boolean }) {
             :title="hasConversations ? t('inbox.select') : t('inbox.list.empty')"
             :description="hasConversations ? t('inbox.selectDescription') : t('inbox.list.emptyDescription')"
           >
-            <template v-if="canShowUnassigned || canConnectChannel" #action>
-              <UButton v-if="canShowUnassigned" color="neutral" variant="soft" icon="i-lucide-user-x" :label="t('inbox.showUnassigned')" data-testid="inbox-show-unassigned" @click="updateRoute({ ...routeState, assignee: 'unassigned', offset: 0 })" />
-              <UButton v-else to="/settings/apps/inbox#channels" icon="i-lucide-plug" :label="t('inbox.connectChannel')" data-testid="inbox-connect-channel" />
+            <template v-if="canShowUnassigned" #action>
+              <UButton color="neutral" variant="soft" icon="i-lucide-user-x" :label="t('inbox.showUnassigned')" data-testid="inbox-show-unassigned" @click="updateRoute({ ...routeState, assignee: 'unassigned', offset: 0 })" />
             </template>
           </EmptyState>
         </div>

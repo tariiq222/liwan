@@ -15,14 +15,14 @@ const KpiStrip = Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs }
 const agent: CrmDashboard['agent'] = { due_now: 1, new_today: 0, won_this_month: { count: 0, value: 0 } }
 const manager: NonNullable<CrmDashboard['manager']> = { unassigned: 1, needs_manager: 0, due_follow_ups: 0, won_this_month: { count: 0, value: 0 }, conversion_by_source: [], agents: [] }
 
-function render(data: CrmDashboard) {
+function render(data: CrmDashboard, opportunities = 0, canCreate = true) {
   const none = { data: Vue.ref(undefined), isLoading: Vue.ref(false), error: Vue.ref(null), refetch: () => {} }
   return renderShared(file, {}, {}, {
     stubs: {
-      ...DEFAULT_STUBS, SharedPageContainer: section('main'), SharedPageHeader: marker('header'), SharedPageState: PageState, SharedKpiStrip: KpiStrip, SharedForbiddenState: marker('forbidden'),
+      ...DEFAULT_STUBS, SharedPageContainer: section('main'), SharedPageHeader: marker('header'), SharedPageState: PageState, SharedKpiStrip: KpiStrip, SharedForbiddenState: marker('forbidden'), UAlert: section('div'),
     },
     globals: {
-      useAccess: () => ({ can: () => true }),
+      useAccess: () => ({ can: (key: string) => key !== 'crm.leads.work' || canCreate }),
       useMe: () => ({ me: Vue.ref({ id: 2 }) }),
     },
     modules: {
@@ -30,7 +30,7 @@ function render(data: CrmDashboard) {
       '@/components/crm/dashboard/CrmDashboardConversion.vue': { __esModule: true, default: marker('conversion') },
       '@/components/crm/dashboard/CrmDashboardDueList.vue': { __esModule: true, default: marker('due-list') },
       '@/composables/crm/useCrmDashboard': { useCrmDashboard: () => ({ ...none, data: Vue.ref(data) }) },
-      '@/composables/crm/useOpportunities': { useCrmOpportunities: () => ({ ...none, data: Vue.ref({ items: [], total: 0 }) }) },
+      '@/composables/crm/useOpportunities': { useCrmOpportunities: () => ({ ...none, data: Vue.ref({ items: [], total: opportunities }) }) },
       '@/utils/crmDashboard': crmDashboard,
       '@/utils/crmOpportunity': crmOpportunity,
     },
@@ -38,6 +38,13 @@ function render(data: CrmDashboard) {
 }
 
 describe('the CRM dashboard page', () => {
+  it('guides eligible CRM users to create the first opportunity', async () => {
+    const data = { agent, manager: null }
+    expect(await render(data)).toContain('data-testid="crm-first-opportunity"')
+    expect(await render(data, 1)).not.toContain('data-testid="crm-first-opportunity"')
+    expect(await render(data, 0, false)).not.toContain('data-testid="crm-first-opportunity"')
+  })
+
   it('shows the agent block and no manager block when the server sends none', async () => {
     const html = await render({ agent, manager: null })
     expect(html).toContain('crm-agent-kpis')

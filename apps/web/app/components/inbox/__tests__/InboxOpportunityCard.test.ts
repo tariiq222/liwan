@@ -23,6 +23,7 @@ function render({ read = true, write = true, data, error = null }: Setup, props:
       '@/composables/inbox/useInboxOpportunity': {
         useInboxOpportunityAccess: () => ({ read: Vue.ref(read), write: Vue.ref(write) }),
         useConversationOpportunity: () => query,
+        useCreateConversationOpportunity: () => mutation,
         useLinkConversationOpportunity: () => mutation,
         useUnlinkConversationOpportunity: () => mutation,
         useOpportunityPick: () => ({ ...query, data: Vue.ref({ items: [] }) }),
@@ -53,6 +54,13 @@ describe('InboxOpportunityCard', () => {
     const html = await render({ data: null })
     expect(html).toContain('غير مرتبطة')
     expect(html).toContain('data-testid="inbox-opportunity-link"')
+  })
+
+  it('offers creation from a contact with a phone and protects read-only conversations', async () => {
+    expect(await render({ data: null })).toContain('data-testid="inbox-opportunity-create"')
+    expect(await render({ data: null }, { contactPhone: null })).not.toContain('data-testid="inbox-opportunity-create"')
+    expect(await render({ data: null }, { canReply: false })).not.toContain('data-testid="inbox-opportunity-create"')
+    expect(await render({ data: linked })).not.toContain('data-testid="inbox-opportunity-create"')
   })
 
   it('offers neither link nor unlink without the write capabilities or the reply right', async () => {

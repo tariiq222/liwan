@@ -523,6 +523,11 @@
       }
     },
     "dashboard": {
+      "firstOpportunity": {
+        "title": "Start with your first opportunity",
+        "description": "Add your first prospect and track their opportunity in your pipeline.",
+        "action": "Create your first opportunity"
+      },
       "agent": {
         "title": "Mine",
         "dueNow": "Calls due now",

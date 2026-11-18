@@ -1,11 +1,12 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ConversationOpportunityAnswerSchema, CrmOpportunityListSchema } from '@liwan/contracts'
+import { crmKeys } from '../crm/crmKeys'
 import { opportunityConversationsKey } from '../opportunityConversationsKey'
 import { inboxKeys } from './useInbox'
 
 // The opportunity a conversation is linked to (the inbox bridge to CRM). It is read and written only while the tenant has
-// CRM and the user holds both applications' capabilities; the link is always an existing opportunity.
+// CRM and the user holds both applications' capabilities.
 
 /** Rows the opportunity picker asks for. */
 export const OPPORTUNITY_PICK_LIMIT = 20
@@ -26,6 +27,22 @@ export function useConversationOpportunity(conversationId: MaybeRefOrGetter<numb
     enabled: computed(() => toValue(conversationId) > 0 && toValue(enabled)),
     retry: false,
     queryFn: ({ signal }) => $api(`/api/v1/inbox/conversations/${toValue(conversationId)}/opportunity`, { signal, schema: ConversationOpportunityAnswerSchema }),
+  })
+}
+
+export function useCreateConversationOpportunity() {
+  const { $api } = useApi()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => $api(`/api/v1/inbox/conversations/${id}/opportunity`, {
+      method: 'POST', body: {}, schema: ConversationOpportunityAnswerSchema,
+    }),
+    onSuccess: (created, id) => {
+      qc.setQueryData(inboxKeys.opportunity(id), created)
+      void qc.invalidateQueries({ queryKey: [...crmKeys.opportunities, 'list'] })
+      void qc.invalidateQueries({ queryKey: crmKeys.dashboardAll })
+    },
+    onError: (_, id) => qc.invalidateQueries({ queryKey: inboxKeys.opportunity(id) }),
   })
 }
 
