@@ -411,6 +411,7 @@ class ComposeNetworksCase(unittest.TestCase):
                 'LIWAN_AI_PLATFORM_DIR': tempfile.gettempdir(),
                 'LIWAN_SHARED_PROXY_TOKEN': 'synthetic-not-a-real-token',
                 'LIWAN_SESSION_KEYS': '{}', 'LIWAN_SESSION_ACTIVE_KID': 'test',
+                'LIWAN_EDGE_BIND': '127.0.0.1', 'LIWAN_EDGE_HTTP_PORT': '80', 'LIWAN_EDGE_HTTPS_PORT': '443',
                 'LIWAN_SHARED_ODOO_CONFIG': '/synthetic/odoo.conf',
                 'LIWAN_TIKTOK_CLIENT_KEY': 'synthetic-not-a-key',
                 'LIWAN_TIKTOK_CLIENT_SECRET': 'synthetic-not-a-secret',

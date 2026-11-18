@@ -572,5 +572,5 @@ image pins have their own offline suites:
 ```sh
 PYTHONPATH=deploy python3 -m unittest deploy.test_odoo_sizing deploy.test_s3_client \
   deploy.test_backup_pipeline deploy.test_restore_drill deploy.test_alerts \
-  deploy.test_image_pins deploy.staging.test_staging
+  deploy.test_image_pins deploy.environments.test_environments
 ```

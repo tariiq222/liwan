@@ -21,6 +21,7 @@ function rendered(shared: boolean, extra: readonly string[] = [], env: Readonly<
     ODOO_COMMIT: 'synthetic', DB_NAME: 'synthetic', DB_PASSWORD: 'synthetic-not-secret',
     LIWAN_SHARED_PROXY_TOKEN: 'synthetic-not-a-real-token', LIWAN_SESSION_KEYS: '{}', LIWAN_SESSION_ACTIVE_KID: 'test',
     LIWAN_TENANT_REGISTRY_DIR: '/synthetic/registry', LIWAN_SHARED_ODOO_CONFIG: '/synthetic/odoo.conf',
+    LIWAN_EDGE_BIND: '0.0.0.0', LIWAN_EDGE_HTTP_PORT: '80', LIWAN_EDGE_HTTPS_PORT: '443',
     ...env,
   } }))
 }

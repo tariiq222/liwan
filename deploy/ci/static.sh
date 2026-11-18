@@ -29,9 +29,9 @@ policies() {
     python3 -m pip install --quiet pyyaml==6.0.3
   fi
   PYTHONPATH=deploy python3 -B -m unittest deploy/test_*.py
-  # The staging definition lives in its own package, so `deploy/test_*.py` does not
-  # match it; run it explicitly or its checks silently never execute in CI.
-  PYTHONPATH=deploy python3 -B -m unittest discover -s deploy/staging -t . -p 'test_*.py'
+  # The environment templates live in their own package, so `deploy/test_*.py` does not
+  # match them; run it explicitly or its checks silently never execute in CI.
+  PYTHONPATH=deploy python3 -B -m unittest discover -s deploy/environments -t . -p 'test_*.py'
   python3 -B -m unittest tools/shared_saas_lifecycle/test_*.py
   python3 -B tools/catalog_check.py
   python3 -B tools/migration_guard.py --base "$BASE_REF"
