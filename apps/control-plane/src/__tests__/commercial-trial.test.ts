@@ -110,7 +110,7 @@ suite('commercial trial', () => {
   it('issues the paid base first renewal only after the lapse lock applies', async () => {
     const c = await trialAt(now, -1)
     const subscription = await getSubscription(pool, c.id)
-    const adapter = new SimulatorAdapter(), returnOrigin = fixedReturnOrigin('https://liwan.test')
+    const returnOrigin = fixedReturnOrigin('https://liwan.test')
     await expireTrials(pool, { now, subscription_id: subscription.id })
     expect((await getSubscription(pool, c.id)).state).toBe('active')
     expect(await generateRenewals(pool, { now, returnOrigin, subscription_id: subscription.id })).toHaveLength(0)
@@ -121,9 +121,9 @@ suite('commercial trial', () => {
   it('leaves a trial whose workspace is not active yet running instead of ending it with no invoice', async () => {
     const c = await newCustomer()
     await startTrial(pool, { customer_id: c.id, request: request(), principal: c.principal, now: new Date(now.getTime() - 20 * 86_400_000) })
-    const adapter = new SimulatorAdapter(), returnOrigin = fixedReturnOrigin('https://liwan.test')
+    const returnOrigin = fixedReturnOrigin('https://liwan.test')
     const sub = await getSubscription(pool, c.id)
-    expect((await expireTrials(pool, { now, adapter, returnOrigin, subscription_id: sub.id })).expired).toEqual([])
+    expect((await expireTrials(pool, { now, subscription_id: sub.id })).lapsed).toEqual([])
     await expect(endTrial(pool, { subscription_id: sub.id, reason: 'End now', actor: 'vendor', now })).rejects.toMatchObject({ status: 409, code: 'trial_not_applied' })
     await expect(convertTrial(pool, { customer_id: c.id, now, returnOrigin })).rejects.toMatchObject({ status: 409, code: 'trial_not_applied' })
     expect((await getSubscription(pool, c.id)).state).toBe('trialing')
@@ -131,7 +131,6 @@ suite('commercial trial', () => {
   })
   it('ends a trial whose customer has no usable return origin, marks it billing-blocked and invoices it once the origin works', async () => {
     const c = await trialAt(now, -1)
-    const adapter = new SimulatorAdapter()
     const sub = await getSubscription(pool, c.id)
     await expireTrials(pool, { now, subscription_id: sub.id })
     await finishLapse(sub.id)
@@ -153,7 +152,6 @@ suite('commercial trial', () => {
   it('keeps the billing block when the run finds a usable origin but generates no order', async () => {
     const c = await trialAt(now, -1)
     const sub = await getSubscription(pool, c.id)
-    const adapter = new SimulatorAdapter()
     await expireTrials(pool, { now, subscription_id: sub.id })
     await finishLapse(sub.id)
     const locked = await getSubscription(pool, c.id)
@@ -180,7 +178,6 @@ suite('commercial trial', () => {
     const c = await trialAt(now, 3)
     const sub = await getSubscription(pool, c.id)
     await pool.query("UPDATE subscriptions SET state='active',trial_ends_at=NULL,renewal_at=$2,revision=revision+1 WHERE id=$1", [sub.id, riyadhDate(now)])
-    const adapter = new SimulatorAdapter()
     if (withRenewal) await generateRenewals(pool, { now, returnOrigin: fixedReturnOrigin('https://liwan.test'), subscription_id: sub.id })
     const marker = async () => (await pool.query('SELECT billing_blocked_at FROM subscriptions WHERE id=$1', [sub.id])).rows[0].billing_blocked_at
     const run = (origin: string) => generateRenewals(pool, { now, returnOrigin: fixedReturnOrigin(origin), subscription_id: sub.id })
@@ -225,7 +222,7 @@ suite('commercial trial', () => {
   })
   it('does not end a trial before its end date', async () => {
     const c = await trialAt(now, 2)
-    await expireTrials(pool, { now, adapter: new SimulatorAdapter(), returnOrigin: fixedReturnOrigin('https://liwan.test') })
+    await expireTrials(pool, { now })
     expect((await getSubscription(pool, c.id)).state).toBe('trialing')
   })
   it('writes each notice threshold exactly once', async () => {
@@ -290,9 +287,9 @@ suite('commercial trial', () => {
     expect(result.order).toBeTruthy()
     expect(result.order!.customer_id).toBe(c.id)
     expect(await pool.query('SELECT 1 FROM payment_attempts WHERE order_id=$1', [result.order!.id])).toMatchObject({ rowCount: 0 }) // paid through the card form, never a hosted link
-    expect((await getSubscription(pool, c.id)).state).toBe('past_due')
+    expect((await getSubscription(pool, c.id)).state).toBe('trialing')
     expect((await pool.query('SELECT count(*)::int AS n FROM invoices WHERE customer_id=$1', [c.id])).rows[0].n).toBe(1)
-    expect((await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE action='trial.converted' AND subject=(SELECT id::text FROM subscriptions WHERE customer_id=$1)", [c.id])).rows[0].n).toBe(1)
+    expect((await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE action='trial.converted' AND subject=(SELECT id::text FROM subscriptions WHERE customer_id=$1)", [c.id])).rows[0].n).toBe(0)
   })
   it('catches up a notice when the scheduler missed the exact day', async () => {
     const c = await trialAt(now, 2)

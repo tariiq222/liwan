@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { activeManifests } from '../../modules/manifests'
 import { appRootFallback, canReach, canReachPath, hasCapability, firstAllowedPath, isNavPathActive, requiredCapabilityForPath, requiredFeatureForPath, postLoginPath, planDenialCode } from '../accessPolicy'
 
 describe('access policy navigation', () => {
@@ -245,6 +246,15 @@ describe('why a closed page is closed', () => {
       expect(canReachPath(unpaid, path), path).toBe(true)
     }
     expect(canReachPath(unpaid, '/account/leave/new')).toBe(false)
+  })
+  it('names the plan when an application settings page is opened while its feature is only readable', () => {
+    const settingsPath = activeManifests().find(manifest => manifest.id === 'hr')!.settings!.to
+    const readOnlyApp = { capabilities: ['hr.employees.read', 'hr.leave.config'], platform: { readable_features: ['hr.enabled'], writable_features: [] } }
+    const writableApp = { ...readOnlyApp, platform: { readable_features: ['hr.enabled'], writable_features: ['hr.enabled'] } }
+    expect(canReachPath(readOnlyApp, settingsPath)).toBe(false)
+    expect(planDenialCode(readOnlyApp, settingsPath)).toBe('feature_not_included')
+    expect(canReachPath(readOnlyApp, '/hr')).toBe(true)
+    expect(canReachPath(writableApp, settingsPath)).toBe(true)
   })
   it('stays silent when the user simply lacks the permission', () => {
     const on = { capabilities: ['hr.employees.read'], platform: { readable_features: ['hr.enabled'], writable_features: ['hr.enabled'] } }

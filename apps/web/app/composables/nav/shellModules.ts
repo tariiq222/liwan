@@ -107,17 +107,19 @@ export interface ShellModuleDefinition {
   to: string
   /** Position in the icon row of the free base-system applications; set on those only. */
   core?: number
+  /** Position in the sidebar's bottom group, above «كل التطبيقات» and the settings; set on those entries only. */
+  footer?: number
 }
 
 /** The start page of an application (`/apps/<id>`); it is not a manifest module, so no navigation item or capability belongs to it. */
 export const LAUNCHER_MODULE: ShellModuleDefinition = { id: LAUNCHER_MODULE_ID, labelKey: 'nav.apps', icon: 'i-lucide-layout-grid', to: '/' }
 
-/** Every rail module: home, the applications by manifest `order`, then settings (the rail places each by `core`). */
+/** Every rail module: home, the applications by manifest `order`, then settings (the rail places each by `core` or `footer`). */
 export function shellModuleList(): ShellModuleDefinition[] {
   const applications = activeManifests().flatMap(manifest => manifest.rail).sort((a, b) => a.order - b.order)
   return [
     { id: 'home', labelKey: 'nav.home', icon: House, to: '/' },
-    ...applications.map(({ id, labelKey, shortLabelKey, icon, to, core }) => ({ id, labelKey, shortLabelKey, icon, to, ...(core ? { core } : {}) })),
+    ...applications.map(({ id, labelKey, shortLabelKey, icon, to, core, footer }) => ({ id, labelKey, shortLabelKey, icon, to, ...(core ? { core } : {}), ...(footer ? { footer } : {}) })),
     // Settings is administration only: the account card is in the sidebar footer and the appearance button in the top bar.
     { id: 'settings', labelKey: 'nav.settings', icon: Settings, to: SETTINGS_ENTRY_PATH },
   ]

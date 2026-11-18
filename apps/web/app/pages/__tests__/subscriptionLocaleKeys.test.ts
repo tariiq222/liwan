@@ -24,6 +24,7 @@ const FILES = [
   'app/pages/subscription/index.vue',
   'app/pages/subscription/change.vue',
   'app/pages/subscription/status.vue',
+  'app/pages/subscription/activate.vue',
   'app/pages/subscription/pay/[order].vue',
   'app/components/subscription/PaymentForm.vue',
   'app/components/subscription/PaymentMethodPanel.vue',

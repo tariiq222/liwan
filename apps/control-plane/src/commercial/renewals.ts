@@ -1,3 +1,5 @@
+import { markTrialCheckoutPaidOn, trialCheckoutPrefix } from './trial-checkout.js'
+import { paidTrialLines, trialLedger } from './trial-ledger.js'
 import { deletionClockRunningSql } from './tenant-deletion-read.js'
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
@@ -32,6 +34,66 @@ export async function onRenewalPaid(client: PoolClient, order_id: string) {
   // Fulfillment receipt, not payment, advances the applied subscription period. A suspension the vendor ordered stays until the vendor resumes.
   await client.query(`UPDATE subscriptions SET state='active',grace_ends_at=NULL,revision=revision+1
     WHERE id=$1 AND state IN ('active','past_due','suspended') AND (state<>'active' OR grace_ends_at IS NOT NULL) AND NOT manual_suspension`, [renewal.subscription_id])
+}
+
+
+export async function buildRenewalOn(client: PoolClient, sub: Record<string, any>,
+  { now, start, trialCheckout = false }: { now: Date; start: string; trialCheckout?: boolean }) {
+  const snapshot = (await client.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [sub.applied_revision_id])).rows[0].snapshot
+  const end = addCadence(start, snapshot.cadence, 1)
+  const renewalId = randomUUID()
+  const inserted = await client.query(`INSERT INTO renewals(id,subscription_id,period_start,period_end)
+    VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING RETURNING id`, [renewalId,sub.id,start,end])
+  if (!inserted.rowCount) return null
+  // Never select a newer plan, bundle, policy or terms revision during renewal.
+  const sources = await loadQuoteSources(client, sub.customer_id, snapshot, false)
+  if (!snapshot.terms_revision_id) sources.terms = null
+  const policy = (await client.query('SELECT * FROM pricing_policy_revisions WHERE id=$1', [snapshot.policy_revision_id])).rows[0]
+  if (!policy) throw new Error('pinned_policy_missing')
+  sources.policy = policyWire(policy)
+  const pricing = await pricingOf(client, snapshot)
+  const paidThrough = trialCheckout
+    ? trialLedger(await paidTrialLines(client, sub.id, now), pricing, sources.plan, pricing.paid_extra_branches).paid_through
+    : sub.trial_paid_through ?? undefined
+  const extraBranches = Number(snapshot.included_extra_branches) + pricing.paid_extra_branches
+  const quantities = { users: sources.plan.included_users + pricing.paid_users, storage_mb: sources.plan.included_storage_mb + pricing.paid_storage_gb * 1024 }
+  const entitlement = trialCheckout ? compilePurchasedEntitlement({ ...sources,
+    release: await loadRelease(client, snapshot.entitlement.catalog_release_id), quantities, extraBranches }) : snapshot.entitlement
+  const quote = computeQuote({ ...sources,kind:'new',cadence:snapshot.cadence,
+    requested_extra_branches: extraBranches, requested_users: quantities.users, requested_storage_mb: quantities.storage_mb,
+    paid_through: paidThrough,
+    effective_date:start,period:{start,end},ids:{ id:randomUUID(),customer_id:sub.customer_id,subscription_id:sub.id,expected_subscription_revision:sub.revision },
+    expires_at:new Date(now.getTime()+30*60_000).toISOString(),entitlement_digest:entitlement.digest })
+  await client.query('INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,$3,$4,$5)', [quote.id,sub.customer_id,JSON.stringify(quote),quote.digest,quote.expires_at])
+  // Odoo may already have materialized the restricted policy for the trial revision. A paid
+  // conversion advances the revision, so the host applies the whole purchased policy again.
+  const targetRevision = trialCheckout ? randomUUID() : sub.applied_revision_id
+  if (trialCheckout) {
+    const { branch_archive_ids: _archive, branch_restore_ids: _restore, ...applied } = snapshot
+    const converted = { ...applied, period_start: start, period_end: end, entitlement, trial_end: true, quote_id: quote.id }
+    await client.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,$3,$4,$5)',
+      [targetRevision, sub.id, sub.revision + 1, JSON.stringify(converted), quote.id])
+    await client.query('UPDATE subscriptions SET target_revision_id=$2,revision=revision+1 WHERE id=$1', [sub.id, targetRevision])
+  }
+  const key = `${trialCheckout ? trialCheckoutPrefix : 'renewal:'}${sub.id}:${start}:${renewalId}`
+  const row = (await client.query(`INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,expected_applied_revision_id,
+    payment_state,fulfillment_state,effective_at,idempotency_key,request_digest,due_now_minor,currency,exponent)
+    VALUES($1,$2,$3,'renewal',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+  [randomUUID(),sub.customer_id,sub.id,quote.id,targetRevision,sub.applied_revision_id,quote.due_now.minor ? 'awaiting_payment':'not_required',
+    quote.due_now.minor ? 'not_started':'queued',`${start}T00:00:00+03:00`,key,digestOf({subscription_id:sub.id,period_start:start,quote_digest:quote.digest}),quote.due_now.minor,quote.due_now.currency,quote.due_now.exponent])).rows[0]
+  const order = orderView(row)
+  const immediate = trialCheckout
+    || (await client.query("SELECT 1 FROM free_base_locks WHERE subscription_id=$1 AND state='done' AND period_start=$2", [sub.id, start])).rowCount
+  const invoice = await issueInvoiceFromQuote(client, { order, quote, dueDays: immediate ? 0 : undefined })
+  await client.query('UPDATE renewals SET order_id=$2,invoice_id=$3 WHERE id=$1', [renewalId,order.id,invoice?.id ?? null])
+  if (!invoice) {
+    if (trialCheckout) await markTrialCheckoutPaidOn(client, row, now,
+      { actor: `customer:${sub.customer_id}`, reason: 'First paid period already covered; nothing was charged' })
+    await onRenewalPaid(client, order.id)
+    await enqueueOutbox(client,{kind:'fulfillment.enqueue',aggregate_id:order.id,dedupe_key:order.target_revision_id,
+      payload:{order_id:order.id,subscription_id:sub.id,target_revision_id:order.target_revision_id}})
+  }
+  return { order, invoice }
 }
 
 /**
@@ -83,60 +145,12 @@ export async function generateRenewals(pool: Pool, { now = new Date(), returnOri
       // An armed free-base lock still holds the paid snapshot until the lock applies: its renewal is the free base's, and that is
       // generated once the lock is applied. The locked configuration is never invoiced.
       if ((await client.query(`SELECT ${holdsFreeBaseLockSql('s')} AS held FROM subscriptions s WHERE s.id=$1`, [sub.id])).rows[0].held) return null
-      const snapshot = (await client.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [sub.applied_revision_id])).rows[0].snapshot
-      const start = date(sub.renewal_at), end = addCadence(start, snapshot.cadence, 1)
-      const renewalId = randomUUID()
-      const inserted = await client.query(`INSERT INTO renewals(id,subscription_id,period_start,period_end)
-        VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING RETURNING id`, [renewalId,sub.id,start,end])
-      if (!inserted.rowCount) return null
-      // Never select a newer plan, bundle, policy or terms revision during renewal.
-      const sources = await loadQuoteSources(client, sub.customer_id, snapshot, false)
-      if (!snapshot.terms_revision_id) sources.terms = null
-      const policy = (await client.query('SELECT * FROM pricing_policy_revisions WHERE id=$1', [snapshot.policy_revision_id])).rows[0]
-      if (!policy) throw new Error('pinned_policy_missing')
-      sources.policy = policyWire(policy)
-      const pricing = await pricingOf(client, snapshot)
-      const converting = sub.trial_ends_at !== null && sub.trial_outcome === 'converted'
-      const extraBranches = Number(snapshot.included_extra_branches) + pricing.paid_extra_branches
-      const quantities = { users: sources.plan.included_users + pricing.paid_users, storage_mb: sources.plan.included_storage_mb + pricing.paid_storage_gb * 1024 }
-      const entitlement = converting ? compilePurchasedEntitlement({ ...sources,
-        release: await loadRelease(client, snapshot.entitlement.catalog_release_id), quantities, extraBranches }) : snapshot.entitlement
-      const quote = computeQuote({ ...sources,kind:'new',cadence:snapshot.cadence,
-        requested_extra_branches: extraBranches, requested_users: quantities.users, requested_storage_mb: quantities.storage_mb,
-        paid_through: sub.trial_paid_through ?? undefined,
-        effective_date:start,period:{start,end},ids:{ id:randomUUID(),customer_id:sub.customer_id,subscription_id:sub.id,expected_subscription_revision:sub.revision },
-        expires_at:new Date(now.getTime()+30*60_000).toISOString(),entitlement_digest:entitlement.digest })
-      await client.query('INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,$3,$4,$5)', [quote.id,sub.customer_id,JSON.stringify(quote),quote.digest,quote.expires_at])
-      // Odoo may already have materialized the restricted policy for the trial revision. A paid
-      // conversion advances the revision, so the host applies the whole purchased policy again.
-      const targetRevision = converting ? randomUUID() : sub.applied_revision_id
-      if (converting) {
-        const { branch_archive_ids: _archive, branch_restore_ids: _restore, ...applied } = snapshot
-        const converted = { ...applied, period_start: start, period_end: end, entitlement, trial_end: true, quote_id: quote.id }
-        await client.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,$3,$4,$5)',
-          [targetRevision, sub.id, sub.revision + 1, JSON.stringify(converted), quote.id])
-        await client.query('UPDATE subscriptions SET target_revision_id=$2,revision=revision+1 WHERE id=$1', [sub.id, targetRevision])
-      }
-      const key = `renewal:${sub.id}:${start}:${renewalId}`
-      const row = (await client.query(`INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,expected_applied_revision_id,
-        payment_state,fulfillment_state,effective_at,idempotency_key,request_digest,due_now_minor,currency,exponent)
-        VALUES($1,$2,$3,'renewal',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
-      [randomUUID(),sub.customer_id,sub.id,quote.id,targetRevision,sub.applied_revision_id,quote.due_now.minor ? 'awaiting_payment':'not_required',
-        quote.due_now.minor ? 'not_started':'queued',`${start}T00:00:00+03:00`,key,digestOf({subscription_id:sub.id,period_start:start,quote_digest:quote.digest}),quote.due_now.minor,quote.due_now.currency,quote.due_now.exponent])).rows[0]
-      const order = orderView(row)
-      const immediate = converting
-        || (await client.query("SELECT 1 FROM free_base_locks WHERE subscription_id=$1 AND state='done' AND period_start=$2", [sub.id, start])).rowCount
-      const invoice = await issueInvoiceFromQuote(client, { order, quote, dueDays: immediate ? 0 : undefined })
-      await client.query('UPDATE renewals SET order_id=$2,invoice_id=$3 WHERE id=$1', [renewalId,order.id,invoice?.id ?? null])
-      if (!invoice) {
-        await onRenewalPaid(client, order.id)
-        await enqueueOutbox(client,{kind:'fulfillment.enqueue',aggregate_id:order.id,dedupe_key:order.target_revision_id,
-          payload:{order_id:order.id,subscription_id:sub.id,target_revision_id:order.target_revision_id}})
-      }
+      const renewal = await buildRenewalOn(client, sub, { now, start: date(sub.renewal_at) })
+      if (!renewal) return null
       // The block ends with the order it was blocking, in the same transaction: a run that fails or finds nothing to
       // generate leaves the flag for the vendor.
       await client.query('UPDATE subscriptions SET billing_blocked_at=NULL,renewal_failure=NULL,renewal_failed_at=NULL WHERE id=$1 AND (billing_blocked_at IS NOT NULL OR renewal_failure IS NOT NULL)', [sub.id])
-      return { order,invoice }
+      return renewal
     })
     if (!result) continue
     generated.push(result.order)

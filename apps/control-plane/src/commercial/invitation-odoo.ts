@@ -21,6 +21,7 @@ export function odooSetPassword(adapter: OdooPasswordAdapter): SetPassword {
         !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(result.changed_at) || !Number.isFinite(Date.parse(result.changed_at))) {
         throw Error('script_failed')
       }
+      return Number(result.user_id)
     } catch (e) {
       const code = e instanceof Error && codes.has(e.message) ? e.message : 'script_failed'
       throw new InvitationError(code)

@@ -8,7 +8,7 @@ import { enqueueOutbox } from './outbox.js'
 /** Build an immutable zero-due delivery from an existing trial configuration. Caller owns the subscription row. */
 export async function queueTrialPolicyRevision(client: PoolClient, sub: {
   id: string; customer_id: string; revision: number; applied_revision_id: string | null
-}, input: { kind: 'trial-bootstrap' | 'trial-reopen'; sourceId: string; endsAt: Date; now: Date }) {
+}, input: { kind: 'trial-bootstrap' | 'trial-reopen'; sourceId: string; endsAt: Date; now: Date; startsAt?: Date }) {
   const { sourceId } = input
   const snapshot = (await client.query('SELECT snapshot FROM subscription_revisions WHERE id=$1 AND subscription_id=$2', [sourceId, sub.id])).rows[0]?.snapshot
   if (!snapshot) return null
@@ -22,7 +22,7 @@ export async function queueTrialPolicyRevision(client: PoolClient, sub: {
   quote.digest = digestOf({ ...quote, digest: undefined })
   const revisionId = randomUUID(), orderId = randomUUID()
   const { branch_archive_ids: _archive, branch_restore_ids: _restore, trial_end: _end, ...trial } = snapshot
-  const next = { ...trial, period_end: periodEnd, quote_id: quote.id, pricing }
+  const next = { ...trial, ...(input.startsAt ? { period_start: riyadhDate(input.startsAt) } : {}), period_end: periodEnd, quote_id: quote.id, pricing }
   await client.query('INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,$3,$4,$5)',
     [quote.id, sub.customer_id, JSON.stringify(quote), quote.digest, quote.expires_at])
   await client.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,$3,$4,$5)',

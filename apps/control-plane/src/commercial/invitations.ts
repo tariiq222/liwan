@@ -46,7 +46,7 @@ async function recordDelivery(pool: Pool, outboxId: string, invitationId: string
 
 /** Sets the tenant admin's own Odoo password. Without a configured adapter the default refuses,
  *  so acceptance never fakes success. */
-export type SetPassword = (input: { tenant_id: string; admin_login: string; password: string; token: string }) => Promise<void>
+export type SetPassword = (input: { tenant_id: string; admin_login: string; password: string; token: string }) => Promise<number | void>
 export const unimplementedSetPassword: SetPassword = async () => { throw new InvitationError('password_setter_unavailable') }
 
 export class InvitationError extends Error { constructor(public code: string) { super(code) } }
@@ -219,7 +219,11 @@ export async function acceptInvitation(pool: Pool, a: { token: string; password:
        RETURNING tenant_id, admin_login, customer_id`, [hashToken(a.token)])
     if (!r.rows[0]) { await c.query('ROLLBACK'); throw new InvitationError('invalid') }
     // Failure here rolls back the consume, so the invitation stays usable; the password is never stored.
-    await (a.setPassword ?? unimplementedSetPassword)({ tenant_id: r.rows[0].tenant_id, admin_login: r.rows[0].admin_login, password: a.password, token: a.token })
+    const userId = await (a.setPassword ?? unimplementedSetPassword)({ tenant_id: r.rows[0].tenant_id, admin_login: r.rows[0].admin_login, password: a.password, token: a.token })
+    if (typeof userId === 'number') {
+      await c.query(`UPDATE public_signup_trials SET first_admin_user_id=$2
+        WHERE customer_id=$1 AND requires_first_login AND first_admin_user_id IS NULL`, [r.rows[0].customer_id, userId])
+    }
     await c.query('COMMIT')
     return { tenant_id: r.rows[0].tenant_id as string, admin_login: r.rows[0].admin_login as string }
   } catch (e) {

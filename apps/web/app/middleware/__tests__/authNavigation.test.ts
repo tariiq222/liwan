@@ -9,16 +9,22 @@ function deferred() {
   return { promise, resolve }
 }
 
-function loadGuard(client = true, suspended = false, hydrating = false) {
+function loadGuard(client = true, suspended = false, hydrating = false, saas = false) {
   const ready = deferred()
   const notification = deferred()
-  const me = ref<unknown>(suspended ? null : { id: 1 })
+  const me = ref<unknown>(suspended ? null : { id: 1, ...(saas ? { commercial: { mode: 'saas' } } : {}) })
   const refresh = vi.fn(async () => { me.value = { id: 2 } })
   const callHook = vi.fn(() => notification.promise)
   const canReachPath = vi.fn(() => true)
   const appRootFallback = vi.fn((): string | null => null)
   const planDenialCode = vi.fn((): string | null => null)
+  const checked = ref<number | null>(null)
+  const trialActivation = vi.fn(async () => ({ state: 'waiting' }))
   const bindings = {
+    useRuntimeConfig: () => ({ public: { customerCommercialEnabled: true } }),
+    useState: () => checked,
+    useSubscriptionApi: () => ({ trialActivation }),
+    useCustomerCapabilities: () => ({ can: () => true }),
     defineNuxtRouteMiddleware: (handler: unknown) => handler,
     useNuxtApp: () => ({ $i18n: { t: (key: string) => key }, callHook, isHydrating: hydrating, payload: { serverRendered: true } }),
     useMe: () => ({ me, error: ref(suspended ? { statusCode: 403, data: { code: 'tenant_suspended' } } : null), ready: ready.promise, refresh }),
@@ -37,7 +43,7 @@ function loadGuard(client = true, suspended = false, hydrating = false) {
     .replace('export default', 'return')
   const code = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
   const guard = new Function(...Object.keys(bindings), code)(...Object.values(bindings)) as (to: { path: string; fullPath: string; meta?: { access?: string } }) => Promise<unknown>
-  return { ...bindings, guard, ready, notification, refresh, callHook, canReachPath, appRootFallback, planDenialCode }
+  return { ...bindings, trialActivation, guard, ready, notification, refresh, callHook, canReachPath, appRootFallback, planDenialCode }
 }
 
 it('publishes the actual client target before readiness and waits for listeners before refreshing identity', async () => {
@@ -134,4 +140,13 @@ it('reuses the already checked server identity during initial hydration', async 
   await view.guard({ path: '/projects', fullPath: '/projects' })
   expect(view.refresh).not.toHaveBeenCalled()
   expect(view.canReachPath).toHaveBeenCalledWith({ id: 1 }, '/projects')
+})
+
+it('sends an authenticated signup administrator to trial setup before applying the app route gates', async () => {
+  const view = loadGuard(false, false, false, true)
+  view.ready.resolve()
+  await view.guard({ path: '/crm', fullPath: '/crm' })
+  expect(view.trialActivation).toHaveBeenCalledOnce()
+  expect(view.navigateTo).toHaveBeenCalledWith('/subscription/activate', { replace: true })
+  expect(view.canReachPath).not.toHaveBeenCalled()
 })

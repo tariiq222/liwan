@@ -1,3 +1,4 @@
+import { signupAppsSchema, type SignupApp } from '@liwan/commercial-contracts'
 import { createHmac, randomInt, randomUUID, timingSafeEqual } from 'node:crypto'
 import { z } from 'zod'
 import type { Pool, PoolClient } from 'pg'
@@ -6,6 +7,7 @@ import { CommercialHttpError } from '../commercial/lifecycle.js'
 import { startTrialOn } from '../commercial/trial.js'
 import { companyDomain } from './company-domain.js'
 import { isFreeMailAddress } from './free-mail.js'
+import { loadSignupOffer, signupCadence } from './offer.js'
 import type { HumanCheckSettings } from './human-check.js'
 
 const minutes = (count: number) => count * 60_000
@@ -23,12 +25,13 @@ type Channel = 'sms' | 'email'
 type SendCode = (destination: string, code: string) => Promise<void>
 // The vendor-set legal pages: the terms version a visitor must accept and the site base URL that hosts the texts.
 export type LegalSettings = { baseUrl: string; termsVersion: string }
-type Settings = { secret: string; planId: string; dailyLimit: number; legal: LegalSettings; humanCheck: HumanCheckSettings; sms: SendCode; email: SendCode; now?: () => Date }
+type Settings = { secret: string; planId: string; dailyLimit: number; paused?: boolean; legal: LegalSettings; humanCheck: HumanCheckSettings; sms: SendCode; email: SendCode; now?: () => Date }
 type Challenge = {
   id: string; company_name: string; admin_name: string; email: string; mobile: string;
   expires_at: Date; mobile_verified: boolean; completed: boolean;
   sms_digest: Buffer; sms_expires_at: Date; sms_attempts: number;
   email_digest: Buffer | null; email_expires_at: Date | null; email_attempts: number;
+  offer_revision: string | null; app_ids: SignupApp[] | null;
   terms_version: string; terms_accepted_at: Date; terms_accepted_ip: string;
 }
 
@@ -40,6 +43,8 @@ const personOrCompanyName = (max: number) => z.string().trim().min(1).max(max)
   .refine(value => !Array.from(value).some(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127))
 
 export const signupInput = z.strictObject({
+  offer_revision: z.uuid(),
+  app_ids: signupAppsSchema,
   company_name: personOrCompanyName(200),
   admin_name: personOrCompanyName(120),
   email: z.string().trim().toLowerCase().pipe(z.email().max(100)),
@@ -61,13 +66,17 @@ export class SignupService {
   private key(...parts: string[]) { return createHmac('sha256', this.settings.secret).update(JSON.stringify(parts)).digest() }
   private digest(id: string, channel: Channel, code: string) { return this.key('otp', id, channel, code) }
 
-  private async plan(client: Pick<Pool, 'query'>) {
-    const monthlyPrice = JSON.stringify([{ cadence: { unit: 'month', count: 1 } }])
-    const result = await client.query<{ included_users: number; included_storage_mb: number }>(`
-      SELECT included_users,included_storage_mb FROM plan_revisions
-      WHERE id=$1 AND status='published' AND available AND audience->>'kind'='public'
-        AND trial_days=14 AND prices @> $2::jsonb FOR SHARE`, [this.settings.planId, monthlyPrice])
-    return result.rows[0] ?? refuse('unavailable', 503)
+  async offer() {
+    if (this.settings.paused) refuse('unavailable', 503)
+    return (await transaction(this.pool, client => loadSignupOffer(client, this.settings.planId))).offer
+  }
+
+  private async selectedOffer(client: PoolClient, revision: string | null) {
+    if (revision !== this.settings.planId) refuse('offer_changed', 409)
+    try { return await loadSignupOffer(client, revision) } catch (error) {
+      if (error instanceof CommercialHttpError && error.status === 503) refuse('offer_changed', 409)
+      throw error
+    }
   }
 
   // Hold across counts and insert so concurrent instances share the same delivery budget.
@@ -118,7 +127,8 @@ export class SignupService {
   }
 
   async start(input: z.input<typeof signupInput>, ip: string) {
-    const { company_name, admin_name, email, mobile, accept_terms, terms_version, human_token } = signupInput.parse(input)
+    if (this.settings.paused) refuse('unavailable', 503)
+    const { company_name, admin_name, email, mobile, accept_terms, terms_version, human_token, offer_revision, app_ids } = signupInput.parse(input)
     if (accept_terms !== true) refuse('terms_not_accepted', 422)
     // The vendor changed the terms while the form was open: the visitor has not seen the current text.
     if (terms_version !== this.settings.legal.termsVersion) refuse('terms_changed', 409)
@@ -128,16 +138,16 @@ export class SignupService {
     const id = randomUUID()
     const code = codeValue()
     const now = this.now()
-    await this.plan(this.pool)
     await transaction(this.pool, async client => {
+      await this.selectedOffer(client, offer_revision)
       await this.lockDeliveries(client)
       await this.reserveDelivery(client, 'sms', mobile, ip, now)
       await client.query('DELETE FROM public_signups WHERE expires_at <= $1', [now])
       await client.query(`INSERT INTO public_signups(id,company_name,admin_name,email,mobile,expires_at,sms_digest,sms_expires_at,
-          terms_version,terms_accepted_at,terms_accepted_ip)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`, [
+          terms_version,terms_accepted_at,terms_accepted_ip,offer_revision,app_ids)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`, [
         id, company_name, admin_name, email, mobile, new Date(+now + minutes(30)),
-        this.digest(id, 'sms', code), new Date(+now + minutes(5)), terms_version, now, ip,
+        this.digest(id, 'sms', code), new Date(+now + minutes(5)), terms_version, now, ip, offer_revision, app_ids,
       ])
     })
     await this.deliver('sms', mobile, code)
@@ -193,23 +203,26 @@ export class SignupService {
       const row = await this.challenge(client, id, now)
       if (!row.mobile_verified || !(await this.verify(client, row, 'email', code, now))) return false
       if (row.completed) return true
-      const plan = await this.plan(client)
+      const selection = signupAppsSchema.safeParse(row.app_ids)
+      if (!selection.success) refuse('offer_changed', 409)
+      const { offer, bundles } = await this.selectedOffer(client, row.offer_revision)
+      const chosen = bundles.filter(bundle => selection.data.some(id => id === bundle.selections[0]?.app_id))
       const customerId = randomUUID()
       // One trial per email, mobile and company (registrable domain). The unique keys decide a race; the refusal comes
       // only here, after both proofs, so an anonymous visitor cannot probe which companies already have an account.
       const domain = companyDomain(row.email) ?? refuse('invalid', 422)
-      const claim = await client.query(`INSERT INTO public_signup_trials(customer_id,email,mobile,company_domain,terms_version,terms_accepted_at,terms_accepted_ip)
-        VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT DO NOTHING RETURNING customer_id`,
+      const claim = await client.query(`INSERT INTO public_signup_trials(customer_id,email,mobile,company_domain,terms_version,terms_accepted_at,terms_accepted_ip,requires_first_login)
+        VALUES($1,$2,$3,$4,$5,$6,$7,true) ON CONFLICT DO NOTHING RETURNING customer_id`,
       [customerId, row.email, row.mobile, domain, row.terms_version, row.terms_accepted_at, row.terms_accepted_ip])
       if (!claim.rowCount) refuse('trial_already_used', 409)
       await client.query('INSERT INTO customers(id,name,admin_name,admin_login) VALUES($1,$2,$3,$4)',
         [customerId, row.company_name, row.admin_name, row.email])
       await startTrialOn(client, {
-        customer_id: customerId, now,
+        customer_id: customerId, now, waitForFirstLogin: true,
         principal: { kind: 'customer', actor_id: `public-signup:${id}`, customer_id: customerId, tenant_id: null, capabilities: [] },
-        request: { kind: 'new', plan_revision_id: this.settings.planId, bundle_revision_ids: [],
-          cadence: { unit: 'month', count: 1 }, requested_users: plan.included_users,
-          requested_storage_mb: plan.included_storage_mb, requested_extra_branches: 0 },
+        request: { kind: 'new', plan_revision_id: offer.offer_revision, bundle_revision_ids: chosen.map(bundle => bundle.id),
+          cadence: signupCadence, requested_users: offer.included_users,
+          requested_storage_mb: offer.included_storage_mb, requested_extra_branches: 0 },
       })
       await client.query('UPDATE public_signups SET completed=true WHERE id=$1', [id])
       return true

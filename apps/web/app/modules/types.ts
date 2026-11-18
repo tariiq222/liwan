@@ -89,8 +89,10 @@ export interface AppSettingsPage {
  * `shortLabelKey` names the entry under its rail icon when the full label (still the tooltip) needs two lines.
  * `core` marks a free base-system application: the icon row under the organisation always lists it (ascending, after
  * «يومي»), whatever the user pins, and it takes no pin of its own.
+ * `footer` marks a free base-system application that lives in the sidebar's bottom group beside «كل التطبيقات» and
+ * the settings (ascending, top to bottom); it takes no pin either.
  */
-export interface AppRailEntry { id: string; labelKey: string; shortLabelKey?: string; icon: AppIcon; to: string; order: number; core?: number }
+export interface AppRailEntry { id: string; labelKey: string; shortLabelKey?: string; icon: AppIcon; to: string; order: number; core?: number; footer?: number }
 /** The fetcher a search provider receives: `useApi().$api`, so requests keep its cookies, errors and zod parsing. */
 export type AppSearchApi = <T>(
   url: string,

@@ -31,6 +31,7 @@ function mount(fetch: ReturnType<typeof vi.fn>, language = 'ar') {
   }
   const state = new Function(...Object.keys(bindings), transpile(script))(...Object.values(bindings)).setup({}, { expose: () => {} })
   Object.assign(state.details, person)
+  state.offer.value = { offer_revision: 'test-revision' }
   return { state, mounted }
 }
 
@@ -77,6 +78,20 @@ describe('register page, terms acceptance', () => {
     expect(state.legal.value).toEqual(changed)
     expect(state.details.accept_terms).toBe(false)
     expect(state.errorKey.value).toBe('signup.errors.termsChanged')
+  })
+
+  it('sends the monthly offer and only the applications the visitor selected', async () => {
+    const fetch = vi.fn().mockResolvedValue({ signup_id: 'id' })
+    const { state } = mount(fetch)
+    state.legal.value = current
+    state.humanToken.value = 'tok'
+    state.details.accept_terms = true
+    state.offer.value = { offer_revision: 'test-revision' }
+    state.selectedApps.value = ['crm']
+    await state.startSignup()
+    expect(fetch).toHaveBeenCalledWith('/api/commercial/signup/start', {
+      method: 'POST', body: expect.objectContaining({ offer_revision: 'test-revision', app_ids: ['crm'] }),
+    })
   })
 
   it('words the checkbox and its refusals in both languages', () => {

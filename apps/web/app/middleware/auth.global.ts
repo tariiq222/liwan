@@ -21,8 +21,22 @@ export default defineNuxtRouteMiddleware(async (to) => {
     if (me.value) return navigateTo('/')
     return
   }
+  if (!me.value) useState<number | null>('trial-activation-checked', () => null).value = null
   if (!me.value && isTenantSuspendedError(error.value)) return navigateTo({ path: '/login', query: { reason: 'tenant_suspended' } })
   if (!me.value) return navigateTo({ path: '/login', query: to.fullPath === '/' ? {} : { next: to.fullPath } })
+  if (to.path !== '/subscription/activate' && !me.value.mobile_required &&
+      me.value.commercial?.mode === 'saas' && useRuntimeConfig().public.customerCommercialEnabled &&
+      useCustomerCapabilities().can('subscription.manage')) {
+    const checked = useState<number | null>('trial-activation-checked', () => null)
+    if (checked.value !== me.value.id) {
+      const identity = me.value.id
+      const status = await useSubscriptionApi().trialActivation().catch(() => null)
+      if (status?.state === 'waiting' || status?.state === 'applying' || status?.state === 'failed') {
+        return navigateTo('/subscription/activate', { replace: true })
+      }
+      if (status) checked.value = identity
+    }
+  }
   const fallback = appRootFallback(me.value, to.path)
   if (fallback) return navigateTo(fallback, { replace: true })
   if (!canReachPath(me.value, to.path)) {

@@ -1,3 +1,4 @@
+import { activateSignupTrial, signupTrialActivation } from './trial-first-login.js'
 import { z } from 'zod'
 import type { Pool, PoolClient } from 'pg'
 import { isIP } from 'node:net'
@@ -154,6 +155,12 @@ export async function customerHttp(pool: Pool, config: Config, input: CustomerIn
     return {status:200,data:{deletion:await tenantDeletionOf(pool,customerId)}}
   }
   if (m==='GET' && path==='/catalog') {requireCapability(principal,'subscription.read');return {status:200,data:await customerCatalog(pool,customerId)}}
+  if (path === '/trial/activation' && (m === 'GET' || m === 'POST')) {
+    requireCapability(principal, 'subscription.manage')
+    if (m === 'GET') return { status: 200, data: await signupTrialActivation(pool, customerId, principal.actor_id) }
+    parseBody(input.raw, z.strictObject({}))
+    return { status: 200, data: await activateSignupTrial(pool, { customerId, actorId: principal.actor_id, now: new Date() }) }
+  }
   if (m==='GET' && path==='/trial/end-preview') {
     requireCapability(principal,'subscription.read')
     return {status:200,data:await trialEndPreview(pool, customerId)}

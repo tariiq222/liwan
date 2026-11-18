@@ -10,9 +10,13 @@ const HOME_MODULE_ID = 'home'
 const toRailItem = (module: ShellModuleDefinition): ShellRailItem =>
   ({ id: module.id, labelKey: module.labelKey, shortLabelKey: module.shortLabelKey, icon: module.icon, to: module.to })
 
-/** `core` is «يومي» and the free base-system applications (the icon row under the organisation); `applications` are the pinnable ones. */
+/**
+ * `core` is «يومي» and the free base-system applications (the icon row under the organisation); `footer` is the
+ * base-system applications of the bottom group (documents, operations); `applications` are the pinnable ones.
+ */
 export interface ShellRailModel {
   core: ShellRailItem[]
+  footer: ShellRailItem[]
   applications: ShellRailItem[]
   utility: ShellRailItem[]
   all: ShellRailItem[]
@@ -20,17 +24,18 @@ export interface ShellRailModel {
 
 /**
  * Rail order (owner decision 2026-11-08): «يومي» then the free base-system applications by their manifest `core`
- * position (the icon row under the organisation), the pinnable applications in manifest order, then settings.
- * The sidebar and the phone drawer list these destinations: the core row always, the pinned ones in global mode,
- * the open one in app mode.
+ * position (the icon row under the organisation), the footer applications by their `footer` position, the pinnable
+ * applications in manifest order, then settings. The sidebar and the phone drawer list these destinations: the core
+ * row and the footer always, the pinned ones in global mode, the open one in app mode.
  */
 export function railModel(modules: readonly ShellModuleDefinition[]): ShellRailModel {
   const home = modules.find(module => module.id === HOME_MODULE_ID)
   // «يومي» opens the page that holds the day and the applications.
   const core = [toRailItem(home ?? LAUNCHER_MODULE), ...modules.filter(module => module.core !== undefined).sort((a, b) => a.core! - b.core!).map(toRailItem)]
-  const applications = modules.filter(module => module.core === undefined && module.id !== HOME_MODULE_ID && module.id !== SETTINGS_MODULE_ID).map(toRailItem)
+  const footer = modules.filter(module => module.footer !== undefined).sort((a, b) => a.footer! - b.footer!).map(toRailItem)
+  const applications = modules.filter(module => module.core === undefined && module.footer === undefined && module.id !== HOME_MODULE_ID && module.id !== SETTINGS_MODULE_ID).map(toRailItem)
   const utility = modules.filter(module => module.id === SETTINGS_MODULE_ID).map(toRailItem)
-  return { core, applications, utility, all: [...core, ...applications, ...utility] }
+  return { core, footer, applications, utility, all: [...core, ...footer, ...applications, ...utility] }
 }
 
 /** The create links the sidebar lists first for the open page: the pinned ones, minus «مشروع جديد» where it would repeat the page. */

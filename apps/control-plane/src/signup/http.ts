@@ -13,7 +13,7 @@ import { humanCheckFromEnv } from './human-check.js'
 import { SignupService, signupInput, type LegalSettings } from './service.js'
 
 export const isSignupEndpoint = (pathname: string) => pathname.startsWith('/v1/customer/signup/')
-const requestPath = /^\/v1\/customer\/signup\/(terms|start|verify-sms|send-email|verify-email)$/
+const requestPath = /^\/v1\/customer\/signup\/(terms|offer|start|verify-sms|send-email|verify-email)$/
 // The start body carries a Turnstile token of up to 2048 characters beside the form fields.
 export const SIGNUP_BODY_LIMIT = 4096
 const challenge = z.strictObject({ signup_id: z.uuid() })
@@ -46,6 +46,7 @@ export function signupFromEnv(pool: Pool, secret: string | undefined, env: NodeJ
   if (env.LIWAN_MAIL_MODE === 'disabled') throw new Error('signup_email_unavailable')
   const mail = mailAdapterFromEnv(env, 8_000)
   return new SignupService(pool, { secret, planId: plan.data, dailyLimit, legal, humanCheck,
+    paused: env.LIWAN_SIGNUP_ENROLLMENT_PAUSED === 'true',
     sms: (mobile, code) => sms.send(mobile, code),
     email: async (email, code) => {
       const result = await mail.send({
@@ -68,6 +69,10 @@ export async function signupHttp(pool: Pool, config: { issuer?: string; key?: st
   })
   if (!signed || signed.issuer !== config.issuer) throw new CommercialHttpError('unauthorized', 401)
   await transaction(pool, client => consumeNonce(client, signed))
+  if (match[1] === 'offer') {
+    parseBody(input.raw, noBody)
+    return { status: 200, data: await service.offer() }
+  }
   if (match[1] === 'terms') {
     parseBody(input.raw, noBody)
     return { status: 200, data: service.terms() }

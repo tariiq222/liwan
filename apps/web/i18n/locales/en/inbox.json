@@ -2268,6 +2268,8 @@
       }
     },
     "opportunity": {
+      "create": "Create opportunity from conversation",
+      "created": "Opportunity created and linked",
       "title": "Sales opportunity",
       "none": "This conversation is not linked to an opportunity.",
       "link": "Link an opportunity",
@@ -2287,6 +2289,9 @@
         "lost": "Lost"
       },
       "errors": {
+        "busy": "This conversation is being updated. Try again.",
+        "phoneAlreadyUsed": "This phone already has an opportunity. Find it and link it to this conversation.",
+        "phoneInvalid": "Add a valid mobile number to the contact to create an opportunity.",
         "alreadyLinked": "The conversation is linked to another opportunity. Unlink it first, then link the new one.",
         "customerMismatch": "The contact belongs to customer \"{contact}\" and the opportunity to customer \"{opportunity}\". A conversation cannot be linked to an opportunity of a different customer.",
         "noCustomer": "no customer",
@@ -2296,6 +2301,19 @@
       }
     },
     "showUnassigned": "Show unassigned",
+    "firstUse": {
+      "title": "Try your first conversation",
+      "description": "Connect a WhatsApp number, then send it a message from another number and reply here.",
+      "connectWhatsApp": "Set up WhatsApp",
+      "try": "Try a sample conversation",
+      "example": "Sample conversation",
+      "exampleMessage": "Sample customer: Hi, could you tell me more about the service?",
+      "exampleReply": "Practice reply: Hi, we would be happy to help. When would be a good time for us to get in touch?",
+      "reply": "Practice replying",
+      "createOpportunity": "Practice creating an opportunity",
+      "exampleLinked": "You linked a practice conversation to a sample opportunity. Connect WhatsApp to try it with a real conversation.",
+      "close": "Close example"
+    },
     "connectChannel": "Connect a channel",
     "actions": {
       "label": "Conversation actions",

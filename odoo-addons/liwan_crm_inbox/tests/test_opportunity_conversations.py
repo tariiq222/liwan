@@ -23,6 +23,32 @@ class TestOpportunityConversations(CrmInboxCase):
     def link(self, conversation, lead):
         return self.api('PUT', LINK.format(conversation.id), {'opportunity_id': lead.id})
 
+    def test_creates_from_the_contact_and_links_once(self):
+        conversation = self.make_conversation()
+        self.as_user(self.rep)
+        path = LINK.format(conversation.id)
+        result = self.api('POST', path, {})
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual(set(result.json()), REF_KEYS)
+        lead = conversation.lead_id
+        self.assertEqual(lead.id, result.json()['id'])
+        self.assertEqual(lead.contact_name, conversation.contact_id.name)
+        self.assertEqual(lead.phone, conversation.contact_id.phone)
+        self.assertEqual(lead.user_id, self.rep)
+        repeated = self.api('POST', path, {})
+        self.assertEqual((repeated.status_code, repeated.json()['code']), (409, 'already_linked'))
+        self.assertEqual(self.api('GET', LIST.format(lead.id)).json()['total'], 1)
+
+    def test_duplicate_phone_leaves_the_conversation_unlinked(self):
+        conversation = self.make_conversation()
+        existing = self.make_lead(self.rep, phone=conversation.contact_id.phone)
+        self.as_user(self.rep)
+        path = LINK.format(conversation.id)
+        result = self.api('POST', path, {})
+        self.assertEqual((result.status_code, result.json()['details']['reason']), (422, 'duplicate_phone'))
+        self.assertFalse(conversation.lead_id)
+        self.assertEqual(self.link(conversation, existing).status_code, 200)
+
     def test_link_read_list_and_unlink(self):
         self.as_user(self.rep)
         self.assertIsNone(self.api('GET', LINK.format(self.conversation.id)).json())
@@ -124,7 +150,7 @@ class TestOpportunityConversations(CrmInboxCase):
 
     def test_each_closed_feature_refuses_every_route(self):
         calls = (('GET', LIST.format(self.lead.id)), ('GET', LINK.format(self.conversation.id)),
-                 ('PUT', LINK.format(self.conversation.id)), ('DELETE', LINK.format(self.conversation.id)))
+                 ('POST', LINK.format(self.conversation.id)), ('PUT', LINK.format(self.conversation.id)), ('DELETE', LINK.format(self.conversation.id)))
         for key in ('crm.enabled', 'inbox.enabled'):
             with self.subTest(feature=key):
                 set_probe_feature(self, key=key, enabled=False)
@@ -150,7 +176,7 @@ class TestOpportunityConversations(CrmInboxCase):
                                  200 if {'crm.leads.read', 'inbox.conversations.read'} <= set(keys) else 403)
                 self.assertEqual(self.api('GET', LINK.format(self.conversation.id)).status_code,
                                  200 if {'crm.leads.read', 'inbox.conversations.read'} <= set(keys) else 403)
-                for method in ('PUT', 'DELETE'):
+                for method in ('POST', 'PUT', 'DELETE'):
                     response = self.api(method, LINK.format(self.conversation.id), {'opportunity_id': self.lead.id})
                     self.assertEqual((response.status_code, response.json()['code']), (403, 'forbidden'), (login, method))
         self.assertFalse(self.conversation.lead_id)

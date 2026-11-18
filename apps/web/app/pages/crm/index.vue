@@ -28,6 +28,8 @@ const packages = useCrmPackageChoices()
 const lostReasons = useCrmLostReasonChoices()
 const actions = useCrmOpportunityActions()
 const canCreate = computed(() => can('crm.leads.work') || can('crm.leads.assign'))
+const existing = useCrmOpportunities(() => ({ status: 'all', limit: 1, offset: 0 }), canCreate)
+const showFirstOpportunity = computed(() => canCreate.value && existing.data.value?.total === 0)
 // One call form is open in the due list at a time. A refusal the form cannot settle shows under that row, with a link to the record.
 const openId = ref<number | null>(null)
 const callDirty = ref(false)
@@ -59,6 +61,12 @@ const managerTiles = computed(() => (dashboard.data.value?.manager ? managerKpiT
     <SharedForbiddenState v-if="!can('crm.leads.read')" />
     <SharedPageState empty-icon="i-lucide-layout-dashboard" v-else :loading="dashboard.isLoading.value" :error="dashboard.data.value ? null : dashboard.error.value" :empty="!dashboard.data.value" @retry="dashboard.refetch()">
       <template v-if="dashboard.data.value">
+        <UAlert v-if="showFirstOpportunity" color="info" variant="subtle" icon="i-lucide-target"
+          :title="t('crm.dashboard.firstOpportunity.title')" :description="t('crm.dashboard.firstOpportunity.description')" data-testid="crm-first-opportunity">
+          <template #actions>
+            <UButton to="/crm/opportunities/new" size="sm" :label="t('crm.dashboard.firstOpportunity.action')" />
+          </template>
+        </UAlert>
         <SharedKpiStrip :tiles="agentTiles" :label="t('crm.dashboard.agent.title')" data-testid="crm-agent-kpis" />
         <CrmDashboardDueList
           v-model:open-id="openId"

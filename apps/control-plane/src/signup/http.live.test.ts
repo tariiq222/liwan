@@ -11,7 +11,7 @@ describe.skipIf(!url)('signed public signup ingress', () => {
   const service = { start: async () => ({ signup_id: 'synthetic-id' }), terms: () => ({ legal_base_url: 'https://liwanos.com', terms_version: '2026-11-01', human_check: { site_key: 'site-key-fixture', script_url: 'https://widget.example.test/api.js' } }) } as unknown as SignupService
   const config = { issuer: 'signup-test', key: 'scratch-key'.repeat(5) }
   const path = '/v1/customer/signup/start'
-  const raw = '{"company_name":"Test","admin_name":"Admin","email":"admin@example.test","mobile":"0555555555"}'
+  const raw = '{"company_name":"Test","admin_name":"Admin","email":"admin@example.test","mobile":"0555555555","offer_revision":"00000000-0000-4000-8000-000000000001","app_ids":["crm"]}'
   const ip = '192.0.2.4'
   const request = () => ({ method: 'POST', path, raw, headers: {
     ...signServiceRequest({ method: 'POST', path, body: `liwan-signup:${ip}\n${raw}`, actor: 'anonymous', anonymous: true, ...config }),

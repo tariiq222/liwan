@@ -38,7 +38,6 @@ export const coreAppRows: ShellQuickItem[] = [
   { id: 'tasks', label: 'مهامي', icon: 'i-lucide-check-square', to: '/my-tasks', active: false, count: 5 },
   { id: 'meetings', label: 'الاجتماعات', icon: 'i-lucide-calendar-days', to: '/meetings', active: false, count: 2 },
   { id: 'chat', label: 'المحادثات', icon: 'i-lucide-message-circle', to: '/chat', active: false },
-  { id: 'documents', label: 'المستندات', icon: 'i-lucide-files', to: '/documents', active: false },
 ]
 /** Sidebar rows as the shell hands them to the presentational sidebar: labels already translated. */
 export const pinnedRows: ShellNavigationLink[] = [
@@ -46,8 +45,10 @@ export const pinnedRows: ShellNavigationLink[] = [
   { id: 'inbox', label: 'رسائل العملاء', icon: 'i-lucide-messages-square', to: '/inbox', active: false, app: 'inbox', count: 4, testId: 'navigation-app-inbox' },
   { id: 'projects', label: 'المشاريع', icon: 'i-lucide-folder-kanban', to: '/projects', active: false, app: 'projects', testId: 'navigation-app-projects' },
 ]
-/** The sidebar footer: all applications and the settings. */
+/** The sidebar footer: documents, operations, all applications and the settings. */
 export const footerRows: ShellNavigationLink[] = [
+  { id: 'documents', label: 'المستندات', icon: 'i-lucide-files', to: '/documents', active: false, testId: 'navigation-app-documents' },
+  { id: 'operations', label: 'العمليات', icon: 'i-lucide-workflow', to: '/operations', active: false, testId: 'navigation-app-operations' },
   { id: 'apps', label: 'كل التطبيقات', icon: 'i-lucide-layout-grid', to: '/apps', active: false, testId: 'navigation-app-apps' },
   { id: 'settings', label: 'الإعدادات', icon: 'i-lucide-settings', to: '/settings', active: false, testId: 'navigation-app-settings' },
 ]
