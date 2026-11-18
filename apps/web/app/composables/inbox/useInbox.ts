@@ -154,14 +154,38 @@ export function useInboxCannedReplies() {
   })
 }
 
+/** Agents fetched per request. */
+const INBOX_AGENT_PAGE = 200
+
 /** The tags an agent may put on a conversation (readable with the read capability). */
 /** The company's users who may reply: the only valid assignees. */
 export function useInboxAgents(enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   return useQuery({
     queryKey: inboxKeys.agents,
-    queryFn: ({ signal }) => $api('/api/v1/inbox/agents', { signal, query: { limit: 200 }, schema: InboxAgentListSchema }),
+    queryFn: async ({ signal }) => {
+      // Every page: a company may have more agents than one page holds, and the assignee picker and the agents settings need them all.
+      const first = await $api('/api/v1/inbox/agents', { signal, query: { limit: INBOX_AGENT_PAGE, offset: 0 }, schema: InboxAgentListSchema })
+      const items = [...first.items]
+      while (items.length < first.total) {
+        const page = await $api('/api/v1/inbox/agents', { signal, query: { limit: INBOX_AGENT_PAGE, offset: items.length }, schema: InboxAgentListSchema })
+        if (!page.items.length) break
+        items.push(...page.items)
+      }
+      return { ...first, items }
+    },
     enabled: () => toValue(enabled),
+  })
+}
+
+/** One agent by user id; a user who is not an agent answers 404, which the caller reads as "no agent". */
+export function useInboxAgent(userId: MaybeRefOrGetter<number | undefined>, enabled: MaybeRefOrGetter<boolean> = true) {
+  const { $api } = useApi()
+  return useQuery({
+    queryKey: computed(() => [...inboxKeys.agents, 'one', toValue(userId)] as const),
+    enabled: () => toValue(enabled) && !!toValue(userId),
+    retry: false,
+    queryFn: ({ signal }) => $api(`/api/v1/inbox/agents/${toValue(userId)}`, { signal, schema: InboxAgentSchema }),
   })
 }
 

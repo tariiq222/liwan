@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { useInboxAgents, useSetInboxAgentAvailability } from '@/composables/inbox/useInbox'
+import { useInboxAgent, useSetInboxAgentAvailability } from '@/composables/inbox/useInbox'
 import { inboxAgentStatus } from '@/composables/inbox/inboxAgents'
 
 // The signed-in agent's own "available / unavailable" switch in the inbox header. It is drawn only for a user who may
-// reply and who is in the agents list. While unavailable the agent receives no automatic assignments; a shift can
+// reply and who is an agent (the server answers 404 for anyone else). While unavailable the agent receives no automatic assignments; a shift can
 // still keep an available agent out of distribution, which the label says.
 const { t } = useI18n()
 const hydrated = useHydrated()
@@ -11,10 +11,10 @@ const toast = useToast()
 const { me } = useMe()
 const { can } = useAccess()
 const canReply = computed(() => can('inbox.conversations.reply'))
-const agents = useInboxAgents(canReply)
+const agent = useInboxAgent(() => me.value?.id, canReply)
 const { mutate: setAvailability, isPending } = useSetInboxAgentAvailability()
 
-const self = computed(() => agents.data.value?.items.find(agent => agent.id === me.value?.id))
+const self = computed(() => (agent.isError.value ? undefined : agent.data.value))
 const status = computed(() => (self.value ? inboxAgentStatus(self.value) : null))
 
 function change(available: boolean) {

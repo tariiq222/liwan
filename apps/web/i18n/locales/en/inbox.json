@@ -468,7 +468,10 @@
         "empty": "No one can reply in the inbox yet.",
         "available": "{name} is available for conversations",
         "shift": "Shift",
-        "alwaysInShift": "No ranges: the agent is always in shift."
+        "alwaysInShift": "No ranges: the agent is always in shift.",
+        "discardTitle": "Discard the changes to {name}'s shift?",
+        "discardDescription": "The shift has unsaved changes and they are lost if you continue.",
+        "discard": "Discard changes"
       },
       "presets": {
         "title": "Sector presets",

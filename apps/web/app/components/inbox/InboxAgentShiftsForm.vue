@@ -6,7 +6,7 @@ import { useInboxAgentShifts, useSaveInboxAgentShifts } from '@/composables/inbo
 // One agent's weekly shift, edited with the working-hours grid without its timezone and holidays: the shift follows the
 // company inbox timezone. No range at all means the agent is always in shift. Saving is explicit.
 const props = defineProps<{ userId: number }>()
-const emit = defineEmits<{ close: [] }>()
+const emit = defineEmits<{ close: []; dirty: [value: boolean] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const toast = useToast()
@@ -21,6 +21,9 @@ watch(data, (shifts) => {
 }, { immediate: true })
 const dirty = computed(() => JSON.stringify(draft.value) !== initial.value)
 const valid = computed(() => hoursValid(draft.value))
+// The host guards leaving a form with an unsaved draft, so it needs to know when there is one.
+watch(dirty, value => emit('dirty', value), { immediate: true })
+onBeforeUnmount(() => emit('dirty', false))
 
 function submit() {
   if (!hydrated.value || !dirty.value || !valid.value || isPending.value) return

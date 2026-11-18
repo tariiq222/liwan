@@ -1184,6 +1184,7 @@ function agentsRoute(method, id, tail, url, body) {
   }
   const person = people.find(item => item.id === id)
   if (!person) return fail(404, 'not_found', 'not found')
+  if (method === 'GET' && tail === undefined) return ok(agentItem(person))
   const status = state.agentStatus.get(id) ?? { available: true, ranges: [] }
   if (tail === 'shifts' && (method === 'GET' || method === 'PUT')) {
     if (method === 'PUT') state.agentStatus.set(id, { ...status, ranges: body.ranges })

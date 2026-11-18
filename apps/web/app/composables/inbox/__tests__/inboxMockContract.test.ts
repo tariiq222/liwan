@@ -264,6 +264,8 @@ describe('inbox audit mock', () => {
       expect(InboxAgentSchema.parse(call('PATCH', '/api/v1/inbox/agents/5', { available: false }).body)).toMatchObject({ id: 5, available: false, effective_available: false })
       expect(InboxAgentShiftsSchema.parse(call('PUT', '/api/v1/inbox/agents/5/shifts', { ranges: [{ weekday: 0, from: '08:00', to: '16:00' }] }).body).ranges).toHaveLength(1)
       expect(InboxAgentShiftsSchema.parse(call('GET', '/api/v1/inbox/agents/5/shifts').body).ranges).toHaveLength(1)
+      expect(InboxAgentSchema.parse(call('GET', '/api/v1/inbox/agents/5').body).id).toBe(5)
+      expect(call('GET', '/api/v1/inbox/agents/999').status).toBe(404)
       expect(call('PATCH', '/api/v1/inbox/agents/5', {}).status).toBe(422)
     })
 
