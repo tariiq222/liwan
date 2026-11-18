@@ -202,7 +202,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     const f = await endedTrial({}, true, beforeEnd, true)
     const first = (await pool.query('SELECT id FROM orders WHERE subscription_id=$1', [f.subscription])).rows[0].id
     await pool.query(`INSERT INTO public_signup_trials(customer_id,email,mobile,requires_first_login,first_admin_user_id)
-      VALUES($1,$2,'+966555077771',true,7)`, [f.customer, `${f.customer}@example.test`])
+      VALUES($1,$2,$3,true,7)`, [f.customer, `${f.customer}@example.test`, `+9665${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`])
     expect(await runJob(first, async ({ job }) => {
       expect(Date.parse(job.authority.trial_ends_at!)).toBeLessThan(+beforeEnd)
       expect(job.authority.post_trial_features?.['pmo.enabled']).not.toBe(true)
