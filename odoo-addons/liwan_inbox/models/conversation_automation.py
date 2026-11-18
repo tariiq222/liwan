@@ -65,11 +65,16 @@ class LiwanInboxConversationAutomation(models.Model):
         _logger.warning('first response alert of conversation %s failed: %s', conversation.id, type(error).__name__)
 
     def _liwan_alert_recipients(self):
-        """The available assignee; else the available agents of the conversation; else (nobody is) the assignee or all its agents."""
+        """The available assignee; else the available agents who may read the conversation; else (nobody is) the assignee or those agents.
+
+        The alert names the customer, so an agent the company's visibility policy hides the conversation from is never a recipient.
+        """
         self.ensure_one()
+        scoped = self.with_company(self.company_id)
+        readers = self._liwan_agents().filtered(lambda user: scoped.filtered_domain(scoped._liwan_visible_domain(user)))
         available = self.env['liwan.inbox.agent']._liwan_available_agents
-        recipients = available(self.assignee_id, self.company_id) or available(self._liwan_agents(), self.company_id)
-        return recipients or self.assignee_id or self._liwan_agents()
+        recipients = available(self.assignee_id, self.company_id) or available(readers, self.company_id)
+        return recipients or self.assignee_id or readers
 
     def _liwan_alert(self, minutes):
         self.ensure_one()

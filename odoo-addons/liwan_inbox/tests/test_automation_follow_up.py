@@ -174,6 +174,29 @@ class TestFirstResponseAlert(AutomationCase):
         self.run_cron()
         self.assertEqual(self.alerted_users(conversation), self.agent)
 
+    def test_assigned_only_alerts_just_the_assignee_even_when_unavailable(self):
+        self.settings.visibility_policy = 'assigned_only'
+        conversation = self.waiting_pair(assignee_id=self.agent.id)
+        self.set_available(self.agent, False)
+        self.run_cron()
+        self.assertEqual(self.alerted_users(conversation), self.agent)
+
+    def test_assigned_only_hands_the_alert_to_an_available_peer_who_can_assign(self):
+        self.settings.visibility_policy = 'assigned_only'
+        conversation = self.waiting_pair(assignee_id=self.agent.id)
+        self.department.member_ids = self.agent | self.supervisor
+        self.set_available(self.agent, False)
+        self.run_cron()
+        keys = set(self.alerts(conversation).mapped('liwan_notification_key'))
+        self.assertEqual(keys, {f'{FIRST_RESPONSE_KIND}:{conversation.id}:{self.supervisor.partner_id.id}'})
+
+    def test_department_policy_hands_the_alert_to_the_available_department_member(self):
+        self.settings.visibility_policy = 'department'
+        conversation = self.waiting_pair(assignee_id=self.agent.id)
+        self.set_available(self.agent, False)
+        self.run_cron()
+        self.assertEqual(self.alerted_users(conversation), self.agent2)
+
     def test_an_agent_outside_the_shift_counts_only_while_shifts_are_on(self):
         outside = [{'weekday': (datetime.now(ZoneInfo('Asia/Riyadh')).weekday() + 1) % 7, 'from': '00:00', 'to': '24:00'}]
         self.env['liwan.inbox.agent']._liwan_write_shifts(self.agent, self.env.company, outside)
