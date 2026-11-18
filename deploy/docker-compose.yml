@@ -58,6 +58,9 @@ services:
       NUXT_SESSION_CHECK_CACHE_SIZE: "${NUXT_SESSION_CHECK_CACHE_SIZE:-}"
       NUXT_SESSION_CHECK_CONCURRENCY: "${NUXT_SESSION_CHECK_CONCURRENCY:-}"
       NUXT_SESSION_CHECK_TTL_MS: "${NUXT_SESSION_CHECK_TTL_MS:-}"
+      # Optional error reporting (deploy/OPERATIONS.md, "Error reporting"). Empty DSN: nothing is initialised or sent.
+      NUXT_SENTRY_DSN: "${NUXT_SENTRY_DSN:-}"
+      NUXT_SENTRY_ENVIRONMENT: "${NUXT_SENTRY_ENVIRONMENT:-}"
     expose: ["3000"]
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
@@ -97,6 +100,9 @@ services:
       LIWAN_TIKTOK_CLIENT_KEY: "${LIWAN_TIKTOK_CLIENT_KEY:-}"
       LIWAN_TIKTOK_CLIENT_SECRET: "${LIWAN_TIKTOK_CLIENT_SECRET:-}"
       LIWAN_TIKTOK_REDIRECT_URI: "${LIWAN_TIKTOK_REDIRECT_URI:-}"
+      # Optional error reporting (deploy/OPERATIONS.md, "Error reporting"). Empty DSN: nothing is initialised or sent.
+      LIWAN_SENTRY_DSN: "${LIWAN_SENTRY_DSN:-}"
+      LIWAN_SENTRY_ENVIRONMENT: "${LIWAN_SENTRY_ENVIRONMENT:-}"
     volumes:
       - ./data/odoo.conf:/etc/odoo/odoo.conf:ro
       - odoo_data:/var/lib/odoo
@@ -149,6 +155,10 @@ services:
       NO_PROXY: db,web,localhost,127.0.0.1
       # The provider host of each tenant's own key is written here for ai-egress (read-only there).
       AI_TENANT_EGRESS_DIR: /egress
+      # Optional error reporting (deploy/OPERATIONS.md, "Error reporting"). Keep both empty together: an environment
+      # without a DSN stops the service at start. Its host must also be in AI_EGRESS_HOSTS.
+      AI_SENTRY_DSN: "${AI_SENTRY_DSN:-}"
+      AI_SENTRY_ENVIRONMENT: "${AI_SENTRY_ENVIRONMENT:-}"
     volumes:
       - ai_tenant_hosts:/egress
       # The directory, not the file: a bind-mounted file keeps its old inode when the writer replaces it atomically.
