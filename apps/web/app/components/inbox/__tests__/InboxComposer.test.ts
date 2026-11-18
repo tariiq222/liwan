@@ -28,7 +28,7 @@ class ApiError extends Error {
   constructor(public status: number) { super('refused') }
 }
 
-function mountComposer(endsAt: string | null, store = new Map<string, string>(), template: Record<string, unknown> = TEMPLATE, kind: 'whatsapp' | 'tiktok' = 'whatsapp') {
+function mountComposer(endsAt: string | null, store = new Map<string, string>(), template: Record<string, unknown> = TEMPLATE, kind: 'whatsapp' | 'tiktok' = 'whatsapp', capabilities: string[] = []) {
   const script = compileScript(parse(readFileSync(filename, 'utf8'), { filename }).descriptor, { id: 'inbox-composer' }).content
     .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replace('export default', 'return')
   const inboxDrafts = createInboxDrafts(() => ({ getItem: k => store.get(k) ?? null, setItem: (k, v) => void store.set(k, v), removeItem: k => void store.delete(k), key: i => [...store.keys()][i] ?? null, length: store.size }))
@@ -43,7 +43,7 @@ function mountComposer(endsAt: string | null, store = new Map<string, string>(),
   const bindings = {
     _defineComponent: Vue.defineComponent, _unref: Vue.unref, ref: Vue.ref, reactive: Vue.reactive, computed: Vue.computed, watch: Vue.watch,
     onMounted: (fn: () => void) => mounted.push(fn), onBeforeUnmount: (fn: () => void) => unmounting.push(fn),
-    useI18n: () => ({ t: (key: string, params?: { time?: string }) => params?.time ? `${key}:${params.time}` : key, locale: Vue.ref('en') }), durationUnits, formatDuration, replyWindowRemaining, useHydrated: () => Vue.ref(true), useToast: () => ({ add: toast }), useMe: () => ({ me: Vue.ref({ id: 3 }) }),
+    useI18n: () => ({ t: (key: string, params?: { time?: string }) => params?.time ? `${key}:${params.time}` : key, locale: Vue.ref('en') }), durationUnits, formatDuration, replyWindowRemaining, useHydrated: () => Vue.ref(true), useToast: () => ({ add: toast }), useMe: () => ({ me: Vue.ref({ id: 3 }) }), useAccess: () => ({ can: (key: string) => capabilities.includes(key) }),
     useMediaQuery: () => desktop, ApiError, InboxTemplatePicker: {}, useInboxTyping: () => notifyTyping, useUploadInboxFile: () => ({ mutateAsync: uploadInboxFile }), INBOX_CAPTION_MAX, inboxAcceptsCaption, inboxFileSize, inboxUploadProblem,
     inboxUploadAccept, channelCarriesTemplates, inboxComposerActions, windowClosedDescriptionKey, windowClosedErrorKey, inboxTikTokErrorKey, emptyInboxDraft,
     buildCommerceContent, emptyCommerceDraft, buildInteractive, emptyInteractiveDraft, buildLocation, emptyLocationDraft,
@@ -537,6 +537,19 @@ describe('InboxComposer', () => {
       await Vue.nextTick()
       expect(state.params.value).toEqual([''])
       expect(state.buttonValues.value).toEqual(['', ''])
+    })
+  })
+
+  describe('with no approved template', () => {
+    it('offers a templates manager the page that creates one for this conversation channel', () => {
+      const { state } = mountComposer('2026-10-28T20:00:00Z', undefined, undefined, 'whatsapp', ['inbox.templates.manage'])
+      expect(state.canCreateTemplate.value).toBe(true)
+      expect(state.newTemplatePath.value).toBe('/settings/apps/inbox/channels/1/templates/new')
+    })
+
+    it('only tells anyone else to ask a manager, as the create page needs the templates capability', () => {
+      expect(mountComposer('2026-10-28T20:00:00Z').state.canCreateTemplate.value).toBe(false)
+      expect(mountComposer('2026-10-28T20:00:00Z', undefined, undefined, 'whatsapp', ['inbox.channels.manage']).state.canCreateTemplate.value).toBe(false)
     })
   })
 })

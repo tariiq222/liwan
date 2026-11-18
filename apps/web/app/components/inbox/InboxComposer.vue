@@ -29,6 +29,11 @@ const { t, locale } = useI18n()
 const hydrated = useHydrated()
 const toast = useToast()
 const { me } = useMe()
+const { can } = useAccess()
+// A templates manager gets the way to create one; anyone else is told to ask for it. Only creating is offered: that page
+// needs the templates capability, which channel administration alone does not give.
+const canCreateTemplate = computed(() => can('inbox.templates.manage'))
+const newTemplatePath = computed(() => `/settings/apps/inbox/channels/${props.conversation.channel.id}/templates/new`)
 const kind = computed(() => props.conversation.channel.kind)
 const tiktok = computed(() => kind.value === 'tiktok')
 const actions = computed(() => inboxComposerActions(kind.value, { commerceReady: !!props.commerceReady }))
@@ -358,7 +363,13 @@ async function submit() {
     <template v-if="templateMode">
       <UFormField :label="t('inbox.composer.template')">
         <InboxTemplatePicker v-model="templateId" v-model:template="selectedTemplate" :channel-id="props.conversation.channel.id" :accept="isSendableTemplate" :disabled="!hydrated || sending" data-testid="inbox-template-select">
-          <template #empty><p class="text-sm text-muted" data-testid="inbox-no-templates">{{ t('inbox.composer.noTemplates') }}</p></template>
+          <template #empty>
+            <p v-if="canCreateTemplate" class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted" data-testid="inbox-no-templates">
+              {{ t('inbox.composer.noTemplatesManage') }}
+              <UButton :to="newTemplatePath" size="xs" color="neutral" variant="outline" icon="i-lucide-plus" :label="t('inbox.composer.createTemplate')" data-testid="inbox-create-template" />
+            </p>
+            <p v-else class="text-sm text-muted" data-testid="inbox-no-templates">{{ t('inbox.composer.noTemplates') }}</p>
+          </template>
         </InboxTemplatePicker>
       </UFormField>
       <div v-if="selectedTemplate" class="flex flex-col gap-2">
