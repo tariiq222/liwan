@@ -76,7 +76,7 @@ test('a pending trial lock offers retry and refreshes the applied outcome', asyn
   await expect(panel).toContainText('قياسات المستخدمين والتخزين الحالية غير متاحة.')
   await expect(page.getByRole('main').getByRole('link', { name: 'تغيير الاشتراك' })).toHaveCount(0)
   await panel.getByTestId('trial-retry').click()
-  await expect(panel.getByTestId('trial-end-status')).toContainText('اكتمل الانتقال بعد التجربة')
+  await expect(panel.getByTestId('trial-end-status')).toContainText('انتهت تجربتك')
   await expect(panel.getByTestId('trial-retry')).toHaveCount(0)
   expect(retries).toBe(1)
 })
