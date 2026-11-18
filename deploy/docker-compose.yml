@@ -26,6 +26,7 @@ services:
       odoo: { condition: service_healthy }
 
   web:
+    image: liwan-web:${LIWAN_IMAGE_TAG:?set LIWAN_IMAGE_TAG to the built image tag}
     build: { context: .., dockerfile: apps/web/Dockerfile }
     restart: unless-stopped
     logging: *liwan-logging
@@ -121,6 +122,7 @@ services:
 
   ai:
     profiles: [ai]
+    image: liwan-ai-service:${LIWAN_IMAGE_TAG:?set LIWAN_IMAGE_TAG to the built image tag}
     build: { context: ../apps/ai-service }
     restart: unless-stopped
     logging: *liwan-logging
@@ -182,6 +184,7 @@ services:
   # The forward proxy that owns AI's outbound traffic: CONNECT to port 443 for the listed hosts, nothing else.
   ai-egress:
     profiles: [ai]
+    image: liwan-ai-egress:${LIWAN_IMAGE_TAG:?set LIWAN_IMAGE_TAG to the built image tag}
     build: { context: ./ai-egress }
     restart: unless-stopped
     logging: *liwan-logging

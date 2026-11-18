@@ -2,16 +2,17 @@
 # Publish stage: build the production images, release them as a signed manifest, and promote that manifest. Run by
 # .github/workflows/publish.yml; the owned images and how they are built come from deploy/production-images.json.
 #   plan                     print the images, the registry and the attestation types; touches nothing (local inspection)
-#   build <arch> <out-dir>   build every image for linux/<arch> on a native runner, push it by digest, smoke-check and scan
-#                            it with deploy/ci/image.sh (the same images, tagged locally), write one digest file per image
-#   merge <digests-dir>      combine the per-arch digests (digests-amd64/ and digests-arm64/ as downloaded) into a
-#                            multi-arch index per image tagged with the commit, write the
+#   build <out-dir>          build every image for linux/arm64 on the native runner (both servers are arm64), push it tagged
+#                            with the commit, smoke-check and scan it with deploy/ci/image.sh (the same images, tagged
+#                            locally), write one digest file per image
+#   merge <digests-dir>      check each commit tag still holds the digest this run pushed, write the
 #                            release document and attest it keylessly on <registry>/liwan-release:<commit>
 #   promote                  on a release/* tag: re-attest the already published release document of the tagged commit for
 #                            production; nothing is rebuilt, and a commit with no published document is a failure
 set -euo pipefail
 cd "$(dirname "$0")/.."/..
 OIDC_ISSUER="https://token.actions.githubusercontent.com"
+PLATFORM="linux/arm64"
 ATTESTATION_BASE="https://liwanos.com/attestations/release-manifest"
 
 # One tab-separated line per published image: registry image, reference, local name for image.sh,
@@ -21,7 +22,7 @@ registry() { builds | head -n 1 | cut -d/ -f1,2; }
 attestation_type() { printf '%s/%s/v1' "$ATTESTATION_BASE" "$1"; }
 signer() { printf 'https://github.com/%s/.github/workflows/publish.yml@%s' "${GITHUB_REPOSITORY:?}" "$1"; }
 fail() { echo "publish: $*" >&2; exit 1; }
-index_digest() { docker buildx imagetools inspect "$1" --format '{{json .Manifest}}' | python3 -c 'import json, sys; print(json.load(sys.stdin)["digest"])'; }
+manifest_digest() { docker buildx imagetools inspect "$1" --format '{{json .Manifest}}' | python3 -c 'import json, sys; print(json.load(sys.stdin)["digest"])'; }
 
 plan() {
   echo "registry: $(registry)"
@@ -32,10 +33,10 @@ plan() {
   echo "production attestation: $(attestation_type production)"
 }
 
-# On main the images are pushed by digest. On any other ref (a manual run on a branch) they are only loaded into the
+# On main the images are pushed under the commit tag. On any other ref (a manual run on a branch) they are only loaded into the
 # local daemon: nothing leaves the runner, and image.sh still smoke-checks and scans them.
 build() {
-  local arch="${1:?arch}" out="${2:?out dir}" metadata digest argv tag
+  local out="${1:?out dir}" metadata digest argv tag
   : "${GITHUB_SHA:?}" "${GITHUB_RUN_ID:?}" "${GITHUB_REF:?}" "${GITHUB_REPOSITORY:?}"
   mkdir -p "$out"
   docker buildx create --name liwan-publish --driver docker-container --use >/dev/null
@@ -45,16 +46,16 @@ build() {
     for pair in ${args//,/ }; do argv+=(--build-arg "$pair"); done
     tag="liwan-$reference:ci-$GITHUB_RUN_ID"
     if [ "$GITHUB_REF" = refs/heads/main ]; then
-      docker buildx build --platform "linux/$arch" -f "$dockerfile" ${argv[@]+"${argv[@]}"} --provenance=false \
+      docker buildx build --platform "$PLATFORM" -f "$dockerfile" ${argv[@]+"${argv[@]}"} --provenance=false \
         --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
         --label "org.opencontainers.image.revision=$GITHUB_SHA" --metadata-file "$metadata" \
-        --output "type=image,name=$image,push-by-digest=true,name-canonical=true,push=true" "$context"
+        --output "type=image,name=$image:$GITHUB_SHA,push=true" "$context"
       digest="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["containerimage.digest"])' "$metadata")"
       printf '%s\n' "$digest" > "$out/$reference"
       docker pull "$image@$digest"
       docker tag "$image@$digest" "liwan-$local_name:ci-$GITHUB_RUN_ID"
     else
-      docker buildx build --platform "linux/$arch" -f "$dockerfile" ${argv[@]+"${argv[@]}"} --provenance=false --load \
+      docker buildx build --platform "$PLATFORM" -f "$dockerfile" ${argv[@]+"${argv[@]}"} --provenance=false --load \
         -t "$tag" "$context"
       docker tag "$tag" "liwan-$local_name:ci-$GITHUB_RUN_ID"
     fi
@@ -63,30 +64,23 @@ build() {
   LIWAN_IMAGE_PREBUILT=1 deploy/ci/image.sh
 }
 
-# The index just created must hold exactly the two per-arch images; the digest is read once and then checked by content,
-# so a tag moved in between cannot put another image into the release document.
-index_of() {
-  local image="$1" amd64="$2" arm64="$3" digest
-  digest="$(index_digest "$image:$GITHUB_SHA")"
-  docker buildx imagetools inspect --raw "$image@$digest" | python3 -c '
-import json, sys
-found = sorted(item["digest"] for item in json.load(sys.stdin)["manifests"])
-sys.exit(0 if found == sorted(sys.argv[1:]) else "index " + sys.argv[0] + " does not hold exactly the built images")
-' "$amd64" "$arm64" || fail "$image index does not hold exactly the amd64 and arm64 images just pushed"
+# The digest is read once from what this run pushed and then checked against the commit tag, so a tag moved in between
+# cannot put another image into the release document.
+tag_holds() {
+  local image="$1" digest="$2"
+  [ "$(manifest_digest "$image:$GITHUB_SHA")" = "$digest" ] || fail "$image:$GITHUB_SHA does not hold the image this run pushed"
   printf '%s' "$digest"
 }
 
 merge() {
-  local digests="${1:?digests dir}" work anchor anchor_digest metadata amd64 arm64
+  local digests="${1:?digests dir}" work anchor anchor_digest metadata digest
   : "${GITHUB_SHA:?}" "${GITHUB_RUN_ID:?}" "${GITHUB_REF:?}" "${GITHUB_REPOSITORY:?}"
   [ "$GITHUB_REF" = refs/heads/main ] || fail "release documents are published from main only, not $GITHUB_REF"
   work="$(mktemp -d)"
   : > "$work/images.tsv"
   while IFS=$'\t' read -r image reference _ _ _ _; do
-    amd64="$(cat "$digests/digests-amd64/$reference")"
-    arm64="$(cat "$digests/digests-arm64/$reference")"
-    docker buildx imagetools create -t "$image:$GITHUB_SHA" "$image@$amd64" "$image@$arm64"
-    printf '%s\t%s@%s\n' "$reference" "$image" "$(index_of "$image" "$amd64" "$arm64")" >> "$work/images.tsv"
+    digest="$(cat "$digests/$reference")"
+    printf '%s\t%s@%s\n' "$reference" "$image" "$(tag_holds "$image" "$digest")" >> "$work/images.tsv"
   done < <(builds)
   python3 -c 'import json, sys; print(json.dumps(dict(line.rstrip("\n").split("\t") for line in open(sys.argv[1]))))' \
     "$work/images.tsv" > "$work/images.json"
@@ -99,7 +93,7 @@ merge() {
   anchor_digest="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["containerimage.digest"])' "$metadata")"
   cosign attest --yes --type "$(attestation_type staging)" --predicate "$work/release.json" "$anchor@$anchor_digest"
   if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
-    { printf 'Signed staging release for %s\n\n| Image | Index digest |\n| --- | --- |\n' "$GITHUB_SHA"
+    { printf 'Signed staging release for %s\n\n| Image | Digest |\n| --- | --- |\n' "$GITHUB_SHA"
       awk -F'\t' '{ printf "| %s | %s |\n", $1, $2 }' "$work/images.tsv"
       printf '\nRelease document: `%s@%s`, attestation type `%s`\n' "$anchor" "$anchor_digest" "$(attestation_type staging)"
     } >> "$GITHUB_STEP_SUMMARY"
@@ -112,7 +106,7 @@ promote() {
   case "$GITHUB_REF" in refs/tags/release/*) ;; *) fail "promote runs on a release/* tag, not $GITHUB_REF" ;; esac
   local anchor anchor_digest work
   anchor="$(registry)/liwan-release"
-  anchor_digest="$(index_digest "$anchor:$GITHUB_SHA" 2>/dev/null)" ||
+  anchor_digest="$(manifest_digest "$anchor:$GITHUB_SHA" 2>/dev/null)" ||
     fail "no published release document for commit $GITHUB_SHA: merge it to main and wait for the publish run before tagging"
   work="$(mktemp -d)"
   cosign verify-attestation --type "$(attestation_type staging)" --certificate-oidc-issuer "$OIDC_ISSUER" \
@@ -135,5 +129,5 @@ sys.exit("the verified release document is not for commit " + commit)
 
 case "${1:-}" in
   plan|build|merge|promote) "$@" ;;
-  *) echo "usage: publish.sh plan | build <arch> <out-dir> | merge <digests-dir> | promote" >&2; exit 2 ;;
+  *) echo "usage: publish.sh plan | build <out-dir> | merge <digests-dir> | promote" >&2; exit 2 ;;
 esac

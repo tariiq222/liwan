@@ -97,6 +97,23 @@ class TestTagOnlyImage(unittest.TestCase):
         self.assertEqual(rules(report), [image_pins.BUILT_LOCALLY])
         self.assertIn('`build:` block', report.findings[0].action)
 
+    def test_a_released_image_that_the_stack_only_builds_fails(self):
+        # Compose would tag a local build `<project>-<service>` and never run the image the deploy script tagged.
+        report = image_pins.check(
+            {'base.yml': compose({'web': None})},
+            manifest([released('web', reference='liwan-web')]),
+        )
+        self.assertEqual(rules(report), [image_pins.BUILT_LOCALLY])
+        self.assertIn('image: liwan-web:${LIWAN_IMAGE_TAG}', report.findings[0].action)
+
+    def test_an_image_declared_in_a_merged_anchor_is_the_services_image(self):
+        text = ('x-process: &process\n  image: liwan-control-plane:${LIWAN_IMAGE_TAG}\n  build: .\n'
+                'services:\n  control-api:\n    <<: *process\n    user: x\n')
+        report = image_pins.check({'cp.yml': text},
+                                  manifest([released('control-api', reference='liwan-control-plane')]))
+        self.assertEqual(report.findings, ())
+        self.assertEqual(report.declared[0].image, 'liwan-control-plane:${LIWAN_IMAGE_TAG}')
+
     def test_a_released_image_with_only_a_tag_needs_no_digest_in_compose(self):
         # The repository builds liwan-* itself; its digest is per commit and lives in the
         # signed release manifest, so the compose tag is not a finding.
@@ -387,16 +404,28 @@ class TestRecordedRepositoryState(unittest.TestCase):
 
     def test_the_stack_declares_every_service_the_manifest_covers(self):
         self.assertEqual(services_in(self.report),
-                         ['ai', 'ai-egress', 'db', 'guard', 'odoo', 'odoo-egress', 'odoo-mail', 'pgbouncer',
-                          'proxy', 'restore-db', 'restore-odoo', 'tiktok-relay', 'web'])
-        self.assertEqual(len(self.manifest.entries), 13)
+                         ['ai', 'ai-egress', 'control-admin', 'control-api', 'control-db', 'control-migrate',
+                          'control-worker', 'db', 'guard', 'odoo', 'odoo-egress', 'odoo-mail', 'pgbouncer',
+                          'proxy', 'restore-db', 'restore-odoo', 'tiktok-relay', 'vendor-console', 'web'])
+        self.assertEqual(len(self.manifest.entries), 19)
 
-    def test_the_vendor_console_is_not_a_production_stack_service(self):
-        # apps/vendor-admin is built and smoke-tested by deploy/ci/image.sh, but no
-        # customer's production stack starts it, so recording a pin for it would be a
-        # stale entry (the finding this class also forbids).
-        self.assertNotIn('vendor-admin', services_in(self.report))
-        self.assertNotIn('vendor-admin', self.manifest.by_service())
+    def test_the_control_plane_and_the_vendor_console_are_released_images(self):
+        # compose.production.yml runs them as liwan-control-plane and liwan-vendor-admin, so both are published and
+        # listed in the signed release document (the deploy script pulls and tags exactly that list).
+        by_service = self.manifest.by_service()
+        for service in ('control-migrate', 'control-api', 'control-worker', 'control-admin'):
+            self.assertEqual(by_service[service].reference, 'liwan-control-plane')
+        self.assertEqual(by_service['vendor-console'].reference, 'liwan-vendor-admin')
+        published = {build.reference for build in self.manifest.builds if build.published}
+        self.assertLessEqual({'liwan-control-plane', 'liwan-vendor-admin'}, published)
+
+    def test_every_released_service_names_its_image_so_no_host_builds_it(self):
+        for item in self.report.declared:
+            entry = self.manifest.by_service()[item.service]
+            if not entry.published:
+                with self.subTest(service=item.service):
+                    self.assertIsNotNone(item.image, f'{item.service} declares only a build')
+                    self.assertTrue(item.image.startswith(f'{entry.reference}:${{LIWAN_IMAGE_TAG'), item.image)
 
     def test_the_registry_is_the_ghcr_account_of_the_repository(self):
         self.assertEqual(self.manifest.registry, 'ghcr.io/tariiq222')

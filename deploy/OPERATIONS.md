@@ -478,7 +478,7 @@ Storage), and restore is performed by support on request.
 | Encryption | `deploy/backup_pipeline.py` (`encrypt_file`/`decrypt_file` through the `openssl` CLI) |
 | Offsite transport | `deploy/s3_client.py` (SigV4; a real S3 store and a filesystem store) |
 | Restore drill | `deploy/restore_drill.py` (restores the newest artifact into a scratch database) |
-| Alerts | `deploy/alerts.py` (email and Telegram; five events) |
+| Alerts | `deploy/alerts.py` (email and Telegram; seven events) |
 
 Every credential is an environment variable, never a repository file:
 
@@ -535,8 +535,9 @@ python3 -B deploy/restore_drill.py run --tenant <tenant-id> \
 ## Alerts (owner decisions 2026-11-06)
 
 Alerts reach the owner by **email and Telegram** (never WhatsApp). `deploy/alerts.py`
-emits exactly five events — failed backup, backup older than the RPO, disk above the
-threshold, container unhealthy, restore drill failed — and nothing else. A channel
+emits exactly seven events — failed backup, backup older than the RPO, disk above the
+threshold, container unhealthy, restore drill failed, deploy failed (rolled back, deploys
+halted) and deploy rollback failed (service left in maintenance) — and nothing else. A channel
 that fails to deliver is reported, never silently dropped, and one failing channel
 does not stop the other. The bot token, chat id and SMTP credentials are environment
 values the owner provides.

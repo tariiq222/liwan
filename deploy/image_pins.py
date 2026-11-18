@@ -28,9 +28,10 @@ The report carries image references and digests only. Nothing here reads an
 environment variable, a token or a credential, and the CLI must never print one.
 
 The covered stack is every service ``deploy/docker-compose.yml`` declares, with the
-shared-SaaS and production overlays applied. ``apps/vendor-admin`` has no entry
-because it is the vendor console, built and smoke-tested by ``deploy/ci/image.sh``
-but never started by a customer's production stack.
+shared-SaaS and production overlays applied, plus the control plane's own production
+compose file (its services and the vendor console). A released image must be named in
+its compose file: a service that only builds would be built on the server instead of
+running the image the deploy script verified and tagged.
 """
 from __future__ import annotations
 
@@ -53,6 +54,7 @@ COMPOSE_FILES = (
     ROOT / 'deploy/docker-compose.yml',
     ROOT / 'deploy/docker-compose.shared.yml',
     ROOT / 'deploy/docker-compose.production.yml',
+    ROOT / 'deploy/control-plane/compose.production.yml',
 )
 SCHEMA_VERSION = 1
 DIGEST = re.compile(r'^sha256:[0-9a-f]{64}$')
@@ -66,6 +68,11 @@ BUILD_PATH = re.compile(r'^(?!/)(?!.*(?:^|/)\.\.(?:/|$))[A-Za-z0-9_./-]+$')
 BUILD_ARG = re.compile(r'^[A-Z][A-Z0-9_]*$')
 LOCAL_NAME = re.compile(r'^[a-z][a-z0-9-]*$')
 SERVICE_LINE = re.compile(r'^ {2}([\w-]+):\s*$')
+# A top-level `x-...: &name` block (a YAML anchor) and a service's `<<: *name` merge of it. The control plane's
+# compose file declares its image once in an anchor that several services merge.
+ANCHOR_LINE = re.compile(r'^x-[\w-]+:\s*&([\w-]+)\s*$')
+ANCHOR_IMAGE_LINE = re.compile(r'^ {2}image:\s*(.+?)\s*$')
+MERGE_LINE = re.compile(r'^ {4}<<:\s*(.+?)\s*$')
 # Service properties sit at four spaces in every file of the production stack, so a
 # nested `image:` key (a build argument, say) is never read as the service's image.
 # The whole remainder is the value: these references interpolate a Compose variable
@@ -301,11 +308,34 @@ def declared_images(texts: Mapping[str, str]) -> tuple[DeclaredImage, ...]:
     """
     effective: dict[str, DeclaredImage] = {}
     for name, text in texts.items():
+        anchors = anchor_images(text)
         for service, block in services(text).items():
-            image = _image_of(block)
+            image = _image_of(block) or _merged_image(block, anchors)
             if image is not None or service not in effective:
                 effective[service] = DeclaredImage(service=service, image=image, compose=name)
     return tuple(effective[service] for service in sorted(effective))
+
+
+def anchor_images(compose_text: str) -> dict[str, str]:
+    """Map each top-level YAML anchor of one compose file to the image it declares, if any."""
+    images: dict[str, str] = {}
+    name = None
+    for line in compose_text.splitlines():
+        if re.match(r'^\S', line):
+            match = ANCHOR_LINE.match(line)
+            name = match.group(1) if match else None
+        elif name and (match := ANCHOR_IMAGE_LINE.match(line)):
+            images[name] = _uncommented(match.group(1)).strip('\'"')
+    return images
+
+
+def _merged_image(block: str, anchors: Mapping[str, str]) -> str | None:
+    for line in block.splitlines():
+        if MERGE_LINE.match(line):
+            for name in re.findall(r'\*([\w-]+)', line):
+                if name in anchors:
+                    return anchors[name]
+    return None
 
 
 def _image_of(block: str) -> str | None:
@@ -358,7 +388,7 @@ def _entry_findings(item: DeclaredImage, entry: Entry, registry: str) -> tuple[F
 def _released_findings(item: DeclaredImage, entry: Entry, registry: str) -> tuple[Finding, ...]:
     """A released image is run under the name the publish workflow pushes, so a typo is caught here."""
     if item.image is None:
-        return ()
+        return (_released_but_built(item, entry, registry),)
     name = item.image.split('@', 1)[0].split(':', 1)[0]
     if name in (entry.reference, f'{registry}/{entry.reference}'):
         return ()
@@ -383,6 +413,18 @@ def _built_locally(item: DeclaredImage, entry: Entry) -> Finding:
         action=(f'add to {item.compose} for this service: '
                 f'`image: {entry.reference}@{entry.digest}`, then drop its `build:` block so the '
                 'deployment runs the image that was verified'),
+    )
+
+
+def _released_but_built(item: DeclaredImage, entry: Entry, registry: str) -> Finding:
+    """A released image the stack does not name: a host would build it, or keep an old local build."""
+    return Finding(
+        rule=BUILT_LOCALLY,
+        service=item.service,
+        subject=_declared_subject(item),
+        detail=(f'{item.compose} declares no image for this service, so Compose tags a local build '
+                f'`<project>-<service>` and never selects the released {entry.reference}:<tag> the deploy script tagged'),
+        action=f'add `image: {entry.reference}:${{LIWAN_IMAGE_TAG}}` to this service in {item.compose}',
     )
 
 

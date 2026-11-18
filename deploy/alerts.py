@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""Owner alerts for the five operational events, by email and Telegram, nothing else.
+"""Owner alerts for the seven operational events, by email and Telegram, nothing else.
 
-One fact lives here: which five things are worth telling the owner about, what the
+One fact lives here: which seven things are worth telling the owner about, what the
 owner is told about each, and over which two channels the message travels. The
 events are fixed, so no module can send an arbitrary text through this file: it
 names one of :class:`AlertEvent` or it does not send. The channels are fixed for
@@ -30,6 +30,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import smtplib
 import ssl
 import sys
@@ -53,6 +54,9 @@ DOCKER_HEALTHY = 'healthy'
 DOCKER_STARTING = 'starting'
 DOCKER_UNHEALTHY = 'unhealthy'
 DOCKER_HEALTH_STATES = frozenset({DOCKER_HEALTHY, DOCKER_STARTING, DOCKER_UNHEALTHY})
+# The deploy events carry closed, short identifiers only: never a path, a URL or a secret.
+DEPLOY_FIELD_PATTERN = re.compile(r'^[a-z0-9][a-z0-9._+-]{0,63}$')
+DEPLOY_CODE_PATTERN = re.compile(r'^[a-z][a-z0-9_]{0,63}$')
 # The submission port of the SMTP relay this deployment uses.
 DEFAULT_SMTP_PORT = 587
 # A hung relay or a black-holed Bot API call must end the run instead of blocking it.
@@ -118,7 +122,7 @@ class Severity(Enum):
 
 @dataclass(frozen=True)
 class EventSpec:
-    """One of the five events: its stable machine name and its owner-facing text."""
+    """One of the seven events: its stable machine name and its owner-facing text."""
 
     name: str
     title: str
@@ -127,7 +131,7 @@ class EventSpec:
 
 
 class AlertEvent(Enum):
-    """The five events an alert may name. Nothing else can be sent (owner decision)."""
+    """The seven events an alert may name. Nothing else can be sent (owner decision)."""
 
     BACKUP_FAILED = EventSpec(
         name='backup_failed',
@@ -160,6 +164,20 @@ class AlertEvent(Enum):
         severity=Severity.CRITICAL,
         first_action='لا تعتبر هذه النسخة قابلة للاستعادة؛ أعد تمرين الاستعادة على قاعدة scratch '
                      'واقرأ تقرير التحقق.',
+    )
+    DEPLOY_FAILED = EventSpec(
+        name='deploy_failed',
+        title='فشل التحديث وتمت العودة للإصدار السابق',
+        severity=Severity.CRITICAL,
+        first_action='النظام يعمل على الإصدار السابق والتحديثات متوقفة؛ اقرأ سجل التحديث وسبب الفشل، '
+                     'ثم أصلح السبب وامسح حالة الإيقاف ليستأنف التحديث.',
+    )
+    DEPLOY_ROLLBACK_FAILED = EventSpec(
+        name='deploy_rollback_failed',
+        title='فشلت العودة للإصدار السابق',
+        severity=Severity.CRITICAL,
+        first_action='الخدمة متروكة في وضع الصيانة؛ ادخل المضيف فورًا، واقرأ حالة التحديث، '
+                     'واستعد من اللقطة أو النسخة الاحتياطية المشفرة.',
     )
 
     @classmethod
@@ -571,6 +589,20 @@ def restore_drill_failed_message(*, database: str, reason: str, timestamp: datet
                         timestamp=timestamp)
 
 
+def deploy_message(event: AlertEvent, *, environment: str, release: str, phase: str,
+                   reason: str, timestamp: datetime) -> AlertMessage:
+    """A deploy ended badly. Every field is a short identifier, so the text carries no free input."""
+    _require(event in (AlertEvent.DEPLOY_FAILED, AlertEvent.DEPLOY_ROLLBACK_FAILED),
+             f'{event.value.name} is not a deploy event')
+    _require(bool(DEPLOY_FIELD_PATTERN.fullmatch(environment)), 'the environment is not a short identifier')
+    _require(bool(DEPLOY_FIELD_PATTERN.fullmatch(release)), 'the release is not a short identifier')
+    _require(bool(DEPLOY_CODE_PATTERN.fullmatch(phase)), 'the phase is not a lowercase code')
+    _require(bool(DEPLOY_CODE_PATTERN.fullmatch(reason)), 'the reason is not a lowercase code')
+    return AlertMessage(event=event, target=environment,
+                        observed=f'الإصدار {release}، المرحلة {phase}، السبب {reason}',
+                        timestamp=timestamp)
+
+
 def evaluate_backup_age(*, database: str, age_seconds: float, timestamp: datetime,
                         rpo_seconds: int = DEFAULT_BACKUP_RPO_SECONDS) -> AlertMessage | None:
     """Alert when the newest good backup is older than the RPO; silent at or within it."""
@@ -640,6 +672,9 @@ def _message_for(args: argparse.Namespace, timestamp: datetime) -> AlertMessage 
     if event is AlertEvent.RESTORE_DRILL_FAILED:
         return restore_drill_failed_message(database=args.database, reason=args.reason,
                                             timestamp=timestamp)
+    if event in (AlertEvent.DEPLOY_FAILED, AlertEvent.DEPLOY_ROLLBACK_FAILED):
+        return deploy_message(event, environment=args.environment, release=args.release,
+                              phase=args.phase, reason=args.reason, timestamp=timestamp)
     raise AlertError(f'no message is defined for the event {event.value.name!r}')
 
 
@@ -670,7 +705,7 @@ def _write_json(payload: dict[str, object]) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog='alerts.py',
-        description='Send one owner alert for one of the five operational events.',
+        description='Send one owner alert for one of the seven operational events.',
     )
     commands = parser.add_subparsers(dest='command', required=True)
     failed = commands.add_parser(AlertEvent.BACKUP_FAILED.value.name,
@@ -702,6 +737,13 @@ def build_parser() -> argparse.ArgumentParser:
     drill.add_argument('--database', required=True, help='database the restore drill targeted')
     drill.add_argument('--reason', required=True,
                        help='short failure reason, never a path or a secret')
+    for event in (AlertEvent.DEPLOY_FAILED, AlertEvent.DEPLOY_ROLLBACK_FAILED):
+        deploy = commands.add_parser(event.value.name, help=event.value.title)
+        deploy.add_argument('--environment', required=True, help='environment name, such as staging')
+        deploy.add_argument('--release', required=True, help='release the run was moving to')
+        deploy.add_argument('--phase', required=True, help='phase code the run stopped in')
+        deploy.add_argument('--reason', required=True,
+                            help='closed reason code, lowercase letters, digits and underscores')
     return parser
 
 

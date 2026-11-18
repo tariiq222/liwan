@@ -27,15 +27,14 @@ Two other env files stay separate, because the services read them directly: the 
 
 ## Rules
 
-- Staging has no real customer data. It runs on the shared OVH server, outside Saudi Arabia. Use test-mode
-  payment and SMS keys only. Production data stays on the Oracle server in Jeddah.
+- Staging has no real customer data. It runs on its own Oracle server in Jeddah, apart from production. Use
+  test-mode payment and SMS keys only.
 - No code or compose file tests which environment it runs in. A difference between environments is a variable.
-- Staging shares the OVH host with other projects. The compose set carries hard memory ceilings (about 9 GB for
+- The compose set carries hard memory ceilings (about 9 GB for
   Odoo and 10 GB for PostgreSQL, plus the small services and the control plane, 24 GB in total), sized for the
-  production Arm server. They are ceilings, not reservations: the host had about 36 GB free when this was written.
-  Do not raise them on staging, and check free memory on the host before the first start.
-- Staging publishes its edge on an OVH Additional IP at ports 8080 and 8443. A host nat redirect (installed outside
-  this repository) sends the Additional IP's ports 80 and 443 to them. Production binds every address on 80 and 443.
+  production Arm server. They are ceilings, not reservations. Check free memory on the host before the first start.
+- Both environments bind every address on ports 80 and 443; no proxy sits in front of the stack's own Caddy. The three
+  `LIWAN_EDGE_*` variables stay required so a local acceptance stack can publish the same compose set on other ports.
 
 ## Variables
 
@@ -46,9 +45,9 @@ environments), **release** (written by the release path), **fixed** (the same in
 | --- | --- | --- | --- | --- | --- |
 | `LIWAN_IMAGE_TAG` | Tag of the images the stack runs | the staging release tag | the release tag | release | no |
 | `ODOO_COMMIT` | Pinned Odoo revision, from `deploy/odoo/ODOO_COMMIT` | same | same | release | no |
-| `LIWAN_EDGE_BIND` | Address the edge publishes on, required | the OVH Additional IP | `0.0.0.0` | owner | yes |
-| `LIWAN_EDGE_HTTP_PORT` | Published HTTP port, required | `8080` | `80` | fixed per environment | yes |
-| `LIWAN_EDGE_HTTPS_PORT` | Published HTTPS port, required | `8443` | `443` | fixed per environment | yes |
+| `LIWAN_EDGE_BIND` | Address the edge publishes on, required | `0.0.0.0` | `0.0.0.0` | fixed | no |
+| `LIWAN_EDGE_HTTP_PORT` | Published HTTP port, required | `80` | `80` | fixed | no |
+| `LIWAN_EDGE_HTTPS_PORT` | Published HTTPS port, required | `443` | `443` | fixed | no |
 | `DOMAIN` | Site-address list of the tenant edge: base domain and wildcard | `staging.<base>, *.staging.<base>` | `<base>, *.<base>` | owner | yes |
 | `LIWAN_PROSPECT_HOST` | Public sign-up and marketing host | `app.staging.<base>` | `app.<base>` | owner | yes |
 | `NUXT_CUSTOMER_COMMERCIAL_PUBLIC_ORIGIN` | Public origin of that host | `https://app.staging.<base>` | `https://app.<base>` | owner | yes |
@@ -65,6 +64,7 @@ environments), **release** (written by the release path), **fixed** (the same in
 | `CUSTOMER_COMMERCIAL_SERVICE_KEY` | Web tier signing key, equal to the control-plane value | generated | generated | host | yes |
 | `LIWAN_PUBLIC_SIGNUP` | Public sign-up switch | `false` until staging is proven | `false` until launch | owner | no |
 | `LIWAN_SHARED_ODOO_CONFIG` | Absolute path of the read-only Odoo config | `/srv/liwan-staging/...` | `/srv/liwan/...` | host | yes |
+| `LIWAN_MAINTENANCE_DIR` | Host directory mounted read-only into the proxy; the deploy script puts `active` there during an update | `/var/lib/liwan-deploy/maintenance` | same | fixed | no |
 | `LIWAN_TENANT_REGISTRY_DIR` | Directory of the tenant registry | under the staging root | under the production root | host | yes |
 | `LIWAN_COMMERCIAL_CONTROL_NETWORK` | External network joining web and the control API | prefixed `liwan_staging_` | `liwan_` | host | yes |
 | `LIWAN_ADMIN_EDGE_NETWORK` | External network joining the edge and the vendor console | prefixed `liwan_staging_` | `liwan_` | host | yes |

@@ -35,9 +35,6 @@ VALUE_ALLOWLIST = frozenset({
     'LIWAN_CONTROL_CONFIG_DIR', 'LIWAN_CONTROL_STATE_DIR', 'LIWAN_CONTROL_PRIVATE_DIR', 'LIWAN_CONTROL_ENV_FILE',
     'LIWAN_VENDOR_ADMIN_ENV_FILE', 'LIWAN_SHARED_COMPOSE_FILE', 'LIWAN_SHARED_ENV_FILE',
 })
-# The edge publish address and ports differ too, but only where the proxy publishes them.
-EDGE_VARIABLES = frozenset({'LIWAN_EDGE_BIND', 'LIWAN_EDGE_HTTP_PORT', 'LIWAN_EDGE_HTTPS_PORT'})
-EDGE_PATH = re.compile(r'^services\.proxy\.ports\[\d+\]\.(host_ip|published)$')
 MIN_SUBSTITUTION_LENGTH = 6  # shorter values (k1, ports) are never substituted inside other text
 
 
@@ -93,8 +90,7 @@ class EnvironmentTemplates(unittest.TestCase):
     def test_only_allowlisted_variables_differ(self):
         staging, production = self.values['staging'], self.values['production']
         differing = {name for name in staging if staging[name] != production[name]}
-        self.assertEqual(set(), differing - VALUE_ALLOWLIST - EDGE_VARIABLES)
-        self.assertEqual(EDGE_VARIABLES, differing & EDGE_VARIABLES)
+        self.assertEqual(set(), differing - VALUE_ALLOWLIST)
 
     def test_every_variable_the_compose_set_requires_is_declared(self):
         required = set()
@@ -129,8 +125,6 @@ class EnvironmentTemplates(unittest.TestCase):
                 self.assertEqual(set(staging), set(production), f'{stack}: the two renderings have different shapes')
                 for leaf in staging:
                     if staging[leaf] == production[leaf]:
-                        continue
-                    if stack == 'shared' and EDGE_PATH.match(leaf):
                         continue
                     with self.subTest(stack=stack, leaf=leaf):
                         self.assertEqual(normalise(staging[leaf], replacements['staging']),

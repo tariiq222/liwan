@@ -39,3 +39,37 @@ test('a retired tenant resolves and is marked retired for the pipeline to refuse
 test('an unbound tenant exits 2 with no output', () => {
   assert.deepEqual(resolve('nobody'), { status: 2, out: null })
 })
+
+function list(registry, { pending = false } = {}) {
+  const dir = mkdtempSync(join(tmpdir(), 'backup-binding-'))
+  try {
+    const path = join(dir, 'registry.json')
+    writeFileSync(path, typeof registry === 'string' ? registry : JSON.stringify(registry))
+    if (pending) writeFileSync(`${path}.pending`, '')
+    const result = spawnSync('node', [RESOLVER, '--list', path], { encoding: 'utf8' })
+    return { status: result.status, out: result.stdout ? JSON.parse(result.stdout) : null }
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+}
+
+test('--list prints every non-retired tenant once, suspended ones included', () => {
+  assert.deepEqual(list({ ...base, snapshotRevision: 1, targets }), {
+    status: 0,
+    out: [
+      { tenantId: 'live', database: 'liwan_live', filestore: 'liwan_live', enabled: true },
+      { tenantId: 'paused', database: 'liwan_paused', filestore: 'liwan_paused', enabled: false },
+    ],
+  })
+})
+
+test('--list of the deny-all bootstrap registry is an empty array', () => {
+  assert.deepEqual(list({ ...base, snapshotRevision: 0, targets: [] }), { status: 0, out: [] })
+})
+
+test('--list exits 2 with no output while a publication is pending', () => {
+  assert.deepEqual(list({ ...base, snapshotRevision: 1, targets }, { pending: true }), { status: 2, out: null })
+})
+
+test('--list exits 2 with no output for an invalid registry', () => {
+  assert.deepEqual(list('{"schemaVersion":2}'), { status: 2, out: null })
+  assert.deepEqual(list('not json'), { status: 2, out: null })
+})

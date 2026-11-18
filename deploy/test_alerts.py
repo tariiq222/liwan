@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""The five owner alerts: which events exist, who receives them, and what a failure must show.
+"""The seven owner alerts: which events exist, who receives them, and what a failure must show.
 
 Every assertion here fails when the rule it defends is removed from
 ``deploy/alerts.py``: dropping an event from the enum, letting an unknown name
@@ -103,6 +103,12 @@ def one_message(event: AlertEvent) -> AlertMessage:
     if event is AlertEvent.CONTAINER_UNHEALTHY:
         return alerts.evaluate_container_health(container='liwan-odoo', health='unhealthy',
                                                 timestamp=NOW)
+    if event is AlertEvent.DEPLOY_FAILED:
+        return alerts.deploy_message(event, environment='staging', release='19.0.1.0.6',
+                                     phase='upgrading', reason='upgrade_failed', timestamp=NOW)
+    if event is AlertEvent.DEPLOY_ROLLBACK_FAILED:
+        return alerts.deploy_message(event, environment='production', release='19.0.1.0.6',
+                                     phase='rolling_back', reason='restore_failed', timestamp=NOW)
     return alerts.restore_drill_failed_message(database=TENANT_DATABASE, reason='verify exited 1',
                                                timestamp=NOW)
 
@@ -111,12 +117,12 @@ def has_arabic(text: str) -> bool:
     return any(letter in text for letter in ARABIC_LETTERS)
 
 
-class TestTheFiveEvents(unittest.TestCase):
-    def test_exactly_the_five_decided_events_exist_and_no_other(self):
+class TestTheSevenEvents(unittest.TestCase):
+    def test_exactly_the_seven_decided_events_exist_and_no_other(self):
         self.assertEqual(
             sorted(event.value.name for event in AlertEvent),
-            ['backup_failed', 'backup_stale', 'container_unhealthy', 'disk_high',
-             'restore_drill_failed'],
+            ['backup_failed', 'backup_stale', 'container_unhealthy', 'deploy_failed',
+             'deploy_rollback_failed', 'disk_high', 'restore_drill_failed'],
         )
 
     def test_each_event_has_a_stable_name_an_arabic_title_and_a_severity(self):
@@ -628,6 +634,41 @@ class TestCommandLine(unittest.TestCase):
         payload = json.loads(stdout)
         self.assertFalse(payload['channels']['email']['delivered'])
         self.assertTrue(payload['channels']['telegram']['delivered'])
+
+    def test_a_deploy_event_names_environment_release_phase_and_reason(self):
+        for command in ('deploy_failed', 'deploy_rollback_failed'):
+            with self.subTest(command=command):
+                code, stdout, stderr = self.run_main(
+                    [command, '--environment', 'staging', '--release', '19.0.1.0.6',
+                     '--phase', 'upgrading', '--reason', 'upgrade_failed'],
+                    env=full_environment(),
+                    transports=Transports(email=FakeTransport(), telegram=FakeTransport()),
+                )
+                self.assertEqual((code, stderr), (0, ''))
+                payload = json.loads(stdout)
+                self.assertEqual(payload['event'], command)
+                self.assertEqual(payload['severity'], 'critical')
+                self.assertEqual(payload['target'], 'staging')
+                for part in ('19.0.1.0.6', 'upgrading', 'upgrade_failed'):
+                    self.assertIn(part, payload['body'])
+
+    def test_a_deploy_event_with_a_free_text_field_is_refused_and_sends_nothing(self):
+        good = {'--environment': 'staging', '--release': '19.0.1.0.6', '--phase': 'upgrading',
+                '--reason': 'upgrade_failed'}
+        bad = {'--environment': 'Stag ing', '--release': '/etc/shadow', '--phase': 'Up grading',
+               '--reason': 'a' * 65}
+        for flag, value in (*bad.items(), ('--reason', 'Upgrade failed'), ('--reason', '1x')):
+            argv = ['deploy_failed']
+            for name, default in {**good, flag: value}.items():
+                argv += [name, default]
+            email = FakeTransport()
+            with self.subTest(flag=flag, value=value):
+                code, _, stderr = self.run_main(argv, env=full_environment(),
+                                                transports=Transports(email=email,
+                                                                      telegram=FakeTransport()))
+                self.assertEqual(code, alerts.EXIT_REFUSED)
+                self.assertIn('alerts:', stderr)
+                self.assertEqual(email.calls, [])
 
     def test_an_event_whose_threshold_was_not_crossed_sends_nothing(self):
         for argv in (['backup_stale', '--database', TENANT_DATABASE, '--age-seconds', '600'],
