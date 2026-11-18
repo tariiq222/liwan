@@ -17,7 +17,7 @@ AGENT_KEYS = {'id', 'name', 'available', 'in_shift', 'effective_available'}
 # 2026-01-04 is a Sunday: 06:00 UTC is 09:00 in Riyadh (UTC+3), 14:00 UTC is 17:00.
 SUNDAY_SHIFT = {'weekday': 6, 'from': '09:00', 'to': '17:00'}
 
-cover_isolation_routes((f'{AGENTS}/<int:user_id>/shifts',), source='liwan_inbox/tests/test_agent_availability.py')
+cover_isolation_routes((f'{AGENTS}/<int:user_id>', f'{AGENTS}/<int:user_id>/shifts'), source='liwan_inbox/tests/test_agent_availability.py')
 
 
 class AgentCase(AutomationCase):
@@ -198,6 +198,27 @@ class TestAgentsApi(AgentCase):
         self.login(self.outsider)
         self.assertError(self.get(AGENTS), 403, 'forbidden')
 
+    def test_one_agent_is_read_by_id(self):
+        self.set_available(self.agent2, False)
+        self.login(self.agent)
+        response = self.get(f'{AGENTS}/{self.agent2.id}')
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json(), {
+            'id': self.agent2.id, 'name': 'inbox_agent2', 'available': False, 'in_shift': True, 'effective_available': False,
+        })
+        self.assertEqual(self.get(f'{AGENTS}/{self.agent.id}').json()['available'], True)
+        self.login(self.manager)
+        self.assertEqual(self.get(f'{AGENTS}/{self.agent2.id}').status_code, 200)
+
+    def test_reading_one_agent_needs_a_capability_and_an_agent_of_the_company(self):
+        self.login(self.outsider)
+        self.assertError(self.get(f'{AGENTS}/{self.agent.id}'), 403, 'forbidden')
+        far = self.other_company_agent()
+        self.login(self.supervisor)
+        self.assertError(self.get(f'{AGENTS}/{far.id}'), 404, 'not_found')
+        self.assertError(self.get(f'{AGENTS}/{self.outsider.id}'), 404, 'not_found')
+        self.assertError(self.get(f'{AGENTS}/999999999'), 404, 'not_found')
+
     def test_an_agent_toggles_their_own_status(self):
         self.login(self.agent)
         response = self.patch_status(self.agent, {'available': False})
@@ -355,6 +376,28 @@ class TestUnavailableRelease(AgentCase):
         self.assertIn(NOTE_RELEASED % self.agent.name, self.notes(opened))
         self.assertIn(NOTE_RELEASED % self.agent.name, self.notes(pending))
         self.assertNotIn(NOTE_RELEASED % self.agent.name, self.notes(resolved))
+
+    def test_an_assign_only_user_releases_another_agents_conversations_and_the_bus_is_told(self):
+        self.settings.unavailable_release = 'release'
+        conversation = self.assigned()
+        assigner = self.custom_user('assign_only', 'inbox.conversations.read', 'inbox.conversations.assign')
+        self.login(assigner)
+        model = type(self.env['liwan.inbox.conversation'])
+        with patch.object(model, '_liwan_notify_bus', autospec=True) as notify:
+            response = self.api('PATCH', f'{AGENTS}/{self.agent.id}', {'available': False})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertFalse(self.reload(conversation).assignee_id)
+        self.assertIn(NOTE_RELEASED % self.agent.name, self.notes(conversation))
+        self.assertIn(conversation.id, {record.id for call in notify.call_args_list for record in call.args[0]})
+
+    def test_an_assigner_creates_internal_notes_but_no_customer_messages(self):
+        assigner = self.custom_user('note_only', 'inbox.conversations.read', 'inbox.conversations.assign')
+        conversation = self.assigned()
+        Message = self.env['liwan.inbox.message'].with_user(assigner)
+        values = {'conversation_id': conversation.id, 'company_id': conversation.company_id.id, 'body': 'x', 'delivery_state': 'sent'}
+        self.assertTrue(Message.create({**values, 'direction': 'note'}))
+        with self.assertRaises(AccessError):
+            Message.create({**values, 'direction': 'out'})
 
     def test_release_runs_only_when_the_agent_goes_from_available_to_unavailable(self):
         self.settings.unavailable_release = 'release'

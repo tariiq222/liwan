@@ -69,6 +69,13 @@ class AgentsController(http.Controller):
         state = agent_service()._liwan_availability(page, request.env.company)
         return {'items': [dump_agent(user, state[user.id]) for user in page], 'total': len(candidates)}
 
+    @http.route(AGENT, type='json2', auth='user', methods=['GET'], readonly=True)
+    @api_handler
+    @requires_feature('inbox.enabled', operation='read')
+    @requires_capability(READ, MANAGE_AUTOMATION, MANAGE_SETTINGS, match='any')
+    def get_agent(self, user_id, **_):
+        return dump_one(find_inbox_agent(user_id))
+
     @http.route(AGENT, type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
     @requires_feature('inbox.enabled', operation='write')

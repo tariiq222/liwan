@@ -85,6 +85,7 @@ class LiwanInboxAgent(models.Model):
         for conversation in conversations:
             conversation.assignee_id = False
             self.env['liwan.inbox.message']._liwan_post_system_note(conversation, NOTE_RELEASED % user.name)
+        conversations._liwan_notify_bus()
 
     @api.model
     def _liwan_write_shifts(self, user, company, days):

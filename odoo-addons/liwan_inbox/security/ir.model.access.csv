@@ -160,3 +160,4 @@ access_liwan_inbox_agent_replier,liwan.inbox.agent.replier,model_liwan_inbox_age
 access_liwan_inbox_agent_assigner,liwan.inbox.agent.assigner,model_liwan_inbox_agent,group_cap_inbox_conversations_assign,1,1,1,0
 access_liwan_inbox_agent_settings,liwan.inbox.agent.settings,model_liwan_inbox_agent,group_cap_inbox_settings_manage,1,1,1,0
 access_liwan_inbox_agent_automation,liwan.inbox.agent.automation,model_liwan_inbox_agent,group_cap_inbox_automation_manage,1,0,0,0
+access_liwan_inbox_message_assigner,liwan.inbox.message.assigner,model_liwan_inbox_message,group_cap_inbox_conversations_assign,1,0,1,0
