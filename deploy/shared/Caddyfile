@@ -119,8 +119,31 @@
 	}
 }
 
+# While an update stops the application services the edge stays up: a failed upstream answers a short
+# Arabic 503 with Retry-After instead of a bare gateway error, but only while the deploy script's marker file
+# `active` exists in the read-only maintenance directory. Without it a 502/504 is a real outage and keeps its
+# own answer. Tenant sites only; restore hosts have no maintenance page.
+(maintenance_page) {
+	handle_errors {
+		@upstreamDown {
+			file {
+				root /srv/liwan-maintenance
+				try_files active
+			}
+			expression `{http.error.status_code} in [502, 503, 504]`
+		}
+		handle @upstreamDown {
+			header Retry-After 60
+			header Cache-Control no-store
+			header Content-Type "text/plain; charset=utf-8"
+			respond "نحدّث النظام الآن، عُد بعد دقائق." 503
+		}
+	}
+}
+
 {$DOMAIN} {
 	import guarded_site
+	import maintenance_page
 }
 
 # Restore hosts, `r<approval uuid hex>.restore.<domain>`, are published by the control plane's restore

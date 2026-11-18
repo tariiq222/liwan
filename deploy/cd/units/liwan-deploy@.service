@@ -1,0 +1,31 @@
+# One deploy run for the environment named by the instance: systemctl start liwan-deploy@staging.service
+# The script takes its own lock, so a run that overlaps the timer exits at once instead of queueing.
+[Unit]
+Description=LiwanOS deploy run (%i)
+Documentation=file:///opt/liwan/current/deploy/cd/README.md
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+ConditionPathExists=/etc/liwan-deploy/%i.env
+
+[Service]
+Type=oneshot
+User=root
+# cosign keeps its TUF cache under HOME; a system unit has none unless it is set.
+Environment=HOME=/root
+ExecStart=/usr/bin/python3 -B /opt/liwan/current/deploy/cd/deploy.py run --environment %i
+TimeoutStartSec=2h
+# Exit 3 means "halted, waiting for an operator": the alert was already sent, so the timer ticks stay green.
+# Read the state with: deploy.py status --environment %i
+SuccessExitStatus=3
+# Docker, git and the backup tool need the network, the Docker socket, the data directories and the host's
+# filesystem, so only the settings that cost none of that are applied.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+UMask=0077

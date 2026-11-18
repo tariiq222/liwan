@@ -25,6 +25,9 @@ services:
       LIWAN_RESTORE_DOMAIN: ${LIWAN_RESTORE_DOMAIN:-invalid.invalid}
     volumes:
       - ./shared/Caddyfile:/etc/caddy/Caddyfile:ro
+      # The deploy script creates `active` here for the length of an update (deploy/cd/README.md); the Caddyfile
+      # shows its maintenance page only while that file exists. The default is a local directory for acceptance runs.
+      - ${LIWAN_MAINTENANCE_DIR:-./data/maintenance}:/srv/liwan-maintenance:ro
       - caddy_data:/data
     networks: [edge]
     depends_on:
