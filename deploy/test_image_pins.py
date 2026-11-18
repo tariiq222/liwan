@@ -5,8 +5,8 @@ Every assertion here fails when the rule it names is removed from
 ``deploy/image_pins.py``: a third-party image with only a tag, a published digest on
 a service the stack still builds here, a compose digest that disagrees with the
 manifest, a declared service the manifest forgot, a recorded service the stack does
-not declare, an unpublished pin in a release, a malformed digest, a duplicated
-entry. The last class pins today's repository state, so a silent change to either a
+not declare, a registry other than GHCR, a released image without a build or with a
+recorded digest, a malformed digest, a duplicated entry. The last class pins today's repository state, so a silent change to either a
 real pin or the real manifest is caught by the suite rather than by a release.
 """
 from __future__ import annotations
@@ -16,10 +16,12 @@ import io
 import json
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 from deploy import image_pins
 
+REGISTRY = 'ghcr.io/liwan'
 DIGEST = 'sha256:' + 'a' * 64
 OTHER_DIGEST = 'sha256:' + 'b' * 64
 # The digest deploy/docker-compose.production.yml pins for pgbouncer, resolved
@@ -39,25 +41,30 @@ def compose(images):
 
 
 def pin(service, digest=DIGEST, reference='liwan-image', evidence='recorded by this test',
-        status=image_pins.PUBLISHED, reason=None):
+        status=image_pins.PUBLISHED):
     """One manifest entry as JSON, so the validator sees real manifest input."""
     entry = {'service': service, 'reference': reference, 'status': status, 'evidence': evidence}
     if digest is not None:
         entry['digest'] = digest
-    if reason is not None:
-        entry['reason'] = reason
     return entry
 
 
-def unpublished(service, reference='liwan-image', reason='not published yet'):
-    return pin(service, digest=None, reference=reference, status=image_pins.UNPUBLISHED,
-               reason=reason)
+def released(service, reference='liwan-image'):
+    return pin(service, digest=None, reference=reference, status=image_pins.RELEASED)
 
 
-def manifest(entries, registry=None):
-    """A validated manifest from JSON-shaped entries."""
+def build(reference, **fields):
+    return {'reference': reference, 'dockerfile': 'apps/x/Dockerfile', 'context': '.', **fields}
+
+
+def manifest(entries, registry=REGISTRY, builds=None):
+    """A validated manifest from JSON-shaped entries; every released image gets a build unless given."""
+    if builds is None:
+        builds = [build(reference) for reference in
+                  sorted({entry['reference'] for entry in entries if entry['status'] == image_pins.RELEASED})]
     return image_pins.parse_manifest(
-        {'schemaVersion': image_pins.SCHEMA_VERSION, 'registry': registry, 'images': entries},
+        {'schemaVersion': image_pins.SCHEMA_VERSION, 'registry': registry, 'images': entries,
+         'builds': builds},
     )
 
 
@@ -89,14 +96,14 @@ class TestTagOnlyImage(unittest.TestCase):
         self.assertEqual(rules(report), [image_pins.BUILT_LOCALLY])
         self.assertIn('`build:` block', report.findings[0].action)
 
-    def test_a_locally_built_image_with_only_a_tag_is_reported_as_unpublished_not_tag_only(self):
-        # The repository builds liwan-* itself, so the missing fact is publication,
-        # not a tag that needs a digest in the compose file.
+    def test_a_released_image_with_only_a_tag_needs_no_digest_in_compose(self):
+        # The repository builds liwan-* itself; its digest is per commit and lives in the
+        # signed release manifest, so the compose tag is not a finding.
         report = image_pins.check(
             {'base.yml': compose({'odoo': 'liwan-odoo:release'})},
-            manifest([unpublished('odoo', reference='liwan-odoo')]),
+            manifest([released('odoo', reference='liwan-odoo')]),
         )
-        self.assertEqual(rules(report), [image_pins.UNPUBLISHED_PIN])
+        self.assertEqual(report.findings, ())
 
 
 class TestDigestMismatch(unittest.TestCase):
@@ -131,32 +138,61 @@ class TestMissingAndStaleEntries(unittest.TestCase):
         self.assertEqual(report.findings[0].service, 'retired')
 
 
-class TestUnpublishedPin(unittest.TestCase):
-    def setUp(self):
-        self.report = image_pins.check(
-            {'base.yml': compose({'odoo': 'liwan-odoo:release'})},
-            manifest([unpublished('odoo', reference='liwan-odoo')]),
+class TestReleasedImage(unittest.TestCase):
+    def test_a_released_image_the_stack_does_not_declare_is_stale(self):
+        report = image_pins.check(
+            {'base.yml': compose({'db': 'pgvector/pgvector:pg16@' + DIGEST})},
+            manifest([pin('db', reference='pgvector/pgvector:pg16'), released('odoo', reference='liwan-odoo')]),
         )
+        self.assertEqual(rules(report), [image_pins.STALE_ENTRY])
 
-    def test_an_unpublished_pin_fails_the_release_check(self):
-        self.assertTrue(self.report.failures(release=True))
+    def test_the_rendered_report_says_where_a_released_digest_lives(self):
+        entries = [released('odoo', reference='liwan-odoo')]
+        report = image_pins.check({'base.yml': compose({'odoo': 'liwan-odoo:release'})}, manifest(entries))
+        text = image_pins.render_report(report, manifest(entries))
+        self.assertIn('per release (signed release manifest)', text)
+        self.assertIn('registry: ' + REGISTRY, text)
 
-    def test_an_unpublished_pin_does_not_fail_the_report_before_a_registry_is_chosen(self):
-        self.assertEqual(self.report.failures(release=False), ())
 
-    def test_the_finding_names_the_next_action(self):
-        finding = self.report.findings[0]
-        self.assertEqual(finding.rule, image_pins.UNPUBLISHED_PIN)
-        self.assertIn('publish liwan-odoo', finding.action)
-        self.assertIn('docker buildx imagetools inspect', finding.action)
-        self.assertIn('deploy/production-images.json', finding.action)
-        self.assertIn('not published yet', finding.detail)
+class TestReleasedImageName(unittest.TestCase):
+    def test_a_mistyped_released_image_name_fails(self):
+        report = image_pins.check(
+            {'base.yml': compose({'odoo': 'liwan-odoo-typo:${TAG}'})},
+            manifest([released('odoo', reference='liwan-odoo')]),
+        )
+        self.assertEqual(rules(report), [image_pins.IMAGE_NAME_MISMATCH])
+        self.assertIn('liwan-odoo', report.findings[0].action)
 
-    def test_the_rendered_report_lists_the_service_and_its_action(self):
-        text = image_pins.render_report(self.report, manifest([unpublished('odoo')]))
-        self.assertIn('unpublished: odoo', text)
-        self.assertIn('next: publish liwan-odoo', text)
-        self.assertIn('1 image(s) are not published yet', text)
+    def test_the_bare_and_the_registry_qualified_names_pass(self):
+        for image in ('liwan-odoo:${TAG:?set}', REGISTRY + '/liwan-odoo:${TAG}', REGISTRY + '/liwan-odoo@' + DIGEST):
+            with self.subTest(image=image):
+                report = image_pins.check({'base.yml': compose({'odoo': image})},
+                                          manifest([released('odoo', reference='liwan-odoo')]))
+                self.assertEqual(report.findings, ())
+
+
+class TestBuilds(unittest.TestCase):
+    def test_a_ci_only_build_needs_a_local_name_and_no_released_entry(self):
+        entries = [released('odoo', reference='liwan-odoo')]
+        builds = [build('liwan-odoo', local='odoo'), build('liwan-vendor-admin', local='vendor-admin', published=False)]
+        self.assertEqual(len(manifest(entries, builds=builds).builds), 2)
+        with self.assertRaises(image_pins.ManifestError):
+            manifest(entries, builds=[build('liwan-odoo'), build('liwan-vendor-admin', published=False)])
+
+    def test_local_names_are_unique(self):
+        entries = [released('odoo', reference='liwan-odoo'), released('web', reference='liwan-web')]
+        with self.assertRaises(image_pins.ManifestError):
+            manifest(entries, builds=[build('liwan-odoo', local='x'), build('liwan-web', local='x')])
+
+    def test_the_printed_builds_resolve_arguments_and_mark_ci_only_images(self):
+        entries = [released('odoo', reference='liwan-odoo')]
+        document = manifest(entries, builds=[build('liwan-odoo', local='odoo', args=['LIWAN_REVISION']),
+                                             build('liwan-vendor-admin', local='vendor-admin', published=False)])
+        with unittest.mock.patch.dict('os.environ', {'GITHUB_SHA': 'f' * 40}):
+            lines = image_pins.render_builds(document).splitlines()
+        self.assertEqual(lines[0].split('\t'), [REGISTRY + '/liwan-odoo', 'liwan-odoo', 'odoo', 'apps/x/Dockerfile', '.',
+                                                'LIWAN_REVISION=' + 'f' * 12])
+        self.assertEqual(lines[1].split('\t')[:3], ['-', 'liwan-vendor-admin', 'vendor-admin'])
 
 
 class TestFullyPinnedStack(unittest.TestCase):
@@ -169,11 +205,9 @@ class TestFullyPinnedStack(unittest.TestCase):
             'production.yml': compose({'pgbouncer': PGBOUNCER_REFERENCE + '@' + OTHER_DIGEST}),
         }
 
-    def test_a_fully_pinned_and_published_stack_passes_both_modes(self):
+    def test_a_fully_pinned_and_published_stack_passes(self):
         report = image_pins.check(self.texts, self.manifest)
         self.assertEqual(report.findings, ())
-        self.assertEqual(report.failures(release=True), ())
-        self.assertEqual(report.failures(release=False), ())
         self.assertEqual(services_in(report), ['db', 'pgbouncer'])
 
     def test_an_overlay_restating_a_service_without_an_image_inherits_the_pin(self):
@@ -234,40 +268,63 @@ class TestManifestValidation(unittest.TestCase):
     def test_duplicate_service_entries_are_refused(self):
         self.assertRefused([pin('db'), pin('db', digest=OTHER_DIGEST)], 'duplicate service entries: db')
 
-    def test_an_unpublished_entry_must_state_a_reason_and_no_digest(self):
-        self.assertRefused([pin('odoo', digest=None, status=image_pins.UNPUBLISHED)], 'reason')
-        self.assertRefused([{**unpublished('odoo'), 'digest': DIGEST}], 'digest is null')
+    def test_a_released_entry_records_no_digest(self):
+        self.assertRefused([{**released('odoo', reference='liwan-odoo'), 'digest': DIGEST}], 'digest is null')
 
-    def test_only_an_owned_image_may_be_recorded_as_unpublished(self):
-        self.assertRefused([unpublished('db', reference='pgvector/pgvector:pg16')], 'liwan-*')
+    def test_only_an_owned_image_may_be_recorded_as_released(self):
+        self.assertRefused([released('db', reference='pgvector/pgvector:pg16')], 'bare liwan-*')
 
-    def test_an_owned_image_keeps_its_ownership_once_it_gains_a_registry_prefix(self):
-        entry = unpublished('odoo', reference='ghcr.io/liwan/liwan-odoo')
-        self.assertEqual(manifest([entry]).by_service()['odoo'].reference,
-                         'ghcr.io/liwan/liwan-odoo')
+    def test_a_released_reference_carries_no_registry_prefix(self):
+        self.assertRefused([released('odoo', reference='ghcr.io/liwan/liwan-odoo')], 'bare liwan-*')
+
+    def test_a_released_image_needs_a_build_and_a_build_needs_a_released_image(self):
+        with self.assertRaises(image_pins.ManifestError) as raised:
+            manifest([released('odoo', reference='liwan-odoo')], builds=[build('liwan-web')])
+        self.assertIn('released images without a build: liwan-odoo', str(raised.exception))
+        with self.assertRaises(image_pins.ManifestError) as raised:
+            manifest([pin('db', reference='pgvector/pgvector:pg16')], builds=[build('liwan-web')])
+        self.assertIn('builds for no released image: liwan-web', str(raised.exception))
+
+    def test_a_build_is_checked(self):
+        entries = [released('odoo', reference='liwan-odoo')]
+        for fields in ({'dockerfile': '/abs/Dockerfile'}, {'context': '../up'}, {'args': ['lower']},
+                       {'dockerfile': ''}):
+            with self.subTest(fields=fields), self.assertRaises(image_pins.ManifestError):
+                manifest(entries, builds=[build('liwan-odoo', **fields)])
+        with self.assertRaises(image_pins.ManifestError) as raised:
+            manifest(entries, builds=[build('liwan-odoo'), build('liwan-odoo')])
+        self.assertIn('duplicate builds', str(raised.exception))
+
+    def test_only_a_ghcr_account_is_a_registry(self):
+        entries = [pin('db', reference='pgvector/pgvector:pg16')]
+        for registry in (None, '', 'docker.io/liwan', 'registry.example.com/liwan', 'ghcr.io', 'ghcr.io/Liwan',
+                         'ghcr.io/liwan/extra', 'ghcr.io/liwan:5000'):
+            with self.subTest(registry=registry), self.assertRaises(image_pins.ManifestError):
+                image_pins.parse_manifest({'schemaVersion': 1, 'registry': registry, 'images': entries,
+                                           'builds': []})
+        self.assertEqual(manifest(entries).registry, REGISTRY)
 
     def test_evidence_is_required(self):
         self.assertRefused([{**pin('db'), 'evidence': '  '}], 'evidence')
 
     def test_the_schema_version_and_registry_are_checked(self):
         with self.assertRaises(image_pins.ManifestError):
-            image_pins.parse_manifest({'schemaVersion': 2, 'images': [pin('db')]})
-        with self.assertRaises(image_pins.ManifestError):
-            image_pins.parse_manifest({'schemaVersion': 1, 'registry': '', 'images': [pin('db')]})
+            image_pins.parse_manifest({'schemaVersion': 2, 'registry': REGISTRY, 'images': [pin('db')]})
 
     def test_an_unknown_status_is_refused(self):
         self.assertRefused([{**pin('db'), 'status': 'maybe'}], 'status')
 
 
 class TestCommandLine(unittest.TestCase):
-    def run_cli(self, texts, entries, *arguments, registry=None):
+    def run_cli(self, texts, entries, *arguments):
         """Run ``main`` against fixture files, capturing its output and exit code."""
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             manifest_path = root / 'production-images.json'
             manifest_path.write_text(json.dumps(
-                {'schemaVersion': image_pins.SCHEMA_VERSION, 'registry': registry,
-                 'images': entries},
+                {'schemaVersion': image_pins.SCHEMA_VERSION, 'registry': REGISTRY, 'images': entries,
+                 'builds': [build(entry['reference']) for entry in entries
+                            if entry['status'] == image_pins.RELEASED]},
             ), encoding='utf-8')
             compose_paths = []
             for name, text in texts.items():
@@ -280,39 +337,36 @@ class TestCommandLine(unittest.TestCase):
                                         '--compose', *compose_paths, *arguments])
             return code, out.getvalue()
 
-    def test_report_exits_zero_while_only_unpublished_owned_images_remain(self):
+    def test_a_released_image_passes(self):
         code, text = self.run_cli({'base.yml': compose({'odoo': 'liwan-odoo:release'})},
-                                  [unpublished('odoo', reference='liwan-odoo')])
+                                  [released('odoo', reference='liwan-odoo')])
         self.assertEqual(code, image_pins.EXIT_OK)
-        self.assertIn('not published yet', text)
+        self.assertIn(REGISTRY, text)
 
-    def test_report_fails_once_the_manifest_claims_a_registry(self):
-        # The moment a registry account is recorded, the unpublished entries are
-        # claimed to exist there, so the honest report fails.
-        code, text = self.run_cli({'base.yml': compose({'odoo': 'liwan-odoo:release'})},
-                                  [unpublished('odoo', reference='liwan-odoo')],
-                                  registry='registry.example.com/liwan')
-        self.assertEqual(code, image_pins.EXIT_FAILED)
-        self.assertIn('registry.example.com/liwan', text)
-
-    def test_check_fails_while_a_pin_is_unpublished(self):
-        code, _ = self.run_cli({'base.yml': compose({'odoo': 'liwan-odoo:release'})},
-                               [unpublished('odoo', reference='liwan-odoo')], '--check')
+    def test_a_broken_pin_fails(self):
+        code, _ = self.run_cli({'base.yml': compose({'db': 'pgvector/pgvector:pg16'})},
+                               [pin('db', reference='pgvector/pgvector:pg16')])
         self.assertEqual(code, image_pins.EXIT_FAILED)
 
-    def test_check_passes_a_fully_published_stack(self):
+    def test_a_fully_published_stack_passes(self):
         code, _ = self.run_cli(
             {'base.yml': compose({'db': 'pgvector/pgvector:pg16@' + DIGEST})},
-            [pin('db', reference='pgvector/pgvector:pg16')], '--check',
+            [pin('db', reference='pgvector/pgvector:pg16')],
         )
         self.assertEqual(code, image_pins.EXIT_OK)
+
+    def test_the_builds_are_printed_for_the_publish_script(self):
+        code, text = self.run_cli({'base.yml': compose({'odoo': 'liwan-odoo:release'})},
+                                  [released('odoo', reference='liwan-odoo')], '--print-builds')
+        self.assertEqual(code, image_pins.EXIT_OK)
+        self.assertEqual(text, f'{REGISTRY}/liwan-odoo\tliwan-odoo\t-\tapps/x/Dockerfile\t.\t\n')
 
     def test_an_unreadable_manifest_is_a_usage_error_not_a_pass(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'broken.json'
             path.write_text('{not json', encoding='utf-8')
             with contextlib.redirect_stderr(io.StringIO()):
-                code = image_pins.main(['--manifest', str(path), '--check'])
+                code = image_pins.main(['--manifest', str(path)])
         self.assertEqual(code, image_pins.EXIT_BAD_INPUT)
 
 
@@ -326,10 +380,8 @@ class TestRecordedRepositoryState(unittest.TestCase):
                      for path in image_pins.COMPOSE_FILES}
         cls.report = image_pins.check(cls.texts, cls.manifest)
 
-    def test_every_finding_is_an_unpublished_owned_image(self):
-        self.assertEqual({finding.rule for finding in self.report.findings},
-                         {image_pins.UNPUBLISHED_PIN})
-        self.assertEqual(len(self.report.findings), 10)
+    def test_the_recorded_stack_has_no_finding(self):
+        self.assertEqual(self.report.findings, ())
 
     def test_the_stack_declares_every_service_the_manifest_covers(self):
         self.assertEqual(services_in(self.report),
@@ -344,10 +396,16 @@ class TestRecordedRepositoryState(unittest.TestCase):
         self.assertNotIn('vendor-admin', services_in(self.report))
         self.assertNotIn('vendor-admin', self.manifest.by_service())
 
-    def test_no_registry_is_claimed_while_the_owned_images_are_unpublished(self):
-        self.assertIsNone(self.manifest.registry)
-        self.assertEqual(self.report.failures(release=False), ())
-        self.assertEqual(len(self.report.failures(release=True)), 10)
+    def test_the_registry_is_the_ghcr_account_of_the_repository(self):
+        self.assertEqual(self.manifest.registry, 'ghcr.io/tariiq222')
+
+    def test_every_owned_image_is_released_with_a_build_whose_files_exist(self):
+        released_references = {entry.reference for entry in self.manifest.entries if not entry.published}
+        self.assertEqual({build.reference for build in self.manifest.builds if build.published}, released_references)
+        for build in self.manifest.builds:
+            with self.subTest(image=build.reference):
+                self.assertTrue((image_pins.ROOT / build.dockerfile).is_file())
+                self.assertTrue((image_pins.ROOT / build.context).is_dir())
 
     def test_the_pgbouncer_pin_is_the_digest_the_manifest_and_compose_both_carry(self):
         entry = self.manifest.by_service()['pgbouncer']

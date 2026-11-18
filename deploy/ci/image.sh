@@ -12,14 +12,29 @@ IMAGE_ROOT="$(mktemp -d)"
 # Trivy 0.75.0 (published 2026-10-01), pinned by tag and by the digest of its multi-arch index.
 TRIVY_IMAGE="aquasec/trivy:0.75.0@sha256:af6acf9a6b85dfe389a1941505c0ce9efef52a4719635e1a962f022a3d855daa"
 TRIVY_CACHE="liwan-ci-${GITHUB_RUN_ID}-trivy-cache"
-# name:Dockerfile:context for every production image besides Odoo (built, smoke-checked, digest recorded).
-OTHER_IMAGES=(
-  "web:apps/web/Dockerfile:."
-  "vendor-admin:apps/vendor-admin/Dockerfile:."
-  "ai-service:apps/ai-service/Dockerfile:apps/ai-service"
-  "proxy:deploy/proxy/Dockerfile:."
-  "guard:deploy/shared/Dockerfile:."
-)
+# Every image this stage builds and smoke-checks, and how, comes from the `builds` list of deploy/production-images.json
+# (the list deploy/ci/publish.sh pushes from). Odoo is built separately; OTHER_IMAGES holds name:Dockerfile:context.
+OTHER_IMAGES=()
+ODOO_BUILD_ARGS=()
+while IFS=$'\t' read -r _ _ name dockerfile context args; do
+  [ "$name" != - ] || continue
+  if [ "$name" = odoo ]; then
+    ODOO_DOCKERFILE="$dockerfile"
+    ODOO_CONTEXT="$context"
+    for pair in ${args//,/ }; do ODOO_BUILD_ARGS+=(--build-arg "$pair"); done
+  else
+    OTHER_IMAGES+=("$name:$dockerfile:$context")
+  fi
+done < <(python3 -B deploy/image_pins.py --print-builds)
+: "${ODOO_DOCKERFILE:?deploy/production-images.json has no build for the odoo image}"
+# deploy/ci/publish.sh sets LIWAN_IMAGE_PREBUILT=1 after tagging the images it pushed, so this stage smoke-checks
+# and scans those exact images instead of building them a second time. An image with no tag is still built here.
+build_image() {
+  local tag="$1"
+  shift
+  if [ "${LIWAN_IMAGE_PREBUILT:-0}" = 1 ] && docker image inspect "$tag" >/dev/null 2>&1; then return 0; fi
+  docker build -t "$tag" "$@"
+}
 tag_of() { printf 'liwan-%s:ci-%s' "$1" "$GITHUB_RUN_ID"; }
 container_of() { printf 'liwan-ci-%s-%s' "$GITHUB_RUN_ID" "$1"; }
 cleanup() {
@@ -35,7 +50,7 @@ cleanup() {
 }
 trap cleanup EXIT
 docker info
-docker build -f deploy/odoo/Dockerfile --build-arg ODOO_COMMIT="$(cat deploy/odoo/ODOO_COMMIT)" --build-arg LIWAN_REVISION="${GITHUB_SHA:0:12}" -t "$IMAGE" .
+build_image "$IMAGE" -f "$ODOO_DOCKERFILE" ${ODOO_BUILD_ARGS[@]+"${ODOO_BUILD_ARGS[@]}"} "$ODOO_CONTEXT"
 SCRATCH_DB="liwan_image_scratch"
 MODULES="$(python3 -B tools/catalog_check.py --release-modules)"
 python3 deploy/classification.py fixture --database "$SCRATCH_DB" --mode non_saas --output "$IMAGE_ROOT/classification.json"
@@ -69,7 +84,7 @@ smoke_started() {
 HTTP_PROBE='fetch(process.argv[1]).then(r => process.exit(r.status < 500 ? 0 : 1), () => process.exit(1))'
 for entry in "${OTHER_IMAGES[@]}"; do
   IFS=: read -r name dockerfile context <<< "$entry"
-  docker build -f "$dockerfile" -t "$(tag_of "$name")" "$context"
+  build_image "$(tag_of "$name")" -f "$dockerfile" "$context"
 done
 
 # web: the Nitro server serves the public login page without Odoo (rendered without an upstream call).

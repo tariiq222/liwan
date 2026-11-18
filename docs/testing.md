@@ -370,8 +370,9 @@ application code, and it does not allowlist anything. The daily `image-scan` wor
 so an advisory published against an unchanged base image fails there first instead of in every pull request. The stage also
 writes a CycloneDX SBOM (packages and licenses, from the pinned Trivy) for each image into `LIWAN_SBOM_DIR`; both the `ci` image
 job and the `image-scan` workflow upload them as the `image-sbom` artifact (30 days), and a generator error fails the stage.
-The image digests are not registry-published and nothing is signed or attested; where the images are published and how they
-are signed is an owner decision (`deploy/image_pins.py --check` stays the failing release gate). A change under
+This stage publishes nothing. The `publish` workflow (`deploy/ci/publish.sh`) runs the same stage on both architectures for every
+`main` commit, pushes the images to GHCR and signs the per-commit release document; `deploy/image_pins.py` fails on a broken pin
+or a mistyped image name (owned images have the `released` status and no digest in the repository). A change under
 `apps/web`, `apps/vendor-admin`, `apps/ai-service`, `packages/ui`, `packages/commercial-ui` or
 `packages/commercial-contracts` selects the `image` stage on the push to `main` because those images build from them. Mock browser tests and RTL stories cover their listed flows, not every possible
 real integration. No paid model calls are required.

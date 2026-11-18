@@ -22,6 +22,8 @@ docker build -f deploy/odoo/Dockerfile \
   -t "liwan-odoo:${LIWAN_IMAGE_TAG:-dev}" .
 ```
 
+Release tags: any `release/*` tag push makes the `publish` workflow sign a production release document, so `release/*` tags must be restricted to the owner by a GitHub tag ruleset (a repository setting, not yet applied).
+
 `LIWAN_IMAGE_TAG` selects the image tag used by Compose. `ODOO_COMMIT` selects
 the immutable upstream Odoo revision fetched during the image build. The
 Odoo source and LiwanOS addons are baked into the image and made read-only at

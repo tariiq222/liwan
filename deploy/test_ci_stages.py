@@ -1,13 +1,17 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Execute the CI stage scripts against controlled process boundaries."""
+import importlib.util
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -34,6 +38,8 @@ class TestPipelineExecution(unittest.TestCase):
             shutil.copy(script, self.root / 'deploy/ci' / script.name)
         shutil.copytree(ROOT / 'deploy/ci/lib', self.root / 'deploy/ci/lib')
         shutil.copy(ROOT / 'deploy/ci/odoo_route_probe.py', self.root / 'deploy/ci/odoo_route_probe.py')
+        shutil.copy(ROOT / 'deploy/image_pins.py', self.root / 'deploy/image_pins.py')
+        shutil.copy(ROOT / 'deploy/production-images.json', self.root / 'deploy/production-images.json')
         (self.root / 'deploy/odoo').mkdir()
         (self.root / 'deploy/odoo/ODOO_COMMIT').write_text('a' * 40)
         self.fake('odoo-python', '''
@@ -54,6 +60,7 @@ if 'tools/app_isolation.py' in args and 'rank' in args:
  if args[-1] == 'account': sys.exit(1)  # The stock side of liwan_api_account has no LiwanOS rank.
  print({'liwan_api': 2, 'liwan_products': 3}.get(args[-1], 4))
 if 'tools/contract_fixtures.py' in args and '--addons' in args: print('liwan_tasks,liwan_pmo')
+if 'deploy/image_pins.py' in args: os.execv(sys.executable, [sys.executable, *args])
 if 'deploy/classification.py' in args:
  output=Path(args[args.index('--output')+1]); output.parent.mkdir(parents=True, exist_ok=True); output.write_text('{}')
 ''')
@@ -596,7 +603,7 @@ class TestVendorAdminStage(unittest.TestCase):
 
     def test_every_script_is_executable_bash_and_run_by_the_workflow(self):
         workflow = (ROOT / '.github/workflows/ci.yml').read_text()
-        scripts = sorted((ROOT / 'deploy/ci').glob('*.sh'))
+        scripts = sorted(path for path in (ROOT / 'deploy/ci').glob('*.sh') if path.name != 'publish.sh')
         self.assertEqual(len(scripts), 15)  # the thirteen stages, main-alert and the nightly contract-fixtures job
         for script in scripts:
             with self.subTest(script=script.name):
@@ -604,6 +611,159 @@ class TestVendorAdminStage(unittest.TestCase):
                 self.assertTrue(script.read_text().startswith('#!/usr/bin/env bash\n'))
                 self.assertIn('\nset -euo pipefail\n', script.read_text())
                 self.assertIn('deploy/ci/' + script.name, workflow)
+
+
+class TestPublishWorkflow(unittest.TestCase):
+    """The publish workflow pushes to the registry with the repository token: its trust boundary is fixed here."""
+    workflow = (ROOT / '.github/workflows/publish.yml').read_text()
+    script = commands('publish')
+
+    def job(self, name):
+        return re.search(rf'(?ms)^  {name}:\n(.*?)(?=^  [a-z][a-z0-9-]*:\n|\Z)', self.workflow).group(1)
+
+    def test_the_token_has_exactly_the_three_permissions_it_needs(self):
+        block = re.search(r'(?m)^permissions:\n((?:  .+\n)+)', self.workflow).group(1)
+        self.assertEqual(sorted(line.strip() for line in block.splitlines()),
+                         ['contents: read', 'id-token: write', 'packages: write'])
+        self.assertNotIn('\n    permissions:', self.workflow)
+
+    def test_it_runs_on_main_pushes_release_tags_and_manual_runs_only(self):
+        triggers = yaml.safe_load(self.workflow)[True]
+        self.assertEqual(sorted(triggers), ['push', 'workflow_dispatch'])
+        self.assertEqual(triggers['push'], {'branches': ['main'], 'tags': ['release/*']})
+        for forbidden in ('pull_request', 'pull_request_target', 'workflow_run', 'issue_comment'):
+            self.assertNotIn(forbidden, self.workflow)
+
+    def test_every_action_is_pinned_to_a_commit_with_its_version(self):
+        uses = re.findall(r'(?m)^\s*(?:-\s*)?uses:\s+(\S+)(.*)$', self.workflow)
+        self.assertTrue(uses)
+        for action, comment in uses:
+            with self.subTest(action=action):
+                self.assertRegex(action, r'^[^@]+@[0-9a-f]{40}$')
+                self.assertRegex(comment, r'#\s*v\d+\.\d+\.\d+$')
+
+    def test_the_arm_image_is_built_natively_not_emulated(self):
+        document = yaml.safe_load(self.workflow)
+        legs = {leg['arch']: leg['runner'] for leg in document['jobs']['build']['strategy']['matrix']['include']}
+        self.assertEqual(legs, {'amd64': 'ubuntu-24.04', 'arm64': 'ubuntu-24.04-arm'})
+        for forbidden in ('qemu', 'binfmt'):
+            self.assertNotIn(forbidden, self.workflow.lower())
+            self.assertNotIn(forbidden, self.script.lower())
+
+    def test_a_run_on_another_branch_pushes_signs_and_publishes_nothing(self):
+        jobs = yaml.safe_load(self.workflow)['jobs']
+        self.assertEqual(jobs['release']['if'], "github.ref == 'refs/heads/main'")
+        for step in jobs['build']['steps']:
+            if step.get('name') in ('Sign in to GHCR', 'Upload the digests'):
+                self.assertEqual(step['if'], "github.ref == 'refs/heads/main'", step['name'])
+        build = re.search(r'(?ms)^build\(\) \{\n(.*?)^\}$', self.script).group(1)
+        self.assertIn('if [ "$GITHUB_REF" = refs/heads/main ]; then', build)
+        otherwise = build.split('else', 1)[1]
+        self.assertIn('--load', otherwise)
+        for forbidden in ('push', 'docker pull'):
+            self.assertNotIn(forbidden, otherwise)
+        merge = re.search(r'(?ms)^merge\(\) \{\n(.*?)^\}$', self.script).group(1)
+        self.assertIn('release documents are published from main only', merge)
+
+    def test_the_index_is_checked_by_content_not_trusted_by_tag(self):
+        merge = re.search(r'(?ms)^merge\(\) \{\n(.*?)^\}$', self.script).group(1)
+        self.assertIn('index_of "$image" "$amd64" "$arm64"', merge)
+        self.assertIn('imagetools inspect --raw "$image@$digest"', self.script)
+
+    def test_the_branch_path_builds_and_the_tag_path_never_does(self):
+        document = yaml.safe_load(self.workflow)['jobs']
+        self.assertEqual(document['build']['if'], "github.ref_type == 'branch'")
+        self.assertEqual(document['promote']['if'], "github.ref_type == 'tag'")
+        promote = self.job('promote')
+        self.assertIn('deploy/ci/publish.sh promote', promote)
+        for forbidden in ('build', 'docker buildx', 'image.sh'):
+            self.assertNotIn(forbidden, promote.replace('deploy/ci/publish.sh promote', ''))
+        body = re.search(r'(?ms)^promote\(\) \{\n(.*?)^\}$', self.script).group(1)
+        for forbidden in ('docker build', 'docker buildx build', 'imagetools create'):
+            self.assertNotIn(forbidden, body)
+
+    def test_a_tag_without_a_published_document_fails_clearly(self):
+        body = re.search(r'(?ms)^promote\(\) \{\n(.*?)^\}$', self.script).group(1)
+        self.assertIn('no published release document for commit', body)
+        self.assertIn('refs/tags/release/*', body)
+        self.assertIn('--certificate-identity "$(signer refs/heads/main)"', body)
+
+    def test_the_only_credential_is_the_workflow_token_for_the_registry(self):
+        self.assertEqual(self.workflow.count('secrets.'), 0)
+        self.assertEqual(self.workflow.count('github.token'), 3)
+        self.assertIn('--password-stdin', self.workflow)
+        self.assertNotIn('--password ', self.workflow)
+
+    def test_images_are_pushed_by_digest_and_smoke_checked_by_the_image_stage(self):
+        build = re.search(r'(?ms)^build\(\) \{\n(.*?)^\}$', self.script).group(1)
+        self.assertIn('push-by-digest=true', build)
+        self.assertIn('LIWAN_IMAGE_PREBUILT=1 deploy/ci/image.sh', build)
+        self.assertNotIn('docker build ', build)
+
+    def test_the_release_document_is_signed_keylessly_for_the_staging_channel(self):
+        merge = re.search(r'(?ms)^merge\(\) \{\n(.*?)^\}$', self.script).group(1)
+        self.assertIn('cosign attest --yes --type "$(attestation_type staging)"', merge)
+        self.assertNotIn('--key', self.script)
+        self.assertIn('cosign attest --yes --type "$(attestation_type production)"', self.script)
+
+    def test_the_script_is_bash_and_prints_its_plan_without_touching_docker(self):
+        self.assertTrue(os.access(ROOT / 'deploy/ci/publish.sh', os.X_OK))
+        self.assertTrue(self.script.startswith('#!/usr/bin/env bash\n'))
+        self.assertIn('\nset -euo pipefail\n', self.script)
+        plan = subprocess.run(['bash', str(ROOT / 'deploy/ci/publish.sh'), 'plan'], capture_output=True, text=True,
+                              check=True, cwd=ROOT)
+        self.assertIn('registry: ghcr.io/tariiq222', plan.stdout)
+        self.assertIn('image: ghcr.io/tariiq222/liwan-odoo (docker build -f deploy/odoo/Dockerfile .', plan.stdout)
+        self.assertNotIn('vendor-admin', plan.stdout)
+        usage = subprocess.run(['bash', str(ROOT / 'deploy/ci/publish.sh'), 'nope'], capture_output=True, text=True,
+                               check=False, cwd=ROOT)
+        self.assertEqual(usage.returncode, 2)
+
+
+class TestReleaseDocument(unittest.TestCase):
+    """The document the workflow signs must be a release manifest the release operator accepts."""
+    commit = 'c' * 40
+
+    @classmethod
+    def setUpClass(cls):
+        spec = importlib.util.spec_from_file_location('release_manifest', ROOT / 'deploy/ci/lib/release_manifest.py')
+        cls.module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cls.module)
+
+    def images(self):
+        return {reference: f'ghcr.io/acme/{reference}@sha256:{"d" * 64}'
+                for reference in ('liwan-odoo', 'liwan-web', 'liwan-guard', 'liwan-ai-service', 'liwan-caddy')}
+
+    def document(self, images=None):
+        return self.module.release_document(self.commit, '42', images or self.images(), 'a' * 40,
+                                            {'liwan_core': '19.0.1.0.0', 'liwan_crm': '19.0.1.2.0'})
+
+    def test_it_carries_the_commit_and_every_image_by_digest(self):
+        document = self.document()
+        self.assertEqual(document['release']['liwanCommit'], self.commit)
+        self.assertEqual(document['commit'], self.commit)
+        self.assertEqual(document['images'], self.images())
+        self.assertEqual(sorted(document['release']['images']), ['ai', 'guard', 'odoo', 'web'])
+        self.assertEqual(document['release']['upgradeModules'], ['liwan_core', 'liwan_crm'])
+
+    def test_it_is_conservative_and_names_the_run_not_a_human_review(self):
+        release = self.document()['release']
+        self.assertEqual(release['mode'], 'infrastructure_maintenance')
+        self.assertEqual(release['compatibilityEvidence'], {'reviewer': 'unreviewed-ci', 'reference': 'run-42'})
+
+    def test_an_image_without_a_digest_or_from_another_registry_is_refused(self):
+        for image in ('ghcr.io/acme/liwan-odoo:latest', 'docker.io/acme/liwan-odoo@sha256:' + 'd' * 64,
+                      'ghcr.io/acme/liwan-web@sha256:' + 'd' * 64):
+            images = self.images()
+            images['liwan-odoo'] = image
+            with self.subTest(image=image), self.assertRaises(ValueError):
+                self.document(images)
+
+    def test_the_real_addons_produce_a_valid_document(self):
+        versions = self.module.module_versions(ROOT / 'odoo-addons')
+        self.assertIn('liwan_core', versions)
+        document = self.module.release_document(self.commit, '1', self.images(), 'a' * 40, versions)
+        self.assertEqual(sorted(document['release']['moduleVersions']), sorted(versions))
 
 
 if __name__ == '__main__':

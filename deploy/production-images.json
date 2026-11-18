@@ -1,78 +1,60 @@
 {
   "schemaVersion": 1,
-  "registry": null,
+  "registry": "ghcr.io/tariiq222",
   "images": [
     {
       "service": "odoo",
       "reference": "liwan-odoo",
-      "digest": null,
-      "status": "unpublished",
-      "reason": "No registry publishes liwan-odoo: deploy/ci/image.sh builds it locally as liwan-odoo:ci-<run id> and the owner has not chosen the registry account.",
-      "evidence": "deploy/docker-compose.yml:49 runs liwan-odoo:${LIWAN_IMAGE_TAG}; deploy/ci/image.sh:38 builds it from deploy/odoo/Dockerfile."
+      "status": "released",
+      "evidence": "deploy/docker-compose.yml:49 runs liwan-odoo:${LIWAN_IMAGE_TAG}; deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-odoo for linux/amd64 and linux/arm64 on every main commit; its digest is recorded in that commit's signed release manifest."
     },
     {
       "service": "web",
       "reference": "liwan-web",
-      "digest": null,
-      "status": "unpublished",
-      "reason": "No registry publishes liwan-web: deploy/ci/image.sh builds it locally as liwan-web:ci-<run id> and the owner has not chosen the registry account.",
-      "evidence": "deploy/docker-compose.yml:23 declares only a build (apps/web/Dockerfile); deploy/ci/image.sh:17 and :72 build liwan-web."
+      "status": "released",
+      "evidence": "deploy/docker-compose.yml:23 declares only a build (apps/web/Dockerfile); deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-web for linux/amd64 and linux/arm64 on every main commit; its digest is recorded in that commit's signed release manifest."
     },
     {
       "service": "proxy",
       "reference": "liwan-caddy",
-      "digest": null,
-      "status": "unpublished",
-      "reason": "No registry publishes liwan-caddy: deploy/ci/image.sh builds it locally as liwan-caddy:ci-<run id> and the owner has not chosen the registry account.",
-      "evidence": "deploy/docker-compose.yml:3 runs liwan-caddy:${LIWAN_IMAGE_TAG}; deploy/ci/image.sh:20 and :72 build it from deploy/proxy/Dockerfile."
+      "status": "released",
+      "evidence": "deploy/docker-compose.yml:3 runs liwan-caddy:${LIWAN_IMAGE_TAG}; deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-caddy for linux/amd64 and linux/arm64 on every main commit; its digest is recorded in that commit's signed release manifest."
     },
     {
       "service": "guard",
       "reference": "liwan-guard",
-      "digest": null,
-      "status": "unpublished",
-      "reason": "No registry publishes liwan-guard: deploy/ci/image.sh builds it locally as liwan-guard:ci-<run id> and the owner has not chosen the registry account.",
-      "evidence": "deploy/docker-compose.shared.yml:20 runs liwan-guard:${LIWAN_IMAGE_TAG}; deploy/ci/image.sh:21 and :72 build it from deploy/shared/Dockerfile."
+      "status": "released",
+      "evidence": "deploy/docker-compose.shared.yml:20 runs liwan-guard:${LIWAN_IMAGE_TAG}; deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-guard for linux/amd64 and linux/arm64 on every main commit; its digest is recorded in that commit's signed release manifest."
     },
     {
       "service": "tiktok-relay",
       "reference": "liwan-guard",
-      "digest": null,
-      "status": "unpublished",
-      "reason": "The relay service runs the same unpublished liwan-guard image with a different command, so no separate published digest exists.",
-      "evidence": "deploy/docker-compose.shared.yml:144 runs liwan-guard:${LIWAN_IMAGE_TAG}; deploy/ci/image.sh:21 and :72 build that image."
+      "status": "released",
+      "evidence": "deploy/docker-compose.shared.yml:144 runs liwan-guard:${LIWAN_IMAGE_TAG}; deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-guard for linux/amd64 and linux/arm64 on every main commit; its digest is recorded in that commit's signed release manifest."
     },
     {
       "service": "ai",
       "reference": "liwan-ai-service",
-      "digest": null,
-      "status": "unpublished",
-      "reason": "No registry publishes liwan-ai-service: deploy/ci/image.sh builds it locally as liwan-ai-service:ci-<run id> and the owner has not chosen the registry account.",
-      "evidence": "deploy/docker-compose.yml:83 declares only a build (apps/ai-service/Dockerfile); deploy/ci/image.sh:19 and :72 build liwan-ai-service."
+      "status": "released",
+      "evidence": "deploy/docker-compose.yml:83 declares only a build (apps/ai-service/Dockerfile); deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-ai-service for linux/amd64 and linux/arm64 on every main commit; its digest is recorded in that commit's signed release manifest."
     },
     {
       "service": "ai-egress",
       "reference": "liwan-ai-egress",
-      "digest": null,
-      "status": "unpublished",
-      "reason": "No registry publishes liwan-ai-egress, and deploy/ci/image.sh builds no image for it: it is only parsed and smoke-checked today.",
-      "evidence": "deploy/docker-compose.yml:137 declares only a build (deploy/ai-egress/Dockerfile); deploy/ci/image.sh:95 runs the rendered Squid configuration test instead of a build."
+      "status": "released",
+      "evidence": "deploy/docker-compose.yml:137 declares only a build (deploy/ai-egress/Dockerfile); deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-ai-egress for linux/amd64 and linux/arm64 on every main commit; its digest is recorded in that commit's signed release manifest."
     },
     {
       "service": "odoo-egress",
       "reference": "liwan-ai-egress",
-      "digest": null,
-      "status": "unpublished",
-      "reason": "The shared overlay builds the same unpublished liwan-ai-egress image a second time with Odoo's own allow-list; no registry publishes it.",
-      "evidence": "deploy/docker-compose.shared.yml declares odoo-egress with only a build (context ./ai-egress); deploy/ci/image.sh runs the rendered Squid configuration test instead of a build."
+      "status": "released",
+      "evidence": "deploy/docker-compose.shared.yml declares odoo-egress with only a build (context ./ai-egress); deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-ai-egress for linux/amd64 and linux/arm64 on every main commit; its digest is recorded in that commit's signed release manifest."
     },
     {
       "service": "odoo-mail",
       "reference": "liwan-odoo-mail",
-      "digest": null,
-      "status": "unpublished",
-      "reason": "No registry publishes liwan-odoo-mail: the shared overlay builds it locally from deploy/odoo-mail/Dockerfile and the owner has not chosen the registry account.",
-      "evidence": "deploy/docker-compose.shared.yml declares odoo-mail with only a build (context ./odoo-mail); its base is the python:3.12-slim-bookworm digest pinned in deploy/odoo-mail/Dockerfile."
+      "status": "released",
+      "evidence": "deploy/docker-compose.shared.yml declares odoo-mail with only a build (context ./odoo-mail); deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-odoo-mail for linux/amd64 and linux/arm64 on every main commit; its digest is recorded in that commit's signed release manifest."
     },
     {
       "service": "db",
@@ -98,10 +80,61 @@
     {
       "service": "restore-odoo",
       "reference": "liwan-odoo",
-      "digest": null,
-      "status": "unpublished",
-      "reason": "The restore profile runs the same unpublished liwan-odoo image as the odoo service, so no separate published digest exists.",
-      "evidence": "deploy/docker-compose.shared.yml:207 runs liwan-odoo:${LIWAN_IMAGE_TAG}; deploy/ci/image.sh:38 builds it from deploy/odoo/Dockerfile."
+      "status": "released",
+      "evidence": "deploy/docker-compose.shared.yml:207 runs liwan-odoo:${LIWAN_IMAGE_TAG}; deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-odoo for linux/amd64 and linux/arm64 on every main commit; its digest is recorded in that commit's signed release manifest."
+    }
+  ],
+  "builds": [
+    {
+      "reference": "liwan-odoo",
+      "dockerfile": "deploy/odoo/Dockerfile",
+      "context": ".",
+      "args": [
+        "ODOO_COMMIT",
+        "LIWAN_REVISION"
+      ],
+      "local": "odoo"
+    },
+    {
+      "reference": "liwan-vendor-admin",
+      "dockerfile": "apps/vendor-admin/Dockerfile",
+      "context": ".",
+      "local": "vendor-admin",
+      "published": false
+    },
+    {
+      "reference": "liwan-web",
+      "dockerfile": "apps/web/Dockerfile",
+      "context": ".",
+      "local": "web"
+    },
+    {
+      "reference": "liwan-caddy",
+      "dockerfile": "deploy/proxy/Dockerfile",
+      "context": ".",
+      "local": "proxy"
+    },
+    {
+      "reference": "liwan-guard",
+      "dockerfile": "deploy/shared/Dockerfile",
+      "context": ".",
+      "local": "guard"
+    },
+    {
+      "reference": "liwan-ai-service",
+      "dockerfile": "apps/ai-service/Dockerfile",
+      "context": "apps/ai-service",
+      "local": "ai-service"
+    },
+    {
+      "reference": "liwan-ai-egress",
+      "dockerfile": "deploy/ai-egress/Dockerfile",
+      "context": "deploy/ai-egress"
+    },
+    {
+      "reference": "liwan-odoo-mail",
+      "dockerfile": "deploy/odoo-mail/Dockerfile",
+      "context": "deploy/odoo-mail"
     }
   ]
 }
