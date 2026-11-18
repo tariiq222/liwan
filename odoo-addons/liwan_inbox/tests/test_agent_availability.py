@@ -1,8 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from datetime import datetime
+from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, ConcurrencyError
 from odoo.tests import new_test_user, tagged
 
 from .automation_common import BASE, AutomationCase, all_day
@@ -73,6 +74,14 @@ class TestAvailabilityEngine(AgentCase):
         service = self.env['liwan.inbox.agent']
         self.assertFalse(service._liwan_available_agents(self.agent, self.env.company))
         self.assertEqual(service._liwan_available_agents(self.agent | self.agent2, self.env.company), self.agent2)
+
+    def test_a_collision_with_a_concurrent_first_request_asks_for_a_replay(self):
+        Agent = self.env['liwan.inbox.agent']
+        first = Agent._liwan_row(self.agent, self.env.company)
+        self.assertEqual(Agent._liwan_row(self.agent, self.env.company), first)
+        with patch.object(type(Agent), 'search', return_value=Agent.browse()), self.assertRaises(ConcurrencyError):
+            Agent._liwan_row(self.agent, self.env.company)
+        self.assertEqual(Agent.search_count([('user_id', '=', self.agent.id)]), 1)
 
     def test_the_row_is_unique_per_agent_and_company(self):
         self.set_available(self.agent, False)

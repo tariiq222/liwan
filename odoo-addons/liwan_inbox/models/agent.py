@@ -1,6 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Availability of the agents of a company: a manual status and, when the company turns shifts on, a weekly schedule."""
+from psycopg2.errors import UniqueViolation
+
 from odoo import api, fields, models
+from odoo.exceptions import ConcurrencyError
 
 NOTE_RELEASED = 'أُلغي إسناد المحادثة من %s لأنه أصبح غير متاح'
 
@@ -53,9 +56,15 @@ class LiwanInboxAgent(models.Model):
     @api.model
     def _liwan_row(self, user, company):
         """The agent's row in `company`, created when they have none."""
-        return self.search([('company_id', '=', company.id), ('user_id', '=', user.id)], limit=1) or self.create({
-            'user_id': user.id, 'company_id': company.id,
-        })
+        row = self.search([('company_id', '=', company.id), ('user_id', '=', user.id)], limit=1)
+        if row:
+            return row
+        try:
+            with self.env.cr.savepoint():
+                return self.create({'user_id': user.id, 'company_id': company.id})
+        except UniqueViolation as error:
+            # A concurrent first request created the row; this transaction's snapshot cannot see it, so the request is replayed.
+            raise ConcurrencyError(self.env._('The agent row was created by a concurrent request')) from error
 
     @api.model
     def _liwan_set_available(self, user, company, available):
