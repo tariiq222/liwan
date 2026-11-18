@@ -100,6 +100,10 @@ async def test_an_unexpected_error_yields_one_scrubbed_event(reporting, monkeypa
     assert event["tags"]["runtime"] == "ai-service"
     assert event["tags"]["release"].startswith("liwan-ai-service@")
     assert event["exception"]["values"][-1]["type"] == "RuntimeError"
+    for exception in event["exception"]["values"]:
+        assert set(exception.get("mechanism", {})) <= {"type", "handled"}
+        for frame in exception["stacktrace"]["frames"]:
+            assert set(frame) <= {"filename", "module", "function", "lineno", "in_app"}
 
 
 async def test_handled_answers_yield_no_event(reporting, monkeypatch):
@@ -141,6 +145,16 @@ def test_the_scan_withholds_identifiers_and_keys():
     for forbidden in (EMAIL, PHONE, "123 4567", IBAN, NATIONAL_ID, "١٠١٠", "abc.def", PROVIDER_KEY, "api.example.com"):
         assert forbidden not in scanned
     assert scan_text("run failed in step 3") == "run failed in step 3"
+
+
+def test_frames_keep_only_the_allow_listed_fields():
+    frame = {"filename": "a.py", "abs_path": "/srv/app/a.py", "function": "f", "module": "m", "lineno": 3, "in_app": True,
+             "context_line": "secret()", "pre_context": ["x"], "post_context": ["y"], "vars": {"k": "v"}}
+    event = {"exception": {"values": [{"type": "E", "value": "x", "mechanism": {"type": "generic", "handled": False, "data": {"u": 1}},
+                                       "stacktrace": {"frames": [frame]}}]}}
+    exception = scrub_event(event, (), "rel")["exception"]["values"][0]
+    assert exception["stacktrace"]["frames"] == [{"filename": "a.py", "function": "f", "module": "m", "lineno": 3, "in_app": True}]
+    assert exception["mechanism"] == {"type": "generic", "handled": False}
 
 
 def test_a_log_entry_keeps_only_its_scanned_template():

@@ -21,6 +21,7 @@ from urllib.parse import urlsplit
 from liwan_ai_service.errors import redact
 from liwan_ai_service.settings import SentrySettings
 
+KEPT_FRAME_FIELDS = ("filename", "module", "function", "lineno", "in_app")  # no abs_path, source lines or vars
 REPORTED_HEADERS = {"user-agent": "User-Agent"}
 TENANT_HEADER = "x-liwan-tenant"
 USER_HEADER = "x-liwan-user"
@@ -69,8 +70,14 @@ def scrub_event(event: dict[str, Any], secrets: tuple[str | None, ...], release:
         value = exception.get("value")
         if value is not None:
             exception["value"] = "" if exception.get("type") in VALIDATION_ERRORS else scan_text(value, secrets)[:MAX_MESSAGE_LENGTH]
-        for frame in (exception.get("stacktrace") or {}).get("frames") or []:
-            frame.pop("vars", None)
+        if "mechanism" in exception:
+            mechanism = exception["mechanism"] or {}
+            exception["mechanism"] = {key: mechanism[key] for key in ("type", "handled") if key in mechanism}
+        stacktrace = exception.get("stacktrace")
+        if stacktrace:
+            exception["stacktrace"] = {"frames": [
+                {key: frame[key] for key in KEPT_FRAME_FIELDS if key in frame} for frame in stacktrace.get("frames") or []
+            ]}
     logentry = event.get("logentry")
     if logentry:
         # A log line's arguments and formatted text are free text (names, notes) that no pattern scan can vouch for:
@@ -108,6 +115,7 @@ def init_error_reporting(settings: SentrySettings, secrets: Callable[[], tuple[s
         release=release,
         # send_default_pii stays unset: the SDK treats that as False and deprecates the option, so it is not passed.
         include_local_variables=False,
+        include_source_context=False,
         max_request_body_size="never",
         traces_sample_rate=None,
         profiles_sample_rate=None,
