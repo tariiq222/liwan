@@ -122,9 +122,8 @@ class TestCrmLists(LiwanCrmCase):
     def test_the_last_won_stage_cannot_be_archived_or_unflagged(self):
         self.as_manager()
         won = self._ref('stage_won')
-        self.assertEqual(self.api('DELETE', f'{BASE}/stages/{won.id}').status_code, 422)
-        self.assertEqual(self.api('PATCH', f'{BASE}/stages/{won.id}', {'is_won': False}).status_code, 422)
-        self.assertEqual(self.api('PATCH', f'{BASE}/stages/{won.id}', {'active': False}).status_code, 422)
+        for method, body in (('DELETE', None), ('PATCH', {'is_won': False}), ('PATCH', {'active': False})):
+            self.assertEqual(self._refusal(method, f'{BASE}/stages/{won.id}', body), 'won_stage_required', body)
         self.assertTrue(won.active and won.is_won)
 
     def test_flagging_another_stage_won_moves_the_flag_when_the_old_one_is_empty(self):
@@ -135,6 +134,12 @@ class TestCrmLists(LiwanCrmCase):
         created = self.api('POST', f'{BASE}/stages', {'name': 'Closed', 'is_won': True}).json()
         self.assertEqual(self.env['crm.stage'].search([('is_won', '=', True)]).ids, [created['id']])
 
+    def _refusal(self, method, url, body=None):
+        """The `details.reason` of a 422 refusal."""
+        response = self.api(method, url, body)
+        self.assertEqual(response.status_code, 422, response.text)
+        return response.json()['details']['reason']
+
     def _lead(self, stage):
         return self.env['crm.lead'].create({'name': 'Lead', 'type': 'opportunity', 'stage_id': stage.id})
 
@@ -142,8 +147,8 @@ class TestCrmLists(LiwanCrmCase):
         self.as_manager()
         won, interested = self._ref('stage_won'), self._ref('stage_interested')
         deal = self._lead(won)
-        self.assertEqual(self.api('PATCH', f'{BASE}/stages/{interested.id}', {'is_won': True}).status_code, 422)
-        self.assertEqual(self.api('POST', f'{BASE}/stages', {'name': 'Closed', 'is_won': True}).status_code, 422)
+        self.assertEqual(self._refusal('PATCH', f'{BASE}/stages/{interested.id}', {'is_won': True}), 'won_stage_has_opportunities')
+        self.assertEqual(self._refusal('POST', f'{BASE}/stages', {'name': 'Closed', 'is_won': True}), 'won_stage_has_opportunities')
         self.assertEqual(self.env['crm.stage'].search([('is_won', '=', True)]), won)
         self.assertEqual(deal.stage_id, won)
         deal.active = False  # archived opportunities count too
@@ -160,6 +165,7 @@ class TestCrmLists(LiwanCrmCase):
             response = self.api(method, f'{BASE}/stages/{stage.id}', body)
             self.assertEqual(response.status_code, 422, method)
             self.assertEqual(response.json()['field'], 'id')
+            self.assertEqual(response.json()['details'], {'reason': 'stage_has_opportunities'})
         self.assertTrue(stage.active)
         lead.active = False
         self.assertEqual(self.api('DELETE', f'{BASE}/stages/{stage.id}').status_code, 422)
@@ -222,6 +228,7 @@ class TestCrmLists(LiwanCrmCase):
         won = self._ref('stage_won')
         response = self.api('POST', f'{BASE}/stages/order', {'ids': [won.id, *ids[:-1]]})
         self.assertEqual((response.status_code, response.json()['field']), (422, 'ids'))
+        self.assertEqual(response.json()['details'], {'reason': 'first_stage_open'})
         self.assertEqual(self._ids('stages'), ids)
         for stage in ids[:-1]:
             if stage != ids[0]:

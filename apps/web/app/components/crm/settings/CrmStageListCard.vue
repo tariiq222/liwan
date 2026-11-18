@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { CrmStageSchema, type CrmStage } from '@liwan/contracts'
 import { useCrmListEditor, useCrmStages, useReorderCrmStages } from '@/composables/crm/useCrmLists'
-import { saveErrorMessage } from '@/utils/formFeedback'
+import { crmListErrorMessage } from '@/utils/crmErrors'
 
 // The pipeline: rename, reorder, archive and restore stages, and mark the one stage that means «sold».
 const props = defineProps<{ canEdit: boolean }>()
@@ -16,7 +16,7 @@ const activeIds = computed(() => rows.value.filter(row => row.active).map(row =>
 const newName = ref('')
 const busy = computed(() => reorder.isPending.value || editor.busy.value.length > 0)
 const locked = computed(() => !hydrated.value || !props.canEdit || busy.value)
-const message = computed(() => editor.message.value || (reorderFailure.value ? saveErrorMessage(reorderFailure.value, t('errors.generic'), t('errors.saveUncertain')) : ''))
+const message = computed(() => editor.message.value || (reorderFailure.value ? crmListErrorMessage(reorderFailure.value, t) : ''))
 async function add() {
   const name = newName.value.trim()
   if (name && await editor.add({ name })) newName.value = ''

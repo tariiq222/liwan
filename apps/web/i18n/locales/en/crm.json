@@ -137,7 +137,13 @@
         "hint": "The steps of the opportunity pipeline. Exactly one stage means \"sold\".",
         "won": "Sold",
         "moveUp": "Move {name} up",
-        "moveDown": "Move {name} down"
+        "moveDown": "Move {name} down",
+        "errors": {
+          "hasOpportunities": "This stage still has opportunities. Move them to another stage, then archive it.",
+          "wonRequired": "One active stage must be marked as won. Mark another stage as won first.",
+          "wonHasOpportunities": "The current won stage still has opportunities. Move them to another stage, then change the won stage.",
+          "firstOpen": "The first stage must be an open stage, because new opportunities start there. Put an open stage first."
+        }
       },
       "outcomes": {
         "title": "Call outcomes",

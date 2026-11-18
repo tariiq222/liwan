@@ -13,7 +13,7 @@ import {
   type CrmSource,
   type CrmStage,
 } from '@liwan/contracts'
-import { saveErrorMessage } from '../../utils/formFeedback'
+import { crmListErrorMessage } from '../../utils/crmErrors'
 import { crmKeys, type CrmListName } from './crmKeys'
 
 // Archived rows are listed too (so they can be restored); the server caps a page at 200.
@@ -49,7 +49,7 @@ export function useCrmListEditor<Row, Create extends object, Patch extends objec
   const { t } = useI18n()
   const busy = ref<number[]>([])
   const failure = ref<unknown>(null)
-  const message = computed(() => (failure.value ? saveErrorMessage(failure.value, t('errors.generic'), t('errors.saveUncertain')) : ''))
+  const message = computed(() => (failure.value ? crmListErrorMessage(failure.value, t) : ''))
   async function write(id: number, request: () => Promise<unknown>): Promise<boolean> {
     failure.value = null
     busy.value = [...busy.value, id]

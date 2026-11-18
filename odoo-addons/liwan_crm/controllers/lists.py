@@ -53,21 +53,24 @@ def _next_sequence(model):
 
 def _stage_one_won():
     if request.env['crm.stage'].search_count([('is_won', '=', True)]) != 1:
-        raise ApiError(422, 'invalid', 'exactly one active stage must be the won stage', field='is_won')
+        raise ApiError(422, 'invalid', 'exactly one active stage must be the won stage', field='is_won',
+                       details={'reason': 'won_stage_required'})
 
 
 def _stage_open_first(field):
     """422 unless the first active stage is open: new opportunities start there, so the won stage cannot lead."""
     first = request.env['crm.stage'].search([], limit=1)
     if not first or first.is_won:
-        raise ApiError(422, 'invalid', 'the first stage must be an open stage', field=field)
+        raise ApiError(422, 'invalid', 'the first stage must be an open stage', field=field,
+                       details={'reason': 'first_stage_open'})
 
 
 def _unflag_other_won(keep=None):
     """Move the won flag off the other won stage; refused while it holds opportunities (their closed deals would reopen)."""
     others = request.env['crm.stage'].search([('is_won', '=', True), ('id', '!=', keep.id if keep else 0)])
     if others._liwan_has_opportunities():
-        raise ApiError(422, 'invalid', 'the current won stage still has opportunities', field='is_won')
+        raise ApiError(422, 'invalid', 'the current won stage still has opportunities', field='is_won',
+                       details={'reason': 'won_stage_has_opportunities'})
     others.write({'is_won': False})
 
 
@@ -143,7 +146,8 @@ class CrmListsController(http.Controller):
     @staticmethod
     def _write_stage(stage, vals):
         if vals.get('active') is False and stage.active and stage._liwan_has_opportunities():
-            raise ApiError(422, 'invalid', 'the stage still has opportunities', field='id')
+            raise ApiError(422, 'invalid', 'the stage still has opportunities', field='id',
+                           details={'reason': 'stage_has_opportunities'})
         if vals.get('is_won'):
             _unflag_other_won(keep=stage)
         stage.write(vals)
