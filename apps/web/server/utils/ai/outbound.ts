@@ -7,87 +7,25 @@
  * the real number while the provider and the AI service never do. Layer 1 (the tool registry in Odoo) already refuses tools
  * that expose blocked fields; this scan catches the same values inside free text, whatever the provider or key.
  *
- * `odoo-addons/liwan_ai/models/outbound_scan.py` ports the same patterns for the knowledge text Odoo indexes; it has no
- * token key, so there every kind is withheld with its marker. Keep the patterns of the two in step.
+ * The patterns live in `shared/utils/sensitiveValues.ts`, which `odoo-addons/liwan_platform/outbound_scan.py` ports for the
+ * knowledge text Odoo indexes; it has no token key, so there every kind is withheld with its marker.
  */
 import { createCipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 import type { H3Event } from 'h3'
 import type { Owner } from './upstream'
+import { findSensitiveSpans, mapStrings, WITHHELD, type ScannedKind, type ScannedSpan } from '../../../shared/utils/sensitiveValues'
 
-export type ScannedKind = 'national_id' | 'iban' | 'phone' | 'email'
 type TokenKind = Extract<ScannedKind, 'phone' | 'email'>
-
-const MARKERS: Record<Exclude<ScannedKind, TokenKind>, string> = {
-  national_id: '[national_id withheld]',
-  iban: '[iban withheld]',
-}
-
-// Arabic-Indic and Extended Arabic-Indic digits are matched as their Latin digits: one character each, so indices stay put.
-const ARABIC_DIGITS = /[٠-٩۰-۹]/g
-const latinDigits = (text: string) => text.replace(ARABIC_DIGITS, digit => String((digit.charCodeAt(0) & 0xF)))
-
-// A separator inside a written number: a space (no-break included), a dot or a hyphen.
-const SEP = '[\\s.\\-]?'
-
-// Order matters: an IBAN contains digit runs and an email may contain one, so the longer shapes are taken first; a span
-// once taken is masked, so a later pattern never matches inside it. A pattern errs towards withholding: a few extra
-// characters withheld are better than a value sent.
-const PATTERNS: [ScannedKind, RegExp][] = [
-  // Every part is bounded (RFC 5321 sizes), so a long run without a match costs linear time, not quadratic.
-  ['email', /[\p{L}\p{N}._%+-]{1,64}@[\p{L}\p{N}-]{1,63}(?:\.[\p{L}\p{N}-]{1,63}){0,8}\.\p{L}{2,24}/gu],
-  ['iban', new RegExp(`SA${SEP}\\d${SEP}\\d(?:${SEP}[0-9A-Z]){20}`, 'gi')],
-  ['phone', new RegExp(`(?<![\\d+])(?:\\(?(?:\\+|00)?966\\)?${SEP}(?:\\(?0\\)?${SEP})?|0)5${SEP}\\d(?:${SEP}\\d){7}(?!\\d)`, 'g')],
-  ['national_id', new RegExp(`(?<!\\d)[12](?:${SEP}\\d){9}(?!\\d)`, 'g')],
-]
-
-/** The check digit of a Saudi national ID or iqama number (the Luhn rule on ten digits): it keeps ordinary numbers through. */
-export function isSaudiId(digits: string): boolean {
-  let sum = 0
-  for (let index = 0; index < digits.length; index += 1) {
-    const digit = Number(digits[index])
-    const doubled = index % 2 === 0 ? digit * 2 : digit
-    sum += doubled > 9 ? doubled - 9 : doubled
-  }
-  return sum % 10 === 0
-}
-
-type Span = { start: number; end: number; kind: ScannedKind }
-
-/** `text` with each span replaced by a filler of the same length (no digit, letter or @), built in one pass. */
-function masked(text: string, spans: { start: number; end: number }[]): string {
-  const parts: string[] = []
-  let cursor = 0
-  for (const span of spans) {
-    parts.push(text.slice(cursor, span.start), '\u0000'.repeat(span.end - span.start))
-    cursor = span.end
-  }
-  parts.push(text.slice(cursor))
-  return parts.join('')
-}
 
 /**
  * Every covered value of `text`, ascending and non-overlapping. A token this server issued is left as it is; anything that
  * only looks like one (a forged `[phone:…]` around an ID number) is scanned like any other text.
  */
-function findSpans(text: string, key: TokenKey): Span[] {
+function findSpans(text: string, key: TokenKey): ScannedSpan[] {
   const issued = [...text.matchAll(TOKEN)]
     .filter(([, kind, payload]) => valueOf(key, kind as TokenKind, payload!) !== null)
     .map(match => ({ start: match.index, end: match.index + match[0].length }))
-  let scanned = masked(latinDigits(text), issued)
-  const spans: Span[] = []
-  for (const [kind, pattern] of PATTERNS) {
-    if (kind === 'email' && !scanned.includes('@')) continue
-    const found: Span[] = []
-    for (const match of scanned.matchAll(pattern)) {
-      if (kind === 'national_id' && !isSaudiId(match[0].replace(/\D/g, ''))) continue
-      found.push({ start: match.index, end: match.index + match[0].length, kind })
-    }
-    if (found.length === 0) continue
-    // A taken span is masked, so indices stay aligned and no later pattern matches inside it.
-    scanned = masked(scanned, found)
-    spans.push(...found)
-  }
-  return spans.sort((left, right) => left.start - right.start)
+  return findSensitiveSpans(text, issued)
 }
 
 // --- Tokens -------------------------------------------------------------------------------------------------------------
@@ -163,7 +101,7 @@ export function protectText(text: string, key: TokenKey): string {
   const parts: string[] = []
   let cursor = 0
   for (const { start, end, kind } of spans) {
-    const replacement = kind === 'phone' || kind === 'email' ? tokenFor(key, kind, text.slice(start, end)) : MARKERS[kind]
+    const replacement = kind === 'phone' || kind === 'email' ? tokenFor(key, kind, text.slice(start, end)) : WITHHELD[kind]
     parts.push(text.slice(cursor, start), replacement)
     cursor = end
   }
@@ -175,16 +113,6 @@ export function protectText(text: string, key: TokenKey): string {
 export function restoreText(text: string, key: TokenKey): string {
   if (!text.includes('[')) return text
   return text.replace(TOKEN, (token, kind: TokenKind, payload: string) => valueOf(key, kind, payload) ?? token)
-}
-
-/** `transform` applied to every string of a JSON value (object keys excepted: they are field names, never data). */
-function mapStrings<T>(value: T, transform: (text: string) => string): T {
-  if (typeof value === 'string') return transform(value) as T
-  if (Array.isArray(value)) return value.map(item => mapStrings(item, transform)) as T
-  if (value !== null && typeof value === 'object') {
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, mapStrings(item, transform)])) as T
-  }
-  return value
 }
 
 export const protectValue = <T>(value: T, key: TokenKey): T => mapStrings(value, text => protectText(text, key))

@@ -16,6 +16,7 @@ dependencies = [
   "langchain-ollama>=1.0",
   "psycopg[binary,pool]>=3.2",
   "jsonschema>=4.21",
+  "sentry-sdk>=2.0,<3",
 ]
 
 [project.optional-dependencies]

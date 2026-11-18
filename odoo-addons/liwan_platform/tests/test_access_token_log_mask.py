@@ -3,11 +3,8 @@ import logging
 
 from odoo.tests import HttpCase, TransactionCase, tagged
 
-from odoo.addons.liwan_platform.hooks import (
-    AccessTokenLogFilter,
-    mask_access_tokens,
-    post_load,
-)
+from odoo.addons.liwan_platform.hooks import AccessTokenLogFilter, post_load
+from odoo.addons.liwan_platform.secret_mask import mask_access_tokens
 
 SECRETS = (
     # Every public path family that carries a secret in the request line: the requester's booking link, the payer's pay

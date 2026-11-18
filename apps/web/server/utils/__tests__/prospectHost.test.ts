@@ -3,7 +3,7 @@ import { isFindWorkspacePage, isProspectLogin, isProspectRequest } from '../pros
 
 const TOKEN = 'p'.repeat(40)
 const config = { customerCommercialEnabled: true, customerCommercialPublicOrigin: 'https://app.liwan.example' }
-const request = (over: Partial<{ host: string; proxyToken: string; pathname: string }> = {}) => ({ host: 'app.liwan.example', proxyToken: TOKEN, pathname: '/payment-done', ...over })
+const request = (over: Partial<{ host: string; method: string; proxyToken: string; pathname: string }> = {}) => ({ host: 'app.liwan.example', proxyToken: TOKEN, pathname: '/payment-done', ...over })
 const saved = { mode: process.env.LIWAN_TENANCY_MODE, token: process.env.LIWAN_SHARED_PROXY_TOKEN }
 beforeEach(() => { process.env.LIWAN_TENANCY_MODE = 'shared'; process.env.LIWAN_SHARED_PROXY_TOKEN = TOKEN })
 afterEach(() => {
@@ -33,6 +33,19 @@ describe('LiwanOS public host admission', () => {
     expect(isProspectRequest(request(), { ...config, customerCommercialEnabled: false })).toBe(false)
     expect(isProspectRequest(request(), { ...config, customerCommercialEnabled: 'true' })).toBe(true)
     for (const customerCommercialPublicOrigin of ['', 'not a url', undefined]) expect(isProspectRequest(request(), { ...config, customerCommercialPublicOrigin })).toBe(false)
+  })
+})
+
+describe('browser error reports on the LiwanOS public host', () => {
+  it('admits exactly POST /api/error-reports', () => {
+    expect(isProspectRequest(request({ pathname: '/api/error-reports', method: 'POST' }), config)).toBe(true)
+    for (const [method, pathname] of [['GET', '/api/error-reports'], [undefined, '/api/error-reports'], ['POST', '/api/error-reports/x'], ['POST', '/api/error-reports.json']] as const) {
+      expect(isProspectRequest(request({ pathname, method }), config)).toBe(false)
+    }
+  })
+  it('still needs the host and the proxy token', () => {
+    expect(isProspectRequest(request({ pathname: '/api/error-reports', method: 'POST', host: 'acme.liwan.example' }), config)).toBe(false)
+    expect(isProspectRequest(request({ pathname: '/api/error-reports', method: 'POST', proxyToken: undefined }), config)).toBe(false)
   })
 })
 

@@ -69,6 +69,26 @@ class EmbeddingSettings:
         return cls(provider=provider, model=model, base_url=base_url, api_key=api_key)
 
 
+@dataclass(frozen=True)
+class SentrySettings:
+    """The operator's optional error-reporting endpoint (self-hosted Sentry); without a DSN nothing is imported or sent."""
+
+    dsn: str
+    environment: str | None = None
+
+    @classmethod
+    def from_env(cls, environ: Mapping[str, str]) -> SentrySettings | None:
+        dsn = environ.get("AI_SENTRY_DSN", "").strip()
+        environment = environ.get("AI_SENTRY_ENVIRONMENT", "").strip() or None
+        if not dsn:
+            if environment is not None:  # a half-written configuration must stop the boot, like the embedding variables
+                raise SettingsError("AI_SENTRY_DSN", "AI_SENTRY_DSN is required when AI_SENTRY_ENVIRONMENT is set")
+            return None
+        if not dsn.startswith(("http://", "https://")):
+            raise SettingsError("AI_SENTRY_DSN", "AI_SENTRY_DSN must be an http(s) DSN")
+        return cls(dsn=dsn, environment=environment)
+
+
 MIN_SERVICE_TOKEN_LENGTH = 24
 GENERATION_ID = re.compile(r"^[a-z][a-z0-9_-]{0,62}$")
 
@@ -129,6 +149,7 @@ class Settings:
     tenant_database: str | None = None
     tenant_registry_path: str | None = None
     embedding: EmbeddingSettings | None = None  # knowledge retrieval (spec 2026-11-04 §6.3); None leaves it unavailable
+    sentry: SentrySettings | None = None  # error reporting (error_reporting.py); None: the SDK is never imported
     tenant_egress_dir: str | None = None  # where each tenant key's host is published for ai-egress (tenant_egress.py); None: no proxy
 
     @classmethod
@@ -163,5 +184,6 @@ class Settings:
             generation_id=generation_id,
             keyring=Keyring.from_env(environ),
             embedding=EmbeddingSettings.from_env(environ),
+            sentry=SentrySettings.from_env(environ),
             tenant_egress_dir=environ.get("AI_TENANT_EGRESS_DIR", "").strip() or None,
         )

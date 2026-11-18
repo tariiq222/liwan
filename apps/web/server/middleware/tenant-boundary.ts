@@ -11,7 +11,7 @@ export default defineEventHandler((event) => {
   if (['GET', 'HEAD'].includes(event.method) && /^\/_i18n\/[a-f0-9]{8,64}\/(?:ar|en)\/messages\.json$/.test(event.path)) return
   if (releaseProbeRequest(event)) return
   const pathname = getRequestURL(event).pathname
-  if (isProspectRequest({ host: getHeader(event, 'host'), proxyToken: getHeader(event, 'x-liwan-proxy-token'), pathname }, useRuntimeConfig(event))) {
+  if (isProspectRequest({ host: getHeader(event, 'host'), method: event.method, proxyToken: getHeader(event, 'x-liwan-proxy-token'), pathname }, useRuntimeConfig(event))) {
     event.context.tenant = null
     // The common host has no sign-in of its own: a visitor who lands on /login there is sent to the page that finds their workspace.
     if (isProspectLogin(pathname)) return sendRedirect(event, '/find-workspace', 302)
