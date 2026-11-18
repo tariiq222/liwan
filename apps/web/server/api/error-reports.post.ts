@@ -4,10 +4,12 @@ import { MAX_ENVELOPE_BYTES, relayBrowserReport } from '../utils/errorReporting/
 // The same-origin tunnel of the browser's error reports (ERROR_REPORT_PATH). Answers 404 until `NUXT_SENTRY_DSN` is set.
 export default defineEventHandler(async (event) => {
   const settings = errorReportingSettings(useRuntimeConfig(event))
-  const tenant = (event.context.tenant as { tenantId?: string } | null | undefined)?.tenantId
+  // `context.tenant === null` is the shared public host (tenant-boundary): no tenant there, so none is tagged, not even the configured database.
+  const resolved = event.context.tenant as { tenantId?: string } | null | undefined
+  const tenant = resolved === null ? '' : resolved?.tenantId
   const contentLength = Number(getHeader(event, 'content-length') ?? 0)
   const { status } = relayBrowserReport({
-    settings: tenant ? { ...settings, tenant } : settings,
+    settings: tenant === undefined ? settings : { ...settings, tenant },
     secFetchSite: getHeader(event, 'sec-fetch-site'),
     contentLength,
     // A body that declares no length, or one over the limit, is refused without being read.

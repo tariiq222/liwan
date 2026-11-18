@@ -39,6 +39,17 @@ describe('browser error report tunnel', () => {
     expect(event.user).toEqual({ id: '7' })
   })
 
+  it('masks an access token in an exception text that reaches the tunnel', async () => {
+    const send = okFetch()
+    const value = 'FetchError: [GET] "/api/v1/public/appointments/bookings/42?access_token=abcdEFGH-ijklMNOP-qrstUVWX": 404'
+    const body = envelope(PLACEHOLDER_DSN, { exception: { values: [{ type: 'Error', value }] } })
+    const { done } = relayBrowserReport({ settings: SETTINGS, secFetchSite: 'same-origin', body, contentLength: body.length }, send)
+    await done
+    const sentBody = String((send.mock.calls[0] as unknown as [string, RequestInit])[1].body)
+    expect(sentBody).not.toContain('abcdEFGH')
+    expect(sentBody).toContain('bookings/42?access_token=***')
+  })
+
   it.each([
     ['another project', 'https://abc123@errors.invalid/8'],
     ['another key', 'https://zzz999@errors.invalid/7'],

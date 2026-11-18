@@ -94,6 +94,19 @@ describe('error report scrub', () => {
     expect(scrubbed.breadcrumbs?.[0]?.message).toHaveLength(300)
   })
 
+  it('masks secret query values and token path segments in exception and breadcrumb texts', () => {
+    const text = 'FetchError: [GET] "/api/v1/public/appointments/bookings/42?access_token=abcdEFGH-ijklMNOP-qrstUVWX": 404'
+    const masked = scrubReportText(text)
+    expect(masked).toContain('/api/v1/public/appointments/bookings/42?access_token=***')
+    expect(masked).not.toContain('abcdEFGH')
+    expect(scrubReportText('open /pay/ABCDEFGHIJKLMNOPQRSTUVWX1234/confirm?x=1&hub.verify_token=zzz&api_key=k1')).toBe('open /pay/:token/confirm?x=1&hub.verify_token=***&api_key=***')
+    const scrubbed = scrubEvent(eventWith({
+      exception: { values: [{ type: 'Error', value: text }] },
+      breadcrumbs: [{ category: 'fetch', message: text }],
+    }), context)
+    expect(JSON.stringify(scrubbed)).not.toContain('abcdEFGH')
+  })
+
   it('sets no user when the id is unknown', () => {
     expect(scrubEvent(eventWith({ user: { id: '9' } }), context).user).toBeUndefined()
   })

@@ -38,14 +38,24 @@ export type ErrorReportContext = {
 export const MAX_REPORT_TEXT_LENGTH = 300
 const URL_USERINFO = /\b([a-z][a-z0-9+.-]*:\/\/)[^/\s@]+@/gi
 const BEARER = /\bBearer\s+\S+/gi
-
-/** `text` with URL credentials, Bearer tokens and every covered value withheld, cut to `MAX_REPORT_TEXT_LENGTH`. */
-export function scrubReportText(text: string): string {
-  return withholdSensitive(text.replace(URL_USERINFO, '$1[redacted]@').replace(BEARER, 'Bearer [redacted]')).slice(0, MAX_REPORT_TEXT_LENGTH)
-}
+// The same shapes `odoo-addons/liwan_platform/secret_mask.py` masks in Odoo's logs: a secret query value and the catalog image token.
+const SECRET_QUERY = /(?<=[?&;])([a-z0-9_.-]*(?:token|signature|hmac|secret|password)|api_?key|key)=[^&\s"']+/gi
+const SECRET_CATALOG_PATH = /(\/api\/v1\/public\/inbox\/catalog\/images\/\d+\/)[^/\s"']+/gi
 
 // A path segment that is one long unbroken token (a payment or booking access token) is not part of the route's name.
 const TOKEN_SEGMENT = /^[A-Za-z0-9_-]{24,}$/
+const TOKEN_SEGMENT_IN_TEXT = /(?<=\/)[A-Za-z0-9_-]{24,}(?![A-Za-z0-9_-])/g
+
+/** `text` with URL credentials, Bearer tokens, secret query values, path tokens and every covered value withheld, cut to `MAX_REPORT_TEXT_LENGTH`. */
+export function scrubReportText(text: string): string {
+  const masked = text
+    .replace(URL_USERINFO, '$1[redacted]@')
+    .replace(BEARER, 'Bearer [redacted]')
+    .replace(SECRET_QUERY, '$1=***')
+    .replace(SECRET_CATALOG_PATH, '$1***')
+    .replace(TOKEN_SEGMENT_IN_TEXT, ':token')
+  return withholdSensitive(masked).slice(0, MAX_REPORT_TEXT_LENGTH)
+}
 
 const maskTokenSegments = (path: string) => path.split('/').map(segment => (TOKEN_SEGMENT.test(segment) ? ':token' : segment)).join('/')
 
