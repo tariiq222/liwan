@@ -18,6 +18,10 @@ export function onboardingIdentity(value:unknown,domainSuffix:string){
   const hex=input.request_id.replaceAll('-','')
   return {tenantId:input.request_id,slug:`t${hex}`,database:`liwan_scratch_${hex}`,host:`t${hex}.${domainSuffix}`,digest:createHash('sha256').update(JSON.stringify(input)).digest('hex')}
 }
+/** The administrator the Odoo effect creates; the mobile is sent only when the sign-up verified one. */
+export function provisionAdmin(row:{admin_name:string;admin_login:string;admin_mobile?:string|null}){
+  return {name:row.admin_name,login:row.admin_login,...(row.admin_mobile?{mobile:row.admin_mobile}:{})}
+}
 export function assertOnboardingReplay(row:{issuer:string;actor_uid:number|string;request_digest:string},actor:RegistryActor,digest:string){
   if(row.issuer!==actor.issuer || Number(row.actor_uid)!==actor.actorUid)throw Error('shared_replay_forbidden')
   if(row.request_digest!==digest)throw Error('idempotency_conflict')
@@ -56,7 +60,7 @@ export async function onboardSharedTenant(pool:Pool,config:Config,actor:Registry
     if(!catalog.rowCount)throw Error('published_catalog_missing')
     deriveSharedPolicy(catalog.rows[0].solution,tier)
     await client.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,catalog_version,catalog_tier,package_revision_id,operations_enabled,status) VALUES($1,$2,'saas','shared_managed',$3,$4,$5,NULL,true,'provisioning')",[identity.tenantId,input.name,`shared-${identity.slug}`,version,tier])
-    await client.query('INSERT INTO shared_onboardings(request_id,control_tenant_id,issuer,actor_uid,request_digest,admin_name,admin_login,host,tenant_slug,database_name) VALUES($1,$1,$2,$3,$4,$5,$6,$7,$8,$9)',[input.request_id,actor.issuer,actor.actorUid,identity.digest,input.admin_name,input.admin_login,identity.host,identity.slug,identity.database])
+    await client.query('INSERT INTO shared_onboardings(request_id,control_tenant_id,issuer,actor_uid,request_digest,admin_name,admin_login,admin_mobile,host,tenant_slug,database_name) VALUES($1,$1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',[input.request_id,actor.issuer,actor.actorUid,identity.digest,input.admin_name,input.admin_login,input.admin_mobile??null,identity.host,identity.slug,identity.database])
     await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)',[randomUUID(),actorLabel(actor),'shared_onboarding.reserved',identity.tenantId,input.reason])
     return false
   })

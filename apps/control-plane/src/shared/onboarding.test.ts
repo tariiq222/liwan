@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { sharedOnboardingRequestSchema } from '@liwan/commercial-contracts'
-import { onboardingIdentity, assertOnboardingReplay } from './onboarding.js'
+import { onboardingIdentity, assertOnboardingReplay, provisionAdmin } from './onboarding.js'
+import { signupAdminMobile } from '../commercial/fulfillment.js'
 import { parseSharedRuntimeConfig } from './runtime-config.js'
 const input = {request_id:'ba91699b-c25b-4a01-8c84-b2d39dc4b873',name:'Example',catalog_version:'v1',catalog_tier:'projects',admin_name:'Administrator',admin_login:'admin@example.test',reason:'Create first customer'}
 const actor={issuer:'vendor:vendor-account',actorUid:7}
@@ -18,6 +19,21 @@ describe('shared onboarding identity',()=>{
     expect(()=>assertOnboardingReplay(row,actor,identity.digest)).not.toThrow()
     expect(()=>assertOnboardingReplay(row,{...actor,actorUid:8},identity.digest)).toThrow('shared_replay_forbidden')
     expect(()=>assertOnboardingReplay(row,actor,onboardingIdentity({...input,admin_login:'other@example.test'},'local.test').digest)).toThrow('idempotency_conflict')
+  })
+})
+describe('verified sign-up mobile as the first administrator mobile',()=>{
+  const admin_mobile='+966555000111'
+  it('accepts only an E.164 admin_mobile and keeps it in the replay digest',()=>{
+    expect(sharedOnboardingRequestSchema.safeParse({...input,admin_mobile}).success).toBe(true)
+    for(const bad of ['0555000111','+0555000111','+96655500011122222','966555000111'])expect(sharedOnboardingRequestSchema.safeParse({...input,admin_mobile:bad}).success).toBe(false)
+    expect(onboardingIdentity({...input,admin_mobile},'local.test').digest).not.toBe(onboardingIdentity(input,'local.test').digest)
+  })
+  it('forwards a stored mobile to the effect and nothing when none was verified in E.164',()=>{
+    const row={admin_name:'A',admin_login:'a@example.test'}
+    expect(provisionAdmin({...row,admin_mobile})).toEqual({name:'A',login:'a@example.test',mobile:admin_mobile})
+    expect(provisionAdmin({...row,admin_mobile:null})).toEqual({name:'A',login:'a@example.test'})
+    expect(signupAdminMobile('+966555000111')).toBe(admin_mobile)
+    for(const local of ['0555000111','',null,undefined])expect(signupAdminMobile(local)).toBeUndefined()
   })
 })
 it('requires explicit validated local runtime paths and bounded project identity',()=>{
