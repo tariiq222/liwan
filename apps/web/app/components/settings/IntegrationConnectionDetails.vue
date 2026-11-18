@@ -150,6 +150,8 @@ async function copy(value: string) {
       </div>
     </SharedRecordSection>
 
+    <SettingsIntegrationMetaGuide v-if="connection.provider === 'meta'" :connection="connection" />
+
     <SharedRecordSection id="identity" variant="panel" :title="t('integrations.record.identity')" :description="canManage ? t('integrations.record.identityHint') : undefined">
       <div class="grid gap-4 text-start">
         <SharedSettingRow :label="t('integrations.record.provider')"><span class="text-sm text-highlighted">{{ integrationProviderLabel(connection.provider, t, te) }}</span></SharedSettingRow>
