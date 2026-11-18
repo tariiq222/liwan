@@ -24,7 +24,7 @@ describe('browser error report tunnel', () => {
   it('forwards an envelope of the configured project, scrubbed, to the real Sentry host', async () => {
     const send = okFetch()
     const body = envelope(PLACEHOLDER_DSN, { request: { url: 'https://acme.example.com/a?access_token=s', headers: { Cookie: 'c' } }, user: { id: '7' } })
-    const { status, done } = relayBrowserReport({ settings: SETTINGS, body, contentLength: body.length, secFetchSite: 'same-origin' }, send)
+    const { status, done } = relayBrowserReport({ settings: SETTINGS, secFetchSite: 'same-origin', body, contentLength: body.length }, send)
     await done
     expect(status).toBe(204)
     expect(send).toHaveBeenCalledTimes(1)
@@ -45,7 +45,7 @@ describe('browser error report tunnel', () => {
   ])('rejects an envelope of %s', (_name, dsn) => {
     const send = okFetch()
     const body = envelope(dsn)
-    expect(relayBrowserReport({ settings: SETTINGS, body, contentLength: body.length }, send).status).toBe(403)
+    expect(relayBrowserReport({ settings: SETTINGS, secFetchSite: 'same-origin', body, contentLength: body.length }, send).status).toBe(403)
     expect(send).not.toHaveBeenCalled()
   })
 
@@ -53,14 +53,15 @@ describe('browser error report tunnel', () => {
     const send = okFetch()
     const body = envelope(PLACEHOLDER_DSN)
     expect(relayBrowserReport({ settings: SETTINGS, body, contentLength: body.length, secFetchSite: 'cross-site' }, send).status).toBe(403)
-    expect(relayBrowserReport({ settings: SETTINGS, body, contentLength: MAX_ENVELOPE_BYTES + 1 }, send).status).toBe(413)
-    expect(relayBrowserReport({ settings: SETTINGS, body: Buffer.alloc(MAX_ENVELOPE_BYTES + 1), contentLength: 0 }, send).status).toBe(413)
-    expect(relayBrowserReport({ settings: SETTINGS, body: undefined, contentLength: 0 }, send).status).toBe(400)
-    expect(relayBrowserReport({ settings: SETTINGS, body: Buffer.from('not json'), contentLength: 8 }, send).status).toBe(400)
+    expect(relayBrowserReport({ settings: SETTINGS, body, contentLength: body.length }, send).status).toBe(403)
+    expect(relayBrowserReport({ settings: SETTINGS, secFetchSite: 'same-origin', body, contentLength: MAX_ENVELOPE_BYTES + 1 }, send).status).toBe(413)
+    expect(relayBrowserReport({ settings: SETTINGS, secFetchSite: 'same-origin', body: Buffer.alloc(MAX_ENVELOPE_BYTES + 1), contentLength: 0 }, send).status).toBe(413)
+    expect(relayBrowserReport({ settings: SETTINGS, secFetchSite: 'same-origin', body: undefined, contentLength: 0 }, send).status).toBe(400)
+    expect(relayBrowserReport({ settings: SETTINGS, secFetchSite: 'same-origin', body: Buffer.from('not json'), contentLength: 8 }, send).status).toBe(400)
     const attachment = envelope(PLACEHOLDER_DSN, {}, 'attachment')
-    expect(relayBrowserReport({ settings: SETTINGS, body: attachment, contentLength: attachment.length }, send).status).toBe(400)
+    expect(relayBrowserReport({ settings: SETTINGS, secFetchSite: 'same-origin', body: attachment, contentLength: attachment.length }, send).status).toBe(400)
     const transaction = envelope(PLACEHOLDER_DSN, { type: 'transaction' })
-    expect(relayBrowserReport({ settings: SETTINGS, body: transaction, contentLength: transaction.length }, send).status).toBe(400)
+    expect(relayBrowserReport({ settings: SETTINGS, secFetchSite: 'same-origin', body: transaction, contentLength: transaction.length }, send).status).toBe(400)
     expect(send).not.toHaveBeenCalled()
   })
 
@@ -68,9 +69,9 @@ describe('browser error report tunnel', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     const body = envelope(PLACEHOLDER_DSN)
     const refused = vi.fn(async () => new Response('secret detail', { status: 500 }))
-    await relayBrowserReport({ settings: SETTINGS, body, contentLength: body.length }, refused).done
+    await relayBrowserReport({ settings: SETTINGS, secFetchSite: 'same-origin', body, contentLength: body.length }, refused).done
     const down = vi.fn(async () => { throw new Error('connect ECONNREFUSED secret-host') })
-    const result = relayBrowserReport({ settings: SETTINGS, body, contentLength: body.length }, down)
+    const result = relayBrowserReport({ settings: SETTINGS, secFetchSite: 'same-origin', body, contentLength: body.length }, down)
     await expect(result.done).resolves.toBeUndefined()
     expect(result.status).toBe(204)
     expect(warn.mock.calls.flat().join(' ')).not.toMatch(/secret/)
@@ -80,7 +81,7 @@ describe('browser error report tunnel', () => {
     const pending: (() => void)[] = []
     const slow = vi.fn(() => new Promise<Response>((resolve) => { pending.push(() => resolve(new Response(null, { status: 200 }))) }))
     const body = envelope(PLACEHOLDER_DSN)
-    const input = { settings: SETTINGS, body, contentLength: body.length }
+    const input = { settings: SETTINGS, secFetchSite: 'same-origin', body, contentLength: body.length }
     const done = Array.from({ length: 20 }, () => relayBrowserReport(input, slow))
     expect(done.every(result => result.status === 204)).toBe(true)
     expect(relayBrowserReport(input, slow).status).toBe(429)

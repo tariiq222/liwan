@@ -47,16 +47,32 @@ export function scrubReportText(text: string): string {
 // A path segment that is one long unbroken token (a payment or booking access token) is not part of the route's name.
 const TOKEN_SEGMENT = /^[A-Za-z0-9_-]{24,}$/
 
+const maskTokenSegments = (path: string) => path.split('/').map(segment => (TOKEN_SEGMENT.test(segment) ? ':token' : segment)).join('/')
+
 /** The route of `url` without host, query or fragment, and without access tokens. */
 function reportedPath(url: string | undefined): string | undefined {
   if (!url) return undefined
   try {
-    const path = new URL(url, 'http://localhost').pathname.split('/').map(segment => (TOKEN_SEGMENT.test(segment) ? ':token' : segment)).join('/')
-    return withholdSensitive(path)
+    return withholdSensitive(maskTokenSegments(new URL(url, 'http://localhost').pathname))
   } catch {
     return undefined
   }
 }
+
+/** A frame's script location: an inline script or `eval` reports the page's own address, so it gets the same strip as `request.url`. */
+function reportedLocation(location: string | undefined): string | undefined {
+  if (!location) return undefined
+  const bare = location.split(/[?#]/)[0]!
+  try {
+    return withholdSensitive(maskTokenSegments(/^[a-z][a-z0-9+.-]*:\/\//i.test(bare) ? new URL(bare).pathname : bare))
+  } catch {
+    return undefined
+  }
+}
+
+/** Only the two strings or booleans a field is allowed to carry; anything else from an untrusted envelope is dropped. */
+const text = (value: unknown): string | undefined => (typeof value === 'string' ? scrubReportText(value) : undefined)
+const flag = (value: unknown): boolean | undefined => (typeof value === 'boolean' ? value : undefined)
 
 function reportedRequest(request: ErrorEvent['request']): ErrorEvent['request'] {
   if (!request) return undefined
@@ -65,7 +81,7 @@ function reportedRequest(request: ErrorEvent['request']): ErrorEvent['request'] 
 }
 
 const reportedFrame = ({ filename, abs_path, function: name, module, lineno, colno, in_app }: StackFrame): StackFrame =>
-  ({ filename, abs_path, function: name, module, lineno, colno, in_app })
+  ({ filename: reportedLocation(filename), abs_path: reportedLocation(abs_path), function: name, module, lineno, colno, in_app })
 
 /** `event` reduced to the allow-listed fields, every text of it with the covered values withheld. */
 export function scrubEvent(event: ErrorEvent, context: ErrorReportContext): ErrorEvent {
@@ -78,7 +94,7 @@ export function scrubEvent(event: ErrorEvent, context: ErrorReportContext): Erro
     timestamp: event.timestamp,
     platform: event.platform,
     level: event.level,
-    sdk: event.sdk,
+    sdk: event.sdk && { name: text(event.sdk.name) ?? '', version: text(event.sdk.version) ?? '' },
     release: context.release,
     environment: context.environment,
     // A log line's arguments and formatted text are free text (names, notes) that no pattern scan can vouch for: only the
@@ -89,7 +105,7 @@ export function scrubEvent(event: ErrorEvent, context: ErrorReportContext): Erro
       values: event.exception.values?.map(({ type, value, mechanism, stacktrace }) => ({
         type: type === undefined ? undefined : withholdSensitive(type),
         value: value === undefined ? undefined : scrubReportText(value),
-        mechanism,
+        mechanism: mechanism && { type: text(mechanism.type) ?? 'generic', handled: flag(mechanism.handled) },
         stacktrace: stacktrace && { frames: stacktrace.frames?.map(reportedFrame) },
       })),
     },

@@ -57,6 +57,20 @@ describe('error report scrub', () => {
     expect(scrubbed.exception?.values?.[0]?.stacktrace?.frames?.[0]).not.toHaveProperty('context_line')
   })
 
+  it('strips query, fragment and tokens from a frame location and keeps only the plain fields of sdk and mechanism', () => {
+    const page = 'https://t.example/pay/ABCDEFGHIJKLMNOPQRSTUVWX1234?access_token=SECRETTOKEN#frag'
+    const scrubbed = scrubEvent(eventWith({
+      sdk: { name: 'sentry.javascript.browser', version: '11.0.0', integrations: ['Dedupe'], packages: [{ name: 'p', version: '1' }], settings: { a: 1 } },
+      exception: { values: [{ type: 'Error', value: 'x', mechanism: { type: 'onerror', handled: false, data: { url: page }, meta: { a: 1 } }, stacktrace: { frames: [{ filename: page, abs_path: page, lineno: 1 }, { filename: 'app:///_nuxt/entry.js?v=SECRETTOKEN', lineno: 2 }] } }] },
+    }), context)
+    expect(scrubbed.sdk).toEqual({ name: 'sentry.javascript.browser', version: '11.0.0' })
+    expect(scrubbed.exception?.values?.[0]?.mechanism).toEqual({ type: 'onerror', handled: false })
+    const frames = scrubbed.exception?.values?.[0]?.stacktrace?.frames
+    expect(frames?.[0]).toMatchObject({ filename: '/pay/:token', abs_path: '/pay/:token' })
+    expect(frames?.[1]?.filename).toBe('/_nuxt/entry.js')
+    expect(JSON.stringify(scrubbed)).not.toContain('SECRETTOKEN')
+  })
+
   it('sends only the static template of a log entry, never its params, formatted text or message', () => {
     const scrubbed = scrubEvent(eventWith({
       message: 'failed for Ahmed Private',

@@ -66,7 +66,7 @@ export type BrowserReport = { settings: ErrorReportingSettings; secFetchSite?: s
 /** The status to answer: 204 when the report was handed on, `done` settles when Sentry has answered. */
 export function relayBrowserReport(report: BrowserReport, send: typeof fetch = fetch): { status: number; done?: Promise<void> } {
   if (!report.settings.dsn) return { status: 404 }
-  if (report.secFetchSite && report.secFetchSite !== 'same-origin') return { status: 403 }
+  if (report.secFetchSite !== 'same-origin') return { status: 403 }
   if ((report.contentLength ?? 0) > MAX_ENVELOPE_BYTES || (report.body?.length ?? 0) > MAX_ENVELOPE_BYTES) return { status: 413 }
   if (!report.body?.length) return { status: 400 }
   const accepted = acceptEnvelope(report.body.toString('utf8'), report.settings)
