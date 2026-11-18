@@ -184,6 +184,8 @@ suite('commercial first enrollment on scratch PostgreSQL', () => {
     await sendWorkspaceDelayNotices(pool, { now: new Date(), mail })
     expect(notices()).toHaveLength(1)
     expect(notices()[0]).toMatchObject({ text: expect.stringContaining('LiwanOS') })
+    expect(notices()[0].text).toContain('عند أول دخول')
+    expect(notices()[0].text).not.toContain('تسليم المساحة')
 
     // Recovery retries the same order; nothing was provisioned yet and no invitation is queued.
     await recoverPaidFulfillment(pool, new Date(Date.now() + 6 * 60_000))

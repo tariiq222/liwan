@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
 import { riyadhDate, type Principal } from '@liwan/commercial-contracts'
 import { client, money, monthly, setup, url } from './commercial-helpers.js'
-import { activateSignupTrial } from '../commercial/trial-first-login.js'
+import { activateSignupTrial, signupTrialActivation } from '../commercial/trial-first-login.js'
 import { convertTrial, extendTrial, startTrial } from '../commercial/trial.js'
 import { endTrialOn, expireTrials } from '../commercial/trial-expiry.js'
 import { LOCK_RETRY_MS, processFreeBaseLocks } from '../commercial/free-base-lock.js'
@@ -50,6 +50,20 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
   const adapter = new SimulatorAdapter()
   let plan: any, bundle: any, secondBundle: any, vendor: Principal
 
+  /** Publishes the free-base plan with the given trial length. */
+  async function publishPlan(trialDays: number) {
+    const p = await api('POST', '/plans', { name: `Free base ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR',
+      prices: [{ cadence: monthly, amount: money(0) }], platform_limits: {}, included_bundle_revision_ids: [], optional_bundle_revision_ids: [bundle.id, secondBundle.id],
+      included_extra_branches: 1, extra_branch_prices: [{ cadence: monthly, amount: money(0) }], extra_branches_limit: null,
+      included_users: 3, included_storage_mb: 20480, storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400,
+      user_prices: [{ cadence: monthly, amount: money(2900) }], storage_prices: [{ cadence: monthly, amount: money(100) }],
+      policy_revision_id: POLICY, trial_days: trialDays, grace_days: 7, auto_suspend: true, auto_renew_allowed: true })
+    expect(p.status, JSON.stringify(p.body)).toBe(201)
+    const pv = await api('POST', `/plans/${p.body.id}/validate`, { edit_revision: 1, reason })
+    expect(pv.status, JSON.stringify(pv.body)).toBe(200)
+    return (await api('POST', `/plans/${p.body.id}/publish`, { edit_revision: pv.body.edit_revision, reason })).body
+  }
+
   beforeAll(async () => {
     const { version } = await setup(pool)
     const release = (await api('POST', '/catalog/releases', { catalog_version: version, reason })).body
@@ -62,16 +76,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     }
     bundle = await sell(app, 'pmo.enabled', { 'projects.max_projects': 10 })
     secondBundle = await sell(release.applications.find((a: any) => a.features.some((f: any) => f.key === 'finance.enabled')), 'finance.enabled', {})
-    const p = await api('POST', '/plans', { name: `Free base ${randomUUID()}`, audience: { kind: 'public' }, term_months: 12, currency: 'SAR',
-      prices: [{ cadence: monthly, amount: money(0) }], platform_limits: {}, included_bundle_revision_ids: [], optional_bundle_revision_ids: [bundle.id, secondBundle.id],
-      included_extra_branches: 1, extra_branch_prices: [{ cadence: monthly, amount: money(0) }], extra_branches_limit: null,
-      included_users: 3, included_storage_mb: 20480, storage_step_mb: 10240, storage_step_threshold_mb: 102400, storage_large_step_mb: 102400,
-      user_prices: [{ cadence: monthly, amount: money(2900) }], storage_prices: [{ cadence: monthly, amount: money(100) }],
-      policy_revision_id: POLICY, trial_days: 14, grace_days: 7, auto_suspend: true, auto_renew_allowed: true })
-    expect(p.status, JSON.stringify(p.body)).toBe(201)
-    const pv = await api('POST', `/plans/${p.body.id}/validate`, { edit_revision: 1, reason })
-    expect(pv.status, JSON.stringify(pv.body)).toBe(200)
-    plan = (await api('POST', `/plans/${p.body.id}/publish`, { edit_revision: pv.body.edit_revision, reason })).body
+    plan = await publishPlan(14)
     vendor = { actor_id: '7', kind: 'vendor', customer_id: null, tenant_id: null, capabilities: ['vendor.subscriptions.manage', 'vendor.pricing.manage'] } as unknown as Principal
   })
   afterAll(async () => { await pool.end() })
@@ -198,8 +203,8 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
   })
 
   /** A delivered public signup whose administrator (user 7) has not signed in yet. */
-  async function unopenedSignup() {
-    const f = await endedTrial({}, true, beforeEnd, true)
+  async function unopenedSignup(over: Record<string, unknown> = {}) {
+    const f = await endedTrial(over, true, beforeEnd, true)
     const first = (await pool.query('SELECT id FROM orders WHERE subscription_id=$1', [f.subscription])).rows[0].id
     await pool.query(`INSERT INTO public_signup_trials(customer_id,email,mobile,requires_first_login,first_admin_user_id)
       VALUES($1,$2,$3,true,7)`, [f.customer, `${f.customer}@example.test`, `+9665${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`])
@@ -233,6 +238,27 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
       return okRunner({ job })
     })).toMatchObject({ state: 'verified' })
     expect(await activateSignupTrial(pool, { ...input, now })).toEqual({ state: 'ready', trial_ends_at: end })
+  })
+
+  it('starts the first-login clock for the length the plan sets, not a fixed 14 days', async () => {
+    const week = await publishPlan(7)
+    const f = await unopenedSignup({ plan_revision_id: week.id })
+    const end = new Date(+beforeEnd + 7 * 86_400_000).toISOString()
+    expect(await activateSignupTrial(pool, { customerId: f.customer, actorId: '7', now: beforeEnd }))
+      .toEqual({ state: 'applying', trial_ends_at: end })
+  })
+
+  it('reports a failed trial bootstrap with the same end date and never starts a second trial', async () => {
+    const f = await unopenedSignup()
+    const input = { customerId: f.customer, actorId: '7', now: beforeEnd }
+    const end = new Date(+beforeEnd + 14 * 86_400_000).toISOString()
+    await activateSignupTrial(pool, input)
+    await pool.query("UPDATE orders SET fulfillment_state='failed' WHERE subscription_id=$1 AND idempotency_key LIKE 'trial-bootstrap:%'", [f.subscription])
+    const again = { ...input, now: new Date(+beforeEnd + 3_600_000) }
+    expect(await activateSignupTrial(pool, again)).toEqual({ state: 'failed', trial_ends_at: end })
+    expect(await signupTrialActivation(pool, f.customer, '7')).toEqual({ state: 'failed', trial_ends_at: end })
+    expect((await pool.query("SELECT 1 FROM orders WHERE subscription_id=$1 AND idempotency_key LIKE 'trial-bootstrap:%'", [f.subscription])).rowCount).toBe(1)
+    expect((await pool.query("SELECT 1 FROM audit_events WHERE subject=$1 AND action='trial.started'", [f.customer])).rowCount).toBe(1)
   })
 
   it('tells a sign-in that waited on the activating one that the trial policy is still applying', async () => {
