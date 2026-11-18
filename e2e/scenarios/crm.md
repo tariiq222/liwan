@@ -13,9 +13,10 @@ Capability note: nine capabilities. The built-in role «موظف العملاء�
 `crm.leads.read` and `crm.leads.work`; «مدير العملاء» (`crm_manager`) holds all nine. Dependencies are
 added automatically: every key except `crm.settings.read` needs `crm.leads.read`; `crm.leads.import`
 also needs `crm.leads.assign`; `crm.settings.manage` needs `crm.settings.read` and `crm.leads.assign`.
-No seeded persona holds a CRM role, so the rows name `custom role (...)`: give a seeded employee the
-built-in role, or a custom role with the keys listed. `system_admin` holds no CRM capability, and vendor
-support is stripped of every CRM key. Features: `crm.enabled`, and the sub-features `crm.import` (import
+The first administrator of a tenant with `crm.enabled` holds «مدير العملاء» (`crm_manager`) like every
+other application's manager role. The seeded personas hold no CRM role, so the rows name `custom role (...)`:
+give a seeded employee the built-in role, or a custom role with the keys listed. `system_admin` itself holds
+no CRM capability, and vendor support is stripped of every CRM key. Features: `crm.enabled`, and the sub-features `crm.import` (import
 routes) and `crm.export` (export route).
 
 Error note: API errors quoted below are the server messages. A missing capability answers 403
