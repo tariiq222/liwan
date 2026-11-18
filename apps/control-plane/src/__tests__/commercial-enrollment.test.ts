@@ -12,7 +12,8 @@ import { activateBranches, listBranches } from '../commercial/branches.js'
 import { transaction } from '../db.js'
 import { applyReceipt, processFulfillmentOutbox } from '../commercial/fulfillment.js'
 import { recoverPaidFulfillment } from '../commercial/paid-fulfillment-recovery.js'
-import { sendWorkspaceDelayNotices } from '../commercial/workspace-delay-notice.js'
+import { sendWorkspaceDelayNotices, WORKSPACE_RESOLUTION_WINDOW } from '../commercial/workspace-delay-notice.js'
+import { allAttentionItems } from '../commercial/attention.js'
 import { routesB } from '../commercial/routes-b.js'
 import { readKnownSource } from '../shared/catalog-source.js'
 
@@ -186,6 +187,10 @@ suite('commercial first enrollment on scratch PostgreSQL', () => {
     expect(notices()[0]).toMatchObject({ text: expect.stringContaining('LiwanOS') })
     expect(notices()[0].text).toContain('عند أول دخول')
     expect(notices()[0].text).not.toContain('تسليم المساحة')
+    // The notice names the team handling it and the expected resolution window, and the vendor sees the failed order in attention.
+    expect(notices()[0].text).toContain(WORKSPACE_RESOLUTION_WINDOW.ar)
+    expect(notices()[0].text).toContain(WORKSPACE_RESOLUTION_WINDOW.en)
+    expect((await allAttentionItems(pool)).find(item => item.customer_id === customer && item.kind === 'stalled_activation')).toMatchObject({ detail: 'failed' })
 
     // Recovery retries the same order; nothing was provisioned yet and no invitation is queued.
     await recoverPaidFulfillment(pool, new Date(Date.now() + 6 * 60_000))
