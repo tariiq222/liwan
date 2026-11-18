@@ -191,6 +191,10 @@ REVIEWED_DECLARED_IMPORTS = {
     'hookable', 'node-mock-http', 'ofetch', 'pg', 'tailwind-variants', 'ufo', 'vue-i18n',
 }
 
+# Error reporting SDKs for the optional self-hosted Sentry (owner decision 2026-11-18). They are not UI libraries and render
+# nothing; they load only when NUXT_SENTRY_DSN is set. Listed with the source-allowed packages, since app source imports them.
+REVIEWED_ERROR_REPORTING_SDKS = {'@sentry/browser', '@sentry/node'}
+
 # Version changes from the baseline that the owner approved under docs/UPDATE_POLICY.md.
 # Only the exact recorded specifier passes; any other change still needs review.
 REVIEWED_VERSIONS = {
@@ -961,7 +965,7 @@ def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str
     # RouterConfig, which app/router.options.ts is typed against. It carries no
     # components, so it cannot become the second UI library this guard exists
     # to catch.
-    allowed_source = dependencies(baseline) | {
+    allowed_source = dependencies(baseline) | REVIEWED_ERROR_REPORTING_SDKS | {
         '@nuxt/ui', '@iconify-json/lucide', '@internationalized/date', '@nuxt/schema',
         # Internal schemas and server-only signing; no visual components or UI library.
         '@liwan/contracts',  # Same product schemas under the renamed workspace namespace.

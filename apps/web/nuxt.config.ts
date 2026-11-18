@@ -105,10 +105,16 @@ export default defineNuxtConfig({
     // Secret of the AI tokens that carry mobile numbers and emails past the provider (server/utils/ai/outbound.ts); never
     // shared with the AI service. Empty in development: a random key lives as long as the server process.
     aiTokenKey: process.env.NUXT_AI_TOKEN_KEY ?? '',
+    // Optional self-hosted Sentry (server/plugins/error-reporting.ts). Empty: the SDK is never loaded and the browser tunnel answers 404.
+    sentryDsn: '',
+    sentryEnvironment: '',
     public: {
       customerCommercialEnabled: false,
       // Filled at server start from the runtime `aiServiceUrl` (server/plugins/ai-enabled.ts), never from the build environment.
       aiEnabled: false,
+      // Filled at server start from the runtime `sentryDsn` (server/plugins/error-reporting.ts). The dsn here is a placeholder
+      // host that carries only the key pair: the browser reports through the same-origin tunnel.
+      errorReporting: { enabled: false, dsn: '', release: '', environment: '' },
       // Dev: the Nitro dev proxy above does not upgrade websockets, so
       // useBus() connects directly to the configured Odoo in dev. Prod: left empty
       // so useBus() falls back to same-origin (Caddy routes /websocket through).

@@ -295,6 +295,14 @@ class UiPolicyTest(unittest.TestCase):
         catalog = f'| `{COMPONENT}` | Shared date field |'
         self.assertEqual(self.errors({COMPONENT: source, MANIFEST: json.dumps(manifest), CATALOG: catalog}), [])
 
+    def test_error_reporting_sdks_are_reviewed_but_other_new_packages_are_not(self):
+        manifest = json.loads(self.current[MANIFEST])
+        manifest['dependencies']['@sentry/browser'] = '11.11.0'
+        source = 'import * as Sentry from "@sentry/browser"\nexport default Sentry'
+        self.assertEqual(self.errors({'apps/web/app/utils/errorReporting.ts': source, MANIFEST: json.dumps(manifest)}), [])
+        manifest['dependencies']['left-pad'] = '1.0.0'
+        self.assertTrue(self.errors({MANIFEST: json.dumps(manifest)}))
+
     def test_access_log_string_values_are_not_import_specifiers(self):
         source = "const returnTo = adminListQuery(route.query, ['from', 'to', 'actor_id'])"
         self.assertEqual(self.errors({ACCESS_EVENT: source}), [])

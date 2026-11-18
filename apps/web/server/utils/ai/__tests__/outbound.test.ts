@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { boundProtected, isSaudiId, protectText, protectValue, restoreText, restoreValue, streamRestorer, tokenKeyFrom } from '../outbound'
+import { isSaudiId } from '../../../../shared/utils/sensitiveValues'
+import { boundProtected, protectText, protectValue, restoreText, restoreValue, streamRestorer, tokenKeyFrom } from '../outbound'
 
 const SECRET = 'test-secret-of-at-least-32-characters'
 const KEY = tokenKeyFrom(SECRET, { tenant: 'acme', user: '42' })
