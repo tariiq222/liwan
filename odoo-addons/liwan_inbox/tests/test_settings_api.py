@@ -17,11 +17,12 @@ class TestSettingsApi(LiwanInboxCase):
         body = self.get('/api/v1/settings/inbox').json()
         self.assertEqual(set(body), {
             'visibility_policy', 'auto_close_hours', 'retention_months', 'assignment_policy', 'first_response_alert_minutes',
-            'report_retention_months',
+            'report_retention_months', 'agent_shifts_enabled', 'unavailable_release',
         })
         self.assertEqual(body, {
             'visibility_policy': 'department', 'auto_close_hours': 72, 'retention_months': 24,
             'assignment_policy': 'manual', 'first_response_alert_minutes': 0, 'report_retention_months': 36,
+            'agent_shifts_enabled': False, 'unavailable_release': 'keep',
         })
         patched = self.api('PATCH', '/api/v1/settings/inbox', {'visibility_policy': 'all', 'auto_close_hours': 0})
         self.assertEqual((patched.status_code, patched.json()['visibility_policy'], patched.json()['auto_close_hours']), (200, 'all', 0))
@@ -31,11 +32,15 @@ class TestSettingsApi(LiwanInboxCase):
             {'visibility_policy': 'nobody'}, {'auto_close_hours': 721}, {'retention_months': 0}, {'retention_months': True}, {'x': 1}, {},
             {'assignment_policy': 'random'}, {'first_response_alert_minutes': 1441}, {'first_response_alert_minutes': -1},
             {'first_response_alert_minutes': True}, {'report_retention_months': 11}, {'report_retention_months': 121},
-            {'report_retention_months': True},
+            {'report_retention_months': True}, {'agent_shifts_enabled': 1}, {'agent_shifts_enabled': 'yes'},
+            {'unavailable_release': 'drop'},
         ):
             self.assertError(self.api('PATCH', '/api/v1/settings/inbox', bad), 422, 'invalid')
         written = self.api('PATCH', '/api/v1/settings/inbox', {'report_retention_months': 48})
         self.assertEqual((written.status_code, written.json()['report_retention_months']), (200, 48))
+        agents = self.api('PATCH', '/api/v1/settings/inbox', {'agent_shifts_enabled': True, 'unavailable_release': 'release'})
+        self.assertEqual((agents.json()['agent_shifts_enabled'], agents.json()['unavailable_release']), (True, 'release'))
+        self.assertEqual(self.get('/api/v1/settings/inbox').json()['unavailable_release'], 'release')
 
     def test_settings_need_the_settings_capability(self):
         for user in (self.agent, self.supervisor, self.outsider):
@@ -68,6 +73,7 @@ class TestSettingsApi(LiwanInboxCase):
         self.assertEqual(result.json(), {
             'visibility_policy': 'assigned_only', 'auto_close_hours': 72, 'retention_months': 60,
             'assignment_policy': 'manual', 'first_response_alert_minutes': 0, 'report_retention_months': 36,
+            'agent_shifts_enabled': False, 'unavailable_release': 'keep',
         })
         names = set(self.env['liwan.inbox.department'].search([]).mapped('name'))
         self.assertTrue(set(PRESETS['public_service']['departments']) <= names)

@@ -81,12 +81,30 @@ def known_timezones():
     return available_timezones()
 
 
-def check_no_overlap(days):
+def check_no_overlap(days, key='days'):
     """422 when two ranges of the same weekday overlap (touching ranges are fine)."""
     ordered = sorted(days, key=lambda day: (day['weekday'], day['from']))
     for before, after in pairwise(ordered):
         if before['weekday'] == after['weekday'] and after['from'] < before['to']:
-            reject('ranges of the same day must not overlap', 'days')
+            reject('ranges of the same day must not overlap', key)
+
+
+def parse_days(items, key):
+    """The weekly ranges `{weekday, from, to}` of the contract (working hours `days`, agent shift `ranges`), none overlapping."""
+    days = []
+    for day in parse_list(items, key, 0, MAX_DAYS):
+        day = parse_object(day, key, {'weekday', 'from', 'to'}, ('weekday', 'from', 'to'))
+        start, end = (parse_string(day[name], name, 5) for name in ('from', 'to'))
+        if not (CLOCK.match(start) and CLOCK.match(end)) or start >= end:
+            reject(f'{key} need from and to as HH:MM, ending after they start', key)
+        days.append({'weekday': parse_int(day['weekday'], 'weekday', 0, 6), 'from': start, 'to': end})
+    check_no_overlap(days, key)
+    return days
+
+
+def parse_shifts(payload):
+    """The agent's shift ranges of the PUT body `{ranges}`."""
+    return parse_days(parse_object(payload, 'body', {'ranges'}, ('ranges',))['ranges'], 'ranges')
 
 
 def parse_working_hours(value, key='working_hours'):
@@ -95,14 +113,7 @@ def parse_working_hours(value, key='working_hours'):
     zone = parse_string(value['timezone'], 'timezone', 64)
     if zone not in known_timezones():
         reject('timezone must be an IANA timezone name', 'timezone')
-    days = []
-    for day in parse_list(value['days'], 'days', 0, MAX_DAYS):
-        day = parse_object(day, 'days', {'weekday', 'from', 'to'}, ('weekday', 'from', 'to'))
-        start, end = (parse_string(day[name], name, 5) for name in ('from', 'to'))
-        if not (CLOCK.match(start) and CLOCK.match(end)) or start >= end:
-            reject('days need from and to as HH:MM, ending after they start', 'days')
-        days.append({'weekday': parse_int(day['weekday'], 'weekday', 0, 6), 'from': start, 'to': end})
-    check_no_overlap(days)
+    days = parse_days(value['days'], 'days')
     holidays = []
     for holiday in parse_list(value['holidays'], 'holidays', 0, MAX_HOLIDAYS):
         holiday = parse_object(holiday, 'holidays', {'name', 'date_from', 'date_to'}, ('name', 'date_from', 'date_to'))
