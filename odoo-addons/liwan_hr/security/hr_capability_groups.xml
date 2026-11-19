@@ -67,9 +67,9 @@
         <field name="implied_ids" eval="[Command.set([ref('liwan_core.group_employee'),ref('group_cap_hr_employees_read'),ref('group_cap_hr_employees_manage'),ref('group_cap_hr_employees_archive'),ref('group_cap_hr_employees_access_status_read'),ref('group_cap_hr_departments_read'),ref('group_cap_hr_departments_manage'),ref('group_cap_hr_leave_read'),ref('group_cap_hr_leave_request'),ref('group_cap_hr_leave_approve'),ref('group_cap_hr_leave_manage'),ref('group_cap_hr_recruitment_read'),ref('group_cap_hr_recruitment_manage'),ref('group_cap_hr_shifts_read'),ref('group_cap_hr_shifts_manage'),ref('group_cap_hr_onboarding_read'),ref('group_cap_hr_onboarding_manage'),ref('group_cap_hr_offboarding_read'),ref('group_cap_hr_offboarding_manage'),ref('group_cap_hr_assets_read'),ref('group_cap_hr_assets_manage')])]"/>
     </record>
 
-    <!-- liwan_core's support group and user-directory rule reach HR through these links. -->
+    <!-- liwan_core's support group reaches HR only through the leave settings capability; its user-directory rule through archive. -->
     <record id="liwan_core.group_vendor_support" model="res.groups">
-        <field name="implied_ids" eval="[Command.link(ref('group_hr_manager')),Command.link(ref('group_cap_hr_leave_config'))]"/>
+        <field name="implied_ids" eval="[Command.link(ref('group_cap_hr_leave_config'))]"/>
     </record>
     <record id="liwan_core.rule_access_users_company" model="ir.rule">
         <field name="groups" eval="[Command.link(ref('group_cap_hr_employees_archive'))]"/>
