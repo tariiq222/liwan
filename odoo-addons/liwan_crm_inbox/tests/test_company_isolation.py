@@ -10,10 +10,14 @@ from odoo.addons.liwan_api.tests.common import (
 
 LIST = '/api/v1/crm/opportunities/{}/conversations'
 LINK = '/api/v1/inbox/conversations/{}/opportunity'
-EXPECTED_GET_RECORD_ROUTES = 2
+EXPECTED_GET_RECORD_ROUTES = 3
 # Session company -> the companies whose records it reads (a parent reads its branches; the rest read their own).
 SEES = {'p': ('p', 'p1', 'p2'), 'p1': ('p1',), 'p2': ('p2',), 'c': ('c',)}
-KEYS = ['crm.leads.read', 'crm.leads.work', 'inbox.conversations.read', 'inbox.conversations.reply']
+KEYS = [
+    'crm.leads.read', 'crm.leads.work', 'inbox.conversations.read', 'inbox.conversations.reply',
+    'inbox.channels.manage', 'crm.settings.manage', 'crm.settings.read', 'crm.leads.assign',
+]
+SETTINGS = '/api/v1/inbox/channels/{}/crm-settings'
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -26,7 +30,7 @@ class TestCrmInboxCompanyIsolation(CompanyIsolationCase):
         Assignment = cls.env['liwan.access.assignment'].sudo()
         permissions = cls.env['liwan.access.permission'].search([('key', 'in', KEYS)])
         Lead = cls.env['crm.lead'].with_context(mail_auto_subscribe_no_notify=True)
-        cls.leads, cls.conversations = {}, {}
+        cls.leads, cls.conversations, cls.channels = {}, {}, {}
         for i, (tag, company) in enumerate(cls.by_tag.items(), start=1):
             role = cls.env['liwan.access.role'].with_company(company).create({
                 'key': f'iso_crm_inbox_{tag}', 'name_ar': f'iso_crm_inbox_{tag}', 'name_en': f'iso_crm_inbox_{tag}',
@@ -46,6 +50,7 @@ class TestCrmInboxCompanyIsolation(CompanyIsolationCase):
                 'name': f'Channel {tag}', 'phone_number_id': f'90000000{i:04d}', 'connection_id': connection.id,
                 'state': 'connected', 'owner_company_id': company.id,
             })
+            cls.channels[tag] = channel
             contact = cls.env['liwan.inbox.contact'].create({
                 'name': f'Customer {tag}', 'phone': f'+96650000{i:04d}', 'company_id': company.id,
             })
@@ -82,6 +87,18 @@ class TestCrmInboxCompanyIsolation(CompanyIsolationCase):
                     self.assertEqual(self.api('DELETE', LINK.format(conversation.id)).status_code, 404)
                 self.assertEqual(conversation.lead_id, lead)
 
+    def test_the_channel_setting_follows_the_company_of_its_channel(self):
+        for current, company in self.by_tag.items():
+            self.env_in(company)
+            for tag, channel in self.channels.items():
+                path = SETTINGS.format(channel.id)
+                if tag in SEES[current]:
+                    self.assertEqual(self.assertVisible(path).json()['channel_id'], channel.id)
+                else:
+                    self.assertHiddenEveryWay('GET', path, self.by_tag[tag].id)
+                    self.assertEqual(self.api('PATCH', path, {'opportunity_mode': 'auto_first_message'}).status_code, 404)
+                    self.assertEqual(channel.crm_opportunity_mode, 'manual')
+
     def test_a_parent_session_refuses_to_join_records_of_two_companies(self):
         self.env_in(self.company_p)
         conversation = self.conversations['p1']
@@ -97,4 +114,5 @@ class TestCrmInboxCompanyIsolation(CompanyIsolationCase):
 cover_isolation_routes((
     '/api/v1/crm/opportunities/<int:opportunity_id>/conversations',
     '/api/v1/inbox/conversations/<int:conversation_id>/opportunity',
+    '/api/v1/inbox/channels/<int:channel_id>/crm-settings',
 ), source='liwan_crm_inbox/tests/test_company_isolation.py')

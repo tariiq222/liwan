@@ -1,0 +1,1 @@
+The channel gains the stored selection `crm_opportunity_mode` (required, default `manual`); Odoo fills the new column with the default for every existing channel, so no script runs and no existing row changes meaning.

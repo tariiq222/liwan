@@ -23,9 +23,6 @@ from odoo.addons.liwan_inbox.serializers.conversation import dump_conversation
 
 LINK_FIELDS = {'opportunity_id'}
 
-# The xml id of the source an opportunity takes from the channel kind of its conversation.
-CHANNEL_SOURCES = {'whatsapp': 'liwan_crm.source_whatsapp', 'tiktok': 'liwan_crm_inbox.source_tiktok'}
-
 
 def dump_opportunity_ref(lead):
     """The row of an opportunity a conversation shows: who it is about, where it stands, whether it is archived."""
@@ -39,18 +36,12 @@ def require_same_customer(conversation, lead):
     """409 ``conflict`` when the contact and the opportunity are linked to different customers; one side without a
     customer is fine, and the link never copies a customer from one side to the other."""
     contact = conversation.contact_id
-    if contact.partner_id and lead.partner_id and contact.partner_id != lead.partner_id:
+    if conversation._liwan_customer_conflicts(lead):
         service = request.env['liwan.customers.service']
         raise ApiError(409, 'conflict', 'the contact and the opportunity belong to different customers', details={
             'contact_customer': service._liwan_link_ref(contact._liwan_linked_customer()),
             'opportunity_customer': service._liwan_link_ref(lead._liwan_linked_customer()),
         })
-
-
-def channel_source(conversation):
-    """The active source of the conversation's channel kind; none when the tenant retired it."""
-    source = request.env.ref(CHANNEL_SOURCES[conversation.channel_id.kind], raise_if_not_found=False)
-    return source if source and source.active else request.env['utm.source']
 
 
 def writable_lead(lead_id):
@@ -112,12 +103,9 @@ class OpportunityConversationsController(http.Controller):
         lock_conversation(conversation)
         if conversation.lead_id:
             raise ApiError(409, 'already_linked', 'the conversation is already linked to an opportunity')
-        contact = conversation.contact_id
-        details = {'contact_name': contact.name, 'phone': contact.phone}
-        source = channel_source(conversation)
-        if source:
-            details['source_id'] = source.id
-        lead = create_opportunity_from_payload(details, partner=contact._liwan_linked_customer())
+        lead = create_opportunity_from_payload(
+            conversation._liwan_opportunity_details(), partner=conversation.contact_id._liwan_linked_customer(),
+        )
         conversation.lead_id = lead
         return dump_opportunity_ref(lead)
 

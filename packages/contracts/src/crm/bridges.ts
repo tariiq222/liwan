@@ -53,7 +53,21 @@ export const ConversationOpportunityConflictErrorSchema = ApiErrorSchema.extend(
   details: ConversationOpportunityConflictDetailsSchema,
 })
 
+/** Whether a new conversation of a channel opens a CRM opportunity by itself: `manual` (the default) or at its first message. */
+export const ConversationOpportunityModeSchema = z.enum(['manual', 'auto_first_message'])
+
+/** `GET /inbox/channels/<id>/crm-settings`: the channel's CRM setting; it needs the channel and the CRM settings capability. */
+export const InboxChannelCrmSettingsSchema = z.strictObject({
+  channel_id: z.number().int().positive(),
+  opportunity_mode: ConversationOpportunityModeSchema,
+})
+
+/** `PATCH /inbox/channels/<id>/crm-settings`: answers the full setting. */
+export const InboxChannelCrmSettingsPatchSchema = z.strictObject({ opportunity_mode: ConversationOpportunityModeSchema })
+
 export type CrmOpportunityTaskCreate = z.infer<typeof CrmOpportunityTaskCreateSchema>
 export type CrmOpportunityMeetingCreate = z.infer<typeof CrmOpportunityMeetingCreateSchema>
 export type ConversationOpportunity = z.infer<typeof ConversationOpportunitySchema>
+export type ConversationOpportunityMode = z.infer<typeof ConversationOpportunityModeSchema>
+export type InboxChannelCrmSettings = z.infer<typeof InboxChannelCrmSettingsSchema>
 export type ConversationOpportunityConflictDetails = z.infer<typeof ConversationOpportunityConflictDetailsSchema>

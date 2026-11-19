@@ -1300,6 +1300,15 @@ export function inboxPreviewData(method, path, url, body = {}) {
   if (resource === '__mock' && parts[4] === 'flow-answer' && method === 'POST') return answerFlow(body)
   if (resource === 'flows' && id !== undefined) return flowRoute(method, id, parts[5], body, url)
   if (resource === 'templates' && id !== undefined) return templateRoute(method, id, body)
+  if (resource === 'channels' && id !== undefined && parts[5] === 'crm-settings') {
+    if (!state.channels.some(item => item.id === id)) return fail(404, 'not_found', 'not found')
+    state.opportunityModes ??= {}
+    if (method === 'PATCH') {
+      if (!['manual', 'auto_first_message'].includes(body.opportunity_mode)) return fail(422, 'invalid', 'الوضع غير صالح', 'opportunity_mode')
+      state.opportunityModes[id] = body.opportunity_mode
+    }
+    return ok({ channel_id: id, opportunity_mode: state.opportunityModes[id] ?? 'manual' })
+  }
   if (resource === 'channels' && id !== undefined && parts[5] === 'events' && method === 'GET') {
     const wanted = url.searchParams.get('state') ?? 'failed'
     const items = state.events

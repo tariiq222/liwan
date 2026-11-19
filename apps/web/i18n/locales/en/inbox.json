@@ -2315,6 +2315,16 @@
       "archived": "Archived",
       "linked": "The conversation is linked to the opportunity",
       "unlinked": "The conversation is unlinked from the opportunity",
+      "mode": {
+        "title": "Opportunity from a new conversation",
+        "hint": "Sets whether the first message of a new conversation on this channel opens a sales opportunity without anyone's action.",
+        "label": "Opportunity creation mode",
+        "manual": "Manual",
+        "manualHint": "An opportunity exists only when an agent creates it from the conversation.",
+        "auto_first_message": "Automatically at the first message",
+        "autoHint": "The conversation links to the customer's open opportunity when there is one; otherwise a new opportunity is created and assigned by the distribution setting in Sales.",
+        "saved": "Opportunity creation mode saved"
+      },
       "status": {
         "pending": "In progress",
         "won": "Won",
