@@ -169,7 +169,12 @@ class TestAiSetupAgent(AiProbe, LiwanApiCase):
         self.patch(registry, '_liwan_ai_record_checks', lambda model: (check,))
         # The reader needs the ACL group of liwan.ai.consent, not only the capability: without it the count raises an
         # AccessError and the check is skipped. With liwan_api and liwan_ai alone the admin does not hold that group.
-        admin = self.env.ref('base.user_admin')
+        # base.user_admin is vendor support and holds no AI key, so the reader is a real customer admin with the employee role.
+        admin = new_test_user(self.env, login='ai_record_admin', groups='base.group_user')
+        for role_xmlid in ('liwan_core.role_system_admin', 'liwan_core.role_employee'):
+            self.env['liwan.access.assignment'].create({
+                'user_id': admin.id, 'role_id': self.env.ref(role_xmlid).id, 'company_id': self.env.company.id,
+            })
         self._grant_ai_use(admin)
         readiness = self.env['liwan.ai.readiness'].with_user(admin)
         self.assertEqual([entry['key'] for entry in readiness._liwan_ai_record_items()], ['records.ai.consents'])

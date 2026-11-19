@@ -138,18 +138,9 @@ class TestMeEndpoint(HttpCase):
         self.authenticate('vendor', 'vendor_password_123')
 
         vendor = self.env['res.users'].search([('login', '=', 'vendor')])
-        # implied_ids: vendor_support ⊃ customer_admin ⊃ employee — role_of must pick the highest
-        self.assertTrue(vendor.has_group('liwan_core.group_customer_admin'))
-        # liwan_core's legacy chain stops at base.group_user: the link to the liwan employee
-        # group is made by an application (liwan_hr or liwan_pmo), so it holds only with one.
-        linked = self.env['ir.module.module'].search_count([
-            ('name', 'in', ['liwan_hr', 'liwan_pmo']), ('state', '=', 'installed'),
-        ])
-        if linked:
-            self.assertTrue(vendor.has_group('liwan_core.group_employee'))
-        else:
-            # meetings-only install: the vendor is not an employee
-            self.assertFalse(vendor.has_group('liwan_core.group_employee'))
+        # Vendor support is default-deny: it implies neither the customer admin nor the employee group.
+        self.assertFalse(vendor.has_group('liwan_core.group_customer_admin'))
+        self.assertFalse(vendor.has_group('liwan_core.group_employee'))
 
         self.assertEqual(self.url_open('/api/v1/me').json()['role'], 'vendor')
 

@@ -137,7 +137,7 @@ class TestTaskSerializers(LiwanTasksCase):
             'name': 'Some project', 'company_id': self.alice.company_id.id})
         return self.env['project.task'].create({
             'name': name, 'project_id': project.id, 'state': state,
-            'company_id': self.alice.company_id.id, 'user_ids': [Command.set(self.env.ref('base.user_admin').ids)],
+            'company_id': self.alice.company_id.id, 'user_ids': [Command.set(self.alice.ids)],
         }), project
 
     def _patched_links(self, tasks, refs):
@@ -175,7 +175,7 @@ class TestTaskSerializers(LiwanTasksCase):
             self.assertEqual(row['source'], 'project')
             self.assertEqual(row['project'], {'id': project.id, 'name': project.name})
             self.assertEqual(row['href'], href)
-            rows, _total = self.env["liwan.my.task.service"].with_user(self.env.ref("base.user_admin"))._search_list(
+            rows, _total = self.env["liwan.my.task.service"].with_user(self.alice)._search_list(
                 closed=False, q=None, assigned=True, created=False, sort='name', limit=50, offset=0)
         self.assertIn(task, rows)
 
@@ -187,7 +187,7 @@ class TestTaskSerializers(LiwanTasksCase):
         with domain_patch, ref_patch:
             with self.assertRaises(ValueError):
                 dump_list_item(bad)
-            service = self.env['liwan.my.task.service'].with_user(self.env.ref('base.user_admin'))
+            service = self.env['liwan.my.task.service'].with_user(self.alice)
             rows, total = service._search_list(
                 closed=False, q=None, assigned=True, created=False, sort='name', limit=50, offset=0)
         self.assertIn(good, rows)

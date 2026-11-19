@@ -46,7 +46,7 @@ CATALOG = SYSTEM | HR | PRIVATE_HR | PAYROLL | PMO | MEETINGS
 # Vendor support is closed by default: only the settings keys each application grants it.
 SUPPORT = (SYSTEM - {'settings.company.vat.manage'}) | {
     'inbox.channels.manage', 'inbox.settings.manage', 'chat.settings.manage', 'meetings.settings.manage',
-    'pmo.settings.manage', 'hr.leave.config', 'finance.setup.manage', 'finance.zatca.manage',
+    'pmo.settings.manage', 'hr.leave.config',
 }
 # These tests pin today's applications. An application added later extends the
 # composition with its own keys, roles and groups; those are checked only for
@@ -211,7 +211,9 @@ class TestAccessComposition(TransactionCase):
         self.assertEqual(rule.groups, self._group('access.users.read') | self._group('hr.employees.archive'))
         admin = self.env.ref('base.user_admin')
         self.assertTrue(admin.has_group('liwan_core.group_vendor_support'))
-        self.assertTrue(admin.has_group('liwan_core.group_employee'))
+        # The shipped support account is vendor support only: it implies neither the customer admin nor the employee group.
+        self.assertFalse(admin.has_group('liwan_core.group_customer_admin'))
+        self.assertFalse(admin.has_group('liwan_core.group_employee'))
 
     def test_system_admin_has_meetings_but_no_hr_or_pmo_management(self):
         admin = new_test_user(self.env, login='composition_system_admin', groups='base.group_user')

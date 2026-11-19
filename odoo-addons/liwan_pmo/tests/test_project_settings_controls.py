@@ -197,5 +197,5 @@ class TestProjectSettingsControls(LiwanPmoCase):
         listed = self.api('GET', '/api/v1/projects')
         self.assertEqual((listed.status_code, listed.json()['code']), (403, 'forbidden'))
         created = self.api('POST', '/api/v1/projects', {'name': 'Support project'})
-        self.assertEqual((created.status_code, created.json()['code']), (403, 'forbidden'))
+        self.assertEqual((created.status_code, created.json()['code']), (403, 'create_forbidden'))
         self.assertEqual(self.api('GET', '/api/v1/settings/projects').status_code, 200)
