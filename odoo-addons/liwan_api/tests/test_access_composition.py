@@ -259,6 +259,9 @@ class TestAccessComposition(TransactionCase):
 # covered by the seeded-account test only), then the liwan file that takes it out again.
 STOCK_THEN_LIWAN_FILES = (
     ('hr', 'security/hr_security.xml', 'hr.group_hr_manager', 'liwan_hr', 'security/hr_capability_groups.xml'),
+    ('hr_holidays', 'security/hr_holidays_security.xml', 'hr_holidays.group_hr_holidays_manager', 'liwan_hr', 'security/hr_capability_groups.xml'),
+    ('maintenance', 'security/maintenance.xml', 'maintenance.group_equipment_manager', 'liwan_hr', 'security/hr_capability_groups.xml'),
+    ('spreadsheet_dashboard', 'security/security.xml', 'spreadsheet_dashboard.group_dashboard_manager', 'liwan_finance', 'security/finance_capability_groups.xml'),
     ('account', 'security/account_security.xml', 'account.group_account_manager', 'liwan_api_account', 'security/account_capability_groups.xml'),
     ('project', 'security/project_security.xml', 'project.group_project_manager', 'liwan_pmo', 'security/pmo_capability_groups.xml'),
     ('project', 'security/project_security.xml', 'project.group_project_manager', 'liwan_tasks', 'security/tasks_capability_groups.xml'),
