@@ -9,13 +9,14 @@ from .common import (
     OUTSIDER_PASSWORD,
     LiwanFinanceCase,
 )
-from .write_common import LiwanFinanceWriteCase
+from .write_common import INVOICES, PASSWORD, LiwanFinanceWriteCase
 from odoo.addons.liwan_finance.models.access_service import (
     FINANCE_ACCOUNTANT_PERMISSIONS,
     FINANCE_AUDITOR_PERMISSIONS,
     FINANCE_PERMISSIONS,
 )
 from odoo.addons.liwan_finance.models.res_company import ZATCA_ENVIRONMENT_PERMISSION
+from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 ROUTES = (
     '/api/v1/finance/invoices',
@@ -40,14 +41,14 @@ class TestFinanceAccessComposition(TransactionCase):
             self.assertTrue(permission.group_xmlid.startswith('liwan_finance.group_cap_finance_'), permission.key)
             self.assertTrue(self.env.ref(permission.group_xmlid, raise_if_not_found=False), permission.key)
 
-    def test_the_manager_role_is_unique_and_granted_to_support_but_not_to_employees(self):
+    def test_the_manager_role_is_unique_and_granted_to_neither_support_nor_employees(self):
         role = self.env.ref('liwan_finance.role_finance_manager')
         self.assertEqual((role.key, role.type, role.protected), ('finance_manager', 'built_in', True))
         self.assertEqual(self.env['liwan.access.role'].search_count([('key', '=', 'finance_manager')]), 1)
         self.assertEqual(set(role.permission_ids.mapped('key')), set(FINANCE_PERMISSIONS))
         support = set(self.env.ref('liwan_core.role_vendor_support').permission_ids.mapped('key'))
         employee = set(self.env.ref('liwan_core.role_employee').permission_ids.mapped('key'))
-        self.assertTrue(support >= FINANCE_PERMISSIONS)
+        self.assertFalse(support & (FINANCE_PERMISSIONS | {ZATCA_ENVIRONMENT_PERMISSION}))
         self.assertFalse(employee & FINANCE_PERMISSIONS)
 
     def test_the_legacy_group_still_grants_the_capabilities(self):
@@ -80,6 +81,45 @@ class TestFinanceRouteAccess(LiwanFinanceCase):
             for method in ('PATCH', 'DELETE'):
                 with self.subTest(route=route, method=method):
                     self.assertNotEqual(self.api(method, route, json={}).status_code, 200)
+
+
+@tagged('post_install', '-at_install', 'liwan')
+class TestFinanceVendorSupport(LiwanFinanceWriteCase):
+    """Vendor support holds nothing in finance: no key, no finance group, no ORM read of accounting data."""
+
+    def setUp(self):
+        super().setUp()
+        self.env.ref('liwan_platform.tenant_profile').with_context(**{OPERATOR_CONTEXT: True}).write({
+            'support_access_enabled': True,
+        })
+        self.support = new_test_user(
+            self.env, login='finance_support_live', password=PASSWORD,
+            groups='liwan_core.group_vendor_support', company_id=self.company.id,
+            company_ids=[Command.set(self.company.ids)],
+        )
+
+    def test_support_holds_no_finance_key(self):
+        effective = self.env['liwan.access.service'].with_user(self.support).with_company(self.company)
+        held = effective._liwan_capability_keys()
+        self.assertFalse({key for key in held if key.startswith('finance.')})
+        self.assertNotIn(ZATCA_ENVIRONMENT_PERMISSION, held)
+
+    def test_support_is_in_no_finance_group(self):
+        for xmlid in (
+            'liwan_finance.group_finance_manager',
+            'liwan_finance.group_cap_finance_setup_manage',
+            'liwan_finance.group_cap_finance_zatca_manage',
+            'account.group_account_readonly',
+        ):
+            with self.subTest(group=xmlid):
+                self.assertFalse(self.support.has_group(xmlid))
+
+    def test_support_is_refused_invoices_setup_and_the_period_lock(self):
+        self.authenticate(self.support.login, PASSWORD)
+        self.assertRefused(self.api('GET', INVOICES), 403, 'forbidden')
+        self.assertRefused(self.api('POST', INVOICES, json=self.invoice_body()), 403, 'forbidden')
+        self.assertRefused(self.api('GET', '/api/v1/finance/setup'), 403, 'forbidden')
+        self.assertRefused(self.api('POST', '/api/v1/finance/setup/fiscal/lock', json={}), 403, 'forbidden')
 
 
 @tagged('post_install', '-at_install', 'liwan', 'liwan_access')

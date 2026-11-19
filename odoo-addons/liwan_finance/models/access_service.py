@@ -110,12 +110,8 @@ class LiwanFinanceAccessService(models.AbstractModel):
     @api.model
     def _liwan_builtin_role_grants(self):
         grants = super()._liwan_builtin_role_grants()
-        for role_xmlid in (
-            'liwan_finance.role_finance_manager',
-            'liwan_core.role_vendor_support',
-        ):
-            grants[role_xmlid] = grants.get(role_xmlid, set()) | FINANCE_PERMISSIONS
         for role_xmlid, keys in (
+            ('liwan_finance.role_finance_manager', FINANCE_PERMISSIONS),
             ('liwan_finance.role_finance_accountant', FINANCE_ACCOUNTANT_PERMISSIONS),
             ('liwan_finance.role_finance_auditor', FINANCE_AUDITOR_PERMISSIONS),
         ):

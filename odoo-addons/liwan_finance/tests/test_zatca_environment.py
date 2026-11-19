@@ -46,7 +46,7 @@ class TestZatcaEnvironment(LiwanFinanceWriteCase):
         self.assertEqual(self.company.l10n_sa_api_mode, 'sandbox')
         self.assertEqual(self.other_company.l10n_sa_api_mode, 'sandbox')
 
-    def test_vendor_support_cannot_request_an_environment_even_with_the_effective_permission(self):
+    def test_vendor_support_does_not_hold_the_environment_permission(self):
         self.env.ref('liwan_platform.tenant_profile').with_context(**{OPERATOR_CONTEXT: True}).write({
             'support_access_enabled': True,
         })
@@ -56,9 +56,8 @@ class TestZatcaEnvironment(LiwanFinanceWriteCase):
             company_ids=[Command.set(self.company.ids)],
         )
         effective = self.env['liwan.access.service'].with_user(support).with_company(self.company)
-        self.assertIn('finance.zatca.environment', effective._liwan_capability_keys())
+        self.assertNotIn('finance.zatca.environment', effective._liwan_capability_keys())
         self.authenticate(support.login, PASSWORD)
-        self.assertEqual(self.api('GET', '/api/v1/finance/zatca/status').status_code, 200)
         with patch.object(type(self.company), '_liwan_try_lock_zatca', autospec=True) as lock:
             result = self.api('POST', MODE_URL, json={'mode': 'sandbox', 'confirmation': 'SANDBOX'})
             self.assertRefused(result, 403, 'forbidden')
