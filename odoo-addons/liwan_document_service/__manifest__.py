@@ -2,7 +2,7 @@
 {
     'name': 'Liwan Document Service',
     'summary': 'Managed documents, permissions and binary storage',
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.0.1',
     'category': 'Hidden',
     'license': 'LGPL-3',
     'depends': ['liwan_api', 'dms'],
