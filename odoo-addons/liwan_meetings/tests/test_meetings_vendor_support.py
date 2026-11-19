@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import fields
+from odoo.exceptions import AccessError
 from odoo.fields import Command
 from odoo.tests import new_test_user, tagged
 
@@ -32,6 +33,12 @@ class TestMeetingsVendorSupport(LiwanMeetingsCase):
     def test_support_holds_only_the_settings_permission(self):
         effective = self.env['liwan.access.service'].with_user(self.support).with_company(self.env.company)
         self.assertEqual(effective._liwan_capability_keys() & MEETINGS_PERMISSIONS, set(VENDOR_SUPPORT_MEETINGS_PERMISSIONS))
+
+    def test_support_holds_no_meeting_content_group(self):
+        self.assertFalse(self.support.has_group('liwan_meetings.group_cap_meetings_manage'))
+        self.assertFalse(self.support.has_group('liwan_platform.group_maintenance_manager'))
+        with self.assertRaises(AccessError):
+            self.env['liwan.meeting.event'].with_user(self.support).search([])
 
     def test_support_cannot_list_meetings(self):
         self.authenticate(self.support.login, SUPPORT_PASSWORD)

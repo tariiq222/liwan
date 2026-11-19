@@ -170,6 +170,8 @@ class TestAccessComposition(TransactionCase):
         self.assertEqual(keys, SUPPORT & catalog)
         self.assertFalse(keys & (CATALOG - SUPPORT))
         self.assertNotIn('tenant.export', keys)
+        self.assertFalse(support.has_group('liwan_platform.group_maintenance_manager'))
+        self.assertFalse(support.has_group('liwan_core.group_customer_admin'))
         self.assertEqual(self.service._liwan_capability_keys(self.env.ref('base.user_root'), company=self.env.company), catalog)
 
     def test_permission_dependencies_are_unchanged(self):
@@ -192,7 +194,9 @@ class TestAccessComposition(TransactionCase):
             if self.env.ref(permission.group_xmlid) in vendor.all_implied_ids
         }
         release_support = self._release(SUPPORT & set(self.service._liwan_capability_map()))
-        self.assertLessEqual(release_support, self._release(implied_keys))
+        self.assertEqual(release_support, self._release(implied_keys))
+        for xmlid in ('liwan_core.group_customer_admin', 'liwan_core.group_access_admin', 'liwan_platform.group_maintenance_manager'):
+            self.assertNotIn(self.env.ref(xmlid), vendor.all_implied_ids, xmlid)
         self.assertFalse(self._release(implied_keys) & (PAYROLL | PRIVATE_HR))
         access_admin = self.env.ref('liwan_core.group_access_admin')
         self.assertIn(self._group('meetings.manage'), access_admin.all_implied_ids)

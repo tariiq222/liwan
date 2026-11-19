@@ -29,12 +29,8 @@
 
     <record id="group_vendor_support" model="res.groups">
         <field name="name">Vendor Support</field>
-        <field name="comment">liwan vendor account: full Odoo administration.</field>
+        <field name="comment">liwan vendor account: settings and channels only, no customer business content.</field>
         <field name="sequence">30</field>
         <field name="privilege_id" ref="res_groups_privilege_liwan"/>
-        <field name="implied_ids" eval="[
-            (4, ref('group_customer_admin')),
-            (4, ref('base.group_system')),
-        ]"/>
     </record>
 </odoo>
