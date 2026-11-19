@@ -2,7 +2,7 @@
 {
     'name': 'liwan Tasks',
     'summary': 'liwan platform: personal and team tasks that need no project — /api/v1/my-tasks',
-    'version': '19.0.1.2.0',
+    'version': '19.0.1.3.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',

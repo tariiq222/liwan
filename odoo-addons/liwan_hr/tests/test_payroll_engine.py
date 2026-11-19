@@ -39,7 +39,7 @@ class TestPayrollEngine(TransactionCase):
 
     def test_payroll_groups_hold_only_system_users(self):
         users = self._engine_users()
-        self.assertTrue(users, 'the OCA payroll groups must hold the default administrator users')
+        # The vendor support account no longer holds payroll (security/hr_capability_groups.xml): the groups start empty.
         intruders = self._users_without_system(users)
         self.assertFalse(
             intruders,

@@ -115,8 +115,8 @@ class AiController(http.Controller):
         """Record the usage rows of a finished run for the user who made the calls, without that user's session.
 
         Two checks, both required: the caller holds ``ai.usage.record`` AND is the recorder account itself
-        (``liwan_ai.user_ai_usage``). The capability alone is not enough, because liwan_core gives the superuser and
-        vendor support every capability and liwan_core must not name an application's capability; the identity check
+        (``liwan_ai.user_ai_usage``). The capability alone is not enough, because liwan_core gives the superuser every
+        capability and liwan_core must not name an application's capability; the identity check
         is what keeps any other key (an administrator's, a vendor-support user's) out. The browser never reaches this
         route. The rows belong to ``user_id`` in ``user_company_id``, validated by the model. The company has its own
         field name because ``company_id`` in a payload is the platform's "which company do you write in" guard,

@@ -74,4 +74,23 @@
     <record id="liwan_core.rule_access_users_company" model="ir.rule">
         <field name="groups" eval="[Command.link(ref('group_cap_hr_employees_archive'))]"/>
     </record>
+
+    <!-- Stock data adds base.user_admin (the vendor support account) to these manager groups. System administration does not imply HR content access, so the link is removed; only the superuser keeps it. Customer admins get the stock groups through the capability groups above. -->
+    <record id="hr.group_hr_manager" model="res.groups">
+        <field name="user_ids" eval="[Command.unlink(ref('base.user_admin'))]"/>
+    </record>
+    <record id="hr_holidays.group_hr_holidays_manager" model="res.groups">
+        <field name="user_ids" eval="[Command.unlink(ref('base.user_admin'))]"/>
+    </record>
+    <record id="hr_recruitment.group_hr_recruitment_manager" model="res.groups">
+        <field name="user_ids" eval="[Command.unlink(ref('base.user_admin'))]"/>
+    </record>
+    <record id="maintenance.group_equipment_manager" model="res.groups">
+        <field name="user_ids" eval="[Command.unlink(ref('base.user_admin'))]"/>
+    </record>
+
+    <!-- OCA payroll adds base.user_admin (the vendor support account) to its manager group, and its officer group implies hr.group_hr_manager; only the superuser keeps it. -->
+    <record id="payroll.group_payroll_manager" model="res.groups">
+        <field name="user_ids" eval="[Command.unlink(ref('base.user_admin'))]"/>
+    </record>
 </odoo>
