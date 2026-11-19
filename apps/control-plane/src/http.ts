@@ -372,12 +372,13 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
     }
     return ++attempt.count > limit.max
   }
-  // The "find my workspace" check shares the sign-up human check: it exists only where public sign-up is configured.
-  let lookupHumanCheck = deps?.humanCheck
-  if (!lookupHumanCheck && signup) { try { lookupHumanCheck = humanCheckFromEnv(process.env).verify } catch { /* signup already reported its configuration */ } }
-  const workspaceLookup = workspaceLookupHandler(pool, { service: bffService, humanCheck: lookupHumanCheck, overLimit, bucket: clientAddressBucket })
+  // The Turnstile check serves the contact form whether or not public sign-up is open; a missing or invalid key leaves it undefined and the form fails closed.
+  let humanCheck = deps?.humanCheck
+  if (!humanCheck) { try { humanCheck = humanCheckFromEnv(process.env).verify } catch { console.error('[control-plane] human check configuration invalid') } }
+  // The "find my workspace" check shares it but exists only where public sign-up is configured.
+  const workspaceLookup = workspaceLookupHandler(pool, { service: bffService, humanCheck: deps?.humanCheck ?? (signup ? humanCheck : undefined), overLimit, bucket: clientAddressBucket })
   const pricingPlan = z.uuid().safeParse(process.env.LIWAN_SIGNUP_PLAN_REVISION_ID)
-  const publicSite = publicSiteHandler(pool, { service: bffService, humanCheck: lookupHumanCheck, planId: pricingPlan.success ? pricingPlan.data : undefined, notifyEmail: config.contactNotifyEmail, overLimit, bucket: clientAddressBucket })
+  const publicSite = publicSiteHandler(pool, { service: bffService, humanCheck, planId: pricingPlan.success ? pricingPlan.data : undefined, notifyEmail: config.contactNotifyEmail, overLimit, bucket: clientAddressBucket })
   const handler = async (req: IncomingMessage, res: ServerResponse) => {
     try {
       const method = req.method ?? ''
