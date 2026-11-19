@@ -5,6 +5,7 @@ from odoo.tests import TransactionCase, new_test_user, tagged
 from odoo.addons.liwan_meetings.models.meeting_access_service import (
     EMPLOYEE_MEETINGS_PERMISSIONS,
     MEETINGS_PERMISSIONS,
+    VENDOR_SUPPORT_MEETINGS_PERMISSIONS,
 )
 
 RULES = (
@@ -65,12 +66,16 @@ class TestMeetingsAccessComposition(TransactionCase):
         self.assertIn('meetings.read', self._keys('liwan_core.role_employee'))
         self.assertNotIn('meetings.create', self._keys('liwan_core.role_employee'))
         self.assertTrue(self._keys('liwan_core.role_system_admin') >= MEETINGS_PERMISSIONS)
-        self.assertTrue(self._keys('liwan_core.role_vendor_support') >= MEETINGS_PERMISSIONS)
+        self.assertEqual(
+            self._keys('liwan_core.role_vendor_support') & MEETINGS_PERMISSIONS, set(VENDOR_SUPPORT_MEETINGS_PERMISSIONS),
+        )
 
     def test_core_groups_reach_meetings_and_the_rules_are_active(self):
         manage = self.env.ref('liwan_meetings.group_cap_meetings_manage')
         self.assertIn(manage, self.env.ref('liwan_core.group_access_admin').all_implied_ids)
-        self.assertIn(manage, self.env.ref('liwan_core.group_vendor_support').all_implied_ids)
+        support = self.env.ref('liwan_core.group_vendor_support')
+        self.assertIn(self.env.ref('liwan_meetings.group_cap_meetings_settings_manage'), support.implied_ids)
+        self.assertNotIn(manage, support.implied_ids)
         for model, groups in ACL.items():
             model_id = self.env.ref(f'liwan_meetings.model_{model}').id
             for group_name, perms in groups.items():
@@ -89,7 +94,7 @@ class TestMeetingsAccessComposition(TransactionCase):
         expected = {
             'employee': {'meetings.read'},
             'system_admin': set(MEETINGS_PERMISSIONS),
-            'vendor_support': set(MEETINGS_PERMISSIONS),
+            'vendor_support': set(VENDOR_SUPPORT_MEETINGS_PERMISSIONS),
         }
         meetings = self.Permission.search([('key', 'in', sorted(MEETINGS_PERMISSIONS))])
         for role in roles.values():
