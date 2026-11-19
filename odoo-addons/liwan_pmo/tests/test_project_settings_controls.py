@@ -190,3 +190,12 @@ class TestProjectSettingsControls(LiwanPmoCase):
         self.assertEqual(paired.status_code, 200)
         self.assertEqual((paired.json()['date_start'], paired.json()['date_end']), ('2030-01-01', '2031-01-01'))
         self.assertIn(StockProjectProject, type(self.env['project.project']).__mro__)
+
+    def test_vendor_support_user_reads_no_projects_and_creates_none(self):
+        new_test_user(self.env, login='pmo_support_live', password='pmo_support_live_123', groups='liwan_core.group_vendor_support')
+        self.authenticate('pmo_support_live', 'pmo_support_live_123')
+        listed = self.api('GET', '/api/v1/projects')
+        self.assertEqual((listed.status_code, listed.json()['code']), (403, 'forbidden'))
+        created = self.api('POST', '/api/v1/projects', {'name': 'Support project'})
+        self.assertEqual((created.status_code, created.json()['code']), (403, 'forbidden'))
+        self.assertEqual(self.api('GET', '/api/v1/settings/projects').status_code, 200)
