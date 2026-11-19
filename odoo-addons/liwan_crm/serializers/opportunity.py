@@ -14,10 +14,8 @@ from odoo.addons.liwan_api.serializers.properties import (
 )
 from odoo.addons.liwan_crm.models.crm_lead import EMAIL_MAX, NAME_MAX, PROPERTIES_FIELD
 
-DUPLICATE_PHONE = 'duplicate phone'
 # Stable machine codes in `details.reason` of the 422 on `phone` and `email`; the UI translates them.
 INVALID_PHONE_REASON = 'invalid_phone'
-DUPLICATE_PHONE_REASON = 'duplicate_phone'
 INVALID_EMAIL_REASON = 'invalid_email'
 CREATE_FIELDS = ('contact_name', 'phone', 'email', 'source_id', 'user_id')
 PATCH_FIELDS = ('contact_name', 'phone', 'email', 'source_id', 'stage_id', 'probability', 'properties')

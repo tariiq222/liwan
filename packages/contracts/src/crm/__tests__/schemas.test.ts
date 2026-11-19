@@ -7,6 +7,7 @@ import {
   CrmOutcomeSchema,
   CrmPackageAddSchema,
   CrmPackageSchema,
+  CrmStageArchiveSchema,
   CrmStagePatchSchema,
   CrmStageSchema,
   CrmSettingsPatchSchema,
@@ -220,6 +221,13 @@ describe('CRM configurable lists', () => {
     expect(() => CrmPackageSchema.parse({ id: 3, name: 'x', price: -1, description: '', active: true })).toThrow()
     expect(() => CrmStagePatchSchema.parse({})).toThrow()
     expect(() => CrmStagePatchSchema.parse({ sequence: 3 })).toThrow()
+  })
+
+  it('archives a stage with an optional target stage and nothing else', () => {
+    expect(CrmStageArchiveSchema.parse({})).toEqual({})
+    expect(CrmStageArchiveSchema.parse({ move_to: 3 })).toEqual({ move_to: 3 })
+    expect(() => CrmStageArchiveSchema.parse({ move_to: 0 })).toThrow()
+    expect(() => CrmStageArchiveSchema.parse({ move_to: 3, active: false })).toThrow()
   })
 
   it('adds a package by the id of an existing product and nothing else', () => {

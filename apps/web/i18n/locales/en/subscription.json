@@ -3,7 +3,8 @@
     "activation": {
       "title": "Preparing your trial",
       "wait": "We are enabling your selected apps. You will enter your workspace once they are ready.",
-      "failed": "We could not finish setting up your trial. You can try again or continue to your workspace. The trial applications are not open yet.",
+      "failed": "The request to set up your trial did not complete. You can try again or continue to your workspace.",
+      "delayed": "Your trial has started and ends on {date}. Opening the applications is delayed and we are retrying automatically.",
       "retry": "Try again",
       "continue": "Continue to your workspace"
     },

@@ -89,6 +89,7 @@ async function submit() {
 <template>
   <UForm :state="{ externalId, label }" class="liwan-form" method="post" :loading-auto="false" novalidate data-testid="integration-form" @submit="submit">
     <SharedUnsavedChanges :dirty="dirty" />
+    <SettingsIntegrationMetaGuide v-if="provider.code === 'meta'" />
     <SharedFormSection panel :title="t('integrations.new.details')">
       <div class="grid gap-4">
         <UFormField :label="t('integrations.field.externalId')" :description="t('integrations.field.externalIdHint')" name="external_id" required :error="fieldErrors.external_id">

@@ -1,10 +1,10 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ConversationOpportunityAnswerSchema, CrmOpportunityListSchema } from '@liwan/contracts'
-import { crmKeys } from '../crm/crmKeys'
-import { useCrmCreateAccess } from '../crm/useCrmAccess'
-import { opportunityConversationsKey } from '../opportunityConversationsKey'
-import { inboxKeys } from './useInbox'
+import { crmKeys } from './crm/crmKeys'
+import { useCrmCreateAccess } from './crm/useCrmAccess'
+import { opportunityConversationsKey } from './opportunityConversationsKey'
+import { inboxKeys } from './inbox/useInbox'
 
 // The opportunity a conversation is linked to (the inbox bridge to CRM). It is read and written only while the tenant has
 // CRM and the user holds both applications' capabilities.

@@ -14,8 +14,10 @@ export const unopenedTrialCutoff = '1970-01-01T00:00:00.000Z'
 async function firstLoginTrial(client: Pick<PoolClient, 'query'>, customerId: string, lock = false) {
   if (lock) await client.query('SELECT 1 FROM subscriptions WHERE customer_id=$1 FOR UPDATE', [customerId])
   return (await client.query(`SELECT s.id,s.customer_id,s.tenant_id,s.state,s.revision,s.applied_revision_id,s.target_revision_id,
-    s.trial_ends_at,s.manual_suspension,t.first_admin_user_id,o.fulfillment_state
+    s.trial_ends_at,s.manual_suspension,t.first_admin_user_id,o.fulfillment_state,p.trial_days
     FROM subscriptions s JOIN public_signup_trials t ON t.customer_id=s.customer_id AND t.requires_first_login
+    LEFT JOIN subscription_revisions sr ON sr.id=s.applied_revision_id
+    LEFT JOIN plan_revisions p ON p.id=(sr.snapshot->>'plan_revision_id')::uuid
     LEFT JOIN orders o ON o.subscription_id=s.id AND o.target_revision_id=s.target_revision_id AND o.idempotency_key LIKE 'trial-bootstrap:%'
     WHERE s.customer_id=$1`, [customerId])).rows[0]
 }
@@ -44,7 +46,8 @@ export async function activateSignupTrial(pool: Pool, input: { customerId: strin
       ON b.control_tenant_id=t.id AND b.enabled
       WHERE t.id=$1 AND t.post_trial_supported IS TRUE AND t.excess_supported IS TRUE`, [row.tenant_id])
     if (!ready.rowCount) throw new CommercialHttpError('tenant_upgrade_required', 409)
-    const trial_ends_at = trialEndsAt(14, input.now)
+    if (!Number.isInteger(row.trial_days) || row.trial_days <= 0) throw new CommercialHttpError('trial_plan_missing', 409)
+    const trial_ends_at = trialEndsAt(row.trial_days, input.now)
     const queued = await queueTrialPolicyRevision(client, row, {
       kind: 'trial-bootstrap', sourceId: row.applied_revision_id, now: input.now, startsAt: input.now, endsAt: new Date(trial_ends_at),
     })

@@ -30,3 +30,12 @@ export const Empty: Story = { parameters: { msw: { handlers: { api: [manage, lis
 export const OrderRefused: Story = {
   parameters: { msw: { handlers: { api: [manage, list(stages), http.post('/api/v1/crm/stages/order', () => HttpResponse.json({ code: 'invalid', message: 'ids must list every active stage exactly once' }, { status: 422 }))] } } },
 }
+// Archiving «تم التواصل» is refused while it holds opportunities; the row then offers the stage they move to.
+const holdsOpportunities = http.delete('/api/v1/crm/stages/:id', async ({ request, params }) => {
+  const body = await request.text()
+  if (body) return HttpResponse.json({ ...stages.find(stage => stage.id === Number(params.id)), active: false })
+  return HttpResponse.json({ code: 'invalid', message: 'the stage still has opportunities', field: 'id', details: { reason: 'stage_has_opportunities' } }, { status: 422 })
+})
+export const MoveOpportunitiesThenArchive: Story = {
+  parameters: { msw: { handlers: { api: [manage, list(stages), holdsOpportunities] } } },
+}

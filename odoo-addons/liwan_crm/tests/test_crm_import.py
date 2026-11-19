@@ -344,8 +344,9 @@ class TestCrmImport(LiwanCrmCase):
         self.commit(fresh, mapping=columns)
         self.assertEqual(len(self.lead_of('+966501118888')), 1)
 
-    def test_existing_lost_or_archived_opportunity_counts_as_duplicate(self):
-        lost = self.make_lead(self.agent2, contact_name='Lost customer', phone='+966501112222')
+    def test_existing_open_opportunity_counts_as_duplicate_but_a_closed_one_does_not(self):
+        self.make_lead(self.agent2, contact_name='Open customer', phone='+966501112222')
+        lost = self.make_lead(self.agent2, contact_name='Lost customer', phone='+966507654321')
         lost.write({'active': False})
         body = self.preview(csv_bytes('Sara,0501112222', 'Omar,0507654321')).json()
         self.assertEqual((body['new'], body['duplicate'], body['invalid']), (1, 1, 0))

@@ -272,6 +272,20 @@ function packageWrite(method, id, rows, body) {
   return method === 'DELETE' ? { status: 404, body: { code: 'not_found', message: 'Record does not exist' } } : undefined
 }
 
+// Archiving a stage: its opportunities must go to another active open stage (`move_to`) or the stage is refused.
+function stageArchive(stage, moveTo) {
+  const held = opportunities.filter(item => item.stage?.id === stage.id)
+  if (stage.is_won) return invalid('id', 'exactly one active stage must be the won stage', 'won_stage_required')
+  if (held.length && moveTo === undefined) return invalid('id', 'the stage still has opportunities', 'stage_has_opportunities')
+  if (held.length) {
+    const target = lists.stages.find(item => item.id === moveTo)
+    if (!target || !target.active || target.is_won || target === stage) return invalid('move_to', 'move_to must be another active open stage', 'invalid_move_target')
+    held.forEach(item => { item.stage = ref(lists.stages, target.id) })
+  }
+  stage.active = false
+  return { status: 200, body: stage }
+}
+
 export function crmPreviewWrite(method, path, body) {
   if (path === '/api/v1/__mock/reset-crm') {
     settings = seedSettings()
@@ -327,6 +341,7 @@ export function crmPreviewWrite(method, path, body) {
     return { status: 200, body: created }
   }
   const target = rows.find(item => item.id === Number(row[2]))
+  if (method === 'DELETE' && row[1] === 'stages' && target) return stageArchive(target, body?.move_to)
   if (method === 'PATCH' && target) {
     if (body.is_won) rows.forEach(item => { item.is_won = false })
     Object.assign(target, body)

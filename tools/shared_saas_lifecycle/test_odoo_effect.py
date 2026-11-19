@@ -73,8 +73,11 @@ class PackageAdministratorScriptTests(unittest.TestCase):
     HOST = 't' + 'c' * 32 + '.example.test'
     CONTROL_TENANT = '3f2b8c1e-5d4a-4e6f-9a7b-0c1d2e3f4a5b'
 
-    def run_script(self, *, package=True, snapshot=False, support=True, count=None, limit=None, origin=None, marker=CONTROL_TENANT):
+    def run_script(self, *, package=True, snapshot=False, support=True, count=None, limit=None, origin=None, marker=CONTROL_TENANT, mobile=None, mobile_taken=False):
         writes = []
+
+        class AccessRule(Exception):
+            pass
         # A snapshot reads what an earlier apply pinned; `origin` and `marker` state other values on purpose.
         params = ({'web.base.url': origin or 'https://' + self.HOST, 'web.base.url.freeze': 'True',
                    **({} if marker is None else {odoo_effect.TENANT_MARKER_PARAMETER: marker})} if snapshot else {})
@@ -92,6 +95,8 @@ class PackageAdministratorScriptTests(unittest.TestCase):
             email = 'customer@example.test' if snapshot else 'admin@localhost'
             support_member = support
             def _liwan_access_write(self, values, capability):
+                if mobile_taken and 'liwan_mobile' in values:
+                    raise AccessRule('mobile_taken')
                 writes.append(('user', values, capability))
                 for key, value in values.items():
                     if key == 'group_ids':
@@ -163,6 +168,12 @@ class PackageAdministratorScriptTests(unittest.TestCase):
                     )
                 if model == 'liwan.access.role':
                     return SimpleNamespace(search=lambda domain, limit=None: SimpleNamespace(id=domain[0][2]))
+                if model == 'liwan.access.service':
+                    @contextlib.contextmanager
+                    def guard():
+                        yield
+                    return SimpleNamespace(_liwan_normalize_mobile=lambda value: value if value.startswith('+') else (_ for _ in ()).throw(AccessRule('invalid_mobile')),
+                                           _liwan_mobile_guard=guard)
                 if model == 'ir.config_parameter':
                     return SimpleNamespace(get_param=params.get, set_param=lambda key, value: (writes.append(('param', key, value)), params.update({key: value})))
                 raise AssertionError(model)
@@ -184,13 +195,39 @@ class PackageAdministratorScriptTests(unittest.TestCase):
                           'controlTenantId': self.CONTROL_TENANT, 'job': {'policy': {'modules': ['liwan_core', 'liwan_platform', 'liwan_api', 'liwan_pmo', 'liwan_hr']}}}
         if package:
             runner.request['job']['packageAuthority'] = {'schemaVersion': 2}
+        if mobile is not None:
+            runner.request['admin']['mobile'] = mobile
         output = io.StringIO()
         platform = SimpleNamespace(OPERATOR_CONTEXT='operator-context')
-        with unittest.mock.patch.dict('sys.modules', {'odoo.addons.liwan_platform.models.entitlement_service': platform}), \
+        access = SimpleNamespace(LiwanAccessRule=AccessRule)
+        with unittest.mock.patch.dict('sys.modules', {'odoo.addons.liwan_platform.models.entitlement_service': platform,
+                                                       'odoo.addons.liwan_core.models.access_service': access}), \
                 contextlib.redirect_stdout(output):
             exec(compile(runner.admin_script('known-secret', snapshot=snapshot), '<generated-admin>', 'exec'), {'env': Environment()})
         result = json.loads(output.getvalue().strip().removeprefix('LIWAN_SHARED_ADMIN:'))
         return result, writes, admin, roles
+
+    def test_admin_script_saves_the_verified_signup_mobile(self):
+        _, writes, admin, _ = self.run_script(mobile='+966555000111')
+        self.assertEqual(admin.liwan_mobile, '+966555000111')
+        self.assertIn(('user', {'liwan_mobile': '+966555000111'}, 'access.users.update'), writes)
+
+    def test_admin_script_without_a_mobile_leaves_the_gate(self):
+        result, writes, admin, _ = self.run_script()
+        self.assertTrue(result['verified'])
+        self.assertFalse(hasattr(admin, 'liwan_mobile'))
+        self.assertFalse([w for w in writes if w[0] == 'user' and 'liwan_mobile' in w[1]])
+
+    def test_admin_script_keeps_provisioning_when_the_mobile_is_taken_or_invalid(self):
+        for options in ({'mobile': '+966555000111', 'mobile_taken': True}, {'mobile': '0555000111'}):
+            with self.subTest(options=options):
+                result, _, admin, _ = self.run_script(**options)
+                self.assertTrue(result['verified'])
+                self.assertFalse(hasattr(admin, 'liwan_mobile'))
+
+    def test_admin_snapshot_never_writes_the_mobile(self):
+        _, writes, _, _ = self.run_script(snapshot=True, mobile='+966555000111')
+        self.assertFalse([w for w in writes if w[0] == 'user'])
 
     def test_admin_script_reads_roles_from_the_entitlement_not_modules(self):
         script = object.__new__(odoo_effect.Runner)

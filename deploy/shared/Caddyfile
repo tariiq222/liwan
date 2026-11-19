@@ -8,6 +8,7 @@
 	@signup path /api/commercial/signup/*
 	@invitationReissue path /api/invitations/reissue
 	@workspaceLookup path /api/invitations/find-workspace
+	@publicContact path /api/commercial/public/contact
 	@tenantDeletion path /api/commercial/v1/deletion/request /api/commercial/v1/deletion/confirm /api/commercial/v1/deletion/withdraw
 	route {
 		respond @privateToken 403
@@ -92,6 +93,16 @@
 				window 1m
 				ipv6_prefix 64
 			}
+			# The marketing site's pricing read and contact form (the control plane budgets each visitor again).
+			zone liwan_public_site {
+				match {
+					path /api/commercial/public/*
+				}
+				key {client_ip}
+				events 30
+				window 1m
+				ipv6_prefix 64
+			}
 			zone liwan_web {
 				match {
 					not path /api/auth/* /api/v1/* /web/* /odoo/* /jsonrpc /xmlrpc/* /report/* /mail/* /bus/* /discuss/* /websocket /_nuxt/* /_i18n/* /fonts/* /favicon.ico /robots.txt
@@ -106,6 +117,7 @@
 		request_header -X-Liwan-Client-Ip
 		request_header @invitationReissue X-Liwan-Client-Ip {client_ip}
 		request_header @workspaceLookup X-Liwan-Client-Ip {client_ip}
+		request_header @publicContact X-Liwan-Client-Ip {client_ip}
 		request_header @tenantDeletion X-Liwan-Client-Ip {client_ip}
 		request_header @signup X-Liwan-Signup-Client {client_ip}
 		reverse_proxy guard:8080 {

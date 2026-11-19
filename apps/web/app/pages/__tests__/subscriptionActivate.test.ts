@@ -22,8 +22,8 @@ const scopes: Vue.EffectScope[] = []
 beforeEach(() => vi.useFakeTimers())
 afterEach(() => { scopes.splice(0).forEach(scope => scope.stop()); vi.useRealTimers() })
 
-async function mountPage(activation: () => Promise<{ state: string }>) {
-  const api = { activateTrial: vi.fn(activation), trialActivation: vi.fn(activation) }
+async function mountPage(activation: () => Promise<{ state: string; trial_ends_at?: string }>, polled: () => Promise<{ state: string; trial_ends_at?: string }> = activation) {
+  const api = { activateTrial: vi.fn(activation), trialActivation: vi.fn(polled) }
   const checked = Vue.ref<number | null>(null)
   const router = { replace: vi.fn(async () => {}) }
   const mounted: Array<() => void> = []
@@ -31,7 +31,8 @@ async function mountPage(activation: () => Promise<{ state: string }>) {
     ...accessPolicy, _defineComponent: Vue.defineComponent,
     ref: Vue.ref, onMounted: (fn: () => void) => mounted.push(fn), onBeforeUnmount: () => {},
     definePageMeta: () => {}, useState: () => checked, useRouter: () => router,
-    useI18n: () => ({ t: (key: string) => key }),
+    formatDateTime: (iso: string) => `on:${iso}`,
+    useI18n: () => ({ t: (key: string, params?: { date?: string }) => params?.date ? `${key} ${params.date}` : key }),
     useSubscriptionApi: () => api,
     useMe: () => ({ me: Vue.ref(identity), refresh: vi.fn(async () => {}) }),
     useCustomerCapabilities: () => ({ can: () => true }),
@@ -57,20 +58,33 @@ async function mountPage(activation: () => Promise<{ state: string }>) {
 }
 
 describe('the trial activation page', () => {
-  it('a failed activation offers retry and a way into the workspace', async () => {
-    const page = await mountPage(async () => ({ state: 'failed' }))
+  it('a failed fulfillment says the trial started, offers no retry and sends no second activation', async () => {
+    const end = '2026-12-03T09:00:00.000Z'
+    const page = await mountPage(async () => ({ state: 'failed', trial_ends_at: end }))
     const html = await page.html()
-    expect(html).toContain('subscription.activation.failed')
-    expect(html).toContain('subscription.activation.retry')
+    expect(html).toContain(`subscription.activation.delayed on:${end}`)
     expect(html).toContain('subscription.activation.continue')
+    expect(html).not.toContain('subscription.activation.retry')
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(page.api.activateTrial).toHaveBeenCalledOnce()
+    expect(page.api.trialActivation).toHaveBeenCalledOnce()
   })
-  it('a thrown error shows the same two actions', async () => {
+  it('a failed fulfillment that later becomes ready navigates on its own', async () => {
+    const page = await mountPage(async () => ({ state: 'failed', trial_ends_at: '2026-12-03T09:00:00.000Z' }), async () => ({ state: 'ready' }))
+    expect(page.router.replace).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(page.checked.value).toBe(42)
+    expect(page.router.replace).toHaveBeenCalledOnce()
+    expect(page.api.activateTrial).toHaveBeenCalledOnce()
+  })
+  it('a failed request shows the retry and continue actions', async () => {
     const page = await mountPage(async () => { throw Object.assign(new Error('tenant_upgrade_required'), { statusCode: 409 }) })
     const html = await page.html()
+    expect(html).toContain('subscription.activation.failed')
     expect(html).toContain('subscription.activation.retry'); expect(html).toContain('subscription.activation.continue')
   })
   it('continuing sets the checked state to the user id and replaces the route with the home page', async () => {
-    const page = await mountPage(async () => ({ state: 'failed' }))
+    const page = await mountPage(async () => ({ state: 'waiting' }))
     expect(page.checked.value).toBeNull()
     await page.state.continueWithoutTrial()
     expect(page.checked.value).toBe(42)

@@ -109,10 +109,8 @@ class TestCrmOpportunities(LiwanCrmCase):
         self.assertEqual((response.status_code, response.json()['field']), (422, 'phone'))
         self.assertEqual(response.json()['details'], {'reason': 'invalid_phone'})
 
-    def test_duplicate_across_lost_and_archived_records_is_refused_without_disclosure(self):
+    def test_duplicate_of_an_open_opportunity_is_refused_without_disclosure(self):
         lost = self.make_lead(self.agent2, contact_name='Hidden', phone='+966501234567')
-        lost.action_set_lost()
-        lost.active = False
         response = self.create(self.agent, phone='٠٥٠١٢٣٤٥٦٧')
         self.assertEqual(response.status_code, 422)
         body = response.json()

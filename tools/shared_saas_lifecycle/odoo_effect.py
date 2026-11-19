@@ -440,11 +440,13 @@ class Runner:
     def admin_script(self, secret, *, snapshot):
         values = {'database': self.database, 'name': self.request['admin']['name'], 'login': self.request['admin']['login'],
                   'companyName': self.request['companyName'], 'host': self.request['host'],
-                  'controlTenantId': self.request['controlTenantId'], 'markerParameter': TENANT_MARKER_PARAMETER}
+                  'controlTenantId': self.request['controlTenantId'], 'markerParameter': TENANT_MARKER_PARAMETER,
+                  'mobile': self.request['admin'].get('mobile')}
         prefix = 'import json\nvalues = json.loads(' + repr(json.dumps(values)) + ')\nsecret = ' + repr(secret) + '\nsnapshot = ' + repr(snapshot) + '\n'
         return prefix + '''
 result = {'verified': False}
 try:
+    from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
     from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
     if snapshot:
         env.cr.rollback()
@@ -481,6 +483,15 @@ try:
         # Re-derive permission groups from retained customer assignments;
         # the existing service preserves unrelated explicit groups.
         admin._liwan_sync_capability_groups()
+        # The number the sign-up verified by SMS spares the administrator the first-login mobile gate. A taken or
+        # malformed number writes nothing and never fails provisioning: the gate simply stays.
+        if values['mobile']:
+            access = env['liwan.access.service']
+            try:
+                with access._liwan_mobile_guard():
+                    admin._liwan_access_write({'liwan_mobile': access._liwan_normalize_mobile(values['mobile'])}, 'access.users.update')
+            except LiwanAccessRule:
+                pass
         env.flush_all()
     service = env['liwan.entitlement.service']
     assert not admin.share and not admin.has_group('liwan_core.group_vendor_support')

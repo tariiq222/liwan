@@ -59,6 +59,9 @@ export const CrmStagePatchSchema = z
   .partial()
   .refine((body) => Object.keys(body).length > 0, 'nothing to change')
 
+// DELETE /api/v1/crm/stages/{id}: archives the stage; `move_to` first moves every opportunity of it to that other active open stage.
+export const CrmStageArchiveSchema = z.strictObject({ move_to: z.number().int().positive() }).partial()
+
 export const CrmOutcomeCreateSchema = z.strictObject({
   name: NameSchema,
   effect: CrmOutcomeEffectSchema,

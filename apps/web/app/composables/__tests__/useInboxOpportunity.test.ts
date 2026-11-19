@@ -23,9 +23,9 @@ vi.stubGlobal('useAccess', () => ({ can: () => true }))
 vi.stubGlobal('computed', Vue.computed)
 vi.stubGlobal('toValue', Vue.toValue)
 
-const { inboxKeys } = await import('../useInbox')
+const { inboxKeys } = await import('../inbox/useInbox')
 const { useLinkConversationOpportunity, useUnlinkConversationOpportunity } = await import('../useInboxOpportunity')
-const { crmKeys } = await import('../../crm/crmKeys')
+const { crmKeys } = await import('../crm/crmKeys')
 const invalidated = () => invalidate.mock.calls.map(([filters]) => (filters as { queryKey: unknown }).queryKey)
 
 beforeEach(() => {

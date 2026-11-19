@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- The source of an opportunity made from a TikTok conversation; WhatsApp reuses liwan_crm.source_whatsapp. -->
+    <record id="source_tiktok" model="utm.source">
+        <field name="name">تيك توك</field>
+    </record>
+</odoo>

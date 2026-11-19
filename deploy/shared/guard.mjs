@@ -62,11 +62,16 @@ export function sessionCodec(keys, activeKid, now = () => Math.floor(Date.now() 
 const signupApi = /^\/api\/commercial\/signup\/(?:terms|offer|start|verify-sms|send-email|verify-email)$/
 // "Find my workspace" (the page, the common host's /login that leads to it, and its relay, which needs the visitor address).
 const findWorkspaceApi = '/api/invitations/find-workspace'
+// The marketing site's public pricing read and contact form (CORS preflight included); the form needs the visitor address like find-workspace.
+const publicPricingApi = '/api/commercial/public/pricing'
+const publicContactApi = '/api/commercial/public/contact'
 const prospectRoutes = [
   [/^\/(?:payment-done|register|find-workspace|login)\/?$/, ['GET', 'HEAD']],
   [/^\/api\/invitations\/find-workspace$/, ['POST']],
   [/^\/api\/commercial\/payment-callback$/, ['GET', 'POST']],
   [signupApi, ['POST']],
+  [/^\/api\/commercial\/public\/pricing$/, ['GET']],
+  [/^\/api\/commercial\/public\/contact$/, ['POST', 'OPTIONS']],
   [/^\/_nuxt\/[A-Za-z0-9._\-/]+$/, ['GET', 'HEAD']],
   [/^\/(?:fonts\/[A-Za-z0-9-]+\.woff2|favicon\.(?:ico|svg))$/, ['GET', 'HEAD']],
   [/^\/_i18n\/[a-f0-9]{8,64}\/(?:ar|en)\/messages\.json$/, ['GET', 'HEAD']],
@@ -86,7 +91,7 @@ export function prospectPlan(req, prospectHost, token) {
     if (url.search || typeof ip !== 'string' || !isIP(ip)) throw Error('forbidden_route')
     headers['x-liwan-signup-client'] = ip
   }
-  if (url.pathname === findWorkspaceApi) {
+  if (url.pathname === findWorkspaceApi || (url.pathname === publicContactApi && method === 'POST')) {
     const ip = req.headers[CLIENT_ADDRESS_HEADER]
     if (url.search || typeof ip !== 'string' || !isIP(ip)) throw Error('forbidden_route')
     headers[CLIENT_ADDRESS_HEADER] = ip

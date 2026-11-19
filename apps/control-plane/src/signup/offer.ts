@@ -49,5 +49,5 @@ export async function loadSignupOffer(client: Pick<PoolClient, 'query'>, planId:
     included_users: plan.included_users, included_storage_mb: plan.included_storage_mb,
     included_extra_branches: plan.included_extra_branches, apps,
   })
-  return { offer, bundles }
+  return { offer, bundles, plan, release }
 }

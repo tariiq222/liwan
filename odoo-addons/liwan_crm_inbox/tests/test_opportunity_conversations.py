@@ -39,6 +39,26 @@ class TestOpportunityConversations(CrmInboxCase):
         self.assertEqual((repeated.status_code, repeated.json()['code']), (409, 'already_linked'))
         self.assertEqual(self.api('GET', LIST.format(lead.id)).json()['total'], 1)
 
+    def test_the_opportunity_takes_the_source_of_the_conversation_channel(self):
+        self.as_user(self.rep)
+        whatsapp = self.make_conversation()
+        self.assertEqual(self.api('POST', LINK.format(whatsapp.id), {}).status_code, 200)
+        self.assertEqual(whatsapp.lead_id.source_id, self.env.ref('liwan_crm.source_whatsapp'))
+        tiktok = self.make_conversation(channel=self.make_tiktok_channel())
+        self.assertEqual(self.api('POST', LINK.format(tiktok.id), {}).status_code, 200)
+        self.assertEqual(tiktok.lead_id.source_id, self.env.ref('liwan_crm_inbox.source_tiktok'))
+
+    def test_the_opportunity_takes_the_customer_of_the_contact(self):
+        self.as_user(self.rep)
+        linked = self.make_conversation()
+        customer = self.env['liwan.customers.service']._liwan_create({'name': 'Contact customer', 'phone': '+966501110021'})
+        linked.contact_id.partner_id = customer
+        self.assertEqual(self.api('POST', LINK.format(linked.id), {}).status_code, 200)
+        self.assertEqual(linked.lead_id.partner_id, customer)
+        alone = self.make_conversation()
+        self.assertEqual(self.api('POST', LINK.format(alone.id), {}).status_code, 200)
+        self.assertFalse(alone.lead_id.partner_id)
+
     def test_manual_distribution_refuses_an_agent_and_lets_an_assigner_create_unassigned(self):
         self.env['liwan.crm.settings'].search([('company_id', '=', self.env.company.id)]).distribution_mode = 'manual'
         assigner = self.both_user('crm_inbox_assigner', [*BOTH, 'crm.leads.assign'])
@@ -73,6 +93,15 @@ class TestOpportunityConversations(CrmInboxCase):
         self.assertEqual((result.status_code, result.json()['details']['reason']), (422, 'duplicate_phone'))
         self.assertFalse(conversation.lead_id)
         self.assertEqual(self.link(conversation, existing).status_code, 200)
+
+    def test_closed_opportunities_with_the_phone_do_not_block_a_new_one(self):
+        conversation = self.make_conversation()
+        lost = self.make_lead(self.rep, phone=conversation.contact_id.phone)
+        lost.action_set_lost()
+        self.as_user(self.rep)
+        result = self.api('POST', LINK.format(conversation.id), {})
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertNotEqual(conversation.lead_id, lost)
 
     def test_link_read_list_and_unlink(self):
         self.as_user(self.rep)

@@ -609,6 +609,26 @@ test('a guard with a restore registry needs a restore Odoo upstream over private
   assert.doesNotThrow(() => createGuard({ registryPath: paths.registryPath, proxyToken: token, keys, activeKid: 'test', ...upstreams }))
 })
 
+test('the common host serves the marketing site pricing read and contact form, the form with the address the edge supplied', () => {
+  const pricing = '/api/commercial/public/pricing'
+  const contact = '/api/commercial/public/contact'
+  const read = prospectPlan(prospect(pricing, { origin: 'https://site.example', cookie: 'session_id=forged', 'x-liwan-client-ip': '192.0.2.9' }, 'GET'), 'app.liwan.test', token)
+  assert.equal(read.path, pricing)
+  assert.equal(read.headers.cookie, undefined)
+  assert.equal(read.headers['x-liwan-client-ip'], undefined)
+  assert.equal(read.headers.origin, 'https://site.example')
+  const form = prospectPlan(prospect(contact, { 'x-liwan-client-ip': '192.0.2.9', 'x-forwarded-for': '192.0.2.99', cookie: 'session_id=forged' }, 'POST'), 'app.liwan.test', token)
+  assert.equal(form.headers['x-liwan-client-ip'], '192.0.2.9')
+  assert.equal(form.headers['x-forwarded-for'], undefined)
+  assert.equal(form.headers.cookie, undefined)
+  // The browser's preflight carries no body and needs no address.
+  assert.equal(prospectPlan(prospect(contact, { origin: 'https://site.example' }, 'OPTIONS'), 'app.liwan.test', token).path, contact)
+  for (const [target, headers, method] of [[contact, {}, 'POST'], [contact, { 'x-liwan-client-ip': 'nope' }, 'POST'], [`${contact}?a=1`, { 'x-liwan-client-ip': '192.0.2.9' }, 'POST'],
+    [contact, { 'x-liwan-client-ip': '192.0.2.9' }, 'GET'], [pricing, {}, 'POST'], [`${pricing}/x`, {}, 'GET'], ['/api/commercial/public/other', {}, 'GET']]) {
+    assert.throws(() => prospectPlan(prospect(target, headers, method), 'app.liwan.test', token))
+  }
+})
+
 test('the common host serves the find-workspace page, its /login redirect source and its relay with the address the edge supplied', () => {
   for (const page of ['/find-workspace', '/find-workspace/', '/login']) assert.equal(prospectPlan(prospect(page), 'app.liwan.test', token).path, page)
   assert.throws(() => prospectPlan(prospect('/find-workspace', {}, 'POST'), 'app.liwan.test', token))

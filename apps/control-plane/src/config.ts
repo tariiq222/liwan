@@ -11,6 +11,8 @@ export type Config = {
   sharedRuntimeConfigPath?: string
   /** Authenticated internal channel between control-api (caller) and control-worker (executor) for the admin password effect. */
   internalEffect?: { key: string; url?: string; ca?: Buffer; host?: string; port?: number; tls?: { key: Buffer; cert: Buffer } }
+  /** The owner address that is told about each "contact us" request from the marketing site; unset turns the public contact route off. */
+  contactNotifyEmail?: string
   installationId: string
   key: string
   inventoryPath: string
@@ -35,6 +37,7 @@ export function getConfig(): Config & { databaseUrl: string; host: string; port:
   if (customerCommercialIssuer && customerCommercialIssuer === installationId) throw new Error('CUSTOMER_COMMERCIAL_ISSUER must be distinct from vendor issuer')
   const internalEffect = internalEffectConfig(key, customerCommercialServiceKey)
   const admin = adminConfig(process.env)
+  const contactNotifyEmail = contactNotifyEmailConfig(process.env)
   const inventoryPath = required('LIWAN_CLI_INVENTORY')
   const managedInventoryPath = process.env.LIWAN_MANAGED_INVENTORY
   const sharedRuntimeConfigPath = process.env.LIWAN_SHARED_RUNTIME_CONFIG
@@ -49,8 +52,16 @@ export function getConfig(): Config & { databaseUrl: string; host: string; port:
   const tlsKey = process.env.CONTROL_TLS_KEY
   const tlsCert = process.env.CONTROL_TLS_CERT
   if (!isLoopbackHost(host) && (!tlsKey || !tlsCert)) throw new Error('HTTPS is required outside loopback')
-  return { installationId, key, customerCommercialIssuer, customerCommercialServiceKey, ...(sharedRuntimeConfigPath ? { sharedRuntimeConfigPath } : {}), ...(internalEffect ? { internalEffect } : {}), ...(admin ? { admin } : {}), inventoryPath, managedInventoryPath, ...(tenantRegistryPath ? { tenantRegistryPath } : {}), ...(aiPlatformProviderPath ? { aiPlatformProviderPath } : {}), stateDir, repositoryRoot, python: process.env.LIWAN_CLI_PYTHON ?? 'python3', databaseUrl: required('CONTROL_DATABASE_URL'), host, port,
+  return { installationId, key, ...(contactNotifyEmail ? { contactNotifyEmail } : {}), customerCommercialIssuer, customerCommercialServiceKey, ...(sharedRuntimeConfigPath ? { sharedRuntimeConfigPath } : {}), ...(internalEffect ? { internalEffect } : {}), ...(admin ? { admin } : {}), inventoryPath, managedInventoryPath, ...(tenantRegistryPath ? { tenantRegistryPath } : {}), ...(aiPlatformProviderPath ? { aiPlatformProviderPath } : {}), stateDir, repositoryRoot, python: process.env.LIWAN_CLI_PYTHON ?? 'python3', databaseUrl: required('CONTROL_DATABASE_URL'), host, port,
     tls: tlsKey && tlsCert ? { key: readFileSync(tlsKey), cert: readFileSync(tlsCert) } : undefined }
+}
+
+/** One plain address; a list or a display name would send the owner's mail somewhere unexpected. */
+export function contactNotifyEmailConfig(env: Record<string, string | undefined>): string | undefined {
+  const value = env.CONTACT_NOTIFY_EMAIL?.trim()
+  if (!value) return undefined
+  if (!/^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/.test(value)) throw new Error('CONTACT_NOTIFY_EMAIL must be a single email address')
+  return value
 }
 
 /** Vendor admin sign-in is off without ADMIN_SECRET_KEY. Its secret must be its own key, never a service key. */

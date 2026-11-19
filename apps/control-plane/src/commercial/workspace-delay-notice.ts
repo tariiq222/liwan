@@ -3,12 +3,14 @@ import type { MailAdapter } from './mail-adapter.js'
 import { completeOutbox, enqueueOutbox, failOutbox, leaseOutboxRow, releaseOutbox } from './outbox.js'
 import { logText } from '../log-text.js'
 
-/** A first workspace not delivered this long after sign-up is late: the customer is told once, and the trial clock starts at delivery. */
+/** A first workspace not delivered this long after sign-up is late: the customer is told once, and the trial clock starts at the administrator's first sign-in. */
 export const WORKSPACE_DELAY_MINUTES = 10
 export const WORKSPACE_DELAY_MS = WORKSPACE_DELAY_MINUTES * 60_000
+/** The resolution window the delay notice promises; the vendor sees the same order as a stalled activation in attention. */
+export const WORKSPACE_RESOLUTION_WINDOW = { ar: 'خلال يوم عمل', en: 'within one business day' } as const
 
 /**
- * One email per customer when the first workspace is still not delivered WORKSPACE_DELAY_MINUTES after sign-up. Recovery retries
+ * One email per customer when the first workspace is still not delivered WORKSPACE_DELAY_MINUTES after sign-up. A terminal provisioning failure is covered by the same row (it does not depend on the order state). Recovery retries
  * stay silent; the invitation itself goes out as usual once the workspace is delivered. A row that failed or was interrupted is
  * retried on the next run, a completed row is never sent again, and a row is sent by the one worker that leases it.
  */
@@ -36,8 +38,8 @@ async function noticeOf(pool: Pool, row: { customer_id: string; admin_login: str
   const leaseUntil = await leaseOutboxRow(pool, existing.id)
   if (!leaseUntil) return 0
   if (input.signal?.aborted) { await releaseOutbox(pool, existing.id, leaseUntil); return 0 }
-  const ar = 'مساحة عملك في LiwanOS تستغرق وقتًا أطول من المتوقع. نعمل عليها الآن ولا تحتاج إلى أي إجراء منك. سنرسل لك دعوة الدخول على هذا البريد بمجرد جاهزيتها، وتبدأ مدة التجربة من لحظة تسليم المساحة.'
-  const en = 'Your LiwanOS workspace is taking longer than expected to set up. We are on it and you do not need to do anything. We will send the sign-in invitation to this address as soon as it is ready, and your trial starts from the moment the workspace is delivered.'
+  const ar = `مساحة عملك في LiwanOS تستغرق وقتًا أطول من المتوقع. نُبِّه فريقنا وهو يعمل عليها الآن، ونتوقع حل المشكلة ${WORKSPACE_RESOLUTION_WINDOW.ar}. لا تحتاج إلى أي إجراء منك. سنرسل لك دعوة الدخول على هذا البريد بمجرد جاهزيتها، وتبدأ مدة التجربة عند أول دخول لك إلى المساحة.`
+  const en = `Your LiwanOS workspace is taking longer than expected to set up. Our team has been alerted and is working on it, and we expect it to be resolved ${WORKSPACE_RESOLUTION_WINDOW.en}. You do not need to do anything. We will send the sign-in invitation to this address as soon as it is ready, and your trial starts when you first sign in to it.`
   try {
     await input.mail.send({ to: row.admin_login, subject: 'مساحة عملك في LiwanOS تستغرق وقتًا أطول من المتوقع', text: `${ar}\n\n${en}`, message_id: `workspace-delay-${row.customer_id}@liwan` })
     await completeOutbox(pool, existing.id)

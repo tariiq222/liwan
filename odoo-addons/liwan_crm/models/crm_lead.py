@@ -9,6 +9,9 @@ EMAIL_MAX = 254
 # The engine field holding an opportunity's company-defined custom values
 # (liwan_api.serializers.properties translates it to the `properties` wire shape).
 PROPERTIES_FIELD = 'lead_properties'
+DUPLICATE_PHONE = 'duplicate phone'
+# Stable machine code in `details.reason` of the 422 on `phone`; the UI translates it.
+DUPLICATE_PHONE_REASON = 'duplicate_phone'
 
 
 class CrmLead(models.Model):
@@ -40,10 +43,11 @@ class CrmLead(models.Model):
         'Properties', definition='company_id.liwan_lead_properties_definition', copy=True,
     )
 
-    # One phone per company: the existence check answers early; this index decides under concurrency.
+    # One phone per company among OPEN opportunities (active and neither won nor lost): a closed one is history, so a
+    # returning customer gets a new opportunity. The existence check answers early; this index decides under concurrency.
     _liwan_phone_company_unique = models.UniqueIndex(
-        '(company_id, phone_sanitized) WHERE phone_sanitized IS NOT NULL',
-        'duplicate phone',
+        "(company_id, phone_sanitized) WHERE phone_sanitized IS NOT NULL AND active AND won_status = 'pending'",
+        DUPLICATE_PHONE,
     )
     _liwan_discount_range = models.Constraint(
         'CHECK(liwan_discount_percent BETWEEN 0 AND 100)', 'the discount is between 0 and 100 percent',
@@ -67,14 +71,19 @@ class CrmLead(models.Model):
 
     @api.model
     def _liwan_find_duplicate(self, phone_e164, company):
-        """Whether any opportunity of ``company`` (open, won, lost or archived) has this phone.
+        """Whether an OPEN opportunity of ``company`` (active, neither won nor lost) has this phone.
 
         The answer is a boolean only: no record, id or agent leaves this method, because the
         matching opportunity may be hidden from the caller by the visibility policy.
         """
-        return self.sudo().with_context(active_test=False).search_count(
-            [('company_id', '=', company.id), ('phone_sanitized', '=', phone_e164)], limit=1,
+        return self.sudo().search_count(
+            [('company_id', '=', company.id), ('phone_sanitized', '=', phone_e164), ('won_status', '=', 'pending')],
+            limit=1,
         ) > 0
+
+    @api.model
+    def _liwan_duplicate_phone_error(self):
+        return ApiError(422, 'invalid', DUPLICATE_PHONE, field='phone', details={'reason': DUPLICATE_PHONE_REASON})
 
     def _inverse_email_from(self):
         """Stock copies a lead's edited email onto its partner. A customer's identity is written only by

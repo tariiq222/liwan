@@ -3,7 +3,7 @@ import { disableAutoRenewIfPlanForbids } from './auto-renew.js'
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { transaction } from '../db.js'
-import { nextOrderState, riyadhDate, type EffectReceipt } from '@liwan/commercial-contracts'
+import { e164MobileSchema, nextOrderState, riyadhDate, type EffectReceipt } from '@liwan/commercial-contracts'
 import { activateBranches, archiveBranches, listBranches } from './branches.js'
 import { claimOutbox, completeOutbox, deferOutbox, failOutbox, releaseOutbox, type OutboxRow } from './outbox.js'
 import { scheduleFulfillmentRecovery } from './paid-fulfillment-recovery.js'
@@ -145,6 +145,11 @@ export async function failFulfillmentOn(client: PoolClient, input: { order_id: s
     await scheduleFulfillmentRecovery(client, order, input.code)
 }
 
+/** The verified sign-up number, only when it is already E.164; any other shape leaves the first-login gate in place. */
+export function signupAdminMobile(mobile: string | null | undefined): string | undefined {
+  return e164MobileSchema.safeParse(mobile).data
+}
+
 /** Worker-only runtime configuration; omit actor to use paid-subscription service authority.
  * An explicit actor retains the shared onboarding vendor grant/replay checks.
  * Provisioning runs outside commercial row locks because it owns its own transactions.
@@ -168,13 +173,13 @@ async function enrollNewOrder(pool: Pool, orderId: string, runtime?: EnrollmentR
     if (sub.target_revision_id !== order.target_revision_id) throw Error('stale_target')
     // A reserved onboarding replays from its own stored row: a vendor edit of the customer in between
     // must not change the digest the first attempt registered.
-    const stored = customer.enrollment_request_id ? (await client.query(`SELECT o.admin_name,o.admin_login,t.name,t.catalog_version,t.catalog_tier
+    const stored = customer.enrollment_request_id ? (await client.query(`SELECT o.admin_name,o.admin_login,o.admin_mobile,t.name,t.catalog_version,t.catalog_tier
       FROM shared_onboardings o JOIN tenants t ON t.id=o.control_tenant_id WHERE o.request_id=$1`, [customer.enrollment_request_id])).rows[0] : undefined
     // A7: the one predicate the pre-payment guard uses, so the two sides cannot disagree. A subscription with a tenant
     // (dedicated mode) proceeds without a manager; the guard now allows that order too.
     if (!stored && !(await hasReachableManager(client, customer, sub))) return { reason: 'enrollment_admin_missing' } as const
     if (!runtime) return { reason: 'enrollment_runtime_missing' } as const
-    if (stored) return { input: { request_id: customer.enrollment_request_id as string, name: stored.name, admin_name: stored.admin_name, admin_login: stored.admin_login,
+    if (stored) return { input: { request_id: customer.enrollment_request_id as string, name: stored.name, admin_name: stored.admin_name, admin_login: stored.admin_login, ...(stored.admin_mobile ? { admin_mobile: stored.admin_mobile } : {}),
       catalog_version: stored.catalog_version, catalog_tier: stored.catalog_tier, reason: `Enroll paid subscription ${sub.id}` }, customerId, subscriptionId: sub.id }
     const snapshot = (await client.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [order.target_revision_id])).rows[0].snapshot
     const catalog = (await client.query(`SELECT r.catalog_version,e.solution FROM catalog_releases r JOIN catalog_entries e ON e.version=r.catalog_version
@@ -185,7 +190,10 @@ async function enrollNewOrder(pool: Pool, orderId: string, runtime?: EnrollmentR
     // Onboarding does not accept an arbitrary commercial policy. Pin the base
     // catalog to the immutable subscription entitlement. The core tier includes
     // mandatory applications; reconfigure applies the purchased entitlement later.
+    // A self sign-up customer carries the mobile its SMS code verified; the administrator then skips the first-login gate.
+    const adminMobile = signupAdminMobile((await client.query('SELECT mobile FROM public_signup_trials WHERE customer_id=$1', [customer.id])).rows[0]?.mobile)
     return { input: { request_id: requestId, name: customer.name, admin_name: customer.admin_name ?? customer.name.slice(0,120), admin_login: customer.admin_login,
+      ...(adminMobile ? { admin_mobile: adminMobile } : {}),
       catalog_version: catalog.catalog_version, catalog_tier: 'core', reason: `Enroll paid subscription ${sub.id}` }, customerId, subscriptionId: sub.id }
   })
   if (!reservation || 'reason' in reservation) return reservation

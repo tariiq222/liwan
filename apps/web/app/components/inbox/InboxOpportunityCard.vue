@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { inboxOpportunityErrorMessage } from '@/composables/inbox/inboxOpportunityErrors'
-import { useConversationOpportunity, useCreateConversationOpportunity, useInboxOpportunityAccess, useLinkConversationOpportunity, useOpportunityPick, useUnlinkConversationOpportunity } from '@/composables/inbox/useInboxOpportunity'
+import { useConversationOpportunity, useCreateConversationOpportunity, useInboxOpportunityAccess, useLinkConversationOpportunity, useOpportunityPick, useUnlinkConversationOpportunity } from '@/composables/useInboxOpportunity'
 
 // Both applications' permissions apply to the opportunity shown on this conversation.
 const props = defineProps<{ conversationId: number; contactPhone: string | null; canReply: boolean }>()

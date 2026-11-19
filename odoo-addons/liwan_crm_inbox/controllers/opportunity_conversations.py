@@ -36,7 +36,7 @@ def require_same_customer(conversation, lead):
     """409 ``conflict`` when the contact and the opportunity are linked to different customers; one side without a
     customer is fine, and the link never copies a customer from one side to the other."""
     contact = conversation.contact_id
-    if contact.partner_id and lead.partner_id and contact.partner_id != lead.partner_id:
+    if conversation._liwan_customer_conflicts(lead):
         service = request.env['liwan.customers.service']
         raise ApiError(409, 'conflict', 'the contact and the opportunity belong to different customers', details={
             'contact_customer': service._liwan_link_ref(contact._liwan_linked_customer()),
@@ -103,8 +103,9 @@ class OpportunityConversationsController(http.Controller):
         lock_conversation(conversation)
         if conversation.lead_id:
             raise ApiError(409, 'already_linked', 'the conversation is already linked to an opportunity')
-        contact = conversation.contact_id
-        lead = create_opportunity_from_payload({'contact_name': contact.name, 'phone': contact.phone})
+        lead = create_opportunity_from_payload(
+            conversation._liwan_opportunity_details(), partner=conversation.contact_id._liwan_linked_customer(),
+        )
         conversation.lead_id = lead
         return dump_opportunity_ref(lead)
 

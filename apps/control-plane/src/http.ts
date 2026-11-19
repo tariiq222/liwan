@@ -41,6 +41,7 @@ import { createServer as createHttpsServer } from 'node:https'
 import { execFile } from 'node:child_process'
 import { isIP } from 'node:net'
 import { clientAddressBucket } from './client-address-bucket.js'
+import { isPublicSiteEndpoint, PUBLIC_CONTACT_BODY_LIMIT, publicSiteHandler } from './public-site/http.js'
 import { promisify } from 'node:util'
 import type { Pool, PoolClient } from 'pg'
 import { abandonJobRequestSchema, auditListQuerySchema, operationListStatusSchema, operationRequestSchema, operationsGrantSchema, operationStatusesOf, reasonRequestSchema, retryRequestSchema, tenantCreateSchema, type VendorCapability } from '@liwan/commercial-contracts'
@@ -371,10 +372,13 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
     }
     return ++attempt.count > limit.max
   }
-  // The "find my workspace" check shares the sign-up human check: it exists only where public sign-up is configured.
-  let lookupHumanCheck = deps?.humanCheck
-  if (!lookupHumanCheck && signup) { try { lookupHumanCheck = humanCheckFromEnv(process.env).verify } catch { /* signup already reported its configuration */ } }
-  const workspaceLookup = workspaceLookupHandler(pool, { service: bffService, humanCheck: lookupHumanCheck, overLimit, bucket: clientAddressBucket })
+  // The Turnstile check serves the contact form whether or not public sign-up is open; a missing or invalid key leaves it undefined and the form fails closed.
+  let humanCheck = deps?.humanCheck
+  if (!humanCheck) { try { humanCheck = humanCheckFromEnv(process.env).verify } catch { console.error('[control-plane] human check configuration invalid') } }
+  // The "find my workspace" check shares it but exists only where public sign-up is configured.
+  const workspaceLookup = workspaceLookupHandler(pool, { service: bffService, humanCheck: deps?.humanCheck ?? (signup ? humanCheck : undefined), overLimit, bucket: clientAddressBucket })
+  const pricingPlan = z.uuid().safeParse(process.env.LIWAN_SIGNUP_PLAN_REVISION_ID)
+  const publicSite = publicSiteHandler(pool, { service: bffService, humanCheck, planId: pricingPlan.success ? pricingPlan.data : undefined, notifyEmail: config.contactNotifyEmail, overLimit, bucket: clientAddressBucket })
   const handler = async (req: IncomingMessage, res: ServerResponse) => {
     try {
       const method = req.method ?? ''
@@ -413,6 +417,10 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       }
       if (pathname === FIND_WORKSPACE_PATH) {
         const answer = await workspaceLookup(method, await bodyBytes(req, FIND_WORKSPACE_BODY_LIMIT), req.headers)
+        return respond(res, answer.status, answer.data)
+      }
+      if (isPublicSiteEndpoint(pathname)) {
+        const answer = await publicSite(pathname, method, await bodyBytes(req, PUBLIC_CONTACT_BODY_LIMIT), req.headers)
         return respond(res, answer.status, answer.data)
       }
       if (isSignupEndpoint(pathname)) {

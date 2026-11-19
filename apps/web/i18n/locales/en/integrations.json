@@ -135,6 +135,60 @@
       "invalid": "Check the details you entered.",
       "notConfigured": "Connecting this provider is not switched on for this system yet.",
       "rejected": "The provider refused the keys. Check them and try again."
+    },
+    "guide": {
+      "title": "Connect WhatsApp step by step",
+      "hint": "Five steps at Meta. The first time takes about twenty minutes.",
+      "stepLabel": "Step {n}",
+      "steps": {
+        "app": {
+          "title": "Create the Meta app",
+          "body": "In Meta for Developers create an app of the Business type, then add the WhatsApp product to it."
+        },
+        "token": {
+          "title": "Create a system user token",
+          "body": "In Meta Business Settings add a system user, give it your WhatsApp account, and generate a token with the permissions. Paste it as the access token below."
+        },
+        "values": {
+          "title": "Find each value in the Meta dashboard",
+          "body": "Copy each value into the field with the same name in this form.",
+          "accountId": "WhatsApp Business Account ID: WhatsApp > API Setup. Enter it as the account ID.",
+          "appId": "Find the App ID and the app secret under App settings > Basic.",
+          "phoneId": "Phone number ID: WhatsApp > API Setup. You enter it later when you add the number in the customer messages settings."
+        },
+        "webhook": {
+          "title": "Paste the webhook address and verify token",
+          "body": "In WhatsApp > Configuration, set the callback URL to the receiving address and the verify token to the one LiwanOS shows you.",
+          "before": "After you save the account, LiwanOS shows the address and creates the verify token. Rotate it to see its value once.",
+          "after": "The address is under Receiving addresses below. Rotate the verify token to see its value once."
+        },
+        "fields": {
+          "title": "Subscribe to the webhook fields",
+          "body": "Subscribe to the fields LiwanOS processes. The first is required; the others keep templates, forms and number health up to date."
+        }
+      },
+      "field": {
+        "messages": "Incoming messages and delivery statuses"
+      },
+      "state": {
+        "todo": "To do",
+        "done": "Done",
+        "problem": "Needs attention",
+        "pending": "Being checked",
+        "unchecked": "Cannot be checked here"
+      },
+      "result": {
+        "tokenDone": "Meta accepted the token.",
+        "tokenTodo": "No access token is saved yet.",
+        "tokenProblem": "Meta did not accept the token.",
+        "tokenPending": "The connection is being checked.",
+        "valuesDone": "The account ID was verified and the app secret is saved.",
+        "valuesTodo": "The app secret is not saved yet.",
+        "valuesProblem": "The account ID or the token was refused.",
+        "webhookDone": "The verify token is ready. Whether Meta confirmed the address cannot be seen from here.",
+        "webhookTodo": "The verify token is not created yet."
+      },
+      "permissions": "Permissions to grant"
     }
   }
 }

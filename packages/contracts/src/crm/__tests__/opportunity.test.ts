@@ -3,6 +3,9 @@ import {
   ConversationOpportunityAnswerSchema,
   ConversationOpportunityConflictErrorSchema,
   ConversationOpportunityLinkSchema,
+  ConversationOpportunityModeSchema,
+  InboxChannelCrmSettingsPatchSchema,
+  InboxChannelCrmSettingsSchema,
   CrmOpportunityCreateSchema,
   CrmOpportunityMeetingCreateSchema,
   CrmOpportunityTaskCreateSchema,
@@ -166,6 +169,17 @@ describe('the conversation opportunity bridge', () => {
     expect(() => ConversationOpportunityLinkSchema.parse({})).toThrow()
     expect(() => ConversationOpportunityLinkSchema.parse({ opportunity_id: 0 })).toThrow()
     expect(() => ConversationOpportunityLinkSchema.parse({ opportunity_id: 7, create_new: true })).toThrow()
+  })
+
+  it('reads and patches the channel opportunity mode with the two stored values only', () => {
+    expect(ConversationOpportunityModeSchema.options).toEqual(['manual', 'auto_first_message'])
+    const setting = { channel_id: 4, opportunity_mode: 'auto_first_message' }
+    expect(InboxChannelCrmSettingsSchema.parse(setting)).toEqual(setting)
+    expect(() => InboxChannelCrmSettingsSchema.parse({ ...setting, name: 'x' })).toThrow()
+    expect(() => InboxChannelCrmSettingsSchema.parse({ ...setting, opportunity_mode: 'auto' })).toThrow()
+    expect(InboxChannelCrmSettingsPatchSchema.parse({ opportunity_mode: 'manual' })).toEqual({ opportunity_mode: 'manual' })
+    expect(() => InboxChannelCrmSettingsPatchSchema.parse({})).toThrow()
+    expect(() => InboxChannelCrmSettingsPatchSchema.parse({ opportunity_mode: 'manual', channel_id: 4 })).toThrow()
   })
 
   it('names both customers of a mismatch conflict, either may be missing', () => {

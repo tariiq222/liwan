@@ -66,3 +66,7 @@ class LiwanCrmAccessService(models.AbstractModel):
         ):
             grants[role_xmlid] = grants.get(role_xmlid, set()) | keys
         return grants
+
+    @api.model
+    def _liwan_legacy_admin_roles(self):
+        return [*super()._liwan_legacy_admin_roles(), 'crm_manager']

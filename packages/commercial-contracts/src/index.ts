@@ -80,11 +80,13 @@ export * from './admin.js'
 export * from './audit.js'
 export * from './ai-provider.js'
 
+export const e164MobileSchema = z.string().regex(/^\+[1-9][0-9]{7,14}$/)
 export const sharedOnboardingRequestSchema = z.strictObject({
   request_id: z.uuid(), name: z.string().trim().min(1).max(200),
   catalog_version: z.string().regex(/^[a-zA-Z0-9._-]{1,100}$/).optional(), catalog_tier: z.string().regex(/^[a-z][a-z0-9._-]{0,63}$/).optional(),
   package_revision_id: z.uuid().optional(),
-  admin_name: z.string().trim().min(1).max(120), admin_login: z.email().max(100), reason: z.string().trim().min(3).max(1000),
+  admin_name: z.string().trim().min(1).max(120), admin_login: z.email().max(100), admin_mobile: e164MobileSchema.optional(),
+  reason: z.string().trim().min(3).max(1000),
 }).refine(input => input.package_revision_id ? !input.catalog_version && !input.catalog_tier : Boolean(input.catalog_version && input.catalog_tier), { path: ['package_revision_id'], message: 'Select exactly one package or catalog source' })
 export const sharedOnboardingResponseSchema = z.strictObject({
   tenant_id: z.uuid(), job_id: z.uuid().nullable(), status: tenantStatusSchema, host: z.string(), replay: z.boolean(),
@@ -122,3 +124,5 @@ export * from './commercial/feature-descriptor.js'
 export * from './commercial-http.js'
 
 export * from './commercial/signup.js'
+
+export * from './commercial/public-site.js'

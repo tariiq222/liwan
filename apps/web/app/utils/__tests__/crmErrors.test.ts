@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { crmErrorMessage } from '../crmErrors'
+import { crmErrorMessage, crmListErrorMessage, stageNeedsMoveTarget } from '../crmErrors'
 
 const t = (key: string) => key
 const fail = (status: number, field?: string, reason?: string) => ({ status, field, details: reason ? { reason } : undefined, message: 'server text' })
@@ -46,5 +46,30 @@ describe('crmErrorMessage', () => {
   it('names the two reasons a quotation is refused with 422', () => {
     expect(crmErrorMessage(fail(422, 'customer_id', 'crm_opportunity_without_customer'), t)).toBe('crm.opportunities.errors.orderNoCustomer')
     expect(crmErrorMessage(fail(422, undefined, 'crm_opportunity_closed'), t)).toBe('crm.opportunities.errors.orderClosed')
+  })
+})
+
+describe('crmListErrorMessage', () => {
+  it.each([
+    ['stage_has_opportunities', 'hasOpportunities'],
+    ['won_stage_required', 'wonRequired'],
+    ['won_stage_has_opportunities', 'wonHasOpportunities'],
+    ['first_stage_open', 'firstOpen'],
+    ['invalid_move_target', 'moveTarget'],
+  ])('names the %s refusal', (reason, key) => {
+    expect(crmListErrorMessage(fail(422, 'id', reason), t)).toBe(`crm.settings.stages.errors.${key}`)
+  })
+  it('falls back to the refusal text for an unnamed 422 and the generic text for an unknown error', () => {
+    expect(crmListErrorMessage(fail(422, 'name'), t)).toBe('server text')
+    expect(crmListErrorMessage(new Error('x'), t)).toBe('errors.generic')
+  })
+})
+
+describe('stageNeedsMoveTarget', () => {
+  it('is true only for the 422 that says the stage still holds opportunities', () => {
+    expect(stageNeedsMoveTarget(fail(422, 'id', 'stage_has_opportunities'))).toBe(true)
+    expect(stageNeedsMoveTarget(fail(422, 'id', 'won_stage_required'))).toBe(false)
+    expect(stageNeedsMoveTarget(fail(409, 'id', 'stage_has_opportunities'))).toBe(false)
+    expect(stageNeedsMoveTarget(new Error('x'))).toBe(false)
   })
 })

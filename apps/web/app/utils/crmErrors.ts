@@ -12,6 +12,27 @@ const WRITE_REASON_KEYS = {
 
 const ORDER_REASON_KEYS = { crm_opportunity_closed: 'orderClosed', crm_opportunity_without_customer: 'orderNoCustomer' } as const
 
+const STAGE_REASON_KEYS = {
+  stage_has_opportunities: 'hasOpportunities',
+  won_stage_required: 'wonRequired',
+  won_stage_has_opportunities: 'wonHasOpportunities',
+  first_stage_open: 'firstOpen',
+  invalid_move_target: 'moveTarget',
+} as const
+
+/** Whether a refused stage archive only needs a target stage for its opportunities. */
+export function stageNeedsMoveTarget(error: unknown): boolean {
+  const { status, details } = (error ?? {}) as { status?: number; details?: Record<string, unknown> }
+  return status === 422 && details?.reason === 'stage_has_opportunities'
+}
+
+/** What a refused CRM settings-list write says (stages today): a 422 `details.reason` names what blocks, anything else is the generic save text. */
+export function crmListErrorMessage(error: unknown, t: Translate): string {
+  const { status, details } = (error ?? {}) as { status?: number; details?: Record<string, unknown> }
+  const key = status === 422 && typeof details?.reason === 'string' ? STAGE_REASON_KEYS[details.reason as keyof typeof STAGE_REASON_KEYS] : undefined
+  return key ? t(`crm.settings.stages.errors.${key}`) : saveErrorMessage(error, t('errors.generic'), t('errors.saveUncertain'))
+}
+
 /**
  * What a refused CRM write says, in the user's words. The server answers 409 for a closed or changed opportunity,
  * 403 `feature_not_included` when the plan has no Sales (the quotation routes), 404 for an opportunity that is gone or hidden, 409 with

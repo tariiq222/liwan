@@ -581,7 +581,7 @@ async function anonymiseContacts(ctx: Ctx): Promise<Outcome> {
       signups: (await client.query(`DELETE FROM public_signups WHERE email=(SELECT admin_login FROM customers WHERE id=$1)
         OR mobile=(SELECT mobile FROM public_signup_trials WHERE customer_id=$1)`, [row.customer_id])).rowCount,
       customers: (await client.query('UPDATE customers SET admin_name=NULL,admin_login=NULL WHERE id=$1', [row.customer_id])).rowCount,
-      onboardings: (await client.query('UPDATE shared_onboardings SET admin_name=NULL,admin_login=NULL WHERE control_tenant_id=$1', [tenantId])).rowCount,
+      onboardings: (await client.query('UPDATE shared_onboardings SET admin_name=NULL,admin_login=NULL,admin_mobile=NULL WHERE control_tenant_id=$1', [tenantId])).rowCount,
       invitations: (await client.query('UPDATE admin_invitations SET admin_login=NULL WHERE tenant_id=$1', [tenantId])).rowCount,
       outbox: (await client.query(`UPDATE commercial_outbox SET payload = jsonb_strip_keys(payload, $3::text[]) WHERE status IN ('done','failed') AND (aggregate_id=ANY($1::text[]) OR payload->>'customer_id'=$2)`, [ids, row.customer_id, PERSONAL_KEYS])).rowCount,
       audit: (await client.query(`UPDATE audit_events SET metadata = jsonb_strip_keys(metadata, $3::text[]) WHERE subject=ANY($1::text[]) OR metadata->>'customer_id'=$2`, [ids, row.customer_id, PERSONAL_KEYS])).rowCount,
