@@ -20,6 +20,8 @@ export const PERSONA_KEYS = [
   'tasks_only',
   // Both the inbox and the CRM capabilities (CRM-140, CRM-141); seeded after the tasks persona.
   'inbox_crm_agent',
+  // Channel and CRM settings rights together (CRM-150, CRM-151); seeded after the bridge agent.
+  'inbox_crm_admin',
 ] as const;
 
 export type PersonaKey = typeof PERSONA_KEYS[number];

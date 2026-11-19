@@ -88,6 +88,8 @@ TASKS_PERSONAS = (
 # CRM-140 and CRM-141): no other persona reaches both. Seeded last, like the tasks persona.
 BRIDGE_PERSONAS = (
     ('inbox_crm_agent', 'سلمى المطيري', 'موظفة مبيعات ورسائل', 'المبيعات', 'crm_manager', ('employee', 'inbox_agent', 'crm_agent')),
+    # Manages channels and CRM settings (CRM-150, CRM-151); `inbox_manager` holds the channel right alone (CRM-152).
+    ('inbox_crm_admin', 'عبدالله القحطاني', 'مدير رسائل ومبيعات', 'المبيعات', 'crm_manager', ('employee', 'inbox_manager', 'crm_manager')),
 )
 # Branches (child companies of the root) and the people who work only there.
 BRANCHES = ('فرع جدة', 'فرع الدمام')

@@ -71,6 +71,7 @@
         "e2e/tests/documents-register.e2e.ts",
         "e2e/tests/helpdesk-settings.e2e.ts",
         "e2e/tests/helpdesk.e2e.ts",
+        "e2e/tests/inbox-channel-opportunity-mode.e2e.ts",
         "e2e/tests/inbox-opportunity.e2e.ts",
         "e2e/tests/operations-register.e2e.ts",
         "e2e/tests/projects-register.e2e.ts",
