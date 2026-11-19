@@ -4701,6 +4701,22 @@
       "handler": "read_commerce",
       "no_capability_reason": null
     },
+    "GET /api/v1/inbox/channels/{channel_id}/crm-settings": {
+      "addon": "liwan_crm_inbox",
+      "auth": "user",
+      "capability_keys": [
+        "inbox.channels.manage",
+        "crm.settings.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "crm.enabled",
+        "inbox.enabled"
+      ],
+      "handler": "read_channel_crm_settings",
+      "no_capability_reason": null
+    },
     "GET /api/v1/inbox/channels/{channel_id}/events": {
       "addon": "liwan_inbox",
       "auth": "user",
@@ -8194,6 +8210,22 @@
         "inbox.catalog"
       ],
       "handler": "patch_commerce",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/inbox/channels/{channel_id}/crm-settings": {
+      "addon": "liwan_crm_inbox",
+      "auth": "user",
+      "capability_keys": [
+        "inbox.channels.manage",
+        "crm.settings.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "crm.enabled",
+        "inbox.enabled"
+      ],
+      "handler": "patch_channel_crm_settings",
       "no_capability_reason": null
     },
     "PATCH /api/v1/inbox/channels/{channel_id}/profile": {
