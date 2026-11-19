@@ -147,7 +147,7 @@ test('create panel adds an opportunity and a duplicate phone is refused', async 
   await page.locator('#contact-name').fill('منى الجهني')
   await page.locator('#contact-phone').fill('0501234567')
   await page.getByTestId('crm-opportunity-save').click()
-  await expect(page.getByRole('dialog')).toContainText('مسجل لدى سجل آخر')
+  await expect(page.getByRole('dialog')).toContainText('لهذا الهاتف فرصة مفتوحة أخرى.')
   await page.locator('#contact-phone').fill('0577000111')
   await page.getByTestId('crm-opportunity-save').click()
   await expect(page).toHaveURL(/\/crm\/opportunities\/9/)

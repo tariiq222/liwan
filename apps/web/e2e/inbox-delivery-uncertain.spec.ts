@@ -5,7 +5,7 @@ import { test, expect, type Page } from '@playwright/test'
 // no-automatic-resend guarantee are covered by liwan_inbox's Odoo tests; this checks the operator-facing state.
 const failed = {
   id: 77, direction: 'out', kind: 'text', body: 'رد لم تتأكد نتيجته', author: { id: 2, name: 'Admin' }, template: null, campaign: null,
-  delivery_state: 'failed', error: 'the send result could not be stored', error_code: null, unconfirmed: true,
+  delivery_state: 'failed', error: 'the send result could not be stored', error_code: null, media_failed: false, unconfirmed: true,
   attachments: [], reply_to: null, reactions: { customer: null, agent: null }, location: null, interactive: null,
   selected_option: null, flow_response: null, automated: false, commerce: null, created_at: '2026-11-11T08:00:00Z',
 }
