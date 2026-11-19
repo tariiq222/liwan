@@ -54,7 +54,7 @@ The three roles are `liwan_helpdesk.role_helpdesk_agent` (`helpdesk_agent`), `ro
 (`helpdesk_supervisor`) and `role_helpdesk_manager` (`helpdesk_manager`). The self-service half is granted to
 the built-in `liwan_core.role_employee`: every employee reads and answers the requests they opened. The
 vendor support identity (`liwan_core.group_vendor_support`) never reaches a tenant's tickets:
-`_liwan_capability_keys` subtracts this application's keys for it.
+this application grants it no key.
 
 Dependencies between keys follow what the operation needs: a write reads first, close and merge need read
 and write, `helpdesk.requests.create` needs `helpdesk.requests.read`, and settings manage needs settings

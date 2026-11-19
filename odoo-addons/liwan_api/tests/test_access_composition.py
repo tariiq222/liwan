@@ -43,6 +43,11 @@ EMPLOYEE = frozenset({
     'meetings.read',
 })
 CATALOG = SYSTEM | HR | PRIVATE_HR | PAYROLL | PMO | MEETINGS
+# Vendor support is closed by default: only the settings keys each application grants it.
+SUPPORT = (SYSTEM - {'settings.company.vat.manage'}) | {
+    'inbox.channels.manage', 'inbox.settings.manage', 'chat.settings.manage', 'meetings.settings.manage',
+    'pmo.settings.manage', 'hr.leave.config', 'finance.setup.manage', 'finance.zatca.manage',
+}
 # These tests pin today's applications. An application added later extends the
 # composition with its own keys, roles and groups; those are checked only for
 # what every application must satisfy (an installed owner, one domain per key).
@@ -149,7 +154,7 @@ class TestAccessComposition(TransactionCase):
         self.assertEqual(self._role_keys('hr_manager'), HR | PRIVATE_HR)
         self.assertEqual(self._role_keys('pmo_manager'), PMO)
         self.assertEqual(self._role_keys('system_admin'), SYSTEM | MEETINGS)
-        self.assertEqual(self._role_keys('vendor_support'), CATALOG - PAYROLL - PRIVATE_HR - {'settings.company.vat.manage'})
+        self.assertEqual(self._role_keys('vendor_support'), self._release(SUPPORT & set(self.service._liwan_capability_map())))
         self.assertEqual(self._role_keys('payroll_manager'), PAYROLL)
         self.assertLessEqual(
             BUILT_IN_ROLES,
@@ -157,6 +162,15 @@ class TestAccessComposition(TransactionCase):
         )
         grants = self.service._liwan_builtin_role_grants()
         self.assertLessEqual(BUILT_IN_ROLES, {self.env.ref(role_xmlid).key for role_xmlid in grants})
+
+    def test_a_vendor_support_user_holds_exactly_the_support_allowlist(self):
+        catalog = set(self.service._liwan_capability_map())
+        support = new_test_user(self.env, login='composition_vendor_support', groups='liwan_core.group_vendor_support')
+        keys = self.service._liwan_capability_keys(support, company=self.env.company)
+        self.assertEqual(keys, SUPPORT & catalog)
+        self.assertFalse(keys & (CATALOG - SUPPORT))
+        self.assertNotIn('tenant.export', keys)
+        self.assertEqual(self.service._liwan_capability_keys(self.env.ref('base.user_root'), company=self.env.company), catalog)
 
     def test_permission_dependencies_are_unchanged(self):
         actual = {
@@ -177,7 +191,9 @@ class TestAccessComposition(TransactionCase):
             permission.key for permission in self.Permission.search([])
             if self.env.ref(permission.group_xmlid) in vendor.all_implied_ids
         }
-        self.assertEqual(self._release(implied_keys), CATALOG - PAYROLL - PRIVATE_HR - {'meetings.read', 'meetings.create'})
+        release_support = self._release(SUPPORT & set(self.service._liwan_capability_map()))
+        self.assertLessEqual(release_support, self._release(implied_keys))
+        self.assertFalse(self._release(implied_keys) & (PAYROLL | PRIVATE_HR))
         access_admin = self.env.ref('liwan_core.group_access_admin')
         self.assertIn(self._group('meetings.manage'), access_admin.all_implied_ids)
         legacy_admin = self.env.ref('liwan_core.group_customer_admin')

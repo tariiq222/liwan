@@ -47,6 +47,41 @@ class TestLiwanAccessMigration(TransactionCase):
         self.assertTrue(service._liwan_repair_builtin_role_grants())
         self.assertEqual({role_xmlid: role.version for role_xmlid, role in roles.items()}, versions)
 
+    def test_repair_unlinks_a_stale_grant_on_vendor_support_only(self):
+        service = self.env['liwan.access.service']
+        support = self.env.ref('liwan_core.role_vendor_support')
+        admin = self.env.ref('liwan_core.role_system_admin')
+        vat = self.env['liwan.access.permission'].search([('key', '=', 'settings.company.vat.manage')])
+        self.assertNotIn(vat, support.permission_ids)
+        self.assertIn(vat, admin.permission_ids)
+        support.write({'permission_ids': [Command.link(vat.id)]})
+        extra = self.env['liwan.access.permission'].search([('key', '=', 'access.audit.read')])
+        employee = self.env.ref('liwan_core.role_employee')
+        employee.write({'permission_ids': [Command.link(extra.id)]})
+
+        self.assertTrue(service._liwan_repair_builtin_role_grants())
+
+        self.assertNotIn(vat, support.permission_ids)
+        # A grant whose key the loaded catalog does not know yet is left for a later repair call.
+        unloaded = self.env['liwan.access.permission'].search([('key', '=', 'access.roles.read')])
+        support.write({'permission_ids': [Command.link(unloaded.id)]})
+        service_class = type(service)
+        real = service_class._liwan_capability_map
+        with patch.object(
+            service_class, '_liwan_capability_map',
+            lambda self: {key: value for key, value in real(self).items() if key != 'access.roles.read'},
+        ), patch.object(
+            service_class, '_liwan_builtin_role_grants',
+            lambda self: {'liwan_core.role_vendor_support': set()},
+        ):
+            service._liwan_repair_builtin_role_grants()
+        self.assertIn(unloaded, support.permission_ids)
+        # The full catalog is back: the next call removes nothing it should keep and links what was lost.
+        service._liwan_repair_builtin_role_grants()
+        self.assertEqual(set(support.permission_ids.mapped('key')), service._liwan_builtin_role_grants()['liwan_core.role_vendor_support'])
+        self.assertIn(extra, employee.permission_ids)
+        self.assertIn(vat, admin.permission_ids)
+
     def test_builtin_role_repair_requires_superuser(self):
         user = new_test_user(
             self.env, login='role_repair_non_superuser', groups='base.group_user',

@@ -34,14 +34,6 @@ class LiwanCrmAccessService(models.AbstractModel):
     _inherit = 'liwan.access.service'
 
     @api.model
-    def _liwan_capability_keys(self, user=None, company=None):
-        user = user or self.env.user
-        keys = super()._liwan_capability_keys(user, company=company)
-        # Support's foundation shortcut must not reach customer opportunities merely
-        # because a new application registered its capabilities.
-        return keys - PERMISSIONS if user.has_group('liwan_core.group_vendor_support') else keys
-
-    @api.model
     def _liwan_capability_definitions(self):
         return super()._liwan_capability_definitions() + tuple(
             {'key': key, 'owner': 'liwan_crm'} for key in sorted(PERMISSIONS)

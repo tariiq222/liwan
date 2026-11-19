@@ -6,8 +6,7 @@ CUSTOMERS_MANAGE = 'customers.manage'
 CUSTOMERS_EXPORT = 'customers.export'
 CUSTOMERS_SETTINGS_MANAGE = 'customers.settings.manage'
 # The privacy capabilities (PDPL requests about one person): held by the built-in system administrator role only. They
-# are not custom_role_allowed, no other customers capability implies them, and the vendor support shortcut of the
-# foundation does not reach them.
+# are not custom_role_allowed and no other customers capability implies them.
 CUSTOMERS_ERASE = 'customers.erase'
 CUSTOMERS_PRIVACY_EXPORT = 'customers.privacy.export'
 PRIVACY_PERMISSIONS = frozenset({CUSTOMERS_ERASE, CUSTOMERS_PRIVACY_EXPORT})
@@ -24,13 +23,6 @@ PERMISSION_DEPENDENCIES = {
 
 class LiwanCustomersAccessService(models.AbstractModel):
     _inherit = 'liwan.access.service'
-
-    @api.model
-    def _liwan_capability_keys(self, user=None, company=None):
-        user = user or self.env.user
-        keys = super()._liwan_capability_keys(user, company=company)
-        # Support's foundation shortcut grants every registered key; a vendor never erases or exports a tenant's person.
-        return keys - PRIVACY_PERMISSIONS if user.has_group('liwan_core.group_vendor_support') else keys
 
     @api.model
     def _liwan_capability_definitions(self):

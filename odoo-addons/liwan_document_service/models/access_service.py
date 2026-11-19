@@ -40,14 +40,6 @@ class DocumentsAccessService(models.AbstractModel):
         return grants
 
     @api.model
-    def _liwan_capability_keys(self, user=None, company=None):
-        user = user or self.env.user
-        keys = super()._liwan_capability_keys(user, company=company)
-        # Vendor support holds no documents permission, inside a support session or outside it
-        # (owner decision 2026-11-19, #729): its foundation shortcut grants the whole catalog, so it is stripped here.
-        return keys - PERMISSIONS if user.has_group('liwan_core.group_vendor_support') else keys
-
-    @api.model
     def _liwan_legacy_capability_keys(self, user):
         keys = super()._liwan_legacy_capability_keys(user)
         for key in PERMISSIONS:
