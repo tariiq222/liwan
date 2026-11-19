@@ -13435,6 +13435,14 @@
         ],
         "type": "object"
       },
+      "ConversationOpportunityModeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "manual",
+          "auto_first_message"
+        ],
+        "type": "string"
+      },
       "ConversationOpportunitySchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -19238,6 +19246,18 @@
           "name",
           "active"
         ],
+        "type": "object"
+      },
+      "CrmStageArchiveSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "move_to": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
         "type": "object"
       },
       "CrmStageListSchema": {
@@ -63535,6 +63555,46 @@
           }
         ]
       },
+      "InboxChannelCrmSettingsPatchSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "opportunity_mode": {
+            "enum": [
+              "manual",
+              "auto_first_message"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "opportunity_mode"
+        ],
+        "type": "object"
+      },
+      "InboxChannelCrmSettingsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "channel_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "opportunity_mode": {
+            "enum": [
+              "manual",
+              "auto_first_message"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "channel_id",
+          "opportunity_mode"
+        ],
+        "type": "object"
+      },
       "InboxChannelHealthSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -74539,6 +74599,9 @@
                     }
                   ]
                 },
+                "media_failed": {
+                  "type": "boolean"
+                },
                 "reactions": {
                   "additionalProperties": false,
                   "properties": {
@@ -74676,6 +74739,7 @@
                 "delivery_state",
                 "error",
                 "error_code",
+                "media_failed",
                 "unconfirmed",
                 "attachments",
                 "reply_to",
@@ -75984,6 +76048,9 @@
               }
             ]
           },
+          "media_failed": {
+            "type": "boolean"
+          },
           "reactions": {
             "additionalProperties": false,
             "properties": {
@@ -76121,6 +76188,7 @@
           "delivery_state",
           "error",
           "error_code",
+          "media_failed",
           "unconfirmed",
           "attachments",
           "reply_to",
@@ -125472,7 +125540,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "archive_stage",
+        "summary": "Archive a stage; `{\"move_to\": <stage id>}` first moves every opportunity of it to that open stage.",
         "tags": [
           "liwan_crm"
         ],
@@ -148487,6 +148555,112 @@
           ],
           "feature_operation": "write",
           "handler": "patch_commerce",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/inbox/channels/{channel_id}/crm-settings": {
+      "get": {
+        "operationId": "liwan_crm_inbox.ChannelCrmSettingsController.read_channel_crm_settings.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "channel_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "read_channel_crm_settings",
+        "tags": [
+          "liwan_crm_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_crm_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "ChannelCrmSettingsController",
+          "feature_keys": [
+            "crm.enabled",
+            "inbox.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "read_channel_crm_settings",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "liwan_crm_inbox.ChannelCrmSettingsController.patch_channel_crm_settings.patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "channel_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "patch_channel_crm_settings",
+        "tags": [
+          "liwan_crm_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_crm_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "ChannelCrmSettingsController",
+          "feature_keys": [
+            "crm.enabled",
+            "inbox.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "patch_channel_crm_settings",
           "readonly": false,
           "route_type": "json2"
         }
