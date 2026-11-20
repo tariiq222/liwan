@@ -119,5 +119,6 @@ command runs from `/opt/liwan/current` (the first deploy needs a bootstrap check
 
 A halt record means the service may be in maintenance (the marker stays). Read `status` and the job log, fix the cause,
 then run `rollback`: it clears the halt and failed-candidate records and finishes the rollback of the unfinished run. It refuses a run that
-already committed. After a rolled-back failure there is no halt: the next job run tries the then-current candidate again.
+already committed. A run that stopped before the stop (phases `verified`, `quiescing`, `captured`) holds no snapshot and may have no
+tenant inventory, so `rollback` only cancels it: no maintenance, no stop, the worker is restarted if it was stopped, and `run.json` is cleared. After a rolled-back failure there is no halt: the next job run tries the then-current candidate again.
 Never delete `run.json` by hand.

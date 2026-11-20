@@ -551,6 +551,55 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(self.main('rollback', '--environment', 'staging'), release.EXIT_REFUSED)
         self.assertEqual(self.runner.calls, [])
 
+    def test_rollback_command_cancels_a_run_that_never_recorded_its_inventory(self):
+        for phase in ('verified', 'quiescing', 'captured'):
+            for with_inventory in (False, True):
+                with self.subTest(phase=phase, inventory=with_inventory):
+                    self.serve(OLD)
+                    self.interrupted(phase)
+                    run = json.loads((self.state / 'run.json').read_text())
+                    if not with_inventory:
+                        del run['tenants']
+                        release.write_json(self.state / 'run.json', run)
+                    release.write_json(self.state / 'failed.json', {'commit': NEW, 'reason': 'x', 'at': 'now'})
+                    self.runner.calls.clear()
+                    self.assertEqual(self.main('rollback', '--environment', 'staging'), release.EXIT_OK)
+                    self.assertTrue(self.result().startswith(f'cancelled {NEW}'))
+                    self.assertFalse(self.compose_stops() or self.commands('-u') or self.renames())
+                    self.assertFalse([call for call in self.runner.calls if call[:2] == ['systemctl', 'stop']])
+                    self.assertFalse(self.paths.maintenance.exists())
+                    self.assertFalse((self.state / 'run.json').exists() or (self.state / 'failed.json').exists())
+                    self.assertEqual(self.served(), OLD)
+                    self.assertEqual(self.main(), release.EXIT_OK)
+                    self.assertEqual(self.served(), NEW)
+
+    def test_rollback_command_cancels_a_run_interrupted_inside_prepare_or_before_the_inventory(self):
+        for fail_at in ('prepare', 'inventory'):
+            with self.subTest(fail_at=fail_at):
+                self.serve(OLD)
+                real = release.Releaser.tenants
+                calls = []
+
+                def tenants(releaser, checkout):  # prepare reads it for the disk check; the second read is quiesce's
+                    calls.append(checkout)
+                    if fail_at == 'inventory' and len(calls) > 1:
+                        raise KeyboardInterrupt
+                    return real(releaser, checkout)
+
+                patches = [mock.patch.object(release.Releaser, 'tenants', tenants)]
+                if fail_at == 'prepare':
+                    patches = [mock.patch.object(release.Releaser, 'prepare', side_effect=KeyboardInterrupt)]
+                with patches[0], self.assertRaises(KeyboardInterrupt):
+                    self.main()
+                run = json.loads((self.state / 'run.json').read_text())
+                self.assertNotIn('tenants', run)
+                self.runner.calls.clear()
+                self.assertEqual(self.main('rollback', '--environment', 'staging'), release.EXIT_OK)
+                self.assertFalse(self.compose_stops() or self.renames() or self.paths.maintenance.exists())
+                self.assertFalse((self.state / 'run.json').exists())
+                self.assertEqual(self.main(), release.EXIT_OK)
+                self.assertEqual(self.served(), NEW)
+
     def test_status_reports_and_exits_3_when_halted(self):
         release.write_json(self.state / 'halted.json', {'reason': 'x'})
         with mock.patch('sys.stdout', new=io.StringIO()) as out:

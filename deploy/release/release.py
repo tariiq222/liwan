@@ -606,6 +606,14 @@ class Releaser:
         self.record_failure(run['commit'], reason)
         return self.finish(EXIT_FAILED, f'rolled back {reason}')
 
+    def cancel_pending(self, run: dict) -> int:
+        """Before the stop nothing was snapshotted and no tenant inventory is certain (``run['tenants']`` may not exist),
+        so there is no data to restore: the served stack stays as it is, only a worker stopped for the inventory restarts."""
+        if run['phase'] != 'verified' and run['previous'] is not None and self.restart_worker('') != '':
+            return self.finish(EXIT_FAILED, f'worker_not_ready: {run["commit"]} stays pending, run "rollback" again')
+        self.file('run.json').unlink()
+        return self.finish(EXIT_OK, f'cancelled {run["commit"]} before anything was stopped or snapshotted')
+
     def stop_bootstrap(self, run: dict) -> None:
         """First deploy: nothing older exists, so the failed stack is stopped and left in maintenance."""
         if self.file('release.env').exists():
@@ -671,6 +679,8 @@ class Releaser:
         self.file('failed.json').unlink(missing_ok=True)
         if run is None:
             return self.finish(EXIT_OK, 'nothing to do: the halt record is cleared and no run is unfinished')
+        if run['phase'] in PRE_SNAPSHOT_PHASES:
+            return self.cancel_pending(run)
         return self.roll_back(run, run.get('failure', 'operator_rollback'))
 
 
