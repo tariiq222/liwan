@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""The tickets raised from a customer conversation: both routes, the one-open-ticket guard and the link it records."""
+"""The tickets raised from a customer conversation: both routes, the one-open-ticket guard (raise and reopen) and the link it records."""
 from odoo import Command
 from odoo.tests import new_test_user
 
@@ -195,3 +195,89 @@ class ConversationTicketTest(LiwanInboxCase):
         conversation.unlink()
         self.assertTrue(ticket.exists())
         self.assertFalse(ticket.liwan_conversation_id)
+
+    def _ticket(self, conversation, user, subject, closed=False):
+        """A ticket of the conversation assigned to `user`, written through the ORM (the raise route is not under test)."""
+        ticket = self.env['liwan.helpdesk.service'].with_user(user)._liwan_create({'subject': subject, 'description': subject})
+        ticket.write({'liwan_conversation_id': conversation.id, 'user_id': user.id})
+        if closed:
+            self.close(ticket)
+        return ticket
+
+    def _closer(self, login):
+        """A desk user who may close and reopen but not assign, so the `own` visibility hides other people's tickets."""
+        return self._conversation_user(login, [
+            'inbox.conversations.read', 'helpdesk.tickets.read', 'helpdesk.tickets.write', 'helpdesk.tickets.close',
+        ])
+
+    def reopen(self, ticket):
+        return self.api('POST', f'/api/v1/helpdesk/tickets/{ticket.id}/reopen', json={})
+
+    def test_reopening_a_ticket_is_refused_while_another_one_of_the_conversation_is_open(self):
+        closer = self._closer('ct_closer')
+        conversation = self.make_conversation()
+        first = self._ticket(conversation, closer, 'First', closed=True)
+        second = self._ticket(conversation, closer, 'Second Subject')
+        self.login(closer)
+        refused = self.reopen(first)
+        self.assertEqual((refused.status_code, refused.json()['code']), (422, 'invalid'), refused.text)
+        self.assertEqual(refused.json()['message'], 'This conversation has another open ticket.')
+        self.assertNotIn('Second Subject', refused.text)
+        self.assertNotIn(str(second.number), refused.text)
+        self.assertTrue(first.stage_id.closed)
+
+    def test_a_hidden_open_ticket_still_blocks_the_reopen_and_stays_unnamed(self):
+        closer, other = self._closer('ct_closer'), self._closer('ct_other')
+        conversation = self.make_conversation()
+        first = self._ticket(conversation, closer, 'First', closed=True)
+        hidden = self._ticket(conversation, other, 'Hidden Subject')
+        self.login(closer)
+        listed = self.api('GET', TICKETS.format(conversation.id)).json()
+        self.assertEqual([item['subject'] for item in listed['items']], ['First'])
+        refused = self.reopen(first)
+        self.assertEqual((refused.status_code, refused.json()['code']), (422, 'invalid'), refused.text)
+        self.assertNotIn('Hidden Subject', refused.text)
+        self.assertNotIn(str(hidden.number), refused.text)
+
+    def test_a_stage_move_out_of_a_closed_stage_is_refused_the_same_way(self):
+        closer = self._closer('ct_closer')
+        conversation = self.make_conversation()
+        first = self._ticket(conversation, closer, 'First', closed=True)
+        self._ticket(conversation, closer, 'Second')
+        stage = self.env['helpdesk.ticket.stage'].search([('closed', '=', False)], limit=1)
+        self.login(closer)
+        moved = self.api('PATCH', f'/api/v1/helpdesk/tickets/{first.id}', json={'stage_id': stage.id})
+        self.assertEqual((moved.status_code, moved.json()['code']), (422, 'invalid'), moved.text)
+        self.assertTrue(first.stage_id.closed)
+
+    def test_a_ticket_reopens_once_the_other_one_is_closed(self):
+        closer = self._closer('ct_closer')
+        conversation = self.make_conversation()
+        first = self._ticket(conversation, closer, 'First', closed=True)
+        second = self._ticket(conversation, closer, 'Second')
+        self.close(second)
+        self.login(closer)
+        reopened = self.reopen(first)
+        self.assertEqual(reopened.status_code, 200, reopened.text)
+        self.assertFalse(first.stage_id.closed)
+
+    def test_a_ticket_without_a_conversation_reopens_as_before(self):
+        closer = self._closer('ct_closer')
+        conversation = self.make_conversation()
+        self._ticket(conversation, closer, 'Open of a conversation')
+        loose = self.env['liwan.helpdesk.service'].with_user(closer)._liwan_create({'subject': 'Loose', 'description': 'Loose'})
+        loose.user_id = closer
+        self.close(loose)
+        self.login(closer)
+        reopened = self.reopen(loose)
+        self.assertEqual(reopened.status_code, 200, reopened.text)
+        self.assertFalse(loose.stage_id.closed)
+
+    def test_moving_between_two_open_stages_is_unaffected(self):
+        closer = self._closer('ct_closer')
+        conversation = self.make_conversation()
+        ticket = self._ticket(conversation, closer, 'Only open one')
+        stages = self.env['helpdesk.ticket.stage'].search([('closed', '=', False)], limit=2)
+        for stage in stages:
+            ticket.stage_id = stage
+        self.assertFalse(ticket.stage_id.closed)

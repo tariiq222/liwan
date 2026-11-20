@@ -21,6 +21,7 @@ its tickets.
 | `GET` | `{items, total}` of ticket refs, newest first, paged with `limit` and `offset`, only the tickets the desk's visibility shows the caller |
 | `POST` body | `subject`, `description`, `team_id`, `priority`, `category_id`, `type_id`; any other field is 422 |
 | `POST` answer | the ticket ref only |
+| Reopen with another open ticket | 422 `invalid`, message above, no details |
 | Open ticket exists | 409 `conflict` with `details.reason = 'open_ticket_exists'`; the hidden ticket is never named |
 
 A ticket ref is `{id, number, subject, stage: {id, name, closed}, created_at}`.
