@@ -121,6 +121,14 @@ Owner: `liwan_crm_inbox`. Routes: `POST`, `PUT`, `DELETE /api/v1/inbox/conversat
 | CRM-140 | Create an opportunity from a WhatsApp conversation | custom role (crm_agent «موظف العملاء» plus inbox_agent «موظف رسائل العملاء») | «إنشاء فرصة» on the conversation card creates the opportunity with the source «واتساب» and the contact's linked customer; the conversation card then shows the opportunity and the opportunity page lists the conversation | `page /inbox/[id]/[[id]]` `page /crm/opportunities/[id]` `POST /api/v1/inbox/conversations/<id>/opportunity` `GET /api/v1/crm/opportunities/<id>/conversations` | automated | e2e/tests/inbox-opportunity.e2e.ts (npm run e2e:odoo, green 2026-11-19; persona `inbox_crm_agent` and the WhatsApp channel with two conversations are seeded by tools/e2e_seed.py); the source «واتساب» is read from the opportunity API and the conversation list on the opportunity page links back to the thread |
 | CRM-141 | A conversation whose phone already has an open opportunity opens the picker | custom role (crm_agent «موظف العملاء» plus inbox_agent «موظف رسائل العملاء») | «إنشاء فرصة» answers 422 `invalid` with reason `duplicate_phone`, no second opportunity is created, the card opens the picker with the existing opportunity listed and linking it shows it on the card | `page /inbox/[id]/[[id]]` `POST /api/v1/inbox/conversations/<id>/opportunity` `PUT /api/v1/inbox/conversations/<id>/opportunity` | automated | e2e/tests/inbox-opportunity.e2e.ts (npm run e2e:odoo, green 2026-11-19); the test removes a link left by an earlier run on the reused database and checks the opportunity total is unchanged |
 
+## Opportunity on a support ticket (the Helpdesk bridge)
+
+Owner: `liwan_helpdesk_crm`. Routes: `GET`, `PUT`, `DELETE /api/v1/helpdesk/tickets/<id>/opportunity`.
+
+| ID | Scenario | Persona | Expected | Covers | Status | Test / notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| CRM-153 | CRM visibility decides which opportunities a desk agent may pick and see | custom role (`helpdesk_agent` plus crm_agent «موظف العملاء») | The picker on the ticket page offers only opportunities the agent sees under the CRM visibility; one held by another agent is not offered and answers 404 on `PUT`; linking needs no write right on the opportunity, and when the linked opportunity is later handed to another agent the ticket answers `{opportunity: null, hidden: true}` and the page never names it | `GET /api/v1/helpdesk/tickets/<id>/opportunity` `PUT /api/v1/helpdesk/tickets/<id>/opportunity` `page /helpdesk/[id]` | automated | e2e/tests/helpdesk-bridges.e2e.ts (npm run e2e:odoo, green 2026-11-20; persona `inbox_crm_agent` granted `helpdesk_agent`); server rules in `liwan_helpdesk_crm` `test_ticket_opportunity.py` |
+
 ## Customers directory privacy (PDPL)
 
 Owner: `liwan_customers`. Erase and export are for the system administrator; routes under `odoo-addons/liwan_customers/controllers/privacy.py`.
