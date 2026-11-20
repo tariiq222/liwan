@@ -11,25 +11,17 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_capability,
     requires_feature,
 )
-from odoo.addons.liwan_api.serializers.common import ref
 from odoo.addons.liwan_crm.controllers.opportunities import (
     create_opportunity_from_payload,
     find_opportunity,
     visible_domain,
 )
+from odoo.addons.liwan_crm.serializers.opportunity import dump_opportunity_ref
 from odoo.addons.liwan_inbox.controllers.helpers import no_content, visible_conversation
 from odoo.addons.liwan_inbox.models.access_service import READ, REPLY
 from odoo.addons.liwan_inbox.serializers.conversation import dump_conversation
 
 LINK_FIELDS = {'opportunity_id'}
-
-
-def dump_opportunity_ref(lead):
-    """The row of an opportunity a conversation shows: who it is about, where it stands, whether it is archived."""
-    return {
-        'id': lead.id, 'contact_name': lead.contact_name or '', 'stage': ref(lead.stage_id, label='display_name'),
-        'status': lead.won_status, 'active': lead.active,
-    }
 
 
 def require_same_customer(conversation, lead):
