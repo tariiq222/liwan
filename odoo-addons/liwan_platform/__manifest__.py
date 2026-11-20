@@ -6,7 +6,8 @@
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
-    'depends': ['liwan_core'],
+    # http_routing redirects a request by language prefix inside its own ``_match``; ours must run first.
+    'depends': ['liwan_core', 'http_routing'],
     'data': [
         'security/maintenance_security.xml',
         'security/ir.model.access.csv',

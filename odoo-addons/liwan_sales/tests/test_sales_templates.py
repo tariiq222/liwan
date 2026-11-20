@@ -371,6 +371,6 @@ class TestSalesTemplateOdooSurface(TemplateCase):
                     f'/my/orders/{order.id}/update_line_dict',
                     json={'jsonrpc': '2.0', 'method': 'call', 'params': params},
                 )
-                self.assertEqual(response.json()['error']['code'], 404, response.text)
+                self.assertEqual(response.status_code, 404, response.text)
                 for path in (f'/my/orders/{order.id}?access_token={params["access_token"]}', '/my/quotes'):
                     self.assertEqual(self.url_open(path).status_code, 404, path)

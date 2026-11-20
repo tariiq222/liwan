@@ -366,7 +366,10 @@ test('custom read-only task access is enforced in the page and API', async ({ pa
     const rpc = await reader.page.request.post('/web/dataset/call_kw/project.task/write', {
       data: { jsonrpc: '2.0', method: 'call', params: { model: 'project.task', method: 'write', args: [[task.id], { name: 'forbidden' }], kwargs: {} } },
     })
-    expect((await rpc.json()).error.code).toBe(404)
+    const rpcText = await rpc.text()
+    expect(rpc.status()).toBe(404)
+    expect(rpcText).not.toContain('debug')
+    expect(rpcText).not.toContain('Traceback')
 
     await openShell(reader.page, `/tasks/${task.id}`)
     const record = reader.page.getByTestId('task-detail-page')

@@ -75,6 +75,11 @@ def _may_reach(httprequest):
     return path in OPEN_ROUTES or path.startswith(OPEN_PREFIXES)
 
 
+def _guard_closes(httprequest):
+    """True for a path the guard does not open: the RPC prefixes and anything ``_may_reach`` refuses."""
+    return httprequest.path.startswith(RPC_PREFIXES) or not _may_reach(httprequest)
+
+
 class LiwanPlatformIrHttp(models.AbstractModel):
     _inherit = 'ir.http'
 
@@ -112,33 +117,52 @@ class LiwanPlatformIrHttp(models.AbstractModel):
             raise Unauthorized(response=response) from None
 
     @classmethod
+    def _match(cls, path_info):
+        """Match no route at all for a path the guard does not open, so it answers a bare 404.
+
+        Odoo calls this hook once per request, before it picks a dispatcher or authenticates. Deciding here
+        keeps the answer the same for every caller and every route type: a ``jsonrpc`` route would answer
+        a refused request with HTTP 200 and the traceback in ``error.data.debug``, ``auth='user'`` would
+        raise ``SessionExpiredException`` for a visitor, and a wrong ``Content-Type`` would answer 415 and
+        name the route. An unmatched path takes ``_serve_fallback``, which refuses it as well.
+
+        The decision is about the request being served, never ``path_info``: other callers (``http_routing``
+        building a URL for another language) pass a different URL, and the gate stays per request. Outside a
+        request there is nothing to decide. The manifest dependency on ``http_routing`` places this override
+        above its ``_match``, which would otherwise redirect a closed path by language before the guard runs.
+        """
+        if request and _guard_closes(request.httprequest):
+            raise NotFound()
+        return super()._match(path_info)
+
+    @classmethod
     def _authenticate_explicit(cls, auth):
-        httprequest = request.httprequest
-        path = httprequest.path
-        # Exact match only: no prefix, no trailing slash, no other case. A foreign path never reaches the key check.
-        if auth == 'bearer' and path not in cls._liwan_bearer_routes():
+        # Bearer: exact match only (no prefix, no trailing slash, no other case). A foreign path never reaches the key check.
+        if auth == 'bearer' and request.httprequest.path not in cls._liwan_bearer_routes():
             raise NotFound()
         super()._authenticate_explicit(auth)
-        if path.startswith(RPC_PREFIXES):
-            raise NotFound()
         user = request.env.user
         has_user = bool(user) and not user._is_public()
+        path = request.httprequest.path
         exempt = path in SESSION_ALLOWLIST or path.startswith(SESSION_PREFIXES + API_PREFIXES)
         if has_user and not exempt:
             service = request.env['liwan.entitlement.service']
             if service._liwan_session_forbidden(user):
                 request.session.logout(keep_db=True)
                 raise AccessDenied()
-        if not _may_reach(httprequest):
-            raise NotFound()
 
     @classmethod
     def _serve_fallback(cls):
-        """Answer a path no /api/v1 route matches (for example a non-numeric id) with the JSON 404.
+        """Serve nothing on a path the guard closes, and answer an unmatched /api/v1 path with the JSON 404.
+
+        A closed path that matches a route lands here after ``_match`` refused it. Stock Odoo would look up a
+        binary attachment whose ``url`` is that path (with ``sudo()``), so a closed path never reaches it.
 
         Stock Odoo renders its HTML error page when the ``<int:...>`` converter rejects an id, before
         ``api_handler`` can run. The web app reads the body ``code``, so an API path never gets HTML.
         """
+        if _guard_closes(request.httprequest):
+            return None
         response = super()._serve_fallback()
         if response is None and request.httprequest.path.startswith(API_PREFIXES):
             return request.make_json_response({'code': 'not_found', 'message': 'Record does not exist'}, status=404)
