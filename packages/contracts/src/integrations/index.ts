@@ -105,6 +105,68 @@ export const IntegrationSecretRotationSchema = z.object({
   value: z.string().min(1),
 }).strict()
 
+/** Error codes the integrations routes answer besides the shared ones. `in_use`: a connection still held by a use or an active sender. `provider_error`: the provider refused or could not be reached while reading the account. */
+export const IntegrationErrorCodeSchema = z.enum(['invalid', 'forbidden', 'not_found', 'in_use', 'integration_rejected', 'provider_error'])
+
+export const IntegrationSenderChannelSchema = z.enum(['sms', 'whatsapp', 'voice'])
+/** `alphanumeric`: an SMS sender ID of up to 11 characters. `number`: an E.164 number of the account. `service`: a messaging service (`MG` + 32 hex). */
+export const IntegrationSenderKindSchema = z.enum(['alphanumeric', 'number', 'service'])
+
+/** One sender of the company on one of its connections. DELETE archives it (`active: false`). */
+export const IntegrationSenderSchema = z.object({
+  id: z.number().int().positive(),
+  connection_id: z.number().int().positive(),
+  provider: z.string().min(1),
+  channel: IntegrationSenderChannelSchema,
+  kind: IntegrationSenderKindSchema,
+  value: z.string().min(1),
+  is_default: z.boolean(),
+  active: z.boolean(),
+  created_at: z.string().nullable(),
+}).strict()
+
+export const IntegrationSenderListSchema = z.object({
+  items: z.array(IntegrationSenderSchema),
+  total: z.number().int().nonnegative(),
+}).strict()
+
+/** POST body: add a sender. The server checks the kind the channel accepts and that a number belongs to the account. */
+export const IntegrationSenderCreateSchema = z.object({
+  connection_id: z.number().int().positive(),
+  channel: IntegrationSenderChannelSchema,
+  kind: IntegrationSenderKindSchema,
+  value: z.string().trim().min(1).max(64),
+  is_default: z.boolean().optional(),
+}).strict()
+
+/** PATCH body: only the default flag and the active flag change; anything else is a new sender. */
+export const IntegrationSenderUpdateSchema = z.object({
+  is_default: z.boolean().optional(),
+  active: z.boolean().optional(),
+}).strict().refine(body => Object.keys(body).length > 0, {
+  message: 'is_default or active is required',
+})
+
+/** One phone number of the provider account, with what it can do. */
+export const IntegrationAvailableNumberSchema = z.object({
+  value: z.string().min(1),
+  label: z.string(),
+  sms: z.boolean(),
+  voice: z.boolean(),
+}).strict()
+
+export const IntegrationAvailableNumberListSchema = z.object({
+  items: z.array(IntegrationAvailableNumberSchema),
+  total: z.number().int().nonnegative(),
+}).strict()
+
+/** The company's communication safety settings; defaults apply until the first change. */
+export const IntegrationCommunicationSettingsSchema = z.object({
+  daily_message_limit: z.number().int().min(1).max(100000),
+}).strict()
+
+export const IntegrationCommunicationSettingsUpdateSchema = IntegrationCommunicationSettingsSchema
+
 export type IntegrationAuth = z.infer<typeof IntegrationAuthSchema>
 export type IntegrationState = z.infer<typeof IntegrationStateSchema>
 export type IntegrationUse = z.infer<typeof IntegrationUseSchema>
@@ -119,3 +181,14 @@ export type IntegrationConnectionUpdate = z.infer<typeof IntegrationConnectionUp
 export type IntegrationOAuthStart = z.infer<typeof IntegrationOAuthStartSchema>
 export type IntegrationOAuthStartResponse = z.infer<typeof IntegrationOAuthStartResponseSchema>
 export type IntegrationSecretRotation = z.infer<typeof IntegrationSecretRotationSchema>
+export type IntegrationErrorCode = z.infer<typeof IntegrationErrorCodeSchema>
+export type IntegrationSenderChannel = z.infer<typeof IntegrationSenderChannelSchema>
+export type IntegrationSenderKind = z.infer<typeof IntegrationSenderKindSchema>
+export type IntegrationSender = z.infer<typeof IntegrationSenderSchema>
+export type IntegrationSenderList = z.infer<typeof IntegrationSenderListSchema>
+export type IntegrationSenderCreate = z.infer<typeof IntegrationSenderCreateSchema>
+export type IntegrationSenderUpdate = z.infer<typeof IntegrationSenderUpdateSchema>
+export type IntegrationAvailableNumber = z.infer<typeof IntegrationAvailableNumberSchema>
+export type IntegrationAvailableNumberList = z.infer<typeof IntegrationAvailableNumberListSchema>
+export type IntegrationCommunicationSettings = z.infer<typeof IntegrationCommunicationSettingsSchema>
+export type IntegrationCommunicationSettingsUpdate = z.infer<typeof IntegrationCommunicationSettingsUpdateSchema>

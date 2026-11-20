@@ -4,9 +4,22 @@ import re
 from odoo import api, models
 from odoo.exceptions import ValidationError
 
-from .constants import AUTH_EXTERNAL, AUTH_KEYS, AUTH_OAUTH, AUTH_TYPES, OWNER
+from .constants import AUTH_EXTERNAL, AUTH_KEYS, AUTH_OAUTH, AUTH_TYPES, FEATURE, OWNER
+from odoo.addons.liwan_integrations_sa import providers
 
 TUPLE_FIELDS = ('secrets', 'generated_secrets', 'attributes', 'webhook_secrets')
+# The provider functions behind each capability a provider may declare: the registry refuses a declared capability
+# whose function the provider's module does not define.
+CAPABILITY_FUNCTIONS = {
+    'messaging.send': 'send_message',
+    'messaging.status': 'message_status',
+    'senders.list': 'list_numbers',
+    'voice.call': 'create_call',
+    'voice.status': 'call_status',
+    'lookup': 'lookup',
+}
+# The use a sender of each channel holds its connection for.
+SENDER_USES = {'sms': 'messaging', 'whatsapp': 'messaging', 'voice': 'voice'}
 
 
 def _is_text(value):
@@ -41,12 +54,28 @@ class LiwanIntegrationRegistry(models.AbstractModel):
                 'exclusive': True,
                 'external_id_pattern': r'[A-Za-z0-9_-]{1,128}',
             },
+            {
+                # The auth token is both the API credential and the key Twilio signs every callback with.
+                'code': 'twilio', 'owner': OWNER, 'auth': AUTH_KEYS,
+                'secrets': ('auth_token',), 'generated_secrets': (), 'attributes': (), 'webhook_secrets': ('auth_token',),
+                'settings_path': None, 'exclusive': False,
+                'external_id_pattern': r'AC[0-9a-f]{32}',
+                'capabilities': ('senders.list',),
+            },
         )
 
     @api.model
     def _liwan_use_definitions(self):
-        """Pure descriptors ``{'key', 'provider', 'owner', 'feature_key', 'scopes', 'webhook_path'}``; none by default."""
-        return ()
+        """Pure descriptors ``{'key', 'provider', 'owner', 'feature_key', 'scopes', 'webhook_path'}``.
+
+        The service's own uses: LiwanOS sets Twilio's callback URLs per request, so no webhook URL is shown.
+        """
+        return (
+            {
+                'key': 'twilio.messaging', 'provider': 'twilio', 'owner': OWNER, 'feature_key': FEATURE,
+                'scopes': (), 'webhook_path': None,
+            },
+        )
 
     @api.model
     def _liwan_provider_map(self):
@@ -68,8 +97,24 @@ class LiwanIntegrationRegistry(models.AbstractModel):
                 raise ValidationError(self.env._('liwan_integrations: provider %(code)s needs a boolean exclusive', code=code))
             self._liwan_check_external_id_pattern(item)
             self._liwan_check_provider_shape(item)
-            providers[code] = item
+            self._liwan_check_capabilities(item)
+            providers[code] = {**item, 'capabilities': item.get('capabilities', ())}
         return providers
+
+    @api.model
+    def _liwan_check_capabilities(self, item):
+        """The optional ``capabilities`` tuple names known capabilities that the provider's module implements."""
+        code = item['code']
+        capabilities = item.get('capabilities', ())
+        if not isinstance(capabilities, tuple) or not all(value in CAPABILITY_FUNCTIONS for value in capabilities):
+            raise ValidationError(self.env._('liwan_integrations: provider %(code)s declares an unknown capability', code=code))
+        module = providers.MODULES.get(code)
+        missing = [value for value in capabilities if not callable(getattr(module, CAPABILITY_FUNCTIONS[value], None))]
+        if missing:
+            raise ValidationError(self.env._(
+                'liwan_integrations: provider %(code)s declares %(capability)s but does not implement it',
+                code=code, capability=missing[0],
+            ))
 
     @api.model
     def _liwan_check_external_id_pattern(self, item):
@@ -139,5 +184,11 @@ class LiwanIntegrationRegistry(models.AbstractModel):
 
     @api.model
     def _liwan_connection_uses(self, connection):
-        """The use keys that hold ``connection`` now; an application extends this from its own records."""
-        return ()
+        """The use keys that hold ``connection`` now; an application extends this from its own records.
+
+        The service's own records hold it too: an active sender holds the use of its channel.
+        """
+        channels = self.env['liwan.integration.sender'].search(
+            [('connection_id', '=', connection.id), ('active', '=', True)],
+        ).mapped('channel')
+        return tuple(dict.fromkeys(f'{connection.provider}.{SENDER_USES[channel]}' for channel in channels))

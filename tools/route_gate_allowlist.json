@@ -12,6 +12,12 @@
       "routes": [
         "liwan_payments/controllers/hooks.py:gateway_callback"
       ]
+    },
+    {
+      "reason": "Provider status callbacks (Twilio message status) keep reaching the tenant after it switches integrations off: a message already sent must still record its delivery outcome. Twilio signs every callback with the account's auth token, checked against the URL stored on the log row.",
+      "routes": [
+        "liwan_integrations_sa/controllers/hooks.py:provider_callback"
+      ]
     }
   ],
   "no_capability": [
@@ -215,6 +221,12 @@
         "liwan_helpdesk/controllers/portal.py:close",
         "liwan_helpdesk/controllers/portal.py:get_ticket",
         "liwan_helpdesk/controllers/portal.py:reply"
+      ]
+    },
+    {
+      "reason": "Provider status callback (machine to machine, auth='public', type='http'): Twilio signs every POST with HMAC-SHA1 over the stored callback URL and the sorted form parameters using the account's auth token; there is no user to hold a capability, and the one elevated model method applies the status only after that signature is verified.",
+      "routes": [
+        "liwan_integrations_sa/controllers/hooks.py:provider_callback"
       ]
     }
   ]

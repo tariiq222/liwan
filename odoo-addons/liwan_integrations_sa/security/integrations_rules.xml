@@ -11,5 +11,15 @@
             <field name="model_id" ref="model_liwan_integration_secret"/>
             <field name="domain_force">[('company_id', 'in', company_ids)]</field>
         </record>
+        <record id="liwan_integration_sender_company_rule" model="ir.rule">
+            <field name="name">liwan.integration.sender: multi-company</field>
+            <field name="model_id" ref="model_liwan_integration_sender"/>
+            <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        </record>
+        <record id="liwan_integration_settings_company_rule" model="ir.rule">
+            <field name="name">liwan.integration.settings: multi-company</field>
+            <field name="model_id" ref="model_liwan_integration_settings"/>
+            <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+        </record>
     </data>
 </odoo>

@@ -177,7 +177,7 @@ class IntegrationOAuthController(http.Controller):
             # Every needed scope must arrive: a grant of optional scopes that omits one is not a superset.
             if not grant.scopes >= required:
                 return _redirect(provider, error='scopes_missing')
-            label = module.probe(grant.open_id, grant.access_token)
+            label = module.probe(grant.open_id, {'access_token': grant.access_token})
         except errors.ProviderError:
             return _redirect(provider, error='rejected')
         try:

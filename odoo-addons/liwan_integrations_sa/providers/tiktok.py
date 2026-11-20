@@ -109,9 +109,9 @@ def business_profile(credentials):
     return Profile(_text(data.get('username')), _text(data.get('display_name')))
 
 
-def probe(external_id, access_token):
-    """Read the business profile with the token and return its username."""
-    return business_profile(Credentials(external_id, access_token)).username
+def probe(external_id, credentials):
+    """Read the business profile with the access token of ``credentials`` and return its username."""
+    return business_profile(Credentials(external_id, credentials['access_token'])).username
 
 
 def _api(path):

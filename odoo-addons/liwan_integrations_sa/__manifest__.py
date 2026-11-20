@@ -1,8 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 {
     'name': 'liwan Integrations',
-    'summary': 'liwan platform: provider connections, their encrypted secrets and uses — /api/v1/integrations',
-    'version': '19.0.1.1.0',
+    'summary': 'liwan platform: provider connections, their encrypted secrets, uses, senders and signed callbacks — /api/v1/integrations',
+    'version': '19.0.1.2.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',

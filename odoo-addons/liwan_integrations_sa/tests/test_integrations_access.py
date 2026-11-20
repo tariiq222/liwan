@@ -86,7 +86,7 @@ class TestIntegrationAccess(LiwanIntegrationsCase):
         connection = self.make_meta(state='pending')
         with patch.object(meta, 'probe', return_value='Acme Business') as probe:
             connection._liwan_test()
-        probe.assert_called_once_with(ACCOUNT_ID, ACCESS_TOKEN)
+        probe.assert_called_once_with(ACCOUNT_ID, {'access_token': ACCESS_TOKEN, 'app_secret': APP_SECRET})
         self.assertEqual((connection.state, connection.label, connection.status_message), ('connected', 'Acme Business', False))
         self.assertTrue(connection.last_checked)
         with patch.object(meta, 'probe', side_effect=errors.ProviderError('Invalid token', retryable=False)):
@@ -115,7 +115,7 @@ class TestIntegrationAccess(LiwanIntegrationsCase):
         with patch('requests.get') as get:
             get.return_value.status_code = 200
             get.return_value.json.return_value = {'name': 'x'}
-            meta.probe('a/b?c', 'token-0123456789')
+            meta.probe('a/b?c', {'access_token': 'token-0123456789'})
         self.assertIn('/a%2Fb%3Fc', get.call_args.args[0])
 
     def test_rotating_replaces_a_generated_secret_only(self):
