@@ -83,7 +83,7 @@ describe('InboxTicketsCard raise form', () => {
     state.raising = true
     state.subject = '  تأخر التوصيل  '
     await state.raise()
-    expect(mutateAsync).toHaveBeenCalledWith({ subject: 'تأخر التوصيل' })
+    expect(mutateAsync).toHaveBeenCalledWith({ conversationId: 3, body: { subject: 'تأخر التوصيل' } })
     expect(state.raising).toBe(false)
     expect(toast.add).toHaveBeenCalledWith(expect.objectContaining({ color: 'success' }))
   })

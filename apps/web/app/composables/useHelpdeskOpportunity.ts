@@ -35,26 +35,26 @@ export function useTicketOpportunity(ticketId: MaybeRefOrGetter<number>, enabled
   })
 }
 
-/** Links an opportunity, or replaces the linked one. */
-export function useLinkTicketOpportunity(ticketId: MaybeRefOrGetter<number>) {
+/** Links an opportunity, or replaces the linked one. The ticket travels with the call so a card reused for another ticket never receives this answer. */
+export function useLinkTicketOpportunity() {
   const { $api } = useApi()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (opportunityId: number) => $api(opportunityUrl(toValue(ticketId)), { method: 'PUT', body: { opportunity_id: opportunityId }, schema: TicketOpportunityAnswerSchema }),
-    onSuccess: answer => qc.setQueryData(opportunityKey(toValue(ticketId)), answer),
+    mutationFn: ({ ticketId, opportunityId }: { ticketId: number; opportunityId: number }) => $api(opportunityUrl(ticketId), { method: 'PUT', body: { opportunity_id: opportunityId }, schema: TicketOpportunityAnswerSchema }),
+    onSuccess: (answer, { ticketId }) => qc.setQueryData(opportunityKey(ticketId), answer),
     // 403/404/422: what the server holds now may differ from what the card shows.
-    onError: () => qc.invalidateQueries({ queryKey: opportunityKey(toValue(ticketId)) }),
+    onError: (_error, { ticketId }) => qc.invalidateQueries({ queryKey: opportunityKey(ticketId) }),
   })
 }
 
 /** Unlinking answers 204 whatever was linked, a hidden opportunity included. */
-export function useUnlinkTicketOpportunity(ticketId: MaybeRefOrGetter<number>) {
+export function useUnlinkTicketOpportunity() {
   const { $api } = useApi()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: () => $api(opportunityUrl(toValue(ticketId)), { method: 'DELETE' }),
-    onSuccess: () => qc.setQueryData(opportunityKey(toValue(ticketId)), NO_LINK),
-    onError: () => qc.invalidateQueries({ queryKey: opportunityKey(toValue(ticketId)) }),
+    mutationFn: ({ ticketId }: { ticketId: number }) => $api(opportunityUrl(ticketId), { method: 'DELETE' }),
+    onSuccess: (_result, { ticketId }) => qc.setQueryData(opportunityKey(ticketId), NO_LINK),
+    onError: (_error, { ticketId }) => qc.invalidateQueries({ queryKey: opportunityKey(ticketId) }),
   })
 }
 

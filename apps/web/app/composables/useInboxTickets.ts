@@ -26,13 +26,14 @@ export function useConversationTickets(conversationId: MaybeRefOrGetter<number>,
   })
 }
 
-export function useCreateConversationTicket(conversationId: MaybeRefOrGetter<number>) {
+/** The conversation travels with the call so a card reused for another conversation refreshes the list the ticket was raised in. */
+export function useCreateConversationTicket() {
   const { $api } = useApi()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (body: ConversationTicketCreate) => $api(`/api/v1/inbox/conversations/${toValue(conversationId)}/tickets`, { method: 'POST', body, schema: ConversationTicketSchema }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ticketsKey(toValue(conversationId)) }),
+    mutationFn: ({ conversationId, body }: { conversationId: number; body: ConversationTicketCreate }) => $api(`/api/v1/inbox/conversations/${conversationId}/tickets`, { method: 'POST', body, schema: ConversationTicketSchema }),
+    onSuccess: (_ticket, { conversationId }) => qc.invalidateQueries({ queryKey: ticketsKey(conversationId) }),
     // A 409 means a ticket is open that the list did not show yet.
-    onError: () => qc.invalidateQueries({ queryKey: ticketsKey(toValue(conversationId)) }),
+    onError: (_error, { conversationId }) => qc.invalidateQueries({ queryKey: ticketsKey(conversationId) }),
   })
 }

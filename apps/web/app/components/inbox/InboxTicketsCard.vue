@@ -8,7 +8,7 @@ const hydrated = useHydrated()
 const toast = useToast()
 const access = useInboxTicketsAccess()
 const list = useConversationTickets(() => props.conversationId, access.read)
-const create = useCreateConversationTicket(() => props.conversationId)
+const create = useCreateConversationTicket()
 const refused = computed(() => (list.error.value as { status?: number } | null)?.status === 403)
 const visible = computed(() => access.read.value && !refused.value && list.isSuccess.value)
 const items = computed(() => list.data.value?.items ?? [])
@@ -29,7 +29,7 @@ async function raise() {
   failure.value = ''
   const conversationId = props.conversationId
   try {
-    await create.mutateAsync({ subject: text })
+    await create.mutateAsync({ conversationId, body: { subject: text } })
     close()
     toast.add({ title: t('inbox.tickets.created'), color: 'success' })
   } catch (error) {

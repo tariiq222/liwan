@@ -1,16 +1,18 @@
 import * as Vue from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-type Mutation = { onSuccess: () => unknown; onError: () => unknown }
+type Variables = { conversationId: number; body: { subject: string } }
+type Mutation = { mutationFn: (variables: Variables) => unknown; onSuccess: (ticket: unknown, variables: Variables) => unknown; onError: (error: unknown, variables: Variables) => unknown }
 const options: Mutation[] = []
 const invalidate = vi.fn()
+const api = vi.fn()
 const held = new Set<string>()
 vi.mock('@tanstack/vue-query', () => ({
   useQuery: (config: unknown) => config,
   useMutation: (config: Mutation) => { options.push(config); return config },
   useQueryClient: () => ({ invalidateQueries: invalidate }),
 }))
-vi.stubGlobal('useApi', () => ({ $api: vi.fn() }))
+vi.stubGlobal('useApi', () => ({ $api: api }))
 vi.stubGlobal('useAccess', () => ({ can: (capability: string) => held.has(capability) }))
 vi.stubGlobal('computed', Vue.computed)
 vi.stubGlobal('toValue', Vue.toValue)
@@ -48,11 +50,25 @@ describe('conversation tickets queries', () => {
     expect((useConversationTickets(3, true) as unknown as { enabled: { value: boolean } }).enabled.value).toBe(true)
   })
 
+  it('raises in the conversation it was sent for', async () => {
+    useCreateConversationTicket()
+    await options[0]!.mutationFn({ conversationId: 3, body: { subject: 'x' } })
+    expect(api).toHaveBeenCalledWith('/api/v1/inbox/conversations/3/tickets', expect.objectContaining({ method: 'POST', body: { subject: 'x' } }))
+  })
+
   it('refreshes the list after a ticket is raised and after a refused raise', () => {
-    useCreateConversationTicket(3)
-    options[0]!.onSuccess()
-    options[0]!.onError()
+    useCreateConversationTicket()
+    const variables = { conversationId: 3, body: { subject: 'x' } }
+    options[0]!.onSuccess({}, variables)
+    options[0]!.onError(new Error('x'), variables)
     const keys = invalidate.mock.calls.map(([filters]) => (filters as { queryKey: unknown }).queryKey)
     expect(keys).toEqual([['inbox', 'conversation-tickets', 3], ['inbox', 'conversation-tickets', 3]])
+  })
+
+  it('refreshes the conversation the ticket was raised in, never the one the card shows now', () => {
+    useCreateConversationTicket()
+    options[0]!.onSuccess({}, { conversationId: 3, body: { subject: 'x' } })
+    const keys = invalidate.mock.calls.map(([filters]) => (filters as { queryKey: unknown }).queryKey)
+    expect(keys).toEqual([['inbox', 'conversation-tickets', 3]])
   })
 })

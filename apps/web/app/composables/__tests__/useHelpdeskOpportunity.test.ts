@@ -1,7 +1,7 @@
 import * as Vue from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-type Options = { mutationFn: (value?: unknown) => unknown; onSuccess?: (result: unknown) => unknown; onError?: () => unknown; enabled?: Vue.ComputedRef<boolean>; queryKey?: Vue.ComputedRef<unknown> }
+type Options = { mutationFn: (value?: unknown) => unknown; onSuccess?: (result: unknown, variables: unknown) => unknown; onError?: (error: unknown, variables: unknown) => unknown; enabled?: Vue.ComputedRef<boolean>; queryKey?: Vue.ComputedRef<unknown> }
 const options: Options[] = []
 const cache = new Map<string, unknown>()
 const invalidate = vi.fn()
@@ -60,31 +60,48 @@ describe('ticket opportunity query and mutations', () => {
     expect(options[1]!.enabled!.value).toBe(false)
   })
 
-  it('links or replaces with a PUT and stores the answer', async () => {
-    useLinkTicketOpportunity(7)
+  it('links or replaces with a PUT and stores the answer under the ticket it was sent for', async () => {
+    useLinkTicketOpportunity()
     api.mockResolvedValue({ opportunity: { id: 9 }, hidden: false })
-    await options[0]!.mutationFn(9)
+    const variables = { ticketId: 7, opportunityId: 9 }
+    await options[0]!.mutationFn(variables)
     expect(api).toHaveBeenCalledWith('/api/v1/helpdesk/tickets/7/opportunity', expect.objectContaining({ method: 'PUT', body: { opportunity_id: 9 } }))
-    options[0]!.onSuccess!({ opportunity: { id: 9 }, hidden: false })
+    options[0]!.onSuccess!({ opportunity: { id: 9 }, hidden: false }, variables)
     expect(cache.get(key)).toEqual({ opportunity: { id: 9 }, hidden: false })
   })
 
   it('unlinks with a DELETE and clears both the link and the hidden flag', async () => {
-    useUnlinkTicketOpportunity(7)
+    useUnlinkTicketOpportunity()
     cache.set(key, { opportunity: null, hidden: true })
-    await options[0]!.mutationFn()
+    await options[0]!.mutationFn({ ticketId: 7 })
     expect(api).toHaveBeenCalledWith('/api/v1/helpdesk/tickets/7/opportunity', { method: 'DELETE' })
-    options[0]!.onSuccess!(undefined)
+    options[0]!.onSuccess!(undefined, { ticketId: 7 })
     expect(cache.get(key)).toEqual({ opportunity: null, hidden: false })
   })
 
   it('refreshes the link when a write is refused', () => {
-    useLinkTicketOpportunity(7)
-    useUnlinkTicketOpportunity(7)
-    options[0]!.onError!()
-    options[1]!.onError!()
+    useLinkTicketOpportunity()
+    useUnlinkTicketOpportunity()
+    options[0]!.onError!(new Error('x'), { ticketId: 7, opportunityId: 9 })
+    options[1]!.onError!(new Error('x'), { ticketId: 7 })
     expect(invalidate).toHaveBeenCalledTimes(2)
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['helpdesk', 'ticket', 7, 'opportunity'] })
+  })
+
+  it('keeps an answer for ticket 7 out of ticket 8 even when the card moved on before it arrived', () => {
+    const other = JSON.stringify(['helpdesk', 'ticket', 8, 'opportunity'])
+    cache.set(other, { opportunity: null, hidden: false })
+    useLinkTicketOpportunity()
+    useUnlinkTicketOpportunity()
+    useLinkTicketOpportunity()
+    options[0]!.onSuccess!({ opportunity: { id: 9 }, hidden: false }, { ticketId: 7, opportunityId: 9 })
+    expect(cache.get(key)).toEqual({ opportunity: { id: 9 }, hidden: false })
+    expect(cache.get(other)).toEqual({ opportunity: null, hidden: false })
+    options[1]!.onSuccess!(undefined, { ticketId: 7 })
+    expect(cache.get(other)).toEqual({ opportunity: null, hidden: false })
+    options[2]!.onError!(new Error('x'), { ticketId: 7, opportunityId: 9 })
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['helpdesk', 'ticket', 7, 'opportunity'] })
+    expect(invalidate).not.toHaveBeenCalledWith({ queryKey: ['helpdesk', 'ticket', 8, 'opportunity'] })
   })
 })
 

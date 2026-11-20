@@ -8,8 +8,8 @@ const hydrated = useHydrated()
 const toast = useToast()
 const access = useHelpdeskOpportunityAccess()
 const current = useTicketOpportunity(() => props.ticketId, access.read)
-const link = useLinkTicketOpportunity(() => props.ticketId)
-const unlink = useUnlinkTicketOpportunity(() => props.ticketId)
+const link = useLinkTicketOpportunity()
+const unlink = useUnlinkTicketOpportunity()
 const STATUS_TONE = { pending: 'info', won: 'success', lost: 'destructive' } as const
 const refused = computed(() => (current.error.value as { status?: number } | null)?.status === 403)
 const visible = computed(() => access.read.value && !refused.value && current.isSuccess.value)
@@ -41,8 +41,8 @@ async function run(work: () => Promise<unknown>, done: string) {
   }
 }
 
-const confirm = () => chosen.value ? run(() => link.mutateAsync(chosen.value!), t('helpdesk.opportunity.linked')) : undefined
-const remove = () => run(() => unlink.mutateAsync(), t('helpdesk.opportunity.unlinked'))
+const confirm = () => chosen.value ? run(() => link.mutateAsync({ ticketId: props.ticketId, opportunityId: chosen.value! }), t('helpdesk.opportunity.linked')) : undefined
+const remove = () => run(() => unlink.mutateAsync({ ticketId: props.ticketId }), t('helpdesk.opportunity.unlinked'))
 const stageOf = (item: { stage: { name: string } | null }) => item.stage?.name ?? t('helpdesk.opportunity.noStage')
 </script>
 
