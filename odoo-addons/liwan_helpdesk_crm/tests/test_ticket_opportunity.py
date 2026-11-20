@@ -136,6 +136,15 @@ class TicketOpportunityTest(LiwanHelpdeskCase):
         self.assertEqual((hidden.status_code, hidden.content), (404, missing.content))
         self.assertFalse(ticket.liwan_lead_id)
 
+    def test_an_archived_opportunity_is_refused_and_keeps_an_earlier_link(self):
+        ticket = self.make_ticket(liwan_lead_id=self.lead.id)
+        archived = self.make_lead('Archived deal', active=False)
+        self.as_user(self.agent)
+        refused = self.put(ticket, archived.id)
+        self.assertEqual(refused.status_code, 422, refused.text)
+        self.assertEqual(refused.json()['field'], 'opportunity_id')
+        self.assertEqual(ticket.liwan_lead_id, self.lead)
+
     def test_an_opportunity_of_another_company_is_not_found(self):
         # The request is pinned to the working company, so another company's opportunity is as hidden as a missing one.
         ticket = self.make_ticket()

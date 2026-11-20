@@ -23,7 +23,7 @@ All three are on `/api/v1/helpdesk/tickets/{id}/opportunity`.
 | Method | Features | Capabilities | Behaviour |
 | --- | --- | --- | --- |
 | `GET` | `helpdesk.enabled`, `crm.enabled` (read) | `helpdesk.tickets.read`, `crm.leads.read` | `{opportunity, hidden}`: the ref when the caller sees the opportunity (archived included), `{null, true}` when a link exists that the caller may not read, `{null, false}` when none |
-| `PUT` | both (write) | `helpdesk.tickets.write`, `crm.leads.read` | Body exactly `{opportunity_id}` (a positive id, any other body is 422). Links or replaces; answers like `GET` |
+| `PUT` | both (write) | `helpdesk.tickets.write`, `crm.leads.read` | Body exactly `{opportunity_id}` (a positive id, any other body is 422). An archived opportunity (a lost one included) is 422 `invalid` on `opportunity_id`, as in the inbox bridge. Links or replaces; answers like `GET` |
 | `DELETE` | both (write) | `helpdesk.tickets.write` | Clears the link; 204 |
 
 The ref is `liwan_crm.serializers.opportunity.dump_opportunity_ref`: `{id, contact_name, stage, status, active}`.
@@ -31,7 +31,7 @@ The ref is `liwan_crm.serializers.opportunity.dump_opportunity_ref`: `{id, conta
 | Item | Value |
 | --- | --- |
 | Ticket lookup | `liwan_helpdesk.controllers.tickets.find` (with `helpdesk.tickets.write` for `PUT` and `DELETE`): a ticket outside the desk's visibility is 404 |
-| Opportunity lookup | `liwan_crm.controllers.opportunities.find_opportunity`: archived ones included, CRM's own visibility applied, so a hidden, foreign or missing one is 404 |
+| Opportunity lookup | `liwan_crm.controllers.opportunities.find_opportunity`: archived ones found, CRM's own visibility applied, so a hidden, foreign or missing one is 404; `PUT` then refuses an archived one with 422 |
 | Company | the request is pinned to the working company, so another company's opportunity is 404, like a missing one |
 | Requester | a user with only `helpdesk.requests.read` gets 403 on all three |
 
