@@ -1,5 +1,31 @@
 # Shared opt-in; requires deploy/proxy/Dockerfile with pinned caddy-ratelimit.
-# Only TLS edge publishes ports. No trusted_proxies: client_ip is the socket peer.
+# Only this proxy publishes ports (compose binds them from LIWAN_EDGE_BIND and the two port variables).
+#
+# Real client address. `{client_ip}` keys every rate-limit zone and feeds the signup and invitation headers below.
+# By default no proxy is trusted, so it is the socket peer and no header can change it. When an outer edge terminates
+# TLS in front of this proxy (the Openship edge on the staging host), `LIWAN_TRUSTED_PROXIES` names that edge as seen
+# from inside the container (the `edge` network gateway, see deploy/docker-compose.shared.yml) and the client is read
+# from X-Forwarded-For. `trusted_proxies_strict` reads that header right to left, skipping trusted hops, so an
+# address the client put in the header (the outer edge appends the real peer to it) never becomes `{client_ip}`.
+# The default is an address in TEST-NET-1 (RFC 5737): reserved for documentation, never a peer, trusts nothing.
+#
+# `LIWAN_SITE_SCHEME` prefixes the restore and relay site addresses, which carry no scheme of their own (the tenant
+# addresses in `DOMAIN` carry theirs). Empty keeps them on TLS (:443). `http://` puts them on :80 beside the tenant
+# sites, which is the only port an outer edge forwards to; without it those sites would sit on :443 and never match.
+#
+# `LIWAN_AUTO_HTTPS` is Caddy's `auto_https` mode. The default changes nothing (no certificate is loaded by hand, so
+# Caddy keeps issuing and redirecting for site names that carry TLS). `off` is for an environment whose outer edge
+# terminates TLS: sites are given as `http://host` in `DOMAIN`, and the restore and relay sites, which carry no scheme,
+# must not start certificate issuance or an HTTP redirect either.
+{
+	auto_https {$LIWAN_AUTO_HTTPS:ignore_loaded_certs}
+	servers {
+		trusted_proxies static {$LIWAN_TRUSTED_PROXIES:192.0.2.1/32}
+		trusted_proxies_strict
+		client_ip_headers X-Forwarded-For
+	}
+}
+
 # The edge every guarded host gets: tenant hosts and restore hosts alike, so a restored copy is throttled,
 # stripped and forwarded exactly like a tenant and gains no route of its own (the guard decides the rest).
 (guarded_site) {
@@ -166,18 +192,19 @@
 #
 # Access control: a restored database still holds the credentials the backup held, including a user disabled since
 # the backup or an old password, so this site is not open to the internet. `LIWAN_RESTORE_ALLOW` is the operator's
-# client-address allowlist (`remote_ip` syntax: CIDRs, `private_ranges`, or bare addresses). It has no default on
+# client-address allowlist (`client_ip` syntax: CIDRs, `private_ranges`, or bare addresses). It has no default on
 # purpose: an unset or empty value answers 404 for every restore host, so a deployment cannot expose a restore by
-# forgetting to set it. `trusted_proxies` stays unset, so `remote_ip` reads the socket peer and no client header
-# can claim an allowlisted address.
+# forgetting to set it. It matches `client_ip`, not `remote_ip`: with no trusted proxy that is the socket peer, so a
+# header cannot claim an allowlisted address; behind an outer edge the socket peer is the edge's gateway, which a
+# `remote_ip` match would treat as one client (and as private for `private_ranges`), so the real client is matched.
 # The restore suffix is its own variable on purpose: `DOMAIN` is a site-address list that may carry several tenant
 # hosts (`DOMAIN="a.example.test b.example.test"`), and deriving the wildcard from it would produce a host that
 # matches no published restore (`r<hex>.restore.example.test`). Set `LIWAN_RESTORE_DOMAIN` to the control plane's
 # `domainSuffix`. A default keeps `caddy validate` working when only `DOMAIN` is set.
-*.restore.{$LIWAN_RESTORE_DOMAIN:invalid.invalid} {
+{$LIWAN_SITE_SCHEME:}*.restore.{$LIWAN_RESTORE_DOMAIN:invalid.invalid} {
 	# `handle` blocks are mutually exclusive and evaluated in order, so the allowlist is decided before any
 	# request reaches the guarded snippet (a bare `respond` beside `import` is reordered by Caddy's directive sort).
-	@notOperator not remote_ip {$LIWAN_RESTORE_ALLOW}
+	@notOperator not client_ip {$LIWAN_RESTORE_ALLOW}
 	handle @notOperator {
 		respond 404
 	}
@@ -189,7 +216,7 @@
 # The platform TikTok app's single delivery host (D13/D14): the webhook and the OAuth bounce only.
 # Tenants are reached through the relay. Compose supplies the reserved address for an empty or unset
 # host. The Caddyfile default covers direct validation when the variable is absent.
-{$LIWAN_TIKTOK_RELAY_HOST:invalid.invalid} {
+{$LIWAN_SITE_SCHEME:}{$LIWAN_TIKTOK_RELAY_HOST:invalid.invalid} {
 	@privateToken header X-Liwan-Proxy-Token *
 	@privateRevision header X-Liwan-Tenant-Revision *
 	route {

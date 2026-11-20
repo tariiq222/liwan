@@ -50,9 +50,53 @@ The shared overlay retains its separate guarded Host/database authority and
 existing edge auth budget remains unchanged. This change does not claim to fix
 shared Odoo's worker-local client cooldown attribution.
 
-An additional proxy in front of this direct edge requires a separately reviewed
+An additional proxy in front of the dedicated edge requires a separately reviewed
 trust configuration; otherwise its socket address becomes the common budget key.
-Clients behind the same NAT also legitimately share one IP budget.
+Clients behind the same NAT also legitimately share one IP budget. The shared edge
+has that configuration, below.
+
+## Shared edge behind an outer edge
+
+`deploy/shared/Caddyfile` keys every zone on `{client_ip}`. Caddy computes it from the global `servers` block:
+
+| Setting | Value | Effect |
+| --- | --- | --- |
+| `trusted_proxies static` | `LIWAN_TRUSTED_PROXIES` | The peers whose `X-Forwarded-For` is believed. Default `192.0.2.1/32` (TEST-NET-1, reserved, never a real peer): trusts nothing, so `{client_ip}` is the socket peer and no header changes it. |
+| `trusted_proxies_strict` | on | The header is read right to left and trusted hops are skipped, so the first address that is not a trusted proxy is the client. Without it Caddy takes the leftmost value, which the client chooses. |
+| `client_ip_headers` | `X-Forwarded-For` | The only header consulted. `Forwarded` and `X-Real-IP` are ignored. |
+
+Staging sits behind the Openship edge, which terminates TLS and forwards over HTTP to `127.0.0.1:18080`. That edge
+appends the address it saw to the header (`$proxy_add_x_forwarded_for`), so a client that sends its own value arrives as
+`<claimed>, <real>`. A connection to a port published on loopback reaches the container from the gateway of the
+network it is on, not from `127.0.0.1`; the `edge` network has a pinned subnet (`172.29.50.0/24`, gateway
+`172.29.50.1`) so `LIWAN_TRUSTED_PROXIES=172.29.50.1/32` names exactly the host's edge. Any other peer is not trusted, and
+its header is ignored.
+
+The condition behind this: any process on the host that can open `127.0.0.1:18080` (or the container's address) arrives
+as that gateway and could send a forged `X-Forwarded-For`. On staging only root and the administrative user can; the
+runner users (uids 1001 and 1002) are blocked by the nft table `inet liwan_runner_guard`, which drops loopback and
+`172.16.0.0/12` for them, and no container other than the Openship edge uses the host network. Check both on
+bring-up (runbook row A8.4b) and again whenever a runner, a host-network container or a host service is added. A connection from a container on another network is not on this path.
+
+What follows from it:
+
+- Direct traffic (production today, a local acceptance stack) sets nothing and behaves as before.
+- The restore site matches `client_ip`, not `remote_ip`. Behind the edge the socket peer is the gateway, which a
+  `remote_ip` allowlist would treat as one private client; `client_ip` matches the real one. An empty
+  `LIWAN_RESTORE_ALLOW` still answers 404 for every restore host. Restore is disabled on staging: it leaves the
+  allowlist empty, so the restore site answers 404 to everyone. Its address and the TikTok relay's carry
+  `LIWAN_SITE_SCHEME=http://` there, so they sit on :80 with the tenant sites and the 404 is really served; without the
+  prefix they would sit on :443, which the edge never reaches.
+- Caddy still deletes `X-Forwarded-For`, `X-Forwarded-Host`, `X-Forwarded-Proto` and `Forwarded` on the hop to the guard
+  and passes the client only through `X-Liwan-Client-Ip` and `X-Liwan-Signup-Client` on the routes that need it.
+- If Cloudflare proxying is ever turned on in front of the edge, the edge rewrites the peer from `CF-Connecting-IP` for
+  Cloudflare addresses only; the chain stays safe.
+- Odoo behind the guard still sees the guard's address (`proxy_mode=False`), as before.
+
+`deploy/test_edge_rate_limit.py` runs the real Caddy in a container for these cases: the default trusts nothing; a
+client-sent `X-Forwarded-For` (one or several values, with and without trusted hops) never changes `{client_ip}`
+behind a trusted edge; and the restore route stays closed (404) for a client outside the allowlist, for a claimed
+allowlisted address, for `private_ranges` through the gateway and for an empty list.
 
 ## Failure behavior
 

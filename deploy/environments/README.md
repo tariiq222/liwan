@@ -27,14 +27,24 @@ Two other env files stay separate, because the services read them directly: the 
 
 ## Rules
 
-- Staging has no real customer data. It runs on its own Oracle server in Jeddah, apart from production. Use
+- Staging has no real customer data. It runs on the Contabo x86 host, apart from production. Use
   test-mode payment and SMS keys only.
 - No code or compose file tests which environment it runs in. A difference between environments is a variable.
 - The compose set carries hard memory ceilings (about 9 GB for
   Odoo and 10 GB for PostgreSQL, plus the small services and the control plane, 24 GB in total), sized for the
-  production Arm server. They are ceilings, not reservations. Check free memory on the host before the first start.
-- Both environments bind every address on ports 80 and 443; no proxy sits in front of the stack's own Caddy. The three
-  `LIWAN_EDGE_*` variables stay required so a local acceptance stack can publish the same compose set on other ports.
+  production Arm server. They are ceilings, not reservations. The Contabo host is shared with Forgejo, Openship, Sentry
+  and the runners, so the staging stack is held to about 8 GB there (plan D22); check free memory on the host before
+  the first start and size the staging Odoo and PostgreSQL limits to that.
+- Production binds every address on ports 80 and 443 and its own Caddy terminates TLS. Staging sits behind the
+  Openship edge: that edge owns 80 and 443, terminates TLS with a DNS-01 wildcard and forwards over HTTP to
+  `127.0.0.1:18080`, where the stack's Caddy publishes on loopback only. Caddy believes the edge's `X-Forwarded-For`
+  and nothing else (`LIWAN_TRUSTED_PROXIES`, the gateway of the pinned `edge` network), so every rate-limit zone still
+  keys on the real client and a header the client sends cannot change it
+  ([edge-rate-limit.md](../security/edge-rate-limit.md#shared-edge-behind-an-outer-edge)). The three `LIWAN_EDGE_*`
+  variables stay required so a local acceptance stack can publish the same compose set on other ports.
+- Whether production also moves behind an edge is decided with its bring-up. Until then its template trusts no proxy
+  (an empty `LIWAN_TRUSTED_PROXIES` renders the reserved TEST-NET-1 address, which no peer has).
+- Bring-up of both servers: [environment-bringup.md](../../docs/operations/environment-bringup.md).
 
 ## Variables
 
@@ -45,10 +55,13 @@ environments), **release** (written by the release path), **fixed** (the same in
 | --- | --- | --- | --- | --- | --- |
 | `LIWAN_IMAGE_TAG` | Tag of the images the stack runs | the staging release tag | the release tag | release | no |
 | `ODOO_COMMIT` | Pinned Odoo revision, from `deploy/odoo/ODOO_COMMIT` | same | same | release | no |
-| `LIWAN_EDGE_BIND` | Address the edge publishes on, required | `0.0.0.0` | `0.0.0.0` | fixed | no |
-| `LIWAN_EDGE_HTTP_PORT` | Published HTTP port, required | `80` | `80` | fixed | no |
-| `LIWAN_EDGE_HTTPS_PORT` | Published HTTPS port, required | `443` | `443` | fixed | no |
-| `DOMAIN` | Site-address list of the tenant edge: base domain and wildcard | `staging.<base>, *.staging.<base>` | `<base>, *.<base>` | owner | yes |
+| `LIWAN_EDGE_BIND` | Address the stack's Caddy publishes on, required | `127.0.0.1` | `0.0.0.0` | fixed | yes |
+| `LIWAN_EDGE_HTTP_PORT` | Published HTTP port, required | `18080` | `80` | fixed | yes |
+| `LIWAN_EDGE_HTTPS_PORT` | Published HTTPS port, required | `18443` (loopback; nothing listens behind it) | `443` | fixed | yes |
+| `LIWAN_TRUSTED_PROXIES` | Outer edge Caddy trusts for `X-Forwarded-For`, as the `edge` network gateway; empty trusts nothing | `172.29.50.1/32` | empty | fixed | yes |
+| `LIWAN_SITE_SCHEME` | Scheme prefix of the restore and relay site addresses (`DOMAIN` carries its own); `http://` puts them on :80 with the tenant sites | `http://` | empty (TLS, :443) | fixed | yes |
+| `LIWAN_AUTO_HTTPS` | Caddy `auto_https` mode; `off` when an outer edge terminates TLS | `off` | `ignore_loaded_certs` (no change) | fixed | yes |
+| `DOMAIN` | Site-address list of the tenant edge: base domain and wildcard (`http://` when an outer edge terminates TLS) | `http://staging.<base>, http://*.staging.<base>` | `<base>, *.<base>` | owner | yes |
 | `LIWAN_PROSPECT_HOST` | Public sign-up and marketing host | `app.staging.<base>` | `app.<base>` | owner | yes |
 | `NUXT_CUSTOMER_COMMERCIAL_PUBLIC_ORIGIN` | Public origin of that host | `https://app.staging.<base>` | `https://app.<base>` | owner | yes |
 | `LIWAN_RESTORE_DOMAIN` | Suffix of restore hosts, equal to the control plane's `domainSuffix` | `restore.staging.<base>` | `restore.<base>` | owner | yes |
