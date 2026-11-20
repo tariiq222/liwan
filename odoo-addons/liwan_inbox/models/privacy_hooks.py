@@ -2,6 +2,7 @@
 from odoo import Command, api, fields, models
 from odoo.exceptions import AccessError
 
+from .abstract_interactive import COMMERCE_TYPES
 from .access_service import ASSIGN, CAMPAIGNS, READ, REPLY
 from odoo.addons.liwan_customers.models.privacy_hooks import (
     ACTION_ERASE,
@@ -24,8 +25,11 @@ RECIPIENT_KEY = 'inbox_campaign_recipients'
 # identity, recipients and segment tags are written) and assign, which lifts the visibility policy of the company, so
 # that no conversation of the person is hidden from the caller by a policy the ORM does not enforce.
 REACH_CAPABILITIES = (READ, REPLY, ASSIGN, CAMPAIGNS)
-# What a message keeps of the conversation after an erase is its direction, kind, date, delivery state and provider id
-# (the id stops a redelivery from recreating it); everything a person wrote or was sent, or that identifies them, goes.
+# What a message keeps of the conversation after an erase is its direction, date, delivery state and provider id (the
+# id stops a redelivery from recreating it); everything a person wrote or was sent, or that identifies them, goes. A
+# message of one of these kinds is made of the content the erase removes (its buttons and rows, its products, its map
+# pin), so it becomes a plain erased text; the media, template, order and form-answer kinds keep theirs.
+STRUCTURED_KINDS = ('interactive', 'location', 'contacts', *COMMERCE_TYPES)
 MESSAGE_TEXT_FIELDS = (
     'template_header_param', 'template_header_text', 'template_footer', 'interactive_header', 'interactive_footer',
     'interactive_button', 'cta_display_text', 'cta_url', 'selected_option_title', 'location_name', 'location_address',
@@ -35,6 +39,10 @@ MESSAGE_CLEARED_VALUES = {
     **{name: False for name in MESSAGE_TEXT_FIELDS}, 'template_params': False, 'latitude': 0.0, 'longitude': 0.0,
     'customer_reaction': False, 'agent_reaction': False, 'agent_reaction_pending': False, 'read_receipt': False,
     'next_attempt_at': False,
+    # The interactive block and the choice made in it: their text and options go, so the block goes with them.
+    'interactive_type': False, 'flow_id': False, 'flow_cta': False, 'selected_option_id': False,
+    # No header is left to fill: its text, file and map pin are cleared or deleted.
+    'template_header': 'none',
 }
 
 
@@ -204,6 +212,7 @@ class LiwanInboxPrivacyHooks(models.AbstractModel):
 
     @api.model
     def _liwan_inbox_erase_answers(self, answers):
+        """Clear every answer value; the answer rows stay (the date has no value left and the contract shows it as null)."""
         answers.choice_ids.unlink()
         answers.write({'value_text': False, 'value_date': False, 'value_boolean': False})
 
@@ -217,6 +226,7 @@ class LiwanInboxPrivacyHooks(models.AbstractModel):
         queued = messages.filtered(lambda message: message.delivery_state == 'queued')
         queued.write({'delivery_state': 'failed'})
         messages.write({'body': ERASED_MESSAGE, **MESSAGE_CLEARED_VALUES})
+        messages.filtered(lambda message: message.kind in STRUCTURED_KINDS).write({'kind': 'text'})
         messages.template_button_ids.unlink()
         messages.option_ids.unlink()
 

@@ -7,6 +7,7 @@ import {
   InboxConversationListSchema,
   InboxConversationPatchSchema,
   InboxInteractiveSchema,
+  InboxMessageListSchema,
   InboxPresetPreviewSchema,
   InboxReplyCreateSchema,
   InboxAgentAvailabilityPatchSchema,
@@ -341,5 +342,37 @@ describe('InboxPresetPreviewSchema', () => {
     expect(InboxPresetPreviewSchema.safeParse({ ...PREVIEW, key: 'bank' }).success).toBe(false)
     expect(InboxPresetPreviewSchema.safeParse({ ...PREVIEW, welcome: { ...PREVIEW.welcome, buttons: ['a', 'b', 'c', 'd'] } }).success).toBe(false)
     expect(InboxPresetPreviewSchema.safeParse({ ...PREVIEW, extra: 1 }).success).toBe(false)
+  })
+})
+
+describe('an erased thread', () => {
+  const erased = (id: number, extra: Record<string, unknown> = {}) => ({
+    id, direction: 'out', kind: 'text', body: '[erased]', author: null, template: null, delivery_state: 'sent', error: null,
+    error_code: null, media_failed: false, unconfirmed: false, attachments: [], reply_to: null,
+    reactions: { customer: null, agent: null }, location: null, interactive: null, selected_option: null, flow_response: null,
+    automated: false, commerce: null, campaign: null, created_at: '2026-11-20T09:00:00Z', ...extra,
+  })
+
+  it('parses interactive, commerce, location and template messages as plain erased text', () => {
+    const thread = [
+      erased(1), erased(2), erased(3), erased(4), erased(5, { direction: 'in' }),
+      erased(6, { kind: 'template', template: { name: 'otp', header_text: null, footer: null, buttons: [] } }),
+      erased(7, {
+        kind: 'flow_response', direction: 'in',
+        flow_response: {
+          id: 1, flow: null, conversation_id: 2, contact: { id: 3, name: 'Erased contact 3', erased: true }, request_message_id: null,
+          message_id: 7, submitted_at: '2026-11-20T09:00:00Z',
+          answers: [{ key: 'day', label: 'Day', kind: 'date', value: null }, { key: 'name', label: 'Name', kind: 'text_input', value: '' }],
+        },
+      }),
+    ]
+    expect(InboxMessageListSchema.safeParse({ items: thread, total: thread.length }).success).toBe(true)
+  })
+
+  it('still rejects an interactive block with nothing left in it', () => {
+    expect(InboxMessageListSchema.safeParse({
+      items: [erased(1, { kind: 'interactive', interactive: { type: 'buttons', body: '[erased]', header: null, footer: null, buttons: [] } })],
+      total: 1,
+    }).success).toBe(false)
   })
 })
