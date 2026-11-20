@@ -16,7 +16,9 @@
         'security/integrations_rules.xml',
         'security/ir.model.access.csv',
         'data/integrations_access_permissions.xml',
+        'data/integrations_cron.xml',
     ],
+    'external_dependencies': {'python': ['phonenumbers']},
     'installable': True,
     'application': False,
 }

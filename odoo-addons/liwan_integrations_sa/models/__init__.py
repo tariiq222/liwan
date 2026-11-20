@@ -6,6 +6,8 @@ from . import (
     connection_callback,
     connection_oauth,
     feature_registry,
+    message,
+    messaging,
     registry,
     secret,
     sender,

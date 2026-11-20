@@ -60,7 +60,7 @@ class LiwanIntegrationRegistry(models.AbstractModel):
                 'secrets': ('auth_token',), 'generated_secrets': (), 'attributes': (), 'webhook_secrets': ('auth_token',),
                 'settings_path': None, 'exclusive': False,
                 'external_id_pattern': r'AC[0-9a-f]{32}',
-                'capabilities': ('senders.list',),
+                'capabilities': ('senders.list', 'messaging.send', 'messaging.status'),
             },
         )
 
@@ -186,9 +186,13 @@ class LiwanIntegrationRegistry(models.AbstractModel):
     def _liwan_connection_uses(self, connection):
         """The use keys that hold ``connection`` now; an application extends this from its own records.
 
-        The service's own records hold it too: an active sender holds the use of its channel.
+        The service's own records hold it too: an active sender holds the use of its channel, and a message that may
+        still reach the provider (queued or unconfirmed) holds the messaging use.
         """
         channels = self.env['liwan.integration.sender'].search(
             [('connection_id', '=', connection.id), ('active', '=', True)],
         ).mapped('channel')
-        return tuple(dict.fromkeys(f'{connection.provider}.{SENDER_USES[channel]}' for channel in channels))
+        uses = [f'{connection.provider}.{SENDER_USES[channel]}' for channel in channels]
+        if self.env['liwan.integration.messaging']._liwan_has_pending(connection):
+            uses.append(f'{connection.provider}.messaging')
+        return tuple(dict.fromkeys(uses))

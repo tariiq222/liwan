@@ -3,6 +3,7 @@ import base64
 import hashlib
 import hmac
 from unittest.mock import MagicMock, patch
+from urllib.parse import urlsplit
 
 import requests
 from urllib3.exceptions import NewConnectionError
@@ -93,7 +94,7 @@ class TestTwilioProvider(TwilioCase):
             (provider['auth'], provider['secrets'], provider['webhook_secrets'], provider['generated_secrets'], provider['exclusive']),
             ('keys', ('auth_token',), ('auth_token',), (), False),
         )
-        self.assertNotIn('messaging.send', provider['capabilities'])
+        self.assertEqual(provider['capabilities'], ('senders.list', 'messaging.send', 'messaging.status'))
         use = self.env['liwan.integration.registry']._liwan_use_map()['twilio.messaging']
         self.assertEqual((use['provider'], use['feature_key'], use['webhook_path']), ('twilio', 'integrations.enabled', None))
 
@@ -348,34 +349,36 @@ class TestTwilioCallback(TwilioCase):
         Connection = type(self.env['liwan.integration.connection'])
         self.patch(Connection, '_liwan_callback_record', lambda connection, kind, params: self.row if params.get('MessageSid') in ('SM1', ['SM1']) else None)
 
-    def post(self, path, params, signature_value, content_type='application/x-www-form-urlencoded'):
-        return self.url_open(path, data=params, headers={'X-Twilio-Signature': signature_value, 'Content-Type': content_type}, method='POST')
+    def post(self, params, signature_value, content_type='application/x-www-form-urlencoded'):
+        # The path only: `url_open` would request a full URL on the real network, and the signature covers the
+        # full URL the row stores, not the path the test opens.
+        return self.url_open(urlsplit(self.url).path, data=params, headers={'X-Twilio-Signature': signature_value, 'Content-Type': content_type}, method='POST')
 
     def test_a_signed_callback_applies_as_the_public_user(self):
-        response = self.post(self.url, self.params, sign(self.url, self.params))
+        response = self.post(self.params, sign(self.url, self.params))
         self.assertEqual(response.status_code, 204, response.text)
         self.assertEqual(self.row.applied, [('message-status', {key: [value] for key, value in self.params.items()})])
 
     def test_a_wrong_signature_is_403_and_applies_nothing(self):
-        response = self.post(self.url, self.params, sign(self.url, self.params, token='another-token-0123456789'))
+        response = self.post(self.params, sign(self.url, self.params, token='another-token-0123456789'))
         self.assertEqual(response.status_code, 403)
         self.assertEqual(self.row.applied, [])
 
     def test_unknown_connection_kind_or_provider_is_404(self):
-        for path in (
+        for url in (
             CALLBACK_URL.format(id=self.connection.id + 1000), self.url.replace('message-status', 'fax-status'),
             self.url.replace('/twilio/', '/meta/'),
         ):
-            with self.subTest(path=path):
-                self.assertEqual(self.post(path, self.params, sign(self.url, self.params)).status_code, 404)
+            with self.subTest(path=url):
+                self.assertEqual(self.post(self.params, sign(self.url, self.params)).status_code, 404)
         self.connection.state = 'disabled'
-        self.assertEqual(self.post(self.url, self.params, sign(self.url, self.params)).status_code, 404)
+        self.assertEqual(self.post(self.params, sign(self.url, self.params)).status_code, 404)
         self.assertEqual(self.row.applied, [])
 
     def test_an_unknown_record_is_204_and_a_json_body_is_400(self):
         other = {**self.params, 'MessageSid': 'SM2'}
-        self.assertEqual(self.post(self.url, other, 'anything').status_code, 204)
-        self.assertEqual(self.post(self.url, '{}', 'anything', content_type='application/json').status_code, 400)
+        self.assertEqual(self.post(other, 'anything').status_code, 204)
+        self.assertEqual(self.post('{}', 'anything', content_type='application/json').status_code, 400)
         self.assertEqual(self.row.applied, [])
 
     def test_the_model_method_answers_result_codes_for_a_user_without_any_acl(self):
