@@ -40,6 +40,15 @@ const ERROR_KEYS: Readonly<Record<string, string>> = {
   invalid: 'integrations.errors.invalid',
   integration_not_configured: 'integrations.errors.notConfigured',
   integration_rejected: 'integrations.errors.rejected',
+  provider_error: 'integrations.errors.providerError',
+  // The refusals of the messaging service (IntegrationMessagingErrorCodeSchema).
+  invalid_phone: 'integrations.errors.invalidPhone',
+  no_default_sender: 'integrations.errors.noDefaultSender',
+  sender_unavailable: 'integrations.errors.senderUnavailable',
+  connection_disabled: 'integrations.errors.connectionDisabled',
+  daily_limit_reached: 'integrations.errors.dailyLimitReached',
+  body_too_long: 'integrations.errors.bodyTooLong',
+  sending_paused: 'integrations.errors.sendingPaused',
 }
 
 /** The locale key worded for a refusal code, or null when the code has none (the caller then shows the API's own text). */

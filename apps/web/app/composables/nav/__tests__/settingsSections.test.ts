@@ -19,7 +19,7 @@ describe('settings pages', () => {
     expect(page('system').to).toBe('/settings/system')
     expect(page('system').parts.map(part => part.id)).toEqual(['maintenance', 'storage', 'export'])
     expect(page('integrations').to).toBe('/settings/integrations')
-    expect(page('integrations').parts.map(part => [part.id, part.capability])).toEqual([['connections', 'integrations.read'], ['providers', 'integrations.manage']])
+    expect(page('integrations').parts.map(part => [part.id, part.capability])).toEqual([['connections', 'integrations.read'], ['providers', 'integrations.manage'], ['communications', 'integrations.read']])
     expect(page('company').parts.every(part => part.to === undefined)).toBe(true)
     expect(page('team').to).toBe('/settings/team')
     expect(page('team').parts.map(part => part.within)).toEqual(['/settings/team/users', '/settings/team/roles', '/settings/team/branches', undefined, '/settings/team/access-log'])

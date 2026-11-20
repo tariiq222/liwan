@@ -17,5 +17,6 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const Empty: Story = { name: 'فارغ', parameters: serve(201, metaConnection) }
+export const TwilioEmpty: Story = { name: 'Twilio فارغ', args: { provider: providers.items[3]! }, parameters: serve(201, metaConnection) }
 export const KeysRefused: Story = { name: 'رفض المزوّد المفاتيح', parameters: serve(422, { code: 'integration_rejected', message: 'رفض المزوّد المفاتيح.' }) }
 export const FieldRefused: Story = { name: 'حقل غير صحيح', parameters: serve(422, { code: 'invalid', message: 'معرّف الحساب غير صحيح.', field: 'external_id' }) }
