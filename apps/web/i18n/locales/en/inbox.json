@@ -2298,6 +2298,15 @@
         "notFinished": "Not finished"
       }
     },
+    "tickets": {
+      "title": "Tickets",
+      "none": "No ticket was raised from this conversation.",
+      "raise": "Raise a ticket",
+      "subject": "Ticket subject",
+      "confirm": "Raise the ticket",
+      "created": "Ticket raised",
+      "openExists": "This conversation already has an open ticket"
+    },
     "opportunity": {
       "createManualOnly": "With manual distribution, only people who can assign create opportunities.",
       "create": "Create opportunity from conversation",

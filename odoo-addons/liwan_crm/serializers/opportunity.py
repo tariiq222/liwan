@@ -34,6 +34,14 @@ def dump_customer_ref(lead, visible_customers=None):
     return lead.env['liwan.customers.service']._liwan_link_ref(customer)
 
 
+def dump_opportunity_ref(lead):
+    """The row of an opportunity another application shows: who it is about, where it stands, whether it is archived."""
+    return {
+        'id': lead.id, 'contact_name': lead.contact_name or '', 'stage': ref(lead.stage_id, label='display_name'),
+        'status': lead.won_status, 'active': lead.active,
+    }
+
+
 def dump_opportunity(lead, visible_customers=None, win=None):
     """``win`` is ``lead._liwan_win_shape()``; a list reads it once for every row."""
     return {

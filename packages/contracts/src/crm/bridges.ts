@@ -26,8 +26,8 @@ export const CrmOpportunityTaskCreateSchema = z.strictObject({
 /** `POST /crm/opportunities/<id>/meetings`: a meeting body without the series, the project and the minutes form. */
 export const CrmOpportunityMeetingCreateSchema = MeetingCreateSchema.omit({ series_id: true, project_id: true, minutes_form: true })
 
-/** The opportunity a conversation is linked to, as the inbox shows it (`status` is the opportunity's won status). */
-export const ConversationOpportunitySchema = z.strictObject({
+/** The opportunity another application shows a record against, as the inbox and the desk show it (`status` is the opportunity's won status). */
+export const CrmOpportunityRefSchema = z.strictObject({
   id: z.number().int().positive(),
   contact_name: z.string(),
   stage: z.strictObject({ id: z.number().int(), name: z.string() }).nullable(),
@@ -37,7 +37,13 @@ export const ConversationOpportunitySchema = z.strictObject({
 })
 
 /** `GET /inbox/conversations/<id>/opportunity`: the ref, or a bare `null` when none is linked or the caller cannot read it. */
-export const ConversationOpportunityAnswerSchema = ConversationOpportunitySchema.nullable()
+export const ConversationOpportunityAnswerSchema = CrmOpportunityRefSchema.nullable()
+
+/** `GET /helpdesk/tickets/<id>/opportunity`: the ref or null, and `hidden` when a link exists that the caller cannot read. */
+export const TicketOpportunityAnswerSchema = z.strictObject({ opportunity: CrmOpportunityRefSchema.nullable(), hidden: z.boolean() })
+
+/** `PUT /helpdesk/tickets/<id>/opportunity`: links an existing opportunity; nothing is created. */
+export const TicketOpportunityLinkSchema = z.strictObject({ opportunity_id: z.number().int().positive() })
 
 /** `PUT /inbox/conversations/<id>/opportunity`: links an existing opportunity; nothing is created. */
 export const ConversationOpportunityLinkSchema = z.strictObject({ opportunity_id: z.number().int().positive() })
@@ -67,7 +73,8 @@ export const InboxChannelCrmSettingsPatchSchema = z.strictObject({ opportunity_m
 
 export type CrmOpportunityTaskCreate = z.infer<typeof CrmOpportunityTaskCreateSchema>
 export type CrmOpportunityMeetingCreate = z.infer<typeof CrmOpportunityMeetingCreateSchema>
-export type ConversationOpportunity = z.infer<typeof ConversationOpportunitySchema>
+export type CrmOpportunityRef = z.infer<typeof CrmOpportunityRefSchema>
+export type TicketOpportunityAnswer = z.infer<typeof TicketOpportunityAnswerSchema>
 export type ConversationOpportunityMode = z.infer<typeof ConversationOpportunityModeSchema>
 export type InboxChannelCrmSettings = z.infer<typeof InboxChannelCrmSettingsSchema>
 export type ConversationOpportunityConflictDetails = z.infer<typeof ConversationOpportunityConflictDetailsSchema>

@@ -1,0 +1,19 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* liwan_helpdesk_inbox
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 19.0\n"
+"Report-Msgid-Bugs-To: \n"
+"Last-Translator: LiwanOS\n"
+"Language-Team: Arabic\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. module: liwan_helpdesk_inbox
+#. odoo-python
+#: code:addons/liwan_helpdesk_inbox/models/helpdesk_ticket_conversation.py:0
+msgid "This conversation has another open ticket."
+msgstr "لهذه المحادثة تذكرة مفتوحة أخرى"

@@ -4,6 +4,8 @@ import {
   ConversationOpportunityConflictErrorSchema,
   ConversationOpportunityLinkSchema,
   ConversationOpportunityModeSchema,
+  TicketOpportunityAnswerSchema,
+  TicketOpportunityLinkSchema,
   InboxChannelCrmSettingsPatchSchema,
   InboxChannelCrmSettingsSchema,
   CrmOpportunityCreateSchema,
@@ -195,5 +197,23 @@ describe('CrmAccessSchema', () => {
     expect(CrmAccessSchema.safeParse({ can_create: 'yes' }).success).toBe(false)
     expect(CrmAccessSchema.safeParse({ can_create: false, extra: 1 }).success).toBe(false)
     expect(CrmAccessSchema.safeParse({}).success).toBe(false)
+  })
+})
+
+describe('the ticket opportunity bridge', () => {
+  const ref = { id: 7, contact_name: 'Customer', stage: null, status: 'won', active: false }
+
+  it('answers the ref, none, or a hidden link', () => {
+    expect(TicketOpportunityAnswerSchema.parse({ opportunity: ref, hidden: false }).opportunity?.id).toBe(7)
+    expect(TicketOpportunityAnswerSchema.parse({ opportunity: null, hidden: false }).opportunity).toBeNull()
+    expect(TicketOpportunityAnswerSchema.parse({ opportunity: null, hidden: true }).hidden).toBe(true)
+    expect(() => TicketOpportunityAnswerSchema.parse({ opportunity: null })).toThrow()
+    expect(() => TicketOpportunityAnswerSchema.parse({ opportunity: null, hidden: false, extra: 1 })).toThrow()
+  })
+
+  it('links by id only', () => {
+    expect(TicketOpportunityLinkSchema.parse({ opportunity_id: 7 }).opportunity_id).toBe(7)
+    expect(() => TicketOpportunityLinkSchema.parse({ opportunity_id: 0 })).toThrow()
+    expect(() => TicketOpportunityLinkSchema.parse({ opportunity_id: 7, create_new: true })).toThrow()
   })
 })
