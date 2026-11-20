@@ -1,0 +1,100 @@
+name: Setup
+description: Toolchain for a Forgejo CI stage inside the runner's node:22-bookworm job container (root, no sudo). Mirrors .github/actions/setup; Postgres runs inside the job on loopback so deploy/ci scripts run unchanged.
+inputs:
+  node:
+    description: Install the Node.js version of .nvmrc.
+    default: 'true'
+  npm-ci:
+    description: Run npm ci --ignore-scripts (needs node).
+    default: 'true'
+  python:
+    description: Install Python 3.12.
+    default: 'false'
+  postgres:
+    description: 'Start Postgres 16 on 127.0.0.1:5432 (role odoo/odoo). The value pgvector also installs the vector extension.'
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - name: Job shell defaults
+      shell: bash
+      # Runner containers start with umask 0000, so files the tests create would be group and world writable, which the
+      # operator CLI and its tests refuse. BASH_ENV makes every later step's bash use 022; the checkout is fixed once.
+      run: |
+        set -euo pipefail
+        echo 'umask 022' > /etc/ci-umask
+        echo "BASH_ENV=/etc/ci-umask" >> "$GITHUB_ENV"
+        chmod -R go-w "$GITHUB_WORKSPACE"
+        command -v jq >/dev/null || { apt-get -o Acquire::Retries=3 update -q && apt-get install -y -q --no-install-recommends jq; }
+    - name: Node.js
+      if: inputs.node == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        version="$(tr -d 'v\n' < .nvmrc)"
+        name="node-v${version}-linux-x64"
+        cd "$(mktemp -d)"
+        curl -fsSL -O "https://nodejs.org/dist/v${version}/${name}.tar.xz"
+        curl -fsSL "https://nodejs.org/dist/v${version}/SHASUMS256.txt" | grep " ${name}.tar.xz\$" | sha256sum -c -
+        # The image's own Node 22 and npm are removed first; unpacking over them mixes two npm trees.
+        rm -rf /usr/local/lib/node_modules /usr/local/include/node /usr/local/bin/node /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
+        tar -xJf "${name}.tar.xz" -C /usr/local --strip-components=1
+        node --version
+        # Some tests spawn npx with a minimal environment and assert an empty stderr; only the user npmrc reaches them.
+        npm config set update-notifier false
+    - name: Install npm dependencies
+      if: inputs.node == 'true' && inputs.npm-ci == 'true'
+      shell: bash
+      run: npm ci --ignore-scripts
+    - name: Python 3.12
+      if: inputs.python == 'true'
+      shell: bash
+      # uv 0.8.4 (pinned by checksum) installs a standalone CPython 3.12 whose bin directory goes first on PATH.
+      run: |
+        set -euo pipefail
+        cd "$(mktemp -d)"
+        curl -fsSL -o uv.tgz https://github.com/astral-sh/uv/releases/download/0.8.4/uv-x86_64-unknown-linux-gnu.tar.gz
+        echo "eb61d39fdc6ea21a6d00a24b50376102168240849c5022d3eba331f972ba3934  uv.tgz" | sha256sum -c -
+        tar -xzf uv.tgz --strip-components=1 -C /usr/local/bin
+        uv python install 3.12
+        bindir="$(dirname "$(uv python find 3.12)")"
+        # Not symlinked into /usr/local/bin: a venv made from a symlink loses the interpreter's standard library.
+        export PATH="$bindir:$PATH"
+        # Tools installed with `pip install` land next to the standalone interpreter.
+        echo "$bindir" >> "$GITHUB_PATH"
+        # uv marks its interpreters externally managed; the stage scripts run plain `pip install` as on GitHub.
+        rm -f "$(python -c 'import sysconfig; print(sysconfig.get_path("stdlib"))')/EXTERNALLY-MANAGED"
+        python --version
+        python -m pip --version
+    - name: Postgres packages
+      if: inputs.postgres != 'false'
+      shell: bash
+      env:
+        WITH_PGVECTOR: ${{ inputs.postgres == 'pgvector' }}
+      run: |
+        set -euo pipefail
+        export DEBIAN_FRONTEND=noninteractive
+        install -d /usr/share/keyrings
+        curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/pgdg.gpg
+        echo "deb [signed-by=/usr/share/keyrings/pgdg.gpg] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg.list
+        packages=(postgresql-16 postgresql-client-16)
+        if [ "$WITH_PGVECTOR" = true ]; then packages+=(postgresql-16-pgvector); fi
+        for attempt in 1 2 3; do
+          if apt-get -o Acquire::Retries=3 update -q && apt-get install -y -q --no-install-recommends "${packages[@]}"; then break; fi
+          [ "$attempt" -lt 3 ] || exit 1
+          dpkg --configure -a || true
+        done
+    - name: Postgres 5432
+      if: inputs.postgres != 'false'
+      shell: bash
+      run: |
+        set -euo pipefail
+        # Throwaway database server of the job: fsync off, local connections with the odoo/odoo role.
+        pg_lsclusters | grep -q '^16 *main' || pg_createcluster 16 main
+        echo "fsync = off" >> /etc/postgresql/16/main/conf.d/ci.conf
+        echo "full_page_writes = off" >> /etc/postgresql/16/main/conf.d/ci.conf
+        echo "max_connections = 200" >> /etc/postgresql/16/main/conf.d/ci.conf
+        printf 'host all all 127.0.0.1/32 scram-sha-256\nlocal all postgres peer\nlocal all all scram-sha-256\n' > /etc/postgresql/16/main/pg_hba.conf
+        pg_ctlcluster 16 main start
+        su - postgres -c "psql -v ON_ERROR_STOP=1 -c \"CREATE ROLE odoo SUPERUSER LOGIN PASSWORD 'odoo'\""
+        PGPASSWORD=odoo psql -h 127.0.0.1 -U odoo -d postgres -c 'select version()' | head -3
