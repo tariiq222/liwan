@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+export * from './bridges'
 export * from './settings'
 
 const ReferenceSchema = z.object({ id: z.number().int().positive(), name: z.string() }).strict()
