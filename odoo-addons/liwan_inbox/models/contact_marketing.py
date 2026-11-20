@@ -55,6 +55,17 @@ class LiwanInboxContactMarketing(models.Model):
             'provider_at': provider_at or False,
         })
 
+    def _liwan_record_import_consent(self, note):
+        """An opt-in event with source ``import`` on each contact that has no decision yet, in one create.
+
+        A contact already opted in gets no second event and an opted-out one is never overridden, as in
+        ``_liwan_record_consent``.
+        """
+        return self.env['liwan.inbox.contact.consent'].create([
+            {'contact_id': contact.id, 'state': 'opted_in', 'source': 'import', 'note': note or False}
+            for contact in self if contact.marketing_consent == 'unknown'
+        ])
+
     def _liwan_history(self):
         """The newest consent events, newest first."""
         self.ensure_one()

@@ -138,6 +138,17 @@ class ContactImport:
             return self.refuse(line, f'unknown tag: {unknown[0]}')
         return digits, row.get('name') or f'+{digits}', self.tags | self.env['liwan.inbox.tag'].concat(*(self.tag_by_name[n] for n in names))
 
+    def tag_known(self, parsed, known):
+        """Add the row tags to the contacts that already have the number, one write per distinct tag set."""
+        by_tags = {}
+        for digits, _name, tags in parsed:
+            if digits in known:
+                by_tags.setdefault(tags, self.env['liwan.inbox.contact'])
+                by_tags[tags] |= known[digits]
+        now = fields.Datetime.now()
+        for tags, contacts in by_tags.items():
+            contacts.write({'tag_ids': [(4, tag.id) for tag in tags], 'last_activity_at': now})
+
     def run(self, rows):
         parsed, seen = [], set()
         for line, row in rows:
@@ -158,14 +169,10 @@ class ContactImport:
         Identity.create([
             {'contact_id': contact.id, 'company_id': self.company.id, 'channel_kind': 'whatsapp', 'address': item[0]} for contact, item in zip(contacts, fresh, strict=True)
         ])
-        for digits, _name, tags in parsed:
-            if digits in known:
-                known[digits].write({'tag_ids': [(4, tag.id) for tag in tags], 'last_activity_at': fields.Datetime.now()})
+        self.tag_known(parsed, known)
         self.created, self.updated = len(contacts), len(parsed) - len(fresh)
         if self.consent == 'opted_in':
-            for contact in contacts | self.env['liwan.inbox.contact'].concat(*known.values()):
-                if contact.marketing_consent != 'opted_in':
-                    contact._liwan_record_consent('opted_in', 'import', note=self.note)
+            (contacts | self.env['liwan.inbox.contact'].concat(*known.values()))._liwan_record_import_consent(self.note)
         return {'created': self.created, 'updated': self.updated, 'skipped': self.skipped, 'errors': self.errors}
 
 
