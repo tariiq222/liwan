@@ -336,10 +336,9 @@ class TestAiUsageService(AiProbe, LiwanApiCase):
         for path in ('/xmlrpc/2/object', '/xmlrpc/2/common'):
             with self.subTest(path=path):
                 self.assertEqual(self._post_raw(path, self.key).status_code, 404)
-        # Odoo answers a closed JSON-RPC route with HTTP 200 and an error body carrying the 404.
         closed = self._post_raw('/jsonrpc', self.key)
-        self.assertEqual((closed.status_code, closed.json()['error']['code']), (200, 404))
-        self.assertNotIn('result', closed.json())
+        self.assertEqual(closed.status_code, 404)
+        self.assertNotIn('debug', closed.text)
         self.assertFalse(self.Usage.search([]))
 
     def test_bearer_authentication_is_refused_on_any_route_the_platform_does_not_list(self):

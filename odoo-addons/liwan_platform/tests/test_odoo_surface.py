@@ -42,15 +42,62 @@ class TestSessionOdooSurface(HttpCase):
             path, json={'jsonrpc': '2.0', 'method': 'call', 'params': params}, headers=JSON_HEADERS,
         )
 
-    def _assert_rpc_closed(self, response):
-        # Odoo answers a jsonrpc route error with HTTP 200 and an error body.
-        body = response.json()
-        self.assertNotIn('result', body)
-        self.assertEqual(body['error']['code'], 404)
+    def _assert_closed(self, response):
+        # A closed route is a real 404 with no exception data, whatever dispatcher its route uses.
+        self.assertEqual(response.status_code, 404, response.text[:300])
+        for leak in ('debug', 'Traceback', '"data"', '"result"'):
+            self.assertNotIn(leak, response.text)
+
+    def _sign_in(self, caller):
+        """Prepare the session of ``caller`` and return the extra request headers."""
+        if caller == 'employee':
+            self.authenticate('surface_emp', 'surface_emp_pass_123')
+        elif caller == 'admin':
+            self.authenticate('surface_admin', 'surface_admin_pass_123')
+        else:
+            self.opener.cookies.clear()
+        return {'Authorization': f'bearer {self.api_key}'} if caller == 'api_key' else {}
+
+    def test_closed_routes_answer_a_bare_404_for_every_caller(self):
+        # The anonymous JSON-RPC POST is also the webhook-style caller (no cookie, a JSON-RPC body).
+        closed = (
+            '/web/dataset/call_kw/res.users/search_read', '/web/dataset/call_button',
+            '/json/2/res.users/search_read', '/jsonrpc', '/xmlrpc/2/common', '/xmlrpc/2/object',
+            '/ar/web/dataset/call_kw/res.users/search_read', '/doc', '/odoo', '/report/pdf/base.report_irmodulereference/1', '/no-route-matches-this',
+        )
+        body = {'jsonrpc': '2.0', 'method': 'call', 'params': {'model': 'res.users', 'method': 'search_read'}}
+        for caller in ('anonymous', 'employee', 'admin', 'api_key'):
+            headers = self._sign_in(caller)
+            for path in closed:
+                with self.subTest(caller=caller, path=path, how='json-post'):
+                    self._assert_closed(self.url_open(path, json=body, headers={**JSON_HEADERS, **headers}))
+                with self.subTest(caller=caller, path=path, how='get'):
+                    self._assert_closed(self.url_open(path, headers=headers))
+                with self.subTest(caller=caller, path=path, how='xml-post'):
+                    self._assert_closed(self.url_open(
+                        path, data=b'<?xml version="1.0"?><methodCall/>',
+                        headers={'Content-Type': 'text/xml', **headers},
+                    ))
+
+    def test_a_binary_attachment_never_answers_on_a_closed_path(self):
+        probe = b'liwan-surface-probe-bytes'
+        paths = ('/web/content/liwan-surface-probe', '/web/dataset/call_kw/x', '/odoo/liwan-surface-probe')
+        for path in paths:
+            self.env['ir.attachment'].create({
+                'name': 'probe', 'type': 'binary', 'raw': probe, 'mimetype': 'text/plain', 'url': path, 'public': True,
+            })
+        self.env.cr.flush()
+        for caller in ('anonymous', 'employee'):
+            self._sign_in(caller)
+            for path in paths:
+                with self.subTest(caller=caller, path=path):
+                    response = self.url_open(path)
+                    self.assertEqual(response.status_code, 404)
+                    self.assertNotIn(probe, response.content)
 
     def test_generic_orm_endpoints_are_closed_to_a_session(self):
         self.authenticate('surface_emp', 'surface_emp_pass_123')
-        self._assert_rpc_closed(self._rpc('/web/dataset/call_kw/res.users/search_read', {
+        self._assert_closed(self._rpc('/web/dataset/call_kw/res.users/search_read', {
             'model': 'res.users', 'method': 'search_read', 'args': [], 'kwargs': {'fields': ['login']},
         }))
         for path in ('/doc/index.json', '/doc', '/report/pdf/base.report_irmodulereference/1', '/my/home'):
@@ -77,7 +124,7 @@ class TestSessionOdooSurface(HttpCase):
         for path in ('/odoo', '/odoo/action-1', '/web', '/web/webclient/load_menus', '/doc/index.json'):
             with self.subTest(path=path):
                 self.assertEqual(self.url_open(path).status_code, 404)
-        self._assert_rpc_closed(self._rpc('/web/dataset/call_kw/res.users/search_read', {
+        self._assert_closed(self._rpc('/web/dataset/call_kw/res.users/search_read', {
             'model': 'res.users', 'method': 'search_read', 'args': [], 'kwargs': {},
         }))
 
@@ -104,7 +151,7 @@ class TestSessionOdooSurface(HttpCase):
             }},
             headers=JSON_HEADERS,
         )
-        self._assert_rpc_closed(jsonrpc)
+        self._assert_closed(jsonrpc)
 
     def test_image_routes_are_limited_to_the_app_patterns(self):
         self.authenticate('surface_emp', 'surface_emp_pass_123')
