@@ -52,13 +52,6 @@ class LiwanInboxAccessService(models.AbstractModel):
     _inherit = 'liwan.access.service'
 
     @api.model
-    def _liwan_capability_keys(self, user=None, company=None):
-        user = user or self.env.user
-        keys = super()._liwan_capability_keys(user, company=company)
-        # Support's foundation shortcut grants the whole catalog; the conversations are not part of what it runs.
-        return keys - (PERMISSIONS - VENDOR_SUPPORT_PERMISSIONS) if user.has_group('liwan_core.group_vendor_support') else keys
-
-    @api.model
     def _liwan_capability_definitions(self):
         return super()._liwan_capability_definitions() + tuple(
             {'key': key, 'owner': 'liwan_inbox'} for key in sorted(PERMISSIONS)

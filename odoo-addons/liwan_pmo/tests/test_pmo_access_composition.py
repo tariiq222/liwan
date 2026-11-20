@@ -59,7 +59,7 @@ class TestPmoAccessComposition(PmoAccessCompositionCase):
         self.assertFalse(self.env.ref('liwan_core.group_pmo_manager', raise_if_not_found=False))
         self.assertEqual(self._keys('liwan_pmo.role_pmo_manager'), set(PMO_PERMISSIONS))
         self.assertTrue(self._keys('liwan_core.role_employee') >= EMPLOYEE_PMO_PERMISSIONS)
-        self.assertTrue(self._keys('liwan_core.role_vendor_support') >= PMO_PERMISSIONS)
+        self.assertEqual(self._keys('liwan_core.role_vendor_support') & PMO_PERMISSIONS, {'pmo.settings.manage'})
 
     def test_pmo_links_reach_core_groups(self):
         self.assertIn(
@@ -67,7 +67,8 @@ class TestPmoAccessComposition(PmoAccessCompositionCase):
             self.env.ref('liwan_core.group_employee').all_implied_ids,
         )
         vendor = self.env.ref('liwan_core.group_vendor_support')
-        self.assertIn(self.env.ref('liwan_pmo.group_pmo_manager'), vendor.all_implied_ids)
+        self.assertNotIn(self.env.ref('liwan_pmo.group_pmo_manager'), vendor.all_implied_ids)
+        self.assertIn(self.env.ref('liwan_pmo.group_cap_pmo_settings_manage'), vendor.all_implied_ids)
 
     def test_pmo_registers_the_project_scope_kind(self):
         kinds = self.service._liwan_scope_kind_map()

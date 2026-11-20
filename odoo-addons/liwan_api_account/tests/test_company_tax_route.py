@@ -1,5 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """``GET``/``PATCH /api/v1/admin/company/tax``: the establishment's one tax choice."""
+from datetime import timedelta
 from unittest.mock import patch
 
 from odoo.exceptions import AccessError
@@ -221,7 +222,8 @@ class TestCompanyTaxRoute(CompanyTaxCase):
 
     def test_can_change_is_false_for_an_expired_tenant(self):
         self.assertTrue(self.ok(self.get())['can_change'])
-        self.env.cr.execute('UPDATE liwan_tenant_profile SET valid_until = CURRENT_DATE - 1')
+        yesterday = self.env['liwan.entitlement.service']._liwan_utc_today() - timedelta(days=1)
+        self.env.cr.execute('UPDATE liwan_tenant_profile SET valid_until = %s', [yesterday])
         self.env.invalidate_all()
         self.assertFalse(self.ok(self.get())['can_change'])
 

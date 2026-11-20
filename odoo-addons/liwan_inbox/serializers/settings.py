@@ -150,7 +150,7 @@ def dump_channel(channel):
         'state': channel.state,
         'department': dump_ref(channel.department_id),
         'connection': dump_connection(connection),
-        'phone_number_id': None if tiktok else channel.phone_number_id,
+        'phone_number_id': None if tiktok else channel.phone_number_id or None,
         'last_error': channel.last_error or None,
         'last_event_at': iso(channel.last_event_at),
         'health': dump_health(channel),

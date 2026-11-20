@@ -231,7 +231,7 @@ class LiwanHrAccessService(models.AbstractModel):
         for role_xmlid, keys in (
             ('liwan_hr.role_hr_manager', HR_PERMISSIONS | PRIVATE_HR_PERMISSIONS),
             ('liwan_core.role_employee', EMPLOYEE_HR_PERMISSIONS),
-            ('liwan_core.role_vendor_support', HR_PERMISSIONS),
+            ('liwan_core.role_vendor_support', {'hr.leave.config'}),
             ('liwan_hr.role_payroll_manager', PAYROLL_PERMISSIONS),
             ('liwan_hr.role_payroll_offboarding_officer', PAYROLL_OFFBOARDING_PERMISSIONS),
         ):

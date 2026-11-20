@@ -107,14 +107,12 @@ class TestHrAccessComposition(TransactionCase):
         self.assertFalse(self.env.ref('liwan_core.group_hr_manager', raise_if_not_found=False))
         self.assertEqual(self._keys('liwan_hr.role_hr_manager') & set(HR_PERMISSIONS | PRIVATE_HR_PERMISSIONS), set(HR_PERMISSIONS | PRIVATE_HR_PERMISSIONS))
         self.assertTrue(self._keys('liwan_core.role_employee') >= EMPLOYEE_HR_PERMISSIONS)
-        self.assertTrue(self._keys('liwan_core.role_vendor_support') >= HR_PERMISSIONS)
+        self.assertEqual(self._keys('liwan_core.role_vendor_support') & HR_PERMISSIONS, {'hr.leave.config'})
 
-    def test_hr_area_capabilities_reach_only_the_hr_manager_and_vendor_support(self):
+    def test_hr_area_capabilities_reach_only_the_hr_manager(self):
         self.assertEqual(self._keys('liwan_hr.role_hr_manager') & HR_AREA_PERMISSIONS, HR_AREA_PERMISSIONS)
-        # Vendor support holds every area except the private ones (warnings, insurance), which only the HR manager role grants.
-        self.assertEqual(
-            self._keys('liwan_core.role_vendor_support') & HR_AREA_PERMISSIONS, HR_AREA_PERMISSIONS - PRIVATE_HR_PERMISSIONS,
-        )
+        # Vendor support holds no area capability and none of the private ones (warnings, insurance).
+        self.assertFalse(self._keys('liwan_core.role_vendor_support') & HR_AREA_PERMISSIONS)
         self.assertFalse(self._keys('liwan_core.role_vendor_support') & PRIVATE_HR_PERMISSIONS)
         self.assertFalse(self._keys('liwan_core.role_employee') & HR_AREA_PERMISSIONS)
 
@@ -179,7 +177,8 @@ class TestHrAccessComposition(TransactionCase):
 
     def test_hr_links_reach_core_groups_and_rules(self):
         vendor = self.env.ref('liwan_core.group_vendor_support')
-        self.assertIn(self.env.ref('liwan_hr.group_hr_manager'), vendor.all_implied_ids)
+        self.assertNotIn(self.env.ref('liwan_hr.group_hr_manager'), vendor.all_implied_ids)
+        self.assertIn(self.env.ref('liwan_hr.group_cap_hr_leave_config'), vendor.all_implied_ids)
         rule = self.env.ref('liwan_core.rule_access_users_company')
         self.assertIn(self.env.ref('liwan_hr.group_cap_hr_employees_archive'), rule.groups)
         self.assertIn(

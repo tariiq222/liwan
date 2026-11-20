@@ -214,8 +214,6 @@ class LiwanInboxMessageOutbox(models.Model):
             location = whatsapp.Location(self.latitude, self.longitude, self.location_name or None, self.location_address or None)
             provider_id = whatsapp.send_location(credentials, to, location, context_id)
         elif self.kind in COMMERCE_TYPES:
-            if not self.catalog_id:
-                raise UserError(self.env._('No catalog is connected to this channel.'))
             provider_id = whatsapp.send_commerce(credentials, to, self._liwan_commerce(), self.catalog_id, context_id)
         elif self.kind == 'interactive':
             flow = {'flow_id': self.flow_id.provider_flow_id, 'token': self.flow_token} if self.interactive_type == 'flow' else None

@@ -5,8 +5,7 @@ An agent answers the tickets their visibility policy shows, a supervisor also di
 them, and a manager owns the settings. Every employee may open a request of their own and follow it
 (``helpdesk.requests.create`` and ``helpdesk.requests.read``), which is the self-service half of an
 internal helpdesk. The vendor support identity never reaches a tenant's tickets, exactly as it never
-reaches CRM opportunities: the foundation role holds every catalog key, so the application subtracts
-its own.
+reaches CRM opportunities: the application grants the support role no key.
 
 The catalog grows with the pull request that first uses a key; SLA, ratings, merging and reports add
 theirs when their routes exist.
@@ -45,12 +44,6 @@ PERMISSION_DEPENDENCIES = {
 
 class LiwanHelpdeskAccessService(models.AbstractModel):
     _inherit = 'liwan.access.service'
-
-    @api.model
-    def _liwan_capability_keys(self, user=None, company=None):
-        user = user or self.env.user
-        keys = super()._liwan_capability_keys(user, company=company)
-        return keys - PERMISSIONS if user.has_group('liwan_core.group_vendor_support') else keys
 
     @api.model
     def _liwan_capability_definitions(self):

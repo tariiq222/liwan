@@ -38,8 +38,12 @@ class TestPayrollEngine(TransactionCase):
             )
 
     def test_payroll_groups_hold_only_system_users(self):
+        # A system user holding a payroll group is allowed; the vendor support account is not among the holders.
+        system_user = new_test_user(self.env, login='payroll_system_holder', groups=SYSTEM_GROUP)
+        system_user.write({'group_ids': [Command.link(self.env.ref('payroll.group_payroll_user').id)]})
         users = self._engine_users()
-        self.assertTrue(users, 'the OCA payroll groups must hold the default administrator users')
+        self.assertIn(system_user, users)
+        self.assertNotIn(self.env.ref('base.user_admin'), users)
         intruders = self._users_without_system(users)
         self.assertFalse(
             intruders,

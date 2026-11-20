@@ -77,11 +77,6 @@ class TestCommerceSend(LiwanInboxCase):
             with self.subTest(content=content):
                 self.assertEqual(self.queue(content)._liwan_commerce(), content)
 
-    def test_a_message_without_a_catalog_fails_without_calling_meta(self):
-        message = self.queue(PRODUCT, catalog_id=False)
-        self.run_outbox_offline()
-        self.assertEqual((message.delivery_state, message.attempts), ('failed', 1))
-
 
 @tagged('post_install', '-at_install', 'liwan')
 class TestCommerceReplyApi(LiwanInboxCase):

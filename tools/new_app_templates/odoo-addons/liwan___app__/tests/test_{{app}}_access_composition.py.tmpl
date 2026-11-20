@@ -38,7 +38,7 @@ class Test{{App}}AccessComposition(TransactionCase):
         self.assertEqual(self.env['liwan.access.role'].search_count([('key', '=', '{{app}}_manager')]), 1)
         self.assertEqual(self._keys('liwan_{{app}}.role_{{app}}_manager'), set(PERMISSIONS))
         self.assertTrue(self._keys('liwan_core.role_employee') >= EMPLOYEE_PERMISSIONS)
-        self.assertTrue(self._keys('liwan_core.role_vendor_support') >= PERMISSIONS)
+        self.assertFalse(self._keys('liwan_core.role_vendor_support') & PERMISSIONS)
 
     def test_manage_depends_on_read(self):
         manage = self.Permission.search([('key', '=', '{{app}}.records.manage')])

@@ -72,8 +72,8 @@ class TestProjectFinanceReaders(LiwanPmoCase):
         self.assertEqual(dependencies[KEY], {'pmo.projects.read'})
         self.assertIn(KEY, dependencies['pmo.projects.manage'])
         self.assertIn(self.env.ref('liwan_pmo.group_cap_pmo_finance_read'), self.env.ref('liwan_pmo.group_pmo_manager').implied_ids)
-        for role in ('liwan_pmo.role_pmo_manager', 'liwan_core.role_vendor_support'):
-            self.assertIn(permission, self.env.ref(role).permission_ids, role)
+        self.assertIn(permission, self.env.ref('liwan_pmo.role_pmo_manager').permission_ids)
+        self.assertNotIn(permission, self.env.ref('liwan_core.role_vendor_support').permission_ids)
         self.assertNotIn(permission, self.env.ref('liwan_core.role_employee').permission_ids)
 
     def test_company_wide_holders_are_managers_and_custom_roles(self):

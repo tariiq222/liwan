@@ -20,6 +20,11 @@
         <field name="implied_ids" eval="[Command.link(ref('project.group_project_user'))]"/>
     </record>
     <record id="liwan_core.group_vendor_support" model="res.groups">
-        <field name="implied_ids" eval="[Command.link(ref('group_pmo_manager'))]"/>
+        <field name="implied_ids" eval="[Command.link(ref('group_cap_pmo_settings_manage'))]"/>
+    </record>
+
+    <!-- Stock project adds base.user_admin (the vendor support account) to its manager group; only the superuser keeps it. -->
+    <record id="project.group_project_manager" model="res.groups">
+        <field name="user_ids" eval="[Command.unlink(ref('base.user_admin'))]"/>
     </record>
 </odoo>

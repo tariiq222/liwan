@@ -8,6 +8,8 @@ MEETINGS_PERMISSIONS = frozenset({
 EMPLOYEE_MEETINGS_PERMISSIONS = frozenset({'meetings.read'})
 # The built-in meeting organizer role: it is who may schedule when the company limits scheduling to organizers.
 ORGANIZER_MEETINGS_PERMISSIONS = frozenset({'meetings.read', 'meetings.create'})
+# Vendor support is closed by default: it manages the meetings settings and reads no meeting or minutes.
+VENDOR_SUPPORT_MEETINGS_PERMISSIONS = frozenset({'meetings.settings.manage'})
 MEETINGS_PERMISSION_DEPENDENCIES = {
     'meetings.create': {'meetings.read'},
     'meetings.manage': {'meetings.read'},
@@ -39,7 +41,7 @@ class LiwanMeetingsAccessService(models.AbstractModel):
             ('liwan_core.role_employee', EMPLOYEE_MEETINGS_PERMISSIONS),
             ('liwan_meetings.role_meetings_organizer', ORGANIZER_MEETINGS_PERMISSIONS),
             ('liwan_core.role_system_admin', MEETINGS_PERMISSIONS),
-            ('liwan_core.role_vendor_support', MEETINGS_PERMISSIONS),
+            ('liwan_core.role_vendor_support', VENDOR_SUPPORT_MEETINGS_PERMISSIONS),
         ):
             grants[role_xmlid] = grants.get(role_xmlid, set()) | keys
         return grants

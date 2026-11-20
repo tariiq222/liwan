@@ -117,8 +117,13 @@
         <field name="implied_ids" eval="[Command.set([ref('liwan_core.group_employee'),ref('group_cap_finance_invoices_read'),ref('group_cap_finance_payments_read'),ref('group_cap_finance_accounts_read'),ref('group_cap_finance_zakat_review'),ref('group_cap_finance_zakat_manage'),ref('group_cap_finance_payment_terms_read'),ref('group_cap_finance_payment_terms_manage'),ref('group_cap_finance_taxes_read'),ref('group_cap_finance_taxes_manage'),ref('group_cap_finance_accounts_manage'),ref('group_cap_finance_journals_read'),ref('group_cap_finance_journals_manage'),ref('group_cap_finance_partners_read'),ref('group_cap_finance_partners_manage'),ref('group_cap_finance_invoices_manage'),ref('group_cap_finance_invoices_post'),ref('group_cap_finance_payments_manage'),ref('group_cap_finance_setup_read'),ref('group_cap_finance_setup_manage'),ref('group_cap_finance_reports_read'),ref('group_cap_finance_entries_read'),ref('group_cap_finance_entries_manage'),ref('group_cap_finance_entries_post'),ref('group_cap_finance_statements_read'),ref('group_cap_finance_zakat_read'),ref('group_cap_finance_bank_read'),ref('group_cap_finance_bank_manage'),ref('group_cap_finance_assets_read'),ref('group_cap_finance_assets_manage'),ref('group_cap_finance_budgets_read'),ref('group_cap_finance_budgets_manage'),ref('group_cap_finance_analytic_read'),ref('group_cap_finance_analytic_manage'),ref('group_cap_finance_closing_read'),ref('group_cap_finance_closing_manage'),ref('group_cap_finance_audit_read'),ref('group_cap_finance_zatca_read'),ref('group_cap_finance_zatca_manage'),ref('group_cap_finance_zatca_submit')])]"/>
     </record>
 
-    <!-- liwan_core's support group reaches Finance through this link. -->
-    <record id="liwan_core.group_vendor_support" model="res.groups">
-        <field name="implied_ids" eval="[Command.link(ref('group_finance_manager'))]"/>
+    <!-- Stock mis_builder pulls in spreadsheet_dashboard, which adds base.user_admin (the vendor support account) to its manager group; only the superuser keeps it. -->
+    <record id="spreadsheet_dashboard.group_dashboard_manager" model="res.groups">
+        <field name="user_ids" eval="[Command.unlink(ref('base.user_admin'))]"/>
+    </record>
+
+    <!-- OCA mis_builder adds base.user_admin (the vendor support account) to its annotation group; only the superuser keeps it. -->
+    <record id="mis_builder.group_edit_annotation" model="res.groups">
+        <field name="user_ids" eval="[Command.unlink(ref('base.user_admin'))]"/>
     </record>
 </odoo>

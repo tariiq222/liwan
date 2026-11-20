@@ -42,7 +42,7 @@ class TestAppointmentsAccessComposition(TransactionCase):
             set(PERMISSIONS) | {'products.read', 'products.manage', 'products.prices.manage'},
         )
         self.assertTrue(self._keys('liwan_core.role_employee') >= EMPLOYEE_PERMISSIONS)
-        self.assertTrue(self._keys('liwan_core.role_vendor_support') >= PERMISSIONS)
+        self.assertFalse(self._keys('liwan_core.role_vendor_support') & set(PERMISSIONS))
 
     def test_manage_depends_on_book_and_book_on_view(self):
         manage = self.Permission.search([('key', '=', 'appointments.bookings.manage')])

@@ -2,7 +2,7 @@
 {
     'name': 'liwan Company Tax',
     'summary': "liwan platform: the establishment's one tax choice (stock account_price_include) — /api/v1/admin/company/tax",
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.1.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -12,6 +12,9 @@
     # `company_tax.enabled`, and every write still needs `settings.company.vat.manage` in the root company.
     'depends': ['liwan_api', 'account'],
     'auto_install': ['liwan_api', 'account'],
+    'data': [
+        'security/account_capability_groups.xml',
+    ],
     'post_init_hook': 'post_init_hook',
     'installable': True,
     'application': False,
