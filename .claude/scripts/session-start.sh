@@ -56,5 +56,5 @@ done
 if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
   echo "export PLAYWRIGHT_BROWSERS_PATH=\"$browsers\"" >> "$CLAUDE_ENV_FILE"
   # vue-tsc on apps/web needs more than Node's default heap in the cloud container.
-  echo 'export NODE_OPTIONS="--max-old-space-size=6144"' >> "$CLAUDE_ENV_FILE"
+  echo 'export NODE_OPTIONS="--max-old-space-size=12288"' >> "$CLAUDE_ENV_FILE"
 fi

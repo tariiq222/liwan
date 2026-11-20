@@ -118,6 +118,15 @@ class LiwanInboxMessage(models.Model):
     )
     _flow_token_unique = models.UniqueIndex('(flow_token) WHERE flow_token IS NOT NULL', 'A form token is used by one message.')
 
+    @api.constrains('kind', 'catalog_id', 'referred_catalog_id', 'referred_retailer_id')
+    def _check_commerce_catalog(self):
+        """A commerce message always names its Meta catalog: the thread's `commerce.catalog_id` is never empty."""
+        for message in self:
+            if message.kind in (*COMMERCE_TYPES, 'order') and not message.catalog_id:
+                raise ValidationError(self.env._('A commerce message needs the Meta catalog id.'))
+            if message.referred_retailer_id and not message.referred_catalog_id:
+                raise ValidationError(self.env._('A product inquiry needs the Meta catalog id.'))
+
     @api.model_create_multi
     def create(self, vals_list):
         outbound = sum(1 for vals in vals_list if vals.get('direction') == 'out')

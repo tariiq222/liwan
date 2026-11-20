@@ -174,9 +174,9 @@ def existing_tests(context):
         if context.deep and (REPO / workspace / 'package.json').is_file():
             commands.append(Command(workspace + ' tests', [*SLOT, 'npm', '-w', workspace, 'run', 'test'], timeout=1200))
     if context.deep and (REPO / 'apps/web/package.json').is_file():
-        # vue-tsc needs more heap than Node's default on this tree; the repo's own CI sets the same value.
+        # vue-tsc needs more heap than Node's default on this tree; 6 GB ran out on 2026-11-20.
         commands.append(Command('web type check', [*SLOT, 'npm', '-w', 'apps/web', 'run', 'lint'], timeout=1800,
-                                env={'NODE_OPTIONS': '--max-old-space-size=6144'}))
+                                env={'NODE_OPTIONS': '--max-old-space-size=12288'}))
     if context.include_odoo:
         commands.append(Command('odoo tests', [PYTHON, '-B', 'tools/odoo_test.py', '--all', '--shards', '2'], timeout=7200))
     if context.include_e2e:
