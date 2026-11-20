@@ -1,45 +1,45 @@
 #!/usr/bin/env python3
-"""Host deploy script: apply the newest signed release document of one environment's channel.
+"""Release command: apply the candidate commit of one environment to this server. An Openship job runs it.
 
-  deploy.py run    --environment <name>   verify, pull, back up, stop, snapshot, upgrade, start, open, commit
-  deploy.py status --environment <name>   print the served release, the unfinished run and the halt record
-  deploy.py clear  --environment <name>   remove the halt record after an operator has looked
+  release.py run      --environment <name>   resolve, verify, pull, back up, stop, snapshot, upgrade, start, open, commit
+  release.py status   --environment <name>   print the served release, the unfinished run and the halt record
+  release.py rollback --environment <name>   clear a halt and finish the rollback of an unfinished run
 
-The environment name selects the root-only config ``/etc/liwan-deploy/<name>.env`` (mode 0600, owned by the
-running user). Its ``LIWAN_DEPLOY_CHANNEL`` is ``main`` (newest signed document of the main branch head) or
-``release`` (newest signed document of the highest ``release/19.0.X.Y.Z`` tag); nothing else differs between
-environments. Every phase is written to ``run.json`` before it acts, so a killed run resumes from real state:
-forward up to ``snapshotted``, rollback from ``upgrading`` and ``starting``, forward again from ``opening``.
-Rollback swaps the pre-upgrade database snapshots and filestore copies back and restarts the previous release.
-Arguments never carry a secret: databases are reached through ``docker compose exec -T`` on the socket and
-secrets stay in the env files, which are passed to children as files or environment only.
+``staging`` follows the head of Forgejo ``main``; ``production`` follows the highest ``release/19.0.X.Y.Z`` tag. The
+candidate and its release document (the image ``liwan-release:<commit>`` in the Forgejo registry) are read with the
+read-only credential in ``LIWAN_FORGEJO_READ_USER`` and ``LIWAN_FORGEJO_READ_TOKEN``. The command never waits for
+input. The last log line is ``RESULT: committed <commit>``, ``RESULT: rolled back <reason>``, ``RESULT: nothing to do``,
+``RESULT: refused <reason>``, ``RESULT: halted <reason>`` or ``RESULT: incomplete <commit> <reason>``; the exit code
+is 0 (committed, nothing to do), 2 (refused), 3 (halted), 4 (rolled back or incomplete) or 5 (rollback failed).
+
+The environment name selects the root-only config ``/etc/liwan-release/<name>.env`` (mode 0600). Every phase is written
+to ``run.json`` before it acts, so a killed run resumes from real state: forward up to ``snapshotted``, rollback from
+``upgrading`` and ``starting``, forward again from ``opening``. Rollback swaps the pre-upgrade database snapshots and
+filestore copies back and restarts the previous release. Arguments never carry a secret.
 """
 from __future__ import annotations
 
 import argparse
-import base64
-import fcntl
-import hashlib
 import json
 import os
+import platform
 import re
 import shutil
-import subprocess
 import sys
-from dataclasses import dataclass
-from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
-from deploy.releases.postgres import identifier, tenant_isolation_statements  # noqa: E402 - path set just above
+from deploy.release import databases  # noqa: E402 - path set just above
+from deploy.release.common import (  # noqa: E402
+    EXIT_FAILED, EXIT_HALTED, EXIT_OK, EXIT_REFUSED, EXIT_ROLLBACK_FAILED, CommandFailed, Lock, ReleaseError, Runner,
+    free_bytes, make_log, now, read_env_file, sensitive_values, read_json, write_atomic, write_json)
+from deploy.release.source import (  # noqa: E402
+    CHANNELS, COMMIT, TOKEN_VAR, USER_VAR, Credential, Source, host_architecture)
+from deploy.releases.postgres import identifier, tenant_isolation_statements  # noqa: E402
 
-CHANNELS = ('main', 'release')
-OIDC_ISSUER = 'https://token.actions.githubusercontent.com'
-ATTESTATION_BASE = 'https://liwanos.com/attestations/release-manifest'
-RELEASE_TAG = re.compile(r'^release/19\.0\.(\d+)\.(\d+)\.(\d+)$')
 TENANT_DATABASE = re.compile(r'^[a-z][a-z0-9_]{0,62}$')
-COMMIT = re.compile(r'^[0-9a-f]{40}$')
+RELEASE_FOLDER = re.compile(r'^([0-9a-f]{40})(\.partial|\.tar)?$')
 DB_SUPERUSER = 'odoo'
 CONTROL_DB = 'liwan_control'
 CONTROL_DB_USER = 'liwan_control'
@@ -51,136 +51,49 @@ EDGE_SERVICE = 'guard'
 UP = ('up', '-d', '--wait', '--no-build', '--pull', 'never')
 WORKER_WORKSPACE = 'apps/control-plane'
 CONTROL_SERVICE = 'control-api'
-MAINTENANCE_MARKER = Path('/var/lib/liwan-deploy/maintenance/active')
-WORKER_STOPPED_PHASES = ('quiescing', 'captured', 'stopping', 'snapshotted', 'upgrading', 'starting', 'opening')
+WORKER_STOPPED_PHASES = ('quiescing', 'captured', 'stopping', 'snapshotted', 'upgrading', 'starting', 'opening',
+                         'opened')
 MAINTENANCE_PHASES = ('stopping', 'snapshotted', 'upgrading', 'starting', 'opening')
+PRE_SNAPSHOT_PHASES = ('verified', 'quiescing', 'captured')
+# From `opened` on, customers can write to the new release: a failure never rolls back, the next run resumes.
+POST_OPEN_PHASES = ('opened', 'committed', 'cleanup')
+ROLLBACK_PHASES = ('upgrading', 'starting', 'rolling_back')
 CLASSIFICATION_DIR = '/run/liwan-runtime/classifications'
 SMOKE_MARKER = 'UPGRADE_SMOKE_OK'
-FORWARD_PHASES = ('verified', 'quiescing', 'captured', 'stopping', 'snapshotted')
-ROLLBACK_PHASES = ('upgrading', 'starting', 'rolling_back')
-EXIT_OK, EXIT_REFUSED, EXIT_HALTED, EXIT_FAILED, EXIT_ROLLBACK_FAILED = 0, 2, 3, 4, 5
-CONFIG_KEYS = ('LIWAN_DEPLOY_CHANNEL', 'LIWAN_DEPLOY_REPOSITORY', 'LIWAN_DEPLOY_MIRROR', 'LIWAN_DEPLOY_PROJECT',
-               'LIWAN_SHARED_ENV_FILE', 'LIWAN_DEPLOY_PG_DUMP', 'LIWAN_DEPLOY_PG_HOST', 'LIWAN_DEPLOY_PG_PORT',
-               'LIWAN_DEPLOY_CONTROL_PG_HOST', 'LIWAN_DEPLOY_CONTROL_PG_PORT', 'LIWAN_DEPLOY_ODOO_DATA_DIR')
+BACKUP_COPIES = 3  # the encrypted capture stages a dump, a plain tar and a ciphertext under the work root
+DISK_MARGIN = 1.5  # free space must cover every snapshot (database plus filestore) with half again as much
+CONFIG_KEYS = ('LIWAN_RELEASE_PROJECT', 'LIWAN_SHARED_ENV_FILE', 'LIWAN_RELEASE_PG_DUMP', 'LIWAN_RELEASE_PG_HOST',
+               'LIWAN_RELEASE_PG_PORT', 'LIWAN_RELEASE_CONTROL_PG_HOST', 'LIWAN_RELEASE_CONTROL_PG_PORT',
+               'LIWAN_RELEASE_ODOO_DATA_DIR', 'LIWAN_RELEASE_DISK_PATH')
 
 
-class DeployError(Exception):
-    """A failure with a closed reason code (``^[a-z][a-z0-9_]{0,63}$``) that alerts may carry."""
-
-    def __init__(self, reason: str, exit_code: int = EXIT_FAILED):
-        super().__init__(reason)
-        self.reason = reason
-        self.exit_code = exit_code
-
-
-class CommandFailed(Exception):
-    def __init__(self, argv: list[str], returncode: int):
-        super().__init__(f'{argv[0]} exited {returncode}')
-        self.returncode = returncode
-
-
-@dataclass(frozen=True)
 class Paths:
-    config_root: Path = Path('/etc/liwan-deploy')
-    state_root: Path = Path('/var/lib/liwan-deploy')
-    releases: Path = Path('/opt/liwan/releases')
-    current: Path = Path('/opt/liwan/current')
-    maintenance: Path = MAINTENANCE_MARKER
-
-
-class Runner:
-    """Runs one command, logs its argv (never its environment or stdin), returns combined output."""
-
-    def __init__(self, log):
-        self.log = log
-
-    def __call__(self, argv: list[str], *, stdin: str | None = None, env: dict | None = None,
-                 check: bool = True) -> tuple[int, str]:
-        self.log('$ ' + ' '.join(argv))
-        done = subprocess.run(argv, input=stdin, env=env, text=True, stdout=subprocess.PIPE,
-                              stderr=subprocess.STDOUT, check=False)
-        if check and done.returncode != 0:
-            raise CommandFailed(argv, done.returncode)
-        return done.returncode, done.stdout
-
-
-def now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec='seconds')
-
-
-def read_env_file(path: Path) -> dict[str, str]:
-    values = {}
-    for line in path.read_text(encoding='utf-8').splitlines():
-        line = line.strip()
-        if line and not line.startswith('#') and '=' in line:
-            key, value = line.split('=', 1)
-            values[key.strip()] = value.strip()
-    return values
-
-
-def write_atomic(path: Path, text: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(path.name + '.tmp')
-    with open(temporary, 'w', encoding='utf-8') as handle:
-        handle.write(text)
-        handle.flush()
-        os.fsync(handle.fileno())
-    os.replace(temporary, path)
-
-
-def write_json(path: Path, value: dict) -> None:
-    write_atomic(path, json.dumps(value, indent=2, sort_keys=True) + '\n')
-
-
-def read_json(path: Path) -> dict | None:
-    return json.loads(path.read_text(encoding='utf-8')) if path.exists() else None
+    def __init__(self, config_root=Path('/etc/liwan-release'), state_root=Path('/var/lib/liwan-release'),
+                 releases=Path('/opt/liwan/releases'), current=Path('/opt/liwan/current'),
+                 maintenance=Path('/var/lib/liwan-release/maintenance/active')):
+        self.config_root, self.state_root, self.releases = config_root, state_root, releases
+        self.current, self.maintenance = current, maintenance
 
 
 def load_config(paths: Paths, environment: str) -> dict[str, str]:
     """The root-only config of one environment; a readable-by-others or foreign-owned file is refused."""
-    if not re.fullmatch(r'[a-z][a-z0-9-]{0,31}', environment):
-        raise DeployError('invalid_environment', EXIT_REFUSED)
+    if environment not in CHANNELS:
+        raise ReleaseError('invalid_environment', EXIT_REFUSED, f'environment must be one of {sorted(CHANNELS)}')
     path = paths.config_root / f'{environment}.env'
     if not path.is_file():
-        raise DeployError('missing_config', EXIT_REFUSED)
+        raise ReleaseError('missing_config', EXIT_REFUSED, f'{path} does not exist')
     info = path.stat()
     if info.st_mode & 0o077 or info.st_uid != os.geteuid():
-        raise DeployError('config_not_private', EXIT_REFUSED)
+        raise ReleaseError('config_not_private', EXIT_REFUSED, f'{path} must be mode 0600 and owned by the running user')
     config = read_env_file(path)
     missing = [key for key in CONFIG_KEYS if not config.get(key)]
-    if missing or config['LIWAN_DEPLOY_CHANNEL'] not in CHANNELS:
-        raise DeployError('invalid_config', EXIT_REFUSED)
+    if missing:
+        raise ReleaseError('invalid_config', EXIT_REFUSED, f'{path} lacks {", ".join(missing)}')
     return config
 
 
-def release_version(tag: str) -> tuple[int, int, int] | None:
-    match = RELEASE_TAG.match(tag)
-    if match is None:
-        return None
-    major, minor, patch = (int(part) for part in match.groups())
-    return major, minor, patch
-
-
-def tag_order(tag: str) -> tuple[int, int, int]:
-    return release_version(tag) or (-1, -1, -1)
-
-
-def snapshot_name(database: str) -> str:
-    return 'liwan_pre_' + hashlib.sha256(database.encode()).hexdigest()[:16]
-
-
-def grant_statements(database: str, grants: list[list], owner: str) -> list[str]:
-    """Rebuild recorded ``aclexplode`` rows on a database that has PostgreSQL's default ACL (a renamed copy).
-
-    PUBLIC and the owner start from nothing, so a reduced owner entry comes back exactly as it was.
-    """
-    db = identifier(database)
-    statements = [f'REVOKE ALL ON DATABASE {db} FROM PUBLIC', f'REVOKE ALL ON DATABASE {db} FROM {identifier(owner)}']
-    for grantee, privilege, grantable in grants:
-        target = 'PUBLIC' if grantee == '' else identifier(grantee)
-        option = ' WITH GRANT OPTION' if grantable else ''
-        statements.append(f'GRANT {privilege} ON DATABASE {db} TO {target}{option}')
-    return statements
+def release_env_text(commit: str, odoo_commit: str) -> str:
+    return f'LIWAN_IMAGE_TAG={commit}\nODOO_COMMIT={odoo_commit}\n'
 
 
 def normalize_tree(root: Path) -> None:
@@ -195,22 +108,28 @@ def normalize_tree(root: Path) -> None:
             path.chmod(0o755 if path.is_dir() or mode & 0o111 else 0o644)
 
 
-def release_env_text(commit: str, odoo_commit: str) -> str:
-    return f'LIWAN_IMAGE_TAG={commit}\nODOO_COMMIT={odoo_commit}\n'
-
-
-class Deployer:
-    def __init__(self, environment: str, config: dict[str, str], paths: Paths, runner, log):
+class Releaser:
+    def __init__(self, environment: str, config: dict[str, str], paths: Paths, runner, log, environ: dict, machine: str):
         self.environment = environment
         self.config = config
         self.paths = paths
         self.run_command = runner
         self.log = log
+        self.environ = environ
+        self.machine = machine
         self.state = paths.state_root / environment
-        self.child_env = {**os.environ, **config}
-        self.registry = f'ghcr.io/{config["LIWAN_DEPLOY_REPOSITORY"].split("/")[0]}'
+        self.docker_config = self.state / 'docker-config'
+        credentials = (USER_VAR, TOKEN_VAR)
+        self.child_env = {**{k: v for k, v in environ.items() if k not in credentials}, **config,
+                          'DOCKER_CONFIG': str(self.docker_config)}
+        self.platform = ''
+        self.source: Source | None = None
 
-    # --- state files ---------------------------------------------------------------------------------
+    # --- results and state files -----------------------------------------------------------------------
+    def finish(self, code: int, result: str) -> int:
+        self.log(f'RESULT: {result}')
+        return code
+
     def file(self, name: str) -> Path:
         return self.state / name
 
@@ -220,78 +139,11 @@ class Deployer:
         write_json(self.file('run.json'), run)
         self.log(f'phase {phase} ({run["commit"]})')
 
-    # --- candidate -----------------------------------------------------------------------------------
-    def git(self, *args: str) -> str:
-        return self.run_command(['git', '--git-dir', self.config['LIWAN_DEPLOY_MIRROR'], *args])[1].strip()
+    def current_release_env(self) -> str | None:
+        path = self.file('release.env')
+        return path.read_text(encoding='utf-8') if path.exists() else None
 
-    def candidate(self) -> dict:
-        """Main head on the main channel; the highest release tag on the release channel. Never an older one."""
-        self.git('fetch', '--prune', 'origin', '+refs/heads/main:refs/heads/main',
-                 '+refs/tags/release/*:refs/tags/release/*')
-        if self.config['LIWAN_DEPLOY_CHANNEL'] == 'main':
-            return {'commit': self.git('rev-parse', 'refs/heads/main^{commit}'), 'ref': 'refs/heads/main',
-                    'version': None, 'attestation': 'staging'}
-        tags = [tag for tag in self.git('for-each-ref', '--format=%(refname:strip=2)', 'refs/tags/release/').split()
-                if release_version(tag)]
-        if not tags:
-            raise DeployError('no_release_tag', EXIT_OK)
-        tag = max(tags, key=tag_order)
-        return {'commit': self.git('rev-parse', f'refs/tags/{tag}^{{commit}}'), 'ref': f'refs/tags/{tag}',
-                'version': list(tag_order(tag)), 'attestation': 'production'}
-
-    def refuse_older(self, candidate: dict, served: dict | None) -> None:
-        if served is None:
-            return
-        code, _ = self.run_command(['git', '--git-dir', self.config['LIWAN_DEPLOY_MIRROR'], 'merge-base',
-                                    '--is-ancestor', served['commit'], candidate['commit']], check=False)
-        if code != 0:
-            raise DeployError('older_candidate', EXIT_REFUSED)
-        if candidate['version'] is not None and (served.get('version') is None
-                                                 or tuple(candidate['version']) <= tuple(served['version'])):
-            raise DeployError('older_candidate', EXIT_REFUSED)
-
-    def verified_document(self, candidate: dict) -> dict:
-        """The release document signed by the publish workflow for exactly this commit and ref."""
-        commit = candidate['commit']
-        anchor = f'{self.registry}/liwan-release:{commit}'
-        code, _ = self.run_command(['docker', 'manifest', 'inspect', anchor], env=self.child_env, check=False)
-        if code != 0:
-            raise DeployError('document_not_published', EXIT_OK)
-        kind = f'{ATTESTATION_BASE}/{candidate["attestation"]}/v1'
-        identity = (f'https://github.com/{self.config["LIWAN_DEPLOY_REPOSITORY"]}'
-                    f'/.github/workflows/publish.yml@{candidate["ref"]}')
-        try:
-            _, output = self.run_command(['cosign', 'verify-attestation', '--type', kind, '--certificate-oidc-issuer',
-                                          OIDC_ISSUER, '--certificate-identity', identity,
-                                          '--certificate-github-workflow-sha', commit, anchor], env=self.child_env)
-        except CommandFailed:
-            raise DeployError('bad_signature', EXIT_REFUSED) from None
-        return self.document_from(output, kind, commit)
-
-    def document_from(self, output: str, kind: str, commit: str) -> dict:
-        for line in output.splitlines():
-            if not line.startswith('{'):
-                continue
-            statement = json.loads(base64.b64decode(json.loads(line)['payload']))
-            predicate = statement.get('predicate') or {}
-            if statement.get('predicateType') == kind and predicate.get('commit') == commit:
-                self.check_document(predicate, commit)
-                return predicate
-        raise DeployError('document_mismatch', EXIT_REFUSED)
-
-    def check_document(self, document: dict, commit: str) -> None:
-        release = document.get('release') or {}
-        images = document.get('images') or {}
-        valid_images = images and all(self.pinned_image(reference).fullmatch(image)
-                                      for reference, image in images.items())
-        if release.get('liwanCommit') != commit or not valid_images or not release.get('upgradeModules'):
-            raise DeployError('document_mismatch', EXIT_REFUSED)
-
-    def pinned_image(self, reference: str) -> re.Pattern:
-        """Exactly ``<configured registry>/<reference>@sha256:<64 hex>``; any other owner or form is refused."""
-        return re.compile(re.escape(f'{self.registry}/{reference}') + r'@sha256:[0-9a-f]{64}')
-
-    # --- maintenance marker (Caddy shows the maintenance page only while it exists) ---------------------
+    # --- maintenance marker (Caddy shows the maintenance page only while it exists) --------------------
     def enter_maintenance(self) -> None:
         marker = self.paths.maintenance
         marker.parent.mkdir(parents=True, exist_ok=True)
@@ -302,42 +154,52 @@ class Deployer:
     def leave_maintenance(self) -> None:
         self.paths.maintenance.unlink(missing_ok=True)
 
-    # --- run -----------------------------------------------------------------------------------------
+    # --- run -------------------------------------------------------------------------------------------
     def run(self) -> int:
-        if self.file('halted.json').exists():
-            self.log('halted: run "deploy.py clear" after an operator has looked')
-            return EXIT_HALTED
+        halted = read_json(self.file('halted.json'))
+        if halted is not None:
+            self.log('halted: fix the cause, then run "rollback" to finish and clear it')
+            return self.finish(EXIT_HALTED, f'halted {halted.get("reason", "unknown")}')
+        credential = Credential.from_environment(self.environ)
+        self.platform = f'linux/{host_architecture(self.machine)}'
+        self.state.mkdir(parents=True, exist_ok=True, mode=0o700)
+        self.state.chmod(0o700)
+        self.docker_config.mkdir(exist_ok=True, mode=0o700)
+        self.docker_config.chmod(0o700)
+        self.source = Source(self.environment, self.state, credential, self.run_command, self.log, self.child_env)
+        self.source.login()
         unfinished = read_json(self.file('run.json'))
         if unfinished is not None:
             return self.resume(unfinished)
         served = read_json(self.file('served.json'))
-        candidate = self.candidate()
-        if not COMMIT.match(candidate['commit']):
-            raise DeployError('invalid_commit', EXIT_REFUSED)
+        candidate = self.source.candidate()
+        if candidate is None:
+            return self.finish(EXIT_OK, 'nothing to do: no release tag exists')
         if served is not None and served['commit'] == candidate['commit']:
-            self.log(f'no change: serving {served["commit"]}')
-            return EXIT_OK
-        self.refuse_older(candidate, served)
-        document = self.verified_document(candidate)
+            return self.finish(EXIT_OK, f'nothing to do: serving {served["commit"]}')
+        failed = read_json(self.file('failed.json'))
+        if failed is not None and failed['commit'] == candidate['commit']:
+            return self.finish(EXIT_HALTED, f'nothing to do: {failed["commit"]} failed before ({failed["reason"]}); '
+                               'run "rollback" to try it again')
+        self.source.fetch(candidate['commit'])
+        self.source.refuse_older(candidate, served)
+        self.source.require_on_main(candidate)
+        document = self.source.document(candidate, self.platform.removeprefix('linux/'))
         run = {**candidate, 'document': document, 'previous': served,
                'previousReleaseEnv': self.current_release_env(), 'startedAt': now()}
         self.set_phase(run, 'verified')
         return self.forward(run)
 
-    def current_release_env(self) -> str | None:
-        path = self.file('release.env')
-        return path.read_text(encoding='utf-8') if path.exists() else None
-
     def resume(self, run: dict) -> int:
         self.log(f'resuming {run["commit"]} at {run["phase"]}')
         if run['phase'] in ROLLBACK_PHASES:
-            return self.rollback(run, run.get('failure', 'interrupted'))
+            return self.roll_back(run, run.get('failure', 'interrupted'))
         return self.forward(run)
 
     def forward(self, run: dict) -> int:
         steps = (('verified', self.prepare), ('quiescing', self.quiesce), ('captured', self.capture), ('stopping', self.stop),
                  ('snapshotted', self.snapshot), ('upgrading', self.upgrade), ('starting', self.start),
-                 ('opening', self.open), ('committed', self.commit), ('cleanup', self.cleanup))
+                 ('opening', self.open), ('opened', self.reopen), ('committed', self.commit), ('cleanup', self.cleanup))
         names = [name for name, _ in steps]
         if run['phase'] in WORKER_STOPPED_PHASES[1:] and run['previous'] is not None:
             self.stop_worker()  # a resumed run keeps the worker stopped, as the interrupted one had it
@@ -348,29 +210,39 @@ class Deployer:
                 self.enter_maintenance()
             try:
                 step(run)
-            except (DeployError, CommandFailed, OSError, ValueError) as error:
-                reason = error.reason if isinstance(error, DeployError) else f'{name}_failed'
-                return self.fail(run, name, reason)
-        self.log(f'applied {run["commit"]}')
-        return EXIT_OK
+            except (ReleaseError, CommandFailed, OSError, ValueError) as error:
+                reason = error.reason if isinstance(error, ReleaseError) else f'{name}_failed'
+                code = error.exit_code if isinstance(error, ReleaseError) else EXIT_FAILED
+                if isinstance(error, ReleaseError) and error.detail:
+                    self.log(error.detail)
+                return self.fail(run, name, reason, code)
+        return self.finish(EXIT_OK, f'committed {run["commit"]}')
 
-    def fail(self, run: dict, phase: str, reason: str) -> int:
-        if phase in FORWARD_PHASES[:3]:
+    def fail(self, run: dict, phase: str, reason: str, code: int) -> int:
+        if phase in PRE_SNAPSHOT_PHASES:  # nothing but the worker was stopped, and the served release never moved
             if phase != 'verified' and run['previous'] is not None:
                 reason = self.restart_worker(reason)
-            self.halt(run, phase, reason, 'deploy_failed')
+            self.alert('deploy_failed', run['commit'], phase, reason)
             self.file('run.json').unlink()
-            return EXIT_FAILED
-        if phase in ('committed', 'cleanup'):
-            self.halt(run, phase, reason, 'deploy_failed')
-            return EXIT_FAILED
-        return self.rollback(run, reason)
+            if phase != 'verified':  # a refusal before anything stopped costs nothing to repeat
+                self.record_failure(run['commit'], reason)
+            if code == EXIT_REFUSED:
+                return self.finish(EXIT_REFUSED, f'refused {reason}')
+            return self.finish(EXIT_FAILED, f'rolled back {reason}')
+        if phase in POST_OPEN_PHASES:  # served.json is written; the next run resumes from run.json
+            self.alert('deploy_failed', run['commit'], phase, reason)
+            return self.finish(EXIT_FAILED, f'incomplete {run["commit"]} {reason}')
+        return self.roll_back(run, reason)
+
+    def record_failure(self, commit: str, reason: str) -> None:
+        """A candidate that failed after the stop is not retried until the candidate changes or ``rollback`` clears it."""
+        write_json(self.file('failed.json'), {'commit': commit, 'reason': reason, 'at': now()})
 
     def restart_worker(self, reason: str) -> str:
         """Nothing else was stopped, so the served release keeps running; a worker that stays down is the reason."""
         try:
             self.start_worker()
-        except (DeployError, CommandFailed):
+        except (ReleaseError, CommandFailed):
             return 'worker_not_ready'
         return reason
 
@@ -386,18 +258,23 @@ class Deployer:
         if code != 0:
             self.log(f'alert {event} was not delivered (exit {code})')
 
-    # --- steps ---------------------------------------------------------------------------------------
+    # --- steps -----------------------------------------------------------------------------------------
     def checkout(self, commit: str) -> Path:
         return self.paths.releases / commit
 
     def prepare(self, run: dict) -> None:
-        """Checkout with the worker's dependencies, and every image by digest; nothing running changes."""
+        """Checkout with the worker's dependencies, every image by digest, and the disk check; nothing running changes."""
         target = self.checkout(run['commit'])
         if not target.exists():
             self.extract(run['commit'], target)
-        for reference, image in self.images(target, run['document']['images']):
-            self.run_command(['docker', 'pull', image], env=self.child_env)
+        images = self.images(target, run['document'])
+        pulled = []
+        for reference, image in images:
+            self.run_command(['docker', 'pull', '--quiet', image], env=self.child_env)
             self.run_command(['docker', 'tag', image, f'{reference}:{run["commit"]}'])
+            pulled += [image, f'{reference}:{run["commit"]}']
+        write_json(self.file(f'releases/{run["commit"]}.json'), {'images': pulled})
+        self.check_disk(run, target)
 
     def extract(self, commit: str, target: Path) -> None:
         """git archive, the shared worker's node dependencies (tsx is needed at run time), readable modes."""
@@ -406,20 +283,22 @@ class Deployer:
             shutil.rmtree(staging)
         staging.mkdir(parents=True)
         archive = staging.parent / f'{commit}.tar'
-        self.git('archive', '--format=tar', '-o', str(archive), commit)
+        self.source.archive(commit, archive)
         self.run_command(['tar', '-x', '-f', str(archive), '-C', str(staging)])
         archive.unlink()
         try:
             self.run_command(['npm', '--prefix', str(staging), 'ci', '--ignore-scripts', '--no-audit', '--no-fund',
                               '--workspace', WORKER_WORKSPACE], env=self.child_env)
         except CommandFailed:
-            raise DeployError('worker_dependencies_failed') from None
+            raise ReleaseError('worker_dependencies_failed') from None
         normalize_tree(staging)
         self.paths.releases.chmod(0o755)
         os.replace(staging, target)
 
-    def images(self, checkout: Path, images: dict[str, str]) -> list[tuple[str, str]]:
-        """(local name, registry image@digest) for every published build; the document must list exactly those."""
+    def images(self, checkout: Path, document: dict) -> list[tuple[str, str]]:
+        """(local name, registry image@digest of the host's architecture) for every published build; the document must
+        list exactly those."""
+        images = document['images']
         _, output = self.run_command(['python3', '-B', str(checkout / 'deploy/image_pins.py'), '--print-builds'])
         published = {}
         for line in output.splitlines():
@@ -427,8 +306,31 @@ class Deployer:
             if registry_image != '-':
                 published[reference] = registry_image
         if set(published) != set(images) or any(not images[ref].startswith(published[ref] + '@') for ref in published):
-            raise DeployError('document_images_mismatch', EXIT_REFUSED)
-        return sorted(images.items())
+            raise ReleaseError('document_images_mismatch', EXIT_REFUSED)
+        return sorted((reference, f'{published[reference]}@{document["platforms"][reference][self.platform]}')
+                      for reference in published)
+
+    def check_disk(self, run: dict, checkout: Path) -> None:
+        """Refuse before anything stops when the free space cannot hold a snapshot of every database and filestore."""
+        if run['previous'] is None:
+            return
+        current = self.paths.current.resolve()
+        tenants = self.tenants(checkout)
+        names = {item['database']: item for item in tenants}
+        quoted = ','.join(databases.literal(name) for name in names)
+        sizes = {} if not names else dict(row.split('|') for row in self.psql(
+            current, f'SELECT datname, pg_database_size(datname) FROM pg_database WHERE datname IN ({quoted});\n').splitlines())
+        control = self.psql(current, f'SELECT pg_database_size({databases.literal(CONTROL_DB)});\n', control=True)
+        needed = int(control) + sum(int(size) for size in sizes.values())
+        filestores = {item['database']: databases.tree_bytes(Path(item['filestore'])) for item in tenants}
+        needed += sum(filestores.values())
+        largest = max([int(control)] + [int(size) + filestores[name] for name, size in sizes.items()])
+        needed += BACKUP_COPIES * largest  # the encrypted capture of the largest database, one at a time
+        required = int(needed * DISK_MARGIN)
+        free = free_bytes(self.config['LIWAN_RELEASE_DISK_PATH'])
+        if free < required:
+            raise ReleaseError('insufficient_disk', EXIT_REFUSED,
+                               f'{free} bytes are free but a snapshot of every database and filestore needs {required}')
 
     def quiesce(self, run: dict) -> None:
         """Stop the shared worker before the inventory, so no tenant is provisioned past the snapshot."""
@@ -436,7 +338,7 @@ class Deployer:
             self.stop_worker()
         run['tenants'] = self.tenants(self.checkout(run['commit']))
         if run['previous'] is None and run['tenants']:
-            raise DeployError('bootstrap_with_tenants', EXIT_REFUSED)
+            raise ReleaseError('bootstrap_with_tenants', EXIT_REFUSED)
         write_json(self.file('run.json'), run)
 
     def tenants(self, checkout: Path) -> list[dict]:
@@ -448,15 +350,21 @@ class Deployer:
             _, output = self.run_command(['node', str(checkout / 'deploy/shared/backup-binding.mjs'), '--list',
                                           str(registry_file)])
         except CommandFailed:
-            raise DeployError('tenant_registry_unavailable') from None
-        return [self.checked_tenant(item) for item in json.loads(output)]
+            raise ReleaseError('tenant_registry_unavailable') from None
+        try:
+            items = json.loads(output)
+        except ValueError:
+            raise ReleaseError('tenant_registry_unavailable') from None
+        return [self.checked_tenant(item) for item in items]
 
     def checked_tenant(self, item: dict) -> dict:
         """The registry names the filestore like the database; backup_pipeline.py places it at <data>/filestore/<name>."""
+        if not isinstance(item, dict) or not isinstance(item.get('tenantId'), str) or not item['tenantId']:
+            raise ReleaseError('invalid_tenant_registry', EXIT_REFUSED, 'a registry entry has no tenantId')
         database, name = str(item.get('database', '')), str(item.get('filestore', ''))
         if not TENANT_DATABASE.fullmatch(database) or name != database:
-            raise DeployError('invalid_tenant_registry', EXIT_REFUSED)
-        filestore = Path(self.config['LIWAN_DEPLOY_ODOO_DATA_DIR']).resolve() / 'filestore' / name
+            raise ReleaseError('invalid_tenant_registry', EXIT_REFUSED)
+        filestore = Path(self.config['LIWAN_RELEASE_ODOO_DATA_DIR']).resolve() / 'filestore' / name
         return {'tenantId': item['tenantId'], 'database': database, 'filestore': str(filestore)}
 
     def capture(self, run: dict) -> None:
@@ -464,27 +372,27 @@ class Deployer:
         if run['previous'] is None:
             return  # first deploy: no stack has run, so there is no data to copy
         work = self.file(f'runs/{run["commit"]}/backup')
-        common = ['--kind', 'hourly', '--work-root', str(work), '--pg-dump', self.config['LIWAN_DEPLOY_PG_DUMP']]
-        if self.config.get('LIWAN_DEPLOY_BACKUP_STORE_ROOT'):
-            common += ['--store-root', self.config['LIWAN_DEPLOY_BACKUP_STORE_ROOT']]
+        common = ['--kind', 'hourly', '--work-root', str(work), '--pg-dump', self.config['LIWAN_RELEASE_PG_DUMP']]
+        if self.config.get('LIWAN_RELEASE_BACKUP_STORE_ROOT'):
+            common += ['--store-root', self.config['LIWAN_RELEASE_BACKUP_STORE_ROOT']]
         pipeline = ['python3', '-B', str(ROOT / 'deploy/backup_pipeline.py'), 'capture']
         try:
             for tenant in run['tenants']:
                 self.run_command(pipeline + common + [
-                    '--tenant', tenant['tenantId'], '--data-dir', self.config['LIWAN_DEPLOY_ODOO_DATA_DIR'],
-                    '--pg-host', self.config['LIWAN_DEPLOY_PG_HOST'], '--pg-port', self.config['LIWAN_DEPLOY_PG_PORT'],
+                    '--tenant', tenant['tenantId'], '--data-dir', self.config['LIWAN_RELEASE_ODOO_DATA_DIR'],
+                    '--pg-host', self.config['LIWAN_RELEASE_PG_HOST'], '--pg-port', self.config['LIWAN_RELEASE_PG_PORT'],
                     '--pg-user', DB_SUPERUSER], env=self.child_env)
             self.run_command(pipeline + common + [
-                '--control-plane', '--db-name', CONTROL_DB, '--pg-host', self.config['LIWAN_DEPLOY_CONTROL_PG_HOST'],
-                '--pg-port', self.config['LIWAN_DEPLOY_CONTROL_PG_PORT'], '--pg-user', CONTROL_DB_USER],
+                '--control-plane', '--db-name', CONTROL_DB, '--pg-host', self.config['LIWAN_RELEASE_CONTROL_PG_HOST'],
+                '--pg-port', self.config['LIWAN_RELEASE_CONTROL_PG_PORT'], '--pg-user', CONTROL_DB_USER],
                 env=self.child_env)
         except CommandFailed:
-            raise DeployError('backup_failed') from None
+            raise ReleaseError('backup_failed') from None
 
     def compose(self, checkout: Path) -> list[str]:
         files = ('docker-compose.yml', 'docker-compose.shared.yml', 'docker-compose.shared-commercial.yml',
                  'docker-compose.production.yml')
-        command = ['docker', 'compose', '-p', self.config['LIWAN_DEPLOY_PROJECT']]
+        command = ['docker', 'compose', '-p', self.config['LIWAN_RELEASE_PROJECT']]
         for name in files:
             command += ['-f', str(checkout / 'deploy' / name)]
         return command + ['--env-file', self.config['LIWAN_SHARED_ENV_FILE'],
@@ -508,7 +416,7 @@ class Deployer:
         self.run_command(['systemctl', 'start', SHARED_WORKER_UNIT])
         code, _ = self.run_command(['systemctl', 'is-active', '--quiet', SHARED_WORKER_UNIT], check=False)
         if code != 0:
-            raise DeployError('worker_not_ready')
+            raise ReleaseError('worker_not_ready')
 
     def stop(self, run: dict) -> None:
         """Maintenance: the edge (Caddy) and the databases stay up; Caddy answers 503 while the guard is down."""
@@ -527,13 +435,9 @@ class Deployer:
         tenants = [{'database': t['database'], 'filestore': t['filestore'], 'control': False} for t in run['tenants']]
         return tenants + [{'database': CONTROL_DB, 'filestore': None, 'control': True}]
 
-    @staticmethod
-    def literal(value: str) -> str:
-        return "'" + value.replace("'", "''") + "'"
-
     def acl(self, checkout: Path, database: str, control: bool) -> dict:
         """Owner, then one ``aclexplode`` row per grant (PUBLIC as ''), NULL read as PostgreSQL's default."""
-        name = self.literal(database)
+        name = databases.literal(database)
         rows = self.psql(checkout, f'SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = {name};\n'
                          "SELECT CASE WHEN a.grantee = 0 THEN '' ELSE pg_get_userbyid(a.grantee) END, a.privilege_type, "
                          'a.is_grantable FROM pg_database d, '
@@ -542,10 +446,6 @@ class Deployer:
         grants = [[grantee, privilege, grantable == 't']
                   for grantee, privilege, grantable in (row.split('|') for row in rows[1:])]
         return {'owner': rows[0], 'grants': grants}
-
-    def terminate(self, database: str) -> str:
-        return ('SELECT pg_terminate_backend(pid) FROM pg_stat_activity '
-                f'WHERE datname = {self.literal(database)} AND pid <> pg_backend_pid();\n')
 
     def snapshot(self, run: dict) -> None:
         """Copy every database (FILE_COPY template) and hard-link every filestore before anything is upgraded."""
@@ -560,7 +460,7 @@ class Deployer:
                 continue
             run['access'][database] = self.acl(checkout, database, item['control'])
             write_json(self.file('run.json'), run)
-            self.psql(checkout, self.snapshot_sql(database), control=item['control'])
+            self.psql(checkout, databases.snapshot_sql(database), control=item['control'])
             if item['filestore']:
                 copy = Path(item['filestore'] + '.pre')
                 if copy.exists():
@@ -568,14 +468,6 @@ class Deployer:
                 self.run_command(['cp', '-al', item['filestore'], str(copy)])
             run['snapshots'][database] = True
             write_json(self.file('run.json'), run)
-
-    def snapshot_sql(self, database: str) -> str:
-        """Closed to new connections first, so no client can reconnect between the terminate and the copy."""
-        db, snap = identifier(database), identifier(snapshot_name(database))
-        return (f'ALTER DATABASE {db} ALLOW_CONNECTIONS false;\n' + self.terminate(database)
-                + f'DROP DATABASE IF EXISTS {snap} WITH (FORCE);\n'
-                f'CREATE DATABASE {snap} TEMPLATE {db} STRATEGY FILE_COPY;\n'
-                f'ALTER DATABASE {db} ALLOW_CONNECTIONS true;\n')
 
     def activate(self, commit: str, odoo_commit: str) -> None:
         write_atomic(self.file('release.env'), release_env_text(commit, odoo_commit))
@@ -599,7 +491,7 @@ class Deployer:
             self.run_command(self.control_compose(checkout) + ['--profile', 'migrate', 'run', '--rm', '--pull',
                                                                'never', '-T', 'control-migrate'], env=self.child_env)
         except CommandFailed:
-            raise DeployError('control_migrate_failed') from None
+            raise ReleaseError('control_migrate_failed') from None
 
     def odoo_run(self, checkout: Path, database: str, args: list[str], stdin: str | None = None) -> str:
         command = self.compose(checkout) + [
@@ -613,20 +505,20 @@ class Deployer:
             output = self.odoo_run(checkout, database, ['-c', '/etc/odoo/odoo.conf', '-d', database, '-u', modules,
                                                         '-i', modules, '--stop-after-init', '--no-http'])
         except CommandFailed:
-            raise DeployError('upgrade_failed') from None
+            raise ReleaseError('upgrade_failed') from None
         write_atomic(log, output)
         code, _ = self.run_command(['python3', '-B', str(checkout / 'tools/upgrade_log_guard.py'), str(log)],
                                    check=False)
         if code != 0:
-            raise DeployError('upgrade_log_rejected')
+            raise ReleaseError('upgrade_log_rejected')
         smoke = (checkout / 'deploy/odoo/upgrade_smoke.py').read_text(encoding='utf-8')
         try:
             output = self.odoo_run(checkout, database, ['shell', '-c', '/etc/odoo/odoo.conf', '-d', database,
                                                         '--no-http'], stdin=smoke)
         except CommandFailed:
-            raise DeployError('upgrade_smoke_failed') from None
+            raise ReleaseError('upgrade_smoke_failed') from None
         if SMOKE_MARKER not in output:
-            raise DeployError('upgrade_smoke_failed')
+            raise ReleaseError('upgrade_smoke_failed')
 
     def start_services(self, checkout: Path, with_edge: bool) -> None:
         """The proxy (80/443) and the applications, healthy; the guard too when ``with_edge``. Never the worker."""
@@ -638,15 +530,17 @@ class Deployer:
         try:
             self.start_services(self.checkout(run['commit']), with_edge=False)
         except CommandFailed:
-            raise DeployError('health_check_failed') from None
+            raise ReleaseError('health_check_failed') from None
 
     def open(self, run: dict) -> None:
         """Starting the guard healthy is the commit point: customers reach the new release."""
         try:
-            self.run_command(self.compose(self.checkout(run['commit'])) + [*UP, EDGE_SERVICE],
-                             env=self.child_env)
+            self.run_command(self.compose(self.checkout(run['commit'])) + [*UP, EDGE_SERVICE], env=self.child_env)
         except CommandFailed:
-            raise DeployError('health_check_failed') from None
+            raise ReleaseError('health_check_failed') from None
+
+    def reopen(self, run: dict) -> None:
+        """The phase is written before the marker goes, so a crash here never rolls back customers' new writes."""
         self.leave_maintenance()
 
     def commit(self, run: dict) -> None:
@@ -654,23 +548,43 @@ class Deployer:
                                               'odooCommit': run['document']['release']['odooCommit'], 'at': now()})
         self.start_worker()
 
+    def cleanup(self, run: dict) -> None:
+        """Drop the snapshots, then prune everything older than the previous release; the run is over."""
+        self.drop_snapshots(run, self.checkout(run['commit']))
+        self.file('run.json').unlink()
+        self.prune(run)
+
     def drop_snapshots(self, run: dict, checkout: Path) -> None:
         for item in self.databases(run):
             if not run.get('snapshots', {}).get(item['database']):
                 continue
-            self.psql(checkout, self.reopen_sql(item['database']), control=item['control'])
-            self.psql(checkout, f'DROP DATABASE IF EXISTS {identifier(snapshot_name(item["database"]))} WITH (FORCE);\n',
-                      control=item['control'])
+            self.psql(checkout, databases.reopen_sql(item['database']), control=item['control'])
+            self.psql(checkout, f'DROP DATABASE IF EXISTS {identifier(databases.snapshot_name(item["database"]))} '
+                      'WITH (FORCE);\n', control=item['control'])
             copy = Path(item['filestore'] + '.pre') if item['filestore'] else None
             if copy is not None and copy.exists():
                 shutil.rmtree(copy)
 
-    def cleanup(self, run: dict) -> None:
-        self.drop_snapshots(run, self.checkout(run['commit']))
-        self.file('run.json').unlink()
+    def prune(self, run: dict) -> None:
+        """Keep the served release and the previous one; remove the images and release folders of every older one."""
+        keep = {run['commit']} | ({run['previous']['commit']} if run['previous'] else set())
+        for record in sorted(self.file('releases').glob('*.json')):
+            if record.stem in keep:
+                continue
+            images = (read_json(record) or {}).get('images', [])
+            if images:
+                self.run_command(['docker', 'image', 'rm', *images], env=self.child_env, check=False)
+            record.unlink()
+        for runs in sorted(self.file('runs').glob('*')):
+            if runs.name not in keep:
+                shutil.rmtree(runs, ignore_errors=True)
+        for folder in sorted(self.paths.releases.glob('*')):
+            match = RELEASE_FOLDER.match(folder.name)
+            if match and match.group(1) not in keep:
+                shutil.rmtree(folder) if folder.is_dir() else folder.unlink()
 
-    # --- rollback ------------------------------------------------------------------------------------
-    def rollback(self, run: dict, reason: str) -> int:
+    # --- rollback --------------------------------------------------------------------------------------
+    def roll_back(self, run: dict, reason: str) -> int:
         failed_phase = run.get('failedPhase', run['phase'])
         run.update(failure=reason, failedPhase=failed_phase)
         self.set_phase(run, 'rolling_back')
@@ -680,16 +594,25 @@ class Deployer:
                 self.stop_bootstrap(run)
                 self.halt(run, failed_phase, reason, 'deploy_failed')
                 self.file('run.json').unlink()
-                return EXIT_FAILED
+                return self.finish(EXIT_FAILED, f'halted {reason}')
             self.restore(run)
-        except (DeployError, CommandFailed, OSError, ValueError) as error:
-            code = error.reason if isinstance(error, DeployError) else 'rollback_command_failed'
+        except (ReleaseError, CommandFailed, OSError, ValueError) as error:
+            code = error.reason if isinstance(error, ReleaseError) else 'rollback_command_failed'
             self.halt(run, failed_phase, code, 'deploy_rollback_failed')
-            return EXIT_ROLLBACK_FAILED
+            return self.finish(EXIT_ROLLBACK_FAILED, f'halted {code}')
         self.leave_maintenance()
-        self.halt(run, failed_phase, reason, 'deploy_failed')
+        self.alert('deploy_failed', run['commit'], failed_phase, reason)
         self.file('run.json').unlink()
-        return EXIT_FAILED
+        self.record_failure(run['commit'], reason)
+        return self.finish(EXIT_FAILED, f'rolled back {reason}')
+
+    def cancel_pending(self, run: dict) -> int:
+        """Before the stop nothing was snapshotted and no tenant inventory is certain (``run['tenants']`` may not exist),
+        so there is no data to restore: the served stack stays as it is, only a worker stopped for the inventory restarts."""
+        if run['phase'] != 'verified' and run['previous'] is not None and self.restart_worker('') != '':
+            return self.finish(EXIT_FAILED, f'worker_not_ready: {run["commit"]} stays pending, run "rollback" again')
+        self.file('run.json').unlink()
+        return self.finish(EXIT_OK, f'cancelled {run["commit"]} before anything was stopped or snapshotted')
 
     def stop_bootstrap(self, run: dict) -> None:
         """First deploy: nothing older exists, so the failed stack is stopped and left in maintenance."""
@@ -714,44 +637,32 @@ class Deployer:
         self.start_worker()
 
     def swap_back(self, run: dict, checkout: Path, item: dict) -> None:
-        database, snap = item['database'], snapshot_name(item['database'])
+        database, snap = item['database'], databases.snapshot_name(item['database'])
         live = self.exists(checkout, database, item['control'])
         if database in run.get('access', {}) and live:
-            self.psql(checkout, self.reopen_sql(database), control=item['control'])  # a failed snapshot left it closed
+            self.psql(checkout, databases.reopen_sql(database), control=item['control'])  # a failed snapshot left it closed
         if not run.get('snapshots', {}).get(database):
             return  # never snapshotted in this run, so never upgraded: an older liwan_pre_* is not ours to swap in
         recorded = run['access'][database]
         if self.exists(checkout, snap, item['control']):
-            self.psql(checkout, self.swap_sql(database, live), control=item['control'])
+            self.psql(checkout, databases.swap_sql(database, live), control=item['control'])
         owner = recorded['owner']
         statements = [f'ALTER DATABASE {identifier(database)} ALLOW_CONNECTIONS true',
                       f'ALTER DATABASE {identifier(database)} OWNER TO {identifier(owner)}']
         if not item['control']:
             statements += list(tenant_isolation_statements(database, DB_SUPERUSER))
-        statements += grant_statements(database, recorded['grants'], owner)  # last: the recorded ACL wins
+        statements += databases.grant_statements(database, recorded['grants'], owner)  # last: the recorded ACL wins
         self.psql(checkout, ''.join(statement + ';\n' for statement in statements), control=item['control'])
-        actual = self.acl(checkout, database, item['control'])
-        if actual != recorded:
-            raise DeployError('acl_mismatch')
+        if self.acl(checkout, database, item['control']) != recorded:
+            raise ReleaseError('acl_mismatch')
         if item['filestore']:
-            restore_filestore(Path(item['filestore']))
+            databases.restore_filestore(Path(item['filestore']))
 
     def exists(self, checkout: Path, database: str, control: bool) -> bool:
-        return self.psql(checkout, f'SELECT count(*) FROM pg_database WHERE datname = {self.literal(database)};\n',
+        return self.psql(checkout, f'SELECT count(*) FROM pg_database WHERE datname = {databases.literal(database)};\n',
                          control=control) == '1'
 
-    @staticmethod
-    def reopen_sql(database: str) -> str:
-        return f'ALTER DATABASE {identifier(database)} ALLOW_CONNECTIONS true;\n'
-
-    def swap_sql(self, database: str, live: bool) -> str:
-        """Close and drop the live database only when it still exists; a resumed swap may find it already gone."""
-        db, snap = identifier(database), identifier(snapshot_name(database))
-        drop = (f'ALTER DATABASE {db} ALLOW_CONNECTIONS false;\n' + self.terminate(database)
-                + f'DROP DATABASE {db} WITH (FORCE);\n') if live else ''
-        return drop + f'ALTER DATABASE {snap} RENAME TO {db};\n'
-
-    # --- status and clear ----------------------------------------------------------------------------
+    # --- status and rollback commands ------------------------------------------------------------------
     def status(self) -> int:
         report = {name: read_json(self.file(f'{name}.json')) for name in ('served', 'run', 'halted')}
         if report['run']:
@@ -759,75 +670,54 @@ class Deployer:
         sys.stdout.write(json.dumps(report, indent=2, sort_keys=True) + '\n')
         return EXIT_HALTED if report['halted'] else EXIT_OK
 
-    def clear(self) -> int:
-        path = self.file('halted.json')
-        if path.exists():
-            path.unlink()
-            self.log('halt cleared; an unfinished run resumes on the next run')
-        return EXIT_OK
-
-
-def restore_filestore(live: Path) -> None:
-    """live -> live.failed, live.pre -> live, remove live.failed; each step resumes from what it finds."""
-    pre, failed = live.with_name(live.name + '.pre'), live.with_name(live.name + '.failed')
-    if pre.exists() and live.exists():
-        if failed.exists():
-            shutil.rmtree(failed)
-        os.replace(live, failed)
-    if pre.exists():
-        os.replace(pre, live)
-    if failed.exists():
-        shutil.rmtree(failed)
-
-
-class Lock:
-    """One run per environment: a non-blocking flock on ``<state>/lock``."""
-
-    def __init__(self, path: Path):
-        self.path = path
-        path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        path.parent.chmod(0o700)  # the state directory stays private, whatever the release tree's modes
-        self.handle = open(path, 'a+', encoding='utf-8')
-
-    def __enter__(self) -> bool:
-        try:
-            fcntl.flock(self.handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            return False
-        return True
-
-    def __exit__(self, *_):
-        self.handle.close()
-
-
-def make_log(stream=sys.stderr):
-    def log(message: str) -> None:
-        stream.write(f'{now()} deploy: {message}\n')
-        stream.flush()
-    return log
+    def rollback(self) -> int:
+        """Operator command: clear the halt and failed-candidate records and finish the rollback of the unfinished run, if there is one."""
+        run = read_json(self.file('run.json'))
+        if run is not None and run['phase'] in POST_OPEN_PHASES:
+            return self.finish(EXIT_REFUSED, f'refused {run["phase"]}_cannot_roll_back')
+        self.file('halted.json').unlink(missing_ok=True)
+        self.file('failed.json').unlink(missing_ok=True)
+        if run is None:
+            return self.finish(EXIT_OK, 'nothing to do: the halt record is cleared and no run is unfinished')
+        if run['phase'] in PRE_SNAPSHOT_PHASES:
+            return self.cancel_pending(run)
+        return self.roll_back(run, run.get('failure', 'operator_rollback'))
 
 
 def parse_args(argv):
     parser = argparse.ArgumentParser(description=(__doc__ or '').split('\n', 1)[0])
-    parser.add_argument('command', choices=('run', 'status', 'clear'))
+    parser.add_argument('command', choices=('run', 'status', 'rollback'))
     parser.add_argument('--environment', required=True)
     return parser.parse_args(argv)
 
 
-def main(argv=None, paths: Paths = Paths(), runner=None, log=None) -> int:
+def main(argv=None, paths: Paths | None = None, runner=None, log=None, environ: dict | None = None,
+         machine: str | None = None) -> int:
     args = parse_args(argv)
-    log = log or make_log()
+    paths = paths or Paths()
+    environ = dict(os.environ) if environ is None else environ
+    log = log or make_log([environ.get(USER_VAR, ''), environ.get(TOKEN_VAR, '')])
     try:
         config = load_config(paths, args.environment)
-        deployer = Deployer(args.environment, config, paths, runner or Runner(log), log)
-        with Lock(deployer.file('lock')) as held:
+        log.secrets.extend(sensitive_values(config, read_env_file(Path(config['LIWAN_SHARED_ENV_FILE']))))
+        releaser = Releaser(args.environment, config, paths, runner or Runner(log), log, environ,
+                            machine or platform.machine())
+        if args.command == 'status':
+            return releaser.status()  # read-only: it must answer while a run holds the lock
+        with Lock(releaser.file('lock')) as held:
             if not held:
                 log('another run holds the lock')
-                return EXIT_OK
-            return getattr(deployer, args.command)()
-    except DeployError as error:
-        log(f'stopped: {error.reason}')
+                return releaser.finish(EXIT_OK, 'nothing to do: another run holds the lock')
+            return getattr(releaser, args.command)()
+    except ReleaseError as error:
+        if error.detail:
+            log(error.detail)
+        kind = 'nothing to do' if error.exit_code == EXIT_OK else 'refused' if error.exit_code == EXIT_REFUSED else 'failed'
+        log(f'RESULT: {kind} {error.reason}')
         return error.exit_code
+    except Exception as error:  # last resort: state stays resumable, the job still gets a RESULT line
+        log(f'RESULT: failed unexpected_error {type(error).__name__}')
+        return EXIT_FAILED
 
 
 if __name__ == '__main__':

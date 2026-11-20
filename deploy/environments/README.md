@@ -64,7 +64,7 @@ environments), **release** (written by the release path), **fixed** (the same in
 | `CUSTOMER_COMMERCIAL_SERVICE_KEY` | Web tier signing key, equal to the control-plane value | generated | generated | host | yes |
 | `LIWAN_PUBLIC_SIGNUP` | Public sign-up switch | `false` until staging is proven | `false` until launch | owner | no |
 | `LIWAN_SHARED_ODOO_CONFIG` | Absolute path of the read-only Odoo config | `/srv/liwan-staging/...` | `/srv/liwan/...` | host | yes |
-| `LIWAN_MAINTENANCE_DIR` | Host directory mounted read-only into the proxy; the deploy script puts `active` there during an update | `/var/lib/liwan-deploy/maintenance` | same | fixed | no |
+| `LIWAN_MAINTENANCE_DIR` | Host directory mounted read-only into the proxy; the release command puts `active` there during an update | `/var/lib/liwan-release/maintenance` | same | fixed | no |
 | `LIWAN_TENANT_REGISTRY_DIR` | Directory of the tenant registry | under the staging root | under the production root | host | yes |
 | `LIWAN_COMMERCIAL_CONTROL_NETWORK` | External network joining web and the control API | prefixed `liwan_staging_` | `liwan_` | host | yes |
 | `LIWAN_ADMIN_EDGE_NETWORK` | External network joining the edge and the vendor console | prefixed `liwan_staging_` | `liwan_` | host | yes |

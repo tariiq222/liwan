@@ -5,7 +5,7 @@ Every assertion here fails when the rule it names is removed from
 ``deploy/image_pins.py``: a third-party image with only a tag, a published digest on
 a service the stack still builds here, a compose digest that disagrees with the
 manifest, a declared service the manifest forgot, a recorded service the stack does
-not declare, a registry other than GHCR, a released image without a build or with a
+not declare, a registry other than the Forgejo one, a released image without a build or with a
 recorded digest, a malformed digest, a duplicated entry. The last class pins today's repository state, so a silent change to either a
 real pin or the real manifest is caught by the suite rather than by a release.
 """
@@ -21,7 +21,7 @@ from pathlib import Path
 
 from deploy import image_pins
 
-REGISTRY = 'ghcr.io/liwan'
+REGISTRY = 'git.liwanos.com/liwan'
 DIGEST = 'sha256:' + 'a' * 64
 OTHER_DIGEST = 'sha256:' + 'b' * 64
 # The digest deploy/docker-compose.production.yml pins for pgbouncer, resolved
@@ -168,7 +168,7 @@ class TestReleasedImage(unittest.TestCase):
         entries = [released('odoo', reference='liwan-odoo')]
         report = image_pins.check({'base.yml': compose({'odoo': 'liwan-odoo:release'})}, manifest(entries))
         text = image_pins.render_report(report, manifest(entries))
-        self.assertIn('per release (signed release manifest)', text)
+        self.assertIn('per release (release document)', text)
         self.assertIn('registry: ' + REGISTRY, text)
 
 
@@ -294,7 +294,7 @@ class TestManifestValidation(unittest.TestCase):
         self.assertRefused([released('db', reference='pgvector/pgvector:pg16')], 'bare liwan-*')
 
     def test_a_released_reference_carries_no_registry_prefix(self):
-        self.assertRefused([released('odoo', reference='ghcr.io/liwan/liwan-odoo')], 'bare liwan-*')
+        self.assertRefused([released('odoo', reference='git.liwanos.com/liwan/liwan-odoo')], 'bare liwan-*')
 
     def test_a_released_image_needs_a_build_and_a_build_needs_a_released_image(self):
         with self.assertRaises(image_pins.ManifestError) as raised:
@@ -314,10 +314,10 @@ class TestManifestValidation(unittest.TestCase):
             manifest(entries, builds=[build('liwan-odoo'), build('liwan-odoo')])
         self.assertIn('duplicate builds', str(raised.exception))
 
-    def test_only_a_ghcr_account_is_a_registry(self):
+    def test_only_a_forgejo_organization_is_a_registry(self):
         entries = [pin('db', reference='pgvector/pgvector:pg16')]
-        for registry in (None, '', 'docker.io/liwan', 'registry.example.com/liwan', 'ghcr.io', 'ghcr.io/Liwan',
-                         'ghcr.io/liwan/extra', 'ghcr.io/liwan:5000'):
+        for registry in (None, '', 'docker.io/liwan', 'ghcr.io/liwan', 'git.liwanos.com', 'git.liwanos.com/Liwan',
+                         'git.liwanos.com/liwan/extra', 'git.liwanos.com/liwan:5000'):
             with self.subTest(registry=registry), self.assertRaises(image_pins.ManifestError):
                 image_pins.parse_manifest({'schemaVersion': 1, 'registry': registry, 'images': entries,
                                            'builds': []})
@@ -427,8 +427,8 @@ class TestRecordedRepositoryState(unittest.TestCase):
                     self.assertIsNotNone(item.image, f'{item.service} declares only a build')
                     self.assertTrue(item.image.startswith(f'{entry.reference}:${{LIWAN_IMAGE_TAG'), item.image)
 
-    def test_the_registry_is_the_ghcr_account_of_the_repository(self):
-        self.assertEqual(self.manifest.registry, 'ghcr.io/tariiq222')
+    def test_the_registry_is_the_forgejo_organization(self):
+        self.assertEqual(self.manifest.registry, 'git.liwanos.com/liwanos')
 
     def test_every_owned_image_is_released_with_a_build_whose_files_exist(self):
         released_references = {entry.reference for entry in self.manifest.entries if not entry.published}

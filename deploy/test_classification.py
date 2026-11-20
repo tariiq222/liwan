@@ -334,7 +334,12 @@ with open(os.environ['DOCKER_LOG'], 'a') as f:
         self.assertNotIn('upgrade-classification.json', previous)
         self.assertIn('LIWAN_COMMERCIAL_CONFIG="$SCRATCH_ROOT/upgrade-classification.json"', upgrade)
         self.assertIn('-e LIWAN_COMMERCIAL_CONFIG=/run/liwan/classification.json', pipeline)
-        self.assertIn('classification.json:/run/liwan/classification.json:ro', pipeline)
+        # The CI target is explicit: the file is baked into a throwaway derived image
+        # at the same path (read-only in effect, never bind-mounted from the job).
+        self.assertIn('classification.json:/run/liwan/classification.json', pipeline)
+        self.assertIn('derive odoo "$IMAGE" odoo.conf:/etc/odoo/odoo.conf classification.json:/run/liwan/classification.json', pipeline)
+        self.assertNotIn('classification.json:/run/liwan/classification.json:ro', pipeline)
+        self.assertNotRegex(pipeline, r'-v\s+\S*classification\.json')
         self.assertIn('unset LIWAN_COMMERCIAL_CONFIG', pipeline)
         self.assertIn('negative case passed unexpectedly', pipeline)
         self.assertIn('tools/upgrade_log_guard.py', pipeline)
