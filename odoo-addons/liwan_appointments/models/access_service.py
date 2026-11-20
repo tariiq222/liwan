@@ -36,7 +36,6 @@ class LiwanAppointmentsAccessService(models.AbstractModel):
         for role_xmlid, keys in (
             ('liwan_appointments.role_appointments_manager', PERMISSIONS | MANAGER_PRODUCT_PERMISSIONS),
             ('liwan_core.role_employee', EMPLOYEE_PERMISSIONS),
-            ('liwan_core.role_vendor_support', PERMISSIONS),
         ):
             grants[role_xmlid] = grants.get(role_xmlid, set()) | keys
         return grants

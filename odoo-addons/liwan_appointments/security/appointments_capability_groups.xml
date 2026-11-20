@@ -30,11 +30,6 @@
         <field name="implied_ids" eval="[Command.set([ref('liwan_core.group_employee'),ref('group_cap_appointments_bookings_manage')])]"/>
     </record>
 
-    <!-- liwan_core's support group reaches this application through this link. -->
-    <record id="liwan_core.group_vendor_support" model="res.groups">
-        <field name="implied_ids" eval="[Command.link(ref('group_appointments_manager'))]"/>
-    </record>
-
     <!-- System administration does not imply Appointments management: the engine adds
          base.user_admin to its manager group; only the superuser keeps it. -->
     <record id="resource_booking.group_manager" model="res.groups">

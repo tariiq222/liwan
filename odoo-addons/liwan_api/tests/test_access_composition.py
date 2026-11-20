@@ -2,6 +2,7 @@
 import unittest
 
 from odoo.tests import TransactionCase, new_test_user, tagged
+from odoo.tools import convert_file
 
 SYSTEM = frozenset({
     'access.users.read', 'access.users.grant', 'access.users.assign_roles',
@@ -43,6 +44,11 @@ EMPLOYEE = frozenset({
     'meetings.read',
 })
 CATALOG = SYSTEM | HR | PRIVATE_HR | PAYROLL | PMO | MEETINGS
+# Vendor support is closed by default: only the settings keys each application grants it.
+SUPPORT = (SYSTEM - {'settings.company.vat.manage'}) | {
+    'inbox.channels.manage', 'inbox.settings.manage', 'chat.settings.manage', 'meetings.settings.manage',
+    'pmo.settings.manage', 'hr.leave.config',
+}
 # These tests pin today's applications. An application added later extends the
 # composition with its own keys, roles and groups; those are checked only for
 # what every application must satisfy (an installed owner, one domain per key).
@@ -149,7 +155,7 @@ class TestAccessComposition(TransactionCase):
         self.assertEqual(self._role_keys('hr_manager'), HR | PRIVATE_HR)
         self.assertEqual(self._role_keys('pmo_manager'), PMO)
         self.assertEqual(self._role_keys('system_admin'), SYSTEM | MEETINGS)
-        self.assertEqual(self._role_keys('vendor_support'), CATALOG - PAYROLL - PRIVATE_HR - {'settings.company.vat.manage'})
+        self.assertEqual(self._role_keys('vendor_support'), self._release(SUPPORT & set(self.service._liwan_capability_map())))
         self.assertEqual(self._role_keys('payroll_manager'), PAYROLL)
         self.assertLessEqual(
             BUILT_IN_ROLES,
@@ -157,6 +163,17 @@ class TestAccessComposition(TransactionCase):
         )
         grants = self.service._liwan_builtin_role_grants()
         self.assertLessEqual(BUILT_IN_ROLES, {self.env.ref(role_xmlid).key for role_xmlid in grants})
+
+    def test_a_vendor_support_user_holds_exactly_the_support_allowlist(self):
+        catalog = set(self.service._liwan_capability_map())
+        support = new_test_user(self.env, login='composition_vendor_support', groups='liwan_core.group_vendor_support')
+        keys = self.service._liwan_capability_keys(support, company=self.env.company)
+        self.assertEqual(keys, SUPPORT & catalog)
+        self.assertFalse(keys & (CATALOG - SUPPORT))
+        self.assertNotIn('tenant.export', keys)
+        self.assertFalse(support.has_group('liwan_platform.group_maintenance_manager'))
+        self.assertFalse(support.has_group('liwan_core.group_customer_admin'))
+        self.assertEqual(self.service._liwan_capability_keys(self.env.ref('base.user_root'), company=self.env.company), catalog)
 
     def test_permission_dependencies_are_unchanged(self):
         actual = {
@@ -177,7 +194,11 @@ class TestAccessComposition(TransactionCase):
             permission.key for permission in self.Permission.search([])
             if self.env.ref(permission.group_xmlid) in vendor.all_implied_ids
         }
-        self.assertEqual(self._release(implied_keys), CATALOG - PAYROLL - PRIVATE_HR - {'meetings.read', 'meetings.create'})
+        release_support = self._release(SUPPORT & set(self.service._liwan_capability_map()))
+        self.assertEqual(release_support, self._release(implied_keys))
+        for xmlid in ('liwan_core.group_customer_admin', 'liwan_core.group_access_admin', 'liwan_platform.group_maintenance_manager'):
+            self.assertNotIn(self.env.ref(xmlid), vendor.all_implied_ids, xmlid)
+        self.assertFalse(self._release(implied_keys) & (PAYROLL | PRIVATE_HR))
         access_admin = self.env.ref('liwan_core.group_access_admin')
         self.assertIn(self._group('meetings.manage'), access_admin.all_implied_ids)
         legacy_admin = self.env.ref('liwan_core.group_customer_admin')
@@ -191,7 +212,9 @@ class TestAccessComposition(TransactionCase):
         self.assertEqual(rule.groups, self._group('access.users.read') | self._group('hr.employees.archive'))
         admin = self.env.ref('base.user_admin')
         self.assertTrue(admin.has_group('liwan_core.group_vendor_support'))
-        self.assertTrue(admin.has_group('liwan_core.group_employee'))
+        # The shipped support account is vendor support only: it implies neither the customer admin nor the employee group.
+        self.assertFalse(admin.has_group('liwan_core.group_customer_admin'))
+        self.assertFalse(admin.has_group('liwan_core.group_employee'))
 
     def test_system_admin_has_meetings_but_no_hr_or_pmo_management(self):
         admin = new_test_user(self.env, login='composition_system_admin', groups='base.group_user')
@@ -230,3 +253,79 @@ class TestAccessComposition(TransactionCase):
             {key: key.split('.')[0] for key in self.service._liwan_capability_map()},
         )
         self.assertLessEqual(CATALOG, set(self.service._liwan_capability_map()))
+
+
+# Stock and OCA security files that add base.user_admin to a group (a noupdate block never re-adds, so those groups are
+# covered by the seeded-account test only), then the liwan file that takes it out again.
+STOCK_THEN_LIWAN_FILES = (
+    ('hr', 'security/hr_security.xml', 'hr.group_hr_manager', 'liwan_hr', 'security/hr_capability_groups.xml'),
+    ('hr_holidays', 'security/hr_holidays_security.xml', 'hr_holidays.group_hr_holidays_manager', 'liwan_hr', 'security/hr_capability_groups.xml'),
+    ('maintenance', 'security/maintenance.xml', 'maintenance.group_equipment_manager', 'liwan_hr', 'security/hr_capability_groups.xml'),
+    ('spreadsheet_dashboard', 'security/security.xml', 'spreadsheet_dashboard.group_dashboard_manager', 'liwan_finance', 'security/finance_capability_groups.xml'),
+    ('account', 'security/account_security.xml', 'account.group_account_manager', 'liwan_api_account', 'security/account_capability_groups.xml'),
+    ('project', 'security/project_security.xml', 'project.group_project_manager', 'liwan_pmo', 'security/pmo_capability_groups.xml'),
+    ('project', 'security/project_security.xml', 'project.group_project_manager', 'liwan_tasks', 'security/tasks_capability_groups.xml'),
+    ('sales_team', 'security/sales_team_security.xml', 'sales_team.group_sale_manager', 'liwan_crm', 'security/crm_capability_groups.xml'),
+    ('sales_team', 'security/sales_team_security.xml', 'sales_team.group_sale_manager', 'liwan_sales', 'security/sales_capability_groups.xml'),
+    ('product', 'security/product_security.xml', 'product.group_product_manager', 'liwan_products', 'security/products_capability_groups.xml'),
+    ('dms', 'security/security.xml', 'dms.group_dms_manager', 'liwan_document_service', 'security/documents_capability_groups.xml'),
+    ('mis_builder', 'security/res_groups.xml', 'mis_builder.group_edit_annotation', 'liwan_finance', 'security/finance_capability_groups.xml'),
+    ('helpdesk_mgmt', 'security/helpdesk_security.xml', 'helpdesk_mgmt.group_helpdesk_manager', 'liwan_helpdesk', 'security/helpdesk_capability_groups.xml'),
+)
+
+
+@tagged('post_install', '-at_install', 'liwan', 'liwan_access')
+class TestVendorSupportStockGroups(TransactionCase):
+    """The seeded support account holds exactly what the support group gives, and an upgrade never gives it more."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        needed = {
+            'liwan_hr', 'liwan_pmo', 'liwan_tasks', 'liwan_api_account', 'liwan_products', 'liwan_finance',
+            'liwan_crm', 'liwan_sales', 'liwan_document_service', 'liwan_helpdesk',
+        }
+        installed = set(cls.env['ir.module.module'].search([('name', 'in', sorted(needed)), ('state', '=', 'installed')]).mapped('name'))
+        if installed != needed:
+            reason = f'needs {sorted(needed - installed)} installed'
+            raise unittest.SkipTest(reason)
+
+    def test_seeded_support_account_equals_a_fresh_support_user(self):
+        fresh = new_test_user(self.env, login='stock_groups_fresh_support', groups='liwan_core.group_vendor_support')
+        seeded = self.env.ref('base.user_admin')
+        extra = (seeded.all_group_ids - fresh.all_group_ids).mapped('full_name')
+        missing = (fresh.all_group_ids - seeded.all_group_ids).mapped('full_name')
+        self.assertEqual((extra, missing), ([], []))
+        self.assertFalse(seeded.has_group('hr.group_hr_manager'))
+
+    def test_an_upgrade_does_not_give_the_support_account_a_manager_group_back(self):
+        admin = self.env.ref('base.user_admin')
+        for stock_module, stock_file, group_xmlid, liwan_module, liwan_file in STOCK_THEN_LIWAN_FILES:
+            convert_file(self.env, stock_module, stock_file, {}, mode='update')
+            self.env.invalidate_all()
+            self.assertTrue(admin.has_group(group_xmlid), f'{stock_file} no longer adds the support account: the check proves nothing')
+            convert_file(self.env, liwan_module, liwan_file, {}, mode='update')
+            self.env.invalidate_all()
+            self.assertFalse(admin.has_group(group_xmlid), liwan_file)
+        self.assertFalse(admin.has_group('product.group_product_manager'))
+        self.assertNotIn(
+            self.env.ref('product.group_product_manager'), self.env.ref('base.group_system').implied_ids,
+        )
+
+    def test_a_customer_admin_keeps_working_access_without_the_manager_groups(self):
+        admin = self.env.ref('base.user_admin')
+        support = self.env.ref('liwan_core.group_vendor_support')
+        admin._liwan_access_write({'group_ids': [(3, support.id, 0)]}, 'access.users.assign_roles')
+        roles = self.env['liwan.access.role'].search([('key', 'in', ['hr_manager', 'finance_manager', 'pmo_manager']), ('type', '=', 'built_in')])
+        self.assertEqual(len(roles), 3)
+        self.env['liwan.access.service']._liwan_replace_assignments(admin, [
+            {'role_id': role.id, 'company_id': self.env.company.id} for role in roles
+        ])
+        admin._liwan_sync_capability_groups()
+        self.env.invalidate_all()
+        for xmlid in ('hr.group_hr_user', 'account.group_account_invoice', 'project.group_project_user'):
+            self.assertTrue(admin.has_group(xmlid), xmlid)
+        self.assertFalse(admin.has_group('hr.group_hr_manager'))
+        self.assertFalse(admin.has_group('account.group_account_manager'))
+        self.assertFalse(admin.has_group('project.group_project_manager'))
+        self.env['hr.employee'].with_user(admin).search([], limit=1)

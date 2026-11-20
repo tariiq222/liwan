@@ -40,12 +40,21 @@ class TestLeaveSettings(LeaveCancellationCase):
     def test_existing_trusted_vendor_support_retains_configuration_access(self):
         support = new_test_user(self.env, login='leave_support_config', password='support_leave_123', groups='liwan_core.group_vendor_support')
         self.assertTrue(self.env['liwan.access.service']._liwan_has_capability(support, 'hr.leave.config'))
+        self.assertFalse(self.env['liwan.access.service']._liwan_has_capability(support, 'hr.employees.read'))
         self.authenticate(support.login, 'support_leave_123')
         current = self.api('GET', '/api/v1/hr/leave/settings')
         self.assertEqual(current.status_code, 200, current.text)
         saved = self.api('PATCH', '/api/v1/hr/leave/settings', {'cancellation_policy': 'manager_only', 'revision': current.json()['revision']})
         self.assertEqual(saved.status_code, 200, saved.text)
         self.assertEqual(saved.json()['cancellation_policy'], 'manager_only')
+
+    def test_vendor_support_user_reaches_leave_settings_and_no_hr_content(self):
+        new_test_user(self.env, login='leave_support_live', password='support_live_123', groups='liwan_core.group_vendor_support')
+        self.authenticate('leave_support_live', 'support_live_123')
+        self.assertEqual(self.api('GET', '/api/v1/hr/leave/settings').status_code, 200)
+        for path in ('/api/v1/hr/payroll/runs', '/api/v1/hr/warnings', '/api/v1/hr/insurance/plans'):
+            result = self.api('GET', path)
+            self.assertEqual((result.status_code, result.json()['code']), (403, 'forbidden'), path)
 
     def test_system_admin_and_ordinary_custom_roles_need_explicit_config(self):
         admin = new_test_user(self.env, login='leave_system_config', groups='base.group_system')

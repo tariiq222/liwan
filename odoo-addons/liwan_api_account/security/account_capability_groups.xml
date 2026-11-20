@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Stock account adds base.user_admin (the vendor support account) to its manager group; only the superuser keeps it. Finance capability groups reach the stock groups through their own implied links. -->
+    <record id="account.group_account_manager" model="res.groups">
+        <field name="user_ids" eval="[Command.unlink(ref('base.user_admin'))]"/>
+    </record>
+</odoo>

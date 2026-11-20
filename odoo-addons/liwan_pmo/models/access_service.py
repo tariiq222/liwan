@@ -49,7 +49,7 @@ class LiwanPmoAccessService(models.AbstractModel):
         for role_xmlid, keys in (
             ('liwan_pmo.role_pmo_manager', PMO_PERMISSIONS),
             ('liwan_core.role_employee', EMPLOYEE_PMO_PERMISSIONS),
-            ('liwan_core.role_vendor_support', PMO_PERMISSIONS),
+            ('liwan_core.role_vendor_support', {'pmo.settings.manage'}),
         ):
             grants[role_xmlid] = grants.get(role_xmlid, set()) | keys
         return grants

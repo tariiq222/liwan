@@ -112,7 +112,8 @@ class TestBookingProductCapabilities(BookingProductsCase):
                 for payload in ({'price': 80}, {'product_id': existing.id}):
                     self.assertRefused(self.patch(self.fresh_type, payload), 403, 'forbidden')
                 self.assertRefused(self.patch(self.paid_type, {'price': 80}), 403, 'forbidden')
-        with self.assertRaises(LiwanAccessRule):
+        # Support cannot even read a booking type, so the access layer refuses before the payment rule runs.
+        with self.assertRaises(AccessError):
             self.fresh_type.with_user(support)._liwan_set_payment(price=80)
         self.assertFalse(self.fresh_type._liwan_product())
         self.assertEqual(self.paid_type._liwan_product().list_price, 115.0)

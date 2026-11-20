@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 from psycopg2 import IntegrityError
 
 from odoo.exceptions import AccessError
-from odoo.tests import tagged
+from odoo.tests import new_test_user, tagged
 from odoo.tools import mute_logger
 
 from .common import LiwanAppointmentsCase
@@ -331,3 +331,11 @@ class TestAppointmentSettings(LiwanAppointmentsCase):
         self._as_manager()
         self.assertEqual(self.api('GET', URL).status_code, 403)
         self.assertEqual(self.api('PATCH', URL, {'horizon_days': 10, 'revision': 0}).status_code, 403)
+
+    def test_vendor_support_user_reads_no_bookings_and_writes_none(self):
+        new_test_user(self.env, login='appointments_support_live', password='appointments_support_live_123', groups='liwan_core.group_vendor_support')
+        self.authenticate('appointments_support_live', 'appointments_support_live_123')
+        listed = self.api('GET', '/api/v1/appointments/bookings')
+        self.assertEqual((listed.status_code, listed.json()['code']), (403, 'forbidden'))
+        created = self.api('POST', '/api/v1/appointments/bookings', {})
+        self.assertEqual((created.status_code, created.json()['code']), (403, 'forbidden'))

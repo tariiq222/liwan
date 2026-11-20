@@ -2,7 +2,7 @@
 {
     'name': 'liwan Products',
     'summary': "liwan platform: the one writer of a product's definition on product.template — /api/v1/products",
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.1.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',

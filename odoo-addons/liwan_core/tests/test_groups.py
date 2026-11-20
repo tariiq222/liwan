@@ -27,6 +27,12 @@ class TestLiwanGroups(TransactionCase):
         self.assertNotIn(self.env.ref('base.group_system'), admin.all_implied_ids)
 
         self.assertIn(self.env.ref('base.group_system'), vendor.all_implied_ids)
+        for xmlid in (
+            'liwan_core.group_customer_admin', 'liwan_core.group_access_admin',
+            'liwan_core.group_cap_settings_company_vat_manage',
+        ):
+            self.assertNotIn(self.env.ref(xmlid), vendor.all_implied_ids, xmlid)
+        self.assertIn(self.env.ref('liwan_core.group_cap_settings_company_manage'), vendor.all_implied_ids)
 
     def test_core_depends_on_base_only(self):
         module = self.env['ir.module.module']._get('liwan_core')

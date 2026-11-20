@@ -30,6 +30,7 @@ SELF_GRANT_POLICIES = ('restricted', 'allowed')
 # Registering the company for VAT decides whether tax shows anywhere: the system administrator role only,
 # never a custom role and never the vendor support role.
 VAT_PERMISSION = 'settings.company.vat.manage'
+SUPPORT_ROLE = 'liwan_core.role_vendor_support'
 SYSTEM_PERMISSIONS = {
     'access.users.read', 'access.users.grant', 'access.users.assign_roles',
     'access.users.disable', 'access.users.reset_password', 'access.roles.read',
@@ -128,7 +129,7 @@ class LiwanAccessService(models.AbstractModel):
         return {
             'liwan_core.role_employee': set(),
             'liwan_core.role_system_admin': set(SYSTEM_PERMISSIONS),
-            'liwan_core.role_vendor_support': SYSTEM_PERMISSIONS - {VAT_PERMISSION},
+            SUPPORT_ROLE: SYSTEM_PERMISSIONS - {VAT_PERMISSION},
         }
 
     @api.model
@@ -290,8 +291,12 @@ class LiwanAccessService(models.AbstractModel):
 
     @api.model
     def _liwan_compute_capability_keys(self, user, company):
-        if user._is_superuser() or user.has_group('liwan_core.group_vendor_support'):
-            return set(self._liwan_capability_map())
+        catalog = set(self._liwan_capability_map())
+        if user._is_superuser():
+            return catalog
+        if user.has_group('liwan_core.group_vendor_support'):
+            # Vendor support is closed by default: only what applications grant the role, never the catalog.
+            return self._liwan_builtin_role_grants().get(SUPPORT_ROLE, set()) & catalog
         self.env.cr.execute(
             '''
                 SELECT DISTINCT permission.key
@@ -1205,17 +1210,25 @@ class LiwanAccessService(models.AbstractModel):
 
     @api.model
     def _liwan_repair_builtin_role_grants(self):
-        """Link every missing built-in grant and never remove a link.
+        """Link every missing built-in grant; only vendor support also loses grants it no longer has.
 
         Built-in roles are noupdate records, so seed XML cannot add a grant on
         an existing database. Every addon that contributes grants calls this
-        from its data after its permission and role records. It is private and
-        must run as the superuser from trusted module data.
+        from its data after its permission and role records. Other built-in
+        roles never lose a link here. Vendor support is default-deny, so the
+        persisted role loses grants that are in the loaded catalog but not in the
+        composed allowlist. During an upgrade the registry holds only the addons
+        loaded so far, so a grant whose key belongs to a not-yet-loaded addon is
+        left for that addon's own repair call; the last call in graph order sees
+        the full catalog. Runtime keys of a support user come from the allowlist,
+        not from the persisted role, so the transient state is harmless.
+        It is private and must run as the superuser from trusted module data.
         """
         if not self.env.is_superuser():
             msg = 'built-in role grant repair requires superuser'
             raise AccessError(msg)
         Permission = self.env['liwan.access.permission']
+        catalog = set(self._liwan_capability_map())
         for role_xmlid, keys in sorted(self._liwan_builtin_role_grants().items()):
             role = self.env.ref(role_xmlid, raise_if_not_found=False)
             if (
@@ -1236,6 +1249,12 @@ class LiwanAccessService(models.AbstractModel):
                 role.write({
                     'permission_ids': [Command.link(permission.id) for permission in missing],
                 })
+            if role_xmlid == SUPPORT_ROLE:
+                stale = role.permission_ids.filtered(lambda permission: permission.key in catalog) - permissions
+                if stale:
+                    role.write({
+                        'permission_ids': [Command.unlink(permission.id) for permission in stale],
+                    })
         return True
 
     @api.model

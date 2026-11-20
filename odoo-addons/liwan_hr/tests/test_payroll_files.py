@@ -254,8 +254,8 @@ class TestPayrollFiles(PayrollCase):
             return
         self._assert_read_only_refusal(run_id, (2, 2))
 
-    def test_a_suspended_tenant_refuses_the_support_login_both_salary_files(self):
-        """Support may sign in to a suspended tenant read-only; it generates no salary file either."""
+    def test_vendor_support_gets_no_payroll_even_with_an_assignment_on_a_suspended_tenant(self):
+        """Support is default-deny: an assignment is ignored for it, so it reads no run and builds no salary file."""
         run_id = self._run()
         support = self.env.ref('base.user_admin')
         self.assertTrue(support.has_group('liwan_core.group_vendor_support'))
@@ -265,8 +265,22 @@ class TestPayrollFiles(PayrollCase):
         })
         self._tenant(status='suspended', support_access_enabled=True)
         self.authenticate('admin', 'admin')
-        self.assertEqual(self.api('GET', f'{RUNS}/{run_id}').status_code, 200)
-        self._assert_read_only_refusal(run_id, (0, 0))
+        self.assertFalse(self.env['liwan.access.service']._liwan_has_capability(support, 'hr.payroll.read'))
+        export = type(self.env['liwan.hr.payroll.export'])
+        built = []
+        original = export._liwan_salary_lines
+
+        def spy(records, run):
+            built.append(run.id)
+            return original(records, run)
+        self.patch(export, '_liwan_salary_lines', spy)
+        self.assertEqual(self.api('GET', f'{RUNS}/{run_id}').status_code, 403)
+        for route, profile in self._file_routes():
+            res = self.api('POST', f'{RUNS}/{run_id}/{route}', json={'profile_id': profile.id})
+            self.assertEqual(res.status_code, 403, route)
+            self.assertNotIn(IBAN_ONE, res.text, route)
+        self.assertEqual(built, [])
+        self.assertEqual(self._kept_and_logged(run_id), (0, 0))
 
     def test_a_full_storage_quota_refuses_the_file_and_keeps_no_partial_row(self):
         run_id = self._run()

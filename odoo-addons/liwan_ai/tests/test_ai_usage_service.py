@@ -283,12 +283,12 @@ class TestAiUsageService(AiProbe, LiwanApiCase):
             self.Usage.invalidate_model()
             self.assertEqual(self._post(self._batch(self.employee, second, self._attempt(90), self._attempt(91))).status_code, 200)
 
-    def test_a_user_holding_every_capability_is_still_refused(self):
-        """liwan_core gives vendor support (and the superuser) every capability; only the recorder itself may report."""
+    def test_a_user_without_the_recorder_identity_is_still_refused(self):
+        """Only the recorder itself may report: not the superuser, who holds every capability, nor a vendor support user."""
         support = new_test_user(self.env, login='usage_support', groups='liwan_core.group_vendor_support')
         admin = new_test_user(self.env, login='usage_admin', groups='base.group_system')
         service = self.env['liwan.access.service']
-        self.assertIn(AI_USAGE_RECORD, service.with_user(support)._liwan_capability_keys(support))
+        self.assertNotIn(AI_USAGE_RECORD, service.with_user(support)._liwan_capability_keys(support))
         # Worst case: these users also hold the recorder's ACL group, so only the identity check stands between their key and the ledger.
         (support | admin).write({'group_ids': [Command.link(self.env.ref('liwan_ai.group_cap_ai_usage_record').id)]})
         for user in (support, admin):

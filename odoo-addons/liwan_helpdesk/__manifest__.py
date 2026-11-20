@@ -2,7 +2,7 @@
 {
     'name': 'liwan Support Desk',
     'summary': 'liwan platform: the Support Desk application — /api/v1/helpdesk tickets, teams and SLA',
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.1.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
