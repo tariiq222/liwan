@@ -621,98 +621,181 @@ class TestVendorAdminStage(unittest.TestCase):
 
 
 class TestPublishWorkflow(unittest.TestCase):
-    """The publish workflow pushes to the registry with the repository token: its trust boundary is fixed here."""
-    workflow = (ROOT / '.github/workflows/publish.yml').read_text()
+    """The publish zone workflow pushes to the private registry with a write token: its trust boundary is fixed here."""
+    path = ROOT / 'deploy/ci/publish-zone/publish.yml'
+    trigger_path = ROOT / '.forgejo/workflows/publish.yml'
+    workflow = path.read_text()
     script = commands('publish')
 
-    def job(self, name):
-        return re.search(rf'(?ms)^  {name}:\n(.*?)(?=^  [a-z][a-z0-9-]*:\n|\Z)', self.workflow).group(1)
+    def job(self):
+        return yaml.safe_load(self.workflow)['jobs']['publish']
 
-    def test_the_token_has_exactly_the_three_permissions_it_needs(self):
-        block = re.search(r'(?m)^permissions:\n((?:  .+\n)+)', self.workflow).group(1)
-        self.assertEqual(sorted(line.strip() for line in block.splitlines()),
-                         ['contents: read', 'id-token: write', 'packages: write'])
-        self.assertNotIn('\n    permissions:', self.workflow)
+    def step(self, name):
+        return next(step for step in self.job()['steps'] if step.get('name') == name)
 
-    def test_it_runs_on_main_pushes_release_tags_and_manual_runs_only(self):
-        triggers = yaml.safe_load(self.workflow)[True]
-        self.assertEqual(sorted(triggers), ['push', 'workflow_dispatch'])
-        self.assertEqual(triggers['push'], {'branches': ['main'], 'tags': ['release/*']})
-        for forbidden in ('pull_request', 'pull_request_target', 'workflow_run', 'issue_comment'):
+    def test_the_zone_workflow_is_in_the_repository_and_github_has_no_publish_workflow(self):
+        self.assertTrue(self.path.is_file())
+        self.assertTrue((ROOT / 'deploy/ci/publish-zone/README.md').is_file())
+        self.assertFalse((ROOT / '.github/workflows/publish.yml').exists())
+
+    def test_it_runs_only_when_dispatched_and_only_on_the_publish_runner(self):
+        document = yaml.safe_load(self.workflow)
+        self.assertEqual(document[True], {'workflow_dispatch': None})
+        self.assertNotIn('inputs', self.workflow)
+        self.assertEqual(self.job()['runs-on'], 'publish-amd64')
+        for forbidden in ('pull_request', 'pull_request_target', 'workflow_run', 'issue_comment', 'push:', 'tags:'):
             self.assertNotIn(forbidden, self.workflow)
 
-    def test_every_action_is_pinned_to_a_commit_with_its_version(self):
-        uses = re.findall(r'(?m)^\s*(?:-\s*)?uses:\s+(\S+)(.*)$', self.workflow)
-        self.assertTrue(uses)
-        for action, comment in uses:
-            with self.subTest(action=action):
-                self.assertRegex(action, r'^[^@]+@[0-9a-f]{40}$')
-                self.assertRegex(comment, r'#\s*v\d+\.\d+\.\d+$')
+    def test_the_source_is_forgejo_main_resolved_inside_the_job_with_the_read_token_never_in_a_url(self):
+        step = self.step('Check out liwanos/liwan at Forgejo main')
+        self.assertIn('git ls-remote "$url" refs/heads/main', step['run'])
+        self.assertIn('GIT_ASKPASS', step['run'])
+        self.assertEqual(step['env'], {'LIWAN_SOURCE_READ_TOKEN': '${{ secrets.LIWAN_SOURCE_READ_TOKEN }}'})
+        self.assertNotRegex(self.workflow, r'https://[^\s/]*\$\{\{|://[^/\s]*:[^/\s]*@')
+        for name in ('Decide what this run does', 'Build and scan the images', 'Push the images and the release document'):
+            step = self.step(name)
+            self.assertEqual(step['working-directory'], 'source')
+            self.assertEqual(step['env']['GITHUB_REPOSITORY'], '${{ env.SOURCE_REPOSITORY }}')
+            self.assertEqual(step['env']['GITHUB_REF'], 'refs/heads/main')
 
-    def test_the_arm_image_is_built_natively_not_emulated(self):
-        document = yaml.safe_load(self.workflow)
-        self.assertEqual(document['jobs']['build']['runs-on'], 'ubuntu-24.04-arm')
-        self.assertNotIn('amd64', self.workflow)
-        self.assertIn('PLATFORM="linux/arm64"', self.script)
-        for forbidden in ('qemu', 'binfmt'):
+    def test_the_trigger_workflow_holds_no_registry_secret_no_volumes_and_builds_nothing(self):
+        text = self.trigger_path.read_text()
+        document = yaml.safe_load(text)
+        self.assertEqual(document[True], {'push': {'branches': ['main']}})
+        job = document['jobs']['trigger']
+        self.assertEqual(job['runs-on'], 'ci-amd64')
+        self.assertNotIn('container', job)
+        self.assertEqual(sorted(set(re.findall(r'secrets\.(\w+)', text))), ['LIWAN_PUBLISH_TRIGGER_TOKEN'])
+        for forbidden in ('volumes', 'docker', 'buildx', 'LIWAN_REGISTRY', 'LIWAN_STAGING', 'publish.sh', 'checkout'):
+            self.assertNotIn(forbidden, text.replace('Docker', 'docker').split('\njobs:')[1])
+        run = job['steps'][0]['run']
+        self.assertEqual(run.count('curl -fsS -X POST'), 1)
+        self.assertIn('/api/v1/repos/liwanos/liwan-publish/actions/workflows/publish.yml/dispatches', run)
+        self.assertIn('{"ref":"main"}', run)
+        self.assertIn('is not set as a repository secret', run)
+        self.assertNotIn('$TRIGGER_TOKEN"  ', run)
+        self.assertIn('--config <(printf', run)  # the token travels through a config stream, not an argument
+
+    def test_no_workflow_under_forgejo_names_a_publish_label(self):
+        for path in sorted((ROOT / '.forgejo/workflows').glob('*.yml')):
+            for name, job in yaml.safe_load(path.read_text())['jobs'].items():
+                with self.subTest(workflow=path.name, job=name):
+                    self.assertNotIn('publish', str(job['runs-on']))
+
+    def test_ci_workflow_references_no_secret_and_no_container_volumes(self):
+        text = '\n'.join(line for line in (ROOT / '.forgejo/workflows/ci.yml').read_text().splitlines()
+                         if not line.lstrip().startswith('#'))
+        self.assertNotIn('secrets.', text)
+        for name, job in yaml.safe_load(text)['jobs'].items():
+            with self.subTest(job=name):
+                self.assertNotIn('volumes', job.get('container') or {})
+
+    def test_runs_queue_and_a_newer_main_commit_supersedes_an_old_one_by_the_head_check(self):
+        # Cancelling would let a rerun of an old run cancel the newer main publish midway.
+        self.assertEqual(yaml.safe_load(self.workflow)['concurrency'], {'group': 'publish', 'cancel-in-progress': False})
+        for function in ('check', 'push'):
+            body = re.search(rf'(?ms)^{function}\(\) \{{\n(.*?)^\}}$', self.script).group(1)
+            self.assertIn('is_superseded', body)
+        head = re.search(r'(?ms)^remote_head\(\) \{\n(.*?)^\}$', self.script).group(1)
+        self.assertIn('git ls-remote', head)
+        self.assertIn('GIT_CONFIG_VALUE_0=', head)  # the token travels in the environment, not in an argument
+        self.assertNotIn('-c http', head)
+        self.assertIn('superseded', self.script)
+
+    def test_the_hook_is_skipped_for_a_superseded_run_and_called_again_for_a_published_one(self):
+        condition = self.step('Tell staging a new commit is ready')['if']
+        self.assertIn("steps.check.outputs.state != 'superseded'", condition)
+        self.assertIn("steps.push.outputs.superseded != 'true'", condition)
+        for name in ('Build and scan the images', 'Push the images and the release document', 'Start the scratch database'):
+            self.assertEqual(self.step(name)['if'], "steps.check.outputs.state == 'build'")
+        check = re.search(r'(?ms)^check\(\) \{\n(.*?)^\}$', self.script).group(1)
+        self.assertIn('is already published: not rebuilding', check)
+        self.assertIn('state published', check)
+
+    def test_docker_comes_from_the_runners_own_socket_named_in_one_place(self):
+        job = self.job()
+        self.assertEqual(job['runs-on'], 'publish-amd64')
+        socket = '/run/user/1001/docker.sock'
+        self.assertEqual(job['container']['volumes'], [f'{socket}:{socket}'])
+        self.assertEqual(job['container']['env'], {'DOCKER_HOST': f'unix://{socket}'})
+        self.assertEqual(self.workflow.count(socket), 3)  # volume source and target, DOCKER_HOST
+        self.assertNotIn('/var/run/docker.sock', self.workflow)
+        self.assertNotIn('docker.sock', self.script)
+
+    def test_it_uses_no_third_party_action(self):
+        self.assertNotRegex(self.workflow, r'(?m)^\s*(?:-\s*)?uses:')
+
+    def test_the_job_image_and_the_builder_image_are_pinned_by_digest(self):
+        self.assertRegex(self.job()['container']['image'], r'^node:22-bookworm@sha256:[0-9a-f]{64}$')
+        self.assertRegex(self.script, r'BUILDKIT_IMAGE="moby/buildkit:v0\.18\.2@sha256:[0-9a-f]{64}"')
+        self.assertIn('image=$BUILDKIT_IMAGE', self.script)
+
+    def test_the_build_is_native_amd64_never_emulated_and_no_arm64_leg_exists_yet(self):
+        self.assertIn('PLATFORM="linux/amd64"', self.script)
+        for forbidden in ('qemu', 'binfmt', 'matrix'):
             self.assertNotIn(forbidden, self.workflow.lower())
             self.assertNotIn(forbidden, self.script.lower())
-
-    def test_a_run_on_another_branch_pushes_signs_and_publishes_nothing(self):
-        jobs = yaml.safe_load(self.workflow)['jobs']
-        self.assertEqual(jobs['release']['if'], "github.ref == 'refs/heads/main'")
-        for step in jobs['build']['steps']:
-            if step.get('name') in ('Sign in to GHCR', 'Upload the digests'):
-                self.assertEqual(step['if'], "github.ref == 'refs/heads/main'", step['name'])
         build = re.search(r'(?ms)^build\(\) \{\n(.*?)^\}$', self.script).group(1)
-        self.assertIn('if [ "$GITHUB_REF" = refs/heads/main ]; then', build)
-        otherwise = build.split('else', 1)[1]
-        self.assertIn('--load', otherwise)
-        for forbidden in ('push', 'docker pull'):
-            self.assertNotIn(forbidden, otherwise)
-        merge = re.search(r'(?ms)^merge\(\) \{\n(.*?)^\}$', self.script).group(1)
-        self.assertIn('release documents are published from main only', merge)
+        self.assertNotIn('arm64', build)
+
+    def test_the_old_trust_chain_is_gone(self):
+        for text in (self.workflow, self.script, (ROOT / 'deploy/production-images.json').read_text()):
+            for forbidden in ('cosign', 'ghcr', 'GHCR', 'id-token', 'attest', 'promote', 'OIDC'):
+                self.assertNotIn(forbidden, text)
+
+    def test_the_only_credentials_are_the_four_named_secrets_and_none_is_echoed(self):
+        self.assertEqual(sorted(set(re.findall(r'secrets\.(\w+)', self.workflow))),
+                         ['LIWAN_REGISTRY_TOKEN', 'LIWAN_REGISTRY_USER', 'LIWAN_SOURCE_READ_TOKEN',
+                          'LIWAN_STAGING_HOOK_TOKEN', 'LIWAN_STAGING_HOOK_URL'])
+        login = self.step('Sign in to the registry')
+        self.assertIn('--password-stdin', login['run'])
+        self.assertNotIn('--password ', self.workflow)
+        for step in self.job()['steps']:
+            for secret in re.findall(r'secrets\.\w+', step.get('run', '')):
+                self.fail(f'{secret} is expanded inside a script: map it through env')
+        for name in ('REGISTRY', 'STAGING'):
+            self.assertNotIn(f'echo "$LIWAN_{name}', self.workflow)
+
+    def test_the_last_step_calls_the_staging_hook_with_no_body_and_fails_when_it_cannot(self):
+        steps = self.job()['steps']
+        hook = self.step('Tell staging a new commit is ready')
+        self.assertEqual(steps.index(hook), len(steps) - 2)  # only the cleanup step follows
+        self.assertEqual(steps[-1]['if'], 'always()')
+        self.assertIn('curl -fsS -X POST -H "Authorization: Bearer $STAGING_HOOK_TOKEN" "$STAGING_HOOK_URL"', hook['run'])
+        self.assertNotIn('-d ', hook['run'])
+        self.assertNotIn('--data', hook['run'])
+        self.assertIn('must both be set', hook['run'])
+        self.assertIn('exit 1', hook['run'])
+
+    def test_a_run_pushes_nothing_unless_it_is_main(self):
+        for function in ('check', 'build', 'push'):
+            body = re.search(rf'(?ms)^{function}\(\) \{{\n(.*?)^\}}$', self.script).group(1)
+            self.assertIn('[ "$GITHUB_REF" = refs/heads/main ] || fail', body)
+            self.assertLess(body.index('[ "$GITHUB_REF" = refs/heads/main ]'), body.index('docker '))
 
     def test_the_commit_tag_is_checked_against_the_pushed_digest_not_trusted(self):
-        merge = re.search(r'(?ms)^merge\(\) \{\n(.*?)^\}$', self.script).group(1)
-        self.assertIn('tag_holds "$image" "$digest"', merge)
-        self.assertIn('does not hold the image this run pushed', self.script)
+        push = re.search(r'(?ms)^push\(\) \{\n(.*?)^\}$', self.script).group(1)
+        self.assertIn('digest="$(manifest_digest "$image:$GITHUB_SHA")"', push)
+        self.assertIn('holds $digest, not the image this run pushed', push)
+        self.assertIn('--platforms "$work/platforms.json"', push)
 
-    def test_the_branch_path_builds_and_the_tag_path_never_does(self):
-        document = yaml.safe_load(self.workflow)['jobs']
-        self.assertEqual(document['build']['if'], "github.ref_type == 'branch'")
-        self.assertEqual(document['promote']['if'], "github.ref_type == 'tag'")
-        promote = self.job('promote')
-        self.assertIn('deploy/ci/publish.sh promote', promote)
-        for forbidden in ('build', 'docker buildx', 'image.sh'):
-            self.assertNotIn(forbidden, promote.replace('deploy/ci/publish.sh promote', ''))
-        body = re.search(r'(?ms)^promote\(\) \{\n(.*?)^\}$', self.script).group(1)
-        for forbidden in ('docker build', 'docker buildx build', 'imagetools create'):
-            self.assertNotIn(forbidden, body)
-
-    def test_a_tag_without_a_published_document_fails_clearly(self):
-        body = re.search(r'(?ms)^promote\(\) \{\n(.*?)^\}$', self.script).group(1)
-        self.assertIn('no published release document for commit', body)
-        self.assertIn('refs/tags/release/*', body)
-        self.assertIn('--certificate-identity "$(signer refs/heads/main)"', body)
-
-    def test_the_only_credential_is_the_workflow_token_for_the_registry(self):
-        self.assertEqual(self.workflow.count('secrets.'), 0)
-        self.assertEqual(self.workflow.count('github.token'), 3)
-        self.assertIn('--password-stdin', self.workflow)
-        self.assertNotIn('--password ', self.workflow)
-
-    def test_images_are_pushed_under_the_commit_tag_and_smoke_checked_by_the_image_stage(self):
+    def test_nothing_reaches_the_registry_before_the_scan_and_the_commit_tag_comes_last(self):
         build = re.search(r'(?ms)^build\(\) \{\n(.*?)^\}$', self.script).group(1)
-        self.assertIn('name=$image:$GITHUB_SHA,push=true', build)
+        self.assertIn('--load -t "$image:$GITHUB_SHA"', build)
         self.assertIn('LIWAN_IMAGE_PREBUILT=1 deploy/ci/image.sh', build)
-        self.assertNotIn('docker build ', build)
+        for forbidden in ('docker build ', 'push', 'imagetools create'):
+            self.assertNotIn(forbidden, build)
+        push = re.search(r'(?ms)^push\(\) \{\n(.*?)^\}$', self.script).group(1)
+        self.assertIn('docker push --quiet "$image:$GITHUB_SHA"', push)
+        self.assertNotIn('image.sh', push)
+        steps = [step.get('name') for step in self.job()['steps']]
+        self.assertLess(steps.index('Build and scan the images'), steps.index('Push the images and the release document'))
 
-    def test_the_release_document_is_signed_keylessly_for_the_staging_channel(self):
-        merge = re.search(r'(?ms)^merge\(\) \{\n(.*?)^\}$', self.script).group(1)
-        self.assertIn('cosign attest --yes --type "$(attestation_type staging)"', merge)
-        self.assertNotIn('--key', self.script)
-        self.assertIn('cosign attest --yes --type "$(attestation_type production)"', self.script)
+    def test_the_release_document_is_a_scratch_image_with_exactly_one_file(self):
+        merge = re.search(r'(?ms)^push\(\) \{\n(.*?)^\}$', self.script).group(1)
+        self.assertIn("printf 'FROM scratch\\nCOPY release.json /release.json\\n'", merge)
+        self.assertIn('-t "$anchor:$GITHUB_SHA"', merge)
+        self.assertIn('anchor="$(registry)/liwan-release"', merge)
 
     def test_the_script_is_bash_and_prints_its_plan_without_touching_docker(self):
         self.assertTrue(os.access(ROOT / 'deploy/ci/publish.sh', os.X_OK))
@@ -720,19 +803,21 @@ class TestPublishWorkflow(unittest.TestCase):
         self.assertIn('\nset -euo pipefail\n', self.script)
         plan = subprocess.run(['bash', str(ROOT / 'deploy/ci/publish.sh'), 'plan'], capture_output=True, text=True,
                               check=True, cwd=ROOT)
-        self.assertIn('registry: ghcr.io/tariiq222', plan.stdout)
-        self.assertIn('image: ghcr.io/tariiq222/liwan-odoo (docker build -f deploy/odoo/Dockerfile .', plan.stdout)
+        self.assertIn('registry: git.liwanos.com/liwanos', plan.stdout)
+        self.assertIn('image: git.liwanos.com/liwanos/liwan-odoo (docker build -f deploy/odoo/Dockerfile .', plan.stdout)
         # The control plane and the vendor console run in the production stack, so they are published too.
-        self.assertIn('image: ghcr.io/tariiq222/liwan-control-plane (docker build -f deploy/control-plane/Dockerfile .', plan.stdout)
-        self.assertIn('image: ghcr.io/tariiq222/liwan-vendor-admin (docker build -f apps/vendor-admin/Dockerfile .', plan.stdout)
-        usage = subprocess.run(['bash', str(ROOT / 'deploy/ci/publish.sh'), 'nope'], capture_output=True, text=True,
-                               check=False, cwd=ROOT)
-        self.assertEqual(usage.returncode, 2)
+        self.assertIn('image: git.liwanos.com/liwanos/liwan-control-plane (docker build -f deploy/control-plane/Dockerfile .', plan.stdout)
+        self.assertIn('image: git.liwanos.com/liwanos/liwan-vendor-admin (docker build -f apps/vendor-admin/Dockerfile .', plan.stdout)
+        for argv in (['nope'], ['promote'], ['merge']):
+            usage = subprocess.run(['bash', str(ROOT / 'deploy/ci/publish.sh'), *argv], capture_output=True, text=True,
+                                   check=False, cwd=ROOT)
+            self.assertEqual(usage.returncode, 2)
 
 
 class TestReleaseDocument(unittest.TestCase):
-    """The document the workflow signs must be a release manifest the release operator accepts."""
+    """The document the workflow publishes must be a release manifest the release operator accepts."""
     commit = 'c' * 40
+    registry = 'git.liwanos.com/liwanos'
 
     @classmethod
     def setUpClass(cls):
@@ -741,18 +826,23 @@ class TestReleaseDocument(unittest.TestCase):
         spec.loader.exec_module(cls.module)
 
     def images(self):
-        return {reference: f'ghcr.io/acme/{reference}@sha256:{"d" * 64}'
+        return {reference: f'{self.registry}/{reference}@sha256:{"a" * 64}'
                 for reference in ('liwan-odoo', 'liwan-web', 'liwan-guard', 'liwan-ai-service', 'liwan-caddy')}
 
-    def document(self, images=None):
-        return self.module.release_document(self.commit, '42', images or self.images(), 'a' * 40,
-                                            {'liwan_core': '19.0.1.0.0', 'liwan_crm': '19.0.1.2.0'})
+    def platforms(self, *names):
+        return {reference: {name: 'sha256:' + ('a' if name.endswith('amd64') else 'b') * 64 for name in names or ('linux/amd64',)}
+                for reference in self.images()}
+
+    def document(self, images=None, platforms=None):
+        return self.module.release_document(self.commit, '42', images or self.images(), platforms or self.platforms(),
+                                            'a' * 40, {'liwan_core': '19.0.1.0.0', 'liwan_crm': '19.0.1.2.0'})
 
     def test_it_carries_the_commit_and_every_image_by_digest(self):
         document = self.document()
         self.assertEqual(document['release']['liwanCommit'], self.commit)
         self.assertEqual(document['commit'], self.commit)
         self.assertEqual(document['images'], self.images())
+        self.assertEqual(document['platforms'], self.platforms())
         self.assertEqual(sorted(document['release']['images']), ['ai', 'guard', 'odoo', 'web'])
         self.assertEqual(document['release']['upgradeModules'], ['liwan_core', 'liwan_crm'])
 
@@ -762,70 +852,82 @@ class TestReleaseDocument(unittest.TestCase):
         self.assertEqual(release['compatibilityEvidence'], {'reviewer': 'unreviewed-ci', 'reference': 'run-42'})
 
     def test_an_image_without_a_digest_or_from_another_registry_is_refused(self):
-        for image in ('ghcr.io/acme/liwan-odoo:latest', 'docker.io/acme/liwan-odoo@sha256:' + 'd' * 64,
-                      'ghcr.io/acme/liwan-web@sha256:' + 'd' * 64):
+        for image in (f'{self.registry}/liwan-odoo:latest', 'docker.io/acme/liwan-odoo@sha256:' + 'd' * 64,
+                      'ghcr.io/acme/liwan-odoo@sha256:' + 'd' * 64, f'{self.registry}/liwan-web@sha256:' + 'd' * 64):
             images = self.images()
             images['liwan-odoo'] = image
             with self.subTest(image=image), self.assertRaises(ValueError):
                 self.document(images)
 
+    def test_a_platform_map_that_does_not_match_the_images_is_refused(self):
+        extra_arch = self.platforms()
+        extra_arch['liwan-odoo']['linux/s390x'] = 'sha256:' + 'e' * 64
+        uneven = self.platforms()
+        uneven['liwan-odoo']['linux/arm64'] = 'sha256:' + 'b' * 64
+        empty = self.platforms()
+        empty['liwan-odoo'] = {}
+        bad_digest = self.platforms()
+        bad_digest['liwan-odoo']['linux/amd64'] = 'sha256:short'
+        missing_image = self.platforms()
+        del missing_image['liwan-web']
+        for name, platforms in (('extra arch', extra_arch), ('uneven arches', uneven), ('empty', empty),
+                                ('bad digest', bad_digest), ('missing image', missing_image)):
+            with self.subTest(name), self.assertRaises(ValueError):
+                self.document(platforms=platforms)
+
+    def test_a_trailing_newline_does_not_pass_as_a_commit_or_a_digest(self):
+        with self.assertRaises(ValueError):
+            self.module.release_document(self.commit + '\n', '1', self.images(), self.platforms(), 'a' * 40, {'liwan_core': '19.0.1.0.0'})
+        platforms = self.platforms()
+        platforms['liwan-odoo']['linux/amd64'] = 'sha256:' + 'a' * 64 + '\n'
+        with self.assertRaises(ValueError):
+            self.document(platforms=platforms)
+        with self.assertRaises(ValueError):
+            self.module.parse_release_document(self.text(commit=self.commit + '\n'))
+
+    def test_an_image_digest_that_is_none_of_its_platform_digests_is_refused(self):
+        images = self.images()
+        images['liwan-odoo'] = f'{self.registry}/liwan-odoo@sha256:{"c" * 64}'
+        with self.assertRaisesRegex(ValueError, 'does not end with the digest of any of its platform images'):
+            self.document(images=images)
+        images = {reference: f'{self.registry}/{reference}@sha256:{"a" * 64}' for reference in self.images()}
+        self.assertEqual(self.document(images=images)['images'], images)
+
     def test_the_real_addons_produce_a_valid_document(self):
         versions = self.module.module_versions(ROOT / 'odoo-addons')
         self.assertIn('liwan_core', versions)
-        document = self.module.release_document(self.commit, '1', self.images(), 'a' * 40, versions)
+        document = self.module.release_document(self.commit, '1', self.images(), self.platforms(), 'a' * 40, versions)
         self.assertEqual(sorted(document['release']['moduleVersions']), sorted(versions))
 
 
-class TestPromoteTrust(unittest.TestCase):
-    """A release tag is only trusted for a commit on main: the reviewed path refuses anything else before signing."""
-    workflow = (ROOT / '.github/workflows/publish.yml').read_text()
-    script = commands('publish')
+    # The one reader of /release.json, used by the release command.
+    def text(self, **changes):
+        document = {**self.document(), **changes}
+        return json.dumps(document)
 
-    def promote_body(self):
-        return re.search(r'(?ms)^promote\(\) \{\n(.*?)^\}\n', self.script).group(1)
+    def test_a_published_document_round_trips_for_its_commit_and_architecture(self):
+        parsed = self.module.parse_release_document(self.text(), self.commit, ('linux/amd64',))
+        self.assertEqual(parsed, self.document())
 
-    def test_promote_waits_for_the_production_environment_and_fetches_main(self):
-        promote = yaml.safe_load(self.workflow)['jobs']['promote']
-        self.assertEqual(promote['environment'], 'production')
-        checkout = next(step for step in promote['steps'] if step.get('uses', '').startswith('actions/checkout@'))
-        self.assertEqual(checkout['with'], {'fetch-depth': 0})
+    def test_it_refuses_text_that_is_not_json_or_not_this_commit(self):
+        with self.assertRaisesRegex(ValueError, 'not valid JSON'):
+            self.module.parse_release_document('{')
+        with self.assertRaisesRegex(ValueError, 'is for commit'):
+            self.module.parse_release_document(self.text(), 'e' * 40)
+        with self.assertRaisesRegex(ValueError, 'schemaVersion'):
+            self.module.parse_release_document(self.text(schemaVersion=2))
 
-    def test_a_commit_not_on_main_is_refused_before_any_signing_or_registry_call(self):
-        body = self.promote_body()
-        check = body.index('git merge-base --is-ancestor "$GITHUB_SHA" origin/main')
-        self.assertLess(check, body.index('registry'))
-        self.assertLess(check, body.index('cosign'))
+    def test_a_document_without_the_hosts_architecture_names_the_missing_one(self):
+        with self.assertRaisesRegex(ValueError, r'no linux/arm64 image \(it covers linux/amd64\)'):
+            self.module.parse_release_document(self.text(), self.commit, ('linux/arm64',))
+        both = self.text(platforms=self.platforms('linux/amd64', 'linux/arm64'))
+        self.module.parse_release_document(both, self.commit, ('linux/amd64', 'linux/arm64'))
 
-    def test_staging_verification_is_bound_to_the_commit_and_the_main_identity(self):
-        body = self.promote_body()
-        verify = body[body.index('cosign verify-attestation'):body.index('cosign attest')]
-        self.assertIn('--certificate-identity "$(signer refs/heads/main)"', verify)
-        self.assertIn('--certificate-github-workflow-sha "$GITHUB_SHA"', verify)
-
-    def test_the_production_attestation_is_written_after_the_verification(self):
-        body = self.promote_body()
-        self.assertLess(body.index('cosign verify-attestation'), body.index('cosign attest'))
-
-    def test_the_header_tells_verifiers_to_pin_the_workflow_commit(self):
-        header = self.workflow.split('\non:\n')[0]
-        self.assertIn('--certificate-github-workflow-sha', header)
-
-    def test_promote_exits_before_touching_docker_or_cosign_when_the_commit_is_not_on_main(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            bin_dir = Path(tmp) / 'bin'
-            bin_dir.mkdir()
-            marker = Path(tmp) / 'called'
-            for name in ('git', 'docker', 'cosign'):
-                action = 'exit 1' if name == 'git' else f'echo {name} >> {marker}'
-                (bin_dir / name).write_text(f'#!/bin/sh\n{action}\n')
-                (bin_dir / name).chmod(0o755)
-            result = subprocess.run(
-                ['bash', str(ROOT / 'deploy/ci/publish.sh'), 'promote'], capture_output=True, text=True,
-                env={**os.environ, 'PATH': str(bin_dir) + os.pathsep + os.environ['PATH'], 'GITHUB_SHA': 'a' * 40,
-                     'GITHUB_REF': 'refs/tags/release/19.0.1.0.0', 'GITHUB_REPOSITORY': 'tariiq222/liwan'})
-            self.assertNotEqual(result.returncode, 0)
-            self.assertIn('is not on main', result.stderr)
-            self.assertFalse(marker.exists())
+    def test_a_release_manifest_for_another_commit_is_refused(self):
+        document = self.document()
+        document['release'] = {**document['release'], 'liwanCommit': 'f' * 40}
+        with self.assertRaisesRegex(ValueError, 'another commit'):
+            self.module.parse_release_document(json.dumps(document), self.commit)
 
 
 if __name__ == '__main__':
