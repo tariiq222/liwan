@@ -4,12 +4,14 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from odoo import fields
+from odoo.exceptions import ValidationError
 from odoo.tests import tagged
 from odoo.tools import mute_logger
 
 from . import tiktok_payloads as tt
 from .common import LiwanInboxCase, tiktok_grant
 from odoo.addons.liwan_api.tests.common import set_probe_feature
+from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_inbox.adapters import errors, tiktok
 from odoo.addons.liwan_inbox.models.constants import (
     REPLY_WINDOWS,
@@ -18,6 +20,7 @@ from odoo.addons.liwan_inbox.models.constants import (
 )
 from odoo.addons.liwan_inbox.models.inbound_tiktok import NOTE_TIKTOK_AUTO_WELCOME
 from odoo.addons.liwan_inbox.serializers import conversation as conversation_dump
+from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 ACCESS_TOKEN = 'tiktok-access-token-1'
 REFRESH_TOKEN = 'tiktok-refresh-token-1'
@@ -177,7 +180,11 @@ class TestTikTokInbound(LiwanInboxCase):
             'conversation_id': conversation.id, 'company_id': conversation.company_id.id, 'direction': 'out',
             'body': 'Replied from LiwanOS', 'delivery_state': 'sent', 'provider_message_id': 'msg-echo-1',
         })
-        self.deliver(tt.send_echo())
+        used = self.env['liwan.inbox.message']._liwan_count_outbound_this_month()
+        profile = self.env.ref('liwan_platform.tenant_profile')
+        profile.with_context(**{OPERATOR_CONTEXT: True}).write({'features': {**profile.features, 'inbox.messages_out': used}})
+        event = self.deliver(tt.send_echo())
+        self.assertEqual(event.state, 'done')
         self.assertEqual(len(self.message('msg-echo-1')), 1)
         self.assertEqual(sent.delivery_state, 'sent')
         self.assertEqual(
@@ -185,6 +192,50 @@ class TestTikTokInbound(LiwanInboxCase):
                 ('conversation_id', '=', conversation.id), ('direction', '=', 'out'),
             ]), 1,
         )
+
+    def test_an_echo_is_stored_and_not_counted_when_the_monthly_limit_is_reached(self):
+        self.deliver(tt.receive_text())
+        Message = self.env['liwan.inbox.message']
+        used = Message._liwan_count_outbound_this_month()
+        profile = self.env.ref('liwan_platform.tenant_profile')
+        profile.with_context(**{OPERATOR_CONTEXT: True}).write({'features': {**profile.features, 'inbox.messages_out': used}})
+        event = self.deliver(tt.send_echo(body='Sent from the TikTok app', message_id='msg-echo-3'))
+        self.assertEqual(event.state, 'done')
+        message = self.message('msg-echo-3')
+        self.assertEqual((message.direction, message.external), ('out', True))
+        self.assertEqual(Message._liwan_count_outbound_this_month(), used)
+
+    def test_an_external_message_cannot_be_queued(self):
+        self.deliver(tt.receive_text())
+        conversation = self.message('msg-text-1').conversation_id
+        with self.assertRaises(ValidationError):
+            self.env['liwan.inbox.message'].create({
+                'conversation_id': conversation.id, 'company_id': conversation.company_id.id, 'direction': 'out',
+                'body': 'Reply', 'delivery_state': 'queued', 'external': True,
+            })
+
+    def test_a_reply_sent_by_liwan_cannot_become_external(self):
+        self.deliver(tt.receive_text())
+        conversation = self.message('msg-text-1').conversation_id
+        reply = self.env['liwan.inbox.message'].create({
+            'conversation_id': conversation.id, 'company_id': conversation.company_id.id, 'direction': 'out',
+            'body': 'Reply', 'delivery_state': 'sent', 'author_id': self.env.user.id,
+        })
+        with self.assertRaises(ValidationError):
+            reply.write({'external': True})
+
+    def test_a_reply_sent_by_liwan_is_still_refused_at_the_monthly_limit(self):
+        self.deliver(tt.receive_text())
+        conversation = self.message('msg-text-1').conversation_id
+        Message = self.env['liwan.inbox.message']
+        used = Message._liwan_count_outbound_this_month()
+        profile = self.env.ref('liwan_platform.tenant_profile')
+        profile.with_context(**{OPERATOR_CONTEXT: True}).write({'features': {**profile.features, 'inbox.messages_out': used}})
+        with self.assertRaises(LiwanAccessRule):
+            Message.create({
+                'conversation_id': conversation.id, 'company_id': conversation.company_id.id, 'direction': 'out',
+                'body': 'Reply', 'delivery_state': 'queued',
+            })
 
     def test_an_echo_from_the_tiktok_app_is_stored_without_an_author(self):
         self.deliver(tt.receive_text())

@@ -170,7 +170,7 @@ class LiwanInboxInbound(models.AbstractModel):
 
         The outbox stores its own message before TikTok echoes it, so a matching provider id is dropped (D6);
         an echo that matches nothing was sent from the TikTok app or by a TikTok auto message and is stored as an
-        outbound message without an author.
+        outbound message without an author, marked `external` so it stays out of the monthly quota.
         """
         Message = self.env['liwan.inbox.message']
         if Message.search_count([('provider_message_id', '=', item.provider_id)]):
@@ -181,7 +181,7 @@ class LiwanInboxInbound(models.AbstractModel):
         Message.create({
             'conversation_id': conversation.id, 'company_id': channel.owner_company_id.id, 'direction': 'out',
             'kind': item.kind, 'body': item.body or f'[{item.kind}]', 'date': item.sent_at,
-            'delivery_state': 'sent', 'provider_message_id': item.provider_id,
+            'delivery_state': 'sent', 'provider_message_id': item.provider_id, 'external': True,
         })
         if item.auto:
             Message._liwan_post_system_note(conversation, NOTE_TIKTOK_AUTO_WELCOME)

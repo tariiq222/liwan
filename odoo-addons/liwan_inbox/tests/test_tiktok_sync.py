@@ -19,6 +19,7 @@ from odoo.addons.liwan_inbox.models.constants import (
     TIKTOK_ECHO_SETTLE,
     TIKTOK_FEATURE,
 )
+from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 ACCESS_TOKEN = 'tiktok-access-token-sync'
 REFRESH_TOKEN = 'tiktok-refresh-token-sync'
@@ -236,6 +237,33 @@ class TestTikTokSync(LiwanInboxCase):
         inbound = self.env['liwan.inbox.message'].search([('provider_message_id', '=', 'msg-in-late')])
         self.assertEqual((len(inbound), inbound.direction), (1, 'in'))
         self.assertEqual((self.reload_job(job, 'messages_count', 'state').messages_count, job.state), (2, 'done'))
+
+    def test_an_import_at_the_monthly_limit_stores_outbound_history_without_counting_it(self):
+        Message = self.env['liwan.inbox.message']
+        used = Message._liwan_count_outbound_this_month()
+        profile = self.env.ref('liwan_platform.tenant_profile')
+        profile.with_context(**{OPERATOR_CONTEXT: True}).write({'features': {**profile.features, 'inbox.messages_out': used}})
+        job = self.queue()
+        job.write({'phase': 'messages', PENDING: json.dumps(['conv-out'])})
+        oldest = tt.rest_message(
+            'TEXT', {'body': 'Replied from the TikTok app'}, message_id='msg-out-open', conversation_id='conv-out',
+            from_role='BUSINESS_ACCOUNT', from_id=tt.BUSINESS_ID, timestamp=tt.SENT_AT - 60_000,
+            to_user={'role': 'PERSONAL_ACCOUNT', 'id': 'sender-conv-out'},
+        )
+        newest = tt.rest_message(
+            'TEXT', {'body': 'Hi'}, message_id='msg-in-late', conversation_id='conv-out',
+            from_id='sender-conv-out', timestamp=tt.SENT_AT,
+        )
+        answers = [response(tt.content_list(
+            [newest, oldest],
+            [tt.participant('PERSONAL_ACCOUNT', 'sender-conv-out', 'sara-conv-out'),
+             tt.participant('BUSINESS_ACCOUNT', tt.BUSINESS_ID, 'liwan')],
+        ))]
+        self.run_steps(job, answers, 1)
+        self.assertEqual(job.state, 'done')
+        kept = Message.search([('provider_message_id', '=', 'msg-out-open')])
+        self.assertEqual((len(kept), kept.external), (1, True))
+        self.assertEqual(Message._liwan_count_outbound_this_month(), used)
 
     def test_the_import_window_reads_both_timestamp_units(self):
         """TikTok answers the conversation update in milliseconds; a seconds value is read as one too."""
