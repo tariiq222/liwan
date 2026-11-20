@@ -160,14 +160,17 @@ class TicketOpportunityTest(LiwanHelpdeskCase):
         })
         self.assertEqual(self.put(foreign, self.lead.id).status_code, 404)
 
-    def test_both_capabilities_are_needed(self):
+    def test_reading_and_linking_need_both_capabilities(self):
         ticket = self.make_ticket(liwan_lead_id=self.lead.id)
         no_crm = self.user_with('ticket_opp_no_crm', ['helpdesk.tickets.read', 'helpdesk.tickets.write'])
         self.as_user(no_crm)
-        for method in ('GET', 'PUT', 'DELETE'):
+        for method in ('GET', 'PUT'):
             response = self.api(method, URL.format(ticket.id), json={'opportunity_id': self.lead.id} if method == 'PUT' else None)
             self.assertEqual((response.status_code, response.json()['code']), (403, 'forbidden'), method)
         self.assertEqual(ticket.liwan_lead_id, self.lead)
+        # Unlinking needs only the ticket's write right (D1).
+        self.assertEqual(self.api('DELETE', URL.format(ticket.id)).status_code, 204)
+        self.assertFalse(ticket.liwan_lead_id)
 
     def test_a_reader_may_read_but_not_change_the_link(self):
         ticket = self.make_ticket(liwan_lead_id=self.lead.id)

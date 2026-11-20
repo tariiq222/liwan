@@ -3,7 +3,7 @@
 
 Owner decision D1 (2026-11-20): the desk agent who sees an opportunity may link a ticket to it. Linking needs the
 desk's write capability on a visible ticket, CRM's read capability and CRM's visibility of the opportunity (404 for
-a hidden, foreign or missing one); nothing is checked on the opportunity's write side because the link is a ticket
+a hidden, missing or another company's one, since both lookups are pinned to the working company); nothing is checked on the opportunity's write side because the link is a ticket
 column and the opportunity does not change. Unlinking needs only the ticket's write right and clears whatever was
 linked, visible or not. An opportunity the caller may not read is never named: ``GET`` answers ``hidden: true``.
 """
@@ -64,15 +64,13 @@ class HelpdeskOpportunityController(http.Controller):
         opportunity_id = parse_positive_int(payload['opportunity_id'], 'opportunity_id')
         ticket = find(ticket_id, 'helpdesk.tickets.write')
         lead = find_opportunity(opportunity_id)
-        if lead.company_id != ticket.company_id:
-            raise ApiError(422, 'invalid', 'the opportunity belongs to another company', field='opportunity_id')
         ticket.write({'liwan_lead_id': lead.id})
         return link_answer(ticket)
 
     @http.route(URL, type='json2', auth='user', methods=['DELETE'], readonly=False)
     @api_handler
     @requires_feature('helpdesk.enabled', 'crm.enabled')
-    @requires_capability('helpdesk.tickets.write', 'crm.leads.read')
+    @requires_capability('helpdesk.tickets.write')
     def unlink_ticket_opportunity(self, ticket_id, **_):
         find(ticket_id, 'helpdesk.tickets.write').write({'liwan_lead_id': False})
         return request.make_json_response('', status=204)
