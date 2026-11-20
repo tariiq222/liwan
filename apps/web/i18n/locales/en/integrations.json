@@ -147,7 +147,7 @@
       "connectionDisabled": "The messaging account is switched off. Switch it on from its page and try again.",
       "dailyLimitReached": "The daily message limit is reached. Raise the limit or wait until tomorrow.",
       "bodyTooLong": "The message text is longer than allowed.",
-      "sendingPaused": "Sending is paused because your company's subscription is not active."
+      "tenantReadOnly": "Sending is paused because your company's subscription is not active."
     },
     "guide": {
       "stepLabel": "Step {n}",

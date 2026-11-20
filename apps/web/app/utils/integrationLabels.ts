@@ -48,7 +48,7 @@ const ERROR_KEYS: Readonly<Record<string, string>> = {
   connection_disabled: 'integrations.errors.connectionDisabled',
   daily_limit_reached: 'integrations.errors.dailyLimitReached',
   body_too_long: 'integrations.errors.bodyTooLong',
-  sending_paused: 'integrations.errors.sendingPaused',
+  tenant_read_only: 'integrations.errors.tenantReadOnly',
 }
 
 /** The locale key worded for a refusal code, or null when the code has none (the caller then shows the API's own text). */
