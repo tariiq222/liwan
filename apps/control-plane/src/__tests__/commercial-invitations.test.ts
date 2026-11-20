@@ -420,6 +420,22 @@ d('admin invitations', () => {
         expect(forged.status).toBe(403)
         await processReissueRequests(pool); await deliver(); expect(sent).toEqual([])
       })
+      it('maps a signed registry slug through its enabled binding to the control tenant, and refuses an unbound, disabled or malformed one', async () => {
+        const bind = (slug: string, enabled: boolean) => pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,$5,1)',
+          [tenant, slug, `${slug}.reissue.test`, slug.replaceAll('-', '_') + '_db', enabled])
+        const slug = 'shared-' + tenant.slice(0, 8)
+        await bind(slug, true)
+        const bound = await call('admin@x.test', { tenant: slug, ip: '198.51.100.50' })
+        expect(bound.status).toBe(202)
+        expect(await bound.json()).toEqual({ ok: true })
+        expect((await queued()).map(r => r.payload.tenant_id)).toEqual([tenant])
+        expect((await call('admin@x.test', { tenant: 'shared-unbound', ip: '198.51.100.51' })).status).toBe(403)
+        expect((await call('admin@x.test', { tenant: 'Not A Slug', ip: '198.51.100.52' })).status).toBe(403)
+        expect((await call('admin@x.test', { tenant: slug, signingKey: 'forged-test-key-'.repeat(4) })).status).toBe(403)
+        await pool.query('UPDATE shared_registry_bindings SET enabled=false, registry_revision=2 WHERE control_tenant_id=$1', [tenant])
+        expect((await call('admin@x.test', { tenant: slug, ip: '198.51.100.53' })).status).toBe(403)
+        expect(await queued()).toHaveLength(1)
+      })
       it('limits each visitor to 5 requests in ten minutes per workspace, and visitors do not share a bucket', async () => {
         const statuses: number[] = []
         for (let n = 0; n < 6; n++) statuses.push((await call('nobody@x.test', { ip: '198.51.100.30' })).status)

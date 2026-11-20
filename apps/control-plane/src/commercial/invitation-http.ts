@@ -4,6 +4,7 @@ import { CommercialHttpError } from './lifecycle.js'
 import { parseBody, need, type CommercialInput } from './http.js'
 import { isIP } from 'node:net'
 import { verifyServiceRequest } from '@liwan/commercial-contracts/server'
+import { controlTenantForSigned, isSignedTenantFormat } from './signed-tenant.js'
 import { actorLabel } from '../admin-auth/grants.js'
 import { acceptInvitation, isInvitationUsable, issueInvitation, queueReissueRequest, DEFAULT_INVITATION_TTL_SECONDS, InvitationError, MIN_PASSWORD_LENGTH, MAX_TOKEN_LENGTH, type SetPassword } from './invitations.js'
 
@@ -24,21 +25,24 @@ async function invitationCheck(pool: Pool, raw: string) {
   return { status: 200, data: { usable: await isInvitationUsable(pool, token) } }
 }
 
-/** What the Nuxt server vouches for on the reissue route: the tenant its host is bound to and the visitor's address, both under one signature. */
+/** What the Nuxt server vouches for on the reissue route: the tenant its host is bound to as a control tenant id and the visitor's address, both under one signature. */
 export type ReissueContext = { tenant_id: string; client_address: string }
 export const REISSUE_PATH = '/v1/invitations/reissue'
 
-/** The tenant and visitor address of a reissue request, or null unless the Nuxt server signed both with the customer service key.
+/** The control tenant and visitor address of a reissue request, or null unless the Nuxt server signed both with the customer service key.
  *  The tenant is never taken from the body, so a visitor cannot aim the route at another workspace. */
-export function verifiedReissueContext(headers: Record<string, string | string[] | undefined>, service: { issuer?: string; key?: string }): ReissueContext | null {
+export async function verifiedReissueContext(pool: Pool, headers: Record<string, string | string[] | undefined>, service: { issuer?: string; key?: string }): Promise<ReissueContext | null> {
   const tenant = headers['x-liwan-tenant']
   const ip = headers['x-liwan-client-ip']
-  if (typeof tenant !== 'string' || !z.uuid().safeParse(tenant).success || !service.issuer || !service.key) return null
+  if (typeof tenant !== 'string' || !isSignedTenantFormat(tenant) || !service.issuer || !service.key) return null
   // No signed visitor address, no request: falling back to the socket would put every visitor in the Nuxt server's own bucket.
   if (typeof ip !== 'string' || !isIP(ip)) return null
   const claimed = ip
   const signed = verifyServiceRequest({ method: 'POST', path: REISSUE_PATH, body: `liwan-invitation-reissue:${tenant}\n${claimed}\n`, headers, key: service.key, anonymous: true })
-  return signed?.issuer === service.issuer ? { tenant_id: tenant.toLowerCase(), client_address: claimed } : null
+  if (signed?.issuer !== service.issuer) return null
+  // Only now, with the signature checked over the value exactly as sent, may it name a control tenant (a registry id goes through its enabled binding).
+  const controlTenant = await controlTenantForSigned(pool, tenant)
+  return controlTenant ? { tenant_id: controlTenant.toLowerCase(), client_address: claimed } : null
 }
 
 /** Public: POST /v1/invitations/reissue {email}, 202 {ok:true} whether or not the address is waiting for an invitation.
