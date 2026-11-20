@@ -556,6 +556,7 @@ Storybook هو فهرس المكونات الملزم، وقاعدة ما يُش
 | `apps/web/app/components/helpdesk/settings/HelpdeskValueListSection.vue` | One value list of the support settings (categories with their parent, tags, channels, ticket types): rename inline, archive and add a row | SharedSubCard, SharedStatusBadge, UFormField, UInput, USelect, UButton, USwitch |
 
 | `apps/web/app/components/helpdesk/HelpdeskMergeSection.vue` | Merges duplicate tickets into the open one: a search over the reachable tickets, a ticked set to absorb, and the note the server writes on both sides while it moves the attachments | SharedRecordSection, UInput, UCheckbox, UButton |
+| `apps/web/app/components/helpdesk/HelpdeskOpportunityCard.vue` | The CRM opportunity a ticket is linked to: name, stage and status with a link to its page, change and unlink for those who may write the ticket, a hidden-link line that never names the opportunity, and an inline picker over opportunities of every status | SharedRecordSection, SharedStatusBadge, SharedPickList, UButton, UAlert, NuxtLink |
 
 | `apps/web/app/components/helpdesk/settings/HelpdeskSlaSection.vue` | The service levels of the desk: each policy's target stage, its days and hours, the teams, categories and tags it covers and the stages that pause the clock, edited inline with an archive switch | SharedSubCard, SharedStatusBadge, SharedEmptyState, UFormField, UInput, UInputNumber, USelect, USelectMenu, UButton, USwitch |
 

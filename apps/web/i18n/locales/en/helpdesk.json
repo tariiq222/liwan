@@ -285,6 +285,32 @@
       "close": "Close the request",
       "closeConfirm": "Close this request?",
       "failed": "The request could not be completed."
+    },
+    "opportunity": {
+      "title": "Sales opportunity",
+      "none": "This ticket is not linked to an opportunity.",
+      "hidden": "This ticket is linked to an opportunity you cannot see.",
+      "link": "Link to an opportunity",
+      "change": "Change",
+      "unlink": "Unlink",
+      "confirm": "Link the chosen opportunity",
+      "search": "Search by opportunity name or phone",
+      "listLabel": "Matching opportunities",
+      "empty": "Search by opportunity name or phone. Open, won and lost opportunities are listed.",
+      "noStage": "No stage",
+      "archived": "Archived",
+      "linked": "The ticket is linked to the opportunity",
+      "unlinked": "The ticket is unlinked from the opportunity",
+      "status": {
+        "pending": "In progress",
+        "won": "Won",
+        "lost": "Lost"
+      },
+      "errors": {
+        "forbidden": "You may not change this ticket's link.",
+        "unavailable": "This opportunity cannot be linked: it belongs to another company.",
+        "missing": "The ticket or the opportunity was not found, or you cannot see it."
+      }
     }
   }
 }

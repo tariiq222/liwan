@@ -6,6 +6,7 @@ import { useHelpdeskAction, useHelpdeskReference, useHelpdeskTicket } from '@/co
 import { HELPDESK_LIST_PATH } from '@/composables/helpdesk/helpdeskKeys'
 import { HELPDESK_PRIORITY_TONE, HELPDESK_SLA_TONE } from '@/components/helpdesk/helpdeskStatus'
 import HelpdeskMergeSection from '@/components/helpdesk/HelpdeskMergeSection.vue'
+import HelpdeskOpportunityCard from '@/components/helpdesk/HelpdeskOpportunityCard.vue'
 import HelpdeskThread from '@/components/helpdesk/HelpdeskThread.vue'
 import { STATUS_COLOR } from '@liwan/ui/app/utils/statusTone'
 import { recordParentTo } from '@/utils/recordListOrigin'
@@ -110,6 +111,7 @@ const reopen = () => run({ action: 'reopen' })
         <SharedPropertyRow v-if="ticket.sla.deadline" :label="t('helpdesk.record.slaDeadline')" :value="formatDate(ticket.sla.deadline)" />
         <SharedPropertyRow v-if="ticket.closed_at" :label="t('helpdesk.record.closedAt')" :value="formatDate(ticket.closed_at)" />
       </SharedRecordSection>
+      <HelpdeskOpportunityCard :ticket-id="ticket.id" />
       <SharedRecordSection v-if="ticket.portal_link" variant="panel" :title="t('helpdesk.record.portal')" data-testid="helpdesk-portal-link">
         <p class="text-sm text-muted">{{ t('helpdesk.record.portalHint') }}</p>
         <div class="mt-2 flex items-center gap-2">
