@@ -1431,6 +1431,22 @@
       "route": "/api/v1/notification-digests/{id}",
       "status": 200,
       "schema": "NotificationDigestDetailSchema"
+    },
+    {
+      "name": "inbox/channel-list",
+      "addon": "liwan_inbox",
+      "method": "GET",
+      "route": "/api/v1/inbox/channels",
+      "status": 200,
+      "schema": "InboxChannelListSchema"
+    },
+    {
+      "name": "inbox/message-list",
+      "addon": "liwan_inbox",
+      "method": "GET",
+      "route": "/api/v1/inbox/conversations/{id}/messages",
+      "status": 200,
+      "schema": "InboxMessageListSchema"
     }
   ]
 }

@@ -1,0 +1,226 @@
+{
+  "items": [
+    {
+      "attachments": [],
+      "author": null,
+      "automated": false,
+      "body": "Hello 1",
+      "campaign": null,
+      "commerce": null,
+      "created_at": "2026-01-01T00:00:00Z",
+      "delivery_state": "received",
+      "direction": "in",
+      "error": null,
+      "error_code": null,
+      "flow_response": null,
+      "id": 1,
+      "interactive": null,
+      "kind": "text",
+      "location": null,
+      "media_failed": false,
+      "reactions": {
+        "agent": null,
+        "customer": null
+      },
+      "reply_to": null,
+      "selected_option": null,
+      "template": null,
+      "unconfirmed": false
+    },
+    {
+      "attachments": [],
+      "author": null,
+      "automated": false,
+      "body": "Nice",
+      "campaign": null,
+      "commerce": {
+        "catalog_id": "300000000001",
+        "content": {
+          "body": "Nice",
+          "footer": null,
+          "product_retailer_id": "sku-1",
+          "type": "product"
+        },
+        "products": [
+          {
+            "product": null,
+            "product_retailer_id": "sku-1"
+          }
+        ],
+        "type": "sent"
+      },
+      "created_at": "2026-01-01T00:00:00Z",
+      "delivery_state": "sent",
+      "direction": "out",
+      "error": null,
+      "error_code": null,
+      "flow_response": null,
+      "id": 2,
+      "interactive": null,
+      "kind": "product",
+      "location": null,
+      "media_failed": false,
+      "reactions": {
+        "agent": null,
+        "customer": null
+      },
+      "reply_to": null,
+      "selected_option": null,
+      "template": null,
+      "unconfirmed": false
+    },
+    {
+      "attachments": [],
+      "author": null,
+      "automated": false,
+      "body": "Pick",
+      "campaign": null,
+      "commerce": {
+        "catalog_id": "300000000001",
+        "content": {
+          "body": "Pick",
+          "footer": "Today",
+          "header": "Offers",
+          "sections": [
+            {
+              "product_retailer_ids": [
+                "sku-1",
+                "sku-2"
+              ],
+              "title": "Shirts"
+            },
+            {
+              "product_retailer_ids": [
+                "sku-3"
+              ],
+              "title": "Hats"
+            }
+          ],
+          "type": "product_list"
+        },
+        "products": [
+          {
+            "product": null,
+            "product_retailer_id": "sku-1"
+          },
+          {
+            "product": null,
+            "product_retailer_id": "sku-2"
+          },
+          {
+            "product": null,
+            "product_retailer_id": "sku-3"
+          }
+        ],
+        "type": "sent"
+      },
+      "created_at": "2026-01-01T00:00:00Z",
+      "delivery_state": "sent",
+      "direction": "out",
+      "error": null,
+      "error_code": null,
+      "flow_response": null,
+      "id": 3,
+      "interactive": null,
+      "kind": "product_list",
+      "location": null,
+      "media_failed": false,
+      "reactions": {
+        "agent": null,
+        "customer": null
+      },
+      "reply_to": null,
+      "selected_option": null,
+      "template": null,
+      "unconfirmed": false
+    },
+    {
+      "attachments": [],
+      "author": null,
+      "automated": false,
+      "body": "[order]",
+      "campaign": null,
+      "commerce": {
+        "catalog_id": "300000000001",
+        "lines": [
+          {
+            "currency": "SAR",
+            "item_price": 7.99,
+            "product": null,
+            "product_retailer_id": "sku-1",
+            "quantity": 2
+          },
+          {
+            "currency": "SAR",
+            "item_price": 7.99,
+            "product": null,
+            "product_retailer_id": "sku-2",
+            "quantity": 2
+          },
+          {
+            "currency": "SAR",
+            "item_price": 7.99,
+            "product": null,
+            "product_retailer_id": "sku-3",
+            "quantity": 2
+          }
+        ],
+        "order": null,
+        "text": null,
+        "type": "order"
+      },
+      "created_at": "2026-01-01T00:00:00Z",
+      "delivery_state": "received",
+      "direction": "in",
+      "error": null,
+      "error_code": null,
+      "flow_response": null,
+      "id": 4,
+      "interactive": null,
+      "kind": "order",
+      "location": null,
+      "media_failed": false,
+      "reactions": {
+        "agent": null,
+        "customer": null
+      },
+      "reply_to": null,
+      "selected_option": null,
+      "template": null,
+      "unconfirmed": false
+    },
+    {
+      "attachments": [],
+      "author": null,
+      "automated": false,
+      "body": "Price?",
+      "campaign": null,
+      "commerce": {
+        "catalog_id": "300000000001",
+        "product": null,
+        "product_retailer_id": "sku-9",
+        "type": "inquiry"
+      },
+      "created_at": "2026-01-01T00:00:00Z",
+      "delivery_state": "received",
+      "direction": "in",
+      "error": null,
+      "error_code": null,
+      "flow_response": null,
+      "id": 5,
+      "interactive": null,
+      "kind": "text",
+      "location": null,
+      "media_failed": false,
+      "reactions": {
+        "agent": null,
+        "customer": null
+      },
+      "reply_to": null,
+      "selected_option": null,
+      "template": null,
+      "unconfirmed": false
+    }
+  ],
+  "total": 5
+}
