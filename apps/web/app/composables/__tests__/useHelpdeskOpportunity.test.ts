@@ -117,10 +117,11 @@ describe('opportunity pick', () => {
     expect(api).toHaveBeenCalledWith('/api/v1/crm/opportunities', expect.objectContaining({ query: { q: 'منى', status: 'all', limit: 20, offset: 0 } }))
   })
 
-  it('leaves archived opportunities out of the offer', () => {
+  it('leaves archived opportunities out of the offer', async () => {
     useHelpdeskOpportunityPick('منى', true)
-    const select = (options[0] as unknown as { select: (l: { items: { id: number; active: boolean }[]; total: number }) => { items: { id: number }[] } }).select
-    expect(select({ items: [{ id: 1, active: true }, { id: 2, active: false }], total: 2 }).items.map(i => i.id)).toEqual([1])
+    api.mockResolvedValue({ items: [{ id: 1, active: true }, { id: 2, active: false }], total: 2 })
+    const list = await (options[0] as unknown as { queryFn: (c: { signal: undefined }) => Promise<{ items: { id: number }[] }> }).queryFn({ signal: undefined })
+    expect(list.items.map(i => i.id)).toEqual([1])
   })
 
   it('stays off while the picker is closed', () => {

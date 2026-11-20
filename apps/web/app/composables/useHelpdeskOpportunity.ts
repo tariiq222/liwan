@@ -1,6 +1,6 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { CrmOpportunityListSchema, TicketOpportunityAnswerSchema, type TicketOpportunityAnswer } from '@liwan/contracts'
+import { CrmOpportunityListSchema, TicketOpportunityAnswerSchema, type CrmOpportunityList, type TicketOpportunityAnswer } from '@liwan/contracts'
 import { helpdeskKeys } from './helpdesk/helpdeskKeys'
 
 // The opportunity a support ticket is linked to (the helpdesk bridge to CRM). Reading needs both applications' read
@@ -66,8 +66,10 @@ export function useHelpdeskOpportunityPick(q: MaybeRefOrGetter<string>, enabled:
     enabled: computed(() => toValue(enabled) && toValue(q).trim() !== ''),
     placeholderData: keepPreviousData,
     retry: false,
-    select: (list) => ({ ...list, items: list.items.filter(item => item.active) }),
-    queryFn: ({ signal }) => $api('/api/v1/crm/opportunities', { query: { q: toValue(q).trim(), status: 'all', limit: HELPDESK_OPPORTUNITY_PICK_LIMIT, offset: 0 }, signal, schema: CrmOpportunityListSchema }),
+    queryFn: async ({ signal }): Promise<CrmOpportunityList> => {
+      const list = await $api('/api/v1/crm/opportunities', { query: { q: toValue(q).trim(), status: 'all', limit: HELPDESK_OPPORTUNITY_PICK_LIMIT, offset: 0 }, signal, schema: CrmOpportunityListSchema })
+      return { ...list, items: list.items.filter(item => item.active) }
+    },
   })
 }
 
