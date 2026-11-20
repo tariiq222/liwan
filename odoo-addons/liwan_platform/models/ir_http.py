@@ -47,7 +47,8 @@ FAVICON_PATH = re.compile(r'^/web/image/res\.company/[1-9][0-9]{0,9}/logo/32x32$
 # and the session are never written.
 UI_LOCALE_HEADER = 'X-Liwan-Ui-Locale'
 UI_LOCALES = {'ar': 'ar_001', 'en': 'en_US'}
-VERSION_VALUE = re.compile(r'^(?:0|[0-9]{20})-[a-f0-9]{12}$')
+# The favicon version is the 12-hex content hash of the logo (``_logo_version`` in liwan_api), never a write time.
+VERSION_VALUE = re.compile(r'^[a-f0-9]{12}$')
 # Attachments are never served by Odoo's /web/content: each owning application streams
 # its own files from /api/v1/.../attachments/<id>/download after its capability check.
 LOGO_QUERY_KEYS = frozenset({'company', 'v'})
