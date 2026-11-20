@@ -10,7 +10,7 @@ import { CONVERSATION_STATES, CONVERSATION_STATE_TONE, CSAT_SCORES, CSAT_TONE, D
 import { inboxContactName } from '@/composables/inbox/inboxContactName'
 import { useInboxConversationsExport } from '@/composables/inbox/useInboxConversationsExport'
 import { exportTooLargeMessage } from '@/utils/exportErrors'
-import { DEFAULT_INBOX_LIST_ROUTE, INBOX_PAGE_SIZE, inboxPageOffset, serializeInboxListRoute, type InboxListRoute } from '@/composables/inbox/inboxListRoute'
+import { DEFAULT_INBOX_LIST_ROUTE, INBOX_PAGE_SIZE, inboxOffsetCorrection, inboxPageOffset, serializeInboxListRoute, type InboxListRoute } from '@/composables/inbox/inboxListRoute'
 
 // The conversation list pane of the inbox page (its left column): filters (scope, state, department, priority, channel, rating, search) are the URL query, owned by the page
 // that hosts this list. The component only reads them and emits the next filter state; whether the secondary filters and the sort are folded away is local UI state.
@@ -115,11 +115,13 @@ const pageCount = computed(() => Math.max(1, Math.ceil(total.value / INBOX_PAGE_
 function goToPage(page: number) {
   if (hydrated.value) emit('update:routeState', { ...props.routeState, offset: inboxPageOffset(page, total.value) })
 }
-// A link whose offset is past the end lands on the last page instead of an empty list; it replaces that entry so Back does not return to it.
-// The previous query's total stays on show while the new one loads, so only this query's own total can correct the offset.
+// A link whose offset is past the end or off a page boundary lands on a valid page instead of an empty list; it replaces that entry so Back does not return to it.
+// Immediate, because a direct load or refresh already has its result when the component mounts. The previous query's total stays on show while the new one loads, so only this query's own total can correct the offset.
 watch(() => [data.value?.total, props.routeState.offset, isPlaceholderData.value] as const, ([count, offset, stale]) => {
-  if (!stale && count && offset >= count) emit('update:routeState', { ...props.routeState, offset: inboxPageOffset(Math.ceil(count / INBOX_PAGE_SIZE), count) }, { replace: true })
-})
+  if (stale || count === undefined) return
+  const corrected = inboxOffsetCorrection(offset, count)
+  if (corrected !== null) emit('update:routeState', { ...props.routeState, offset: corrected }, { replace: true })
+}, { immediate: true })
 const listQuery = computed(() => serializeInboxListRoute(props.routeState))
 const conversationTo = (id: number) => ({ path: `/inbox/${id}`, query: listQuery.value })
 const exportCsv = useInboxConversationsExport()

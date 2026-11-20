@@ -89,3 +89,9 @@ export function inboxPageOffset(page: number, total: number): number {
   const lastPage = Math.max(1, Math.ceil(total / INBOX_PAGE_SIZE))
   return (Math.min(Math.max(page, 1), lastPage) - 1) * INBOX_PAGE_SIZE
 }
+
+/** The offset a list link should be corrected to when it is past the end or off a page boundary; null when it is already valid. */
+export function inboxOffsetCorrection(offset: number, total: number): number | null {
+  const corrected = inboxPageOffset(Math.floor(offset / INBOX_PAGE_SIZE) + 1, total)
+  return corrected === offset ? null : corrected
+}
