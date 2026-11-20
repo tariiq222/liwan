@@ -76,10 +76,15 @@ class CrmLead(models.Model):
         The answer is a boolean only: no record, id or agent leaves this method, because the
         matching opportunity may be hidden from the caller by the visibility policy.
         """
-        return self.sudo().search_count(
-            [('company_id', '=', company.id), ('phone_sanitized', '=', phone_e164), ('won_status', '=', 'pending')],
-            limit=1,
-        ) > 0
+        return bool(self._liwan_duplicate_phones([phone_e164], company))
+
+    @api.model
+    def _liwan_duplicate_phones(self, phones_e164, company):
+        """The subset of ``phones_e164`` held by an OPEN opportunity of ``company``, in one query; phones only, as above."""
+        if not phones_e164:
+            return set()
+        domain = [('company_id', '=', company.id), ('phone_sanitized', 'in', list(phones_e164)), ('won_status', '=', 'pending')]
+        return set(self.sudo().search_fetch(domain, ['phone_sanitized']).mapped('phone_sanitized'))
 
     @api.model
     def _liwan_duplicate_phone_error(self):
