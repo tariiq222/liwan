@@ -30,8 +30,11 @@ bullets, else the contact's name; nothing else of the thread travels and it stay
 created through `liwan.helpdesk.service._liwan_create`, so the desk's visibility, numbering and assignment bell
 apply, and the conversation's customer is passed as `customer_id` only when the contact is linked to one.
 
-`POST` takes a row lock on the conversation (`lock_for_update`, which writes nothing and so needs no write right on
-the conversation); a concurrent call answers 409 `conflict`. The open-ticket check must count a ticket of another team
+`POST` first rewrites the conversation row without changing a value (one SQL `UPDATE ... SET write_date =
+write_date`, because the caller has no ORM write right on the conversation). A concurrent raise waits on that row
+lock; when the first commits, the waiting one fails with a serialization error under REPEATABLE READ, Odoo replays
+it, and the replay sees the first ticket and answers 409 `open_ticket_exists`. A lock that writes nothing would let a
+request whose snapshot predates the first commit pass. The open-ticket check must count a ticket of another team
 or assignee that the desk's record rules hide from the caller, so it is the bridge's one `sudo()`: a count-only
 `search_count` that returns a boolean, documented in `tools/arch_documented_sudo.json`.
 

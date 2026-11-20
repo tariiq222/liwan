@@ -5,12 +5,13 @@
 (owner decision 2026-11-20: one open ticket at a time). The conversation is found through the inbox's own visibility
 (404 for a hidden, foreign or missing one) and the ticket is created through the desk's own service, so its
 visibility, numbering and assignment bell apply. Both routes need both applications' features and the capabilities
-each side checks. The only elevation is the count-only open-ticket check in ``has_open_ticket``.
+each side checks. The only elevation is the count-only open-ticket check in ``has_open_ticket``; two concurrent
+raises are serialized by ``claim_conversation``, so the late one is replayed and answers 409 ``open_ticket_exists``.
 """
 from odoo import http
-from odoo.exceptions import LockError
 from odoo.fields import Domain
 from odoo.http import request
+from odoo.tools import SQL
 
 from odoo.addons.liwan_api.controllers.common import (
     ApiError,
@@ -65,12 +66,19 @@ def has_open_ticket(conversation):
     ))
 
 
-def lock_conversation(conversation):
-    """Serialize two raises from one conversation; a read-only caller may lock because the lock writes nothing."""
-    try:
-        conversation.lock_for_update(allow_referencing=True)
-    except LockError:
-        raise ApiError(409, 'conflict', 'this conversation is being updated') from None
+def claim_conversation(conversation):
+    """Serialize two raises from one conversation under Odoo's REPEATABLE READ.
+
+    A no-op update writes a new version of the conversation row and holds its row lock until commit. A concurrent raise
+    waits on that lock; once the first commits, the waiting update fails with a serialization error, and Odoo replays
+    that request, whose fresh snapshot sees the first ticket (409). A lock that writes nothing would not do: a request
+    whose snapshot predates the first commit would take it afterwards and still count no open ticket.
+    """
+    # Raw SQL on the LiwanOS table: the caller holds no ORM write right on the conversation and must not be given one,
+    # and the statement changes no value, so no field, compute or tracking is skipped.
+    request.env.cr.execute(SQL(
+        'UPDATE liwan_inbox_conversation SET write_date = write_date WHERE id = %s', conversation.id,
+    ))
 
 
 class ConversationTicketsController(http.Controller):
@@ -98,7 +106,7 @@ class ConversationTicketsController(http.Controller):
         payload = request.get_json_data()
         if not isinstance(payload, dict) or set(payload) - CREATE_FIELDS:
             raise ApiError(422, 'invalid', 'Invalid request fields.')
-        lock_conversation(conversation)
+        claim_conversation(conversation)
         if has_open_ticket(conversation):
             raise ApiError(409, 'conflict', 'this conversation already has an open ticket',
                            details={'reason': 'open_ticket_exists'})

@@ -93,6 +93,21 @@ class ConversationTicketTest(LiwanInboxCase):
         self.assertEqual([item['subject'] for item in listed.json()['items']], ['Second', 'First'])
         self.assertEqual([item['stage']['closed'] for item in listed.json()['items']], [False, True])
 
+    def test_a_raise_rewrites_the_conversation_row_inside_its_transaction(self):
+        # Two real concurrent transactions cannot run here: the test cursor is shared and never commits, so another
+        # cursor cannot see the conversation. What makes the late raise fail under REPEATABLE READ is that the first
+        # one writes a new version of the conversation row in its own transaction.
+        self.login(self.agent)
+        conversation = self.make_conversation()
+        # The row's physical position (ctid) moves only when a new version of it is written; a lock leaves it in place.
+        version = 'SELECT ctid::text FROM liwan_inbox_conversation WHERE id = %s'
+        self.env.cr.execute(version, [conversation.id])
+        before = self.env.cr.fetchone()[0]
+        created = self.raise_ticket(conversation.id, subject='First')
+        self.assertEqual(created.status_code, 200, created.text)
+        self.env.cr.execute(version, [conversation.id])
+        self.assertNotEqual(self.env.cr.fetchone()[0], before)
+
     def test_an_open_ticket_the_caller_cannot_see_still_blocks_and_stays_unnamed(self):
         conversation = self.make_conversation()
         self.login(self.agent)
