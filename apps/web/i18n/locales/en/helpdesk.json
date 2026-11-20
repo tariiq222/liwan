@@ -308,7 +308,7 @@
       },
       "errors": {
         "forbidden": "You may not change this ticket's link.",
-        "unavailable": "This opportunity cannot be linked: it belongs to another company.",
+        "archived": "This opportunity is archived and cannot be linked to a ticket",
         "missing": "The ticket or the opportunity was not found, or you cannot see it."
       }
     }

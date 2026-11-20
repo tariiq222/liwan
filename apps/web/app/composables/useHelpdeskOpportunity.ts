@@ -58,7 +58,7 @@ export function useUnlinkTicketOpportunity() {
   })
 }
 
-/** Opportunities of any status matching a name or a phone (a ticket usually concerns a won deal); nothing is asked before a term is typed. */
+/** Active opportunities matching a name or a phone (a ticket usually concerns a won deal); the list with every status also holds archived ones, which the server refuses to link, so they are left out. Nothing is asked before a term is typed. */
 export function useHelpdeskOpportunityPick(q: MaybeRefOrGetter<string>, enabled: MaybeRefOrGetter<boolean>) {
   const { $api } = useApi()
   return useQuery({
@@ -66,15 +66,16 @@ export function useHelpdeskOpportunityPick(q: MaybeRefOrGetter<string>, enabled:
     enabled: computed(() => toValue(enabled) && toValue(q).trim() !== ''),
     placeholderData: keepPreviousData,
     retry: false,
+    select: (list) => ({ ...list, items: list.items.filter(item => item.active) }),
     queryFn: ({ signal }) => $api('/api/v1/crm/opportunities', { query: { q: toValue(q).trim(), status: 'all', limit: HELPDESK_OPPORTUNITY_PICK_LIMIT, offset: 0 }, signal, schema: CrmOpportunityListSchema }),
   })
 }
 
-/** What a refused link or unlink says: 403 lacks a right, 422 on `opportunity_id` is another company's opportunity, 404 a ticket or opportunity the user cannot see. */
+/** What a refused link or unlink says: 403 lacks a right, 422 on `opportunity_id` is an archived opportunity (a lost one included), 404 a ticket or opportunity the user cannot see. */
 export function helpdeskOpportunityErrorMessage(error: unknown, t: Translate): string {
   const failure = (error ?? {}) as Refusal
   if (failure.status === 403) return t('helpdesk.opportunity.errors.forbidden')
-  if (failure.status === 422 && failure.field === 'opportunity_id') return t('helpdesk.opportunity.errors.unavailable')
+  if (failure.status === 422 && failure.field === 'opportunity_id') return t('helpdesk.opportunity.errors.archived')
   if (failure.status === 404) return t('helpdesk.opportunity.errors.missing')
   return t('errors.generic')
 }

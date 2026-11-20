@@ -117,6 +117,12 @@ describe('opportunity pick', () => {
     expect(api).toHaveBeenCalledWith('/api/v1/crm/opportunities', expect.objectContaining({ query: { q: 'منى', status: 'all', limit: 20, offset: 0 } }))
   })
 
+  it('leaves archived opportunities out of the offer', () => {
+    useHelpdeskOpportunityPick('منى', true)
+    const select = (options[0] as unknown as { select: (l: { items: { id: number; active: boolean }[]; total: number }) => { items: { id: number }[] } }).select
+    expect(select({ items: [{ id: 1, active: true }, { id: 2, active: false }], total: 2 }).items.map(i => i.id)).toEqual([1])
+  })
+
   it('stays off while the picker is closed', () => {
     useHelpdeskOpportunityPick('منى', false)
     expect(options[0]!.enabled!.value).toBe(false)
@@ -127,7 +133,7 @@ describe('helpdeskOpportunityErrorMessage', () => {
   const t = (k: string) => k
   it('names the refusal', () => {
     expect(helpdeskOpportunityErrorMessage({ status: 403 }, t)).toBe('helpdesk.opportunity.errors.forbidden')
-    expect(helpdeskOpportunityErrorMessage({ status: 422, field: 'opportunity_id' }, t)).toBe('helpdesk.opportunity.errors.unavailable')
+    expect(helpdeskOpportunityErrorMessage({ status: 422, field: 'opportunity_id' }, t)).toBe('helpdesk.opportunity.errors.archived')
     expect(helpdeskOpportunityErrorMessage({ status: 404 }, t)).toBe('helpdesk.opportunity.errors.missing')
     expect(helpdeskOpportunityErrorMessage(new Error('x'), t)).toBe('errors.generic')
   })
