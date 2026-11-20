@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
-import { riyadhDate, type Principal } from '@liwan/commercial-contracts'
+import { addCadence, daysBetween, riyadhDate, type Principal } from '@liwan/commercial-contracts'
 import { client, money, monthly, setup, url } from './commercial-helpers.js'
 import { activateSignupTrial, signupTrialActivation } from '../commercial/trial-first-login.js'
 import { convertTrial, extendTrial, startTrial } from '../commercial/trial.js'
@@ -40,12 +40,23 @@ vi.mock('../commercial/expiry-push.js', async original => {
 
 const POLICY = '6f1c3d8e-0000-4000-8000-000000000001'
 const PAID_KEYS = ['pmo.enabled', 'pmo.change_control', 'pmo.baselines', 'pmo.evm']
+const HOUR_MS = 3_600_000
+const DAY_MS = 24 * HOUR_MS
+/**
+ * The next 09:00 UTC (noon in Riyadh) at least a day and two hours ahead. Rows the code stamps with the database's real clock
+ * must stay before `now`, and the trial the fixtures end a day before `now` must still be running by the real clock.
+ */
+const nextNineUtc = () => {
+  const earliest = Date.now() + DAY_MS + 2 * HOUR_MS
+  const day = new Date(earliest); day.setUTCHours(9, 0, 0, 0)
+  return new Date(day.getTime() >= earliest ? day.getTime() : day.getTime() + DAY_MS)
+}
 const suite = url ? describe : describe.skip
 suite('trial end keeps the company on the free base (issue 491)', () => {
   const pool = new Pool({ connectionString: url, max: 6 })
   const api = client(pool)
   const reason = 'Free base acceptance'
-  const now = new Date('2026-11-20T09:00:00Z')
+  const now = nextNineUtc()
   const origin = fixedReturnOrigin('https://liwan.test')
   const adapter = new SimulatorAdapter()
   let plan: any, bundle: any, secondBundle: any, vendor: Principal
@@ -169,8 +180,10 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     }
     return { order, quote }
   }
-  const beforeEnd = new Date('2026-11-12T09:00:00Z')
   const later = (minutes: number) => new Date(now.getTime() + minutes * 60_000)
+  const hours = (n: number) => new Date(now.getTime() + n * HOUR_MS)
+  const days = (n: number) => new Date(now.getTime() + n * DAY_MS)
+  const beforeEnd = days(-8)
 
   /** Runs `body` with a deletion request of `customer` in `state`, and removes exactly that row afterwards so no other test or file sharing the database sees it. */
   async function withDeletion(customer: string, state: 'deleting' | 'deleted', body: () => Promise<void>) {
@@ -311,7 +324,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     const bought = await change(f, { requested_users: 5, requested_storage_mb: 40960, bundle_revision_ids: [bundle.id, secondBundle.id] }, beforeEnd)
     expect(bought.quote.due_now.minor).toBeGreaterThan(0)
     expect(await runJob(bought.order.id, okRunner)).toMatchObject({ state: 'verified' })
-    const reducedAt = new Date('2026-11-13T09:00:00Z')
+    const reducedAt = days(-7)
     await freshUsage(f, reducedAt)
     const reduced = await change(f, { requested_users: 5, requested_storage_mb: 20480, bundle_revision_ids: [bundle.id, secondBundle.id] }, reducedAt)
     expect(reduced.quote.due_now.minor).toBe(0)
@@ -351,9 +364,14 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     const f = await endedTrial()
     const bought = await change(f, { requested_users: 5 }, beforeEnd)
     expect(await runJob(bought.order.id, okRunner)).toMatchObject({ state: 'verified' })
-    const conversionAt = new Date('2026-11-15T09:00:00Z')
+    const conversionAt = days(-5)
+    // The new period starts on the conversion day; the paid units are covered through the trial's end day, so only the rest of the cycle is charged.
+    const periodStart = riyadhDate(conversionAt)
+    const cycleDays = daysBetween(periodStart, addCadence(periodStart, monthly, 1))
+    const paidDays = Math.max(0, Math.min(cycleDays, daysBetween(periodStart, riyadhDate((await row(f.subscription)).trial_ends_at))))
+    const unpaidDays = cycleDays - paidDays
     const converted = await convertTrial(pool, { customer_id: f.customer, now: conversionAt, returnOrigin: origin })
-    expect(converted.order?.due_now.minor).toBe(Math.round((19900 + Math.round(5800 * 26 / 30)) * 1.15))
+    expect(converted.order?.due_now.minor).toBe(Math.round((19900 + Math.round(5800 * unpaidDays / cycleDays)) * 1.15))
     expect((await getSubscription(pool, f.customer)).state).toBe('trialing')
     expect((await pool.query("SELECT 1 FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'origin'='trial-end'", [f.tenant])).rowCount).toBe(0)
     const prior = (await getSubscription(pool, f.customer)).applied!.id
@@ -430,7 +448,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
   })
 
   it('issues a fresh payable renewal when a reopened trial converts in the same Riyadh day', async () => {
-    const at = new Date('2026-11-19T10:00:00Z')
+    const at = hours(-23)
     const f = await endedTrial()
     const paid = await change(f, { requested_users: 5 }, beforeEnd)
     expect(await runJob(paid.order.id, okRunner)).toMatchObject({ state: 'verified' })
@@ -442,17 +460,18 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
     const pending = (await getSubscription(pool, f.customer)).pending_order!
     expect(await runJob(pending.id, okRunner)).toMatchObject({ state: 'verified' })
 
-    const conversion = await convertTrial(pool, { customer_id: f.customer, now: new Date('2026-11-19T11:00:00Z'), returnOrigin: origin })
+    const conversionAt = hours(-22)
+    const conversion = await convertTrial(pool, { customer_id: f.customer, now: conversionAt, returnOrigin: origin })
     expect(conversion.pending).toBe(false)
     expect(conversion.order?.id).not.toBe(oldOrder!.id)
     const rows = (await pool.query(`SELECT r.order_id,i.status FROM renewals r JOIN invoices i ON i.id=r.invoice_id
-      WHERE r.subscription_id=$1 AND r.period_start='2026-11-19' ORDER BY r.created_at`, [f.subscription])).rows
+      WHERE r.subscription_id=$1 AND r.period_start=$2 ORDER BY r.created_at`, [f.subscription, riyadhDate(conversionAt)])).rows
     expect(rows).toEqual([{ order_id: oldOrder!.id, status: 'void' }, { order_id: conversion.order!.id, status: 'issued' }])
   })
 
   it('voids an open checkout at expiry, and refunds a late successful capture', async () => {
     const f = await endedTrial()
-    const conversionAt = new Date('2026-11-18T11:00:00Z')
+    const conversionAt = hours(-46)
     const conversion = await convertTrial(pool, { customer_id: f.customer, now: conversionAt, returnOrigin: origin })
     const order = conversion.order!
     const attempt = await createPaymentAttempt(pool, { order_id: order.id, customer_id: f.customer, adapter, returnOrigin: origin, now: conversionAt })
@@ -480,7 +499,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
 
   it('reissues a checkout the next day, refunds a late capture of the first one and keeps the new one payable', async () => {
     const f = await endedTrial()
-    const dayOne = new Date('2026-11-17T10:00:00Z'), dayTwo = new Date('2026-11-18T10:00:00Z')
+    const dayOne = hours(-71), dayTwo = hours(-47)
     const first = (await convertTrial(pool, { customer_id: f.customer, now: dayOne, returnOrigin: origin })).order!
     await expect(cancelOrder(pool, { order_id: first.id, principal: f.principal, reason: 'Changed my mind' }))
       .rejects.toMatchObject({ code: 'order_not_cancellable' })
@@ -497,16 +516,16 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
   })
 
   it('settles a payment opened before Riyadh midnight and captured after it, and refuses one opened after it', async () => {
-    const before = new Date('2026-11-17T20:55:00Z'), after = new Date('2026-11-17T21:02:00Z')
+    const before = later(-3605), after = later(-3598)
     const f = await endedTrial()
-    const order = (await convertTrial(pool, { customer_id: f.customer, now: new Date('2026-11-17T20:50:00Z'), returnOrigin: origin })).order!
+    const order = (await convertTrial(pool, { customer_id: f.customer, now: later(-3610), returnOrigin: origin })).order!
     const attempt = await openCheckoutPayment(f, order.id, before)
     await capture(attempt.provider_ref!, after)
     expect(await orderRow(order.id)).toMatchObject({ cancelled: false, payment_state: 'paid' })
     expect((await row(f.subscription)).state).toBe('active')
 
     const g = await endedTrial()
-    const other = (await convertTrial(pool, { customer_id: g.customer, now: new Date('2026-11-17T20:50:00Z'), returnOrigin: origin })).order!
+    const other = (await convertTrial(pool, { customer_id: g.customer, now: later(-3610), returnOrigin: origin })).order!
     await expect(createPaymentAttempt(pool, { order_id: other.id, customer_id: g.customer, adapter, returnOrigin: origin, now: after }))
       .rejects.toMatchObject({ code: 'trial_checkout_expired' })
     const stale = await openCheckoutPayment(g, other.id, before)
@@ -518,7 +537,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
 
   it('lifts the trial deadline on the host at payment, so a fulfilment after the deadline never cuts the payer', async () => {
     const f = await endedTrial()
-    const paidAt = new Date('2026-11-19T08:50:00Z'), pastDeadline = new Date('2026-11-19T09:30:00Z')
+    const paidAt = later(-1450), pastDeadline = later(-1410)
     const order = (await convertTrial(pool, { customer_id: f.customer, now: paidAt, returnOrigin: origin })).order!
     await capture((await openCheckoutPayment(f, order.id, paidAt)).provider_ref!, paidAt)
     const lift = (await pool.query(`SELECT payload FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'origin'='trial-end'
@@ -537,7 +556,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
 
   it('records a failed deadline lift and still settles the payment', async () => {
     const f = await endedTrial()
-    const paidAt = new Date('2026-11-18T10:00:00Z')
+    const paidAt = hours(-47)
     const order = (await convertTrial(pool, { customer_id: f.customer, now: paidAt, returnOrigin: origin })).order!
     const attempt = await openCheckoutPayment(f, order.id, paidAt)
     // A deadline push already running on the host holds the tenant's one open trial-end job.
@@ -553,7 +572,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
 
   it('aborts the settlement when the deadline lift fails for a reason that is not operational', async () => {
     const f = await endedTrial()
-    const paidAt = new Date('2026-11-18T10:00:00Z')
+    const paidAt = hours(-47)
     const order = (await convertTrial(pool, { customer_id: f.customer, now: paidAt, returnOrigin: origin })).order!
     const attempt = await openCheckoutPayment(f, order.id, paidAt)
     vi.mocked(pushCommercialExpiry).mockRejectedValueOnce(new TypeError('push bug'))
@@ -577,7 +596,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
 
   it('returns a checkout refunded before delivery to the running trial, which can pay again the same day', async () => {
     const f = await endedTrial()
-    const at = new Date('2026-11-18T10:00:00Z')
+    const at = hours(-47)
     const deadline = (await row(f.subscription)).trial_ends_at
     const today = { from: riyadhDate(new Date()), to: riyadhDate(new Date()) }
     const collected = async () => {
@@ -622,8 +641,8 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
 
   it('lapses a trial whose checkout was refunded before delivery at its deadline, like any unpaid trial', async () => {
     const f = await endedTrial()
-    await payThenRefund(f, new Date('2026-11-18T10:00:00Z'))
-    expect((await lapse(f, new Date('2026-11-19T09:30:00Z'))).lapsed).toEqual([f.subscription])
+    await payThenRefund(f, hours(-47))
+    expect((await lapse(f, later(-1410))).lapsed).toEqual([f.subscription])
     expect(await lapseRow(f.subscription)).toMatchObject({ state: 'pending', cause: 'trial_end' })
   })
 
@@ -695,7 +714,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
 
   it('retires a stale system date push once the target revision moves (T8)', async () => {
     const f = await endedTrial()
-    await transaction(pool, tx => pushCommercialExpiry(tx, f.subscription, new Date('2026-11-19T09:00:00Z')))
+    await transaction(pool, tx => pushCommercialExpiry(tx, f.subscription, days(-1)))
     const dateJob = (await pool.query("SELECT id FROM shared_jobs WHERE control_tenant_id=$1 AND payload->>'origin'='trial-end'", [f.tenant])).rows[0]
     const bought = await change(f, { requested_users: 5 }, beforeEnd)
     expect(await runJob(bought.order.id, okRunner)).toMatchObject({ state: 'verified' })
@@ -977,7 +996,7 @@ suite('trial end keeps the company on the free base (issue 491)', () => {
 
   it('drops a converted trial whose conversion payment is refunded, and records the free-base outcome', async () => {
     const f = await endedTrial()
-    const conversionAt = new Date('2026-11-15T09:00:00Z')
+    const conversionAt = days(-5)
     const converted = await convertTrial(pool, { customer_id: f.customer, now: conversionAt, returnOrigin: origin })
     const hosted = await openCheckoutPayment(f, converted.order!.id, conversionAt)
     adapter.settle(hosted.provider_ref!, 'succeeded')
