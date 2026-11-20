@@ -41,6 +41,9 @@ class TestPipelineExecution(unittest.TestCase):
         shutil.copy(ROOT / 'deploy/image_pins.py', self.root / 'deploy/image_pins.py')
         shutil.copy(ROOT / 'deploy/production-images.json', self.root / 'deploy/production-images.json')
         (self.root / 'deploy/odoo').mkdir()
+        (self.root / 'deploy/shared').mkdir()
+        (self.root / 'deploy/Caddyfile').write_text(':80\n')
+        (self.root / 'deploy/shared/Caddyfile').write_text(':80\n')
         (self.root / 'deploy/odoo/ODOO_COMMIT').write_text('a' * 40)
         self.fake('odoo-python', '''
 log = next((a.split('=',1)[1] for a in args if a.startswith('--logfile=')), None)
@@ -73,11 +76,19 @@ if args[:1] == ['exec'] and joined.endswith('id -u'): print(10001)
 if args[:1] == ['exec'] and 'unknown.invalid' in joined: print(403)
 if args[:1] == ['exec'] and 'wget' in joined: print('wget: server returned error: HTTP/1.1 502 Bad Gateway')  # the proxy answers; its upstreams are absent
 if args[:2] == ['image', 'inspect']: print('not published' if 'RepoDigests' in joined else 'sha256:' + args[-1])
-if args[:1] == ['run'] and any(a.startswith('aquasec/trivy:') for a in args):
+root = Path(os.environ['DOCKER_CONFIG']).parent
+state = root / 'trivy-state'
+if args[:1] == ['save']: Path(args[args.index('-o') + 1]).write_text(args[-1])
+if args[:1] == ['create'] and any(a.startswith('aquasec/trivy:') for a in args): state.write_text(json.dumps(args))
+if args[:1] == ['cp'] and args[2].startswith('liwan-ci-123-trivy:'): (root / 'trivy-tag').write_text(Path(args[1]).read_text())
+if args[:1] == ['start'] and args[-1] == 'liwan-ci-123-trivy':
     # TRIVY_FAKE maps an image tag to {"exit": code, "report": trivy json, "sbom_exit": code}; an unlisted image is clean.
-    plan = json.loads(os.environ.get('TRIVY_FAKE', '{}')).get(args[-1], {})
-    if 'cyclonedx' in args:
-        print(json.dumps({'bomFormat': 'CycloneDX', 'component': args[-1]}))
+    tag = (root / 'trivy-tag').read_text()
+    created = json.loads(state.read_text())
+    with open(root / 'calls.jsonl', 'a') as out: out.write(json.dumps(['trivy-run', tag, *created]) + '\\n')
+    plan = json.loads(os.environ.get('TRIVY_FAKE', '{}')).get(tag, {})
+    if 'cyclonedx' in created:
+        print(json.dumps({'bomFormat': 'CycloneDX', 'component': tag}))
         sys.exit(plan.get('sbom_exit', 0))
     print(json.dumps(plan.get('report', {'Results': []})))
     sys.exit(plan.get('exit', 0))
@@ -371,15 +382,15 @@ if 'deploy/restore_verify.py' in args:
         check = next(x for x in runs if x[x.index('--name') + 1] == 'liwan-ci-123-check')
         self.assertEqual(install[install.index('--network') + 1], 'host')
         self.assertIn('--entrypoint', check)
-        for value in (x for x in install if ':/etc/odoo/' in x or ':/run/liwan/' in x):
-            self.assertFalse(value.startswith(str(self.root)), value)
+        self.assertNotIn('-v', install)  # no job path is bind-mounted: the daemon may be on another host
+        self.assertIn('liwan-odoo-files:ci-123', install)
         self.assertIn(['docker', 'rmi', '-f', 'liwan-odoo:ci-123'], calls)
 
     def test_image_gate_builds_smokes_cleans_and_records_every_production_image(self):
         process = self.execute('image')
         self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
         calls = [json.loads(line) for line in self.calls.read_text().splitlines()]
-        builds = {x[x.index('-t') + 1]: x for x in calls if x[:2] == ['docker', 'build']}
+        builds = {x[x.index('-t') + 1]: x for x in calls if x[:2] == ['docker', 'build'] and x[x.index('-f') + 1] != '-'}
         contexts = {'web': '.', 'control-plane': '.', 'vendor-admin': '.', 'ai-service': 'apps/ai-service', 'proxy': '.', 'guard': '.',
                     'ai-egress': 'deploy/ai-egress', 'odoo-mail': 'deploy/odoo-mail'}
         dockerfiles = {'web': 'apps/web/Dockerfile', 'control-plane': 'deploy/control-plane/Dockerfile', 'vendor-admin': 'apps/vendor-admin/Dockerfile',
@@ -399,12 +410,14 @@ if 'deploy/restore_verify.py' in args:
                 if name not in ('proxy', 'ai-egress', 'odoo-mail', 'control-plane'):  # checked without a long-running container
                     started = next(x for x in calls if x[:3] == ['docker', 'run', '-d']
                                    and x[x.index('--name') + 1] == 'liwan-ci-123-' + name)
-                    self.assertIn(tag, started)
+                    # Containers that need config files run the image derived with them (a build, never a bind mount).
+                    self.assertIn(tag.replace(':ci-', '-files:ci-') if name in ('web', 'guard', 'ai-service') else tag, started)
+                    self.assertNotIn('-v', started)
                     self.assertIn(['docker', 'exec', 'liwan-ci-123-' + name, 'id', '-u'], calls)
                     self.assertIn(['docker', 'rm', '-fv', 'liwan-ci-123-' + name], calls)
         self.assertIn('| liwan-odoo:ci-123 | sha256:liwan-odoo:ci-123 | not published | liwan-odoo.cdx.json |', process.stdout)
         proxy = [x for x in calls if x[:2] == ['docker', 'run'] and 'liwan-proxy:ci-123' in x]
-        validated = [x for x in proxy if 'validate' in x]
+        validated = [x for x in calls if x[:2] == ['docker', 'run'] and 'liwan-proxy-files:ci-123' in x and 'validate' in x]
         self.assertEqual(len(validated), 2)
         self.assertTrue(any('http.handlers.rate_limit' in ' '.join(x) for x in proxy))
         guard = next(x for x in calls if x[:3] == ['docker', 'run', '-d'] and 'liwan-ci-123-guard' in x)
@@ -435,7 +448,7 @@ if 'deploy/restore_verify.py' in args:
 
     def all_trivy_runs(self):
         calls = [json.loads(line) for line in self.calls.read_text().splitlines()]
-        return [x for x in calls if x[:2] == ['docker', 'run'] and any(a.startswith('aquasec/trivy:') for a in x)]
+        return [x for x in calls if x[0] == 'trivy-run']
 
     def trivy_runs(self):
         return [x for x in self.all_trivy_runs() if 'cyclonedx' not in x]
@@ -450,7 +463,7 @@ if 'deploy/restore_verify.py' in args:
         self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
         names = ('liwan-odoo', 'liwan-control-plane', 'liwan-vendor-admin', 'liwan-web', 'liwan-proxy', 'liwan-guard', 'liwan-ai-service',
                  'liwan-ai-egress', 'liwan-odoo-mail')
-        self.assertEqual([x[-1] for x in self.sbom_runs()], ['%s:ci-123' % name for name in names])
+        self.assertEqual([x[1] for x in self.sbom_runs()], ['%s:ci-123' % name for name in names])
         for name in names:
             document = json.loads((sbom_dir / (name + '.cdx.json')).read_text())
             self.assertEqual(document, {'bomFormat': 'CycloneDX', 'component': name + ':ci-123'})
@@ -473,13 +486,14 @@ if 'deploy/restore_verify.py' in args:
         self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
         runs = self.trivy_runs()
         tags = ['liwan-%s:ci-123' % n for n in ('odoo', 'control-plane', 'vendor-admin', 'web', 'proxy', 'guard', 'ai-service', 'ai-egress', 'odoo-mail')]
-        self.assertEqual([x[-1] for x in runs], tags)
+        self.assertEqual([x[1] for x in runs], tags)
         for run in runs:
-            with self.subTest(image=run[-1]):
+            with self.subTest(image=run[1]):
                 self.assertEqual(run[run.index('--name') + 1], 'liwan-ci-123-trivy')
                 scanner = next(a for a in run if a.startswith('aquasec/trivy:'))
                 self.assertRegex(scanner, r'^aquasec/trivy:\d+\.\d+\.\d+@sha256:[0-9a-f]{64}$')
-                self.assertIn('/var/run/docker.sock:/var/run/docker.sock', run)
+                self.assertNotIn('/var/run/docker.sock:/var/run/docker.sock', run)
+                self.assertEqual(run[run.index('--input') + 1], '/tmp/image.tar')
                 self.assertEqual(run[run.index('--severity') + 1], 'HIGH,CRITICAL')
                 self.assertIn('--ignore-unfixed', run)
                 self.assertEqual(run[run.index('--exit-code') + 1], '0')
@@ -514,7 +528,7 @@ if args[:1] == ['exec'] and joined.endswith('id -u'): print(10001)
 if args[:1] == ['exec'] and 'unknown.invalid' in joined: print(403)
 if args[:1] == ['exec'] and 'wget' in joined: print('HTTP/1.1 502 Bad Gateway')
 if args[:2] == ['image', 'inspect']: print('sha256:' + args[-1])
-if args[:1] == ['run'] and any(a.startswith('aquasec/trivy:') for a in args): print('not json')
+if args[:1] == ['start'] and args[-1] == 'liwan-ci-123-trivy': print('not json')
 """)
         process = self.execute('image')
         self.assertNotEqual(process.returncode, 0)
