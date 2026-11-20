@@ -295,6 +295,10 @@
     "odoo-addons/liwan_helpdesk/models/helpdesk_sla.py": {
       "count": 1,
       "reason": "liwan_helpdesk service-level refresh: `ticket.sudo().refresh_sla()` in `liwan.helpdesk.sla._liwan_refresh`, the engine call that creates and deletes the `helpdesk.ticket.sla` rows of one ticket after a policy is saved; blocked by `helpdesk.ticket.sla._check_access` (OCA helpdesk_mgmt_sla), which also demands the unlink right on `helpdesk.ticket`, a right no LiwanOS capability group holds on purpose, so a manager's save answered 403 whenever a retired policy had left rows (test_a_policy_is_saved_over_rows_of_a_retired_policy). It runs only after `helpdesk.settings.manage` was checked by the route, touches only the SLA rows of the working company's tickets and returns nothing to the caller."
+    },
+    "odoo-addons/liwan_helpdesk_inbox/controllers/conversation_tickets.py": {
+      "count": 1,
+      "reason": "liwan_helpdesk_inbox open-ticket check: `request.env['helpdesk.ticket'].sudo().search_count([('liwan_conversation_id', '=', conversation.id), ('stage_id.closed', '=', False)], limit=1)` in `has_open_ticket`; blocked by the own and team rules of `liwan_helpdesk/security/helpdesk_rules.xml` (`rule_helpdesk_ticket_own`, `rule_helpdesk_ticket_team`), which hide another assignee's or another team's ticket from the caller, so an unelevated count would let a second ticket open while a hidden one is still open and break the one-open-ticket-per-conversation decision (2026-11-20). It runs after the route checked both features, both capabilities and the caller's visibility of the conversation, on that one conversation's id only, and returns a boolean: no ticket field, number or id leaves it and the 409 never names the hidden ticket."
     }
   }
 }
