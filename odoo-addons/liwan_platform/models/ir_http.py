@@ -128,7 +128,8 @@ class LiwanPlatformIrHttp(models.AbstractModel):
 
         The decision is about the request being served, never ``path_info``: other callers (``http_routing``
         building a URL for another language) pass a different URL, and the gate stays per request. Outside a
-        request there is nothing to decide.
+        request there is nothing to decide. The manifest dependency on ``http_routing`` places this override
+        above its ``_match``, which would otherwise redirect a closed path by language before the guard runs.
         """
         if request and _guard_closes(request.httprequest):
             raise NotFound()

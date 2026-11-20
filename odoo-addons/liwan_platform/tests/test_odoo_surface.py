@@ -79,6 +79,24 @@ class TestSessionOdooSurface(HttpCase):
                         headers={'Content-Type': 'text/xml', **headers},
                     ))
 
+    def test_closed_paths_are_refused_before_http_routing_can_redirect_them(self):
+        self.env['res.lang']._activate_lang('ar_001')
+        self.env.cr.flush()
+        modules = [cls.__module__.split('.')[2] for cls in type(self.env['ir.http']).mro() if cls.__module__.startswith('odoo.addons.')]
+        self.assertLess(modules.index('liwan_platform'), modules.index('http_routing'))
+        requests = (
+            ('//web//dataset/call_kw/x', {}), ('/en/odoo', {}), ('/ar/odoo', {}),
+            ('/odoo', {'frontend_lang': 'ar_001'}),
+        )
+        for path, cookies in requests:
+            with self.subTest(path=path, cookies=cookies):
+                self.opener.cookies.clear()
+                for name, value in cookies.items():
+                    self.opener.cookies.set(name, value)
+                response = self.url_open(path, allow_redirects=False)
+                self.assertEqual(response.status_code, 404)
+                self.assertNotIn('Location', response.headers)
+
     def test_a_binary_attachment_never_answers_on_a_closed_path(self):
         probe = b'liwan-surface-probe-bytes'
         paths = ('/web/content/liwan-surface-probe', '/web/dataset/call_kw/x', '/odoo/liwan-surface-probe')
