@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, writeFile, access } from 'node:fs/promises'
+import { mkdtemp, readFile, writeFile, access, stat } from 'node:fs/promises'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { tmpdir } from 'node:os'
@@ -129,4 +129,13 @@ it('refuses a second mutation while previous publication is unresolved', async (
   await beginPublication(path, 1)
   await expect(beginPublication(path, 1)).rejects.toThrow()
   await access(`${path}.pending`)
+})
+it('publishes a world-readable registry even under a restrictive umask', async () => {
+  const path = join(await mkdtemp(join(tmpdir(), 'liwan-publish-')), 'registry.json')
+  const previous = process.umask(0o077)
+  try {
+    await beginPublication(path, 1)
+    await completePublication(path, { revision: 1 })
+  } finally { process.umask(previous) }
+  expect((await stat(path)).mode & 0o777).toBe(0o644)
 })

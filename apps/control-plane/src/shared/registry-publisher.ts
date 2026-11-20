@@ -2,6 +2,12 @@ import { open, rename, unlink, lstat } from 'node:fs/promises'
 import { dirname, isAbsolute } from 'node:path'
 import { randomUUID } from 'node:crypto'
 
+/** The snapshot holds only hosts, tenant ids, database names and revisions, no secret. The guard, web, tiktok-relay and ai
+ * read it as other users than the publisher, so it is world-readable; the explicit chmod keeps a restrictive umask from narrowing it. */
+export const REGISTRY_FILE_MODE = 0o644
+/** The directory holding a registry file must be traversable by those same readers; mkdir alone follows the umask, so it is set explicitly. */
+export const REGISTRY_DIR_MODE = 0o755
+
 async function syncDirectory(path: string): Promise<void> {
   const directory = await open(dirname(path), 'r')
   try { await directory.sync() } finally { await directory.close() }
@@ -47,8 +53,8 @@ export async function completePublication(path: string, snapshot: unknown): Prom
   if (!marker.isFile() || marker.isSymbolicLink()) throw new Error('registry_marker_invalid')
   const bytes = JSON.stringify(snapshot)
   const temporary = `${path}.${randomUUID()}.tmp`
-  const file = await open(temporary, 'wx', 0o600)
-  try { await file.writeFile(bytes); await file.sync() } finally { await file.close() }
+  const file = await open(temporary, 'wx', REGISTRY_FILE_MODE)
+  try { await file.chmod(REGISTRY_FILE_MODE); await file.writeFile(bytes); await file.sync() } finally { await file.close() }
   await rename(temporary, path)
   await syncDirectory(path)
   await unlink(`${path}.pending`)

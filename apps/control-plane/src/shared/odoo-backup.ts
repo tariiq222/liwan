@@ -1,11 +1,12 @@
 import {createHash,randomUUID} from 'node:crypto'
-import {readFile,stat,mkdir,writeFile,rename} from 'node:fs/promises'
+import {readFile,stat,mkdir,writeFile,rename,chmod} from 'node:fs/promises'
 import {join} from 'node:path'
 import type {Pool,PoolClient} from 'pg'
 import {z} from 'zod'
 import {tenantBindingSchema,sharedJobSchema,sharedReconfigureJobSchema,type SharedJob,type TenantBinding,sharedReceiptSchema} from '@liwan/commercial-contracts/shared'
 import {transaction} from '../db.js'
 import {requireJobAuthority} from './job-store.js'
+import {REGISTRY_DIR_MODE,REGISTRY_FILE_MODE} from './registry-publisher.js'
 import {REGISTRY_ADVISORY_LOCK,resolveRegistryBinding,registryTargetSchema,type RegistryActor} from './registry-store.js'
 import {assertSameBinding,businessKey,payloadDigest} from './provisioning.js'
 import {assertNoSymlink,type SharedRuntimeConfig} from './runtime-config.js'
@@ -158,7 +159,7 @@ export async function requireOdooRestorePublicationAuthority(client:import('pg')
 }
 /** The restore registry file the guard reads (`LIWAN_RESTORE_REGISTRY_PATH`): restore targets only, never the tenant registry. */
 export async function writeRestoreRoute(stateDir:string,approvalId:string,host:string,database:string){
- const dir=join(stateDir,'restore-registry');await mkdir(dir,{recursive:true});assertNoSymlink(dir)
+ const dir=join(stateDir,'restore-registry');await mkdir(dir,{recursive:true});assertNoSymlink(dir);await chmod(dir,REGISTRY_DIR_MODE)
  const path=join(dir,'registry.json')
  let existing:{schemaVersion:number;snapshotRevision:number;targets:Array<Record<string,unknown>>}={schemaVersion:1,snapshotRevision:0,targets:[]}
  try{assertNoSymlink(path);existing=z.strictObject({schemaVersion:z.literal(1),snapshotRevision:z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER-1),targets:z.array(registryTargetSchema)}).parse(JSON.parse(await readFile(path,'utf8')))}catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error}
@@ -166,7 +167,7 @@ export async function writeRestoreRoute(stateDir:string,approvalId:string,host:s
  const target=registryTargetSchema.parse({tenantId:'r'+approvalId.replaceAll('-',''),host,database,filestore:database,enabled:true,registryRevision:1})
  const old=existing.targets.find(t=>t.host===host)
  if(old && JSON.stringify(old)!==JSON.stringify(target))throw Error('shared_restore_route_conflict')
- if(!old){existing.targets.push(target);existing.snapshotRevision++;const temp=path+'.'+randomUUID();await writeFile(temp,JSON.stringify(existing),{mode:0o644,flag:'wx'});await rename(temp,path)}
+ if(!old){existing.targets.push(target);existing.snapshotRevision++;const temp=path+'.'+randomUUID();await writeFile(temp,JSON.stringify(existing),{mode:REGISTRY_FILE_MODE,flag:'wx'});await chmod(temp,REGISTRY_FILE_MODE);await rename(temp,path)}
 }
 /** Separate restore registry only. Caller must freshly observe the exact effect first. */
 export async function publishOdooRestore(pool:Pool,runtime:SharedRuntimeConfig,actor:RegistryActor,approvalId:string,observe:(job:SharedJob)=>Promise<unknown>,options:{runner?:CommercialRestoreRunner}={}){
