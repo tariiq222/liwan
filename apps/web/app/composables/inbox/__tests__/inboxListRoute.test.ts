@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_INBOX_LIST_ROUTE, INBOX_PAGE_SIZE, inboxListQuery, inboxPageOffset, parseInboxListRoute, serializeInboxListRoute } from '../inboxListRoute'
+import { DEFAULT_INBOX_LIST_ROUTE, INBOX_PAGE_SIZE, inboxListQuery, inboxOffsetCorrection, inboxPageOffset, parseInboxListRoute, serializeInboxListRoute } from '../inboxListRoute'
 
 describe('inbox list route', () => {
   it('parses an empty query to the defaults', () => {
@@ -37,5 +37,20 @@ describe('inbox list route', () => {
     expect(inboxPageOffset(2, 100)).toBe(INBOX_PAGE_SIZE)
     expect(inboxPageOffset(99, 100)).toBe(3 * INBOX_PAGE_SIZE)
     expect(inboxPageOffset(0, 0)).toBe(0)
+  })
+
+  it('corrects an offset past the end or off a page boundary', () => {
+    expect(inboxOffsetCorrection(9999, 40)).toBe(30)
+    expect(inboxOffsetCorrection(30, 40)).toBeNull()
+    expect(inboxOffsetCorrection(15, 40)).toBe(0)
+    expect(inboxOffsetCorrection(45, 100)).toBe(30)
+    expect(inboxOffsetCorrection(60, 40)).toBe(30)
+    expect(inboxOffsetCorrection(30, 0)).toBe(0)
+    expect(inboxOffsetCorrection(0, 0)).toBeNull()
+    expect(inboxOffsetCorrection(30, 30)).toBe(0)
+  })
+
+  it('parses a negative, non-numeric or fractional offset to the first page', () => {
+    for (const offset of ['-5', 'abc', '1.5']) expect(parseInboxListRoute({ offset }).offset).toBe(0)
   })
 })
