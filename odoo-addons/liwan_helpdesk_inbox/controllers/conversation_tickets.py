@@ -107,6 +107,8 @@ class ConversationTicketsController(http.Controller):
                 values[key] = payload[key]
         if payload.get('priority') is not None:
             values['priority'] = payload['priority']
-        ticket = request.env['liwan.helpdesk.service']._liwan_create(values)
-        ticket.liwan_conversation_id = conversation
+        # The service whitelists its values, so the conversation travels in the context and the bridge's ``create``
+        # writes the link in the same insert, with no later write that depends on the caller's rights on the ticket.
+        service = request.env['liwan.helpdesk.service'].with_context(liwan_conversation_id=conversation.id)
+        ticket = service._liwan_create(values)
         return ticket_ref(ticket)

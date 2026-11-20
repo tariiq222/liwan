@@ -93,6 +93,35 @@ class ConversationTicketTest(LiwanInboxCase):
         self.assertEqual([item['subject'] for item in listed.json()['items']], ['Second', 'First'])
         self.assertEqual([item['stage']['closed'] for item in listed.json()['items']], [False, True])
 
+    def _team_with_stage(self, name):
+        team = self.env['helpdesk.ticket.team'].create({'name': name, 'company_id': self.env.company.id})
+        self.env['helpdesk.ticket.stage'].create({
+            'name': 'New', 'sequence': 1, 'closed': False, 'company_id': self.env.company.id, 'team_ids': [(4, team.id)],
+        })
+        return team
+
+    def test_an_agent_raises_a_ticket_for_another_team_under_each_visibility_mode(self):
+        # The agent takes the ticket they open, so the desk's own and team rules still let the link be written even
+        # when the ticket belongs to a team the agent is not in.
+        team = self._team_with_stage('Other team')
+        self.login(self.agent)
+        for mode in ('own', 'team'):
+            self.env['liwan.helpdesk.settings']._liwan_for(self.env.company).write({'visibility': mode})
+            conversation = self.make_conversation()
+            created = self.raise_ticket(conversation.id, subject='For another team', team_id=team.id)
+            self.assertEqual(created.status_code, 200, (mode, created.text))
+            ticket = self.env['helpdesk.ticket'].browse(created.json()['id'])
+            self.assertEqual((ticket.team_id, ticket.liwan_conversation_id), (team, conversation), mode)
+
+    def test_the_conversation_key_links_only_the_ticket_it_was_made_for(self):
+        conversation = self.make_conversation()
+        team = self._team_with_stage('Key team')
+        service = self.env['liwan.helpdesk.service'].with_user(self.agent)
+        linked = service.with_context(liwan_conversation_id=conversation.id)._liwan_create(
+            {'subject': 'Linked', 'description': 'Linked', 'team_id': team.id})
+        plain = service._liwan_create({'subject': 'Plain', 'description': 'Plain', 'team_id': team.id})
+        self.assertEqual((linked.liwan_conversation_id, plain.liwan_conversation_id), (conversation, self.env['liwan.inbox.conversation']))
+
     def test_a_raise_rewrites_the_conversation_row_inside_its_transaction(self):
         # Two real concurrent transactions cannot run here: the test cursor is shared and never commits, so another
         # cursor cannot see the conversation. What makes the late raise fail under REPEATABLE READ is that the first

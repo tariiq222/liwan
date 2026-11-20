@@ -30,6 +30,18 @@ class HelpdeskTicketConversation(models.Model):
             'UPDATE liwan_inbox_conversation SET write_date = write_date WHERE id = %s', conversation.id,
         ))
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        """Set the conversation link from the ``liwan_conversation_id`` context key, which the raise route passes.
+
+        The desk's create service whitelists its values, so the link cannot go through it. The key is dropped before
+        the real create so nothing created inside it, or by a later call on the same environment, takes the link.
+        """
+        conversation_id = self.env.context.get('liwan_conversation_id')
+        if conversation_id:
+            vals_list = [{'liwan_conversation_id': conversation_id, **vals} for vals in vals_list]
+        return super(HelpdeskTicketConversation, self.with_context(liwan_conversation_id=False)).create(vals_list)
+
     def write(self, vals):
         if 'stage_id' in vals:
             stage = self.env['helpdesk.ticket.stage'].browse(vals['stage_id'])
