@@ -30,16 +30,16 @@ def account_url(account_sid, path=''):
 def _never_sent(error):
     """Whether the request certainly did not reach Twilio: the connection was refused, timed out or the name failed.
 
-    urllib3 raises `NewConnectionError` (its name-resolution error is a subclass) before any byte is written.
+    ``requests`` raises ``ConnectionError(err, request=request)`` from ``HTTPAdapter.send`` for a ``MaxRetryError``,
+    so urllib3's ``NewConnectionError`` (its name-resolution error is a subclass) reaches the caller wrapped in
+    ``args[0]`` of that ``ConnectionError``, not in ``reason``. It is raised before any byte is written.
     """
     if isinstance(error, requests.ConnectTimeout):
         return True
-    cause = error
-    while isinstance(cause, BaseException):
-        if isinstance(cause, NewConnectionError):
-            return True
-        cause = getattr(cause, 'reason', None) or cause.__cause__ or cause.__context__
-    return False
+    if isinstance(error, NewConnectionError):
+        return True
+    inner = [getattr(error, 'reason', None), *error.args, error.__cause__, error.__context__]
+    return any(isinstance(item, BaseException) and _never_sent(item) for item in inner)
 
 
 def call(method, url, credentials, account_sid, **kwargs):

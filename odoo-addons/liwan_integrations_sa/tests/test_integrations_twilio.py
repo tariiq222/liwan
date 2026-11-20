@@ -349,10 +349,13 @@ class TestTwilioCallback(TwilioCase):
         Connection = type(self.env['liwan.integration.connection'])
         self.patch(Connection, '_liwan_callback_record', lambda connection, kind, params: self.row if params.get('MessageSid') in ('SM1', ['SM1']) else None)
 
-    def post(self, params, signature_value, content_type='application/x-www-form-urlencoded'):
-        # The path only: `url_open` would request a full URL on the real network, and the signature covers the
-        # full URL the row stores, not the path the test opens.
-        return self.url_open(urlsplit(self.url).path, data=params, headers={'X-Twilio-Signature': signature_value, 'Content-Type': content_type}, method='POST')
+    def post(self, params, signature_value, content_type='application/x-www-form-urlencoded', url=None):
+        # The path only: `url_open` would request a full URL on the real network. The signature covers the full URL
+        # the row (or the caller) stores, not the path the test opens.
+        return self.url_open(
+            urlsplit(url or self.url).path, data=params,
+            headers={'X-Twilio-Signature': signature_value, 'Content-Type': content_type}, method='POST',
+        )
 
     def test_a_signed_callback_applies_as_the_public_user(self):
         response = self.post(self.params, sign(self.url, self.params))
@@ -370,7 +373,9 @@ class TestTwilioCallback(TwilioCase):
             self.url.replace('/twilio/', '/meta/'),
         ):
             with self.subTest(path=url):
-                self.assertEqual(self.post(self.params, sign(self.url, self.params)).status_code, 404)
+                # An unknown path has no row, so the 404 comes before any signature check: the signature over
+                # the URL the request names is still exercised on its own path.
+                self.assertEqual(self.post(self.params, sign(url, self.params), url=url).status_code, 404)
         self.connection.state = 'disabled'
         self.assertEqual(self.post(self.params, sign(self.url, self.params)).status_code, 404)
         self.assertEqual(self.row.applied, [])

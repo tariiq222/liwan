@@ -121,6 +121,18 @@ class LiwanIntegrationSender(models.Model):
 class LiwanIntegrationConnectionNumbers(models.Model):
     _inherit = 'liwan.integration.connection'
 
+    def unlink(self):
+        """Delete the senders before the connection itself.
+
+        One statement deleting both would let PostgreSQL fire the connection FK's ``SET NULL`` on the messages while
+        the senders are already cascade-deleted but their own ``SET NULL`` has not run, and the ``sender_id`` check
+        refuses. Deleting the senders first settles their ``SET NULL`` in its own statement; the messages and their
+        snapshots stay (D8). Archived senders are rows too: they go away with their connection.
+        """
+        senders = self.env['liwan.integration.sender'].with_context(active_test=False)
+        senders.search([('connection_id', 'in', self.ids)]).unlink()
+        return super().unlink()
+
     def _liwan_account_numbers(self):
         """``[{'value', 'label', 'sms', 'voice'}]`` of the account behind the connection, read from the provider.
 
