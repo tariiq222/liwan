@@ -35,6 +35,8 @@ MODULE_ID = re.compile(r'(?:liwan|customer)_[a-z0-9_]+')
 TENANT_HOST = re.compile(r'(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+')
 MAX_OUTPUT = 65536
 TENANT_DB_ROLE = 'odoo'  # db_user of deploy/shared/odoo.conf
+# The AI role's grants and schema in a tenant database: the file deploy/provision.sh and the operator also run.
+AI_TENANT_SCHEMA = Path(__file__).resolve().parents[2] / 'deploy' / 'ai' / 'tenant_schema.sql'
 # System parameter that binds a tenant database to its control-plane tenant. The final deletion of a workspace
 # refuses any database whose marker differs from the tenant it was asked to delete.
 TENANT_MARKER_PARAMETER = 'liwan.control.tenant_id'
@@ -248,6 +250,7 @@ class Runner:
         self.base = ['docker', 'compose', '--project-name', config['projectName'], '--env-file', config['envFile'], '--file', config['composeFile']]
         self.current_container = None
         self.child = None
+        self.ai_enabled = False
 
     def command(self, args, *, stdin='', timeout=90, stdout_only=False):
         # Continuously drain into a bounded tail; installation logs cannot grow
@@ -294,6 +297,8 @@ class Runner:
         config = json.loads(self.command(self.base + ['config', '--format', 'json']))
         if config.get('name') != self.config['projectName'] or not {'db', 'odoo'} <= set(config.get('services', {})):
             raise EffectError('foreign_project')
+        # The `ai` service is in the rendered config only when the env file enables the ai profile.
+        self.ai_enabled = 'ai' in config['services']
         ids = self.command(self.base + ['ps', '-q', 'db']).strip().splitlines()
         if len(ids) != 1 or not re.fullmatch(r'[a-f0-9]{12,64}', ids[0]):
             raise EffectError('database_service_unavailable')
@@ -334,8 +339,9 @@ class Runner:
             raise EffectError('database_observation_invalid')
         return result == '1'
 
-    def psql(self, database, sql):
-        self.command(self.base + ['exec', '-T', 'db', 'psql', '-U', TENANT_DB_ROLE, '-d', database, '-v', 'ON_ERROR_STOP=1', '-q'], stdin=sql)
+    def psql(self, database, sql, variables=()):
+        assignments = [argument for name, value in variables for argument in ('-v', name + '=' + value)]
+        self.command(self.base + ['exec', '-T', 'db', 'psql', '-U', TENANT_DB_ROLE, '-d', database, '-v', 'ON_ERROR_STOP=1', '-q', *assignments], stdin=sql)
 
     def create_isolated_database(self):
         # Odoo would create the database itself on `-d`, open to every role through PUBLIC. Create it
@@ -346,6 +352,22 @@ class Runner:
         self.psql('postgres', tenant_create_database_sql(self.database) + ';\n'
                   + tenant_isolation_sql(self.database, TENANT_DB_ROLE))
         self.psql(self.database, TENANT_EXTENSION_SQL + ';\n')
+        self.prepare_ai_state()
+
+    def prepare_ai_state(self):
+        # The AI role needs its grants and schema (a no-op without the role) and, when the deployment
+        # runs the ai service, its tables: the runtime only validates them (`ai_state_uninitialized`).
+        # Both depend on the isolated empty database only, not on the Odoo install, so they run first and
+        # a failure costs no install. Both are idempotent.
+        self.psql('postgres', AI_TENANT_SCHEMA.read_text(), variables=[('tenant_db', self.database)])
+        if not self.ai_enabled:
+            return
+        self.current_container = self.config['projectName'] + '-effect-' + self.request['attemptId'][:8] + '-ai'
+        try:
+            self.command(self.base + ['run', '--rm', '--no-deps', '-T', '--name', self.current_container,
+                'ai', 'python', '-m', 'liwan_ai_service.store', '--initialize-tenant', self.database], timeout=300)
+        finally:
+            self.current_container = None
 
     def filestore_exists(self):
         script = 'import json; from pathlib import Path; p=Path(' + repr('/var/lib/odoo/filestore/' + self.database) + '); print(json.dumps(p.exists() or p.is_symlink()))'
