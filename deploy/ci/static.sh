@@ -32,8 +32,8 @@ policies() {
   # The environment templates live in their own package, so `deploy/test_*.py` does not
   # match them; run it explicitly or its checks silently never execute in CI.
   PYTHONPATH=deploy python3 -B -m unittest discover -s deploy/environments -t . -p 'test_*.py'
-  # The host deploy script and its units live in their own package too (deploy/cd/README.md).
-  python3 -B -m unittest discover -s deploy/cd -t . -p 'test_*.py'
+  # The release command lives in its own package too (deploy/release/README.md).
+  python3 -B -m unittest discover -s deploy/release -t . -p 'test_*.py'
   python3 -B -m unittest tools/shared_saas_lifecycle/test_*.py
   python3 -B tools/catalog_check.py
   python3 -B tools/migration_guard.py --base "$BASE_REF"
