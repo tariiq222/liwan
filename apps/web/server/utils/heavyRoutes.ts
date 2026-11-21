@@ -22,9 +22,9 @@ const HEAVY_ROUTES: ReadonlyArray<{ kind: HeavyKind; pattern: RegExp }> = [
   // PDF documents (liwan_meetings, liwan_finance, liwan_sales), the customer's public quotation PDF included
   // (liwan_sales limits it per quotation, so the heavy pool is not open to one leaked link)
   { kind: 'read', pattern: new RegExp(`^/api/v1/(?:meetings/${ID}/minutes\\.pdf|finance/invoices/${ID}/pdf|sales/orders/${ID}/pdf|public/sales/quotations/${ID}/pdf)$`) },
-  // CRM lead export (a GET) and import preview/commit (POSTs) (liwan_crm)
+  // CRM lead export (a GET) and import column detection, preview and commit (POSTs) (liwan_crm)
   { kind: 'read', pattern: /^\/api\/v1\/crm\/export$/ },
-  { kind: 'write', pattern: /^\/api\/v1\/crm\/imports(?:\/preview)?$/ },
+  { kind: 'write', pattern: /^\/api\/v1\/crm\/imports(?:\/preview|\/columns)?$/ },
   // Customer messages: contact import and conversations CSV export (liwan_inbox)
   { kind: 'write', pattern: /^\/api\/v1\/inbox\/contacts\/import$/ },
   { kind: 'read', pattern: /^\/api\/v1\/inbox\/conversations\/export\.csv$/ },
