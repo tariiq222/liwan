@@ -26,6 +26,9 @@ import { canWorkOpportunity } from '@/utils/crmBoardMove'
 import { ApiError } from '@/composables/useApi'
 import { CRM_LIST_PATH, formatPrice, isCallDue, manualLostReasons, movableStages, relativeTime } from '@/utils/crmOpportunity'
 
+// Going straight from one opportunity to another (the notification bell) reuses a page component, and its open panel, drafts and
+// refusals would carry over. Keying by the id remounts the page per record; a query or hash change on the same record keeps it.
+definePageMeta({ key: route => `crm-opportunity-${String(route.params.id)}` })
 const route = useRoute()
 const router = useRouter()
 const { t, locale } = useI18n()
