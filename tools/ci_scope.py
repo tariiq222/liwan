@@ -9,7 +9,7 @@ the ``scope`` job of ``.github/workflows/ci.yml`` feeds to the stage jobs. ``--f
 stage without reading a diff. This module is the only place the path-to-stage map lives.
 
 ``--pull-request`` narrows the selection for a pull request: the ``DEFERRED_STAGES`` are left to the
-push to ``main``, the nightly run and a full dispatch, except that ``image`` still runs when the change
+push to ``main`` and a full dispatch, except that ``image`` still runs when the change
 touches a file that decides how an image builds (``feeds_image_build``), ``upgrade`` still runs when it
 adds or edits a file under an addon ``migrations/`` directory (``feeds_upgrade``), and the Odoo stages reach only the release modules
 the change affects (the changed addons plus every addon depending on them, ``None`` meaning all of them
