@@ -408,7 +408,8 @@ export const AiTenantConfigSchema = z.object({
     /** The endpoint of a provider that takes one (`needs_base_url`); not a secret. */
     base_url: z.string().max(AI_BASE_URL_MAX_LENGTH).nullable(),
   }).strict(),
-  platform: z.object({ provider: AiProviderNameSchema, model: AiModelNameSchema }).strict(),
+  /** The platform model; null until the vendor's provider file has appeared (a fresh server before its first provider is saved). */
+  platform: z.object({ provider: AiProviderNameSchema, model: AiModelNameSchema }).strict().nullable(),
   providers: z.array(z.object({ name: AiProviderNameSchema, needs_api_key: z.boolean(), needs_base_url: z.boolean() }).strict()),
 }).strict()
 export type AiTenantConfig = z.infer<typeof AiTenantConfigSchema>

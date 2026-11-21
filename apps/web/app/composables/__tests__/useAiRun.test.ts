@@ -268,6 +268,33 @@ describe('useAiRun', () => {
     expect(ai.error.value).toBeNull()
   })
 
+  it('treats a streamed ai_unavailable error as the unavailable state, like the 503 status', async () => {
+    fetchMock.mockResolvedValue(streamResponse(sse(['error', { code: 'ai_unavailable', message: 'the AI platform provider is not configured' }], ['done', { status: 'failed' }])))
+    const ai = useAiRun()
+    await ai.send('س')
+    expect(ai.unavailable.value).toBe(true)
+    expect(ai.error.value).toBeNull()
+    expect(ai.status.value).toBe('idle')
+  })
+
+  it('still shows a streamed upstream outage as a generic failure', async () => {
+    fetchMock.mockResolvedValue(streamResponse(sse(['error', { code: 'ai_upstream', message: 'AI service status 502' }], ['done', { status: 'failed' }])))
+    const ai = useAiRun()
+    await ai.send('س')
+    expect(ai.unavailable.value).toBe(false)
+    expect(ai.error.value).toBe('errors.generic')
+    expect(ai.status.value).toBe('failed')
+  })
+
+  it('clears the unavailable state on reset, so a fresh conversation can try again', async () => {
+    fetchMock.mockResolvedValue(streamResponse(sse(['error', { code: 'ai_unavailable', message: 'x' }], ['done', { status: 'failed' }])))
+    const ai = useAiRun()
+    await ai.send('س')
+    expect(ai.unavailable.value).toBe(true)
+    ai.reset()
+    expect(ai.unavailable.value).toBe(false)
+  })
+
   it('reports a generic error for any other failed response', async () => {
     fetchMock.mockResolvedValue(jsonResponse(500, { data: { code: 'boom' } }))
     const ai = useAiRun()

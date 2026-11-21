@@ -4862,23 +4862,30 @@
             "type": "integer"
           },
           "platform": {
-            "additionalProperties": false,
-            "properties": {
-              "model": {
-                "maxLength": 128,
-                "minLength": 1,
-                "type": "string"
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "model": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "provider": {
+                    "pattern": "^[a-z][a-z0-9_-]{0,31}$",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "provider",
+                  "model"
+                ],
+                "type": "object"
               },
-              "provider": {
-                "pattern": "^[a-z][a-z0-9_-]{0,31}$",
-                "type": "string"
+              {
+                "type": "null"
               }
-            },
-            "required": [
-              "provider",
-              "model"
-            ],
-            "type": "object"
+            ]
           },
           "providers": {
             "items": {

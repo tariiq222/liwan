@@ -114,7 +114,7 @@ export function useAiRun(options: { enabled?: () => boolean } = {}) {
   // spend ceiling. Null when nothing lifts it but a top-up, a signature or a key.
   const limitResetsAt = ref<string | null>(null)
   const error = ref<string | null>(null)
-  // The service or the feature is switched off (503 ai_unavailable): the page shows a state, not an error.
+  // The service or the feature is switched off (503 ai_unavailable, or the same code in a streamed error): the page shows a state, not an error.
   const unavailable = ref(false)
   // The run `load()` is reading now: the surface is opening it even before the answer names it.
   const loadingRunId = ref<string | null>(null)
@@ -169,6 +169,12 @@ export function useAiRun(options: { enabled?: () => boolean } = {}) {
     status.value = 'failed'
   }
 
+  /** The one place that enters the unavailable state, for the 503 status and for a streamed `ai_unavailable` error. */
+  function markUnavailable() {
+    unavailable.value = true
+    status.value = 'idle'
+  }
+
   /** The one writer of `limit` and the instant it lifts, so a new state never keeps an old reset time. */
   function setLimit(value: AiLimit | null, resetsAt: string | null = null) {
     limit.value = value
@@ -189,8 +195,7 @@ export function useAiRun(options: { enabled?: () => boolean } = {}) {
       void refreshNuxtData('me')
       fail(t('errors.codes.request_context_changed'))
     } else if (response.status === 503 && code === 'ai_unavailable') {
-      unavailable.value = true
-      status.value = 'idle'
+      markUnavailable()
     } else {
       fail(t('errors.generic'))
     }
@@ -212,13 +217,15 @@ export function useAiRun(options: { enabled?: () => boolean } = {}) {
         if (event.event === 'run') runId.value = event.data.run_id
         else if (event.event === 'limit_reached') setLimit(event.data.limit)
         // The event text is never shown: only the code picks one of the fixed messages.
+        else if (event.event === 'error' && event.data.code === 'ai_unavailable') markUnavailable()
         else if (event.event === 'error') {
           error.value = t(ERROR_MESSAGES[event.data.code] ?? 'errors.generic')
           status.value = 'failed'
         }
         else if (event.event === 'done') {
           finished = true
-          status.value = event.data.status === 'waiting_user' ? 'waiting_user' : event.data.status === 'waiting_tool' || event.data.status === 'running' ? 'streaming' : event.data.status
+          // The `done` that follows an unavailable error must not turn the unavailable state into a failure.
+          if (!unavailable.value) status.value = event.data.status === 'waiting_user' ? 'waiting_user' : event.data.status === 'waiting_tool' || event.data.status === 'running' ? 'streaming' : event.data.status
         }
         items.value = applyEvent(items.value, event)
       }
@@ -340,6 +347,7 @@ export function useAiRun(options: { enabled?: () => boolean } = {}) {
     items.value = []
     setLimit(null)
     error.value = null
+    unavailable.value = false
   }
 
   return { runId, mode, status, items, limit, limitResetsAt, error, unavailable, send, decide, load, reset }

@@ -5,7 +5,7 @@
 per capability for each quality level). In shared SaaS the control plane writes it from the vendor's provider panel; in a
 dedicated or customer-hosted deployment ``deploy/provision.sh`` writes it from ``deploy/.env``. This module validates it,
 builds the models from it, and watches it: a valid change replaces the configuration whole (a run that already started keeps
-the models it began on), an invalid one is logged by reason only and the last valid configuration stays. The file is never
+the models it began on), an invalid one is logged by reason only and the configuration in force stays. The file is never
 required to be there after the first start, so the product keeps running on the last configuration whatever happens to its writer.
 
 Each model entry stands on its own: one that is invalid (unknown provider, bad name, bad price, an SDK that refuses it) is
@@ -49,20 +49,16 @@ MAX_MARGIN_BPS = 10_000
 # Room for a realistic configuration: some twenty providers (a key is up to 512 characters) and a hundred priced models.
 MAX_FILE_BYTES = 64 * 1024
 UNREADABLE = "unreadable"
+STAYS = "the configuration in force stays (none if there never was a valid one)"
 SAFE_NAME = re.compile(r"[A-Za-z0-9_-]{1,40}")
-# Where the file comes from in the shipped Compose files; shown when the service cannot read it at start.
-MISSING_FILE_HINT = (
-    "in Docker Compose the file is platform-provider.json in the directory LIWAN_AI_PLATFORM_DIR, "
-    "written by deploy/provision.sh or, in shared SaaS, by the control plane"
-)
 
 
 class PlatformProviderError(SettingsError):
     """The file cannot be the platform provider. ``reason`` names the problem and never carries a value from the file."""
 
-    def __init__(self, reason: str, field: str | None = None, hint: str | None = None) -> None:
+    def __init__(self, reason: str, field: str | None = None) -> None:
         variable = f"{PLATFORM_PROVIDER_FILE}.{field}" if field else PLATFORM_PROVIDER_FILE
-        super().__init__(variable, f"{variable}: {reason}" + (f" ({hint})" if hint else ""))
+        super().__init__(variable, f"{variable}: {reason}")
         self.reason = f"{field}: {reason}" if field else reason
 
 
@@ -323,12 +319,15 @@ def build_active(settings: Settings, config: PlatformConfig) -> PlatformActive:
 
 
 class PlatformModel:
-    """The models runs use when the tenant is on the platform provider; ``current`` is replaced whole, never edited."""
+    """The models runs use when the tenant is on the platform provider; ``current`` is replaced whole, never edited.
 
-    def __init__(self, active: PlatformActive, *, digest: str | None = None) -> None:
+    ``current`` is None while no valid file has been read (the file does not exist yet): platform runs are refused then.
+    """
+
+    def __init__(self, active: PlatformActive | None, *, digest: str | None = None) -> None:
         self.current = active
         self.digest = digest
-        self._keys: set[str] = set(active.keys)  # every key since start: a late log line is still redacted
+        self._keys: set[str] = set(active.keys) if active else set()  # every key since start: a late log line is still redacted
 
     @property
     def secrets(self) -> tuple[str, ...]:
@@ -341,11 +340,16 @@ class PlatformModel:
 
 
 def open_platform_model(settings: Settings) -> PlatformModel:
-    """The platform model from the file at start; a missing or invalid file stops the boot, naming the problem."""
+    """The platform model from the file at start; an invalid file stops the boot, naming the problem.
+
+    A missing file starts the service unconfigured: the control plane writes it only after the vendor saves a provider,
+    which cannot happen before the first release. The watcher loads it when it appears.
+    """
     try:
         raw = _read(settings.platform_provider_file)
     except OSError:
-        raise PlatformProviderError(UNREADABLE, hint=MISSING_FILE_HINT) from None
+        log.warning("platform provider file not found; platform runs are refused until it appears")
+        return PlatformModel(None, digest=UNREADABLE)
     return PlatformModel(build_active(settings, parse_platform_config(raw)), digest=hashlib.sha256(raw).hexdigest())
 
 
@@ -355,7 +359,7 @@ async def watch_platform_provider(
     """Rebuild the platform models whenever the file's content changes, forever; cancelled at shutdown.
 
     The content is hashed each poll, so a rewrite with an older timestamp (a restored backup) is seen too. A rejected
-    content is logged once, by reason, and the last valid configuration stays until the file is valid again.
+    content is logged once, by reason, and the configuration in force (none before the first valid file) stays until the file is valid again.
     """
     seen = platform.digest
     while True:
@@ -366,7 +370,7 @@ async def watch_platform_provider(
             digest = UNREADABLE if isinstance(error, OSError) else "too_large"
             if digest != seen:
                 seen = digest
-                log.warning("platform provider file not read (%s); the last valid configuration stays", digest)
+                log.warning("platform provider file not read (%s); %s", digest, STAYS)
             continue
         digest = hashlib.sha256(raw).hexdigest()
         if digest == seen:
@@ -375,10 +379,10 @@ async def watch_platform_provider(
         try:
             active = build_active(settings, parse_platform_config(raw))
         except PlatformProviderError as error:
-            log.warning("platform provider file rejected (%s); the last valid configuration stays", error.reason)
+            log.warning("platform provider file rejected (%s); %s", error.reason, STAYS)
             continue
         except Exception as error:  # noqa: BLE001 - an unexpected failure must not stop the watch
-            log.warning("platform provider file rejected (could not be built: %s); the last valid configuration stays", type(error).__name__)
+            log.warning("platform provider file rejected (could not be built: %s); %s", type(error).__name__, STAYS)
             continue
         platform.replace(active, digest)
         log.info("platform provider reloaded: revision %d, %s", active.revision, active.default.model)

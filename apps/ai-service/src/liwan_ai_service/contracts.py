@@ -406,5 +406,5 @@ class TenantConfigView(Strict):
     retention_days: int
     leaver_retention_days: int
     key: KeyView
-    platform: PlatformView
+    platform: PlatformView | None  # null until the platform provider file has appeared
     providers: list[ProviderView]

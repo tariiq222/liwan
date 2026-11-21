@@ -34,6 +34,7 @@ function mountActualPage(fetch: typeof globalThis.fetch) {
   const runs: ReturnType<typeof useAiRun>[] = []
   const box = Vue.defineComponent({ inheritAttrs: false, setup: (_, { slots }) => () => Vue.h('div', Object.values(slots).flatMap(slot => slot?.() ?? [])) })
   const message = Vue.defineComponent({ props: ['text'], setup: props => () => Vue.h('p', props.text) })
+  const runList = Vue.defineComponent({ emits: ['new'], setup: (_, { emit }) => () => Vue.h('button', { 'data-testid': 'ai-new-run', onClick: () => emit('new') }) })
   const modules: Record<string, unknown> = {
     '@vueuse/core': { useMediaQuery: () => Vue.ref(true) },
     '@tanstack/vue-query': { useQueryClient: () => ({ invalidateQueries: vi.fn() }) },
@@ -49,7 +50,7 @@ function mountActualPage(fetch: typeof globalThis.fetch) {
   }
   for (const file of ['pages/ai/index.vue', 'components/ai/AiSheet.vue']) {
     for (const match of readFileSync(resolve(appRoot, file), 'utf8').matchAll(/from '(\@\/components\/ai\/[^']+\.vue)'/g)) {
-      modules[match[1]!] = { __esModule: true, default: match[1]!.endsWith('/AiMessage.vue') ? message : box }
+      modules[match[1]!] = { __esModule: true, default: match[1]!.endsWith('/AiMessage.vue') ? message : match[1]!.endsWith('/AiRunList.vue') ? runList : box }
     }
   }
   const options = { modules, globals: { useRoute: () => route, useRouter: () => router, useMe: () => ({ me }), useRuntimeConfig: () => ({ public: { aiEnabled: true } }) } }
@@ -102,6 +103,19 @@ describe('actual full AI page and sheet identity lifecycle', () => {
     await settle()
     expect(view.shared.value).toBeNull()
     expect(view.runs[0]!.items.value).toEqual([])
+  })
+
+  it('starts a fresh conversation from the new action on a bare /ai, clearing a failed run that has no run id', async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>().mockImplementation(async () => new Response(JSON.stringify(responseBody)))
+    const view = mountActualPage(fetch)
+    await settle()
+    view.route.query = {}
+    await settle()
+    view.runs[0]!.status.value = 'failed'
+    const button = (node: HostNode): HostNode | null => node.props['data-testid'] === 'ai-new-run' ? node : node.children.map(button).find(Boolean) ?? null
+    ;(button(view.root)!.props.onClick as () => void)()
+    await settle()
+    expect([view.runs[0]!.status.value, view.shared.value]).toEqual(['idle', null])
   })
 
   it('keeps a history destination while its response body is pending', async () => {

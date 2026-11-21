@@ -219,6 +219,8 @@ describe('LiwanOS AI usage contracts', () => {
       platform: { provider: 'ollama', model: 'm' }, providers: [{ name: 'anthropic', needs_api_key: true, needs_base_url: false }, { name: 'openai_compatible', needs_api_key: true, needs_base_url: true }],
     }
     expect(AiTenantConfigSchema.parse(config).key.last4).toBe('abcd')
+    expect(AiTenantConfigSchema.parse({ ...config, platform: null }).platform).toBeNull()
+    expect(() => AiTenantConfigSchema.parse({ ...config, platform: undefined })).toThrow()
     expect(() => AiTenantConfigSchema.parse({ ...config, key: { ...config.key, api_key: 'sk' } })).toThrow()
     expect(() => AiRetentionPutSchema.parse({ retention_days: 366 })).toThrow()
     expect(() => AiKeyPutSchema.parse({ provider: 'anthropic', model: 'm', api_key: '' })).toThrow()

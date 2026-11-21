@@ -12,6 +12,8 @@ import { filterRunsByTitle, groupRunsByDate } from '@/utils/aiRunGroups'
 // The selected one is the `?run=` of the route; the page reacts to the route, so the rows only link. A row can be renamed in
 // place or archived (both reversible); the archived ones are one toggle away and an open conversation stays open when archived.
 const props = defineProps<{ disclosure?: boolean }>()
+// The "new" link goes to `/ai`, which changes nothing on a bare `/ai`: the page starts the fresh conversation itself.
+const emit = defineEmits<{ new: [] }>()
 // Touch targets below 768px are 44px (DESIGN.md); the inline disclosure body is capped so it scrolls inside itself.
 const TOUCH_TARGET = 'liwan-touch-target'
 const TOUCH_TARGET_BUTTONS = 'liwan-touch-target-buttons'
@@ -138,7 +140,7 @@ const actionsOf = (run: AiRunSummary) => [
       @click="closeOnNavigate"
     >
       <div class="flex flex-col gap-2 p-3">
-        <UButton to="/ai" block :class="TOUCH_TARGET" icon="i-lucide-plus" :label="t('ai.history.new')" data-testid="ai-new-run" />
+        <UButton to="/ai" block :class="TOUCH_TARGET" icon="i-lucide-plus" :label="t('ai.history.new')" data-testid="ai-new-run" @click="emit('new')" />
         <UButton to="/ai/memory" block color="neutral" variant="ghost" :class="TOUCH_TARGET" icon="i-lucide-brain" :label="t('ai.memory.title')" data-testid="ai-memory-link" />
         <UInput v-model="query" :disabled="!hydrated" type="search" size="sm" class="w-full" icon="i-lucide-search" :placeholder="t('ai.history.search')" :aria-label="t('ai.history.search')" data-testid="ai-run-search" />
         <SharedSegmentedControl

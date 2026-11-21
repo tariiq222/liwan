@@ -20,6 +20,13 @@ async function collect(response: Response) {
 }
 
 describe('readSse', () => {
+  it('maps the unconfigured platform refusal to the unavailable outcome', async () => {
+    const refusal = new Response('{"detail":"ai_platform_unconfigured"}', { status: 503 })
+    await expect(collect(refusal)).rejects.toMatchObject({ statusCode: 503, data: { code: 'ai_unavailable' } })
+  })
+  it('keeps any other 503 as an upstream failure', async () => {
+    await expect(collect(new Response('{"detail":"ai_key_unavailable"}', { status: 503 }))).rejects.toMatchObject({ statusCode: 502, data: { code: 'ai_upstream' } })
+  })
   it('parses LF separated events', async () => {
     expect(await collect(responseOf(['event: a\ndata: {"x":1}\n\nevent: b\ndata: {"y":2}\n\n']))).toEqual([['a', { x: 1 }], ['b', { y: 2 }]])
   })
