@@ -51,8 +51,11 @@ class StagesForTest(unittest.TestCase):
         self.assert_stages('apps/web/e2e/support/a.ts', ('static', 'e2e-mock', 'e2e-odoo', 'rtl-stories'))
         for path in ('apps/web/tests/a.test.ts', 'apps/web/app/composables/__tests__/a.test.ts',
                      'apps/web/app/components/a/__tests__/B.test.ts', 'apps/web/i18n/__tests__/a.test.ts',
-                     'apps/web/a.test.ts'):
+                     'apps/web/server/utils/__tests__/x.test.ts', 'apps/web/app/components/access/__tests__/sfcSetup.ts'):
             self.assert_stages(path, ('static',))
+        for path in ('apps/web/app/components/finance/reports/reportConfig.ts', 'apps/web/app/pages/a.ts',
+                     'apps/web/i18n/pluralRules.ts'):
+            self.assert_stages(path, WEB)
         self.assert_stages('apps/web/server/api/auth/login.post.ts', tuple(s for s in WEB if s != 'rtl-stories'))
         self.assert_stages('apps/vendor-admin/pages/index.vue', ('static', 'vendor-admin', 'image'))
         self.assert_stages('apps/control-plane/src/http.ts', ('static', 'control-plane'))
@@ -208,6 +211,10 @@ class PullRequestTest(unittest.TestCase):
 
     def test_a_composable_change_still_runs_real_odoo_before_merge(self):
         stages = ci_scope.pull_request_stages(['apps/web/app/composables/useX.ts'], None)
+        self.assertIn('e2e-odoo', stages)
+
+    def test_a_typescript_module_in_a_ui_tree_still_runs_real_odoo_before_merge(self):
+        stages = ci_scope.pull_request_stages(['apps/web/app/components/finance/reports/reportConfig.ts'], None)
         self.assertIn('e2e-odoo', stages)
 
     def test_web_unit_tests_docs_stories_and_specs_run_only_what_reads_them(self):
