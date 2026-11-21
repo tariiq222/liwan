@@ -62,6 +62,8 @@ const manifest: AppManifest = {
     { pattern: /^\/crm\/opportunities\/new$/, capability: 'crm.leads.read', anyCapabilities: ['crm.leads.work', 'crm.leads.assign'] },
     { pattern: /^\/crm\/imports\/new$/, capability: 'crm.leads.import', feature: IMPORT_FEATURE },
     { pattern: /^\/crm\/imports(?:\/|$)/, capability: 'crm.leads.import', feature: IMPORT_FEATURE },
+    // The view log page and its API need the audit key alone.
+    { pattern: /^\/crm\/audit$/, capability: 'crm.audit.read' },
     { pattern: /^\/crm(?:\/|$)/, capability: 'crm.leads.read' },
   ],
   bell: {

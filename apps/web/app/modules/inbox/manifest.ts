@@ -70,6 +70,8 @@ const manifest: AppManifest = {
     { pattern: /^\/inbox\/reports(?:\/|$)/, capability: 'inbox.reports.read', feature: 'inbox.reports' },
     // First match wins: the orders page needs the catalog feature besides reading conversations.
     { pattern: /^\/inbox\/orders(?:\/|$)/, capability: 'inbox.conversations.read', feature: 'inbox.catalog' },
+    // A form's answers page sits under /inbox but belongs to the forms sub-feature, like the settings flow pages.
+    { pattern: /^\/inbox\/flows(?:\/|$)/, capability: 'inbox.conversations.read', feature: 'inbox.flows' },
     { pattern: /^\/inbox(?:\/|$)/, capability: 'inbox.conversations.read' },
     { pattern: /^\/settings\/apps\/inbox\/catalog(?:\/|$)/, capability: 'inbox.catalog.manage', feature: 'inbox.catalog' },
     // A channel of either kind is created here: the page offers the kinds whose feature is on and refuses when none is,
