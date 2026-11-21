@@ -5,8 +5,9 @@ import { navigableRows, nextRowIndex, rowMove } from './shortcuts/rows'
 import { overlayOwnsEscape } from './useEscapeBack'
 
 /**
- * J / K (and ArrowDown / ArrowUp) move focus between the rows `container` marked with `data-shortcut-row` (each focusable)
- * that the user can see and reach, and Enter on a focused row opens its first link. A list opts in
+ * J / K (and ArrowDown / ArrowUp once focus is inside the list) move focus between the rows `container` marked with
+ * `data-shortcut-row` (each focusable), and Enter on a focused row opens its first link, or clicks the row itself when the
+ * table navigates through `row-to` and holds no link. A list opts in
  * by calling this with its container; SharedDataTable wires it, the shell does not. The shell
  * listener runs first (window, capture) and default-prevents a key it used, including the letter
  * after a pending `G`, so this skips it.
@@ -33,13 +34,18 @@ export function useRowNavigation(container: Readonly<Ref<HTMLElement | null>>) {
     }
     if (event.key === 'Enter' && !event.repeat && !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey
       && current >= 0 && rows[current] === focused) {
-      // A row whose cells hold no link (a table passing `row-to` with custom cells) still opens: the row itself is
-      // the target. Without this, Enter did nothing on those tables while working on the plain ones.
-      const link = rows[current]!.querySelector<HTMLElement>('a[href]')
-      const target = link ?? (rows[current]!.matches('a[href]') ? rows[current] : null)
-      if (target) {
+      // The row's own link, when a cell holds one. A table that navigates through `row-to` marks the row instead
+      // (`data-row-opens`, set by SharedDataTable), because its rows are `<tr>` and have no <a> at all: that is the case
+      // Enter used to miss. Clicking the row runs the table's own handler, so the pointer and the keyboard agree.
+      const row = rows[current]!
+      const link = row.querySelector<HTMLElement>('a[href]')
+      const opens = row.hasAttribute('data-row-opens')
+      if (link) {
         event.preventDefault()
-        target.click()
+        link.click()
+      } else if (opens) {
+        event.preventDefault()
+        row.click()
       }
     }
   })

@@ -12,6 +12,8 @@ export const INK_ACTIVE = '#3a3550'
 /** Dark mode inverts the primary: a light fill under a near-black label. */
 export const DARK_PRIMARY_FILL = '#f3f3f6'
 export const DARK_PRIMARY_LABEL = '#0a0a0c'
+/** The pressed step of that light fill. It is a light surface, so it cannot carry white text (the login wordmark). */
+export const DARK_PRIMARY_ACTIVE = '#d4d4dc'
 
 /** Light text roles: ink for titles and numbers, a mid tone, and secondary text. */
 export const LIGHT_INK = INK

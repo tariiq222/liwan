@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, onMounted, ref, type App } from 'vue'
 import { createHostNode, findNode, hostRenderer, type HostNode } from '../../../../../test/helpers/hostRenderer'
 import { loadShared } from '../../../../../test/helpers/renderShared'
@@ -75,5 +75,35 @@ describe('SharedInlineConfirm focus', () => {
     ;(findNode(host, node => node.props['data-testid'] === 'inline-confirm-cancel')!.props.onClick as () => void)()
     await nextTick()
     expect(focused).toEqual(['cancel-emitted'])
+  })
+
+  it('cancels on Escape and stops the key before the page sees it', async () => {
+    // The page behind a confirm leaves on Escape through useEscapeBack. Without this capture the same key would cancel
+    // the confirm AND navigate away, so both the cancel and the stopPropagation are asserted.
+    const host = mount()
+    await nextTick()
+    focused.length = 0
+    const alert = findNode(host, node => node.props['data-testid'] === 'inline-confirm')!
+    const stopPropagation = vi.fn()
+    const preventDefault = vi.fn()
+    ;(alert.props.onKeydownCapture as (event: unknown) => void)({ key: 'Escape', isComposing: false, stopPropagation, preventDefault })
+    await nextTick()
+    expect(focused).toContain('cancel-emitted')
+    expect(stopPropagation).toHaveBeenCalledTimes(1)
+    expect(preventDefault).toHaveBeenCalledTimes(1)
+  })
+
+  it('leaves other keys and an IME composition alone', async () => {
+    const host = mount()
+    await nextTick()
+    focused.length = 0
+    const alert = findNode(host, node => node.props['data-testid'] === 'inline-confirm')!
+    const stopPropagation = vi.fn()
+    const handler = alert.props.onKeydownCapture as (event: unknown) => void
+    handler({ key: 'a', isComposing: false, stopPropagation, preventDefault: vi.fn() })
+    handler({ key: 'Escape', isComposing: true, stopPropagation, preventDefault: vi.fn() })
+    await nextTick()
+    expect(stopPropagation).not.toHaveBeenCalled()
+    expect(focused).toEqual([])
   })
 })

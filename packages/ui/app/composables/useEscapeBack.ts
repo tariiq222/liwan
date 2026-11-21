@@ -29,8 +29,19 @@ function keyboardHost(): Document | null {
   return typeof document === 'undefined' ? null : document
 }
 
-export function overlayOwnsEscape(root: { querySelector?: (selectors: string) => unknown } | null | undefined): boolean {
-  return Boolean(root?.querySelector?.(DISMISSABLE_LAYER))
+/**
+ * Whether a layer other than `except` owns Escape right now. `except` is the caller's own layer: a slide-over carries
+ * `data-dismissable-layer` so the page behind it stands down, and without the exclusion the panel would find itself,
+ * conclude that something else owns the key, and never close on Escape.
+ */
+export function overlayOwnsEscape(
+  root: { querySelector?: (selectors: string) => unknown } | null | undefined,
+  except?: { contains?: (node: Node | null) => boolean } | null,
+): boolean {
+  const found = root?.querySelector?.(DISMISSABLE_LAYER) as Node | null | undefined
+  if (!found) return false
+  if (!except || typeof except.contains !== 'function') return true
+  return !except.contains(found)
 }
 
 export function escapeLeavesRecord(event: EscapeCandidate, context: { hydrated: boolean, enabled: boolean, overlayOpen: boolean }): boolean {

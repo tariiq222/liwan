@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { layerFile } from '@liwan/ui/test/helpers/layerFile'
 import {
-  APP_TILES, contrastRatio, DARK_MID_TEXT, DARK_MUTED_TEXT, DARK_NAV_ACTIVE, DARK_PRIMARY_FILL, DARK_PRIMARY_LABEL, DARK_SURFACES, DARK_TEXT,
+  APP_TILES, contrastRatio, DARK_MID_TEXT, DARK_MUTED_TEXT, DARK_NAV_ACTIVE, DARK_PRIMARY_ACTIVE, DARK_PRIMARY_FILL, DARK_PRIMARY_LABEL, DARK_SURFACES, DARK_TEXT,
   INK, INK_ACTIVE, INK_HOVER, LIGHT_BORDER, LIGHT_CANVAS, LIGHT_INK, LIGHT_MID_TEXT, LIGHT_MUTED_TEXT, LIGHT_SIDEBAR, LIGHT_SOFT, STATUS_TEXT,
 } from '../../../utils/liwanPalette'
 
@@ -134,12 +134,14 @@ describe('the brand surface of the standalone pages', () => {
 
   it('is not the dark solid-active fill that caused the defect', () => {
     const dark = declarations(ruleBodies(sheet('tokens.css'), '.dark'))
-    expect(dark.get('--primary-solid-active')).toBe('#d4d4dc')
+    // The dark solid-active fill is the light tone that caused the defect; the constant documents why.
+    expect(dark.get('--primary-solid-active')).toBe(DARK_PRIMARY_ACTIVE)
     expect(dark.get('--liwan-brand-surface')).not.toBe(dark.get('--primary-solid-active'))
   })
 })
 
-describe('dark brand tone and chart defaults', () => {  it('tokens.css .dark declares the brand tone, rings and chart colours', () => {
+describe('dark brand tone and chart defaults', () => {
+  it('tokens.css .dark declares the brand tone, rings and chart colours', () => {
     const found = declarations(ruleBodies(sheet('tokens.css'), '.dark'))
     const tokens = ['--brand-link', '--ring', '--sidebar-ring', ...[1, 2, 3, 4, 5, 6].map(i => `--chart-${i}`), ...['success', 'info', 'warning', 'error', 'neutral'].map(k => `--chart-status-${k}`)]
     for (const token of tokens) expect(found.get(token), token).toBeDefined()
