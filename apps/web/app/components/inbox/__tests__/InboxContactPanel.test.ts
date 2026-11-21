@@ -4,19 +4,20 @@ import { renderToString } from '@vue/server-renderer'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
+import { isWhatsAppChannel } from '../../../composables/inbox/inboxChannelKind'
 
 const filename = new URL('../InboxContactPanel.vue', import.meta.url).pathname
 const messages: Record<string, string> = { 'inbox.erasedContact': 'Erased customer {id}', 'inbox.panel.contactErased': 'ERASED-HINT' }
 
-function conversation(contact: Record<string, unknown>, canReply = true) {
+function conversation(contact: Record<string, unknown>, canReply = true, kind = 'whatsapp') {
   return {
     id: 3, revision: 1, can_reply: canReply, can_assign: true, assignee: null, department: null, tags: [], state: 'open', priority: 'normal',
-    channel: { id: 1, name: 'WhatsApp' }, contact: { id: 9, phone: '966500000000', email: 'a@b.sa', ...contact },
+    channel: { id: 1, name: 'WhatsApp', kind }, contact: { id: 9, phone: '966500000000', email: 'a@b.sa', ...contact },
   }
 }
 
 // The component is compiled and run against stubbed composables and form controls, as the other component tests do.
-async function mountPanel(contact: Record<string, unknown>, detail: Record<string, unknown> | null = null, canReply = true) {
+async function mountPanel(contact: Record<string, unknown>, detail: Record<string, unknown> | null = null, canReply = true, kind = 'whatsapp') {
   const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
   const script = compileScript(descriptor, { id: 'inbox-contact-panel' }).content
     .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replace('export default', 'return')
@@ -33,18 +34,19 @@ async function mountPanel(contact: Record<string, unknown>, detail: Record<strin
     useAccess: () => ({ can: () => true }), useInboxContact: () => ({ data: Vue.ref(detail) }),
     useLinkInboxContactCustomer: () => ({ mutateAsync: vi.fn(), isPending: Vue.ref(false) }),
     useCustomerConflict: () => ({ candidates: Vue.ref(null), offer: () => false, choose: vi.fn(), clear: vi.fn() }), isCustomerAlreadyLinked: () => false, CustomerLinkBlock: null, InboxOpportunityCard: null, InboxTicketsCard: null,
-    CONVERSATION_STATES: [], PRIORITIES: [], InboxFlowSubmissionsSection: null, InboxContactMarketing: null,
+    CONVERSATION_STATES: [], PRIORITIES: [], InboxFlowSubmissionsSection: null, isWhatsAppChannel, InboxContactMarketing: null,
   }
   const component = new Function(...Object.keys(bindings), transpile(script))(...Object.values(bindings))
-  const state = component.setup({ conversation: conversation(contact, canReply) }, { expose: () => {} })
+  const state = component.setup({ conversation: conversation(contact, canReply, kind) }, { expose: () => {} })
   const template = compileTemplate({ source: descriptor.template!.content, filename, id: 'inbox-contact-panel', compilerOptions: { mode: 'function', expressionPlugins: ['typescript'] } })
   if (template.errors.length) throw template.errors[0]
   const render = new Function('Vue', transpile(template.code))(Vue)
-  const app = Vue.createSSRApp(Vue.defineComponent({ setup: () => ({ ...state, props: { conversation: conversation(contact, canReply) } }), render }))
+  const app = Vue.createSSRApp(Vue.defineComponent({ setup: () => ({ ...state, props: { conversation: conversation(contact, canReply, kind) } }), render }))
   const pass = Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => Vue.h('div', { 'data-title': attrs.title as string | undefined }, [slots.default?.()]) })
   const linkBlock = Vue.defineComponent({ props: ['customer', 'canLink', 'canOpen'], setup: props => () => Vue.h('div', { 'data-testid': 'link-block', 'data-customer': (props.customer as { name: string } | null)?.name ?? 'none', 'data-can-link': String(props.canLink) }) })
   app.component('CustomerLinkBlock', linkBlock)
-  for (const name of ['SharedRecordSection', 'InboxOpportunityCard', 'InboxTicketsCard', 'SharedPropertyRow', 'UFormField', 'InboxFlowSubmissionsSection', 'InboxContactMarketing', 'SharedPersonPicker', 'USelect', 'USelectMenu']) app.component(name, pass)
+  app.component('InboxFlowSubmissionsSection', Vue.defineComponent({ setup: () => () => Vue.h('div', { 'data-testid': 'flow-submissions' }) }))
+  for (const name of ['SharedRecordSection', 'InboxOpportunityCard', 'InboxTicketsCard', 'SharedPropertyRow', 'UFormField', 'InboxContactMarketing', 'SharedPersonPicker', 'USelect', 'USelectMenu']) app.component(name, pass)
   app.component('UInput', Vue.defineComponent({ inheritAttrs: false, props: ['modelValue'], setup: (props, { attrs }) => () => Vue.h('input', { value: props.modelValue, disabled: attrs.disabled === true || undefined, 'data-type': attrs.type ?? 'text' }) }))
   app.component('UButton', Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs }) => () => Vue.h('button', { type: attrs.type as string }, String(attrs.label)) }))
   return { html: await renderToString(app), state: Vue.proxyRefs(state), patchContact }
@@ -77,6 +79,13 @@ describe('InboxContactPanel sections', () => {
     const { html } = await mountPanel({ name: 'Sara', erased: false })
     expect(html.indexOf('data-title="inbox.panel.conversation"')).toBeGreaterThan(-1)
     expect(html.indexOf('data-title="inbox.panel.conversation"')).toBeLessThan(html.indexOf('data-title="inbox.panel.contact"'))
+  })
+})
+
+describe('InboxContactPanel WhatsApp-only sections', () => {
+  it('shows the form answers on a WhatsApp conversation and never on a TikTok one', async () => {
+    expect((await mountPanel({ name: 'Sara', erased: false }, null, true, 'whatsapp')).html).toContain('flow-submissions')
+    expect((await mountPanel({ name: 'Sara', erased: false }, null, true, 'tiktok')).html).not.toContain('flow-submissions')
   })
 })
 

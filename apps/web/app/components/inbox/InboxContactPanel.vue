@@ -11,6 +11,7 @@ import { isCustomerAlreadyLinked } from '@/composables/customers/customerErrors'
 import { useInboxAgents, useInboxContact, useLinkInboxContactCustomer, usePatchInboxContact, useInboxTags } from '@/composables/inbox/useInbox'
 import { useInboxConversationSave } from '@/composables/inbox/useInboxConversationSave'
 import { useInboxDepartments } from '@/composables/inbox/useInboxSettings'
+import { isWhatsAppChannel } from '@/composables/inbox/inboxChannelKind'
 import { inboxAgentOptionName } from '@/composables/inbox/inboxAgents'
 import { inboxContactName } from '@/composables/inbox/inboxContactName'
 import { CONVERSATION_STATES, PRIORITIES } from '@/composables/inbox/inboxPresentation'
@@ -200,6 +201,6 @@ function saveContact() {
 
     <InboxContactMarketing v-if="campaignsOn" :contact-id="props.conversation.contact.id" :can-write="props.conversation.can_reply" />
 
-    <InboxFlowSubmissionsSection :conversation-id="props.conversation.id" />
+    <InboxFlowSubmissionsSection v-if="isWhatsAppChannel(props.conversation.channel.kind)" :conversation-id="props.conversation.id" />
   </div>
 </template>

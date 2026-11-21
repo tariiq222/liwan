@@ -11,7 +11,7 @@ import InboxThread from '@/components/inbox/InboxThread.vue'
 import { ApiError } from '@/composables/useApi'
 import { parseInboxListRoute, serializeInboxListRoute, type InboxListRoute } from '@/composables/inbox/inboxListRoute'
 import { useInboxWhatsAppEnabled } from '@/composables/inbox/inboxFeatures'
-import { CHANNEL_KIND_ICON } from '@/composables/inbox/inboxChannelKind'
+import { CHANNEL_KIND_ICON, isWhatsAppChannel } from '@/composables/inbox/inboxChannelKind'
 import { CONVERSATION_STATE_TONE, CSAT_TONE, INBOX_PRIORITY_TONE } from '@/composables/inbox/inboxPresentation'
 import { inboxContactName } from '@/composables/inbox/inboxContactName'
 import { replyWindowOpen } from '@/composables/inbox/inboxWindow'
@@ -40,9 +40,11 @@ const hasSelection = computed(() => !!props.conversationId)
 const infoOpen = computed(() => !!props.infoOpen && hasSelection.value)
 // Products and orders exist only with the catalog feature: the channel's commerce answer says whether it has a catalog.
 const catalogOn = useInboxCatalogEnabled()
-const ordersOpen = computed(() => !!props.ordersOpen && hasSelection.value && catalogOn.value)
+// Orders and the catalog are WhatsApp only: the server refuses them on a TikTok conversation (422 `inbox_channel_kind_unsupported`).
+const ordersAvailable = computed(() => catalogOn.value && isWhatsAppChannel(data.value?.channel.kind))
+const ordersOpen = computed(() => !!props.ordersOpen && hasSelection.value && ordersAvailable.value)
 const panelOpen = computed(() => infoOpen.value || ordersOpen.value)
-const commerce = useInboxChannelCommerce(() => data.value?.channel.id, () => catalogOn.value && !!data.value?.can_reply)
+const commerce = useInboxChannelCommerce(() => data.value?.channel.id, () => ordersAvailable.value && !!data.value?.can_reply)
 const commerceReady = computed(() => !!commerce.data.value?.catalog)
 const threadTo = computed(() => ({ path: `/inbox/${props.conversationId}`, query: listQuery.value }))
 const infoTo = computed(() => ({ path: `/inbox/${props.conversationId}/info`, query: listQuery.value }))
@@ -133,7 +135,7 @@ function updateRoute(next: InboxListRoute, options?: { replace: boolean }) {
             </div>
           </div>
           <InboxConversationActions v-if="data" :conversation="data" />
-          <UTooltip v-if="catalogOn" :text="t('inbox.orders.title')">
+          <UTooltip v-if="ordersAvailable" :text="t('inbox.orders.title')">
             <UButton color="neutral" :variant="ordersOpen ? 'soft' : 'ghost'" square :to="ordersOpen ? threadTo : ordersTo" :aria-expanded="ordersOpen" :aria-label="t('inbox.orders.title')" data-testid="inbox-orders-toggle">
               <UIcon name="i-lucide-shopping-cart" class="size-5" aria-hidden="true" />
             </UButton>
