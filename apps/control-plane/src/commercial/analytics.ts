@@ -153,8 +153,8 @@ async function figuresFor(db: Ask, book: Book, unit: Money, period: Period, now:
     collection: await collection(db, unit, period),
     customers: {
       active: stock ? available(stock.customers) : historyLost, new: available(movement.new_customers), churned: available(movement.churned_customers),
-      churn_rate_by_count: orNoData(ratio(movement.churned_customers, opening.customers)),
-      churn_rate_by_revenue: orNoData(ratio(movement.churned_minor, opening.mrr_minor)), ...await trialConversion(db, period, now),
+      churn_rate_by_count: orNoData(ratio(movement.opening_churned_customers, opening.customers)),
+      churn_rate_by_revenue: orNoData(ratio(movement.opening_churned_minor, opening.mrr_minor)), ...await trialConversion(db, period, now),
     },
     operations: { avg_hours_to_ready: await hoursToReady(db, period) },
   }

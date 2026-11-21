@@ -76,13 +76,21 @@ export function bookAt(timelines: Timelines, at: number): BookAt {
 }
 
 export interface PlanChange { from_plan: string, to_plan: string, direction: 'upgrade' | 'downgrade' | 'lateral', count: number }
-export interface Movement { new_minor: number, expansion_minor: number, contraction_minor: number, churned_minor: number, new_customers: number, churned_customers: number, plan_changes: PlanChange[] }
+export interface Movement { new_minor: number, expansion_minor: number, contraction_minor: number, churned_minor: number, new_customers: number, churned_customers: number, plan_changes: PlanChange[]
+  /** Churn of the customers already in the book when the period opened, at the revenue they had then: the numerators of the churn rates, so a rate cannot exceed one. */
+  opening_churned_customers: number, opening_churned_minor: number
+}
 
 /** What the orders applied in [from, to) did to recurring revenue. */
 export function movementIn(timelines: Timelines, from: number, to: number): Movement {
-  const movement: Movement = { new_minor: 0, expansion_minor: 0, contraction_minor: 0, churned_minor: 0, new_customers: 0, churned_customers: 0, plan_changes: [] }
+  const movement: Movement = { new_minor: 0, expansion_minor: 0, contraction_minor: 0, churned_minor: 0, new_customers: 0, churned_customers: 0, plan_changes: [], opening_churned_customers: 0, opening_churned_minor: 0 }
   const changes = new Map<string, PlanChange>()
   for (const timeline of timelines.values()) {
+    const opening = inForceAt(timeline, from)
+    if (opening && timeline.some((order, index) => order.churn && order.applied_at >= from && order.applied_at < to && order.mrr_minor < timeline[index - 1]!.mrr_minor)) {
+      movement.opening_churned_customers += 1
+      movement.opening_churned_minor += opening.mrr_minor
+    }
     timeline.forEach((order, index) => {
       if (order.applied_at < from || order.applied_at >= to) return
       const previous = timeline[index - 1]

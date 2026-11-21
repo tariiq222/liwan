@@ -316,6 +316,34 @@ suite('live PostgreSQL vendor analytics', () => {
     } finally { await solo.end() }
   })
 
+  it('measures churn on the customers and revenue that were in the book when the period opened, so a rate never exceeds one', async () => {
+    const solo = new Pool({ connectionString: url, max: 1 })
+    try {
+      await solo.query('BEGIN')
+      await solo.query('TRUNCATE customers CASCADE')
+      await seedCustomer(solo, { name: 'Opening and staying', state: 'active', steps: [{ at: '2026-09-01T09:00:00Z', plan_revision_id: p1, base_minor: 10000 }] })
+      const opening = await seedCustomer(solo, { name: 'Opening and leaving', state: 'active', steps: [
+        { at: '2026-09-02T09:00:00Z', plan_revision_id: p1, base_minor: 10000 }, { at: '2026-10-12T00:00:00Z', plan_revision_id: p1, base_minor: 0 }] })
+      const joiners = [
+        await seedCustomer(solo, { name: 'Joined then left 1', state: 'active', steps: [
+          { at: '2026-10-02T09:00:00Z', plan_revision_id: p1, base_minor: 30000 }, { at: '2026-10-12T00:00:00Z', plan_revision_id: p1, base_minor: 0 }] }),
+        await seedCustomer(solo, { name: 'Joined then left 2', state: 'active', steps: [
+          { at: '2026-10-03T09:00:00Z', plan_revision_id: p1, base_minor: 30000 }, { at: '2026-10-12T00:00:00Z', plan_revision_id: p1, base_minor: 0 }] })]
+      for (const seeded of [opening, ...joiners]) {
+        const first = (await solo.query('SELECT id FROM subscription_revisions WHERE subscription_id=$1 ORDER BY revision LIMIT 1', [seeded.subscription_id])).rows[0].id
+        await solo.query(`INSERT INTO free_base_locks(subscription_id,pre_lock_revision_id,period_start,armed_at,cause,state,order_id,next_attempt_at)
+          VALUES($1,$2,'2026-10-12','2026-10-12T00:00:00Z','cancelled','done',$3,'2026-10-12T00:00:00Z')`, [seeded.subscription_id, first, seeded.orders[1]!.id])
+      }
+      const { current } = await getAnalytics(solo, period, now)
+      // Every churn is still reported as a movement; the rate only asks how much of the opening book left.
+      expect(current.customers.churned).toEqual({ available: true, value: 3 })
+      expect(minor(current.revenue.churned_mrr)).toBe(70000)
+      expect(current.customers.churn_rate_by_count).toEqual({ available: true, value: 0.5 })
+      expect(current.customers.churn_rate_by_revenue).toEqual({ available: true, value: 0.5 })
+      await solo.query('ROLLBACK')
+    } finally { await solo.end() }
+  })
+
   describe('signup funnel', () => {
     /** Runs the seeding and the funnel inside one rolled-back transaction, so no signup outlives its test. */
     async function funnel(seed: (db: Pool, base: Pick<SignupInput, 'plan_revision_id'>) => Promise<void>) {
