@@ -15,7 +15,6 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_feature,
 )
 from odoo.addons.liwan_inbox.controllers.campaign_parsing import (
-    in_company,
     parse_marketing_patch,
 )
 from odoo.addons.liwan_inbox.controllers.conversation_files import decode_upload
@@ -86,7 +85,7 @@ def parse_import(payload):
         if 'consent_note' not in payload:
             reject('consent_note is required for an opted_in import', 'consent_note')
         note = parse_text(payload, 'consent_note', 256)
-    return raw, in_company(find_ids('liwan.inbox.tag', tag_ids, 'tag_ids'), 'tag_ids'), payload['consent'], note
+    return raw, find_ids('liwan.inbox.tag', tag_ids, 'tag_ids', request.env.company), payload['consent'], note
 
 
 def read_rows(raw):

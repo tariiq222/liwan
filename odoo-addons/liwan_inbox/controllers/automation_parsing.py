@@ -240,13 +240,6 @@ def check_rule_state(state):
         reject('a rule needs at least one action')
 
 
-def in_company(records, field):
-    """`records` when all belong to the current company; otherwise 422 naming `field`."""
-    if records and records.company_id != request.env.company:
-        reject(f'{field} names a record of another company', field)
-    return records
-
-
 def parse_rule_references(payload, state):
     """The channel, department, assignee and tag references of a rule body, as column values."""
     values = {}
@@ -254,7 +247,7 @@ def parse_rule_references(payload, state):
         values['channel_id'] = automation_channel(payload['channel_id']).id if payload['channel_id'] is not None else False
     if 'department_id' in payload:
         values['department_id'] = (
-            in_company(find_one('liwan.inbox.department', payload['department_id'], 'department_id'), 'department_id').id
+            find_one('liwan.inbox.department', payload['department_id'], 'department_id', request.env.company).id
             if payload['department_id'] is not None else False
         )
     if 'assignee_id' in payload:
@@ -263,7 +256,7 @@ def parse_rule_references(payload, state):
         ids = parse_ids(payload['tag_ids'], 'tag_ids')
         if len(ids) > MAX_RULE_TAGS:
             reject(f'tag_ids holds at most {MAX_RULE_TAGS} tags', 'tag_ids')
-        values['tag_ids'] = [(6, 0, in_company(find_ids('liwan.inbox.tag', ids, 'tag_ids'), 'tag_ids').ids)]
+        values['tag_ids'] = [(6, 0, find_ids('liwan.inbox.tag', ids, 'tag_ids', request.env.company).ids)]
     for name, key in (('department', 'department_id'), ('assignee', 'assignee_id'), ('tags', 'tag_ids')):
         if key in payload:
             state['actions'].discard(name)
