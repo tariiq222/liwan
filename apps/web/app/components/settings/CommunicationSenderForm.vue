@@ -6,12 +6,14 @@ import { useIntegrationProviders } from '@/composables/useIntegrationProviders'
 import { useAvailableNumbers, useCreateIntegrationSender } from '@/composables/useIntegrationCommunications'
 import { integrationErrorText, integrationProviderLabel, integrationServerMessage } from '@/utils/integrationLabels'
 import { providerHasSenders } from '@/utils/integrationMessaging'
+import { providerHasVoice } from '@/utils/integrationVoice'
 
 // The form of the sender create panel: the messaging account, the channel, what kind of sender it is and its value. A
-// phone number for SMS is picked from the numbers the provider account really holds (read live from the provider, so a
-// provider refusal shows here with a retry); a WhatsApp number, a sender name and a messaging service are typed. The
-// server checks the kind the channel accepts and that a number belongs to the account, and a refusal leaves the typed
-// values in place.
+// phone number for SMS is picked from the numbers the provider account really holds (read live from the provider, so
+// a provider refusal shows here with a retry); a WhatsApp number, a sender name, a messaging service and a voice
+// number are typed or picked. The voice channel is offered only when the account's provider declares its voice use.
+// The server checks the kind the channel accepts and that a number belongs to the account, and a refusal leaves the
+// typed values in place.
 const props = defineProps<{ backTo: string }>()
 const emit = defineEmits<{ created: [sender: IntegrationSender] }>()
 const { t, te } = useI18n()
@@ -26,11 +28,14 @@ const accounts = computed(() => {
   return (connections.data.value?.items ?? []).filter(connection => connection.id !== null && connection.state === 'connected' && codes.has(connection.provider))
 })
 const accountItems = computed(() => accounts.value.map(account => ({ label: account.label || integrationProviderLabel(account.provider, t, te), value: account.id as number })))
+// The voice channel exists only when a provider of a connected account declares its voice use.
+const hasVoice = computed(() => (providers.data.value?.items ?? []).some(providerHasVoice))
 
 // The channels this delivery offers, and the kinds each accepts (the server's own table).
-const KINDS: Record<'sms' | 'whatsapp', IntegrationSenderKind[]> = { sms: ['number', 'alphanumeric', 'service'], whatsapp: ['number', 'service'] }
+type Channel = 'sms' | 'whatsapp' | 'voice'
+const KINDS: Record<Channel, IntegrationSenderKind[]> = { sms: ['number', 'alphanumeric', 'service'], whatsapp: ['number', 'service'], voice: ['number'] }
 const connectionId = ref<number | undefined>(undefined)
-const channel = ref<'sms' | 'whatsapp'>('sms')
+const channel = ref<Channel>('sms')
 const kind = ref<IntegrationSenderKind>('number')
 const value = ref('')
 const isDefault = ref(false)
@@ -41,12 +46,14 @@ watch(accounts, list => { if (connectionId.value === undefined && list.length ==
 watch(channel, () => { if (!KINDS[channel.value].includes(kind.value)) kind.value = 'number'; value.value = '' })
 watch([kind, connectionId], () => { value.value = '' })
 
-const picksNumber = computed(() => channel.value === 'sms' && kind.value === 'number')
+const picksNumber = computed(() => (channel.value === 'sms' || channel.value === 'voice') && kind.value === 'number')
 const available = useAvailableNumbers(() => connectionId.value ?? null, picksNumber)
-const numberItems = computed(() => (available.data.value?.items ?? []).filter(number => number.sms).map(number => ({ label: number.label && number.label !== number.value ? `${number.value} · ${number.label}` : number.value, value: number.value })))
+const numberItems = computed(() => (available.data.value?.items ?? [])
+  .filter(number => (channel.value === 'voice' ? number.voice : number.sms))
+  .map(number => ({ label: number.label && number.label !== number.value ? `${number.value} · ${number.label}` : number.value, value: number.value })))
 const providerError = computed(() => (available.error.value ? (available.error.value instanceof ApiError && integrationServerMessage(available.error.value)) || t('integrations.communications.senderForm.providerError') : ''))
 
-const channelItems = computed(() => (['sms', 'whatsapp'] as const).map(item => ({ label: t(`integrations.communications.channel.${item}`), value: item })))
+const channelItems = computed(() => (hasVoice.value ? (['sms', 'whatsapp', 'voice'] as const) : (['sms', 'whatsapp'] as const)).map(item => ({ label: t(`integrations.communications.channel.${item}`), value: item })))
 const kindItems = computed(() => KINDS[channel.value].map(item => ({ label: t(`integrations.communications.kind.${item}`), value: item })))
 const dirty = computed(() => !saved.value && Boolean(value.value.trim() || isDefault.value))
 const busy = computed(() => !hydrated.value || create.isPending.value)

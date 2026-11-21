@@ -5,7 +5,7 @@ import { communicationHandlers } from './communicationHandlers'
 
 const meta = {
   title: 'Settings/CommunicationTestCard', component: CommunicationTestCard,
-  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/settings/integrations/communications.vue:25', 'بطاقة تجربة الإرسال: المرسل والمستلم ونص ثابت أو قالب، ثم حالة الرسالة المتابَعة.') },
+  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/settings/integrations/communications.vue:30', 'بطاقة تجربة الإرسال: المرسل والمستلم ونص ثابت أو قالب، ثم حالة الرسالة المتابَعة.') },
   args: { canManage: true, canRetry: false },
   render: args => ({ components: { CommunicationTestCard }, setup: () => ({ args }), template: '<div class="max-w-2xl"><CommunicationTestCard v-bind="args" /></div>' }),
 } satisfies Meta<typeof CommunicationTestCard>

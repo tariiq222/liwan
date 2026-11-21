@@ -6,7 +6,7 @@ import { archivedSenders, senders, twilio } from './integrationFixtures'
 
 const meta = {
   title: 'Settings/CommunicationSendersCard', component: CommunicationSendersCard,
-  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/settings/integrations/communications.vue:23', 'بطاقة المرسلين: الأرقام وأسماء المرسل وخدمات الرسائل، مع حالات غياب الحساب وتوقفه وخطئه وغياب المرسل لقناة.') },
+  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/settings/integrations/communications.vue:28', 'بطاقة المرسلين: الأرقام وأسماء المرسل وخدمات الرسائل، مع حالات غياب الحساب وتوقفه وخطئه وغياب المرسل لقناة.') },
   args: { canManage: true },
   render: args => ({ components: { CommunicationSendersCard }, setup: () => ({ args }), template: '<div class="max-w-4xl"><CommunicationSendersCard v-bind="args" /></div>' }),
 } satisfies Meta<typeof CommunicationSendersCard>

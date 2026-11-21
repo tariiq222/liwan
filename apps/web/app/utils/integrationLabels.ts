@@ -41,7 +41,8 @@ const ERROR_KEYS: Readonly<Record<string, string>> = {
   integration_not_configured: 'integrations.errors.notConfigured',
   integration_rejected: 'integrations.errors.rejected',
   provider_error: 'integrations.errors.providerError',
-  // The refusals of the messaging service (IntegrationMessagingErrorCodeSchema).
+  // The refusals of the messaging service (IntegrationMessagingErrorCodeSchema) and the ones the voice and
+  // lookup services share with it (IntegrationVoiceErrorCodeSchema, IntegrationLookupErrorCodeSchema).
   invalid_phone: 'integrations.errors.invalidPhone',
   no_default_sender: 'integrations.errors.noDefaultSender',
   sender_unavailable: 'integrations.errors.senderUnavailable',
@@ -49,6 +50,9 @@ const ERROR_KEYS: Readonly<Record<string, string>> = {
   daily_limit_reached: 'integrations.errors.dailyLimitReached',
   body_too_long: 'integrations.errors.bodyTooLong',
   tenant_read_only: 'integrations.errors.tenantReadOnly',
+  text_too_long: 'integrations.errors.textTooLong',
+  no_connection: 'integrations.errors.noConnection',
+  lookup_failed: 'integrations.errors.lookupFailed',
 }
 
 /** The locale key worded for a refusal code, or null when the code has none (the caller then shows the API's own text). */

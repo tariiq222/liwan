@@ -135,7 +135,7 @@ describe('integrations navigation and locales', () => {
     for (const locale of [ar, en]) {
       expect(Object.keys(locale.integrations.provider).sort()).toEqual(['meta', 'paymob', 'tiktok', 'twilio', 'zatca'])
       expect(Object.keys(locale.integrations.use.inbox).sort()).toEqual(['tiktok', 'whatsapp'])
-      expect(Object.keys(locale.integrations.use.twilio)).toEqual(['messaging'])
+      expect(Object.keys(locale.integrations.use.twilio)).toEqual(['messaging', 'voice', 'lookup'])
     }
   })
 })

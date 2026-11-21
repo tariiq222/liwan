@@ -5,7 +5,7 @@ import { communicationHandlers } from './communicationHandlers'
 
 const meta = {
   title: 'Settings/CommunicationLogCard', component: CommunicationLogCard,
-  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/settings/integrations/communications.vue:26', 'بطاقة سجل الرسائل: الفلاتر وقائمة الرسائل بحالاتها وتفاصيل الرسالة. تُعرض فقط لمن يملك صلاحية قراءة السجل.') },
+  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/settings/integrations/communications.vue:33', 'بطاقة سجل الرسائل: الفلاتر وقائمة الرسائل بحالاتها وتفاصيل الرسالة. تُعرض فقط لمن يملك صلاحية قراءة السجل.') },
   args: { canRetry: true },
   render: args => ({ components: { CommunicationLogCard }, setup: () => ({ args }), template: '<div class="max-w-4xl"><CommunicationLogCard v-bind="args" /></div>' }),
 } satisfies Meta<typeof CommunicationLogCard>

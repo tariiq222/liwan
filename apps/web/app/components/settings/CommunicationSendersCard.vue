@@ -6,22 +6,24 @@ import { useIntegrationProviders } from '@/composables/useIntegrationProviders'
 import { COMMUNICATION_PAGE_SIZE, useArchiveIntegrationSender, useIntegrationSenders, useUpdateIntegrationSender, type SenderFilters } from '@/composables/useIntegrationCommunications'
 import { integrationErrorText, integrationProviderLabel } from '@/utils/integrationLabels'
 import { providerHasSenders } from '@/utils/integrationMessaging'
+import { providerHasVoice } from '@/utils/integrationVoice'
 
-// The senders of the company's messaging accounts: the numbers, sender names and services a message goes out from. The
-// card names what is missing before it lists anything: no messaging account, an account that is off or refused by the
-// provider, and a channel with no active sender. A sender is added in the route-backed create panel; here it is made
-// the default, archived (DELETE) or brought back. Every answer replaces the cached sender, so the card shows what the
-// server holds. Reading needs integrations.read; every action needs integrations.manage (`canManage`).
+// The senders of the company's messaging accounts: the numbers, sender names and services a message goes out from,
+// and the voice numbers a call goes out from. The channel list follows the provider: the voice channel appears only
+// when a connected provider declares its voice use. The card names what is missing before it lists anything: no
+// messaging account, an account that is off or refused by the provider, and a channel with no active sender. A
+// sender is added in the route-backed create panel; here it is made the default, archived (DELETE) or brought back.
+// Every answer replaces the cached sender, so the card shows what the server holds. Reading needs integrations.read;
+// every action needs integrations.manage (`canManage`).
 const props = defineProps<{ canManage: boolean }>()
 const { t, te } = useI18n()
 const hydrated = useHydrated()
 const toast = useToast()
 const CREATE_PATH = '/settings/integrations/communications/senders/new'
-const CHANNELS: IntegrationSenderChannel[] = ['sms', 'whatsapp']
 
 const connections = useIntegrationConnections()
 const providers = useIntegrationProviders()
-// A connection holds senders when its provider offers messaging; an account an application alone uses (WhatsApp through Meta) does not.
+// A connection holds senders when its provider offers messaging or voice; an account an application alone uses (WhatsApp through Meta) does not.
 const accounts = computed<IntegrationConnection[]>(() => {
   const codes = new Set((providers.data.value?.items ?? []).filter(providerHasSenders).map(provider => provider.code))
   return (connections.data.value?.items ?? []).filter(connection => connection.id !== null && codes.has(connection.provider))
@@ -31,6 +33,9 @@ const loadError = computed(() => connections.error.value ?? providers.error.valu
 const hasAccounts = computed(() => accounts.value.length > 0)
 const connectedAccounts = computed(() => accounts.value.filter(account => account.state === 'connected'))
 const unready = computed(() => accounts.value.filter(account => account.state !== 'connected'))
+// The voice channel exists only when a provider of a connected account declares its voice use.
+const hasVoice = computed(() => (providers.data.value?.items ?? []).some(providerHasVoice))
+const CHANNELS = computed<IntegrationSenderChannel[]>(() => (hasVoice.value ? ['sms', 'whatsapp', 'voice'] : ['sms', 'whatsapp']))
 
 // The filter chips hold strings: '' is "all", `view` is 'active' or 'archived'.
 const channelFilter = ref('')
@@ -55,8 +60,8 @@ function clearFilters() {
 }
 
 // One read per channel says whether it has any active sender, whatever the table is filtered to.
-const perChannel = Object.fromEntries(CHANNELS.map(channel => [channel, useIntegrationSenders({ channel, active: true, page: 1 }, () => connectedAccounts.value.length > 0)])) as Record<IntegrationSenderChannel, ReturnType<typeof useIntegrationSenders>>
-const channelsWithoutSender = computed(() => (connectedAccounts.value.length ? CHANNELS.filter(channel => perChannel[channel].isSuccess.value && perChannel[channel].data.value?.total === 0) : []))
+const perChannel = computed(() => Object.fromEntries(CHANNELS.value.map(channel => [channel, useIntegrationSenders({ channel, active: true, page: 1 }, () => connectedAccounts.value.length > 0)]))) as ComputedRef<Record<IntegrationSenderChannel, ReturnType<typeof useIntegrationSenders>>>
+const channelsWithoutSender = computed(() => (connectedAccounts.value.length ? CHANNELS.value.filter(channel => perChannel.value[channel].isSuccess.value && perChannel.value[channel].data.value?.total === 0) : []))
 
 const update = useUpdateIntegrationSender()
 const archive = useArchiveIntegrationSender()

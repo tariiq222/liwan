@@ -2,12 +2,21 @@ import type { MaybeRefOrGetter } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
   IntegrationAvailableNumberListSchema,
+  IntegrationCallListSchema,
+  IntegrationCallStateViewSchema,
   IntegrationCommunicationSettingsSchema,
+  IntegrationLookupResultSchema,
   IntegrationMessageListSchema,
   IntegrationMessageStateViewSchema,
   IntegrationSenderListSchema,
   IntegrationSenderSchema,
+  type IntegrationCallList,
+  type IntegrationCallState,
+  type IntegrationCallStateView,
+  type IntegrationVoiceTest,
   type IntegrationCommunicationSettings,
+  type IntegrationCommunicationSettingsUpdate,
+  type IntegrationLookupTest,
   type IntegrationMessageChannel,
   type IntegrationMessageState,
   type IntegrationMessageStateView,
@@ -19,6 +28,7 @@ import {
   type IntegrationSenderUpdate,
 } from '@liwan/contracts'
 import { messageIsFinal } from '../utils/integrationMessaging'
+import { callIsFinal } from '../utils/integrationVoice'
 
 export const COMMUNICATION_PAGE_SIZE = 20
 /** A test message that is still waiting for its receipt is read every few seconds, for two minutes at most. */
@@ -31,12 +41,22 @@ export const communicationKeys = {
   settings: ['integrations', 'communication-settings'] as const,
   messages: ['integrations', 'messages'] as const,
   test: (id: number) => ['integrations', 'messages', 'test', id] as const,
+  calls: ['integrations', 'calls'] as const,
+  voiceTest: (id: number) => ['integrations', 'calls', 'test', id] as const,
 }
 
 export interface SenderFilters { channel?: IntegrationSenderChannel, connection_id?: number, active: boolean, page: number }
 export interface MessageFilters {
   channel?: IntegrationMessageChannel
   state?: IntegrationMessageState
+  sender_id?: number
+  from?: string
+  to_date?: string
+  q?: string
+  page: number
+}
+export interface CallFilters {
+  state?: IntegrationCallState
   sender_id?: number
   from?: string
   to_date?: string
@@ -125,7 +145,7 @@ export function useUpdateCommunicationSettings() {
   const { $api } = useApi()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (body: IntegrationCommunicationSettings) =>
+    mutationFn: (body: IntegrationCommunicationSettingsUpdate) =>
       $api('/api/v1/integrations/communication-settings', { method: 'PATCH', body, schema: IntegrationCommunicationSettingsSchema }),
     onSuccess: settings => { qc.setQueryData(communicationKeys.settings, settings) },
   })
@@ -184,5 +204,59 @@ export function useRetryMessage() {
     mutationFn: (id: number): Promise<IntegrationMessageStateView> =>
       $api(`/api/v1/integrations/messaging/messages/${id}/retry`, { method: 'POST', body: {}, schema: IntegrationMessageStateViewSchema }),
     onSuccess: () => qc.invalidateQueries({ queryKey: communicationKeys.messages }),
+  })
+}
+
+/** Place one test call: `speak` says a text to `to`; `bridge` calls the agent first and dials `to` in. */
+export function usePlaceTestCall() {
+  const { $api } = useApi()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: IntegrationVoiceTest) =>
+      $api('/api/v1/integrations/voice/test', { method: 'POST', body, schema: IntegrationCallStateViewSchema }),
+    onSuccess: call => { qc.setQueryData(communicationKeys.voiceTest(call.id), call) },
+  })
+}
+
+/** The state of one test call, read every few seconds until it settles; a call is never placed again automatically. */
+export function useTestCall(id: MaybeRefOrGetter<number | null>) {
+  const { $api } = useApi()
+  const startedAt = ref(Date.now())
+  watch(() => toValue(id), () => { startedAt.value = Date.now() })
+  return useQuery({
+    queryKey: computed(() => communicationKeys.voiceTest(toValue(id) ?? 0)),
+    enabled: () => toValue(id) !== null,
+    queryFn: () => $api(`/api/v1/integrations/voice/test/${toValue(id)}`, { schema: IntegrationCallStateViewSchema }),
+    refetchInterval: query => {
+      const call = query.state.data
+      if (!call || callIsFinal(call) || Date.now() - startedAt.value > TEST_POLL_MAX_MS) return false
+      return TEST_POLL_MS
+    },
+    retry: false,
+  })
+}
+
+/** The call log. Reading it needs `integrations.log.read`; the caller gates `enabled` on that capability. */
+export function useIntegrationCalls(filters: MaybeRefOrGetter<CallFilters>, enabled: MaybeRefOrGetter<boolean> = true) {
+  const { $api } = useApi()
+  return useQuery({
+    queryKey: computed(() => [...communicationKeys.calls, 'list', toValue(filters)] as const),
+    enabled,
+    queryFn: () => {
+      const { state, sender_id, from, to_date, q, page } = toValue(filters)
+      return $api('/api/v1/integrations/voice/calls', {
+        query: { state, sender_id, date_from: from, date_to: to_date, q: q || undefined, ...paging(page) },
+        schema: IntegrationCallListSchema,
+      })
+    },
+    retry: false,
+  })
+}
+
+/** Check one number with the provider; `line_type` asks the billed Line Type Intelligence package. */
+export function useLookupNumber() {
+  const { $api } = useApi()
+  return useMutation({
+    mutationFn: (body: IntegrationLookupTest) => $api('/api/v1/integrations/lookup/test', { method: 'POST', body, schema: IntegrationLookupResultSchema }),
   })
 }
