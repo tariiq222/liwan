@@ -61,6 +61,10 @@ describe('terms payload', () => {
     expect(body).toMatchObject({ customer_id: 'c', kind: 'change', subscription_id: 's', expected_subscription_revision: 2, requested_extra_branches: 1, requested_users: 10, requested_storage_mb: 10240, terms: { included_extra_branches: 4 } })
     expect(() => customerQuoteBody('c', sub({ applied: null }))).toThrow('no_subscription')
   })
+  it('asks for the terms in force with preview, which the plain body never carries', () => {
+    expect(customerQuoteBody('c', sub(), { preview: true })).toMatchObject({ preview: true })
+    expect(customerQuoteBody('c', sub())).not.toHaveProperty('preview')
+  })
 })
 describe('isNotAvailable', () => {
   it('detects 404 and 501 only', () => {

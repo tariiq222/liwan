@@ -20,7 +20,7 @@ async function preview(draft: TermsDraft) {
   try {
     const full = await api.subscription(sub.value.id)
     const terms = termsOnly(termsPayload(id.value, { ...draft, reason: draft.reason.trim().length >= 3 ? draft.reason : 'preview' }))
-    const [b, a] = await Promise.all([api.customerQuote(customerQuoteBody(id.value, full)), api.customerQuote(customerQuoteBody(id.value, full, { terms }))])
+    const [b, a] = await Promise.all([api.customerQuote(customerQuoteBody(id.value, full, { preview: true })), api.customerQuote(customerQuoteBody(id.value, full, { terms }))])
     if (mine === seq) { before.value = b.quote; after.value = a.quote; saved.value = null }
   } catch (cause) { if (mine === seq) previewError.value = t(commercialErrorKey(cause)) } finally { if (mine === seq) previewing.value = false }
 }

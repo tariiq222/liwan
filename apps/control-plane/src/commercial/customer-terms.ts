@@ -13,6 +13,12 @@ export async function loadCustomerTerms(client: Pick<PoolClient, 'query'>, custo
   if (!r.rowCount) { if (revisionId) throw new CommercialHttpError('not_found', 404); return null }
   return customerTermsRevisionSchema.parse({ ...r.rows[0].payload, id: r.rows[0].id, customer_id: customerId, reason: r.rows[0].reason })
 }
+/** The terms the customer's subscription was last applied with, or null when none are in force (no applied revision, or one without terms). */
+export async function appliedTermsOf(client: Pick<PoolClient, 'query'>, customerId: string) {
+  const row = (await client.query(`SELECT r.snapshot->>'terms_revision_id' AS terms_revision_id FROM subscriptions s
+    JOIN subscription_revisions r ON r.id=s.applied_revision_id WHERE s.customer_id=$1`, [customerId])).rows[0]
+  return row?.terms_revision_id ? loadCustomerTerms(client, customerId, row.terms_revision_id) : null
+}
 export async function createCustomerTerms(pool: Pool, value: unknown, principal: Principal) {
   requireVendor(principal, 'vendor.pricing.manage', 'vendor.subscriptions.manage')
   const input = customerTermsRevisionSchema.omit({ id: true }).parse(value)

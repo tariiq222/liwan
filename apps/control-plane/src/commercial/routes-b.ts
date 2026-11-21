@@ -6,8 +6,8 @@ import type { IncomingHttpHeaders } from 'node:http'
 import { quoteRequestSchema, acceptQuoteRequestSchema, customerTermsRevisionSchema, invoiceStatusSchema, refundCreditNoteRequestSchema, tenantDeletionStateSchema, type Principal } from '@liwan/commercial-contracts'
 import { parseBody, need, type CommercialInput } from './http.js'
 import { CommercialHttpError, digestOf } from './lifecycle.js'
-import { createCustomerTerms } from './customer-terms.js'
-import { createQuoteForCustomer } from './quotes.js'
+import { appliedTermsOf, createCustomerTerms } from './customer-terms.js'
+import { buildQuote, createQuoteForCustomer } from './quotes.js'
 import { transaction } from '../db.js'
 import { getSubscription } from './subscriptions.js'
 import { acceptQuote, cancelOrder, cancelOrderBodySchema } from './orders.js'
@@ -200,12 +200,13 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
   if(m==='POST'&&path==='/customer-terms'){need(input,'vendor.pricing.manage','vendor.subscriptions.manage');return {status:201,data:await createCustomerTerms(pool,parseBody(input.raw,z.unknown()),principal)}}
   if(m==='POST'&&path==='/customer-quotes'){
     need(input,'vendor.subscriptions.manage')
-    const body=parseBody(input.raw,quoteRequestSchema.extend({customer_id:z.uuid(),terms:customerTermsRevisionSchema.omit({id:true,customer_id:true,reason:true}).optional()}));const {customer_id,terms,...request}=body
+    const body=parseBody(input.raw,quoteRequestSchema.extend({customer_id:z.uuid(),terms:customerTermsRevisionSchema.omit({id:true,customer_id:true,reason:true}).optional(),preview:z.literal(true).optional()}));const {customer_id,terms,preview,...request}=body
     await assertCustomerNotRetiring(pool,customer_id)
-    if(terms){
+    if(terms||preview){
       if(request.terms_revision_id)throw new CommercialHttpError('invalid',422,'terms_revision_id')
-      const previewTerms=customerTermsRevisionSchema.parse({...terms,id:randomUUID(),customer_id,reason:'Draft terms preview'})
-      const quote=await createQuoteForCustomer(pool,{customer_id,request,previewTerms})
+      // A draft prices its own terms; a plain preview prices the terms in force (none before the first order), never the newest saved ones.
+      const previewTerms=terms?customerTermsRevisionSchema.parse({...terms,id:randomUUID(),customer_id,reason:'Draft terms preview'}):await appliedTermsOf(pool,customer_id)
+      const quote=await buildQuote(pool,{customer_id,request,previewTerms})
       return {status:200,data:{...quote,preview:true}}
     }
     return {status:201,data:await createQuoteForCustomer(pool,{customer_id,request})}

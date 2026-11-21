@@ -215,8 +215,8 @@ export function termsPayload(customerId: string, d: TermsDraft): TermsPayload {
 export function hasTermsOverride(d: TermsDraft): boolean {
   try { termsPayload('x', { ...d, reason: d.reason.trim().length >= 3 ? d.reason : 'xxx' }); return true } catch { return false }
 }
-/** Preview body for POST commercial/customer-quotes: the server computes both sides; `terms` is an unsaved draft, nothing is persisted. */
-export function customerQuoteBody(customerId: string, view: SubscriptionView, extra: { terms?: Omit<TermsPayload, 'customer_id' | 'reason'>; planRevisionId?: string; bundleIds?: string[]; cadence?: Cadence; extraBranches?: number; users?: number; storageMb?: number } = {}) {
+/** Preview body for POST commercial/customer-quotes: the server computes both sides; `terms` is an unsaved draft and `preview` prices the terms in force, nothing is persisted. */
+export function customerQuoteBody(customerId: string, view: SubscriptionView, extra: { terms?: Omit<TermsPayload, 'customer_id' | 'reason'>; preview?: true; planRevisionId?: string; bundleIds?: string[]; cadence?: Cadence; extraBranches?: number; users?: number; storageMb?: number } = {}) {
   const base = view.target ?? view.applied
   if (!base) {
     if (!extra.planRevisionId || !extra.cadence || !extra.bundleIds) throw new Error('no_subscription')
@@ -234,6 +234,7 @@ export function customerQuoteBody(customerId: string, view: SubscriptionView, ex
     requested_users: extra.users ?? Number(base.entitlement.features['users.limit'] ?? 0),
     requested_storage_mb: extra.storageMb ?? Number(base.entitlement.features['storage.limit_mb'] ?? 0),
     ...(extra.terms ? { terms: extra.terms } : {}),
+    ...(extra.preview ? { preview: true as const } : {}),
   }
 }
 /** Server returns either `{quote, preview:true}` or a quote carrying `preview: true`. Previews are never persisted and can never be accepted. */

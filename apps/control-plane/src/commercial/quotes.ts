@@ -85,7 +85,8 @@ export async function getQuote(pool: Pool, id: string): Promise<Quote> {
 }
 export { planIssues }
 
-type QuoteInput = { customer_id: string; request: unknown; previewTerms?: CustomerTermsRevision; branchArchiveIds?: string[] }
+/** `previewTerms`: undefined prices the newest saved terms and may be stored; a revision or null (no terms) prices exactly that. */
+type QuoteInput = { customer_id: string; request: unknown; previewTerms?: CustomerTermsRevision | null; branchArchiveIds?: string[] }
 async function quoteForCustomerOn(client: PoolClient, value: QuoteInput, now: Date, persist: boolean): Promise<Quote> {
   const input = quoteRequestSchema.parse(value.request)
   const customer = await client.query('SELECT * FROM customers WHERE id=$1', [value.customer_id])
@@ -126,8 +127,8 @@ async function quoteForCustomerOn(client: PoolClient, value: QuoteInput, now: Da
   // A change keeps quoting against the revisions the subscription already applied after they are
   // withdrawn from new sales; every other revision, and every revision of a new sale, must be sellable.
   const sources = await loadQuoteSources(client, value.customer_id, input, input.kind === 'change' ? applied : null)
-  if (value.previewTerms) {
-    if (value.previewTerms.customer_id !== value.customer_id) throw bad('not_found', 'customer_id', 404)
+  if (value.previewTerms !== undefined) {
+    if (value.previewTerms && value.previewTerms.customer_id !== value.customer_id) throw bad('not_found', 'customer_id', 404)
     sources.terms = value.previewTerms
   }
   // A one-time AI balance top-up: validated against the vendor's offer, charged now, never part of a renewal.
@@ -145,7 +146,7 @@ async function quoteForCustomerOn(client: PoolClient, value: QuoteInput, now: Da
       requested_users: input.requested_users, requested_storage_mb: input.requested_storage_mb,
       current, effective_date: effective, period, ids: { id: randomUUID(), customer_id: value.customer_id, subscription_id: s?.id ?? null, expected_subscription_revision: s?.revision ?? 0 },
       expires_at: new Date(now.getTime() + TTL_MS).toISOString(), entitlement_digest: entitlement.digest, onboarding, ai_topup })
-    if (persist && !value.previewTerms) await client.query('INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,$3,$4,$5)', [quote.id, value.customer_id, JSON.stringify(quote), quote.digest, quote.expires_at])
+    if (persist && value.previewTerms === undefined) await client.query('INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,$3,$4,$5)', [quote.id, value.customer_id, JSON.stringify(quote), quote.digest, quote.expires_at])
     return quoteSchema.parse(quote)
   } catch (e) {
     if (e instanceof CommercialError) { const i = toIssue(e); throw new CommercialHttpError(i.code, 422, i.field, [i]) }
