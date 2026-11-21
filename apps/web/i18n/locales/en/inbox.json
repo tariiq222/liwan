@@ -303,6 +303,7 @@
       "readOnlyDescription": "You do not have permission to reply to conversations.",
       "attachments": "Add to the reply",
       "attach": "Attach a file",
+      "imageUnavailable": "TikTok does not allow sending an image to this customer",
       "captionPlaceholder": "Add a caption for the file (optional)",
       "removeFile": "Remove the file",
       "uploading": "Uploading…",

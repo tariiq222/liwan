@@ -303,6 +303,7 @@
       "readOnlyDescription": "ليست لديك صلاحية الرد على المحادثات.",
       "attachments": "إرفاق إلى الرد",
       "attach": "إرفاق ملف",
+      "imageUnavailable": "تيك توك لا يسمح بإرسال صورة لهذا العميل",
       "captionPlaceholder": "أضف تعليقًا على الملف (اختياري)",
       "removeFile": "إزالة الملف",
       "uploading": "جارٍ الرفع…",

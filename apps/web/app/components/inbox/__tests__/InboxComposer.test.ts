@@ -53,7 +53,7 @@ function mountComposer(endsAt: string | null, store = new Map<string, string>(),
   }
   const code = ts.transpileModule(script, { compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2022 } }).outputText
   const component = new Function(...Object.keys(bindings), code)(...Object.values(bindings))
-  const props = Vue.reactive({ conversation: { id: 5, channel: { id: 1, kind }, reply_window_ends_at: endsAt }, replyTo: null as { id: number; preview: string } | null })
+  const props = Vue.reactive({ conversation: { id: 5, channel: { id: 1, kind }, reply_window_ends_at: endsAt, image_send_capable: true }, replyTo: null as { id: number; preview: string } | null })
   const scope = Vue.effectScope()
   const state = scope.run(() => component.setup(props, { expose: () => {}, emit: (name: string, value: unknown) => { emitted.push([name, value]); if (name === 'update:replyTo') props.replyTo = value as typeof props.replyTo } }))
   for (const fn of mounted) fn()
@@ -140,6 +140,16 @@ describe('InboxComposer', () => {
     expect(state.templateMode.value).toBe(false)
     expect(state.blockedWindow.value).toBe(false)
     expect(state.kind.value).toBe('tiktok')
+  })
+
+  it('turns the attachment control off on TikTok only when the conversation cannot send an image', () => {
+    const { state, props } = mountComposer('2026-10-28T20:00:00Z', new Map(), TEMPLATE, 'tiktok')
+    expect(state.imageBlocked.value).toBe(false)
+    props.conversation.image_send_capable = false
+    expect(state.imageBlocked.value).toBe(true)
+    const whatsapp = mountComposer('2026-10-28T20:00:00Z')
+    whatsapp.props.conversation.image_send_capable = false
+    expect(whatsapp.state.imageBlocked.value).toBe(false)
   })
 
   it('carries no template and no reply once the TikTok window closed', () => {
