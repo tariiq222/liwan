@@ -2,7 +2,7 @@
 {
     'name': 'liwan Notify',
     'summary': 'liwan platform: the shared notification bell — delivery, type registry, /api/v1/notifications',
-    'version': '19.0.1.2.0',
+    'version': '19.0.1.3.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -17,6 +17,7 @@
         'data/mail_domain_permissions.xml',
         'data/mail_crons.xml',
     ],
+    'post_init_hook': 'post_init_hook',
     'installable': True,
     'application': False,
 }

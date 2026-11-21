@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, writeFile, access } from 'node:fs/promises'
+import { mkdtemp, readFile, writeFile, access, stat } from 'node:fs/promises'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { tmpdir } from 'node:os'
@@ -10,7 +10,7 @@ import { withPublicationLock, beginPublication, completePublication } from './re
 // Preserve real filesystem effects but expose a configurable pause point.
 vi.mock('node:fs/promises', async importOriginal => {
   const actual = await importOriginal<typeof import('node:fs/promises')>()
-  return { ...actual, rename: vi.fn(actual.rename) }
+  return { ...actual, rename: vi.fn(actual.rename), chmod: vi.fn(actual.chmod) }
 })
 
 it('excludes recovery until a paused publisher relinquishes the filesystem lock', async () => {
@@ -129,4 +129,35 @@ it('refuses a second mutation while previous publication is unresolved', async (
   await beginPublication(path, 1)
   await expect(beginPublication(path, 1)).rejects.toThrow()
   await access(`${path}.pending`)
+})
+it('publishes a world-readable registry even under a restrictive umask', async () => {
+  const path = join(await mkdtemp(join(tmpdir(), 'liwan-publish-')), 'registry.json')
+  const previous = process.umask(0o077)
+  try {
+    await beginPublication(path, 1)
+    await completePublication(path, { revision: 1 })
+  } finally { process.umask(previous) }
+  expect((await stat(path)).mode & 0o777).toBe(0o644)
+})
+it('sets the registry directory readable for the other users, whatever mode it was created with', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'liwan-publish-dir-'))
+  const path = join(directory, 'registry.json')
+  for (const mode of [0o750, 0o700, 0o755]) {
+    await fs.chmod(directory, mode)
+    await withPublicationLock(path, async () => {
+      expect((await stat(directory)).mode & 0o777).toBe(0o755)
+    })
+  }
+})
+it('refuses explicitly when the registry directory mode cannot be set by this process', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'liwan-publish-dir-'))
+  const path = join(directory, 'registry.json')
+  await fs.chmod(directory, 0o700)
+  for (const code of ['EPERM', 'EACCES']) {
+    vi.mocked(fs.chmod).mockRejectedValueOnce(Object.assign(new Error(`${code}: operation not permitted`), { code }))
+    await expect(withPublicationLock(path, async () => 'must_not_enter')).rejects.toThrow('registry_dir_mode_unavailable')
+    await expect(access(`${path}.publisher-lock`)).rejects.toThrow()
+  }
+  vi.mocked(fs.chmod).mockRejectedValueOnce(Object.assign(new Error('EIO'), { code: 'EIO' }))
+  await expect(withPublicationLock(path, async () => 'must_not_enter')).rejects.toThrow('EIO')
 })

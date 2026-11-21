@@ -8,9 +8,10 @@ import { actorHolds, actorLabel } from '../admin-auth/grants.js'
 
 const revision = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER - 1)
 const resource = z.string().regex(/^[a-z][a-z0-9_]{0,62}$/)
+export const registryTenantIdSchema = z.string().regex(/^[a-z][a-z0-9_-]{0,62}$/)
 export const registryTargetSchema = z.strictObject({
   host: z.string().max(253).regex(/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/),
-  tenantId: z.string().regex(/^[a-z][a-z0-9_-]{0,62}$/), database: resource, filestore: resource,
+  tenantId: registryTenantIdSchema, database: resource, filestore: resource,
   enabled: z.boolean(), registryRevision: revision.refine(n => n > 0),
   /** The workspace is being or has been deleted. Only the tenant deletion authority publishes it; a retired target is never enabled, and a backup capture refuses it. */
   retired: z.boolean().default(false),

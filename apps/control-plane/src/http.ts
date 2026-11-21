@@ -393,7 +393,7 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       if (pathname === '/v1/invitations/accept' || pathname === '/v1/invitations/check' || pathname === REISSUE_PATH) {
         if (method !== 'POST') return respond(res, 404, { code: 'not_found', message: 'Endpoint not found' })
         // The tenant and visitor address of a reissue are trusted only as signed by the Nuxt server; the tenant is never read from the body.
-        const reissue = pathname === REISSUE_PATH ? verifiedReissueContext(req.headers, bffService) ?? undefined : undefined
+        const reissue = pathname === REISSUE_PATH ? await verifiedReissueContext(pool, req.headers, bffService) ?? undefined : undefined
         if (pathname === REISSUE_PATH && !reissue) return respond(res, 403, { code: 'forbidden', message: 'Request not accepted' })
         // Unsigned forwarding headers are never trusted for this public limit.
         // accept and check count separately so a page-load check never uses up the accept budget.
