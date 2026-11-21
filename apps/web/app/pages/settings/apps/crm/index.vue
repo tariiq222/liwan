@@ -21,6 +21,9 @@ const { can } = useAccess()
 const { parts, shows, tabItems, activeTab } = useSettingsPage('crm')
 const settings = useCrmSettings()
 const canManage = computed(() => can('crm.settings.manage'))
+// Stages, outcomes, lost reasons and sources bind every branch: only the root company's managers change them.
+const canManageLists = computed(() => canManage.value && Boolean(settings.data.value?.can_manage_tenant_lists))
+const showsLists = computed(() => shows('stages') || shows('outcomes') || shows('lostReasons') || shows('sources'))
 async function reloadSettings() {
   const result = await settings.refetch()
   if (result.isError) throw result.error
@@ -47,12 +50,12 @@ async function reloadSettings() {
               <CrmFollowupCard v-if="shows('followup')" :settings="settings.data.value" :can-edit="canManage" :reload-settings="reloadSettings" />
               <CrmDistributionCard v-if="shows('distribution')" :settings="settings.data.value" :can-edit="canManage" :reload-settings="reloadSettings" />
             </div>
-            <UAlert v-if="shows('stages') && canManage && !settings.data.value.can_manage_stages" color="info" variant="subtle" icon="i-lucide-lock" :title="t('crm.settings.stages.readOnlyTitle')" :description="t('crm.settings.stages.readOnly')" data-testid="crm-stages-readonly" />
-            <CrmStageListCard v-if="shows('stages')" :can-edit="canManage && settings.data.value.can_manage_stages" />
+            <UAlert v-if="showsLists && canManage && !canManageLists" color="info" variant="subtle" icon="i-lucide-lock" :title="t('crm.settings.tenantLists.readOnlyTitle')" :description="t('crm.settings.tenantLists.readOnly')" data-testid="crm-tenant-lists-readonly" />
+            <CrmStageListCard v-if="shows('stages')" :can-edit="canManageLists" />
             <div class="grid items-start gap-4 xl:grid-cols-3">
-              <CrmOutcomeListCard v-if="shows('outcomes')" :can-edit="canManage" />
-              <CrmNamedListCard v-if="shows('lostReasons')" kind="lost-reasons" :title="t('crm.settings.lostReasons.title')" :hint="t('crm.settings.lostReasons.hint')" :can-edit="canManage" />
-              <CrmNamedListCard v-if="shows('sources')" kind="sources" :title="t('crm.settings.sources.title')" :hint="t('crm.settings.sources.hint')" :can-edit="canManage" />
+              <CrmOutcomeListCard v-if="shows('outcomes')" :can-edit="canManageLists" />
+              <CrmNamedListCard v-if="shows('lostReasons')" kind="lost-reasons" :title="t('crm.settings.lostReasons.title')" :hint="t('crm.settings.lostReasons.hint')" :can-edit="canManageLists" />
+              <CrmNamedListCard v-if="shows('sources')" kind="sources" :title="t('crm.settings.sources.title')" :hint="t('crm.settings.sources.hint')" :can-edit="canManageLists" />
             </div>
           </div>
           <div v-show="activeTab === 'sales'" class="grid gap-4" data-testid="settings-panel-sales">

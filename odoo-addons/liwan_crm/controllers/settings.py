@@ -75,7 +75,7 @@ def _dump_current():
     users = request.env['res.users'].browse(effective['distribution_user_ids'])
     return dump_settings(
         effective, row.revision if row else 0, users, _lead_properties_definition(),
-        request.env['crm.stage']._liwan_can_manage(),
+        request.env['liwan.access.service']._liwan_can_manage_tenant_lists(),
     )
 
 

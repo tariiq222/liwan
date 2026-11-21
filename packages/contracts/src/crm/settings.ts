@@ -89,9 +89,9 @@ export const CrmSettingsSchema = z.strictObject({
   distribution_users: z.array(CrmDistributionUserSchema),
   options: CrmSettingsOptionsSchema,
   revision: z.number().int().min(0),
-  // Whether the caller may change the pipeline stages: they bind every branch, so only a settings manager of the main
-  // company may; any other reader sees them read-only.
-  can_manage_stages: z.boolean(),
+  // Whether the caller may change the tenant-wide lists (stages, call outcomes, lost reasons, sources): they bind every
+  // branch, so only a settings manager of the main company may; any other reader sees them read-only.
+  can_manage_tenant_lists: z.boolean(),
 })
 
 const CrmTermPatchSchema = z.strictObject({
