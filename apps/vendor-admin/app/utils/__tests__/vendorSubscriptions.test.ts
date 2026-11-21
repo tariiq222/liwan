@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Adjustment, Invoice, Order, SubscriptionView } from '@liwan/commercial-contracts'
 import {
   customersReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, daysUntilDate, invoiceListQuery, isNotAvailable, isStalled, targetStatus, termsPayload, usageDisplay, usageMetricLabel, lineQuantities, formatBytes, vendorInvoiceLineViews, parseTransferAmount, refundRequestBlock, transferFormDefaults, validRefundDraft, validRefundReason,
+  orderOutcomeUnknown,
   type VendorCustomer, type VendorInvoice, adminLoginErrorKey, cardActionErrorKey, deletionErrorKey,
 } from '../vendorSubscriptions'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
@@ -64,6 +65,21 @@ describe('terms payload', () => {
   it('asks for the terms in force with preview, which the plain body never carries', () => {
     expect(customerQuoteBody('c', sub(), { preview: true })).toMatchObject({ preview: true })
     expect(customerQuoteBody('c', sub())).not.toHaveProperty('preview')
+  })
+})
+describe('a first paid subscription', () => {
+  const month = { unit: 'month' as const, count: 1 }
+  it('quotes a customer with no subscription as a new subscription at revision 0, carrying the onboarding line', () => {
+    const body = customerQuoteBody('c', null, { planRevisionId: 'p', bundleIds: ['b1'], cadence: month, onboarding: true })
+    expect(body).toMatchObject({ customer_id: 'c', kind: 'new', plan_revision_id: 'p', expected_subscription_revision: 0, onboarding: true })
+    expect(body).not.toHaveProperty('subscription_id')
+    expect(customerQuoteBody('c', null, { planRevisionId: 'p', bundleIds: ['b1'], cadence: month })).not.toHaveProperty('onboarding')
+  })
+  it('keeps an order key only when the outcome of the attempt is unknown', () => {
+    expect(orderOutcomeUnknown({ status: 503 })).toBe(true)
+    expect(orderOutcomeUnknown(new TypeError('fetch failed'))).toBe(true)
+    expect(orderOutcomeUnknown({ status: 422, data: { code: 'quote_expired' } })).toBe(false)
+    expect(orderOutcomeUnknown({ status: 409, data: { code: 'revision_conflict' } })).toBe(false)
   })
 })
 describe('isNotAvailable', () => {

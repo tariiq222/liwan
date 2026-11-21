@@ -4,6 +4,7 @@ import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import { cadenceKey, commercialErrorKey } from '@/utils/vendorCommercial'
 import { cadenceLabel, formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { planRequestBody, planTenantCustomerBody, planTenantQuoteBody } from '@/utils/vendorTenantPlan'
+import { orderOutcomeUnknown } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 definePageMeta({ capability: 'vendor.tenants.manage' })
@@ -32,6 +33,9 @@ const selectedPrice = computed(() => selectedPlan.value?.prices.find(p => cadenc
 const canSubscribe = computed(() => can('vendor.subscriptions.manage'))
 const createdCustomer = ref<string | null>(null)
 const creationRequestId = ref<string | null>(null)
+// One quote and one idempotency key per intended order: a retry after a lost answer returns the order already placed
+// instead of quoting and ordering again. Changing the plan, cadence or onboarding line is a different order.
+const heldOrder = ref<{ signature: string; quoteId: string; idempotencyKey: string } | null>(null)
 const busy = ref(false); const saveError = ref<unknown>(null); const submitted = ref(false)
 const dirty = computed(() => !submitted.value && Boolean(form.admin_name.trim() || form.admin_login.trim() || form.name.trim() || form.inventory_target || form.catalog_version || form.catalog_tier || form.plan_revision_id || form.reason.trim() || form.commercial_mode !== 'saas' || form.hosting_model !== 'dedicated_managed'))
 function fieldError(error: unknown): string {
@@ -55,8 +59,17 @@ async function submit() {
       createdCustomer.value ??= (await subscriptions.createCustomer(planTenantCustomerBody(form, creationRequestId.value))).id
       // Always a real first order: free when the plan's total is zero, paid (collected by bank transfer or a payment
       // link) otherwise. No trial path: a vendor-added customer starts on a package.
-      const quote = await subscriptions.changeQuote({ ...planTenantQuoteBody(createdCustomer.value, selectedPlan.value, selectedCadence.value), ...(form.onboarding ? { onboarding: true } : {}) })
-      await subscriptions.placeOrder({ quote_id: quote.id, expected_subscription_revision: 0, idempotency_key: crypto.randomUUID() })
+      const signature = JSON.stringify([selectedPlan.value.id, form.cadence, form.onboarding])
+      if (heldOrder.value?.signature !== signature) {
+        const quote = await subscriptions.changeQuote({ ...planTenantQuoteBody(createdCustomer.value, selectedPlan.value, selectedCadence.value), ...(form.onboarding ? { onboarding: true } : {}) })
+        heldOrder.value = { signature, quoteId: quote.id, idempotencyKey: crypto.randomUUID() }
+      }
+      try {
+        await subscriptions.placeOrder({ quote_id: heldOrder.value.quoteId, expected_subscription_revision: 0, idempotency_key: heldOrder.value.idempotencyKey })
+      } catch (cause) {
+        if (!orderOutcomeUnknown(cause)) heldOrder.value = null
+        throw cause
+      }
       submitted.value = true
       await navigateTo(`/customers/${encodeURIComponent(createdCustomer.value)}`)
       return

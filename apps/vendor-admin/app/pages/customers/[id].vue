@@ -80,6 +80,8 @@ const retryWorkspaceState = () => Promise.all([refreshTenant(), refreshRecent(),
 const operationFailed = computed(() => Boolean(recentOperations.value?.some(op => op.status === 'failed' || op.status === 'needs_intervention')))
 const canTerms = computed(() => can('vendor.pricing.manage') && can('vendor.subscriptions.manage'))
 const canStartTrial = computed(() => can('vendor.subscriptions.manage') && (hasWorkspace.value || can('vendor.tenants.manage')) && !view.value?.applied && !view.value?.pending_order)
+// A first paid order needs no subscription yet: the change page places it, and its fulfilment provisions the workspace like a trial does.
+const canStartFirst = computed(() => can('vendor.subscriptions.manage') && !view.value && (hasWorkspace.value || can('vendor.tenants.manage')))
 const canChange = computed(() => can('vendor.subscriptions.manage') && Boolean(view.value) && !view.value?.pending_order)
 const cancelOpen = ref(false)
 const cancelReason = ref('')
@@ -298,7 +300,10 @@ async function cancelPendingOrder() {
               <UButton v-if="canTerms" :to="termsTo" color="neutral" variant="outline" size="sm" icon="i-lucide-sliders-horizontal">{{ t('vendor.customers.customizeTerms') }}</UButton>
               <UButton v-if="can('vendor.subscriptions.manage')" :to="canChange ? changeTo : undefined" :disabled="!canChange" size="sm" icon="i-lucide-repeat">{{ t('vendor.customers.changeSubscription') }}</UButton>
             </template>
-            <p v-if="!view" class="text-sm text-muted">{{ t('vendor.customers.noSubscription') }}</p>
+            <div v-if="!view" class="flex flex-wrap items-center gap-3">
+              <p class="text-sm text-muted">{{ t('vendor.customers.noSubscription') }}</p>
+              <UButton v-if="canStartFirst" :to="changeTo" size="sm" icon="i-lucide-credit-card" data-testid="start-first-subscription">{{ t('vendor.customers.firstSubscription') }}</UButton>
+            </div>
             <VendorSubscriptionSummary v-else :subscription="view" :plan-name="planName">
               <template v-if="canChangeCard" #card-actions>
                 <div class="space-y-3" data-testid="card-actions">

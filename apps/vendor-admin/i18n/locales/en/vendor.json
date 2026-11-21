@@ -1003,6 +1003,7 @@
       "noSubscription": "No subscription",
       "customizeTerms": "Customize customer terms",
       "changeSubscription": "Change subscription",
+      "firstSubscription": "Start a paid subscription",
       "sectionUnavailable": "This section is not available yet.",
       "included": "Included",
       "branchesHq": "Headquarters",
@@ -1146,7 +1147,8 @@
         "quote": "Calculate price",
         "place": "Place order",
         "cadence": "Billing cadence",
-        "pendingOrder": "This subscription has a pending order. Review its status on the customer page before placing another order."
+        "pendingOrder": "This subscription has a pending order. Review its status on the customer page before placing another order.",
+        "firstOnBehalf": "You are placing the customer's first order on their behalf. The customer pays by bank transfer or payment link, or nothing is due when the plan is free."
       },
       "suspension": {
         "suspend": "Suspend subscription",

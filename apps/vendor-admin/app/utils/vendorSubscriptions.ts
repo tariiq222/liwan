@@ -215,20 +215,27 @@ export function termsPayload(customerId: string, d: TermsDraft): TermsPayload {
 export function hasTermsOverride(d: TermsDraft): boolean {
   try { termsPayload('x', { ...d, reason: d.reason.trim().length >= 3 ? d.reason : 'xxx' }); return true } catch { return false }
 }
-/** Preview body for POST commercial/customer-quotes: the server computes both sides; `terms` is an unsaved draft and `preview` prices the terms in force, nothing is persisted. */
-export function customerQuoteBody(customerId: string, view: SubscriptionView, extra: { terms?: Omit<TermsPayload, 'customer_id' | 'reason'>; preview?: true; planRevisionId?: string; bundleIds?: string[]; cadence?: Cadence; extraBranches?: number; users?: number; storageMb?: number } = {}) {
-  const base = view.target ?? view.applied
+/** A failed order attempt may still have been recorded when the answer never arrived (no status, or a server error): its idempotency key is then kept so a retry returns that order instead of placing a second one. A refusal (4xx) recorded nothing. */
+export function orderOutcomeUnknown(cause: unknown): boolean {
+  const { status } = commercialFailure(cause)
+  return status === null || status >= 500
+}
+/** Preview body for POST commercial/customer-quotes: the server computes both sides; `terms` is an unsaved draft and `preview` prices the terms in force, nothing is persisted. A customer with no subscription yet (`view` null) is quoted as a new one at revision 0. */
+export function customerQuoteBody(customerId: string, view: SubscriptionView | null, extra: { terms?: Omit<TermsPayload, 'customer_id' | 'reason'>; preview?: true; planRevisionId?: string; bundleIds?: string[]; cadence?: Cadence; extraBranches?: number; users?: number; storageMb?: number; onboarding?: true } = {}) {
+  const base = view?.target ?? view?.applied
   if (!base) {
     if (!extra.planRevisionId || !extra.cadence || !extra.bundleIds) throw new Error('no_subscription')
     return {
-      customer_id: customerId, kind: 'new' as const, subscription_id: view.id, expected_subscription_revision: view.revision,
+      customer_id: customerId, kind: 'new' as const,
+      ...(view ? { subscription_id: view.id } : {}), expected_subscription_revision: view?.revision ?? 0,
       plan_revision_id: extra.planRevisionId, bundle_revision_ids: extra.bundleIds,
       cadence: extra.cadence, requested_extra_branches: extra.extraBranches ?? 0,
       requested_users: extra.users ?? 0, requested_storage_mb: extra.storageMb ?? 0,
+      ...(extra.onboarding ? { onboarding: true as const } : {}),
     }
   }
   return {
-    customer_id: customerId, kind: 'change' as const, subscription_id: view.id, expected_subscription_revision: view.revision,
+    customer_id: customerId, kind: 'change' as const, subscription_id: view!.id, expected_subscription_revision: view!.revision,
     plan_revision_id: extra.planRevisionId ?? base.plan_revision_id, bundle_revision_ids: extra.bundleIds ?? base.bundle_revision_ids,
     cadence: extra.cadence ?? base.cadence, requested_extra_branches: extra.extraBranches ?? base.extra_branch_count,
     requested_users: extra.users ?? Number(base.entitlement.features['users.limit'] ?? 0),

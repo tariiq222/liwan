@@ -1,5 +1,29 @@
-import { expect, test } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+import { expect, test, type Page } from '@playwright/test'
 import { expectNoSecondH1, fitsWidth, login, mobileRows, navigateClient, open, rows } from './commercial-helpers'
+
+const fixtures = JSON.parse(readFileSync(new URL('./commercial-fixtures.json', import.meta.url), 'utf8'))
+const GROWTH = fixtures.plans.items[0]
+const CORE_BUNDLE = fixtures.bundles.items[0]
+// A plan with no trial: a vendor-placed first order never starts one.
+const PAID_PLAN = { ...GROWTH, trial_days: 0 }
+
+/** Intercepts what the change page reads and writes, so the specs see the exact bodies the console sends. */
+async function mockOrderFlow(page: Page, plans: unknown[], orderAnswers: { status: number; body: object }[]) {
+  const quotes: Record<string, unknown>[] = []; const orders: Record<string, unknown>[] = []
+  await page.route('**/api/vendor/v1/commercial/plans?**', route => route.fulfill({ json: { items: plans, total: plans.length } }))
+  await page.route('**/api/vendor/v1/commercial/customer-quotes', async (route) => {
+    quotes.push(route.request().postDataJSON())
+    await route.fulfill({ json: { ...fixtures.quote, id: `quote-${quotes.length}`, preview: false } })
+  })
+  await page.route('**/api/vendor/v1/commercial/orders', async (route) => {
+    orders.push(route.request().postDataJSON())
+    const answer = orderAnswers[Math.min(orders.length, orderAnswers.length) - 1]!
+    await route.fulfill({ status: answer.status, json: answer.body })
+  })
+  return { quotes, orders }
+}
+const pick = async (page: Page, name: string, option: string) => { await page.getByRole('combobox', { name }).click(); await page.getByRole('option', { name: option }).click() }
 
 test.describe('Plan 6e: vendor customers', () => {
   test.beforeEach(async ({ page }) => { await login(page) })
@@ -120,6 +144,30 @@ test.describe('Plan 6e: vendor customers', () => {
         }
       })
     }
+
+    test('a customer with no subscription starts a paid one from its own page and a retry keeps the same order key', async ({ page }) => {
+      const { quotes, orders } = await mockOrderFlow(page, [PAID_PLAN], [{ status: 503, body: { code: 'vendor_unavailable', message: 'down' } }, { status: 200, body: { id: 'order-1' } }])
+      await open(page, '/customers/cust-gamma?tab=subscription')
+      await page.getByTestId('start-first-subscription').click()
+      await expect(page).toHaveURL(/\/customers\/cust-gamma\/change/)
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText('ابدأ اشتراكًا مدفوعًا')
+      await pick(page, 'الباقة', 'باقة النمو')
+      await pick(page, 'دورة الفوترة', 'شهري')
+      await page.getByTestId('onboarding-choice').check()
+      await page.getByRole('button', { name: 'احسب السعر' }).click()
+      await expect(page.locator('[data-slot="invoice-lines"]')).toBeVisible()
+      expect(quotes).toHaveLength(1)
+      expect(quotes[0]).toMatchObject({ customer_id: 'cust-gamma', kind: 'new', plan_revision_id: GROWTH.id, expected_subscription_revision: 0, bundle_revision_ids: [CORE_BUNDLE.id], requested_users: 10, requested_storage_mb: 10240, onboarding: true })
+      expect(quotes[0]).not.toHaveProperty('subscription_id')
+      await page.getByRole('button', { name: 'تأكيد الطلب' }).click()
+      await expect.poll(() => orders.length).toBe(1)
+      await expect(page.getByRole('button', { name: 'تأكيد الطلب' })).toBeEnabled()
+      await page.getByRole('button', { name: 'تأكيد الطلب' }).click()
+      await expect.poll(() => orders.length).toBe(2)
+      expect(orders[1]).toEqual(orders[0])
+      expect(orders[0]).toMatchObject({ quote_id: 'quote-1', expected_subscription_revision: 0 })
+      expect(quotes).toHaveLength(1)
+    })
 
     test('the change and terms pages still open as children of the record', async ({ page }) => {
       await open(page, '/customers/cust-alpha/change')
