@@ -103,10 +103,11 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
   const adminLogin=/^\/customers\/([^/]+)\/admin-login$/.exec(path)
   if(adminLogin&&m==='PATCH'){
     need(input,'vendor.subscriptions.manage')
-    if(!input.stepUpFresh)throw new CommercialHttpError('step_up_required',403)
     if(!z.uuid().safeParse(adminLogin[1]).success)throw new CommercialHttpError('not_found',404)
     const body=parseBody(input.raw,adminLoginChangeSchema)
+    // A dry run changes nothing, so it needs no step-up; the real change does.
     if(body.dry_run)return {status:200,data:{preview:await previewAdminLogin(pool,adminLogin[1]!,body.admin_login)}}
+    if(!input.stepUpFresh)throw new CommercialHttpError('step_up_required',403)
     const change=await changeAdminLogin(pool,{customer_id:adminLogin[1]!,admin_login:body.admin_login,reason:body.reason!,actor:principal.actor_id,client_address:input.clientAddress??null})
     return {status:200,data:{change}}
   }
