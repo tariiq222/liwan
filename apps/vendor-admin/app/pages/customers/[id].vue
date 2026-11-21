@@ -24,6 +24,7 @@ const { data: customer, error, pending, refresh } = await useAsyncData(() => `ve
 })
 const hydrated = useHydrated()
 const canBilling = computed(() => can('vendor.billing.manage'))
+const canAudit = computed(() => can('vendor.audit.read'))
 const offeredTabs = computed(() => CUSTOMER_TABS.filter(key => key !== 'invoices' || canBilling.value))
 const tab = computed(() => clientTab(route.query.tab, offeredTabs.value))
 const tabs = computed(() => clientTabItems(offeredTabs.value, tab.value, route, key => t(`vendor.clientTabs.${key}`), 'customer-tab'))
@@ -450,7 +451,7 @@ async function cancelPendingOrder() {
           <SharedRecordSection v-if="view" variant="panel" :title="t('vendor.customers.history.title')" :description="t('vendor.customers.history.hint')">
             <VendorSubscriptionTimeline :subscription="view" :plan-name="planNameOf" />
           </SharedRecordSection>
-          <SharedRecordSection variant="panel" :title="t('vendor.customers.sections.audit')" :description="t('vendor.customers.history.whoHint')">
+          <SharedRecordSection v-if="canAudit" variant="panel" :title="t('vendor.customers.sections.audit')" :description="t('vendor.customers.history.whoHint')">
             <UButton :to="{ path: '/audit', query: { customer_id: id } }" color="neutral" variant="outline" icon="i-lucide-scroll-text">{{ t('vendor.customers.openAudit') }}</UButton>
           </SharedRecordSection>
         </template>
