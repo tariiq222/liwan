@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import contextlib
 import fcntl
+import fnmatch
 import io
 import json
 import os
@@ -19,11 +20,13 @@ from deploy.release.common import CommandFailed, Runner, make_log, read_env_file
 OLD = 'a' * 40
 NEW = 'b' * 40
 ANCIENT = '9' * 40
+ANNOTATION_OBJECT = 'f' * 40
 SECRET = 'db-password-never-logged'
 BACKUP_SECRET = 'backup-token-never-logged'
-TOKEN = 'forgejo-token-never-logged'
+TOKEN = 'ghcr-token-never-logged'
+GITHUB_TOKEN = 'github-token-never-logged'
 USER = 'release-reader'
-REGISTRY = 'git.liwanos.com/liwanos'
+REGISTRY = 'ghcr.io/tariiq222'
 AMD64 = 'sha256:' + 'a' * 64
 ARM64 = 'sha256:' + 'b' * 64
 REFERENCES = ('liwan-guard', 'liwan-odoo', 'liwan-web')
@@ -151,6 +154,18 @@ class FakePostgres:
         return None
 
 
+def ls_remote_lines(case, patterns):
+    """What real git answers: a ref line per matching pattern, and the peeled ``^{}`` line of an annotated tag only
+    for a pattern that matches it (a glob does, an exact tag name does not)."""
+    for tag, commit in case.tags.items():
+        annotated = tag in case.annotated
+        for pattern in patterns:
+            if fnmatch.fnmatchcase(f'refs/tags/{tag}', pattern):
+                yield f'{ANNOTATION_OBJECT if annotated else commit}\trefs/tags/{tag}\n'
+            if annotated and fnmatch.fnmatchcase(f'refs/tags/{tag}^{{}}', pattern):
+                yield f'{commit}\trefs/tags/{tag}^{{}}\n'
+
+
 class FakeRunner:
     """Answers each command from a small table and records every argv, stdin and environment it was given."""
 
@@ -219,9 +234,10 @@ class FakeRunner:
     def git(self, argv):
         case = self.case
         if 'ls-remote' in argv:
-            if argv[-1] == 'refs/heads/main':
+            patterns = argv[argv.index('ls-remote') + 2:]
+            if patterns == ['refs/heads/main']:
                 return 0, f'{case.head}\trefs/heads/main\n'
-            return 0, ''.join(f'{commit}\trefs/tags/{tag}\n' for tag, commit in case.tags.items())
+            return 0, ''.join(ls_remote_lines(case, patterns))
         if 'merge-base' in argv:
             return (0 if (case.on_main if argv[-1] == 'refs/heads/main' else case.ancestor) else 1), ''
         if 'cat-file' in argv:
@@ -252,7 +268,7 @@ class ReleaseTest(unittest.TestCase):
         patcher = mock.patch.object(release, 'free_bytes', lambda path: self.free)
         patcher.start()
         self.addCleanup(patcher.stop)
-        self.environ = {'PATH': '/usr/bin', 'LIWAN_FORGEJO_READ_USER': USER, 'LIWAN_FORGEJO_READ_TOKEN': TOKEN}
+        self.environ = {'PATH': '/usr/bin', 'LIWAN_GHCR_READ_USER': USER, 'LIWAN_GHCR_READ_TOKEN': TOKEN}
         self.paths = release.Paths(config_root=root / 'etc', state_root=root / 'state', releases=root / 'releases',
                                    current=root / 'current', maintenance=root / 'maintenance/active')
         self.state = self.paths.state_root / 'development'
@@ -269,6 +285,7 @@ class ReleaseTest(unittest.TestCase):
         (self.paths.releases / OLD).mkdir()
         self.paths.current.symlink_to(self.paths.releases / OLD)
         self.head, self.tags, self.ancestor, self.published, self.fetched = NEW, {}, True, True, True
+        self.annotated = set()
         self.on_main = True
         self.fail_health, self.fail_upgrade_of = False, None
         self.fail_render, self.fail_restore_render = False, False
@@ -353,12 +370,12 @@ class ReleaseTest(unittest.TestCase):
         self.assertTrue(self.commands('control-migrate'))
         self.assertEqual(len(self.commands('capture')), 2)
 
-    def test_candidate_comes_from_forgejo_and_the_document_from_its_registry(self):
+    def test_candidate_comes_from_github_and_the_document_from_ghcr(self):
         self.assertEqual(self.main(), release.EXIT_OK)
         listing = next(call for call in self.runner.calls if 'ls-remote' in call)
-        self.assertEqual(listing[-2:], ['https://git.liwanos.com/liwanos/liwan.git', 'refs/heads/main'])
+        self.assertEqual(listing[-2:], ['https://github.com/tariiq222/liwan.git', 'refs/heads/main'])
         docker = [call for call in self.runner.calls if call[0] == 'docker'][:6]
-        self.assertEqual(docker[0], ['docker', 'login', 'git.liwanos.com', '--username', USER, '--password-stdin'])
+        self.assertEqual(docker[0], ['docker', 'login', 'ghcr.io', '--username', USER, '--password-stdin'])
         self.assertEqual(docker[1], ['docker', 'pull', '--quiet', f'{REGISTRY}/liwan-release:{NEW}'])
         self.assertEqual(docker[2], ['docker', 'create', f'{REGISTRY}/liwan-release:{NEW}', '/release.json'])
         self.assertEqual(docker[3][:2], ['docker', 'cp'])
@@ -384,21 +401,23 @@ class ReleaseTest(unittest.TestCase):
         self.assertFalse(self.compose_stops() or self.product_pulls())
 
     def test_document_with_a_foreign_registry_is_refused(self):
-        self.document['images']['liwan-odoo'] = f'ghcr.io/someone/liwan-odoo@{AMD64}'
-        self.assertEqual(self.main(), release.EXIT_REFUSED)
-        self.assertEqual(self.result(), 'refused document_invalid')
-        self.assertFalse(self.product_pulls())
+        for foreign in ('registry.example.test/liwanos', 'docker.io/tariiq222', 'ghcr.io/someone', 'ghcr.io.evil.test/tariiq222'):
+            with self.subTest(registry=foreign):
+                self.document['images']['liwan-odoo'] = f'{foreign}/liwan-odoo@{AMD64}'
+                self.assertEqual(self.main(), release.EXIT_REFUSED)
+                self.assertEqual(self.result(), 'refused document_invalid')
+                self.assertFalse(self.product_pulls())
 
     # --- refusals before anything runs -------------------------------------------------------------------
     def test_missing_credential_is_refused_before_any_command(self):
-        for names in (('LIWAN_FORGEJO_READ_TOKEN',), ('LIWAN_FORGEJO_READ_USER',),
-                      ('LIWAN_FORGEJO_READ_USER', 'LIWAN_FORGEJO_READ_TOKEN')):
+        for names in (('LIWAN_GHCR_READ_TOKEN',), ('LIWAN_GHCR_READ_USER',),
+                      ('LIWAN_GHCR_READ_USER', 'LIWAN_GHCR_READ_TOKEN')):
             with self.subTest(missing=names):
                 self.log_stream.truncate(0)
                 environ = {key: value for key, value in self.environ.items() if key not in names}
                 self.assertEqual(self.main(environ=environ), release.EXIT_REFUSED)
                 self.assertEqual(self.result(), 'refused missing_credential')
-                self.assertIn('LIWAN_FORGEJO_READ_TOKEN in the job secrets', self.log_stream.getvalue())
+                self.assertIn('LIWAN_GHCR_READ_TOKEN in the job secrets', self.log_stream.getvalue())
         self.assertEqual(self.runner.calls, [])
 
     def test_unknown_environment_and_loose_config_are_refused(self):
@@ -461,7 +480,7 @@ class ReleaseTest(unittest.TestCase):
         self.use_production(OLD, [1, 0, 6])
         self.tags = {'release/19.0.1.0.7': NEW}
         self.document = document(NEW, platforms=('linux/amd64',))
-        self.assertEqual(self.main('run', '--environment', 'production'), release.EXIT_REFUSED)
+        self.assertEqual(self.main('run', '--environment', 'production', '--tag', self.tag), release.EXIT_REFUSED)
         self.assertEqual(self.result(), 'refused document_invalid')
         self.assertIn('has no linux/arm64 image', self.log_stream.getvalue())
         self.assertFalse(self.compose_stops())
@@ -470,31 +489,93 @@ class ReleaseTest(unittest.TestCase):
         self.state = self.paths.state_root / environment
         self.serve(commit, version=version)
 
+    tag = 'release/19.0.1.0.7'
+
     def use_production(self, commit, version):
         self.use_environment('production', commit, version)
 
     # --- production candidate -------------------------------------------------------------------------------
-    def test_production_applies_the_highest_tag_and_resolves_annotated_tags(self):
+    def test_production_applies_exactly_the_given_tag_even_when_a_higher_one_exists(self):
         self.use_production(OLD, [1, 0, 6])
-        self.tags = {'release/19.0.1.0.10': NEW, 'release/19.0.1.0.7': 'c' * 40, 'not-a-release': 'd' * 40}
-        self.assertEqual(self.main('run', '--environment', 'production'), release.EXIT_OK)
+        self.tags = {'release/19.0.1.0.10': 'c' * 40, 'release/19.0.1.0.7': NEW, 'not-a-release': 'd' * 40}
+        self.assertEqual(self.main('run', '--environment', 'production', '--tag', 'release/19.0.1.0.7'), release.EXIT_OK)
         listing = next(call for call in self.runner.calls if 'ls-remote' in call)
-        self.assertEqual(listing[-1], 'refs/tags/release/*')
-        self.assertEqual(json.loads((self.state / 'served.json').read_text())['version'], [1, 0, 10])
+        self.assertEqual(listing[-2], 'refs/tags/release/19.0.1.0.7')
+        self.assertEqual(self.served(), NEW)
+        self.assertEqual(json.loads((self.state / 'served.json').read_text())['version'], [1, 0, 7])
 
     def test_production_refuses_a_lower_or_equal_version(self):
         self.use_production(OLD, [1, 0, 6])
-        for tags in ({'release/19.0.1.0.5': NEW}, {'release/19.0.1.0.6': NEW}):
-            with self.subTest(tags=tags):
-                self.tags = tags
-                self.assertEqual(self.main('run', '--environment', 'production'), release.EXIT_REFUSED)
+        for tag in ('release/19.0.1.0.5', 'release/19.0.1.0.6'):
+            with self.subTest(tag=tag):
+                self.tags = {tag: NEW}
+                self.assertEqual(self.main('run', '--environment', 'production', '--tag', tag), release.EXIT_REFUSED)
                 self.assertEqual(self.result(), 'refused older_candidate')
         self.assertFalse(self.compose_stops())
 
-    def test_production_without_a_tag_has_nothing_to_do(self):
+    def test_production_without_a_tag_is_refused_before_any_command(self):
         self.use_production(OLD, [1, 0, 6])
-        self.assertEqual(self.main('run', '--environment', 'production'), release.EXIT_OK)
-        self.assertEqual(self.result(), 'nothing to do: no release tag exists')
+        self.tags = {'release/19.0.1.0.7': NEW}
+        self.assertEqual(self.main('run', '--environment', 'production'), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused production_tag_required')
+        self.assertEqual(self.runner.calls, [])
+
+    def test_production_resolves_annotated_and_lightweight_tags_to_their_commit(self):
+        for annotated in (True, False):
+            with self.subTest(annotated=annotated):
+                self.runner.calls.clear()
+                self.use_production(OLD, [1, 0, 6])
+                self.tags = {'release/19.0.1.0.7': NEW}
+                self.annotated = {'release/19.0.1.0.7'} if annotated else set()
+                self.assertEqual(self.main('run', '--environment', 'production', '--tag', 'release/19.0.1.0.7'),
+                                 release.EXIT_OK)
+                self.assertEqual(self.served(), NEW)
+                listing = next(call for call in self.runner.calls if 'ls-remote' in call)
+                self.assertEqual(listing[-2:], ['refs/tags/release/19.0.1.0.7', 'refs/tags/release/19.0.1.0.7^{}'])
+                self.assertIn(['docker', 'pull', '--quiet', f'{REGISTRY}/liwan-release:{NEW}'], self.runner.calls)
+
+    def test_staging_resolves_an_annotated_tag_to_its_commit(self):
+        self.use_environment('staging', OLD, [1, 0, 6])
+        self.tags = {'release/19.0.1.0.7': NEW}
+        self.annotated = {'release/19.0.1.0.7'}
+        self.assertEqual(self.main('run', '--environment', 'staging'), release.EXIT_OK)
+        self.assertEqual(self.served(), NEW)
+
+    def test_production_refuses_a_malformed_tag_before_any_command(self):
+        self.use_production(OLD, [1, 0, 6])
+        for tag in ('main', 'release/19.0.1.0', 'release/19.0.1.0.7.1', 'v1.0.7', 'refs/tags/release/19.0.1.0.7', '',
+                    'release/19.0.1.0.7\n', 'release/19.0.\u0661.0.7', 'release/19.0.01.0.7', 'release/19.0.1.0.07'):
+            with self.subTest(tag=tag):
+                self.assertEqual(self.main('run', '--environment', 'production', '--tag', tag), release.EXIT_REFUSED)
+                self.assertEqual(self.result(), 'refused invalid_tag')
+        self.assertEqual(self.runner.calls, [])
+
+    def test_production_refuses_a_tag_that_does_not_exist_before_any_image_is_pulled(self):
+        self.use_production(OLD, [1, 0, 6])
+        self.tags = {'release/19.0.1.0.8': NEW}
+        self.assertEqual(self.main('run', '--environment', 'production', '--tag', 'release/19.0.1.0.7'), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused tag_not_found')
+        self.assertFalse(self.commands('fetch') or self.product_pulls() or self.compose_stops())
+        self.assertFalse([call for call in self.runner.calls if call[:2] == ['docker', 'pull']])
+
+    def test_a_repeated_tag_is_refused_not_last_wins(self):
+        self.use_production(OLD, [1, 0, 6])
+        self.tags = {'release/19.0.1.0.7': NEW, 'release/19.0.1.0.8': 'c' * 40}
+        self.assertEqual(self.main('run', '--environment', 'production', '--tag', 'release/19.0.1.0.7',
+                                   '--tag', 'release/19.0.1.0.8'), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused tag_repeated')
+        self.assertEqual(self.runner.calls, [])
+
+    def test_a_tag_is_refused_for_development_staging_and_the_other_commands(self):
+        self.tags = {'release/19.0.1.0.7': NEW}
+        for argv, reason in ((('run', '--environment', 'development', '--tag', 'release/19.0.1.0.7'), 'tag_not_allowed'),
+                             (('run', '--environment', 'staging', '--tag', 'release/19.0.1.0.7'), 'tag_not_allowed'),
+                             (('rollback', '--environment', 'production', '--tag', 'release/19.0.1.0.7'), 'tag_not_allowed'),
+                             (('status', '--environment', 'production', '--tag', 'release/19.0.1.0.7'), 'tag_not_allowed')):
+            with self.subTest(argv=argv):
+                self.assertEqual(self.main(*argv), release.EXIT_REFUSED)
+                self.assertEqual(self.result(), f'refused {reason}')
+        self.assertEqual(self.runner.calls, [])
 
     # --- staging candidate (the same release channel as production) -----------------------------------------
     def test_development_follows_main_and_never_reads_tags(self):
@@ -522,6 +603,25 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(self.result(), 'refused document_invalid')
         self.assertIn('has no linux/arm64 image', self.log_stream.getvalue())
         self.assertFalse(self.compose_stops())
+
+    def test_an_arm64_server_refuses_an_amd64_only_document(self):
+        self.machine = 'aarch64'
+        self.use_environment('staging', OLD, [1, 0, 6])
+        self.tags = {'release/19.0.1.0.7': NEW}
+        self.document = document(NEW, platforms=('linux/amd64',))
+        self.assertEqual(self.main('run', '--environment', 'staging'), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused document_invalid')
+        self.assertIn('has no linux/arm64 image', self.log_stream.getvalue())
+        self.assertFalse(self.product_pulls() or self.compose_stops())
+
+    def test_the_document_is_pulled_fresh_and_removed_after_every_read(self):
+        for _ in range(2):
+            self.runner.calls.clear()
+            self.assertEqual(self.main(), release.EXIT_OK)
+            image = f'{REGISTRY}/liwan-release:{NEW}'
+            self.assertIn(['docker', 'pull', '--quiet', image], self.runner.calls)
+            self.assertIn(['docker', 'rmi', image], self.runner.calls)
+            self.serve(OLD)
 
     def test_staging_refuses_a_tag_that_is_not_on_main(self):
         self.use_environment('staging', OLD, [1, 0, 6])
@@ -808,13 +908,14 @@ class ReleaseTest(unittest.TestCase):
             self.main()
             self.main()
         logged = '\n'.join(' '.join(call) for call in self.runner.calls) + self.log_stream.getvalue()
-        for secret in (SECRET, BACKUP_SECRET, TOKEN):
+        for secret in (SECRET, BACKUP_SECRET, TOKEN, GITHUB_TOKEN):
             self.assertNotIn(secret, logged)
         for path in self.state.rglob('*.json'):
             self.assertNotIn(TOKEN, path.read_text())
         for call, env, stdin in zip(self.runner.calls, self.runner.envs, self.runner.stdins):
-            if TOKEN in (env or {}).values():
+            if GITHUB_TOKEN in (env or {}).values():
                 self.assertEqual(call[0], 'git')  # only git (through its credential helper) gets the token in its environment
+            self.assertNotIn(TOKEN, (env or {}).values())  # the registry token goes to docker login on stdin only
             if stdin and TOKEN in stdin:
                 self.assertEqual(call[:2], ['docker', 'login'])
                 self.assertEqual(stdin, TOKEN + '\n')
@@ -837,14 +938,50 @@ class ReleaseTest(unittest.TestCase):
         for env in registry_calls:
             self.assertEqual(env['DOCKER_CONFIG'], str(config))
 
-    def test_git_never_prompts_and_uses_only_the_environment_credential_helper(self):
+    def remote_git_calls(self):
+        return [(call, env) for call, env in zip(self.runner.calls, self.runner.envs) if 'credential.helper=' in call]
+
+    def test_no_subprocess_receives_a_token_it_does_not_need(self):
+        self.environ['LIWAN_GITHUB_READ_TOKEN'] = GITHUB_TOKEN
+        self.serve(OLD)
         self.assertEqual(self.main(), release.EXIT_OK)
-        remote = [(call, env) for call, env in zip(self.runner.calls, self.runner.envs) if 'credential.helper=' in call]
+        self.assertTrue(self.runner.calls)
+        for call, env, stdin in zip(self.runner.calls, self.runner.envs, self.runner.stdins):
+            with self.subTest(call=' '.join(call[:4])):
+                self.assertIsNotNone(env, 'a call without an environment would inherit every token')
+                self.assertNotIn('LIWAN_GHCR_READ_TOKEN', env)
+                self.assertNotIn(TOKEN, env.values())
+                if 'credential.helper=' in call:  # git talking to GitHub is the only call that holds the source token
+                    self.assertEqual(env.get('LIWAN_GITHUB_READ_TOKEN'), GITHUB_TOKEN)
+                else:
+                    self.assertNotIn('LIWAN_GITHUB_READ_TOKEN', env)
+                    self.assertNotIn(GITHUB_TOKEN, env.values())
+                self.assertNotIn(GITHUB_TOKEN, ' '.join(call))
+                if stdin and TOKEN in stdin:
+                    self.assertEqual(call[:2], ['docker', 'login'])
+
+    def test_git_without_a_github_token_runs_with_no_credential(self):
+        self.assertEqual(self.main(), release.EXIT_OK)
+        remote = self.remote_git_calls()
         self.assertTrue(remote)
         for call, env in remote:
             self.assertEqual(env['GIT_TERMINAL_PROMPT'], '0')
-            self.assertEqual(env['LIWAN_FORGEJO_READ_TOKEN'], TOKEN)
-            self.assertIn('$LIWAN_FORGEJO_READ_TOKEN', ' '.join(call))  # a reference, never the value
+            self.assertNotIn('LIWAN_GITHUB_READ_TOKEN', env)
+            self.assertEqual([part for part in call if part.startswith('credential.helper=')], ['credential.helper='])
+
+    def test_git_with_a_github_token_gets_it_only_through_the_environment_helper(self):
+        self.environ['LIWAN_GITHUB_READ_TOKEN'] = GITHUB_TOKEN
+        self.assertEqual(self.main(), release.EXIT_OK)
+        remote = self.remote_git_calls()
+        self.assertTrue(remote)
+        for call, env in remote:
+            self.assertEqual(env['GIT_TERMINAL_PROMPT'], '0')
+            self.assertEqual(env['LIWAN_GITHUB_READ_TOKEN'], GITHUB_TOKEN)
+            self.assertIn('$LIWAN_GITHUB_READ_TOKEN', ' '.join(call))  # a reference, never the value
+            self.assertNotIn(GITHUB_TOKEN, ' '.join(call))
+        for call, env in zip(self.runner.calls, self.runner.envs):
+            if call[0] != 'git':
+                self.assertNotIn('LIWAN_GITHUB_READ_TOKEN', env or {})
 
     # --- snapshot, maintenance, worker --------------------------------------------------------------------------
     def test_snapshot_closes_connections_before_copy(self):
@@ -1171,7 +1308,7 @@ class ReleaseTest(unittest.TestCase):
                      environ=self.environ, machine=self.machine)
         logged = self.log_stream.getvalue()
         self.assertIn('db password *** and s3 *** and token ***', logged)
-        for secret in (SECRET, BACKUP_SECRET, TOKEN):
+        for secret in (SECRET, BACKUP_SECRET, TOKEN, GITHUB_TOKEN):
             self.assertNotIn(secret, logged)
 
     def test_quoted_and_url_secrets_are_masked_without_their_quotes_or_user_info(self):
@@ -1191,11 +1328,11 @@ class ReleaseTest(unittest.TestCase):
         self.use_production(OLD, [1, 0, 6])
         self.tags = {'release/19.0.1.0.7': NEW}
         self.on_main = False
-        self.assertEqual(self.main('run', '--environment', 'production'), release.EXIT_REFUSED)
+        self.assertEqual(self.main('run', '--environment', 'production', '--tag', self.tag), release.EXIT_REFUSED)
         self.assertEqual(self.result(), 'refused not_on_main')
         self.assertFalse(self.compose_stops() or self.product_pulls())
         self.on_main = True
-        self.assertEqual(self.main('run', '--environment', 'production'), release.EXIT_OK)
+        self.assertEqual(self.main('run', '--environment', 'production', '--tag', self.tag), release.EXIT_OK)
 
     # --- registry and tenants ---------------------------------------------------------------------------------------
     def test_invalid_registry_entries_are_refused_before_anything_stops(self):

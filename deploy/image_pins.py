@@ -15,7 +15,7 @@ can record:
 
 * A third-party image (``published``) is pinned by the index digest recorded here, and
   the compose file must carry the same digest.
-* An image this repository builds (``released``) is pushed to the private Forgejo registry
+* An image this repository builds (``released``) is pushed to the private GitHub container registry
   named in ``registry`` by ``deploy/ci/publish.sh`` for every ``main`` commit. Its digest
   changes with the commit, so it is recorded in the release document of that commit
   (``liwan-release:<commit>``), never in this file. ``builds`` records how each one is built (Dockerfile, context, build
@@ -58,8 +58,9 @@ COMPOSE_FILES = (
 )
 SCHEMA_VERSION = 1
 DIGEST = re.compile(r'^sha256:[0-9a-f]{64}$')
-# The only registry the publish workflow pushes to: the Forgejo container registry under one lowercase organization.
-REGISTRY = re.compile(r'^git\.liwanos\.com/[a-z0-9]+(?:-[a-z0-9]+)*$')
+# The only registry the publish workflow pushes to: the private GHCR namespace of the repository owner. Every other
+# registry host is refused for LiwanOS images.
+REGISTRY = re.compile(r'^ghcr\.io/tariiq222$')
 # Images the repository builds itself: only these are ours to release. The registry comes
 # from the manifest, so the name carries no registry prefix.
 OWNED_REFERENCE = re.compile(r'^liwan-[a-z0-9-]+$')
@@ -187,7 +188,7 @@ def parse_manifest(document: object) -> Manifest:
              f'schemaVersion must be {SCHEMA_VERSION}')
     registry = document.get('registry')
     _require(isinstance(registry, str) and bool(REGISTRY.match(registry)),
-             'registry is a git.liwanos.com/<lowercase organization> name')
+             'registry is the ghcr.io/tariiq222 namespace')
     entries = document.get('images')
     _require(isinstance(entries, list) and entries, 'images is a non-empty list')
     parsed: list[Entry] = []

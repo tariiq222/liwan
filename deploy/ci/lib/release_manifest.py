@@ -2,10 +2,10 @@
 """The release document ``deploy/ci/publish.sh`` publishes for one commit, and the reader of it.
 
 The document is one JSON file, ``/release.json``, the only file of the scratch image
-``git.liwanos.com/liwanos/liwan-release:<commit>``::
+``ghcr.io/tariiq222/liwan-release:<commit>``::
 
     {"schemaVersion": 1, "commit": "<40 hex>", "release": <deploy/releases/manifest.py document>,
-     "images": {"<reference>": "git.liwanos.com/liwanos/<reference>@sha256:<digest>", ...},
+     "images": {"<reference>": "ghcr.io/tariiq222/<reference>@sha256:<digest>", ...},
      "platforms": {"<reference>": {"linux/amd64": "sha256:<digest>", ...}, ...}}
 
 ``release`` is validated by ``deploy.releases.manifest`` before anything is printed. The release
@@ -16,7 +16,7 @@ published image, including the ones the release manifest format has no field for
 mail relay). ``platforms`` carries, for the same references, the digest of the image of each
 architecture the document covers; every reference covers the same architectures, and a host pulls
 the image of its own architecture. The document has no signature: its trust is the registry write
-credential and the Forgejo ``main`` or ``release/*`` commit it names (plan decision D17).
+credential and the GitHub ``main`` or ``release/*`` commit it names (plan decision D17).
 
 ``parse_release_document`` is the one reader: the release command calls it on the text of
 ``/release.json`` and names the architectures it needs, so a document that lacks one is refused with
@@ -25,6 +25,9 @@ a message that says which.
 Run from the repository root with ``PYTHONPATH=.``::
 
     python3 -B deploy/ci/lib/release_manifest.py --commit <sha> --run-id <id> --images images.json --platforms platforms.json
+
+``--read <file> --commit <sha>`` instead validates an existing ``/release.json`` for that commit and prints its
+``platforms`` map, which is how a release tag reuses the digests the ``main`` publish already recorded.
 """
 from __future__ import annotations
 
@@ -47,7 +50,7 @@ AI_STATE_VERSION = '1'
 # (mode `infrastructure_maintenance`, `oldWritesCompatible: False`), never as evidence that a release is online-safe.
 REVIEWER = 'unreviewed-ci'
 PLATFORMS = ('linux/amd64', 'linux/arm64')
-REGISTRY = 'git.liwanos.com/liwanos'
+REGISTRY = 'ghcr.io/tariiq222'
 COMMIT = re.compile(r'[a-f0-9]{40}')
 DIGEST = re.compile(r'sha256:[a-f0-9]{64}')
 IMAGE = re.compile(re.escape(REGISTRY) + r'/(liwan-[a-z0-9-]+)@sha256:[a-f0-9]{64}')
@@ -97,6 +100,10 @@ def validate_document(document: object, commit: str | None = None, required: tup
     for wanted in required:
         if wanted not in (covered or ()):
             raise ValueError(f'the release document has no {wanted} image (it covers {", ".join(sorted(covered or ())) or "nothing"})')
+    for key, image in (release.get('images') or {}).items() if isinstance(release.get('images'), dict) else ():
+        match = IMAGE.fullmatch(image) if isinstance(image, str) else None
+        if match is None or MANIFEST_IMAGES.get(match.group(1)) != key or images.get(match.group(1)) != image:
+            raise ValueError(f'release.images.{key}: {image!r} is not the {REGISTRY} image the document lists for it')
     if release.get('liwanCommit') != named:
         raise ValueError('the release manifest in the document is for another commit')
     validate_manifest(release)
@@ -137,11 +144,18 @@ def release_document(commit: str, run_id: str, images: dict[str, str], platforms
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=(__doc__ or '').split('\n', 1)[0])
     parser.add_argument('--commit', required=True)
-    parser.add_argument('--run-id', required=True)
-    parser.add_argument('--images', required=True, help='JSON file: reference -> registry image@digest')
-    parser.add_argument('--platforms', required=True,
+    parser.add_argument('--read', help='an existing /release.json: print its platforms map instead of writing a document')
+    parser.add_argument('--run-id')
+    parser.add_argument('--images', help='JSON file: reference -> registry image@digest')
+    parser.add_argument('--platforms',
                         help='JSON file: reference -> {platform: digest}, the same platforms for every reference')
     args = parser.parse_args(argv)
+    if args.read:
+        document = parse_release_document(Path(args.read).read_text(encoding='utf-8'), args.commit)
+        sys.stdout.write(json.dumps(document['platforms']) + '\n')
+        return 0
+    if not (args.run_id and args.images and args.platforms):
+        parser.error('--run-id, --images and --platforms are required unless --read is given')
     images = json.loads(Path(args.images).read_text(encoding='utf-8'))
     platforms = json.loads(Path(args.platforms).read_text(encoding='utf-8'))
     document = release_document(
