@@ -27,12 +27,10 @@
       "newName": "New name"
     },
     "loadMore": "Load more",
-    "retry": "Try again",
     "tags": {
       "add": "Add tag",
       "create": "Create \"{name}\"",
-      "remove": "Remove tag: {name}",
-      "listLabel": "Tags"
+      "remove": "Remove tag: {name}"
     },
     "description": "Description",
     "editor": {
@@ -234,8 +232,7 @@
       "close": "Close",
       "loading": "Loading…",
       "error": "Could not load the list.",
-      "retry": "Try again",
-      "chatEmpty": "No conversations yet.",
+        "chatEmpty": "No conversations yet.",
       "tasksEmpty": "No open tasks. Well done!",
       "meetingsEmpty": "No upcoming meetings.",
       "noDeadline": "No deadline"
