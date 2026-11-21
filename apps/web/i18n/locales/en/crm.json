@@ -138,6 +138,8 @@
         "won": "Sold",
         "moveUp": "Move {name} up",
         "moveDown": "Move {name} down",
+        "readOnlyTitle": "Read-only",
+        "readOnly": "The stages apply to every branch. They are changed in the main company by someone who may manage the CRM settings.",
         "moveHint": "Pick the stage this stage's opportunities move to.",
         "moveTo": "New stage for the opportunities",
         "moveAndArchive": "Move the opportunities and archive the stage",

@@ -108,6 +108,7 @@ class CrmListsController(http.Controller):
     @requires_feature('crm.enabled', operation='write')
     @requires_capability('crm.settings.manage')
     def create_stage(self, **payload):
+        request.env['crm.stage']._liwan_require_manage()
         vals = parse_body(payload, STAGE_FIELDS, creating=True)
         if vals.get('is_won'):
             _unflag_other_won()
@@ -120,6 +121,7 @@ class CrmListsController(http.Controller):
     @requires_feature('crm.enabled', operation='write')
     @requires_capability('crm.settings.manage')
     def order_stages(self, **payload):
+        request.env['crm.stage']._liwan_require_manage()
         ids = parse_order(payload)
         stages = request.env['crm.stage'].search([])
         if sorted(ids) != sorted(stages.ids):
@@ -134,6 +136,7 @@ class CrmListsController(http.Controller):
     @requires_feature('crm.enabled', operation='write')
     @requires_capability('crm.settings.manage')
     def patch_stage(self, stage_id, **payload):
+        request.env['crm.stage']._liwan_require_manage()
         return self._write_stage(get_record('crm.stage', stage_id), parse_body(payload, STAGE_FIELDS, creating=False))
 
     @http.route('/api/v1/crm/stages/<int:stage_id>', type='json2', auth='user', methods=['DELETE'], readonly=False)
@@ -142,6 +145,7 @@ class CrmListsController(http.Controller):
     @requires_capability('crm.settings.manage')
     def archive_stage(self, stage_id, **payload):
         """Archive a stage; `{"move_to": <stage id>}` first moves every opportunity of it to that open stage."""
+        request.env['crm.stage']._liwan_require_manage()
         stage = get_record('crm.stage', stage_id)
         unknown = sorted(set(payload) - {'move_to'})
         if unknown:

@@ -22,6 +22,7 @@ const seed = (): CrmSettings => ({
   values: { visibility: 'own', view_log_enabled: false, view_log_retention_months: 12, discount_allowed: false, discount_max_percent: 0 } as CrmSettings['values'],
   options: {} as CrmSettings['options'],
   distribution_users: [],
+  can_manage_stages: true,
 })
 const privacy = (reload = async () => settings.value) => useCrmSettingsCard({
   settings: () => settings.value,

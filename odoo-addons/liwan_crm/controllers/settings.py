@@ -73,7 +73,10 @@ def _dump_current():
     row = model._liwan_current()
     effective = model._liwan_effective()
     users = request.env['res.users'].browse(effective['distribution_user_ids'])
-    return dump_settings(effective, row.revision if row else 0, users, _lead_properties_definition())
+    return dump_settings(
+        effective, row.revision if row else 0, users, _lead_properties_definition(),
+        request.env['crm.stage']._liwan_can_manage(),
+    )
 
 
 def _existing_company_users(user_ids):

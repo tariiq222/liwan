@@ -47,7 +47,8 @@ async function reloadSettings() {
               <CrmFollowupCard v-if="shows('followup')" :settings="settings.data.value" :can-edit="canManage" :reload-settings="reloadSettings" />
               <CrmDistributionCard v-if="shows('distribution')" :settings="settings.data.value" :can-edit="canManage" :reload-settings="reloadSettings" />
             </div>
-            <CrmStageListCard v-if="shows('stages')" :can-edit="canManage" />
+            <UAlert v-if="shows('stages') && canManage && !settings.data.value.can_manage_stages" color="info" variant="subtle" icon="i-lucide-lock" :title="t('crm.settings.stages.readOnlyTitle')" :description="t('crm.settings.stages.readOnly')" data-testid="crm-stages-readonly" />
+            <CrmStageListCard v-if="shows('stages')" :can-edit="canManage && settings.data.value.can_manage_stages" />
             <div class="grid items-start gap-4 xl:grid-cols-3">
               <CrmOutcomeListCard v-if="shows('outcomes')" :can-edit="canManage" />
               <CrmNamedListCard v-if="shows('lostReasons')" kind="lost-reasons" :title="t('crm.settings.lostReasons.title')" :hint="t('crm.settings.lostReasons.hint')" :can-edit="canManage" />

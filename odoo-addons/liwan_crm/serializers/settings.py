@@ -54,9 +54,10 @@ def dump_terms(effective):
     }
 
 
-def dump_settings(effective, revision, users, lead_properties_definition):
+def dump_settings(effective, revision, users, lead_properties_definition, can_manage_stages):
     """The settings wire shape: values (terms nested), the allowed options, the revision and the names of the
-    distribution agents (`users` is their recordset; the names are read here, never stored)."""
+    distribution agents (`users` is their recordset; the names are read here, never stored). `can_manage_stages` is
+    whether the caller may change the tenant-wide stages, which the settings of one branch do not say."""
     values = {name: effective[name] for name in (
         'preset', *SCALAR_FIELDS, 'distribution_user_ids',
     )}
@@ -68,6 +69,7 @@ def dump_settings(effective, revision, users, lead_properties_definition):
         'distribution_users': [{'id': user.id, 'name': user.name} for user in users],
         'options': dump_options(),
         'revision': revision,
+        'can_manage_stages': can_manage_stages,
     }
 
 

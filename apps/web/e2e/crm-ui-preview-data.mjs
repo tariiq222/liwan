@@ -184,6 +184,7 @@ const dumpSettings = () => ({
   distribution_users: settings.values.distribution_user_ids.map(id => ({ id, name: USER_NAMES[id] ?? `#${id}` })),
   options: OPTIONS,
   revision: settings.revision,
+  can_manage_stages: true,
 })
 const listPage = rows => ({ items: rows, total: rows.length })
 const stale = { status: 409, body: { code: 'conflict', message: 'CRM settings changed; reload before saving' } }
