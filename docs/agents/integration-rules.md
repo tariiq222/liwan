@@ -194,8 +194,7 @@ the two server environments, staging and production.
 
 Owner decision 2026-11-21: the development server environment is
 cancelled. LiwanOS has two server environments, staging and production. «انشر» ends at `main` and nothing follows `main` by itself.
-«انشر على الاستيج» and «انشر على الإنتاج» are unchanged. The development env template, bring-up section A and the development channel of the
-release command are remnants that a later task removes; they are not a working environment. The workflow `.github/workflows/publish.yml`,
+«انشر على الاستيج» and «انشر على الإنتاج» are unchanged. The workflow `.github/workflows/publish.yml`,
 the release command and the server setup are described in `deploy/release/README.md`,
 [environment-bringup.md](../operations/environment-bringup.md) and
 [tooling-server.md](../operations/tooling-server.md).
@@ -206,15 +205,15 @@ the release command and the server setup are described in `deploy/release/README
 | 2. Local commit | none (standing authorization) | the agent | Commit on the task branch with the applicable local checks. |
 | 3. Independent review | none | an independent reviewer | The [review before every push](#independent-review-before-every-push-owner-decision-2026-11-21); confirmed findings are fixed first. |
 | 4. «انشر» | the owner | the agent | Push, PR, current-head `ci-result`, merge, lane return (steps 5 and 6 above). |
-| 5. Push to `main` | nobody | `.github/workflows/publish.yml` | A push to `main` builds the nine images for amd64 only (runner `ubuntu-24.04`) and pushes them with an amd64 release document `ghcr.io/tariiq222/liwan-release:<commit>`. No hook is called and no server is updated. |
-| 6. «انشر على الاستيج» | the owner | the coordinator | After checking that the `main` publish run for the commit has finished and its `main` CI is green, the coordinator creates and pushes `release/19.0.X.Y.Z` on it. arm64 is built only on a tag. On the tag push the workflow checks that the commit is on `main`, builds the arm64 images for it on `ubuntu-24.04-arm` (about 17 to 18 minutes for the nine images, measured), reuses the amd64 digests already published for that commit (it builds them only if missing), republishes the release document covering both architectures and calls the staging hook. Staging therefore waits for that build; Oracle `liwanos-staging` (arm64) then serves the tag. A tag that fails on staging is never promoted; the fix takes the next number. |
+| 5. Push to `main` | nobody | `.github/workflows/publish.yml` | A merge to `main` runs CI only. The publish workflow does not start: no image is built, no release document is published, no hook is called and no server is updated. |
+| 6. «انشر على الاستيج» | the owner | the coordinator | After checking that the `main` CI for the commit is green, the coordinator creates and pushes `release/19.0.X.Y.Z` on it. The publish workflow runs only on a `release/**` tag and builds arm64 only. On the tag push it checks that the commit is on `main`, builds the nine arm64 images on `ubuntu-24.04-arm` (about 17 to 18 minutes, measured), pushes them to private GHCR, publishes the release document and calls the staging hook. Staging therefore waits for that build; Oracle `liwanos-staging` (arm64) then serves the tag. A tag that fails on staging is never promoted; the fix takes the next number. |
 | 7. «انشر على الإنتاج» | the owner, after testing staging | the owner starts the job from Openship; the coordinator prepares and verifies | The job `liwan-production-release` has no hook and no credential on GitHub. It is started with an explicit tag (`release.py run --environment production --tag release/19.0.X.Y.Z`) and never picks the highest tag by itself (owner decision 2026-11-21). It takes only a tag that staging served and passed. Oracle `liwanos-prod` (arm64) serves it. The automatic proof that staging served that tag is not built: the owner and the coordinator confirm it before «انشر على الإنتاج» (an enforced gate is not built). Owner decision in principle, 2026-11-21, on who starts the production and rollback jobs: «نستخدم الايجنت الموجود في اوبن شيب ونضع اليه سليمه له مع ربطه معنا هنا». It is not built: the Openship assistant is still disabled on the tooling server and no agent exists. The hosts `liwanos-prod` and `liwanos-staging` were registered in Openship on 2026-11-21 (SSH from the tooling server only). Until that mechanism is designed and approved, the owner starts the production job from Openship himself. |
 
 Rules of the flow:
 
 - Every server runs the same release command, `deploy/release/release.py run --environment <env>`. It trusts
   GitHub and verifies exactly this: the commit is on GitHub `main` or is a `release/*` tag whose commit is on
-  `main`; the release document's commit matches; the document covers the server's platform; and every digest
+  `main`; the release document's commit matches; the document covers the server's platform (arm64); and every digest
   points into `ghcr.io/tariiq222`. Servers pull from private GHCR with a read-only credential; nothing on GitHub
   or on a runner holds a production credential.
 - Residual risk, stated plainly: the release document is not signed. Anyone with write access to the repository
@@ -222,9 +221,8 @@ Rules of the flow:
   commit; fork pull requests cannot. The mitigation is owner-side and not done: a GitHub tag ruleset protecting
   `release/**`, and write access to the repository kept to the owner (row A0.2 of environment-bringup.md).
   Attestation may be revisited later.
-- Publish runs for one commit are serialized (the concurrency group is keyed on the commit). So there is one release
-  tag per commit, and the tag is pushed only after the `main` publish run for that commit has finished. A `main` run never downgrades a document that already covers
-  both architectures.
+- Publish runs for one commit are serialized (the concurrency group is keyed on the commit), and the workflow runs only on a
+  `release/**` tag, so a release document exists only for a tagged commit.
 - A pull request never triggers the publish workflow, so pull-request code never reaches the registry or a hook.
 - Packages in GHCR stay private always, also while the repository is public. The mechanism: the publish workflow
   refuses to push unless each of the ten packages already exists and is private; it never creates one (owner-side
@@ -259,6 +257,10 @@ Keep the PR in draft while its diff, applicable local checks and review notes ar
 being prepared. Mark it ready once the candidate is stable, and batch related
 review fixes before pushing again. If a selected check fails, read that job
 first and reproduce the failure locally when needed to diagnose or verify the fix.
+
+CI reruns (owner decision 2026-11-21, from PR #799): when a check fails and no code change is needed (a flaky or
+infrastructure failure), rerun only the failed jobs with `gh run rerun <run-id> --failed`, never the whole run.
+When a fix commit is needed, say before pushing which stages will repeat, and make it one push that carries all the fixes.
 
 For a [sensitive change](#sensitive-change-and-batching-single-definitions), the pre-push review also focuses on
 those boundaries. Include evidence for the relevant refusal or failure paths and name
@@ -298,7 +300,7 @@ Publishing a `release/19.0.X.Y.Z` tag requires explicit owner authorization and
 all thirteen `ci` stage groups, every matrix job and `ci-result`, green in a full
 run on that exact `main` commit, with no skipped groups. Inspect the existing
 immutable tags before choosing the next final numeric component. Scoped PR CI
-does not prove a full release run. The tag is created only on a commit whose `main` publish run has finished
+does not prove a full release run. The tag is created only on a commit whose full `main` CI run is green
 ([flow](#from-task-branch-to-each-environment-owner-decision-2026-11-21), step 6). Release tags do not alter addon schema
 versions or authorize production deployment; those retain their own checks and
 authorization.
