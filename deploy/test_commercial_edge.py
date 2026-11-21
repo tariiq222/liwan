@@ -45,6 +45,11 @@ ENV = {
 }
 
 
+def _clean_environment() -> dict:
+    """The shell environment wins over `--env-file`, so drop the variables the env file sets before running compose."""
+    return {k: v for k, v in os.environ.items() if not k.startswith(('LIWAN_', 'ODOO_', 'POSTGRES_'))}
+
+
 def render(files: tuple[str, ...], extra: dict | None = None) -> dict:
     if not shutil.which('docker') or subprocess.run(['docker', 'compose', 'version'], capture_output=True, timeout=60).returncode:
         raise unittest.SkipTest('docker compose unavailable')
@@ -56,7 +61,7 @@ def render(files: tuple[str, ...], extra: dict | None = None) -> dict:
             ['docker', 'compose', '--env-file', str(envfile), *[a for f in files for a in ('-f', str(DEPLOY / f))],
              'config', '--format', 'json'],
             capture_output=True, text=True, timeout=60, cwd=ROOT,
-            env={k: v for k, v in os.environ.items() if not k.startswith(('LIWAN_', 'ODOO_', 'POSTGRES_'))})
+            env=_clean_environment())
     if result.returncode:
         raise AssertionError(result.stderr)
     return json.loads(result.stdout)
@@ -95,10 +100,48 @@ class ComposeWiring(unittest.TestCase):
                     self.assertFalse(inside and mount.get('read_only'), f'{name}: {target} is inside read-only {parent}')
 
     def test_a_missing_source_stops_compose_instead_of_creating_a_host_directory(self) -> None:
-        services = render(COMPOSE_FILES, {'CONTROL_WEBHOOK_DOMAIN': HOOK_HOST})['services']
-        for name, target in (('web', CA_TARGET), ('proxy', CA_TARGET), ('proxy', WEBHOOK_TARGET), ('proxy', ADMIN_TARGET)):
-            bind = mounts(services[name])[target].get('bind', {})
-            self.assertIs(bind.get('create_host_path'), False, f'{name} {target}')
+        """Run `compose create` on a copy of the overlay with one source absent. Compose versions differ in whether `config`
+        prints `create_host_path: false`, so only the behavior is asserted: the create fails and no path appears.
+        Each case gets a fresh directory: a source deleted after a successful create can stay visible to the Docker file share."""
+        image = _caddy_image()
+        sources = {'private/control-ca.pem': ('web', 'proxy'), 'control-plane/Caddyfile.snippet': ('proxy',),
+                   'vendor-admin/Caddyfile.snippet': ('proxy',)}
+
+        def create(services: tuple[str, ...], absent: str | None) -> tuple[subprocess.CompletedProcess, bool]:
+            with tempfile.TemporaryDirectory() as tmp:
+                project = Path(tmp)
+                for source in sources:
+                    if source != absent:
+                        (project / source).parent.mkdir(parents=True, exist_ok=True)
+                        (project / source).write_text('x\n', encoding='utf-8')
+                (project / 'private').mkdir(exist_ok=True)
+                shutil.copy(DEPLOY / 'docker-compose.shared-commercial.yml', project)
+                (project / 'base.yml').write_text('services:\n' + ''.join(
+                    f'  {name}:\n    image: {image}\n    entrypoint: ["true"]\n' for name in ('guard', 'web', 'proxy')), encoding='utf-8')
+                # The overlay's external networks are not what is under test; drop them so `create` reaches the mounts.
+                (project / 'no-networks.yml').write_text(
+                    'services:\n  web:\n    networks: !reset null\n  proxy:\n    networks: !reset null\nnetworks: !reset null\n', encoding='utf-8')
+                envfile = project / 'dummy.env'
+                envfile.write_text(''.join(f'{k}={v}\n' for k, v in
+                                           {**ENV, 'LIWAN_CONTROL_PRIVATE_DIR': str(project / 'private')}.items()), encoding='utf-8')
+                files = [a for f in ('base.yml', 'docker-compose.shared-commercial.yml', 'no-networks.yml') for a in ('-f', str(project / f))]
+                base = ['compose', '--env-file', str(envfile), '-p', f'liwan-edge-mounts-{os.getpid()}', *files]
+                def run(*args: str) -> subprocess.CompletedProcess:
+                    return subprocess.run(['docker', *base, *args], capture_output=True, text=True, timeout=120, env=_clean_environment())
+
+                try:
+                    result = run('create', *services)
+                finally:
+                    run('down', '--remove-orphans')
+                return result, bool(absent) and (project / absent).exists()
+
+        present, _ = create(('web', 'proxy'), None)
+        self.assertEqual(present.returncode, 0, f'every source present must create: {present.stderr}')
+        for source, services in sources.items():
+            for service in services:
+                result, appeared = create((service,), source)
+                self.assertNotEqual(result.returncode, 0, f'{service} created with {source} missing')
+                self.assertFalse(appeared, f'{service} created a host path at {source}')
 
     def test_web_and_proxy_start_with_the_rendered_mounts(self) -> None:
         """Create real containers (read-only root, the rendered mounts, sources made real) so a mount that the runtime refuses fails here."""
