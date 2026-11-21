@@ -380,7 +380,6 @@
         "noSenderHint": "Add an active voice sender first.",
         "sender": "Voice number",
         "senderPlaceholder": "Choose the number",
-        "to": "Recipient number",
         "mode": "Call type",
         "modeSpeak": "Spoken text",
         "modeBridge": "Connect two numbers",

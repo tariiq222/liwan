@@ -59,9 +59,15 @@ function clearFilters() {
   view.value = 'active'
 }
 
-// One read per channel says whether it has any active sender, whatever the table is filtered to.
-const perChannel = computed(() => Object.fromEntries(CHANNELS.value.map(channel => [channel, useIntegrationSenders({ channel, active: true, page: 1 }, () => connectedAccounts.value.length > 0)]))) as ComputedRef<Record<IntegrationSenderChannel, ReturnType<typeof useIntegrationSenders>>>
-const channelsWithoutSender = computed(() => (connectedAccounts.value.length ? CHANNELS.value.filter(channel => perChannel.value[channel].isSuccess.value && perChannel.value[channel].data.value?.total === 0) : []))
+// One read per channel says whether it has any active sender, whatever the table is filtered to. Each composable is
+// called once at setup (a query observer per channel, never recreated): the sms and whatsapp reads wait for a
+// connected account, and the voice read also waits for `hasVoice`, so a provider without voice holds no voice query.
+const perChannel: Record<IntegrationSenderChannel, ReturnType<typeof useIntegrationSenders>> = {
+  sms: useIntegrationSenders({ channel: 'sms', active: true, page: 1 }, () => connectedAccounts.value.length > 0),
+  whatsapp: useIntegrationSenders({ channel: 'whatsapp', active: true, page: 1 }, () => connectedAccounts.value.length > 0),
+  voice: useIntegrationSenders({ channel: 'voice', active: true, page: 1 }, () => hasVoice.value && connectedAccounts.value.length > 0),
+}
+const channelsWithoutSender = computed(() => (connectedAccounts.value.length ? CHANNELS.value.filter(channel => perChannel[channel].isSuccess.value && perChannel[channel].data.value?.total === 0) : []))
 
 const update = useUpdateIntegrationSender()
 const archive = useArchiveIntegrationSender()

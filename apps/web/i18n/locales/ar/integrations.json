@@ -380,7 +380,6 @@
         "noSenderHint": "أضف مرسل صوت نشطًا أولًا.",
         "sender": "رقم الصوت",
         "senderPlaceholder": "اختر الرقم",
-        "to": "رقم المستلم",
         "mode": "نوع المكالمة",
         "modeSpeak": "نص منطوق",
         "modeBridge": "توصيل رقمين",
