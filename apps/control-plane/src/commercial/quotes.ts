@@ -123,10 +123,9 @@ async function quoteForCustomerOn(client: PoolClient, value: QuoteInput, now: Da
     current = await pricingOf(client, applied)
 
   }
-  // A change against the subscription's own pinned revision stays quotable after that
-  // revision is withdrawn from new sales; only a new sale requires a sellable plan.
-  const pinnedChange = input.kind === 'change' && Boolean(s?.applied_revision_id)
-  const sources = await loadQuoteSources(client, value.customer_id, input, !pinnedChange)
+  // A change keeps quoting against the revisions the subscription already applied after they are
+  // withdrawn from new sales; every other revision, and every revision of a new sale, must be sellable.
+  const sources = await loadQuoteSources(client, value.customer_id, input, input.kind === 'change' ? applied : null)
   if (value.previewTerms) {
     if (value.previewTerms.customer_id !== value.customer_id) throw bad('not_found', 'customer_id', 404)
     sources.terms = value.previewTerms
