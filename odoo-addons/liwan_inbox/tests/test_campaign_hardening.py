@@ -44,6 +44,18 @@ class TestCampaignSendClaim(CampaignCase):
         self.assertFalse(message.exists())
         self.assertEqual((recipient.state, recipient.dispatched_at), ('pending', False))
 
+    def test_a_message_with_a_send_marker_is_left_to_the_interrupted_send_settlement(self):
+        campaign, (marked, plain) = self.queued(2)
+        marked.message_id.write({'send_token': 'abc', 'send_started_at': fields.Datetime.now() - timedelta(hours=2)})
+        campaign.action_pause()
+        self.run_campaigns()
+        self.assertTrue(marked.message_id.exists())
+        self.assertNotEqual(marked.state, 'pending')
+        self.assertFalse(plain.message_id.exists())
+        self.assertEqual((plain.state, plain.dispatched_at), ('pending', False))
+        self.env[Message]._liwan_settle_interrupted_sends()
+        self.assertEqual((marked.message_id.delivery_state, marked.message_id.unconfirmed), ('failed', True))
+
     def test_the_send_rechecks_that_the_campaign_is_still_running(self):
         campaign, (recipient,) = self.queued()
         campaign.action_pause()

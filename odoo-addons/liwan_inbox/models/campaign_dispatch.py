@@ -53,11 +53,15 @@ class LiwanInboxCampaignDispatch(models.Model):
 
     @api.model
     def _liwan_release_inactive(self):
-        """Delete the never-sent, queued messages of paused and cancelled campaigns, so their recipients are pending again and uncounted."""
+        """Delete the never-sent, queued messages of paused and cancelled campaigns, so their recipients are pending again and uncounted.
+
+        A message that still holds a send marker may already be at the provider (a worker died mid-send); it stays for
+        the outbox's interrupted-send settlement, which marks it unconfirmed and fails its recipient instead of resending.
+        """
         inactive = self.search([('state', 'in', ('paused', 'cancelled'))])
         queued = self.env['liwan.inbox.message'].search([
             ('campaign_recipient_ids.campaign_id', 'in', inactive.ids), ('delivery_state', '=', 'queued'),
-            ('provider_message_id', '=', False),
+            ('provider_message_id', '=', False), ('send_token', '=', False),
         ])._liwan_lock_available()  # a message the outbox is sending right now stays; the next run reaches it
         recipients = queued.campaign_recipient_ids
         queued.unlink()
