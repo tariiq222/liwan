@@ -5,6 +5,7 @@ import { transaction } from '../db.js'
 import { lockTenantJobs } from '../shared/job-store.js'
 import { appliedDeliveryTarget, enqueueAppliedDelivery } from './delivery-target.js'
 import { CommercialHttpError } from './lifecycle.js'
+import { tenantRetiringSql } from './tenant-deletion-read.js'
 
 type Q = Pick<Pool, 'query'>
 
@@ -55,13 +56,14 @@ export async function observeTenantNext(client: Q, tenantId: string) {
 /**
  * Queues an AI-only push (`ai_push`) of the live AI keys to the customer's tenant, authorised by the order that applied
  * its current revision. Returns false only when there is nothing to push to (no tenant, applied revision, binding or
- * applying order). Every job reads the live values when it is claimed, so one queued, dispatchable push is always
+ * applying order, or a workspace being deleted: nothing may act on it any more and the database refuses its new jobs). Every job reads the live values when it is claimed, so one queued, dispatchable push is always
  * enough: if one already exists for this binding and revision, none is added. The tenant lock is taken before anything
  * is read, the same lock a claim and a completion take, so a ledger event and a worker cannot miss each other.
  */
 export async function pushAiEntitlement(client: PoolClient, customerId: string): Promise<boolean> {
   const subscription = (await client.query('SELECT id,tenant_id FROM subscriptions WHERE customer_id=$1', [customerId])).rows[0]
   if (!subscription?.tenant_id) return false
+  if ((await client.query(`SELECT ${tenantRetiringSql('$1')} AS retiring`, [customerId])).rows[0].retiring) return false
   await lockTenantJobs(client, subscription.tenant_id)
   const target = await appliedDeliveryTarget(client, subscription.id, 'applied')
   if (!target?.binding || !target.order) {

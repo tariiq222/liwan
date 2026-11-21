@@ -330,6 +330,19 @@ suite('AI balance top-up: quote, payment, ledger, delivery, refund', () => {
     expect(jobsNow.at(-1).authority.entitlement.features).toMatchObject({ 'ai.allowance.trial': 266_666, 'ai.balance.granted': 666_666 })
   })
 
+  it('a changed allowance skips a workspace being deleted and still reaches the others', async () => {
+    const [gone, kept] = [await customer(), await customer()]
+    for (const id of [gone, kept]) { const o = (await order(id, newRequest(free, 2500))).order; await pay(id, o.id); await apply(o.id) }
+    await pool.query(`INSERT INTO tenant_deletion_requests(id,customer_id,state,requested_at,requested_by,confirmed_at,confirmed_by,due_at,due_marked_at,hold_until,deleting_at,plan,plan_digest,renewal_outcome,renewal_refusal)
+      VALUES($1,$2,'deleting',now(),'t',now(),'t',now(),now(),now(),now(),'{}'::jsonb,$3,'not_cancellable','no_subscription')`, [randomUUID(), gone, 'a'.repeat(64)])
+    const [goneBefore, keptBefore] = [(await jobs(gone)).length, (await jobs(kept)).length]
+    const r = await routesB(pool, { method: 'PATCH', pathname: '/v1/commercial/ai-billing-settings', raw: JSON.stringify({ trial_allowance_minor: 1000, reason: `Allowance ${randomUUID()}` }), issuer: 't', actor: 7, capabilities: caps, stepUpFresh: true },
+      new URL('http://localhost/v1/commercial/ai-billing-settings'))
+    expect((r!.data as any).trial_allowance_minor).toBe(1000)
+    expect((await jobs(gone)).length).toBe(goneBefore)
+    expect((await jobs(kept)).length).toBe(keptBefore + 1)
+  })
+
   it('a restore from a backup older than the top-up is repaired, and a current tenant is ready', async () => {
     const id = await customer()
     const o = (await order(id, newRequest(free, 2500))).order
