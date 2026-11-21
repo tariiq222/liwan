@@ -11,8 +11,13 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_feature,
 )
 from odoo.addons.liwan_integrations_sa.controllers.helpers import (
+    Q_MAX,
+    TO_MAX,
     check_fields,
     not_found,
+    positive_int,
+    query_date,
+    query_int,
     reject,
 )
 from odoo.addons.liwan_integrations_sa.models.constants import FEATURE, MANAGE
@@ -26,19 +31,6 @@ TEST_ORIGIN = 'test'
 # The fixed Arabic sentence the speak test speaks when the caller gives no text of their own.
 TEST_TEXT = 'مرحبًا، هذه مكالمة تجريبية من ليوان.'
 CALL_STATE_KEYS = {'initiated', 'ringing', 'in_progress', 'completed', 'busy', 'no_answer', 'failed', 'canceled', 'unconfirmed'}
-TO_MAX = 32
-
-
-def _query_date(args, key):
-    raw = args.get(key)
-    if raw is None:
-        return None
-    # The contract promises `YYYY-MM-DD` (z.iso.date), so the full datetime spelling is refused.
-    try:
-        parsed = datetime.strptime(raw, '%Y-%m-%d').date()
-    except ValueError:
-        reject(f'{key} must be a date (YYYY-MM-DD)', key)
-    return parsed
 
 
 def _query_state(args):
@@ -60,7 +52,7 @@ class IntegrationVoiceController(http.Controller):
         check_fields(payload, {'sender_id', 'to', 'mode', 'text', 'agent_number', 'language'}, required=('to', 'mode'))
         Voice = request.env['liwan.integration.voice']
         mode = payload['mode']
-        sender_id = payload.get('sender_id')
+        sender_id = positive_int(payload['sender_id'], 'sender_id') if 'sender_id' in payload else None
         if mode == 'speak':
             if 'agent_number' in payload:
                 reject('agent_number belongs to a bridge call', 'agent_number')
@@ -101,12 +93,10 @@ class IntegrationVoiceController(http.Controller):
         state = _query_state(args)
         if state:
             domain.append(('state', '=', state))
-        sender_id = args.get('sender_id')
+        sender_id = query_int(args, 'sender_id')
         if sender_id is not None:
-            if not sender_id.isdigit() or int(sender_id) <= 0:
-                reject('sender_id must be a positive integer', 'sender_id')
-            domain.append(('sender_id', '=', int(sender_id)))
-        date_from, date_to = _query_date(args, 'date_from'), _query_date(args, 'date_to')
+            domain.append(('sender_id', '=', sender_id))
+        date_from, date_to = query_date(args, 'date_from'), query_date(args, 'date_to')
         if date_from and date_to and date_from > date_to:
             reject('date_from must not be after date_to', 'date_from')
         if date_from:
@@ -115,8 +105,8 @@ class IntegrationVoiceController(http.Controller):
             domain.append(('create_date', '<=', datetime.combine(date_to, time.max)))
         q = (args.get('q') or '').strip()
         if q:
-            if len(q) > 32:
-                reject('q must be at most 32 characters', 'q')
+            if len(q) > Q_MAX:
+                reject(f'q must be at most {Q_MAX} characters', 'q')
             domain.append(('to', 'ilike', q))
         Call = request.env['liwan.integration.call']
         calls = Call.search(domain, order='id desc', limit=limit, offset=offset)

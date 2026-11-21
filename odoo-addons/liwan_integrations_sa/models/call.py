@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import timedelta
+
 from dateutil.relativedelta import relativedelta
 
 from odoo import api, fields, models
@@ -13,11 +15,16 @@ STATES = [
     ('unconfirmed', 'Unconfirmed'),
 ]
 # A row in these states may still reach the provider: it holds its connection (the plan's "non-final"
-# meaning for the connection-in-use check: every state but the four final ones).
+# meaning for the connection-in-use check: every state but the four final ones). A row holds it only
+# with a provider call id: without one no callback can ever match the row, so it can never reach the
+# provider's end.
 PENDING_STATES = ('initiated', 'ringing', 'in_progress', 'unconfirmed')
 CALLBACK_KIND = 'call-status'
 RECORDING_CALLBACK_KIND = 'recording-status'
 ERROR_TEXT_LENGTH = 200
+# A call spends at most the client's connect and read timeouts; a younger no-id row may still be on
+# its way to the provider (the same reasoning as the messages' ``STALE_SEND_AFTER``).
+STALE_CALL_AFTER = timedelta(seconds=60)
 PURGE_BATCH = 1000
 RETENTION = relativedelta(months=24)
 
@@ -106,6 +113,22 @@ class LiwanIntegrationCall(models.Model):
         })
 
     @api.model
+    def _liwan_settle_interrupted_calls(self):
+        """Turn an old ``initiated`` row with no provider call id into ``unconfirmed`` (cron, root user).
+
+        The row is committed before the provider is called (D5); a crash or timeout between that commit
+        and the call leaves a row the callbacks can never match. It stays ``unconfirmed`` on the log and
+        holds its connection no longer.
+        """
+        self.search([
+            ('state', '=', 'initiated'), ('provider_call_id', '=', False),
+            ('create_date', '<', fields.Datetime.now() - STALE_CALL_AFTER),
+        ]).write({
+            'state': 'unconfirmed', 'error_code': 'interrupted',
+            'error_message': self.env._('The call was placed but no result was recorded; check the call log.'),
+        })
+
+    @api.model
     def _liwan_purge_old(self):
         """Delete the call rows older than the 24 months the log is kept, in batches (daily cron, root user).
 
@@ -128,7 +151,7 @@ class LiwanIntegrationCall(models.Model):
         self.ensure_one()
         module = providers.MODULES[self.provider]
         if kind == RECORDING_CALLBACK_KIND:
-            values = module.recording_status(params, self.state)
+            values = module.recording_status(params, has_recording_ref=bool(self.recording_ref))
         elif kind == CALLBACK_KIND:
             values = module.call_status(params, self.state)
         else:

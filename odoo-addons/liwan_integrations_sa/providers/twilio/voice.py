@@ -14,13 +14,6 @@ from odoo.addons.liwan_integrations_sa.providers import errors
 CALLS_PATH = '/Calls'
 # The status callback events the log follows; `completed` arrives for every outcome.
 CALLBACK_EVENTS = ('initiated', 'ringing', 'answered', 'completed')
-RECORDING_CALLBACK_EVENT = 'completed'
-# How a callback status moves a log row: only forward. `in-progress` is Twilio's spelling of the
-# answered state; `completed` is the terminal row even when the call ended busy or unanswered
-# (the reason travels in the terminal statuses, `CallDuration` carries the seconds).
-CALL_STATUSES = ('initiated', 'ringing', 'in_progress', 'completed', 'busy', 'no_answer', 'failed', 'canceled', 'unconfirmed')
-# A row in these states may still reach the provider: the call is on Twilio's side.
-PENDING_STATES = ('initiated', 'ringing', 'in_progress', 'unconfirmed')
 FINAL_STATES = ('completed', 'busy', 'no_answer', 'failed', 'canceled')
 PROVIDER_TO_STATE = {
     'queued': 'initiated', 'initiated': 'initiated', 'ringing': 'ringing', 'in-progress': 'in_progress',
@@ -35,7 +28,6 @@ SAY_VOICES = {
     'ar-AE': ('Polly.Hala-Neural', 'ar-AE'),
 }
 DEFAULT_LANGUAGE = 'ar'
-SPEAK_TEXT_MAX = 500
 
 
 def _first(params, name):
@@ -113,13 +105,15 @@ def call_status(params, state):
     return values
 
 
-def recording_status(params, state):
-    """The recording reference a ``recording-status`` callback stores on a row, or None.
+def recording_status(params, has_recording_ref=False):
+    """The recording values a ``recording-status`` callback stores on a row, or None.
 
     Only the SID and the seconds are kept (D7): no audio is fetched. A callback for a recording
-    Twilio reports ``absent`` leaves nothing to store.
+    Twilio reports ``absent`` leaves nothing to store. Twilio sends ``recording-status`` once, so a
+    callback is stored whenever the row has no recording reference yet, whatever the call's state —
+    a callback that arrives before the call's ``completed`` would otherwise be dropped forever.
     """
-    if state not in FINAL_STATES:
+    if has_recording_ref:
         return None
     sid = _first(params, 'RecordingSid')
     if not sid:

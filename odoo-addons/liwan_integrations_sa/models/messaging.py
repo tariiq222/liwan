@@ -1,11 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import re
 
-import phonenumbers
-
 from odoo import api, fields, models
 
 from .message import BODY_MAX, PENDING_STATES, RETRY_STATES
+from .phone import normalize_phone
 from .registry import SENDER_USES
 from .sender import CHANNEL_CAPABILITIES
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
@@ -60,7 +59,7 @@ class LiwanIntegrationMessaging(models.AbstractModel):
         if channel not in MESSAGING_CHANNELS:
             refuse('invalid', self.env._('The channel must be SMS or WhatsApp.'), field='channel')
         self._liwan_check_content(body, content_sid, content_variables)
-        number = self._liwan_normalize(to, company)
+        number = normalize_phone(self.env, to, company)
         resolved = self._liwan_resolve_sender(channel, sender)
         return self._liwan_queue(company, resolved, {
             'channel': channel, 'to': number, 'origin': origin, 'body': body or False,
@@ -119,18 +118,6 @@ class LiwanIntegrationMessaging(models.AbstractModel):
             for key, value in content_variables.items()
         ):
             refuse('invalid', self.env._('Template variables are a map of names to text.'), field='content_variables')
-
-    @api.model
-    def _liwan_normalize(self, to, company):
-        """``to`` as E.164; a local number is read in the company's country."""
-        region = company.country_id.code or None
-        try:
-            parsed = phonenumbers.parse(to, region) if isinstance(to, str) and to.strip() else None
-        except phonenumbers.NumberParseException:
-            parsed = None
-        if not parsed or not phonenumbers.is_valid_number(parsed):
-            refuse('invalid_phone', self.env._('The phone number is not valid.'), field='to')
-        return phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
 
     @api.model
     def _liwan_resolve_sender(self, channel, sender=None, required=False):

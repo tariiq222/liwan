@@ -12,12 +12,16 @@ from odoo.addons.liwan_api.controllers.common import (
 )
 from odoo.addons.liwan_integrations_sa import providers
 from odoo.addons.liwan_integrations_sa.controllers.helpers import (
+    Q_MAX,
+    TO_MAX,
     check_fields,
     find_connection,
     not_found,
     positive_int,
     provider_failure,
     query_connection_id,
+    query_date,
+    query_int,
     reject,
 )
 from odoo.addons.liwan_integrations_sa.models.constants import FEATURE, MANAGE
@@ -34,21 +38,7 @@ LOG_READ = 'integrations.log.read'
 TEST_ORIGIN = 'test'
 TEST_FIELDS = {'sender_id', 'to', 'content_sid', 'content_variables'}
 TEST_BODY = 'رسالة تجريبية من ليوان: الربط مع مزود الرسائل يعمل.'
-TO_MAX = 32
-Q_MAX = 32
 STATE_KEYS = tuple(key for key, _label in STATES)
-
-
-def _query_date(args, key):
-    raw = args.get(key)
-    if raw is None:
-        return None
-    # The contract promises `YYYY-MM-DD` (z.iso.date), so the full datetime spelling is refused.
-    try:
-        parsed = datetime.strptime(raw, '%Y-%m-%d').date()
-    except ValueError:
-        reject(f'{key} must be a date (YYYY-MM-DD)', key)
-    return parsed
 
 
 class IntegrationMessagingController(http.Controller):
@@ -122,12 +112,10 @@ class IntegrationMessagingController(http.Controller):
             if state not in STATE_KEYS:
                 reject(f'state must be one of {", ".join(STATE_KEYS)}', 'state')
             domain.append(('state', '=', state))
-        sender_id = args.get('sender_id')
+        sender_id = query_int(args, 'sender_id')
         if sender_id is not None:
-            if not sender_id.isdigit() or int(sender_id) <= 0:
-                reject('sender_id must be a positive integer', 'sender_id')
-            domain.append(('sender_id', '=', int(sender_id)))
-        date_from, date_to = _query_date(args, 'date_from'), _query_date(args, 'date_to')
+            domain.append(('sender_id', '=', sender_id))
+        date_from, date_to = query_date(args, 'date_from'), query_date(args, 'date_to')
         if date_from and date_to and date_from > date_to:
             reject('date_from must not be after date_to', 'date_from')
         if date_from:

@@ -12,6 +12,7 @@ from . import (  # isort: skip
     call,
     lookup,
     messaging,
+    phone,
     registry,
     secret,
     sender,

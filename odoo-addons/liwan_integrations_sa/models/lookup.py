@@ -1,9 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-import phonenumbers
-
 from odoo import api, models
 
 from .messaging import refuse
+from .phone import normalize_phone
 from odoo.addons.liwan_integrations_sa import providers
 from odoo.addons.liwan_integrations_sa.providers import errors
 
@@ -34,7 +33,7 @@ class LiwanIntegrationLookup(models.AbstractModel):
             refuse('no_connection', self.env._('Connect a provider account that can look up numbers first.'), field='connection_id')
         use = connection._liwan_use(f'{connection.provider}.lookup')
         self.env['liwan.entitlement.service'].require_read(use['feature_key'])
-        e164 = self._liwan_normalize(number, company)
+        e164 = normalize_phone(self.env, number, company, field='number')
         try:
             answer = providers.MODULES[connection.provider].lookup(
                 connection.external_id, connection._liwan_provider_credentials(), e164, line_type=line_type,
@@ -52,15 +51,3 @@ class LiwanIntegrationLookup(models.AbstractModel):
     def _liwan_lookup_providers(self):
         """The provider codes whose modules implement ``lookup``."""
         return tuple(code for code, module in providers.MODULES.items() if callable(getattr(module, 'lookup', None)))
-
-    @api.model
-    def _liwan_normalize(self, number, company):
-        """``number`` as E.164; a local number is read in the company's country."""
-        region = company.country_id.code or None
-        try:
-            parsed = phonenumbers.parse(number, region) if isinstance(number, str) and number.strip() else None
-        except phonenumbers.NumberParseException:
-            parsed = None
-        if not parsed:
-            refuse('invalid_phone', self.env._('The phone number is not valid.'), field='number')
-        return phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)

@@ -1,9 +1,11 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import timedelta
 from unittest.mock import patch
 from urllib.parse import quote, urlsplit
 
 import requests
 
+from odoo import fields
 from odoo.exceptions import AccessError
 from odoo.tests import new_test_user, tagged
 
@@ -151,11 +153,22 @@ class TestTwilioVoiceProvider(VoiceCase):
 
     def test_a_recording_status_stores_only_the_reference_and_the_seconds(self):
         params = {'RecordingSid': RECORDING_SID, 'RecordingDuration': '40', 'CallSid': CALL_SID}
-        self.assertEqual(twilio_voice.recording_status(params, 'completed'), {
+        self.assertEqual(twilio_voice.recording_status(params), {
             'recorded': True, 'recording_ref': RECORDING_SID, 'recording_duration_seconds': 40,
         })
-        self.assertIsNone(twilio_voice.recording_status(params, 'in_progress'))
-        self.assertIsNone(twilio_voice.recording_status({'CallSid': CALL_SID}, 'completed'))
+        self.assertIsNone(twilio_voice.recording_status({'CallSid': CALL_SID}))
+
+    def test_a_recording_status_is_stored_in_every_call_state_and_only_once(self):
+        params = {'RecordingSid': RECORDING_SID, 'RecordingDuration': '40', 'CallSid': CALL_SID}
+        # Twilio sends `recording-status` once: it must be stored whatever state the call is in,
+        # including before the call's own `completed` arrives.
+        for state in ('initiated', 'ringing', 'in_progress', 'completed'):
+            with self.subTest(state=state):
+                self.assertEqual(twilio_voice.recording_status(params), {
+                    'recorded': True, 'recording_ref': RECORDING_SID, 'recording_duration_seconds': 40,
+                })
+        # A repeat for a row that already keeps a recording changes nothing.
+        self.assertIsNone(twilio_voice.recording_status(params, has_recording_ref=True))
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -179,6 +192,14 @@ class TestVoiceFlow(VoiceCase):
             with self.subTest(status=status):
                 self.assertEqual(self.call_callback(row, self.call_params(row, status)).status_code, 204)
                 self.assertEqual(row.state, 'completed')
+
+    def test_a_bad_sender_id_on_the_test_route_answers_422(self):
+        self.login(self.admin)
+        for payload in ({'sender_id': 'abc'}, {'sender_id': 0}, {'sender_id': -1}, {'sender_id': True}):
+            with self.subTest(sender_id=payload['sender_id']):
+                self.assertError(
+                    self.api('POST', f'{VOICE}/test', {'to': CALLER, 'mode': 'speak', **payload}), 422, 'invalid',
+                )
 
     def test_the_speak_form_carries_the_arabic_voice_and_the_stored_urls(self):
         self.speak()
@@ -239,6 +260,30 @@ class TestVoiceFlow(VoiceCase):
         self.assertEqual(response.status_code, 204)
         row2.invalidate_recordset()
         self.assertEqual((row2.recorded, row2.recording_ref, row2.recording_duration_seconds), (True, RECORDING_SID, 40))
+        response = self.url_open(
+            urlsplit(row2.recording_status_callback_url).path,
+            data={'CallSid': row2.provider_call_id, 'RecordingSid': RECORDING_SID, 'RecordingDuration': '40'},
+            headers={'X-Twilio-Signature': sign(row2.recording_status_callback_url, {
+                'CallSid': row2.provider_call_id, 'RecordingSid': RECORDING_SID, 'RecordingDuration': '40',
+            })}, method='POST',
+        )
+        self.assertEqual(response.status_code, 204)
+        row2.invalidate_recordset()
+        self.assertEqual((row2.recorded, row2.recording_ref, row2.recording_duration_seconds), (True, RECORDING_SID, 40))
+
+    def test_a_recording_callback_before_the_call_completed_is_stored(self):
+        self.env['liwan.integration.settings']._liwan_update(self.env.company, {'record_calls': True})
+        row = self.speak()
+        response = self.url_open(
+            urlsplit(row.recording_status_callback_url).path,
+            data={'CallSid': row.provider_call_id, 'RecordingSid': RECORDING_SID, 'RecordingDuration': '12'},
+            headers={'X-Twilio-Signature': sign(row.recording_status_callback_url, {
+                'CallSid': row.provider_call_id, 'RecordingSid': RECORDING_SID, 'RecordingDuration': '12',
+            })}, method='POST',
+        )
+        self.assertEqual(response.status_code, 204)
+        row.invalidate_recordset()
+        self.assertEqual((row.state, row.recorded, row.recording_ref, row.recording_duration_seconds), ('initiated', True, RECORDING_SID, 12))
 
     def test_the_daily_call_limit_refuses_the_next_call(self):
         self.env['liwan.integration.settings']._liwan_update(self.env.company, {'daily_call_limit': 1})
@@ -436,6 +481,16 @@ class TestVoiceConnectionLifecycle(VoiceCase):
         row.invalidate_recordset()
         self.assertEqual((row.connection_id.id, row.provider, row.account_ref, row.from_value), (False, 'twilio', SID, VOICE_NUMBER))
 
+    def test_a_connection_of_an_initiated_call_without_a_provider_id_deletes(self):
+        # The interrupted row cannot be matched by a callback, so it never holds the connection.
+        row = self.speak()
+        row.write({'provider_call_id': False})
+        self.login(self.admin)
+        self.env['liwan.integration.sender'].search([('connection_id', '=', self.connection.id)]).unlink()
+        self.assertEqual(self.api('DELETE', f'{BASE}/connections/{self.connection.id}').status_code, 204)
+        row.invalidate_recordset()
+        self.assertEqual(row.state, 'initiated')
+
     def test_an_unconfirmed_call_holds_the_connection(self):
         row = self.speak()
         row.write({'state': 'unconfirmed'})
@@ -443,6 +498,38 @@ class TestVoiceConnectionLifecycle(VoiceCase):
         row.write({'state': 'completed'})
         self.env['liwan.integration.sender'].search([('connection_id', '=', self.connection.id)]).unlink()
         self.assertNotIn('twilio.voice', self.env['liwan.integration.registry']._liwan_connection_uses(self.connection))
+
+    def test_a_row_without_a_provider_call_id_holds_no_connection_and_settles_as_interrupted(self):
+        # A committed row whose provider call never got an id can never be matched by a callback:
+        # it holds no connection, and the cron settles it as unconfirmed once it is stale.
+        row = self.Call.create({
+            'company_id': self.env.company.id, 'provider': 'twilio', 'account_ref': SID, 'from_value': VOICE_NUMBER,
+            'to': CALLER, 'mode': 'speak', 'speak_text': 'مرحبًا', 'origin': 'test', 'connection_id': self.connection.id,
+        })
+        self.assertFalse(self.Voice._liwan_has_pending(self.connection))
+        self.Call._liwan_settle_interrupted_calls()
+        row.invalidate_recordset()
+        self.assertEqual(row.state, 'initiated', 'a fresh no-id row is left alone')
+        self.env.cr.execute(
+            "UPDATE liwan_integration_call SET create_date = %s WHERE id = %s",
+            (fields.Datetime.to_string(fields.Datetime.now() - timedelta(seconds=90)), row.id),
+        )
+        self.env.flush_all()
+        row.invalidate_recordset()
+        self.Call._liwan_settle_interrupted_calls()
+        row.invalidate_recordset()
+        self.assertEqual((row.state, row.error_code), ('unconfirmed', 'interrupted'))
+        self.assertFalse(self.Voice._liwan_has_pending(self.connection))
+        # A row that already carries its provider id is never settled, whatever its age.
+        placed = self.speak()
+        self.assertTrue(self.Voice._liwan_has_pending(self.connection))
+        self.env.cr.execute(
+            "UPDATE liwan_integration_call SET create_date = %s WHERE id = %s",
+            (fields.Datetime.to_string(fields.Datetime.now() - timedelta(seconds=90)), placed.id),
+        )
+        self.Call._liwan_settle_interrupted_calls()
+        placed.invalidate_recordset()
+        self.assertEqual((placed.state, placed.error_code), ('initiated', False))
 
     def test_an_arabic_sentence_is_spoken_with_an_arabic_voice_and_cannot_inject_twiml(self):
         text = 'أهلًا <بك> بالواجهة'

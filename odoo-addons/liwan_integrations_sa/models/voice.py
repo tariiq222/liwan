@@ -1,13 +1,13 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import logging
 
-import phonenumbers
-
 from odoo import api, fields, models
 
 from .call import PENDING_STATES
 from .messaging import ELEVATED_MODELS, refuse
+from .phone import normalize_phone
 from .registry import SENDER_USES
+from .sender import CHANNEL_CAPABILITIES
 from odoo.addons.liwan_integrations_sa import providers
 from odoo.addons.liwan_integrations_sa.providers import errors
 from odoo.addons.liwan_integrations_sa.providers.twilio import voice as twilio_voice
@@ -70,9 +70,17 @@ class LiwanIntegrationVoice(models.AbstractModel):
 
     @api.model
     def _liwan_has_pending(self, connection):
-        """Whether a call on ``connection`` may still reach the provider (not in a final state, not unconfirmed)."""
+        """Whether a call on ``connection`` may still reach the provider.
+
+        A row is pending only in a non-final state with a provider call id: a row without one can
+        never be matched by a callback, so it can never reach the provider's end and must not hold
+        the connection (the interrupted-calls cron settles those rows).
+        """
         return bool(self._liwan_elevated('liwan.integration.call').search_count(
-            [('connection_id', '=', connection.id), ('state', 'in', PENDING_STATES)], limit=1,
+            [
+                ('connection_id', '=', connection.id), ('state', 'in', PENDING_STATES),
+                ('provider_call_id', '!=', False),
+            ], limit=1,
         ))
 
     # internals
@@ -86,8 +94,8 @@ class LiwanIntegrationVoice(models.AbstractModel):
         company = self.env.company
         self._liwan_check_outward()
         resolved = self._liwan_resolve_sender(sender)
-        number = self._liwan_normalize(to, company)
-        agent = self._liwan_normalize(agent_number, company) if agent_number else None
+        number = normalize_phone(self.env, to, company)
+        agent = normalize_phone(self.env, agent_number, company) if agent_number else None
         record = self._liwan_elevated('liwan.integration.settings')._liwan_values(company)['record_calls'] and mode == SPEAK
         self._liwan_check_daily_limit(company)
         values = {
@@ -121,18 +129,6 @@ class LiwanIntegrationVoice(models.AbstractModel):
             refuse('tenant_read_only', self.env._('Calling is paused while the subscription is not active.'), status=403)
 
     @api.model
-    def _liwan_normalize(self, to, company):
-        """``to`` as E.164; a local number is read in the company's country."""
-        region = company.country_id.code or None
-        try:
-            parsed = phonenumbers.parse(to, region) if isinstance(to, str) and to.strip() else None
-        except phonenumbers.NumberParseException:
-            parsed = None
-        if not parsed or not phonenumbers.is_valid_number(parsed):
-            refuse('invalid_phone', self.env._('The phone number is not valid.'), field='to')
-        return phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
-
-    @api.model
     def _liwan_resolve_sender(self, sender=None):
         """The active voice sender of the company: the given one, or the channel default."""
         Sender = self._liwan_elevated('liwan.integration.sender')
@@ -151,6 +147,8 @@ class LiwanIntegrationVoice(models.AbstractModel):
         connection = found.connection_id
         if connection.state == 'disabled':
             refuse('connection_disabled', self.env._('The connection of this sender is disabled.'), field='sender_id')
+        if CHANNEL_CAPABILITIES['voice'] not in connection._liwan_definition()['capabilities']:
+            refuse('sender_unavailable', self.env._('The provider of this sender cannot place calls.'), field='sender_id')
         use = connection._liwan_use(f'{connection.provider}.{SENDER_USES["voice"]}')
         self.env['liwan.entitlement.service'].require_read(use['feature_key'])
         return found
@@ -160,9 +158,13 @@ class LiwanIntegrationVoice(models.AbstractModel):
         """Create the log row on its own committed cursor, so it exists before any byte reaches Twilio (D5).
 
         A request cursor cannot be committed here: it would commit the caller's whole request. A fresh
-        ``registry.cursor()`` commits only this row — the same pattern as ``liwan.outbound.mail`` and the
-        payroll refusal audit. The environment on that cursor is the elevated one of the current company:
-        the caller holds no ACL on the call log, and every value it stores was resolved and checked above.
+        ``registry.cursor()`` commits only this row. The precedent in the repository
+        (``liwan.outbound.mail``, the payroll refusal audit) commits its side cursor only after the
+        request itself has committed; here a call may have been placed while the caller's request is
+        still open, so the row must already exist before that first byte and the pattern is new: the
+        side cursor commits while the request transaction is open, holding only values this service
+        resolved and checked itself. The environment on that cursor is the elevated one of the current
+        company: the caller holds no ACL on the call log.
         """
         urls = self.env['liwan.integration.call']._liwan_callback_urls(
             self._liwan_elevated('liwan.integration.connection').browse(values['connection_id']),
@@ -231,8 +233,10 @@ class LiwanIntegrationVoice(models.AbstractModel):
 
     @api.model
     def _liwan_read_state(self, company, row_id, fallback, values):
-        """The full plain state of the committed row, read on its own cursor; a vanished row keeps the
-        outcome the provider call returned.
+        """The full plain state of the committed row, read on its own cursor.
+
+        A read failure while the call is already placed answers the outcome the provider call
+        returned rather than masking it; ``values`` carries every other field the shape promises.
         """
         try:
             with self.env.registry.cursor() as cursor:
@@ -244,9 +248,10 @@ class LiwanIntegrationVoice(models.AbstractModel):
         if state:
             return state
         return {
-            'mode': values['mode'], 'state': fallback['state'], 'to': values['to'], 'from_value': values['from_value'],
-            'duration_seconds': None, 'recorded': False, 'error_code': fallback.get('error_code'),
-            'error_message': fallback.get('error_message'), 'created_at': None, 'started_at': None, 'ended_at': None,
+            'id': row_id, 'mode': values['mode'], 'origin': values['origin'], 'state': fallback['state'],
+            'to': values['to'], 'from_value': values['from_value'], 'duration_seconds': None, 'recorded': False,
+            'error_code': fallback.get('error_code'), 'error_message': fallback.get('error_message'),
+            'created_at': None, 'started_at': None, 'ended_at': None,
         }
 
     @api.model

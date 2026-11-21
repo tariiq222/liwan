@@ -1,5 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Request parsing and lookups shared by the integrations controllers."""
+from datetime import datetime
+
 from odoo.http import request
 
 from odoo.addons.liwan_api.controllers.common import ApiError
@@ -9,6 +11,9 @@ TEXT_MAX = 128
 SECRET_MIN = 8
 SECRET_MAX = 1024
 EXTERNAL_ID_MAX = 64
+# A phone-number field carries at most the E.164 spelling of the longest number (15 digits plus `+`), with room to spare.
+TO_MAX = 32
+Q_MAX = 32
 
 
 def reject(message, field=None):
@@ -48,6 +53,28 @@ def positive_int(value, key):
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         reject(f'{key} must be a positive integer', key)
     return value
+
+
+def query_int(args, key):
+    """The positive-integer value of a query parameter, or None when absent."""
+    raw = args.get(key)
+    if raw is None:
+        return None
+    if not raw.isdigit() or int(raw) <= 0:
+        reject(f'{key} must be a positive integer', key)
+    return int(raw)
+
+
+def query_date(args, key):
+    """The date a query parameter names, or None when absent."""
+    raw = args.get(key)
+    if raw is None:
+        return None
+    # The contract promises `YYYY-MM-DD` (z.iso.date), so the full datetime spelling is refused.
+    try:
+        return datetime.strptime(raw, '%Y-%m-%d').date()
+    except ValueError:
+        reject(f'{key} must be a date (YYYY-MM-DD)', key)
 
 
 def parse_optional_text(payload, key):
@@ -98,12 +125,7 @@ def find_connection(connection_id):
 
 
 def query_connection_id(args):
-    raw = args.get('connection_id')
-    if raw is None:
-        return None
-    if not raw.isdigit() or int(raw) <= 0:
-        reject('connection_id must be a positive integer', 'connection_id')
-    return int(raw)
+    return query_int(args, 'connection_id')
 
 
 def offered_providers():
