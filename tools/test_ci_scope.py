@@ -33,8 +33,7 @@ class StagesForTest(unittest.TestCase):
         self.assert_stages('tools/odoo_shards.py', ('static', 'odoo'))
         for path in ('tools/app_isolation.py', 'tools/arch_layers.json'):
             self.assert_stages(path, ('static', 'odoo-app-standalone', 'odoo-bridge'))
-        self.assert_stages('apps/web/PRODUCT.md', ('static', 'e2e-odoo'))
-        for path in ('README.md', 'docs/testing.md', 'docs/reports/x.png',
+        for path in ('README.md', 'apps/web/PRODUCT.md', 'docs/testing.md', 'docs/reports/x.png',
                      'e2e/tests/smoke.e2e.ts', 'e2e.config.ts', '.gitignore',
                      '.claude/settings.json', '.claude/agents/odoo-reviewer.md',
                      '.claude/scripts/session-start.sh'):
@@ -42,7 +41,18 @@ class StagesForTest(unittest.TestCase):
         self.assert_stages('ruff.toml', ('static', 'ai-service'))
         for path in ('deploy/ci/static.sh', 'deploy/ci/lib/docs-static.sh'):
             self.assert_stages(path, ('static',))
-        self.assert_stages('apps/web/app/pages/index.vue', WEB)
+        self.assert_stages('apps/web/app/composables/useX.ts', WEB)
+        for path in ('apps/web/app/pages/index.vue', 'apps/web/app/components/a/B.vue', 'apps/web/app/layouts/default.vue',
+                     'apps/web/app/assets/css/a.css', 'apps/web/i18n/locales/ar/a.json', 'apps/web/public/a.svg'):
+            self.assert_stages(path, ('static', 'image', 'e2e-mock', 'rtl-stories'))
+        for path in ('apps/web/stories/a.stories.ts', 'apps/web/e2e-rtl/stories-rtl.rtl.ts'):
+            self.assert_stages(path, ('static', 'rtl-stories'))
+        self.assert_stages('apps/web/e2e/a.spec.ts', ('static', 'e2e-mock', 'e2e-odoo', 'rtl-stories'))
+        self.assert_stages('apps/web/e2e/support/a.ts', ('static', 'e2e-mock', 'e2e-odoo', 'rtl-stories'))
+        for path in ('apps/web/tests/a.test.ts', 'apps/web/app/composables/__tests__/a.test.ts',
+                     'apps/web/app/components/a/__tests__/B.test.ts', 'apps/web/i18n/__tests__/a.test.ts',
+                     'apps/web/a.test.ts'):
+            self.assert_stages(path, ('static',))
         self.assert_stages('apps/web/server/api/auth/login.post.ts', tuple(s for s in WEB if s != 'rtl-stories'))
         self.assert_stages('apps/vendor-admin/pages/index.vue', ('static', 'vendor-admin', 'image'))
         self.assert_stages('apps/control-plane/src/http.ts', ('static', 'control-plane'))
@@ -191,10 +201,25 @@ class PullRequestTest(unittest.TestCase):
         stages = ci_scope.pull_request_stages(['apps/web/app/a.vue'], None)
         self.assertEqual(stages, ('static', 'control-plane', 'e2e-mock', 'e2e-odoo', 'rtl-stories'))
 
+    def test_a_ui_only_web_change_skips_real_odoo_and_control_plane_before_merge(self):
+        for path in ('apps/web/app/pages/a.vue', 'apps/web/app/components/a/B.vue', 'apps/web/i18n/locales/ar/a.json'):
+            with self.subTest(path=path):
+                self.assertEqual(ci_scope.pull_request_stages([path], None), ('static', 'e2e-mock', 'rtl-stories'))
+
+    def test_a_composable_change_still_runs_real_odoo_before_merge(self):
+        stages = ci_scope.pull_request_stages(['apps/web/app/composables/useX.ts'], None)
+        self.assertIn('e2e-odoo', stages)
+
+    def test_web_unit_tests_docs_stories_and_specs_run_only_what_reads_them(self):
+        for path, expected in (('apps/web/tests/a.test.ts', ('static',)),
+                               ('apps/web/PRODUCT.md', ('static',)),
+                               ('apps/web/stories/a.stories.ts', ('static', 'rtl-stories')),
+                               ('apps/web/e2e/a.spec.ts', ('static', 'e2e-mock', 'e2e-odoo', 'rtl-stories'))):
+            with self.subTest(path=path):
+                self.assertEqual(ci_scope.pull_request_stages([path], None), expected)
+
     def test_web_addon_and_seed_changes_run_real_odoo_before_merge(self):
-        for path in ('apps/web/app/pages/documents/index.vue',
-                     'apps/web/server/api/v1/a.ts', 'apps/web/nuxt.config.ts',
-                     'apps/web/i18n/locales/ar/notifications.json', 'apps/web/PRODUCT.md',
+        for path in ('apps/web/server/api/v1/a.ts', 'apps/web/nuxt.config.ts', 'apps/web/app/composables/useX.ts',
                      'odoo-addons/liwan_crm/models/a.py', 'odoo-addons/liwan_finance/models/a.py',
                      'odoo-addons/README.txt', 'deploy/ci/e2e-odoo.sh', 'tools/e2e_seed.py'):
             with self.subTest(path=path):

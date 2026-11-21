@@ -60,6 +60,11 @@ IMAGE_BUILD_INPUTS = ('deploy/ci/image.sh', 'deploy/odoo/requirements-python312-
 UPGRADE_INPUTS = ('odoo-addons/*/migrations/*',)
 # The web and vendor-admin images build from these packages, so `image` is selected with them.
 SHARED_PACKAGE_STAGES = ('control-plane', 'vendor-admin', 'image', 'e2e-mock', 'e2e-odoo', 'rtl-stories')
+# apps/web trees only the browser reads: the image bundles them, the mock build and Storybook render them, and no
+# control-plane test or real-Odoo journey imports them. Web code the Nitro server or a composable reaches is not here.
+WEB_UI_STAGES = ('image', 'e2e-mock', 'rtl-stories')
+# The Playwright specs and their support files run in the mock build, against real Odoo and on the Storybook build.
+WEB_E2E_STAGES = ('e2e-mock', 'e2e-odoo', 'rtl-stories')
 UNMAPPED = '(no rule: all stages)'
 
 # First match wins, so the paths that need every stage come first. `*` also crosses `/`, hence
@@ -87,7 +92,6 @@ RULES = (
     ('.npmrc', STAGES),
     ('.nvmrc', STAGES),
     ('.dockerignore', STAGES),               # shapes the image build context
-    ('apps/web/*.md', ('e2e-odoo',)),      # every web change selects real-Odoo acceptance
     # Only the static stage reads these.
     ('*.md', ()),
     ('docs/*', ()),
@@ -97,10 +101,26 @@ RULES = (
     ('.gitignore', ()),                      # no step reads it; tools/test_gitignore.py is static
     ('.claude/*', ()),                       # agent setup for local and cloud sessions; no CI step reads it
     ('ruff.toml', ('ai-service',)),          # the ai-service step lints with the nearest ruff config
+    # Web paths a pull request narrows (owner decision 2026-11-21); the push to main still runs every stage. Vitest
+    # runs in `static` (`npm test`), and no code outside a test folder imports `tests/` or `__tests__/`.
+    ('apps/web/stories/*', ('rtl-stories',)),
+    ('apps/web/e2e-rtl/*', ('rtl-stories',)),
+    ('apps/web/e2e/*', WEB_E2E_STAGES),
+    ('apps/web/tests/*', ()),
+    ('apps/web/*/__tests__/*', ()),
+    ('apps/web/*.test.ts', ()),
     # The Nitro server is built into the image and the mock build, and the control-plane tests import it; the
     # Storybook build behind rtl-stories imports no `server/` file.
     ('apps/web/server/*', ('control-plane', 'image', 'e2e-mock', 'e2e-odoo')),
-    ('apps/web/*', ('control-plane', 'image', 'e2e-mock', 'e2e-odoo', 'rtl-stories')),  # control-plane tests import apps/web server code
+    ('apps/web/app/components/*', WEB_UI_STAGES),
+    ('apps/web/app/pages/*', WEB_UI_STAGES),
+    ('apps/web/app/layouts/*', WEB_UI_STAGES),
+    ('apps/web/app/assets/*', WEB_UI_STAGES),
+    ('apps/web/i18n/*', WEB_UI_STAGES),
+    ('apps/web/public/*', WEB_UI_STAGES),
+    # Everything else (composables, middleware, plugins, shared, nuxt.config.ts, package.json): the control-plane
+    # tests import apps/web server code and nuxt.config.ts, and a composable reaches the real API.
+    ('apps/web/*', ('control-plane', 'image', 'e2e-mock', 'e2e-odoo', 'rtl-stories')),
     # Other applications and the shared packages they build from.
     ('apps/vendor-admin/*', ('vendor-admin', 'image')),
     ('apps/control-plane/*', ('control-plane',)),
