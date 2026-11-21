@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Adjustment, Invoice, Order, SubscriptionView } from '@liwan/commercial-contracts'
 import {
   customersReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, daysUntilDate, invoiceListQuery, isNotAvailable, isStalled, targetStatus, termsPayload, usageDisplay, usageMetricLabel, lineQuantities, formatBytes, vendorInvoiceLineViews, parseTransferAmount, refundRequestBlock, transferFormDefaults, validRefundDraft, validRefundReason,
-  orderOutcomeUnknown,
+  planBundleIds, requestedQuantities, currentPaidQuantities, orderOutcomeUnknown,
   type VendorCustomer, type VendorInvoice, adminLoginErrorKey, cardActionErrorKey, deletionErrorKey,
 } from '../vendorSubscriptions'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
@@ -67,13 +67,27 @@ describe('terms payload', () => {
     expect(customerQuoteBody('c', sub())).not.toHaveProperty('preview')
   })
 })
-describe('a first paid subscription', () => {
+describe('a first paid subscription and a full subscription change', () => {
+  const plan = { included_bundle_revision_ids: ['b1'], optional_bundle_revision_ids: ['b2', 'b3'], included_users: 10, included_storage_mb: 10240 }
   const month = { unit: 'month' as const, count: 1 }
   it('quotes a customer with no subscription as a new subscription at revision 0, carrying the onboarding line', () => {
     const body = customerQuoteBody('c', null, { planRevisionId: 'p', bundleIds: ['b1'], cadence: month, onboarding: true })
     expect(body).toMatchObject({ customer_id: 'c', kind: 'new', plan_revision_id: 'p', expected_subscription_revision: 0, onboarding: true })
     expect(body).not.toHaveProperty('subscription_id')
     expect(customerQuoteBody('c', null, { planRevisionId: 'p', bundleIds: ['b1'], cadence: month })).not.toHaveProperty('onboarding')
+  })
+  it('builds the bundles from the new plan: its included ones and the chosen optional ones it offers', () => {
+    expect(planBundleIds(plan, ['b3', 'old-plan-bundle', 'b1'])).toEqual(['b1', 'b3'])
+    expect(planBundleIds(plan, [])).toEqual(['b1'])
+  })
+  it('turns paid users and paid storage into the requested totals', () => {
+    expect(requestedQuantities(plan, { paidUsers: 5, paidStorageGb: 2 })).toEqual({ users: 15, storageMb: 12288 })
+  })
+  it('keeps what the customer has: the current totals above the new plan inclusions, never below', () => {
+    const view = sub()
+    expect(currentPaidQuantities(plan, view)).toEqual({ paidUsers: 0, paidStorageGb: 0 })
+    expect(currentPaidQuantities({ ...plan, included_users: 4, included_storage_mb: 5120 }, view)).toEqual({ paidUsers: 6, paidStorageGb: 5 })
+    expect(currentPaidQuantities(plan, null)).toEqual({ paidUsers: 0, paidStorageGb: 0 })
   })
   it('keeps an order key only when the outcome of the attempt is unknown', () => {
     expect(orderOutcomeUnknown({ status: 503 })).toBe(true)

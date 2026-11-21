@@ -1,6 +1,6 @@
 import type { StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
 import { riyadhDate, subscriptionDisplayState, type Adjustment, type BankTransferClaim, type Cadence, type Invoice, type InvoiceLine, type Money, type Order, type SignupAcceptance, type SubscriptionDisplayState, type SubscriptionView, type UsageMetric } from '@liwan/commercial-contracts'
-import { commercialErrorKey, commercialFailure, CURRENCY, emptyLimit, limitFromDraft, minorToInput, normalizeDigits, parseCount, parseVendorMoneyInput, sar, type LimitDraft } from './vendorCommercial'
+import { commercialErrorKey, commercialFailure, CURRENCY, emptyLimit, limitFromDraft, MB_PER_GB, minorToInput, normalizeDigits, parseCount, parseVendorMoneyInput, sar, type LimitDraft } from './vendorCommercial'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { humanizeId } from '@liwan/ui/app/utils/humanizeId'
 import { invoiceLineQuantities, type InvoiceLineView } from '@liwan/commercial-ui/app/utils/invoiceLines'
@@ -214,6 +214,26 @@ export function termsPayload(customerId: string, d: TermsDraft): TermsPayload {
 }
 export function hasTermsOverride(d: TermsDraft): boolean {
   try { termsPayload('x', { ...d, reason: d.reason.trim().length >= 3 ? d.reason : 'xxx' }); return true } catch { return false }
+}
+/** What the quote request names of the plan being ordered. */
+type PlanChoice = { included_bundle_revision_ids: string[]; optional_bundle_revision_ids: string[]; included_users: number; included_storage_mb: number }
+/** The bundles of an order: the plan's included ones and, of `chosen`, those the plan offers as optional. A bundle only the old plan allowed is refused by the server (`bundle_not_allowed`), so it is never carried over. */
+export function planBundleIds(plan: Pick<PlanChoice, 'included_bundle_revision_ids' | 'optional_bundle_revision_ids'>, chosen: Iterable<string>): string[] {
+  const wanted = new Set(chosen)
+  return [...plan.included_bundle_revision_ids, ...plan.optional_bundle_revision_ids.filter(id => wanted.has(id))]
+}
+/** The requested totals for users and storage: the plan's inclusions plus what is bought on top. */
+export function requestedQuantities(plan: Pick<PlanChoice, 'included_users' | 'included_storage_mb'>, paid: { paidUsers: number; paidStorageGb: number }) {
+  return { users: plan.included_users + paid.paidUsers, storageMb: plan.included_storage_mb + paid.paidStorageGb * MB_PER_GB }
+}
+/** What the customer holds above `plan`'s inclusions today: a plan change keeps their totals instead of dropping paid users and storage. */
+export function currentPaidQuantities(plan: Pick<PlanChoice, 'included_users' | 'included_storage_mb'>, view: SubscriptionView | null): { paidUsers: number; paidStorageGb: number } {
+  const base = view?.target ?? view?.applied
+  if (!base) return { paidUsers: 0, paidStorageGb: 0 }
+  return {
+    paidUsers: Math.max(0, Number(base.entitlement.features['users.limit'] ?? 0) - plan.included_users),
+    paidStorageGb: Math.max(0, Math.round((Number(base.entitlement.features['storage.limit_mb'] ?? 0) - plan.included_storage_mb) / MB_PER_GB)),
+  }
 }
 /** A failed order attempt may still have been recorded when the answer never arrived (no status, or a server error): its idempotency key is then kept so a retry returns that order instead of placing a second one. A refusal (4xx) recorded nothing. */
 export function orderOutcomeUnknown(cause: unknown): boolean {

@@ -1148,7 +1148,13 @@
         "place": "Place order",
         "cadence": "Billing cadence",
         "pendingOrder": "This subscription has a pending order. Review its status on the customer page before placing another order.",
-        "firstOnBehalf": "You are placing the customer's first order on their behalf. The customer pays by bank transfer or payment link, or nothing is due when the plan is free."
+        "firstOnBehalf": "You are placing the customer's first order on their behalf. The customer pays by bank transfer or payment link, or nothing is due when the plan is free.",
+        "bundles": "Optional bundles",
+        "bundlesHint": "The plan's included bundles come with it; tick the optional ones the customer buys.",
+        "paidUsers": "Extra users",
+        "paidStorage": "Extra storage (GB)",
+        "included": "Included: {count}",
+        "includedStorage": "Included: {count} GB"
       },
       "suspension": {
         "suspend": "Suspend subscription",
