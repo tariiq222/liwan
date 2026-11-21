@@ -4,6 +4,7 @@ import { lifecycleBadge } from '@/utils/vendorCommercial'
 import { packageLabel } from '@/utils/vendorPackages'
 import { sellableTiers } from '@/utils/vendorCatalogVersions'
 import { useVendorCatalogVersions } from '@/composables/useVendorCatalogVersions'
+import { useVendorCommercial } from '@/composables/useVendorCommercial'
 definePageMeta({ capability: 'vendor.read' })
 const { t } = useI18n(); const route = useRoute()
 const id = computed(() => String(route.params.id))
@@ -11,6 +12,10 @@ const id = computed(() => String(route.params.id))
 const { data: versions, error: loadError, pending, refresh } = await useVendorCatalogVersions().load()
 const version = computed(() => versions.value?.find(item => item.id === id.value))
 const error = computed(() => loadError.value ?? (versions.value && !version.value ? createError({ statusCode: 404, statusMessage: 'not_found' }) : null))
+// A published version without a release cannot carry bundles yet; a later version needs its own release.
+const { data: releases, error: releasesError, refresh: refreshReleases } = await useAsyncData('vendor:catalog-releases', () => useVendorCommercial().releases())
+const hasRelease = computed(() => (releases.value ?? []).some(release => release.version === version.value?.version))
+const needsRelease = computed(() => version.value?.status === 'published' && !releasesError.value && !hasRelease.value)
 const tiers = computed(() => version.value?.solution.tiers ?? [])
 const sellableCount = computed(() => (version.value ? sellableTiers(version.value).length : 0))
 const baseModules = computed(() => version.value?.solution.base_modules ?? [])
@@ -32,6 +37,7 @@ const baseModules = computed(() => version.value?.solution.base_modules ?? [])
         </ul>
       </SharedRecordSection>
       <VendorCatalogVersionAction class="mt-6" :version="version" @done="refresh" />
+      <VendorCatalogReleaseAction v-if="needsRelease" class="mt-6" :version="version.version" @done="refreshReleases" />
       <UAlert v-if="version.status === 'published'" class="mt-6" color="success" variant="subtle" :title="t('vendor.catalog.publishedTitle')" data-testid="catalog-next-step">
         <template #description><NuxtLink to="/bundles/new" class="font-medium text-primary hover:underline">{{ t('vendor.catalog.toBundles') }}</NuxtLink></template>
       </UAlert>

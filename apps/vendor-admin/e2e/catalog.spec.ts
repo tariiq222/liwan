@@ -60,6 +60,24 @@ test('a published version offers no step, only the way on to the bundles', async
   await expect(page.getByTestId('catalog-action')).toHaveCount(0); await expect(page.getByTestId('catalog-next-step')).toBeVisible()
 })
 
+test('a published version without a release offers to create it, with a reason, and a version that has one does not', async ({ page }) => {
+  await open(page, `/catalog/${PUBLISHED}`)
+  await expect(page.getByTestId('catalog-release')).toHaveCount(0)
+  let created: { catalog_version?: string, reason?: string } | undefined
+  const release = { id: '00000000-0000-4000-8000-000000000101', version: '2026.11', applications: [], base_modules: [], source_digest: 'a'.repeat(64), artifact_digest: 'b'.repeat(64) }
+  await page.route('**/api/vendor/v1/commercial/catalog/releases', async route => {
+    if (route.request().method() === 'POST') { created = route.request().postDataJSON(); return route.fulfill({ status: 201, json: release }) }
+    return route.fulfill({ json: created ? { items: [release], total: 1 } : { items: [], total: 0 } })
+  })
+  await open(page, `/catalog/${VALIDATED}`)
+  await page.getByTestId('catalog-action-reason').fill('Approved for sale'); await page.getByTestId('catalog-action-submit').click()
+  const form = page.getByTestId('catalog-release-form'); await expect(form).toBeVisible()
+  await page.getByTestId('catalog-release-submit').click(); await expect(page.getByText('اكتب سببًا من 3 أحرف على الأقل.')).toBeVisible()
+  await page.getByTestId('catalog-release-reason').fill('Build bundles on it'); await page.getByTestId('catalog-release-submit').click()
+  await expect.poll(() => created).toEqual({ catalog_version: '2026.11', reason: 'Build bundles on it' })
+  await expect(page.getByTestId('catalog-release')).toHaveCount(0)
+})
+
 test('a version that is not in the list shows the not-found state', async ({ page }) => {
   await open(page, '/catalog/00000000-0000-4000-8000-0000000004ff')
   await expect(page.getByTestId('catalog-action')).toHaveCount(0); await expect(page.getByTestId('catalog-app')).toHaveCount(0)

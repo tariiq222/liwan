@@ -258,6 +258,10 @@
       },
       "publishedTitle": "This version is published.",
       "toBundles": "Start building bundles on it",
+      "release": {
+        "title": "Create a release for bundles",
+        "hint": "Bundles are built on a release created from this version. Needs a passkey confirmation."
+      },
       "errors": {
         "conflict": "This version changed state. Reload the page and try again.",
         "catalog_invalid": "Validation of the version failed. Check its source with the platform operator, then try again."
