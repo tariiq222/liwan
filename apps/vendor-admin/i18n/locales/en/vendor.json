@@ -375,6 +375,19 @@
           "failed": "The check could not confirm the effect is absent, so the operation was not closed."
         }
       },
+      "recover": {
+        "title": "Recover this operation",
+        "hint": "The system checks the workspace again without repeating the operation. If the effect exists and is verified, the operation is completed; otherwise it stays here for review.",
+        "action": "Recover operation",
+        "confirm": "Check the workspace and complete the operation if its effect is verified.",
+        "reason": "Reason for recovery",
+        "states": {
+          "pending": "Recovery request is being checked against the workspace.",
+          "verified": "The effect was verified and the operation is complete.",
+          "still_needs_intervention": "The effect could not be confirmed, so the operation still needs review.",
+          "failed": "The recovery request could not run."
+        }
+      },
       "operationId": "Operation ID",
       "workspaceId": "Workspace ID",
       "customerId": "Customer ID",

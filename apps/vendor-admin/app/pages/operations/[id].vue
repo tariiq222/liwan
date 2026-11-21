@@ -6,6 +6,7 @@ import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import { canPublishRestore } from '@/utils/restorePublication'
 import { operationTargetTo } from '@/utils/vendorOperations'
 import { canAbandonJob } from '@/utils/sharedJobAbandon'
+import { canRecoverJob } from '@/utils/sharedJobRecovery'
 definePageMeta({ capability: 'vendor.read' })
 type Operation = LegacyOperation | OperationFeed
 
@@ -29,13 +30,17 @@ const abandonOpen = ref(false)
 const abandonReason = ref('')
 const abandonment = computed(() => data.value && 'abandonment' in data.value ? data.value.abandonment : null)
 const abandonAllowed = computed(() => canAbandonJob(data.value, can))
+const recoverOpen = ref(false)
+const recoverReason = ref('')
+const recovery = computed(() => data.value && 'recovery' in data.value ? data.value.recovery : null)
+const recoverAllowed = computed(() => canRecoverJob(data.value, can))
 const busy = ref(false)
 const reason = ref('')
 const actionError = ref<unknown>(null)
 const pollCount = ref(0)
 let pollTimer: ReturnType<typeof setTimeout> | undefined
 
-const isActive = computed(() => data.value?.status === 'queued' || data.value?.status === 'running' || publication.value?.status === 'queued' || abandonment.value?.state === 'pending')
+const isActive = computed(() => data.value?.status === 'queued' || data.value?.status === 'running' || publication.value?.status === 'queued' || abandonment.value?.state === 'pending' || recovery.value?.state === 'pending')
 const isShared = computed(() => source.value === 'shared' || (data.value && 'source' in data.value && data.value.source === 'shared'))
 const canRetry = computed(() => !isShared.value && data.value?.status === 'failed' && ['tenant.inspect', 'health'].includes(data.value.type))
 const needsAttention = computed(() => data.value?.status === 'needs_intervention' || data.value?.stage === 'deployment_incomplete')
@@ -79,6 +84,16 @@ async function publishRestore() {
     await request(`shared/tenants/${data.value.tenant_id}/restore-publications/${publication.value.approvalId}`, {method:'POST',body:{reason:publishReason.value.trim()}})
     publishOpen.value = false; publishReason.value = ''; await manualRefresh()
   } catch(cause) { actionError.value = cause }
+  finally { busy.value = false }
+}
+
+async function recoverJob() {
+  if (!hydrated.value || !data.value || !recoverAllowed.value || busy.value || recoverReason.value.trim().length < 3 || recoverReason.value.trim().length > 1000) return
+  busy.value = true; actionError.value = null
+  try {
+    await request(`shared/tenants/${encodeURIComponent(data.value.tenant_id)}/jobs/${encodeURIComponent(data.value.id)}/recover`, { method: 'POST', body: { reason: recoverReason.value.trim() } })
+    recoverOpen.value = false; recoverReason.value = ''; await manualRefresh()
+  } catch (cause) { actionError.value = cause }
   finally { busy.value = false }
 }
 
@@ -142,6 +157,15 @@ async function retry() {
           <UAlert v-if="needsAttention" color="warning" variant="subtle" :title="t(deploymentIncomplete ? 'vendor.operations.deploymentIncomplete' : 'vendor.operations.needsAttention')" :description="t('vendor.operations.reconcileHint')" />
           <UAlert v-else-if="backupUnverified" color="warning" variant="subtle" :title="t('vendor.operations.backupUnverified')" :description="t('vendor.operations.backupUnverifiedHint')" />
         </div>
+
+        <SharedRecordSection v-if="recoverAllowed || recovery" :title="t('vendor.operations.recover.title')" :description="t('vendor.operations.recover.hint')" variant="panel" data-testid="operation-recover">
+          <p v-if="recovery" role="status" class="mb-3">{{ t(`vendor.operations.recover.states.${recovery.state}`) }}</p>
+          <UButton v-if="recoverAllowed && !recoverOpen" color="neutral" variant="outline" :disabled="!hydrated || busy" @click="recoverOpen = true">{{ t('vendor.operations.recover.action') }}</UButton>
+          <SharedInlineConfirm v-if="recoverOpen && recoverAllowed" :title="t('vendor.operations.recover.confirm')" :confirm-label="t('vendor.operations.recover.action')" :pending="busy" :disabled="!hydrated || busy || recoverReason.trim().length < 3 || recoverReason.trim().length > 1000" @confirm="recoverJob" @cancel="recoverOpen = false">
+            <UFormField :label="t('vendor.operations.recover.reason')" class="mt-3"><UTextarea v-model="recoverReason" :maxlength="1000" :disabled="busy" /></UFormField>
+          </SharedInlineConfirm>
+          <UAlert v-if="actionError" class="mt-3" color="error" variant="subtle" :title="t('vendor.errors.action')" />
+        </SharedRecordSection>
 
         <SharedRecordSection v-if="abandonAllowed || abandonment" :title="t('vendor.operations.abandon.title')" :description="t('vendor.operations.abandon.hint')" variant="panel" data-testid="operation-abandon">
           <p v-if="abandonment" role="status" class="mb-3">{{ t(`vendor.operations.abandon.states.${abandonment.state}`) }}</p>

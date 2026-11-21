@@ -12,6 +12,7 @@ import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import * as clients from '../../utils/vendorClients'
 import { isNotAvailable } from '../../utils/vendorSubscriptions'
 import { canAbandonJob } from '../../utils/sharedJobAbandon'
+import { canRecoverJob } from '../../utils/sharedJobRecovery'
 import { formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
 
 async function page(name: string, data: unknown, source?: string, query: Record<string, string> = {}) {
@@ -27,7 +28,7 @@ async function page(name: string, data: unknown, source?: string, query: Record<
   const messages = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../../i18n/locales/en/vendor.json'), 'utf8'))
   const t = (key: string) => key.split('.').reduce((obj: unknown, key) => (obj as Record<string, unknown> | undefined)?.[key], messages) ?? key
   const bindings = {
-    formatLiwanDateTime, ...clients, isNotAvailable, canAbandonJob,
+    formatLiwanDateTime, ...clients, isNotAvailable, canAbandonJob, canRecoverJob,
     useVendorSubscriptions: () => ({ listClients: (query: Record<string, unknown>) => request('commercial/clients', { query }) }),
     invoiceStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge,
     _defineComponent: Vue.defineComponent, _withAsyncContext: (fn: () => unknown) => [fn(), () => {}],
@@ -87,6 +88,21 @@ it('offers abandon for a stuck backup, sends the confirmation with the job id, a
   detail.state.abandonReason.value = '  The backup never started on the host  '
   await detail.state.abandonJob()
   expect(detail.request).toHaveBeenCalledWith('shared/tenants/tenant-id/jobs/job-id/abandon', { method: 'POST', body: { reason: 'The backup never started on the host', confirm_job_id: 'job-id' } })
+})
+it('offers recover for a stuck provision, sends the reason, and reports the request outcome', async () => {
+  const stuck = { ...operation, status: 'needs_intervention', stage: 'needs_intervention', reason: 'shared_execution_needs_attention', recovery: null }
+  const detail = await page('operations/[id].vue', stuck, 'shared')
+  expect(detail.state.recoverAllowed.value).toBe(true)
+  expect(detail.captured.find(node => node.props['data-testid'] === 'operation-recover')?.props.title).toBe('Recover this operation')
+  detail.state.recoverReason.value = '  The workspace is reachable again  '
+  await detail.state.recoverJob()
+  expect(detail.request).toHaveBeenCalledWith('shared/tenants/tenant-id/jobs/job-id/recover', { method: 'POST', body: { reason: 'The workspace is reachable again' } })
+  const ended = await page('operations/[id].vue', { ...stuck, recovery: { state: 'still_needs_intervention', error: null, requested_at: '2026-11-10T00:00:00Z' } }, 'shared')
+  expect(ended.html).toContain('still needs review')
+  const pending = await page('operations/[id].vue', { ...stuck, recovery: { state: 'pending', error: null, requested_at: '2026-11-10T00:00:00Z' } }, 'shared')
+  expect(pending.state.recoverAllowed.value).toBe(false); expect(pending.state.isActive.value).toBe(true)
+  const empty = await page('operations/[id].vue', stuck, 'shared'); empty.request.mockClear(); await empty.state.recoverJob()
+  expect(empty.request).not.toHaveBeenCalled()
 })
 it('does not send an abandon request without a reason, and offers none for provision or a pending request', async () => {
   const stuck = { ...operation, type: 'backup', status: 'needs_intervention', stage: 'needs_intervention', abandonment: null }

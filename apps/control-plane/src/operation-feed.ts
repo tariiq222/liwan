@@ -66,6 +66,7 @@ export async function sharedOperationDetail(pool: Pool, id: string) {
     created_at AS at FROM shared_job_events WHERE job_id=$1 ORDER BY sequence`, [id])
   const row=result.rows[0]
   const abandoned = await pool.query('SELECT state,error,requested_at FROM shared_job_abandonments WHERE job_id=$1', [id])
+  const recovered = await pool.query('SELECT state,error,requested_at FROM shared_job_recoveries WHERE job_id=$1', [id])
   let publication
   if(row.type==='restore' && row.status==='verified'){
     const detail=await pool.query(`SELECT j.payload->>'approvalId' AS "approvalId",COALESCE(p.status,'not_requested') AS status,p.code,p.host
@@ -74,5 +75,5 @@ export async function sharedOperationDetail(pool: Pool, id: string) {
     const parsed=restorePublicationSchema.safeParse(detail.rows[0])
     if(parsed.success)publication=parsed.data
   }
-  return { ...(await withTenantLabels(pool, [row]))[0], events: events.rows, abandonment: abandoned.rows[0] ? { ...abandoned.rows[0], requested_at: abandoned.rows[0].requested_at.toISOString() } : null, ...(publication?{restore_publication:publication}:{}) }
+  return { ...(await withTenantLabels(pool, [row]))[0], events: events.rows, abandonment: abandoned.rows[0] ? { ...abandoned.rows[0], requested_at: abandoned.rows[0].requested_at.toISOString() } : null, recovery: recovered.rows[0] ? { ...recovered.rows[0], requested_at: recovered.rows[0].requested_at.toISOString() } : null, ...(publication?{restore_publication:publication}:{}) }
 }

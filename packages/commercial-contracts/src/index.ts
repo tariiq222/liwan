@@ -52,6 +52,12 @@ export const abandonmentSchema = z.strictObject({
   state: z.enum(['pending', 'abandoned', 'effect_present', 'failed']), error: z.string().nullable(), requested_at: z.iso.datetime(),
 })
 export type Abandonment = z.infer<typeof abandonmentSchema>
+/** Operations whose stuck shared job is reconciled by observation when recovered; a `reconfigure` job has its own receipt protocol (shared/job-recovery.ts). */
+export const RECOVERABLE_OPERATIONS = ['provision', 'backup', 'restore'] as const
+export const recoverySchema = z.strictObject({
+  state: z.enum(['pending', 'verified', 'still_needs_intervention', 'failed']), error: z.string().nullable(), requested_at: z.iso.datetime(),
+})
+export type Recovery = z.infer<typeof recoverySchema>
 
 export const tenantSchema = z.strictObject({
   id: z.uuid(), name: z.string(), commercial_mode: commercialModeSchema, hosting_model: hostingModelSchema,
@@ -109,6 +115,8 @@ export const sharedOperationFeedSchema = operationSchema.extend({
   reason: z.enum(['shared_execution_pending', 'shared_execution_verified', 'shared_execution_needs_attention', 'shared_execution_abandoned']),
   /** The operator's latest request to abandon the job, when there was one. */
   abandonment: abandonmentSchema.nullable().optional(),
+  /** The operator's latest request to recover the job, when there was one. */
+  recovery: recoverySchema.nullable().optional(),
   restore_publication:restorePublicationSchema.optional(),
   result: z.null(), updated_at: z.null(), last_event_at: z.iso.datetime().nullable(),
 })
