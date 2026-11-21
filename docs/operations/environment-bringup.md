@@ -124,7 +124,7 @@ The release command stops and starts this worker itself during a release; do not
 | --- | --- | --- | --- | --- |
 | A8.1 | The `main` commit has a published release document | `docker manifest inspect git.liwanos.com/liwanos/liwan-release:<main sha>` with the read token | the manifest exists | |
 | A8.2 | Run the job once from Openship | MCP `post_jobs_by_key_run`, then `get_jobs_runs_by_runId` | last log line `RESULT: committed <commit>`, exit 0 | |
-| A8.3 | State written | `python3 -B /opt/liwan/current/deploy/release/release.py status --environment staging` | the served commit, no run, no halt | |
+| A8.3 | State written | `set -a; . /etc/liwan-release/forgejo-read; set +a; python3 -B /opt/liwan/current/deploy/release/release.py status --environment staging` | the served commit, no run, no halt | |
 | A8.4 | Nothing of the stack listens beyond loopback | `ss -ltnp \| grep -E ':(18080\|18443)'` and `docker ps --format '{{.Names}} {{.Ports}}'` | only `127.0.0.1:18080` and `127.0.0.1:18443`; no other published port from the stack | |
 | A8.4a | Restore and relay sites are on :80 with the tenant sites, and the closed restore route answers 404 through the edge | `docker exec <proxy> wget -qO- --server-response --header 'Host: rabc.restore.staging.liwanos.com' http://127.0.0.1:80/ 2>&1 \| head -3`; `ss -ltn` inside the container shows no :443 | `404`, no :443 listener | |
 | A8.4b | The trust in `X-Forwarded-For` has no other way in: the runner guard drops loopback and Docker ranges for the runner users, and no container but the Openship edge uses the host network | `nft list table inet liwan_runner_guard`; `docker ps --filter network=host --format '{{.Names}}'` | drops for `127.0.0.0/8` and `172.16.0.0/12` for uids 1001 and 1002; only the Openship edge listed | |
@@ -157,9 +157,9 @@ A with these differences.
 | --- | --- | --- |
 | B1 | The host is `liwanos-prod` (Arm). Oracle port 22 answers only `158.220.75.44`. The host is registered in the Openship on the Contabo host. | Oracle security list; MCP `post_system_servers` |
 | B2 | Hostnames are `liwan.sa`, `*.liwan.sa`, with `app`, `admin` and `portal` (D15). Whether production sits behind an Openship edge or runs Caddy on 80/443 is decided at P7 (D18). With an edge, set `LIWAN_TRUSTED_PROXIES` to its gateway, `LIWAN_AUTO_HTTPS=off`, `http://` in `DOMAIN` and loopback bind, as staging does. Without one, leave `LIWAN_TRUSTED_PROXIES` empty and Caddy terminates TLS. | `deploy/environments/production.env.example` |
-| B3 | The job is `liwan-production-release` with the command `python3 -B /opt/liwan/current/deploy/release/release.py run --environment production`, and it has no hook. The owner starts it from Openship after the tag exists (D19). | Openship |
+| B3 | The job is `liwan-production-release` with the command `set -a; . /etc/liwan-release/forgejo-read; set +a; python3 -B /opt/liwan/current/deploy/release/release.py run --environment production`, and it has no hook. The owner starts it from Openship after the tag exists (D19). | Openship |
 | B4 | The release candidate is the highest `release/19.0.X.Y.Z` tag on Forgejo `main`; the arm64 images are published and the Arm pre-release check on `liwanos-staging` has passed for the commit. | [release/README.md](../../deploy/release/README.md) |
-| B5 | No production credential in Forgejo secrets or on a runner. The read token is a separate read-only token for this server. | Forgejo, Openship |
+| B5 | No production credential in Forgejo secrets or on a runner. The read token is a separate read-only token for this server, kept only in `/etc/liwan-release/forgejo-read` (root, 0600) on `liwanos-prod` as the `LIWAN_FORGEJO_READ_USER=` and `LIWAN_FORGEJO_READ_TOKEN=` lines the B3 command loads, and not copied into the Openship job's secret store (check as in A5.1). | Forgejo, Openship |
 | B6 | Backups go to a store inside the Kingdom. Public sign-up stays closed until the owner opens it. | P7 |
 
 Production acceptance (P7): a tagged release reaches production from the release document staging ran; a forced failed
