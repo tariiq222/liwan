@@ -15,7 +15,7 @@ was run: every verdict is from reading code, so each task starts by reproducing 
 | Confirmed | 1, 2, 7, 8, 9, 12, 14, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 34, 35; no later catalog release; no recover button |
 | Partly (the defect exists, narrower than described) | 3, 4, 5, 10, 11, 15, 17, 32, 33 |
 | Refuted (no task) | 6, 13 |
-| Not checked | 36, the rest of the operator-gap table, the UX, locale and performance section |
+| Checked in the second round (section 2, last table) | 36, the operator-gap table, the UI and locale items |
 
 Refuted, with the reason:
 
@@ -92,11 +92,20 @@ One task is one logical change with its tests. The order is priority, not phases
 | T35 | Provider errors answered as 502 by the AI provider routes reach the console with their own message. | 33 | `VA/server/utils/control.ts`, `VA/app/utils/aiProvider.ts` | |
 | T36 | AI billing settings and the AI top-up refund are reachable from the console (proxy entry and page). | 12, 15 | `VA/server/utils/proxy.ts`, new `VA` pages | |
 
-### Verify, then fix
+### Second verification round (claim 36, operator gaps, UI and locale)
 
-| # | Task |
-| --- | --- |
-| T37 | Check claim 36, the remaining operator gaps and the UX, locale and performance section the same way (try to refute each against the code), and add one task per confirmed item to this plan. |
+Checked on 2026-11-21 the same way: 18 confirmed, 4 partly, none refuted.
+
+| # | Task | Main files | Needs |
+| --- | --- | --- | --- |
+| T37 | Analytics: a suspended or cancelled customer no longer blanks the MRR and ARR history; an invoice due later today is not counted as overdue; an AI top-up paid during a trial is not a paid conversion. | `CP/commercial/analytics-model.ts`, `analytics.ts`, `signup-funnel.ts` | |
+| T38 | Attention list: a resume that did not reach the workspace is reported like a failed suspension; the provider payment review item links to its payment. | `CP/commercial/attention.ts`, `VA/app/components/vendor/AttentionList.vue` | |
+| T39 | A disabled team account can be enabled again from `/team`. | `CP/admin-auth/accounts.ts`, `VA/app/pages/team/index.vue` | |
+| T40 | Console forms: no skeleton flash on the operation page poll; the reason field is not marked wrong after a successful billing-settings save; a pasted IBAN with spaces is accepted; a decimal comma in a price is refused instead of read as thousands; audit retry reloads the customer name; local state (pay link, open forms) resets when the customer id changes; the one-time team invitation link cannot be dismissed before it is copied; a cancelled step-up shows its own message everywhere; the customer search waits for typing to pause. | `VA/app/pages/**`, `VA/app/utils/vendorCommercial.ts` | |
+| T41 | Missing texts: invoice line kinds `onboarding` and `ai_topup`, operation stage `failed`; the role list separator follows the locale. | `VA/i18n/locales/{ar,en}/vendor.json`, `VA/app/components/AdminHeader.vue` | |
+| T42 | Free-base (0 SAR) customers in ARPC and renewal counts. | `CP/commercial/analytics.ts` | D4 |
+| T43 | Start a backup and approve and run a restore for a shared workspace from the console. | new `VA` flow over the existing `CP/http.ts` shared routes | D5 |
+| T44 | Void an unpaid renewal invoice from the console. | new route and action | D6 |
 
 ## 3. Owner decisions
 
@@ -105,6 +114,12 @@ One task is one logical change with its tests. The order is priority, not phases
 | D1 | Public sign-up is bound to one plan revision id in the environment (claim 25). | Bind it to the plan: the latest published, available revision. | Keep the fixed id and warn in the console before a publish that would withdraw it. |
 | D2 | Who sees payment-review and charge-refusal attention items (claim 4). | Only roles with `vendor.billing.manage`. | Keep them visible to every role with `vendor.read`, without card details. |
 | D3 | Reopening an invitation link after the passkey was stored (claim 5). | Continue at the TOTP step. | Keep the restart and explain that the passkey is already registered. |
+| D4 | Do free-base customers count in ARPC and renewals (T42)? | Count them as customers, exclude them from ARPC and renewal value. | Keep today's figures. |
+| D5 | Shared backup and restore from the console (T43): a new operator flow with its own design. | Design it as its own spec before building. | Leave it to the server command line. |
+| D6 | Voiding an unpaid renewal invoice (T44): who may do it and what happens to the subscription. | Design it as its own spec before building. | No console action. |
+
+The owner said on 2026-11-21 to build every task; D1 to D3 follow the recommended default. T42 to T44 wait for
+D4 to D6 and are not built.
 
 ## 4. Delivery
 
