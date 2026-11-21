@@ -144,11 +144,16 @@ class LiwanInboxOrder(models.Model):
         return order
 
     def _liwan_lock_row(self):
-        """Hold the order row for this transaction and read it again, so two checkouts never both place the cart."""
+        """Hold the order row for this transaction and read it again, so two writers never both act on one state.
+
+        Every writer (set lines, cancel, checkout) takes this lock before it reads the state or touches the lines.
+
+        :raise OrderBusy: another request holds the row.
+        """
         try:
             self.lock_for_update(allow_referencing=True)
         except LockError:
-            raise OrderBusy(self.env._('The order is being checked out by another request.')) from None
+            raise OrderBusy(self.env._('The order is being changed by another request. Try again.')) from None
         self.invalidate_recordset()
 
     def _liwan_require_cart(self):
@@ -158,13 +163,15 @@ class LiwanInboxOrder(models.Model):
     def _liwan_set_lines(self, existing, added):
         """Keep the lines `existing` ({line id: quantity}) and add `added` ([(catalog item id, quantity)]); drop the others."""
         self.ensure_one()
+        self._liwan_lock_row()
         self._liwan_require_cart()
         by_id = self.line_ids.filtered(lambda line: line.id in existing)
         if len(by_id) != len(existing):
             raise OrderLinesInvalid(self.env._('A line does not belong to this order.'))
         commands = [(2, line.id) for line in self.line_ids - by_id]
         commands += [(1, line.id, {'quantity': existing[line.id]}) for line in by_id]
-        commands += self._liwan_line_values(self.conversation_id, added)
+        if added:
+            commands += self._liwan_line_values(self.conversation_id, added)
         self.write({'line_ids': commands})
         self.conversation_id._liwan_notify_bus()
 
@@ -173,6 +180,7 @@ class LiwanInboxOrder(models.Model):
     def _liwan_cancel(self):
         """A cart is dismissed; an ordered order is cancelled, which stops its pay link and makes a paid amount refundable."""
         self.ensure_one()
+        self._liwan_lock_row()
         if self.state == 'dismissed':
             raise OrderLocked(self.env._('The order is already dismissed.'))
         if self.state == 'cart':
