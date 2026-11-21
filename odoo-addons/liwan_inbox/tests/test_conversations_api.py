@@ -358,6 +358,15 @@ class TestConversationsApi(LiwanInboxCase):
         self.assertEqual(self.patch_conversation(conversation, {'priority': 'high'}).status_code, 200)
         self.assertEqual(conversation.priority, 'high')
 
+    def test_the_waiting_sort_lists_a_conversation_with_no_message_last(self):
+        answered = self.answered_conversation(60 * 24)
+        empty = self.make_conversation()
+        empty.message_ids.unlink()
+        self.login(self.agent)
+        for sort in ('recent', 'waiting'):
+            ids = [row['id'] for row in self.get(f'/api/v1/inbox/conversations?sort={sort}').json()['items']]
+            self.assertLess(ids.index(answered.id), ids.index(empty.id), sort)
+
     def test_messages_are_chronological_and_paged_from_the_newest(self):
         for index in range(3):
             self.env['liwan.inbox.message'].create({

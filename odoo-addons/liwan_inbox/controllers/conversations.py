@@ -50,7 +50,7 @@ from odoo.addons.liwan_inbox.serializers.settings import dump_canned_reply
 PRIORITIES = ('low', 'normal', 'high', 'urgent')
 CSAT_SCORES = ('good', 'neutral', 'bad')
 # `waiting`: customers waiting for an agent first, the longest wait first, then the rest in the default order.
-CONVERSATION_SORTS = {'recent': None, 'waiting': 'waiting_since asc nulls last, last_message_at desc, id desc'}
+CONVERSATION_SORTS = {'recent': None, 'waiting': 'waiting_since asc nulls last, last_message_at desc nulls last, id desc'}
 LINK_FIELDS = {'customer_id', 'create_new'}
 PATCH_FIELDS = {'revision', 'state', 'priority', 'tag_ids', 'assignee_id', 'department_id'}
 REPLY_FIELDS = {'state', 'priority', 'tag_ids'}

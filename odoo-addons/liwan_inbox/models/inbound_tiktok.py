@@ -116,8 +116,11 @@ class LiwanInboxInbound(models.AbstractModel):
 
     @api.model
     def _liwan_tiktok_attach_conversation(self, conversation, provider_conversation_id):
-        """Store the conversation's TikTok id; its first message also learns whether images can be sent."""
-        if not conversation.provider_conversation_id:
+        """Store the conversation's TikTok id; its first message also learns whether images can be sent.
+
+        A conversation a referral opened already has its id but no inbound message, so the customer's first message probes too.
+        """
+        if not conversation.provider_conversation_id or not conversation.last_inbound_at:
             conversation.write({
                 'provider_conversation_id': provider_conversation_id,
                 'image_send_capable': self._liwan_tiktok_image_send_capable(conversation, provider_conversation_id),
@@ -201,8 +204,15 @@ class LiwanInboxInbound(models.AbstractModel):
 
     @api.model
     def _liwan_ingest_tiktok_referral(self, channel, item):
-        """Store the ad or short link the customer arrived from; a referral is not a message (D9)."""
+        """Store the ad or short link the customer arrived from; a referral is not a message (D9).
+
+        The referral can come before the customer's first message, in the same delivery or an earlier one, so a
+        customer without a conversation gets it here through the same find-or-create path as a message.
+        """
         conversation = self._liwan_tiktok_conversation(channel, item.conversation_id)
+        if not conversation and item.conversation_id and item.sender_id and item.source in ('ad', 'short_link'):
+            conversation = self._liwan_conversation(channel, self._liwan_tiktok_identity(channel, item))
+            conversation.provider_conversation_id = item.conversation_id  # no image probe: nothing was said yet
         if conversation and item.source in ('ad', 'short_link'):
             conversation.write({'referral_source': item.source, 'referral_ref': item.ref or False})
         return conversation

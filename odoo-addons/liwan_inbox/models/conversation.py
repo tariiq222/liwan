@@ -31,7 +31,7 @@ REVISION_FIELDS = frozenset({'state', 'priority', 'tag_ids', 'assignee_id', 'dep
 class LiwanInboxConversation(models.Model):
     _name = 'liwan.inbox.conversation'
     _description = 'Customer Messages conversation'
-    _order = 'last_message_at desc, id desc'
+    _order = 'last_message_at desc nulls last, id desc'  # a conversation with no message yet sorts after every other
     _liwan_scope = 'company'
 
     company_id = fields.Many2one('res.company', required=True, index=True, ondelete='cascade',
@@ -255,16 +255,24 @@ class LiwanInboxConversation(models.Model):
     # maintenance (cron)
 
     @api.model
+    def _liwan_idle_domain(self, cutoff):
+        """The conversations idle since `cutoff`: by their last message, or by their creation when none has arrived yet.
+
+        A conversation a TikTok referral opened before the customer's first message has no message date to age by.
+        """
+        return Domain('last_message_at', '<', cutoff) | (Domain('last_message_at', '=', False) & Domain('create_date', '<', cutoff))
+
+    @api.model
     def _liwan_run_maintenance(self):
         """Close idle conversations, purge data past retention and delete processed events."""
         now = fields.Datetime.now()
         for company in self.env['res.company'].search([]):
             settings = self.env['liwan.inbox.settings']._get_for_company(company)
             if settings.auto_close_hours:
-                idle = self.search([
-                    ('company_id', '=', company.id), ('state', '!=', 'closed'),
-                    ('last_message_at', '<', now - relativedelta(hours=settings.auto_close_hours)),
-                ])
+                idle = self.search(Domain.AND([
+                    Domain([('company_id', '=', company.id), ('state', '!=', 'closed')]),
+                    self._liwan_idle_domain(now - relativedelta(hours=settings.auto_close_hours)),
+                ]))
                 self.env['liwan.inbox.conversation.cycle']._liwan_end_for(idle, 'auto_closed')
                 idle.write({'state': 'closed'})
             self._liwan_purge_expired(company, now - relativedelta(months=settings.retention_months))
@@ -290,7 +298,9 @@ class LiwanInboxConversation(models.Model):
         a pass deletes at most `PURGE_BATCH` of them and the next one continues.
         """
         self.env['liwan.inbox.event']._liwan_purge_unprocessed(company, cutoff)
-        expired = self.search([('company_id', '=', company.id), ('last_message_at', '<', cutoff)], limit=PURGE_BATCH)
+        expired = self.search(
+            Domain.AND([Domain('company_id', '=', company.id), self._liwan_idle_domain(cutoff)]), limit=PURGE_BATCH,
+        )
         process_each(expired, lambda conversation: conversation._liwan_purge_conversation(), self._liwan_purge_failed)
         self.env['liwan.inbox.campaign']._liwan_purge_marketing(company, cutoff)
 

@@ -319,6 +319,85 @@ class TestTikTokInbound(LiwanInboxCase):
         self.assertEqual((conversation.referral_source, conversation.referral_ref), ('short_link', 'campaign_1'))
         self.assertEqual(self.env['liwan.inbox.message'].search_count([('conversation_id', '=', conversation.id)]), count)
 
+    def referral_conversations(self, channel=None):
+        return self.env['liwan.inbox.conversation'].search([
+            ('channel_id', '=', (channel or self.tiktok).id), ('provider_conversation_id', '=', tt.CONVERSATION_ID),
+        ])
+
+    def test_a_referral_before_the_first_message_opens_the_conversation(self):
+        """The ad the customer came from is kept even when its event arrives first; the message then joins that conversation."""
+        self.deliver(tt.referral('ad'))
+        conversation = self.referral_conversations()
+        self.assertEqual((len(conversation), conversation.referral_source, conversation.referral_ref), (1, 'ad', 'ad-1'))
+        self.assertEqual(conversation.message_ids, self.env['liwan.inbox.message'])
+        self.assertIsNone(conversation_dump.dump_conversation(conversation)['last_message_preview'])
+        self.deliver(tt.receive_text())
+        self.assertEqual(self.message('msg-text-1').conversation_id, conversation)
+        self.assertEqual((conversation.referral_source, conversation.referral_ref), ('ad', 'ad-1'))
+        self.assertEqual(self.env['liwan.inbox.conversation'].search_count([('channel_id', '=', self.tiktok.id)]), 1)
+
+    def test_a_redelivered_referral_opens_one_conversation(self):
+        self.deliver(tt.referral('ad'))
+        self.deliver(tt.referral('ad'))
+        self.assertEqual(len(self.referral_conversations()), 1)
+        self.assertEqual(self.env['liwan.inbox.contact'].search_count([('name', '=', tt.SENDER_NAME)]), 1)
+
+    def test_a_referral_before_the_message_in_one_delivery_ends_in_one_conversation(self):
+        items = [*tiktok.parse_event(tt.referral('short_link', ref='campaign_1'), tt.BUSINESS_ID), *tiktok.parse_event(tt.receive_text(), tt.BUSINESS_ID)]
+        for item in items:
+            self.env['liwan.inbox.inbound']._liwan_ingest_tiktok(self.tiktok, [item])
+        conversation = self.referral_conversations()
+        self.assertEqual(len(conversation), 1)
+        self.assertEqual(
+            (conversation.referral_source, conversation.referral_ref, self.message('msg-text-1').conversation_id),
+            ('short_link', 'campaign_1', conversation),
+        )
+
+    def test_a_referral_matches_only_the_conversations_of_its_own_channel(self):
+        other_company = self.env['res.company'].create({'name': 'Other TikTok company'})
+        other = self.make_tiktok_channel(business_id='other-business-open-id', owner_company_id=other_company.id)
+        for item in tiktok.parse_event(tt.receive_text(), tt.BUSINESS_ID):
+            self.env['liwan.inbox.inbound']._liwan_ingest_tiktok(other, [item])
+        foreign = self.referral_conversations(other)
+        self.assertEqual(len(foreign), 1)
+        self.deliver(tt.referral('ad'))
+        own = self.referral_conversations()
+        self.assertEqual((len(own), own == foreign, own.company_id), (1, False, self.env.company))
+        self.assertFalse(foreign.referral_source)
+
+    def test_a_referral_opened_conversation_acts_as_no_customer_message(self):
+        """Nothing is sent, counted or timed until the customer writes; then the conversation behaves as a new one."""
+        self.deliver(tt.referral('ad'))
+        conversation = self.referral_conversations()
+        self.assertEqual(
+            (conversation.unread, conversation.waiting_since, conversation.last_inbound_at, conversation.message_ids),
+            (False, False, False, self.env['liwan.inbox.message']),
+        )
+        self.assertFalse(self.env['liwan.inbox.conversation.cycle'].search([('conversation_id', '=', conversation.id)]))
+        self.deliver(tt.receive_text())
+        self.assertTrue(conversation.unread)
+        self.assertEqual(len(self.env['liwan.inbox.conversation.cycle'].search([('conversation_id', '=', conversation.id)])), 1)
+        self.assertTrue(conversation.waiting_since)
+
+    def test_the_image_capability_is_probed_at_the_first_message_of_a_referral_conversation(self):
+        with patch.object(
+            tiktok, 'image_send_capable', side_effect=errors.ProviderError('not yet', retryable=False),
+        ) as probe:
+            self.deliver(tt.referral('ad'))
+        self.assertEqual(probe.call_count, 0)
+        conversation = self.referral_conversations()
+        self.assertFalse(conversation.image_send_capable)
+        self.deliver(tt.receive_text())
+        self.assertTrue(conversation.image_send_capable)
+
+    def test_a_note_before_the_first_customer_message_does_not_skip_the_image_probe(self):
+        self.deliver(tt.referral('ad'))
+        conversation = self.referral_conversations()
+        self.env['liwan.inbox.message']._liwan_post_note(conversation, 'checked the ad')
+        self.assertFalse(conversation.image_send_capable)
+        self.deliver(tt.receive_text())
+        self.assertTrue(conversation.image_send_capable)
+
     def test_a_stored_referral_is_dumped_on_the_conversation(self):
         """The conversation dump carries the referral, so the workspace can show where the customer came from (D9)."""
         self.deliver(tt.receive_text())
