@@ -680,7 +680,7 @@ class TestPublishWorkflow(unittest.TestCase):
         self.assertEqual(job['runs-on'], 'ci-amd64')
         self.assertNotIn('container', job)
         self.assertEqual(sorted(set(re.findall(r'secrets\.(\w+)', text))), ['LIWAN_PUBLISH_TRIGGER_TOKEN'])
-        for forbidden in ('volumes', 'docker', 'buildx', 'LIWAN_REGISTRY', 'LIWAN_STAGING', 'publish.sh', 'checkout'):
+        for forbidden in ('volumes', 'docker', 'buildx', 'LIWAN_REGISTRY', 'LIWAN_DEVELOPMENT', 'LIWAN_STAGING', 'publish.sh', 'checkout'):
             self.assertNotIn(forbidden, text.replace('Docker', 'docker').split('\njobs:')[1])
         run = job['steps'][0]['run']
         self.assertEqual(run.count('curl -fsS -X POST'), 1)
@@ -717,7 +717,7 @@ class TestPublishWorkflow(unittest.TestCase):
         self.assertIn('superseded', self.script)
 
     def test_the_hook_is_skipped_for_a_superseded_run_and_called_again_for_a_published_one(self):
-        condition = self.step('Tell staging a new commit is ready')['if']
+        condition = self.step('Tell development a new commit is ready')['if']
         self.assertIn("steps.check.outputs.state != 'superseded'", condition)
         self.assertIn("steps.push.outputs.superseded != 'true'", condition)
         for name in ('Build and scan the images', 'Push the images and the release document', 'Start the scratch database'):
@@ -759,23 +759,23 @@ class TestPublishWorkflow(unittest.TestCase):
 
     def test_the_only_credentials_are_the_four_named_secrets_and_none_is_echoed(self):
         self.assertEqual(sorted(set(re.findall(r'secrets\.(\w+)', self.workflow))),
-                         ['LIWAN_REGISTRY_TOKEN', 'LIWAN_REGISTRY_USER', 'LIWAN_SOURCE_READ_TOKEN',
-                          'LIWAN_STAGING_HOOK_TOKEN', 'LIWAN_STAGING_HOOK_URL'])
+                         ['LIWAN_DEVELOPMENT_HOOK_TOKEN', 'LIWAN_DEVELOPMENT_HOOK_URL', 'LIWAN_REGISTRY_TOKEN',
+                          'LIWAN_REGISTRY_USER', 'LIWAN_SOURCE_READ_TOKEN'])
         login = self.step('Sign in to the registry')
         self.assertIn('--password-stdin', login['run'])
         self.assertNotIn('--password ', self.workflow)
         for step in self.job()['steps']:
             for secret in re.findall(r'secrets\.\w+', step.get('run', '')):
                 self.fail(f'{secret} is expanded inside a script: map it through env')
-        for name in ('REGISTRY', 'STAGING'):
+        for name in ('REGISTRY', 'DEVELOPMENT'):
             self.assertNotIn(f'echo "$LIWAN_{name}', self.workflow)
 
-    def test_the_last_step_calls_the_staging_hook_with_no_body_and_fails_when_it_cannot(self):
+    def test_the_last_step_calls_the_development_hook_with_no_body_and_fails_when_it_cannot(self):
         steps = self.job()['steps']
-        hook = self.step('Tell staging a new commit is ready')
+        hook = self.step('Tell development a new commit is ready')
         self.assertEqual(steps.index(hook), len(steps) - 2)  # only the cleanup step follows
         self.assertEqual(steps[-1]['if'], 'always()')
-        self.assertIn('curl -fsS -X POST -H "Authorization: Bearer $STAGING_HOOK_TOKEN" "$STAGING_HOOK_URL"', hook['run'])
+        self.assertIn('curl -fsS -X POST -H "Authorization: Bearer $DEVELOPMENT_HOOK_TOKEN" "$DEVELOPMENT_HOOK_URL"', hook['run'])
         self.assertNotIn('-d ', hook['run'])
         self.assertNotIn('--data', hook['run'])
         self.assertIn('must both be set', hook['run'])

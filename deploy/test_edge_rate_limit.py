@@ -657,7 +657,11 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
 
     def test_the_edge_network_has_the_pinned_subnet_the_trusted_gateway_comes_from(self) -> None:
         edge = self._render_shared({})['networks']['edge']
-        self.assertEqual(edge['ipam']['config'], [{'subnet': '172.29.50.0/24', 'gateway': '172.29.50.1'}])
+        self.assertEqual(edge['ipam']['config'], [{'subnet': '172.29.50.0/24'}])
+
+    def test_the_edge_subnet_comes_from_one_variable(self) -> None:
+        edge = self._render_shared({'LIWAN_EDGE_SUBNET': '172.29.51.0/24'})['networks']['edge']
+        self.assertEqual(edge['ipam']['config'], [{'subnet': '172.29.51.0/24'}])
 
     def test_strict_trust_ignores_a_client_sent_forwarded_for(self) -> None:
         """Behavioral: behind a trusted edge `{client_ip}` is the address the edge appended, never a claimed one.

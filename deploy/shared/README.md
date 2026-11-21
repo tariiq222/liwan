@@ -308,10 +308,12 @@ credentials the backup held — including a user disabled since the backup, or a
 guessable (128-bit approval id) and publishing it needs a step-up vendor session, but neither is access control.
 
 So the edge restricts `*.restore.{$DOMAIN}` to the operator's own addresses: the site answers **404** for any client
-outside `LIWAN_RESTORE_ALLOW`, an allowlist in Caddy `remote_ip` syntax (`CIDRs`, `private_ranges`, or bare
+outside `LIWAN_RESTORE_ALLOW`, an allowlist in Caddy `client_ip` syntax (`CIDRs`, `private_ranges`, or bare
 addresses). There is deliberately **no default**: with the variable unset or empty, every restore host answers 404,
-so a deployment cannot expose a restore by forgetting to set it. `trusted_proxies` stays unset on this site, so
-`remote_ip` compares the socket peer and no client-supplied header can claim an allowlisted address. A customer
+so a deployment cannot expose a restore by forgetting to set it. The match is on `client_ip`. `trusted_proxies` is set
+once, in the Caddyfile's global block, from `LIWAN_TRUSTED_PROXIES`, and its default trusts nothing: `client_ip` is then
+the socket peer and no client-supplied header can claim an allowlisted address. Behind an outer edge the variable names
+that edge, and the client is read from `X-Forwarded-For` right to left, skipping trusted hops. A customer
 administrator therefore reaches a restored copy only through an operator, which is the intended review step: a
 restore is a recovery artefact, not a service. Expiry and unpublish remain future work; today a published route
 stays until the operator removes it from the restore registry file.

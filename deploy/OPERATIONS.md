@@ -506,7 +506,7 @@ python3 -B deploy/backup_pipeline.py capture --tenant <tenant-id> --kind hourly 
 ```
 
 The capture uses a private temporary directory for the dump and archive, then removes
-it on exit. Size the staging disk for the copied database and filestore, the archive,
+it on exit. Size the test environment's disk for the copied database and filestore, the archive,
 and its ciphertext at once. Ciphertext is uploaded in parts of up to 32 MiB (at most
 10,000 parts). A keyed HMAC binds the tenant, backup kind, timestamp, digests and
 lengths. The manifest carries this tag and is written last. Test multipart completion and its

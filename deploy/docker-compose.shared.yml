@@ -17,7 +17,7 @@ services:
     environment:
       # Give Caddy a reserved address when the TikTok host is unset or empty.
       LIWAN_TIKTOK_RELAY_HOST: ${LIWAN_TIKTOK_RELAY_HOST:-invalid.invalid}
-      # The operator allowlist for restore hosts (`remote_ip` syntax). Deliberately no default: unset or empty
+      # The operator allowlist for restore hosts (`client_ip` syntax). Deliberately no default: unset or empty
       # answers 404 for every `*.restore.<domain>` host, so a stack cannot expose a restored database by omission.
       LIWAN_RESTORE_ALLOW: ${LIWAN_RESTORE_ALLOW:-}
       # The restore wildcard's own suffix, which must be the control plane's `domainSuffix`. It is not derived from
@@ -366,12 +366,13 @@ services:
 networks:
   # The subnet is pinned so that the gateway Caddy sees as the peer of a connection from the host (a port published
   # on loopback arrives from the network's gateway, not from 127.0.0.1) is a known address for LIWAN_TRUSTED_PROXIES.
+  # Docker gives the gateway the first address of the subnet, so LIWAN_TRUSTED_PROXIES is that address as a /32.
+  # A second stack from this file on the same Docker host needs a different LIWAN_EDGE_SUBNET (overlapping pools fail).
   # 172.29.40.0/24 is the control plane's `control_egress`.
   edge:
     ipam:
       config:
-        - subnet: 172.29.50.0/24
-          gateway: 172.29.50.1
+        - subnet: ${LIWAN_EDGE_SUBNET:-172.29.50.0/24}
   guard_web: { internal: true }
   guard_odoo: { internal: true }
   database: { internal: true }

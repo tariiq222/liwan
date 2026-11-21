@@ -27,8 +27,8 @@ def build(environment, output):
 
 
 class SourceTest(unittest.TestCase):
-    def test_staging_candidate_is_the_main_head(self):
-        subject, _ = build('staging', f'{A}\trefs/heads/main\n')
+    def test_development_candidate_is_the_main_head(self):
+        subject, _ = build('development', f'{A}\trefs/heads/main\n')
         self.assertEqual(subject.candidate(), {'commit': A, 'ref': 'refs/heads/main', 'version': None})
 
     def test_production_candidate_is_the_highest_release_tag_by_version_not_by_text(self):
@@ -36,6 +36,11 @@ class SourceTest(unittest.TestCase):
                                          f'{C}\trefs/tags/release/19.0.1.0.2\n{C}\trefs/tags/release/other\n')
         self.assertEqual(subject.candidate(), {'commit': B, 'ref': 'refs/tags/release/19.0.1.0.10',
                                                'version': [1, 0, 10]})
+
+    def test_staging_candidate_is_the_highest_release_tag_never_the_main_head(self):
+        subject, runner = build('staging', f'{A}\trefs/tags/release/19.0.1.0.2\n{B}\trefs/tags/release/19.0.1.0.11\n')
+        self.assertEqual(subject.candidate(), {'commit': B, 'ref': 'refs/tags/release/19.0.1.0.11', 'version': [1, 0, 11]})
+        self.assertEqual(runner.calls[0][0][-1], 'refs/tags/release/*')
 
     def test_an_annotated_tag_resolves_to_its_commit(self):
         subject, _ = build('production', f'{A}\trefs/tags/release/19.0.1.0.1\n{B}\trefs/tags/release/19.0.1.0.1^{{}}\n')
@@ -46,7 +51,7 @@ class SourceTest(unittest.TestCase):
         self.assertIsNone(subject.candidate())
 
     def test_the_remote_command_carries_a_reference_never_the_token(self):
-        subject, runner = build('staging', f'{A}\trefs/heads/main\n')
+        subject, runner = build('development', f'{A}\trefs/heads/main\n')
         subject.candidate()
         argv, env = runner.calls[0]
         self.assertNotIn('tok', ' '.join(argv))
@@ -70,12 +75,14 @@ class SourceTest(unittest.TestCase):
         self.assertEqual(raised.exception.exit_code, EXIT_REFUSED)
 
     def test_required_platforms(self):
-        self.assertEqual(source.required_platforms('staging', 'amd64'), ['linux/amd64'])
+        self.assertEqual(source.required_platforms('development', 'amd64'), ['linux/amd64'])
+        self.assertEqual(source.required_platforms('staging', 'arm64'), ['linux/arm64'])
+        self.assertEqual(source.required_platforms('staging', 'amd64'), ['linux/amd64', 'linux/arm64'])
         self.assertEqual(source.required_platforms('production', 'arm64'), ['linux/arm64'])
         self.assertEqual(source.required_platforms('production', 'amd64'), ['linux/amd64', 'linux/arm64'])
 
     def test_unreachable_forgejo_is_a_failure_not_a_refusal(self):
-        subject, _ = build('staging', '')
+        subject, _ = build('development', '')
         with self.assertRaises(ReleaseError) as raised:
             subject.candidate()  # an empty listing has no main head
         self.assertEqual((raised.exception.reason, raised.exception.exit_code), ('forgejo_unreachable', EXIT_FAILED))
