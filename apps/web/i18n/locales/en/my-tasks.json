@@ -179,7 +179,7 @@
     "work": {
       "nav": "My work",
       "title": "My work",
-      "description": "Your work, what waits for your decision and what you follow, in one place",
+      "description": "What your work asks of you, and your own tasks, in one place.",
       "myList": "My task list",
       "kindsLabel": "Kind of work",
       "kinds": {
@@ -196,7 +196,12 @@
         "decide": "Nothing is waiting for your decision.",
         "follow": "Nothing to follow right now."
       },
-      "noMatch": "Nothing matches the search or filter."
+      "noMatch": "Nothing matches the search or filter.",
+      "tabsLabel": "My work sections",
+      "tabs": {
+        "attention": "Needs attention",
+        "tasks": "Tasks"
+      }
     }
   }
 }

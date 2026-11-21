@@ -15,7 +15,7 @@ function opened(id: number) { void navigateTo({ path: `${SALES_LIST_PATH}/${id}`
   <SharedListPage :title="t('sales.title')" hide-header>
     <SalesOrderDirectory background />
   </SharedListPage>
-  <SharedCreatePanel :title="t('sales.new')" :back-to="backTo">
+  <SharedCreatePanel size="wide" :title="t('sales.new')" :back-to="backTo">
     <SharedForbiddenState v-if="!can('sales.quotations.manage')" />
     <SalesOrderForm v-else :back-to="backTo" @saved="order => opened(order.id)" />
   </SharedCreatePanel>

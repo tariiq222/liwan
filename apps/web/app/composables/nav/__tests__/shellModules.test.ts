@@ -179,10 +179,11 @@ const today = (ids: string[]) => ids.filter(id => TODAY.includes(id))
 
 describe('tasks app navigation', () => {
   const taskUser = { role: 'employee', capabilities: ['tasks.tasks.read'] }
-  it('shows /my-tasks in the nav and the rail for tasks.tasks.read', () => {
-    expect(useNav(taskUser).map(item => item.to)).toContain('/my-tasks')
-    expect(visibleShellModules(taskUser).find(item => item.id === 'tasks')?.to).toBe('/my-tasks')
-    expect(useNav(employee).map(item => item.to)).not.toContain('/my-tasks')
+  it('shows /work in the nav and the rail for tasks.tasks.read', () => {
+    // The personal task application's one destination is «أعمالي» (/work) since the two pages merged (2026-11-21).
+    expect(useNav(taskUser).map(item => item.to)).toContain('/work')
+    expect(visibleShellModules(taskUser).find(item => item.id === 'tasks')?.to).toBe('/work')
+    expect(useNav(employee).map(item => item.to)).not.toContain('/work')
   })
 })
 

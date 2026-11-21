@@ -9,15 +9,14 @@ const manifest: AppManifest = {
   routePrefixes: ['/my-tasks', '/work'],
   coreCount: tasksCoreCount,
   // Order 15 puts «مهامي» before the PMO projects entry (20) and after the home entry (10).
-  rail: [{ id: 'tasks', labelKey: 'nav.myTasks', icon: 'i-lucide-check-square', to: '/my-tasks', order: 15, core: 2 }],
+  rail: [{ id: 'tasks', labelKey: 'nav.myTasks', icon: 'i-lucide-check-square', to: '/work', order: 15, core: 2 }],
   nav: [
-    { to: '/my-tasks', labelKey: 'nav.myTasks', icon: 'i-lucide-check-square', shortcut: 'a', capability: 'tasks.tasks.read' },
+    { to: '/work', labelKey: 'nav.myTasks', icon: 'i-lucide-check-square', shortcut: 'a', capability: 'tasks.tasks.read' },
   ],
   contextLinks: () => [
     { id: 'new-task', labelKey: 'myTasks.new', icon: 'i-lucide-plus', to: '/my-tasks/new', capability: 'tasks.tasks.create', pinned: true },
-    { id: 'work', labelKey: 'myTasks.work.nav', icon: 'i-lucide-list-checks', to: '/work', capability: 'tasks.tasks.read', exact: true },
   ],
-  landing: [{ path: '/my-tasks', capability: 'tasks.tasks.read' }],
+  landing: [{ path: '/work', capability: 'tasks.tasks.read' }],
   returnToPaths: ['/work'],
   routeCapabilities: [
     { pattern: /^\/my-tasks\/new$/, capability: 'tasks.tasks.create' },

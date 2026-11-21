@@ -181,7 +181,7 @@ Storybook هو فهرس المكونات الملزم، وقاعدة ما يُش
 | بطاقة نوع الشركة وفروعها | `apps/web/app/components/access/branches/BranchPresetCard.vue` | اختيار أحد أربعة أنواع تضبط سياسة الفروع؛ `SharedSettingsCard` وحالتها من `useSettingsForm`، وخيارات `URadioGroup` بنمط بطاقة، ووصف النوع المركزي يسمّي الأدوار التي تنتقل إلى الفروع |
 | بطاقة سياسة منح الصلاحيات للنفس | `apps/web/app/components/access/SelfGrantPolicyCard.vue` | اختيار ممنوع أو مسموح لمنح المستخدم نفسه صلاحيات تتجاوز مسؤول النظام؛ `SharedSettingsCard` وحالتها من `useSettingsForm`، وخيارات `SharedOptionCards`، وللقراءة فقط عند غياب صلاحيات التغيير |
 | بطاقة «أشد من السياسة العامة» | `apps/web/app/components/access/branches/BranchStrictCard.vue`, `apps/web/app/components/access/branches/BranchStrictForm.vue` | مفتاح واحد لتطبيق حساس (الموارد البشرية أو الرواتب أو المالية) يمنع وراثة أدواره إلى الفروع؛ `SharedSettingsCard` و`USwitch`، وتختفي حين لا يُقرأ الإعداد، ومسودتها مربوطة بالمستخدم والشركة فلا تنتقل بينهما |
-| المهام الشخصية | `apps/web/app/components/personal-tasks/MyTaskRow.vue` | صف قائمة «مهامي» داخل `SharedListCard` (جدول `bare` أو بطاقات): العنوان والحالة والأولوية والموعد والمكلّفون، ويربط مهمة المشروع بمسارها من الخادم |
+| المهام الشخصية | `apps/web/app/components/personal-tasks/MyTasksWorkspace.vue` (قائمة المهام الشخصية كاملة: البحث والفلاتر والنطاق والمجموعة والترتيب ومبدّل الجدول/البطاقات وشريط المؤشرات وحماية البحث المؤجل؛ تُعرض في تبويب «المهام» داخل «أعمالي» `/work?view=tasks`، ويُعاد توجيه `/my-tasks` إليها)، `apps/web/app/components/personal-tasks/MyTaskRow.vue` | صف قائمة «مهامي» داخل `SharedListCard` (جدول `bare` أو بطاقات): العنوان والحالة والأولوية والموعد والمكلّفون، ويربط مهمة المشروع بمسارها من الخادم |
 
 ## قاعدة التسجيل
 

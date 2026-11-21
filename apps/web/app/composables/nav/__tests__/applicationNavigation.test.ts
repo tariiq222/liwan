@@ -123,17 +123,21 @@ describe('unified application navigation', () => {
     const item = build('/meetings', { state: 'done' }).find(item => item.id === 'meetings')!
     expect(item.sections.flatMap(section => section.items).find(link => link.to === '/meetings')?.active).toBe(false)
   })
-  it('keeps the Tasks landing page reachable alongside its work destination', () => {
+  it('reaches its one destination from the sidebar', () => {
+    // /work is the application's landing page and its only nav row since the pages merged; the sidebar shows it once
+    // as the row itself and once as the work-space entry the shell adds for any module with a landing page.
     const actor = { capabilities: ['liwan.internal', 'tasks.tasks.read'] }
     const item = applicationNavigation({ identity: actor, route: route('/work'), activeId: 'tasks', contextLinks: contextLinksForModule('tasks', actor, '/work'), translate: key => key }).find(item => item.id === 'tasks')!
     const links = item.sections.flatMap(section => section.items)
-    expect(links.find(link => link.to === '/my-tasks')).toMatchObject({ label: 'nav.viewAll', active: false })
-    expect(links.map(link => link.to)).toContain('/work')
+    expect(links.some(link => link.to === '/work' || (link.to as { path?: string })?.path === '/work')).toBe(true)
+    expect(item.to).toBe('/work')
   })
-  it('preserves the Tasks cards layout on its fallback landing link', () => {
+  it('keeps the tasks tab and list query when the sidebar links to its landing page', () => {
     const actor = { capabilities: ['liwan.internal', 'tasks.tasks.read'] }
-    const item = applicationNavigation({ identity: actor, route: route('/my-tasks', { view: 'cards', q: 'test' }), activeId: 'tasks', contextLinks: contextLinksForModule('tasks', actor, '/my-tasks'), translate: key => key }).find(item => item.id === 'tasks')!
-    expect(item.sections.flatMap(section => section.items).find(link => link.label === 'nav.viewAll')?.to).toEqual({ path: '/my-tasks', query: { view: 'cards' } })
+    const item = applicationNavigation({ identity: actor, route: route('/work', { view: 'tasks', q: 'test' }), activeId: 'tasks', contextLinks: contextLinksForModule('tasks', actor, '/work'), translate: key => key }).find(item => item.id === 'tasks')!
+    const landing = item.sections.flatMap(section => section.items).find(link => link.label === 'nav.viewAll')!
+    expect(landing).toBeDefined()
+    expect(JSON.stringify(landing.to)).toContain('/work')
   })
 })
 

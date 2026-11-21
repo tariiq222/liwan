@@ -429,7 +429,7 @@ button.liwan-side-row { border: 0; background: transparent; cursor: pointer; }
 .liwan-tabbar-item [data-slot="label"] { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* The core-app badge on a tab: a hairline chip of the ink tone in the icon's corner, the same number the sidebar shows. */
 .liwan-tabbar-icon { position: relative; display: grid; place-items: center; }
-.liwan-tabbar-count { position: absolute; inset-block-start: -6px; inset-inline-end: -10px; min-width: 16px; padding-inline: 4px; border-radius: 999px; background: var(--primary-solid); color: var(--primary-solid-foreground); font-size: var(--liwan-fs-avatar-initials); font-weight: 600; line-height: 16px; text-align: center; }
+.liwan-tabbar-count { position: absolute; inset-block-start: -6px; inset-inline-end: -10px; min-width: 16px; padding-inline: 4px; border-radius: 999px; background: var(--primary-solid); color: var(--primary-solid-foreground); font-size: var(--text-xs); font-weight: 600; line-height: 16px; text-align: center; }
 
 /* The drawer behind «المزيد» (a Nuxt UI slideover) takes its durations from the shared tokens: in on the panel duration, out quicker. */
 .liwan-mobile-menu[data-state="open"], .liwan-mobile-menu-overlay[data-state="open"] { animation-duration: var(--liwan-motion-panel); animation-timing-function: var(--liwan-motion-ease); }

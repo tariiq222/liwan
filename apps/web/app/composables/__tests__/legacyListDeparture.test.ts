@@ -12,14 +12,19 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as myTaskList from '../../utils/myTaskList'
 import { rootedNode } from '../../../tests/hostNode'
 
+// The personal task list moved from pages/my-tasks/index.vue into components/personal-tasks/MyTasksWorkspace.vue
+// when /my-tasks became the «المهام» tab of «أعمالي» (owner decision 2026-11-21). The list's behaviour is the same
+// component; only its home moved, so this suite mounts it where it lives now.
+// The list lives at `base`; its record routes stayed at `/my-tasks` when the list moved (the redirect middleware
+// forwards only the list itself), so `recordsBase` is separate.
 const cases = [
-  { file: 'my-tasks/index.vue', base: '/my-tasks' },
+  { file: 'components/personal-tasks/MyTasksWorkspace.vue', base: '/work', recordsBase: '/my-tasks', personal: true },
 ]
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 afterEach(() => vi.unstubAllGlobals())
 async function mountList(testCase: typeof cases[number], guard: (to: RouteLocationNormalized) => NavigationGuardReturn | Promise<NavigationGuardReturn>) {
   vi.stubGlobal('document', { addEventListener() {}, removeEventListener() {}, visibilityState: 'visible' })
-  const filename = resolve(import.meta.dirname, '../../pages', testCase.file)
+  const filename = resolve(import.meta.dirname, '../..', testCase.file)
   const source = compileScript(parse(readFileSync(filename, 'utf8'), { filename }).descriptor, { id: 'legacy-list-departure' }).content
     .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replace('export default', 'return')
   const hooks = createHooks<{ 'liwan:navigation:start': (to: RouteLocationNormalized) => void }>()
@@ -41,7 +46,7 @@ async function mountList(testCase: typeof cases[number], guard: (to: RouteLocati
   } })
   const router = createRouter({ history: createMemoryHistory(), routes: [
     { path: testCase.base, component: List },
-    { path: `${testCase.base}/:record`, component: { render: () => Vue.h('div') } },
+    { path: `${testCase.recordsBase}/:record`, component: { render: () => Vue.h('div') } },
   ] })
   router.onError(() => {})
   const node = () => rootedNode({ children: [] as any[], parent: null as any })
@@ -55,10 +60,10 @@ async function mountList(testCase: typeof cases[number], guard: (to: RouteLocati
 }
 
 function renderedOpen(testCase: typeof cases[number], state: any) {
-  const filename = resolve(import.meta.dirname, '../../pages', testCase.file)
+  const filename = resolve(import.meta.dirname, '../..', testCase.file)
   const template = parse(readFileSync(filename, 'utf8'), { filename }).descriptor.template!.content
   const slot = /<template #name-cell[^>]*>([\s\S]*?)<\/template>/.exec(template)![1]!
-  const personal = testCase.base === '/my-tasks'
+  const personal = testCase.personal === true
   const task = personal ? { source: 'personal', id: 51 } : { id: 51 }
   const markup = personal ? slot.replace(/MyTaskRow/g, 'div') : slot.replace(/NuxtLink/g, 'a')
   const compiled = compileTemplate({ source: markup, filename, id: 'legacy-list-title-error', compilerOptions: { mode: 'function', expressionPlugins: ['typescript'] } })
@@ -68,7 +73,7 @@ function renderedOpen(testCase: typeof cases[number], state: any) {
 }
 
 function mountRealTitle(testCase: typeof cases[number], view: Awaited<ReturnType<typeof mountList>>) {
-  const personal = testCase.base === '/my-tasks'
+  const personal = testCase.personal === true
   const task = personal ? { source: 'personal', id: 51, state: 'open', assignees: [], date_deadline: null, name: 'Task' } : { id: 51 }
   let context: Record<string, unknown>
   let filename: string
@@ -87,7 +92,7 @@ function mountRealTitle(testCase: typeof cases[number], view: Awaited<ReturnType
     context = { ...props, ...scope.run(() => row.setup(props, { expose() {}, emit(_name: string, event: MouseEvent, item: any) { view.state.openLiveTask(event, item) } })) }
     template = descriptor.template!.content
   } else {
-    filename = resolve(import.meta.dirname, '../../pages', testCase.file)
+    filename = resolve(import.meta.dirname, '../..', testCase.file)
     const content = parse(readFileSync(filename, 'utf8'), { filename }).descriptor.template!.content
     template = /<template #name-cell[^>]*>([\s\S]*?)<\/template>/.exec(content)![1]!
     context = { ...view.state, row: { original: task } }
@@ -120,8 +125,8 @@ describe.each(cases)('$base pending list writes', testCase => {
     try {
       view.state.search.value = 'instant'
       link.click()
-      await expect.poll(() => view.router.currentRoute.value.path).toBe(`${testCase.base}/51`)
-      const origin = testCase.base === '/my-tasks' ? view.router.resolve(String(view.router.currentRoute.value.query.returnTo)) : view.router.currentRoute.value
+      await expect.poll(() => view.router.currentRoute.value.path).toBe(`${testCase.recordsBase}/51`)
+      const origin = testCase.personal ? view.router.resolve(String(view.router.currentRoute.value.query.returnTo)) : view.router.currentRoute.value
       expect(origin.query.q).toBe('instant')
       expect(pushes).toHaveBeenCalledTimes(1)
     } finally { link.close(); view.app.unmount() }
@@ -159,10 +164,10 @@ describe.each(cases)('$base pending list writes', testCase => {
     const view = await mountList(testCase, async to => { if (to.path.endsWith('/51')) await sleep(400) })
     try {
       view.state.search.value = 'review'
-      const target = testCase.base === '/my-tasks' ? view.state.rowTo({ source: 'personal', id: 51 }) : view.state.itemTo({ id: 51 })
+      const target = testCase.personal ? view.state.rowTo({ source: 'personal', id: 51 }) : view.state.itemTo({ id: 51 })
       await view.router.push(target)
       await sleep(50)
-      expect(view.router.currentRoute.value.path).toBe(`${testCase.base}/51`)
+      expect(view.router.currentRoute.value.path).toBe(`${testCase.recordsBase}/51`)
       expect(view.attempts.filter(to => to.path === testCase.base)).toHaveLength(0)
     } finally { view.app.unmount() }
   })
@@ -171,7 +176,7 @@ describe.each(cases)('$base pending list writes', testCase => {
     try {
       view.state.search.value = 'review'
       await view.router.push(view.state.createTo.value)
-      expect(view.router.currentRoute.value.path).toBe(`${testCase.base}/new`)
+      expect(view.router.currentRoute.value.path).toBe(`${testCase.recordsBase}/new`)
       expect(view.attempts.filter(to => to.path === testCase.base)).toHaveLength(0)
     } finally { view.app.unmount() }
   })
@@ -185,7 +190,7 @@ describe.each(cases)('$base pending list writes', testCase => {
     })
     try {
       view.state.search.value = 'review'
-      await view.router.push(`${testCase.base}/51`).catch(() => undefined)
+      await view.router.push(`${testCase.recordsBase}/51`).catch(() => undefined)
       await expect.poll(() => view.router.currentRoute.value.query.q).toBe('review')
       await sleep(300)
       expect(view.router.currentRoute.value.path).toBe(testCase.base)
@@ -197,7 +202,7 @@ describe.each(cases)('$base pending list writes', testCase => {
     const view = await mountList(testCase, async to => { await sleep(to.path.endsWith('/51') ? 400 : 500) })
     try {
       view.state.search.value = 'old draft'
-      const first = view.router.push(`${testCase.base}/51`)
+      const first = view.router.push(`${testCase.recordsBase}/51`)
       await sleep(50)
       const latest = view.router.push(`${testCase.base}?q=latest#new`)
       await Promise.all([first, latest])
@@ -212,11 +217,11 @@ describe.each(cases)('$base pending list writes', testCase => {
     const view = await mountList(testCase, async to => { if (to.path.endsWith('/51')) await sleep(++records === 1 ? 400 : 650) })
     try {
       view.state.search.value = 'review'
-      const first = view.router.push(`${testCase.base}/51`)
+      const first = view.router.push(`${testCase.recordsBase}/51`)
       await sleep(50)
-      const latest = view.router.push(`${testCase.base}/51`)
+      const latest = view.router.push(`${testCase.recordsBase}/51`)
       await Promise.all([first, latest])
-      expect(view.router.currentRoute.value.path).toBe(`${testCase.base}/51`)
+      expect(view.router.currentRoute.value.path).toBe(`${testCase.recordsBase}/51`)
       expect(view.attempts.filter(to => to.path === testCase.base)).toHaveLength(0)
     } finally { view.app.unmount() }
   })
@@ -227,8 +232,8 @@ describe.each(cases)('$base pending list writes', testCase => {
       await sleep(600)
       expect(view.attempts).toHaveLength(1)
       expect(view.router.currentRoute.value.fullPath).toBe(`${testCase.base}#ledger`)
-      await view.router.push(`${testCase.base}/51`)
-      expect(view.router.currentRoute.value.path).toBe(`${testCase.base}/51`)
+      await view.router.push(`${testCase.recordsBase}/51`)
+      expect(view.router.currentRoute.value.path).toBe(`${testCase.recordsBase}/51`)
     } finally { view.app.unmount() }
   })
   it('carries an in-flight search when an explicit filter or page change supersedes it', async () => {
@@ -237,10 +242,10 @@ describe.each(cases)('$base pending list writes', testCase => {
       view.state.search.value = 'review'
       await sleep(300)
       expect(view.attempts).toHaveLength(1)
-      if (testCase.base === '/my-tasks') view.state.update({ scope: 'assigned' })
+      if (testCase.personal) view.state.update({ scope: 'assigned' })
       else view.state.goPage(50)
       await expect.poll(() => view.router.currentRoute.value.query.q).toBe('review')
-      if (testCase.base === '/my-tasks') expect(view.router.currentRoute.value.query.scope).toBe('assigned')
+      if (testCase.personal) expect(view.router.currentRoute.value.query.scope).toBe('assigned')
       else expect(view.router.currentRoute.value.query.offset).toBe('50')
       expect(view.state.search.value).toBe('review')
       expect(view.router.currentRoute.value.hash).toBe('#ledger')
@@ -252,12 +257,12 @@ describe.each(cases)('$base pending list writes', testCase => {
     try {
       view.state.search.value = 'first'
       await sleep(300)
-      if (testCase.base === '/my-tasks') view.state.update({ sort: 'name' })
+      if (testCase.personal) view.state.update({ sort: 'name' })
       else view.state.goPage(50)
       view.state.search.value = 'latest'
       await expect.poll(() => view.router.currentRoute.value.query.q).toBe('latest')
       expect(view.state.search.value).toBe('latest')
-      if (testCase.base === '/my-tasks') expect(view.router.currentRoute.value.query.sort).toBe('name')
+      if (testCase.personal) expect(view.router.currentRoute.value.query.sort).toBe('name')
       else expect(view.router.currentRoute.value.query.offset).toBeUndefined()
       expect(view.attempts).toHaveLength(3)
     } finally { view.app.unmount() }
@@ -266,7 +271,7 @@ describe.each(cases)('$base pending list writes', testCase => {
     const view = await mountList(testCase, async () => { await sleep(400); return false })
     try {
       view.state.search.value = 'review'
-      const departure = view.router.push(`${testCase.base}/51`)
+      const departure = view.router.push(`${testCase.recordsBase}/51`)
       await sleep(300)
       view.app.unmount()
       await departure
@@ -285,7 +290,7 @@ describe.each(cases)('$base pending list writes', testCase => {
     })
     try {
       view.state.search.value = 'stale draft'
-      await view.router.push(`${testCase.base}/51`)
+      await view.router.push(`${testCase.recordsBase}/51`)
       await sleep(300)
       expect(view.router.currentRoute.value.fullPath).toBe(`${testCase.base}?q=redirected#redirect`)
       expect(view.state.search.value).toBe('redirected')

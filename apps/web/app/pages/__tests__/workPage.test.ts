@@ -83,11 +83,12 @@ describe('work page', () => {
     expect(after).not.toMatch(/data-value="decide" disabled/)
   })
 
-  it('has the title, the description and the links to the plain list and to a new task', async () => {
+  it('has the title, the description, the two workspace tabs and the new-task action', async () => {
+    // /work is «أعمالي» now: the plain list is its «المهام» tab rather than a link to a second page.
     const { html } = await render({ rows: sample })
     expect(html).toContain('<h1>مهامي</h1>')
     expect(html).toContain('أعمالك وما ينتظر قرارك وما تتابعه في مكان واحد')
-    expect(html).toMatch(/href="\/my-tasks"[^>]*>قائمة مهامي</)
+    expect(html).toContain('data-testid="workspace-tabs"')
     expect(html).toMatch(/href="\/my-tasks\/new"[^>]*>مهمة جديدة</)
   })
 
