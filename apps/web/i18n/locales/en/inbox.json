@@ -447,8 +447,9 @@
           "least_open": "New conversations go to the member with the fewest open conversations."
         },
         "firstResponse": "First-response alert (minutes)",
-        "automationLocked": "Your plan does not include message automation, so this setting has no effect and cannot be changed.",
+        "automationLocked": "Your plan does not include message automation, so this setting has no effect. You can only turn it off or keep its current value.",
         "firstResponseHint": "The assignee is notified when a customer has waited this long without a reply. 0 turns the alert off.",
+        "firstResponseOff": "Off",
         "reportRetention": "Report history retention (months)",
         "reportRetentionHint": "How long the daily performance rows behind the reports are kept. It does not affect conversations.",
         "shifts": "Agent shifts",

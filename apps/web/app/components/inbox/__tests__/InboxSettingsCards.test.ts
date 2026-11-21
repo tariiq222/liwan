@@ -94,20 +94,28 @@ describe('InboxPolicyCard', () => {
     expect(card.draft.value.retention_months).toBe(60)
   })
 
-  it('locks the assignment policy and the first-response alert, with the reason, when the tenant has no automation', () => {
-    const { card } = mountPolicy({ settings: policy() }, false)
+  it('without automation, offers only the off value and the saved value, with the reason, and keeps the controls enabled', () => {
+    const { card } = mountPolicy({ settings: policy({ assignment_policy: 'round_robin', first_response_alert_minutes: 30 }) }, false)
     expect(card.locked.value).toBe(false)
-    expect(card.automationLocked.value).toBe(true)
+    expect(card.automationLimited.value).toBe(true)
     expect(card.automationReason.value).toBe('inbox.settings.policy.automationLocked')
+    expect(card.assignmentItems.value.map((item: { value: string; disabled: boolean }) => [item.value, item.disabled])).toEqual([['manual', false], ['round_robin', false], ['least_open', true]])
+    expect(card.firstResponseItems.value.map((item: { value: number }) => item.value)).toEqual([0, 30])
     const source = readFileSync(policyFile, 'utf8')
-    expect(source).toContain(':disabled="automationLocked"')
-    expect(source.match(/:disabled="locked"/g)?.length).toBeGreaterThan(3)
+    expect(source).toContain('<USelect v-if="automationLimited"')
   })
 
-  it('leaves those two fields editable with automation on', () => {
+  it('without automation and nothing saved, the only choices are the off values', () => {
+    const { card } = mountPolicy({ settings: policy() }, false)
+    expect(card.assignmentItems.value.map((item: { value: string; disabled: boolean }) => [item.value, item.disabled])).toEqual([['manual', false], ['round_robin', true], ['least_open', true]])
+    expect(card.firstResponseItems.value.map((item: { value: number }) => item.value)).toEqual([0])
+  })
+
+  it('leaves those two fields fully editable with automation on', () => {
     const { card } = mountPolicy({ settings: policy() })
-    expect(card.automationLocked.value).toBe(false)
+    expect(card.automationLimited.value).toBe(false)
     expect(card.automationReason.value).toBeUndefined()
+    expect(card.assignmentItems.value.every((item: { disabled: boolean }) => !item.disabled)).toBe(true)
   })
 
   it('disables every field for a viewer', () => {

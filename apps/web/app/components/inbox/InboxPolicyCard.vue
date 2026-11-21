@@ -13,7 +13,8 @@ const { t } = useI18n()
 const hydrated = useHydrated()
 const { mutateAsync: saveSettings } = useUpdateInboxSettings()
 // The assignment policy and the first-response alert are part of the automation sub-feature: without it they take no
-// effect and the server refuses a change, so the two fields stay visible but locked, with the reason beside them.
+// effect and the server accepts only their off value (`manual`, 0) or the value already saved, so the two fields stay
+// visible, offer just those two choices, and say why beside them.
 const automationOn = useInboxAutomationEnabled()
 
 const POLICIES: readonly InboxVisibilityPolicy[] = ['assigned_only', 'department', 'all']
@@ -30,10 +31,20 @@ const { draft, state, save, revert, reload } = useSettingsForm<InboxSettings, In
   reload: () => props.reloadSettings(),
 })
 const locked = computed(() => !hydrated.value || !props.canEdit || state.value.saving || state.value.reloading)
-const automationLocked = computed(() => locked.value || !automationOn.value)
-const automationReason = computed(() => (automationOn.value ? undefined : t('inbox.settings.policy.automationLocked')))
+const automationLimited = computed(() => !automationOn.value)
+const automationReason = computed(() => (automationLimited.value ? t('inbox.settings.policy.automationLocked') : undefined))
 const policyItems = computed(() => POLICIES.map(value => ({ value, label: t(`inbox.settings.policy.visibility.${value}`), description: t(`inbox.settings.policy.visibilityHint.${value}`) })))
-const assignmentItems = computed(() => ASSIGNMENTS.map(value => ({ value, label: t(`inbox.settings.policy.assignment.${value}`), description: t(`inbox.settings.policy.assignmentHint.${value}`) })))
+const assignmentItems = computed(() => ASSIGNMENTS.map(value => ({
+  value,
+  label: t(`inbox.settings.policy.assignment.${value}`),
+  description: t(`inbox.settings.policy.assignmentHint.${value}`),
+  disabled: automationLimited.value && value !== 'manual' && value !== props.settings.assignment_policy,
+})))
+const firstResponseItems = computed(() => {
+  const saved = props.settings.first_response_alert_minutes
+  const items = [{ value: 0, label: t('inbox.settings.policy.firstResponseOff') }]
+  return saved === 0 ? items : [...items, { value: saved, label: String(saved) }]
+})
 const releaseItems = computed(() => RELEASES.map(value => ({ value, label: t(`inbox.settings.policy.release.${value}`), description: t(`inbox.settings.policy.releaseHint.${value}`) })))
 </script>
 
@@ -53,11 +64,12 @@ const releaseItems = computed(() => RELEASES.map(value => ({ value, label: t(`in
         <UInputNumber id="inbox-report-retention" v-model="draft.report_retention_months" class="w-full" :min="12" :max="120" :disabled="locked" data-testid="inbox-report-retention" />
       </UFormField>
       <UFormField :label="t('inbox.settings.policy.firstResponse')" name="inbox-first-response" :help="automationReason ?? t('inbox.settings.policy.firstResponseHint')">
-        <UInputNumber id="inbox-first-response" v-model="draft.first_response_alert_minutes" class="w-full" :min="0" :max="1440" :disabled="automationLocked" data-testid="inbox-first-response" />
+        <USelect v-if="automationLimited" id="inbox-first-response" v-model="draft.first_response_alert_minutes" class="w-full" :items="firstResponseItems" :disabled="locked" data-testid="inbox-first-response" />
+        <UInputNumber v-else id="inbox-first-response" v-model="draft.first_response_alert_minutes" class="w-full" :min="0" :max="1440" :disabled="locked" data-testid="inbox-first-response" />
       </UFormField>
     </div>
     <SharedSettingRow stacked :label="t('inbox.settings.policy.assignmentLabel')" :description="t('inbox.settings.policy.assignmentDescription')" :disabled-reason="automationReason">
-      <SharedOptionCards v-model="draft.assignment_policy" :options="assignmentItems" :label="t('inbox.settings.policy.assignmentLabel')" :disabled="automationLocked" data-testid="inbox-assignment" />
+      <SharedOptionCards v-model="draft.assignment_policy" :options="assignmentItems" :label="t('inbox.settings.policy.assignmentLabel')" :disabled="locked" data-testid="inbox-assignment" />
     </SharedSettingRow>
     <SharedSettingRow :label="t('inbox.settings.policy.shifts')" :description="t('inbox.settings.policy.shiftsHint')">
       <USwitch v-model="draft.agent_shifts_enabled" :aria-label="t('inbox.settings.policy.shifts')" :disabled="locked" data-testid="inbox-agent-shifts-enabled" />
