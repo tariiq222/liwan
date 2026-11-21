@@ -7,6 +7,7 @@ from odoo.tests import new_test_user, tagged
 
 from .common import MESSAGE_KEYS, PASSWORD, TEMPLATE_KEYS, LiwanInboxCase
 from odoo.addons.liwan_api.tests.common import set_probe_feature
+from odoo.addons.liwan_inbox.models.constants import AUTOMATION_FEATURE
 from odoo.addons.liwan_inbox.models.privacy_hooks import ERASED_CONTACT
 
 CONVERSATION_KEYS = {
@@ -82,6 +83,12 @@ class TestConversationsApi(LiwanInboxCase):
             'conversation_id': conversation.id, 'company_id': conversation.company_id.id, 'direction': 'out',
             'author_id': self.agent.id, 'body': 'Answer', 'delivery_state': 'sent', 'date': fields.Datetime.now(),
         })
+        self.assertFalse(conversation.waiting_overdue)
+
+    def test_waiting_overdue_is_off_without_the_automation_feature(self):
+        self.settings.first_response_alert_minutes = 20
+        conversation = self.make_conversation(minutes_ago=30)
+        set_probe_feature(self, key=AUTOMATION_FEATURE, enabled=False)
         self.assertFalse(conversation.waiting_overdue)
 
     def test_sort_waiting_puts_the_longest_wait_first_and_the_rest_last(self):
@@ -281,6 +288,25 @@ class TestConversationsApi(LiwanInboxCase):
             self.conversation.write({'department_id': foreign_department.id})
         with self.assertRaises(ValidationError):
             self.conversation.write({'tag_ids': [(4, foreign_tag.id)]})
+
+    def test_a_branch_conversation_takes_the_department_and_tags_of_its_own_company(self):
+        branch = self.env['res.company'].create({'name': 'Parent session branch', 'parent_id': self.env.company.id})
+        user = new_test_user(
+            self.env, login='inbox_parent_session', password=PASSWORD, name='Parent session', groups='liwan_core.group_employee',
+            company_id=self.env.company.id, company_ids=[(6, 0, (self.env.company | branch).ids)],
+        )
+        role = self.env.ref('liwan_inbox.role_inbox_supervisor')
+        for company in self.env.company | branch:
+            self.env['liwan.access.assignment'].create({'user_id': user.id, 'company_id': company.id, 'role_id': role.id})
+        branch_channel = self.make_channel(phone_id='100000000098', owner_company_id=branch.id)
+        conversation = self.make_conversation(channel=branch_channel)
+        branch_department = self.env['liwan.inbox.department'].create({'name': 'Branch desk', 'company_id': branch.id})
+        branch_tag = self.env['liwan.inbox.tag'].create({'name': 'Branch tag', 'company_id': branch.id})
+        self.login(user)  # the session's current company is the parent
+        own = self.patch_conversation(conversation, {'department_id': branch_department.id, 'tag_ids': [branch_tag.id]})
+        self.assertEqual(own.status_code, 200, own.text)
+        self.assertEqual((conversation.department_id, conversation.tag_ids), (branch_department, branch_tag))
+        self.assertError(self.patch_conversation(conversation, {'department_id': self.department.id}), 422, 'invalid')
 
     def test_messages_are_chronological_and_paged_from_the_newest(self):
         for index in range(3):

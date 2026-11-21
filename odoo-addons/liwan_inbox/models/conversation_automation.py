@@ -47,11 +47,9 @@ class LiwanInboxConversationAutomation(models.Model):
     @api.model
     def _liwan_run_first_response_alerts(self):
         """Bell the agents of every conversation whose customer has waited too long for a first reply, once per wait."""
-        if not self.env['liwan.entitlement.service']._liwan_feature_write(AUTOMATION_FEATURE):
-            return
         now = fields.Datetime.now()
         for company in self.env['res.company'].search([]):
-            minutes = self.env['liwan.inbox.settings']._get_for_company(company).first_response_alert_minutes
+            minutes = self.env['liwan.inbox.settings']._liwan_alert_minutes(company)
             if not minutes:
                 continue
             waiting = self.search([

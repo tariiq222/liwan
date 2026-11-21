@@ -19,6 +19,7 @@ from .constants import (
     REPLY_WINDOWS,
 )
 from .rule import TEXT_KINDS
+from .settings import MANUAL_ASSIGNMENT
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 
 # The system notes that tell agents what the automation did (the thread shows them without an author).
@@ -217,7 +218,7 @@ class LiwanInboxAutomation(models.AbstractModel):
     @api.model
     def _liwan_auto_assign(self, conversation, settings):
         """Give an unassigned conversation to an agent by the company's policy (round robin or fewest open)."""
-        if conversation.assignee_id or settings.assignment_policy == 'manual' or conversation.state != 'open':
+        if conversation.assignee_id or settings.assignment_policy == MANUAL_ASSIGNMENT or conversation.state != 'open':
             return
         agents = self.env['liwan.inbox.agent']._liwan_available_agents(conversation._liwan_agents(), conversation.company_id).sorted('id')
         if not agents:

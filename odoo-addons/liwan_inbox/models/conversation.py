@@ -142,7 +142,7 @@ class LiwanInboxConversation(models.Model):
     def _compute_waiting_overdue(self):
         now = fields.Datetime.now()
         Settings = self.env['liwan.inbox.settings']
-        minutes = {company: Settings._liwan_read_for_company(company).first_response_alert_minutes for company in self.company_id}
+        minutes = {company: Settings._liwan_alert_minutes(company) for company in self.company_id}
         for conversation in self:
             threshold = minutes[conversation.company_id]
             conversation.waiting_overdue = bool(

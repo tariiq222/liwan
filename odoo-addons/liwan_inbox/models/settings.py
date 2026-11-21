@@ -2,7 +2,7 @@
 from odoo import Command, api, fields, models
 from odoo.exceptions import ValidationError
 
-from .constants import DEFAULT_TIMEZONE
+from .constants import AUTOMATION_FEATURE, DEFAULT_TIMEZONE
 from .hours_text import hours_sentence
 from .presets import PRESETS, fill_hours
 
@@ -11,8 +11,10 @@ VISIBILITY_POLICIES = [
     ('department', 'Own department and unassigned'),
     ('all', 'All conversations'),
 ]
+MANUAL_ASSIGNMENT = 'manual'
+ALERT_OFF_MINUTES = 0
 ASSIGNMENT_POLICIES = [
-    ('manual', 'Manual'),
+    (MANUAL_ASSIGNMENT, 'Manual'),
     ('round_robin', 'Round robin'),
     ('least_open', 'Fewest open conversations'),
 ]
@@ -42,7 +44,7 @@ class LiwanInboxSettings(models.Model):
     hours_timezone = fields.Char(required=True, default=DEFAULT_TIMEZONE)
     hours_range_ids = fields.One2many('liwan.inbox.hours.range', 'settings_id')
     holiday_ids = fields.One2many('liwan.inbox.hours.holiday', 'settings_id')
-    assignment_policy = fields.Selection(ASSIGNMENT_POLICIES, required=True, default='manual')
+    assignment_policy = fields.Selection(ASSIGNMENT_POLICIES, required=True, default=MANUAL_ASSIGNMENT)
     # Agent availability: with shifts on, an agent is available only inside their own weekly ranges (none means always);
     # `release` takes the open conversations off an agent who is switched to unavailable.
     agent_shifts_enabled = fields.Boolean(default=False)
@@ -52,7 +54,7 @@ class LiwanInboxSettings(models.Model):
     # How long the daily report rows are kept, and the timezone they were built in (a change rebuilds them).
     report_retention_months = fields.Integer(default=36)
     reports_built_timezone = fields.Char()
-    first_response_alert_minutes = fields.Integer(default=0, help='Minutes a customer may wait for a first reply; 0 turns the alert off.')
+    first_response_alert_minutes = fields.Integer(default=ALERT_OFF_MINUTES, help='Minutes a customer may wait for a first reply; 0 turns the alert off.')
 
     _company_unique = models.Constraint('UNIQUE(company_id)', 'A company has one inbox settings row.')
 
@@ -88,6 +90,13 @@ class LiwanInboxSettings(models.Model):
         """The company's row, or an unsaved one at the stated defaults when it has none yet. Never writes."""
         company = company or self.env.company
         return self.search([('company_id', '=', company.id)], limit=1) or self.new({'company_id': company.id})
+
+    @api.model
+    def _liwan_alert_minutes(self, company):
+        """Minutes a customer may wait for a first reply in `company`; 0 when the alert is off or the automation feature is not writable."""
+        if not self.env['liwan.entitlement.service']._liwan_feature_write(AUTOMATION_FEATURE):
+            return ALERT_OFF_MINUTES
+        return self._liwan_read_for_company(company).first_response_alert_minutes
 
     def _liwan_is_open(self, at, department=None):
         """Whether the UTC moment `at` is inside the working hours that apply (the department's, else the company's)."""
@@ -173,7 +182,7 @@ class LiwanInboxSettings(models.Model):
                 'company_id': company.id, 'sequence': sequence, 'name': spec['name'], 'match_kind': 'option', 'active': False,
                 'option_id': spec['option_id'],
                 'department_id': self._liwan_named('liwan.inbox.department', spec.get('department')),
-                'tag_ids': [(6, 0, [self._liwan_named('liwan.inbox.tag', name) for name in spec.get('tags', [])])],
+                'tag_ids': [(6, 0, list(filter(None, (self._liwan_named('liwan.inbox.tag', name) for name in spec.get('tags', [])))))],
             })
             rule._liwan_set_reply(spec['reply'])
 
