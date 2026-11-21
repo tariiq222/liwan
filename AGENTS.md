@@ -256,8 +256,10 @@ another application) needs the owner's approval, recorded by the owner as an
 - `main` is protected on GitHub with PR and current CI requirements and no admin bypass.
   Integration uses a pull request; direct pushes and protection bypasses are prohibited. The
   preservation procedure, the standing authorization (local commit, lane return after a merge), the
-  steps that need the owner's explicit words (push, PR, ready, merge, auto-merge), the exclusions and the merge checklist have one
-  owner: [integration-rules.md](docs/agents/integration-rules.md). Read it before integrating an
+  steps that need the owner's explicit words (push, PR, ready, merge, auto-merge), the independent review that precedes
+  every push ([section](docs/agents/integration-rules.md#independent-review-before-every-push-owner-decision-2026-11-21)),
+  the exclusions and the merge checklist have one
+  owner: [integration-rules.md](docs/agents/integration-rules.md). Read it before any push and before integrating an
   older branch. The 2026-10-17 direct-push exception is superseded by this PR workflow.
 - Use a task PR for an independent change; use one `<prefix>/tools-integrate-<slug>` candidate
   and one PR for a coupled batch, and do not submit both a batch and its constituent branches.
