@@ -118,6 +118,16 @@ const subjectsSql = `WITH latest AS (
   WHERE op.status IN ('failed','needs_intervention')
     AND NOT EXISTS (SELECT 1 FROM operations later WHERE later.tenant_id=op.tenant_id AND later.created_at>op.created_at AND later.status='succeeded')
   ORDER BY op.tenant_id, op.created_at DESC, op.id
+), failed_jobs AS (
+  -- A job on the shared runtime that is stuck (needs_intervention) or was abandoned (failed), until a later job of the workspace verifies.
+  -- An AI balance push that failed is not listed: it blocks nothing and the periodic sweep re-sends it.
+  SELECT DISTINCT ON (j.control_tenant_id) j.id, j.control_tenant_id AS tenant_id, j.payload->>'operation' AS type,
+    COALESCE(e.created_at, j.created_at) AS at, t.name, c.id AS customer_id
+  FROM shared_jobs j JOIN tenants t ON t.id=j.control_tenant_id LEFT JOIN customers c ON c.tenant_id=j.control_tenant_id
+  LEFT JOIN LATERAL (SELECT created_at FROM shared_job_events WHERE job_id=j.id ORDER BY sequence DESC LIMIT 1) e ON true
+  WHERE j.state IN ('failed','needs_intervention') AND COALESCE(j.payload->'authority'->>'ai_push','') <> 'true'
+    AND NOT EXISTS (SELECT 1 FROM shared_jobs later WHERE later.control_tenant_id=j.control_tenant_id AND later.created_at>j.created_at AND later.state='verified')
+  ORDER BY j.control_tenant_id, j.created_at DESC, j.id
 ), invitation_failures AS (
   -- The latest invitation per tenant and admin login ended as failed (delivery gave up after its retries): nobody holds a
   -- usable link. A later pending or delivered re-issue is the latest row, so it clears the item.
@@ -213,6 +223,7 @@ const subjectsSql = `WITH latest AS (
   UNION ALL SELECT 4,'invitation_failed', customer_id, tenant_id, NULL, NULL, name, ${iso('created_at')}, NULL, created_at FROM invitation_failures
   UNION ALL SELECT 4,'notice_failed', customer_id, tenant_id, NULL, NULL, name, ${iso('processed_at')}, reason, processed_at FROM failed_notices
   UNION ALL SELECT 5,'operation_failed', customer_id, tenant_id, id, NULL, name, ${iso('updated_at')}, type, updated_at FROM failed_ops
+  UNION ALL SELECT 5,'shared_operation_failed', customer_id, tenant_id, id, NULL, name, ${iso('at')}, type, at FROM failed_jobs
   UNION ALL SELECT 6,'setup_required', customer_id, tenant_id, NULL, NULL, name, ${iso('customer_created_at')}, NULL, customer_created_at FROM setup
   UNION ALL SELECT 7,'renewal_missed', customer_id, tenant_id, NULL, NULL, name, ${iso(renewalInstant)}, NULL, ${renewalInstant} FROM renewing WHERE renewal_at < ${businessToday}
   UNION ALL SELECT 8,'renewal_soon', customer_id, tenant_id, NULL, NULL, name, ${iso(renewalInstant)}, NULL, ${renewalInstant} FROM renewing WHERE renewal_at >= ${businessToday}

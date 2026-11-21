@@ -34,7 +34,7 @@ describe.skipIf(!url)('opt-in operation feed on PostgreSQL', () => {
       const attempt = randomUUID()
       await pool.query(`INSERT INTO shared_jobs(id,control_tenant_id,business_key,payload,payload_digest,issuer,actor_uid,reason,state,attempt_id,fence,lease_until,created_at)
         VALUES($1::uuid,$2,$1::text,$3,$4,$5,7,'executor failed: postgres://secret@host /private/filestore','running',$6,1,now()+interval '1 hour','2026-10-01T00:00:00Z')`,
-      [id(n), n === 26 ? otherTenant : tenant, { operation: n === 3 ? 'backup' : 'provision', requestId: id(n), secret: 'sensitive', binding: { database: 'private_db' } }, 'a'.repeat(64), config.installationId, attempt])
+      [id(n), n === 26 ? otherTenant : tenant, { operation: n === 3 ? 'backup' : n === 6 ? 'reconfigure' : 'provision', requestId: id(n), secret: 'sensitive', binding: { database: 'private_db' } }, 'a'.repeat(64), config.installationId, attempt])
       if (n === 3 || n === 4) await pool.query("INSERT INTO shared_job_events(job_id,attempt_id,fence,sequence,stage,evidence,created_at) VALUES($1,$2,1,1,$3,$4,'2026-10-01T00:05:00Z')", [id(n), attempt, n === 3 ? 'started' : 'verified', { secret: 'sensitive', path: '/private/filestore' }])
       await pool.query('UPDATE shared_jobs SET state=$2,journal=$3,receipt=$4 WHERE id=$1', [id(n), state, { stage: 'started', secret: 'sensitive' }, { secret: 'sensitive' }])
     }
@@ -96,6 +96,11 @@ describe.skipIf(!url)('opt-in operation feed on PostgreSQL', () => {
     expect(verified).toMatchObject({ status: 'verified', stage: 'verified', reason: 'shared_execution_verified' })
     const list = await get('/v1/operations?source=all')
     expect(JSON.stringify(list.items.filter((op: any) => op.source === 'shared'))).not.toMatch(/secret|private|evidence|journal|receipt|postgres/)
+  })
+  it('names a reconfigure job by its own type instead of unknown', async () => {
+    const detail = await get(`/v1/operations/${id(6)}?source=shared`)
+    expect(sharedOperationFeedSchema.safeParse(detail).success).toBe(true)
+    expect(detail).toMatchObject({ type: 'reconfigure', status: 'verified' })
   })
   it('requires vendor.read for all new read paths and rejects ambiguous source values', async () => {
     for (const path of ['/v1/overview?source=all', '/v1/operations?source=all', `/v1/operations/${id(3)}?source=shared`]) expect((await call(path, 8)).status).toBe(403)

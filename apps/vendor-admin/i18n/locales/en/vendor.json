@@ -81,6 +81,7 @@
         "bank_transfer_claimed": "The customer says it transferred on {operation}: confirm the transfer once the money arrives",
         "notice_failed": "A notice to the customer could not be sent ({operation})",
         "operation_failed": "Operation failed: {operation}",
+        "shared_operation_failed": "A shared-runtime operation is stuck or was abandoned: {operation}",
         "setup_required": "Needs commercial setup",
         "renewal_missed": "Renewal date passed {duration} ago and not renewed",
         "renewal_soon": "Renews within {duration}",
@@ -110,6 +111,7 @@
         "bank_transfer_claimed": "Open the invoice",
         "notice_failed": "Open the subscription",
         "operation_failed": "Open the operation",
+        "shared_operation_failed": "Open the operation",
         "setup_required": "Open the subscription",
         "renewal_missed": "Open the subscription",
         "renewal_soon": "Open the subscription",
@@ -349,6 +351,7 @@
         "upgrade": "Upgrade installation",
         "restore": "Restore backup",
         "provision": "Set up customer workspace",
+        "reconfigure": "Change workspace subscription",
         "unknown": "Unknown operation"
       },
       "lastEvent": "Last recorded event",

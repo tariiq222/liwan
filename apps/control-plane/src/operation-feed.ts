@@ -5,7 +5,7 @@ import type { Pool } from 'pg'
 // Executor reasons/journals may contain paths or credentials, so shared reasons
 // are stable operator-facing codes; the vendor UI translates these codes.
 const SHARED_FIELDS = `j.id,j.control_tenant_id AS tenant_id,
-  CASE WHEN j.payload->>'operation' IN ('provision','backup','restore') THEN j.payload->>'operation' ELSE 'unknown' END AS type,
+  CASE WHEN j.payload->>'operation' IN ('provision','backup','restore','reconfigure') THEN j.payload->>'operation' ELSE 'unknown' END AS type,
   j.state AS status,
   CASE WHEN j.state IN ('verified','needs_intervention','queued','failed') THEN j.state ELSE COALESCE(e.stage,j.state) END AS stage,
   (j.payload->>'requestId')::uuid AS request_id,

@@ -81,6 +81,7 @@
         "bank_transfer_claimed": "يقول العميل إنه حوّل المبلغ بتاريخ {operation}: أكّد التحويل عند وصول المال",
         "notice_failed": "تعذّر إرسال إشعار إلى العميل ({operation})",
         "operation_failed": "فشلت عملية: {operation}",
+        "shared_operation_failed": "عملية على البيئة المشتركة متعثرة أو أُغلقت: {operation}",
         "setup_required": "يحتاج إعدادًا تجاريًا",
         "renewal_missed": "تاريخ التجديد مضى منذ {duration} ولم يتجدد",
         "renewal_soon": "يتجدد خلال {duration}",
@@ -110,6 +111,7 @@
         "bank_transfer_claimed": "افتح الفاتورة",
         "notice_failed": "افتح الاشتراك",
         "operation_failed": "افتح العملية",
+        "shared_operation_failed": "افتح العملية",
         "setup_required": "افتح الاشتراك",
         "renewal_missed": "افتح الاشتراك",
         "renewal_soon": "افتح الاشتراك",
@@ -349,6 +351,7 @@
         "upgrade": "ترقية النسخة",
         "restore": "استعادة نسخة احتياطية",
         "provision": "تهيئة مساحة العميل",
+        "reconfigure": "تغيير اشتراك مساحة العمل",
         "unknown": "عملية غير معروفة"
       },
       "lastEvent": "آخر حدث مسجل",

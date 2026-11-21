@@ -42,6 +42,7 @@ describe('attentionPresentation', () => {
   it('links nowhere rather than to a guessed page when the record is missing', () => {
     expect(attentionPresentation(item({ kind: 'setup_required', customer_id: null })).to).toBeNull()
     expect(attentionPresentation(item({ kind: 'operation_failed', operation_id: null })).to).toBeNull()
+    expect(attentionPresentation(item({ kind: 'shared_operation_failed', customer_id: null, operation_id: 'o1' })).to).toEqual({ path: '/operations/o1', query: { source: 'shared', returnTo: '/overview' } })
   })
 })
 
@@ -61,6 +62,7 @@ describe('attentionMessage', () => {
   })
   it('carries the failed operation type and counts days to a renewal', () => {
     expect(attentionMessage(item({ kind: 'operation_failed', detail: 'upgrade' }), now)).toMatchObject({ operation: 'upgrade' })
+    expect(attentionMessage(item({ kind: 'shared_operation_failed', detail: 'reconfigure' }), now)).toMatchObject({ key: 'shared_operation_failed', operation: 'reconfigure' })
     expect(attentionMessage(item({ kind: 'renewal_soon', since: '2026-10-19T00:00:00Z' }), now)).toMatchObject({ key: 'renewal_soon', days: 3 })
     expect(daysUntil('2026-10-10T00:00:00Z', now)).toBe(0)
   })

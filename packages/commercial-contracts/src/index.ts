@@ -109,7 +109,7 @@ export const restorePublicationSchema = z.strictObject({
 })
 export const sharedOperationFeedSchema = operationSchema.extend({
   source: z.literal('shared'),
-  type: z.enum(['provision', 'backup', 'restore', 'unknown']),
+  type: z.enum(['provision', 'backup', 'restore', 'reconfigure', 'unknown']),
   status: z.enum(['queued', 'running', 'verified', 'needs_intervention', 'failed']),
   stage: z.enum(['queued', 'running', 'prepared', 'started', 'verified', 'needs_intervention', 'failed']),
   reason: z.enum(['shared_execution_pending', 'shared_execution_verified', 'shared_execution_needs_attention', 'shared_execution_abandoned']),

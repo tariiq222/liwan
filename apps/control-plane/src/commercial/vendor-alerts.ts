@@ -69,6 +69,7 @@ const ATTENTION_LABELS: Record<Exclude<AttentionKind, 'bank_transfer_claimed' | 
   invitation_failed: 'تعذّر إرسال دعوة المدير',
   notice_failed: 'تعذّر إرسال إشعار للعميل',
   operation_failed: 'عملية تشغيل فاشلة',
+  shared_operation_failed: 'عملية على البيئة المشتركة تحتاج مراجعة',
   setup_required: 'الإعداد التجاري لم يكتمل',
   renewal_missed: 'تجديد فات موعده',
   form_payment_review: 'دفعة بطاقة تحتاج مراجعة عند المزود',

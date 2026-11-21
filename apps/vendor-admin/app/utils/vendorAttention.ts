@@ -57,6 +57,8 @@ export function attentionPresentation(item: AttentionItem): AttentionPresentatio
       return { to: customerTab(item, 'subscription'), tone: 'warning', icon: 'i-lucide-mail-warning', actionKey: action(item.kind) }
     case 'operation_failed':
       return { to: item.operation_id ? { path: `/operations/${item.operation_id}`, query: { source: 'legacy', returnTo: '/overview' } } : null, tone: 'destructive', icon: 'i-lucide-circle-alert', actionKey: action(item.kind) }
+    case 'shared_operation_failed':
+      return { to: item.operation_id ? { path: `/operations/${item.operation_id}`, query: { source: 'shared', returnTo: '/overview' } } : null, tone: 'destructive', icon: 'i-lucide-circle-alert', actionKey: action(item.kind) }
     case 'setup_required':
       return { to: customerTab(item, 'subscription'), tone: 'warning', icon: 'i-lucide-wrench', actionKey: action(item.kind) }
     case 'tenant_deletion_due':
@@ -94,6 +96,7 @@ export function attentionMessage(item: AttentionItem, now: Date): { key: string,
     case 'invitation_failed': return { key: 'invitation_failed', days: null, operation: null }
     case 'notice_failed': return { key: 'notice_failed', days: null, operation: item.detail }
     case 'operation_failed': return { key: 'operation_failed', days: null, operation: item.detail }
+    case 'shared_operation_failed': return { key: 'shared_operation_failed', days: null, operation: item.detail }
     case 'setup_required': return { key: 'setup_required', days: null, operation: null }
     case 'tenant_deletion_due': return { key: 'tenant_deletion_due', days: null, operation: null }
     case 'tenant_deletion_stuck': return { key: 'tenant_deletion_stuck', days: null, operation: item.detail }
