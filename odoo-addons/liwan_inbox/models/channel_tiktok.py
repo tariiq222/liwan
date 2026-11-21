@@ -171,9 +171,11 @@ class LiwanInboxChannel(models.Model):
                 INVALID, self.env._('A history import of this TikTok account is already running.'),
                 details={'reason': 'inbox_tiktok_sync_running'},
             )
-        return self.env['liwan.inbox.tiktok.sync'].create({
+        sync = self.env['liwan.inbox.tiktok.sync'].create({
             'channel_id': self.id, 'owner_company_id': self.owner_company_id.id,
         })
+        sync._liwan_wake_sync()
+        return sync
 
     def _liwan_tiktok_queue_first_sync(self):
         """Queue the account's history import after a connect; an account that already imported one adds nothing.

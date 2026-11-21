@@ -150,7 +150,7 @@ class LiwanInboxInbound(models.AbstractModel):
 
     @api.model
     def _liwan_tiktok_attach_media(self, channel, message, item):
-        """Store the media of an inbound message; a failure is recorded on the message, never fails the event."""
+        """Store the media of an inbound message or an echo; a failure is recorded on the message, never fails the event."""
         try:
             with self.env.cr.savepoint():
                 media = tiktok.fetch_media(
@@ -178,11 +178,13 @@ class LiwanInboxInbound(models.AbstractModel):
         conversation = self._liwan_tiktok_conversation(channel, item.conversation_id)
         if not conversation:
             return self.env['liwan.inbox.conversation']
-        Message.create({
+        message = Message.create({
             'conversation_id': conversation.id, 'company_id': channel.owner_company_id.id, 'direction': 'out',
             'kind': item.kind, 'body': item.body or f'[{item.kind}]', 'date': item.sent_at,
             'delivery_state': 'sent', 'provider_message_id': item.provider_id, 'external': True,
         })
+        if item.media_id:
+            self._liwan_tiktok_attach_media(channel, message, item)
         if item.auto:
             Message._liwan_post_system_note(conversation, NOTE_TIKTOK_AUTO_WELCOME)
         return conversation

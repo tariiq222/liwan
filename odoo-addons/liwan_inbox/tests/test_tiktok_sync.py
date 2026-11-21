@@ -13,7 +13,7 @@ from odoo.tests import tagged
 from . import tiktok_payloads as tt
 from .common import LiwanInboxCase, tiktok_grant
 from odoo.addons.liwan_api.tests.common import cover_isolation_routes, set_probe_feature
-from odoo.addons.liwan_inbox.adapters import tiktok
+from odoo.addons.liwan_inbox.adapters import errors, tiktok
 from odoo.addons.liwan_inbox.models.constants import (
     AUTOMATION_FEATURE,
     TIKTOK_ECHO_SETTLE,
@@ -172,6 +172,47 @@ class TestTikTokSync(LiwanInboxCase):
         self.queue().write({'state': 'done'})
         self.tiktok._liwan_tiktok_queue_first_sync()
         self.assertEqual(len(self.jobs()), 1)
+
+    # waking the cron
+
+    def wakes(self):
+        cron = self.env.ref('liwan_inbox.ir_cron_inbox_tiktok_sync')
+        return self.env['ir.cron.trigger'].search_count([('cron_id', '=', cron.id)])
+
+    def test_a_new_job_wakes_the_import_cron(self):
+        before = self.wakes()
+        self.queue()
+        self.assertEqual(self.wakes(), before + 1)
+
+    def test_a_step_that_leaves_work_wakes_the_import_cron_and_the_last_step_does_not(self):
+        job = self.queue()
+        before = self.wakes()
+        self.run_steps(job, [page('conv-a1', has_more=True, cursor=7)], 1)
+        self.assertEqual(self.wakes(), before + 1, 'a conversation page that has a next page')
+        job.write({'phase': 'messages', PENDING: json.dumps(['conv-a1', 'conv-a2'])})
+        before = self.wakes()
+        with patch('odoo.addons.liwan_inbox.models.tiktok_sync.MESSAGES_PER_STEP', 1):
+            self.run_steps(job, [self.customer('conv-a1', 'msg-a1')], 1)
+        self.assertEqual((self.pending(job), self.wakes()), (['conv-a2'], before + 1), 'one conversation is still to read')
+        self.run_steps(job, [self.customer('conv-a2', 'msg-a2')], 1)
+        self.assertEqual((self.reload_job(job, 'state').state, self.wakes()), ('done', before + 1), 'the last step wakes nothing')
+
+    def test_a_failed_or_waiting_step_does_not_wake_the_import_cron(self):
+        job = self.queue()
+        before = self.wakes()
+        with patch.object(tiktok, 'list_conversations', side_effect=errors.ProviderError('rate limited', retryable=True)):
+            self.step(job)
+        self.assertEqual((self.reload_job(job, 'state').state, self.wakes()), ('running', before))
+        with patch.object(tiktok, 'list_conversations', side_effect=errors.ProviderError('refused', retryable=False)):
+            self.step(job)
+        self.assertEqual((self.reload_job(job, 'state').state, self.wakes()), ('failed', before))
+
+    def test_a_step_that_moves_nothing_does_not_wake_the_import_cron(self):
+        job = self.queue()
+        before = self.wakes()
+        # TikTok names the cursor the job already holds: reading it again would loop, so the scheduled run waits.
+        self.run_steps(job, [page(has_more=True, cursor=0)], 1)
+        self.assertEqual(self.wakes(), before)
 
     def test_steps_walk_single_then_stranger_pages_then_messages(self):
         job = self.queue()

@@ -249,6 +249,26 @@ class TestTikTokInbound(LiwanInboxCase):
         self.assertFalse(message.automated)
         self.assertTrue(conversation.unread)
 
+    def test_an_image_echo_from_the_tiktok_app_keeps_its_media(self):
+        self.deliver(tt.receive_text())
+        media = tiktok.Media(content=b'jpeg-bytes', mimetype='image/jpeg')
+        with patch.object(tiktok, 'fetch_media', return_value=media) as fetch:
+            self.deliver(tt.send_echo(message_id='msg-echo-image', kind='image', fields={'media_id': 'media-image-1'}))
+        message = self.message('msg-echo-image')
+        attachment = self.env['ir.attachment'].search([('res_model', '=', 'liwan.inbox.message'), ('res_id', '=', message.id)])
+        self.assertEqual((message.direction, message.kind, message.external), ('out', 'image', True))
+        self.assertEqual((len(attachment), attachment.mimetype, attachment.raw), (1, 'image/jpeg', b'jpeg-bytes'))
+        self.assertEqual(fetch.call_args.args[2:], ('msg-echo-image', 'media-image-1', 'IMAGE'))
+
+    def test_a_media_echo_that_cannot_be_fetched_is_recorded_and_still_stored(self):
+        self.deliver(tt.receive_text())
+        with mute_logger(INBOUND_LOGGER), patch.object(
+            tiktok, 'fetch_media', side_effect=errors.ProviderError('media gone', retryable=False),
+        ):
+            event = self.deliver(tt.send_echo(message_id='msg-echo-gone', kind='image', fields={'media_id': 'media-image-1'}))
+        message = self.message('msg-echo-gone')
+        self.assertEqual((event.state, message.error, message.external), ('done', 'media gone', True))
+
     def test_a_tiktok_auto_welcome_echo_is_stored_with_a_note(self):
         self.deliver(tt.receive_text())
         conversation = self.message('msg-text-1').conversation_id

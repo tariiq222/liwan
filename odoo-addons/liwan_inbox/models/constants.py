@@ -47,6 +47,7 @@ STALE_UPLOAD_AGE = timedelta(days=1)
 TYPING_MAX_AGE = timedelta(seconds=25)
 OUTBOX_CRON = 'liwan_inbox.ir_cron_inbox_send_outbox'
 EVENT_CRON = 'liwan_inbox.ir_cron_inbox_process_events'
+TIKTOK_SYNC_CRON = 'liwan_inbox.ir_cron_inbox_tiktok_sync'
 
 # Automation guards: automated replies per conversation per hour, and how long an agent's reply keeps rule replies quiet.
 MAX_AUTOMATED_PER_HOUR = 5
