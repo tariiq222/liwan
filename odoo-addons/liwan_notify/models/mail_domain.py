@@ -367,7 +367,16 @@ class LiwanMailDomain(models.Model):
 
         One row's failure is recorded on that row and never stops the loop; each row runs in its own savepoint, so a
         database error on one row rolls back that row only.
+
+        It also rewrites the ``From`` filter: the platform sender is read from the server options, so a sender set
+        after the install hook ran reaches the stored filter here. The write is skipped when the value is unchanged. A
+        failure of that refresh is logged as an error and never stops the domain loop below.
         """
+        try:
+            with self.env.cr.savepoint():
+                self._liwan_write_from_filter()
+        except Exception:
+            _logger.exception('liwan_notify: the From filter refresh failed; the domains are still checked')
         deadline = fields.Datetime.now() - timedelta(days=self._liwan_pending_days())
         attempts = self.env['liwan.mail.domain.attempt']
         for row in self.search([('state', 'in', ('pending_dns', 'verified'))]):
