@@ -441,7 +441,22 @@ d('admin invitations', () => {
         for (let n = 0; n < 6; n++) statuses.push((await call('nobody@x.test', { ip: '198.51.100.30' })).status)
         expect(statuses).toEqual([202, 202, 202, 202, 202, 429])
         expect((await call('nobody@x.test', { ip: '198.51.100.31' })).status).toBe(202) // another visitor, same workspace
-        expect((await call('nobody@x.test', { ip: '198.51.100.30', tenant: randomUUID() })).status).toBe(202) // same visitor, another workspace
+        const second = randomUUID()
+        await pool.query(`INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'T2','saas','dedicated_managed',$2,true)`, [second, 'inv-' + second])
+        expect((await call('nobody@x.test', { ip: '198.51.100.30', tenant: second })).status).toBe(202) // same visitor, another workspace
+      })
+      it('resolves a signed control tenant id against the tenants table: unknown and disabled-binding ids are refused, a dedicated tenant and an upper-case id are accepted', async () => {
+        expect((await call('admin@x.test', { tenant: randomUUID(), ip: '198.51.100.60' })).status).toBe(403)
+        expect(await queued()).toEqual([])
+        const dedicated = await call('admin@x.test', { ip: '198.51.100.61' }) // no shared binding at all
+        expect(dedicated.status).toBe(202)
+        const upper = await call('admin@x.test', { tenant: tenant.toUpperCase(), ip: '198.51.100.62' })
+        expect(upper.status).toBe(202)
+        expect((await queued()).map(r => r.payload.tenant_id)).toEqual([tenant, tenant])
+        await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,false,1)',
+          [tenant, 'shared-' + tenant.slice(0, 8), `off-${tenant.slice(0, 8)}.reissue.test`, 'off_' + tenant.slice(0, 8).replaceAll('-', '_')])
+        expect((await call('admin@x.test', { ip: '198.51.100.63' })).status).toBe(403)
+        expect(await queued()).toHaveLength(2)
       })
       it('rejects a non-POST, a body with extra fields and an oversize body', async () => {
         expect((await fetch(`http://127.0.0.1:${port}${REISSUE_PATH}`)).status).toBe(404)
