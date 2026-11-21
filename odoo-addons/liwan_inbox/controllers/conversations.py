@@ -8,7 +8,6 @@ from odoo.addons.liwan_api.controllers.common import (
     api_handler,
     parse_page,
     parse_positive_int,
-    require_capabilities,
     requires_capability,
     requires_feature,
 )
@@ -19,6 +18,7 @@ from odoo.addons.liwan_inbox.controllers.helpers import (
     find_agent,
     find_ids,
     find_one,
+    holds,
     no_content,
     not_found,
     parse_ids,
@@ -104,11 +104,14 @@ def conversation_order(args):
 
 
 def detail(conversation):
-    service = request.env['liwan.access.service']
-    user = request.env.user
-    return dump_conversation_detail(
-        conversation, service._liwan_has_capability(user, REPLY), service._liwan_has_capability(user, ASSIGN),
-    )
+    company = conversation.company_id
+    return dump_conversation_detail(conversation, holds(REPLY, company), holds(ASSIGN, company))
+
+
+def require_in_company(capability, conversation):
+    """403 unless the caller holds `capability` in the conversation's own company, whichever company the session works in."""
+    if not holds(capability, conversation.company_id):
+        raise ApiError(403, 'forbidden', f'{capability} capability is required in the conversation company')
 
 
 def parse_assignment(conversation, payload):
@@ -140,9 +143,9 @@ def parse_patch(conversation, payload):
     if not payload:
         reject('no fields to update')
     if REPLY_FIELDS & set(payload):
-        require_capabilities(REPLY)
+        require_in_company(REPLY, conversation)
     if ASSIGN_FIELDS & set(payload):
-        require_capabilities(ASSIGN)
+        require_in_company(ASSIGN, conversation)
     values = parse_assignment(conversation, payload)
     if 'state' in payload:
         if payload['state'] not in CONVERSATION_STATES:
@@ -191,7 +194,7 @@ class ConversationController(http.Controller):
         conversation = visible_conversation(conversation_id)
         if conversation.unread:
             conversation.unread = False
-        if request.env['liwan.access.service']._liwan_has_capability(request.env.user, REPLY):
+        if holds(REPLY, conversation.company_id):
             conversation._liwan_request_read_receipt()
         return no_content()
 
