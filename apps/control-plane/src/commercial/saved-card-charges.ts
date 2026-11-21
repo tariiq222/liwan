@@ -6,7 +6,7 @@ import { deletionClockRunningSql } from './tenant-deletion-read.js'
 import { holdsFreeBaseLockSql } from './free-base.js'
 import { defaultPaymentMethod, type ActivePaymentMethodRow } from './payment-methods.js'
 import { enqueueBillingNotice, type SkipReason } from './billing-notices.js'
-import { failSavedCardAttempt, refuseSavedCardAttempt } from './saved-card-failure.js'
+import { DUPLICATE_REFUSAL_CODE, failSavedCardAttempt, refuseSavedCardAttempt } from './saved-card-failure.js'
 import { LIVE_ATTEMPT_STATUSES } from './form-payments.js'
 import { lookup, paymentReturnUrls } from './payments.js'
 import { SAVED_CARD_CHARGE_DAYS, SAVED_CARD_REDRIVE_MINUTES, chargeDueOn } from './notice-timings.js'
@@ -48,6 +48,8 @@ async function planCharge(client: PoolClient, input: { order_id: string; subscri
   if (!invoice || Number(invoice.total_minor) <= 0) return { kind: 'skip' }
   const attempts = (await client.query('SELECT *,COALESCE(charge_sent_at,created_at) < now() - make_interval(mins => $2) AS stale,payment_hold_until > now() AS held FROM payment_attempts WHERE order_id=$1 ORDER BY created_at,id',
     [order.id, SAVED_CARD_REDRIVE_MINUTES])).rows as Row[]
+  // A refusal as a duplicate says an earlier payment with the same details may exist: the schedule never charges this invoice again, the vendor looks it up.
+  if ((await client.query(`SELECT 1 FROM audit_events WHERE action='payment.saved_card_charge_refused' AND subject=$1 AND metadata->>'code'=$2`, [order.id, DUPLICATE_REFUSAL_CODE])).rowCount) return { kind: 'skip' }
   const live = attempts.filter(a => (LIVE_ATTEMPT_STATUSES as readonly string[]).includes(a.status))
   const made = attempts.filter(a => a.kind === 'saved_card').length
   // A customer in the middle of paying by form, or a hosted link a vendor issued, is never charged on top of.
