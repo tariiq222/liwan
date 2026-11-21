@@ -1,13 +1,24 @@
-import { open, rename, unlink, lstat } from 'node:fs/promises'
+import { open, rename, unlink, lstat, chmod, stat } from 'node:fs/promises'
 import { dirname, isAbsolute } from 'node:path'
 import { randomUUID } from 'node:crypto'
 
 /** The snapshot holds only hosts, tenant ids, database names and revisions, no secret. The guard, web, tiktok-relay and ai
  * read it as other users than the publisher, so it is world-readable; the explicit chmod keeps a restrictive umask from narrowing it. */
 export const REGISTRY_FILE_MODE = 0o644
-/** The directory holding a registry file must be traversable by those same readers; mkdir alone follows the umask, so it is set explicitly. */
+/** The directory holding a registry file must be traversable by those same readers. The publisher owns this mode and sets it
+ * before every publication, so it holds whatever created the directory (a host script, a container mount, a restrictive umask). */
 export const REGISTRY_DIR_MODE = 0o755
 
+async function ensureReadableDirectory(path: string): Promise<void> {
+  const directory = dirname(path)
+  if (((await stat(directory)).mode & 0o777) === REGISTRY_DIR_MODE) return
+  // Only the directory's owner may change its mode; otherwise the operator must fix the mount or the worker account.
+  await chmod(directory, REGISTRY_DIR_MODE).catch((error: unknown) => {
+    const code = (error as NodeJS.ErrnoException)?.code
+    if (code === 'EPERM' || code === 'EACCES') throw new Error('registry_dir_mode_unavailable: the registry directory must be mode 0755 or owned by the worker account', { cause: error })
+    throw error
+  })
+}
 async function syncDirectory(path: string): Promise<void> {
   const directory = await open(dirname(path), 'r')
   try { await directory.sync() } finally { await directory.close() }
@@ -17,6 +28,7 @@ async function syncDirectory(path: string): Promise<void> {
  * after stopping all publishers, preserving any pending barrier. */
 export async function withPublicationLock<T>(path: string, action: () => Promise<T>): Promise<T> {
   if (!isAbsolute(path)) throw new Error('registry_path_invalid')
+  await ensureReadableDirectory(path)
   const lockPath = `${path}.publisher-lock`
   const lock = await open(lockPath, 'wx', 0o600).catch((error: unknown) => {
     if ((error as NodeJS.ErrnoException)?.code === 'EEXIST') throw new Error('registry_lock_unavailable', { cause: error })
