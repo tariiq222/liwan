@@ -35,8 +35,7 @@
     "tags": {
       "add": "إضافة وسم",
       "create": "إنشاء \"{name}\"",
-      "remove": "إزالة الوسم: {name}",
-      "listLabel": "الوسوم"
+      "remove": "إزالة الوسم: {name}"
     },
     "description": "الوصف",
     "editor": {

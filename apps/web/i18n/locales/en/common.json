@@ -35,8 +35,7 @@
     "tags": {
       "add": "Add tag",
       "create": "Create \"{name}\"",
-      "remove": "Remove tag: {name}",
-      "listLabel": "Tags"
+      "remove": "Remove tag: {name}"
     },
     "description": "Description",
     "editor": {
