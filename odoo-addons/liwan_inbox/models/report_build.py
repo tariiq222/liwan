@@ -45,7 +45,7 @@ class LiwanInboxReportBuild(models.AbstractModel):
     @api.model
     def _liwan_zone_name(self, company):
         """The report timezone of a company: the one of its inbox working hours."""
-        return self.env['liwan.inbox.settings']._get_for_company(company).hours_timezone
+        return self.env['liwan.inbox.settings']._liwan_read_for_company(company).hours_timezone
 
     @api.model
     def _liwan_today(self, company):

@@ -31,6 +31,7 @@ NOTE_ASSIGNEE = 'القاعدة «%s» أسندت المحادثة إلى %s'
 NOTE_ASSIGNEE_SKIPPED = 'القاعدة «%s» لم تسند المحادثة إلى %s لأنه غير متاح أو لم يعد يملك صلاحية الرد في هذه الشركة'
 NOTE_TAGS = 'القاعدة «%s» أضافت الوسوم: %s'
 NOTE_PRIORITY = 'القاعدة «%s» ضبطت الأولوية: %s'
+NOTE_PRIORITY_LABELS = {'low': 'منخفضة', 'normal': 'عادية', 'high': 'عالية', 'urgent': 'عاجلة'}
 NOTE_RESOLVE = 'القاعدة «%s» حلّت المحادثة'
 NOTE_LIMIT = 'لم يُرسل الرد الآلي لأن حد الرسائل الصادرة للاشتراك قد بلغ'
 NOTE_NO_CATALOG = 'لم تُرسل رسالة المنتجات الآلية: لا كتالوج متصل بالقناة أو أحد المنتجات غير متاح'
@@ -193,7 +194,7 @@ class LiwanInboxAutomation(models.AbstractModel):
             note(NOTE_TAGS % (rule.name, '، '.join(rule.tag_ids.mapped('name'))))
         if rule.priority:
             values['priority'] = rule.priority
-            note(NOTE_PRIORITY % (rule.name, rule.priority))
+            note(NOTE_PRIORITY % (rule.name, NOTE_PRIORITY_LABELS[rule.priority]))
         if rule.resolve:
             values['state'] = 'resolved'
             note(NOTE_RESOLVE % rule.name)
