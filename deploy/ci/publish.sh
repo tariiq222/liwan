@@ -46,12 +46,12 @@ require_in_main() {
 }
 manifest_digest() { docker buildx imagetools inspect "$1" --format '{{json .Manifest}}' | python3 -c 'import json, sys; print(json.load(sys.stdin)["digest"])'; }
 metadata_digest() { python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["containerimage.digest"])' "$1"; }
-# /release.json of a release document image, on stdout: a scratch image has no command, so it is created, not run. The
+# /release.json of a release document image, on stdout: a scratch image has no command, so it is created, not run, for $PLATFORM because the carrier image is built for that platform only and the runner is amd64. The
 # registry's current content is always read (--pull always): an image already in the local store is not refreshed by a
 # `buildx --push`, and a stale copy would hide the document this run just wrote or another run replaced.
 fetch_document() {
   local id
-  id="$(docker create --pull always "$1" /release.json)"
+  id="$(docker create --platform "$PLATFORM" --pull always "$1" /release.json)"
   docker cp "$id:/release.json" - | tar -xOf -
   docker rm "$id" > /dev/null
 }

@@ -16,7 +16,7 @@ published image, including the ones the release manifest format has no field for
 mail relay). ``platforms`` carries, for the same references, the digest of the image of each
 architecture the document covers (``linux/arm64`` for every document the publish workflow writes); every
 reference covers the same architectures, and a host pulls the image of its own architecture. The document has no signature: its trust is the registry write
-credential and the GitHub ``main`` or ``release/*`` commit it names (plan decision D17).
+credential and the GitHub ``release/*`` tag commit (on ``main``) it names (plan decision D17).
 
 ``parse_release_document`` is the one reader: the release command calls it on the text of
 ``/release.json`` and names the architectures it needs, so a document that lacks one is refused with

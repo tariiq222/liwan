@@ -954,6 +954,14 @@ esac
     def accepted(self, document, required=('linux/arm64',)):
         return load_release_manifest().parse_release_document(json.dumps(document), self.main_sha, required)
 
+    def test_the_release_document_is_read_for_the_arm64_platform_it_was_built_for(self):
+        folder, _ = self.document('arm64-carrier', ['linux/arm64'])
+        self.run_publish('check', self.tag, anchor='present', docs=folder)
+        creates = [call for call in self.calls() if call.startswith('docker create ')]
+        self.assertTrue(creates)
+        for call in creates:
+            self.assertIn('--platform linux/arm64', call)
+
     def test_a_tag_without_a_document_is_built(self):
         self.assertEqual(self.run_publish('check', self.tag).returncode, 0)
         self.assertEqual(self.outputs(), {'state': 'build'})
