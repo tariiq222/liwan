@@ -27,7 +27,8 @@ export async function previewQuote(pool: Pool, value: unknown, now: Date = new D
   const input = quotePreviewRequestSchema.parse(value)
   if (input.customer_id) {
     const { customer_id, ...request } = input
-    return createQuoteForCustomer(pool, { customer_id, request }, now)
+    // The preview is read-only (vendor.read): a quote stored for a customer is `createQuoteForCustomer`, behind the subscriptions capability.
+    return buildQuote(pool, { customer_id, request }, now)
   }
   if (input.kind !== 'new') throw bad('customer_required', 'customer_id')
   if (input.terms_revision_id) throw bad('customer_required', 'customer_id')
