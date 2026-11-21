@@ -130,53 +130,46 @@ function open(next: Panel) {
 const conflict = useCustomerConflict()
 const conflictOrigin = ref<Origin | null>(null)
 
-async function run<T>(origin: Origin, work: (choice: CustomerLink) => Promise<T>, sale = false, choice: CustomerLink = {}): Promise<T | undefined> {
+// `done` holds the steps that follow a success: they run after the first attempt and after the one a conflict answer repeats.
+function run<T>(origin: Origin, work: (choice: CustomerLink) => Promise<T>, done: (result: T) => void, sale = false, choice: CustomerLink = {}): Promise<T | undefined> {
   failure.value = null
-  conflict.clear()
-  try {
-    return await work(choice)
-  } catch (error) {
-    if (conflict.offer(error, next => run(origin, work, sale, next))) {
-      conflictOrigin.value = origin
-      return undefined
-    }
-    failure.value = { error, origin, sale }
-    return undefined
-  }
+  conflictOrigin.value = origin
+  return conflict.attempt(work, { choice, done, failed: error => { failure.value = { error, origin, sale } } })
 }
 
 async function recordCall(draft: CrmCallDraft) {
   recorded.value = ''
-  const result = await run('call', choice => actions.recordCall.mutateAsync({ id: id.value, body: { ...draft, ...choice } }), draft.package_id !== undefined)
-  if (!result) return
-  callFormKey.value++
-  recorded.value = callRecordedText(result.opportunity, t, locale.value)
-  now.value = Date.now()
+  await run('call', choice => actions.recordCall.mutateAsync({ id: id.value, body: { ...draft, ...choice } }), (result) => {
+    callFormKey.value++
+    recorded.value = callRecordedText(result.opportunity, t, locale.value)
+    now.value = Date.now()
+  }, draft.package_id !== undefined)
 }
 
 async function closeLost(lostReasonId: number) {
-  const done = await run('lost', () => actions.lose.mutateAsync({ id: id.value, body: { lost_reason_id: lostReasonId } }))
-  if (!done) return
-  panel.value = null
-  toast.add({ title: t('crm.opportunities.lost.done'), color: 'success' })
+  await run('lost', () => actions.lose.mutateAsync({ id: id.value, body: { lost_reason_id: lostReasonId } }), () => {
+    panel.value = null
+    toast.add({ title: t('crm.opportunities.lost.done'), color: 'success' })
+  })
 }
 
 async function sell() {
   saleAttempted.value = true
   const { package_id, final_price } = saleDraft.value
   if (!package_id || final_price === null) return
-  const done = await run('sale', choice => actions.sell.mutateAsync({ id: id.value, body: { package_id, final_price, ...choice } }), true)
-  if (!done) return
-  panel.value = null
-  resetSale()
-  toast.add({ title: t('crm.opportunities.sale.sold'), color: 'success' })
+  await run('sale', choice => actions.sell.mutateAsync({ id: id.value, body: { package_id, final_price, ...choice } }), () => {
+    panel.value = null
+    resetSale()
+    toast.add({ title: t('crm.opportunities.sale.sold'), color: 'success' })
+  }, true)
 }
 
 const linkOpen = computed(() => conflict.candidates.value && conflictOrigin.value === 'link' ? conflict.candidates.value : null)
 const stepOpen = computed(() => conflict.candidates.value && conflictOrigin.value !== 'link' ? conflict.candidates.value : null)
 async function linkCustomer(choice: CustomerLink) {
-  const done = await run('link', next => actions.linkCustomer.mutateAsync({ id: id.value, body: next }), false, choice)
-  if (done) toast.add({ title: t('crm.opportunities.customer.linked'), color: 'success' })
+  await run('link', next => actions.linkCustomer.mutateAsync({ id: id.value, body: next }), () => {
+    toast.add({ title: t('crm.opportunities.customer.linked'), color: 'success' })
+  }, false, choice)
 }
 // An answer to a stopped link repeats that link; a first request starts one.
 const onCustomerLink = (choice: CustomerLink) => (linkOpen.value ? conflict.choose(choice) : linkCustomer(choice))
@@ -244,31 +237,34 @@ async function addMeeting(body: CrmOpportunityMeetingCreate) {
 }
 
 async function reopen() {
-  const done = await run('page', () => actions.reopen.mutateAsync({ id: id.value, body: null }))
-  if (done) resetSale()
-  if (done) toast.add({ title: t('crm.opportunities.record.reopened'), color: 'success' })
+  await run('page', () => actions.reopen.mutateAsync({ id: id.value, body: null }), () => {
+    resetSale()
+    toast.add({ title: t('crm.opportunities.record.reopened'), color: 'success' })
+  })
 }
 
 async function changeStage(value: unknown) {
   const stageId = Number(value)
   if (!stageId || stageId === record.value?.stage?.id) return
-  const done = await run('page', () => actions.patch.mutateAsync({ id: id.value, body: { stage_id: stageId } }))
-  if (done) toast.add({ title: t('crm.opportunities.record.stageSaved'), color: 'success' })
+  await run('page', () => actions.patch.mutateAsync({ id: id.value, body: { stage_id: stageId } }), () => {
+    toast.add({ title: t('crm.opportunities.record.stageSaved'), color: 'success' })
+  })
 }
 
 // Only the fields the user changed travel, and the server's answer is the record's new state.
 async function saveContact(patch: CrmOpportunityPatch) {
   if (!Object.keys(patch).length) return
-  const done = await run('contact', () => actions.patch.mutateAsync({ id: id.value, body: patch }))
-  if (!done) return
-  panel.value = null
-  toast.add({ title: t('crm.opportunities.contact.saved'), color: 'success' })
+  await run('contact', () => actions.patch.mutateAsync({ id: id.value, body: patch }), () => {
+    panel.value = null
+    toast.add({ title: t('crm.opportunities.contact.saved'), color: 'success' })
+  })
 }
 
 async function saveProbability() {
   if (probability.value === record.value?.probability) return
-  const done = await run('page', () => actions.patch.mutateAsync({ id: id.value, body: { probability: probability.value } }))
-  if (done) toast.add({ title: t('crm.opportunities.record.probabilitySaved'), color: 'success' })
+  await run('page', () => actions.patch.mutateAsync({ id: id.value, body: { probability: probability.value } }), () => {
+    toast.add({ title: t('crm.opportunities.record.probabilitySaved'), color: 'success' })
+  })
 }
 
 const PROPERTY_FIELD_PREFIX = 'properties.'
@@ -281,8 +277,10 @@ function changeCustomFields(values: CustomFieldValues) {
 // A refusal of one custom field's value shows under that field; any other refusal stays at the top of the page.
 async function saveCustomFields() {
   customErrors.value = {}
-  const done = await run('page', () => actions.patch.mutateAsync({ id: id.value, body: { properties: customChanged.value } }))
-  if (done) return void toast.add({ title: t('crm.opportunities.record.customFieldsSaved'), color: 'success' })
+  const done = await run('page', () => actions.patch.mutateAsync({ id: id.value, body: { properties: customChanged.value } }), () => {
+    toast.add({ title: t('crm.opportunities.record.customFieldsSaved'), color: 'success' })
+  })
+  if (done) return
   const field = (failure.value?.error as { status?: number; field?: string } | undefined)?.field
   if (!field?.startsWith(PROPERTY_FIELD_PREFIX)) return
   customErrors.value = { [field.slice(PROPERTY_FIELD_PREFIX.length)]: failureText.value }
@@ -292,10 +290,10 @@ async function saveCustomFields() {
 const assignee = ref<number | null>(null)
 async function assign() {
   if (!assignee.value) return
-  const done = await run('page', () => actions.assign.mutateAsync({ id: id.value, body: { user_id: assignee.value! } }))
-  if (!done) return
-  assignee.value = null
-  toast.add({ title: t('crm.opportunities.record.assigned'), color: 'success' })
+  await run('page', () => actions.assign.mutateAsync({ id: id.value, body: { user_id: assignee.value! } }), () => {
+    assignee.value = null
+    toast.add({ title: t('crm.opportunities.record.assigned'), color: 'success' })
+  })
 }
 
 // Disabled until hydrated, so a first click on the server-rendered page is never lost.

@@ -33,5 +33,25 @@ export function useCustomerConflict() {
     return again(choice)
   }
 
-  return { candidates, offer, choose, clear }
+  /**
+   * Runs `work` and hands its result to `done`. The conflict is kept for the user's answer, and the answer repeats this
+   * same attempt, so `done` runs after a repeated attempt too. Any other error goes to `failed`.
+   */
+  async function attempt<T>(
+    work: (choice: CustomerLink) => Promise<T>,
+    { done, failed, choice = {} }: { done?: (result: T) => void; failed: (error: unknown) => void; choice?: CustomerLink },
+  ): Promise<T | undefined> {
+    clear()
+    let result: T
+    try {
+      result = await work(choice)
+    } catch (error) {
+      if (!offer(error, next => attempt(work, { done, failed, choice: next }))) failed(error)
+      return undefined
+    }
+    done?.(result)
+    return result
+  }
+
+  return { candidates, offer, choose, clear, attempt }
 }

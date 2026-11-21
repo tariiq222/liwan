@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import type { CrmLostReason, CrmOpportunity, CrmOutcome, CrmPackage } from '@liwan/contracts'
+import type { CrmLostReason, CrmOpportunity, CrmOutcome, CrmPackage, CustomerCandidate, CustomerLink } from '@liwan/contracts'
 import CrmOpportunityCallForm, { type CrmCallDraft } from '@/components/crm/opportunity/CrmOpportunityCallForm.vue'
+import CustomerConflictStep from '@/components/customers/CustomerConflictStep.vue'
 import { relativeTime } from '@/utils/crmOpportunity'
 import { callOutcomesFor } from '@/utils/crmOrderGate'
 
 // The agent's calls that are due now, oldest first as the server sends them: the name opens the record, the phone is a tel: link,
 // and «record the result» opens the call form in the row. One form is open at a time; while it holds text no other row opens.
 // `total` is how many are due, so the list can say it shows only the first few. `failure` is the text of a refusal the form could
-// not settle, shown under the open row with a link to the record.
+// not settle, shown under the open row with a link to the record. `candidates` are the customers sharing the phone of a sold call
+// the server stopped: the open row asks which one to link, and the answer goes back through `choose` to repeat the call.
 const props = defineProps<{
   items: CrmOpportunity[]
   total: number
@@ -21,8 +23,9 @@ const props = defineProps<{
   lostReasons?: CrmLostReason[]
   pending?: boolean
   failure?: string
+  candidates?: CustomerCandidate[] | null
 }>()
-const emit = defineEmits<{ retry: []; record: [id: number, call: CrmCallDraft] }>()
+const emit = defineEmits<{ retry: []; record: [id: number, call: CrmCallDraft]; choose: [choice: CustomerLink]; dismiss: [] }>()
 const openId = defineModel<number | null>('openId', { default: null })
 const dirty = defineModel<boolean>('dirty', { default: false })
 const { t, locale } = useI18n()
@@ -66,6 +69,7 @@ function toggle(id: number) {
         </div>
         <div v-if="canRecord && openId === item.id" :id="formId(item.id)" class="grid basis-full gap-2">
           <CrmOpportunityCallForm v-model:dirty="dirty" :outcomes="callOutcomesFor(outcomes ?? [], item.win_by_order)" :packages="packages ?? []" :lost-reasons="lostReasons ?? []" :pending="pending" :error="failure" @record="call => emit('record', item.id, call)" />
+          <CustomerConflictStep v-if="candidates" :candidates="candidates" :pending="pending" :description="t('customers.link.conflictDescription')" :confirm-label="t('customers.link.conflictConfirm')" @open="emit('choose', { customer_id: $event })" @create-new="emit('choose', { create_new: true })" @cancel="emit('dismiss')" />
           <NuxtLink v-if="failure" :to="`/crm/opportunities/${item.id}`" class="text-sm font-semibold text-primary hover:underline" data-testid="crm-due-open-record">{{ t('crm.dashboard.agent.openRecord') }}</NuxtLink>
         </div>
       </li>
