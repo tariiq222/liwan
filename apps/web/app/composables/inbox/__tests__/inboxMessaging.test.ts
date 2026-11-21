@@ -28,8 +28,14 @@ describe('inbox upload limits', () => {
   })
 
   it('formats sizes', () => {
-    expect(inboxFileSize(2048)).toBe('2 KB')
-    expect(inboxFileSize(3 * 1048576)).toBe('3.0 MB')
+    const t = (key: string, params: Record<string, unknown> = {}) => ({
+      'app.fileSize.bytes': `${params.size} bytes`,
+      'app.fileSize.kilobytes': `${params.size} KB`,
+      'app.fileSize.megabytes': `${params.size} MB`,
+      'app.notAvailable': '—',
+    })[key] ?? key
+    expect(inboxFileSize(2048, t)).toBe('2 KB')
+    expect(inboxFileSize(3 * 1048576, t)).toBe('3 MB')
   })
 })
 

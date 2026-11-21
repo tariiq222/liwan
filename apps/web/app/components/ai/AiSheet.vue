@@ -155,7 +155,7 @@ watch(items, async (now, before) => {
             </AiMessage>
             <AiHandoffLine v-else-if="item.kind === 'agent'" :name="locale === 'en' ? item.nameEn : item.nameAr" />
             <AiToolTrace v-else-if="item.kind === 'tool'" :summary="summary(item)" :state="item.state" :disabled="!hydrated || streaming" @retry="decide(item.callId, 'approved')" />
-            <AiConfirmCard v-else-if="item.kind === 'confirm'" :summary="summary(item)" :state="item.state" :latest="index === latestPending" :disabled="!hydrated || streaming || item.busy" :note="item.busy ? t('ai.confirm.executing') : undefined" @approve="decide(item.callId, 'approved')" @reject="decide(item.callId, 'rejected')" />
+            <AiConfirmCard v-else-if="item.kind === 'confirm'" :summary="summary(item)" :state="item.state" :latest="index === latestPending" :disabled="!hydrated || streaming || item.busy" :busy="item.busy" :note="item.busy ? t('ai.confirm.executing') : undefined" @approve="decide(item.callId, 'approved')" @reject="decide(item.callId, 'rejected')" />
             <AiDraftCard v-else :summary="summary(item)" :state="item.state" :latest="index === latestPending" @open="openDraft(item)" @discard="decide(item.callId, 'rejected')" />
           </template>
         </div>

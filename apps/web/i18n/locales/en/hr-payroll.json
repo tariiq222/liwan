@@ -254,7 +254,7 @@
         "comma": "Comma (,)",
         "semicolon": "Semicolon (;)",
         "tab": "Tab",
-        "pipe": "Pipe (|)"
+        "pipe": "Pipe ({'|'})"
       },
       "encoding": {
         "utf8": "UTF-8",

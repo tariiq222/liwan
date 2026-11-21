@@ -40,7 +40,7 @@ const showBody = computed(() => !!props.message.body && !props.message.interacti
       >
         <UIcon name="i-lucide-file-text" class="size-4 shrink-0" aria-hidden="true" />
         <bdi class="min-w-0 truncate">{{ attachment.name }}</bdi>
-        <span class="shrink-0 text-xs text-muted">{{ inboxFileSize(attachment.size) }}</span>
+        <span class="shrink-0 text-xs text-muted">{{ inboxFileSize(attachment.size, t) }}</span>
       </a>
     </template>
 

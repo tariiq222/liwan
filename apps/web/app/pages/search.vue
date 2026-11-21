@@ -51,8 +51,7 @@ useEventListener('keydown', (event: KeyboardEvent) => {
 <template>
   <SharedRecordPage data-testid="search-page" :title="t('app.search')" :back-to="backTo">
     <UInput id="navigation-search" data-shortcut-search v-model="query" class="w-full" size="lg" icon="i-lucide-search" :placeholder="t('nav.typeToNavigate')" :aria-label="t('nav.typeToNavigate')" />
-    <SharedEmptyState icon="i-lucide-filter-x" v-if="noResults" bordered :title="t('app.noResults')" />
-    <div v-else ref="resultsEl">
+    <div ref="resultsEl">
     <SharedListCard>
       <template v-if="providerItems.length > 1" #filters>
         <!-- Many providers do not fit a phone: the control scrolls inside the card instead of widening the page. -->
@@ -67,7 +66,7 @@ useEventListener('keydown', (event: KeyboardEvent) => {
           <header class="bg-elevated/40 px-(--liwan-card-pad-dense) py-2"><h2 class="text-sm font-semibold text-highlighted">{{ t(section.provider.labelKey) }}</h2></header>
           <div class="flex flex-wrap items-center gap-3 px-(--liwan-card-pad-dense) py-3">
             <p class="text-sm text-error">{{ t('search.error') }}</p>
-            <UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated" :label="t('notifications.retry')" @click="section.refetch()" />
+            <UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated" :label="t('app.retry')" @click="section.refetch()" />
           </div>
         </section>
         <section v-if="query.trim() && section.visible.value && section.rows.value.length" class="min-w-0 border-t border-default first:border-t-0 [[data-slot=list-card-filters]+&]:border-t-0">
@@ -106,6 +105,11 @@ useEventListener('keydown', (event: KeyboardEvent) => {
           />
         </div>
       </section>
+      <!-- No results keeps the card and its provider tabs: replacing the card with a bare empty state trapped the
+           user with no way back to «كل النطاقات» after one provider returned nothing. -->
+      <div v-if="noResults" class="border-t border-default first:border-t-0 [[data-slot=list-card-filters]+&]:border-t-0" data-testid="search-no-results">
+        <SharedEmptyState icon="i-lucide-filter-x" :title="t('app.noResults')" :description="selectedProvider ? t('search.noResultsHint') : undefined" />
+      </div>
       <section v-if="!query.trim() && actions.length" class="min-w-0 border-t border-default first:border-t-0 [[data-slot=list-card-filters]+&]:border-t-0">
         <header class="flex items-center justify-between gap-3 bg-elevated/40 px-(--liwan-card-pad-dense) py-2">
           <h2 class="text-sm font-semibold text-highlighted">{{ t('app.actions') }}</h2>

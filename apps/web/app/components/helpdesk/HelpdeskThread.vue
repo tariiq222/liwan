@@ -38,7 +38,8 @@ async function send() {
 function readFile(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
-    reader.onerror = () => reject(reader.error ?? new Error('read failed'))
+    // The refusal text never reaches the interface: the catch below answers with the translated line.
+    reader.onerror = () => reject(reader.error ?? new Error('file-read-failed'))
     reader.onload = () => resolve(String(reader.result).split(',', 2)[1] ?? '')
     reader.readAsDataURL(file)
   })
@@ -52,8 +53,10 @@ async function upload(event: Event) {
   failure.value = null
   try {
     await files.upload.mutateAsync({ name: file.name, mimetype: file.type || 'application/octet-stream', data: await readFile(file) })
-  } catch (cause) {
-    failure.value = cause instanceof Error ? cause.message : t('helpdesk.thread.uploadFailed')
+  } catch {
+    // One Arabic line for every upload refusal, including a file the browser could not read: the raw English
+    // `read failed` used to be shown as-is.
+    failure.value = t('helpdesk.thread.uploadFailed')
   }
 }
 

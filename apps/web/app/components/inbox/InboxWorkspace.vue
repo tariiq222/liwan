@@ -79,7 +79,7 @@ function updateRoute(next: InboxListRoute, options?: { replace: boolean }) {
     </SharedPageHeader>
     <SharedRecordSection v-if="firstUse && (canConnectChannel || canTryExample)" variant="panel" :title="t('inbox.firstUse.title')">
       <div class="grid gap-3">
-        <p class="text-sm text-muted">{{ t(canConnectChannel && whatsApp ? 'inbox.firstUse.description' : 'inbox.list.emptyDescription') }}</p>
+        <p class="text-sm text-muted">{{ t(canConnectChannel && whatsApp ? 'inbox.firstUse.description' : whatsApp ? 'inbox.list.emptyDescription' : 'inbox.list.emptyDescriptionAnyChannel') }}</p>
         <div class="flex flex-wrap gap-2">
           <UButton v-if="canConnectChannel" to="/settings/apps/inbox#channels" icon="i-lucide-plug"
             :label="t(whatsApp ? 'inbox.firstUse.connectWhatsApp' : 'inbox.connectChannel')" data-testid="inbox-connect-channel" />
@@ -177,7 +177,7 @@ function updateRoute(next: InboxListRoute, options?: { replace: boolean }) {
             icon="i-lucide-messages-square"
             class="w-full"
             :title="hasConversations ? t('inbox.select') : t('inbox.list.empty')"
-            :description="hasConversations ? t('inbox.selectDescription') : t('inbox.list.emptyDescription')"
+            :description="hasConversations ? t('inbox.selectDescription') : whatsApp ? t('inbox.list.emptyDescription') : t('inbox.list.emptyDescriptionAnyChannel')"
           >
             <template v-if="canShowUnassigned" #action>
               <UButton color="neutral" variant="soft" icon="i-lucide-user-x" :label="t('inbox.showUnassigned')" data-testid="inbox-show-unassigned" @click="updateRoute({ ...routeState, assignee: 'unassigned', offset: 0 })" />
