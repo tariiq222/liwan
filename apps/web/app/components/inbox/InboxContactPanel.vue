@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { CustomerLink, InboxConversationDetail, InboxConversationPatch } from '@liwan/contracts'
+import type { Ref } from 'vue'
 import InboxOpportunityCard from '@/components/inbox/InboxOpportunityCard.vue'
 import InboxTicketsCard from '@/components/inbox/InboxTicketsCard.vue'
 import CustomerLinkBlock from '@/components/customers/CustomerLinkBlock.vue'
@@ -90,11 +91,17 @@ const contactName = computed(() => inboxContactName(props.conversation.contact, 
 const lockedContact = computed(() => lockedReply.value || savingContact.value || erased.value)
 const name = ref(contactName.value)
 const email = ref(props.conversation.contact.email ?? '')
-watch(() => props.conversation.contact, (contact) => {
-  name.value = contactName.value
-  email.value = contact.email ?? ''
+// A refresh of the same conversation keeps what the agent is typing: a field follows the server only while it still holds
+// the previous server value, or once a save made the server value equal to what was typed.
+const serverEmail = computed(() => props.conversation.contact.email ?? '')
+function followServer(field: Ref<string>, next: string, previous: string) {
+  if (field.value === previous || field.value.trim() === next) field.value = next
+}
+watch([contactName, serverEmail], ([nextName, nextEmail], [previousName, previousEmail]) => {
+  followServer(name, nextName, previousName)
+  followServer(email, nextEmail, previousEmail)
 })
-const contactDirty = computed(() => name.value.trim() !== contactName.value || email.value.trim() !== (props.conversation.contact.email ?? ''))
+const contactDirty = computed(() => name.value.trim() !== contactName.value || email.value.trim() !== serverEmail.value)
 function saveContact() {
   if (erased.value || !contactDirty.value || !name.value.trim()) return
   patchContact(

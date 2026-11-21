@@ -195,8 +195,8 @@ function updateRoute(next: InboxListRoute, options?: { replace: boolean }) {
           <h2 class="min-w-0 flex-1 truncate text-base font-semibold text-highlighted">{{ ordersOpen ? t('inbox.orders.title') : t('inbox.panel.title') }}</h2>
         </header>
         <div class="min-h-0 flex-1 overflow-y-auto">
-          <InboxOrderPanel v-if="data && ordersOpen" :conversation-id="data.id" :window-open="replyWindowOpen(data)" />
-          <InboxContactPanel v-else-if="data" :conversation="data" />
+          <InboxOrderPanel v-if="data && ordersOpen" :key="data.id" :conversation-id="data.id" :window-open="replyWindowOpen(data)" />
+          <InboxContactPanel v-else-if="data" :key="data.id" :conversation="data" />
         </div>
       </template>
     </SharedConversationLayout>

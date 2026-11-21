@@ -37,11 +37,12 @@ async function mountPanel(contact: Record<string, unknown>, detail: Record<strin
     CONVERSATION_STATES: [], PRIORITIES: [], InboxFlowSubmissionsSection: null, isWhatsAppChannel, InboxContactMarketing: null,
   }
   const component = new Function(...Object.keys(bindings), transpile(script))(...Object.values(bindings))
-  const state = component.setup({ conversation: conversation(contact, canReply, kind) }, { expose: () => {} })
+  const props = Vue.reactive({ conversation: conversation(contact, canReply, kind) })
+  const state = component.setup(props, { expose: () => {} })
   const template = compileTemplate({ source: descriptor.template!.content, filename, id: 'inbox-contact-panel', compilerOptions: { mode: 'function', expressionPlugins: ['typescript'] } })
   if (template.errors.length) throw template.errors[0]
   const render = new Function('Vue', transpile(template.code))(Vue)
-  const app = Vue.createSSRApp(Vue.defineComponent({ setup: () => ({ ...state, props: { conversation: conversation(contact, canReply, kind) } }), render }))
+  const app = Vue.createSSRApp(Vue.defineComponent({ setup: () => ({ ...state, props }), render }))
   const pass = Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => Vue.h('div', { 'data-title': attrs.title as string | undefined }, [slots.default?.()]) })
   const linkBlock = Vue.defineComponent({ props: ['customer', 'canLink', 'canOpen'], setup: props => () => Vue.h('div', { 'data-testid': 'link-block', 'data-customer': (props.customer as { name: string } | null)?.name ?? 'none', 'data-can-link': String(props.canLink) }) })
   app.component('CustomerLinkBlock', linkBlock)
@@ -49,7 +50,7 @@ async function mountPanel(contact: Record<string, unknown>, detail: Record<strin
   for (const name of ['SharedRecordSection', 'InboxOpportunityCard', 'InboxTicketsCard', 'SharedPropertyRow', 'UFormField', 'InboxContactMarketing', 'SharedPersonPicker', 'USelect', 'USelectMenu']) app.component(name, pass)
   app.component('UInput', Vue.defineComponent({ inheritAttrs: false, props: ['modelValue'], setup: (props, { attrs }) => () => Vue.h('input', { value: props.modelValue, disabled: attrs.disabled === true || undefined, 'data-type': attrs.type ?? 'text' }) }))
   app.component('UButton', Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs }) => () => Vue.h('button', { type: attrs.type as string }, String(attrs.label)) }))
-  return { html: await renderToString(app), state: Vue.proxyRefs(state), patchContact }
+  return { html: await renderToString(app), state: Vue.proxyRefs(state), patchContact, props }
 }
 
 describe('InboxContactPanel contact fields', () => {
@@ -71,6 +72,29 @@ describe('InboxContactPanel contact fields', () => {
     state.name = 'Renamed'
     state.saveContact()
     expect(patchContact).not.toHaveBeenCalled()
+  })
+})
+
+describe('InboxContactPanel background refresh', () => {
+  const refreshed = (props: { conversation: { contact: Record<string, unknown> } }, contact: Record<string, unknown>) => {
+    props.conversation.contact = { ...props.conversation.contact, ...contact }
+    return Vue.nextTick()
+  }
+
+  it('keeps what the agent typed and follows the server for a field the agent left alone', async () => {
+    const { state, props } = await mountPanel({ name: 'Sara', email: 'a@b.sa', erased: false })
+    state.name = 'Sara Typed'
+    await refreshed(props, { name: 'Sara Server', email: 'new@b.sa' })
+    expect(state.name).toBe('Sara Typed')
+    expect(state.email).toBe('new@b.sa')
+  })
+
+  it('picks up the saved values once the server returns what was typed', async () => {
+    const { state, props } = await mountPanel({ name: 'Sara', email: 'a@b.sa', erased: false })
+    state.name = ' Sara Typed '
+    await refreshed(props, { name: 'Sara Typed' })
+    expect(state.name).toBe('Sara Typed')
+    expect(state.contactDirty).toBe(false)
   })
 })
 
