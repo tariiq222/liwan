@@ -9,7 +9,7 @@ import { answerDisplay } from '@/composables/inbox/inboxFlow'
 const props = defineProps<{ submission: InboxFlowSubmission; link?: RouteLocationRaw; linkLabel?: string; showTime?: boolean }>()
 const { t, locale } = useI18n()
 const when = computed(() => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(props.submission.submitted_at)))
-const rows = computed(() => props.submission.answers.map(answer => ({ key: answer.key, label: answer.label, display: answerDisplay(answer) })))
+const rows = computed(() => props.submission.answers.map(answer => ({ key: answer.key, label: answer.label, display: answerDisplay(answer, t) })))
 </script>
 
 <template>

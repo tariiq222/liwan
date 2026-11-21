@@ -7,6 +7,7 @@ import {
 } from '@/composables/nav/paletteModel'
 import { isApplePlatform } from '@liwan/ui/app/composables/shortcuts/keymap'
 import { useAppSearch } from '@/composables/useAppSearch'
+import { foldForIndex } from '@/utils/searchFold'
 import { paletteNavigationBlocked, shouldRestoreTriggerFocus, usePalette } from '@/composables/usePalette'
 import { clearNavigationFocus, offerNavigationFocus } from '@liwan/ui/app/composables/useNavigationFocus'
 
@@ -119,6 +120,18 @@ function onBackspace() {
   if (view.value === 'shortcuts' && !term.value) view.value = 'main'
 }
 
+/** Fuse options for the palette: the per-group cut, diacritics ignored, and the Arabic fold applied to the indexed
+ *  text so «اعدادات» reaches «إعدادات» and «مهمه» reaches «مهمة». */
+const paletteFuse = computed(() => ({
+  resultLimit: PALETTE_SECTION_LIMIT + 3,
+  ignoreDiacritics: true,
+  getFn: (item: { label?: string, suffix?: string }, path: string | string[]) => {
+    const field = Array.isArray(path) ? path[0] : path
+    const value = field === 'label' ? item.label : field === 'suffix' ? item.suffix : undefined
+    return foldForIndex(value ?? '')
+  },
+}))
+
 const liveGroups = computed<CommandPaletteGroup<CommandPaletteItem>[]>(() => {
   if (!open.value) return []
   const visible = useNav(me.value)
@@ -191,7 +204,7 @@ function onAfterLeave() {
         :placeholder="view === 'shortcuts' ? t('shortcuts.filter') : t('search.description')"
         :input="inputProps"
         :loading="searching"
-        :fuse="{ resultLimit: PALETTE_SECTION_LIMIT + 3 }"
+        :fuse="paletteFuse"
         preserve-group-order
         :dir="localeProperties.dir"
         :data-view="view"

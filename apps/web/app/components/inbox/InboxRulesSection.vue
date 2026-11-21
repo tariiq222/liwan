@@ -30,7 +30,7 @@ function confirmDelete() {
   remove(deleting.value.id, { onSuccess: () => { deleting.value = null }, onError: fail })
 }
 const summary = (rule: InboxRule) => [
-  t(`inbox.automation.rules.match.${rule.match_kind}`) + (rule.keywords.length ? `: ${rule.keywords.join('، ')}` : rule.option_id ? `: ${rule.option_id}` : ''),
+  t(`inbox.automation.rules.match.${rule.match_kind}`) + (rule.keywords.length ? `: ${joinList(rule.keywords, t)}` : rule.option_id ? `: ${rule.option_id}` : ''),
   rule.channel?.name ?? t('inbox.automation.rules.anyChannel'),
   ...(rule.hours !== 'any' ? [t(`inbox.automation.rules.hours.${rule.hours}`)] : []),
 ].join(' · ')

@@ -13,7 +13,11 @@ function run(file: string, bindings: Record<string, unknown>, props: Record<stri
     .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replace('export default', 'return')
   const base = {
     _defineComponent: Vue.defineComponent, _unref: Vue.unref, ref: Vue.ref, reactive: Vue.reactive, computed: Vue.computed, watch: Vue.watch,
-    useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true), ...bindings,
+    // The list joiner is auto-imported by Nuxt; the harness supplies it, and the separator answers with the Arabic
+    // comma the test asserts on rather than echoing its own key.
+    useI18n: () => ({ t: (key: string) => key === 'app.listSeparator' ? '، ' : key }), useHydrated: () => Vue.ref(true),
+    joinList: (items: readonly string[], translate: (key: string) => string) => items.join(translate('app.listSeparator')),
+    ...bindings,
   }
   const code = ts.transpileModule(script, { compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2022 } }).outputText
   const component = new Function(...Object.keys(base), code)(...Object.values(base))

@@ -35,7 +35,7 @@ const totals = computed(() => [
       <template #quantity-cell="{ row }"><bdi class="tabular-nums">{{ row.original.quantity }}</bdi></template>
       <template #price_unit-cell="{ row }"><Money :amount="row.original.price_unit" /></template>
       <template #discount-cell="{ row }"><bdi class="tabular-nums">{{ row.original.discount }}%</bdi></template>
-      <template #taxes-cell="{ row }">{{ row.original.taxes.map(tax => tax.name).join('، ') || t('app.notAvailable') }}</template>
+      <template #taxes-cell="{ row }">{{ joinList(row.original.taxes.map(tax => tax.name), t) || t('app.notAvailable') }}</template>
       <template #price_subtotal-cell="{ row }"><Money :amount="row.original.price_subtotal" :currency="invoice.currency" /></template>
       <template #mobile-row="{ row }">
         <div class="flex items-start justify-between gap-3">

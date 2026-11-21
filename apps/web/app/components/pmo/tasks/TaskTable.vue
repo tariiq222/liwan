@@ -84,7 +84,14 @@ const COLUMN_BUILDERS: Record<TaskColumnId, () => TableColumn<Task>> = {
   deadline: () => column('deadline', t('tasks.columns.deadline'), WIDTH.deadline, true),
   assignees: () => column('assignees', t('tasks.columns.assignees'), WIDTH.assignees),
 }
-const titleColumn = () => column('title', t('tasks.columns.title'), WIDTH.title)
+// `meta.title` marks the column that absorbs the remaining width. Without it SharedDataTable treats the first data
+// column as the title, so showing the optional `#` column handed the title's 11rem floor to a 48px number column and
+// squeezed the task name.
+const titleColumn = (): TableColumn<Task> => {
+  const base = column('title', t('tasks.columns.title'), WIDTH.title)
+  // `title` is SharedDataTable's own flag, read through a Record-typed meta; TanStack's ColumnMeta does not declare it.
+  return { ...base, meta: { ...base.meta, title: true } as TableColumn<Task>['meta'] }
+}
 const columns = computed<TableColumn<Task>[]>(() => {
   const shown = columnsShown.value
   return [
@@ -99,7 +106,7 @@ const onSort = (value: TableSort | null) => emit('update:sort', taskSortToParam(
 
 // A deadline is plain text; only an unfinished task that is overdue or due within three days takes a colour.
 const DEADLINE_TONE_CLASS = { plain: 'text-default', soon: 'liwan-status-text-warning font-medium', overdue: 'text-(--status-danger-foreground) font-medium' } as const
-const assigneeNames = (task: Task) => task.assignees.map(person => person.name).join('، ')
+const assigneeNames = (task: Task) => joinList(task.assignees.map(person => person.name), t)
 
 const stageName = (task: Task) => (props.variant === 'project' ? task.stage?.name : task.personal_stage?.name) ?? '—'
 </script>

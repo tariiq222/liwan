@@ -21,6 +21,8 @@ import {
 export function useAttention(scope: MaybeRefOrGetter<AttentionScope>, options: { limit?: number } = {}): {
   rows: ComputedRef<AttentionRowWithModule[]>
   pending: ComputedRef<boolean>
+  /** True once at least one provider has answered: the page can draw a list before the slowest application replies. */
+  settled: ComputedRef<boolean>
   failed: ComputedRef<boolean>
   /** Work kinds whose count is a lower bound: a provider of that kind returned as many rows as it may. */
   cappedKinds: ComputedRef<AppWorkKind[]>
@@ -67,6 +69,9 @@ export function useAttention(scope: MaybeRefOrGetter<AttentionScope>, options: {
     rows,
     cappedKinds: computed(() => cappedWorkKinds(perProvider.value)),
     pending: computed(() => visible.value.length > 0 && (!ready.value || states.value.some(state => !state || state.status === 'pending'))),
+    // Progress: one answer is enough to stop waiting on the page. `pending` stays true until every provider settles,
+    // which is right for a figure that must be a total and wrong for a list that can grow.
+    settled: computed(() => ready.value && states.value.some(state => state !== undefined && state.status !== 'pending')),
     failed: computed(() => ready.value && allFailed(states.value.map(state => ({ isError: state?.status === 'error' })))),
     refetch: () => ready.value
       ? Promise.all(queries.value.map(({ queryKey }) => client.refetchQueries({ queryKey, exact: true })))

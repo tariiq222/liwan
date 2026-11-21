@@ -4,6 +4,7 @@ import { computed, toValue } from 'vue'
 import type { ZodType } from 'zod'
 import { searchProviders } from '../modules/surfaces'
 import type { AppSearchApi, AppSearchProvider, AppSearchRow } from '../modules/types'
+import { searchFolded } from '../utils/searchFold'
 
 export interface AppSearchSection {
   provider: AppSearchProvider
@@ -42,7 +43,8 @@ export function useAppSearch(options: {
   api: AppSearchApi
 }): AppSearchSection[] {
   const { term, debounced, can, api } = options
-  const needle = computed(() => term.value.toLocaleLowerCase())
+  // Arabic folds before the compare: «اعدادات» finds «إعدادات», and «مهمه» finds «مهمة» (utils/searchFold).
+  const needle = computed(() => term.value)
   // Providers are read once at setup: each owns a vue-query observer created here, so the list cannot change per call.
   return searchProviders().map((provider) => {
     const visible = computed(() => can(provider.capability) && (!toValue(options.provider) || toValue(options.provider) === provider.id))
@@ -61,7 +63,7 @@ export function useAppSearch(options: {
     const settled = computed(() => !!term.value && term.value === debounced.value)
     const rows = computed(() => {
       if (provider.serverSearch) return settled.value ? all.value : []
-      return all.value.filter(row => row.label.toLocaleLowerCase().includes(needle.value))
+      return all.value.filter(row => searchFolded(row.label, needle.value))
     })
     const loading = computed(() => query.isLoading.value)
     return {

@@ -28,7 +28,7 @@ const duplicateHidden = computed(() => props.preview.duplicate - props.preview.d
       <p v-if="invalidHidden > 0" class="mt-2 text-xs text-muted">{{ t('crm.imports.flow.preview.capped', { count: preview.invalid_rows.length }) }}</p>
     </SharedRecordSection>
     <SharedRecordSection v-if="preview.duplicate_rows.length" variant="panel" :title="t('crm.imports.flow.preview.duplicateTitle')">
-      <p class="text-sm" data-testid="crm-import-duplicate-rows"><bdi>{{ t('crm.imports.flow.preview.duplicateRows', { rows: preview.duplicate_rows.join('، ') }) }}</bdi></p>
+      <p class="text-sm" data-testid="crm-import-duplicate-rows"><bdi>{{ t('crm.imports.flow.preview.duplicateRows', { rows: joinList(preview.duplicate_rows.map(String), t) }) }}</bdi></p>
       <p v-if="duplicateHidden > 0" class="mt-2 text-xs text-muted">{{ t('crm.imports.flow.preview.capped', { count: preview.duplicate_rows.length }) }}</p>
     </SharedRecordSection>
   </div>

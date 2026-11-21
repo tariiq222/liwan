@@ -15,10 +15,11 @@ const { draft, state, save, revert, reload } = useSettingsForm({
 })
 const locked = computed(() => !hydrated.value || state.value.saving || state.value.reloading)
 // The management roles the central preset sends into every branch, named so the tenant sees exactly what moves.
-const inheritedRoles = computed(() => props.policy.roles
+// One separator, from the locale's own key: the branch card wrote «، » or «, » by hand, which is the same
+// decision `joinList` already owns for every other list.
+const inheritedRoles = computed(() => joinList(props.policy.roles
   .filter(role => role.company_id === null && role.active && role.key !== 'employee')
-  .map(role => (locale.value === 'ar' ? role.name.ar : role.name.en ?? role.name.ar))
-  .join(locale.value === 'ar' ? '، ' : ', '))
+  .map(role => (locale.value === 'ar' ? role.name.ar : role.name.en ?? role.name.ar)), t))
 const items = computed(() => BRANCH_PRESETS.map(value => ({
   value,
   label: t(`access.branches.presets.${value}`),

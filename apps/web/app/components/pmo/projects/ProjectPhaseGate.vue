@@ -81,7 +81,7 @@ async function run(phase: ProjectPhase, acknowledgeWarnings = false) {
         color="warning"
         data-testid="project-phase-warning-confirm"
         :title="t('projects.phase.warningConfirm', { phase: phaseLabel(state.next) })"
-        :description="warnings.map(check => t(gateCheckRows(project.id, [check])[0]!.labelKey)).join('، ') || t('projects.phase.warningFallback')"
+        :description="joinList(warnings.map(check => t(gateCheckRows(project.id, [check])[0]!.labelKey)), t) || t('projects.phase.warningFallback')"
         :confirm-label="t('projects.phase.moveAnyway', { phase: phaseLabel(state.next) })"
         :pending="isPending"
         @cancel="confirmWarning = false"
