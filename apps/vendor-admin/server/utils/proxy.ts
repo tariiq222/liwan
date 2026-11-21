@@ -57,6 +57,16 @@ export function upstreamTimeoutMs(path: string): number {
   return SLOW_UPSTREAM.find(route => route.pattern.test(pathname))?.timeoutMs ?? UPSTREAM_TIMEOUT_MS
 }
 
+// The models probe answers 502 with the provider's own failure code (apps/control-plane ai-provider/http.ts), which the AI page translates into a
+// message. Only that route and only these codes reach the browser; every other 5xx is masked as 503.
+const PROVIDER_ERROR_CODES = ['provider_timeout', 'provider_unreachable', 'provider_rate_limited', 'provider_error', 'provider_invalid_response'] as const
+const PROVIDER_ERROR_ROUTE = /^\/v1\/platform\/ai-provider\/models$/
+
+/** The 502 codes a control-plane path may show the browser (query ignored); none for every route but the models probe. */
+export function upstreamPassThrough502(path: string): readonly string[] | undefined {
+  return PROVIDER_ERROR_ROUTE.test(path.split('?', 1)[0]!) ? PROVIDER_ERROR_CODES : undefined
+}
+
 // Package revisions are read-only history (the control plane answers 410 to any write).
 const READ_ONLY = [new RegExp(`^/v1/packages(/${SEGMENT})?$`)]
 /** Routes whose method matters to the console: the allowlist is otherwise path-only. Each entry lists the methods the
@@ -96,7 +106,7 @@ export async function proxyVendorRequest(event: H3Event): Promise<unknown> {
   if (!session) return bffFail(401, 'unauthorized')
   const path = upstreamPath(event, method)
   const body = method === 'GET' ? undefined : (await readJsonObject(event, PROXY_INVALID)).raw
-  const result = await controlCall(event, { path, method, body, session, timeoutMs: upstreamTimeoutMs(path) })
+  const result = await controlCall(event, { path, method, body, session, timeoutMs: upstreamTimeoutMs(path), passThrough502: upstreamPassThrough502(path) })
   if (result.status === 401) clearSession(event)
   return respond(event, result.status, result.data)
 }

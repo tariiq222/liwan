@@ -74,6 +74,24 @@ describe('vendor API proxy', () => {
     expect(await get('/context')).toMatchObject({ status: 503, body: { code: 'vendor_unavailable' } })
   })
 
+  it('lets the provider errors of the AI models route through with only their code, and masks every other 5xx', async () => {
+    for (const code of ['provider_timeout', 'provider_unreachable', 'provider_rate_limited', 'provider_error', 'provider_invalid_response']) {
+      stubUpstream(() => json(502, { code, detail: 'secret upstream text', field: 'x' }))
+      const result = await post('/platform/ai-provider/models', { body: { provider: 'oai' } })
+      expect(result, code).toMatchObject({ status: 502, body: { code } })
+      expect(result.body).toEqual({ code }); expect(result.text).not.toContain('secret')
+    }
+    stubUpstream(() => json(502, { code: 'provider_timeout' }))
+    expect(await post('/commercial/plans')).toMatchObject({ status: 503, body: { code: 'vendor_unavailable' } })
+    expect(await post('/platform/ai-provider/test', { body: { provider: 'oai', model: 'm' } })).toMatchObject({ status: 503, body: { code: 'vendor_unavailable' } })
+    stubUpstream(() => json(502, { code: 'service_unavailable' }))
+    expect(await post('/platform/ai-provider/models', { body: { provider: 'oai' } })).toMatchObject({ status: 503, body: { code: 'vendor_unavailable' } })
+    stubUpstream(() => json(500, { code: 'provider_timeout' }))
+    expect(await post('/platform/ai-provider/models', { body: { provider: 'oai' } })).toMatchObject({ status: 503, body: { code: 'vendor_unavailable' } })
+    stubUpstream(() => new Response('not json', { status: 502 }))
+    expect(await post('/platform/ai-provider/models', { body: { provider: 'oai' } })).toMatchObject({ status: 503, body: { code: 'vendor_unavailable' } })
+  })
+
   it('clears the cookie on an upstream 401', async () => {
     stubUpstream(() => json(401, { code: 'unauthorized' }))
     const result = await get('/context')
