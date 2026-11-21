@@ -68,8 +68,6 @@ const tenantId = computed(() => customer.value?.tenant_id ?? '')
 const hasWorkspace = computed(() => Boolean(tenantId.value))
 const { data: tenant, error: tenantError, pending: tenantPending, refresh: refreshTenant } = await useVendorTenant(tenantId)
 const { data: recentOperations, error: recentError, refresh: refreshRecent } = await useTenantRecentOperations(tenantId)
-// The only owner of the provisioning poll: the summary and the workspace tab need it, the other tabs and the child pages do not.
-const progress = useWorkspaceProvisioning(tenantId, () => !isChild.value && (tab.value === 'summary' || tab.value === 'workspace'))
 const workspaceUnreadable = computed(() => hasWorkspace.value && Boolean(tenantError.value || recentError.value || progress.error))
 const UNKNOWN_WORKSPACE_BADGE: StatusBadgeEntry = { tone: 'neutral', labelKey: 'vendor.customers.workspaceUnknown' }
 const workspaceStatus = computed(() => progress.provisioning?.status ?? tenant.value?.status)
@@ -213,6 +211,9 @@ const deletion = computed(() => (isDeletionShown(deletionRun.value?.request) ? d
 const workspaceDeleted = computed(() => deletion.value?.state === 'deleted' || tenant.value?.status === 'deleted')
 // Once access has stopped the control plane refuses every vendor action on the customer, so the console stops offering them.
 const workspaceRetiring = computed(() => isWorkspaceRetiring(deletion.value) || tenant.value?.status === 'deleted')
+// The only owner of the provisioning poll: the summary and the workspace tab need it, the other tabs, the child pages and a workspace being deleted do not.
+// Declared here, after `workspaceRetiring`: the poll reads it as soon as it is created.
+const progress = useWorkspaceProvisioning(tenantId, () => !isChild.value && !workspaceRetiring.value && (tab.value === 'summary' || tab.value === 'workspace'))
 const workspaceDeletedText = computed(() => t('vendor.customers.deletion.workspaceDeleted', { date: formatLiwanDate(deletion.value?.deleted_at ?? '') }))
 const deletionWithdrawOpen = ref(false)
 const deletionReason = ref('')

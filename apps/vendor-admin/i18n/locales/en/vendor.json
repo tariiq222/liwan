@@ -1218,6 +1218,7 @@
         "due": "The withdrawal window ended on {due}. The request is in its final hold until {hold} and the workspace still works.",
         "deleting": "Access to the workspace has been stopped since {deleting} and the deletion is being carried out.",
         "deleted": "The workspace was deleted on {deleted}.",
+        "withdrawn": "The deletion request was withdrawn. Access to the workspace, stopped since {deleting}, is being restored.",
         "workspaceDeleted": "Workspace deleted {date}",
         "renewal": {
           "cancelled": "The paid renewal was cancelled at the period end. No refund is made.",
