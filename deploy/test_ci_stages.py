@@ -625,7 +625,7 @@ class TestVendorAdminStage(unittest.TestCase):
     def test_every_script_is_executable_bash_and_run_by_the_workflow(self):
         workflow = (ROOT / '.github/workflows/ci.yml').read_text()
         scripts = sorted(path for path in (ROOT / 'deploy/ci').glob('*.sh') if path.name != 'publish.sh')
-        self.assertEqual(len(scripts), 15)  # the thirteen stages, main-alert and the nightly contract-fixtures job
+        self.assertEqual(len(scripts), 15)  # the thirteen stages, main-alert and the full-dispatch contract-fixtures job
         for script in scripts:
             with self.subTest(script=script.name):
                 self.assertTrue(os.access(script, os.X_OK))

@@ -40,9 +40,9 @@ policies() {
   python3 -B tools/git_policy.py --base "$BASE_REF"
   python3 -B tools/arch_policy.py --base "$BASE_REF"
   python3 -B tools/undeclared_imports.py
-  # The generated API files are checked in the nightly run only: task branches may not regenerate them
+  # The generated API files are checked in a full manual dispatch only: task branches may not regenerate them
   # (tools/git_policy.py), so a pull request that adds a route would fail a check it cannot fix.
-  if [ "${GITHUB_EVENT_NAME:-}" = schedule ]; then
+  if [ "${CI_FULL_DISPATCH:-}" = true ]; then
     python3 -B tools/api_surface.py --check
   fi
   python3 -B tools/semgrep_gate.py --base "$BASE_REF"

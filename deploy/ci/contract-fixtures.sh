@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Nightly CI job: the committed contract fixtures still match what the Odoo serializers return.
+# Full-dispatch CI job: the committed contract fixtures still match what the Odoo serializers return.
 #   deploy/ci/contract-fixtures.sh
 # Installs every release module on a fresh scratch database and runs the tests of the fixture addons ONLY (the
 # addons of packages/contracts/fixtures/manifest.json), with LIWAN_CONTRACT_FIXTURES set so LiwanApiCase records each

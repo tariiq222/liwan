@@ -343,7 +343,7 @@ class WorkflowWiringTest(unittest.TestCase):
 
     def test_scope_job_skips_only_for_pull_requests_and_merge_queue(self):
         run = self.jobs()['scope'].split('id: cache', 1)[1]
-        for event in ('push', 'schedule', 'workflow_dispatch'):
+        for event in ('push', 'workflow_dispatch'):
             self.assertNotIn(event, run)
         self.assertIn('if [ "$EVENT_NAME" = pull_request ] || [ "$EVENT_NAME" = merge_group ]; then', run)
         self.assertIn('args+=(--reuse-passes)', run)

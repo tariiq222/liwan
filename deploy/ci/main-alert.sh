@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# CI alert: keep one open `CI is red on main` issue while the main/nightly run of the `ci` workflow is red.
+# CI alert: keep one open `CI is red on main` issue while the push-to-main run of the `ci` workflow is red.
 #   CI_RESULT=<needs.ci-result.result> deploy/ci/main-alert.sh
 # A failed ci-result opens the issue (label ci-red) or, when one is open, comments the run URL and the failed jobs.
 # A passed ci-result comments the green run URL on the open issue and closes it. Any other result changes nothing.
-# A run of a commit that is no longer the head of main changes nothing: push and nightly runs overlap, and an
+# A run of a commit that is no longer the head of main changes nothing: pushes to main overlap, and an
 # older green run must not close the alert of a newer red one.
 # A failing `gh` call fails the job on purpose: a broken alert must be seen.
 set -euo pipefail

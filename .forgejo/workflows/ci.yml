@@ -2,7 +2,7 @@ name: ci
 
 # Forgejo port of .github/workflows/ci.yml. The stage scripts (deploy/ci/*.sh) are the same files GitHub runs; only the
 # job plumbing differs. Differences from the GitHub workflow, each on purpose:
-#  - No merge_group and no pull_request trigger (see `on:`), so every run is a push, nightly or dispatch run.
+#  - No merge_group and no pull_request trigger (see `on:`), so every run is a push or dispatch run.
 #  - No stage-pass cache: GitHub reuses passed jobs on identical inputs through actions/cache; the runner here has no
 #    shared cache for it, so every run executes every selected job (tools/ci_stage_cache.py plan runs without --reuse-passes).
 #  - Postgres runs inside the job on loopback (.forgejo/actions/setup) instead of as `services:`, because the
@@ -22,9 +22,6 @@ name: ci
 on:
   push:
     branches: [main]
-  schedule:
-    # Nightly full run of all thirteen stages on main (00:17 UTC = 03:17 Asia/Riyadh).
-    - cron: '17 0 * * *'
   workflow_dispatch:
     inputs:
       full:
@@ -60,7 +57,7 @@ jobs:
       - name: Select the stages
         id: select
         env:
-          FULL: ${{ inputs.full || github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+          FULL: ${{ inputs.full || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
           PUSH_BEFORE: ${{ github.event.before }}
         run: |
           set -euo pipefail

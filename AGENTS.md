@@ -263,7 +263,7 @@ another application) needs the owner's approval, recorded by the owner as an
   and one PR for a coupled batch, and do not submit both a batch and its constituent branches.
 - A PR stays **draft** while scope, applicable local checks or prepublication inspection are incomplete.
   The required status-check policy is current-head `ci-result` only; review follows `REVIEW.md`.
-- The `ci` workflow runs on PRs, on pushes to `main` and nightly; the last two run all thirteen
+- The `ci` workflow runs on PRs, on pushes to `main` and in a full manual dispatch; the last two run all thirteen
   stages. Release tags, the full-run requirement and the live-protection checks are in
   [integration-rules.md](docs/agents/integration-rules.md); check scope is in
   [testing.md](docs/testing.md#ci-workflow).
