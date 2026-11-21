@@ -210,6 +210,21 @@ suite('live PostgreSQL vendor analytics', () => {
     } finally { await solo.end() }
   })
 
+  it('does not count an invoice due later today as overdue', async () => {
+    const solo = new Pool({ connectionString: url, max: 1 })
+    try {
+      await solo.query('BEGIN')
+      const before = (await getAnalytics(solo, period, now)).current.collection
+      // Due at 18:00 Riyadh today; the report runs at 15:00 Riyadh, so it is open but not late yet.
+      await seedInvoice(solo, { customer_id: a.customer_id, subscription_id: a.subscription_id, status: 'issued', total_minor: 4000, issued_at: '2026-10-14T00:00:00Z', due_at: '2026-10-15T15:00:00Z' })
+      const after = (await getAnalytics(solo, period, now)).current.collection
+      expect(minor(after.outstanding)).toBe(minor(before.outstanding) + 4000)
+      expect([minor(after.overdue_0_30), minor(after.overdue_31_60), minor(after.overdue_61_plus)])
+        .toEqual([minor(before.overdue_0_30), minor(before.overdue_31_60), minor(before.overdue_61_plus)])
+      await solo.query('ROLLBACK')
+    } finally { await solo.end() }
+  })
+
   it('computes collection, ageing, payment success and trial conversion', async () => {
     const { current, previous } = await getAnalytics(pool, period, now)
     const c = current.collection

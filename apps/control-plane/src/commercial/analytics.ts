@@ -76,9 +76,11 @@ interface Money { currency: string, exponent: number }
 const money = (unit: Money, minor: number) => ({ currency: unit.currency, exponent: unit.exponent, minor })
 const moneyFigure = (unit: Money, minor: number) => available(money(unit, Math.max(0, Math.round(minor))))
 
-async function collection(db: Ask, unit: Money, period: Period) {
+async function collection(db: Ask, unit: Money, period: Period, now: Date) {
   const { start, end } = periodBounds(period)
   const from = new Date(start), to = new Date(end)
+  // The book is read as of the end of the period, or as of now while the period is still running: an invoice due later today is not late yet.
+  const asOf = new Date(Math.min(end, now.getTime()))
   const flow = (await db.query(
     // An invoice credited in full was given back: it collected nothing.
     `SELECT COALESCE(SUM(subtotal_minor) FILTER (WHERE status = 'paid' AND paid_at >= $1 AND paid_at < $2 AND total_minor > ${creditedMinorSql('invoices.id')}), 0) AS collected,
@@ -90,7 +92,7 @@ async function collection(db: Ask, unit: Money, period: Period) {
             COALESCE(SUM(subtotal_minor) FILTER (WHERE $1 - due_at > interval '30 days' AND $1 - due_at <= interval '60 days'), 0) AS late_60,
             COALESCE(SUM(subtotal_minor) FILTER (WHERE $1 - due_at > interval '60 days'), 0) AS late_over
        FROM invoices
-      WHERE currency = $2 AND issued_at < $1 AND status IN ('issued', 'paid') AND (paid_at IS NULL OR paid_at >= $1)`, [to, unit.currency])).rows[0]
+      WHERE currency = $2 AND issued_at < $1 AND status IN ('issued', 'paid') AND (paid_at IS NULL OR paid_at >= $1)`, [asOf, unit.currency])).rows[0]
   const attempts = (await db.query(
     `SELECT count(*) FILTER (WHERE status = 'succeeded') AS ok, count(*) FILTER (WHERE status = 'failed') AS bad
        FROM payment_attempts WHERE currency = $3 AND created_at >= $1 AND created_at < $2`, [from, to, unit.currency])).rows[0]
@@ -150,7 +152,7 @@ async function figuresFor(db: Ask, book: Book, unit: Money, period: Period, now:
       arpc: !stock ? historyLost : stock.customers > 0 ? moneyFigure(unit, stock.mrr_minor / stock.customers) : unavailable('no_data'),
       extra_branch_mrr: stockMoney(at => at.branch_mrr_minor),
     },
-    collection: await collection(db, unit, period),
+    collection: await collection(db, unit, period, now),
     customers: {
       active: stock ? available(stock.customers) : historyLost, new: available(movement.new_customers), churned: available(movement.churned_customers),
       churn_rate_by_count: orNoData(ratio(movement.opening_churned_customers, opening.customers)),
