@@ -60,13 +60,14 @@ Owner keywords:
   the latest remote `main`, preserving previously approved behavior and adding the
   requested changes, then follow the six steps. It does not authorize undoing an
   earlier decision, merging unrelated worktrees or deleting recovery material.
-- «انشر» means: commit, run the checks, push the task branch, open the PR, mark it ready,
+- «انشر» means: commit, run the checks, get the independent review and fix its findings,
+  push the task branch, open the PR, mark it ready,
   merge it after current-head `ci-result` is green, and return the lane (`wt done`, or `wt lane remove` for a temporary lane). It never means a direct push to `main`,
   a release tag or a deployment.
 - «دمج» or «ادمج» means: merge the work the owner is pointing at into `main` through its PR,
   following the six steps. These are also the words that allow enabling auto-merge on that PR.
-  When that work has no PR yet, the word covers pushing its branch and opening the PR. It
-  never means a direct push to `main`, a release tag or a deployment.
+  When that work has no PR yet, the word covers pushing its branch, after the independent
+  review, and opening the PR. It never means a direct push to `main`, a release tag or a deployment.
 
 ### Review-approval constraint on `protect-main` (recorded 2026-10-24)
 
@@ -79,10 +80,30 @@ the owner's own. The owner therefore keeps the count at `0` and accepts that a
 PR author can merge their own PR once current-head `ci-result` is green.
 
 This is a recorded gap, not an approval of self-merge quality. Raising the count
-becomes possible as soon as a second collaborator exists; until then, review of
-the actual diff follows `REVIEW.md` on a best-effort basis and does not gate the
-merge mechanically. Do not describe the repository as review-protected while the
+becomes possible as soon as a second collaborator exists; until then, the
+independent review below is a rule of this file and does not gate the merge
+mechanically. Do not describe the repository as review-protected while the
 count stays at `0`.
+
+### Independent review before every push (owner decision 2026-11-21)
+
+Every push of a task branch, and so every publication, is preceded by an independent
+review of that branch. It applies to ordinary and sensitive changes alike.
+
+- When: after the local commit and the applicable local checks, before the push.
+- Who: an independent reviewer as [REVIEW.md](../../REVIEW.md#review-evidence-and-authorization)
+  defines it. Each tool picks its reviewer under its own routing; the step and the
+  reviewer's independence are mandatory, a model or provider is not.
+- What: the whole branch diff against current `origin/main`. The reviewer opens the code
+  the diff touches and follows `REVIEW.md`.
+- Evidence: the reviewer checks each finding in the code before reporting it, with
+  `file:line` and the input or state that breaks it. A guess is not a finding.
+- Outcome: confirmed findings are fixed, or explicitly accepted by the owner, before the
+  push. After a fix, repeat the affected checks and review the fix and the behavior it
+  affects before pushing; name the reviewed head in the PR.
+
+This is review, not authorization. It does not grant push, PR, ready, merge or release,
+which still need the owner's explicit words as stated above.
 
 ## Six integration steps
 
@@ -97,8 +118,8 @@ count stays at `0`.
    branch. Small changes made in one session or one area share one PR: each is
    its own commit on one task branch, and the PR stays in draft until the batch is
    complete, then goes ready once (one CI run, one review). A change that needs an
-   independent review or an owner decision (authentication, authorization, tenant
-   isolation, migrations, the CI rules that decide what must pass) gets its own PR
+   owner decision, or that touches authentication, authorization, tenant
+   isolation, migrations or the CI rules that decide what must pass, gets its own PR
    so it does not hold the others back. A coupled batch uses
    `<prefix>/tools-integrate-<slug>`, merging only its agreed branches with merge
    commits and one PR to `main`. Preserve incoming commits and approved behavior;
@@ -108,7 +129,8 @@ count stays at `0`.
 3. **Review the complete delta.** Compare the candidate with the recorded
    remote baseline, including deletions, shared UI, navigation, permissions,
    contracts, migrations and regression tests. Review the actual diff following
-   `REVIEW.md`; addon/contract changes need Odoo-aware review. Keep compatible
+   `REVIEW.md`; addon/contract changes need Odoo-aware review. Before every push
+   this is the [independent review](#independent-review-before-every-push-owner-decision-2026-11-21). Keep compatible
    prior decisions. If the request conflicts with one, preserve it and ask for
    that specific decision; general merge authorization does not reverse it.
 4. **Verify the combined result.** Run the Git and architecture policies against
@@ -159,10 +181,10 @@ that PR, or names auto-merge. GitHub then merges the PR the moment the current-h
 green, without waiting for an agent to come back. Under «انشر» alone the agent waits for the green
 check and merges the PR itself. Auto-merge never bypasses protection: it waits
 for the required check and for resolved conversations. Disable it (`gh pr merge <n> --disable-auto`)
-before pushing a change that still needs review. Do not enable it on a PR that needs an owner
+before pushing further changes to that PR. Do not enable it on a PR that needs an owner
 decision or a separate authorization, or on one that changes authentication, authorization, tenant
-isolation, migrations or the CI rules that decide what must pass: those merge only after their
-independent review (see "Keep the PR loop short"). Inspect the selected and skipped stages before
+isolation, migrations or the CI rules that decide what must pass: those merge only after the
+boundary-focused review described below. Inspect the selected and skipped stages before
 enabling it. Step 6 (verify and synchronize) still runs after the merge.
 
 Keep the PR in draft while its diff, applicable local checks and review notes are
@@ -170,8 +192,8 @@ being prepared. Mark it ready once the candidate is stable, and batch related
 review fixes before pushing again. If a selected check fails, read that job
 first and reproduce the failure locally when needed to diagnose or verify the fix.
 
-Changes to authentication, authorization, tenant isolation, migrations, or the
-CI rules that decide what must pass need an independent review focused on those
+For changes to authentication, authorization, tenant isolation, migrations, or the
+CI rules that decide what must pass, the pre-push review also focuses on those
 boundaries. Include evidence for the relevant refusal or failure paths and name
 the exact head reviewed. For coupled PRs, review the combined candidate and
 verify it under step 4. GitHub requires the green check and resolved threads;
@@ -217,8 +239,8 @@ authorization.
 
 ```mermaid
 flowchart TD
-    A[Isolated candidate and local checks] --> B[Actual diff review]
-    B --> C[PR publication]
+    A[Isolated candidate and local checks] --> B[Independent review of the branch diff]
+    B --> C[Push and PR publication]
     C --> D[Current-head deterministic CI]
     D --> E{Checks pass and merge allowed?}
     E -->|Failure or missing evidence| F[Fix owned scope or report blocker]

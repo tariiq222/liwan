@@ -204,7 +204,8 @@ dispatch and by `npm run check:fast`, never by pull-request CI. The per-branch r
 ## Finishing a task
 
 Use [integration-rules.md](agents/integration-rules.md) for delivery: one draft PR
-per independent task or agreed integration batch, followed by review, checks and
+per independent task or agreed integration batch, opened after the independent review that
+precedes every push, followed by checks and
 a protected merge on the owner's explicit words after current-head `ci-result`
 and review of the actual combined diff. CI does not repair code, merge PRs or create tags. `wt status` compares ancestry with **local** `main`; when it is stale, compare
 with current remote `main` too. A merged head with dirty files still contains

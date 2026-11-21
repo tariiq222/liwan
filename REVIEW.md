@@ -6,10 +6,15 @@ this file says what to report and what not to.
 
 ## Review evidence and authorization
 
-Review the actual combined diff against its recorded baseline using the selected
-available agent or a human. Record the reviewed head, actionable findings and
-verification limits. There is no mandatory model provider or automated AI review
-status. Current-head `ci-result` is the required status-check policy; inspect the
+Every push of a task branch is preceded by an independent review (when it happens and
+what it must settle: [integration-rules.md](docs/agents/integration-rules.md#independent-review-before-every-push-owner-decision-2026-11-21)).
+The independent reviewer is a fresh agent or session other than the one that wrote or
+coordinated the change, or a human who did not write it; a coordinator's own reading of the
+patch it dispatched is not the independent review. The reviewer reviews the actual combined diff against its
+recorded baseline, `origin/main`, and opens the code the diff touches. Any selected
+available agent or a human may do it. Record the reviewed head, actionable findings and
+verification limits. The step is mandatory; a model provider or automated AI review
+status is not. Current-head `ci-result` is the required status-check policy; inspect the
 live GitHub rules before remote delivery.
 
 Review findings remain binding until resolved or explicitly decided by the owner.
@@ -90,7 +95,7 @@ Distinguish checks the reviewer actually ran from evidence supplied by others.
 The default agent review path in this repository is `/code-review` for the whole diff, plus the
 `odoo-reviewer` agent (`.claude/agents/odoo-reviewer.md`) when the diff touches `odoo-addons`,
 `packages/contracts` or `apps/web` composables. Another selected agent
-or a human may review instead when they apply the criteria of this file. Generic review plugins, skills and bots (style, clean-architecture, simplification or
+or a human may review instead when they are independent and apply the criteria of this file. Generic review plugins, skills and bots (style, clean-architecture, simplification or
 code-quality reviewers, and automated PR review comments) do not know R1-R10, the documented
 `sudo()` cases or the contract-parity rules. Their output is input to weigh, never the review of
 record: a finding from them still needs its own `file:line` evidence against the rules here, and
