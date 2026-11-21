@@ -225,8 +225,14 @@ and `merge_group` events; a merge-queue entry is selected from the queue base to
   (`feeds_image_build` in `tools/ci_scope.py`; the dev and audit locks are read by no Dockerfile). Otherwise the three
   run on the push to `main` and a full dispatch. The `ci-result` job names the deferred stages a run
   left out in its log and job summary, so a green result is not read as proof that they ran.
-- `e2e-odoo` runs before merge for changes under `apps/web/` or `odoo-addons/`, and when a shared input selects
-  it through `tools/ci_scope.py`. The stage's seed and runner also select it.
+- `e2e-odoo` runs before merge for addon changes, for `apps/web/server/`, `apps/web/e2e/` and the web code outside the
+  presentation files (composables, utils, middleware, plugins, `nuxt.config.ts`, `package.json`, and TypeScript modules
+  inside the UI trees, because composables import them), and when a shared input selects it through
+  `tools/ci_scope.py`. The stage's seed and runner also select it. Changes limited to Vue templates (`*.vue`) under
+  `apps/web/app/components`, `pages` and `layouts`, plus `assets`, locale JSON under `i18n` and `public`, select only
+  `e2e-mock` and `rtl-stories` (`image` runs on the push to `main`, and so does the real-Odoo coverage of those
+  templates). Storybook files and `apps/web/e2e-rtl` select `rtl-stories`; web unit tests and `apps/web/*.md`
+  select nothing beyond `static`. The push to `main` runs every stage.
 - An addon file selects `static`, the Odoo stages with affected modules, and `e2e-odoo`. The other stages in the
   addon rule run on the push to `main`.
 - A change limited to `apps/web/server/` does not select `rtl-stories`: the Storybook build imports no
