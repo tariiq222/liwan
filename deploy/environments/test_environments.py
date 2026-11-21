@@ -18,6 +18,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from deploy.release.release import SHARED_COMPOSE_FILES
 from deploy.test_edge_rate_limit import (
     RESERVED_PROXY, SHARED_CADDYFILE, _adapt_shared_caddyfile, _probe_config, _probe_requests)
 
@@ -29,8 +30,7 @@ EDGE_ENVIRONMENTS = ('development', 'staging')
 # Hostname label of each edge environment's base domain (`<label>.example.test`).
 BASE_LABELS = {'development': 'dev', 'staging': 'staging'}
 STACKS = {
-    'shared': ('docker-compose.yml', 'docker-compose.shared.yml', 'docker-compose.shared-commercial.yml',
-               'docker-compose.production.yml'),
+    'shared': SHARED_COMPOSE_FILES,
     'control': ('control-plane/compose.production.yml', 'control-plane/compose.host-link.yml'),
 }
 # Files the control-plane compose reads at render time (`env_file`); the test points them at empty files.

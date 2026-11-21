@@ -110,6 +110,14 @@ and 1002, which also covers containers nested in a job.
   restarts the guard when the table is missing, then lets the runners start again once it is back. A runner with the
   marker missing stays "activating" and runs nothing.
 
+## Development environment on this host
+
+| Item | Fact |
+| --- | --- |
+| Edge route | Openship 1.0.1 writes a vhost only for a project with an active deployment. The tracked project `dev.liwanos.com` holds the domains and certificates and is never deployed (a deploy would run `npm start` on port 18080). The route comes from two files, `/var/lib/openship/edge/sites-enabled/dev-liwanos-com.route.json` and `-dev-liwanos-com.route.json`; steps in [environment-bringup.md](environment-bringup.md) A2.3a. |
+| Docker group | `liwan-worker` is the only member of the `docker` group; no CI-runner user joins it. |
+| Database ports | The tenant `db` is published on loopback `15433` and the control database on `15432`; the runner guard already drops loopback for the runner users. The `db` bridge `liwan-dbhost` (fixed name) has two host rules, `iptables -I DOCKER-USER -i liwan-dbhost -m conntrack --ctstate NEW -j DROP` and `iptables -I INPUT -i liwan-dbhost -m conntrack --ctstate NEW -j DROP`, so the database container cannot start connections out or to host services (the compose file also turns masquerade off on that bridge, so replies from outside never reach it; the rules stay required for the host side); they do not survive a reboot unless a boot unit loads them, like the netguard unit (check and persistence: [environment-bringup.md](environment-bringup.md) A3.6). Accepted risk: any local process on the host can still reach the loopback port, with the database password as the only barrier. The control database overlay has the same shape and no fixed bridge name yet. |
+
 ## Limits (D22)
 
 The host must not grow or stall. Each limit is enforced by a unit and was tested.

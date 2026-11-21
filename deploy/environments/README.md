@@ -4,7 +4,7 @@ Development, staging and production run the same compose set. The env file is th
 
 | Project | Files, in order |
 | --- | --- |
-| Shared stack | `deploy/docker-compose.yml`, `docker-compose.shared.yml`, `docker-compose.shared-commercial.yml`, `docker-compose.production.yml` |
+| Shared stack | `deploy/docker-compose.yml`, `docker-compose.shared.yml`, `docker-compose.shared-commercial.yml`, `docker-compose.production.yml`, `docker-compose.host-link.yml` |
 | Control plane | `deploy/control-plane/compose.production.yml`, `compose.host-link.yml` |
 | Shared worker | `deploy/control-plane/liwan-shared-worker.service`, which reads `shared-worker.env.example` (the same values as the control-plane env, see that file) |
 
@@ -84,12 +84,13 @@ environments), **release** (written by the release path), **fixed** (the same in
 | `LIWAN_TENANT_REGISTRY_DIR` | Directory of the tenant registry | under that environment's root | under the production root | host | yes |
 | `LIWAN_COMMERCIAL_CONTROL_NETWORK` | External network joining web and the control API | prefixed `liwan_<name>_` | `liwan_` | host | yes |
 | `LIWAN_ADMIN_EDGE_NETWORK` | External network joining the edge and the vendor console | prefixed `liwan_<name>_` | `liwan_` | host | yes |
-| `LIWAN_CONTROL_UID`, `LIWAN_CONTROL_GID` | Numeric account of the host `liwan-worker` user | its ids | its ids | host | no |
+| `LIWAN_CONTROL_UID`, `LIWAN_CONTROL_GID` | Numeric account of the host `liwan-worker` user (`id -u liwan-worker`, `id -g liwan-worker`); the template holds a `REPLACE_WITH_WORKER_UID` placeholder | its ids | its ids | host | no |
 | `LIWAN_CONTROL_CONFIG_DIR` | Control-plane config directory | under that environment's root | under the production root | host | yes |
 | `LIWAN_CONTROL_STATE_DIR` | Control-plane state directory | same | same | host | yes |
 | `LIWAN_CONTROL_PRIVATE_DIR` | Directory with the database password, TLS key, certificate and CA files | same | same | host | yes |
 | `LIWAN_CONTROL_ENV_FILE` | Path of the control-plane env file | same | same | host | yes |
 | `LIWAN_VENDOR_ADMIN_ENV_FILE` | Path of the vendor console env file | same | same | host | yes |
+| `LIWAN_DB_HOST_PORT` | Loopback port the tenant database publishes for the host `pg_dump` (`docker-compose.host-link.yml`); the release reads it from this file for the backup (the control database's `LIWAN_CONTROL_DB_HOST_PORT` is read the same way and defaults to `15432`) | `15433` | `15433` | fixed | no |
 | `LIWAN_SHARED_COMPOSE_FILE`, `LIWAN_SHARED_ENV_FILE` | Paths the shared worker uses for the rendered stack and this env file | same | same | host | yes |
 
 In hostnames `<env>` is `dev` for development and `staging` for staging; in paths, networks and database names `<name>` is `development` or `staging`.
