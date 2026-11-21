@@ -26,8 +26,8 @@ export function packageLabel(kind: 'tier' | 'module' | 'feature' | 'limit', valu
   return kind === 'module' && /^(?:liwan|customer)_[a-z0-9_]+$/.test(value) ? humanizeId(value) : value
 }
 export function packageListReturnTo(value: unknown): string {
-  const safe = safeReturnTo(value, '/catalog', ['/catalog'])
-  return new URL(safe, 'http://liwan.local').pathname.replace(/\/$/, '') === '/catalog' ? safe : '/catalog'
+  const safe = safeReturnTo(value, '/packages', ['/packages'])
+  return new URL(safe, 'http://liwan.local').pathname.replace(/\/$/, '') === '/packages' ? safe : '/packages'
 }
 export function packageFormInput(draft: Omit<PackageInput, 'limits'>, limits: Record<string, PackageLimitDraft>, keys: string[]): PackageInput {
   return packageInputSchema.parse({ ...draft, limits: Object.fromEntries(keys.map(key => { if (!limits[key]) throw new Error('invalid_limit'); return [key, packageLimitValue(limits[key])] })) })

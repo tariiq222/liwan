@@ -37,14 +37,20 @@ describe('vendor commercial pages: structure and gating', () => {
   })
   it('create release guide explains the missing release in two steps and replaces the bundle form until one exists', () => {
     const p = page('bundles/new.vue')
-    expect(p.indexOf('v-else-if="!releases.length"')).toBeGreaterThan(p.indexOf("v-if=\"!can('vendor.catalog.manage')\""))
-    expect(p.indexOf('<VendorBundleForm v-else')).toBeGreaterThan(p.indexOf('v-else-if="!releases.length"'))
+    expect(p.indexOf('v-else-if="!releases.length && published.length"')).toBeGreaterThan(p.indexOf("v-if=\"!can('vendor.catalog.manage')\""))
+    expect(p.indexOf('<VendorBundleForm v-else')).toBeGreaterThan(p.indexOf('v-else-if="!releases.length && published.length"'))
     for (const key of ['title', 'why', 'steps', 'step1', 'step2']) expect(p).toContain(`vendor.bundles.guide.${key}`)
     expect(p).toContain('aria-current="step"'); expect(p).toContain('data-testid="release-create"'); expect(p).toContain('vendor.bundles.createRelease')
     for (const lang of ['en', 'ar']) {
       const guide = json(lang).bundles.guide
       for (const key of ['title', 'why', 'steps', 'step1', 'step2']) expect(guide[key], `${lang}.${key}`).toBeTruthy()
     }
+  })
+  it('create release picks a published catalog version from a select and shows no form when none is published', () => {
+    const p = page('bundles/new.vue')
+    expect(p).toContain('<USelect v-model="relVersion"'); expect(p).not.toContain('<UInput v-model="relVersion"')
+    expect(p).toContain('publishedVersions(versions.value'); expect(p).toContain('list.length === 1')
+    expect(p).toContain('data-testid="no-published-catalog"'); expect(p).toContain('to="/catalog"')
   })
   it('bundle detail lists every plan version using it, with its version and state, and says when plans could not load', () => {
     const p = page('bundles/[id].vue')

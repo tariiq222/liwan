@@ -50,7 +50,7 @@ describe('adminNav', () => {
 
   it('points every item at a root path without the old /vendor prefix', () => {
     for (const item of adminNav(caps('owner'))) {
-      expect(item.to).toBe(item.id === 'catalog' ? '/plans' : `/${item.id}`)
+      expect(item.to).toBe(`/${item.id}`)
       expect(item.labelKey).toBe(`app.nav.${item.id}`)
       expect(item.icon).toMatch(/^i-lucide-/)
     }
@@ -75,8 +75,8 @@ describe('activeNavId', () => {
     expect(items.map(item => item.id)).not.toContain('tenants')
   })
 
-  it('keeps plans, bundles and the retired legacy packages under the catalog', () => {
-    for (const path of ['/plans', '/plans/p-1/edit', '/bundles', '/bundles/new', '/catalog', '/catalog/pkg-1']) expect(activeNavId(items, path), path).toBe('catalog')
+  it('keeps applications, plans, bundles and the retired legacy packages under the catalog', () => {
+    for (const path of ['/plans', '/plans/p-1/edit', '/bundles', '/bundles/new', '/catalog', '/catalog/c-1', '/packages', '/packages/pkg-1']) expect(activeNavId(items, path), path).toBe('catalog')
     expect(items.map(item => item.id)).not.toContain('plans')
     expect(items.map(item => item.id)).not.toContain('bundles')
     expect(activeNavId(items, '/catalogx')).toBeNull()

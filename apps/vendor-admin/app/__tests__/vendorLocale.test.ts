@@ -63,18 +63,18 @@ describe('vendor locale', () => {
     expect(unused.sort()).toEqual([])
   })
 
-  it('names the section once and its three tabs apart', () => {
+  it('names the section once and its four tabs apart', () => {
     const titles = (lang: string) => (JSON.parse(readFileSync(join(localesRoot, lang, 'vendor.json'), 'utf8')) as {
-      vendor: Record<'plans' | 'bundles' | 'packages' | 'catalog', { title: string }>
+      vendor: { plans: { title: string }, bundles: { title: string }, packages: { title: string }, catalog: { title: string, applications: string } }
     }).vendor
     for (const lang of ['ar', 'en']) {
       const v = titles(lang)
-      expect(new Set([v.plans.title, v.bundles.title, v.packages.title]).size).toBe(3)
-      expect(new Set([v.catalog.title, v.plans.title, v.bundles.title, v.packages.title]).size).toBe(4)
+      expect(new Set([v.catalog.applications, v.plans.title, v.bundles.title, v.packages.title]).size).toBe(4)
+      expect(new Set([v.catalog.title, v.catalog.applications, v.plans.title, v.bundles.title, v.packages.title]).size).toBe(5)
     }
     const ar = titles('ar')
-    expect([ar.catalog.title, ar.plans.title, ar.bundles.title, ar.packages.title]).toEqual(['تركيبة تطبيقات ليوان', 'الباقات', 'الحزم', 'الحزم القديمة'])
+    expect([ar.catalog.title, ar.catalog.applications, ar.bundles.title, ar.plans.title, ar.packages.title]).toEqual(['تركيبة تطبيقات ليوان', 'التطبيقات', 'الحزم', 'الباقات', 'الحزم القديمة'])
     const en = titles('en')
-    expect([en.catalog.title, en.plans.title, en.bundles.title, en.packages.title]).toEqual(['Catalog', 'Plans', 'Bundles', 'Legacy packages'])
+    expect([en.catalog.title, en.catalog.applications, en.bundles.title, en.plans.title, en.packages.title]).toEqual(['Catalog', 'Applications', 'Bundles', 'Plans', 'Legacy packages'])
   })
 })
