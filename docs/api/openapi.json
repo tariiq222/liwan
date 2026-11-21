@@ -85855,6 +85855,738 @@
         ],
         "type": "string"
       },
+      "IntegrationAvailableNumberListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "sms": {
+                  "type": "boolean"
+                },
+                "value": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "voice": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "value",
+                "label",
+                "sms",
+                "voice"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "IntegrationAvailableNumberSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "sms": {
+            "type": "boolean"
+          },
+          "value": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "voice": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "value",
+          "label",
+          "sms",
+          "voice"
+        ],
+        "type": "object"
+      },
+      "IntegrationCallListQuerySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "date_from": {
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "type": "string"
+          },
+          "date_to": {
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "type": "string"
+          },
+          "limit": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "offset": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "q": {
+            "maxLength": 32,
+            "type": "string"
+          },
+          "sender_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "initiated",
+              "ringing",
+              "in_progress",
+              "completed",
+              "busy",
+              "no_answer",
+              "failed",
+              "canceled",
+              "unconfirmed"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "IntegrationCallListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "account_ref": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "bridge_to": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "connection_id": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "created_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "duration_seconds": {
+                  "anyOf": [
+                    {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "ended_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "error_code": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "error_message": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "from_value": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "mode": {
+                  "enum": [
+                    "speak",
+                    "bridge"
+                  ],
+                  "type": "string"
+                },
+                "origin": {
+                  "enum": [
+                    "test"
+                  ],
+                  "type": "string"
+                },
+                "provider": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "provider_call_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "recorded": {
+                  "type": "boolean"
+                },
+                "recording_duration_seconds": {
+                  "anyOf": [
+                    {
+                      "maximum": 9007199254740991,
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "recording_ref": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "requested_by": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "sender_id": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "speak_text": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "started_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "state": {
+                  "enum": [
+                    "initiated",
+                    "ringing",
+                    "in_progress",
+                    "completed",
+                    "busy",
+                    "no_answer",
+                    "failed",
+                    "canceled",
+                    "unconfirmed"
+                  ],
+                  "type": "string"
+                },
+                "to": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "mode",
+                "origin",
+                "state",
+                "to",
+                "from_value",
+                "duration_seconds",
+                "recorded",
+                "error_code",
+                "error_message",
+                "created_at",
+                "started_at",
+                "ended_at",
+                "connection_id",
+                "sender_id",
+                "provider",
+                "account_ref",
+                "speak_text",
+                "bridge_to",
+                "requested_by",
+                "provider_call_id",
+                "recording_ref",
+                "recording_duration_seconds"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "IntegrationCallOriginSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "test"
+        ],
+        "type": "string"
+      },
+      "IntegrationCallSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "account_ref": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "bridge_to": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "connection_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ended_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "error_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "error_message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "from_value": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "mode": {
+            "enum": [
+              "speak",
+              "bridge"
+            ],
+            "type": "string"
+          },
+          "origin": {
+            "enum": [
+              "test"
+            ],
+            "type": "string"
+          },
+          "provider": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "provider_call_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recorded": {
+            "type": "boolean"
+          },
+          "recording_duration_seconds": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recording_ref": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "requested_by": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sender_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "speak_text": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "started_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "enum": [
+              "initiated",
+              "ringing",
+              "in_progress",
+              "completed",
+              "busy",
+              "no_answer",
+              "failed",
+              "canceled",
+              "unconfirmed"
+            ],
+            "type": "string"
+          },
+          "to": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "mode",
+          "origin",
+          "state",
+          "to",
+          "from_value",
+          "duration_seconds",
+          "recorded",
+          "error_code",
+          "error_message",
+          "created_at",
+          "started_at",
+          "ended_at",
+          "connection_id",
+          "sender_id",
+          "provider",
+          "account_ref",
+          "speak_text",
+          "bridge_to",
+          "requested_by",
+          "provider_call_id",
+          "recording_ref",
+          "recording_duration_seconds"
+        ],
+        "type": "object"
+      },
+      "IntegrationCallStateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "initiated",
+          "ringing",
+          "in_progress",
+          "completed",
+          "busy",
+          "no_answer",
+          "failed",
+          "canceled",
+          "unconfirmed"
+        ],
+        "type": "string"
+      },
+      "IntegrationCallStateViewSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ended_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "error_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "error_message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "from_value": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "mode": {
+            "enum": [
+              "speak",
+              "bridge"
+            ],
+            "type": "string"
+          },
+          "origin": {
+            "enum": [
+              "test"
+            ],
+            "type": "string"
+          },
+          "recorded": {
+            "type": "boolean"
+          },
+          "started_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "enum": [
+              "initiated",
+              "ringing",
+              "in_progress",
+              "completed",
+              "busy",
+              "no_answer",
+              "failed",
+              "canceled",
+              "unconfirmed"
+            ],
+            "type": "string"
+          },
+          "to": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "mode",
+          "origin",
+          "state",
+          "to",
+          "from_value",
+          "duration_seconds",
+          "recorded",
+          "error_code",
+          "error_message",
+          "created_at",
+          "started_at",
+          "ended_at"
+        ],
+        "type": "object"
+      },
+      "IntegrationCommunicationSettingsSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "daily_call_limit": {
+            "maximum": 10000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "daily_message_limit": {
+            "maximum": 100000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "record_calls": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "daily_message_limit",
+          "daily_call_limit",
+          "record_calls"
+        ],
+        "type": "object"
+      },
+      "IntegrationCommunicationSettingsUpdateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "daily_call_limit": {
+            "maximum": 10000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "daily_message_limit": {
+            "maximum": 100000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "record_calls": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
       "IntegrationConnectionCreateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -86274,6 +87006,851 @@
         },
         "type": "object"
       },
+      "IntegrationErrorCodeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "invalid",
+          "forbidden",
+          "not_found",
+          "in_use",
+          "integration_rejected",
+          "provider_error",
+          "invalid_phone",
+          "no_default_sender",
+          "sender_unavailable",
+          "connection_disabled",
+          "daily_limit_reached",
+          "body_too_long",
+          "tenant_read_only",
+          "text_too_long",
+          "no_connection",
+          "lookup_failed"
+        ],
+        "type": "string"
+      },
+      "IntegrationLookupErrorCodeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "invalid_phone",
+          "no_connection",
+          "lookup_failed"
+        ],
+        "type": "string"
+      },
+      "IntegrationLookupResultSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "country": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "e164": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "line_type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "valid": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "valid",
+          "e164",
+          "country",
+          "line_type"
+        ],
+        "type": "object"
+      },
+      "IntegrationLookupTestSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "line_type": {
+            "type": "boolean"
+          },
+          "number": {
+            "maxLength": 32,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "number"
+        ],
+        "type": "object"
+      },
+      "IntegrationMessageChannelSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "sms",
+          "whatsapp"
+        ],
+        "type": "string"
+      },
+      "IntegrationMessageListQuerySchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "channel": {
+            "enum": [
+              "sms",
+              "whatsapp"
+            ],
+            "type": "string"
+          },
+          "date_from": {
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "type": "string"
+          },
+          "date_to": {
+            "format": "date",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+            "type": "string"
+          },
+          "limit": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "offset": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "q": {
+            "maxLength": 32,
+            "type": "string"
+          },
+          "sender_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "queued",
+              "sent",
+              "delivered",
+              "undelivered",
+              "failed",
+              "unconfirmed"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "IntegrationMessageListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "account_ref": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "attempts": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "body": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "channel": {
+                  "enum": [
+                    "sms",
+                    "whatsapp"
+                  ],
+                  "type": "string"
+                },
+                "connection_id": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "content_sid": {
+                  "anyOf": [
+                    {
+                      "pattern": "^HX[0-9a-fA-F]{32}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "content_variables": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": {
+                        "maxLength": 1024,
+                        "type": "string"
+                      },
+                      "propertyNames": {
+                        "maxLength": 64,
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "created_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "error_code": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "error_message": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "has_receipt": {
+                  "type": "boolean"
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "origin": {
+                  "enum": [
+                    "test"
+                  ],
+                  "type": "string"
+                },
+                "provider": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "provider_message_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "read_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "requested_by": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "id": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "segments": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "sender_id": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "sender_value": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "sent_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "state": {
+                  "enum": [
+                    "queued",
+                    "sent",
+                    "delivered",
+                    "undelivered",
+                    "failed",
+                    "unconfirmed"
+                  ],
+                  "type": "string"
+                },
+                "to": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "channel",
+                "origin",
+                "state",
+                "to",
+                "sender_value",
+                "segments",
+                "error_code",
+                "error_message",
+                "has_receipt",
+                "created_at",
+                "sent_at",
+                "read_at",
+                "connection_id",
+                "sender_id",
+                "provider",
+                "account_ref",
+                "body",
+                "content_sid",
+                "content_variables",
+                "requested_by",
+                "provider_message_id",
+                "attempts"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "IntegrationMessageOriginSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "test"
+        ],
+        "type": "string"
+      },
+      "IntegrationMessageSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "account_ref": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "attempts": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "body": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "channel": {
+            "enum": [
+              "sms",
+              "whatsapp"
+            ],
+            "type": "string"
+          },
+          "connection_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "content_sid": {
+            "anyOf": [
+              {
+                "pattern": "^HX[0-9a-fA-F]{32}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "content_variables": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "maxLength": 1024,
+                  "type": "string"
+                },
+                "propertyNames": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "error_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "error_message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "has_receipt": {
+            "type": "boolean"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "origin": {
+            "enum": [
+              "test"
+            ],
+            "type": "string"
+          },
+          "provider": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "provider_message_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "read_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "requested_by": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "segments": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "sender_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sender_value": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "sent_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "enum": [
+              "queued",
+              "sent",
+              "delivered",
+              "undelivered",
+              "failed",
+              "unconfirmed"
+            ],
+            "type": "string"
+          },
+          "to": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "channel",
+          "origin",
+          "state",
+          "to",
+          "sender_value",
+          "segments",
+          "error_code",
+          "error_message",
+          "has_receipt",
+          "created_at",
+          "sent_at",
+          "read_at",
+          "connection_id",
+          "sender_id",
+          "provider",
+          "account_ref",
+          "body",
+          "content_sid",
+          "content_variables",
+          "requested_by",
+          "provider_message_id",
+          "attempts"
+        ],
+        "type": "object"
+      },
+      "IntegrationMessageStateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "queued",
+          "sent",
+          "delivered",
+          "undelivered",
+          "failed",
+          "unconfirmed"
+        ],
+        "type": "string"
+      },
+      "IntegrationMessageStateViewSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "channel": {
+            "enum": [
+              "sms",
+              "whatsapp"
+            ],
+            "type": "string"
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "error_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "error_message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "has_receipt": {
+            "type": "boolean"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "origin": {
+            "enum": [
+              "test"
+            ],
+            "type": "string"
+          },
+          "read_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "segments": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "sender_value": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "sent_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "enum": [
+              "queued",
+              "sent",
+              "delivered",
+              "undelivered",
+              "failed",
+              "unconfirmed"
+            ],
+            "type": "string"
+          },
+          "to": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "channel",
+          "origin",
+          "state",
+          "to",
+          "sender_value",
+          "segments",
+          "error_code",
+          "error_message",
+          "has_receipt",
+          "created_at",
+          "sent_at",
+          "read_at"
+        ],
+        "type": "object"
+      },
+      "IntegrationMessageTemplateListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "language": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "sid": {
+                  "pattern": "^HX[0-9a-fA-F]{32}$",
+                  "type": "string"
+                },
+                "types": {
+                  "items": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "variables": {
+                  "items": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "sid",
+                "name",
+                "language",
+                "types",
+                "variables"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "IntegrationMessageTemplateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "language": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sid": {
+            "pattern": "^HX[0-9a-fA-F]{32}$",
+            "type": "string"
+          },
+          "types": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "variables": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "sid",
+          "name",
+          "language",
+          "types",
+          "variables"
+        ],
+        "type": "object"
+      },
+      "IntegrationMessagingErrorCodeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "invalid_phone",
+          "no_default_sender",
+          "sender_unavailable",
+          "connection_disabled",
+          "daily_limit_reached",
+          "body_too_long",
+          "tenant_read_only"
+        ],
+        "type": "string"
+      },
+      "IntegrationMessagingTestSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "content_sid": {
+            "pattern": "^HX[0-9a-fA-F]{32}$",
+            "type": "string"
+          },
+          "content_variables": {
+            "additionalProperties": {
+              "maxLength": 1024,
+              "type": "string"
+            },
+            "propertyNames": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "sender_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "to": {
+            "maxLength": 32,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "sender_id",
+          "to"
+        ],
+        "type": "object"
+      },
       "IntegrationOAuthStartResponseSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -86525,6 +88102,225 @@
         ],
         "type": "object"
       },
+      "IntegrationSenderChannelSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "sms",
+          "whatsapp",
+          "voice"
+        ],
+        "type": "string"
+      },
+      "IntegrationSenderCreateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "channel": {
+            "enum": [
+              "sms",
+              "whatsapp",
+              "voice"
+            ],
+            "type": "string"
+          },
+          "connection_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "is_default": {
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "alphanumeric",
+              "number",
+              "service"
+            ],
+            "type": "string"
+          },
+          "value": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "connection_id",
+          "channel",
+          "kind",
+          "value"
+        ],
+        "type": "object"
+      },
+      "IntegrationSenderKindSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "alphanumeric",
+          "number",
+          "service"
+        ],
+        "type": "string"
+      },
+      "IntegrationSenderListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "active": {
+                  "type": "boolean"
+                },
+                "channel": {
+                  "enum": [
+                    "sms",
+                    "whatsapp",
+                    "voice"
+                  ],
+                  "type": "string"
+                },
+                "connection_id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "created_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "is_default": {
+                  "type": "boolean"
+                },
+                "kind": {
+                  "enum": [
+                    "alphanumeric",
+                    "number",
+                    "service"
+                  ],
+                  "type": "string"
+                },
+                "provider": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "value": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "connection_id",
+                "provider",
+                "channel",
+                "kind",
+                "value",
+                "is_default",
+                "active",
+                "created_at"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "IntegrationSenderSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "channel": {
+            "enum": [
+              "sms",
+              "whatsapp",
+              "voice"
+            ],
+            "type": "string"
+          },
+          "connection_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "is_default": {
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "alphanumeric",
+              "number",
+              "service"
+            ],
+            "type": "string"
+          },
+          "provider": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "value": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "connection_id",
+          "provider",
+          "channel",
+          "kind",
+          "value",
+          "is_default",
+          "active",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "IntegrationSenderUpdateSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "is_default": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
       "IntegrationStateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "enum": [
@@ -86552,6 +88348,64 @@
         "required": [
           "key",
           "owner"
+        ],
+        "type": "object"
+      },
+      "IntegrationVoiceErrorCodeSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "enum": [
+          "invalid_phone",
+          "no_default_sender",
+          "sender_unavailable",
+          "connection_disabled",
+          "daily_limit_reached",
+          "text_too_long",
+          "tenant_read_only"
+        ],
+        "type": "string"
+      },
+      "IntegrationVoiceTestSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "agent_number": {
+            "maxLength": 32,
+            "minLength": 1,
+            "type": "string"
+          },
+          "language": {
+            "enum": [
+              "ar",
+              "ar-AE"
+            ],
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "speak",
+              "bridge"
+            ],
+            "type": "string"
+          },
+          "sender_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "text": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "to": {
+            "maxLength": 32,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "to",
+          "mode"
         ],
         "type": "object"
       },
@@ -154161,6 +156015,84 @@
         }
       }
     },
+    "/api/v1/integrations/communication-settings": {
+      "get": {
+        "operationId": "liwan_integrations_sa.IntegrationSenderController.read_settings.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "read_settings",
+        "tags": [
+          "liwan_integrations_sa"
+        ],
+        "x-liwan": {
+          "addon": "liwan_integrations_sa",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "IntegrationSenderController",
+          "feature_keys": [
+            "integrations.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "read_settings",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "liwan_integrations_sa.IntegrationSenderController.patch_settings.patch",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "patch_settings",
+        "tags": [
+          "liwan_integrations_sa"
+        ],
+        "x-liwan": {
+          "addon": "liwan_integrations_sa",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "IntegrationSenderController",
+          "feature_keys": [
+            "integrations.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "patch_settings",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/integrations/connections": {
       "get": {
         "operationId": "liwan_integrations_sa.IntegrationConnectionController.list_connections.get",
@@ -154508,6 +156440,325 @@
         }
       }
     },
+    "/api/v1/integrations/lookup/test": {
+      "post": {
+        "operationId": "liwan_integrations_sa.IntegrationVoiceController.lookup_test.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "lookup_test",
+        "tags": [
+          "liwan_integrations_sa"
+        ],
+        "x-liwan": {
+          "addon": "liwan_integrations_sa",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "IntegrationVoiceController",
+          "feature_keys": [
+            "integrations.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "lookup_test",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/integrations/messaging/messages": {
+      "get": {
+        "operationId": "liwan_integrations_sa.IntegrationMessagingController.list_messages.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_messages",
+        "tags": [
+          "liwan_integrations_sa"
+        ],
+        "x-liwan": {
+          "addon": "liwan_integrations_sa",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "IntegrationMessagingController",
+          "feature_keys": [
+            "integrations.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_messages",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/integrations/messaging/messages/{message_id}": {
+      "get": {
+        "operationId": "liwan_integrations_sa.IntegrationMessagingController.read_message.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "message_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "read_message",
+        "tags": [
+          "liwan_integrations_sa"
+        ],
+        "x-liwan": {
+          "addon": "liwan_integrations_sa",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "IntegrationMessagingController",
+          "feature_keys": [
+            "integrations.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "read_message",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/integrations/messaging/messages/{message_id}/retry": {
+      "post": {
+        "operationId": "liwan_integrations_sa.IntegrationMessagingController.retry_message.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "message_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "retry_message",
+        "tags": [
+          "liwan_integrations_sa"
+        ],
+        "x-liwan": {
+          "addon": "liwan_integrations_sa",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "IntegrationMessagingController",
+          "feature_keys": [
+            "integrations.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "retry_message",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/integrations/messaging/templates": {
+      "get": {
+        "operationId": "liwan_integrations_sa.IntegrationMessagingController.list_templates.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_templates",
+        "tags": [
+          "liwan_integrations_sa"
+        ],
+        "x-liwan": {
+          "addon": "liwan_integrations_sa",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "IntegrationMessagingController",
+          "feature_keys": [
+            "integrations.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_templates",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/integrations/messaging/test": {
+      "post": {
+        "operationId": "liwan_integrations_sa.IntegrationMessagingController.send_test.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "send_test",
+        "tags": [
+          "liwan_integrations_sa"
+        ],
+        "x-liwan": {
+          "addon": "liwan_integrations_sa",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "IntegrationMessagingController",
+          "feature_keys": [
+            "integrations.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "send_test",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/integrations/messaging/test/{message_id}": {
+      "get": {
+        "operationId": "liwan_integrations_sa.IntegrationMessagingController.read_test.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "message_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "read_test",
+        "tags": [
+          "liwan_integrations_sa"
+        ],
+        "x-liwan": {
+          "addon": "liwan_integrations_sa",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "IntegrationMessagingController",
+          "feature_keys": [
+            "integrations.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "read_test",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
     "/api/v1/integrations/oauth/{provider}/callback": {
       "get": {
         "operationId": "liwan_integrations_sa.IntegrationOAuthController.callback.get",
@@ -154648,6 +156899,414 @@
           ],
           "feature_operation": "read",
           "handler": "list_providers",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/integrations/senders": {
+      "get": {
+        "operationId": "liwan_integrations_sa.IntegrationSenderController.list_senders.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_senders",
+        "tags": [
+          "liwan_integrations_sa"
+        ],
+        "x-liwan": {
+          "addon": "liwan_integrations_sa",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "IntegrationSenderController",
+          "feature_keys": [
+            "integrations.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_senders",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "liwan_integrations_sa.IntegrationSenderController.create_sender.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "create_sender",
+        "tags": [
+          "liwan_integrations_sa"
+        ],
+        "x-liwan": {
+          "addon": "liwan_integrations_sa",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "IntegrationSenderController",
+          "feature_keys": [
+            "integrations.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "create_sender",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/integrations/senders/available": {
+      "get": {
+        "operationId": "liwan_integrations_sa.IntegrationSenderController.available_numbers.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "available_numbers",
+        "tags": [
+          "liwan_integrations_sa"
+        ],
+        "x-liwan": {
+          "addon": "liwan_integrations_sa",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "IntegrationSenderController",
+          "feature_keys": [
+            "integrations.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "available_numbers",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/integrations/senders/{sender_id}": {
+      "delete": {
+        "operationId": "liwan_integrations_sa.IntegrationSenderController.delete_sender.delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sender_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "delete_sender",
+        "tags": [
+          "liwan_integrations_sa"
+        ],
+        "x-liwan": {
+          "addon": "liwan_integrations_sa",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "IntegrationSenderController",
+          "feature_keys": [
+            "integrations.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "delete_sender",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      },
+      "patch": {
+        "operationId": "liwan_integrations_sa.IntegrationSenderController.patch_sender.patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sender_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "patch_sender",
+        "tags": [
+          "liwan_integrations_sa"
+        ],
+        "x-liwan": {
+          "addon": "liwan_integrations_sa",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "IntegrationSenderController",
+          "feature_keys": [
+            "integrations.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "patch_sender",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/integrations/voice/calls": {
+      "get": {
+        "operationId": "liwan_integrations_sa.IntegrationVoiceController.list_calls.get",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "list_calls",
+        "tags": [
+          "liwan_integrations_sa"
+        ],
+        "x-liwan": {
+          "addon": "liwan_integrations_sa",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "IntegrationVoiceController",
+          "feature_keys": [
+            "integrations.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "list_calls",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/integrations/voice/calls/{call_id}": {
+      "get": {
+        "operationId": "liwan_integrations_sa.IntegrationVoiceController.read_call.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "read_call",
+        "tags": [
+          "liwan_integrations_sa"
+        ],
+        "x-liwan": {
+          "addon": "liwan_integrations_sa",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "IntegrationVoiceController",
+          "feature_keys": [
+            "integrations.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "read_call",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/integrations/voice/test": {
+      "post": {
+        "operationId": "liwan_integrations_sa.IntegrationVoiceController.send_test.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "send_test",
+        "tags": [
+          "liwan_integrations_sa"
+        ],
+        "x-liwan": {
+          "addon": "liwan_integrations_sa",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "IntegrationVoiceController",
+          "feature_keys": [
+            "integrations.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "send_test",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/integrations/voice/test/{call_id}": {
+      "get": {
+        "operationId": "liwan_integrations_sa.IntegrationVoiceController.read_test.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "read_test",
+        "tags": [
+          "liwan_integrations_sa"
+        ],
+        "x-liwan": {
+          "addon": "liwan_integrations_sa",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": null,
+          "controller": "IntegrationVoiceController",
+          "feature_keys": [
+            "integrations.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "read_test",
           "readonly": true,
           "route_type": "json2"
         }
@@ -164153,6 +166812,59 @@
           ],
           "feature_operation": "read",
           "handler": "product_image",
+          "readonly": null,
+          "route_type": "http"
+        }
+      }
+    },
+    "/api/v1/public/integrations/hooks/{provider}/{connection_id}/{kind}": {
+      "post": {
+        "operationId": "liwan_integrations_sa.IntegrationCallbackController.provider_callback.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          }
+        },
+        "security": [],
+        "summary": "provider_callback",
+        "tags": [
+          "liwan_integrations_sa"
+        ],
+        "x-liwan": {
+          "addon": "liwan_integrations_sa",
+          "api_handler": false,
+          "auth": "public",
+          "contract_namespace": null,
+          "controller": "IntegrationCallbackController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "provider_callback",
           "readonly": null,
           "route_type": "http"
         }
