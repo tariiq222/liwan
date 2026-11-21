@@ -61,7 +61,8 @@ class HostLinkOverlay(unittest.TestCase):
         self.assertEqual(['db_host'], overlay['services']['db']['networks'])
         self.assertEqual(['db_host'], list(overlay['networks']))
         self.assertNotIn('internal', overlay['networks']['db_host'])
-        self.assertEqual({'com.docker.network.bridge.name': BRIDGE}, overlay['networks']['db_host']['driver_opts'])
+        self.assertEqual({'com.docker.network.bridge.name': BRIDGE, 'com.docker.network.bridge.enable_ip_masquerade': 'false'},
+                         overlay['networks']['db_host']['driver_opts'])
 
     @unittest.skipIf(shutil.which('docker') is None, 'docker CLI not installed: cannot render the compose set')
     def test_merged_stack_gains_one_loopback_port_and_keeps_the_internal_network(self):
@@ -75,6 +76,7 @@ class HostLinkOverlay(unittest.TestCase):
         self.assertEqual({'database', 'db_host'}, set(after['services']['db']['networks']))
         self.assertTrue(after['networks']['database']['internal'])
         self.assertEqual(BRIDGE, after['networks']['db_host']['driver_opts']['com.docker.network.bridge.name'])
+        self.assertEqual('false', after['networks']['db_host']['driver_opts']['com.docker.network.bridge.enable_ip_masquerade'])
 
 
 @unittest.skipIf(shutil.which('openssl') is None, 'openssl not installed: cannot create the host certificates')

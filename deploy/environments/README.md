@@ -90,7 +90,7 @@ environments), **release** (written by the release path), **fixed** (the same in
 | `LIWAN_CONTROL_PRIVATE_DIR` | Directory with the database password, TLS key, certificate and CA files | same | same | host | yes |
 | `LIWAN_CONTROL_ENV_FILE` | Path of the control-plane env file | same | same | host | yes |
 | `LIWAN_VENDOR_ADMIN_ENV_FILE` | Path of the vendor console env file | same | same | host | yes |
-| `LIWAN_DB_HOST_PORT` | Loopback port the tenant database publishes for the host `pg_dump` (`docker-compose.host-link.yml`) | `15433` | `15433` | fixed | no |
+| `LIWAN_DB_HOST_PORT` | Loopback port the tenant database publishes for the host `pg_dump` (`docker-compose.host-link.yml`); the release reads it from this file for the backup (the control database's `LIWAN_CONTROL_DB_HOST_PORT` is read the same way and defaults to `15432`) | `15433` | `15433` | fixed | no |
 | `LIWAN_SHARED_COMPOSE_FILE`, `LIWAN_SHARED_ENV_FILE` | Paths the shared worker uses for the rendered stack and this env file | same | same | host | yes |
 
 In hostnames `<env>` is `dev` for development and `staging` for staging; in paths, networks and database names `<name>` is `development` or `staging`.

@@ -179,7 +179,8 @@ class FakeRunner:
         if 'config' in argv and '--output' in argv:  # `compose config --output <file>`: the stack as the release.env names it
             tag = re.search(r'LIWAN_IMAGE_TAG=(\w+)', (case.state / 'release.env').read_text()).group(1)
             Path(argv[argv.index('--output') + 1]).write_text(json.dumps({'services': {}, 'imageTag': tag}))
-            return (1, 'render failed') if case.fail_render and tag == NEW else (0, '')
+            failing = {NEW: case.fail_render, OLD: case.fail_restore_render}
+            return (1, 'render failed') if failing.get(tag) else (0, '')
         if argv[0] == 'tar':
             write_smoke(Path(argv[argv.index('-C') + 1]))
             return 0, ''
@@ -270,7 +271,7 @@ class ReleaseTest(unittest.TestCase):
         self.head, self.tags, self.ancestor, self.published, self.fetched = NEW, {}, True, True, True
         self.on_main = True
         self.fail_health, self.fail_upgrade_of = False, None
-        self.fail_render = False
+        self.fail_render, self.fail_restore_render = False, False
         self.document = document(NEW)
         self.alerts, self.sql = [], []
         self.builds = BUILDS
@@ -294,8 +295,8 @@ class ReleaseTest(unittest.TestCase):
         config.write_text(
             'LIWAN_RELEASE_PROJECT=liwan\n'
             f'LIWAN_SHARED_ENV_FILE={shared_env}\n'
-            'LIWAN_RELEASE_PG_DUMP=/usr/bin/pg_dump\nLIWAN_RELEASE_PG_HOST=127.0.0.1\nLIWAN_RELEASE_PG_PORT=5432\n'
-            'LIWAN_RELEASE_CONTROL_PG_HOST=127.0.0.1\nLIWAN_RELEASE_CONTROL_PG_PORT=5433\n'
+            'LIWAN_RELEASE_PG_DUMP=/usr/bin/pg_dump\nLIWAN_RELEASE_PG_HOST=127.0.0.1\n'
+            'LIWAN_RELEASE_CONTROL_PG_HOST=127.0.0.1\n'
             f'LIWAN_RELEASE_ODOO_DATA_DIR={self.root}/data\nLIWAN_RELEASE_DISK_PATH={self.root}\n'
             f'LIWAN_BACKUP_S3_SECRET={BACKUP_SECRET}\n')
         config.chmod(0o600)
@@ -937,11 +938,41 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(self.shared_compose(), OLD)  # the rollback rendered the restored release
         self.assertFalse((self.root / 'shared.compose.json.tmp').exists())
 
-    def test_a_shared_env_file_without_the_compose_path_fails_the_render(self):
+    def assert_refused_before_anything_stops(self, detail):
+        self.assertEqual(self.main(), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused invalid_shared_env')
+        self.assertIn(detail, self.log_stream.getvalue())
+        self.assertEqual(self.compose_stops(), [])
+        self.assertEqual(self.commands('psql'), [])
+        self.assertEqual(self.commands('systemctl'), [])
+        self.assertFalse((self.state / 'halted.json').exists())
+        self.assertEqual(self.served(), OLD)
+
+    def test_a_shared_env_file_without_the_compose_path_is_refused_before_anything_stops(self):
         (self.root / 'shared.env').write_text(f'LIWAN_TENANT_REGISTRY_DIR={self.root}/registry\nDB_PASSWORD={SECRET}\n')
-        self.assertNotEqual(self.main(), release.EXIT_OK)
-        self.assertIn('LIWAN_SHARED_COMPOSE_FILE', self.log_stream.getvalue())
-        self.assertFalse((self.root / 'shared.compose.json').exists())
+        self.assert_refused_before_anything_stops('LIWAN_SHARED_COMPOSE_FILE')
+
+    def test_a_relative_compose_path_is_refused_before_anything_stops(self):
+        (self.root / 'shared.env').write_text(f'LIWAN_TENANT_REGISTRY_DIR={self.root}/registry\n'
+                                              'LIWAN_SHARED_COMPOSE_FILE=shared.compose.json\n')
+        self.assert_refused_before_anything_stops('absolute path')
+
+    def test_a_missing_compose_directory_is_refused_before_anything_stops(self):
+        (self.root / 'shared.env').write_text(f'LIWAN_TENANT_REGISTRY_DIR={self.root}/registry\n'
+                                              f'LIWAN_SHARED_COMPOSE_FILE={self.root}/absent/shared.compose.json\n')
+        self.assert_refused_before_anything_stops('does not exist or is not writable')
+
+    def test_a_shared_env_file_the_worker_cannot_read_is_refused_before_anything_stops(self):
+        with mock.patch.object(release, 'unreadable_by_worker', return_value=True):
+            self.assert_refused_before_anything_stops('unreadable by group and others')
+
+    def test_only_a_root_owned_file_without_group_or_other_read_is_unreadable_by_the_worker(self):
+        def info(uid, mode):
+            return os.stat_result((0o100000 | mode, 0, 0, 1, uid, 0, 0, 0, 0, 0))
+        self.assertTrue(release.unreadable_by_worker(info(0, 0o600)))
+        self.assertFalse(release.unreadable_by_worker(info(0, 0o640)))
+        self.assertFalse(release.unreadable_by_worker(info(0, 0o644)))
+        self.assertFalse(release.unreadable_by_worker(info(990, 0o600)))
 
     def test_the_temporary_file_is_removed_when_the_owner_cannot_be_applied(self):
         with mock.patch.object(release.os, 'chown', side_effect=PermissionError('chown')):
@@ -952,6 +983,40 @@ class ReleaseTest(unittest.TestCase):
         self.fail_health = True
         self.assertEqual(self.main(), release.EXIT_FAILED)
         self.assertEqual(self.shared_compose(), OLD)  # the worker's view and the restored stack agree
+
+    def test_a_failed_render_during_the_rollback_still_restarts_the_previous_release_but_not_the_worker(self):
+        self.fail_health, self.fail_restore_render = True, True
+        self.assertEqual(self.main(), release.EXIT_ROLLBACK_FAILED)
+        self.assertEqual(self.result(), 'halted shared_compose_render_failed')
+        self.assertTrue((self.state / 'halted.json').exists())
+        restarted = [call for call in self.runner.calls if 'up' in call and f'{self.paths.releases / OLD}/deploy' in ' '.join(call)]
+        self.assertTrue(restarted)
+        self.assertTrue(any(call[-1] == 'guard' for call in restarted))  # the previous release serves customers again
+        self.assertFalse(self.paths.maintenance.exists())
+        self.assertNotIn(['systemctl', 'start', release.SHARED_WORKER_UNIT], self.runner.calls)
+        self.assertEqual(self.paths.current.resolve(), (self.paths.releases / OLD).resolve())
+        self.assertFalse((self.root / 'shared.compose.json').exists())  # the failed release's render is gone: the worker fails closed
+
+    def test_a_rollback_after_a_failed_restore_render_renders_the_file_and_starts_the_worker(self):
+        self.fail_health, self.fail_restore_render = True, True
+        self.assertEqual(self.main(), release.EXIT_ROLLBACK_FAILED)
+        self.assertFalse((self.root / 'shared.compose.json').exists())
+        self.fail_restore_render = False
+        self.assertEqual(self.main('rollback', '--environment', 'development'), release.EXIT_FAILED)
+        self.assertEqual(self.shared_compose(), OLD)
+        self.assertIn(['systemctl', 'start', release.SHARED_WORKER_UNIT], self.runner.calls)
+
+    def capture_ports(self):
+        self.assertEqual(self.main(), release.EXIT_OK)
+        return [call[call.index('--pg-port') + 1] for call in self.commands('capture')]
+
+    def test_the_backup_uses_the_database_ports_the_overlays_default_to(self):
+        self.assertEqual(self.capture_ports(), ['15433', '15432'])
+
+    def test_the_backup_uses_the_database_ports_of_the_shared_env_file(self):
+        shared = self.root / 'shared.env'
+        shared.write_text(shared.read_text() + 'LIWAN_DB_HOST_PORT=25433\nLIWAN_CONTROL_DB_HOST_PORT=25432\n')
+        self.assertEqual(self.capture_ports(), ['25433', '25432'])
 
     def test_current_that_points_nowhere_is_refused_before_anything_changes(self):
         shutil.rmtree(self.paths.releases / OLD)

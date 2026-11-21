@@ -7,9 +7,13 @@ services:
       - "127.0.0.1:${LIWAN_DB_HOST_PORT:-15433}:5432"
     networks: [db_host]
 
-# The bridge has a fixed interface name so a host firewall rule can match it: the bridge routes `db` to the internet, which
-# the internal `database` network denied (docs/operations/environment-bringup.md, row A3.6).
+# The bridge routes `db` to the internet, which the internal `database` network denied. Two layers close that:
+# - no masquerade: a container on this private subnet gets no replies from outside, and the published loopback port is
+#   unaffected (this file, so it travels with the stack);
+# - a fixed interface name so the two host firewall rules of docs/operations/environment-bringup.md row A3.6 can match it.
+#   Those rules stay required: they also stop `db` from reaching host services through the bridge gateway.
 networks:
   db_host:
     driver_opts:
       com.docker.network.bridge.name: liwan-dbhost
+      com.docker.network.bridge.enable_ip_masquerade: "false"
