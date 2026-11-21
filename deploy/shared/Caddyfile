@@ -195,14 +195,16 @@
 	route {
 		respond @privateToken 403
 		respond @privateRevision 403
-		# TikTok delivers in bursts after an outage; this budget bounds one app, not a customer.
+		# TikTok's own servers are the clients of this relay shared by every tenant, so the key is effectively
+		# platform-wide: the budget is the tenant-side hook zone's (1200/min), because TikTok delivers in bursts
+		# after an outage and a 429 delays or loses deliveries it retries.
 		rate_limit {
 			zone liwan_tiktok {
 				match {
 					path /tiktok/*
 				}
 				key {client_ip}
-				events 120
+				events 1200
 				window 1m
 				ipv6_prefix 64
 			}

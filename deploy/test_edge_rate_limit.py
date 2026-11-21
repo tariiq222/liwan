@@ -520,7 +520,7 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
         hooks = [handler for handler in _find_handlers(adapted, 'rate_limit') if 'liwan_tiktok' in handler['rate_limits']]
         self.assertEqual(len(hooks), 1)
         zone = hooks[0]['rate_limits']['liwan_tiktok']
-        self.assertEqual(zone['max_events'], 120)
+        self.assertEqual(zone['max_events'], 1200)
         self.assertEqual(zone['match'][0]['path'], ['/tiktok/*'])
         forwarded = _proxy_handlers(adapted, 'tiktok-relay:8090')
         self.assertEqual([handler['paths'] for handler in forwarded], [{'/tiktok/*'}])
