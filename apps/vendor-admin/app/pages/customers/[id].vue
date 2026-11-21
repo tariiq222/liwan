@@ -90,12 +90,13 @@ const canCancel = computed(() => can('vendor.subscriptions.manage') && !error.va
 const validCancelReason = computed(() => cancelReason.value.trim().length >= 3 && cancelReason.value.trim().length <= 1000)
 const canInvite = computed(() => can('vendor.subscriptions.manage') && Boolean(customer.value?.tenant_id) && Boolean(view.value?.applied))
 const inviteBusy = ref(false)
-const inviteState = ref<'queued' | 'failed' | undefined>()
+const inviteQueued = ref(false)
+const inviteFailure = ref<string | undefined>()
 async function resendInvitation() {
   if (!hydrated.value || inviteBusy.value || !canInvite.value) return
-  inviteBusy.value = true; inviteState.value = undefined
-  try { await api.resendInvitation(id.value); inviteState.value = 'queued' }
-  catch { inviteState.value = 'failed' }
+  inviteBusy.value = true; inviteQueued.value = false; inviteFailure.value = undefined
+  try { await api.resendInvitation(id.value); inviteQueued.value = true }
+  catch (cause) { inviteFailure.value = t(commercialErrorKey(cause)) }
   finally { inviteBusy.value = false }
 }
 // The address on record receives every control-plane mail for the workspace (invitation, billing, trial, cancellation and deletion notices).
@@ -431,7 +432,8 @@ async function cancelPendingOrder() {
                 <template #actions>
                   <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-mail" data-testid="resend-invitation" :disabled="!hydrated || inviteBusy" :loading="inviteBusy" @click="resendInvitation">{{ t('vendor.customers.resendInvitation') }}</UButton>
                 </template>
-                <p v-if="inviteState" role="status" class="text-sm" :class="inviteState === 'failed' ? 'text-error' : 'text-muted'">{{ t(inviteState === 'queued' ? 'vendor.customers.invitationQueued' : 'vendor.customers.invitationFailed') }}</p>
+                <p v-if="inviteQueued" role="status" class="text-sm text-muted">{{ t('vendor.customers.invitationQueued') }}</p>
+                <p v-else-if="inviteFailure" role="alert" class="text-sm text-error">{{ inviteFailure }}</p>
               </SharedRecordSection>
             </div>
           </SharedPageState>

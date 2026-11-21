@@ -48,6 +48,10 @@ describe('commercial error codes', () => {
     expect(RELEASE1_BILLING_CODES.filter(code => commercialErrorKey({ data: { code } }) === GENERIC)).toEqual([])
   })
 
+  it('names the refusals of a retiring workspace and of an invitation that was already accepted', () => {
+    for (const code of ['tenant_retiring', 'invitation_accepted']) expect(commercialErrorKey({ data: { code } }), code).toBe(`vendor.pricing.errors.${code}`)
+  })
+
   it('has a non-empty message for each mapped key in both languages, with identical key sets', async () => {
     const en = (await import('../../../i18n/locales/en/vendor.json')).default as VendorLocales
     const ar = (await import('../../../i18n/locales/ar/vendor.json')).default as VendorLocales

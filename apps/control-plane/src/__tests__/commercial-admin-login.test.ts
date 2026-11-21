@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
 import { url } from './commercial-helpers.js'
@@ -11,6 +11,11 @@ import { sendTenantDeletionNotices } from '../commercial/tenant-deletion-notices
 import { sendOverLimitNotices } from '../commercial/over-limit-notices.js'
 import { sendAdminLoginNotices } from '../commercial/admin-login.js'
 import { fixedReturnOrigin } from '../commercial/return-origin.js'
+import { hashToken } from '../commercial/invitation-tokens.js'
+import { sharedProvisioningProgress } from '../shared/onboarding.js'
+import { createAdminPasswordRunner } from '../shared/admin-password-runner.js'
+import { EventEmitter } from 'node:events'
+import { PassThrough } from 'node:stream'
 
 const suite = url ? describe : describe.skip
 
@@ -114,6 +119,28 @@ suite('the vendor changes the address on record of a workspace', () => {
     expect(previousNotice.text).toContain('new.manager@example.test')
     expect(previousNotice.text).toContain('Your workspace: https://liwan.test')
     expect(previousNotice.text).not.toMatch(/https:\/\/liwan\.test\/\S/)
+  })
+
+  it('moves the workspace onboarding address with the address on record, so the new manager can accept an invitation and the console shows one address', async () => {
+    const f = await workspace()
+    const slug = `t${f.tenant.replaceAll('-', '')}`, database = `liwan_scratch_${slug.slice(1, 21)}`
+    await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,true,1)', [f.tenant, slug.slice(0, 21), `${slug.slice(0, 21)}.test`, database])
+    await pool.query(`INSERT INTO shared_onboardings(request_id,control_tenant_id,issuer,actor_uid,request_digest,admin_name,admin_login,host,tenant_slug,database_name,stage)
+      VALUES($1,$2,'i',1,$3,'Manager',$4,$5,$6,$7,'active')`, [randomUUID(), f.tenant, 'd'.repeat(64), f.old, `${slug.slice(0, 21)}.test`, slug.slice(0, 21), database])
+    await pool.query("UPDATE tenants SET status='active' WHERE id=$1", [f.tenant])
+    expect(await change(f.customer, 'new@example.test')).toMatchObject({ status: 200 })
+    expect((await sharedProvisioningProgress(pool, f.tenant)).admin_login).toBe('new@example.test')
+    // The password setter authorises the accepted invitation against the onboarding address: the new address passes it, the old one no longer does.
+    await issueInvitation(pool, { customer_id: f.customer, tenant_id: f.tenant, admin_login: 'new@example.test', ttl_seconds: DEFAULT_INVITATION_TTL_SECONDS })
+    const token = randomUUID().replaceAll('-', '') + randomUUID().replaceAll('-', '')
+    await pool.query("UPDATE admin_invitations SET token_hash=$2 WHERE tenant_id=$1 AND admin_login='new@example.test' AND revoked_at IS NULL", [f.tenant, hashToken(token)])
+    const child = Object.assign(new EventEmitter(), { stdin: new PassThrough(), stdout: new EventEmitter(), kill: () => true })
+    const run = createAdminPasswordRunner(pool, { python: 'python3', repositoryRoot: '/repo' } as never, {}, (() => child) as never)
+    const accepted = run({ tenant_id: f.tenant, admin_login: 'new@example.test', password: 'correct-horse-battery', token }, new AbortController().signal)
+    await vi.waitFor(() => expect(child.stdin.writableEnded).toBe(true))
+    child.stdout.emit('data', JSON.stringify({ result: { user_id: 1 } })); child.emit('close', 0)
+    await expect(accepted).resolves.toBeDefined()
+    await expect(run({ tenant_id: f.tenant, admin_login: f.old, password: 'correct-horse-battery', token }, new AbortController().signal)).rejects.toThrow('user_missing')
   })
 
   it('tells both addresses without a workspace line when no origin is known', async () => {
