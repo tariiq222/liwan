@@ -1,6 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""The commercial overlay's edge wiring: the web tier and the proxy trust the control CA, and the proxy forwards
-exactly one control-plane route (the payment webhook) through the Caddyfile that imports the shared snippet.
+"""The commercial overlay's edge wiring: the web tier and the proxy trust the control CA, the proxy forwards exactly one
+control-plane route (the payment webhook) and serves the vendor console only to an operator allowlist, both through the
+Caddyfile that imports the shared snippets.
 
 Compose rendering needs the docker CLI; the Caddy checks run in the pinned proxy image, like the other edge tests.
 """
@@ -19,11 +20,15 @@ from deploy.test_edge_rate_limit import ROOT, SHARED_CADDYFILE, _caddy_container
 
 DEPLOY = ROOT / 'deploy'
 SNIPPET = ROOT / 'deploy' / 'control-plane' / 'Caddyfile.snippet'
+ADMIN_SNIPPET = ROOT / 'deploy' / 'vendor-admin' / 'Caddyfile.snippet'
+WEBHOOK_TARGET = '/etc/caddy/commercial/control-webhook.caddy'
+ADMIN_TARGET = '/etc/caddy/commercial/vendor-admin.caddy'
 COMPOSE_FILES = ('docker-compose.yml', 'docker-compose.shared.yml', 'docker-compose.shared-commercial.yml',
                  'docker-compose.production.yml', 'docker-compose.host-link.yml')
 CA_TARGET = '/etc/liwan-control/control-ca.pem'
 HOOK_HOST = 'hooks.example.test'
 HOOK_PATH = '/v1/commercial/payment-events/moyasar'
+ADMIN_HOST = 'admin.example.test'
 
 ENV = {
     'LIWAN_IMAGE_TAG': 'test', 'ODOO_COMMIT': 'dummy', 'LIWAN_SESSION_KEYS': 'dummy', 'LIWAN_SESSION_ACTIVE_KID': 'k1',
@@ -34,6 +39,7 @@ ENV = {
     'NUXT_CUSTOMER_COMMERCIAL_CONTROL_URL': 'https://control-api:4187', 'CUSTOMER_COMMERCIAL_SERVICE_KEY': 'dummy',
     'CUSTOMER_COMMERCIAL_ISSUER': 'dummy', 'LIWAN_COMMERCIAL_CONTROL_NETWORK': 'liwan-control-test',
     'LIWAN_CONTROL_PRIVATE_DIR': '/srv/control/private',
+    'LIWAN_CONTROL_EDGE_NETWORK': 'liwan-control-edge-test', 'LIWAN_ADMIN_EDGE_NETWORK': 'liwan-admin-edge-test',
     # production and host-link overlays
     'LIWAN_ODOO_DB_PORT': '15433',
 }
@@ -71,7 +77,9 @@ class ComposeWiring(unittest.TestCase):
             self.assertTrue(ca.get('read_only'))
         self.assertEqual(web['environment']['NODE_EXTRA_CA_CERTS'], CA_TARGET)
         self.assertEqual(proxy['environment']['CONTROL_WEBHOOK_DOMAIN'], HOOK_HOST)
-        self.assertEqual(set(proxy['networks']), set(plain['networks']) | {'commercial_control'})
+        # The edge reaches the control API and the vendor console on networks of its own, never on the web tier's one.
+        self.assertEqual(set(proxy['networks']), set(plain['networks']) | {'control_edge', 'admin_edge'})
+        self.assertNotIn('commercial_control', proxy['networks'])
         self.assertIn('commercial_control', web['networks'])
         # The web mounts the overlay did not add stay (registry directories), and no CA target sits inside another mount.
         self.assertIn('/etc/liwan', mounts(web))
@@ -88,8 +96,7 @@ class ComposeWiring(unittest.TestCase):
 
     def test_a_missing_source_stops_compose_instead_of_creating_a_host_directory(self) -> None:
         services = render(COMPOSE_FILES, {'CONTROL_WEBHOOK_DOMAIN': HOOK_HOST})['services']
-        for name, target in (('web', CA_TARGET), ('proxy', CA_TARGET),
-                             ('proxy', '/etc/caddy/commercial/control-webhook.caddy')):
+        for name, target in (('web', CA_TARGET), ('proxy', CA_TARGET), ('proxy', WEBHOOK_TARGET), ('proxy', ADMIN_TARGET)):
             bind = mounts(services[name])[target].get('bind', {})
             self.assertIs(bind.get('create_host_path'), False, f'{name} {target}')
 
@@ -120,16 +127,42 @@ class ComposeWiring(unittest.TestCase):
         proxy = render(COMPOSE_FILES)['services']['proxy']
         self.assertEqual(proxy['environment']['CONTROL_WEBHOOK_DOMAIN'], 'control-webhook.invalid')
 
+    def test_the_console_host_is_reserved_and_the_allowlist_empty_until_set(self) -> None:
+        environment = render(COMPOSE_FILES)['services']['proxy']['environment']
+        self.assertEqual(environment['ADMIN_DOMAIN'], 'vendor-admin.invalid')
+        self.assertEqual(environment['LIWAN_ADMIN_ALLOW'], '')
+        environment = render(COMPOSE_FILES, {'ADMIN_DOMAIN': ADMIN_HOST, 'LIWAN_ADMIN_ALLOW': '203.0.113.0/24'})['services']['proxy']['environment']
+        self.assertEqual((environment['ADMIN_DOMAIN'], environment['LIWAN_ADMIN_ALLOW']), (ADMIN_HOST, '203.0.113.0/24'))
+
+    def test_the_edge_and_the_web_tier_share_no_network_so_the_guard_stays_between_them(self) -> None:
+        """The base files give `proxy` only `edge` and `web` only `guard_web`; the guard joins both and is the tenant boundary.
+        The overlay adds a network of its own for the control API and one for the console, and none of them is the web tier's."""
+        config = render(COMPOSE_FILES)
+        services = config['services']
+        self.assertEqual(set(services['proxy']['networks']) & set(services['web']['networks']), set())
+        self.assertEqual(set(services['proxy']['networks']), {'edge', 'control_edge', 'admin_edge'})
+        self.assertEqual(set(services['web']['networks']), {'guard_web', 'commercial_control'})
+        self.assertLessEqual({'edge', 'guard_web'}, set(services['guard']['networks']))
+        names = {key: config['networks'][key]['name'] for key in ('commercial_control', 'control_edge', 'admin_edge')}
+        self.assertEqual(names, {'commercial_control': ENV['LIWAN_COMMERCIAL_CONTROL_NETWORK'],
+                                 'control_edge': ENV['LIWAN_CONTROL_EDGE_NETWORK'],
+                                 'admin_edge': ENV['LIWAN_ADMIN_EDGE_NETWORK']})
+        self.assertEqual(len(set(names.values())), 3)
+        for key in names:
+            self.assertIs(config['networks'][key].get('external'), True, key)
+
     def test_the_stack_without_the_overlay_has_no_control_wiring(self) -> None:
         services = render(COMPOSE_FILES[:2] + COMPOSE_FILES[3:])['services']
         self.assertNotIn(CA_TARGET, mounts(services['web']))
         self.assertNotIn(CA_TARGET, mounts(services['proxy']))
         self.assertNotIn('commercial_control', services['proxy']['networks'])
-        self.assertNotIn('/etc/caddy/commercial/control-webhook.caddy', mounts(services['proxy']))
+        self.assertNotIn(WEBHOOK_TARGET, mounts(services['proxy']))
+        self.assertNotIn(ADMIN_TARGET, mounts(services['proxy']))
 
-    def test_the_snippet_is_mounted_where_the_caddyfile_imports_it(self) -> None:
+    def test_the_snippets_are_mounted_where_the_caddyfile_imports_them(self) -> None:
         proxy = render(COMPOSE_FILES)['services']['proxy']
-        self.assertEqual(mounts(proxy)['/etc/caddy/commercial/control-webhook.caddy']['source'], str(SNIPPET))
+        self.assertEqual(mounts(proxy)[WEBHOOK_TARGET]['source'], str(SNIPPET))
+        self.assertEqual(mounts(proxy)[ADMIN_TARGET]['source'], str(ADMIN_SNIPPET))
         self.assertIn('import /etc/caddy/commercial/*.caddy', SHARED_CADDYFILE.read_text(encoding='utf-8'))
 
 
@@ -153,7 +186,8 @@ def _caddy_step(script_body: str, env: dict[str, str], *, snippet: bool, ca: str
     setup = 'set -eu\nmkdir -p /tmp/commercial\n'
     setup += f"cat > /tmp/Caddyfile <<'LIWAN_SRC'\n{relocate(SHARED_CADDYFILE.read_text(encoding='utf-8'))}\nLIWAN_SRC\n"
     if snippet:
-        setup += f"cat > /tmp/commercial/control-webhook.caddy <<'LIWAN_SNIPPET'\n{relocate(SNIPPET.read_text(encoding='utf-8'))}\nLIWAN_SNIPPET\n"
+        for name, source in (('control-webhook.caddy', SNIPPET), ('vendor-admin.caddy', ADMIN_SNIPPET)):
+            setup += f"cat > /tmp/commercial/{name} <<'LIWAN_SNIPPET'\n{relocate(source.read_text(encoding='utf-8'))}\nLIWAN_SNIPPET\n"
     if ca:
         setup += f"cat > /tmp/control-ca.pem <<'LIWAN_CA'\n{ca}LIWAN_CA\n"
     exports = ''.join(f'export {k}={shlex.quote(v)}\n' for k, v in env.items())
@@ -170,11 +204,11 @@ class CaddyValidation(unittest.TestCase):
     def test_a_stack_without_the_overlay_validates_with_no_snippet_and_no_ca(self) -> None:
         self._validate({}, snippet=False, ca=False)
 
-    def test_the_overlay_validates_with_the_webhook_host_unset_or_set(self) -> None:
+    def test_the_overlay_validates_with_the_hosts_unset_or_set(self) -> None:
         self._validate({}, snippet=True, ca=True)
-        self._validate({'CONTROL_WEBHOOK_DOMAIN': HOOK_HOST}, snippet=True, ca=True)
-        self._validate({'CONTROL_WEBHOOK_DOMAIN': HOOK_HOST, 'LIWAN_SITE_SCHEME': 'http://', 'LIWAN_AUTO_HTTPS': 'off'},
-                       snippet=True, ca=True)
+        self._validate({'CONTROL_WEBHOOK_DOMAIN': HOOK_HOST, 'ADMIN_DOMAIN': ADMIN_HOST}, snippet=True, ca=True)
+        self._validate({'CONTROL_WEBHOOK_DOMAIN': HOOK_HOST, 'ADMIN_DOMAIN': ADMIN_HOST, 'LIWAN_ADMIN_ALLOW': '203.0.113.0/24',
+                        'LIWAN_SITE_SCHEME': 'http://', 'LIWAN_AUTO_HTTPS': 'off'}, snippet=True, ca=True)
 
     def test_the_overlay_fails_loudly_without_the_ca_file(self) -> None:
         with self.assertRaises(AssertionError):
@@ -244,15 +278,16 @@ def _webhook_route(adapted: dict, host: str) -> dict:
 
 def _edge_run(host: str, targets, *, env: dict[str, str | None] | None = None, ca: str = '',
               upstream_tls: tuple[str, str] | None = None, request_host: str = '',
-              client_headers: tuple[str, ...] = ()) -> tuple[list[list[str]], int, list[dict]]:
-    """Run the adapted webhook site in the pinned Caddy with its upstream replaced by a logging stub on loopback.
+              client_headers: tuple[str, ...] = (), domain_var: str = 'CONTROL_WEBHOOK_DOMAIN',
+              dial: str = 'control-api:4187') -> tuple[list[list[str]], int, list[dict]]:
+    """Run the adapted site (the webhook by default; `domain_var` and `dial` pick another snippet's) in the pinned Caddy with its upstream replaced by a logging stub on loopback.
 
     Only the dial address changes: the transport (TLS, trust pool, server name) is kept as the snippet declares it. The stub
     speaks HTTPS with `upstream_tls` (certificate and key text) or plain HTTP without it. Returns one [status, body] per target
     the number of requests the stub received and its access-log records (each with the request headers it got).
     `request_host` is the Host header sent (default `host`); `client_headers` are extra headers the client sends.
     """
-    env = {'CONTROL_WEBHOOK_DOMAIN': host, **(env or {})}
+    env = {domain_var: host, **(env or {})}
     ca = ca or _test_ca()
     adapted = _adapt(env)
     server = next(s for s in adapted['apps']['http']['servers'].values() if host in json.dumps(s))
@@ -262,9 +297,9 @@ def _edge_run(host: str, targets, *, env: dict[str, str | None] | None = None, c
 
     def redirect(value):
         if isinstance(value, dict):
-            if value.get('handler') == 'reverse_proxy' and any(u.get('dial') == 'control-api:4187' for u in value['upstreams']):
+            if value.get('handler') == 'reverse_proxy' and any(u.get('dial') == dial for u in value['upstreams']):
                 if upstream_tls is None:
-                    value.pop('transport')
+                    value.pop('transport', None)
                 for u in value['upstreams']:
                     u['dial'] = '127.0.0.1:8081'
                 upstreams.append(value)
@@ -276,7 +311,7 @@ def _edge_run(host: str, targets, *, env: dict[str, str | None] | None = None, c
 
     redirect(adapted)
     if len(upstreams) != 1:
-        raise AssertionError('the webhook is the only route that reaches control-api')
+        raise AssertionError(f'exactly one route reaches {dial}')
     stub = {'listen': ['127.0.0.1:8081'], 'logs': {}, 'routes': [{'handle': [
         {'handler': 'static_response', 'body': 'stub-upstream:{http.request.method}:{http.request.uri}'}]}]}
     adapted['admin'] = {'disabled': True}
@@ -361,6 +396,123 @@ class CaddyBehavior(unittest.TestCase):
         self.assertLess(handlers.index('rate_limit'), handlers.index('reverse_proxy'))
         limit = next(h for r in route['routes'] for h in r['handle'] if h['handler'] == 'rate_limit')
         self.assertEqual(limit['rate_limits']['liwan_payment_events']['key'], '{http.vars.client_ip}')
+
+
+ADMIN_DIAL = 'vendor-console:3100'
+ADMIN_RESERVED = 'vendor-admin.invalid'
+LOOPBACK = '127.0.0.1/32'  # the address the harness's own curl connects from
+OUTSIDE = '203.0.113.9'
+
+
+def _admin_run(targets=(('GET', '/'),), *, allow: str | None = LOOPBACK, host: str = ADMIN_HOST, trusted: str | None = None,
+               request_host: str = '', client_headers: tuple[str, ...] = (), domain: str | None = None):
+    """The adapted vendor console site with its upstream replaced by the logging stub. `allow` and `trusted` are the values of
+    LIWAN_ADMIN_ALLOW and LIWAN_TRUSTED_PROXIES (None leaves the variable unset)."""
+    env = {'LIWAN_ADMIN_ALLOW': allow, 'LIWAN_TRUSTED_PROXIES': trusted, 'CONTROL_WEBHOOK_DOMAIN': HOOK_HOST}
+    return _edge_run(host if domain is None else domain, targets, env=env, request_host=request_host,
+                     client_headers=client_headers, domain_var='ADMIN_DOMAIN', dial=ADMIN_DIAL)
+
+
+class CaddyAdminBehavior(unittest.TestCase):
+    """The vendor console is served on its own host, to the operator allowlist only, before anything reaches the upstream."""
+
+    def test_an_allowed_address_reaches_the_console_and_the_console_receives_that_address(self) -> None:
+        results, hits, records = _admin_run()
+        self.assertEqual(results[0][0], '200')
+        self.assertEqual(hits, 1)
+        self.assertEqual(records[0]['request']['headers']['X-Forwarded-For'], ['127.0.0.1'])
+
+    def test_an_address_outside_the_allowlist_gets_404_and_never_reaches_the_console(self) -> None:
+        results, hits, _ = _admin_run(allow='203.0.113.0/24 198.51.100.7')
+        self.assertEqual([r[0] for r in results], ['404'])
+        self.assertEqual(hits, 0)
+
+    def test_an_empty_or_unset_allowlist_closes_the_console_even_to_loopback(self) -> None:
+        for allow in ('', None):
+            results, hits, _ = _admin_run(allow=allow)
+            self.assertEqual([r[0] for r in results], ['404'], allow)
+            self.assertEqual(hits, 0, allow)
+
+    def test_a_forwarded_header_from_an_untrusted_peer_cannot_claim_an_allowed_address(self) -> None:
+        """No trusted proxy (the default): the client is the socket peer, so naming the operator in X-Forwarded-For is no key."""
+        for header in (f'X-Forwarded-For: {OUTSIDE}', f'Forwarded: for={OUTSIDE}', f'X-Real-Ip: {OUTSIDE}'):
+            results, hits, _ = _admin_run(allow=f'{OUTSIDE}/32', client_headers=(header,))
+            self.assertEqual([r[0] for r in results], ['404'], header)
+            self.assertEqual(hits, 0, header)
+
+    def test_behind_a_trusted_outer_edge_the_forwarded_client_is_matched_and_passed_on(self) -> None:
+        """The outer edge (a trusted peer) names the real client: only an allowed one passes, and the console receives it."""
+        results, hits, records = _admin_run(allow=f'{OUTSIDE}/32', trusted=LOOPBACK, client_headers=(f'X-Forwarded-For: {OUTSIDE}',))
+        self.assertEqual((results[0][0], hits), ('200', 1))
+        self.assertEqual(records[0]['request']['headers']['X-Forwarded-For'], [OUTSIDE])
+        results, hits, _ = _admin_run(allow=f'{OUTSIDE}/32', trusted=LOOPBACK, client_headers=('X-Forwarded-For: 198.51.100.7',))
+        self.assertEqual(([r[0] for r in results], hits), (['404'], 0))
+        # A client that prepends the allowed address to what the outer edge appends is still the address the edge saw.
+        results, hits, _ = _admin_run(allow=f'{OUTSIDE}/32', trusted=LOOPBACK,
+                                      client_headers=(f'X-Forwarded-For: {OUTSIDE}, 198.51.100.7',))
+        self.assertEqual(([r[0] for r in results], hits), (['404'], 0))
+
+    def test_the_peer_the_outer_edge_connects_from_passes_only_when_it_forwards_no_client(self) -> None:
+        """An `ssh -L` tunnel to a port the proxy publishes on loopback arrives from the edge network's gateway, the address
+        LIWAN_TRUSTED_PROXIES names. With that peer in the allowlist a request that names no client (the tunnel) is the peer
+        itself and passes, while a request the outer edge forwards for a real client is matched on that client and does not."""
+        results, hits, records = _admin_run(allow=LOOPBACK, trusted=LOOPBACK)
+        self.assertEqual((results[0][0], hits), ('200', 1))
+        self.assertEqual(records[0]['request']['headers']['X-Forwarded-For'], ['127.0.0.1'])
+        results, hits, _ = _admin_run(allow=LOOPBACK, trusted=LOOPBACK, client_headers=(f'X-Forwarded-For: {OUTSIDE}',))
+        self.assertEqual(([r[0] for r in results], hits), (['404'], 0))
+
+    def test_a_host_other_than_the_configured_one_never_reaches_the_console_and_the_configured_one_ignores_case(self) -> None:
+        # A Host that names no site is Caddy's empty 200 in this one-server harness (see the webhook test); it must not reach the stub.
+        for request_host in ('other.example.test', ADMIN_RESERVED, ADMIN_HOST + '.evil.test'):
+            results, hits, _ = _admin_run(request_host=request_host)
+            self.assertEqual(hits, 0, request_host)
+            self.assertNotIn('stub-upstream', ' '.join(results[0]), request_host)
+        results, hits, _ = _admin_run(request_host=ADMIN_HOST.upper())
+        self.assertEqual((results[0][0], hits), ('200', 1))
+
+    def test_an_unset_console_host_serves_no_real_host_even_to_an_allowed_address(self) -> None:
+        """Compose passes the reserved name when the variable is unset; bare Caddy gets it unset. Both refuse, as do real hosts."""
+        for env_domain in (ADMIN_RESERVED, None):
+            for request_host in (ADMIN_RESERVED, 'Vendor-Admin.Invalid', ADMIN_HOST):
+                results, hits, _ = _edge_run(
+                    ADMIN_RESERVED, [('GET', '/')], env={'ADMIN_DOMAIN': env_domain, 'LIWAN_ADMIN_ALLOW': LOOPBACK,
+                                                         'CONTROL_WEBHOOK_DOMAIN': HOOK_HOST},
+                    request_host=request_host, domain_var='ADMIN_DOMAIN', dial=ADMIN_DIAL)
+                self.assertEqual(hits, 0, (env_domain, request_host))
+                self.assertNotIn('stub-upstream', ' '.join(results[0]), (env_domain, request_host))
+                if request_host != ADMIN_HOST:
+                    self.assertEqual(results[0][0], '404', (env_domain, request_host))
+
+    def test_an_empty_console_host_refuses_every_host(self) -> None:
+        for request_host in ('anything.example.test', ADMIN_RESERVED):
+            results, hits, _ = _admin_run(domain='', request_host=request_host)
+            self.assertEqual(([r[0] for r in results], hits), (['404'], 0), request_host)
+
+    def test_the_console_receives_the_client_address_and_none_of_the_stripped_headers(self) -> None:
+        headers = tuple(f'{h}: spoofed' for h in STRIPPED_HEADERS if h != 'X-Forwarded-For')
+        _, hits, records = _admin_run(client_headers=(*headers, 'X-Forwarded-For: spoofed'))
+        self.assertEqual(hits, 1)
+        received = {name.lower(): value for name, value in records[0]['request']['headers'].items()}
+        for header in STRIPPED_HEADERS:
+            if header != 'X-Forwarded-For':
+                self.assertNotIn(header.lower(), received, header)
+        self.assertEqual(received['x-forwarded-for'], ['127.0.0.1'])
+
+    def test_the_host_and_the_allowlist_are_decided_in_order_before_the_limits_and_the_proxy(self) -> None:
+        adapted = _adapt({'ADMIN_DOMAIN': ADMIN_HOST, 'LIWAN_ADMIN_ALLOW': LOOPBACK})
+        (site,) = [r for s in adapted['apps']['http']['servers'].values() for r in s['routes']
+                   if any(m.get('host') == [ADMIN_HOST] for m in r.get('match', []))]
+        routes = site['handle'][0]['routes']
+        refuse_host, refuse_client, allowed = routes[-3:]
+        for refusal in (refuse_host, refuse_client):
+            self.assertEqual(refusal['handle'][0]['routes'][0]['handle'][0]['status_code'], 404)
+        self.assertIn('expression', refuse_host['match'][0])
+        self.assertIn('client_ip', json.dumps(refuse_client['match']))
+        self.assertNotIn('match', allowed)
+        inner = allowed['handle'][0]['routes'][0]['handle']
+        self.assertEqual([h['handler'] for h in inner], ['rate_limit', 'reverse_proxy'])
+        self.assertEqual({zone['key'] for zone in inner[0]['rate_limits'].values()}, {'{http.vars.client_ip}'})
 
 
 class CaddyUpstreamTls(unittest.TestCase):

@@ -161,6 +161,14 @@ class ProductionCompose(unittest.TestCase):
         self.assertNotIn('control_api_web', self.services['vendor-console']['networks'])
         self.assertIn('control_api_web', self.services['control-api']['networks'])
 
+    def test_the_edge_network_to_the_api_is_its_own_and_only_the_api_joins_it(self):
+        users = [n for n, s in self.services.items() if 'control_api_edge' in s['networks']]
+        self.assertEqual(users, ['control-api'])
+        networks = self.document['networks']
+        self.assertIs(networks['control_api_edge']['internal'], True)
+        self.assertNotEqual(networks['control_api_edge']['name'], networks['control_api_web']['name'])
+        self.assertIn('LIWAN_CONTROL_EDGE_NETWORK', networks['control_api_edge']['name'])
+
     def test_the_api_serves_https_only(self):
         environment = self.services['control-api']['environment']
         self.assertEqual(environment['CONTROL_HOST'], '0.0.0.0')
@@ -262,6 +270,9 @@ class EdgeSnippets(unittest.TestCase):
         text = (ROOT / 'deploy' / 'vendor-admin' / 'Caddyfile.snippet').read_text(encoding='utf-8')
         self.assertIn('reverse_proxy vendor-console:3100', text)
         self.assertIn('Cache-Control "no-store"', text)
+        self.assertIn('not client_ip {$LIWAN_ADMIN_ALLOW}', text)
+        self.assertNotIn('{remote_host}', text)
+        self.assertNotRegex(text, r'(?m)^\s*log\b')
 
 
 if __name__ == '__main__':

@@ -483,6 +483,13 @@ certificate trusted by the web container. Keep the guard and Nuxt listeners
 private. Caddy overwrites the signup source IP and the guard strips browser
 identity headers before forwarding.
 
+The edge (`proxy`) reaches the same ingress, for the payment webhook route only, on a network of its own
+(`LIWAN_CONTROL_EDGE_NETWORK`), so `proxy` and `web` share no network and the guard stays the only path between them.
+The overlay also serves the vendor console on `ADMIN_DOMAIN` (network `LIWAN_ADMIN_EDGE_NETWORK`), only to the client
+addresses in `LIWAN_ADMIN_ALLOW` (`client_ip` syntax); unset or empty answers 404 for everyone, like `LIWAN_RESTORE_ALLOW`.
+All three networks are created by the control project, which therefore starts first.
+
+
 Set `LIWAN_PUBLIC_SIGNUP=true` for both Compose and the shared control API after configuring
 the customer-commercial issuer and signing key, a published public monthly
 14-day trial revision with a zero-price SAR base and public, optional CRM and

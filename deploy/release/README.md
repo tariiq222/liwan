@@ -93,21 +93,27 @@ Each phase is written to `run.json` before it acts, so a killed run resumes from
    never removes one. Each pull has a 10 minute timeout and up to 3 attempts 10 seconds apart; when the last attempt fails the
    run stops with `image_pull_failed` before anything is stopped. The run is also refused when the shared env file's
    `LIWAN_SHARED_ODOO_CONFIG` is unset, not absolute or not a regular file (`RESULT: refused invalid_shared_env`; Docker would create a directory at that path, and
-   Odoo would die after the stop). Then the disk check:
+   Odoo would die after the stop). The same refusal applies to `LIWAN_VENDOR_ADMIN_ENV_FILE`, the vendor console's env file (Compose would fail on it only after the
+   stop); only the path is logged, never the content. Both compose projects of the candidate are also rendered with `config --quiet` (its own image
+   tag in a temporary env file, nothing activated, nothing printed), so a required key the shared env file lacks (compose names the variable) is refused as
+   `invalid_shared_env` before anything stops. Then the disk check:
    the run is refused when the free space on `LIWAN_RELEASE_DISK_PATH` is below 1.5 times the size of one snapshot of
    every tenant database, the control-plane database and every filestore (the snapshots all exist at once).
 3. Quiesce: stop the shared worker, read the tenant list with `deploy/shared/backup-binding.mjs --list`.
 4. Capture: an encrypted `backup_pipeline.py` backup of every tenant and the control plane.
 5. Maintenance: create `<state root>/maintenance/active` (Caddy shows its maintenance page only while it exists), stop
-   `guard`, `web`, `ai`, `odoo` and `control-api`.
+   `guard`, `web`, `ai`, `odoo`, `control-api` and `vendor-console`.
 6. Snapshot every database (`CREATE DATABASE ... TEMPLATE`) and hard-link every filestore.
 7. Upgrade every tenant database (`tools/upgrade_log_guard.py` on its log, then `deploy/odoo/upgrade_smoke.py`), then
    migrate the control plane, then create the AI service's control tables
    (`compose run --rm ai python -m liwan_ai_service.store --initialize-control`, idempotent; skipped when `AI_DATABASE_URL`
    is empty in every place compose reads it: the process environment and release config, then the shared env file). The `ai` service validates them when it starts and refuses to start without them, and the
    per-tenant provisioning creates them only after the first start; failure reason `ai_control_initialization_failed`.
-8. Start `control-api` first (its project creates the network the shared stack joins as external, so a fresh host needs this
-   order), then `proxy`, `odoo`, `web` and `ai`, wait for health, then start `guard` (the commit point). The
+8. Start `control-api` and `vendor-console` first (their project creates the networks the shared stack joins as external:
+   the control ingress, the edge's own control network and the console's `admin_edge`, so a fresh host needs this
+   order; the console waits for the API's health). The console's health gates the customer release: a console that fails
+   its health check fails the start and rolls the release back, because it is the only service on `admin_edge`, which `proxy`
+   joins as external, so the stack cannot start without it. Then `proxy`, `odoo`, `web` and `ai`, wait for health, then start `guard` (the commit point). The
    phase `opened` is written, then the maintenance marker is removed. From `opened` on a failure never rolls back
    (customers may have written to the new release); the next run resumes.
 9. Record `served.json`, start the shared worker and check it is active after a 5 second settle (the unit restarts a crashed

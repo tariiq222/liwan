@@ -1,6 +1,6 @@
 # Edge block for the payment provider webhook. deploy/docker-compose.shared-commercial.yml mounts this file into the proxy and
-# deploy/shared/Caddyfile imports it, so there is one copy. The same overlay joins the edge to the control API's network
-# (LIWAN_COMMERCIAL_CONTROL_NETWORK) and mounts the CA. The edge forwards EXACTLY ONE route of the control plane
+# deploy/shared/Caddyfile imports it, so there is one copy. The same overlay joins the edge to the control API's own edge network
+# (LIWAN_CONTROL_EDGE_NETWORK, which the web tier is not on) and mounts the CA. The edge forwards EXACTLY ONE route of the control plane
 # to the internet: the Moyasar event. Everything else on this host answers 404, so the API is not public. The web tier and the
 # vendor console reach the API on their own internal networks, not through this host.
 # The event carries its own proof (MOYASAR_WEBHOOK_SECRET, checked by the adapter, then the payment is re-read from Moyasar).

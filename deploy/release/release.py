@@ -54,7 +54,9 @@ PROXY_SERVICE = 'proxy'
 EDGE_SERVICE = 'guard'
 UP = ('up', '-d', '--wait', '--no-build', '--pull', 'never')
 WORKER_WORKSPACE = 'apps/control-plane'
-CONTROL_SERVICE = 'control-api'
+# The control project's long-running services the release manages. The shared stack joins the networks the project creates
+# (control and console edge) as external, so both start before it; the console waits for the API's health itself.
+CONTROL_SERVICES = ('control-api', 'vendor-console')
 WORKER_STOPPED_PHASES = ('quiescing', 'captured', 'stopping', 'snapshotted', 'upgrading', 'starting', 'opening',
                          'opened')
 MAINTENANCE_PHASES = ('stopping', 'snapshotted', 'upgrading', 'starting', 'opening')
@@ -75,6 +77,7 @@ DEPENDENCY_MARKER = 'node_modules/.package-lock.json'
 WORKER_SETTLE_SECONDS = 5
 AI_DATABASE_URL_KEY = 'AI_DATABASE_URL'
 ODOO_CONFIG_KEY = 'LIWAN_SHARED_ODOO_CONFIG'
+VENDOR_ADMIN_ENV_KEY = 'LIWAN_VENDOR_ADMIN_ENV_FILE'
 ALERT_REASON_PREFIX = 'alerts: '  # how deploy/alerts.py starts the reason it writes to stderr
 BACKUP_COPIES = 3  # the encrypted capture stages a dump, a plain tar and a ciphertext under the work root
 DISK_MARGIN = 1.5  # free space must cover every snapshot (database plus filestore) with half again as much
@@ -314,13 +317,15 @@ class Releaser:
     def prepare(self, run: dict) -> None:
         """Checkout with the worker's dependencies, every image by digest, and the disk checks; nothing running changes."""
         self.shared_compose_target()  # a render that can only fail after the stop is refused here
-        self.require_odoo_config()
+        self.require_host_file(ODOO_CONFIG_KEY)
+        self.require_host_file(VENDOR_ADMIN_ENV_KEY)
         target = self.checkout(run['commit'])
         if not target.exists():
             self.extract(run['commit'], target)
         elif not (target / DEPENDENCY_MARKER).exists():  # a folder made by hand, or by an install that never finished
             self.install_dependencies(target)
             normalize_tree(target)
+        self.require_renderable(run, target)
         images = self.images(target, run['document'])
         for image in self.external_images(target):  # not recorded below: no old release's prune may remove one
             self.pull(image)
@@ -469,12 +474,12 @@ class Releaser:
         except CommandFailed:
             raise ReleaseError('backup_failed') from None
 
-    def compose(self, checkout: Path) -> list[str]:
+    def compose(self, checkout: Path, release_env: Path | None = None) -> list[str]:
         command = ['docker', 'compose', '-p', self.config['LIWAN_RELEASE_PROJECT']]
         for name in SHARED_COMPOSE_FILES:
             command += ['-f', str(checkout / 'deploy' / name)]
         return command + ['--env-file', self.config['LIWAN_SHARED_ENV_FILE'],
-                          '--env-file', str(self.file('release.env'))]
+                          '--env-file', str(release_env or self.file('release.env'))]
 
     def shared_env(self) -> dict[str, str]:
         return read_env_file(Path(self.config['LIWAN_SHARED_ENV_FILE']))
@@ -509,15 +514,33 @@ class Releaser:
                                'the compose file rendered from it')
         return target
 
-    def require_odoo_config(self) -> None:
-        """The compose files bind-mount this file into Odoo; Docker would create a directory at a missing path."""
+    def require_host_file(self, key: str) -> None:
+        """The compose files read or bind-mount the file this shared env key names (Odoo's config, the vendor console's env
+        file); Docker would create a directory at a missing bind path, or fail only after the stop. Only the path is named."""
         env_path = Path(self.config['LIWAN_SHARED_ENV_FILE'])
-        config = self.shared_env().get(ODOO_CONFIG_KEY)
-        if not config or not os.path.isabs(config):
-            raise ReleaseError('invalid_shared_env', EXIT_REFUSED,
-                               f'{env_path} needs {ODOO_CONFIG_KEY} set to an absolute path')
-        if not Path(config).is_file():
-            raise ReleaseError('invalid_shared_env', EXIT_REFUSED, f'{config} ({ODOO_CONFIG_KEY}) is not a file')
+        path = self.shared_env().get(key)
+        if not path or not os.path.isabs(path):
+            raise ReleaseError('invalid_shared_env', EXIT_REFUSED, f'{env_path} needs {key} set to an absolute path')
+        if not Path(path).is_file():
+            raise ReleaseError('invalid_shared_env', EXIT_REFUSED, f'{path} ({key}) is not a file')
+
+    def require_renderable(self, run: dict, checkout: Path) -> None:
+        """Both compose projects of the candidate render as later steps run them, with its own image tag (a temporary env file,
+        nothing activated). A required key the shared env file lacks is refused here, not after the stop. ``--quiet`` prints
+        nothing, so no interpolated secret reaches the log; a failure logs the tail, which names the missing variable."""
+        candidate = self.file('candidate.env')
+        write_atomic(candidate, release_env_text(run['commit'], run['document']['release']['odooCommit']))
+        try:
+            for command in (self.compose(checkout, candidate) + ['--profile', '*'],
+                            self.control_compose(checkout, candidate) + ['--profile', 'migrate']):
+                try:
+                    self.run_command(command + ['config', '--quiet'], env=self.child_env)
+                except CommandFailed:
+                    raise ReleaseError('invalid_shared_env', EXIT_REFUSED,
+                                       f'{self.config["LIWAN_SHARED_ENV_FILE"]} does not satisfy the compose files of '
+                                       f'{run["commit"]} (see the compose error above)') from None
+        finally:
+            candidate.unlink(missing_ok=True)
 
     def write_shared_compose(self, checkout: Path) -> None:
         """The file ``composeFile`` of shared-runtime.json names: the shared stack of ``checkout`` as one resolved compose file
@@ -539,15 +562,16 @@ class Releaser:
         finally:
             temporary.unlink(missing_ok=True)
 
-    def control_compose(self, checkout: Path) -> list[str]:
+    def control_compose(self, checkout: Path, release_env: Path | None = None) -> list[str]:
         return ['docker', 'compose', '-p', CONTROL_PROJECT,
                 '-f', str(checkout / 'deploy/control-plane/compose.production.yml'),
                 '-f', str(checkout / 'deploy/control-plane/compose.host-link.yml'),
-                '--env-file', self.config['LIWAN_SHARED_ENV_FILE'], '--env-file', str(self.file('release.env'))]
+                '--env-file', self.config['LIWAN_SHARED_ENV_FILE'],
+                '--env-file', str(release_env or self.file('release.env'))]
 
     def stop_services(self, checkout: Path) -> None:
         self.run_command(self.compose(checkout) + ['stop', EDGE_SERVICE, *APP_SERVICES], env=self.child_env)
-        self.run_command(self.control_compose(checkout) + ['stop', CONTROL_SERVICE], env=self.child_env)
+        self.run_command(self.control_compose(checkout) + ['stop', *CONTROL_SERVICES], env=self.child_env)
 
     def stop_worker(self) -> None:
         self.run_command(['systemctl', 'stop', SHARED_WORKER_UNIT])
@@ -678,10 +702,10 @@ class Releaser:
             raise ReleaseError('upgrade_smoke_failed')
 
     def start_services(self, checkout: Path, with_edge: bool) -> None:
-        """The control API first (it creates the network the shared stack joins as external), then the proxy (80/443) and
-        the applications, healthy; the guard too when ``with_edge``. Never the worker."""
+        """The control API and the vendor console first (their project creates the networks the shared stack joins as external),
+        then the proxy (80/443) and the applications, healthy; the guard too when ``with_edge``. Never the worker."""
         services = [PROXY_SERVICE, *APP_SERVICES] + ([EDGE_SERVICE] if with_edge else [])
-        self.run_command(self.control_compose(checkout) + [*UP, CONTROL_SERVICE], env=self.child_env)
+        self.run_command(self.control_compose(checkout) + [*UP, *CONTROL_SERVICES], env=self.child_env)
         self.run_command(self.compose(checkout) + [*UP, *services], env=self.child_env)
 
     def start(self, run: dict) -> None:
@@ -777,7 +801,7 @@ class Releaser:
             checkout = self.checkout(run['commit'])
             self.run_command(self.compose(checkout) + ['stop', EDGE_SERVICE, PROXY_SERVICE, *APP_SERVICES],
                              env=self.child_env)
-            self.run_command(self.control_compose(checkout) + ['stop', CONTROL_SERVICE], env=self.child_env)
+            self.run_command(self.control_compose(checkout) + ['stop', *CONTROL_SERVICES], env=self.child_env)
 
     def restore(self, run: dict) -> None:
         """Swap every snapshot back, restore owner, grants and isolation, restart the previous release, then give the worker its

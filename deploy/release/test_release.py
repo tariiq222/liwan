@@ -194,6 +194,11 @@ class FakeRunner:
             return self.git(argv)
         if argv[0] == 'docker' and argv[1] in ('login', 'pull', 'create', 'cp', 'rm', 'rmi', 'image'):
             return self.docker(argv)
+        if 'config' in argv and '--quiet' in argv:  # the candidate's render check: silent, as the release.env it names says
+            env_file = Path(argv[len(argv) - 1 - argv[::-1].index('--env-file') + 1])
+            case.candidate_renders.append((argv, env_file.read_text()))
+            return (1, f'required variable {case.missing_required} is missing a value: set it') \
+                if case.missing_required else (0, '')
         if 'config' in argv and '--output' in argv:  # `compose config --output <file>`: the stack as the release.env names it
             tag = re.search(r'LIWAN_IMAGE_TAG=(\w+)', (case.state / 'release.env').read_text()).group(1)
             Path(argv[argv.index('--output') + 1]).write_text(json.dumps({'services': {}, 'imageTag': tag}))
@@ -301,8 +306,11 @@ class ReleaseTest(unittest.TestCase):
         shared_env = root / 'shared.env'
         self.odoo_config = root / 'odoo.conf'
         self.odoo_config.write_text('[options]\n')
+        self.vendor_env = root / 'vendor-admin.env'
+        self.vendor_env.write_text(f'NUXT_SERVICE_KEY={SECRET}\n')
         shared_env.write_text(f'LIWAN_TENANT_REGISTRY_DIR={root}/registry\nLIWAN_SHARED_COMPOSE_FILE={root}/shared.compose.json\n'
-                              f'LIWAN_SHARED_ODOO_CONFIG={self.odoo_config}\nDB_PASSWORD={SECRET}\n')
+                              f'LIWAN_SHARED_ODOO_CONFIG={self.odoo_config}\nLIWAN_VENDOR_ADMIN_ENV_FILE={self.vendor_env}\n'
+                              f'DB_PASSWORD={SECRET}\n')
         for environment in ('development', 'staging', 'production'):
             self.write_config(shared_env, environment)
         self.paths.releases.mkdir()
@@ -313,6 +321,7 @@ class ReleaseTest(unittest.TestCase):
         self.on_main = True
         self.fail_health, self.fail_upgrade_of = False, None
         self.fail_render, self.fail_restore_render = False, False
+        self.missing_required, self.candidate_renders = None, []
         self.document = document(NEW)
         self.alerts, self.sql = [], []
         self.builds = BUILDS
@@ -1144,6 +1153,18 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(self.main(), release.EXIT_OK)
         self.assertEqual(self.up_projects(), ['liwan-control', 'liwan', 'liwan'])
 
+    def control_calls(self, verb):
+        return [call for call in self.runner.calls if 'compose' in call and 'liwan-control' in call and verb in call]
+
+    def test_the_vendor_console_starts_with_the_control_api_and_stops_with_it(self):
+        self.assertEqual(self.main(), release.EXIT_OK)
+        (up,) = self.control_calls('--wait')
+        self.assertEqual(up[-2:], ['control-api', 'vendor-console'])
+        stops = self.control_calls('stop')
+        self.assertTrue(stops)
+        for stop in stops:
+            self.assertEqual(stop[-2:], ['control-api', 'vendor-console'])
+
     def test_a_rollback_restarts_the_control_api_before_the_shared_stack_too(self):
         self.fail_health = True
         self.main()
@@ -1316,6 +1337,40 @@ class ReleaseTest(unittest.TestCase):
         shared.write_text(text.replace(str(self.odoo_config), 'odoo.conf'))
         self.assert_refused_before_anything_stops('absolute path')
         self.assertNotIn('[options]', self.log_stream.getvalue())
+
+    def test_a_missing_vendor_console_env_file_is_refused_before_anything_stops(self):
+        shared = self.root / 'shared.env'
+        text = shared.read_text()
+        self.vendor_env.unlink()
+        self.assert_refused_before_anything_stops(str(self.vendor_env))
+        self.vendor_env.mkdir()  # a directory at the path is not the file either
+        self.log_stream.seek(0)
+        self.log_stream.truncate(0)
+        self.assert_refused_before_anything_stops(str(self.vendor_env))
+        shared.write_text(text.replace(f'LIWAN_VENDOR_ADMIN_ENV_FILE={self.vendor_env}\n', ''))
+        self.assert_refused_before_anything_stops('LIWAN_VENDOR_ADMIN_ENV_FILE')
+        shared.write_text(text.replace(str(self.vendor_env), 'vendor-admin.env'))
+        self.assert_refused_before_anything_stops('absolute path')
+        self.assertNotIn(SECRET, self.log_stream.getvalue())
+
+    # --- the candidate's compose files, rendered before the stop ------------------------------------------------
+    def test_a_required_key_missing_from_the_shared_env_is_refused_in_prepare_with_nothing_stopped(self):
+        self.missing_required = 'LIWAN_CONTROL_EDGE_NETWORK'
+        self.assert_refused_before_anything_stops('does not satisfy the compose files of')  # the real Runner logs the tail naming the key
+        self.assertFalse((self.state / 'candidate.env').exists())
+        self.assertEqual(self.sql, [])
+
+    def test_a_healthy_candidate_render_uses_its_own_tag_silently_and_leaves_what_is_served_alone(self):
+        self.assertEqual(self.main(), release.EXIT_OK)
+        projects = {argv[argv.index('-p') + 1] for argv, _ in self.candidate_renders}
+        self.assertEqual(projects, {'liwan', release.CONTROL_PROJECT})
+        for argv, env_text in self.candidate_renders:
+            self.assertIn(f'LIWAN_IMAGE_TAG={NEW}', env_text)
+            self.assertNotIn('--output', argv)  # nothing of the rendered stack is printed or logged
+            self.assertNotIn('--format', argv)
+            self.assertEqual(argv[-1], '--quiet')
+        self.assertFalse((self.state / 'candidate.env').exists())
+        self.assertEqual(self.served(), NEW)
 
     def test_a_shared_odoo_config_file_passes(self):
         self.assertEqual(self.main(), release.EXIT_OK)

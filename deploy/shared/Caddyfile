@@ -250,7 +250,7 @@
 	}
 }
 
-# Sites that only the commercial overlay (deploy/docker-compose.shared-commercial.yml) provides, today the payment
-# webhook (deploy/control-plane/Caddyfile.snippet). A glob that matches no file imports nothing, so a stack without the
+# Sites that only the commercial overlay (deploy/docker-compose.shared-commercial.yml) provides: the payment
+# webhook (deploy/control-plane/Caddyfile.snippet) and the vendor console site (deploy/vendor-admin/Caddyfile.snippet). A glob that matches no file imports nothing, so a stack without the
 # overlay has no such site, needs no control network or CA, and still validates.
 import /etc/caddy/commercial/*.caddy
