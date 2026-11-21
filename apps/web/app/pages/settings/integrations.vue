@@ -10,7 +10,7 @@ const router = useRouter()
 const { t } = useI18n()
 const { parts, shows } = useSettingsPage('integrations')
 const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
-const isRecordPage = computed(() => /^\/settings\/integrations\/connections(?:\/|$)/.test(normalizedPath.value))
+const isRecordPage = computed(() => /^\/settings\/integrations\/(?:connections|communications)(?:\/|$)/.test(normalizedPath.value))
 
 // The provider's OAuth callback returns here with `result=connected` or `error=<reason>`. The page reads it once,
 // shows it, and clears it from the address so a refresh does not repeat the notice.

@@ -128,7 +128,7 @@ class TestIntegrationKeysApi(LiwanIntegrationsCase):
         with GOOD_PROBE as probe:
             accepted = self.api('PATCH', f'{BASE}/connections/{connection.id}', {'secrets': {'access_token': new_token}})
         self.assertEqual(accepted.status_code, 200, accepted.text)
-        probe.assert_called_once_with(ACCOUNT_ID, new_token)
+        probe.assert_called_once_with(ACCOUNT_ID, {'access_token': new_token, 'app_secret': APP_SECRET})
         self.assertEqual(connection._liwan_secret('access_token'), new_token)
         self.assertNoSecrets(accepted, new_token)
 

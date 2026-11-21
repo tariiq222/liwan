@@ -17,6 +17,17 @@ export const HOOK_SIGNATURE_HEADERS: ReadonlyMap<string, string> = new Map([
   ['/api/v1/inbox/hooks/whatsapp', 'x-hub-signature-256'],
   ['/api/v1/inbox/hooks/tiktok', 'tiktok-signature'],
 ])
+/** Provider status callbacks under the public namespace, matched by pattern because the path names the connection and
+ * the kind; each forwards the one header carrying the provider's signature. Odoo verifies it against the URL it stored. */
+export const HOOK_SIGNATURE_PATTERNS: ReadonlyArray<readonly [RegExp, string]> = [
+  [/^\/api\/v1\/public\/integrations\/hooks\/twilio\/\d+\/[a-z][a-z-]*$/, 'x-twilio-signature'],
+]
+
+/** The signature header a webhook path owns: its exact-path entry, else the first matching pattern. */
+export function hookSignatureHeader(path: string): string | undefined {
+  const bare = path.split('?')[0] ?? path
+  return HOOK_SIGNATURE_HEADERS.get(bare) ?? HOOK_SIGNATURE_PATTERNS.find(([pattern]) => pattern.test(bare))?.[1]
+}
 /** The provider OAuth callback finishes the connection and answers with an in-app redirect the browser must
  * follow. It is the only upstream 3xx that reaches the browser: Odoo builds it locally (`request.redirect`
  * with `local=True`), so its location is a path on this app, never another origin. */
@@ -316,7 +327,7 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
     if (value) headers[name] = value
   }
   // A provider webhook carries its HMAC signature over the raw body; Odoo verifies it, so it passes to that route only.
-  const signatureHeader = HOOK_SIGNATURE_HEADERS.get(path.split('?')[0] ?? path)
+  const signatureHeader = hookSignatureHeader(path)
   const signature = signatureHeader ? getHeader(event, signatureHeader) : undefined
   if (signatureHeader && signature) headers[signatureHeader] = signature
   // A service-authorized request is the server's own call: the user's session cookie must not ride along with the key.

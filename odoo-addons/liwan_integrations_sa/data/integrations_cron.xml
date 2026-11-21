@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <record id="ir_cron_integration_message_outbox" model="ir.cron">
+        <field name="name">liwan integrations: send queued messages</field>
+        <field name="model_id" ref="model_liwan_integration_message"/>
+        <field name="state">code</field>
+        <field name="code">model._liwan_run_outbox()</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">1</field>
+        <field name="interval_type">minutes</field>
+        <field name="active" eval="True"/>
+    </record>
+    <record id="ir_cron_integration_message_purge" model="ir.cron">
+        <field name="name">liwan integrations: purge messages older than 24 months</field>
+        <field name="model_id" ref="model_liwan_integration_message"/>
+        <field name="state">code</field>
+        <field name="code">model._liwan_purge_old()</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+    </record>
+    <record id="ir_cron_integration_call_settle" model="ir.cron">
+        <field name="name">liwan integrations: settle calls that recorded no result</field>
+        <field name="model_id" ref="model_liwan_integration_call"/>
+        <field name="state">code</field>
+        <field name="code">model._liwan_settle_interrupted_calls()</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">5</field>
+        <field name="interval_type">minutes</field>
+        <field name="active" eval="True"/>
+    </record>
+    <record id="ir_cron_integration_call_purge" model="ir.cron">
+        <field name="name">liwan integrations: purge calls older than 24 months</field>
+        <field name="model_id" ref="model_liwan_integration_call"/>
+        <field name="state">code</field>
+        <field name="code">model._liwan_purge_old()</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

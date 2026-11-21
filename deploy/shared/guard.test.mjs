@@ -710,3 +710,41 @@ test('the recorder key is stripped on every other path, method, spelling and hop
     assert.equal(requestPlan({ ...req(0, trusted({ authorization: bad }), usageTarget), method: 'POST' }, registry, token, codec).headers.authorization, undefined, bad)
   }
 })
+test('signed provider form callbacks pass only on the integration hook path with their raw bytes, keys inspected', async t => {
+  const root = mkdtempSync(join(tmpdir(), 'liwan-guard-formhook-'))
+  const path = join(root, 'registry.json'); writeFileSync(path, JSON.stringify(registry))
+  const seen = []
+  const backend = http.createServer((req, res) => { const chunks = []; req.on('data', c => chunks.push(c)); req.on('end', () => { seen.push({ url: req.url, headers: req.headers, body: Buffer.concat(chunks) }); res.end('ok') }) })
+  const backendUrl = await listen(backend)
+  const guard = createGuard({ registryPath: path, proxyToken: token, keys, activeKid: 'test', odooUrl: backendUrl, webUrl: backendUrl })
+  const url = await listen(guard)
+  t.after(() => { guard.closeAllConnections(); guard.close(); backend.closeAllConnections(); backend.close() })
+  const hook = '/api/v1/public/integrations/hooks/twilio/7/message-status'
+  const form = 'MessageSid=SM1&MessageStatus=delivered&To=%2B966500000000&Body=a+b%20c'
+  const headers = (type = 'application/x-www-form-urlencoded') => ({ host: targets[0].host, 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1', 'content-type': type, 'x-twilio-signature': 'synthetic-signature=' })
+  for (const type of ['application/x-www-form-urlencoded', 'application/x-www-form-urlencoded; charset=utf-8']) {
+    const result = await call(url, hook, headers(type), form)
+    assert.equal(result.status, 200)
+    assert.equal(seen.at(-1).body.toString(), form)
+    assert.equal(seen.at(-1).headers['content-type'], type)
+    assert.equal(seen.at(-1).headers['x-twilio-signature'], 'synthetic-signature=')
+    assert.equal(seen.at(-1).headers['x-liwan-proxy-token'], undefined)
+  }
+  const count = seen.length
+  for (const bad of ['%24where=1', '$where=1', 'a.b=1', 'MessageSid=SM1&%64b=x', 'sid=1']) {
+    const result = await call(url, hook, headers(), bad)
+    assert.equal(result.status, 400, bad); assert.equal(result.text, 'invalid_upstream_body')
+  }
+  for (const other of ['/api/v1/tasks', '/api/v1/public/other/thing', '/api/v1/public/integrations/hooks/twilio/x/message-status', '/api/v1/public/integrations/hooks/twilio/7/message-status/extra']) {
+    const result = await call(url, other, headers(), form)
+    assert.equal(result.status, 400, other)
+  }
+  for (const type of ['text/plain', 'multipart/form-data; boundary=x']) {
+    const result = await call(url, hook, headers(type), form)
+    assert.equal(result.status, 400, type)
+  }
+  // The existing 16 MiB cap closes the connection once crossed; a reset is as final as the 400.
+  const oversized = await call(url, hook, headers(), 'a=' + 'x'.repeat(16 * 1024 * 1024 + 1)).catch(error => ({ status: error.code }))
+  assert.ok([400, 'ECONNRESET', 'EPIPE'].includes(oversized.status), String(oversized.status))
+  assert.equal(seen.length, count)
+})

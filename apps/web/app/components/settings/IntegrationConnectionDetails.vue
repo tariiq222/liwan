@@ -11,6 +11,7 @@ import {
 import { useStartIntegrationOAuth } from '@/composables/useIntegrationProviders'
 import { ApiError } from '@/composables/useApi'
 import { typedValues } from '@/utils/integrationConnections'
+import { hasIntegrationGuide } from '@/utils/integrationGuide'
 import { integrationAttributeLabel, integrationErrorText, integrationProviderLabel, integrationSecretLabel, integrationServerMessage, integrationUseLabel } from '@/utils/integrationLabels'
 import { integrationStateBadge } from '@/utils/integrationStateBadge'
 
@@ -150,7 +151,7 @@ async function copy(value: string) {
       </div>
     </SharedRecordSection>
 
-    <SettingsIntegrationMetaGuide v-if="connection.provider === 'meta'" :connection="connection" />
+    <SettingsIntegrationProviderGuide v-if="hasIntegrationGuide(connection.provider)" :code="connection.provider" :connection="connection" />
 
     <SharedRecordSection id="identity" variant="panel" :title="t('integrations.record.identity')" :description="canManage ? t('integrations.record.identityHint') : undefined">
       <div class="grid gap-4 text-start">

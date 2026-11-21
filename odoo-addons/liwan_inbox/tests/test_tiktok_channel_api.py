@@ -182,7 +182,7 @@ class TestTikTokChannelApi(LiwanInboxCase):
         self.assertEqual(result.status_code, 200, result.text)
         body = result.json()
         self.assertEqual((body['state'], body['last_error']), ('connected', None))
-        probe.assert_called_once_with(tt.BUSINESS_ID, ACCESS_TOKEN)
+        probe.assert_called_once_with(tt.BUSINESS_ID, {'access_token': ACCESS_TOKEN})
         self.assertFalse(whatsapp_profile.called)
 
     def test_a_failed_tiktok_connection_test_marks_the_channel_error(self):

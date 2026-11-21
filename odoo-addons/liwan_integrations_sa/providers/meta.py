@@ -12,11 +12,12 @@ TIMEOUT_SECONDS = 10
 ERROR_TEXT_LENGTH = 200
 
 
-def probe(external_id, access_token):
-    """Read the business account with the token and return its display name.
+def probe(external_id, credentials):
+    """Read the business account with the access token of ``credentials`` and return its display name.
 
     A refusal or an unreachable Graph API raises `ProviderError`.
     """
+    access_token = credentials['access_token']
     try:
         response = requests.get(
             f'{GRAPH_BASE}/{GRAPH_API_VERSION}/{quote(external_id, safe="")}', params={'fields': 'name'},

@@ -111,7 +111,7 @@ class LiwanInboxChannel(models.Model):
         try:
             with self.env.cr.savepoint():
                 credentials = self._liwan_credentials()
-                integration_tiktok.probe(credentials.business_id, credentials.access_token)
+                integration_tiktok.probe(credentials.business_id, {'access_token': credentials.access_token})
         except (errors.ProviderError, integration_errors.ProviderError) as error:
             self.write({'state': 'disabled' if self.state == 'disabled' else 'error', 'last_error': str(error)})
         else:

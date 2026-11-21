@@ -16,6 +16,14 @@
         <field name="group_xmlid">liwan_integrations_sa.group_cap_integrations_manage</field>
         <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
     </record>
+    <record id="permission_integrations_log_read" model="liwan.access.permission">
+        <field name="key">integrations.log.read</field><field name="domain">integrations</field>
+        <field name="resource">logs</field><field name="action">read</field>
+        <field name="name_ar">قراءة سجل الرسائل والمكالمات</field><field name="name_en">Read message and call logs</field>
+        <field name="description_ar">قراءة سجل الرسائل والمكالمات المرسلة عبر مزودي الخدمة، وفيه أرقام العملاء ونصوص الرسائل</field><field name="description_en">Read the log of messages and calls sent through providers, which holds customer numbers and message text</field>
+        <field name="group_xmlid">liwan_integrations_sa.group_cap_integrations_log_read</field>
+        <field name="custom_role_allowed" eval="True"/><field name="sensitive" eval="True"/>
+    </record>
     <!-- Built-in roles are noupdate records: these hooks link this addon's grants and
          dependencies on install and on every upgrade. -->
     <function model="liwan.access.service" name="_liwan_configure_permission_dependencies"/>

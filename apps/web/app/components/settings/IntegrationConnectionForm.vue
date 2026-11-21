@@ -4,6 +4,7 @@ import { useCreateIntegrationConnection } from '@/composables/useIntegrationConn
 import { ApiError } from '@/composables/useApi'
 import { integrationAttributeLabel, integrationErrorText, integrationSecretLabel, integrationServerMessage } from '@/utils/integrationLabels'
 import { typedValues } from '@/utils/integrationConnections'
+import { hasIntegrationGuide } from '@/utils/integrationGuide'
 
 // The form of the create panel: the account id, an optional name, the provider's own fields and one write-only input
 // per secret the customer types. The server checks the keys with the provider before it stores anything, so a refusal
@@ -89,7 +90,7 @@ async function submit() {
 <template>
   <UForm :state="{ externalId, label }" class="liwan-form" method="post" :loading-auto="false" novalidate data-testid="integration-form" @submit="submit">
     <SharedUnsavedChanges :dirty="dirty" />
-    <SettingsIntegrationMetaGuide v-if="provider.code === 'meta'" />
+    <SettingsIntegrationProviderGuide v-if="hasIntegrationGuide(provider.code)" :code="provider.code" />
     <SharedFormSection panel :title="t('integrations.new.details')">
       <div class="grid gap-4">
         <UFormField :label="t('integrations.field.externalId')" :description="t('integrations.field.externalIdHint')" name="external_id" required :error="fieldErrors.external_id">
