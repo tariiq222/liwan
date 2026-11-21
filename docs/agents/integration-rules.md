@@ -20,7 +20,7 @@ release, deployment and the other excluded operations need the owner's explicit 
 their scope. Prior approved product, access and data decisions remain binding. New
 changes require updated evidence and any authorization their scope needs.
 
-The `ci` workflow reports checks; it does not repair code, merge PRs, create tags or deploy. The `publish` workflow runs only on `main` and release tags and calls the development and staging hooks as described in the flow below.
+The `ci` workflow reports checks; it does not repair code, merge PRs, create tags or deploy. The `publish` workflow runs only on `main` and release tags and calls the staging hook on release tags as described in the flow below.
 Task authorization, remote publication, merge, release, production deployment
 and cleanup remain distinct operations. Local consolidation authority does not
 authorize a remote push or production deployment. Missing services, stale checks and failed
@@ -63,15 +63,13 @@ Owner keywords:
 - «انشر» means: commit, run the checks, get the independent review and fix its findings,
   push the task branch, open the PR, mark it ready,
   merge it after current-head `ci-result` is green, and return the lane (`wt done`, or `wt lane remove` for a temporary lane). It never means a direct push to `main`,
-  a release tag, or a deployment to staging or production. The one exception is the development environment: it
-  updates by itself from the merge (see [the flow](#from-task-branch-to-each-environment-owner-decision-2026-11-21)),
-  and the agent does not run that deployment.
+  a release tag, or a deployment to staging or production. Nothing follows `main` by itself: a merge
+  updates no environment (see [the flow](#from-task-branch-to-each-environment-owner-decision-2026-11-21)).
 - «دمج» or «ادمج» means: merge the work the owner is pointing at into `main` through its PR,
   following the six steps. These are also the words that allow enabling auto-merge on that PR.
   When that work has no PR yet, the word covers pushing its branch, after the independent
-  review, and opening the PR. It never means a direct push to `main`, a release tag, or a deployment to staging or production (development updates by itself after the merge, as under «انشر»).
-- «انشر على الاستيج» means: create and push the tag `release/19.0.X.Y.Z` on a `main` commit that development already
-  serves and that passed the release checks below, so that the staging environment updates through its hook. It
+  review, and opening the PR. It never means a direct push to `main`, a release tag, or a deployment to staging or production (a merge updates no environment, as under «انشر»).
+- «انشر على الاستيج» means: create and push the tag `release/19.0.X.Y.Z` on a `main` commit that passed the release checks below, so that the staging environment updates through its hook. It
   needs that commit to be on `main` already; with the work still on a branch, «انشر» comes first. It never
   means production.
 - «انشر على الإنتاج» means: release to production the tag that staging already served and passed, by starting
@@ -191,8 +189,13 @@ land together: it merges only those agreed branches with merge commits and goes 
 ## From task branch to each environment (owner decision 2026-11-21)
 
 GitHub is the only system for source, CI, image build and release; no other git host or registry is part of
-the path. The three environments and the keyword ladder are the owner's decisions of 2026-11-18 and
-2026-11-20; this section records the one flow that reaches them. The workflow `.github/workflows/publish.yml`,
+the path. The keyword ladder is the owner's decision of 2026-11-18 and 2026-11-20; this section records the one flow that reaches
+the two server environments, staging and production.
+
+Owner decision 2026-11-21: the development server environment is
+cancelled. LiwanOS has two server environments, staging and production. «انشر» ends at `main` and nothing follows `main` by itself.
+«انشر على الاستيج» and «انشر على الإنتاج» are unchanged. The development env template, bring-up section A and the development channel of the
+release command are remnants that a later task removes; they are not a working environment. The workflow `.github/workflows/publish.yml`,
 the release command and the server setup are described in `deploy/release/README.md`,
 [environment-bringup.md](../operations/environment-bringup.md) and
 [tooling-server.md](../operations/tooling-server.md).
@@ -203,8 +206,8 @@ the release command and the server setup are described in `deploy/release/README
 | 2. Local commit | none (standing authorization) | the agent | Commit on the task branch with the applicable local checks. |
 | 3. Independent review | none | an independent reviewer | The [review before every push](#independent-review-before-every-push-owner-decision-2026-11-21); confirmed findings are fixed first. |
 | 4. «انشر» | the owner | the agent | Push, PR, current-head `ci-result`, merge, lane return (steps 5 and 6 above). |
-| 5. Development | nobody | `.github/workflows/publish.yml`, then Openship | A push to `main` builds the nine images for amd64 only (runner `ubuntu-24.04`) and pushes them with an amd64 release document `ghcr.io/tariiq222/liwan-release:<commit>`. The workflow then calls the development hook, and the Contabo host (amd64) serves that commit. |
-| 6. «انشر على الاستيج» | the owner | the coordinator | After checking that development serves the commit and its `main` CI is green, the coordinator creates and pushes `release/19.0.X.Y.Z` on it. arm64 is built only on a tag. On the tag push the workflow checks that the commit is on `main`, builds the arm64 images for it on `ubuntu-24.04-arm` (about 17 to 18 minutes for the nine images, measured), reuses the amd64 digests already published for that commit (it builds them only if missing), republishes the release document covering both architectures and calls the staging hook. Staging therefore waits for that build; Oracle `liwanos-staging` (arm64) then serves the tag. A tag that fails on staging is never promoted; the fix takes the next number. |
+| 5. Push to `main` | nobody | `.github/workflows/publish.yml` | A push to `main` builds the nine images for amd64 only (runner `ubuntu-24.04`) and pushes them with an amd64 release document `ghcr.io/tariiq222/liwan-release:<commit>`. No hook is called and no server is updated. |
+| 6. «انشر على الاستيج» | the owner | the coordinator | After checking that the `main` publish run for the commit has finished and its `main` CI is green, the coordinator creates and pushes `release/19.0.X.Y.Z` on it. arm64 is built only on a tag. On the tag push the workflow checks that the commit is on `main`, builds the arm64 images for it on `ubuntu-24.04-arm` (about 17 to 18 minutes for the nine images, measured), reuses the amd64 digests already published for that commit (it builds them only if missing), republishes the release document covering both architectures and calls the staging hook. Staging therefore waits for that build; Oracle `liwanos-staging` (arm64) then serves the tag. A tag that fails on staging is never promoted; the fix takes the next number. |
 | 7. «انشر على الإنتاج» | the owner, after testing staging | the owner starts the job from Openship; the coordinator prepares and verifies | The job `liwan-production-release` has no hook and no credential on GitHub. It is started with an explicit tag (`release.py run --environment production --tag release/19.0.X.Y.Z`) and never picks the highest tag by itself (owner decision 2026-11-21). It takes only a tag that staging served and passed. Oracle `liwanos-prod` (arm64) serves it. The automatic proof that staging served that tag is not built: the owner and the coordinator confirm it before «انشر على الإنتاج» (an enforced gate is not built). Owner decision in principle, 2026-11-21, on who starts the production and rollback jobs: «نستخدم الايجنت الموجود في اوبن شيب ونضع اليه سليمه له مع ربطه معنا هنا». It is not built: the Openship assistant is still disabled on the tooling server and no agent exists. The hosts `liwanos-prod` and `liwanos-staging` were registered in Openship on 2026-11-21 (SSH from the tooling server only). Until that mechanism is designed and approved, the owner starts the production job from Openship himself. |
 
 Rules of the flow:
@@ -228,7 +231,7 @@ Rules of the flow:
   pre-creation: row A0.1 of environment-bringup.md). The repository is public for now
   and turns private on the owner's word; the build then moves to a self-hosted runner and servers also need a
   read token for the source (checked on 2026-11-21 in `docs/operations/environment-bringup.md`).
-- Each owner word covers its own step only: «انشر» alone ends at `main` and development; staging and production
+- Each owner word covers its own step only: «انشر» alone ends at `main`; staging and production
   each need their own words.
 
 ## Local-only integration
@@ -295,7 +298,7 @@ Publishing a `release/19.0.X.Y.Z` tag requires explicit owner authorization and
 all thirteen `ci` stage groups, every matrix job and `ci-result`, green in a full
 run on that exact `main` commit, with no skipped groups. Inspect the existing
 immutable tags before choosing the next final numeric component. Scoped PR CI
-does not prove a full release run. The tag is created only on a commit that development already serves
+does not prove a full release run. The tag is created only on a commit whose `main` publish run has finished
 ([flow](#from-task-branch-to-each-environment-owner-decision-2026-11-21), step 6). Release tags do not alter addon schema
 versions or authorize production deployment; those retain their own checks and
 authorization.

@@ -4,7 +4,7 @@ name: publish
 # (ghcr.io/tariiq222); it deploys nothing itself, it only tells an environment that a commit is ready.
 #
 # A push to main builds the nine images for linux/amd64 on an amd64 runner, scans them with deploy/ci/image.sh, pushes
-# them, writes liwan-release:<commit> covering linux/amd64 and tells development. A release/19.0.X.Y.Z tag whose commit
+# them, writes liwan-release:<commit> covering linux/amd64. A release/19.0.X.Y.Z tag whose commit
 # is in main builds linux/arm64 on an arm64 runner for that commit and REUSES the amd64 digests the main publish
 # recorded in the document of the commit (amd64 is built here only when no document exists), then replaces that
 # document, under the same tag, with one covering both architectures and tells staging. A tag whose document already
@@ -14,8 +14,7 @@ name: publish
 # workflow token (packages: write on the jobs that push); no registry secret is stored.
 #
 # Secrets (repository secrets, values typed by the owner):
-#   LIWAN_DEVELOPMENT_HOOK_URL, LIWAN_DEVELOPMENT_HOOK_TOKEN   the Openship development job hook (main only)
-#   LIWAN_STAGING_HOOK_URL, LIWAN_STAGING_HOOK_TOKEN           the staging hook (release tags only)
+#   LIWAN_STAGING_HOOK_URL, LIWAN_STAGING_HOOK_TOKEN   the staging hook (release tags only)
 on:
   push:
     branches: [main]
@@ -173,8 +172,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-    outputs:
-      superseded: ${{ steps.merge.outputs.superseded }}
     env:
       PUBLISH_PLATFORMS: ${{ startsWith(github.ref, 'refs/tags/release/') && 'linux/amd64 linux/arm64' || 'linux/amd64' }}
     steps:
@@ -186,7 +183,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Join the images and publish the release document
-        id: merge
         run: deploy/ci/publish.sh merge
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -195,28 +191,6 @@ jobs:
         run: |
           docker buildx rm --force liwan-publish >/dev/null 2>&1 || true
           docker logout ghcr.io >/dev/null 2>&1 || true
-
-  notify-development:
-    needs: [plan, release]
-    if: >-
-      ${{ !cancelled() && github.ref == 'refs/heads/main' && needs.plan.result == 'success'
-      && needs.plan.outputs.state != 'superseded'
-      && (needs.plan.outputs.state == 'published'
-      || (needs.release.result == 'success' && needs.release.outputs.superseded != 'true')) }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    steps:
-      - name: Tell development a new commit is ready
-        run: |
-          set -euo pipefail
-          if [ -z "$HOOK_URL" ] || [ -z "$HOOK_TOKEN" ]; then
-            echo "LIWAN_DEVELOPMENT_HOOK_URL and LIWAN_DEVELOPMENT_HOOK_TOKEN must both be set as repository secrets, because the images are published but development was not told" >&2
-            exit 1
-          fi
-          curl -fsS -X POST -H "Authorization: Bearer $HOOK_TOKEN" "$HOOK_URL" > /dev/null
-        env:
-          HOOK_URL: ${{ secrets.LIWAN_DEVELOPMENT_HOOK_URL }}
-          HOOK_TOKEN: ${{ secrets.LIWAN_DEVELOPMENT_HOOK_TOKEN }}
 
   notify-staging:
     needs: [plan, release]

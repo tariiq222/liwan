@@ -23,7 +23,7 @@
 #                  an existing document are reused, the rest are read from the <commit>-<arch> tags), write the release
 #                  document (deploy/ci/lib/release_manifest.py) and push it as <registry>/liwan-release:<commit>, a
 #                  scratch image holding exactly one file, /release.json, replacing any earlier one under that tag. A
-#                  main commit that is no longer the head of main writes `superseded=true` and pushes nothing, exit 0
+#                  main commit that is no longer the head of main pushes nothing, exit 0
 # Because the architecture tags are written only after the scan, a failed scan leaves no unscanned image in the registry.
 # Docker comes from the environment; nothing here names a socket. The job token is read from the environment and never
 # placed in an argument.
@@ -212,7 +212,7 @@ check() {
   if ! is_main; then require_in_main; fi
   if anchor_exists "$anchor"; then
     if is_main; then
-      echo "publish: $anchor is already published: not rebuilding (the digests hosts pulled stay valid), development is told again"
+      echo "publish: $anchor is already published: not rebuilding (the digests hosts pulled stay valid)"
       set_output state published
     else
       decide_for_tag "$anchor"
@@ -247,7 +247,7 @@ push() {
   : "${GITHUB_SHA:?}" "${GITHUB_RUN_ID:?}" "${GITHUB_REF:?}"
   require_ref
   build_platform
-  if is_superseded; then set_output superseded true; return 0; fi
+  if is_superseded; then return 0; fi
   packages
   if document_covers "$PUBLISH_PLATFORM"; then
     echo "publish: the release document of $GITHUB_SHA already covers $PUBLISH_PLATFORM: nothing is pushed"
@@ -273,7 +273,7 @@ merge() {
   : "${GITHUB_SHA:?}" "${GITHUB_RUN_ID:?}" "${GITHUB_REF:?}"
   require_ref
   document_platforms
-  if is_superseded; then set_output superseded true; return 0; fi
+  if is_superseded; then return 0; fi
   packages
   anchor="$(registry)/liwan-release"
   work="$(mktemp -d)"

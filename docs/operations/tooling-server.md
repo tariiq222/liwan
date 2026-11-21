@@ -50,8 +50,7 @@ allowed only from the tooling server address.
 
 None of these is done:
 
-- The GitHub secrets for the two hooks (`LIWAN_DEVELOPMENT_HOOK_URL`, `LIWAN_DEVELOPMENT_HOOK_TOKEN`,
-  `LIWAN_STAGING_HOOK_URL`, `LIWAN_STAGING_HOOK_TOKEN`).
+- The GitHub secrets for the staging hook (`LIWAN_STAGING_HOOK_URL`, `LIWAN_STAGING_HOOK_TOKEN`).
 - The machine GitHub account and one read token per environment, written to `/etc/liwan-release/github-read`.
 - The ten private GHCR packages and the `release/**` tag ruleset ([environment-bringup.md](environment-bringup.md)
   A0.1 and A0.2).
