@@ -34,7 +34,7 @@ export function legalFromEnv(env: NodeJS.ProcessEnv): LegalSettings {
 
 export function signupFromEnv(pool: Pool, secret: string | undefined, env: NodeJS.ProcessEnv = process.env) {
   if (env.LIWAN_PUBLIC_SIGNUP !== 'true' || env.LIWAN_TENANCY_MODE !== 'shared') return
-  const plan = z.uuid().safeParse(env.LIWAN_SIGNUP_PLAN_REVISION_ID)
+  const plan = z.uuid().safeParse(env.LIWAN_SIGNUP_PLAN_ID)
   const key = env.LIWAN_SIGNUP_AUTHENTICA_KEY
   const template = Number(env.LIWAN_SIGNUP_AUTHENTICA_TEMPLATE_ID)
   const dailyLimit = Number(env.LIWAN_SIGNUP_DAILY_LIMIT ?? 100)

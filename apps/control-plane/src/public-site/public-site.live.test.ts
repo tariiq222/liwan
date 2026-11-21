@@ -16,6 +16,7 @@ const valid = { name: 'Sara', email: 'sara@acme.com.sa', company: 'Acme', mobile
 describe.skipIf(!url)('public site routes on scratch PostgreSQL', () => {
   const pool = new Pool({ connectionString: url })
   let planId: string
+  let revisionId: string
   beforeAll(async () => {
     const { version } = await setup(pool)
     // Other suites on the same scratch database edit the vendor's billing settings; this one states its own.
@@ -44,7 +45,8 @@ describe.skipIf(!url)('public site routes on scratch PostgreSQL', () => {
     expect(validated.status, JSON.stringify(validated.body)).toBe(200)
     const plan = await api('POST', `/plans/${draft.body.id}/publish`, { edit_revision: validated.body.edit_revision, reason: 'Public site' })
     expect(plan.status).toBe(200)
-    planId = plan.body.id
+    planId = plan.body.plan_id
+    revisionId = plan.body.id
   })
   beforeEach(async () => { await pool.query('TRUNCATE public_contact_requests'); await pool.query("DELETE FROM commercial_outbox WHERE kind=$1", [CONTACT_NOTICE_KIND]) })
   afterAll(async () => { await pool.end() })
@@ -73,6 +75,7 @@ describe.skipIf(!url)('public site routes on scratch PostgreSQL', () => {
         onboarding: { one_time: 499 }, refund_days: 14,
       })
       expect(JSON.stringify(answer.data)).not.toContain(planId)
+      expect(JSON.stringify(answer.data)).not.toContain(revisionId)
     })
     it('is unavailable without a configured plan, or when the plan is not the sign-up offer', async () => {
       expect((await post(handler({ planId: undefined }), PUBLIC_PRICING_PATH, pricingRequest())).status).toBe(503)

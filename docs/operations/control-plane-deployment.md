@@ -138,5 +138,5 @@ These live in files outside this change's ownership and are listed with the exac
 - A private CA and the control API certificate (SAN `control-api`) and the effect channel certificate (SAN `control-host.internal`).
 - A container registry account, so the three images can be published and pinned by digest.
 - Secrets from the operator's store: the database password, the four keys (`CONTROL_SERVICE_KEY`, `CUSTOMER_COMMERCIAL_SERVICE_KEY`, `ADMIN_SECRET_KEY`, `INTERNAL_EFFECT_KEY`), the Moyasar keys and webhook secret, the Authentica key and template, the Turnstile keys, SMTP credentials, the Telegram bot token and chat id.
-- The published public monthly plan revision (`LIWAN_SIGNUP_PLAN_REVISION_ID`), the legal pages URL and the terms version.
+- The public monthly plan (`LIWAN_SIGNUP_PLAN_ID`, the plan id, not a revision id; sign-up and public pricing serve its latest published, available revision), the legal pages URL and the terms version.
 - The decision to publish a loopback database port for the host-run shared worker (`compose.host-link.yml`), or to move the worker's database access another way.

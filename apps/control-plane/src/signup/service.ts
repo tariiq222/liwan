@@ -71,12 +71,15 @@ export class SignupService {
     return (await transaction(this.pool, client => loadSignupOffer(client, this.settings.planId))).offer
   }
 
+  /** The current offer of the plan, only when it is still the revision the visitor was shown: a newer one means new terms to see. */
   private async selectedOffer(client: PoolClient, revision: string | null) {
-    if (revision !== this.settings.planId) refuse('offer_changed', 409)
-    try { return await loadSignupOffer(client, revision) } catch (error) {
+    let current: Awaited<ReturnType<typeof loadSignupOffer>>
+    try { current = await loadSignupOffer(client, this.settings.planId) } catch (error) {
       if (error instanceof CommercialHttpError && error.status === 503) refuse('offer_changed', 409)
       throw error
     }
+    if (revision !== current.offer.offer_revision) refuse('offer_changed', 409)
+    return current
   }
 
   // Hold across counts and insert so concurrent instances share the same delivery budget.

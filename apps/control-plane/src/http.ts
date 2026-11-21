@@ -377,7 +377,7 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
   if (!humanCheck) { try { humanCheck = humanCheckFromEnv(process.env).verify } catch { console.error('[control-plane] human check configuration invalid') } }
   // The "find my workspace" check shares it but exists only where public sign-up is configured.
   const workspaceLookup = workspaceLookupHandler(pool, { service: bffService, humanCheck: deps?.humanCheck ?? (signup ? humanCheck : undefined), overLimit, bucket: clientAddressBucket })
-  const pricingPlan = z.uuid().safeParse(process.env.LIWAN_SIGNUP_PLAN_REVISION_ID)
+  const pricingPlan = z.uuid().safeParse(process.env.LIWAN_SIGNUP_PLAN_ID)
   const publicSite = publicSiteHandler(pool, { service: bffService, humanCheck, planId: pricingPlan.success ? pricingPlan.data : undefined, notifyEmail: config.contactNotifyEmail, overLimit, bucket: clientAddressBucket })
   const handler = async (req: IncomingMessage, res: ServerResponse) => {
     try {
