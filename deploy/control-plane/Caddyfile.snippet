@@ -1,10 +1,15 @@
-# Edge block for the payment provider webhook. Add it next to the other site blocks of deploy/shared/Caddyfile (or import it).
-# The edge joins the control API's network (LIWAN_COMMERCIAL_CONTROL_NETWORK) and forwards EXACTLY ONE route of the control plane
+# Edge block for the payment provider webhook. deploy/docker-compose.shared-commercial.yml mounts this file into the proxy and
+# deploy/shared/Caddyfile imports it, so there is one copy. The same overlay joins the edge to the control API's own edge network
+# (LIWAN_CONTROL_EDGE_NETWORK, which the web tier is not on) and mounts the CA. The edge forwards EXACTLY ONE route of the control plane
 # to the internet: the Moyasar event. Everything else on this host answers 404, so the API is not public. The web tier and the
 # vendor console reach the API on their own internal networks, not through this host.
 # The event carries its own proof (MOYASAR_WEBHOOK_SECRET, checked by the adapter, then the payment is re-read from Moyasar).
 # Put the full URL https://{$CONTROL_WEBHOOK_DOMAIN}/v1/commercial/payment-events/moyasar in the Moyasar dashboard.
-{$CONTROL_WEBHOOK_DOMAIN} {
+# The scheme prefix and the reserved default follow the other optional sites of the shared Caddyfile: an unset
+# CONTROL_WEBHOOK_DOMAIN leaves a site that matches no real host. It has its own reserved name because invalid.invalid is
+# the TikTok relay default and two equal site addresses are ambiguous. Behind an outer edge (LIWAN_SITE_SCHEME=http://) that
+# forwards any Host, the reserved name could still reach this site, so it answers 404 to everything while it is the Host.
+{$LIWAN_SITE_SCHEME:}{$CONTROL_WEBHOOK_DOMAIN:control-webhook.invalid} {
 	encode zstd gzip
 
 	# No request logging: the body and the secret token must never reach a log.
@@ -22,29 +27,49 @@
 		-Server
 	}
 
+	# Refuse every request whose Host is not exactly the configured webhook host (case-folded). Compose always passes a
+	# value, `control-webhook.invalid` when unset or empty, but Caddy applies a `{$VAR:default}` default only to an UNSET
+	# variable: handed an empty string, the site address above has no host, and this comparison then matches nothing real
+	# and refuses every request. A reserved name, a trailing-dot spelling or any other Host is refused the same way.
+	@reserved expression `string({http.request.host}).lowerAscii() != "{$CONTROL_WEBHOOK_DOMAIN:control-webhook.invalid}".lowerAscii() || string({http.request.host}).lowerAscii() == "control-webhook.invalid"`
+
+	# `path` is matched after decoding, cleaning and case folding, but reverse_proxy sends the raw URI, so `path` alone lets
+	# `/v1/x%2f..%2fv1/commercial/payment-events/moyasar` or an upper-case spelling through to another upstream route.
+	# The expression compares the RAW request URI (as sent, undecoded, query included) to the one literal, so a query string
+	# is refused with 404 (the event needs none) and so is every encoded, cased, merged or dotted spelling of the path.
+	# The rewrite below is defence in depth: the upstream can only ever receive the canonical path.
 	@moyasar {
 		method POST
 		path /v1/commercial/payment-events/moyasar
+		expression `{http.request.orig_uri} == "/v1/commercial/payment-events/moyasar"`
 	}
 
 	route {
+		respond @reserved 404
 		rate_limit {
 			zone liwan_payment_events {
-				key {remote_host}
+				key {client_ip}
 				events 120
 				window 1m
 				ipv6_prefix 64
 			}
 		}
+		rewrite @moyasar /v1/commercial/payment-events/moyasar
 		reverse_proxy @moyasar control-api:4187 {
 			transport http {
 				tls
 				# The API certificate is signed by the operator's private CA; its SAN must contain control-api.
-				tls_trust_pool file /etc/liwan/control-ca.pem
+				tls_trust_pool file /etc/liwan-control/control-ca.pem
 				tls_server_name control-api
 			}
 			header_up -X-Forwarded-For
 			header_up -X-Forwarded-Host
+			header_up -X-Forwarded-Proto
+			header_up -Forwarded
+			header_up -X-Liwan-Proxy-Token
+			header_up -X-Liwan-Tenant-Revision
+			header_up -X-Liwan-Client-Ip
+			header_up -X-Liwan-Signup-Client
 		}
 		respond 404
 	}

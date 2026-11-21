@@ -161,12 +161,37 @@ class ProductionCompose(unittest.TestCase):
         self.assertNotIn('control_api_web', self.services['vendor-console']['networks'])
         self.assertIn('control_api_web', self.services['control-api']['networks'])
 
+    def test_the_edge_network_to_the_api_is_its_own_and_only_the_api_joins_it(self):
+        users = [n for n, s in self.services.items() if 'control_api_edge' in s['networks']]
+        self.assertEqual(users, ['control-api'])
+        networks = self.document['networks']
+        self.assertIs(networks['control_api_edge']['internal'], True)
+        self.assertNotEqual(networks['control_api_edge']['name'], networks['control_api_web']['name'])
+        self.assertIn('LIWAN_CONTROL_EDGE_NETWORK', networks['control_api_edge']['name'])
+
     def test_the_api_serves_https_only(self):
         environment = self.services['control-api']['environment']
         self.assertEqual(environment['CONTROL_HOST'], '0.0.0.0')
         self.assertIn('CONTROL_TLS_KEY', environment)
         self.assertIn('CONTROL_TLS_CERT', environment)
         self.assertEqual(environment['LIWAN_TENANCY_MODE'], 'shared')
+
+    def test_every_secret_file_the_control_env_points_at_is_mounted(self):
+        template = assigned_names(CONTROL / 'env.production.example')
+        mounted_files = {name: spec['file'] for name, spec in self.document['secrets'].items()}
+        checked = 0
+        for name, service in self.services.items():
+            if 'LIWAN_CONTROL_ENV_FILE' not in str(service.get('env_file')):
+                continue
+            wanted = {value for value in template.values() if value.startswith('/run/secrets/')}
+            wanted.update(str(value) for value in (service.get('environment') or {}).values()
+                          if str(value).startswith('/run/secrets/'))
+            mounted = {f'/run/secrets/{secret}' for secret in service.get('secrets', [])}
+            with self.subTest(service=name):
+                self.assertEqual(sorted(wanted - mounted), [], 'mount these secrets in the service')
+            self.assertLessEqual({path.rsplit('/', 1)[1] for path in wanted}, set(mounted_files))
+            checked += 1
+        self.assertGreaterEqual(checked, 4, 'the control env file services were not found')
 
     def test_no_secret_has_a_default_in_the_compose_files(self):
         for path in (COMPOSE, HOST_LINK):
@@ -245,6 +270,9 @@ class EdgeSnippets(unittest.TestCase):
         text = (ROOT / 'deploy' / 'vendor-admin' / 'Caddyfile.snippet').read_text(encoding='utf-8')
         self.assertIn('reverse_proxy vendor-console:3100', text)
         self.assertIn('Cache-Control "no-store"', text)
+        self.assertIn('not client_ip {$LIWAN_ADMIN_ALLOW}', text)
+        self.assertNotIn('{remote_host}', text)
+        self.assertNotRegex(text, r'(?m)^\s*log\b')
 
 
 if __name__ == '__main__':

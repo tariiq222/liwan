@@ -84,27 +84,48 @@ Each phase is written to `run.json` before it acts, so a killed run resumes from
 
 1. Resolve the candidate, fetch it, check it is not older, pull and check the release document.
 2. Prepare: extract the commit to `/opt/liwan/releases/<commit>`, install the shared worker's node dependencies
-   (`npm ci --ignore-scripts --include=dev --workspace apps/control-plane`; `tsx` is a dev dependency and the worker runs it), pull every image by digest and tag it with its local
-   name from `deploy/image_pins.py --print-builds` (the document must list exactly those). Then the disk check:
+   (`npm ci --ignore-scripts --include=dev --workspace apps/control-plane`; `tsx` is a dev dependency and the worker runs it;
+   a release folder that already exists but lacks `node_modules/.package-lock.json`, npm's last write, gets the install too, and a
+   failed install removes its `node_modules` so no later run takes it as complete; the reason is `worker_dependencies_failed`), pull every image by digest and tag it with its local
+   name from `deploy/image_pins.py --print-builds` (the document must list exactly those). The third-party images
+   (`deploy/image_pins.py --print-external`, the pins of `deploy/production-images.json`) are pulled by their pinned digest too,
+   because every later compose step runs with `--pull never`; they are not recorded in `releases/<commit>.json`, so the prune
+   never removes one. Each pull has a 10 minute timeout and up to 3 attempts 10 seconds apart; when the last attempt fails the
+   run stops with `image_pull_failed` before anything is stopped. The run is also refused when the shared env file's
+   `LIWAN_SHARED_ODOO_CONFIG` is unset, not absolute or not a regular file (`RESULT: refused invalid_shared_env`; Docker would create a directory at that path, and
+   Odoo would die after the stop). The same refusal applies to `LIWAN_VENDOR_ADMIN_ENV_FILE`, the vendor console's env file (Compose would fail on it only after the
+   stop); only the path is logged, never the content. Both compose projects of the candidate are also rendered with `config --quiet` (its own image
+   tag in a temporary env file, nothing activated, nothing printed), so a required key the shared env file lacks (compose names the variable) is refused as
+   `invalid_shared_env` before anything stops. Then the disk check:
    the run is refused when the free space on `LIWAN_RELEASE_DISK_PATH` is below 1.5 times the size of one snapshot of
    every tenant database, the control-plane database and every filestore (the snapshots all exist at once).
 3. Quiesce: stop the shared worker, read the tenant list with `deploy/shared/backup-binding.mjs --list`.
 4. Capture: an encrypted `backup_pipeline.py` backup of every tenant and the control plane.
 5. Maintenance: create `<state root>/maintenance/active` (Caddy shows its maintenance page only while it exists), stop
-   `guard`, `web`, `ai`, `odoo` and `control-api`.
+   `guard`, `web`, `ai`, `odoo`, `control-api` and `vendor-console`.
 6. Snapshot every database (`CREATE DATABASE ... TEMPLATE`) and hard-link every filestore.
 7. Upgrade every tenant database (`tools/upgrade_log_guard.py` on its log, then `deploy/odoo/upgrade_smoke.py`), then
-   migrate the control plane.
-8. Start `proxy`, `odoo`, `web`, `ai` and `control-api`, wait for health, then start `guard` (the commit point). The
+   migrate the control plane, then create the AI service's control tables
+   (`compose run --rm ai python -m liwan_ai_service.store --initialize-control`, idempotent; skipped when `AI_DATABASE_URL`
+   is empty in every place compose reads it: the process environment and release config, then the shared env file). The `ai` service validates them when it starts and refuses to start without them, and the
+   per-tenant provisioning creates them only after the first start; failure reason `ai_control_initialization_failed`.
+8. Start `control-api` and `vendor-console` first (their project creates the networks the shared stack joins as external:
+   the control ingress, the edge's own control network and the console's `admin_edge`, so a fresh host needs this
+   order; the console waits for the API's health). The console's health gates the customer release: a console that fails
+   its health check fails the start and rolls the release back, because it is the only service on `admin_edge`, which `proxy`
+   joins as external, so the stack cannot start without it. Then `proxy`, `odoo`, `web` and `ai`, wait for health, then start `guard` (the commit point). The
    phase `opened` is written, then the maintenance marker is removed. From `opened` on a failure never rolls back
    (customers may have written to the new release); the next run resumes.
-9. Record `served.json`, start the shared worker, drop the snapshots, then prune: images and release folders of every
+9. Record `served.json`, start the shared worker and check it is active after a 5 second settle (the unit restarts a crashed
+   worker only after `RestartSec=10`, shown as not active until then; `worker_not_ready` otherwise), drop the snapshots, then prune: images and release folders of every
    release except the served one and the previous one are removed, with their `runs/<commit>/` folders.
 
 A failure from step 5 onward rolls back: every snapshot and filestore copy is swapped back, owners, grants and
 isolation are restored, the previous release starts, and the old worker starts. A failure before step 6 changes
 nothing but the worker, which is restarted. The first deploy has no previous release, so it skips the backup, the
-stop and the snapshots, and a failure leaves the environment stopped in maintenance and halted.
+stop and the snapshots, and a failure leaves the environment stopped in maintenance and halted. Every failure sends an alert
+through `deploy/alerts.py`; when it is not delivered the log line carries the reason alerts gave (for example that no channel
+is configured).
 
 ## Result and exit code
 
@@ -145,6 +166,10 @@ The command never waits for input. A second start while one runs exits 0 at once
 `LIWAN_RELEASE_CONTROL_PG_HOST`, `LIWAN_RELEASE_ODOO_DATA_DIR`,
 `LIWAN_RELEASE_DISK_PATH` (a path on the filesystem that holds the database volume and the filestores). Optional:
 `LIWAN_RELEASE_BACKUP_STORE_ROOT`. Other keys in the file reach the backup pipeline through its environment.
+
+Alert channels are read from the same file. One complete channel is `LIWAN_ALERT_SMTP_HOST`, `LIWAN_ALERT_SMTP_FROM` and
+`LIWAN_ALERT_SMTP_TO` (optional `LIWAN_ALERT_SMTP_PORT`, `_USER`, `_PASSWORD`, `_STARTTLS`), or `LIWAN_ALERT_TELEGRAM_BOT_TOKEN`
+with `LIWAN_ALERT_TELEGRAM_CHAT_ID`. With none, `deploy/alerts.py` exits 2 and the alert is lost; the release logs the reason.
 
 The path comes from `LIWAN_SHARED_COMPOSE_FILE` in the shared env file (the same key `init-host.sh` reads for the `composeFile` of the
 worker's `shared-runtime.json`); it is not a release config key. Before anything stops (the `verified` phase), the run refuses with
@@ -200,7 +225,8 @@ prints `RESULT: edge ok` and exits 0. Passing none of `--host`, `--route-file`, 
 (exit 2), so a job with an empty argument list cannot stay green. `--cert-file` is repeatable and names a PEM certificate that must
 have `--min-days` left (read with `openssl x509 -enddate`); the daily job lists the control CA and the two internal leaf
 certificates (`control-ca.pem`, `control-tls.crt`, `effect-tls.crt`), whose expiry `init-host.sh` only reports when someone runs it. `--host` is requested over
-HTTPS with certificate verification (2xx/3xx passes) and its certificate must have `--min-days` left; `--route-file`
+HTTPS at `/favicon.ico` (`HTTPS_PROBE_PATH` in `edge_check.py`) with certificate verification (2xx/3xx passes) and its certificate must have `--min-days` left;
+the path is not `/` because the guard refuses `/` on the prospect host with 403 when no tenant is named, while `/favicon.ico` is allowed with or without a tenant and the web container serves it; `--route-file`
 is an Openship `.route.json` whose `targetUrl` must equal `--target`; `--vhost-file` must contain
 `proxy_set_header Host $host`, `$proxy_add_x_forwarded_for` and `$http_upgrade`.
 

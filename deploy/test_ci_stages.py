@@ -697,8 +697,7 @@ class TestPublishWorkflow(unittest.TestCase):
         self.assertEqual(self.jobs['build-amd64']['env'], {'PUBLISH_PLATFORM': 'linux/amd64'})
         self.assertEqual(self.jobs['release']['env']['PUBLISH_PLATFORMS'],
                          "${{ startsWith(github.ref, 'refs/tags/release/') && 'linux/amd64 linux/arm64' || 'linux/amd64' }}")
-        for name in ('notify-development', 'notify-staging'):
-            self.assertNotIn('arm64', self.jobs[name].__str__())
+        self.assertNotIn('arm64', self.jobs['notify-staging'].__str__())
 
     def test_a_tag_reuses_the_recorded_amd64_and_builds_it_only_when_no_document_exists(self):
         self.assertEqual(self.jobs['build-amd64']['if'],
@@ -711,32 +710,35 @@ class TestPublishWorkflow(unittest.TestCase):
         self.assertIn('docker buildx imagetools create -t "$image:$GITHUB_SHA" "${sources[@]}"', merge)
         self.assertIn('-t "$anchor:$GITHUB_SHA"', merge)  # the document is replaced under the same tag
 
-    def test_the_main_leg_cannot_call_staging_and_the_tag_leg_cannot_call_development(self):
-        development, staging = self.jobs['notify-development'], self.jobs['notify-staging']
-        self.assertIn("github.ref == 'refs/heads/main'", development['if'])
+    def test_only_a_release_tag_calls_a_hook_and_it_is_the_staging_one(self):
+        staging = self.jobs['notify-staging']
         self.assertIn(self.tag_only, staging['if'])
-        self.assertNotIn('refs/tags', development['if'])
         self.assertNotIn('refs/heads', staging['if'])
-        self.assertEqual(sorted(set(re.findall(r'secrets\.(\w+)', str(development)))),
-                         ['LIWAN_DEVELOPMENT_HOOK_TOKEN', 'LIWAN_DEVELOPMENT_HOOK_URL'])
         self.assertEqual(sorted(set(re.findall(r'secrets\.(\w+)', str(staging)))),
                          ['LIWAN_STAGING_HOOK_TOKEN', 'LIWAN_STAGING_HOOK_URL'])
-        for job in (development, staging):
-            self.assertEqual(job['needs'], ['plan', 'release'])
-            run = job['steps'][0]['run']
-            self.assertIn('curl -fsS -X POST -H "Authorization: Bearer $HOOK_TOKEN" "$HOOK_URL"', run)
-            self.assertNotIn('--data', run)
-            self.assertNotIn('-d ', run)
-            self.assertIn('exit 1', run)
-            self.assertNotIn('echo "$HOOK', run)
+        self.assertEqual(staging['needs'], ['plan', 'release'])
+        run = staging['steps'][0]['run']
+        self.assertIn('curl -fsS -X POST -H "Authorization: Bearer $HOOK_TOKEN" "$HOOK_URL"', run)
+        self.assertNotIn('--data', run)
+        self.assertNotIn('-d ', run)
+        self.assertIn('exit 1', run)
+        self.assertNotIn('echo "$HOOK', run)
+
+    def test_no_job_or_step_refers_to_a_development_hook_and_every_need_exists(self):
+        self.assertFalse([name for name in self.jobs if 'development' in name])
+        self.assertNotRegex(self.workflow, r'(?i)development')
+        for name, job in self.jobs.items():
+            needs = job.get('needs', [])
+            for need in [needs] if isinstance(needs, str) else needs:
+                with self.subTest(job=name, need=need):
+                    self.assertIn(need, self.jobs)
 
     def test_no_production_secret_hook_or_target_exists(self):
         for text in (self.workflow, self.script):
             self.assertNotIn('PRODUCTION', text)
             self.assertNotRegex(text, r'(?i)production.{0,20}hook|hook.{0,20}production')
         self.assertEqual(sorted(set(re.findall(r'secrets\.(\w+)', self.workflow))),
-                         ['GITHUB_TOKEN', 'LIWAN_DEVELOPMENT_HOOK_TOKEN', 'LIWAN_DEVELOPMENT_HOOK_URL',
-                          'LIWAN_STAGING_HOOK_TOKEN', 'LIWAN_STAGING_HOOK_URL'])
+                         ['GITHUB_TOKEN', 'LIWAN_STAGING_HOOK_TOKEN', 'LIWAN_STAGING_HOOK_URL'])
 
     def test_a_secret_is_mapped_through_env_never_expanded_in_a_script_or_a_url(self):
         for name, job in self.jobs.items():
@@ -785,12 +787,9 @@ class TestPublishWorkflow(unittest.TestCase):
                 self.assertIn('covers', process.stderr)
 
     def test_the_hook_waits_for_a_finished_release_or_an_already_complete_one(self):
-        for name in ('notify-development', 'notify-staging'):
-            condition = self.jobs[name]['if']
-            self.assertIn("needs.plan.outputs.state == 'published'", condition)
-            self.assertIn("needs.release.result == 'success'", condition)
-        self.assertIn("needs.plan.outputs.state != 'superseded'", self.jobs['notify-development']['if'])
-        self.assertIn("needs.release.outputs.superseded != 'true'", self.jobs['notify-development']['if'])
+        condition = self.jobs['notify-staging']['if']
+        self.assertIn("needs.plan.outputs.state == 'published'", condition)
+        self.assertIn("needs.release.result == 'success'", condition)
         for name in ('build-amd64', 'build-arm64', 'release'):
             self.assertIn("needs.plan.outputs.state == 'build'", self.jobs[name]['if'])
         check = self.function('check')

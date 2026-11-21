@@ -238,15 +238,53 @@ def settings_for(path):
     return Settings.from_env({PLATFORM_PROVIDER_FILE: str(path), "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true"})
 
 
-def test_start_fails_clearly_when_the_file_is_missing_or_invalid(tmp_path):
-    with pytest.raises(PlatformProviderError) as missing:
-        open_platform_model(settings_for(tmp_path / "absent.json"))
-    assert missing.value.variable == PLATFORM_PROVIDER_FILE and missing.value.reason == "unreadable"
+def test_start_without_the_file_is_unconfigured_and_an_invalid_file_stops_the_boot(tmp_path, caplog):
+    caplog.set_level(logging.WARNING, logger="liwan_ai_service")
+    platform = open_platform_model(settings_for(tmp_path / "absent.json"))
+    assert platform.current is None and platform.digest == "unreadable" and platform.secrets == ()
+    assert "not found" in caplog.text
     bad = write_platform_file(tmp_path / "bad.json", "openai", "m", api_key=None)
     with pytest.raises(PlatformProviderError) as invalid:
         open_platform_model(settings_for(bad))
     assert invalid.value.variable == f"{PLATFORM_PROVIDER_FILE}.routes.default"
     assert "providers.main.api_key: is required for this provider" in invalid.value.reason  # the reason names the root cause
+
+
+async def test_a_platform_run_is_refused_while_unconfigured_but_a_tenant_key_run_is_not(tmp_path):
+    settings = settings_for(tmp_path / "absent.json")
+    app = create_app(open_platform_model(settings), SeededStates(), MemoryControlState(), settings)
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://ai") as client:
+        for mode in ("platform", "setup"):
+            body = {**BODY, "policy": {**PLATFORM_POLICY, "provider_mode": mode}, "new_run_id": new_id()}
+            refused = await client.post("/v1/runs", json=body, headers=HEADERS)
+            assert refused.status_code == 503 and refused.json() == {"detail": "ai_platform_unconfigured"}
+        own_key = {**BODY, "policy": {**PLATFORM_POLICY, "provider_mode": "tenant_key"}, "new_run_id": new_id()}
+        not_refused = await client.post("/v1/runs", json=own_key, headers=HEADERS)
+        assert not_refused.json() != {"detail": "ai_platform_unconfigured"}  # it reaches the tenant-key path (no keyring here: its own refusal)
+        assert (await client.get("/healthz")).status_code == 200
+        assert (await client.get("/v1/tenant/config", headers=HEADERS)).json()["platform"] is None
+
+
+async def test_a_file_that_appears_after_an_unconfigured_start_is_loaded_and_its_hosts_published(tmp_path):
+    directory = tmp_path / "hosts"
+    directory.mkdir()
+    path = tmp_path / "p.json"
+    settings = Settings.from_env({PLATFORM_PROVIDER_FILE: str(path), "AI_ALLOW_MEMORY_STATE": "true", "AI_DEV_INSECURE": "true", "AI_TENANT_EGRESS_DIR": str(directory)})
+    platform = open_platform_model(settings)
+    app = create_app(platform, SeededStates(), MemoryControlState(), settings)
+    await app.state.sync_egress()
+    assert not (directory / "platform.hosts").exists()  # nothing to publish while unconfigured
+    egress = TenantEgress(str(directory))
+    watcher = asyncio.create_task(watch_platform_provider(platform, settings, lambda active: egress.publish_platform(active.hosts), interval=0.01))
+    try:
+        write_platform_file(path, "openai", "gpt-4o", api_key=KEY, revision=1)
+        await wait_for(lambda: platform.current is not None)
+        assert platform.current.default.model == "gpt-4o" and KEY in platform.secrets
+        await wait_for(lambda: (directory / "platform.hosts").exists())
+        assert (directory / "platform.hosts").read_text() == "api.openai.com\n"
+    finally:
+        watcher.cancel()
+        await asyncio.gather(watcher, return_exceptions=True)
 
 
 def test_start_builds_the_endpoint_with_the_token_count_choice_of_the_file(tmp_path):

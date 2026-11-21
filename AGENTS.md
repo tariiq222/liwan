@@ -267,7 +267,7 @@ another application) needs the owner's approval, recorded by the owner as an
   own PRs ([definitions](docs/agents/integration-rules.md#sensitive-change-and-batching-single-definitions)).
 - A PR stays **draft** while scope, applicable local checks or prepublication inspection are incomplete.
   The required status-check policy is current-head `ci-result` only; review follows `REVIEW.md`.
-- The flow from a task branch to development, staging and production (keywords «انشر»,
+- The flow from a task branch to staging and production (keywords «انشر»,
   «انشر على الاستيج», «انشر على الإنتاج»; GitHub is the only source, CI and build system) is in
   [integration-rules.md](docs/agents/integration-rules.md#from-task-branch-to-each-environment-owner-decision-2026-11-21).
 - The `ci` workflow runs on PRs, on pushes to `main` and in a full manual dispatch; the last two run all thirteen

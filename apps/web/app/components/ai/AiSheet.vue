@@ -55,6 +55,9 @@ const followUps = computed(() => followUpKeys(context.value?.page ?? null).map(k
 const showFollowUps = computed(() => !streaming.value && status.value !== 'waiting_user' && items.value.at(-1)?.kind === 'assistant')
 const summary = (item: { summaryAr: string; summaryEn: string }) => (locale.value === 'en' ? item.summaryEn : item.summaryAr)
 
+// The sheet stays mounted while closed: opening it again lets a temporary "unavailable" (a provider not set up yet) be tried again.
+watch(sheet.shown, (now) => { if (now) unavailable.value = false })
+
 // Follows the conversation the full page (or an earlier visit) has open; its own new run is written back.
 // It is kept mounted while closed, so it follows only while shown: reopening it brings the run up to date.
 const { startNew } = followSharedConversation({ runId, streaming, load, reset }, canFetch)

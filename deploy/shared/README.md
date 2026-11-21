@@ -321,7 +321,9 @@ stays until the operator removes it from the restore registry file.
 
 **Operator prerequisite: wildcard DNS and a wildcard certificate.** The Caddyfile serves
 `*.restore.{$LIWAN_RESTORE_DOMAIN:invalid.invalid}`, but without both of the following a restore host is not served:
-1. `LIWAN_RESTORE_DOMAIN` set to the control plane's `domainSuffix`. This is a **separate** variable from `DOMAIN` on
+1. `LIWAN_RESTORE_DOMAIN` set to the control plane's `domainSuffix`, the base domain (`dev.example.test`, not
+   `restore.dev.example.test`): the control plane builds tenant hosts as `t<hex>.<domainSuffix>` and restore hosts as
+   `r<hex>.restore.<domainSuffix>`, and Caddy adds the `restore.` label itself. This is a **separate** variable from `DOMAIN` on
    purpose: `DOMAIN` is a site-address list that may carry several tenant hosts
    (`DOMAIN="a.accept.test b.accept.test"`), so deriving the restore wildcard from it produced a site that matched no
    published restore. With the variable unset the site falls back to `invalid.invalid`, which serves nothing.
@@ -480,6 +482,13 @@ ingress. Set `NUXT_CUSTOMER_COMMERCIAL_CONTROL_URL` to that ingress with a
 certificate trusted by the web container. Keep the guard and Nuxt listeners
 private. Caddy overwrites the signup source IP and the guard strips browser
 identity headers before forwarding.
+
+The edge (`proxy`) reaches the same ingress, for the payment webhook route only, on a network of its own
+(`LIWAN_CONTROL_EDGE_NETWORK`), so `proxy` and `web` share no network and the guard stays the only path between them.
+The overlay also serves the vendor console on `ADMIN_DOMAIN` (network `LIWAN_ADMIN_EDGE_NETWORK`), only to the client
+addresses in `LIWAN_ADMIN_ALLOW` (`client_ip` syntax); unset or empty answers 404 for everyone, like `LIWAN_RESTORE_ALLOW`.
+All three networks are created by the control project, which therefore starts first.
+
 
 Set `LIWAN_PUBLIC_SIGNUP=true` for both Compose and the shared control API after configuring
 the customer-commercial issuer and signing key, a published public monthly

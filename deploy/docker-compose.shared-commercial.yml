@@ -1,11 +1,26 @@
-# Opt-in for the public commercial host and customer BFF. Load after docker-compose.shared.yml.
-# The external network joins only web and the operator's private HTTPS control-plane ingress.
+# Opt-in for the public commercial host, customer BFF and vendor console host. Load after docker-compose.shared.yml.
+# Three external networks, each created by the control project (deploy/control-plane/compose.production.yml), so it starts first:
+#   commercial_control  joins `web` to the control API's private HTTPS ingress (the customer BFF);
+#   control_edge        joins the edge (`proxy`) to the same ingress for the payment webhook route only;
+#   admin_edge          joins the edge to the vendor console (`vendor-console`, plain HTTP on that network).
+# The edge and `web` therefore share no network: the guard stays the only path between the edge and the web tier.
+# `web` and `proxy` trust the API's private CA, read from the operator's control private directory (the file init-host.sh creates, mode 0644).
+# The CA sits in /etc/liwan-control, outside /etc/liwan: web already mounts the tenant registry directory read-only there, and a
+# file cannot be mounted inside a read-only mount. The mounts are long-form with create_host_path off, so a missing source
+# file stops `compose up` with an error instead of Docker creating a directory at that path (which Caddy then refuses).
 services:
   guard:
     environment:
       LIWAN_PROSPECT_HOST: ${LIWAN_PROSPECT_HOST:?set LIWAN_PROSPECT_HOST}
   web:
     networks: !override [guard_web, commercial_control]
+    volumes:
+      # The BFF calls https://control-api:4187, whose certificate the private CA signed; Node does not trust it otherwise.
+      - type: bind
+        source: ${LIWAN_CONTROL_PRIVATE_DIR:?set LIWAN_CONTROL_PRIVATE_DIR}/control-ca.pem
+        target: /etc/liwan-control/control-ca.pem
+        read_only: true
+        bind: { create_host_path: false }
     environment:
       NUXT_CUSTOMER_COMMERCIAL_ENABLED: "true"
       NUXT_PUBLIC_SIGNUP_ENABLED: ${LIWAN_PUBLIC_SIGNUP:-false}
@@ -15,7 +30,43 @@ services:
       NUXT_CUSTOMER_COMMERCIAL_CONTROL_URL: ${NUXT_CUSTOMER_COMMERCIAL_CONTROL_URL:?set NUXT_CUSTOMER_COMMERCIAL_CONTROL_URL}
       NUXT_CUSTOMER_COMMERCIAL_SERVICE_KEY: ${CUSTOMER_COMMERCIAL_SERVICE_KEY:?set CUSTOMER_COMMERCIAL_SERVICE_KEY}
       NUXT_CUSTOMER_COMMERCIAL_ISSUER: ${CUSTOMER_COMMERCIAL_ISSUER:?set CUSTOMER_COMMERCIAL_ISSUER}
+      NODE_EXTRA_CA_CERTS: /etc/liwan-control/control-ca.pem
+  proxy:
+    # Added to the networks the shared overlay gives it (edge); Compose unions the two lists.
+    networks: [control_edge, admin_edge]
+    environment:
+      # Host of the payment webhook site. The reserved address keeps the site valid and unreachable while it is unset.
+      CONTROL_WEBHOOK_DOMAIN: ${CONTROL_WEBHOOK_DOMAIN:-control-webhook.invalid}
+      # Host of the vendor console site, with its own reserved address while unset.
+      ADMIN_DOMAIN: ${ADMIN_DOMAIN:-vendor-admin.invalid}
+      # The operator allowlist for the console (`client_ip` syntax). Deliberately no default: unset or empty answers 404 for
+      # everyone, so the console is never exposed by omission.
+      LIWAN_ADMIN_ALLOW: ${LIWAN_ADMIN_ALLOW:-}
+    volumes:
+      - type: bind
+        source: ${LIWAN_CONTROL_PRIVATE_DIR:?set LIWAN_CONTROL_PRIVATE_DIR}/control-ca.pem
+        target: /etc/liwan-control/control-ca.pem
+        read_only: true
+        bind: { create_host_path: false }
+      # The site blocks of this stack that the shared Caddyfile does not hold: they exist only where this overlay is loaded,
+      # because they need the control networks and the CA above. The Caddyfile imports every file in this directory.
+      - type: bind
+        source: ./control-plane/Caddyfile.snippet
+        target: /etc/caddy/commercial/control-webhook.caddy
+        read_only: true
+        bind: { create_host_path: false }
+      - type: bind
+        source: ./vendor-admin/Caddyfile.snippet
+        target: /etc/caddy/commercial/vendor-admin.caddy
+        read_only: true
+        bind: { create_host_path: false }
 networks:
   commercial_control:
     external: true
     name: ${LIWAN_COMMERCIAL_CONTROL_NETWORK:?set LIWAN_COMMERCIAL_CONTROL_NETWORK}
+  control_edge:
+    external: true
+    name: ${LIWAN_CONTROL_EDGE_NETWORK:?set LIWAN_CONTROL_EDGE_NETWORK}
+  admin_edge:
+    external: true
+    name: ${LIWAN_ADMIN_EDGE_NETWORK:?set LIWAN_ADMIN_EDGE_NETWORK}

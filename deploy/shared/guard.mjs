@@ -37,6 +37,14 @@ const acquireExternalBody = createBodyAdmission('session')
 const acquireInternalBody = createBodyAdmission('session')
 const publicAuthBodyLimits = { '/api/auth/totp': 1024, '/api/auth/login': 64 * 1024 }
 const equal = (a, b) => typeof a === 'string' && typeof b === 'string' && Buffer.byteLength(a) === Buffer.byteLength(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b))
+/** The keyring from LIWAN_SESSION_KEYS. A parse error is replaced by a fixed message: Node's SyntaxError text quotes a
+ * fragment of the input, which is a secret. The strength of each secret is checked by sessionCodec. */
+export function parseSessionKeys(raw) {
+  let keys
+  try { keys = JSON.parse(raw) } catch { keys = undefined }
+  if (keys === null || typeof keys !== 'object' || Array.isArray(keys)) throw Error('invalid_session_keys: LIWAN_SESSION_KEYS must be a JSON object mapping key id to a secret, e.g. {"k1":"<32+ random bytes>"}')
+  return keys
+}
 export function sessionCodec(keys, activeKid, now = () => Math.floor(Date.now() / 1000)) {
   if (!keys[activeKid] || Object.values(keys).some(k => typeof k !== 'string' || Buffer.byteLength(k) < 32)) throw Error('invalid_session_keyring')
   const mac = (payload, kid) => createHmac('sha256', keys[kid]).update(payload).digest('base64url')

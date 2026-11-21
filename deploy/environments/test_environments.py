@@ -44,8 +44,9 @@ VALUE_ALLOWLIST = frozenset({
     'NUXT_CUSTOMER_COMMERCIAL_CONTROL_URL', 'DB_NAME', 'DB_PASSWORD', 'LIWAN_SHARED_PROXY_TOKEN',
     'LIWAN_SESSION_KEYS', 'CUSTOMER_COMMERCIAL_SERVICE_KEY', 'LIWAN_SHARED_ODOO_CONFIG',
     'LIWAN_TENANT_REGISTRY_DIR', 'LIWAN_COMMERCIAL_CONTROL_NETWORK', 'LIWAN_ADMIN_EDGE_NETWORK',
+    'LIWAN_CONTROL_EDGE_NETWORK',
     'LIWAN_CONTROL_CONFIG_DIR', 'LIWAN_CONTROL_STATE_DIR', 'LIWAN_CONTROL_PRIVATE_DIR', 'LIWAN_CONTROL_ENV_FILE',
-    'LIWAN_VENDOR_ADMIN_ENV_FILE', 'LIWAN_SHARED_COMPOSE_FILE', 'LIWAN_SHARED_ENV_FILE',
+    'LIWAN_VENDOR_ADMIN_ENV_FILE', 'LIWAN_SHARED_COMPOSE_FILE', 'LIWAN_SHARED_ENV_FILE', 'LIWAN_AI_PLATFORM_DIR',
 })
 MIN_SUBSTITUTION_LENGTH = 6  # shorter values (k1, ports) are never substituted inside other text
 # The pinned `edge` network of docker-compose.shared.yml: its gateway is the peer Caddy sees for the host's edge.
@@ -129,6 +130,34 @@ class EnvironmentTemplates(unittest.TestCase):
                     self.assertNotIn(f'{BASE_LABELS[foreign]}.example.test', value)
                     self.assertNotIn(f'liwan-{foreign}', value)
                     self.assertNotIn(f'liwan_{foreign}', value)
+
+    def test_the_ai_platform_directory_is_under_the_control_state_directory(self):
+        for name, values in self.values.items():
+            with self.subTest(template=name):
+                self.assertEqual(f"{values['LIWAN_CONTROL_STATE_DIR']}/ai-platform", values['LIWAN_AI_PLATFORM_DIR'])
+
+    def test_the_control_template_example_provider_path_is_inside_its_state_directory(self):
+        text = (DEPLOY / 'control-plane' / 'env.production.example').read_text()
+        state = re.search(r'(?m)^#?\s*LIWAN_CLI_STATE_DIR=(\S+)', text).group(1)
+        path = re.search(r'(?m)^#?\s*LIWAN_AI_PLATFORM_PROVIDER_PATH=(\S+)', text).group(1)
+        self.assertEqual(f'{state}/ai-platform/platform-provider.json', path)
+
+    def test_the_restore_domain_is_the_base_domain_of_the_tenant_sites(self):
+        for name, values in self.values.items():
+            with self.subTest(template=name):
+                domain = values['LIWAN_RESTORE_DOMAIN']
+                self.assertFalse(domain.startswith('restore.'), 'Caddy serves *.restore.<value>; the value is the base domain')
+                hosts = [host.removeprefix('http://').removeprefix('*.') for host in re.split(r',\s*', values['DOMAIN'])]
+                self.assertTrue(any(host.endswith(domain) for host in hosts), hosts)
+
+    def test_session_keys_are_a_json_object_and_encryption_keys_are_id_secret_pairs(self):
+        for name, values in self.values.items():
+            with self.subTest(template=name):
+                keys = json.loads(values['LIWAN_SESSION_KEYS'].strip("'"))
+                self.assertEqual({values['LIWAN_SESSION_ACTIVE_KID']}, set(keys))
+                for pair in values['AI_KEY_ENCRYPTION_KEYS'].split(','):
+                    self.assertRegex(pair, r'^[a-z0-9_-]+:\S+$')
+                self.assertIn(values['AI_KEY_ENCRYPTION_KEY_ID'], {pair.split(':')[0] for pair in values['AI_KEY_ENCRYPTION_KEYS'].split(',')})
 
     def test_every_variable_the_compose_set_requires_is_declared(self):
         required = set()
@@ -282,6 +311,39 @@ class EnvironmentTemplates(unittest.TestCase):
                     ('rabc.restore.invalid.invalid', {}),
                     ('rabc.restore.invalid.invalid', {'X-Forwarded-For': '203.0.113.9'})])]
                 self.assertEqual([404, 404], statuses)
+
+
+    def test_control_plane_hosts_and_operator_allowlist_are_closed_in_every_template(self):
+        # Empty means the reserved name (nothing exposed) for both hosts and closed (404 for everyone) for the console.
+        for name, values in self.values.items():
+            for variable in ('CONTROL_WEBHOOK_DOMAIN', 'ADMIN_DOMAIN', 'LIWAN_ADMIN_ALLOW'):
+                with self.subTest(template=name, variable=variable):
+                    self.assertIn(variable, values)
+                    self.assertEqual('', values[variable])
+
+    def test_the_control_edge_network_is_named_per_environment_and_apart_from_the_other_networks(self):
+        expected = {'development': 'liwan_development_control_edge', 'staging': 'liwan_staging_control_edge',
+                    'production': 'liwan_control_edge'}
+        for name, values in self.values.items():
+            with self.subTest(template=name):
+                self.assertEqual(expected[name], values['LIWAN_CONTROL_EDGE_NETWORK'])
+                self.assertEqual(3, len({values['LIWAN_CONTROL_EDGE_NETWORK'], values['LIWAN_COMMERCIAL_CONTROL_NETWORK'],
+                                         values['LIWAN_ADMIN_EDGE_NETWORK']}))
+
+    def test_the_readme_documents_the_control_plane_edge_variables(self):
+        rows = {line.split('|')[1].strip() for line in (ENVIRONMENTS / 'README.md').read_text(encoding='utf-8').splitlines()
+                if line.startswith('| `')}
+        for variable in ('CONTROL_WEBHOOK_DOMAIN', 'ADMIN_DOMAIN', 'LIWAN_ADMIN_ALLOW', 'LIWAN_CONTROL_EDGE_NETWORK'):
+            with self.subTest(variable=variable):
+                self.assertIn(f'`{variable}`', rows)
+
+    def test_the_ai_egress_hosts_key_is_declared_empty_and_documented(self):
+        rows = {line.split('|')[1].strip() for line in (ENVIRONMENTS / 'README.md').read_text(encoding='utf-8').splitlines()
+                if line.startswith('| `')}
+        self.assertIn('`AI_EGRESS_HOSTS`', rows)
+        for name, values in self.values.items():
+            with self.subTest(template=name):
+                self.assertEqual('', values.get('AI_EGRESS_HOSTS'))
 
 
     def test_release_credentials_are_documented_and_never_set_in_a_template(self):

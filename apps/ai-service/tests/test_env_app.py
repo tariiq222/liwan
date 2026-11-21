@@ -194,14 +194,12 @@ async def test_a_database_boot_opens_only_the_control_state(monkeypatch, caplog)
     assert closed == [True] and caplog.records == []
 
 
-async def test_a_missing_platform_file_stops_the_start_naming_the_variable_and_the_compose_directory(monkeypatch, tmp_path):
+async def test_a_missing_platform_file_starts_the_service_unconfigured(monkeypatch, tmp_path):
     monkeypatch.setenv(PLATFORM_PROVIDER_FILE, str(tmp_path / "absent.json"))
     monkeypatch.setenv("AI_ALLOW_MEMORY_STATE", "true")
     monkeypatch.setenv("AI_DEV_INSECURE", "true")
     monkeypatch.delenv("AI_DATABASE_URL", raising=False)
-    (failed,) = await start_env_app()
-    assert failed["type"] == "lifespan.startup.failed"
-    assert PLATFORM_PROVIDER_FILE in failed["message"] and "unreadable" in failed["message"] and "LIWAN_AI_PLATFORM_DIR" in failed["message"]
+    assert await start_env_app() == [{"type": "lifespan.startup.complete"}, {"type": "lifespan.shutdown.complete"}]
 
 
 async def test_an_invalid_platform_file_names_the_field_and_never_a_value(monkeypatch, tmp_path):

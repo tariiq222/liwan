@@ -159,6 +159,12 @@ watch(queryMode, (now) => {
   if (now && typeof route.query.run !== 'string') currentRunId.value = null
 })
 
+// "New" on a bare `/ai` changes no route, so no watcher fires: it clears a failed conversation that has no run id here.
+function startNew() {
+  reset()
+  currentRunId.value = null
+}
+
 // The history list opens another conversation or starts a new one by changing `?run=` (back/forward do the same).
 watch(() => route.query.run, async (value) => {
   // Navigating away drops the query too: that is not "start a new conversation".
@@ -185,7 +191,7 @@ watch(status, (now, before) => {
     <SharedPageHeader :title="t('ai.title')" />
     <SharedEmptyState icon="i-lucide-sparkles" v-if="showUnavailable" bordered :title="t('ai.errors.unavailable')" data-testid="ai-unavailable" />
     <template v-else>
-      <AiRunList v-if="!isWide" disclosure />
+      <AiRunList v-if="!isWide" disclosure @new="startNew" />
       <div class="grid min-w-0 items-start gap-4" :class="{ 'grid-cols-[minmax(0,1fr)_320px]': isWide }">
         <div class="flex min-w-0 flex-col gap-4">
           <p v-if="mode" class="flex items-center gap-2 rounded-control bg-elevated px-4 py-2 text-sm text-muted" :data-testid="`ai-${mode}-banner`">
@@ -262,7 +268,7 @@ watch(status, (now, before) => {
           </div>
         </div>
         <aside v-if="isWide" :aria-label="t('ai.history.title')">
-          <AiRunList />
+          <AiRunList @new="startNew" />
         </aside>
       </div>
     </template>

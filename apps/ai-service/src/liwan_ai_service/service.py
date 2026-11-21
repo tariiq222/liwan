@@ -126,6 +126,9 @@ def owner(x_liwan_tenant: str = Header(...), x_liwan_user: str = Header(...)) ->
     return Owner(x_liwan_tenant, x_liwan_user)
 
 
+PLATFORM_UNCONFIGURED = "ai_platform_unconfigured"  # the platform provider file has not appeared yet; tenant-key runs are unaffected
+
+
 def create_app(platform: PlatformModel, states: TenantStates, control: ControlState, settings: Settings, embedder: Embedder | None = None) -> FastAPI:
     """The service over every served tenant's own state; ``control`` holds the release identity and the generation drain.
 
@@ -284,6 +287,8 @@ def create_app(platform: PlatformModel, states: TenantStates, control: ControlSt
         """
         if not policy.consent_signed:
             raise HTTPException(403, "ai_consent_required")
+        if policy.provider_mode in ("platform", "setup") and platform.current is None:
+            raise HTTPException(503, PLATFORM_UNCONFIGURED)
         if policy.provider_mode == "platform":
             chosen = platform.current.quality[policy.quality]
         elif policy.provider_mode == "setup":
@@ -631,7 +636,9 @@ def create_app(platform: PlatformModel, states: TenantStates, control: ControlSt
                 configured=key.configured, provider=key.provider, model=key.model, last4=key.last4, updated_at=key.updated_at,
                 base_url=key.base_url,
             ),
-            platform=PlatformView(provider=platform.current.default.provider, model=platform.current.default.model),
+            platform=(
+                PlatformView(provider=platform.current.default.provider, model=platform.current.default.model) if platform.current else None
+            ),
             providers=[
                 ProviderView(name=spec.name, needs_api_key=spec.needs_api_key, needs_base_url=spec.needs_base_url) for spec in REGISTRY.values()
             ],
@@ -751,7 +758,8 @@ def create_app(platform: PlatformModel, states: TenantStates, control: ControlSt
             log.warning("platform provider egress hosts not published: %s", type(error).__name__)
 
     async def sync_egress() -> None:
-        await publish_platform_hosts(platform.current)
+        if platform.current is not None:
+            await publish_platform_hosts(platform.current)
         await egress.sync(states)
 
     app.state.sync_egress = sync_egress

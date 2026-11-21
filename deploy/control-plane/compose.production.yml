@@ -17,9 +17,10 @@
 #   control-admin   admin CLI (profile `admin`): bootstrap-owner, reset-account, catalog-import, approve-restore.
 #   vendor-console  the vendor console (apps/vendor-admin), on its own origin behind the edge.
 #
-# Networks (all internal except egress): the API, the web tier and the edge meet on `control_api_web`; the console reaches the
-# API on `control_api_admin`; the edge reaches the console on `admin_edge`. The shared stack joins `web` and `proxy` to the
-# networks named by LIWAN_COMMERCIAL_CONTROL_NETWORK and LIWAN_ADMIN_EDGE_NETWORK (see the runbook for the exact overlay).
+# Networks (all internal except egress): the API and the web tier meet on `control_api_web`; the API and the edge meet on
+# `control_api_edge`, so the edge never shares a network with the web tier; the console reaches the API on `control_api_admin`;
+# the edge reaches the console on `admin_edge`. The shared stack joins `web` to LIWAN_COMMERCIAL_CONTROL_NETWORK and `proxy` to
+# LIWAN_CONTROL_EDGE_NETWORK and LIWAN_ADMIN_EDGE_NETWORK (see the runbook for the exact overlay).
 name: liwan-control
 
 x-hardening: &hardening
@@ -59,6 +60,7 @@ x-control-process: &control-process
   secrets:
     - control_tls_key
     - control_tls_cert
+    - control_ca
   # The runtime config names absolute host paths; the API sees them at the same paths. The API writes the registry and the
   # state directory (restore routes, the AI provider file), reads the config, and only checks that the two shared-stack files exist.
   volumes:
@@ -120,7 +122,7 @@ services:
     # Egress: SMTP, Moyasar, Authentica, Cloudflare Turnstile, Telegram. The pinned subnet makes the gateway address stable: the
     # host's shared worker listens for the internal effect channel on it (INTERNAL_EFFECT_HOST), and the API reaches it by name.
     extra_hosts: ["control-host.internal:172.29.40.1"]
-    networks: [control_data, control_egress, control_api_web, control_api_admin]
+    networks: [control_data, control_egress, control_api_web, control_api_edge, control_api_admin]
     depends_on:
       control-db: { condition: service_healthy }
     stop_grace_period: 30s
@@ -192,10 +194,14 @@ networks:
       config:
         - subnet: 172.29.40.0/24
           gateway: 172.29.40.1
-  # Names shared with the shared stack: docker-compose.shared-commercial.yml joins `web` to LIWAN_COMMERCIAL_CONTROL_NETWORK.
+  # Names shared with the shared stack: docker-compose.shared-commercial.yml joins `web` to LIWAN_COMMERCIAL_CONTROL_NETWORK and
+  # `proxy` to LIWAN_CONTROL_EDGE_NETWORK. Only the API joins both here; `web` and `proxy` never meet on one of them.
   control_api_web:
     internal: true
     name: ${LIWAN_COMMERCIAL_CONTROL_NETWORK:?set LIWAN_COMMERCIAL_CONTROL_NETWORK}
+  control_api_edge:
+    internal: true
+    name: ${LIWAN_CONTROL_EDGE_NETWORK:?set LIWAN_CONTROL_EDGE_NETWORK}
   control_api_admin: { internal: true }
   admin_edge:
     internal: true

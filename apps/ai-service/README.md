@@ -127,9 +127,12 @@ In shared SaaS the control plane writes the file from the vendor's provider pane
 customer-hosted deployment `deploy/provision.sh` writes a single-model file from `deploy/.env`. Mount the directory, not the file, so an atomic
 replacement is seen. The dedicated file is mode 600 owned by uid 10001; the control plane's is mode 640 in a directory of group 10001.
 
-- At start a missing or invalid file stops the boot, naming the field (never a value).
+- At start an invalid file stops the boot, naming the field (never a value). A missing file does not: on a fresh shared-SaaS server the control plane
+  writes it only after the vendor saves a provider, which is after the first release. The service starts unconfigured, answers platform and
+  setup runs with `503 ai_platform_unconfigured` (tenant-own-key runs are unaffected, `/healthz` stays up, and `GET /v1/tenant/config` returns `platform: null`),
+  and loads the file within 5 seconds of its appearing.
 - Every 5 seconds the content is hashed. A valid change builds the new models and replaces them whole; runs that already started keep
-  the models they began on. An invalid or unreadable file is logged once, by reason only, and the last valid configuration stays.
+  the models they began on. An invalid or unreadable file is logged once, by reason only, and the configuration in force stays (none, before the first valid file).
 - The public hosts of every configured provider are published together, one per line, as `platform.hosts` in `AI_TENANT_EGRESS_DIR` (the same mechanism as a tenant key's
   host), at start and on every change. An internal endpoint (a self-hosted Ollama) is not published: list it in `AI_EGRESS_HOSTS`.
   `platform` is therefore not a usable tenant database name for a tenant key.

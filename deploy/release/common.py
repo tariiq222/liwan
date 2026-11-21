@@ -14,6 +14,7 @@ from urllib.parse import urlsplit
 
 EXIT_OK, EXIT_REFUSED, EXIT_HALTED, EXIT_FAILED, EXIT_ROLLBACK_FAILED = 0, 2, 3, 4, 5
 FAILURE_TAIL_LINES = 5
+TIMED_OUT = 124  # the exit code of a command killed for running past its timeout, as coreutils timeout(1) reports it
 
 
 class ReleaseError(Exception):
@@ -35,17 +36,25 @@ class CommandFailed(Exception):
 class Runner:
     """Runs one command, logs its argv (never its environment or stdin), returns the exit code and combined output.
 
-    A failed checked command logs the last lines of its output; the log redacts every known secret.
+    A failed checked command logs the last lines of its output; the log redacts every known secret. A command given a
+    ``timeout`` (seconds) is killed when it runs longer and counts as failed with ``TIMED_OUT``.
     """
 
     def __init__(self, log):
         self.log = log
 
     def __call__(self, argv: list[str], *, stdin: str | None = None, env: dict | None = None,
-                 check: bool = True) -> tuple[int, str]:
+                 check: bool = True, timeout: float | None = None) -> tuple[int, str]:
         self.log('$ ' + ' '.join(argv))
-        done = subprocess.run(argv, input=stdin, env=env, text=True, stdout=subprocess.PIPE,
-                              stderr=subprocess.STDOUT, check=False)
+        try:
+            done = subprocess.run(argv, input=stdin, env=env, text=True, stdout=subprocess.PIPE,
+                                  stderr=subprocess.STDOUT, check=False, timeout=timeout)
+        except subprocess.TimeoutExpired as expired:  # subprocess.run has already killed and reaped the child
+            self.log(f'  timed out after {timeout} seconds')
+            partial = expired.output  # bytes even with text=True, None when nothing was read
+            if isinstance(partial, bytes):
+                partial = partial.decode('utf-8', errors='replace')
+            done = subprocess.CompletedProcess(argv, TIMED_OUT, stdout=partial or '')
         if check and done.returncode != 0:
             for line in done.stdout.splitlines()[-FAILURE_TAIL_LINES:]:
                 self.log('  ' + line)

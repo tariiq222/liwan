@@ -170,8 +170,24 @@ function serviceUnavailable(message: string) {
   return createError({ statusCode: 503, data: { code: 'ai_unavailable', message } })
 }
 
+/** The service answers a platform run with this 503 until the vendor has saved a provider. The run stream has already started when it is read, so it reaches the browser as an `error` event with code `ai_unavailable`, which `useAiRun` shows as the existing unavailable state. */
+const PLATFORM_UNCONFIGURED = 'ai_platform_unconfigured'
+
+/** The `detail` code of a FastAPI error body, or null when the body is not one. */
+async function refusalCode(response: Response): Promise<string | null> {
+  try {
+    const body = await response.json()
+    return typeof body?.detail === 'string' ? body.detail : null
+  } catch {
+    return null
+  }
+}
+
 /** Parse an SSE body into `[event, data]` pairs as they arrive; the reader is cancelled when the consumer stops or the stream ends. */
 export async function* readSse(response: Response): AsyncGenerator<[string, any]> {
+  if (response.status === 503 && (await refusalCode(response)) === PLATFORM_UNCONFIGURED) {
+    throw serviceUnavailable('the AI platform provider is not configured')
+  }
   if (!response.ok || !response.body) {
     throw createError({ statusCode: response.status === 404 ? 404 : response.status === 409 ? 409 : 502, data: { code: response.status === 409 ? 'ai_conflict' : response.status === 404 ? 'not_found' : 'ai_upstream', message: `AI service status ${response.status}` } })
   }
