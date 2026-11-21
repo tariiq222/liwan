@@ -16,6 +16,14 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def load_release_manifest():
+    """deploy/ci/lib/release_manifest.py, the writer and the one reader of the release document."""
+    spec = importlib.util.spec_from_file_location('release_manifest', ROOT / 'deploy/ci/lib/release_manifest.py')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def commands(name):
     """The stage script, as bash source."""
     return (ROOT / 'deploy/ci' / (name + '.sh')).read_text()
@@ -641,8 +649,7 @@ class TestPublishWorkflow(unittest.TestCase):
     script = commands('publish')
     document = yaml.safe_load(workflow)
     jobs = document['jobs']
-    tag_only = "startsWith(github.ref, 'refs/tags/release/')"
-    pushing = ('build-amd64', 'build-arm64', 'release')
+    pushing = ('build-arm64', 'release')
 
     def step(self, job, name):
         return next(step for step in self.jobs[job]['steps'] if step.get('name') == name)
@@ -668,8 +675,8 @@ class TestPublishWorkflow(unittest.TestCase):
                 self.assertNotIn(old_forge, text)
                 self.assertNotIn(old_host, text)
 
-    def test_it_runs_only_for_main_pushes_and_release_tags(self):
-        self.assertEqual(self.document[True], {'push': {'branches': ['main'], 'tags': ['release/**']}})
+    def test_it_runs_only_for_release_tags(self):
+        self.assertEqual(self.document[True], {'push': {'tags': ['release/**']}})
         for forbidden in ('pull_request', 'pull_request_target', 'workflow_run', 'workflow_dispatch', 'issue_comment',
                           'schedule'):
             self.assertNotIn(forbidden, self.workflow)
@@ -689,30 +696,23 @@ class TestPublishWorkflow(unittest.TestCase):
                 granted = job.get('permissions', self.document['permissions']).get('packages')
                 self.assertEqual(granted == 'write', name in self.pushing)
 
-    def test_arm64_exists_only_in_jobs_that_run_for_tags(self):
-        self.assertNotIn('arm64', self.jobs['build-amd64'].__str__())
-        self.assertNotIn('arm64', self.jobs['plan'].__str__())
-        self.assertIn(self.tag_only, self.jobs['build-arm64']['if'])
-        self.assertEqual(self.jobs['build-arm64']['env'], {'PUBLISH_PLATFORM': 'linux/arm64'})
-        self.assertEqual(self.jobs['build-amd64']['env'], {'PUBLISH_PLATFORM': 'linux/amd64'})
-        self.assertEqual(self.jobs['release']['env']['PUBLISH_PLATFORMS'],
-                         "${{ startsWith(github.ref, 'refs/tags/release/') && 'linux/amd64 linux/arm64' || 'linux/amd64' }}")
-        self.assertNotIn('arm64', self.jobs['notify-staging'].__str__())
+    def test_the_only_build_job_is_the_arm64_one_and_no_amd64_is_built_or_required(self):
+        self.assertEqual([name for name, job in self.jobs.items() if 'build' in name], ['build-arm64'])
+        self.assertNotIn('amd64', self.workflow)
+        self.assertNotIn('PUBLISH_PLATFORM', self.workflow)  # the platform is the script's own constant
+        self.assertEqual(self.jobs['build-arm64']['runs-on'], 'ubuntu-24.04-arm')
+        self.assertEqual(self.jobs['build-arm64']['if'], "needs.plan.outputs.state == 'build'")
 
-    def test_a_tag_reuses_the_recorded_amd64_and_builds_it_only_when_no_document_exists(self):
-        self.assertEqual(self.jobs['build-amd64']['if'],
-                         "needs.plan.outputs.state == 'build' && needs.plan.outputs.amd64 == 'build'")
-        self.assertIn('set_output amd64 reuse', self.function('decide_for_tag'))
-        self.assertIn('set_output state published', self.function('decide_for_tag'))
-        merge = self.function('merge')
-        self.assertIn('recorded_digest "$existing" "$reference" "$platform"', merge)
-        self.assertLess(merge.index('recorded_digest'), merge.index('manifest_digest'))
-        self.assertIn('docker buildx imagetools create -t "$image:$GITHUB_SHA" "${sources[@]}"', merge)
-        self.assertIn('-t "$anchor:$GITHUB_SHA"', merge)  # the document is replaced under the same tag
+    def test_the_release_job_runs_only_after_a_successful_arm64_build(self):
+        release = self.jobs['release']
+        self.assertEqual(release['needs'], ['plan', 'build-arm64'])
+        self.assertIn("needs.plan.outputs.state == 'build'", release['if'])
+        self.assertIn("needs.build-arm64.result == 'success'", release['if'])
+        self.assertNotIn('skipped', release['if'])  # a skipped build can never let the document be written
+        self.assertIn('-t "$anchor:$GITHUB_SHA"', self.function('merge'))  # the document is replaced under the same tag
 
     def test_only_a_release_tag_calls_a_hook_and_it_is_the_staging_one(self):
         staging = self.jobs['notify-staging']
-        self.assertIn(self.tag_only, staging['if'])
         self.assertNotIn('refs/heads', staging['if'])
         self.assertEqual(sorted(set(re.findall(r'secrets\.(\w+)', str(staging)))),
                          ['LIWAN_STAGING_HOOK_TOKEN', 'LIWAN_STAGING_HOOK_URL'])
@@ -756,57 +756,48 @@ class TestPublishWorkflow(unittest.TestCase):
         for action in uses:
             self.assertRegex(action, r'^actions/[a-z-]+@[0-9a-f]{40}$')
 
-    def test_runs_queue_per_commit_and_a_newer_main_commit_supersedes_an_old_one(self):
+    def test_runs_queue_per_commit_and_nothing_is_superseded(self):
         self.assertEqual(self.document['concurrency'], {'group': 'publish-${{ github.sha }}', 'cancel-in-progress': False})
-        for function in ('check', 'push', 'merge'):
-            self.assertIn('is_superseded', self.function(function))
-        self.assertIn('is_main || return 1', self.function('is_superseded'))  # a tag is never superseded
-        head = self.function('remote_head')
-        self.assertIn('git ls-remote', head)
-        self.assertIn('GIT_CONFIG_VALUE_0=', head)  # the token travels in the environment, not in an argument
+        for gone in ('superseded', 'is_main', 'remote_head', 'ls-remote'):
+            self.assertNotIn(gone, self.script)
 
     def test_a_tag_is_refused_unless_its_commit_is_in_main_and_it_is_a_release_tag(self):
         check = self.function('check')
         self.assertIn('require_in_main', check)
         self.assertIn('git merge-base --is-ancestor "$GITHUB_SHA" origin/main', self.function('require_in_main'))
         self.assertEqual(self.jobs['plan']['steps'][0]['with']['fetch-depth'], 0)
-        for ref in ('refs/heads/feature', 'refs/tags/v1', 'refs/tags/release/19.0.1', 'refs/tags/release/19.0.1.2.x'):
+        for ref in ('refs/heads/main', 'refs/heads/feature', 'refs/tags/v1', 'refs/tags/release/19.0.1', 'refs/tags/release/19.0.1.2.x'):
             with self.subTest(ref=ref):
                 process = self.run_script('check', GITHUB_REF=ref)
                 self.assertEqual(process.returncode, 1)
-                self.assertIn('main and release/19.0.X.Y.Z tags only', process.stderr)
+                self.assertIn('release/19.0.X.Y.Z tags only', process.stderr)
 
-    def test_arm64_is_refused_for_main_and_each_document_covers_what_its_ref_builds(self):
-        process = self.run_script('build', GITHUB_REF='refs/heads/main', PUBLISH_PLATFORM='linux/arm64')
-        self.assertEqual(process.returncode, 1)
-        self.assertIn('release tag only', process.stderr)
-        for ref, platforms in (('refs/heads/main', 'linux/amd64 linux/arm64'), ('refs/tags/release/19.0.1.0.0', 'linux/amd64')):
-            with self.subTest(ref=ref):
-                process = self.run_script('merge', GITHUB_REF=ref, PUBLISH_PLATFORMS=platforms)
+    def test_every_command_that_touches_images_refuses_a_branch_ref(self):
+        for command in ('check', 'build', 'push', 'merge'):
+            with self.subTest(command=command):
+                process = self.run_script(command, GITHUB_REF='refs/heads/main')
                 self.assertEqual(process.returncode, 1)
-                self.assertIn('covers', process.stderr)
+                self.assertIn('release/19.0.X.Y.Z tags only', process.stderr)
 
     def test_the_hook_waits_for_a_finished_release_or_an_already_complete_one(self):
         condition = self.jobs['notify-staging']['if']
         self.assertIn("needs.plan.outputs.state == 'published'", condition)
         self.assertIn("needs.release.result == 'success'", condition)
-        for name in ('build-amd64', 'build-arm64', 'release'):
+        for name in ('build-arm64', 'release'):
             self.assertIn("needs.plan.outputs.state == 'build'", self.jobs[name]['if'])
-        check = self.function('check')
-        self.assertIn('state published', check + self.function('decide_for_tag'))
+        self.assertIn('state published', self.function('check'))
 
     def test_nothing_reaches_the_registry_before_the_scan(self):
         build = self.function('build')
-        self.assertIn('--load -t "$(arch_tag "$image" "$PUBLISH_PLATFORM")"', build)
+        self.assertIn('--load -t "$(arch_tag "$image")"', build)
         self.assertIn('LIWAN_IMAGE_PREBUILT=1 deploy/ci/image.sh', build)
         for forbidden in ('docker build ', 'push', 'imagetools create'):
             self.assertNotIn(forbidden, build)
         push = self.function('push')
         self.assertIn('docker push --quiet "$tag"', push)
         self.assertNotIn('image.sh', push)
-        for name in ('build-amd64', 'build-arm64'):
-            steps = [step.get('name') for step in self.jobs[name]['steps']]
-            self.assertLess(steps.index('Build and scan the images'), steps.index('Push the images'))
+        steps = [step.get('name') for step in self.jobs['build-arm64']['steps']]
+        self.assertLess(steps.index('Build and scan the images'), steps.index('Push the images'))
 
     def test_the_pushed_tag_is_checked_against_the_pushed_digest_not_trusted(self):
         push = self.function('push')
@@ -818,12 +809,14 @@ class TestPublishWorkflow(unittest.TestCase):
         merge = self.function('merge')
         self.assertIn("printf 'FROM scratch\\nCOPY release.json /release.json\\n'", merge)
         self.assertIn('anchor="$(registry)/liwan-release"', merge)
+        self.assertIn('--platform "$PLATFORM" --provenance=false --push -t "$anchor:$GITHUB_SHA"', merge)
+        self.assertEqual(re.findall(r'(?m)^PLATFORM="([^"]+)"$', self.script), ['linux/arm64'])
 
     def test_builds_are_native_never_emulated(self):
         for forbidden in ('qemu', 'binfmt'):
             self.assertNotIn(forbidden, self.workflow.lower())
             self.assertNotIn(forbidden, self.script.lower())
-        self.assertIn('--platform "$PUBLISH_PLATFORM"', self.function('build'))
+        self.assertIn('--platform "$PLATFORM"', self.function('build'))
         self.assertRegex(self.script, r'BUILDKIT_IMAGE="moby/buildkit:v0\.18\.2@sha256:[0-9a-f]{64}"')
 
     def test_the_script_is_bash_and_prints_its_plan_without_touching_docker(self):
@@ -958,43 +951,42 @@ esac
     def written_document(self):
         return json.loads((self.out / 'release.json').read_text()) if (self.out / 'release.json').exists() else None
 
-    def test_a_main_commit_without_a_document_is_built_and_one_that_has_it_is_not(self):
-        self.assertEqual(self.run_publish('check', 'refs/heads/main').returncode, 0)
-        self.assertEqual(self.outputs(), {'state': 'build', 'amd64': 'build'})
-        folder, _ = self.document('amd64-only', ['linux/amd64'])
-        self.run_publish('check', 'refs/heads/main', anchor='present', docs=folder)
-        self.assertEqual(self.outputs(), {'state': 'published'})
+    def accepted(self, document, required=('linux/arm64',)):
+        return load_release_manifest().parse_release_document(json.dumps(document), self.main_sha, required)
 
-    def test_a_main_run_for_an_old_commit_is_superseded(self):
-        self.assertEqual(self.run_publish('check', 'refs/heads/main', sha=self.other_sha).returncode, 0)
-        self.assertEqual(self.outputs(), {'state': 'superseded'})
+    def test_a_tag_without_a_document_is_built(self):
+        self.assertEqual(self.run_publish('check', self.tag).returncode, 0)
+        self.assertEqual(self.outputs(), {'state': 'build'})
+
+    def test_a_branch_ref_is_refused_before_anything_is_read(self):
+        process = self.run_publish('check', 'refs/heads/main')
+        self.assertEqual(process.returncode, 1)
+        self.assertIn('release/19.0.X.Y.Z tags only', process.stderr)
+        self.assertEqual(self.outputs(), {})
+        self.assertFalse(self.calls())
 
     def test_a_registry_answer_that_is_neither_found_nor_not_found_is_a_hard_failure(self):
-        process = self.run_publish('check', 'refs/heads/main', anchor='denied')
+        process = self.run_publish('check', self.tag, anchor='denied')
         self.assertEqual(process.returncode, 1)
         self.assertIn('cannot tell whether', process.stderr)
         self.assertEqual(self.outputs(), {})
-        self.run_publish('check', 'refs/heads/main', anchor='unknown')
+        self.run_publish('check', self.tag, anchor='unknown')
         self.assertEqual(self.outputs()['state'], 'build')
 
-    def test_a_tag_whose_document_covers_amd64_only_reuses_it_and_builds_arm64(self):
+    def test_a_tag_whose_document_covers_arm64_rebuilds_nothing(self):
+        for name, platforms in (('arm-only', ['linux/arm64']), ('both', ['linux/amd64', 'linux/arm64'])):
+            folder, _ = self.document(name, platforms)
+            with self.subTest(document=name):
+                self.run_publish('check', self.tag, anchor='present', docs=folder)
+                self.assertEqual(self.outputs(), {'state': 'published'})
+                self.run_publish('merge', self.tag, anchor='present', docs=folder)
+                self.assertFalse([call for call in self.calls() if call.startswith(('docker buildx build', 'docker buildx imagetools create'))])
+                self.assertIsNone(self.written_document())
+
+    def test_a_tag_whose_document_lacks_arm64_is_built(self):
         folder, _ = self.document('amd64-only', ['linux/amd64'])
-        self.assertEqual(self.run_publish('check', self.tag, anchor='present', docs=folder).returncode, 0)
-        self.assertEqual(self.outputs(), {'state': 'build', 'amd64': 'reuse'})
-
-    def test_a_tag_whose_document_covers_both_architectures_rebuilds_nothing(self):
-        folder, _ = self.document('both', ['linux/amd64', 'linux/arm64'])
         self.run_publish('check', self.tag, anchor='present', docs=folder)
-        self.assertEqual(self.outputs(), {'state': 'published'})
-        self.run_publish('merge', self.tag, anchor='present', docs=folder, PUBLISH_PLATFORMS='linux/amd64 linux/arm64')
-        self.assertFalse([call for call in self.calls() if call.startswith(('docker buildx build', 'docker buildx imagetools create'))])
-        self.assertIsNone(self.written_document())
-
-    def test_a_document_without_amd64_is_refused_for_a_tag(self):
-        folder, _ = self.document('arm-only', ['linux/arm64'])
-        process = self.run_publish('check', self.tag, anchor='present', docs=folder)
-        self.assertEqual(process.returncode, 1)
-        self.assertIn('no linux/amd64 image', process.stderr)
+        self.assertEqual(self.outputs(), {'state': 'build'})
 
     def test_a_tag_whose_commit_is_not_in_main_is_refused(self):
         process = self.run_publish('check', self.tag, sha=self.other_sha)
@@ -1002,50 +994,40 @@ esac
         self.assertIn('not in main', process.stderr)
         self.assertEqual(self.outputs(), {})
 
-    def test_arm64_is_refused_on_main(self):
-        process = self.run_publish('build', 'refs/heads/main', PUBLISH_PLATFORM='linux/arm64')
-        self.assertEqual(process.returncode, 1)
-        self.assertIn('release tag only', process.stderr)
-        self.assertFalse([call for call in self.calls() if 'build' in call])
-
-    def test_merge_on_a_tag_with_an_amd64_document_keeps_its_digests_and_reads_only_arm64_tags(self):
-        folder, covered = self.document('amd64-only', ['linux/amd64'])
-        process = self.run_publish('merge', self.tag, anchor='present', docs=folder, PUBLISH_PLATFORMS='linux/amd64 linux/arm64')
-        self.assertEqual(process.returncode, 0, process.stderr)
-        inspected = [call for call in self.calls() if call.startswith('docker buildx imagetools inspect') and 'liwan-release' not in call]
-        self.assertEqual(len(inspected), len(self.builds))
-        self.assertTrue(all(call.split()[4].endswith(f'{self.main_sha}-arm64') for call in inspected), inspected)
-        written = self.written_document()
-        for reference, platforms in written['platforms'].items():
-            self.assertEqual(sorted(platforms), ['linux/amd64', 'linux/arm64'])
-            self.assertEqual(platforms['linux/amd64'], covered[reference]['linux/amd64'])
-        self.assertEqual(written['images'], json.loads((folder / 'i.json').read_text()))
-        self.assertTrue([call for call in self.calls() if call.startswith('docker buildx build') and f'liwan-release:{self.main_sha}' in call])
-
-    def test_merge_on_a_tag_without_a_document_reads_both_architectures(self):
-        process = self.run_publish('merge', self.tag, PUBLISH_PLATFORMS='linux/amd64 linux/arm64')
+    def test_merge_reads_only_arm64_tags_and_writes_a_document_listing_exactly_arm64(self):
+        process = self.run_publish('merge', self.tag)
         self.assertEqual(process.returncode, 0, process.stderr)
         tags = [call.split()[4] for call in self.calls() if call.startswith('docker buildx imagetools inspect') and 'liwan-release' not in call]
-        self.assertEqual(sum(tag.endswith('-amd64') for tag in tags), len(self.builds))
-        self.assertEqual(sum(tag.endswith('-arm64') for tag in tags), len(self.builds))
-        self.assertEqual(sorted(next(iter(self.written_document()['platforms'].values()))), ['linux/amd64', 'linux/arm64'])
+        self.assertEqual(len(tags), len(self.builds))
+        self.assertTrue(all(tag.endswith(f'{self.main_sha}-arm64') for tag in tags), tags)
+        written = self.written_document()
+        for platforms in written['platforms'].values():
+            self.assertEqual(sorted(platforms), ['linux/arm64'])
+        carrier = [call for call in self.calls() if call.startswith('docker buildx build') and f'liwan-release:{self.main_sha}' in call]
+        self.assertEqual(len(carrier), 1)
+        self.assertIn('--platform linux/arm64 ', carrier[0])
+        self.assertNotIn('amd64', ' '.join(self.calls()))
 
-    def test_merge_on_main_without_a_document_writes_an_amd64_document(self):
-        process = self.run_publish('merge', 'refs/heads/main', PUBLISH_PLATFORMS='linux/amd64')
+    def test_the_document_merge_writes_is_accepted_by_the_release_reader_for_arm64(self):
+        self.assertEqual(self.run_publish('merge', self.tag).returncode, 0)
+        document = self.written_document()
+        self.assertEqual(self.accepted(document)['commit'], self.main_sha)
+
+    def test_a_document_that_also_lists_amd64_is_still_accepted(self):
+        folder, _ = self.document('both', ['linux/amd64', 'linux/arm64'])
+        document = json.loads((folder / 'release.json').read_text())
+        self.assertEqual(self.accepted(document)['commit'], self.main_sha)
+        self.assertEqual(self.accepted(document, ('linux/amd64', 'linux/arm64'))['commit'], self.main_sha)
+
+    def test_merge_replaces_an_amd64_only_document_of_the_commit_with_an_arm64_one(self):
+        folder, _ = self.document('amd64-only', ['linux/amd64'])
+        process = self.run_publish('merge', self.tag, anchor='present', docs=folder)
         self.assertEqual(process.returncode, 0, process.stderr)
-        self.assertEqual(sorted(next(iter(self.written_document()['platforms'].values()))), ['linux/amd64'])
-
-    def test_merge_on_main_never_rewrites_a_document_that_exists_even_a_two_platform_one(self):
-        for name, platforms in (('amd64-only', ['linux/amd64']), ('both', ['linux/amd64', 'linux/arm64'])):
-            folder, _ = self.document(name, platforms)
-            with self.subTest(existing=name):
-                process = self.run_publish('merge', 'refs/heads/main', anchor='present', docs=folder, PUBLISH_PLATFORMS='linux/amd64')
-                self.assertEqual(process.returncode, 0, process.stderr)
-                self.assertIsNone(self.written_document())
-                self.assertFalse([call for call in self.calls() if call.startswith(('docker buildx build', 'docker buildx imagetools create'))])
+        for platforms in self.written_document()['platforms'].values():
+            self.assertEqual(sorted(platforms), ['linux/arm64'])
 
     def test_merge_refuses_a_registry_answer_it_cannot_read(self):
-        process = self.run_publish('merge', self.tag, anchor='denied', PUBLISH_PLATFORMS='linux/amd64 linux/arm64')
+        process = self.run_publish('merge', self.tag, anchor='denied')
         self.assertEqual(process.returncode, 1)
         self.assertIsNone(self.written_document())
 
@@ -1055,53 +1037,51 @@ esac
             with self.subTest(tag=tag):
                 process = self.run_publish('check', f'refs/tags/{tag}')
                 self.assertEqual(process.returncode, 1)
-                self.assertIn('main and release/19.0.X.Y.Z tags only', process.stderr)
+                self.assertIn('release/19.0.X.Y.Z tags only', process.stderr)
         for tag in ('release/19.0.0.0.0', 'release/19.0.10.20.30'):
             with self.subTest(tag=tag):
                 self.assertEqual(self.run_publish('check', f'refs/tags/{tag}').returncode, 0)
 
-    def test_push_does_nothing_when_the_document_already_covers_its_platform(self):
-        both, _ = self.document('both', ['linux/amd64', 'linux/arm64'])
-        amd64_only, _ = self.document('amd64-only', ['linux/amd64'])
-        for ref, platform, folder in (('refs/heads/main', 'linux/amd64', both), (self.tag, 'linux/arm64', both),
-                                      (self.tag, 'linux/amd64', amd64_only)):
-            with self.subTest(ref=ref, platform=platform):
-                process = self.run_publish('push', ref, anchor='present', docs=folder, PUBLISH_PLATFORM=platform)
+    def test_push_does_nothing_when_the_document_already_covers_arm64(self):
+        for name, platforms in (('arm-only', ['linux/arm64']), ('both', ['linux/amd64', 'linux/arm64'])):
+            folder, _ = self.document(name, platforms)
+            with self.subTest(document=name):
+                process = self.run_publish('push', self.tag, anchor='present', docs=folder)
                 self.assertEqual(process.returncode, 0, process.stderr)
                 self.assertIn('already covers', process.stdout)
                 self.assertFalse([call for call in self.calls() if call.startswith(('docker push', 'docker image inspect'))])
 
-    def test_push_goes_on_when_the_document_lacks_its_platform_or_does_not_exist(self):
+    def test_push_goes_on_when_the_document_lacks_arm64_or_does_not_exist(self):
         amd64_only, _ = self.document('amd64-only', ['linux/amd64'])
         for anchor, folder in (('present', amd64_only), ('missing', None)):
             with self.subTest(anchor=anchor):
-                self.run_publish('push', self.tag, anchor=anchor, docs=folder, PUBLISH_PLATFORM='linux/arm64')
+                self.run_publish('push', self.tag, anchor=anchor, docs=folder)
                 self.assertTrue([call for call in self.calls() if call.startswith('docker push')])
 
     def test_a_document_another_run_replaced_during_the_write_fails_loudly(self):
         older, _ = self.document('amd64-only', ['linux/amd64'])
-        process = self.run_publish('merge', self.tag, PUBLISH_PLATFORMS='linux/amd64 linux/arm64', STUB_AFTER_WRITE_DOCDIR=str(older))
+        process = self.run_publish('merge', self.tag, STUB_AFTER_WRITE_DOCDIR=str(older))
         self.assertEqual(process.returncode, 1)
         self.assertIn('another run replaced the document', process.stderr)
-        self.assertEqual(self.run_publish('merge', self.tag, PUBLISH_PLATFORMS='linux/amd64 linux/arm64').returncode, 0)
+        self.assertEqual(self.run_publish('merge', self.tag).returncode, 0)
 
     def test_every_package_is_checked_before_anything_is_pushed_and_only_private_passes(self):
-        self.assertEqual(self.run_publish('check', 'refs/heads/main').returncode, 0)
+        self.assertEqual(self.run_publish('check', self.tag).returncode, 0)
         asked = [call.split()[-1].rsplit('/', 1)[1] for call in self.calls() if call.startswith('curl')]
         self.assertEqual(sorted(asked), sorted({build[1] for build in self.builds} | {'liwan-release'}))
         self.assertTrue(all(call.split()[-1].startswith('https://api.github.com/users/tariiq222/packages/container/')
                             for call in self.calls() if call.startswith('curl')))
         for mode in ('public', 'internal', 'missing', 'forbidden', 'empty'):  # 404 and 403 and a network error exit non-zero
-            for command, extra in (('check', {}), ('merge', {'PUBLISH_PLATFORMS': 'linux/amd64'}), ('push', {'PUBLISH_PLATFORM': 'linux/amd64'})):
+            for command in ('check', 'merge', 'push'):
                 with self.subTest(mode=mode, command=command):
-                    process = self.run_publish(command, 'refs/heads/main', STUB_VISIBILITY=mode, STUB_ONLY_PACKAGE='liwan-release'
-                                               if mode == 'empty' else 'liwan-odoo', **extra)
+                    process = self.run_publish(command, self.tag, STUB_VISIBILITY=mode, STUB_ONLY_PACKAGE='liwan-release'
+                                               if mode == 'empty' else 'liwan-odoo')
                     self.assertEqual(process.returncode, 1)
                     self.assertIn('is not confirmed private', process.stderr)
                     self.assertIn('create it as a private package', process.stderr)
                     self.assertFalse([call for call in self.calls()
                                       if call.startswith(('docker push', 'docker buildx build', 'docker buildx imagetools create'))])
-        process = self.run_publish('check', 'refs/heads/main', STUB_VISIBILITY='public', STUB_ONLY_PACKAGE='liwan-release')
+        process = self.run_publish('check', self.tag, STUB_VISIBILITY='public', STUB_ONLY_PACKAGE='liwan-release')
         self.assertIn('package liwan-release of tariiq222', process.stderr)
 
 
@@ -1112,9 +1092,7 @@ class TestReleaseDocument(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        spec = importlib.util.spec_from_file_location('release_manifest', ROOT / 'deploy/ci/lib/release_manifest.py')
-        cls.module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(cls.module)
+        cls.module = load_release_manifest()
 
     def images(self):
         return {reference: f'{self.registry}/{reference}@sha256:{"a" * 64}'

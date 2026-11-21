@@ -375,8 +375,7 @@ application code, and it does not allowlist anything. The daily `image-scan` wor
 so an advisory published against an unchanged base image fails there first instead of in every pull request. The stage also
 writes a CycloneDX SBOM (packages and licenses, from the pinned Trivy) for each image into `LIWAN_SBOM_DIR`; both the `ci` image
 job and the `image-scan` workflow upload them as the `image-sbom` artifact (30 days), and a generator error fails the stage.
-This stage publishes nothing. The `publish` workflow (`.github/workflows/publish.yml`, `deploy/ci/publish.sh`) runs on pushes to `main` and
-`release/**` tags only, never on pull requests. It runs the same stage on amd64 for every `main` commit; on a release tag it builds and gates arm64 only and reuses the amd64 digests already published for that commit (it builds amd64 too only when no document exists for the commit), and pushes the
+This stage publishes nothing. The `publish` workflow (`.github/workflows/publish.yml`, `deploy/ci/publish.sh`) runs on `release/**` tags only, never on pull requests or pushes to `main`. It builds and gates the images for linux/arm64 on an arm64 runner (staging and production are arm64; no amd64 image is built or published), and pushes the
 images and the per-commit release document to private GHCR; `deploy/image_pins.py` fails on a broken pin
 or a mistyped image name (owned images have the `released` status and no digest in the repository). A change under
 `apps/web`, `apps/vendor-admin`, `apps/ai-service`, `packages/ui`, `packages/commercial-ui` or
