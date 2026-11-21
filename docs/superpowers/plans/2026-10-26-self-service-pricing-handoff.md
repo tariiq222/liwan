@@ -80,9 +80,9 @@
 
 | الطبقة | الملف | المحتوى |
 | --- | --- | --- |
-| control-plane | `apps/control-plane/src/schema_025.sql` | أعمدة metered والبذرة |
-| control-plane | `apps/control-plane/src/schema_026.sql` | `customers.trial_used_at` |
-| control-plane | `apps/control-plane/src/schema_027.sql` | `subscriptions.commercial_expiry_revision`، `tenants.commercial_expiry_supported` |
+| control-plane | `apps/control-plane/src/migrations/schema_025.sql` | أعمدة metered والبذرة |
+| control-plane | `apps/control-plane/src/migrations/schema_026.sql` | `customers.trial_used_at` |
+| control-plane | `apps/control-plane/src/migrations/schema_027.sql` | `subscriptions.commercial_expiry_revision`، `tenants.commercial_expiry_supported` |
 | Odoo | `odoo-addons/liwan_platform/migrations/19.0.1.6.0` | `commercial_valid_until` |
 | Odoo | `odoo-addons/liwan_platform/migrations/19.0.1.7.0` | `commercial_valid_until_revision` |
 

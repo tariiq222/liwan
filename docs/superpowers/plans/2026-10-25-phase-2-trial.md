@@ -36,7 +36,7 @@
 ### Task 1: Record that a customer has used its trial
 
 **Files:**
-- Create: `apps/control-plane/src/schema_026.sql`
+- Create: `apps/control-plane/src/migrations/schema_026.sql`
 - Modify: `apps/control-plane/src/db.ts` (register version 26)
 - Test: `apps/control-plane/src/__tests__/commercial-trial.test.ts`
 
@@ -74,7 +74,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/control-plane/src/schema_026.sql apps/control-plane/src/db.ts
+git add apps/control-plane/src/migrations/schema_026.sql apps/control-plane/src/db.ts
 git commit -m "feat(cp): record a consumed trial per customer"
 ```
 

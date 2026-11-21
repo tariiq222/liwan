@@ -100,7 +100,7 @@ suite('the kind of a credit note is its typed cause, never its wording (AUDIT-04
         [await legacy('ai_balance_limit_exceeded', 'test', 'system'), 'fulfillment_failure'],
         // An operator's wording on a vendor note never makes it a system kind.
         [await legacy(`${DUPLICATE_TEXT} typed by the operator`, 'vendor:7', 'vendor'), 'vendor_refund']]
-      await c.query(await readFile(new URL('../schema_047.sql', import.meta.url), 'utf8'))
+      await c.query(await readFile(new URL('../migrations/schema_047.sql', import.meta.url), 'utf8'))
       const rows = (await c.query('SELECT id,cause FROM invoice_adjustments WHERE id=ANY($1::uuid[])', [expected.map(e => e[0])])).rows
       expect(expected.map(([id, cause]) => [cause, rows.find(r => r.id === id)?.cause])).toEqual(expected.map(([, cause]) => [cause, cause]))
     } finally { await c.query('ROLLBACK'); c.release() }

@@ -6,10 +6,10 @@ import { migrate } from '../db.js'
 import { url } from './commercial-helpers.js'
 
 const suite = url ? describe : describe.skip
-const SRC = new URL('../', import.meta.url)
+const SRC = new URL('../migrations/', import.meta.url)
 /** schema_040 and schema_041 do not exist: the numbering skips them. */
 const UP_TO_061 = Array.from({ length: 61 }, (_, i) => i + 1).filter(v => v !== 40 && v !== 41)
-const fileFor = (version: number) => (version === 1 ? 'schema.sql' : `schema_${String(version).padStart(3, '0')}.sql`)
+const fileFor = (version: number) => `schema_${String(version).padStart(3, '0')}.sql`
 
 /** A database that ran schema_001..061 holds cards, form attempts and a declined order; schema_062, schema_063 and schema_064 must carry every one of them. */
 suite('schema_062, schema_063 and schema_064 carry rows created under schema_058..061', () => {

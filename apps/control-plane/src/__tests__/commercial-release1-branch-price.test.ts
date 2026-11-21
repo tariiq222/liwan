@@ -41,7 +41,7 @@ suite('release 1 extra-branch price (schema_035)', () => {
   const sellable = async () => (await pool.query("SELECT * FROM plan_revisions WHERE plan_id=$1 AND status='published' AND available", [PLAN])).rows
   /** schema_035 as migrate() runs it: one transaction, because the file keeps temp tables across statements. */
   async function runBranchPriceMigration() {
-    const body = await readFile(new URL('../schema_035.sql', import.meta.url), 'utf8')
+    const body = await readFile(new URL('../migrations/schema_035.sql', import.meta.url), 'utf8')
     const client = await pool.connect()
     try {
       await client.query('BEGIN')

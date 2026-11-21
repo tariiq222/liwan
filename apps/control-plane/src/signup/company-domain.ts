@@ -3,7 +3,7 @@ import { domainToASCII } from 'node:url'
 /**
  * A free trial is claimed once per company, and a company is the registrable domain of its work email: the public
  * suffix plus one label. There is no public-suffix library in the repository and none is added, so the suffix comes
- * from a small general rule (schema_054.sql carries the same rule in SQL for its backfill; change both together).
+ * from a small general rule (migrations/schema_054.sql carries the same rule in SQL for its backfill; change both together).
  *
  * Normalisation: lowercase, IDN to punycode (`domainToASCII`), trailing dots dropped.
  * Public suffix: when the last label is a two-letter ASCII country code and the label before it is one of

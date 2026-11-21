@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises'
+import { readdir, readFile } from 'node:fs/promises'
 import type { Pool, PoolClient } from 'pg'
 
 export function isTransientDatabaseError(error: unknown): boolean {
@@ -20,161 +20,38 @@ export function attachPoolErrorHandler(pool: Pool, onError: (error: Error) => vo
   })
 }
 
+const MIGRATIONS_DIRECTORY = new URL('./migrations/', import.meta.url)
+const MIGRATION_FILE = /^schema_(\d{3})\.sql$/
+/** The numbering skips 40 and 41: no such migration was ever written. */
+const SKIPPED_VERSIONS: ReadonlySet<number> = new Set([40, 41])
+
+/** Every migration in the folder, by version. Throws before anything is applied when the folder is not a clean 1..N sequence. */
+export async function loadMigrations(directory: URL = MIGRATIONS_DIRECTORY): Promise<Map<number, string>> {
+  const files = new Map<number, string>()
+  for (const name of (await readdir(directory)).sort()) {
+    if (name.startsWith('.')) continue
+    const match = MIGRATION_FILE.exec(name)
+    if (!match) throw new Error(`migrations folder holds ${name}, which is not named schema_NNN.sql`)
+    const version = Number(match[1])
+    if (version < 1) throw new Error(`migration ${name} has no valid version: numbering starts at 001`)
+    files.set(version, name)
+  }
+  if (!files.has(1)) throw new Error('migrations folder has no schema_001.sql')
+  const last = Math.max(...files.keys())
+  for (let version = 1; version <= last; version++) {
+    if (!files.has(version) && !SKIPPED_VERSIONS.has(version)) throw new Error(`migrations folder has no file for version ${version}: schema_${String(version).padStart(3, '0')}.sql is missing`)
+  }
+  const migrations = new Map<number, string>()
+  for (const [version, name] of [...files].sort(([a], [b]) => a - b)) migrations.set(version, await readFile(new URL(name, directory), 'utf8'))
+  return migrations
+}
+
 export async function migrate(pool: Pool): Promise<void> {
-  const sql = await readFile(new URL('./schema.sql', import.meta.url), 'utf8')
-  const sql2 = await readFile(new URL('./schema_002.sql', import.meta.url), 'utf8')
-  const sql3 = await readFile(new URL('./schema_003.sql', import.meta.url), 'utf8')
-  const sql4 = await readFile(new URL('./schema_004.sql', import.meta.url), 'utf8')
-  const sql5 = await readFile(new URL('./schema_005.sql', import.meta.url), 'utf8')
-  const sql6 = await readFile(new URL('./schema_006.sql', import.meta.url), 'utf8')
-  const sql7 = await readFile(new URL('./schema_007.sql', import.meta.url), 'utf8')
-  const sql8 = await readFile(new URL('./schema_008.sql', import.meta.url), 'utf8')
-  const sql11 = await readFile(new URL('./schema_011.sql', import.meta.url), 'utf8')
-  const sql12 = await readFile(new URL('./schema_012.sql', import.meta.url), 'utf8')
-  const sql13 = await readFile(new URL('./schema_013.sql', import.meta.url), 'utf8')
-  const sql14 = await readFile(new URL('./schema_014.sql', import.meta.url), 'utf8')
-  const sql15 = await readFile(new URL('./schema_015.sql', import.meta.url), 'utf8')
-  const sql16 = await readFile(new URL('./schema_016.sql', import.meta.url), 'utf8')
-  const sql17 = await readFile(new URL('./schema_017.sql', import.meta.url), 'utf8')
-  const sql18 = await readFile(new URL('./schema_018.sql', import.meta.url), 'utf8')
-  const sql19 = await readFile(new URL('./schema_019.sql', import.meta.url), 'utf8')
-  const sql20 = await readFile(new URL('./schema_020.sql', import.meta.url), 'utf8')
-  const sql21 = await readFile(new URL('./schema_021.sql', import.meta.url), 'utf8')
-  const sql22 = await readFile(new URL('./schema_022.sql', import.meta.url), 'utf8')
-  const sql24 = await readFile(new URL('./schema_024.sql', import.meta.url), 'utf8')
-  const sql25 = await readFile(new URL('./schema_025.sql', import.meta.url), 'utf8')
-  const sql26 = await readFile(new URL('./schema_026.sql', import.meta.url), 'utf8')
-  const sql27 = await readFile(new URL('./schema_027.sql', import.meta.url), 'utf8')
-  const sql28 = await readFile(new URL('./schema_028.sql', import.meta.url), 'utf8')
-  const sql29 = await readFile(new URL('./schema_029.sql', import.meta.url), 'utf8')
-  const sql30 = await readFile(new URL('./schema_030.sql', import.meta.url), 'utf8')
-  const sql31 = await readFile(new URL('./schema_031.sql', import.meta.url), 'utf8')
-  const sql32 = await readFile(new URL('./schema_032.sql', import.meta.url), 'utf8')
-  const sql33 = await readFile(new URL('./schema_033.sql', import.meta.url), 'utf8')
-  const sql34 = await readFile(new URL('./schema_034.sql', import.meta.url), 'utf8')
-  const sql36 = await readFile(new URL('./schema_036.sql', import.meta.url), 'utf8')
-  const sql37 = await readFile(new URL('./schema_037.sql', import.meta.url), 'utf8')
-  const sql38 = await readFile(new URL('./schema_038.sql', import.meta.url), 'utf8')
-  const sql39 = await readFile(new URL('./schema_039.sql', import.meta.url), 'utf8')
-  const sql43 = await readFile(new URL('./schema_043.sql', import.meta.url), 'utf8')
-  const sql42 = await readFile(new URL('./schema_042.sql', import.meta.url), 'utf8')
-  const sql44 = await readFile(new URL('./schema_044.sql', import.meta.url), 'utf8')
-  const sql45 = await readFile(new URL('./schema_045.sql', import.meta.url), 'utf8')
-  const sql46 = await readFile(new URL('./schema_046.sql', import.meta.url), 'utf8')
-  const sql47 = await readFile(new URL('./schema_047.sql', import.meta.url), 'utf8')
-  const sql48 = await readFile(new URL('./schema_048.sql', import.meta.url), 'utf8')
-  const sql49 = await readFile(new URL('./schema_049.sql', import.meta.url), 'utf8')
-  const sql50 = await readFile(new URL('./schema_050.sql', import.meta.url), 'utf8')
-  const sql51 = await readFile(new URL('./schema_051.sql', import.meta.url), 'utf8')
-  const sql52 = await readFile(new URL('./schema_052.sql', import.meta.url), 'utf8')
-  const sql53 = await readFile(new URL('./schema_053.sql', import.meta.url), 'utf8')
-  const sql54 = await readFile(new URL('./schema_054.sql', import.meta.url), 'utf8')
-  const sql55 = await readFile(new URL('./schema_055.sql', import.meta.url), 'utf8')
-  const sql56 = await readFile(new URL('./schema_056.sql', import.meta.url), 'utf8')
-  const sql57 = await readFile(new URL('./schema_057.sql', import.meta.url), 'utf8')
-  const sql58 = await readFile(new URL('./schema_058.sql', import.meta.url), 'utf8')
-  const sql59 = await readFile(new URL('./schema_059.sql', import.meta.url), 'utf8')
-  const sql60 = await readFile(new URL('./schema_060.sql', import.meta.url), 'utf8')
-  const sql61 = await readFile(new URL('./schema_061.sql', import.meta.url), 'utf8')
-  const sql62 = await readFile(new URL('./schema_062.sql', import.meta.url), 'utf8')
-  const sql63 = await readFile(new URL('./schema_063.sql', import.meta.url), 'utf8')
-  const sql64 = await readFile(new URL('./schema_064.sql', import.meta.url), 'utf8')
-  const sql65 = await readFile(new URL('./schema_065.sql', import.meta.url), 'utf8')
-  const sql66 = await readFile(new URL('./schema_066.sql', import.meta.url), 'utf8')
-  const sql67 = await readFile(new URL('./schema_067.sql', import.meta.url), 'utf8')
-  const sql70 = await readFile(new URL('./schema_070.sql', import.meta.url), 'utf8')
-  const sql71 = await readFile(new URL('./schema_071.sql', import.meta.url), 'utf8')
-  const sql72 = await readFile(new URL('./schema_072.sql', import.meta.url), 'utf8')
-  const sql69 = await readFile(new URL('./schema_069.sql', import.meta.url), 'utf8')
-  const sql68 = await readFile(new URL('./schema_068.sql', import.meta.url), 'utf8')
-  const sql35 = await readFile(new URL('./schema_035.sql', import.meta.url), 'utf8')
-  const sql23 = await readFile(new URL('./schema_023.sql', import.meta.url), 'utf8')
-  const sql10 = await readFile(new URL('./schema_010.sql', import.meta.url), 'utf8')
-  const sql9 = await readFile(new URL('./schema_009.sql', import.meta.url), 'utf8')
+  const migrations = await loadMigrations()
   await transaction(pool, async (client) => {
     await client.query('SELECT pg_advisory_xact_lock(1397969233)')
     await client.query('CREATE TABLE IF NOT EXISTS schema_migrations(version integer PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())')
-    const current = await client.query('SELECT version FROM schema_migrations WHERE version=1')
-    if (!current.rowCount) {
-      await client.query(sql)
-      await client.query('INSERT INTO schema_migrations(version) VALUES(1)')
-    }
-    const second = await client.query('SELECT version FROM schema_migrations WHERE version=2')
-    if (!second.rowCount) {
-      await client.query(sql2)
-      await client.query('INSERT INTO schema_migrations(version) VALUES(2)')
-    }
-    const third = await client.query('SELECT version FROM schema_migrations WHERE version=3')
-    if (!third.rowCount) {
-      await client.query(sql3)
-      await client.query('INSERT INTO schema_migrations(version) VALUES(3)')
-    }
-    const fourth = await client.query('SELECT version FROM schema_migrations WHERE version=4')
-    if (!fourth.rowCount) {
-      await client.query(sql4)
-      await client.query('INSERT INTO schema_migrations(version) VALUES(4)')
-    }
-    const fifth = await client.query('SELECT version FROM schema_migrations WHERE version=5')
-    if (!fifth.rowCount) {
-      await client.query(sql5)
-      await client.query('INSERT INTO schema_migrations(version) VALUES(5)')
-    }
-    const sixth = await client.query('SELECT version FROM schema_migrations WHERE version=6')
-    if (!sixth.rowCount) {
-      await client.query(sql6)
-      await client.query('INSERT INTO schema_migrations(version) VALUES(6)')
-    }
-    const seventh = await client.query('SELECT version FROM schema_migrations WHERE version=7')
-    if (!seventh.rowCount) {
-      await client.query(sql7)
-      await client.query('INSERT INTO schema_migrations(version) VALUES(7)')
-    }
-    const ninth = await client.query('SELECT version FROM schema_migrations WHERE version=9')
-    const eighth = await client.query('SELECT version FROM schema_migrations WHERE version=8')
-    if (!eighth.rowCount) {
-      await client.query(sql8)
-      await client.query('INSERT INTO schema_migrations(version) VALUES(8)')
-    }
-    if (!ninth.rowCount) {
-      await client.query(sql9)
-      await client.query('INSERT INTO schema_migrations(version) VALUES(9)')
-    }
-    const eleventh = await client.query('SELECT version FROM schema_migrations WHERE version=11')
-    const tenth = await client.query('SELECT version FROM schema_migrations WHERE version=10')
-    if (!tenth.rowCount) {
-      await client.query(sql10)
-      await client.query('INSERT INTO schema_migrations(version) VALUES(10)')
-    }
-    if (!eleventh.rowCount) {
-      await client.query(sql11)
-      await client.query('INSERT INTO schema_migrations(version) VALUES(11)')
-    }
-    const twelfth = await client.query('SELECT version FROM schema_migrations WHERE version=12')
-    if (!twelfth.rowCount) {
-      await client.query(sql12)
-      await client.query('INSERT INTO schema_migrations(version) VALUES(12)')
-    }
-    const thirteenth = await client.query('SELECT version FROM schema_migrations WHERE version=13')
-    if (!thirteenth.rowCount) {
-      await client.query(sql13)
-      await client.query('INSERT INTO schema_migrations(version) VALUES(13)')
-    }
-    const fourteenth = await client.query('SELECT version FROM schema_migrations WHERE version=14')
-    if (!fourteenth.rowCount) {
-      await client.query(sql14)
-      await client.query('INSERT INTO schema_migrations(version) VALUES(14)')
-    }
-    const fifteenth = await client.query('SELECT version FROM schema_migrations WHERE version=15')
-    if (!fifteenth.rowCount) {
-      await client.query(sql15)
-      await client.query('INSERT INTO schema_migrations(version) VALUES(15)')
-    }
-    const sixteenth = await client.query('SELECT version FROM schema_migrations WHERE version=16')
-    if (!sixteenth.rowCount) {
-      await client.query(sql16)
-      await client.query('INSERT INTO schema_migrations(version) VALUES(16)')
-    }
-    for (const [version, body] of [[17, sql17], [18, sql18], [19, sql19], [20, sql20], [21, sql21], [22, sql22], [23, sql23], [24, sql24], [25, sql25], [26, sql26], [27, sql27], [28, sql28], [29, sql29], [30, sql30], [31, sql31], [32, sql32], [33, sql33], [34, sql34], [35, sql35], [36, sql36], [37, sql37], [38, sql38], [39, sql39], [42, sql42], [43, sql43], [44, sql44], [45, sql45], [46, sql46], [47, sql47], [48, sql48], [49, sql49], [50, sql50], [51, sql51], [52, sql52], [53, sql53], [54, sql54], [55, sql55], [56, sql56], [57, sql57], [58, sql58], [59, sql59], [60, sql60], [61, sql61], [62, sql62], [63, sql63], [64, sql64], [65, sql65], [66, sql66], [67, sql67], [68, sql68], [69, sql69], [70, sql70], [71, sql71], [72, sql72]] as const) {
+    for (const [version, body] of migrations) {
       if (!(await client.query(`SELECT version FROM schema_migrations WHERE version=${version}`)).rowCount) {
         await client.query(body)
         await client.query(`INSERT INTO schema_migrations(version) VALUES(${version})`)

@@ -28,11 +28,11 @@
 | التحقق بخطوتين إلزامي لكل مستخدم برمز SMS أو بريد، وتذكر جهاز 30 يومًا | **غير منفذ.** التنفيذ الحالي يتحقق من TOTP فقط إذا فعّله المستخدم بنفسه، ولا توجد سياسة فرض. المطلوب قرار مالك منفذ لاحقًا. |
 | تصدير الشركة (zip يحوي Excel لكل تطبيق مع المرفقات) | **غير منفذ.** لا مسار تصدير في لوحة التحكم ولا في Odoo. |
 | PDPL: تصدير ومحو بإخفاء الهوية لعميل نهائي واحد | **غير منفذ.** |
-| التحويل البنكي كطريقة دفع يثبتها البائع | **غير منفذ.** قيد مزود الدفع في `apps/control-plane/src/schema_013.sql` يسمح بـ`moyasar` و`simulator` فقط. |
+| التحويل البنكي كطريقة دفع يثبتها البائع | **غير منفذ.** قيد مزود الدفع في `apps/control-plane/src/migrations/schema_013.sql` يسمح بـ`moyasar` و`simulator` فقط. |
 | تسجيل ذاتي بصفحة تسجيل ورمز SMS وتجربة 14 يومًا وتجهيز تلقائي | **غير منفذ.** لا صفحة تسجيل، ولا محوّل SMS. |
 | عميل ينشئه البائع يبدأ مدفوعًا لا على تجربة | **مخالف في الكود.** `trial_required_first` في `apps/control-plane/src/commercial/orders.ts` يمنع أول طلب مدفوع لمستأجر بلا ربط سجل. |
 | بقاء الشركة على القاعدة المجانية بعد انتهاء التجربة أو الإلغاء | **مخالف في الكود.** `apps/control-plane/src/commercial/trial-expiry.ts` ينتقل إلى `past_due` ثم تعليق يمنع الدخول، ولا يوجد مسار إسقاط. |
-| فاتورة البائع بلا ضريبة ولا صياغة ZATCA | **مخالف في الكود.** `apps/control-plane/src/schema_012.sql` و`packages/commercial-contracts/src/commercial/billing.ts` يحملان `VAT 15%` و`TAX_LABEL`. |
+| فاتورة البائع بلا ضريبة ولا صياغة ZATCA | **مخالف في الكود.** `apps/control-plane/src/migrations/schema_012.sql` و`packages/commercial-contracts/src/commercial/billing.ts` يحملان `VAT 15%` و`TAX_LABEL`. |
 | RPO ساعة وRTO أربع ساعات | **غير مقيس.** التمرين المسجل على جهاز مطور بلا حمل، وليس هدفًا تجاريًا. |
 | استعادة عبر الدعم بالتحويل إلى هوية جديدة، وإسقاط القديمة بعد 90 يومًا | **قرار مالك 2026-11-07، غير منفذ.** لا نقل لاسم المضيف ولا إسقاط قاعدة في الكود؛ الاستعادة تنشر في سجل منفصل. |
 | توقيع رقمي لحزمة `non_saas` | **مؤجل بقرار المالك 2026-11-07** إلى أول جهة حكومية. التوثيق الحالي يصف بصمة المصدر بأنها «تأكيد مشغّل، لا إثبات بناء». |
@@ -134,13 +134,13 @@
 ## القرارات التجارية
 
 **محسومة في المصدر:** العملة `SAR`؛ التوقيت `Asia/Riyadh` (قرار المالك 2026-10-02،
-`apps/control-plane/src/schema_012.sql`)؛ مزود الدفع Moyasar (`apps/control-plane/src/schema_013.sql`، `apps/control-plane/src/commercial/moyasar-adapter.ts`)؛
+`apps/control-plane/src/migrations/schema_012.sql`)؛ مزود الدفع Moyasar (`apps/control-plane/src/migrations/schema_013.sql`، `apps/control-plane/src/commercial/moyasar-adapter.ts`)؛
 مدة الخطة يحددها `term_months` لكل خطة.
 
 **منقوضة بقرار مالك أحدث:** كان مسجلًا هنا أن ضريبة القيمة المضافة 15% مضافة على
 السعر (`vat_exclusive`) قرار محسوم في المصدر. قرار المالك 2026-11-06 ينقض ذلك:
 ليوان غير مسجلة في ضريبة القيمة المضافة، ولا يجوز أن تحمل فاتورة البائع سطر ضريبة
-ولا عبارة VAT ولا صياغة ZATCA. الكود الحالي يخالفه (`apps/control-plane/src/schema_012.sql`،
+ولا عبارة VAT ولا صياغة ZATCA. الكود الحالي يخالفه (`apps/control-plane/src/migrations/schema_012.sql`،
 `packages/commercial-contracts/src/commercial/billing.ts`) ويحتاج تنفيذًا، وحالة الضريبة لكل عميل تبقى إعدادًا مستقلًا على
 مستوى الشركة افتراضه «غير مسجلة».
 

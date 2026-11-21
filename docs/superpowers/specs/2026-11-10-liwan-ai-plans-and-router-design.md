@@ -42,7 +42,7 @@ D11 to D16 are the design author's recommendations, which the owner accepted on 
 - Limits `ai.messages.monthly`, `ai.tokens.monthly`, `ai.assist.monthly`, `ai.tool_calls.per_run` are registered in `odoo-addons/liwan_ai/models/feature_registry.py`. Enforcement is hand-written with a UTC calendar month in `ai_audit.py` and `ai_usage.py`, repeated in `liwan_ai_notify/models/limit_warning.py`.
 - The message counter counts every `kind='message'` audit row in the tenant database, across provider modes, so own-key messages count against `ai.messages.monthly` today. Per-call rows in `liwan.ai.usage` do carry `billing` (`platform`, `setup`, `tenant_key`).
 - A message is counted in `apps/web/server/api/ai/runs/index.post.ts` before the AI service is reached, so it is counted even when the provider fails.
-- The platform provider is one provider and one model: `apps/ai-service/src/liwan_ai_service/platform_provider.py`, table `ai_platform_provider` (`apps/control-plane/src/schema_032.sql`), page `apps/vendor-admin/app/pages/ai-provider.vue`.
+- The platform provider is one provider and one model: `apps/ai-service/src/liwan_ai_service/platform_provider.py`, table `ai_platform_provider` (`apps/control-plane/src/migrations/schema_032.sql`), page `apps/vendor-admin/app/pages/ai-provider.vue`.
 - The model is chosen once per request in `run_model_for` (`service.py`) and invoked in one place, the `plan` node (`graph.py`). Call kinds are `plan` and `title`.
 - No price or cost exists anywhere. No provider prompt caching. The service never shortens history; the only guard is the per-request input ceiling, which stops the run.
 - Chat attachments are not supported (2026-11-04 spec §6.9 keeps them out until the malware scanner exists).

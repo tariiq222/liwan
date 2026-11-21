@@ -46,7 +46,7 @@ suite('schema_034 splits hosting_model managed into shared_managed and dedicated
     const onboardSlug = `t${onboarded.replaceAll('-', '')}`
     await pool.query("INSERT INTO shared_onboardings(request_id,control_tenant_id,issuer,actor_uid,request_digest,admin_name,admin_login,host,tenant_slug,database_name) VALUES($1,$1,'issuer',1,$2,'A','a@b.test',$3,$4,$5)", [onboarded, 'a'.repeat(64), `${onboardSlug}.h.test`, onboardSlug, `liwan_scratch_${onboardSlug}`])
 
-    await pool.query(await readFile(new URL('../schema_034.sql', import.meta.url), 'utf8'))
+    await pool.query(await readFile(new URL('../migrations/schema_034.sql', import.meta.url), 'utf8'))
 
     const rows = (await pool.query('SELECT id,hosting_model FROM tenants WHERE id = ANY($1)', [[bound, onboarded, dedicated, hosted]])).rows
     const model = (id: string) => rows.find(r => r.id === id)?.hosting_model

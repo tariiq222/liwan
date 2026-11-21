@@ -88,7 +88,7 @@ git commit -am "feat(cp): capture the payment token at confirmation"
 **Files:**
 - Create: `apps/control-plane/src/commercial/renewal-notices.ts`
 - Modify: `apps/control-plane/src/commercial/scheduler.ts`
-- Modify: `apps/control-plane/src/schema_026.sql` → use the existing `commercial_outbox` dedupe key, no new table
+- Modify: `apps/control-plane/src/migrations/schema_026.sql` → use the existing `commercial_outbox` dedupe key, no new table
 - Test: `apps/control-plane/src/__tests__/commercial-renewals.test.ts`
 
 **Interfaces:**
