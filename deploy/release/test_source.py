@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 from deploy.release import source
-from deploy.release.common import EXIT_FAILED, EXIT_REFUSED, ReleaseError
+from deploy.release.common import EXIT_FAILED, EXIT_REFUSED, CommandFailed, ReleaseError
 
 A, B, C = 'a' * 40, 'b' * 40, 'c' * 40
 
@@ -20,39 +20,35 @@ class FakeGit:
         return 0, self.output
 
 
-def build(environment, output, github_token=None, tag=None):
+def build(output, github_token=None, tag=None):
     runner = FakeGit(output)
     state = Path(tempfile.mkdtemp())
     credential = source.Credential('reader', 'tok')
-    return source.Source(environment, tag, state, credential, github_token, runner, lambda _: None, {}), runner
+    return source.Source(tag, state, credential, github_token, runner, lambda _: None, {}), runner
 
 
 class SourceTest(unittest.TestCase):
-    def test_development_candidate_is_the_main_head(self):
-        subject, _ = build('development', f'{A}\trefs/heads/main\n')
-        self.assertEqual(subject.candidate(), {'commit': A, 'ref': 'refs/heads/main', 'version': None})
-
-    def test_release_channel_candidate_is_the_highest_release_tag_by_version_not_by_text(self):
-        subject, _ = build('staging', f'{A}\trefs/tags/release/19.0.1.0.9\n{B}\trefs/tags/release/19.0.1.0.10\n'
+    def test_candidate_is_the_highest_release_tag_by_version_not_by_text(self):
+        subject, _ = build(f'{A}\trefs/tags/release/19.0.1.0.9\n{B}\trefs/tags/release/19.0.1.0.10\n'
                                          f'{C}\trefs/tags/release/19.0.1.0.2\n{C}\trefs/tags/release/other\n')
         self.assertEqual(subject.candidate(), {'commit': B, 'ref': 'refs/tags/release/19.0.1.0.10',
                                                'version': [1, 0, 10]})
 
     def test_staging_candidate_is_the_highest_release_tag_never_the_main_head(self):
-        subject, runner = build('staging', f'{A}\trefs/tags/release/19.0.1.0.2\n{B}\trefs/tags/release/19.0.1.0.11\n')
+        subject, runner = build(f'{A}\trefs/tags/release/19.0.1.0.2\n{B}\trefs/tags/release/19.0.1.0.11\n')
         self.assertEqual(subject.candidate(), {'commit': B, 'ref': 'refs/tags/release/19.0.1.0.11', 'version': [1, 0, 11]})
         self.assertEqual(runner.calls[0][0][-1], 'refs/tags/release/*')
 
     def test_an_annotated_tag_resolves_to_its_commit(self):
-        subject, _ = build('staging', f'{A}\trefs/tags/release/19.0.1.0.1\n{B}\trefs/tags/release/19.0.1.0.1^{{}}\n')
+        subject, _ = build(f'{A}\trefs/tags/release/19.0.1.0.1\n{B}\trefs/tags/release/19.0.1.0.1^{{}}\n')
         self.assertEqual(subject.candidate()['commit'], B)
 
     def test_staging_without_a_tag_has_no_candidate(self):
-        subject, _ = build('staging', '')
+        subject, _ = build('')
         self.assertIsNone(subject.candidate())
 
     def test_without_a_github_token_git_carries_no_credential(self):
-        subject, runner = build('development', f'{A}\trefs/heads/main\n')
+        subject, runner = build(f'{A}\trefs/tags/release/19.0.1.0.1\n')
         subject.candidate()
         argv, env = runner.calls[0]
         self.assertEqual([part for part in argv if part.startswith('credential.helper=')], ['credential.helper='])
@@ -61,7 +57,7 @@ class SourceTest(unittest.TestCase):
         self.assertEqual(env['GIT_TERMINAL_PROMPT'], '0')
 
     def test_a_github_token_reaches_git_only_through_the_helper_environment(self):
-        subject, runner = build('development', f'{A}\trefs/heads/main\n', github_token='ghtok')
+        subject, runner = build(f'{A}\trefs/tags/release/19.0.1.0.1\n', github_token='ghtok')
         subject.candidate()
         argv, env = runner.calls[0]
         self.assertNotIn('ghtok', ' '.join(argv))
@@ -77,12 +73,12 @@ class SourceTest(unittest.TestCase):
         self.assertEqual(source.REPOSITORY_URL, 'https://github.com/tariiq222/liwan.git')
 
     def test_production_candidate_is_exactly_the_named_tag(self):
-        subject, runner = build('production', f'{B}\trefs/tags/release/19.0.1.0.7\n', tag='release/19.0.1.0.7')
+        subject, runner = build(f'{B}\trefs/tags/release/19.0.1.0.7\n', tag='release/19.0.1.0.7')
         self.assertEqual(subject.candidate(), {'commit': B, 'ref': 'refs/tags/release/19.0.1.0.7', 'version': [1, 0, 7]})
         self.assertEqual(runner.calls[0][0][-2:], ['refs/tags/release/19.0.1.0.7', 'refs/tags/release/19.0.1.0.7^{}'])
 
     def test_a_named_annotated_tag_resolves_to_its_peeled_commit(self):
-        subject, _ = build('production', f'{A}\trefs/tags/release/19.0.1.0.7\n{B}\trefs/tags/release/19.0.1.0.7^{{}}\n',
+        subject, _ = build(f'{A}\trefs/tags/release/19.0.1.0.7\n{B}\trefs/tags/release/19.0.1.0.7^{{}}\n',
                            tag='release/19.0.1.0.7')
         self.assertEqual(subject.candidate()['commit'], B)
 
@@ -94,19 +90,17 @@ class SourceTest(unittest.TestCase):
             self.assertIsNone(source.release_version(tag), repr(tag))
 
     def test_a_named_tag_that_is_missing_is_refused(self):
-        subject, _ = build('production', f'{A}\trefs/tags/release/19.0.1.0.8\n', tag='release/19.0.1.0.7')
+        subject, _ = build(f'{A}\trefs/tags/release/19.0.1.0.8\n', tag='release/19.0.1.0.7')
         with self.assertRaises(ReleaseError) as raised:
             subject.candidate()
         self.assertEqual((raised.exception.reason, raised.exception.exit_code), ('tag_not_found', EXIT_REFUSED))
 
     def test_explicit_tag_rules(self):
         self.assertEqual(source.explicit_tag('production', 'release/19.0.1.0.7'), 'release/19.0.1.0.7')
-        self.assertIsNone(source.explicit_tag('development', None))
         self.assertIsNone(source.explicit_tag('staging', None))
         for environment, tag, reason in (('production', None, 'production_tag_required'),
                                          ('production', 'release/x', 'invalid_tag'),
-                                         ('staging', 'release/19.0.1.0.7', 'tag_not_allowed'),
-                                         ('development', 'release/19.0.1.0.7', 'tag_not_allowed')):
+                                         ('staging', 'release/19.0.1.0.7', 'tag_not_allowed')):
             with self.assertRaises(ReleaseError) as raised:
                 source.explicit_tag(environment, tag)
             self.assertEqual((raised.exception.reason, raised.exception.exit_code), (reason, EXIT_REFUSED))
@@ -129,16 +123,18 @@ class SourceTest(unittest.TestCase):
         self.assertEqual(raised.exception.exit_code, EXIT_REFUSED)
 
     def test_required_platforms(self):
-        self.assertEqual(source.required_platforms('development', 'amd64'), ['linux/amd64'])
-        self.assertEqual(source.required_platforms('staging', 'arm64'), ['linux/arm64'])
-        self.assertEqual(source.required_platforms('staging', 'amd64'), ['linux/amd64', 'linux/arm64'])
-        self.assertEqual(source.required_platforms('production', 'arm64'), ['linux/arm64'])
-        self.assertEqual(source.required_platforms('production', 'amd64'), ['linux/amd64', 'linux/arm64'])
+        self.assertEqual(source.required_platforms('arm64'), ['linux/arm64'])
+        self.assertEqual(source.required_platforms('amd64'), ['linux/amd64', 'linux/arm64'])
 
     def test_unreachable_github_is_a_failure_not_a_refusal(self):
-        subject, _ = build('development', '')
+        subject, _ = build('')
+
+        def unreachable(argv, **_):
+            raise CommandFailed(argv, 128)
+
+        subject.run_command = unreachable
         with self.assertRaises(ReleaseError) as raised:
-            subject.candidate()  # an empty listing has no main head
+            subject.candidate()
         self.assertEqual((raised.exception.reason, raised.exception.exit_code), ('github_unreachable', EXIT_FAILED))
 
 

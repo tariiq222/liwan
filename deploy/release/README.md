@@ -1,18 +1,18 @@
 # Release command
 
 `release.py` applies one commit to one LiwanOS server. An Openship job runs it; nothing else starts it (no timer, no
-polling). The same file runs on development, staging and production.
+polling). The same file runs on staging and production.
 
 ```sh
-python3 -B /opt/liwan/current/deploy/release/release.py run      --environment development
+python3 -B /opt/liwan/current/deploy/release/release.py run      --environment staging
 python3 -B /opt/liwan/current/deploy/release/release.py run      --environment production --tag release/19.0.X.Y.Z
-python3 -B /opt/liwan/current/deploy/release/release.py status   --environment development   # exit 3 when halted
-python3 -B /opt/liwan/current/deploy/release/release.py rollback --environment development
+python3 -B /opt/liwan/current/deploy/release/release.py status   --environment staging   # exit 3 when halted
+python3 -B /opt/liwan/current/deploy/release/release.py rollback --environment staging
 ```
 
 **Status: nothing here has run on a real server yet.** The tests use fake docker, git and psql commands
 (`python3 -B -m unittest discover -s deploy/release -t . -p 'test_*.py'`). The first real run happens during the
-development bring-up.
+staging bring-up.
 
 ## Who builds and how each environment starts
 
@@ -21,12 +21,11 @@ GitHub is the only system for source, CI, image build and release. The GitHub Ac
 to the private GHCR registry under `ghcr.io/tariiq222` and publishes the release document image
 `ghcr.io/tariiq222/liwan-release:<commit>`.
 
-A `main` push builds amd64 only and publishes the document `liwan-release:<commit>` covering `linux/amd64`. The
-`release/**` tag run later builds arm64 for that commit, publishes the same document tag again covering both platforms
-(the tag is overwritten when the build is complete) and only then starts staging. The command therefore never reuses a
+A push to `main` builds and publishes nothing. A `release/**` tag builds arm64 only for its commit and publishes the
+document `liwan-release:<commit>` covering `linux/arm64`; only then does the workflow start staging. Documents
+published earlier may list both `linux/amd64` and `linux/arm64` and are still accepted. The command never reuses a
 local copy: it pulls the document fresh for the candidate commit on every run and removes the image afterwards.
 
-- development: follows `main`; the workflow's hook starts the Openship job after each amd64 `main` build.
 - staging: waits for the arm64 build that the release tag starts; the workflow's hook starts the job after it.
 - production: only the owner starts the job from Openship, with the tag named in the command. There is no hook.
 
@@ -34,17 +33,16 @@ local copy: it pulls the document fresh for the candidate commit on every run an
 
 | Environment | Candidate commit |
 | --- | --- |
-| `development` | the head of GitHub `main` |
 | `staging` | the commit of the highest `release/19.0.X.Y.Z` tag (compared by version, not by text) |
 | `production` | the commit of the one tag given with `--tag release/19.0.X.Y.Z`; it never picks the highest tag itself |
 
-Staging and production are the two release-tag environments and share every rule below. Both run on Arm.
+Staging and production are the only environments and share every rule below. Both run on Arm.
 
 The production job command is `release.py run --environment production --tag <tag>`. Without `--tag` the run refuses
 with `RESULT: refused production_tag_required`; a tag that does not match `release/19.0.X.Y.Z` is refused as
 `invalid_tag`, and one GitHub does not have as `tag_not_found`, all before any fetch or image pull. The given tag then
 passes every check below unchanged, even when a higher tag exists. This closes "production takes the highest tag".
-`--tag` is refused for development and staging and for `status` and `rollback`.
+`--tag` is refused for staging and for `status` and `rollback`.
 
 An automatic proof that staging already served and passed the tag is still not built: the owner and the coordinator
 confirm it by hand before the word «انشر على الإنتاج». An enforced gate is designed in plan part P7 and is not
@@ -60,12 +58,12 @@ the container and the image. It accepts the document only when its `commit`, its
 reference (`ghcr.io/tariiq222/liwan-<name>@sha256:...`; any other host or namespace is refused) match, and `release` passes `deploy/releases/manifest.py`
 validation. Each image is pulled by the digest of the host's architecture from the `platforms` map. A document
 without that architecture is refused: an Arm server given an amd64-only document refuses with
-`RESULT: refused document_invalid` (`has no linux/arm64 image`), while development on amd64 accepts the amd64-only one. Staging and production also refuse a tag whose commit is not part of GitHub `main`, a document without `linux/arm64` digests (even on an amd64 host), and refuse
+`RESULT: refused document_invalid` (`has no linux/arm64 image`). Staging and production also refuse a tag whose commit is not part of GitHub `main`, a document without `linux/arm64` digests (even on an amd64 host), and refuse
 a candidate that does not contain the served commit or whose release version is not above the served one.
 
 ## Credential
 
-The job command loads the variables from the root-only file `/etc/liwan-release/github-read` (`set -a; . /etc/liwan-release/github-read; set +a; python3 -B ...`); that file is the single source, not the job's secret store. Each environment has its own file and production's token differs from development's and staging's:
+The job command loads the variables from the root-only file `/etc/liwan-release/github-read` (`set -a; . /etc/liwan-release/github-read; set +a; python3 -B ...`); that file is the single source, not the job's secret store. Each environment has its own file and production's token differs from staging's:
 
 | Variable | Meaning |
 | --- | --- |
@@ -210,14 +208,14 @@ Install the `liwan-shared-worker.service` unit before the first run but do not s
 The control-plane migration needs no manual start of `control-db`: `docker compose run` starts the dependency and waits
 until it is healthy.
 
-## Edge check (development host)
+## Edge check (staging host)
 
-`edge_check.py` is a standalone script (release.py never calls it). Example:
+`edge_check.py` is a standalone script (release.py never calls it). It checks a host behind the Openship edge, as staging is. Example:
 
 ```sh
 python3 -B /opt/liwan/current/deploy/release/edge_check.py --host app.example.com --min-days 21 \
   --route-file /path/app.route.json --target http://127.0.0.1:18080 --vhost-file /etc/nginx/conf.d/app.conf \
-  --cert-file /srv/liwan-development/control/private/control-tls.crt
+  --cert-file /srv/liwan-staging/control/private/control-tls.crt
 ```
 
 It prints one line per failed check (a network, TLS, file, JSON or `openssl` error is a failed check, not a traceback) and exits 1, or
