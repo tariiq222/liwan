@@ -142,6 +142,8 @@ describe('errors and routing', () => {
     expect(c.conflict).toBe(true); expect(commercialFailure({ response: { status: 403, _data: { code: 'forbidden' } } }).forbidden).toBe(true)
     const f = commercialFailure({ status: 422, data: { code: 'price_missing', field: 'prices[0]' } })
     expect(fieldIssue(f, 'prices')).toBe('price_missing'); expect(fieldIssue(f, 'name')).toBeUndefined()
+    const refused = commercialFailure({ status: 422, data: { data: { code: 'invalid', field: 'prices', issues: [{ code: 'price_missing', field: 'prices' }, { code: 'policy_missing' }, { field: 'x' }] } } })
+    expect(refused.issues).toEqual([{ code: 'price_missing', field: 'prices' }, { code: 'policy_missing' }]); expect(commercialFailure({ status: 422, data: { code: 'invalid' } }).issues).toEqual([])
     expect(commercialErrorKey({ data: { code: 'price_missing' } })).toBe('vendor.pricing.errors.price_missing'); expect(commercialErrorKey({ data: { code: 'zzz' } })).toBe('vendor.pricing.errors.generic')
   })
   it('keeps return targets inside the list', () => {

@@ -35,6 +35,13 @@ export async function lockRevision(client: PoolClient, kind: Kind, id: string, e
 export function requireStatus(row: Record<string, any>, allowed: string[]) {
   if (!allowed.includes(row.status)) throw new CommercialHttpError('transition_invalid', 409)
 }
+/**
+ * The customers on a revision, as a SELECT column for a revision row aliased `r`: the subscriptions whose applied or pending
+ * revision uses it, once each. `usedBy` is how the subscription snapshot names it, so a plan is `plan_revision_id` and a bundle is
+ * one of `bundle_revision_ids`. (`revision_references` is not that: it only holds which plan lists a bundle, to keep it undeletable.)
+ */
+export const customerCountSql = (usedBy: string) => `(SELECT count(DISTINCT s.id)::int FROM subscriptions s
+  JOIN subscription_revisions sr ON sr.id IN (s.applied_revision_id, s.target_revision_id) WHERE ${usedBy}) AS customer_count`
 export async function referenceCount(client: Pool | PoolClient, id: string): Promise<number> {
   const r = await client.query('SELECT count(*)::int AS n FROM revision_references WHERE revision_id=$1', [id])
   return r.rows[0].n

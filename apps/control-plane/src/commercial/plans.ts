@@ -2,14 +2,14 @@ import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { planViewSchema, planCreateSchema, planEditSchema, lifecycleActionSchema, storageStepsAligned, STORAGE_STEP_MISALIGNED, type PlanView, type PlanRevision, type Price } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
-import { audit, CommercialHttpError, digestOf, iso, lockRevision, nextVersion, pageParams, referenceCount, requireStatus, statusSql, type CommercialActor, type Kind } from './lifecycle.js'
+import { audit, CommercialHttpError, customerCountSql, digestOf, iso, lockRevision, nextVersion, pageParams, referenceCount, requireStatus, statusSql, type CommercialActor, type Kind } from './lifecycle.js'
 import { DERIVED_LIMITS, priceIssues, bundleRevision, loadRelease } from './bundles.js'
 import { compileEntitlements, CommercialError } from '@liwan/commercial-contracts/server'
 
 export const PLAN_KIND: Kind = { table: 'plan_revisions', parent: 'commercial_plans', parentCol: 'plan_id', label: 'plan' }
 type Row = Record<string, any>
 type Issue = { code: string; field?: string }
-const FIELDS = 'r.*, (SELECT count(*)::int FROM revision_references x WHERE x.revision_id=r.id) AS customer_count'
+const FIELDS = `r.*, ${customerCountSql("sr.snapshot->>'plan_revision_id' = r.id::text")}`
 const PLAN_COLS = ['name', 'audience', 'term_months', 'currency', 'prices', 'platform_limits', 'included_bundle_revision_ids', 'optional_bundle_revision_ids', 'included_extra_branches', 'extra_branch_prices', 'extra_branches_limit', 'included_users', 'included_storage_mb', 'storage_step_mb', 'storage_step_threshold_mb', 'storage_large_step_mb',
   'user_prices', 'storage_prices', 'policy_revision_id', 'trial_days', 'grace_days', 'auto_suspend', 'auto_renew_allowed'] as const
 

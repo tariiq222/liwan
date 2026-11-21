@@ -40,12 +40,36 @@ suite('commercial plans', () => {
     const v = await validate(c.body.id); expect(v.status).toBe(200)
     const p = await api('POST', `/plans/${c.body.id}/publish`, { edit_revision: v.body.edit_revision, reason })
     expect(p.body.available).toBe(true)
-    expect((await api('GET', `/bundles/${b.id}`)).body.customer_count).toBe(1)
+    expect((await api('GET', `/bundles/${b.id}`)).body.customer_count).toBe(0)
     const w = await api('POST', `/plans/${c.body.id}/withdraw`, { edit_revision: p.body.edit_revision, reason })
     const r = await api('POST', `/plans/${c.body.id}/restore`, { edit_revision: w.body.edit_revision, reason })
     const rev = await api('POST', `/plans/${c.body.id}/revisions`, { edit_revision: r.body.edit_revision, reason })
     expect(rev.status).toBe(201); expect(rev.body.version).toBe(2)
     expect((await api('DELETE', `/bundles/${b.id}`, { edit_revision: b.edit_revision, reason })).status).toBe(409)
+  })
+  it('counts customers on a plan and on a bundle, not the plans that reference a bundle', async () => {
+    const [b1, b2, unused] = [await publishedBundle(), await publishedBundle(), await publishedBundle()]
+    const c = await api('POST', '/plans', planBody({ included_bundle_revision_ids: [b1.id], optional_bundle_revision_ids: [b2.id, unused.id] }))
+    const v = await validate(c.body.id)
+    const p = await api('POST', `/plans/${c.body.id}/publish`, { edit_revision: v.body.edit_revision, reason })
+    expect(p.status).toBe(200)
+    // One customer applied the plan with b1 and b2; another has the plan with b2 as its pending target only; a third is on nothing.
+    const subscribe = async (applied: object | null, target: object | null) => {
+      const customer = randomUUID(), sub = randomUUID(), revision = randomUUID()
+      await pool.query('INSERT INTO customers(id,name) VALUES($1,$2)', [customer, `Count ${customer}`])
+      await pool.query('INSERT INTO subscriptions(id,customer_id,state) VALUES($1,$2,$3)', [sub, customer, 'active'])
+      await pool.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,1,$3,$4)', [revision, sub, JSON.stringify(applied ?? target), randomUUID()])
+      await pool.query('UPDATE subscriptions SET revision=1,applied_revision_id=$2,target_revision_id=$3 WHERE id=$1', [sub, applied ? revision : null, revision])
+    }
+    await subscribe({ plan_revision_id: c.body.id, bundle_revision_ids: [b1.id, b2.id] }, null)
+    await subscribe(null, { plan_revision_id: c.body.id, bundle_revision_ids: [b2.id] })
+    const count = async (kind: 'plans' | 'bundles', id: string) => (await api('GET', `/${kind}/${id}`)).body.customer_count
+    expect(await count('plans', c.body.id)).toBe(2)
+    expect(await count('bundles', b1.id)).toBe(1)
+    expect(await count('bundles', b2.id)).toBe(2)
+    expect(await count('bundles', unused.id)).toBe(0)
+    const listed = (await api('GET', '/plans?limit=200')).body.items.find((x: any) => x.id === c.body.id)
+    expect(listed.customer_count).toBe(2)
   })
   it('refuses a plan that still carries a metered limit', async () => {
     const c = await api('POST', '/plans', planBody({ platform_limits: { 'users.limit': 5 } }))
