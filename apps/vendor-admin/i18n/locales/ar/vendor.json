@@ -68,6 +68,7 @@
       "kinds": {
         "past_due": "متأخر في السداد منذ {duration}",
         "refund_rejected": "تعذّر تسجيل استرداد من المزود ({operation}): المال خرج ولا يوجد إشعار دائن",
+        "refund_not_sent": "لم يُطلب أي استرداد من المزود ({operation}): المال لم يخرج، فراجع الفاتورة قبل أي استرداد يدوي",
         "refund_unrecorded": "أعاد المزود هذا المبلغ فعلًا. لا تُرجعه مرة ثانية. افحص سبب تعذّر تسجيل الاسترداد.",
         "billing_blocked": "تعذّر إصدار الفاتورة منذ {duration}: لا عنوان عودة صالح للدفع",
         "free_base_blocked": "تعذّر إنزال الاشتراك إلى القاعدة المجانية منذ {duration} ({operation})؛ الشركة غير مقفلة",
@@ -97,6 +98,7 @@
       "actions": {
         "past_due": "افتح الفاتورة",
         "refund_rejected": "افتح الفاتورة",
+        "refund_not_sent": "افتح الفاتورة",
         "refund_unrecorded": "افتح الفاتورة",
         "billing_blocked": "افتح الاشتراك",
         "free_base_blocked": "افتح الاشتراك",

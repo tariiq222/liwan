@@ -68,6 +68,7 @@
       "kinds": {
         "past_due": "Overdue for {duration}",
         "refund_rejected": "A provider refund could not be recorded ({operation}): the money left and there is no credit note",
+        "refund_not_sent": "No refund was requested from the provider ({operation}): the money has not left, so refund it only after checking the invoice",
         "refund_unrecorded": "The provider has already returned this money. Do not refund it again. Check why recording the refund is blocked.",
         "billing_blocked": "Invoice cannot be issued for {duration}: no valid payment return address",
         "free_base_blocked": "Dropping the subscription to the free base has been blocked for {duration} ({operation}); the company is not locked",
@@ -97,6 +98,7 @@
       "actions": {
         "past_due": "Open the invoice",
         "refund_rejected": "Open the invoice",
+        "refund_not_sent": "Open the invoice",
         "refund_unrecorded": "Open the invoice",
         "billing_blocked": "Open the subscription",
         "free_base_blocked": "Open the subscription",

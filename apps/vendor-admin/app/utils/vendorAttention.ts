@@ -33,6 +33,8 @@ export function attentionPresentation(item: AttentionItem): AttentionPresentatio
       return { to: item.invoice_id ? { path: `/invoices/${item.invoice_id}` } : customerTab(item, 'invoices'), tone: 'destructive', icon: 'i-lucide-alarm-clock', actionKey: action(item.kind) }
     case 'refund_rejected':
       return { to: item.invoice_id ? { path: `/invoices/${item.invoice_id}` } : customerTab(item, 'invoices'), tone: 'destructive', icon: 'i-lucide-undo-2', actionKey: action(item.kind) }
+    case 'refund_not_sent':
+      return { to: item.invoice_id ? { path: `/invoices/${item.invoice_id}` } : customerTab(item, 'invoices'), tone: 'destructive', icon: 'i-lucide-undo-2', actionKey: action(item.kind) }
     case 'refund_unrecorded':
       return { to: item.invoice_id ? { path: `/invoices/${item.invoice_id}` } : customerTab(item, 'invoices'), tone: 'destructive', icon: 'i-lucide-undo-2', actionKey: action(item.kind) }
     case 'bank_transfer_claimed':
@@ -77,6 +79,7 @@ export function attentionMessage(item: AttentionItem, now: Date): { key: string,
   switch (item.kind) {
     case 'past_due': return { key: 'past_due', days: Math.max(0, daysBetween(item.since, now)), operation: null }
     case 'refund_rejected': return { key: 'refund_rejected', days: null, operation: item.detail }
+    case 'refund_not_sent': return { key: 'refund_not_sent', days: null, operation: item.detail }
     case 'refund_unrecorded': return { key: 'refund_unrecorded', days: null, operation: null }
     case 'bank_transfer_claimed': return { key: 'bank_transfer_claimed', days: null, operation: item.detail }
     case 'billing_blocked': return { key: 'billing_blocked', days: Math.max(0, daysBetween(item.since, now)), operation: null }

@@ -40,10 +40,12 @@ const subjectsSql = `WITH latest AS (
   -- definition of "credited" the worker uses (any non-void note, any origin): the figure the provider gave when it is
   -- valid (at most the payment), otherwise any credit at all, or when a later event for the attempt was processed.
   -- A row with no attempt has no invoice to be covered on and stays; no operator action dismisses it.
-  SELECT DISTINCT ON (r.aggregate_id) r.aggregate_id, r.processed_at, r.payload->>'error' AS reason, r.invoice_id,
+  -- money_left tells the two apart: a provider refund event (a payment.intervention row) means the provider already returned the money,
+  -- while a failed reconcile.refund row never got a refund asked of the provider (a row that did is never closed, see handOffAutomaticRefund).
+  SELECT DISTINCT ON (r.aggregate_id) r.aggregate_id, r.processed_at, r.payload->>'error' AS reason, r.invoice_id, r.outbox_kind = 'payment.intervention' AS money_left,
     o.customer_id, COALESCE(c.name, r.aggregate_id) AS name, c.tenant_id
   FROM (
-    SELECT ob.aggregate_id, ob.processed_at, ob.created_at, ob.payload, a.id AS attempt_id, a.invoice_id, n.status AS note_status,
+    SELECT ob.aggregate_id, ob.kind AS outbox_kind, ob.processed_at, ob.created_at, ob.payload, a.id AS attempt_id, a.invoice_id, n.status AS note_status,
       a.amount_minor AS paid_minor,
       CASE WHEN a.currency = ob.payload#>>'{refunded,currency}' AND ob.payload#>>'{refunded,minor}' ~ '^[0-9]{1,15}$'
         THEN (ob.payload#>>'{refunded,minor}')::bigint END AS refunded_minor,
@@ -192,7 +194,8 @@ const subjectsSql = `WITH latest AS (
   ORDER BY a.metadata->>'payment_id', a.created_at DESC
 ), subjects AS (
   SELECT 1 AS rank,'past_due' AS kind, customer_id, tenant_id, NULL::uuid AS operation_id, invoice_id, name, ${iso('due_at')} AS since, NULL::text AS detail, due_at AS sort_at FROM overdue WHERE $3::boolean
-  UNION ALL SELECT 2,'refund_rejected', customer_id, tenant_id, NULL, invoice_id, name, ${iso('processed_at')}, reason, processed_at FROM rejected_refunds WHERE $3::boolean
+  UNION ALL SELECT 2,'refund_rejected', customer_id, tenant_id, NULL, invoice_id, name, ${iso('processed_at')}, reason, processed_at FROM rejected_refunds WHERE money_left AND $3::boolean
+  UNION ALL SELECT 2,'refund_not_sent', customer_id, tenant_id, NULL, invoice_id, name, ${iso('processed_at')}, reason, processed_at FROM rejected_refunds WHERE NOT money_left AND $3::boolean
   UNION ALL SELECT 2,'refund_unrecorded', customer_id, tenant_id, NULL, invoice_id, name, ${iso('created_at')}, reason, created_at FROM unrecorded_refunds WHERE $3::boolean
   UNION ALL SELECT 2,'bank_transfer_claimed', customer_id, tenant_id, NULL, invoice_id, name, ${iso('claimed_at')}, value_date, claimed_at FROM claimed_transfers WHERE $3::boolean
   UNION ALL SELECT 2,'suspension_undelivered', customer_id, tenant_id, NULL, NULL, name,

@@ -57,9 +57,9 @@ const EVENTS = {
 export type AlertEvent = keyof typeof EVENTS
 
 /** Attention kinds with no alert of their own here: `past_due` is the overdue-invoice alert, `renewal_soon` needs nothing from the owner. */
-const ATTENTION_ALERT_EVENT: Partial<Record<AttentionKind, AlertEvent>> = { bank_transfer_claimed: 'bank_transfer_claimed', refund_rejected: 'refund_rejected', refund_unrecorded: 'refund_unrecorded', tenant_deletion_due: 'deletion_due', tenant_deletion_stuck: 'deletion_stuck' }
+const ATTENTION_ALERT_EVENT: Partial<Record<AttentionKind, AlertEvent>> = { bank_transfer_claimed: 'bank_transfer_claimed', refund_rejected: 'refund_rejected', refund_not_sent: 'refund_rejected', refund_unrecorded: 'refund_unrecorded', tenant_deletion_due: 'deletion_due', tenant_deletion_stuck: 'deletion_stuck' }
 const ATTENTION_SKIPPED: readonly AttentionKind[] = ['past_due', 'renewal_soon']
-const ATTENTION_LABELS: Record<Exclude<AttentionKind, 'bank_transfer_claimed' | 'refund_rejected' | 'refund_unrecorded' | 'tenant_deletion_due' | 'tenant_deletion_stuck' | 'past_due' | 'renewal_soon'>, string> = {
+const ATTENTION_LABELS: Record<Exclude<AttentionKind, 'bank_transfer_claimed' | 'refund_rejected' | 'refund_not_sent' | 'refund_unrecorded' | 'tenant_deletion_due' | 'tenant_deletion_stuck' | 'past_due' | 'renewal_soon'>, string> = {
   billing_blocked: 'الفوترة موقوفة لهذا العميل',
   free_base_blocked: 'تعذّر رجوع العميل إلى الباقة المجانية',
   renewal_failed: 'فشل تجديد الاشتراك',

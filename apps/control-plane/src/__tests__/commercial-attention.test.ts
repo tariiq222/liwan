@@ -165,6 +165,16 @@ suite('vendor attention list on PostgreSQL', () => {
       return { customer, s }
     }
 
+    it('says the money has not left for a failed worker refund, and that it left for a provider refund event', async () => {
+      const { customer, s } = await rejectedCustomer()
+      const f = await refundFixture(customer, s)
+      await pool.query("UPDATE commercial_outbox SET kind='reconcile.refund' WHERE aggregate_id=$1", [f.order])
+      const kindOf = async () => (await get(BILLING)).items.filter(i => i.customer_id === customer && i.kind.startsWith('refund_')).map(i => [i.kind, i.detail])
+      expect(await kindOf()).toEqual([['refund_not_sent', 'refund_exceeds_payment']])
+      await pool.query("UPDATE commercial_outbox SET kind='payment.intervention' WHERE aggregate_id=$1", [f.order])
+      expect(await kindOf()).toEqual([['refund_rejected', 'refund_exceeds_payment']])
+    })
+
     it('is shown without credit, cleared by any non-void credit of the invoice, and shown again when that credit is voided', async () => {
       expect(await listed(id.rejected)).toBe(true)
       // A duplicate-charge note is another payment's money and covers nothing.

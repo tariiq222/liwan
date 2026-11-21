@@ -11,6 +11,7 @@ describe('attentionPresentation', () => {
     expect(attentionPresentation(item({ kind: 'past_due' })).to).toEqual({ path: '/customers/c1', query: { tab: 'invoices' } })
     expect(attentionPresentation(item({ kind: 'refund_rejected', invoice_id: 'i9' })).to).toEqual({ path: '/invoices/i9' })
     expect(attentionPresentation(item({ kind: 'refund_rejected' })).to).toEqual({ path: '/customers/c1', query: { tab: 'invoices' } })
+    expect(attentionPresentation(item({ kind: 'refund_not_sent', invoice_id: 'i9' })).to).toEqual({ path: '/invoices/i9' })
     expect(attentionPresentation(item({ kind: 'suspension_undelivered' })).to).toEqual({ path: '/customers/c1', query: { tab: 'subscription' } })
     expect(attentionPresentation(item({ kind: 'billing_blocked' })).to).toEqual({ path: '/customers/c1', query: { tab: 'subscription' } })
     expect(attentionPresentation(item({ kind: 'stalled_activation' })).to).toEqual({ path: '/customers/c1', query: { tab: 'workspace' } })
@@ -48,6 +49,7 @@ describe('attentionMessage', () => {
   it('counts overdue and waiting days from `since`', () => {
     expect(attentionMessage(item({ kind: 'past_due' }), now)).toEqual({ key: 'past_due', days: 12, operation: null })
     expect(attentionMessage(item({ kind: 'refund_rejected', detail: 'refund_exceeds_payment' }), now)).toEqual({ key: 'refund_rejected', days: null, operation: 'refund_exceeds_payment' })
+    expect(attentionMessage(item({ kind: 'refund_not_sent', detail: 'provider_refund_unavailable' }), now)).toEqual({ key: 'refund_not_sent', days: null, operation: 'provider_refund_unavailable' })
     expect(attentionMessage(item({ kind: 'invitation_failed' }), now)).toEqual({ key: 'invitation_failed', days: null, operation: null })
     expect(attentionMessage(item({ kind: 'bank_transfer_claimed', detail: '2026-10-15' }), now)).toEqual({ key: 'bank_transfer_claimed', days: null, operation: '2026-10-15' })
     expect(attentionMessage(item({ kind: 'notice_failed', detail: 'no_recipient' }), now)).toEqual({ key: 'notice_failed', days: null, operation: 'no_recipient' })
