@@ -20,12 +20,11 @@ class WorkflowWiringTest(unittest.TestCase):
     def job(self, name):
         return re.search(rf'(?ms)^  {re.escape(name)}:\n(.*?)(?=^  [a-z][a-z0-9-]*:\n|\Z)', self.workflow).group(1)
 
-    def test_runs_after_ci_result_on_main_pushes_and_the_nightly_run_only(self):
+    def test_runs_after_ci_result_on_main_pushes_only(self):
         job = self.job('main-alert')
         self.assertIn('needs: ci-result\n', job)
-        self.assertIn("if: always() && (github.event_name == 'schedule' || "
-                      "(github.event_name == 'push' && github.ref == 'refs/heads/main'))", job)
-        for event in ('pull_request', 'merge_group', 'workflow_dispatch'):
+        self.assertIn("if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'", job)
+        for event in ('pull_request', 'merge_group', 'workflow_dispatch', 'schedule'):
             self.assertNotIn(event, job)
 
     def test_has_only_the_permissions_the_script_needs(self):

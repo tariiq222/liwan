@@ -107,6 +107,13 @@ class StaticStageTest(unittest.TestCase):
         self.assertIn('name: static (${{ matrix.part }})', job)
         self.assertIn('run: deploy/ci/static.sh ${{ matrix.part }}', job)
 
+    def test_the_full_dispatch_flag_reaches_the_script(self):
+        self.assertIn('CI_FULL_DISPATCH: ${{ inputs.full }}', self.static_job())
+
+    def test_the_api_surface_check_runs_in_policies_only_on_a_full_dispatch(self):
+        self.assertRegex(self.body('policies'),
+                         r'if \[ "\$\{CI_FULL_DISPATCH:-\}" = true \]; then\n\s+python3 -B tools/api_surface\.py --check\n\s+fi')
+
     def test_each_part_keeps_the_commands_the_serial_script_ran(self):
         for part, commands in self.COMMANDS.items():
             for command in commands:
