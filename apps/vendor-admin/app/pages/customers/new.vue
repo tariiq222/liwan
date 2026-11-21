@@ -14,7 +14,7 @@ const { t, locale } = useI18n(); const route = useRoute(); const { request } = u
 const hydrated = useHydrated(); const subscriptions = useVendorSubscriptions(); const commercial = useVendorCommercial()
 await ready
 const { data: targets, pending, error, refresh } = await useAsyncData('vendor:targets', () => sharedEnabled.value ? Promise.resolve({ items: [], total: 0 }) : request<{ items: { id: string; kind: string }[]; total: number }>('targets'))
-const { data: catalog, error: catalogError, refresh: refreshCatalog } = await useVendorCatalogVersions().load()
+const { data: catalog, error: catalogError, refresh: refreshCatalog } = await useVendorCatalogVersions().load(!sharedEnabled.value)
 const { data: plans, error: plansError, refresh: refreshPlans } = await useAsyncData('vendor:tenant-plans', () => sharedEnabled.value ? commercial.listPlans({ status: 'published', limit: 200 }).then(r => r.items) : Promise.resolve([]))
 // A customer is created before its first quote, and a quote needs a catalog release: without one the form stops here
 // instead of leaving an empty customer behind.
