@@ -1,11 +1,22 @@
 # Opt-in for the public commercial host and customer BFF. Load after docker-compose.shared.yml.
-# The external network joins only web and the operator's private HTTPS control-plane ingress.
+# The external network joins web and the edge (proxy, for the payment webhook route only) to the control API's private HTTPS ingress.
+# Both trust its private CA, read from the operator's control private directory (the file init-host.sh creates, mode 0644).
+# The CA sits in /etc/liwan-control, outside /etc/liwan: web already mounts the tenant registry directory read-only there, and a
+# file cannot be mounted inside a read-only mount. The mounts are long-form with create_host_path off, so a missing source
+# file stops `compose up` with an error instead of Docker creating a directory at that path (which Caddy then refuses).
 services:
   guard:
     environment:
       LIWAN_PROSPECT_HOST: ${LIWAN_PROSPECT_HOST:?set LIWAN_PROSPECT_HOST}
   web:
     networks: !override [guard_web, commercial_control]
+    volumes:
+      # The BFF calls https://control-api:4187, whose certificate the private CA signed; Node does not trust it otherwise.
+      - type: bind
+        source: ${LIWAN_CONTROL_PRIVATE_DIR:?set LIWAN_CONTROL_PRIVATE_DIR}/control-ca.pem
+        target: /etc/liwan-control/control-ca.pem
+        read_only: true
+        bind: { create_host_path: false }
     environment:
       NUXT_CUSTOMER_COMMERCIAL_ENABLED: "true"
       NUXT_PUBLIC_SIGNUP_ENABLED: ${LIWAN_PUBLIC_SIGNUP:-false}
@@ -15,6 +26,26 @@ services:
       NUXT_CUSTOMER_COMMERCIAL_CONTROL_URL: ${NUXT_CUSTOMER_COMMERCIAL_CONTROL_URL:?set NUXT_CUSTOMER_COMMERCIAL_CONTROL_URL}
       NUXT_CUSTOMER_COMMERCIAL_SERVICE_KEY: ${CUSTOMER_COMMERCIAL_SERVICE_KEY:?set CUSTOMER_COMMERCIAL_SERVICE_KEY}
       NUXT_CUSTOMER_COMMERCIAL_ISSUER: ${CUSTOMER_COMMERCIAL_ISSUER:?set CUSTOMER_COMMERCIAL_ISSUER}
+      NODE_EXTRA_CA_CERTS: /etc/liwan-control/control-ca.pem
+  proxy:
+    # Added to the networks the shared overlay gives it (edge); Compose unions the two lists.
+    networks: [commercial_control]
+    environment:
+      # Host of the payment webhook site. The reserved address keeps the site valid and unreachable while it is unset.
+      CONTROL_WEBHOOK_DOMAIN: ${CONTROL_WEBHOOK_DOMAIN:-control-webhook.invalid}
+    volumes:
+      - type: bind
+        source: ${LIWAN_CONTROL_PRIVATE_DIR:?set LIWAN_CONTROL_PRIVATE_DIR}/control-ca.pem
+        target: /etc/liwan-control/control-ca.pem
+        read_only: true
+        bind: { create_host_path: false }
+      # The one site block of this stack that the shared Caddyfile does not hold: it exists only where this overlay is loaded,
+      # because it needs the control network and the CA above. The Caddyfile imports every file in this directory.
+      - type: bind
+        source: ./control-plane/Caddyfile.snippet
+        target: /etc/caddy/commercial/control-webhook.caddy
+        read_only: true
+        bind: { create_host_path: false }
 networks:
   commercial_control:
     external: true
