@@ -25,6 +25,7 @@ import { digestOf } from '../commercial/lifecycle.js'
 import { createPaymentAttempt, handleProviderEvent } from '../commercial/payments.js'
 import { queueScheduledBillingNotices } from '../commercial/billing-notices.js'
 import { cancelAtPeriodEnd, resumeCancelled } from '../commercial/cancellation.js'
+import * as cancellationRules from '../commercial/cancellation-rules.js'
 import { cancellationNotice, sendCancellationNotices } from '../commercial/cancellation-notices.js'
 import { overLimitNotice } from '../commercial/over-limit-notices.js'
 import type { MailAdapter } from '../commercial/mail-adapter.js'
@@ -211,6 +212,24 @@ suite('a tenant cancels its paid subscription at the period end (owner decision 
     expect((await pool.query('SELECT 1 FROM invoices WHERE subscription_id=$1 AND status=\'issued\'', [f.subscription])).rowCount).toBe(0)
   })
 
+  it('one subscription that cannot be armed does not stop the cancellation locks of the others', async () => {
+    const [a, b] = (await Promise.all([paidCustomer(), paidCustomer()])).sort((x, y) => (x.subscription < y.subscription ? -1 : 1)) as [Fixture, Fixture]
+    for (const f of [a, b]) await cancelAtPeriodEnd(pool, customerAsks(f))
+    const original = cancellationRules.paidRenewalInFlight
+    const spy = vi.spyOn(cancellationRules, 'paidRenewalInFlight').mockImplementation(async (client, id, ...rest) => {
+      if (id === a.subscription) throw new Error('arming exploded')
+      return original(client, id, ...rest)
+    })
+    try {
+      // The failing subscription is first in order; the failure is reported after the others were armed.
+      await expect(processFreeBaseLocks(pool, { now: at(b.renewalOn), adapter })).rejects.toThrow('arming exploded')
+    } finally { spy.mockRestore() }
+    expect(await lockRow(b.subscription)).toMatchObject({ cause: 'cancelled' })
+    expect(await lockRow(a.subscription)).toBeUndefined()
+    // The next pass arms it once the cause is gone.
+    await processFreeBaseLocks(pool, { now: at(b.renewalOn), adapter })
+    expect(await lockRow(a.subscription)).toMatchObject({ cause: 'cancelled' })
+  })
   it('voids the unpaid renewal invoice of the period the customer is leaving', async () => {
     const f = await paidCustomer()
     const when = at(f.renewalOn)

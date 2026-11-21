@@ -84,7 +84,17 @@ export async function armCancellationLocks(pool: Pool, input: { now: Date; subsc
   const due = (await pool.query(`SELECT s.id FROM subscriptions s WHERE s.cancel_requested_at IS NOT NULL AND s.state IN ('active','past_due')
     AND NOT s.manual_suspension AND s.applied_revision_id IS NOT NULL AND s.renewal_at <= $1::date AND NOT ${holdsFreeBaseLockSql('s')} AND NOT ${tenantRetiringSql('s.customer_id')}
     AND ($2::uuid IS NULL OR s.id=$2) ORDER BY s.id`, [today, input.subscription_id ?? null])).rows
-  for (const { id } of due) await transaction(pool, async client => {
+  const failures: unknown[] = []
+  // One subscription that cannot be armed is reported after the others were: it never stops their locks.
+  for (const { id } of due) {
+    try { await armCancellationLock(pool, id, today, input.now) } catch (error) { failures.push(error) }
+  }
+  if (failures.length) throw failures[0]
+  return due.length
+}
+
+async function armCancellationLock(pool: Pool, id: string, today: string, now: Date) {
+  await transaction(pool, async client => {
     const sub = (await client.query('SELECT *,renewal_at::text AS renewal_on FROM subscriptions WHERE id=$1 FOR UPDATE', [id])).rows[0]
     if (!sub.cancel_requested_at || sub.manual_suspension || sub.target_revision_id || !['active', 'past_due'].includes(sub.state)
       || sub.renewal_on > today) return
@@ -96,10 +106,9 @@ export async function armCancellationLocks(pool: Pool, input: { now: Date; subsc
       ON CONFLICT(subscription_id) DO UPDATE SET excluded_until=CASE WHEN free_base_locks.cause<>'cancelled' THEN free_base_locks.armed_at ELSE free_base_locks.excluded_until END,
         pre_lock_revision_id=EXCLUDED.pre_lock_revision_id,period_start=EXCLUDED.period_start,
         armed_at=EXCLUDED.armed_at,cause='cancelled',next_attempt_at=EXCLUDED.next_attempt_at,kept=NULL,
-        customer_retry_at=NULL,state='pending',order_id=NULL,attempts=0,reason=NULL`, [id, sub.applied_revision_id, start, input.now])
+        customer_retry_at=NULL,state='pending',order_id=NULL,attempts=0,reason=NULL`, [id, sub.applied_revision_id, start, now])
     await voidUnpaidRenewals(client, id, start)
   })
-  return due.length
 }
 
 /** Re-arm the original lock only after voiding its first invoice. The caller holds the subscription lock. */
@@ -124,11 +133,11 @@ export async function rearmUnpaidTrialLock(client: PoolClient, subscriptionId: s
 
 /** Every subscription progresses independently, including failures and customer retries. */
 export async function processFreeBaseLocks(pool: Pool, input: { now: Date; adapter?: PaymentAdapter; subscription_id?: string }) {
-  await armCancellationLocks(pool, input)
+  const failures: unknown[] = []
+  try { await armCancellationLocks(pool, input) } catch (error) { failures.push(error) }
   const due = (await pool.query(`SELECT subscription_id FROM free_base_locks WHERE state IN ('pending','ordered')
     AND next_attempt_at <= $1 AND ($2::uuid IS NULL OR subscription_id=$2) ORDER BY subscription_id`,
   [input.now, input.subscription_id ?? null])).rows
-  const failures: unknown[] = []
   for (const { subscription_id: id } of due) {
     try {
       const unpaid = await attempt(pool, id, input.now)
