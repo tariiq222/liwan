@@ -91,16 +91,16 @@ Every push of a task branch, and so every publication, is preceded by an indepen
 review of that branch. It applies to ordinary and sensitive changes alike.
 
 - When: after the local commit and the applicable local checks, before the push.
-- Who: a fresh reviewer agent or session that did not write the change. Each tool picks
-  its reviewer under its own routing; the step and the reviewer's independence are
-  mandatory, a model or provider is not.
+- Who: an independent reviewer as [REVIEW.md](../../REVIEW.md#review-evidence-and-authorization)
+  defines it. Each tool picks its reviewer under its own routing; the step and the
+  reviewer's independence are mandatory, a model or provider is not.
 - What: the whole branch diff against current `origin/main`. The reviewer opens the code
   the diff touches and follows `REVIEW.md`.
 - Evidence: the reviewer checks each finding in the code before reporting it, with
   `file:line` and the input or state that breaks it. A guess is not a finding.
 - Outcome: confirmed findings are fixed, or explicitly accepted by the owner, before the
-  push. After a fix, repeat the affected checks and review again before pushing; name the
-  reviewed head in the PR.
+  push. After a fix, repeat the affected checks and review the fix and the behavior it
+  affects before pushing; name the reviewed head in the PR.
 
 This is review, not authorization. It does not grant push, PR, ready, merge or release,
 which still need the owner's explicit words as stated above.
@@ -129,7 +129,7 @@ which still need the owner's explicit words as stated above.
 3. **Review the complete delta.** Compare the candidate with the recorded
    remote baseline, including deletions, shared UI, navigation, permissions,
    contracts, migrations and regression tests. Review the actual diff following
-   `REVIEW.md`; addon/contract changes need Odoo-aware review. Before the first push
+   `REVIEW.md`; addon/contract changes need Odoo-aware review. Before every push
    this is the [independent review](#independent-review-before-every-push-owner-decision-2026-11-21). Keep compatible
    prior decisions. If the request conflicts with one, preserve it and ask for
    that specific decision; general merge authorization does not reverse it.
@@ -181,7 +181,7 @@ that PR, or names auto-merge. GitHub then merges the PR the moment the current-h
 green, without waiting for an agent to come back. Under «انشر» alone the agent waits for the green
 check and merges the PR itself. Auto-merge never bypasses protection: it waits
 for the required check and for resolved conversations. Disable it (`gh pr merge <n> --disable-auto`)
-before pushing a change that still needs review. Do not enable it on a PR that needs an owner
+before pushing further changes to that PR. Do not enable it on a PR that needs an owner
 decision or a separate authorization, or on one that changes authentication, authorization, tenant
 isolation, migrations or the CI rules that decide what must pass: those merge only after the
 boundary-focused review described below. Inspect the selected and skipped stages before
