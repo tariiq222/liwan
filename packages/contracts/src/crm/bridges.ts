@@ -36,11 +36,11 @@ export const CrmOpportunityRefSchema = z.strictObject({
   active: z.boolean(),
 })
 
-/** `GET /inbox/conversations/<id>/opportunity`: the ref, or a bare `null` when none is linked or the caller cannot read it. */
-export const ConversationOpportunityAnswerSchema = CrmOpportunityRefSchema.nullable()
-
 /** `GET /helpdesk/tickets/<id>/opportunity`: the ref or null, and `hidden` when a link exists that the caller cannot read. */
 export const TicketOpportunityAnswerSchema = z.strictObject({ opportunity: CrmOpportunityRefSchema.nullable(), hidden: z.boolean() })
+
+/** `GET /inbox/conversations/<id>/opportunity`: the same answer as a ticket's; `POST` and `PUT` answer the bare ref. */
+export const ConversationOpportunityAnswerSchema = TicketOpportunityAnswerSchema
 
 /** `PUT /helpdesk/tickets/<id>/opportunity`: links an existing opportunity; nothing is created. */
 export const TicketOpportunityLinkSchema = z.strictObject({ opportunity_id: z.number().int().positive() })

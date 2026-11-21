@@ -36,25 +36,25 @@ beforeEach(() => {
 
 describe('conversation opportunity link', () => {
   it('refreshes the conversations of the new and of the previously linked opportunity', () => {
-    cache.set(keyId(inboxKeys.opportunity(3)), { id: 11 })
+    cache.set(keyId(inboxKeys.opportunity(3)), { opportunity: { id: 11 }, hidden: false })
     useLinkConversationOpportunity(3)
     options[0]!.onSuccess({ id: 12 }, 12)
-    expect(cache.get(keyId(inboxKeys.opportunity(3)))).toEqual({ id: 12 })
+    expect(cache.get(keyId(inboxKeys.opportunity(3)))).toEqual({ opportunity: { id: 12 }, hidden: false })
     expect(invalidated()).toEqual([crmKeys.conversations(12), crmKeys.conversations(11)])
   })
 
   it('refreshes one opportunity when the link did not move', () => {
-    cache.set(keyId(inboxKeys.opportunity(3)), { id: 12 })
+    cache.set(keyId(inboxKeys.opportunity(3)), { opportunity: { id: 12 }, hidden: false })
     useLinkConversationOpportunity(3)
     options[0]!.onSuccess({ id: 12 }, 12)
     expect(invalidated()).toEqual([crmKeys.conversations(12)])
   })
 
   it('refreshes the conversations of the opportunity an unlink leaves', () => {
-    cache.set(keyId(inboxKeys.opportunity(3)), { id: 11 })
+    cache.set(keyId(inboxKeys.opportunity(3)), { opportunity: { id: 11 }, hidden: false })
     useUnlinkConversationOpportunity(3)
     options[0]!.onSuccess(undefined, undefined)
-    expect(cache.get(keyId(inboxKeys.opportunity(3)))).toBeNull()
+    expect(cache.get(keyId(inboxKeys.opportunity(3)))).toEqual({ opportunity: null, hidden: false })
     expect(invalidated()).toEqual([crmKeys.conversations(11)])
   })
 

@@ -71,14 +71,16 @@ class TestCrmInboxCompanyIsolation(CompanyIsolationCase):
                 lead, conversation = self.leads[tag], self.conversations[tag]
                 if tag == current:
                     self.assertVisible(LIST.format(lead.id))
-                    self.assertEqual(self.assertVisible(LINK.format(conversation.id)).json()['id'], lead.id)
+                    self.assertEqual(self.assertVisible(LINK.format(conversation.id)).json()['opportunity']['id'], lead.id)
                     self.assertEqual(self.api('PUT', LINK.format(conversation.id), {'opportunity_id': lead.id}).status_code, 200)
                     continue
                 self.assertHiddenEveryWay('GET', LIST.format(lead.id), self.by_tag[tag].id)
                 body = {'opportunity_id': lead.id}
                 if tag in SEES[current]:
                     # The conversation is visible, its opportunity is not: no name, no write.
-                    self.assertIsNone(self.assertVisible(LINK.format(conversation.id)).json())
+                    self.assertEqual(
+                        self.assertVisible(LINK.format(conversation.id)).json(), {'opportunity': None, 'hidden': True},
+                    )
                     self.assertEqual(self.api('PUT', LINK.format(conversation.id), body).status_code, 404)
                     self.assertEqual(self.api('DELETE', LINK.format(conversation.id)).status_code, 404)
                 else:

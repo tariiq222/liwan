@@ -1,6 +1,6 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { ConversationOpportunityAnswerSchema, CrmOpportunityListSchema } from '@liwan/contracts'
+import { ConversationOpportunityAnswerSchema, CrmOpportunityListSchema, CrmOpportunityRefSchema } from '@liwan/contracts'
 import { crmKeys } from './crm/crmKeys'
 import { useCrmCreateAccess } from './crm/useCrmAccess'
 import { opportunityConversationsKey } from './opportunityConversationsKey'
@@ -11,6 +11,8 @@ import { inboxKeys } from './inbox/useInbox'
 
 /** Rows the opportunity picker asks for. */
 export const OPPORTUNITY_PICK_LIMIT = 20
+
+type LinkCache = { opportunity: { id: number } | null; hidden: boolean }
 
 export function useInboxOpportunityAccess() {
   const { can } = useAccess()
@@ -25,7 +27,7 @@ export function useInboxOpportunityAccess() {
   }
 }
 
-/** The linked opportunity, or null when none is linked or the caller may not read it. */
+/** The link of a conversation: the opportunity ref, `hidden` when a link exists that the caller cannot read, or neither. */
 export function useConversationOpportunity(conversationId: MaybeRefOrGetter<number>, enabled: MaybeRefOrGetter<boolean>) {
   const { $api } = useApi()
   return useQuery({
@@ -41,10 +43,10 @@ export function useCreateConversationOpportunity() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: number) => $api(`/api/v1/inbox/conversations/${id}/opportunity`, {
-      method: 'POST', body: {}, schema: ConversationOpportunityAnswerSchema,
+      method: 'POST', body: {}, schema: CrmOpportunityRefSchema,
     }),
     onSuccess: (created, id) => {
-      qc.setQueryData(inboxKeys.opportunity(id), created)
+      qc.setQueryData(inboxKeys.opportunity(id), { opportunity: created, hidden: false })
       void qc.invalidateQueries({ queryKey: [...crmKeys.opportunities, 'list'] })
       void qc.invalidateQueries({ queryKey: crmKeys.dashboardAll })
     },
@@ -56,11 +58,11 @@ export function useLinkConversationOpportunity(conversationId: MaybeRefOrGetter<
   const { $api } = useApi()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (opportunityId: number) => $api(`/api/v1/inbox/conversations/${toValue(conversationId)}/opportunity`, { method: 'PUT', body: { opportunity_id: opportunityId }, schema: ConversationOpportunityAnswerSchema }),
+    mutationFn: (opportunityId: number) => $api(`/api/v1/inbox/conversations/${toValue(conversationId)}/opportunity`, { method: 'PUT', body: { opportunity_id: opportunityId }, schema: CrmOpportunityRefSchema }),
     onSuccess: (ref, opportunityId) => {
       const cacheKey = inboxKeys.opportunity(toValue(conversationId))
-      const previous = qc.getQueryData<{ id: number } | null>(cacheKey)?.id
-      qc.setQueryData(cacheKey, ref)
+      const previous = qc.getQueryData<LinkCache>(cacheKey)?.opportunity?.id
+      qc.setQueryData(cacheKey, { opportunity: ref, hidden: false })
       // The conversations section of the new opportunity gains this conversation and that of the old one loses it.
       for (const id of new Set([opportunityId, previous])) if (id) qc.invalidateQueries({ queryKey: opportunityConversationsKey(id) })
     },
@@ -77,8 +79,8 @@ export function useUnlinkConversationOpportunity(conversationId: MaybeRefOrGette
     mutationFn: () => $api(`/api/v1/inbox/conversations/${toValue(conversationId)}/opportunity`, { method: 'DELETE' }),
     onSuccess: () => {
       const cacheKey = inboxKeys.opportunity(toValue(conversationId))
-      const previous = qc.getQueryData<{ id: number } | null>(cacheKey)?.id
-      qc.setQueryData(cacheKey, null)
+      const previous = qc.getQueryData<LinkCache>(cacheKey)?.opportunity?.id
+      qc.setQueryData(cacheKey, { opportunity: null, hidden: false })
       if (previous) qc.invalidateQueries({ queryKey: opportunityConversationsKey(previous) })
     },
     onError: () => qc.invalidateQueries({ queryKey: inboxKeys.opportunity(toValue(conversationId)) }),

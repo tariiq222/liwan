@@ -21,7 +21,7 @@ test('[CRM-140] an agent creates an opportunity from a conversation and both sid
   await expect(browser).toHaveURL(/\/inbox\/\d+\/info/, slow);
   const linked = screen.getByTestId('inbox-opportunity-linked');
   const existing = await api(browser, 'GET', `/api/v1/inbox/conversations/${conversation}/opportunity`);
-  if (!existing.body?.id) {
+  if (!existing.body?.opportunity?.id) {
     await expect(screen.getByTestId('inbox-opportunity-none')).toBeVisible(slow);
     await screen.getByTestId('inbox-opportunity-create').tap();
   }

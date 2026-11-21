@@ -2313,6 +2313,7 @@
       "created": "Opportunity created and linked",
       "title": "Sales opportunity",
       "none": "This conversation is not linked to an opportunity.",
+      "hidden": "This conversation is linked to an opportunity you cannot view.",
       "link": "Link an opportunity",
       "unlink": "Unlink the opportunity",
       "confirm": "Link the chosen opportunity",
