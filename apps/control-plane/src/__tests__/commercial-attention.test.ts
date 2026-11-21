@@ -255,4 +255,24 @@ suite('vendor attention list on PostgreSQL', () => {
       expect(await unrecorded(done.customer)).toBeUndefined()
     })
   })
+
+  describe('card payment review and saved-card refusals', () => {
+    const reviewKinds = (items: { kind: string, detail: string | null }[]) => items.filter(i => i.kind === 'form_payment_review' || i.detail?.startsWith('card_charge_refused')).map(i => i.detail)
+    async function fixtures() {
+      const customer = randomUUID(), orderId = randomUUID()
+      await pool.query('INSERT INTO customers(id,name) VALUES($1,$2)', [customer, `${tag} card-review`])
+      const s = await subscription(customer, 'active', new Date(Date.now() + 60 * 86_400_000).toISOString().slice(0, 10))
+      await pool.query("INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,payment_state,fulfillment_state,idempotency_key,request_digest,due_now_minor,currency,exponent) VALUES($1,$2,$3,'renewal',$4,$5,'awaiting_payment','not_started',$6,'d',11500,'SAR',2)", [orderId, customer, s.sub, randomUUID(), s.rev, randomUUID()])
+      const audit = (action: string, subject: string, metadata: object) => pool.query("INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,'system',$2,$3,'fixture',$4)", [randomUUID(), action, subject, JSON.stringify(metadata)])
+      await audit('payment.form_attempt_needs_review', orderId, { attempt_id: randomUUID() })
+      await audit('payment.saved_card_charge_refused', orderId, { code: 'invalid_request' })
+      await audit('payment.form_payment_rejected', randomUUID(), { payment_id: `pay-${randomUUID()}`, reason: 'amount_mismatch' })
+    }
+
+    it('shows the review and the refusal only to a caller who may manage billing', async () => {
+      await fixtures()
+      expect(reviewKinds((await get(BILLING)).items)).toEqual(expect.arrayContaining(['attempt_needs_review', 'card_charge_refused: invalid_request', 'amount_mismatch']))
+      expect(reviewKinds((await get(['vendor.read'])).items)).toEqual([])
+    })
+  })
 })

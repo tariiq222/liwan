@@ -199,13 +199,13 @@ const subjectsSql = `WITH latest AS (
     ${iso('suspension_pending_since')}, tenant_status_failures::text, suspension_pending_since FROM suspension_undelivered
   UNION ALL SELECT 2,'tenant_deletion_due', customer_id, tenant_id, NULL, NULL, name, ${iso('due_at')}, NULL, due_at FROM deletion_due
   UNION ALL SELECT 2,'tenant_deletion_stuck', customer_id, tenant_id, NULL, NULL, name, ${iso('at')}, code, at FROM deletion_stuck
-  UNION ALL SELECT 2,'form_payment_review', customer_id, tenant_id, NULL, NULL, name, ${iso('at')}, detail, at FROM form_payment_review
-  UNION ALL SELECT 2,'form_payment_review', NULL::uuid, NULL::uuid, NULL, NULL, 'payment provider', ${iso('at')}, detail, at FROM provider_payment_review
+  UNION ALL SELECT 2,'form_payment_review', customer_id, tenant_id, NULL, NULL, name, ${iso('at')}, detail, at FROM form_payment_review WHERE $3::boolean
+  UNION ALL SELECT 2,'form_payment_review', NULL::uuid, NULL::uuid, NULL, NULL, 'payment provider', ${iso('at')}, detail, at FROM provider_payment_review WHERE $3::boolean
   UNION ALL SELECT 3,'billing_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('billing_blocked_at')}, NULL, billing_blocked_at FROM blocked
   UNION ALL SELECT 3,'free_base_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('armed_at')}, reason, armed_at FROM lock_blocked
   UNION ALL SELECT 3,'trial_end_overdue', customer_id, tenant_id, NULL, NULL, name, ${iso('trial_ends_at')}, NULL, trial_ends_at FROM trial_overdue
   UNION ALL SELECT 3,'renewal_failed', customer_id, tenant_id, NULL, NULL, name, ${iso('renewal_failed_at')}, renewal_failure, renewal_failed_at FROM renewal_failures
-  UNION ALL SELECT 3,'renewal_failed', customer_id, tenant_id, NULL, NULL, name, ${iso('at')}, detail, at FROM charge_refusals
+  UNION ALL SELECT 3,'renewal_failed', customer_id, tenant_id, NULL, NULL, name, ${iso('at')}, detail, at FROM charge_refusals WHERE $3::boolean
   UNION ALL SELECT 4,'stalled_activation', customer_id, tenant_id, NULL, NULL, name, ${iso('order_created_at')}, fulfillment_state, order_created_at FROM stalled
   UNION ALL SELECT 4,'invitation_failed', customer_id, tenant_id, NULL, NULL, name, ${iso('created_at')}, NULL, created_at FROM invitation_failures
   UNION ALL SELECT 4,'notice_failed', customer_id, tenant_id, NULL, NULL, name, ${iso('processed_at')}, reason, processed_at FROM failed_notices
@@ -227,7 +227,7 @@ const countsSql = `SELECT
   (SELECT count(*)::int FROM customers c LEFT JOIN subscriptions s ON s.customer_id=c.id WHERE c.commercial_setup_required OR s.id IS NULL) AS setup_required,
   (SELECT count(*)::int FROM (SELECT s.*, ${renewalSkipped} AS renewal_skipped FROM subscriptions s) s WHERE ${renewalDue}) AS renewals`
 
-/** GET /v1/commercial/attention (vendor.read): a bounded, prioritized list of what needs the vendor today. Overdue invoices are billing detail: only `includeBilling` callers get them. */
+/** GET /v1/commercial/attention (vendor.read): a bounded, prioritized list of what needs the vendor today. Overdue invoices, refunds, claimed transfers, card payment review and saved-card refusals are billing detail: only `includeBilling` callers get them. */
 export async function attention(pool: Pool, includeBilling: boolean) {
   const params = [STALLED_HOURS, RENEWAL_WINDOW_DAYS, includeBilling]
   const [list, counts] = await Promise.all([
