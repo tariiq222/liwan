@@ -24,4 +24,8 @@ def dump_available_number(number):
 
 def dump_settings(values):
     """Whitelist the communication settings of the company (defaults included)."""
-    return {'daily_message_limit': values['daily_message_limit']}
+    return {
+        'daily_message_limit': values['daily_message_limit'],
+        'daily_call_limit': values['daily_call_limit'],
+        'record_calls': values['record_calls'],
+    }

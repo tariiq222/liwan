@@ -60,7 +60,7 @@ class LiwanIntegrationRegistry(models.AbstractModel):
                 'secrets': ('auth_token',), 'generated_secrets': (), 'attributes': (), 'webhook_secrets': ('auth_token',),
                 'settings_path': None, 'exclusive': False,
                 'external_id_pattern': r'AC[0-9a-f]{32}',
-                'capabilities': ('senders.list', 'messaging.send', 'messaging.status'),
+                'capabilities': ('senders.list', 'messaging.send', 'messaging.status', 'voice.call', 'voice.status', 'lookup'),
             },
         )
 
@@ -73,6 +73,14 @@ class LiwanIntegrationRegistry(models.AbstractModel):
         return (
             {
                 'key': 'twilio.messaging', 'provider': 'twilio', 'owner': OWNER, 'feature_key': FEATURE,
+                'scopes': (), 'webhook_path': None,
+            },
+            {
+                'key': 'twilio.voice', 'provider': 'twilio', 'owner': OWNER, 'feature_key': FEATURE,
+                'scopes': (), 'webhook_path': None,
+            },
+            {
+                'key': 'twilio.lookup', 'provider': 'twilio', 'owner': OWNER, 'feature_key': FEATURE,
                 'scopes': (), 'webhook_path': None,
             },
         )
@@ -186,8 +194,9 @@ class LiwanIntegrationRegistry(models.AbstractModel):
     def _liwan_connection_uses(self, connection):
         """The use keys that hold ``connection`` now; an application extends this from its own records.
 
-        The service's own records hold it too: an active sender holds the use of its channel, and a message that may
-        still reach the provider (queued or unconfirmed) holds the messaging use.
+        The service's own records hold it too: an active sender holds the use of its channel, a message
+        that may still reach the provider (queued or unconfirmed) holds the messaging use, and a call not
+        in a final state holds the voice use.
         """
         channels = self.env['liwan.integration.sender'].search(
             [('connection_id', '=', connection.id), ('active', '=', True)],
@@ -195,4 +204,6 @@ class LiwanIntegrationRegistry(models.AbstractModel):
         uses = [f'{connection.provider}.{SENDER_USES[channel]}' for channel in channels]
         if self.env['liwan.integration.messaging']._liwan_has_pending(connection):
             uses.append(f'{connection.provider}.messaging')
+        if self.env['liwan.integration.voice']._liwan_has_pending(connection):
+            uses.append(f'{connection.provider}.voice')
         return tuple(dict.fromkeys(uses))

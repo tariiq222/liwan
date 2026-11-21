@@ -18,6 +18,7 @@ from odoo.addons.liwan_integrations_sa.controllers.helpers import (
     reject,
 )
 from odoo.addons.liwan_integrations_sa.models.communication_settings import (
+    MAX_DAILY_CALL_LIMIT,
     MAX_DAILY_MESSAGE_LIMIT,
 )
 from odoo.addons.liwan_integrations_sa.models.constants import FEATURE, MANAGE, READ
@@ -31,7 +32,8 @@ from odoo.addons.liwan_integrations_sa.serializers.sender import (
 
 CREATE_FIELDS = {'connection_id', 'channel', 'kind', 'value', 'is_default'}
 PATCH_FIELDS = {'is_default', 'active'}
-SETTINGS_FIELDS = {'daily_message_limit'}
+SETTINGS_FIELDS = {'daily_message_limit', 'daily_call_limit', 'record_calls'}
+SETTINGS_LIMITS = {'daily_message_limit': MAX_DAILY_MESSAGE_LIMIT, 'daily_call_limit': MAX_DAILY_CALL_LIMIT}
 VALUE_MAX = 64
 BOOLEAN_TEXT = {'true': True, 'false': False}
 
@@ -170,8 +172,16 @@ class IntegrationSenderController(http.Controller):
     @requires_capability(MANAGE)
     def patch_settings(self, **payload):
         check_fields(payload, SETTINGS_FIELDS)
-        limit = payload['daily_message_limit']
-        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= MAX_DAILY_MESSAGE_LIMIT:
-            reject(f'daily_message_limit must be an integer from 1 to {MAX_DAILY_MESSAGE_LIMIT}', 'daily_message_limit')
-        values = request.env['liwan.integration.settings']._liwan_update(request.env.company, {'daily_message_limit': limit})
-        return dump_settings(values)
+        values = {}
+        for key, maximum in SETTINGS_LIMITS.items():
+            if key not in payload:
+                continue
+            limit = payload[key]
+            if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= maximum:
+                reject(f'{key} must be an integer from 1 to {maximum}', key)
+            values[key] = limit
+        if 'record_calls' in payload:
+            if not isinstance(payload['record_calls'], bool):
+                reject('record_calls must be true or false', 'record_calls')
+            values['record_calls'] = payload['record_calls']
+        return dump_settings(request.env['liwan.integration.settings']._liwan_update(request.env.company, values))

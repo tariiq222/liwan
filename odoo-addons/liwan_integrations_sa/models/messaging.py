@@ -15,8 +15,13 @@ CONTENT_SID = re.compile(r'HX[0-9a-fA-F]{32}')
 CONTENT_VARIABLES_MAX = 50
 CONTENT_VARIABLE_KEY_MAX = 64
 CONTENT_VARIABLE_VALUE_MAX = 1024
-# The only models the service reads and writes for its caller, who holds no ACL on any of them.
-ELEVATED_MODELS = ('liwan.integration.message', 'liwan.integration.sender', 'liwan.integration.settings')
+# The only models the service reads and writes for its caller, who holds no ACL on any of them. The
+# connection is read-only here: its credentials and callback URLs are resolved for the caller, never
+# returned.
+ELEVATED_MODELS = (
+    'liwan.integration.message', 'liwan.integration.call', 'liwan.integration.sender',
+    'liwan.integration.settings', 'liwan.integration.connection',
+)
 
 
 def refuse(code, message, field=None, status=422):

@@ -6,7 +6,7 @@ from odoo import api, models
 from odoo.addons.liwan_integrations_sa import providers
 
 # The callback kinds a provider may deliver to the public hook route.
-CALLBACK_KINDS = ('message-status',)
+CALLBACK_KINDS = ('message-status', 'call-status', 'recording-status')
 # What `_liwan_apply_callback` answers; the controller maps each to its HTTP status.
 APPLIED = 'applied'
 IGNORED = 'ignored'
@@ -41,7 +41,11 @@ class LiwanIntegrationConnectionCallback(models.Model):
         record = connection._liwan_callback_record(kind, params)
         if not record:
             return IGNORED
-        if not module.verify_callback(connection._liwan_callback_secrets(), record.status_callback_url, params, headers):
+        # A call stores one URL per kind (they differ only in the kind segment), so the signature is
+        # verified against whichever URL the record stores for this callback's kind.
+        url = getattr(record, 'recording_status_callback_url', None) \
+            if kind == 'recording-status' else record.status_callback_url
+        if not module.verify_callback(connection._liwan_callback_secrets(), url, params, headers):
             return FORBIDDEN
         return APPLIED if record._liwan_apply_callback_status(kind, params) else IGNORED
 

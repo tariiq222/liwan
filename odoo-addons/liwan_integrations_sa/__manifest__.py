@@ -2,7 +2,7 @@
 {
     'name': 'liwan Integrations',
     'summary': 'liwan platform: provider connections, their encrypted secrets, uses, senders and signed callbacks — /api/v1/integrations',
-    'version': '19.0.1.2.0',
+    'version': '19.0.1.3.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',

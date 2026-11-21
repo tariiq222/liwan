@@ -28,7 +28,7 @@ MESSAGES = {
 
 
 class IntegrationCallbackController(http.Controller):
-    """A provider's server-to-server status callback (a message or call status), relayed by Nuxt unchanged.
+    """A provider's server-to-server status callback (a message, call or recording status), relayed by Nuxt unchanged.
 
     There is no session, no feature gate and no capability: the provider signature over the URL stored on the log
     row is the whole authentication, checked by the one model method this route calls. A read-only branch still

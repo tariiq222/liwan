@@ -94,9 +94,11 @@ class TestTwilioProvider(TwilioCase):
             (provider['auth'], provider['secrets'], provider['webhook_secrets'], provider['generated_secrets'], provider['exclusive']),
             ('keys', ('auth_token',), ('auth_token',), (), False),
         )
-        self.assertEqual(provider['capabilities'], ('senders.list', 'messaging.send', 'messaging.status'))
+        self.assertEqual(provider['capabilities'], ('senders.list', 'messaging.send', 'messaging.status', 'voice.call', 'voice.status', 'lookup'))
         use = self.env['liwan.integration.registry']._liwan_use_map()['twilio.messaging']
         self.assertEqual((use['provider'], use['feature_key'], use['webhook_path']), ('twilio', 'integrations.enabled', None))
+        for key in ('twilio.voice', 'twilio.lookup'):
+            self.assertEqual((self.env['liwan.integration.registry']._liwan_use_map()[key]['provider'], self.env['liwan.integration.registry']._liwan_use_map()[key]['feature_key']), ('twilio', 'integrations.enabled'))
 
     def test_a_capability_the_module_does_not_implement_fails_the_registry(self):
         extend_registry(self, providers=({
@@ -327,14 +329,17 @@ class TestTwilioSenders(TwilioCase):
         self.assertFalse(self.env['liwan.integration.sender'].with_context(active_test=False).browse(sender['id']).exists())
 
     def test_communication_settings_default_then_change(self):
-        self.assertEqual(self.api('GET', f'{BASE}/communication-settings').json(), {'daily_message_limit': 1000})
-        changed = self.api('PATCH', f'{BASE}/communication-settings', {'daily_message_limit': 250})
-        self.assertEqual(changed.json(), {'daily_message_limit': 250})
-        for value in (0, 100001, '5', True):
-            self.assertError(self.api('PATCH', f'{BASE}/communication-settings', {'daily_message_limit': value}), 422, 'invalid')
+        self.assertEqual(
+            self.api('GET', f'{BASE}/communication-settings').json(),
+            {'daily_message_limit': 1000, 'daily_call_limit': 200, 'record_calls': False},
+        )
+        changed = self.api('PATCH', f'{BASE}/communication-settings', {'daily_message_limit': 250, 'daily_call_limit': 20, 'record_calls': True})
+        self.assertEqual(changed.json(), {'daily_message_limit': 250, 'daily_call_limit': 20, 'record_calls': True})
+        for key, value in (('daily_message_limit', 0), ('daily_message_limit', 100001), ('daily_message_limit', '5'), ('daily_call_limit', 0), ('daily_call_limit', 10001), ('record_calls', 'yes')):
+            self.assertError(self.api('PATCH', f'{BASE}/communication-settings', {key: value}), 422, 'invalid')
         self.login(self.reader)
-        self.assertEqual(self.api('GET', f'{BASE}/communication-settings').json(), {'daily_message_limit': 250})
-        self.assertEqual(self.api('PATCH', f'{BASE}/communication-settings', {'daily_message_limit': 5}).status_code, 403)
+        self.assertEqual(self.api('GET', f'{BASE}/communication-settings').json()['daily_call_limit'], 20)
+        self.assertEqual(self.api('PATCH', f'{BASE}/communication-settings', {'record_calls': False}).status_code, 403)
 
 
 @tagged('post_install', '-at_install', 'liwan')

@@ -1,12 +1,37 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Twilio: one package per provider, one module per Twilio service."""
-from . import client, messaging, signature
+from . import client, messaging, signature, voice
 from .client import list_numbers, probe
+from .lookup import lookup
 from .messaging import callback_message_id, list_templates, message_status, send_message
+from .voice import (
+    bridge_twiml,
+    call_status,
+    callback_call_id,
+    create_call,
+    recording_status,
+    say_twiml,
+)
 
 __all__ = [
-    'callback_message_id', 'client', 'list_numbers', 'list_templates', 'message_status', 'messaging', 'probe',
-    'send_message', 'signature', 'verify_callback',
+    'bridge_twiml',
+    'call_status',
+    'callback_call_id',
+    'callback_message_id',
+    'client',
+    'create_call',
+    'list_numbers',
+    'list_templates',
+    'lookup',
+    'message_status',
+    'messaging',
+    'probe',
+    'recording_status',
+    'say_twiml',
+    'send_message',
+    'signature',
+    'verify_callback',
+    'voice',
 ]
 
 

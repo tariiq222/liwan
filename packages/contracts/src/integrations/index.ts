@@ -105,10 +105,11 @@ export const IntegrationSecretRotationSchema = z.object({
   value: z.string().min(1),
 }).strict()
 
-/** Error codes the integrations routes answer besides the shared ones. `in_use`: a connection still held by a use, an active sender or a pending message. `provider_error`: the provider refused or could not be reached while reading the account. The messaging codes are listed in `IntegrationMessagingErrorCodeSchema`. */
+/** Error codes the integrations routes answer besides the shared ones. `in_use`: a connection still held by a use, an active sender, a pending message or call. `provider_error`: the provider refused or could not be reached while reading the account. The messaging codes are listed in `IntegrationMessagingErrorCodeSchema` and the voice ones in `IntegrationVoiceErrorCodeSchema`. */
 export const IntegrationErrorCodeSchema = z.enum([
   'invalid', 'forbidden', 'not_found', 'in_use', 'integration_rejected', 'provider_error',
   'invalid_phone', 'no_default_sender', 'sender_unavailable', 'connection_disabled', 'daily_limit_reached', 'body_too_long', 'tenant_read_only',
+  'text_too_long', 'no_connection', 'lookup_failed',
 ])
 
 /**
@@ -174,12 +175,20 @@ export const IntegrationAvailableNumberListSchema = z.object({
   total: z.number().int().nonnegative(),
 }).strict()
 
-/** The company's communication safety settings; defaults apply until the first change. */
+/** The company's communication safety settings; defaults apply until the first change. `record_calls`: place recorded calls, off until the company turns it on (only the recording reference is stored, never audio). */
 export const IntegrationCommunicationSettingsSchema = z.object({
   daily_message_limit: z.number().int().min(1).max(100000),
+  daily_call_limit: z.number().int().min(1).max(10000),
+  record_calls: z.boolean(),
 }).strict()
 
-export const IntegrationCommunicationSettingsUpdateSchema = IntegrationCommunicationSettingsSchema
+export const IntegrationCommunicationSettingsUpdateSchema = z.object({
+  daily_message_limit: z.number().int().min(1).max(100000).optional(),
+  daily_call_limit: z.number().int().min(1).max(10000).optional(),
+  record_calls: z.boolean().optional(),
+}).strict().refine(body => Object.keys(body).length > 0, {
+  message: 'daily_message_limit, daily_call_limit or record_calls is required',
+})
 
 export const IntegrationMessageChannelSchema = z.enum(['sms', 'whatsapp'])
 /** `unconfirmed`: the provider may hold the message; it is never sent again automatically, only by an explicit retry. */
@@ -261,6 +270,99 @@ export const IntegrationMessageTemplateListSchema = z.object({
   total: z.number().int().nonnegative(),
 }).strict()
 
+/**
+ * Refusals of the voice service. `text_too_long`: more than 500 characters of spoken text. The shared
+ * `invalid_phone`, `no_default_sender`, `sender_unavailable`, `connection_disabled`, `daily_limit_reached`
+ * and `tenant_read_only` codes keep their messaging meanings, with the sender and limit of the voice channel.
+ */
+export const IntegrationVoiceErrorCodeSchema = z.enum([
+  'invalid_phone', 'no_default_sender', 'sender_unavailable', 'connection_disabled', 'daily_limit_reached',
+  'text_too_long', 'tenant_read_only',
+])
+
+/** Refusals of the lookup service. `no_connection`: no connected account of a provider that can look numbers up. `lookup_failed` (502): the provider refused or could not be reached. */
+export const IntegrationLookupErrorCodeSchema = z.enum(['invalid_phone', 'no_connection', 'lookup_failed'])
+
+/** `unconfirmed`: the call may be going out; it is never placed again automatically. */
+export const IntegrationCallStateSchema = z.enum([
+  'initiated', 'ringing', 'in_progress', 'completed', 'busy', 'no_answer', 'failed', 'canceled', 'unconfirmed',
+])
+/** Who placed a call; applications add their own origins. */
+export const IntegrationCallOriginSchema = z.enum(['test'])
+
+/** The state of one call, the only shape a test (and a service caller) reads back. `duration_seconds` is null until the call ends. */
+export const IntegrationCallStateViewSchema = z.object({
+  id: z.number().int().positive(),
+  mode: z.enum(['speak', 'bridge']),
+  origin: IntegrationCallOriginSchema,
+  state: IntegrationCallStateSchema,
+  to: z.string().min(1),
+  from_value: z.string().min(1),
+  duration_seconds: z.number().int().nonnegative().nullable(),
+  recorded: z.boolean(),
+  error_code: z.string().nullable(),
+  error_message: z.string().nullable(),
+  created_at: z.string().nullable(),
+  started_at: z.string().nullable(),
+  ended_at: z.string().nullable(),
+}).strict()
+
+/** One row of the call log (`integrations.log.read`). Provider, account and sender are snapshots; the connection and sender ids are null once deleted. */
+export const IntegrationCallSchema = IntegrationCallStateViewSchema.extend({
+  connection_id: z.number().int().positive().nullable(),
+  sender_id: z.number().int().positive().nullable(),
+  provider: z.string().min(1),
+  account_ref: z.string().min(1),
+  speak_text: z.string().nullable(),
+  bridge_to: z.string().nullable(),
+  requested_by: z.object({ id: z.number().int().positive(), name: z.string() }).strict().nullable(),
+  provider_call_id: z.string().nullable(),
+  recording_ref: z.string().nullable(),
+  recording_duration_seconds: z.number().int().nonnegative().nullable(),
+}).strict()
+
+export const IntegrationCallListSchema = z.object({
+  items: z.array(IntegrationCallSchema),
+  total: z.number().int().nonnegative(),
+}).strict()
+
+/** Query of the call log; dates are `YYYY-MM-DD`, `q` matches the dialed number. */
+export const IntegrationCallListQuerySchema = z.object({
+  state: IntegrationCallStateSchema.optional(),
+  sender_id: z.number().int().positive().optional(),
+  date_from: z.iso.date().optional(),
+  date_to: z.iso.date().optional(),
+  q: z.string().trim().max(32).optional(),
+  limit: z.number().int().positive().optional(),
+  offset: z.number().int().nonnegative().optional(),
+}).strict()
+
+/** POST body of the voice test. `speak` speaks `text` (or the fixed Arabic sentence) with an Arabic voice; `bridge` calls `agent_number` first and dials `to` in when the agent answers, so it carries no spoken text. */
+export const IntegrationVoiceTestSchema = z.object({
+  sender_id: z.number().int().positive().optional(),
+  to: z.string().trim().min(1).max(32),
+  mode: z.enum(['speak', 'bridge']),
+  text: z.string().min(1).max(500).optional(),
+  agent_number: z.string().trim().min(1).max(32).optional(),
+  language: z.enum(['ar', 'ar-AE']).optional(),
+}).strict().refine(body => body.mode !== 'bridge' || (body.text === undefined && body.language === undefined), {
+  message: 'a bridge call carries no spoken text',
+})
+
+/** POST body of the lookup test. `line_type` asks the billed Line Type Intelligence package. */
+export const IntegrationLookupTestSchema = z.object({
+  number: z.string().trim().min(1).max(32),
+  line_type: z.boolean().optional(),
+}).strict()
+
+/** The lookup answer. `line_type` is null unless it was asked (and the provider knows the type). */
+export const IntegrationLookupResultSchema = z.object({
+  valid: z.boolean(),
+  e164: z.string().nullable(),
+  country: z.string().nullable(),
+  line_type: z.string().nullable(),
+}).strict()
+
 export type IntegrationAuth = z.infer<typeof IntegrationAuthSchema>
 export type IntegrationState = z.infer<typeof IntegrationStateSchema>
 export type IntegrationUse = z.infer<typeof IntegrationUseSchema>
@@ -297,3 +399,14 @@ export type IntegrationMessageListQuery = z.infer<typeof IntegrationMessageListQ
 export type IntegrationMessagingTest = z.infer<typeof IntegrationMessagingTestSchema>
 export type IntegrationMessageTemplate = z.infer<typeof IntegrationMessageTemplateSchema>
 export type IntegrationMessageTemplateList = z.infer<typeof IntegrationMessageTemplateListSchema>
+export type IntegrationVoiceErrorCode = z.infer<typeof IntegrationVoiceErrorCodeSchema>
+export type IntegrationLookupErrorCode = z.infer<typeof IntegrationLookupErrorCodeSchema>
+export type IntegrationCallState = z.infer<typeof IntegrationCallStateSchema>
+export type IntegrationCallOrigin = z.infer<typeof IntegrationCallOriginSchema>
+export type IntegrationCallStateView = z.infer<typeof IntegrationCallStateViewSchema>
+export type IntegrationCall = z.infer<typeof IntegrationCallSchema>
+export type IntegrationCallList = z.infer<typeof IntegrationCallListSchema>
+export type IntegrationCallListQuery = z.infer<typeof IntegrationCallListQuerySchema>
+export type IntegrationVoiceTest = z.infer<typeof IntegrationVoiceTestSchema>
+export type IntegrationLookupTest = z.infer<typeof IntegrationLookupTestSchema>
+export type IntegrationLookupResult = z.infer<typeof IntegrationLookupResultSchema>

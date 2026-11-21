@@ -17,6 +17,7 @@ const SENDER = {
   is_default: true, active: true, created_at: '2030-01-15T10:30:00Z',
 }
 const NUMBER = { value: '+15005550006', label: '(500) 555-0006', sms: true, voice: false }
+const SETTINGS = { daily_message_limit: 1000, daily_call_limit: 200, record_calls: false }
 
 describe('IntegrationSenderSchema', () => {
   it('accepts the serializer shape and lists it with a total', () => {
@@ -54,9 +55,12 @@ describe('available numbers and settings', () => {
     expect(() => IntegrationAvailableNumberListSchema.parse({ items: [{ ...NUMBER, mms: true }], total: 1 })).toThrow()
   })
 
-  it('bounds the daily message limit', () => {
-    expect(IntegrationCommunicationSettingsSchema.parse({ daily_message_limit: 1000 })).toEqual({ daily_message_limit: 1000 })
+  it('bounds the daily limits and patches only the given fields', () => {
+    expect(IntegrationCommunicationSettingsSchema.parse(SETTINGS)).toEqual(SETTINGS)
+    expect(IntegrationCommunicationSettingsUpdateSchema.parse({ record_calls: true })).toEqual({ record_calls: true })
     for (const value of [0, 100001, 1.5]) expect(() => IntegrationCommunicationSettingsUpdateSchema.parse({ daily_message_limit: value })).toThrow()
+    for (const value of [0, 10001, 1.5]) expect(() => IntegrationCommunicationSettingsUpdateSchema.parse({ daily_call_limit: value })).toThrow()
+    expect(() => IntegrationCommunicationSettingsUpdateSchema.parse({})).toThrow()
   })
 
   it('names the integrations error codes', () => {
