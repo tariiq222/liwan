@@ -7,18 +7,20 @@ import { planRequestBody, planTenantCustomerBody, planTenantQuoteBody } from '@/
 import { orderOutcomeUnknown } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
+import { useVendorCatalogVersions } from '@/composables/useVendorCatalogVersions'
+import { publishedVersions } from '@/utils/vendorCatalogVersions'
 definePageMeta({ capability: 'vendor.tenants.manage' })
 const { t, locale } = useI18n(); const route = useRoute(); const { request } = useVendorApi(); const { can, sharedOnboardingEnabled: sharedEnabled, ready } = useVendorContext()
 const hydrated = useHydrated(); const subscriptions = useVendorSubscriptions(); const commercial = useVendorCommercial()
 await ready
 const { data: targets, pending, error, refresh } = await useAsyncData('vendor:targets', () => sharedEnabled.value ? Promise.resolve({ items: [], total: 0 }) : request<{ items: { id: string; kind: string }[]; total: number }>('targets'))
-const { data: catalog, error: catalogError, refresh: refreshCatalog } = await useAsyncData('vendor:catalog-published', () => sharedEnabled.value ? Promise.resolve({ items: [], total: 0 }) : request<{ items: { id: string; version: string; status: string; solution: { tiers?: { id: string; name: string }[] } }[]; total: number }>('catalog'))
+const { data: catalog, error: catalogError, refresh: refreshCatalog } = await useVendorCatalogVersions().load()
 const { data: plans, error: plansError, refresh: refreshPlans } = await useAsyncData('vendor:tenant-plans', () => sharedEnabled.value ? commercial.listPlans({ status: 'published', limit: 200 }).then(r => r.items) : Promise.resolve([]))
 // A customer is created before its first quote, and a quote needs a catalog release: without one the form stops here
 // instead of leaving an empty customer behind.
 const { data: releases } = await useAsyncData('vendor:catalog-releases', () => sharedEnabled.value ? commercial.releases() : Promise.resolve(null))
 const noRelease = computed(() => sharedEnabled.value && releases.value !== null && releases.value !== undefined && releases.value.length === 0)
-const published = computed(() => catalog.value?.items.filter(item => item.status === 'published') ?? [])
+const published = computed(() => publishedVersions(catalog.value ?? []))
 const selectedCatalog = computed(() => published.value.find(item => item.version === form.catalog_version))
 const form = reactive({ name: '', commercial_mode: 'saas', hosting_model: 'dedicated_managed', inventory_target: '', catalog_version: '', catalog_tier: '', reason: '', admin_name: '', admin_login: '', plan_revision_id: '', cadence: '', onboarding: false })
 // A vendor-added customer never starts a trial (release 1, owner decision 2026-11-06): the console places a paid first

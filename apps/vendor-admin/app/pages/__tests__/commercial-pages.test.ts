@@ -61,6 +61,9 @@ describe('vendor commercial pages: structure and gating', () => {
     for (const lang of ['en', 'ar']) expect(json(lang).bundles.usedByUnavailable, lang).toBeTruthy()
     expect(p).toContain(':selling-plans="sellingPlans"'); expect(comp('LifecyclePanel.vue')).not.toContain('customer_count')
   })
+  it('every reader of the catalog versions goes through useVendorCatalogVersions, not its own request', () => {
+    for (const source of [page('customers/new.vue'), comp('TenantOperationsPanel.vue')]) { expect(source).toContain('useVendorCatalogVersions().load()'); expect(source).not.toContain("request<{ items: Catalog") ; expect(source).not.toMatch(/request<[^>]*>\('catalog'\)/) }
+  })
   it('plan and bundle pages fail whole, with the shared retry, when a bundle, release or version cannot load', () => {
     for (const f of ['plans/[id].vue', 'bundles/[id].vue', 'plans/[id]/edit.vue']) expect(page(f), f).not.toMatch(/\.catch\(/)
     for (const f of ['plans/[id].vue', 'bundles/[id].vue']) expect(page(f), f).toContain(':error="error" @retry="refresh"')

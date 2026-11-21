@@ -3,10 +3,10 @@ import { formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
 import { operationStatusBadge } from '@/utils/vendorBadges'
 import { buildVendorPolicy, type VendorFeatureValue } from '@/utils/vendorPolicy'
 import type { VendorTenant } from '@/utils/vendorTenant'
+import { useVendorCatalogVersions } from '@/composables/useVendorCatalogVersions'
 import type { OperationFeed } from '@liwan/commercial-contracts'
 type TenantOperation = 'tenant.create' | 'tenant.inspect' | 'health' | 'backup' | 'tenant.entitle'
 const tenantOperationTypes = new Set<TenantOperation>(['tenant.create', 'tenant.inspect', 'health', 'backup', 'tenant.entitle'])
-type Catalog = { version: string; status: string; solution: { tiers?: { id: string; name: string; features?: string[]; limits?: Record<string, number> }[] } }
 const props = defineProps<{ tenantId: string }>()
 /** True while a typed reason or limit change has not been sent; the page guards leaving with it. */
 const dirtyModel = defineModel<boolean>('dirty', { default: false })
@@ -15,9 +15,9 @@ const { request } = useVendorApi()
 const { can: canVendor } = useVendorContext()
 const tenantId = toRef(props, 'tenantId')
 const { data, error: tenantError, pending: tenantPending, refresh } = useVendorTenant(tenantId)
-const { data: catalog } = useAsyncData('vendor:catalog-features', () => request<{ items: Catalog[]; total: number }>('catalog'))
+const { data: catalog } = useVendorCatalogVersions().load()
 const { data: recent, error: recentError, pending: recentPending, refresh: refreshRecent } = useTenantRecentOperations(tenantId)
-const publishedCatalog = computed(() => catalog.value?.items.find(item => item.status === 'published' && item.version === data.value?.catalog_version))
+const publishedCatalog = computed(() => catalog.value?.find(item => item.status === 'published' && item.version === data.value?.catalog_version))
 const selectedTier = computed(() => publishedCatalog.value?.solution.tiers?.find(item => item.id === data.value?.catalog_tier))
 const featureKeys = computed(() => {
   const result = new Map<string, 'boolean' | 'limit'>([['users.limit', 'limit'], ['storage.limit_mb', 'limit']])

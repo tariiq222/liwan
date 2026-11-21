@@ -2,7 +2,7 @@ import { commercialErrorKey, commercialFailure } from './vendorCommercial'
 
 /** A catalog version as the control plane lists it: imported from the server, then validated, then published. */
 export type CatalogVersionStatus = 'draft' | 'validated' | 'published'
-export type CatalogVersionTier = { id: string, name: string, description?: string, modules?: string[], features?: string[], sellable?: boolean }
+export type CatalogVersionTier = { id: string, name: string, description?: string, modules?: string[], features?: string[], limits?: Record<string, number>, sellable?: boolean }
 export type CatalogVersion = {
   id: string
   version: string
