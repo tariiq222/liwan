@@ -40,11 +40,8 @@ policies() {
   python3 -B tools/git_policy.py --base "$BASE_REF"
   python3 -B tools/arch_policy.py --base "$BASE_REF"
   python3 -B tools/undeclared_imports.py
-  # The generated API files are checked in a full manual dispatch only: task branches may not regenerate them
-  # (tools/git_policy.py), so a pull request that adds a route would fail a check it cannot fix.
-  if [ "${CI_FULL_DISPATCH:-}" = true ]; then
-    python3 -B tools/api_surface.py --check
-  fi
+  # The generated API files are checked in every pull request: the branch that changes a route regenerates them.
+  python3 -B tools/api_surface.py --check
   python3 -B tools/semgrep_gate.py --base "$BASE_REF"
   # The retired product name stays out of the tree. The local checkout path keeps its folder name.
   python3 -B tools/forbidden_terms.py --terms tools/retired_terms.txt --exceptions tools/retired_terms_exceptions.txt \

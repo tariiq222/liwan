@@ -284,5 +284,14 @@ class EnvironmentTemplates(unittest.TestCase):
                 self.assertEqual([404, 404], statuses)
 
 
+    def test_release_credentials_are_documented_and_never_set_in_a_template(self):
+        readme = (ENVIRONMENTS / 'README.md').read_text(encoding='utf-8')
+        for variable in ('LIWAN_GHCR_READ_USER', 'LIWAN_GHCR_READ_TOKEN', 'LIWAN_GITHUB_READ_TOKEN'):
+            self.assertIn(variable, readme)
+            for template in ENVIRONMENTS.glob('*.env.example'):
+                self.assertNotIn(variable, template.read_text(encoding='utf-8'), template.name)
+        self.assertIn('Production holds its own', readme)
+
+
 if __name__ == '__main__':
     unittest.main()

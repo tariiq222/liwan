@@ -19,9 +19,9 @@ python3 tools/api_surface.py            # regenerate openapi.json and route-capa
 python3 tools/api_surface.py --check    # exit 1 when either committed file is stale
 ```
 
-Both files are generated only at integration, on a `codex/tools-integrate-*` branch or `main`. A task
-branch never commits them (`tools/git_policy.py` refuses it); its gate is
-`tools/route_gate_policy.py`, part of `npm test`. See `docs/parallel-work.md`.
+A branch that adds or changes a route regenerates both files and commits them with the change; pull-request CI
+runs `--check`. The route gate itself is `tools/route_gate_policy.py`, part of `npm test`. See
+`docs/parallel-work.md`.
 
 No Odoo runtime is involved: routes are extracted statically (AST over
 `odoo-addons/*/controllers/*.py`) and contract schemas are harvested from

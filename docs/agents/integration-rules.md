@@ -20,7 +20,7 @@ release, deployment and the other excluded operations need the owner's explicit 
 their scope. Prior approved product, access and data decisions remain binding. New
 changes require updated evidence and any authorization their scope needs.
 
-CI reports checks; it does not repair code, merge PRs, create tags or deploy.
+The `ci` workflow reports checks; it does not repair code, merge PRs, create tags or deploy. The `publish` workflow runs only on `main` and release tags and calls the development and staging hooks as described in the flow below.
 Task authorization, remote publication, merge, release, production deployment
 and cleanup remain distinct operations. Local consolidation authority does not
 authorize a remote push or production deployment. Missing services, stale checks and failed
@@ -45,7 +45,7 @@ for one branch, one PR or one conversation do not carry to the next. The 2026-11
 authorization, which also covered push, PR, ready and merge, is superseded.
 
 Also excluded, and needing the owner's explicit words each time: a `release/19.0.X.Y.Z`
-tag, deploying to any server, force-push or history rewrite, a direct push to `main`,
+tag («انشر على الاستيج»), deploying to production («انشر على الإنتاج»), deploying to any other server by hand, force-push or history rewrite, a direct push to `main`,
 bypassing branch protection or a failing check, and merging unrelated worktrees.
 Changes to external source versions still follow [UPDATE_POLICY.md](../UPDATE_POLICY.md).
 Missing, stale or failing checks never widen this authorization.
@@ -63,11 +63,20 @@ Owner keywords:
 - «انشر» means: commit, run the checks, get the independent review and fix its findings,
   push the task branch, open the PR, mark it ready,
   merge it after current-head `ci-result` is green, and return the lane (`wt done`, or `wt lane remove` for a temporary lane). It never means a direct push to `main`,
-  a release tag or a deployment.
+  a release tag, or a deployment to staging or production. The one exception is the development environment: it
+  updates by itself from the merge (see [the flow](#from-task-branch-to-each-environment-owner-decision-2026-11-21)),
+  and the agent does not run that deployment.
 - «دمج» or «ادمج» means: merge the work the owner is pointing at into `main` through its PR,
   following the six steps. These are also the words that allow enabling auto-merge on that PR.
   When that work has no PR yet, the word covers pushing its branch, after the independent
-  review, and opening the PR. It never means a direct push to `main`, a release tag or a deployment.
+  review, and opening the PR. It never means a direct push to `main`, a release tag, or a deployment to staging or production (development updates by itself after the merge, as under «انشر»).
+- «انشر على الاستيج» means: create and push the tag `release/19.0.X.Y.Z` on a `main` commit that development already
+  serves and that passed the release checks below, so that the staging environment updates through its hook. It
+  needs that commit to be on `main` already; with the work still on a branch, «انشر» comes first. It never
+  means production.
+- «انشر على الإنتاج» means: release to production the tag that staging already served and passed, by starting
+  the production job from Openship. If `main` is ahead of the staged tag, the answer says so; it does not
+  stage silently. «انشر» alone never reaches staging or production.
 
 ### Review-approval constraint on `protect-main` (recorded 2026-10-24)
 
@@ -88,7 +97,7 @@ count stays at `0`.
 ### Independent review before every push (owner decision 2026-11-21)
 
 Every push of a task branch, and so every publication, is preceded by an independent
-review of that branch. It applies to ordinary and sensitive changes alike.
+review of that branch. It applies to ordinary and [sensitive](#sensitive-change-and-batching-single-definitions) changes alike.
 
 - When: after the local commit and the applicable local checks, before the push.
 - Who: an independent reviewer as [REVIEW.md](../../REVIEW.md#review-evidence-and-authorization)
@@ -105,6 +114,21 @@ review of that branch. It applies to ordinary and sensitive changes alike.
 This is review, not authorization. It does not grant push, PR, ready, merge or release,
 which still need the owner's explicit words as stated above.
 
+## Sensitive change and batching (single definitions)
+
+These two definitions are the only ones; other files link here and do not restate them.
+
+**Sensitive change** (owner list, 2026-11-21): a change to money, authorization (authentication included), schema
+or migrations, security, tenant isolation, or the CI rules that decide what must pass, or a change coupled across
+layers. A sensitive change gets its own task branch and its own PR, so it does not hold other work back, and its
+pre-push review also focuses on those boundaries (see "Keep the PR loop short").
+
+**Batching.** Small tasks that share a scope (one session or one area) are commits on one task branch and go in
+one PR: it stays draft until the batch is complete, then goes ready once (one CI run, one review). A change that
+needs an owner decision, or a sensitive change, is not part of that batch. The branch
+`<prefix>/tools-integrate-<slug>` is only for integrating branches that are already separate, coupled and must
+land together: it merges only those agreed branches with merge commits and goes in one PR to `main`.
+
 ## Six integration steps
 
 1. **Record the live baseline.** Read the canonical checkout's current policy
@@ -115,17 +139,16 @@ which still need the owner's explicit words as stated above.
    `main` can be stale. Resolve policy conflicts with the current owner decision.
 2. **Prepare one candidate.** Work in a lane taken with `wt take` ([parallel-work.md](../parallel-work.md#lane-pool)). Bring the
    latest remote `main` into the candidate without rebasing another owner's
-   branch. Small changes made in one session or one area share one PR: each is
-   its own commit on one task branch, and the PR stays in draft until the batch is
-   complete, then goes ready once (one CI run, one review). A change that needs an
-   owner decision, or that touches authentication, authorization, tenant
-   isolation, migrations or the CI rules that decide what must pass, gets its own PR
-   so it does not hold the others back. A coupled batch uses
-   `<prefix>/tools-integrate-<slug>`, merging only its agreed branches with merge
+   branch. Batching and sensitive changes follow the
+   [single definitions](#sensitive-change-and-batching-single-definitions): small tasks are commits on one task
+   branch and one PR; a sensitive change gets its own PR; `<prefix>/tools-integrate-<slug>` integrates separate
+   coupled branches only, with merge
    commits and one PR to `main`. Preserve incoming commits and approved behavior;
    do not replace entire files, use blanket `ours`/`theirs`, reset `main` to an
-   incoming tree or treat ancestry as proof behavior survives. Regenerate API
-   artifacts once on the integration branch when its routes/contracts change.
+   incoming tree or treat ancestry as proof behavior survives. Generated API files
+   follow the rule in [parallel-work.md](../parallel-work.md#generated-api-files): the branch that changes a route
+   regenerates and commits both, and PR CI checks them. Two PRs that both regenerate can merge textually clean and
+   leave `main` stale; the next PR then regenerates them (the check names the fix), so nothing stays broken.
 3. **Review the complete delta.** Compare the candidate with the recorded
    remote baseline, including deletions, shared UI, navigation, permissions,
    contracts, migrations and regression tests. Review the actual diff following
@@ -165,6 +188,49 @@ which still need the owner's explicit words as stated above.
    runtime state. Inspect ownership, preservation and process use, then return the
    lane with `tools/wt.py done`, or use `tools/wt.py lane remove` for a temporary lane.
 
+## From task branch to each environment (owner decision 2026-11-21)
+
+GitHub is the only system for source, CI, image build and release; no other git host or registry is part of
+the path. The three environments and the keyword ladder are the owner's decisions of 2026-11-18 and
+2026-11-20; this section records the one flow that reaches them. The workflow `.github/workflows/publish.yml`,
+the release command and the server setup are described in `deploy/release/README.md`,
+[environment-bringup.md](../operations/environment-bringup.md) and
+[tooling-server.md](../operations/tooling-server.md).
+
+| Step | Who says it | Who acts | What happens |
+| --- | --- | --- | --- |
+| 1. Lane and branch | none | the agent | `npm run wt -- take <branch> --owner <who>` starts the branch from current `origin/main`. |
+| 2. Local commit | none (standing authorization) | the agent | Commit on the task branch with the applicable local checks. |
+| 3. Independent review | none | an independent reviewer | The [review before every push](#independent-review-before-every-push-owner-decision-2026-11-21); confirmed findings are fixed first. |
+| 4. «انشر» | the owner | the agent | Push, PR, current-head `ci-result`, merge, lane return (steps 5 and 6 above). |
+| 5. Development | nobody | `.github/workflows/publish.yml`, then Openship | A push to `main` builds the nine images for amd64 only (runner `ubuntu-24.04`) and pushes them with an amd64 release document `ghcr.io/tariiq222/liwan-release:<commit>`. The workflow then calls the development hook, and the Contabo host (amd64) serves that commit. |
+| 6. «انشر على الاستيج» | the owner | the coordinator | After checking that development serves the commit and its `main` CI is green, the coordinator creates and pushes `release/19.0.X.Y.Z` on it. arm64 is built only on a tag. On the tag push the workflow checks that the commit is on `main`, builds the arm64 images for it on `ubuntu-24.04-arm` (about 17 to 18 minutes for the nine images, measured), reuses the amd64 digests already published for that commit (it builds them only if missing), republishes the release document covering both architectures and calls the staging hook. Staging therefore waits for that build; Oracle `liwanos-staging` (arm64) then serves the tag. A tag that fails on staging is never promoted; the fix takes the next number. |
+| 7. «انشر على الإنتاج» | the owner, after testing staging | the owner starts the job from Openship; the coordinator prepares and verifies | The job `liwan-production-release` has no hook and no credential on GitHub. It is started with an explicit tag (`release.py run --environment production --tag release/19.0.X.Y.Z`) and never picks the highest tag by itself (owner decision 2026-11-21). It takes only a tag that staging served and passed. Oracle `liwanos-prod` (arm64) serves it. The automatic proof that staging served that tag is not built: the owner and the coordinator confirm it before «انشر على الإنتاج» (an enforced gate is not built). Owner decision in principle, 2026-11-21, on who starts the production and rollback jobs: «نستخدم الايجنت الموجود في اوبن شيب ونضع اليه سليمه له مع ربطه معنا هنا». It is not built: the Openship assistant is still disabled on the tooling server and no agent exists. The hosts `liwanos-prod` and `liwanos-staging` were registered in Openship on 2026-11-21 (SSH from the tooling server only). Until that mechanism is designed and approved, the owner starts the production job from Openship himself. |
+
+Rules of the flow:
+
+- Every server runs the same release command, `deploy/release/release.py run --environment <env>`. It trusts
+  GitHub and verifies exactly this: the commit is on GitHub `main` or is a `release/*` tag whose commit is on
+  `main`; the release document's commit matches; the document covers the server's platform; and every digest
+  points into `ghcr.io/tariiq222`. Servers pull from private GHCR with a read-only credential; nothing on GitHub
+  or on a runner holds a production credential.
+- Residual risk, stated plainly: the release document is not signed. Anyone with write access to the repository
+  (a pushed branch or a `release/**` tag carrying a changed workflow) could publish a document for a `main`
+  commit; fork pull requests cannot. The mitigation is owner-side and not done: a GitHub tag ruleset protecting
+  `release/**`, and write access to the repository kept to the owner (row A0.2 of environment-bringup.md).
+  Attestation may be revisited later.
+- Publish runs for one commit are serialized (the concurrency group is keyed on the commit). So there is one release
+  tag per commit, and the tag is pushed only after the `main` publish run for that commit has finished. A `main` run never downgrades a document that already covers
+  both architectures.
+- A pull request never triggers the publish workflow, so pull-request code never reaches the registry or a hook.
+- Packages in GHCR stay private always, also while the repository is public. The mechanism: the publish workflow
+  refuses to push unless each of the ten packages already exists and is private; it never creates one (owner-side
+  pre-creation: row A0.1 of environment-bringup.md). The repository is public for now
+  and turns private on the owner's word; the build then moves to a self-hosted runner and servers also need a
+  read token for the source (checked on 2026-11-21 in `docs/operations/environment-bringup.md`).
+- Each owner word covers its own step only: «انشر» alone ends at `main` and development; staging and production
+  each need their own words.
+
 ## Local-only integration
 
 An explicit request to consolidate into local `main` may authorize local commits
@@ -182,8 +248,7 @@ green, without waiting for an agent to come back. Under «انشر» alone the a
 check and merges the PR itself. Auto-merge never bypasses protection: it waits
 for the required check and for resolved conversations. Disable it (`gh pr merge <n> --disable-auto`)
 before pushing further changes to that PR. Do not enable it on a PR that needs an owner
-decision or a separate authorization, or on one that changes authentication, authorization, tenant
-isolation, migrations or the CI rules that decide what must pass: those merge only after the
+decision or a separate authorization, or on a [sensitive change](#sensitive-change-and-batching-single-definitions): those merge only after the
 boundary-focused review described below. Inspect the selected and skipped stages before
 enabling it. Step 6 (verify and synchronize) still runs after the merge.
 
@@ -192,9 +257,8 @@ being prepared. Mark it ready once the candidate is stable, and batch related
 review fixes before pushing again. If a selected check fails, read that job
 first and reproduce the failure locally when needed to diagnose or verify the fix.
 
-For changes to authentication, authorization, tenant isolation, migrations, or the
-CI rules that decide what must pass, the pre-push review also focuses on those
-boundaries. Include evidence for the relevant refusal or failure paths and name
+For a [sensitive change](#sensitive-change-and-batching-single-definitions), the pre-push review also focuses on
+those boundaries. Include evidence for the relevant refusal or failure paths and name
 the exact head reviewed. For coupled PRs, review the combined candidate and
 verify it under step 4. GitHub requires the green check and resolved threads;
 it does not enforce an independent approval on this repository.
@@ -231,7 +295,8 @@ Publishing a `release/19.0.X.Y.Z` tag requires explicit owner authorization and
 all thirteen `ci` stage groups, every matrix job and `ci-result`, green in a full
 run on that exact `main` commit, with no skipped groups. Inspect the existing
 immutable tags before choosing the next final numeric component. Scoped PR CI
-does not prove a full release run. Release tags do not alter addon schema
+does not prove a full release run. The tag is created only on a commit that development already serves
+([flow](#from-task-branch-to-each-environment-owner-decision-2026-11-21), step 6). Release tags do not alter addon schema
 versions or authorize production deployment; those retain their own checks and
 authorization.
 

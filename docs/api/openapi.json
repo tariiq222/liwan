@@ -13210,68 +13210,81 @@
       },
       "ConversationOpportunityAnswerSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "anyOf": [
-          {
-            "additionalProperties": false,
-            "properties": {
-              "active": {
-                "type": "boolean"
-              },
-              "contact_name": {
-                "type": "string"
-              },
-              "id": {
-                "exclusiveMinimum": 0,
-                "maximum": 9007199254740991,
-                "type": "integer"
-              },
-              "stage": {
-                "anyOf": [
-                  {
-                    "additionalProperties": false,
-                    "properties": {
-                      "id": {
-                        "maximum": 9007199254740991,
-                        "minimum": -9007199254740991,
-                        "type": "integer"
-                      },
-                      "name": {
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "id",
-                      "name"
-                    ],
-                    "type": "object"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "status": {
-                "enum": [
-                  "pending",
-                  "won",
-                  "lost"
-                ],
-                "type": "string"
-              }
-            },
-            "required": [
-              "id",
-              "contact_name",
-              "stage",
-              "status",
-              "active"
-            ],
-            "type": "object"
+        "additionalProperties": false,
+        "properties": {
+          "hidden": {
+            "type": "boolean"
           },
-          {
-            "type": "null"
+          "opportunity": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "active": {
+                    "type": "boolean"
+                  },
+                  "contact_name": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "stage": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "maximum": 9007199254740991,
+                            "minimum": -9007199254740991,
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "status": {
+                    "enum": [
+                      "pending",
+                      "won",
+                      "lost"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "contact_name",
+                  "stage",
+                  "status",
+                  "active"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
-        ]
+        },
+        "required": [
+          "opportunity",
+          "hidden"
+        ],
+        "type": "object"
       },
       "ConversationOpportunityConflictDetailsSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -13443,61 +13456,167 @@
         ],
         "type": "string"
       },
-      "ConversationOpportunitySchema": {
+      "ConversationTicketCreateSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
-          "active": {
-            "type": "boolean"
+          "category_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
           },
-          "contact_name": {
+          "description": {
+            "minLength": 1,
             "type": "string"
+          },
+          "priority": {
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "urgent"
+            ],
+            "type": "string"
+          },
+          "subject": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "team_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "type_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "ConversationTicketListSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "created_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "id": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991,
+                  "type": "integer"
+                },
+                "number": {
+                  "type": "string"
+                },
+                "stage": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "closed": {
+                      "type": "boolean"
+                    },
+                    "id": {
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "closed"
+                  ],
+                  "type": "object"
+                },
+                "subject": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "number",
+                "subject",
+                "stage",
+                "created_at"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "total": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "type": "object"
+      },
+      "ConversationTicketSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "id": {
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991,
             "type": "integer"
           },
-          "stage": {
-            "anyOf": [
-              {
-                "additionalProperties": false,
-                "properties": {
-                  "id": {
-                    "maximum": 9007199254740991,
-                    "minimum": -9007199254740991,
-                    "type": "integer"
-                  },
-                  "name": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "id",
-                  "name"
-                ],
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ]
+          "number": {
+            "type": "string"
           },
-          "status": {
-            "enum": [
-              "pending",
-              "won",
-              "lost"
+          "stage": {
+            "additionalProperties": false,
+            "properties": {
+              "closed": {
+                "type": "boolean"
+              },
+              "id": {
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "closed"
             ],
+            "type": "object"
+          },
+          "subject": {
             "type": "string"
           }
         },
         "required": [
           "id",
-          "contact_name",
+          "number",
+          "subject",
           "stage",
-          "status",
-          "active"
+          "created_at"
         ],
         "type": "object"
       },
@@ -16311,6 +16430,64 @@
         },
         "type": "object"
       },
+      "CrmOpportunityRefSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "contact_name": {
+            "type": "string"
+          },
+          "id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "won",
+              "lost"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "contact_name",
+          "stage",
+          "status",
+          "active"
+        ],
+        "type": "object"
+      },
       "CrmOpportunitySchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -17652,6 +17829,9 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "can_manage_tenant_lists": {
+            "type": "boolean"
+          },
           "distribution_users": {
             "items": {
               "additionalProperties": false,
@@ -18319,7 +18499,8 @@
           "values",
           "distribution_users",
           "options",
-          "revision"
+          "revision",
+          "can_manage_tenant_lists"
         ],
         "type": "object"
       },
@@ -65632,6 +65813,9 @@
             "maximum": 9007199254740991,
             "type": "integer"
           },
+          "image_send_capable": {
+            "type": "boolean"
+          },
           "last_message_at": {
             "anyOf": [
               {
@@ -65791,7 +65975,8 @@
           "referral_source",
           "referral_ref",
           "can_reply",
-          "can_assign"
+          "can_assign",
+          "image_send_capable"
         ],
         "type": "object"
       },
@@ -67460,8 +67645,15 @@
                 "type": "string"
               },
               "value": {
-                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-                "type": "string"
+                "anyOf": [
+                  {
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             },
             "required": [
@@ -71232,8 +71424,15 @@
                             "type": "string"
                           },
                           "value": {
-                            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-                            "type": "string"
+                            "anyOf": [
+                              {
+                                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           }
                         },
                         "required": [
@@ -71473,8 +71672,15 @@
                       "type": "string"
                     },
                     "value": {
-                      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-                      "type": "string"
+                      "anyOf": [
+                        {
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
@@ -74073,8 +74279,15 @@
                                     "type": "string"
                                   },
                                   "value": {
-                                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-                                    "type": "string"
+                                    "anyOf": [
+                                      {
+                                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
                                   }
                                 },
                                 "required": [
@@ -75522,8 +75735,15 @@
                               "type": "string"
                             },
                             "value": {
-                              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-                              "type": "string"
+                              "anyOf": [
+                                {
+                                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
                             }
                           },
                           "required": [
@@ -116104,6 +116324,99 @@
         },
         "type": "array"
       },
+      "TicketOpportunityAnswerSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "hidden": {
+            "type": "boolean"
+          },
+          "opportunity": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "active": {
+                    "type": "boolean"
+                  },
+                  "contact_name": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer"
+                  },
+                  "stage": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "id": {
+                            "maximum": 9007199254740991,
+                            "minimum": -9007199254740991,
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "type": "object"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "status": {
+                    "enum": [
+                      "pending",
+                      "won",
+                      "lost"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "contact_name",
+                  "stage",
+                  "status",
+                  "active"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "opportunity",
+          "hidden"
+        ],
+        "type": "object"
+      },
+      "TicketOpportunityLinkSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "opportunity_id": {
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "opportunity_id"
+        ],
+        "type": "object"
+      },
       "TimelineEntrySchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -136835,8 +137148,8 @@
       }
     },
     "/api/v1/helpdesk/tickets/{ticket_id}/opportunity": {
-      "post": {
-        "operationId": "liwan_helpdesk_crm.HelpdeskOpportunityController.link_opportunity.post",
+      "delete": {
+        "operationId": "liwan_helpdesk_crm.HelpdeskOpportunityController.unlink_ticket_opportunity.delete",
         "parameters": [
           {
             "in": "path",
@@ -136866,7 +137179,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "link_opportunity",
+        "summary": "unlink_ticket_opportunity",
         "tags": [
           "liwan_helpdesk_crm"
         ],
@@ -136882,7 +137195,111 @@
             "crm.enabled"
           ],
           "feature_operation": null,
-          "handler": "link_opportunity",
+          "handler": "unlink_ticket_opportunity",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      },
+      "get": {
+        "operationId": "liwan_helpdesk_crm.HelpdeskOpportunityController.get_ticket_opportunity.get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticket_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "get_ticket_opportunity",
+        "tags": [
+          "liwan_helpdesk_crm"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk_crm",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskOpportunityController",
+          "feature_keys": [
+            "helpdesk.enabled",
+            "crm.enabled"
+          ],
+          "feature_operation": "read",
+          "handler": "get_ticket_opportunity",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "put": {
+        "operationId": "liwan_helpdesk_crm.HelpdeskOpportunityController.link_ticket_opportunity.put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticket_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Link the ticket to an opportunity of its company, replacing any earlier link.",
+        "tags": [
+          "liwan_helpdesk_crm"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk_crm",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "helpdesk",
+          "controller": "HelpdeskOpportunityController",
+          "feature_keys": [
+            "helpdesk.enabled",
+            "crm.enabled"
+          ],
+          "feature_operation": null,
+          "handler": "link_ticket_opportunity",
           "readonly": false,
           "route_type": "json2"
         }
@@ -150953,7 +151370,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "The linked opportunity, or null when there is none or the caller may not read it (its name never leaks).",
+        "summary": "``{opportunity, hidden}``: the ref when the caller sees the linked opportunity, ``hidden`` when a link exists",
         "tags": [
           "liwan_crm_inbox"
         ],
@@ -151005,7 +151422,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "create_conversation_opportunity",
+        "summary": "Create from the conversation under CRM's own rule: ``crm.leads.assign`` in manual distribution, otherwise",
         "tags": [
           "liwan_crm_inbox"
         ],
@@ -151238,9 +151655,9 @@
         }
       }
     },
-    "/api/v1/inbox/conversations/{conversation_id}/ticket": {
-      "post": {
-        "operationId": "liwan_helpdesk_inbox.ConversationTicketController.create_ticket.post",
+    "/api/v1/inbox/conversations/{conversation_id}/tickets": {
+      "get": {
+        "operationId": "liwan_helpdesk_inbox.ConversationTicketsController.list_conversation_tickets.get",
         "parameters": [
           {
             "in": "path",
@@ -151270,7 +151687,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "create_ticket",
+        "summary": "list_conversation_tickets",
         "tags": [
           "liwan_helpdesk_inbox"
         ],
@@ -151280,13 +151697,65 @@
           "auth": "user",
           "body": "application/json (JSON-RPC style params)",
           "contract_namespace": "inbox",
-          "controller": "ConversationTicketController",
+          "controller": "ConversationTicketsController",
           "feature_keys": [
             "inbox.enabled",
             "helpdesk.enabled"
           ],
-          "feature_operation": null,
-          "handler": "create_ticket",
+          "feature_operation": "read",
+          "handler": "list_conversation_tickets",
+          "readonly": true,
+          "route_type": "json2"
+        }
+      },
+      "post": {
+        "operationId": "liwan_helpdesk_inbox.ConversationTicketsController.create_conversation_ticket.post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "create_conversation_ticket",
+        "tags": [
+          "liwan_helpdesk_inbox"
+        ],
+        "x-liwan": {
+          "addon": "liwan_helpdesk_inbox",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "inbox",
+          "controller": "ConversationTicketsController",
+          "feature_keys": [
+            "inbox.enabled",
+            "helpdesk.enabled"
+          ],
+          "feature_operation": "write",
+          "handler": "create_conversation_ticket",
           "readonly": false,
           "route_type": "json2"
         }

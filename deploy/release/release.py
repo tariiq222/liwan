@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """Release command: apply the candidate commit of one environment to this server. An Openship job runs it.
 
-  release.py run      --environment <name>   resolve, verify, pull, back up, stop, snapshot, upgrade, start, open, commit
+  release.py run      --environment <name> [--tag <tag>]   resolve, verify, pull, back up, stop, snapshot, upgrade, start, open, commit
   release.py status   --environment <name>   print the served release, the unfinished run and the halt record
   release.py rollback --environment <name>   clear a halt and finish the rollback of an unfinished run
 
-``development`` follows the head of Forgejo ``main``; ``staging`` and ``production`` follow the highest
-``release/19.0.X.Y.Z`` tag. The
-candidate and its release document (the image ``liwan-release:<commit>`` in the Forgejo registry) are read with the
-read-only credential in ``LIWAN_FORGEJO_READ_USER`` and ``LIWAN_FORGEJO_READ_TOKEN``. The command never waits for
+``development`` follows the head of GitHub ``main``; ``staging`` follows the highest ``release/19.0.X.Y.Z`` tag;
+``production`` applies only the tag it is given with ``--tag`` and refuses to run without one. The
+candidate and its release document (the image ``liwan-release:<commit>`` in the private GHCR registry) are read with
+the read-only credentials in ``LIWAN_GHCR_READ_USER``, ``LIWAN_GHCR_READ_TOKEN`` and, optionally,
+``LIWAN_GITHUB_READ_TOKEN`` (the source repository is public today). The command never waits for
 input. The last log line is ``RESULT: committed <commit>``, ``RESULT: rolled back <reason>``, ``RESULT: nothing to do``,
 ``RESULT: refused <reason>``, ``RESULT: halted <reason>`` or ``RESULT: incomplete <commit> <reason>``; the exit code
 is 0 (committed, nothing to do), 2 (refused), 3 (halted), 4 (rolled back or incomplete) or 5 (rollback failed).
@@ -37,7 +38,7 @@ from deploy.release.common import (  # noqa: E402
     EXIT_FAILED, EXIT_HALTED, EXIT_OK, EXIT_REFUSED, EXIT_ROLLBACK_FAILED, CommandFailed, Lock, ReleaseError, Runner,
     free_bytes, make_log, now, read_env_file, sensitive_values, read_json, write_atomic, write_json)
 from deploy.release.source import (  # noqa: E402
-    CHANNELS, COMMIT, TOKEN_VAR, USER_VAR, Credential, Source, host_architecture)
+    CHANNELS, COMMIT, GITHUB_TOKEN_VAR, TOKEN_VAR, USER_VAR, Credential, Source, explicit_tag, host_architecture)
 from deploy.releases.postgres import identifier, tenant_isolation_statements  # noqa: E402
 
 TENANT_DATABASE = re.compile(r'^[a-z][a-z0-9_]{0,62}$')
@@ -122,21 +123,27 @@ def normalize_tree(root: Path) -> None:
 
 
 class Releaser:
-    def __init__(self, environment: str, config: dict[str, str], paths: Paths, runner, log, environ: dict, machine: str):
+    def __init__(self, environment: str, config: dict[str, str], paths: Paths, runner, log, environ: dict, machine: str,
+                 tag: str | None = None):
         self.environment = environment
+        self.tag = tag
         self.config = config
         self.paths = paths
-        self.run_command = runner
+        self.runner = runner
         self.log = log
         self.environ = environ
         self.machine = machine
         self.state = paths.state_root / environment
         self.docker_config = self.state / 'docker-config'
-        credentials = (USER_VAR, TOKEN_VAR)
+        credentials = (USER_VAR, TOKEN_VAR, GITHUB_TOKEN_VAR)
         self.child_env = {**{k: v for k, v in environ.items() if k not in credentials}, **config,
                           'DOCKER_CONFIG': str(self.docker_config)}
         self.platform = ''
         self.source: Source | None = None
+
+    def run_command(self, argv: list[str], *, env: dict | None = None, **options) -> tuple[int, str]:
+        """Every subprocess gets an explicit environment: a call that names none gets ``child_env``, which holds no token."""
+        return self.runner(argv, env=self.child_env if env is None else env, **options)
 
     # --- results and state files -----------------------------------------------------------------------
     def finish(self, code: int, result: str) -> int:
@@ -179,6 +186,7 @@ class Releaser:
                                f'{current} points at {os.readlink(current)}, which does not exist; relink it to a release folder')
 
     def run(self) -> int:
+        tag = explicit_tag(self.environment, self.tag)
         self.require_current_symlink()
         halted = read_json(self.file('halted.json'))
         if halted is not None:
@@ -190,7 +198,9 @@ class Releaser:
         self.state.chmod(0o700)
         self.docker_config.mkdir(exist_ok=True, mode=0o700)
         self.docker_config.chmod(0o700)
-        self.source = Source(self.environment, self.state, credential, self.run_command, self.log, self.child_env)
+        github_token = self.environ.get(GITHUB_TOKEN_VAR) or None
+        self.source = Source(self.environment, tag, self.state, credential, github_token, self.run_command, self.log,
+                             self.child_env)
         self.source.login()
         unfinished = read_json(self.file('run.json'))
         if unfinished is not None:
@@ -761,6 +771,7 @@ def parse_args(argv):
     parser = argparse.ArgumentParser(description=(__doc__ or '').split('\n', 1)[0])
     parser.add_argument('command', choices=('run', 'status', 'rollback'))
     parser.add_argument('--environment', required=True)
+    parser.add_argument('--tag', action='append', help='production only: the release/19.0.X.Y.Z tag to apply (once)')
     return parser.parse_args(argv)
 
 
@@ -769,12 +780,18 @@ def main(argv=None, paths: Paths | None = None, runner=None, log=None, environ: 
     args = parse_args(argv)
     paths = paths or Paths()
     environ = dict(os.environ) if environ is None else environ
-    log = log or make_log([environ.get(USER_VAR, ''), environ.get(TOKEN_VAR, '')])
+    log = log or make_log([environ.get(name, '') for name in (USER_VAR, TOKEN_VAR, GITHUB_TOKEN_VAR)])
     try:
+        tags = args.tag or []
+        if len(tags) > 1:
+            raise ReleaseError('tag_repeated', EXIT_REFUSED, '--tag may be given once')
+        tag = tags[0] if tags else None
+        if tag is not None and args.command != 'run':
+            raise ReleaseError('tag_not_allowed', EXIT_REFUSED, '--tag belongs to the run command only')
         config = load_config(paths, args.environment)
         log.secrets.extend(sensitive_values(config, read_env_file(Path(config['LIWAN_SHARED_ENV_FILE']))))
         releaser = Releaser(args.environment, config, paths, runner or Runner(log), log, environ,
-                            machine or platform.machine())
+                            machine or platform.machine(), tag=tag)
         if args.command == 'status':
             return releaser.status()  # read-only: it must answer while a run holds the lock
         with Lock(releaser.file('lock')) as held:

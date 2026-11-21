@@ -1,0 +1,239 @@
+name: publish
+
+# Builds the production images and publishes the release document of a commit to the private GitHub container registry
+# (ghcr.io/tariiq222); it deploys nothing itself, it only tells an environment that a commit is ready.
+#
+# A push to main builds the nine images for linux/amd64 on an amd64 runner, scans them with deploy/ci/image.sh, pushes
+# them, writes liwan-release:<commit> covering linux/amd64 and tells development. A release/19.0.X.Y.Z tag whose commit
+# is in main builds linux/arm64 on an arm64 runner for that commit and REUSES the amd64 digests the main publish
+# recorded in the document of the commit (amd64 is built here only when no document exists), then replaces that
+# document, under the same tag, with one covering both architectures and tells staging. A tag whose document already
+# covers both architectures rebuilds nothing. Nothing here targets a live customer environment, and nothing is emulated.
+#
+# Runners are GitHub-hosted only (the repository is public). The registry is written with the
+# workflow token (packages: write on the jobs that push); no registry secret is stored.
+#
+# Secrets (repository secrets, values typed by the owner):
+#   LIWAN_DEVELOPMENT_HOOK_URL, LIWAN_DEVELOPMENT_HOOK_TOKEN   the Openship development job hook (main only)
+#   LIWAN_STAGING_HOOK_URL, LIWAN_STAGING_HOOK_TOKEN           the staging hook (release tags only)
+on:
+  push:
+    branches: [main]
+    tags: ['release/**']
+
+permissions:
+  contents: read
+
+# One publish run per commit at a time, so the check-then-write of `publish.sh merge` is never run by two runs at once
+# (a main run and a tag run of one commit queue behind each other). Runs are queued, never cancelled: cancelling would
+# leave a half-pushed commit. GitHub keeps only one pending run per group, so a second release tag pushed on a commit
+# while two runs are already queued cancels the older pending one: use one release tag per commit. A newer main commit
+# supersedes an older run by the head check of `publish.sh check`, `push` and `merge`.
+concurrency:
+  group: publish-${{ github.sha }}
+  cancel-in-progress: false
+
+# The Postgres service container image.sh needs is ephemeral and reachable only from its own job, so these are throwaway
+# values.
+env:
+  PGHOST: 127.0.0.1
+  PGPORT: '5432'
+  PGUSER: odoo
+  PGPASSWORD: odoo
+  ODOO_PORT: '8169'
+
+jobs:
+  plan:
+    if: github.repository == 'tariiq222/liwan'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read
+    outputs:
+      state: ${{ steps.check.outputs.state }}
+      amd64: ${{ steps.check.outputs.amd64 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Sign in to the registry
+        run: deploy/ci/publish.sh login
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Decide what this run does
+        id: check
+        run: deploy/ci/publish.sh check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Sign out of the registry
+        if: always()
+        run: docker logout ghcr.io > /dev/null 2>&1 || true
+
+  build-amd64:
+    # main always; a release tag only when its commit has no amd64 document yet.
+    needs: plan
+    if: needs.plan.outputs.state == 'build' && needs.plan.outputs.amd64 == 'build'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      packages: write
+    env:
+      PUBLISH_PLATFORM: linux/amd64
+    services:
+      postgres:
+        image: postgres:16@sha256:f9a7b9ebf6f56201f949db745e47bc423c0f0f8294bafe991cc10bf74b029657
+        env:
+          POSTGRES_USER: odoo
+          POSTGRES_PASSWORD: odoo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U odoo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Sign in to the registry
+        run: deploy/ci/publish.sh login
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and scan the images
+        run: deploy/ci/publish.sh build
+      - name: Push the images
+        run: deploy/ci/publish.sh push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Clean up
+        if: always()
+        run: |
+          docker buildx rm --force liwan-publish >/dev/null 2>&1 || true
+          docker logout ghcr.io >/dev/null 2>&1 || true
+
+  build-arm64:
+    # Release tags only: arm64 is never built for a main push.
+    needs: plan
+    if: startsWith(github.ref, 'refs/tags/release/') && needs.plan.outputs.state == 'build'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      packages: write
+    env:
+      PUBLISH_PLATFORM: linux/arm64
+    services:
+      postgres:
+        image: postgres:16@sha256:f9a7b9ebf6f56201f949db745e47bc423c0f0f8294bafe991cc10bf74b029657
+        env:
+          POSTGRES_USER: odoo
+          POSTGRES_PASSWORD: odoo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U odoo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Sign in to the registry
+        run: deploy/ci/publish.sh login
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and scan the images
+        run: deploy/ci/publish.sh build
+      - name: Push the images
+        run: deploy/ci/publish.sh push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Clean up
+        if: always()
+        run: |
+          docker buildx rm --force liwan-publish >/dev/null 2>&1 || true
+          docker logout ghcr.io >/dev/null 2>&1 || true
+
+  release:
+    # Joins what the build jobs pushed and writes the release document. For main only amd64 ran; for a tag arm64 ran and
+    # amd64 either ran too (no document) or is reused from the document.
+    needs: [plan, build-amd64, build-arm64]
+    if: >-
+      ${{ !cancelled() && needs.plan.outputs.state == 'build'
+      && contains(fromJSON('["success","skipped"]'), needs.build-amd64.result)
+      && contains(fromJSON('["success","skipped"]'), needs.build-arm64.result)
+      && (needs.build-amd64.result == 'success' || needs.build-arm64.result == 'success') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      superseded: ${{ steps.merge.outputs.superseded }}
+    env:
+      PUBLISH_PLATFORMS: ${{ startsWith(github.ref, 'refs/tags/release/') && 'linux/amd64 linux/arm64' || 'linux/amd64' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Sign in to the registry
+        run: deploy/ci/publish.sh login
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Join the images and publish the release document
+        id: merge
+        run: deploy/ci/publish.sh merge
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Clean up
+        if: always()
+        run: |
+          docker buildx rm --force liwan-publish >/dev/null 2>&1 || true
+          docker logout ghcr.io >/dev/null 2>&1 || true
+
+  notify-development:
+    needs: [plan, release]
+    if: >-
+      ${{ !cancelled() && github.ref == 'refs/heads/main' && needs.plan.result == 'success'
+      && needs.plan.outputs.state != 'superseded'
+      && (needs.plan.outputs.state == 'published'
+      || (needs.release.result == 'success' && needs.release.outputs.superseded != 'true')) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Tell development a new commit is ready
+        run: |
+          set -euo pipefail
+          if [ -z "$HOOK_URL" ] || [ -z "$HOOK_TOKEN" ]; then
+            echo "LIWAN_DEVELOPMENT_HOOK_URL and LIWAN_DEVELOPMENT_HOOK_TOKEN must both be set as repository secrets, because the images are published but development was not told" >&2
+            exit 1
+          fi
+          curl -fsS -X POST -H "Authorization: Bearer $HOOK_TOKEN" "$HOOK_URL" > /dev/null
+        env:
+          HOOK_URL: ${{ secrets.LIWAN_DEVELOPMENT_HOOK_URL }}
+          HOOK_TOKEN: ${{ secrets.LIWAN_DEVELOPMENT_HOOK_TOKEN }}
+
+  notify-staging:
+    needs: [plan, release]
+    if: >-
+      ${{ !cancelled() && startsWith(github.ref, 'refs/tags/release/') && needs.plan.result == 'success'
+      && (needs.plan.outputs.state == 'published' || needs.release.result == 'success') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Tell staging a release is ready
+        run: |
+          set -euo pipefail
+          if [ -z "$HOOK_URL" ] || [ -z "$HOOK_TOKEN" ]; then
+            echo "LIWAN_STAGING_HOOK_URL and LIWAN_STAGING_HOOK_TOKEN must both be set as repository secrets, because the release is published but staging was not told" >&2
+            exit 1
+          fi
+          curl -fsS -X POST -H "Authorization: Bearer $HOOK_TOKEN" "$HOOK_URL" > /dev/null
+        env:
+          HOOK_URL: ${{ secrets.LIWAN_STAGING_HOOK_URL }}
+          HOOK_TOKEN: ${{ secrets.LIWAN_STAGING_HOOK_TOKEN }}

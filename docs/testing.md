@@ -252,9 +252,8 @@ and `merge_group` events; a merge-queue entry is selected from the queue base to
 
 Every push to `main` and `workflow_dispatch` with `full: true` run all thirteen stages with all
 six shards and every isolation group, so a cross-module regression the narrowed pull request could not see is
-caught on `main`. A full manual dispatch alone also runs `python3 -B tools/api_surface.py --check` in the static policies part
-(it keys on `CI_FULL_DISPATCH=true`, set from `inputs.full`), because task branches may not regenerate `docs/api` and a pull request
-that adds a route would otherwise fail a check it cannot fix.
+caught on `main`. Every run of the static policies part, pull requests included, also runs
+`python3 -B tools/api_surface.py --check`: the branch that changes a route regenerates `docs/api` itself.
 
 A manual `workflow_dispatch` run with `full: true` runs all thirteen stages whatever the change. A
 `release/19.0.X.Y.Z` tag is cut only from a `main` commit whose `ci` run was such a full run with all
@@ -376,8 +375,9 @@ application code, and it does not allowlist anything. The daily `image-scan` wor
 so an advisory published against an unchanged base image fails there first instead of in every pull request. The stage also
 writes a CycloneDX SBOM (packages and licenses, from the pinned Trivy) for each image into `LIWAN_SBOM_DIR`; both the `ci` image
 job and the `image-scan` workflow upload them as the `image-sbom` artifact (30 days), and a generator error fails the stage.
-This stage publishes nothing. The `publish` workflow (`deploy/ci/publish.sh`) runs the same stage on both architectures for every
-`main` commit, pushes the images to GHCR and signs the per-commit release document; `deploy/image_pins.py` fails on a broken pin
+This stage publishes nothing. The `publish` workflow (`.github/workflows/publish.yml`, `deploy/ci/publish.sh`) runs on pushes to `main` and
+`release/**` tags only, never on pull requests. It runs the same stage on amd64 for every `main` commit; on a release tag it builds and gates arm64 only and reuses the amd64 digests already published for that commit (it builds amd64 too only when no document exists for the commit), and pushes the
+images and the per-commit release document to private GHCR; `deploy/image_pins.py` fails on a broken pin
 or a mistyped image name (owned images have the `released` status and no digest in the repository). A change under
 `apps/web`, `apps/vendor-admin`, `apps/ai-service`, `packages/ui`, `packages/commercial-ui` or
 `packages/commercial-contracts` selects the `image` stage on the push to `main` because those images build from them. Mock browser tests and RTL stories cover their listed flows, not every possible

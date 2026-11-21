@@ -120,9 +120,10 @@ Rules:
    before the PR.
 6. **Checks.** The session runs the focused checks of its own paths, and the combined branch's checks once,
    on a clean tree, before the PR.
-7. **Batching.** Small finished branches are batched at delivery in one `<prefix>/tools-integrate-<slug>`
-   branch and one PR; a sensitive task (money, authorization, schema or migrations, security, tenant
-   isolation) gets its own PR. Delivery steps are in [integration-rules.md](agents/integration-rules.md).
+7. **Batching.** Small tasks that share a scope are commits on one task branch and one PR; a sensitive change
+   gets its own PR. The definitions of both, and of `<prefix>/tools-integrate-<slug>`, are in
+   [integration-rules.md](agents/integration-rules.md#sensitive-change-and-batching-single-definitions); delivery
+   steps follow there.
 
 `wt check` exits 1 on:
 
@@ -190,16 +191,13 @@ The Odoo database/port above are placeholders; match the allocated `.env.worktre
 worktrees. Temporary integration values are disposable and must not be
 presented as production evidence.
 
-## Generated files and integration branches
+## Generated API files
 
 The generated API files (openapi.json and route-capabilities.json in docs/api) are produced by
-`python3 tools/api_surface.py`. A task branch (any name other than an integration branch) never commits either file:
-`tools/git_policy.py` refuses such a commit, because every parallel branch that touched them would
-conflict. The orchestrator regenerates both once, on the integration branch
-`<prefix>/tools-integrate-<slug>` (the only branches allowed to carry them), after merging
-the task branches, and runs `python3 tools/api_surface.py --check` there. Staleness is detected by a full manual CI
-dispatch and by `npm run check:fast`, never by pull-request CI. The per-branch route gate is
-`tools/route_gate_policy.py`, run inside `npm test`: it needs no generated file.
+`python3 tools/api_surface.py`. A branch that adds or changes an API route regenerates both files and commits them
+with the change. When two branches conflict on them, the later one merges `origin/main` and regenerates; the JSON is
+never merged by hand. Pull-request CI runs `python3 tools/api_surface.py --check`, so a stale file fails there.
+The per-branch route gate is `tools/route_gate_policy.py`, run inside `npm test`: it needs no generated file.
 
 ## Finishing a task
 

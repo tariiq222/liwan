@@ -28,13 +28,18 @@ Two other env files stay separate, because the services read them directly: the 
 ## Rules
 
 - Development and staging have no real customer data. Use test-mode payment and SMS keys only. Development runs on
-  the Contabo x86 host and follows the head of Forgejo `main`. Staging runs on the Oracle Arm host `liwanos-staging`,
-  apart from production, and follows the highest release tag (arm64 required, like production).
+  the Contabo x86 host and follows the head of GitHub `main` (an amd64 build per merge). Staging runs on the Oracle Arm host `liwanos-staging`,
+  apart from production, and follows the highest release tag. It waits for the arm64 build that the release tag starts (arm64 required, like
+  production). Production applies only the tag its job command names (`release.py run --environment production
+  --tag <tag>`); it never takes the highest tag by itself. An automatic proof that staging served that tag is not built yet.
+- Each environment reads releases with its own read-only GitHub credentials (`LIWAN_GHCR_READ_USER`,
+  `LIWAN_GHCR_READ_TOKEN`, optional `LIWAN_GITHUB_READ_TOKEN`; see `deploy/release/README.md`). Production holds its own
+  read token, different from development and staging, so a leak on one host never reaches the others.
 - No code or compose file tests which environment it runs in. A difference between environments is a variable.
 - The compose set carries hard memory ceilings (about 9 GB for
   Odoo and 10 GB for PostgreSQL, plus the small services and the control plane, 24 GB in total), sized for the
-  production Arm server. They are ceilings, not reservations. The Contabo host is shared with Forgejo, Openship, Sentry
-  and the runners, so the development stack is held to about 8 GB there (plan D22); check free memory on the host before
+  production Arm server. They are ceilings, not reservations. The Contabo host is shared with Openship and Sentry,
+  so the development stack is held to about 8 GB there (plan D22); check free memory on the host before
   the first start and size the development Odoo and PostgreSQL limits to that. The staging host has 12 GB: its stack is
   capped at 6 GB and the build at 1.5 CPU / 5 GB (see the bring-up guide).
 - Production binds every address on ports 80 and 443 and its own Caddy terminates TLS. Development and staging each sit

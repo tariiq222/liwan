@@ -5,6 +5,7 @@ polling). The same file runs on development, staging and production.
 
 ```sh
 python3 -B /opt/liwan/current/deploy/release/release.py run      --environment development
+python3 -B /opt/liwan/current/deploy/release/release.py run      --environment production --tag release/19.0.X.Y.Z
 python3 -B /opt/liwan/current/deploy/release/release.py status   --environment development   # exit 3 when halted
 python3 -B /opt/liwan/current/deploy/release/release.py rollback --environment development
 ```
@@ -13,43 +14,69 @@ python3 -B /opt/liwan/current/deploy/release/release.py rollback --environment d
 (`python3 -B -m unittest discover -s deploy/release -t . -p 'test_*.py'`). The first real run happens during the
 development bring-up.
 
+## Who builds and how each environment starts
+
+GitHub is the only system for source, CI, image build and release. The GitHub Actions workflow
+`.github/workflows/publish.yml` runs on pushes to `main` and on `release/**` tags. It builds the images, pushes them
+to the private GHCR registry under `ghcr.io/tariiq222` and publishes the release document image
+`ghcr.io/tariiq222/liwan-release:<commit>`.
+
+A `main` push builds amd64 only and publishes the document `liwan-release:<commit>` covering `linux/amd64`. The
+`release/**` tag run later builds arm64 for that commit, publishes the same document tag again covering both platforms
+(the tag is overwritten when the build is complete) and only then starts staging. The command therefore never reuses a
+local copy: it pulls the document fresh for the candidate commit on every run and removes the image afterwards.
+
+- development: follows `main`; the workflow's hook starts the Openship job after each amd64 `main` build.
+- staging: waits for the arm64 build that the release tag starts; the workflow's hook starts the job after it.
+- production: only the owner starts the job from Openship, with the tag named in the command. There is no hook.
+
 ## Candidate and release document
 
 | Environment | Candidate commit |
 | --- | --- |
-| `development` | the head of Forgejo `main` |
+| `development` | the head of GitHub `main` |
 | `staging` | the commit of the highest `release/19.0.X.Y.Z` tag (compared by version, not by text) |
-| `production` | the commit of the highest `release/19.0.X.Y.Z` tag (compared by version, not by text) |
+| `production` | the commit of the one tag given with `--tag release/19.0.X.Y.Z`; it never picks the highest tag itself |
 
-Staging and production are the two release-tag environments and share every rule below. Both run on Arm. Operationally
-production only takes a tag that staging already served and passed; the coordinator checks this by hand. An enforced
-gate is designed in plan part P7 and is not implemented here.
+Staging and production are the two release-tag environments and share every rule below. Both run on Arm.
 
-The candidate is read with `git ls-remote https://git.liwanos.com/liwanos/liwan.git`. The command then fetches `main`
+The production job command is `release.py run --environment production --tag <tag>`. Without `--tag` the run refuses
+with `RESULT: refused production_tag_required`; a tag that does not match `release/19.0.X.Y.Z` is refused as
+`invalid_tag`, and one GitHub does not have as `tag_not_found`, all before any fetch or image pull. The given tag then
+passes every check below unchanged, even when a higher tag exists. This closes "production takes the highest tag".
+`--tag` is refused for development and staging and for `status` and `rollback`.
+
+An automatic proof that staging already served and passed the tag is still not built: the owner and the coordinator
+confirm it by hand before the word «انشر على الإنتاج». An enforced gate is designed in plan part P7 and is not
+implemented here.
+
+The candidate is read with `git ls-remote https://github.com/tariiq222/liwan.git`. The command then fetches `main`
 and the `release/*` tags into a bare repository in the state directory (`repo.git`) for ancestry checks and
 `git archive`.
 
-The release document is the image `git.liwanos.com/liwanos/liwan-release:<full commit sha>`, built `FROM scratch` with
+The release document is the image `ghcr.io/tariiq222/liwan-release:<full commit sha>`, built `FROM scratch` with
 one file `/release.json`. The command pulls it, copies the file out with `docker create` and `docker cp`, and removes
 the container and the image. It accepts the document only when its `commit`, its `release.liwanCommit` and every image
-reference (`git.liwanos.com/liwanos/<name>@sha256:...`) match, and `release` passes `deploy/releases/manifest.py`
+reference (`ghcr.io/tariiq222/liwan-<name>@sha256:...`; any other host or namespace is refused) match, and `release` passes `deploy/releases/manifest.py`
 validation. Each image is pulled by the digest of the host's architecture from the `platforms` map. A document
-without that architecture is refused. Staging and production also refuse a tag whose commit is not part of Forgejo `main`, a document without `linux/arm64` digests (even on an amd64 host), and refuse
+without that architecture is refused: an Arm server given an amd64-only document refuses with
+`RESULT: refused document_invalid` (`has no linux/arm64 image`), while development on amd64 accepts the amd64-only one. Staging and production also refuse a tag whose commit is not part of GitHub `main`, a document without `linux/arm64` digests (even on an amd64 host), and refuse
 a candidate that does not contain the served commit or whose release version is not above the served one.
 
 ## Credential
 
-The job command loads two environment variables from the root-only file `/etc/liwan-release/forgejo-read` (`set -a; . /etc/liwan-release/forgejo-read; set +a; python3 -B ...`); that file is the single source, not the job's secret store:
+The job command loads the variables from the root-only file `/etc/liwan-release/github-read` (`set -a; . /etc/liwan-release/github-read; set +a; python3 -B ...`); that file is the single source, not the job's secret store. Each environment has its own file and production's token differs from development's and staging's:
 
 | Variable | Meaning |
 | --- | --- |
-| `LIWAN_FORGEJO_READ_USER` | the Forgejo user of the read-only token |
-| `LIWAN_FORGEJO_READ_TOKEN` | a Forgejo token that can read the repository and the package registry, nothing more |
+| `LIWAN_GHCR_READ_USER` | required; the GitHub user of the registry token |
+| `LIWAN_GHCR_READ_TOKEN` | required; a read-only token that can pull the private `ghcr.io/tariiq222` packages, nothing more |
+| `LIWAN_GITHUB_READ_TOKEN` | optional; a read-only token for the source repository. The repository is public today, so when it is unset git runs with no credential. Set it the day the repository goes private |
 
-The token reaches git through the environment of a credential helper (the command line holds only the variable
-names) and reaches `docker login` on stdin, into a docker config directory inside the private state directory. It is
-never in an argument, a URL, a state file or the release document, and the job log replaces any occurrence with
-`***`, as it does every value of the config file and the shared env file whose key contains PASSWORD, SECRET, TOKEN, KEY, PASS, DSN, URL or URI (surrounding quotes dropped; a URL value also hides its password). A missing variable ends the run with `RESULT: refused missing_credential` before any command runs.
+The GitHub token reaches git through the environment of a credential helper (username `x-access-token`; the command
+line holds only the variable name). The registry token reaches `docker login ghcr.io` on stdin, into a docker config
+directory inside the private state directory. Neither is ever in an argument, a URL, a state file or the release document, and the job log replaces any occurrence with
+`***`, as it does every value of the config file and the shared env file whose key contains PASSWORD, SECRET, TOKEN, KEY, PASS, DSN, URL or URI (surrounding quotes dropped; a URL value also hides its password). A missing `LIWAN_GHCR_READ_*` variable ends the run with `RESULT: refused missing_credential` before any command runs.
 
 ## What a run does
 
