@@ -56,7 +56,7 @@ None of these is done:
 - Sentry answers 502 (since 2026-11-21, before the changes above); it is outside this task.
 - The `release/**` tag ruleset ([environment-bringup.md](environment-bringup.md) A0.2). The ten private GHCR packages
   exist (A0.1).
-- The staging host preparation and the first staging release ([environment-bringup.md](environment-bringup.md) section A).
+- The production bring-up and the first production release, and the after-release steps ([environment-bringup.md](environment-bringup.md) section C).
 
 ## Check the host
 

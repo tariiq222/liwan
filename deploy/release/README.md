@@ -10,14 +10,15 @@ python3 -B /opt/liwan/current/deploy/release/release.py status   --environment s
 python3 -B /opt/liwan/current/deploy/release/release.py rollback --environment staging
 ```
 
-**Status: nothing here has run on a real server yet.** The tests use fake docker, git and psql commands
-(`python3 -B -m unittest discover -s deploy/release -t . -p 'test_*.py'`). The first real run happens during the
-staging bring-up.
+**Status: the command has run for real on staging, not on production yet.** `release/19.0.1.0.6` was served on staging on
+2026-11-21 after one halt caused by the wrong group on the shared `odoo.conf` (row A4.7 of the bring-up guide). The tests use fake docker, git and psql commands
+(`python3 -B -m unittest discover -s deploy/release -t . -p 'test_*.py'`). The first production run happens during the
+production bring-up.
 
 ## Who builds and how each environment starts
 
 GitHub is the only system for source, CI, image build and release. The GitHub Actions workflow
-`.github/workflows/publish.yml` runs on pushes to `main` and on `release/**` tags. It builds the images, pushes them
+`.github/workflows/publish.yml` runs on `release/**` tags only. It builds the images, pushes them
 to the private GHCR registry under `ghcr.io/tariiq222` and publishes the release document image
 `ghcr.io/tariiq222/liwan-release:<commit>`.
 

@@ -39,7 +39,8 @@ Two other env files stay separate, because the services read them directly: the 
 - The compose set carries hard memory ceilings (about 9 GB for
   Odoo and 10 GB for PostgreSQL, plus the small services and the control plane, 24 GB in total), sized for the
   production Arm server. They are ceilings, not reservations. The staging host has 12 GB and also hosts the Openship
-  panel and its edge: its stack is capped at 6 GB and the build at 1.5 CPU / 5 GB (see the bring-up guide).
+  panel and its edge; nothing caps the stack below the compose ceilings and nothing on the host builds images (row A3.5 of
+  [environment-bringup.md](../../docs/operations/environment-bringup.md)).
 - Production binds every address on ports 80 and 443 and its own Caddy terminates TLS. Staging sits
   behind the Openship edge on its own host: that edge owns 80 and 443, terminates TLS with a DNS-01 wildcard and forwards over HTTP to
   `127.0.0.1:18080`, where the stack's Caddy publishes on loopback only. Caddy believes the edge's `X-Forwarded-For`
