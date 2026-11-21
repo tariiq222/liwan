@@ -13,7 +13,6 @@ const pageTitle = usePageHeaderTitle()
 const route = useRoute()
 const { choose } = useLocalePreference()
 const { mode, setMode } = useAppearance()
-const toast = useToast()
 
 const modes = [{ value: 'light', icon: 'i-lucide-sun' }, { value: 'dark', icon: 'i-lucide-moon' }] as const
 type MenuItem = DropdownMenuItem & { liwanIcon?: string }
@@ -30,14 +29,6 @@ const crumbs = computed(() => {
     title: hydrated.value ? pageTitle.value : null,
   })
 })
-
-async function leave() {
-  try {
-    await signOut()
-  } catch {
-    toast.add({ title: t('app.shell.signOutFailed'), color: 'error' })
-  }
-}
 
 const iconOf = (item: DropdownMenuItem) => (item as MenuItem).liwanIcon
 const menu = computed<MenuItem[][]>(() => [
@@ -67,7 +58,7 @@ const menu = computed<MenuItem[][]>(() => [
     })),
   ],
   [
-    { label: t('app.shell.signOut'), color: 'error' as const, liwanIcon: 'i-lucide-log-out', onSelect: () => { void leave() } },
+    { label: t('app.shell.signOut'), color: 'error' as const, liwanIcon: 'i-lucide-log-out', onSelect: () => { void signOut() } },
   ],
 ])
 </script>
