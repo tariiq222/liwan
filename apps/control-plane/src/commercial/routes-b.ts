@@ -22,6 +22,7 @@ import { createBranchQuote, needPayment, type PaymentRuntime } from './customer-
 import { endTrial, extendTrial, startTrial } from './trial.js'
 import { resumeSubscription, suspendSubscription } from './suspension.js'
 import { cancelAtPeriodEnd, resumeCancelled } from './cancellation.js'
+import { assertCustomerNotRetiring, assertOrderNotRetiring, assertSubscriptionNotRetiring } from './tenant-deletion-read.js'
 import { latestTenantDeletionRequest, listTenantDeletionRequests, tenantDeletionRunOf } from './tenant-deletion-read.js'
 import { tenantDeletionMode } from './tenant-deletion-run.js'
 import { withdrawDeletion } from './tenant-deletion.js'
@@ -128,6 +129,7 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     if(!z.uuid().safeParse(startTrialPath[1]).success)throw new CommercialHttpError('not_found',404)
     const owner=(await pool.query('SELECT tenant_id FROM customers WHERE id=$1',[startTrialPath[1]])).rows[0]
     if(!owner)throw new CommercialHttpError('not_found',404)
+    await assertCustomerNotRetiring(pool,startTrialPath[1]!)
     // The trial's order provisions the tenant of a customer that has none yet: that is tenant creation.
     if(!owner.tenant_id)need(input,'vendor.tenants.manage')
     const result=await startTrial(pool,{customer_id:startTrialPath[1],request:parseBody(input.raw,quoteRequestSchema.omit({subscription_id:true})),principal})
@@ -138,6 +140,7 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     need(input,'vendor.subscriptions.manage')
     if(!input.stepUpFresh)throw new CommercialHttpError('step_up_required',403)
     if(!z.uuid().safeParse(trial[1]).success)throw new CommercialHttpError('not_found',404)
+    await assertSubscriptionNotRetiring(pool,trial[1]!)
     if(trial[2]==='extend'){
       const body=parseBody(input.raw,z.strictObject({days:z.number().int().min(1).max(365),reason:z.string().trim().min(3).max(1000)}))
       return {status:200,data:await extendTrial(pool,{subscription_id:trial[1],days:body.days,reason:body.reason,actor:principal.actor_id})}
@@ -150,6 +153,7 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     need(input,'vendor.subscriptions.manage')
     if(!input.stepUpFresh)throw new CommercialHttpError('step_up_required',403)
     if(!z.uuid().safeParse(suspension[1]).success)throw new CommercialHttpError('not_found',404)
+    await assertSubscriptionNotRetiring(pool,suspension[1]!)
     const body=parseBody(input.raw,z.strictObject({reason:z.string().trim().min(3).max(1000)}))
     const act=suspension[2]==='suspend'?suspendSubscription:resumeSubscription
     await act(pool,{subscription_id:suspension[1],reason:body.reason,actor:principal.actor_id})
@@ -161,6 +165,7 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     need(input,'vendor.subscriptions.manage')
     if(!input.stepUpFresh)throw new CommercialHttpError('step_up_required',403)
     if(!z.uuid().safeParse(renewalCancel[1]).success)throw new CommercialHttpError('not_found',404)
+    await assertSubscriptionNotRetiring(pool,renewalCancel[1]!)
     const body=parseBody(input.raw,z.strictObject({reason:z.string().trim().min(3).max(1000)}))
     const act=renewalCancel[2]==='cancel-renewal'?cancelAtPeriodEnd:resumeCancelled
     return {status:200,data:await act(pool,{subscription_id:renewalCancel[1],by:'vendor',actor:principal.actor_id,reason:body.reason,now:new Date()})}
@@ -181,6 +186,7 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     need(input,'vendor.subscriptions.manage')
     if(!input.stepUpFresh)throw new CommercialHttpError('step_up_required',403)
     if(!z.uuid().safeParse(autoRenewOff[1]).success)throw new CommercialHttpError('not_found',404)
+    await assertSubscriptionNotRetiring(pool,autoRenewOff[1]!)
     const body=parseBody(input.raw,z.strictObject({reason:z.string().trim().min(3).max(1000)}))
     const owner=await transaction(pool,async client=>{
       const row=(await client.query('SELECT id,customer_id FROM subscriptions WHERE id=$1 FOR UPDATE',[autoRenewOff[1]])).rows[0]
@@ -194,6 +200,7 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
   if(m==='POST'&&path==='/customer-quotes'){
     need(input,'vendor.subscriptions.manage')
     const body=parseBody(input.raw,quoteRequestSchema.extend({customer_id:z.uuid(),terms:customerTermsRevisionSchema.omit({id:true,customer_id:true,reason:true}).optional()}));const {customer_id,terms,...request}=body
+    await assertCustomerNotRetiring(pool,customer_id)
     if(terms){
       if(request.terms_revision_id)throw new CommercialHttpError('invalid',422,'terms_revision_id')
       const previewTerms=customerTermsRevisionSchema.parse({...terms,id:randomUUID(),customer_id,reason:'Draft terms preview'})
@@ -205,13 +212,15 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
   if(m==='POST'&&path==='/branch-quotes'){
     need(input,'vendor.subscriptions.manage')
     const body=parseBody(input.raw,z.strictObject({customer_id:z.uuid(),add:z.array(z.strictObject({name:z.string()})).default([]),archive:z.array(z.uuid()).default([]),restore:z.array(z.uuid()).default([])}));const {customer_id,...request}=body
+    await assertCustomerNotRetiring(pool,customer_id)
     return {status:201,data:await createBranchQuote(pool,customer_id,JSON.stringify(request))}
   }
   if(m==='POST'&&path==='/orders'){
     need(input,'vendor.subscriptions.manage')
     const body=parseBody(input.raw,acceptQuoteRequestSchema)
     // An order for a customer without a tenant provisions one on fulfilment: that is tenant creation.
-    const owner=(await pool.query('SELECT c.tenant_id FROM commercial_quotes q JOIN customers c ON c.id::text=q.customer_id WHERE q.id=$1',[body.quote_id])).rows[0]
+    const owner=(await pool.query('SELECT c.tenant_id,q.customer_id FROM commercial_quotes q JOIN customers c ON c.id::text=q.customer_id WHERE q.id=$1',[body.quote_id])).rows[0]
+    if(owner)await assertCustomerNotRetiring(pool,owner.customer_id)
     if(owner&&!owner.tenant_id)need(input,'vendor.tenants.manage')
     const result=await acceptQuote(pool,body,principal);return {status:result.replay?200:201,data:result}
   }
@@ -266,6 +275,7 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     need(input,'vendor.billing.manage');if(!z.uuid().safeParse(payment[1]).success)throw new CommercialHttpError('not_found',404)
     const order=(await pool.query('SELECT customer_id FROM orders WHERE id=$1',[payment[1]])).rows[0];if(!order)throw new CommercialHttpError('not_found',404)
     if(m==='GET'){const rows=(await pool.query('SELECT * FROM payment_attempts WHERE order_id=$1 ORDER BY created_at DESC',[payment[1]])).rows;return {status:200,data:{items:rows.map(paymentAttemptView),total:rows.length}}}
+    await assertOrderNotRetiring(pool,payment[1]!)
     parseBody(input.raw||'{}',z.strictObject({idempotency_key:z.uuid().optional()}));return {status:201,data:await createPaymentAttempt(pool,{order_id:payment[1]!,customer_id:order.customer_id,...needPayment(runtime)})}
   }
   const refund=/^\/invoice-adjustments\/([^/]+)\/refund$/.exec(path)

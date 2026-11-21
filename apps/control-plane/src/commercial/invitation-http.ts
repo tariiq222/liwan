@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type { Pool } from 'pg'
 import { CommercialHttpError } from './lifecycle.js'
+import { assertCustomerNotRetiring } from './tenant-deletion-read.js'
 import { parseBody, need, type CommercialInput } from './http.js'
 import { isIP } from 'node:net'
 import { verifyServiceRequest } from '@liwan/commercial-contracts/server'
@@ -82,6 +83,7 @@ export async function invitationVendorHttp(pool: Pool, input: CommercialInput) {
   if (input.method !== 'POST') throw new CommercialHttpError('not_found', 404)
   need(input, 'vendor.subscriptions.manage')
   if (!z.uuid().safeParse(m[1]).success) throw new CommercialHttpError('not_found', 404)
+  await assertCustomerNotRetiring(pool, m[1])
   const body = parseBody(input.raw || '{}', z.strictObject({ ttl_seconds: z.number().int().min(300).max(7 * 86400).optional() }))
   const r = await pool.query(
     `SELECT s.tenant_id, s.applied_revision_id, c.admin_login FROM customers c JOIN subscriptions s ON s.customer_id=c.id WHERE c.id=$1`, [m[1]])

@@ -3,6 +3,7 @@ import type { Pool, PoolClient } from 'pg'
 import { customerTermsRevisionSchema, type Principal } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
 import { CommercialHttpError } from './lifecycle.js'
+import { assertCustomerNotRetiring } from './tenant-deletion-read.js'
 import { requireVendor } from './authorization.js'
 
 export async function loadCustomerTerms(client: Pick<PoolClient, 'query'>, customerId: string, revisionId?: string | null) {
@@ -17,6 +18,7 @@ export async function createCustomerTerms(pool: Pool, value: unknown, principal:
   const input = customerTermsRevisionSchema.omit({ id: true }).parse(value)
   return transaction(pool, async client => {
     if (!(await client.query('SELECT id FROM customers WHERE id=$1', [input.customer_id])).rowCount) throw new CommercialHttpError('not_found', 404)
+    await assertCustomerNotRetiring(client, input.customer_id)
     const terms = customerTermsRevisionSchema.parse({ ...input, id: randomUUID() })
     await client.query('INSERT INTO customer_terms_revisions(id,customer_id,payload,reason,created_by) VALUES($1,$2,$3,$4,$5)', [terms.id, terms.customer_id, JSON.stringify(terms), terms.reason, principal.actor_id])
     await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)', [randomUUID(), principal.actor_id, 'customer_terms.created', terms.customer_id, terms.reason, JSON.stringify({ terms_revision_id: terms.id })])

@@ -29,6 +29,14 @@ export async function assertCustomerNotRetiring(pool: Pick<Pool, 'query'>, custo
   if ((await pool.query(`SELECT ${tenantRetiringSql('$1')} AS retiring`, [customerId])).rows[0].retiring === true) throw new CommercialHttpError('tenant_retiring', 409)
 }
 
+/** The same refusal for a route that names a subscription or an order rather than the customer; an unknown id is left to the route's own 404. */
+async function assertOwnerNotRetiring(pool: Pick<Pool, 'query'>, table: 'subscriptions' | 'orders', id: string): Promise<void> {
+  const row = (await pool.query(`SELECT ${tenantRetiringSql('t.customer_id')} AS retiring FROM ${table} t WHERE t.id=$1`, [id])).rows[0]
+  if (row?.retiring === true) throw new CommercialHttpError('tenant_retiring', 409)
+}
+export const assertSubscriptionNotRetiring = (pool: Pick<Pool, 'query'>, subscriptionId: string) => assertOwnerNotRetiring(pool, 'subscriptions', subscriptionId)
+export const assertOrderNotRetiring = (pool: Pick<Pool, 'query'>, orderId: string) => assertOwnerNotRetiring(pool, 'orders', orderId)
+
 /** What the tenant sees of its open request, or null. */
 export async function tenantDeletionOf(pool: Pick<Pool, 'query'>, customerId: string): Promise<TenantDeletion | null> {
   const row = (await pool.query(`SELECT * FROM tenant_deletion_requests WHERE customer_id=$1 AND state=ANY($2::text[])`, [customerId, OPEN_DELETION_STATES])).rows[0]
