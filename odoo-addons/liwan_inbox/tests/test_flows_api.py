@@ -15,6 +15,7 @@ from .flows_common import (
     text_input,
 )
 from odoo.addons.liwan_api.tests.common import set_probe_feature
+from odoo.addons.liwan_inbox.models.constants import TIKTOK_FEATURE
 from odoo.addons.liwan_inbox.models.flow_starters import FLOW_STARTERS
 
 
@@ -351,6 +352,13 @@ class TestStarterForms(FlowCase):
             self.apply(key, self.manager)
             self.assertEqual(self.starters(key), flows, key)
         self.assertFalse(self.meta.calls)
+
+    def test_the_starters_go_to_the_whatsapp_channels_only(self):
+        set_probe_feature(self, key=TIKTOK_FEATURE, enabled=True)
+        tiktok_channel = self.make_tiktok_channel()
+        self.apply('clinic', self.manager)
+        self.assertTrue(self.starters('clinic'))
+        self.assertFalse(self.env['liwan.inbox.flow'].search([('channel_id', '=', tiktok_channel.id)]))
 
     def test_only_a_flows_manager_gets_the_starters(self):
         settings_only = self.custom_user('settings_only', 'inbox.settings.manage')
