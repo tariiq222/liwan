@@ -4,7 +4,7 @@ import { ApiError } from '../../useApi'
 
 // vue-query is replaced by a recorder of the options each hook passes, so what is asserted is the request the hook makes
 // and the cache it refreshes.
-type Options = { mutationFn?: (input: never) => unknown; onSuccess?: (data: unknown) => unknown; onError?: (error: unknown) => unknown }
+type Options = { mutationFn?: (input: never) => unknown; onMutate?: () => unknown; onSuccess?: (data: unknown, variables?: unknown, context?: unknown) => unknown; onError?: (error: unknown) => unknown }
 const seen: Options[] = []
 const queries: Array<{ queryKey: unknown; enabled?: () => boolean; queryFn: (context: { signal?: undefined }) => Promise<unknown> }> = []
 const queryClient = { invalidateQueries: vi.fn(async () => {}), setQueryData: vi.fn() }
@@ -20,7 +20,7 @@ vi.stubGlobal('useApi', () => ({ $api }))
 vi.stubGlobal('computed', Vue.computed)
 vi.stubGlobal('toValue', Vue.toValue)
 
-const { usePatchInboxConversation } = await import('../useInbox')
+const { usePatchInboxConversation, useSendInboxReply } = await import('../useInbox')
 
 beforeEach(() => {
   seen.length = 0
@@ -44,6 +44,19 @@ describe('patching a conversation', () => {
     usePatchInboxConversation(7)
     await seen.at(-1)!.onError!(new ApiError(403, 'forbidden', 'no'))
     expect(queryClient.invalidateQueries).not.toHaveBeenCalled()
+  })
+})
+
+describe('refreshing after a reply', () => {
+  it('refreshes the conversation the reply was sent for after the agent opened another one', async () => {
+    const open = Vue.ref(7)
+    useSendInboxReply(open)
+    const options = seen.at(-1)!
+    const sentTo = options.onMutate!()
+    open.value = 8
+    await options.onSuccess!({}, undefined, sentTo)
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['inbox', 'messages', 7] })
+    expect(queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ['inbox', 'messages', 8] })
   })
 })
 
@@ -82,6 +95,19 @@ describe('agent queries', () => {
     const result = await queries.at(-1)!.queryFn({}) as { items: unknown[] }
     expect(result.items).toHaveLength(3)
     expect($api).toHaveBeenLastCalledWith('/api/v1/inbox/agents', expect.objectContaining({ query: { limit: 200, offset: 2 } }))
+    $api.mockImplementation(async () => ({}))
+  })
+
+  it.each([['canned replies', 'useInboxCannedReplies', '/api/v1/inbox/canned-replies'], ['tags', 'useInboxTags', '/api/v1/inbox/tags']] as const)('reads every page of the %s', async (_label, hook, path) => {
+    const module = await import('../useInbox')
+    $api.mockImplementation(async (_path: string, options?: unknown) => {
+      const offset = (options as { query: { offset: number } }).query.offset
+      return { items: offset === 0 ? [{ id: 1 }, { id: 2 }] : [{ id: 3 }], total: 3 }
+    })
+    module[hook]()
+    const result = await queries.at(-1)!.queryFn({}) as { items: unknown[] }
+    expect(result.items).toHaveLength(3)
+    expect($api).toHaveBeenLastCalledWith(path, expect.objectContaining({ query: { limit: 200, offset: 2 } }))
     $api.mockImplementation(async () => ({}))
   })
 
