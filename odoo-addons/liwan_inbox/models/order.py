@@ -1,6 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import LockError, UserError
 from odoo.fields import Domain
 
 from .constants import MAX_CART_QUANTITY, PAY_BUTTON_TEXT
@@ -16,6 +16,10 @@ NOTE_EXPIRED = 'أُلغي الطلب %s: انتهت مهلة الدفع'
 
 class OrderLocked(UserError):
     """The order is no longer a cart that can be edited or dismissed."""
+
+
+class OrderBusy(UserError):
+    """Another request is changing the order right now."""
 
 
 class WindowClosed(UserError):
@@ -139,6 +143,14 @@ class LiwanInboxOrder(models.Model):
         order.conversation_id._liwan_notify_bus()
         return order
 
+    def _liwan_lock_row(self):
+        """Hold the order row for this transaction and read it again, so two checkouts never both place the cart."""
+        try:
+            self.lock_for_update(allow_referencing=True)
+        except LockError:
+            raise OrderBusy(self.env._('The order is being checked out by another request.')) from None
+        self.invalidate_recordset()
+
     def _liwan_require_cart(self):
         if self.state != 'cart':
             raise OrderLocked(self.env._('Only a cart can be changed.'))
@@ -200,9 +212,11 @@ class LiwanInboxOrder(models.Model):
 
         :return: the queued message.
         :raise OrderLocked: a dismissed order cannot be paid.
+        :raise OrderBusy: another request is checking the order out at this moment.
         :raise WindowClosed: the window is closed and no template was given.
         """
         self.ensure_one()
+        self._liwan_lock_row()
         conversation = self.conversation_id
         if self.state == 'dismissed':
             raise OrderLocked(self.env._('The order was dismissed.'))

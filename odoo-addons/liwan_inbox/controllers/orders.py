@@ -25,6 +25,7 @@ from odoo.addons.liwan_inbox.models.access_service import ORDERS_MANAGE, READ
 from odoo.addons.liwan_inbox.models.constants import CATALOG_FEATURE
 from odoo.addons.liwan_inbox.models.order import (
     ORDER_STATES,
+    OrderBusy,
     OrderLinesInvalid,
     OrderLocked,
     PayTemplateInvalid,
@@ -70,6 +71,7 @@ def order_filters(args):
 
 # The refusals of the order and payment services and their API answers: (status, code, field).
 REFUSALS = {
+    OrderBusy: (409, 'order_busy', None),
     OrderLocked: (409, 'order_locked', None),
     WindowClosed: (409, 'window_closed', None),
     OrderLinesInvalid: (422, 'invalid', 'lines'),
