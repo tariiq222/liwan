@@ -124,6 +124,57 @@
           "hidden": "Hidden"
         }
       }
+    },
+    "list": {
+      "new": "New appointment",
+      "day": "Day",
+      "previousDay": "Previous day",
+      "nextDay": "Next day",
+      "today": "Today",
+      "state": "State",
+      "type": "Type",
+      "allStates": "All states",
+      "allTypes": "All types",
+      "requester": "Requester",
+      "time": "Time",
+      "unscheduled": "Unscheduled",
+      "empty": "No appointments on this day."
+    },
+    "state": {
+      "pending": "Awaiting a time",
+      "scheduled": "Scheduled",
+      "confirmed": "Confirmed",
+      "canceled": "Canceled"
+    },
+    "form": {
+      "type": "Appointment type",
+      "chooseType": "Choose a type",
+      "requester": "Requester name",
+      "phone": "Phone",
+      "typeRequired": "Choose the appointment type.",
+      "nameRequired": "Write the requester name.",
+      "timeRequired": "Choose the day and time.",
+      "walkIn": "Walk-in",
+      "walkInHint": "Records an appointment for someone who arrived without booking."
+    },
+    "record": {
+      "notFound": "The appointment does not exist or you cannot read it.",
+      "details": "Appointment details",
+      "confirm": "Confirm",
+      "reschedule": "Reschedule",
+      "cancel": "Cancel appointment",
+      "attendance": "Record attendance",
+      "invitation": "Send invitation",
+      "day": "Day",
+      "duration": "Duration",
+      "notes": "Notes",
+      "visitReason": "Visit reason",
+      "cancelReason": "Cancellation reason",
+      "time": "Time",
+      "confirmTitle": "Confirm the appointment? It joins the day schedule.",
+      "cancelTitle": "Cancel the appointment? The requester is told.",
+      "attendanceTitle": "Record that the requester attended?",
+      "invitationTitle": "Send the appointment invitation to the requester?"
     }
   }
 }
