@@ -225,6 +225,20 @@ suite('live PostgreSQL vendor analytics', () => {
     } finally { await solo.end() }
   })
 
+  it('does not count a paid AI top-up as a trial conversion', async () => {
+    const solo = new Pool({ connectionString: url, max: 1 })
+    try {
+      await solo.query('BEGIN')
+      const lapsed = await seedCustomer(solo, { name: 'L top-up only', state: 'active', trial_ends_at: '2026-10-05T00:00:00Z' })
+      const invoice = await seedInvoice(solo, { customer_id: lapsed.customer_id, subscription_id: lapsed.subscription_id, status: 'paid', total_minor: 5000, issued_at: '2026-10-06T00:00:00Z', due_at: '2026-10-06T00:00:00Z', paid_at: '2026-10-06T00:00:00Z' })
+      await solo.query(`INSERT INTO invoice_lines(id,invoice_id,position,key,kind,timing,description,quantity,unit_minor,amount_minor,currency,exponent,period_start,period_end,source_revision_id)
+        VALUES($1,$2,0,'ai_topup','ai_topup','now','AI top-up',1,5000,5000,'SAR',2,'2026-10-06','2026-10-06',$1)`, [randomUUID(), invoice])
+      // One more ended trial, paid only for a top-up: the rate falls from 1 of 2 to 1 of 3.
+      expect((await getAnalytics(solo, period, now)).current.customers.trial_conversion_rate).toEqual({ available: true, value: 1 / 3 })
+      await solo.query('ROLLBACK')
+    } finally { await solo.end() }
+  })
+
   it('computes collection, ageing, payment success and trial conversion', async () => {
     const { current, previous } = await getAnalytics(pool, period, now)
     const c = current.collection
@@ -406,6 +420,20 @@ suite('live PostgreSQL vendor analytics', () => {
         await trial('window still open', '2026-10-12T09:00:00Z', '2026-10-13T09:00:00Z')
       })
       expect(rows.crm).toMatchObject({ registered: 5, started: 5, conversion_eligible: 4, converted: 2 })
+    })
+
+    it('does not count an AI top-up paid during the trial as the first paid conversion', async () => {
+      const topup = (db: Pool, seeded: { customer_id: string, subscription_id: string }, paid_at: string) => seedInvoice(db, { ...seeded, status: 'paid', total_minor: 5000, issued_at: paid_at, due_at: paid_at, paid_at })
+        .then(id => db.query(`INSERT INTO invoice_lines(id,invoice_id,position,key,kind,timing,description,quantity,unit_minor,amount_minor,currency,exponent,period_start,period_end,source_revision_id)
+          VALUES($1,$2,0,'ai_topup','ai_topup','now','AI top-up',1,5000,5000,'SAR',2,$3,$3,$1)`, [randomUUID(), id, paid_at.slice(0, 10)]))
+      const rows = await funnel(async (db, base) => {
+        const trial = (name: string) => seedSignup(db, { ...base, name, apps: { crm: true }, registered_at: '2026-10-01T09:00:00Z', trial_ends_at: '2026-10-02T09:00:00Z' })
+        await topup(db, await trial('only a top-up'), '2026-10-01T12:00:00Z')
+        const both = await trial('top-up then plan')
+        await topup(db, both, '2026-10-01T12:00:00Z')
+        await seedInvoice(db, { ...both, status: 'paid', total_minor: 11500, issued_at: '2026-10-05T09:00:00Z', due_at: '2026-10-05T09:00:00Z', paid_at: '2026-10-05T09:00:00Z' })
+      })
+      expect(rows.crm).toMatchObject({ registered: 2, started: 2, conversion_eligible: 2, converted: 1 })
     })
 
     it('does not count a first invoice that was credited in full, but counts one credited in part', async () => {

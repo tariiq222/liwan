@@ -3,7 +3,7 @@ import {
   analyticsQuerySchema, analyticsSchema, type Analytics, type AnalyticsFigure, type AnalyticsFigures, type AnalyticsSnapshot, type Cadence,
 } from '@liwan/commercial-contracts'
 import {
-  bookAt, bookInHistory, DAY_MS, inForceAt, monthEnds, movementIn, periodBounds, previousPeriod, ratio, recurringOf, riyadhDay, settleTrials, toTimelines,
+  bookAt, bookInHistory, DAY_MS, inForceAt, monthEnds, movementIn, notOnlyAiTopupSql, periodBounds, previousPeriod, ratio, recurringOf, riyadhDay, settleTrials, toTimelines,
   type AppliedOrder, type BookAt, type Period, type PricingBaseline, type Timelines,
 } from './analytics-model.js'
 import { CommercialHttpError } from './lifecycle.js'
@@ -116,7 +116,7 @@ async function trialConversion(db: Ask, period: Period, now: Date) {
      )
      SELECT count(*) AS ended,
        count(*) FILTER (WHERE EXISTS (SELECT 1 FROM invoices i WHERE i.subscription_id=t.id AND i.status='paid'
-         AND i.subtotal_minor>0 AND i.paid_at>=t.ended_at AND i.total_minor>${creditedMinorSql('i.id')})) AS paid,
+         AND i.subtotal_minor>0 AND i.paid_at>=t.ended_at AND i.total_minor>${creditedMinorSql('i.id')} AND ${notOnlyAiTopupSql('i.id')})) AS paid,
        count(*) FILTER (WHERE t.trial_outcome='converted') AS converted,
        count(*) FILTER (WHERE t.trial_outcome='kept_subset') AS kept_subset,
        count(*) FILTER (WHERE t.trial_outcome='free_base') AS free_base

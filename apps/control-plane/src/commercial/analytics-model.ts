@@ -20,6 +20,13 @@ export interface AppliedOrder {
 
 export type Timelines = Map<string, AppliedOrder[]>
 
+/**
+ * A scalar condition: the invoice the `invoiceId` SQL expression names is not only an AI top-up. A top-up bought during a trial is money
+ * but not the customer starting to pay for the subscription, so it never counts as a paid conversion; a top-up bundled with plan lines does.
+ */
+export const notOnlyAiTopupSql = (invoiceId: string) => `(NOT EXISTS (SELECT 1 FROM invoice_lines tl WHERE tl.invoice_id=${invoiceId} AND tl.kind='ai_topup')
+  OR EXISTS (SELECT 1 FROM invoice_lines pl WHERE pl.invoice_id=${invoiceId} AND pl.kind NOT IN ('ai_topup','tax') AND pl.amount_minor>0))`
+
 export const monthsOf = (cadence: Cadence): number => (cadence.unit === 'year' ? 12 * cadence.count : cadence.count)
 
 /** Recurring revenue of one revision, before tax and before any discount line (discounts are not part of the stored baseline). */
