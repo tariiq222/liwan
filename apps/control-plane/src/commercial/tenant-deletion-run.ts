@@ -33,7 +33,7 @@ const OFFSITE_SETTLE_SECONDS = 60
 const KILL_SWITCH_OFF = 'kill_switch_off'
 const DRY_RUN_EVERY_HOURS = 1
 /** Keys of a closed outbox payload or an audit record that name a recipient, a person or a secret code. */
-const PERSONAL_KEYS = ['to', 'email', 'recipient', 'admin_login', 'admin_name', 'login', 'mobile', 'phone', 'code', 'token', 'client_address', 'address_hash', 'error']
+const PERSONAL_KEYS = ['to', 'email', 'recipient', 'admin_login', 'previous_admin_login', 'previous', 'current', 'admin_name', 'login', 'mobile', 'phone', 'code', 'token', 'client_address', 'address_hash', 'error']
 
 /** The kill switch: nothing destructive runs unless this is exactly `true`. */
 export type TenantDeletionDisabledReason = 'kill_switch_off' | 'mail_host_unset' | 'local_mail_capture'

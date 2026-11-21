@@ -148,6 +148,25 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
       .toEqual({ state: 'cancelled', cancel_requested_at: null, cancel_requested_by: null, cancel_reason: null })
   })
 
+  it('strips the previous and current administrator address of an address change from the audit trail and the closed notices', async () => {
+    const f = await fixture()
+    const previous = `old-${randomUUID().replaceAll('-', '')}@example.test`, current = `new-${randomUUID().replaceAll('-', '')}@example.test`
+    await pool.query("INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES(gen_random_uuid(),'vendor:7','customer.admin_login_changed',$1,'Moved',$2::jsonb)",
+      [f.customer, JSON.stringify({ previous_admin_login: previous, admin_login: current, tenant_id: f.tenant })])
+    await pool.query("INSERT INTO commercial_outbox(id,kind,aggregate_id,dedupe_key,payload,status,processed_at) VALUES($1,'admin_login.notice',$2,'seed-change',$3::jsonb,'done',now())",
+      [randomUUID(), f.customer, JSON.stringify({ customer_id: f.customer, role: 'previous', to: previous, previous, current })])
+    await run()
+    const mails: unknown[] = []
+    await sendTenantDeletionNotices(pool, { mail: { send: async (m: any) => { mails.push(m); return { accepted: true, provider_message_id: 'p' } } } })
+    await settle(); await run()
+    expect((await steps(f)).anonymise_contacts).toMatchObject({ state: 'done' })
+    const left = (await pool.query(`SELECT (SELECT count(*) FROM audit_events WHERE metadata::text LIKE ANY($1::text[]))::int AS audit, (SELECT count(*) FROM commercial_outbox WHERE payload::text LIKE ANY($1::text[]))::int AS outbox`,
+      [[`%${previous}%`, `%${current}%`]])).rows[0]
+    expect(left).toEqual({ audit: 0, outbox: 0 })
+    // What is not personal stays: the audit row and the notice are still there.
+    expect((await pool.query("SELECT metadata FROM audit_events WHERE subject=$1 AND action='customer.admin_login_changed'", [f.customer])).rows[0].metadata).toEqual({ tenant_id: f.tenant })
+  })
+
   it('anonymises the contacts only after the final mail is closed, and scrubs recipients and codes from this customer only', async () => {
     const f = await fixture(), other = await fixture({ holdEndedMinutes: -600 })
     const aggregate = randomUUID()
