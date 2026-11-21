@@ -71,6 +71,54 @@ suite('commercial plans', () => {
     const listed = (await api('GET', '/plans?limit=200')).body.items.find((x: any) => x.id === c.body.id)
     expect(listed.customer_count).toBe(2)
   })
+  it('refuses numbers the integer columns or the workspace cannot take, as a 422 naming the field', async () => {
+    const over = { included_users: 2_147_483_648, included_storage_mb: 2_147_483_648, included_extra_branches: 2_147_483_648, extra_branches_limit: 2_147_483_648 }
+    for (const [field, value] of Object.entries(over)) {
+      const r = await api('POST', '/plans', planBody({ [field]: value }))
+      expect([r.status, r.body.field], field).toEqual([422, field])
+    }
+    // A limit the plan hands to a workspace must be one the workspace accepts (0 to 1,000,000,000).
+    const limit = await api('POST', '/plans', planBody({ platform_limits: { 'tasks.limit': 1_000_000_001 } }))
+    expect([limit.status, limit.body.field]).toEqual([422, 'platform_limits'])
+    const created = await api('POST', '/plans', planBody({ included_users: 1_000_000_000, platform_limits: { 'tasks.limit': 1_000_000_000 } }))
+    expect(created.status).toBe(201)
+    // An edit revision past the column is a parse refusal (the HTTP layer answers 422), not a database range error.
+    await expect(api('POST', `/plans/${created.body.id}/validate`, { edit_revision: 2_147_483_648, reason })).rejects.toMatchObject({ name: 'ZodError' })
+  })
+  it('requires every storage step to be a whole number of gigabytes at validate', async () => {
+    const c = await api('POST', '/plans', planBody({ storage_step_mb: 1000, storage_step_threshold_mb: 100000, storage_large_step_mb: 100000 }))
+    expect(c.status).toBe(201)
+    const v = await validate(c.body.id)
+    expect(v.status).toBe(422)
+    expect(v.body.issues).toEqual(expect.arrayContaining([{ code: 'storage_step_not_whole_gb', field: 'storage_step_mb' }, { code: 'storage_step_not_whole_gb', field: 'storage_step_threshold_mb' }, { code: 'storage_step_not_whole_gb', field: 'storage_large_step_mb' }]))
+  })
+  it('re-checks a plan when it is restored and leaves one available revision', async () => {
+    const b = await publishedBundle()
+    const c = await api('POST', '/plans', planBody({ optional_bundle_revision_ids: [b.id] }))
+    const v1 = await validate(c.body.id)
+    const p1 = await api('POST', `/plans/${c.body.id}/publish`, { edit_revision: v1.body.edit_revision, reason })
+    const w1 = await api('POST', `/plans/${c.body.id}/withdraw`, { edit_revision: p1.body.edit_revision, reason })
+    expect(w1.status).toBe(200)
+    // The bundle goes away while the plan is withdrawn: restoring would sell a plan that cannot be quoted.
+    const wb = await api('POST', `/bundles/${b.id}/withdraw`, { edit_revision: b.edit_revision, reason })
+    expect(wb.status).toBe(200)
+    const refused = await api('POST', `/plans/${c.body.id}/restore`, { edit_revision: w1.body.edit_revision, reason })
+    expect(refused.status).toBe(422); expect(refused.body.issues.map((i: any) => i.code)).toContain('bundle_unavailable')
+    expect((await pool.query('SELECT available FROM plan_revisions WHERE id=$1', [c.body.id])).rows[0].available).toBe(false)
+    // A newer revision is published meanwhile; restoring the old one then replaces it rather than selling both.
+    const ok = await api('POST', '/plans', planBody())
+    const v2 = await validate(ok.body.id)
+    const p2 = await api('POST', `/plans/${ok.body.id}/publish`, { edit_revision: v2.body.edit_revision, reason })
+    const w2 = await api('POST', `/plans/${ok.body.id}/withdraw`, { edit_revision: p2.body.edit_revision, reason })
+    const rev = await api('POST', `/plans/${ok.body.id}/revisions`, { edit_revision: w2.body.edit_revision, reason })
+    const v3 = await validate(rev.body.id)
+    const p3 = await api('POST', `/plans/${rev.body.id}/publish`, { edit_revision: v3.body.edit_revision, reason })
+    expect(p3.status).toBe(200)
+    const back = await api('POST', `/plans/${ok.body.id}/restore`, { edit_revision: p2.body.edit_revision + 1, reason })
+    expect(back.status).toBe(200)
+    const sellable = (await pool.query("SELECT id FROM plan_revisions WHERE plan_id=$1 AND status='published' AND available", [ok.body.plan_id])).rows
+    expect(sellable).toEqual([{ id: ok.body.id }])
+  })
   it('refuses a plan that still carries a metered limit', async () => {
     const c = await api('POST', '/plans', planBody({ platform_limits: { 'users.limit': 5 } }))
     expect(c.status).toBe(201)

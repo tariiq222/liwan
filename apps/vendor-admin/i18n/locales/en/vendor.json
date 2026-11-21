@@ -937,6 +937,7 @@
         "platform_limit_derived": "Users and storage are customer-chosen quantities, not plan limits.",
         "users_limit_admin_required": "The chosen quantity must admit at least one administrator.",
         "storage_minimum_not_whole_gb": "Storage is sold in whole gigabytes above the minimum; make the minimum a multiple of 1024.",
+        "storage_step_not_whole_gb": "Storage is sold in whole gigabytes; make every storage step a multiple of 1024.",
         "invalid_billing_period": "Invalid billing period.",
         "invalid_order_transition": "Order transition not allowed.",
         "invalid_json": "Invalid request. Try again.",

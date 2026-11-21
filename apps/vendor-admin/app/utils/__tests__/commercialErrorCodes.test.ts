@@ -27,7 +27,7 @@ const GENERIC = 'vendor.pricing.errors.generic'
  * from `LifecyclePanel`), so they must be mapped too — a code the console cannot name renders "generic".
  */
 const PLAN_ISSUE_CODES = ['storage_step_misaligned', 'storage_step_invalid', 'platform_limit_derived',
-  'price_missing', 'branch_price_missing', 'unit_price_missing', 'branch_limit_invalid', 'storage_minimum_not_whole_gb']
+  'price_missing', 'branch_price_missing', 'unit_price_missing', 'branch_limit_invalid', 'storage_minimum_not_whole_gb', 'storage_step_not_whole_gb']
 
 describe('commercial error codes', () => {
   it('names every plan issue code the control plane can return', () => {
