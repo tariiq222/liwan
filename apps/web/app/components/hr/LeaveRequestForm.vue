@@ -2,7 +2,7 @@
 import type { RouteLocationRaw } from 'vue-router'
 import { ApiError } from '@/composables/useApi'
 import { refDebounced } from '@vueuse/core'
-import { useCreateLeaveRequest, useHrLeaveTypes } from '@/composables/useHrLeave'
+import { useCreateLeaveRequest, useHrLeaveBalances, useHrLeaveTypes } from '@/composables/useHrLeave'
 import { useHrEmployees } from '@/composables/useHrEmployees'
 
 const props = defineProps<{ backTo: RouteLocationRaw }>()
@@ -26,6 +26,23 @@ const employeeOptions = computed(() => [
 // Filing for oneself happens in the home company, so only then are the home company's types listed.
 const types = useHrLeaveTypes({ mine: computed(() => employeeId.value === null) })
 const leaveTypeId = ref<number | null>(null)
+// The balance of the chosen type, and the days this range asks for: the form used to accept a request without ever
+// saying how much leave the person had left or how many days it took.
+const balances = useHrLeaveBalances(computed(() => employeeId.value), computed(() => hydrated.value))
+const chosenBalance = computed(() => (balances.data.value?.items ?? []).find(row => row.leave_type.id === leaveTypeId.value) ?? null)
+const balanceLine = computed(() => {
+  const parts: string[] = []
+  if (chosenBalance.value) parts.push(t('hr.leave.form.balanceLeft', { days: chosenBalance.value.remaining }))
+  if (requestedDays.value !== null) parts.push(t('hr.leave.form.daysCount', requestedDays.value))
+  return parts.join(' · ')
+})
+const requestedDays = computed(() => {
+  if (!dateFrom.value || !dateTo.value) return null
+  const from = new Date(`${dateFrom.value}T00:00:00`)
+  const to = new Date(`${dateTo.value}T00:00:00`)
+  const days = Math.round((to.getTime() - from.getTime()) / 86_400_000) + 1
+  return days > 0 ? days : null
+})
 // Own and another employee's types are different lists: a type chosen on one side is not offered on the other.
 watch(() => employeeId.value === null, () => { leaveTypeId.value = null })
 const dateFrom = ref<string | null>(null)
@@ -117,6 +134,14 @@ async function submit() {
               @update:model-value="pickType"
             />
           </UFormField>
+          <!-- The balance of the chosen type and the days this range takes: the form used to say neither. -->
+          <UAlert
+            v-if="chosenBalance || requestedDays"
+            color="neutral"
+            variant="subtle"
+            data-testid="hr-leave-summary"
+            :description="balanceLine"
+          />
           <p v-if="selectedType?.support_document" class="text-sm text-muted">{{ t('hr.leave.form.documentHint') }}</p>
           <div class="liwan-auto-grid gap-4">
             <UFormField :label="t('hr.leave.form.from')" name="hr-leave-from" required :error="fromError">
