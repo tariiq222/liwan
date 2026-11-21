@@ -61,6 +61,32 @@ class ConversationTicketTest(LiwanInboxCase):
         self.assertEqual(ticket.liwan_conversation_id, conversation)
         self.assertEqual(body['number'], ticket.number)
 
+    def linked_customer(self, conversation, phone):
+        customer = self.env['liwan.customers.service']._liwan_create({'name': 'Linked customer', 'phone': phone})
+        conversation.contact_id.partner_id = customer
+        return customer
+
+    def test_the_ticket_carries_the_active_customer_of_the_contact(self):
+        self.login(self.agent)
+        conversation = self.make_conversation()
+        customer = self.linked_customer(conversation, '+966501110031')
+        created = self.raise_ticket(conversation.id)
+        self.assertEqual(created.status_code, 200, created.text)
+        ticket = self.env['helpdesk.ticket'].browse(created.json()['id'])
+        self.assertEqual(ticket.partner_id, customer)
+        self.assertFalse(ticket.liwan_requester_user_id)
+
+    def test_an_archived_customer_of_the_contact_leaves_the_ticket_without_a_customer(self):
+        self.login(self.agent)
+        conversation = self.make_conversation()
+        customer = self.linked_customer(conversation, '+966501110032')
+        customer.active = False
+        created = self.raise_ticket(conversation.id)
+        self.assertEqual(created.status_code, 200, created.text)
+        ticket = self.env['helpdesk.ticket'].browse(created.json()['id'])
+        self.assertNotEqual(ticket.partner_id, customer)
+        self.assertEqual(ticket.liwan_requester_user_id, self.agent)
+
     def test_the_description_copies_what_the_customer_wrote_when_none_is_given(self):
         self.login(self.agent)
         conversation = self.make_conversation()

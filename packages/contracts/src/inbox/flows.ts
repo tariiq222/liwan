@@ -259,7 +259,8 @@ export const InboxFlowChoiceSchema = z.object({ key: z.string(), title: z.string
 export const InboxFlowAnswerSchema = z.union([
   z.object({ ...AnswerHead, kind: z.enum(['text_input', 'text_area', 'unknown']), value: z.string() }).strict(),
   z.object({ ...AnswerHead, kind: z.enum(['dropdown', 'radio', 'checkbox']), choices: z.array(InboxFlowChoiceSchema) }).strict(),
-  z.object({ ...AnswerHead, kind: z.literal('date'), value: IsoDate }).strict(),
+  // Null once the customer's data was erased.
+  z.object({ ...AnswerHead, kind: z.literal('date'), value: IsoDate.nullable() }).strict(),
   z.object({ ...AnswerHead, kind: z.literal('opt_in'), value: z.boolean() }).strict(),
 ])
 

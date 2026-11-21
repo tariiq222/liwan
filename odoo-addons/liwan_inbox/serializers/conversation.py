@@ -55,7 +55,10 @@ def dump_conversation(conversation):
 
 
 def dump_conversation_detail(conversation, can_reply, can_assign):
-    return {**dump_conversation(conversation), 'can_reply': can_reply, 'can_assign': can_assign}
+    return {
+        **dump_conversation(conversation), 'can_reply': can_reply, 'can_assign': can_assign,
+        'image_send_capable': conversation.image_send_capable,
+    }
 
 
 def dump_attachment(attachment):

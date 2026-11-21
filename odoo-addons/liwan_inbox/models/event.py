@@ -68,7 +68,7 @@ class LiwanInboxEvent(models.Model):
         """
         try:
             with self.env.cr.savepoint():
-                return self.create({
+                event = self.create({
                     'channel_id': channel.id,
                     'owner_company_id': channel.owner_company_id.id,
                     'payload': raw.decode(),
@@ -76,6 +76,14 @@ class LiwanInboxEvent(models.Model):
                 })
         except UniqueViolation:
             return self.browse()
+        # A TikTok event is skipped until `TIKTOK_ECHO_SETTLE` has passed, so its wake-up waits for that too.
+        self._liwan_wake_events(fields.Datetime.now() + TIKTOK_ECHO_SETTLE if channel.kind == 'tiktok' else None)
+        return event
+
+    @api.model
+    def _liwan_wake_events(self, at=None):
+        """Ask the event cron to run now, or at ``at``, instead of at its next scheduled run."""
+        self.env['ir.cron'].browse(self.env['ir.model.data']._xmlid_to_res_id(EVENT_CRON))._trigger(at)
 
     @api.model
     def _liwan_run_events(self):
@@ -116,7 +124,7 @@ class LiwanInboxEvent(models.Model):
         failed = self.filtered(lambda event: event.state == 'failed')
         failed.write({'state': 'pending', 'attempts': 0, 'error': False})
         if failed:
-            self.env['ir.cron'].browse(self.env['ir.model.data']._xmlid_to_res_id(EVENT_CRON))._trigger()
+            self._liwan_wake_events()
         return failed
 
     def _liwan_process(self):

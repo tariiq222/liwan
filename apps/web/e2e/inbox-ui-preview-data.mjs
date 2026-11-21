@@ -342,7 +342,7 @@ const page = (items, url) => {
 const list = items => ({ items, total: items.length })
 const segments = path => path.split('/').filter(Boolean)
 const WINDOW_OPEN = conv => !!conv.reply_window_ends_at && Date.parse(conv.reply_window_ends_at) > Date.now()
-const detail = conv => ({ ...conv, can_reply: true, can_assign: true })
+const detail = conv => ({ ...conv, can_reply: true, can_assign: true, image_send_capable: true })
 const renderTemplate = (body, params) => body.replace(/\{\{\s*(\d+)\s*\}\}/g, (_, index) => params[Number(index) - 1] ?? '')
 
 function conversationList(url) {

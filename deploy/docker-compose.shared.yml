@@ -17,15 +17,23 @@ services:
     environment:
       # Give Caddy a reserved address when the TikTok host is unset or empty.
       LIWAN_TIKTOK_RELAY_HOST: ${LIWAN_TIKTOK_RELAY_HOST:-invalid.invalid}
-      # The operator allowlist for restore hosts (`remote_ip` syntax). Deliberately no default: unset or empty
+      # The operator allowlist for restore hosts (`client_ip` syntax). Deliberately no default: unset or empty
       # answers 404 for every `*.restore.<domain>` host, so a stack cannot expose a restored database by omission.
       LIWAN_RESTORE_ALLOW: ${LIWAN_RESTORE_ALLOW:-}
       # The restore wildcard's own suffix, which must be the control plane's `domainSuffix`. It is not derived from
       # `DOMAIN`, a site-address list that may hold several tenant hosts.
       LIWAN_RESTORE_DOMAIN: ${LIWAN_RESTORE_DOMAIN:-invalid.invalid}
+      # The outer edge whose X-Forwarded-For Caddy believes, as the `edge` network gateway (see the network below).
+      # The default is the reserved TEST-NET-1 address the Caddyfile also defaults to: it trusts no proxy, so
+      # the client address is the socket peer.
+      LIWAN_TRUSTED_PROXIES: ${LIWAN_TRUSTED_PROXIES:-192.0.2.1/32}
+      # Scheme prefix of the restore and relay site addresses: `http://` when an outer edge terminates TLS, empty otherwise.
+      LIWAN_SITE_SCHEME: ${LIWAN_SITE_SCHEME:-}
+      # Caddy's `auto_https` mode; `off` when an outer edge terminates TLS. The default changes nothing.
+      LIWAN_AUTO_HTTPS: ${LIWAN_AUTO_HTTPS:-ignore_loaded_certs}
     volumes:
       - ./shared/Caddyfile:/etc/caddy/Caddyfile:ro
-      # The deploy script creates `active` here for the length of an update (deploy/cd/README.md); the Caddyfile
+      # The release command creates `active` here for the length of an update (deploy/release/README.md); the Caddyfile
       # shows its maintenance page only while that file exists. The default is a local directory for acceptance runs.
       - ${LIWAN_MAINTENANCE_DIR:-./data/maintenance}:/srv/liwan-maintenance:ro
       - caddy_data:/data
@@ -356,7 +364,15 @@ services:
       restore-db: { condition: service_healthy }
 
 networks:
-  edge: {}
+  # The subnet is pinned so that the gateway Caddy sees as the peer of a connection from the host (a port published
+  # on loopback arrives from the network's gateway, not from 127.0.0.1) is a known address for LIWAN_TRUSTED_PROXIES.
+  # Docker gives the gateway the first address of the subnet, so LIWAN_TRUSTED_PROXIES is that address as a /32.
+  # A second stack from this file on the same Docker host needs a different LIWAN_EDGE_SUBNET (overlapping pools fail).
+  # 172.29.40.0/24 is the control plane's `control_egress`.
+  edge:
+    ipam:
+      config:
+        - subnet: ${LIWAN_EDGE_SUBNET:-172.29.50.0/24}
   guard_web: { internal: true }
   guard_odoo: { internal: true }
   database: { internal: true }

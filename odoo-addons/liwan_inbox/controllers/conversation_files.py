@@ -19,7 +19,10 @@ from odoo.addons.liwan_api.controllers.common import (
 )
 from odoo.addons.liwan_api.serializers.attachment import MAX_ENCODED_CHARS
 from odoo.addons.liwan_api.serializers.common import iso
-from odoo.addons.liwan_api.serializers.csv_export import refuse_oversized_export
+from odoo.addons.liwan_api.serializers.csv_export import (
+    phone_cell,
+    refuse_oversized_export,
+)
 from odoo.addons.liwan_inbox.adapters import media_rules
 from odoo.addons.liwan_inbox.controllers.conversations import conversation_domain
 from odoo.addons.liwan_inbox.controllers.helpers import (
@@ -49,7 +52,7 @@ def export_row(conversation):
     return [
         conversation.id,
         safe_cell(conversation.contact_id.name),
-        conversation.contact_id.phone or '',
+        phone_cell(conversation.contact_id.phone or ''),
         safe_cell(conversation.channel_id.name),
         safe_cell(conversation.department_id.name or ''),
         safe_cell(conversation.assignee_id.name or ''),

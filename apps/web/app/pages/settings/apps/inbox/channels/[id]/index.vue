@@ -170,7 +170,7 @@ function confirmDelete() {
 
       <InboxChannelCommerceSection v-if="!isTikTok && catalogOn && manage" :channel-id="channel.id" :manage="can('inbox.catalog.manage')" />
 
-      <InboxChannelOpportunityMode v-if="manage" :channel-id="channel.id" />
+      <InboxChannelOpportunityMode v-if="manage && !isTikTok" :channel-id="channel.id" />
 
       <SharedRecordSection v-if="manage" variant="panel" :title="t('inbox.settings.channels.dangerTitle')">
         <div class="flex flex-col gap-3">

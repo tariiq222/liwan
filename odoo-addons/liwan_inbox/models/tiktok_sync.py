@@ -13,7 +13,7 @@ from odoo import api, fields, models
 from odoo.exceptions import UserError
 
 from .batch import process_each
-from .constants import TIKTOK_FEATURE
+from .constants import TIKTOK_FEATURE, TIKTOK_SYNC_CRON
 from odoo.addons.liwan_inbox.adapters import errors, tiktok
 
 _logger = logging.getLogger(__name__)
@@ -87,6 +87,11 @@ class LiwanInboxTikTokSync(models.Model):
         )
 
     @api.model
+    def _liwan_wake_sync(self):
+        """Ask the import cron to run now instead of at its next scheduled run."""
+        self.env['ir.cron'].browse(self.env['ir.model.data']._xmlid_to_res_id(TIKTOK_SYNC_CRON))._trigger()
+
+    @api.model
     def _liwan_record_failure(self, job, error):
         """An unexpected failure ends the job: an import is started again on demand, never retried in a loop."""
         job._liwan_fail(type(error).__name__)
@@ -98,6 +103,7 @@ class LiwanInboxTikTokSync(models.Model):
             return
         if self.state == 'queued':
             self.write({'state': 'running', 'started_at': fields.Datetime.now()})
+        before = (self.phase, self.cursor, self.pending_conversation_ids)
         try:
             credentials = self.channel_id._liwan_credentials()
             if self.phase == MESSAGE_PHASE:
@@ -113,6 +119,11 @@ class LiwanInboxTikTokSync(models.Model):
         except UserError as error:
             # An expired or refused authorization: the channel now asks for a reconnect, and the job says why.
             self._liwan_fail(str(error))
+        else:
+            # Work is left: the next step runs at once, but only after this one moved the job, so a step that
+            # reads the same page again waits for the scheduled run instead of looping.
+            if self.state in ACTIVE_STATES and before != (self.phase, self.cursor, self.pending_conversation_ids):
+                self._liwan_wake_sync()
 
     def _liwan_import_conversation_page(self, credentials):
         """Read one page of the phase's conversation list (SINGLE, then STRANGER); the last page advances the phase."""

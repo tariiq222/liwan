@@ -28,10 +28,12 @@ from odoo.addons.liwan_inbox.models.access_service import (
     MANAGE_SETTINGS,
     READ,
 )
-from odoo.addons.liwan_inbox.models.constants import FLOWS_FEATURE
+from odoo.addons.liwan_inbox.models.constants import AUTOMATION_FEATURE, FLOWS_FEATURE
 from odoo.addons.liwan_inbox.models.presets import PRESETS
 from odoo.addons.liwan_inbox.models.settings import (
+    ALERT_OFF_MINUTES,
     ASSIGNMENT_POLICIES,
+    MANUAL_ASSIGNMENT,
     MAX_ALERT_MINUTES,
     MAX_AUTO_CLOSE_HOURS,
     MAX_RETENTION_MONTHS,
@@ -51,6 +53,9 @@ SETTINGS_FIELDS = {
     'visibility_policy', 'auto_close_hours', 'retention_months', 'assignment_policy', 'first_response_alert_minutes',
     'report_retention_months', 'agent_shifts_enabled', 'unavailable_release',
 }
+# These two settings only act while the automation feature is writable (the assignment and first-response crons);
+# turning one off (the value each takes at its model default) stays possible without the feature.
+AUTOMATION_SETTINGS = {'assignment_policy': MANUAL_ASSIGNMENT, 'first_response_alert_minutes': ALERT_OFF_MINUTES}
 
 
 def list_page(model, dump):
@@ -110,7 +115,10 @@ class SettingsController(http.Controller):
     @requires_capability(MANAGE_SETTINGS)
     def patch_settings(self, **payload):
         settings = request.env['liwan.inbox.settings']._get_for_company()
-        settings.write(parse_settings(payload))
+        values = parse_settings(payload)
+        if any(key in values and values[key] not in (settings[key], off) for key, off in AUTOMATION_SETTINGS.items()):
+            request.env['liwan.entitlement.service'].require(AUTOMATION_FEATURE)
+        settings.write(values)
         return dump_settings(settings)
 
     @http.route('/api/v1/settings/inbox/presets/<string:key>', type='json2', auth='user', methods=['GET'], readonly=True)

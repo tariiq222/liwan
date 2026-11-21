@@ -316,8 +316,12 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
   // them with the authenticated session, so they never select a company and never grant access. A request that records
   // something already done (`expectedContext: false`) and a service-authorized request (the recorder's key speaks for
   // no screen) never carry them.
+  // `idempotency-key` is the client's retry key for a finance write; Odoo's `idempotent` decorator replays the first answer
+  // for it, so dropping it would silently turn duplicate protection off. A service-authorized request is the server's own
+  // call and never carries a browser's key.
   const statesContext = options.expectedContext !== false && options.authorization === undefined
   for (const name of ['content-type', 'accept', 'if-none-match', 'if-modified-since', 'range',
+    ...(options.authorization === undefined ? ['idempotency-key'] : []),
     ...(statesContext ? ['x-liwan-expected-user-id', 'x-liwan-expected-company-id'] : [])]) {
     const value = options.headers?.[name] ?? getHeader(event, name)
     if (value) headers[name] = value

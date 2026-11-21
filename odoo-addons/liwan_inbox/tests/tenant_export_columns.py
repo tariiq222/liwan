@@ -203,6 +203,7 @@ COLUMNS = {
         'direction',
         'error',
         'error_code',
+        'external',
         'flow_cta',
         'flow_id',
         'held_for_quality',

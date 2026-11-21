@@ -13,7 +13,7 @@ Drift is judged on structure (key paths, JSON types, nullness), not bytes, so da
 and ids cannot make the check flaky. Writing refuses when the Odoo run fails.
 
 This runs the Odoo tests of the fixture addons on a scratch database (slow), so it is
-not part of ``npm test``. The nightly CI run (``deploy/ci/contract-fixtures.sh``) records the
+not part of ``npm test``. The full-dispatch CI run (``deploy/ci/contract-fixtures.sh``) records the
 fixtures itself, from the same addons (``--addons``), and then calls ``--compare``.
 """
 from __future__ import annotations

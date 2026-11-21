@@ -12,6 +12,7 @@ import {
   CrmOpportunityMeetingCreateSchema,
   CrmOpportunityTaskCreateSchema,
   CrmOpportunityFiltersSchema,
+  CrmOpportunityRefSchema,
   CrmOpportunityListSchema,
   CrmOpportunityPatchSchema,
   CrmOpportunityWriteReasonSchema,
@@ -158,12 +159,21 @@ describe('the bridge write bodies', () => {
 describe('the conversation opportunity bridge', () => {
   const ref = { id: 7, contact_name: 'Customer', stage: { id: 1, name: 'New' }, status: 'pending', active: true }
 
-  it('reads the ref, an archived one, or a bare null', () => {
-    expect(ConversationOpportunityAnswerSchema.parse(ref)).toEqual(ref)
-    expect(ConversationOpportunityAnswerSchema.parse({ ...ref, stage: null, active: false }).active).toBe(false)
-    expect(ConversationOpportunityAnswerSchema.parse(null)).toBeNull()
-    expect(() => ConversationOpportunityAnswerSchema.parse({ ...ref, name: 'x' })).toThrow()
-    expect(() => ConversationOpportunityAnswerSchema.parse({ ...ref, status: 'open' })).toThrow()
+  it('reads the ref, an archived one, a missing link and a hidden one', () => {
+    expect(CrmOpportunityRefSchema.parse(ref)).toEqual(ref)
+    expect(CrmOpportunityRefSchema.parse({ ...ref, stage: null, active: false }).active).toBe(false)
+    expect(() => CrmOpportunityRefSchema.parse({ ...ref, name: 'x' })).toThrow()
+    expect(() => CrmOpportunityRefSchema.parse({ ...ref, status: 'open' })).toThrow()
+    expect(ConversationOpportunityAnswerSchema.parse({ opportunity: ref, hidden: false })).toEqual({ opportunity: ref, hidden: false })
+    expect(ConversationOpportunityAnswerSchema.parse({ opportunity: null, hidden: false })).toEqual({ opportunity: null, hidden: false })
+    expect(ConversationOpportunityAnswerSchema.parse({ opportunity: null, hidden: true }).hidden).toBe(true)
+  })
+
+  it('refuses the old bare shapes of the answer', () => {
+    expect(() => ConversationOpportunityAnswerSchema.parse(ref)).toThrow()
+    expect(() => ConversationOpportunityAnswerSchema.parse(null)).toThrow()
+    expect(() => ConversationOpportunityAnswerSchema.parse({ opportunity: null })).toThrow()
+    expect(() => ConversationOpportunityAnswerSchema.parse({ opportunity: null, hidden: true, id: 3 })).toThrow()
   })
 
   it('links by an opportunity id only', () => {

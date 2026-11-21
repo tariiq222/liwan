@@ -107,6 +107,9 @@ class StaticStageTest(unittest.TestCase):
         self.assertIn('name: static (${{ matrix.part }})', job)
         self.assertIn('run: deploy/ci/static.sh ${{ matrix.part }}', job)
 
+    def test_the_api_surface_check_runs_in_policies_on_every_run(self):
+        self.assertRegex(self.body('policies'), r'(?m)^  python3 -B tools/api_surface\.py --check$')
+
     def test_each_part_keeps_the_commands_the_serial_script_ran(self):
         for part, commands in self.COMMANDS.items():
             for command in commands:
@@ -147,14 +150,14 @@ class StaticStageTest(unittest.TestCase):
 
 
 class ContractFixturesJobTest(unittest.TestCase):
-    """The serializer-to-zod parity check is a nightly-only job: never a pull request, always part of ci-result."""
+    """The serializer-to-zod parity check is a full-dispatch-only job: never a pull request, always part of ci-result."""
     workflow = (ROOT / '.github/workflows/ci.yml').read_text()
 
     def job(self):
         return re.search(r'(?ms)^  contract-fixtures:\n(.*?)(?=^  [a-z][a-z0-9-]*:\n)', self.workflow).group(1)
 
-    def test_it_runs_on_the_nightly_run_and_a_full_dispatch_only(self):
-        self.assertIn("    if: github.event_name == 'schedule' || inputs.full\n", self.job())
+    def test_it_runs_on_a_full_dispatch_only(self):
+        self.assertIn("    if: inputs.full\n", self.job())
 
     def test_it_runs_the_stage_script_on_the_odoo_toolchain(self):
         job = self.job()

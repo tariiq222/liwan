@@ -75,6 +75,24 @@ class TestContactImport(CampaignCase):
         self.upload('phone\n+966501110010\n', consent='opted_in', consent_note='again')
         self.assertEqual(len(known.consent_ids), 1)
 
+    def test_known_contacts_are_tagged_once_each_and_new_ones_created_with_one_consent_each(self):
+        known = [self.make_contact(consent=None, address=f'96650222000{n}') for n in range(3)]
+        rows = ''.join(f'+96650222000{n},{"vip;new" if n else ""}\n' for n in range(3)) + '+966502220009,new\n'
+        response = self.upload('phone,tags\n' + rows, tag_ids=[self.tag.id], consent='opted_in', consent_note='form').json()
+        self.assertEqual((response['created'], response['updated'], response['skipped']), (1, 3, 0))
+        self.assertEqual([set(contact.tag_ids.ids) for contact in known], [{self.tag.id}, {self.tag.id, self.other_tag.id}, {self.tag.id, self.other_tag.id}])
+        fresh = self.contact_of('966502220009')
+        for contact in (*known, fresh):
+            self.assertEqual((len(contact.consent_ids), contact.consent_ids.source, contact.consent_ids.note), (1, 'import', 'form'))
+
+    def test_the_queries_of_an_import_do_not_grow_with_its_rows(self):
+        def queries(first, rows):
+            start = self.cr.sql_log_count
+            self.assertEqual(self.upload('phone\n' + ''.join(f'+966503{first + n:06d}\n' for n in range(rows)), consent='opted_in', consent_note='bulk').json()['created'], rows)
+            return self.cr.sql_log_count - start
+        small, large = queries(0, 5), queries(100, 20)
+        self.assertLessEqual(large - small, 2, (small, large))
+
     def test_every_invalid_request_answers_422(self):
         cases = [
             ('phone\n+966501110011', {'consent': 'opted_in'}, 'consent_note'),

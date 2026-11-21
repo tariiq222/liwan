@@ -111,3 +111,43 @@ it('forwards the expected context in bound mode and never invents or accepts aut
     expect(lastHeaders()['x-liwan-expected-company-id']).toBeUndefined()
   } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); vi.unstubAllEnvs() }
 })
+
+// Odoo's finance `idempotent` decorator reads this header; dropping it in bound mode silently disables duplicate protection.
+it('forwards the Idempotency-Key of a browser write to Odoo', async () => {
+  const token = 'synthetic-wire-token'.repeat(3)
+  const path = join(mkdtempSync(join(tmpdir(), 'liwan-idem-')), 'registry.json')
+  writeFileSync(path, JSON.stringify({ schemaVersion: 1, snapshotRevision: 1, targets: [{ host: 'a.example.test', tenantId: 'a', database: 'db_a', filestore: 'db_a', registryRevision: 1, enabled: true }] }))
+  vi.stubEnv('LIWAN_TENANCY_MODE', 'shared'); vi.stubEnv('LIWAN_SHARED_PROXY_TOKEN', token); vi.stubEnv('LIWAN_TENANT_REGISTRY_PATH', path)
+  const seen: http.IncomingHttpHeaders[] = []
+  const server = http.createServer((req, res) => { seen.push(req.headers); req.resume(); res.statusCode = 200; res.end('{}') })
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`
+  const event = {
+    node: { req: Object.assign(new EventEmitter(), { headers: { host: 'a.example.test', 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1', cookie: 'session_id=signed-envelope', 'idempotency-key': 'inv-0001-abcdef' } }), res: new EventEmitter() },
+  } as never
+  try {
+    expect((await tenantTransport(event, base, '/api/v1/finance/invoices', { method: 'POST', body: '{}' })).status).toBe(200)
+    expect(seen[seen.length - 1]?.['idempotency-key']).toBe('inv-0001-abcdef')
+  } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); vi.unstubAllEnvs() }
+})
+
+// A service-authorized request is the server's own call, not a browser write: it carries its bearer key and nothing the browser sent for idempotency.
+it('does not forward the Idempotency-Key on a service-authorized request', async () => {
+  const token = 'synthetic-wire-token'.repeat(3)
+  const path = join(mkdtempSync(join(tmpdir(), 'liwan-idem-service-')), 'registry.json')
+  writeFileSync(path, JSON.stringify({ schemaVersion: 1, snapshotRevision: 1, targets: [{ host: 'a.example.test', tenantId: 'a', database: 'db_a', filestore: 'db_a', registryRevision: 1, enabled: true }] }))
+  vi.stubEnv('LIWAN_TENANCY_MODE', 'shared'); vi.stubEnv('LIWAN_SHARED_PROXY_TOKEN', token); vi.stubEnv('LIWAN_TENANT_REGISTRY_PATH', path)
+  const seen: http.IncomingHttpHeaders[] = []
+  const server = http.createServer((req, res) => { seen.push(req.headers); req.resume(); res.statusCode = 200; res.end('{}') })
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`
+  const event = {
+    node: { req: Object.assign(new EventEmitter(), { headers: { host: 'a.example.test', 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1', cookie: 'session_id=signed-envelope', 'idempotency-key': 'inv-0001-abcdef' } }), res: new EventEmitter() },
+  } as never
+  try {
+    expect((await tenantTransport(event, base, '/api/v1/ai/usage/service', { method: 'POST', body: '{}', authorization: 'Bearer ' + 'a'.repeat(40) })).status).toBe(200)
+    const headers = seen[seen.length - 1]
+    expect(headers?.authorization).toBe('Bearer ' + 'a'.repeat(40))
+    expect(headers?.['idempotency-key']).toBeUndefined()
+  } finally { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); vi.unstubAllEnvs() }
+})

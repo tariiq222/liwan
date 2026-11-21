@@ -44,6 +44,26 @@ class TestCampaignSendClaim(CampaignCase):
         self.assertFalse(message.exists())
         self.assertEqual((recipient.state, recipient.dispatched_at), ('pending', False))
 
+    def test_a_message_with_a_send_marker_is_left_to_the_interrupted_send_settlement(self):
+        campaign, (marked, plain) = self.queued(2)
+        marked.message_id.write({'send_token': 'abc', 'send_started_at': fields.Datetime.now() - timedelta(hours=2)})
+        campaign.action_pause()
+        self.run_campaigns()
+        self.assertTrue(marked.message_id.exists())
+        self.assertNotEqual(marked.state, 'pending')
+        self.assertFalse(plain.message_id.exists())
+        self.assertEqual((plain.state, plain.dispatched_at), ('pending', False))
+        self.env[Message]._liwan_settle_interrupted_sends()
+        self.assertEqual((marked.message_id.delivery_state, marked.message_id.unconfirmed), ('failed', True))
+        # Never sent twice: after the settlement a resumed campaign sends the pending recipient, not the settled one.
+        marked_address = marked.contact_id.identity_ids.address
+        campaign.action_resume()
+        self.run_campaigns(2)
+        mock = self.run_outbox()
+        self.assertEqual(marked.state, 'failed')
+        self.assertEqual([call for call in mock.calls if call[2].get('to') == marked_address], [])
+        self.assertEqual(plain.state, 'sent')
+
     def test_the_send_rechecks_that_the_campaign_is_still_running(self):
         campaign, (recipient,) = self.queued()
         campaign.action_pause()

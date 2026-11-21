@@ -175,10 +175,10 @@ class LiwanInboxFlowAnswer(models.Model):
     choice_ids = fields.One2many('liwan.inbox.flow.answer.choice', 'answer_id')
 
     def _liwan_value(self):
-        """The value in the contract's shape: text, an ISO date or a boolean (a choice answer has `choice_ids` instead)."""
+        """The value in the contract's shape: text, an ISO date (None once erased) or a boolean (a choice answer has `choice_ids` instead)."""
         self.ensure_one()
         if self.kind == 'date':
-            return self.value_date.isoformat()
+            return self.value_date.isoformat() if self.value_date else None
         if self.kind == 'opt_in':
             return self.value_boolean
         return self.value_text or ''

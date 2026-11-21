@@ -11,6 +11,7 @@ import { transaction } from '../db.js'
 import { CommercialHttpError } from './lifecycle.js'
 import { assertNoCustomerIdentity, parseCustomerPrincipal, requireCapability } from './authorization.js'
 import { parseBody } from './http.js'
+import { controlTenantForSigned } from './signed-tenant.js'
 import { getSubscription } from './subscriptions.js'
 import { buildQuote, createQuoteForCustomer } from './quotes.js'
 import { convertTrial, startTrial } from './trial.js'
@@ -63,12 +64,11 @@ export async function createBranchQuote(pool: Pool, customerId: string, raw: str
 }
 /** A shared web signs the registry tenant id; the enabled binding maps it to the control tenant. */
 async function customerForTenant(client: PoolClient, tenant: string) {
-  const tenantId=z.uuid().safeParse(tenant).success?tenant:
-    (await client.query('SELECT control_tenant_id FROM shared_registry_bindings WHERE tenant_id=$1 AND enabled=true',[tenant])).rows[0]?.control_tenant_id
+  const tenantId=await controlTenantForSigned(client,tenant)
   if (!tenantId) throw new CommercialHttpError('not_found',404)
   const customer=await client.query('SELECT id FROM customers WHERE tenant_id=$1',[tenantId])
   if (!customer.rowCount) throw new CommercialHttpError('not_found',404)
-  return {customerId:customer.rows[0].id as string,tenantId:tenantId as string}
+  return {customerId:customer.rows[0].id as string,tenantId}
 }
 /** The `x-liwan-tenant` value the public LiwanOS web sends for a payment return that belongs to no tenant host. */
 export const PROSPECT_TENANT='public'

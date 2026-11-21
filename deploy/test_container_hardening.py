@@ -4,6 +4,8 @@ import re
 import unittest
 from pathlib import Path
 
+from deploy.release.release import SHARED_COMPOSE_FILES
+
 ROOT = Path(__file__).resolve().parents[1]
 DOCKERFILES = sorted(p for base in ('apps', 'deploy') for p in (ROOT / base).rglob('Dockerfile')
                      if 'node_modules' not in p.parts)
@@ -22,8 +24,7 @@ STACKS = {
     'dedicated production': ('docker-compose.yml', 'docker-compose.production.yml'),
     'dedicated classification': ('docker-compose.yml', 'docker-compose.classification.yml'),
     'shared': ('docker-compose.yml', 'docker-compose.shared.yml'),
-    'shared production': ('docker-compose.yml', 'docker-compose.shared.yml', 'docker-compose.shared-commercial.yml',
-                          'docker-compose.production.yml'),
+    'shared production': SHARED_COMPOSE_FILES,
 }
 PROXY_ADMISSION_SETTINGS = {
     'NUXT_ODOO_MAX_CONCURRENCY', 'NUXT_SESSION_CHECK_CACHE_SIZE', 'NUXT_SESSION_CHECK_CONCURRENCY',

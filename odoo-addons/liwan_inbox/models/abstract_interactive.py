@@ -38,7 +38,7 @@ class LiwanInboxInteractive(models.AbstractModel):
             'header': self.interactive_header or None, 'footer': self.interactive_footer or None,
         }
         if self.interactive_type == 'flow':
-            return {**shared, 'flow_id': self.flow_id.id, 'cta': self.flow_cta}
+            return {**shared, 'flow_id': self.flow_id.id or None, 'cta': self.flow_cta}
         if self.interactive_type == 'cta_url':
             return {**shared, 'display_text': self.cta_display_text, 'url': self.cta_url}
         options = self.option_ids.sorted('sequence')

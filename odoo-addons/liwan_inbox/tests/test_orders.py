@@ -6,10 +6,11 @@ from unittest.mock import MagicMock, patch
 import requests
 
 from odoo import fields
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, LockError
 from odoo.tests import tagged
 
 from .catalog_common import BASE_URL, CATALOG_ID, LiwanCatalogCase
+from odoo.addons.liwan_inbox.models.order import OrderLocked
 from odoo.addons.liwan_inbox.models.privacy_hooks import ERASED_CONTACT
 from odoo.addons.liwan_inbox.serializers.order import dump_order
 from odoo.addons.liwan_inbox.tests import whatsapp_payloads as wa
@@ -140,6 +141,18 @@ class TestOrderIngest(OrderCase):
         self.assertEqual([(line['product_retailer_id'], line['quantity']) for line in response.json()['lines']], [('SHIRT-1', 3), (self.item2.retailer_id, 2)])
         self.assertError(self.api('PATCH', self.order_path(order), {'lines': [{'id': 99999, 'quantity': 1}]}), 422, 'invalid')
 
+    def test_a_cart_edit_that_adds_nothing_changes_a_quantity_or_drops_a_line(self):
+        order = self.deliver_cart([cart_line('SHIRT-1', 1), cart_line('ghost', 1)])
+        keep, drop = order.line_ids
+        changed = self.api('PATCH', self.order_path(order), {'lines': [{'id': keep.id, 'quantity': 4}, {'id': drop.id, 'quantity': 1}]})
+        self.assertEqual(changed.status_code, 200, changed.text)
+        self.assertEqual([(line['id'], line['quantity']) for line in changed.json()['lines']], [(keep.id, 4), (drop.id, 1)])
+        removed = self.api('PATCH', self.order_path(order), {'lines': [{'id': keep.id, 'quantity': 4}]})
+        self.assertEqual(removed.status_code, 200, removed.text)
+        self.assertEqual(order.line_ids, keep)
+        self.assertError(self.api('PATCH', self.order_path(order), {'lines': []}), 422, 'invalid')
+        self.assertEqual(order.line_ids, keep)
+
     def test_an_agent_builds_an_order(self):
         response = self.api('POST', f'/api/v1/inbox/conversations/{self.conversation.id}/orders', {
             'lines': [{'catalog_item_id': self.item.id, 'quantity': 2}],
@@ -185,6 +198,47 @@ class TestCheckout(OrderCase):
         self.assertEqual(second['order']['reference'], first['order']['reference'])
         self.assertNotEqual(second['message_id'], first['message_id'])
         self.assertEqual(self.env['sale.order'].sudo().search_count([('name', '=', first['order']['reference'])]), 1)
+
+    def test_a_checkout_the_row_lock_refuses_places_nothing(self):
+        order = self.deliver_cart([cart_line('SHIRT-1')])
+        before = self.env['sale.order'].sudo().search_count([])
+        with patch.object(type(order), 'lock_for_update', side_effect=LockError('busy')):
+            self.assertError(self.checkout(order), 409, 'order_busy')
+        self.assertEqual((order.state, self.env['sale.order'].sudo().search_count([])), ('cart', before))
+        self.assertEqual(self.checkout(order).status_code, 200)
+
+    def test_an_order_placed_meanwhile_is_not_placed_again(self):
+        order = self.deliver_cart([cart_line('SHIRT-1')])
+        stale = self.env['liwan.inbox.order'].browse(order.id)
+        self.assertEqual(stale.state, 'cart')  # cached before the other request places it
+        self.checkout(order)
+        before = self.env['sale.order'].sudo().search_count([])
+        stale._liwan_checkout(template=None, body='again')
+        self.assertEqual(self.env['sale.order'].sudo().search_count([]), before)
+        self.assertEqual(len(stale._liwan_sale_orders()), 1)
+
+    def test_a_cancel_or_a_line_edit_the_row_lock_refuses_changes_nothing(self):
+        order = self.deliver_cart([cart_line('SHIRT-1')])
+        line = order.line_ids
+        edit = {'lines': [{'id': line.id, 'quantity': 5}]}
+        with patch.object(type(order), 'lock_for_update', side_effect=LockError('busy')):
+            self.assertError(self.api('POST', self.order_path(order, '/cancel')), 409, 'order_busy')
+            self.assertError(self.api('PATCH', self.order_path(order), edit), 409, 'order_busy')
+        self.assertEqual((order.state, line.quantity), ('cart', 1))
+        self.assertEqual(self.api('PATCH', self.order_path(order), edit).status_code, 200)
+        self.assertEqual(line.quantity, 5)
+
+    def test_an_order_placed_meanwhile_is_neither_dismissed_nor_rewritten(self):
+        order = self.deliver_cart([cart_line('SHIRT-1')])
+        stale = self.env['liwan.inbox.order'].browse(order.id)
+        self.assertEqual(stale.state, 'cart')  # cached before the other request places it
+        self.checkout(order)
+        with self.assertRaises(OrderLocked):
+            stale._liwan_set_lines({stale.line_ids.id: 9}, [])
+        self.assertEqual(stale.line_ids.quantity, 1)
+        stale._liwan_cancel()
+        self.assertNotEqual(stale.state, 'dismissed')
+        self.assertTrue(stale._liwan_sale_orders())
 
     def test_an_unknown_line_blocks_the_checkout_and_nothing_is_left_behind(self):
         order = self.deliver_cart([cart_line('SHIRT-1'), cart_line('ghost')])

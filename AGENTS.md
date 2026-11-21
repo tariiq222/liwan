@@ -19,6 +19,7 @@ This file is the single source of repository instructions for every coding agent
 | Layer-specific implementation | [Odoo/API rules](docs/agents/odoo-rules.md), [web rules](docs/agents/web-rules.md) |
 | File ownership, worktree isolation and shared resources | [Parallel work](docs/parallel-work.md) |
 | Integration, publication and protected delivery | [Integration rules](docs/agents/integration-rules.md) |
+| Environments, bring-up checklists and the release command | [Environment bring-up](docs/operations/environment-bringup.md) (servers, DNS, edge, checklists); [Release command](deploy/release/README.md) (what `deploy/release/release.py` does and its config). The keyword ladder and the flow stay in the integration rules |
 | Review findings and reviewer independence | [Review guide](REVIEW.md) |
 | Where planner-skill output lives (specs, tickets, triage) | [Issue tracker](docs/agents/issue-tracker.md) |
 | Verification commands and evidence scope | [Testing guide](docs/testing.md) |
@@ -256,14 +257,20 @@ another application) needs the owner's approval, recorded by the owner as an
 - `main` is protected on GitHub with PR and current CI requirements and no admin bypass.
   Integration uses a pull request; direct pushes and protection bypasses are prohibited. The
   preservation procedure, the standing authorization (local commit, lane return after a merge), the
-  steps that need the owner's explicit words (push, PR, ready, merge, auto-merge), the exclusions and the merge checklist have one
-  owner: [integration-rules.md](docs/agents/integration-rules.md). Read it before integrating an
+  steps that need the owner's explicit words (push, PR, ready, merge, auto-merge), the independent review that precedes
+  every push ([section](docs/agents/integration-rules.md#independent-review-before-every-push-owner-decision-2026-11-21)),
+  the exclusions and the merge checklist have one
+  owner: [integration-rules.md](docs/agents/integration-rules.md). Read it before any push and before integrating an
   older branch. The 2026-10-17 direct-push exception is superseded by this PR workflow.
-- Use a task PR for an independent change; use one `<prefix>/tools-integrate-<slug>` candidate
-  and one PR for a coupled batch, and do not submit both a batch and its constituent branches.
+- Small tasks that share a scope are commits on one task branch and one PR; a sensitive change gets its own PR;
+  `<prefix>/tools-integrate-<slug>` only integrates separate coupled branches, never together with those branches'
+  own PRs ([definitions](docs/agents/integration-rules.md#sensitive-change-and-batching-single-definitions)).
 - A PR stays **draft** while scope, applicable local checks or prepublication inspection are incomplete.
   The required status-check policy is current-head `ci-result` only; review follows `REVIEW.md`.
-- The `ci` workflow runs on PRs, on pushes to `main` and nightly; the last two run all thirteen
+- The flow from a task branch to development, staging and production (keywords «انشر»,
+  «انشر على الاستيج», «انشر على الإنتاج»; GitHub is the only source, CI and build system) is in
+  [integration-rules.md](docs/agents/integration-rules.md#from-task-branch-to-each-environment-owner-decision-2026-11-21).
+- The `ci` workflow runs on PRs, on pushes to `main` and in a full manual dispatch; the last two run all thirteen
   stages. Release tags, the full-run requirement and the live-protection checks are in
   [integration-rules.md](docs/agents/integration-rules.md); check scope is in
   [testing.md](docs/testing.md#ci-workflow).
@@ -297,14 +304,14 @@ does not change who may commit, push, merge or clean up; that is in
 
 ## Code Review Rules
 
-Codex reads this section when it reviews a GitHub pull request. What to report, in what order and
-what the automated tools already cover is owned by [REVIEW.md](REVIEW.md); apply it to every
-changed file.
+Every reviewer of a pull request, agent or human, applies this section. What to report, in what
+order and what the automated tools already cover is owned by [REVIEW.md](REVIEW.md); apply it to
+every changed file.
 
 - Report every finding in one review pass, ranked by severity. Do not hold findings back for a
   later round or a later push.
-- Classify as P1, so they are posted, every item REVIEW.md lists under "Report, in this order" and
-  any accumulation as defined in "Clean pre-release codebase" above.
+- Classify as P1 every item REVIEW.md lists under "Report, in this order" and any accumulation as
+  defined in "Clean pre-release codebase" above.
 - Each finding names `file:line` and the input or state that breaks it. No style comments unless
   they hide a bug.
 

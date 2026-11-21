@@ -45,13 +45,6 @@ SETTINGS_FIELDS = {
 }
 
 
-def in_company(records, field):
-    """`records` unchanged when they all belong to the current company (a branch user's other companies are other tenants of data)."""
-    if records.company_id - request.env.company:
-        reject(f'{field} names a record of another company', field)
-    return records
-
-
 def parse_bool(payload, key):
     if not isinstance(payload[key], bool):
         reject(f'{key} must be true or false', key)
@@ -93,7 +86,7 @@ def parse_audience(payload, partial=False):
             ids = parse_ids(payload[key], key)
             if len(ids) > 50:
                 reject(f'{key} has at most 50 tags', key)
-            values[field] = [(6, 0, in_company(find_ids('liwan.inbox.tag', ids, key), key).ids)]
+            values[field] = [(6, 0, find_ids('liwan.inbox.tag', ids, key, request.env.company).ids)]
     if 'tag_match' in payload:
         values['tag_match'] = parse_choice(payload, 'tag_match', [('any', ''), ('all', '')])
     if 'active_within_days' in payload:
@@ -126,7 +119,7 @@ def parse_params(value):
 
 def find_template(template_id, channel=None):
     """A template of the caller's company (and of `channel`); 422 otherwise."""
-    template = in_company(find_one('liwan.inbox.template', template_id, 'template_id'), 'template_id')
+    template = find_one('liwan.inbox.template', template_id, 'template_id', request.env.company)
     if channel and template.channel_id != channel:
         reject('template_id names a template of another channel', 'template_id')
     if template.category == 'authentication':
@@ -177,7 +170,7 @@ def parse_campaign(payload, campaign=None):
     if 'channel_id' in payload:
         values['channel_id'] = channel.id
     if 'audience_id' in payload:
-        values['audience_id'] = in_company(find_one('liwan.inbox.audience', payload['audience_id'], 'audience_id'), 'audience_id').id
+        values['audience_id'] = find_one('liwan.inbox.audience', payload['audience_id'], 'audience_id', request.env.company).id
     if 'send_within_hours' in payload:
         values['send_within_hours'] = parse_bool(payload, 'send_within_hours')
     if 'daily_cap' in payload:
@@ -224,7 +217,7 @@ def parse_content(payload, campaign, channel):
 def parse_preview(payload):
     check_fields(payload, {'template_id', 'params', 'contact_id'}, required=('template_id', 'params'))
     template = find_template(payload['template_id'])
-    contact = in_company(find_one('liwan.inbox.contact', payload['contact_id'], 'contact_id'), 'contact_id') if 'contact_id' in payload else None
+    contact = find_one('liwan.inbox.contact', payload['contact_id'], 'contact_id', request.env.company) if 'contact_id' in payload else None
     return template, parse_params(payload['params']), contact
 
 
@@ -246,7 +239,7 @@ def parse_marketing_patch(payload):
         ids = parse_ids(payload['tag_ids'], 'tag_ids')
         if len(ids) > 50:
             reject('tag_ids has at most 50 tags', 'tag_ids')
-        tags = in_company(find_ids('liwan.inbox.tag', ids, 'tag_ids'), 'tag_ids').ids
+        tags = find_ids('liwan.inbox.tag', ids, 'tag_ids', request.env.company).ids
     return consent, tags
 
 

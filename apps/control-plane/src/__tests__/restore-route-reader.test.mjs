@@ -1,6 +1,6 @@
 import { test } from 'vitest'
 import assert from 'node:assert/strict'
-import { mkdtempSync, mkdirSync, realpathSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, realpathSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { readTenantRegistry } from '../../../../apps/web/server/utils/tenantRegistry.ts'
@@ -75,4 +75,16 @@ test('a missing restore directory is no route, not a failure of the tenant regis
   mkdirSync(join(paths.dir, 'restore-registry'))
   const host = realRestoreHost(approval, suffix)
   assert.throws(() => requestPlan(internal(host), readRegistries(paths, host).registry, token, codec), /tenant_host_unavailable/)
+})
+
+test('under a restrictive umask the restore registry directory stays traversable and the file readable', async () => {
+  const paths = stateDir()
+  const previous = process.umask(0o077)
+  try {
+    await writeRestoreRoute(paths.dir, approval, realRestoreHost(approval, suffix), database)
+  } finally {
+    process.umask(previous)
+  }
+  assert.equal(statSync(join(paths.dir, 'restore-registry')).mode & 0o777, 0o755)
+  assert.equal(statSync(paths.restoreRegistryPath).mode & 0o777, 0o644)
 })

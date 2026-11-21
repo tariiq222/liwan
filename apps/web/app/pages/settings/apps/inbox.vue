@@ -32,7 +32,7 @@ async function reload<T>(query: { refetch: () => Promise<{ data?: T; isError: bo
   return result.data
 }
 const normalizedPath = computed(() => route.path.replace(/\/+$/, '') || '/')
-const isSubPage = computed(() => /^\/settings\/apps\/inbox\/(?:channels\/(?!new$)[^/]+|auto-messages|rules|working-hours|catalog)(?:\/|$)/.test(normalizedPath.value))
+const isSubPage = computed(() => /^\/settings\/apps\/inbox\/(?:channels\/(?!new$)[^/]+|auto-messages|rules|working-hours|templates|flows|catalog)(?:\/|$)/.test(normalizedPath.value))
 </script>
 
 <template>

@@ -11,9 +11,6 @@ on:
     types: [checks_requested]
   push:
     branches: [main]
-  schedule:
-    # Nightly full run of all thirteen stages on main (00:17 UTC = 03:17 Asia/Riyadh, off the top of the hour).
-    - cron: '17 0 * * *'
   workflow_dispatch:
     inputs:
       full:
@@ -66,7 +63,7 @@ jobs:
       - name: Select the stages
         id: select
         env:
-          FULL: ${{ inputs.full || github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+          FULL: ${{ inputs.full || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
           EVENT_NAME: ${{ github.event_name }}
           PULL_REQUEST_BASE: ${{ github.event.pull_request.base.sha }}
           MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
@@ -78,7 +75,7 @@ jobs:
             base=origin/main
           fi
           # A pull request or merge-queue entry skips the slow stages and tests only the Odoo modules the
-          # change affects; every other event (push to main, nightly, dispatch) keeps the whole matrix.
+          # change affects; every other event (push to main, dispatch) keeps the whole matrix.
           # Empty modules = all.
           modules=""
           if [ "$FULL" = true ]; then
@@ -452,13 +449,13 @@ jobs:
         with:
           stage: restore-drill
 
-  # Nightly (and a full manual dispatch) only, never a pull request or the push to main: one dedicated Odoo run of the
+  # A full manual dispatch only, never a pull request or the push to main: one dedicated Odoo run of the
   # fixture addons whose recorded response structure must still match packages/contracts/fixtures (about the cost of
   # the odoo stage's share for those addons). It is not a scope stage; ci-result lists it in `needs`, so a red job fails
-  # the nightly run and reaches main-alert, and a skipped one (any other event) passes.
+  # the full dispatch, and a skipped one (any other event) passes.
   contract-fixtures:
     needs: scope
-    if: github.event_name == 'schedule' || inputs.full
+    if: inputs.full
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     services:
@@ -644,12 +641,12 @@ jobs:
             exit 1
           fi
           # Say which slow stages this run left out (tools/ci_scope.py DEFERRED_STAGES), so a green result is not read as
-          # proof that they ran. They run on the push to main, the nightly run and a full dispatch.
+          # proof that they ran. They run on the push to main and a full dispatch.
           not_run=$(echo "$NEEDS" | jq -r '(.scope.outputs.stages | fromjson) as $selected
             | ["upgrade", "restore-drill", "image"] | map(select(. as $stage | $selected | index($stage) | not)) | join(", ")')
           if [ -n "$not_run" ]; then
             echo "::notice::Deferred stages not run on this ${GITHUB_EVENT_NAME}: ${not_run}. They run on the push to main."
-            printf '### Deferred stages not run\n\n%s: left to the push to main, the nightly run and a full dispatch.\n' "$not_run" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+            printf '### Deferred stages not run\n\n%s: left to the push to main and a full dispatch.\n' "$not_run" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
           fi
           # Only stages outside the selected scope may be skipped. Fail closed on
           # missing jobs or malformed scope; a green aggregate must prove the selection ran.
@@ -661,10 +658,10 @@ jobs:
             all(.[]; .result == "success" or .result == "skipped")
           ' > /dev/null
 
-  # A red push to main or nightly run opens (or updates) the one `CI is red on main` issue; a green one closes it.
+  # A red push to main opens (or updates) the one `CI is red on main` issue; a green one closes it.
   # ci-result does not depend on this job. checkout is for the script; the issue and run reads need the other two.
   main-alert:
-    if: always() && (github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main'))
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: ci-result
     runs-on: ubuntu-24.04
     timeout-minutes: 5

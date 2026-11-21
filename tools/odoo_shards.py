@@ -20,7 +20,7 @@ heaviest first to the lightest shard.
 
 On a pull request ``--modules`` restricts the run to the affected modules (``tools/ci_scope.py``): only
 those are split, over as few shards as ``shard_count_for`` allows, so a small change does not queue six
-full jobs. Push, schedule and full runs pass no ``--modules`` and keep ``SHARD_COUNT`` shards over everything.
+full jobs. Push and full runs pass no ``--modules`` and keep ``SHARD_COUNT`` shards over everything.
 """
 from __future__ import annotations
 

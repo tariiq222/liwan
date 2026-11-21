@@ -223,20 +223,21 @@ class LiwanCrmIntake(models.AbstractModel):
         row. A row that is neither invalid nor duplicate becomes an opportunity.
         """
         self._liwan_check_mapping(rows, mapping)
-        Lead = self.env['crm.lead']
         packages = self._liwan_packages(company) if mapping.get('package') else {}
+        country = self.env['liwan.customers.service']._liwan_phone_country()
+        judged = [(row, *self._liwan_row_values(row, mapping, company, packages, country)) for row in rows]
+        taken = self.env['crm.lead']._liwan_duplicate_phones({vals['phone'] for _row, vals, reason in judged if not reason}, company)
         seen = set()
         checked = []
-        for row in rows:
-            vals, reason = self._liwan_row_values(row, mapping, company, packages)
-            duplicate = not reason and (vals['phone'] in seen or Lead._liwan_find_duplicate(vals['phone'], company))
+        for row, vals, reason in judged:
+            duplicate = not reason and (vals['phone'] in seen or vals['phone'] in taken)
             if not reason:
                 seen.add(vals['phone'])
             checked.append({'row': row.number, 'vals': vals, 'reason': reason, 'duplicate': duplicate})
         return checked
 
     @api.model
-    def _liwan_row_values(self, row, mapping, company, packages):
+    def _liwan_row_values(self, row, mapping, company, packages, country):
         name = row[mapping['name']]
         raw_phone = row[mapping['phone']]
         email = row[mapping['email']] if mapping.get('email') else ''
@@ -247,7 +248,7 @@ class LiwanCrmIntake(models.AbstractModel):
             return {}, 'name_too_long'
         if not raw_phone:
             return {}, 'missing_phone'
-        phone = self.env['liwan.customers.service']._liwan_phone_or_none(raw_phone)
+        phone = self.env['liwan.customers.service']._liwan_phone_or_none(raw_phone, country=country)
         if not phone:
             return {}, 'invalid_phone'
         if email and (len(email) > EMAIL_MAX or not email_normalize(email)):

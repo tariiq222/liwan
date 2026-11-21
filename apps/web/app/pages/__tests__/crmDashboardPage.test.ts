@@ -3,6 +3,7 @@ import * as Vue from 'vue'
 import { describe, expect, it } from 'vitest'
 import type { CrmDashboard } from '@liwan/contracts'
 import { DEFAULT_STUBS, renderShared } from '@liwan/ui/test/helpers/renderShared'
+import * as customerConflict from '../../composables/customers/useCustomerConflict'
 import * as crmDashboard from '../../utils/crmDashboard'
 import * as crmCallResult from '../../utils/crmCallResult'
 import * as crmErrors from '../../utils/crmErrors'
@@ -43,6 +44,7 @@ function render(data: CrmDashboard, can: (capability: string) => boolean = () =>
           : { ...none, data: Vue.ref({ items: [], total: opportunities }) }),
         useCrmOpportunityActions: () => ({ recordCall: { isPending: Vue.ref(false), mutateAsync: async () => ({}) } }),
       },
+      '@/composables/customers/useCustomerConflict': customerConflict,
       '@/utils/crmCallResult': crmCallResult,
       '@/utils/crmErrors': crmErrors,
       '@/utils/crmDashboard': crmDashboard,

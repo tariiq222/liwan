@@ -4,6 +4,7 @@ from odoo.tests import tagged
 from .common import LiwanInboxCase
 from odoo.addons.liwan_api.tests.common import cover_isolation_routes, set_probe_feature
 from odoo.addons.liwan_inbox import hooks
+from odoo.addons.liwan_inbox.models.constants import AUTOMATION_FEATURE
 from odoo.addons.liwan_inbox.models.presets import PRESETS
 
 cover_isolation_routes(('/api/v1/settings/inbox/presets/<string:key>',), source='liwan_inbox/tests/test_settings_api.py')
@@ -41,6 +42,29 @@ class TestSettingsApi(LiwanInboxCase):
         agents = self.api('PATCH', '/api/v1/settings/inbox', {'agent_shifts_enabled': True, 'unavailable_release': 'release'})
         self.assertEqual((agents.json()['agent_shifts_enabled'], agents.json()['unavailable_release']), (True, 'release'))
         self.assertEqual(self.get('/api/v1/settings/inbox').json()['unavailable_release'], 'release')
+
+    def test_the_automation_settings_need_the_automation_feature(self):
+        self.login(self.manager)
+        url = '/api/v1/settings/inbox'
+        set_probe_feature(self, key=AUTOMATION_FEATURE, enabled=False)
+        for change in ({'assignment_policy': 'round_robin'}, {'first_response_alert_minutes': 30}):
+            refused = self.api('PATCH', url, change)
+            self.assertError(refused, 403, 'feature_not_included')
+            self.assertEqual(refused.json()['details']['feature'], AUTOMATION_FEATURE)
+        current = self.get(url).json()
+        self.assertEqual((current['assignment_policy'], current['first_response_alert_minutes']), ('manual', 0))
+        # The other settings, and the automation settings sent back unchanged, still save.
+        other = self.api('PATCH', url, {'auto_close_hours': 48, 'assignment_policy': 'manual', 'first_response_alert_minutes': 0})
+        self.assertEqual((other.status_code, other.json()['auto_close_hours']), (200, 48))
+        set_probe_feature(self, key=AUTOMATION_FEATURE, enabled=True)
+        both = self.api('PATCH', url, {'assignment_policy': 'round_robin', 'first_response_alert_minutes': 30})
+        self.assertEqual((both.status_code, both.json()['assignment_policy'], both.json()['first_response_alert_minutes']), (200, 'round_robin', 30))
+        # A plan that lost the feature can still switch both off, and nothing else.
+        set_probe_feature(self, key=AUTOMATION_FEATURE, enabled=False)
+        self.assertError(self.api('PATCH', url, {'assignment_policy': 'least_open'}), 403, 'feature_not_included')
+        self.assertError(self.api('PATCH', url, {'first_response_alert_minutes': 45}), 403, 'feature_not_included')
+        off = self.api('PATCH', url, {'assignment_policy': 'manual', 'first_response_alert_minutes': 0})
+        self.assertEqual((off.status_code, off.json()['assignment_policy'], off.json()['first_response_alert_minutes']), (200, 'manual', 0))
 
     def test_settings_need_the_settings_capability(self):
         for user in (self.agent, self.supervisor, self.outsider):

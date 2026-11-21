@@ -89,6 +89,7 @@ const settings = {
     property_limits: { max_properties: 50, max_options: 100, max_label: 64 },
   },
   revision: 0,
+  can_manage_tenant_lists: true,
 }
 
 describe('CrmSettingsSchema', () => {
@@ -100,6 +101,13 @@ describe('CrmSettingsSchema', () => {
     const { distribution_users: _names, ...withoutNames } = settings
     expect(() => CrmSettingsSchema.parse(withoutNames)).toThrow()
     expect(() => CrmSettingsSchema.parse({ ...settings, distribution_users: [{ id: 3 }] })).toThrow()
+  })
+
+  it('says whether the caller may manage the stages', () => {
+    const { can_manage_tenant_lists: _flag, ...without } = settings
+    expect(() => CrmSettingsSchema.parse(without)).toThrow()
+    expect(CrmSettingsSchema.parse({ ...settings, can_manage_tenant_lists: false }).can_manage_tenant_lists).toBe(false)
+    expect(() => CrmSettingsSchema.parse({ ...settings, can_manage_tenant_lists: 'no' })).toThrow()
   })
 
   it('rejects an out-of-range value and an unknown enum option', () => {

@@ -1,11 +1,13 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from datetime import timedelta
 
-from odoo import fields
-from odoo.tests import tagged
+from odoo import Command, fields
+from odoo.exceptions import ValidationError
+from odoo.tests import new_test_user, tagged
 
-from .common import MESSAGE_KEYS, TEMPLATE_KEYS, LiwanInboxCase
+from .common import MESSAGE_KEYS, PASSWORD, TEMPLATE_KEYS, LiwanInboxCase
 from odoo.addons.liwan_api.tests.common import set_probe_feature
+from odoo.addons.liwan_inbox.models.constants import AUTOMATION_FEATURE
 from odoo.addons.liwan_inbox.models.privacy_hooks import ERASED_CONTACT
 
 CONVERSATION_KEYS = {
@@ -83,6 +85,12 @@ class TestConversationsApi(LiwanInboxCase):
         })
         self.assertFalse(conversation.waiting_overdue)
 
+    def test_waiting_overdue_is_off_without_the_automation_feature(self):
+        self.settings.first_response_alert_minutes = 20
+        conversation = self.make_conversation(minutes_ago=30)
+        set_probe_feature(self, key=AUTOMATION_FEATURE, enabled=False)
+        self.assertFalse(conversation.waiting_overdue)
+
     def test_sort_waiting_puts_the_longest_wait_first_and_the_rest_last(self):
         oldest = self.make_conversation(minutes_ago=50)
         newer = self.make_conversation(minutes_ago=10)
@@ -122,7 +130,7 @@ class TestConversationsApi(LiwanInboxCase):
     def test_detail_reports_capabilities_and_read_clears_the_flag(self):
         self.login(self.agent)
         body = self.get(self.path()).json()
-        self.assertEqual(set(body), CONVERSATION_KEYS | {'can_reply', 'can_assign'})
+        self.assertEqual(set(body), CONVERSATION_KEYS | {'can_reply', 'can_assign', 'image_send_capable'})
         self.assertEqual((body['can_reply'], body['can_assign']), (True, False))
         self.assertTrue(self.reload(self.conversation).unread, 'opening a conversation is a pure read')
         self.assertEqual(self.api('POST', self.path('/read')).status_code, 204)
@@ -210,11 +218,11 @@ class TestConversationsApi(LiwanInboxCase):
         tiktok = self.make_conversation(channel=self.make_tiktok_channel())
         self.login(self.supervisor)
         export = self.get('/api/v1/inbox/conversations/export.csv?channel_kind=tiktok')
-        self.assertIn(tiktok.contact_id.name, export.text)
-        self.assertNotIn(self.conversation.contact_id.name, export.text)
+        self.assertIn(f'{tiktok.contact_id.name},', export.text)
+        self.assertNotIn(f'{self.conversation.contact_id.name},', export.text)  # the comma: 'Customer 1' is a prefix of 'Customer 13'
         whatsapp_export = self.get('/api/v1/inbox/conversations/export.csv?channel_kind=whatsapp')
-        self.assertIn(self.conversation.contact_id.name, whatsapp_export.text)
-        self.assertNotIn(tiktok.contact_id.name, whatsapp_export.text)
+        self.assertIn(f'{self.conversation.contact_id.name},', whatsapp_export.text)
+        self.assertNotIn(f'{tiktok.contact_id.name},', whatsapp_export.text)
         self.assertError(self.get('/api/v1/inbox/conversations/export.csv?channel_kind=sms'), 422, 'invalid')
 
     def test_reopening_beside_a_newer_open_conversation_is_a_clear_refusal(self):
@@ -258,6 +266,106 @@ class TestConversationsApi(LiwanInboxCase):
         self.patch_conversation(self.conversation, {'assignee_id': self.supervisor.id})
         self.assertEqual(self.env['mail.message'].search_count([('liwan_notification_kind', '=', 'inbox.assigned')]), 1)
         self.assertError(self.patch_conversation(self.conversation, {'department_id': 999999}), 422, 'invalid')
+
+    def test_a_department_or_tag_of_another_company_is_refused(self):
+        branch = self.env['res.company'].create({'name': 'Lists branch company', 'parent_id': self.env.company.id})
+        user = new_test_user(
+            self.env, login='inbox_two_companies', password=PASSWORD, name='Two companies', groups='liwan_core.group_employee',
+            company_id=self.env.company.id, company_ids=[(6, 0, (self.env.company | branch).ids)],
+        )
+        role = self.env.ref('liwan_inbox.role_inbox_supervisor')
+        for company in self.env.company | branch:
+            self.env['liwan.access.assignment'].create({'user_id': user.id, 'company_id': company.id, 'role_id': role.id})
+        foreign_department = self.env['liwan.inbox.department'].create({'name': 'Branch desk', 'company_id': branch.id})
+        foreign_tag = self.env['liwan.inbox.tag'].create({'name': 'Branch tag', 'company_id': branch.id})
+        own_tag = self.env['liwan.inbox.tag'].create({'name': 'Own tag'})
+        self.login(user)
+        self.assertError(self.patch_conversation(self.conversation, {'department_id': foreign_department.id}), 422, 'invalid')
+        self.assertError(self.patch_conversation(self.conversation, {'tag_ids': [foreign_tag.id]}), 422, 'invalid')
+        own = self.patch_conversation(self.conversation, {'department_id': self.department.id, 'tag_ids': [own_tag.id]})
+        self.assertEqual(own.status_code, 200, own.text)
+        with self.assertRaises(ValidationError):
+            self.conversation.write({'department_id': foreign_department.id})
+        with self.assertRaises(ValidationError):
+            self.conversation.write({'tag_ids': [(4, foreign_tag.id)]})
+
+    def test_a_branch_conversation_takes_the_department_and_tags_of_its_own_company(self):
+        branch = self.env['res.company'].create({'name': 'Parent session branch', 'parent_id': self.env.company.id})
+        user = new_test_user(
+            self.env, login='inbox_parent_session', password=PASSWORD, name='Parent session', groups='liwan_core.group_employee',
+            company_id=self.env.company.id, company_ids=[(6, 0, (self.env.company | branch).ids)],
+        )
+        role = self.env.ref('liwan_inbox.role_inbox_supervisor')
+        for company in self.env.company | branch:
+            self.env['liwan.access.assignment'].create({'user_id': user.id, 'company_id': company.id, 'role_id': role.id})
+        branch_channel = self.make_channel(phone_id='100000000098', owner_company_id=branch.id)
+        conversation = self.make_conversation(channel=branch_channel)
+        branch_department = self.env['liwan.inbox.department'].create({'name': 'Branch desk', 'company_id': branch.id})
+        branch_tag = self.env['liwan.inbox.tag'].create({'name': 'Branch tag', 'company_id': branch.id})
+        self.login(user)  # the session's current company is the parent
+        own = self.patch_conversation(conversation, {'department_id': branch_department.id, 'tag_ids': [branch_tag.id]})
+        self.assertEqual(own.status_code, 200, own.text)
+        self.assertEqual((conversation.department_id, conversation.tag_ids), (branch_department, branch_tag))
+        self.assertError(self.patch_conversation(conversation, {'department_id': self.department.id}), 422, 'invalid')
+
+    def branch_conversation_user(self, login, parent_role, branch_role, phone_id):
+        """A parent-session user with `parent_role` in the parent and `branch_role` in a branch, and a branch conversation with a pending receipt."""
+        branch = self.env['res.company'].create({'name': f'{login} branch', 'parent_id': self.env.company.id})
+        user = new_test_user(
+            self.env, login=login, password=PASSWORD, name=login, groups='liwan_core.group_employee',
+            company_id=self.env.company.id, company_ids=[(6, 0, (self.env.company | branch).ids)],
+        )
+        read = self.env['liwan.access.permission'].search([('key', '=', 'inbox.conversations.read')])
+        supervisor = self.env.ref('liwan_inbox.role_inbox_supervisor')
+        for company, role in ((self.env.company, parent_role), (branch, branch_role)):
+            # A custom role belongs to one company, so a read-only role is made in the company it is assigned in.
+            held = supervisor if role == 'supervisor' else self.env['liwan.access.role'].with_company(company).create({
+                'key': f'{login}_{company.id}', 'name_ar': login, 'name_en': login, 'permission_ids': [Command.set(read.ids)],
+            })
+            self.env['liwan.access.assignment'].create({'user_id': user.id, 'company_id': company.id, 'role_id': held.id})
+        channel = self.make_channel(phone_id=phone_id, owner_company_id=branch.id)
+        conversation = self.make_conversation(channel=channel, unread=True)
+        conversation.message_ids[0].provider_message_id = f'wamid.{login}'
+        return user, conversation
+
+    def test_a_branch_conversation_checks_reply_and_assign_in_its_own_company(self):
+        # The capability is held in the conversation's company only: the working (parent) company is irrelevant.
+        user, conversation = self.branch_conversation_user('inbox_branch_only', 'reader', 'supervisor', '100000000071')
+        self.login(user)
+        detail = self.get(f'/api/v1/inbox/conversations/{conversation.id}').json()
+        self.assertEqual((detail['can_reply'], detail['can_assign']), (True, True))
+        self.assertEqual(self.api('POST', f'/api/v1/inbox/conversations/{conversation.id}/read').status_code, 204)
+        self.assertEqual(self.reload(conversation.message_ids[0]).read_receipt, 'pending')
+
+    def test_a_branch_conversation_is_not_replied_to_on_the_working_company_grant(self):
+        # The capability is held in the working (parent) company only: it does not reach the branch conversation.
+        user, conversation = self.branch_conversation_user('inbox_parent_only', 'supervisor', 'reader', '100000000072')
+        self.login(user)
+        detail = self.get(f'/api/v1/inbox/conversations/{conversation.id}').json()
+        self.assertEqual((detail['can_reply'], detail['can_assign']), (False, False))
+        self.assertEqual(self.api('POST', f'/api/v1/inbox/conversations/{conversation.id}/read').status_code, 204)
+        self.assertFalse(self.reload(conversation.message_ids[0]).read_receipt)
+        self.assertFalse(self.reload(conversation).unread)
+
+    def test_a_branch_conversation_is_patched_only_with_the_grant_of_its_own_company(self):
+        parent_only, conversation = self.branch_conversation_user('inbox_patch_parent', 'supervisor', 'reader', '100000000073')
+        self.login(parent_only)
+        for payload in ({'priority': 'high'}, {'state': 'pending'}, {'assignee_id': self.agent.id}):
+            self.assertError(self.patch_conversation(conversation, payload), 403, 'forbidden')
+        self.assertEqual((conversation.priority, conversation.assignee_id), ('normal', self.env['res.users']))
+        branch_only, conversation = self.branch_conversation_user('inbox_patch_branch', 'reader', 'supervisor', '100000000074')
+        self.login(branch_only)
+        self.assertEqual(self.patch_conversation(conversation, {'priority': 'high'}).status_code, 200)
+        self.assertEqual(conversation.priority, 'high')
+
+    def test_the_waiting_sort_lists_a_conversation_with_no_message_last(self):
+        answered = self.answered_conversation(60 * 24)
+        empty = self.make_conversation()
+        empty.message_ids.unlink()
+        self.login(self.agent)
+        for sort in ('recent', 'waiting'):
+            ids = [row['id'] for row in self.get(f'/api/v1/inbox/conversations?sort={sort}').json()['items']]
+            self.assertLess(ids.index(answered.id), ids.index(empty.id), sort)
 
     def test_messages_are_chronological_and_paged_from_the_newest(self):
         for index in range(3):

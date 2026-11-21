@@ -1,4 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import functools
+
 from psycopg2.errors import UniqueViolation
 
 from odoo import Command, http
@@ -31,6 +33,18 @@ SEQUENCE_STEP = 10
 PROTECTED_REASON = 'liwan_crm.lost_reason_attempts_exhausted'
 SOURCE_EXISTS = 'a source with this name already exists'
 READ = ('crm.settings.read', 'crm.leads.read')
+
+
+def requires_tenant_lists_manager(func):
+    """403 ``forbidden`` unless the caller manages the tenant-wide lists (stages, outcomes, lost reasons, sources).
+
+    Place it below ``requires_capability``: the capability alone is checked per company, while these lists bind every branch.
+    """
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        request.env['liwan.access.service']._liwan_require_tenant_lists_manage()
+        return func(*args, **kwargs)
+    return wrapper
 
 
 def _list(model, domain, dump):
@@ -107,6 +121,7 @@ class CrmListsController(http.Controller):
     @api_handler
     @requires_feature('crm.enabled', operation='write')
     @requires_capability('crm.settings.manage')
+    @requires_tenant_lists_manager
     def create_stage(self, **payload):
         vals = parse_body(payload, STAGE_FIELDS, creating=True)
         if vals.get('is_won'):
@@ -119,6 +134,7 @@ class CrmListsController(http.Controller):
     @api_handler
     @requires_feature('crm.enabled', operation='write')
     @requires_capability('crm.settings.manage')
+    @requires_tenant_lists_manager
     def order_stages(self, **payload):
         ids = parse_order(payload)
         stages = request.env['crm.stage'].search([])
@@ -133,6 +149,7 @@ class CrmListsController(http.Controller):
     @api_handler
     @requires_feature('crm.enabled', operation='write')
     @requires_capability('crm.settings.manage')
+    @requires_tenant_lists_manager
     def patch_stage(self, stage_id, **payload):
         return self._write_stage(get_record('crm.stage', stage_id), parse_body(payload, STAGE_FIELDS, creating=False))
 
@@ -140,6 +157,7 @@ class CrmListsController(http.Controller):
     @api_handler
     @requires_feature('crm.enabled', operation='write')
     @requires_capability('crm.settings.manage')
+    @requires_tenant_lists_manager
     def archive_stage(self, stage_id, **payload):
         """Archive a stage; `{"move_to": <stage id>}` first moves every opportunity of it to that open stage."""
         stage = get_record('crm.stage', stage_id)
@@ -187,6 +205,7 @@ class CrmListsController(http.Controller):
     @api_handler
     @requires_feature('crm.enabled', operation='write')
     @requires_capability('crm.settings.manage')
+    @requires_tenant_lists_manager
     def create_outcome(self, **payload):
         vals = parse_body(payload, OUTCOME_FIELDS, creating=True)
         _check_lost_reason_exists(vals)
@@ -197,6 +216,7 @@ class CrmListsController(http.Controller):
     @api_handler
     @requires_feature('crm.enabled', operation='write')
     @requires_capability('crm.settings.manage')
+    @requires_tenant_lists_manager
     def patch_outcome(self, outcome_id, **payload):
         outcome = get_record('liwan.crm.call.outcome', outcome_id)
         vals = parse_body(payload, OUTCOME_FIELDS, creating=False)
@@ -210,6 +230,7 @@ class CrmListsController(http.Controller):
     @api_handler
     @requires_feature('crm.enabled', operation='write')
     @requires_capability('crm.settings.manage')
+    @requires_tenant_lists_manager
     def archive_outcome(self, outcome_id, **_):
         outcome = get_record('liwan.crm.call.outcome', outcome_id)
         outcome.active = False
@@ -228,6 +249,7 @@ class CrmListsController(http.Controller):
     @api_handler
     @requires_feature('crm.enabled', operation='write')
     @requires_capability('crm.settings.manage')
+    @requires_tenant_lists_manager
     def create_lost_reason(self, **payload):
         reason = request.env['crm.lost.reason'].create(parse_body(payload, NAME_FIELDS, creating=True))
         return dump_lost_reason(reason, False)
@@ -236,6 +258,7 @@ class CrmListsController(http.Controller):
     @api_handler
     @requires_feature('crm.enabled', operation='write')
     @requires_capability('crm.settings.manage')
+    @requires_tenant_lists_manager
     def patch_lost_reason(self, reason_id, **payload):
         return self._write_lost_reason(get_record('crm.lost.reason', reason_id), parse_body(payload, NAME_FIELDS, creating=False))
 
@@ -243,6 +266,7 @@ class CrmListsController(http.Controller):
     @api_handler
     @requires_feature('crm.enabled', operation='write')
     @requires_capability('crm.settings.manage')
+    @requires_tenant_lists_manager
     def archive_lost_reason(self, reason_id, **_):
         return self._write_lost_reason(get_record('crm.lost.reason', reason_id), {'active': False})
 
@@ -269,6 +293,7 @@ class CrmListsController(http.Controller):
     @api_handler
     @requires_feature('crm.enabled', operation='write')
     @requires_capability('crm.settings.manage')
+    @requires_tenant_lists_manager
     def create_source(self, **payload):
         vals = parse_body(payload, NAME_FIELDS, creating=True)
         sources = request.env['utm.source']
@@ -280,6 +305,7 @@ class CrmListsController(http.Controller):
     @api_handler
     @requires_feature('crm.enabled', operation='write')
     @requires_capability('crm.settings.manage')
+    @requires_tenant_lists_manager
     def patch_source(self, source_id, **payload):
         source = get_record('utm.source', source_id)
         vals = parse_body(payload, NAME_FIELDS, creating=False)
@@ -291,6 +317,7 @@ class CrmListsController(http.Controller):
     @api_handler
     @requires_feature('crm.enabled', operation='write')
     @requires_capability('crm.settings.manage')
+    @requires_tenant_lists_manager
     def archive_source(self, source_id, **_):
         return self._write_source(get_record('utm.source', source_id), {'active': False})
 

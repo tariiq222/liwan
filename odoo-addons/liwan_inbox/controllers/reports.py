@@ -39,7 +39,7 @@ EXPORT_COLUMNS = (
 
 
 def settings():
-    return request.env['liwan.inbox.settings']._get_for_company(request.env.company)
+    return request.env['liwan.inbox.settings']._liwan_read_for_company(request.env.company)
 
 
 def report_range(args):

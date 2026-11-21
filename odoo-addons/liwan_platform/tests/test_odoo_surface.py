@@ -175,7 +175,7 @@ class TestSessionOdooSurface(HttpCase):
         self.authenticate('surface_emp', 'surface_emp_pass_123')
         company = self.env.company
         allowed = (
-            f'/web/image/res.company/{company.id}/logo/32x32?v=0-0123456789ab',
+            f'/web/image/res.company/{company.id}/logo/32x32?v=0123456789ab',
             '/web/binary/company_logo',
         )
         for path in allowed:
@@ -202,9 +202,9 @@ class TestSessionOdooSurface(HttpCase):
     def test_image_routes_reject_unexpected_query_strings(self):
         self.authenticate('surface_emp', 'surface_emp_pass_123')
         favicon = f'/web/image/res.company/{self.env.company.id}/logo/32x32'
-        version = '0-0123456789ab'
+        version = '0123456789ab'
         self.assertEqual(self.url_open(f'{favicon}?v={version}').status_code, 200)
-        for query in ('', '?v=first', f'?v={version}&width=64', '?download=true'):
+        for query in ('', '?v=first', f'?v={version}&width=64', '?download=true', f'?v=0-{version}'):
             with self.subTest(query=query):
                 self.assertEqual(self.url_open(f'{favicon}{query}').status_code, 404)
         self.assertEqual(self.url_open('/web/image/hr.employee/1/avatar_128?x=1').status_code, 404)

@@ -7,6 +7,7 @@ from odoo.addons.liwan_api.tests.common import set_probe_feature
 LIST = '/api/v1/crm/opportunities/{}/conversations'
 LINK = '/api/v1/inbox/conversations/{}/opportunity'
 REF_KEYS = {'id', 'contact_name', 'stage', 'status', 'active'}
+NO_LINK = {'opportunity': None, 'hidden': False}
 
 
 @tagged('post_install', '-at_install', 'liwan')
@@ -73,7 +74,29 @@ class TestOpportunityConversations(CrmInboxCase):
         self.assertEqual(result.status_code, 200, result.text)
         self.assertFalse(allowed.lead_id.user_id)
         self.assertEqual(allowed.lead_id.id, result.json()['id'])
-        self.assertEqual(self.api('GET', LINK.format(allowed.id)).json()['id'], allowed.lead_id.id)
+        self.assertEqual(self.api('GET', LINK.format(allowed.id)).json()['opportunity']['id'], allowed.lead_id.id)
+
+    def test_creation_from_a_conversation_follows_the_crm_create_rule(self):
+        assign_only = self.both_user('crm_inbox_assign_only', [
+            'crm.leads.read', 'crm.leads.assign', 'inbox.conversations.read', 'inbox.conversations.reply',
+        ])
+        neither = self.both_user('crm_inbox_neither', ['crm.leads.read', 'inbox.conversations.read', 'inbox.conversations.reply'])
+        settings = self.env['liwan.crm.settings'].search([('company_id', '=', self.env.company.id)])
+        settings.distribution_mode = 'manual'
+        allowed = self.make_conversation()
+        self.as_user(assign_only)
+        self.assertTrue(self.api('GET', '/api/v1/crm/access').json()['can_create'])
+        result = self.api('POST', LINK.format(allowed.id), {})
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual(allowed.lead_id.id, result.json()['id'])
+        for mode in ('manual', 'round_robin'):
+            settings.distribution_mode = mode
+            refused = self.make_conversation()
+            self.as_user(neither)
+            self.assertFalse(self.api('GET', '/api/v1/crm/access').json()['can_create'])
+            result = self.api('POST', LINK.format(refused.id), {})
+            self.assertEqual((result.status_code, result.json()['code']), (403, 'forbidden'), (mode, result.text))
+            self.assertFalse(refused.lead_id)
 
     def test_round_robin_lets_an_agent_create_from_the_conversation(self):
         self.env['liwan.crm.settings'].search([('company_id', '=', self.env.company.id)]).distribution_mode = 'round_robin'
@@ -105,13 +128,15 @@ class TestOpportunityConversations(CrmInboxCase):
 
     def test_link_read_list_and_unlink(self):
         self.as_user(self.rep)
-        self.assertIsNone(self.api('GET', LINK.format(self.conversation.id)).json())
+        self.assertEqual(self.api('GET', LINK.format(self.conversation.id)).json(), NO_LINK)
         linked = self.link(self.conversation, self.lead)
         self.assertEqual(linked.status_code, 200, linked.text)
         self.assertEqual(set(linked.json()), REF_KEYS)
         self.assertEqual((linked.json()['id'], linked.json()['contact_name'], linked.json()['active']), (self.lead.id, 'Linked Lead', True))
         self.assertEqual(self.conversation.lead_id, self.lead)
-        self.assertEqual(self.api('GET', LINK.format(self.conversation.id)).json(), linked.json())
+        self.assertEqual(
+            self.api('GET', LINK.format(self.conversation.id)).json(), {'opportunity': linked.json(), 'hidden': False},
+        )
         listed = self.api('GET', LIST.format(self.lead.id))
         self.assertEqual(listed.status_code, 200, listed.text)
         self.assertEqual(set(listed.json()), {'items', 'total'})
@@ -157,7 +182,7 @@ class TestOpportunityConversations(CrmInboxCase):
         self.assertEqual(self.link(conversation, lead).status_code, 200)
         lead.active = False
         self.assertEqual(conversation.lead_id, lead)
-        shown = self.api('GET', LINK.format(conversation.id)).json()
+        shown = self.api('GET', LINK.format(conversation.id)).json()['opportunity']
         self.assertEqual((shown['id'], shown['active']), (lead.id, False))
         self.assertEqual(self.api('DELETE', LINK.format(conversation.id)).status_code, 204)
 
@@ -260,10 +285,24 @@ class TestOpportunityConversations(CrmInboxCase):
         self.set_crm_visibility('own')
         self.as_user(self.rep2)
         shown = self.api('GET', LINK.format(conversation.id))
-        self.assertEqual((shown.status_code, shown.json()), (200, None))
+        self.assertEqual((shown.status_code, shown.json()), (200, {'opportunity': None, 'hidden': True}))
         self.assertNotIn('Secret Name', shown.text)
+        self.assertNotIn(str(lead.id), shown.text)
         self.assertEqual(self.api('DELETE', LINK.format(conversation.id)).status_code, 404)
         self.assertEqual(conversation.lead_id, lead)
+        self.set_crm_visibility('all')
+
+    def test_the_linked_opportunity_answers_visible_or_hidden_but_never_as_no_link(self):
+        lead = self.make_lead(self.rep, contact_name='Visible Name')
+        conversation = self.make_conversation()
+        self.as_user(self.rep)
+        self.assertEqual(self.api('GET', LINK.format(conversation.id)).json(), NO_LINK)
+        self.link(conversation, lead)
+        seen = self.api('GET', LINK.format(conversation.id)).json()
+        self.assertEqual((set(seen), seen['hidden'], seen['opportunity']['id']), ({'opportunity', 'hidden'}, False, lead.id))
+        self.set_crm_visibility('own')
+        self.as_user(self.rep2)
+        self.assertEqual(self.api('GET', LINK.format(conversation.id)).json(), {'opportunity': None, 'hidden': True})
         self.set_crm_visibility('all')
 
     def test_a_conversation_the_caller_cannot_see_is_not_found(self):

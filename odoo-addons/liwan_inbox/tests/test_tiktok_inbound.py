@@ -4,12 +4,14 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from odoo import fields
+from odoo.exceptions import ValidationError
 from odoo.tests import tagged
 from odoo.tools import mute_logger
 
 from . import tiktok_payloads as tt
 from .common import LiwanInboxCase, tiktok_grant
 from odoo.addons.liwan_api.tests.common import set_probe_feature
+from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_inbox.adapters import errors, tiktok
 from odoo.addons.liwan_inbox.models.constants import (
     REPLY_WINDOWS,
@@ -18,6 +20,7 @@ from odoo.addons.liwan_inbox.models.constants import (
 )
 from odoo.addons.liwan_inbox.models.inbound_tiktok import NOTE_TIKTOK_AUTO_WELCOME
 from odoo.addons.liwan_inbox.serializers import conversation as conversation_dump
+from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 ACCESS_TOKEN = 'tiktok-access-token-1'
 REFRESH_TOKEN = 'tiktok-refresh-token-1'
@@ -177,7 +180,11 @@ class TestTikTokInbound(LiwanInboxCase):
             'conversation_id': conversation.id, 'company_id': conversation.company_id.id, 'direction': 'out',
             'body': 'Replied from LiwanOS', 'delivery_state': 'sent', 'provider_message_id': 'msg-echo-1',
         })
-        self.deliver(tt.send_echo())
+        used = self.env['liwan.inbox.message']._liwan_count_outbound_this_month()
+        profile = self.env.ref('liwan_platform.tenant_profile')
+        profile.with_context(**{OPERATOR_CONTEXT: True}).write({'features': {**profile.features, 'inbox.messages_out': used}})
+        event = self.deliver(tt.send_echo())
+        self.assertEqual(event.state, 'done')
         self.assertEqual(len(self.message('msg-echo-1')), 1)
         self.assertEqual(sent.delivery_state, 'sent')
         self.assertEqual(
@@ -185,6 +192,50 @@ class TestTikTokInbound(LiwanInboxCase):
                 ('conversation_id', '=', conversation.id), ('direction', '=', 'out'),
             ]), 1,
         )
+
+    def test_an_echo_is_stored_and_not_counted_when_the_monthly_limit_is_reached(self):
+        self.deliver(tt.receive_text())
+        Message = self.env['liwan.inbox.message']
+        used = Message._liwan_count_outbound_this_month()
+        profile = self.env.ref('liwan_platform.tenant_profile')
+        profile.with_context(**{OPERATOR_CONTEXT: True}).write({'features': {**profile.features, 'inbox.messages_out': used}})
+        event = self.deliver(tt.send_echo(body='Sent from the TikTok app', message_id='msg-echo-3'))
+        self.assertEqual(event.state, 'done')
+        message = self.message('msg-echo-3')
+        self.assertEqual((message.direction, message.external), ('out', True))
+        self.assertEqual(Message._liwan_count_outbound_this_month(), used)
+
+    def test_an_external_message_cannot_be_queued(self):
+        self.deliver(tt.receive_text())
+        conversation = self.message('msg-text-1').conversation_id
+        with self.assertRaises(ValidationError):
+            self.env['liwan.inbox.message'].create({
+                'conversation_id': conversation.id, 'company_id': conversation.company_id.id, 'direction': 'out',
+                'body': 'Reply', 'delivery_state': 'queued', 'external': True,
+            })
+
+    def test_a_reply_sent_by_liwan_cannot_become_external(self):
+        self.deliver(tt.receive_text())
+        conversation = self.message('msg-text-1').conversation_id
+        reply = self.env['liwan.inbox.message'].create({
+            'conversation_id': conversation.id, 'company_id': conversation.company_id.id, 'direction': 'out',
+            'body': 'Reply', 'delivery_state': 'sent', 'author_id': self.env.user.id,
+        })
+        with self.assertRaises(ValidationError):
+            reply.write({'external': True})
+
+    def test_a_reply_sent_by_liwan_is_still_refused_at_the_monthly_limit(self):
+        self.deliver(tt.receive_text())
+        conversation = self.message('msg-text-1').conversation_id
+        Message = self.env['liwan.inbox.message']
+        used = Message._liwan_count_outbound_this_month()
+        profile = self.env.ref('liwan_platform.tenant_profile')
+        profile.with_context(**{OPERATOR_CONTEXT: True}).write({'features': {**profile.features, 'inbox.messages_out': used}})
+        with self.assertRaises(LiwanAccessRule):
+            Message.create({
+                'conversation_id': conversation.id, 'company_id': conversation.company_id.id, 'direction': 'out',
+                'body': 'Reply', 'delivery_state': 'queued',
+            })
 
     def test_an_echo_from_the_tiktok_app_is_stored_without_an_author(self):
         self.deliver(tt.receive_text())
@@ -197,6 +248,26 @@ class TestTikTokInbound(LiwanInboxCase):
         self.assertFalse(message.author_id)
         self.assertFalse(message.automated)
         self.assertTrue(conversation.unread)
+
+    def test_an_image_echo_from_the_tiktok_app_keeps_its_media(self):
+        self.deliver(tt.receive_text())
+        media = tiktok.Media(content=b'jpeg-bytes', mimetype='image/jpeg')
+        with patch.object(tiktok, 'fetch_media', return_value=media) as fetch:
+            self.deliver(tt.send_echo(message_id='msg-echo-image', kind='image', fields={'media_id': 'media-image-1'}))
+        message = self.message('msg-echo-image')
+        attachment = self.env['ir.attachment'].search([('res_model', '=', 'liwan.inbox.message'), ('res_id', '=', message.id)])
+        self.assertEqual((message.direction, message.kind, message.external), ('out', 'image', True))
+        self.assertEqual((len(attachment), attachment.mimetype, attachment.raw), (1, 'image/jpeg', b'jpeg-bytes'))
+        self.assertEqual(fetch.call_args.args[2:], ('msg-echo-image', 'media-image-1', 'IMAGE'))
+
+    def test_a_media_echo_that_cannot_be_fetched_is_recorded_and_still_stored(self):
+        self.deliver(tt.receive_text())
+        with mute_logger(INBOUND_LOGGER), patch.object(
+            tiktok, 'fetch_media', side_effect=errors.ProviderError('media gone', retryable=False),
+        ):
+            event = self.deliver(tt.send_echo(message_id='msg-echo-gone', kind='image', fields={'media_id': 'media-image-1'}))
+        message = self.message('msg-echo-gone')
+        self.assertEqual((event.state, message.error, message.external), ('done', 'media gone', True))
 
     def test_a_tiktok_auto_welcome_echo_is_stored_with_a_note(self):
         self.deliver(tt.receive_text())
@@ -247,6 +318,85 @@ class TestTikTokInbound(LiwanInboxCase):
         self.deliver(tt.referral('short_link', ref='campaign_1'))
         self.assertEqual((conversation.referral_source, conversation.referral_ref), ('short_link', 'campaign_1'))
         self.assertEqual(self.env['liwan.inbox.message'].search_count([('conversation_id', '=', conversation.id)]), count)
+
+    def referral_conversations(self, channel=None):
+        return self.env['liwan.inbox.conversation'].search([
+            ('channel_id', '=', (channel or self.tiktok).id), ('provider_conversation_id', '=', tt.CONVERSATION_ID),
+        ])
+
+    def test_a_referral_before_the_first_message_opens_the_conversation(self):
+        """The ad the customer came from is kept even when its event arrives first; the message then joins that conversation."""
+        self.deliver(tt.referral('ad'))
+        conversation = self.referral_conversations()
+        self.assertEqual((len(conversation), conversation.referral_source, conversation.referral_ref), (1, 'ad', 'ad-1'))
+        self.assertEqual(conversation.message_ids, self.env['liwan.inbox.message'])
+        self.assertIsNone(conversation_dump.dump_conversation(conversation)['last_message_preview'])
+        self.deliver(tt.receive_text())
+        self.assertEqual(self.message('msg-text-1').conversation_id, conversation)
+        self.assertEqual((conversation.referral_source, conversation.referral_ref), ('ad', 'ad-1'))
+        self.assertEqual(self.env['liwan.inbox.conversation'].search_count([('channel_id', '=', self.tiktok.id)]), 1)
+
+    def test_a_redelivered_referral_opens_one_conversation(self):
+        self.deliver(tt.referral('ad'))
+        self.deliver(tt.referral('ad'))
+        self.assertEqual(len(self.referral_conversations()), 1)
+        self.assertEqual(self.env['liwan.inbox.contact'].search_count([('name', '=', tt.SENDER_NAME)]), 1)
+
+    def test_a_referral_before_the_message_in_one_delivery_ends_in_one_conversation(self):
+        items = [*tiktok.parse_event(tt.referral('short_link', ref='campaign_1'), tt.BUSINESS_ID), *tiktok.parse_event(tt.receive_text(), tt.BUSINESS_ID)]
+        for item in items:
+            self.env['liwan.inbox.inbound']._liwan_ingest_tiktok(self.tiktok, [item])
+        conversation = self.referral_conversations()
+        self.assertEqual(len(conversation), 1)
+        self.assertEqual(
+            (conversation.referral_source, conversation.referral_ref, self.message('msg-text-1').conversation_id),
+            ('short_link', 'campaign_1', conversation),
+        )
+
+    def test_a_referral_matches_only_the_conversations_of_its_own_channel(self):
+        other_company = self.env['res.company'].create({'name': 'Other TikTok company'})
+        other = self.make_tiktok_channel(business_id='other-business-open-id', owner_company_id=other_company.id)
+        for item in tiktok.parse_event(tt.receive_text(), tt.BUSINESS_ID):
+            self.env['liwan.inbox.inbound']._liwan_ingest_tiktok(other, [item])
+        foreign = self.referral_conversations(other)
+        self.assertEqual(len(foreign), 1)
+        self.deliver(tt.referral('ad'))
+        own = self.referral_conversations()
+        self.assertEqual((len(own), own == foreign, own.company_id), (1, False, self.env.company))
+        self.assertFalse(foreign.referral_source)
+
+    def test_a_referral_opened_conversation_acts_as_no_customer_message(self):
+        """Nothing is sent, counted or timed until the customer writes; then the conversation behaves as a new one."""
+        self.deliver(tt.referral('ad'))
+        conversation = self.referral_conversations()
+        self.assertEqual(
+            (conversation.unread, conversation.waiting_since, conversation.last_inbound_at, conversation.message_ids),
+            (False, False, False, self.env['liwan.inbox.message']),
+        )
+        self.assertFalse(self.env['liwan.inbox.conversation.cycle'].search([('conversation_id', '=', conversation.id)]))
+        self.deliver(tt.receive_text())
+        self.assertTrue(conversation.unread)
+        self.assertEqual(len(self.env['liwan.inbox.conversation.cycle'].search([('conversation_id', '=', conversation.id)])), 1)
+        self.assertTrue(conversation.waiting_since)
+
+    def test_the_image_capability_is_probed_at_the_first_message_of_a_referral_conversation(self):
+        with patch.object(
+            tiktok, 'image_send_capable', side_effect=errors.ProviderError('not yet', retryable=False),
+        ) as probe:
+            self.deliver(tt.referral('ad'))
+        self.assertEqual(probe.call_count, 0)
+        conversation = self.referral_conversations()
+        self.assertFalse(conversation.image_send_capable)
+        self.deliver(tt.receive_text())
+        self.assertTrue(conversation.image_send_capable)
+
+    def test_a_note_before_the_first_customer_message_does_not_skip_the_image_probe(self):
+        self.deliver(tt.referral('ad'))
+        conversation = self.referral_conversations()
+        self.env['liwan.inbox.message']._liwan_post_note(conversation, 'checked the ad')
+        self.assertFalse(conversation.image_send_capable)
+        self.deliver(tt.receive_text())
+        self.assertTrue(conversation.image_send_capable)
 
     def test_a_stored_referral_is_dumped_on_the_conversation(self):
         """The conversation dump carries the referral, so the workspace can show where the customer came from (D9)."""

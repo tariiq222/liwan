@@ -179,6 +179,16 @@ describe('answers', () => {
     expect(InboxFlowAnswerSchema.safeParse({ key: 'a', label: 'A', kind: 'dropdown', value: 'x' }).success).toBe(false)
   })
 
+  it('keeps the shape of every answer once the customer was erased', () => {
+    for (const answer of [
+      { key: 'a', label: 'A', kind: 'text_input', value: '' },
+      { key: 'a', label: 'A', kind: 'dropdown', choices: [] },
+      { key: 'a', label: 'A', kind: 'date', value: null },
+      { key: 'a', label: 'A', kind: 'opt_in', value: false },
+    ]) expect(InboxFlowAnswerSchema.safeParse(answer).success).toBe(true)
+    expect(InboxFlowAnswerSchema.safeParse({ key: 'a', label: 'A', kind: 'date', value: false }).success).toBe(false)
+  })
+
   it('makes a submission whose form may be unknown', () => {
     const submission = {
       id: 1, flow: null, conversation_id: 2, contact: { id: 3, name: 'Sara', erased: false }, request_message_id: null, message_id: 4,

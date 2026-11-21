@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # CI stage: build every production image; install the release in the Odoo one and assert it is hardened;
 # smoke-check the others without external services; scan and write an SBOM for every image; record each image digest.
-# The Postgres service container is published on the runner, so the containers use the host network.
+# Postgres listens on the job's loopback (a published service container on GitHub), so the containers use the host network.
+# The Docker daemon may sit outside the job (a persistent rootless daemon): no job path is ever bind-mounted and no
+# daemon socket is mounted. Config files reach a container through a derived image (`docker build` streams the context),
+# and the scanner reads `docker save` tarballs copied into its container.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 : "${ODOO_PORT:?}" "${PGPORT:?}" "${PGUSER:?}" "${PGPASSWORD?}" "${GITHUB_RUN_ID:?}" "${GITHUB_SHA:?}"
@@ -35,16 +38,29 @@ build_image() {
   docker build -t "$tag" "$@"
 }
 tag_of() { printf 'liwan-%s:ci-%s' "$1" "$GITHUB_RUN_ID"; }
+files_tag_of() { printf 'liwan-%s-files:ci-%s' "$1" "$GITHUB_RUN_ID"; }
+# derive <name> <base-tag> <src:dest>...: the base image plus the given files of $IMAGE_ROOT/<name>-files (relative
+# sources), tagged files_tag_of <name>. Only files are added; user, entrypoint, capabilities and every runtime option
+# of the image under test are unchanged.
+derive() {
+  local name="$1" base="$2" pair
+  shift 2
+  { printf 'FROM %s\n' "$base"; for pair in "$@"; do printf 'COPY %s %s\n' "${pair%%:*}" "${pair#*:}"; done; } \
+    | docker build -q -t "$(files_tag_of "$name")" -f - "$IMAGE_ROOT/$name-files" >/dev/null
+}
 container_of() { printf 'liwan-ci-%s-%s' "$GITHUB_RUN_ID" "$1"; }
 cleanup() {
   docker rm -fv "$IMAGE_CONTAINER" "$CHECK_CONTAINER" "$(container_of trivy)" >/dev/null 2>&1 || true
   docker volume rm -f "$TRIVY_CACHE" >/dev/null 2>&1 || true
   docker rmi -f "$IMAGE" >/dev/null 2>&1 || true
+  docker rmi -f "$(files_tag_of odoo)" >/dev/null 2>&1 || true
   for entry in "${OTHER_IMAGES[@]}"; do
     docker rm -fv "$(container_of "${entry%%:*}")" >/dev/null 2>&1 || true
+    docker rmi -f "$(files_tag_of "${entry%%:*}")" >/dev/null 2>&1 || true
     docker rmi -f "$(tag_of "${entry%%:*}")" >/dev/null 2>&1 || true
   done
   docker rm -fv "$(container_of proxy)-hardened" >/dev/null 2>&1 || true
+  docker rmi -f "$(files_tag_of proxy)" >/dev/null 2>&1 || true
   rm -rf "$IMAGE_ROOT"
 }
 trap cleanup EXIT
@@ -52,22 +68,23 @@ docker info
 build_image "$IMAGE" -f "$ODOO_DOCKERFILE" ${ODOO_BUILD_ARGS[@]+"${ODOO_BUILD_ARGS[@]}"} "$ODOO_CONTEXT"
 SCRATCH_DB="liwan_image_scratch"
 MODULES="$(python3 -B tools/catalog_check.py --release-modules)"
-python3 deploy/classification.py fixture --database "$SCRATCH_DB" --mode non_saas --output "$IMAGE_ROOT/classification.json"
-printf '%s\n' '[options]' 'db_host = 127.0.0.1' "db_port = $PGPORT" "db_user = $PGUSER" "db_password = $PGPASSWORD" 'list_db = False' > "$IMAGE_ROOT/odoo.conf"
-chmod 644 "$IMAGE_ROOT/odoo.conf" "$IMAGE_ROOT/classification.json"
-docker run --rm --name "$IMAGE_CONTAINER" --network host -v "$IMAGE_ROOT/odoo.conf:/etc/odoo/odoo.conf:ro" \
-  -v "$IMAGE_ROOT/classification.json:/run/liwan/classification.json:ro" \
-  -e LIWAN_COMMERCIAL_CONFIG=/run/liwan/classification.json "$IMAGE" \
+mkdir -p "$IMAGE_ROOT/odoo-files"
+python3 deploy/classification.py fixture --database "$SCRATCH_DB" --mode non_saas --output "$IMAGE_ROOT/odoo-files/classification.json"
+printf '%s\n' '[options]' 'db_host = 127.0.0.1' "db_port = $PGPORT" "db_user = $PGUSER" "db_password = $PGPASSWORD" 'list_db = False' > "$IMAGE_ROOT/odoo-files/odoo.conf"
+chmod 644 "$IMAGE_ROOT/odoo-files/odoo.conf" "$IMAGE_ROOT/odoo-files/classification.json"
+derive odoo "$IMAGE" odoo.conf:/etc/odoo/odoo.conf classification.json:/run/liwan/classification.json
+docker run --rm --name "$IMAGE_CONTAINER" --network host \
+  -e LIWAN_COMMERCIAL_CONFIG=/run/liwan/classification.json "$(files_tag_of odoo)" \
   -d "$SCRATCH_DB" -i "$MODULES" --without-demo=all --http-port="$ODOO_PORT" --stop-after-init
 docker run --rm --name "$CHECK_CONTAINER" --entrypoint sh "$IMAGE" -c 'test ! -w /opt/liwan/addons && test "$(id -u)" = 10001 && ! command -v git'
 
 # Start a long-running image detached, assert its user is not root, and wait (bounded) for a probe run inside it.
 # The probe runs in the container, so no host port is published and parallel runs cannot collide.
 smoke_started() {
-  local name="$1" container probe_status
+  local name="$1" container
   shift
   container="$(container_of "$name")"
-  docker run -d --name "$container" "$@" "$(tag_of "$name")" >/dev/null
+  docker run -d --name "$container" "$@" "${SMOKE_TAG:-$(tag_of "$name")}" >/dev/null
   for _ in $(seq 1 30); do
     if [ "$(docker inspect --format '{{.State.Running}}' "$container")" != true ]; then
       echo "$name smoke failed: container exited" >&2; docker logs "$container" >&2; return 1
@@ -91,12 +108,16 @@ done
 # web: the published build is the shared one (compiled tenancy mode `shared`; the server refuses to start when the runtime
 # mode differs), so it runs as the shared stack runs it. A public static file is answered by the Nitro server before the
 # tenant boundary, needing no upstream (the probe of deploy/docker-compose.shared.yml). Throwaway per-run token.
-printf '%s\n' '{"schemaVersion":1,"snapshotRevision":0,"targets":[]}' > "$IMAGE_ROOT/registry.json"
-chmod 644 "$IMAGE_ROOT/registry.json"
+for name in web guard; do
+  mkdir -p "$IMAGE_ROOT/$name-files"
+  printf '%s\n' '{"schemaVersion":1,"snapshotRevision":0,"targets":[]}' > "$IMAGE_ROOT/$name-files/registry.json"
+  chmod 644 "$IMAGE_ROOT/$name-files/registry.json"
+  derive "$name" "$(tag_of "$name")" registry.json:/etc/liwan/registry.json
+done
 PROXY_TOKEN="$(python3 -c 'import secrets; print(secrets.token_hex(24))')"
 SESSION_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(24))')"
 PROBE=(node -e "$HTTP_PROBE" http://127.0.0.1:3000/favicon.ico)
-smoke_started web -v "$IMAGE_ROOT/registry.json:/etc/liwan/registry.json:ro" \
+SMOKE_TAG="$(files_tag_of web)" smoke_started web \
   -e LIWAN_TENANCY_MODE=shared -e LIWAN_TENANT_REGISTRY_PATH=/etc/liwan/registry.json \
   -e "LIWAN_SHARED_PROXY_TOKEN=$PROXY_TOKEN" -e NUXT_ODOO_URL=http://127.0.0.1:1
 # vendor-admin: every page asks the control plane for a session first (503 without it), so probe a built static
@@ -108,11 +129,11 @@ smoke_started vendor-admin
 # only with AI_ALLOW_MEMORY_STATE=true and no AI_DATABASE_URL, which is exactly this smoke run.
 PROBE=(python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8600/healthz', timeout=2)")
 # The platform provider is read from a file (AI_PLATFORM_PROVIDER_FILE), in a directory mounted read-only like the deployment does.
-mkdir -p "$IMAGE_ROOT/ai"
-printf '%s\n' '{"revision": 1, "margin_bps": 0, "providers": {"main": {"provider": "ollama"}}, "models": {"main": {"provider": "main", "model": "ci-smoke"}}, "routes": {"default": "main"}}' > "$IMAGE_ROOT/ai/platform-provider.json"
-chmod 755 "$IMAGE_ROOT/ai"
-chmod 644 "$IMAGE_ROOT/ai/platform-provider.json"
-smoke_started ai-service -v "$IMAGE_ROOT/ai:/etc/liwan-ai:ro" -e AI_PLATFORM_PROVIDER_FILE=/etc/liwan-ai/platform-provider.json \
+mkdir -p "$IMAGE_ROOT/ai-service-files"
+printf '%s\n' '{"revision": 1, "margin_bps": 0, "providers": {"main": {"provider": "ollama"}}, "models": {"main": {"provider": "main", "model": "ci-smoke"}}, "routes": {"default": "main"}}' > "$IMAGE_ROOT/ai-service-files/platform-provider.json"
+chmod 644 "$IMAGE_ROOT/ai-service-files/platform-provider.json"
+derive ai-service "$(tag_of ai-service)" platform-provider.json:/etc/liwan-ai/platform-provider.json
+SMOKE_TAG="$(files_tag_of ai-service)" smoke_started ai-service -e AI_PLATFORM_PROVIDER_FILE=/etc/liwan-ai/platform-provider.json \
   -e AI_ALLOW_MEMORY_STATE=true -e AI_DEV_INSECURE=true
 
 # ai-egress: squid itself accepts the configuration rendered with tenant hosts (tools/test_ai_egress.py, SquidParseCase).
@@ -120,7 +141,7 @@ LIWAN_AI_EGRESS_IMAGE_TEST=1 python3 -B -m unittest tools.test_ai_egress.SquidPa
 # guard: starts in shared mode with a deny-all bootstrap registry, and its own healthcheck answers (the registry file and
 # throwaway token and session key are the ones created for the web check above).
 PROBE=(node deploy/shared/healthcheck.mjs)
-smoke_started guard -v "$IMAGE_ROOT/registry.json:/etc/liwan/registry.json:ro" \
+SMOKE_TAG="$(files_tag_of guard)" smoke_started guard \
   -e LIWAN_TENANCY_MODE=shared -e LIWAN_TENANT_REGISTRY_PATH=/etc/liwan/registry.json \
   -e "LIWAN_SHARED_PROXY_TOKEN=$PROXY_TOKEN" \
   -e "LIWAN_SESSION_KEYS={\"k1\":\"$SESSION_KEY\"}" -e LIWAN_SESSION_ACTIVE_KID=k1 \
@@ -130,9 +151,12 @@ smoke_started guard -v "$IMAGE_ROOT/registry.json:/etc/liwan/registry.json:ro" \
 # odoo-mail: no start check (it needs an SMTP relay account); it is built, scanned and recorded like every other image.
 # proxy: both Caddyfiles validate against the image's Caddy, which has the rate-limit module compiled in.
 # Caddy runs as an unprivileged user; ports 80/443 are bound through its NET_BIND_SERVICE file capability.
+mkdir -p "$IMAGE_ROOT/proxy-files"
 for caddyfile in deploy/Caddyfile deploy/shared/Caddyfile; do
-  docker run --rm --name "$(container_of proxy)" -e DOMAIN=ci.invalid -v "$PWD/$caddyfile:/etc/caddy/Caddyfile:ro" \
-    "$(tag_of proxy)" caddy validate --config /etc/caddy/Caddyfile
+  cp "$caddyfile" "$IMAGE_ROOT/proxy-files/Caddyfile"
+  chmod 644 "$IMAGE_ROOT/proxy-files/Caddyfile"
+  derive proxy "$(tag_of proxy)" Caddyfile:/etc/caddy/Caddyfile
+  docker run --rm --name "$(container_of proxy)" -e DOMAIN=ci.invalid "$(files_tag_of proxy)" caddy validate --config /etc/caddy/Caddyfile
 done
 docker run --rm --name "$(container_of proxy)" "$(tag_of proxy)" sh -c 'caddy list-modules | grep -q http.handlers.rate_limit'
 docker run --rm --name "$(container_of proxy)" --cap-drop ALL --cap-add NET_BIND_SERVICE "$(tag_of proxy)" \
@@ -140,8 +164,10 @@ docker run --rm --name "$(container_of proxy)" --cap-drop ALL --cap-add NET_BIND
 # The compose settings of the proxy (read-only root, no capability but NET_BIND_SERVICE, writable /config and /data as in
 # compose, where /data is the caddy_data volume): it must serve.
 PROXY_RUN="$(container_of proxy)-hardened"
+cp deploy/Caddyfile "$IMAGE_ROOT/proxy-files/Caddyfile"
+derive proxy "$(tag_of proxy)" Caddyfile:/etc/caddy/Caddyfile
 docker run -d --name "$PROXY_RUN" --read-only --cap-drop ALL --cap-add NET_BIND_SERVICE --tmpfs /tmp \
-  --tmpfs /config:uid=10002,gid=10002 --tmpfs /data:uid=10002,gid=10002 -e DOMAIN=localhost -v "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" "$(tag_of proxy)" >/dev/null
+  --tmpfs /config:uid=10002,gid=10002 --tmpfs /data:uid=10002,gid=10002 -e DOMAIN=localhost "$(files_tag_of proxy)" >/dev/null
 # wget exits non-zero on the expected 502 (no upstreams), so read its text instead of its status.
 proxy_answer() { docker exec "$PROXY_RUN" wget -q -S -O /dev/null --no-check-certificate https://localhost/ 2>&1 || true; }
 for _ in $(seq 1 15); do
@@ -158,18 +184,29 @@ docker rm -fv "$PROXY_RUN" >/dev/null
 ALL_IMAGES=("$IMAGE")
 for entry in "${OTHER_IMAGES[@]}"; do ALL_IMAGES+=("$(tag_of "${entry%%:*}")"); done
 
-# Scan one image with Trivy (through its official container and the Docker socket; the vulnerability database
-# lives in an owned volume so it downloads once). Findings with no fix available are ignored. Every HIGH and
+# Scan one image with Trivy (its official container reads a `docker save` tarball copied into it, so the daemon socket
+# is never mounted; the vulnerability database lives in an owned volume so it downloads once). Findings with no fix available are ignored. Every HIGH and
 # CRITICAL finding is listed on stderr; stdout carries "<critical> <high>". A scanner error (database download,
 # timeout, unreadable report) is a failure with its own message, never a pass.
+# trivy_run <image-tag> <trivy arguments>: the arguments scan `--input /tmp/image.tar`, the saved tag.
+image_tar() { printf '%s/%s.tar' "$IMAGE_ROOT" "$(printf '%s' "$1" | tr '/:@' '___')"; }
 trivy_run() {
-  docker run --rm --name "$(container_of trivy)" -v /var/run/docker.sock:/var/run/docker.sock \
-    -v "$TRIVY_CACHE:/root/.cache/trivy" "$TRIVY_IMAGE" "$@"
+  local tag="$1" tar container status=0
+  shift
+  tar="$(image_tar "$tag")"
+  container="$(container_of trivy)"
+  [ -s "$tar" ] || docker save -o "$tar" "$tag" || return 1
+  docker rm -fv "$container" >/dev/null 2>&1 || true
+  docker create --name "$container" -v "$TRIVY_CACHE:/root/.cache/trivy" "$TRIVY_IMAGE" "$@" >/dev/null || return 1
+  docker cp "$tar" "$container:/tmp/image.tar" || status=$?
+  [ "$status" -ne 0 ] || docker start -a "$container" || status=$?
+  docker rm -fv "$container" >/dev/null 2>&1 || true
+  return "$status"
 }
 scan_image() {
   local tag="$1" report="$IMAGE_ROOT/trivy.json"
-  trivy_run image --quiet --scanners vuln --timeout 15m \
-    --format json --severity HIGH,CRITICAL --ignore-unfixed --exit-code 0 "$tag" > "$report" \
+  trivy_run "$tag" image --quiet --scanners vuln --timeout 15m \
+    --format json --severity HIGH,CRITICAL --ignore-unfixed --exit-code 0 --input /tmp/image.tar > "$report" \
     || { echo "$tag scan failed: trivy exited with an error (vulnerability database download or scan error)" >&2; return 1; }
   python3 - "$report" "$tag" <<'PY' || { echo "$tag scan failed: unreadable trivy report" >&2; return 1; }
 import json, sys
@@ -194,7 +231,7 @@ PY
 write_sbom() {
   local tag="$1" file
   file="$SBOM_DIR/${tag%%:*}.cdx.json"
-  trivy_run image --quiet --scanners license --format cyclonedx "$tag" > "$file" \
+  trivy_run "$tag" image --quiet --scanners license --format cyclonedx --input /tmp/image.tar > "$file" \
     && python3 -c 'import json, sys; assert json.load(open(sys.argv[1])).get("bomFormat") == "CycloneDX"' "$file" \
     || { echo "$tag sbom failed: trivy could not produce a CycloneDX document" >&2; return 1; }
 }
@@ -208,7 +245,10 @@ for image in "${ALL_IMAGES[@]}"; do write_sbom "$image" || sbom_failed=1; done
 scan_failed=0
 scan_rows=""
 for image in "${ALL_IMAGES[@]}"; do
-  if counts="$(scan_image "$image")"; then
+  counts_status=0
+  counts="$(scan_image "$image")" || counts_status=$?
+  rm -f "$(image_tar "$image")"
+  if [ "$counts_status" -eq 0 ]; then
     read -r critical high <<< "$counts"
     scan_rows+="$(printf '| %s | %s | %s |\n' "$image" "$critical" "$high")"$'\n'
     if [ "$critical" -gt 0 ]; then

@@ -52,16 +52,16 @@ def parse_ids(value, field):
     return sorted({parse_positive_int(item, field) for item in value})
 
 
-def find_ids(model, ids, field):
-    """The records of `model` with `ids` that the caller sees; 422 when any is missing."""
-    records = request.env[model].search([('id', 'in', ids)])
+def find_ids(model, ids, field, company=None):
+    """The records of `model` with `ids` that the caller sees (of `company` only, when given); 422 when any is missing."""
+    records = request.env[model].search([('id', 'in', ids), *([('company_id', '=', company.id)] if company else [])])
     if len(records) != len(ids):
         reject(f'{field} names a record that does not exist', field)
     return records
 
 
-def find_one(model, record_id, field):
-    return find_ids(model, [parse_positive_int(record_id, field)], field)
+def find_one(model, record_id, field, company=None):
+    return find_ids(model, [parse_positive_int(record_id, field)], field, company)
 
 
 def find_agent(user_id, field, company=None):

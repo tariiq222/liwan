@@ -28,6 +28,7 @@ describe('crm manifest', () => {
     ['/crm/opportunities/new', 'crm.leads.read'],
     ['/crm/imports', 'crm.leads.import'],
     ['/crm/imports/new', 'crm.leads.import'],
+    ['/crm/audit', 'crm.audit.read'],
   ])('requires the capability of %s', (path, capability) => {
     expect(requiredCapabilityForPath(path)).toBe(capability)
   })
@@ -38,6 +39,12 @@ describe('crm manifest', () => {
     expect(reach('crm.leads.read', 'crm.leads.work')).toBe(true)
     expect(reach('crm.leads.read')).toBe(false)
     expect(reach('crm.leads.assign')).toBe(false)
+  })
+
+  it('opens the audit page to the audit key alone', () => {
+    const reach = (...capabilities: string[]) => canReachPath({ capabilities }, '/crm/audit')
+    expect(reach('crm.audit.read')).toBe(true)
+    expect(reach('crm.leads.read')).toBe(false)
   })
 
   it('lists the dashboard, the opportunities and the imports in the nav', () => {

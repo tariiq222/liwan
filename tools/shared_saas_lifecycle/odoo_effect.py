@@ -35,6 +35,8 @@ MODULE_ID = re.compile(r'(?:liwan|customer)_[a-z0-9_]+')
 TENANT_HOST = re.compile(r'(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+')
 MAX_OUTPUT = 65536
 TENANT_DB_ROLE = 'odoo'  # db_user of deploy/shared/odoo.conf
+# The AI role's grants and schema in a tenant database: the file deploy/provision.sh and the operator also run.
+AI_TENANT_SCHEMA = Path(__file__).resolve().parents[2] / 'deploy' / 'ai' / 'tenant_schema.sql'
 # System parameter that binds a tenant database to its control-plane tenant. The final deletion of a workspace
 # refuses any database whose marker differs from the tenant it was asked to delete.
 TENANT_MARKER_PARAMETER = 'liwan.control.tenant_id'
@@ -291,9 +293,12 @@ class Runner:
             self.child.wait(timeout=10)
 
     def preflight(self):
+        """Validate the runtime and the request; return whether the rendered project runs the ai service."""
         config = json.loads(self.command(self.base + ['config', '--format', 'json']))
         if config.get('name') != self.config['projectName'] or not {'db', 'odoo'} <= set(config.get('services', {})):
             raise EffectError('foreign_project')
+        # The `ai` service is in the rendered config only when the env file enables the ai profile.
+        ai_enabled = 'ai' in config['services']
         ids = self.command(self.base + ['ps', '-q', 'db']).strip().splitlines()
         if len(ids) != 1 or not re.fullmatch(r'[a-f0-9]{12,64}', ids[0]):
             raise EffectError('database_service_unavailable')
@@ -302,7 +307,7 @@ class Runner:
         if labels.get('com.docker.compose.project') != self.config['projectName'] or labels.get('com.docker.compose.service') != 'db':
             raise EffectError('foreign_project')
         if self.request['job']['operation'] != 'provision':
-            return
+            return ai_enabled
         # The first customer administrator counts against users.limit (the control
         # plane's admitsRequiredAdmin rule): refuse before any reservation or install.
         limit = self.request['job']['policy']['features'].get('users.limit')
@@ -326,6 +331,7 @@ class Runner:
         else:
             parse_create_policy(policy, catalog_path=catalog,
                                 catalog_sha256='sha256:' + self.request['job']['catalog']['sourceSha256'], commercial_mode='saas')
+        return ai_enabled
 
     def exists(self):
         sql = "SELECT count(*) FROM pg_database WHERE datname='" + self.database + "'"
@@ -334,8 +340,9 @@ class Runner:
             raise EffectError('database_observation_invalid')
         return result == '1'
 
-    def psql(self, database, sql):
-        self.command(self.base + ['exec', '-T', 'db', 'psql', '-U', TENANT_DB_ROLE, '-d', database, '-v', 'ON_ERROR_STOP=1', '-q'], stdin=sql)
+    def psql(self, database, sql, variables=()):
+        assignments = [argument for name, value in variables for argument in ('-v', name + '=' + value)]
+        self.command(self.base + ['exec', '-T', 'db', 'psql', '-U', TENANT_DB_ROLE, '-d', database, '-v', 'ON_ERROR_STOP=1', '-q', *assignments], stdin=sql)
 
     def create_isolated_database(self):
         # Odoo would create the database itself on `-d`, open to every role through PUBLIC. Create it
@@ -346,6 +353,27 @@ class Runner:
         self.psql('postgres', tenant_create_database_sql(self.database) + ';\n'
                   + tenant_isolation_sql(self.database, TENANT_DB_ROLE))
         self.psql(self.database, TENANT_EXTENSION_SQL + ';\n')
+
+    def prepare_ai_state(self, ai_enabled):
+        # The AI role needs its grants and schema (a no-op without the role) and, when the deployment
+        # runs the ai service, its tables: the runtime only validates them (`ai_state_uninitialized`).
+        # The release control state comes first, once per deployment (deploy/provision.sh does the same,
+        # for `ai_control_state_uninitialized`), then the tenant state. All depend on the isolated empty
+        # database only, not on the Odoo install, so they run first and a failure costs no install.
+        # All are idempotent.
+        self.psql('postgres', AI_TENANT_SCHEMA.read_text(), variables=[('tenant_db', self.database)])
+        if not ai_enabled:
+            return
+        self.run_ai_initialization('control', '--initialize-control')
+        self.run_ai_initialization('tenant', '--initialize-tenant', self.database)
+
+    def run_ai_initialization(self, step, *arguments):
+        self.current_container = self.config['projectName'] + '-effect-' + self.request['attemptId'][:8] + '-ai-' + step
+        try:
+            self.command(self.base + ['run', '--rm', '--no-deps', '-T', '--name', self.current_container,
+                'ai', 'python', '-m', 'liwan_ai_service.store', *arguments], timeout=300)
+        finally:
+            self.current_container = None
 
     def filestore_exists(self):
         script = 'import json; from pathlib import Path; p=Path(' + repr('/var/lib/odoo/filestore/' + self.database) + '); print(json.dumps(p.exists() or p.is_symlink()))'
@@ -400,7 +428,9 @@ class Runner:
         gate.complete()
 
     def apply(self):
-        self.preflight()
+        ai_enabled = self.preflight()
+        if type(ai_enabled) is not bool:  # a preflight that did not decide must stop the job, never skip the AI state
+            raise EffectError('runtime_invalid')
         permit('reserve')
         for name in ('reservations', 'credentials', 'classifications'):
             entry = self.root / name
@@ -419,6 +449,7 @@ class Runner:
         self.classification.chmod(0o644)
         permit('install')
         self.create_isolated_database()
+        self.prepare_ai_state(ai_enabled)
         self.current_container = self.config['projectName'] + '-effect-' + self.request['attemptId'][:8] + '-install'
         try:
             self.command(self.base + ['run', '--rm', '--no-deps', '-T', '--name', self.current_container,

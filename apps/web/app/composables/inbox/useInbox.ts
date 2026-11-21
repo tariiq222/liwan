@@ -21,6 +21,7 @@ import {
 } from '@liwan/contracts'
 import { inboxListQuery, type InboxListRoute } from './inboxListRoute'
 import { fileToBase64 } from '../../utils/attachmentFile'
+import { fetchAllPages } from '../../utils/pagedList'
 import { createTypingNotifier } from './inboxTyping'
 import { ApiError } from '../useApi'
 import { busFallbackInterval, useBus } from '../useBus'
@@ -146,34 +147,25 @@ export function useInboxMessages(id: MaybeRefOrGetter<number | undefined>) {
   return { ...query, items, latest }
 }
 
+/** Rows fetched per request by the lists that are read whole. */
+const INBOX_LIST_PAGE = 200
+
 export function useInboxCannedReplies() {
   const { $api } = useApi()
   return useQuery({
     queryKey: inboxKeys.canned,
-    queryFn: ({ signal }) => $api('/api/v1/inbox/canned-replies', { signal, schema: InboxCannedReplyListSchema }),
+    // Every page: the composer picker offers all of the company's canned replies, not only the server's default page.
+    queryFn: ({ signal }) => fetchAllPages(offset => $api('/api/v1/inbox/canned-replies', { signal, query: { limit: INBOX_LIST_PAGE, offset }, schema: InboxCannedReplyListSchema }), signal),
   })
 }
 
-/** Agents fetched per request. */
-const INBOX_AGENT_PAGE = 200
-
-/** The tags an agent may put on a conversation (readable with the read capability). */
 /** The company's users who may reply: the only valid assignees. */
 export function useInboxAgents(enabled: MaybeRefOrGetter<boolean> = true) {
   const { $api } = useApi()
   return useQuery({
     queryKey: inboxKeys.agents,
-    queryFn: async ({ signal }) => {
-      // Every page: a company may have more agents than one page holds, and the assignee picker and the agents settings need them all.
-      const first = await $api('/api/v1/inbox/agents', { signal, query: { limit: INBOX_AGENT_PAGE, offset: 0 }, schema: InboxAgentListSchema })
-      const items = [...first.items]
-      while (items.length < first.total) {
-        const page = await $api('/api/v1/inbox/agents', { signal, query: { limit: INBOX_AGENT_PAGE, offset: items.length }, schema: InboxAgentListSchema })
-        if (!page.items.length) break
-        items.push(...page.items)
-      }
-      return { ...first, items }
-    },
+    // Every page: a company may have more agents than one page holds, and the assignee picker and the agents settings need them all.
+    queryFn: ({ signal }) => fetchAllPages(offset => $api('/api/v1/inbox/agents', { signal, query: { limit: INBOX_LIST_PAGE, offset }, schema: InboxAgentListSchema }), signal),
     enabled: () => toValue(enabled),
   })
 }
@@ -202,21 +194,26 @@ export function useSetInboxAgentAvailability() {
   })
 }
 
+/** The tags an agent may put on a conversation (readable with the read capability). */
 export function useInboxTags() {
   const { $api } = useApi()
   return useQuery({
     queryKey: inboxKeys.tags,
-    queryFn: ({ signal }) => $api('/api/v1/inbox/tags', { signal, schema: InboxTagListSchema }),
+    queryFn: ({ signal }) => fetchAllPages(offset => $api('/api/v1/inbox/tags', { signal, query: { limit: INBOX_LIST_PAGE, offset }, schema: InboxTagListSchema }), signal),
   })
 }
 
+/** Mutation options that refresh the conversation the request was sent for, even when the agent has opened another one since. */
 function useRefreshConversation(id: MaybeRefOrGetter<number>) {
   const qc = useQueryClient()
-  return async () => {
-    await Promise.all([
-      qc.invalidateQueries({ queryKey: inboxKeys.messagesOf(toValue(id)) }),
-      qc.invalidateQueries({ queryKey: ['inbox', 'conversations'] }),
-    ])
+  return {
+    onMutate: () => toValue(id),
+    onSuccess: async (_data: unknown, _variables: unknown, sentTo: number) => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: inboxKeys.messagesOf(sentTo) }),
+        qc.invalidateQueries({ queryKey: ['inbox', 'conversations'] }),
+      ])
+    },
   }
 }
 
@@ -225,7 +222,7 @@ export function useSendInboxReply(id: MaybeRefOrGetter<number>) {
   const refresh = useRefreshConversation(id)
   return useMutation({
     mutationFn: (body: InboxReplyCreate) => $api(`/api/v1/inbox/conversations/${toValue(id)}/messages`, { method: 'POST', body, schema: InboxMessageSchema }),
-    onSuccess: refresh,
+    ...refresh,
   })
 }
 
@@ -234,7 +231,7 @@ export function useSendInboxNote(id: MaybeRefOrGetter<number>) {
   const refresh = useRefreshConversation(id)
   return useMutation({
     mutationFn: (body: InboxNoteCreate) => $api(`/api/v1/inbox/conversations/${toValue(id)}/notes`, { method: 'POST', body, schema: InboxMessageSchema }),
-    onSuccess: refresh,
+    ...refresh,
   })
 }
 
@@ -256,7 +253,7 @@ export function useReactToInboxMessage(conversationId: MaybeRefOrGetter<number>)
   const refresh = useRefreshConversation(conversationId)
   return useMutation({
     mutationFn: (input: { messageId: number; emoji: string }) => $api(`/api/v1/inbox/messages/${input.messageId}/reaction`, { method: 'POST', body: { emoji: input.emoji }, schema: InboxMessageSchema }),
-    onSuccess: refresh,
+    ...refresh,
   })
 }
 
@@ -271,7 +268,7 @@ export function useRetryInboxMessage(conversationId: MaybeRefOrGetter<number>) {
   const refresh = useRefreshConversation(conversationId)
   return useMutation({
     mutationFn: (messageId: number) => $api(`/api/v1/inbox/messages/${messageId}/retry`, { method: 'POST', schema: InboxMessageSchema }),
-    onSuccess: refresh,
+    ...refresh,
   })
 }
 

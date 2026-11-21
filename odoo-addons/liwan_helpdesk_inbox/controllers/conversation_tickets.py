@@ -94,11 +94,11 @@ class ConversationTicketsController(http.Controller):
         if has_open_ticket(conversation):
             raise ApiError(409, 'conflict', 'this conversation already has an open ticket',
                            details={'reason': 'open_ticket_exists'})
-        customer = conversation.contact_id.partner_id
+        customer = conversation.contact_id._liwan_linked_customer()
         values = {
             'subject': payload.get('subject') or conversation.contact_id.name or '',
             'description': payload.get('description') or conversation_text(conversation),
-            # The ticket is about the conversation's customer when the contact is linked to one; the desk's service
+            # The ticket is about the conversation's customer when the contact is linked to an active one the caller sees; the desk's service
             # resolves it through the one customer directory, so nothing is copied between the two applications.
             **({'customer_id': customer.id} if customer else {}),
         }

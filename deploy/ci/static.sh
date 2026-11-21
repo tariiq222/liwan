@@ -32,19 +32,16 @@ policies() {
   # The environment templates live in their own package, so `deploy/test_*.py` does not
   # match them; run it explicitly or its checks silently never execute in CI.
   PYTHONPATH=deploy python3 -B -m unittest discover -s deploy/environments -t . -p 'test_*.py'
-  # The host deploy script and its units live in their own package too (deploy/cd/README.md).
-  python3 -B -m unittest discover -s deploy/cd -t . -p 'test_*.py'
+  # The release command lives in its own package too (deploy/release/README.md).
+  python3 -B -m unittest discover -s deploy/release -t . -p 'test_*.py'
   python3 -B -m unittest tools/shared_saas_lifecycle/test_*.py
   python3 -B tools/catalog_check.py
   python3 -B tools/migration_guard.py --base "$BASE_REF"
   python3 -B tools/git_policy.py --base "$BASE_REF"
   python3 -B tools/arch_policy.py --base "$BASE_REF"
   python3 -B tools/undeclared_imports.py
-  # The generated API files are checked in the nightly run only: task branches may not regenerate them
-  # (tools/git_policy.py), so a pull request that adds a route would fail a check it cannot fix.
-  if [ "${GITHUB_EVENT_NAME:-}" = schedule ]; then
-    python3 -B tools/api_surface.py --check
-  fi
+  # The generated API files are checked in every pull request: the branch that changes a route regenerates them.
+  python3 -B tools/api_surface.py --check
   python3 -B tools/semgrep_gate.py --base "$BASE_REF"
   # The retired product name stays out of the tree. The local checkout path keeps its folder name.
   python3 -B tools/forbidden_terms.py --terms tools/retired_terms.txt --exceptions tools/retired_terms_exceptions.txt \

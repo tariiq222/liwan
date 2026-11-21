@@ -336,11 +336,12 @@ class LiwanInboxFlow(models.Model):
 
     @api.model
     def _liwan_seed_starters(self, company, key):
-        """Add the sector's starter forms as local drafts to each channel of the company that lacks them; idempotent.
+        """Add the sector's starter forms as local drafts to each WhatsApp channel of the company that lacks them; idempotent.
 
-        A starter is never published, and reaches Meta only when its owner first saves it.
+        A starter is never published, and reaches Meta only when its owner first saves it. Forms are a WhatsApp
+        feature, so a TikTok channel gets none.
         """
-        for channel in self.env['liwan.inbox.channel'].search([('owner_company_id', '=', company.id)]):
+        for channel in self.env['liwan.inbox.channel'].search([('owner_company_id', '=', company.id), ('kind', '=', 'whatsapp')]):
             names = set(self.search([('channel_id', '=', channel.id)]).mapped('name'))
             for starter in FLOW_STARTERS.get(key, ()):
                 if starter['name'] not in names:

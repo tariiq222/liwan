@@ -136,7 +136,7 @@ changes) and only ever creates, clones or drops `liwan_scratch_*` databases. Sta
 
 Integration uses a PR to `main`, following
 [`agents/integration-rules.md`](agents/integration-rules.md). `ci` runs on PRs,
-merge-queue entries (`merge_group`) and pushes to `main`, runs nightly on `main` (`schedule`), and can be started with
+merge-queue entries (`merge_group`) and pushes to `main`, and can be started with
 `workflow_dispatch` (`full: true` for all stages). The workflow file `.github/workflows/ci.yml` is the source for the
 triggers. Each job runs its `deploy/ci` script and can be reproduced locally with
 isolated resources. `ci-result` aggregates selected stages; its success is needed
@@ -223,10 +223,16 @@ and `merge_group` events; a merge-queue entry is selected from the queue base to
   the change touches a file that decides how an image builds: a `Dockerfile`, a Compose file, `.dockerignore`, `deploy/ci/image.sh`,
   `deploy/odoo/requirements-python312-linux.txt`, or `apps/ai-service/requirements.txt` and `requirements-build.txt`
   (`feeds_image_build` in `tools/ci_scope.py`; the dev and audit locks are read by no Dockerfile). Otherwise the three
-  run on the push to `main`, the nightly run and a full dispatch. The `ci-result` job names the deferred stages a run
+  run on the push to `main` and a full dispatch. The `ci-result` job names the deferred stages a run
   left out in its log and job summary, so a green result is not read as proof that they ran.
-- `e2e-odoo` runs before merge for changes under `apps/web/` or `odoo-addons/`, and when a shared input selects
-  it through `tools/ci_scope.py`. The stage's seed and runner also select it.
+- `e2e-odoo` runs before merge for addon changes, for `apps/web/server/`, `apps/web/e2e/` and the web code outside the
+  presentation files (composables, utils, middleware, plugins, `nuxt.config.ts`, `package.json`, and TypeScript modules
+  inside the UI trees, because composables import them), and when a shared input selects it through
+  `tools/ci_scope.py`. The stage's seed and runner also select it. Changes limited to Vue templates (`*.vue`) under
+  `apps/web/app/components`, `pages` and `layouts`, plus `assets`, locale JSON under `i18n` and `public`, select only
+  `e2e-mock` and `rtl-stories` (`image` runs on the push to `main`, and so does the real-Odoo coverage of those
+  templates). Storybook files and `apps/web/e2e-rtl` select `rtl-stories`; web unit tests and `apps/web/*.md`
+  select nothing beyond `static`. The push to `main` runs every stage.
 - An addon file selects `static`, the Odoo stages with affected modules, and `e2e-odoo`. The other stages in the
   addon rule run on the push to `main`.
 - A change limited to `apps/web/server/` does not select `rtl-stories`: the Storybook build imports no
@@ -244,11 +250,10 @@ and `merge_group` events; a merge-queue entry is selected from the queue base to
   (a bridge is affected through either side); with none, the stage is not selected, and `ci-result` does not
   expect it.
 
-Every push to `main`, the nightly schedule and `workflow_dispatch` with `full: true` run all thirteen stages with all
+Every push to `main` and `workflow_dispatch` with `full: true` run all thirteen stages with all
 six shards and every isolation group, so a cross-module regression the narrowed pull request could not see is
-caught on `main`. The nightly run alone also runs `python3 -B tools/api_surface.py --check` in the static policies part
-(it keys on `GITHUB_EVENT_NAME=schedule`), because task branches may not regenerate `docs/api` and a pull request
-that adds a route would otherwise fail a check it cannot fix.
+caught on `main`. Every run of the static policies part, pull requests included, also runs
+`python3 -B tools/api_surface.py --check`: the branch that changes a route regenerates `docs/api` itself.
 
 A manual `workflow_dispatch` run with `full: true` runs all thirteen stages whatever the change. A
 `release/19.0.X.Y.Z` tag is cut only from a `main` commit whose `ci` run was such a full run with all
@@ -267,7 +272,7 @@ architecture rules, tracked secrets and retired terms, without installing npm
 dependencies or Chromium; only the `policies` part of `static` runs them. Deletions, renamed paths, binary files, changes in
 `docs/api/` or `docs/design-system/`, and any mixed or unknown diff use the full
 static profile. The job and required `ci-result` are the same. Pushes to `main`,
-scheduled runs, manual runs and merge groups always use the full static profile.
+manual runs and merge groups always use the full static profile.
 
 ### CI job pass cache
 
@@ -280,11 +285,11 @@ Every other stage job ends with `.github/actions/stage-pass`, which saves a key 
 It logs the reused jobs and sends GitHub the remaining matrix entries. A shard retains its original
 number and total: if only shard 4 of 6 is still required, it runs as `4/6`. A shared input change invalidates
 the keys of every job that reads it. When every job of a stage is reused, the stage is omitted.
-A failed cache lookup reuses nothing. Pushes to `main`, nightly runs and manual runs execute every selected job.
+A failed cache lookup reuses nothing. Pushes to `main` and manual runs execute every selected job.
 
 ### Red `main` alert
 
-On a push to `main` and on the nightly run, the `main-alert` job (`deploy/ci/main-alert.sh`) reads `ci-result`. A red
+On a push to `main`, the `main-alert` job (`deploy/ci/main-alert.sh`) reads `ci-result`. A red
 result opens one issue titled `CI is red on main` (label `ci-red`) or, when one is open, comments the run URL and the
 failed jobs; a green result comments the green run URL on the open issue and closes it. `ci-result` does not depend on
 it, and a failing issue call fails the job so a broken alert is seen.
@@ -370,8 +375,9 @@ application code, and it does not allowlist anything. The daily `image-scan` wor
 so an advisory published against an unchanged base image fails there first instead of in every pull request. The stage also
 writes a CycloneDX SBOM (packages and licenses, from the pinned Trivy) for each image into `LIWAN_SBOM_DIR`; both the `ci` image
 job and the `image-scan` workflow upload them as the `image-sbom` artifact (30 days), and a generator error fails the stage.
-This stage publishes nothing. The `publish` workflow (`deploy/ci/publish.sh`) runs the same stage on both architectures for every
-`main` commit, pushes the images to GHCR and signs the per-commit release document; `deploy/image_pins.py` fails on a broken pin
+This stage publishes nothing. The `publish` workflow (`.github/workflows/publish.yml`, `deploy/ci/publish.sh`) runs on pushes to `main` and
+`release/**` tags only, never on pull requests. It runs the same stage on amd64 for every `main` commit; on a release tag it builds and gates arm64 only and reuses the amd64 digests already published for that commit (it builds amd64 too only when no document exists for the commit), and pushes the
+images and the per-commit release document to private GHCR; `deploy/image_pins.py` fails on a broken pin
 or a mistyped image name (owned images have the `released` status and no digest in the repository). A change under
 `apps/web`, `apps/vendor-admin`, `apps/ai-service`, `packages/ui`, `packages/commercial-ui` or
 `packages/commercial-contracts` selects the `image` stage on the push to `main` because those images build from them. Mock browser tests and RTL stories cover their listed flows, not every possible
@@ -429,13 +435,13 @@ parsed with their strict schema by `src/fixtures.test.ts`, which runs in `npm te
 - Refresh: `python3 -B tools/contract_fixtures.py` (runs the Odoo tests of the manifest addons on a
   scratch database, slow). Drift check: `python3 -B tools/contract_fixtures.py --check`. Neither is part
   of `npm test`.
-- CI runs the drift check in the nightly run only (the `schedule` event, or a manual dispatch with `full`), never on a pull
+- CI runs the drift check in a manual dispatch with `full` only, never on a pull
   request or the push to `main`: the `contract-fixtures` job (`deploy/ci/contract-fixtures.sh`). It installs every release
   module and runs the tests of the manifest addons alone, with `LIWAN_CONTRACT_FIXTURES` set, then
   `tools/contract_fixtures.py --compare` judges the structure (key paths, JSON types, nullness) against the committed files.
   It must stay a separate run: the recorded response is the largest one any running test produced, so mixing other addons'
   tests in changes the result (measured 2026-11-11: a mixed run of eight addons differed on eight routes), which is why the
-  `odoo` shards do not check it. A red nightly run means a serializer changed without its zod contract and fixture following:
+  `odoo` shards do not check it. A red full dispatch means a serializer changed without its zod contract and fixture following:
   update the schema in `packages/contracts/src`, then refresh the fixtures locally as above and run
   `npm -w packages/contracts run test`.
 
@@ -484,7 +490,7 @@ signs in through `apps/web/e2e/support/realOdooSession.ts`, which finishes the m
 device the fixture seeds per account; no spec posts a single-step form and none carries its own credential fallback. Any
 explicit exclusion belongs in `EXCLUDED_REAL_ODOO_SPECS` with its reason.
 No model call or API key is involved, unlike `npm run e2e:odoo` (the agentic runner of "Isolated agentic e2e"), which stays the local exploration path. The stage
-runs on pull requests according to the scope above, on pushes to `main`, nightly and in a full dispatch. A project starts with no optional tool enabled and finance stays off until a company enables it, so the finance journeys
+runs on pull requests according to the scope above, on pushes to `main` and in a full dispatch. A project starts with no optional tool enabled and finance stays off until a company enables it, so the finance journeys
 create their project with `tool_preferences` and assert the tool answered as enabled — the same opt-in a customer performs.
 
 ### LiwanOS AI spec

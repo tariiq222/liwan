@@ -203,6 +203,11 @@ describe('answers', () => {
     expect(answerDisplay(answers[5]!)).toEqual({ kind: 'boolean', value: true })
   })
 
+  it('shows an erased date and an erased choice as no text, which the card and the table render as the empty answer', () => {
+    expect(answerDisplay({ key: 'd', label: 'ل', kind: 'date', value: null })).toEqual({ kind: 'text', text: '' })
+    expect(answerDisplay({ key: 'c', label: 'ل', kind: 'radio', choices: [] })).toEqual({ kind: 'text', text: '' })
+  })
+
   it('builds the table columns from the form\'s answer fields in order, then any key only the answers carry', () => {
     const { answers } = submission()
     const flow = InboxFlowSchema.parse((inboxPreviewData('GET', '/api/v1/inbox/flows/1', new URL('http://x/api/v1/inbox/flows/1')) as { body: unknown }).body)

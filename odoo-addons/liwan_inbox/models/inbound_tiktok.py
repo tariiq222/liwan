@@ -116,8 +116,11 @@ class LiwanInboxInbound(models.AbstractModel):
 
     @api.model
     def _liwan_tiktok_attach_conversation(self, conversation, provider_conversation_id):
-        """Store the conversation's TikTok id; its first message also learns whether images can be sent."""
-        if not conversation.provider_conversation_id:
+        """Store the conversation's TikTok id; its first message also learns whether images can be sent.
+
+        A conversation a referral opened already has its id but no inbound message, so the customer's first message probes too.
+        """
+        if not conversation.provider_conversation_id or not conversation.last_inbound_at:
             conversation.write({
                 'provider_conversation_id': provider_conversation_id,
                 'image_send_capable': self._liwan_tiktok_image_send_capable(conversation, provider_conversation_id),
@@ -150,7 +153,7 @@ class LiwanInboxInbound(models.AbstractModel):
 
     @api.model
     def _liwan_tiktok_attach_media(self, channel, message, item):
-        """Store the media of an inbound message; a failure is recorded on the message, never fails the event."""
+        """Store the media of an inbound message or an echo; a failure is recorded on the message, never fails the event."""
         try:
             with self.env.cr.savepoint():
                 media = tiktok.fetch_media(
@@ -170,7 +173,7 @@ class LiwanInboxInbound(models.AbstractModel):
 
         The outbox stores its own message before TikTok echoes it, so a matching provider id is dropped (D6);
         an echo that matches nothing was sent from the TikTok app or by a TikTok auto message and is stored as an
-        outbound message without an author.
+        outbound message without an author, marked `external` so it stays out of the monthly quota.
         """
         Message = self.env['liwan.inbox.message']
         if Message.search_count([('provider_message_id', '=', item.provider_id)]):
@@ -178,11 +181,13 @@ class LiwanInboxInbound(models.AbstractModel):
         conversation = self._liwan_tiktok_conversation(channel, item.conversation_id)
         if not conversation:
             return self.env['liwan.inbox.conversation']
-        Message.create({
+        message = Message.create({
             'conversation_id': conversation.id, 'company_id': channel.owner_company_id.id, 'direction': 'out',
             'kind': item.kind, 'body': item.body or f'[{item.kind}]', 'date': item.sent_at,
-            'delivery_state': 'sent', 'provider_message_id': item.provider_id,
+            'delivery_state': 'sent', 'provider_message_id': item.provider_id, 'external': True,
         })
+        if item.media_id:
+            self._liwan_tiktok_attach_media(channel, message, item)
         if item.auto:
             Message._liwan_post_system_note(conversation, NOTE_TIKTOK_AUTO_WELCOME)
         return conversation
@@ -199,8 +204,15 @@ class LiwanInboxInbound(models.AbstractModel):
 
     @api.model
     def _liwan_ingest_tiktok_referral(self, channel, item):
-        """Store the ad or short link the customer arrived from; a referral is not a message (D9)."""
+        """Store the ad or short link the customer arrived from; a referral is not a message (D9).
+
+        The referral can come before the customer's first message, in the same delivery or an earlier one, so a
+        customer without a conversation gets it here through the same find-or-create path as a message.
+        """
         conversation = self._liwan_tiktok_conversation(channel, item.conversation_id)
+        if not conversation and item.conversation_id and item.sender_id and item.source in ('ad', 'short_link'):
+            conversation = self._liwan_conversation(channel, self._liwan_tiktok_identity(channel, item))
+            conversation.provider_conversation_id = item.conversation_id  # no image probe: nothing was said yet
         if conversation and item.source in ('ad', 'short_link'):
             conversation.write({'referral_source': item.source, 'referral_ref': item.ref or False})
         return conversation

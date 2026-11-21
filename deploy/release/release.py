@@ -1,0 +1,814 @@
+#!/usr/bin/env python3
+"""Release command: apply the candidate commit of one environment to this server. An Openship job runs it.
+
+  release.py run      --environment <name> [--tag <tag>]   resolve, verify, pull, back up, stop, snapshot, upgrade, start, open, commit
+  release.py status   --environment <name>   print the served release, the unfinished run and the halt record
+  release.py rollback --environment <name>   clear a halt and finish the rollback of an unfinished run
+
+``development`` follows the head of GitHub ``main``; ``staging`` follows the highest ``release/19.0.X.Y.Z`` tag;
+``production`` applies only the tag it is given with ``--tag`` and refuses to run without one. The
+candidate and its release document (the image ``liwan-release:<commit>`` in the private GHCR registry) are read with
+the read-only credentials in ``LIWAN_GHCR_READ_USER``, ``LIWAN_GHCR_READ_TOKEN`` and, optionally,
+``LIWAN_GITHUB_READ_TOKEN`` (the source repository is public today). The command never waits for
+input. The last log line is ``RESULT: committed <commit>``, ``RESULT: rolled back <reason>``, ``RESULT: nothing to do``,
+``RESULT: refused <reason>``, ``RESULT: halted <reason>`` or ``RESULT: incomplete <commit> <reason>``; the exit code
+is 0 (committed, nothing to do), 2 (refused), 3 (halted), 4 (rolled back or incomplete) or 5 (rollback failed).
+
+The environment name selects the root-only config ``/etc/liwan-release/<name>.env`` (mode 0600). Every phase is written
+to ``run.json`` before it acts, so a killed run resumes from real state: forward up to ``snapshotted``, rollback from
+``upgrading`` and ``starting``, forward again from ``opening``. Rollback swaps the pre-upgrade database snapshots and
+filestore copies back and restarts the previous release. Arguments never carry a secret.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import platform
+import re
+import shutil
+import stat
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+from deploy.release import databases  # noqa: E402 - path set just above
+from deploy.release.common import (  # noqa: E402
+    EXIT_FAILED, EXIT_HALTED, EXIT_OK, EXIT_REFUSED, EXIT_ROLLBACK_FAILED, CommandFailed, Lock, ReleaseError, Runner,
+    free_bytes, make_log, now, read_env_file, sensitive_values, read_json, write_atomic, write_json)
+from deploy.release.source import (  # noqa: E402
+    CHANNELS, COMMIT, GITHUB_TOKEN_VAR, TOKEN_VAR, USER_VAR, Credential, Source, explicit_tag, host_architecture)
+from deploy.releases.postgres import identifier, tenant_isolation_statements  # noqa: E402
+
+TENANT_DATABASE = re.compile(r'^[a-z][a-z0-9_]{0,62}$')
+RELEASE_FOLDER = re.compile(r'^([0-9a-f]{40})(\.partial|\.tar)?$')
+DB_SUPERUSER = 'odoo'
+CONTROL_DB = 'liwan_control'
+CONTROL_DB_USER = 'liwan_control'
+CONTROL_PROJECT = 'liwan-control'
+SHARED_WORKER_UNIT = 'liwan-shared-worker.service'
+APP_SERVICES = ('odoo', 'web', 'ai')
+PROXY_SERVICE = 'proxy'
+EDGE_SERVICE = 'guard'
+UP = ('up', '-d', '--wait', '--no-build', '--pull', 'never')
+WORKER_WORKSPACE = 'apps/control-plane'
+CONTROL_SERVICE = 'control-api'
+WORKER_STOPPED_PHASES = ('quiescing', 'captured', 'stopping', 'snapshotted', 'upgrading', 'starting', 'opening',
+                         'opened')
+MAINTENANCE_PHASES = ('stopping', 'snapshotted', 'upgrading', 'starting', 'opening')
+PRE_SNAPSHOT_PHASES = ('verified', 'quiescing', 'captured')
+# From `opened` on, customers can write to the new release: a failure never rolls back, the next run resumes.
+POST_OPEN_PHASES = ('opened', 'committed', 'cleanup')
+ROLLBACK_PHASES = ('upgrading', 'starting', 'rolling_back')
+CLASSIFICATION_DIR = '/run/liwan-runtime/classifications'
+SMOKE_MARKER = 'UPGRADE_SMOKE_OK'
+BACKUP_COPIES = 3  # the encrypted capture stages a dump, a plain tar and a ciphertext under the work root
+DISK_MARGIN = 1.5  # free space must cover every snapshot (database plus filestore) with half again as much
+# The compose files of the shared stack, in merge order, relative to deploy/. The release renders and starts this set;
+# the tests that read the deployed stack import it from here.
+SHARED_COMPOSE_FILES = ('docker-compose.yml', 'docker-compose.shared.yml', 'docker-compose.shared-commercial.yml',
+                        'docker-compose.production.yml', 'docker-compose.host-link.yml')
+CONFIG_KEYS = ('LIWAN_RELEASE_PROJECT', 'LIWAN_SHARED_ENV_FILE', 'LIWAN_RELEASE_PG_DUMP', 'LIWAN_RELEASE_PG_HOST',
+               'LIWAN_RELEASE_CONTROL_PG_HOST', 'LIWAN_RELEASE_ODOO_DATA_DIR', 'LIWAN_RELEASE_DISK_PATH')
+# The loopback ports the two host-link overlays publish; the shared env file sets them, these are the overlays' defaults.
+TENANT_DB_PORT = ('LIWAN_DB_HOST_PORT', '15433')
+CONTROL_DB_PORT = ('LIWAN_CONTROL_DB_HOST_PORT', '15432')
+
+
+class Paths:
+    def __init__(self, config_root=Path('/etc/liwan-release'), state_root=Path('/var/lib/liwan-release'),
+                 releases=Path('/opt/liwan/releases'), current=Path('/opt/liwan/current'),
+                 maintenance=Path('/var/lib/liwan-release/maintenance/active')):
+        self.config_root, self.state_root, self.releases = config_root, state_root, releases
+        self.current, self.maintenance = current, maintenance
+
+
+def load_config(paths: Paths, environment: str) -> dict[str, str]:
+    """The root-only config of one environment; a readable-by-others or foreign-owned file is refused."""
+    if environment not in CHANNELS:
+        raise ReleaseError('invalid_environment', EXIT_REFUSED, f'environment must be one of {sorted(CHANNELS)}')
+    path = paths.config_root / f'{environment}.env'
+    if not path.is_file():
+        raise ReleaseError('missing_config', EXIT_REFUSED, f'{path} does not exist')
+    info = path.stat()
+    if info.st_mode & 0o077 or info.st_uid != os.geteuid():
+        raise ReleaseError('config_not_private', EXIT_REFUSED, f'{path} must be mode 0600 and owned by the running user')
+    config = read_env_file(path)
+    missing = [key for key in CONFIG_KEYS if not config.get(key)]
+    if missing:
+        raise ReleaseError('invalid_config', EXIT_REFUSED, f'{path} lacks {", ".join(missing)}')
+    return config
+
+
+def unreadable_by_worker(info: os.stat_result) -> bool:
+    """A root-owned file that group and others cannot read: the worker account could never read what is copied from it."""
+    return info.st_uid == 0 and not info.st_mode & 0o044
+
+
+def release_env_text(commit: str, odoo_commit: str) -> str:
+    return f'LIWAN_IMAGE_TAG={commit}\nODOO_COMMIT={odoo_commit}\n'
+
+
+def normalize_tree(root: Path) -> None:
+    """Release trees are read by the liwan-worker user: 0755 directories, 0644 files, exec bits kept."""
+    root.chmod(0o755)
+    for directory, dirnames, filenames in os.walk(root):
+        for name in dirnames + filenames:
+            path = Path(directory) / name
+            if path.is_symlink():
+                continue
+            mode = path.stat().st_mode
+            path.chmod(0o755 if path.is_dir() or mode & 0o111 else 0o644)
+
+
+class Releaser:
+    def __init__(self, environment: str, config: dict[str, str], paths: Paths, runner, log, environ: dict, machine: str,
+                 tag: str | None = None):
+        self.environment = environment
+        self.tag = tag
+        self.config = config
+        self.paths = paths
+        self.runner = runner
+        self.log = log
+        self.environ = environ
+        self.machine = machine
+        self.state = paths.state_root / environment
+        self.docker_config = self.state / 'docker-config'
+        credentials = (USER_VAR, TOKEN_VAR, GITHUB_TOKEN_VAR)
+        self.child_env = {**{k: v for k, v in environ.items() if k not in credentials}, **config,
+                          'DOCKER_CONFIG': str(self.docker_config)}
+        self.platform = ''
+        self.source: Source | None = None
+
+    def run_command(self, argv: list[str], *, env: dict | None = None, **options) -> tuple[int, str]:
+        """Every subprocess gets an explicit environment: a call that names none gets ``child_env``, which holds no token."""
+        return self.runner(argv, env=self.child_env if env is None else env, **options)
+
+    # --- results and state files -----------------------------------------------------------------------
+    def finish(self, code: int, result: str) -> int:
+        self.log(f'RESULT: {result}')
+        return code
+
+    def file(self, name: str) -> Path:
+        return self.state / name
+
+    def set_phase(self, run: dict, phase: str) -> None:
+        run['phase'] = phase
+        run['updatedAt'] = now()
+        write_json(self.file('run.json'), run)
+        self.log(f'phase {phase} ({run["commit"]})')
+
+    def current_release_env(self) -> str | None:
+        path = self.file('release.env')
+        return path.read_text(encoding='utf-8') if path.exists() else None
+
+    # --- maintenance marker (Caddy shows the maintenance page only while it exists) --------------------
+    def enter_maintenance(self) -> None:
+        marker = self.paths.maintenance
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.parent.chmod(0o755)
+        marker.touch()
+        marker.chmod(0o644)
+
+    def leave_maintenance(self) -> None:
+        self.paths.maintenance.unlink(missing_ok=True)
+
+    # --- run -------------------------------------------------------------------------------------------
+    def require_current_symlink(self) -> None:
+        """``current`` is only ever replaced by a symlink into releases/; a real directory would fail mid-upgrade."""
+        current = self.paths.current
+        if current.exists() and not current.is_symlink():
+            raise ReleaseError('current_not_symlink', EXIT_REFUSED,
+                               f'{current} must be a symlink into {self.paths.releases}, not a directory')
+        if current.is_symlink() and not current.exists():
+            raise ReleaseError('current_dangling', EXIT_REFUSED,
+                               f'{current} points at {os.readlink(current)}, which does not exist; relink it to a release folder')
+
+    def run(self) -> int:
+        tag = explicit_tag(self.environment, self.tag)
+        self.require_current_symlink()
+        halted = read_json(self.file('halted.json'))
+        if halted is not None:
+            self.log('halted: fix the cause, then run "rollback" to finish and clear it')
+            return self.finish(EXIT_HALTED, f'halted {halted.get("reason", "unknown")}')
+        credential = Credential.from_environment(self.environ)
+        self.platform = f'linux/{host_architecture(self.machine)}'
+        self.state.mkdir(parents=True, exist_ok=True, mode=0o700)
+        self.state.chmod(0o700)
+        self.docker_config.mkdir(exist_ok=True, mode=0o700)
+        self.docker_config.chmod(0o700)
+        github_token = self.environ.get(GITHUB_TOKEN_VAR) or None
+        self.source = Source(self.environment, tag, self.state, credential, github_token, self.run_command, self.log,
+                             self.child_env)
+        self.source.login()
+        unfinished = read_json(self.file('run.json'))
+        if unfinished is not None:
+            return self.resume(unfinished)
+        served = read_json(self.file('served.json'))
+        candidate = self.source.candidate()
+        if candidate is None:
+            return self.finish(EXIT_OK, 'nothing to do: no release tag exists')
+        if served is not None and served['commit'] == candidate['commit']:
+            return self.finish(EXIT_OK, f'nothing to do: serving {served["commit"]}')
+        failed = read_json(self.file('failed.json'))
+        if failed is not None and failed['commit'] == candidate['commit']:
+            return self.finish(EXIT_HALTED, f'nothing to do: {failed["commit"]} failed before ({failed["reason"]}); '
+                               'run "rollback" to try it again')
+        self.source.fetch(candidate['commit'])
+        self.source.refuse_older(candidate, served)
+        self.source.require_on_main(candidate)
+        document = self.source.document(candidate, self.platform.removeprefix('linux/'))
+        run = {**candidate, 'document': document, 'previous': served,
+               'previousReleaseEnv': self.current_release_env(), 'startedAt': now()}
+        self.set_phase(run, 'verified')
+        return self.forward(run)
+
+    def resume(self, run: dict) -> int:
+        self.log(f'resuming {run["commit"]} at {run["phase"]}')
+        if run['phase'] in ROLLBACK_PHASES:
+            return self.roll_back(run, run.get('failure', 'interrupted'))
+        return self.forward(run)
+
+    def forward(self, run: dict) -> int:
+        steps = (('verified', self.prepare), ('quiescing', self.quiesce), ('captured', self.capture), ('stopping', self.stop),
+                 ('snapshotted', self.snapshot), ('upgrading', self.upgrade), ('starting', self.start),
+                 ('opening', self.open), ('opened', self.reopen), ('committed', self.commit), ('cleanup', self.cleanup))
+        names = [name for name, _ in steps]
+        if run['phase'] in WORKER_STOPPED_PHASES[1:] and run['previous'] is not None:
+            self.stop_worker()  # a resumed run keeps the worker stopped, as the interrupted one had it
+        for name, step in steps[names.index(run['phase']):]:
+            if run['phase'] != name:
+                self.set_phase(run, name)
+            if name in MAINTENANCE_PHASES:
+                self.enter_maintenance()
+            try:
+                step(run)
+            except (ReleaseError, CommandFailed, OSError, ValueError) as error:
+                reason = error.reason if isinstance(error, ReleaseError) else f'{name}_failed'
+                code = error.exit_code if isinstance(error, ReleaseError) else EXIT_FAILED
+                if isinstance(error, ReleaseError) and error.detail:
+                    self.log(error.detail)
+                return self.fail(run, name, reason, code)
+        return self.finish(EXIT_OK, f'committed {run["commit"]}')
+
+    def fail(self, run: dict, phase: str, reason: str, code: int) -> int:
+        if phase in PRE_SNAPSHOT_PHASES:  # nothing but the worker was stopped, and the served release never moved
+            if phase != 'verified' and run['previous'] is not None:
+                reason = self.restart_worker(reason)
+            self.alert('deploy_failed', run['commit'], phase, reason)
+            self.file('run.json').unlink()
+            if phase != 'verified':  # a refusal before anything stopped costs nothing to repeat
+                self.record_failure(run['commit'], reason)
+            if code == EXIT_REFUSED:
+                return self.finish(EXIT_REFUSED, f'refused {reason}')
+            return self.finish(EXIT_FAILED, f'rolled back {reason}')
+        if phase in POST_OPEN_PHASES:  # served.json is written; the next run resumes from run.json
+            self.alert('deploy_failed', run['commit'], phase, reason)
+            return self.finish(EXIT_FAILED, f'incomplete {run["commit"]} {reason}')
+        return self.roll_back(run, reason)
+
+    def record_failure(self, commit: str, reason: str) -> None:
+        """A candidate that failed after the stop is not retried until the candidate changes or ``rollback`` clears it."""
+        write_json(self.file('failed.json'), {'commit': commit, 'reason': reason, 'at': now()})
+
+    def restart_worker(self, reason: str) -> str:
+        """Nothing else was stopped, so the served release keeps running; a worker that stays down is the reason."""
+        try:
+            self.start_worker()
+        except (ReleaseError, CommandFailed):
+            return 'worker_not_ready'
+        return reason
+
+    def halt(self, run: dict, phase: str, reason: str, event: str) -> None:
+        write_json(self.file('halted.json'), {'commit': run['commit'], 'phase': phase, 'reason': reason,
+                                              'event': event, 'at': now()})
+        self.alert(event, run['commit'], phase, reason)
+
+    def alert(self, event: str, commit: str, phase: str, reason: str) -> None:
+        code, _ = self.run_command(['python3', '-B', str(ROOT / 'deploy/alerts.py'), event, '--environment',
+                                    self.environment, '--release', commit, '--phase', phase, '--reason', reason],
+                                   env=self.child_env, check=False)
+        if code != 0:
+            self.log(f'alert {event} was not delivered (exit {code})')
+
+    # --- steps -----------------------------------------------------------------------------------------
+    def checkout(self, commit: str) -> Path:
+        return self.paths.releases / commit
+
+    def prepare(self, run: dict) -> None:
+        """Checkout with the worker's dependencies, every image by digest, and the disk checks; nothing running changes."""
+        self.shared_compose_target()  # a render that can only fail after the stop is refused here
+        target = self.checkout(run['commit'])
+        if not target.exists():
+            self.extract(run['commit'], target)
+        images = self.images(target, run['document'])
+        pulled = []
+        for reference, image in images:
+            self.run_command(['docker', 'pull', '--quiet', image], env=self.child_env)
+            self.run_command(['docker', 'tag', image, f'{reference}:{run["commit"]}'])
+            pulled += [image, f'{reference}:{run["commit"]}']
+        write_json(self.file(f'releases/{run["commit"]}.json'), {'images': pulled})
+        self.check_disk(run, target)
+
+    def extract(self, commit: str, target: Path) -> None:
+        """git archive, the shared worker's node dependencies (tsx is a dev dependency needed at run time, so dev packages are
+        installed even when NODE_ENV=production), readable modes."""
+        staging = target.with_name(target.name + '.partial')
+        if staging.exists():
+            shutil.rmtree(staging)
+        staging.mkdir(parents=True)
+        archive = staging.parent / f'{commit}.tar'
+        self.source.archive(commit, archive)
+        self.run_command(['tar', '-x', '-f', str(archive), '-C', str(staging)])
+        archive.unlink()
+        try:
+            self.run_command(['npm', '--prefix', str(staging), 'ci', '--ignore-scripts', '--no-audit', '--no-fund',
+                              '--include=dev', '--workspace', WORKER_WORKSPACE], env=self.child_env)
+        except CommandFailed:
+            raise ReleaseError('worker_dependencies_failed') from None
+        normalize_tree(staging)
+        self.paths.releases.chmod(0o755)
+        os.replace(staging, target)
+
+    def images(self, checkout: Path, document: dict) -> list[tuple[str, str]]:
+        """(local name, registry image@digest of the host's architecture) for every published build; the document must
+        list exactly those."""
+        images = document['images']
+        _, output = self.run_command(['python3', '-B', str(checkout / 'deploy/image_pins.py'), '--print-builds'])
+        published = {}
+        for line in output.splitlines():
+            registry_image, reference = line.split('\t')[:2]
+            if registry_image != '-':
+                published[reference] = registry_image
+        if set(published) != set(images) or any(not images[ref].startswith(published[ref] + '@') for ref in published):
+            raise ReleaseError('document_images_mismatch', EXIT_REFUSED)
+        return sorted((reference, f'{published[reference]}@{document["platforms"][reference][self.platform]}')
+                      for reference in published)
+
+    def check_disk(self, run: dict, checkout: Path) -> None:
+        """Refuse before anything stops when the free space cannot hold a snapshot of every database and filestore."""
+        if run['previous'] is None:
+            return
+        current = self.paths.current.resolve()
+        tenants = self.tenants(checkout)
+        names = {item['database']: item for item in tenants}
+        quoted = ','.join(databases.literal(name) for name in names)
+        sizes = {} if not names else dict(row.split('|') for row in self.psql(
+            current, f'SELECT datname, pg_database_size(datname) FROM pg_database WHERE datname IN ({quoted});\n').splitlines())
+        control = self.psql(current, f'SELECT pg_database_size({databases.literal(CONTROL_DB)});\n', control=True)
+        needed = int(control) + sum(int(size) for size in sizes.values())
+        filestores = {item['database']: databases.tree_bytes(Path(item['filestore'])) for item in tenants}
+        needed += sum(filestores.values())
+        largest = max([int(control)] + [int(size) + filestores[name] for name, size in sizes.items()])
+        needed += BACKUP_COPIES * largest  # the encrypted capture of the largest database, one at a time
+        required = int(needed * DISK_MARGIN)
+        free = free_bytes(self.config['LIWAN_RELEASE_DISK_PATH'])
+        if free < required:
+            raise ReleaseError('insufficient_disk', EXIT_REFUSED,
+                               f'{free} bytes are free but a snapshot of every database and filestore needs {required}')
+
+    def quiesce(self, run: dict) -> None:
+        """Stop the shared worker before the inventory, so no tenant is provisioned past the snapshot."""
+        if run['previous'] is not None:
+            self.stop_worker()
+        run['tenants'] = self.tenants(self.checkout(run['commit']))
+        if run['previous'] is None and run['tenants']:
+            raise ReleaseError('bootstrap_with_tenants', EXIT_REFUSED)
+        write_json(self.file('run.json'), run)
+
+    def tenants(self, checkout: Path) -> list[dict]:
+        registry = Path(read_env_file(Path(self.config['LIWAN_SHARED_ENV_FILE']))['LIWAN_TENANT_REGISTRY_DIR'])
+        registry_file = registry / 'registry.json'
+        if not registry_file.exists():
+            return []  # no tenant was ever created on this host
+        try:
+            _, output = self.run_command(['node', str(checkout / 'deploy/shared/backup-binding.mjs'), '--list',
+                                          str(registry_file)])
+        except CommandFailed:
+            raise ReleaseError('tenant_registry_unavailable') from None
+        try:
+            items = json.loads(output)
+        except ValueError:
+            raise ReleaseError('tenant_registry_unavailable') from None
+        return [self.checked_tenant(item) for item in items]
+
+    def checked_tenant(self, item: dict) -> dict:
+        """The registry names the filestore like the database; backup_pipeline.py places it at <data>/filestore/<name>."""
+        if not isinstance(item, dict) or not isinstance(item.get('tenantId'), str) or not item['tenantId']:
+            raise ReleaseError('invalid_tenant_registry', EXIT_REFUSED, 'a registry entry has no tenantId')
+        database, name = str(item.get('database', '')), str(item.get('filestore', ''))
+        if not TENANT_DATABASE.fullmatch(database) or name != database:
+            raise ReleaseError('invalid_tenant_registry', EXIT_REFUSED)
+        filestore = Path(self.config['LIWAN_RELEASE_ODOO_DATA_DIR']).resolve() / 'filestore' / name
+        return {'tenantId': item['tenantId'], 'database': database, 'filestore': str(filestore)}
+
+    def capture(self, run: dict) -> None:
+        """Encrypted disaster copy of every tenant and the control plane, through the existing pipeline."""
+        if run['previous'] is None:
+            return  # first deploy: no stack has run, so there is no data to copy
+        work = self.file(f'runs/{run["commit"]}/backup')
+        common = ['--kind', 'hourly', '--work-root', str(work), '--pg-dump', self.config['LIWAN_RELEASE_PG_DUMP']]
+        if self.config.get('LIWAN_RELEASE_BACKUP_STORE_ROOT'):
+            common += ['--store-root', self.config['LIWAN_RELEASE_BACKUP_STORE_ROOT']]
+        pipeline = ['python3', '-B', str(ROOT / 'deploy/backup_pipeline.py'), 'capture']
+        try:
+            for tenant in run['tenants']:
+                self.run_command(pipeline + common + [
+                    '--tenant', tenant['tenantId'], '--data-dir', self.config['LIWAN_RELEASE_ODOO_DATA_DIR'],
+                    '--pg-host', self.config['LIWAN_RELEASE_PG_HOST'], '--pg-port', self.db_port(TENANT_DB_PORT),
+                    '--pg-user', DB_SUPERUSER], env=self.child_env)
+            self.run_command(pipeline + common + [
+                '--control-plane', '--db-name', CONTROL_DB, '--pg-host', self.config['LIWAN_RELEASE_CONTROL_PG_HOST'],
+                '--pg-port', self.db_port(CONTROL_DB_PORT), '--pg-user', CONTROL_DB_USER],
+                env=self.child_env)
+        except CommandFailed:
+            raise ReleaseError('backup_failed') from None
+
+    def compose(self, checkout: Path) -> list[str]:
+        command = ['docker', 'compose', '-p', self.config['LIWAN_RELEASE_PROJECT']]
+        for name in SHARED_COMPOSE_FILES:
+            command += ['-f', str(checkout / 'deploy' / name)]
+        return command + ['--env-file', self.config['LIWAN_SHARED_ENV_FILE'],
+                          '--env-file', str(self.file('release.env'))]
+
+    def shared_env(self) -> dict[str, str]:
+        return read_env_file(Path(self.config['LIWAN_SHARED_ENV_FILE']))
+
+    def db_port(self, setting: tuple[str, str]) -> str:
+        key, default = setting
+        return self.shared_env().get(key) or default
+
+    def shared_compose_target(self) -> Path:
+        """Where the worker's compose file goes, or a refusal: an absolute path in a writable directory, and a shared env
+        file the worker can read (the file takes its owner and mode)."""
+        env_path = Path(self.config['LIWAN_SHARED_ENV_FILE'])
+        compose_file = self.shared_env().get('LIWAN_SHARED_COMPOSE_FILE')
+        if not compose_file or not os.path.isabs(compose_file):
+            raise ReleaseError('invalid_shared_env', EXIT_REFUSED,
+                               f'{env_path} needs LIWAN_SHARED_COMPOSE_FILE set to an absolute path')
+        target = Path(compose_file)
+        if not os.access(target.parent, os.W_OK | os.X_OK):
+            raise ReleaseError('invalid_shared_env', EXIT_REFUSED, f'{target.parent} does not exist or is not writable')
+        if unreadable_by_worker(env_path.stat()):
+            raise ReleaseError('invalid_shared_env', EXIT_REFUSED,
+                               f'{env_path} is root-owned and unreadable by group and others: the worker could not read '
+                               'the compose file rendered from it')
+        return target
+
+    def write_shared_compose(self, checkout: Path) -> None:
+        """The file ``composeFile`` of shared-runtime.json names: the shared stack of ``checkout`` as one resolved compose file
+        (every profile), which the host worker and its effects run ``docker compose --file`` on. It holds the interpolated
+        secrets of the shared env file, so it takes that file's owner, group and mode."""
+        target = self.shared_compose_target()
+        owner = Path(self.config['LIWAN_SHARED_ENV_FILE']).stat()
+        temporary = target.with_name(target.name + '.tmp')
+        os.close(os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600))
+        try:
+            try:
+                self.run_command(self.compose(checkout) + ['--profile', '*', 'config', '--format', 'json',
+                                                           '--output', str(temporary)], env=self.child_env)
+            except CommandFailed:
+                raise ReleaseError('shared_compose_render_failed') from None
+            os.chown(temporary, owner.st_uid, owner.st_gid)
+            temporary.chmod(stat.S_IMODE(owner.st_mode))
+            os.replace(temporary, target)
+        finally:
+            temporary.unlink(missing_ok=True)
+
+    def control_compose(self, checkout: Path) -> list[str]:
+        return ['docker', 'compose', '-p', CONTROL_PROJECT,
+                '-f', str(checkout / 'deploy/control-plane/compose.production.yml'),
+                '-f', str(checkout / 'deploy/control-plane/compose.host-link.yml'),
+                '--env-file', self.config['LIWAN_SHARED_ENV_FILE'], '--env-file', str(self.file('release.env'))]
+
+    def stop_services(self, checkout: Path) -> None:
+        self.run_command(self.compose(checkout) + ['stop', EDGE_SERVICE, *APP_SERVICES], env=self.child_env)
+        self.run_command(self.control_compose(checkout) + ['stop', CONTROL_SERVICE], env=self.child_env)
+
+    def stop_worker(self) -> None:
+        self.run_command(['systemctl', 'stop', SHARED_WORKER_UNIT])
+
+    def start_worker(self) -> None:
+        """The worker can charge a saved card on its first tick, so it runs only on a committed release."""
+        self.run_command(['systemctl', 'start', SHARED_WORKER_UNIT])
+        code, _ = self.run_command(['systemctl', 'is-active', '--quiet', SHARED_WORKER_UNIT], check=False)
+        if code != 0:
+            raise ReleaseError('worker_not_ready')
+
+    def stop(self, run: dict) -> None:
+        """Maintenance: the edge (Caddy) and the databases stay up; Caddy answers 503 while the guard is down."""
+        if run['previous'] is not None:
+            self.stop_services(self.paths.current.resolve())
+
+    def psql(self, checkout: Path, sql: str, *, control: bool = False) -> str:
+        if control:
+            base = self.control_compose(checkout) + ['exec', '-T', 'control-db', 'psql', '-U', CONTROL_DB_USER]
+        else:
+            base = self.compose(checkout) + ['exec', '-T', 'db', 'psql', '-U', DB_SUPERUSER]
+        return self.run_command(base + ['-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-At', '-f', '-'],
+                                stdin=sql, env=self.child_env)[1].strip()
+
+    def databases(self, run: dict) -> list[dict]:
+        tenants = [{'database': t['database'], 'filestore': t['filestore'], 'control': False} for t in run['tenants']]
+        return tenants + [{'database': CONTROL_DB, 'filestore': None, 'control': True}]
+
+    def acl(self, checkout: Path, database: str, control: bool) -> dict:
+        """Owner, then one ``aclexplode`` row per grant (PUBLIC as ''), NULL read as PostgreSQL's default."""
+        name = databases.literal(database)
+        rows = self.psql(checkout, f'SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = {name};\n'
+                         "SELECT CASE WHEN a.grantee = 0 THEN '' ELSE pg_get_userbyid(a.grantee) END, a.privilege_type, "
+                         'a.is_grantable FROM pg_database d, '
+                         "LATERAL aclexplode(COALESCE(d.datacl, acldefault('d', d.datdba))) a "
+                         f'WHERE d.datname = {name} ORDER BY 1, 2, 3;\n', control=control).splitlines()
+        grants = [[grantee, privilege, grantable == 't']
+                  for grantee, privilege, grantable in (row.split('|') for row in rows[1:])]
+        return {'owner': rows[0], 'grants': grants}
+
+    def snapshot(self, run: dict) -> None:
+        """Copy every database (FILE_COPY template) and hard-link every filestore before anything is upgraded."""
+        if run['previous'] is None:
+            return  # first deploy: nothing to roll back to
+        checkout = self.paths.current.resolve()
+        run.setdefault('access', {})
+        run.setdefault('snapshots', {})
+        for item in self.databases(run):
+            database = item['database']
+            if run['snapshots'].get(database):
+                continue
+            run['access'][database] = self.acl(checkout, database, item['control'])
+            write_json(self.file('run.json'), run)
+            self.psql(checkout, databases.snapshot_sql(database), control=item['control'])
+            if item['filestore']:
+                copy = Path(item['filestore'] + '.pre')
+                if copy.exists():
+                    shutil.rmtree(copy)
+                self.run_command(['cp', '-al', item['filestore'], str(copy)])
+            run['snapshots'][database] = True
+            write_json(self.file('run.json'), run)
+
+    def activate(self, commit: str, odoo_commit: str) -> None:
+        write_atomic(self.file('release.env'), release_env_text(commit, odoo_commit))
+        self.write_shared_compose(self.checkout(commit))
+        self.point_current(self.checkout(commit))
+
+    def point_current(self, target: Path) -> None:
+        link = self.paths.current.with_name(self.paths.current.name + '.next')
+        if link.is_symlink() or link.exists():
+            link.unlink()
+        link.symlink_to(target)
+        os.replace(link, self.paths.current)
+
+    def upgrade(self, run: dict) -> None:
+        """Release env and checkout first, then every tenant with the CI-proven flags, then the control plane."""
+        self.activate(run['commit'], run['document']['release']['odooCommit'])
+        checkout = self.checkout(run['commit'])
+        modules = ','.join(run['document']['release']['upgradeModules'])
+        for tenant in run['tenants']:
+            self.upgrade_tenant(run, checkout, tenant['database'], modules)
+        try:
+            self.run_command(self.control_compose(checkout) + ['--profile', 'migrate', 'run', '--rm', '--pull',
+                                                               'never', '-T', 'control-migrate'], env=self.child_env)
+        except CommandFailed:
+            raise ReleaseError('control_migrate_failed') from None
+
+    def odoo_run(self, checkout: Path, database: str, args: list[str], stdin: str | None = None) -> str:
+        command = self.compose(checkout) + [
+            'run', '--rm', '--no-deps', '--pull', 'never', '-T', '-e', f'LIWAN_COMMERCIAL_CONFIG={CLASSIFICATION_DIR}/{database}.json',
+            '--entrypoint', '/usr/local/bin/liwan-odoo', 'odoo', *args]
+        return self.run_command(command, stdin=stdin, env=self.child_env)[1]
+
+    def upgrade_tenant(self, run: dict, checkout: Path, database: str, modules: str) -> None:
+        log = self.file(f'runs/{run["commit"]}/upgrade-{database}.log')
+        try:
+            output = self.odoo_run(checkout, database, ['-c', '/etc/odoo/odoo.conf', '-d', database, '-u', modules,
+                                                        '-i', modules, '--stop-after-init', '--no-http'])
+        except CommandFailed:
+            raise ReleaseError('upgrade_failed') from None
+        write_atomic(log, output)
+        code, _ = self.run_command(['python3', '-B', str(checkout / 'tools/upgrade_log_guard.py'), str(log)],
+                                   check=False)
+        if code != 0:
+            raise ReleaseError('upgrade_log_rejected')
+        smoke = (checkout / 'deploy/odoo/upgrade_smoke.py').read_text(encoding='utf-8')
+        try:
+            output = self.odoo_run(checkout, database, ['shell', '-c', '/etc/odoo/odoo.conf', '-d', database,
+                                                        '--no-http'], stdin=smoke)
+        except CommandFailed:
+            raise ReleaseError('upgrade_smoke_failed') from None
+        if SMOKE_MARKER not in output:
+            raise ReleaseError('upgrade_smoke_failed')
+
+    def start_services(self, checkout: Path, with_edge: bool) -> None:
+        """The proxy (80/443) and the applications, healthy; the guard too when ``with_edge``. Never the worker."""
+        services = [PROXY_SERVICE, *APP_SERVICES] + ([EDGE_SERVICE] if with_edge else [])
+        self.run_command(self.compose(checkout) + [*UP, *services], env=self.child_env)
+        self.run_command(self.control_compose(checkout) + [*UP, CONTROL_SERVICE], env=self.child_env)
+
+    def start(self, run: dict) -> None:
+        try:
+            self.start_services(self.checkout(run['commit']), with_edge=False)
+        except CommandFailed:
+            raise ReleaseError('health_check_failed') from None
+
+    def open(self, run: dict) -> None:
+        """Starting the guard healthy is the commit point: customers reach the new release."""
+        try:
+            self.run_command(self.compose(self.checkout(run['commit'])) + [*UP, EDGE_SERVICE], env=self.child_env)
+        except CommandFailed:
+            raise ReleaseError('health_check_failed') from None
+
+    def reopen(self, run: dict) -> None:
+        """The phase is written before the marker goes, so a crash here never rolls back customers' new writes."""
+        self.leave_maintenance()
+
+    def commit(self, run: dict) -> None:
+        write_json(self.file('served.json'), {'commit': run['commit'], 'ref': run['ref'], 'version': run['version'],
+                                              'odooCommit': run['document']['release']['odooCommit'], 'at': now()})
+        self.start_worker()
+
+    def cleanup(self, run: dict) -> None:
+        """Drop the snapshots, then prune everything older than the previous release; the run is over."""
+        self.drop_snapshots(run, self.checkout(run['commit']))
+        self.file('run.json').unlink()
+        self.prune(run)
+
+    def drop_snapshots(self, run: dict, checkout: Path) -> None:
+        for item in self.databases(run):
+            if not run.get('snapshots', {}).get(item['database']):
+                continue
+            self.psql(checkout, databases.reopen_sql(item['database']), control=item['control'])
+            self.psql(checkout, f'DROP DATABASE IF EXISTS {identifier(databases.snapshot_name(item["database"]))} '
+                      'WITH (FORCE);\n', control=item['control'])
+            copy = Path(item['filestore'] + '.pre') if item['filestore'] else None
+            if copy is not None and copy.exists():
+                shutil.rmtree(copy)
+
+    def prune(self, run: dict) -> None:
+        """Keep the served release and the previous one; remove the images and release folders of every older one."""
+        keep = {run['commit']} | ({run['previous']['commit']} if run['previous'] else set())
+        for record in sorted(self.file('releases').glob('*.json')):
+            if record.stem in keep:
+                continue
+            images = (read_json(record) or {}).get('images', [])
+            if images:
+                self.run_command(['docker', 'image', 'rm', *images], env=self.child_env, check=False)
+            record.unlink()
+        for runs in sorted(self.file('runs').glob('*')):
+            if runs.name not in keep:
+                shutil.rmtree(runs, ignore_errors=True)
+        for folder in sorted(self.paths.releases.glob('*')):
+            match = RELEASE_FOLDER.match(folder.name)
+            if match and match.group(1) not in keep:
+                shutil.rmtree(folder) if folder.is_dir() else folder.unlink()
+
+    # --- rollback --------------------------------------------------------------------------------------
+    def roll_back(self, run: dict, reason: str) -> int:
+        failed_phase = run.get('failedPhase', run['phase'])
+        run.update(failure=reason, failedPhase=failed_phase)
+        self.set_phase(run, 'rolling_back')
+        self.enter_maintenance()
+        try:
+            if run['previous'] is None:
+                self.stop_bootstrap(run)
+                self.halt(run, failed_phase, reason, 'deploy_failed')
+                self.file('run.json').unlink()
+                return self.finish(EXIT_FAILED, f'halted {reason}')
+            self.restore(run)
+        except (ReleaseError, CommandFailed, OSError, ValueError) as error:
+            code = error.reason if isinstance(error, ReleaseError) else 'rollback_command_failed'
+            self.halt(run, failed_phase, code, 'deploy_rollback_failed')
+            return self.finish(EXIT_ROLLBACK_FAILED, f'halted {code}')
+        self.alert('deploy_failed', run['commit'], failed_phase, reason)
+        self.file('run.json').unlink()
+        self.record_failure(run['commit'], reason)
+        return self.finish(EXIT_FAILED, f'rolled back {reason}')
+
+    def cancel_pending(self, run: dict) -> int:
+        """Before the stop nothing was snapshotted and no tenant inventory is certain (``run['tenants']`` may not exist),
+        so there is no data to restore: the served stack stays as it is, only a worker stopped for the inventory restarts."""
+        if run['phase'] != 'verified' and run['previous'] is not None and self.restart_worker('') != '':
+            return self.finish(EXIT_FAILED, f'worker_not_ready: {run["commit"]} stays pending, run "rollback" again')
+        self.file('run.json').unlink()
+        return self.finish(EXIT_OK, f'cancelled {run["commit"]} before anything was stopped or snapshotted')
+
+    def stop_bootstrap(self, run: dict) -> None:
+        """First deploy: nothing older exists, so the failed stack is stopped and left in maintenance."""
+        if self.file('release.env').exists():
+            checkout = self.checkout(run['commit'])
+            self.run_command(self.compose(checkout) + ['stop', EDGE_SERVICE, PROXY_SERVICE, *APP_SERVICES],
+                             env=self.child_env)
+            self.run_command(self.control_compose(checkout) + ['stop', CONTROL_SERVICE], env=self.child_env)
+
+    def restore(self, run: dict) -> None:
+        """Swap every snapshot back, restore owner, grants and isolation, restart the previous release, then give the worker its
+        file and start it."""
+        previous = run['previous']
+        checkout = self.checkout(previous['commit'])
+        self.stop_worker()  # a reboot during a resumed rollback starts the enabled unit again
+        self.stop_services(self.paths.current.resolve())
+        for item in self.databases(run):
+            self.swap_back(run, checkout, item)
+        write_atomic(self.file('release.env'), run['previousReleaseEnv']
+                     or release_env_text(previous['commit'], previous['odooCommit']))
+        self.point_current(checkout)
+        self.start_services(checkout, with_edge=True)
+        self.leave_maintenance()  # the previous release serves from here on, whatever the worker's file does
+        self.shared_compose_target().unlink(missing_ok=True)  # still the failed release's render: a failed render below must leave no file
+        self.write_shared_compose(checkout)  # only the worker needs it, so a failed render never keeps the stack down
+        self.start_worker()
+
+    def swap_back(self, run: dict, checkout: Path, item: dict) -> None:
+        database, snap = item['database'], databases.snapshot_name(item['database'])
+        live = self.exists(checkout, database, item['control'])
+        if database in run.get('access', {}) and live:
+            self.psql(checkout, databases.reopen_sql(database), control=item['control'])  # a failed snapshot left it closed
+        if not run.get('snapshots', {}).get(database):
+            return  # never snapshotted in this run, so never upgraded: an older liwan_pre_* is not ours to swap in
+        recorded = run['access'][database]
+        if self.exists(checkout, snap, item['control']):
+            self.psql(checkout, databases.swap_sql(database, live), control=item['control'])
+        owner = recorded['owner']
+        statements = [f'ALTER DATABASE {identifier(database)} ALLOW_CONNECTIONS true',
+                      f'ALTER DATABASE {identifier(database)} OWNER TO {identifier(owner)}']
+        if not item['control']:
+            statements += list(tenant_isolation_statements(database, DB_SUPERUSER))
+        statements += databases.grant_statements(database, recorded['grants'], owner)  # last: the recorded ACL wins
+        self.psql(checkout, ''.join(statement + ';\n' for statement in statements), control=item['control'])
+        if self.acl(checkout, database, item['control']) != recorded:
+            raise ReleaseError('acl_mismatch')
+        if item['filestore']:
+            databases.restore_filestore(Path(item['filestore']))
+
+    def exists(self, checkout: Path, database: str, control: bool) -> bool:
+        return self.psql(checkout, f'SELECT count(*) FROM pg_database WHERE datname = {databases.literal(database)};\n',
+                         control=control) == '1'
+
+    # --- status and rollback commands ------------------------------------------------------------------
+    def status(self) -> int:
+        report = {name: read_json(self.file(f'{name}.json')) for name in ('served', 'run', 'halted')}
+        if report['run']:
+            report['run'] = {key: report['run'][key] for key in ('commit', 'ref', 'phase', 'updatedAt')}
+        sys.stdout.write(json.dumps(report, indent=2, sort_keys=True) + '\n')
+        return EXIT_HALTED if report['halted'] else EXIT_OK
+
+    def rollback(self) -> int:
+        """Operator command: clear the halt and failed-candidate records and finish the rollback of the unfinished run, if there is one."""
+        self.require_current_symlink()
+        run = read_json(self.file('run.json'))
+        if run is not None and run['phase'] in POST_OPEN_PHASES:
+            return self.finish(EXIT_REFUSED, f'refused {run["phase"]}_cannot_roll_back')
+        self.file('halted.json').unlink(missing_ok=True)
+        self.file('failed.json').unlink(missing_ok=True)
+        if run is None:
+            return self.finish(EXIT_OK, 'nothing to do: the halt record is cleared and no run is unfinished')
+        if run['phase'] in PRE_SNAPSHOT_PHASES:
+            return self.cancel_pending(run)
+        return self.roll_back(run, run.get('failure', 'operator_rollback'))
+
+
+def parse_args(argv):
+    parser = argparse.ArgumentParser(description=(__doc__ or '').split('\n', 1)[0])
+    parser.add_argument('command', choices=('run', 'status', 'rollback'))
+    parser.add_argument('--environment', required=True)
+    parser.add_argument('--tag', action='append', help='production only: the release/19.0.X.Y.Z tag to apply (once)')
+    return parser.parse_args(argv)
+
+
+def main(argv=None, paths: Paths | None = None, runner=None, log=None, environ: dict | None = None,
+         machine: str | None = None) -> int:
+    args = parse_args(argv)
+    paths = paths or Paths()
+    environ = dict(os.environ) if environ is None else environ
+    log = log or make_log([environ.get(name, '') for name in (USER_VAR, TOKEN_VAR, GITHUB_TOKEN_VAR)])
+    try:
+        tags = args.tag or []
+        if len(tags) > 1:
+            raise ReleaseError('tag_repeated', EXIT_REFUSED, '--tag may be given once')
+        tag = tags[0] if tags else None
+        if tag is not None and args.command != 'run':
+            raise ReleaseError('tag_not_allowed', EXIT_REFUSED, '--tag belongs to the run command only')
+        config = load_config(paths, args.environment)
+        log.secrets.extend(sensitive_values(config, read_env_file(Path(config['LIWAN_SHARED_ENV_FILE']))))
+        releaser = Releaser(args.environment, config, paths, runner or Runner(log), log, environ,
+                            machine or platform.machine(), tag=tag)
+        if args.command == 'status':
+            return releaser.status()  # read-only: it must answer while a run holds the lock
+        with Lock(releaser.file('lock')) as held:
+            if not held:
+                log('another run holds the lock')
+                return releaser.finish(EXIT_OK, 'nothing to do: another run holds the lock')
+            return getattr(releaser, args.command)()
+    except ReleaseError as error:
+        if error.detail:
+            log(error.detail)
+        kind = 'nothing to do' if error.exit_code == EXIT_OK else 'refused' if error.exit_code == EXIT_REFUSED else 'failed'
+        log(f'RESULT: {kind} {error.reason}')
+        return error.exit_code
+    except Exception as error:  # last resort: state stays resumable, the job still gets a RESULT line
+        log(f'RESULT: failed unexpected_error {type(error).__name__}')
+        return EXIT_FAILED
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

@@ -15,10 +15,10 @@ can record:
 
 * A third-party image (``published``) is pinned by the index digest recorded here, and
   the compose file must carry the same digest.
-* An image this repository builds (``released``) is pushed to the GHCR account named in
-  ``registry`` by ``deploy/ci/publish.sh`` for every ``main`` commit. Its digest changes
-  with the commit, so it is recorded in the signed release manifest of that commit, never
-  in this file. ``builds`` records how each one is built (Dockerfile, context, build
+* An image this repository builds (``released``) is pushed to the private GitHub container registry
+  named in ``registry`` by ``deploy/ci/publish.sh`` for every ``main`` commit. Its digest
+  changes with the commit, so it is recorded in the release document of that commit
+  (``liwan-release:<commit>``), never in this file. ``builds`` records how each one is built (Dockerfile, context, build
   arguments), so the publish workflow and this gate read one list.
 
 ``check`` answers whether every production image is pinned, recorded and consistent with
@@ -58,8 +58,9 @@ COMPOSE_FILES = (
 )
 SCHEMA_VERSION = 1
 DIGEST = re.compile(r'^sha256:[0-9a-f]{64}$')
-# The only registry the publish workflow pushes to: GHCR under one lowercase account.
-REGISTRY = re.compile(r'^ghcr\.io/[a-z0-9]+(?:-[a-z0-9]+)*$')
+# The only registry the publish workflow pushes to: the private GHCR namespace of the repository owner. Every other
+# registry host is refused for LiwanOS images.
+REGISTRY = re.compile(r'^ghcr\.io/tariiq222$')
 # Images the repository builds itself: only these are ours to release. The registry comes
 # from the manifest, so the name carries no registry prefix.
 OWNED_REFERENCE = re.compile(r'^liwan-[a-z0-9-]+$')
@@ -132,7 +133,7 @@ class Build:
 
 @dataclass(frozen=True)
 class Manifest:
-    """The recorded pins, the registry account owned images are pushed to, and their builds."""
+    """The recorded pins, the registry organization owned images are pushed to, and their builds."""
 
     entries: tuple[Entry, ...]
     registry: str
@@ -187,7 +188,7 @@ def parse_manifest(document: object) -> Manifest:
              f'schemaVersion must be {SCHEMA_VERSION}')
     registry = document.get('registry')
     _require(isinstance(registry, str) and bool(REGISTRY.match(registry)),
-             'registry is a ghcr.io/<lowercase account> name')
+             'registry is the ghcr.io/tariiq222 namespace')
     entries = document.get('images')
     _require(isinstance(entries, list) and entries, 'images is a non-empty list')
     parsed: list[Entry] = []
@@ -219,8 +220,8 @@ def _parse_entry(raw: object, position: int) -> Entry:
                  f'{where}.digest is a sha256:<64 lowercase hex> index digest')
     else:
         _require(digest is None,
-                 f'{where}.digest is null: a released image is identified by the signed release '
-                 'manifest of each commit, never by a digest recorded here')
+                 f'{where}.digest is null: a released image is identified by the release '
+                 'document of each commit, never by a digest recorded here')
         _require(bool(OWNED_REFERENCE.match(reference)),
                  f'{where}.reference is a bare liwan-* name (the registry comes from `registry`): '
                  'a third-party image is published by someone else and must carry a digest')
@@ -493,7 +494,7 @@ def render_report(report: Report, manifest: Manifest) -> str:
     ]
     for item in report.declared:
         entry = entries.get(item.service)
-        recorded = 'missing' if entry is None else (entry.digest or 'per release (signed release manifest)')
+        recorded = 'missing' if entry is None else (entry.digest or 'per release (release document)')
         lines.append(f'| {item.service} | {item.image or "(built locally)"} | {recorded} |')
     if report.findings:
         lines.extend(('', 'findings', '--------'))

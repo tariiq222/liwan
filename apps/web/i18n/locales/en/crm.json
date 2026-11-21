@@ -132,6 +132,10 @@
         "remove": "Remove",
         "removeNamed": "Remove {name} from the list"
       },
+      "tenantLists": {
+        "readOnlyTitle": "Read-only",
+        "readOnly": "The stages, call outcomes, lost reasons and sources apply to every branch. They are changed in the main company by someone who may manage the CRM settings."
+      },
       "stages": {
         "title": "Stages",
         "hint": "The steps of the opportunity pipeline. Exactly one stage means \"sold\".",
