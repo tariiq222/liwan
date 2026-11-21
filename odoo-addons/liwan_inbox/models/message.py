@@ -120,6 +120,7 @@ class LiwanInboxMessage(models.Model):
         'A provider message id is stored once.',
     )
     _flow_token_unique = models.UniqueIndex('(flow_token) WHERE flow_token IS NOT NULL', 'A form token is used by one message.')
+    _liwan_outbound_month_idx = models.Index("(create_date) WHERE direction = 'out' AND external IS NOT TRUE")
 
     @api.constrains('kind', 'catalog_id', 'referred_catalog_id', 'referred_retailer_id')
     def _check_commerce_catalog(self):
