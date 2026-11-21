@@ -288,6 +288,11 @@ export function planEditPayload(draft: PlanDraft, policyId: string, editRevision
 // ---- Lifecycle ----
 export type CommercialKind = 'bundle' | 'plan'
 export type VendorCan = (capability: 'vendor.catalog.manage' | 'vendor.pricing.manage') => boolean
+/** A draft or a validated revision can be edited; saving a validated one returns it to draft (the control plane's rule). Published and withdrawn ones are changed by a new revision. */
+export function isEditable(view: { status: string; available: boolean }): boolean {
+  const status = lifecycleStatus(view)
+  return status === 'draft' || status === 'validated'
+}
 export function availableActions(status: LifecycleStatus): LifecycleAction[] {
   if (status === 'draft') return ['validate', 'delete']
   if (status === 'validated') return ['publish']

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { actionBlockedReason, appName, availableActions, audienceFromDraft, bundleCreatePayload, bundleDraftFromView, bundleEditPayload, bundleLimitKeys, commercialFailure, commercialErrorKey, commercialReturnTo, dependencyHints, emptyBundleDraft, emptyPlanDraft, fieldIssue, limitFromDraft, limitToDraft, lifecycleStatus, lifecycleUrl, keyLabel, minorToInput, parseVendorMoneyInput, planCreatePayload, planDraftFromView, planEditPayload, priceRowErrors, pricesFromDrafts, quoteRequestBody, listQuery } from '../vendorCommercial'
+import { actionBlockedReason, appName, isEditable, availableActions, audienceFromDraft, bundleCreatePayload, bundleDraftFromView, bundleEditPayload, bundleLimitKeys, commercialFailure, commercialErrorKey, commercialReturnTo, dependencyHints, emptyBundleDraft, emptyPlanDraft, fieldIssue, limitFromDraft, limitToDraft, lifecycleStatus, lifecycleUrl, keyLabel, minorToInput, parseVendorMoneyInput, planCreatePayload, planDraftFromView, planEditPayload, priceRowErrors, pricesFromDrafts, quoteRequestBody, listQuery } from '../vendorCommercial'
 
 const rid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
 const release = { id: rid(1), version: '1', source_digest: 'a'.repeat(64), artifact_digest: 'a'.repeat(64), applications: [
@@ -128,6 +128,7 @@ describe('lifecycle', () => {
     expect(actionBlockedReason('bundle', 'withdraw', only('vendor.catalog.manage') as never)).toBe('pricing')
     expect(actionBlockedReason('bundle', 'restore', only('vendor.catalog.manage') as never)).toBe('pricing')
     expect(actionBlockedReason('bundle', 'validate', only() as never)).toBe('catalog')
+    for (const [status, available, editable] of [['draft', false, true], ['validated', false, true], ['published', true, false], ['published', false, false]] as const) expect(isEditable({ status, available })).toBe(editable)
     expect(availableActions('validated')).toEqual(['publish'])
   })
   it('builds URLs', () => {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { lifecycleBadge } from '@/utils/vendorCommercial'
+import { isEditable, lifecycleBadge } from '@/utils/vendorCommercial'
 import { cadenceLabel, formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { type BundleView, type LifecycleAction, type PlanView } from '@/utils/vendorCommercial'
 import { catalogReturn, plansUsingBundle, priceFact } from '@/utils/vendorCatalog'
@@ -30,7 +30,7 @@ const facts = computed(() => {
     { key: 'customers', label: t('vendor.customers.title'), value: t('vendor.pricing.customers', { count: v.customer_count }, v.customer_count) },
   ]
 })
-const editable = computed(() => view.value?.status === 'draft' && can('vendor.catalog.manage'))
+const editable = computed(() => view.value && isEditable(view.value) && can('vendor.catalog.manage'))
 </script>
 <template>
   <NuxtPage v-if="isEdit" />

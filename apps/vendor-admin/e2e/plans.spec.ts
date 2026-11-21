@@ -30,6 +30,16 @@ test('the record keeps quote preview, lifecycle and the filtered back target', a
  await page.locator('[data-slot="page-header"] a').first().click(); await expect(page).toHaveURL(/status=published/)
 })
 
+test('a validated plan can be edited, with a notice that saving returns it to draft', async ({ page }) => {
+ const fixtures = JSON.parse(readFileSync(new URL('./commercial-fixtures.json', import.meta.url), 'utf8'))
+ const draft = fixtures.plans.items.find((plan: { status: string }) => plan.status === 'draft')
+ await page.route(`**/api/vendor/v1/commercial/plans/${draft.id}`, route => route.fulfill({ json: { ...draft, status: 'validated' } }))
+ await open(page, `/plans/${draft.id}`)
+ const edit = page.locator('[data-slot="page-header"] a[href*="/edit"]'); await expect(edit).toBeVisible()
+ await edit.click(); await expect(page).toHaveURL(/\/edit/)
+ await expect(page.getByTestId('plan-form')).toBeVisible(); await expect(page.getByText('حفظ التعديل يعيده إلى مسودة')).toBeVisible()
+})
+
 // LifecycleStatus is schema-limited and lifecycleBadge always returns a key today.
 // Pin the typed fallback expression without inventing an invalid server fixture.
 test('the lifecycle label fallback is the record status string', () => {
