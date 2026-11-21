@@ -1,24 +1,29 @@
 # Release command
 
 `release.py` applies one commit to one LiwanOS server. An Openship job runs it; nothing else starts it (no timer, no
-polling). The same file runs on staging and production.
+polling). The same file runs on development, staging and production.
 
 ```sh
-python3 -B /opt/liwan/current/deploy/release/release.py run      --environment staging
-python3 -B /opt/liwan/current/deploy/release/release.py status   --environment staging   # exit 3 when halted
-python3 -B /opt/liwan/current/deploy/release/release.py rollback --environment staging
+python3 -B /opt/liwan/current/deploy/release/release.py run      --environment development
+python3 -B /opt/liwan/current/deploy/release/release.py status   --environment development   # exit 3 when halted
+python3 -B /opt/liwan/current/deploy/release/release.py rollback --environment development
 ```
 
 **Status: nothing here has run on a real server yet.** The tests use fake docker, git and psql commands
 (`python3 -B -m unittest discover -s deploy/release -t . -p 'test_*.py'`). The first real run happens during the
-staging bring-up.
+development bring-up.
 
 ## Candidate and release document
 
 | Environment | Candidate commit |
 | --- | --- |
-| `staging` | the head of Forgejo `main` |
+| `development` | the head of Forgejo `main` |
+| `staging` | the commit of the highest `release/19.0.X.Y.Z` tag (compared by version, not by text) |
 | `production` | the commit of the highest `release/19.0.X.Y.Z` tag (compared by version, not by text) |
+
+Staging and production are the two release-tag environments and share every rule below. Both run on Arm. Operationally
+production only takes a tag that staging already served and passed; the coordinator checks this by hand. An enforced
+gate is designed in plan part P7 and is not implemented here.
 
 The candidate is read with `git ls-remote https://git.liwanos.com/liwanos/liwan.git`. The command then fetches `main`
 and the `release/*` tags into a bare repository in the state directory (`repo.git`) for ancestry checks and
@@ -29,7 +34,7 @@ one file `/release.json`. The command pulls it, copies the file out with `docker
 the container and the image. It accepts the document only when its `commit`, its `release.liwanCommit` and every image
 reference (`git.liwanos.com/liwanos/<name>@sha256:...`) match, and `release` passes `deploy/releases/manifest.py`
 validation. Each image is pulled by the digest of the host's architecture from the `platforms` map. A document
-without that architecture is refused. Production also refuses a tag whose commit is not part of Forgejo `main`, a document without `linux/arm64` digests, and refuses
+without that architecture is refused. Staging and production also refuse a tag whose commit is not part of Forgejo `main`, a document without `linux/arm64` digests (even on an amd64 host), and refuse
 a candidate that does not contain the served commit or whose release version is not above the served one.
 
 ## Credential

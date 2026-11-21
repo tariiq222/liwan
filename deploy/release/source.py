@@ -20,9 +20,10 @@ REPOSITORY_URL = f'https://{FORGEJO_HOST}/liwanos/liwan.git'
 RELEASE_IMAGE = 'liwan-release'
 RELEASE_FILE = '/release.json'
 USER_VAR, TOKEN_VAR = 'LIWAN_FORGEJO_READ_USER', 'LIWAN_FORGEJO_READ_TOKEN'
-CHANNELS = {'staging': 'main', 'production': 'release'}
+# development follows main; staging and production follow the highest release tag.
+CHANNELS = {'development': 'main', 'staging': 'release', 'production': 'release'}
 ARCHITECTURES = {'x86_64': 'amd64', 'amd64': 'amd64', 'aarch64': 'arm64', 'arm64': 'arm64'}
-PRODUCTION_PLATFORM = 'linux/arm64'
+RELEASE_PLATFORM = 'linux/arm64'
 RELEASE_TAG = re.compile(r'^release/19\.0\.(\d+)\.(\d+)\.(\d+)$')
 COMMIT = re.compile(r'^[0-9a-f]{40}$')
 # The helper runs inside git and reads the credential from git's environment; the line holds no secret.
@@ -61,10 +62,10 @@ def tag_order(tag: str) -> tuple[int, int, int]:
 
 
 def required_platforms(environment: str, host: str) -> list[str]:
-    """The host's own architecture, and for production always arm64 as well (production runs on Arm)."""
+    """The host's own architecture, and for staging and production always arm64 as well (both run on Arm)."""
     wanted = [f'linux/{host}']
-    if CHANNELS[environment] == 'release' and PRODUCTION_PLATFORM not in wanted:
-        wanted.append(PRODUCTION_PLATFORM)
+    if CHANNELS[environment] == 'release' and RELEASE_PLATFORM not in wanted:
+        wanted.append(RELEASE_PLATFORM)
     return wanted
 
 
@@ -90,7 +91,7 @@ class Source:
         return code, output.strip()
 
     def candidate(self) -> dict | None:
-        """The head of ``main`` (staging) or the highest ``release/19.0.X.Y.Z`` tag (production); None when no tag exists."""
+        """The head of ``main`` (development) or the highest ``release/19.0.X.Y.Z`` tag (staging, production); None when no tag exists."""
         try:
             if CHANNELS[self.environment] == 'main':
                 refs = self.listing('refs/heads/main')
@@ -140,7 +141,7 @@ class Source:
             raise ReleaseError('older_candidate', EXIT_REFUSED, 'the release version is not above the served one')
 
     def require_on_main(self, candidate: dict) -> None:
-        """A production tag must point at a commit that Forgejo ``main`` contains."""
+        """A staging or production tag must point at a commit that Forgejo ``main`` contains."""
         if CHANNELS[self.environment] == 'release' and not self.is_ancestor(candidate['commit'], 'refs/heads/main'):
             raise ReleaseError('not_on_main', EXIT_REFUSED, f'{candidate["commit"]} is not part of Forgejo main')
 

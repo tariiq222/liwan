@@ -5,7 +5,8 @@
   release.py status   --environment <name>   print the served release, the unfinished run and the halt record
   release.py rollback --environment <name>   clear a halt and finish the rollback of an unfinished run
 
-``staging`` follows the head of Forgejo ``main``; ``production`` follows the highest ``release/19.0.X.Y.Z`` tag. The
+``development`` follows the head of Forgejo ``main``; ``staging`` and ``production`` follow the highest
+``release/19.0.X.Y.Z`` tag. The
 candidate and its release document (the image ``liwan-release:<commit>`` in the Forgejo registry) are read with the
 read-only credential in ``LIWAN_FORGEJO_READ_USER`` and ``LIWAN_FORGEJO_READ_TOKEN``. The command never waits for
 input. The last log line is ``RESULT: committed <commit>``, ``RESULT: rolled back <reason>``, ``RESULT: nothing to do``,

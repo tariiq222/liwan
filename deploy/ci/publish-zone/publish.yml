@@ -1,7 +1,7 @@
 name: publish
 
 # Builds the production images and publishes the release document of a commit; it deploys nothing itself, it only tells
-# staging that a new main commit is ready. The source of truth of this file is deploy/ci/publish-zone/publish.yml in
+# development that a new main commit is ready. The source of truth of this file is deploy/ci/publish-zone/publish.yml in
 # liwanos/liwan; the host operator installs it as .forgejo/workflows/publish.yml of the admin-only repository
 # liwanos/liwan-publish (see deploy/ci/publish-zone/README.md). It runs only on the publish runner, which belongs to that
 # repository alone, so the registry write token exists nowhere else.
@@ -13,17 +13,19 @@ name: publish
 # commit SHA, followed by the release document of the commit (deploy/ci/lib/release_manifest.py: every image by digest
 # and the digest per platform), pushed as git.liwanos.com/liwanos/liwan-release:<commit>, a scratch image whose only file
 # is /release.json. A commit whose document already exists is not rebuilt, and a commit that is no longer the head of
-# main publishes nothing. The last step calls the staging hook, which takes no parameters: the staging job resolves
-# Forgejo main itself.
+# main publishes nothing. The last step calls the development hook, which takes no parameters: the development job
+# resolves Forgejo main itself.
 #
 # The arm64 images are not built here. They are built for a release/* tag, in a separate workflow added
 # once the place that builds them is decided; until then a document covers linux/amd64 only and the release command
-# refuses it for production.
+# refuses it for staging and production. That tag leg will end by calling the staging hook (LIWAN_STAGING_HOOK_URL and
+# LIWAN_STAGING_HOOK_TOKEN) after the arm64 images and the two-architecture release document are published; it does not
+# exist yet.
 #
 # Secrets (repository secrets of liwanos/liwan-publish, values typed by the owner):
 #   LIWAN_REGISTRY_USER, LIWAN_REGISTRY_TOKEN   registry write credential (token scope write:package)
 #   LIWAN_SOURCE_READ_TOKEN                     read-only token for liwanos/liwan (checkout and the head check)
-#   LIWAN_STAGING_HOOK_URL, LIWAN_STAGING_HOOK_TOKEN   the Openship staging job hook
+#   LIWAN_DEVELOPMENT_HOOK_URL, LIWAN_DEVELOPMENT_HOOK_TOKEN   the Openship development job hook
 on:
   workflow_dispatch:
 
@@ -133,18 +135,18 @@ jobs:
           GITHUB_REF: refs/heads/main
           GITHUB_REPOSITORY: ${{ env.SOURCE_REPOSITORY }}
           GITHUB_TOKEN: ${{ secrets.LIWAN_SOURCE_READ_TOKEN }}
-      - name: Tell staging a new commit is ready
+      - name: Tell development a new commit is ready
         if: steps.check.outputs.state != 'superseded' && steps.push.outputs.superseded != 'true'
         run: |
           set -euo pipefail
-          if [ -z "$STAGING_HOOK_URL" ] || [ -z "$STAGING_HOOK_TOKEN" ]; then
-            echo "LIWAN_STAGING_HOOK_URL and LIWAN_STAGING_HOOK_TOKEN must both be set as repository secrets, because the images are published but staging was not told" >&2
+          if [ -z "$DEVELOPMENT_HOOK_URL" ] || [ -z "$DEVELOPMENT_HOOK_TOKEN" ]; then
+            echo "LIWAN_DEVELOPMENT_HOOK_URL and LIWAN_DEVELOPMENT_HOOK_TOKEN must both be set as repository secrets, because the images are published but development was not told" >&2
             exit 1
           fi
-          curl -fsS -X POST -H "Authorization: Bearer $STAGING_HOOK_TOKEN" "$STAGING_HOOK_URL" > /dev/null
+          curl -fsS -X POST -H "Authorization: Bearer $DEVELOPMENT_HOOK_TOKEN" "$DEVELOPMENT_HOOK_URL" > /dev/null
         env:
-          STAGING_HOOK_URL: ${{ secrets.LIWAN_STAGING_HOOK_URL }}
-          STAGING_HOOK_TOKEN: ${{ secrets.LIWAN_STAGING_HOOK_TOKEN }}
+          DEVELOPMENT_HOOK_URL: ${{ secrets.LIWAN_DEVELOPMENT_HOOK_URL }}
+          DEVELOPMENT_HOOK_TOKEN: ${{ secrets.LIWAN_DEVELOPMENT_HOOK_TOKEN }}
       - name: Clean up
         if: always()
         run: |

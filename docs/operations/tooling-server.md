@@ -14,7 +14,7 @@ installed and where; it is not a release or deployment approval. The workflow an
 | One-way sync (`liwan-sync`) | Copies GitHub `main` and `release/*` tags to Forgejo so servers never read GitHub. |
 | Two runner zones | Build and test (CI zone) and publish images (publish zone), kept apart so the registry write token is never in a job that runs pull-request code. |
 | Network guard, disk guard, prune and retention timers | Keep the host from growing or stalling (limits below). |
-| Openship, Sentry | Not covered here; Openship starts staging and production releases, Sentry has its own notes. |
+| Openship, Sentry | Not covered here; Openship starts development, staging and production releases, Sentry has its own notes. |
 
 ## Forgejo
 
@@ -52,7 +52,7 @@ cannot see the other zone's containers, socket or files.
 | Capacity | 1 | 2 |
 | Slice limits (`user-<uid>.slice`) | 3 CPU, 10 GB memory, 4096 tasks | 5 CPU, 14 GB memory, 8192 tasks |
 | Job containers | `privileged: false`, `docker_host: "-"` (no socket in jobs), `valid_volumes` allows only `/run/user/1001/docker.sock`, which the build job mounts itself | `privileged: true` (root only inside uid 1002's user namespace), `valid_volumes: []`; a job that needs Docker starts its own daemon |
-| Actions secrets | `LIWAN_REGISTRY_USER`, `LIWAN_REGISTRY_TOKEN`, `LIWAN_SOURCE_READ_TOKEN`, `LIWAN_STAGING_HOOK_URL`, `LIWAN_STAGING_HOOK_TOKEN` | `LIWAN_PUBLISH_TRIGGER_TOKEN` only |
+| Actions secrets | `LIWAN_REGISTRY_USER`, `LIWAN_REGISTRY_TOKEN`, `LIWAN_SOURCE_READ_TOKEN`, `LIWAN_DEVELOPMENT_HOOK_URL`, `LIWAN_DEVELOPMENT_HOOK_TOKEN` | `LIWAN_PUBLISH_TRIGGER_TOKEN` only |
 
 Why the split: the registry write credential exists only as a secret of `liwan-publish`, and only a runner that no CI
 job can reach runs that repository. A job asking for the other zone's label stays `waiting` and never starts. The
@@ -145,15 +145,15 @@ Values are never in this repository. Paths only:
 | Retention read token | `/etc/liwan-registry-retention/forgejo-read-token` (0400, `liwan-retention`) | read:repository on `liwanos/liwan` | As above. |
 | Publish trigger token | `/etc/liwan-publish-trigger/token` (0400, root) | bot `liwan-publish-trigger` | Create a new token for the bot, write the file, then paste the new value into the `liwanos/liwan` secret `LIWAN_PUBLISH_TRIGGER_TOKEN` and delete the old token. |
 | Runner registrations | `/home/forgejo-runner/runner/.runner`, `/home/forgejo-ci/runner-ci/.runner`, `/home/forgejo-ci/runner-trial/.runner` (0600, owner) | one repository each | Delete the runner in Forgejo, register again. |
-| Registry write, source read, staging hook | Actions secrets of `liwanos/liwan-publish` only | see below | The owner creates a new token, types it into the secret and deletes the old token. |
-| Read-only pull tokens for this host and `liwanos-prod` | Created by the owner; the release command reads them from its job secret store (`deploy/release/README.md`) | read on the repository and the package registry | The owner. |
+| Registry write, source read, development hook | Actions secrets of `liwanos/liwan-publish` only | see below | The owner creates a new token, types it into the secret and deletes the old token. |
+| Read-only pull tokens for this host and `liwanos-prod` | Created by the owner; the release command reads the Forgejo read token from `/etc/liwan-release/forgejo-read` (root, 0600) on each host (`deploy/release/README.md`) | read on the repository and the package registry | The owner. |
 
 Actions secrets (names only). The owner types every value in the Forgejo web UI; nobody else holds them and none is
 created from the host:
 
 | Repository | Secrets |
 | --- | --- |
-| `liwanos/liwan-publish` | `LIWAN_REGISTRY_USER`, `LIWAN_REGISTRY_TOKEN` (write:package), `LIWAN_SOURCE_READ_TOKEN` (read on `liwanos/liwan`), `LIWAN_STAGING_HOOK_URL`, `LIWAN_STAGING_HOOK_TOKEN` |
+| `liwanos/liwan-publish` | `LIWAN_REGISTRY_USER`, `LIWAN_REGISTRY_TOKEN` (write:package), `LIWAN_SOURCE_READ_TOKEN` (read on `liwanos/liwan`), `LIWAN_DEVELOPMENT_HOOK_URL`, `LIWAN_DEVELOPMENT_HOOK_TOKEN` |
 | `liwanos/liwan` | `LIWAN_PUBLISH_TRIGGER_TOKEN` (contents of `/etc/liwan-publish-trigger/token`) |
 
 ## Procedures

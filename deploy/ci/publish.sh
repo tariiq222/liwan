@@ -7,7 +7,7 @@
 #   check          decide what this run does and write it as `state=` to $GITHUB_OUTPUT: `superseded` (the commit is
 #                  no longer the head of main: nothing is built or pushed, exit 0), `published` (liwan-release:<commit>
 #                  already exists: nothing is rebuilt, so the digests a host may have pulled stay valid; the caller only
-#                  tells staging again) or `build`
+#                  tells development again) or `build`
 #   build          build every image for linux/amd64 into the local daemon (nothing reaches the registry), then smoke-check
 #                  and scan them with deploy/ci/image.sh (the same images, tagged locally)
 #   push           only after build passed: push each image under the full commit SHA, check the tag holds exactly what
@@ -69,7 +69,7 @@ check() {
   anchor="$(registry)/liwan-release:$GITHUB_SHA"
   if is_superseded; then set_output state superseded; return 0; fi
   if output="$(docker buildx imagetools inspect "$anchor" --format '{{json .Manifest}}' 2>&1)"; then
-    echo "publish: $anchor is already published: not rebuilding (the digests hosts pulled stay valid), staging is told again"
+    echo "publish: $anchor is already published: not rebuilding (the digests hosts pulled stay valid), development is told again"
     set_output state published
   elif grep -qi 'not found' <<< "$output"; then
     set_output state build

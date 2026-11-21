@@ -5,7 +5,7 @@
 Install or update (admin token, from a checkout of `liwanos/liwan` at the commit to install):
 
 1. Copy `deploy/ci/publish-zone/publish.yml` to `.forgejo/workflows/publish.yml` in `liwanos/liwan-publish` and push it to its `main`.
-2. Secrets of `liwan-publish`: `LIWAN_REGISTRY_USER`, `LIWAN_REGISTRY_TOKEN` (write:package), `LIWAN_SOURCE_READ_TOKEN` (read on `liwanos/liwan`), `LIWAN_STAGING_HOOK_URL`, `LIWAN_STAGING_HOOK_TOKEN`. `liwanos/liwan` holds only `LIWAN_PUBLISH_TRIGGER_TOKEN`, a bot with Actions write and code read on `liwan-publish`.
+2. Secrets of `liwan-publish`: `LIWAN_REGISTRY_USER`, `LIWAN_REGISTRY_TOKEN` (write:package), `LIWAN_SOURCE_READ_TOKEN` (read on `liwanos/liwan`), `LIWAN_DEVELOPMENT_HOOK_URL`, `LIWAN_DEVELOPMENT_HOOK_TOKEN`. `liwanos/liwan` holds only `LIWAN_PUBLISH_TRIGGER_TOKEN`, a bot with Actions write and code read on `liwan-publish`.
 3. `.forgejo/workflows/publish.yml` in this repository is the trigger: on every push to `main` it dispatches the workflow above with no input.
 
 Change this file through a normal pull request, then repeat step 1; the copy in `liwan-publish` is what runs.
