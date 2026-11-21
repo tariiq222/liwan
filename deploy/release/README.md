@@ -34,7 +34,7 @@ a candidate that does not contain the served commit or whose release version is 
 
 ## Credential
 
-The job's secret store provides two environment variables:
+The job command loads two environment variables from the root-only file `/etc/liwan-release/forgejo-read` (`set -a; . /etc/liwan-release/forgejo-read; set +a; python3 -B ...`); that file is the single source, not the job's secret store:
 
 | Variable | Meaning |
 | --- | --- |

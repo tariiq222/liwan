@@ -28,6 +28,7 @@ DEDICATED_ZONES = ('liwan_auth', 'liwan_provider_hook', 'liwan_api', 'liwan_publ
 ZONES = ('liwan_auth', 'liwan_provider_hook', 'liwan_api', 'liwan_public_appointments_ip', 'liwan_odoo_image',
          'liwan_odoo', 'liwan_signup', 'liwan_public_site', 'liwan_web', 'liwan_tiktok')
 SHARED_CADDYFILE = ROOT / 'deploy' / 'shared' / 'Caddyfile'
+RESERVED_PROXY = '192.0.2.1/32'  # TEST-NET-1: the default trusted list trusts no real peer
 CADDY_IMAGE_REPOSITORY = 'liwan-caddy-test'
 DOCKER_UNAVAILABLE = ('cannot connect to the docker daemon', 'is the docker daemon running',
                       'error during connect', 'failed to connect to the docker api')
@@ -76,10 +77,10 @@ def _find_handlers(obj: object, handler_name: str) -> list[dict]:
 
 
 def _has_allowlist_matcher(route: dict) -> bool:
-    """A route whose match is `not remote_ip …` — Caddy drops the matcher's name, so the shape is the identity."""
+    """A route whose match is `not client_ip …` — Caddy drops the matcher's name, so the shape is the identity."""
     for match in route.get('match', []):
         for negated in match.get('not', []):
-            if isinstance(negated, dict) and 'remote_ip' in negated:
+            if isinstance(negated, dict) and 'client_ip' in negated:
                 return True
     return False
 
@@ -146,16 +147,68 @@ def _caddy_container(script: str) -> subprocess.CompletedProcess:
     return result
 
 
-def _adapt_shared_caddyfile(text: str, *, restore_allow: str | None = None, domain: str = 'a.example.test') -> dict:
+def _adapt_shared_caddyfile(text: str, *, restore_allow: str | None = None, domain: str = 'a.example.test',
+                            env: dict[str, str] | None = None) -> dict:
+    """`caddy adapt` of the Caddyfile text; `env` adds variables (the trusted proxy list, the auto_https mode)."""
     allow = '' if restore_allow is None else f'export LIWAN_RESTORE_ALLOW="{restore_allow}"\n'
+    extra = ''.join(f'export {name}={shlex.quote(value)}\n' for name, value in (env or {}).items())
     result = _caddy_container(
-        "set -eu\nexport DOMAIN='" + domain + "'\nexport LIWAN_TIKTOK_RELAY_HOST=hooks.example.test\n"
-        + allow
+        "set -eu\nexport DOMAIN=" + shlex.quote(domain) + "\nexport LIWAN_TIKTOK_RELAY_HOST=hooks.example.test\n"
+        + allow + extra
         + "cat > /tmp/source.Caddyfile <<'LIWAN_CADDY_SOURCE'\n"
         + text + "\nLIWAN_CADDY_SOURCE\n"
         + 'caddy adapt --config /tmp/source.Caddyfile --adapter caddyfile\n'
     )
     return json.loads(result.stdout)
+
+
+
+PROBE_PORT = 8090
+TRUST_KEYS = ('trusted_proxies', 'trusted_proxies_strict', 'client_ip_headers')
+
+
+def _probe_config(adapted: dict, host: str | None) -> dict:
+    """A one-server Caddy config on container loopback that keeps the adapted trust settings and routes.
+
+    With `host` None the only route answers the client address Caddy derived; with a host, the adapted route for
+    that host is kept as it is (served in plain HTTP) so its allowlist answers the probes.
+    """
+    servers = adapted['apps']['http']['servers']
+    trust = next({key: server[key] for key in TRUST_KEYS if key in server} for server in servers.values())
+    if host is None:
+        routes = [{'handle': [{'handler': 'static_response', 'body': '{http.vars.client_ip}'}]}]
+    else:
+        routes = [route for server in servers.values() for route in server['routes']
+                  if route['match'][0]['host'] == [host]]
+    probe = {'listen': [f'127.0.0.1:{PROBE_PORT}'], 'routes': routes, 'automatic_https': {'disable': True}, **trust}
+    return {'admin': {'disabled': True}, 'apps': {'http': {'servers': {'probe': probe}}}}
+
+
+def _probe_requests(config: dict, requests: list[tuple[str, dict[str, str]]]) -> list[tuple[int, str]]:
+    """Run the real Caddy on container loopback and send each request from 127.0.0.1; return (status, body)."""
+    script = (
+        "set -eu\ncat > /tmp/probe.json <<'LIWAN_PROBE'\n" + json.dumps(config)
+        + "\nLIWAN_PROBE\ncaddy run --config /tmp/probe.json >/tmp/caddy.log 2>&1 &\n"
+        + "pid=$!\ntrap 'kill \"$pid\" 2>/dev/null || true' EXIT\n"
+        + "ready=0\nfor attempt in $(seq 1 50); do\n"
+        + f"  if curl -s --max-time 1 --noproxy '*' -o /dev/null http://127.0.0.1:{PROBE_PORT}/; then ready=1; break; fi\n"
+        + "  sleep 0.1\ndone\n[ \"$ready\" = 1 ] || { cat /tmp/caddy.log >&2; exit 1; }\n"
+    )
+    for index, (host, headers) in enumerate(requests):
+        script += f"printf 'LIWAN_PROBE_CASE {index}\\n'\n"
+        script += ('curl --silent --max-time 5 --noproxy "*" --write-out "\\n%{http_code}\\n" '
+                   + ''.join(f'--header {shlex.quote(f"{name}: {value}")} ' for name, value in headers.items())
+                   + f'--header {shlex.quote("Host: " + host)} http://127.0.0.1:{PROBE_PORT}/\n')
+    records = _caddy_container(script).stdout.split('LIWAN_PROBE_CASE ')[1:]
+    results = []
+    for index, record in enumerate(records):
+        lines = record.rstrip('\n').split('\n')
+        if lines[0] != str(index):
+            raise AssertionError('probe response ordering mismatch')
+        results.append((int(lines[-1]), '\n'.join(lines[1:-1])))
+    if len(results) != len(requests):
+        raise AssertionError(f'expected {len(requests)} probe responses, got {len(results)}')
+    return results
 
 
 def _tenant_rate_limits(adapted: dict) -> dict:
@@ -562,9 +615,7 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
         self.assertIn(('a.accept.test', 'b.accept.test'), sites)
         self.assertIn(('*.restore.invalid.invalid',), sites)
         self.assertNotIn(('*.restore.a.accept.test',), sites)
-
-
-
+    def test_the_restore_site_answers_404_outside_the_allowlist(self) -> None:
         """Behavioral: the restore site answers 404 outside `LIWAN_RESTORE_ALLOW`, and 404 for everyone when unset.
 
         A restored database holds the credentials its backup held, so the edge — not the restored app — is the
@@ -585,8 +636,99 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
                                 'the refusal must be mutually exclusive with, and precede, the guarded route')
                 self.assertEqual(_status_handlers(tenant, 'notOperator'), [],
                                  'the tenant site must not gain the restore allowlist')
-                # The allowlist is read from the socket peer: a client header must never select it.
+                # No client header selects the allowlist: the matcher reads `client_ip`, which only a trusted
+                # proxy's header can change (the probes below run the real matcher with and without a trusted edge).
                 self.assertNotIn('trusted_proxies', json.dumps(restore))
+
+    def test_the_default_trusts_no_proxy(self) -> None:
+        """No variable set: the trusted list is the reserved TEST-NET-1 address, so no peer is ever trusted."""
+        adapted = _adapt_shared_caddyfile(SHARED_CADDYFILE.read_text(encoding='utf-8'))
+        for name, server in adapted['apps']['http']['servers'].items():
+            with self.subTest(server=name):
+                self.assertEqual(server['trusted_proxies'], {'source': 'static', 'ranges': [RESERVED_PROXY]})
+                self.assertEqual(server['trusted_proxies_strict'], 1)
+                self.assertEqual(server['client_ip_headers'], ['X-Forwarded-For'])
+        # Compose passes the same fallback for an empty or unset variable (Caddy keeps an empty value as set).
+        proxy = self._render_shared({})['services']['proxy']['environment']
+        self.assertEqual(proxy['LIWAN_TRUSTED_PROXIES'], RESERVED_PROXY)
+        self.assertEqual(proxy['LIWAN_AUTO_HTTPS'], 'ignore_loaded_certs')
+        self.assertEqual(self._render_shared({'LIWAN_TRUSTED_PROXIES': ''})['services']['proxy']['environment'][
+            'LIWAN_TRUSTED_PROXIES'], RESERVED_PROXY)
+
+    def test_the_edge_network_has_the_pinned_subnet_the_trusted_gateway_comes_from(self) -> None:
+        edge = self._render_shared({})['networks']['edge']
+        self.assertEqual(edge['ipam']['config'], [{'subnet': '172.29.50.0/24', 'gateway': '172.29.50.1'}])
+
+    def test_strict_trust_ignores_a_client_sent_forwarded_for(self) -> None:
+        """Behavioral: behind a trusted edge `{client_ip}` is the address the edge appended, never a claimed one.
+
+        The edge appends the real peer to the header (`$proxy_add_x_forwarded_for`), so a client that sends its own
+        value arrives as `<claimed>, <real>`. The probe peer is 127.0.0.1 and plays the trusted edge.
+        """
+        text = SHARED_CADDYFILE.read_text(encoding='utf-8')
+        trusted = _adapt_shared_caddyfile(text, env={'LIWAN_TRUSTED_PROXIES': '127.0.0.1/32'})
+        untrusted = _adapt_shared_caddyfile(text)
+        cases = [
+            ('t.example.test', {'X-Forwarded-For': '6.6.6.6, 203.0.113.9'}),
+            ('t.example.test', {'X-Forwarded-For': '6.6.6.6, 5.5.5.5, 203.0.113.9'}),
+            ('t.example.test', {'X-Forwarded-For': '203.0.113.9'}),
+            ('t.example.test', {'X-Forwarded-For': '6.6.6.6, 203.0.113.9, 127.0.0.1'}),
+            ('t.example.test', {}),
+        ]
+        self.assertEqual(
+            [body for _, body in _probe_requests(_probe_config(trusted, None), cases)],
+            ['203.0.113.9', '203.0.113.9', '203.0.113.9', '203.0.113.9', '127.0.0.1'])
+        # Without a trusted proxy the header is ignored: the client is the socket peer, whatever is claimed.
+        self.assertEqual(
+            [body for _, body in _probe_requests(_probe_config(untrusted, None), cases)],
+            ['127.0.0.1'] * len(cases))
+
+    def test_the_restore_route_stays_closed_behind_the_edge(self) -> None:
+        """Behavioral: the restore allowlist matches the real client, so the edge's gateway address admits nobody.
+
+        Restore host answers 404 when the client is outside the allowlist and anything else (here the unreachable
+        guard, 502) when it is inside. A claimed address never counts, and an empty list refuses everyone.
+        """
+        text = SHARED_CADDYFILE.read_text(encoding='utf-8')
+        host = 'rabc.restore.invalid.invalid'
+        wildcard = '*.restore.invalid.invalid'
+
+        def statuses(allow: str, trusted: str | None, cases: list[dict[str, str]]) -> list[int]:
+            env = {} if trusted is None else {'LIWAN_TRUSTED_PROXIES': trusted}
+            adapted = _adapt_shared_caddyfile(text, restore_allow=allow, env=env)
+            config = _probe_config(adapted, wildcard)
+            return [status for status, _ in _probe_requests(config, [(host, headers) for headers in cases])]
+
+        open_ = 502  # allowlisted: the request reaches the proxy handler, whose guard upstream does not resolve here
+        # Behind a trusted edge: the real client (rightmost untrusted address) is what the allowlist sees.
+        self.assertEqual(statuses('203.0.113.0/24', '127.0.0.1/32', [
+            {'X-Forwarded-For': '10.0.0.5, 203.0.113.9'},       # real client allowed, claimed one is not
+            {'X-Forwarded-For': '203.0.113.9, 198.51.100.7'},   # claimed address allowed, real client is not
+            {'X-Forwarded-For': '198.51.100.7'},
+            {},                                                 # the edge's own peer is not allowlisted
+        ]), [open_, 404, 404, 404])
+        # The edge's gateway is private: `private_ranges` must not admit a public client through it.
+        self.assertEqual(statuses('private_ranges', '127.0.0.1/32', [{'X-Forwarded-For': '198.51.100.7'}]), [404])
+        # No trusted proxy: the header is ignored, so a claimed allowlisted address changes nothing.
+        self.assertEqual(statuses('203.0.113.0/24', None, [{'X-Forwarded-For': '203.0.113.9'}]), [404])
+        # Unset or empty allowlist: closed for everyone, trusted edge or not.
+        for allow in ('', ):
+            self.assertEqual(statuses(allow, '127.0.0.1/32', [{'X-Forwarded-For': '203.0.113.9'}, {}]), [404, 404])
+            self.assertEqual(statuses(allow, None, [{}]), [404])
+
+    def test_auto_https_off_starts_no_certificate_issuance(self) -> None:
+        """`LIWAN_AUTO_HTTPS=off` disables automatic HTTPS on every server, including the schemeless restore and relay."""
+        text = SHARED_CADDYFILE.read_text(encoding='utf-8')
+        off = _adapt_shared_caddyfile(text, env={'LIWAN_AUTO_HTTPS': 'off'})
+        self.assertTrue(off['apps']['http']['servers'])
+        for name, server in off['apps']['http']['servers'].items():
+            with self.subTest(server=name):
+                self.assertEqual(server['automatic_https'], {'disable': True})
+        self.assertNotIn('tls', off['apps'], 'no certificate automation policy is configured')
+        default = _adapt_shared_caddyfile(text)
+        for server in default['apps']['http']['servers'].values():
+            self.assertNotIn('disable', server['automatic_https'], 'the default keeps Caddy\'s certificate handling')
+            self.assertNotIn('disable_redirects', server['automatic_https'])
 
     def test_auth_zone_is_tighter_than_the_api_zone(self) -> None:
         text = CADDYFILE.read_text(encoding='utf-8')
