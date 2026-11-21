@@ -6,7 +6,8 @@
       "meta": "WhatsApp Business (Meta)",
       "tiktok": "TikTok",
       "paymob": "Paymob",
-      "zatca": "ZATCA (Zakat, Tax and Customs Authority)"
+      "zatca": "ZATCA (Zakat, Tax and Customs Authority)",
+      "twilio": "Twilio"
     },
     "use": {
       "inbox": {
@@ -20,6 +21,11 @@
         "gateway": {
           "paymob": "Payment gateway"
         }
+      },
+      "twilio": {
+        "messaging": "SMS and WhatsApp through Twilio",
+        "voice": "Calls through Twilio",
+        "lookup": "Number checking through Twilio"
       }
     },
     "auth": {
@@ -90,7 +96,8 @@
     "secret": {
       "access_token": "Access token",
       "app_secret": "App secret",
-      "verify_token": "Webhook verify token"
+      "verify_token": "Webhook verify token",
+      "auth_token": "Auth Token"
     },
     "record": {
       "back": "Integrations",
@@ -134,42 +141,21 @@
       "inUse": "The account cannot be disconnected because an app uses it. Remove its use first.",
       "invalid": "Check the details you entered.",
       "notConfigured": "Connecting this provider is not switched on for this system yet.",
-      "rejected": "The provider refused the keys. Check them and try again."
+      "rejected": "The provider refused the keys. Check them and try again.",
+      "providerError": "The provider could not complete the request. Try again in a moment.",
+      "invalidPhone": "The phone number is not valid. Write it in international format, like +9665XXXXXXXX.",
+      "noDefaultSender": "This channel has no default sender. Add a sender first.",
+      "senderUnavailable": "This sender is not available now. Choose an active sender on a connected account.",
+      "connectionDisabled": "The messaging account is switched off. Switch it on from its page and try again.",
+      "dailyLimitReached": "The daily message limit is reached. Raise the limit or wait until tomorrow.",
+      "bodyTooLong": "The message text is longer than allowed.",
+      "tenantReadOnly": "Sending is paused because your company's subscription is not active.",
+      "textTooLong": "The spoken text is longer than 500 characters.",
+      "noConnection": "No connected account can check numbers. Connect Twilio first.",
+      "lookupFailed": "The number could not be checked. Try again in a moment."
     },
     "guide": {
-      "title": "Connect WhatsApp step by step",
-      "hint": "Five steps at Meta. The first time takes about twenty minutes.",
       "stepLabel": "Step {n}",
-      "steps": {
-        "app": {
-          "title": "Create the Meta app",
-          "body": "In Meta for Developers create an app of the Business type, then add the WhatsApp product to it."
-        },
-        "token": {
-          "title": "Create a system user token",
-          "body": "In Meta Business Settings add a system user, give it your WhatsApp account, and generate a token with the permissions. Paste it as the access token below."
-        },
-        "values": {
-          "title": "Find each value in the Meta dashboard",
-          "body": "Copy each value into the field with the same name in this form.",
-          "accountId": "WhatsApp Business Account ID: WhatsApp > API Setup. Enter it as the account ID.",
-          "appId": "Find the App ID and the app secret under App settings > Basic.",
-          "phoneId": "Phone number ID: WhatsApp > API Setup. You enter it later when you add the number in the customer messages settings."
-        },
-        "webhook": {
-          "title": "Paste the webhook address and verify token",
-          "body": "In WhatsApp > Configuration, set the callback URL to the receiving address and the verify token to the one LiwanOS shows you.",
-          "before": "After you save the account, LiwanOS shows the address and creates the verify token. Rotate it to see its value once.",
-          "after": "The address is under Receiving addresses below. Rotate the verify token to see its value once."
-        },
-        "fields": {
-          "title": "Subscribe to the webhook fields",
-          "body": "Subscribe to the fields LiwanOS processes. The first is required; the others keep templates, forms and number health up to date."
-        }
-      },
-      "field": {
-        "messages": "Incoming messages and delivery statuses"
-      },
       "state": {
         "todo": "To do",
         "done": "Done",
@@ -177,18 +163,354 @@
         "pending": "Being checked",
         "unchecked": "Cannot be checked here"
       },
-      "result": {
-        "tokenDone": "Meta accepted the token.",
-        "tokenTodo": "No access token is saved yet.",
-        "tokenProblem": "Meta did not accept the token.",
-        "tokenPending": "The connection is being checked.",
-        "valuesDone": "The account ID was verified and the app secret is saved.",
-        "valuesTodo": "The app secret is not saved yet.",
-        "valuesProblem": "The account ID or the token was refused.",
-        "webhookDone": "The verify token is ready. Whether Meta confirmed the address cannot be seen from here.",
-        "webhookTodo": "The verify token is not created yet."
+      "twilio": {
+        "title": "Connect Twilio step by step",
+        "hint": "You need the account SID and the auth token from the Twilio console, and you should know what messages can and cannot do inside Saudi Arabia before you start.",
+        "steps": {
+          "credentials": {
+            "title": "Copy the account SID and the auth token",
+            "body": "On the Twilio console home page copy the Account SID, which starts with AC, and the Auth Token. Paste the first into the account ID field and the second into the auth token field below."
+          },
+          "apiKeys": {
+            "title": "API keys are not accepted",
+            "body": "Do not use an API key (it starts with SK). LiwanOS needs the auth token itself, because Twilio signs its delivery notifications with it."
+          },
+          "trial": {
+            "title": "Trial account limits",
+            "body": "A trial account can only send to numbers you verified in Twilio, and every message starts with a trial notice. Upgrade to a paid account before real use."
+          },
+          "region": {
+            "title": "Data is processed outside Saudi Arabia",
+            "body": "Twilio has no region in the Middle East. Recipient numbers and message text pass through Twilio servers outside the Kingdom, so make sure this fits your company policy."
+          },
+          "saudiSender": {
+            "title": "The Saudi sender rule",
+            "body": "Messages to Saudi numbers need a sender name pre-registered with Twilio, and Twilio does not currently issue one to domestic Saudi brands. Check that sending to Saudi Arabia works for you before you rely on it."
+          },
+          "charges": {
+            "title": "Charges go to your own Twilio account",
+            "body": "Every message is billed from your company's own Twilio balance and LiwanOS charges nothing for it. The daily limit on the communications page protects you from a wrong send loop."
+          }
+        },
+        "result": {
+          "credentialsDone": "Twilio accepted the SID and the auth token.",
+          "credentialsTodo": "No auth token is saved yet.",
+          "credentialsProblem": "Twilio refused the SID or the token, or the account is suspended or closed.",
+          "credentialsPending": "The connection is being checked."
+        }
       },
-      "permissions": "Permissions to grant"
+      "meta": {
+        "title": "Connect WhatsApp step by step",
+        "hint": "Five steps at Meta. The first time takes about twenty minutes.",
+        "steps": {
+          "app": {
+            "title": "Create the Meta app",
+            "body": "In Meta for Developers create an app of the Business type, then add the WhatsApp product to it."
+          },
+          "token": {
+            "title": "Create a system user token",
+            "body": "In Meta Business Settings add a system user, give it your WhatsApp account, and generate a token with the permissions. Paste it as the access token below."
+          },
+          "values": {
+            "title": "Find each value in the Meta dashboard",
+            "body": "Copy each value into the field with the same name in this form.",
+            "accountId": "WhatsApp Business Account ID: WhatsApp > API Setup. Enter it as the account ID.",
+            "appId": "Find the App ID and the app secret under App settings > Basic.",
+            "phoneId": "Phone number ID: WhatsApp > API Setup. You enter it later when you add the number in the customer messages settings."
+          },
+          "webhook": {
+            "title": "Paste the webhook address and verify token",
+            "body": "In WhatsApp > Configuration, set the callback URL to the receiving address and the verify token to the one LiwanOS shows you.",
+            "before": "After you save the account, LiwanOS shows the address and creates the verify token. Rotate it to see its value once.",
+            "after": "The address is under Receiving addresses below. Rotate the verify token to see its value once."
+          },
+          "fields": {
+            "title": "Subscribe to the webhook fields",
+            "body": "Subscribe to the fields LiwanOS processes. The first is required; the others keep templates, forms and number health up to date."
+          }
+        },
+        "result": {
+          "tokenDone": "Meta accepted the token.",
+          "tokenTodo": "No access token is saved yet.",
+          "tokenProblem": "Meta did not accept the token.",
+          "tokenPending": "The connection is being checked.",
+          "valuesDone": "The account ID was verified and the app secret is saved.",
+          "valuesTodo": "The app secret is not saved yet.",
+          "valuesProblem": "The account ID or the token was refused.",
+          "webhookDone": "The verify token is ready. Whether Meta confirmed the address cannot be seen from here.",
+          "webhookTodo": "The verify token is not created yet."
+        },
+        "permissions": "Permissions to grant"
+      }
+    },
+    "communications": {
+      "title": "Communications",
+      "hint": "Message and call senders, the daily limits, a test send, a test call, the logs and number checking. All charges go to your company's own Twilio account.",
+      "retry": "Try again",
+      "channel": {
+        "sms": "SMS",
+        "whatsapp": "WhatsApp",
+        "voice": "Voice"
+      },
+      "kind": {
+        "alphanumeric": "Sender name",
+        "number": "Number",
+        "service": "Messaging service"
+      },
+      "senders": {
+        "title": "Senders",
+        "hint": "The numbers, sender names and messaging services your company's messages go out from.",
+        "add": "Add a sender",
+        "noAccount": "No messaging account is connected",
+        "noAccountHint": "Connect a Twilio account first, then add a sender here.",
+        "connectAccount": "Connect an account",
+        "openAccount": "Open the account",
+        "account": {
+          "disabled": "The account {account} is switched off",
+          "disabledHint": "No messages are sent from this account while it is off. Switch it on from its page.",
+          "error": "The account {account} has a problem",
+          "errorHint": "The provider refused the account. Open its page to see why and check it again.",
+          "pending": "The account {account} is being set up",
+          "pendingHint": "The account check has not finished yet."
+        },
+        "noSender": "No sender for the {channel} channel",
+        "noSenderHint": "Add an active sender for this channel before you send from it.",
+        "filters": {
+          "channel": "Channel",
+          "account": "Account",
+          "status": "Status",
+          "all": "All",
+          "active": "Active",
+          "archived": "Archived"
+        },
+        "columns": {
+          "sender": "Sender",
+          "channel": "Channel",
+          "account": "Account",
+          "default": "Default",
+          "actions": "Actions"
+        },
+        "isDefault": "Default",
+        "isArchived": "Archived",
+        "makeDefault": "Make default",
+        "defaultSet": "The default sender is set.",
+        "archive": "Archive",
+        "archived": "The sender is archived.",
+        "restore": "Restore",
+        "restored": "The sender is restored.",
+        "confirmArchiveTitle": "Archive the sender {sender}?",
+        "confirmArchiveDescription": "No new messages go out from it. Earlier messages stay in the log as they were, and you can restore it later.",
+        "confirmArchive": "Yes, archive it",
+        "empty": "No sender yet",
+        "emptyArchived": "No archived sender"
+      },
+      "senderForm": {
+        "title": "Add a sender",
+        "details": "Sender details",
+        "account": "Messaging account",
+        "accountPlaceholder": "Choose the account",
+        "channel": "Channel",
+        "kind": "Sender type",
+        "kindHint": {
+          "number": "A phone number in international format.",
+          "alphanumeric": "A name the recipient sees instead of a number. It does not work in every country and needs registration at Twilio.",
+          "service": "A Messaging Service picks the right number for each message."
+        },
+        "value": {
+          "number": "Number",
+          "alphanumeric": "Sender name",
+          "service": "Messaging service ID"
+        },
+        "numberPlaceholder": "Choose a number from your account",
+        "pickAccount": "Choose the account to see its numbers.",
+        "loadingNumbers": "Reading the account numbers from Twilio…",
+        "noNumbers": "The account has no number that supports SMS. Buy a number at Twilio or choose another type.",
+        "providerErrorTitle": "The account numbers could not be read",
+        "providerError": "The provider did not answer. Try again.",
+        "default": "Make it the default sender for this channel",
+        "defaultHint": "Used when no sender is named at send time.",
+        "submit": "Add the sender",
+        "required": "This field is required",
+        "numberInvalid": "Write the number in international format, like +9665XXXXXXXX.",
+        "alphanumericInvalid": "The sender name is English letters and digits only, up to 11 characters.",
+        "serviceInvalid": "The service ID starts with MG followed by 32 characters."
+      },
+      "limit": {
+        "title": "Daily limits and recording",
+        "hint": "The most messages and calls your company makes in a day. They stop a repeated-send mistake from using up your Twilio balance.",
+        "label": "Messages per day",
+        "fieldHint": "A whole number from {min} to {max}.",
+        "callLabel": "Calls per day",
+        "callFieldHint": "A whole number from {min} to {max}.",
+        "recordCalls": "Record calls",
+        "recordCallsHint": "Calls are placed with recording after you switch this on. Only the recording reference is stored in LiwanOS, never the audio, and recording needs your company's own legal basis.",
+        "save": "Save the settings",
+        "saved": "The settings are saved.",
+        "invalid": "Enter a whole number from {min} to {max}.",
+        "callInvalid": "Enter a whole number from {min} to {max}."
+      },
+      "test": {
+        "title": "Test send",
+        "hint": "Send one message to check that the account and the sender work, and follow its state.",
+        "noSender": "No sender to test with",
+        "noSenderHint": "Add an active SMS or WhatsApp sender first.",
+        "sender": "Sender",
+        "senderPlaceholder": "Choose the sender",
+        "senderRequired": "Choose the sender.",
+        "to": "Recipient number",
+        "toHint": "Your own number for the test, in international format like +9665XXXXXXXX.",
+        "toInvalid": "Write the number in international format, like +9665XXXXXXXX.",
+        "mode": "Message type",
+        "modeText": "Test text",
+        "modeTemplate": "Approved template",
+        "textHint": "A test message with a fixed Arabic text set by the system is sent.",
+        "template": "Template ID (Content SID)",
+        "templateHint": "A template approved in Twilio, starting with HX. WhatsApp outside the conversation window accepts approved templates only.",
+        "templateInvalid": "The template ID starts with HX followed by 32 characters.",
+        "variables": "Template values",
+        "variablesHint": "One value per line as 1=value. Leave empty if the template has no variables.",
+        "variablesInvalid": "Write each value on its own line as 1=value.",
+        "send": "Send a test message",
+        "refresh": "Refresh the state"
+      },
+      "voice": {
+        "title": "Test call",
+        "hint": "Place one call to check that the account and the voice number work, and follow its state. A call is never placed again automatically.",
+        "noSender": "No voice number to call from",
+        "noSenderHint": "Add an active voice sender first.",
+        "sender": "Voice number",
+        "senderPlaceholder": "Choose the number",
+        "mode": "Call type",
+        "modeSpeak": "Spoken text",
+        "modeBridge": "Connect two numbers",
+        "text": "Text to speak",
+        "textHint": "What the call says to the recipient, up to {max} characters. Empty speaks a fixed Arabic sentence set by the system.",
+        "textTooLong": "The text is longer than {max} characters.",
+        "language": "Spoken language",
+        "languageAr": "Arabic",
+        "languageArAE": "Arabic (UAE voice)",
+        "agentNumber": "Agent number",
+        "agentNumberHint": "Your own number for the test. The call reaches it first, then dials the recipient in.",
+        "bridgeHint": "A bridge call carries no spoken text: the agent and the recipient speak to each other.",
+        "place": "Place a test call"
+      },
+      "call": {
+        "stage": {
+          "initiated": "Placed",
+          "ringing": "Ringing",
+          "in_progress": "In progress",
+          "completed": "Completed",
+          "busy": "Busy",
+          "no_answer": "No answer",
+          "failed": "Failed",
+          "canceled": "Canceled",
+          "unconfirmed": "Unconfirmed"
+        },
+        "hint": {
+          "initiated": "LiwanOS handed the call to Twilio. Waiting for it to ring.",
+          "ringing": "The recipient's phone is ringing.",
+          "in_progress": "Someone answered and the call is live.",
+          "completed": "The call ended and was answered.",
+          "busy": "The recipient's line was busy.",
+          "no_answer": "Nobody answered the call.",
+          "failed": "The call could not be placed or was cut short.",
+          "canceled": "The call was canceled before it was answered.",
+          "unconfirmed": "The connection broke while placing the call, so we do not know whether Twilio received the request. The call is never placed again automatically."
+        },
+        "unconfirmedWarning": "Do not place the call again right away: it may already be going out. Check the call's state at Twilio first."
+      },
+      "calls": {
+        "title": "Call log",
+        "hint": "Every call your company placed and the state it reached, with its length and the recording reference when recording is on. Only the reference is stored, never the audio. Kept for 24 months.",
+        "search": "Search by dialed number",
+        "detail": "Call details",
+        "agent": "Agent number",
+        "spokenText": "Spoken text",
+        "startedAt": "Started at",
+        "endedAt": "Ended at",
+        "notYet": "Not ended yet",
+        "recording": "Recording",
+        "recordingPending": "The recording reference has not arrived yet.",
+        "empty": "No calls yet",
+        "emptyFiltered": "No calls match the filters",
+        "columns": {
+          "to": "Recipient",
+          "mode": "Call type",
+          "from": "From number",
+          "duration": "Length"
+        }
+      },
+      "lookup": {
+        "title": "Check a number",
+        "hint": "See whether a number is valid and how the provider writes it, before you send to it or call it. Nothing about the number is stored.",
+        "number": "Number",
+        "numberHint": "In international format, like +9665XXXXXXXX.",
+        "required": "Enter a number.",
+        "lineType": "Ask for the line type",
+        "lineTypeHint": "The line type (mobile, landline and the like) is a paid add-on that Twilio bills per request on your company's balance.",
+        "check": "Check the number",
+        "valid": "Valid",
+        "notValid": "Not valid",
+        "e164": "Standard form (E.164)",
+        "country": "Country",
+        "lineTypeResult": "Line type"
+      },
+      "message": {
+        "stage": {
+          "queued": "Queued",
+          "sent": "Sent",
+          "sentNoReceipt": "Sent, no receipt",
+          "delivered": "Delivered",
+          "undelivered": "Not delivered",
+          "failed": "Failed",
+          "unconfirmed": "Unconfirmed"
+        },
+        "hint": {
+          "queued": "It waits its turn to be sent, usually within a minute.",
+          "sent": "LiwanOS handed it to Twilio. Waiting for the delivery receipt.",
+          "sentNoReceipt": "LiwanOS handed it to Twilio, and no delivery receipt will arrive because the system's public receiving address is not ready or not secure.",
+          "delivered": "Twilio confirmed the message reached the recipient.",
+          "undelivered": "The message did not reach the recipient.",
+          "failed": "The message was not sent. You can send it again.",
+          "unconfirmed": "The connection broke while sending, so we do not know whether Twilio received the request. We never resend automatically, so you are not charged twice."
+        },
+        "retry": "Send again",
+        "retryUnconfirmedTitle": "Send an unconfirmed message again?",
+        "retryUnconfirmedWarning": "The first message may have arrived. Sending again may reach the recipient twice and be charged twice on your Twilio account.",
+        "retryUnconfirmedConfirm": "Yes, send it again"
+      },
+      "log": {
+        "title": "Message log",
+        "hint": "Every message your company sent and the last state it reached. Kept for 24 months.",
+        "search": "Search by recipient number",
+        "refresh": "Refresh",
+        "filters": {
+          "channel": "Channel",
+          "state": "State",
+          "sender": "Sender",
+          "from": "From date",
+          "toDate": "To date",
+          "all": "All"
+        },
+        "columns": {
+          "time": "Time",
+          "to": "Recipient",
+          "channel": "Channel",
+          "sender": "Sender",
+          "state": "State",
+          "actions": "Actions"
+        },
+        "open": "Details",
+        "detail": "Message details",
+        "closeDetail": "Close",
+        "sentAt": "Sent at",
+        "readAt": "Read at",
+        "body": "Text",
+        "template": "Template",
+        "segments": "Segments",
+        "empty": "No messages yet",
+        "emptyFiltered": "No messages match the filters"
+      }
     }
   }
 }

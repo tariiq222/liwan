@@ -119,6 +119,9 @@ describe('integrations navigation and locales', () => {
     expect(canReachPath({ capabilities: ['integrations.read'] }, '/settings/integrations/new')).toBe(false)
     expect(canReachPath({ capabilities: ['integrations.manage'] }, '/settings/integrations/new')).toBe(true)
     expect(canReachPath({ capabilities: ['integrations.read'] }, '/settings/system')).toBe(false)
+    expect(canReachPath({ capabilities: ['integrations.read'] }, '/settings/integrations/communications')).toBe(true)
+    expect(canReachPath({ capabilities: ['integrations.read'] }, '/settings/integrations/communications/senders/new')).toBe(false)
+    expect(canReachPath({ capabilities: ['integrations.manage'] }, '/settings/integrations/communications/senders/new')).toBe(true)
     expect(useNav({ capabilities: [] }).map(item => item.to)).not.toContain('/settings/integrations#connections')
     expect(useNav({ capabilities: ['integrations.read'] }).map(item => item.to)).toContain('/settings/integrations#connections')
     expect(useNav({ capabilities: ['integrations.read'] }).map(item => item.to)).not.toContain('/settings/system#integrations')
@@ -130,8 +133,9 @@ describe('integrations navigation and locales', () => {
 
   it('names every provider and use in both languages', () => {
     for (const locale of [ar, en]) {
-      expect(Object.keys(locale.integrations.provider).sort()).toEqual(['meta', 'paymob', 'tiktok', 'zatca'])
+      expect(Object.keys(locale.integrations.provider).sort()).toEqual(['meta', 'paymob', 'tiktok', 'twilio', 'zatca'])
       expect(Object.keys(locale.integrations.use.inbox).sort()).toEqual(['tiktok', 'whatsapp'])
+      expect(Object.keys(locale.integrations.use.twilio)).toEqual(['messaging', 'voice', 'lookup'])
     }
   })
 })

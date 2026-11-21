@@ -245,12 +245,23 @@ class LiwanIntegrationConnection(models.Model):
 
     def _liwan_probe(self):
         """The account's display name as the provider's probe reads it with the current credentials."""
+        return providers.MODULES[self.provider].probe(self.external_id, self._liwan_provider_credentials())
+
+    def _liwan_provider_credentials(self):
+        """``{name: value}`` a provider function is called with: the decrypted declared secrets of a keys provider,
+        ``{'access_token'}`` (refreshed first) of an OAuth one. A missing secret is refused before any call.
+        """
+        self.ensure_one()
         if self._liwan_definition()['auth'] == AUTH_OAUTH:
             self._liwan_oauth_fresh()
-        access_token = self._liwan_secret('access_token')
-        if not access_token:
-            raise errors.ProviderError(self.env._('The connection has no access token.'), retryable=False)
-        return providers.MODULES[self.provider].probe(self.external_id, access_token)
+            names = ('access_token',)
+        else:
+            names = self._liwan_definition()['secrets']
+        credentials = {name: self._liwan_secret(name) for name in names}
+        missing = [name for name, value in credentials.items() if not value]
+        if missing:
+            raise errors.ProviderError(self.env._('The connection has no %(name)s.', name=missing[0]), retryable=False)
+        return credentials
 
     def _liwan_record_state(self, state, message, label=None):
         values = {'state': state, 'status_message': (message or '')[:MESSAGE_LENGTH] or False, 'last_checked': fields.Datetime.now()}

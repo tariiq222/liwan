@@ -31,6 +31,7 @@ const deviceCookieName = 'liwan_device='
 const deviceToken = /^[A-Za-z0-9_-]{20,256}$/
 const deviceMaxAge = 30 * 24 * 60 * 60
 const selectors = /^(db|database|session_id|sid)$/i
+const integrationHookPath = /^\/api\/v1\/public\/integrations\/hooks\/[a-z][a-z0-9_]*\/[0-9]+\/[a-z][a-z0-9-]*$/
 // Match the BFF's fixed public auth budgets before this edge buffers JSON.
 // Separate hop pools avoid a public BFF request deadlocking its internal continuation.
 const acquireExternalBody = createBodyAdmission('session')
@@ -352,7 +353,12 @@ export function createGuard({ registryPath, restoreRegistryPath = '', proxyToken
       try {
         releaseBody = await (p.internal ? acquireInternalBody : acquireExternalBody)(req, res)
         body = await readBodyBytes(req, res, publicBodyLimit ?? 16 * 1024 * 1024)
-        if (body.length) {
+        // Provider callbacks (Twilio) post signed form bodies: inspect the keys, forward the raw bytes.
+        const formHook = req.method === 'POST' && integrationHookPath.test(p.path.split('?')[0]) &&
+          String(req.headers['content-type']).split(';')[0].trim().toLowerCase() === 'application/x-www-form-urlencoded'
+        if (body.length && formHook) {
+          for (const key of new URLSearchParams(body.toString()).keys()) if (selectors.test(key) || /[$.]/.test(key)) throw Error()
+        } else if (body.length) {
           if (!String(req.headers['content-type']).startsWith('application/json')) throw Error()
           const json = JSON.parse(body.toString())
           const inspect = (value, path = '') => {

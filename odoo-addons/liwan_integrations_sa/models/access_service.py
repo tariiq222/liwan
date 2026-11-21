@@ -2,6 +2,10 @@
 from odoo import api, models
 
 PERMISSIONS = frozenset({'integrations.read', 'integrations.manage'})
+# The message and call logs hold customer numbers and message text: no built-in role and no legacy group carries
+# these, an administrator grants them through a role (owner decision 2026-11-20). They depend on nothing and nothing
+# implies them.
+LOG_PERMISSIONS = frozenset({'integrations.log.read'})
 PERMISSION_DEPENDENCIES = {
     'integrations.manage': {'integrations.read'},
 }
@@ -13,7 +17,7 @@ class LiwanIntegrationsAccessService(models.AbstractModel):
     @api.model
     def _liwan_capability_definitions(self):
         return super()._liwan_capability_definitions() + tuple(
-            {'key': key, 'owner': 'liwan_integrations_sa'} for key in sorted(PERMISSIONS)
+            {'key': key, 'owner': 'liwan_integrations_sa'} for key in sorted(PERMISSIONS | LOG_PERMISSIONS)
         )
 
     @api.model

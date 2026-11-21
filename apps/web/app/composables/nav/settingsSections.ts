@@ -35,12 +35,14 @@ const TEAM: SettingsPage = {
     { id: 'access-log', labelKey: 'nav.accessLog', icon: 'i-lucide-history', capability: 'access.audit.read', within: '/settings/team/access-log' },
   ],
 }
-// One page for every connected outside account; its record pages and the create panel sit beneath it.
+// One page for every connected outside account; its record pages and the create panel sit beneath it. The
+// communications page (senders, daily limit, messaging test, message log) is a full page of its own.
 const INTEGRATIONS: SettingsPage = {
   id: 'integrations', labelKey: 'integrations.title', icon: 'i-lucide-plug-zap', to: '/settings/integrations', within: '/settings/integrations',
   parts: [
     { id: 'connections', labelKey: 'integrations.connections.title', icon: 'i-lucide-plug-zap', capability: 'integrations.read' },
     { id: 'providers', labelKey: 'integrations.providers.title', icon: 'i-lucide-plus', capability: 'integrations.manage' },
+    { id: 'communications', labelKey: 'integrations.communications.title', icon: 'i-lucide-message-square-text', capability: 'integrations.read', within: '/settings/integrations/communications' },
   ],
 }
 const SYSTEM: SettingsPage = {

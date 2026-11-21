@@ -16,7 +16,7 @@ from odoo.addons.liwan_api.tests.common import (
 
 CONNECTION_ROUTE = '/api/v1/integrations/connections/<int:connection_id>'
 CALLBACK_ROUTE = '/api/v1/integrations/oauth/<string:provider>/callback'
-EXPECTED_GET_RECORD_ROUTES = 2
+EXPECTED_GET_RECORD_ROUTES = 6
 cover_isolation_routes([CONNECTION_ROUTE], 'liwan_integrations_sa test_company_isolation')
 exempt_isolation_route(CALLBACK_ROUTE, 'the company comes from the signed state and must equal the session company')
 

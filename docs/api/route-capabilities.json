@@ -541,6 +541,20 @@
       "handler": "delete_connection",
       "no_capability_reason": null
     },
+    "DELETE /api/v1/integrations/senders/{sender_id}": {
+      "addon": "liwan_integrations_sa",
+      "auth": "user",
+      "capability_keys": [
+        "integrations.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "integrations.enabled"
+      ],
+      "handler": "delete_sender",
+      "no_capability_reason": null
+    },
     "DELETE /api/v1/mail/domain": {
       "addon": "liwan_notify",
       "auth": "user",
@@ -5343,6 +5357,20 @@
       "handler": "get_working_hours",
       "no_capability_reason": null
     },
+    "GET /api/v1/integrations/communication-settings": {
+      "addon": "liwan_integrations_sa",
+      "auth": "user",
+      "capability_keys": [
+        "integrations.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "integrations.enabled"
+      ],
+      "handler": "read_settings",
+      "no_capability_reason": null
+    },
     "GET /api/v1/integrations/connections": {
       "addon": "liwan_integrations_sa",
       "auth": "user",
@@ -5371,6 +5399,62 @@
       "handler": "read_connection",
       "no_capability_reason": null
     },
+    "GET /api/v1/integrations/messaging/messages": {
+      "addon": "liwan_integrations_sa",
+      "auth": "user",
+      "capability_keys": [
+        "integrations.log.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "integrations.enabled"
+      ],
+      "handler": "list_messages",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/integrations/messaging/messages/{message_id}": {
+      "addon": "liwan_integrations_sa",
+      "auth": "user",
+      "capability_keys": [
+        "integrations.log.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "integrations.enabled"
+      ],
+      "handler": "read_message",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/integrations/messaging/templates": {
+      "addon": "liwan_integrations_sa",
+      "auth": "user",
+      "capability_keys": [
+        "integrations.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "integrations.enabled"
+      ],
+      "handler": "list_templates",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/integrations/messaging/test/{message_id}": {
+      "addon": "liwan_integrations_sa",
+      "auth": "user",
+      "capability_keys": [
+        "integrations.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "integrations.enabled"
+      ],
+      "handler": "read_test",
+      "no_capability_reason": null
+    },
     "GET /api/v1/integrations/oauth/{provider}/callback": {
       "addon": "liwan_integrations_sa",
       "auth": "user",
@@ -5397,6 +5481,76 @@
         "integrations.enabled"
       ],
       "handler": "list_providers",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/integrations/senders": {
+      "addon": "liwan_integrations_sa",
+      "auth": "user",
+      "capability_keys": [
+        "integrations.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "integrations.enabled"
+      ],
+      "handler": "list_senders",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/integrations/senders/available": {
+      "addon": "liwan_integrations_sa",
+      "auth": "user",
+      "capability_keys": [
+        "integrations.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "integrations.enabled"
+      ],
+      "handler": "available_numbers",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/integrations/voice/calls": {
+      "addon": "liwan_integrations_sa",
+      "auth": "user",
+      "capability_keys": [
+        "integrations.log.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "integrations.enabled"
+      ],
+      "handler": "list_calls",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/integrations/voice/calls/{call_id}": {
+      "addon": "liwan_integrations_sa",
+      "auth": "user",
+      "capability_keys": [
+        "integrations.log.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "integrations.enabled"
+      ],
+      "handler": "read_call",
+      "no_capability_reason": null
+    },
+    "GET /api/v1/integrations/voice/test/{call_id}": {
+      "addon": "liwan_integrations_sa",
+      "auth": "user",
+      "capability_keys": [
+        "integrations.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "integrations.enabled"
+      ],
+      "handler": "read_test",
       "no_capability_reason": null
     },
     "GET /api/v1/mail/domain": {
@@ -8451,6 +8605,20 @@
       "handler": "edit_template",
       "no_capability_reason": null
     },
+    "PATCH /api/v1/integrations/communication-settings": {
+      "addon": "liwan_integrations_sa",
+      "auth": "user",
+      "capability_keys": [
+        "integrations.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "integrations.enabled"
+      ],
+      "handler": "patch_settings",
+      "no_capability_reason": null
+    },
     "PATCH /api/v1/integrations/connections/{connection_id}": {
       "addon": "liwan_integrations_sa",
       "auth": "user",
@@ -8463,6 +8631,20 @@
         "integrations.enabled"
       ],
       "handler": "patch_connection",
+      "no_capability_reason": null
+    },
+    "PATCH /api/v1/integrations/senders/{sender_id}": {
+      "addon": "liwan_integrations_sa",
+      "auth": "user",
+      "capability_keys": [
+        "integrations.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "integrations.enabled"
+      ],
+      "handler": "patch_sender",
       "no_capability_reason": null
     },
     "PATCH /api/v1/me/appearance": {
@@ -13123,6 +13305,49 @@
       "handler": "test_connection",
       "no_capability_reason": null
     },
+    "POST /api/v1/integrations/lookup/test": {
+      "addon": "liwan_integrations_sa",
+      "auth": "user",
+      "capability_keys": [
+        "integrations.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "integrations.enabled"
+      ],
+      "handler": "lookup_test",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/integrations/messaging/messages/{message_id}/retry": {
+      "addon": "liwan_integrations_sa",
+      "auth": "user",
+      "capability_keys": [
+        "integrations.manage",
+        "integrations.log.read"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "integrations.enabled"
+      ],
+      "handler": "retry_message",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/integrations/messaging/test": {
+      "addon": "liwan_integrations_sa",
+      "auth": "user",
+      "capability_keys": [
+        "integrations.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "integrations.enabled"
+      ],
+      "handler": "send_test",
+      "no_capability_reason": null
+    },
     "POST /api/v1/integrations/oauth/{provider}/start": {
       "addon": "liwan_integrations_sa",
       "auth": "user",
@@ -13135,6 +13360,34 @@
         "integrations.enabled"
       ],
       "handler": "start",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/integrations/senders": {
+      "addon": "liwan_integrations_sa",
+      "auth": "user",
+      "capability_keys": [
+        "integrations.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "integrations.enabled"
+      ],
+      "handler": "create_sender",
+      "no_capability_reason": null
+    },
+    "POST /api/v1/integrations/voice/test": {
+      "addon": "liwan_integrations_sa",
+      "auth": "user",
+      "capability_keys": [
+        "integrations.manage"
+      ],
+      "capability_match": "all",
+      "capability_source": "decorator",
+      "feature_keys": [
+        "integrations.enabled"
+      ],
+      "handler": "send_test",
       "no_capability_reason": null
     },
     "POST /api/v1/mail/domain/start": {
@@ -14130,6 +14383,16 @@
       ],
       "handler": "reply",
       "no_capability_reason": "The customer's page of one ticket under /api/v1/public/ (auth='public', no session): the ticket's own access token, compared in constant time by liwan.helpdesk.portal, is the authorization and no capability applies to an anonymous visitor; the tenant's company tree bounds the read, the feature check runs inside the portal service, and a wrong token and a missing ticket answer the same 404."
+    },
+    "POST /api/v1/public/integrations/hooks/{provider}/{connection_id}/{kind}": {
+      "addon": "liwan_integrations_sa",
+      "auth": "public",
+      "capability_keys": [],
+      "capability_match": null,
+      "capability_source": "none",
+      "feature_keys": [],
+      "handler": "provider_callback",
+      "no_capability_reason": "Provider status callback (machine to machine, auth='public', type='http'): Twilio signs every POST with HMAC-SHA1 over the stored callback URL and the sorted form parameters using the account's auth token; there is no user to hold a capability, and the one elevated model method applies the status only after that signature is verified."
     },
     "POST /api/v1/public/payments/hooks/{code}/{kind}": {
       "addon": "liwan_payments",

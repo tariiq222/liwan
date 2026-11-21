@@ -1,5 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Request parsing and lookups shared by the integrations controllers."""
+from datetime import datetime
+
 from odoo.http import request
 
 from odoo.addons.liwan_api.controllers.common import ApiError
@@ -9,6 +11,9 @@ TEXT_MAX = 128
 SECRET_MIN = 8
 SECRET_MAX = 1024
 EXTERNAL_ID_MAX = 64
+# A phone-number field carries at most the E.164 spelling of the longest number (15 digits plus `+`), with room to spare.
+TO_MAX = 32
+Q_MAX = 32
 
 
 def reject(message, field=None):
@@ -18,6 +23,11 @@ def reject(message, field=None):
 
 def not_found():
     return ApiError(404, 'not_found', 'record does not exist')
+
+
+def provider_failure(error):
+    """A provider refusal while reading the account answers 502 with the provider's short message."""
+    return ApiError(502, 'provider_error', str(error), details={'retryable': error.retryable})
 
 
 def check_fields(payload, allowed, required=()):
@@ -37,6 +47,34 @@ def parse_text(payload, key, maximum, minimum=1):
     if value is None or not minimum <= len(value) <= maximum:
         reject(f'{key} must be a string of {minimum} to {maximum} characters', key)
     return value
+
+
+def positive_int(value, key):
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        reject(f'{key} must be a positive integer', key)
+    return value
+
+
+def query_int(args, key):
+    """The positive-integer value of a query parameter, or None when absent."""
+    raw = args.get(key)
+    if raw is None:
+        return None
+    if not raw.isdigit() or int(raw) <= 0:
+        reject(f'{key} must be a positive integer', key)
+    return int(raw)
+
+
+def query_date(args, key):
+    """The date a query parameter names, or None when absent."""
+    raw = args.get(key)
+    if raw is None:
+        return None
+    # The contract promises `YYYY-MM-DD` (z.iso.date), so the full datetime spelling is refused.
+    try:
+        return datetime.strptime(raw, '%Y-%m-%d').date()
+    except ValueError:
+        reject(f'{key} must be a date (YYYY-MM-DD)', key)
 
 
 def parse_optional_text(payload, key):
@@ -84,6 +122,10 @@ def find_connection(connection_id):
     if not connection:
         raise not_found()
     return connection
+
+
+def query_connection_id(args):
+    return query_int(args, 'connection_id')
 
 
 def offered_providers():

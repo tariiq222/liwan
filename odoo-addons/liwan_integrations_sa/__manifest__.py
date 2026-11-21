@@ -1,8 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 {
     'name': 'liwan Integrations',
-    'summary': 'liwan platform: provider connections, their encrypted secrets and uses — /api/v1/integrations',
-    'version': '19.0.1.1.0',
+    'summary': 'liwan platform: provider connections, their encrypted secrets, uses, senders and signed callbacks — /api/v1/integrations',
+    'version': '19.0.1.3.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -16,7 +16,9 @@
         'security/integrations_rules.xml',
         'security/ir.model.access.csv',
         'data/integrations_access_permissions.xml',
+        'data/integrations_cron.xml',
     ],
+    'external_dependencies': {'python': ['phonenumbers']},
     'installable': True,
     'application': False,
 }
