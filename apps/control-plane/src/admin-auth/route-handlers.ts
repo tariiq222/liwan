@@ -58,10 +58,19 @@ async function finishSignIn(ctx: AuthContext, client: PoolClient, accountId: num
   return { status: 200, data: sessionBody(session) }
 }
 
+/** Derived from the database, never from the request: a passkey registered during this invitation. */
+async function passkeyRegisteredDuring(c: PoolClient, accountId: number, token: string): Promise<boolean> {
+  const registered = await c.query('SELECT 1 FROM vendor_passkeys p JOIN vendor_invitations i ON i.token_hash=$2 WHERE p.account_id=$1 AND p.created_at >= i.created_at LIMIT 1', [accountId, hashToken(token)])
+  return Boolean(registered.rowCount)
+}
+
 export const handlers = {
   async invitation(ctx: AuthContext, body: { token: string }): Promise<Result> {
-    const inv = await tx(ctx, (c) => openInvitation(c, body.token, ctx.now))
-    return { status: 200, data: adminInvitationInfoSchema.parse({ email: inv.email, purpose: inv.purpose }) }
+    return tx(ctx, async (c) => {
+      const inv = await openInvitation(c, body.token, ctx.now)
+      const passkeyRegistered = await passkeyRegisteredDuring(c, inv.accountId, body.token)
+      return { status: 200, data: adminInvitationInfoSchema.parse({ email: inv.email, purpose: inv.purpose, passkey_registered: passkeyRegistered }) }
+    })
   },
   async enrollPasskeyOptions(ctx: AuthContext, body: { token: string }): Promise<Result> {
     return tx(ctx, async (c) => {
@@ -88,9 +97,7 @@ export const handlers = {
   async enrollComplete(ctx: AuthContext, body: { token: string; password: string; totp_code: string; totp_box: string }): Promise<Result> {
     return tx(ctx, async (c) => {
       const inv = await openInvitation(c, body.token, ctx.now)
-      // Derived from the database, never from the request: a passkey registered during this invitation.
-      const registered = await c.query('SELECT 1 FROM vendor_passkeys p JOIN vendor_invitations i ON i.token_hash=$2 WHERE p.account_id=$1 AND p.created_at >= i.created_at LIMIT 1', [inv.accountId, hashToken(body.token)])
-      const done = await completeEnrollment(c, body.token, { password: body.password, totpCode: body.totp_code, totpSecretBox: Buffer.from(body.totp_box, 'base64'), passkeyRegistered: Boolean(registered.rowCount) }, ctx.admin.secretKey, ctx.now)
+      const done = await completeEnrollment(c, body.token, { password: body.password, totpCode: body.totp_code, totpSecretBox: Buffer.from(body.totp_box, 'base64'), passkeyRegistered: await passkeyRegisteredDuring(c, inv.accountId, body.token) }, ctx.admin.secretKey, ctx.now)
       const session = await createSession(c, done.accountId, ctx.now, true)
       return { status: 200, data: sessionBody(session, done.recoveryCodes) }
     })

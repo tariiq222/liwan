@@ -119,7 +119,7 @@ export function createMockControl() {
   const authRoutes = {
     '/v1/admin/auth/invitation': ({ body }, res) => {
       const inv = invitationOf(body.token)
-      return inv ? json(res, 200, { email: accounts.get(inv.accountId).email, purpose: 'enroll' }) : json(res, 401, { code: 'auth_failed' })
+      return inv ? json(res, 200, { email: accounts.get(inv.accountId).email, purpose: 'enroll', passkey_registered: Boolean(inv.passkey) }) : json(res, 401, { code: 'auth_failed' })
     },
     '/v1/admin/auth/enroll/passkey/options': ({ body }, res) => {
       const inv = invitationOf(body.token)
