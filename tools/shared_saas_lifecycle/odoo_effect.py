@@ -250,7 +250,6 @@ class Runner:
         self.base = ['docker', 'compose', '--project-name', config['projectName'], '--env-file', config['envFile'], '--file', config['composeFile']]
         self.current_container = None
         self.child = None
-        self.ai_enabled = False
 
     def command(self, args, *, stdin='', timeout=90, stdout_only=False):
         # Continuously drain into a bounded tail; installation logs cannot grow
@@ -294,11 +293,12 @@ class Runner:
             self.child.wait(timeout=10)
 
     def preflight(self):
+        """Validate the runtime and the request; return whether the rendered project runs the ai service."""
         config = json.loads(self.command(self.base + ['config', '--format', 'json']))
         if config.get('name') != self.config['projectName'] or not {'db', 'odoo'} <= set(config.get('services', {})):
             raise EffectError('foreign_project')
         # The `ai` service is in the rendered config only when the env file enables the ai profile.
-        self.ai_enabled = 'ai' in config['services']
+        ai_enabled = 'ai' in config['services']
         ids = self.command(self.base + ['ps', '-q', 'db']).strip().splitlines()
         if len(ids) != 1 or not re.fullmatch(r'[a-f0-9]{12,64}', ids[0]):
             raise EffectError('database_service_unavailable')
@@ -307,7 +307,7 @@ class Runner:
         if labels.get('com.docker.compose.project') != self.config['projectName'] or labels.get('com.docker.compose.service') != 'db':
             raise EffectError('foreign_project')
         if self.request['job']['operation'] != 'provision':
-            return
+            return ai_enabled
         # The first customer administrator counts against users.limit (the control
         # plane's admitsRequiredAdmin rule): refuse before any reservation or install.
         limit = self.request['job']['policy']['features'].get('users.limit')
@@ -331,6 +331,7 @@ class Runner:
         else:
             parse_create_policy(policy, catalog_path=catalog,
                                 catalog_sha256='sha256:' + self.request['job']['catalog']['sourceSha256'], commercial_mode='saas')
+        return ai_enabled
 
     def exists(self):
         sql = "SELECT count(*) FROM pg_database WHERE datname='" + self.database + "'"
@@ -352,20 +353,25 @@ class Runner:
         self.psql('postgres', tenant_create_database_sql(self.database) + ';\n'
                   + tenant_isolation_sql(self.database, TENANT_DB_ROLE))
         self.psql(self.database, TENANT_EXTENSION_SQL + ';\n')
-        self.prepare_ai_state()
 
-    def prepare_ai_state(self):
+    def prepare_ai_state(self, ai_enabled):
         # The AI role needs its grants and schema (a no-op without the role) and, when the deployment
         # runs the ai service, its tables: the runtime only validates them (`ai_state_uninitialized`).
-        # Both depend on the isolated empty database only, not on the Odoo install, so they run first and
-        # a failure costs no install. Both are idempotent.
+        # The release control state comes first, once per deployment (deploy/provision.sh does the same,
+        # for `ai_control_state_uninitialized`), then the tenant state. All depend on the isolated empty
+        # database only, not on the Odoo install, so they run first and a failure costs no install.
+        # All are idempotent.
         self.psql('postgres', AI_TENANT_SCHEMA.read_text(), variables=[('tenant_db', self.database)])
-        if not self.ai_enabled:
+        if not ai_enabled:
             return
-        self.current_container = self.config['projectName'] + '-effect-' + self.request['attemptId'][:8] + '-ai'
+        self.run_ai_initialization('control', '--initialize-control')
+        self.run_ai_initialization('tenant', '--initialize-tenant', self.database)
+
+    def run_ai_initialization(self, step, *arguments):
+        self.current_container = self.config['projectName'] + '-effect-' + self.request['attemptId'][:8] + '-ai-' + step
         try:
             self.command(self.base + ['run', '--rm', '--no-deps', '-T', '--name', self.current_container,
-                'ai', 'python', '-m', 'liwan_ai_service.store', '--initialize-tenant', self.database], timeout=300)
+                'ai', 'python', '-m', 'liwan_ai_service.store', *arguments], timeout=300)
         finally:
             self.current_container = None
 
@@ -422,7 +428,9 @@ class Runner:
         gate.complete()
 
     def apply(self):
-        self.preflight()
+        ai_enabled = self.preflight()
+        if type(ai_enabled) is not bool:  # a preflight that did not decide must stop the job, never skip the AI state
+            raise EffectError('runtime_invalid')
         permit('reserve')
         for name in ('reservations', 'credentials', 'classifications'):
             entry = self.root / name
@@ -441,6 +449,7 @@ class Runner:
         self.classification.chmod(0o644)
         permit('install')
         self.create_isolated_database()
+        self.prepare_ai_state(ai_enabled)
         self.current_container = self.config['projectName'] + '-effect-' + self.request['attemptId'][:8] + '-install'
         try:
             self.command(self.base + ['run', '--rm', '--no-deps', '-T', '--name', self.current_container,

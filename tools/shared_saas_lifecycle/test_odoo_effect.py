@@ -663,7 +663,6 @@ class TenantIsolationOrderTests(unittest.TestCase):
 
     def runner(self, root, fail_on=None, ai_enabled=False):
         runner = object.__new__(odoo_effect.Runner)
-        runner.ai_enabled = ai_enabled
         runner.root = Path(root).resolve()
         runner.config = {'projectName': self.PROJECT}
         runner.database = self.DATABASE
@@ -674,7 +673,7 @@ class TenantIsolationOrderTests(unittest.TestCase):
         runner.reservation = runner.root / 'reservation.json'
         runner.credential = runner.root / 'credential.json'
         runner.classification = runner.root / 'classification.json'
-        runner.preflight = lambda: None
+        runner.preflight = lambda: ai_enabled
         runner.exists = lambda: False
         runner.filestore_exists = lambda: False
         runner.current_container = None
@@ -735,14 +734,31 @@ class TenantIsolationOrderTests(unittest.TestCase):
             runner = self.runner(raw, fail_on=lambda args: '-i' in args, ai_enabled=True)
             with self.assertRaises(odoo_effect.EffectError):
                 self.apply(runner)
-        self.assertEqual(self.kinds(), ['psql', 'psql', 'psql', 'ai', 'install'])
+        self.assertEqual(self.kinds(), ['psql', 'psql', 'psql', 'ai', 'ai', 'install'])
         schema_args, schema_sql = [(args, stdin) for args, stdin in self.commands if 'psql' in args][2]
         self.assertEqual(schema_sql, odoo_effect.AI_TENANT_SCHEMA.read_text())
         self.assertEqual(schema_args[schema_args.index('-d') + 1], 'postgres')
         self.assertIn('tenant_db=' + self.DATABASE, schema_args)
-        ai_args = self.commands[3][0]
-        self.assertEqual(ai_args[-2:], ['--initialize-tenant', self.DATABASE])
-        self.assertIn('--no-deps', ai_args)
+        control_args, tenant_args = self.commands[3][0], self.commands[4][0]
+        self.assertEqual(control_args[-1], '--initialize-control')
+        self.assertEqual(tenant_args[-2:], ['--initialize-tenant', self.DATABASE])
+        self.assertIn('--no-deps', control_args)
+        self.assertIn('--no-deps', tenant_args)
+
+    def test_a_failed_control_initialization_stops_before_any_tenant_state(self):
+        with tempfile.TemporaryDirectory() as raw:
+            runner = self.runner(raw, fail_on=lambda args: '--initialize-control' in args, ai_enabled=True)
+            with self.assertRaisesRegex(odoo_effect.EffectError, '^runtime_command_failed$'):
+                self.apply(runner)
+        self.assertEqual(self.kinds(), ['psql', 'psql', 'psql', 'ai'])
+        self.assertFalse(any('--initialize-tenant' in args for args, _ in self.commands))
+
+    def test_a_preflight_that_reports_no_ai_decision_fails_loudly(self):
+        with tempfile.TemporaryDirectory() as raw:
+            runner = self.runner(raw, ai_enabled=None)
+            with self.assertRaisesRegex(odoo_effect.EffectError, '^runtime_invalid$'):
+                self.apply(runner)
+        self.assertFalse(any('-i' in args for args, _ in self.commands))
 
     def test_a_deployment_without_the_ai_profile_runs_only_the_schema_script(self):
         with tempfile.TemporaryDirectory() as raw:
