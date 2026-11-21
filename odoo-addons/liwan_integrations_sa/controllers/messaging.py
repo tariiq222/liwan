@@ -15,12 +15,10 @@ from odoo.addons.liwan_integrations_sa.controllers.helpers import (
     check_fields,
     find_connection,
     not_found,
-    reject,
-)
-from odoo.addons.liwan_integrations_sa.controllers.senders import (
-    _positive_int,
-    _query_connection_id,
+    positive_int,
     provider_failure,
+    query_connection_id,
+    reject,
 )
 from odoo.addons.liwan_integrations_sa.models.constants import FEATURE, MANAGE
 from odoo.addons.liwan_integrations_sa.models.message import STATES
@@ -60,7 +58,7 @@ class IntegrationMessagingController(http.Controller):
     @requires_feature(FEATURE, operation='read')
     @requires_capability(MANAGE)
     def list_templates(self, **_):
-        connection_id = _query_connection_id(request.httprequest.args)
+        connection_id = query_connection_id(request.httprequest.args)
         if connection_id is None:
             reject('connection_id is required', 'connection_id')
         connection = find_connection(connection_id)
@@ -80,7 +78,7 @@ class IntegrationMessagingController(http.Controller):
     @requires_capability(MANAGE)
     def send_test(self, **payload):
         check_fields(payload, TEST_FIELDS, required=('sender_id', 'to'))
-        sender_id = _positive_int(payload['sender_id'], 'sender_id')
+        sender_id = positive_int(payload['sender_id'], 'sender_id')
         to = payload['to']
         if not isinstance(to, str) or not 1 <= len(to.strip()) <= TO_MAX:
             reject(f'to must be a phone number of at most {TO_MAX} characters', 'to')

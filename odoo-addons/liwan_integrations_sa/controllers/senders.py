@@ -3,7 +3,6 @@ from odoo import http
 from odoo.http import request
 
 from odoo.addons.liwan_api.controllers.common import (
-    ApiError,
     api_handler,
     parse_page,
     requires_capability,
@@ -13,6 +12,9 @@ from odoo.addons.liwan_integrations_sa.controllers.helpers import (
     check_fields,
     find_connection,
     not_found,
+    positive_int,
+    provider_failure,
+    query_connection_id,
     reject,
 )
 from odoo.addons.liwan_integrations_sa.models.communication_settings import (
@@ -34,30 +36,10 @@ VALUE_MAX = 64
 BOOLEAN_TEXT = {'true': True, 'false': False}
 
 
-def provider_failure(error):
-    """A provider refusal while reading the account answers 502 with the provider's short message."""
-    return ApiError(502, 'provider_error', str(error), details={'retryable': error.retryable})
-
-
-def _positive_int(value, key):
-    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
-        reject(f'{key} must be a positive integer', key)
-    return value
-
-
 def _boolean(payload, key):
     if not isinstance(payload[key], bool):
         reject(f'{key} must be true or false', key)
     return payload[key]
-
-
-def _query_connection_id(args):
-    raw = args.get('connection_id')
-    if raw is None:
-        return None
-    if not raw.isdigit() or int(raw) <= 0:
-        reject('connection_id must be a positive integer', 'connection_id')
-    return int(raw)
 
 
 def _find_sender(sender_id):
@@ -97,7 +79,7 @@ class IntegrationSenderController(http.Controller):
             if channel not in CHANNEL_KINDS:
                 reject(f'channel must be one of {", ".join(CHANNEL_KINDS)}', 'channel')
             domain.append(('channel', '=', channel))
-        connection_id = _query_connection_id(args)
+        connection_id = query_connection_id(args)
         if connection_id is not None:
             domain.append(('connection_id', '=', connection_id))
         active = args.get('active', 'true')
@@ -113,7 +95,7 @@ class IntegrationSenderController(http.Controller):
     @requires_feature(FEATURE, operation='read')
     @requires_capability(MANAGE)
     def available_numbers(self, **_):
-        connection_id = _query_connection_id(request.httprequest.args)
+        connection_id = query_connection_id(request.httprequest.args)
         if connection_id is None:
             reject('connection_id is required', 'connection_id')
         connection = find_connection(connection_id)
@@ -130,7 +112,7 @@ class IntegrationSenderController(http.Controller):
     @requires_capability(MANAGE)
     def create_sender(self, **payload):
         check_fields(payload, CREATE_FIELDS, required=('connection_id', 'channel', 'kind', 'value'))
-        connection = find_connection(_positive_int(payload['connection_id'], 'connection_id'))
+        connection = find_connection(positive_int(payload['connection_id'], 'connection_id'))
         channel, kind, value = payload['channel'], payload['kind'], payload['value']
         if channel not in CHANNEL_KINDS:
             reject(f'channel must be one of {", ".join(CHANNEL_KINDS)}', 'channel')

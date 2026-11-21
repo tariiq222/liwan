@@ -20,6 +20,11 @@ def not_found():
     return ApiError(404, 'not_found', 'record does not exist')
 
 
+def provider_failure(error):
+    """A provider refusal while reading the account answers 502 with the provider's short message."""
+    return ApiError(502, 'provider_error', str(error), details={'retryable': error.retryable})
+
+
 def check_fields(payload, allowed, required=()):
     """Reject unknown and missing keys of a JSON body with a 422 naming the field."""
     unknown = sorted(set(payload) - set(allowed))
@@ -36,6 +41,12 @@ def parse_text(payload, key, maximum, minimum=1):
     value = payload[key].strip() if isinstance(payload[key], str) else None
     if value is None or not minimum <= len(value) <= maximum:
         reject(f'{key} must be a string of {minimum} to {maximum} characters', key)
+    return value
+
+
+def positive_int(value, key):
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        reject(f'{key} must be a positive integer', key)
     return value
 
 
@@ -84,6 +95,15 @@ def find_connection(connection_id):
     if not connection:
         raise not_found()
     return connection
+
+
+def query_connection_id(args):
+    raw = args.get('connection_id')
+    if raw is None:
+        return None
+    if not raw.isdigit() or int(raw) <= 0:
+        reject('connection_id must be a positive integer', 'connection_id')
+    return int(raw)
 
 
 def offered_providers():
