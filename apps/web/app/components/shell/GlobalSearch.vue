@@ -3,7 +3,7 @@ import { refDebounced, useMediaQuery } from '@vueuse/core'
 import type { CommandPaletteGroup, CommandPaletteItem, CommandPaletteProps } from '@nuxt/ui'
 import { useNav, visibleShellModules, type NavItem } from '@/composables/nav/shellModules'
 import {
-  appItems, commandItems, goToItems, helpItems, paletteGroups, PALETTE_SECTION_LIMIT, visibleCommands, type PaletteItem,
+  appItems, commandItems, goToItems, helpItems, paletteGroups, PALETTE_RESULT_LIMIT, visibleCommands, type PaletteItem,
 } from '@/composables/nav/paletteModel'
 import { isApplePlatform } from '@liwan/ui/app/composables/shortcuts/keymap'
 import { useAppSearch } from '@/composables/useAppSearch'
@@ -191,7 +191,7 @@ function onAfterLeave() {
         :placeholder="view === 'shortcuts' ? t('shortcuts.filter') : t('search.description')"
         :input="inputProps"
         :loading="searching"
-        :fuse="{ resultLimit: PALETTE_SECTION_LIMIT + 3 }"
+        :fuse="{ resultLimit: PALETTE_RESULT_LIMIT }"
         preserve-group-order
         :dir="localeProperties.dir"
         :data-view="view"

@@ -5,9 +5,12 @@ const props = withDefaults(defineProps<{
   state: 'pending' | 'approved' | 'rejected'
   latest?: boolean
   disabled?: boolean
+  /** This card's own request is executing right now, so its button spins. `disabled` alone only greys it out: the two
+   * were the same prop, which spun the approve button before anyone pressed it. */
+  busy?: boolean
   /** Why the card cannot be answered now (an earlier request is still executing it). */
   note?: string
-}>(), { latest: true })
+}>(), { latest: true, busy: false })
 const emit = defineEmits<{ approve: []; reject: [] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
@@ -18,7 +21,7 @@ const hydrated = useHydrated()
     <p class="break-words text-sm text-highlighted">{{ props.note ? `${props.summary} — ${props.note}` : props.summary }}</p>
     <div class="mt-3 flex w-full flex-wrap justify-end gap-2">
       <UButton type="button" color="neutral" variant="outline" :disabled="!hydrated || props.disabled" :label="t('ai.confirm.reject')" data-testid="inline-confirm-cancel" @click="emit('reject')" />
-      <UButton type="button" :disabled="!hydrated || props.disabled" :loading="props.disabled" :label="t('ai.confirm.approve')" data-testid="inline-confirm-action" @click="emit('approve')" />
+      <UButton type="button" :disabled="!hydrated || props.disabled" :loading="props.busy" :label="t('ai.confirm.approve')" data-testid="inline-confirm-action" @click="emit('approve')" />
     </div>
   </SharedRecordSection>
   <AiResolvedLine v-else :summary="props.summary" :state="props.state" data-testid="ai-confirm" />
