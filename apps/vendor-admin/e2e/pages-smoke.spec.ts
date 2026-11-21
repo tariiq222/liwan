@@ -13,7 +13,7 @@ const PAGES = [
   ...['subscription', 'invoices', 'workspace', 'operations', 'history'].map(tab => `/customers/cust-alpha?tab=${tab}`), '/customers/new', '/operations', '/operations/op-1',
   '/plans', '/plans/new', `/plans/${PLAN}`, `/plans/${PLAN}/edit`,
   '/bundles', '/bundles/new', `/bundles/${BUNDLE}`, `/bundles/${BUNDLE}/edit`,
-  '/catalog', `/catalog/${CATALOG_VERSION}`, '/packages', `/packages/${PACKAGE}`, '/invoices', '/invoices/inv-1', '/audit',
+  '/catalog', `/catalog/${CATALOG_VERSION}`, '/packages', `/packages/${PACKAGE}`, '/invoices', '/invoices/inv-1', '/ai-billing-settings', '/audit',
 ]
 // Entries that only redirect: the destination is what renders.
 const REDIRECTS: Record<string, string> = { '/': '/overview', '/tenants/tenant-1': '/customers/cust-alpha' }

@@ -164,6 +164,7 @@ export function handleCommercial(req, res, url, { capabilities, body } = {}) {
   else if (path === '/v1/commercial/catalog/releases') send({ items: fixtures.releases, total: fixtures.releases.length })
   // The production order: schema_012 inserts both rows in one statement, so they share created_at and the VAT row sorts
   // first. The plan form must still default to the no-tax policy — that is what this fixture exists to exercise.
+  else if (path === '/v1/commercial/ai-billing-settings') send({ topup_amounts_minor: [2500, 5000, 10000], topup_minimum_minor: 2500, usd_rate: '3.75', trial_allowance_minor: 500, monthly_allowance_minor: 1000 })
   else if (path === '/v1/commercial/policies') send({ items: [fixtures.policy, fixtures.noTaxPolicy], total: 2 })
   else notFound(res)
   return true

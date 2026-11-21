@@ -24,6 +24,8 @@ const ALLOWED = [
   new RegExp(`^/v1/commercial/invoice-adjustments/${SEGMENT}/refund$`),
   // Release 1 billing: the vendor-editable settings row, and recording a bank transfer against one invoice.
   /^\/v1\/commercial\/billing-settings$/,
+  // Vendor-wide AI billing: top-up amounts, the conversion rate and the free allowances.
+  /^\/v1\/commercial\/ai-billing-settings$/,
   new RegExp(`^/v1/commercial/invoices/${SEGMENT}/bank-transfer$`),
   // A2: the customer-requested refund. Creates the pending vendor credit note; the provider reference is recorded
   // through the existing invoice-adjustments refund route above.
@@ -73,6 +75,7 @@ const READ_ONLY = [new RegExp(`^/v1/packages(/${SEGMENT})?$`)]
  * console actually calls, so a stray DELETE cannot reach the control plane through a path that is only ever read. */
 const METHOD_BOUND = [
   { pattern: /^\/v1\/commercial\/billing-settings$/, methods: ['GET', 'PATCH', 'POST'] },
+  { pattern: /^\/v1\/commercial\/ai-billing-settings$/, methods: ['GET', 'PATCH'] },
   { pattern: new RegExp(`^/v1/commercial/invoices/${SEGMENT}/bank-transfer$`), methods: ['POST'] },
   { pattern: new RegExp(`^/v1/commercial/invoices/${SEGMENT}/refund-request$`), methods: ['POST'] },
   { pattern: /^\/v1\/commercial\/deletion-requests$/, methods: ['GET'] },

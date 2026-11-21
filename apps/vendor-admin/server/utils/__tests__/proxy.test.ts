@@ -170,6 +170,19 @@ describe('vendor API proxy', () => {
     expect(calls).toHaveLength(before)
   })
 
+  it('forwards the AI billing settings with GET and PATCH only, and refuses near misses', async () => {
+    const calls = stubUpstream(() => json(200, {}))
+    expect((await get('/commercial/ai-billing-settings')).status).toBe(200)
+    expect((await patch('/commercial/ai-billing-settings')).status).toBe(200)
+    expect(calls.map(c => `${c.method} ${c.url.pathname}`)).toEqual(['GET /v1/commercial/ai-billing-settings', 'PATCH /v1/commercial/ai-billing-settings'])
+    for (const path of ['/commercial/ai-billing-settings/extra', '/commercial/ai-billing-settingsx', '/commercial/ai-billing']) expect((await get(path)).status, path).toBe(404)
+    // The top-up refund route is not part of the console: a refund goes through the invoice's refund request.
+    expect((await post('/commercial/ai-topups/00000000-0000-4000-8000-000000000001/refund')).status).toBe(404)
+    expect(calls).toHaveLength(2)
+    expect((await post('/commercial/ai-billing-settings')).status).toBe(405)
+    expect(calls).toHaveLength(2)
+  })
+
   it('binds the method of the two release 1 billing routes', async () => {
     // Exercised through the real handler: the refusals must happen before anything is forwarded upstream.
     const calls = stubUpstream(() => json(200, {}))

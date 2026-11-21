@@ -12,6 +12,7 @@ const ENTRIES: readonly AdminNavEntry[] = [
   { id: 'catalog', icon: 'i-lucide-boxes', capability: 'vendor.read', alsoUnder: CATALOG_TABS.map(tab => tab.to) },
   { id: 'invoices', icon: 'i-lucide-receipt', capability: 'vendor.billing.manage' },
   { id: 'billing-settings', icon: 'i-lucide-settings-2', capability: 'vendor.billing.manage' },
+  { id: 'ai-billing-settings', icon: 'i-lucide-sparkles', capability: 'vendor.billing.manage' },
   { id: 'operations', icon: 'i-lucide-wrench', capability: 'vendor.read' },
   { id: 'audit', icon: 'i-lucide-history', capability: 'vendor.audit.read' },
   { id: 'ai-provider', icon: 'i-lucide-bot', capability: 'vendor.ai.manage' },

@@ -1506,6 +1506,36 @@
       },
       "pendingActivation": "Awaiting activation"
     },
+    "aiBillingSettings": {
+      "title": "AI billing settings",
+      "hint": "The AI balance customers can buy and the free AI allowances. They apply to every customer.",
+      "save": "Save settings",
+      "saved": "The AI billing settings were saved.",
+      "pushed": "{count} workspace received its new AI allowance. | {count} workspaces received their new AI allowance.",
+      "sections": {
+        "topup": "Top-up",
+        "topupHint": "The amounts a customer may buy, the lowest amount, and the rate that turns riyals into AI balance.",
+        "allowances": "Free allowances",
+        "allowancesHint": "AI usage included for every customer, expressed as a value in riyals. Changing an allowance updates the customers' workspaces."
+      },
+      "fields": {
+        "amounts": "Top-up amounts (SAR)",
+        "amountsHint": "Separate the amounts with commas, from the smallest to the largest, for example 25, 50, 100. Up to 12 amounts.",
+        "minimum": "Lowest amount (SAR)",
+        "minimumHint": "Every amount offered must reach it.",
+        "rate": "Riyals per US dollar",
+        "rateHint": "Converts a top-up into AI balance, for example 3.75. Up to six decimals.",
+        "trial": "Trial allowance (SAR)",
+        "monthly": "Monthly allowance (SAR)"
+      },
+      "errors": {
+        "amounts": "Enter between 1 and 12 different amounts in riyals, with at most two decimals, from the smallest to the largest.",
+        "minimum": "Enter the lowest amount in riyals; every amount offered must be at least this much.",
+        "rate": "Enter a positive rate with at most six decimals, such as 3.75.",
+        "trial": "Enter an amount in riyals, or 0 for no trial allowance.",
+        "monthly": "Enter an amount in riyals, or 0 for no monthly allowance."
+      }
+    },
     "billingSettings": {
       "title": "Billing settings",
       "hint": "The values Liwan's own billing runs on. Change them here, never in code.",
