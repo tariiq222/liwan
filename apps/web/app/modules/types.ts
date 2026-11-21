@@ -141,8 +141,20 @@ export interface AppLandingEntry {
  * meetings: the upcoming ones). The button shows `count` as its badge and opens a slide-over whose body is the
  * application's own component, loaded lazily so the shell imports no application code (R3). The body takes no props.
  */
-export interface AppQuickPanel {
-  /** Unique across manifests; names the slide-over and its test ids. */
+export interface AppCoreCount {
+  /** Unique across manifests: the core application whose badge it is (`chat`, `tasks`, `meetings`). */
+  id: string
+  /** Capability that shows the number (with the application's feature). */
+  capability: string
+  /** The page the number belongs to. */
+  to: string
+  /** Vue-query key of the count; the surfaces append the viewer's company and user. */
+  queryKey: readonly unknown[]
+  /** The number; runs through useApi() with the caller's session. */
+  count: (api: AppSearchApi) => Promise<number>
+}
+
+/** Unique across manifests; names the slide-over and its test ids. */
   id: string
   labelKey: string
   icon: AppIcon
@@ -388,7 +400,8 @@ export interface AppManifest {
   /** Palette actions (Actions group of the command palette). */
   commands?: AppCommand[]
   /** A top-bar tool with a slide-over panel (a personal list and its badge). */
-  quickPanel?: AppQuickPanel
+  /** The badge number of this application in the core-app row and the phone tab bar. */
+  coreCount?: AppCoreCount
   /** The assistant's header button and sheet; only the assistant application declares it. */
   assistant?: AppAssistantSurface
   /** What needs the user's attention, for the assistant surfaces and the home suggestions. */

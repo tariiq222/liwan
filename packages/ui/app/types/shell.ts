@@ -40,4 +40,4 @@ export interface ShellNavigationItem {
 }
 
 /** One destination of the bottom tab bar; an item without `to` is a button («المزيد» opens the drawer). */
-export interface ShellTabItem { id: string; label: string; icon: string; to?: string; active: boolean; testId?: string }
+export interface ShellTabItem { id: string; label: string; icon: string; to?: string; active: boolean; testId?: string; /** The unread or open count the sidebar's core row shows for the same application. */ count?: number }

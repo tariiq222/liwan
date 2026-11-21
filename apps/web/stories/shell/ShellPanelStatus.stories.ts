@@ -5,7 +5,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shell/ShellPanelStatus',
   component: ShellPanelStatus,
-  parameters: storyContext('apps/web/app/components/chat/ChatQuickPanel.vue:22'),
+  parameters: storyContext('apps/web/app/components/notifications/NotificationsPanel.vue:22'),
   args: { kind: 'empty', message: 'لا محادثات بعد.' },
   render: args => ({ components: { ShellPanelStatus }, setup: () => ({ args }), template: '<div class="liwan-shell" style="width: 364px"><ShellPanelStatus v-bind="args" /></div>' }),
 } satisfies Meta<typeof ShellPanelStatus>

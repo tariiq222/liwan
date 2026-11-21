@@ -41,7 +41,8 @@ const footerRows = computed<ShellNavigationLink[]>(() => [
   link('apps', t('nav.allApps'), 'i-lucide-layout-grid', '/apps', onAppsPage.value),
   ...(settings.value ? [link(settings.value.id, t(settings.value.labelKey), settings.value.icon, settings.value.to, navigation.activeId.value === settings.value.id)] : []),
 ])
-const backRows = computed<ShellNavigationLink[]>(() => [link('back', t('nav.allApps'), 'i-lucide-arrow-left', '/apps', false)])
+// Every pinned application except the open one: the menu lists where the user can go, not where they already are.
+const switchItems = computed(() => pinnedRows.value.filter(row => row.id !== shell.activeModule.value))
 
 // App mode: the create action first, then the application's own sections.
 const app = computed(() => navigation.item.value)
@@ -70,13 +71,9 @@ const sections = computed(() => app.value?.sections ?? [])
 
     <ShellNavSection v-if="navigation.mode.value === 'global'" :label="t('nav.myApps')" :title="t('nav.myApps')" :action="{ label: t('nav.editApps'), to: '/apps', icon: 'i-lucide-pencil' }" :items="pinnedRows" :test-id-prefix="prefix" :hydrated="hydrated" @navigate="emit('navigate')" />
     <template v-else-if="app">
-      <div class="liwan-side-back"><ShellNavSection :label="t('nav.allApps')" :items="backRows" :test-id-prefix="prefix" :hydrated="hydrated" @navigate="emit('navigate')" /></div>
-      <ShellTip :label="app.label">
-        <div class="liwan-side-appblock" :data-testid="`${prefix}navigation-app-block`">
-          <ShellAppTile :icon="app.icon" :app="app.id" size="md" />
-          <span data-slot="name">{{ app.label }}</span>
-        </div>
-      </ShellTip>
+      <!-- The block switches application directly (DESIGN.md §3): the «كل التطبيقات» row that used to sit above it
+           pointed at /apps, which the footer already carries, so the same link appeared twice in one column. -->
+      <ShellAppSwitcher :app="{ id: app.id, label: app.label, icon: app.icon }" :items="switchItems" :menu-label="t('nav.switchApp')" :disabled="!hydrated" />
       <ShellNavSection v-if="actionRows.length" :label="t('nav.quickActionsList')" :items="actionRows" :test-id-prefix="prefix" :hydrated="hydrated" @navigate="emit('navigate')" />
       <ShellNavSection v-for="section in sections" :key="section.id" :label="app.label" :title="section.title || undefined" :items="section.items" :test-id-prefix="prefix" :hydrated="hydrated" @navigate="emit('navigate')" />
     </template>
