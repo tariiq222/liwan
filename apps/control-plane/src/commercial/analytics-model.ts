@@ -5,7 +5,10 @@ export const DAY_MS = 86_400_000
 const RIYADH_OFFSET_MS = 3 * 3_600_000
 
 /** The price lines a subscription revision was sold with (`pricing` of the revision snapshot). */
-export interface PricingBaseline { base_minor: number, bundle_minor: Record<string, number>, paid_extra_branches: number, branch_unit_minor: number }
+export interface PricingBaseline {
+  base_minor: number, bundle_minor: Record<string, number>, paid_extra_branches: number, branch_unit_minor: number
+  paid_users: number, user_unit_minor: number, paid_storage_gb: number, storage_unit_minor: number
+}
 
 /** One applied order: from `applied_at` on, its revision is what the subscription is billed for. */
 export interface AppliedOrder {
@@ -23,7 +26,9 @@ export const monthsOf = (cadence: Cadence): number => (cadence.unit === 'year' ?
 export function recurringOf(pricing: PricingBaseline, cadence: Cadence) {
   const months = monthsOf(cadence)
   const branchCycle = pricing.paid_extra_branches * pricing.branch_unit_minor
+  // The same lines the renewal invoice bills (`owesAtRenewal`): base, bundles, extra branches, paid users and paid storage.
   const cycle = pricing.base_minor + Object.values(pricing.bundle_minor).reduce((sum, minor) => sum + minor, 0) + branchCycle
+    + pricing.paid_users * pricing.user_unit_minor + pricing.paid_storage_gb * pricing.storage_unit_minor
   return {
     cycle_minor: Math.round(cycle), mrr_minor: Math.round(cycle / months), branch_mrr_minor: Math.round(branchCycle / months),
     // Kept exact (not 12 x the rounded MRR); the sum is rounded once when it is shown.

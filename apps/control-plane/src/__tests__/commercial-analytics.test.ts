@@ -17,9 +17,13 @@ const period = { from: '2026-10-01', to: '2026-10-15' }
 
 describe('analytics model', () => {
   it('prices a revision per month for any cadence, with the paid extra branches split out', () => {
-    expect(recurringOf({ base_minor: 120000, bundle_minor: { a: 6000 }, paid_extra_branches: 2, branch_unit_minor: 1200 }, { unit: 'year', count: 1 }))
+    expect(recurringOf({ base_minor: 120000, bundle_minor: { a: 6000 }, paid_extra_branches: 2, branch_unit_minor: 1200, paid_users: 0, user_unit_minor: 0, paid_storage_gb: 0, storage_unit_minor: 0 }, { unit: 'year', count: 1 }))
       .toEqual({ cycle_minor: 128400, mrr_minor: 10700, branch_mrr_minor: 200, arr_minor: 128400 })
-    expect(recurringOf({ base_minor: 30000, bundle_minor: {}, paid_extra_branches: 0, branch_unit_minor: 0 }, { unit: 'month', count: 3 }).mrr_minor).toBe(10000)
+    expect(recurringOf({ base_minor: 30000, bundle_minor: {}, paid_extra_branches: 0, branch_unit_minor: 0, paid_users: 0, user_unit_minor: 0, paid_storage_gb: 0, storage_unit_minor: 0 }, { unit: 'month', count: 3 }).mrr_minor).toBe(10000)
+  })
+  it('counts paid users and paid storage in recurring revenue, as the renewal invoice does', () => {
+    const pricing = { base_minor: 10000, bundle_minor: {}, paid_extra_branches: 0, branch_unit_minor: 0, paid_users: 3, user_unit_minor: 500, paid_storage_gb: 2, storage_unit_minor: 250 }
+    expect(recurringOf(pricing, { unit: 'month', count: 1 })).toEqual({ cycle_minor: 12000, mrr_minor: 12000, branch_mrr_minor: 0, arr_minor: 144000 })
   })
   it('compares against the period of equal length right before, and lists twelve month ends', () => {
     expect(previousPeriod(period)).toEqual({ from: '2026-09-16', to: '2026-09-30' })
@@ -28,7 +32,7 @@ describe('analytics model', () => {
     expect(months[11]).toEqual({ month: '2026-02', end: Date.parse('2026-02-28T21:00:00Z') })
   })
   it('keeps ARR exact instead of twelve times the rounded MRR', () => {
-    const quarterly = recurringOf({ base_minor: 10000, bundle_minor: {}, paid_extra_branches: 0, branch_unit_minor: 0 }, { unit: 'month', count: 3 })
+    const quarterly = recurringOf({ base_minor: 10000, bundle_minor: {}, paid_extra_branches: 0, branch_unit_minor: 0, paid_users: 0, user_unit_minor: 0, paid_storage_gb: 0, storage_unit_minor: 0 }, { unit: 'month', count: 3 })
     expect([quarterly.mrr_minor, quarterly.arr_minor]).toEqual([3333, 40000])
   })
   it('cuts days at Asia/Riyadh midnight, not UTC', () => {
@@ -298,6 +302,18 @@ suite('live PostgreSQL vendor analytics', () => {
     expect(minor(after.current.revenue.new_mrr)).toBe(minor(before.current.revenue.new_mrr))
     const autumn = await getAnalytics(pool, { from: '2026-10-01', to: '2026-10-15' }, now)
     expect(minor(autumn.current.revenue.churned_mrr)).toBeGreaterThanOrEqual(10000)
+  })
+
+  it('counts paid users and paid storage in the book, not only base, bundles and branches', async () => {
+    const solo = new Pool({ connectionString: url, max: 1 })
+    try {
+      await solo.query('BEGIN')
+      await solo.query('TRUNCATE customers CASCADE')
+      await seedCustomer(solo, { name: 'P users and storage', state: 'active', steps: [
+        { at: '2026-09-01T09:00:00Z', plan_revision_id: p1, base_minor: 10000, paid_users: 3, user_unit_minor: 500, paid_storage_gb: 2, storage_unit_minor: 250 }] })
+      expect(minor((await getAnalytics(solo, period, now)).current.revenue.mrr)).toBe(12000)
+      await solo.query('ROLLBACK')
+    } finally { await solo.end() }
   })
 
   describe('signup funnel', () => {
