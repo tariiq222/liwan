@@ -237,7 +237,8 @@
       "close": "Close",
       "loading": "Loading…",
       "error": "Could not load the list.",
-        "chatEmpty": "No conversations yet.",
+      "retry": "Try again",
+      "chatEmpty": "No conversations yet.",
       "tasksEmpty": "No open tasks. Well done!",
       "meetingsEmpty": "No upcoming meetings.",
       "noDeadline": "No deadline"
