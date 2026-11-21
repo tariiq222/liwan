@@ -26,7 +26,6 @@ GitHub Actions (publish.yml) --POST hook--> Openship job `liwan-<environment>-re
 
 - Openship owns TLS and the public ports. The stack's Caddy owns rate limits and the guard hop. The release command
   owns compose: nobody runs `docker compose up` by hand next to the job.
-- Development follows the head of GitHub `main`: the publish run of every merge (amd64 only) calls its hook.
 - Staging follows the highest `release/19.0.X.Y.Z` tag, arm64 required, and is updated only when the owner says to
   publish to staging: that creates the release tag; the tag run builds arm64 for that commit on `ubuntu-24.04-arm`
   (about 17 to 18 minutes for the nine images), reuses the amd64 digests already published, republishes the release
