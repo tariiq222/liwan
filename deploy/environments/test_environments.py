@@ -45,7 +45,7 @@ VALUE_ALLOWLIST = frozenset({
     'LIWAN_SESSION_KEYS', 'CUSTOMER_COMMERCIAL_SERVICE_KEY', 'LIWAN_SHARED_ODOO_CONFIG',
     'LIWAN_TENANT_REGISTRY_DIR', 'LIWAN_COMMERCIAL_CONTROL_NETWORK', 'LIWAN_ADMIN_EDGE_NETWORK',
     'LIWAN_CONTROL_CONFIG_DIR', 'LIWAN_CONTROL_STATE_DIR', 'LIWAN_CONTROL_PRIVATE_DIR', 'LIWAN_CONTROL_ENV_FILE',
-    'LIWAN_VENDOR_ADMIN_ENV_FILE', 'LIWAN_SHARED_COMPOSE_FILE', 'LIWAN_SHARED_ENV_FILE',
+    'LIWAN_VENDOR_ADMIN_ENV_FILE', 'LIWAN_SHARED_COMPOSE_FILE', 'LIWAN_SHARED_ENV_FILE', 'LIWAN_AI_PLATFORM_DIR',
 })
 MIN_SUBSTITUTION_LENGTH = 6  # shorter values (k1, ports) are never substituted inside other text
 # The pinned `edge` network of docker-compose.shared.yml: its gateway is the peer Caddy sees for the host's edge.
@@ -129,6 +129,34 @@ class EnvironmentTemplates(unittest.TestCase):
                     self.assertNotIn(f'{BASE_LABELS[foreign]}.example.test', value)
                     self.assertNotIn(f'liwan-{foreign}', value)
                     self.assertNotIn(f'liwan_{foreign}', value)
+
+    def test_the_ai_platform_directory_is_under_the_control_state_directory(self):
+        for name, values in self.values.items():
+            with self.subTest(template=name):
+                self.assertEqual(f"{values['LIWAN_CONTROL_STATE_DIR']}/ai-platform", values['LIWAN_AI_PLATFORM_DIR'])
+
+    def test_the_control_template_example_provider_path_is_inside_its_state_directory(self):
+        text = (DEPLOY / 'control-plane' / 'env.production.example').read_text()
+        state = re.search(r'(?m)^#?\s*LIWAN_CLI_STATE_DIR=(\S+)', text).group(1)
+        path = re.search(r'(?m)^#?\s*LIWAN_AI_PLATFORM_PROVIDER_PATH=(\S+)', text).group(1)
+        self.assertEqual(f'{state}/ai-platform/platform-provider.json', path)
+
+    def test_the_restore_domain_is_the_base_domain_of_the_tenant_sites(self):
+        for name, values in self.values.items():
+            with self.subTest(template=name):
+                domain = values['LIWAN_RESTORE_DOMAIN']
+                self.assertFalse(domain.startswith('restore.'), 'Caddy serves *.restore.<value>; the value is the base domain')
+                hosts = [host.removeprefix('http://').removeprefix('*.') for host in re.split(r',\s*', values['DOMAIN'])]
+                self.assertTrue(any(host.endswith(domain) for host in hosts), hosts)
+
+    def test_session_keys_are_a_json_object_and_encryption_keys_are_id_secret_pairs(self):
+        for name, values in self.values.items():
+            with self.subTest(template=name):
+                keys = json.loads(values['LIWAN_SESSION_KEYS'].strip("'"))
+                self.assertEqual({values['LIWAN_SESSION_ACTIVE_KID']}, set(keys))
+                for pair in values['AI_KEY_ENCRYPTION_KEYS'].split(','):
+                    self.assertRegex(pair, r'^[a-z0-9_-]+:\S+$')
+                self.assertIn(values['AI_KEY_ENCRYPTION_KEY_ID'], {pair.split(':')[0] for pair in values['AI_KEY_ENCRYPTION_KEYS'].split(',')})
 
     def test_every_variable_the_compose_set_requires_is_declared(self):
         required = set()

@@ -19,7 +19,7 @@ cd "$(dirname "$0")"
 # AI_SERVICE_TOKEN and AI_DB_PASSWORD once. An existing value is never printed or rotated.
 if grep -Eq '^COMPOSE_PROFILES=([^#]*,)?ai(,|$|[[:space:]])' .env; then
   sh ai/ensure_secrets.sh .env
-  # The platform provider file is written from these; say which one is missing before anything starts (the AI service refuses to run without the file).
+  # The platform provider file is written from these; say which one is missing before anything starts (the AI service starts without the file and then runs unconfigured, but an invalid file stops it).
   # The last assignment wins and a trailing ` # comment` or surrounding quotes are not part of the value, as in Docker Compose.
   env_file_value() {
     awk -v key="$1" 'index($0, key "=") == 1 { value = substr($0, length(key) + 2) } END { sub(/[ \t]+#.*$/, "", value); print value }' .env \
@@ -36,7 +36,7 @@ if grep -Eq '^COMPOSE_PROFILES=([^#]*,)?ai(,|$|[[:space:]])' .env; then
   ai_platform_dir="${LIWAN_AI_PLATFORM_DIR:-$(env_file_value LIWAN_AI_PLATFORM_DIR)}"
   ai_platform_dir="${ai_platform_dir:-./data/ai}"
   python3 ai/platform_provider.py .env "$ai_platform_dir/platform-provider.json" \
-    || { echo "provision: could not write the AI platform provider file (see the message above) from AI_PROVIDER, AI_MODEL, AI_API_KEY, AI_BASE_URL in deploy/.env; the ai service will not start without it" >&2; exit 1; }
+    || { echo "provision: could not write the AI platform provider file (see the message above) from AI_PROVIDER, AI_MODEL, AI_API_KEY, AI_BASE_URL in deploy/.env; provisioning stops here so the ai service is not left without its platform provider" >&2; exit 1; }
   # `ai` has no internet route of its own: every outbound call goes through the ai-egress host allowlist.
   # An operator-set AI_EGRESS_HOSTS is kept as it is; when it is empty or absent it is derived once from the
   # provider (and AI_BASE_URL, when set) and the embedding endpoint, so a fresh deployment can reach them without another

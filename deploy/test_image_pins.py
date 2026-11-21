@@ -381,6 +381,14 @@ class TestCommandLine(unittest.TestCase):
         self.assertEqual(code, image_pins.EXIT_OK)
         self.assertEqual(text, f'{REGISTRY}/liwan-odoo\tliwan-odoo\todoo\tapps/x/Dockerfile\t.\t\n')
 
+    def test_the_external_images_are_printed_once_each_by_digest_for_the_release_command(self):
+        code, text = self.run_cli({'base.yml': compose({'db': 'pgvector/pgvector:pg16@' + DIGEST})},
+                                  [pin('db', reference='pgvector/pgvector:pg16'),
+                                   pin('restore-db', reference='pgvector/pgvector:pg16'),
+                                   released('odoo', reference='liwan-odoo')], '--print-external')
+        self.assertEqual(code, image_pins.EXIT_OK)
+        self.assertEqual(text, f'pgvector/pgvector:pg16@{DIGEST}\n')
+
     def test_an_unreadable_manifest_is_a_usage_error_not_a_pass(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'broken.json'

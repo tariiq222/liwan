@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Edge check for the development host: certificates, HTTPS answers, Openship routes and the nginx vhost headers.
+"""Edge check for the development host: certificates, HTTPS answers (``GET /favicon.ico``, answered through guard and web), Openship routes and the nginx vhost headers.
 
   edge_check.py --host app.example.com --route-file /path/x.route.json --vhost-file /etc/nginx/conf.d/x.conf \
                 --cert-file /srv/liwan-development/control/private/control-tls.crt
@@ -27,18 +27,21 @@ TIMEOUT_SECONDS = 10
 # Every way a check can fail without a verdict: network and TLS (OSError covers DNS, refused, reset, TLS and URL errors), a
 # malformed HTTP answer, an unparsable date or JSON or text encoding, a missing certificate field, an `openssl` failure.
 CHECK_ERRORS = (OSError, ValueError, KeyError, http.client.HTTPException, subprocess.SubprocessError)
+# The host check GETs this path: a static file the web container serves, which the guard allows on a host with no tenant
+# (prospectRoutes in deploy/shared/guard.mjs) as on a tenant host. `/` is refused there with 403 forbidden_route.
+HTTPS_PROBE_PATH = '/favicon.ico'
 VHOST_DIRECTIVES = ('proxy_set_header Host $host', '$proxy_add_x_forwarded_for', '$http_upgrade')
 
 
 def https_status(host: str) -> int:
-    """The status of ``GET https://<host>/`` with certificate verification; redirects are not followed."""
+    """The status of ``GET https://<host>`` + ``HTTPS_PROBE_PATH`` with certificate verification; redirects are not followed."""
     class NoRedirect(urllib.request.HTTPRedirectHandler):
         def redirect_request(self, *args, **kwargs):
             return None
 
     opener = urllib.request.build_opener(NoRedirect)
     try:
-        with opener.open(f'https://{host}/', timeout=TIMEOUT_SECONDS) as response:
+        with opener.open(f'https://{host}{HTTPS_PROBE_PATH}', timeout=TIMEOUT_SECONDS) as response:
             return response.status
     except urllib.error.HTTPError as error:
         return error.code

@@ -542,6 +542,12 @@ def render_builds(manifest: Manifest) -> str:
     )
 
 
+def render_external(manifest: Manifest) -> str:
+    """One ``reference@digest`` line per third-party image, the exact string the compose files run, for the release command."""
+    pins = {f'{entry.reference}@{entry.digest}' for entry in manifest.entries if entry.published}
+    return ''.join(f'{pin}\n' for pin in sorted(pins))
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog='image_pins.py',
@@ -555,6 +561,8 @@ def build_parser() -> argparse.ArgumentParser:
                              'Compose applies them')
     parser.add_argument('--print-builds', action='store_true',
                         help='print the builds for deploy/ci/publish.sh and deploy/ci/image.sh and exit')
+    parser.add_argument('--print-external', action='store_true',
+                        help='print every third-party image as reference@digest for deploy/release/release.py and exit')
     return parser
 
 
@@ -565,6 +573,9 @@ def main(argv=None) -> int:
         manifest = load_manifest(Path(args.manifest))
         if args.print_builds:
             sys.stdout.write(render_builds(manifest))
+            return EXIT_OK
+        if args.print_external:
+            sys.stdout.write(render_external(manifest))
             return EXIT_OK
         texts = {str(Path(path)): Path(path).read_text(encoding='utf-8') for path in args.compose}
     except (OSError, ManifestError) as error:

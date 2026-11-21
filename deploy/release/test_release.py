@@ -9,6 +9,7 @@ import json
 import os
 import re
 import shutil
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -174,11 +175,13 @@ class FakeRunner:
         self.calls = []
         self.stdins = []
         self.envs = []
+        self.timeouts = []
 
-    def __call__(self, argv, *, stdin=None, env=None, check=True):
+    def __call__(self, argv, *, stdin=None, env=None, check=True, timeout=None):
         self.calls.append(argv)
         self.stdins.append(stdin)
         self.envs.append(env)
+        self.timeouts.append(timeout)
         code, output = self.answer(argv, stdin or '')
         if check and code != 0:
             raise CommandFailed(argv, code)
@@ -196,6 +199,16 @@ class FakeRunner:
             Path(argv[argv.index('--output') + 1]).write_text(json.dumps({'services': {}, 'imageTag': tag}))
             failing = {NEW: case.fail_render, OLD: case.fail_restore_render}
             return (1, 'render failed') if failing.get(tag) else (0, '')
+        if '--initialize-control' in argv:
+            return (1, 'AI initialization failed') if case.fail_ai_initialization else (0, '')
+        if argv[0] == 'npm':  # npm writes its hidden lockfile last, so it marks a complete install
+            if case.fail_npm:
+                (Path(argv[argv.index('--prefix') + 1]) / 'node_modules').mkdir(exist_ok=True)  # a half-installed tree
+                return 1, 'npm ERR! network'
+            marker = Path(argv[argv.index('--prefix') + 1]) / release.DEPENDENCY_MARKER
+            marker.parent.mkdir(parents=True, exist_ok=True)
+            marker.write_text('{}')
+            return 0, ''
         if argv[0] == 'tar':
             write_smoke(Path(argv[argv.index('-C') + 1]))
             return 0, ''
@@ -203,7 +216,7 @@ class FakeRunner:
             shutil.copytree(argv[2], argv[3])
             return 0, ''
         if 'deploy/image_pins.py' in joined:
-            return 0, case.builds
+            return 0, case.external if '--print-external' in argv else case.builds
         if argv[:2] == ['systemctl', 'is-active']:
             return (0 if case.worker_ready else 3), ''
         if argv[:2] == ['systemctl', 'start']:
@@ -229,6 +242,7 @@ class FakeRunner:
             return 0, 'UPGRADE_SMOKE_OK\n'
         if 'deploy/alerts.py' in joined:
             case.alerts.append(argv)
+            return case.alert_result
         return 0, ''
 
     def git(self, argv):
@@ -250,6 +264,9 @@ class FakeRunner:
         case = self.case
         if argv[1] == 'pull' and 'liwan-release' in argv[-1] and not case.published:
             return 1, 'manifest unknown'
+        if argv[1] == 'pull' and case.pull_failures.get(argv[-1], 0) > 0:
+            case.pull_failures[argv[-1]] -= 1
+            return 1, 'connection reset by peer'
         if argv[1] == 'create':
             return 0, 'container-1\n'
         if argv[1] == 'cp':
@@ -268,6 +285,11 @@ class ReleaseTest(unittest.TestCase):
         patcher = mock.patch.object(release, 'free_bytes', lambda path: self.free)
         patcher.start()
         self.addCleanup(patcher.stop)
+        sleeper = mock.patch.object(release.time, 'sleep')
+        self.sleeps = sleeper.start()
+        self.sleep_marks = []
+        self.sleeps.side_effect = self.record_sleep
+        self.addCleanup(sleeper.stop)
         self.environ = {'PATH': '/usr/bin', 'LIWAN_GHCR_READ_USER': USER, 'LIWAN_GHCR_READ_TOKEN': TOKEN}
         self.paths = release.Paths(config_root=root / 'etc', state_root=root / 'state', releases=root / 'releases',
                                    current=root / 'current', maintenance=root / 'maintenance/active')
@@ -277,8 +299,10 @@ class ReleaseTest(unittest.TestCase):
             (root / 'data/filestore' / name).mkdir(parents=True)
             (root / 'data/filestore' / name / 'f').write_text('old')
         shared_env = root / 'shared.env'
+        self.odoo_config = root / 'odoo.conf'
+        self.odoo_config.write_text('[options]\n')
         shared_env.write_text(f'LIWAN_TENANT_REGISTRY_DIR={root}/registry\nLIWAN_SHARED_COMPOSE_FILE={root}/shared.compose.json\n'
-                              f'DB_PASSWORD={SECRET}\n')
+                              f'LIWAN_SHARED_ODOO_CONFIG={self.odoo_config}\nDB_PASSWORD={SECRET}\n')
         for environment in ('development', 'staging', 'production'):
             self.write_config(shared_env, environment)
         self.paths.releases.mkdir()
@@ -292,6 +316,11 @@ class ReleaseTest(unittest.TestCase):
         self.document = document(NEW)
         self.alerts, self.sql = [], []
         self.builds = BUILDS
+        self.external = ''
+        self.fail_npm = False
+        self.fail_ai_initialization = False
+        self.pull_failures = {}
+        self.alert_result = (0, '')
         self.worker_ready = True
         self.worker_started_after_served = []
         self.expected_worker_commit = NEW
@@ -305,6 +334,10 @@ class ReleaseTest(unittest.TestCase):
         self.runner = FakeRunner(self)
         self.log_stream = io.StringIO()
         self.serve(OLD)
+
+    def record_sleep(self, seconds):
+        """Where in the command sequence a pause happened: the number of commands run before it."""
+        self.sleep_marks.append((len(self.runner.calls), seconds))
 
     def write_config(self, shared_env, environment):
         self.paths.config_root.mkdir(exist_ok=True)
@@ -1102,6 +1135,190 @@ class ReleaseTest(unittest.TestCase):
     def test_a_shared_env_file_the_worker_cannot_read_is_refused_before_anything_stops(self):
         with mock.patch.object(release, 'unreadable_by_worker', return_value=True):
             self.assert_refused_before_anything_stops('unreadable by group and others')
+
+    # --- first release on a fresh host -------------------------------------------------------------------
+    def up_projects(self):
+        return [call[call.index('-p') + 1] for call in self.runner.calls if 'up' in call and '--wait' in call]
+
+    def test_the_control_api_starts_before_the_shared_stack_that_joins_its_network(self):
+        self.assertEqual(self.main(), release.EXIT_OK)
+        self.assertEqual(self.up_projects(), ['liwan-control', 'liwan', 'liwan'])
+
+    def test_a_rollback_restarts_the_control_api_before_the_shared_stack_too(self):
+        self.fail_health = True
+        self.main()
+        self.assertEqual(self.up_projects(), ['liwan-control', 'liwan', 'liwan', 'liwan-control', 'liwan'])
+
+    def test_external_images_are_pulled_by_their_pinned_digest(self):
+        pgvector = 'pgvector/pgvector:pg16@sha256:' + 'c' * 64
+        postgres = 'postgres:16@sha256:' + 'd' * 64
+        self.external = f'{pgvector}\n{postgres}\n'
+        self.assertEqual(self.main(), release.EXIT_OK)
+        self.assertIn(pgvector, self.product_pulls())
+        self.assertIn(postgres, self.product_pulls())
+        recorded = json.loads((self.state / f'releases/{NEW}.json').read_text())['images']
+        self.assertFalse({pgvector, postgres} & set(recorded))  # an external image is never pruned with an old release
+
+    def test_every_pull_has_a_timeout_and_a_failed_one_is_tried_again(self):
+        flaky = f'{REGISTRY}/liwan-odoo@{AMD64}'
+        self.pull_failures = {flaky: release.PULL_ATTEMPTS - 1}
+        self.assertEqual(self.main(), release.EXIT_OK)
+        self.assertEqual(len([call for call in self.runner.calls if call[-1] == flaky]), release.PULL_ATTEMPTS)
+        self.assertEqual(self.pauses(), [release.PULL_RETRY_PAUSE_SECONDS] * (release.PULL_ATTEMPTS - 1))
+        pulls = [index for index, call in enumerate(self.runner.calls) if call[:2] == ['docker', 'pull']
+                 and 'liwan-release' not in call[-1]]
+        self.assertTrue(pulls)
+        self.assertEqual({self.runner.timeouts[index] for index in pulls}, {release.PULL_TIMEOUT_SECONDS})
+
+    def test_a_pull_that_never_succeeds_is_refused_before_anything_stops(self):
+        stuck = f'{REGISTRY}/liwan-odoo@{AMD64}'
+        self.pull_failures = {stuck: 99}
+        self.assertEqual(self.main(), release.EXIT_FAILED)
+        self.assertEqual(self.result(), 'rolled back image_pull_failed')
+        self.assertEqual(len([call for call in self.runner.calls if call[-1] == stuck]), release.PULL_ATTEMPTS)
+        self.assertEqual(self.compose_stops(), [])
+        self.assertEqual(self.commands('psql'), [])
+        self.assertEqual(self.served(), OLD)
+        self.assertEqual(self.alert_events(), ['deploy_failed'])
+
+    def test_a_command_that_runs_past_its_timeout_is_killed_and_fails(self):
+        runner = Runner(lambda message: None)
+        argv = [sys.executable, '-c', 'import time; time.sleep(30)']
+        self.assertEqual(runner(argv, check=False, timeout=0.2)[0], release.TIMED_OUT)
+        with self.assertRaises(CommandFailed):
+            runner(argv, timeout=0.2)
+
+    def test_the_output_a_command_wrote_before_its_timeout_reaches_the_log(self):
+        lines = []
+        runner = Runner(lines.append)
+        argv = [sys.executable, '-u', '-c', 'import time; print("first"); print("last"); time.sleep(30)']
+        with self.assertRaises(CommandFailed):
+            runner(argv, timeout=1)
+        self.assertEqual(['  first', '  last'], lines[-2:])
+
+
+    def pauses(self):
+        return [seconds for _, seconds in self.sleep_marks if seconds != release.WORKER_SETTLE_SECONDS]
+
+    # --- worker dependencies and start ---------------------------------------------------------------------
+    def npm_prefixes(self):
+        return [call[call.index('--prefix') + 1] for call in self.runner.calls if call[0] == 'npm']
+
+    def existing_release_folder(self, installed):
+        target = self.paths.releases / NEW
+        target.mkdir()
+        write_smoke(target)
+        if installed:
+            (target / release.DEPENDENCY_MARKER).parent.mkdir(parents=True)
+            (target / release.DEPENDENCY_MARKER).write_text('{}')
+        return target
+
+    def test_an_existing_release_folder_without_the_worker_dependencies_gets_them(self):
+        target = self.existing_release_folder(installed=False)
+        self.assertEqual(self.main(), release.EXIT_OK)
+        self.assertEqual(self.npm_prefixes(), [str(target)])
+        self.assertTrue((target / release.DEPENDENCY_MARKER).exists())
+
+    def test_an_existing_release_folder_with_the_dependencies_is_left_alone(self):
+        self.existing_release_folder(installed=True)
+        self.assertEqual(self.main(), release.EXIT_OK)
+        self.assertEqual(self.npm_prefixes(), [])
+
+    def test_a_failed_install_into_an_existing_folder_leaves_no_tree_the_next_run_takes_as_complete(self):
+        target = self.existing_release_folder(installed=False)
+        self.fail_npm = True
+        self.assertEqual(self.main(), release.EXIT_FAILED)
+        self.assertEqual(self.result(), 'rolled back worker_dependencies_failed')
+        self.assertFalse((target / 'node_modules').exists())
+        self.assertEqual(self.served(), OLD)
+        self.fail_npm = False
+        self.assertEqual(self.main(), release.EXIT_OK)
+        self.assertEqual(len(self.npm_prefixes()), 2)
+
+    def test_the_worker_is_checked_only_after_the_settle_period(self):
+        self.assertEqual(self.main(), release.EXIT_OK)
+        calls = [' '.join(call) for call in self.runner.calls]
+        start = calls.index('systemctl start ' + release.SHARED_WORKER_UNIT)
+        self.assertIn((start + 1, release.WORKER_SETTLE_SECONDS), self.sleep_marks)  # between start and the check
+        self.assertEqual(calls[start + 1], 'systemctl is-active --quiet ' + release.SHARED_WORKER_UNIT)
+        unit = (Path(release.__file__).resolve().parents[1] / 'control-plane/liwan-shared-worker.service').read_text()
+        restart = int(re.search(r'^RestartSec=(\d+)$', unit, re.MULTILINE).group(1))
+        self.assertTrue(0 < release.WORKER_SETTLE_SECONDS < restart)  # a crashed worker is still auto-restarting at the check
+
+    # --- the AI control state ----------------------------------------------------------------------------
+    def ai_initializations(self):
+        return [call for call in self.runner.calls if '--initialize-control' in call]
+
+    def test_the_ai_control_tables_are_initialised_after_the_control_migration_and_before_the_start(self):
+        shared = self.root / 'shared.env'
+        shared.write_text(shared.read_text() + 'AI_DATABASE_URL=postgresql://liwan_ai:pw@db:5432/liwan_ai\n')
+        self.assertEqual(self.main(), release.EXIT_OK)
+        calls = self.runner.calls
+        (initialize,) = self.ai_initializations()
+        self.assertEqual(initialize[initialize.index('run'):], [
+            'run', '--rm', '--pull', 'never', '-T', 'ai', 'python', '-m', 'liwan_ai_service.store', '--initialize-control'])
+        migrate = next(i for i, call in enumerate(calls) if 'control-migrate' in call)
+        up = next(i for i, call in enumerate(calls) if 'up' in call and '--wait' in call)
+        self.assertLess(migrate, calls.index(initialize))
+        self.assertLess(calls.index(initialize), up)
+
+    def test_a_failed_ai_initialisation_rolls_the_release_back_with_its_own_reason(self):
+        shared = self.root / 'shared.env'
+        shared.write_text(shared.read_text() + 'AI_DATABASE_URL=postgresql://liwan_ai:pw@db:5432/liwan_ai\n')
+        self.fail_ai_initialization = True
+        self.assertEqual(self.main(), release.EXIT_FAILED)
+        self.assertEqual(self.result(), 'rolled back ai_control_initialization_failed')
+        self.assertEqual(self.served(), OLD)
+
+    def test_an_ai_database_given_through_the_release_environment_counts_as_configured(self):
+        # compose also reads the process environment (the release config and the process), so the skip must see it too
+        url = 'postgresql://liwan_ai:pw@db:5432/liwan_ai'
+        self.assertEqual(self.main(environ={**self.environ, release.AI_DATABASE_URL_KEY: url}), release.EXIT_OK)
+        self.assertEqual(len(self.ai_initializations()), 1)
+
+    def test_an_empty_ai_database_in_the_process_environment_overrides_the_shared_file(self):
+        shared = self.root / 'shared.env'
+        shared.write_text(shared.read_text() + 'AI_DATABASE_URL=postgresql://liwan_ai:pw@db:5432/liwan_ai\n')
+        self.assertEqual(self.main(environ={**self.environ, release.AI_DATABASE_URL_KEY: ''}), release.EXIT_OK)
+        self.assertEqual(self.ai_initializations(), [])
+
+    def test_the_ai_control_tables_are_left_alone_without_an_ai_database(self):
+        self.assertEqual(self.main(), release.EXIT_OK)
+        self.assertEqual(self.ai_initializations(), [])
+
+    # --- alerts --------------------------------------------------------------------------------------------
+    def test_a_refused_alert_logs_the_reason_alerts_gave_with_secrets_masked(self):
+        self.alert_result = (2, f'alerts: no alert channel is configured for {SECRET}\n')
+        self.free = 0  # any failing run raises an alert
+        self.main()
+        log = self.log_stream.getvalue()
+        self.assertIn('alert deploy_failed was not delivered (exit 2): no alert channel is configured for ***', log)
+        self.assertNotIn(SECRET, log)
+
+    def test_an_alert_that_fails_without_a_reason_keeps_the_plain_line(self):
+        self.alert_result = (1, '')
+        self.free = 0
+        self.main()
+        self.assertIn('alert deploy_failed was not delivered (exit 1)\n', self.log_stream.getvalue())
+
+    # --- the shared Odoo config ------------------------------------------------------------------------------
+    def test_a_shared_odoo_config_that_is_not_a_file_is_refused_before_anything_stops(self):
+        shared = self.root / 'shared.env'
+        text = shared.read_text()
+        self.odoo_config.unlink()
+        self.assert_refused_before_anything_stops(str(self.odoo_config))
+        self.odoo_config.mkdir()  # docker would create this directory itself on a missing bind source
+        self.log_stream.seek(0)
+        self.log_stream.truncate(0)
+        self.assert_refused_before_anything_stops(str(self.odoo_config))
+        shared.write_text(text.replace(f'LIWAN_SHARED_ODOO_CONFIG={self.odoo_config}\n', ''))
+        self.assert_refused_before_anything_stops('LIWAN_SHARED_ODOO_CONFIG')
+        shared.write_text(text.replace(str(self.odoo_config), 'odoo.conf'))
+        self.assert_refused_before_anything_stops('absolute path')
+        self.assertNotIn('[options]', self.log_stream.getvalue())
+
+    def test_a_shared_odoo_config_file_passes(self):
+        self.assertEqual(self.main(), release.EXIT_OK)
 
     def test_only_a_root_owned_file_without_group_or_other_read_is_unreadable_by_the_worker(self):
         def info(uid, mode):

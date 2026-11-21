@@ -216,4 +216,4 @@ class ProvisionPreflightTest(unittest.TestCase):
         completed = self.provision('COMPOSE_PROFILES=ai\nAI_PROVIDER=anthropic\nAI_MODEL=claude-sonnet-4-5\n')
         self.assertEqual(completed.returncode, 1)
         self.assertIn('AI_API_KEY is required for provider anthropic', completed.stderr)
-        self.assertIn('the ai service will not start without it', completed.stderr)
+        self.assertIn('provisioning stops here so the ai service is not left without its platform provider', completed.stderr)

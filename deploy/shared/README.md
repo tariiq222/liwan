@@ -321,7 +321,9 @@ stays until the operator removes it from the restore registry file.
 
 **Operator prerequisite: wildcard DNS and a wildcard certificate.** The Caddyfile serves
 `*.restore.{$LIWAN_RESTORE_DOMAIN:invalid.invalid}`, but without both of the following a restore host is not served:
-1. `LIWAN_RESTORE_DOMAIN` set to the control plane's `domainSuffix`. This is a **separate** variable from `DOMAIN` on
+1. `LIWAN_RESTORE_DOMAIN` set to the control plane's `domainSuffix`, the base domain (`dev.example.test`, not
+   `restore.dev.example.test`): the control plane builds tenant hosts as `t<hex>.<domainSuffix>` and restore hosts as
+   `r<hex>.restore.<domainSuffix>`, and Caddy adds the `restore.` label itself. This is a **separate** variable from `DOMAIN` on
    purpose: `DOMAIN` is a site-address list that may carry several tenant hosts
    (`DOMAIN="a.accept.test b.accept.test"`), so deriving the restore wildcard from it produced a site that matched no
    published restore. With the variable unset the site falls back to `invalid.invalid`, which serves nothing.

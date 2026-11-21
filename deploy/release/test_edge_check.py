@@ -10,6 +10,7 @@ import ssl
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 from datetime import datetime, timedelta, timezone
 
 from deploy.release import edge_check
@@ -124,6 +125,26 @@ class EdgeCheckTest(unittest.TestCase):
             code, output = run(['--cert-file', 'a.crt'], file_expiry=raising(error))
             self.assertEqual(code, 1, error)
             self.assertTrue(output.startswith('a.crt: certificate unreadable'), error)
+
+    def test_the_probe_requests_a_path_the_guard_allows_on_a_host_with_no_tenant(self):
+        # The guard answers 403 forbidden_route to `/` on the prospect host (prospectRoutes in deploy/shared/guard.mjs).
+        requested = []
+
+        class Response:
+            status = 200
+            def __enter__(self):
+                return self
+            def __exit__(self, *exc):
+                return False
+
+        class Opener:
+            def open(self, url, timeout):
+                requested.append(url)
+                return Response()
+
+        with mock.patch.object(edge_check.urllib.request, 'build_opener', return_value=Opener()):
+            self.assertEqual(200, edge_check.https_status('app.example'))
+        self.assertEqual(['https://app.example/favicon.ico'], requested)
 
     @unittest.skipIf(shutil.which('openssl') is None, 'openssl not installed')
     def test_openssl_reads_the_expiry_of_a_real_pem(self):

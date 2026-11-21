@@ -6,13 +6,22 @@
 #
 # The env file is the compose env file of the environment (deploy/environments/<name>.env.example, filled in); only these
 # names are read, nothing is sourced: LIWAN_CONTROL_CONFIG_DIR, LIWAN_CONTROL_STATE_DIR, LIWAN_CONTROL_PRIVATE_DIR,
-# LIWAN_TENANT_REGISTRY_DIR, LIWAN_SHARED_COMPOSE_FILE, LIWAN_SHARED_ENV_FILE, LIWAN_RESTORE_DOMAIN, LIWAN_CONTROL_UID,
+# LIWAN_TENANT_REGISTRY_DIR, LIWAN_AI_PLATFORM_DIR, LIWAN_SHARED_COMPOSE_FILE, LIWAN_SHARED_ENV_FILE, LIWAN_RESTORE_DOMAIN, LIWAN_CONTROL_UID,
 # LIWAN_CONTROL_GID (which must be the uid and gid of the worker account, or the script stops).
 # The project name is the compose project of the shared stack (`liwan-shared-<name>`). LIWAN_WORKER_USER names the host
 # account the shared worker and the control containers run as (default liwan-worker).
 #
 # Creates, never overwrites (an existing file or directory is kept as it is, a half-present pair is an error):
 #   registry dir: created 0755 (read-only mount in containers that run as other users); an existing narrower one is an error
+#                 registry.json, the deny-all bootstrap snapshot (the guard will not start without the file; the control plane
+#                 writes it only on the first tenant change), 0644 like the control plane's own writes
+#   AI dir:      LIWAN_AI_PLATFORM_DIR, created empty, 2750 worker:10001 (the control plane writes platform-provider.json into
+#                it as 0640 and the setgid bit gives that file the group of the `ai` container user, uid and gid 10001, which
+#                mounts the directory read-only). An existing one is kept only when it is already worker:10001 with mode 2750, else the
+#                script stops and prints the fix. Never a file: a missing file means "AI unconfigured" and the control plane
+#                writes the real one. As the worker itself it needs that group, or the script stops.
+#   LIWAN_AI_GID (environment, not the env file) is the gid of the `ai` container user (10001, apps/ai-service/Dockerfile);
+#                it exists so the tests can run as an ordinary account whose own gid stands in for it. Never set it on a host.
 #   config dir:  shared-runtime.json, inventory-v2.json
 #   private dir: control-ca.key/.pem (private CA), control-tls.key/.crt (SAN control-api), effect-tls.key/.crt (SAN
 #                control-host.internal), control-db-password
@@ -28,6 +37,7 @@ set -euo pipefail
 CA_DAYS=3650
 LEAF_DAYS=825
 EXPIRY_WARNING_SECONDS=$((60 * 86400))
+AI_GID="${LIWAN_AI_GID:-10001}"  # the gid of the `ai` container user (apps/ai-service/Dockerfile, useradd --uid 10001)
 POSTGRES_UID=999  # the user of the postgres image; it reads control-db-password through the compose secret
 
 die() { printf '%s\n' "$*" >&2; exit 2; }
@@ -65,6 +75,27 @@ ensure_readable_dir() {
   local mode
   mode="$(stat -c '%a' "$1" 2>/dev/null || stat -f '%Lp' "$1")"
   (( (8#$mode & 5) == 5 )) || die "Refusing: $1 is mode $mode; the guard, web, ai and tiktok-relay containers run as other users and need r-x for everyone (chmod 0755 it, then run again)"
+}
+
+# ensure_ai_dir <dir>: owner the worker, group the `ai` user's. The control plane writes the provider file here as 0640
+# (FILE_MODE in apps/control-plane/src/ai-provider/store.ts) under the worker uid; the setgid bit gives it the directory's
+# group, and the `ai` container reads it through that group. Group before mode, because chgrp clears the setgid bit.
+# An existing directory is kept only when it already has exactly that shape: Docker creates a missing bind-mount source as
+# root:root 0755, and a hand-made one is usually the wrong group, so the provider file would be unwritable or unreadable.
+ensure_ai_dir() {
+  if [[ -d "$1" ]]; then
+    local shape  # GNU stat prints the mode as 2750; BSD stat prints the special bits (%Mp) and the permissions (%Lp) apart, as 02750
+    shape="$(stat -c '%u:%g:%a' "$1" 2>/dev/null || stat -f '%u:%g:%Mp%Lp' "$1")"
+    shape="${shape%:*}:$(printf '%s' "${shape##*:}" | sed 's/^0//')"
+    [[ "$shape" == "$(id -u "$WORKER"):$AI_GID:2750" ]] || die "Refusing: $1 is owner:group:mode $shape; it must be $(id -u "$WORKER"):$AI_GID:2750 so the control plane can write the provider file and the ai container can read it (chown $WORKER:$AI_GID $1 && chmod 2750 $1, then run again)"
+    printf 'kept    %s\n' "$1"
+    return
+  fi
+  (umask 022; mkdir -p "$1")
+  if [[ "$(id -u)" == 0 ]]; then chown "$WORKER:$AI_GID" "$1"
+  elif ! chgrp "$AI_GID" "$1" 2>/dev/null; then rmdir "$1"; die "Cannot give $1 to group $AI_GID as $WORKER; run as root"; fi
+  chmod 2750 "$1"
+  printf 'created %s\n' "$1"
 }
 
 # exists_all <file...>: true when every file exists, false when none does; a mix is an error.
@@ -148,6 +179,7 @@ CONFIG="$(absolute_path LIWAN_CONTROL_CONFIG_DIR "$(env_value LIWAN_CONTROL_CONF
 STATE="$(absolute_path LIWAN_CONTROL_STATE_DIR "$(env_value LIWAN_CONTROL_STATE_DIR)")"
 PRIVATE="$(absolute_path LIWAN_CONTROL_PRIVATE_DIR "$(env_value LIWAN_CONTROL_PRIVATE_DIR)")"
 REGISTRY="$(absolute_path LIWAN_TENANT_REGISTRY_DIR "$(env_value LIWAN_TENANT_REGISTRY_DIR)")"
+AI_PLATFORM="$(absolute_path LIWAN_AI_PLATFORM_DIR "$(env_value LIWAN_AI_PLATFORM_DIR)")"
 COMPOSE_FILE="$(absolute_path LIWAN_SHARED_COMPOSE_FILE "$(env_value LIWAN_SHARED_COMPOSE_FILE)")"
 SHARED_ENV_FILE="$(absolute_path LIWAN_SHARED_ENV_FILE "$(env_value LIWAN_SHARED_ENV_FILE)")"
 DOMAIN_SUFFIX="$(env_value LIWAN_RESTORE_DOMAIN)"
@@ -160,6 +192,7 @@ ensure_dir "$CONFIG" 0750
 ensure_dir "$STATE" 0750
 ensure_readable_dir "$REGISTRY"
 ensure_dir "$PRIVATE" 0750
+ensure_ai_dir "$AI_PLATFORM"
 WORK="$(mktemp -d "$PRIVATE/.init.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 
@@ -171,6 +204,10 @@ else printf 'kept    %s\n' "$CONFIG/shared-runtime.json"; fi
 if ! exists_all "$CONFIG/inventory-v2.json"; then
   printf '{"version":2,"targets":{}}\n' | write_file "$CONFIG/inventory-v2.json" 0644
 else printf 'kept    %s\n' "$CONFIG/inventory-v2.json"; fi
+
+if ! exists_all "$REGISTRY/registry.json"; then
+  printf '{"schemaVersion":1,"snapshotRevision":0,"targets":[]}\n' | write_file "$REGISTRY/registry.json" 0644
+else printf 'kept    %s\n' "$REGISTRY/registry.json"; fi
 
 ensure_ca
 ensure_leaf control-tls control-api

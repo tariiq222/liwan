@@ -1,4 +1,4 @@
-import { createGuard } from './guard.mjs'
+import { createGuard, parseSessionKeys } from './guard.mjs'
 import { readTenantRegistry } from '../../apps/web/server/utils/tenantRegistry.ts'
 if (process.env.LIWAN_TENANCY_MODE !== 'shared') throw Error('shared_mode_required')
 const port = Number(process.env.LIWAN_GUARD_PORT ?? 8080)
@@ -27,7 +27,7 @@ const server = createGuard({
   proxyToken: process.env.LIWAN_SHARED_PROXY_TOKEN,
   // The LiwanOS public host (host only, no scheme) that serves the payment-done return for customers with no tenant yet.
   prospectHost: process.env.LIWAN_PROSPECT_HOST || undefined,
-  keys: JSON.parse(process.env.LIWAN_SESSION_KEYS ?? '{}'),
+  keys: parseSessionKeys(process.env.LIWAN_SESSION_KEYS),
   activeKid: process.env.LIWAN_SESSION_ACTIVE_KID,
   odooUrl: process.env.LIWAN_GUARD_ODOO_URL,
   webUrl: process.env.LIWAN_GUARD_WEB_URL,

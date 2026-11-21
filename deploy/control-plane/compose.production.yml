@@ -59,6 +59,7 @@ x-control-process: &control-process
   secrets:
     - control_tls_key
     - control_tls_cert
+    - control_ca
   # The runtime config names absolute host paths; the API sees them at the same paths. The API writes the registry and the
   # state directory (restore routes, the AI provider file), reads the config, and only checks that the two shared-stack files exist.
   volumes:

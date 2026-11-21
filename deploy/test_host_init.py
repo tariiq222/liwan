@@ -27,7 +27,7 @@ TEMPLATE = DEPLOY / 'environments' / 'development.env.example'
 BASE_STACK = tuple(name for name in SHARED_COMPOSE_FILES if name != HOST_LINK.name)
 BRIDGE = 'liwan-dbhost'  # the interface name the host firewall rule in the runbook matches
 PROJECT = 'liwan-shared-development'
-RESTORE_DOMAIN = 'restore.dev.example.test'
+RESTORE_DOMAIN = 'dev.example.test'
 PRIVATE_FILES = ('control-ca.key', 'control-ca.pem', 'control-tls.key', 'control-tls.crt', 'effect-tls.key',
                  'effect-tls.crt', 'control-db-password')
 
@@ -87,16 +87,19 @@ class InitHost(unittest.TestCase):
         self.root = Path(self.tmp.name).resolve() / 'liwan-development'
         self.config, self.state = self.root / 'control/config', self.root / 'control/state'
         self.private, self.registry = self.root / 'control/private', self.root / 'state/registry'
+        self.ai_platform = self.state / 'ai-platform'
         self.env_file = Path(self.tmp.name) / 'development.env'
         self.env_file.write_text('\n'.join([
             f'LIWAN_CONTROL_CONFIG_DIR={self.config}', f'LIWAN_CONTROL_STATE_DIR={self.state}',
             f'LIWAN_CONTROL_PRIVATE_DIR={self.private}', f'LIWAN_TENANT_REGISTRY_DIR={self.registry}',
+            f'LIWAN_AI_PLATFORM_DIR={self.ai_platform}',
             f'LIWAN_SHARED_COMPOSE_FILE={self.root}/shared.compose.json', f'LIWAN_SHARED_ENV_FILE={self.root}/shared.env',
             f'LIWAN_RESTORE_DOMAIN={RESTORE_DOMAIN}', f'LIWAN_CONTROL_UID={os.getuid()}',
             f'LIWAN_CONTROL_GID={pwd.getpwuid(os.getuid()).pw_gid}', '']))
 
     def run_script(self, *args: str, check: bool = True, env: dict | None = None) -> subprocess.CompletedProcess:
-        env = {**os.environ, 'LIWAN_WORKER_USER': pwd.getpwuid(os.getuid()).pw_name, **(env or {})}
+        account = pwd.getpwuid(os.getuid())
+        env = {**os.environ, 'LIWAN_WORKER_USER': account.pw_name, 'LIWAN_AI_GID': str(account.pw_gid), **(env or {})}
         done = subprocess.run(['bash', str(INIT_HOST), *(args or (str(self.env_file), PROJECT))], env=env,
                               capture_output=True, text=True, timeout=60)
         if check:
@@ -115,6 +118,81 @@ class InitHost(unittest.TestCase):
                           'domainSuffix': RESTORE_DOMAIN}, runtime)
         self.assertEqual({'version': 2, 'targets': {}}, json.loads((self.config / 'inventory-v2.json').read_text()))
         self.assertTrue(self.registry.is_dir() and self.state.is_dir())
+
+    @unittest.skipIf(shutil.which('node') is None, 'node not installed: cannot run the registry reader')
+    def test_a_bootstrap_registry_is_created_that_the_real_reader_accepts_and_is_kept_afterwards(self):
+        # The guard refuses to start without a registry file and the control plane writes one only on the first tenant
+        # change, so a fresh host needs the deny-all snapshot. Mode 0644 is REGISTRY_FILE_MODE in registry-publisher.ts.
+        path = self.registry / 'registry.json'
+        first = self.run_script()
+        self.assertIn(f'created {path}', first.stdout)
+        self.assertEqual({'schemaVersion': 1, 'snapshotRevision': 0, 'targets': []}, json.loads(path.read_text()))
+        self.assertEqual(0o644, stat.S_IMODE(path.stat().st_mode))
+        reader = "import { readTenantRegistry } from './apps/web/server/utils/tenantRegistry.ts'; process.stdout.write(JSON.stringify(readTenantRegistry(process.argv[1])))"
+        read = subprocess.run(['node', '--input-type=module', '-e', reader, str(path)], cwd=DEPLOY.parent,
+                              capture_output=True, text=True, timeout=60)
+        self.assertEqual(0, read.returncode, read.stderr)
+        self.assertEqual([], json.loads(read.stdout)['targets'])
+        path.write_text('{"schemaVersion":1,"snapshotRevision":3,"targets":[]}\n')
+        second = self.run_script()
+        self.assertIn(f'kept    {path}', second.stdout)
+        self.assertEqual(3, json.loads(path.read_text())['snapshotRevision'])
+
+    def test_the_ai_platform_directory_is_created_empty_setgid_and_kept_afterwards(self):
+        # 2750: the control plane writes platform-provider.json 0640 as the worker (store.ts FILE_MODE); the setgid bit gives
+        # it the directory's group, which is the `ai` container user's gid (10001; the test passes the account's own gid).
+        self.run_script()
+        self.assertEqual(0o2750, stat.S_IMODE(self.ai_platform.stat().st_mode))
+        self.assertEqual(os.getgid(), self.ai_platform.stat().st_gid)
+        self.assertEqual([], list(self.ai_platform.iterdir()))
+        second = self.run_script()
+        self.assertIn(f'kept    {self.ai_platform}', second.stdout)
+        self.assertEqual(0o2750, stat.S_IMODE(self.ai_platform.stat().st_mode))
+        self.assertEqual([], list(self.ai_platform.iterdir()))
+
+    def test_an_existing_ai_platform_directory_of_the_wrong_mode_is_refused_with_the_fix(self):
+        # Docker makes a missing bind-mount source root:root 0755; a hand-made one is often 0755 or 2770 too
+        for mode in (0o755, 0o750, 0o2770, 0o2755):
+            with self.subTest(mode=oct(mode)):
+                self.ai_platform.mkdir(parents=True, exist_ok=True)
+                self.ai_platform.chmod(mode)
+                done = self.run_script(check=False)
+                self.assertEqual(2, done.returncode)
+                self.assertIn(f'Refusing: {self.ai_platform} is owner:group:mode', done.stderr)
+                self.assertIn(f'chown {pwd.getpwuid(os.getuid()).pw_name}:{os.getgid()} {self.ai_platform} && chmod 2750 {self.ai_platform}',
+                              done.stderr)
+                self.assertEqual(mode, stat.S_IMODE(self.ai_platform.stat().st_mode))  # never changed
+
+    def test_an_existing_ai_platform_directory_of_another_group_is_refused(self):
+        self.run_script()
+        done = self.run_script(check=False, env={'LIWAN_AI_GID': str(os.getgid() + 1)})
+        self.assertEqual(2, done.returncode)
+        self.assertIn(f'must be {os.getuid()}:{os.getgid() + 1}:2750', done.stderr)
+
+    @unittest.skipIf(os.getuid() == 0, 'as root the group can always be set')
+    def test_a_group_the_worker_cannot_set_stops_the_script_and_leaves_no_directory(self):
+        foreign = next(gid for gid in range(60000, 60100) if gid not in os.getgroups())
+        done = self.run_script(check=False, env={'LIWAN_AI_GID': str(foreign)})
+        self.assertEqual(2, done.returncode)
+        self.assertIn(f'Cannot give {self.ai_platform} to group {foreign}', done.stderr)
+        self.assertFalse(self.ai_platform.exists())
+
+    @unittest.skipIf(os.getuid() == 0 or 10001 in os.getgroups(), 'needs an account outside group 10001')
+    def test_the_ai_group_defaults_to_10001_the_gid_of_the_ai_container_user(self):
+        done = self.run_script(check=False, env={'LIWAN_AI_GID': ''})  # empty counts as unset
+        self.assertEqual(2, done.returncode)
+        self.assertIn(f'Cannot give {self.ai_platform} to group 10001', done.stderr)
+
+    def test_a_missing_or_relative_ai_platform_directory_is_refused(self):
+        original = self.env_file.read_text()
+        line = f'LIWAN_AI_PLATFORM_DIR={self.ai_platform}'
+        for replacement in ('', 'LIWAN_AI_PLATFORM_DIR=relative/ai', 'LIWAN_AI_PLATFORM_DIR=REPLACE_WITH_DIR'):
+            with self.subTest(replacement=replacement):
+                self.env_file.write_text(original.replace(line, replacement))
+                done = self.run_script(check=False)
+                self.assertEqual(2, done.returncode)
+                self.assertIn('LIWAN_AI_PLATFORM_DIR', done.stderr)
+                self.assertFalse(self.ai_platform.exists())
 
     def test_registry_directory_is_readable_by_the_other_container_users(self):
         self.run_script()

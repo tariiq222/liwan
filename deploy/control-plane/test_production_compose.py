@@ -168,6 +168,23 @@ class ProductionCompose(unittest.TestCase):
         self.assertIn('CONTROL_TLS_CERT', environment)
         self.assertEqual(environment['LIWAN_TENANCY_MODE'], 'shared')
 
+    def test_every_secret_file_the_control_env_points_at_is_mounted(self):
+        template = assigned_names(CONTROL / 'env.production.example')
+        mounted_files = {name: spec['file'] for name, spec in self.document['secrets'].items()}
+        checked = 0
+        for name, service in self.services.items():
+            if 'LIWAN_CONTROL_ENV_FILE' not in str(service.get('env_file')):
+                continue
+            wanted = {value for value in template.values() if value.startswith('/run/secrets/')}
+            wanted.update(str(value) for value in (service.get('environment') or {}).values()
+                          if str(value).startswith('/run/secrets/'))
+            mounted = {f'/run/secrets/{secret}' for secret in service.get('secrets', [])}
+            with self.subTest(service=name):
+                self.assertEqual(sorted(wanted - mounted), [], 'mount these secrets in the service')
+            self.assertLessEqual({path.rsplit('/', 1)[1] for path in wanted}, set(mounted_files))
+            checked += 1
+        self.assertGreaterEqual(checked, 4, 'the control env file services were not found')
+
     def test_no_secret_has_a_default_in_the_compose_files(self):
         for path in (COMPOSE, HOST_LINK):
             for name, default in re.findall(r'\$\{([A-Z0-9_]+):-([^}]*)\}', path.read_text(encoding='utf-8')):
