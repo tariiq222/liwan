@@ -2,6 +2,7 @@ import type { Pool } from 'pg'
 import { ATTENTION_LIMIT, attentionItemSchema, attentionSchema } from '@liwan/commercial-contracts'
 import { creditedMinorSql } from './refund-credit.js'
 import { holdsFreeBaseLockSql, owesAtRenewalSql } from './free-base.js'
+import { tenantStatusSql } from './suspension.js'
 
 export const RENEWAL_WINDOW_DAYS = 7
 export const STALLED_HOURS = 24
@@ -99,12 +100,14 @@ const subjectsSql = `WITH latest AS (
   -- (trial_ending) until it does, and the paid applications are still writable, so it must not wait unseen.
   SELECT c.id AS customer_id, c.name, c.tenant_id, s.trial_ends_at FROM subscriptions s JOIN customers c ON c.id=s.customer_id
   WHERE s.state='trialing' AND s.applied_revision_id IS NOT NULL AND s.trial_ends_at < now() - make_interval(mins => ${TRIAL_END_OVERDUE_MINUTES})
-), suspension_undelivered AS (
-  SELECT c.id AS customer_id,c.name,c.tenant_id,s.suspension_pending_since,s.tenant_status_failures
+), status_undelivered AS (
+  -- A tenant status Odoo has not confirmed, in either direction: a suspension that did not stop the workspace, or a resume that left it
+  -- stopped while its subscription is active. It is reported once the pushes have failed five times or the wait passed two hours.
+  SELECT c.id AS customer_id,c.name,c.tenant_id,s.tenant_status_pending_since,s.tenant_status_failures,${tenantStatusSql('s')} AS wanted
   FROM subscriptions s JOIN customers c ON c.id=s.customer_id
-  WHERE (s.state='suspended' OR s.manual_suspension) AND s.tenant_status_pushed IS DISTINCT FROM 'suspended'
-    AND s.suspension_pending_since IS NOT NULL
-    AND (s.tenant_status_failures >= 5 OR s.suspension_pending_since <= now() - interval '2 hours')
+  WHERE s.tenant_status_pushed IS DISTINCT FROM ${tenantStatusSql('s')} AND (${tenantStatusSql('s')}='suspended' OR s.tenant_status_pushed='suspended')
+    AND s.tenant_status_pending_since IS NOT NULL
+    AND (s.tenant_status_failures >= 5 OR s.tenant_status_pending_since <= now() - interval '2 hours')
 ), renewing AS (
   SELECT * FROM latest WHERE ${renewalDue}
 ), overdue AS (
@@ -209,7 +212,9 @@ const subjectsSql = `WITH latest AS (
   UNION ALL SELECT 2,'refund_unrecorded', customer_id, tenant_id, NULL, invoice_id, name, ${iso('created_at')}, reason, created_at FROM unrecorded_refunds WHERE $3::boolean
   UNION ALL SELECT 2,'bank_transfer_claimed', customer_id, tenant_id, NULL, invoice_id, name, ${iso('claimed_at')}, value_date, claimed_at FROM claimed_transfers WHERE $3::boolean
   UNION ALL SELECT 2,'suspension_undelivered', customer_id, tenant_id, NULL, NULL, name,
-    ${iso('suspension_pending_since')}, tenant_status_failures::text, suspension_pending_since FROM suspension_undelivered
+    ${iso('tenant_status_pending_since')}, tenant_status_failures::text, tenant_status_pending_since FROM status_undelivered WHERE wanted='suspended'
+  UNION ALL SELECT 2,'resume_undelivered', customer_id, tenant_id, NULL, NULL, name,
+    ${iso('tenant_status_pending_since')}, tenant_status_failures::text, tenant_status_pending_since FROM status_undelivered WHERE wanted='active'
   UNION ALL SELECT 2,'tenant_deletion_due', customer_id, tenant_id, NULL, NULL, name, ${iso('due_at')}, NULL, due_at FROM deletion_due
   UNION ALL SELECT 2,'tenant_deletion_stuck', customer_id, tenant_id, NULL, NULL, name, ${iso('at')}, code, at FROM deletion_stuck
   UNION ALL SELECT 2,'form_payment_review', customer_id, tenant_id, NULL, NULL, name, ${iso('at')}, detail, at FROM form_payment_review WHERE $3::boolean

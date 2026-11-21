@@ -13,6 +13,7 @@ describe('attentionPresentation', () => {
     expect(attentionPresentation(item({ kind: 'refund_rejected' })).to).toEqual({ path: '/customers/c1', query: { tab: 'invoices' } })
     expect(attentionPresentation(item({ kind: 'refund_not_sent', invoice_id: 'i9' })).to).toEqual({ path: '/invoices/i9' })
     expect(attentionPresentation(item({ kind: 'suspension_undelivered' })).to).toEqual({ path: '/customers/c1', query: { tab: 'subscription' } })
+    expect(attentionPresentation(item({ kind: 'resume_undelivered' })).to).toEqual({ path: '/customers/c1', query: { tab: 'subscription' } })
     expect(attentionPresentation(item({ kind: 'billing_blocked' })).to).toEqual({ path: '/customers/c1', query: { tab: 'subscription' } })
     expect(attentionPresentation(item({ kind: 'stalled_activation' })).to).toEqual({ path: '/customers/c1', query: { tab: 'workspace' } })
     expect(attentionPresentation(item({ kind: 'invitation_failed' })).to).toEqual({ path: '/customers/c1', query: { tab: 'workspace' } })
@@ -38,6 +39,12 @@ describe('attentionPresentation', () => {
   it('sends a card payment that needs checking to the customer\'s invoices with the machine reason', () => {
     expect(attentionPresentation(item({ kind: 'form_payment_review' }))).toMatchObject({ to: { path: '/customers/c1', query: { tab: 'invoices' } }, tone: 'destructive', actionKey: 'vendor.today.actions.form_payment_review' })
     expect(attentionMessage(item({ kind: 'form_payment_review', detail: 'amount_mismatch' }), now)).toEqual({ key: 'form_payment_review', days: null, operation: 'amount_mismatch' })
+  })
+  it('sends a provider payment no customer made to the audit log of rejected payments, worded for it', () => {
+    expect(attentionPresentation(item({ kind: 'form_payment_review', customer_id: null }))).toMatchObject({ to: { path: '/audit', query: { action: 'payment.form_payment_rejected' } }, actionKey: 'vendor.today.actions.form_payment_review_provider' })
+  })
+  it('words a resume that did not reach the workspace as its own kind', () => {
+    expect(attentionMessage(item({ kind: 'resume_undelivered', detail: '5' }), now)).toEqual({ key: 'resume_undelivered', days: null, operation: '5' })
   })
   it('links nowhere rather than to a guessed page when the record is missing', () => {
     expect(attentionPresentation(item({ kind: 'setup_required', customer_id: null })).to).toBeNull()

@@ -65,6 +65,7 @@ const ATTENTION_LABELS: Record<Exclude<AttentionKind, 'bank_transfer_claimed' | 
   renewal_failed: 'فشل تجديد الاشتراك',
   trial_end_overdue: 'تجربة انتهت ولم تُغلق',
   suspension_undelivered: 'التعليق لم يصل إلى مساحة العميل',
+  resume_undelivered: 'استئناف الاشتراك لم يصل إلى مساحة العميل',
   stalled_activation: 'تفعيل الاشتراك متعثر',
   invitation_failed: 'تعذّر إرسال دعوة المدير',
   notice_failed: 'تعذّر إرسال إشعار للعميل',

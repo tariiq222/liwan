@@ -75,6 +75,7 @@
         "trial_end_overdue": "The trial ended {duration} ago but its end has not run: the paid applications are still open and new orders are refused until it does",
         "renewal_failed": "The renewal could not be generated ({operation}); other renewals are not affected",
         "suspension_undelivered": "The suspension has not reached the workspace. Delivery retries continue.",
+        "resume_undelivered": "The resume has not reached the workspace: the subscription is active and the workspace is still stopped. Delivery retries continue.",
         "stalled_failed": "Activation failed and needs you",
         "stalled_waiting": "Activation stalled for {duration}",
         "invitation_failed": "The admin invitation could not be delivered after several attempts: nobody can open the workspace yet",
@@ -106,6 +107,7 @@
         "trial_end_overdue": "Open the subscription",
         "renewal_failed": "Open the subscription",
         "suspension_undelivered": "Open the subscription",
+        "resume_undelivered": "Open the subscription",
         "stalled_activation": "Open the workspace",
         "invitation_failed": "Re-issue the invitation",
         "bank_transfer_claimed": "Open the invoice",
@@ -117,7 +119,8 @@
         "renewal_soon": "Open the subscription",
         "tenant_deletion_due": "Open the request",
         "tenant_deletion_stuck": "Open the deletion",
-        "form_payment_review": "Open the invoices"
+        "form_payment_review": "Open the invoices",
+        "form_payment_review_provider": "Open the audit log"
       },
       "statusTitle": "Overall status",
       "statusLabel": "Overall status counts",

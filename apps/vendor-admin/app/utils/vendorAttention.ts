@@ -7,6 +7,8 @@ export type AttentionLink = { path: string, query?: Record<string, string> }
 export type AttentionPresentation = { to: AttentionLink | null, tone: StatusTone, icon: `i-lucide-${string}`, actionKey: string }
 
 const DAY_MS = 86_400_000
+/** The audit action the control plane writes for a paid payment the provider reported that nothing could settle. */
+const PROVIDER_PAYMENT_REJECTED_ACTION = 'payment.form_payment_rejected'
 const customerTab = (item: AttentionItem, tab: string): AttentionLink | null =>
   item.customer_id ? { path: `/customers/${item.customer_id}`, query: { tab } } : null
 
@@ -49,6 +51,8 @@ export function attentionPresentation(item: AttentionItem): AttentionPresentatio
       return { to: customerTab(item, 'subscription'), tone: 'destructive', icon: 'i-lucide-refresh-cw-off', actionKey: action(item.kind) }
     case 'suspension_undelivered':
       return { to: customerTab(item, 'subscription'), tone: 'info', icon: 'i-lucide-gauge', actionKey: action(item.kind) }
+    case 'resume_undelivered':
+      return { to: customerTab(item, 'subscription'), tone: 'warning', icon: 'i-lucide-gauge', actionKey: action(item.kind) }
     case 'stalled_activation':
       return { to: customerTab(item, 'workspace'), tone: 'destructive', icon: 'i-lucide-hourglass', actionKey: action(item.kind) }
     case 'invitation_failed':
@@ -66,7 +70,10 @@ export function attentionPresentation(item: AttentionItem): AttentionPresentatio
     case 'tenant_deletion_stuck':
       return { to: customerTab(item, 'subscription'), tone: 'destructive', icon: 'i-lucide-octagon-alert', actionKey: action(item.kind) }
     case 'form_payment_review':
-      return { to: customerTab(item, 'invoices'), tone: 'destructive', icon: 'i-lucide-credit-card', actionKey: action(item.kind) }
+      // A payment no customer is shown to have made has no invoice to open; the audit log is where the provider's rejected payments are recorded.
+      return item.customer_id
+        ? { to: customerTab(item, 'invoices'), tone: 'destructive', icon: 'i-lucide-credit-card', actionKey: action(item.kind) }
+        : { to: { path: '/audit', query: { action: PROVIDER_PAYMENT_REJECTED_ACTION } }, tone: 'destructive', icon: 'i-lucide-credit-card', actionKey: `${action(item.kind)}_provider` }
     case 'renewal_missed':
       return { to: customerTab(item, 'subscription'), tone: 'warning', icon: 'i-lucide-calendar-x', actionKey: action(item.kind) }
     case 'renewal_soon':
@@ -89,6 +96,7 @@ export function attentionMessage(item: AttentionItem, now: Date): { key: string,
     case 'trial_end_overdue': return { key: 'trial_end_overdue', days: Math.max(0, daysBetween(item.since, now)), operation: null }
     case 'renewal_failed': return { key: 'renewal_failed', days: null, operation: item.detail }
     case 'suspension_undelivered': return { key: 'suspension_undelivered', days: null, operation: item.detail }
+    case 'resume_undelivered': return { key: 'resume_undelivered', days: null, operation: item.detail }
     case 'stalled_activation':
       return FAILED_FULFILLMENT.includes(item.detail ?? '')
         ? { key: 'stalled_failed', days: null, operation: null }

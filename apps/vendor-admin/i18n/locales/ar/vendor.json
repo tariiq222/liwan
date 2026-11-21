@@ -75,6 +75,7 @@
         "trial_end_overdue": "انتهت التجربة منذ {duration} ولم يُنفَّذ إنهاؤها: التطبيقات المدفوعة ما زالت مفتوحة وتُرفض الأوامر الجديدة إلى أن يُنفَّذ",
         "renewal_failed": "تعذّر إصدار التجديد ({operation})؛ بقية التجديدات لا تتأثر",
         "suspension_undelivered": "تعليق لم يصل إلى مساحة العمل. تستمر محاولات الإرسال.",
+        "resume_undelivered": "استئناف لم يصل إلى مساحة العمل: الاشتراك فعّال والمساحة ما زالت موقوفة. تستمر محاولات الإرسال.",
         "stalled_failed": "فشل التفعيل ويحتاج تدخلك",
         "stalled_waiting": "التفعيل متعثر منذ {duration}",
         "invitation_failed": "تعذّر تسليم دعوة المدير بعد عدة محاولات: لا أحد يستطيع دخول مساحة العمل بعد",
@@ -106,6 +107,7 @@
         "trial_end_overdue": "افتح الاشتراك",
         "renewal_failed": "افتح الاشتراك",
         "suspension_undelivered": "افتح الاشتراك",
+        "resume_undelivered": "افتح الاشتراك",
         "stalled_activation": "افتح مساحة العمل",
         "invitation_failed": "أعد إصدار الدعوة",
         "bank_transfer_claimed": "افتح الفاتورة",
@@ -117,7 +119,8 @@
         "renewal_soon": "افتح الاشتراك",
         "tenant_deletion_due": "افتح الطلب",
         "tenant_deletion_stuck": "افتح الحذف",
-        "form_payment_review": "افتح الفواتير"
+        "form_payment_review": "افتح الفواتير",
+        "form_payment_review_provider": "افتح سجل التدقيق"
       },
       "statusTitle": "الحالة العامة",
       "statusLabel": "أعداد الحالة العامة",
