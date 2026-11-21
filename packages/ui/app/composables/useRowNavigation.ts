@@ -22,7 +22,7 @@ export function useRowNavigation(container: Readonly<Ref<HTMLElement | null>>) {
     const rows = navigableRows(Array.from(root.querySelectorAll<HTMLElement>(ROW_SELECTOR)))
     const focused = document.activeElement
     const current = rows.findIndex(row => row === focused || (focused !== null && row.contains(focused)))
-    const move = rowMove(event, { hydrated: hydrated.value, overlayOpen: overlayOwnsEscape(document) })
+    const move = rowMove(event, { hydrated: hydrated.value, overlayOpen: overlayOwnsEscape(document), inList: current >= 0 })
     if (move) {
       const next = nextRowIndex(current, rows.length, move)
       if (next < 0) return
@@ -33,10 +33,13 @@ export function useRowNavigation(container: Readonly<Ref<HTMLElement | null>>) {
     }
     if (event.key === 'Enter' && !event.repeat && !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey
       && current >= 0 && rows[current] === focused) {
+      // A row whose cells hold no link (a table passing `row-to` with custom cells) still opens: the row itself is
+      // the target. Without this, Enter did nothing on those tables while working on the plain ones.
       const link = rows[current]!.querySelector<HTMLElement>('a[href]')
-      if (link) {
+      const target = link ?? (rows[current]!.matches('a[href]') ? rows[current] : null)
+      if (target) {
         event.preventDefault()
-        link.click()
+        target.click()
       }
     }
   })

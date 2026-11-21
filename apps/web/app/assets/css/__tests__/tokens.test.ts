@@ -120,8 +120,26 @@ describe('page canvas', () => {
   })
 })
 
-describe('dark brand tone and chart defaults', () => {
-  it('tokens.css .dark declares the brand tone, rings and chart colours', () => {
+describe('the brand surface of the standalone pages', () => {
+  // The login page draws the white wordmark on this surface. It used to take --primary-solid-active in dark
+  // mode (#d4d4dc), which left the white mark at 1.48:1. It is a fixed ink surface in both modes instead.
+  it('carries the white wordmark at 4.5:1 or better in both modes', () => {
+    for (const selector of [':root', '.dark']) {
+      const found = declarations(ruleBodies(sheet('tokens.css'), selector))
+      const surface = found.get('--liwan-brand-surface')
+      expect(surface, selector).toBeDefined()
+      expect(contrastRatio('#ffffff', surface!), `${selector}: white on ${surface}`).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
+  it('is not the dark solid-active fill that caused the defect', () => {
+    const dark = declarations(ruleBodies(sheet('tokens.css'), '.dark'))
+    expect(dark.get('--primary-solid-active')).toBe('#d4d4dc')
+    expect(dark.get('--liwan-brand-surface')).not.toBe(dark.get('--primary-solid-active'))
+  })
+})
+
+describe('dark brand tone and chart defaults', () => {  it('tokens.css .dark declares the brand tone, rings and chart colours', () => {
     const found = declarations(ruleBodies(sheet('tokens.css'), '.dark'))
     const tokens = ['--brand-link', '--ring', '--sidebar-ring', ...[1, 2, 3, 4, 5, 6].map(i => `--chart-${i}`), ...['success', 'info', 'warning', 'error', 'neutral'].map(k => `--chart-status-${k}`)]
     for (const token of tokens) expect(found.get(token), token).toBeDefined()

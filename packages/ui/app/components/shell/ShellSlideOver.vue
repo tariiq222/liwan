@@ -33,7 +33,7 @@ useEventListener(() => (typeof document === 'undefined' ? undefined : document),
 
 <template>
   <Transition name="liwan-slideover">
-    <aside v-show="props.open" :id="props.id" ref="panel" class="liwan-slideover liwan-print-hide" tabindex="-1" role="dialog" aria-modal="false" :aria-label="props.title" :data-testid="props.id">
+    <aside v-show="props.open" :id="props.id" ref="panel" class="liwan-slideover liwan-print-hide" tabindex="-1" role="dialog" aria-modal="false" :aria-label="props.title" :data-testid="props.id" :data-dismissable-layer="props.open ? '' : undefined">
       <div class="liwan-slideover-head">
         <slot name="lead" />
         <h2 class="liwan-slideover-title">{{ props.title }}</h2>

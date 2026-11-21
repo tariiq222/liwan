@@ -44,7 +44,7 @@
 [data-app="helpdesk"] { --app-tile: var(--liwan-app-helpdesk); --app-action: var(--liwan-app-helpdesk-action); }
 
 /* A paid application repaints the whole solid-primary family (buttons, create action, selected fills) in its button shade. */
-:is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"]) {
+:is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"], [data-app="helpdesk"]) {
   --app-tile-fg: #fff;
   --primary-solid: var(--app-action);
   --primary-solid-hover: color-mix(in srgb, var(--app-action) 86%, black);
@@ -67,13 +67,13 @@
   --ring: var(--app-accent);
   --chart-1: var(--app-accent);
 }
-:is(.dark, .dark *):is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"]) {
+:is(.dark, .dark *):is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"], [data-app="helpdesk"]) {
   --app-accent: var(--app-tile);
   --app-accent-text: color-mix(in srgb, var(--app-tile) 75%, white);
 }
 /* The primary progress bar and the keyboard focus outline take the application colour. */
-:is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"]) [role="progressbar"] > [data-slot="indicator"].bg-primary { background-color: var(--app-accent); }
-:is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"]) :focus-visible { outline-color: var(--app-accent); }
+:is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"], [data-app="helpdesk"]) [role="progressbar"] > [data-slot="indicator"].bg-primary { background-color: var(--app-accent); }
+:is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"], [data-app="helpdesk"]) :focus-visible { outline-color: var(--app-accent); }
 
 /* Shell tiles and tiles with their own app id choose a colour independently of the page.
    The paid app selectors outrank this default when the tile has a paid id. */
@@ -94,5 +94,5 @@
 }
 
 /* Settings and filters inside a paid application: an «on» toggle and the chosen segment take the application colour. */
-:is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"]) button[role="switch"][data-state="checked"] { background-color: var(--app-accent); }
-:is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"]) [data-slot="segmented-control"] [aria-pressed="true"] { color: var(--app-accent-text); }
+:is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"], [data-app="helpdesk"]) button[role="switch"][data-state="checked"] { background-color: var(--app-accent); }
+:is([data-app="crm"], [data-app="inbox"], [data-app="projects"], [data-app="hr"], [data-app="finance"], [data-app="appointments"], [data-app="helpdesk"]) [data-slot="segmented-control"] [aria-pressed="true"] { color: var(--app-accent-text); }

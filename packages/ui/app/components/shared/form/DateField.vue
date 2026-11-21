@@ -45,7 +45,7 @@ const buttonAttrs = computed(() => {
       <UCalendar v-model="date" class="p-2" :disabled="formFieldDisabled" :min-value="toCalendarDate(minValue ?? null)" :max-value="toCalendarDate(maxValue ?? null)" />
       <div v-if="modelValue || $slots.footer" class="flex items-center justify-end gap-2 border-t border-default p-2">
         <slot name="footer" />
-        <UButton v-if="modelValue" type="button" color="error" variant="ghost" square icon="i-lucide-trash-2" :aria-label="t('app.clearDate')" :title="t('app.clearDate')" :disabled="formFieldDisabled" @click="date = undefined" />
+        <UButton v-if="modelValue" type="button" color="neutral" variant="ghost" square icon="i-lucide-x" :aria-label="t('app.clearDate')" :title="t('app.clearDate')" :disabled="formFieldDisabled" @click="date = undefined" />
       </div>
     </template>
   </UPopover>
