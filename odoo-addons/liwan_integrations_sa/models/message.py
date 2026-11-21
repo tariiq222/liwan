@@ -31,7 +31,8 @@ OUTBOX_COMPANY_BATCH = 20
 # Rows looked at to fill one batch fairly across companies.
 OUTBOX_SCAN = 1000
 MAX_ATTEMPTS = 5
-BACKOFF_MINUTES = (1, 2, 4, 8, 16)
+# Backoff after the attempts 1-4; the fifth attempt fails outright, so the fifth slot is never read.
+BACKOFF_MINUTES = (1, 2, 4, 8)
 # A send spends at most the client's connect and read timeouts; a younger marker may still be in flight.
 STALE_SEND_AFTER = timedelta(seconds=60)
 RETENTION = relativedelta(months=24)

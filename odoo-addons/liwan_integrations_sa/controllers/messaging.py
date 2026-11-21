@@ -45,10 +45,12 @@ def _query_date(args, key):
     raw = args.get(key)
     if raw is None:
         return None
+    # The contract promises `YYYY-MM-DD` (z.iso.date), so the full datetime spelling is refused.
     try:
-        return datetime.fromisoformat(raw).date()
+        parsed = datetime.strptime(raw, '%Y-%m-%d').date()
     except ValueError:
         reject(f'{key} must be a date (YYYY-MM-DD)', key)
+    return parsed
 
 
 class IntegrationMessagingController(http.Controller):

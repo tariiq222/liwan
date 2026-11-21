@@ -48,6 +48,10 @@ class LiwanIntegrationConnectionCallback(models.Model):
     def _liwan_callback_record(self, kind, params):
         """The log row a callback of ``kind`` names on this connection, or None; the model that owns a kind
         extends this through ``super()``.
+
+        An unknown row answers ``ignored`` (204) before any check, so a caller who does not hold the token can tell
+        an existing ``MessageSid`` from a missing one only by that one bit; provider message ids are random 128-bit
+        values, so the oracle carries nothing exploitable. The plan fixes this exact status mapping.
         """
         self.ensure_one()
         return
