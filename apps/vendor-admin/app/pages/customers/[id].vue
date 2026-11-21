@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { formatLiwanDate, formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
-import { deletionWithdrawable, isDeletionShown } from '@/utils/vendorDeletion'
+import { deletionWithdrawable, isDeletionShown, isWorkspaceRetiring } from '@/utils/vendorDeletion'
 import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBadges'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { commercialErrorKey } from '@/utils/vendorCommercial'
@@ -100,7 +100,7 @@ async function resendInvitation() {
 }
 // The address on record receives every control-plane mail for the workspace (invitation, billing, trial, cancellation and deletion notices).
 // Changing it needs a reason and a fresh passkey confirmation; it never changes an account inside the workspace.
-const canChangeAdminLogin = computed(() => can('vendor.subscriptions.manage') && Boolean(customer.value?.tenant_id) && !error.value && !workspaceDeleted.value && deletion.value?.state !== 'deleting')
+const canChangeAdminLogin = computed(() => can('vendor.subscriptions.manage') && Boolean(customer.value?.tenant_id) && !error.value && !workspaceRetiring.value)
 const adminLoginOpen = ref(false)
 const adminLoginValue = ref('')
 const adminLoginReason = ref('')
@@ -170,7 +170,7 @@ const renewalAction = ref<'cancel' | 'resume' | null>(null)
 const renewalReason = ref('')
 const renewalBusy = ref(false)
 const renewalFailure = ref<string | undefined>()
-const canChangeRenewal = computed(() => can('vendor.subscriptions.manage') && !error.value && Boolean(view.value?.cancellation || view.value?.cancellable))
+const canChangeRenewal = computed(() => can('vendor.subscriptions.manage') && !error.value && !workspaceRetiring.value && Boolean(view.value?.cancellation || view.value?.cancellable))
 const validRenewalReason = computed(() => renewalReason.value.trim().length >= 3 && renewalReason.value.trim().length <= 1000)
 function closeRenewal() { renewalAction.value = null; renewalReason.value = ''; renewalFailure.value = undefined }
 async function changeRenewal() {
@@ -209,6 +209,8 @@ async function changeCard() {
 const { data: deletionRun, refresh: refreshDeletion } = await useAsyncData(() => `vendor:customer-deletion:${id.value}`, async () => (await soft(() => api.tenantDeletionRun(id.value))).value?.run ?? null)
 const deletion = computed(() => (isDeletionShown(deletionRun.value?.request) ? deletionRun.value!.request : null))
 const workspaceDeleted = computed(() => deletion.value?.state === 'deleted' || tenant.value?.status === 'deleted')
+// Once access has stopped the control plane refuses every vendor action on the customer, so the console stops offering them.
+const workspaceRetiring = computed(() => isWorkspaceRetiring(deletion.value) || tenant.value?.status === 'deleted')
 const workspaceDeletedText = computed(() => t('vendor.customers.deletion.workspaceDeleted', { date: formatLiwanDate(deletion.value?.deleted_at ?? '') }))
 const deletionWithdrawOpen = ref(false)
 const deletionReason = ref('')

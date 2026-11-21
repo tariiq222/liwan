@@ -532,7 +532,8 @@ async function cleanRegistryRows(ctx: Ctx): Promise<Outcome> {
       invitations: await removed('DELETE FROM admin_invitations WHERE tenant_id=$1', [tenantId]),
       outbox_closed: await removed(`UPDATE commercial_outbox SET status='failed',processed_at=now(),payload=payload || '{"error":"workspace_deleted"}'::jsonb
         WHERE status='pending' AND kind <> $2 AND kind <> $4 AND (aggregate_id=ANY($1::text[]) OR payload->>'customer_id'=$3)`, [await ownedIds(client, row.customer_id), TENANT_DELETION_NOTICE_KIND, row.customer_id, TOKEN_DELETE_KIND]),
-      subscriptions: await removed("UPDATE subscriptions SET state='cancelled',auto_renew_enabled=false,revision=revision+1 WHERE customer_id=$1 AND state<>'cancelled'", [row.customer_id]),
+      subscriptions: await removed(`UPDATE subscriptions SET state='cancelled',auto_renew_enabled=false,cancel_requested_at=NULL,cancel_requested_by=NULL,cancel_reason=NULL,revision=revision+1
+        WHERE customer_id=$1 AND (state<>'cancelled' OR cancel_requested_at IS NOT NULL)`, [row.customer_id]),
       tenants: await removed("UPDATE tenants SET status='deleted',operations_enabled=false WHERE id=$1", [tenantId]),
     }
     return { evidence }

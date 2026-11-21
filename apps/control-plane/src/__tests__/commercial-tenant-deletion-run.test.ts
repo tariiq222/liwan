@@ -139,6 +139,15 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
     expect(view!.steps.map(s => s.step)).toContain('purge_offsite')
   })
 
+  it('clears a requested renewal cancellation when the workspace is deleted, so no resumable cancellation is left on a deleted customer', async () => {
+    const f = await fixture()
+    await pool.query("UPDATE subscriptions SET cancel_requested_at=now(),cancel_requested_by='customer',cancel_reason='Leaving',revision=revision+1 WHERE customer_id=$1", [f.customer])
+    await run()
+    expect((await req(f)).state).toBe('deleted')
+    expect((await pool.query('SELECT state,cancel_requested_at,cancel_requested_by,cancel_reason FROM subscriptions WHERE customer_id=$1', [f.customer])).rows[0])
+      .toEqual({ state: 'cancelled', cancel_requested_at: null, cancel_requested_by: null, cancel_reason: null })
+  })
+
   it('anonymises the contacts only after the final mail is closed, and scrubs recipients and codes from this customer only', async () => {
     const f = await fixture(), other = await fixture({ holdEndedMinutes: -600 })
     const aggregate = randomUUID()

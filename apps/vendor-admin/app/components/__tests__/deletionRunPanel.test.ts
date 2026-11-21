@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import * as Vue from 'vue'
-import { deletionCheckKey, deletionCodeText, deletionWithdrawable, isDeletionShown, stuckParts } from '../../utils/vendorDeletion'
+import { deletionCheckKey, deletionCodeText, deletionWithdrawable, isDeletionShown, isWorkspaceRetiring, stuckParts } from '../../utils/vendorDeletion'
 import type { TenantDeletionRequest } from '@liwan/commercial-contracts'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -87,6 +87,11 @@ describe('vendorDeletion', () => {
     expect(deletionWithdrawable(request({ state: 'deleting', committed_at: '2027-04-04T09:20:00Z' }))).toBe(false)
     expect(deletionWithdrawable(request({ state: 'deleted', committed_at: '2027-04-04T09:20:00Z' }))).toBe(false)
     expect(deletionWithdrawable(request({ state: 'withdrawn' }))).toBe(false)
+  })
+  it('treats the workspace as retiring only once access has stopped, and not for an open, withdrawn or missing request', () => {
+    for (const state of ['deleting', 'deleted']) expect(isWorkspaceRetiring(request({ state: state as TenantDeletionRequest['state'] })), state).toBe(true)
+    for (const state of ['requested', 'confirmed', 'due', 'withdrawn']) expect(isWorkspaceRetiring(request({ state: state as TenantDeletionRequest['state'] })), state).toBe(false)
+    expect(isWorkspaceRetiring(null)).toBe(false)
   })
   it('shows open and finished requests and hides a withdrawn or missing one', () => {
     for (const state of ['requested', 'confirmed', 'due', 'deleting', 'deleted']) expect(isDeletionShown(request({ state: state as TenantDeletionRequest['state'] })), state).toBe(true)
