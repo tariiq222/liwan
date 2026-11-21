@@ -68,7 +68,7 @@ def parse_create(payload):
         reject('phone_number_id is required for a whatsapp channel and refused for a tiktok one', 'phone_number_id')
     values = {
         'name': parse_text(payload, 'name', 128), 'kind': kind, 'connection_id': parse_connection(payload, kind).id,
-        **parse_department(payload),
+        **parse_department(payload, request.env.company),
     }
     if kind == 'whatsapp':
         values['phone_number_id'] = parse_provider_id(payload, 'phone_number_id')
@@ -78,18 +78,19 @@ def parse_create(payload):
     return values
 
 
-def parse_department(payload):
+def parse_department(payload, company):
+    """The department values of a payload: a department of `company`, the channel's own company."""
     if 'department_id' not in payload:
         return {}
     if payload['department_id'] is None:
         return {'department_id': False}
-    return {'department_id': find_one('liwan.inbox.department', payload['department_id'], 'department_id').id}
+    return {'department_id': find_one('liwan.inbox.department', payload['department_id'], 'department_id', company).id}
 
 
-def parse_patch(payload):
+def parse_patch(channel, payload):
     """The values of a channel patch; 422 on any bad field."""
     check_fields(payload, PATCH_FIELDS)
-    values = parse_department(payload)
+    values = parse_department(payload, channel.owner_company_id)
     if 'name' in payload:
         values['name'] = parse_text(payload, 'name', 128)
     if 'state' in payload:
@@ -223,7 +224,7 @@ class ChannelController(http.Controller):
     @requires_capability(MANAGE_CHANNELS)
     def patch_channel(self, channel_id, **payload):
         channel = get_channel(channel_id, MANAGE_CHANNELS)
-        channel.write(parse_patch(payload))
+        channel.write(parse_patch(channel, payload))
         return dump_channel(channel)
 
     @http.route('/api/v1/inbox/channels/<int:channel_id>', type='json2', auth='user', methods=['DELETE'], readonly=False)

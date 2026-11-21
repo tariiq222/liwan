@@ -119,7 +119,7 @@ def parse_assignment(conversation, payload):
         )
     if 'department_id' in payload:
         values['department_id'] = (
-            find_one('liwan.inbox.department', payload['department_id'], 'department_id').id
+            find_one('liwan.inbox.department', payload['department_id'], 'department_id', conversation.company_id).id
             if payload['department_id'] is not None else False
         )
     return values
@@ -154,7 +154,7 @@ def parse_patch(conversation, payload):
         values['priority'] = payload['priority']
     if 'tag_ids' in payload:
         ids = parse_ids(payload['tag_ids'], 'tag_ids')
-        values['tag_ids'] = [(6, 0, find_ids('liwan.inbox.tag', ids, 'tag_ids').ids)]
+        values['tag_ids'] = [(6, 0, find_ids('liwan.inbox.tag', ids, 'tag_ids', conversation.company_id).ids)]
     return values
 
 

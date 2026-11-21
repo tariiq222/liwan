@@ -2,9 +2,10 @@
 from datetime import timedelta
 
 from odoo import fields
-from odoo.tests import tagged
+from odoo.exceptions import ValidationError
+from odoo.tests import new_test_user, tagged
 
-from .common import MESSAGE_KEYS, TEMPLATE_KEYS, LiwanInboxCase
+from .common import MESSAGE_KEYS, PASSWORD, TEMPLATE_KEYS, LiwanInboxCase
 from odoo.addons.liwan_api.tests.common import set_probe_feature
 from odoo.addons.liwan_inbox.models.privacy_hooks import ERASED_CONTACT
 
@@ -258,6 +259,28 @@ class TestConversationsApi(LiwanInboxCase):
         self.patch_conversation(self.conversation, {'assignee_id': self.supervisor.id})
         self.assertEqual(self.env['mail.message'].search_count([('liwan_notification_kind', '=', 'inbox.assigned')]), 1)
         self.assertError(self.patch_conversation(self.conversation, {'department_id': 999999}), 422, 'invalid')
+
+    def test_a_department_or_tag_of_another_company_is_refused(self):
+        branch = self.env['res.company'].create({'name': 'Lists branch company', 'parent_id': self.env.company.id})
+        user = new_test_user(
+            self.env, login='inbox_two_companies', password=PASSWORD, name='Two companies', groups='liwan_core.group_employee',
+            company_id=self.env.company.id, company_ids=[(6, 0, (self.env.company | branch).ids)],
+        )
+        role = self.env.ref('liwan_inbox.role_inbox_supervisor')
+        for company in self.env.company | branch:
+            self.env['liwan.access.assignment'].create({'user_id': user.id, 'company_id': company.id, 'role_id': role.id})
+        foreign_department = self.env['liwan.inbox.department'].create({'name': 'Branch desk', 'company_id': branch.id})
+        foreign_tag = self.env['liwan.inbox.tag'].create({'name': 'Branch tag', 'company_id': branch.id})
+        own_tag = self.env['liwan.inbox.tag'].create({'name': 'Own tag'})
+        self.login(user)
+        self.assertError(self.patch_conversation(self.conversation, {'department_id': foreign_department.id}), 422, 'invalid')
+        self.assertError(self.patch_conversation(self.conversation, {'tag_ids': [foreign_tag.id]}), 422, 'invalid')
+        own = self.patch_conversation(self.conversation, {'department_id': self.department.id, 'tag_ids': [own_tag.id]})
+        self.assertEqual(own.status_code, 200, own.text)
+        with self.assertRaises(ValidationError):
+            self.conversation.write({'department_id': foreign_department.id})
+        with self.assertRaises(ValidationError):
+            self.conversation.write({'tag_ids': [(4, foreign_tag.id)]})
 
     def test_messages_are_chronological_and_paged_from_the_newest(self):
         for index in range(3):

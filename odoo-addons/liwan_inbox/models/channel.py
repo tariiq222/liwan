@@ -88,6 +88,12 @@ class LiwanInboxChannel(models.Model):
             if connection.provider != USE_PROVIDERS[channel.kind] or connection.company_id != channel.owner_company_id:
                 raise ValidationError(self.env._('The channel needs a %(provider)s connection of its own company.', provider=USE_PROVIDERS[channel.kind]))
 
+    @api.constrains('department_id', 'owner_company_id')
+    def _check_department_company(self):
+        for channel in self.filtered('department_id'):
+            if channel.department_id.company_id != channel.owner_company_id:
+                raise ValidationError(self.env._('The department of a channel belongs to its own company.'))
+
     @api.model_create_multi
     def create(self, vals_list):
         """Gate each new channel by its own kind's sub-feature, then by the tenant's channel limit."""

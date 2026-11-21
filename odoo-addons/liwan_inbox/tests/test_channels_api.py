@@ -3,8 +3,8 @@ from unittest.mock import MagicMock, patch
 
 import requests
 
-from odoo.exceptions import UserError
-from odoo.tests import tagged
+from odoo.exceptions import UserError, ValidationError
+from odoo.tests import new_test_user, tagged
 
 from .common import (
     ACCESS_TOKEN,
@@ -12,6 +12,7 @@ from .common import (
     BUSINESS_ACCOUNT_ID,
     CHANNEL_KEYS,
     CONNECTION_KEYS,
+    PASSWORD,
     LiwanInboxCase,
 )
 from odoo.addons.liwan_api.tests.common import set_probe_feature
@@ -43,6 +44,24 @@ class TestChannelsApi(LiwanInboxCase):
         self.assertFalse(body['needs_reconnect'])
         for secret in (ACCESS_TOKEN, APP_SECRET, connection._liwan_secret('verify_token')):
             self.assertNotIn(secret, read.text)
+
+    def test_a_department_of_another_company_is_refused_for_a_channel(self):
+        branch = self.env['res.company'].create({'name': 'Channel lists branch', 'parent_id': self.env.company.id})
+        user = new_test_user(
+            self.env, login='inbox_channel_two_companies', password=PASSWORD, name='Two companies', groups='liwan_core.group_employee',
+            company_id=self.env.company.id, company_ids=[(6, 0, (self.env.company | branch).ids)],
+        )
+        role = self.env.ref('liwan_inbox.role_inbox_manager')
+        for company in self.env.company | branch:
+            self.env['liwan.access.assignment'].create({'user_id': user.id, 'company_id': company.id, 'role_id': role.id})
+        foreign = self.env['liwan.inbox.department'].create({'name': 'Branch desk', 'company_id': branch.id})
+        self.login(user)
+        self.assertError(self.api('PATCH', f'{CHANNELS}/{self.channel.id}', {'department_id': foreign.id}), 422, 'invalid')
+        self.assertError(self.api('POST', CHANNELS, self.body(department_id=foreign.id)), 422, 'invalid')
+        own = self.api('PATCH', f'{CHANNELS}/{self.channel.id}', {'department_id': self.department.id})
+        self.assertEqual(own.status_code, 200, own.text)
+        with self.assertRaises(ValidationError):
+            self.channel.write({'department_id': foreign.id})
 
     def test_create_returns_the_shape_of_a_channel_on_its_connection(self):
         self.login(self.manager)

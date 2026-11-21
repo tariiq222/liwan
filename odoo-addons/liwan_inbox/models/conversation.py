@@ -175,6 +175,13 @@ class LiwanInboxConversation(models.Model):
         self.write({'typing_requested_at': now, 'typing_pending': True})
         self.env['liwan.inbox.message']._liwan_wake_outbox()
 
+    @api.constrains('company_id', 'department_id', 'tag_ids')
+    def _check_lists_of_own_company(self):
+        """The department and the tags of a conversation belong to its company, never to another company of the same user."""
+        for conversation in self:
+            if (conversation.department_id.company_id | conversation.tag_ids.company_id) - conversation.company_id:
+                raise ValidationError(self.env._('The department and tags of a conversation belong to its own company.'))
+
     @api.constrains('state')
     def _check_single_open(self):
         for conversation in self.filtered(lambda c: c.state != 'closed'):
