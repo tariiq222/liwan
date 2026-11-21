@@ -35,6 +35,9 @@ export function lifecycleBadge(view: { status: string; available?: boolean }): S
   const state = lifecycleStatus({ status: view.status, available: view.available ?? true })
   return { tone: LIFECYCLE_TONE[state], labelKey: `vendor.pricing.status.${state}` }
 }
+/** What a plan or bundle list is filtered by. `customer_id` limits the list to what that customer may be offered: public revisions and the ones made for it. */
+export type ListParams = { status?: StatusFilter; q?: string; limit?: number; offset?: number; customer_id?: string }
+export const listQuery = (p: ListParams) => ({ status: p.status && p.status !== 'all' ? p.status : undefined, q: p.q || undefined, limit: p.limit, offset: p.offset, customer_id: p.customer_id })
 export function isStatusFilter(value: unknown): value is StatusFilter { return typeof value === 'string' && (STATUS_FILTERS as string[]).includes(value) }
 
 // ---- Money ----

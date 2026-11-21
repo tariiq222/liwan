@@ -23,7 +23,8 @@ const form = reactive({ name: '', commercial_mode: 'saas', hosting_model: 'dedic
 // A vendor-added customer never starts a trial (release 1, owner decision 2026-11-06): the console places a paid first
 // order the vendor collects by bank transfer or a payment link, or a free order when the plan's total is zero. A plan
 // that offers a trial is therefore not offered here: its trial would be the only thing the vendor could start.
-const startablePlans = computed(() => (plans.value ?? []).filter(p => p.trial_days === 0))
+// A plan made for one customer is not offered to a customer that does not exist yet.
+const startablePlans = computed(() => (plans.value ?? []).filter(p => p.trial_days === 0 && p.audience.kind === 'public'))
 const selectedPlan = computed(() => startablePlans.value.find(p => p.id === form.plan_revision_id))
 const cadenceItems = computed(() => (selectedPlan.value?.prices ?? []).map(p => ({ label: cadenceLabel(p.cadence, t), value: cadenceKey(p.cadence) })))
 const selectedCadence = computed<Cadence | undefined>(() => selectedPlan.value?.prices.find(p => cadenceKey(p.cadence) === form.cadence)?.cadence)

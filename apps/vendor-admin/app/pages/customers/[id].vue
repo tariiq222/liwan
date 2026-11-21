@@ -41,7 +41,7 @@ const { data: extra, refresh: refreshExtra } = await useAsyncData(() => `vendor:
     s ? soft(() => api.branches(s)) : Promise.resolve({ value: null, unavailable: false, failed: false }),
     s ? soft(() => api.usage(s)) : Promise.resolve({ value: null, unavailable: false, failed: false }),
     canBilling.value ? soft(() => api.listInvoices({ customer_id: id.value, limit: 10 })) : Promise.resolve({ value: null, unavailable: false, failed: false }),
-    soft(() => useVendorCommercial().listPlans({ limit: 200 })),
+    soft(() => useVendorCommercial().listPlans({ limit: 200, customer_id: id.value })),
     soft(() => useVendorCommercial().releases()),
   ])
   return { full, branches, usage, invoices, plans, releases }

@@ -48,7 +48,7 @@ describe('shared tenant onboarding browser contract', () => {
     // A4: a vendor-added customer never starts a trial, so no trial path exists here at all.
     expect(form).not.toContain('subscriptions.startTrial')
     expect(form).not.toContain('plan-trial')
-    expect(form).toContain('const startablePlans = computed(() => (plans.value ?? []).filter(p => p.trial_days === 0))')
+    expect(form).toContain("const startablePlans = computed(() => (plans.value ?? []).filter(p => p.trial_days === 0 && p.audience.kind === 'public'))")
     // Every offered plan places its first order, free or paid, and the onboarding is an optional extra on it.
     expect(form).toContain('await subscriptions.placeOrder({')
     expect(form).toContain('data-testid="onboarding-choice"')

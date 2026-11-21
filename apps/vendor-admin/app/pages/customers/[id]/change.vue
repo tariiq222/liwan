@@ -13,7 +13,7 @@ const detailTo = computed(() => ({ path: `/customers/${encodeURIComponent(id.val
 const { data, error, pending, refresh } = await useAsyncData(() => `vendor:change:${id.value}`, async () => {
   const customer = await api.customer(id.value)
   const sub = customer?.subscription ? await api.subscription(customer.subscription.id) : null
-  const plans = await catalog.listPlans({ status: 'published', limit: 200 }).then(r => r.items).catch(() => [])
+  const plans = await catalog.listPlans({ status: 'published', limit: 200, customer_id: id.value }).then(r => r.items).catch(() => [])
   return { customer, sub, plans }
 })
 const planId = ref(''); const extra = ref('0'); const cadence = ref('')

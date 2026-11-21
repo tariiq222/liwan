@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { actionBlockedReason, appName, availableActions, audienceFromDraft, bundleCreatePayload, bundleDraftFromView, bundleEditPayload, bundleLimitKeys, commercialFailure, commercialErrorKey, commercialReturnTo, dependencyHints, emptyBundleDraft, emptyPlanDraft, fieldIssue, limitFromDraft, limitToDraft, lifecycleStatus, lifecycleUrl, keyLabel, minorToInput, parseVendorMoneyInput, planCreatePayload, planDraftFromView, planEditPayload, priceRowErrors, pricesFromDrafts, quoteRequestBody } from '../vendorCommercial'
+import { actionBlockedReason, appName, availableActions, audienceFromDraft, bundleCreatePayload, bundleDraftFromView, bundleEditPayload, bundleLimitKeys, commercialFailure, commercialErrorKey, commercialReturnTo, dependencyHints, emptyBundleDraft, emptyPlanDraft, fieldIssue, limitFromDraft, limitToDraft, lifecycleStatus, lifecycleUrl, keyLabel, minorToInput, parseVendorMoneyInput, planCreatePayload, planDraftFromView, planEditPayload, priceRowErrors, pricesFromDrafts, quoteRequestBody, listQuery } from '../vendorCommercial'
 
 const rid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
 const release = { id: rid(1), version: '1', source_digest: 'a'.repeat(64), artifact_digest: 'a'.repeat(64), applications: [
@@ -172,5 +172,12 @@ describe('error codes', () => {
     // An unregistered label falls back to the raw key; a registered one is translated.
     expect(keyLabel('probe.enabled', k => `T:${k}`, () => false)).toBe('probe.enabled')
     expect(keyLabel('probe.enabled', k => `T:${k}`, path => path === 'vendor.pricing.keys.probe_enabled')).toBe('T:vendor.pricing.keys.probe_enabled')
+  })
+})
+
+describe('list query', () => {
+  it('carries the customer, so a picker never offers a plan made for another customer', () => {
+    expect(listQuery({ status: 'published', limit: 200, customer_id: 'customer1' })).toEqual({ status: 'published', q: undefined, limit: 200, offset: undefined, customer_id: 'customer1' })
+    expect(listQuery({ status: 'all' }).status).toBeUndefined()
   })
 })
