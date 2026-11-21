@@ -15,7 +15,6 @@ from odoo.addons.liwan_api.controllers.common import (
 from odoo.addons.liwan_inbox.adapters import errors
 from odoo.addons.liwan_inbox.controllers.audiences import search_term
 from odoo.addons.liwan_inbox.controllers.campaign_parsing import (
-    in_company,
     parse_campaign,
     parse_preview,
 )
@@ -219,7 +218,7 @@ class CampaignController(http.Controller):
     def test_send(self, campaign_id, **payload):
         campaign = campaign_of(campaign_id)
         check_fields(payload, {'contact_id'}, required=('contact_id',))
-        contact = in_company(find_one('liwan.inbox.contact', payload['contact_id'], 'contact_id'), 'contact_id')
+        contact = find_one('liwan.inbox.contact', payload['contact_id'], 'contact_id', request.env.company)
         try:
             message = campaign._liwan_send_test(contact)
         except errors.ProviderError as error:

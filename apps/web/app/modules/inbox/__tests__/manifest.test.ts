@@ -116,6 +116,12 @@ describe('inbox catalog pages', () => {
     expect(canReachPath(withFeatures(['inbox.conversations.read'], ['inbox.enabled']), '/inbox/orders')).toBe(false)
     expect(canReachPath(withFeatures(['inbox.conversations.read'], on), '/inbox/orders')).toBe(true)
   })
+
+  it('a form answers page needs the forms feature besides reading conversations', () => {
+    expect(canReachPath(withFeatures(['inbox.conversations.read'], ['inbox.enabled']), '/inbox/flows/4')).toBe(false)
+    expect(canReachPath(withFeatures(['inbox.conversations.read'], ['inbox.enabled', 'inbox.flows']), '/inbox/flows/4')).toBe(true)
+    expect(canReachPath(withFeatures(['inbox.flows.manage'], ['inbox.enabled', 'inbox.flows']), '/inbox/flows/4')).toBe(false)
+  })
 })
 
 describe('inbox campaigns', () => {

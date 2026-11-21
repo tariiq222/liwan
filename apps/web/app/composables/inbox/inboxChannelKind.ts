@@ -6,6 +6,9 @@ export const CHANNEL_KIND_ICON: Record<InboxChannelKind, string> = {
   tiktok: 'i-liwan-tiktok',
 }
 
+/** The one question the UI asks about a kind: WhatsApp-only features (orders, forms, automatic opportunities) show for it alone. */
+export const isWhatsAppChannel = (kind: InboxChannelKind | null | undefined): boolean => kind === 'whatsapp'
+
 /** The translated name of a channel kind, wherever the UI names one (a list row, a header, a settings field). */
 export const channelKindLabelKey = (kind: InboxChannelKind) => `inbox.channelKinds.${kind}`
 

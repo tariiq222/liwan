@@ -6,6 +6,7 @@ from odoo import Command
 from odoo.tests import tagged
 
 from .common import LiwanCrmCase
+from odoo.addons.liwan_api.tests.common import set_probe_feature
 from odoo.addons.liwan_crm.models.crm_settings import TERM_MEMO
 from odoo.addons.liwan_crm.serializers.settings import dump_terms
 
@@ -97,6 +98,18 @@ class TestCrmCron(LiwanCrmCase):
         self.Followup._liwan_cron_tick(now=NOW)
         self.assertFalse(lead.active)
         self.assertEqual(lead.liwan_recycle_at, NOW + DAY)
+
+    def test_a_tenant_whose_crm_feature_is_not_writable_is_left_alone(self):
+        lead = self.lost_for_recycle()
+        set_probe_feature(self, key='crm.enabled', enabled=False)
+        self.Followup._liwan_cron_tick(now=NOW + timedelta(seconds=1))
+        self.assertFalse(lead.active)
+        self.assertEqual(lead.liwan_cycle, 0)
+        self.assertFalse(self.bell_rows(self.agent, lead, 'crm.assigned'))
+        set_probe_feature(self, key='crm.enabled', enabled=True)
+        self.Followup._liwan_cron_tick(now=NOW + timedelta(seconds=1))
+        self.assertTrue(lead.active)
+        self.assertEqual(lead.liwan_cycle, 1)
 
     def test_the_last_cycle_ends_in_a_final_loss(self):
         lead = self.lost_for_recycle()

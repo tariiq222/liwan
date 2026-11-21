@@ -12,6 +12,7 @@ from odoo.addons.liwan_api.controllers.common import (
     requires_feature,
 )
 from odoo.addons.liwan_crm.controllers.opportunities import (
+    check_can_create,
     create_opportunity_from_payload,
     find_opportunity,
     visible_domain,
@@ -74,19 +75,27 @@ class OpportunityConversationsController(http.Controller):
     @requires_feature('crm.enabled', 'inbox.enabled', operation='read')
     @requires_capability('crm.leads.read', READ)
     def get_conversation_opportunity(self, conversation_id, **_):
-        """The linked opportunity, or null when there is none or the caller may not read it (its name never leaks)."""
+        """``{opportunity, hidden}``: the ref when the caller sees the linked opportunity, ``hidden`` when a link exists
+        that the caller may not read (nothing of it leaks), neither when none is linked."""
         conversation = visible_conversation(conversation_id)
+        if not conversation.lead_id:
+            return {'opportunity': None, 'hidden': False}
         lead = request.env['crm.lead'].with_context(active_test=False).search(
             [('id', '=', conversation.lead_id.id), *visible_domain()], limit=1,
         )
-        return dump_opportunity_ref(lead) if lead else None
+        if not lead:
+            return {'opportunity': None, 'hidden': True}
+        return {'opportunity': dump_opportunity_ref(lead), 'hidden': False}
 
     @http.route('/api/v1/inbox/conversations/<int:conversation_id>/opportunity', type='json2', auth='user',
                 methods=['POST'], readonly=False)
     @api_handler
     @requires_feature('crm.enabled', 'inbox.enabled', operation='write')
-    @requires_capability('crm.leads.work', REPLY)
+    @requires_capability(REPLY)
     def create_conversation_opportunity(self, conversation_id, **payload):
+        """Create from the conversation under CRM's own rule: ``crm.leads.assign`` in manual distribution, otherwise
+        ``crm.leads.work``."""
+        check_can_create()
         if payload:
             raise ApiError(422, 'invalid', 'the opportunity uses conversation details', field=sorted(payload)[0])
         conversation = visible_conversation(conversation_id)

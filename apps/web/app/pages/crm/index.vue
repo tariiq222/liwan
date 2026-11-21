@@ -8,6 +8,7 @@ import { useCrmLostReasonChoices, useCrmOutcomeChoices, useCrmPackageChoices } f
 import { useCrmCreateAccess } from '@/composables/crm/useCrmAccess'
 import { useCrmTerms } from '@/composables/crm/useCrmTerms'
 import { useCrmOpportunities, useCrmOpportunityActions } from '@/composables/crm/useOpportunities'
+import { useCustomerConflict } from '@/composables/customers/useCustomerConflict'
 import { callRecordedText } from '@/utils/crmCallResult'
 import { agentKpiTiles, managerKpiTiles } from '@/utils/crmDashboard'
 import { crmErrorMessage } from '@/utils/crmErrors'
@@ -35,17 +36,19 @@ const showFirstOpportunity = computed(() => canCreate.value && existing.data.val
 const openId = ref<number | null>(null)
 const callDirty = ref(false)
 const failure = ref('')
-watch(openId, () => { failure.value = '' })
+// A sold call stopped by customers sharing the phone waits in the open row for the agent's answer, then repeats with it.
+const conflict = useCustomerConflict()
+watch(openId, () => { failure.value = ''; conflict.clear() })
 
-async function recordCall(id: number, draft: CrmCallDraft) {
+function recordCall(id: number, draft: CrmCallDraft) {
   failure.value = ''
-  try {
-    const result = await actions.recordCall.mutateAsync({ id, body: draft })
-    toast.add({ title: callRecordedText(result.opportunity, t, locale.value), color: 'success' })
-    openId.value = null
-  } catch (error) {
-    failure.value = crmErrorMessage(error, t, { sale: draft.package_id !== undefined })
-  }
+  return conflict.attempt(choice => actions.recordCall.mutateAsync({ id, body: { ...draft, ...choice } }), {
+    done: result => {
+      toast.add({ title: callRecordedText(result.opportunity, t, locale.value), color: 'success' })
+      openId.value = null
+    },
+    failed: error => { failure.value = crmErrorMessage(error, t, { sale: draft.package_id !== undefined }) },
+  })
 }
 const agentTiles = computed(() => (dashboard.data.value ? agentKpiTiles(dashboard.data.value.agent, t) : []))
 const managerTiles = computed(() => (dashboard.data.value?.manager ? managerKpiTiles(dashboard.data.value.manager, t) : []))
@@ -83,8 +86,11 @@ const managerTiles = computed(() => (dashboard.data.value?.manager ? managerKpiT
           :lost-reasons="manualLostReasons(lostReasons.data.value?.items ?? [])"
           :pending="actions.recordCall.isPending.value"
           :failure="failure"
+          :candidates="conflict.candidates.value"
           @retry="due.refetch()"
           @record="recordCall"
+          @choose="conflict.choose"
+          @dismiss="conflict.clear()"
         />
         <template v-if="dashboard.data.value.manager">
           <h2 class="text-base font-semibold text-highlighted">{{ t('crm.dashboard.manager.title') }}</h2>

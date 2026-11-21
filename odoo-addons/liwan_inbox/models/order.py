@@ -1,6 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import LockError, UserError
 from odoo.fields import Domain
 
 from .constants import MAX_CART_QUANTITY, PAY_BUTTON_TEXT
@@ -16,6 +16,10 @@ NOTE_EXPIRED = 'أُلغي الطلب %s: انتهت مهلة الدفع'
 
 class OrderLocked(UserError):
     """The order is no longer a cart that can be edited or dismissed."""
+
+
+class OrderBusy(UserError):
+    """Another request is changing the order right now."""
 
 
 class WindowClosed(UserError):
@@ -139,6 +143,19 @@ class LiwanInboxOrder(models.Model):
         order.conversation_id._liwan_notify_bus()
         return order
 
+    def _liwan_lock_row(self):
+        """Hold the order row for this transaction and read it again, so two writers never both act on one state.
+
+        Every writer (set lines, cancel, checkout) takes this lock before it reads the state or touches the lines.
+
+        :raise OrderBusy: another request holds the row.
+        """
+        try:
+            self.lock_for_update(allow_referencing=True)
+        except LockError:
+            raise OrderBusy(self.env._('The order is being changed by another request. Try again.')) from None
+        self.invalidate_recordset()
+
     def _liwan_require_cart(self):
         if self.state != 'cart':
             raise OrderLocked(self.env._('Only a cart can be changed.'))
@@ -146,13 +163,15 @@ class LiwanInboxOrder(models.Model):
     def _liwan_set_lines(self, existing, added):
         """Keep the lines `existing` ({line id: quantity}) and add `added` ([(catalog item id, quantity)]); drop the others."""
         self.ensure_one()
+        self._liwan_lock_row()
         self._liwan_require_cart()
         by_id = self.line_ids.filtered(lambda line: line.id in existing)
         if len(by_id) != len(existing):
             raise OrderLinesInvalid(self.env._('A line does not belong to this order.'))
         commands = [(2, line.id) for line in self.line_ids - by_id]
         commands += [(1, line.id, {'quantity': existing[line.id]}) for line in by_id]
-        commands += self._liwan_line_values(self.conversation_id, added)
+        if added:
+            commands += self._liwan_line_values(self.conversation_id, added)
         self.write({'line_ids': commands})
         self.conversation_id._liwan_notify_bus()
 
@@ -161,6 +180,7 @@ class LiwanInboxOrder(models.Model):
     def _liwan_cancel(self):
         """A cart is dismissed; an ordered order is cancelled, which stops its pay link and makes a paid amount refundable."""
         self.ensure_one()
+        self._liwan_lock_row()
         if self.state == 'dismissed':
             raise OrderLocked(self.env._('The order is already dismissed.'))
         if self.state == 'cart':
@@ -200,9 +220,11 @@ class LiwanInboxOrder(models.Model):
 
         :return: the queued message.
         :raise OrderLocked: a dismissed order cannot be paid.
+        :raise OrderBusy: another request is checking the order out at this moment.
         :raise WindowClosed: the window is closed and no template was given.
         """
         self.ensure_one()
+        self._liwan_lock_row()
         conversation = self.conversation_id
         if self.state == 'dismissed':
             raise OrderLocked(self.env._('The order was dismissed.'))

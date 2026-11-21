@@ -157,7 +157,7 @@ class TestInboxPrivacy(LiwanInboxCase):
         self.erase()
         self.env.invalidate_all()
         after = dump_messages(interactive | template)
-        self.assertEqual(after[0]['interactive']['sections'], [])
+        self.assertEqual((after[0]['kind'], after[0]['interactive']), ('text', None))
         self.assertEqual(after[1]['template']['buttons'], [])
         self.assertFalse(interactive.option_ids)
         self.assertFalse(template.template_button_ids)
@@ -196,3 +196,97 @@ class TestInboxPrivacy(LiwanInboxCase):
         self.env.invalidate_all()
         self.assertEqual((self.customer.name, self.contact.name, self.inbound.body), (NAME, NAME, BODY))
         self.assertTrue(base64.b64decode(self.media.datas))
+
+    def thread_with_every_structured_message(self):
+        """One message of each kind that carries structured content, and a form answer of every kind, in the conversation."""
+        Message = self.env['liwan.inbox.message']
+        flow = self.env['liwan.inbox.flow'].create({
+            'channel_id': self.channel.id, 'name': 'Visit', 'category': 'other', 'status': 'published', 'provider_flow_id': '811000077',
+        })
+        base = {'conversation_id': self.conversation.id, 'direction': 'out', 'delivery_state': 'sent', 'body': 'Please choose'}
+        option = {'option_id': 'a', 'title': 'Tuesday at the Olaya branch'}
+        by_name = {
+            'buttons': Message.create({**base, 'kind': 'interactive', 'interactive_type': 'buttons', 'option_ids': [(0, 0, option)]}),
+            'list': Message.create({
+                **base, 'kind': 'interactive', 'interactive_type': 'list', 'interactive_button': 'Times', 'interactive_header': 'Slots',
+                'option_ids': [(0, 0, {**option, 'section_title': 'Days', 'description': 'Sara only'})],
+            }),
+            'cta_url': Message.create({
+                **base, 'kind': 'interactive', 'interactive_type': 'cta_url', 'cta_display_text': 'Pay', 'cta_url': 'https://pay.example.test/sara',
+            }),
+            'flow': Message.create({
+                **base, 'kind': 'interactive', 'interactive_type': 'flow', 'flow_id': flow.id, 'flow_cta': 'Open', 'flow_token': 'tok-1',
+            }),
+            'product': Message.create({
+                **base, 'kind': 'product', 'interactive_type': 'product', 'catalog_id': '123456789', 'option_ids': [(0, 0, {**option, 'option_id': 'sku-1'})],
+            }),
+            'product_list': Message.create({
+                **base, 'kind': 'product_list', 'interactive_type': 'product_list', 'catalog_id': '123456789', 'interactive_header': 'Offers',
+                'option_ids': [(0, 0, {**option, 'option_id': 'sku-1', 'section_title': 'Shirts'})],
+            }),
+            'catalog_message': Message.create({
+                **base, 'kind': 'catalog_message', 'interactive_type': 'catalog_message', 'catalog_id': '123456789',
+                'option_ids': [(0, 0, {**option, 'option_id': 'sku-1'})],
+            }),
+            'location': Message.create({
+                **base, 'direction': 'in', 'kind': 'location', 'latitude': 24.7136, 'longitude': 46.6753, 'location_name': 'Home',
+            }),
+            'choice': Message.create({
+                **base, 'direction': 'in', 'kind': 'interactive', 'selected_option_id': 'a', 'selected_option_title': 'Tuesday',
+            }),
+            'template': Message.create({
+                **base, 'kind': 'template', 'template_name': 'otp', 'template_header': 'location', 'latitude': 24.7, 'longitude': 46.6,
+                'template_button_ids': [(0, 0, {'position': 0, 'kind': 'copy_code', 'text': 'Copy', 'value': 'CODE-4821'})],
+            }),
+        }
+        answered = Message.create({**base, 'direction': 'in', 'kind': 'flow_response', 'body': 'Visit'})
+        submission = self.env['liwan.inbox.flow.submission'].create({
+            'conversation_id': self.conversation.id, 'flow_id': flow.id, 'message_id': answered.id, 'submitted_at': answered.date,
+            'answer_ids': [
+                (0, 0, {'key': 'name', 'label': 'Name', 'kind': 'text_input', 'value_text': NAME}),
+                (0, 0, {'key': 'day', 'label': 'Day', 'kind': 'date', 'value_date': '2026-11-25'}),
+                (0, 0, {'key': 'consent', 'label': 'I agree', 'kind': 'opt_in', 'value_boolean': True}),
+                (0, 0, {'key': 'service', 'label': 'Service', 'kind': 'dropdown', 'choice_ids': [(0, 0, {'key': 'o1', 'title': 'Dental'})]}),
+            ],
+        })
+        return flow, by_name, answered, submission
+
+    def test_an_erased_thread_and_its_form_answers_are_still_read_in_the_contract_shapes(self):
+        flow, by_name, answered, submission = self.thread_with_every_structured_message()
+        self.settings.visibility_policy = 'all'
+        self.login(self.manager)
+        messages_path = f'/api/v1/inbox/conversations/{self.conversation.id}/messages?limit=100'
+        before = {row['id']: row for row in self.get(messages_path).json()['items']}
+        self.assertEqual(before[by_name['buttons'].id]['interactive']['type'], 'buttons')
+        self.assertEqual(before[by_name['product'].id]['commerce']['type'], 'sent')
+        self.assertEqual(before[answered.id]['flow_response']['answers'][1]['value'], '2026-11-25')
+
+        self.erase()
+        self.env.invalidate_all()
+
+        response = self.get(messages_path)
+        self.assertEqual(response.status_code, 200, response.text)
+        thread = {row['id']: row for row in response.json()['items']}
+        for name, message in by_name.items():
+            row = thread[message.id]
+            self.assertEqual((row['body'], row['interactive'], row['commerce'], row['location']), (inbox_hooks.ERASED_MESSAGE, None, None, None), name)
+            self.assertEqual(row['selected_option'], None, name)
+            self.assertEqual(row['kind'], 'template' if name == 'template' else 'text', name)
+        self.assertEqual(thread[by_name['template'].id]['template'], {'name': 'otp', 'header_text': None, 'footer': None, 'buttons': []})
+        self.assertNotIn('Olaya', json.dumps(thread))
+        self.assertNotIn('pay.example.test', json.dumps(thread))
+        expected = [
+            {'key': 'name', 'label': 'Name', 'kind': 'text_input', 'value': ''},
+            {'key': 'day', 'label': 'Day', 'kind': 'date', 'value': None},
+            {'key': 'consent', 'label': 'I agree', 'kind': 'opt_in', 'value': False},
+            {'key': 'service', 'label': 'Service', 'kind': 'dropdown', 'choices': []},
+        ]
+        self.assertEqual(thread[answered.id]['flow_response']['answers'], expected)
+        by_flow = self.get(f'/api/v1/inbox/flows/{flow.id}/submissions')
+        by_conversation = self.get(f'/api/v1/inbox/conversations/{self.conversation.id}/flow-submissions')
+        for listing in (by_flow, by_conversation):
+            self.assertEqual(listing.status_code, 200, listing.text)
+            row = next(item for item in listing.json()['items'] if item['id'] == submission.id)
+            self.assertEqual(row['answers'], expected)
+            self.assertTrue(row['contact']['erased'])
+        self.assertEqual(self.get(f'/api/v1/inbox/conversations/{self.conversation.id}').status_code, 200)

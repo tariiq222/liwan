@@ -5,12 +5,13 @@ import os
 import time
 from unittest.mock import patch
 
+from odoo import fields
 from odoo.tests import tagged
 
 from . import tiktok_payloads as tt
 from .common import LiwanInboxCase
 from odoo.addons.liwan_api.tests.common import set_probe_feature
-from odoo.addons.liwan_inbox.models.constants import TIKTOK_FEATURE
+from odoo.addons.liwan_inbox.models.constants import TIKTOK_ECHO_SETTLE, TIKTOK_FEATURE
 
 HOOK = '/api/v1/inbox/hooks/tiktok'
 BUSINESS_ID = tt.BUSINESS_ID
@@ -97,6 +98,19 @@ class TestTikTokWebhook(LiwanInboxCase):
         self.assertEqual(self.post(None, raw=raw, now=now - 8).status_code, 200)
         self.assertEqual(self.post(None, raw=raw, now=now - 8).status_code, 200)
         self.assertEqual(len(self.events()), 1)
+
+    def test_a_stored_delivery_wakes_the_event_cron_after_the_echo_settle_time(self):
+        cron = self.env.ref('liwan_inbox.ir_cron_inbox_process_events')
+        Trigger = self.env['ir.cron.trigger']
+        before = Trigger.search([('cron_id', '=', cron.id)])
+        raw = json.dumps(tt.receive_text()).encode()
+        now = fields.Datetime.now()
+        self.assertEqual(self.post(None, raw=raw).status_code, 200)
+        created = Trigger.search([('cron_id', '=', cron.id)]) - before
+        self.assertEqual(len(created), 1)
+        self.assertGreaterEqual(created.call_at, now + TIKTOK_ECHO_SETTLE)
+        self.assertEqual(self.post(None, raw=raw).status_code, 200)
+        self.assertEqual(Trigger.search([('cron_id', '=', cron.id)]) - before, created)
 
     def test_a_disabled_channel_receives_nothing(self):
         self.tiktok.state = 'disabled'

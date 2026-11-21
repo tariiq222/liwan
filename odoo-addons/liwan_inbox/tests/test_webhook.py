@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from psycopg2.errors import NotNullViolation, UniqueViolation
 
+from odoo import fields
 from odoo.tests import tagged
 
 from . import whatsapp_payloads as wa
@@ -88,6 +89,20 @@ class TestWhatsAppWebhook(LiwanInboxCase):
         self.assertEqual(len(self.events()), 1)
         keys = self.env['liwan.inbox.event'].search([('channel_id', '=', self.channel.id)]).mapped('dedupe_key')
         self.assertEqual(keys, [self.env['liwan.inbox.event']._liwan_dedupe_key(self.channel, raw)])
+
+    def event_triggers(self):
+        cron = self.env.ref('liwan_inbox.ir_cron_inbox_process_events')
+        return self.env['ir.cron.trigger'].search([('cron_id', '=', cron.id)])
+
+    def test_a_stored_delivery_wakes_the_event_cron_once_under_the_hook_identity(self):
+        before = self.event_triggers()
+        raw = wa.body_of(wa.inbound_text())
+        self.assertEqual(self.post(None, raw=raw).status_code, 200)
+        created = self.event_triggers() - before
+        self.assertEqual(len(created), 1)
+        self.assertLessEqual(created.call_at, fields.Datetime.now())
+        self.assertEqual(self.post(None, raw=raw).status_code, 200)
+        self.assertEqual(self.event_triggers() - before, created, 'a replay stores nothing and wakes nothing')
 
     def test_the_key_is_required_and_unique_on_its_own(self):
         # One plain unique index on the required column: `_liwan_store` always sets the key, so a stored

@@ -16,11 +16,19 @@ const READS = [
   '/api/v1/finance/invoices/7/pdf',
   '/api/v1/sales/orders/7/pdf',
   '/api/v1/public/sales/quotations/7/pdf',
+  '/api/v1/crm/export',
+  '/api/v1/inbox/conversations/export.csv',
 ]
 const WRITES = [
   '/api/v1/finance/assets/compute-depreciation',
   ...['entries', 'invoices', 'payments'].map(kind => `/api/v1/finance/${kind}/3/post`),
   ...['compute', 'post', 'bank-file', 'wps-file'].map(action => `/api/v1/hr/payroll/runs/12/${action}`),
+  '/api/v1/crm/imports',
+  '/api/v1/crm/imports/preview',
+  '/api/v1/crm/imports/columns',
+  '/api/v1/inbox/contacts/import',
+  '/api/v1/inbox/channels/4/templates',
+  '/api/v1/inbox/channels/4/templates/sync',
 ]
 
 describe('heavyRouteKind', () => {
@@ -53,6 +61,17 @@ describe('heavyRouteKind', () => {
     ['POST', '/api/v1/finance/invoices/3/post/extra'],
     ['POST', '/api/v1/finance/invoices/3/post-all'],
     ['POST', '/api/v1/finance/assets/compute-depreciation/now'],
+    ['GET', '/api/v1/crm/imports'],
+    ['POST', '/api/v1/crm/imports/columns/extra'],
+    ['POST', '/api/v1/crm/imports/preview/extra'],
+    ['GET', '/api/v1/crm/export/extra'],
+    ['POST', '/api/v1/inbox/contacts/import/extra'],
+    ['GET', '/api/v1/inbox/conversations/export'],
+    ['GET', '/api/v1/inbox/channels/4/templates'],
+    ['PATCH', '/api/v1/inbox/templates/4'],
+    ['POST', '/api/v1/inbox/channels/4/templates/uploads'],
+    ['POST', '/api/v1/inbox/channels/abc/templates'],
+    ['POST', '/api/v1/inbox/channels/4/templates/sync/extra'],
     ['POST', '/api/v1/hr/payroll/runs/12/approve'],
     ['POST', '/api/v1/hr/payroll/runs/12/payment'],
     ['POST', '/api/v1/hr/payroll/runs/12/compute/extra'],

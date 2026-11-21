@@ -53,6 +53,36 @@ class TestMaintenance(LiwanInboxCase):
         self.assertFalse(old.exists() or message.exists() or attachment.exists() or contact.exists())
         self.assertTrue(recent.exists() and recent.contact_id.exists())
 
+    def empty_conversation(self, hours_ago):
+        """A conversation with no message yet (a TikTok referral opened it), created `hours_ago` hours ago."""
+        conversation = self.make_conversation()
+        conversation.message_ids.unlink()
+        self.env.cr.execute(
+            'UPDATE liwan_inbox_conversation SET create_date = %s WHERE id = %s',
+            [fields.Datetime.now() - timedelta(hours=hours_ago), conversation.id],
+        )
+        conversation.invalidate_recordset()
+        return conversation
+
+    def test_a_conversation_with_no_message_is_listed_after_one_with_a_message(self):
+        empty, answered = self.empty_conversation(1), self.make_conversation(minutes_ago=60 * 24 * 30)
+        ordered = self.env['liwan.inbox.conversation'].search([('id', 'in', (empty | answered).ids)])
+        self.assertEqual(ordered.ids, [answered.id, empty.id])
+
+    def test_a_conversation_with_no_message_closes_by_its_creation_date(self):
+        self.settings.auto_close_hours = 72
+        idle, fresh = self.empty_conversation(80), self.empty_conversation(1)
+        self.run_maintenance()
+        self.assertEqual((idle.state, fresh.state), ('closed', 'open'))
+
+    def test_a_conversation_with_no_message_is_purged_by_its_creation_date(self):
+        self.settings.retention_months = 1
+        self.settings.auto_close_hours = 0
+        old, recent = self.empty_conversation(40 * 24), self.empty_conversation(24)
+        self.run_maintenance()
+        self.assertFalse(old.exists())
+        self.assertTrue(recent.exists())
+
     def test_processed_events_are_deleted_after_seven_days(self):
         old = self.store_event(self.channel, '{"old": true}')
         old.write({'state': 'done', 'processed_at': fields.Datetime.now() - timedelta(days=8)})

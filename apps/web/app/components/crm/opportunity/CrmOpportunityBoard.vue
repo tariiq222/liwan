@@ -102,7 +102,7 @@ function onLost(event: { data?: CrmOpportunity }) {
           <div v-for="item in lists[column.key]" :key="item.id" :class="CARD" :data-readonly="!movable(item)" data-slot="crm-board-item">
             <NuxtLink :to="to(item)" :class="movable(item) ? 'pe-[104px]' : 'pe-[58px]'" class="block min-w-0 rounded-card p-[14px] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary" data-testid="crm-board-card">
               <span class="block truncate text-(length:--liwan-fs-section) font-semibold text-highlighted">{{ item.contact_name }}</span>
-              <span class="mt-0.5 block truncate text-end text-sm text-muted" dir="ltr"><bdi>{{ item.phone }}</bdi></span>
+              <span class="mt-0.5 block truncate text-sm text-muted"><bdi dir="ltr">{{ item.phone }}</bdi></span>
               <span class="mt-[10px] flex flex-wrap items-center gap-2 text-xs text-muted">
                 <template v-if="item.user">
                   <UAvatar v-bind="avatarProps(item.user.name, item.user.id)" class="size-(--liwan-card-avatar) shrink-0" :ui="{ fallback: 'text-(length:--liwan-fs-avatar-initials)' }" />

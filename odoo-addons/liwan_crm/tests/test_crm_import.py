@@ -352,6 +352,22 @@ class TestCrmImport(LiwanCrmCase):
         self.assertEqual((body['new'], body['duplicate'], body['invalid']), (1, 1, 0))
         self.assertEqual(body['duplicate_rows'], [2])
 
+    def test_duplicates_are_judged_by_row_whatever_the_size_of_the_file(self):
+        self.make_lead(self.agent2, contact_name='Open customer', phone='+966501112222')
+        content = csv_bytes('Sara,0501112222', 'Omar,0507654321', 'Huda,0507654321', 'Mona,12', 'Lina,0501234567')
+        body = self.preview(content).json()
+        self.assertEqual((body['new'], body['duplicate'], body['invalid']), (2, 2, 1))
+        self.assertEqual((body['duplicate_rows'], body['invalid_rows']), ([2, 4], [{'row': 5, 'reason': 'invalid_phone'}]))
+
+    def test_the_queries_of_a_preview_do_not_grow_with_its_rows(self):
+        def queries(first, rows):
+            checked = self.intake._liwan_read_rows('c.csv', csv_bytes(*[f'Customer {n},+966502{first + n:06d}' for n in range(rows)]))
+            start = self.cr.sql_log_count
+            self.assertEqual(len(self.intake._liwan_check_rows(checked, {'name': 'Name', 'phone': 'Phone'}, self.company)), rows)
+            return self.cr.sql_log_count - start
+        small, large = queries(0, 5), queries(100, 20)
+        self.assertLessEqual(large - small, 1, (small, large))
+
     def test_preview_discloses_row_numbers_only(self):
         self.make_lead(self.agent2, contact_name='Hidden customer', phone='+966501112222')
         response = self.preview(csv_bytes('Sara,0501112222'))
@@ -472,7 +488,7 @@ class TestCrmImport(LiwanCrmCase):
     def test_a_phone_taken_during_the_commit_is_a_duplicate_not_an_error(self):
         self.make_lead(self.agent2, contact_name='Racing customer', phone='+966501234567')
         Lead = type(self.env['crm.lead'])
-        with patch.object(Lead, '_liwan_find_duplicate', return_value=False):
+        with patch.object(Lead, '_liwan_duplicate_phones', return_value=set()):
             response = self.commit(csv_bytes('Sara,0501234567', 'Omar,0507654321'))
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual((response.json()['created'], response.json()['duplicate']), (1, 1))

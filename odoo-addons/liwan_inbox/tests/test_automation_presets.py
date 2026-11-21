@@ -58,6 +58,15 @@ class TestAutomationPresets(AutomationCase):
         self.assertEqual(conversation.tag_ids.mapped('name'), ['حجز موعد'])
         self.assertEqual(len(self.automated(conversation)), 2)
 
+    def test_a_menu_rule_names_only_the_tags_the_company_has(self):
+        tag = self.env['liwan.inbox.tag'].create({'name': 'real tag', 'company_id': self.env.company.id})
+        self.settings._liwan_seed_automation({'rules': [{
+            'name': 'rule with a missing tag', 'option_id': 'menu_x', 'reply': {'body': 'Hi'}, 'department': None,
+            'tags': ['missing tag', 'real tag'],
+        }]})
+        rule = self.rules().filtered(lambda row: row.name == 'rule with a missing tag')
+        self.assertEqual(rule.tag_ids, tag)
+
     def test_applying_a_sector_switches_nothing_on(self):
         self.apply('clinic')
         message, _event = self.deliver('مرحبا')

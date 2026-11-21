@@ -13,12 +13,13 @@ from odoo.tests import tagged
 from . import tiktok_payloads as tt
 from .common import LiwanInboxCase, tiktok_grant
 from odoo.addons.liwan_api.tests.common import cover_isolation_routes, set_probe_feature
-from odoo.addons.liwan_inbox.adapters import tiktok
+from odoo.addons.liwan_inbox.adapters import errors, tiktok
 from odoo.addons.liwan_inbox.models.constants import (
     AUTOMATION_FEATURE,
     TIKTOK_ECHO_SETTLE,
     TIKTOK_FEATURE,
 )
+from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 ACCESS_TOKEN = 'tiktok-access-token-sync'
 REFRESH_TOKEN = 'tiktok-refresh-token-sync'
@@ -172,6 +173,47 @@ class TestTikTokSync(LiwanInboxCase):
         self.tiktok._liwan_tiktok_queue_first_sync()
         self.assertEqual(len(self.jobs()), 1)
 
+    # waking the cron
+
+    def wakes(self):
+        cron = self.env.ref('liwan_inbox.ir_cron_inbox_tiktok_sync')
+        return self.env['ir.cron.trigger'].search_count([('cron_id', '=', cron.id)])
+
+    def test_a_new_job_wakes_the_import_cron(self):
+        before = self.wakes()
+        self.queue()
+        self.assertEqual(self.wakes(), before + 1)
+
+    def test_a_step_that_leaves_work_wakes_the_import_cron_and_the_last_step_does_not(self):
+        job = self.queue()
+        before = self.wakes()
+        self.run_steps(job, [page('conv-a1', has_more=True, cursor=7)], 1)
+        self.assertEqual(self.wakes(), before + 1, 'a conversation page that has a next page')
+        job.write({'phase': 'messages', PENDING: json.dumps(['conv-a1', 'conv-a2'])})
+        before = self.wakes()
+        with patch('odoo.addons.liwan_inbox.models.tiktok_sync.MESSAGES_PER_STEP', 1):
+            self.run_steps(job, [self.customer('conv-a1', 'msg-a1')], 1)
+        self.assertEqual((self.pending(job), self.wakes()), (['conv-a2'], before + 1), 'one conversation is still to read')
+        self.run_steps(job, [self.customer('conv-a2', 'msg-a2')], 1)
+        self.assertEqual((self.reload_job(job, 'state').state, self.wakes()), ('done', before + 1), 'the last step wakes nothing')
+
+    def test_a_failed_or_waiting_step_does_not_wake_the_import_cron(self):
+        job = self.queue()
+        before = self.wakes()
+        with patch.object(tiktok, 'list_conversations', side_effect=errors.ProviderError('rate limited', retryable=True)):
+            self.step(job)
+        self.assertEqual((self.reload_job(job, 'state').state, self.wakes()), ('running', before))
+        with patch.object(tiktok, 'list_conversations', side_effect=errors.ProviderError('refused', retryable=False)):
+            self.step(job)
+        self.assertEqual((self.reload_job(job, 'state').state, self.wakes()), ('failed', before))
+
+    def test_a_step_that_moves_nothing_does_not_wake_the_import_cron(self):
+        job = self.queue()
+        before = self.wakes()
+        # TikTok names the cursor the job already holds: reading it again would loop, so the scheduled run waits.
+        self.run_steps(job, [page(has_more=True, cursor=0)], 1)
+        self.assertEqual(self.wakes(), before)
+
     def test_steps_walk_single_then_stranger_pages_then_messages(self):
         job = self.queue()
         request = self.run_steps(job, self.history(), 4)
@@ -236,6 +278,33 @@ class TestTikTokSync(LiwanInboxCase):
         inbound = self.env['liwan.inbox.message'].search([('provider_message_id', '=', 'msg-in-late')])
         self.assertEqual((len(inbound), inbound.direction), (1, 'in'))
         self.assertEqual((self.reload_job(job, 'messages_count', 'state').messages_count, job.state), (2, 'done'))
+
+    def test_an_import_at_the_monthly_limit_stores_outbound_history_without_counting_it(self):
+        Message = self.env['liwan.inbox.message']
+        used = Message._liwan_count_outbound_this_month()
+        profile = self.env.ref('liwan_platform.tenant_profile')
+        profile.with_context(**{OPERATOR_CONTEXT: True}).write({'features': {**profile.features, 'inbox.messages_out': used}})
+        job = self.queue()
+        job.write({'phase': 'messages', PENDING: json.dumps(['conv-out'])})
+        oldest = tt.rest_message(
+            'TEXT', {'body': 'Replied from the TikTok app'}, message_id='msg-out-open', conversation_id='conv-out',
+            from_role='BUSINESS_ACCOUNT', from_id=tt.BUSINESS_ID, timestamp=tt.SENT_AT - 60_000,
+            to_user={'role': 'PERSONAL_ACCOUNT', 'id': 'sender-conv-out'},
+        )
+        newest = tt.rest_message(
+            'TEXT', {'body': 'Hi'}, message_id='msg-in-late', conversation_id='conv-out',
+            from_id='sender-conv-out', timestamp=tt.SENT_AT,
+        )
+        answers = [response(tt.content_list(
+            [newest, oldest],
+            [tt.participant('PERSONAL_ACCOUNT', 'sender-conv-out', 'sara-conv-out'),
+             tt.participant('BUSINESS_ACCOUNT', tt.BUSINESS_ID, 'liwan')],
+        ))]
+        self.run_steps(job, answers, 1)
+        self.assertEqual(job.state, 'done')
+        kept = Message.search([('provider_message_id', '=', 'msg-out-open')])
+        self.assertEqual((len(kept), kept.external), (1, True))
+        self.assertEqual(Message._liwan_count_outbound_this_month(), used)
 
     def test_the_import_window_reads_both_timestamp_units(self):
         """TikTok answers the conversation update in milliseconds; a seconds value is read as one too."""

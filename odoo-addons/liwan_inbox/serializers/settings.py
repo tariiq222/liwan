@@ -100,7 +100,7 @@ def dump_template(template):
         'buttons': [dump_template_button(button) for button in buttons.filtered(lambda button: button.kind != 'otp')],
         'add_security_recommendation': template.add_security_recommendation,
         'code_expiration_minutes': template.code_expiration_minutes or None,
-        'otp_button_text': next((button.text for button in buttons if button.kind == 'otp'), None),
+        'otp_button_text': next((button.text or None for button in buttons if button.kind == 'otp'), None),
         'param_count': template.param_count,
         'editable': template.editable,
         'supported': template.supported,

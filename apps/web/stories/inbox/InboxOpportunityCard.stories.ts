@@ -14,7 +14,7 @@ const meta = {
   parameters: {
     layout: 'padded',
     ...storyContext('apps/web/app/components/inbox/InboxContactPanel.vue:133', 'فرصة المبيعات المرتبطة بالمحادثة: الاسم والمرحلة والحالة مع رابط الفرصة وفصلها، أو ربط فرصة موجودة (بحث برقم جهة الاتصال أولًا ثم بالاسم). لا تُنشأ فرصة من هنا.'),
-    ...answer(null).parameters,
+    ...answer({ opportunity: null, hidden: false }).parameters,
   },
   args: { conversationId: 3, contactPhone: '+966500000001', canReply: true },
 } satisfies Meta<typeof InboxOpportunityCard>
@@ -22,7 +22,8 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const NotLinked: Story = { name: 'غير مرتبطة' }
-export const Linked: Story = { name: 'مرتبطة', parameters: answer(linked).parameters }
-export const Archived: Story = { name: 'فرصة مؤرشفة', parameters: answer({ ...linked, active: false }).parameters }
-export const Won: Story = { name: 'فرصة مُباعة', parameters: answer({ ...linked, status: 'won' }).parameters }
+export const Linked: Story = { name: 'مرتبطة', parameters: answer({ opportunity: linked, hidden: false }).parameters }
+export const Archived: Story = { name: 'فرصة مؤرشفة', parameters: answer({ opportunity: { ...linked, active: false }, hidden: false }).parameters }
+export const Won: Story = { name: 'فرصة مُباعة', parameters: answer({ opportunity: { ...linked, status: 'won' }, hidden: false }).parameters }
+export const Hidden: Story = { name: 'مرتبطة بفرصة غير مرئية', parameters: answer({ opportunity: null, hidden: true }).parameters }
 export const ReplyLocked: Story = { name: 'بلا حق الرد', args: { canReply: false } }

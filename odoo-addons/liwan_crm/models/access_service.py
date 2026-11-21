@@ -1,12 +1,14 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from odoo import api, models
 
+from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_products.models.access_service import (
     PRODUCTS_MANAGE,
     PRODUCTS_PRICES_MANAGE,
     PRODUCTS_READ,
 )
 
+SETTINGS_MANAGE = 'crm.settings.manage'
 AGENT_PERMISSIONS = frozenset({'crm.leads.read', 'crm.leads.work'})
 PERMISSIONS = AGENT_PERMISSIONS | {
     'crm.leads.assign',
@@ -32,6 +34,26 @@ PERMISSION_DEPENDENCIES = {
 
 class LiwanCrmAccessService(models.AbstractModel):
     _inherit = 'liwan.access.service'
+
+    @api.model
+    def _liwan_can_manage_tenant_lists(self):
+        """Whether the caller holds ``crm.settings.manage`` in the working company and in the root company.
+
+        The pipeline stages, call outcomes, lost reasons and sources bind every branch of the tenant while the
+        capability is checked per company, so the manager of one branch only reads them.
+        """
+        root = self.env['liwan.entitlement.service']._liwan_profile().root_company_id
+        return all(
+            self._liwan_has_capability(self.env.user, SETTINGS_MANAGE, company=company)
+            for company in (self.env.company, root)
+        )
+
+    @api.model
+    def _liwan_require_tenant_lists_manage(self):
+        """403 ``forbidden`` unless ``_liwan_can_manage_tenant_lists``; a refusal changes nothing."""
+        if not self._liwan_can_manage_tenant_lists():
+            code = 'forbidden'
+            raise LiwanAccessRule(code, 'the tenant-wide CRM lists belong to the managers of the root company', status=403)
 
     @api.model
     def _liwan_capability_definitions(self):

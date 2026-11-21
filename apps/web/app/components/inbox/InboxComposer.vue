@@ -36,6 +36,8 @@ const canCreateTemplate = computed(() => can('inbox.templates.manage'))
 const newTemplatePath = computed(() => `/settings/apps/inbox/channels/${props.conversation.channel.id}/templates/new`)
 const kind = computed(() => props.conversation.channel.kind)
 const tiktok = computed(() => kind.value === 'tiktok')
+// TikTok takes images only, and limits them to some country pairs: where it refuses, the attachment control is off.
+const imageBlocked = computed(() => tiktok.value && !props.conversation.image_send_capable)
 const actions = computed(() => inboxComposerActions(kind.value, { commerceReady: !!props.commerceReady }))
 const mode = ref<'reply' | 'note'>('reply')
 // Reply and note keep their own text, so switching the mode never loses what was typed.
@@ -457,8 +459,8 @@ async function submit() {
     </template>
     <div v-if="(!templateMode || selectedTemplate) && !blockedWindow" class="liwan-touch-target-row-actions flex items-center gap-2">
       <div v-if="mode === 'reply' && !templateMode" class="flex min-w-0 flex-wrap items-center gap-1" role="toolbar" :aria-label="t('inbox.composer.attachments')">
-        <UTooltip v-if="actions.includes('attach')" :text="t('inbox.composer.attach')">
-          <span class="inline-flex"><SharedFileField ref="fileField" icon-only :accept="inboxUploadAccept(kind)" :label="t('inbox.composer.attach')" :show-file-name="false" :disabled="!hydrated || sending || uploading" data-testid="inbox-attach" @change="onFilePicked" /></span>
+        <UTooltip v-if="actions.includes('attach')" :text="imageBlocked ? t('inbox.composer.imageUnavailable') : t('inbox.composer.attach')">
+          <span class="inline-flex"><SharedFileField ref="fileField" icon-only :accept="inboxUploadAccept(kind)" :label="t('inbox.composer.attach')" :show-file-name="false" :disabled="!hydrated || sending || uploading || imageBlocked" data-testid="inbox-attach" @change="onFilePicked" /></span>
         </UTooltip>
         <UTooltip v-if="actions.includes('location')" :text="t('inbox.composer.location.title')">
           <UButton type="button" color="neutral" variant="outline" icon="i-lucide-map-pin" :aria-label="t('inbox.composer.location.title')" :aria-pressed="panel === 'location'" :disabled="!hydrated || sending" data-testid="inbox-location-toggle" @click="togglePanel('location')" />

@@ -11,6 +11,7 @@ from datetime import timedelta
 from odoo import _, api, fields, models
 
 from odoo.addons.liwan_api.controllers.common import ApiError
+from odoo.addons.liwan_crm.models.ai_agent import FEATURE
 from odoo.addons.liwan_crm.models.crm_lead import DUPLICATE_PHONE_REASON
 
 _logger = logging.getLogger(__name__)
@@ -99,11 +100,15 @@ class LiwanCrmFollowup(models.AbstractModel):
     def _liwan_cron_tick(self, now=None):
         """Reopen due recycles, release due follow-ups of agents who can no longer work, ring the bell.
 
-        Runs as the cron superuser, company by company, whatever company the environment holds.
+        Runs as the cron superuser, company by company, whatever company the environment holds. A tenant whose
+        suspension or plan leaves ``crm.enabled`` unwritable is skipped: the cron changes and rings nothing for it.
         A failing company or opportunity is rolled back and logged; the others still run.
         """
         now = now or fields.Datetime.now()
+        entitlements = self.env['liwan.entitlement.service']
         for company in self.env['res.company'].search([]):
+            if not entitlements.with_company(company)._liwan_feature_write(FEATURE):
+                continue
             scoped = self.with_company(company)
             with scoped._liwan_isolated(f'company {company.id}'):
                 scoped._liwan_reopen_due_recycles(company, now)

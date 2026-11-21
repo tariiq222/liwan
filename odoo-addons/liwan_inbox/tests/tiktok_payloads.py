@@ -111,9 +111,11 @@ def receive_button_click(option_id='opt_yes', source_message_id='am-reply-1', me
     )
 
 
-def send_echo(body='Replied from the TikTok app', message_id='msg-echo-1', conversation_id=CONVERSATION_ID):
+def send_echo(
+    body='Replied from the TikTok app', message_id='msg-echo-1', conversation_id=CONVERSATION_ID, kind='text', fields=None,
+):
     """`im_send_msg`: the business account sent a message, from LiwanOS or from TikTok itself."""
-    content = message('text', {'body': body}, message_id=message_id, conversation_id=conversation_id)
+    content = message(kind, fields or {'body': body}, message_id=message_id, conversation_id=conversation_id)
     content['from'], content['to'] = 'liwan', SENDER_NAME
     content['from_user'] = {'id': BUSINESS_ID, 'role': 'business_account'}
     content['to_user'] = {'id': SENDER_ID, 'role': 'personal_account'}

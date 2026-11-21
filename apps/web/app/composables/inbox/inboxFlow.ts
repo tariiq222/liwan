@@ -420,7 +420,7 @@ export type AnswerDisplay = { kind: 'text'; text: string } | { kind: 'boolean'; 
 export function answerDisplay(answer: InboxFlowAnswer): AnswerDisplay {
   if ('choices' in answer) return { kind: 'text', text: answer.choices.map(choice => choice.title).join('، ') }
   if (answer.kind === 'opt_in') return { kind: 'boolean', value: answer.value }
-  return { kind: 'text', text: answer.value }
+  return { kind: 'text', text: answer.value ?? '' }
 }
 
 export interface AnswerColumn { key: string; label: string }

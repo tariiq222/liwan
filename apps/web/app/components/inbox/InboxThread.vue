@@ -105,7 +105,10 @@ function loadOlder() {
 }
 /** The title of a refused retry: the closed-window line of the conversation's kind when it names that reason
  * (the kinds share the reason but not the sentence), else the message the refusal carried. */
-const retryErrorTitle = (e: unknown) => windowClosedErrorKey(e, props.channelKind) ?? (e instanceof Error ? e.message : t('errors.generic'))
+const retryErrorTitle = (e: unknown) => {
+  const key = windowClosedErrorKey(e, props.channelKind)
+  return key ? t(key) : e instanceof Error ? e.message : t('errors.generic')
+}
 function retryMessage(id: number) {
   retry(id, { onError: e => toast.add({ title: retryErrorTitle(e), color: 'error' }) })
 }

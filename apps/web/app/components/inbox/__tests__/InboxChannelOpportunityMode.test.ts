@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import * as Vue from 'vue'
@@ -60,5 +61,13 @@ describe('InboxChannelOpportunityMode', () => {
   it('waits for the stored value before offering a choice', async () => {
     const { text } = await render({ mode: null, pending: true })
     expect(text).not.toContain('data-testid="group"')
+  })
+})
+
+describe('the channel page', () => {
+  // A TikTok contact has no phone, so no opportunity is opened for it automatically: the mode is a WhatsApp setting.
+  it('offers the opportunity mode on a WhatsApp channel only', () => {
+    const page = readFileSync(resolve(import.meta.dirname, '../../../pages/settings/apps/inbox/channels/[id]/index.vue'), 'utf8')
+    expect(page).toContain('<InboxChannelOpportunityMode v-if="manage && !isTikTok"')
   })
 })

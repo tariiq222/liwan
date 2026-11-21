@@ -88,6 +88,8 @@ export const InboxConversationListSchema = list(InboxConversationSchema)
 export const InboxConversationDetailSchema = InboxConversationSchema.extend({
   can_reply: z.boolean(),
   can_assign: z.boolean(),
+  // Whether an image may be sent to this customer (TikTok limits it to some country pairs).
+  image_send_capable: z.boolean(),
 }).strict()
 
 export const InboxConversationPatchSchema = z.object({

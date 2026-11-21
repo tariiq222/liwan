@@ -23,6 +23,7 @@ type CardProps<Settings> = { settings: Settings; canEdit?: boolean; reloadSettin
 
 // The component script is compiled and run against stubbed composables, as the other card tests do.
 function mountCard<Settings>(filename: string, props: CardProps<Settings>, bindings: Record<string, unknown>) {
+  const automationOn = bindings.automationOn ?? true
   const script = compileScript(parse(readFileSync(filename, 'utf8'), { filename }).descriptor, { id: 'inbox-settings-card' }).content
     .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replace('export default', 'return')
   const mutateAsync = vi.fn()
@@ -30,6 +31,7 @@ function mountCard<Settings>(filename: string, props: CardProps<Settings>, bindi
     _defineComponent: Vue.defineComponent, computed: Vue.computed, ApiError, useSettingsForm,
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true),
     useUpdateInboxSettings: () => ({ mutateAsync }), useUpdateInboxCampaignSettings: () => ({ mutateAsync }),
+    useInboxAutomationEnabled: () => Vue.ref(automationOn),
     InboxSettingsPatchSchema, InboxCampaignSettingsPatchSchema, InboxConsentPolicySchema, ...bindings,
   }
   const code = ts.transpileModule(script, { compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2022 } }).outputText
@@ -37,7 +39,7 @@ function mountCard<Settings>(filename: string, props: CardProps<Settings>, bindi
   const card = component.setup(Vue.reactive({ canEdit: true, reloadSettings: vi.fn(), ...props }), { expose: () => {}, emit: () => {} })
   return { card, mutateAsync }
 }
-const mountPolicy = (props: CardProps<InboxSettings>) => mountCard(policyFile, props, {})
+const mountPolicy = (props: CardProps<InboxSettings>, automationOn = true) => mountCard(policyFile, props, { automationOn })
 const mountCampaigns = (props: CardProps<InboxCampaignSettings>) => mountCard(campaignFile, props, {})
 
 beforeEach(() => { vi.stubGlobal('useI18n', () => ({ t: (key: string) => key })) })
@@ -90,6 +92,30 @@ describe('InboxPolicyCard', () => {
     await card.reload()
     expect(card.state.value.conflict).toBe(false)
     expect(card.draft.value.retention_months).toBe(60)
+  })
+
+  it('without automation, offers only the off value and the saved value, with the reason, and keeps the controls enabled', () => {
+    const { card } = mountPolicy({ settings: policy({ assignment_policy: 'round_robin', first_response_alert_minutes: 30 }) }, false)
+    expect(card.locked.value).toBe(false)
+    expect(card.automationLimited.value).toBe(true)
+    expect(card.automationReason.value).toBe('inbox.settings.policy.automationLocked')
+    expect(card.assignmentItems.value.map((item: { value: string; disabled: boolean }) => [item.value, item.disabled])).toEqual([['manual', false], ['round_robin', false], ['least_open', true]])
+    expect(card.firstResponseItems.value.map((item: { value: number }) => item.value)).toEqual([0, 30])
+    const source = readFileSync(policyFile, 'utf8')
+    expect(source).toContain('<USelect v-if="automationLimited"')
+  })
+
+  it('without automation and nothing saved, the only choices are the off values', () => {
+    const { card } = mountPolicy({ settings: policy() }, false)
+    expect(card.assignmentItems.value.map((item: { value: string; disabled: boolean }) => [item.value, item.disabled])).toEqual([['manual', false], ['round_robin', true], ['least_open', true]])
+    expect(card.firstResponseItems.value.map((item: { value: number }) => item.value)).toEqual([0])
+  })
+
+  it('leaves those two fields fully editable with automation on', () => {
+    const { card } = mountPolicy({ settings: policy() })
+    expect(card.automationLimited.value).toBe(false)
+    expect(card.automationReason.value).toBeUndefined()
+    expect(card.assignmentItems.value.every((item: { disabled: boolean }) => !item.disabled)).toBe(true)
   })
 
   it('disables every field for a viewer', () => {

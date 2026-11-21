@@ -47,6 +47,9 @@ class LiwanInboxMessage(models.Model):
     author_id = fields.Many2one('res.users', ondelete='set null')
     # Sent by the inbox automation (welcome, away, a rule or the survey): such a message has no author.
     automated = fields.Boolean(default=False)
+    # Sent outside LiwanOS: from the provider's own app, a provider auto message, or imported history. Such a message is
+    # shown in the thread but is not a LiwanOS send, so it never counts toward the monthly outbound quota.
+    external = fields.Boolean(default=False, copy=False)
     # An inbound message the automation engine has already evaluated: it is evaluated once.
     automation_done = fields.Boolean(default=False)
     # A template reply keeps the name, language and positional parameters it is sent with (`body` keeps the
@@ -117,6 +120,7 @@ class LiwanInboxMessage(models.Model):
         'A provider message id is stored once.',
     )
     _flow_token_unique = models.UniqueIndex('(flow_token) WHERE flow_token IS NOT NULL', 'A form token is used by one message.')
+    _liwan_outbound_month_idx = models.Index("(create_date) WHERE direction = 'out' AND external IS NOT TRUE")
 
     @api.constrains('kind', 'catalog_id', 'referred_catalog_id', 'referred_retailer_id')
     def _check_commerce_catalog(self):
@@ -127,9 +131,19 @@ class LiwanInboxMessage(models.Model):
             if message.referred_retailer_id and not message.referred_catalog_id:
                 raise ValidationError(self.env._('A product inquiry needs the Meta catalog id.'))
 
+    @api.constrains('external', 'direction', 'delivery_state', 'author_id', 'automated', 'send_token')
+    def _check_external_is_never_sent_by_liwan(self):
+        """An external message was sent outside LiwanOS: LiwanOS never queues, sends or authors it."""
+        for message in self.filtered('external'):
+            if (
+                message.direction != 'out' or message.delivery_state == 'queued' or message.send_token
+                or message.author_id or message.automated
+            ):
+                raise ValidationError(self.env._('A message sent outside LiwanOS cannot be queued, authored or automated.'))
+
     @api.model_create_multi
     def create(self, vals_list):
-        outbound = sum(1 for vals in vals_list if vals.get('direction') == 'out')
+        outbound = sum(1 for vals in vals_list if vals.get('direction') == 'out' and not vals.get('external'))
         if outbound:
             self._liwan_require_monthly_room(outbound)
         messages = super().create(vals_list)
@@ -144,9 +158,9 @@ class LiwanInboxMessage(models.Model):
 
     @api.model
     def _liwan_count_outbound_this_month(self):
-        """Outbound messages of the whole tenant since the start of this UTC month (a rolling flow, not stock usage)."""
+        """Outbound messages LiwanOS sent for the whole tenant since the start of this UTC month (a rolling flow, not stock usage)."""
         self.env.cr.execute(
-            "SELECT count(*) FROM liwan_inbox_message WHERE direction = 'out' AND create_date >= %s",
+            "SELECT count(*) FROM liwan_inbox_message WHERE direction = 'out' AND external IS NOT TRUE AND create_date >= %s",
             [self._liwan_month_start()],
         )
         return self.env.cr.fetchone()[0]

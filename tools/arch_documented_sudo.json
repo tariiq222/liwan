@@ -166,7 +166,7 @@
     },
     "odoo-addons/liwan_crm/models/crm_lead.py": {
       "count": 1,
-      "reason": "liwan_crm duplicate-phone existence check: `self.sudo().with_context(active_test=False).search_count([('company_id','=',company.id),('phone_sanitized','=',phone_e164)], limit=1)` in `_liwan_find_duplicate`; blocked by the LiwanOS visibility global record rule odoo-addons/liwan_crm/security/crm_rules.xml `rule_crm_lead_visibility_read`, which hides other agents' and unassigned opportunities from an agent, plus `active_test` hiding archived lost ones. The spec requires a duplicate to be detected across every opportunity of the company (open, won, lost, archived) without disclosing it, so the method returns only a boolean, never a record, id or agent, and the routes answer the fixed message 'duplicate phone'."
+      "reason": "liwan_crm duplicate-phone existence check: `self.sudo().search_fetch(domain, ['phone_sanitized'])` in `_liwan_duplicate_phones` (called by `_liwan_find_duplicate`), with domain company_id, phone_sanitized in the given phones and won_status = 'pending' (open opportunities only); blocked by the LiwanOS visibility record rule odoo-addons/liwan_crm/security/crm_rules.xml `rule_crm_lead_visibility_read`, which hides other agents' and unassigned opportunities from an agent. The duplicate check must see open opportunities the caller cannot, so the phone is refused without disclosing who holds it. Only phone numbers leave the method (a set of phones, or a boolean from `_liwan_find_duplicate`), never a record, id or agent, and the routes answer the fixed message 'duplicate phone'."
     },
     "odoo-addons/liwan_crm/models/crm_stage.py": {
       "count": 2,

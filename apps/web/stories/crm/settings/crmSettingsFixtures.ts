@@ -2,6 +2,7 @@ import type { CrmSettings } from '@liwan/contracts'
 
 export const crmSettings: CrmSettings = {
   revision: 3,
+  can_manage_tenant_lists: true,
   values: {
     preset: 'phone_packages',
     followup_attempts: 2,
