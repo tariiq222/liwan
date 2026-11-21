@@ -32,7 +32,7 @@
 ### Task 1: Loosen the rate in the schema and the contract
 
 **Files:**
-- Create: `apps/control-plane/src/schema_027.sql`
+- Create: `apps/control-plane/src/migrations/schema_027.sql`
 - Modify: `apps/control-plane/src/db.ts` (register 27)
 - Modify: `packages/commercial-contracts/src/commercial/schemas.ts` (`pricingPolicySchema`)
 - Test: `packages/commercial-contracts/src/__tests__/commercial-entitlements.test.ts`

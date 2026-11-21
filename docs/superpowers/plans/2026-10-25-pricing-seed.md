@@ -1,6 +1,6 @@
 # Pricing seed — operator runbook
 
-> The migration `apps/control-plane/src/schema_025.sql` seeds the **release 1 amounts**
+> The migration `apps/control-plane/src/migrations/schema_025.sql` seeds the **release 1 amounts**
 > (owner decision 2026-11-06). Every amount in it is a vendor-editable value the owner
 > replaces from the vendor console; nothing in the code carries a price.
 

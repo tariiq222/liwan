@@ -852,12 +852,12 @@ suite('live PostgreSQL platform provider routes', () => {
   it('carries the single provider of the old table forward as provider and model "main" on the default route, and leaves no old table', async () => {
     const sealed = Buffer.from('sealed-key-box')
     await pool.query('DROP TABLE ai_route, ai_model, ai_provider, ai_provider_config')
-    await pool.query(await readFile(new URL('../schema_032.sql', import.meta.url), 'utf8'))
+    await pool.query(await readFile(new URL('../migrations/schema_032.sql', import.meta.url), 'utf8'))
     await pool.query(
       `INSERT INTO ai_platform_provider(preset, provider, model, base_url, stream_usage, api_key_sealed, api_key_last4, revision, updated_by) VALUES('deepseek','openai_compatible','deepseek-chat','https://api.deepseek.com/v1',true,$1,'6789',7,'account:3')`,
       [sealed],
     )
-    await pool.query(await readFile(new URL('../schema_042.sql', import.meta.url), 'utf8'))
+    await pool.query(await readFile(new URL('../migrations/schema_042.sql', import.meta.url), 'utf8'))
     expect((await pool.query("SELECT to_regclass('ai_platform_provider') AS gone")).rows[0].gone).toBeNull()
     const migrated = (await call('GET', '')).body.setting
     expect(migrated).toMatchObject({
@@ -868,8 +868,8 @@ suite('live PostgreSQL platform provider routes', () => {
     expect((await pool.query('SELECT api_key_sealed FROM ai_provider')).rows[0].api_key_sealed.equals(sealed)).toBe(true)
     // An empty old table carries nothing forward.
     await pool.query('DROP TABLE ai_route, ai_model, ai_provider, ai_provider_config')
-    await pool.query(await readFile(new URL('../schema_032.sql', import.meta.url), 'utf8'))
-    await pool.query(await readFile(new URL('../schema_042.sql', import.meta.url), 'utf8'))
+    await pool.query(await readFile(new URL('../migrations/schema_032.sql', import.meta.url), 'utf8'))
+    await pool.query(await readFile(new URL('../migrations/schema_042.sql', import.meta.url), 'utf8'))
     expect((await call('GET', '')).body).toEqual({ setting: null })
   })
 })

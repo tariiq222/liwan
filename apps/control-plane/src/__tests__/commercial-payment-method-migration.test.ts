@@ -6,10 +6,10 @@ import { migrate } from '../db.js'
 import { url } from './commercial-helpers.js'
 
 const suite = url ? describe : describe.skip
-const SRC = new URL('../', import.meta.url)
+const SRC = new URL('../migrations/', import.meta.url)
 /** schema_040 and schema_041 do not exist: the numbering skips them. */
 const BEFORE_058 = Array.from({ length: 57 }, (_, i) => i + 1).filter(v => v !== 40 && v !== 41)
-const fileFor = (version: number) => (version === 1 ? 'schema.sql' : `schema_${String(version).padStart(3, '0')}.sql`)
+const fileFor = (version: number) => `schema_${String(version).padStart(3, '0')}.sql`
 
 /** schema_058 carries a database that ran schema_001..057: it has a token_charge flag and a subscription token to turn into the new shape. */
 suite('schema_058 carries a database that ran schema_001..057', () => {

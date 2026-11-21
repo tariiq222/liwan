@@ -8,11 +8,11 @@ import { MAIN_SCHEMA_FIXTURES } from './fixtures/main-schema/index.js'
 
 const suite = url ? describe : describe.skip
 
-const SRC = new URL('../', import.meta.url)
+const SRC = new URL('../migrations/', import.meta.url)
 const FIXTURES = new URL('./fixtures/main-schema/', import.meta.url)
 /** The versions migrate() applies before schema_033. */
 const BEFORE_033 = [1, ...Array.from({ length: 31 }, (_, i) => i + 2)].filter(v => v <= 32)
-const fileFor = (version: number) => (version === 1 ? 'schema.sql' : `schema_${String(version).padStart(3, '0')}.sql`)
+const fileFor = (version: number) => `schema_${String(version).padStart(3, '0')}.sql`
 
 /**
  * A1: schema_033 must carry a database forward that applied `origin/main`'s schema_001..032 — not a fresh database,
@@ -143,7 +143,7 @@ suite('schema_033 carries a database that ran origin/main\'s schema_001..032', (
  * release 1. They are applied migrations, so main can never change them; their SHA-256 digests are pinned here, which
  * proves the claim in every checkout, shallow or not, and does not depend on where `origin/main` has moved since. (That
  * only these two migrations changed seed data is verified against the pull request diff when the branch is reviewed:
- * `git diff --name-status origin/main...HEAD -- 'apps/control-plane/src/schema*.sql'` lists exactly schema_012, schema_025
+ * `git diff --name-status origin/main...HEAD -- 'apps/control-plane/src/migrations/schema_*.sql'` lists exactly schema_012, schema_025
  * and the new schema_033.)
  */
 const FIXTURE_SHA256: Record<(typeof MAIN_SCHEMA_FIXTURES)[number], string> = {
