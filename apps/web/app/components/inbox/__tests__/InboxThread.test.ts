@@ -28,6 +28,7 @@ function mount(kind: 'tiktok' | 'whatsapp' | undefined) {
     useReactToInboxMessage: () => ({ mutate: vi.fn() }),
     useRoute: () => ({ query: {} }),
     windowClosedErrorKey,
+    useI18n: () => ({ t: (key: string) => `T(${key})` }),
     useToast: () => ({ add: toast }),
   }, { conversationId: 5, channelId: 1, channelKind: kind, canReply: true, windowOpen: true })
   return { state, toast, fail: () => { state.retryMessage(9); onError?.(refused) } }
@@ -37,10 +38,10 @@ describe('InboxThread', () => {
   it('shows the closed-window line of the channel kind when a retry is refused for the window', () => {
     const tiktok = mount('tiktok')
     tiktok.fail()
-    expect(tiktok.toast).toHaveBeenLastCalledWith({ title: 'inbox.inbox_window_closed.tiktok', color: 'error' })
+    expect(tiktok.toast).toHaveBeenLastCalledWith({ title: 'T(inbox.inbox_window_closed.tiktok)', color: 'error' })
     const whatsapp = mount('whatsapp')
     whatsapp.fail()
-    expect(whatsapp.toast).toHaveBeenLastCalledWith({ title: 'inbox.inbox_window_closed.whatsapp', color: 'error' })
+    expect(whatsapp.toast).toHaveBeenLastCalledWith({ title: 'T(inbox.inbox_window_closed.whatsapp)', color: 'error' })
   })
 
   it('keeps the server message while the conversation kind is not loaded yet', () => {
