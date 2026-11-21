@@ -116,6 +116,18 @@ class InitHost(unittest.TestCase):
         self.assertEqual({'version': 2, 'targets': {}}, json.loads((self.config / 'inventory-v2.json').read_text()))
         self.assertTrue(self.registry.is_dir() and self.state.is_dir())
 
+    def test_registry_directory_is_readable_by_the_other_container_users(self):
+        self.run_script()
+        self.assertEqual(0o755, stat.S_IMODE(self.registry.stat().st_mode))
+
+    def test_an_existing_registry_directory_that_others_cannot_read_is_refused(self):
+        self.registry.mkdir(parents=True, mode=0o750)
+        self.registry.chmod(0o750)
+        done = self.run_script(check=False)
+        self.assertEqual(2, done.returncode)
+        self.assertIn('Refusing', done.stderr)
+        self.assertEqual(0o750, stat.S_IMODE(self.registry.stat().st_mode))
+
     def test_certificates_carry_the_required_names_and_chain_to_the_private_ca(self):
         self.run_script()
         for name, san in (('control-tls.crt', 'control-api'), ('effect-tls.crt', 'control-host.internal')):

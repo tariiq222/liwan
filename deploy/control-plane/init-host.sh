@@ -12,6 +12,7 @@
 # account the shared worker and the control containers run as (default liwan-worker).
 #
 # Creates, never overwrites (an existing file or directory is kept as it is, a half-present pair is an error):
+#   registry dir: created 0755 (read-only mount in containers that run as other users); an existing narrower one is an error
 #   config dir:  shared-runtime.json, inventory-v2.json
 #   private dir: control-ca.key/.pem (private CA), control-tls.key/.crt (SAN control-api), effect-tls.key/.crt (SAN
 #                control-host.internal), control-db-password
@@ -55,6 +56,15 @@ ensure_dir() {
   (umask 022; mkdir -p "$1")
   own "$1" "$2"
   printf 'created %s\n' "$1"
+}
+
+# ensure_readable_dir <dir>: the registry directory is bind-mounted read-only into containers that run as other users
+# (guard and web as node, ai as uid 10001), so it is 0755 and an existing narrower one is refused, never changed.
+ensure_readable_dir() {
+  ensure_dir "$1" 0755
+  local mode
+  mode="$(stat -c '%a' "$1" 2>/dev/null || stat -f '%Lp' "$1")"
+  (( (8#$mode & 5) == 5 )) || die "Refusing: $1 is mode $mode; the guard, web, ai and tiktok-relay containers run as other users and need r-x for everyone (chmod 0755 it, then run again)"
 }
 
 # exists_all <file...>: true when every file exists, false when none does; a mix is an error.
@@ -148,7 +158,7 @@ CA_PEM="$PRIVATE/control-ca.pem"
 umask 077
 ensure_dir "$CONFIG" 0750
 ensure_dir "$STATE" 0750
-ensure_dir "$REGISTRY" 0750
+ensure_readable_dir "$REGISTRY"
 ensure_dir "$PRIVATE" 0750
 WORK="$(mktemp -d "$PRIVATE/.init.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
