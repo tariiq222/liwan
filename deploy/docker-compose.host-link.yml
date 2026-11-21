@@ -1,0 +1,15 @@
+# Overlay for a host that dumps the tenant database from outside the stack (the release path's pg_dump). Load it last, after
+# docker-compose.production.yml. The tenant `db` publishes one loopback-only port on a second network and stays on the internal
+# `database` network too; no other service gains a port. Same mechanism as control-plane/compose.host-link.yml.
+services:
+  db:
+    ports:
+      - "127.0.0.1:${LIWAN_DB_HOST_PORT:-15433}:5432"
+    networks: [db_host]
+
+# The bridge has a fixed interface name so a host firewall rule can match it: the bridge routes `db` to the internet, which
+# the internal `database` network denied (docs/operations/environment-bringup.md, row A3.6).
+networks:
+  db_host:
+    driver_opts:
+      com.docker.network.bridge.name: liwan-dbhost

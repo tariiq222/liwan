@@ -26,6 +26,7 @@ import os
 import platform
 import re
 import shutil
+import stat
 import sys
 from pathlib import Path
 
@@ -63,6 +64,10 @@ CLASSIFICATION_DIR = '/run/liwan-runtime/classifications'
 SMOKE_MARKER = 'UPGRADE_SMOKE_OK'
 BACKUP_COPIES = 3  # the encrypted capture stages a dump, a plain tar and a ciphertext under the work root
 DISK_MARGIN = 1.5  # free space must cover every snapshot (database plus filestore) with half again as much
+# The compose files of the shared stack, in merge order, relative to deploy/. The release renders and starts this set;
+# the tests that read the deployed stack import it from here.
+SHARED_COMPOSE_FILES = ('docker-compose.yml', 'docker-compose.shared.yml', 'docker-compose.shared-commercial.yml',
+                        'docker-compose.production.yml', 'docker-compose.host-link.yml')
 CONFIG_KEYS = ('LIWAN_RELEASE_PROJECT', 'LIWAN_SHARED_ENV_FILE', 'LIWAN_RELEASE_PG_DUMP', 'LIWAN_RELEASE_PG_HOST',
                'LIWAN_RELEASE_PG_PORT', 'LIWAN_RELEASE_CONTROL_PG_HOST', 'LIWAN_RELEASE_CONTROL_PG_PORT',
                'LIWAN_RELEASE_ODOO_DATA_DIR', 'LIWAN_RELEASE_DISK_PATH')
@@ -156,7 +161,18 @@ class Releaser:
         self.paths.maintenance.unlink(missing_ok=True)
 
     # --- run -------------------------------------------------------------------------------------------
+    def require_current_symlink(self) -> None:
+        """``current`` is only ever replaced by a symlink into releases/; a real directory would fail mid-upgrade."""
+        current = self.paths.current
+        if current.exists() and not current.is_symlink():
+            raise ReleaseError('current_not_symlink', EXIT_REFUSED,
+                               f'{current} must be a symlink into {self.paths.releases}, not a directory')
+        if current.is_symlink() and not current.exists():
+            raise ReleaseError('current_dangling', EXIT_REFUSED,
+                               f'{current} points at {os.readlink(current)}, which does not exist; relink it to a release folder')
+
     def run(self) -> int:
+        self.require_current_symlink()
         halted = read_json(self.file('halted.json'))
         if halted is not None:
             self.log('halted: fix the cause, then run "rollback" to finish and clear it')
@@ -278,7 +294,8 @@ class Releaser:
         self.check_disk(run, target)
 
     def extract(self, commit: str, target: Path) -> None:
-        """git archive, the shared worker's node dependencies (tsx is needed at run time), readable modes."""
+        """git archive, the shared worker's node dependencies (tsx is a dev dependency needed at run time, so dev packages are
+        installed even when NODE_ENV=production), readable modes."""
         staging = target.with_name(target.name + '.partial')
         if staging.exists():
             shutil.rmtree(staging)
@@ -289,7 +306,7 @@ class Releaser:
         archive.unlink()
         try:
             self.run_command(['npm', '--prefix', str(staging), 'ci', '--ignore-scripts', '--no-audit', '--no-fund',
-                              '--workspace', WORKER_WORKSPACE], env=self.child_env)
+                              '--include=dev', '--workspace', WORKER_WORKSPACE], env=self.child_env)
         except CommandFailed:
             raise ReleaseError('worker_dependencies_failed') from None
         normalize_tree(staging)
@@ -391,13 +408,35 @@ class Releaser:
             raise ReleaseError('backup_failed') from None
 
     def compose(self, checkout: Path) -> list[str]:
-        files = ('docker-compose.yml', 'docker-compose.shared.yml', 'docker-compose.shared-commercial.yml',
-                 'docker-compose.production.yml')
         command = ['docker', 'compose', '-p', self.config['LIWAN_RELEASE_PROJECT']]
-        for name in files:
+        for name in SHARED_COMPOSE_FILES:
             command += ['-f', str(checkout / 'deploy' / name)]
         return command + ['--env-file', self.config['LIWAN_SHARED_ENV_FILE'],
                           '--env-file', str(self.file('release.env'))]
+
+    def write_shared_compose(self, checkout: Path) -> None:
+        """The file ``composeFile`` of shared-runtime.json names: the shared stack of ``checkout`` as one resolved compose file
+        (every profile), which the host worker and its effects run ``docker compose --file`` on. It holds the interpolated
+        secrets of the shared env file, so it takes that file's owner, group and mode."""
+        shared_env = Path(self.config['LIWAN_SHARED_ENV_FILE'])
+        compose_file = read_env_file(shared_env).get('LIWAN_SHARED_COMPOSE_FILE')
+        if not compose_file:
+            raise ReleaseError('invalid_shared_env', EXIT_REFUSED, f'{shared_env} lacks LIWAN_SHARED_COMPOSE_FILE')
+        target = Path(compose_file)
+        owner = shared_env.stat()
+        temporary = target.with_name(target.name + '.tmp')
+        os.close(os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600))
+        try:
+            try:
+                self.run_command(self.compose(checkout) + ['--profile', '*', 'config', '--format', 'json',
+                                                           '--output', str(temporary)], env=self.child_env)
+            except CommandFailed:
+                raise ReleaseError('shared_compose_render_failed') from None
+            os.chown(temporary, owner.st_uid, owner.st_gid)
+            temporary.chmod(stat.S_IMODE(owner.st_mode))
+            os.replace(temporary, target)
+        finally:
+            temporary.unlink(missing_ok=True)
 
     def control_compose(self, checkout: Path) -> list[str]:
         return ['docker', 'compose', '-p', CONTROL_PROJECT,
@@ -472,6 +511,7 @@ class Releaser:
 
     def activate(self, commit: str, odoo_commit: str) -> None:
         write_atomic(self.file('release.env'), release_env_text(commit, odoo_commit))
+        self.write_shared_compose(self.checkout(commit))
         self.point_current(self.checkout(commit))
 
     def point_current(self, target: Path) -> None:
@@ -633,6 +673,7 @@ class Releaser:
             self.swap_back(run, checkout, item)
         write_atomic(self.file('release.env'), run['previousReleaseEnv']
                      or release_env_text(previous['commit'], previous['odooCommit']))
+        self.write_shared_compose(checkout)  # the worker's view goes back with the stack
         self.point_current(checkout)
         self.start_services(checkout, with_edge=True)
         self.start_worker()
@@ -673,6 +714,7 @@ class Releaser:
 
     def rollback(self) -> int:
         """Operator command: clear the halt and failed-candidate records and finish the rollback of the unfinished run, if there is one."""
+        self.require_current_symlink()
         run = read_json(self.file('run.json'))
         if run is not None and run['phase'] in POST_OPEN_PHASES:
             return self.finish(EXIT_REFUSED, f'refused {run["phase"]}_cannot_roll_back')

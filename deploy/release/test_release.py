@@ -176,6 +176,10 @@ class FakeRunner:
             return self.git(argv)
         if argv[0] == 'docker' and argv[1] in ('login', 'pull', 'create', 'cp', 'rm', 'rmi', 'image'):
             return self.docker(argv)
+        if 'config' in argv and '--output' in argv:  # `compose config --output <file>`: the stack as the release.env names it
+            tag = re.search(r'LIWAN_IMAGE_TAG=(\w+)', (case.state / 'release.env').read_text()).group(1)
+            Path(argv[argv.index('--output') + 1]).write_text(json.dumps({'services': {}, 'imageTag': tag}))
+            return (1, 'render failed') if case.fail_render and tag == NEW else (0, '')
         if argv[0] == 'tar':
             write_smoke(Path(argv[argv.index('-C') + 1]))
             return 0, ''
@@ -256,7 +260,8 @@ class ReleaseTest(unittest.TestCase):
             (root / 'data/filestore' / name).mkdir(parents=True)
             (root / 'data/filestore' / name / 'f').write_text('old')
         shared_env = root / 'shared.env'
-        shared_env.write_text(f'LIWAN_TENANT_REGISTRY_DIR={root}/registry\nDB_PASSWORD={SECRET}\n')
+        shared_env.write_text(f'LIWAN_TENANT_REGISTRY_DIR={root}/registry\nLIWAN_SHARED_COMPOSE_FILE={root}/shared.compose.json\n'
+                              f'DB_PASSWORD={SECRET}\n')
         for environment in ('development', 'staging', 'production'):
             self.write_config(shared_env, environment)
         self.paths.releases.mkdir()
@@ -265,6 +270,7 @@ class ReleaseTest(unittest.TestCase):
         self.head, self.tags, self.ancestor, self.published, self.fetched = NEW, {}, True, True, True
         self.on_main = True
         self.fail_health, self.fail_upgrade_of = False, None
+        self.fail_render = False
         self.document = document(NEW)
         self.alerts, self.sql = [], []
         self.builds = BUILDS
@@ -891,6 +897,80 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual((tree / 'deploy/odoo/upgrade_smoke.py').stat().st_mode & 0o777, 0o644)
         npm = self.commands('ci')[0]
         self.assertEqual(npm[npm.index('--workspace') + 1], 'apps/control-plane')
+        self.assertIn('--include=dev', npm)  # tsx is a dev dependency and the worker runs it
+
+    def test_shared_stack_includes_the_host_link_file(self):
+        self.assertEqual(self.main(), release.EXIT_OK)
+        shared = [call for call in self.runner.calls if 'docker-compose.shared.yml' in ' '.join(call)]
+        self.assertTrue(shared)
+        for call in shared:
+            self.assertTrue(any(arg.endswith('deploy/docker-compose.host-link.yml') for arg in call))
+
+    def test_pgpassfile_from_the_config_reaches_the_backup_environment(self):
+        config = self.paths.config_root / 'development.env'
+        config.write_text(config.read_text() + 'PGPASSFILE=/etc/liwan-release/pgpass\n')
+        self.assertEqual(self.main(), release.EXIT_OK)
+        capture = self.commands('capture')[0]
+        self.assertEqual(self.runner.envs[self.runner.calls.index(capture)]['PGPASSFILE'], '/etc/liwan-release/pgpass')
+
+    def shared_compose(self):
+        return json.loads((self.root / 'shared.compose.json').read_text())['imageTag']
+
+    def test_the_worker_compose_file_is_rendered_from_the_deployed_stack_before_the_worker_starts(self):
+        os.chmod(self.root / 'shared.env', 0o640)
+        self.assertEqual(self.main(), release.EXIT_OK)
+        self.assertEqual(self.shared_compose(), NEW)
+        target = self.root / 'shared.compose.json'
+        self.assertEqual(target.stat().st_mode & 0o777, 0o640)  # the shared env file's mode: it holds the same secrets
+        self.assertFalse(target.with_name(target.name + '.tmp').exists())
+        render = next(call for call in self.runner.calls if '--output' in call)
+        self.assertEqual(render[render.index('--profile') + 1], '*')
+        files = [render[index + 1] for index, word in enumerate(render) if word == '-f']
+        self.assertEqual([Path(name).name for name in files], list(release.SHARED_COMPOSE_FILES))
+        self.assertLess(self.runner.calls.index(render), self.runner.calls.index(['systemctl', 'start', release.SHARED_WORKER_UNIT]))
+
+    def test_a_failed_render_of_the_candidate_rolls_back_to_the_served_file(self):
+        (self.root / 'shared.compose.json').write_text(json.dumps({'imageTag': OLD}))
+        self.fail_render = True
+        self.assertEqual(self.main(), release.EXIT_FAILED)
+        self.assertEqual(self.result(), 'rolled back shared_compose_render_failed')
+        self.assertEqual(self.shared_compose(), OLD)  # the rollback rendered the restored release
+        self.assertFalse((self.root / 'shared.compose.json.tmp').exists())
+
+    def test_a_shared_env_file_without_the_compose_path_fails_the_render(self):
+        (self.root / 'shared.env').write_text(f'LIWAN_TENANT_REGISTRY_DIR={self.root}/registry\nDB_PASSWORD={SECRET}\n')
+        self.assertNotEqual(self.main(), release.EXIT_OK)
+        self.assertIn('LIWAN_SHARED_COMPOSE_FILE', self.log_stream.getvalue())
+        self.assertFalse((self.root / 'shared.compose.json').exists())
+
+    def test_the_temporary_file_is_removed_when_the_owner_cannot_be_applied(self):
+        with mock.patch.object(release.os, 'chown', side_effect=PermissionError('chown')):
+            self.assertNotEqual(self.main(), release.EXIT_OK)
+        self.assertFalse((self.root / 'shared.compose.json.tmp').exists())
+
+    def test_a_rollback_renders_the_file_of_the_restored_release(self):
+        self.fail_health = True
+        self.assertEqual(self.main(), release.EXIT_FAILED)
+        self.assertEqual(self.shared_compose(), OLD)  # the worker's view and the restored stack agree
+
+    def test_current_that_points_nowhere_is_refused_before_anything_changes(self):
+        shutil.rmtree(self.paths.releases / OLD)
+        for command in ('run', 'rollback'):
+            self.runner.calls.clear()
+            self.assertEqual(self.main(command, '--environment', 'development'), release.EXIT_REFUSED)
+            self.assertEqual(self.result(), 'refused current_dangling')
+            self.assertEqual(self.runner.calls, [])
+        self.assertTrue(self.paths.current.is_symlink())
+
+    def test_current_that_is_a_directory_is_refused_before_anything_changes(self):
+        self.paths.current.unlink()
+        self.paths.current.mkdir()
+        for command in ('run', 'rollback'):
+            self.runner.calls.clear()
+            self.assertEqual(self.main(command, '--environment', 'development'), release.EXIT_REFUSED)
+            self.assertEqual(self.result(), 'refused current_not_symlink')
+            self.assertEqual(self.runner.calls, [])
+        self.assertTrue(self.paths.current.is_dir() and not self.paths.current.is_symlink())
 
     # --- first deploy -------------------------------------------------------------------------------------------
     def first_deploy(self):

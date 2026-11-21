@@ -57,7 +57,7 @@ Each phase is written to `run.json` before it acts, so a killed run resumes from
 
 1. Resolve the candidate, fetch it, check it is not older, pull and check the release document.
 2. Prepare: extract the commit to `/opt/liwan/releases/<commit>`, install the shared worker's node dependencies
-   (`npm ci --ignore-scripts --workspace apps/control-plane`), pull every image by digest and tag it with its local
+   (`npm ci --ignore-scripts --include=dev --workspace apps/control-plane`; `tsx` is a dev dependency and the worker runs it), pull every image by digest and tag it with its local
    name from `deploy/image_pins.py --print-builds` (the document must list exactly those). Then the disk check:
    the run is refused when the free space on `LIWAN_RELEASE_DISK_PATH` is below 1.5 times the size of one snapshot of
    every tenant database, the control-plane database and every filestore (the snapshots all exist at once).
@@ -117,8 +117,54 @@ The command never waits for input. A second start while one runs exits 0 at once
 `LIWAN_SHARED_ENV_FILE`, `LIWAN_RELEASE_PG_DUMP`, `LIWAN_RELEASE_PG_HOST`, `LIWAN_RELEASE_PG_PORT`,
 `LIWAN_RELEASE_CONTROL_PG_HOST`, `LIWAN_RELEASE_CONTROL_PG_PORT`, `LIWAN_RELEASE_ODOO_DATA_DIR`,
 `LIWAN_RELEASE_DISK_PATH` (a path on the filesystem that holds the database volume and the filestores). Optional:
-`LIWAN_RELEASE_BACKUP_STORE_ROOT`. Other keys in the file reach the backup pipeline through its environment. The
-command runs from `/opt/liwan/current` (the first deploy needs a bootstrap checkout there).
+`LIWAN_RELEASE_BACKUP_STORE_ROOT`. Other keys in the file reach the backup pipeline through its environment.
+
+The path comes from `LIWAN_SHARED_COMPOSE_FILE` in the shared env file (the same key `init-host.sh` reads for the `composeFile` of the
+worker's `shared-runtime.json`); it is not a release config key, and a shared env file without it fails the render. At each activation, after `release.env` is written and before any service or the worker starts, the run renders the
+shared stack (the files of `SHARED_COMPOSE_FILES`, every profile) to that path with `docker compose config --format json`, through
+a temporary file and an atomic replace. The file holds the shared env file's secrets, so it takes that file's owner, group and
+mode. A rollback renders it again for the restored release, so the worker and the running stack always describe the same release.
+A failed render fails the run (`shared_compose_render_failed`) and the usual rollback applies.
+
+Database access for the backup: the tenant `db` is published on `127.0.0.1` by `deploy/docker-compose.host-link.yml`
+(part of the shared compose set), and the control-plane database by `deploy/control-plane/compose.host-link.yml`. Set
+
+```
+LIWAN_RELEASE_PG_HOST=127.0.0.1
+LIWAN_RELEASE_PG_PORT=15433
+LIWAN_RELEASE_CONTROL_PG_HOST=127.0.0.1
+LIWAN_RELEASE_CONTROL_PG_PORT=15432
+PGPASSFILE=/etc/liwan-release/pgpass
+```
+
+`pg_dump` runs with `--no-password`, so the passwords come from the `PGPASSFILE` key: a root-owned file of mode `0600`
+with one line per database user (`host:port:*:user:password`: the `odoo` superuser on port 15433 and `liwan_control`
+on port 15432). The key reaches the backup pipeline like every other key of the config.
+
+## Bootstrap (first run on a fresh host)
+
+`/opt/liwan/current` is always a symlink into `/opt/liwan/releases/<commit>`. `run` and `rollback` refuse with
+`RESULT: refused current_not_symlink` when the path exists and is a real directory, and `RESULT: refused current_dangling` when it is a symlink to a folder that does not exist, before anything changes. Clone the
+bootstrap commit into `/opt/liwan/releases/<commit>`, then `ln -s /opt/liwan/releases/<commit> /opt/liwan/current`.
+The Openship job command path stays `/opt/liwan/current/deploy/release/release.py`; later runs move the symlink.
+
+Install the `liwan-shared-worker.service` unit before the first run but do not start it: the commit step starts it.
+The control-plane migration needs no manual start of `control-db`: `docker compose run` starts the dependency and waits
+until it is healthy.
+
+## Edge check (development host)
+
+`edge_check.py` is a standalone script (release.py never calls it). Example:
+
+```sh
+python3 -B /opt/liwan/current/deploy/release/edge_check.py --host app.example.com --min-days 21 \
+  --route-file /path/app.route.json --target http://127.0.0.1:18080 --vhost-file /etc/nginx/conf.d/app.conf
+```
+
+It prints one line per failed check and exits 1, or prints `RESULT: edge ok` and exits 0. `--host` is requested over
+HTTPS with certificate verification (2xx/3xx passes) and its certificate must have `--min-days` left; `--route-file`
+is an Openship `.route.json` whose `targetUrl` must equal `--target`; `--vhost-file` must contain
+`proxy_set_header Host $host`, `$proxy_add_x_forwarded_for` and `$http_upgrade`.
 
 ## Halted
 

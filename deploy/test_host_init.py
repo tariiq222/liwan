@@ -1,0 +1,215 @@
+# Part of Odoo. See LICENSE file for full copyright and licensing details.
+"""Host preparation for a production-style environment: the tenant database host link and `init-host.sh`.
+
+The overlay and the script are read or run in a temporary directory; no service is started and no real host is touched.
+"""
+from __future__ import annotations
+
+import json
+import os
+import pwd
+import re
+import shutil
+import stat
+import subprocess
+import tempfile
+import unittest
+from pathlib import Path
+
+import yaml
+
+from deploy.release.release import SHARED_COMPOSE_FILES
+
+DEPLOY = Path(__file__).resolve().parent
+HOST_LINK = DEPLOY / 'docker-compose.host-link.yml'
+INIT_HOST = DEPLOY / 'control-plane' / 'init-host.sh'
+TEMPLATE = DEPLOY / 'environments' / 'development.env.example'
+BASE_STACK = tuple(name for name in SHARED_COMPOSE_FILES if name != HOST_LINK.name)
+BRIDGE = 'liwan-dbhost'  # the interface name the host firewall rule in the runbook matches
+PROJECT = 'liwan-shared-development'
+RESTORE_DOMAIN = 'restore.dev.example.test'
+PRIVATE_FILES = ('control-ca.key', 'control-ca.pem', 'control-tls.key', 'control-tls.crt', 'effect-tls.key',
+                 'effect-tls.crt', 'control-db-password')
+
+
+def _render(workdir: Path, files: tuple[str, ...]) -> dict:
+    """The rendered shared stack as docker compose resolves it (the control-plane env files are empty stand-ins)."""
+    env = dict(os.environ)
+    for variable in ('LIWAN_CONTROL_ENV_FILE', 'LIWAN_VENDOR_ADMIN_ENV_FILE'):
+        empty = workdir / f'{variable}.env'
+        empty.write_text('')
+        env[variable] = str(empty)
+    command = ['docker', 'compose']
+    for name in files:
+        command += ['-f', name]
+    command += ['--env-file', str(TEMPLATE), 'config', '--format', 'json']
+    done = subprocess.run(command, cwd=DEPLOY, env=env, capture_output=True, text=True, timeout=120)
+    if done.returncode != 0:
+        raise AssertionError(f'render failed: {done.stderr.strip()[:600]}')
+    return json.loads(done.stdout)
+
+
+def _ports(rendered: dict) -> dict[str, list[dict]]:
+    return {name: service['ports'] for name, service in rendered['services'].items() if 'ports' in service}
+
+
+class HostLinkOverlay(unittest.TestCase):
+    def test_it_publishes_only_the_tenant_database_on_loopback_on_its_own_network(self):
+        overlay = yaml.safe_load(HOST_LINK.read_text(encoding='utf-8'))
+        self.assertEqual(['db'], list(overlay['services']))
+        self.assertEqual(['127.0.0.1:${LIWAN_DB_HOST_PORT:-15433}:5432'], overlay['services']['db']['ports'])
+        self.assertEqual(['db_host'], overlay['services']['db']['networks'])
+        self.assertEqual(['db_host'], list(overlay['networks']))
+        self.assertNotIn('internal', overlay['networks']['db_host'])
+        self.assertEqual({'com.docker.network.bridge.name': BRIDGE}, overlay['networks']['db_host']['driver_opts'])
+
+    @unittest.skipIf(shutil.which('docker') is None, 'docker CLI not installed: cannot render the compose set')
+    def test_merged_stack_gains_one_loopback_port_and_keeps_the_internal_network(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            before = _render(Path(tmp), BASE_STACK)
+            after = _render(Path(tmp), SHARED_COMPOSE_FILES)
+        self.assertNotIn('db', _ports(before))
+        self.assertEqual(_ports(before), {name: ports for name, ports in _ports(after).items() if name != 'db'})
+        self.assertEqual([('127.0.0.1', '15433', 5432)],
+                         [(port['host_ip'], port['published'], port['target']) for port in _ports(after)['db']])
+        self.assertEqual({'database', 'db_host'}, set(after['services']['db']['networks']))
+        self.assertTrue(after['networks']['database']['internal'])
+        self.assertEqual(BRIDGE, after['networks']['db_host']['driver_opts']['com.docker.network.bridge.name'])
+
+
+@unittest.skipIf(shutil.which('openssl') is None, 'openssl not installed: cannot create the host certificates')
+class InitHost(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name).resolve() / 'liwan-development'
+        self.config, self.state = self.root / 'control/config', self.root / 'control/state'
+        self.private, self.registry = self.root / 'control/private', self.root / 'state/registry'
+        self.env_file = Path(self.tmp.name) / 'development.env'
+        self.env_file.write_text('\n'.join([
+            f'LIWAN_CONTROL_CONFIG_DIR={self.config}', f'LIWAN_CONTROL_STATE_DIR={self.state}',
+            f'LIWAN_CONTROL_PRIVATE_DIR={self.private}', f'LIWAN_TENANT_REGISTRY_DIR={self.registry}',
+            f'LIWAN_SHARED_COMPOSE_FILE={self.root}/shared.compose.json', f'LIWAN_SHARED_ENV_FILE={self.root}/shared.env',
+            f'LIWAN_RESTORE_DOMAIN={RESTORE_DOMAIN}', f'LIWAN_CONTROL_UID={os.getuid()}',
+            f'LIWAN_CONTROL_GID={pwd.getpwuid(os.getuid()).pw_gid}', '']))
+
+    def run_script(self, *args: str, check: bool = True, env: dict | None = None) -> subprocess.CompletedProcess:
+        env = {**os.environ, 'LIWAN_WORKER_USER': pwd.getpwuid(os.getuid()).pw_name, **(env or {})}
+        done = subprocess.run(['bash', str(INIT_HOST), *(args or (str(self.env_file), PROJECT))], env=env,
+                              capture_output=True, text=True, timeout=60)
+        if check:
+            self.assertEqual(0, done.returncode, done.stderr)
+        return done
+
+    def certificate_text(self, name: str) -> str:
+        return subprocess.run(['openssl', 'x509', '-in', str(self.private / name), '-noout', '-text'],
+                              capture_output=True, text=True, check=True).stdout
+
+    def test_creates_the_config_files_with_the_keys_the_control_plane_reads(self):
+        self.run_script()
+        runtime = json.loads((self.config / 'shared-runtime.json').read_text())
+        self.assertEqual({'schemaVersion': 1, 'projectName': PROJECT, 'composeFile': f'{self.root}/shared.compose.json',
+                          'envFile': f'{self.root}/shared.env', 'stateDir': str(self.state),
+                          'domainSuffix': RESTORE_DOMAIN}, runtime)
+        self.assertEqual({'version': 2, 'targets': {}}, json.loads((self.config / 'inventory-v2.json').read_text()))
+        self.assertTrue(self.registry.is_dir() and self.state.is_dir())
+
+    def test_certificates_carry_the_required_names_and_chain_to_the_private_ca(self):
+        self.run_script()
+        for name, san in (('control-tls.crt', 'control-api'), ('effect-tls.crt', 'control-host.internal')):
+            with self.subTest(certificate=name):
+                self.assertEqual([san], re.findall(r'DNS:([A-Za-z0-9.-]+)', self.certificate_text(name)))
+                verified = subprocess.run(['openssl', 'verify', '-CAfile', str(self.private / 'control-ca.pem'),
+                                           str(self.private / name)], capture_output=True, text=True)
+                self.assertEqual(0, verified.returncode, verified.stdout + verified.stderr)
+
+    def test_private_files_have_the_modes_their_readers_need(self):
+        self.run_script()
+        modes = {name: stat.S_IMODE((self.private / name).stat().st_mode) for name in PRIVATE_FILES}
+        self.assertEqual({'control-ca.key': 0o600, 'control-ca.pem': 0o644, 'control-tls.key': 0o600,
+                          'control-tls.crt': 0o644, 'effect-tls.key': 0o600, 'effect-tls.crt': 0o644,
+                          'control-db-password': 0o444}, modes)
+        self.assertEqual(0o750, stat.S_IMODE(self.private.stat().st_mode))
+        self.assertRegex((self.private / 'control-db-password').read_text(), r'^[0-9a-f]{64}\n$')
+
+    def test_second_run_changes_nothing_and_prints_no_secret(self):
+        first = self.run_script()
+        snapshot = {path: (path.read_bytes(), path.stat().st_mtime_ns) for path in self.root.rglob('*') if path.is_file()}
+        second = self.run_script()
+        self.assertEqual(snapshot, {path: (path.read_bytes(), path.stat().st_mtime_ns)
+                                    for path in self.root.rglob('*') if path.is_file()})
+        self.assertNotIn('created', second.stdout)
+        secret = (self.private / 'control-db-password').read_text().strip()
+        self.assertNotIn(secret, first.stdout + first.stderr + second.stdout + second.stderr)
+
+    def test_half_present_certificate_pair_is_refused(self):
+        self.run_script()
+        (self.private / 'effect-tls.crt').unlink()
+        done = self.run_script(check=False)
+        self.assertEqual(2, done.returncode)
+        self.assertIn('effect-tls', done.stderr)
+
+    def test_a_failed_signing_prints_its_error_and_leaves_no_partial_pair(self):
+        self.run_script()
+        for name in ('effect-tls.key', 'effect-tls.crt'):
+            (self.private / name).unlink()
+        (self.private / 'control-ca.key').write_text('not a key\n')
+        done = self.run_script(check=False)
+        self.assertNotEqual(0, done.returncode)
+        self.assertNotEqual('', done.stderr.strip())
+        self.assertFalse((self.private / 'effect-tls.key').exists() or (self.private / 'effect-tls.crt').exists())
+        self.assertEqual([], list(self.private.glob('.init.*')))
+
+    def test_a_certificate_close_to_its_end_is_reported_not_replaced(self):
+        first = self.run_script()
+        self.assertNotIn('warning:', first.stderr)
+        key, cert = self.private / 'effect-tls.key', self.private / 'effect-tls.crt'
+        request = Path(self.tmp.name) / 'short.csr'
+        subprocess.run(['openssl', 'req', '-new', '-key', str(key), '-subj', '/CN=control-host.internal',
+                        '-out', str(request)], check=True, capture_output=True)
+        subprocess.run(['openssl', 'x509', '-req', '-in', str(request), '-CAkey', str(self.private / 'control-ca.key'),
+                        '-CA', str(self.private / 'control-ca.pem'), '-set_serial', '0x1', '-days', '10', '-out', str(cert)],
+                       check=True, capture_output=True)
+        short = cert.read_bytes()
+        done = self.run_script()
+        self.assertIn('warning:', done.stderr)
+        self.assertIn('effect-tls.crt', done.stderr)
+        self.assertEqual(short, cert.read_bytes())
+
+    def test_worker_ids_that_are_placeholders_or_not_the_accounts_are_refused(self):
+        account = pwd.getpwuid(os.getuid())
+        original = self.env_file.read_text()
+        for variable, value in (('LIWAN_CONTROL_UID', 'REPLACE_WITH_WORKER_UID'), ('LIWAN_CONTROL_UID', str(account.pw_uid + 1)),
+                                ('LIWAN_CONTROL_GID', 'REPLACE_WITH_WORKER_GID'), ('LIWAN_CONTROL_GID', str(account.pw_gid + 1))):
+            with self.subTest(variable=variable, value=value):
+                current = {'LIWAN_CONTROL_UID': account.pw_uid, 'LIWAN_CONTROL_GID': account.pw_gid}[variable]
+                self.env_file.write_text(original.replace(f'{variable}={current}', f'{variable}={value}'))
+                done = self.run_script(check=False)
+                self.assertEqual(2, done.returncode)
+                self.assertIn(variable, done.stderr)
+                self.assertFalse(self.root.exists())
+
+    def test_database_password_goes_to_the_postgres_user_when_run_as_root(self):
+        stubs = Path(self.tmp.name) / 'stubs'
+        stubs.mkdir()
+        log = Path(self.tmp.name) / 'chown.log'
+        real_id = shutil.which('id')
+        (stubs / 'id').write_text(f'#!/bin/sh\nif [ "$#" = 1 ] && [ "$1" = "-u" ]; then echo 0; exit 0; fi\nexec {real_id} "$@"\n')
+        (stubs / 'chown').write_text(f'#!/bin/sh\necho "$@" >> {log}\n')
+        for stub in stubs.iterdir():
+            stub.chmod(0o755)
+        self.run_script(env={'PATH': f'{stubs}:{os.environ["PATH"]}'})
+        group = subprocess.run([shutil.which('id'), '-gn'], capture_output=True, text=True, check=True).stdout.strip()
+        self.assertIn(f'999:{group} {self.private}/control-db-password', log.read_text().splitlines())
+        self.assertEqual(0o400, stat.S_IMODE((self.private / 'control-db-password').stat().st_mode))
+
+    def test_missing_or_placeholder_variable_is_refused(self):
+        self.env_file.write_text(self.env_file.read_text().replace(RESTORE_DOMAIN, 'REPLACE_WITH_RESTORE_DOMAIN'))
+        done = self.run_script(check=False)
+        self.assertEqual(2, done.returncode)
+        self.assertIn('LIWAN_RESTORE_DOMAIN', done.stderr)
+        self.assertFalse(self.root.exists())
+
+
+if __name__ == '__main__':
+    unittest.main()
