@@ -197,6 +197,18 @@ suite('live PostgreSQL void of an unpaid renewal invoice', () => {
       expect(await callVoid(f, { reason: 'A different reason' })).toMatchObject({ status: 'void' })
       expect(await snapshot(f)).toEqual(once)
     })
+    it.each([['a deadlock', '40P01'], ['a serialization failure', '40001']])('answers %s the database aborted with the retryable 409 invoice_void_retry and changes nothing', async (_name, sqlstate) => {
+      const f = await unpaidRenewal()
+      const aborting = { connect: async () => {
+        const c = await pool.connect(), original = c.query, query = c.query.bind(c) as (...args: unknown[]) => Promise<unknown>, release = c.release.bind(c)
+        ;(c as any).release = () => { (c as any).query = original; (c as any).release = release; release() }
+        ;(c as any).query = (sql: unknown, ...rest: unknown[]) => (/FROM orders WHERE id=\$1 FOR UPDATE/.test(String(sql)) ? Promise.reject(Object.assign(new Error('aborted'), { code: sqlstate })) : query(sql, ...rest))
+        return c
+      } } as unknown as Pool
+      await expect(voidRenewalInvoice(aborting, { invoice_id: f.invoice, actor: 'account:7', reason: 'Customer will not pay', outcome: 'rebill' })).rejects.toMatchObject({ code: 'invoice_void_retry', status: 409 })
+      expect((await pool.query('SELECT status FROM invoices WHERE id=$1', [f.invoice])).rows[0].status).toBe('issued')
+      expect(await callVoid(f)).toMatchObject({ status: 'void' })
+    })
     it('refuses an unknown invoice with 404, and a paid or non-renewal invoice with invoice_not_voidable', async () => {
       const f = await unpaidRenewal()
       await expect(callVoid({ ...f, invoice: randomUUID() })).rejects.toMatchObject({ status: 404, code: 'not_found' })

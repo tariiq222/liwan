@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import type { VoidRenewalOutcome } from '@liwan/commercial-contracts'
-import { transaction } from '../db.js'
+import { isConcurrencyAbort, transaction } from '../db.js'
 import { CommercialHttpError } from './lifecycle.js'
 import { insertCancellationLock, voidUnpaidRenewals } from './free-base-lock.js'
 import { recordCancellationRequest } from './cancellation.js'
@@ -32,11 +32,12 @@ async function endDunning(client: PoolClient, subscription: VoidSubject['subscri
  * the same period. `end` records the vendor's cancellation and arms the free-base lock for this period at once, whatever state dunning
  * left the subscription in: the lock run settles it to `active` on the free base. The customer is told by the notice of that drop;
  * the "cancelled, ends on a date" notice is not queued, because the lock it waits for is already armed and it would never be sent.
- * Asking again on a voided invoice returns its current view and writes nothing.
+ * Asking again on a voided invoice returns its current view and writes nothing. Other writers lock in other orders (see `loadVoidSubject`), so
+ * the database may abort this transaction as a deadlock or serialization failure: nothing was written and the answer is the retryable 409 `invoice_void_retry`.
  */
 export async function voidRenewalInvoice(pool: Pool, input: VoidRenewalInput): Promise<VendorInvoiceView> {
   const now = input.now ?? new Date()
-  await transaction(pool, async client => {
+  try { await transaction(pool, async client => {
     const subject = await loadVoidSubject(client, input.invoice_id, true)
     if (!subject) throw new CommercialHttpError('not_found', 404)
     if (subject.invoice.kind === 'renewal' && subject.invoice.status === 'void') return
@@ -59,6 +60,9 @@ export async function voidRenewalInvoice(pool: Pool, input: VoidRenewalInput): P
     }
     await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)', [randomUUID(), input.actor, 'invoice.voided', input.invoice_id, input.reason,
       JSON.stringify({ outcome: input.outcome, subscription_id: subscription.id, order_id: order!.id, renewal_id: renewal!.id, previous_state: subscription.state, state })])
-  })
+  }) } catch (error) {
+    if (isConcurrencyAbort(error)) throw new CommercialHttpError('invoice_void_retry', 409)
+    throw error
+  }
   return (await getVendorInvoice(pool, input.invoice_id))!
 }

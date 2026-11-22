@@ -15,8 +15,9 @@ type OrderRow = Row & { id: string; idempotency_key: string }
 export type VoidSubject = { subscription: SubscriptionRow; order: OrderRow | undefined; invoice: Row; renewal: Row | undefined }
 
 /**
- * Loads the rows of a void. With `lock` they are taken in the order every renewal, fulfilment and lock writer takes them: the
- * subscription first, then the order, then the invoice and the renewal. Null for an unknown invoice.
+ * Loads the rows of a void. With `lock` they are taken subscription, then order, then invoice, then renewal. Other writers do not all
+ * use that order (`payments.ts` locks the order then the invoice; `fulfillment.ts` locks the order and the subscription in one
+ * statement), so a void that races one can be chosen as the deadlock victim: the caller answers that as a retryable error. Null for an unknown invoice.
  */
 export async function loadVoidSubject(client: Q, invoiceId: string, lock: boolean): Promise<VoidSubject | null> {
   const head = (await client.query('SELECT subscription_id,order_id FROM invoices WHERE id=$1', [invoiceId])).rows[0]

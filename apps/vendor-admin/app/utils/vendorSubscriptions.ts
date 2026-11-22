@@ -185,7 +185,7 @@ export function voidAction(invoice: Pick<VendorInvoice, 'status' | 'kind' | 'voi
 }
 /** The vendor chooses what happens to the subscription and states why; the reason is bounded like the server's contract. */
 export const validVoidDraft = (d: { outcome: string; reason: string }) => (d.outcome === 'end' || d.outcome === 'rebill') && validRefundReason(d.reason)
-const VOID_REASON_CODES = ['invoice_not_voidable', 'payment_reconciliation_required', 'transfer_claimed', 'renewal_in_progress', 'lock_pending', 'tenant_retiring', 'subscription_suspended', 'subscription_change_pending']
+const VOID_REASON_CODES = ['invoice_not_voidable', 'payment_reconciliation_required', 'transfer_claimed', 'renewal_in_progress', 'lock_pending', 'tenant_retiring', 'subscription_suspended', 'subscription_change_pending', 'invoice_void_retry']
 /** The sentence for a block the invoice view carries or a refusal the void route answers: both say what the vendor does next. */
 export const voidReasonKey = (code: string) => `vendor.invoices.void.reason.${code}`
 export function voidErrorKey(cause: unknown): string {

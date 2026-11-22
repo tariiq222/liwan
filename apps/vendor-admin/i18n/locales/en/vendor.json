@@ -1718,7 +1718,8 @@
           "lock_pending": "The subscription is being moved to the free base. Try again later.",
           "tenant_retiring": "The workspace is being deleted, so its billing is not changed.",
           "subscription_suspended": "You suspended this subscription by hand. Resume it first, or choose to bill the period again.",
-          "subscription_change_pending": "A paid change is still being processed on this subscription. Let it finish or cancel it first."
+          "subscription_change_pending": "A paid change is still being processed on this subscription. Let it finish or cancel it first.",
+          "invoice_void_retry": "Another change was made to this subscription at the same moment, so nothing was voided. Reload the invoice and try again."
         }
       },
       "refund": {

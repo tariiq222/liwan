@@ -282,7 +282,7 @@ describe('void of an unpaid renewal invoice', () => {
       expect(validVoidDraft(draft), JSON.stringify(draft)).toBe(false)
   })
   it('words every block and refusal itself, and leaves other codes to the shared mapping', () => {
-    for (const code of ['invoice_not_voidable', 'payment_reconciliation_required', 'transfer_claimed', 'renewal_in_progress', 'lock_pending', 'tenant_retiring', 'subscription_suspended', 'subscription_change_pending']) {
+    for (const code of ['invoice_not_voidable', 'payment_reconciliation_required', 'transfer_claimed', 'renewal_in_progress', 'lock_pending', 'tenant_retiring', 'subscription_suspended', 'subscription_change_pending', 'invoice_void_retry']) {
       expect(voidReasonKey(code)).toBe(`vendor.invoices.void.reason.${code}`)
       expect(voidErrorKey({ statusCode: 409, data: { code } })).toBe(`vendor.invoices.void.reason.${code}`)
     }
