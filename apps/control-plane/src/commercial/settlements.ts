@@ -391,7 +391,8 @@ async function recordRefundIn(client: PoolClient, { adjustment_id, actor, refund
 }
 
 /** What the system's automatic refund of a credit note stands at, read from its `reconcile.refund` row. */
-export type SystemRefund = { status: 'pending' | 'done' | 'failed'; error: string | null; provider_refund: string | null }
+export type SystemRefund = { status: 'pending' | 'done' | 'failed'; error: string | null; provider_refund: string | null
+  outbox_id: string; adjustment_id: string | null; created_at: Date; attempts: number; next_attempt_at: Date; provider_payment_id: string | null; attempted_at: string | null }
 
 /**
  * The one definition of "the system owns this note's refund", for the server's refusal of the manual form and for the vendor
@@ -406,14 +407,15 @@ export type SystemRefund = { status: 'pending' | 'done' | 'failed'; error: strin
  */
 export async function systemRefunds(client: Pick<Pool, 'query'>, noteIds: string[]): Promise<Map<string, SystemRefund>> {
   if (!noteIds.length) return new Map()
-  const rows = (await client.query(`SELECT DISTINCT ON (n.id) n.id AS note_id,o.status,o.payload->>'error' AS error,o.payload->>'provider_refund' AS provider_refund
+  const rows = (await client.query(`SELECT DISTINCT ON (n.id) n.id AS note_id,o.status,o.payload->>'error' AS error,o.payload->>'provider_refund' AS provider_refund,
+      o.id AS outbox_id,o.payload->>'adjustment_id' AS adjustment_id,o.created_at,o.attempts,o.next_attempt_at,o.payload->>'provider_payment_id' AS provider_payment_id,o.payload->>'attempted_at' AS attempted_at
     FROM invoice_adjustments n JOIN invoices i ON i.id=n.invoice_id
     JOIN commercial_outbox o ON o.kind='reconcile.refund' AND (o.payload->>'adjustment_id'=n.id::text
       OR (o.payload->>'adjustment_id' IS NULL AND o.payload->>'automatic'='true' AND o.payload->>'duplicate' IS NULL AND o.aggregate_id=i.order_id::text
         AND n.cause IN ('fulfillment_failure','payment_after_cancellation','vendor_refund')))
     LEFT JOIN payment_attempts a ON a.id::text=o.payload->>'attempt_id'
     WHERE (o.payload->>'provider_refund' IS NOT NULL OR (a.provider<>$2 AND a.provider_ref IS NOT NULL)) AND n.id=ANY($1::uuid[]) ORDER BY n.id,(o.status='pending') DESC,o.created_at DESC,o.id`, [noteIds, BANK_TRANSFER_PROVIDER])).rows
-  return new Map(rows.map(row => [row.note_id as string, { status: row.status, error: row.error, provider_refund: row.provider_refund }]))
+  return new Map(rows.map(({ note_id, ...refund }) => [note_id as string, refund as SystemRefund]))
 }
 
 /** The credit notes that return the customer's own payment: the vendor's 14-day refund and the provider's refund of it. */

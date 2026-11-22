@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { invoiceSchema, paymentAttemptSchema, paymentEventRecordSchema, adjustmentSchema, refundCreditNoteRequestSchema, customerInvoiceExtrasSchema, sellerIdentitySchema, voidBlockSchema, voidRenewalInvoiceRequestSchema, invoiceExportSchema, INVOICE_EXPORT_MAX_ROWS } from '../commercial/index.js'
+import { invoiceSchema, paymentAttemptSchema, paymentEventRecordSchema, adjustmentSchema, refundCreditNoteRequestSchema, customerInvoiceExtrasSchema, sellerIdentitySchema, voidBlockSchema, voidRenewalInvoiceRequestSchema, invoiceExportSchema, INVOICE_EXPORT_MAX_ROWS, releaseRefundHoldRequestSchema, recordReturnedRefundRequestSchema, stuckRefundSchema } from '../commercial/index.js'
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
 const sar = (minor: number) => ({ currency: 'SAR', exponent: 2, minor })
@@ -128,5 +128,19 @@ describe('invoice export audit request', () => {
   })
   it.each([{ row_count: -1 }, { row_count: 5001 }, { row_count: 1.5 }, {}, { row_count: 1, status: 'bogus' }, { row_count: 1, customer_id: 'x' }, { row_count: 1, reason: 'free text' }])('refuses %j', (body) => {
     expect(invoiceExportSchema.safeParse(body).success).toBe(false)
+  })
+})
+
+describe('stuck automatic refund contracts', () => {
+  it('asks for a reason of 3 to 1000 characters and, to record, for one of the two resolutions', () => {
+    expect(releaseRefundHoldRequestSchema.parse({ reason: '  Provider shows nothing refunded  ' })).toEqual({ reason: 'Provider shows nothing refunded' })
+    expect(recordReturnedRefundRequestSchema.parse({ reason: 'Money is back', resolution: 'already_recorded' })).toEqual({ reason: 'Money is back', resolution: 'already_recorded' })
+    for (const body of [{}, { reason: 'ab' }, { reason: 'x'.repeat(1001) }, { reason: 'okay', amount: 1 }]) expect(releaseRefundHoldRequestSchema.safeParse(body).success).toBe(false)
+    for (const body of [{ reason: 'okay' }, { reason: 'okay', resolution: 'force' }, { resolution: 'record' }]) expect(recordReturnedRefundRequestSchema.safeParse(body).success).toBe(false)
+  })
+  it('names only the three actions', () => {
+    const stuck = { since: 'x', attempts: 1, next_attempt_at: 'y', provider_payment_id: null, conflict: null, actions: ['check', 'release'] }
+    expect(stuckRefundSchema.parse(stuck).actions).toEqual(['check', 'release'])
+    expect(stuckRefundSchema.safeParse({ ...stuck, actions: ['refund'] }).success).toBe(false)
   })
 })

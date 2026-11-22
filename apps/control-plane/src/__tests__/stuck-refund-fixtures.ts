@@ -50,13 +50,13 @@ export function stuckRefundFixtures(pool: Pool) {
     return processRefundOutbox(pool, f.adapter)
   }
   const refundWholePayment = (f: Paid) => f.adapter.refund(f.paymentId, { minor: f.total, currency: 'SAR', exponent: 2 })
-  /** Writes `refund_reference` on a settled note of another invoice, so recording this payment's id on a second note breaks the unique index. */
-  async function holdReference(reference: string) {
-    const other = await simulatorPaid()
+  /** Settles a note holding `reference`, on another invoice or (with `onto`) on the given one, so recording a payment id on a second note breaks the unique index. */
+  async function holdReference(reference: string, onto?: { invoice: string; customer: string; total: number }) {
+    const target = onto ?? await simulatorPaid()
     const id = randomUUID()
     await pool.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin,cause,refund_reference,refunded_by,refunded_at)
-      VALUES($1,$2,$3,'credit_note','Fixture holder',$4,'SAR',2,'refunded','vendor-test:9','system','provider_refund',$5,'vendor-test:9',now())`, [id, other.invoice, other.customer, other.total, reference])
-    return { ...other, note: id }
+      VALUES($1,$2,$3,'credit_note','Fixture holder',$4,'SAR',2,'refunded','vendor-test:9','system','provider_refund',$5,'vendor-test:9',now())`, [id, target.invoice, target.customer, target.total, reference])
+    return { invoice: target.invoice, note: id }
   }
 
   /** A vendor-requested refund of a card payment the worker called the provider for, whose outcome it could not verify: the row is marked `attempted`. */
@@ -72,10 +72,10 @@ export function stuckRefundFixtures(pool: Pool) {
     return { ...f, note: note.id }
   }
   /** A vendor-requested refund the provider returned whole, whose recording keeps failing because another note holds the payment id. */
-  async function returnedInConflict() {
+  async function returnedInConflict(options: { sameInvoice?: boolean } = {}) {
     const f = await simulatorPaid()
     const note = await askRefund(f.invoice)
-    const holder = await holdReference(f.paymentId)
+    const holder = await holdReference(f.paymentId, options.sameInvoice ? f : undefined)
     await processRefundOutbox(pool, f.adapter)
     return { ...f, note: note.id, holder }
   }

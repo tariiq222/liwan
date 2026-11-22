@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { adjustmentSchema, customerCreditNoteSchema, invoiceSchema, TAX_LABELS, type Adjustment, type BankTransferClaim, type VoidBlock, type CustomerCreditNote, type CustomerInvoice, type SellerIdentity, type Invoice, type InvoiceExport, type Money, type Quote } from '@liwan/commercial-contracts'
+import { adjustmentSchema, customerCreditNoteSchema, invoiceSchema, TAX_LABELS, type Adjustment, type BankTransferClaim, type VoidBlock, type CustomerCreditNote, type CustomerInvoice, type SellerIdentity, type Invoice, type InvoiceExport, type Money, type Quote, type StuckRefund } from '@liwan/commercial-contracts'
 import { dateOnly } from './date-only.js'
 import { billingSettings, sellerIdentityOf } from './billing-settings.js'
 import { voidStateOf } from './invoice-void-rules.js'
+import { stuckRefundViews } from './stuck-refund.js'
 import { refundEligibilityForInvoices, refundLockedInvoices, systemRefunds, type Refundability, type SystemRefund } from './settlements.js'
 
 export type InvoiceView = Invoice
@@ -14,8 +15,9 @@ export type InvoiceView = Invoice
  * `in_progress` (nothing returned yet), `refunded_recording` (the provider returned the money and only the record is retried),
  * `provider_unverified` (a refund call was made and its outcome is not verified yet: the operator checks the provider's
  * dashboard and the worker keeps checking), `done`, or `failed` (given up, with the reason, and no money returned).
+ * `stuck` is set only for the two states that hold a mark (`refunded_recording`, `provider_unverified`): what the operator needs to act.
  */
-export type AutomaticRefund = { state: 'in_progress' | 'refunded_recording' | 'provider_unverified' | 'done' | 'failed'; reason: string | null }
+export type AutomaticRefund = { state: 'in_progress' | 'refunded_recording' | 'provider_unverified' | 'done' | 'failed'; reason: string | null; stuck: StuckRefund | null }
 /** A credit note as the vendor console sees it: the server also says whether the operator may record its refund by hand (only with no automatic refund, or one that failed with no money returned). */
 export type VendorAdjustment = Adjustment & { automatic_refund: AutomaticRefund | null; manual_record_allowed: boolean }
 export type VendorInvoiceView = InvoiceView & { customer_name: string; adjustments: VendorAdjustment[]; bank_transfer_claim: BankTransferClaim | null; refund: Refundability & { locks_subscription: boolean }
@@ -186,8 +188,8 @@ function automaticRefundState({ status, provider_refund }: SystemRefund): Automa
   if (status !== 'pending') return status === 'done' ? 'done' : 'failed'
   return provider_refund === 'returned' ? 'refunded_recording' : provider_refund === 'attempted' ? 'provider_unverified' : 'in_progress'
 }
-function vendorAdjustmentView(row: any, outbox?: SystemRefund): VendorAdjustment {
-  const automatic_refund = outbox ? { state: automaticRefundState(outbox), reason: outbox.error } : null
+function vendorAdjustmentView(row: any, outbox?: SystemRefund, stuck?: StuckRefund): VendorAdjustment {
+  const automatic_refund = outbox ? { state: automaticRefundState(outbox), reason: outbox.error, stuck: stuck ?? null } : null
   return { ...adjustmentView(row), automatic_refund, manual_record_allowed: row.kind === 'credit_note' && row.status === 'pending' && (!automatic_refund || automatic_refund.state === 'failed') }
 }
 
@@ -199,9 +201,10 @@ async function hydrateVendor(pool: Q, rows: any[]): Promise<VendorInvoiceView[]>
   const locking = await refundLockedInvoices(pool, rows.map(r => r.id), ['refunded', 'pending'])
   const claims = rows.length ? (await pool.query('SELECT invoice_id,value_date::text AS value_date,sender_reference,claimed_at FROM bank_transfer_claims WHERE invoice_id = ANY($1::uuid[])', [rows.map(r => r.id)])).rows : []
   const automatic = await systemRefunds(pool, notes.map(n => n.id))
+  const stuck = await stuckRefundViews(pool, notes, automatic)
   // Only an unpaid renewal invoice can offer the void; every other row skips the reads.
   const voids = await Promise.all(rows.map(r => r.kind === 'renewal' && r.status === 'issued' ? voidStateOf(pool, r.id) : { voidable: false, void_block: null }))
-  return views.map((v, i) => ({ ...v, ...voids[i]!, customer_name: rows[i].customer_name as string, bank_transfer_claim: claimView(claims.find(c => c.invoice_id === v.id)), adjustments: notes.filter(n => n.invoice_id === v.id).map(n => vendorAdjustmentView(n, automatic.get(n.id))),
+  return views.map((v, i) => ({ ...v, ...voids[i]!, customer_name: rows[i].customer_name as string, bank_transfer_claim: claimView(claims.find(c => c.invoice_id === v.id)), adjustments: notes.filter(n => n.invoice_id === v.id).map(n => vendorAdjustmentView(n, automatic.get(n.id), stuck.get(n.id))),
     refund: { ...(eligibility.get(rows[i].id) ?? { refundable: false, first_payment: false, until: null, window_days: 0 }), locks_subscription: locking.has(rows[i].id) } }))
 }
 
