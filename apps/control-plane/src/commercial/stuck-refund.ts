@@ -1,6 +1,11 @@
-import type { Pool } from 'pg'
-import { refundConflictSchema, stuckRefundSchema, type StuckRefund, type StuckRefundAction } from '@liwan/commercial-contracts'
-import type { SystemRefund } from './settlements.js'
+import type { Pool, PoolClient } from 'pg'
+import { refundConflictSchema, stuckRefundSchema, type RefundRecheck, type StuckRefund, type StuckRefundAction } from '@liwan/commercial-contracts'
+import { transaction } from '../db.js'
+import { audit, CommercialHttpError, type CommercialActor } from './lifecycle.js'
+import { getVendorInvoice, type VendorInvoiceView } from './invoices.js'
+import { releaseOutbox } from './outbox.js'
+import type { PaymentAdapter, ProviderEvent } from './payment-adapter.js'
+import { findRefundAttempt, readVerifiedPayment, systemRefunds, withRefundLock, type RefundOutboxPayload, type SystemRefund } from './settlements.js'
 
 type Q = Pick<Pool, 'query'>
 
@@ -24,6 +29,81 @@ async function conflictOf(db: Q, noteId: string, invoiceId: string, paymentId: s
   return row ? refundConflictSchema.parse({ adjustment_id: row.id, invoice_id: row.invoice_id, invoice_number: row.number ?? null,
     amount: { currency: row.currency, exponent: Number(row.exponent), minor: Number(row.amount_minor) }, cause: row.cause, status: row.status,
     refunded_by: row.refunded_by ?? null, refunded_at: row.refunded_at ? new Date(row.refunded_at).toISOString() : null, same_invoice: row.invoice_id === invoiceId }) : null
+}
+
+export type StuckRefundResult = { invoice: VendorInvoiceView; provider: RefundRecheck | null }
+type Mark = 'attempted' | 'returned'
+type StuckContext = { note: Record<string, any>; row: { id: string; aggregate_id: string; created_at: Date; payload: RefundOutboxPayload }; mark: Mark; attempt: Record<string, any> }
+/**
+ * One action on a stuck row. `read` runs under the refund lock before anything is written (the provider's figures and every refusal that
+ * needs them); `write` runs in one transaction that re-locks the row and re-checks its mark. `provider` is what `read` found, shown to the operator.
+ */
+type StuckStep = { marks: Mark[]; read: (ctx: StuckContext) => Promise<RefundRecheck | null>; write: (client: PoolClient, ctx: StuckContext, provider: RefundRecheck | null) => Promise<void> }
+
+const refused = (code: string) => new CommercialHttpError(code, 409)
+
+/** The paying attempt of the row; an order that moved on is `refund_attempt_unavailable`, a payment that is not the invoice's is `unmatched`. */
+async function attemptOf(db: Q, row: StuckContext['row'], unmatched: string): Promise<Record<string, any>> {
+  try { return await findRefundAttempt(db, row) }
+  catch (error) { throw refused(error instanceof Error && error.message === 'refund_attempt_unavailable' ? 'refund_attempt_unavailable' : unmatched) }
+}
+
+/**
+ * The provider's own answer for the attempt's payment, by the worker's own checks (provider, mode, payment id, amount, currency, merchant
+ * account). A failed read or a payment that is not the attempt's is `provider_status_unverified`; no adapter for the attempt's provider is
+ * `provider_refund_unavailable`.
+ */
+async function readProviderPayment(adapter: PaymentAdapter | undefined, attempt: Record<string, any>, payload: RefundOutboxPayload) {
+  if (!adapter) throw refused('provider_refund_unavailable')
+  try { return (await readVerifiedPayment(adapter, attempt, payload)).payment }
+  catch (error) { throw refused(error instanceof Error && error.message === 'provider_refund_unavailable' ? 'provider_refund_unavailable' : 'provider_status_unverified') }
+}
+const recheckOf = (payment: ProviderEvent & { payment_id: string }): RefundRecheck => ({ status: payment.status, payment_id: payment.payment_id, refunded: payment.refunded ?? null })
+
+/**
+ * Runs one operator action on the stuck refund of a note. It takes the worker's own refund lock (a held lock is 409 `refund_in_progress`),
+ * re-reads the row and does nothing for a row that finished meanwhile (the current view comes back). A row without the mark the action
+ * serves is 409 `refund_not_stuck`. The action never calls the provider's refund endpoint: money leaves only through the worker.
+ */
+async function runStuckAction(pool: Pool, adjustmentId: string, unmatched: string, step: StuckStep): Promise<StuckRefundResult> {
+  const note = (await pool.query('SELECT * FROM invoice_adjustments WHERE id=$1', [adjustmentId])).rows[0]
+  if (!note) throw new CommercialHttpError('not_found', 404)
+  const view = async (provider: RefundRecheck | null): Promise<StuckRefundResult> => ({ invoice: (await getVendorInvoice(pool, note.invoice_id))!, provider })
+  const refund = (await systemRefunds(pool, [note.id])).get(note.id)
+  if (!refund) throw refused('refund_not_stuck')
+  if (refund.status !== 'pending') return view(null)
+  const locked = await withRefundLock(pool, refund.order_id, async () => {
+    const row = (await pool.query('SELECT * FROM commercial_outbox WHERE id=$1', [refund.outbox_id])).rows[0]
+    if (row.status !== 'pending') return null
+    const mark = row.payload.provider_refund as Mark | undefined
+    if (!mark || !step.marks.includes(mark)) throw refused('refund_not_stuck')
+    const ctx: StuckContext = { note, row, mark, attempt: await attemptOf(pool, row, unmatched) }
+    const provider = await step.read(ctx)
+    await transaction(pool, async client => {
+      const current = (await client.query("SELECT status,payload->>'provider_refund' AS mark FROM commercial_outbox WHERE id=$1 FOR UPDATE", [row.id])).rows[0]
+      if (current.status !== 'pending' || current.mark !== mark) throw refused('refund_not_stuck')
+      await step.write(client, ctx, provider)
+    })
+    return provider
+  })
+  if (!locked.owned) throw refused('refund_in_progress')
+  return view(locked.value)
+}
+
+/**
+ * Check again now: reads the payment at the provider, shows its status, refunded figure and payment id, and makes the row due so the worker
+ * runs its own next step. Nothing else on the row changes.
+ */
+export function recheckAutomaticRefund(pool: Pool, { adjustment_id, actor, adapter }: { adjustment_id: string; actor: CommercialActor; adapter?: PaymentAdapter }): Promise<StuckRefundResult> {
+  return runStuckAction(pool, adjustment_id, 'provider_status_unverified', {
+    marks: ['attempted', 'returned'],
+    read: async ({ attempt, row }) => recheckOf(await readProviderPayment(adapter, attempt, row.payload)),
+    write: async (client, { note, row, mark }, provider) => {
+      await releaseOutbox(client, row.id)
+      await audit(client, actor, 'payment.refund_rechecked', note.id, 'Checked the payment at the provider',
+        { outbox_id: row.id, order_id: row.aggregate_id, provider_refund: mark, payment_id: provider!.payment_id, provider_status: provider!.status, refunded_minor: provider!.refunded?.minor ?? null })
+    },
+  })
 }
 
 /** The stuck detail of each note whose refund row is stuck (keyed by note id); every other note has none. Only stuck rows pay for a read. */

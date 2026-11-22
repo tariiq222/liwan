@@ -21,7 +21,7 @@ export const AUDIT_ACTIONS = [
   'invoice.credit_pending', 'invoice.credit_refunded', 'invoice.refund_requested', 'invoice.voided', 'invoices.exported', 'order.accepted', 'order.cancelled',
   'payment.bank_transfer_duplicate', 'payment.bank_transfer_received', 'payment.card_not_saved', 'payment.direct_payment_missing', 'payment.duplicate_charge', 'payment.duplicate_refunded',
   'payment.form_attempt_closed', 'payment.form_attempt_needs_review', 'payment.form_declined', 'payment.form_hint_rejected', 'payment.form_payment_refunded', 'payment.form_payment_rejected',
-  'payment.form_payment_searched', 'payment.form_rejection_suppressed', 'payment.form_search_rejected', 'payment.form_settled', 'payment.intervention', 'payment.refund_rejected',
+  'payment.form_payment_searched', 'payment.form_rejection_suppressed', 'payment.form_search_rejected', 'payment.form_settled', 'payment.intervention', 'payment.refund_rechecked', 'payment.refund_rejected',
   'payment.saved_card_charge_refused', 'payment.saved_card_declined', 'payment.saved_card_needs_customer_action', 'payment.saved_card_unusable', 'payment.token_orphan_deleted', 'payment.webhook_verification',
   'payment_method.removed', 'payment_method.saved',
   'plan.created', 'plan.deleted', 'plan.edit', 'plan.publish', 'plan.restore', 'plan.revision_created', 'plan.validate', 'plan.withdraw', 'plan.withdrawn_by_publish',

@@ -34,6 +34,7 @@ import { removePaymentMethod } from './payment-method-removal.js'
 import { disableAutoRenew } from './auto-renew.js'
 import { SimulatorAdapter } from './payment-simulator.js'
 import { refundCreditNote, requestInvoiceRefund } from './settlements.js'
+import { recheckAutomaticRefund } from './stuck-refund.js'
 import { confirmBankTransfer, parseBankTransferInput } from './bank-transfer.js'
 import { voidRenewalInvoice } from './renewal-void.js'
 import { billingSettings, billingSettingsInputSchema, setBillingSettings } from './billing-settings.js'
@@ -304,6 +305,14 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     need(input,'vendor.billing.manage')
     if(!z.uuid().safeParse(refund[1]).success)throw new CommercialHttpError('not_found',404)
     return {status:200,data:await refundCreditNote(pool,{adjustment_id:refund[1]!,actor:{issuer:input.issuer,actorUid:input.actor},request:parseBody(input.raw,refundCreditNoteRequestSchema)})}
+  }
+  // An automatic refund the worker cannot finish: the operator checks the provider again, never moves money (the worker is the only path that does).
+  const stuckRefund=/^\/invoice-adjustments\/([^/]+)\/automatic-refund\/(check)$/.exec(path)
+  if(stuckRefund&&m==='POST'){
+    needGrant(input,'vendor.billing.manage')
+    if(!z.uuid().safeParse(stuckRefund[1]).success)throw new CommercialHttpError('not_found',404)
+    const actor={issuer:input.issuer,actorUid:input.actor},adapter=runtime?.adapter ?? undefined
+    return {status:200,data:await recheckAutomaticRefund(pool,{adjustment_id:stuckRefund[1]!,actor,adapter})}
   }
   // A2: the customer asked for their money back inside the window and there is no note yet. Creates the pending
   // vendor credit note for the full invoice; recording the provider reference is the existing refund route above.

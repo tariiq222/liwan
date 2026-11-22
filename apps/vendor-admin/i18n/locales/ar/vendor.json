@@ -589,6 +589,7 @@
           "form_search_rejected": "رفض نتيجة بحث دفعة نموذج البطاقة",
           "form_settled": "تسوية دفعة نموذج البطاقة",
           "intervention": "دفعة تحتاج تدخلًا",
+          "refund_rechecked": "فحص دفعة الاسترداد من جديد لدى المزوّد",
           "refund_rejected": "رفض المزوّد طلب استرداد",
           "saved_card_charge_refused": "رفض المزوّد طلب الخصم من البطاقة المحفوظة",
           "saved_card_declined": "رفض المزوّد الخصم من البطاقة المحفوظة",
