@@ -30,6 +30,7 @@ import { accountsHttp } from './admin-auth/accounts-http.js'
 import { aiProviderHttp } from './ai-provider/http.js'
 import { defaultWebAuthn, type WebAuthnLib } from './admin-auth/webauthn.js'
 import { enqueueSharedJob } from './shared/job-store.js'
+import { listSharedBackups } from './shared/backup-list.js'
 import { requestSharedJobRecovery, UnsupportedRecoveryOperation } from './shared/job-recovery.js'
 import { requestSharedJobAbandon, UnsupportedAbandonOperation } from './shared/job-abandon.js'
 import { createHash, randomUUID } from 'node:crypto'
@@ -468,6 +469,18 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       if (method === 'GET' && sharedProgress) {
         requireCapability(auth, 'vendor.read')
         return respond(res, 200, await sharedProvisioningProgress(pool,sharedProgress[1]!))
+      }
+      // The backups of one workspace for the console: ids, times, names and states only (see shared/backup-list.ts).
+      // Starting one (`POST .../jobs`, operation backup) stops the shared Odoo service for EVERY workspace on the stack
+      // while the capture runs, then starts it again; a capture that fails after the stop leaves it stopped until an
+      // operator recovers the job (tools/shared_saas_lifecycle/odoo_backup.py, `capture`).
+      const sharedBackups = pathname.match(new RegExp(`^/v1/shared/tenants/(${UUID})/backups$`))
+      if (method === 'GET' && sharedBackups) {
+        requireCapability(auth, 'vendor.read')
+        if (process.env.LIWAN_TENANCY_MODE !== 'shared') throw new ApiError(503, 'shared_execution_unavailable', 'Shared runtime is unavailable')
+        const backups = await listSharedBackups(pool, sharedBackups[1]!)
+        if (!backups) throw new ApiError(404, 'not_found', 'Workspace not found')
+        return respond(res, 200, backups)
       }
       const publication=pathname.match(new RegExp(`^/v1/shared/tenants/(${UUID})/restore-publications/(${UUID})$`))
       if(publication && (method==='GET'||method==='POST')){
