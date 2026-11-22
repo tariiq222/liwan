@@ -146,6 +146,16 @@ describe('BackupsPanel: starting a backup', () => {
     state.startReason.value = 'Another backup'; await state.startBackup()
     expect((request.mock.calls[2]![1] as { body: { job: { requestId: string } } }).body.job.requestId).not.toBe(ids[0])
   })
+  it('sends a new request id when the reason was edited after a failed answer', async () => {
+    let calls = 0
+    const { state, request } = panel({ data: listing(), request: async () => { if (++calls === 1) throw { statusCode: 503, data: { code: 'vendor_unavailable' } }; return { id: id(7) } } })
+    state.startReason.value = 'Before the upgrade'
+    await state.startBackup()
+    state.startReason.value = 'Before the upgrade, edited'
+    await state.startBackup()
+    const ids = request.mock.calls.map(call => (call[1] as { body: { job: { requestId: string } } }).body.job.requestId)
+    expect(ids[1]).not.toBe(ids[0])
+  })
   it('reports the typed reason as unsent input, and clears it once sent', async () => {
     const { state } = panel({ data: listing() })
     expect(state.dirtyModel.value).toBe(false)
@@ -209,6 +219,18 @@ describe('BackupsPanel: restoring from a backup', () => {
     expect(calls[2]![1].body.job.requestId).toBe(calls[1]![1].body.job.requestId)
     expect(calls[2]![1].body.job.approvalId).toBe(id(5))
     expect(view.navigateTo).toHaveBeenCalledTimes(1)
+  })
+  it('sends the same request id on a retry with the same reason and a new one once the reason changed', async () => {
+    let jobCalls = 0
+    const view = panel({ data: listing(), request: async path => { if (path.endsWith('/jobs') && ++jobCalls <= 2) throw { statusCode: 503, data: { code: 'vendor_unavailable' } }; return answer(path) } })
+    view.fake.refresh.mockImplementation(async () => { view.fake.data.value = listing({ items: [item({ approval })] }) })
+    view.state.now.value = Date.parse(approval.expires_at) - 1000
+    openFor(view, 'restore', 'Restore check')
+    await view.state.runRestore(); await view.state.runRestore()
+    view.state.restoreReason.value = ' Restore check, edited '
+    await view.state.runRestore()
+    const requestIds = (view.request.mock.calls as unknown as Call[]).filter(call => call[0].endsWith('/jobs')).map(call => call[1].body.job.requestId)
+    expect(requestIds[1]).toBe(requestIds[0]); expect(requestIds[2]).not.toBe(requestIds[0])
   })
   it('keeps the textareas disabled until the page is hydrated', async () => {
     const view = panel({ data: listing(), hydrated: false })

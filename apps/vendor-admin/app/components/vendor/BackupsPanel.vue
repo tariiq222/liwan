@@ -21,7 +21,8 @@ const confirmStart = ref(false)
 const startBusy = ref(false)
 const startError = ref<unknown>(null)
 // One request id per backup the operator means to make: a retry after a lost answer sends the same id and gets the same job.
-const startRequestId = ref<string | null>(null)
+// The id belongs to the reason it was sent with: the server answers a changed reason under the same id with `idempotency_conflict`.
+const startRequest = ref<{ id: string; reason: string } | null>(null)
 const canStart = computed(() => hydrated.value && can('vendor.operations.run') && !startBusy.value && reasonValid(startReason.value))
 watch(() => startReason.value.trim(), () => { confirmStart.value = false })
 
@@ -33,8 +34,9 @@ const restoreReason = ref('')
 const confirmRestore = ref(false)
 const restoreBusy = ref(false)
 const restoreError = ref<unknown>(null)
-// What a failed attempt leaves behind, kept for the retry: the request id of that restore and an approval whose job call failed.
-const restoreRequestIds = new Map<string, string>()
+// What a failed attempt leaves behind, kept for the retry: the request id of that restore (with the reason it was sent with, like the
+// backup's) and an approval whose job call failed.
+const restoreRequests = new Map<string, { id: string; reason: string }>()
 const restoredApprovals = new Map<string, string>()
 const now = ref(Date.now())
 let clock: ReturnType<typeof setInterval> | undefined
@@ -57,11 +59,13 @@ async function runRestore() {
   if (!target || !canRestore.value) return
   restoreBusy.value = true
   restoreError.value = null
-  const requestId = restoreRequestIds.get(target.backupId) ?? crypto.randomUUID()
-  restoreRequestIds.set(target.backupId, requestId)
+  const reason = restoreReason.value.trim()
+  const sent = restoreRequests.get(target.backupId)
+  const requestId = sent?.reason === reason ? sent.id : crypto.randomUUID()
+  restoreRequests.set(target.backupId, { id: requestId, reason })
   try {
     const done = await restoreFromBackup(request, { tenantId: props.tenantId, backupId: target.backupId, reason: restoreReason.value, requestId, approvalId: target.approvalId ?? restoredApprovals.get(target.backupId) })
-    restoreRequestIds.delete(target.backupId)
+    restoreRequests.delete(target.backupId)
     restoredApprovals.delete(target.backupId)
     closeRestore()
     await refresh()
@@ -78,11 +82,12 @@ async function startBackup() {
   if (!canStart.value) return
   startBusy.value = true
   startError.value = null
-  startRequestId.value ??= crypto.randomUUID()
+  const reason = startReason.value.trim()
+  if (startRequest.value?.reason !== reason) startRequest.value = { id: crypto.randomUUID(), reason }
   try {
-    const job = await request<{ id: string }>(`shared/tenants/${encodeURIComponent(props.tenantId)}/jobs`, { method: 'POST', body: backupJobRequest(startRequestId.value, startReason.value) })
+    const job = await request<{ id: string }>(`shared/tenants/${encodeURIComponent(props.tenantId)}/jobs`, { method: 'POST', body: backupJobRequest(startRequest.value.id, startReason.value) })
     startReason.value = ''
-    startRequestId.value = null
+    startRequest.value = null
     await refresh()
     await navigateTo({ path: `/operations/${encodeURIComponent(job.id)}`, query: { source: 'shared', returnTo: `/operations?tenant_id=${encodeURIComponent(props.tenantId)}` } })
   } catch (cause) { startError.value = cause }
