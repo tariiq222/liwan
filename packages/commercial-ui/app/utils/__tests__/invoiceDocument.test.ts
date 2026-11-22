@@ -45,10 +45,11 @@ describe('invoiceLinesView', () => {
 })
 
 describe('invoiceDay', () => {
-  it('is the Riyadh calendar day of an instant, and a date-only value as it is', () => {
-    expect(invoiceDay('2026-10-01T22:30:00Z')).toBe('2026-10-02')
-    expect(invoiceDay('2026-10-02T01:00:00+03:00')).toBe('2026-10-02')
-    expect(invoiceDay('2026-10-16')).toBe('2026-10-16')
+  it('is the Riyadh calendar day of an instant in the dd/MM/yyyy display format, and a date-only value as it is', () => {
+    const shown = (value: string) => invoiceDay(value)?.replace(/[\u2066\u2069]/g, '')
+    expect(shown('2026-10-01T22:30:00Z')).toBe('02/10/2026')
+    expect(shown('2026-10-02T01:00:00+03:00')).toBe('02/10/2026')
+    expect(shown('2026-10-16')).toBe('16/10/2026')
     expect(invoiceDay(null)).toBeNull()
   })
 })

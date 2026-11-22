@@ -1,4 +1,5 @@
-import { riyadhDate, type CustomerInvoice, type Invoice, type Money } from '@liwan/commercial-contracts'
+import { formatDate } from '@liwan/ui/app/utils/formatDate'
+import { BUSINESS_TIME_ZONE, type CustomerInvoice, type Invoice, type Money } from '@liwan/commercial-contracts'
 import { formatCommercialMoney } from './commercial'
 import { invoiceLineQuantities, type InvoiceLineView } from './invoiceLines'
 
@@ -35,8 +36,11 @@ export function invoiceLinesView(invoice: Invoice, t: Translate, locale: string)
   }
 }
 
-/** The Riyadh calendar day (`YYYY-MM-DD`) of an invoice instant, the one day both apps print (owner decision 2026-11-22). */
-export const invoiceDay = (value: string | null): string | null => value ? riyadhDate(value) : null
+/** The Riyadh calendar day of an invoice instant in the product's `dd/MM/yyyy` display format, the one day both apps print (owner decision 2026-11-22). */
+export const invoiceDay = (value: string | null): string | null => value ? formatDate(value, BUSINESS_TIME_ZONE) || null : null
+
+/** The invoice period as `start → end`, each a calendar day in the display format. */
+export const invoicePeriod = (invoice: Pick<CustomerInvoice, 'period_start' | 'period_end'>): string => `${formatDate(invoice.period_start)} → ${formatDate(invoice.period_end)}`
 
 export type InvoicePrintState = 'draft' | 'issued' | 'paid' | 'void' | 'credit_pending' | 'refunded'
 

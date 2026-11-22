@@ -98,7 +98,7 @@ describe('the document the console prints', () => {
   it.each(['ar', 'en'] as const)('renders in %s with the seller, the Riyadh day and none of the words a tax invoice would carry', async (lang) => {
     const html = await render(lang, { ...document, credit_notes: [{ id: 'n1', amount: sar(1000), cause: 'vendor_refund', status: 'pending', created_at: '2026-10-05T08:00:00Z', refunded_at: null, refund_reference: null }] })
     expect(html).toContain(lang === 'ar' ? 'شركة ليوان المحدودة' : 'Liwan Co.')
-    expect(html).toContain('2026-10-02')
+    expect(html).toContain('02/10/2026')
     expect(html).toContain('INV-1001')
     expect(html).not.toMatch(FORBIDDEN)
   })

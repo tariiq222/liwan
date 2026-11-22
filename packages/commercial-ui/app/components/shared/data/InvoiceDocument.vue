@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { CustomerInvoice } from '@liwan/commercial-contracts'
 import { formatCommercialMoney } from '../../../utils/commercial'
-import { invoiceCreditSummary, invoiceDay, invoiceLinesView, sellerLegalName } from '../../../utils/invoiceDocument'
+import { invoiceCreditSummary, invoiceDay, invoiceLinesView, invoicePeriod, sellerLegalName } from '../../../utils/invoiceDocument'
 
 // The printable subscription invoice: Liwan's own billing document for the customer's accountant, printed by the customer app and the vendor console alike. Dates are the
 // Riyadh day (owner decision 2026-11-22). Liwan is not
@@ -28,7 +28,7 @@ const facts = computed(() => [
   { key: 'issued', label: t('commercial.invoice.document.issuedOn'), value: invoiceDay(props.invoice.issued_at) },
   { key: 'due', label: t('commercial.invoice.document.dueOn'), value: invoiceDay(props.invoice.due_at) },
   { key: 'paid', label: t('commercial.invoice.document.paidOn'), value: invoiceDay(props.invoice.paid_at) },
-  { key: 'period', label: t('commercial.invoice.period'), value: `${props.invoice.period_start} → ${props.invoice.period_end}` },
+  { key: 'period', label: t('commercial.invoice.period'), value: invoicePeriod(props.invoice) },
 ].filter(fact => fact.value))
 const notes = computed(() => props.invoice.credit_notes.map(note => ({
   ...note,
