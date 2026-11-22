@@ -94,7 +94,7 @@ suite('live PostgreSQL owner alerts', () => {
     await pool.query('INSERT INTO customers(id,name,admin_name,admin_login) VALUES($1,$2,$3,$4)', [lonely, 'No subscription Co', 'M', 'm@example.test']) // setup_required
     const ch = channels()
     await run(ch)
-    expect(await alerts('refund_rejected')).toHaveLength(1)
+    expect(await alerts('refund_not_sent')).toHaveLength(1)
     expect(sentOf(ch, 'provider said no')[0].subject).toContain('[يتطلب إجراء]')
     const generic = await alerts('attention')
     expect(generic.length).toBeGreaterThanOrEqual(1)

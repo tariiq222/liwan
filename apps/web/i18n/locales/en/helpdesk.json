@@ -102,7 +102,9 @@
       "portal": "Customer page",
       "portalHint": "A link that shows the ticket to the customer, who can reply and close it without an account. Share it only with them.",
       "copy": "Copy",
-      "copied": "Link copied."
+      "copied": "Link copied.",
+      "assignTo": "Assign the ticket to",
+      "assign": "Assign"
     },
     "thread": {
       "title": "Conversation",
@@ -113,7 +115,11 @@
       "send": "Send",
       "failed": "The reply could not be sent.",
       "uploadFailed": "The file could not be uploaded.",
-      "deleteFailed": "The file could not be deleted."
+      "deleteFailed": "The file could not be deleted.",
+      "mode": "Message kind",
+      "modeReply": "Reply to the customer",
+      "modeNote": "Internal note",
+      "sendNote": "Save note"
     },
     "attachments": {
       "title": "Attachments",

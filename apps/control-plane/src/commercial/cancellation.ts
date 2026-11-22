@@ -11,7 +11,7 @@ export const CANCELLATION_NOTICE_KIND = 'cancellation.notice'
 export type CancellationNoticeType = 'cancelled' | 'resumed' | 'ending_soon'
 export type CancellationNoticePayload = { type: CancellationNoticeType; subscription_id: string; effective_on: string }
 
-type Who = { by: 'customer' | 'vendor'; actor: string; reason: string | null }
+export type Who = { by: 'customer' | 'vendor'; actor: string; reason: string | null }
 type Target = { customer_id: string } | { subscription_id: string }
 
 export async function lockSubscription(client: PoolClient, target: Target) {
@@ -28,15 +28,13 @@ async function audited(client: PoolClient, subscriptionId: string, action: strin
 }
 
 /**
- * Cancels the renewal inside the caller's transaction, with the subscription row locked by the caller. The paid period stays; on the
- * renewal date the free-base lock (cause `cancelled`) drops the subscription to the free base, so nothing is deleted and the customer
- * can buy again. The rules that refuse it are `cancelRefusal`. Asking twice changes nothing. `notify: false` queues no "cancelled"
- * notice, for a caller whose own notice already tells the customer (a confirmed workspace deletion).
+ * Records the request to end the renewal, with the subscription row locked by the caller: who asked and why, the audit row and the
+ * "cancelled" notice. It decides nothing: `cancelRenewalOn` judges whether the request is allowed first, and the void of a renewal
+ * invoice records a vendor request the rules would refuse (the subscription is past due) because the vendor chose it.
+ * `notify: false` queues no "cancelled" notice, for a caller whose own notice already tells the customer (a confirmed workspace
+ * deletion, or a drop to the free base that takes effect at once).
  */
-export async function cancelRenewalOn(client: PoolClient, sub: Record<string, any> & { id: string }, input: Who & { now: Date; notify?: boolean }) {
-  if (sub.cancel_requested_at) return
-  const refusal = await cancelRefusal(client, sub)
-  if (refusal) throw new CommercialHttpError(refusal, 409)
+export async function recordCancellationRequest(client: PoolClient, sub: Record<string, any> & { id: string }, input: Who & { now: Date; notify?: boolean }) {
   await client.query('UPDATE subscriptions SET cancel_requested_at=$2,cancel_requested_by=$3,cancel_reason=$4,revision=revision+1 WHERE id=$1',
     [sub.id, input.now, input.by, input.reason])
   const on = sub.renewal_on as string
@@ -46,6 +44,18 @@ export async function cancelRenewalOn(client: PoolClient, sub: Record<string, an
   // A "renewal upcoming" notice queued before the cancellation is no longer true.
   await client.query(`UPDATE commercial_outbox SET status='done',processed_at=now() WHERE kind='billing.notice' AND aggregate_id=$1
     AND status='pending' AND payload->>'type'='renewal_upcoming'`, [sub.id])
+}
+
+/**
+ * Cancels the renewal inside the caller's transaction, with the subscription row locked by the caller. The paid period stays; on the
+ * renewal date the free-base lock (cause `cancelled`) drops the subscription to the free base, so nothing is deleted and the customer
+ * can buy again. The rules that refuse it are `cancelRefusal`. Asking twice changes nothing. `notify` is as in `recordCancellationRequest`.
+ */
+export async function cancelRenewalOn(client: PoolClient, sub: Record<string, any> & { id: string }, input: Who & { now: Date; notify?: boolean }) {
+  if (sub.cancel_requested_at) return
+  const refusal = await cancelRefusal(client, sub)
+  if (refusal) throw new CommercialHttpError(refusal, 409)
+  await recordCancellationRequest(client, sub, input)
 }
 
 /** Cancels the renewal at the period end for a customer or a vendor. Asking twice changes nothing. */

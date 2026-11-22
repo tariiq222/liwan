@@ -6,7 +6,7 @@ The document is one JSON file, ``/release.json``, the only file of the scratch i
 
     {"schemaVersion": 1, "commit": "<40 hex>", "release": <deploy/releases/manifest.py document>,
      "images": {"<reference>": "ghcr.io/tariiq222/<reference>@sha256:<digest>", ...},
-     "platforms": {"<reference>": {"linux/amd64": "sha256:<digest>", ...}, ...}}
+     "platforms": {"<reference>": {"linux/arm64": "sha256:<digest>", ...}, ...}}
 
 ``release`` is validated by ``deploy.releases.manifest`` before anything is printed. The release
 manifest format has fields a reviewer normally fills in, which CI cannot judge, so this document
@@ -14,9 +14,9 @@ is conservative: mode ``infrastructure_maintenance``, every LiwanOS module liste
 compatibility evidence that names this workflow run, not a human review. ``images`` carries every
 published image, including the ones the release manifest format has no field for (proxy, AI egress,
 mail relay). ``platforms`` carries, for the same references, the digest of the image of each
-architecture the document covers; every reference covers the same architectures, and a host pulls
-the image of its own architecture. The document has no signature: its trust is the registry write
-credential and the GitHub ``main`` or ``release/*`` commit it names (plan decision D17).
+architecture the document covers (``linux/arm64`` for every document the publish workflow writes); every
+reference covers the same architectures, and a host pulls the image of its own architecture. The document has no signature: its trust is the registry write
+credential and the GitHub ``release/*`` tag commit (on ``main``) it names (plan decision D17).
 
 ``parse_release_document`` is the one reader: the release command calls it on the text of
 ``/release.json`` and names the architectures it needs, so a document that lacks one is refused with
@@ -27,7 +27,7 @@ Run from the repository root with ``PYTHONPATH=.``::
     python3 -B deploy/ci/lib/release_manifest.py --commit <sha> --run-id <id> --images images.json --platforms platforms.json
 
 ``--read <file> --commit <sha>`` instead validates an existing ``/release.json`` for that commit and prints its
-``platforms`` map, which is how a release tag reuses the digests the ``main`` publish already recorded.
+``platforms`` map, which is how a rerun of a release tag finds out what the document already covers.
 """
 from __future__ import annotations
 
@@ -49,6 +49,7 @@ AI_STATE_VERSION = '1'
 # The CI manifest carries no human review: it is valid only as the conservative maintenance-mode document
 # (mode `infrastructure_maintenance`, `oldWritesCompatible: False`), never as evidence that a release is online-safe.
 REVIEWER = 'unreviewed-ci'
+# The accepted vocabulary when READING: documents published before the arm64-only workflow also list linux/amd64.
 PLATFORMS = ('linux/amd64', 'linux/arm64')
 REGISTRY = 'ghcr.io/tariiq222'
 COMMIT = re.compile(r'[a-f0-9]{40}')
@@ -69,7 +70,7 @@ def validate_document(document: object, commit: str | None = None, required: tup
     """The document itself, or a ValueError that names the first thing wrong with it.
 
     ``commit`` is the commit the caller is deploying; ``required`` the platforms the host needs
-    (for example ``('linux/amd64',)``): a document that lacks one is refused.
+    (for example ``('linux/arm64',)``): a document that lacks one is refused.
     """
     if not isinstance(document, dict) or document.get('schemaVersion') != SCHEMA_VERSION:
         raise ValueError(f'the release document is not a schemaVersion {SCHEMA_VERSION} object')

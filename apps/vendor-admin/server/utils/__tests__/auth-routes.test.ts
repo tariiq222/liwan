@@ -41,7 +41,7 @@ describe('auth routes', () => {
     '/v1/admin/auth/passkey/options': { challenge_id: CHALLENGE, options: {} },
     '/v1/admin/auth/step-up/options': { challenge_id: CHALLENGE, options: {} },
     '/v1/admin/auth/enroll/passkey/options': { challenge_id: CHALLENGE, options: {} },
-    '/v1/admin/auth/invitation': { email: 'a@example.test', purpose: 'enroll' },
+    '/v1/admin/auth/invitation': { email: 'a@example.test', purpose: 'enroll', passkey_registered: false },
     '/v1/admin/auth/enroll/totp': { totp_uri: 'otpauth://totp/x', totp_box: 'QUJD' },
   }
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-time preparation of a production-style host (development, staging, production) for the control plane and the shared
+# One-time preparation of a production-style host (staging, production) for the control plane and the shared
 # worker: what no other step creates. init-local.sh is the local harness and stays separate.
 #
 #   init-host.sh <environment env file> <shared project name>

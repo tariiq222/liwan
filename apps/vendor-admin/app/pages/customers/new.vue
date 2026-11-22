@@ -2,28 +2,33 @@
 import type { Cadence } from '@liwan/commercial-contracts'
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import { cadenceKey, commercialErrorKey } from '@/utils/vendorCommercial'
+import { failureKey } from '@/composables/useStepUp'
 import { cadenceLabel, formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { planRequestBody, planTenantCustomerBody, planTenantQuoteBody } from '@/utils/vendorTenantPlan'
+import { orderOutcomeUnknown } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
+import { useVendorCatalogVersions } from '@/composables/useVendorCatalogVersions'
+import { publishedVersions } from '@/utils/vendorCatalogVersions'
 definePageMeta({ capability: 'vendor.tenants.manage' })
 const { t, locale } = useI18n(); const route = useRoute(); const { request } = useVendorApi(); const { can, sharedOnboardingEnabled: sharedEnabled, ready } = useVendorContext()
 const hydrated = useHydrated(); const subscriptions = useVendorSubscriptions(); const commercial = useVendorCommercial()
 await ready
 const { data: targets, pending, error, refresh } = await useAsyncData('vendor:targets', () => sharedEnabled.value ? Promise.resolve({ items: [], total: 0 }) : request<{ items: { id: string; kind: string }[]; total: number }>('targets'))
-const { data: catalog, error: catalogError, refresh: refreshCatalog } = await useAsyncData('vendor:catalog-published', () => sharedEnabled.value ? Promise.resolve({ items: [], total: 0 }) : request<{ items: { id: string; version: string; status: string; solution: { tiers?: { id: string; name: string }[] } }[]; total: number }>('catalog'))
+const { data: catalog, error: catalogError, refresh: refreshCatalog } = await useVendorCatalogVersions().load(!sharedEnabled.value)
 const { data: plans, error: plansError, refresh: refreshPlans } = await useAsyncData('vendor:tenant-plans', () => sharedEnabled.value ? commercial.listPlans({ status: 'published', limit: 200 }).then(r => r.items) : Promise.resolve([]))
 // A customer is created before its first quote, and a quote needs a catalog release: without one the form stops here
 // instead of leaving an empty customer behind.
 const { data: releases } = await useAsyncData('vendor:catalog-releases', () => sharedEnabled.value ? commercial.releases() : Promise.resolve(null))
 const noRelease = computed(() => sharedEnabled.value && releases.value !== null && releases.value !== undefined && releases.value.length === 0)
-const published = computed(() => catalog.value?.items.filter(item => item.status === 'published') ?? [])
+const published = computed(() => publishedVersions(catalog.value ?? []))
 const selectedCatalog = computed(() => published.value.find(item => item.version === form.catalog_version))
 const form = reactive({ name: '', commercial_mode: 'saas', hosting_model: 'dedicated_managed', inventory_target: '', catalog_version: '', catalog_tier: '', reason: '', admin_name: '', admin_login: '', plan_revision_id: '', cadence: '', onboarding: false })
 // A vendor-added customer never starts a trial (release 1, owner decision 2026-11-06): the console places a paid first
 // order the vendor collects by bank transfer or a payment link, or a free order when the plan's total is zero. A plan
 // that offers a trial is therefore not offered here: its trial would be the only thing the vendor could start.
-const startablePlans = computed(() => (plans.value ?? []).filter(p => p.trial_days === 0))
+// A plan made for one customer is not offered to a customer that does not exist yet.
+const startablePlans = computed(() => (plans.value ?? []).filter(p => p.trial_days === 0 && p.audience.kind === 'public'))
 const selectedPlan = computed(() => startablePlans.value.find(p => p.id === form.plan_revision_id))
 const cadenceItems = computed(() => (selectedPlan.value?.prices ?? []).map(p => ({ label: cadenceLabel(p.cadence, t), value: cadenceKey(p.cadence) })))
 const selectedCadence = computed<Cadence | undefined>(() => selectedPlan.value?.prices.find(p => cadenceKey(p.cadence) === form.cadence)?.cadence)
@@ -31,12 +36,15 @@ const selectedPrice = computed(() => selectedPlan.value?.prices.find(p => cadenc
 const canSubscribe = computed(() => can('vendor.subscriptions.manage'))
 const createdCustomer = ref<string | null>(null)
 const creationRequestId = ref<string | null>(null)
+// One quote and one idempotency key per intended order: a retry after a lost answer returns the order already placed
+// instead of quoting and ordering again. Changing the plan, cadence or onboarding line is a different order.
+const heldOrder = ref<{ signature: string; quoteId: string; idempotencyKey: string } | null>(null)
 const busy = ref(false); const saveError = ref<unknown>(null); const submitted = ref(false)
 const dirty = computed(() => !submitted.value && Boolean(form.admin_name.trim() || form.admin_login.trim() || form.name.trim() || form.inventory_target || form.catalog_version || form.catalog_tier || form.plan_revision_id || form.reason.trim() || form.commercial_mode !== 'saas' || form.hosting_model !== 'dedicated_managed'))
 function fieldError(error: unknown): string {
   const value = error as { data?: { field?: unknown; data?: { field?: unknown } }; field?: unknown; response?: { _data?: { field?: unknown } } } | null
   const field = value?.data?.field ?? value?.data?.data?.field ?? value?.response?._data?.field ?? value?.field
-  return typeof field === 'string' && ['name', 'inventory_target', 'catalog_version', 'catalog_tier', 'reason', 'admin_name', 'admin_login'].includes(field) ? `vendor.errors.field.${field}` : 'vendor.errors.save'
+  return failureKey(error, typeof field === 'string' && ['name', 'inventory_target', 'catalog_version', 'catalog_tier', 'reason', 'admin_name', 'admin_login'].includes(field) ? `vendor.errors.field.${field}` : 'vendor.errors.save')
 }
 watch(() => form.catalog_version, () => { form.catalog_tier = '' })
 watch(() => form.plan_revision_id, () => { form.cadence = '' })
@@ -54,8 +62,17 @@ async function submit() {
       createdCustomer.value ??= (await subscriptions.createCustomer(planTenantCustomerBody(form, creationRequestId.value))).id
       // Always a real first order: free when the plan's total is zero, paid (collected by bank transfer or a payment
       // link) otherwise. No trial path: a vendor-added customer starts on a package.
-      const quote = await subscriptions.changeQuote({ ...planTenantQuoteBody(createdCustomer.value, selectedPlan.value, selectedCadence.value), ...(form.onboarding ? { onboarding: true } : {}) })
-      await subscriptions.placeOrder({ quote_id: quote.id, expected_subscription_revision: 0, idempotency_key: crypto.randomUUID() })
+      const signature = JSON.stringify([selectedPlan.value.id, form.cadence, form.onboarding])
+      if (heldOrder.value?.signature !== signature) {
+        const quote = await subscriptions.changeQuote({ ...planTenantQuoteBody(createdCustomer.value, selectedPlan.value, selectedCadence.value), ...(form.onboarding ? { onboarding: true } : {}) })
+        heldOrder.value = { signature, quoteId: quote.id, idempotencyKey: crypto.randomUUID() }
+      }
+      try {
+        await subscriptions.placeOrder({ quote_id: heldOrder.value.quoteId, expected_subscription_revision: 0, idempotency_key: heldOrder.value.idempotencyKey })
+      } catch (cause) {
+        if (!orderOutcomeUnknown(cause)) heldOrder.value = null
+        throw cause
+      }
       submitted.value = true
       await navigateTo(`/customers/${encodeURIComponent(createdCustomer.value)}`)
       return

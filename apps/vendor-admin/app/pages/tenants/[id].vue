@@ -10,7 +10,7 @@ const { data, error, pending, refresh } = await useVendorTenant(id)
 const tab = computed(() => clientTab(route.query.tab, TENANT_TABS))
 const tabs = computed(() => clientTabItems(TENANT_TABS, tab.value, route, key => t(`vendor.clientTabs.${key}`), 'tenant-tab'))
 const operationsDirty = ref(false)
-const progress = useWorkspaceProvisioning(id, () => tab.value !== 'operations')
+const progress = useWorkspaceProvisioning(id, () => tab.value !== 'operations' && data.value?.status !== 'deleted')
 </script>
 
 <template>

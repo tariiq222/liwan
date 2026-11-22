@@ -13,7 +13,7 @@ const props = withDefaults(defineProps<{
   disabled?: boolean
   backTo: string
   refresh?: () => Promise<OperationRequest>
-  save: (body: RequestFormPayload) => Promise<OperationRequest>
+  save: (body: RequestFormPayload, options?: { submitAfter?: boolean }) => Promise<OperationRequest>
 }>(), { processes: () => [] })
 const emit = defineEmits<{ saved: [record: OperationRequest] }>()
 const { t } = useI18n()
@@ -51,7 +51,14 @@ function fieldError(field: string) {
 }
 const processDisabled = computed(() => !hydrated.value || pending.value || props.disabled || props.loading || !!props.processError)
 const blocked = computed(() => processDisabled.value || (needsTarget.value && (targetSearch.value !== targetQuery.value || targets.isPending.value || !!targets.error.value)))
-async function submit() {
+// Creating a request always left a draft, and sending it took a second visit to the record. The second button says
+// what it does in the label, so one confirm is enough.
+const submitAfter = ref(false)
+// The form's submit event and the «create and submit» button are two entry points: the event is not a boolean.
+async function submit() { await runSave(false) }
+async function submitAndSend() { await runSave(true) }
+async function runSave(submitNow: boolean) {
+  submitAfter.value = submitNow
   if (blocked.value) return
   attempted.value = true
   if (Object.keys(formErrors.value).length) return
@@ -61,7 +68,7 @@ async function submit() {
       const body: RequestFormPayload = { name: name.value.trim(), description: description.value }
       if (props.record) body.revision = acceptedRevision.value
       else { body.process_id = processId.value; if (needsTarget.value) body.target_id = targetId.value }
-      const record = await props.save(body)
+      const record = await props.save(body, { submitAfter: submitAfter.value })
       acceptedRevision.value = record.revision
       baseline.value = snapshot()
       await nextTick()
@@ -102,6 +109,7 @@ async function reload() {
     <UAlert v-if="processError || (needsTarget && targets.error.value) || error" role="alert" color="error" variant="subtle" :title="t(`operations.errors.${operationErrorKey(error ?? processError ?? targets.error.value)}`)"><template v-if="refresh && operationErrorKey(error) === 'conflict'" #actions><UButton color="neutral" variant="outline" :disabled="!hydrated || pending" :label="t('operations.refresh')" @click="requestReload" /></template></UAlert>
     <SharedInlineConfirm v-if="reloadRequested" :title="t('operations.reloadDraft')" :description="t('operations.reloadDraftHelp')" :confirm-label="t('operations.refresh')" color="warning" :disabled="!hydrated || pending" :pending="pending" @confirm="reload" @cancel="reloadRequested = false" />
     <UAlert v-else-if="!record && !loading && !processes.length" color="warning" :title="t('operations.noPublishedProcesses')" />
-    <SharedFormActions><div class="ms-auto flex flex-wrap gap-2"><UButton type="button" color="neutral" variant="outline" :to="backTo" :disabled="!hydrated || pending" :label="t('operations.cancel')" /><UButton type="submit" :disabled="blocked" :loading="pending" :label="t(record ? 'operations.save' : 'operations.create')" /></div></SharedFormActions>
+    <SharedFormActions><div class="ms-auto flex flex-wrap gap-2"><UButton type="button" color="neutral" variant="outline" :to="backTo" :disabled="!hydrated || pending" :label="t('operations.cancel')" /><UButton v-if="!record" type="button" color="neutral" variant="outline" :disabled="blocked" :loading="pending" :label="t('operations.createAndSubmit')" data-testid="request-create-and-submit" @click="submitAndSend" />
+          <UButton type="submit" :disabled="blocked" :loading="pending" :label="t(record ? 'operations.save' : 'operations.create')" /></div></SharedFormActions>
   </form>
 </template>

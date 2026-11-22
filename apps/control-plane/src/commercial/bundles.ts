@@ -3,14 +3,14 @@ import type { Pool, PoolClient } from 'pg'
 import { compileEntitlements } from '@liwan/commercial-contracts/server'
 import { AI_ENTITLEMENT_KEYS, bundleViewSchema, bundleCreateSchema, bundleEditSchema, lifecycleActionSchema, type BundleView, type BundleRevision, type CatalogRelease, type PlanRevision, type Price } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
-import { audit, CommercialHttpError, digestOf, iso, lockRevision, nextVersion, pageParams, referenceCount, requireStatus, statusSql, toIssue, type CommercialActor, type Kind } from './lifecycle.js'
+import { audit, CommercialHttpError, customerCountSql, digestOf, iso, lockRevision, nextVersion, pageParams, referenceCount, requireStatus, statusSql, toIssue, type CommercialActor, type Kind } from './lifecycle.js'
 import { getRelease } from './catalog-releases.js'
 
 /** Platform limits no plan, bundle or terms revision sets: capacity the customer chooses, and the AI keys the ledger delivers. */
 export const DERIVED_LIMITS: readonly string[] = ['branches.extra_limit', 'users.limit', 'storage.limit_mb', ...AI_ENTITLEMENT_KEYS]
 export const BUNDLE_KIND: Kind = { table: 'bundle_revisions', parent: 'commercial_bundles', parentCol: 'bundle_id', label: 'bundle' }
 type Row = Record<string, any>
-const FIELDS = 'r.*, (SELECT count(*)::int FROM revision_references x WHERE x.revision_id=r.id) AS customer_count'
+const FIELDS = `r.*, ${customerCountSql("sr.snapshot->'bundle_revision_ids' @> to_jsonb(r.id::text)")}`
 
 export function bundleContent(r: Row) {
   return { id: r.id, bundle_id: r.bundle_id, version: r.version, name: r.name, description: r.description, audience: r.audience,

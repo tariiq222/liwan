@@ -46,7 +46,7 @@ export async function buildRenewalOn(client: PoolClient, sub: Record<string, any
     VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING RETURNING id`, [renewalId,sub.id,start,end])
   if (!inserted.rowCount) return null
   // Never select a newer plan, bundle, policy or terms revision during renewal.
-  const sources = await loadQuoteSources(client, sub.customer_id, snapshot, false)
+  const sources = await loadQuoteSources(client, sub.customer_id, snapshot, snapshot)
   if (!snapshot.terms_revision_id) sources.terms = null
   const policy = (await client.query('SELECT * FROM pricing_policy_revisions WHERE id=$1', [snapshot.policy_revision_id])).rows[0]
   if (!policy) throw new Error('pinned_policy_missing')

@@ -16,6 +16,7 @@
       "operations": "Operations",
       "invoices": "Invoices",
       "billing-settings": "Billing settings",
+      "ai-billing-settings": "AI billing",
       "audit": "Audit",
       "team": "Team",
       "ai-provider": "AI provider"
@@ -26,6 +27,7 @@
       "navigation": "Navigation",
       "openMenu": "Open menu",
       "account": "Account",
+      "listSeparator": ", ",
       "signOut": "Sign out",
       "language": "Language",
       "appearance": "Appearance",
@@ -39,7 +41,6 @@
         "operations": "Technical operations",
         "support": "Support"
       },
-      "signOutFailed": "Could not sign out. Try again.",
       "content": "Content"
     }
   }

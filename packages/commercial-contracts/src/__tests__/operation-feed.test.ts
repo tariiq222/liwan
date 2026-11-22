@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { abandonJobRequestSchema, ABANDONABLE_OPERATIONS, operationFeedSchema, operationListStatusSchema, operationSchema, operationStatusesOf } from '../index.js'
+import { abandonJobRequestSchema, ABANDONABLE_OPERATIONS, RECOVERABLE_OPERATIONS, operationFeedSchema, operationListStatusSchema, operationSchema, operationStatusesOf } from '../index.js'
 
 const shared = {
   source: 'shared', id: '10000000-0000-4000-8000-000000000001', tenant_id: '10000000-0000-4000-8000-000000000002',
@@ -37,4 +37,12 @@ it('requires the job id as the abandon confirmation and nothing else', () => {
 })
 it('lists exactly the operations a stuck job may be abandoned for', () => {
   expect([...ABANDONABLE_OPERATIONS]).toEqual(['backup', 'restore'])
+})
+
+it('carries the operator\'s latest recovery request and lists the operations it reconciles', () => {
+  const stuck = { ...shared, status: 'needs_intervention', stage: 'needs_intervention', reason: 'shared_execution_needs_attention',
+    recovery: { state: 'still_needs_intervention', error: null, requested_at: '2026-11-10T00:00:00.000Z' } }
+  expect(operationFeedSchema.parse(stuck)).toEqual(stuck)
+  expect(operationFeedSchema.safeParse({ ...stuck, recovery: { ...stuck.recovery, state: 'done' } }).success).toBe(false)
+  expect([...RECOVERABLE_OPERATIONS]).toEqual(['provision', 'backup', 'restore'])
 })

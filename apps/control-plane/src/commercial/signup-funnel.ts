@@ -1,6 +1,6 @@
 import type { Pool } from 'pg'
 import type { Analytics } from '@liwan/commercial-contracts'
-import { periodBounds, type Period } from './analytics-model.js'
+import { notOnlyAiTopupSql, periodBounds, type Period } from './analytics-model.js'
 import { creditedMinorSql } from './refund-credit.js'
 
 /** Cohort by signup date and the apps selected at enrollment. Money counts after confirmation and net of full credits. */
@@ -27,7 +27,7 @@ export async function signupFunnel(db: Pick<Pool, 'query'>, period: Period, now:
     ) started ON true
     LEFT JOIN LATERAL (
       SELECT i.paid_at,i.period_end FROM invoices i WHERE i.subscription_id=c.subscription_id
-        AND i.status='paid' AND i.paid_at <= $3 AND i.total_minor > ${creditedMinorSql('i.id')}
+        AND i.status='paid' AND i.paid_at <= $3 AND i.total_minor > ${creditedMinorSql('i.id')} AND ${notOnlyAiTopupSql('i.id')}
       ORDER BY i.paid_at,i.id LIMIT 1
     ) paid ON true
     LEFT JOIN LATERAL (

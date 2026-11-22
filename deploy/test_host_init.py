@@ -23,11 +23,11 @@ from deploy.release.release import SHARED_COMPOSE_FILES
 DEPLOY = Path(__file__).resolve().parent
 HOST_LINK = DEPLOY / 'docker-compose.host-link.yml'
 INIT_HOST = DEPLOY / 'control-plane' / 'init-host.sh'
-TEMPLATE = DEPLOY / 'environments' / 'development.env.example'
+TEMPLATE = DEPLOY / 'environments' / 'staging.env.example'
 BASE_STACK = tuple(name for name in SHARED_COMPOSE_FILES if name != HOST_LINK.name)
 BRIDGE = 'liwan-dbhost'  # the interface name the host firewall rule in the runbook matches
-PROJECT = 'liwan-shared-development'
-RESTORE_DOMAIN = 'dev.example.test'
+PROJECT = 'liwan-shared-staging'
+RESTORE_DOMAIN = 'staging.example.test'
 PRIVATE_FILES = ('control-ca.key', 'control-ca.pem', 'control-tls.key', 'control-tls.crt', 'effect-tls.key',
                  'effect-tls.crt', 'control-db-password')
 
@@ -84,11 +84,11 @@ class InitHost(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        self.root = Path(self.tmp.name).resolve() / 'liwan-development'
+        self.root = Path(self.tmp.name).resolve() / 'liwan-staging'
         self.config, self.state = self.root / 'control/config', self.root / 'control/state'
         self.private, self.registry = self.root / 'control/private', self.root / 'state/registry'
         self.ai_platform = self.state / 'ai-platform'
-        self.env_file = Path(self.tmp.name) / 'development.env'
+        self.env_file = Path(self.tmp.name) / 'staging.env'
         self.env_file.write_text('\n'.join([
             f'LIWAN_CONTROL_CONFIG_DIR={self.config}', f'LIWAN_CONTROL_STATE_DIR={self.state}',
             f'LIWAN_CONTROL_PRIVATE_DIR={self.private}', f'LIWAN_TENANT_REGISTRY_DIR={self.registry}',

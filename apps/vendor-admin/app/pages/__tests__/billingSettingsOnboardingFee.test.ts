@@ -229,6 +229,15 @@ describe('billing settings refund window and reload', () => {
     expect(p.state.busy.value).toBe(false)
   })
 
+  it('does not count a saved record as unsaved when the reload after the save fails', async () => {
+    const p = await page({ reloadFails: true }); p.ready()
+    p.state.draft.bank_account_name = 'Liwan'
+    expect(p.state.dirty.value).toBe(true)
+    await p.state.submit()
+    expect(p.patches()).toHaveLength(1)
+    expect(p.state.dirty.value).toBe(false)
+  })
+
   it('shows the refusal alone when the save itself fails', async () => {
     const p = await page(); p.ready()
     p.request.mockRejectedValueOnce({ statusCode: 422, data: { code: 'invalid' } })
@@ -262,5 +271,49 @@ describe('billing settings seller identity', () => {
     const p = await page()
     const labels = (await p.rendered()).captured.filter(c => c.name === 'UFormField').map(c => c.props.label)
     expect(labels).toEqual(expect.arrayContaining(['vendor.billingSettings.fields.sellerNameAr', 'vendor.billingSettings.fields.sellerNameEn', 'vendor.billingSettings.fields.sellerAddress']))
+  })
+})
+
+describe('billing settings save feedback', () => {
+  it('does not mark the emptied reason wrong under the success message', async () => {
+    const p = await page(); p.ready()
+    p.state.draft.bank_account_name = 'Liwan'
+    await p.state.submit()
+    expect(p.patches()).toHaveLength(1)
+    expect(p.state.saved.value).toBe(true)
+    expect(p.state.draft.reason).toBe('')
+    expect(p.state.show('reason')).toBeUndefined()
+    const field = (await p.rendered()).captured.find(c => c.name === 'UFormField' && c.props.label === 'vendor.pricing.fields.reason')
+    expect(field?.props.error).toBeUndefined()
+  })
+
+  it('still asks for the reason when a save is attempted without one', async () => {
+    const p = await page()
+    await p.state.submit()
+    expect(p.patches()).toEqual([])
+    expect(p.state.show('reason')).toBe('vendor.pricing.reasonRequired')
+  })
+})
+
+describe('billing settings IBAN', () => {
+  const grouped = 'SA03 8000 0000 6080 1016 7519'
+  it('does not cut a pasted IBAN with spaces in the browser', async () => {
+    const p = await page()
+    const inputs = (await p.rendered()).captured.filter(c => c.name === 'UInput')
+    expect(inputs.filter(c => Number(c.props.maxlength) > 0 && Number(c.props.maxlength) < grouped.length && c.props.modelValue === p.state.draft.bank_iban)).toEqual([])
+  })
+
+  it('accepts the grouped form and sends the compact upper-case IBAN', async () => {
+    const p = await page(); p.ready()
+    p.state.draft.bank_iban = grouped.toLowerCase()
+    expect(p.state.errors.value).not.toHaveProperty('iban')
+    await p.state.submit()
+    expect(p.sent()).toMatchObject({ bank_iban: 'SA0380000000608010167519' })
+  })
+
+  it.each(['SA03 8000 0000 6080 1016 751', 'SA03 8000 0000 6080 1016 7519 1', 'GB82 WEST 1234 5698 7654 32'])('refuses %j after the spaces are removed', async value => {
+    const p = await page(); p.ready()
+    p.state.draft.bank_iban = value
+    expect(p.state.errors.value.iban).toBe('vendor.billingSettings.errors.iban')
   })
 })

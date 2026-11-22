@@ -1,5 +1,6 @@
 // Stub control plane for the vendor admin BFF, which forwards /api/vendor/v1/<p> to /v1/<p>.
-// Read-only fixtures, including the POST quote preview; state-changing requests answer 501.
+// Read-only fixtures, including the POST quote preview; the one state the stub keeps is the catalog versions, whose
+// validate and publish steps it applies (resetCommercial restores them); every other state-changing request answers 501.
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
@@ -9,6 +10,23 @@ const withSavedCard = subscription => (subscription && process.env.LIWAN_MOCK_SA
   ? { ...subscription, auto_renew: { enabled: true, consent_at: '2026-10-01T08:00:00.000Z', payment_method: fixtures.savedCard } }
   : subscription)
 const json = (res, status, body) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)) }
+// The catalog versions as the control plane lists them, newest first; validate (draft -> validated) and publish (validated -> published) move them on.
+let catalogVersions = structuredClone(fixtures.catalogVersions.items)
+export const resetCommercial = () => { catalogVersions = structuredClone(fixtures.catalogVersions.items) }
+const CATALOG_STEP = /^\/v1\/catalog\/([^/]+)\/(validate|publish)$/
+const CATALOG_STEPS = { validate: { from: 'draft', to: 'validated' }, publish: { from: 'validated', to: 'published' } }
+/** POST /v1/catalog/:id/(validate|publish): the control plane's refusals in the order it checks them. */
+function catalogStep(res, [, id, action], { capabilities, body }) {
+  if (capabilities && !capabilities.includes('vendor.catalog.manage')) return json(res, 403, { code: 'forbidden', message: 'Forbidden' })
+  const reason = typeof body?.reason === 'string' ? body.reason.trim() : ''
+  if (reason.length < 3 || reason.length > 1000) return json(res, 422, { code: 'invalid', message: 'Invalid request body', field: 'reason' })
+  const entry = catalogVersions.find(item => item.id === id)
+  if (!entry) return json(res, 404, { code: 'not_found', message: 'Catalog entry not found' })
+  const step = CATALOG_STEPS[action]
+  if (entry.status !== step.from) return json(res, 409, { code: 'conflict', message: 'Catalog transition is unavailable' })
+  entry.status = step.to
+  return json(res, 200, entry)
+}
 const notFound = res => json(res, 404, { code: 'not_found', message: 'Not found' })
 
 // The server-built "today" list: the stub derives it from the fixtures, overdue invoices only for billing callers.
@@ -35,13 +53,33 @@ function page(collection, url, filter = () => true) {
 const q = (url, name) => url.searchParams.get(name) ?? ''
 const byId = (collection, id) => collection.items.find(item => item.id === id)
 
-/** The vendor invoice view: the contract invoice plus its adjustments and the server's refund verdict (a paid invoice is the customer's first payment, inside the 14 days). */
+/**
+ * The vendor invoice view: the contract invoice plus its adjustments and the server's refund verdict (a paid invoice is the
+ * customer's first payment, inside the 14 days). A `change` invoice stands for a later payment: not the first, so the general
+ * refund refuses it; it is paid just now so its window is open whenever the spec runs.
+ */
 const REFUND_WINDOW_DAYS = 14
 function vendorInvoice(invoice) {
   if (!invoice) return invoice
   const paid = invoice.status === 'paid' && invoice.paid_at
-  const until = paid ? `${new Date(Date.parse(invoice.paid_at) + REFUND_WINDOW_DAYS * 86_400_000).toISOString().slice(0, 10)}T23:59:59+03:00` : null
-  return { ...invoice, adjustments: [], refund: { refundable: Boolean(paid), first_payment: Boolean(paid), until, window_days: REFUND_WINDOW_DAYS, locks_subscription: false } }
+  const later = invoice.kind === 'change'
+  const paidAt = later ? Date.now() : Date.parse(invoice.paid_at)
+  const until = paid ? `${new Date(paidAt + REFUND_WINDOW_DAYS * 86_400_000).toISOString().slice(0, 10)}T23:59:59+03:00` : null
+  // An unpaid renewal invoice can be voided unless a customer transfer claim stands in the way (the server's word, never the page's).
+  const unpaidRenewal = invoice.kind === 'renewal' && invoice.status === 'issued'
+  const claimed = invoice.id === CLAIMED_RENEWAL_INVOICE_ID
+  return { ...invoice, adjustments: [], voidable: unpaidRenewal && !claimed, void_block: unpaidRenewal && claimed ? 'transfer_claimed' : null,
+    refund: { refundable: Boolean(paid) && !later, first_payment: Boolean(paid) && !later, until, window_days: REFUND_WINDOW_DAYS, locks_subscription: false } }
+}
+/** Not in the list (the list specs count its rows): unpaid renewal invoices, one voidable and one with a customer transfer claim in the way. */
+const RENEWAL_INVOICE_ID = 'inv-renewal'
+const CLAIMED_RENEWAL_INVOICE_ID = 'inv-renewal-claimed'
+const renewalInvoice = id => ({ ...byId(fixtures.invoices, 'inv-1'), id, kind: 'renewal', order_id: `order-${id}` })
+/** Not in the list (the list specs count its rows): a later payment of an AI top-up alone, opened by its link. */
+const LATER_TOPUP_INVOICE_ID = 'inv-topup'
+const laterTopupInvoice = () => {
+  const base = byId(fixtures.invoices, 'inv-2')
+  return { ...base, id: LATER_TOPUP_INVOICE_ID, kind: 'change', order_id: 'order-alpha-topup', lines: base.lines.map(line => ({ ...line, key: 'ai_topup', kind: 'ai_topup', description: 'AI top-up' })) }
 }
 
 /** Workspace name and owning customer, resolved for display the way the control plane does. */
@@ -99,17 +137,19 @@ function clientRows() {
 }
 
 /** `capabilities` narrows /v1/context to the signed-in account; without it the fixture context is served whole. */
-export function handleCommercial(req, res, url, { capabilities } = {}) {
+export function handleCommercial(req, res, url, { capabilities, body } = {}) {
   const path = url.pathname
   // Quote preview is a read operation transported as POST; it never creates an order.
   if (req.method === 'POST' && path === '/v1/commercial/quotes') return json(res, 200, fixtures.quote), true
+  const step = req.method === 'POST' ? CATALOG_STEP.exec(path) : null
+  if (step) return catalogStep(res, step, { capabilities, body }), true
   if (req.method !== 'GET') return json(res, 501, { code: 'not_implemented', message: 'The stub control plane is read-only' }), true
   const send = body => (body === undefined ? notFound(res) : json(res, 200, body))
   let m
   if (path === '/v1/context') send(capabilities ? { ...fixtures.context, capabilities: fixtures.context.capabilities.filter(name => capabilities.includes(name)) } : fixtures.context)
   else if (path === '/v1/overview') send(fixtures.overview)
   else if (path === '/v1/commercial/attention') send(attention(!capabilities || capabilities.includes('vendor.billing.manage')))
-  else if (path === '/v1/catalog') send(fixtures.catalogVersions)
+  else if (path === '/v1/catalog') send({ items: catalogVersions, total: catalogVersions.length })
   else if (path === '/v1/packages') send({ items: fixtures.catalog.items, total: fixtures.catalog.total })
   else if ((m = /^\/v1\/packages\/([^/]+)$/.exec(path))) send(byId(fixtures.catalog, decodeURIComponent(m[1])))
   else if (path === '/v1/audit') {
@@ -135,7 +175,7 @@ export function handleCommercial(req, res, url, { capabilities } = {}) {
   else if ((m = /^\/v1\/commercial\/subscriptions\/([^/]+)$/.exec(path))) send(withSavedCard(fixtures.subscriptions[m[1]]))
   else if ((m = /^\/v1\/commercial\/subscriptions\/([^/]+)\/(branches|usage)$/.exec(path))) send(fixtures.subscriptionParts[`${m[1]}:${m[2]}`])
   else if (path === '/v1/commercial/invoices') { const listed = page(fixtures.invoices, url, i => (!q(url, 'status') || i.status === q(url, 'status')) && (!q(url, 'customer_id') || i.customer_id === q(url, 'customer_id'))); send({ ...listed, items: listed.items.map(vendorInvoice), summary: invoiceSummary(q(url, 'customer_id')) }) }
-  else if ((m = /^\/v1\/commercial\/invoices\/([^/]+)$/.exec(path))) send(vendorInvoice(byId(fixtures.invoices, m[1])))
+  else if ((m = /^\/v1\/commercial\/invoices\/([^/]+)$/.exec(path))) send(vendorInvoice(m[1] === LATER_TOPUP_INVOICE_ID ? laterTopupInvoice() : [RENEWAL_INVOICE_ID, CLAIMED_RENEWAL_INVOICE_ID].includes(m[1]) ? renewalInvoice(m[1]) : byId(fixtures.invoices, m[1])))
   else if ((m = /^\/v1\/commercial\/orders\/([^/]+)\/payment-attempts$/.exec(path))) send(fixtures.paymentAttempts[decodeURIComponent(m[1])] ?? { items: [], total: 0 })
   else if (path === '/v1/commercial/plans') send(page(fixtures.plans, url, p => (!q(url, 'status') || p.status === q(url, 'status')) && (!q(url, 'q') || p.name.includes(q(url, 'q')))))
   else if ((m = /^\/v1\/commercial\/plans\/([^/]+)$/.exec(path))) send(byId(fixtures.plans, m[1]))
@@ -144,6 +184,7 @@ export function handleCommercial(req, res, url, { capabilities } = {}) {
   else if (path === '/v1/commercial/catalog/releases') send({ items: fixtures.releases, total: fixtures.releases.length })
   // The production order: schema_012 inserts both rows in one statement, so they share created_at and the VAT row sorts
   // first. The plan form must still default to the no-tax policy — that is what this fixture exists to exercise.
+  else if (path === '/v1/commercial/ai-billing-settings') send({ topup_amounts_minor: [2500, 5000, 10000], topup_minimum_minor: 2500, usd_rate: '3.75', trial_allowance_minor: 500, monthly_allowance_minor: 1000 })
   else if (path === '/v1/commercial/policies') send({ items: [fixtures.policy, fixtures.noTaxPolicy], total: 2 })
   else notFound(res)
   return true

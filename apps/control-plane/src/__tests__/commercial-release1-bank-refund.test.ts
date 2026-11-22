@@ -112,12 +112,38 @@ suite('bank transfer (W5)', () => {
 
   it('refuses an amount that does not match the invoice, and a wrong amount is never recorded', async () => {
     const { order, invoice } = await unpaidOrder()
-    for (const amount of [Number(invoice.total_minor) - 1, Number(invoice.total_minor) + 1, 0]) {
+    for (const amount of [Number(invoice.total_minor) - 1, Number(invoice.total_minor) + 1]) {
       await expect(confirmBankTransfer(pool, { invoice_id: invoice.id, operator: 'vendor:7', ...transfer(invoice, { amount }) } as never))
         .rejects.toMatchObject({ status: 422, code: 'transfer_amount_mismatch' })
     }
     expect((await pool.query("SELECT payment_state FROM orders WHERE id=$1", [order.id])).rows[0].payment_state).toBe('awaiting_payment')
     expect((await pool.query('SELECT count(*)::int AS n FROM payment_attempts WHERE order_id=$1', [order.id])).rows[0].n).toBe(0)
+  })
+
+  it('refuses amount 0 as its own invalid field: no issued invoice has a zero total', async () => {
+    const { order, invoice } = await unpaidOrder()
+    expect(Number(invoice.total_minor)).toBeGreaterThan(0)
+    await expect(confirmBankTransfer(pool, { invoice_id: invoice.id, operator: 'vendor:7', ...transfer(invoice, { amount: 0 }) } as never))
+      .rejects.toMatchObject({ status: 422, code: 'invalid_transfer_amount', field: 'amount' })
+    expect((await pool.query('SELECT count(*)::int AS n FROM payment_attempts WHERE order_id=$1', [order.id])).rows[0].n).toBe(0)
+  })
+
+  it('returns the value date as the calendar day it was recorded, on the first answer and on a replay', async () => {
+    const { invoice } = await unpaidOrder()
+    const body = transfer(invoice)
+    const first = await confirmBankTransfer(pool, { invoice_id: invoice.id, operator: 'vendor:7', ...body } as never)
+    expect(first.attempt.value_date).toBe(today)
+    expect((await confirmBankTransfer(pool, { invoice_id: invoice.id, operator: 'vendor:7', ...body } as never)).attempt.value_date).toBe(today)
+  })
+
+  it('answers 409 for one reference recorded for two invoices at the same moment, never a raw unique violation', async () => {
+    const a = await unpaidOrder(), b = await unpaidOrder()
+    const reference = `TRF-RACE-${randomUUID().slice(0, 8)}`
+    const results = await Promise.allSettled([a, b].map(x => confirmBankTransfer(pool, { invoice_id: x.invoice.id, operator: 'vendor:7', ...transfer(x.invoice, { reference }) } as never)))
+    expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1)
+    const failed = results.find(r => r.status === 'rejected') as PromiseRejectedResult
+    expect(failed.reason).toMatchObject({ status: 409, code: 'transfer_reference_in_use' })
+    expect((await pool.query("SELECT count(*)::int AS n FROM payment_attempts WHERE provider='bank_transfer' AND provider_ref=$1", [reference])).rows[0].n).toBe(1)
   })
 
   it('records a second transfer for an order already paid as a duplicate instead of losing the money', async () => {

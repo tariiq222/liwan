@@ -14,8 +14,10 @@ const MESSAGES: Record<number, string> = {
 }
 const status = computed(() => props.error.statusCode ?? 500)
 const message = computed(() => t(MESSAGES[status.value] ?? 'app.error.generic'))
-// "Back to home" would only come back here for an account without access, or while the service is down.
-const showHome = computed(() => ![403, 503].includes(status.value))
+// "Back to home" would only come back here while the service is down, or for an account that holds no role at all;
+// a refused page (an account without the capability) offers it, because the home page is open to every role.
+const { can } = useVendorContextState()
+const showHome = computed(() => status.value !== 503 && (status.value !== 403 || can('vendor.read')))
 useHead(() => ({
   title: `${message.value} · ${t('app.productName')}`,
   htmlAttrs: htmlAttrsFor({ lang: locale.value, dir: localeProperties.value.dir ?? 'rtl' }),

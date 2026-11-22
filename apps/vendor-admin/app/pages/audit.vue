@@ -15,12 +15,14 @@ const pages = computed(() => Math.max(1, Math.ceil((data.value?.total ?? 0) / AU
 function patch(change: Record<string, unknown>) { void router.replace({ path: '/audit', query: { ...route.query, page: undefined, ...change } }) }
 const { data, error, pending, refresh } = await useAsyncData(() => `vendor:audit:${filterKey.value}:${page.value}`, () => request<AuditList>('audit', { query: auditListQuery(filters.value, page.value) }), { watch: [filterKey, page] })
 // The chip names the customer whose log is shown; `api.customer` answers null only for an unknown customer (404), any other failure surfaces as the page error.
-const { data: customer, error: customerError } = await useAsyncData(() => `vendor:audit:customer:${customerId.value ?? ''}`, async () => (customerId.value ? await api.customer(customerId.value) : null), { watch: [customerId] })
+const { data: customer, error: customerError, refresh: refreshCustomer } = await useAsyncData(() => `vendor:audit:customer:${customerId.value ?? ''}`, async () => (customerId.value ? await api.customer(customerId.value) : null), { watch: [customerId] })
 // The text inputs keep what is typed; the URL (the source of truth) follows after a pause so each keystroke does not refetch.
 const search = ref(filters.value.q ?? ''), actor = ref(filters.value.actor ?? '')
 watch(() => filters.value.q, value => { search.value = value ?? '' })
 watch(() => filters.value.actor, value => { actor.value = value ?? '' })
 const patchText = useDebounceFn(() => patch({ q: search.value || undefined, actor: actor.value || undefined }), 300)
+/** The table shows either failure, so its retry repeats both loads. */
+const retry = () => Promise.all([refresh(), refreshCustomer()])
 const items = computed(() => data.value?.items ?? [])
 const filtered = computed(() => auditFilterCount(filters.value) > 0)
 const categoryItems = computed(() => {
@@ -71,7 +73,7 @@ const columns = computed<TableColumn<AuditEvent>[]>(() => [
 
 <p v-if="data" class="text-sm text-muted" data-testid="audit-result-count">{{ t('vendor.pagination.total', { count: data.total }, data.total) }}</p>
 
-<SharedDataTable :rows="items" :columns="columns" row-key="id" :loading="pending" :error="error || customerError" :empty-text="t(filtered ? 'vendor.audit.noResults' : 'vendor.audit.empty')" :caption="t('vendor.audit.title')" @retry="refresh" :page="page" :pages="pages" @update:page="value => patch({ page: value })">
+<SharedDataTable :rows="items" :columns="columns" row-key="id" :loading="pending" :error="error || customerError" :empty-text="t(filtered ? 'vendor.audit.noResults' : 'vendor.audit.empty')" :caption="t('vendor.audit.title')" @retry="retry" :page="page" :pages="pages" @update:page="value => patch({ page: value })">
   <template #when-cell="{ row: { original: entry } }"><time :datetime="entry.created_at">{{ formatDateTime(entry.created_at) }}</time></template>
   <template #action-cell="{ row: { original: entry } }">{{ actionLabel(entry.action) }}</template>
   <template #actor-cell="{ row: { original: entry } }"><bdi>{{ actorLabel(entry) }}</bdi></template>

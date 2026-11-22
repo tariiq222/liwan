@@ -222,6 +222,31 @@ suite('commercial B1 atomic orders', () => {
     expect(persisted!.status).toBe(201)
     expect((await pool.query('SELECT id FROM commercial_quotes WHERE id=$1',[(persisted!.data as any).id])).rowCount).toBe(1)
   })
+  it('a preview without draft terms prices the applied terms, not the newest ones, and stores nothing', async () => {
+    const id=await customer(), pathname='/v1/commercial/customer-quotes'
+    await createCustomerTerms(pool,{customer_id:id,reason:'Negotiated customer pricing',base_price:{cadence:monthly,amount:money(2000)}},vendor)
+    const input={method:'POST',pathname,search:'',issuer:'commercial-test',actor:7,capabilities:vendor.capabilities,stepUpFresh:true}
+    const result=await routesB(pool,{...input,raw:JSON.stringify({...request(),customer_id:id,preview:true})},new URL(pathname,'http://localhost'))
+    // Nothing is applied yet, so no terms are in force: the newest saved terms (2300 due) are not the "before".
+    expect(result).toMatchObject({status:200,data:{preview:true,due_now:{minor:11500}}})
+    expect((await pool.query('SELECT id FROM commercial_quotes WHERE id=$1',[(result!.data as any).id])).rowCount).toBe(0)
+    expect((await pool.query('SELECT id FROM commercial_quotes WHERE customer_id=$1',[id])).rowCount).toBe(0)
+    // Once an order applied under those terms, a newer revision is the draft's business: the "before" still prices the applied ones.
+    const quote=await createQuoteForCustomer(pool,{customer_id:id,request:request()})
+    const {order}=await acceptQuote(pool,accept(quote),vendor)
+    await pool.query("UPDATE subscriptions SET applied_revision_id=target_revision_id,target_revision_id=NULL,state='active',revision=revision+1 WHERE id=$1",[order.subscription_id])
+    await createCustomerTerms(pool,{customer_id:id,reason:'A newer negotiation',base_price:{cadence:monthly,amount:money(3000)}},vendor)
+    const sub=(await pool.query('SELECT revision FROM subscriptions WHERE id=$1',[order.subscription_id])).rows[0]
+    const change={...request(),kind:'change',customer_id:id,subscription_id:order.subscription_id,expected_subscription_revision:sub.revision,requested_extra_branches:1}
+    const stored=(await pool.query('SELECT count(*)::int AS n FROM commercial_quotes WHERE customer_id=$1',[id])).rows[0].n
+    const applied=await routesB(pool,{...input,raw:JSON.stringify({...change,preview:true})},new URL(pathname,'http://localhost'))
+    const newest=await routesB(pool,{...input,raw:JSON.stringify(change)},new URL(pathname,'http://localhost'))
+    expect(applied).toMatchObject({status:200,data:{preview:true}})
+    expect((applied!.data as any).terms_revision_id).toBe(quote.terms_revision_id)
+    expect(newest!.status).toBe(201)
+    expect((newest!.data as any).terms_revision_id).not.toBe(quote.terms_revision_id)
+    expect((await pool.query('SELECT count(*)::int AS n FROM commercial_quotes WHERE customer_id=$1',[id])).rows[0].n).toBe(stored+1)
+  })
   it('customer terms only change that customer pricing and are immutable', async () => {
     const a=await customer(),b=await customer()
     const terms=await createCustomerTerms(pool,{customer_id:a,reason:'Negotiated customer pricing',base_price:{cadence:monthly,amount:money(2000)}},vendor)

@@ -2,6 +2,7 @@ import type { Pool } from 'pg'
 import { ATTENTION_LIMIT, attentionItemSchema, attentionSchema } from '@liwan/commercial-contracts'
 import { creditedMinorSql } from './refund-credit.js'
 import { holdsFreeBaseLockSql, owesAtRenewalSql } from './free-base.js'
+import { tenantStatusSql } from './suspension.js'
 
 export const RENEWAL_WINDOW_DAYS = 7
 export const STALLED_HOURS = 24
@@ -40,10 +41,12 @@ const subjectsSql = `WITH latest AS (
   -- definition of "credited" the worker uses (any non-void note, any origin): the figure the provider gave when it is
   -- valid (at most the payment), otherwise any credit at all, or when a later event for the attempt was processed.
   -- A row with no attempt has no invoice to be covered on and stays; no operator action dismisses it.
-  SELECT DISTINCT ON (r.aggregate_id) r.aggregate_id, r.processed_at, r.payload->>'error' AS reason, r.invoice_id,
+  -- money_left tells the two apart: a provider refund event (a payment.intervention row) means the provider already returned the money,
+  -- while a failed reconcile.refund row never got a refund asked of the provider (a row that did is never closed, see handOffAutomaticRefund).
+  SELECT DISTINCT ON (r.aggregate_id) r.aggregate_id, r.processed_at, r.payload->>'error' AS reason, r.invoice_id, r.outbox_kind = 'payment.intervention' AS money_left,
     o.customer_id, COALESCE(c.name, r.aggregate_id) AS name, c.tenant_id
   FROM (
-    SELECT ob.aggregate_id, ob.processed_at, ob.created_at, ob.payload, a.id AS attempt_id, a.invoice_id, n.status AS note_status,
+    SELECT ob.aggregate_id, ob.kind AS outbox_kind, ob.processed_at, ob.created_at, ob.payload, a.id AS attempt_id, a.invoice_id, n.status AS note_status,
       a.amount_minor AS paid_minor,
       CASE WHEN a.currency = ob.payload#>>'{refunded,currency}' AND ob.payload#>>'{refunded,minor}' ~ '^[0-9]{1,15}$'
         THEN (ob.payload#>>'{refunded,minor}')::bigint END AS refunded_minor,
@@ -97,12 +100,14 @@ const subjectsSql = `WITH latest AS (
   -- (trial_ending) until it does, and the paid applications are still writable, so it must not wait unseen.
   SELECT c.id AS customer_id, c.name, c.tenant_id, s.trial_ends_at FROM subscriptions s JOIN customers c ON c.id=s.customer_id
   WHERE s.state='trialing' AND s.applied_revision_id IS NOT NULL AND s.trial_ends_at < now() - make_interval(mins => ${TRIAL_END_OVERDUE_MINUTES})
-), suspension_undelivered AS (
-  SELECT c.id AS customer_id,c.name,c.tenant_id,s.suspension_pending_since,s.tenant_status_failures
+), status_undelivered AS (
+  -- A tenant status Odoo has not confirmed, in either direction: a suspension that did not stop the workspace, or a resume that left it
+  -- stopped while its subscription is active. It is reported once the pushes have failed five times or the wait passed two hours.
+  SELECT c.id AS customer_id,c.name,c.tenant_id,s.tenant_status_pending_since,s.tenant_status_failures,${tenantStatusSql('s')} AS wanted
   FROM subscriptions s JOIN customers c ON c.id=s.customer_id
-  WHERE (s.state='suspended' OR s.manual_suspension) AND s.tenant_status_pushed IS DISTINCT FROM 'suspended'
-    AND s.suspension_pending_since IS NOT NULL
-    AND (s.tenant_status_failures >= 5 OR s.suspension_pending_since <= now() - interval '2 hours')
+  WHERE s.tenant_status_pushed IS DISTINCT FROM ${tenantStatusSql('s')} AND (${tenantStatusSql('s')}='suspended' OR s.tenant_status_pushed='suspended')
+    AND s.tenant_status_pending_since IS NOT NULL
+    AND (s.tenant_status_failures >= 5 OR s.tenant_status_pending_since <= now() - interval '2 hours')
 ), renewing AS (
   SELECT * FROM latest WHERE ${renewalDue}
 ), overdue AS (
@@ -116,6 +121,16 @@ const subjectsSql = `WITH latest AS (
   WHERE op.status IN ('failed','needs_intervention')
     AND NOT EXISTS (SELECT 1 FROM operations later WHERE later.tenant_id=op.tenant_id AND later.created_at>op.created_at AND later.status='succeeded')
   ORDER BY op.tenant_id, op.created_at DESC, op.id
+), failed_jobs AS (
+  -- A job on the shared runtime that is stuck (needs_intervention) or was abandoned (failed), until a later job of the workspace verifies.
+  -- An AI balance push that failed is not listed: it blocks nothing and the periodic sweep re-sends it.
+  SELECT DISTINCT ON (j.control_tenant_id) j.id, j.control_tenant_id AS tenant_id, j.payload->>'operation' AS type,
+    COALESCE(e.created_at, j.created_at) AS at, t.name, c.id AS customer_id
+  FROM shared_jobs j JOIN tenants t ON t.id=j.control_tenant_id LEFT JOIN customers c ON c.tenant_id=j.control_tenant_id
+  LEFT JOIN LATERAL (SELECT created_at FROM shared_job_events WHERE job_id=j.id ORDER BY sequence DESC LIMIT 1) e ON true
+  WHERE j.state IN ('failed','needs_intervention') AND COALESCE(j.payload->'authority'->>'ai_push','') <> 'true'
+    AND NOT EXISTS (SELECT 1 FROM shared_jobs later WHERE later.control_tenant_id=j.control_tenant_id AND later.created_at>j.created_at AND later.state='verified')
+  ORDER BY j.control_tenant_id, j.created_at DESC, j.id
 ), invitation_failures AS (
   -- The latest invitation per tenant and admin login ended as failed (delivery gave up after its retries): nobody holds a
   -- usable link. A later pending or delivered re-issue is the latest row, so it clears the item.
@@ -192,24 +207,28 @@ const subjectsSql = `WITH latest AS (
   ORDER BY a.metadata->>'payment_id', a.created_at DESC
 ), subjects AS (
   SELECT 1 AS rank,'past_due' AS kind, customer_id, tenant_id, NULL::uuid AS operation_id, invoice_id, name, ${iso('due_at')} AS since, NULL::text AS detail, due_at AS sort_at FROM overdue WHERE $3::boolean
-  UNION ALL SELECT 2,'refund_rejected', customer_id, tenant_id, NULL, invoice_id, name, ${iso('processed_at')}, reason, processed_at FROM rejected_refunds WHERE $3::boolean
+  UNION ALL SELECT 2,'refund_rejected', customer_id, tenant_id, NULL, invoice_id, name, ${iso('processed_at')}, reason, processed_at FROM rejected_refunds WHERE money_left AND $3::boolean
+  UNION ALL SELECT 2,'refund_not_sent', customer_id, tenant_id, NULL, invoice_id, name, ${iso('processed_at')}, reason, processed_at FROM rejected_refunds WHERE NOT money_left AND $3::boolean
   UNION ALL SELECT 2,'refund_unrecorded', customer_id, tenant_id, NULL, invoice_id, name, ${iso('created_at')}, reason, created_at FROM unrecorded_refunds WHERE $3::boolean
   UNION ALL SELECT 2,'bank_transfer_claimed', customer_id, tenant_id, NULL, invoice_id, name, ${iso('claimed_at')}, value_date, claimed_at FROM claimed_transfers WHERE $3::boolean
   UNION ALL SELECT 2,'suspension_undelivered', customer_id, tenant_id, NULL, NULL, name,
-    ${iso('suspension_pending_since')}, tenant_status_failures::text, suspension_pending_since FROM suspension_undelivered
+    ${iso('tenant_status_pending_since')}, tenant_status_failures::text, tenant_status_pending_since FROM status_undelivered WHERE wanted='suspended'
+  UNION ALL SELECT 2,'resume_undelivered', customer_id, tenant_id, NULL, NULL, name,
+    ${iso('tenant_status_pending_since')}, tenant_status_failures::text, tenant_status_pending_since FROM status_undelivered WHERE wanted='active'
   UNION ALL SELECT 2,'tenant_deletion_due', customer_id, tenant_id, NULL, NULL, name, ${iso('due_at')}, NULL, due_at FROM deletion_due
   UNION ALL SELECT 2,'tenant_deletion_stuck', customer_id, tenant_id, NULL, NULL, name, ${iso('at')}, code, at FROM deletion_stuck
-  UNION ALL SELECT 2,'form_payment_review', customer_id, tenant_id, NULL, NULL, name, ${iso('at')}, detail, at FROM form_payment_review
-  UNION ALL SELECT 2,'form_payment_review', NULL::uuid, NULL::uuid, NULL, NULL, 'payment provider', ${iso('at')}, detail, at FROM provider_payment_review
+  UNION ALL SELECT 2,'form_payment_review', customer_id, tenant_id, NULL, NULL, name, ${iso('at')}, detail, at FROM form_payment_review WHERE $3::boolean
+  UNION ALL SELECT 2,'form_payment_review', NULL::uuid, NULL::uuid, NULL, NULL, 'payment provider', ${iso('at')}, detail, at FROM provider_payment_review WHERE $3::boolean
   UNION ALL SELECT 3,'billing_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('billing_blocked_at')}, NULL, billing_blocked_at FROM blocked
   UNION ALL SELECT 3,'free_base_blocked', customer_id, tenant_id, NULL, NULL, name, ${iso('armed_at')}, reason, armed_at FROM lock_blocked
   UNION ALL SELECT 3,'trial_end_overdue', customer_id, tenant_id, NULL, NULL, name, ${iso('trial_ends_at')}, NULL, trial_ends_at FROM trial_overdue
   UNION ALL SELECT 3,'renewal_failed', customer_id, tenant_id, NULL, NULL, name, ${iso('renewal_failed_at')}, renewal_failure, renewal_failed_at FROM renewal_failures
-  UNION ALL SELECT 3,'renewal_failed', customer_id, tenant_id, NULL, NULL, name, ${iso('at')}, detail, at FROM charge_refusals
+  UNION ALL SELECT 3,'renewal_failed', customer_id, tenant_id, NULL, NULL, name, ${iso('at')}, detail, at FROM charge_refusals WHERE $3::boolean
   UNION ALL SELECT 4,'stalled_activation', customer_id, tenant_id, NULL, NULL, name, ${iso('order_created_at')}, fulfillment_state, order_created_at FROM stalled
   UNION ALL SELECT 4,'invitation_failed', customer_id, tenant_id, NULL, NULL, name, ${iso('created_at')}, NULL, created_at FROM invitation_failures
   UNION ALL SELECT 4,'notice_failed', customer_id, tenant_id, NULL, NULL, name, ${iso('processed_at')}, reason, processed_at FROM failed_notices
   UNION ALL SELECT 5,'operation_failed', customer_id, tenant_id, id, NULL, name, ${iso('updated_at')}, type, updated_at FROM failed_ops
+  UNION ALL SELECT 5,'shared_operation_failed', customer_id, tenant_id, id, NULL, name, ${iso('at')}, type, at FROM failed_jobs
   UNION ALL SELECT 6,'setup_required', customer_id, tenant_id, NULL, NULL, name, ${iso('customer_created_at')}, NULL, customer_created_at FROM setup
   UNION ALL SELECT 7,'renewal_missed', customer_id, tenant_id, NULL, NULL, name, ${iso(renewalInstant)}, NULL, ${renewalInstant} FROM renewing WHERE renewal_at < ${businessToday}
   UNION ALL SELECT 8,'renewal_soon', customer_id, tenant_id, NULL, NULL, name, ${iso(renewalInstant)}, NULL, ${renewalInstant} FROM renewing WHERE renewal_at >= ${businessToday}
@@ -227,7 +246,7 @@ const countsSql = `SELECT
   (SELECT count(*)::int FROM customers c LEFT JOIN subscriptions s ON s.customer_id=c.id WHERE c.commercial_setup_required OR s.id IS NULL) AS setup_required,
   (SELECT count(*)::int FROM (SELECT s.*, ${renewalSkipped} AS renewal_skipped FROM subscriptions s) s WHERE ${renewalDue}) AS renewals`
 
-/** GET /v1/commercial/attention (vendor.read): a bounded, prioritized list of what needs the vendor today. Overdue invoices are billing detail: only `includeBilling` callers get them. */
+/** GET /v1/commercial/attention (vendor.read): a bounded, prioritized list of what needs the vendor today. Overdue invoices, refunds, claimed transfers, card payment review and saved-card refusals are billing detail: only `includeBilling` callers get them. */
 export async function attention(pool: Pool, includeBilling: boolean) {
   const params = [STALLED_HOURS, RENEWAL_WINDOW_DAYS, includeBilling]
   const [list, counts] = await Promise.all([

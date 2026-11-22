@@ -18,13 +18,19 @@ const NAMED_SUBJECTS = `SELECT id::text FROM customers WHERE name ILIKE $N
   UNION SELECT id::text FROM bundle_revisions WHERE name ILIKE $N
   UNION SELECT 'account:' || id FROM vendor_accounts WHERE display_name ILIKE $N`
 const NAMED_ACCOUNTS = `SELECT 'account:' || id FROM vendor_accounts WHERE display_name ILIKE $N`
-// A customer's records: itself, its workspace, subscriptions, orders and the shared jobs of its workspace.
+// A customer's records: itself, its workspace, subscriptions, orders, invoices and their adjustments, and the shared jobs
+// (by job id and by the request id the backup audit rows use), backups and restore approvals of its workspace.
 const CUSTOMER_SUBJECTS = `SELECT $N::text
   UNION SELECT tenant_id::text FROM customers WHERE id = ($N::text)::uuid AND tenant_id IS NOT NULL
   UNION SELECT id::text FROM subscriptions WHERE customer_id = ($N::text)::uuid
   UNION SELECT tenant_id::text FROM subscriptions WHERE customer_id = ($N::text)::uuid AND tenant_id IS NOT NULL
   UNION SELECT id::text FROM orders WHERE customer_id = ($N::text)::uuid
-  UNION SELECT j.id::text FROM shared_jobs j JOIN customers c ON c.tenant_id = j.control_tenant_id WHERE c.id = ($N::text)::uuid`
+  UNION SELECT id::text FROM invoices WHERE customer_id = ($N::text)::uuid
+  UNION SELECT id::text FROM invoice_adjustments WHERE customer_id = ($N::text)::uuid
+  UNION SELECT j.id::text FROM shared_jobs j JOIN customers c ON c.tenant_id = j.control_tenant_id WHERE c.id = ($N::text)::uuid
+  UNION SELECT j.payload->>'requestId' FROM shared_jobs j JOIN customers c ON c.tenant_id = j.control_tenant_id WHERE c.id = ($N::text)::uuid
+  UNION SELECT b.id::text FROM shared_backups b JOIN customers c ON c.tenant_id = b.control_tenant_id WHERE c.id = ($N::text)::uuid
+  UNION SELECT a.id::text FROM shared_restore_approvals a JOIN customers c ON c.tenant_id = a.control_tenant_id WHERE c.id = ($N::text)::uuid`
 
 function filters(query: AuditListQuery): { where: string; params: unknown[] } {
   const params: unknown[] = []

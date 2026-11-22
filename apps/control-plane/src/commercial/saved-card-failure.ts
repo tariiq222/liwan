@@ -4,6 +4,8 @@ import { enqueueBillingNotice } from './billing-notices.js'
 import { classifyDecline, type DeclineKind } from './payment-decline.js'
 import { LIVE_ATTEMPT_STATUSES } from './form-payments.js'
 
+/** The refusal code of an attempt the provider declined as a duplicate transaction; the schedule reads it to stop charging that invoice. */
+export const DUPLICATE_REFUSAL_CODE = 'duplicate_transaction'
 const MESSAGE_MAX = 200
 const CODE_MAX = 8
 
@@ -20,7 +22,7 @@ const DECLINED: Closed = { action: 'payment.saved_card_declined', reason: 'The p
 export async function failSavedCardAttempt(client: Pick<PoolClient, 'query'>, input: { attempt_id: string; message?: string | null; code?: string | null; hard?: boolean; closed?: Closed; metadata?: Record<string, unknown> }): Promise<boolean> {
   const decline: DeclineKind = input.hard ? 'hard' : classifyDecline({ code: input.code, message: input.message })
   // A duplicate says an earlier payment with the same details may exist: the charge is not retried and the vendor looks it up.
-  if (decline === 'duplicate') return refuseSavedCardAttempt(client, { attempt_id: input.attempt_id, code: 'duplicate_transaction' })
+  if (decline === 'duplicate') return refuseSavedCardAttempt(client, { attempt_id: input.attempt_id, code: DUPLICATE_REFUSAL_CODE })
   const attempt = (await client.query(`UPDATE payment_attempts SET status='failed',updated_at=now() WHERE id=$1 AND kind='saved_card' AND status = ANY($2::text[]) RETURNING *`,
     [input.attempt_id, LIVE_ATTEMPT_STATUSES])).rows[0]
   if (!attempt) return false

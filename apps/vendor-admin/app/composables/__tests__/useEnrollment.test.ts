@@ -6,12 +6,12 @@ const CODES = Array.from({ length: 10 }, (_, i) => `code-${String(i).padStart(4,
 const PASSWORD = 'correct horse battery'
 const failure = (statusCode: number, code?: string) => Object.assign(new Error('fetch failed'), { statusCode, data: code ? { code } : undefined })
 
-function setup(overrides: Partial<EnrollmentDeps> = {}, token: string | null = TOKEN) {
+function setup(overrides: Partial<EnrollmentDeps> = {}, token: string | null = TOKEN, passkeyRegistered = false) {
   const events: string[] = []
   const post = vi.fn(async (path: string) => {
     events.push(path)
     switch (path) {
-      case '/api/auth/enroll/invitation': return { email: 'a@example.test', purpose: 'enroll' }
+      case '/api/auth/enroll/invitation': return { email: 'a@example.test', purpose: 'enroll', passkey_registered: passkeyRegistered }
       case '/api/auth/enroll/passkey-options': return { challenge_id: 'c'.repeat(36), options: { challenge: 'x' } }
       case '/api/auth/enroll/totp': return { totp_uri: 'otpauth://totp/LiwanOS%3Aa?secret=JBSWY3DPEHPK3PXP&issuer=LiwanOS', totp_box: 'QUJD' }
       case '/api/auth/enroll/complete': return { recovery_codes: CODES, expires_at: 'x', idle_expires_at: 'y' }
@@ -36,6 +36,15 @@ describe('createEnrollment', () => {
     expect(events[1]).toBe('/api/auth/enroll/invitation')
     expect(enrollment.step.value).toBe('passkey')
     expect(enrollment.email.value).toBe('a@example.test')
+  })
+
+  it('continues at the TOTP step when the link is reopened after the passkey was stored', async () => {
+    const { enrollment, events, register } = setup({}, TOKEN, true)
+    await enrollment.start()
+    expect(enrollment.step.value).toBe('totp')
+    expect(events).toEqual(['take-token', '/api/auth/enroll/invitation', '/api/auth/enroll/totp'])
+    expect(enrollment.totpSecret.value).toBe('JBSW Y3DP EHPK 3PXP')
+    expect(register).not.toHaveBeenCalled()
   })
 
   it('shows the invalid state and sends nothing when the address has no token', async () => {

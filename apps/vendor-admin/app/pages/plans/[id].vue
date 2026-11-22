@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { lifecycleBadge } from '@/utils/vendorCommercial'
+import { isEditable, lifecycleBadge } from '@/utils/vendorCommercial'
 import type { Quote } from '@liwan/commercial-contracts'
 import { cadenceKey, commercialErrorKey, limitLabel, parseCount, quoteRequestBody, type BundleView, type LifecycleAction, type PlanView } from '@/utils/vendorCommercial'
 import { cadenceLabel, formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
@@ -50,7 +50,7 @@ const facts = computed(() => {
     { key: 'customers', label: t('vendor.customers.title'), value: t('vendor.pricing.customers', { count: v.customer_count }, v.customer_count) },
   ]
 })
-const editable = computed(() => view.value?.status === 'draft' && can('vendor.catalog.manage') && can('vendor.pricing.manage'))
+const editable = computed(() => view.value && isEditable(view.value) && can('vendor.catalog.manage') && can('vendor.pricing.manage'))
 const cadenceItems = computed(() => (view.value?.prices ?? []).map(p => ({ value: cadenceKey(p.cadence), label: `${cadenceLabel(p.cadence, t)} · ${formatCommercialMoney(p.amount, locale.value)}` })))
 </script>
 <template>

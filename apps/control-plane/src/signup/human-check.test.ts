@@ -60,7 +60,7 @@ describe('sign-up bot-check configuration', () => {
 
   it('signupFromEnv throws signup_configuration_invalid without the bot-check keys', () => {
     const env = {
-      LIWAN_PUBLIC_SIGNUP: 'true', LIWAN_TENANCY_MODE: 'shared', LIWAN_SIGNUP_PLAN_REVISION_ID: '6f1c3d8e-0000-4000-8000-000000000001',
+      LIWAN_PUBLIC_SIGNUP: 'true', LIWAN_TENANCY_MODE: 'shared', LIWAN_SIGNUP_PLAN_ID: '6f1c3d8e-0000-4000-8000-000000000001',
       LIWAN_SIGNUP_AUTHENTICA_KEY: 'key', LIWAN_SIGNUP_AUTHENTICA_TEMPLATE_ID: '7', LIWAN_MAIL_MODE: 'disabled',
       LIWAN_SIGNUP_LEGAL_BASE_URL: 'https://liwanos.com', LIWAN_SIGNUP_TERMS_VERSION: '2026-11-01',
     }

@@ -26,7 +26,7 @@ const money = { minor: 12345, exponent: 2, currency: 'SAR' }
 const invoice = { id: 'invoice1', order_id: 'order/1', customer_id: 'customer1', status: 'issued', kind: 'initial', total: money, subtotal: money, tax: money, period_start: '2026-10-01', period_end: '2026-11-01', lines: [], adjustments: [],
   refund: { refundable: true, first_payment: true, until: '2026-11-20T23:59:59+03:00', window_days: 14, locks_subscription: false } }
 const creditNote = { id: 'note1', invoice_id: invoice.id, customer_id: 'customer1', kind: 'credit_note', origin: 'system', reason: 'Provisioning failed after payment', amount: money, status: 'pending', created_at: '2026-10-04T12:34:00Z', created_by: 'system', refund_reference: null, refunded_at: null, refunded_by: null, automatic_refund: null, manual_record_allowed: true }
-const plan = { id: 'plan2', name: 'New plan', included_bundle_revision_ids: ['bundle2'], prices: [{ cadence: { unit: 'month', count: 1 }, amount: money }], included_users: 3, included_storage_mb: 5120 }
+const plan = { id: 'plan2', name: 'New plan', included_bundle_revision_ids: ['bundle2'], optional_bundle_revision_ids: [] as string[], trial_days: 0, prices: [{ cadence: { unit: 'month', count: 1 }, amount: money }], included_users: 3, included_storage_mb: 5120 }
 const attempt = { id: 'attempt1', order_id: order.id, invoice_id: invoice.id, status: 'pending', amount: money, created_at: '2026-10-04T12:34:00Z', provider_ref: 'private-provider-reference', redirect_url: 'https://private.example/pay' }
 
 async function page(name: string, options: { path?: string; tab?: string; tenantId?: string; query?: Record<string, string>; grants?: string[]; subscription?: unknown; orderId?: string | null; attempts?: unknown[]; attemptsError?: unknown; attemptsLoading?: boolean; hydrated?: boolean; tenantError?: unknown; adjustments?: unknown[] } = {}) {
@@ -60,7 +60,7 @@ async function page(name: string, options: { path?: string; tab?: string; tenant
     useRoute: () => ({ params: { id: options.tenantId && name.startsWith('tenants/') ? options.tenantId : 'customer1' }, path: options.path ?? '/customers/customer1', query: { returnTo: '/customers?state=active', ...(options.tab ? { tab: options.tab } : {}), ...options.query }, fullPath: '/customers/customer1?returnTo=%2Fcustomers' }),
     useVendorContext: () => ({ sharedOnboardingEnabled: Vue.ref(false), can: (grant: string) => (options.grants ?? ['vendor.read', 'vendor.billing.manage', 'vendor.subscriptions.manage']).includes(grant) }),
     useVendorSubscriptions: () => api, useCopyLink: () => ({ copy: vi.fn(), outcomeFor: () => null }),
-    useVendorCommercial: () => ({ listPlans: async () => ({ items: [plan] }), releases: async () => [] }),
+    useVendorCommercial: () => ({ listPlans: async () => ({ items: [plan] }), listBundles: async () => ({ items: [] }), releases: async () => [] }),
     useVendorApi: () => ({ request: async (path: string) => path === 'catalog' ? { items: [] } : { tenants: 1, available_operations: [] } }),
     useTenantRecentOperations: async () => ({ data: Vue.ref([]), error: Vue.ref(null), pending: Vue.ref(false), refresh: vi.fn() }),
     useWorkspaceProvisioning: () => Vue.reactive({ provisioning: null, error: null, pending: false, loginUrl: null, failed: false, stage: 'pending', pollingPaused: false, refreshNow: vi.fn() }),
@@ -353,6 +353,11 @@ describe('invoice credit notes', () => {
     const request = vi.fn(async () => creditNote)
     await apiWith(request).requestRefund('invoice/1', { reason: '  Customer asked on day 3  ' })
     expect(request).toHaveBeenCalledWith('commercial/invoices/invoice%2F1/refund-request', { method: 'POST', body: { reason: 'Customer asked on day 3' } })
+  })
+  it('sends the void to the invoice route with a trimmed reason and the chosen outcome', async () => {
+    const request = vi.fn(async () => ({}))
+    await apiWith(request).voidRenewalInvoice('invoice/1', { reason: '  Customer will not pay  ', outcome: 'end' })
+    expect(request).toHaveBeenCalledWith('commercial/invoices/invoice%2F1/void', { method: 'POST', body: { reason: 'Customer will not pay', outcome: 'end' } })
   })
   it('sends the refund to the adjustment route with trimmed text', async () => {
     const request = vi.fn(async () => creditNote)

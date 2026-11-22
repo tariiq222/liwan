@@ -8,6 +8,7 @@ const failure = (statusCode: number) => Object.assign(new Error('fetch failed'),
 describe('useAdminSession', () => {
   const fetcher = vi.fn()
   const navigateTo = vi.fn()
+  const clearNuxtData = vi.fn()
   let states: Map<string, ReturnType<typeof ref>>
 
   beforeEach(() => {
@@ -19,8 +20,9 @@ describe('useAdminSession', () => {
     vi.stubGlobal('useRequestFetch', () => fetcher)
     vi.stubGlobal('$fetch', fetcher)
     vi.stubGlobal('navigateTo', navigateTo)
+    vi.stubGlobal('clearNuxtData', clearNuxtData)
   })
-  afterEach(() => { vi.unstubAllGlobals(); fetcher.mockReset(); navigateTo.mockReset() })
+  afterEach(() => { vi.unstubAllGlobals(); fetcher.mockReset(); navigateTo.mockReset(); clearNuxtData.mockReset() })
 
   it('loads the profile once for every caller and answers can()', async () => {
     fetcher.mockResolvedValue(profile)
@@ -73,12 +75,21 @@ describe('useAdminSession', () => {
     expect(navigateTo).toHaveBeenCalledWith('/login')
   })
 
-  it('keeps the profile and stays on the page when the logout fails', async () => {
+  it('clears the cached page data of the signed-out account', async () => {
+    fetcher.mockResolvedValueOnce(profile).mockResolvedValueOnce(undefined)
+    const session = useAdminSession()
+    await session.ready
+    await session.signOut()
+    expect(clearNuxtData).toHaveBeenCalledOnce()
+  })
+
+  it('ends the local session and goes to /login also when the control plane answers 503', async () => {
     fetcher.mockResolvedValueOnce(profile).mockRejectedValueOnce(failure(503))
     const session = useAdminSession()
     await session.ready
-    await expect(session.signOut()).rejects.toMatchObject({ statusCode: 503 })
-    expect(session.me.value).toEqual(profile)
-    expect(navigateTo).not.toHaveBeenCalled()
+    await session.signOut()
+    expect(session.me.value).toBeNull()
+    expect(clearNuxtData).toHaveBeenCalledOnce()
+    expect(navigateTo).toHaveBeenCalledWith('/login')
   })
 })

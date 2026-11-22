@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { PageHeaderTag } from '@liwan/ui/app/utils/pageHeaderTag'
-import { formatDate } from '@liwan/ui/app/utils/formatDate'
+import { formatDate, formatDateTime } from '@liwan/ui/app/utils/formatDate'
 import type { HelpdeskAction } from '@/composables/helpdesk/useHelpdesk'
 import { useHelpdeskAction, useHelpdeskReference, useHelpdeskTicket } from '@/composables/helpdesk/useHelpdesk'
 import { HELPDESK_LIST_PATH } from '@/composables/helpdesk/helpdeskKeys'
@@ -70,6 +70,10 @@ async function run(body: HelpdeskAction) {
   }
 }
 const assignToMe = () => run({ action: 'assign', assignee_id: me.value?.id ?? null })
+// Assigning to a colleague: the record offered «إسناد لي» and «إلغاء الإسناد» only, so a ticket could not be handed
+// to the person who actually owns it. The picker searches people through /api/v1/people.
+const colleagueId = ref<number | null>(null)
+const assignToColleague = () => run({ action: 'assign', assignee_id: colleagueId.value })
 const release = () => run({ action: 'assign', assignee_id: null })
 const setStage = (value: number) => run({ action: 'stage', stage_id: Number(value) })
 const close = () => run({ action: 'close' })
@@ -93,6 +97,10 @@ const reopen = () => run({ action: 'reopen' })
         <USelect v-if="canWrite && !ticket.stage.closed && stageItems.length" :model-value="ticket.stage.id" :items="stageItems" :aria-label="t('helpdesk.record.stage')" :disabled="action.isPending.value" data-testid="helpdesk-stage-move" @update:model-value="setStage" />
         <UButton v-if="canWrite && editable" color="neutral" variant="outline" icon="i-lucide-pencil" :label="t('app.edit')" :to="{ path: `/helpdesk/${ticket.id}/edit`, query: { returnTo: route.fullPath } }" data-testid="helpdesk-edit" />
         <UButton v-if="canAssign && !assignedToMe" color="neutral" variant="outline" icon="i-lucide-user-check" :label="t('helpdesk.record.take')" :loading="action.isPending.value" data-testid="helpdesk-take" @click="assignToMe" />
+        <div v-if="canAssign" class="flex items-center gap-2">
+          <SharedPersonPicker v-model="colleagueId" :aria-label="t('helpdesk.record.assignTo')" class="w-56" data-testid="helpdesk-assignee-picker" />
+          <UButton color="primary" variant="solid" :disabled="!colleagueId || action.isPending.value" :label="t('helpdesk.record.assign')" data-testid="helpdesk-assign-colleague" @click="assignToColleague" />
+        </div>
         <UButton v-if="canAssign && assignedToMe" color="neutral" variant="outline" icon="i-lucide-user-x" :label="t('helpdesk.record.release')" :loading="action.isPending.value" data-testid="helpdesk-release" @click="release" />
         <UButton v-if="canClose && !ticket.stage.closed" icon="i-lucide-check" :label="t('helpdesk.record.close')" :loading="action.isPending.value" data-testid="helpdesk-close" @click="close" />
         <UButton v-if="canClose && ticket.stage.closed" color="neutral" variant="outline" icon="i-lucide-rotate-ccw" :label="t('helpdesk.record.reopen')" :loading="action.isPending.value" data-testid="helpdesk-reopen" @click="reopen" />
@@ -107,8 +115,8 @@ const reopen = () => run({ action: 'reopen' })
         <SharedPropertyRow :label="t('helpdesk.record.type')" :value="ticket.type?.name ?? '—'" />
         <SharedPropertyRow :label="t('helpdesk.record.channel')" :value="ticket.channel?.name ?? '—'" />
         <SharedPropertyRow :label="t('helpdesk.record.created')" :value="formatDate(ticket.created_at)" />
-        <SharedPropertyRow :label="t('helpdesk.record.firstResponse')" :value="ticket.first_response.at ? formatDate(ticket.first_response.at) : t('helpdesk.record.pending')" />
-        <SharedPropertyRow v-if="ticket.sla.deadline" :label="t('helpdesk.record.slaDeadline')" :value="formatDate(ticket.sla.deadline)" />
+        <SharedPropertyRow :label="t('helpdesk.record.firstResponse')" :value="ticket.first_response.at ? formatDateTime(ticket.first_response.at) : t('helpdesk.record.pending')" />
+        <SharedPropertyRow v-if="ticket.sla.deadline" :label="t('helpdesk.record.slaDeadline')" :value="formatDateTime(ticket.sla.deadline)" />
         <SharedPropertyRow v-if="ticket.closed_at" :label="t('helpdesk.record.closedAt')" :value="formatDate(ticket.closed_at)" />
       </SharedRecordSection>
       <HelpdeskOpportunityCard :ticket-id="ticket.id" />

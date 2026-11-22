@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { z } from 'zod'
+import { RECOVERABLE_OPERATIONS } from '@liwan/commercial-contracts'
 import { isTransientDatabaseError, transaction } from '../db.js'
 import { actorLabel } from '../admin-auth/grants.js'
 import { requireJobAuthority } from './job-store.js'
@@ -12,7 +13,7 @@ import type { RegistryActor } from './registry-store.js'
  * `bindJob`. A `reconfigure` job has its own receipt protocol (`subscription-reconfigure.ts`, resumed on every scheduler
  * tick by `recoverInterrupted`), which can write to Odoo, so it is not reconciled by observation here.
  */
-export const RECOVERABLE_OPERATIONS = ['provision', 'backup', 'restore'] as const
+export { RECOVERABLE_OPERATIONS }
 export const isRecoverableOperation = (operation: unknown): operation is typeof RECOVERABLE_OPERATIONS[number] =>
   typeof operation === 'string' && (RECOVERABLE_OPERATIONS as readonly string[]).includes(operation)
 

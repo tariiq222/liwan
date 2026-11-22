@@ -175,11 +175,29 @@ it('keeps absent recovery quarantined without another creation', async () => {
   expect((await recoverSharedJob(f.pool,id,{issuer:'vendor:vendor-account',actorUid:7},'Inspect absent effect',{observe:async()=>({state:'absent'}),applyFenced})).state).toBe('needs_intervention')
   expect(applyFenced).not.toHaveBeenCalled();expect(f.row.receipt).toBeUndefined()
 })
-it('keeps explicit intervention sticky even if a later readback looks verified', async () => {
+it('completes an intervention journal on an operator recovery when the effect is present and verified', async () => {
   const f=fixture();f.row.state='needs_intervention';f.row.attempt_id=id;f.row.journal={schemaVersion:1,job:f.job,attemptId:id,sequence:3,stage:'needs_intervention'}
   const applyFenced=vi.fn()
-  expect((await recoverSharedJob(f.pool,id,{issuer:'vendor:vendor-account',actorUid:7},'Inspect sticky intervention',{observe:async()=>f.present,applyFenced})).state).toBe('needs_intervention')
-  expect(applyFenced).not.toHaveBeenCalled();expect(f.row.receipt).toBeUndefined()
+  expect((await recoverSharedJob(f.pool,id,{issuer:'vendor:vendor-account',actorUid:7},'Recover intervention',{observe:async()=>f.present,applyFenced})).state).toBe('verified')
+  expect(applyFenced).not.toHaveBeenCalled();expect(f.row.state).toBe('verified');expect(f.row.receipt.binding).toEqual(f.job.binding)
+})
+it('keeps an intervention journal on an operator recovery when the effect is absent', async () => {
+  const f=fixture();f.row.state='needs_intervention';f.row.attempt_id=id;f.row.journal={schemaVersion:1,job:f.job,attemptId:id,sequence:3,stage:'needs_intervention'}
+  const applyFenced=vi.fn()
+  expect((await recoverSharedJob(f.pool,id,{issuer:'vendor:vendor-account',actorUid:7},'Recover absent',{observe:async()=>({state:'absent'}),applyFenced})).state).toBe('needs_intervention')
+  expect(applyFenced).not.toHaveBeenCalled();expect(f.row.state).toBe('needs_intervention');expect(f.row.receipt).toBeUndefined()
+})
+it.each(['businessKey','payloadDigest'])('keeps an intervention journal on an operator recovery when the observed %s does not match', async (field) => {
+  const f=fixture();f.row.state='needs_intervention';f.row.attempt_id=id;f.row.journal={schemaVersion:1,job:f.job,attemptId:id,sequence:3,stage:'needs_intervention'}
+  const applyFenced=vi.fn()
+  await expect(recoverSharedJob(f.pool,id,{issuer:'vendor:vendor-account',actorUid:7},'Recover mismatch',{observe:async()=>({...f.present,[field]:field==='payloadDigest'?'b'.repeat(64):'other'}),applyFenced})).rejects.toThrow('effect_identity_mismatch')
+  expect(applyFenced).not.toHaveBeenCalled();expect(f.row.state).toBe('needs_intervention');expect(f.row.receipt).toBeUndefined()
+})
+it('never claims a job in intervention on the automatic worker path', async () => {
+  const f=fixture();f.row.state='needs_intervention';f.row.attempt_id=id;f.row.journal={schemaVersion:1,job:f.job,attemptId:id,sequence:3,stage:'needs_intervention'}
+  const observe=vi.fn(async()=>f.present),applyFenced=vi.fn()
+  await expect(runSharedJob(f.pool,id,{observe,applyFenced})).rejects.toThrow('shared_job_not_claimable')
+  expect(observe).not.toHaveBeenCalled();expect(f.row.state).toBe('needs_intervention');expect(f.row.receipt).toBeUndefined()
 })
 it('rolls back verified event when completion CAS loses ownership', async () => {
   const f = fixture(); f.flags.rejectCompletion = true

@@ -54,11 +54,25 @@ suite('subscription suspension reaches the tenant', () => {
     expect(await alerts()).toHaveLength(0)
     // The clock is trigger-maintained; in the fixture only, inject an old request without moving commercial revision.
     await pool.query('ALTER TABLE subscriptions DISABLE TRIGGER a_track_suspension_delivery')
-    try { await pool.query("UPDATE subscriptions SET suspension_pending_since=now()-interval '2 hours' WHERE id=$1", [s.id]) }
+    try { await pool.query("UPDATE subscriptions SET tenant_status_pending_since=now()-interval '2 hours' WHERE id=$1", [s.id]) }
     finally { await pool.query('ALTER TABLE subscriptions ENABLE TRIGGER a_track_suspension_delivery') }
     expect(await alerts()).toMatchObject([{ detail: '0' }])
     await resumeSubscription(pool, { subscription_id: s.id, reason, actor: '7' })
     expect(await alerts()).toHaveLength(0)
+  })
+
+  it('alerts when a resume does not reach the tenant, with its own kind, and clears once it does', async () => {
+    const s = await subscription('active')
+    await suspendSubscription(pool, { subscription_id: s.id, reason, actor: '7' })
+    expect(await syncTenantStatus(pool, { runner: async () => {} })).toMatchObject({ pushed: [s.id] })
+    await resumeSubscription(pool, { subscription_id: s.id, reason, actor: '7' })
+    expect(await row(s.id)).toMatchObject({ state: 'active', tenant_status_pushed: 'suspended' })
+    const alerts = async () => (await attention(pool, true)).items.filter(item => item.customer_id === s.customer).map(item => item.kind)
+    expect(await alerts()).toEqual([])
+    await pool.query('UPDATE subscriptions SET tenant_status_failures=5 WHERE id=$1', [s.id])
+    expect(await alerts()).toEqual(['resume_undelivered'])
+    expect(await syncTenantStatus(pool, { runner: async () => {} })).toMatchObject({ pushed: [s.id] })
+    expect(await alerts()).toEqual([])
   })
 
   describe('vendor action', () => {

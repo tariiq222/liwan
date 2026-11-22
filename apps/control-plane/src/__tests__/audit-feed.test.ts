@@ -61,7 +61,30 @@ describe.skipIf(!url)('audit filters on PostgreSQL', () => {
     const address = server.address(); if (!address || typeof address === 'string') throw Error('No address')
     origin = `http://127.0.0.1:${address.port}`
   })
-  afterAll(async () => { await pool.query('TRUNCATE audit_events, tenants, customers, vendor_accounts CASCADE'); await new Promise<void>(resolve => server.close(() => resolve())); await pool.end() })
+  afterAll(async () => { await pool.query('DELETE FROM plan_revisions WHERE id=$1', [plan]); await pool.query('TRUNCATE audit_events, tenants, customers, vendor_accounts CASCADE'); await new Promise<void>(resolve => server.close(() => resolve())); await pool.end() })
+
+  it('finds the invoices, adjustments, backups, restore approvals and backup jobs of a customer', async () => {
+    const [invoice, note, backup, approval, requestId] = [randomUUID(), randomUUID(), randomUUID(), randomUUID(), randomUUID()]
+    const rec = randomUUID(), order = randomUUID(), jobId = randomUUID()
+    await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$2,$2,$2,false,1)', [tenant, `t${rec.slice(0, 8)}`])
+    const revision = randomUUID()
+    await pool.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,1,$3,$4)', [revision, subscription, '{}', randomUUID()])
+    await pool.query("INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,payment_state,fulfillment_state,idempotency_key,request_digest,due_now_minor,currency,exponent) VALUES($1,$2,$3,'new',$4,$5,'paid','applied',$6,'d',0,'SAR',2)", [order, customer, subscription, randomUUID(), revision, randomUUID()])
+    await pool.query("INSERT INTO invoices(id,customer_id,subscription_id,order_id,kind,status,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end,due_at) VALUES($1,$2,$3,$4,'initial','paid','SAR',2,100,15,115,'2026-01-01','2026-02-01',now())", [invoice, customer, subscription, order])
+    await pool.query("INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,created_by,origin,cause) VALUES($1,$2,$3,'credit_note','fixture',115,'SAR',2,'test','vendor','vendor_refund')", [note, invoice, customer])
+    await pool.query("INSERT INTO shared_backups(id,control_tenant_id,tenant_id,database_name,filestore,snapshot,database_sha256,filestore_sha256,artifact_path,consistency,created_by) VALUES($1,$2,'t','d','f','{}',$3,$3,'/a','verified','test')", [backup, tenant, 'a'.repeat(64)])
+    await pool.query("INSERT INTO shared_restore_approvals(id,backup_id,control_tenant_id,target_database,reason,expires_at) VALUES($1,$2,$3,'target','r',now()+interval '1 hour')", [approval, backup, tenant])
+    await pool.query("INSERT INTO shared_jobs(id,control_tenant_id,business_key,payload,payload_digest,issuer,actor_uid,reason) VALUES($1::uuid,$2,$1::text,$3,$4,'t',7,'r')", [jobId, tenant, { operation: 'backup', requestId }, 'a'.repeat(64)])
+    const subjects = { 'invoice.refund_requested': invoice, 'invoice.credit_refunded': note, 'shared_backup.verified': backup, 'shared_restore.approved': approval, 'shared_odoo_backup.verified': requestId }
+    for (const [action, subject] of Object.entries(subjects)) await event('operator', action, subject, `customer ${action}`, '2026-10-11T08:00:00Z')
+    try {
+      expect((await ids({ customer_id: customer, from: '2026-10-11', to: '2026-10-11' })).sort()).toEqual(Object.keys(subjects).map(action => `customer ${action}`).sort())
+      expect(await ids({ customer_id: otherCustomer, from: '2026-10-11', to: '2026-10-11' })).toEqual([])
+    } finally {
+      await pool.query("DELETE FROM audit_events WHERE created_at='2026-10-11T08:00:00Z'")
+      await pool.query('TRUNCATE shared_jobs, shared_restore_approvals, shared_backups, invoice_adjustments, invoices, orders, shared_registry_bindings CASCADE')
+    }
+  })
 
   it('lists newest first, valid against the contract, with resolved names', async () => {
     const result = auditListSchema.parse(await listAudit(pool, {}))

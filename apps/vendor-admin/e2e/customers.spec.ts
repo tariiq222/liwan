@@ -1,5 +1,31 @@
-import { expect, test } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+import { expect, test, type Page } from '@playwright/test'
 import { expectNoSecondH1, fitsWidth, login, mobileRows, navigateClient, open, rows } from './commercial-helpers'
+
+const fixtures = JSON.parse(readFileSync(new URL('./commercial-fixtures.json', import.meta.url), 'utf8'))
+const GROWTH = fixtures.plans.items[0]
+const CORE_BUNDLE = fixtures.bundles.items[0]
+const OPTIONAL_BUNDLE = { ...fixtures.bundles.items[1], status: 'published', name: 'حزمة الموارد' }
+// A plan with no trial (a vendor-placed first order never starts one) and the published bundles it offers.
+const PAID_PLAN = { ...GROWTH, trial_days: 0 }
+
+/** Intercepts what the change page reads and writes, so the specs see the exact bodies the console sends. */
+async function mockOrderFlow(page: Page, plans: unknown[], orderAnswers: { status: number; body: object }[]) {
+  const quotes: Record<string, unknown>[] = []; const orders: Record<string, unknown>[] = []
+  await page.route('**/api/vendor/v1/commercial/plans?**', route => route.fulfill({ json: { items: plans, total: plans.length } }))
+  await page.route('**/api/vendor/v1/commercial/bundles?**', route => route.fulfill({ json: { items: [CORE_BUNDLE, OPTIONAL_BUNDLE], total: 2 } }))
+  await page.route('**/api/vendor/v1/commercial/customer-quotes', async (route) => {
+    quotes.push(route.request().postDataJSON())
+    await route.fulfill({ json: { ...fixtures.quote, id: `quote-${quotes.length}`, preview: false } })
+  })
+  await page.route('**/api/vendor/v1/commercial/orders', async (route) => {
+    orders.push(route.request().postDataJSON())
+    const answer = orderAnswers[Math.min(orders.length, orderAnswers.length) - 1]!
+    await route.fulfill({ status: answer.status, json: answer.body })
+  })
+  return { quotes, orders }
+}
+const pick = async (page: Page, name: string, option: string) => { await page.getByRole('combobox', { name }).click(); await page.getByRole('option', { name: option }).click() }
 
 test.describe('Plan 6e: vendor customers', () => {
   test.beforeEach(async ({ page }) => { await login(page) })
@@ -120,6 +146,51 @@ test.describe('Plan 6e: vendor customers', () => {
         }
       })
     }
+
+    test('a customer with no subscription starts a paid one from its own page and a retry keeps the same order key', async ({ page }) => {
+      const { quotes, orders } = await mockOrderFlow(page, [PAID_PLAN], [{ status: 503, body: { code: 'vendor_unavailable', message: 'down' } }, { status: 200, body: { id: 'order-1' } }])
+      await open(page, '/customers/cust-gamma?tab=subscription')
+      await page.getByTestId('start-first-subscription').click()
+      await expect(page).toHaveURL(/\/customers\/cust-gamma\/change/)
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText('ابدأ اشتراكًا مدفوعًا')
+      await pick(page, 'الباقة', 'باقة النمو')
+      await pick(page, 'دورة الفوترة', 'شهري')
+      await page.getByLabel('حزمة الموارد').check()
+      await page.getByTestId('paid-users').fill('5')
+      await page.getByTestId('paid-storage').fill('2')
+      await page.getByTestId('onboarding-choice').check()
+      await page.getByRole('button', { name: 'احسب السعر' }).click()
+      await expect(page.locator('[data-slot="invoice-lines"]')).toBeVisible()
+      expect(quotes).toHaveLength(1)
+      expect(quotes[0]).toMatchObject({ customer_id: 'cust-gamma', kind: 'new', plan_revision_id: GROWTH.id, expected_subscription_revision: 0, bundle_revision_ids: [CORE_BUNDLE.id, OPTIONAL_BUNDLE.id], requested_users: 15, requested_storage_mb: 12288, onboarding: true })
+      expect(quotes[0]).not.toHaveProperty('subscription_id')
+      await page.getByRole('button', { name: 'تأكيد الطلب' }).click()
+      await expect.poll(() => orders.length).toBe(1)
+      await expect(page.getByRole('button', { name: 'تأكيد الطلب' })).toBeEnabled()
+      await page.getByRole('button', { name: 'تأكيد الطلب' }).click()
+      await expect.poll(() => orders.length).toBe(2)
+      expect(orders[1]).toEqual(orders[0])
+      expect(orders[0]).toMatchObject({ quote_id: 'quote-1', expected_subscription_revision: 0 })
+      expect(quotes).toHaveLength(1)
+    })
+
+    test('changing a subscription offers cadence, bundles, users and storage and sends only the new plan\'s bundles', async ({ page }) => {
+      const { quotes } = await mockOrderFlow(page, [{ ...GROWTH, trial_days: 0, optional_bundle_revision_ids: [OPTIONAL_BUNDLE.id] }, { ...GROWTH, id: '00000000-0000-4000-8000-000000000012', name: 'باقة أخرى', trial_days: 0, included_bundle_revision_ids: [], optional_bundle_revision_ids: [] }], [])
+      await open(page, '/customers/cust-alpha')
+      await navigateClient(page, '/customers/cust-alpha/change')
+      await expect(page.getByTestId('optional-bundles')).toBeVisible()
+      await expect(page.getByRole('combobox', { name: 'دورة الفوترة' })).toBeVisible()
+      await pick(page, 'دورة الفوترة', 'سنوي')
+      await page.getByLabel('حزمة الموارد').check()
+      await page.getByTestId('paid-users').fill('3')
+      await page.getByRole('button', { name: 'احسب السعر' }).click()
+      await expect(page.locator('[data-slot="invoice-lines"]')).toBeVisible()
+      expect(quotes[0]).toMatchObject({ kind: 'change', subscription_id: 'sub-alpha', cadence: { unit: 'year', count: 1 }, bundle_revision_ids: [CORE_BUNDLE.id, OPTIONAL_BUNDLE.id], requested_users: 13 })
+      await pick(page, 'الباقة', 'باقة أخرى')
+      await page.getByRole('button', { name: 'احسب السعر' }).click()
+      await expect.poll(() => quotes.length).toBe(2)
+      expect(quotes[1]).toMatchObject({ plan_revision_id: '00000000-0000-4000-8000-000000000012', bundle_revision_ids: [] })
+    })
 
     test('the change and terms pages still open as children of the record', async ({ page }) => {
       await open(page, '/customers/cust-alpha/change')

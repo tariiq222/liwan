@@ -59,9 +59,8 @@ export async function keptAtTrialEnd(client: Pick<PoolClient, 'query'>, input: {
   subscription: Record<string, any>; snapshot: Record<string, any>; start: string; cutoff: Date; forceEmpty?: boolean; paidAfter?: string
 }) {
   const { subscription, snapshot, start, cutoff } = input
-  const sources = await loadQuoteSources(client, subscription.customer_id, {
-    plan_revision_id: snapshot.plan_revision_id, bundle_revision_ids: snapshot.bundle_revision_ids, terms_revision_id: snapshot.terms_revision_id,
-  }, false)
+  const pinned = { plan_revision_id: snapshot.plan_revision_id, bundle_revision_ids: snapshot.bundle_revision_ids }
+  const sources = await loadQuoteSources(client, subscription.customer_id, { ...pinned, terms_revision_id: snapshot.terms_revision_id }, pinned)
   if (!snapshot.terms_revision_id) sources.terms = null
   sources.release = await loadRelease(client, snapshot.entitlement.catalog_release_id)
   const { plan } = sources

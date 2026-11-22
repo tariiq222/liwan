@@ -12,6 +12,12 @@ export function isTransientDatabaseError(error: unknown): boolean {
   )
 }
 
+/** PostgreSQL rolled the transaction back because a concurrent one conflicted with it (deadlock 40P01, serialization failure 40001): nothing was written and the same request may be sent again. */
+export function isConcurrencyAbort(error: unknown): boolean {
+  const code = (error as { code?: unknown } | null)?.code
+  return code === '40P01' || code === '40001'
+}
+
 export function attachPoolErrorHandler(pool: Pool, onError: (error: Error) => void = () => {
   console.error('[control-plane] database pool connection error')
 }): void {
