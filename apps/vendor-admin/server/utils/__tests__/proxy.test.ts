@@ -252,6 +252,20 @@ describe('vendor API proxy', () => {
     expect(calls).toHaveLength(forwarded)
   })
 
+  it('forwards the three stuck automatic refund actions, as a POST only, and nothing near them', async () => {
+    const calls = stubUpstream(() => json(200, {}))
+    for (const action of ['check', 'release', 'record']) expect((await post(`/commercial/invoice-adjustments/a-1/automatic-refund/${action}`)).status, action).toBe(200)
+    expect(calls.map(c => `${c.method} ${c.url.pathname}`)).toEqual(['check', 'release', 'record'].map(action => `POST /v1/commercial/invoice-adjustments/a-1/automatic-refund/${action}`))
+    const forwarded = calls.length
+    for (const method of ['GET', 'PATCH', 'PUT'] as const)
+      expect((await send(proxy, '/api/vendor/v1/commercial/invoice-adjustments/a-1/automatic-refund/release', { method, body: { a: 1 }, headers: cookieHeader() })).status, method).toBe(405)
+    // The refund endpoint of a payment, a bare path and a near miss are never the route.
+    for (const path of ['/commercial/invoice-adjustments/a-1/automatic-refund', '/commercial/invoice-adjustments/a-1/automatic-refund/refund', '/commercial/invoice-adjustments/a-1/automatic-refund/check/x',
+      '/commercial/invoice-adjustments/a-1/automatic-refunds/check', '/commercial/invoice-adjustments/a-1/automatic-refund/force'])
+      expect((await post(path)).status, path).toBe(404)
+    expect(calls).toHaveLength(forwarded)
+  })
+
   it('forwards the void of an unpaid renewal invoice, as a POST only', async () => {
     const calls = stubUpstream(() => json(200, {}))
     expect((await post('/commercial/invoices/inv-1/void')).status).toBe(200)

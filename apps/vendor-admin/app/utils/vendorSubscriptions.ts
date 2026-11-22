@@ -1,5 +1,5 @@
 import type { StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
-import { daysBetween, riyadhDate, subscriptionDisplayState, type Adjustment, type BankTransferClaim, type Cadence, type Invoice, type InvoiceLine, type Money, type Order, type SignupAcceptance, type SubscriptionDisplayState, type SubscriptionView, type VoidBlock, type UsageMetric } from '@liwan/commercial-contracts'
+import { daysBetween, riyadhDate, subscriptionDisplayState, type Adjustment, type BankTransferClaim, type Cadence, type Invoice, type InvoiceLine, type Money, type Order, type RefundRecheck, type SignupAcceptance, type StuckRefund, type SubscriptionDisplayState, type SubscriptionView, type VoidBlock, type UsageMetric } from '@liwan/commercial-contracts'
 import { commercialErrorKey, commercialFailure, CURRENCY, emptyLimit, limitFromDraft, minorToInput, normalizeDigits, parseCount, parseVendorMoneyInput, sar, type LimitDraft } from './vendorCommercial'
 import type { OwnerOnlyAccess } from './ownerOnly'
 import { MB_PER_GB } from './storage'
@@ -15,12 +15,14 @@ export type VendorCustomerList = { items: VendorCustomer[]; total: number }
 /** Whether the owner may still refund this invoice's payment (only the customer's first payment, inside the window), and
  * whether recording its pending refund drops the subscription to the free base. */
 export type VendorRefundability = { refundable: boolean; first_payment: boolean; until: string | null; window_days: number; locks_subscription: boolean }
-/** The refund the system makes through the payment provider for a note the vendor requested; the server sets it only for a card payment. */
-export type VendorAutomaticRefund = { state: 'in_progress' | 'refunded_recording' | 'provider_unverified' | 'done' | 'failed'; reason: string | null }
+/** The refund the system makes through the payment provider for a note the vendor requested; the server sets it only for a card payment. `stuck` is set only while the refund row holds a mark (`refunded_recording`, `provider_unverified`): what the operator needs and the actions the server allows. */
+export type VendorAutomaticRefund = { state: 'in_progress' | 'refunded_recording' | 'provider_unverified' | 'done' | 'failed'; reason: string | null; stuck: StuckRefund | null }
 /** A credit note with what the server allows: `manual_record_allowed` is true only with no automatic refund, or one that failed with no money returned. */
 export type VendorAdjustment = Adjustment & { automatic_refund: VendorAutomaticRefund | null; manual_record_allowed: boolean }
 /** `voidable`: the unpaid renewal invoice can be voided now; `void_block`: why it cannot, when the action applies but is blocked (null with `voidable` false means it does not apply). */
 export type VendorInvoice = Invoice & { customer_name: string; adjustments: VendorAdjustment[]; bank_transfer_claim: BankTransferClaim | null; refund: VendorRefundability; voidable: boolean; void_block: VoidBlock | null }
+/** What a stuck automatic refund action answers: the invoice as it stands now, and the provider's figures when the action read them. */
+export type StuckRefundResult = { invoice: VendorInvoice; provider: RefundRecheck | null }
 export type VendorInvoiceList = { items: VendorInvoice[]; total: number; summary: { outstanding: Money[] } }
 
 // ---- Filters (URL-backed) ----
@@ -163,7 +165,9 @@ export function parseUnitsUsed(text: string): number | null {
 export function refundErrorKey(cause: unknown): string {
   const code = commercialFailure(cause).code
   // The release-1 window rules have their own words: the vendor needs to know which one stopped the refund.
-  return ['credit_note_not_pending', 'refund_reference_in_use', 'refund_window_closed', 'refund_not_first_payment', 'units_used_required', 'ai_topup_used', 'lock_pending', 'fulfillment_pending', 'refund_in_progress', 'ai_topup_refund_mixed_order'].includes(code)
+  return ['credit_note_not_pending', 'refund_reference_in_use', 'refund_window_closed', 'refund_not_first_payment', 'units_used_required', 'ai_topup_used', 'lock_pending', 'fulfillment_pending', 'refund_in_progress', 'ai_topup_refund_mixed_order',
+    'refund_not_stuck', 'provider_status_unverified', 'provider_refund_unavailable', 'provider_refund_amount_unverified', 'provider_refund_partial', 'refund_attempt_too_recent', 'refund_attempt_unavailable',
+    'refund_over_credit', 'refund_not_duplicate', 'refund_note_unavailable'].includes(code)
     ? `vendor.invoices.refund.errors.${code}` : commercialErrorKey(cause)
 }
 

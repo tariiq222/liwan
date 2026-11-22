@@ -7,6 +7,7 @@ import ts from 'typescript'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as subscriptions from '../../utils/vendorSubscriptions'
 import * as ownerOnly from '../../utils/ownerOnly'
+import * as stuckRefund from '../../utils/stuckRefund'
 import * as deletionUtils from '../../utils/vendorDeletion'
 import * as commercial from '../../utils/vendorCommercial'
 import * as clients from '../../utils/vendorClients'
@@ -54,7 +55,7 @@ async function page(name: string, options: { path?: string; tab?: string; tenant
   const bindings = {
     formatBusinessDate, formatBusinessDateTime,
     invoiceStatusBadge, adjustmentStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge, formatCommercialMoney, cadenceLabel,
-    ...subscriptions, ...ownerOnly, ...deletionUtils, ...commercial, ...clients, _defineComponent: Vue.defineComponent, _withAsyncContext: (fn: () => unknown) => [fn(), () => {}],
+    ...subscriptions, ...ownerOnly, ...stuckRefund, ...deletionUtils, ...commercial, ...clients, _defineComponent: Vue.defineComponent, _withAsyncContext: (fn: () => unknown) => [fn(), () => {}],
     computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, reactive: Vue.reactive, onMounted: () => {}, onBeforeUnmount: () => {}, safeReturnTo, sharedTenantLoginUrl: () => null, buildVendorPolicy: () => ({}),
     definePageMeta: () => {}, useHydrated: () => hydrated,
     useI18n: () => ({ t: (key: string) => key, locale: Vue.ref('en') }),

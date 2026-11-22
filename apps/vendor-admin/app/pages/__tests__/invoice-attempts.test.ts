@@ -4,6 +4,7 @@ import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial
 import { mountPage } from '../../__tests__/pageHarness'
 import * as subscriptions from '../../utils/vendorSubscriptions'
 import * as ownerOnly from '../../utils/ownerOnly'
+import * as stuckRefund from '../../utils/stuckRefund'
 import * as vendorCommercial from '../../utils/vendorCommercial'
 import { adjustmentStatusBadge, paymentAttemptBadge } from '../../utils/vendorBadges'
 import { formatBusinessDate, formatBusinessDateTime } from '../../utils/vendorTime'
@@ -19,7 +20,7 @@ const attempt = (n: number, kind: string, providerRef: string | null) => ({ id: 
 async function invoicePage(attempts: unknown[]) {
   const copy = vi.fn()
   const page = await mountPage('invoices/[id].vue', {
-    ...subscriptions, ...ownerOnly, ...vendorCommercial, invoiceStatusBadge, adjustmentStatusBadge, paymentAttemptBadge, formatCommercialMoney, formatBusinessDate, formatBusinessDateTime,
+    ...subscriptions, ...ownerOnly, ...stuckRefund, ...vendorCommercial, invoiceStatusBadge, adjustmentStatusBadge, paymentAttemptBadge, formatCommercialMoney, formatBusinessDate, formatBusinessDateTime,
     useRoute: () => ({ params: { id: 'inv1' }, query: {} }), useVendorContext: () => ({ can: () => true }), useCopyLink: () => ({ copy, outcomeFor: (value: string) => (value === 'copied-ref' ? 'copied' : null) }),
     useVendorSubscriptions: () => ({ invoice: vi.fn(async () => invoice), paymentAttempts: vi.fn(async () => ({ items: attempts, total: attempts.length })) }),
   })

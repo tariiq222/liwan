@@ -9,6 +9,7 @@ import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBad
 import { mountPage } from '../../__tests__/pageHarness'
 import * as subscriptions from '../../utils/vendorSubscriptions'
 import * as ownerOnly from '../../utils/ownerOnly'
+import * as stuckRefund from '../../utils/stuckRefund'
 import * as vendorCommercial from '../../utils/vendorCommercial'
 import { adjustmentStatusBadge, paymentAttemptBadge } from '../../utils/vendorBadges'
 import { formatBusinessDate, formatBusinessDateTime } from '../../utils/vendorTime'
@@ -63,7 +64,7 @@ describe('invoice page print action', () => {
     const invoice = { ...document, customer_name: 'x', refund: { refundable: false, first_payment: false, until: null, window_days: 0, locks_subscription: false }, adjustments: [], bank_transfer_claim: null, ...overrides }
     const api = { invoice: vi.fn(async () => invoice), paymentAttempts: vi.fn(async () => ({ items: [], total: 0 })) }
     const page = await mountPage('invoices/[id].vue', {
-      ...subscriptions, ...ownerOnly, ...vendorCommercial, invoiceStatusBadge, adjustmentStatusBadge, paymentAttemptBadge, formatCommercialMoney: commercial.formatCommercialMoney, formatBusinessDate, formatBusinessDateTime,
+      ...subscriptions, ...ownerOnly, ...stuckRefund, ...vendorCommercial, invoiceStatusBadge, adjustmentStatusBadge, paymentAttemptBadge, formatCommercialMoney: commercial.formatCommercialMoney, formatBusinessDate, formatBusinessDateTime,
       useRoute: () => ({ params: { id: 'inv1' }, query: { returnTo: '/invoices?status=issued' } }), useVendorSubscriptions: () => api, useVendorContext: () => ({ can: () => true }), useCopyLink: () => ({ copy: vi.fn(), outcomeFor: () => null }),
     })
     mounted.push(page)

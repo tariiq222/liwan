@@ -83,6 +83,23 @@ const laterTopupInvoice = () => {
   return { ...base, id: LATER_TOPUP_INVOICE_ID, kind: 'change', order_id: 'order-alpha-topup', lines: base.lines.map(line => ({ ...line, key: 'ai_topup', kind: 'ai_topup', description: 'AI top-up' })) }
 }
 
+/**
+ * Not in the list: a paid first invoice whose vendor-requested automatic refund is stuck, one note per stuck state (the provider's answer
+ * not verified, and the money returned but recorded nowhere because another invoice's note holds the payment id).
+ */
+const STUCK_INVOICE_ID = 'inv-stuck'
+const stuckInvoice = () => {
+  const base = byId(fixtures.invoices, 'inv-2')
+  const note = (id, state, stuck) => ({ id, invoice_id: STUCK_INVOICE_ID, customer_id: base.customer_id, kind: 'credit_note', reason: 'Customer asked for the money back', amount: base.total, status: 'pending', origin: 'vendor',
+    created_at: '2026-11-22T05:00:00Z', created_by: 'vendor:1', refund_reference: null, refunded_at: null, refunded_by: null, manual_record_allowed: false, automatic_refund: { state, reason: 'timeout: refund', stuck } })
+  const window = { since: '2026-11-22T05:00:00.000Z', attempts: 3, next_attempt_at: '2026-11-22T09:00:00.000Z' }
+  return { ...base, id: STUCK_INVOICE_ID, adjustments: [
+    note('note-attempted', 'provider_unverified', { ...window, provider_payment_id: null, conflict: null, actions: ['check', 'release'] }),
+    note('note-returned', 'refunded_recording', { ...window, provider_payment_id: 'pay_e2e_1', actions: ['check', 'record'],
+      conflict: { adjustment_id: 'note-holder', invoice_id: 'inv-1', invoice_number: 'INV-0001', amount: base.total, cause: 'provider_refund', status: 'refunded', refunded_by: 'vendor:9', refunded_at: '2026-11-22T07:00:00.000Z', same_invoice: false } }),
+  ] }
+}
+
 /** The invoice as its customer prints it: the control plane's document read answers the customer's shape (seller copied at issue, no operator text). */
 const SELLER = { legal_name_ar: 'شركة ليوان المحدودة', legal_name_en: 'Liwan Co.', commercial_registration: '1010000000', address: 'طريق العليا\nبرج 4', city: 'الرياض', country: 'السعودية', email: 'billing@liwan.example', phone: '+966110000000' }
 const invoiceDocument = id => ({ ...byId(fixtures.invoices, id), seller: SELLER, credit_notes: [] })
@@ -181,7 +198,7 @@ export function handleCommercial(req, res, url, { capabilities, body } = {}) {
   else if ((m = /^\/v1\/commercial\/subscriptions\/([^/]+)\/(branches|usage)$/.exec(path))) send(fixtures.subscriptionParts[`${m[1]}:${m[2]}`])
   else if (path === '/v1/commercial/invoices') { const listed = page(fixtures.invoices, url, i => (!q(url, 'status') || i.status === q(url, 'status')) && (!q(url, 'customer_id') || i.customer_id === q(url, 'customer_id'))); send({ ...listed, items: listed.items.map(vendorInvoice), summary: invoiceSummary(q(url, 'customer_id')) }) }
   else if ((m = /^\/v1\/commercial\/invoices\/([^/]+)\/document$/.exec(path))) send(invoiceDocument(m[1]))
-  else if ((m = /^\/v1\/commercial\/invoices\/([^/]+)$/.exec(path))) send(vendorInvoice(m[1] === LATER_TOPUP_INVOICE_ID ? laterTopupInvoice() : [RENEWAL_INVOICE_ID, CLAIMED_RENEWAL_INVOICE_ID].includes(m[1]) ? renewalInvoice(m[1]) : byId(fixtures.invoices, m[1])))
+  else if ((m = /^\/v1\/commercial\/invoices\/([^/]+)$/.exec(path))) send(m[1] === STUCK_INVOICE_ID ? { ...vendorInvoice(stuckInvoice()), adjustments: stuckInvoice().adjustments } : vendorInvoice(m[1] === LATER_TOPUP_INVOICE_ID ? laterTopupInvoice() : [RENEWAL_INVOICE_ID, CLAIMED_RENEWAL_INVOICE_ID].includes(m[1]) ? renewalInvoice(m[1]) : byId(fixtures.invoices, m[1])))
   else if ((m = /^\/v1\/commercial\/orders\/([^/]+)\/payment-attempts$/.exec(path))) send(fixtures.paymentAttempts[decodeURIComponent(m[1])] ?? { items: [], total: 0 })
   else if (path === '/v1/commercial/plans') send(page(fixtures.plans, url, p => (!q(url, 'status') || p.status === q(url, 'status')) && (!q(url, 'q') || p.name.includes(q(url, 'q')))))
   else if ((m = /^\/v1\/commercial\/plans\/([^/]+)$/.exec(path))) send(byId(fixtures.plans, m[1]))

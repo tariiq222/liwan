@@ -22,6 +22,8 @@ const ALLOWED = [
   new RegExp(`^/v1/commercial/orders/${SEGMENT}/(cancel|payment-attempts)$`),
   new RegExp(`^/v1/commercial/catalog/releases/${SEGMENT}/default-bundles$`),
   new RegExp(`^/v1/commercial/invoice-adjustments/${SEGMENT}/refund$`),
+  // An automatic refund the worker cannot finish: check it again, release its hold, record the returned money. None of them moves money; the control plane's worker is the only path that does.
+  new RegExp(`^/v1/commercial/invoice-adjustments/${SEGMENT}/automatic-refund/(check|release|record)$`),
   // Release 1 billing: the vendor-editable settings row, and recording a bank transfer against one invoice.
   /^\/v1\/commercial\/billing-settings$/,
   // Vendor-wide AI billing: top-up amounts, the conversion rate and the free allowances.
@@ -88,6 +90,7 @@ const METHOD_BOUND = [
   { pattern: new RegExp(`^/v1/commercial/invoices/${SEGMENT}/document$`), methods: ['GET'] },
   // The audit record of an invoice export (the file itself is built in the browser).
   { pattern: /^\/v1\/commercial\/invoices\/export$/, methods: ['POST'] },
+  { pattern: new RegExp(`^/v1/commercial/invoice-adjustments/${SEGMENT}/automatic-refund/(check|release|record)$`), methods: ['POST'] },
   { pattern: new RegExp(`^/v1/commercial/ai-topups/${SEGMENT}/refund$`), methods: ['POST'] },
   { pattern: /^\/v1\/commercial\/deletion-requests$/, methods: ['GET'] },
   { pattern: new RegExp(`^/v1/commercial/customers/${SEGMENT}/deletion$`), methods: ['GET'] },

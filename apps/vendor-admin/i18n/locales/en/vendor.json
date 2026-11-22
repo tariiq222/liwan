@@ -1959,6 +1959,71 @@
           "failedHint": "Check the provider's dashboard first so the customer is not paid twice. If the money was not returned, return it another way and record the reference below.",
           "done": "Refunded by the system through the payment provider. The reference below is the provider's."
         },
+        "stuck": {
+          "title": "Stuck refund",
+          "hint": "This refund is waiting for the provider's answer or for its own record. These actions never refund money: only the system's refund worker does. Refund only through the provider, never by a bank transfer or by hand.",
+          "since": "Waiting since",
+          "attempts": "Tries",
+          "nextAttempt": "Next try",
+          "paymentId": "Provider payment id",
+          "noPaymentId": "Not known yet",
+          "conflict": {
+            "title": "Another credit note already holds this payment id",
+            "hint": "The money is back, but the provider reference is recorded on another note, so this note cannot take it unchanged.",
+            "invoice": "Invoice",
+            "amount": "Amount",
+            "cause": "Cause",
+            "status": "Status",
+            "by": "Recorded by",
+            "at": "Recorded",
+            "sameInvoice": "On this invoice",
+            "otherInvoice": "On another invoice",
+            "openInvoice": "Open that invoice",
+            "causes": {
+              "vendor_refund": "Vendor refund",
+              "duplicate_payment": "Duplicate payment",
+              "provider_refund": "Provider refund",
+              "payment_after_cancellation": "Payment after cancellation",
+              "automatic_refund": "Automatic refund",
+              "fulfillment_failure": "Fulfilment failure"
+            }
+          },
+          "check": {
+            "action": "Check again now",
+            "statusLabel": "Payment status",
+            "resultTitle": "The provider shows",
+            "refunded": "Refunded so far",
+            "none": "Nothing refunded",
+            "paymentId": "Payment id",
+            "due": "The refund is due now: the worker takes its next step on its next run.",
+            "status": {
+              "pending": "Pending",
+              "succeeded": "Paid",
+              "failed": "Failed",
+              "refunded": "Refunded",
+              "canceled": "Canceled"
+            }
+          },
+          "release": {
+            "action": "Release the hold",
+            "confirmTitle": "Release the hold on this refund",
+            "confirmHint": "The hold lifts only when the provider's answer is definitive, and at least an hour after the refund call. A payment refunded in full is marked returned and recorded. A payment with nothing refunded goes back to the worker, which refunds it through its guarded path or hands the note to the manual form. Refund only through the provider: never refund this payment by a bank transfer or by hand.",
+            "confirm": "Release the hold",
+            "reason": "Reason"
+          },
+          "record": {
+            "action": "Record the returned refund",
+            "confirmTitle": "Record the returned refund",
+            "confirmHint": "The provider already returned this money. Choose how to close the note. Nothing is refunded again.",
+            "resolution": "How to close it",
+            "resolutions": {
+              "record": "Record the refund on this note, under the payment id and a short note id because another note holds the payment id",
+              "already_recorded": "Close this note as void: the other note on this invoice already credits this money"
+            },
+            "confirm": "Confirm",
+            "reason": "Reason"
+          }
+        },
         "dropsToFreeBase": "This is the customer's first payment: recording the refund drops the subscription to the free base at once. Items bought with a later payment stay.",
         "reference": "Provider refund reference",
         "referenceHint": "The refund or payment id shown in the provider's dashboard.",
@@ -2001,6 +2066,16 @@
           "lock_pending": "The subscription is still being moved to the free base. Record the refund again once that finishes.",
           "fulfillment_pending": "This order is still being delivered. Request the refund once the delivery ends.",
           "refund_in_progress": "The system is still refunding this payment through the provider. Wait for the result; the manual form opens only if the provider cannot refund.",
+          "refund_not_stuck": "This refund is no longer stuck, or this action does not apply to its state. The page shows its current state.",
+          "provider_status_unverified": "The provider's answer could not be read or is not for this payment, so nothing was changed. Try again later.",
+          "provider_refund_unavailable": "No payment provider is connected for this payment, so the control plane cannot read it.",
+          "provider_refund_amount_unverified": "The provider says the payment is refunded but gives no usable amount, so the hold stays.",
+          "provider_refund_partial": "The provider shows only part of the payment refunded. The worker keeps asking for the rest, so the hold stays.",
+          "refund_attempt_too_recent": "The refund call was made less than an hour ago and may still land at the provider. Release the hold later.",
+          "refund_attempt_unavailable": "The order of this payment has moved on, so the refund cannot be checked or recorded from here.",
+          "refund_over_credit": "Recording this note would credit more than the invoice's payment. Close it as already recorded instead, if another note credits this money.",
+          "refund_not_duplicate": "The note that holds the payment id is not on this invoice, is not settled, or covers less than this note, so this note cannot be closed as a duplicate.",
+          "refund_note_unavailable": "This credit note is not the pending note of the invoice that was paid, so nothing was recorded.",
           "ai_topup_refund_mixed_order": "This invoice charged more than the AI top-up, so the top-up cannot be refunded on its own."
         }
       },

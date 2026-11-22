@@ -4,6 +4,7 @@ import { adjustmentStatusBadge, paymentAttemptBadge } from '@/utils/vendorBadges
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { commercialErrorKey } from '@/utils/vendorCommercial'
 import { ownerOnlyAccess } from '@/utils/ownerOnly'
+import { showsStuckRefund } from '@/utils/stuckRefund'
 import { aiTopupRefundable, invoiceHasAiTopup, invoicePrintable, invoicesReturnTo, isNotAvailable, parseTransferAmount, parseUnitsUsed, refundErrorKey, refundRequestBlock, transferFormDefaults, validRefundDraft, validRefundReason, validVoidDraft, vendorInvoiceLineViews, voidAction, voidErrorKey, voidReasonKey } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { useCopyLink } from '@/composables/useCopyLink'
@@ -94,6 +95,8 @@ async function requestRefund() {
     try { await Promise.all([refresh(), refreshAttempts()]) } finally { requestBusy.value = false }
   }
 }
+// A stuck automatic refund acts on its own row and reloads the invoice afterwards, success or refusal: the server's state decides what is offered next.
+const reloadInvoice = () => refresh()
 const refundNoteId = ref<string | null>(null)
 const refundReference = ref('')
 const refundReason = ref('')
@@ -186,7 +189,7 @@ const dirty = computed(() => Boolean(requestOpen.value && (requestReason.value.t
 const badge = computed(() => (data.value ? invoiceStatusBadge(data.value.status, 'vendor.invoices.status') : null))
 </script>
 <template>
-<SharedRecordPage :title="data ? (data.number ?? t('vendor.invoices.draftNumber')) : t('vendor.invoices.details')" :back-to="backTo" :loading="pending" :error="unavailable ? undefined : error" @retry="refresh">
+<SharedRecordPage :title="data ? (data.number ?? t('vendor.invoices.draftNumber')) : t('vendor.invoices.details')" :back-to="backTo" :loading="pending" :keep-content="!!data" :error="unavailable ? undefined : error" @retry="refresh">
   <UAlert v-if="unavailable" color="neutral" variant="subtle" icon="i-lucide-clock" :title="t('vendor.invoices.notAvailable')" :description="t('vendor.invoices.notAvailableHint')" />
 
   <template v-if="data && !unavailable && printable" #actions>
@@ -315,6 +318,7 @@ const badge = computed(() => (data.value ? invoiceStatusBadge(data.value.status,
           <UAlert v-else-if="note.automatic_refund?.state === 'failed'" color="warning" variant="subtle" icon="i-lucide-triangle-alert" data-testid="automatic-refund-failed"
             :title="t('vendor.invoices.refund.automatic.failed', { reason: note.automatic_refund.reason ?? '' })" :description="t('vendor.invoices.refund.automatic.failedHint')" />
           <p v-else-if="note.automatic_refund?.state === 'done'" class="text-sm text-muted" data-testid="automatic-refund-done">{{ t('vendor.invoices.refund.automatic.done') }}</p>
+          <VendorStuckRefundActions v-if="showsStuckRefund(note, canBilling)" :note="note" @changed="reloadInvoice" />
           <template v-if="canBilling && note.manual_record_allowed">
             <SharedInlineConfirm v-if="refundNoteId === note.id && canRecordRefund" :title="t('vendor.invoices.refund.title')" :description="recordRefundDescription" :confirm-label="t('vendor.invoices.refund.confirm')" :pending="refundBusy" :disabled="!hydrated || refundBusy || !refundValid" @confirm="recordRefund" @cancel="closeRefund">
               <div class="mt-3 space-y-4">

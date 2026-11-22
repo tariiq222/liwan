@@ -1,7 +1,7 @@
 import { commercialFailure } from '@/utils/vendorCommercial'
 import { normalizeQuoteResponse, withoutDraftTerms } from '@/utils/vendorSubscriptions'
-import type { Attention, TenantDeletionRequest, TenantDeletionRun, Adjustment, BranchSummary, ClientList, Quote, SubscriptionView, UsageSnapshot, CustomerTermsRevision, Order, PaymentAttempt, VoidRenewalOutcome, CustomerInvoice, InvoiceExport } from '@liwan/commercial-contracts'
-import type { AdminLoginChange, AdminLoginPreview, VendorCustomer, VendorInvoice, VendorInvoiceList } from '@/utils/vendorSubscriptions'
+import type { Attention, TenantDeletionRequest, TenantDeletionRun, Adjustment, BranchSummary, ClientList, Quote, SubscriptionView, UsageSnapshot, CustomerTermsRevision, Order, PaymentAttempt, VoidRenewalOutcome, CustomerInvoice, InvoiceExport, ReturnedRefundResolution } from '@liwan/commercial-contracts'
+import type { AdminLoginChange, AdminLoginPreview, StuckRefundResult, VendorCustomer, VendorInvoice, VendorInvoiceList } from '@/utils/vendorSubscriptions'
 
 /** Typed access to the vendor customer / subscription / invoice endpoints (proxy /api/vendor/v1 → /v1). Totals and prices always come from the server. */
 export function useVendorSubscriptions() {
@@ -31,6 +31,12 @@ export function useVendorSubscriptions() {
     invoiceDocument: (id: string) => request<CustomerInvoice>(`commercial/invoices/${seg(id)}/document`),
     /** Records a refund the operator made by hand (a bank transfer, or after the system could not refund); nothing is refunded by this call. */
     refundCreditNote: (id: string, body: { external_reference: string; reason: string }) => request<Adjustment>(`commercial/invoice-adjustments/${seg(id)}/refund`, { method: 'POST', body: { external_reference: body.external_reference.trim(), reason: body.reason.trim() } }),
+    /** Reads the payment of a stuck automatic refund at the provider and makes the row due for the worker. Moves no money. */
+    checkStuckRefund: (noteId: string) => request<StuckRefundResult>(`commercial/invoice-adjustments/${seg(noteId)}/automatic-refund/check`, { method: 'POST', body: {} }),
+    /** Lifts the `attempted` mark of a stuck refund when the provider's answer is definitive; the worker then takes its next step. Moves no money. */
+    releaseRefundHold: (noteId: string, body: { reason: string }) => request<StuckRefundResult>(`commercial/invoice-adjustments/${seg(noteId)}/automatic-refund/release`, { method: 'POST', body: { reason: body.reason.trim() } }),
+    /** Records the refund the provider already returned on its note, or closes the note as a duplicate of one that already credits the money. Moves no money. */
+    recordReturnedRefund: (noteId: string, body: { reason: string; resolution: ReturnedRefundResolution }) => request<StuckRefundResult>(`commercial/invoice-adjustments/${seg(noteId)}/automatic-refund/record`, { method: 'POST', body: { reason: body.reason.trim(), resolution: body.resolution } }),
     /** Asks for the full refund of a paid invoice: a credit note the server creates only for the customer's first payment, inside the window; a card payment is then refunded through the provider by the control plane. An invoice with an AI top-up also states the units already spent. Nothing is refunded by this call. */
     requestRefund: (id: string, body: { reason: string; units_used?: number }) => request<Adjustment>(`commercial/invoices/${seg(id)}/refund-request`, { method: 'POST', body: { reason: body.reason.trim(), ...(body.units_used === undefined ? {} : { units_used: body.units_used }) } }),
     /** Refunds a later AI top-up the general refund refuses: the same credit note, provider refund and ledger lowering, for an unused top-up inside the window; the operator states the units already spent. */
