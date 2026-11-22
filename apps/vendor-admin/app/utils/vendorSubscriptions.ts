@@ -2,6 +2,7 @@ import type { StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
 import { riyadhDate, subscriptionDisplayState, type Adjustment, type BankTransferClaim, type Cadence, type Invoice, type InvoiceLine, type Money, type Order, type SignupAcceptance, type SubscriptionDisplayState, type SubscriptionView, type VoidBlock, type UsageMetric } from '@liwan/commercial-contracts'
 import { commercialErrorKey, commercialFailure, CURRENCY, emptyLimit, limitFromDraft, MB_PER_GB, minorToInput, normalizeDigits, parseCount, parseVendorMoneyInput, sar, type LimitDraft } from './vendorCommercial'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
+import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import { humanizeId } from '@liwan/ui/app/utils/humanizeId'
 import { invoiceLineQuantities, type InvoiceLineView } from '@liwan/commercial-ui/app/utils/invoiceLines'
 
@@ -315,9 +316,9 @@ export function customersReturnTo(value: unknown): string {
   if (typeof value !== 'string' || !value.startsWith('/customers')) return '/customers'
   try { const u = new URL(value, 'http://liwan.local'); return u.pathname.replace(/\/$/, '') === '/customers' ? `${u.pathname}${u.search}` : '/customers' } catch { return '/customers' }
 }
+/** An invoice goes back to the invoice list or to the customer it was opened from (its invoices tab), never to another page or origin. */
 export function invoicesReturnTo(value: unknown): string {
-  if (typeof value !== 'string' || !value.startsWith('/invoices')) return '/invoices'
-  try { const u = new URL(value, 'http://liwan.local'); return u.pathname.replace(/\/$/, '') === '/invoices' ? `${u.pathname}${u.search}` : '/invoices' } catch { return '/invoices' }
+  return safeReturnTo(value, '/invoices', ['/invoices', '/customers'])
 }
 
 /** Cancellation errors remain actionable without displaying provider internals. */

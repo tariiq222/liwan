@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Adjustment, Invoice, Order, SubscriptionView } from '@liwan/commercial-contracts'
 import {
-  customersReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, daysUntilDate, invoiceListQuery, isNotAvailable, isStalled, targetStatus, termsPayload, usageDisplay, usageMetricLabel, lineQuantities, formatBytes, vendorInvoiceLineViews, parseTransferAmount, refundRequestBlock, voidAction, voidErrorKey, voidReasonKey, validVoidDraft, aiTopupRefundable, transferFormDefaults, validRefundDraft, validRefundReason,
+  customersReturnTo, invoicesReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, daysUntilDate, invoiceListQuery, isNotAvailable, isStalled, targetStatus, termsPayload, usageDisplay, usageMetricLabel, lineQuantities, formatBytes, vendorInvoiceLineViews, parseTransferAmount, refundRequestBlock, voidAction, voidErrorKey, voidReasonKey, validVoidDraft, aiTopupRefundable, transferFormDefaults, validRefundDraft, validRefundReason,
   planBundleIds, requestedQuantities, currentPaidQuantities, orderOutcomeUnknown,
   type VendorCustomer, type VendorInvoice, adminLoginErrorKey, cardActionErrorKey, deletionErrorKey,
 } from '../vendorSubscriptions'
@@ -21,6 +21,12 @@ describe('queries', () => {
     expect(customersReturnTo('/customers?q=a&page=2')).toBe('/customers?q=a&page=2')
     expect(customersReturnTo('https://evil.test')).toBe('/customers')
     expect(customersReturnTo('/customers/x')).toBe('/customers')
+  })
+  it('returns an invoice to the invoice list or to the customer it was opened from, never elsewhere', () => {
+    expect(invoicesReturnTo('/invoices?status=paid')).toBe('/invoices?status=paid')
+    expect(invoicesReturnTo('/customers/c1?tab=invoices')).toBe('/customers/c1?tab=invoices')
+    expect(invoicesReturnTo(undefined)).toBe('/invoices')
+    for (const hostile of ['https://evil.test', '//evil.test/customers/c1', '/\\evil.test', '/customersevil', '/customers/../team', '/team']) expect(invoicesReturnTo(hostile), hostile).toBe('/invoices')
   })
 })
 describe('targetStatus', () => {
