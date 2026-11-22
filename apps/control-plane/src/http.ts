@@ -45,7 +45,7 @@ import { clientAddressBucket } from './client-address-bucket.js'
 import { isPublicSiteEndpoint, PUBLIC_CONTACT_BODY_LIMIT, publicSiteHandler } from './public-site/http.js'
 import { promisify } from 'node:util'
 import type { Pool, PoolClient } from 'pg'
-import { abandonJobRequestSchema, auditListQuerySchema, operationListStatusSchema, operationRequestSchema, operationsGrantSchema, operationStatusesOf, reasonRequestSchema, retryRequestSchema, sharedBackupListSchema, sharedRestoreApprovalRequestSchema, tenantCreateSchema, type VendorCapability } from '@liwan/commercial-contracts'
+import { abandonJobRequestSchema, auditListQuerySchema, operationListStatusSchema, operationRequestSchema, operationsGrantSchema, operationStatusesOf, reasonRequestSchema, retryRequestSchema, sharedBackupListSchema, sharedRestoreApprovalRequestSchema, sharedRestoreApprovalSchema, tenantCreateSchema, type VendorCapability } from '@liwan/commercial-contracts'
 import { verifyServiceRequest } from '@liwan/commercial-contracts/server'
 import type { Config } from './config.js'
 import { hasUnresolvedMutation, transaction } from './db.js'
@@ -519,7 +519,7 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
         const runtime=loadSharedRuntimeConfig(config.sharedRuntimeConfigPath)
         if(realProgress){requireCapability(auth,'vendor.read');return respond(res,200,await odooJobProgress(pool,realProgress[1]!,realProgress[2]!))}
         requireCapability(auth,'vendor.operations.run')
-        return respond(res,201,await approveOdooRestore(pool,runtime,{issuer:vendorActorIssuer(config.installationId),actorUid:auth.actor},realApproval![1]!,parseJson(raw,sharedRestoreApprovalRequestSchema)))
+        return respond(res,201,sharedRestoreApprovalSchema.parse(await approveOdooRestore(pool,runtime,{issuer:vendorActorIssuer(config.installationId),actorUid:auth.actor},realApproval![1]!,parseJson(raw,sharedRestoreApprovalRequestSchema))))
       }
       const sharedQueue = pathname.match(new RegExp(`^/v1/shared/tenants/(${UUID})/jobs$`))
       if (method === 'POST' && sharedQueue) {

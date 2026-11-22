@@ -19,7 +19,8 @@ import { publishRegistryMutation } from '../shared/registry-store.js'
 import { runSharedJob } from '../shared/job-worker.js'
 import { createFencedStorageAdapter, ensureTenantStorageSchema, type TenantStorage } from '../shared/fenced-adapter.js'
 import { createSharedOrder, applyPaymentEvent, provisionPaidOrder, reconcilePaidOrder } from '../shared/shared-order.js'
-import { createTenantBackup, approveSharedRestore, restoreBackupToNewTarget } from '../shared/shared-backup.js'
+import { createTenantBackup, restoreBackupToNewTarget } from '../shared/shared-backup.js'
+import { insertRestoreApproval } from './helpers/restore-approval.js'
 import { ensureTenantDatabases, tenantDatabaseNames } from './live-tenant-databases.js'
 import { vendorAccount, replaceRoles } from './helpers/vendor-session.js'
 import { vendorActorIssuer } from '../admin-auth/grants.js'
@@ -98,8 +99,8 @@ else describe('shared SaaS full journey', () => {
     const backup = await createTenantBackup(pool, connect, { controlTenantId: tenantId, backupRoot, createdBy: `${issuer}:7` })
     expect(backup.databaseSha256).toMatch(/^[a-f0-9]{64}$/)
     // 10. Approved restore into the NEW target, consumed once, readback-verified.
-    const approval = await approveSharedRestore(pool, { backupId: backup.backupId, controlTenantId: tenantId, targetDatabase: restoreTarget, ttlSeconds: 3600, actor })
-    const restored = await restoreBackupToNewTarget(pool, connect, { approvalId: approval.approvalId, actor })
+    const approvalId = await insertRestoreApproval(pool, { backupId: backup.backupId, controlTenantId: tenantId, targetDatabase: restoreTarget, actor })
+    const restored = await restoreBackupToNewTarget(pool, connect, { approvalId: approvalId, actor })
     expect(restored.applied).toBe(true)
     const target = await connect(restoreTarget)
     try {
@@ -109,10 +110,8 @@ else describe('shared SaaS full journey', () => {
     } finally { await target.pool.end() }
     // Full audit trail exists for the journey's gated decisions.
     const backupAudit = (await pool.query("SELECT count(*)::int AS count FROM audit_events WHERE action='shared_backup.verified' AND subject=$1", [backup.backupId])).rows[0].count
-    const approvedAudit = (await pool.query("SELECT count(*)::int AS count FROM audit_events WHERE action='shared_restore.approved' AND subject=$1", [approval.approvalId])).rows[0].count
-    const completedAudit = (await pool.query("SELECT count(*)::int AS count FROM audit_events WHERE action='shared_restore.completed' AND subject=$1", [approval.approvalId])).rows[0].count
+    const completedAudit = (await pool.query("SELECT count(*)::int AS count FROM audit_events WHERE action='shared_restore.completed' AND subject=$1", [approvalId])).rows[0].count
     expect(Number(backupAudit)).toBe(1)
-    expect(Number(approvedAudit)).toBe(1)
     expect(Number(completedAudit)).toBe(1)
     console.log('Journey complete: order->payment->provision->backup->restore all gated and audited on live SQL. Synthetic upstream; no real Odoo/ACL/TLS/payment-network claim, not a launch approval.')
   })

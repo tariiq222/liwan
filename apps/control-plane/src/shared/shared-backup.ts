@@ -17,7 +17,7 @@ import { transaction } from '../db.js'
 import type { TenantStorage } from './fenced-adapter.js'
 import { ensureTenantStorageSchema } from './fenced-adapter.js'
 import { REGISTRY_ADVISORY_LOCK } from './registry-store.js'
-import { actorHolds, actorLabel } from '../admin-auth/grants.js'
+import { actorLabel } from '../admin-auth/grants.js'
 
 export type CommercialRestoreRunner = import('./subscription-reconcile.js').ObserveRunner
 export type CommercialRestoreObservation = Awaited<ReturnType<CommercialRestoreRunner>>
@@ -199,29 +199,6 @@ export async function createTenantBackup(pool: Pool, connect: (database: string)
       [randomUUID(), input.createdBy, 'shared_backup.verified', backupId, 'Consistent snapshot verified by readback', { databaseSha256, filestoreSha256 }])
   })
   return { backupId, databaseSha256, filestoreSha256 }
-}
-
-/** Operator approval: one verified backup, one explicit NEW target database,
- * bounded lifetime. Nothing is restored here. */
-export async function approveSharedRestore(pool: Pool, input: { backupId: string; controlTenantId: string; targetDatabase: string; ttlSeconds: number; actor: { issuer: string; actorUid: number } }): Promise<{ approvalId: string }> {
-  z.uuid().parse(input.backupId)
-  z.uuid().parse(input.controlTenantId)
-  z.string().regex(/^[a-z][a-z0-9_]{0,62}$/).parse(input.targetDatabase)
-  if (!Number.isSafeInteger(input.ttlSeconds) || input.ttlSeconds < 60 || input.ttlSeconds > 86400) throw new Error('approval_ttl_invalid')
-  const approvalId = randomUUID()
-  await transaction(pool, async client => {
-    if (!await actorHolds(client, input.actor, ['vendor.operations.run'], true)) throw new Error('shared_restore_forbidden')
-    const backup = await client.query("SELECT control_tenant_id FROM shared_backups WHERE id=$1 AND consistency='verified'", [input.backupId])
-    if (!backup.rowCount || backup.rows[0].control_tenant_id !== input.controlTenantId) throw new Error('backup_unavailable')
-    // The target must not be a live tenant database: registry bindings and
-    // reservations make existing databases ineligible for restore targets.
-    await assertRestoreTargetUnreserved(client, input.targetDatabase)
-    await client.query('INSERT INTO shared_restore_approvals(id,backup_id,control_tenant_id,target_database,reason,expires_at) VALUES($1,$2,$3,$4,$5,clock_timestamp()+($6||\' seconds\')::interval)',
-      [approvalId, input.backupId, input.controlTenantId, input.targetDatabase, 'Approved restore to a new isolated target', input.ttlSeconds])
-    await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
-      [randomUUID(), actorLabel(input.actor), 'shared_restore.approved', approvalId, 'Restore approval granted for a new target', { backupId: input.backupId, targetDatabase: input.targetDatabase }])
-  })
-  return { approvalId }
 }
 
 /** Execute an approved restore into the new target. The target must be

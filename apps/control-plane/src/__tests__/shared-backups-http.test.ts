@@ -1,13 +1,17 @@
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest'
+import { randomUUID } from 'node:crypto'
 import type { Pool } from 'pg'
 import { signMock as signServiceRequest, mockSessionQuery } from './helpers/vendor-session.js'
 import { createApp } from '../http.js'
 import { listSharedBackups } from '../shared/backup-list.js'
+import { approveOdooRestore } from '../shared/odoo-backup.js'
 vi.mock('../shared/backup-list.js', () => ({ listSharedBackups: vi.fn() }))
+vi.mock('../shared/odoo-backup.js', () => ({ approveOdooRestore: vi.fn(), odooJobProgress: vi.fn() }))
+vi.mock('../shared/runtime-config.js', () => ({ loadSharedRuntimeConfig: vi.fn(() => ({ projectName: 'runtime' })) }))
 const key = 'shared-backups-http-synthetic-key-'.repeat(2)
 const tenant = 'ad03d956-efef-4f80-baf3-9c23ea46e945'
 const path = `/v1/shared/tenants/${tenant}/backups`
-const config = { installationId: 'backups-test', key, inventoryPath: '/unused', stateDir: '/unused', repositoryRoot: '/unused', python: 'python3', tenantRegistryPath: '/unused/registry.json' }
+const config = { installationId: 'backups-test', key, inventoryPath: '/unused', stateDir: '/unused', repositoryRoot: '/unused', python: 'python3', tenantRegistryPath: '/unused/registry.json', sharedRuntimeConfigPath: '/unused/runtime.json' }
 let roles = ['support']
 const client = { release() {}, async query(sql: string, params: unknown[] = []) {
   const session = mockSessionQuery(sql, params); if (session) return session
@@ -26,7 +30,7 @@ beforeAll(async () => {
   origin = `http://127.0.0.1:${address.port}`
 })
 afterAll(async () => { vi.unstubAllEnvs(); await new Promise<void>(resolve => server.close(() => resolve())) })
-beforeEach(() => { vi.mocked(listSharedBackups).mockReset(); roles = ['support']; vi.stubEnv('LIWAN_TENANCY_MODE', 'shared') })
+beforeEach(() => { vi.mocked(listSharedBackups).mockReset(); vi.mocked(approveOdooRestore).mockReset(); roles = ['support']; vi.stubEnv('LIWAN_TENANCY_MODE', 'shared') })
 function request(method: string, signedPath = path) {
   return fetch(origin + path, { method, headers: signServiceRequest({ method, path: signedPath, body: '', actor: 7, issuer: config.installationId, key }) })
 }
@@ -58,4 +62,23 @@ it('refuses an account with no vendor role', async () => {
 })
 it('accepts only GET', async () => {
   expect((await request('POST')).status).toBe(404); expect(listSharedBackups).not.toHaveBeenCalled()
+})
+
+const approvalPath = `/v1/shared/tenants/${tenant}/restore-approvals`
+function approve() {
+  const body = JSON.stringify({ backup_id: 'ad03d956-efef-4f80-baf3-9c23ea46e946', reason: 'Restore check' })
+  return fetch(origin + approvalPath, { method: 'POST', body, headers: { ...signServiceRequest({ method: 'POST', path: approvalPath, body, actor: 7, issuer: config.installationId, key }), 'content-type': 'application/json' } })
+}
+it('answers an approval with its id and expiry only', async () => {
+  roles = ['operations']
+  const approval = { approval_id: randomUUID(), expires_at: '2026-11-22T11:00:00.000Z' }
+  vi.mocked(approveOdooRestore).mockResolvedValue(approval)
+  const response = await approve()
+  expect(response.status).toBe(201); expect(await response.json()).toEqual(approval)
+})
+it('never answers an approval that carries more than its id and expiry', async () => {
+  roles = ['operations']
+  vi.mocked(approveOdooRestore).mockResolvedValue({ approval_id: 'ad03d956-efef-4f80-baf3-9c23ea46e947', expires_at: '2026-11-22T11:00:00.000Z', target_database: 'liwan_scratch_x' } as never)
+  const response = await approve()
+  expect(response.status).not.toBe(201); expect(JSON.stringify(await response.json())).not.toContain('liwan_scratch_x')
 })

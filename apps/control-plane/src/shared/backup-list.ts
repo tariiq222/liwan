@@ -5,6 +5,8 @@ import { findBlockingJob } from './job-store.js'
 /** The most backups one listing returns; `total` still counts them all. */
 export const BACKUP_LIST_LIMIT = 100
 
+type StartRefusal = 'operations_unavailable' | 'job_in_progress'
+
 /**
  * What the vendor console may know about a workspace's backups: ids, times, display names and states. Never the artifact
  * path, a digest, a database name or a binding, and never another workspace's rows (every query is scoped to one tenant).
@@ -19,8 +21,6 @@ export const BACKUP_LIST_LIMIT = 100
  * `compose start odoo` and waits for it to be healthy. When release routes are enabled the capture goes through the
  * tenant-only release quiescence instead (`release_backup.py`); the stop of the shared service is the default path.
  */
-type StartRefusal = 'operations_unavailable' | 'job_in_progress'
-
 export async function listSharedBackups(pool: Pool, controlTenantId: string) {
   z.uuid().parse(controlTenantId)
   const tenant = await pool.query("SELECT (commercial_mode='saas' AND operations_enabled) AS operable FROM tenants WHERE id=$1", [controlTenantId])
