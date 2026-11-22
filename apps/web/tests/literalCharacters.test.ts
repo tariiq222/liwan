@@ -35,9 +35,16 @@ function messages(code: 'ar' | 'en'): Message[] {
 }
 
 /** The messages of one file only, so a key another file shadows is still rendered from its own text. */
+const compiled = new Map<string, ReturnType<typeof createI18n>>()
+
 function i18nFor(code: 'ar' | 'en', file: string) {
+  const key = `${code}/${file}`
+  const cached = compiled.get(key)
+  if (cached) return cached
   const own = JSON.parse(readFileSync(join(localesDir, code, file), 'utf8'))
-  return createI18n({ legacy: false, locale: code, fallbackLocale: code, messages: { [code]: own } as never, pluralRules })
+  const instance = createI18n({ legacy: false, locale: code, fallbackLocale: code, messages: { [code]: own } as never, pluralRules })
+  compiled.set(key, instance)
+  return instance
 }
 
 describe.each(['ar', 'en'] as const)('literal characters in %s messages', code => {
