@@ -149,6 +149,17 @@ describe('AI provider page, mounted', () => {
     expect(html).toContain(message)
   })
 
+  it('clears the errors of every section after a save succeeds', async () => {
+    const p = await page()
+    p.state.reason.value = 'A change'
+    p.api.save.mockRejectedValueOnce({ data: { code: 'model_not_tested' } })
+    await p.state.save()
+    expect((await p.rendered()).html).toContain('data-testid="ai-provider-routes-error"')
+    await p.state.save()
+    expect(p.state.notice.value).toContain('aiProvider.save.saved')
+    expect((await p.rendered()).html).not.toContain('ai-provider-routes-error')
+  })
+
   it('shows an error that belongs to no section at the top of the page', async () => {
     const p = await page({ saveFails: { data: { code: 'provider_file_unavailable' } } })
     p.state.reason.value = 'A change'

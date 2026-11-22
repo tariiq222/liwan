@@ -112,6 +112,7 @@ describe('whether a provider is saved', () => {
     expect(providerSaved(stored(), { ...oai, preset: 'custom' }, presets)).toBe(false)
     expect(providerSaved(stored(), { ...oai, base_url: 'ignored' }, presets)).toBe(true)
     expect(providerSaved(null, oai, presets)).toBe(false)
+    expect(providerSaved(stored(), { ...llm, stream_usage: !llm.stream_usage }, presets)).toBe(false)
   })
   it('asks for the key again once the stored provider has another endpoint', () => {
     const draft = draftFromSetting(stored())

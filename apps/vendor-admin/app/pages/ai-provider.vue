@@ -74,7 +74,11 @@ async function run<T>(what: string, section: Section, action: () => Promise<T>):
   busy.value = what
   failures.value = { ...failures.value, [section]: undefined, general: undefined }
   notice.value = null
-  try { return await action() }
+  try {
+    const result = await action()
+    failures.value = {}
+    return result
+  }
   catch (cause) { failures.value = { ...failures.value, [aiProviderErrorSection(cause)]: aiProviderErrorKey(cause) }; return undefined }
   finally { busy.value = null }
 }

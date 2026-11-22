@@ -57,10 +57,10 @@ const cleanEndpoint = (url: string) => url.trim().replace(/\/+$/, '')
 function sameEndpoint(stored: Setting['providers'][string], provider: ProviderDraft, presets: AiProviderPreset[]): boolean {
   return !presets.find(p => p.id === provider.preset)?.needs_base_url || (stored.base_url ?? '') === cleanEndpoint(provider.base_url)
 }
-/** The provider as the server holds it: same id, preset and endpoint, and no key waiting to be saved. */
+/** The provider as the server holds it: same id, preset, endpoint and stream-usage choice, and no key waiting to be saved. */
 export function providerSaved(setting: Setting | null, provider: ProviderDraft, presets: AiProviderPreset[]): boolean {
   const stored = setting?.providers[provider.id]
-  return Boolean(stored) && stored!.preset === provider.preset && sameEndpoint(stored!, provider, presets) && !provider.api_key
+  return Boolean(stored) && stored!.preset === provider.preset && stored!.stream_usage === provider.stream_usage && sameEndpoint(stored!, provider, presets) && !provider.api_key
 }
 /** Whether the model, as drafted, is the one the server holds (so a test of it records its result). */
 export const modelSaved = (setting: Setting | null, model: ModelDraft) => savedModel(setting, model) !== null
@@ -102,7 +102,7 @@ export function saveBlockers(draft: ConfigDraft, setting: Setting | null, preset
     if (idProblem(providerIds, provider.id)) found.add('providerId')
     if (preset?.needs_base_url && !provider.base_url.trim()) found.add('providerEndpoint')
     const stored = setting?.providers[provider.id]
-    const keptKey = Boolean(stored?.key.configured) && stored!.preset === provider.preset && sameEndpoint(stored!, provider, presets)
+    const keptKey = Boolean(stored?.key.configured) && stored!.preset === provider.preset && stored!.stream_usage === provider.stream_usage && sameEndpoint(stored!, provider, presets)
     if (preset?.needs_api_key && !provider.api_key.trim() && !keptKey) found.add('providerKey')
   }
   const modelIds = draft.models.map(m => m.id)
