@@ -5,7 +5,7 @@ import { audit, CommercialHttpError, type CommercialActor } from './lifecycle.js
 import { getVendorInvoice, type VendorInvoiceView } from './invoices.js'
 import { releaseOutbox } from './outbox.js'
 import type { PaymentAdapter, ProviderEvent } from './payment-adapter.js'
-import { findRefundAttempt, readVerifiedPayment, systemRefunds, withRefundLock, type RefundOutboxPayload, type SystemRefund } from './settlements.js'
+import { findRefundAttempt, noteProviderRefund, readVerifiedPayment, systemRefunds, withRefundLock, type RefundOutboxPayload, type SystemRefund } from './settlements.js'
 
 type Q = Pick<Pool, 'query'>
 
@@ -102,6 +102,54 @@ export function recheckAutomaticRefund(pool: Pool, { adjustment_id, actor, adapt
       await releaseOutbox(client, row.id)
       await audit(client, actor, 'payment.refund_rechecked', note.id, 'Checked the payment at the provider',
         { outbox_id: row.id, order_id: row.aggregate_id, provider_refund: mark, payment_id: provider!.payment_id, provider_status: provider!.status, refunded_minor: provider!.refunded?.minor ?? null })
+    },
+  })
+}
+
+/** How long an `attempted` mark must stand before it may be released: a refund call made before it may still land at the provider. */
+export const RELEASE_MIN_AGE_MINUTES = 60
+
+/**
+ * What the provider's answer proves about an `attempted` mark: `returned` (the whole payment is refunded) or `not_returned` (the payment is paid and
+ * nothing is refunded). Anything else is not definitive and refuses the release: a status `refunded` with no figure, a figure above the payment or in
+ * another currency, or a partial figure (the worker keeps asking for the rest, so the mark stays).
+ */
+function holdOutcome(provider: RefundRecheck, attempt: Record<string, any>): 'returned' | 'not_returned' {
+  const figure = provider.refunded
+  if (!figure) {
+    if (provider.status === 'succeeded') return 'not_returned'
+    throw refused('provider_refund_amount_unverified')
+  }
+  const total = Number(attempt.amount_minor)
+  if (figure.currency !== attempt.currency || figure.exponent !== attempt.exponent || figure.minor <= 0 || figure.minor > total) throw refused('provider_refund_amount_unverified')
+  if (figure.minor < total) throw refused('provider_refund_partial')
+  return 'returned'
+}
+
+/**
+ * Release the hold: lifts the `attempted` mark only when the provider's answer is definitive (see `holdOutcome`) and the mark is at least
+ * RELEASE_MIN_AGE_MINUTES old (the mark's own `attempted_at`, or the row's creation for a row marked before it existed). A refunded payment is marked
+ * `returned`, as the worker would mark it; a payment with nothing refunded loses the mark. Either way the row is made due and the worker takes the
+ * next step by its own guarded path. There is no override: any other answer is refused.
+ */
+export function releaseRefundHold(pool: Pool, { adjustment_id, actor, adapter, reason, now = Date.now() }: { adjustment_id: string; actor: CommercialActor; adapter?: PaymentAdapter; reason: string; now?: number }): Promise<StuckRefundResult> {
+  return runStuckAction(pool, adjustment_id, 'provider_status_unverified', {
+    marks: ['attempted'],
+    read: async ({ attempt, row }) => {
+      if (!adapter) throw refused('provider_refund_unavailable')
+      const markedAt = Date.parse(row.payload.attempted_at ?? row.created_at.toISOString())
+      if (now - markedAt < RELEASE_MIN_AGE_MINUTES * 60_000) throw refused('refund_attempt_too_recent')
+      const provider = recheckOf(await readProviderPayment(adapter, attempt, row.payload))
+      holdOutcome(provider, attempt)
+      return provider
+    },
+    write: async (client, { note, row, attempt }, provider) => {
+      const outcome = holdOutcome(provider!, attempt)
+      await noteProviderRefund(client, row.id, outcome === 'returned' ? { provider_refund: 'returned', provider_payment_id: provider!.payment_id! } : null)
+      await releaseOutbox(client, row.id)
+      await audit(client, actor, 'payment.refund_hold_released', note.id, reason,
+        { outbox_id: row.id, order_id: row.aggregate_id, outcome, payment_id: provider!.payment_id, provider_status: provider!.status, refunded_minor: provider!.refunded?.minor ?? null,
+          attempted_at: row.payload.attempted_at ?? null })
     },
   })
 }

@@ -589,6 +589,7 @@
           "form_search_rejected": "Card form search result rejected",
           "form_settled": "Card form payment settled",
           "intervention": "Payment needs intervention",
+          "refund_hold_released": "Stuck refund released",
           "refund_rechecked": "Refund payment checked again at the provider",
           "refund_rejected": "Provider rejected a refund",
           "saved_card_charge_refused": "Provider refused the saved card charge request",

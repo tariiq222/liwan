@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { actorName } from '../admin-auth/accounts.js'
 import type { Pool } from 'pg'
 import type { IncomingHttpHeaders } from 'node:http'
-import { quoteRequestSchema, acceptQuoteRequestSchema, customerTermsRevisionSchema, invoiceExportSchema, invoiceStatusSchema, refundCreditNoteRequestSchema, voidRenewalInvoiceRequestSchema, tenantDeletionStateSchema, type Principal } from '@liwan/commercial-contracts'
+import { quoteRequestSchema, acceptQuoteRequestSchema, customerTermsRevisionSchema, invoiceExportSchema, invoiceStatusSchema, refundCreditNoteRequestSchema, releaseRefundHoldRequestSchema, voidRenewalInvoiceRequestSchema, tenantDeletionStateSchema, type Principal } from '@liwan/commercial-contracts'
 import { parseBody, need, needGrant, type CommercialInput } from './http.js'
 import { CommercialHttpError, digestOf } from './lifecycle.js'
 import { appliedTermsOf, createCustomerTerms } from './customer-terms.js'
@@ -34,7 +34,7 @@ import { removePaymentMethod } from './payment-method-removal.js'
 import { disableAutoRenew } from './auto-renew.js'
 import { SimulatorAdapter } from './payment-simulator.js'
 import { refundCreditNote, requestInvoiceRefund } from './settlements.js'
-import { recheckAutomaticRefund } from './stuck-refund.js'
+import { recheckAutomaticRefund, releaseRefundHold } from './stuck-refund.js'
 import { confirmBankTransfer, parseBankTransferInput } from './bank-transfer.js'
 import { voidRenewalInvoice } from './renewal-void.js'
 import { billingSettings, billingSettingsInputSchema, setBillingSettings } from './billing-settings.js'
@@ -306,13 +306,16 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     if(!z.uuid().safeParse(refund[1]).success)throw new CommercialHttpError('not_found',404)
     return {status:200,data:await refundCreditNote(pool,{adjustment_id:refund[1]!,actor:{issuer:input.issuer,actorUid:input.actor},request:parseBody(input.raw,refundCreditNoteRequestSchema)})}
   }
-  // An automatic refund the worker cannot finish: the operator checks the provider again, never moves money (the worker is the only path that does).
-  const stuckRefund=/^\/invoice-adjustments\/([^/]+)\/automatic-refund\/(check)$/.exec(path)
+  // An automatic refund the worker cannot finish: the operator checks the provider again or lifts its hold, never moves money (the worker is the only path that does).
+  const stuckRefund=/^\/invoice-adjustments\/([^/]+)\/automatic-refund\/(check|release)$/.exec(path)
   if(stuckRefund&&m==='POST'){
     needGrant(input,'vendor.billing.manage')
-    if(!z.uuid().safeParse(stuckRefund[1]).success)throw new CommercialHttpError('not_found',404)
+    const [,id,action]=stuckRefund
+    if(action!=='check'&&!input.stepUpFresh)throw new CommercialHttpError('step_up_required',403)
+    if(!z.uuid().safeParse(id).success)throw new CommercialHttpError('not_found',404)
     const actor={issuer:input.issuer,actorUid:input.actor},adapter=runtime?.adapter ?? undefined
-    return {status:200,data:await recheckAutomaticRefund(pool,{adjustment_id:stuckRefund[1]!,actor,adapter})}
+    if(action==='check')return {status:200,data:await recheckAutomaticRefund(pool,{adjustment_id:id!,actor,adapter})}
+    return {status:200,data:await releaseRefundHold(pool,{adjustment_id:id!,actor,adapter,...parseBody(input.raw,releaseRefundHoldRequestSchema)})}
   }
   // A2: the customer asked for their money back inside the window and there is no note yet. Creates the pending
   // vendor credit note for the full invoice; recording the provider reference is the existing refund route above.
