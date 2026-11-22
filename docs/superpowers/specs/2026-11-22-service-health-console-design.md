@@ -51,7 +51,8 @@ the time since the last beat (a new `VendorHealthStrip`, because the existing st
 named by the component, with no customer. It leaves the list when the component is `ok` again. An unavailable
 adapter is alerted like a stale component. The alert is one message when a component turns stale or unavailable and
 one when it recovers. It is sent by a host systemd timer that reads the table and sends a new `deploy/alerts.py`
-event, so it works when the worker and the API are both down.
+event, so it works when the worker and the API are both down. It is the only sender: the scheduler's `sendVendorAlerts`
+skips `service_down` (the item stays in the console list), so one episode gives one message.
 
 ## 3. Safety rules
 

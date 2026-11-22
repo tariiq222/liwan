@@ -4,6 +4,7 @@ import { Pool } from 'pg'
 import { setup, client, money, monthly, url } from './commercial-helpers.js'
 import { acceptQuote } from '../commercial/orders.js'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
+import { allAttentionItems } from '../commercial/attention.js'
 import { beat, recordAvailability } from '../service-health.js'
 import { ALERT_BURST_LIMIT, sendVendorAlerts, VENDOR_ALERT_KIND } from '../commercial/vendor-alerts.js'
 
@@ -105,28 +106,18 @@ suite('live PostgreSQL owner alerts', () => {
     expect((await alerts()).length).toBe(count)
   })
 
-  it('alerts once when a service is down, names no customer, and again only for a new episode', async () => {
+  it('sends no alert for a service that is down: the host timer is the one sender, and the attention item stays', async () => {
     await pool.query('DELETE FROM service_heartbeats')
     try {
       await beat(pool, 'shared_worker', { startedAt: new Date(Date.now() - 3_600_000), now: new Date(Date.now() - 10 * 60_000) })
       await recordAvailability(pool, 'api_payment_adapter', { startedAt: new Date(Date.now() - 60_000), error: new Error('https://u:secret@pay.internal') })
+      expect((await allAttentionItems(pool)).filter(i => i.kind === 'service_down').map(i => i.name).sort()).toEqual(['api_payment_adapter', 'shared_worker'])
+      const before = (await alerts()).length
       const ch = channels(); await run(ch)
-      const sent = sentOf(ch, 'خدمة')
-      expect(sent).toHaveLength(2)
-      expect(sent.every(m => m.subject.includes('[يتطلب إجراء]') && m.text.includes('خدمة التشغيل متوقفة أو غير متاحة') && !m.text.includes('العميل:'))).toBe(true)
-      expect(sent.map(m => m.text).join()).toContain('عامل المنصة المشتركة')
-      expect(sent.map(m => m.text).join()).toContain('مزود الدفع في واجهة البرمجة')
-      expect(sent.map(m => m.text).join()).not.toContain('secret')
-      expect(sent[0].text).toContain('/overview')
-      const count = (await alerts()).length
-      await run(ch)
-      expect((await alerts()).length).toBe(count)
-      // The worker recovers and stops again: a new last beat is a new episode.
-      await beat(pool, 'shared_worker', { startedAt: new Date(Date.now() - 3_600_000), now: new Date() })
-      await run(ch)
-      await beat(pool, 'shared_worker', { startedAt: new Date(Date.now() - 3_600_000), now: new Date(Date.now() - 5 * 60_000) })
-      await run(ch)
-      expect(sentOf(ch, 'عامل المنصة المشتركة')).toHaveLength(2)
+      expect(sentOf(ch, 'خدمة')).toHaveLength(0)
+      expect(sentOf(ch, 'عامل المنصة المشتركة')).toHaveLength(0)
+      expect((await alerts()).filter(r => JSON.stringify(r.payload).includes('service_down') || JSON.stringify(r.payload).includes('عامل المنصة المشتركة'))).toEqual([])
+      expect((await alerts()).length).toBe(before)
     } finally { await pool.query('DELETE FROM service_heartbeats') }
   })
 
