@@ -53,6 +53,8 @@ function onboardingFeeMinor(): number | null {
   if (exponent === undefined) return null
   return parseVendorMoneyInput(draft.onboarding_fee, exponent)
 }
+/** An IBAN is pasted grouped in fours: the spaces are layout, so the value is judged and sent without them. */
+const normalizedIban = () => draft.bank_iban.replace(/\s+/g, '').toUpperCase()
 const errors = computed(() => {
   const e: Record<string, string> = {}
   if (parseCount(draft.refund_window_days, 365) === null) e.window = t('vendor.billingSettings.errors.window')
@@ -60,7 +62,7 @@ const errors = computed(() => {
   // simply omitted from the PATCH (see onboardingFeeChange), so it must not block saving an unrelated setting.
   const fee = draft.onboarding_fee.trim()
   if (fee && fee !== loadedFeeText && (isWholeAmount(fee) === false || onboardingFeeMinor() === null)) e.onboardingFee = t('vendor.billingSettings.errors.onboardingFee')
-  const iban = draft.bank_iban.trim().toUpperCase()
+  const iban = normalizedIban()
   if (iban && !/^SA[0-9]{22}$/.test(iban)) e.iban = t('vendor.billingSettings.errors.iban')
   if (draft.seller_email.trim() && !/^\S+@\S+\.\S+$/.test(draft.seller_email.trim())) e.sellerEmail = t('vendor.billingSettings.errors.sellerEmail')
   if (draft.reason.trim().length < 3) e.reason = t('vendor.pricing.reasonRequired')
@@ -82,7 +84,7 @@ async function submit() {
   try {
     await request('commercial/billing-settings', { method: 'PATCH', body: {
       refund_window_days: parseCount(draft.refund_window_days, 365), ...onboardingFeeChange(), bank_account_name: draft.bank_account_name.trim(),
-      bank_account_number: draft.bank_account_number.trim(), bank_iban: draft.bank_iban.trim().toUpperCase(),
+      bank_account_number: draft.bank_account_number.trim(), bank_iban: normalizedIban(),
       bank_instructions_ar: draft.bank_instructions_ar.trim(), bank_instructions_en: draft.bank_instructions_en.trim(),
       ...Object.fromEntries(SELLER_FIELDS.map(field => [field, draft[field].trim()])), reason: draft.reason.trim(),
     } })
@@ -112,7 +114,7 @@ async function submit() {
             <UFormField :label="t('vendor.billingSettings.fields.accountName')"><UInput v-model="draft.bank_account_name" class="w-full" :disabled="!hydrated || busy || !canManage" /></UFormField>
             <UFormField :label="t('vendor.billingSettings.fields.accountNumber')"><UInput v-model="draft.bank_account_number" dir="ltr" class="w-full" :disabled="!hydrated || busy || !canManage" /></UFormField>
           </div>
-          <UFormField :label="t('vendor.billingSettings.fields.iban')" :help="t('vendor.billingSettings.fields.ibanHint')" :error="show('iban')"><UInput v-model="draft.bank_iban" dir="ltr" maxlength="24" class="w-full" :disabled="!hydrated || busy || !canManage" /></UFormField>
+          <UFormField :label="t('vendor.billingSettings.fields.iban')" :help="t('vendor.billingSettings.fields.ibanHint')" :error="show('iban')"><UInput v-model="draft.bank_iban" dir="ltr" class="w-full" :disabled="!hydrated || busy || !canManage" /></UFormField>
           <div class="grid gap-4 sm:grid-cols-2">
             <UFormField :label="t('vendor.billingSettings.fields.instructionsAr')"><UTextarea v-model="draft.bank_instructions_ar" :maxlength="500" class="w-full" :disabled="!hydrated || busy || !canManage" /></UFormField>
             <UFormField :label="t('vendor.billingSettings.fields.instructionsEn')"><UTextarea v-model="draft.bank_instructions_en" :maxlength="500" dir="ltr" class="w-full" :disabled="!hydrated || busy || !canManage" /></UFormField>
