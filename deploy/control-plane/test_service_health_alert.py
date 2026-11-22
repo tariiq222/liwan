@@ -117,7 +117,7 @@ class OneMessagePerTransition(unittest.TestCase):
         self.assertEqual(health.run(self.reader, later, health.StateFile(self.state)), alerts.EXIT_OK)
         self.assertEqual(later.calls, [])
         self.assertEqual(stat.S_IMODE(self.state.stat().st_mode), 0o600)
-        self.assertEqual(json.loads(self.state.read_text()), {'version': 1, 'down': {'shared_worker': 'stale'}})
+        self.assertEqual(json.loads(self.state.read_text()), {'version': 1, 'down': {'shared_worker': 'stale'}, 'read_failures': 0})
 
 
 class AMessageThatDidNotGoOutIsSentAgain(unittest.TestCase):
@@ -142,7 +142,7 @@ class AMessageThatDidNotGoOutIsSentAgain(unittest.TestCase):
         alerter = FakeAlerter([alerts.EXIT_DELIVERY_FAILED, alerts.EXIT_OK])
         self.assertEqual(health.run(reader, alerter, self.state), alerts.EXIT_DELIVERY_FAILED)
         self.assertEqual(len(alerter.calls), 2)
-        self.assertEqual(self.state.load(), {'shared_worker': 'stale'})
+        self.assertEqual(self.state.load().down, {'shared_worker': 'stale'})
 
     def test_an_unreadable_table_changes_nothing_and_sends_nothing(self):
         reader = FakeReader([row('shared_worker', 'stale')])
@@ -150,7 +150,7 @@ class AMessageThatDidNotGoOutIsSentAgain(unittest.TestCase):
         broken = FakeReader(error=health.ReadError('the health table could not be read'))
         alerter = FakeAlerter()
         self.assertEqual(health.run(broken, alerter, self.state), alerts.EXIT_DELIVERY_FAILED)
-        self.assertEqual((alerter.calls, self.state.load()), ([], {'shared_worker': 'stale'}))
+        self.assertEqual((alerter.calls, self.state.load().down), ([], {'shared_worker': 'stale'}))
 
     def test_a_row_that_is_not_a_known_state_or_a_code_is_refused_before_anything_is_sent(self):
         for bad in ([row('shared_worker', 'ok')], [row('Shared worker', 'stale')], [row(SECRET_URL, 'stale')],
@@ -167,6 +167,54 @@ class AMessageThatDidNotGoOutIsSentAgain(unittest.TestCase):
         self.assertEqual(alerter.calls, [])
         self.state.path.write_text(json.dumps({'version': 2, 'down': {}}))
         self.assertEqual(health.run(FakeReader(), alerter, self.state), alerts.EXIT_REFUSED)
+
+
+class AMonitorThatCannotReadIsSaidSo(unittest.TestCase):
+    """The host timer is the only sender of service alerts: when it cannot read the table it must not go blind silently."""
+
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.state = health.StateFile(Path(self.directory.name) / 'state.json')
+        self.alerter = FakeAlerter()
+        self.broken = FakeReader(error=health.ReadError('the health table could not be read (psql exit 2)'))
+
+    def run_once(self, reader):
+        with contextlib.redirect_stderr(io.StringIO()):
+            return health.run(reader, self.alerter, self.state)
+
+    def test_a_single_transient_failure_sends_nothing(self):
+        self.assertEqual(self.run_once(self.broken), alerts.EXIT_DELIVERY_FAILED)
+        self.assertEqual(self.run_once(FakeReader()), alerts.EXIT_OK)
+        self.assertEqual(self.alerter.calls, [])
+
+    def test_failures_that_are_not_consecutive_never_add_up(self):
+        for reader in (self.broken, self.broken, FakeReader(), self.broken, self.broken, FakeReader()):
+            self.run_once(reader)
+        self.assertEqual(self.alerter.calls, [])
+
+    def test_a_few_consecutive_failures_send_one_alert_that_the_monitor_is_blind_and_none_while_it_stays_blind(self):
+        for _ in range(health.READ_FAILURES_BEFORE_ALERT + 5):
+            self.assertEqual(self.run_once(self.broken), alerts.EXIT_DELIVERY_FAILED)
+        self.assertEqual(self.alerter.calls, [['service_down', '--component', 'health_monitor', '--state', 'unavailable']])
+
+    def test_it_announces_when_it_can_read_again_once_and_remembers_what_it_knew(self):
+        self.run_once(FakeReader([row('shared_worker', 'stale')]))
+        for _ in range(health.READ_FAILURES_BEFORE_ALERT):
+            self.run_once(self.broken)
+        self.assertEqual(self.run_once(FakeReader([row('shared_worker', 'stale')])), alerts.EXIT_OK)
+        self.run_once(FakeReader([row('shared_worker', 'stale')]))
+        self.assertEqual([call[:3] for call in self.alerter.calls[1:]],
+                         [['service_down', '--component', 'health_monitor'], ['service_recovered', '--component', 'health_monitor']])
+        self.assertEqual(len(self.alerter.calls), 3)
+
+    def test_a_blind_alert_that_was_not_delivered_is_sent_again_on_the_next_failure(self):
+        self.alerter = FakeAlerter([alerts.EXIT_DELIVERY_FAILED])
+        for _ in range(health.READ_FAILURES_BEFORE_ALERT + 1):
+            self.run_once(self.broken)
+        self.assertEqual(len(self.alerter.calls), 2)
+        self.run_once(self.broken)
+        self.assertEqual(len(self.alerter.calls), 2)
 
 
 class TheRealReaderAsksTheDatabaseDirectly(unittest.TestCase):

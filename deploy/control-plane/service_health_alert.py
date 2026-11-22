@@ -6,6 +6,10 @@ Run once a minute by ``liwan-service-health-alert.timer``. It asks the control d
 worker are both down, and it cannot disagree with the console. What it already announced is kept in a small state file, so a
 service that stays down is announced once, and a message that was not delivered is sent again on the next run.
 
+The monitor is itself watched by this script: when it cannot read the table (database down, ``psql`` missing, credentials or a
+timeout) several runs in a row, it announces once that ``health_monitor`` is unavailable, and once when it can read again; a
+single transient failure sends nothing. The count of consecutive failures is kept in the state file.
+
 Environment (names only; see ``service-health-alert.env.example``): LIWAN_CONTROL_HEALTH_DB_NAME (required),
 LIWAN_CONTROL_HEALTH_PG_HOST / _PG_PORT / _PG_USER / _PSQL (optional), PGPASSFILE (the password; never an argument),
 LIWAN_SERVICE_HEALTH_STATE_FILE (or the STATE_DIRECTORY systemd sets), and the LIWAN_ALERT_* channels of ``deploy/alerts.py``.
@@ -20,6 +24,7 @@ import re
 import subprocess
 import sys
 import tempfile
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -31,6 +36,10 @@ if TYPE_CHECKING:
     from datetime import datetime
 
 STATE_VERSION = 1
+# The component that stands for this monitor in the announcements; it is "down" while the table cannot be read.
+MONITOR = 'health_monitor'
+# Consecutive failed reads (the timer runs once a minute) before the monitor says it is blind.
+READ_FAILURES_BEFORE_ALERT = 3
 PSQL_TIMEOUT_SECONDS = 30
 COMPONENT = re.compile(r'^[a-z][a-z0-9_]{0,63}$')
 DOWN_STATES = frozenset(alerts.SERVICE_STATE_TEXT)
@@ -79,33 +88,43 @@ def psql_reader(env: Mapping[str, str], runner=subprocess.run) -> Callable[[], l
     return read
 
 
+@dataclass(frozen=True)
+class Memory:
+    """What an earlier run left: the components already announced as down, and how many reads in a row have failed."""
+
+    down: dict[str, str] = field(default_factory=dict)
+    read_failures: int = 0
+
+
 class StateFile:
-    """The components already announced as down, and how. A missing file is an empty memory; a damaged one is refused."""
+    """The memory between runs. A missing file is an empty memory; a damaged one is refused."""
 
     def __init__(self, path: Path) -> None:
         self.path = path
 
-    def load(self) -> dict[str, str]:
+    def load(self) -> Memory:
         try:
             text = self.path.read_text(encoding='utf-8')
         except FileNotFoundError:
-            return {}
+            return Memory()
         try:
             data = json.loads(text)
             valid = (isinstance(data, dict) and data.get('version') == STATE_VERSION and isinstance(data.get('down'), dict)
-                     and all(COMPONENT.fullmatch(c) and s in DOWN_STATES for c, s in data['down'].items()))
+                     and all(COMPONENT.fullmatch(c) and s in DOWN_STATES for c, s in data['down'].items())
+                     and isinstance(data.get('read_failures'), int) and not isinstance(data['read_failures'], bool)
+                     and 0 <= data['read_failures'] <= READ_FAILURES_BEFORE_ALERT)
         except ValueError:
             valid = False
         if not valid:
             raise DataError(f'the state file {self.path} is damaged; fix or remove it')
-        return dict(data['down'])
+        return Memory(dict(data['down']), data['read_failures'])
 
-    def save(self, down: Mapping[str, str]) -> None:
+    def save(self, memory: Memory) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         handle, temporary = tempfile.mkstemp(dir=self.path.parent, prefix='.state.')
         try:
             with os.fdopen(handle, 'w', encoding='utf-8') as out:
-                json.dump({'version': STATE_VERSION, 'down': dict(sorted(down.items()))}, out)
+                json.dump({'version': STATE_VERSION, 'down': dict(sorted(memory.down.items())), 'read_failures': memory.read_failures}, out)
             os.chmod(temporary, 0o600)
             os.replace(temporary, self.path)
         except BaseException:
@@ -126,18 +145,35 @@ def _validated(rows: object) -> dict[str, str]:
     return down
 
 
+def _announce_blindness(memory: Memory, alerter: Callable[[list[str]], int], state: StateFile) -> int:
+    """One more failed read: count it, and say once that the monitor is blind when the count is reached."""
+    failures = min(memory.read_failures + 1, READ_FAILURES_BEFORE_ALERT)
+    down = memory.down
+    code = alerts.EXIT_OK
+    if failures >= READ_FAILURES_BEFORE_ALERT and MONITOR not in down:
+        code = alerter(['service_down', '--component', MONITOR, '--state', 'unavailable'])
+        if code == alerts.EXIT_OK:
+            down = {**down, MONITOR: 'unavailable'}
+    state.save(Memory(down, failures))
+    return max(code, alerts.EXIT_DELIVERY_FAILED)
+
+
 def run(reader: Callable[[], list[dict[str, str]]], alerter: Callable[[list[str]], int], state: StateFile) -> int:
     """Announce what changed since the last run; the worst exit code of the run."""
     try:
-        remembered = state.load()
-        current = _validated(reader())
-    except ReadError as error:
-        sys.stderr.write(f'service-health-alert: {error}\n')
-        return alerts.EXIT_DELIVERY_FAILED
+        memory = state.load()
+        remembered = memory.down
+        try:
+            current = _validated(reader())
+        except ReadError as error:
+            sys.stderr.write(f'service-health-alert: {error}\n')
+            return _announce_blindness(memory, alerter, state)
     except DataError as error:
         sys.stderr.write(f'service-health-alert: {error}\n')
         return alerts.EXIT_REFUSED
     worst = alerts.EXIT_OK
+    if memory.read_failures:
+        state.save(Memory(remembered))
     for component in sorted(set(current) | set(remembered)):
         if component in current and remembered.get(component) != current[component]:
             argv = ['service_down', '--component', component, '--state', current[component]]
@@ -150,7 +186,7 @@ def run(reader: Callable[[], list[dict[str, str]]], alerter: Callable[[list[str]
         code = alerter(argv)
         if code == alerts.EXIT_OK:
             remembered = after
-            state.save(remembered)
+            state.save(Memory(remembered))
         else:
             worst = max(worst, code)
     return worst
