@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { invoiceLineSchema } from '@liwan/commercial-contracts'
 
 const appRoot = resolve(import.meta.dirname, '..')
 const localesRoot = resolve(appRoot, '../i18n/locales')
@@ -76,5 +77,28 @@ describe('vendor locale', () => {
     expect([ar.catalog.title, ar.catalog.applications, ar.bundles.title, ar.plans.title, ar.packages.title]).toEqual(['تركيبة تطبيقات ليوان', 'التطبيقات', 'الحزم', 'الباقات', 'الحزم القديمة'])
     const en = titles('en')
     expect([en.catalog.title, en.catalog.applications, en.bundles.title, en.plans.title, en.packages.title]).toEqual(['Catalog', 'Applications', 'Bundles', 'Plans', 'Legacy packages'])
+  })
+
+  it('has a text in both languages for every invoice line kind the contract names', () => {
+    for (const lang of ['ar', 'en'] as const) {
+      const keys = lang === 'ar' ? vendorKeys.ar : vendorKeys.en
+      expect(invoiceLineSchema.shape.kind.options.filter(kind => !keys.has(`vendor.invoices.lineKind.${kind}`)), lang).toEqual([])
+    }
+  })
+
+  // The stages the control plane can put on an operation: the shared-job feed (operation-feed.ts: the job states and the
+  // `shared_job_events` stages) and the legacy queue's own stages (worker.ts: the lease, the guards, the operator receipt
+  // failures). A stage the operator's receipt names itself is open-ended and the pages show it as it is.
+  const OPERATION_STAGES = [
+    'queued', 'running', 'prepared', 'started', 'verified', 'needs_intervention', 'failed',
+    'claimed', 'lease_expired', 'reconciliation_required', 'shared_execution_unavailable', 'grant_revoked', 'tenant_missing', 'target_not_authorized',
+    'approval_revoked', 'receipt_unverified', 'worker_error', 'deployment_incomplete', 'operator_failed', 'operator_timeout',
+    'operator_output_limit', 'operator_group_unconfirmed', 'operator_output_invalid',
+  ]
+  it('has a text in both languages for every operation stage the control plane can emit', () => {
+    for (const lang of ['ar', 'en'] as const) {
+      const keys = lang === 'ar' ? vendorKeys.ar : vendorKeys.en
+      expect(OPERATION_STAGES.filter(stage => !keys.has(`vendor.operations.stages.${stage}`)), lang).toEqual([])
+    }
   })
 })

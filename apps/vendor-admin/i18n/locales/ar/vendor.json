@@ -341,7 +341,21 @@
         "prepared": "التحضير مكتمل",
         "started": "بدأ التنفيذ",
         "verified": "تنفيذ متحقق",
-        "needs_intervention": "تحتاج تدخلاً"
+        "needs_intervention": "تحتاج تدخلاً",
+        "failed": "فشلت",
+        "lease_expired": "انتهت مهلة التنفيذ",
+        "reconciliation_required": "تحتاج إلى مطابقة",
+        "shared_execution_unavailable": "التنفيذ المشترك غير متاح",
+        "grant_revoked": "أُلغي التصريح",
+        "tenant_missing": "مساحة العمل غير موجودة",
+        "target_not_authorized": "الهدف غير مصرّح به",
+        "approval_revoked": "أُلغيت الموافقة",
+        "receipt_unverified": "تعذّر التحقق من النتيجة",
+        "worker_error": "خطأ في التنفيذ",
+        "operator_timeout": "انتهت مهلة أداة التشغيل",
+        "operator_output_limit": "ناتج أداة التشغيل أكبر من المسموح",
+        "operator_group_unconfirmed": "لم يُؤكَّد إيقاف أداة التشغيل",
+        "operator_output_invalid": "ناتج أداة التشغيل غير صالح"
       },
       "types": {
         "tenant": {
@@ -1709,7 +1723,9 @@
         "tax": "ضريبة",
         "adjustment": "تعديل",
         "users": "المستخدمون",
-        "storage": "التخزين"
+        "storage": "التخزين",
+        "onboarding": "التهيئة بمساعدة الفريق",
+        "ai_topup": "شحن رصيد الذكاء الاصطناعي"
       },
       "kind": {
         "initial": "اشتراك جديد",

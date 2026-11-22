@@ -341,7 +341,21 @@
         "prepared": "Prepared",
         "started": "Execution started",
         "verified": "Execution verified",
-        "needs_intervention": "Needs attention"
+        "needs_intervention": "Needs attention",
+        "failed": "Failed",
+        "lease_expired": "Execution timed out",
+        "reconciliation_required": "Needs reconciliation",
+        "shared_execution_unavailable": "Shared execution is unavailable",
+        "grant_revoked": "Access was revoked",
+        "tenant_missing": "Workspace not found",
+        "target_not_authorized": "Target is not authorized",
+        "approval_revoked": "Approval was revoked",
+        "receipt_unverified": "Result could not be verified",
+        "worker_error": "Execution error",
+        "operator_timeout": "The operator tool timed out",
+        "operator_output_limit": "The operator tool output was too large",
+        "operator_group_unconfirmed": "The operator tool stop was not confirmed",
+        "operator_output_invalid": "The operator tool output was not valid"
       },
       "types": {
         "tenant": {
@@ -1709,7 +1723,9 @@
         "tax": "Tax",
         "adjustment": "Adjustment",
         "users": "Users",
-        "storage": "Storage"
+        "storage": "Storage",
+        "onboarding": "Assisted onboarding",
+        "ai_topup": "AI top-up"
       },
       "kind": {
         "initial": "New subscription",

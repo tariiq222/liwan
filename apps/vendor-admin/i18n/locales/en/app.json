@@ -27,6 +27,7 @@
       "navigation": "Navigation",
       "openMenu": "Open menu",
       "account": "Account",
+      "listSeparator": ", ",
       "signOut": "Sign out",
       "language": "Language",
       "appearance": "Appearance",
