@@ -214,6 +214,13 @@ suite('operator refund of a pending credit note on PostgreSQL', () => {
     await processRefundOutbox(pool)
     expect(await totalCredited(f.invoice)).toBe(11500)
   })
+  it('refuses a vendor refund request when the invoice already carries refunded partial credit', async () => {
+    const f = await failedOrder('applied', 'bank_transfer')
+    await pool.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin,cause,refund_reference,refunded_by,refunded_at)
+      SELECT $1,$2,customer_id,'credit_note','Part of it already returned',4000,'SAR',2,'refunded','system','system','payment_after_cancellation','MOY-PART-1','vendor-test',now() FROM invoices WHERE id=$2`, [randomUUID(), f.invoice])
+    await expect(askRefund(f.invoice)).rejects.toMatchObject({ status: 409, code: 'refund_over_credit' })
+    expect((await notesOf(f.invoice)).map(n => [n.origin, n.status, n.amount_minor])).toEqual([['system', 'refunded', '4000']])
+  })
   it('lets the operator settle the existing system note when the provider event arrived first', async () => {
     const f = await failedOrder('applied')
     await enqueueRefund(f, refundedPayload(f, 11500))

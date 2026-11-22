@@ -85,7 +85,7 @@ conflict, the conflicting note (invoice number, amount, cause, status, who recor
   queue up and the second reads what the first committed. Nothing else takes that lock while holding the subscription or the
   invoice (the documented order is subscription, then invoice), so it adds no wait edge among them. A cycle would need a path
   that holds the invoice and waits for a note row another recording holds while queued on the gate; a deadlock is then
-  detected by PostgreSQL and one transaction fails without writing.
+  detected by PostgreSQL and one transaction fails without writing. The cap is the invoice total (equal to what the attempt paid for a vendor note), and `requestInvoiceRefund` refuses a vendor refund with `refund_over_credit` at request time when the invoice already has refunded credit, so no unrecordable note is created.
 - Record is refused when: the row is not `returned`; the note is not a pending credit note of the paying attempt's
   invoice; refunded credit plus this note would exceed what the attempt paid (`refund_over_credit`); or
   `already_recorded` is chosen while the conflicting note is not a settled credit note of the paying attempt's own invoice, is a

@@ -411,8 +411,7 @@ export async function recordRefundIn(client: PoolClient, { adjustment_id, actor,
   }
   // The refunded credit of the invoice never exceeds what it paid. A duplicate-charge note credits another attempt's payment, so it is outside the rule.
   if (note.cause !== 'duplicate_payment') {
-    const refunded = Number((await client.query(`SELECT COALESCE(sum(amount_minor),0) AS amount FROM invoice_adjustments
-      WHERE invoice_id=$1 AND kind='credit_note' AND status='refunded' AND cause<>'duplicate_payment' AND id<>$2`, [note.invoice_id, note.id])).rows[0].amount)
+    const refunded = await refundedCreditMinor(client, note.invoice_id, note.id)
     if (refunded + Number(note.amount_minor) > Number(invoice.total_minor)) throw new CommercialHttpError('refund_over_credit', 409)
   }
   // The release-1 window (owner decision 2026-11-06) is judged ONCE, when `requestInvoiceRefund` creates the vendor
@@ -432,6 +431,16 @@ export async function recordRefundIn(client: PoolClient, { adjustment_id, actor,
       { invoice_id: note.invoice_id, adjustment_id: note.id })
   }
   return adjustmentView(updated)
+}
+
+/**
+ * The money actually returned on an invoice by credit notes other than duplicate-charge ones. Unlike `creditedMinorSql`
+ * (refund-credit.ts), which counts every non-void note, this counts only notes with status refunded.
+ */
+async function refundedCreditMinor(client: PoolClient, invoiceId: string, exceptNoteId?: string): Promise<number> {
+  const rows = (await client.query(`SELECT COALESCE(sum(amount_minor),0) AS amount FROM invoice_adjustments
+    WHERE invoice_id=$1 AND kind='credit_note' AND status='refunded' AND cause<>'duplicate_payment' AND ($2::uuid IS NULL OR id<>$2)`, [invoiceId, exceptNoteId ?? null])).rows
+  return Number(rows[0].amount)
 }
 
 /** What the system's automatic refund of a credit note stands at, read from its `reconcile.refund` row. */
@@ -540,6 +549,8 @@ export async function requestInvoiceRefund(pool: Pool, { invoice_id, actor, reas
     if (invoice.status !== 'paid') throw new CommercialHttpError('invoice_not_paid', 409)
     const already = await client.query("SELECT 1 FROM invoice_adjustments WHERE invoice_id=$1 AND origin='vendor' AND kind='credit_note' AND status<>'void'", [invoice_id])
     if (already.rowCount) throw new CommercialHttpError('refund_already_requested', 409)
+    // The vendor note equals the invoice total, so any money already returned makes it unrecordable (`refund_over_credit` in recordRefundIn).
+    if (await refundedCreditMinor(client, invoice.id) > 0) throw new CommercialHttpError('refund_over_credit', 409)
     await assertRefundable(client, invoice.customer_id, invoice.id)
     // A paid order still being delivered cannot be refunded yet: recording the refund drops the subscription to the free
     // base, which needs the delivery to have ended first. A failed delivery has its own credit note.
