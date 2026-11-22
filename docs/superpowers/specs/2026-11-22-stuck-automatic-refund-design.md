@@ -88,7 +88,9 @@ conflict, the conflicting note (invoice number, amount, cause, status, who recor
   detected by PostgreSQL and one transaction fails without writing.
 - Record is refused when: the row is not `returned`; the note is not a pending credit note of the paying attempt's
   invoice; refunded credit plus this note would exceed what the attempt paid (`refund_over_credit`); or
-  `already_recorded` is chosen while the conflicting note is on another invoice or covers less than this note.
+  `already_recorded` is chosen while the conflicting note is not a settled credit note of the paying attempt's own invoice, is a
+  duplicate-payment note (the invoice's credit does not count it, so voiding the stuck note would leave no credit), is in another currency,
+  or covers less than this note.
 - Record does not need the provider: the `returned` mark is written only after a verified read.
 - No action calls the provider's refund endpoint. Money leaves only through the worker.
 - Residual risk: the provider's one-refund rule stops a second card refund. Nothing stops a bank transfer made by

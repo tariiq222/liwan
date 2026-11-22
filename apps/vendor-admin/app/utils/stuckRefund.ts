@@ -10,8 +10,10 @@ export const showsStuckRefund = (note: Pick<VendorAdjustment, 'kind' | 'status' 
 
 /**
  * The ways the operator may close a returned refund. Recording is always offered. Closing the note as already recorded needs the conflicting
- * note to be settled, on the same invoice, and to cover at least this note; the server refuses it otherwise, so the page does not offer it.
+ * note to be settled, on the same invoice, of a cause the invoice's credit counts (never a duplicate-charge note), in this note's currency, and to cover at
+ * least this note; the server refuses it otherwise, so the page does not offer it.
  */
 export function recordResolutions(note: Pick<VendorAdjustment, 'amount'>, conflict: RefundConflict | null): ReturnedRefundResolution[] {
-  return conflict && conflict.same_invoice && conflict.status === 'refunded' && conflict.amount.minor >= note.amount.minor ? ['record', 'already_recorded'] : ['record']
+  return conflict && conflict.same_invoice && conflict.status === 'refunded' && conflict.cause !== 'duplicate_payment' && conflict.amount.currency === note.amount.currency
+    && conflict.amount.minor >= note.amount.minor ? ['record', 'already_recorded'] : ['record']
 }

@@ -34,6 +34,8 @@ describe('recordResolutions', () => {
     expect(recordResolutions(note(), conflict())).toEqual(['record', 'already_recorded'])
     expect(recordResolutions(note(), conflict({ amount: { currency: 'SAR', exponent: 2, minor: 5000 } }))).toEqual(['record'])
     expect(recordResolutions(note(), conflict({ status: 'pending' }))).toEqual(['record'])
+    expect(recordResolutions(note(), conflict({ cause: 'duplicate_payment' }))).toEqual(['record'])
+    expect(recordResolutions(note(), conflict({ amount: { currency: 'USD', exponent: 2, minor: 11500 } }))).toEqual(['record'])
   })
 })
 

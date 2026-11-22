@@ -129,6 +129,22 @@ suite('record the returned refund of a stuck automatic refund on PostgreSQL', ()
       expect(await fx.refundRow(f.order)).toMatchObject({ status: 'done' })
     })
 
+    it('is refused with refund_not_duplicate when the holder is a duplicate-payment note, which the invoice\'s credit does not count', async () => {
+      const f = await fx.returnedInConflict({ sameInvoice: true })
+      await pool.query("UPDATE invoice_adjustments SET cause='duplicate_payment' WHERE id=$1", [f.holder.note])
+      const before = await snapshot(f)
+      await expect(call(f.note, 'record', duplicate, { adapter: f.adapter })).rejects.toMatchObject({ status: 409, code: 'refund_not_duplicate' })
+      await expectUntouched(f, before)
+    })
+
+    it('is refused with refund_not_duplicate when the holder is in another currency than the stuck note', async () => {
+      const f = await fx.returnedInConflict({ sameInvoice: true })
+      await pool.query("UPDATE invoice_adjustments SET currency='USD' WHERE id=$1", [f.holder.note])
+      const before = await snapshot(f)
+      await expect(call(f.note, 'record', duplicate, { adapter: f.adapter })).rejects.toMatchObject({ status: 409, code: 'refund_not_duplicate' })
+      await expectUntouched(f, before)
+    })
+
     it.each([
       ['on another invoice', async () => fx.returnedInConflict()],
       ['that covers less than this note', async () => fx.returnedInConflict({ sameInvoice: true, holderMinor: 5000 })],

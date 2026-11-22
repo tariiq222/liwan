@@ -186,7 +186,7 @@ export function recordReturnedRefund(pool: Pool, { adjustment_id, actor, reason,
       if (note.invoice_id !== attempt.invoice_id) throw refused('refund_note_unavailable')
       const paymentId = row.payload.provider_payment_id!
       const holder = (await client.query('SELECT * FROM invoice_adjustments WHERE refund_reference=$1 AND id<>$2', [paymentId, note.id])).rows[0]
-      if (resolution === 'already_recorded') return closeAsDuplicate(client, { actor, reason, note, row, holder, paymentId })
+      if (resolution === 'already_recorded') return closeAsDuplicate(client, { actor, reason, note, row, holder, paymentId, attempt })
       await recordRefundIn(client, { adjustment_id: note.id, actor, refundedBy: actorLabel(actor), automatic: true, resolvedStuck: { conflicting_adjustment_id: holder?.id ?? null },
         request: { external_reference: holder ? `${paymentId}#${note.id.slice(0, 8)}` : paymentId, reason } })
       await completeOutbox(client, row.id)
@@ -194,11 +194,20 @@ export function recordReturnedRefund(pool: Pool, { adjustment_id, actor, reason,
   }).catch(error => { throw refundReferenceConflict(error) ? refused('refund_reference_in_use') : error })
 }
 
-/** `already_recorded`: the stuck note is void and its row done, when the note holding the payment id is on the same invoice and covers this note. */
-async function closeAsDuplicate(client: PoolClient, { actor, reason, note, row, holder, paymentId }: {
-  actor: CommercialActor; reason: string; note: Record<string, any>; row: StuckContext['row']; holder: Record<string, any> | undefined; paymentId: string
+/**
+ * Whether the note holding the payment id already credits the money of this stuck note: a settled credit note of the paying attempt's own invoice, in
+ * the stuck note's currency, whose cause the invoice's credit counts (`creditedMinorSql` leaves a duplicate-charge note out, so voiding the stuck note
+ * against one would leave the invoice with no credit for this payment), and whose amount covers the stuck note.
+ */
+const creditsThisMoney = (holder: Record<string, any>, note: Record<string, any>, attempt: Record<string, any>) => holder.invoice_id === attempt.invoice_id
+  && holder.kind === 'credit_note' && holder.status === 'refunded' && holder.cause !== 'duplicate_payment'
+  && holder.currency === note.currency && Number(holder.amount_minor) >= Number(note.amount_minor)
+
+/** `already_recorded`: the stuck note is void and its row done, when the note holding the payment id already credits this money (see `creditsThisMoney`). */
+async function closeAsDuplicate(client: PoolClient, { actor, reason, note, row, holder, paymentId, attempt }: {
+  actor: CommercialActor; reason: string; note: Record<string, any>; row: StuckContext['row']; holder: Record<string, any> | undefined; paymentId: string; attempt: Record<string, any>
 }) {
-  if (!holder || holder.invoice_id !== note.invoice_id || holder.kind !== 'credit_note' || holder.status !== 'refunded' || Number(holder.amount_minor) < Number(note.amount_minor)) throw refused('refund_not_duplicate')
+  if (!holder || !creditsThisMoney(holder, note, attempt)) throw refused('refund_not_duplicate')
   await client.query("UPDATE invoice_adjustments SET status='void' WHERE id=$1", [note.id])
   if (ORDER_LEVEL_CAUSES.includes(note.cause)) await settleUndeliveredOrder(client, note.invoice_id)
   await completeOutbox(client, row.id)

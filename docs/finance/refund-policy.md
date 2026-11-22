@@ -89,7 +89,7 @@ refund worker does, under the same per-order advisory lock; a held lock is `refu
   another note holds it (the other note is untouched and named in the audit event); it settles the order, arms the free-base lock as
   usual and finishes the row. The form and this action share one rule, serialised per invoice: both are refused with `refund_over_credit` when the invoice's refunded credit plus this note would exceed
   what the paying attempt paid. `already_recorded` voids the stuck note and finishes the row, only when the note holding the payment
-  id is on the same invoice, settled and covers this note (otherwise `refund_not_duplicate`).
+  id is on the same invoice, settled, of a cause the invoice's credit counts (not a duplicate-payment note), in the same currency and covers this note (otherwise `refund_not_duplicate`).
 
 Audit events: `payment.refund_rechecked`, `payment.refund_hold_released` (with the provider figures read),
 `invoice.credit_refunded` (with `resolved_stuck` and the conflicting note id) and `payment.refund_duplicate_closed`.

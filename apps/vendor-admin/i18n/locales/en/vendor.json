@@ -2075,7 +2075,7 @@
           "refund_attempt_too_recent": "The last refund call was made less than an hour ago and may still land at the provider. Release the hold from the time shown under \"Release possible from\". Each time the worker repeats the refund call, that time moves an hour on.",
           "refund_attempt_unavailable": "The order of this payment has moved on, so the refund cannot be checked or recorded from here.",
           "refund_over_credit": "Recording this note would credit more than the invoice's payment. Close it as already recorded instead, if another note credits this money.",
-          "refund_not_duplicate": "The note that holds the payment id is not on this invoice, is not settled, or covers less than this note, so this note cannot be closed as a duplicate.",
+          "refund_not_duplicate": "The note that holds the payment id is not on this invoice, is not settled, is a duplicate-payment note, is in another currency, or covers less than this note, so this note cannot be closed as a duplicate.",
           "refund_note_unavailable": "This credit note is not the pending note of the invoice that was paid, so nothing was recorded.",
           "ai_topup_refund_mixed_order": "This invoice charged more than the AI top-up, so the top-up cannot be refunded on its own."
         }
