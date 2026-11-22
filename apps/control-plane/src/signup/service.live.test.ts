@@ -14,6 +14,7 @@ const humanCheck = { siteKey: 'site-key-fixture', scriptUrl: 'https://widget.exa
 describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
   const pool = new Pool({ connectionString: url })
   let planId: string
+  let revisionId: string
   let testNumber = 0
   beforeAll(async () => {
     const { version } = await setup(pool)
@@ -51,7 +52,8 @@ describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
     const validated = await api('POST', `${path}/validate`, { edit_revision: 1, reason: 'Signup regression' })
     const plan = await api('POST', `${path}/publish`, { edit_revision: validated.body.edit_revision, reason: 'Signup regression' })
     expect(plan.status).toBe(200)
-    planId = plan.body.id
+    planId = plan.body.plan_id
+    revisionId = plan.body.id
   })
   // Limits are durable, so a test starts from an empty delivery history.
   beforeEach(async () => { await pool.query('TRUNCATE public_signup_deliveries') })
@@ -61,7 +63,7 @@ describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
     const n = ++testNumber
     const ip = `192.0.2.${n}`
     const input = { company_name: 'Signup company', admin_name: 'Administrator',
-      email: `trial-${randomUUID()}@${randomUUID()}.test`, mobile: `+966555000${String(n).padStart(3, '0')}`, ...accepted, offer_revision: planId, app_ids: ['crm'] as SignupApp[] }
+      email: `trial-${randomUUID()}@${randomUUID()}.test`, mobile: `+966555000${String(n).padStart(3, '0')}`, ...accepted, offer_revision: revisionId, app_ids: ['crm'] as SignupApp[] }
     let now = new Date()
     let sms = '', email = ''
     const service = new SignupService(pool, {
@@ -85,7 +87,7 @@ describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
     const f = fixture()
     f.input.app_ids = apps
     const offer = await f.service.offer()
-    expect(offer).toMatchObject({ offer_revision: planId, trial_days: 14, apps: [
+    expect(offer).toMatchObject({ offer_revision: revisionId, trial_days: 14, apps: [
       { id: 'crm', monthly_minor: 9900 }, { id: 'inbox', monthly_minor: 25000 },
     ] })
     const signupId = await f.reachEmail()
@@ -103,6 +105,26 @@ describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
     await expect(f.service.offer()).rejects.toMatchObject({ code: 'unavailable' })
     await expect(f.start()).rejects.toMatchObject({ code: 'unavailable' })
     expect(f.sms()).toBe('')
+  })
+
+  it('keeps offering the plan after a new revision is published, and refuses a sign-up that was shown the previous one', async () => {
+    const api = client(pool)
+    const inFlight = fixture()
+    const signupId = await inFlight.reachEmail()
+    const previous = revisionId
+    const created = await api('POST', `/plans/${previous}/revisions`, { edit_revision: 3, reason: 'Next revision' })
+    expect(created.status).toBe(201)
+    const validated = await api('POST', `/plans/${created.body.id}/validate`, { edit_revision: created.body.edit_revision, reason: 'Next revision' })
+    const published = await api('POST', `/plans/${created.body.id}/publish`, { edit_revision: validated.body.edit_revision, reason: 'Next revision' })
+    expect(published.status).toBe(200)
+    revisionId = published.body.id
+    expect((await inFlight.service.offer()).offer_revision).toBe(revisionId)
+    await expect(inFlight.service.verifyEmail(signupId, inFlight.email())).rejects.toMatchObject({ code: 'offer_changed', status: 409 })
+    expect((await pool.query('SELECT id FROM customers WHERE admin_login=$1', [inFlight.input.email])).rowCount).toBe(0)
+    await expect(inFlight.service.start({ ...inFlight.input, offer_revision: previous }, inFlight.ip)).rejects.toMatchObject({ code: 'offer_changed' })
+    const fresh = fixture()
+    const freshId = await fresh.reachEmail()
+    await expect(fresh.service.verifyEmail(freshId, fresh.email())).resolves.toEqual({ ok: true })
   })
 
   it('refuses stale or duplicate choices before spending a delivery', async () => {
@@ -408,7 +430,7 @@ describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
 
   describe('limits keyed on the requester', () => {
     const person = (n: number) => ({ company_name: 'Signup company', admin_name: 'Administrator',
-      email: `owner@d${n}.example.test`, mobile: `+9665660${String(n).padStart(5, '0')}`, ...accepted, offer_revision: planId, app_ids: ['crm'] as SignupApp[] })
+      email: `owner@d${n}.example.test`, mobile: `+9665660${String(n).padStart(5, '0')}`, ...accepted, offer_revision: revisionId, app_ids: ['crm'] as SignupApp[] })
     const cheapService = (now: () => Date) => new SignupService(pool, { planId, legal, humanCheck, secret: 'a'.repeat(32), dailyLimit: 100, now, sms: async () => {}, email: async () => {} })
 
     it('one client address cannot send more than its daily share, and another address is unaffected', async () => {

@@ -7,6 +7,8 @@ export type AttentionLink = { path: string, query?: Record<string, string> }
 export type AttentionPresentation = { to: AttentionLink | null, tone: StatusTone, icon: `i-lucide-${string}`, actionKey: string }
 
 const DAY_MS = 86_400_000
+/** The audit action the control plane writes for a paid payment the provider reported that nothing could settle. */
+const PROVIDER_PAYMENT_REJECTED_ACTION = 'payment.form_payment_rejected'
 const customerTab = (item: AttentionItem, tab: string): AttentionLink | null =>
   item.customer_id ? { path: `/customers/${item.customer_id}`, query: { tab } } : null
 
@@ -33,6 +35,8 @@ export function attentionPresentation(item: AttentionItem): AttentionPresentatio
       return { to: item.invoice_id ? { path: `/invoices/${item.invoice_id}` } : customerTab(item, 'invoices'), tone: 'destructive', icon: 'i-lucide-alarm-clock', actionKey: action(item.kind) }
     case 'refund_rejected':
       return { to: item.invoice_id ? { path: `/invoices/${item.invoice_id}` } : customerTab(item, 'invoices'), tone: 'destructive', icon: 'i-lucide-undo-2', actionKey: action(item.kind) }
+    case 'refund_not_sent':
+      return { to: item.invoice_id ? { path: `/invoices/${item.invoice_id}` } : customerTab(item, 'invoices'), tone: 'destructive', icon: 'i-lucide-undo-2', actionKey: action(item.kind) }
     case 'refund_unrecorded':
       return { to: item.invoice_id ? { path: `/invoices/${item.invoice_id}` } : customerTab(item, 'invoices'), tone: 'destructive', icon: 'i-lucide-undo-2', actionKey: action(item.kind) }
     case 'bank_transfer_claimed':
@@ -47,6 +51,8 @@ export function attentionPresentation(item: AttentionItem): AttentionPresentatio
       return { to: customerTab(item, 'subscription'), tone: 'destructive', icon: 'i-lucide-refresh-cw-off', actionKey: action(item.kind) }
     case 'suspension_undelivered':
       return { to: customerTab(item, 'subscription'), tone: 'info', icon: 'i-lucide-gauge', actionKey: action(item.kind) }
+    case 'resume_undelivered':
+      return { to: customerTab(item, 'subscription'), tone: 'warning', icon: 'i-lucide-gauge', actionKey: action(item.kind) }
     case 'stalled_activation':
       return { to: customerTab(item, 'workspace'), tone: 'destructive', icon: 'i-lucide-hourglass', actionKey: action(item.kind) }
     case 'invitation_failed':
@@ -55,6 +61,8 @@ export function attentionPresentation(item: AttentionItem): AttentionPresentatio
       return { to: customerTab(item, 'subscription'), tone: 'warning', icon: 'i-lucide-mail-warning', actionKey: action(item.kind) }
     case 'operation_failed':
       return { to: item.operation_id ? { path: `/operations/${item.operation_id}`, query: { source: 'legacy', returnTo: '/overview' } } : null, tone: 'destructive', icon: 'i-lucide-circle-alert', actionKey: action(item.kind) }
+    case 'shared_operation_failed':
+      return { to: item.operation_id ? { path: `/operations/${item.operation_id}`, query: { source: 'shared', returnTo: '/overview' } } : null, tone: 'destructive', icon: 'i-lucide-circle-alert', actionKey: action(item.kind) }
     case 'setup_required':
       return { to: customerTab(item, 'subscription'), tone: 'warning', icon: 'i-lucide-wrench', actionKey: action(item.kind) }
     case 'tenant_deletion_due':
@@ -62,7 +70,10 @@ export function attentionPresentation(item: AttentionItem): AttentionPresentatio
     case 'tenant_deletion_stuck':
       return { to: customerTab(item, 'subscription'), tone: 'destructive', icon: 'i-lucide-octagon-alert', actionKey: action(item.kind) }
     case 'form_payment_review':
-      return { to: customerTab(item, 'invoices'), tone: 'destructive', icon: 'i-lucide-credit-card', actionKey: action(item.kind) }
+      // A payment no customer is shown to have made has no invoice to open; the audit log is where the provider's rejected payments are recorded.
+      return item.customer_id
+        ? { to: customerTab(item, 'invoices'), tone: 'destructive', icon: 'i-lucide-credit-card', actionKey: action(item.kind) }
+        : { to: { path: '/audit', query: { action: PROVIDER_PAYMENT_REJECTED_ACTION } }, tone: 'destructive', icon: 'i-lucide-credit-card', actionKey: `${action(item.kind)}_provider` }
     case 'renewal_missed':
       return { to: customerTab(item, 'subscription'), tone: 'warning', icon: 'i-lucide-calendar-x', actionKey: action(item.kind) }
     case 'renewal_soon':
@@ -77,6 +88,7 @@ export function attentionMessage(item: AttentionItem, now: Date): { key: string,
   switch (item.kind) {
     case 'past_due': return { key: 'past_due', days: Math.max(0, daysBetween(item.since, now)), operation: null }
     case 'refund_rejected': return { key: 'refund_rejected', days: null, operation: item.detail }
+    case 'refund_not_sent': return { key: 'refund_not_sent', days: null, operation: item.detail }
     case 'refund_unrecorded': return { key: 'refund_unrecorded', days: null, operation: null }
     case 'bank_transfer_claimed': return { key: 'bank_transfer_claimed', days: null, operation: item.detail }
     case 'billing_blocked': return { key: 'billing_blocked', days: Math.max(0, daysBetween(item.since, now)), operation: null }
@@ -84,6 +96,7 @@ export function attentionMessage(item: AttentionItem, now: Date): { key: string,
     case 'trial_end_overdue': return { key: 'trial_end_overdue', days: Math.max(0, daysBetween(item.since, now)), operation: null }
     case 'renewal_failed': return { key: 'renewal_failed', days: null, operation: item.detail }
     case 'suspension_undelivered': return { key: 'suspension_undelivered', days: null, operation: item.detail }
+    case 'resume_undelivered': return { key: 'resume_undelivered', days: null, operation: item.detail }
     case 'stalled_activation':
       return FAILED_FULFILLMENT.includes(item.detail ?? '')
         ? { key: 'stalled_failed', days: null, operation: null }
@@ -91,6 +104,7 @@ export function attentionMessage(item: AttentionItem, now: Date): { key: string,
     case 'invitation_failed': return { key: 'invitation_failed', days: null, operation: null }
     case 'notice_failed': return { key: 'notice_failed', days: null, operation: item.detail }
     case 'operation_failed': return { key: 'operation_failed', days: null, operation: item.detail }
+    case 'shared_operation_failed': return { key: 'shared_operation_failed', days: null, operation: item.detail }
     case 'setup_required': return { key: 'setup_required', days: null, operation: null }
     case 'tenant_deletion_due': return { key: 'tenant_deletion_due', days: null, operation: null }
     case 'tenant_deletion_stuck': return { key: 'tenant_deletion_stuck', days: null, operation: item.detail }

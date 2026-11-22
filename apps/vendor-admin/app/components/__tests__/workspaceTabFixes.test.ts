@@ -124,7 +124,7 @@ describe('operations panel enqueue confirmation', () => {
     useVendorApi: () => ({ request: vi.fn() }), useVendorContext: () => ({ can: () => true }),
     useVendorTenant: () => ({ data: tenant, error: Vue.ref(null), pending: Vue.ref(false), refresh: vi.fn() }),
     useTenantRecentOperations: () => ({ data: Vue.ref([]), error: Vue.ref(null), pending: Vue.ref(false), refresh: vi.fn() }),
-    useAsyncData: () => ({ data: Vue.ref({ items: [], total: 0 }) }),
+    useVendorCatalogVersions: () => ({ load: () => ({ data: Vue.ref([]) }) }),
   }).setup({ tenantId: 't' })
   it('closes when a limit changes, when a switch changes, or when the reason changes', async () => {
     const state = mount()

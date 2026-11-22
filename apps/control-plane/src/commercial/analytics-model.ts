@@ -5,7 +5,10 @@ export const DAY_MS = 86_400_000
 const RIYADH_OFFSET_MS = 3 * 3_600_000
 
 /** The price lines a subscription revision was sold with (`pricing` of the revision snapshot). */
-export interface PricingBaseline { base_minor: number, bundle_minor: Record<string, number>, paid_extra_branches: number, branch_unit_minor: number }
+export interface PricingBaseline {
+  base_minor: number, bundle_minor: Record<string, number>, paid_extra_branches: number, branch_unit_minor: number
+  paid_users: number, user_unit_minor: number, paid_storage_gb: number, storage_unit_minor: number
+}
 
 /** One applied order: from `applied_at` on, its revision is what the subscription is billed for. */
 export interface AppliedOrder {
@@ -17,13 +20,22 @@ export interface AppliedOrder {
 
 export type Timelines = Map<string, AppliedOrder[]>
 
+/**
+ * A scalar condition: the invoice the `invoiceId` SQL expression names is not only an AI top-up. A top-up bought during a trial is money
+ * but not the customer starting to pay for the subscription, so it never counts as a paid conversion; a top-up bundled with plan lines does.
+ */
+export const notOnlyAiTopupSql = (invoiceId: string) => `(NOT EXISTS (SELECT 1 FROM invoice_lines tl WHERE tl.invoice_id=${invoiceId} AND tl.kind='ai_topup')
+  OR EXISTS (SELECT 1 FROM invoice_lines pl WHERE pl.invoice_id=${invoiceId} AND pl.kind NOT IN ('ai_topup','tax') AND pl.amount_minor>0))`
+
 export const monthsOf = (cadence: Cadence): number => (cadence.unit === 'year' ? 12 * cadence.count : cadence.count)
 
 /** Recurring revenue of one revision, before tax and before any discount line (discounts are not part of the stored baseline). */
 export function recurringOf(pricing: PricingBaseline, cadence: Cadence) {
   const months = monthsOf(cadence)
   const branchCycle = pricing.paid_extra_branches * pricing.branch_unit_minor
+  // The same lines the renewal invoice bills (`owesAtRenewal`): base, bundles, extra branches, paid users and paid storage.
   const cycle = pricing.base_minor + Object.values(pricing.bundle_minor).reduce((sum, minor) => sum + minor, 0) + branchCycle
+    + pricing.paid_users * pricing.user_unit_minor + pricing.paid_storage_gb * pricing.storage_unit_minor
   return {
     cycle_minor: Math.round(cycle), mrr_minor: Math.round(cycle / months), branch_mrr_minor: Math.round(branchCycle / months),
     // Kept exact (not 12 x the rounded MRR); the sum is rounded once when it is shown.
@@ -71,13 +83,21 @@ export function bookAt(timelines: Timelines, at: number): BookAt {
 }
 
 export interface PlanChange { from_plan: string, to_plan: string, direction: 'upgrade' | 'downgrade' | 'lateral', count: number }
-export interface Movement { new_minor: number, expansion_minor: number, contraction_minor: number, churned_minor: number, new_customers: number, churned_customers: number, plan_changes: PlanChange[] }
+export interface Movement { new_minor: number, expansion_minor: number, contraction_minor: number, churned_minor: number, new_customers: number, churned_customers: number, plan_changes: PlanChange[]
+  /** Churn of the customers already in the book when the period opened, at the revenue they had then: the numerators of the churn rates, so a rate cannot exceed one. */
+  opening_churned_customers: number, opening_churned_minor: number
+}
 
 /** What the orders applied in [from, to) did to recurring revenue. */
 export function movementIn(timelines: Timelines, from: number, to: number): Movement {
-  const movement: Movement = { new_minor: 0, expansion_minor: 0, contraction_minor: 0, churned_minor: 0, new_customers: 0, churned_customers: 0, plan_changes: [] }
+  const movement: Movement = { new_minor: 0, expansion_minor: 0, contraction_minor: 0, churned_minor: 0, new_customers: 0, churned_customers: 0, plan_changes: [], opening_churned_customers: 0, opening_churned_minor: 0 }
   const changes = new Map<string, PlanChange>()
   for (const timeline of timelines.values()) {
+    const opening = inForceAt(timeline, from)
+    if (opening && timeline.some((order, index) => order.churn && order.applied_at >= from && order.applied_at < to && order.mrr_minor < timeline[index - 1]!.mrr_minor)) {
+      movement.opening_churned_customers += 1
+      movement.opening_churned_minor += opening.mrr_minor
+    }
     timeline.forEach((order, index) => {
       if (order.applied_at < from || order.applied_at >= to) return
       const previous = timeline[index - 1]

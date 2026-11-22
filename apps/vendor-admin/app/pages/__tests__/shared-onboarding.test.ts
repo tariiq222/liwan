@@ -39,6 +39,8 @@ describe('shared tenant onboarding browser contract', () => {
   it('creates a shared tenant from a plan (customer, quote, order) and retains dedicated registration', () => {
     expect(form).toContain('sharedOnboardingEnabled: sharedEnabled')
     expect(form).toContain('sharedEnabled.value ? Promise.resolve({ items: [], total: 0 })')
+    // Shared onboarding picks a plan, not a catalog version, so it does not read the versions at all.
+    expect(form).toContain('useVendorCatalogVersions().load(!sharedEnabled.value)')
     for (const field of ['mode', 'hosting', 'target']) expect(form).toContain(`<UFormField :label="t('vendor.tenants.fields.${field}')"`)
     // Identity fields lock once the customer exists so a retry never diverges from it.
     expect((form.match(/:disabled="Boolean\(createdCustomer\)"/g) ?? []).length).toBe(3)
@@ -48,7 +50,7 @@ describe('shared tenant onboarding browser contract', () => {
     // A4: a vendor-added customer never starts a trial, so no trial path exists here at all.
     expect(form).not.toContain('subscriptions.startTrial')
     expect(form).not.toContain('plan-trial')
-    expect(form).toContain('const startablePlans = computed(() => (plans.value ?? []).filter(p => p.trial_days === 0))')
+    expect(form).toContain("const startablePlans = computed(() => (plans.value ?? []).filter(p => p.trial_days === 0 && p.audience.kind === 'public'))")
     // Every offered plan places its first order, free or paid, and the onboarding is an optional extra on it.
     expect(form).toContain('await subscriptions.placeOrder({')
     expect(form).toContain('data-testid="onboarding-choice"')

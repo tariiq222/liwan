@@ -3,8 +3,9 @@
 //    /v1/admin/auth/*, numeric actor for the rest, a nonce is accepted once), like the real service;
 //  - WebAuthn is NOT verified cryptographically: any assertion or attestation naming a registered
 //    credential id is accepted. Real verification is covered by the control plane's own tests;
-//  - everything else under /v1 (catalog, tenants, commercial, ...) is the read-only fixture stub of
-//    commercial-mock-routes.mjs, with /v1/context narrowed to the signed-in account's roles;
+//  - everything else under /v1 (catalog, tenants, commercial, ...) is the fixture stub of
+//    commercial-mock-routes.mjs (read-only, except that it applies the catalog validate and publish steps),
+//    with /v1/context narrowed to the signed-in account's roles;
 //  - TOTP accepts the fixed code in mock-settings.mjs;
 //  - the account routes follow apps/control-plane/src/admin-auth/accounts-http.ts (reason 3-1000, active owner
 //    only, last_owner and conflict answers, step-up on every mutation) over an in-memory account list.
@@ -13,7 +14,7 @@ import { createServer } from 'node:http'
 import { pathToFileURL } from 'node:url'
 import { createJiti } from 'jiti'
 import { aiProviderRoutes, seedAiSetting } from './ai-provider-mock.mjs'
-import { handleCommercial } from './commercial-mock-routes.mjs'
+import { handleCommercial, resetCommercial } from './commercial-mock-routes.mjs'
 import { ADMIN_PASSWORD, INSTALLATION_ID, MOCK_PORT, OWNER_EMAIL, SERVICE_KEY, SUPPORT_EMAIL, TOTP_CODE } from './mock-settings.mjs'
 
 const { verifyServiceRequest } = await createJiti(import.meta.url).import('@liwan/commercial-contracts/server')
@@ -54,6 +55,7 @@ export function createMockControl() {
     config = { unavailable: false, stepUpRequired: false }
     stats = { anonymous: 0, numeric: 0, rejected: 0, lastClientIp: null }
     state.ai = seedAiSetting()
+    resetCommercial()
   }
   reset()
 
@@ -117,7 +119,7 @@ export function createMockControl() {
   const authRoutes = {
     '/v1/admin/auth/invitation': ({ body }, res) => {
       const inv = invitationOf(body.token)
-      return inv ? json(res, 200, { email: accounts.get(inv.accountId).email, purpose: 'enroll' }) : json(res, 401, { code: 'auth_failed' })
+      return inv ? json(res, 200, { email: accounts.get(inv.accountId).email, purpose: 'enroll', passkey_registered: Boolean(inv.passkey) }) : json(res, 401, { code: 'auth_failed' })
     },
     '/v1/admin/auth/enroll/passkey/options': ({ body }, res) => {
       const inv = invitationOf(body.token)
@@ -233,8 +235,8 @@ export function createMockControl() {
 
   const aiRoutes = aiProviderRoutes(state, json, ownerSession)
 
-  /** /v1/admin/accounts/:id/(roles|disable|reset), matched by pattern because the id is part of the path. */
-  const ACCOUNT_ACTION = /^\/v1\/admin\/accounts\/([1-9][0-9]{0,15})\/(roles|disable|reset)$/
+  /** /v1/admin/accounts/:id/(roles|disable|enable|reset), matched by pattern because the id is part of the path. */
+  const ACCOUNT_ACTION = /^\/v1\/admin\/accounts\/([1-9][0-9]{0,15})\/(roles|disable|enable|reset)$/
   const accountActions = {
     roles: (target, actor, body, res) => {
       if (!validRoles(body.roles) || !validReason(body.reason) || !target || target.disabled) return json(res, 422, { code: 'invalid' })
@@ -252,6 +254,11 @@ export function createMockControl() {
       revokeSessions(target)
       for (const [token, invitation] of invitations) if (invitation.accountId === target.id) invitations.delete(token)
       return json(res, 204)
+    },
+    enable: (target, _actor, body, res) => {
+      if (!validReason(body.reason) || !target || !target.disabled) return json(res, 422, { code: 'invalid' })
+      Object.assign(target, { disabled: false, active: false, password: null, passkeys: new Set(), recovery: new Set() })
+      return json(res, 200, issueInvitation(target.id))
     },
     reset: (target, _actor, body, res) => {
       if (!validReason(body.reason) || !target || target.disabled) return json(res, 422, { code: 'invalid' })
@@ -309,7 +316,7 @@ export function createMockControl() {
     if (!handler && !isAuth) {
       const account = accounts.get(sessionOf(req)?.accountId)
       if (!account) return json(res, 401, { code: 'unauthorized' })
-      return void handleCommercial(req, res, url, { capabilities: capabilitiesOf(account.roles) })
+      return void handleCommercial(req, res, url, { capabilities: capabilitiesOf(account.roles), body })
     }
     if (!handler) return json(res, 404, { code: 'not_found' })
     return handler({ req, body, ip: String(req.headers['x-liwan-client-ip'] ?? 'unknown') }, res)

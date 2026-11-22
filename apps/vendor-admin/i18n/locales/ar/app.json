@@ -16,6 +16,7 @@
       "operations": "العمليات",
       "invoices": "الفواتير",
       "billing-settings": "إعدادات الفوترة",
+      "ai-billing-settings": "فوترة الذكاء الاصطناعي",
       "audit": "التدقيق",
       "team": "الفريق",
       "ai-provider": "مزوّد الذكاء"
@@ -26,6 +27,7 @@
       "navigation": "التنقل",
       "openMenu": "فتح القائمة",
       "account": "الحساب",
+      "listSeparator": "، ",
       "signOut": "تسجيل الخروج",
       "language": "اللغة",
       "appearance": "المظهر",
@@ -39,7 +41,6 @@
         "operations": "التشغيل التقني",
         "support": "الدعم الفني"
       },
-      "signOutFailed": "تعذر تسجيل الخروج. حاول مرة أخرى.",
       "content": "المحتوى"
     }
   }

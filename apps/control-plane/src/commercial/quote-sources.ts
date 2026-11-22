@@ -9,8 +9,14 @@ import { planRevision } from './plans.js'
 // The shared quote-source helpers live here, a leaf both the quote layer and the free-base layer import, so neither imports the other.
 const bad = (code: string, field: string, status = 422) => new CommercialHttpError(code, status, field, [{ code, field }])
 
-/** Shared quote/acceptance loader: customer-specific terms can never cross customer boundaries. */
-export async function loadQuoteSources(client: Pick<PoolClient, 'query'>, customerId: string, input: { plan_revision_id: string; bundle_revision_ids: string[]; terms_revision_id?: string | null }, sellable = true) {
+type RevisionIds = { plan_revision_id: string; bundle_revision_ids: string[] }
+
+/**
+ * Shared quote/acceptance loader: customer-specific terms can never cross customer boundaries.
+ * Every revision must be published and available, except those `applied` names: a subscription keeps
+ * pricing and changing against the revisions it already runs after they are withdrawn from new sales.
+ */
+export async function loadQuoteSources(client: Pick<PoolClient, 'query'>, customerId: string, input: { plan_revision_id: string; bundle_revision_ids: string[]; terms_revision_id?: string | null }, applied: RevisionIds | null) {
   const p = await client.query('SELECT * FROM plan_revisions WHERE id=$1 FOR SHARE', [input.plan_revision_id])
   if (!p.rowCount) throw bad('not_found', 'plan_revision_id', 404)
   const row = p.rows[0]
@@ -19,7 +25,8 @@ export async function loadQuoteSources(client: Pick<PoolClient, 'query'>, custom
   const ids = [...new Set([...row.included_bundle_revision_ids, ...input.bundle_revision_ids])]
   const b = ids.length ? await client.query('SELECT * FROM bundle_revisions WHERE id=ANY($1::uuid[]) FOR SHARE', [ids]) : { rows: [] as any[] }
   if (b.rows.length !== ids.length || b.rows.some(r => !visible(r))) throw bad('not_found', 'bundle_revision_ids', 404)
-  if (sellable && ([row, ...b.rows].some(r => r.status !== 'published' || !r.available))) throw bad('not_sellable', 'plan_revision_id')
+  const kept = new Set([applied?.plan_revision_id, ...(applied?.bundle_revision_ids ?? [])])
+  if ([row, ...b.rows].some(r => !kept.has(r.id) && (r.status !== 'published' || !r.available))) throw bad('not_sellable', 'plan_revision_id')
   const bundles = ids.map(id => bundleRevision(b.rows.find(r => r.id === id)))
   const releaseId = bundles[0]?.catalog_release_id ?? (await client.query('SELECT id FROM catalog_releases ORDER BY created_at DESC,id LIMIT 1')).rows[0]?.id
   if (!releaseId) throw bad('release_missing', 'catalog_release_id')

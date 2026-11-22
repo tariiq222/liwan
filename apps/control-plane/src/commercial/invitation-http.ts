@@ -1,7 +1,8 @@
 import { z } from 'zod'
 import type { Pool } from 'pg'
 import { CommercialHttpError } from './lifecycle.js'
-import { parseBody, need, type CommercialInput } from './http.js'
+import { assertCustomerNotRetiring } from './tenant-deletion-read.js'
+import { parseBody, need, needStepUp, type CommercialInput } from './http.js'
 import { isIP } from 'node:net'
 import { verifyServiceRequest } from '@liwan/commercial-contracts/server'
 import { controlTenantForSigned, isSignedTenantFormat } from './signed-tenant.js'
@@ -81,7 +82,9 @@ export async function invitationVendorHttp(pool: Pool, input: CommercialInput) {
   if (!m) return null
   if (input.method !== 'POST') throw new CommercialHttpError('not_found', 404)
   need(input, 'vendor.subscriptions.manage')
+  needStepUp(input)
   if (!z.uuid().safeParse(m[1]).success) throw new CommercialHttpError('not_found', 404)
+  await assertCustomerNotRetiring(pool, m[1])
   const body = parseBody(input.raw || '{}', z.strictObject({ ttl_seconds: z.number().int().min(300).max(7 * 86400).optional() }))
   const r = await pool.query(
     `SELECT s.tenant_id, s.applied_revision_id, c.admin_login FROM customers c JOIN subscriptions s ON s.customer_id=c.id WHERE c.id=$1`, [m[1]])
@@ -91,6 +94,7 @@ export async function invitationVendorHttp(pool: Pool, input: CommercialInput) {
   if (!row.admin_login) throw new CommercialHttpError('invalid', 422, 'admin_login')
   const inv = await issueInvitation(pool, { customer_id: m[1], tenant_id: row.tenant_id, admin_login: row.admin_login, ttl_seconds: body.ttl_seconds ?? DEFAULT_INVITATION_TTL_SECONDS,
     audit: { actor: actorLabel({ issuer: input.issuer, actorUid: input.actor }), reason: 'Vendor resent the invitation', metadata: { source: 'vendor' } } })
+    .catch(e => { throw e instanceof InvitationError && e.code === 'accepted' ? new CommercialHttpError('invitation_accepted', 409) : e })
   return { status: 202, data: { id: inv.id, expires_at: inv.expires_at.toISOString(), delivery_status: 'queued' } }
 }
 

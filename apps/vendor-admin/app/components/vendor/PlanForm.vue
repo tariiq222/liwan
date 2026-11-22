@@ -58,7 +58,7 @@ const errors = computed(() => {
   // values: the typed text may use Arabic-Indic digits, which Number() cannot read.
   const steps: Record<string, number> = {}
   for (const field of ['storage_step_mb', 'storage_step_threshold_mb', 'storage_large_step_mb'] as const) {
-    const step = parseCount(draft[field])
+    const step = parseCount(draft[field], Number.MAX_SAFE_INTEGER)
     if (step === null || step === 0) e[field] = req
     else if (step > MAX_STORAGE_STEP_MB) e[field] = t('vendor.pricing.plan.storageStepTooLarge')
     else steps[field] = step

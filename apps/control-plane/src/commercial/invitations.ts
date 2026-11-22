@@ -75,6 +75,8 @@ export async function withTenantInvitationLock<T>(pool: Pool, tenant_id: string,
 /** Inside the caller's transaction (which holds the tenant lock): revokes the earlier links and queues the new one.
  *  Rows are never returned with token material; the raw token only leaves via the outbox payload→email. */
 async function insertInvitation(c: PoolClient, i: InvitationRequest) {
+  // An accepted invitation never issues another to the same address: the link would set the manager's password again.
+  if ((await c.query('SELECT 1 FROM admin_invitations WHERE tenant_id=$1 AND admin_login=$2 AND consumed_at IS NOT NULL LIMIT 1', [i.tenant_id, i.admin_login])).rowCount) throw new InvitationError('accepted')
   const { token, token_hash } = createInvitationToken()
   const expires = invitationExpiry(i.ttl_seconds)
   await c.query(`UPDATE admin_invitations SET revoked_at=now() WHERE tenant_id=$1 AND admin_login=$2 AND consumed_at IS NULL AND revoked_at IS NULL`, [i.tenant_id, i.admin_login])

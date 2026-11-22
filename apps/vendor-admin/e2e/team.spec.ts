@@ -197,6 +197,16 @@ test('disable and re-enroll: inline confirmation, a new link, and the last owner
   await expect(seeded).toContainText('معطّل')
   await expect(seeded.getByTestId('team-disable')).toHaveCount(0)
 
+  // A disabled account can be enabled again: it comes back enrolling, with a new one-time link.
+  await seeded.getByTestId('team-enable').click()
+  await page.getByTestId('action-reason').fill('came back')
+  await page.getByTestId('inline-confirm-action').click()
+  await expect(linkInput(page)).toHaveValue(/\/enroll#[A-Za-z0-9_-]{20,}$/)
+  await page.getByTestId('invitation-link-dismiss').click()
+  await expect(seeded).toContainText('بانتظار قبول الدعوة')
+  await expect(seeded.getByTestId('team-enable')).toHaveCount(0)
+  await expect(seeded.getByTestId('team-disable')).toHaveCount(1)
+
   // Only the signed-in owner is left: neither disabling nor demoting that account is allowed.
   const me = rowOf(page, owner.email)
   await expect(me).toContainText('أنت')

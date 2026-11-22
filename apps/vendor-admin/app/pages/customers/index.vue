@@ -13,6 +13,10 @@ const state = computed(() => (isClientStateFilter(route.query.state) ? route.que
 const page = computed(() => Math.max(1, Number(route.query.page ?? 1) || 1))
 function patch(change: Record<string, unknown>) { void router.replace({ path: '/customers', query: { ...route.query, page: undefined, ...change } }) }
 const { data, error, pending, refresh } = await useAsyncData(() => `vendor:clients:${q.value}:${state.value}:${page.value}`, () => api.listClients(clientListQuery({ q: q.value, state: state.value, page: page.value })), { watch: [q, state, page] })
+// The field keeps what is typed; the URL (the source of the filter) follows after a pause so each keystroke does not refetch.
+const search = ref(q.value)
+watch(q, value => { search.value = value })
+const patchSearch = useDebounceFn(() => patch({ q: search.value || undefined }), 300)
 const unavailable = computed(() => isNotAvailable(error.value))
 const items = computed<ClientRow[]>(() => data.value?.items ?? [])
 const pages = computed(() => Math.max(1, Math.ceil((data.value?.total ?? 0) / CLIENT_PAGE_SIZE)))
@@ -37,7 +41,7 @@ const columns = computed<TableColumn<ClientRow>[]>(() => [
 <SharedListPage :title="t('vendor.customers.title')" :create-to="can('vendor.tenants.manage') ? { path: '/customers/new', query: { returnTo: route.fullPath } } : undefined" :create-label="t('vendor.customers.new')" create-test-id="vendor-customer-new">
 
 <template #filters><SharedFilterBar :active-count="Number(Boolean(q)) + Number(state !== 'all')" @clear="router.replace('/customers')">
-      <template #search><UInput :model-value="q" :aria-label="t('vendor.customers.search')" :placeholder="t('vendor.customers.search')" icon="i-lucide-search" :disabled="!hydrated" @update:model-value="patch({ q: $event || undefined })" /></template>
+      <template #search><UInput v-model="search" :aria-label="t('vendor.customers.search')" :placeholder="t('vendor.customers.search')" icon="i-lucide-search" :disabled="!hydrated" @update:model-value="patchSearch()" /></template>
       <SharedFilterChoice :label="t('vendor.common.status')" :model-value="state" :items="stateItems" :disabled="!hydrated" @update:model-value="patch({ state: $event && $event !== 'all' ? $event : undefined })" />
       <template #active><SharedFilterChip v-if="q" :label="q" @remove="patch({ q: undefined })" /><SharedFilterChip v-if="state !== 'all'" :label="t(`vendor.customers.filter.${state}`)" @remove="patch({ state: undefined })" /></template>
     </SharedFilterBar></template>

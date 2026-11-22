@@ -81,7 +81,7 @@ type RefundOutboxPayload = { attempt_id?: string; payment_id?: string; automatic
  * NON_RETRYABLE_REFUND) it also becomes the manual review the operator already works: one pending credit note for what
  * the attempt paid and is not yet credited (an undelivered order already has its fulfilment note, so it gets none more).
  * Recording the refund on the note settles the order. Any other code (retries used up on a timeout or a provider error) with
- * no refund ever asked of the provider writes no note: the failed row shows in the attention list as refund_rejected and the
+ * no refund ever asked of the provider writes no note: the failed row shows in the attention list as refund_not_sent and the
  * operator may refund by hand. A row with `provider_refund` set (money returned, or a refund call whose outcome is unverified)
  * is never handed over, whatever the code: the customer could be paid twice. It returns false and stays pending.
  */

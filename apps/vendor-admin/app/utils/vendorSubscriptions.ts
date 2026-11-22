@@ -1,6 +1,6 @@
 import type { StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
 import { riyadhDate, subscriptionDisplayState, type Adjustment, type BankTransferClaim, type Cadence, type Invoice, type InvoiceLine, type Money, type Order, type SignupAcceptance, type SubscriptionDisplayState, type SubscriptionView, type UsageMetric } from '@liwan/commercial-contracts'
-import { commercialErrorKey, commercialFailure, CURRENCY, emptyLimit, limitFromDraft, minorToInput, normalizeDigits, parseCount, parseVendorMoneyInput, sar, type LimitDraft } from './vendorCommercial'
+import { commercialErrorKey, commercialFailure, CURRENCY, emptyLimit, limitFromDraft, MB_PER_GB, minorToInput, normalizeDigits, parseCount, parseVendorMoneyInput, sar, type LimitDraft } from './vendorCommercial'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { humanizeId } from '@liwan/ui/app/utils/humanizeId'
 import { invoiceLineQuantities, type InvoiceLineView } from '@liwan/commercial-ui/app/utils/invoiceLines'
@@ -215,25 +215,53 @@ export function termsPayload(customerId: string, d: TermsDraft): TermsPayload {
 export function hasTermsOverride(d: TermsDraft): boolean {
   try { termsPayload('x', { ...d, reason: d.reason.trim().length >= 3 ? d.reason : 'xxx' }); return true } catch { return false }
 }
-/** Preview body for POST commercial/customer-quotes: the server computes both sides; `terms` is an unsaved draft, nothing is persisted. */
-export function customerQuoteBody(customerId: string, view: SubscriptionView, extra: { terms?: Omit<TermsPayload, 'customer_id' | 'reason'>; planRevisionId?: string; bundleIds?: string[]; cadence?: Cadence; extraBranches?: number; users?: number; storageMb?: number } = {}) {
-  const base = view.target ?? view.applied
+/** What the quote request names of the plan being ordered. */
+type PlanChoice = { included_bundle_revision_ids: string[]; optional_bundle_revision_ids: string[]; included_users: number; included_storage_mb: number }
+/** The bundles of an order: the plan's included ones and, of `chosen`, those the plan offers as optional. A bundle only the old plan allowed is refused by the server (`bundle_not_allowed`), so it is never carried over. */
+export function planBundleIds(plan: Pick<PlanChoice, 'included_bundle_revision_ids' | 'optional_bundle_revision_ids'>, chosen: Iterable<string>): string[] {
+  const wanted = new Set(chosen)
+  return [...plan.included_bundle_revision_ids, ...plan.optional_bundle_revision_ids.filter(id => wanted.has(id))]
+}
+/** The requested totals for users and storage: the plan's inclusions plus what is bought on top. */
+export function requestedQuantities(plan: Pick<PlanChoice, 'included_users' | 'included_storage_mb'>, paid: { paidUsers: number; paidStorageGb: number }) {
+  return { users: plan.included_users + paid.paidUsers, storageMb: plan.included_storage_mb + paid.paidStorageGb * MB_PER_GB }
+}
+/** What the customer holds above `plan`'s inclusions today: a plan change keeps their totals instead of dropping paid users and storage. */
+export function currentPaidQuantities(plan: Pick<PlanChoice, 'included_users' | 'included_storage_mb'>, view: SubscriptionView | null): { paidUsers: number; paidStorageGb: number } {
+  const base = view?.target ?? view?.applied
+  if (!base) return { paidUsers: 0, paidStorageGb: 0 }
+  return {
+    paidUsers: Math.max(0, Number(base.entitlement.features['users.limit'] ?? 0) - plan.included_users),
+    paidStorageGb: Math.max(0, Math.round((Number(base.entitlement.features['storage.limit_mb'] ?? 0) - plan.included_storage_mb) / MB_PER_GB)),
+  }
+}
+/** A failed order attempt may still have been recorded when the answer never arrived (no status, or a server error): its idempotency key is then kept so a retry returns that order instead of placing a second one. A refusal (4xx) recorded nothing. */
+export function orderOutcomeUnknown(cause: unknown): boolean {
+  const { status } = commercialFailure(cause)
+  return status === null || status >= 500
+}
+/** Preview body for POST commercial/customer-quotes: the server computes both sides; `terms` is an unsaved draft and `preview` prices the terms in force, nothing is persisted. A customer with no subscription yet (`view` null) is quoted as a new one at revision 0. */
+export function customerQuoteBody(customerId: string, view: SubscriptionView | null, extra: { terms?: Omit<TermsPayload, 'customer_id' | 'reason'>; preview?: true; planRevisionId?: string; bundleIds?: string[]; cadence?: Cadence; extraBranches?: number; users?: number; storageMb?: number; onboarding?: true } = {}) {
+  const base = view?.target ?? view?.applied
   if (!base) {
     if (!extra.planRevisionId || !extra.cadence || !extra.bundleIds) throw new Error('no_subscription')
     return {
-      customer_id: customerId, kind: 'new' as const, subscription_id: view.id, expected_subscription_revision: view.revision,
+      customer_id: customerId, kind: 'new' as const,
+      ...(view ? { subscription_id: view.id } : {}), expected_subscription_revision: view?.revision ?? 0,
       plan_revision_id: extra.planRevisionId, bundle_revision_ids: extra.bundleIds,
       cadence: extra.cadence, requested_extra_branches: extra.extraBranches ?? 0,
       requested_users: extra.users ?? 0, requested_storage_mb: extra.storageMb ?? 0,
+      ...(extra.onboarding ? { onboarding: true as const } : {}),
     }
   }
   return {
-    customer_id: customerId, kind: 'change' as const, subscription_id: view.id, expected_subscription_revision: view.revision,
+    customer_id: customerId, kind: 'change' as const, subscription_id: view!.id, expected_subscription_revision: view!.revision,
     plan_revision_id: extra.planRevisionId ?? base.plan_revision_id, bundle_revision_ids: extra.bundleIds ?? base.bundle_revision_ids,
     cadence: extra.cadence ?? base.cadence, requested_extra_branches: extra.extraBranches ?? base.extra_branch_count,
     requested_users: extra.users ?? Number(base.entitlement.features['users.limit'] ?? 0),
     requested_storage_mb: extra.storageMb ?? Number(base.entitlement.features['storage.limit_mb'] ?? 0),
     ...(extra.terms ? { terms: extra.terms } : {}),
+    ...(extra.preview ? { preview: true as const } : {}),
   }
 }
 /** Server returns either `{quote, preview:true}` or a quote carrying `preview: true`. Previews are never persisted and can never be accepted. */

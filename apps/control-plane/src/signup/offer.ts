@@ -12,11 +12,12 @@ const monthly = (price: { cadence: { unit: string; count: number }; amount: { cu
 
 function unavailable(): never { throw new CommercialHttpError('unavailable', 503) }
 
+/** The offer of a plan: its latest published, available revision, so publishing a new revision keeps sign-up and pricing open. */
 export async function loadSignupOffer(client: Pick<PoolClient, 'query'>, planId: string) {
   const row = (await client.query(`SELECT r.* FROM plan_revisions r
     JOIN pricing_policy_revisions p ON p.id=r.policy_revision_id AND p.status='approved' AND p.tax_kind='none'
-    WHERE r.id=$1 AND r.status='published' AND r.available AND r.audience->>'kind'='public'
-      AND r.trial_days=14 FOR SHARE OF r`, [planId])).rows[0]
+    WHERE r.plan_id=$1 AND r.status='published' AND r.available AND r.audience->>'kind'='public'
+      AND r.trial_days=14 ORDER BY r.version DESC LIMIT 1 FOR SHARE OF r`, [planId])).rows[0]
   if (!row) unavailable()
   const plan = planRevision(row)
   if (plan.prices.find(monthly)?.amount.minor !== 0 || plan.included_bundle_revision_ids.length) unavailable()

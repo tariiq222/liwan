@@ -68,18 +68,21 @@
       "kinds": {
         "past_due": "Overdue for {duration}",
         "refund_rejected": "A provider refund could not be recorded ({operation}): the money left and there is no credit note",
+        "refund_not_sent": "No refund was requested from the provider ({operation}): the money has not left, so refund it only after checking the invoice",
         "refund_unrecorded": "The provider has already returned this money. Do not refund it again. Check why recording the refund is blocked.",
         "billing_blocked": "Invoice cannot be issued for {duration}: no valid payment return address",
         "free_base_blocked": "Dropping the subscription to the free base has been blocked for {duration} ({operation}); the company is not locked",
         "trial_end_overdue": "The trial ended {duration} ago but its end has not run: the paid applications are still open and new orders are refused until it does",
         "renewal_failed": "The renewal could not be generated ({operation}); other renewals are not affected",
         "suspension_undelivered": "The suspension has not reached the workspace. Delivery retries continue.",
+        "resume_undelivered": "The resume has not reached the workspace: the subscription is active and the workspace is still stopped. Delivery retries continue.",
         "stalled_failed": "Activation failed and needs you",
         "stalled_waiting": "Activation stalled for {duration}",
         "invitation_failed": "The admin invitation could not be delivered after several attempts: nobody can open the workspace yet",
         "bank_transfer_claimed": "The customer says it transferred on {operation}: confirm the transfer once the money arrives",
         "notice_failed": "A notice to the customer could not be sent ({operation})",
         "operation_failed": "Operation failed: {operation}",
+        "shared_operation_failed": "A shared-runtime operation is stuck or was abandoned: {operation}",
         "setup_required": "Needs commercial setup",
         "renewal_missed": "Renewal date passed {duration} ago and not renewed",
         "renewal_soon": "Renews within {duration}",
@@ -97,23 +100,27 @@
       "actions": {
         "past_due": "Open the invoice",
         "refund_rejected": "Open the invoice",
+        "refund_not_sent": "Open the invoice",
         "refund_unrecorded": "Open the invoice",
         "billing_blocked": "Open the subscription",
         "free_base_blocked": "Open the subscription",
         "trial_end_overdue": "Open the subscription",
         "renewal_failed": "Open the subscription",
         "suspension_undelivered": "Open the subscription",
+        "resume_undelivered": "Open the subscription",
         "stalled_activation": "Open the workspace",
         "invitation_failed": "Re-issue the invitation",
         "bank_transfer_claimed": "Open the invoice",
         "notice_failed": "Open the subscription",
         "operation_failed": "Open the operation",
+        "shared_operation_failed": "Open the operation",
         "setup_required": "Open the subscription",
         "renewal_missed": "Open the subscription",
         "renewal_soon": "Open the subscription",
         "tenant_deletion_due": "Open the request",
         "tenant_deletion_stuck": "Open the deletion",
-        "form_payment_review": "Open the invoices"
+        "form_payment_review": "Open the invoices",
+        "form_payment_review_provider": "Open the audit log"
       },
       "statusTitle": "Overall status",
       "statusLabel": "Overall status counts",
@@ -222,7 +229,48 @@
         "people": "People",
         "messaging": "Messaging"
       },
-      "tabs": "Catalog sections"
+      "tabs": "Catalog sections",
+      "applications": "Applications",
+      "intro": "The commercial catalog is built in order: applications first, then bundles, then plans. Each step is made of the one before it.",
+      "stepsLabel": "Order of building the commercial catalog",
+      "steps": {
+        "apps": {
+          "title": "Applications",
+          "hint": "A version you validate and publish; bundles are built on it."
+        },
+        "bundles": {
+          "title": "Bundles",
+          "hint": "Priced applications from the published version."
+        },
+        "plans": {
+          "title": "Plans",
+          "hint": "The subscription that includes bundles and that customers buy."
+        }
+      },
+      "version": "Version",
+      "sellableApps": "Applications for sale",
+      "imported": "Imported on",
+      "empty": "No version is imported yet. The platform operator imports one from the server with catalog-import; it then appears here to validate and publish.",
+      "details": "Applications version",
+      "appsTitle": "Applications in this version",
+      "noApps": "This version has no applications.",
+      "sellable": "For sale",
+      "baseModules": "Base modules",
+      "step": "Next step",
+      "effects": {
+        "validate": "Checks that the version is sound and that its source is the current one, then marks it ready to approve.",
+        "publish": "Approves the version and lets bundles be built on it. Needs a passkey confirmation."
+      },
+      "publishedTitle": "This version is published.",
+      "toBundles": "Start building bundles on it",
+      "release": {
+        "title": "Create a release for bundles",
+        "hint": "Bundles are built on a release created from this version. Needs a passkey confirmation."
+      },
+      "errors": {
+        "conflict": "This version changed state. Reload the page and try again.",
+        "catalog_invalid": "Validation of the version failed. Check its source with the platform operator, then try again."
+      }
     },
     "features": {
       "users": {
@@ -293,7 +341,21 @@
         "prepared": "Prepared",
         "started": "Execution started",
         "verified": "Execution verified",
-        "needs_intervention": "Needs attention"
+        "needs_intervention": "Needs attention",
+        "failed": "Failed",
+        "lease_expired": "Execution timed out",
+        "reconciliation_required": "Needs reconciliation",
+        "shared_execution_unavailable": "Shared execution is unavailable",
+        "grant_revoked": "Access was revoked",
+        "tenant_missing": "Workspace not found",
+        "target_not_authorized": "Target is not authorized",
+        "approval_revoked": "Approval was revoked",
+        "receipt_unverified": "Result could not be verified",
+        "worker_error": "Execution error",
+        "operator_timeout": "The operator tool timed out",
+        "operator_output_limit": "The operator tool output was too large",
+        "operator_group_unconfirmed": "The operator tool stop was not confirmed",
+        "operator_output_invalid": "The operator tool output was not valid"
       },
       "types": {
         "tenant": {
@@ -306,6 +368,7 @@
         "upgrade": "Upgrade installation",
         "restore": "Restore backup",
         "provision": "Set up customer workspace",
+        "reconfigure": "Change workspace subscription",
         "unknown": "Unknown operation"
       },
       "lastEvent": "Last recorded event",
@@ -330,6 +393,19 @@
           "abandoned": "The operation was closed as failed and the workspace is unblocked.",
           "effect_present": "Refused: the effect exists in the workspace. Recover the operation instead.",
           "failed": "The check could not confirm the effect is absent, so the operation was not closed."
+        }
+      },
+      "recover": {
+        "title": "Recover this operation",
+        "hint": "The system checks the workspace again without repeating the operation. If the effect exists and is verified, the operation is completed; otherwise it stays here for review.",
+        "action": "Recover operation",
+        "confirm": "Check the workspace and complete the operation if its effect is verified.",
+        "reason": "Reason for recovery",
+        "states": {
+          "pending": "Recovery request is being checked against the workspace.",
+          "verified": "The effect was verified and the operation is complete.",
+          "still_needs_intervention": "The effect could not be confirmed, so the operation still needs review.",
+          "failed": "The recovery request could not run."
         }
       },
       "operationId": "Operation ID",
@@ -619,7 +695,10 @@
       "usedBy": "Plans that include this bundle",
       "usedByHint": "Plans that reference this exact version of the bundle.",
       "usedByNone": "No plan includes this bundle yet.",
-      "usedByUnavailable": "Plans could not be loaded."
+      "usedByUnavailable": "Plans could not be loaded.",
+      "noPublishedCatalog": "No published applications version",
+      "noPublishedCatalogHint": "A bundle is built on a published version. Publish a version from the Applications page first, then come back to create the bundle.",
+      "openCatalog": "Open Applications"
     },
     "plans": {
       "title": "Plans",
@@ -664,7 +743,8 @@
       "currencyFixed": "Saudi riyal (SAR) — fixed",
       "saveDraft": "Save draft",
       "edit": "Edit",
-      "notDraft": "Only drafts can be edited. Create a new version to change it.",
+      "notEditable": "Only a draft or a version ready to publish can be edited. Create a new version to change it.",
+      "editReturnsToDraft": "This version is ready to publish. Saving a change returns it to draft, and it must be validated again before it is published.",
       "customers": "{count} customer | {count} customers",
       "version": "Version {count}",
       "history": "Versions of this record",
@@ -690,7 +770,7 @@
         "add": "Add price",
         "cadenceInvalid": "Choose a unit and a count from 1 to 12.",
         "duplicate": "Duplicate cadence.",
-        "amountInvalid": "Enter an amount with at most 2 decimals.",
+        "amountInvalid": "Enter the amount with a point before the decimals, such as 12.50 (at most 2 decimals).",
         "invalid": "Review the prices.",
         "cadenceMissing": "Add a user and storage unit price for every offered billing cadence."
       },
@@ -890,6 +970,7 @@
         "platform_limit_derived": "Users and storage are customer-chosen quantities, not plan limits.",
         "users_limit_admin_required": "The chosen quantity must admit at least one administrator.",
         "storage_minimum_not_whole_gb": "Storage is sold in whole gigabytes above the minimum; make the minimum a multiple of 1024.",
+        "storage_step_not_whole_gb": "Storage is sold in whole gigabytes; make every storage step a multiple of 1024.",
         "invalid_billing_period": "Invalid billing period.",
         "invalid_order_transition": "Order transition not allowed.",
         "invalid_json": "Invalid request. Try again.",
@@ -909,6 +990,8 @@
         "refund_not_full": "A refund must return the whole invoice. Open a credit note for the full total, then record the refund.",
         "invoice_already_refunded": "This invoice is already refunded. Do not record another refund for it; reload the invoice to see the credit note.",
         "admin_login_required": "The customer has no administrator who has signed in yet, so provisioning would fail. Have the customer administrator sign in, then place the order.",
+        "tenant_retiring": "This customer's workspace is being deleted or is already deleted, so this action is not available.",
+        "invitation_accepted": "The customer administrator has already accepted the invitation, so a new one cannot be sent to the same address.",
         "invalid_value_date": "Enter the value date from the bank statement: a real calendar date, today or earlier.",
         "value_date_in_future": "A transfer cannot have arrived after today. Enter the value date from the bank statement, today or earlier.",
         "value_date_before_invoice": "The value date is before this invoice was issued, so the money cannot be for it. Check the invoice date and the statement line.",
@@ -939,7 +1022,6 @@
       "resendInvitation": "Resend invitation",
       "resendInvitationHint": "Sends a new invitation to the customer administrator and replaces the previous one. It is valid for 72 hours.",
       "invitationQueued": "The invitation is queued for delivery.",
-      "invitationFailed": "The invitation could not be sent. Try again.",
       "payLink": {"create": "Create hosted payment link (saves no card)", "label": "Payment link", "copy": "Copy link", "copied": "Link copied.", "copyFailed": "Copy failed. Copy it by hand.", "failed": "The payment link could not be created. Check the payment provider setup."},
       "trial": {"title": "Trial", "ends": "Ends on", "remaining": "Days remaining", "state": "State", "extend": "Extend trial", "end": "End trial now", "extendHint": "Add days to the trial end. The action is audited.", "endHint": "Ends the trial now and moves the customer to the free base at once. No invoice is issued and their data stays. They can pay later from their workspace, and you can reopen the trial. The action is audited.", "reopen": "Reopen trial", "reopenHint": "Restores the trial configuration for the chosen number of days. Any unpaid first renewal invoice is voided. The action is audited.", "days": "Days", "reason": "Reason", "readOnly": "Changing a trial requires the subscription management capability.", "states": {"trialing": "Trial", "active": "Active", "past_due": "Past due", "suspended": "Suspended", "pending": "Provisioning", "cancelled": "Cancelled"}},
       "trialStart": {"title": "Start a trial", "hint": "The customer has no subscription yet. A trial creates the workspace and sends the administrator invitation; the customer can pay from inside the workspace at any time during the trial. If they do not, the trial ends on its deadline and they move to the free base.", "plan": "Plan", "cadence": "Billing cadence", "action": "Start {days}-day trial", "noPlans": "No published plan offers a trial."},
@@ -960,6 +1042,7 @@
       "noSubscription": "No subscription",
       "customizeTerms": "Customize customer terms",
       "changeSubscription": "Change subscription",
+      "firstSubscription": "Start a paid subscription",
       "sectionUnavailable": "This section is not available yet.",
       "included": "Included",
       "branchesHq": "Headquarters",
@@ -1103,7 +1186,14 @@
         "quote": "Calculate price",
         "place": "Place order",
         "cadence": "Billing cadence",
-        "pendingOrder": "This subscription has a pending order. Review its status on the customer page before placing another order."
+        "pendingOrder": "This subscription has a pending order. Review its status on the customer page before placing another order.",
+        "firstOnBehalf": "You are placing the customer's first order on their behalf. The customer pays by bank transfer or payment link, or nothing is due when the plan is free.",
+        "bundles": "Optional bundles",
+        "bundlesHint": "The plan's included bundles come with it; tick the optional ones the customer buys.",
+        "paidUsers": "Extra users",
+        "paidStorage": "Extra storage (GB)",
+        "included": "Included: {count}",
+        "includedStorage": "Included: {count} GB"
       },
       "suspension": {
         "suspend": "Suspend subscription",
@@ -1175,6 +1265,7 @@
         "due": "The withdrawal window ended on {due}. The request is in its final hold until {hold} and the workspace still works.",
         "deleting": "Access to the workspace has been stopped since {deleting} and the deletion is being carried out.",
         "deleted": "The workspace was deleted on {deleted}.",
+        "withdrawn": "The deletion request was withdrawn. Access to the workspace, stopped since {deleting}, is being restored.",
         "workspaceDeleted": "Workspace deleted {date}",
         "renewal": {
           "cancelled": "The paid renewal was cancelled at the period end. No refund is made.",
@@ -1432,6 +1523,36 @@
       },
       "pendingActivation": "Awaiting activation"
     },
+    "aiBillingSettings": {
+      "title": "AI billing settings",
+      "hint": "The AI balance customers can buy and the free AI allowances. They apply to every customer.",
+      "save": "Save settings",
+      "saved": "The AI billing settings were saved.",
+      "pushed": "{count} workspace received its new AI allowance. | {count} workspaces received their new AI allowance.",
+      "sections": {
+        "topup": "Top-up",
+        "topupHint": "The amounts a customer may buy, the lowest amount, and the rate that turns riyals into AI balance.",
+        "allowances": "Free allowances",
+        "allowancesHint": "AI usage included for every customer, expressed as a value in riyals. Changing an allowance updates the customers' workspaces."
+      },
+      "fields": {
+        "amounts": "Top-up amounts (SAR)",
+        "amountsHint": "Separate the amounts with an Arabic comma (،) or a semicolon (;), from the smallest to the largest, for example 25; 50; 100. A Latin comma never separates amounts; it is only a thousands mark inside one, as in 1,250. Up to 12 amounts.",
+        "minimum": "Lowest amount (SAR)",
+        "minimumHint": "Every amount offered must reach it.",
+        "rate": "Riyals per US dollar",
+        "rateHint": "Converts a top-up into AI balance, for example 3.75. Up to six decimals.",
+        "trial": "Trial allowance (SAR)",
+        "monthly": "Monthly allowance (SAR)"
+      },
+      "errors": {
+        "amounts": "Enter between 1 and 12 different amounts in riyals, with at most two decimals, from the smallest to the largest.",
+        "minimum": "Enter the lowest amount in riyals; every amount offered must be at least this much.",
+        "rate": "Enter a positive rate with at most six decimals, such as 3.75.",
+        "trial": "Enter an amount in riyals, or 0 for no trial allowance.",
+        "monthly": "Enter an amount in riyals, or 0 for no monthly allowance."
+      }
+    },
     "billingSettings": {
       "title": "Billing settings",
       "hint": "The values Liwan's own billing runs on. Change them here, never in code.",
@@ -1528,7 +1649,7 @@
         "reference": "Transfer reference",
         "amount": "Amount received",
         "amountHint": "In riyals, with at most two decimals, such as 123.45.",
-        "amountInvalid": "Enter the amount as a number in riyals, such as 123.45, with no sign or letters.",
+        "amountInvalid": "Enter the amount as a number in riyals, such as 123.45, with a point before the decimals and no sign or letters.",
         "amountDecimals": "A riyal amount has at most two decimals. Enter the exact amount received, without rounding.",
         "claimed": "Stated by the customer, not verified: it transferred this on {date}",
         "claimedReference": "Sender or bank reference given by the customer: {reference}",
@@ -1602,7 +1723,9 @@
         "tax": "Tax",
         "adjustment": "Adjustment",
         "users": "Users",
-        "storage": "Storage"
+        "storage": "Storage",
+        "onboarding": "Assisted onboarding",
+        "ai_topup": "AI top-up"
       },
       "kind": {
         "initial": "New subscription",

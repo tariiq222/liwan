@@ -17,15 +17,15 @@ const items = computed<TeamAccount[]>(() => data.value?.items ?? [])
 const allowed = computed(() => can('vendor.accounts.manage'))
 
 const TONES: Record<TeamAccountStatus, 'success' | 'warning' | 'neutral'> = { active: 'success', enrolling: 'warning', disabled: 'neutral' }
-const ICONS = { roles: 'i-lucide-shield-check', reset: 'i-lucide-key-round', disable: 'i-lucide-user-x' } as const
+const ICONS = { roles: 'i-lucide-shield-check', reset: 'i-lucide-key-round', disable: 'i-lucide-user-x', enable: 'i-lucide-user-check' } as const
 const isMe = (account: TeamAccount) => account.id === me.value?.id
 const lastSeen = (account: TeamAccount) => (account.last_seen_at ? formatDateTime(account.last_seen_at) : t('team.neverSeen'))
 
-// A disabled account cannot be changed; a pending invitation can get a new link (reset) or be disabled.
+// A disabled account can only be enabled, which starts its enrolment again with a new link; a pending invitation can get a new link (reset) or be disabled.
 // Nobody disables or re-enrolls their own account here: that would end their own session.
 const actionsOf = (account: TeamAccount) => (account.status === 'disabled'
-  ? []
-  : (isMe(account) ? ['roles'] as const : ['roles', 'reset', 'disable'] as const).map(kind => ({ kind, label: t(`team.actions.${kind}`), icon: ICONS[kind] })))
+  ? ['enable'] as const
+  : isMe(account) ? ['roles'] as const : ['roles', 'reset', 'disable'] as const).map(kind => ({ kind, label: t(`team.actions.${kind}`), icon: ICONS[kind] }))
 
 const columns = computed<TableColumn<TeamAccount>[]>(() => [
   { id: 'person', header: t('team.columns.person') },

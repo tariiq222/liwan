@@ -24,6 +24,8 @@ const ALLOWED = [
   new RegExp(`^/v1/commercial/invoice-adjustments/${SEGMENT}/refund$`),
   // Release 1 billing: the vendor-editable settings row, and recording a bank transfer against one invoice.
   /^\/v1\/commercial\/billing-settings$/,
+  // Vendor-wide AI billing: top-up amounts, the conversion rate and the free allowances.
+  /^\/v1\/commercial\/ai-billing-settings$/,
   new RegExp(`^/v1/commercial/invoices/${SEGMENT}/bank-transfer$`),
   // A2: the customer-requested refund. Creates the pending vendor credit note; the provider reference is recorded
   // through the existing invoice-adjustments refund route above.
@@ -41,7 +43,7 @@ const ALLOWED = [
   new RegExp(`^/v1/commercial/subscriptions/${SEGMENT}/payment-methods/${SEGMENT}/remove$`),
   /^\/v1\/platform\/ai-provider(\/(presets|models|test))?$/,
   /^\/v1\/admin\/(me|accounts)$/,
-  /^\/v1\/admin\/accounts\/[1-9][0-9]{0,15}\/(roles|disable|reset)$/,
+  /^\/v1\/admin\/accounts\/[1-9][0-9]{0,15}\/(roles|disable|enable|reset)$/,
 ]
 // The AI provider probes call a third party, and the control plane allows them 15 s (models) and two 20 s asks (test), apps/control-plane
 // ai-provider/client.ts. The BFF must wait longer than that or it gives up with a 503 on a probe that is still running; the margin covers
@@ -57,12 +59,23 @@ export function upstreamTimeoutMs(path: string): number {
   return SLOW_UPSTREAM.find(route => route.pattern.test(pathname))?.timeoutMs ?? UPSTREAM_TIMEOUT_MS
 }
 
+// The models probe answers 502 with the provider's own failure code (apps/control-plane ai-provider/http.ts), which the AI page translates into a
+// message. Only that route and only these codes reach the browser; every other 5xx is masked as 503.
+const PROVIDER_ERROR_CODES = ['provider_timeout', 'provider_unreachable', 'provider_rate_limited', 'provider_error', 'provider_invalid_response'] as const
+const PROVIDER_ERROR_ROUTE = /^\/v1\/platform\/ai-provider\/models$/
+
+/** The 502 codes a control-plane path may show the browser (query ignored); none for every route but the models probe. */
+export function upstreamPassThrough502(path: string): readonly string[] | undefined {
+  return PROVIDER_ERROR_ROUTE.test(path.split('?', 1)[0]!) ? PROVIDER_ERROR_CODES : undefined
+}
+
 // Package revisions are read-only history (the control plane answers 410 to any write).
 const READ_ONLY = [new RegExp(`^/v1/packages(/${SEGMENT})?$`)]
 /** Routes whose method matters to the console: the allowlist is otherwise path-only. Each entry lists the methods the
  * console actually calls, so a stray DELETE cannot reach the control plane through a path that is only ever read. */
 const METHOD_BOUND = [
   { pattern: /^\/v1\/commercial\/billing-settings$/, methods: ['GET', 'PATCH', 'POST'] },
+  { pattern: /^\/v1\/commercial\/ai-billing-settings$/, methods: ['GET', 'PATCH'] },
   { pattern: new RegExp(`^/v1/commercial/invoices/${SEGMENT}/bank-transfer$`), methods: ['POST'] },
   { pattern: new RegExp(`^/v1/commercial/invoices/${SEGMENT}/refund-request$`), methods: ['POST'] },
   { pattern: /^\/v1\/commercial\/deletion-requests$/, methods: ['GET'] },
@@ -72,6 +85,9 @@ const METHOD_BOUND = [
   { pattern: new RegExp(`^/v1/commercial/customers/${SEGMENT}/admin-login$`), methods: ['PATCH'] },
   { pattern: new RegExp(`^/v1/commercial/subscriptions/${SEGMENT}/disable-auto-renew$`), methods: ['POST'] },
   { pattern: new RegExp(`^/v1/commercial/subscriptions/${SEGMENT}/payment-methods/${SEGMENT}/remove$`), methods: ['POST'] },
+  // Team account actions and the shared job actions are commands: POST only.
+  { pattern: /^\/v1\/admin\/accounts\/[1-9][0-9]{0,15}\/(roles|disable|enable|reset)$/, methods: ['POST'] },
+  { pattern: new RegExp(`^/v1/shared/tenants/${SEGMENT}/jobs/${SEGMENT}/(recover|abandon)$`), methods: ['POST'] },
 ] as const
 
 /** Maps /api/vendor/v1/** to the control plane's /v1/**; anything outside the allowlist (the sign-in surface included) is 404. */
@@ -96,7 +112,7 @@ export async function proxyVendorRequest(event: H3Event): Promise<unknown> {
   if (!session) return bffFail(401, 'unauthorized')
   const path = upstreamPath(event, method)
   const body = method === 'GET' ? undefined : (await readJsonObject(event, PROXY_INVALID)).raw
-  const result = await controlCall(event, { path, method, body, session, timeoutMs: upstreamTimeoutMs(path) })
+  const result = await controlCall(event, { path, method, body, session, timeoutMs: upstreamTimeoutMs(path), passThrough502: upstreamPassThrough502(path) })
   if (result.status === 401) clearSession(event)
   return respond(event, result.status, result.data)
 }

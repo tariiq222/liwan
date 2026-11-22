@@ -83,7 +83,7 @@ suite('automatic refund that cannot finish is handed to the operator on PostgreS
     expect(await outbox(f.order)).toMatchObject({ status: 'failed' })
     // A transient error may follow a refund the provider made: no note, the operator verifies the provider first.
     expect(await notes(f.invoice)).toHaveLength(0)
-    expect((await attention(pool, true)).items.filter(i => i.kind === 'refund_rejected' && i.customer_id === f.customer)).toHaveLength(1)
+    expect((await attention(pool, true)).items.filter(i => i.kind === 'refund_not_sent' && i.customer_id === f.customer)).toHaveLength(1)
   })
 
   it.each(['form', 'saved_card'] as const)('F1 reads a %s payment by its payment id, never as an invoice', async kind => {
@@ -105,7 +105,7 @@ suite('automatic refund that cannot finish is handed to the operator on PostgreS
     expect(await outbox(f.order)).toMatchObject({ status: 'failed', payload: { automatic: true, attempt_id: f.attempt } })
     expect(await notes(f.invoice)).toEqual([expect.objectContaining({ id: f.note, status: 'pending', minor: 11500 })])
     // The pending note already covers the invoice: the operator works that note, no rejection is left unseen.
-    expect((await attention(pool, true)).items.filter(i => i.kind === 'refund_rejected' && i.customer_id === f.customer)).toHaveLength(0)
+    expect((await attention(pool, true)).items.filter(i => i.kind === 'refund_not_sent' && i.customer_id === f.customer)).toHaveLength(0)
     await operatorRefund(f.note)
     expect(await orderState(f.order)).toBe('refunded')
   })

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { formatLiwanDate, formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
-import { deletionWithdrawable, isDeletionShown } from '@/utils/vendorDeletion'
+import { deletionWithdrawable, isDeletionShown, isWorkspaceRetiring } from '@/utils/vendorDeletion'
 import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBadges'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { commercialErrorKey } from '@/utils/vendorCommercial'
@@ -24,6 +24,7 @@ const { data: customer, error, pending, refresh } = await useAsyncData(() => `ve
 })
 const hydrated = useHydrated()
 const canBilling = computed(() => can('vendor.billing.manage'))
+const canAudit = computed(() => can('vendor.audit.read'))
 const offeredTabs = computed(() => CUSTOMER_TABS.filter(key => key !== 'invoices' || canBilling.value))
 const tab = computed(() => clientTab(route.query.tab, offeredTabs.value))
 const tabs = computed(() => clientTabItems(offeredTabs.value, tab.value, route, key => t(`vendor.clientTabs.${key}`), 'customer-tab'))
@@ -40,7 +41,7 @@ const { data: extra, refresh: refreshExtra } = await useAsyncData(() => `vendor:
     s ? soft(() => api.branches(s)) : Promise.resolve({ value: null, unavailable: false, failed: false }),
     s ? soft(() => api.usage(s)) : Promise.resolve({ value: null, unavailable: false, failed: false }),
     canBilling.value ? soft(() => api.listInvoices({ customer_id: id.value, limit: 10 })) : Promise.resolve({ value: null, unavailable: false, failed: false }),
-    soft(() => useVendorCommercial().listPlans({ limit: 200 })),
+    soft(() => useVendorCommercial().listPlans({ limit: 200, customer_id: id.value })),
     soft(() => useVendorCommercial().releases()),
   ])
   return { full, branches, usage, invoices, plans, releases }
@@ -67,8 +68,6 @@ const tenantId = computed(() => customer.value?.tenant_id ?? '')
 const hasWorkspace = computed(() => Boolean(tenantId.value))
 const { data: tenant, error: tenantError, pending: tenantPending, refresh: refreshTenant } = await useVendorTenant(tenantId)
 const { data: recentOperations, error: recentError, refresh: refreshRecent } = await useTenantRecentOperations(tenantId)
-// The only owner of the provisioning poll: the summary and the workspace tab need it, the other tabs and the child pages do not.
-const progress = useWorkspaceProvisioning(tenantId, () => !isChild.value && (tab.value === 'summary' || tab.value === 'workspace'))
 const workspaceUnreadable = computed(() => hasWorkspace.value && Boolean(tenantError.value || recentError.value || progress.error))
 const UNKNOWN_WORKSPACE_BADGE: StatusBadgeEntry = { tone: 'neutral', labelKey: 'vendor.customers.workspaceUnknown' }
 const workspaceStatus = computed(() => progress.provisioning?.status ?? tenant.value?.status)
@@ -81,6 +80,8 @@ const retryWorkspaceState = () => Promise.all([refreshTenant(), refreshRecent(),
 const operationFailed = computed(() => Boolean(recentOperations.value?.some(op => op.status === 'failed' || op.status === 'needs_intervention')))
 const canTerms = computed(() => can('vendor.pricing.manage') && can('vendor.subscriptions.manage'))
 const canStartTrial = computed(() => can('vendor.subscriptions.manage') && (hasWorkspace.value || can('vendor.tenants.manage')) && !view.value?.applied && !view.value?.pending_order)
+// A first paid order needs no subscription yet: the change page places it, and its fulfilment provisions the workspace like a trial does.
+const canStartFirst = computed(() => can('vendor.subscriptions.manage') && !view.value && (hasWorkspace.value || can('vendor.tenants.manage')))
 const canChange = computed(() => can('vendor.subscriptions.manage') && Boolean(view.value) && !view.value?.pending_order)
 const cancelOpen = ref(false)
 const cancelReason = ref('')
@@ -90,17 +91,18 @@ const canCancel = computed(() => can('vendor.subscriptions.manage') && !error.va
 const validCancelReason = computed(() => cancelReason.value.trim().length >= 3 && cancelReason.value.trim().length <= 1000)
 const canInvite = computed(() => can('vendor.subscriptions.manage') && Boolean(customer.value?.tenant_id) && Boolean(view.value?.applied))
 const inviteBusy = ref(false)
-const inviteState = ref<'queued' | 'failed' | undefined>()
+const inviteQueued = ref(false)
+const inviteFailure = ref<string | undefined>()
 async function resendInvitation() {
   if (!hydrated.value || inviteBusy.value || !canInvite.value) return
-  inviteBusy.value = true; inviteState.value = undefined
-  try { await api.resendInvitation(id.value); inviteState.value = 'queued' }
-  catch { inviteState.value = 'failed' }
+  inviteBusy.value = true; inviteQueued.value = false; inviteFailure.value = undefined
+  try { await api.resendInvitation(id.value); inviteQueued.value = true }
+  catch (cause) { inviteFailure.value = t(commercialErrorKey(cause)) }
   finally { inviteBusy.value = false }
 }
 // The address on record receives every control-plane mail for the workspace (invitation, billing, trial, cancellation and deletion notices).
 // Changing it needs a reason and a fresh passkey confirmation; it never changes an account inside the workspace.
-const canChangeAdminLogin = computed(() => can('vendor.subscriptions.manage') && Boolean(customer.value?.tenant_id) && !error.value && !workspaceDeleted.value && deletion.value?.state !== 'deleting')
+const canChangeAdminLogin = computed(() => can('vendor.subscriptions.manage') && Boolean(customer.value?.tenant_id) && !error.value && !workspaceRetiring.value)
 const adminLoginOpen = ref(false)
 const adminLoginValue = ref('')
 const adminLoginReason = ref('')
@@ -170,7 +172,7 @@ const renewalAction = ref<'cancel' | 'resume' | null>(null)
 const renewalReason = ref('')
 const renewalBusy = ref(false)
 const renewalFailure = ref<string | undefined>()
-const canChangeRenewal = computed(() => can('vendor.subscriptions.manage') && !error.value && Boolean(view.value?.cancellation || view.value?.cancellable))
+const canChangeRenewal = computed(() => can('vendor.subscriptions.manage') && !error.value && !workspaceRetiring.value && Boolean(view.value?.cancellation || view.value?.cancellable))
 const validRenewalReason = computed(() => renewalReason.value.trim().length >= 3 && renewalReason.value.trim().length <= 1000)
 function closeRenewal() { renewalAction.value = null; renewalReason.value = ''; renewalFailure.value = undefined }
 async function changeRenewal() {
@@ -209,6 +211,11 @@ async function changeCard() {
 const { data: deletionRun, refresh: refreshDeletion } = await useAsyncData(() => `vendor:customer-deletion:${id.value}`, async () => (await soft(() => api.tenantDeletionRun(id.value))).value?.run ?? null)
 const deletion = computed(() => (isDeletionShown(deletionRun.value?.request) ? deletionRun.value!.request : null))
 const workspaceDeleted = computed(() => deletion.value?.state === 'deleted' || tenant.value?.status === 'deleted')
+// Once access has stopped the control plane refuses every vendor action on the customer, so the console stops offering them.
+const workspaceRetiring = computed(() => isWorkspaceRetiring(deletion.value) || tenant.value?.status === 'deleted')
+// The only owner of the provisioning poll: the summary and the workspace tab need it, the other tabs, the child pages and a workspace being deleted do not.
+// Declared here, after `workspaceRetiring`: the poll reads it as soon as it is created.
+const progress = useWorkspaceProvisioning(tenantId, () => !isChild.value && !workspaceRetiring.value && (tab.value === 'summary' || tab.value === 'workspace'))
 const workspaceDeletedText = computed(() => t('vendor.customers.deletion.workspaceDeleted', { date: formatLiwanDate(deletion.value?.deleted_at ?? '') }))
 const deletionWithdrawOpen = ref(false)
 const deletionReason = ref('')
@@ -293,7 +300,10 @@ async function cancelPendingOrder() {
               <UButton v-if="canTerms" :to="termsTo" color="neutral" variant="outline" size="sm" icon="i-lucide-sliders-horizontal">{{ t('vendor.customers.customizeTerms') }}</UButton>
               <UButton v-if="can('vendor.subscriptions.manage')" :to="canChange ? changeTo : undefined" :disabled="!canChange" size="sm" icon="i-lucide-repeat">{{ t('vendor.customers.changeSubscription') }}</UButton>
             </template>
-            <p v-if="!view" class="text-sm text-muted">{{ t('vendor.customers.noSubscription') }}</p>
+            <div v-if="!view" class="flex flex-wrap items-center gap-3">
+              <p class="text-sm text-muted">{{ t('vendor.customers.noSubscription') }}</p>
+              <UButton v-if="canStartFirst" :to="changeTo" size="sm" icon="i-lucide-credit-card" data-testid="start-first-subscription">{{ t('vendor.customers.firstSubscription') }}</UButton>
+            </div>
             <VendorSubscriptionSummary v-else :subscription="view" :plan-name="planName">
               <template v-if="canChangeCard" #card-actions>
                 <div class="space-y-3" data-testid="card-actions">
@@ -429,7 +439,8 @@ async function cancelPendingOrder() {
                 <template #actions>
                   <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-mail" data-testid="resend-invitation" :disabled="!hydrated || inviteBusy" :loading="inviteBusy" @click="resendInvitation">{{ t('vendor.customers.resendInvitation') }}</UButton>
                 </template>
-                <p v-if="inviteState" role="status" class="text-sm" :class="inviteState === 'failed' ? 'text-error' : 'text-muted'">{{ t(inviteState === 'queued' ? 'vendor.customers.invitationQueued' : 'vendor.customers.invitationFailed') }}</p>
+                <p v-if="inviteQueued" role="status" class="text-sm text-muted">{{ t('vendor.customers.invitationQueued') }}</p>
+                <p v-else-if="inviteFailure" role="alert" class="text-sm text-error">{{ inviteFailure }}</p>
               </SharedRecordSection>
             </div>
           </SharedPageState>
@@ -446,7 +457,7 @@ async function cancelPendingOrder() {
           <SharedRecordSection v-if="view" variant="panel" :title="t('vendor.customers.history.title')" :description="t('vendor.customers.history.hint')">
             <VendorSubscriptionTimeline :subscription="view" :plan-name="planNameOf" />
           </SharedRecordSection>
-          <SharedRecordSection variant="panel" :title="t('vendor.customers.sections.audit')" :description="t('vendor.customers.history.whoHint')">
+          <SharedRecordSection v-if="canAudit" variant="panel" :title="t('vendor.customers.sections.audit')" :description="t('vendor.customers.history.whoHint')">
             <UButton :to="{ path: '/audit', query: { customer_id: id } }" color="neutral" variant="outline" icon="i-lucide-scroll-text">{{ t('vendor.customers.openAudit') }}</UButton>
           </SharedRecordSection>
         </template>

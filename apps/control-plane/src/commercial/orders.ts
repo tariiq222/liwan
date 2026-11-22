@@ -210,10 +210,11 @@ export async function acceptQuoteOn(client: PoolClient, input: AcceptQuoteReques
   if (new Date(quote.expires_at).getTime() <= now.getTime()) throw new CommercialHttpError('quote_expired', 422)
   const branchRequest = (await client.query('SELECT * FROM branch_quote_requests WHERE quote_id=$1', [quote.id])).rows[0]
   const kind = branchRequest ? (branchRequest.adds.length ? 'branch_add' : branchRequest.restore.length ? 'branch_restore' : 'branch_archive') : quote.subscription_id && subscription.applied_revision_id ? 'change' : 'new'
-  const sources = await loadQuoteSources(client, customer.id, quote, kind === 'new')
+  const previous = subscription.applied_revision_id ? (await client.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [subscription.applied_revision_id])).rows[0]?.snapshot : null
+  // Only a new sale needs every revision sellable; a change keeps the revisions the subscription already applied.
+  const sources = await loadQuoteSources(client, customer.id, quote, kind === 'new' ? null : previous)
   // Null terms in a persisted quote means no terms, not the newest later revision.
   if (!quote.terms_revision_id) sources.terms = null
-  const previous = subscription.applied_revision_id ? (await client.query('SELECT snapshot FROM subscription_revisions WHERE id=$1', [subscription.applied_revision_id])).rows[0]?.snapshot : null
   const entitlement = compilePurchasedEntitlement({ ...sources, quantities: { users: quote.requested_users, storage_mb: quote.requested_storage_mb },
     extraBranches: previous?.trial_end ? Math.max(quote.requested_extra_branches, sources.terms?.included_extra_branches ?? sources.plan.included_extra_branches) : undefined })
   if (entitlement.digest !== quote.entitlement_digest) throw new CommercialHttpError('revision_conflict', 409)

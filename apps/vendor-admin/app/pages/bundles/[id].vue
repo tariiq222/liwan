@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { lifecycleBadge } from '@/utils/vendorCommercial'
+import { isEditable, lifecycleBadge } from '@/utils/vendorCommercial'
 import { cadenceLabel, formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { type BundleView, type LifecycleAction, type PlanView } from '@/utils/vendorCommercial'
 import { catalogReturn, plansUsingBundle, priceFact } from '@/utils/vendorCatalog'
@@ -14,6 +14,7 @@ const { data, error, pending, refresh } = await useAsyncData(() => `vendor:bundl
   return { view, release: releases.find(r => r.id === view.catalog_release_id), versions, usedBy: plans }
 }, { watch: [id] })
 const view = computed(() => data.value?.view)
+const sellingPlans = computed(() => data.value?.usedBy?.filter(plan => plan.status === 'published' && plan.available).length ?? null)
 async function done(action: LifecycleAction, result: unknown) {
   await refreshNuxtData()
   if (action === 'delete') await navigateTo(backTo.value)
@@ -30,7 +31,7 @@ const facts = computed(() => {
     { key: 'customers', label: t('vendor.customers.title'), value: t('vendor.pricing.customers', { count: v.customer_count }, v.customer_count) },
   ]
 })
-const editable = computed(() => view.value?.status === 'draft' && can('vendor.catalog.manage'))
+const editable = computed(() => view.value && isEditable(view.value) && can('vendor.catalog.manage'))
 </script>
 <template>
   <NuxtPage v-if="isEdit" />
@@ -53,7 +54,7 @@ const editable = computed(() => view.value?.status === 'draft' && can('vendor.ca
         <p v-else-if="!data.usedBy.length" class="text-sm text-muted">{{ t('vendor.bundles.usedByNone') }}</p>
         <ul v-else class="grid gap-2 sm:grid-cols-2"><li v-for="p in data.usedBy" :key="p.id" class="flex items-center justify-between gap-3 rounded-control p-3 ring ring-default"><span class="flex min-w-0 items-center gap-2"><NuxtLink :to="planTo(p)" data-testid="bundle-plan-link" class="min-w-0 truncate font-medium hover:underline">{{ p.name }}</NuxtLink><span class="shrink-0 text-sm text-muted">{{ t('vendor.pricing.version', { count: p.version }) }}</span><SharedStatusBadge data-slot="lifecycle-badge" :tone="lifecycleBadge(p).tone" :label="t(lifecycleBadge(p).labelKey)" /></span><UBadge color="neutral" :variant="p.included_bundle_revision_ids.includes(view.id) ? 'subtle' : 'outline'">{{ t(p.included_bundle_revision_ids.includes(view.id) ? 'vendor.pricing.plan.included' : 'vendor.pricing.plan.optional') }}</UBadge></li></ul>
       </SharedRecordSection>
-      <VendorLifecyclePanel class="mt-6" kind="bundle" :view="view" @done="done" @reload="refresh" />
+      <VendorLifecyclePanel class="mt-6" kind="bundle" :view="view" :selling-plans="sellingPlans" @done="done" @reload="refresh" />
       <SharedRecordSection class="mt-6" :title="t('vendor.pricing.history')"><ul class="space-y-2"><li v-for="item in data.versions" :key="item.id"><NuxtLink :to="{ path: `/bundles/${item.id}`, query: { returnTo: backTo } }" class="text-primary">{{ item.name }} · {{ t('vendor.pricing.version', { count: item.version }) }}</NuxtLink><span class="ms-2"><SharedStatusBadge data-slot="lifecycle-badge" :tone="lifecycleBadge(item).tone" :label="t(lifecycleBadge(item).labelKey)" /></span></li></ul></SharedRecordSection>
       <details class="mt-6"><summary class="cursor-pointer text-sm text-muted">{{ t('vendor.pricing.technical') }}</summary>
         <dl class="mt-3 space-y-2 text-sm"><div><dt>{{ t('vendor.pricing.contentDigest') }}</dt><dd class="break-all" dir="ltr">{{ view.content_digest }}</dd></div><div v-if="view.validated_digest"><dt>{{ t('vendor.pricing.validatedDigest') }}</dt><dd class="break-all" dir="ltr">{{ view.validated_digest }}</dd></div><div><dt>{{ t('vendor.pricing.revisionId') }}</dt><dd dir="ltr">{{ view.id }}</dd></div><div><dt>{{ t('vendor.pricing.editRevision') }}</dt><dd dir="ltr">{{ view.edit_revision }}</dd></div></dl>

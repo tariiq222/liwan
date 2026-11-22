@@ -54,4 +54,8 @@ describe('workspace panels shared by the customer page and the workspace page', 
     expect(operations).toContain('error: recentError')
     expect(operations).toMatch(/<SharedPageState :loading="recentPending && !recent" :error="recentError" @retry="refreshRecent">\s*<p v-if="!recent\?\.length"/)
   })
+  it('words a cancelled step-up through the shared failure key, here and on the create page', () => {
+    expect(operations).toContain("failureKey(cause, ")
+    expect(read('app/pages/customers/new.vue')).toContain('failureKey(error, ')
+  })
 })

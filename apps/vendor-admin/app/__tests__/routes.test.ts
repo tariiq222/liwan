@@ -32,6 +32,7 @@ const STRICTER: Record<string, string> = {
   'invoices/[id].vue': 'vendor.billing.manage',
   'invoices/index.vue': 'vendor.billing.manage',
   'billing-settings.vue': 'vendor.billing.manage',
+  'ai-billing-settings.vue': 'vendor.billing.manage',
   'plans/[id]/edit.vue': 'vendor.catalog.manage',
   'plans/new.vue': 'vendor.catalog.manage',
   'team.vue': 'vendor.accounts.manage',

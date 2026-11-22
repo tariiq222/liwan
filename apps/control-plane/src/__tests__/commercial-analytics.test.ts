@@ -17,9 +17,13 @@ const period = { from: '2026-10-01', to: '2026-10-15' }
 
 describe('analytics model', () => {
   it('prices a revision per month for any cadence, with the paid extra branches split out', () => {
-    expect(recurringOf({ base_minor: 120000, bundle_minor: { a: 6000 }, paid_extra_branches: 2, branch_unit_minor: 1200 }, { unit: 'year', count: 1 }))
+    expect(recurringOf({ base_minor: 120000, bundle_minor: { a: 6000 }, paid_extra_branches: 2, branch_unit_minor: 1200, paid_users: 0, user_unit_minor: 0, paid_storage_gb: 0, storage_unit_minor: 0 }, { unit: 'year', count: 1 }))
       .toEqual({ cycle_minor: 128400, mrr_minor: 10700, branch_mrr_minor: 200, arr_minor: 128400 })
-    expect(recurringOf({ base_minor: 30000, bundle_minor: {}, paid_extra_branches: 0, branch_unit_minor: 0 }, { unit: 'month', count: 3 }).mrr_minor).toBe(10000)
+    expect(recurringOf({ base_minor: 30000, bundle_minor: {}, paid_extra_branches: 0, branch_unit_minor: 0, paid_users: 0, user_unit_minor: 0, paid_storage_gb: 0, storage_unit_minor: 0 }, { unit: 'month', count: 3 }).mrr_minor).toBe(10000)
+  })
+  it('counts paid users and paid storage in recurring revenue, as the renewal invoice does', () => {
+    const pricing = { base_minor: 10000, bundle_minor: {}, paid_extra_branches: 0, branch_unit_minor: 0, paid_users: 3, user_unit_minor: 500, paid_storage_gb: 2, storage_unit_minor: 250 }
+    expect(recurringOf(pricing, { unit: 'month', count: 1 })).toEqual({ cycle_minor: 12000, mrr_minor: 12000, branch_mrr_minor: 0, arr_minor: 144000 })
   })
   it('compares against the period of equal length right before, and lists twelve month ends', () => {
     expect(previousPeriod(period)).toEqual({ from: '2026-09-16', to: '2026-09-30' })
@@ -28,7 +32,7 @@ describe('analytics model', () => {
     expect(months[11]).toEqual({ month: '2026-02', end: Date.parse('2026-02-28T21:00:00Z') })
   })
   it('keeps ARR exact instead of twelve times the rounded MRR', () => {
-    const quarterly = recurringOf({ base_minor: 10000, bundle_minor: {}, paid_extra_branches: 0, branch_unit_minor: 0 }, { unit: 'month', count: 3 })
+    const quarterly = recurringOf({ base_minor: 10000, bundle_minor: {}, paid_extra_branches: 0, branch_unit_minor: 0, paid_users: 0, user_unit_minor: 0, paid_storage_gb: 0, storage_unit_minor: 0 }, { unit: 'month', count: 3 })
     expect([quarterly.mrr_minor, quarterly.arr_minor]).toEqual([3333, 40000])
   })
   it('cuts days at Asia/Riyadh midnight, not UTC', () => {
@@ -206,6 +210,35 @@ suite('live PostgreSQL vendor analytics', () => {
     } finally { await solo.end() }
   })
 
+  it('does not count an invoice due later today as overdue', async () => {
+    const solo = new Pool({ connectionString: url, max: 1 })
+    try {
+      await solo.query('BEGIN')
+      const before = (await getAnalytics(solo, period, now)).current.collection
+      // Due at 18:00 Riyadh today; the report runs at 15:00 Riyadh, so it is open but not late yet.
+      await seedInvoice(solo, { customer_id: a.customer_id, subscription_id: a.subscription_id, status: 'issued', total_minor: 4000, issued_at: '2026-10-14T00:00:00Z', due_at: '2026-10-15T15:00:00Z' })
+      const after = (await getAnalytics(solo, period, now)).current.collection
+      expect(minor(after.outstanding)).toBe(minor(before.outstanding) + 4000)
+      expect([minor(after.overdue_0_30), minor(after.overdue_31_60), minor(after.overdue_61_plus)])
+        .toEqual([minor(before.overdue_0_30), minor(before.overdue_31_60), minor(before.overdue_61_plus)])
+      await solo.query('ROLLBACK')
+    } finally { await solo.end() }
+  })
+
+  it('does not count a paid AI top-up as a trial conversion', async () => {
+    const solo = new Pool({ connectionString: url, max: 1 })
+    try {
+      await solo.query('BEGIN')
+      const lapsed = await seedCustomer(solo, { name: 'L top-up only', state: 'active', trial_ends_at: '2026-10-05T00:00:00Z' })
+      const invoice = await seedInvoice(solo, { customer_id: lapsed.customer_id, subscription_id: lapsed.subscription_id, status: 'paid', total_minor: 5000, issued_at: '2026-10-06T00:00:00Z', due_at: '2026-10-06T00:00:00Z', paid_at: '2026-10-06T00:00:00Z' })
+      await solo.query(`INSERT INTO invoice_lines(id,invoice_id,position,key,kind,timing,description,quantity,unit_minor,amount_minor,currency,exponent,period_start,period_end,source_revision_id)
+        VALUES($1,$2,0,'ai_topup','ai_topup','now','AI top-up',1,5000,5000,'SAR',2,'2026-10-06','2026-10-06',$1)`, [randomUUID(), invoice])
+      // One more ended trial, paid only for a top-up: the rate falls from 1 of 2 to 1 of 3.
+      expect((await getAnalytics(solo, period, now)).current.customers.trial_conversion_rate).toEqual({ available: true, value: 1 / 3 })
+      await solo.query('ROLLBACK')
+    } finally { await solo.end() }
+  })
+
   it('computes collection, ageing, payment success and trial conversion', async () => {
     const { current, previous } = await getAnalytics(pool, period, now)
     const c = current.collection
@@ -300,6 +333,46 @@ suite('live PostgreSQL vendor analytics', () => {
     expect(minor(autumn.current.revenue.churned_mrr)).toBeGreaterThanOrEqual(10000)
   })
 
+  it('counts paid users and paid storage in the book, not only base, bundles and branches', async () => {
+    const solo = new Pool({ connectionString: url, max: 1 })
+    try {
+      await solo.query('BEGIN')
+      await solo.query('TRUNCATE customers CASCADE')
+      await seedCustomer(solo, { name: 'P users and storage', state: 'active', steps: [
+        { at: '2026-09-01T09:00:00Z', plan_revision_id: p1, base_minor: 10000, paid_users: 3, user_unit_minor: 500, paid_storage_gb: 2, storage_unit_minor: 250 }] })
+      expect(minor((await getAnalytics(solo, period, now)).current.revenue.mrr)).toBe(12000)
+      await solo.query('ROLLBACK')
+    } finally { await solo.end() }
+  })
+
+  it('measures churn on the customers and revenue that were in the book when the period opened, so a rate never exceeds one', async () => {
+    const solo = new Pool({ connectionString: url, max: 1 })
+    try {
+      await solo.query('BEGIN')
+      await solo.query('TRUNCATE customers CASCADE')
+      await seedCustomer(solo, { name: 'Opening and staying', state: 'active', steps: [{ at: '2026-09-01T09:00:00Z', plan_revision_id: p1, base_minor: 10000 }] })
+      const opening = await seedCustomer(solo, { name: 'Opening and leaving', state: 'active', steps: [
+        { at: '2026-09-02T09:00:00Z', plan_revision_id: p1, base_minor: 10000 }, { at: '2026-10-12T00:00:00Z', plan_revision_id: p1, base_minor: 0 }] })
+      const joiners = [
+        await seedCustomer(solo, { name: 'Joined then left 1', state: 'active', steps: [
+          { at: '2026-10-02T09:00:00Z', plan_revision_id: p1, base_minor: 30000 }, { at: '2026-10-12T00:00:00Z', plan_revision_id: p1, base_minor: 0 }] }),
+        await seedCustomer(solo, { name: 'Joined then left 2', state: 'active', steps: [
+          { at: '2026-10-03T09:00:00Z', plan_revision_id: p1, base_minor: 30000 }, { at: '2026-10-12T00:00:00Z', plan_revision_id: p1, base_minor: 0 }] })]
+      for (const seeded of [opening, ...joiners]) {
+        const first = (await solo.query('SELECT id FROM subscription_revisions WHERE subscription_id=$1 ORDER BY revision LIMIT 1', [seeded.subscription_id])).rows[0].id
+        await solo.query(`INSERT INTO free_base_locks(subscription_id,pre_lock_revision_id,period_start,armed_at,cause,state,order_id,next_attempt_at)
+          VALUES($1,$2,'2026-10-12','2026-10-12T00:00:00Z','cancelled','done',$3,'2026-10-12T00:00:00Z')`, [seeded.subscription_id, first, seeded.orders[1]!.id])
+      }
+      const { current } = await getAnalytics(solo, period, now)
+      // Every churn is still reported as a movement; the rate only asks how much of the opening book left.
+      expect(current.customers.churned).toEqual({ available: true, value: 3 })
+      expect(minor(current.revenue.churned_mrr)).toBe(70000)
+      expect(current.customers.churn_rate_by_count).toEqual({ available: true, value: 0.5 })
+      expect(current.customers.churn_rate_by_revenue).toEqual({ available: true, value: 0.5 })
+      await solo.query('ROLLBACK')
+    } finally { await solo.end() }
+  })
+
   describe('signup funnel', () => {
     /** Runs the seeding and the funnel inside one rolled-back transaction, so no signup outlives its test. */
     async function funnel(seed: (db: Pool, base: Pick<SignupInput, 'plan_revision_id'>) => Promise<void>) {
@@ -347,6 +420,20 @@ suite('live PostgreSQL vendor analytics', () => {
         await trial('window still open', '2026-10-12T09:00:00Z', '2026-10-13T09:00:00Z')
       })
       expect(rows.crm).toMatchObject({ registered: 5, started: 5, conversion_eligible: 4, converted: 2 })
+    })
+
+    it('does not count an AI top-up paid during the trial as the first paid conversion', async () => {
+      const topup = (db: Pool, seeded: { customer_id: string, subscription_id: string }, paid_at: string) => seedInvoice(db, { ...seeded, status: 'paid', total_minor: 5000, issued_at: paid_at, due_at: paid_at, paid_at })
+        .then(id => db.query(`INSERT INTO invoice_lines(id,invoice_id,position,key,kind,timing,description,quantity,unit_minor,amount_minor,currency,exponent,period_start,period_end,source_revision_id)
+          VALUES($1,$2,0,'ai_topup','ai_topup','now','AI top-up',1,5000,5000,'SAR',2,$3,$3,$1)`, [randomUUID(), id, paid_at.slice(0, 10)]))
+      const rows = await funnel(async (db, base) => {
+        const trial = (name: string) => seedSignup(db, { ...base, name, apps: { crm: true }, registered_at: '2026-10-01T09:00:00Z', trial_ends_at: '2026-10-02T09:00:00Z' })
+        await topup(db, await trial('only a top-up'), '2026-10-01T12:00:00Z')
+        const both = await trial('top-up then plan')
+        await topup(db, both, '2026-10-01T12:00:00Z')
+        await seedInvoice(db, { ...both, status: 'paid', total_minor: 11500, issued_at: '2026-10-05T09:00:00Z', due_at: '2026-10-05T09:00:00Z', paid_at: '2026-10-05T09:00:00Z' })
+      })
+      expect(rows.crm).toMatchObject({ registered: 2, started: 2, conversion_eligible: 2, converted: 1 })
     })
 
     it('does not count a first invoice that was credited in full, but counts one credited in part', async () => {

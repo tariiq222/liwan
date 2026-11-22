@@ -13,13 +13,12 @@ const pageTitle = usePageHeaderTitle()
 const route = useRoute()
 const { choose } = useLocalePreference()
 const { mode, setMode } = useAppearance()
-const toast = useToast()
 
 const modes = [{ value: 'light', icon: 'i-lucide-sun' }, { value: 'dark', icon: 'i-lucide-moon' }] as const
 type MenuItem = DropdownMenuItem & { liwanIcon?: string }
 
 const initials = computed(() => Array.from((me.value?.display_name ?? '?').trim())[0] ?? '?')
-const roleNames = computed(() => (me.value?.roles ?? []).map(role => (te(`app.shell.roles.${role}`) ? t(`app.shell.roles.${role}`) : role)).join('، '))
+const roleNames = computed(() => (me.value?.roles ?? []).map(role => (te(`app.shell.roles.${role}`) ? t(`app.shell.roles.${role}`) : role)).join(t('app.shell.listSeparator')))
 const section = computed(() => props.items.find(item => item.id === props.activeId))
 // The page registers its title after the server rendered the header; show it only once hydrated so both renders match.
 const crumbs = computed(() => {
@@ -30,14 +29,6 @@ const crumbs = computed(() => {
     title: hydrated.value ? pageTitle.value : null,
   })
 })
-
-async function leave() {
-  try {
-    await signOut()
-  } catch {
-    toast.add({ title: t('app.shell.signOutFailed'), color: 'error' })
-  }
-}
 
 const iconOf = (item: DropdownMenuItem) => (item as MenuItem).liwanIcon
 const menu = computed<MenuItem[][]>(() => [
@@ -67,7 +58,7 @@ const menu = computed<MenuItem[][]>(() => [
     })),
   ],
   [
-    { label: t('app.shell.signOut'), color: 'error' as const, liwanIcon: 'i-lucide-log-out', onSelect: () => { void leave() } },
+    { label: t('app.shell.signOut'), color: 'error' as const, liwanIcon: 'i-lucide-log-out', onSelect: () => { void signOut() } },
   ],
 ])
 </script>

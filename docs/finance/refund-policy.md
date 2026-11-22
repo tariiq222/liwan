@@ -22,7 +22,7 @@ the reference. Recording the refund of a first payment changes the subscription.
   The note carries the part the provider refunded, not the whole invoice: each further partial refund adds a note for
   its own part, a replay adds nothing, and the notes never add up to more than the attempt paid. Every non-void credit note of the invoice counts toward what is already credited, the vendor-requested one included (only a duplicate-charge note is other money): a refund the operator already recorded is not credited a second time when the provider's event arrives, and asking for a refund after the event attached to the existing pending note instead of opening a second one. A row that cannot
   become a note (a missing attempt, a refund above the payment, another currency) is closed as `failed` with its
-  reason and a `payment.refund_rejected` audit event, and it shows in the vendor "today" list as `refund_rejected` (billing access) until the invoice's credit covers it, by the same definition the worker uses (any non-void credit note, any origin, duplicate-charge notes excluded): a vendor-recorded refund clears it, voiding that note shows it again, and a later processed refund event for the attempt clears it too. A row with no attempt has no invoice to be covered on and stays; there is no operator action that dismisses it. It never blocks the other rows.
+  reason and a `payment.refund_rejected` audit event, and it shows in the vendor "today" list (billing access) as `refund_rejected` when it came from a provider refund event (the money has left) and as `refund_not_sent` when it is a failed worker refund (no refund was ever asked of the provider), until the invoice's credit covers it, by the same definition the worker uses (any non-void credit note, any origin, duplicate-charge notes excluded): a vendor-recorded refund clears it, voiding that note shows it again, and a later processed refund event for the attempt clears it too. A row with no attempt has no invoice to be covered on and stays; there is no operator action that dismisses it. It never blocks the other rows.
 - `needs_intervention` orders get no credit note automatically; the operator decides after reading Odoo back.
 
 ## Refund of the first payment (14-day guarantee)
@@ -43,7 +43,7 @@ the customer asks by message, and the vendor acts in the vendor console.
   and the same code that the manual form runs arms the free-base lock. While the system owns the refund, recording by
   hand is refused (`refund_in_progress`, 409) and the console does not offer it.
 - If the provider cannot refund (an error retrying does not change, or the six attempts are used), the note stays
-  `pending`, the vendor "today" list shows `refund_rejected` and the invoice page shows the reason. Only then the
+  `pending`, the vendor "today" list shows `refund_not_sent` and the invoice page shows the reason. Only then the
   operator checks the provider's dashboard, returns the money another way if it was not returned, and records the
   reference (step 4 below). The provider's own `refunded` event for money already credited adds no second note and no
   second lock.

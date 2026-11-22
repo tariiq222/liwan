@@ -1,23 +1,49 @@
 <script setup lang="ts">
-import type { PackageRevision } from '@liwan/commercial-contracts'
-import { packageLabel, packageListReturnTo } from '@/utils/vendorPackages'
+import { formatLiwanDate } from '@liwan/ui/app/composables/calendarDate'
+import { lifecycleBadge } from '@/utils/vendorCommercial'
+import { packageLabel } from '@/utils/vendorPackages'
+import { sellableTiers } from '@/utils/vendorCatalogVersions'
+import { useVendorCatalogVersions } from '@/composables/useVendorCatalogVersions'
+import { useVendorCommercial } from '@/composables/useVendorCommercial'
 definePageMeta({ capability: 'vendor.read' })
-const { t } = useI18n(); const route = useRoute(); const { request } = useVendorApi()
-const id = computed(() => String(route.params.id)); const backTo = computed(() => packageListReturnTo(route.query.returnTo))
-const { data, error, pending, refresh } = await useAsyncData(() => `vendor:package:${id.value}`, () => request<PackageRevision>(`packages/${encodeURIComponent(id.value)}`))
-const { data: revisions } = await useAsyncData('vendor:packages', () => request<{ items: PackageRevision[]; total: number }>('packages'))
-const history = computed(() => (revisions.value?.items ?? []).filter(item => item.package_id === data.value?.package_id).sort((a, b) => b.version - a.version))
+const { t } = useI18n(); const route = useRoute()
+const id = computed(() => String(route.params.id))
+// The control plane has no single-entry read: the list is loaded and the entry found in it.
+const { data: versions, error: loadError, pending, refresh } = await useVendorCatalogVersions().load()
+const version = computed(() => versions.value?.find(item => item.id === id.value))
+const error = computed(() => loadError.value ?? (versions.value && !version.value ? createError({ statusCode: 404, statusMessage: 'not_found' }) : null))
+// A published version without a release cannot carry bundles yet; a later version needs its own release.
+const { data: releases, error: releasesError, refresh: refreshReleases } = await useAsyncData('vendor:catalog-releases', () => useVendorCommercial().releases())
+const hasRelease = computed(() => (releases.value ?? []).some(release => release.version === version.value?.version))
+const needsRelease = computed(() => version.value?.status === 'published' && !releasesError.value && !hasRelease.value)
+const tiers = computed(() => version.value?.solution.tiers ?? [])
+const sellableCount = computed(() => (version.value ? sellableTiers(version.value).length : 0))
+const baseModules = computed(() => version.value?.solution.base_modules ?? [])
 </script>
 <template>
-
-    <SharedRecordPage :title="data?.name ?? t('vendor.packages.details')" :back-to="backTo" :back-label="t('vendor.packages.title')" :loading="pending" :error="error" @retry="refresh">
-    <template v-if="data">
-
-      <SharedRecordSection :title="t('vendor.packages.included')" class="mt-6"><p>{{ packageLabel('tier', data.catalog_tier, t) }}</p><div class="flex flex-wrap gap-2"><UBadge v-for="module in data.modules" :key="module" color="neutral" variant="subtle">{{ packageLabel('module', module, t) }}</UBadge><UBadge v-for="feature in data.features.filter(value => value.startsWith('boolean:'))" :key="feature" color="neutral" variant="outline">{{ packageLabel('feature', feature, t) }}</UBadge></div></SharedRecordSection>
-      <SharedRecordSection :title="t('vendor.packages.quotas')" :description="t('vendor.packages.storageHint')" class="mt-6"><dl class="grid gap-4 sm:grid-cols-3"><div v-for="(value, key) in data.limits" :key="key"><dt class="text-sm text-muted">{{ packageLabel('limit', key, t) }}</dt><dd class="font-semibold">{{ value === null ? t('vendor.common.unlimited') : value }}<span v-if="value === 0" class="ms-2 text-warning">{{ t('vendor.packages.noUsage') }}</span></dd></div></dl></SharedRecordSection>
-      <SharedRecordSection class="mt-6" :title="t('vendor.packages.history')"><ul class="space-y-2"><li v-for="item in history" :key="item.id"><NuxtLink :to="{ path: `/catalog/${item.id}`, query: { returnTo: backTo } }" class="text-primary">{{ item.name }} · {{ t('vendor.packages.version', { count: item.version }) }}</NuxtLink><span class="ms-2 text-sm text-muted">{{ t(`vendor.packages.status.${item.status === 'published' && !item.available ? 'unavailable' : item.status}`) }}</span></li></ul></SharedRecordSection>
-      <details class="mt-6"><summary class="cursor-pointer text-sm text-muted">{{ t('vendor.packages.technical') }}</summary><dl class="mt-3 space-y-2 text-sm"><div><dt>{{ t('vendor.packages.source') }}</dt><dd>{{ data.catalog_version }} · {{ data.catalog_tier }}</dd></div><div><dt>{{ t('vendor.packages.sourceHash') }}</dt><dd class="break-all" dir="ltr">{{ data.source_sha256 }}</dd></div><div><dt>{{ t('vendor.packages.revisionId') }}</dt><dd dir="ltr">{{ data.id }}</dd></div></dl></details>
+  <SharedRecordPage :title="version?.version ?? t('vendor.catalog.details')" back-to="/catalog" :back-label="t('vendor.catalog.applications')" :loading="pending" :error="error" @retry="refresh">
+    <template v-if="version">
+      <VendorCatalogFacts :facts="[{ key: 'sellable', label: t('vendor.catalog.sellableApps'), value: sellableCount }, { key: 'imported', label: t('vendor.catalog.imported'), value: formatLiwanDate(version.created_at) }]" class="mt-6">
+        <template #status><SharedStatusBadge data-slot="lifecycle-badge" :tone="lifecycleBadge(version).tone" :label="t(lifecycleBadge(version).labelKey)" /></template>
+      </VendorCatalogFacts>
+      <SharedRecordSection :title="t('vendor.catalog.appsTitle')" class="mt-6" data-testid="catalog-apps">
+        <p v-if="!tiers.length" class="text-sm text-muted">{{ t('vendor.catalog.noApps') }}</p>
+        <ul v-else class="space-y-3">
+          <li v-for="tier in tiers" :key="tier.id" class="rounded-control p-3 ring ring-default" data-testid="catalog-app">
+            <p class="flex flex-wrap items-center gap-2 font-medium">{{ tier.name }}<UBadge v-if="tier.sellable === true && tier.id !== 'core'" color="success" variant="subtle" data-testid="catalog-sellable">{{ t('vendor.catalog.sellable') }}</UBadge></p>
+            <p v-if="tier.description" class="mt-1 text-sm text-muted">{{ tier.description }}</p>
+            <div v-if="tier.features?.length" class="mt-2 flex flex-wrap gap-2"><UBadge v-for="feature in tier.features" :key="feature" color="neutral" variant="subtle">{{ packageLabel('feature', feature, t) }}</UBadge></div>
+          </li>
+        </ul>
+      </SharedRecordSection>
+      <VendorCatalogVersionAction class="mt-6" :version="version" @done="refresh" />
+      <VendorCatalogReleaseAction v-if="needsRelease" class="mt-6" :version="version.version" @done="refreshReleases" />
+      <UAlert v-if="version.status === 'published'" class="mt-6" color="success" variant="subtle" :title="t('vendor.catalog.publishedTitle')" data-testid="catalog-next-step">
+        <template #description><NuxtLink to="/bundles/new" class="font-medium text-primary hover:underline">{{ t('vendor.catalog.toBundles') }}</NuxtLink></template>
+      </UAlert>
+      <details class="mt-6"><summary class="cursor-pointer text-sm text-muted">{{ t('vendor.pricing.technical') }}</summary>
+        <dl class="mt-3 space-y-2 text-sm"><div><dt>{{ t('vendor.catalog.baseModules') }}</dt><dd class="flex flex-wrap gap-2"><UBadge v-for="module in baseModules" :key="module" color="neutral" variant="outline">{{ packageLabel('module', module, t) }}</UBadge></dd></div><div><dt>{{ t('vendor.pricing.revisionId') }}</dt><dd dir="ltr">{{ version.id }}</dd></div></dl>
+      </details>
     </template>
-  <template #aside><SharedPropertiesPanel v-if="data"><SharedPropertyRow :label="t('vendor.common.status')"><SharedStatusBadge tone="neutral" :label="t(`vendor.packages.status.${data.status === 'published' && !data.available ? 'unavailable' : data.status}`)" /></SharedPropertyRow><SharedPropertyRow :label="t('vendor.packages.source')" :value="`${data.catalog_version} · ${data.catalog_tier}`" /><SharedPropertyRow :label="t('vendor.packages.version', {count:data.version})" :value="data.version" /><SharedPropertyRow :label="t('vendor.customers.title')" :value="data.customer_count" /></SharedPropertiesPanel></template>
-</SharedRecordPage>
+  </SharedRecordPage>
 </template>

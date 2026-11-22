@@ -1,6 +1,11 @@
 import { z } from 'zod'
 
 const MAX = Number.MAX_SAFE_INTEGER
+/** The largest value of a PostgreSQL `integer` column; a bigger one is a 500 (22003), so it is refused where it is parsed. */
+export const INT4_MAX = 2_147_483_647
+/** The largest capacity a workspace accepts for a limit: `validate_features` in tools/shared_saas_lifecycle/subscription_effect.py
+ * refuses a feature value above it, so a plan, bundle or terms limit above it could be published and then never applied. */
+export const MAX_ENTITLEMENT_LIMIT = 1_000_000_000
 const dotted = /^(?:[a-z][a-z0-9_]*\.)+[a-z][a-z0-9_]*$/
 const text = z.string().trim().min(1).max(2000)
 const reason = z.string().trim().min(3).max(1000)
@@ -13,7 +18,7 @@ export const moneySchema = z.strictObject({
   minor: z.number().int().min(0).max(MAX),
 })
 export const cadenceSchema = z.strictObject({ unit: z.enum(['month', 'year']), count: z.number().int().min(1).max(12) })
-export const capacityMapSchema = z.record(z.string().regex(dotted), z.number().int().min(0).max(MAX).nullable())
+export const capacityMapSchema = z.record(z.string().regex(dotted), z.number().int().min(0).max(MAX_ENTITLEMENT_LIMIT).nullable())
 /** The first customer administrator always counts against users.limit, so a sellable limit must admit
  * them: a positive integer, or null for unlimited. One rule for packages, plans, terms and the compiler. */
 export const USERS_LIMIT_KEY = 'users.limit'
@@ -122,9 +127,9 @@ function withAlignedStorageSteps<T extends z.ZodType<{ storage_step_mb: number; 
 export const planRevisionSchema = z.strictObject({
   ...revisionBase, plan_id: z.string(), term_months: z.number().int().positive().max(120),
   platform_limits: sellableLimitsSchema, included_bundle_revision_ids: z.array(revisionIdSchema),
-  optional_bundle_revision_ids: z.array(revisionIdSchema), included_extra_branches: z.number().int().min(0).max(MAX),
-  extra_branch_prices: z.array(priceSchema), extra_branches_limit: z.number().int().min(0).max(MAX).nullable(),
-  included_users: z.number().int().min(0).max(MAX), included_storage_mb: z.number().int().min(0).max(MAX),
+  optional_bundle_revision_ids: z.array(revisionIdSchema), included_extra_branches: z.number().int().min(0).max(MAX_ENTITLEMENT_LIMIT),
+  extra_branch_prices: z.array(priceSchema), extra_branches_limit: z.number().int().min(0).max(MAX_ENTITLEMENT_LIMIT).nullable(),
+  included_users: z.number().int().min(0).max(MAX_ENTITLEMENT_LIMIT), included_storage_mb: z.number().int().min(0).max(MAX_ENTITLEMENT_LIMIT),
   // A11: how extra storage is bought. Small steps below the threshold, large steps above it.
   // A6: integer columns, and every value must be one the plan can actually sell.
   storage_step_mb: storageStepSchema, storage_step_threshold_mb: storageStepSchema,
@@ -143,8 +148,8 @@ const termsLimitsSchema = sellableLimitsSchema.superRefine((m, ctx) => {
 export const customerTermsRevisionSchema = z.strictObject({
   id: revisionIdSchema, customer_id: z.string(), reason,
   base_price: priceSchema.optional(), bundle_prices: z.record(revisionIdSchema, priceSchema).optional(),
-  included_extra_branches: z.number().int().min(0).max(MAX).optional(), extra_branch_price: priceSchema.optional(),
-  extra_branches_limit: z.number().int().min(0).max(MAX).nullable().optional(), limits: termsLimitsSchema.optional(),
+  included_extra_branches: z.number().int().min(0).max(MAX_ENTITLEMENT_LIMIT).optional(), extra_branch_price: priceSchema.optional(),
+  extra_branches_limit: z.number().int().min(0).max(MAX_ENTITLEMENT_LIMIT).nullable().optional(), limits: termsLimitsSchema.optional(),
   term_months: z.number().int().positive().max(120).optional(), cadence: cadenceSchema.optional(),
 })
 export const entitlementSnapshotSchema = z.strictObject({
@@ -183,14 +188,14 @@ const bundleFields = {
   prices: z.array(priceSchema),
 }
 export const bundleCreateSchema = z.strictObject({ ...bundleFields, reason: reason.optional() })
-export const bundleEditSchema = z.strictObject({ ...bundleFields, edit_revision: z.number().int().positive().max(MAX), reason })
+export const bundleEditSchema = z.strictObject({ ...bundleFields, edit_revision: z.number().int().positive().max(INT4_MAX), reason })
 const planFields = {
   name: z.string().trim().min(1).max(200), audience: audienceSchema, term_months: z.number().int().positive().max(120),
   currency: z.string().regex(/^[A-Z]{3}$/), prices: z.array(priceSchema), platform_limits: sellableLimitsSchema,
   included_bundle_revision_ids: z.array(revisionIdSchema), optional_bundle_revision_ids: z.array(revisionIdSchema),
-  included_extra_branches: z.number().int().min(0).max(MAX), extra_branch_prices: z.array(priceSchema),
-  extra_branches_limit: z.number().int().min(0).max(MAX).nullable(),
-  included_users: z.number().int().min(0).max(MAX), included_storage_mb: z.number().int().min(0).max(MAX),
+  included_extra_branches: z.number().int().min(0).max(MAX_ENTITLEMENT_LIMIT), extra_branch_prices: z.array(priceSchema),
+  extra_branches_limit: z.number().int().min(0).max(MAX_ENTITLEMENT_LIMIT).nullable(),
+  included_users: z.number().int().min(0).max(MAX_ENTITLEMENT_LIMIT), included_storage_mb: z.number().int().min(0).max(MAX_ENTITLEMENT_LIMIT),
   // A6: integer columns, and every value must be one the plan can actually sell.
   storage_step_mb: storageStepSchema, storage_step_threshold_mb: storageStepSchema,
   storage_large_step_mb: storageStepSchema,
@@ -199,8 +204,8 @@ const planFields = {
   auto_suspend: z.boolean(), auto_renew_allowed: z.boolean(),
 }
 export const planCreateSchema = withAlignedStorageSteps(z.strictObject({ ...planFields, reason: reason.optional() }))
-export const planEditSchema = withAlignedStorageSteps(z.strictObject({ ...planFields, edit_revision: z.number().int().positive().max(MAX), reason }))
-export const lifecycleActionSchema = z.strictObject({ edit_revision: z.number().int().positive().max(MAX), reason })
+export const planEditSchema = withAlignedStorageSteps(z.strictObject({ ...planFields, edit_revision: z.number().int().positive().max(INT4_MAX), reason }))
+export const lifecycleActionSchema = z.strictObject({ edit_revision: z.number().int().positive().max(INT4_MAX), reason })
 export const listEnvelopeSchema = <T extends z.ZodType>(item: T) =>
   z.strictObject({ items: z.array(item), total: z.number().int().min(0) })
 // Ids only: totals, tax and prices are never accepted from the caller.
