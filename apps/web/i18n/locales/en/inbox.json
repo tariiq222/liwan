@@ -297,7 +297,6 @@
         "whatsapp": "The customer has not written yet, so only an approved template can be sent.",
         "tiktok": "The customer has not written yet, and TikTok accepts no templates: wait for their first message."
       },
-      "noWindow": "The customer has not sent a message yet, so only an approved template can be sent.",
       "template": "Template",
       "param": "Variable {n} value",
       "preview": "Message preview",

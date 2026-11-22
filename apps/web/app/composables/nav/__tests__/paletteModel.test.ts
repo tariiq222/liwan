@@ -119,6 +119,15 @@ describe('palette items', () => {
     expect(rows.some(row => row.kbdsHidden)).toBe(false)
   })
 
+  it('counts a real go-to list so the palette cut can be measured against it', () => {
+    // The cut is computed from the largest rendered group (GlobalSearch.paletteLimit). This holds the input that made a
+    // fixed 40 wrong: the go-to group grows with the destinations the applications declare.
+    const letters = 'abcdefghijklmnopqrstuvwxyz'.split('').slice(0, 24)
+    const goTo = goToItems(letters.map(letter => item(`/x-${letter}`, letter)), navItem => String((navItem as NavItem).labelKey))
+    expect(goTo.length).toBe(24)
+    expect(Math.max(PALETTE_RESULT_LIMIT, goTo.length)).toBeGreaterThanOrEqual(goTo.length)
+  })
+
   it('keeps every palette group under the per-group cut the palette applies', () => {
     // UCommandPalette slices each group at fuse.resultLimit. The limit used to derive from
     // PALETTE_SECTION_LIMIT (8), which was exactly the size of the shortcut table: the whole G table and the

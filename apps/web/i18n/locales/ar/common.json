@@ -35,8 +35,7 @@
     "tags": {
       "add": "إضافة وسم",
       "create": "إنشاء \"{name}\"",
-      "remove": "إزالة الوسم: {name}",
-      "listLabel": "الوسوم"
+      "remove": "إزالة الوسم: {name}"
     },
     "description": "الوصف",
     "editor": {
@@ -239,7 +238,8 @@
       "close": "إغلاق",
       "loading": "جارٍ التحميل…",
       "error": "تعذّر تحميل القائمة.",
-        "chatEmpty": "لا محادثات بعد.",
+      "retry": "إعادة المحاولة",
+      "chatEmpty": "لا محادثات بعد.",
       "tasksEmpty": "لا مهام مفتوحة. أحسنت!",
       "meetingsEmpty": "لا اجتماعات قادمة.",
       "noDeadline": "بلا موعد"

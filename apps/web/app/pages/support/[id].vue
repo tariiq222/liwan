@@ -124,5 +124,8 @@ async function closeTicket() {
         <UButton v-else color="neutral" variant="outline" icon="i-lucide-check" :label="t('helpdesk.portal.close')" data-testid="helpdesk-portal-close" @click="confirming = true" />
       </div>
     </template>
+    <!-- Between a finished query and its data (query-core's `isPending && !isFetching` window) every branch above is
+         false, and the portal drew nothing at all. It keeps the loading state rather than an empty page. -->
+    <SharedPageState v-else :loading="true" />
   </SharedStandalonePage>
 </template>
