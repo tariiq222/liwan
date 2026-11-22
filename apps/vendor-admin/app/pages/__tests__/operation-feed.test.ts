@@ -68,7 +68,7 @@ it('lets the operation page return to Today and to the operations list', () => {
 })
 
 it('opts overview and list into the combined feed and carries source through links', async () => {
-  expect(readFileSync(resolve(import.meta.dirname, '../overview.vue'), 'utf8')).toContain("request<{ tenants: number, active: number, pending_operations: number, failed_operations: number, last_health_at: string | null }>('overview', { query: { source: 'all' } })")
+  expect(readFileSync(resolve(import.meta.dirname, '../overview.vue'), 'utf8')).toContain("request<VendorOverview>('overview', { query: { source: 'all' } })")
   const list = await page('operations/index.vue', { items: [operation], total: 1 })
   expect(list.request).toHaveBeenCalledWith('operations', expect.objectContaining({ query: expect.objectContaining({ source: 'all' }) }))
   expect(list.keys[0]).toContain(':all:')

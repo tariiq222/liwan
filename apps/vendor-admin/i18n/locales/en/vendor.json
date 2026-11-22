@@ -138,7 +138,22 @@
           "mail_adapter": "Mail service",
           "alert_channel": "Alert channel",
           "api_payment_adapter": "Payment provider (API)"
-        }
+        },
+        "title": "Services",
+        "hint": "Whether the processes behind the console are running and their adapters could be started. Nothing here starts or stops anything.",
+        "states": {
+          "ok": "Running",
+          "stale": "Not reporting",
+          "unavailable": "Not available",
+          "never_seen": "Never reported",
+          "unknown": "Unknown: the worker is not reporting"
+        },
+        "agoMinutes": "last beat less than a minute ago | last beat one minute ago | last beat {count} minutes ago",
+        "agoHours": "last beat less than an hour ago | last beat one hour ago | last beat {count} hours ago",
+        "agoDays": "last beat less than a day ago | last beat one day ago | last beat {count} days ago",
+        "failedJobs": "Failed in the last tick: {jobs}",
+        "unreadable": "The health of the services could not be read right now. The counts and the list are not affected.",
+        "lastWorkspaceCheck": "Last workspace check"
       },
       "statusTitle": "Overall status",
       "statusLabel": "Overall status counts",
@@ -154,8 +169,7 @@
         "setupRequired": "Customers needing setup",
         "renewals": "Renewals due in 7 days or missed"
       },
-      "statusHint": "Counted from customer and subscription records; not collected revenue. Shared and dedicated operations are included, once per operation.",
-      "lastHealth": "Last health check"
+      "statusHint": "Counted from customer and subscription records; not collected revenue. Shared and dedicated operations are included, once per operation."
     },
     "tenants": {
       "details": "Customer installation",

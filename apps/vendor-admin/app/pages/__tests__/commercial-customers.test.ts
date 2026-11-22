@@ -50,6 +50,12 @@ describe('vendor commercial customers and invoices pages', () => {
     const p = page('overview.vue')
     expect(p).toContain("'commercial/attention'"); expect(p).not.toContain('listCustomers'); expect(p).not.toMatch(/revenue|prices/)
   })
+  it('today page shows the services between the attention list and the counts, and the workspace check inside them', () => {
+    const p = page('overview.vue')
+    expect(p.indexOf('today-attention')).toBeLessThan(p.indexOf('today-services'))
+    expect(p.indexOf('today-services')).toBeLessThan(p.indexOf('today-status'))
+    expect(p).toContain('<VendorHealthStrip'); expect(p).toContain('last_health_at'); expect(p).not.toContain('lastHealth')
+  })
   it('uses logical properties only', () => {
     for (const p of ['customers/index.vue', 'customers/[id].vue', 'invoices/index.vue', 'invoices/[id].vue']) expect(page(p)).not.toMatch(/\b(ml|mr|pl|pr)-\d|\btext-left\b|\bleft-\d/)
   })
