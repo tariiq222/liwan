@@ -46,10 +46,13 @@ export function auditActor(event: Pick<AuditEvent, 'actor' | 'actor_name'>): { k
 
 /** Where a subject opens, when the console has a page for it. */
 export function auditSubjectTo(event: Pick<AuditEvent, 'subject' | 'subject_ref'>): RouteLocationRaw | null {
-  const { kind, customer_id: customer, tenant_id: tenant } = event.subject_ref
+  const { kind, customer_id: customer, tenant_id: tenant, invoice_id: invoice } = event.subject_ref
   const id = encodeURIComponent(event.subject)
   if (kind === 'customer' || kind === 'order') return customer ? { path: `/customers/${encodeURIComponent(customer)}` } : null
   if (kind === 'tenant') return customer ? { path: `/customers/${encodeURIComponent(customer)}`, query: { tab: 'workspace' } } : tenant ? { path: `/tenants/${encodeURIComponent(tenant)}` } : null
+  if (kind === 'subscription') return customer ? { path: `/customers/${encodeURIComponent(customer)}`, query: { tab: 'subscription' } } : null
+  if (kind === 'invoice' || kind === 'adjustment') return invoice ? { path: `/invoices/${encodeURIComponent(invoice)}` } : null
+  if (kind === 'shared_job') return { path: `/operations/${id}`, query: { source: 'shared' } }
   if (kind === 'plan') return { path: `/plans/${id}` }
   if (kind === 'bundle') return { path: `/bundles/${id}` }
   if (kind === 'catalog') return { path: `/catalog/${id}` }

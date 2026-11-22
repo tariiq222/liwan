@@ -94,7 +94,7 @@ function auditEvent(event) {
   const tenant = fixtures.tenants.items.find(t => t.id === event.subject)
   const customer = fixtures.customers.items.find(c => c.id === event.subject || c.tenant_id === event.subject)
   const kind = tenant ? 'tenant' : customer ? 'customer' : 'other'
-  return { ...event, actor_name: null, subject_ref: { kind, name: tenant?.name ?? customer?.name ?? null, customer_id: customer?.id ?? null, tenant_id: tenant?.id ?? null } }
+  return { ...event, actor_name: null, subject_ref: { kind, name: tenant?.name ?? customer?.name ?? null, customer_id: customer?.id ?? null, tenant_id: tenant?.id ?? null, invoice_id: null } }
 }
 
 /** The audit filters of GET /v1/audit; `from`/`to` are inclusive Asia/Riyadh days, `action` an exact action or a family prefix. */

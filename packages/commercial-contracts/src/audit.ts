@@ -61,13 +61,15 @@ export const auditListQuerySchema = z.strictObject({
 }).refine(query => !query.from || !query.to || query.from <= query.to, { path: ['to'], message: 'The end day precedes the start day' })
 export type AuditListQuery = z.infer<typeof auditListQuerySchema>
 
-export const auditSubjectKindSchema = z.enum(['account', 'customer', 'tenant', 'order', 'plan', 'bundle', 'catalog', 'other'])
+export const auditSubjectKindSchema = z.enum(['account', 'customer', 'tenant', 'order', 'subscription', 'invoice', 'adjustment', 'shared_job', 'plan', 'bundle', 'catalog', 'other'])
 export type AuditSubjectKind = z.infer<typeof auditSubjectKindSchema>
 
 /** What the stored subject string refers to; `name` is resolved server-side and null when the record is gone or unnamed. */
 export const auditSubjectSchema = z.strictObject({
   kind: auditSubjectKindSchema, name: z.string().nullable(),
   customer_id: z.uuid().nullable(), tenant_id: z.uuid().nullable(),
+  /** The invoice itself, or the invoice an adjustment belongs to; null for every other kind. */
+  invoice_id: z.uuid().nullable(),
 })
 
 export const auditEventSchema = z.strictObject({

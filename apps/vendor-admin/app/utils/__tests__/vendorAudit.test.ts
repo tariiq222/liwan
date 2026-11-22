@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
+import { auditSubjectKindSchema } from '@liwan/commercial-contracts'
 import ar from '../../../i18n/locales/ar/vendor.json'
 import en from '../../../i18n/locales/en/vendor.json'
 import { auditActionParts, auditActor, auditFilterCount, auditFilters, auditListQuery, auditSubjectTo } from '../vendorAudit'
 
 const ID = '10000000-0000-4000-8000-000000000001'
-const ref = (kind: string, over: Record<string, unknown> = {}) => ({ subject: 's/1', subject_ref: { kind, name: 'N', customer_id: null, tenant_id: null, ...over } }) as never
+const ref = (kind: string, over: Record<string, unknown> = {}) => ({ subject: 's/1', subject_ref: { kind, name: 'N', customer_id: null, tenant_id: null, invoice_id: null, ...over } }) as never
 
 describe('vendorAudit', () => {
   it('reads valid URL filters and drops anything the control plane would reject', () => {
@@ -36,8 +37,18 @@ describe('vendorAudit', () => {
     expect(auditSubjectTo(ref('tenant', { tenant_id: 't 1' }))).toEqual({ path: '/tenants/t%201' })
     expect(auditSubjectTo(ref('plan'))).toEqual({ path: '/plans/s%2F1' })
     expect(auditSubjectTo(ref('catalog'))).toEqual({ path: '/catalog/s%2F1' })
+    expect(auditSubjectTo(ref('subscription', { customer_id: ID }))).toEqual({ path: `/customers/${ID}`, query: { tab: 'subscription' } })
+    expect(auditSubjectTo(ref('invoice', { invoice_id: ID }))).toEqual({ path: `/invoices/${ID}` })
+    expect(auditSubjectTo(ref('adjustment', { invoice_id: ID }))).toEqual({ path: `/invoices/${ID}` })
+    expect(auditSubjectTo(ref('shared_job'))).toEqual({ path: '/operations/s%2F1', query: { source: 'shared' } })
     expect(auditSubjectTo(ref('account'))).toBeNull()
     expect(auditSubjectTo(ref('other'))).toBeNull()
+  })
+  it('labels every subject kind the contract knows, in both locales', () => {
+    for (const kind of auditSubjectKindSchema.options) {
+      expect((ar.vendor.audit.kinds as Record<string, string>)[kind], `ar ${kind}`).toBeTruthy()
+      expect((en.vendor.audit.kinds as Record<string, string>)[kind], `en ${kind}`).toBeTruthy()
+    }
   })
   it('labels every trial action the control plane writes, in both locales', () => {
     for (const action of ['started', 'enrolled', 'extended', 'reopened', 'ended', 'lapsed', 'converted', 'conversion_reverted', 'expiry_push_failed', 'policy_bootstrap_queued']) {

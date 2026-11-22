@@ -45,25 +45,30 @@ function filters(query: AuditListQuery): { where: string; params: unknown[] } {
   return { where: conditions.length ? `WHERE ${conditions.join(' AND ')}` : '', params }
 }
 
-type Resolved = { kind: AuditSubjectKind; name: string | null; customer_id: string | null; tenant_id: string | null }
+type Resolved = { kind: AuditSubjectKind; name: string | null; customer_id: string | null; tenant_id: string | null; invoice_id: string | null }
 
 async function resolveSubjects(pool: Pool, subjects: string[], actors: string[]) {
   const ids = [...new Set(subjects.filter(subject => UUID.test(subject)))]
   const accountIds = [...new Set([...subjects, ...actors].map(value => ACCOUNT.exec(value)?.[1]).filter((id): id is string => Boolean(id)))]
   const [records, accounts] = await Promise.all([
-    ids.length ? pool.query(`SELECT 'customer' AS kind, c.id::text AS ref, c.name, c.id AS customer_id, c.tenant_id FROM customers c WHERE c.id = ANY($1::uuid[])
-      UNION ALL SELECT 'tenant', t.id::text, t.name, c.id, t.id FROM tenants t LEFT JOIN customers c ON c.tenant_id = t.id WHERE t.id = ANY($1::uuid[])
-      UNION ALL SELECT 'order', o.id::text, c.name, c.id, c.tenant_id FROM orders o JOIN customers c ON c.id = o.customer_id WHERE o.id = ANY($1::uuid[])
-      UNION ALL SELECT 'plan', id::text, name, NULL::uuid, NULL::uuid FROM plan_revisions WHERE id = ANY($1::uuid[])
-      UNION ALL SELECT 'bundle', id::text, name, NULL::uuid, NULL::uuid FROM bundle_revisions WHERE id = ANY($1::uuid[])
-      UNION ALL SELECT 'catalog', id::text, version, NULL::uuid, NULL::uuid FROM catalog_entries WHERE id = ANY($1::uuid[])`, [ids]) : { rows: [] },
+    ids.length ? pool.query(`SELECT 'customer' AS kind, c.id::text AS ref, c.name, c.id AS customer_id, c.tenant_id, NULL::uuid AS invoice_id FROM customers c WHERE c.id = ANY($1::uuid[])
+      UNION ALL SELECT 'tenant', t.id::text, t.name, c.id, t.id, NULL::uuid FROM tenants t LEFT JOIN customers c ON c.tenant_id = t.id WHERE t.id = ANY($1::uuid[])
+      UNION ALL SELECT 'order', o.id::text, c.name, c.id, c.tenant_id, NULL::uuid FROM orders o JOIN customers c ON c.id = o.customer_id WHERE o.id = ANY($1::uuid[])
+      UNION ALL SELECT 'subscription', s.id::text, c.name, c.id, COALESCE(s.tenant_id, c.tenant_id), NULL::uuid FROM subscriptions s JOIN customers c ON c.id = s.customer_id WHERE s.id = ANY($1::uuid[])
+      UNION ALL SELECT 'invoice', i.id::text, i.number, c.id, c.tenant_id, i.id FROM invoices i JOIN customers c ON c.id = i.customer_id WHERE i.id = ANY($1::uuid[])
+      UNION ALL SELECT 'adjustment', a.id::text, i.number, c.id, c.tenant_id, i.id FROM invoice_adjustments a JOIN invoices i ON i.id = a.invoice_id JOIN customers c ON c.id = a.customer_id WHERE a.id = ANY($1::uuid[])
+      UNION ALL SELECT 'shared_job', j.id::text, (j.payload->>'operation') || ' · ' || t.name, c.id, j.control_tenant_id, NULL::uuid
+        FROM shared_jobs j JOIN tenants t ON t.id = j.control_tenant_id LEFT JOIN customers c ON c.tenant_id = j.control_tenant_id WHERE j.id = ANY($1::uuid[])
+      UNION ALL SELECT 'plan', id::text, name, NULL::uuid, NULL::uuid, NULL::uuid FROM plan_revisions WHERE id = ANY($1::uuid[])
+      UNION ALL SELECT 'bundle', id::text, name, NULL::uuid, NULL::uuid, NULL::uuid FROM bundle_revisions WHERE id = ANY($1::uuid[])
+      UNION ALL SELECT 'catalog', id::text, version, NULL::uuid, NULL::uuid, NULL::uuid FROM catalog_entries WHERE id = ANY($1::uuid[])`, [ids]) : { rows: [] },
     accountIds.length ? pool.query('SELECT id::text AS id, display_name FROM vendor_accounts WHERE id = ANY($1::bigint[])', [accountIds]) : { rows: [] },
   ])
   const accountNames = new Map<string, string>(accounts.rows.map(row => [`account:${row.id}`, row.display_name]))
-  const byRef = new Map<string, Resolved>(records.rows.map(row => [row.ref, { kind: row.kind, name: row.name, customer_id: row.customer_id, tenant_id: row.tenant_id }]))
+  const byRef = new Map<string, Resolved>(records.rows.map(row => [row.ref, { kind: row.kind, name: row.name, customer_id: row.customer_id, tenant_id: row.tenant_id, invoice_id: row.invoice_id }]))
   const subjectRef = (subject: string): Resolved => ACCOUNT.test(subject)
-    ? { kind: 'account', name: accountNames.get(subject) ?? null, customer_id: null, tenant_id: null }
-    : byRef.get(subject) ?? { kind: 'other', name: null, customer_id: null, tenant_id: null }
+    ? { kind: 'account', name: accountNames.get(subject) ?? null, customer_id: null, tenant_id: null, invoice_id: null }
+    : byRef.get(subject) ?? { kind: 'other', name: null, customer_id: null, tenant_id: null, invoice_id: null }
   return { subjectRef, actorName: (actor: string) => accountNames.get(actor) ?? null }
 }
 
