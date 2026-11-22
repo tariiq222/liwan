@@ -2,7 +2,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBadges'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
-import { formatLiwanDate } from '@liwan/ui/app/composables/calendarDate'
+import { formatBusinessDate } from '@/utils/vendorTime'
 import { INVOICE_STATUS_FILTERS, invoiceListQuery, isInvoiceStatusFilter, isNotAvailable } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 definePageMeta({ capability: 'vendor.billing.manage' })
@@ -25,7 +25,7 @@ const customerItems = computed(() => [{ value: '', label: t('vendor.invoices.all
 const customerLabel = computed(() => customerItems.value.find(c => c.value === customerId.value)?.label ?? items.value[0]?.customer_name ?? t('vendor.invoices.customerFilter'))
 const to = (id: string) => ({ path: `/invoices/${encodeURIComponent(id)}`, query: { returnTo: route.fullPath } })
 const customerTo = (id: string) => ({ path: `/customers/${encodeURIComponent(id)}` })
-const date = (v: string | null) => (v ? formatLiwanDate(v) : null)
+const date = (v: string | null) => (v ? formatBusinessDate(v) : null)
 const outstanding = computed(() => {
   const sums = data.value?.summary.outstanding ?? []
   return sums.length ? sums.map(m => formatCommercialMoney(m, locale.value)).join(' · ') : '0'

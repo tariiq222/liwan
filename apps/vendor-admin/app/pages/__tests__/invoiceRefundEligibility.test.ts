@@ -11,7 +11,7 @@ import * as commercial from '../../utils/vendorCommercial'
 import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBadges'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { adjustmentStatusBadge, paymentAttemptBadge } from '../../utils/vendorBadges'
-import { formatLiwanDate, formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
+import { formatBusinessDate, formatBusinessDateTime } from '../../utils/vendorTime'
 
 // The mounting harness of admin-repairs.test.ts: the page's SFC script and template are compiled in place, every
 // Nuxt/UI binding it resolves is injected, and the child components are shallow stubs that record their props.
@@ -63,7 +63,7 @@ async function page(options: Options = {}) {
     voidRenewalInvoice: vi.fn(async () => ({})),
   }
   const bindings = {
-    formatLiwanDate, formatLiwanDateTime, invoiceStatusBadge, adjustmentStatusBadge, paymentAttemptBadge, formatCommercialMoney,
+    formatBusinessDate, formatBusinessDateTime, invoiceStatusBadge, adjustmentStatusBadge, paymentAttemptBadge, formatCommercialMoney,
     ...subscriptions, ...ownerOnly, ...commercial, _defineComponent: Vue.defineComponent, _withAsyncContext: (fn: () => unknown) => [fn(), () => {}],
     computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, reactive: Vue.reactive,
     definePageMeta: () => {}, useHydrated: () => hydrated,
@@ -102,7 +102,7 @@ describe('invoice refund eligibility', () => {
     expect(html).toContain('vendor.invoices.refund.firstPayment')
     expect(html).toContain('vendor.invoices.refund.eligibilityRefundable')
     expect(captured.some(c => c.name === 'UAlert' && c.props['data-testid'] === 'refund-window' && c.props.description === 'vendor.invoices.refund.eligibilityRefundable')).toBe(true)
-    expect(p.state.refundUntil.value).toBe(formatLiwanDate(refundable.until))
+    expect(p.state.refundUntil.value).toBe(formatBusinessDate(refundable.until))
     const button = captured.find(c => c.name === 'UButton' && c.props['data-testid'] === 'record-refund-action')
     expect(button?.props.disabled).toBe(false)
     expect(html).toContain('vendor.invoices.refund.action')

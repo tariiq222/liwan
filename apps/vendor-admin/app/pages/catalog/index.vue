@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import { formatLiwanDate } from '@liwan/ui/app/composables/calendarDate'
+import { formatBusinessDate } from '@/utils/vendorTime'
 import { lifecycleBadge } from '@/utils/vendorCommercial'
 import { sellableTiers, type CatalogVersion } from '@/utils/vendorCatalogVersions'
 import { useVendorCatalogVersions } from '@/composables/useVendorCatalogVersions'
@@ -38,13 +38,13 @@ const columns = computed<TableColumn<CatalogVersion>[]>(() => [
       <template #version-cell="{ row: { original: version } }"><NuxtLink :to="path(version)" data-testid="catalog-row" class="font-medium hover:underline" dir="ltr">{{ version.version }}</NuxtLink></template>
       <template #status-cell="{ row: { original: version } }"><SharedStatusBadge :tone="lifecycleBadge(version).tone" :label="t(lifecycleBadge(version).labelKey)" /></template>
       <template #sellable-cell="{ row: { original: version } }">{{ sellableTiers(version).length }}</template>
-      <template #created-cell="{ row: { original: version } }">{{ formatLiwanDate(version.created_at) }}</template>
+      <template #created-cell="{ row: { original: version } }">{{ formatBusinessDate(version.created_at) }}</template>
       <template #mobile-row="{ row: version }">
         <div class="flex flex-wrap items-start justify-between gap-4">
           <h2 class="text-lg font-semibold"><NuxtLink :to="path(version)" data-testid="catalog-row" dir="ltr">{{ version.version }}</NuxtLink></h2>
           <SharedStatusBadge :tone="lifecycleBadge(version).tone" :label="t(lifecycleBadge(version).labelKey)" />
         </div>
-        <p class="mt-3 text-sm text-muted">{{ t('vendor.catalog.sellableApps') }}: {{ sellableTiers(version).length }} · {{ formatLiwanDate(version.created_at) }}</p>
+        <p class="mt-3 text-sm text-muted">{{ t('vendor.catalog.sellableApps') }}: {{ sellableTiers(version).length }} · {{ formatBusinessDate(version.created_at) }}</p>
       </template>
     </SharedDataTable>
   </SharedListPage>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
+import { formatBusinessDateTime } from '@/utils/vendorTime'
 import { operationStatusBadge } from '@/utils/vendorBadges'
 import { buildVendorPolicy, type VendorFeatureValue } from '@/utils/vendorPolicy'
 import type { VendorTenant } from '@/utils/vendorTenant'
@@ -122,7 +122,7 @@ const canEnqueue = computed(() => Boolean(reason.value.trim()) && !(actionType.v
 watch([actionType, reason, edits], () => { confirmEnqueue.value = false }, { deep: true })
 const sharedWorkspace = computed(() => showsSharedBackups(data.value))
 const operationsNeedEnabling = computed(() => Boolean(data.value && !data.value.operations_enabled))
-const operationTime = (op: OperationFeed) => formatLiwanDateTime(op.source === 'shared' ? (op.last_event_at ?? op.created_at) : op.updated_at)
+const operationTime = (op: OperationFeed) => formatBusinessDateTime(op.source === 'shared' ? (op.last_event_at ?? op.created_at) : op.updated_at)
 </script>
 
 <template>

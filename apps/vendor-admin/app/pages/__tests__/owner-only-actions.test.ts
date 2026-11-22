@@ -9,7 +9,7 @@ import { operationTargetTo } from '../../utils/vendorOperations'
 import * as ownerOnly from '../../utils/ownerOnly'
 import { failureKey } from '../../composables/useStepUp'
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
-import { formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
+import { formatBusinessDateTime } from '../../utils/vendorTime'
 import { mountPage } from '../../__tests__/pageHarness'
 
 const mounted: { stop: () => void }[] = []
@@ -20,7 +20,7 @@ const restore = { id: 'op1', tenant_id: 't1', request_id: 'r', type: 'restore', 
 async function operationPage(grants: string[], data: unknown = restore) {
   const request = vi.fn(async () => data)
   const page = await mountPage('operations/[id].vue', {
-    formatLiwanDateTime, operationStatusBadge, safeReturnTo, canPublishRestore, ...ownerOnly, operationTargetTo, canAbandonJob, canRecoverJob, recoveryTextKey, failureKey,
+    formatBusinessDateTime, operationStatusBadge, safeReturnTo, canPublishRestore, ...ownerOnly, operationTargetTo, canAbandonJob, canRecoverJob, recoveryTextKey, failureKey,
     useRoute: () => ({ params: { id: 'op1' }, query: { source: 'shared' } }), useVendorApi: () => ({ request }), useVendorContext: () => ({ can: (grant: string) => grants.includes(grant) }), navigateTo: vi.fn(),
   })
   mounted.push(page)

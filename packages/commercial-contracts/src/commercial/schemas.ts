@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { BUSINESS_TIME_ZONE } from './calendar.js'
 
 const MAX = Number.MAX_SAFE_INTEGER
 /** The largest value of a PostgreSQL `integer` column; a bigger one is a 500 (22003), so it is refused where it is parsed. */
@@ -158,7 +159,7 @@ export const entitlementSnapshotSchema = z.strictObject({
   compiler_version: z.string(), digest: sha,
 })
 export const pricingPolicySchema = z.strictObject({
-  id: revisionIdSchema, timezone: z.literal('Asia/Riyadh'), rounding: z.literal('half_up_per_line'),
+  id: revisionIdSchema, timezone: z.literal(BUSINESS_TIME_ZONE), rounding: z.literal('half_up_per_line'),
   tax: z.discriminatedUnion('kind', [
     z.strictObject({ kind: z.literal('vat_exclusive'), rate_bps: z.literal(1500) }),
     z.strictObject({ kind: z.literal('none') }),

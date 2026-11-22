@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
+import { formatBusinessDateTime } from '@/utils/vendorTime'
 import { operationStatusBadge } from '@/utils/vendorBadges'
 import type { Operation as LegacyOperation, OperationFeed } from '@liwan/commercial-contracts'
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
@@ -198,7 +198,7 @@ async function retry() {
           <ol v-if="data.events?.length" class="grid gap-3" data-testid="operation-events">
             <li v-for="(event, index) in data.events" :key="`${event.at}:${index}`" class="border-s-2 border-default ps-3">
               <p class="flex flex-wrap items-center gap-2 font-medium">{{ t(`vendor.operations.stages.${event.stage}`, event.stage) }} <SharedStatusBadge :tone="operationStatusBadge(event.status).tone" :label="operationStatusBadge(event.status).labelKey ? t(operationStatusBadge(event.status).labelKey) : event.status" /></p>
-              <time class="text-xs text-muted" :datetime="event.at">{{ formatLiwanDateTime(event.at) }}</time>
+              <time class="text-xs text-muted" :datetime="event.at">{{ formatBusinessDateTime(event.at) }}</time>
             </li>
           </ol>
           <p v-else class="text-sm text-muted">{{ t('vendor.operations.noEvents') }}</p>
@@ -220,8 +220,8 @@ async function retry() {
 
   <template #aside><SharedPropertiesPanel v-if="data">
             <SharedPropertyRow :label="t('vendor.operations.target')"><NuxtLink v-if="targetTo" :to="targetTo" class="text-primary underline" data-testid="operation-target"><bdi>{{ data.tenant_name ?? data.tenant_id }}</bdi></NuxtLink></SharedPropertyRow>
-            <SharedPropertyRow :label="t('vendor.operations.created')" :value="formatLiwanDateTime(data.created_at)" />
-            <SharedPropertyRow v-if="updatedAt" :label="t('vendor.operations.updated')" :value="formatLiwanDateTime(updatedAt)" />
+            <SharedPropertyRow :label="t('vendor.operations.created')" :value="formatBusinessDateTime(data.created_at)" />
+            <SharedPropertyRow v-if="updatedAt" :label="t('vendor.operations.updated')" :value="formatBusinessDateTime(updatedAt)" />
           </SharedPropertiesPanel></template>
 </SharedRecordPage>
   <SharedUnsavedChanges :dirty="dirty" />

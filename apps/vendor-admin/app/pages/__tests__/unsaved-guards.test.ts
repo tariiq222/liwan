@@ -5,7 +5,7 @@ import * as commercial from '../../utils/vendorCommercial'
 import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBadges'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { adjustmentStatusBadge, paymentAttemptBadge, operationStatusBadge } from '../../utils/vendorBadges'
-import { formatLiwanDate, formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
+import { formatBusinessDate, formatBusinessDateTime } from '../../utils/vendorTime'
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import { canPublishRestore } from '../../utils/restorePublication'
 import { operationTargetTo } from '../../utils/vendorOperations'
@@ -28,7 +28,7 @@ async function invoicePage() {
     requestRefund: vi.fn(async () => ({})), refundCreditNote: vi.fn(async () => ({})), recordBankTransfer: vi.fn(async () => ({})), voidRenewalInvoice: vi.fn(async () => ({})), refundAiTopup: vi.fn(async () => ({})),
   }
   const page = await mountPage('invoices/[id].vue', {
-    ...subscriptions, ...ownerOnly, ...commercial, formatLiwanDate, formatLiwanDateTime, invoiceStatusBadge, adjustmentStatusBadge, paymentAttemptBadge, formatCommercialMoney,
+    ...subscriptions, ...ownerOnly, ...commercial, formatBusinessDate, formatBusinessDateTime, invoiceStatusBadge, adjustmentStatusBadge, paymentAttemptBadge, formatCommercialMoney,
     useRoute: () => ({ params: { id: 'invoice1' }, path: '/invoices/invoice1', query: {} }),
     useVendorContext: () => ({ can: () => true }), useVendorSubscriptions: () => api,
   })
@@ -69,7 +69,7 @@ it('guards each form of the invoice page while it holds typed input, and release
 async function operationPage(data: unknown, navigateTo = vi.fn()) {
   const request = vi.fn(async (path: string) => (path.startsWith('operations/') && !path.endsWith('/retry') ? data : { id: 'op2' }))
   const page = await mountPage('operations/[id].vue', {
-    formatLiwanDateTime, operationStatusBadge, safeReturnTo, canPublishRestore, ...ownerOnly, operationTargetTo, canAbandonJob, canRecoverJob, recoveryTextKey, failureKey: () => 'k',
+    formatBusinessDateTime, operationStatusBadge, safeReturnTo, canPublishRestore, ...ownerOnly, operationTargetTo, canAbandonJob, canRecoverJob, recoveryTextKey, failureKey: () => 'k',
     useRoute: () => ({ params: { id: 'op1' }, query: {} }), useVendorApi: () => ({ request }), useVendorContext: () => ({ can: () => true }), navigateTo,
   })
   mounted.push(page)

@@ -18,7 +18,7 @@ const options = {
     '../../utils/team': team,
     '@liwan/commercial-contracts': contracts,
     '@/composables/useCopyLink': { useCopyLink: () => ({ copy: () => undefined, outcomeFor: () => null }) },
-    '@liwan/ui/app/utils/formatDate': { formatDateTime: (value: string) => `at ${value}` },
+    '@/utils/vendorTime': { formatBusinessDateTime: (value: string) => `at ${value}` },
   },
   components: {
     TeamRolePicker: 'components/team/RolePicker.vue',

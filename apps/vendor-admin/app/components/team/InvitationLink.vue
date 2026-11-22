@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
+import { formatBusinessDateTime } from '@/utils/vendorTime'
 import { useCopyLink } from '@/composables/useCopyLink'
 
 const props = defineProps<{ name: string, link: string, expiresAt: string }>()
@@ -22,7 +22,7 @@ const outcome = computed(() => copier.outcomeFor(props.link))
       <UInput :model-value="props.link" readonly dir="ltr" class="w-full" data-testid="invitation-link-value" @focus="($event.target as HTMLInputElement).select()" />
     </UFormField>
     <p class="text-sm text-muted">
-      {{ t('team.link.expires', { date: formatDateTime(props.expiresAt) }) }}
+      {{ t('team.link.expires', { date: formatBusinessDateTime(props.expiresAt) }) }}
     </p>
     <div class="flex flex-wrap items-center gap-2">
       <UButton type="button" icon="i-lucide-copy" :disabled="!hydrated" :label="t('team.link.copy')" data-testid="invitation-link-copy" @click="copier.copy(props.link)" />

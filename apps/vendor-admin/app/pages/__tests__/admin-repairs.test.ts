@@ -14,7 +14,7 @@ import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBad
 import { cadenceLabel, formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { adjustmentStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge } from '../../utils/vendorBadges'
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
-import { formatLiwanDate, formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
+import { formatBusinessDate, formatBusinessDateTime } from '../../utils/vendorTime'
 
 const transpile = (s: string) => ts.transpileModule(s, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None } }).outputText
 const stripImports = (s: string) => s.replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '')
@@ -52,7 +52,7 @@ async function page(name: string, options: { path?: string; tab?: string; tenant
   const hydrated = Vue.ref(options.hydrated ?? true)
   const slots = new Map<string, unknown>()
   const bindings = {
-    formatLiwanDate, formatLiwanDateTime,
+    formatBusinessDate, formatBusinessDateTime,
     invoiceStatusBadge, adjustmentStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge, formatCommercialMoney, cadenceLabel,
     ...subscriptions, ...ownerOnly, ...deletionUtils, ...commercial, ...clients, _defineComponent: Vue.defineComponent, _withAsyncContext: (fn: () => unknown) => [fn(), () => {}],
     computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, reactive: Vue.reactive, onMounted: () => {}, onBeforeUnmount: () => {}, safeReturnTo, sharedTenantLoginUrl: () => null, buildVendorPolicy: () => ({}),

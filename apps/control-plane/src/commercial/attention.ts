@@ -1,5 +1,6 @@
 import type { Pool } from 'pg'
-import { ATTENTION_LIMIT, attentionItemSchema, attentionSchema } from '@liwan/commercial-contracts'
+// Renewal dates are calendar dates of the business, so "today" and the renewal instant are read in its zone, never the session's.
+import { ATTENTION_LIMIT, attentionItemSchema, attentionSchema, BUSINESS_TIME_ZONE } from '@liwan/commercial-contracts'
 import { creditedMinorSql } from './refund-credit.js'
 import { holdsFreeBaseLockSql, owesAtRenewalSql } from './free-base.js'
 import { tenantStatusSql } from './suspension.js'
@@ -8,8 +9,6 @@ export const RENEWAL_WINDOW_DAYS = 7
 export const STALLED_HOURS = 24
 /** Two normal lapse scans without a state change. */
 const TRIAL_END_OVERDUE_MINUTES = 10
-/** Renewal dates are calendar dates of the business, so "today" and the renewal instant are read in this zone, never the session's. */
-export const BUSINESS_TIME_ZONE = 'Asia/Riyadh'
 
 const businessToday = `(now() AT TIME ZONE '${BUSINESS_TIME_ZONE}')::date`
 const renewalInstant = `(renewal_at::timestamp AT TIME ZONE '${BUSINESS_TIME_ZONE}')`

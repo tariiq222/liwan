@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
+import { formatBusinessDateTime } from '@/utils/vendorTime'
 import { useAdminAccounts } from '@/composables/useAdminAccounts'
 import { useTeamActions } from '@/composables/useTeamActions'
 import type { TeamAccount, TeamAccountStatus } from '@/utils/team'
@@ -19,7 +19,7 @@ const allowed = computed(() => can('vendor.accounts.manage'))
 const TONES: Record<TeamAccountStatus, 'success' | 'warning' | 'neutral'> = { active: 'success', enrolling: 'warning', disabled: 'neutral' }
 const ICONS = { roles: 'i-lucide-shield-check', reset: 'i-lucide-key-round', disable: 'i-lucide-user-x', enable: 'i-lucide-user-check' } as const
 const isMe = (account: TeamAccount) => account.id === me.value?.id
-const lastSeen = (account: TeamAccount) => (account.last_seen_at ? formatDateTime(account.last_seen_at) : t('team.neverSeen'))
+const lastSeen = (account: TeamAccount) => (account.last_seen_at ? formatBusinessDateTime(account.last_seen_at) : t('team.neverSeen'))
 
 // A disabled account can only be enabled, which starts its enrolment again with a new link; a pending invitation can get a new link (reset) or be disabled.
 // Nobody disables or re-enrolls their own account here: that would end their own session.

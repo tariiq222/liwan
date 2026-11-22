@@ -1,11 +1,10 @@
 import type { Pool } from 'pg'
-import { AUDIT_PAGE_SIZE, type AuditEvent, type AuditList, type AuditListQuery, type AuditSubjectKind } from '@liwan/commercial-contracts'
+import { AUDIT_PAGE_SIZE, BUSINESS_TIME_ZONE, type AuditEvent, type AuditList, type AuditListQuery, type AuditSubjectKind } from '@liwan/commercial-contracts'
 
 // Read model of audit_events for the vendor console. Every filter is a bound parameter; the SQL text
 // only ever names columns. Subjects are stored as plain strings (a record id or `account:<n>`), so the
 // readable name of each one is resolved for the returned page only.
 // The `from`/`to` days are calendar days in the business time zone, the one the console displays.
-const BUSINESS_TIME_ZONE = 'Asia/Riyadh'
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const ACCOUNT = /^account:(\d{1,18})$/
 const contains = (value: string) => `%${value.replace(/[\\%_]/g, '\\$&')}%`

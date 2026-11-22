@@ -15,7 +15,7 @@ import { failureKey, StepUpCancelled } from '../../composables/useStepUp'
 import { canAbandonJob } from '../../utils/sharedJobAbandon'
 import { canRecoverJob, recoveryTextKey } from '../../utils/sharedJobRecovery'
 import { refDebounced, useDebounceFn } from '@vueuse/core'
-import { formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
+import { formatBusinessDateTime } from '../../utils/vendorTime'
 
 type PageOptions = { pending?: boolean, client?: boolean, refresh?: () => Promise<void> }
 async function page(name: string, data: unknown, source?: string, query: Record<string, string> = {}, options: PageOptions = {}) {
@@ -32,7 +32,7 @@ async function page(name: string, data: unknown, source?: string, query: Record<
   const messages = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../../i18n/locales/en/vendor.json'), 'utf8'))
   const t = (key: string) => key.split('.').reduce((obj: unknown, key) => (obj as Record<string, unknown> | undefined)?.[key], messages) ?? key
   const bindings = {
-    formatLiwanDateTime, failureKey, useDebounceFn, refDebounced,
+    formatBusinessDateTime, failureKey, useDebounceFn, refDebounced,
     useVendorTenant: (id: Vue.Ref<string>) => ({ data: Vue.ref(id.value === 'tenant-id' ? { id: 'tenant-id', name: 'Acme' } : null), error: Vue.ref(id.value && id.value !== 'tenant-id' ? { statusCode: 404 } : null) }), ...clients, isNotAvailable, canAbandonJob, canRecoverJob, recoveryTextKey,
     useVendorSubscriptions: () => ({ listClients: (query: Record<string, unknown>) => request('commercial/clients', { query }) }),
     invoiceStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge,

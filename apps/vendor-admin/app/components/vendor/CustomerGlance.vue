@@ -2,7 +2,7 @@
 import type { Invoice, SubscriptionView } from '@liwan/commercial-contracts'
 import { cadenceLabel, formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBadges'
-import { formatLiwanDate } from '@liwan/ui/app/composables/calendarDate'
+import { formatBusinessDate } from '@/utils/vendorTime'
 import type { RouteLocationRaw } from 'vue-router'
 import type { ClientTab } from '@/utils/vendorClients'
 import type { StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
@@ -40,7 +40,7 @@ const renewal = computed(() => {
   if (!at || ['cancelled', 'suspended'].includes(sub.value?.state ?? '')) return null
   const days = daysUntilDate(at, new Date())
   const hint = days > 0 ? t('vendor.customers.glance.renewalIn', { days }) : days === 0 ? t('vendor.customers.glance.renewalToday') : t('vendor.customers.glance.renewalLate', { days: -days })
-  return { date: formatLiwanDate(at), hint: `${hint} · ${t(sub.value?.auto_renew.enabled ? 'vendor.customers.glance.autoRenewOn' : 'vendor.customers.glance.autoRenewOff')}` }
+  return { date: formatBusinessDate(at), hint: `${hint} · ${t(sub.value?.auto_renew.enabled ? 'vendor.customers.glance.autoRenewOn' : 'vendor.customers.glance.autoRenewOff')}` }
 })
 const lastInvoice = computed(() => props.invoices?.[0] ?? null)
 

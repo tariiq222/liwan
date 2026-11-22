@@ -1,6 +1,6 @@
 import { ANALYTICS_MAX_DAYS, type AnalyticsFigure, type AnalyticsFigures, type Money } from '@liwan/commercial-contracts'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
-import { BUSINESS_TIME_ZONE } from './vendorTime'
+import { BUSINESS_TIME_ZONE } from '@liwan/commercial-contracts'
 
 export const PERIOD_PRESETS = ['month', 'quarter', 'year', 'custom'] as const
 export type PeriodPreset = (typeof PERIOD_PRESETS)[number]

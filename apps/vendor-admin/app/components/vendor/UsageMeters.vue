@@ -2,7 +2,7 @@
 import type { UsageSnapshot } from '@liwan/commercial-contracts'
 import { usageDisplay, usageMetricLabel } from '@/utils/vendorSubscriptions'
 import { formatStorageBytes, formatStorageMb } from '@/utils/storage'
-import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
+import { formatBusinessDateTime } from '@/utils/vendorTime'
 const props = defineProps<{ usage?: UsageSnapshot | null }>()
 const { t, te, locale } = useI18n()
 const fmt = (unit: string, n: number) => (unit === 'attachment_bytes' ? formatStorageBytes(n) : unit === 'mebibytes' ? formatStorageMb(n) : String(n))
@@ -14,7 +14,7 @@ const rows = computed(() => (props.usage?.metrics ?? []).map(m => ({ m, view: us
     <template v-else>
       <p class="flex flex-wrap items-center gap-2 text-sm text-muted">
         <SharedStatusBadge :tone="usage.freshness === 'fresh' ? 'success' : usage.freshness === 'stale' ? 'warning' : 'neutral'" variant="subtle" :label="t(`vendor.customers.usage.freshness.${usage.freshness}`)" />
-        <span v-if="usage.observed_at">{{ t('vendor.customers.usage.observedAt') }}: <time :datetime="usage.observed_at">{{ formatDateTime(usage.observed_at) }}</time></span>
+        <span v-if="usage.observed_at">{{ t('vendor.customers.usage.observedAt') }}: <time :datetime="usage.observed_at">{{ formatBusinessDateTime(usage.observed_at) }}</time></span>
       </p>
       <ul class="grid gap-3 sm:grid-cols-2">
         <li v-for="{ m, view } in rows" :key="m.key" class="rounded-control p-3 ring ring-default" data-testid="usage-meter">

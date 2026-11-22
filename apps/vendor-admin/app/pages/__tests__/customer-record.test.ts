@@ -10,7 +10,7 @@ import { entitledSelections } from '../../utils/vendorEntitlement'
 import { customerDisplayBadge, operationStatusBadge } from '../../utils/vendorBadges'
 import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBadges'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
-import { formatLiwanDate, formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
+import { formatBusinessDate, formatBusinessDateTime } from '../../utils/vendorTime'
 import { mountPage } from '../../__tests__/pageHarness'
 
 const mounted: { stop: () => void }[] = []
@@ -27,7 +27,7 @@ async function customerPage(path: string, query: Record<string, string> = {}, op
   const catalog = { listPlans: vi.fn(async () => ({ items: [], total: 0 })), releases: vi.fn(async () => []) }
   const tenantId = ref('')
   const page = await mountPage('customers/[id].vue', {
-    ...subscriptions, ...ownerOnly, ...commercial, ...deletion, ...clients, attentionTab, entitledSelections, customerDisplayBadge, operationStatusBadge, invoiceStatusBadge, formatCommercialMoney, formatLiwanDate, formatLiwanDateTime,
+    ...subscriptions, ...ownerOnly, ...commercial, ...deletion, ...clients, attentionTab, entitledSelections, customerDisplayBadge, operationStatusBadge, invoiceStatusBadge, formatCommercialMoney, formatBusinessDate, formatBusinessDateTime,
     createError: (e: unknown) => e, useCopyLink: () => ({}),
     useVendorTenant: (id: { value: string }) => { tenantId.value = id.value; return { data: ref(null), error: ref(null), pending: ref(false), refresh: vi.fn() } },
     useTenantRecentOperations: () => ({ data: ref([]), error: ref(null), refresh: vi.fn() }),

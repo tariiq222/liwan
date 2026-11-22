@@ -14,7 +14,7 @@ async function mount(data: unknown) {
     useVendorTenant: () => ({ data: Vue.ref(data), error: Vue.ref(null), pending: Vue.ref(false), refresh: async () => {} }),
     useVendorCatalogVersions: () => ({ load: () => ({ data: Vue.ref([]) }) }),
     useTenantRecentOperations: () => ({ data: Vue.ref([]), error: Vue.ref(null), pending: Vue.ref(false), refresh: async () => {} }),
-    formatLiwanDateTime: (value: string) => value, operationStatusBadge: () => ({ tone: 'neutral' }), buildVendorPolicy: () => ({}), failureKey: (_: unknown, key: string) => key,
+    formatBusinessDateTime: (value: string) => value, operationStatusBadge: () => ({ tone: 'neutral' }), buildVendorPolicy: () => ({}), failureKey: (_: unknown, key: string) => key,
     showsSharedBackups, navigateTo: async () => {},
   })
   return sfc.mount({ tenantId })

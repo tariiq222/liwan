@@ -2,13 +2,13 @@
 import type { SubscriptionView } from '@liwan/commercial-contracts'
 import { cadenceLabel } from '@liwan/commercial-ui/app/utils/commercial'
 import type { StatusTone } from '@liwan/ui/app/utils/statusTone'
-import { formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
+import { formatBusinessDateTime } from '@/utils/vendorTime'
 import { orderFulfillmentBadge, orderPaymentBadge } from '@/utils/vendorSubscriptions'
 
 // What changed on the subscription, newest first, from the revisions the control plane returns.
 const props = defineProps<{ subscription: SubscriptionView; planName: (revisionId: string) => string | undefined }>()
 const { t } = useI18n()
-const when = (value: string) => formatLiwanDateTime(value)
+const when = (value: string) => formatBusinessDateTime(value)
 const events = computed(() => {
   const { applied, target, pending_order: order } = props.subscription
   const list: { key: string; at: string; icon: string; title: string; detail: string; badges?: { tone: StatusTone; label: string }[] }[] = []

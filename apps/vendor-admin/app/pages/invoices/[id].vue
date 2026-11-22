@@ -6,7 +6,7 @@ import { commercialErrorKey } from '@/utils/vendorCommercial'
 import { ownerOnlyAccess } from '@/utils/ownerOnly'
 import { aiTopupRefundable, invoiceHasAiTopup, invoicesReturnTo, isNotAvailable, parseTransferAmount, parseUnitsUsed, refundErrorKey, refundRequestBlock, transferFormDefaults, validRefundDraft, validRefundReason, validVoidDraft, vendorInvoiceLineViews, voidAction, voidErrorKey, voidReasonKey } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
-import { formatLiwanDate, formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
+import { formatBusinessDate, formatBusinessDateTime } from '@/utils/vendorTime'
 definePageMeta({ capability: 'vendor.billing.manage' })
 const { t, locale } = useI18n(); const route = useRoute(); const api = useVendorSubscriptions()
 const { can } = useVendorContext()
@@ -21,7 +21,7 @@ const { data: attempts, error: attemptsError, pending: attemptsPending, refresh:
   () => `vendor:invoice-attempts:${id.value}:${orderId.value ?? 'none'}:${canBilling.value}`,
   () => orderId.value && canBilling.value ? api.paymentAttempts(orderId.value) : Promise.resolve(null),
 )
-const attemptTime = (value: string) => formatLiwanDateTime(value)
+const attemptTime = (value: string) => formatBusinessDateTime(value)
 const unavailable = computed(() => isNotAvailable(error.value) && !data.value)
 // Voiding ends a debt and may drop the customer to the free base: the control plane needs both grants, so the page offers it to neither alone.
 const voidAccess = computed(() => (unavailable.value ? 'none' as const : ownerOnlyAccess('voidInvoice', can)))
@@ -36,8 +36,8 @@ const totals = computed(() => {
     { label: t('vendor.invoices.total'), value: money(invoice.total) },
   ]
 })
-const date = (v: string | null) => (v ? formatLiwanDate(v) : null)
-const refundUntil = computed(() => (data.value?.refund?.until ? formatLiwanDate(data.value.refund.until) : ''))
+const date = (v: string | null) => (v ? formatBusinessDate(v) : null)
+const refundUntil = computed(() => (data.value?.refund?.until ? formatBusinessDate(data.value.refund.until) : ''))
 /**
  * Recording a refund needs only the billing grant. The window is judged once, by the server, when a vendor note is
  * created; a pending note is recordable afterwards whatever the date, and a system note (duplicate charge, payment after

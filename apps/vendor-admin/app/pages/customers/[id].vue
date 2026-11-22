@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatLiwanDate, formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
+import { formatBusinessDate, formatBusinessDateTime } from '@/utils/vendorTime'
 import { deletionWithdrawable, isDeletionShown, isWorkspaceRetiring } from '@/utils/vendorDeletion'
 import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBadges'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
@@ -226,7 +226,7 @@ const workspaceRetiring = computed(() => isWorkspaceRetiring(deletion.value) || 
 // The only owner of the provisioning poll: the summary and the workspace tab need it, the other tabs, the child pages and a workspace being deleted do not.
 // Declared here, after `workspaceRetiring`: the poll reads it as soon as it is created.
 const progress = useWorkspaceProvisioning(tenantId, () => !isChild.value && !workspaceRetiring.value && (tab.value === 'summary' || tab.value === 'workspace'))
-const workspaceDeletedText = computed(() => t('vendor.customers.deletion.workspaceDeleted', { date: formatLiwanDate(deletion.value?.deleted_at ?? '') }))
+const workspaceDeletedText = computed(() => t('vendor.customers.deletion.workspaceDeleted', { date: formatBusinessDate(deletion.value?.deleted_at ?? '') }))
 const deletionWithdrawOpen = ref(false)
 const deletionReason = ref('')
 const deletionBusy = ref(false)
@@ -244,8 +244,8 @@ async function withdrawDeletion() {
   } catch (cause) { deletionFailure.value = t(deletionErrorKey(cause)) } finally { deletionBusy.value = false }
 }
 const deletionMessage = computed(() => deletion.value && t(`vendor.customers.deletion.${deletion.value.state}`, {
-  requested: formatLiwanDate(deletion.value.requested_at), confirmed: formatLiwanDate(deletion.value.confirmed_at ?? ''), due: formatLiwanDate(deletion.value.due_at ?? ''),
-  hold: formatLiwanDateTime(deletion.value.hold_until ?? ''), deleting: formatLiwanDateTime(deletion.value.deleting_at ?? ''), deleted: formatLiwanDate(deletion.value.deleted_at ?? ''),
+  requested: formatBusinessDate(deletion.value.requested_at), confirmed: formatBusinessDate(deletion.value.confirmed_at ?? ''), due: formatBusinessDate(deletion.value.due_at ?? ''),
+  hold: formatBusinessDateTime(deletion.value.hold_until ?? ''), deleting: formatBusinessDateTime(deletion.value.deleting_at ?? ''), deleted: formatBusinessDate(deletion.value.deleted_at ?? ''),
 }))
 const deletionRenewal = computed(() => {
   const request = deletion.value
@@ -306,7 +306,7 @@ async function cancelPendingOrder() {
           <UAlert v-if="customer.commercial_setup_required" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('vendor.customers.setupRequired')" :description="t('vendor.customers.setupHint')" />
           <VendorCustomerGlance :setup-required="customer.commercial_setup_required" :subscription="view" :plan-name="planNameOf(view?.applied?.plan_revision_id) ?? pendingPlanName" :plan-pending="!view?.applied && Boolean(pendingPlanName)" :invoices="glanceInvoices" :has-workspace="hasWorkspace" :workspace-badge="workspaceBadge" :provisioning-failed="progress.failed" :operation-failed="operationFailed" :workspace-unreadable="workspaceUnreadable" :invoices-offered="canBilling" :login-url="progress.loginUrl" :tab-to="tabTo" @retry="retryWorkspaceState" />
           <p v-if="customer.signup_acceptance" class="text-sm text-muted" data-testid="signup-acceptance">
-            {{ t('vendor.customers.signupAcceptance', { version: customer.signup_acceptance.terms_version, date: formatLiwanDate(customer.signup_acceptance.accepted_at) }) }}
+            {{ t('vendor.customers.signupAcceptance', { version: customer.signup_acceptance.terms_version, date: formatBusinessDate(customer.signup_acceptance.accepted_at) }) }}
           </p>
         </template>
 
@@ -363,7 +363,7 @@ async function cancelPendingOrder() {
               <UButton v-else color="neutral" variant="outline" size="sm" icon="i-lucide-play" :disabled="!hydrated" data-testid="resume-subscription" @click="suspensionAction = 'resume'">{{ t('vendor.customers.suspension.resume') }}</UButton>
             </div>
             <div v-if="view?.cancellation || canChangeRenewal" class="mt-4 space-y-3" data-testid="renewal-actions">
-              <UAlert v-if="view?.cancellation" color="warning" variant="subtle" icon="i-lucide-calendar-x" :title="t('vendor.customers.renewalCancel.endsNotice', { date: formatLiwanDate(view.cancellation.effective_on), by: t(`vendor.customers.renewalCancel.by.${view.cancellation.requested_by}`), requested: formatLiwanDate(view.cancellation.requested_at) })" />
+              <UAlert v-if="view?.cancellation" color="warning" variant="subtle" icon="i-lucide-calendar-x" :title="t('vendor.customers.renewalCancel.endsNotice', { date: formatBusinessDate(view.cancellation.effective_on), by: t(`vendor.customers.renewalCancel.by.${view.cancellation.requested_by}`), requested: formatBusinessDate(view.cancellation.requested_at) })" />
               <UAlert v-if="renewalFailure" color="error" variant="subtle" role="alert" :title="renewalFailure" />
               <template v-if="canChangeRenewal">
                 <SharedInlineConfirm v-if="renewalAction" :title="t(`vendor.customers.renewalCancel.${renewalAction}Title`)" :description="t(`vendor.customers.renewalCancel.${renewalAction}Hint`)" :confirm-label="t(`vendor.customers.renewalCancel.${renewalAction}`)" :color="renewalAction === 'cancel' ? 'error' : 'primary'" :pending="renewalBusy" :disabled="!hydrated || renewalBusy || !validRenewalReason" @confirm="changeRenewal" @cancel="closeRenewal">
@@ -421,7 +421,7 @@ async function cancelPendingOrder() {
             <li v-for="i in invoices" :key="i.id" class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-3" data-testid="customer-invoice">
               <div class="min-w-0">
                 <NuxtLink :to="{ path: `/invoices/${encodeURIComponent(i.id)}`, query: { returnTo: route.fullPath } }" class="font-medium hover:underline">{{ i.number ?? t('vendor.invoices.draftNumber') }}</NuxtLink>
-                <p class="text-xs text-muted">{{ t(`vendor.invoices.kind.${i.kind}`) }} · <bdi dir="ltr" class="tabular-nums">{{ formatLiwanDate(i.period_start) }} → {{ formatLiwanDate(i.period_end) }}</bdi></p>
+                <p class="text-xs text-muted">{{ t(`vendor.invoices.kind.${i.kind}`) }} · <bdi dir="ltr" class="tabular-nums">{{ formatBusinessDate(i.period_start) }} → {{ formatBusinessDate(i.period_end) }}</bdi></p>
               </div>
               <div class="flex items-center gap-3">
                 <bdi dir="ltr" class="font-semibold tabular-nums">{{ formatCommercialMoney(i.total, locale) }}</bdi>
