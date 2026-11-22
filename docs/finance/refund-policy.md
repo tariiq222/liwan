@@ -62,6 +62,38 @@ the customer asks by message, and the vendor acts in the vendor console.
   `payment_after_cancellation`, `duplicate_payment`, `automatic_refund`) never drop the subscription. They stay with the
   manual review above.
 
+## An automatic refund that cannot finish
+
+Owner decision 2026-11-22. A `reconcile.refund` row whose `provider_refund` mark is `attempted` (a refund call was made and its
+outcome is not verified) or `returned` (the provider returned the money and recording keeps failing) is never closed or handed to
+the operator by the worker: the customer could be paid twice. It is retried with a backoff of at most 60 minutes, and the invoice
+page shows the note as stuck, with the row's age, tries, next try, the provider payment id and, for a reference conflict, the note
+that holds the payment id. Three console actions, each needing `vendor.billing.manage`, none of which refunds money (only the
+refund worker does, under the same per-order advisory lock; a held lock is `refund_in_progress`, 409):
+
+- **Check again now** (both states): reads the payment at the provider, shows its status, refunded amount and payment id, and
+  makes the row due so the worker runs its next step. Changes nothing else; needs no step-up and no reason.
+- **Release the hold** (`attempted` only; fresh step-up and a reason of 3 to 1000 characters): acts only on a definitive provider
+  answer. The read must succeed and match the paying attempt (payment id, amount, currency, merchant account, mode). A payment
+  refunded in full is marked `returned` as the worker would mark it; a paid payment with no refunded figure loses the mark and the
+  worker takes over by its guarded path (a refund, or the manual form by the existing rules). Everything else is refused with 409:
+  a failed read or a mismatch (`provider_status_unverified`), a refunded status with no usable figure
+  (`provider_refund_amount_unverified`), a partial figure (`provider_refund_partial`), a mark younger than 60 minutes
+  (`refund_attempt_too_recent`, from `attempted_at`, or the row's creation for an older row), no payment adapter
+  (`provider_refund_unavailable`). There is no operator override.
+- **Record the returned refund** (`returned` only; fresh step-up, a reason and a resolution): `record` runs the worker's own
+  recording with the operator as actor, under the payment id, or `<payment id>#<first eight characters of the note id>` when
+  another note holds it (the other note is untouched and named in the audit event); it settles the order, arms the free-base lock as
+  usual and finishes the row. It is refused with `refund_over_credit` when the invoice's refunded credit plus this note would exceed
+  what the paying attempt paid. `already_recorded` voids the stuck note and finishes the row, only when the note holding the payment
+  id is on the same invoice, settled and covers this note (otherwise `refund_not_duplicate`).
+
+Audit events: `payment.refund_rechecked`, `payment.refund_hold_released` (with the provider figures read),
+`invoice.credit_refunded` (with `resolved_stuck` and the conflicting note id) and `payment.refund_duplicate_closed`.
+
+The provider's one-refund-per-payment rule stops a second card refund; nothing stops a bank transfer made by hand. A payment on
+a stuck refund is therefore refunded only through the provider, never by transfer, while the hold stands.
+
 ## Voiding an unpaid renewal invoice is not a refund
 
 Owner decision 2026-11-22. An issued renewal invoice that nobody paid is **voided**, not credited: no money was
