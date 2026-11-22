@@ -12,7 +12,7 @@ export const AUDIT_PAGE_SIZE = 25
  */
 export const AUDIT_ACTIONS = [
   'account.dev_owner', 'account.disabled', 'account.enabled', 'account.enrolled', 'account.invited', 'account.reset_completed', 'account.reset_issued', 'account.roles_set',
-  'ai.platform_provider.models_listed', 'ai.platform_provider.saved', 'ai.platform_provider.tested', 'ai_billing.settings_updated', 'ai_topup.refunded',
+  'ai.platform_provider.models_listed', 'ai.platform_provider.redelivered', 'ai.platform_provider.saved', 'ai.platform_provider.tested', 'ai_billing.settings_updated', 'ai_topup.refunded',
   'auth.failed', 'auth.locked', 'auth.passkey_registered', 'auth.signed_in', 'auth.signed_out', 'auth.step_up',
   'auto_renew.disabled', 'auto_renew.enabled', 'auto_renew.not_enabled', 'billing.settings_updated',
   'bundle.created', 'bundle.deleted', 'bundle.edit', 'bundle.publish', 'bundle.restore', 'bundle.revision_created', 'bundle.validate', 'bundle.withdraw',

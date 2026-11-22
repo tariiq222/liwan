@@ -475,6 +475,7 @@
         "ai": {
           "platform_provider": {
             "models_listed": "AI provider models listed",
+            "redelivered": "AI provider file delivered again",
             "saved": "AI provider settings saved",
             "tested": "AI provider tested"
           }

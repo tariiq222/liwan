@@ -9,11 +9,25 @@ import type { VendorCapability } from '@liwan/commercial-contracts'
 import { migrate } from '../db.js'
 import type { Config } from '../config.js'
 import { aiProviderHttp } from '../ai-provider/http.js'
+import { AI_PROVIDER_SAVE_LOCK } from '../ai-provider/store.js'
 import { syncProviderFile } from '../ai-provider/sync.js'
 import { listModels, MODELS_BUDGET_MS, ProviderCallError, TEST_BUDGET_MS, testCompletion, type Fetcher, type ProbeTarget } from '../ai-provider/client.js'
 import { addressClass, cleanEndpoint, checkEndpoint, EndpointError, type Resolver } from '../ai-provider/endpoint.js'
 import { guardedFetcher } from '../ai-provider/guarded-fetch.js'
 import { findPreset, PRESETS } from '../ai-provider/presets.js'
+
+// One switch to make the next rename of the provider file fail, to see what a failed write leaves behind.
+const fsFaults = vi.hoisted(() => ({ failNextRename: false }))
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>()
+  return {
+    ...actual,
+    rename: async (...args: Parameters<typeof actual.rename>) => {
+      if (fsFaults.failNextRename) { fsFaults.failNextRename = false; throw Object.assign(new Error('EIO: i/o error'), { code: 'EIO' }) }
+      return actual.rename(...args)
+    },
+  }
+})
 
 const KEY = 'sk-vendor-secret-0123456789'
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
@@ -342,12 +356,14 @@ suite('live PostgreSQL platform provider routes', () => {
     expect(await aiProviderHttp(pool, config, { method: 'GET', pathname: '/v1/tenants', raw: '', auth: auth(), requireCapability, fail })).toBeNull()
     await expect(call('GET', '/presets', undefined, { auth: auth(['vendor.read'], { method: 'GET' }) })).rejects.toThrow('forbidden')
     // The operations capability is not enough: the AI provider has its own, which only the owner role holds.
-    for (const [method, path] of [['GET', ''], ['PATCH', ''], ['GET', '/presets'], ['POST', '/models'], ['POST', '/test']] as const) {
+    for (const [method, path] of [['GET', ''], ['PATCH', ''], ['GET', '/presets'], ['POST', '/models'], ['POST', '/test'], ['POST', '/redeliver']] as const) {
       await expect(call(method, path, method === 'GET' ? undefined : {}, { auth: auth(['vendor.read', 'vendor.operations.run', 'vendor.accounts.manage'], { method }) }), `${method} ${path}`).rejects.toThrow('forbidden')
     }
     await expect(call('PATCH', '', config1(), { auth: auth(undefined, { method: 'PATCH', stepUpFresh: false }) })).rejects.toThrow('step_up_required')
     expect((await call('DELETE', '')).status).toBe(404)
     expect((await call('GET', '/models')).status).toBe(404)
+    expect((await call('GET', '/redeliver')).status).toBe(404)
+    expect((await call('PATCH', '/redeliver', { reason: 'File lost' })).status).toBe(404)
   })
 
   it('lists the presets without any key field and reports no setting before the first save', async () => {
@@ -710,6 +726,124 @@ suite('live PostgreSQL platform provider routes', () => {
     expect((await call('GET', '')).body.setting.delivery).toBe('delivered')
     await rm(providerFile())
     expect(await syncProviderFile(pool, config)).toBe('written')
+  })
+
+  describe('delivering the stored configuration again', () => {
+    const REASON = { reason: 'The file was lost' }
+    const redeliver = (body: unknown = REASON, options: Parameters<typeof call>[3] = {}) => call('POST', '/redeliver', body, options)
+    const audits = async () => (await pool.query("SELECT actor, reason, metadata FROM audit_events WHERE action='ai.platform_provider.redelivered' ORDER BY created_at, id")).rows
+    const stored = async () => (await pool.query('SELECT (SELECT revision FROM ai_provider_config) AS revision, (SELECT bool_and(usage_reported) FROM ai_model) AS usage, (SELECT count(*)::int FROM audit_events WHERE action=\'ai.platform_provider.saved\') AS saves')).rows[0]
+
+    it.each([
+      ['a missing file', async () => rm(providerFile())],
+      ['a file of an older revision', async () => writeFile(providerFile(), JSON.stringify({ revision: 1, providers: {}, models: {}, routes: {} }))],
+      ['a file in the old single-provider shape', async () => writeFile(providerFile(), JSON.stringify({ provider: 'openai', model: 'gpt-4o', api_key: KEY, revision: 2 }))],
+      ['a file that does not parse', async () => writeFile(providerFile(), '{"revision": 2, "prov')],
+    ])('writes the file again from %s and leaves the revision, the test results and the saves as they were', async (_name, damage) => {
+      await routedSave()
+      const good = await readFile(providerFile(), 'utf8')
+      const before = await stored()
+      await damage()
+      expect((await call('GET', '')).body.setting.delivery).toBe('pending')
+      const answer = await redeliver()
+      expect(answer.status).toBe(200)
+      expect(answer.body.outcome).toBe('written')
+      expect(answer.body.setting).toMatchObject({ revision: 2, delivery: 'delivered', margin_bps: 2000, models: { mid: { usage_reported: true } } })
+      expect(JSON.stringify(answer.body)).not.toContain(KEY)
+      expect(await readFile(providerFile(), 'utf8')).toBe(good)
+      expect((await stat(providerFile())).mode & 0o777).toBe(0o640)
+      expect(await stored()).toEqual(before)
+      expect((await call('GET', '')).body.setting.delivery).toBe('delivered')
+      const [row, ...rest] = await audits()
+      expect(rest).toEqual([])
+      expect(row).toMatchObject({ actor: 'account:7', reason: REASON.reason, metadata: { revision: 2, outcome: 'written', delivery_before: 'pending' } })
+      expect(JSON.stringify(row)).not.toContain(KEY)
+    })
+
+    it('answers unchanged without touching the file when it already holds the stored configuration, and again on a repeat', async () => {
+      await routedSave()
+      const first = await stat(providerFile())
+      const answer = await redeliver()
+      expect(answer).toMatchObject({ status: 200, body: { outcome: 'unchanged', setting: { revision: 2, delivery: 'delivered' } } })
+      expect((await stat(providerFile())).ino).toBe(first.ino)
+      await rm(providerFile())
+      expect((await redeliver()).body.outcome).toBe('written')
+      expect((await redeliver()).body.outcome).toBe('unchanged')
+      expect((await audits()).map(row => [row.metadata.outcome, row.metadata.delivery_before])).toEqual([['unchanged', 'delivered'], ['written', 'pending'], ['unchanged', 'delivered']])
+    })
+
+    it('refuses with 409 when nothing is saved or no default model is routed, writes nothing and records the refusal', async () => {
+      expect(await redeliver()).toEqual({ status: 409, body: { code: 'provider_incomplete' } })
+      await call('PATCH', '', config1())
+      expect(await redeliver()).toEqual({ status: 409, body: { code: 'provider_incomplete' } })
+      await expect(readFile(providerFile(), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+      expect((await audits()).map(row => row.metadata)).toEqual([
+        { revision: null, outcome: 'provider_incomplete', delivery_before: 'incomplete' },
+        { revision: 1, outcome: 'provider_incomplete', delivery_before: 'incomplete' },
+      ])
+    })
+
+    it('refuses with 409 when the control plane has no file to write', async () => {
+      await routedSave()
+      const none = { ...config, aiPlatformProviderPath: undefined } as Config
+      expect(await redeliver(REASON, { config: none })).toEqual({ status: 409, body: { code: 'provider_file_unconfigured' } })
+      expect((await audits()).map(row => row.metadata)).toEqual([{ revision: 2, outcome: 'provider_file_unconfigured', delivery_before: 'unconfigured' }])
+    })
+
+    it('answers 503 secret_key_unavailable when a stored key cannot be opened, and leaves the file as it was', async () => {
+      await routedSave()
+      await rm(providerFile())
+      expect(await redeliver(REASON, { config: { ...config, admin: undefined } as Config })).toEqual({ status: 503, body: { code: 'secret_key_unavailable' } })
+      await expect(readFile(providerFile(), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+      expect((await audits()).map(row => row.metadata.outcome)).toEqual(['secret_key_unavailable'])
+    })
+
+    it('answers 503 provider_file_unavailable when the file cannot be written, and puts the previous file back', async () => {
+      await routedSave()
+      const broken = { ...config, aiPlatformProviderPath: join(dir, 'missing-dir', 'platform-provider.json') } as Config
+      expect(await redeliver(REASON, { config: broken })).toEqual({ status: 503, body: { code: 'provider_file_unavailable' } })
+      // A write that fails at the rename: the stale file stays as it was and no temporary file is left.
+      await writeFile(providerFile(), JSON.stringify({ revision: 1, providers: {}, models: {}, routes: {} }))
+      const stale = await readFile(providerFile(), 'utf8')
+      fsFaults.failNextRename = true
+      expect(await redeliver()).toEqual({ status: 503, body: { code: 'provider_file_unavailable' } })
+      expect(fsFaults.failNextRename).toBe(false)
+      expect(await readFile(providerFile(), 'utf8')).toBe(stale)
+      expect(await readdir(dir)).toEqual(['platform-provider.json'])
+      expect((await audits()).map(row => row.metadata.outcome)).toEqual(['provider_file_unavailable', 'provider_file_unavailable'])
+      expect((await redeliver()).body.outcome).toBe('written')  // the next attempt repairs it
+    })
+
+    it('needs the AI provider capability and a fresh confirmation, and a reason of 3 to 1000 characters', async () => {
+      await routedSave()
+      await rm(providerFile())
+      await expect(redeliver(REASON, { auth: auth(['vendor.read', 'vendor.operations.run'], { method: 'POST' }) })).rejects.toThrow('forbidden')
+      await expect(redeliver(REASON, { auth: auth(undefined, { method: 'POST', stepUpFresh: false }) })).rejects.toThrow('step_up_required')
+      for (const body of [{}, { reason: 'ab' }, { reason: '  a ' }, { reason: 'x'.repeat(1001) }, { reason: REASON.reason, revision: 9 }, 'text']) {
+        expect(await redeliver(body), JSON.stringify(body)).toEqual({ status: 422, body: { code: 'invalid' } })
+      }
+      expect((await call('POST', '/redeliver', undefined)).body).toEqual({ code: 'invalid' })
+      await expect(readFile(providerFile(), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+      expect(await audits()).toEqual([])
+      expect((await redeliver({ reason: 'x'.repeat(1000) })).body.outcome).toBe('written')
+    })
+
+    it('waits for a save that holds the lock and then delivers what that save stored', async () => {
+      await routedSave()
+      await rm(providerFile())
+      const holder = await pool.connect()
+      let done = false
+      try {
+        await holder.query('SELECT pg_advisory_lock($1)', [AI_PROVIDER_SAVE_LOCK])
+        const waiting = redeliver().then((answer) => { done = true; return answer })
+        await new Promise(resolve => setTimeout(resolve, 300))
+        expect(done).toBe(false)
+        await expect(readFile(providerFile(), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+        await holder.query('SELECT pg_advisory_unlock($1)', [AI_PROVIDER_SAVE_LOCK])
+        expect((await waiting).body.outcome).toBe('written')
+      } finally { holder.release() }
+      expect(await fileJson()).toMatchObject({ revision: 2 })
+    })
   })
 
   it('does not crash the start when the file cannot be written or the key cannot be opened', async () => {
