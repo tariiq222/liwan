@@ -1,5 +1,7 @@
 import { z } from 'zod'
-import { BUSINESS_TIME_ZONE } from './calendar.js'
+
+/** The business time zone: periods, renewals, audit days and every time the vendor console shows are cut on this clock (UTC+3 all year, no DST). */
+export const BUSINESS_TIME_ZONE = 'Asia/Riyadh'
 
 const MAX = Number.MAX_SAFE_INTEGER
 /** The largest value of a PostgreSQL `integer` column; a bigger one is a 500 (22003), so it is refused where it is parsed. */

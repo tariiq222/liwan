@@ -19,10 +19,7 @@ function fmt(y: number, m: number, d: number): string {
 }
 const epochDay = (date: string): number => { const [y, m, d] = parse(date); return Math.round(Date.UTC(y, m - 1, d) / DAY_MS) }
 
-/** The business time zone: periods, renewals, audit days and every time the vendor console shows are cut on this clock (UTC+3 all year, no DST). */
-export const BUSINESS_TIME_ZONE = 'Asia/Riyadh'
-
-/** Calendar day (YYYY-MM-DD) in the business zone for an instant. */
+/** Calendar day (YYYY-MM-DD) in Asia/Riyadh, the business zone (UTC+3, no DST), for an instant. */
 export function riyadhDate(instant: string | Date): string {
   const t = (instant instanceof Date ? instant : new Date(instant)).getTime()
   if (!Number.isFinite(t)) throw bad()
