@@ -52,11 +52,11 @@ const heading = computed(() => (ready.value ? props.title.trim() || t('states.un
     <PageState v-if="props.error" :error="props.error" @retry="$emit('retry')" />
     <LoadingSkeleton v-if="props.loading && !preserve" variant="record" />
     <div v-else-if="!props.error || preserve" data-slot="record-body" class="grid grid-cols-[minmax(0,1fr)] gap-(--liwan-gap-card)" :class="{ 'lg:grid-cols-[minmax(0,1fr)_20rem]': $slots.aside }">
-      <aside v-if="$slots.aside && props.asideFirst" data-slot="record-aside" class="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-(--liwan-gap-card) lg:sticky lg:top-4 lg:order-last lg:self-start" :aria-label="t('states.properties')">
+      <aside v-if="$slots.aside && props.asideFirst" data-slot="record-aside" class="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-(--liwan-gap-card) lg:sticky lg:top-[calc(var(--shell-header-height)+var(--shell-inset))] lg:order-last lg:self-start" :aria-label="t('states.properties')">
         <slot name="aside" />
       </aside>
       <div data-slot="record-main" class="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-(--liwan-gap-card)"><slot /></div>
-      <aside v-if="$slots.aside && !props.asideFirst" data-slot="record-aside" class="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-(--liwan-gap-card) lg:sticky lg:top-4 lg:self-start" :aria-label="t('states.properties')">
+      <aside v-if="$slots.aside && !props.asideFirst" data-slot="record-aside" class="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-(--liwan-gap-card) lg:sticky lg:top-[calc(var(--shell-header-height)+var(--shell-inset))] lg:self-start" :aria-label="t('states.properties')">
         <slot name="aside" />
       </aside>
     </div>

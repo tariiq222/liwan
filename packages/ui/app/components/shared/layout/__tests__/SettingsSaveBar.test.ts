@@ -45,7 +45,9 @@ describe('SharedSettingsSaveBar', () => {
     const host = mountBar([entry({ id: 'a' }), entry({ id: 'b' })])
     const bar = byTestId(host, 'settings-save-bar')!
     expect(bar).toBeTruthy()
-    expect(bar.props.class).toContain('sticky bottom-4')
+    // Clear of the phone tab bar (68px + safe area, z-70) instead of sitting under it at 16px.
+    expect(bar.props.class).toContain('--shell-tabbar-height')
+    expect(bar.props.class).toContain('md:bottom-4')
     expect(bar.props.class).toContain('rounded-surface')
     expect(bar.props.class).toContain('bg-inverted')
     expect(bar.props.class).toContain('text-inverted')

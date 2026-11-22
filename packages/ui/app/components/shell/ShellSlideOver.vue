@@ -24,8 +24,10 @@ defineSlots<{ lead?: () => unknown; default?: () => unknown }>()
 const panel = ref<HTMLElement | null>(null)
 onClickOutside(panel, () => { if (props.open) emit('close') }, { ignore: ['[data-slide-over-trigger]', '[data-dismissable-layer]', '[data-reka-popper-content-wrapper]'] })
 useEventListener(() => (typeof document === 'undefined' ? undefined : document), 'keydown', (event: KeyboardEvent) => {
-  // A menu or dialog that owns the key (reka-ui layers) closes first; an IME composition keeps it too.
-  if (!props.open || event.key !== 'Escape' || event.defaultPrevented || event.isComposing || event.keyCode === 229 || overlayOwnsEscape(document)) return
+  // A menu or dialog that owns the key (reka-ui layers) closes first; an IME composition keeps it too. The panel's own
+  // layer is excluded from that test: it carries `data-dismissable-layer` so the page's shortcuts stand down while it is
+  // open, and a plain `overlayOwnsEscape(document)` would find the panel itself and make Escape do nothing.
+  if (!props.open || event.key !== 'Escape' || event.defaultPrevented || event.isComposing || event.keyCode === 229 || overlayOwnsEscape(document, panel.value)) return
   event.stopPropagation()
   emit('close')
 }, { capture: true })
@@ -33,7 +35,7 @@ useEventListener(() => (typeof document === 'undefined' ? undefined : document),
 
 <template>
   <Transition name="liwan-slideover">
-    <aside v-show="props.open" :id="props.id" ref="panel" class="liwan-slideover liwan-print-hide" tabindex="-1" role="dialog" aria-modal="false" :aria-label="props.title" :data-testid="props.id">
+    <aside v-show="props.open" :id="props.id" ref="panel" class="liwan-slideover liwan-print-hide" tabindex="-1" role="dialog" aria-modal="false" :aria-label="props.title" :data-testid="props.id" :data-dismissable-layer="props.open ? '' : undefined">
       <div class="liwan-slideover-head">
         <slot name="lead" />
         <h2 class="liwan-slideover-title">{{ props.title }}</h2>

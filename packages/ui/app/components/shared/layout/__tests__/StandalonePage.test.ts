@@ -18,8 +18,9 @@ describe('SharedStandalonePage', () => {
   it('brand surface fills the page with the ink token and draws the brand slot above the card', async () => {
     const html = await renderShared('StandalonePage', { surface: 'brand' }, { ...body, brand: () => h('span', { 'data-logo': '' }) })
     expect(html).toContain('data-surface="brand"')
-    expect(html).toContain('bg-(--primary-solid)')
-    expect(html).toContain('dark:bg-(--primary-solid-active)')
+    // One fixed ink surface in both modes: the dark solid-active fill left the white wordmark at 1.48:1.
+    expect(html).toContain('bg-(--liwan-brand-surface)')
+    expect(html).not.toContain('--primary-solid-active')
     expect(html).not.toContain('bg-default')
     expect(html.indexOf('data-logo')).toBeLessThan(html.indexOf('data-body'))
   })

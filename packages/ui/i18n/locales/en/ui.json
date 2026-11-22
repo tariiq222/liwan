@@ -89,6 +89,7 @@
     "sortDescending": "Sorted descending",
     "sortNone": "Not sorted",
     "today": "Today",
+    "listSeparator": ", ",
     "untitled": "Untitled",
     "view": "View"
   }

@@ -3,7 +3,7 @@ import type { TableColumn } from '@nuxt/ui'
 import { useMediaQuery } from '@vueuse/core'
 import type { RouteLocationRaw } from 'vue-router'
 import { useRowNavigation } from '../../../composables/useRowNavigation'
-import { applyScrollEdges, clickedRowIndex, dataRowKey, decorateColumns, headerContent, markSortHeaders, markTableRoles, markTableRows, nextSortDirection, rowSelectionState, scrollEdges, selectedFromRowSelection, settleTableMin, STACK_BELOW_PX, TITLE_FLOOR_REM, type SortDirection, type TableSort } from '../../../utils/dataTable'
+import { applyScrollEdges, clickedRowIndex, dataRowKey, decorateColumns, headerContent, markSortHeaders, markTableRoles, markTableRows, TABLE_BODY_ROWS, nextSortDirection, rowSelectionState, scrollEdges, selectedFromRowSelection, settleTableMin, STACK_BELOW_PX, TITLE_FLOOR_REM, type SortDirection, type TableSort } from '../../../utils/dataTable'
 import PageState from '../feedback/PageState.vue'
 import Pagination from './Pagination.vue'
 
@@ -132,6 +132,19 @@ function markRows() {
     if (!tableHost.value) return
     measure()
     markTableRows(tableHost.value)
+    // A row that navigates carries its own path, so `useRowNavigation`'s Enter opens it the way a click does. The rows
+    // are `<tr>`: without this, Enter worked only on rows that happened to hold an <a>, and did nothing on the tables
+    // whose cells are custom — which is what `rowTo` exists for.
+    if (props.rowTo) {
+      Array.from(tableHost.value.querySelectorAll<HTMLElement>(TABLE_BODY_ROWS)).forEach((row, index) => {
+        const record = props.rows[index]
+        if (!record) return
+        // The flag says «this row navigates»; the path itself needs no copy, because the table's own click resolves the
+        // route object with the app's router. Enter on such a row clicks the row, which is the same path as the pointer.
+        void props.rowTo!(record)
+        row.setAttribute('data-row-opens', '')
+      })
+    }
     markSortHeaders(tableHost.value, tableColumns.value.map((column) => {
       const id = columnId(column)
       return id && sortableIds.value.includes(id) ? directionOf(id) : undefined

@@ -51,18 +51,21 @@ function press(event: FakeKey) {
   return event
 }
 
-function makeRow(name: string, patch: { visible?: boolean; inert?: boolean } = {}) {
+function makeRow(name: string, patch: { visible?: boolean; inert?: boolean; rowOpens?: boolean; noLink?: boolean } = {}) {
   const row = {
     name,
     visible: patch.visible ?? true,
     inert: patch.inert ?? false,
     link: { click: vi.fn() },
+    click: vi.fn(),
+    // A `row-to` table marks the row as opening instead of holding a link (see SharedDataTable.markRows).
+    hasAttribute: (attribute: string) => attribute === 'data-row-opens' && (patch.rowOpens ?? false),
     focus: vi.fn(() => { doc.activeElement = row }),
     scrollIntoView: vi.fn(),
     getClientRects: () => ({ length: row.visible ? 1 : 0 }),
     closest: (selectors: string) => (row.inert && selectors.includes('[inert]') ? {} : null),
     contains: (node: unknown) => node === row,
-    querySelector: (selectors: string) => (selectors === 'a[href]' ? row.link : null),
+    querySelector: (selectors: string) => (selectors === 'a[href]' && !patch.noLink ? row.link : null),
   }
   return row
 }
@@ -161,5 +164,24 @@ describe('useRowNavigation', () => {
     expect(a.link.click).not.toHaveBeenCalled()
     press(key('Enter', 'Enter'))
     expect(a.link.click).toHaveBeenCalledTimes(1)
+  })
+
+  it('Enter opens a row that navigates through row-to and holds no link', async () => {
+    // A SharedDataTable row is a `<tr>`: the table puts the resolved path on the row instead of an <a>, and Enter used
+    // to do nothing there while it worked on rows whose first cell happened to be a link.
+    const row = makeRow('a', { noLink: true, rowOpens: true })
+    await mount([row])
+    press(key('j', 'KeyJ'))
+    press(key('Enter', 'Enter'))
+    expect(row.click).toHaveBeenCalledTimes(1)
+    expect(row.link.click).not.toHaveBeenCalled()
+  })
+
+  it('Enter still does nothing on a row with neither a link nor a path', async () => {
+    const row = makeRow('a', { noLink: true })
+    await mount([row])
+    press(key('j', 'KeyJ'))
+    press(key('Enter', 'Enter'))
+    expect(row.click).not.toHaveBeenCalled()
   })
 })

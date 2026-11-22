@@ -35,10 +35,20 @@ function cancel() {
   emit('cancel')
   nextTick(() => { if (opener?.isConnected) opener.focus() })
 }
+
+// Escape belongs to the confirmation while it is on screen (DESIGN.md §5): the page behind it leaves on Escape
+// through useEscapeBack, so the key must stop at the confirm or cancelling would also navigate away. Capture on
+// the alert catches it before the document listener, whether focus sits on Cancel, a field or the confirm button.
+function onEscape(event: KeyboardEvent) {
+  if (event.key !== 'Escape' || event.isComposing) return
+  event.preventDefault()
+  event.stopPropagation()
+  cancel()
+}
 </script>
 
 <template>
-  <UAlert role="alert" :color="props.color" variant="subtle" :title="props.title" :description="props.description" data-testid="inline-confirm">
+  <UAlert role="alert" :color="props.color" variant="subtle" :title="props.title" :description="props.description" data-testid="inline-confirm" @keydown.capture="onEscape">
     <template v-if="$slots.default" #description>
       <p v-if="props.description">{{ props.description }}</p>
       <div ref="fields"><slot /></div>
