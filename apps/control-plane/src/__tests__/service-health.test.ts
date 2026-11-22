@@ -46,7 +46,7 @@ suite('service health on PostgreSQL', () => {
 
   describe('the host alert role', () => {
     // The operator creates this role (docs/operations/environment-bringup.md A6.3): login, and EXECUTE on the one function, nothing else.
-    const monitorQuery = "SELECT coalesce(json_agg(json_build_object('component', component, 'state', state) ORDER BY component), '[]'::json) AS down FROM service_health_states(now()) WHERE down"
+    const monitorQuery = "SELECT coalesce(json_agg(json_build_object('component', component, 'state', state, 'down', down) ORDER BY component), '[]'::json) AS down FROM service_health_states(now()) WHERE state IN ('stale', 'unavailable')"
     const suffix = randomUUID().slice(0, 8).replace(/-/g, '')
     const reader = `liwan_health_reader_${suffix}`, stranger = `liwan_health_stranger_${suffix}`
     const connect = (role: string) => { const u = new URL(withDb(dbName)); u.username = role; u.password = 'scratch-password'; return new Pool({ connectionString: u.toString() }) }
@@ -60,7 +60,7 @@ suite('service health on PostgreSQL', () => {
     it('runs the monitor query, and sees what is down, with no other grant', async () => {
       await pool.query("INSERT INTO service_heartbeats(component,beat_at,started_at) VALUES('shared_worker', now() - interval '3 minutes', now() - interval '1 hour')")
       const as = connect(reader)
-      try { expect((await as.query(monitorQuery)).rows[0].down).toEqual([{ component: 'shared_worker', state: 'stale' }]) } finally { await as.end() }
+      try { expect((await as.query(monitorQuery)).rows[0].down).toEqual([{ component: 'shared_worker', state: 'stale', down: true }]) } finally { await as.end() }
     })
 
     it('cannot read any table of the control plane, the health table and the jobs included', async () => {

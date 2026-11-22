@@ -56,6 +56,8 @@ adapter is alerted like a stale component. The alert is one message when a compo
 one when it recovers. It is sent by a host systemd timer that reads the table and sends a new `deploy/alerts.py`
 event, so it works when the worker and the API are both down. It is the only sender: the scheduler's `sendVendorAlerts`
 skips `service_down` (the item stays in the console list), so one episode gives one message.
+An adapter already announced as unavailable whose worker then goes down is not announced as recovered and not announced again
+when the worker returns: the timer reads every component that is not ok together with the function's `down` verdict.
 A transition is recorded once at least one channel delivered it (`alerts.dispatch` reports it; the exit code of
 `alerts.py` stays 1 for the release command); when none delivered it is retried each minute.
 The timer reads the database through its own role `liwan_control_health`, which holds `EXECUTE` on `service_health_states`

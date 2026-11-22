@@ -44,8 +44,10 @@ READ_FAILURES_BEFORE_ALERT = 3
 PSQL_TIMEOUT_SECONDS = 30
 COMPONENT = re.compile(r'^[a-z][a-z0-9_]{0,63}$')
 DOWN_STATES = frozenset(alerts.SERVICE_STATE_TEXT)
-QUERY = ("SELECT coalesce(json_agg(json_build_object('component', component, 'state', state) ORDER BY component), '[]'::json) "
-         'FROM service_health_states(now()) WHERE down')
+# Every component that is not ok, with the function's own verdict on whether it is the one to announce: an adapter of a worker that
+# is itself down is not (`down` false), and it has not recovered either.
+QUERY = ("SELECT coalesce(json_agg(json_build_object('component', component, 'state', state, 'down', down) ORDER BY component), '[]'::json) "
+         "FROM service_health_states(now()) WHERE state IN ('stale', 'unavailable')")
 
 
 class ConfigError(Exception):
@@ -133,17 +135,24 @@ class StateFile:
             raise
 
 
-def _validated(rows: object) -> dict[str, str]:
+def _validated(rows: object) -> tuple[dict[str, str], frozenset[str]]:
+    """The components to announce as down, and those still not ok that the function does not name as down (their worker is)."""
     if not isinstance(rows, list):
         raise DataError('the health table answered something that is not a list')
     down: dict[str, str] = {}
+    masked: set[str] = set()
     for item in rows:
         component = item.get('component') if isinstance(item, dict) else None
         state = item.get('state') if isinstance(item, dict) else None
-        if not isinstance(component, str) or not COMPONENT.fullmatch(component) or state not in DOWN_STATES or component in down:
+        is_down = item.get('down') if isinstance(item, dict) else None
+        if (not isinstance(component, str) or not COMPONENT.fullmatch(component) or state not in DOWN_STATES
+                or not isinstance(is_down, bool) or component in down or component in masked):
             raise DataError('the health table holds a row this script will not announce')
-        down[component] = state
-    return down
+        if is_down:
+            down[component] = state
+        else:
+            masked.add(component)
+    return down, frozenset(masked)
 
 
 def _announced(outcome: alerts.Outcome) -> bool:
@@ -166,12 +175,15 @@ def _announce_blindness(memory: Memory, alerter: Callable[[list[str]], alerts.Ou
 
 
 def run(reader: Callable[[], list[dict[str, str]]], alerter: Callable[[list[str]], alerts.Outcome], state: StateFile) -> int:
-    """Announce what changed since the last run; the worst exit code of the run."""
+    """Announce what changed since the last run; the worst exit code of the run.
+
+    A remembered component the table masks (still not ok, behind a worker that is down) is neither recovered nor announced again.
+    """
     try:
         memory = state.load()
         remembered = memory.down
         try:
-            current = _validated(reader())
+            current, masked = _validated(reader())
         except ReadError as error:
             sys.stderr.write(f'service-health-alert: {error}\n')
             return _announce_blindness(memory, alerter, state)
@@ -185,7 +197,7 @@ def run(reader: Callable[[], list[dict[str, str]]], alerter: Callable[[list[str]
         if component in current and remembered.get(component) != current[component]:
             argv = ['service_down', '--component', component, '--state', current[component]]
             after = {**remembered, component: current[component]}
-        elif component not in current:
+        elif component not in current and component not in masked:
             argv = ['service_recovered', '--component', component]
             after = {name: value for name, value in remembered.items() if name != component}
         else:

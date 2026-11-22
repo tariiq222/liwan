@@ -52,8 +52,8 @@ class FakeAlerter:
         return code if isinstance(code, alerts.Outcome) else alerts.Outcome(code, delivered=code == alerts.EXIT_OK)
 
 
-def row(component, state):
-    return {'component': component, 'state': state}
+def row(component, state, down=True):
+    return {'component': component, 'state': state, 'down': down}
 
 
 class OneMessagePerTransition(unittest.TestCase):
@@ -106,6 +106,22 @@ class OneMessagePerTransition(unittest.TestCase):
                          [['service_down', '--component', 'mail_adapter'], ['service_down', '--component', 'shared_worker'],
                           ['service_recovered', '--component', 'mail_adapter']])
 
+    def test_an_adapter_masked_by_its_dead_worker_is_not_recovered_and_not_announced_twice(self):
+        self.reader.down = [row('mail_adapter', 'unavailable')]
+        self.run_once()
+        self.reader.down = [row('mail_adapter', 'unavailable', down=False), row('shared_worker', 'stale')]
+        self.run_once()
+        self.reader.down = [row('mail_adapter', 'unavailable')]
+        self.run_once()
+        self.assertEqual([call[:3] for call in self.alerter.calls],
+                         [['service_down', '--component', 'mail_adapter'], ['service_down', '--component', 'shared_worker'],
+                          ['service_recovered', '--component', 'shared_worker']])
+
+    def test_a_masked_adapter_never_announced_stays_silent_until_the_worker_is_back(self):
+        self.reader.down = [row('mail_adapter', 'unavailable', down=False), row('shared_worker', 'stale')]
+        self.run_once()
+        self.assertEqual([call[2] for call in self.alerter.calls], ['shared_worker'])
+
     def test_nothing_down_and_nothing_remembered_sends_nothing(self):
         self.assertEqual(self.run_once(), alerts.EXIT_OK)
         self.assertEqual(self.alerter.calls, [])
@@ -155,7 +171,7 @@ class AMessageThatDidNotGoOutIsSentAgain(unittest.TestCase):
 
     def test_a_row_that_is_not_a_known_state_or_a_code_is_refused_before_anything_is_sent(self):
         for bad in ([row('shared_worker', 'ok')], [row('Shared worker', 'stale')], [row(SECRET_URL, 'stale')],
-                    [{'component': 'shared_worker'}], [row('shared_worker', 'stale'), row('shared_worker', 'stale')]):
+                    [{'component': 'shared_worker'}], [{'component': 'shared_worker', 'state': 'stale'}], [row('mail_adapter', 'unavailable', down=False), row('mail_adapter', 'unavailable')], [row('shared_worker', 'stale'), row('shared_worker', 'stale')]):
             alerter = FakeAlerter()
             with self.subTest(bad=bad):
                 self.assertEqual(health.run(FakeReader(bad), alerter, self.state), alerts.EXIT_REFUSED)
@@ -228,7 +244,7 @@ class TheRealReaderAsksTheDatabaseDirectly(unittest.TestCase):
 
         def runner(argv, **kwargs):
             seen['argv'], seen['env'] = argv, kwargs['env']
-            return subprocess.CompletedProcess(argv, 0, '[{"component":"shared_worker","state":"stale"}]\n', '')
+            return subprocess.CompletedProcess(argv, 0, '[{"component":"shared_worker","state":"stale","down":true}]\n', '')
 
         rows = health.psql_reader(self.ENV, runner=runner)()
         self.assertEqual(rows, [row('shared_worker', 'stale')])
