@@ -4,6 +4,7 @@ import { operationStatusBadge } from '@/utils/vendorBadges'
 import type { Operation as LegacyOperation, OperationFeed } from '@liwan/commercial-contracts'
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import { canPublishRestore } from '@/utils/restorePublication'
+import { ownerOnlyAccess } from '@/utils/ownerOnly'
 import { operationTargetTo } from '@/utils/vendorOperations'
 import { canAbandonJob } from '@/utils/sharedJobAbandon'
 import { canRecoverJob, recoveryTextKey } from '@/utils/sharedJobRecovery'
@@ -27,6 +28,7 @@ const publishOpen = ref(false)
 const publishReason = ref('')
 const publication = computed(() => data.value && 'restore_publication' in data.value ? data.value.restore_publication : undefined)
 const publishAllowed = computed(() => canPublishRestore(data.value, can))
+const publishOwnerOnly = computed(() => Boolean(data.value) && ownerOnlyAccess('restorePublication', can) === 'partial' && canPublishRestore(data.value, () => true))
 const abandonOpen = ref(false)
 const abandonReason = ref('')
 const abandonment = computed(() => data.value && 'abandonment' in data.value ? data.value.abandonment : null)
@@ -152,6 +154,7 @@ async function retry() {
           <p role="status">{{ t(`vendor.operations.publication.states.${publication.status}`) }}</p>
           <UAlert v-if="publication.code" color="warning" :title="t(publication.code === 'commercial_reconciliation_pending' ? 'vendor.operations.publication.reconcile' : 'vendor.operations.publication.failure')" />
           <p v-if="publication.status === 'published' && publication.host"><bdi>{{ publication.host }}</bdi></p>
+          <VendorOwnerOnlyHint v-if="publishOwnerOnly" class="mt-3" action="restorePublication" />
           <UButton v-if="publishAllowed && !publishOpen" class="mt-3" :disabled="!hydrated || busy" @click="publishOpen = true">{{ t('vendor.operations.publication.action') }}</UButton>
           <SharedInlineConfirm v-if="publishOpen && publishAllowed" :title="t('vendor.operations.publication.confirm')" :confirm-label="t('vendor.operations.publication.action')" :pending="busy" :disabled="!hydrated || busy || publishReason.trim().length < 3 || publishReason.trim().length > 1000" @confirm="publishRestore" @cancel="publishOpen = false">
             <UFormField :label="t('vendor.operations.publication.reason')" class="mt-3"><UTextarea v-model="publishReason" :maxlength="1000" :disabled="busy" /></UFormField>

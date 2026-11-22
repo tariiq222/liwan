@@ -269,21 +269,28 @@ describe('AI top-up refund offer', () => {
 describe('void of an unpaid renewal invoice', () => {
   const invoice = (o: Record<string, unknown> = {}) => ({ status: 'issued', kind: 'renewal', voidable: true, void_block: null, adjustments: [], ...o }) as Parameters<typeof voidAction>[0]
   it('is available only on a voidable unpaid renewal invoice, for an operator who holds both grants', () => {
-    expect(voidAction(invoice(), true)).toEqual({ kind: 'available' })
-    expect(voidAction(invoice(), false)).toEqual({ kind: 'hidden' })
+    expect(voidAction(invoice(), 'granted')).toEqual({ kind: 'available' })
+    expect(voidAction(invoice(), 'none')).toEqual({ kind: 'hidden' })
+  })
+  it('tells an account holding only one of the two grants that the platform owner voids, where the action would apply', () => {
+    expect(voidAction(invoice(), 'partial')).toEqual({ kind: 'ownerOnly' })
+    expect(voidAction(invoice({ voidable: false, void_block: 'lock_pending' }), 'partial')).toEqual({ kind: 'ownerOnly' })
+    expect(voidAction(invoice({ voidable: false }), 'partial')).toEqual({ kind: 'hidden' })
+    expect(voidAction(invoice({ status: 'paid' }), 'partial')).toEqual({ kind: 'hidden' })
+    expect(voidAction(invoice({ adjustments: [{ kind: 'credit_note', status: 'applied' }] }), 'partial')).toEqual({ kind: 'hidden' })
   })
   it('names the block the server gives when the invoice cannot be voided now', () => {
     for (const block of ['payment_reconciliation_required', 'transfer_claimed', 'renewal_in_progress', 'lock_pending', 'tenant_retiring'] as const)
-      expect(voidAction(invoice({ voidable: false, void_block: block }), true)).toEqual({ kind: 'blocked', block })
+      expect(voidAction(invoice({ voidable: false, void_block: block }), 'granted')).toEqual({ kind: 'blocked', block })
   })
   it('is hidden when the server says it does not apply, whatever the status of the invoice', () => {
-    expect(voidAction(invoice({ voidable: false }), true)).toEqual({ kind: 'hidden' })
-    for (const status of ['draft', 'paid', 'void', 'credit_pending']) expect(voidAction(invoice({ status }), true), status).toEqual({ kind: 'hidden' })
-    for (const kind of ['initial', 'change', 'adjustment']) expect(voidAction(invoice({ kind }), true), kind).toEqual({ kind: 'hidden' })
+    expect(voidAction(invoice({ voidable: false }), 'granted')).toEqual({ kind: 'hidden' })
+    for (const status of ['draft', 'paid', 'void', 'credit_pending']) expect(voidAction(invoice({ status }), 'granted'), status).toEqual({ kind: 'hidden' })
+    for (const kind of ['initial', 'change', 'adjustment']) expect(voidAction(invoice({ kind }), 'granted'), kind).toEqual({ kind: 'hidden' })
   })
   it('never sits beside a refund: an invoice with any refund note offers no void', () => {
-    for (const status of ['pending', 'refunded', 'applied']) expect(voidAction(invoice({ adjustments: [{ kind: 'credit_note', status }] }), true), status).toEqual({ kind: 'hidden' })
-    expect(voidAction(invoice({ adjustments: [{ kind: 'credit_note', status: 'void' }] }), true)).toEqual({ kind: 'available' })
+    for (const status of ['pending', 'refunded', 'applied']) expect(voidAction(invoice({ adjustments: [{ kind: 'credit_note', status }] }), 'granted'), status).toEqual({ kind: 'hidden' })
+    expect(voidAction(invoice({ adjustments: [{ kind: 'credit_note', status: 'void' }] }), 'granted')).toEqual({ kind: 'available' })
   })
   it('needs one of the two outcomes and a reason bounded like the server', () => {
     expect(validVoidDraft({ outcome: 'end', reason: ' Customer left ' })).toBe(true)

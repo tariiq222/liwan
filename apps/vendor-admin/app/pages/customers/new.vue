@@ -10,6 +10,7 @@ import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 import { useVendorCatalogVersions } from '@/composables/useVendorCatalogVersions'
 import { publishedVersions } from '@/utils/vendorCatalogVersions'
+import { ownerOnlyAccess } from '@/utils/ownerOnly'
 definePageMeta({ capability: 'vendor.tenants.manage' })
 const { t, locale } = useI18n(); const route = useRoute(); const { request } = useVendorApi(); const { can, sharedOnboardingEnabled: sharedEnabled, ready } = useVendorContext()
 const hydrated = useHydrated(); const subscriptions = useVendorSubscriptions(); const commercial = useVendorCommercial()
@@ -94,6 +95,7 @@ const backTo = computed(() => safeReturnTo(route.query.returnTo, '/customers', [
     <SharedPageState v-else :loading="pending || (!catalog && !catalogError) || (!plans && !plansError)" :error="error || catalogError || plansError" @retry="async () => { await refresh(); await refreshCatalog(); await refreshPlans() }">
       <form v-if="targets && catalog && plans" class="mx-auto grid max-w-2xl gap-6" @submit.prevent="submit">
         <UAlert v-if="noRelease" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('vendor.customers.newPage.noRelease')" :description="t('vendor.customers.newPage.noReleaseHint')" />
+        <VendorOwnerOnlyHint v-if="sharedEnabled && ownerOnlyAccess('sharedOnboarding', can) === 'partial'" action="sharedOnboarding" />
         <UAlert v-if="saveError" color="error" variant="subtle" :title="t(errorKey)" />
         <template v-if="sharedEnabled">
           <SharedFormSection panel :title="t('vendor.customers.newPage.customerTitle')" :description="t('vendor.customers.newPage.customerHint')">

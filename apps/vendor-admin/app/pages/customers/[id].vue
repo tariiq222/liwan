@@ -9,6 +9,7 @@ import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 import { useCopyLink } from '@/composables/useCopyLink'
 import { attentionTab } from '@/utils/vendorAttention'
+import { ownerOnlyAccess } from '@/utils/ownerOnly'
 import { entitledSelections } from '@/utils/vendorEntitlement'
 import { customerDisplayBadge, operationStatusBadge } from '@/utils/vendorBadges'
 import type { StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
@@ -86,7 +87,8 @@ const workspaceBadge = computed(() => {
 })
 const retryWorkspaceState = () => Promise.all([refreshTenant(), refreshRecent(), progress.refreshNow()])
 const operationFailed = computed(() => Boolean(recentOperations.value?.some(op => op.status === 'failed' || op.status === 'needs_intervention')))
-const canTerms = computed(() => can('vendor.pricing.manage') && can('vendor.subscriptions.manage'))
+const termsAccess = computed(() => ownerOnlyAccess('customTerms', can))
+const canTerms = computed(() => termsAccess.value === 'granted')
 const canStartTrial = computed(() => can('vendor.subscriptions.manage') && (hasWorkspace.value || can('vendor.tenants.manage')) && !view.value?.applied && !view.value?.pending_order)
 // A first paid order needs no subscription yet: the change page places it, and its fulfilment provisions the workspace like a trial does.
 const canStartFirst = computed(() => can('vendor.subscriptions.manage') && !view.value && (hasWorkspace.value || can('vendor.tenants.manage')))
@@ -309,6 +311,7 @@ async function cancelPendingOrder() {
         </template>
 
         <template v-else-if="tab === 'subscription'">
+          <VendorOwnerOnlyHint v-if="view && termsAccess === 'partial'" action="customTerms" />
           <SharedRecordSection :title="t('vendor.customers.sections.subscription')">
             <template v-if="view" #actions>
               <UButton v-if="canTerms" :to="termsTo" color="neutral" variant="outline" size="sm" icon="i-lucide-sliders-horizontal">{{ t('vendor.customers.customizeTerms') }}</UButton>
@@ -462,6 +465,7 @@ async function cancelPendingOrder() {
         </template>
 
         <template v-else>
+          <VendorOwnerOnlyHint v-if="view && termsAccess === 'partial'" action="customTerms" />
           <SharedRecordSection variant="panel" :title="t('vendor.customers.sections.terms')">
             <template v-if="view && canTerms" #actions><UButton :to="termsTo" color="neutral" variant="outline" size="sm" icon="i-lucide-sliders-horizontal">{{ t('vendor.customers.customizeTerms') }}</UButton></template>
             <p v-if="view?.applied?.terms_revision_id" class="text-sm">{{ t('vendor.customers.terms.active') }}</p>

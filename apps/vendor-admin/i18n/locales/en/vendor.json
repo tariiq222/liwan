@@ -1,6 +1,12 @@
 {
   "vendor": {
     "forbidden": "You do not have access to this vendor workspace.",
+    "ownerOnly": {
+      "customTerms": "Custom terms need both the pricing and the subscriptions permissions. The platform owner sets them.",
+      "restorePublication": "Publishing a restored workspace needs both the operations and the workspace management permissions. The platform owner does it.",
+      "sharedOnboarding": "Onboarding a shared workspace needs both the operations and the workspace management permissions. The platform owner does it.",
+      "voidInvoice": "Voiding an invoice needs both the billing and the subscriptions permissions. The platform owner does it."
+    },
     "common": {
       "none": "Not available",
       "unknown": "Unknown",

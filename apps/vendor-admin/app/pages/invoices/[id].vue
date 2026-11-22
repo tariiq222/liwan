@@ -3,6 +3,7 @@ import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBad
 import { adjustmentStatusBadge, paymentAttemptBadge } from '@/utils/vendorBadges'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { commercialErrorKey } from '@/utils/vendorCommercial'
+import { ownerOnlyAccess } from '@/utils/ownerOnly'
 import { aiTopupRefundable, invoiceHasAiTopup, invoicesReturnTo, isNotAvailable, parseTransferAmount, parseUnitsUsed, refundErrorKey, refundRequestBlock, transferFormDefaults, validRefundDraft, validRefundReason, validVoidDraft, vendorInvoiceLineViews, voidAction, voidErrorKey, voidReasonKey } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { formatLiwanDate, formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
@@ -23,7 +24,7 @@ const { data: attempts, error: attemptsError, pending: attemptsPending, refresh:
 const attemptTime = (value: string) => formatLiwanDateTime(value)
 const unavailable = computed(() => isNotAvailable(error.value) && !data.value)
 // Voiding ends a debt and may drop the customer to the free base: the control plane needs both grants, so the page offers it to neither alone.
-const canVoid = computed(() => canBilling.value && can('vendor.subscriptions.manage') && !unavailable.value)
+const voidAccess = computed(() => (unavailable.value ? 'none' as const : ownerOnlyAccess('voidInvoice', can)))
 const money = (m: NonNullable<typeof data.value>['total']) => formatCommercialMoney(m, locale.value)
 /** Subtotal, the tax line only when the invoice charged one, then the total. Liwan's own invoices carry no tax, so their subtotal is the whole amount and is never called "before tax". */
 const totals = computed(() => {
@@ -133,7 +134,7 @@ async function recordTransfer() {
   finally { try { await refresh() } finally { transferBusy.value = false } }
 }
 // Voiding an unpaid renewal invoice: the server says whether it applies and what blocks it; the vendor picks what happens to the subscription.
-const voidState = computed(() => (data.value ? voidAction(data.value, canVoid.value) : { kind: 'hidden' as const }))
+const voidState = computed(() => (data.value ? voidAction(data.value, voidAccess.value) : { kind: 'hidden' as const }))
 const voidOpen = ref(false)
 const voidOutcome = ref('')
 const voidReason = ref('')
@@ -244,6 +245,7 @@ const badge = computed(() => (data.value ? invoiceStatusBadge(data.value.status,
     <!-- An unpaid renewal invoice can be voided instead of paid; a paid one is refunded (above), never voided, so the two never share an invoice. -->
     <SharedRecordSection v-if="voidState.kind !== 'hidden'" :title="t('vendor.invoices.void.title')">
       <p class="text-sm text-muted">{{ t('vendor.invoices.void.hint') }}</p>
+      <VendorOwnerOnlyHint v-if="voidState.kind === 'ownerOnly'" class="mt-3" action="voidInvoice" />
       <SharedInlineConfirm v-if="voidOpen && voidState.kind === 'available'" :title="t('vendor.invoices.void.confirmTitle')" :description="t('vendor.invoices.void.confirmHint')"
         :confirm-label="t('vendor.invoices.void.confirm')" :pending="voidBusy" :disabled="!hydrated || voidBusy || !voidValid" @confirm="voidInvoice" @cancel="closeVoid">
         <div class="mt-3 space-y-4">
@@ -251,7 +253,7 @@ const badge = computed(() => (data.value ? invoiceStatusBadge(data.value.status,
           <UFormField :label="t('vendor.invoices.void.reasonLabel')" required><UTextarea v-model="voidReason" :maxlength="1000" :disabled="!hydrated || voidBusy" class="w-full" data-testid="void-reason" /></UFormField>
         </div>
       </SharedInlineConfirm>
-      <div v-else class="flex flex-wrap items-center gap-3">
+      <div v-else-if="voidState.kind !== 'ownerOnly'" class="flex flex-wrap items-center gap-3">
         <UButton color="error" variant="soft" size="sm" :disabled="!hydrated || voidBusy || voidState.kind === 'blocked'" :aria-describedby="voidState.kind === 'blocked' ? 'void-blocked' : undefined" data-testid="void-action" @click="openVoid">{{ t('vendor.invoices.void.action') }}</UButton>
         <p v-if="voidState.kind === 'blocked'" id="void-blocked" class="text-sm text-muted" data-testid="void-blocked">{{ t(voidReasonKey(voidState.block)) }}</p>
       </div>

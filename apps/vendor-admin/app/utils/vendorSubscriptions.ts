@@ -1,6 +1,7 @@
 import type { StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
 import { daysBetween, riyadhDate, subscriptionDisplayState, type Adjustment, type BankTransferClaim, type Cadence, type Invoice, type InvoiceLine, type Money, type Order, type SignupAcceptance, type SubscriptionDisplayState, type SubscriptionView, type VoidBlock, type UsageMetric } from '@liwan/commercial-contracts'
 import { commercialErrorKey, commercialFailure, CURRENCY, emptyLimit, limitFromDraft, minorToInput, normalizeDigits, parseCount, parseVendorMoneyInput, sar, type LimitDraft } from './vendorCommercial'
+import type { OwnerOnlyAccess } from './ownerOnly'
 import { MB_PER_GB } from './storage'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
@@ -167,16 +168,17 @@ export function refundErrorKey(cause: unknown): string {
 }
 
 // ---- Void of an unpaid renewal invoice ----
-export type VoidAction = { kind: 'hidden' } | { kind: 'available' } | { kind: 'blocked'; block: VoidBlock }
+export type VoidAction = { kind: 'hidden' } | { kind: 'available' } | { kind: 'blocked'; block: VoidBlock } | { kind: 'ownerOnly' }
 /**
  * What the invoice page shows for voiding an unpaid renewal invoice. The server decides whether it applies (`voidable`, `void_block`);
- * the page adds only who may ask (both grants the route needs) and that it never sits beside a refund: an invoice with a refund note
+ * the page adds only who may ask (both grants the route needs; an account holding one of them is told the platform owner voids) and that it never sits beside a refund: an invoice with a refund note
  * has had money move, so voiding it is not offered. A paid invoice is refunded, never voided, so the two actions cover different statuses.
  */
-export function voidAction(invoice: Pick<VendorInvoice, 'status' | 'kind' | 'voidable' | 'void_block'> & { adjustments: Pick<Adjustment, 'status'>[] }, granted: boolean): VoidAction {
-  if (!granted || invoice.status !== 'issued' || invoice.kind !== 'renewal' || invoice.adjustments.some(note => note.status !== 'void')) return { kind: 'hidden' }
-  if (invoice.void_block) return { kind: 'blocked', block: invoice.void_block }
-  return invoice.voidable ? { kind: 'available' } : { kind: 'hidden' }
+export function voidAction(invoice: Pick<VendorInvoice, 'status' | 'kind' | 'voidable' | 'void_block'> & { adjustments: Pick<Adjustment, 'status'>[] }, access: OwnerOnlyAccess): VoidAction {
+  if (access === 'none' || invoice.status !== 'issued' || invoice.kind !== 'renewal' || invoice.adjustments.some(note => note.status !== 'void')) return { kind: 'hidden' }
+  if (!invoice.void_block && !invoice.voidable) return { kind: 'hidden' }
+  if (access === 'partial') return { kind: 'ownerOnly' }
+  return invoice.void_block ? { kind: 'blocked', block: invoice.void_block } : { kind: 'available' }
 }
 /** The vendor chooses what happens to the subscription and states why; the reason is bounded like the server's contract. */
 export const validVoidDraft = (d: { outcome: string; reason: string }) => (d.outcome === 'end' || d.outcome === 'rebill') && validRefundReason(d.reason)

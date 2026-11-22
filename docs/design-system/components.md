@@ -245,6 +245,7 @@ Storybook هو فهرس المكونات الملزم، وقاعدة ما يُش
 | `apps/vendor-admin/app/components/vendor/CatalogVersionAction.vue` | خطوة التحقق أو النشر لإصدار تركيبة التطبيقات بسبب إلزامي | `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UFormField`, `UTextarea` |
 | `apps/vendor-admin/app/components/vendor/CatalogReleaseAction.vue` | إنشاء إصدار الحزم من إصدار منشور بسبب إلزامي | `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UFormField`, `UTextarea` |
 | `apps/vendor-admin/app/components/vendor/LimitControl.vue` | قائمة نوع الحد وحقل العدد جنبًا إلى جنب | `UInput`, `USelect` |
+| `apps/vendor-admin/app/components/vendor/OwnerOnlyHint.vue` | نص قصير لحساب يملك واحدة فقط من صلاحيتين يحتاجهما إجراء يبقى لمالك المنصة | `UAlert` |
 | `apps/vendor-admin/app/components/vendor/PlanForm.vue` | نموذج الباقة: أربع بطاقات ثم المراجعة، والإجراءات في تذييل اللوحة | `SharedEmptyState`, `SharedFormActions`, `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UCheckbox`, `UFormField`, `UInput`, `USelect`, `UTextarea`, `VendorCapacityLimitsEditor`, `VendorFormSubsection`, `VendorLimitControl`, `VendorPriceListEditor` |
 | `apps/vendor-admin/app/components/vendor/PolicyComparison.vue` | مقارنة إعدادات المساحة المطلوبة بالمرصودة صفًا صفًا مع حالة كل صف | `SharedEmptyState`, `SharedStatusBadge` |
 | `apps/vendor-admin/app/components/vendor/PriceListEditor.vue` | محرر قائمة الأسعار | `SharedEmptyState`, `UButton`, `UFormField`, `UInput`, `USelect` |

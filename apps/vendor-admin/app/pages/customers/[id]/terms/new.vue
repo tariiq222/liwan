@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Quote } from '@liwan/commercial-contracts'
+import { ownerOnlyAccess } from '@/utils/ownerOnly'
 import { commercialErrorKey, commercialFailure } from '@/utils/vendorCommercial'
 import { customerQuoteBody, customersReturnTo, termsOnly, termsPayload, type TermsDraft } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
@@ -10,7 +11,8 @@ const backTo = computed(() => customersReturnTo(route.query.returnTo))
 const detailTo = computed(() => ({ path: `/customers/${encodeURIComponent(id.value)}`, query: { tab: 'subscription', returnTo: backTo.value } }))
 const { data: customer, error, pending, refresh } = await useAsyncData(() => `vendor:terms-customer:${id.value}`, () => api.customer(id.value))
 const sub = computed(() => customer.value?.subscription ?? null)
-const allowed = computed(() => can('vendor.pricing.manage') && can('vendor.subscriptions.manage'))
+const access = computed(() => ownerOnlyAccess('customTerms', can))
+const allowed = computed(() => access.value === 'granted')
 const before = ref<Quote | null>(null); const after = ref<Quote | null>(null)
 const saved = ref<string | null>(null); const previewing = ref(false); const previewError = ref<string | undefined>(); const busy = ref(false); const saveError = ref<unknown>(null); const resetKey = ref(0)
 let seq = 0
@@ -36,7 +38,8 @@ async function save(draft: TermsDraft) {
 <template>
   <SharedCreatePanel :title="t('vendor.customers.customizeTerms')" :back-to="detailTo">
     <SharedPageState :loading="pending" :error="error" @retry="refresh">
-      <SharedForbiddenState v-if="!allowed" />
+      <VendorOwnerOnlyHint v-if="access === 'partial'" action="customTerms" />
+      <SharedForbiddenState v-else-if="!allowed" />
       <UAlert v-else-if="!sub" color="neutral" variant="subtle" :title="t('vendor.customers.terms.needsSubscription')" />
       <div v-else class="space-y-6">
         <VendorCustomerTermsForm :busy="busy" :previewing="previewing" :error="saveError" :reset-key="resetKey" @preview="preview" @save="save" @cancel="navigateTo(detailTo)" />

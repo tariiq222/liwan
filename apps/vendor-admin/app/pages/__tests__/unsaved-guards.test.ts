@@ -1,5 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import * as subscriptions from '../../utils/vendorSubscriptions'
+import * as ownerOnly from '../../utils/ownerOnly'
 import * as commercial from '../../utils/vendorCommercial'
 import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBadges'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
@@ -27,7 +28,7 @@ async function invoicePage() {
     requestRefund: vi.fn(async () => ({})), refundCreditNote: vi.fn(async () => ({})), recordBankTransfer: vi.fn(async () => ({})), voidRenewalInvoice: vi.fn(async () => ({})), refundAiTopup: vi.fn(async () => ({})),
   }
   const page = await mountPage('invoices/[id].vue', {
-    ...subscriptions, ...commercial, formatLiwanDate, formatLiwanDateTime, invoiceStatusBadge, adjustmentStatusBadge, paymentAttemptBadge, formatCommercialMoney,
+    ...subscriptions, ...ownerOnly, ...commercial, formatLiwanDate, formatLiwanDateTime, invoiceStatusBadge, adjustmentStatusBadge, paymentAttemptBadge, formatCommercialMoney,
     useRoute: () => ({ params: { id: 'invoice1' }, path: '/invoices/invoice1', query: {} }),
     useVendorContext: () => ({ can: () => true }), useVendorSubscriptions: () => api,
   })
@@ -68,7 +69,7 @@ it('guards each form of the invoice page while it holds typed input, and release
 async function operationPage(data: unknown, navigateTo = vi.fn()) {
   const request = vi.fn(async (path: string) => (path.startsWith('operations/') && !path.endsWith('/retry') ? data : { id: 'op2' }))
   const page = await mountPage('operations/[id].vue', {
-    formatLiwanDateTime, operationStatusBadge, safeReturnTo, canPublishRestore, operationTargetTo, canAbandonJob, canRecoverJob, recoveryTextKey, failureKey: () => 'k',
+    formatLiwanDateTime, operationStatusBadge, safeReturnTo, canPublishRestore, ...ownerOnly, operationTargetTo, canAbandonJob, canRecoverJob, recoveryTextKey, failureKey: () => 'k',
     useRoute: () => ({ params: { id: 'op1' }, query: {} }), useVendorApi: () => ({ request }), useVendorContext: () => ({ can: () => true }), navigateTo,
   })
   mounted.push(page)

@@ -13,7 +13,7 @@ describe('vendor commercial customers and invoices pages', () => {
     for (const p of ['customers.vue', 'customers/index.vue', 'customers/[id].vue']) expect(page(p)).toContain("capability: 'vendor.read'")
     for (const p of ['invoices.vue', 'invoices/index.vue', 'invoices/[id].vue']) expect(page(p)).toContain("capability: 'vendor.billing.manage'")
     expect(page('customers/[id]/terms/new.vue')).toContain("capability: 'vendor.pricing.manage'")
-    expect(page('customers/[id]/terms/new.vue')).toMatch(/can\('vendor\.pricing\.manage'\) && can\('vendor\.subscriptions\.manage'\)/)
+    expect(page('customers/[id]/terms/new.vue')).toContain("ownerOnlyAccess('customTerms', can)")
     expect(page('customers/[id]/change.vue')).toContain("capability: 'vendor.subscriptions.manage'")
   })
   it('creates a client under customers and leaves no tenant list or tenant create page behind', () => {
