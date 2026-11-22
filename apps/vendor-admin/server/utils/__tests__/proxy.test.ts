@@ -139,7 +139,7 @@ describe('vendor API proxy', () => {
 
   it('forwards only the vendor surface the console uses', async () => {
     const calls = stubUpstream(() => json(200, {}))
-    const allowed = ['/context', '/overview', '/targets', '/tenants', '/tenants/00000000-0000-4000-8000-000000000001/operations-grant', '/operations', '/catalog', '/audit', '/packages', '/packages/00000000-0000-4000-8000-000000000001', '/commercial/customers', '/commercial/customers/c-1', '/commercial/customers/c-1/trial', '/commercial/customers/c-1/invitations', '/commercial/customers/c-1/deletion', '/commercial/deletion-requests', '/commercial/attention', '/commercial/clients', '/commercial/orders', '/commercial/catalog/releases/r-1/default-bundles', '/commercial/orders/ab-1/cancel', '/commercial/orders/ab-1/payment-attempts', '/commercial/invoice-adjustments/a-1/refund', '/commercial/trials/s-1/extend', '/commercial/trials/s-1/end', '/commercial/subscriptions/s-1', '/commercial/subscriptions/s-1/usage', '/commercial/subscriptions/s-1/cancel-renewal', '/commercial/subscriptions/s-1/resume-renewal', '/commercial/invoices/i-1', '/commercial/quotes', '/commercial/quotes/q-1', '/commercial/customer-terms', '/commercial/billing-settings', '/commercial/customer-quotes', '/commercial/catalog/releases', '/commercial/policies', '/commercial/plans/p-1/publish', '/commercial/bundles/b-1/revisions', '/shared/tenants/00000000-0000-4000-8000-000000000001/provisioning', '/platform/ai-provider', '/platform/ai-provider/presets', '/platform/ai-provider/models', '/platform/ai-provider/test', '/admin/me', '/admin/accounts', '/admin/accounts/12/roles', '/admin/accounts/12/enable']
+    const allowed = ['/context', '/overview', '/targets', '/tenants', '/tenants/00000000-0000-4000-8000-000000000001/operations-grant', '/operations', '/catalog', '/audit', '/packages', '/packages/00000000-0000-4000-8000-000000000001', '/commercial/customers', '/commercial/customers/c-1', '/commercial/customers/c-1/trial', '/commercial/customers/c-1/invitations', '/commercial/customers/c-1/deletion', '/commercial/deletion-requests', '/commercial/attention', '/commercial/clients', '/commercial/orders', '/commercial/catalog/releases/r-1/default-bundles', '/commercial/orders/ab-1/cancel', '/commercial/orders/ab-1/payment-attempts', '/commercial/invoice-adjustments/a-1/refund', '/commercial/trials/s-1/extend', '/commercial/trials/s-1/end', '/commercial/subscriptions/s-1', '/commercial/subscriptions/s-1/usage', '/commercial/subscriptions/s-1/cancel-renewal', '/commercial/subscriptions/s-1/resume-renewal', '/commercial/invoices/i-1', '/commercial/quotes', '/commercial/quotes/q-1', '/commercial/customer-terms', '/commercial/billing-settings', '/commercial/customer-quotes', '/commercial/catalog/releases', '/commercial/policies', '/commercial/plans/p-1/publish', '/commercial/bundles/b-1/revisions', '/shared/tenants/00000000-0000-4000-8000-000000000001/provisioning', '/platform/ai-provider', '/platform/ai-provider/presets', '/platform/ai-provider/models', '/platform/ai-provider/test', '/admin/me', '/admin/accounts']
     for (const path of allowed) expect((await get(path)).status, path).toBe(200)
     expect(calls).toHaveLength(allowed.length)
     const denied = ['/', '/registry/mutations', '/invitations/accept', '/admin', '/admin/accounts/x/roles', '/admin/accounts/12/other', '/admin/secret', '/internal/anything', '/tenantsx', '/contexts', '/packagesx', '/commercial', '/commercial/payment-events/moyasar', '/commercial/payment-simulator/a-1/settle', '/commercial/renewals/run', '/commercial/branch-quotes', '/commercial/customers/c-1/trial/x', '/commercial/customers/c-1/deletion/request', '/commercial/customers/c-1/deletion/confirm', '/commercial/customers/c-1/deletion/withdraw/x', '/commercial/deletion-requests/x', '/commercial/attention/x', '/platform', '/platform/ai-provider/other', '/platform/ai-provider/models/x', '/platform/other', '/commercial/clients/c-1', '/commercial/orders/ab-1/other', '/commercial/invoice-adjustments/a-1', '/commercial/trials/s-1', '/commercial/trials/s-1/other', '/commercial/trials', '/commercial/invoice-adjustments/a-1/other', '/commercial/invoice-adjustments', '/commercial/plans/p-1/other', '/commercial/subscriptions/s-1/other', '/commercial/catalog', '/customer/orders', '/customer/invoices/i-1', '/invitations/accept']
@@ -275,6 +275,20 @@ describe('vendor API proxy', () => {
     // `subscriptions/suspend` is a subscription whose id is "suspend", which the id segment already allowed.
     for (const path of ['/commercial/subscriptions/s-1/suspends', '/commercial/subscriptions/s-1/suspend/x', '/commercial/subscriptions/s-1/delete'])
       expect((await get(path)).status, path).toBe(404)
+  })
+
+  it('binds the account actions and the shared job actions to POST', async () => {
+    const calls = stubUpstream(() => json(200, {}))
+    const T = '00000000-0000-4000-8000-000000000001'
+    const J = '00000000-0000-4000-8000-000000000002'
+    const actions = ['/admin/accounts/12/roles', '/admin/accounts/12/disable', '/admin/accounts/12/enable', '/admin/accounts/12/reset', `/shared/tenants/${T}/jobs/${J}/recover`, `/shared/tenants/${J}/jobs/${J}/abandon`]
+    for (const path of actions) expect((await post(path)).status, path).toBe(200)
+    expect(calls).toHaveLength(actions.length)
+    for (const path of actions) for (const send of [get, patch]) expect((await send(path)).status, path).toBe(405)
+    expect(calls).toHaveLength(actions.length)
+    // The other shared tenant routes the console uses keep their methods.
+    expect((await get(`/shared/tenants/${T}/provisioning`)).status).toBe(200)
+    expect((await post(`/shared/tenants/${T}/restore-publications/a-1`)).status).toBe(200)
   })
 
   it('waits long enough for the AI provider probes (15 s models, two 20 s asks for a test) and keeps 10 s everywhere else', async () => {
