@@ -1,22 +1,30 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import * as Vue from 'vue'
 import { loadSfc } from './sfc'
 import { operationStatusBadge } from '../../utils/vendorBadges'
-import { sharedJobLocation, startRefusalKey } from '../../utils/sharedBackups'
+import { backupJobRequest, sharedBackupErrorKey, sharedJobLocation, startRefusalKey } from '../../utils/sharedBackups'
+import { reasonValid } from '../../utils/team'
+import { StepUpCancelled, STEP_UP_CANCELLED_KEY } from '../../composables/useStepUp'
 
 const tenantId = '10000000-0000-4000-8000-000000000001'
 const id = (n: number) => `10000000-0000-4000-8000-0000000000${String(n).padStart(2, '0')}`
 const item = (over: Record<string, unknown> = {}) => ({ backup_id: id(1), job_id: id(2), created_at: '2026-11-22T10:00:00.000Z', started_by: 'Layla', approval: null, restores: [], ...over })
 const listing = (over: Record<string, unknown> = {}) => ({ start: { allowed: true, reason: null, job_id: null }, total: 1, items: [item()], ...over })
 
-function panel(state: { data?: unknown; error?: unknown; pending?: boolean }) {
+type Setup = { data?: unknown; error?: unknown; pending?: boolean; capabilities?: string[]; request?: (path: string, options?: unknown) => Promise<unknown> }
+function panel(state: Setup) {
   const refresh = () => {}
   const fake = { data: Vue.ref(state.data ?? null), error: Vue.ref(state.error ?? null), pending: Vue.ref(state.pending ?? false), refresh }
+  const request = vi.fn(state.request ?? (async () => ({ id: id(7), state: 'queued', replay: false })))
+  const navigateTo = vi.fn(async () => {})
   const sfc = loadSfc('components/vendor/BackupsPanel.vue', {
     useI18n: () => ({ t: (key: string, params?: Record<string, unknown>) => (params ? `${key}[${Object.entries(params).map(([name, value]) => `${name}=${value}`).join(',')}]` : key) }),
     useSharedBackups: () => fake, formatLiwanDateTime: (value: string) => `@${value}`, operationStatusBadge, sharedJobLocation, startRefusalKey,
+    backupJobRequest, sharedBackupErrorKey, reasonValid, useVendorApi: () => ({ request }), navigateTo, useHydrated: () => Vue.ref(true),
+    useVendorContext: () => ({ can: (capability: string) => (state.capabilities ?? ['vendor.read', 'vendor.operations.run']).includes(capability) }),
   })
-  return { sfc, fake, render: async () => sfc.mount({ tenantId }).render() }
+  const mounted = sfc.mount({ tenantId })
+  return { sfc, fake, request, navigateTo, state: mounted.state, render: async () => mounted.render() }
 }
 const stateOf = (captured: { name: string; attrs: Record<string, unknown> }[]) => captured.find(entry => entry.name === 'SharedPageState')!.attrs
 
@@ -67,5 +75,76 @@ describe('BackupsPanel', () => {
     expect(alertOf(off.captured)).toMatchObject({ title: 'vendor.backups.refusal.operations_unavailable' })
     expect(off.captured.some(entry => entry.name === 'UButton')).toBe(false)
     expect(alertOf((await panel({ data: listing() }).render()).captured)).toBeUndefined()
+  })
+})
+
+describe('BackupsPanel: starting a backup', () => {
+  const buttonOf = (captured: { name: string; attrs: Record<string, unknown> }[]) => captured.find(entry => entry.name === 'UButton' && entry.attrs.type === 'submit')?.attrs
+  it('offers no form while the listing says a backup cannot start, or before it loaded', async () => {
+    const blocked = await panel({ data: listing({ start: { allowed: false, reason: 'operations_unavailable', job_id: null } }) }).render()
+    expect(blocked.html).not.toContain('backup-start'); expect(buttonOf(blocked.captured)).toBeUndefined()
+    expect(buttonOf((await panel({ pending: true }).render()).captured)).toBeUndefined()
+  })
+  it('keeps the button disabled until a reason of 3 to 1000 characters is typed', async () => {
+    const { render, state } = panel({ data: listing() })
+    expect(buttonOf((await render()).captured)).toMatchObject({ disabled: true })
+    for (const reason of ['', '  ', 'ab', 'x'.repeat(1001)]) { state.startReason.value = reason; expect(buttonOf((await render()).captured), JSON.stringify(reason.length)).toMatchObject({ disabled: true }) }
+    state.startReason.value = ' Before the upgrade '
+    expect(buttonOf((await render()).captured)).toMatchObject({ disabled: false })
+  })
+  it('keeps the button disabled, and says why, without the permission to run operations', async () => {
+    const { render, state } = panel({ data: listing(), capabilities: ['vendor.read'] })
+    state.startReason.value = 'Before the upgrade'
+    const { captured, html } = await render()
+    expect(buttonOf(captured)).toMatchObject({ disabled: true }); expect(html).toContain('vendor.backups.needsPermission')
+    state.startBackup(); expect(state.startBusy.value).toBe(false)
+  })
+  it('sends nothing before the operator confirms the outage', async () => {
+    const { render, state, request } = panel({ data: listing() })
+    state.startReason.value = 'Before the upgrade'
+    state.confirmStart.value = true
+    const { captured, html } = await render()
+    const confirm = captured.find(entry => entry.name === 'SharedInlineConfirm')!.attrs
+    expect(confirm).toMatchObject({ color: 'warning', title: 'vendor.backups.confirmStart', description: 'vendor.backups.outage', 'confirm-label': 'vendor.backups.start' })
+    expect(html).not.toContain('<button'); expect(request).not.toHaveBeenCalled()
+    state.startReason.value = 'Before the upgrade, edited'
+    await Vue.nextTick(); expect(state.confirmStart.value).toBe(false)
+  })
+  it('posts the reason and a request id only, then opens the operation page', async () => {
+    const { state, request, navigateTo } = panel({ data: listing() })
+    state.startReason.value = '  Before the upgrade  '
+    await state.startBackup()
+    expect(request).toHaveBeenCalledTimes(1)
+    const [path, options] = request.mock.calls[0] as unknown as [string, { method: string; body: { reason: string; job: { schemaVersion: number; requestId: string; operation: string } } }]
+    expect(path).toBe(`shared/tenants/${tenantId}/jobs`); expect(options.method).toBe('POST')
+    expect(options.body).toEqual({ reason: 'Before the upgrade', job: { schemaVersion: 1, requestId: expect.stringMatching(/^[0-9a-f-]{36}$/), operation: 'backup' } })
+    expect(navigateTo).toHaveBeenCalledWith({ path: `/operations/${id(7)}`, query: { source: 'shared', returnTo: `/operations?tenant_id=${tenantId}` } })
+    expect(state.startReason.value).toBe('')
+  })
+  it('words a cancelled step-up as the person\'s own choice, sends nothing more and keeps the typed reason', async () => {
+    const { state, navigateTo, render } = panel({ data: listing(), request: async () => { throw new StepUpCancelled() } })
+    state.startReason.value = 'Before the upgrade'
+    await state.startBackup()
+    expect(navigateTo).not.toHaveBeenCalled(); expect(state.startReason.value).toBe('Before the upgrade')
+    const alert = (await render()).captured.find(entry => entry.attrs['data-testid'] === 'backup-start-error')!.attrs
+    expect(alert.title).toBe(STEP_UP_CANCELLED_KEY)
+  })
+  it('sends the same request id again on a retry after a failed answer, and a new one for the next backup', async () => {
+    let calls = 0
+    const { state, request } = panel({ data: listing(), request: async () => { if (++calls === 1) throw { statusCode: 503, data: { code: 'vendor_unavailable' } }; return { id: id(7) } } })
+    state.startReason.value = 'Before the upgrade'
+    await state.startBackup(); await state.startBackup()
+    const ids = request.mock.calls.map(call => (call[1] as { body: { job: { requestId: string } } }).body.job.requestId)
+    expect(ids[0]).toBe(ids[1])
+    state.startReason.value = 'Another backup'; await state.startBackup()
+    expect((request.mock.calls[2]![1] as { body: { job: { requestId: string } } }).body.job.requestId).not.toBe(ids[0])
+  })
+  it('reports the typed reason as unsent input, and clears it once sent', async () => {
+    const { state } = panel({ data: listing() })
+    expect(state.dirtyModel.value).toBe(false)
+    state.startReason.value = 'Before the upgrade'; await Vue.nextTick()
+    expect(state.dirtyModel.value).toBe(true)
+    await state.startBackup(); await Vue.nextTick()
+    expect(state.dirtyModel.value).toBe(false)
   })
 })

@@ -1,5 +1,7 @@
 import type { SharedBackupList } from '@liwan/commercial-contracts'
-import type { VendorTenant } from '@/utils/vendorTenant'
+import type { VendorTenant } from './vendorTenant'
+import { commercialFailure } from './vendorCommercial'
+import { failureKey } from '../composables/useStepUp'
 
 export type SharedBackupItem = SharedBackupList['items'][number]
 export type SharedBackupStart = SharedBackupList['start']
@@ -17,3 +19,19 @@ export const startRefusalKey = (start: SharedBackupStart): string | null => (sta
 
 /** The operation page of one shared job (the backup being made, a restore, or the job that blocks a new backup). */
 export const sharedJobLocation = (jobId: string) => ({ path: `/operations/${encodeURIComponent(jobId)}`, query: { source: 'shared' } })
+
+/**
+ * The body that queues a backup. The browser sends only a request id and a reason: the binding, the digests and the
+ * target are derived on the server. The same request id is sent again on a retry, so a lost answer never makes a second backup.
+ */
+export const backupJobRequest = (requestId: string, reason: string) => ({ reason: reason.trim(), job: { schemaVersion: 1, requestId, operation: 'backup' } })
+
+// Every code the control plane can answer a backup start with (apps/control-plane/src/http.ts, shared/job-store.ts) plus the
+// masked outage the vendor proxy answers for any 5xx.
+const ERROR_CODES = new Set(['shared_reconciliation_required', 'tenant_operations_unavailable', 'tenant_unavailable', 'shared_job_forbidden', 'forbidden', 'shared_replay_forbidden', 'idempotency_conflict', 'vendor_unavailable', 'invalid'])
+
+/** The text for a failed call of this flow: the cancelled step-up's own text, a known refusal's, else the generic one. */
+export function sharedBackupErrorKey(cause: unknown): string {
+  const code = commercialFailure(cause).code
+  return failureKey(cause, ERROR_CODES.has(code) ? `vendor.backups.errors.${code}` : 'vendor.backups.errors.generic')
+}

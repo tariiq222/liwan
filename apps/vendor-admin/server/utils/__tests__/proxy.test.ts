@@ -327,6 +327,14 @@ describe('vendor API proxy', () => {
     expect((await get(`/shared/tenants/${T}/jobs/${J}/recover`)).status).toBe(405)
   })
 
+  it('hands a refused shared backup start to the browser as the control plane answered it', async () => {
+    const T = '00000000-0000-4000-8000-000000000001'
+    stubUpstream(() => json(409, { code: 'shared_reconciliation_required', message: 'Shared onboarding request rejected' }))
+    const response = await post(`/shared/tenants/${T}/jobs`, { body: { reason: 'Because', job: { schemaVersion: 1, requestId: T, operation: 'backup' } } })
+    expect(response.status).toBe(409)
+    expect(response.body).toMatchObject({ code: 'shared_reconciliation_required' })
+  })
+
   it('waits long enough for the AI provider probes (15 s models, two 20 s asks for a test) and keeps 10 s everywhere else', async () => {
     expect(upstreamTimeoutMs('/v1/platform/ai-provider/models')).toBeGreaterThan(15_000)
     expect(upstreamTimeoutMs('/v1/platform/ai-provider/test')).toBeGreaterThan(40_000)

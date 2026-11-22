@@ -307,6 +307,23 @@
       "refusal": {
         "operations_unavailable": "Operations are disabled for this workspace, so a backup cannot be started.",
         "job_in_progress": "An operation is running or needs attention for this workspace, so a backup cannot be started now."
+      },
+      "reason": "Reason for the backup",
+      "start": "Start a backup",
+      "needsPermission": "Starting a backup needs the permission to run operations.",
+      "confirmStart": "Start a backup of this workspace?",
+      "outage": "Taking the backup stops the shared Odoo service for every customer workspace on this stack, not only this one, and starts it again when the capture is complete. Everyone's sessions are interrupted meanwhile. If the capture fails after the stop, the service can stay stopped until an operator recovers the job.",
+      "errors": {
+        "generic": "The backup could not be started.",
+        "shared_reconciliation_required": "An operation is running or needs attention for this workspace. Finish or resolve it first, then try again.",
+        "tenant_operations_unavailable": "Operations are disabled for this workspace.",
+        "tenant_unavailable": "The workspace is not available for operations right now.",
+        "shared_job_forbidden": "You do not have the permission to run operations.",
+        "forbidden": "You do not have the permission to run operations.",
+        "shared_replay_forbidden": "Another operator started this request.",
+        "idempotency_conflict": "The request id belongs to a different request. Reload the page and try again.",
+        "vendor_unavailable": "The shared operations service is unavailable. Try again later.",
+        "invalid": "A reason is required (at least 3 characters)."
       }
     },
     "operations": {

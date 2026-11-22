@@ -52,7 +52,8 @@ const dirty = computed(() => !submitted.value && Boolean(reason.value.trim() || 
   const current = currentFeatures.value[key]
   return edits[key] !== (kind === 'boolean' ? current === true : typeof current === 'number' ? String(current) : '')
 }))))
-watch(dirty, value => { dirtyModel.value = value }, { immediate: true })
+const backupsDirty = ref(false)
+watch([dirty, backupsDirty], () => { dirtyModel.value = dirty.value || backupsDirty.value }, { immediate: true })
 onBeforeUnmount(() => { dirtyModel.value = false })
 watch([data, selectedTier, availableOperations], () => {
   submitted.value = false
@@ -150,7 +151,7 @@ const operationTime = (op: OperationFeed) => formatLiwanDateTime(op.source === '
       <SharedForbiddenState v-else-if="!operationsNeedEnabling && availableOperations.length && !canVendor('vendor.operations.run')" />
     </SharedRecordSection>
 
-    <VendorBackupsPanel v-if="sharedWorkspace" :tenant-id="tenantId" />
+    <VendorBackupsPanel v-if="sharedWorkspace" v-model:dirty="backupsDirty" :tenant-id="tenantId" />
 
     <SharedRecordSection variant="panel" :title="t('vendor.tenants.recentOperations')">
       <template #actions><UButton :to="{ path: '/operations', query: { tenant_id: tenantId } }" color="neutral" variant="outline" size="sm">{{ t('vendor.tenants.viewOperations') }}</UButton></template>
