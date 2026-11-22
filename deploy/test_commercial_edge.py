@@ -361,9 +361,13 @@ def _edge_run(host: str, targets, *, env: dict[str, str | None] | None = None, c
     stub = {'listen': ['127.0.0.1:8081'], 'logs': {}, 'routes': [{'handle': [
         {'handler': 'static_response', 'body': stub_body, 'headers': upstream_cache}]}]}
     if asset_probe:
-        # A revalidation answer from the upstream, so the edge's treatment of a 304 is observable.
-        stub['routes'].insert(0, {'match': [{'query': {'revalidate': ['1']}}], 'handle': [
-            {'handler': 'static_response', 'status_code': 304, 'headers': upstream_cache}]})
+        # A revalidation answer and a missing file from the upstream, so the edge's treatment of both is observable.
+        stub['routes'][:0] = [
+            {'match': [{'query': {'revalidate': ['1']}}], 'handle': [
+                {'handler': 'static_response', 'status_code': 304, 'headers': upstream_cache}]},
+            {'match': [{'path': ['/_nuxt/gone-*']}], 'handle': [
+                {'handler': 'static_response', 'status_code': 404, 'headers': upstream_cache}]},
+        ]
     adapted['admin'] = {'disabled': True}
     adapted['logging'] = {'logs': {'stub': {'writer': {'output': 'file', 'filename': '/tmp/stub.log'},
                                             'include': ['http.log.access']}}}
@@ -586,7 +590,8 @@ class CaddyAdminBehavior(unittest.TestCase):
         """
         results, _, _, headers = _admin_run(
             [('GET', '/_nuxt/app-abc123.js'), ('GET', '/_nuxt/app-abc123.js?revalidate=1'),
-             ('GET', '/login'), ('GET', '/api/v1/me'), ('GET', '/_nuxt/builds/latest.json')],
+             ('GET', '/login'), ('GET', '/api/v1/me'), ('GET', '/_nuxt/builds/latest.json'),
+             ('GET', '/_nuxt/gone-abc123.js')],
             asset_probe=True)
         stored = 'private, max-age=31536000, immutable'
         self.assertEqual(results[0][0], '200')
@@ -597,6 +602,9 @@ class CaddyAdminBehavior(unittest.TestCase):
         for index in (2, 3, 4):
             self.assertEqual(results[index][0], '200', results[index])
             self.assertEqual(headers[index], 'no-store', f'case {index} must not be stored')
+        # A chunk missing after a release must not be kept for a year as immutable.
+        self.assertEqual(results[5][0], '404', results[5])
+        self.assertEqual(headers[5], 'no-store', 'a missing asset is never stored')
 
 
 class CaddyUpstreamTls(unittest.TestCase):

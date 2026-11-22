@@ -263,7 +263,8 @@ def _block_body(text: str, start: int) -> str:
             depth -= 1
             if depth == 0:
                 return text[start:index]
-    raise AssertionError('block is not closed')
+    message = 'block is not closed'
+    raise AssertionError(message)
 
 
 def _zone_body(text: str, name: str) -> str:
@@ -311,11 +312,11 @@ class EdgeSnippets(unittest.TestCase):
         # and API answers for a year.
         self.assertIn('header @buildAssets {', text)
         # The matcher must be defined, and its exclusion is what keeps Nuxt's build metadata out: `latest.json`
-        # changes without a new build, so a one-year copy of it would freeze the console on an old release.
+        # keeps its name while its content changes with every build, so a one-year copy of it would freeze the console on an old release.
         self.assertRegex(text, r'@buildAssets \{\s*path /_nuxt/\*\s*not path /_nuxt/builds/\*\s*\}')
         # A 404 after a release must not be kept for a year, but a 304 must keep the caching value: the deferred
         # `no-store` of the blanket rule would otherwise reach the revalidation answer and discard the proven copy.
-        self.assertIn('match status 2xx 304', text)
+        self.assertRegex(text, r'(?m)^\s*match status 2xx 304\s*$')
         # `private` keeps the browser as the only holder: no shared proxy stores the console's code.
         self.assertIn('>Cache-Control "private, max-age=31536000, immutable"', text)
         # The blanket rule stays and stays on the whole site: a response that is not a hashed asset is never stored.
