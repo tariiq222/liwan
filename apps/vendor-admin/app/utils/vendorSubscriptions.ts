@@ -1,5 +1,5 @@
 import type { StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
-import { riyadhDate, subscriptionDisplayState, type Adjustment, type BankTransferClaim, type Cadence, type Invoice, type InvoiceLine, type Money, type Order, type SignupAcceptance, type SubscriptionDisplayState, type SubscriptionView, type VoidBlock, type UsageMetric } from '@liwan/commercial-contracts'
+import { daysBetween, riyadhDate, subscriptionDisplayState, type Adjustment, type BankTransferClaim, type Cadence, type Invoice, type InvoiceLine, type Money, type Order, type SignupAcceptance, type SubscriptionDisplayState, type SubscriptionView, type VoidBlock, type UsageMetric } from '@liwan/commercial-contracts'
 import { commercialErrorKey, commercialFailure, CURRENCY, emptyLimit, limitFromDraft, MB_PER_GB, minorToInput, normalizeDigits, parseCount, parseVendorMoneyInput, sar, type LimitDraft } from './vendorCommercial'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
@@ -65,9 +65,9 @@ export function orderFulfillmentBadge(order: Pick<Order, 'fulfillment_state'>): 
 // ---- Branches / usage ----
 // ---- Customer glance: renewal countdown and stalled activation, matching the control plane's 24-hour threshold ----
 export const STALLED_HOURS = 24
+/** Whole calendar days from today to `isoDate`, both read in Riyadh time (the business day the control plane renews on). */
 export function daysUntilDate(isoDate: string, now: Date): number {
-  const [y, m, d] = isoDate.split('-').map(Number)
-  return Math.round((Date.UTC(y!, m! - 1, d!) - Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())) / 86_400_000)
+  return daysBetween(riyadhDate(now), isoDate)
 }
 export function isStalled(order: Order | null, now: Date): boolean {
   if (!order) return false

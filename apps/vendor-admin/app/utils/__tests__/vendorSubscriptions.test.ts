@@ -158,6 +158,11 @@ describe('customer glance helpers', () => {
     expect(daysUntilDate('2026-10-20', now)).toBe(4)
     expect(daysUntilDate('2026-10-16', now)).toBe(0)
   })
+  it('counts from today in Riyadh, which is already tomorrow between 21:00 and 24:00 UTC', () => {
+    expect(daysUntilDate('2026-11-25', new Date('2026-11-22T22:30:00Z'))).toBe(2)
+    expect(daysUntilDate('2026-11-25', new Date('2026-11-22T20:59:00Z'))).toBe(3)
+    expect(daysUntilDate('2026-11-23', new Date('2026-11-22T21:00:00Z'))).toBe(0)
+  })
   it('flags failed orders and queued ones older than a day', () => {
     expect(isStalled(order({ fulfillment_state: 'failed' }), now)).toBe(true)
     expect(isStalled(order({ created_at: '2026-10-14T00:00:00Z' }), now)).toBe(true)

@@ -1,5 +1,6 @@
 import { ANALYTICS_MAX_DAYS, type AnalyticsFigure, type AnalyticsFigures, type Money } from '@liwan/commercial-contracts'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
+import { BUSINESS_TIME_ZONE } from './vendorTime'
 
 export const PERIOD_PRESETS = ['month', 'quarter', 'year', 'custom'] as const
 export type PeriodPreset = (typeof PERIOD_PRESETS)[number]
@@ -10,7 +11,7 @@ const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/
 const isDay = (value: unknown): value is string => typeof value === 'string' && ISO_DAY.test(value) && !Number.isNaN(Date.parse(value))
 
 /** The business day today: the Asia/Riyadh calendar date (the control plane cuts periods on the same clock). */
-export const riyadhToday = (now: Date = new Date()): string => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(now)
+export const riyadhToday = (now: Date = new Date()): string => new Intl.DateTimeFormat('en-CA', { timeZone: BUSINESS_TIME_ZONE }).format(now)
 
 /** The range a preset stands for on `today`: from the start of the month, quarter or year up to today. */
 export function presetRange(preset: Exclude<PeriodPreset, 'custom'>, today: string): { from: string, to: string } {

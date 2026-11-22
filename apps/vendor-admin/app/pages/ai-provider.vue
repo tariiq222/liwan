@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
+import { formatBusinessDateTime } from '@/utils/vendorTime'
 import type { AiCapability, AiQuality } from '@liwan/commercial-contracts'
 import {
   AI_CAPABILITIES, AI_QUALITY_LEVELS, aiProviderErrorKey, aiProviderErrorSection, cellKey, chargeForOneDollar, configDirty, draftFromSetting, effectiveModel, freeId, idProblem, ltr, marginBps,
@@ -156,7 +156,7 @@ const blockerKey = computed(() => (blockers.value[0] ? `aiProvider.save.blockers
           :color="setting.delivery === 'delivered' ? 'success' : 'warning'" variant="subtle" :icon="setting.delivery === 'delivered' ? 'i-lucide-check' : 'i-lucide-triangle-alert'"
           :title="t(`aiProvider.status.delivery.${setting.delivery}`, { revision: ltr(setting.revision) })" data-testid="ai-provider-delivery"
         />
-        <p class="text-xs text-muted">{{ t('aiProvider.status.updated', { date: ltr(formatDateTime(setting.updated_at)) }) }}</p>
+        <p class="text-xs text-muted">{{ t('aiProvider.status.updated', { date: ltr(formatBusinessDateTime(setting.updated_at)) }) }}</p>
       </template>
     </SharedFormSection>
 
