@@ -21,6 +21,21 @@ describe('storage amounts', () => {
     expect(formatStorageMb(1030)).toBe('1 GB')
     expect(formatStorageMb(0.29)).toBe('0.3 MB')
   })
+  it('chooses the unit after rounding, so 1023.96 MB is 1 GB and not 1024 MB', () => {
+    expect(formatStorageMb(1023.96)).toBe('1 GB')
+    expect(formatStorageMb(1023.94)).toBe('1023.9 MB')
+    expect(formatStorageMb(1048575.9)).toBe('1024 GB')
+  })
+  it('shows a value that is not a finite number the way a missing value is shown', () => {
+    for (const value of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) expect(formatStorageMb(value)).toBe('—')
+    expect(formatStorageBytes(Number.NaN)).toBe('—')
+  })
+  it('does not print a positive amount as 0 MB', () => {
+    expect(formatStorageMb(0.04)).toBe('<0.1 MB')
+    expect(formatStorageMb(0.05)).toBe('0.1 MB')
+    expect(formatStorageBytes(1)).toBe('<0.1 MB')
+    expect(formatStorageMb(0)).toBe('0 MB')
+  })
   it('reads bytes as megabytes of 1024 KB', () => {
     expect(formatStorageBytes(5 * 1024 * 1024)).toBe('5 MB')
     expect(formatStorageBytes(3 * 1024 ** 3)).toBe('3 GB')

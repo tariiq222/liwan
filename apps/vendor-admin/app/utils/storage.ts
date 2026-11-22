@@ -7,8 +7,14 @@ export const STORAGE_LIMIT_KEY = 'storage.limit_mb'
 /** At most one decimal; a whole number prints without one. */
 const trimmed = (value: number): string => String(Number(value.toFixed(1)))
 
-/** MB below 1024 MB, GB from there. */
+/** What the console prints for a value it does not have. */
+const MISSING = '—'
+
+/** MB while the rounded amount is below 1024 MB, GB from there; a positive amount under 0.05 MB is `<0.1 MB`, not 0; a value that is not finite is shown as missing. */
 export function formatStorageMb(mb: number): string {
-  return mb < MB_PER_GB ? `${trimmed(mb)} MB` : `${trimmed(mb / MB_PER_GB)} GB`
+  if (!Number.isFinite(mb)) return MISSING
+  if (mb > 0 && mb < 0.05) return '<0.1 MB'
+  const rounded = Number(mb.toFixed(1))
+  return rounded < MB_PER_GB ? `${trimmed(mb)} MB` : `${trimmed(mb / MB_PER_GB)} GB`
 }
 export const formatStorageBytes = (bytes: number): string => formatStorageMb(bytes / BYTES_PER_MB)
