@@ -84,7 +84,9 @@ function setPeriod(value: string) {
               >
                 <template #name-cell="{ row }">{{ row.original.name || t('helpdesk.unassigned') }}</template>
                 <template #first-cell="{ row }">
-                  <bdi dir="ltr">{{ row.original.first_response_hours === null ? '—' : t('helpdesk.reports.hours', { count: row.original.first_response_hours }) }}</bdi>
+                  <!-- The cell holds a translated Arabic phrase («{count} ساعة»), so its direction is the text's own;
+                       dir="ltr" on the whole phrase flipped the number and the word against each other. -->
+                  <bdi dir="auto">{{ row.original.first_response_hours === null ? '—' : t('helpdesk.reports.hours', { count: row.original.first_response_hours }) }}</bdi>
                 </template>
               </SharedDataTable>
             </SharedListCard>

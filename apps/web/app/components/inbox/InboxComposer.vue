@@ -391,7 +391,7 @@ async function submit() {
       icon="i-lucide-clock"
       data-testid="inbox-window-closed"
       :title="t('inbox.composer.windowClosed')"
-      :description="props.conversation.reply_window_ends_at ? t(windowClosedDescriptionKey(kind)) : t('inbox.composer.noWindow')"
+      :description="props.conversation.reply_window_ends_at ? t(windowClosedDescriptionKey(kind)) : t(`inbox.composer.noWindowByKind.${kind}`)"
     />
     <template v-if="templateMode">
       <UFormField :label="t('inbox.composer.template')">
@@ -444,7 +444,7 @@ async function submit() {
       <div v-if="upload" class="flex items-center gap-2 rounded-control bg-elevated/50 px-3 py-1.5 text-sm" data-testid="inbox-upload">
         <UIcon name="i-lucide-paperclip" class="size-4 shrink-0 text-muted" aria-hidden="true" />
         <span class="min-w-0 flex-1 truncate">{{ upload.name }}</span>
-        <span class="shrink-0 text-xs text-muted">{{ inboxFileSize(upload.size) }}</span>
+        <span class="shrink-0 text-xs text-muted">{{ inboxFileSize(upload.size, t) }}</span>
         <span v-if="uploading" class="inline-flex shrink-0 items-center gap-1 text-xs text-muted" role="status"><UIcon name="i-lucide-loader-circle" class="size-3.5 animate-spin" aria-hidden="true" />{{ t('inbox.composer.uploading') }}</span>
         <UButton type="button" color="neutral" variant="ghost" size="sm" icon="i-lucide-x" :aria-label="t('inbox.composer.removeFile')" @click="discardUpload" />
       </div>

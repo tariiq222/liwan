@@ -22,6 +22,15 @@ export const SHORTCUT_HELP: readonly ShortcutHelpEntry[] = [
 /** Rows one search section shows; UCommandPalette cuts every group at `fuse.resultLimit` (default 12). */
 export const PALETTE_SECTION_LIMIT = 5
 
+/**
+ * The palette's per-group cut. UCommandPalette slices *every* group — including the non-search ones — at
+ * `fuse.resultLimit`, so this must clear the largest group it can hold before the user types: the `?` help view is
+ * SHORTCUT_HELP plus one `G` row per visible go key, and the command list grows with the applications. A limit
+ * derived from PALETTE_SECTION_LIMIT (it was 8) silently dropped the whole `G` shortcut table and half the
+ * applications, and the «اختصارات لوحة المفاتيح» command at the end of the action list.
+ */
+export const PALETTE_RESULT_LIMIT = 40
+
 export type PaletteItemAction =
   | { kind: 'shortcuts' }
   | { kind: 'retry'; section: string }

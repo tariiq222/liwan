@@ -27,6 +27,11 @@
       "newName": "New name"
     },
     "loadMore": "Load more",
+    "fileSize": {
+      "bytes": "{size} bytes",
+      "kilobytes": "{size} KB",
+      "megabytes": "{size} MB"
+    },
     "tags": {
       "add": "Add tag",
       "create": "Create \"{name}\"",
@@ -232,7 +237,8 @@
       "close": "Close",
       "loading": "Loading…",
       "error": "Could not load the list.",
-        "chatEmpty": "No conversations yet.",
+      "retry": "Try again",
+      "chatEmpty": "No conversations yet.",
       "tasksEmpty": "No open tasks. Well done!",
       "meetingsEmpty": "No upcoming meetings.",
       "noDeadline": "No deadline"
@@ -386,6 +392,7 @@
     "actions": "Actions",
     "loading": "Searching…",
     "error": "Search failed. Select to try again.",
+    "noResultsHint": "Nothing in this scope. Choose «All search scopes» or change the search.",
     "footerMove": "Move",
     "footerOpen": "Open",
     "footerClose": "Close"

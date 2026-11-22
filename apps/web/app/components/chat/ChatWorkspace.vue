@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useQueryClient } from '@tanstack/vue-query'
+import { refDebounced } from '@vueuse/core'
 import EmptyState from '@liwan/ui/app/components/shared/feedback/EmptyState.vue'
 import ChatInfoPanel from '@/components/chat/ChatInfoPanel.vue'
 import ConversationList from '@/components/chat/ConversationList.vue'
@@ -38,6 +39,9 @@ const replyTo = ref<ChatMessage | null>(null)
 // conversation in sessionStorage, so leaving a conversation and coming back restores it; a successful send clears it.
 const draft = ref('')
 const messageQuery = ref('')
+// The thread asks the server for every keystroke while the raw ref updates, and each answer replaced the visible
+// messages: typing four letters cleared the history three times. The request now leaves once the typing pauses.
+const debouncedMessageQuery = refDebounced(messageQuery, 300)
 const showMessageSearch = ref(false)
 function toggleMessageSearch() {
   showMessageSearch.value = !showMessageSearch.value
@@ -163,7 +167,7 @@ function updateRoute(next: ChatListRoute) {
             :pending-body="pendingBody"
             :peer-seen-message-id="data?.peer_seen_message_id"
             :direct="data?.type === 'direct'"
-            :q="messageQuery"
+            :q="debouncedMessageQuery"
             @denied="onDenied"
             @reply="replyTo = $event"
           />

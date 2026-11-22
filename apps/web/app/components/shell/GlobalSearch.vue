@@ -3,7 +3,7 @@ import { refDebounced, useMediaQuery } from '@vueuse/core'
 import type { CommandPaletteGroup, CommandPaletteItem, CommandPaletteProps } from '@nuxt/ui'
 import { useNav, visibleShellModules, type NavItem } from '@/composables/nav/shellModules'
 import {
-  appItems, commandItems, goToItems, helpItems, paletteGroups, PALETTE_SECTION_LIMIT, visibleCommands, type PaletteItem,
+  appItems, commandItems, goToItems, helpItems, paletteGroups, PALETTE_RESULT_LIMIT, visibleCommands, type PaletteItem,
 } from '@/composables/nav/paletteModel'
 import { isApplePlatform } from '@liwan/ui/app/composables/shortcuts/keymap'
 import { useAppSearch } from '@/composables/useAppSearch'
@@ -119,6 +119,17 @@ function onBackspace() {
   if (view.value === 'shortcuts' && !term.value) view.value = 'main'
 }
 
+// UCommandPalette slices every group at `fuse.resultLimit`, including the ones it does not search (Apps, Go to,
+// Actions, the shortcut table). A fixed number cannot know how many destinations a tenant's applications add, so the cut
+// is the largest group's own size: it never removes a row, and the search sections still cap themselves at
+// PALETTE_SECTION_LIMIT with their own «عرض المزيد».
+// Read from `liveGroups` (what the palette is about to draw), not the rendered copy: `groups` is cleared during the exit
+// animation, and a cut of 0 would blank the list mid-close.
+const paletteLimit = computed(() => Math.max(
+  PALETTE_RESULT_LIMIT,
+  ...liveGroups.value.map(group => group.items?.length ?? 0),
+))
+
 const liveGroups = computed<CommandPaletteGroup<CommandPaletteItem>[]>(() => {
   if (!open.value) return []
   const visible = useNav(me.value)
@@ -191,7 +202,7 @@ function onAfterLeave() {
         :placeholder="view === 'shortcuts' ? t('shortcuts.filter') : t('search.description')"
         :input="inputProps"
         :loading="searching"
-        :fuse="{ resultLimit: PALETTE_SECTION_LIMIT + 3 }"
+        :fuse="{ resultLimit: paletteLimit }"
         preserve-group-order
         :dir="localeProperties.dir"
         :data-view="view"

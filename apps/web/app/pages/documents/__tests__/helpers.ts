@@ -12,6 +12,7 @@ import { documentAccessPayload } from '../../../lib/documentAccess'
 import { ApiError } from '../../../composables/useApi'
 import * as navigation from '../../../utils/recordListOrigin'
 import { joinList } from '../../../utils/listFormat'
+import { formatFileSize } from '../../../utils/fileSize'
 import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 export const documentFixture = { id: 8, revision: 3, name: 'Policy', body: '<p>Original</p>', expiry_date: null, context: null, tags: [], file_count: 0, visibility: 'restricted' as const, active: true, write_date: '2026-10-19T00:00:00Z', allowed_actions: { update: true, archive: true, restore: false, upload_file: true, manage_access: true } }
 export async function load(file: string, props: Record<string, unknown> = {}, allowed = true, options: { path?: string; bindings?: Record<string, unknown> } = {}) {
@@ -28,10 +29,13 @@ export async function load(file: string, props: Record<string, unknown> = {}, al
   const query = { data, refetch, error: Vue.ref(null), isLoading: Vue.ref(false), isFetching: Vue.ref(false) }
   const bindings = {
     _defineComponent: Vue.defineComponent, computed: Vue.computed, reactive: Vue.reactive, ref: Vue.ref, watch: Vue.watch, nextTick: Vue.nextTick,
+    // The harness strips imports, so a composable the component imports has to be supplied here; the debounce is
+    // identity in a test that reads the value synchronously.
+    refDebounced: (value: unknown) => value,
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => hydrated, useToast: () => ({ add: vi.fn() }), useAccess: () => ({ can: () => allowed, canPersonal: () => allowed }),
     useRoute: () => router.currentRoute.value, useRouter: () => router, navigateTo: navigate, useSsrQuerySeed: () => {},
     definePageMeta: () => {}, useEmployeeDocumentLink: () => ({ ...query, data: Vue.ref({ id: 3 }) }), useEmployeeDocument: () => query, useEmployeeDocuments: () => query, useDocumentFiles: () => ({ ...query, isRecovering: Vue.ref(false) }), useDocument: () => query, useUpdateDocument: () => ({ mutateAsync: mutation, isPending: pending }), useShareDocumentWithEmployee: () => ({ mutateAsync: vi.fn(), isPending: Vue.ref(false) }), useCreateDocument: () => ({ mutateAsync: mutation, isPending: pending }),
-    createDocumentDraft, documentAccessPayload, ApiError, returnToQuery, joinList, ...navigation, ...documentNavigation,
+    createDocumentDraft, documentAccessPayload, ApiError, returnToQuery, joinList, formatFileSize, ...navigation, ...documentNavigation,
     DocumentEditor: {}, DocumentMetadataFields: {}, DocumentReader: {}, DocumentFiles: {}, DocumentList: {}, ...options.bindings,
   }
   const component = new Function(...Object.keys(bindings), transpile(script))(...Object.values(bindings))
