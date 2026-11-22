@@ -219,8 +219,8 @@ it('words a cancelled step-up on the operation page as its own message, not as a
   const stuck = { ...operation, type: 'backup', status: 'needs_intervention', stage: 'needs_intervention', reason: 'shared_execution_needs_attention', abandonment: null }
   const detail = await page('operations/[id].vue', stuck, 'shared')
   detail.state.abandonOpen.value = true
-  detail.state.actionError.value = new StepUpCancelled()
-  expect(detail.state.actionErrorKey.value).toBe('adminAuth.stepUp.cancelled')
-  detail.state.actionError.value = { statusCode: 500 }
-  expect(detail.state.actionErrorKey.value).toBe('vendor.errors.action')
+  detail.state.failedAction.value = { action: 'abandon', cause: new StepUpCancelled() }
+  expect(detail.state.errorKeyOf('abandon')).toBe('adminAuth.stepUp.cancelled')
+  detail.state.failedAction.value = { action: 'abandon', cause: { statusCode: 500 } }
+  expect(detail.state.errorKeyOf('abandon')).toBe('vendor.errors.action')
 })
