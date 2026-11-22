@@ -74,7 +74,7 @@
     },
     "trend": {
       "title": "MRR, last 12 months",
-      "description": "Recurring revenue month by month. A month shows no figure when a customer who has since left was billing then, because the system does not record when they left.",
+      "description": "Recurring revenue month by month. A month shows no figure when a customer who left before departures were recorded was billing then, because the system does not know when they left.",
       "empty": "No recurring revenue yet."
     },
     "aging": {
