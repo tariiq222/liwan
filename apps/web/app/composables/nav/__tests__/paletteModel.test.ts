@@ -4,7 +4,7 @@ import type { AppCommand, AppManifest } from '../../../modules/types'
 import { allNavItems, visibleShellModules, type NavItem, type ShellModuleDefinition } from '../shellModules'
 import {
   appItems, commandItems, goKeyProblems, goKeyTargets, goToItems, helpItems, paletteGroups,
-  PALETTE_SECTION_LIMIT, visibleCommands, type PaletteSearchSection,
+  PALETTE_RESULT_LIMIT, PALETTE_SECTION_LIMIT, SHORTCUT_HELP, visibleCommands, type PaletteSearchSection,
 } from '../paletteModel'
 
 const FEATURES = ['pmo.enabled', 'meetings.enabled', 'hr.enabled', 'chat.enabled']
@@ -117,6 +117,26 @@ describe('palette items', () => {
       { id: 'help:go:t', label: 'go /tasks', kbds: ['G', 'T'], action: { kind: 'none' } },
     ])
     expect(rows.some(row => row.kbdsHidden)).toBe(false)
+  })
+
+  it('counts a real go-to list so the palette cut can be measured against it', () => {
+    // The cut is computed from the largest rendered group (GlobalSearch.paletteLimit). This holds the input that made a
+    // fixed 40 wrong: the go-to group grows with the destinations the applications declare.
+    const letters = 'abcdefghijklmnopqrstuvwxyz'.split('').slice(0, 24)
+    const goTo = goToItems(letters.map(letter => item(`/x-${letter}`, letter)), navItem => String((navItem as NavItem).labelKey))
+    expect(goTo.length).toBe(24)
+    expect(Math.max(PALETTE_RESULT_LIMIT, goTo.length)).toBeGreaterThanOrEqual(goTo.length)
+  })
+
+  it('keeps every palette group under the per-group cut the palette applies', () => {
+    // UCommandPalette slices each group at fuse.resultLimit. The limit used to derive from
+    // PALETTE_SECTION_LIMIT (8), which was exactly the size of the shortcut table: the whole G table and the
+    // last applications vanished. Both the help view and the actions group must fit.
+    const letters = 'abcdefghijklmnopqrstuvwxyz'.split('').slice(0, 24)
+    const rows = helpItems(letters.map(letter => item(`/x-${letter}`, letter)), key => key, navItem => `go ${navItem.to}`)
+    expect(SHORTCUT_HELP.length).toBeLessThan(PALETTE_RESULT_LIMIT)
+    expect(rows.length).toBeLessThanOrEqual(PALETTE_RESULT_LIMIT)
+    expect(rows.length).toBeGreaterThan(SHORTCUT_HELP.length)
   })
 })
 

@@ -197,6 +197,10 @@ suite('live PostgreSQL pinned subscription renewals',()=>{
     expect((await attemptsOf(f.order)).map(a=>[a.kind,a.status])).toEqual([['saved_card','failed']])
     expect((await pool.query("SELECT metadata FROM audit_events WHERE action='payment.saved_card_charge_refused' AND subject=$1",[f.order])).rows).toEqual([{metadata:expect.objectContaining({code:'duplicate_transaction'})}])
     expect(await noticesOf(f.s.id,'card_charge_failed')).toEqual([])
+    // The refused attempt is a try the vendor has to look into: no later day of the schedule charges the card again.
+    for(const day of [1,3,5,8]) await chargeSavedCards(pool,chargeArgs(f.adapter,dayOf(f.issued,day)))
+    expect(f.charge).toHaveBeenCalledTimes(1)
+    expect((await attemptsOf(f.order)).map(a=>[a.kind,a.status])).toEqual([['saved_card','failed']])
   })
   it('classifies every message recorded in the spike, and an unknown or missing one as soft',()=>{
     expect(['DECLINED: LOST CARD','DECLINED: STOLEN CARD','DECLINED: EXPIRED CARD','declined: lost card ','3DS: service error occurred.','3DS: Card authentication declined.',

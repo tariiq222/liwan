@@ -267,8 +267,39 @@ async function onHeaderPicked(event: Event) {
   }
 }
 
+// Inserting text at the caret rather than replacing the draft: picking a canned reply used to wipe whatever the agent
+// had already typed, which lost their words with no undo.
+function insertAtCaret(body: string) {
+  const element = textarea.value?.textareaRef
+  const current = draft.value
+  // The suggestion list shows only while the whole draft is a shortcut («/شكر»), and picking one must consume it: inserting
+  // at the caret left `/شكر` in the message, which then went to the customer with the reply.
+  if (/^\/\S*$/.test(current.trim())) {
+    draft.value = body
+    void nextTick(() => {
+      const target = element
+      if (!target) return
+      target.focus()
+      target.setSelectionRange(body.length, body.length)
+    })
+    return
+  }
+  if (!element) {
+    draft.value = current ? `${current}${current.endsWith(' ') ? '' : ' '}${body}` : body
+    return
+  }
+  const start = element.selectionStart ?? current.length
+  const end = element.selectionEnd ?? start
+  draft.value = `${current.slice(0, start)}${body}${current.slice(end)}`
+  void nextTick(() => {
+    const caret = start + body.length
+    element.focus()
+    element.setSelectionRange(caret, caret)
+  })
+}
+
 function pickSuggestion(body: string) {
-  draft.value = body
+  insertAtCaret(body)
 }
 // A canned reply is text: it returns from a structured panel to text composition so the textarea shows it and send sends it.
 function pickCanned(body: string) {
@@ -360,7 +391,7 @@ async function submit() {
       icon="i-lucide-clock"
       data-testid="inbox-window-closed"
       :title="t('inbox.composer.windowClosed')"
-      :description="props.conversation.reply_window_ends_at ? t(windowClosedDescriptionKey(kind)) : t('inbox.composer.noWindow')"
+      :description="props.conversation.reply_window_ends_at ? t(windowClosedDescriptionKey(kind)) : t(`inbox.composer.noWindowByKind.${kind}`)"
     />
     <template v-if="templateMode">
       <UFormField :label="t('inbox.composer.template')">
@@ -413,7 +444,7 @@ async function submit() {
       <div v-if="upload" class="flex items-center gap-2 rounded-control bg-elevated/50 px-3 py-1.5 text-sm" data-testid="inbox-upload">
         <UIcon name="i-lucide-paperclip" class="size-4 shrink-0 text-muted" aria-hidden="true" />
         <span class="min-w-0 flex-1 truncate">{{ upload.name }}</span>
-        <span class="shrink-0 text-xs text-muted">{{ inboxFileSize(upload.size) }}</span>
+        <span class="shrink-0 text-xs text-muted">{{ inboxFileSize(upload.size, t) }}</span>
         <span v-if="uploading" class="inline-flex shrink-0 items-center gap-1 text-xs text-muted" role="status"><UIcon name="i-lucide-loader-circle" class="size-3.5 animate-spin" aria-hidden="true" />{{ t('inbox.composer.uploading') }}</span>
         <UButton type="button" color="neutral" variant="ghost" size="sm" icon="i-lucide-x" :aria-label="t('inbox.composer.removeFile')" @click="discardUpload" />
       </div>

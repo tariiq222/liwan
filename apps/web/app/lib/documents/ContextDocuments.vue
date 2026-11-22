@@ -219,7 +219,7 @@ async function shareWithEmployee() {
       </template>
     </SharedPageState>
     <SharedPageState v-else :loading="list.isPending.value" :error="list.error.value" @retry="list.refetch()">
-      <SharedEmptyState icon="i-lucide-files" v-if="!list.data.value?.items.length" :title="t('documents.personal.empty')" />
+      <SharedEmptyState icon="i-lucide-files" v-if="!list.data.value?.items.length" :title="t(kind === 'employee' ? 'documents.personal.empty' : 'documents.empty')" />
       <ul v-else class="grid gap-3">
         <li v-for="document in list.data.value.items" :key="document.id">
           <UButton variant="ghost" :to="recordHref(document.id)" :label="document.name" />

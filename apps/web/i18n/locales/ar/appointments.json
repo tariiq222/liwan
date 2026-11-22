@@ -124,6 +124,57 @@
           "hidden": "مخفي"
         }
       }
+    },
+    "list": {
+      "new": "موعد جديد",
+      "day": "اليوم",
+      "previousDay": "اليوم السابق",
+      "nextDay": "اليوم التالي",
+      "today": "اليوم",
+      "state": "الحالة",
+      "type": "النوع",
+      "allStates": "كل الحالات",
+      "allTypes": "كل الأنواع",
+      "requester": "مقدم الطلب",
+      "time": "الوقت",
+      "unscheduled": "بلا وقت",
+      "empty": "لا مواعيد في هذا اليوم."
+    },
+    "state": {
+      "pending": "بانتظار الجدولة",
+      "scheduled": "مجدول",
+      "confirmed": "مؤكد",
+      "canceled": "ملغى"
+    },
+    "form": {
+      "type": "نوع الموعد",
+      "chooseType": "اختر النوع",
+      "requester": "اسم مقدم الطلب",
+      "phone": "الجوال",
+      "typeRequired": "اختر نوع الموعد.",
+      "nameRequired": "اكتب اسم مقدم الطلب.",
+      "timeRequired": "اختر اليوم والوقت.",
+      "walkIn": "زيارة بلا موعد مسبق",
+      "walkInHint": "يُسجَّل الموعد لمن حضر مباشرة دون حجز."
+    },
+    "record": {
+      "notFound": "الموعد غير موجود أو لا تملك صلاحيته.",
+      "details": "تفاصيل الموعد",
+      "confirm": "تأكيد",
+      "reschedule": "إعادة جدولة",
+      "cancel": "إلغاء الموعد",
+      "attendance": "تسجيل الحضور",
+      "invitation": "إرسال دعوة",
+      "day": "اليوم",
+      "duration": "المدة",
+      "notes": "ملاحظات",
+      "visitReason": "سبب الزيارة",
+      "cancelReason": "سبب الإلغاء",
+      "time": "الوقت",
+      "confirmTitle": "تأكيد الموعد؟ ينضم إلى جدول اليوم.",
+      "cancelTitle": "إلغاء الموعد؟ يُبلَّغ مقدم الطلب.",
+      "attendanceTitle": "تسجيل حضور مقدم الطلب؟",
+      "invitationTitle": "إرسال دعوة الموعد إلى مقدم الطلب؟"
     }
   }
 }

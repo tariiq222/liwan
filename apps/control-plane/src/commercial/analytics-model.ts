@@ -5,7 +5,10 @@ export const DAY_MS = 86_400_000
 const RIYADH_OFFSET_MS = 3 * 3_600_000
 
 /** The price lines a subscription revision was sold with (`pricing` of the revision snapshot). */
-export interface PricingBaseline { base_minor: number, bundle_minor: Record<string, number>, paid_extra_branches: number, branch_unit_minor: number }
+export interface PricingBaseline {
+  base_minor: number, bundle_minor: Record<string, number>, paid_extra_branches: number, branch_unit_minor: number
+  paid_users: number, user_unit_minor: number, paid_storage_gb: number, storage_unit_minor: number
+}
 
 /** One applied order: from `applied_at` on, its revision is what the subscription is billed for. */
 export interface AppliedOrder {
@@ -13,9 +16,18 @@ export interface AppliedOrder {
   mrr_minor: number, branch_mrr_minor: number, cycle_minor: number, arr_minor: number
   /** The order that dropped a cancelled subscription to the free base: its lost recurring revenue is churn, not contraction. */
   churn?: boolean
+  /** The revision owes something each period (`owesAtRenewal`); a free-base or free-plan subscription is a customer but not a paying one. */
+  paying: boolean
 }
 
 export type Timelines = Map<string, AppliedOrder[]>
+
+/**
+ * A scalar condition: the invoice the `invoiceId` SQL expression names is not only an AI top-up. A top-up bought during a trial is money
+ * but not the customer starting to pay for the subscription, so it never counts as a paid conversion; a top-up bundled with plan lines does.
+ */
+export const notOnlyAiTopupSql = (invoiceId: string) => `(NOT EXISTS (SELECT 1 FROM invoice_lines tl WHERE tl.invoice_id=${invoiceId} AND tl.kind='ai_topup')
+  OR EXISTS (SELECT 1 FROM invoice_lines pl WHERE pl.invoice_id=${invoiceId} AND pl.kind NOT IN ('ai_topup','tax') AND pl.amount_minor>0))`
 
 export const monthsOf = (cadence: Cadence): number => (cadence.unit === 'year' ? 12 * cadence.count : cadence.count)
 
@@ -23,7 +35,9 @@ export const monthsOf = (cadence: Cadence): number => (cadence.unit === 'year' ?
 export function recurringOf(pricing: PricingBaseline, cadence: Cadence) {
   const months = monthsOf(cadence)
   const branchCycle = pricing.paid_extra_branches * pricing.branch_unit_minor
+  // The same lines the renewal invoice bills (`owesAtRenewal`): base, bundles, extra branches, paid users and paid storage.
   const cycle = pricing.base_minor + Object.values(pricing.bundle_minor).reduce((sum, minor) => sum + minor, 0) + branchCycle
+    + pricing.paid_users * pricing.user_unit_minor + pricing.paid_storage_gb * pricing.storage_unit_minor
   return {
     cycle_minor: Math.round(cycle), mrr_minor: Math.round(cycle / months), branch_mrr_minor: Math.round(branchCycle / months),
     // Kept exact (not 12 x the rounded MRR); the sum is rounded once when it is shown.
@@ -51,10 +65,10 @@ export function inForceAt(timeline: readonly AppliedOrder[], at: number): Applie
   return found
 }
 
-export interface BookAt { mrr_minor: number, arr_minor: number, branch_mrr_minor: number, customers: number, plans: Map<string, { name: string, customers: number, mrr_minor: number }> }
+export interface BookAt { mrr_minor: number, arr_minor: number, branch_mrr_minor: number, customers: number, paying_customers: number, plans: Map<string, { name: string, customers: number, mrr_minor: number }> }
 
 export function bookAt(timelines: Timelines, at: number): BookAt {
-  const book: BookAt = { mrr_minor: 0, arr_minor: 0, branch_mrr_minor: 0, customers: 0, plans: new Map() }
+  const book: BookAt = { mrr_minor: 0, arr_minor: 0, branch_mrr_minor: 0, customers: 0, paying_customers: 0, plans: new Map() }
   for (const timeline of timelines.values()) {
     const order = inForceAt(timeline, at)
     if (!order) continue
@@ -62,6 +76,7 @@ export function bookAt(timelines: Timelines, at: number): BookAt {
     book.arr_minor += order.arr_minor
     book.branch_mrr_minor += order.branch_mrr_minor
     book.customers += 1
+    if (order.paying) book.paying_customers += 1
     const plan = book.plans.get(order.plan_id) ?? { name: order.plan_name, customers: 0, mrr_minor: 0 }
     plan.customers += 1
     plan.mrr_minor += order.mrr_minor
@@ -71,13 +86,21 @@ export function bookAt(timelines: Timelines, at: number): BookAt {
 }
 
 export interface PlanChange { from_plan: string, to_plan: string, direction: 'upgrade' | 'downgrade' | 'lateral', count: number }
-export interface Movement { new_minor: number, expansion_minor: number, contraction_minor: number, churned_minor: number, new_customers: number, churned_customers: number, plan_changes: PlanChange[] }
+export interface Movement { new_minor: number, expansion_minor: number, contraction_minor: number, churned_minor: number, new_customers: number, churned_customers: number, plan_changes: PlanChange[]
+  /** Churn of the customers already in the book when the period opened, at the revenue they had then: the numerators of the churn rates, so a rate cannot exceed one. */
+  opening_churned_customers: number, opening_churned_minor: number
+}
 
 /** What the orders applied in [from, to) did to recurring revenue. */
 export function movementIn(timelines: Timelines, from: number, to: number): Movement {
-  const movement: Movement = { new_minor: 0, expansion_minor: 0, contraction_minor: 0, churned_minor: 0, new_customers: 0, churned_customers: 0, plan_changes: [] }
+  const movement: Movement = { new_minor: 0, expansion_minor: 0, contraction_minor: 0, churned_minor: 0, new_customers: 0, churned_customers: 0, plan_changes: [], opening_churned_customers: 0, opening_churned_minor: 0 }
   const changes = new Map<string, PlanChange>()
   for (const timeline of timelines.values()) {
+    const opening = inForceAt(timeline, from)
+    if (opening && timeline.some((order, index) => order.churn && order.applied_at >= from && order.applied_at < to && order.mrr_minor < timeline[index - 1]!.mrr_minor)) {
+      movement.opening_churned_customers += 1
+      movement.opening_churned_minor += opening.mrr_minor
+    }
     timeline.forEach((order, index) => {
       if (order.applied_at < from || order.applied_at >= to) return
       const previous = timeline[index - 1]
@@ -141,13 +164,16 @@ export function settleTrials(timelines: Timelines, trialEnds: ReadonlyMap<string
   return settled
 }
 
+/** The departed (suspended or cancelled) subscriptions and when each left service, epoch ms; null when it left before the time was recorded. */
+export type Departed = ReadonlyMap<string, number | null>
+
 /**
- * The book at instant `at`. The control plane stores no time for a subscription leaving service, so a past instant
- * is only known when no departed (suspended or cancelled) subscription had started billing before it. An instant at or after
+ * The book at instant `at`. A departed subscription with a recorded time is in the book up to that time and out of it after.
+ * One without a recorded time leaves a past instant unknown if it had started billing before it. An instant at or after
  * `now` is today's book, where departed subscriptions are simply not billable.
  */
-export function bookInHistory(timelines: Timelines, departed: ReadonlySet<string>, at: number, now: number): BookAt | null {
+export function bookInHistory(timelines: Timelines, departed: Departed, at: number, now: number): BookAt | null {
   if (at > now) return bookAt(new Map([...timelines].filter(([id]) => !departed.has(id))), now + 1)
-  for (const id of departed) if ((timelines.get(id)?.[0]?.applied_at ?? Infinity) < at) return null
-  return bookAt(timelines, at)
+  for (const [id, left] of departed) if (left === null && (timelines.get(id)?.[0]?.applied_at ?? Infinity) < at) return null
+  return bookAt(new Map([...timelines].filter(([id]) => (departed.get(id) ?? Infinity) >= at)), at)
 }

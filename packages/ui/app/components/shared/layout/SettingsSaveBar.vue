@@ -29,7 +29,7 @@ const announcement = computed(() => shown.value ? summary.value : '')
   <p class="sr-only" aria-live="polite" aria-atomic="true" data-testid="settings-save-bar-announcement">{{ announcement }}</p>
   <div
     v-if="shown"
-    class="sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-3 rounded-surface bg-inverted px-4 py-2 text-inverted shadow-lg"
+    class="sticky bottom-[calc(var(--shell-tabbar-height)+env(safe-area-inset-bottom)+1rem)] z-10 flex flex-wrap items-center justify-between gap-3 rounded-surface bg-inverted px-4 py-2 text-inverted shadow-lg md:bottom-4"
     role="region"
     :aria-label="t('app.saveBar')"
     data-testid="settings-save-bar"

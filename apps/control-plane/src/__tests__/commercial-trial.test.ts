@@ -74,6 +74,20 @@ suite('commercial trial', () => {
     await expect(startTrial(pool, { customer_id: c.id, request: { ...request(), requested_users: 4 }, principal: c.principal, now }))
       .rejects.toMatchObject({ code: 'trial_already_used' })
   })
+  it('starts a trial for a customer whose subscription row has moved past revision 0 without applying anything', async () => {
+    const c = await newCustomer()
+    await pool.query('INSERT INTO subscriptions(id,customer_id,tenant_id,revision) SELECT $1,id,tenant_id,2 FROM customers WHERE id=$2', [randomUUID(), c.id])
+    const result = await startTrial(pool, { customer_id: c.id, request: request(), principal: c.principal, now })
+    expect(result.order.fulfillment_state).toBe('queued')
+    expect(result.subscription).toMatchObject({ state: 'trialing' })
+  })
+  it('refuses a trial for a customer with no administrator the fulfilment can reach, and does not use up the trial', async () => {
+    const lone = randomUUID()
+    owned.add(lone)
+    await pool.query('INSERT INTO customers(id,name) VALUES($1,$2)', [lone, 'No administrator'])
+    await expect(startTrial(pool, { customer_id: lone, request: request(), principal: { actor_id: '7', kind: 'vendor', customer_id: null, tenant_id: null, capabilities: ['vendor.subscriptions.manage'] } as unknown as Principal, now })).rejects.toMatchObject({ status: 409, code: 'admin_login_required' })
+    expect((await pool.query('SELECT trial_used_at FROM customers WHERE id=$1', [lone])).rows[0].trial_used_at).toBeNull()
+  })
   it('replays a resent customer start after the trial order was fulfilled', async () => {
     const c = await newCustomer()
     // The customer page sends the revision it saw (0); the start itself moves the subscription past it.

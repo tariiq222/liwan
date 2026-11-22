@@ -20,6 +20,9 @@ export function createAdminAccounts(request: Request) {
     },
     setRoles: (id: number, roles: TeamRole[], reason: string): Promise<void> => post<void>(`admin/accounts/${id}/roles`, { roles, reason: reason.trim() }),
     disable: (id: number, reason: string): Promise<void> => post<void>(`admin/accounts/${id}/disable`, { reason: reason.trim() }),
+    async enable(id: number, reason: string): Promise<TeamInvitation> {
+      return invitationOf(await post<InvitationBody>(`admin/accounts/${id}/enable`, { reason: reason.trim() }))
+    },
     async reset(id: number, reason: string): Promise<TeamInvitation> {
       return invitationOf(await post<InvitationBody>(`admin/accounts/${id}/reset`, { reason: reason.trim() }))
     },

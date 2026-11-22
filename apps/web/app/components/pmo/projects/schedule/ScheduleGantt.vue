@@ -4,6 +4,7 @@ import { STATE_TONE, type StateTone } from '@/composables/taskState'
 import { milestoneBadge } from '@/components/pmo/projects/milestoneState'
 import { MONTH_DAYS, buildScheduleAxis, formatScheduleDate, scheduleBarStyle, scheduleColumnLastDay, scheduleDatePosition, scheduleFocusDate, type ScheduleScale } from '@/utils/projectSchedule'
 import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
+import { localIsoDay } from '@liwan/ui/app/utils/formatDate'
 
 const BAR_TONE: Record<StateTone | 'primary', string> = {
   primary: 'schedule-gantt-bar-info',
@@ -40,7 +41,9 @@ const axis = computed(() => buildScheduleAxis(props.schedule.tasks, props.schedu
   end: props.projectEnd,
 }, baselineDates.value))
 const datedMilestones = computed(() => props.schedule.milestones.filter(item => item.deadline))
-const today = computed(() => hydrated.value ? new Date().toISOString().slice(0, 10) : '')
+// The browser's own day: toISOString gave the UTC day, so between 00:00 and 03:00 in Riyadh the «today» line sat
+// on yesterday.
+const today = computed(() => hydrated.value ? localIsoDay() : '')
 const showToday = computed(() => !!today.value && today.value >= axis.value.start && today.value < axis.value.end)
 // A long project makes the axis group several weeks or months into one column; say so, because
 // the toggle still reads "weekly" or "monthly".

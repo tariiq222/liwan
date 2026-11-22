@@ -29,6 +29,11 @@ describe('admin accounts calls', () => {
     expect(request).toHaveBeenCalledWith('admin/accounts/7/disable', { method: 'POST', body: { reason: 'left the company' } })
   })
 
+  it('returns the enrollment link material of an enabled account', async () => {
+    const request = vi.fn().mockResolvedValue({ invitation_token: 'back', expires_at: '2026-10-17T00:00:00.000Z' })
+    expect(await createAdminAccounts(request).enable(7, ' came back ')).toEqual({ token: 'back', expiresAt: '2026-10-17T00:00:00.000Z' })
+    expect(request).toHaveBeenCalledWith('admin/accounts/7/enable', { method: 'POST', body: { reason: 'came back' } })
+  })
   it('returns the new enrollment link material of a reset', async () => {
     const { api, request } = setup({ invitation_token: 'again', expires_at: '2026-10-17T00:00:00.000Z' })
     expect(await api.reset(7, 'lost device')).toEqual({ token: 'again', expiresAt: '2026-10-17T00:00:00.000Z' })

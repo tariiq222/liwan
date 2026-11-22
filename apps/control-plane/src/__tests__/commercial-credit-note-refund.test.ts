@@ -489,11 +489,11 @@ suite('operator refund of a pending credit note on PostgreSQL', () => {
     expect(await refundRows(f.order)).toEqual([expect.objectContaining({ status: 'failed', payload: expect.objectContaining({ error: 'provider_refund_unavailable' }) })])
     expect((await vendorNoteOf(f.invoice))[0]).toMatchObject({ id: note.id, status: 'pending' })
     expect(await notesOf(f.invoice)).toHaveLength(1)
-    expect((await attention(pool, true)).items.filter(i => i.kind === 'refund_rejected' && i.customer_id === f.customer)).toHaveLength(1)
+    expect((await attention(pool, true)).items.filter(i => i.kind === 'refund_not_sent' && i.customer_id === f.customer)).toHaveLength(1)
     expect((await getVendorInvoice(pool, f.invoice))!.adjustments[0]).toMatchObject({ status: 'pending', automatic_refund: { state: 'failed', reason: 'provider_refund_unavailable' }, manual_record_allowed: true })
     await expect(recordRef(note.id, 'MANUAL-1')).resolves.toMatchObject({ status: 'refunded', refund_reference: 'MANUAL-1', refunded_by: 'vendor-test:7' })
     expect(await lockOf(f.sub)).toMatchObject({ cause: 'refund' })
-    expect((await attention(pool, true)).items.filter(i => i.kind === 'refund_rejected' && i.customer_id === f.customer)).toHaveLength(0)
+    expect((await attention(pool, true)).items.filter(i => i.kind === 'refund_not_sent' && i.customer_id === f.customer)).toHaveLength(0)
   })
 
   it('keeps a bank-transfer-paid invoice manual: no provider refund is queued', async () => {
@@ -581,7 +581,7 @@ suite('operator refund of a pending credit note on PostgreSQL', () => {
     expect(await refundRows(f.order)).toEqual([expect.objectContaining({ status: 'pending', payload: expect.objectContaining({ provider_refund: 'returned', error: 'lock_pending' }) })])
     expect((await getVendorInvoice(pool, f.invoice))!.adjustments[0]).toMatchObject({ status: 'pending', automatic_refund: { state: 'refunded_recording', reason: 'lock_pending' }, manual_record_allowed: false })
     await noMoreOperatorRecord(f, note.id)
-    expect((await attention(pool, true)).items.filter(i => i.kind === 'refund_rejected' && i.customer_id === f.customer)).toHaveLength(0)
+    expect((await attention(pool, true)).items.filter(i => i.kind === 'refund_not_sent' && i.customer_id === f.customer)).toHaveLength(0)
     await pool.query('DELETE FROM free_base_locks WHERE subscription_id=$1', [f.sub])
     await runAgain(f, 1)
     expect(refund).toHaveBeenCalledTimes(1)

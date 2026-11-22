@@ -48,8 +48,11 @@ const profile = useQuery({
 })
 const employeeCaption = computed(() => profile.data.value?.value ? profile.data.value.caption : undefined)
 const linked = computed(() => !!profile.data.value?.value)
-const SERVICE_SECTIONS = ['profile', 'leave', 'pay', 'schedule', 'documents', 'requests'] as const
-const services = computed(() => SERVICE_SECTIONS.flatMap(section => entries.value.filter(entry => entry.section === section).slice(0, 1)))
+// Every service the user can reach, in section order. Taking one per section dropped three of the four entries
+// that share the `profile` section (onboarding, warnings, insurance), so those pages vanished from the menu while
+// the account page still listed them. Only the leave action below stays a single row: it is an action, not a link.
+const SERVICE_SECTIONS = ['profile', 'leave', 'requests', 'pay', 'assets', 'documents', 'schedule'] as const
+const services = computed(() => SERVICE_SECTIONS.flatMap(section => entries.value.filter(entry => entry.section === section)))
 const leaveAction = computed(() => {
   const leave = entries.value.find(entry => entry.section === 'leave')
   return leave ? personalAction(leave, me.value) : null

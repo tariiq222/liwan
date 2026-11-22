@@ -86,16 +86,16 @@ export async function recoverSharedJob(pool: Pool, id: string, actor: { issuer: 
   }
   const before = await transaction(pool, inspect)
   const observation = await adapter.observe(before.job)
-  const preliminary = reconcileSharedJob(before.job,before.target,before.row.journal,observation)
+  const preliminary = reconcileSharedJob(before.job,before.target,before.row.journal,observation,{operatorRecovery:true})
   const fresh = ['record_verified','replay_verified'].includes(preliminary.action)
     ? await adapter.observe(before.job) : observation
   return transaction(pool, async client => {
     const { row, job, target, fence } = await inspect(client)
     if (row.attempt_id !== before.row.attempt_id || fence !== before.fence ||
         JSON.stringify(row.journal) !== JSON.stringify(before.row.journal)) throw new Error('shared_lease_lost')
-    // Sticky intervention journal is deliberately not erased by recovery. An
-    // expired started journal can finalize exact existing effects, never execute.
-    const decision = reconcileSharedJob(job,target,row.journal,observation)
+    // Recovery is the one explicit operator request that may complete a job whose journal is in intervention: only a
+    // fresh present, verified observation matching the job's key and digest does, and it never executes an effect.
+    const decision = reconcileSharedJob(job,target,row.journal,observation,{operatorRecovery:true})
     await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)', [randomUUID(),actorLabel(actor),'shared_job.recovery_observed',id,reason])
     if (!['record_verified','replay_verified'].includes(decision.action)) return { state:'needs_intervention' }
     const journal = { ...row.journal,sequence:nextSequence(row.journal.sequence),stage:'verified' }

@@ -32,6 +32,8 @@ const allocation = {
   number_of_days: 5, date_from: '2026-11-01', date_to: null, state: 'validate',
 }
 
+const balances = () => ({ data: Vue.ref({ items: [], total: 0 }), isLoading: Vue.ref(false), error: Vue.ref(null), refetch: vi.fn() })
+
 function allocationForm(update = vi.fn().mockResolvedValue(allocation), create = vi.fn()) {
   const employees = vi.fn((..._args: unknown[]) => query())
   const types = vi.fn((..._args: unknown[]) => query())
@@ -49,7 +51,7 @@ describe('leave request form', () => {
     const types = vi.fn((..._args: unknown[]) => query())
     const { state } = setup('LeaveRequestForm.vue', { backTo: '/account/leave' }, {
       watch: Vue.watch, refDebounced: (value: unknown) => value, useAccess: () => ({ can: () => true }),
-      useHrLeaveTypes: types, useHrEmployees: () => query(), useCreateLeaveRequest: () => ({ mutateAsync: vi.fn(), isPending: Vue.ref(false) }),
+      useHrLeaveTypes: types, useHrEmployees: () => query(), useHrLeaveBalances: balances, useCreateLeaveRequest: () => ({ mutateAsync: vi.fn(), isPending: Vue.ref(false) }),
     })
     expect(Vue.toValue((types.mock.calls[0]![0] as { mine: unknown }).mine)).toBe(true)
     state.leaveTypeId.value = 5

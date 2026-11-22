@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { Adjustment, Invoice, Order, SubscriptionView } from '@liwan/commercial-contracts'
 import {
-  customersReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, daysUntilDate, invoiceListQuery, isNotAvailable, isStalled, targetStatus, termsPayload, usageDisplay, usageMetricLabel, lineQuantities, formatBytes, vendorInvoiceLineViews, parseTransferAmount, refundRequestBlock, transferFormDefaults, validRefundDraft, validRefundReason,
+  customersReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, daysUntilDate, invoiceListQuery, isNotAvailable, isStalled, targetStatus, termsPayload, usageDisplay, usageMetricLabel, lineQuantities, formatBytes, vendorInvoiceLineViews, parseTransferAmount, refundRequestBlock, voidAction, voidErrorKey, voidReasonKey, validVoidDraft, aiTopupRefundable, transferFormDefaults, validRefundDraft, validRefundReason,
+  planBundleIds, requestedQuantities, currentPaidQuantities, orderOutcomeUnknown,
   type VendorCustomer, type VendorInvoice, adminLoginErrorKey, cardActionErrorKey, deletionErrorKey,
 } from '../vendorSubscriptions'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
@@ -60,6 +61,39 @@ describe('terms payload', () => {
     const body = customerQuoteBody('c', sub(), { terms: { included_extra_branches: 4 } })
     expect(body).toMatchObject({ customer_id: 'c', kind: 'change', subscription_id: 's', expected_subscription_revision: 2, requested_extra_branches: 1, requested_users: 10, requested_storage_mb: 10240, terms: { included_extra_branches: 4 } })
     expect(() => customerQuoteBody('c', sub({ applied: null }))).toThrow('no_subscription')
+  })
+  it('asks for the terms in force with preview, which the plain body never carries', () => {
+    expect(customerQuoteBody('c', sub(), { preview: true })).toMatchObject({ preview: true })
+    expect(customerQuoteBody('c', sub())).not.toHaveProperty('preview')
+  })
+})
+describe('a first paid subscription and a full subscription change', () => {
+  const plan = { included_bundle_revision_ids: ['b1'], optional_bundle_revision_ids: ['b2', 'b3'], included_users: 10, included_storage_mb: 10240 }
+  const month = { unit: 'month' as const, count: 1 }
+  it('quotes a customer with no subscription as a new subscription at revision 0, carrying the onboarding line', () => {
+    const body = customerQuoteBody('c', null, { planRevisionId: 'p', bundleIds: ['b1'], cadence: month, onboarding: true })
+    expect(body).toMatchObject({ customer_id: 'c', kind: 'new', plan_revision_id: 'p', expected_subscription_revision: 0, onboarding: true })
+    expect(body).not.toHaveProperty('subscription_id')
+    expect(customerQuoteBody('c', null, { planRevisionId: 'p', bundleIds: ['b1'], cadence: month })).not.toHaveProperty('onboarding')
+  })
+  it('builds the bundles from the new plan: its included ones and the chosen optional ones it offers', () => {
+    expect(planBundleIds(plan, ['b3', 'old-plan-bundle', 'b1'])).toEqual(['b1', 'b3'])
+    expect(planBundleIds(plan, [])).toEqual(['b1'])
+  })
+  it('turns paid users and paid storage into the requested totals', () => {
+    expect(requestedQuantities(plan, { paidUsers: 5, paidStorageGb: 2 })).toEqual({ users: 15, storageMb: 12288 })
+  })
+  it('keeps what the customer has: the current totals above the new plan inclusions, never below', () => {
+    const view = sub()
+    expect(currentPaidQuantities(plan, view)).toEqual({ paidUsers: 0, paidStorageGb: 0 })
+    expect(currentPaidQuantities({ ...plan, included_users: 4, included_storage_mb: 5120 }, view)).toEqual({ paidUsers: 6, paidStorageGb: 5 })
+    expect(currentPaidQuantities(plan, null)).toEqual({ paidUsers: 0, paidStorageGb: 0 })
+  })
+  it('keeps an order key only when the outcome of the attempt is unknown', () => {
+    expect(orderOutcomeUnknown({ status: 503 })).toBe(true)
+    expect(orderOutcomeUnknown(new TypeError('fetch failed'))).toBe(true)
+    expect(orderOutcomeUnknown({ status: 422, data: { code: 'quote_expired' } })).toBe(false)
+    expect(orderOutcomeUnknown({ status: 409, data: { code: 'revision_conflict' } })).toBe(false)
   })
 })
 describe('isNotAvailable', () => {
@@ -189,5 +223,70 @@ describe('adminLoginErrorKey', () => {
     expect(adminLoginErrorKey({ status: 409, data: { code: 'workspace_not_activated' } })).toBe('vendor.customers.adminLogin.errors.workspace_not_activated')
     expect(adminLoginErrorKey({ status: 409, data: { code: 'no_workspace' } })).toBe('vendor.customers.adminLogin.errors.no_workspace')
     expect(adminLoginErrorKey({ status: 404, data: { code: 'not_found' } })).toBe('vendor.pricing.errors.not_found')
+  })
+})
+
+describe('AI top-up refund offer', () => {
+  const money = { minor: 2500, exponent: 2, currency: 'SAR' }
+  const line = (kind: string, minor = 2500) => ({ key: kind, kind, amount: { ...money, minor } })
+  const later = (o: Record<string, unknown> = {}) => ({ status: 'paid', order_id: 'order-1', lines: [line('ai_topup'), line('tax', 375)], adjustments: [] as Adjustment[],
+    refund: { refundable: false, first_payment: false, until: '2026-11-20T23:59:59+03:00', window_days: 14, locks_subscription: false }, ...o }) as never
+  const inside = new Date('2026-11-20T20:00:00Z'), after = new Date('2026-11-21T00:00:00Z')
+  it('is offered for a paid, later, in-window invoice that bought only an AI top-up (tax aside)', () => {
+    expect(aiTopupRefundable(later(), inside)).toBe(true)
+  })
+  it('is withheld otherwise: unpaid, first payment, window over or unknown, mixed lines, no top-up, no order, or any credit note', () => {
+    expect(aiTopupRefundable(later({ status: 'issued' }), inside)).toBe(false)
+    expect(aiTopupRefundable(later({ refund: { refundable: true, first_payment: true, until: '2026-11-20T23:59:59+03:00', window_days: 14, locks_subscription: false } }), inside)).toBe(false)
+    expect(aiTopupRefundable(later(), after)).toBe(false)
+    expect(aiTopupRefundable(later({ refund: { refundable: false, first_payment: false, until: null, window_days: 14, locks_subscription: false } }), inside)).toBe(false)
+    expect(aiTopupRefundable(later({ lines: [line('ai_topup'), line('base', 9900)] }), inside)).toBe(false)
+    expect(aiTopupRefundable(later({ lines: [line('base', 9900)] }), inside)).toBe(false)
+    expect(aiTopupRefundable(later({ order_id: null }), inside)).toBe(false)
+    for (const status of ['pending', 'refunded']) expect(aiTopupRefundable(later({ adjustments: [{ kind: 'credit_note', origin: 'system', status }] }), inside)).toBe(false)
+    expect(aiTopupRefundable(later({ adjustments: [{ kind: 'credit_note', origin: 'vendor', status: 'void' }] }), inside)).toBe(true)
+  })
+  it('never holds together with an open general refund request', () => {
+    for (const first_payment of [true, false]) for (const refundable of [true, false]) for (const open of [true, false]) {
+      const invoice = later({ refund: { refundable: refundable && first_payment, first_payment, until: '2026-11-20T23:59:59+03:00', window_days: 14, locks_subscription: false } }) as never
+      const topup = aiTopupRefundable(invoice, open ? inside : after)
+      const general = refundRequestBlock(invoice) === null
+      expect(topup && general, `${first_payment}/${refundable}/${open}`).toBe(false)
+    }
+  })
+})
+
+describe('void of an unpaid renewal invoice', () => {
+  const invoice = (o: Record<string, unknown> = {}) => ({ status: 'issued', kind: 'renewal', voidable: true, void_block: null, adjustments: [], ...o }) as Parameters<typeof voidAction>[0]
+  it('is available only on a voidable unpaid renewal invoice, for an operator who holds both grants', () => {
+    expect(voidAction(invoice(), true)).toEqual({ kind: 'available' })
+    expect(voidAction(invoice(), false)).toEqual({ kind: 'hidden' })
+  })
+  it('names the block the server gives when the invoice cannot be voided now', () => {
+    for (const block of ['payment_reconciliation_required', 'transfer_claimed', 'renewal_in_progress', 'lock_pending', 'tenant_retiring'] as const)
+      expect(voidAction(invoice({ voidable: false, void_block: block }), true)).toEqual({ kind: 'blocked', block })
+  })
+  it('is hidden when the server says it does not apply, whatever the status of the invoice', () => {
+    expect(voidAction(invoice({ voidable: false }), true)).toEqual({ kind: 'hidden' })
+    for (const status of ['draft', 'paid', 'void', 'credit_pending']) expect(voidAction(invoice({ status }), true), status).toEqual({ kind: 'hidden' })
+    for (const kind of ['initial', 'change', 'adjustment']) expect(voidAction(invoice({ kind }), true), kind).toEqual({ kind: 'hidden' })
+  })
+  it('never sits beside a refund: an invoice with any refund note offers no void', () => {
+    for (const status of ['pending', 'refunded', 'applied']) expect(voidAction(invoice({ adjustments: [{ kind: 'credit_note', status }] }), true), status).toEqual({ kind: 'hidden' })
+    expect(voidAction(invoice({ adjustments: [{ kind: 'credit_note', status: 'void' }] }), true)).toEqual({ kind: 'available' })
+  })
+  it('needs one of the two outcomes and a reason bounded like the server', () => {
+    expect(validVoidDraft({ outcome: 'end', reason: ' Customer left ' })).toBe(true)
+    expect(validVoidDraft({ outcome: 'rebill', reason: 'abc' })).toBe(true)
+    for (const draft of [{ outcome: '', reason: 'Customer left' }, { outcome: 'waive', reason: 'Customer left' }, { outcome: 'end', reason: 'ab' }, { outcome: 'end', reason: ' a ' }, { outcome: 'end', reason: 'x'.repeat(1001) }])
+      expect(validVoidDraft(draft), JSON.stringify(draft)).toBe(false)
+  })
+  it('words every block and refusal itself, and leaves other codes to the shared mapping', () => {
+    for (const code of ['invoice_not_voidable', 'payment_reconciliation_required', 'transfer_claimed', 'renewal_in_progress', 'lock_pending', 'tenant_retiring', 'subscription_suspended', 'subscription_change_pending', 'invoice_void_retry']) {
+      expect(voidReasonKey(code)).toBe(`vendor.invoices.void.reason.${code}`)
+      expect(voidErrorKey({ statusCode: 409, data: { code } })).toBe(`vendor.invoices.void.reason.${code}`)
+    }
+    expect(voidErrorKey({ statusCode: 403, data: { code: 'step_up_required' } })).toBe('vendor.pricing.errors.step_up_required')
+    expect(voidErrorKey({ statusCode: 500, data: { code: 'database exploded' } })).toBe('vendor.pricing.errors.generic')
   })
 })

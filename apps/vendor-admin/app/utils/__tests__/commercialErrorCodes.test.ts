@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { StepUpCancelled } from '../../composables/useStepUp'
+import { cancellationErrorKey, cardActionErrorKey, refundErrorKey } from '../vendorSubscriptions'
 import { COMMERCIAL_ERROR_CODES, commercialErrorKey } from '../vendorCommercial'
 
 /**
@@ -27,7 +29,7 @@ const GENERIC = 'vendor.pricing.errors.generic'
  * from `LifecyclePanel`), so they must be mapped too — a code the console cannot name renders "generic".
  */
 const PLAN_ISSUE_CODES = ['storage_step_misaligned', 'storage_step_invalid', 'platform_limit_derived',
-  'price_missing', 'branch_price_missing', 'unit_price_missing', 'branch_limit_invalid', 'storage_minimum_not_whole_gb']
+  'price_missing', 'branch_price_missing', 'unit_price_missing', 'branch_limit_invalid', 'storage_minimum_not_whole_gb', 'storage_step_not_whole_gb']
 
 describe('commercial error codes', () => {
   it('names every plan issue code the control plane can return', () => {
@@ -46,6 +48,10 @@ describe('commercial error codes', () => {
     expect(RELEASE1_BILLING_CODES.map(code => [code, commercialErrorKey({ data: { code } })]))
       .toEqual(RELEASE1_BILLING_CODES.map(code => [code, `vendor.pricing.errors.${code}`]))
     expect(RELEASE1_BILLING_CODES.filter(code => commercialErrorKey({ data: { code } }) === GENERIC)).toEqual([])
+  })
+
+  it('names the refusals of a retiring workspace and of an invitation that was already accepted', () => {
+    for (const code of ['tenant_retiring', 'invitation_accepted']) expect(commercialErrorKey({ data: { code } }), code).toBe(`vendor.pricing.errors.${code}`)
   })
 
   it('has a non-empty message for each mapped key in both languages, with identical key sets', async () => {
@@ -72,5 +78,10 @@ describe('commercial error codes', () => {
     expect(commercialErrorKey({ data: { data: { code: 'not_a_real_code' } } })).toBe(GENERIC)
     expect(commercialErrorKey({})).toBe(GENERIC)
     expect(commercialErrorKey(new Error('offline'))).toBe(GENERIC)
+  })
+
+  it('shows one message for a cancelled step-up in every commercial flow, never a failure', () => {
+    const cancelled = new StepUpCancelled()
+    for (const key of [commercialErrorKey, refundErrorKey, cancellationErrorKey, cardActionErrorKey]) expect(key(cancelled)).toBe('adminAuth.stepUp.cancelled')
   })
 })

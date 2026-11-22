@@ -12,6 +12,12 @@ export async function paidRenewalInFlight(client: Pick<PoolClient, 'query'>, sub
     AND NOT o.cancelled AND o.fulfillment_state<>'applied' AND o.payment_state IN ('paid','not_required') LIMIT 1${lock ? ' FOR UPDATE OF o' : ''}`, [subscriptionId])).rowCount === 1
 }
 
+/** A paid change still on its way blocks ending the subscription: the lock cannot replace a configuration that is about to change. */
+export async function pendingChangeRefusal(client: Pick<PoolClient, 'query'>, sub: Record<string, any>): Promise<'subscription_change_pending' | null> {
+  const pending = sub.target_revision_id || (await client.query("SELECT 1 FROM orders WHERE subscription_id=$1 AND NOT cancelled AND kind<>'renewal' AND fulfillment_state<>'applied' LIMIT 1", [sub.id])).rowCount
+  return pending ? 'subscription_change_pending' : null
+}
+
 /**
  * Why a subscription cannot be cancelled at the period end now, as the error code the routes answer, or null when it can.
  * A past-due subscription is refused: cancelling would otherwise let an unpaid invoice escape dunning, so the customer pays it
@@ -23,8 +29,8 @@ export async function cancelRefusal(client: Pick<PoolClient, 'query'>, sub: Reco
   if (sub.state === 'trialing') return 'cancel_trial_unsupported'
   if (await unresolvedFreeBaseLock(client, sub as { id: string })) return 'lock_pending'
   if (sub.state !== 'active') return 'subscription_past_due'
-  if (sub.target_revision_id || (await client.query("SELECT 1 FROM orders WHERE subscription_id=$1 AND NOT cancelled AND kind<>'renewal' AND fulfillment_state<>'applied' LIMIT 1", [sub.id])).rowCount)
-    return 'subscription_change_pending'
+  const changePending = await pendingChangeRefusal(client, sub)
+  if (changePending) return changePending
   if (await paidRenewalInFlight(client, sub.id)) return 'renewal_in_progress'
   const pricing = (await client.query("SELECT snapshot->'pricing' AS pricing FROM subscription_revisions WHERE id=$1", [sub.applied_revision_id])).rows[0].pricing
   return owesAtRenewal(pricing) ? null : 'nothing_to_cancel'

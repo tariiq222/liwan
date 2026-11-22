@@ -5,12 +5,13 @@ import type { TeamAccount } from '../../utils/team'
 
 const account: TeamAccount = { id: 7, email: 'w@x.test', display_name: 'Wafa', status: 'active', roles: ['support'], passkeys: 1, last_seen_at: null }
 
-function setup(overrides: Partial<Record<'invite' | 'setRoles' | 'disable' | 'reset', unknown>> = {}) {
+function setup(overrides: Partial<Record<'invite' | 'setRoles' | 'disable' | 'enable' | 'reset', unknown>> = {}) {
   const accounts = {
     list: vi.fn(),
     invite: vi.fn().mockResolvedValue({ token: 'secret-token', expiresAt: '2026-10-17T00:00:00.000Z' }),
     setRoles: vi.fn().mockResolvedValue(undefined),
     disable: vi.fn().mockResolvedValue(undefined),
+    enable: vi.fn().mockResolvedValue({ token: 'enable-token', expiresAt: '2026-10-17T00:00:00.000Z' }),
     reset: vi.fn().mockResolvedValue({ token: 'fresh-token', expiresAt: '2026-10-17T00:00:00.000Z' }),
     ...overrides,
   } as unknown as Parameters<typeof createTeamActions>[0]['accounts']
@@ -44,6 +45,16 @@ describe('team actions', () => {
     expect(team.invitation.value?.link).toBe('https://admin.example.test/enroll#fresh-token')
   })
 
+  it('enables a disabled account with a reason and shows its enrollment link once', async () => {
+    const { team, accounts, changed } = setup()
+    team.open({ kind: 'enable', account: { ...account, status: 'disabled' } })
+    await team.confirm('came back')
+    expect(accounts.enable).toHaveBeenCalledWith(7, 'came back')
+    expect(accounts.reset).not.toHaveBeenCalled()
+    expect(team.invitation.value).toEqual({ name: 'Wafa', link: 'https://admin.example.test/enroll#enable-token', expiresAt: '2026-10-17T00:00:00.000Z' })
+    expect(changed).toHaveBeenCalledOnce()
+  })
+
   it('keeps the panel open and names the last owner when the disable is refused', async () => {
     const { team, changed } = setup({ disable: vi.fn().mockRejectedValue({ statusCode: 409, data: { code: 'last_owner' } }) })
     team.open({ kind: 'disable', account })
@@ -64,7 +75,7 @@ describe('team actions', () => {
     const { team } = setup({ disable: vi.fn().mockRejectedValue(new StepUpCancelled()) })
     team.open({ kind: 'disable', account })
     await team.confirm('cleanup')
-    expect(team.errorKey.value).toBe('team.errors.stepUpCancelled')
+    expect(team.errorKey.value).toBe('adminAuth.stepUp.cancelled')
     expect(team.panel.value).not.toBeNull()
   })
 

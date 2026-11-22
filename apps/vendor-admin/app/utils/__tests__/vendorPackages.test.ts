@@ -23,8 +23,8 @@ describe('package presentation and editable request contract', () => {
     expect(packageLabel('feature', 'boolean:hr.enabled', key => key)).toBe('vendor.packages.features.hr')
   })
   it('accepts only the package list as return destination and preserves filters', () => {
-    expect(packageListReturnTo('/catalog?q=team&status=draft')).toBe('/catalog?q=team&status=draft')
-    for (const url of ['//evil.test', '/catalog/new', '/catalog/123/edit', '/tenants', '/catalog/../tenants']) expect(packageListReturnTo(url)).toBe('/catalog')
+    expect(packageListReturnTo('/packages?q=team&status=draft')).toBe('/packages?q=team&status=draft')
+    for (const url of ['//evil.test', '/packages/new', '/packages/123/edit', '/tenants', '/packages/../tenants']) expect(packageListReturnTo(url)).toBe('/packages')
   })
   it('validates required metadata and emits only editable input with all applicable limits', () => {
     const draft = { name: ' Team ', description: 'Project delivery', catalog_version: '1', catalog_tier: 'projects' }

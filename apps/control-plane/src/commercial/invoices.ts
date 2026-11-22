@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { adjustmentSchema, customerCreditNoteSchema, invoiceSchema, TAX_LABELS, type Adjustment, type BankTransferClaim, type CustomerCreditNote, type CustomerInvoice, type SellerIdentity, type Invoice, type Money, type Quote } from '@liwan/commercial-contracts'
+import { adjustmentSchema, customerCreditNoteSchema, invoiceSchema, TAX_LABELS, type Adjustment, type BankTransferClaim, type VoidBlock, type CustomerCreditNote, type CustomerInvoice, type SellerIdentity, type Invoice, type Money, type Quote } from '@liwan/commercial-contracts'
 import { dateOnly } from './date-only.js'
 import { billingSettings, sellerIdentityOf } from './billing-settings.js'
+import { voidStateOf } from './invoice-void-rules.js'
 import { refundEligibilityForInvoices, refundLockedInvoices, systemRefunds, type Refundability, type SystemRefund } from './settlements.js'
 
 export type InvoiceView = Invoice
@@ -17,7 +18,9 @@ export type InvoiceView = Invoice
 export type AutomaticRefund = { state: 'in_progress' | 'refunded_recording' | 'provider_unverified' | 'done' | 'failed'; reason: string | null }
 /** A credit note as the vendor console sees it: the server also says whether the operator may record its refund by hand (only with no automatic refund, or one that failed with no money returned). */
 export type VendorAdjustment = Adjustment & { automatic_refund: AutomaticRefund | null; manual_record_allowed: boolean }
-export type VendorInvoiceView = InvoiceView & { customer_name: string; adjustments: VendorAdjustment[]; bank_transfer_claim: BankTransferClaim | null; refund: Refundability & { locks_subscription: boolean } }
+export type VendorInvoiceView = InvoiceView & { customer_name: string; adjustments: VendorAdjustment[]; bank_transfer_claim: BankTransferClaim | null; refund: Refundability & { locks_subscription: boolean }
+  /** The void action of an unpaid renewal invoice: whether it can run now, and why not when it applies but is blocked (both false/null when it does not apply). */
+  voidable: boolean; void_block: VoidBlock | null }
 export type VendorInvoiceSummary = { outstanding: Money[] }
 type Q = Pick<Pool, 'query'>
 
@@ -189,7 +192,9 @@ async function hydrateVendor(pool: Q, rows: any[]): Promise<VendorInvoiceView[]>
   const locking = await refundLockedInvoices(pool, rows.map(r => r.id), ['refunded', 'pending'])
   const claims = rows.length ? (await pool.query('SELECT invoice_id,value_date::text AS value_date,sender_reference,claimed_at FROM bank_transfer_claims WHERE invoice_id = ANY($1::uuid[])', [rows.map(r => r.id)])).rows : []
   const automatic = await systemRefunds(pool, notes.map(n => n.id))
-  return views.map((v, i) => ({ ...v, customer_name: rows[i].customer_name as string, bank_transfer_claim: claimView(claims.find(c => c.invoice_id === v.id)), adjustments: notes.filter(n => n.invoice_id === v.id).map(n => vendorAdjustmentView(n, automatic.get(n.id))),
+  // Only an unpaid renewal invoice can offer the void; every other row skips the reads.
+  const voids = await Promise.all(rows.map(r => r.kind === 'renewal' && r.status === 'issued' ? voidStateOf(pool, r.id) : { voidable: false, void_block: null }))
+  return views.map((v, i) => ({ ...v, ...voids[i]!, customer_name: rows[i].customer_name as string, bank_transfer_claim: claimView(claims.find(c => c.invoice_id === v.id)), adjustments: notes.filter(n => n.invoice_id === v.id).map(n => vendorAdjustmentView(n, automatic.get(n.id))),
     refund: { ...(eligibility.get(rows[i].id) ?? { refundable: false, first_payment: false, until: null, window_days: 0 }), locks_subscription: locking.has(rows[i].id) } }))
 }
 

@@ -9,8 +9,8 @@ team that may use them. It is a separate Nuxt 4 application from the customer ap
 - It renders with the shared layers `@liwan/ui` and `@liwan/commercial-ui` and takes types and request signing from
   `@liwan/commercial-contracts`. It never imports `apps/web`, `odoo-addons`, `@liwan/contracts` or the control plane code,
   and never calls an Odoo route (rule `VA1` in `tools/arch_policy.py`). `apps/web` never imports this app.
-- There is no `/vendor` page prefix: pages are `/overview`, `/customers` (`/customers/new`, `/customers/{id}?tab=` and, for a workspace that has no commercial record, `/tenants/{id}`), `/operations`, `/plans`, `/bundles`,
-  `/catalog`, `/invoices`, `/audit`, `/team`, `/login` and `/enroll`. The API prefix `/api/vendor/v1/**` names the upstream
+- There is no `/vendor` page prefix: pages are `/overview`, `/customers` (`/customers/new`, `/customers/{id}?tab=` and, for a workspace that has no commercial record, `/tenants/{id}`), `/operations`, `/catalog` (the imported application versions, validated and published here), `/bundles`, `/plans`,
+  `/packages` (the retired legacy packages, read only), `/invoices`, `/audit`, `/team`, `/login` and `/enroll`. The API prefix `/api/vendor/v1/**` names the upstream
   control plane surface, not a page.
 
 ## How the BFF relates to the control plane
@@ -104,3 +104,31 @@ It creates the scratch database `liwan_control_scratch_p3live` on the local Post
 plane on `127.0.0.1:4711` and this app's production build on `localhost:3103` with per-run random keys (never printed),
 writes screenshots to `.superpowers/wave4-live-shots/`, and drops the database on exit. It refuses to run against any
 database not named `liwan_control_scratch_*`.
+
+### Live proof of the shared backup and restore flow (not run yet)
+
+The Backups section of a shared workspace (`docs/superpowers/specs/2026-11-22-shared-backup-restore-console-design.md`)
+needs a real shared stack, which `tools/vendor_admin_local_check.mjs` does not start: its control plane has no shared
+runtime, no worker and no Odoo. The unit and integration tests cover the routes, the proxy and the panel; the steps below
+are the live proof and **have not been executed**. Use a disposable stack only (`docs/verification/shared-restore-acceptance.md`
+describes the bring-up and its scratch boundaries).
+
+1. Bring up a shared stack with the shared worker, the control plane with `LIWAN_TENANCY_MODE=shared` and
+   `LIWAN_SHARED_RUNTIME_CONFIG` set, and this app pointed at it. Sign in as an account holding the `operations` role (and
+   `owner` for the publish step) with a passkey. Create two workspaces on the stack, A and B, with operations enabled.
+2. Open A, Operations tab. Expect the Backups section, empty, with the reason field. Check that the page response of
+   `GET /v1/shared/tenants/<A>/backups` holds only ids, times, display names and states (no path, digest or database name).
+3. Start a backup. Expect the inline confirmation to name the outage; confirm, pass the passkey check, and land on the
+   operation page. While it runs, open B's login: it must be unreachable until the job is `verified`, then recover (this
+   proves the stated outage and the restart). The list then shows the backup with who started it.
+4. With a job left in `needs_intervention` for A (stop the worker mid-capture on a disposable stack), expect the start to be
+   refused with the blocking operation linked, and a direct POST to answer 409 `shared_reconciliation_required`.
+5. Restore the backup with a reason. Expect two passkey checks, the operation page of the restore job, and
+   `SELECT approved_by FROM shared_restore_approvals` to name the operator's `account:<id>`. Cancel the passkey prompt once:
+   expect the "cancelled" text and no request sent afterwards.
+6. After an approval whose job call failed (for example a job of A went to `needs_intervention` between the two calls), expect a "Resume restore" action
+   on the row that sends only the job call, and a new action once the hour has passed.
+7. Publish the restored copy from the operation page and open `r<approval>.restore.<suffix>`; confirm that A's live data
+   is unchanged and that B was not touched.
+8. Check the audit feed: `shared_job.queued`, `shared_odoo_restore.approved` and the publication event, each with the
+   operator's name and reason.

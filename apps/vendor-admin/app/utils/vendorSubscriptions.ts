@@ -1,6 +1,6 @@
 import type { StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
-import { riyadhDate, subscriptionDisplayState, type Adjustment, type BankTransferClaim, type Cadence, type Invoice, type InvoiceLine, type Money, type Order, type SignupAcceptance, type SubscriptionDisplayState, type SubscriptionView, type UsageMetric } from '@liwan/commercial-contracts'
-import { commercialErrorKey, commercialFailure, CURRENCY, emptyLimit, limitFromDraft, minorToInput, normalizeDigits, parseCount, parseVendorMoneyInput, sar, type LimitDraft } from './vendorCommercial'
+import { riyadhDate, subscriptionDisplayState, type Adjustment, type BankTransferClaim, type Cadence, type Invoice, type InvoiceLine, type Money, type Order, type SignupAcceptance, type SubscriptionDisplayState, type SubscriptionView, type VoidBlock, type UsageMetric } from '@liwan/commercial-contracts'
+import { commercialErrorKey, commercialFailure, CURRENCY, emptyLimit, limitFromDraft, MB_PER_GB, minorToInput, normalizeDigits, parseCount, parseVendorMoneyInput, sar, type LimitDraft } from './vendorCommercial'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { humanizeId } from '@liwan/ui/app/utils/humanizeId'
 import { invoiceLineQuantities, type InvoiceLineView } from '@liwan/commercial-ui/app/utils/invoiceLines'
@@ -16,7 +16,8 @@ export type VendorRefundability = { refundable: boolean; first_payment: boolean;
 export type VendorAutomaticRefund = { state: 'in_progress' | 'refunded_recording' | 'provider_unverified' | 'done' | 'failed'; reason: string | null }
 /** A credit note with what the server allows: `manual_record_allowed` is true only with no automatic refund, or one that failed with no money returned. */
 export type VendorAdjustment = Adjustment & { automatic_refund: VendorAutomaticRefund | null; manual_record_allowed: boolean }
-export type VendorInvoice = Invoice & { customer_name: string; adjustments: VendorAdjustment[]; bank_transfer_claim: BankTransferClaim | null; refund: VendorRefundability }
+/** `voidable`: the unpaid renewal invoice can be voided now; `void_block`: why it cannot, when the action applies but is blocked (null with `voidable` false means it does not apply). */
+export type VendorInvoice = Invoice & { customer_name: string; adjustments: VendorAdjustment[]; bank_transfer_claim: BankTransferClaim | null; refund: VendorRefundability; voidable: boolean; void_block: VoidBlock | null }
 export type VendorInvoiceList = { items: VendorInvoice[]; total: number; summary: { outstanding: Money[] } }
 
 // ---- Filters (URL-backed) ----
@@ -142,6 +143,18 @@ export function refundRequestBlock(invoice: Pick<VendorInvoice, 'refund'> & { ad
   if (invoice.refund.refundable) return null
   return invoice.refund.first_payment ? 'windowClosed' : 'notFirstPayment'
 }
+/**
+ * Whether the invoice is refunded through the AI top-up route instead of the general refund request: a paid invoice that bought
+ * only an AI top-up (tax aside), whose payment is NOT the customer's first (the general refund refuses those) and is still inside
+ * the window, with no credit note of any kind yet. Whether the units are unused is the operator's statement, judged by the server.
+ * `first_payment` is false here by definition, so this and a refundable invoice (always a first payment) never both hold.
+ */
+export function aiTopupRefundable(invoice: Pick<VendorInvoice, 'status' | 'order_id' | 'lines' | 'refund'> & { adjustments: Adjustment[] }, now: Date = new Date()): boolean {
+  if (invoice.status !== 'paid' || !invoice.order_id || invoice.refund.first_payment || !invoice.refund.until) return false
+  if (!invoiceHasAiTopup(invoice) || invoice.lines.some(line => line.kind !== 'ai_topup' && line.kind !== 'tax' && line.amount.minor > 0)) return false
+  if (invoice.adjustments.some(note => note.kind === 'credit_note' && note.status !== 'void')) return false
+  return now.getTime() <= Date.parse(invoice.refund.until)
+}
 /** An invoice whose order carries an AI top-up: the control plane then needs the units already spent before it opens the refund. */
 export const invoiceHasAiTopup = (invoice: Pick<VendorInvoice, 'lines'>) => invoice.lines.some(line => line.kind === 'ai_topup')
 /** AI units already spent, as the operator read them in the tenant: a non-negative whole number (Arabic-Indic digits included), bounded like the control plane's `units_used`. */
@@ -154,8 +167,30 @@ export function parseUnitsUsed(text: string): number | null {
 export function refundErrorKey(cause: unknown): string {
   const code = commercialFailure(cause).code
   // The release-1 window rules have their own words: the vendor needs to know which one stopped the refund.
-  return ['credit_note_not_pending', 'refund_reference_in_use', 'refund_window_closed', 'refund_not_first_payment', 'units_used_required', 'ai_topup_used', 'lock_pending', 'fulfillment_pending', 'refund_in_progress'].includes(code)
+  return ['credit_note_not_pending', 'refund_reference_in_use', 'refund_window_closed', 'refund_not_first_payment', 'units_used_required', 'ai_topup_used', 'lock_pending', 'fulfillment_pending', 'refund_in_progress', 'ai_topup_refund_mixed_order'].includes(code)
     ? `vendor.invoices.refund.errors.${code}` : commercialErrorKey(cause)
+}
+
+// ---- Void of an unpaid renewal invoice ----
+export type VoidAction = { kind: 'hidden' } | { kind: 'available' } | { kind: 'blocked'; block: VoidBlock }
+/**
+ * What the invoice page shows for voiding an unpaid renewal invoice. The server decides whether it applies (`voidable`, `void_block`);
+ * the page adds only who may ask (both grants the route needs) and that it never sits beside a refund: an invoice with a refund note
+ * has had money move, so voiding it is not offered. A paid invoice is refunded, never voided, so the two actions cover different statuses.
+ */
+export function voidAction(invoice: Pick<VendorInvoice, 'status' | 'kind' | 'voidable' | 'void_block'> & { adjustments: Pick<Adjustment, 'status'>[] }, granted: boolean): VoidAction {
+  if (!granted || invoice.status !== 'issued' || invoice.kind !== 'renewal' || invoice.adjustments.some(note => note.status !== 'void')) return { kind: 'hidden' }
+  if (invoice.void_block) return { kind: 'blocked', block: invoice.void_block }
+  return invoice.voidable ? { kind: 'available' } : { kind: 'hidden' }
+}
+/** The vendor chooses what happens to the subscription and states why; the reason is bounded like the server's contract. */
+export const validVoidDraft = (d: { outcome: string; reason: string }) => (d.outcome === 'end' || d.outcome === 'rebill') && validRefundReason(d.reason)
+const VOID_REASON_CODES = ['invoice_not_voidable', 'payment_reconciliation_required', 'transfer_claimed', 'renewal_in_progress', 'lock_pending', 'tenant_retiring', 'subscription_suspended', 'subscription_change_pending', 'invoice_void_retry']
+/** The sentence for a block the invoice view carries or a refusal the void route answers: both say what the vendor does next. */
+export const voidReasonKey = (code: string) => `vendor.invoices.void.reason.${code}`
+export function voidErrorKey(cause: unknown): string {
+  const code = commercialFailure(cause).code
+  return VOID_REASON_CODES.includes(code) ? voidReasonKey(code) : commercialErrorKey(cause)
 }
 
 // ---- Bank transfer form ----
@@ -215,25 +250,53 @@ export function termsPayload(customerId: string, d: TermsDraft): TermsPayload {
 export function hasTermsOverride(d: TermsDraft): boolean {
   try { termsPayload('x', { ...d, reason: d.reason.trim().length >= 3 ? d.reason : 'xxx' }); return true } catch { return false }
 }
-/** Preview body for POST commercial/customer-quotes: the server computes both sides; `terms` is an unsaved draft, nothing is persisted. */
-export function customerQuoteBody(customerId: string, view: SubscriptionView, extra: { terms?: Omit<TermsPayload, 'customer_id' | 'reason'>; planRevisionId?: string; bundleIds?: string[]; cadence?: Cadence; extraBranches?: number; users?: number; storageMb?: number } = {}) {
-  const base = view.target ?? view.applied
+/** What the quote request names of the plan being ordered. */
+type PlanChoice = { included_bundle_revision_ids: string[]; optional_bundle_revision_ids: string[]; included_users: number; included_storage_mb: number }
+/** The bundles of an order: the plan's included ones and, of `chosen`, those the plan offers as optional. A bundle only the old plan allowed is refused by the server (`bundle_not_allowed`), so it is never carried over. */
+export function planBundleIds(plan: Pick<PlanChoice, 'included_bundle_revision_ids' | 'optional_bundle_revision_ids'>, chosen: Iterable<string>): string[] {
+  const wanted = new Set(chosen)
+  return [...plan.included_bundle_revision_ids, ...plan.optional_bundle_revision_ids.filter(id => wanted.has(id))]
+}
+/** The requested totals for users and storage: the plan's inclusions plus what is bought on top. */
+export function requestedQuantities(plan: Pick<PlanChoice, 'included_users' | 'included_storage_mb'>, paid: { paidUsers: number; paidStorageGb: number }) {
+  return { users: plan.included_users + paid.paidUsers, storageMb: plan.included_storage_mb + paid.paidStorageGb * MB_PER_GB }
+}
+/** What the customer holds above `plan`'s inclusions today: a plan change keeps their totals instead of dropping paid users and storage. */
+export function currentPaidQuantities(plan: Pick<PlanChoice, 'included_users' | 'included_storage_mb'>, view: SubscriptionView | null): { paidUsers: number; paidStorageGb: number } {
+  const base = view?.target ?? view?.applied
+  if (!base) return { paidUsers: 0, paidStorageGb: 0 }
+  return {
+    paidUsers: Math.max(0, Number(base.entitlement.features['users.limit'] ?? 0) - plan.included_users),
+    paidStorageGb: Math.max(0, Math.round((Number(base.entitlement.features['storage.limit_mb'] ?? 0) - plan.included_storage_mb) / MB_PER_GB)),
+  }
+}
+/** A failed order attempt may still have been recorded when the answer never arrived (no status, or a server error): its idempotency key is then kept so a retry returns that order instead of placing a second one. A refusal (4xx) recorded nothing. */
+export function orderOutcomeUnknown(cause: unknown): boolean {
+  const { status } = commercialFailure(cause)
+  return status === null || status >= 500
+}
+/** Preview body for POST commercial/customer-quotes: the server computes both sides; `terms` is an unsaved draft and `preview` prices the terms in force, nothing is persisted. A customer with no subscription yet (`view` null) is quoted as a new one at revision 0. */
+export function customerQuoteBody(customerId: string, view: SubscriptionView | null, extra: { terms?: Omit<TermsPayload, 'customer_id' | 'reason'>; preview?: true; planRevisionId?: string; bundleIds?: string[]; cadence?: Cadence; extraBranches?: number; users?: number; storageMb?: number; onboarding?: true } = {}) {
+  const base = view?.target ?? view?.applied
   if (!base) {
     if (!extra.planRevisionId || !extra.cadence || !extra.bundleIds) throw new Error('no_subscription')
     return {
-      customer_id: customerId, kind: 'new' as const, subscription_id: view.id, expected_subscription_revision: view.revision,
+      customer_id: customerId, kind: 'new' as const,
+      ...(view ? { subscription_id: view.id } : {}), expected_subscription_revision: view?.revision ?? 0,
       plan_revision_id: extra.planRevisionId, bundle_revision_ids: extra.bundleIds,
       cadence: extra.cadence, requested_extra_branches: extra.extraBranches ?? 0,
       requested_users: extra.users ?? 0, requested_storage_mb: extra.storageMb ?? 0,
+      ...(extra.onboarding ? { onboarding: true as const } : {}),
     }
   }
   return {
-    customer_id: customerId, kind: 'change' as const, subscription_id: view.id, expected_subscription_revision: view.revision,
+    customer_id: customerId, kind: 'change' as const, subscription_id: view!.id, expected_subscription_revision: view!.revision,
     plan_revision_id: extra.planRevisionId ?? base.plan_revision_id, bundle_revision_ids: extra.bundleIds ?? base.bundle_revision_ids,
     cadence: extra.cadence ?? base.cadence, requested_extra_branches: extra.extraBranches ?? base.extra_branch_count,
     requested_users: extra.users ?? Number(base.entitlement.features['users.limit'] ?? 0),
     requested_storage_mb: extra.storageMb ?? Number(base.entitlement.features['storage.limit_mb'] ?? 0),
     ...(extra.terms ? { terms: extra.terms } : {}),
+    ...(extra.preview ? { preview: true as const } : {}),
   }
 }
 /** Server returns either `{quote, preview:true}` or a quote carrying `preview: true`. Previews are never persisted and can never be accepted. */

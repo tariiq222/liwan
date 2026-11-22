@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { actionBlockedReason, availableActions, commercialErrorKey, commercialFailure, lifecycleStatus, type BundleView, type CommercialKind, type LifecycleAction, type PlanView } from '@/utils/vendorCommercial'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
-const props = defineProps<{ kind: CommercialKind; view: BundleView | PlanView }>()
+// sellingPlans: the published, available plans that offer this bundle (null when they could not be loaded); only a bundle page passes it.
+const props = defineProps<{ kind: CommercialKind; view: BundleView | PlanView; sellingPlans?: number | null }>()
 const emit = defineEmits<{ done: [action: LifecycleAction, result: BundleView | PlanView | null]; reload: [] }>()
 const { t } = useI18n(); const hydrated = useHydrated(); const { can } = useVendorContext(); const api = useVendorCommercial()
 const action = ref<LifecycleAction | null>(null); const reason = ref(''); const attempted = ref(false); const busy = ref(false); const failure = ref<unknown>(null)
@@ -10,7 +11,7 @@ const actions = computed(() => availableActions(status.value))
 const parsed = computed(() => (failure.value ? commercialFailure(failure.value) : null))
 const reasonError = computed(() => (attempted.value && (reason.value.trim().length < 3 || reason.value.trim().length > 1000) ? t('vendor.pricing.reasonRequired') : undefined))
 const blocked = (a: LifecycleAction) => actionBlockedReason(props.kind, a, can as never)
-const issues = computed(() => props.view.issues ?? [])
+const issues = computed(() => parsed.value?.issues ?? [])
 const dirty = computed(() => Boolean(action.value && reason.value.trim()))
 function choose(a: LifecycleAction) { action.value = a; reason.value = ''; attempted.value = false; failure.value = null }
 function cancel() { action.value = null; reason.value = ''; attempted.value = false }
@@ -26,7 +27,7 @@ async function perform() {
   } catch (cause) { failure.value = cause } finally { busy.value = false }
 }
 const destructive = (a: LifecycleAction) => a === 'delete' || a === 'withdraw'
-const strandsPlans = computed(() => props.kind === 'bundle' && action.value === 'withdraw' && (props.view.customer_count ?? 0) > 0)
+const strandsPlans = computed(() => props.kind === 'bundle' && action.value === 'withdraw' && (props.sellingPlans ?? 1) > 0)
 </script>
 <template>
   <SharedFormSection :title="t('vendor.pricing.lifecycle.title')" :description="t('vendor.pricing.lifecycle.preserve')" data-testid="lifecycle-panel">

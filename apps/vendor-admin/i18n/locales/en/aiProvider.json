@@ -148,7 +148,6 @@
     "errors": {
       "generic": "The request failed. Try again.",
       "unavailable": "The control plane is unavailable. Try again.",
-      "stepUpCancelled": "The passkey confirmation was cancelled, so nothing was sent.",
       "step_up_required": "Confirm with your passkey, then try again.",
       "forbidden": "Your role cannot change the AI configuration.",
       "invalid": "Some of the values are not valid.",

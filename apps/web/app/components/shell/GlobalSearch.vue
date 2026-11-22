@@ -3,7 +3,7 @@ import { refDebounced, useMediaQuery } from '@vueuse/core'
 import type { CommandPaletteGroup, CommandPaletteItem, CommandPaletteProps } from '@nuxt/ui'
 import { useNav, visibleShellModules, type NavItem } from '@/composables/nav/shellModules'
 import {
-  appItems, commandItems, goToItems, helpItems, paletteGroups, PALETTE_SECTION_LIMIT, visibleCommands, type PaletteItem,
+  appItems, commandItems, goToItems, helpItems, paletteGroups, PALETTE_RESULT_LIMIT, visibleCommands, type PaletteItem,
 } from '@/composables/nav/paletteModel'
 import { isApplePlatform } from '@liwan/ui/app/composables/shortcuts/keymap'
 import { useAppSearch } from '@/composables/useAppSearch'
@@ -120,12 +120,23 @@ function onBackspace() {
   if (view.value === 'shortcuts' && !term.value) view.value = 'main'
 }
 
-/** Fuse options for the palette: the per-group cut, diacritics ignored, and the Arabic fold applied to BOTH sides.
+// UCommandPalette slices every group at `fuse.resultLimit`, including the ones it does not search (Apps, Go to,
+// Actions, the shortcut table). A fixed number cannot know how many destinations a tenant's applications add, so the cut
+// is the largest group's own size: it never removes a row, and the search sections still cap themselves at
+// PALETTE_SECTION_LIMIT with their own «عرض المزيد».
+// Read from `liveGroups` (what the palette is about to draw), not the rendered copy: `groups` is cleared during the exit
+// animation, and a cut of 0 would blank the list mid-close.
+const paletteLimit = computed(() => Math.max(
+  PALETTE_RESULT_LIMIT,
+  ...liveGroups.value.map(group => group.items?.length ?? 0),
+))
+
+/** Fuse options for the palette: the cut above, diacritics ignored, and the Arabic fold applied to BOTH sides.
  *  Folding only the index made the search fail on the correct spelling: the stored «مهمة» became «مهمه» and the typed
  *  «مهمة» stayed as it was, so the two no longer matched. Every field Fuse indexes is folded (the earlier version returned
  *  an empty string for `description`, which silently stopped matching it), and the term is folded before it is searched. */
 const paletteFuse = computed(() => ({
-  resultLimit: PALETTE_SECTION_LIMIT + 3,
+  resultLimit: paletteLimit.value,
   ignoreDiacritics: true,
   getFn: paletteIndexText,
 }))

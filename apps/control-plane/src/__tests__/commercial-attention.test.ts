@@ -131,6 +131,32 @@ suite('vendor attention list on PostgreSQL', () => {
     expect(byKind.setup_required).toMatchObject({ customer_id: id.setup })
   })
 
+  it('lists a stuck or abandoned shared job once per workspace, until a later job verifies', async () => {
+    const shared = async (key: string, jobs: [string, string, Record<string, unknown>?][]) => {
+      const tenantId = randomUUID()
+      await tenant(tenantId, `${tag} shared ${key}`)
+      await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$2,$2,$2,false,1)', [tenantId, `s${randomUUID().slice(0, 8)}`])
+      const ids: string[] = []
+      for (const [index, [operation, state, authority]] of jobs.entries()) {
+        const jobId = randomUUID(); ids.push(jobId)
+        await pool.query(`INSERT INTO shared_jobs(id,control_tenant_id,business_key,payload,payload_digest,issuer,actor_uid,reason,state,created_at)
+          VALUES($1::uuid,$2,$1::text,$3,$4,'attention-test',7,'fixture',$5,now() - make_interval(mins => $6::int))`,
+        [jobId, tenantId, { operation, ...(authority ? { authority } : {}) }, 'a'.repeat(64), state, 60 - index])
+      }
+      return { tenantId, ids }
+    }
+    const stuck = await shared('stuck', [['backup', 'needs_intervention']])
+    const abandoned = await shared('abandoned', [['restore', 'failed']])
+    const resolved = await shared('resolved', [['provision', 'needs_intervention'], ['provision', 'verified']])
+    const aiPush = await shared('aipush', [['reconfigure', 'failed', { ai_push: 'true' }]])
+    const { items } = await get(['vendor.read'])
+    const listed = mine(items).filter(i => i.kind === 'shared_operation_failed')
+    expect(listed.map(i => i.name.slice(tag.length + 1)).sort()).toEqual(['shared abandoned', 'shared stuck'])
+    expect(listed.find(i => i.tenant_id === stuck.tenantId)).toMatchObject({ operation_id: stuck.ids[0], detail: 'backup', customer_id: null })
+    expect(listed.find(i => i.tenant_id === abandoned.tenantId)).toMatchObject({ operation_id: abandoned.ids[0], detail: 'restore' })
+    expect(listed.some(i => i.tenant_id === resolved.tenantId || i.tenant_id === aiPush.tenantId)).toBe(false)
+  })
+
   it('hides overdue invoices from callers without billing access', async () => {
     const { items } = await get(['vendor.read'])
     expect(mine(items).map(i => i.kind)).not.toContain('past_due')
@@ -144,7 +170,7 @@ suite('vendor attention list on PostgreSQL', () => {
     await pool.query("INSERT INTO customers(id,name,commercial_setup_required) SELECT gen_random_uuid(), $1 || ' bulk ' || n, true FROM generate_series(1,25) n", [tag])
     const r = await get(BILLING)
     expect(r.items).toHaveLength(20)
-    expect(r.total).toBe(10 + 25)
+    expect(r.total).toBe(10 + 2 + 25)
     expect(r.items.slice(0, 5).map(i => i.kind)).toEqual(['past_due', 'refund_rejected', 'billing_blocked', 'stalled_activation', 'invitation_failed'])
     expect(r.counts.past_due).toBe(1)
     expect(r.counts.stalled).toBeGreaterThanOrEqual(1)
@@ -164,6 +190,16 @@ suite('vendor attention list on PostgreSQL', () => {
       const s = await subscription(customer, 'active', new Date(Date.now() + 60 * 86_400_000).toISOString().slice(0, 10))
       return { customer, s }
     }
+
+    it('says the money has not left for a failed worker refund, and that it left for a provider refund event', async () => {
+      const { customer, s } = await rejectedCustomer()
+      const f = await refundFixture(customer, s)
+      await pool.query("UPDATE commercial_outbox SET kind='reconcile.refund' WHERE aggregate_id=$1", [f.order])
+      const kindOf = async () => (await get(BILLING)).items.filter(i => i.customer_id === customer && i.kind.startsWith('refund_')).map(i => [i.kind, i.detail])
+      expect(await kindOf()).toEqual([['refund_not_sent', 'refund_exceeds_payment']])
+      await pool.query("UPDATE commercial_outbox SET kind='payment.intervention' WHERE aggregate_id=$1", [f.order])
+      expect(await kindOf()).toEqual([['refund_rejected', 'refund_exceeds_payment']])
+    })
 
     it('is shown without credit, cleared by any non-void credit of the invoice, and shown again when that credit is voided', async () => {
       expect(await listed(id.rejected)).toBe(true)
@@ -253,6 +289,26 @@ suite('vendor attention list on PostgreSQL', () => {
       expect(await unrecorded(done.customer)).toBeDefined()
       await pool.query("UPDATE commercial_outbox SET status='done',processed_at=now() WHERE kind='reconcile.refund' AND payload->>'attempt_id' IN (SELECT id::text FROM payment_attempts WHERE invoice_id=$1)", [done.invoice])
       expect(await unrecorded(done.customer)).toBeUndefined()
+    })
+  })
+
+  describe('card payment review and saved-card refusals', () => {
+    const reviewKinds = (items: { kind: string, detail: string | null }[]) => items.filter(i => i.kind === 'form_payment_review' || i.detail?.startsWith('card_charge_refused')).map(i => i.detail)
+    async function fixtures() {
+      const customer = randomUUID(), orderId = randomUUID()
+      await pool.query('INSERT INTO customers(id,name) VALUES($1,$2)', [customer, `${tag} card-review`])
+      const s = await subscription(customer, 'active', new Date(Date.now() + 60 * 86_400_000).toISOString().slice(0, 10))
+      await pool.query("INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,payment_state,fulfillment_state,idempotency_key,request_digest,due_now_minor,currency,exponent) VALUES($1,$2,$3,'renewal',$4,$5,'awaiting_payment','not_started',$6,'d',11500,'SAR',2)", [orderId, customer, s.sub, randomUUID(), s.rev, randomUUID()])
+      const audit = (action: string, subject: string, metadata: object) => pool.query("INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,'system',$2,$3,'fixture',$4)", [randomUUID(), action, subject, JSON.stringify(metadata)])
+      await audit('payment.form_attempt_needs_review', orderId, { attempt_id: randomUUID() })
+      await audit('payment.saved_card_charge_refused', orderId, { code: 'invalid_request' })
+      await audit('payment.form_payment_rejected', randomUUID(), { payment_id: `pay-${randomUUID()}`, reason: 'amount_mismatch' })
+    }
+
+    it('shows the review and the refusal only to a caller who may manage billing', async () => {
+      await fixtures()
+      expect(reviewKinds((await get(BILLING)).items)).toEqual(expect.arrayContaining(['attempt_needs_review', 'card_charge_refused: invalid_request', 'amount_mismatch']))
+      expect(reviewKinds((await get(['vendor.read'])).items)).toEqual([])
     })
   })
 })

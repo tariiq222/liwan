@@ -43,7 +43,9 @@ const close = useMutation({
   },
 })
 const data = computed(() => page.data.value ?? null)
-const invalidLink = computed(() => page.isError.value)
+// A link with no token, or with a malformed ticket id, never asks the server (there is nothing to ask with), so it
+// is invalid on its own: without this the query stayed disabled and the page rendered nothing at all.
+const invalidLink = computed(() => !token.value || !Number.isInteger(ticketId.value) || ticketId.value <= 0 || page.isError.value)
 const confirming = ref(false)
 
 async function send() {
@@ -52,8 +54,10 @@ async function send() {
   failure.value = null
   try {
     await reply.mutateAsync(text)
-  } catch (cause) {
-    failure.value = cause instanceof Error ? cause.message : t('helpdesk.portal.failed')
+  } catch {
+    // A customer without an account never sees an internal refusal («your session expired», «the subscription is
+    // read-only»): those belong to the tenant, so the portal answers with one neutral line whatever came back.
+    failure.value = t('helpdesk.portal.failed')
   }
 }
 async function closeTicket() {
@@ -61,8 +65,10 @@ async function closeTicket() {
   try {
     await close.mutateAsync()
     confirming.value = false
-  } catch (cause) {
-    failure.value = cause instanceof Error ? cause.message : t('helpdesk.portal.failed')
+  } catch {
+    // A customer without an account never sees an internal refusal («your session expired», «the subscription is
+    // read-only»): those belong to the tenant, so the portal answers with one neutral line whatever came back.
+    failure.value = t('helpdesk.portal.failed')
   }
 }
 </script>
@@ -78,7 +84,7 @@ async function closeTicket() {
         </div>
       </div>
     </template>
-    <SharedPageState v-if="!hydrated || page.isLoading.value" :loading="true" />
+    <SharedPageState v-if="!hydrated || (enabled && page.isLoading.value)" :loading="true" />
     <SharedEmptyState v-else-if="invalidLink" :title="t('helpdesk.portal.invalidTitle')" :description="t('helpdesk.portal.invalid')" data-testid="helpdesk-portal-invalid" />
     <template v-else-if="data">
       <SharedPageHeader :title="`${data.number} · ${data.subject}`">
@@ -118,5 +124,8 @@ async function closeTicket() {
         <UButton v-else color="neutral" variant="outline" icon="i-lucide-check" :label="t('helpdesk.portal.close')" data-testid="helpdesk-portal-close" @click="confirming = true" />
       </div>
     </template>
+    <!-- Between a finished query and its data (query-core's `isPending && !isFetching` window) every branch above is
+         false, and the portal drew nothing at all. It keeps the loading state rather than an empty page. -->
+    <SharedPageState v-else :loading="true" />
   </SharedStandalonePage>
 </template>

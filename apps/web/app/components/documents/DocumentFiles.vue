@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.vue'
 import type { DocumentDetail, DocumentFile } from '@liwan/contracts'
+import { formatFileSize } from '@/utils/fileSize'
 const props = defineProps<{ document: DocumentDetail; files?: DocumentFile[]; pending?: boolean; loading?: boolean; error?: unknown; page?: number; pages?: number; readonly?: boolean; duplicate?: File | null }>()
 const emit = defineEmits<{ upload: [file: File, options?: { name?: string; asVersion?: boolean }]; cancelDuplicate: []; action: [file: DocumentFile, action: 'archive' | 'restore' | 'lock' | 'unlock']; page: [value: number]; retry: [] }>()
 const { t } = useI18n(); const hydrated = useHydrated(); const uploadError = ref(''); const confirmArchive = ref<number | null>(null)
@@ -20,7 +21,8 @@ function upload(event: Event) {
   }
   input.value = ''; fileField.value?.reset()
 }
-const fileSize = (size: number) => `${(size / 1024 / 1024).toFixed(1)} MB`
+// The shared, locale-aware size: the old one printed English units and «0.0 MB» for small files.
+const fileSize = (size: number) => formatFileSize(size, t as (key: string, params?: Record<string, unknown>) => string)
 function actions(file: DocumentFile): RowAction[] {
   const result: RowAction[] = []
   if (props.readonly) return result

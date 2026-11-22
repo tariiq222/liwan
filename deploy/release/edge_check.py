@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Edge check for the development host: certificates, HTTPS answers (``GET /favicon.ico``, answered through guard and web), Openship routes and the nginx vhost headers.
+"""Edge check for a host behind the Openship edge (staging): certificates, HTTPS answers (``GET /favicon.ico``, answered through guard and web), Openship routes and the nginx vhost headers.
 
   edge_check.py --host app.example.com --route-file /path/x.route.json --vhost-file /etc/nginx/conf.d/x.conf \
-                --cert-file /srv/liwan-development/control/private/control-tls.crt
+                --cert-file /srv/liwan-staging/control/private/control-tls.crt
 
 One line per failed check and a non-zero exit; ``RESULT: edge ok`` and exit 0 when every check passes. At least one
 ``--host``, ``--route-file``, ``--vhost-file`` or ``--cert-file`` is required. Standalone: release.py never calls it.

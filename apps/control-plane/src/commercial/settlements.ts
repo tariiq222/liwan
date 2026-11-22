@@ -81,7 +81,7 @@ type RefundOutboxPayload = { attempt_id?: string; payment_id?: string; automatic
  * NON_RETRYABLE_REFUND) it also becomes the manual review the operator already works: one pending credit note for what
  * the attempt paid and is not yet credited (an undelivered order already has its fulfilment note, so it gets none more).
  * Recording the refund on the note settles the order. Any other code (retries used up on a timeout or a provider error) with
- * no refund ever asked of the provider writes no note: the failed row shows in the attention list as refund_rejected and the
+ * no refund ever asked of the provider writes no note: the failed row shows in the attention list as refund_not_sent and the
  * operator may refund by hand. A row with `provider_refund` set (money returned, or a refund call whose outcome is unverified)
  * is never handed over, whatever the code: the customer could be paid twice. It returns false and stays pending.
  */
@@ -507,13 +507,20 @@ export async function requestInvoiceRefund(pool: Pool, { invoice_id, actor, reas
     await audit(client, actor, 'invoice.refund_requested', invoice.id, reason, { adjustment_id: id, amount_minor: Number(invoice.total_minor), currency: invoice.currency })
     // The whole invoice goes back, so an AI top-up it paid for stops counting (and the tenant is told).
     if (invoice.order_id) await markTopupRefunded(client, invoice.order_id, actorLabel(actor), reason)
-    // A card payment is returned through the provider by the refund worker, once; a bank transfer has nothing to refund there
-    // and stays with the operator's form.
-    const paying = await payingAttempt(client, invoice.id)
-    if (paying && paying.provider !== BANK_TRANSFER_PROVIDER) await enqueueOutbox(client, { kind: 'reconcile.refund', aggregate_id: invoice.order_id as string,
-      dedupe_key: `vendor-refund:${id}`, payload: { attempt_id: paying.id, adjustment_id: id, automatic: true, requested_by: actor } satisfies RefundOutboxPayload })
+    await queueProviderRefund(client, { invoice, adjustment_id: id, actor })
     return adjustmentView(row)
   })
+}
+
+/**
+ * A card payment is returned through the provider by the refund worker, once: the row is keyed by the note, so a repeat asks
+ * for nothing more. A bank transfer has nothing to refund there and stays with the operator's form. The one place a vendor
+ * refund note reaches the worker, for the invoice refund request and for the AI top-up refund.
+ */
+export async function queueProviderRefund(client: PoolClient, { invoice, adjustment_id, actor }: { invoice: { id: string; order_id: string | null }; adjustment_id: string; actor: CommercialActor }) {
+  const paying = await payingAttempt(client, invoice.id)
+  if (paying && paying.provider !== BANK_TRANSFER_PROVIDER) await enqueueOutbox(client, { kind: 'reconcile.refund', aggregate_id: invoice.order_id as string,
+    dedupe_key: `vendor-refund:${adjustment_id}`, payload: { attempt_id: paying.id, adjustment_id, automatic: true, requested_by: actor } satisfies RefundOutboxPayload })
 }
 
 /** The attempt that paid this invoice, if it was paid. `succeeded_at` is immutable, `updated_at` is not. */

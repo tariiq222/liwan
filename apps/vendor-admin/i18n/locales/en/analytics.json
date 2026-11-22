@@ -39,7 +39,7 @@
       "short": "Not available",
       "no_data": "Not available: nothing to measure in this period.",
       "no_cancellation_date": "Not available: the system does not store when a subscription ended.",
-      "history_not_recorded": "Not available: the system does not record when customers who have since left stopped, so this past figure cannot be restated."
+      "history_not_recorded": "Not available: the system did not record when some customers who have since left stopped, so this past figure cannot be restated."
     },
     "kpi": {
       "mrr": "Monthly recurring revenue (MRR)",
@@ -48,7 +48,7 @@
       "expansionMrr": "Upgrade MRR",
       "contractionMrr": "Downgrade MRR",
       "churnedMrr": "Churned MRR",
-      "arpc": "Average revenue per customer",
+      "arpc": "Average revenue per paying customer",
       "extraBranchMrr": "Extra-branch add-on revenue",
       "collected": "Collected in period",
       "outstanding": "Outstanding",
@@ -74,7 +74,7 @@
     },
     "trend": {
       "title": "MRR, last 12 months",
-      "description": "Recurring revenue month by month. A month shows no figure when a customer who has since left was billing then, because the system does not record when they left.",
+      "description": "Recurring revenue month by month. A month shows no figure when a customer who left before departures were recorded was billing then, because the system does not know when they left.",
       "empty": "No recurring revenue yet."
     },
     "aging": {
@@ -121,7 +121,7 @@
     "usageSkipped": "{count} customer's usage could not be read and is not in these lists. | {count} customers' usage could not be read and is not in these lists.",
     "renewals": {
       "title": "Upcoming renewals",
-      "description": "Renewal value of billable customers, counted from today.",
+      "description": "Renewal value of paying customers, counted from today.",
       "empty": "No renewals due.",
       "within": "Within {days} days",
       "count": "{count} renewal | {count} renewals"

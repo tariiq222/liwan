@@ -40,7 +40,7 @@ function runRefresh() {
         <SharedMetricTile v-if="props.showHealth" density="compact" icon="i-lucide-gauge" :label="t('inbox.health.tiles.quality')" :value="t(`inbox.health.quality.${sending.quality_rating}`)" :tone="QUALITY_TONE[sending.quality_rating]" data-testid="inbox-sending-quality" />
         <SharedMetricTile density="compact" icon="i-lucide-send" :label="t('inbox.campaigns.sending.used')" :value="sending.used_24h" value-dir="ltr" :hint="t('inbox.campaigns.sending.usedHint')" data-testid="inbox-sending-used" />
         <SharedMetricTile
-          density="compact" icon="i-lucide-hourglass" :label="t('inbox.campaigns.sending.remaining')" :value="sending.remaining_24h === null ? t('inbox.campaigns.sending.unlimited') : sending.remaining_24h" value-dir="ltr"
+          density="compact" icon="i-lucide-hourglass" :label="t('inbox.campaigns.sending.remaining')" :value="sending.remaining_24h === null ? t('inbox.campaigns.sending.unlimited') : sending.remaining_24h" :value-dir="sending.remaining_24h === null ? undefined : 'ltr'"
           :tone="sending.remaining_24h === 0 ? 'danger' : 'neutral'" data-testid="inbox-sending-remaining"
         />
         <SharedMetricTile density="compact" icon="i-lucide-badge-check" :label="t('inbox.campaigns.sending.onboarding')" :value="t(`inbox.campaigns.sending.onboardingState.${sending.marketing_onboarding}`)" :tone="ONBOARDING_TONE[sending.marketing_onboarding]" data-testid="inbox-sending-onboarding" />

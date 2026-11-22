@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { avatarProps } from '../../../utils/avatarTone'
+import { joinLocaleList } from '../../../utils/listJoin'
 
 // People in a table cell or a row, avatars only. One person: a round avatar. Several: an overlapping stack of at most
 // `max` avatars (the first on top, each overlapping the previous by a logical negative margin, so RTL and LTR both
@@ -8,7 +9,9 @@ import { avatarProps } from '../../../utils/avatarTone'
 const props = withDefaults(defineProps<{ people: { id: number; name: string; src?: string }[]; max?: number }>(), { max: 3 })
 const visible = computed(() => props.people.slice(0, props.max))
 const rest = computed(() => props.people.length - visible.value.length)
-const names = computed(() => props.people.map(person => person.name).join('، '))
+const { t } = useI18n()
+// The separator is the locale's, not a fixed Arabic comma: English tables showed «، » between names.
+const names = computed(() => joinLocaleList(props.people.map(person => person.name), t))
 </script>
 
 <template>

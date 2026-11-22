@@ -360,11 +360,21 @@ d('admin invitations', () => {
       await pool.query('INSERT INTO subscriptions(id,customer_id,tenant_id) VALUES($1,$2,$3)', [sub, customer, tenant])
       await pool.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,1,$3,$4)', [revision, sub, '{}', randomUUID()])
       await pool.query('UPDATE subscriptions SET applied_revision_id=$1, revision=revision+1 WHERE id=$2', [revision, sub])
-      const res = await invitationHttp(pool, { method: 'POST', pathname: `/v1/commercial/customers/${customer}/invitations`, raw: '', issuer: 'vendor', actor: 7, capabilities: ['vendor.subscriptions.manage'] as any })
+      const resend = (over: Record<string, unknown> = {}) => invitationHttp(pool, { method: 'POST', pathname: `/v1/commercial/customers/${customer}/invitations`, raw: '', issuer: 'vendor', actor: 7, capabilities: ['vendor.subscriptions.manage'] as any, stepUpFresh: true, ...over } as any)
+      const issued = async () => (await pool.query('SELECT count(*)::int AS n FROM admin_invitations WHERE tenant_id=$1', [tenant])).rows[0].n
+      // Refused without a fresh passkey confirmation, and without the capability: nothing is issued.
+      await expect(resend({ stepUpFresh: false })).rejects.toMatchObject({ status: 403, code: 'step_up_required' })
+      await expect(resend({ capabilities: ['vendor.read'] })).rejects.toMatchObject({ status: 403, code: 'forbidden' })
+      expect(await issued()).toBe(0)
+      const res = await resend()
       expect(res).toMatchObject({ status: 202, data: { delivery_status: 'queued' } })
       await deliver()
       expect(sent).toHaveLength(1)
       expect((await audits())[0]).toMatchObject({ actor: 'vendor:7', metadata: { source: 'vendor' } })
+      // Once the manager accepted, a resend would hand out a link that sets the password again: refused, and nothing new is queued.
+      await pool.query('UPDATE admin_invitations SET consumed_at=now() WHERE tenant_id=$1 AND revoked_at IS NULL', [tenant])
+      await expect(resend()).rejects.toMatchObject({ status: 409, code: 'invitation_accepted' })
+      expect(await issued()).toBe(1)
     })
 
     describe('over HTTP', () => {

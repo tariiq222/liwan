@@ -1,16 +1,17 @@
 import { computed, ref, watch } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useVendorContextState } from '../../composables/useVendorContext'
+import { decideAccess } from '../../utils/routeAccess'
 
-type Handler = (to: { fullPath: string }) => Promise<unknown>
+type Handler = (to: { fullPath: string; meta?: { public?: boolean } }) => Promise<unknown>
 
-function setup(actorId: number | null, context: () => Promise<unknown>) {
+function setup(actorId: number | null, context: () => Promise<unknown>, ready: Promise<void> = Promise.resolve()) {
   const store = new Map<string, ReturnType<typeof ref>>()
   const me = ref<{ id: number } | null>(actorId === null ? null : { id: actorId })
   const fetcher = vi.fn(context)
   const navigateTo = vi.fn((to: unknown) => to)
   vi.stubGlobal('defineNuxtRouteMiddleware', (handler: Handler) => handler)
-  vi.stubGlobal('useAdminSession', () => ({ me, ready: Promise.resolve() }))
+  vi.stubGlobal('useAdminSession', () => ({ me, ready }))
   vi.stubGlobal('useState', (key: string, init: () => unknown) => {
     if (!store.has(key)) store.set(key, ref(init()))
     return store.get(key)
@@ -24,9 +25,9 @@ function setup(actorId: number | null, context: () => Promise<unknown>) {
 }
 
 const ok = () => Promise.resolve({ enabled: true, capabilities: ['vendor.read'] })
-async function run(path = '/customers') {
+async function run(path = '/customers', meta: { public?: boolean } = {}) {
   const { default: middleware } = await import('../10.vendor-context.global')
-  return (middleware as unknown as Handler)({ fullPath: path })
+  return (middleware as unknown as Handler)({ fullPath: path, meta })
 }
 
 afterEach(() => { vi.unstubAllGlobals(); vi.resetModules() })
@@ -72,5 +73,22 @@ describe('10.vendor-context.global', () => {
     const { navigateTo } = setup(7, () => Promise.reject(Object.assign(new Error('no'), { statusCode: 401 })))
     await run('/invoices?status=paid')
     expect(navigateTo).toHaveBeenCalledWith({ path: '/login', query: { next: '/invoices?status=paid' } })
+  })
+
+  it('skips a public page: no profile wait and no context request', async () => {
+    const down = Promise.reject(Object.assign(new Error('bff down'), { statusCode: 503 }))
+    down.catch(() => undefined)
+    const { fetcher, navigateTo } = setup(7, ok, down)
+    await expect(run('/login', { public: true })).resolves.toBeUndefined()
+    expect(fetcher).not.toHaveBeenCalled()
+    expect(navigateTo).not.toHaveBeenCalled()
+  })
+
+  it('ends the local session on a 401, so the sign-in page does not send the account straight back', async () => {
+    const { me, navigateTo } = setup(7, () => Promise.reject(Object.assign(new Error('no'), { statusCode: 401 })))
+    await run('/invoices')
+    expect(navigateTo).toHaveBeenCalledWith({ path: '/login', query: { next: '/invoices' } })
+    expect(me.value).toBeNull()
+    expect(decideAccess({ isPublic: true, me: me.value ? { capabilities: [] } : null, path: '/login', fullPath: '/login?next=%2Finvoices', next: '/invoices' })).toEqual({ action: 'allow' })
   })
 })

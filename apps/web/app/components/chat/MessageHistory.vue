@@ -388,7 +388,7 @@ watch(() => props.denied, (value) => { if (value) seal() })
                 <span v-if="direct && row.item.author.id === me?.id">{{ peerSeenMessageId && row.item.id <= peerSeenMessageId ? t('chat.seen') : t('chat.sent') }}</span>
               </p>
             </div>
-            <div v-if="props.writable" class="liwan-chat-msg-actions flex flex-wrap gap-1 text-xs text-muted">
+            <div v-if="props.writable && !row.item.deleted" class="liwan-chat-msg-actions flex flex-wrap gap-1 text-xs text-muted">
               <UButton type="button" color="neutral" variant="ghost" size="xs" :disabled="busyId === row.item.id" :label="t('chat.reply')" @click="emit('reply', row.item)" />
               <UButton
                 v-for="emoji in CHAT_REACTIONS"
@@ -401,7 +401,7 @@ watch(() => props.denied, (value) => { if (value) seal() })
               />
               <UButton type="button" color="neutral" variant="ghost" size="xs" :disabled="busyId === row.item.id" :label="t('chat.star')" @click="runMessageAction(row.item, () => starMessage(row.item.id))" />
               <UButton type="button" color="neutral" variant="ghost" size="xs" :disabled="busyId === row.item.id" :label="row.item.pinned ? t('chat.unpin') : t('chat.pin')" @click="runMessageAction(row.item, () => pinMessage({ messageId: row.item.id, pinned: !row.item.pinned }))" />
-              <template v-if="row.item.author.id === me?.id && !row.item.deleted">
+              <template v-if="row.item.author.id === me?.id">
                 <UButton type="button" color="neutral" variant="ghost" size="xs" :disabled="busyId === row.item.id" :label="t('chat.edit')" @click="editingId = row.item.id; editDraft = row.item.body" />
                 <UButton type="button" color="error" variant="ghost" size="xs" :disabled="busyId === row.item.id || confirmingDelete === row.item.id" :label="t('chat.delete')" @click="confirmingDelete = row.item.id" />
               </template>

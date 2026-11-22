@@ -21,7 +21,7 @@ class TestProcessLifecycle(ApprovalCase):
         for vals in ({'name': 'A', 'state': 'published'}, {'name': 'A', 'revision': 5}, {'name': 'A', 'stage_approval_mode': 'single'}):
             with self.assertRaises(AccessError):
                 self.process_as(self.manager).create(vals)
-        other = self.env['res.company'].create({'name': 'Elsewhere'})
+        other = self.elsewhere
         with self.assertRaises(AccessError):
             self.process_as(self.manager).create({'name': 'A', 'company_id': other.id})
 
@@ -49,7 +49,7 @@ class TestProcessLifecycle(ApprovalCase):
         self.assertEqual(process.name, 'Approval')
 
     def test_the_process_cannot_be_driven_for_another_company(self):
-        other = self.env['res.company'].create({'name': 'Elsewhere'})
+        other = self.elsewhere
         process = self._draft()
         self.manager.company_ids = [Command.link(other.id)]
         with self.assertRaises(AccessError):
@@ -95,7 +95,7 @@ class TestProcessLifecycle(ApprovalCase):
 
     def test_named_reviewers_must_be_active_internal_users_of_the_company(self):
         process = self._draft()
-        outsider = self._member('apr_outsider', self.env['res.company'].create({'name': 'Elsewhere'}), ['operations.requests.read'])
+        outsider = self._member('apr_outsider', self.elsewhere, ['operations.requests.read'])
         portal = self.env['res.users'].create({'name': 'Portal', 'login': 'apr_portal', 'group_ids': [Command.link(self.env.ref('base.group_portal').id)]})
         gone = self._member('apr_gone', self.company, ['operations.requests.read'])
         gone.active = False

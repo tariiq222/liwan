@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { bundleViewSchema, paymentMethodViewSchema, invoiceSchema, orderSchema, packageRevisionSchema, paymentAttemptSchema, planViewSchema, quoteSchema } from '@liwan/commercial-contracts'
-import { handleCommercial } from '../../e2e/commercial-mock-routes.mjs'
+import { handleCommercial, resetCommercial } from '../../e2e/commercial-mock-routes.mjs'
 
 // The stub control plane serves these records to the mock e2e. They must be valid wire shapes, or a
 // page spec would pass against data the real control plane can never send. Plans and bundles are parsed
@@ -31,14 +31,14 @@ describe('commercial e2e fixtures', () => {
   })
 })
 
-function stubResponse(method: string, path: string) {
+function stubResponse(method: string, path: string, options?: { capabilities?: string[], body?: object }) {
   let status = 0
   let body: unknown
   const response = {
     writeHead(code: number) { status = code },
     end(raw: string) { body = JSON.parse(raw) },
   }
-  handleCommercial({ method }, response, new URL(path, 'http://localhost'))
+  handleCommercial({ method }, response, new URL(path, 'http://localhost'), options)
   return { status, body }
 }
 
@@ -58,5 +58,32 @@ describe('commercial mock read operations', () => {
     expect(result.status).toBe(200)
     expect(packageRevisionSchema.parse(result.body)).toEqual(pkg)
     expect(stubResponse('GET', '/v1/packages/missing').status).toBe(404)
+  })
+})
+
+describe('commercial mock catalog steps', () => {
+  const DRAFT = '00000000-0000-4000-8000-000000000401'
+  const VALIDATED = '00000000-0000-4000-8000-000000000402'
+  const owner = { capabilities: ['vendor.read', 'vendor.catalog.manage'], body: { reason: 'Reviewed the source' } }
+  const statuses = () => (stubResponse('GET', '/v1/catalog').body as { items: { id: string, status: string }[] }).items.map(item => `${item.id.slice(-3)}:${item.status}`)
+  afterEach(resetCommercial)
+
+  it('lists a draft, a validated and a published version, newest first', () => {
+    expect(statuses()).toEqual(['401:draft', '402:validated', 't-1:published'])
+  })
+
+  it('validates a draft, then publishes a validated version, and refuses a step out of order', () => {
+    expect(stubResponse('POST', `/v1/catalog/${DRAFT}/publish`, owner).status).toBe(409)
+    expect(stubResponse('POST', `/v1/catalog/${DRAFT}/validate`, owner).status).toBe(200)
+    expect(stubResponse('POST', `/v1/catalog/${DRAFT}/validate`, owner).status).toBe(409)
+    expect(stubResponse('POST', `/v1/catalog/${DRAFT}/publish`, owner).status).toBe(200)
+    expect(stubResponse('POST', `/v1/catalog/${VALIDATED}/publish`, owner).status).toBe(200)
+    expect(statuses()).toEqual(['401:published', '402:published', 't-1:published'])
+  })
+
+  it('answers like the control plane for a missing entry, a short reason and a missing capability', () => {
+    expect(stubResponse('POST', '/v1/catalog/missing/validate', owner).status).toBe(404)
+    expect(stubResponse('POST', `/v1/catalog/${DRAFT}/validate`, { ...owner, body: { reason: 'no' } }).status).toBe(422)
+    expect(stubResponse('POST', `/v1/catalog/${DRAFT}/validate`, { ...owner, capabilities: ['vendor.read'] }).status).toBe(403)
   })
 })

@@ -28,7 +28,8 @@ import { enqueueSharedJob } from '../shared/job-store.js'
 import { runSharedJob, recoverSharedJob, expireSharedLeases } from '../shared/job-worker.js'
 import { createFencedStorageAdapter, ensureTenantStorageSchema, type TenantStorage } from '../shared/fenced-adapter.js'
 import { bindJob } from '../shared/provisioning.js'
-import { createTenantBackup, approveSharedRestore, restoreBackupToNewTarget } from '../shared/shared-backup.js'
+import { createTenantBackup, restoreBackupToNewTarget } from '../shared/shared-backup.js'
+import { insertRestoreApproval } from './helpers/restore-approval.js'
 import { ensureTenantDatabases, tenantDatabaseNames } from './live-tenant-databases.js'
 import { vendorAccount, replaceRoles } from './helpers/vendor-session.js'
 import { vendorActorIssuer } from '../admin-auth/grants.js'
@@ -130,7 +131,7 @@ else describe('shared restore queue', () => {
   // be inspected before anything is queued.
   const queueRestore = (approvalId: string) =>
     enqueueSharedJob(pool, tenantId, actor, { schemaVersion: 1, requestId: randomUUID(), operation: 'restore', approvalId }, 'Approved restore via queue', { connect })
-  const approve = (target: string) => approveSharedRestore(pool, { backupId, controlTenantId: tenantId, targetDatabase: target, ttlSeconds: 3600, actor })
+  const approve = (target: string) => insertRestoreApproval(pool, { backupId, controlTenantId: tenantId, targetDatabase: target, actor })
   /** Another tenant's rows in an approved target: the target is no longer new. */
   const seedForeignRows = async (database: string) => {
     const storage = await connect(database)
@@ -191,7 +192,7 @@ else describe('shared restore queue', () => {
     // database the third tenant is bound to immediately afterwards, which is what
     // the enqueue pre-check must catch.
     for (const [name, target] of Object.entries({ main: targetDatabase, consumed: consumedTarget, registered: registeredTarget, occupied: occupiedTarget, unreachable: unreachableTarget, race: raceTarget, registryRace: registryRaceTarget, concurrentWrite: concurrentWriteTarget, doubleCall: doubleCallTarget, crash: crashTarget, revoked: revokedTarget, crossTenant: crossTenantTarget })) {
-      approvals[name as keyof typeof approvals] = (await approve(target)).approvalId
+      approvals[name as keyof typeof approvals] = await approve(target)
     }
     // The third tenant: fully registered, bound to the `registered` approval's
     // target and provisioned, so a restore refusal cannot be blamed on an
@@ -202,8 +203,8 @@ else describe('shared restore queue', () => {
     if (registeredProvisioned.state !== 'verified') throw new Error(`registered provision not verified: ${registeredProvisioned.state}`)
     const registeredBackup = await createTenantBackup(pool, connect, { controlTenantId: registeredTenantId, backupRoot: join(root, 'backups'), createdBy: `${issuer}:7` })
     // The second and third tenants' own approvals, for the races they own.
-    approvals.raceBound = (await approveSharedRestore(pool, { backupId: otherBackup.backupId, controlTenantId: otherTenantId, targetDatabase: raceBoundTarget, ttlSeconds: 3600, actor })).approvalId
-    approvals.lostAck = (await approveSharedRestore(pool, { backupId: registeredBackup.backupId, controlTenantId: registeredTenantId, targetDatabase: lostAckTarget, ttlSeconds: 3600, actor })).approvalId
+    approvals.raceBound = await insertRestoreApproval(pool, { backupId: otherBackup.backupId, controlTenantId: otherTenantId, targetDatabase: raceBoundTarget, actor })
+    approvals.lostAck = await insertRestoreApproval(pool, { backupId: registeredBackup.backupId, controlTenantId: registeredTenantId, targetDatabase: lostAckTarget, actor })
     expiredApproval = randomUUID()
     await pool.query('INSERT INTO shared_restore_approvals(id,backup_id,control_tenant_id,target_database,reason,expires_at) VALUES($1,$2,$3,$4,$5,clock_timestamp()-interval \'1 second\')',
       [expiredApproval, backupId, tenantId, targetDatabase, 'Expired fixture approval'])

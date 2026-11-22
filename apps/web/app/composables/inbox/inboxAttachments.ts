@@ -1,4 +1,5 @@
 import type { InboxChannelKind } from '@liwan/contracts'
+import { formatFileSize } from '../../utils/fileSize'
 
 // What an agent may attach to a reply, checked in the composer before the upload so a refusal is immediate.
 // The limits are the channel's: WhatsApp takes Meta's media rules narrowed by the platform, and TikTok takes one
@@ -51,7 +52,7 @@ export function inboxAcceptsCaption(mimetype: string, kind: InboxChannelKind = '
   return kind === 'whatsapp' && !mimetype.startsWith('audio/')
 }
 
-/** The size a file row shows. */
-export function inboxFileSize(bytes: number): string {
-  return bytes >= MIB ? `${(bytes / MIB).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`
+/** The size a file row shows, in the interface language (the shared formatter, not a hardcoded English unit). */
+export function inboxFileSize(bytes: number, t: (key: string, params?: Record<string, unknown>) => string): string {
+  return formatFileSize(bytes, t)
 }

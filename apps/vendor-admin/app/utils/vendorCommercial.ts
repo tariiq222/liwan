@@ -1,15 +1,17 @@
 import {
-  bundleCreateSchema, bundleEditSchema, planCreateSchema, planEditSchema, lifecycleActionSchema,
+  MAX_ENTITLEMENT_LIMIT, bundleCreateSchema, bundleEditSchema, planCreateSchema, planEditSchema, lifecycleActionSchema,
   type Audience, type BundleRevision, type BundleView, type CapacityMap, type CatalogApplication, type CatalogRelease, type CatalogReleaseView, type PlanView,
   type PricingPolicy, type Cadence, type Money, type PlanRevision, type Price, type Selection,
 } from '@liwan/commercial-contracts'
+import { failureKey } from '../composables/useStepUp'
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import type { StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
 
 export const CURRENCY = 'SAR'
 export const MB_PER_GB = 1024
 export const EXPONENT = 2
-export const MAX_LIMIT = Number.MAX_SAFE_INTEGER
+/** The most a plan, bundle or terms limit may hold: what a workspace accepts (the contract's MAX_ENTITLEMENT_LIMIT). */
+export const MAX_LIMIT = MAX_ENTITLEMENT_LIMIT
 /** Release 1 sells at most this many users per company; the server refuses a quote above it (users_limit_exceeded). */
 export const COMMERCIAL_MAX_USERS = 100
 /** Platform limits are owned by the plan, never by a bundle. */
@@ -35,12 +37,23 @@ export function lifecycleBadge(view: { status: string; available?: boolean }): S
   const state = lifecycleStatus({ status: view.status, available: view.available ?? true })
   return { tone: LIFECYCLE_TONE[state], labelKey: `vendor.pricing.status.${state}` }
 }
+/** What a plan or bundle list is filtered by. `customer_id` limits the list to what that customer may be offered: public revisions and the ones made for it. */
+export type ListParams = { status?: StatusFilter; q?: string; limit?: number; offset?: number; customer_id?: string }
+export const listQuery = (p: ListParams) => ({ status: p.status && p.status !== 'all' ? p.status : undefined, q: p.q || undefined, limit: p.limit, offset: p.offset, customer_id: p.customer_id })
 export function isStatusFilter(value: unknown): value is StatusFilter { return typeof value === 'string' && (STATUS_FILTERS as string[]).includes(value) }
 
 // ---- Money ----
 const ARABIC_DIGITS = '٠١٢٣٤٥٦٧٨٩'
+const GROUPED_INTEGER = /^[1-9]\d{0,2}(?:[,٬\s]\d{3})+$/
+/**
+ * Latin digits with `.` as the decimal mark. A comma, an Arabic thousands mark or a space is a thousands separator only
+ * between groups of exactly three digits after a first group of one to three digits that does not start with 0 (1,250 and ١٬٢٥٠٫٥٠, as the console prints amounts); any other use (12,50) is
+ * ambiguous between a decimal comma and a thousands comma, so it is left in the text and the caller's digit pattern refuses it.
+ */
 export function normalizeDigits(value: string): string {
-  return value.replace(/[٠-٩]/g, d => String(ARABIC_DIGITS.indexOf(d))).replace(/٫/g, '.').replace(/[٬,\s]/g, '')
+  const text = value.trim().replace(/[٠-٩]/g, d => String(ARABIC_DIGITS.indexOf(d))).replace(/٫/g, '.')
+  const whole = text.split('.', 1)[0]!
+  return GROUPED_INTEGER.test(whole) ? whole.replace(/[,٬\s]/g, '') + text.slice(whole.length) : text
 }
 /** "12.5" → 1250. Returns null for blank/negative/too many decimals/non-numeric; never coerces blank to 0. */
 export function parseVendorMoneyInput(value: string, exponent = EXPONENT): number | null {
@@ -285,6 +298,11 @@ export function planEditPayload(draft: PlanDraft, policyId: string, editRevision
 // ---- Lifecycle ----
 export type CommercialKind = 'bundle' | 'plan'
 export type VendorCan = (capability: 'vendor.catalog.manage' | 'vendor.pricing.manage') => boolean
+/** A draft or a validated revision can be edited; saving a validated one returns it to draft (the control plane's rule). Published and withdrawn ones are changed by a new revision. */
+export function isEditable(view: { status: string; available: boolean }): boolean {
+  const status = lifecycleStatus(view)
+  return status === 'draft' || status === 'validated'
+}
 export function availableActions(status: LifecycleStatus): LifecycleAction[] {
   if (status === 'draft') return ['validate', 'delete']
   if (status === 'validated') return ['publish']
@@ -306,20 +324,24 @@ export function lifecycleUrl(kind: CommercialKind, id: string, action: Lifecycle
 }
 
 // ---- Errors ----
-export type CommercialFailure = { status: number | null; code: string; message: string; field?: string; conflict: boolean; forbidden: boolean }
+/** One reason the control plane lists in a 422 body (`issues[]`): a refused validate or publish names every one of them. */
+export type CommercialFailureIssue = { code: string; field?: string }
+export type CommercialFailure = { status: number | null; code: string; message: string; field?: string; issues: CommercialFailureIssue[]; conflict: boolean; forbidden: boolean }
+const failureIssues = (value: unknown): CommercialFailureIssue[] => (Array.isArray(value) ? value : []).flatMap((item: { code?: unknown; field?: unknown } | null) => (typeof item?.code === 'string' ? [{ code: item.code, ...(typeof item.field === 'string' ? { field: item.field } : {}) }] : []))
 export function commercialFailure(cause: unknown): CommercialFailure {
-  const e = cause as { status?: number; statusCode?: number; code?: string; message?: string; field?: string; data?: { code?: string; message?: string; field?: string; data?: { code?: string; message?: string; field?: string } }; response?: { status?: number; _data?: { code?: string; message?: string; field?: string } } } | null
+  type Body = { code?: string; message?: string; field?: string; issues?: unknown }
+  const e = cause as { status?: number; statusCode?: number; code?: string; message?: string; field?: string; data?: Body & { data?: Body }; response?: { status?: number; _data?: Body } } | null
   const body = e?.data?.data ?? e?.data ?? e?.response?._data
   const status = e?.status ?? e?.statusCode ?? e?.response?.status ?? null
   const code = body?.code ?? e?.code ?? 'unknown'
-  return { status, code, message: body?.message ?? e?.message ?? '', field: body?.field ?? e?.field, conflict: status === 409 || code === 'revision_conflict', forbidden: status === 403 || code === 'forbidden' }
+  return { status, code, message: body?.message ?? e?.message ?? '', field: body?.field ?? e?.field, issues: failureIssues(body?.issues), conflict: status === 409 || code === 'revision_conflict', forbidden: status === 403 || code === 'forbidden' }
 }
 /** Every code the control-plane commercial routes, the contract compiler and the vendor proxy can emit; each needs vendor.pricing.errors.<code> in ar and en. */
-export const COMMERCIAL_ERROR_CODES = ['revision_conflict', 'invalid', 'forbidden', 'not_found', 'transition_forbidden', 'transition_invalid', 'customers_attached', 'price_missing', 'feature_not_selectable', 'dependency_missing', 'app_conflict', 'dependency_cycle', 'unknown_app', 'app_not_selectable', 'catalog_release_mismatch', 'bundle_not_allowed', 'bundle_missing', 'bundle_unavailable', 'bundle_duplicated', 'bundle_delete_forbidden', 'bundle_audience_mismatch', 'plan_missing', 'plan_unavailable', 'plan_delete_forbidden', 'policy_missing', 'release_missing', 'published_catalog_missing', 'quote_missing', 'quote_kind_unsupported', 'terms_unsupported', 'content_digest_mismatch', 'review_required', 'audience_invalid', 'branch_limit_invalid', 'branch_limit_exceeded', 'branch_price_missing', 'unit_price_missing', 'platform_limit_derived', 'users_limit_admin_required', 'storage_minimum_not_whole_gb', 'currency_mismatch', 'duplicate_price_cadence', 'term_not_multiple', 'ambiguous_limit', 'limit_not_supported', 'invalid_limit_scope', 'invalid_quantity', 'invalid_billing_period', 'invalid_order_transition', 'invalid_json', 'payload_too_large', 'unauthorized', 'vendor_unavailable', 'method_not_allowed', 'tenant_upgrade_required', 'tenant_binding_unavailable', 'trial_order_unavailable', 'trial_not_applied', 'trial_not_reopenable', 'subscription_not_suspendable', 'subscription_not_suspended', 'trial_already_used', 'trial_not_available', 'trial_disabled', 'users_limit_exceeded', 'transfer_amount_mismatch', 'transfer_reference_in_use', 'invoice_not_payable', 'order_not_payable', 'bank_account_unavailable', 'step_up_required', 'refund_window_closed', 'refund_not_first_payment', 'refund_not_full', 'invoice_already_refunded', 'refund_already_requested', 'invoice_not_paid', 'admin_login_required', 'invalid_value_date', 'value_date_in_future', 'value_date_before_invoice', 'invalid_transfer_reference', 'invalid_transfer_amount', 'invalid_transfer_reason', 'storage_step_invalid', 'storage_step_misaligned', 'onboarding_first_order_only', 'onboarding_unavailable', 'catalog_source_not_publishable', 'tenant_required'] as const
+export const COMMERCIAL_ERROR_CODES = ['revision_conflict', 'invalid', 'forbidden', 'not_found', 'transition_forbidden', 'transition_invalid', 'customers_attached', 'price_missing', 'feature_not_selectable', 'dependency_missing', 'app_conflict', 'dependency_cycle', 'unknown_app', 'app_not_selectable', 'catalog_release_mismatch', 'bundle_not_allowed', 'bundle_missing', 'bundle_unavailable', 'bundle_duplicated', 'bundle_delete_forbidden', 'bundle_audience_mismatch', 'plan_missing', 'plan_unavailable', 'plan_delete_forbidden', 'policy_missing', 'release_missing', 'published_catalog_missing', 'quote_missing', 'quote_kind_unsupported', 'terms_unsupported', 'content_digest_mismatch', 'review_required', 'audience_invalid', 'branch_limit_invalid', 'branch_limit_exceeded', 'branch_price_missing', 'unit_price_missing', 'platform_limit_derived', 'users_limit_admin_required', 'storage_minimum_not_whole_gb', 'storage_step_not_whole_gb', 'currency_mismatch', 'duplicate_price_cadence', 'term_not_multiple', 'ambiguous_limit', 'limit_not_supported', 'invalid_limit_scope', 'invalid_quantity', 'invalid_billing_period', 'invalid_order_transition', 'invalid_json', 'payload_too_large', 'unauthorized', 'vendor_unavailable', 'method_not_allowed', 'tenant_upgrade_required', 'tenant_binding_unavailable', 'trial_order_unavailable', 'trial_not_applied', 'trial_not_reopenable', 'subscription_not_suspendable', 'subscription_not_suspended', 'trial_already_used', 'trial_not_available', 'trial_disabled', 'users_limit_exceeded', 'transfer_amount_mismatch', 'transfer_reference_in_use', 'invoice_not_payable', 'order_not_payable', 'bank_account_unavailable', 'step_up_required', 'refund_window_closed', 'refund_not_first_payment', 'refund_not_full', 'invoice_already_refunded', 'refund_already_requested', 'invoice_not_paid', 'admin_login_required', 'invalid_value_date', 'value_date_in_future', 'value_date_before_invoice', 'invalid_transfer_reference', 'invalid_transfer_amount', 'invalid_transfer_reason', 'storage_step_invalid', 'storage_step_misaligned', 'onboarding_first_order_only', 'onboarding_unavailable', 'catalog_source_not_publishable', 'tenant_required', 'tenant_retiring', 'invitation_accepted'] as const
 const KNOWN_ERRORS = new Set<string>(COMMERCIAL_ERROR_CODES)
 export function commercialErrorKey(cause: unknown): string {
   const f = commercialFailure(cause)
-  return KNOWN_ERRORS.has(f.code) ? `vendor.pricing.errors.${f.code}` : 'vendor.pricing.errors.generic'
+  return failureKey(cause, KNOWN_ERRORS.has(f.code) ? `vendor.pricing.errors.${f.code}` : 'vendor.pricing.errors.generic')
 }
 /** Field-scoped server issue for a form field name (matches exact name or `name.` / `name[` prefix). */
 export function fieldIssue(failure: CommercialFailure | null, field: string): string | undefined {

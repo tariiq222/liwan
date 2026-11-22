@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { adminAccountListSchema, adminInviteBodySchema, adminInviteResultSchema, adminMeSchema, adminReasonBodySchema, adminResetResultSchema, adminRolesBodySchema, type VendorCapability } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
 import { AdminAuthError, disableAccount, lockOwners, requireActingOwner, setRoles } from './accounts.js'
-import { inviteAccount, issueReset } from './enrollment.js'
+import { enableAccount, inviteAccount, issueReset } from './enrollment.js'
 
 type Auth = { actor: number; capabilities: VendorCapability[]; stepUpFresh: boolean; method: string }
 type Input = { method: string; pathname: string; raw: string; auth: Auth; requireCapability: (auth: Auth, capability: VendorCapability) => void; fail: (status: number, code: string) => Error }
@@ -22,7 +22,7 @@ export async function accountsHttp(pool: Pool, input: Input): Promise<Result | n
   const { method, pathname, auth } = input
   const isMe = pathname === '/v1/admin/me'
   const isList = pathname === '/v1/admin/accounts'
-  const action = /^\/v1\/admin\/accounts\/([1-9][0-9]{0,15})\/(roles|disable|reset)$/.exec(pathname)
+  const action = /^\/v1\/admin\/accounts\/([1-9][0-9]{0,15})\/(roles|disable|enable|reset)$/.exec(pathname)
   if (!isMe && !isList && !action) return null
   try {
     if (isMe) {
@@ -62,6 +62,7 @@ export async function accountsHttp(pool: Pool, input: Input): Promise<Result | n
     }
     const b = body(adminReasonBodySchema, input.raw, input.fail)
     const reset = await transaction(pool, async (c) => {
+      if (action![2] === 'enable') return enableAccount(c, { id: auth.actor }, id, b.reason, now)
       requireActingOwner({ id: auth.actor }, await lockOwners(c))
       return issueReset(c, { id: auth.actor }, id, b.reason, now)
     })

@@ -3,9 +3,10 @@ import {
   analyticsQuerySchema, analyticsSchema, type Analytics, type AnalyticsFigure, type AnalyticsFigures, type AnalyticsSnapshot, type Cadence,
 } from '@liwan/commercial-contracts'
 import {
-  bookAt, bookInHistory, DAY_MS, inForceAt, monthEnds, movementIn, periodBounds, previousPeriod, ratio, recurringOf, riyadhDay, settleTrials, toTimelines,
-  type AppliedOrder, type BookAt, type Period, type PricingBaseline, type Timelines,
+  bookAt, bookInHistory, DAY_MS, inForceAt, monthEnds, movementIn, notOnlyAiTopupSql, periodBounds, previousPeriod, ratio, recurringOf, riyadhDay, settleTrials, toTimelines,
+  type AppliedOrder, type BookAt, type Departed, type Period, type PricingBaseline, type Timelines,
 } from './analytics-model.js'
+import { owesAtRenewal } from './free-base.js'
 import { CommercialHttpError } from './lifecycle.js'
 import { creditedMinorSql } from './refund-credit.js'
 import { signupFunnel } from './signup-funnel.js'
@@ -19,13 +20,13 @@ const LIST_LIMIT = 10
 /** A queued or applying fulfillment older than this is reported as stalled. */
 const STALLED_AFTER_MS = 60 * 60 * 1000
 const BILLABLE_STATES = ['active', 'past_due']
-/** States of a subscription that has left service; the schema keeps no time for when it did. */
+/** States of a subscription that has left service; `left_service_at` is when it did (null for a row that left before the time was recorded). */
 const DEPARTED_STATES = ['suspended', 'cancelled']
 const RENEWAL_WINDOWS = [30, 60, 90] as const
 
 type Ask = Pick<Pool, 'query'>
 interface Live { subscription_id: string, customer_id: string, customer_name: string, tenant_id: string | null, renewal_at: string | null }
-interface Book { timelines: Timelines, departed: Set<string>, currency: string, exponent: number, excluded: number }
+interface Book { timelines: Timelines, departed: Departed, currency: string, exponent: number, excluded: number }
 
 const available = <T>(value: T): AnalyticsFigure<T> => ({ available: true, value })
 const unavailable = (reason: 'no_data' | 'history_not_recorded'): AnalyticsFigure<never> => ({ available: false, reason })
@@ -42,7 +43,7 @@ async function liveSubscriptions(db: Ask): Promise<Live[]> {
 /** Every applied order of every subscription, whatever its state today, priced from its revision. Orders in other currencies than the book's are dropped and counted. */
 async function loadBook(db: Ask): Promise<Book> {
   const rows = (await db.query(
-    `SELECT o.subscription_id, s.state, COALESCE(s.trial_ends_at, fbl.trial_ended_at) AS trial_ends_at, o.currency, o.exponent, COALESCE(fe.applied_at, o.effective_at, o.created_at) AS applied_at,
+    `SELECT o.subscription_id, s.state, s.left_service_at, COALESCE(s.trial_ends_at, fbl.trial_ended_at) AS trial_ends_at, o.currency, o.exponent, COALESCE(fe.applied_at, o.effective_at, o.created_at) AS applied_at,
             (fbl.cause = 'cancelled' AND fbl.state = 'done' AND fbl.order_id = o.id AND s.cancel_requested_at IS NULL) AS churn,
             r.snapshot->'pricing' AS pricing, r.snapshot->'cadence' AS cadence, p.plan_id, p.name AS plan_name
        FROM orders o
@@ -64,10 +65,10 @@ async function loadBook(db: Ask): Promise<Book> {
   const kept = rows.filter(row => row.currency === currency)
   const orders = kept.map((row): AppliedOrder => ({
     subscription_id: row.subscription_id, applied_at: new Date(row.applied_at).getTime(), plan_id: row.plan_id, plan_name: row.plan_name,
-    ...recurringOf(row.pricing as PricingBaseline, row.cadence as Cadence), churn: row.churn === true,
+    ...recurringOf(row.pricing as PricingBaseline, row.cadence as Cadence), churn: row.churn === true, paying: owesAtRenewal(row.pricing),
   }))
   const trialEnds = new Map<string, number>(kept.filter(row => row.trial_ends_at).map(row => [row.subscription_id, new Date(row.trial_ends_at).getTime()]))
-  const departed = new Set<string>(kept.filter(row => DEPARTED_STATES.includes(row.state)).map(row => row.subscription_id))
+  const departed: Departed = new Map(kept.filter(row => DEPARTED_STATES.includes(row.state)).map(row => [row.subscription_id, row.left_service_at ? new Date(row.left_service_at).getTime() : null]))
   const excluded = new Set(rows.filter(row => row.currency !== currency).map(row => row.subscription_id)).size
   return { timelines: settleTrials(toTimelines(orders), trialEnds), departed, currency, exponent, excluded }
 }
@@ -76,9 +77,11 @@ interface Money { currency: string, exponent: number }
 const money = (unit: Money, minor: number) => ({ currency: unit.currency, exponent: unit.exponent, minor })
 const moneyFigure = (unit: Money, minor: number) => available(money(unit, Math.max(0, Math.round(minor))))
 
-async function collection(db: Ask, unit: Money, period: Period) {
+async function collection(db: Ask, unit: Money, period: Period, now: Date) {
   const { start, end } = periodBounds(period)
   const from = new Date(start), to = new Date(end)
+  // The book is read as of the end of the period, or as of now while the period is still running: an invoice due later today is not late yet.
+  const asOf = new Date(Math.min(end, now.getTime()))
   const flow = (await db.query(
     // An invoice credited in full was given back: it collected nothing.
     `SELECT COALESCE(SUM(subtotal_minor) FILTER (WHERE status = 'paid' AND paid_at >= $1 AND paid_at < $2 AND total_minor > ${creditedMinorSql('invoices.id')}), 0) AS collected,
@@ -90,7 +93,7 @@ async function collection(db: Ask, unit: Money, period: Period) {
             COALESCE(SUM(subtotal_minor) FILTER (WHERE $1 - due_at > interval '30 days' AND $1 - due_at <= interval '60 days'), 0) AS late_60,
             COALESCE(SUM(subtotal_minor) FILTER (WHERE $1 - due_at > interval '60 days'), 0) AS late_over
        FROM invoices
-      WHERE currency = $2 AND issued_at < $1 AND status IN ('issued', 'paid') AND (paid_at IS NULL OR paid_at >= $1)`, [to, unit.currency])).rows[0]
+      WHERE currency = $2 AND issued_at < $1 AND status IN ('issued', 'paid') AND (paid_at IS NULL OR paid_at >= $1)`, [asOf, unit.currency])).rows[0]
   const attempts = (await db.query(
     `SELECT count(*) FILTER (WHERE status = 'succeeded') AS ok, count(*) FILTER (WHERE status = 'failed') AS bad
        FROM payment_attempts WHERE currency = $3 AND created_at >= $1 AND created_at < $2`, [from, to, unit.currency])).rows[0]
@@ -114,7 +117,7 @@ async function trialConversion(db: Ask, period: Period, now: Date) {
      )
      SELECT count(*) AS ended,
        count(*) FILTER (WHERE EXISTS (SELECT 1 FROM invoices i WHERE i.subscription_id=t.id AND i.status='paid'
-         AND i.subtotal_minor>0 AND i.paid_at>=t.ended_at AND i.total_minor>${creditedMinorSql('i.id')})) AS paid,
+         AND i.subtotal_minor>0 AND i.paid_at>=t.ended_at AND i.total_minor>${creditedMinorSql('i.id')} AND ${notOnlyAiTopupSql('i.id')})) AS paid,
        count(*) FILTER (WHERE t.trial_outcome='converted') AS converted,
        count(*) FILTER (WHERE t.trial_outcome='kept_subset') AS kept_subset,
        count(*) FILTER (WHERE t.trial_outcome='free_base') AS free_base
@@ -147,14 +150,14 @@ async function figuresFor(db: Ask, book: Book, unit: Money, period: Period, now:
       mrr: stockMoney(at => at.mrr_minor), arr: stockMoney(at => at.arr_minor),
       new_mrr: moneyFigure(unit, movement.new_minor), expansion_mrr: moneyFigure(unit, movement.expansion_minor),
       contraction_mrr: moneyFigure(unit, movement.contraction_minor), churned_mrr: moneyFigure(unit, movement.churned_minor),
-      arpc: !stock ? historyLost : stock.customers > 0 ? moneyFigure(unit, stock.mrr_minor / stock.customers) : unavailable('no_data'),
+      arpc: !stock ? historyLost : stock.paying_customers > 0 ? moneyFigure(unit, stock.mrr_minor / stock.paying_customers) : unavailable('no_data'),
       extra_branch_mrr: stockMoney(at => at.branch_mrr_minor),
     },
-    collection: await collection(db, unit, period),
+    collection: await collection(db, unit, period, now),
     customers: {
       active: stock ? available(stock.customers) : historyLost, new: available(movement.new_customers), churned: available(movement.churned_customers),
-      churn_rate_by_count: orNoData(ratio(movement.churned_customers, opening.customers)),
-      churn_rate_by_revenue: orNoData(ratio(movement.churned_minor, opening.mrr_minor)), ...await trialConversion(db, period, now),
+      churn_rate_by_count: orNoData(ratio(movement.opening_churned_customers, opening.customers)),
+      churn_rate_by_revenue: orNoData(ratio(movement.opening_churned_minor, opening.mrr_minor)), ...await trialConversion(db, period, now),
     },
     operations: { avg_hours_to_ready: await hoursToReady(db, period) },
   }
@@ -216,7 +219,8 @@ async function snapshotOf(db: Pool, live: readonly Live[], book: Book, unit: Mon
   const renewals = RENEWAL_WINDOWS.map(days => {
     const limit = new Date(Date.parse(today) + days * DAY_MS).toISOString().slice(0, 10)
     const due = live.filter(sub => sub.renewal_at !== null && sub.renewal_at >= today && sub.renewal_at <= limit)
-    const value = due.reduce((sum, sub) => sum + (inForceAt(timelines.get(sub.subscription_id) ?? [], nowMs + 1)?.cycle_minor ?? 0), 0)
+      .map(sub => inForceAt(timelines.get(sub.subscription_id) ?? [], nowMs + 1)).filter(order => order?.paying)
+    const value = due.reduce((sum, order) => sum + order!.cycle_minor, 0)
     return { within_days: days, count: due.length, value: money(unit, value) }
   })
   return {

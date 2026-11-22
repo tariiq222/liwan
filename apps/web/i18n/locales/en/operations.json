@@ -176,6 +176,7 @@
       "single": "One approval is enough"
     },
     "archivedNotEditable": "An archived procedure cannot be edited.",
-    "ineligibleReviewers": "Lacks the review capability: {names}"
+    "ineligibleReviewers": "Lacks the review capability: {names}",
+    "createAndSubmit": "Create and submit"
   }
 }

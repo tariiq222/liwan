@@ -68,7 +68,8 @@ export type AdminInviteResult = z.infer<typeof adminInviteResultSchema>
 export type AdminResetResult = z.infer<typeof adminResetResultSchema>
 /** Role change and disable answer 204 with no body. */
 
-export const adminInvitationInfoSchema = strict({ email: z.string(), purpose: z.enum(['enroll', 'reset']) })
+/** `passkey_registered`: a passkey was stored during this invitation, so reopening the link continues at the authenticator-app step. */
+export const adminInvitationInfoSchema = strict({ email: z.string(), purpose: z.enum(['enroll', 'reset']), passkey_registered: z.boolean() })
 export const adminChallengeResultSchema = strict({ challenge_id: adminAuthFields.challengeId, options: z.record(z.string(), z.unknown()) })
 export const adminTotpEnrollmentSchema = strict({ totp_uri: z.string(), totp_box: z.string() })
 
