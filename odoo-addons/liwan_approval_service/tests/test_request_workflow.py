@@ -33,7 +33,7 @@ class TestRequestCreation(ApprovalCase):
         draft = self.process_as(self.manager).create({'name': 'Draft'})
         archived = self.published_process(name='Old')
         archived.action_archive(archived.revision)
-        other = self.env['res.company'].create({'name': 'Elsewhere'})
+        other = self.elsewhere
         foreign = self.env['liwan.operation.process'].with_company(other).create({'name': 'Foreign'})
         foreign.write({'state': 'published'})
         for process_id in (draft.id, archived.id, foreign.id, 999999999, True, '1', None):
@@ -52,7 +52,7 @@ class TestRequestCreation(ApprovalCase):
         process = self.published_process()
         with self.assertRaisesRegex(ValidationError, 'linked record'):
             self.request_as(self.requester).create({'name': 'R', 'process_id': process.id, 'target_id': 3})
-        other = self.env['res.company'].create({'name': 'Elsewhere'})
+        other = self.elsewhere
         with self.assertRaises(AccessError):
             self.request_as(self.requester).create({'name': 'R', 'process_id': process.id, 'company_id': other.id})
 

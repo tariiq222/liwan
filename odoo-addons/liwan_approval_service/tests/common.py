@@ -37,6 +37,9 @@ class ApprovalCase(TransactionCase):
         cls.reviewer2 = cls._member('apr_reviewer2', cls.company, REVIEWER_KEYS)
         cls.monitor = cls._member('apr_monitor', cls.company, MONITOR_KEYS)
         cls.bystander = cls._member('apr_bystander', cls.company, EMPLOYEE_KEYS)
+        # Created here, before setUp narrows the execution kinds: an application that seeds its own process for a new
+        # company (liwan_hr does) would be refused under those patches.
+        cls.elsewhere = cls.env['res.company'].create({'name': 'Elsewhere'})
 
     @classmethod
     def _role(cls, company, keys, name):
