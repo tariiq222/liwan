@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { invoiceSchema, paymentAttemptSchema, paymentEventRecordSchema, adjustmentSchema, refundCreditNoteRequestSchema, customerInvoiceExtrasSchema, sellerIdentitySchema } from '../commercial/index.js'
+import { invoiceSchema, paymentAttemptSchema, paymentEventRecordSchema, adjustmentSchema, refundCreditNoteRequestSchema, customerInvoiceExtrasSchema, sellerIdentitySchema, voidBlockSchema, voidRenewalInvoiceRequestSchema } from '../commercial/index.js'
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
 const sar = (minor: number) => ({ currency: 'SAR', exponent: 2, minor })
@@ -103,5 +103,18 @@ describe('form payment session', () => {
     expect(formPaymentSessionSchema.parse(session)).toEqual(session)
     expect(formPaymentSessionSchema.safeParse({ ...session, secret_key: 'sk_test_x' }).success).toBe(false)
     expect(formPaymentSessionSchema.safeParse({ ...session, intent: { id: 'i' } }).success).toBe(false)
+  })
+})
+
+describe('void renewal invoice', () => {
+  it('needs a reason of 3 to 1000 characters and one of the two outcomes, and nothing else', () => {
+    expect(voidRenewalInvoiceRequestSchema.parse({ reason: '  Customer will not pay  ', outcome: 'end' })).toEqual({ reason: 'Customer will not pay', outcome: 'end' })
+    expect(voidRenewalInvoiceRequestSchema.safeParse({ reason: 'ok!', outcome: 'rebill' }).success).toBe(true)
+    for (const bad of [{ reason: 'ab', outcome: 'end' }, { reason: 'x'.repeat(1001), outcome: 'end' }, { reason: 'fine reason' }, { outcome: 'end' },
+      { reason: 'fine reason', outcome: 'waive' }, { reason: 'fine reason', outcome: 'end', invoice_id: id(1) }])
+      expect(voidRenewalInvoiceRequestSchema.safeParse(bad).success, JSON.stringify(bad)).toBe(false)
+  })
+  it('names the reasons an invoice cannot be voided now', () => {
+    expect(voidBlockSchema.options).toEqual(['payment_reconciliation_required', 'transfer_claimed', 'renewal_in_progress', 'lock_pending', 'tenant_retiring'])
   })
 })
