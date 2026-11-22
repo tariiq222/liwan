@@ -312,6 +312,9 @@ export function customersReturnTo(value: unknown): string {
   if (typeof value !== 'string' || !value.startsWith('/customers')) return '/customers'
   try { const u = new URL(value, 'http://liwan.local'); return u.pathname.replace(/\/$/, '') === '/customers' ? `${u.pathname}${u.search}` : '/customers' } catch { return '/customers' }
 }
+/** A draft has no number and is never printed; every other invoice has the document the customer prints. */
+export const invoicePrintable = (invoice: { status: string; number: string | null }): boolean => invoice.status !== 'draft' && invoice.number !== null
+
 /** An invoice goes back to the invoice list or to the customer it was opened from (its invoices tab), never to another page or origin. */
 export function invoicesReturnTo(value: unknown): string {
   return safeReturnTo(value, '/invoices', ['/invoices', '/customers'])

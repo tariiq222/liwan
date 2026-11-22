@@ -1792,6 +1792,12 @@
       "notAvailableHint": "The invoices service is not enabled in the control plane yet.",
       "details": "Invoice",
       "draftNumber": "Draft (no number)",
+      "print": {
+        "title": "Invoice document",
+        "action": "Print or save as PDF",
+        "back": "Back to the invoice",
+        "draft": "A draft invoice has no number and cannot be printed."
+      },
       "allCustomers": "All customers",
       "customerSearch": "Search customers",
       "customersRetry": "Retry",

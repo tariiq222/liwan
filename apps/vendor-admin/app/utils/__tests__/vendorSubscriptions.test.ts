@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Adjustment, Invoice, Order, SubscriptionView } from '@liwan/commercial-contracts'
 import {
-  customersReturnTo, invoicesReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, daysUntilDate, invoiceListQuery, isNotAvailable, isStalled, targetStatus, termsPayload, usageDisplay, usageMetricLabel, lineQuantities, vendorInvoiceLineViews, parseTransferAmount, refundRequestBlock, voidAction, voidErrorKey, voidReasonKey, validVoidDraft, aiTopupRefundable, transferFormDefaults, validRefundDraft, validRefundReason,
+  customersReturnTo, invoicePrintable, invoicesReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, daysUntilDate, invoiceListQuery, isNotAvailable, isStalled, targetStatus, termsPayload, usageDisplay, usageMetricLabel, lineQuantities, vendorInvoiceLineViews, parseTransferAmount, refundRequestBlock, voidAction, voidErrorKey, voidReasonKey, validVoidDraft, aiTopupRefundable, transferFormDefaults, validRefundDraft, validRefundReason,
   planBundleIds, requestedQuantities, currentPaidQuantities, orderOutcomeUnknown,
   type VendorCustomer, type VendorInvoice, adminLoginErrorKey, cardActionErrorKey, deletionErrorKey,
 } from '../vendorSubscriptions'
@@ -305,5 +305,15 @@ describe('void of an unpaid renewal invoice', () => {
     }
     expect(voidErrorKey({ statusCode: 403, data: { code: 'step_up_required' } })).toBe('vendor.pricing.errors.step_up_required')
     expect(voidErrorKey({ statusCode: 500, data: { code: 'database exploded' } })).toBe('vendor.pricing.errors.generic')
+  })
+})
+
+describe('invoicePrintable', () => {
+  it('prints every invoice that has a number and never a draft', () => {
+    expect(invoicePrintable({ status: 'issued', number: 'INV-1' })).toBe(true)
+    expect(invoicePrintable({ status: 'void', number: 'INV-2' })).toBe(true)
+    expect(invoicePrintable({ status: 'draft', number: null })).toBe(false)
+    expect(invoicePrintable({ status: 'draft', number: 'INV-3' })).toBe(false)
+    expect(invoicePrintable({ status: 'issued', number: null })).toBe(false)
   })
 })

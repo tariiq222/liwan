@@ -4,7 +4,7 @@ import { adjustmentStatusBadge, paymentAttemptBadge } from '@/utils/vendorBadges
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { commercialErrorKey } from '@/utils/vendorCommercial'
 import { ownerOnlyAccess } from '@/utils/ownerOnly'
-import { aiTopupRefundable, invoiceHasAiTopup, invoicesReturnTo, isNotAvailable, parseTransferAmount, parseUnitsUsed, refundErrorKey, refundRequestBlock, transferFormDefaults, validRefundDraft, validRefundReason, validVoidDraft, vendorInvoiceLineViews, voidAction, voidErrorKey, voidReasonKey } from '@/utils/vendorSubscriptions'
+import { aiTopupRefundable, invoiceHasAiTopup, invoicePrintable, invoicesReturnTo, isNotAvailable, parseTransferAmount, parseUnitsUsed, refundErrorKey, refundRequestBlock, transferFormDefaults, validRefundDraft, validRefundReason, validVoidDraft, vendorInvoiceLineViews, voidAction, voidErrorKey, voidReasonKey } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { formatBusinessDate, formatBusinessDateTime } from '@/utils/vendorTime'
 definePageMeta({ capability: 'vendor.billing.manage' })
@@ -17,6 +17,8 @@ const id = computed(() => String(route.params.id))
 const backTo = computed(() => invoicesReturnTo(route.query.returnTo))
 const { data, error, pending, refresh } = await useAsyncData(() => `vendor:invoice:${id.value}`, () => api.invoice(id.value))
 const orderId = computed(() => data.value?.order_id)
+const printable = computed(() => (data.value ? invoicePrintable(data.value) : false))
+const printTo = computed(() => ({ path: `/invoices/print/${encodeURIComponent(id.value)}`, query: { returnTo: backTo.value } }))
 const { data: attempts, error: attemptsError, pending: attemptsPending, refresh: refreshAttempts } = await useAsyncData(
   () => `vendor:invoice-attempts:${id.value}:${orderId.value ?? 'none'}:${canBilling.value}`,
   () => orderId.value && canBilling.value ? api.paymentAttempts(orderId.value) : Promise.resolve(null),
@@ -184,6 +186,10 @@ const badge = computed(() => (data.value ? invoiceStatusBadge(data.value.status,
 <template>
 <SharedRecordPage :title="data ? (data.number ?? t('vendor.invoices.draftNumber')) : t('vendor.invoices.details')" :back-to="backTo" :loading="pending" :error="unavailable ? undefined : error" @retry="refresh">
   <UAlert v-if="unavailable" color="neutral" variant="subtle" icon="i-lucide-clock" :title="t('vendor.invoices.notAvailable')" :description="t('vendor.invoices.notAvailableHint')" />
+
+  <template v-if="data && !unavailable && printable" #actions>
+    <UButton color="neutral" variant="outline" icon="i-lucide-printer" :to="printTo" :label="t('vendor.invoices.print.action')" data-testid="invoice-print-open" />
+  </template>
 
   <template v-if="data && !unavailable" #summary>
     <div class="space-y-4" data-testid="invoice-header">

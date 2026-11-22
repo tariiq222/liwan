@@ -1,6 +1,6 @@
 import { commercialFailure } from '@/utils/vendorCommercial'
 import { normalizeQuoteResponse, withoutDraftTerms } from '@/utils/vendorSubscriptions'
-import type { Attention, TenantDeletionRequest, TenantDeletionRun, Adjustment, BranchSummary, ClientList, Quote, SubscriptionView, UsageSnapshot, CustomerTermsRevision, Order, PaymentAttempt, VoidRenewalOutcome } from '@liwan/commercial-contracts'
+import type { Attention, TenantDeletionRequest, TenantDeletionRun, Adjustment, BranchSummary, ClientList, Quote, SubscriptionView, UsageSnapshot, CustomerTermsRevision, Order, PaymentAttempt, VoidRenewalOutcome, CustomerInvoice } from '@liwan/commercial-contracts'
 import type { AdminLoginChange, AdminLoginPreview, VendorCustomer, VendorInvoice, VendorInvoiceList } from '@/utils/vendorSubscriptions'
 
 /** Typed access to the vendor customer / subscription / invoice endpoints (proxy /api/vendor/v1 → /v1). Totals and prices always come from the server. */
@@ -25,6 +25,8 @@ export function useVendorSubscriptions() {
     attention: (customerId: string) => request<Attention>('commercial/attention', { query: { customer_id: customerId } }),
     listInvoices: (query: Record<string, unknown>) => request<VendorInvoiceList>('commercial/invoices', { query }),
     invoice: (id: string) => request<VendorInvoice>(`commercial/invoices/${seg(id)}`),
+    /** The invoice exactly as its customer prints it: the seller copied at issue, the legal name and typed credit notes, never an operator's text. */
+    invoiceDocument: (id: string) => request<CustomerInvoice>(`commercial/invoices/${seg(id)}/document`),
     /** Records a refund the operator made by hand (a bank transfer, or after the system could not refund); nothing is refunded by this call. */
     refundCreditNote: (id: string, body: { external_reference: string; reason: string }) => request<Adjustment>(`commercial/invoice-adjustments/${seg(id)}/refund`, { method: 'POST', body: { external_reference: body.external_reference.trim(), reason: body.reason.trim() } }),
     /** Asks for the full refund of a paid invoice: a credit note the server creates only for the customer's first payment, inside the window; a card payment is then refunded through the provider by the control plane. An invoice with an AI top-up also states the units already spent. Nothing is refunded by this call. */

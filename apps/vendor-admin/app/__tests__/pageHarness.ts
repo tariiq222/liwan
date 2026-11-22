@@ -57,7 +57,7 @@ export async function mountPage(path: string, bindings: Record<string, unknown>,
     const captured: Captured[] = []
     const app = Vue.createSSRApp(Vue.defineComponent({ setup: () => Object.fromEntries(Object.entries(state).filter(([key]) => !key.startsWith('$'))), render }))
     for (const name of new Set([...descriptor.template!.content.matchAll(/<([A-Z]\w*)/g)].map(match => match[1]!))) app.component(name, Vue.defineComponent({ inheritAttrs: false, setup(_, { attrs, slots }) {
-      return () => { captured.push({ name, props: { ...attrs } }); return Vue.h('div', [slots.default?.(), slots.filters?.(), slots.search?.(), slots.header?.(), slots.actions?.()]) }
+      return () => { captured.push({ name, props: { ...attrs } }); return Vue.h('div', [slots.default?.(), slots.filters?.(), slots.search?.(), slots.header?.(), slots.actions?.(), slots.footer?.()]) }
     } }))
     return { html: await renderToString(app), captured }
   }
