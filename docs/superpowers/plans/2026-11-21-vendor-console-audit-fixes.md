@@ -216,3 +216,49 @@ Found outside the tasks and left: anonymous quote previews are stored under the 
 panel does not know an invitation was accepted until the server refuses; `view.issues` in the plan and bundle view
 is always empty; `requested_storage_mb` in a quote is not bounded by what the workspace accepts; a bundle restore
 is not re-checked; hardcoded list separators in `ai-provider.vue` and `packages/ui` `PersonAvatar.vue`.
+
+## 6. Third round (2026-11-22): the items left unchecked
+
+The items section 1 listed as not checked were verified on `main` after #805 and #812: 19 of 23 confirmed, one
+already fixed (the trial-end counter), three not defects (AI top-up refund paths, the sign-up funnel's two
+applications, the save-test-default order of the AI provider page, which is now explained on the page).
+
+Built on branch `claude/gallant-gauss-gxh9lh`, one commit per item, each reproduced in a failing test first:
+
+- Console: unsaved-changes guards, the return from an invoice to its customer, no parent requests under a child
+  route, texts for every audit action (76 were missing) and every catalog feature key (47 were missing), one-time
+  codes with Arabic digits and spaces, the Riyadh business clock for every date, usable AI model table fields, the
+  plan record page (storage steps, pricing policy, AI limits, versions), a searchable workspace filter, storage
+  shown in MB and GB only, the "needs the platform owner" hint for two-permission actions, the customer's own
+  attention items on its page.
+- Control plane: readable audit subjects for subscriptions, invoices, adjustments and shared jobs; customer search
+  by name, administrator e-mail, workspace host and id; an index on `invoice_adjustments(invoice_id)`
+  (`schema_076.sql`); an AI top-up paid over the balance cap is now released and refunded automatically (it was
+  delivered with no balance and no refund).
+- Four designs, with the owner's decisions of 2026-11-22, each built:
+  [invoice print and export](../specs/2026-11-22-invoice-print-export-design.md),
+  [AI provider redelivery](../specs/2026-11-22-ai-provider-redeliver-design.md),
+  [service health](../specs/2026-11-22-service-health-console-design.md) (`schema_077.sql`),
+  [stuck automatic refund](../specs/2026-11-22-stuck-automatic-refund-design.md).
+
+Owner decisions of this round: these four features are built; the two-permission actions stay owner-only; storage
+is shown in MB and GB; customer search covers name, e-mail, host and id.
+
+Checks on the final tree: control plane, the four CI groups on scratch PostgreSQL (2,666 passed, 2 skipped, none
+failed) and its type check; commercial contracts (262); vendor console unit tests (1,275), type check and
+production build; commercial UI (47); the customer app's type check; the `deploy` tests of alerts, the health alert
+script and the release command; `arch_policy`, `git_policy`, `ui_policy`, `docs_policy`; the whole vendor console
+e2e suite against the mock control plane (149 passed, with a temporary Playwright config for the installed
+browser). Independent reviews of every part found no blocking defect; their findings (three major in service
+health, one major in the stuck refund check action) are fixed. Not run: mail suites (no Mailpit), the real control
+plane, a payment provider, a shared stack, CI.
+
+Left open:
+
+- The host timer of service health and its database role `liwan_control_health` are installed by hand (bring-up row
+  A6.3); nothing alerts until that is done on each server.
+- The release window of a stuck refund is short: the 60-minute clock restarts at each worker retry, whose backoff
+  is capped at 60 minutes. Widening it means changing when the worker stops retrying, which is an owner decision.
+- A scheduler job that itself runs longer than 5 minutes without a beat reads as stale.
+- Two tests of `deploy/test_shared_worker_runtime.py` fail on `main` too and leave node processes behind.
+- The operations filter, analytics book and other items of section 5 that were marked "left".
