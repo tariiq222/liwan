@@ -64,17 +64,37 @@ describe('TotpSetup', () => {
 
 describe('RecoveryCodes', () => {
   const codes = ['abcd-efgh-jkmn', 'pqrs-tuvw-xyz2']
+  const modules = { '@/composables/useCopyLink': { useCopyLink: () => ({ copy: () => undefined, outcomeFor: () => null }) } }
 
   it('lists the codes, warns that they are shown once and blocks Continue until they are saved', async () => {
-    const html = await renderSfc('components/RecoveryCodes.vue', { codes, modelValue: false })
+    const html = await renderSfc('components/RecoveryCodes.vue', { codes, modelValue: false }, {}, { modules })
     for (const code of codes) expect(html).toContain(code)
     expect(html).toContain('لن نستطيع عرضها لك مرة أخرى')
     expect(html).toMatch(/<button[^>]*disabled[^>]*>[^<]*متابعة/)
   })
 
   it('enables Continue once the codes are confirmed saved', async () => {
-    const html = await renderSfc('components/RecoveryCodes.vue', { codes, modelValue: true })
+    const html = await renderSfc('components/RecoveryCodes.vue', { codes, modelValue: true }, {}, { modules })
     expect(html).toMatch(/<button(?![^>]*disabled)[^>]*>[^<]*متابعة/)
+  })
+})
+
+describe('RecoveryCodes copy', () => {
+  const codes = ['abcd-efgh-jkmn', 'pqrs-tuvw-xyz2']
+  const render = (copy = () => undefined, outcome: 'copied' | 'failed' | null = null) => renderSfc('components/RecoveryCodes.vue', { codes, modelValue: false }, {}, {
+    modules: { '@/composables/useCopyLink': { useCopyLink: () => ({ copy, outcomeFor: () => outcome }) } },
+  })
+
+  it('offers to copy every code at once, and keeps Continue blocked until they are saved', async () => {
+    const html = await render()
+    expect(html).toContain('data-testid="recovery-codes-copy"')
+    expect(html).toContain('نسخ كل الرموز')
+    expect(html).toMatch(/<button[^>]*disabled[^>]*>[^<]*متابعة/)
+  })
+
+  it('says whether the copy worked', async () => {
+    expect(await render(undefined, 'copied')).toContain('تم النسخ')
+    expect(await render(undefined, 'failed')).toContain('تعذّر النسخ')
   })
 })
 

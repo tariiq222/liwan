@@ -17,6 +17,7 @@ const URI = 'otpauth://totp/LiwanOS%3Aa?secret=JBSWY3DPEHPK3PXP&issuer=LiwanOS'
 function renderEnroll({ step, errorKey = null, totpUri = null, codes = [], saved = false, lang = 'ar' }: State) {
   return renderSfc('pages/enroll.vue', {}, {}, {
     lang,
+    modules: { '@/composables/useCopyLink': { useCopyLink: () => ({ copy: vi.fn(), outcomeFor: () => null }) } },
     components: { PasskeyButton: 'components/PasskeyButton.vue', TotpSetup: 'components/TotpSetup.vue', RecoveryCodes: 'components/RecoveryCodes.vue' },
     globals: {
       useEnrollment: () => ({

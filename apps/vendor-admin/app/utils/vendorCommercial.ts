@@ -4,6 +4,7 @@ import {
   type PricingPolicy, type Cadence, type Money, type PlanRevision, type Price, type Selection,
 } from '@liwan/commercial-contracts'
 import { failureKey } from '../composables/useStepUp'
+import { latinDigits } from './digits'
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import type { StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
 
@@ -43,7 +44,6 @@ export const listQuery = (p: ListParams) => ({ status: p.status && p.status !== 
 export function isStatusFilter(value: unknown): value is StatusFilter { return typeof value === 'string' && (STATUS_FILTERS as string[]).includes(value) }
 
 // ---- Money ----
-const ARABIC_DIGITS = '٠١٢٣٤٥٦٧٨٩'
 const GROUPED_INTEGER = /^[1-9]\d{0,2}(?:[,٬\s]\d{3})+$/
 /**
  * Latin digits with `.` as the decimal mark. A comma, an Arabic thousands mark or a space is a thousands separator only
@@ -51,7 +51,7 @@ const GROUPED_INTEGER = /^[1-9]\d{0,2}(?:[,٬\s]\d{3})+$/
  * ambiguous between a decimal comma and a thousands comma, so it is left in the text and the caller's digit pattern refuses it.
  */
 export function normalizeDigits(value: string): string {
-  const text = value.trim().replace(/[٠-٩]/g, d => String(ARABIC_DIGITS.indexOf(d))).replace(/٫/g, '.')
+  const text = latinDigits(value.trim()).replace(/٫/g, '.')
   const whole = text.split('.', 1)[0]!
   return GROUPED_INTEGER.test(whole) ? whole.replace(/[,٬\s]/g, '') + text.slice(whole.length) : text
 }

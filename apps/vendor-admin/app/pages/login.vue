@@ -53,7 +53,7 @@ const hydrated = useHydrated()
           <UInput id="password" v-model="form.password" type="password" autocomplete="current-password" dir="ltr" class="w-full" />
         </UFormField>
         <UFormField v-if="mode === 'fallback'" :label="t('adminAuth.login.totpCode')" name="totpCode" required>
-          <UInput id="totp-code" v-model="form.totpCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" dir="ltr" class="w-full text-start" />
+          <UInput id="totp-code" v-model="form.totpCode" inputmode="numeric" autocomplete="one-time-code" maxlength="16" dir="ltr" class="w-full text-start" />
         </UFormField>
         <UFormField v-else :label="t('adminAuth.login.recoveryCode')" name="recoveryCode" required>
           <UInput id="recovery-code" v-model="form.recoveryCode" autocomplete="off" autocapitalize="none" maxlength="14" dir="ltr" class="w-full text-start" />

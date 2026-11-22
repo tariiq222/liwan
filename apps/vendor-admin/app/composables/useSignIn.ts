@@ -1,5 +1,6 @@
 import { reactive, ref } from 'vue'
 import { startAuthentication, type AuthenticationResponseJSON, type PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser'
+import { normalizeOneTimeCode } from '../utils/oneTimeCode'
 import { authErrorKey } from '../utils/authError'
 import { authPost, type AuthPost } from '../utils/authPost'
 import { safeSameAppPath } from '@liwan/ui/app/utils/safeReturnTo'
@@ -56,7 +57,7 @@ export function createSignIn(deps: SignInDeps) {
     const email = form.email.trim()
     return mode.value === 'recovery'
       ? deps.post('/api/auth/recovery', { email, password: form.password, recovery_code: form.recoveryCode.trim() })
-      : deps.post('/api/auth/fallback', { email, password: form.password, totp_code: form.totpCode.trim() })
+      : deps.post('/api/auth/fallback', { email, password: form.password, totp_code: normalizeOneTimeCode(form.totpCode) })
   })
 
   function setMode(next: SignInMode): void {

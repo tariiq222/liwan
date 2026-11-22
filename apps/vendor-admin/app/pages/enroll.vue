@@ -86,7 +86,7 @@ onMounted(start)
             <UInput id="confirm-password" v-model="form.confirm" type="password" autocomplete="new-password" dir="ltr" class="w-full" />
           </UFormField>
           <UFormField :label="t('adminAuth.enroll.totpCode')" :help="t('adminAuth.enroll.totpCodeHint')" name="totpCode" required>
-            <UInput id="totp-code" v-model="form.totpCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" dir="ltr" class="w-full text-start" />
+            <UInput id="totp-code" v-model="form.totpCode" inputmode="numeric" autocomplete="one-time-code" maxlength="16" dir="ltr" class="w-full text-start" />
           </UFormField>
           <UButton type="submit" class="w-full justify-center" :disabled="!hydrated" :loading="pending" :label="t('adminAuth.enroll.complete')" />
         </UForm>

@@ -112,6 +112,16 @@ describe('createSignIn with a password', () => {
     expect(signIn.form.totpCode).toBe('')
   })
 
+  it('sends the authenticator code as six Latin digits however it was typed or pasted', async () => {
+    for (const typed of ['123 456', '١٢٣٤٥٦', '١٢٣ ٤٥٦', ' 123456 ']) {
+      const { signIn, post } = setup()
+      signIn.setMode('fallback')
+      Object.assign(signIn.form, { email: 'a@example.test', password: 'correct horse battery', totpCode: typed })
+      await signIn.signInWithPassword()
+      expect(post, typed).toHaveBeenCalledWith('/api/auth/fallback', { email: 'a@example.test', password: 'correct horse battery', totp_code: '123456' })
+    }
+  })
+
   it('signs in with a recovery code', async () => {
     const { signIn, post } = setup()
     signIn.setMode('recovery')

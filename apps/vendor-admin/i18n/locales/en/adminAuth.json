@@ -51,6 +51,9 @@
       "recoveryLead": "These codes are shown only once. Each works once if you lose both your device and your authenticator app.",
       "recoveryWarning": "Copy them to a safe place now. We cannot show them again.",
       "saved": "I saved the codes in a safe place",
+      "copyAll": "Copy all codes",
+      "copied": "Copied",
+      "copyFailed": "Could not copy. Select the codes and copy them by hand.",
       "continue": "Continue to the admin",
       "errors": {
         "passwordShort": "The password must be at least 12 characters.",
