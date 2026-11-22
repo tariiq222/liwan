@@ -25,7 +25,7 @@ watch(() => route.path, () => {
     <template #sidebar>
       <ShellSidebar :label="t('app.shell.navigation')" :brand-name="t('brand.name')" home-to="/" mode="app">
         <ShellNavSection :label="t('app.shell.navigation')" :items="rows(rail.applications)" />
-        <ShellNavSection v-if="rail.utility.length" :label="t('app.shell.navigation')" :items="rows(rail.utility)" />
+        <ShellNavSection v-if="rail.utility.length" :label="t('app.shell.administration')" :items="rows(rail.utility)" />
       </ShellSidebar>
     </template>
     <template #topbar>

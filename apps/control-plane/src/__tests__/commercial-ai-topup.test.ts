@@ -19,6 +19,7 @@ import { transaction } from '../db.js'
 import { expireSharedLeases } from '../shared/job-worker.js'
 import { dispatchSharedOnce } from '../shared/job-dispatcher.js'
 import { collectUsage } from '../commercial/usage-collector.js'
+import { recoverPaidFulfillment } from '../commercial/paid-fulfillment-recovery.js'
 import { reconcileAfterRestore, fakeObserveRunner } from '../shared/subscription-reconcile.js'
 import { enqueueReconfigureJob } from '../shared/job-store.js'
 import { assertReconfigureAuthority, runSubscriptionReconfigure } from '../shared/subscription-reconfigure.js'
@@ -352,6 +353,26 @@ suite('AI balance top-up: quote, payment, ledger, delivery, refund', () => {
     // A ledger over the cap still delivers, clamped.
     await pool.query('UPDATE ai_topups SET units=1500000000 WHERE customer_id=$1', [id])
     expect((await deliveredEntitlement(pool, id, { features: {} as Record<string, unknown> })).features['ai.balance.granted']).toBe(1_000_000_000)
+  })
+
+  it('a paid top-up that passed the cap is never delivered without its top-up: recovery releases it and queues the provider refund', async () => {
+    const id = await customer(), other = await customer('other@example.test')
+    const o = (await order(id, newRequest(free, 2500))).order
+    const filler = (await order(other, newRequest(free, 2500))).order
+    await pool.query("INSERT INTO ai_topups(id,customer_id,order_id,amount_minor,currency,usd_rate,units) VALUES($1,$2,$3,2500,'SAR',3.75,999999000)", [randomUUID(), id, filler.id])
+    await pay(id, o.id)
+    const state = async () => (await pool.query('SELECT payment_state,fulfillment_state,cancelled,fulfillment_failure_code FROM orders WHERE id=$1', [o.id])).rows[0]
+    expect(await state()).toMatchObject({ payment_state: 'paid', fulfillment_state: 'failed', fulfillment_failure_code: 'ai_balance_limit_exceeded' })
+    // The scheduler's next pass: the order must be released, not retried into a delivery that carries no top-up.
+    await recoverPaidFulfillment(pool, new Date(Date.now() + 60_000))
+    expect(await state()).toMatchObject({ payment_state: 'refund_pending', fulfillment_state: 'failed', cancelled: true })
+    expect((await pool.query("SELECT 1 FROM commercial_outbox WHERE aggregate_id=$1 AND kind='fulfillment.enqueue'", [o.id])).rowCount).toBe(0)
+    expect((await pool.query("SELECT payload FROM commercial_outbox WHERE aggregate_id=$1 AND kind='reconcile.refund' AND status='pending'", [o.id])).rows).toHaveLength(1)
+    expect((await pool.query('SELECT 1 FROM ai_topups WHERE order_id=$1', [o.id])).rowCount).toBe(0)
+    expect((await pool.query('SELECT target_revision_id FROM subscriptions WHERE customer_id=$1', [id])).rows[0].target_revision_id).toBeNull()
+    // The queued refund returns the money through the provider and closes the one credit note.
+    expect(await processRefundOutbox(pool, adapter)).toBeGreaterThanOrEqual(1)
+    expect((await pool.query("SELECT a.status FROM invoice_adjustments a JOIN invoices i ON i.id=a.invoice_id WHERE i.order_id=$1", [o.id])).rows).toEqual([{ status: 'refunded' }])
   })
 
   it('trial extension, a repeated expiry push and a resumed subscription still deliver the granted total', async () => {

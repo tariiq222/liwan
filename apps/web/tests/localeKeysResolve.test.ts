@@ -10,9 +10,10 @@ import { describe, expect, it } from 'vitest'
 // question the browser answers: does this key resolve?
 const appRoot = resolve(import.meta.dirname, '..')
 const localesRoot = join(appRoot, 'i18n/locales')
-// The shared layer's messages are merged in before the application's, which is the order the runtime uses: a component
-// in apps/web may read `app.cancel` or `errors.generic`, and both are owned by packages/ui.
-const layerRoot = resolve(appRoot, '../../packages/ui/i18n/locales')
+// The shared layers' messages are merged in before the application's, which is the order the runtime uses: a component
+// in apps/web may read `app.cancel` or `errors.generic`, owned by packages/ui, or `commercial.invoice.number`, owned by
+// packages/commercial-ui. The list follows `extends` in nuxt.config.ts.
+const layerRoots = ['ui', 'commercial-ui'].map(name => resolve(appRoot, `../../packages/${name}/i18n/locales`))
 
 /** A deep merge, the way @nuxtjs/i18n combines the namespace files: a shallow Object.assign would drop a whole `app`
  *  object for every file that owns one, which is not what the browser sees. */
@@ -35,7 +36,7 @@ function merge(dir: string, code: 'ar' | 'en', into: Record<string, unknown>) {
 
 function messages(code: 'ar' | 'en'): Record<string, unknown> {
   const merged: Record<string, unknown> = {}
-  merge(layerRoot, code, merged)
+  for (const layerRoot of layerRoots) merge(layerRoot, code, merged)
   merge(localesRoot, code, merged)
   return merged
 }

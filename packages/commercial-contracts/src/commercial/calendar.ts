@@ -19,7 +19,7 @@ function fmt(y: number, m: number, d: number): string {
 }
 const epochDay = (date: string): number => { const [y, m, d] = parse(date); return Math.round(Date.UTC(y, m - 1, d) / DAY_MS) }
 
-/** Calendar day (YYYY-MM-DD) in Asia/Riyadh (UTC+3, no DST) for an instant. */
+/** Calendar day (YYYY-MM-DD) in Asia/Riyadh, the business zone (UTC+3, no DST), for an instant. */
 export function riyadhDate(instant: string | Date): string {
   const t = (instant instanceof Date ? instant : new Date(instant)).getTime()
   if (!Number.isFinite(t)) throw bad()

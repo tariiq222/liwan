@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Adjustment, Invoice, Order, SubscriptionView } from '@liwan/commercial-contracts'
 import {
-  customersReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, daysUntilDate, invoiceListQuery, isNotAvailable, isStalled, targetStatus, termsPayload, usageDisplay, usageMetricLabel, lineQuantities, formatBytes, vendorInvoiceLineViews, parseTransferAmount, refundRequestBlock, voidAction, voidErrorKey, voidReasonKey, validVoidDraft, aiTopupRefundable, transferFormDefaults, validRefundDraft, validRefundReason,
+  customersReturnTo, invoicePrintable, invoicesReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, daysUntilDate, invoiceListQuery, isNotAvailable, isStalled, targetStatus, termsPayload, usageDisplay, usageMetricLabel, lineQuantities, vendorInvoiceLineViews, parseTransferAmount, refundRequestBlock, voidAction, voidErrorKey, voidReasonKey, validVoidDraft, aiTopupRefundable, transferFormDefaults, validRefundDraft, validRefundReason,
   planBundleIds, requestedQuantities, currentPaidQuantities, orderOutcomeUnknown,
   type VendorCustomer, type VendorInvoice, adminLoginErrorKey, cardActionErrorKey, deletionErrorKey,
 } from '../vendorSubscriptions'
@@ -22,6 +22,12 @@ describe('queries', () => {
     expect(customersReturnTo('https://evil.test')).toBe('/customers')
     expect(customersReturnTo('/customers/x')).toBe('/customers')
   })
+  it('returns an invoice to the invoice list or to the customer it was opened from, never elsewhere', () => {
+    expect(invoicesReturnTo('/invoices?status=paid')).toBe('/invoices?status=paid')
+    expect(invoicesReturnTo('/customers/c1?tab=invoices')).toBe('/customers/c1?tab=invoices')
+    expect(invoicesReturnTo(undefined)).toBe('/invoices')
+    for (const hostile of ['https://evil.test', '//evil.test/customers/c1', '/\\evil.test', '/customersevil', '/customers/../team', '/team']) expect(invoicesReturnTo(hostile), hostile).toBe('/invoices')
+  })
 })
 describe('targetStatus', () => {
   it('never reports a pending target as applied', () => {
@@ -40,7 +46,6 @@ describe('usage and invoices', () => {
   it('splits free and paid quantities', () => {
     expect(lineQuantities({ quantity: 2, free_quantity: 1 })).toEqual({ free: 1, paid: 2 })
     expect(lineQuantities({ quantity: 2 })).toEqual({ free: null, paid: 2 })
-    expect(formatBytes(5 * 1024 * 1024)).toBe('5.0 MB')
   })
 })
 describe('terms payload', () => {
@@ -152,6 +157,11 @@ describe('customer glance helpers', () => {
     expect(daysUntilDate('2026-10-20', now)).toBe(4)
     expect(daysUntilDate('2026-10-16', now)).toBe(0)
   })
+  it('counts from today in Riyadh, which is already tomorrow between 21:00 and 24:00 UTC', () => {
+    expect(daysUntilDate('2026-11-25', new Date('2026-11-22T22:30:00Z'))).toBe(2)
+    expect(daysUntilDate('2026-11-25', new Date('2026-11-22T20:59:00Z'))).toBe(3)
+    expect(daysUntilDate('2026-11-23', new Date('2026-11-22T21:00:00Z'))).toBe(0)
+  })
   it('flags failed orders and queued ones older than a day', () => {
     expect(isStalled(order({ fulfillment_state: 'failed' }), now)).toBe(true)
     expect(isStalled(order({ created_at: '2026-10-14T00:00:00Z' }), now)).toBe(true)
@@ -259,21 +269,28 @@ describe('AI top-up refund offer', () => {
 describe('void of an unpaid renewal invoice', () => {
   const invoice = (o: Record<string, unknown> = {}) => ({ status: 'issued', kind: 'renewal', voidable: true, void_block: null, adjustments: [], ...o }) as Parameters<typeof voidAction>[0]
   it('is available only on a voidable unpaid renewal invoice, for an operator who holds both grants', () => {
-    expect(voidAction(invoice(), true)).toEqual({ kind: 'available' })
-    expect(voidAction(invoice(), false)).toEqual({ kind: 'hidden' })
+    expect(voidAction(invoice(), 'granted')).toEqual({ kind: 'available' })
+    expect(voidAction(invoice(), 'none')).toEqual({ kind: 'hidden' })
+  })
+  it('tells an account holding only one of the two grants that the platform owner voids, where the action would apply', () => {
+    expect(voidAction(invoice(), 'partial')).toEqual({ kind: 'ownerOnly' })
+    expect(voidAction(invoice({ voidable: false, void_block: 'lock_pending' }), 'partial')).toEqual({ kind: 'ownerOnly' })
+    expect(voidAction(invoice({ voidable: false }), 'partial')).toEqual({ kind: 'hidden' })
+    expect(voidAction(invoice({ status: 'paid' }), 'partial')).toEqual({ kind: 'hidden' })
+    expect(voidAction(invoice({ adjustments: [{ kind: 'credit_note', status: 'applied' }] }), 'partial')).toEqual({ kind: 'hidden' })
   })
   it('names the block the server gives when the invoice cannot be voided now', () => {
     for (const block of ['payment_reconciliation_required', 'transfer_claimed', 'renewal_in_progress', 'lock_pending', 'tenant_retiring'] as const)
-      expect(voidAction(invoice({ voidable: false, void_block: block }), true)).toEqual({ kind: 'blocked', block })
+      expect(voidAction(invoice({ voidable: false, void_block: block }), 'granted')).toEqual({ kind: 'blocked', block })
   })
   it('is hidden when the server says it does not apply, whatever the status of the invoice', () => {
-    expect(voidAction(invoice({ voidable: false }), true)).toEqual({ kind: 'hidden' })
-    for (const status of ['draft', 'paid', 'void', 'credit_pending']) expect(voidAction(invoice({ status }), true), status).toEqual({ kind: 'hidden' })
-    for (const kind of ['initial', 'change', 'adjustment']) expect(voidAction(invoice({ kind }), true), kind).toEqual({ kind: 'hidden' })
+    expect(voidAction(invoice({ voidable: false }), 'granted')).toEqual({ kind: 'hidden' })
+    for (const status of ['draft', 'paid', 'void', 'credit_pending']) expect(voidAction(invoice({ status }), 'granted'), status).toEqual({ kind: 'hidden' })
+    for (const kind of ['initial', 'change', 'adjustment']) expect(voidAction(invoice({ kind }), 'granted'), kind).toEqual({ kind: 'hidden' })
   })
   it('never sits beside a refund: an invoice with any refund note offers no void', () => {
-    for (const status of ['pending', 'refunded', 'applied']) expect(voidAction(invoice({ adjustments: [{ kind: 'credit_note', status }] }), true), status).toEqual({ kind: 'hidden' })
-    expect(voidAction(invoice({ adjustments: [{ kind: 'credit_note', status: 'void' }] }), true)).toEqual({ kind: 'available' })
+    for (const status of ['pending', 'refunded', 'applied']) expect(voidAction(invoice({ adjustments: [{ kind: 'credit_note', status }] }), 'granted'), status).toEqual({ kind: 'hidden' })
+    expect(voidAction(invoice({ adjustments: [{ kind: 'credit_note', status: 'void' }] }), 'granted')).toEqual({ kind: 'available' })
   })
   it('needs one of the two outcomes and a reason bounded like the server', () => {
     expect(validVoidDraft({ outcome: 'end', reason: ' Customer left ' })).toBe(true)
@@ -288,5 +305,15 @@ describe('void of an unpaid renewal invoice', () => {
     }
     expect(voidErrorKey({ statusCode: 403, data: { code: 'step_up_required' } })).toBe('vendor.pricing.errors.step_up_required')
     expect(voidErrorKey({ statusCode: 500, data: { code: 'database exploded' } })).toBe('vendor.pricing.errors.generic')
+  })
+})
+
+describe('invoicePrintable', () => {
+  it('prints every invoice that has a number and never a draft', () => {
+    expect(invoicePrintable({ status: 'issued', number: 'INV-1' })).toBe(true)
+    expect(invoicePrintable({ status: 'void', number: 'INV-2' })).toBe(true)
+    expect(invoicePrintable({ status: 'draft', number: null })).toBe(false)
+    expect(invoicePrintable({ status: 'draft', number: 'INV-3' })).toBe(false)
+    expect(invoicePrintable({ status: 'issued', number: null })).toBe(false)
   })
 })

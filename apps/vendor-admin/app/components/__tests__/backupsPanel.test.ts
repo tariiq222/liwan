@@ -19,7 +19,7 @@ function panel(state: Setup) {
   const navigateTo = vi.fn(async () => {})
   const sfc = loadSfc('components/vendor/BackupsPanel.vue', {
     useI18n: () => ({ t: (key: string, params?: Record<string, unknown>) => (params ? `${key}[${Object.entries(params).map(([name, value]) => `${name}=${value}`).join(',')}]` : key) }),
-    useSharedBackups: () => fake, formatLiwanDateTime: (value: string) => `@${value}`, operationStatusBadge, sharedJobLocation, startRefusalKey,
+    useSharedBackups: () => fake, formatBusinessDateTime: (value: string) => `@${value}`, operationStatusBadge, sharedJobLocation, startRefusalKey,
     approvalUsable, approvalRefused, restoreFromBackup, RestoreQueueFailed, onMounted: () => {}, onBeforeUnmount: () => {}, backupJobRequest, sharedBackupErrorKey, reasonValid, useVendorApi: () => ({ request }), navigateTo, useHydrated: () => Vue.ref(state.hydrated ?? true),
     useVendorContext: () => ({ can: (capability: string) => (state.capabilities ?? ['vendor.read', 'vendor.operations.run']).includes(capability) }),
   })

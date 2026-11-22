@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
+import { formatBusinessDateTime } from '@/utils/vendorTime'
 import type { AiCapability, AiQuality } from '@liwan/commercial-contracts'
 import {
-  AI_CAPABILITIES, AI_QUALITY_LEVELS, aiProviderErrorKey, aiProviderErrorSection, cellKey, chargeForOneDollar, configDirty, draftFromSetting, effectiveModel, freeId, idProblem, ltr, marginBps,
+  AI_CAPABILITIES, AI_QUALITY_LEVELS, aiProviderErrorHasSteps, aiProviderErrorKey, aiProviderErrorSection, cellKey, chargeForOneDollar, configDirty, draftFromSetting, effectiveModel, freeId, idProblem, ltr, marginBps,
   modelSaved, modelsOfProvider, modelUsable, priceFilled, priceValid, providerSaved, quickUnmapped, saveBlockers, savePayload, unusableReason, type ConfigDraft, type ModelDraft, type ProviderDraft, type Section,
 } from '@/utils/aiProvider'
 import { useAiProvider } from '@/composables/useAiProvider'
@@ -36,6 +36,8 @@ const notice = ref<string | null>(null)
 const busy = ref<string | null>(null)
 const reason = ref('')
 const confirming = ref(false)
+const redelivering = ref(false)
+const redeliverReason = ref('')
 const addPreset = ref('')
 const addProviderId = ref('')
 const addModelId = ref('')
@@ -44,6 +46,7 @@ const addModelProvider = ref('')
 const dirty = computed(() => configDirty(draft, setting.value))
 const blockers = computed(() => saveBlockers(draft, setting.value, presets.value))
 const reasonValid = computed(() => reason.value.trim().length >= REASON_MIN)
+const redeliverReasonValid = computed(() => redeliverReason.value.trim().length >= REASON_MIN)
 const margin = computed(() => marginBps(draft.margin_percent))
 const disabled = computed(() => !hydrated.value || Boolean(busy.value))
 const presetItems = computed(() => presets.value.map(item => ({ label: item.label, value: item.id })))
@@ -74,7 +77,11 @@ async function run<T>(what: string, section: Section, action: () => Promise<T>):
   busy.value = what
   failures.value = { ...failures.value, [section]: undefined, general: undefined }
   notice.value = null
-  try { return await action() }
+  try {
+    const result = await action()
+    failures.value = {}
+    return result
+  }
   catch (cause) { failures.value = { ...failures.value, [aiProviderErrorSection(cause)]: aiProviderErrorKey(cause) }; return undefined }
   finally { busy.value = null }
 }
@@ -128,6 +135,20 @@ async function save() {
   notice.value = t('aiProvider.save.saved', { revision: ltr(saved.setting?.revision ?? 0) })
 }
 
+/** Writes what is saved to the file the AI service reads, again. It sends the saved setting, not the form, so it waits for a clean draft. */
+async function redeliver() {
+  if (dirty.value || !redeliverReasonValid.value) return
+  const answer = await run('redeliver', 'general', () => api.redeliver(redeliverReason.value.trim()))
+  if (!answer) return
+  data.value = { presets: presets.value, setting: answer.setting }
+  cancelRedeliver()
+  notice.value = t(answer.outcome === 'written' ? 'aiProvider.redeliver.written' : 'aiProvider.redeliver.unchanged', { revision: ltr(answer.setting.revision) })
+}
+function cancelRedeliver() {
+  redelivering.value = false
+  redeliverReason.value = ''
+}
+
 const presetLabel = (id: string) => presetOf(id)?.label ?? id
 const keyState = (provider: ProviderDraft): { text: string, last4: string | null } => {
   if (provider.api_key) return { text: t('aiProvider.providers.keyPending'), last4: null }
@@ -154,9 +175,25 @@ const blockerKey = computed(() => (blockers.value[0] ? `aiProvider.save.blockers
       <template v-else>
         <UAlert
           :color="setting.delivery === 'delivered' ? 'success' : 'warning'" variant="subtle" :icon="setting.delivery === 'delivered' ? 'i-lucide-check' : 'i-lucide-triangle-alert'"
-          :title="t(`aiProvider.status.delivery.${setting.delivery}`, { revision: ltr(setting.revision) })" data-testid="ai-provider-delivery"
+          :title="t(`aiProvider.status.delivery.${setting.delivery}`, { revision: ltr(setting.revision) })"
+          :description="setting.delivery === 'pending' ? t('aiProvider.status.pendingNote') : undefined" data-testid="ai-provider-delivery"
         />
-        <p class="text-xs text-muted">{{ t('aiProvider.status.updated', { date: ltr(formatDateTime(setting.updated_at)) }) }}</p>
+        <template v-if="setting.delivery === 'pending'">
+          <div v-if="!redelivering" class="flex flex-wrap items-center justify-between gap-2">
+            <p v-if="dirty" class="text-xs text-muted" data-testid="ai-provider-redeliver-dirty">{{ t('aiProvider.redeliver.dirtyHint') }}</p>
+            <span v-else />
+            <UButton color="neutral" variant="outline" icon="i-lucide-refresh-cw" :disabled="disabled || dirty" data-testid="ai-provider-redeliver" @click="redelivering = true">{{ t('aiProvider.redeliver.button') }}</UButton>
+          </div>
+          <SharedInlineConfirm
+            v-else :title="t('aiProvider.redeliver.confirmTitle')" :description="t('aiProvider.redeliver.confirmDescription', { revision: ltr(setting.revision) })" :confirm-label="t('aiProvider.redeliver.confirm')"
+            :pending="busy === 'redeliver'" :disabled="!redeliverReasonValid || dirty" color="warning" @confirm="redeliver" @cancel="cancelRedeliver"
+          >
+            <UFormField class="mt-3" :label="t('aiProvider.redeliver.reason')" :help="t('aiProvider.save.reasonHint')" required>
+              <UInput v-model="redeliverReason" maxlength="1000" class="w-full" :disabled="!hydrated || busy === 'redeliver'" data-testid="ai-provider-redeliver-reason" />
+            </UFormField>
+          </SharedInlineConfirm>
+        </template>
+        <p class="text-xs text-muted">{{ t('aiProvider.status.updated', { date: ltr(formatBusinessDateTime(setting.updated_at)) }) }}</p>
       </template>
     </SharedFormSection>
 
@@ -199,16 +236,25 @@ const blockerKey = computed(() => (blockers.value[0] ? `aiProvider.save.blockers
       </div>
     </SharedFormSection>
 
+    <aside id="ai-provider-steps" class="max-w-3xl space-y-2 rounded-card border border-default p-4" :aria-label="t('aiProvider.steps.title')" data-testid="ai-provider-steps">
+      <p class="font-medium text-highlighted">{{ t('aiProvider.steps.title') }}</p>
+      <ol class="list-decimal space-y-1 ps-5 text-sm text-muted">
+        <li>{{ t('aiProvider.steps.save') }}</li>
+        <li>{{ t('aiProvider.steps.test') }}</li>
+        <li>{{ t('aiProvider.steps.route') }}</li>
+      </ol>
+    </aside>
+
     <SharedFormSection panel :title="t('aiProvider.models.title')" :description="t('aiProvider.models.description')">
       <SharedDataTable v-if="draft.models.length" :rows="draft.models" :columns="columns" row-key="id" :caption="t('aiProvider.models.title')" density="comfortable">
                 <template #provider-cell="{ row: { original: model } }">
-          <USelect v-model="model.provider" :items="providerItems" class="w-20 max-w-full" :disabled="disabled" :aria-label="t('aiProvider.models.provider')" />
+          <USelect v-model="model.provider" :items="providerItems" class="w-40 max-w-full" :disabled="disabled" :aria-label="t('aiProvider.models.provider')" />
         </template>
         <template #model-cell="{ row: { original: model } }">
-          <UInput v-model="model.model" dir="ltr" maxlength="128" autocomplete="off" class="w-32 max-w-full" :list="`models-${model.provider}`" :disabled="disabled" :aria-label="t('aiProvider.models.name')" data-testid="ai-model-name" />
+          <UInput v-model="model.model" dir="ltr" maxlength="128" autocomplete="off" class="w-56 max-w-full" :list="`models-${model.provider}`" :disabled="disabled" :aria-label="t('aiProvider.models.name')" data-testid="ai-model-name" />
         </template>
         <template v-for="field in priceFields" :key="field" #[`${field}-cell`]="{ row: { original: model } }">
-          <UInput v-model="model[field]" dir="ltr" inputmode="decimal" class="w-16 max-w-full" :color="priceValid(model[field]) ? undefined : 'error'" :aria-invalid="!priceValid(model[field])" :aria-label="t(`aiProvider.models.${field}`)" :disabled="disabled" :data-testid="`ai-model-${field}`" />
+          <UInput v-model="model[field]" dir="ltr" inputmode="decimal" class="w-28 max-w-full" :color="priceValid(model[field]) ? undefined : 'error'" :aria-invalid="!priceValid(model[field])" :aria-label="t(`aiProvider.models.${field}`)" :disabled="disabled" :data-testid="`ai-model-${field}`" />
           <p v-if="!priceValid(model[field])" class="mt-1 text-xs text-error">{{ t('aiProvider.models.priceInvalid') }}</p>
         </template>
         <template #id-cell="{ row: { original: model } }">
@@ -272,7 +318,10 @@ const blockerKey = computed(() => (blockers.value[0] ? `aiProvider.save.blockers
           </div>
         </div>
       </div>
-      <p v-if="failure('routes')" class="text-sm text-error" role="alert" data-testid="ai-provider-routes-error">{{ failure('routes') }}</p>
+      <p v-if="failure('routes')" class="text-sm text-error" role="alert" data-testid="ai-provider-routes-error">
+        {{ failure('routes') }}
+        <a v-if="aiProviderErrorHasSteps(failures.routes)" href="#ai-provider-steps" class="underline" data-testid="ai-provider-steps-link">{{ t('aiProvider.steps.link') }}</a>
+      </p>
     </SharedFormSection>
 
     <SharedFormSection panel :title="t('aiProvider.save.title')">

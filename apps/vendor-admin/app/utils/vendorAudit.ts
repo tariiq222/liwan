@@ -1,5 +1,5 @@
 import type { RouteLocationRaw } from 'vue-router'
-import { AUDIT_PAGE_SIZE, auditListQuerySchema, type AuditEvent, type AuditListQuery } from '@liwan/commercial-contracts'
+import { AUDIT_OPERATION_STATUSES, AUDIT_OPERATION_TYPES, AUDIT_PAGE_SIZE, auditListQuerySchema, type AuditEvent, type AuditListQuery } from '@liwan/commercial-contracts'
 
 /** The action families offered by the audit filter; `action` also accepts any exact action from a link. */
 export const AUDIT_CATEGORIES = ['auth', 'account', 'tenant', 'operation', 'catalog', 'catalog_release', 'plan', 'bundle', 'order', 'invoice', 'payment', 'customer_terms'] as const
@@ -26,7 +26,7 @@ export const auditListQuery = (filters: AuditFilters, page: number): Record<stri
 
 export const auditFilterCount = (filters: AuditFilters): number => FILTER_KEYS.filter(key => filters[key]).length
 
-const OPERATION_ACTION = /^operation\.(tenant\.(?:create|inspect|entitle)|health|backup|upgrade|restore)\.(queued|succeeded|failed|needs_intervention)$/
+const OPERATION_ACTION = new RegExp(`^operation\\.(${AUDIT_OPERATION_TYPES.map(type => type.replace('.', '\\.')).join('|')})\\.(${AUDIT_OPERATION_STATUSES.join('|')})$`)
 
 /** The locale key of an action and, for operation events, of its status; any other action reads from `vendor.audit.actions.<action>` and falls back to the raw action. */
 export function auditActionParts(action: string): { type: string; status: string } | null {
@@ -46,10 +46,13 @@ export function auditActor(event: Pick<AuditEvent, 'actor' | 'actor_name'>): { k
 
 /** Where a subject opens, when the console has a page for it. */
 export function auditSubjectTo(event: Pick<AuditEvent, 'subject' | 'subject_ref'>): RouteLocationRaw | null {
-  const { kind, customer_id: customer, tenant_id: tenant } = event.subject_ref
+  const { kind, customer_id: customer, tenant_id: tenant, invoice_id: invoice } = event.subject_ref
   const id = encodeURIComponent(event.subject)
   if (kind === 'customer' || kind === 'order') return customer ? { path: `/customers/${encodeURIComponent(customer)}` } : null
   if (kind === 'tenant') return customer ? { path: `/customers/${encodeURIComponent(customer)}`, query: { tab: 'workspace' } } : tenant ? { path: `/tenants/${encodeURIComponent(tenant)}` } : null
+  if (kind === 'subscription') return customer ? { path: `/customers/${encodeURIComponent(customer)}`, query: { tab: 'subscription' } } : null
+  if (kind === 'invoice' || kind === 'adjustment') return invoice ? { path: `/invoices/${encodeURIComponent(invoice)}` } : null
+  if (kind === 'shared_job') return { path: `/operations/${id}`, query: { source: 'shared' } }
   if (kind === 'plan') return { path: `/plans/${id}` }
   if (kind === 'bundle') return { path: `/bundles/${id}` }
   if (kind === 'catalog') return { path: `/catalog/${id}` }

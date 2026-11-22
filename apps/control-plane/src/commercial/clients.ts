@@ -19,7 +19,7 @@ const rowsSql = `WITH client_rows AS (
       WHEN s.state='pending' OR s.applied_revision_id IS NULL THEN 'activating'
       ELSE 'active' END AS subscription_state,
     p.name AS plan_name, pp.name AS pending_plan_name, to_char(s.renewal_at,'YYYY-MM-DD') AS renewal_at,
-    c.commercial_setup_required AS setup_required,
+    c.commercial_setup_required AS setup_required, c.admin_login,
     (c.commercial_setup_required OR s.id IS NULL) AS needs_setup,
     t.status AS tenant_status, t.commercial_mode, t.hosting_model
   FROM customers c
@@ -36,12 +36,15 @@ const rowsSql = `WITH client_rows AS (
   LEFT JOIN plan_revisions pp ON pp.id::text=tr.snapshot->>'plan_revision_id'
   UNION ALL
   SELECT NULL::uuid, t.id, t.name, t.created_at, t.id,
-    NULL, NULL, NULL, NULL, false, false, t.status, t.commercial_mode, t.hosting_model
+    NULL, NULL, NULL, NULL, false, NULL, false, t.status, t.commercial_mode, t.hosting_model
   FROM tenants t
   WHERE NOT EXISTS (SELECT 1 FROM customers c WHERE c.tenant_id=t.id)
 ), filtered AS (
-  SELECT * FROM client_rows
-  WHERE ($1='' OR strpos(lower(name),lower($1))>0)
+  SELECT * FROM client_rows r
+  WHERE ($1='' OR strpos(lower(r.name),lower($1))>0 OR strpos(lower(r.admin_login),lower($1))>0
+      OR r.customer_id::text=lower($1) OR r.tenant_id::text=lower($1)
+      OR EXISTS (SELECT 1 FROM shared_registry_bindings b WHERE b.control_tenant_id=r.tenant_id AND strpos(lower(b.host),lower($1))>0)
+      OR EXISTS (SELECT 1 FROM shared_registry_hosts h WHERE h.control_tenant_id=r.tenant_id AND strpos(lower(h.host),lower($1))>0))
     AND ($2::text IS NULL OR CASE $2
       WHEN 'setup_required' THEN needs_setup
       WHEN 'no_workspace' THEN customer_id IS NOT NULL AND tenant_id IS NULL
@@ -49,7 +52,7 @@ const rowsSql = `WITH client_rows AS (
       ELSE subscription_state=$2 END)
 )`
 
-/** GET /v1/commercial/clients?q&state&page (vendor.read): the unified client list, 25 per page, newest first. */
+/** GET /v1/commercial/clients?q&state&page (vendor.read): the unified client list, 25 per page, newest first. `q` matches the name, the administrator e-mail and the workspace host as text, and the customer or workspace id exactly; the rows carry none of them but the name (vendor.read already reads the e-mail on the customer record). */
 export async function listClients(pool: Pool, url: URL) {
   const q = (url.searchParams.get('q') ?? '').trim()
   if (q.length > 200) throw new CommercialHttpError('invalid', 422, 'q')

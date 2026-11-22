@@ -1,10 +1,10 @@
-import type { AiProviderCurrent, AiProviderModels, AiProviderPresetList, AiProviderSave, AiProviderTestResult } from '@liwan/commercial-contracts'
+import type { AiProviderCurrent, AiProviderModels, AiProviderPresetList, AiProviderRedelivered, AiProviderSave, AiProviderTestResult } from '@liwan/commercial-contracts'
 
 type Request = <T>(path: string, options?: { method?: string, body?: unknown }) => Promise<T>
 
 const ROOT = 'platform/ai-provider'
 
-/** The platform AI calls. A key is only ever sent (in a save), never read back. `models` and `test` name a saved provider; the control plane uses its stored key. */
+/** The platform AI calls. A key is only ever sent (in a save), never read back. `models` and `test` name a saved provider; the control plane uses its stored key. `redeliver` writes what is saved to the AI service's file again. */
 export function createAiProvider(request: Request) {
   const send = <T>(path: string, method: string, body: object) => request<T>(`${ROOT}${path}`, { method, body })
   return {
@@ -12,6 +12,7 @@ export function createAiProvider(request: Request) {
     presets: () => request<AiProviderPresetList>(`${ROOT}/presets`),
     models: (provider: string) => send<AiProviderModels>('/models', 'POST', { provider }),
     test: (provider: string, model: string) => send<AiProviderTestResult>('/test', 'POST', { provider, model }),
+    redeliver: (reason: string) => send<AiProviderRedelivered>('/redeliver', 'POST', { reason }),
     save: (body: AiProviderSave) => send<AiProviderCurrent>('', 'PATCH', body),
   }
 }

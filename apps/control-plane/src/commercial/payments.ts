@@ -13,6 +13,7 @@ import { SAVED_CARD_MISSING_MINUTES } from './notice-timings.js'
 import { enqueueBillingNotice } from './billing-notices.js'
 import { markTopupRefunded, recordPaidTopup } from './ai-ledger.js'
 import { recordFulfillmentFailure } from './settlements.js'
+import { AI_BALANCE_LIMIT_EXCEEDED, scheduleFulfillmentRecovery } from './paid-fulfillment-recovery.js'
 import type { ReturnOrigin } from './return-origin.js'
 import { onRenewalPaid } from './renewals.js'
 import { failSavedCardAttempt } from './saved-card-failure.js'
@@ -126,7 +127,9 @@ async function apply(client: PoolClient, event: ProviderEvent, now = new Date())
         // paid order is failed like any paid order that cannot be fulfilled, which credits the money back.
         const started = nextOrderState({ ...order, ...next } as OrderStateInput, { type: 'fulfillment_started' })
         await client.query('UPDATE orders SET fulfillment_state=$2 WHERE id=$1', [order.id, nextOrderState(started, { type: 'fulfillment_failed' }).fulfillment_state])
-        await recordFulfillmentFailure(client, { order_id: order.id, reason: 'ai_balance_limit_exceeded', actor: 'commercial-fulfillment' })
+        await recordFulfillmentFailure(client, { order_id: order.id, reason: AI_BALANCE_LIMIT_EXCEEDED, actor: 'commercial-fulfillment' })
+        // The refusal is permanent: recovery must release the order and queue the provider refund, never retry it into a delivery without the top-up.
+        await scheduleFulfillmentRecovery(client, order, AI_BALANCE_LIMIT_EXCEEDED)
       } else {
         await enqueueOutbox(client, { kind: 'fulfillment.enqueue', aggregate_id: order.id, dedupe_key: order.target_revision_id,
           payload: { order_id: order.id, subscription_id: order.subscription_id, target_revision_id: order.target_revision_id } })

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatLiwanDate, formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
+import { formatBusinessDate, formatBusinessDateTime } from '@/utils/vendorTime'
 import { deletionWithdrawable, isDeletionShown, isWorkspaceRetiring } from '@/utils/vendorDeletion'
 import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBadges'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
@@ -8,6 +8,8 @@ import { adminLoginErrorKey, cancellationErrorKey, cardActionErrorKey, deletionE
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 import { useCopyLink } from '@/composables/useCopyLink'
+import { attentionTab } from '@/utils/vendorAttention'
+import { ownerOnlyAccess } from '@/utils/ownerOnly'
 import { entitledSelections } from '@/utils/vendorEntitlement'
 import { customerDisplayBadge, operationStatusBadge } from '@/utils/vendorBadges'
 import type { StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
@@ -18,6 +20,8 @@ const id = computed(() => String(route.params.id))
 const isChild = computed(() => /\/(?:change\/?$|terms\/)/.test(route.path))
 const backTo = computed(() => customersReturnTo(route.query.returnTo))
 const { data: customer, error, pending, refresh } = await useAsyncData(() => `vendor:customer:${id.value}`, async () => {
+  // A child page (change, terms) loads what it needs itself and shows nothing of this page: no request until the operator is back (the watch below).
+  if (isChild.value) return null
   const c = await api.customer(id.value)
   if (!c) throw createError({ statusCode: 404, statusMessage: 'not_found' })
   return c
@@ -35,16 +39,18 @@ async function soft<T>(fn: () => Promise<T>): Promise<{ value: T | null; unavail
   try { return { value: await fn(), unavailable: false, failed: false } } catch (e) { return { value: null, unavailable: isNotAvailable(e), failed: !isNotAvailable(e) } }
 }
 const { data: extra, refresh: refreshExtra } = await useAsyncData(() => `vendor:customer-extra:${id.value}`, async () => {
+  if (isChild.value) return null
   const s = subId.value
-  const [full, branches, usage, invoices, plans, releases] = await Promise.all([
+  const [full, branches, usage, invoices, plans, releases, attention] = await Promise.all([
     s ? soft(() => api.subscription(s)) : Promise.resolve({ value: null, unavailable: false, failed: false }),
     s ? soft(() => api.branches(s)) : Promise.resolve({ value: null, unavailable: false, failed: false }),
     s ? soft(() => api.usage(s)) : Promise.resolve({ value: null, unavailable: false, failed: false }),
     canBilling.value ? soft(() => api.listInvoices({ customer_id: id.value, limit: 10 })) : Promise.resolve({ value: null, unavailable: false, failed: false }),
     soft(() => useVendorCommercial().listPlans({ limit: 200, customer_id: id.value })),
     soft(() => useVendorCommercial().releases()),
+    soft(() => api.attention(id.value)),
   ])
-  return { full, branches, usage, invoices, plans, releases }
+  return { full, branches, usage, invoices, plans, releases, attention, loadedAt: new Date() }
 }, { watch: [subId] })
 const view = computed(() => extra.value?.full.value ?? sub.value)
 const planNameOf = (planRevisionId: string | undefined) => extra.value?.plans.value?.items.find(p => p.id === planRevisionId)?.name
@@ -55,6 +61,10 @@ const release = computed(() => extra.value?.releases.value?.find(r => r.id === v
 const selections = computed(() => entitledSelections(release.value, view.value?.applied?.entitlement.features))
 const branchText = computed(() => (extra.value?.branches.value ? branchSummaryText(extra.value.branches.value) : null))
 const invoices = computed(() => extra.value?.invoices.value?.items ?? [])
+// What needs the vendor for this customer, on the tab each item is resolved on: its reason and action are the overview's.
+// The day counts are taken at the moment the data was read, so a page left open does not show them stale after a refresh.
+const now = computed(() => extra.value?.loadedAt ?? new Date())
+const tabAttention = computed(() => (extra.value?.attention.value?.items ?? []).filter(item => attentionTab(item) === tab.value))
 // Undefined while the invoices are not offered or could not be read: the summary then leaves the tile out.
 const glanceInvoices = computed(() => (canBilling.value && extra.value?.invoices.value ? invoices.value : undefined))
 const display = computed(() => (view.value ? subscriptionDisplayState(view.value) : null))
@@ -78,7 +88,8 @@ const workspaceBadge = computed(() => {
 })
 const retryWorkspaceState = () => Promise.all([refreshTenant(), refreshRecent(), progress.refreshNow()])
 const operationFailed = computed(() => Boolean(recentOperations.value?.some(op => op.status === 'failed' || op.status === 'needs_intervention')))
-const canTerms = computed(() => can('vendor.pricing.manage') && can('vendor.subscriptions.manage'))
+const termsAccess = computed(() => ownerOnlyAccess('customTerms', can))
+const canTerms = computed(() => termsAccess.value === 'granted')
 const canStartTrial = computed(() => can('vendor.subscriptions.manage') && (hasWorkspace.value || can('vendor.tenants.manage')) && !view.value?.applied && !view.value?.pending_order)
 // A first paid order needs no subscription yet: the change page places it, and its fulfilment provisions the workspace like a trial does.
 const canStartFirst = computed(() => can('vendor.subscriptions.manage') && !view.value && (hasWorkspace.value || can('vendor.tenants.manage')))
@@ -208,7 +219,7 @@ async function changeCard() {
   } catch (cause) { cardFailure.value = t(cardActionErrorKey(cause)) } finally { cardBusy.value = false }
 }
 // The customer's own workspace-deletion request: the console shows its dates and what happened to the renewal, and withdraws it on the customer's behalf with a reason and a fresh passkey confirmation. It cannot ask for or confirm one.
-const { data: deletionRun, refresh: refreshDeletion } = await useAsyncData(() => `vendor:customer-deletion:${id.value}`, async () => (await soft(() => api.tenantDeletionRun(id.value))).value?.run ?? null)
+const { data: deletionRun, refresh: refreshDeletion } = await useAsyncData(() => `vendor:customer-deletion:${id.value}`, async () => (isChild.value ? null : (await soft(() => api.tenantDeletionRun(id.value))).value?.run ?? null))
 const deletion = computed(() => (isDeletionShown(deletionRun.value?.request) ? deletionRun.value!.request : null))
 const workspaceDeleted = computed(() => deletion.value?.state === 'deleted' || tenant.value?.status === 'deleted')
 // Once access has stopped the control plane refuses every vendor action on the customer, so the console stops offering them.
@@ -216,7 +227,7 @@ const workspaceRetiring = computed(() => isWorkspaceRetiring(deletion.value) || 
 // The only owner of the provisioning poll: the summary and the workspace tab need it, the other tabs, the child pages and a workspace being deleted do not.
 // Declared here, after `workspaceRetiring`: the poll reads it as soon as it is created.
 const progress = useWorkspaceProvisioning(tenantId, () => !isChild.value && !workspaceRetiring.value && (tab.value === 'summary' || tab.value === 'workspace'))
-const workspaceDeletedText = computed(() => t('vendor.customers.deletion.workspaceDeleted', { date: formatLiwanDate(deletion.value?.deleted_at ?? '') }))
+const workspaceDeletedText = computed(() => t('vendor.customers.deletion.workspaceDeleted', { date: formatBusinessDate(deletion.value?.deleted_at ?? '') }))
 const deletionWithdrawOpen = ref(false)
 const deletionReason = ref('')
 const deletionBusy = ref(false)
@@ -234,14 +245,16 @@ async function withdrawDeletion() {
   } catch (cause) { deletionFailure.value = t(deletionErrorKey(cause)) } finally { deletionBusy.value = false }
 }
 const deletionMessage = computed(() => deletion.value && t(`vendor.customers.deletion.${deletion.value.state}`, {
-  requested: formatLiwanDate(deletion.value.requested_at), confirmed: formatLiwanDate(deletion.value.confirmed_at ?? ''), due: formatLiwanDate(deletion.value.due_at ?? ''),
-  hold: formatLiwanDateTime(deletion.value.hold_until ?? ''), deleting: formatLiwanDateTime(deletion.value.deleting_at ?? ''), deleted: formatLiwanDate(deletion.value.deleted_at ?? ''),
+  requested: formatBusinessDate(deletion.value.requested_at), confirmed: formatBusinessDate(deletion.value.confirmed_at ?? ''), due: formatBusinessDate(deletion.value.due_at ?? ''),
+  hold: formatBusinessDateTime(deletion.value.hold_until ?? ''), deleting: formatBusinessDateTime(deletion.value.deleting_at ?? ''), deleted: formatBusinessDate(deletion.value.deleted_at ?? ''),
 }))
 const deletionRenewal = computed(() => {
   const request = deletion.value
   if (!request?.renewal_outcome) return null
   return t(`vendor.customers.deletion.renewal.${request.renewal_outcome}`, { reason: request.renewal_refusal ? t(`vendor.customers.deletion.refusals.${request.renewal_refusal}`) : '' })
 })
+// The child pages leave this page mounted: its data loads when the operator comes back from one.
+watch(isChild, child => { if (!child) void Promise.all([refresh(), refreshExtra(), refreshDeletion()]) })
 async function refreshCancellationState() {
   await refresh()
   await refreshExtra()
@@ -286,15 +299,20 @@ async function cancelPendingOrder() {
       <template #tabs><SharedRouteTabs :items="tabs" :ariaLabel="t('vendor.clientTabs.label')" /></template>
 
       <div v-if="customer" class="space-y-6">
+        <section v-if="tabAttention.length" aria-labelledby="customer-attention-title" class="space-y-3" data-testid="customer-attention">
+          <h2 id="customer-attention-title" class="text-lg font-semibold">{{ t('vendor.today.attentionTitle') }}</h2>
+          <VendorAttentionList :items="tabAttention" :now="now" />
+        </section>
         <template v-if="tab === 'summary'">
           <UAlert v-if="customer.commercial_setup_required" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('vendor.customers.setupRequired')" :description="t('vendor.customers.setupHint')" />
           <VendorCustomerGlance :setup-required="customer.commercial_setup_required" :subscription="view" :plan-name="planNameOf(view?.applied?.plan_revision_id) ?? pendingPlanName" :plan-pending="!view?.applied && Boolean(pendingPlanName)" :invoices="glanceInvoices" :has-workspace="hasWorkspace" :workspace-badge="workspaceBadge" :provisioning-failed="progress.failed" :operation-failed="operationFailed" :workspace-unreadable="workspaceUnreadable" :invoices-offered="canBilling" :login-url="progress.loginUrl" :tab-to="tabTo" @retry="retryWorkspaceState" />
           <p v-if="customer.signup_acceptance" class="text-sm text-muted" data-testid="signup-acceptance">
-            {{ t('vendor.customers.signupAcceptance', { version: customer.signup_acceptance.terms_version, date: formatLiwanDate(customer.signup_acceptance.accepted_at) }) }}
+            {{ t('vendor.customers.signupAcceptance', { version: customer.signup_acceptance.terms_version, date: formatBusinessDate(customer.signup_acceptance.accepted_at) }) }}
           </p>
         </template>
 
         <template v-else-if="tab === 'subscription'">
+          <VendorOwnerOnlyHint v-if="view && termsAccess === 'partial'" action="customTerms" />
           <SharedRecordSection :title="t('vendor.customers.sections.subscription')">
             <template v-if="view" #actions>
               <UButton v-if="canTerms" :to="termsTo" color="neutral" variant="outline" size="sm" icon="i-lucide-sliders-horizontal">{{ t('vendor.customers.customizeTerms') }}</UButton>
@@ -346,7 +364,7 @@ async function cancelPendingOrder() {
               <UButton v-else color="neutral" variant="outline" size="sm" icon="i-lucide-play" :disabled="!hydrated" data-testid="resume-subscription" @click="suspensionAction = 'resume'">{{ t('vendor.customers.suspension.resume') }}</UButton>
             </div>
             <div v-if="view?.cancellation || canChangeRenewal" class="mt-4 space-y-3" data-testid="renewal-actions">
-              <UAlert v-if="view?.cancellation" color="warning" variant="subtle" icon="i-lucide-calendar-x" :title="t('vendor.customers.renewalCancel.endsNotice', { date: formatLiwanDate(view.cancellation.effective_on), by: t(`vendor.customers.renewalCancel.by.${view.cancellation.requested_by}`), requested: formatLiwanDate(view.cancellation.requested_at) })" />
+              <UAlert v-if="view?.cancellation" color="warning" variant="subtle" icon="i-lucide-calendar-x" :title="t('vendor.customers.renewalCancel.endsNotice', { date: formatBusinessDate(view.cancellation.effective_on), by: t(`vendor.customers.renewalCancel.by.${view.cancellation.requested_by}`), requested: formatBusinessDate(view.cancellation.requested_at) })" />
               <UAlert v-if="renewalFailure" color="error" variant="subtle" role="alert" :title="renewalFailure" />
               <template v-if="canChangeRenewal">
                 <SharedInlineConfirm v-if="renewalAction" :title="t(`vendor.customers.renewalCancel.${renewalAction}Title`)" :description="t(`vendor.customers.renewalCancel.${renewalAction}Hint`)" :confirm-label="t(`vendor.customers.renewalCancel.${renewalAction}`)" :color="renewalAction === 'cancel' ? 'error' : 'primary'" :pending="renewalBusy" :disabled="!hydrated || renewalBusy || !validRenewalReason" @confirm="changeRenewal" @cancel="closeRenewal">
@@ -404,7 +422,7 @@ async function cancelPendingOrder() {
             <li v-for="i in invoices" :key="i.id" class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-3" data-testid="customer-invoice">
               <div class="min-w-0">
                 <NuxtLink :to="{ path: `/invoices/${encodeURIComponent(i.id)}`, query: { returnTo: route.fullPath } }" class="font-medium hover:underline">{{ i.number ?? t('vendor.invoices.draftNumber') }}</NuxtLink>
-                <p class="text-xs text-muted">{{ t(`vendor.invoices.kind.${i.kind}`) }} · <bdi dir="ltr" class="tabular-nums">{{ formatLiwanDate(i.period_start) }} → {{ formatLiwanDate(i.period_end) }}</bdi></p>
+                <p class="text-xs text-muted">{{ t(`vendor.invoices.kind.${i.kind}`) }} · <bdi dir="ltr" class="tabular-nums">{{ formatBusinessDate(i.period_start) }} → {{ formatBusinessDate(i.period_end) }}</bdi></p>
               </div>
               <div class="flex items-center gap-3">
                 <bdi dir="ltr" class="font-semibold tabular-nums">{{ formatCommercialMoney(i.total, locale) }}</bdi>
@@ -448,6 +466,7 @@ async function cancelPendingOrder() {
         </template>
 
         <template v-else>
+          <VendorOwnerOnlyHint v-if="view && termsAccess === 'partial'" action="customTerms" />
           <SharedRecordSection variant="panel" :title="t('vendor.customers.sections.terms')">
             <template v-if="view && canTerms" #actions><UButton :to="termsTo" color="neutral" variant="outline" size="sm" icon="i-lucide-sliders-horizontal">{{ t('vendor.customers.customizeTerms') }}</UButton></template>
             <p v-if="view?.applied?.terms_revision_id" class="text-sm">{{ t('vendor.customers.terms.active') }}</p>
@@ -463,5 +482,5 @@ async function cancelPendingOrder() {
         </template>
       </div>
 </SharedRecordPage>
-  <SharedUnsavedChanges v-if="!isChild" :dirty="Boolean(cancelReason.trim()) || Boolean(suspensionReason.trim()) || Boolean(deletionReason.trim()) || Boolean(adminLoginReason.trim()) || Boolean(adminLoginValue.trim()) || operationsDirty" guard-route-updates />
+  <SharedUnsavedChanges v-if="!isChild" :dirty="Boolean(cancelReason.trim()) || Boolean(suspensionReason.trim()) || Boolean(deletionReason.trim()) || Boolean(adminLoginReason.trim()) || Boolean(adminLoginValue.trim()) || Boolean(renewalReason.trim()) || Boolean(cardReason.trim()) || operationsDirty" guard-route-updates />
 </template>

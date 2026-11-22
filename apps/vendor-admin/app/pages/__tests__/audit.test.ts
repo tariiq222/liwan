@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
+import { formatBusinessDateTime } from '../../utils/vendorTime'
 import * as vendorAudit from '../../utils/vendorAudit'
 import { mountPage } from '../../__tests__/pageHarness'
 
@@ -10,7 +10,7 @@ async function auditPage(query: Record<string, string>, failures: Record<number,
   const request = vi.fn(async () => ({ items: [], total: 0 }))
   const customer = vi.fn(async () => ({ id: 'c1', name: 'Acme' }))
   const page = await mountPage('audit.vue', {
-    ...vendorAudit, formatDateTime,
+    ...vendorAudit, formatBusinessDateTime,
     useRoute: () => ({ query }), useRouter: () => ({ replace: vi.fn() }), useVendorApi: () => ({ request }),
     useVendorSubscriptions: () => ({ customer }), useDebounceFn: (fn: () => void) => fn,
   }, { failures })

@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import * as Vue from 'vue'
 import { renderToString } from '@vue/server-renderer'
 import { DEFAULT_STUBS, loadShared } from '@liwan/ui/test/helpers/renderShared'
+import * as invoiceDocument from '@liwan/commercial-ui/app/utils/invoiceDocument'
 import * as subscription from '../subscription'
 import { bankTransferOutcome, invoiceWantsTransfer, refusalKey, transferClaimState, transferNotice } from '../subscription'
 
@@ -84,6 +85,7 @@ async function renderPage(bankTransfer: () => Promise<unknown>, payload: Record<
     modules: {
       '@/composables/useSubscription': { useSubscriptionApi: () => api, useCustomerCapabilities: () => ({ can: () => true }) },
       '@/utils/subscription': subscription,
+      '@liwan/commercial-ui/app/utils/invoiceDocument': invoiceDocument,
     },
   })
   const slotted = Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => Vue.h('div', attrs, slots.default?.()) })
@@ -143,7 +145,7 @@ describe('the customer claim on the invoice page', () => {
       const api = { invoice: vi.fn(async () => invoice), bankTransfer: vi.fn(async () => ({ ...instructions, claim })), claimBankTransfer: vi.fn() }
       const asyncData = async (key: string | (() => string), fetcher: () => Promise<unknown>) => ({ data: Vue.ref(await fetcher()), error: Vue.ref(undefined), pending: Vue.ref(false), refresh: () => {} })
       const component = loadShared(page, { messages, globals: { useAsyncData: asyncData, useRoute: () => ({ path: '/subscription/invoices/inv-1', params: { id: 'inv-1' } }), definePageMeta: () => {} },
-        modules: { '@/composables/useSubscription': { useSubscriptionApi: () => api, useCustomerCapabilities: () => ({ can: (capability: string) => capability === 'billing.read' || can }) }, '@/utils/subscription': subscription } })
+        modules: { '@/composables/useSubscription': { useSubscriptionApi: () => api, useCustomerCapabilities: () => ({ can: (capability: string) => capability === 'billing.read' || can }) }, '@/utils/subscription': subscription, '@liwan/commercial-ui/app/utils/invoiceDocument': invoiceDocument } })
       const slotted = Vue.defineComponent({ inheritAttrs: false, setup: (_, { attrs, slots }) => () => Vue.h('div', attrs, slots.default?.()) })
       const app = Vue.createSSRApp(component)
       app.config.warnHandler = () => {}

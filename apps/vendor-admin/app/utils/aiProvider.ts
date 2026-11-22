@@ -1,6 +1,6 @@
 // The platform AI page's vocabulary: the draft the form edits, the rules that decide what a model may serve, and the message each failure shows.
 import {
-  AI_CAPABILITIES, AI_QUALITY_LEVELS, aiConfigIdSchema, aiPriceSchema, type AiCapability, type AiProviderCurrent, type AiProviderPreset, type AiProviderSave, type AiQuality,
+  AI_CAPABILITIES, AI_PROVIDER_REDELIVER_REFUSALS, AI_QUALITY_LEVELS, aiConfigIdSchema, aiPriceSchema, type AiCapability, type AiProviderCurrent, type AiProviderPreset, type AiProviderSave, type AiQuality,
 } from '@liwan/commercial-contracts'
 import { failureKey } from '../composables/useStepUp'
 
@@ -57,10 +57,10 @@ const cleanEndpoint = (url: string) => url.trim().replace(/\/+$/, '')
 function sameEndpoint(stored: Setting['providers'][string], provider: ProviderDraft, presets: AiProviderPreset[]): boolean {
   return !presets.find(p => p.id === provider.preset)?.needs_base_url || (stored.base_url ?? '') === cleanEndpoint(provider.base_url)
 }
-/** The provider as the server holds it: same id, preset and endpoint, and no key waiting to be saved. */
+/** The provider as the server holds it: same id, preset, endpoint and stream-usage choice, and no key waiting to be saved. */
 export function providerSaved(setting: Setting | null, provider: ProviderDraft, presets: AiProviderPreset[]): boolean {
   const stored = setting?.providers[provider.id]
-  return Boolean(stored) && stored!.preset === provider.preset && sameEndpoint(stored!, provider, presets) && !provider.api_key
+  return Boolean(stored) && stored!.preset === provider.preset && stored!.stream_usage === provider.stream_usage && sameEndpoint(stored!, provider, presets) && !provider.api_key
 }
 /** Whether the model, as drafted, is the one the server holds (so a test of it records its result). */
 export const modelSaved = (setting: Setting | null, model: ModelDraft) => savedModel(setting, model) !== null
@@ -102,7 +102,7 @@ export function saveBlockers(draft: ConfigDraft, setting: Setting | null, preset
     if (idProblem(providerIds, provider.id)) found.add('providerId')
     if (preset?.needs_base_url && !provider.base_url.trim()) found.add('providerEndpoint')
     const stored = setting?.providers[provider.id]
-    const keptKey = Boolean(stored?.key.configured) && stored!.preset === provider.preset && sameEndpoint(stored!, provider, presets)
+    const keptKey = Boolean(stored?.key.configured) && stored!.preset === provider.preset && stored!.stream_usage === provider.stream_usage && sameEndpoint(stored!, provider, presets)
     if (preset?.needs_api_key && !provider.api_key.trim() && !keptKey) found.add('providerKey')
   }
   const modelIds = draft.models.map(m => m.id)
@@ -161,8 +161,9 @@ export const configDirty = (draft: ConfigDraft, setting: Setting | null) =>
   JSON.stringify(draft) !== JSON.stringify(draftFromSetting(setting)) || draft.providers.some(p => p.api_key !== '')
 
 const CODES = new Set([
-  'invalid', 'invalid_preset', 'invalid_base_url', 'invalid_base_url_port', 'invalid_stream_usage', 'api_key_required', 'api_key_not_allowed', 'secret_key_unavailable', 'provider_file_unavailable',
+  'invalid', 'invalid_preset', 'invalid_base_url', 'invalid_base_url_port', 'invalid_stream_usage', 'api_key_required', 'api_key_not_allowed', 'secret_key_unavailable', 'provider_file_unavailable', 'audit_unavailable',
   'unknown_provider', 'unknown_model', 'model_not_priced', 'model_not_tested', 'model_price_required', 'default_required',
+  ...AI_PROVIDER_REDELIVER_REFUSALS,
   'provider_unauthorized', 'provider_endpoint_refused', 'provider_unreachable', 'provider_timeout', 'provider_rate_limited', 'provider_error', 'provider_invalid_response', 'forbidden', 'step_up_required',
 ])
 export type Section = 'providers' | 'models' | 'routes' | 'general'
@@ -184,6 +185,9 @@ function aiProviderFailureKey(error: unknown): string {
   if ((e?.statusCode ?? e?.response?.status) === 503) return 'aiProvider.errors.unavailable'
   return 'aiProvider.errors.generic'
 }
+/** The two refusals a vendor meets by routing a model before the save, test, route order: their message points at the note that explains it. */
+const STEPS_ERRORS = new Set(['aiProvider.errors.model_not_tested', 'aiProvider.errors.model_not_priced'])
+export const aiProviderErrorHasSteps = (key: string | undefined): boolean => key !== undefined && STEPS_ERRORS.has(key)
 /** The part of the page a failure belongs to, so the message sits next to the field it concerns. */
 export const aiProviderErrorSection = (error: unknown): Section => SECTION_OF[codeOf(error) ?? ''] ?? 'general'
 

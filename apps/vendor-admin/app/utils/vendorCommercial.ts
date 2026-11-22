@@ -4,11 +4,12 @@ import {
   type PricingPolicy, type Cadence, type Money, type PlanRevision, type Price, type Selection,
 } from '@liwan/commercial-contracts'
 import { failureKey } from '../composables/useStepUp'
+import { latinDigits } from './digits'
+import { formatStorageMb, MB_PER_GB, STORAGE_LIMIT_KEY } from './storage'
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import type { StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
 
 export const CURRENCY = 'SAR'
-export const MB_PER_GB = 1024
 export const EXPONENT = 2
 /** The most a plan, bundle or terms limit may hold: what a workspace accepts (the contract's MAX_ENTITLEMENT_LIMIT). */
 export const MAX_LIMIT = MAX_ENTITLEMENT_LIMIT
@@ -43,7 +44,6 @@ export const listQuery = (p: ListParams) => ({ status: p.status && p.status !== 
 export function isStatusFilter(value: unknown): value is StatusFilter { return typeof value === 'string' && (STATUS_FILTERS as string[]).includes(value) }
 
 // ---- Money ----
-const ARABIC_DIGITS = '٠١٢٣٤٥٦٧٨٩'
 const GROUPED_INTEGER = /^[1-9]\d{0,2}(?:[,٬\s]\d{3})+$/
 /**
  * Latin digits with `.` as the decimal mark. A comma, an Arabic thousands mark or a space is a thousands separator only
@@ -51,7 +51,7 @@ const GROUPED_INTEGER = /^[1-9]\d{0,2}(?:[,٬\s]\d{3})+$/
  * ambiguous between a decimal comma and a thousands comma, so it is left in the text and the caller's digit pattern refuses it.
  */
 export function normalizeDigits(value: string): string {
-  const text = value.trim().replace(/[٠-٩]/g, d => String(ARABIC_DIGITS.indexOf(d))).replace(/٫/g, '.')
+  const text = latinDigits(value.trim()).replace(/٫/g, '.')
   const whole = text.split('.', 1)[0]!
   return GROUPED_INTEGER.test(whole) ? whole.replace(/[,٬\s]/g, '') + text.slice(whole.length) : text
 }
@@ -78,7 +78,7 @@ export type LimitDraft = { mode: LimitMode; value: string }
 // imports and reads its scope from this file.
 export { MAX_STORAGE_STEP_MB, storageStepsAligned } from '@liwan/commercial-contracts'
 
-/** A11 seeds: 10 GiB steps below 100 GiB of extra storage, 100 GiB steps from there. Vendor-editable on the plan. */
+/** A11 seeds: 10 GB steps below 100 GB of extra storage, 100 GB steps from there. Vendor-editable on the plan. */
 export const DEFAULT_STORAGE_STEP_MB = 10240
 export const DEFAULT_STORAGE_THRESHOLD_MB = 102400
 export const DEFAULT_STORAGE_LARGE_STEP_MB = 102400
@@ -96,9 +96,12 @@ export function limitToDraft(value: number | null | undefined): LimitDraft {
   if (value === null) return { mode: 'unlimited', value: '' }
   return value === 0 ? { mode: 'none', value: '' } : { mode: 'number', value: String(value) }
 }
-export function limitLabel(value: number | null | undefined, t: (key: string) => string): string {
+/** A limit as the console prints it: a storage limit (by its key) in MB or GB, any other as a plain number. */
+export function limitLabel(value: number | null | undefined, t: (key: string) => string, key?: string): string {
   if (value === undefined) return t('vendor.pricing.limit.unset')
-  return value === null ? t('vendor.pricing.limit.unlimited') : value === 0 ? t('vendor.pricing.limit.none') : String(value)
+  if (value === null) return t('vendor.pricing.limit.unlimited')
+  if (value === 0) return t('vendor.pricing.limit.none')
+  return key === STORAGE_LIMIT_KEY ? formatStorageMb(value) : String(value)
 }
 export function limitsFromDrafts(drafts: Record<string, LimitDraft>, keys: string[]): CapacityMap {
   return Object.fromEntries(keys.map(key => [key, limitFromDraft(drafts[key])]))
@@ -263,9 +266,13 @@ export function planDraftFromView(v: PlanRevision): PlanDraft {
     auto_suspend: triOf(v.auto_suspend), auto_renew_allowed: triOf(v.auto_renew_allowed), reason: '', policy_revision_id: v.policy_revision_id,
   }
 }
-/** The limits a saved plan carries, as form rows: a missing key is empty (unlimited). */
+/** The limits a saved plan carries, as form rows: a missing key is empty (unlimited); a stored 0 is the number 0, as these rows have no "none" choice. */
 function aiLimitsDraftFromView(limits: CapacityMap | undefined): AiLimitsDraft {
-  return Object.fromEntries(AI_LIMIT_KEYS.map(key => [key, Object.hasOwn(limits ?? {}, key) ? limitToDraft(limits![key]) : emptyLimit()]))
+  return Object.fromEntries(AI_LIMIT_KEYS.map(key => {
+    if (!Object.hasOwn(limits ?? {}, key)) return [key, emptyLimit()]
+    const value = limits![key]
+    return [key, value === 0 ? { mode: 'number', value: '0' } : limitToDraft(value)]
+  }))
 }
 function triValue(v: Tri): boolean { if (!v) throw new Error('invalid_choice'); return v === 'true' }
 function requireCount(v: string, max = MAX_LIMIT): number { const n = parseCount(v, max); if (n === null) throw new Error('invalid_count'); return n }

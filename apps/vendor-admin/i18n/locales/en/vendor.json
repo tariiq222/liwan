@@ -1,6 +1,12 @@
 {
   "vendor": {
     "forbidden": "You do not have access to this vendor workspace.",
+    "ownerOnly": {
+      "customTerms": "Custom terms need both the pricing and the subscriptions permissions. The platform owner sets them.",
+      "restorePublication": "Publishing a restored workspace needs both the operations and the workspace management permissions. The platform owner does it.",
+      "sharedOnboarding": "Onboarding a shared workspace needs both the operations and the workspace management permissions. The platform owner does it.",
+      "voidInvoice": "Voiding an invoice needs both the billing and the subscriptions permissions. The platform owner does it."
+    },
     "common": {
       "none": "Not available",
       "unknown": "Unknown",
@@ -88,7 +94,9 @@
         "renewal_soon": "Renews within {duration}",
         "tenant_deletion_due": "The customer's deletion request is in its final hold. The workspace still works: withdraw the request if it is not legitimate, otherwise it is deleted when the hold ends",
         "tenant_deletion_stuck": "A workspace deletion is stuck ({operation}) and waits for you",
-        "form_payment_review": "A card payment needs checking at the payment provider ({operation}): money may have been taken that nothing settled, or a card token was not deleted"
+        "form_payment_review": "A card payment needs checking at the payment provider ({operation}): money may have been taken that nothing settled, or a card token was not deleted",
+        "service_stale": "Stopped reporting: the process may be down, so what it runs is not running",
+        "service_unavailable": "Could not be started at launch, so what depends on it is switched off"
       },
       "refundReasons": {
         "refund_exceeds_payment": "refunded more than was paid",
@@ -122,6 +130,31 @@
         "form_payment_review": "Open the invoices",
         "form_payment_review_provider": "Open the audit log"
       },
+      "health": {
+        "components": {
+          "shared_worker": "Shared worker",
+          "commercial_scheduler": "Commercial scheduler",
+          "payment_adapter": "Payment provider (worker)",
+          "mail_adapter": "Mail service",
+          "alert_channel": "Alert channel",
+          "api_payment_adapter": "Payment provider (API)"
+        },
+        "title": "Services",
+        "hint": "Whether the processes behind the console are running and their adapters could be started. Nothing here starts or stops anything.",
+        "states": {
+          "ok": "Running",
+          "stale": "Not reporting",
+          "unavailable": "Not available",
+          "never_seen": "Never reported",
+          "unknown": "Unknown: the worker is not reporting"
+        },
+        "agoMinutes": "last beat less than a minute ago | last beat one minute ago | last beat {count} minutes ago",
+        "agoHours": "last beat less than an hour ago | last beat one hour ago | last beat {count} hours ago",
+        "agoDays": "last beat less than a day ago | last beat one day ago | last beat {count} days ago",
+        "failedJobs": "Failed in the last tick: {jobs}",
+        "unreadable": "The health of the services could not be read right now. The counts and the list are not affected.",
+        "lastWorkspaceCheck": "Last workspace check"
+      },
       "statusTitle": "Overall status",
       "statusLabel": "Overall status counts",
       "status": {
@@ -136,8 +169,7 @@
         "setupRequired": "Customers needing setup",
         "renewals": "Renewals due in 7 days or missed"
       },
-      "statusHint": "Counted from customer and subscription records; not collected revenue. Shared and dedicated operations are included, once per operation.",
-      "lastHealth": "Last health check"
+      "statusHint": "Counted from customer and subscription records; not collected revenue. Shared and dedicated operations are included, once per operation."
     },
     "tenants": {
       "details": "Customer installation",
@@ -272,29 +304,6 @@
         "catalog_invalid": "Validation of the version failed. Check its source with the platform operator, then try again."
       }
     },
-    "features": {
-      "users": {
-        "limit": "Maximum users"
-      },
-      "storage": {
-        "limit_mb": "Storage limit (MB)"
-      },
-      "pmo": {
-        "enabled": "Projects"
-      },
-      "meetings": {
-        "enabled": "Meetings"
-      },
-      "projects": {
-        "max_projects": "Maximum projects"
-      },
-      "hr": {
-        "enabled": "People directory"
-      },
-      "chat": {
-        "enabled": "Private messaging"
-      }
-    },
     "backups": {
       "title": "Backups",
       "hint": "Verified backups of this workspace. A restore makes a separate copy and never touches the live workspace.",
@@ -343,6 +352,8 @@
       "empty": "No operations found.",
       "tenantFilter": "Customer installation",
       "allTenants": "All installations",
+      "tenantSearch": "Search workspaces",
+      "tenantsLoadFailed": "Could not load workspaces",
       "noResults": "No operations match the filter.",
       "filter": {
         "all": "All",
@@ -477,110 +488,221 @@
       "subject": "Subject",
       "action": "Action",
       "actions": {
-        "membership": {
-          "granted": "Vendor access granted",
-          "revoked": "Vendor access revoked"
+        "account": {
+          "dev_owner": "Developer owner account created",
+          "disabled": "Account disabled",
+          "enabled": "Account enabled",
+          "enrolled": "Account enrollment completed",
+          "invited": "Account invited",
+          "reset_completed": "Reset completed",
+          "reset_issued": "Reset link issued",
+          "roles_set": "Account roles changed"
         },
-        "catalog": {
-          "imported": "Catalog imported",
-          "validate": "Catalog validated",
-          "publish": "Catalog published"
-        },
-        "tenant": {
-          "registered": "Installation registered",
-          "operations": {
-            "enabled": "Installation operations enabled",
-            "disabled": "Installation operations disabled"
+        "ai": {
+          "platform_provider": {
+            "models_listed": "AI provider models listed",
+            "redelivered": "AI provider file delivered again",
+            "saved": "AI provider settings saved",
+            "tested": "AI provider tested"
           }
         },
-        "restore": {
-          "approved": "Restore approved"
+        "ai_billing": {
+          "settings_updated": "AI billing settings updated"
         },
-        "shared_odoo_restore": {
-          "route_published": "Restored workspace route published",
-          "approved": "Shared restore approved"
-        },
-        "shared_job": {
-          "replayed": "Existing shared operation request replayed",
-          "queued": "Shared operation queued",
-          "lease_expired": "Shared operation execution lease expired"
-        },
-        "shared_restore": {
-          "completed": "Shared restore completed"
-        },
-        "shared_odoo_backup": {
-          "verified": "Shared backup verified"
-        },
-        "shared_onboarding": {
-          "reserved": "Shared customer workspace reserved"
+        "ai_topup": {
+          "refunded": "AI top-up refunded"
         },
         "auth": {
-          "signed_in": "Signed in",
           "failed": "Failed sign-in attempt",
           "locked": "Temporarily locked after failed attempts",
-          "step_up": "Extra identity check",
+          "passkey_registered": "Passkey registered",
+          "signed_in": "Signed in",
           "signed_out": "Signed out",
-          "passkey_registered": "Passkey registered"
+          "step_up": "Extra identity check"
         },
-        "account": {
-          "roles_set": "Account roles changed",
-          "disabled": "Account disabled",
-          "dev_owner": "Developer owner account created",
-          "invited": "Account invited",
-          "reset_issued": "Reset link issued",
-          "reset_completed": "Reset completed",
-          "enrolled": "Account enrollment completed"
+        "auto_renew": {
+          "disabled": "Automatic renewal stopped",
+          "enabled": "Automatic renewal turned on",
+          "not_enabled": "Card saved, automatic renewal left off"
         },
-        "plan": {
-          "created": "Plan created",
-          "revision_created": "New plan revision created",
-          "deleted": "Plan draft deleted",
-          "edit": "Plan edited",
-          "validate": "Plan validated",
-          "publish": "Plan published",
-          "withdraw": "Plan withdrawn from sale",
-          "restore": "Plan restored"
+        "billing": {
+          "settings_updated": "Billing settings updated"
         },
         "bundle": {
           "created": "Bundle created",
-          "revision_created": "New bundle revision created",
           "deleted": "Bundle draft deleted",
           "edit": "Bundle edited",
-          "validate": "Bundle validated",
           "publish": "Bundle published",
-          "withdraw": "Bundle withdrawn",
-          "restore": "Bundle restored"
+          "restore": "Bundle restored",
+          "revision_created": "New bundle revision created",
+          "validate": "Bundle validated",
+          "withdraw": "Bundle withdrawn"
+        },
+        "catalog": {
+          "imported": "Catalog imported",
+          "publish": "Catalog published",
+          "validate": "Catalog validated"
+        },
+        "catalog_release": {
+          "created": "Catalog release created"
+        },
+        "customer": {
+          "admin_login_changed": "Customer registered e-mail changed"
+        },
+        "customer_terms": {
+          "created": "Customer terms saved"
+        },
+        "free_base_lock": {
+          "failed": "Lock after cancellation failed"
+        },
+        "invitation": {
+          "reissued": "Invitation link reissued"
+        },
+        "invoice": {
+          "credit_pending": "Invoice credit pending",
+          "credit_refunded": "Credit note refund recorded",
+          "refund_requested": "Invoice refund requested",
+          "voided": "Unpaid invoice voided"
+        },
+        "invoices": {
+          "exported": "Invoice list exported to CSV"
         },
         "order": {
           "accepted": "Order accepted",
           "cancelled": "Order cancelled"
         },
-        "invoice": {
-          "credit_pending": "Invoice credit pending"
-        },
         "payment": {
-          "intervention": "Payment needs intervention"
+          "bank_transfer_duplicate": "Duplicate bank transfer for a paid invoice",
+          "bank_transfer_received": "Bank transfer recorded",
+          "card_not_saved": "Card not saved",
+          "direct_payment_missing": "No payment at the provider, attempt closed",
+          "duplicate_charge": "Duplicate charge for a paid order",
+          "duplicate_refunded": "Duplicate payment refunded at the provider",
+          "form_attempt_closed": "Card form attempt closed",
+          "form_attempt_needs_review": "Card form attempt needs review",
+          "form_declined": "Card form payment declined",
+          "form_hint_rejected": "Card form payment hint rejected",
+          "form_payment_refunded": "Card form payment refunded in full",
+          "form_payment_rejected": "Card form payment notice rejected",
+          "form_payment_searched": "Card form payment searched at the provider",
+          "form_rejection_suppressed": "Repeated card form rejection suppressed",
+          "form_search_rejected": "Card form search result rejected",
+          "form_settled": "Card form payment settled",
+          "intervention": "Payment needs intervention",
+          "refund_duplicate_closed": "Stuck refund closed as already recorded",
+          "refund_hold_released": "Stuck refund released",
+          "refund_rechecked": "Refund payment checked again at the provider",
+          "refund_rejected": "Provider rejected a refund",
+          "saved_card_charge_refused": "Provider refused the saved card charge request",
+          "saved_card_declined": "Provider declined the saved card",
+          "saved_card_needs_customer_action": "Saved card needs the customer to act",
+          "saved_card_unusable": "Saved card cannot be charged",
+          "token_orphan_deleted": "Unrequested card token deleted",
+          "webhook_verification": "Payment webhook registration code received"
         },
-        "trial": {
-          "started": "Trial started",
-          "enrolled": "Trial enrolled, waiting for first sign-in",
-          "extended": "Trial extended",
-          "reopened": "Trial reopened",
-          "ended": "Trial ended by the vendor",
-          "lapsed": "Unpaid trial lapsed to the free base",
-          "converted": "Trial converted to a paid subscription after payment",
-          "conversion_reverted": "Trial restored after the conversion payment was refunded",
-          "expiry_push_failed": "Warning: the host did not receive the new trial deadline",
-          "policy_bootstrap_queued": "Trial end policy queued"
+        "payment_method": {
+          "removed": "Saved card removed",
+          "saved": "Card saved from a payment"
         },
-        "customer_terms": {
-          "created": "Customer terms saved"
-        },
-        "catalog_release": {
-          "created": "Catalog release created"
+        "plan": {
+          "created": "Plan created",
+          "deleted": "Plan draft deleted",
+          "edit": "Plan edited",
+          "publish": "Plan published",
+          "restore": "Plan restored",
+          "revision_created": "New plan revision created",
+          "validate": "Plan validated",
+          "withdraw": "Plan withdrawn from sale",
+          "withdrawn_by_publish": "Plan withdrawn by a newer revision"
         },
         "registry": {
           "recovery_requested": "Workspace registry recovery requested"
+        },
+        "restore": {
+          "approved": "Restore approved"
+        },
+        "shared_backup": {
+          "verified": "Backup snapshot verified"
+        },
+        "shared_job": {
+          "abandon_refused": "Abandoning a shared operation refused",
+          "abandon_requested": "Shared operation abandon requested",
+          "abandoned": "Shared operation abandoned",
+          "enrollment_authority_invalid": "Shared operation enrollment authority invalid",
+          "lease_expired": "Shared operation execution lease expired",
+          "queued": "Shared operation queued",
+          "recovery_completed": "Shared operation recovery completed",
+          "recovery_observed": "Stuck shared operation effect observed",
+          "recovery_requested": "Shared operation recovery requested",
+          "replayed": "Existing shared operation request replayed"
+        },
+        "shared_odoo_backup": {
+          "verified": "Shared backup verified"
+        },
+        "shared_odoo_restore": {
+          "approved": "Shared restore approved",
+          "publication_requested": "Restored workspace route publication requested",
+          "route_published": "Restored workspace route published"
+        },
+        "shared_onboarding": {
+          "reserved": "Shared customer workspace reserved"
+        },
+        "shared_order": {
+          "created": "Shared order created with a fixed quote"
+        },
+        "shared_restore": {
+          "completed": "Shared restore completed"
+        },
+        "subscription": {
+          "cancel_requested": "Renewal cancellation requested",
+          "cancel_withdrawn": "Renewal cancellation withdrawn",
+          "cancellation_effective": "Subscription cancellation took effect",
+          "refund_lock_armed": "Lock armed after the first payment refund",
+          "resumed": "Subscription resumed",
+          "suspended": "Subscription suspended"
+        },
+        "tenant": {
+          "operations": {
+            "disabled": "Installation operations disabled",
+            "enabled": "Installation operations enabled"
+          },
+          "registered": "Installation registered"
+        },
+        "tenant_deletion": {
+          "card_not_deleted": "Saved card not deleted during workspace deletion",
+          "code_invalidated": "Workspace deletion code invalidated",
+          "code_sent": "Workspace deletion code sent",
+          "committed": "Workspace deletion committed",
+          "confirmed": "Workspace deletion confirmed",
+          "deleted": "Workspace deleted",
+          "deleting": "Workspace deletion started",
+          "due": "Workspace deletion due",
+          "hold_extended": "Deletion hold extended",
+          "hold_rearmed": "Deletion hold re-armed",
+          "hold_rearmed_after_restore": "Deletion hold re-armed after a restore",
+          "marker_stamped": "Workspace database marked for deletion",
+          "plan_refrozen": "Deletion plan frozen again",
+          "requested": "Workspace deletion requested",
+          "returned_to_hold_after_restore": "Deletion returned to hold after a restore",
+          "stuck": "Workspace deletion stuck",
+          "withdrawn": "Workspace deletion withdrawn"
+        },
+        "trial": {
+          "conversion_reverted": "Trial restored after the conversion payment was refunded",
+          "converted": "Trial converted to a paid subscription after payment",
+          "ended": "Trial ended by the vendor",
+          "enrolled": "Trial enrolled, waiting for first sign-in",
+          "expiry_push_failed": "Warning: the host did not receive the new trial deadline",
+          "extended": "Trial extended",
+          "lapsed": "Unpaid trial lapsed to the free base",
+          "policy_bootstrap_queued": "Trial end policy queued",
+          "reopened": "Trial reopened",
+          "started": "Trial started"
+        },
+        "workspace": {
+          "lookup": {
+            "mailed": "Workspace address mailed to the manager"
+          }
         }
       },
       "when": "When",
@@ -589,7 +711,7 @@
       "category": "Action type",
       "allCategories": "All types",
       "actorFilter": "Actor",
-      "actorPlaceholder": "Actor name or email",
+      "actorPlaceholder": "Actor name",
       "from": "From date",
       "to": "To date",
       "customerFilter": "Customer log: {name}",
@@ -613,6 +735,10 @@
         "customer": "Customer",
         "tenant": "Workspace",
         "order": "Order",
+        "subscription": "Subscription",
+        "invoice": "Invoice",
+        "adjustment": "Invoice adjustment",
+        "shared_job": "Shared operation",
         "plan": "Plan",
         "bundle": "Bundle",
         "catalog": "Catalog",
@@ -641,7 +767,7 @@
       "included": "Included applications and features",
       "quotas": "Usage limits",
       "quotaHint": "Choose a whole number or explicitly select unlimited for every limit. Zero permits no usage.",
-      "storageHint": "Attachment storage in MiB (1,048,576 bytes per MiB); this does not limit the whole database or disk.",
+      "storageHint": "Attachment storage in MB (1 GB is 1024 MB); this does not limit the whole database or disk.",
       "adminHint": "The initial administrator counts toward the user limit. Publication requires at least one user or unlimited; initial system attachments also need storage.",
       "limited": "Set a limit",
       "zeroHint": "Zero prevents use of this capacity. User and storage limits of zero can be saved as drafts but cannot be published.",
@@ -699,7 +825,7 @@
       },
       "limits": {
         "users": "Users",
-        "storage": "Attachments (MiB)",
+        "storage": "Attachments",
         "projects": "Projects"
       },
       "errors": {
@@ -755,7 +881,10 @@
       "termMonths": "{count}-month term | {count}-month term",
       "bundlesCount": "{included} included · {optional} optional bundles",
       "sold": "What the plan includes",
-      "soldHint": "The bundles sold with the plan and its platform limits. Open a bundle to see its apps."
+      "soldHint": "The bundles sold with the plan and its platform limits. Open a bundle to see its apps.",
+      "storageHint": "How extra storage is bought on this plan: the step below the threshold, the threshold, and the larger step above it (MB).",
+      "policyHint": "The approved policy this plan is priced under.",
+      "aiHint": "The assistant's monthly quota and per-run limits on this plan. Unlimited means no limit."
     },
     "pricing": {
       "status": {
@@ -849,6 +978,7 @@
         "basePrices": "Billing cadences and base price",
         "bundles": "Bundles",
         "lifecycle": "Trial, grace and renewal",
+        "storage": "Extra storage",
         "quantities": "Included quantities",
         "included": "What the bundle includes"
       },
@@ -865,11 +995,11 @@
         "branchLimit": "Extra branch limit",
         "includedUsers": "Included users minimum",
         "includedStorage": "Included storage minimum (MB)",
-          "storageStep": "Storage step (MiB)",
+          "storageStep": "Storage step (MB)",
           "storageStepHint": "How much extra storage one purchase adds below the threshold.",
-          "storageStepThreshold": "Step threshold (MiB)",
+          "storageStepThreshold": "Step threshold (MB)",
           "storageStepThresholdHint": "At or above this much extra storage, the large step applies instead.",
-          "storageLargeStep": "Large storage step (MiB)",
+          "storageLargeStep": "Large storage step (MB)",
           "storageLargeStepHint": "How much extra storage one purchase adds from the threshold upward.",
         "userPrice": "Extra user price",
         "storagePrice": "Extra storage price (GB)",
@@ -901,7 +1031,7 @@
       "usersCapExceeded": "The included users are more than the 100 users Release 1 sells. Lower it and save; larger plans are agreed outside the platform.",
         "storageMinimumGb": "Enter the included storage minimum in whole gigabytes (a multiple of 1024 MB).",
           "storageStepMisaligned": "The threshold must be a whole multiple of both steps, and the large step cannot be smaller than the small one.",
-          "storageStepTooLarge": "This step is larger than the database column allows (2 TiB).",
+          "storageStepTooLarge": "This step is larger than the database column allows (2048 GB).",
       "quantitiesHint": "The minimums are covered by the base price; anything above them is priced per unit.",
       "userPricesHint": "Price per user above the minimum, for each billing cadence.",
       "storagePricesHint": "Price per gigabyte above the minimum, for each billing cadence.",
@@ -1052,14 +1182,61 @@
         "tenant_required": "This subscription has no workspace linked yet, so the change cannot be reserved. Finish provisioning the workspace, then repeat the action."
       },
       "keys": {
-        "users_limit": "Users",
-        "storage_limit_mb": "Counted attachment storage (MB)",
+        "ai_allowance_monthly": "Included monthly AI allowance",
+        "ai_allowance_trial": "AI allowance during the trial",
+        "ai_assist_monthly": "Monthly AI assist requests",
+        "ai_balance_granted": "Granted AI balance",
+        "ai_enabled": "AI assistant",
+        "ai_knowledge": "AI assistant knowledge base",
+        "ai_messages_monthly": "Monthly AI assistant messages",
+        "ai_output_tokens_per_run": "AI output limit per run",
+        "ai_tokens_monthly": "Monthly AI tokens",
+        "ai_tool_calls_per_run": "AI tool calls per run",
+        "appointments_enabled": "Appointments",
         "branches_extra_limit": "Extra branches",
-        "pmo_enabled": "Projects and tasks",
-        "meetings_enabled": "Meetings",
-        "hr_enabled": "HR",
         "chat_enabled": "Chat",
-        "projects_max_projects": "Maximum projects"
+        "crm_enabled": "Customer management",
+        "crm_export": "Lead export",
+        "crm_import": "Lead import",
+        "finance_enabled": "Finance",
+        "helpdesk_auto_close": "Automatic ticket closing",
+        "helpdesk_enabled": "Helpdesk",
+        "helpdesk_merge": "Ticket merging",
+        "helpdesk_portal": "Customer support portal",
+        "helpdesk_reports": "Support reports",
+        "hr_assets": "Employee assets",
+        "hr_enabled": "HR",
+        "hr_insurance": "Medical insurance",
+        "hr_offboarding": "Employee offboarding",
+        "hr_onboarding": "Employee onboarding",
+        "hr_payroll": "Payroll",
+        "hr_recruitment": "Recruitment",
+        "hr_shifts": "Shifts",
+        "hr_warnings": "Warnings",
+        "inbox_automation": "Message automation",
+        "inbox_campaign_recipients": "Message campaign recipients",
+        "inbox_campaigns": "Message campaigns",
+        "inbox_catalog": "Product catalog in messages",
+        "inbox_channels": "Message channels",
+        "inbox_enabled": "Customer inbox",
+        "inbox_flows": "Conversation flows",
+        "inbox_messages_out": "Outgoing messages",
+        "inbox_reports": "Message reports",
+        "inbox_templates": "Message templates",
+        "inbox_tiktok": "TikTok channel",
+        "inbox_whatsapp": "WhatsApp channel",
+        "integrations_enabled": "Saudi integrations",
+        "meetings_enabled": "Meetings",
+        "payments_enabled": "Own payment gateway connection",
+        "pmo_baselines": "Project baselines",
+        "pmo_change_control": "Project change control",
+        "pmo_enabled": "Projects and tasks",
+        "pmo_evm": "Earned value management",
+        "projects_max_projects": "Maximum projects",
+        "sales_enabled": "Sales",
+        "storage_limit_mb": "Counted attachment storage (MB)",
+        "tasks_enabled": "Tasks",
+        "users_limit": "Users"
       }
     },
     "customers": {
@@ -1070,7 +1247,7 @@
       "trial": {"title": "Trial", "ends": "Ends on", "remaining": "Days remaining", "state": "State", "extend": "Extend trial", "end": "End trial now", "extendHint": "Add days to the trial end. The action is audited.", "endHint": "Ends the trial now and moves the customer to the free base at once. No invoice is issued and their data stays. They can pay later from their workspace, and you can reopen the trial. The action is audited.", "reopen": "Reopen trial", "reopenHint": "Restores the trial configuration for the chosen number of days. Any unpaid first renewal invoice is voided. The action is audited.", "days": "Days", "reason": "Reason", "readOnly": "Changing a trial requires the subscription management capability.", "states": {"trialing": "Trial", "active": "Active", "past_due": "Past due", "suspended": "Suspended", "pending": "Provisioning", "cancelled": "Cancelled"}},
       "trialStart": {"title": "Start a trial", "hint": "The customer has no subscription yet. A trial creates the workspace and sends the administrator invitation; the customer can pay from inside the workspace at any time during the trial. If they do not, the trial ends on its deadline and they move to the free base.", "plan": "Plan", "cadence": "Billing cadence", "action": "Start {days}-day trial", "noPlans": "No published plan offers a trial."},
       "title": "Customers",
-      "search": "Search by client name",
+      "search": "Search by name, administrator e-mail, workspace address or ID",
       "empty": "No commercial customers yet.",
       "noResults": "No customers match the filters.",
       "notAvailable": "Not available yet",
@@ -1184,7 +1361,7 @@
         },
         "keys": {
           "users_limit": "Users",
-          "storage_limit_mb": "Attachment storage (MiB)",
+          "storage_limit_mb": "Attachment storage",
           "projects_max_projects": "Projects",
           "branches_extra_limit": "Extra branches"
         },
@@ -1194,7 +1371,7 @@
           "attachment_bytes": "Attachment storage",
           "extra_branches": "Extra branches",
           "count": "Usage",
-          "mebibytes": "Attachment storage (MiB)"
+          "mebibytes": "Attachment storage"
         }
       },
       "terms": {
@@ -1648,6 +1825,37 @@
       "notAvailableHint": "The invoices service is not enabled in the control plane yet.",
       "details": "Invoice",
       "draftNumber": "Draft (no number)",
+      "export": {
+        "action": "Export CSV",
+        "progress": "Exporting {done} of {total}",
+        "cancel": "Cancel",
+        "failed": "The export failed and no file was created. Try again.",
+        "capped": "Only the first {cap} invoices are exported and the file name ends in -partial. Narrow the filters to export the rest.",
+        "columns": {
+          "number": "Number",
+          "customer": "Customer",
+          "kind": "Kind",
+          "status": "Status",
+          "issued": "Issue date",
+          "due": "Due date",
+          "paid": "Paid date",
+          "periodStart": "Period start",
+          "periodEnd": "Period end",
+          "currency": "Currency",
+          "subtotal": "Subtotal",
+          "tax": "Tax",
+          "total": "Total",
+          "credited": "Credit notes",
+          "invoiceId": "Invoice ID",
+          "customerId": "Customer ID"
+        }
+      },
+      "print": {
+        "title": "Invoice document",
+        "action": "Print or save as PDF",
+        "back": "Back to the invoice",
+        "draft": "A draft invoice has no number and cannot be printed."
+      },
       "allCustomers": "All customers",
       "customerSearch": "Search customers",
       "customersRetry": "Retry",
@@ -1668,6 +1876,17 @@
       "lines": "Lines",
       "attempts": "Payment attempts",
       "attemptsNone": "Payment attempts are not yet attached to this invoice.",
+      "attemptKind": {
+        "hosted_invoice": "Hosted invoice",
+        "form": "Card form",
+        "saved_card": "Saved card",
+        "bank_transfer": "Bank transfer"
+      },
+      "attemptRef": {
+        "copy": "Copy the provider reference",
+        "copied": "Copied",
+        "copyFailed": "Could not copy"
+      },
       "adjustments": "Adjustments and credit notes",
       "adjustmentsNone": "No adjustments.",
       "adjustmentKind": {
@@ -1740,6 +1959,72 @@
           "failedHint": "Check the provider's dashboard first so the customer is not paid twice. If the money was not returned, return it another way and record the reference below.",
           "done": "Refunded by the system through the payment provider. The reference below is the provider's."
         },
+        "stuck": {
+          "title": "Stuck refund",
+          "hint": "This refund is waiting for the provider's answer or for its own record. These actions never refund money: only the system's refund worker does. Refund only through the provider, never by a bank transfer or by hand.",
+          "since": "Waiting since",
+          "attempts": "Tries",
+          "nextAttempt": "Next try",
+          "releaseFrom": "Release possible from",
+          "paymentId": "Provider payment id",
+          "noPaymentId": "Not known yet",
+          "conflict": {
+            "title": "Another credit note already holds this payment id",
+            "hint": "The money is back, but the provider reference is recorded on another note, so this note cannot take it unchanged.",
+            "invoice": "Invoice",
+            "amount": "Amount",
+            "cause": "Cause",
+            "status": "Status",
+            "by": "Recorded by",
+            "at": "Recorded",
+            "sameInvoice": "On this invoice",
+            "otherInvoice": "On another invoice",
+            "openInvoice": "Open that invoice",
+            "causes": {
+              "vendor_refund": "Vendor refund",
+              "duplicate_payment": "Duplicate payment",
+              "provider_refund": "Provider refund",
+              "payment_after_cancellation": "Payment after cancellation",
+              "automatic_refund": "Automatic refund",
+              "fulfillment_failure": "Fulfilment failure"
+            }
+          },
+          "check": {
+            "action": "Check again now",
+            "statusLabel": "Payment status",
+            "resultTitle": "The provider shows",
+            "refunded": "Refunded so far",
+            "none": "Nothing refunded",
+            "paymentId": "Payment id",
+            "outcome": "Nothing was refunded or changed by this check. A refund the provider returned is recorded by the worker on its next run. A refund call made less than an hour ago is not repeated: the worker retries it only after that hour, on its own schedule.",
+            "status": {
+              "pending": "Pending",
+              "succeeded": "Paid",
+              "failed": "Failed",
+              "refunded": "Refunded",
+              "canceled": "Canceled"
+            }
+          },
+          "release": {
+            "action": "Release the hold",
+            "confirmTitle": "Release the hold on this refund",
+            "confirmHint": "The hold lifts only when the provider's answer is definitive, and at least an hour after the refund call. A payment refunded in full is marked returned and recorded. A payment with nothing refunded goes back to the worker, which refunds it through its guarded path or hands the note to the manual form. Refund only through the provider: never refund this payment by a bank transfer or by hand.",
+            "confirm": "Release the hold",
+            "reason": "Reason"
+          },
+          "record": {
+            "action": "Record the returned refund",
+            "confirmTitle": "Record the returned refund",
+            "confirmHint": "The provider already returned this money. Choose how to close the note. Nothing is refunded again.",
+            "resolution": "How to close it",
+            "resolutions": {
+              "record": "Record the refund on this note, under the payment id and a short note id because another note holds the payment id",
+              "already_recorded": "Close this note as void: the other note on this invoice already credits this money"
+            },
+            "confirm": "Confirm",
+            "reason": "Reason"
+          }
+        },
         "dropsToFreeBase": "This is the customer's first payment: recording the refund drops the subscription to the free base at once. Items bought with a later payment stay.",
         "reference": "Provider refund reference",
         "referenceHint": "The refund or payment id shown in the provider's dashboard.",
@@ -1782,8 +2067,23 @@
           "lock_pending": "The subscription is still being moved to the free base. Record the refund again once that finishes.",
           "fulfillment_pending": "This order is still being delivered. Request the refund once the delivery ends.",
           "refund_in_progress": "The system is still refunding this payment through the provider. Wait for the result; the manual form opens only if the provider cannot refund.",
+          "refund_not_stuck": "This refund is no longer stuck, or this action does not apply to its state. The page shows its current state.",
+          "provider_status_unverified": "The provider's answer could not be read or is not for this payment, so nothing was changed. Try again later.",
+          "provider_refund_unavailable": "No payment provider is connected for this payment, so the control plane cannot read it.",
+          "provider_refund_amount_unverified": "The provider says the payment is refunded but gives no usable amount, so the hold stays.",
+          "provider_refund_partial": "The provider shows only part of the payment refunded. The worker keeps asking for the rest, so the hold stays.",
+          "refund_attempt_too_recent": "The last refund call was made less than an hour ago and may still land at the provider. Release the hold from the time shown under \"Release possible from\". Each time the worker repeats the refund call, that time moves an hour on.",
+          "refund_attempt_unavailable": "The order of this payment has moved on, so the refund cannot be checked or recorded from here.",
+          "refund_over_credit": "Recording this note would credit more than the invoice's payment. Close it as already recorded instead, if another note credits this money.",
+          "refund_not_duplicate": "The note that holds the payment id is not on this invoice, is not settled, is a duplicate-payment note, is in another currency, or covers less than this note, so this note cannot be closed as a duplicate.",
+          "refund_note_unavailable": "This credit note is not the pending note of the invoice that was paid, so nothing was recorded.",
           "ai_topup_refund_mixed_order": "This invoice charged more than the AI top-up, so the top-up cannot be refunded on its own."
         }
+      },
+      "switchForm": {
+        "title": "Discard what you typed?",
+        "hint": "Another form on this invoice is open with text you have not sent. Opening this one closes it and the text is lost.",
+        "confirm": "Discard and continue"
       },
       "immutable": "An issued invoice is never edited; corrections are separate documents.",
       "techId": "Invoice id",

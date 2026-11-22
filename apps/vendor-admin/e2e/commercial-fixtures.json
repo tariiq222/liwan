@@ -29,7 +29,15 @@
     "active": 2,
     "pending_operations": 1,
     "failed_operations": 1,
-    "last_health_at": "2026-10-01T08:00:00.000Z"
+    "last_health_at": "2026-10-01T08:00:00.000Z",
+    "health": [
+      { "component": "shared_worker", "state": "ok", "since": "2026-11-22T08:00:00Z", "last_beat_at": "2026-11-22T11:58:00Z", "detail": null },
+      { "component": "commercial_scheduler", "state": "ok", "since": "2026-11-22T08:00:00Z", "last_beat_at": "2026-11-22T11:58:00Z", "detail": { "ticks": 9, "last_billing_at": "2026-11-22T11:55:00.000Z", "failed_jobs": [] } },
+      { "component": "payment_adapter", "state": "ok", "since": "2026-11-22T08:00:00Z", "last_beat_at": "2026-11-22T08:00:00Z", "detail": { "available": true } },
+      { "component": "mail_adapter", "state": "unavailable", "since": "2026-11-22T08:00:00Z", "last_beat_at": "2026-11-22T08:00:00Z", "detail": { "available": false, "code": "mail_not_configured" } },
+      { "component": "alert_channel", "state": "never_seen", "since": null, "last_beat_at": null, "detail": null },
+      { "component": "api_payment_adapter", "state": "ok", "since": "2026-11-22T08:00:00Z", "last_beat_at": "2026-11-22T08:00:00Z", "detail": { "available": true } }
+    ]
   },
   "customers": {
     "items": [

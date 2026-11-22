@@ -2,7 +2,10 @@
 import type { TableColumn } from '@nuxt/ui'
 import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBadges'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
-import { formatLiwanDate } from '@liwan/ui/app/composables/calendarDate'
+import { INVOICE_EXPORT_MAX_ROWS, riyadhDate } from '@liwan/commercial-contracts'
+import { downloadCsv } from '@/utils/csv'
+import { collectInvoices, INVOICE_EXPORT_COLUMNS, invoiceExportAudit, invoiceExportCsv, invoiceExportFileName, type InvoiceExportProgress } from '@/utils/invoiceExport'
+import { formatBusinessDate } from '@/utils/vendorTime'
 import { INVOICE_STATUS_FILTERS, invoiceListQuery, isInvoiceStatusFilter, isNotAvailable } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 definePageMeta({ capability: 'vendor.billing.manage' })
@@ -25,12 +28,42 @@ const customerItems = computed(() => [{ value: '', label: t('vendor.invoices.all
 const customerLabel = computed(() => customerItems.value.find(c => c.value === customerId.value)?.label ?? items.value[0]?.customer_name ?? t('vendor.invoices.customerFilter'))
 const to = (id: string) => ({ path: `/invoices/${encodeURIComponent(id)}`, query: { returnTo: route.fullPath } })
 const customerTo = (id: string) => ({ path: `/customers/${encodeURIComponent(id)}` })
-const date = (v: string | null) => (v ? formatLiwanDate(v) : null)
+const date = (v: string | null) => (v ? formatBusinessDate(v) : null)
 const outstanding = computed(() => {
   const sums = data.value?.summary.outstanding ?? []
   return sums.length ? sums.map(m => formatCommercialMoney(m, locale.value)).join(' · ') : '0'
 })
 const badge = (i: (typeof items.value)[number]) => invoiceStatusBadge(i.status, 'vendor.invoices.status')
+
+// The export reads every invoice matching the current filters, not only this page, and writes one file in the browser.
+const exporting = ref(false)
+const exportProgress = ref<InvoiceExportProgress | null>(null)
+const exportFailed = ref(false)
+// Once the record is being written the export is committed: a recorded export always has its file, so Cancel is offered only while reading.
+const exportRecording = ref(false)
+let exportController: AbortController | null = null
+const overCap = computed(() => (data.value?.total ?? 0) > INVOICE_EXPORT_MAX_ROWS)
+async function exportCsv() {
+  if (!hydrated.value || exporting.value) return
+  exporting.value = true; exportFailed.value = false; exportProgress.value = null; exportRecording.value = false
+  const controller = exportController = new AbortController()
+  try {
+    const filters = { customerId: customerId.value, status: status.value }
+    const { rows, partial } = await collectInvoices(api.listInvoices, filters, { signal: controller.signal, onProgress: (progress) => { exportProgress.value = progress } })
+    const csv = invoiceExportCsv(rows, { header: INVOICE_EXPORT_COLUMNS.map(column => t(`vendor.invoices.export.columns.${column}`)), kind: kind => t(`vendor.invoices.kind.${kind}`), status: value => t(invoiceStatusBadge(value, 'vendor.invoices.status').labelKey) })
+    // The record comes first: when it is refused no file is made. From here the export can no longer be cancelled.
+    exportRecording.value = true
+    await api.recordInvoiceExport(invoiceExportAudit(filters, rows.length))
+    downloadCsv(invoiceExportFileName(status.value, riyadhDate(new Date()), partial), csv)
+  } catch (cause) {
+    // A cancel is the vendor's own choice; any other failure leaves no file.
+    if (!controller.signal.aborted) exportFailed.value = true
+  } finally {
+    exporting.value = false; exportRecording.value = false; exportProgress.value = null; exportController = null
+  }
+}
+const cancelExport = () => { if (!exportRecording.value) exportController?.abort() }
+onBeforeUnmount(cancelExport)
 
 const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
   { id: 'number', header: t('vendor.invoices.details') },
@@ -51,6 +84,12 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
       <SharedFilterChoice :label="t('vendor.common.status')" :model-value="status" :items="statusItems" :disabled="!hydrated" @update:model-value="patch({ status: $event && $event !== 'all' ? $event : undefined })" />
       <template #active><SharedFilterChip v-if="customerId" :label="customerLabel" @remove="patch({ customer_id: undefined })" /><SharedFilterChip v-if="status !== 'all'" :label="t(`vendor.invoices.filter.${status}`)" @remove="patch({ status: undefined })" /></template>
     </SharedFilterBar></template>
+<template #actions>
+  <UButton v-if="exporting && !exportRecording" icon="i-lucide-x" variant="outline" color="neutral" data-testid="invoice-export-cancel" @click="cancelExport">{{ t('vendor.invoices.export.cancel') }}</UButton>
+  <UButton icon="i-lucide-download" variant="outline" color="neutral" :loading="exporting" :disabled="!hydrated || exporting || !data?.total" data-testid="invoices-export" @click="exportCsv">{{ exportProgress ? t('vendor.invoices.export.progress', { done: exportProgress.done, total: exportProgress.total }) : t('vendor.invoices.export.action') }}</UButton>
+</template>
+<UAlert v-if="overCap" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('vendor.invoices.export.capped', { cap: INVOICE_EXPORT_MAX_ROWS })" data-testid="invoice-export-cap" />
+<UAlert v-if="exportFailed" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('vendor.invoices.export.failed')" data-testid="invoice-export-failure" />
 <p class="text-xs text-muted" data-testid="not-official"><span class="font-medium">{{ t('vendor.invoices.notOfficial') }}</span> — {{ t('vendor.invoices.notOfficialHint') }}</p>
 <UAlert v-if="unavailable" color="neutral" variant="subtle" icon="i-lucide-clock" :title="t('vendor.invoices.notAvailable')" :description="t('vendor.invoices.notAvailableHint')" />
 <template v-else>

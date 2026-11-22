@@ -1,14 +1,16 @@
 import type { Pool, PoolClient } from 'pg'
 import { z } from 'zod'
 import {
-  aiProviderCurrentSchema, aiProviderModelsRequestSchema, aiProviderModelsSchema, aiProviderPresetListSchema, aiProviderSaveSchema,
-  aiProviderSettingSchema, aiProviderTestRequestSchema, aiProviderTestResultSchema, type VendorCapability,
+  AI_PROVIDER_REDELIVER_REFUSALS, aiProviderCurrentSchema, aiProviderModelsRequestSchema, aiProviderModelsSchema, aiProviderPresetListSchema, aiProviderRedeliveredSchema,
+  aiProviderRedeliverRequestSchema, aiProviderSaveSchema, aiProviderSettingSchema, aiProviderTestRequestSchema, aiProviderTestResultSchema, type VendorCapability,
 } from '@liwan/commercial-contracts'
 import { actorName } from '../admin-auth/accounts.js'
 import type { Config } from '../config.js'
 import { listModels, ProviderCallError, testCompletion, type Fetcher, type ProbeTarget } from './client.js'
 import { checkEndpoint, EndpointError, type Resolver } from './endpoint.js'
 import { guardedFetcher } from './guarded-fetch.js'
+import { DeliveryError, deliverProviderFile, type Delivered } from './sync.js'
+import { logText } from '../log-text.js'
 import { findPreset, PRESETS, publicPreset, type Preset } from './presets.js'
 import {
   AI_PROVIDER_SAVE_LOCK, isComplete, openKey, providerFileContent, readConfig, recordUsageReported, replaceProviderFile, routeRows, sealKey, settingOf, writeConfig,
@@ -96,8 +98,8 @@ async function auditProbe(pool: Pool, actor: number, action: string, reason: str
 
 /**
  * The platform AI configuration the vendor chooses (specs 2026-11-04 §6.13, 2026-11-10 §5.5): presets, the whole configuration
- * (providers, priced models, margin, routes), a model list and a connection test per saved provider, and the save that writes the
- * file the shared AI service reads. Returns null when the route is outside this resource. Every route needs `vendor.ai.manage`
+ * (providers, priced models, margin, routes), a model list and a connection test per saved provider, the save that writes the
+ * file the shared AI service reads, and the call that writes that file again from what is stored. Returns null when the route is outside this resource. Every route needs `vendor.ai.manage`
  * (owner only by default; a passkey-confirmed capability, so a write or a call that sends a key out needs a fresh confirmation).
  * Models and test calls are audited, with the provider, the preset, the host and the outcome.
  */
@@ -105,7 +107,7 @@ export async function aiProviderHttp(pool: Pool, config: Config, input: Input, d
   const { method, pathname, auth, fail } = input
   const route = pathname === ROOT ? '' : pathname.startsWith(`${ROOT}/`) ? pathname.slice(ROOT.length + 1) : null
   if (route === null) return null
-  const known: Record<string, string> = { '': 'GET,PATCH', presets: 'GET', models: 'POST', test: 'POST' }
+  const known: Record<string, string> = { '': 'GET,PATCH', presets: 'GET', models: 'POST', test: 'POST', redeliver: 'POST' }
   if (!(route in known) || !known[route]!.split(',').includes(method)) throw fail(404, 'not_found')
   input.requireCapability(auth, 'vendor.ai.manage')
 
@@ -118,6 +120,8 @@ export async function aiProviderHttp(pool: Pool, config: Config, input: Input, d
     }
     return { status: 200, data: await save(pool, config, input, deps) }
   }
+
+  if (route === 'redeliver') return { status: 200, data: await redeliver(pool, config, input) }
 
   const request = body(route === 'models' ? aiProviderModelsRequestSchema : aiProviderTestRequestSchema, input.raw, fail)
   const action = route === 'models' ? 'ai.platform_provider.models_listed' : 'ai.platform_provider.tested'
@@ -156,6 +160,38 @@ export async function aiProviderHttp(pool: Pool, config: Config, input: Input, d
     if (route === 'test') return { status: 200, data: aiProviderTestResultSchema.parse({ ok: false, code: error.code }) }
     throw fail(error.code === 'unauthorized' || error.code === 'endpoint_refused' ? 422 : 502, error.code === 'provider_error' ? error.code : `provider_${error.code}`)
   }
+}
+
+/**
+ * Deliver the stored configuration to the file again, for a file that is missing, unreadable, in an older shape or at another revision.
+ * Nothing is saved: the revision, the routes and the test results stay, only the audit entry is written, for every outcome and refusal
+ * (never a key). It takes the reason, the capability's fresh confirmation (checked by the caller) and the save lock (inside the delivery).
+ */
+async function redeliver(pool: Pool, config: Config, input: Input): Promise<unknown> {
+  const { auth, fail } = input
+  const { reason } = body(aiProviderRedeliverRequestSchema, input.raw, fail)
+  const audit = (revision: number | null, outcome: string, before: string | null) => pool.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES(gen_random_uuid(),$1,$2,$3,$4,$5)', [
+    actorName({ id: auth.actor }), 'ai.platform_provider.redelivered', SUBJECT, reason, { revision, outcome, delivery_before: before },
+  ])
+  let delivered: Delivered
+  try { delivered = await deliverProviderFile(pool, config) }
+  catch (error) {
+    if (error instanceof DeliveryError) {
+      await audit(error.revision, error.code, error.before)
+      throw fail((AI_PROVIDER_REDELIVER_REFUSALS as readonly string[]).includes(error.code) ? 409 : 503, error.code)
+    }
+    // Any other failure is still an outcome: the entry is written, and the failure itself is answered as it is.
+    await audit(null, 'failed', null).catch(() => undefined)
+    throw error
+  }
+  const { outcome, stored, before } = delivered
+  // The file is already replaced when the entry is written: if the entry cannot be, say so, and let the next call record it (it answers `unchanged`).
+  try { await audit(stored.revision, outcome, before) }
+  catch (error) {
+    console.error('[control-plane] the AI platform provider file was delivered (%s) but its audit entry was not written: %s', outcome, logText(error))
+    throw fail(503, 'audit_unavailable')
+  }
+  return aiProviderRedeliveredSchema.parse({ setting: await settingOf(stored, config.aiPlatformProviderPath), outcome })
 }
 
 /** The rules a configuration must meet before any row is written; each failure is a stable 422 code. */

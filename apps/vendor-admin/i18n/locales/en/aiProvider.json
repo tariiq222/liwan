@@ -9,9 +9,10 @@
         "delivered": "Delivered to the AI service, revision {revision}",
         "pending": "Saved as revision {revision}, but the AI service has not received it yet",
         "unconfigured": "Saved as revision {revision}, but this control plane has no file to write for the AI service",
-        "incomplete": "Saved as revision {revision}, but no default model is chosen, so nothing was written for the AI service"
+        "incomplete": "Saved as revision {revision}, but no default model is chosen under Routes, so nothing was written for the AI service. Choose one and save."
       },
-      "updated": "Last changed {date}"
+      "updated": "Last changed {date}",
+      "pendingNote": "The AI service is still using the previous file."
     },
     "providers": {
       "title": "Providers",
@@ -155,8 +156,9 @@
       "invalid_base_url": "The endpoint is not valid for this provider.",
       "api_key_required": "A provider needs an API key.",
       "api_key_not_allowed": "This provider does not take an API key.",
-      "secret_key_unavailable": "The control plane has no secret to encrypt the key with, so nothing was saved.",
-      "provider_file_unavailable": "The file for the AI service could not be written, so nothing was saved.",
+      "secret_key_unavailable": "The control plane has no secret to open or encrypt the key with, so nothing was changed.",
+      "provider_file_unavailable": "The file for the AI service could not be written, so nothing was changed.",
+      "audit_unavailable": "The file for the AI service was delivered, but the audit entry could not be written. Deliver again to record it.",
       "unknown_provider": "A model points to a provider that is not saved, or the provider is not saved yet.",
       "unknown_model": "A route points to a model that is not in the list.",
       "model_not_priced": "A routed model has no input and output price.",
@@ -171,7 +173,26 @@
       "provider_endpoint_refused": "This address is not allowed: it is, or resolves to, a private or internal address.",
       "invalid_base_url_port": "A public endpoint must use port 443 (the default, no port in the address): the AI egress proxy opens no other port.",
       "default_required": "A default model is required once one has been delivered. Choose one so the AI service keeps getting updates.",
-      "model_price_required": "A routed model must keep both its input and output price, or its calls would stop being charged."
+      "model_price_required": "A routed model must keep both its input and output price, or its calls would stop being charged.",
+      "provider_incomplete": "No default model is chosen, so there is nothing to deliver. Choose one under Routes and save.",
+      "provider_file_unconfigured": "This control plane has no file to write for the AI service."
+    },
+    "redeliver": {
+      "button": "Deliver again",
+      "dirtyHint": "Save or discard your changes first. Delivering again sends what is saved, not the form.",
+      "confirmTitle": "Deliver the saved configuration again?",
+      "confirmDescription": "Writes revision {revision} to the file the AI service reads. Nothing is saved: no route, price or test result changes. The action is audited.",
+      "confirm": "Deliver",
+      "reason": "Reason for delivering again",
+      "written": "Revision {revision} was delivered to the AI service.",
+      "unchanged": "The AI service already had revision {revision}. Nothing was written."
+    },
+    "steps": {
+      "title": "The order that makes a model usable",
+      "save": "Add the provider and the model with its prices, then save.",
+      "test": "Test the model. The test must report token counts.",
+      "route": "Choose it as the default, or for a quality level, and save again.",
+      "link": "See the steps"
     }
   }
 }

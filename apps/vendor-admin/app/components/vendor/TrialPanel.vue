@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { daysBetween, riyadhDate, type SubscriptionView } from '@liwan/commercial-contracts'
+import { latinDigits } from '@/utils/digits'
 import { commercialErrorKey } from '@/utils/vendorCommercial'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 const props = defineProps<{ subscription: SubscriptionView }>()
@@ -10,7 +11,7 @@ const busy = ref(false); const failure = ref<string | undefined>()
 const daysLeft = computed(() => props.subscription.trial_ends_at ? daysBetween(riyadhDate(new Date()), riyadhDate(new Date(props.subscription.trial_ends_at))) : null)
 const reopening = computed(() => props.subscription.trial_reopenable || Boolean(props.subscription.trial_ends_at && Date.parse(props.subscription.trial_ends_at) <= Date.now()))
 const actionKey = computed(() => action.value === 'extend' && reopening.value ? 'reopen' : action.value)
-const dayCount = computed(() => { const n = Number(days.value.replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))); return Number.isInteger(n) && n >= 1 && n <= 365 ? n : null })
+const dayCount = computed(() => { const n = Number(latinDigits(days.value)); return Number.isInteger(n) && n >= 1 && n <= 365 ? n : null })
 const valid = computed(() => reason.value.trim().length >= 3 && (action.value !== 'extend' || dayCount.value !== null))
 const blocked = computed(() => !hydrated.value || busy.value || !can('vendor.subscriptions.manage'))
 function choose(next: 'extend' | 'end') { action.value = next; reason.value = ''; failure.value = undefined }

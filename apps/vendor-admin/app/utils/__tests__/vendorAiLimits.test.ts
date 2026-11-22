@@ -32,6 +32,12 @@ describe('AI limits on the plan form', () => {
     })
   })
 
+  it('shows a stored limit of 0 as the number 0, since the AI controls have no "none" choice', () => {
+    const draft = planDraftFromView({ ...(view as object), platform_limits: { 'ai.messages.monthly': 0 } } as never)
+    expect(draft.ai_limits['ai.messages.monthly']).toEqual({ mode: 'number', value: '0' })
+    expect(aiLimitsFromDraft(draft.ai_limits)['ai.messages.monthly']).toBe(0)
+  })
+
   it('starts every limit empty in a new plan, meaning unlimited', () => {
     const draft = emptyPlanDraft()
     expect(Object.keys(draft.ai_limits).sort()).toEqual([...AI_LIMIT_KEYS].sort())

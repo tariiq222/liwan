@@ -3,8 +3,8 @@ import { z } from 'zod'
 import { actorName } from '../admin-auth/accounts.js'
 import type { Pool } from 'pg'
 import type { IncomingHttpHeaders } from 'node:http'
-import { quoteRequestSchema, acceptQuoteRequestSchema, customerTermsRevisionSchema, invoiceStatusSchema, refundCreditNoteRequestSchema, voidRenewalInvoiceRequestSchema, tenantDeletionStateSchema, type Principal } from '@liwan/commercial-contracts'
-import { parseBody, need, type CommercialInput } from './http.js'
+import { quoteRequestSchema, acceptQuoteRequestSchema, customerTermsRevisionSchema, invoiceExportSchema, invoiceStatusSchema, recordReturnedRefundRequestSchema, refundCreditNoteRequestSchema, releaseRefundHoldRequestSchema, voidRenewalInvoiceRequestSchema, tenantDeletionStateSchema, type Principal } from '@liwan/commercial-contracts'
+import { parseBody, need, needGrant, type CommercialInput } from './http.js'
 import { CommercialHttpError, digestOf } from './lifecycle.js'
 import { appliedTermsOf, createCustomerTerms } from './customer-terms.js'
 import { buildQuote, createQuoteForCustomer } from './quotes.js'
@@ -14,7 +14,7 @@ import { acceptQuote, cancelOrder, cancelOrderBodySchema } from './orders.js'
 import { listCustomers, customerView } from './customers.js'
 import { attention } from './attention.js'
 import { listClients } from './clients.js'
-import { listVendorInvoices, getVendorInvoice } from './invoices.js'
+import { listVendorInvoices, getVendorInvoice, getCustomerInvoice, recordInvoiceExport } from './invoices.js'
 import { analyticsFromQuery } from './analytics.js'
 import { listBranches } from './branches.js'
 import { getUsage } from './usage.js'
@@ -34,6 +34,7 @@ import { removePaymentMethod } from './payment-method-removal.js'
 import { disableAutoRenew } from './auto-renew.js'
 import { SimulatorAdapter } from './payment-simulator.js'
 import { refundCreditNote, requestInvoiceRefund } from './settlements.js'
+import { recheckAutomaticRefund, recordReturnedRefund, releaseRefundHold } from './stuck-refund.js'
 import { confirmBankTransfer, parseBankTransferInput } from './bank-transfer.js'
 import { voidRenewalInvoice } from './renewal-void.js'
 import { billingSettings, billingSettingsInputSchema, setBillingSettings } from './billing-settings.js'
@@ -73,7 +74,12 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
       return {status:200,data:existing}
     }
   }
-  if(path==='/attention'&&m==='GET'){need(input,'vendor.read');return {status:200,data:await attention(pool,input.capabilities.includes('vendor.billing.manage'))}}
+  if(path==='/attention'&&m==='GET'){
+    need(input,'vendor.read')
+    const customerId=url.searchParams.get('customer_id')
+    if(customerId!==null&&!z.uuid().safeParse(customerId).success)throw new CommercialHttpError('invalid',422,'customer_id')
+    return {status:200,data:await attention(pool,input.capabilities.includes('vendor.billing.manage'),customerId)}
+  }
   if(path==='/clients'&&m==='GET'){need(input,'vendor.read');return {status:200,data:await listClients(pool,url)}}
   // Workspace deletions are asked and confirmed only by the customer; the vendor sees every request and can withdraw one on the customer's behalf.
   if(path==='/deletion-requests'&&m==='GET'){
@@ -239,6 +245,11 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
   const invoice=/^\/invoices\/([^/]+)$/.exec(path)
   if(m==='GET'&&invoice){need(input,'vendor.billing.manage');if(!z.uuid().safeParse(invoice[1]).success)throw new CommercialHttpError('not_found',404);const data=await getVendorInvoice(pool,invoice[1]!);if(!data)throw new CommercialHttpError('not_found',404);return {status:200,data}}
   // The vendor records that a bank transfer arrived; the order is then paid through the ordinary settlement path.
+  // The audit event of an export: the console posts the filters and the row count before the file is made.
+  if(m==='POST'&&path==='/invoices/export'){needGrant(input,'vendor.billing.manage');return {status:201,data:await recordInvoiceExport(pool,{...parseBody(input.raw,invoiceExportSchema),actor:principal.actor_id})}}
+  // The printable document: what the customer prints, never the operator's own reasons or names.
+  const document=/^\/invoices\/([^/]+)\/document$/.exec(path)
+  if(m==='GET'&&document){need(input,'vendor.billing.manage');if(!z.uuid().safeParse(document[1]).success)throw new CommercialHttpError('not_found',404);const data=await getCustomerInvoice(pool,document[1]!);if(!data)throw new CommercialHttpError('not_found',404);return {status:200,data}}
   const transfer=/^\/invoices\/([^/]+)\/bank-transfer$/.exec(path)
   if(m==='POST'&&transfer){
     need(input,'vendor.billing.manage')
@@ -294,6 +305,18 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     need(input,'vendor.billing.manage')
     if(!z.uuid().safeParse(refund[1]).success)throw new CommercialHttpError('not_found',404)
     return {status:200,data:await refundCreditNote(pool,{adjustment_id:refund[1]!,actor:{issuer:input.issuer,actorUid:input.actor},request:parseBody(input.raw,refundCreditNoteRequestSchema)})}
+  }
+  // An automatic refund the worker cannot finish: the operator checks the provider again, lifts its hold or records the returned money, never moves money (the worker is the only path that does).
+  const stuckRefund=/^\/invoice-adjustments\/([^/]+)\/automatic-refund\/(check|release|record)$/.exec(path)
+  if(stuckRefund&&m==='POST'){
+    needGrant(input,'vendor.billing.manage')
+    const [,id,action]=stuckRefund
+    if(action!=='check'&&!input.stepUpFresh)throw new CommercialHttpError('step_up_required',403)
+    if(!z.uuid().safeParse(id).success)throw new CommercialHttpError('not_found',404)
+    const actor={issuer:input.issuer,actorUid:input.actor},adapter=runtime?.adapter ?? undefined
+    if(action==='check')return {status:200,data:await recheckAutomaticRefund(pool,{adjustment_id:id!,actor,adapter})}
+    if(action==='release')return {status:200,data:await releaseRefundHold(pool,{adjustment_id:id!,actor,adapter,...parseBody(input.raw,releaseRefundHoldRequestSchema)})}
+    return {status:200,data:await recordReturnedRefund(pool,{adjustment_id:id!,actor,...parseBody(input.raw,recordReturnedRefundRequestSchema)})}
   }
   // A2: the customer asked for their money back inside the window and there is no note yet. Creates the pending
   // vendor credit note for the full invoice; recording the provider reference is the existing refund route above.

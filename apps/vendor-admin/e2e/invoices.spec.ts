@@ -15,11 +15,12 @@ test('a status filter narrows the table and survives a refresh', async ({ page }
  await open(page, '/invoices?status=paid'); await expect(rows(page)).toHaveCount(1)
  await page.reload(); await expect(rows(page)).toHaveCount(1)
 })
-test('the record shows invoice lines, a draft number label and the attempt without provider data', async ({ page }) => {
+test('the record shows invoice lines, a draft number label and the attempt with its kind and no reference when it has none', async ({ page }) => {
  await open(page, '/invoices/inv-3'); await expectNoSecondH1(page)
  await expect(page.locator('[data-template="record"]')).toHaveCount(1)
  await expect(page.getByTestId('payment-attempt')).toHaveCount(1)
- await expect(page.getByText('private-provider')).toHaveCount(0)
+ await expect(page.getByTestId('attempt-ref')).toHaveCount(0)
+ await expect(page.getByTestId('payment-attempt')).toContainText('فاتورة مستضافة')
  await open(page, '/invoices/inv-1'); await expect(page.getByTestId('invoice-line').first()).toBeVisible()
 })
 test('a first payment offers the general refund request, not the AI top-up refund', async ({ page }) => {
@@ -77,6 +78,55 @@ test('an unpaid renewal invoice with a customer transfer claim shows why it cann
  await expect(page.getByTestId('void-blocked')).toBeVisible()
  await expect(page.getByTestId('void-action')).toHaveAttribute('aria-describedby', 'void-blocked')
 })
+test('a stuck automatic refund shows its state, the allowed actions only, and each action sends its own request', async ({ page }) => {
+ await open(page, '/invoices/inv-stuck')
+ const panels = page.getByTestId('stuck-refund')
+ await expect(panels).toHaveCount(2)
+ const [attempted, returned] = [panels.nth(0), panels.nth(1)]
+ await expect(attempted.getByTestId('stuck-refund-check')).toBeVisible(); await expect(attempted.getByTestId('stuck-refund-release')).toBeVisible()
+ await expect(attempted.getByTestId('stuck-refund-record')).toHaveCount(0); await expect(attempted.getByTestId('stuck-refund-conflict')).toHaveCount(0)
+ await expect(returned.getByTestId('stuck-refund-check')).toBeVisible(); await expect(returned.getByTestId('stuck-refund-record')).toBeVisible()
+ await expect(returned.getByTestId('stuck-refund-release')).toHaveCount(0)
+ await expect(returned.getByTestId('stuck-refund-conflict')).toContainText('INV-0001'); await expect(returned.getByTestId('stuck-refund-conflict-link')).toHaveAttribute('href', /\/invoices\/inv-1/)
+ // The manual form stays closed while the system owns the refund.
+ await expect(page.getByTestId('record-refund-action')).toHaveCount(0)
+ const sent: { url: string, body: unknown }[] = []
+ await page.route('**/api/vendor/v1/commercial/invoice-adjustments/*/automatic-refund/*', async (route) => {
+  sent.push({ url: route.request().url(), body: route.request().postDataJSON() })
+  await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ invoice: {}, provider: { status: 'succeeded', payment_id: 'pay_e2e_0', refunded: null } }) })
+ })
+ await attempted.getByTestId('stuck-refund-check').click()
+ await expect(attempted.getByTestId('stuck-refund-check-result')).toContainText('pay_e2e_0')
+ await expect(attempted.getByTestId('stuck-refund-failure')).toHaveCount(0)
+ // Release asks for a reason first; nothing is sent until it is valid.
+ await attempted.getByTestId('stuck-refund-release').click()
+ const releaseConfirm = attempted.getByRole('button', { name: 'ارفع الحجز' })
+ await expect(releaseConfirm).toBeDisabled()
+ await attempted.getByTestId('stuck-refund-reason').fill('The provider shows nothing refunded')
+ await expect(releaseConfirm).toBeEnabled(); await releaseConfirm.click()
+ await expect.poll(() => sent.length).toBe(2)
+ expect(sent[0]!.url).toContain('/invoice-adjustments/note-attempted/automatic-refund/check')
+ expect(sent[1]).toMatchObject({ url: expect.stringContaining('/invoice-adjustments/note-attempted/automatic-refund/release'), body: { reason: 'The provider shows nothing refunded' } })
+ await returned.getByTestId('stuck-refund-record').click()
+ const recordConfirm = returned.getByRole('button', { name: 'أكّد' })
+ await expect(recordConfirm).toBeDisabled()
+ await returned.getByTestId('stuck-refund-reason').fill('The provider returned the money')
+ await expect(recordConfirm).toBeEnabled(); await recordConfirm.click()
+ await expect.poll(() => sent.length).toBe(3)
+ expect(sent[2]).toMatchObject({ url: expect.stringContaining('/invoice-adjustments/note-returned/automatic-refund/record'), body: { reason: 'The provider returned the money', resolution: 'record' } })
+})
+test('a refused stuck refund action says why in words and keeps the form', async ({ page }) => {
+ await open(page, '/invoices/inv-stuck')
+ await page.route('**/api/vendor/v1/commercial/invoice-adjustments/*/automatic-refund/release', async (route) => {
+  await route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ code: 'refund_attempt_too_recent' }) })
+ })
+ const attempted = page.getByTestId('stuck-refund').first()
+ await attempted.getByTestId('stuck-refund-release').click()
+ await attempted.getByTestId('stuck-refund-reason').fill('Try the release too early')
+ await attempted.getByRole('button', { name: 'ارفع الحجز' }).click()
+ await expect(attempted.getByTestId('stuck-refund-failure')).toContainText('أقل من ساعة')
+ await expect(attempted.getByTestId('stuck-refund-reason')).toHaveValue('Try the release too early')
+})
 test('a free quantity never lowers the paid cell (owner decision)', async ({ page }) => {
  await open(page, '/invoices/inv-1')
  const line = page.getByTestId('invoice-line').first()
@@ -102,4 +152,60 @@ test('on a 390px phone the invoice rows retain periods and keyboard navigation w
 test('on a 390px phone the invoice record scrolls its lines table inside its own box, never the page', async ({ page }) => {
  await page.setViewportSize({width:390,height:844})
  for (const id of ['inv-1', 'inv-2', 'inv-3']) { await open(page, `/invoices/${id}`); expect(await fitsWidth(page), id).toBe(true) }
+})
+
+test('an issued invoice opens its print route: the customer document, a print action and a way back; no console chrome prints', async ({ page }) => {
+ await open(page, '/invoices/inv-1')
+ await page.getByTestId('invoice-print-open').click()
+ await expect(page).toHaveURL(/\/invoices\/print\/inv-1\?returnTo=/)
+ const document = page.getByTestId('invoice-document')
+ await expect(document).toBeVisible()
+ await expect(page.getByTestId('invoice-seller-name')).toHaveText('شركة ليوان المحدودة')
+ await expect(page.getByTestId('invoice-customer')).toBeVisible()
+ // A document of Liwan, which is not VAT-registered: no tax wording, no reference to a payment provider or an operator.
+ await expect(document).not.toContainText(/فاتورة ضريبية|tax invoice|VAT|private-provider|provider/i)
+ await page.evaluate(() => { (window as unknown as { printed: number }).printed = 0; window.print = () => { (window as unknown as { printed: number }).printed++ } })
+ await page.emulateMedia({ media: 'print' })
+ await expect(page.getByTestId('invoice-print-action')).toBeHidden()
+ await expect(page.getByTestId('invoice-print-back')).toBeHidden()
+ await page.emulateMedia({ media: 'screen' })
+ await page.getByTestId('invoice-print-action').click()
+ expect(await page.evaluate(() => (window as unknown as { printed: number }).printed)).toBe(1)
+ await page.getByTestId('invoice-print-back').click()
+ await expect(page).toHaveURL(/\/invoices\/inv-1(\?|$)/)
+})
+test('a draft invoice has no print button and its print route shows no document', async ({ page }) => {
+ await open(page, '/invoices/inv-3')
+ await expect(page.getByTestId('invoice-print-open')).toHaveCount(0)
+ await open(page, '/invoices/print/inv-3')
+ await expect(page.getByTestId('invoice-document')).toHaveCount(0)
+ await expect(page.getByTestId('invoice-print-action')).toHaveCount(0)
+ await expect(page.getByTestId('invoice-print-back')).toBeVisible()
+})
+test('the invoice list exports a CSV of every matching invoice after the audit record, and no file when that record fails', async ({ page }) => {
+ await open(page, '/invoices?status=paid')
+ let sent: unknown
+ await page.route('**/api/vendor/v1/commercial/invoices/export', async (route) => {
+  sent = route.request().postDataJSON()
+  await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ id: 'audit-1' }) })
+ })
+ const download = page.waitForEvent('download')
+ await page.getByTestId('invoices-export').click()
+ const file = await download
+ expect(file.suggestedFilename()).toMatch(/^liwan-invoices-paid-\d{4}-\d{2}-\d{2}\.csv$/)
+ const bytes = await (await import('node:fs/promises')).readFile((await file.path())!)
+ expect([...bytes.subarray(0, 3)]).toEqual([0xEF, 0xBB, 0xBF])
+ const lines = bytes.toString('utf8').slice(1).trimEnd().split('\r\n')
+ expect(lines).toHaveLength(2)
+ expect(lines[1]).toContain('inv-2')
+ expect(sent).toEqual({ status: 'paid', row_count: 1 })
+ await expect(page.getByTestId('invoice-export-failure')).toHaveCount(0)
+ // The record is refused: the page says so and no file is made.
+ await page.unroute('**/api/vendor/v1/commercial/invoices/export')
+ await page.route('**/api/vendor/v1/commercial/invoices/export', route => route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ code: 'internal_error' }) }))
+ let downloaded = false
+ page.on('download', () => { downloaded = true })
+ await page.getByTestId('invoices-export').click()
+ await expect(page.getByTestId('invoice-export-failure')).toBeVisible()
+ expect(downloaded).toBe(false)
 })

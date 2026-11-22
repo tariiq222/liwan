@@ -1,9 +1,14 @@
 <script setup lang="ts">
+import { useCopyLink } from '@/composables/useCopyLink'
 // Shown once, straight after enrollment. Nothing here is stored: the codes exist only in the props.
-defineProps<{ codes: string[], pending?: boolean }>()
+const props = defineProps<{ codes: string[], pending?: boolean }>()
 const saved = defineModel<boolean>({ default: false })
 defineEmits<{ continue: [] }>()
 const { t } = useI18n()
+const hydrated = useHydrated()
+const copier = useCopyLink()
+const allCodes = computed(() => props.codes.join('\n'))
+const outcome = computed(() => copier.outcomeFor(allCodes.value))
 </script>
 
 <template>
@@ -14,6 +19,12 @@ const { t } = useI18n()
         {{ code }}
       </li>
     </ol>
+    <div class="flex flex-wrap items-center gap-2">
+      <UButton type="button" color="neutral" variant="outline" icon="i-lucide-copy" :disabled="!hydrated" :label="t('adminAuth.enroll.copyAll')" data-testid="recovery-codes-copy" @click="copier.copy(allCodes)" />
+      <p role="status" class="text-sm" :class="outcome === 'failed' ? 'text-error' : 'text-success'">
+        <template v-if="outcome">{{ t(outcome === 'copied' ? 'adminAuth.enroll.copied' : 'adminAuth.enroll.copyFailed') }}</template>
+      </p>
+    </div>
     <UCheckbox v-model="saved" :label="t('adminAuth.enroll.saved')" />
     <UButton
       type="button"

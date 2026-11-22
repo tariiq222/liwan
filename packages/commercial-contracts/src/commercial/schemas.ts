@@ -1,5 +1,8 @@
 import { z } from 'zod'
 
+/** The business time zone: periods, renewals, audit days and every time the vendor console shows are cut on this clock (UTC+3 all year, no DST). */
+export const BUSINESS_TIME_ZONE = 'Asia/Riyadh'
+
 const MAX = Number.MAX_SAFE_INTEGER
 /** The largest value of a PostgreSQL `integer` column; a bigger one is a 500 (22003), so it is refused where it is parsed. */
 export const INT4_MAX = 2_147_483_647
@@ -158,7 +161,7 @@ export const entitlementSnapshotSchema = z.strictObject({
   compiler_version: z.string(), digest: sha,
 })
 export const pricingPolicySchema = z.strictObject({
-  id: revisionIdSchema, timezone: z.literal('Asia/Riyadh'), rounding: z.literal('half_up_per_line'),
+  id: revisionIdSchema, timezone: z.literal(BUSINESS_TIME_ZONE), rounding: z.literal('half_up_per_line'),
   tax: z.discriminatedUnion('kind', [
     z.strictObject({ kind: z.literal('vat_exclusive'), rate_bps: z.literal(1500) }),
     z.strictObject({ kind: z.literal('none') }),

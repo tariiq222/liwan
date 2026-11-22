@@ -131,6 +131,15 @@ describe('createEnrollment', () => {
     return parts
   }
 
+  it('sends the authenticator code as six Latin digits however it was typed or pasted', async () => {
+    for (const typed of ['123 456', '١٢٣٤٥٦', ' ١٢٣ ٤٥٦ ']) {
+      const { enrollment, post } = await reachTotp()
+      Object.assign(enrollment.form, { password: PASSWORD, confirm: PASSWORD, totpCode: typed })
+      await enrollment.complete()
+      expect(post, typed).toHaveBeenCalledWith('/api/auth/enroll/complete', { token: TOKEN, password: PASSWORD, totp_code: '123456', totp_box: 'QUJD' })
+    }
+  })
+
   it('completes with the password and code, keeps the recovery codes in memory only and wipes the secrets', async () => {
     const { enrollment, post } = await reachTotp()
     Object.assign(enrollment.form, { password: PASSWORD, confirm: PASSWORD, totpCode: '123456' })

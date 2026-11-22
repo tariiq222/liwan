@@ -28,19 +28,20 @@ import { processTokenDeletions } from './form-payments.js'
 import { recoverPaidFulfillment } from './paid-fulfillment-recovery.js'
 import type { PaymentAdapter } from './payment-adapter.js'
 import type { MailAdapter } from './mail-adapter.js'
-import { telegramSenderFromEnv, type TelegramSender } from './telegram-adapter.js'
+import type { TelegramSender } from './telegram-adapter.js'
 import { sendVendorAlerts } from './vendor-alerts.js'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { loadSharedRuntimeConfig } from '../shared/runtime-config.js'
 import { collectUsage, FRESH_MS, type UsageObserveRunner } from './usage-collector.js'
 import { logText } from '../log-text.js'
+import { beat, HEARTBEAT_INTERVAL_MS } from '../service-health.js'
 
 type Env = Record<string, string | undefined>
 export type CommercialSchedulerOptions = {
   pool: Pool; config: Config; env: Env; clock?: () => number
   paymentAdapter?: PaymentAdapter; mailAdapter?: MailAdapter
-  /** Owner alert channel; without it the one named by LIWAN_ALERT_TELEGRAM_* is used, and none when those are unset. */
+  /** Owner alert channel; without it vendor alerts go by email only. */
   telegramSender?: TelegramSender
   subscriptionRunner?: Parameters<typeof recoverInterrupted>[1] extends infer O ? (O extends { runner?: infer R } ? R : never) : never
   usageRunner?: UsageObserveRunner
@@ -91,14 +92,31 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
   const billingMs = posInt(env.LIWAN_COMMERCIAL_BILLING_INTERVAL_SEC, 300) * 1000
   // Payment returns and invitation links both resolve one origin per customer (the tenant's own host in shared mode).
   const returnOrigin = returnOriginFromEnv(pool, env) ?? unusableReturnOrigin
-  let telegram = o.telegramSender
-  if (!telegram) { try { telegram = telegramSenderFromEnv(env) ?? undefined } catch (e) { try { log('telegram alert channel unavailable', e) } catch { /* never throw */ } } }
+  const telegram = o.telegramSender
   let ticks = 0
   let lastBilling: number | undefined
+  const startedAt = new Date(clock())
+  let lastBeat: number | undefined
   let jobCounts: Record<string, { runs: number; failures: number }> = {}
+  let previousTickFailed: string[] = []
+  const failedJobs = () => Object.keys(jobCounts).length === 0 ? previousTickFailed : Object.entries(jobCounts).filter(([, counts]) => counts.failures > 0).map(([name]) => name)
+  /** The scheduler's beat, at most every 30 s on the process clock (the write itself is stamped by the database). It is taken at the start of
+   * a tick and between its jobs, so a tick that runs long (many mails, retries across tenants) is never mistaken for a stopped scheduler;
+   * `final` forces it when the failed job names changed, so the end of a tick is not hidden by the throttle. A worker that is stopping no longer vouches for itself. */
+  let reportedFailed = ''
+  const pulse = async (final = false) => {
+    if (o.signal?.aborted) return
+    const failed_jobs = failedJobs()
+    const changed = final && failed_jobs.join() !== reportedFailed
+    if (!changed && lastBeat !== undefined && clock() - lastBeat < HEARTBEAT_INTERVAL_MS) return
+    lastBeat = clock()
+    reportedFailed = failed_jobs.join()
+    await beat(pool, 'commercial_scheduler', { startedAt, log, detail: { ticks, last_billing_at: lastBilling === undefined ? null : new Date(lastBilling).toISOString(), failed_jobs } })
+  }
   // After the worker shutdown signal no new job starts, so a stop waits for the job in flight only.
   const job = async (name: string, fn: () => Promise<unknown>) => {
     if (o.signal?.aborted) return
+    await pulse()
     const counts = jobCounts[name] ??= { runs: 0, failures: 0 }
     counts.runs++
     try { await fn() } catch (e) { counts.failures++; try { log(`${name} failed`, e) } catch { /* never throw */ } }
@@ -188,6 +206,8 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
         await job('refunds', () => processRefundOutbox(pool, o.paymentAdapter))
         await job('payment-tokens', () => processTokenDeletions(pool, o.paymentAdapter))
       }
+      await pulse(true)
+      previousTickFailed = failedJobs()
       console.debug(JSON.stringify({ event: 'commercial_scheduler_tick', tick: ticks, jobs: jobCounts }))
     },
   }

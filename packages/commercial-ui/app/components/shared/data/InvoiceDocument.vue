@@ -1,39 +1,40 @@
 <script setup lang="ts">
 import type { CustomerInvoice } from '@liwan/commercial-contracts'
-import { formatSubscriptionMoney, invoiceCreditSummary, sellerLegalName, subscriptionInvoiceView } from '@/utils/subscription'
+import { formatCommercialMoney } from '../../../utils/commercial'
+import { invoiceCreditSummary, invoiceDay, invoiceLinesView, invoicePeriod, sellerLegalName } from '../../../utils/invoiceDocument'
 
-// The printable subscription invoice: Liwan's own billing document for the customer's accountant. Liwan is not
+// The printable subscription invoice: Liwan's own billing document for the customer's accountant, printed by the customer app and the vendor console alike. Dates are the
+// Riyadh day (owner decision 2026-11-22). Liwan is not
 // VAT-registered (owner decision 2026-11-06), so an untaxed invoice shows one total and no tax wording at all.
 const props = defineProps<{ invoice: CustomerInvoice }>()
 const { t, locale } = useI18n()
-const money = (value: CustomerInvoice['total']) => formatSubscriptionMoney(value, locale.value)
-const view = computed(() => subscriptionInvoiceView(props.invoice, t, locale.value))
+const money = (value: CustomerInvoice['total']) => formatCommercialMoney(value, locale.value)
+const view = computed(() => invoiceLinesView(props.invoice, t, locale.value))
 const totals = computed(() => props.invoice.tax_label === null
-  ? [{ label: t('subscription.invoices.total'), value: money(props.invoice.total) }]
+  ? [{ label: t('commercial.invoice.total'), value: money(props.invoice.total) }]
   : view.value.totals)
 const credit = computed(() => invoiceCreditSummary(props.invoice))
-const stateLabel = computed(() => credit.value.state === 'refunded' ? t('subscription.invoices.print.refunded') : t(`subscription.invoices.statuses.${credit.value.state}`))
-const day = (value: string | null) => value?.slice(0, 10) ?? null
+const stateLabel = computed(() => credit.value.state === 'refunded' ? t('commercial.invoice.document.refunded') : t(`commercial.invoice.statuses.${credit.value.state}`))
 const seller = computed(() => props.invoice.seller)
 const sellerName = computed(() => seller.value ? sellerLegalName(seller.value, locale.value) : t('app.productName'))
 const sellerLines = computed(() => {
   const s = seller.value
   if (!s) return []
-  return [...s.address.split('\n'), [s.city, s.country].filter(Boolean).join(', '), s.commercial_registration ? `${t('subscription.invoices.print.registration')}: ${s.commercial_registration}` : '', s.email, s.phone]
+  return [...s.address.split('\n'), [s.city, s.country].filter(Boolean).join(', '), s.commercial_registration ? `${t('commercial.invoice.document.registration')}: ${s.commercial_registration}` : '', s.email, s.phone]
     .map(line => line.trim()).filter(Boolean)
 })
 const facts = computed(() => [
-  { key: 'number', label: t('subscription.invoices.number'), value: props.invoice.number },
-  { key: 'issued', label: t('subscription.invoices.print.issuedOn'), value: day(props.invoice.issued_at) },
-  { key: 'due', label: t('subscription.invoices.print.dueOn'), value: day(props.invoice.due_at) },
-  { key: 'paid', label: t('subscription.invoices.print.paidOn'), value: day(props.invoice.paid_at) },
-  { key: 'period', label: t('subscription.invoices.period'), value: `${props.invoice.period_start} → ${props.invoice.period_end}` },
+  { key: 'number', label: t('commercial.invoice.number'), value: props.invoice.number },
+  { key: 'issued', label: t('commercial.invoice.document.issuedOn'), value: invoiceDay(props.invoice.issued_at) },
+  { key: 'due', label: t('commercial.invoice.document.dueOn'), value: invoiceDay(props.invoice.due_at) },
+  { key: 'paid', label: t('commercial.invoice.document.paidOn'), value: invoiceDay(props.invoice.paid_at) },
+  { key: 'period', label: t('commercial.invoice.period'), value: invoicePeriod(props.invoice) },
 ].filter(fact => fact.value))
 const notes = computed(() => props.invoice.credit_notes.map(note => ({
   ...note,
-  causeLabel: t(`subscription.invoices.print.causes.${note.cause}`),
-  statusLabel: t(`subscription.invoices.print.noteStatuses.${note.status}`),
-  date: day(note.refunded_at ?? note.created_at),
+  causeLabel: t(`commercial.invoice.document.causes.${note.cause}`),
+  statusLabel: t(`commercial.invoice.document.noteStatuses.${note.status}`),
+  date: invoiceDay(note.refunded_at ?? note.created_at),
   amountLabel: money(note.amount),
 })))
 </script>
@@ -46,12 +47,12 @@ const notes = computed(() => props.invoice.credit_notes.map(note => ({
         <p v-for="line in sellerLines" :key="line" class="text-sm text-muted" data-testid="invoice-seller-line"><bdi>{{ line }}</bdi></p>
       </div>
       <div class="grid justify-items-end gap-0.5 text-end">
-        <h2 class="text-base text-muted">{{ t('subscription.invoices.print.title') }}</h2>
+        <h2 class="text-base text-muted">{{ t('commercial.invoice.document.title') }}</h2>
         <p class="font-semibold" data-testid="invoice-state">{{ stateLabel }}</p>
       </div>
     </header>
-    <section class="grid gap-1" :aria-label="t('subscription.invoices.print.customer')">
-      <p class="text-xs text-muted">{{ t('subscription.invoices.print.customer') }}</p>
+    <section class="grid gap-1" :aria-label="t('commercial.invoice.document.customer')">
+      <p class="text-xs text-muted">{{ t('commercial.invoice.document.customer') }}</p>
       <p class="font-semibold" data-testid="invoice-customer">{{ props.invoice.customer_name }}</p>
     </section>
     <dl class="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-2.5">
@@ -62,16 +63,16 @@ const notes = computed(() => props.invoice.credit_notes.map(note => ({
     </dl>
     <SharedInvoiceLines layout="table" :lines="view.lines" :totals="totals" />
     <section v-if="notes.length" class="grid gap-2" data-testid="invoice-credit-notes">
-      <h3 class="font-semibold">{{ t('subscription.invoices.print.creditNotes') }}</h3>
+      <h3 class="font-semibold">{{ t('commercial.invoice.document.creditNotes') }}</h3>
       <table class="w-full text-sm">
-        <caption class="sr-only">{{ t('subscription.invoices.print.creditNotes') }}</caption>
+        <caption class="sr-only">{{ t('commercial.invoice.document.creditNotes') }}</caption>
         <thead class="text-muted">
           <tr>
-            <th scope="col" class="py-1 pe-3 text-start font-medium">{{ t('subscription.invoices.print.noteDate') }}</th>
-            <th scope="col" class="px-3 py-1 text-start font-medium">{{ t('subscription.invoices.print.noteCause') }}</th>
-            <th scope="col" class="px-3 py-1 text-start font-medium">{{ t('subscription.invoices.print.noteReference') }}</th>
-            <th scope="col" class="px-3 py-1 text-start font-medium">{{ t('subscription.invoices.status') }}</th>
-            <th scope="col" class="ps-3 py-1 text-start font-medium">{{ t('subscription.invoices.print.noteAmount') }}</th>
+            <th scope="col" class="py-1 pe-3 text-start font-medium">{{ t('commercial.invoice.document.noteDate') }}</th>
+            <th scope="col" class="px-3 py-1 text-start font-medium">{{ t('commercial.invoice.document.noteCause') }}</th>
+            <th scope="col" class="px-3 py-1 text-start font-medium">{{ t('commercial.invoice.document.noteReference') }}</th>
+            <th scope="col" class="px-3 py-1 text-start font-medium">{{ t('commercial.invoice.status') }}</th>
+            <th scope="col" class="ps-3 py-1 text-start font-medium">{{ t('commercial.invoice.document.noteAmount') }}</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-default">
@@ -85,7 +86,7 @@ const notes = computed(() => props.invoice.credit_notes.map(note => ({
         </tbody>
       </table>
       <p class="flex items-baseline justify-between gap-4 border-t border-default pt-2 font-semibold" data-testid="invoice-net">
-        <span>{{ t('subscription.invoices.print.net') }}</span>
+        <span>{{ t('commercial.invoice.document.net') }}</span>
         <bdi dir="ltr" class="tabular-nums">{{ money(credit.net) }}</bdi>
       </p>
     </section>

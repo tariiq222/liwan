@@ -22,7 +22,7 @@ async function page(failing: string) {
     return job
   })
   const bindings = {
-    canAbandonJob, canRecoverJob, formatLiwanDateTime: String, operationStatusBadge: () => ({}), canPublishRestore: () => false, operationTargetTo: () => null, safeReturnTo: () => '/operations',
+    canAbandonJob, canRecoverJob, formatBusinessDateTime: String, operationStatusBadge: () => ({}), canPublishRestore: () => false, operationTargetTo: () => null, safeReturnTo: () => '/operations',
     failureKey: (cause: { data?: { code?: string } }, fallback: string) => cause?.data?.code ?? fallback,
     _defineComponent: Vue.defineComponent, _withAsyncContext: (fn: () => unknown) => [fn(), () => {}],
     computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, onMounted: () => {}, onBeforeUnmount: () => {},

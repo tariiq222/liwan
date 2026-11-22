@@ -86,12 +86,50 @@ export const refundCreditNoteRequestSchema = z.strictObject({
   reason: z.string().trim().min(3).max(1000),
 })
 
+/**
+ * An automatic refund the worker cannot finish, as the vendor console reads it: the row holds a mark that blocks the manual form
+ * (`attempted`: a refund call was made and its outcome is not verified; `returned`: the provider returned the money and only the
+ * record keeps failing). `check` reads the payment again, `release` lifts an `attempted` mark the provider proves unneeded, and `record`
+ * records a `returned` refund on its note.
+ */
+export const stuckRefundActionSchema = z.enum(['check', 'release', 'record'])
+/** The note that already holds the payment id as its refund reference, shown to the operator before the stuck note is recorded. */
+export const refundConflictSchema = z.strictObject({
+  adjustment_id: z.string().min(1), invoice_id: z.string().min(1), invoice_number: z.string().nullable(), amount: moneySchema,
+  cause: creditNoteCauseSchema, status: z.enum(['pending', 'applied', 'refunded', 'void']),
+  refunded_by: z.string().nullable(), refunded_at: z.string().nullable(),
+  /** Whether the conflicting note is on the same invoice as the stuck note. */
+  same_invoice: z.boolean(),
+})
+export const stuckRefundSchema = z.strictObject({
+  /** When the refund row was queued. */
+  since: z.string(), attempts: z.number().int().nonnegative(), next_attempt_at: z.string(),
+  provider_payment_id: z.string().nullable(), conflict: refundConflictSchema.nullable(), actions: z.array(stuckRefundActionSchema),
+  /** The time from which the `attempted` mark may be released (60 minutes after the worker's last refund call); null for a `returned` row. */
+  release_from: z.string().nullable(),
+})
+/** What a fresh read of the payment at the provider shows: its status, how much it has refunded so far and its payment id. */
+export const refundRecheckSchema = z.strictObject({ status: z.enum(['pending', 'succeeded', 'failed', 'refunded', 'canceled']), payment_id: z.string().nullable(), refunded: moneySchema.nullable() })
+/** Vendor-only: lift the `attempted` mark of a stuck refund because the provider proves nothing was returned (or all was). */
+export const releaseRefundHoldRequestSchema = z.strictObject({ reason: z.string().trim().min(3).max(1000) })
+/** `record` writes the returned refund on the stuck note; `already_recorded` closes the stuck note as a duplicate of the note that already credits this money. */
+export const returnedRefundResolutionSchema = z.enum(['record', 'already_recorded'])
+export const recordReturnedRefundRequestSchema = z.strictObject({ reason: z.string().trim().min(3).max(1000), resolution: returnedRefundResolutionSchema })
+
 /** What the subscription does after the vendor voids an unpaid renewal invoice: `end` drops it to the free base at once, `rebill` leaves it to the next renewal run, which issues a new invoice for the same period. */
 export const voidRenewalOutcomeSchema = z.enum(['end', 'rebill'])
 /** Vendor-only: void one unpaid renewal invoice. No credit note is made: no money was received. */
 export const voidRenewalInvoiceRequestSchema = z.strictObject({
   reason: z.string().trim().min(3).max(1000),
   outcome: voidRenewalOutcomeSchema,
+})
+/** The most rows one invoice export holds: the console stops there and names the file partial, and the control plane refuses a larger count. */
+export const INVOICE_EXPORT_MAX_ROWS = 5000
+/** The console tells the control plane what it is about to download (the filters and how many rows), and the control plane writes the `invoices.exported` audit event. */
+export const invoiceExportSchema = z.strictObject({
+  customer_id: z.uuid().optional(),
+  status: invoiceStatusSchema.optional(),
+  row_count: z.number().int().min(0).max(INVOICE_EXPORT_MAX_ROWS),
 })
 /** Why a renewal invoice that could be voided cannot be voided now; the vendor invoice view carries it as `void_block` and the void route answers it as a 409. */
 export const voidBlockSchema = z.enum(['payment_reconciliation_required', 'transfer_claimed', 'renewal_in_progress', 'lock_pending', 'tenant_retiring'])
@@ -167,8 +205,16 @@ export type CustomerInvoice = Invoice & z.infer<typeof customerInvoiceExtrasSche
 export type Adjustment = z.infer<typeof adjustmentSchema>
 export type VoidRenewalOutcome = z.infer<typeof voidRenewalOutcomeSchema>
 export type VoidRenewalInvoiceRequest = z.infer<typeof voidRenewalInvoiceRequestSchema>
+export type InvoiceExport = z.infer<typeof invoiceExportSchema>
 export type VoidBlock = z.infer<typeof voidBlockSchema>
 export type RefundCreditNoteRequest = z.infer<typeof refundCreditNoteRequestSchema>
+export type StuckRefundAction = z.infer<typeof stuckRefundActionSchema>
+export type RefundConflict = z.infer<typeof refundConflictSchema>
+export type StuckRefund = z.infer<typeof stuckRefundSchema>
+export type RefundRecheck = z.infer<typeof refundRecheckSchema>
+export type ReleaseRefundHoldRequest = z.infer<typeof releaseRefundHoldRequestSchema>
+export type ReturnedRefundResolution = z.infer<typeof returnedRefundResolutionSchema>
+export type RecordReturnedRefundRequest = z.infer<typeof recordReturnedRefundRequestSchema>
 export type PaymentAttempt = z.infer<typeof paymentAttemptSchema>
 export type PaymentMethodChoice = z.infer<typeof paymentMethodChoiceSchema>
 export type PaymentAttemptRequest = z.infer<typeof paymentAttemptRequestSchema>

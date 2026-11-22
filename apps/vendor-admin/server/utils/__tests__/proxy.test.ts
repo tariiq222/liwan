@@ -205,6 +205,19 @@ describe('vendor API proxy', () => {
     expect(calls).toHaveLength(forwarded)
   })
 
+  it('forwards the AI provider redelivery as a POST only, and refuses its near misses', async () => {
+    const calls = stubUpstream(() => json(200, { outcome: 'written' }))
+    expect(await post('/platform/ai-provider/redeliver', { body: { reason: 'File lost' } })).toMatchObject({ status: 200, body: { outcome: 'written' } })
+    expect(calls.map(c => `${c.method} ${c.url.pathname}`)).toEqual(['POST /v1/platform/ai-provider/redeliver'])
+    const forwarded = calls.length
+    for (const method of ['GET', 'PATCH']) {
+      expect((await send(proxy, '/api/vendor/v1/platform/ai-provider/redeliver', { method, headers: cookieHeader() })).status, method).toBe(405)
+    }
+    for (const path of ['/platform/ai-provider/redeliver/x', '/platform/ai-provider/redeliverx']) expect((await post(path)).status, path).toBe(404)
+    expect(calls).toHaveLength(forwarded)
+    expect(upstreamTimeoutMs('/v1/platform/ai-provider/redeliver')).toBe(UPSTREAM_TIMEOUT_MS)
+  })
+
   it('forwards the saved-card actions as a POST only, and refuses their near misses', async () => {
     const calls = stubUpstream(() => json(200, {}))
     expect((await post('/commercial/subscriptions/s-1/payment-methods/pm-1/remove')).status).toBe(200)
@@ -239,6 +252,20 @@ describe('vendor API proxy', () => {
     expect(calls).toHaveLength(forwarded)
   })
 
+  it('forwards the three stuck automatic refund actions, as a POST only, and nothing near them', async () => {
+    const calls = stubUpstream(() => json(200, {}))
+    for (const action of ['check', 'release', 'record']) expect((await post(`/commercial/invoice-adjustments/a-1/automatic-refund/${action}`)).status, action).toBe(200)
+    expect(calls.map(c => `${c.method} ${c.url.pathname}`)).toEqual(['check', 'release', 'record'].map(action => `POST /v1/commercial/invoice-adjustments/a-1/automatic-refund/${action}`))
+    const forwarded = calls.length
+    for (const method of ['GET', 'PATCH', 'PUT'] as const)
+      expect((await send(proxy, '/api/vendor/v1/commercial/invoice-adjustments/a-1/automatic-refund/release', { method, body: { a: 1 }, headers: cookieHeader() })).status, method).toBe(405)
+    // The refund endpoint of a payment, a bare path and a near miss are never the route.
+    for (const path of ['/commercial/invoice-adjustments/a-1/automatic-refund', '/commercial/invoice-adjustments/a-1/automatic-refund/refund', '/commercial/invoice-adjustments/a-1/automatic-refund/check/x',
+      '/commercial/invoice-adjustments/a-1/automatic-refunds/check', '/commercial/invoice-adjustments/a-1/automatic-refund/force'])
+      expect((await post(path)).status, path).toBe(404)
+    expect(calls).toHaveLength(forwarded)
+  })
+
   it('forwards the void of an unpaid renewal invoice, as a POST only', async () => {
     const calls = stubUpstream(() => json(200, {}))
     expect((await post('/commercial/invoices/inv-1/void')).status).toBe(200)
@@ -248,6 +275,29 @@ describe('vendor API proxy', () => {
       expect((await send(proxy, '/api/vendor/v1/commercial/invoices/inv-1/void', { method, body: { a: 1 }, headers: cookieHeader() })).status, method).toBe(405)
     for (const path of ['/commercial/invoices/inv-1/voids', '/commercial/invoices/inv-1/void/x', '/commercial/invoice-adjustments/inv-1/void'])
       expect((await post(path)).status, path).toBe(404)
+    expect(calls).toHaveLength(forwarded)
+  })
+
+  it('forwards the printable invoice document, as a GET only', async () => {
+    const calls = stubUpstream(() => json(200, {}))
+    expect((await get('/commercial/invoices/inv-1/document')).status).toBe(200)
+    expect(calls.map(c => `${c.method} ${c.url.pathname}`)).toEqual(['GET /v1/commercial/invoices/inv-1/document'])
+    const forwarded = calls.length
+    for (const method of ['POST', 'PATCH', 'PUT'] as const)
+      expect((await send(proxy, '/api/vendor/v1/commercial/invoices/inv-1/document', { method, body: { a: 1 }, headers: cookieHeader() })).status, method).toBe(405)
+    for (const path of ['/commercial/invoices/inv-1/documents', '/commercial/invoices/inv-1/document/x', '/commercial/invoice-adjustments/inv-1/document'])
+      expect((await get(path)).status, path).toBe(404)
+    expect(calls).toHaveLength(forwarded)
+  })
+
+  it('forwards the audit record of an invoice export, as a POST only', async () => {
+    const calls = stubUpstream(() => json(201, {}))
+    expect((await post('/commercial/invoices/export', { body: { row_count: 3 } })).status).toBe(201)
+    expect(calls.map(c => `${c.method} ${c.url.pathname}`)).toEqual(['POST /v1/commercial/invoices/export'])
+    const forwarded = calls.length
+    for (const method of ['GET', 'PATCH', 'PUT'] as const)
+      expect((await send(proxy, '/api/vendor/v1/commercial/invoices/export', { method, ...(method === 'GET' ? {} : { body: { row_count: 3 } }), headers: cookieHeader() })).status, method).toBe(405)
+    expect((await post('/commercial/invoices/export/x')).status).toBe(404)
     expect(calls).toHaveLength(forwarded)
   })
 

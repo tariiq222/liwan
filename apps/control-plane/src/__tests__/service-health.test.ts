@@ -1,0 +1,194 @@
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { randomUUID } from 'node:crypto'
+import { Pool } from 'pg'
+import { SERVICE_COMPONENTS, serviceHealthSchema } from '@liwan/commercial-contracts'
+import { migrate } from '../db.js'
+import { beat, downComponents, expectBeats, readHealth, recordAvailability } from '../service-health.js'
+import { url } from './commercial-helpers.js'
+import { backdateBeat } from './service-health-helpers.js'
+
+const T0 = new Date('2026-11-22T10:00:00Z')   // a start time to record; beats themselves are stamped by the database
+const SECOND = 1000, MINUTE = 60 * SECOND, HOUR = 60 * MINUTE
+
+const suite = url ? describe : describe.skip
+suite('service health on PostgreSQL', () => {
+  const dbName = `liwan_control_scratch_health${randomUUID().slice(0, 8).replace(/-/g, '')}`
+  const withDb = (name: string) => { const u = new URL(url!); u.pathname = `/${name}`; return u.toString() }
+  let pool: Pool
+  let created = false
+  /** The component's state `offsetMs` after its own last beat, read through the one function that holds the thresholds. */
+  const stateAfterBeat = async (component: string, offsetMs: number) => (await pool.query(
+    `SELECT s.component, s.state, s.detail, to_char(s.since AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') AS since
+     FROM service_heartbeats h, service_health_states(h.beat_at + make_interval(secs => $2::float / 1000)) s WHERE h.component = $1 AND s.component = $1`, [component, offsetMs])).rows[0]
+  const state = async (component: string, includeDetail = true) => (await readHealth(pool, { includeDetail })).find(i => i.component === component)!
+
+  beforeAll(async () => {
+    const admin = new Pool({ connectionString: withDb('postgres') })
+    try { await admin.query(`CREATE DATABASE ${dbName}`); created = true } finally { await admin.end() }
+    pool = new Pool({ connectionString: withDb(dbName) })
+    await migrate(pool)
+  })
+  afterAll(async () => {
+    await pool?.end()
+    if (!created) return
+    const admin = new Pool({ connectionString: withDb('postgres') })
+    try { await admin.query(`DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`) } finally { await admin.end() }
+  })
+  beforeEach(async () => { await pool.query('DELETE FROM service_heartbeats'); await pool.query('TRUNCATE shared_job_events, shared_jobs, shared_registry_audit, shared_registry_hosts, shared_registry_bindings CASCADE') })
+
+  async function runningJob(lease = "now() + interval '1 day'") {
+    const tenant = randomUUID()
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,$2,'saas','dedicated_managed',$2,false)", [tenant, `health-${tenant}`])
+    await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$2,$2,$2,false,1)', [tenant, `h${tenant.slice(0, 8)}`])
+    await pool.query("INSERT INTO shared_jobs(id,control_tenant_id,business_key,payload,payload_digest,issuer,actor_uid,reason,state) VALUES($1,$2,'k','{}',$3,'health-test',7,'Fixture','queued')", [randomUUID(), tenant, 'a'.repeat(64)])
+    await pool.query("UPDATE shared_jobs SET state='running', attempt_id=$1, fence=1, lease_until=" + lease + " WHERE control_tenant_id=$2", [randomUUID(), tenant])
+  }
+
+  describe('the host alert role', () => {
+    // The operator creates this role (docs/operations/environment-bringup.md A6.3): login, and EXECUTE on the one function, nothing else.
+    const monitorQuery = "SELECT coalesce(json_agg(json_build_object('component', component, 'state', state, 'down', down) ORDER BY component), '[]'::json) AS down FROM service_health_states(now()) WHERE state IN ('stale', 'unavailable')"
+    const suffix = randomUUID().slice(0, 8).replace(/-/g, '')
+    const reader = `liwan_health_reader_${suffix}`, stranger = `liwan_health_stranger_${suffix}`
+    const connect = (role: string) => { const u = new URL(withDb(dbName)); u.username = role; u.password = 'scratch-password'; return new Pool({ connectionString: u.toString() }) }
+    const denied = (pool: Pool, sql: string) => pool.query(sql).then(() => 'allowed', (e: { code?: string; message: string }) => `${e.code} ${e.message}`)
+    beforeAll(async () => {
+      for (const role of [reader, stranger]) await pool.query(`CREATE ROLE ${role} LOGIN PASSWORD 'scratch-password'`)
+      await pool.query(`GRANT EXECUTE ON FUNCTION service_health_states(timestamptz) TO ${reader}`)
+    })
+    afterAll(async () => { for (const role of [reader, stranger]) { await pool.query(`DROP OWNED BY ${role}`); await pool.query(`DROP ROLE ${role}`) } })
+
+    it('runs the monitor query, and sees what is down, with no other grant', async () => {
+      await pool.query("INSERT INTO service_heartbeats(component,beat_at,started_at) VALUES('shared_worker', now() - interval '3 minutes', now() - interval '1 hour')")
+      const as = connect(reader)
+      try { expect((await as.query(monitorQuery)).rows[0].down).toEqual([{ component: 'shared_worker', state: 'stale', down: true }]) } finally { await as.end() }
+    })
+
+    it('cannot read any table of the control plane, the health table and the jobs included', async () => {
+      const as = connect(reader)
+      try {
+        for (const table of ['customers', 'service_heartbeats', 'shared_jobs', 'vendor_accounts']) expect(await denied(as, `SELECT * FROM ${table}`)).toBe(`42501 permission denied for table ${table}`)
+      } finally { await as.end() }
+    })
+
+    it('is not open to a role that was not granted it', async () => {
+      const as = connect(stranger)
+      try { expect(await denied(as, monitorQuery)).toBe('42501 permission denied for function service_health_states') } finally { await as.end() }
+    })
+  })
+
+  it('reports every component as never seen on a fresh install, in a fixed order', async () => {
+    const items = await readHealth(pool, { includeDetail: true })
+    expect(items.map(i => i.component)).toEqual([...SERVICE_COMPONENTS])
+    expect(items.every(i => i.state === 'never_seen' && i.since === null && i.last_beat_at === null && i.detail === null)).toBe(true)
+    expect(serviceHealthSchema.parse(items)).toHaveLength(SERVICE_COMPONENTS.length)
+    expect(await downComponents(pool)).toEqual([])
+  })
+
+  it('calls the worker stale only after two minutes without a beat', async () => {
+    await beat(pool, 'shared_worker', { startedAt: new Date(T0.getTime() - HOUR) })
+    expect((await stateAfterBeat('shared_worker', 2 * MINUTE)).state).toBe('ok')
+    expect((await stateAfterBeat('shared_worker', 2 * MINUTE + 1)).state).toBe('stale')
+    const seen = await state('shared_worker')
+    expect(seen).toMatchObject({ state: 'ok', since: '2026-11-22T09:00:00Z' })
+    expect(Math.abs(Date.parse(seen.last_beat_at!) - Date.now())).toBeLessThan(5 * SECOND)
+  })
+
+  it('stamps a beat with the database clock, so a writer whose own clock is fast cannot hide a dead worker', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(Date.now() + 3 * MINUTE)
+    try { await beat(pool, 'shared_worker', { startedAt: new Date() }) } finally { vi.useRealTimers() }
+    const skew = (await pool.query('SELECT abs(extract(epoch FROM now() - beat_at))::float AS s FROM service_heartbeats')).rows[0].s
+    expect(skew).toBeLessThan(5)
+  })
+
+  it('judges staleness by the database clock for the console and the alert alike, whatever clock the reader runs on', async () => {
+    await pool.query("INSERT INTO service_heartbeats(component,beat_at,started_at) VALUES('shared_worker', now() - interval '3 minutes', now() - interval '1 hour')")
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(Date.now() - 10 * MINUTE)
+    try {
+      expect((await readHealth(pool, { includeDetail: false })).find(i => i.component === 'shared_worker')!.state).toBe('stale')
+      expect((await downComponents(pool)).map(d => d.component)).toEqual(['shared_worker'])
+    } finally { vi.useRealTimers() }
+  })
+
+  it('updates the one row of a component in place', async () => {
+    await beat(pool, 'shared_worker', { startedAt: T0 })
+    await backdateBeat(pool, 'shared_worker', 30 * SECOND)
+    const first = Date.parse((await state('shared_worker')).last_beat_at!)
+    await beat(pool, 'shared_worker', { startedAt: T0 })
+    expect((await pool.query('SELECT count(*)::int AS n FROM service_heartbeats')).rows[0].n).toBe(1)
+    expect(Date.parse((await state('shared_worker')).last_beat_at!)).toBeGreaterThanOrEqual(first + 29 * SECOND)
+  })
+
+  it('calls the scheduler stale after five minutes, and after two hours while a shared job runs', async () => {
+    await beat(pool, 'commercial_scheduler', { startedAt: T0, detail: { ticks: 3 } })
+    expect((await stateAfterBeat('commercial_scheduler', 5 * MINUTE)).state).toBe('ok')
+    expect((await stateAfterBeat('commercial_scheduler', 5 * MINUTE + 1)).state).toBe('stale')
+    await runningJob()
+    expect((await stateAfterBeat('commercial_scheduler', HOUR)).state).toBe('ok')
+    expect((await stateAfterBeat('commercial_scheduler', 2 * HOUR)).state).toBe('ok')
+    expect((await stateAfterBeat('commercial_scheduler', 2 * HOUR + 1)).state).toBe('stale')
+    // The grace is the scheduler's own: a worker that stops beating is still stale after two minutes.
+    await beat(pool, 'shared_worker', { startedAt: T0 })
+    expect((await stateAfterBeat('shared_worker', 2 * MINUTE + 1)).state).toBe('stale')
+  })
+
+  it('gives the scheduler the long grace only for a running job whose own lease is fresh, not for an orphaned row', async () => {
+    await beat(pool, 'commercial_scheduler', { startedAt: T0 })
+    await runningJob("now() - interval '3 minutes'")   // the worker that held it has stopped renewing the lease
+    expect((await stateAfterBeat('commercial_scheduler', 5 * MINUTE)).state).toBe('ok')
+    expect((await stateAfterBeat('commercial_scheduler', 5 * MINUTE + 1)).state).toBe('stale')
+    expect((await stateAfterBeat('commercial_scheduler', HOUR)).state).toBe('stale')
+    await pool.query("UPDATE shared_jobs SET lease_until = now() + interval '1 day'")
+    expect((await stateAfterBeat('commercial_scheduler', HOUR)).state).toBe('ok')
+  })
+
+  it('records an adapter as available or unavailable and never calls it stale', async () => {
+    await recordAvailability(pool, 'payment_adapter', { startedAt: T0, error: Object.assign(new Error('missing MOYASAR_SECRET_KEY'), { code: 'provider_not_configured' }) })
+    await recordAvailability(pool, 'mail_adapter', { startedAt: T0 })
+    expect(await stateAfterBeat('payment_adapter', 30 * 24 * HOUR)).toMatchObject({ state: 'unavailable', detail: { available: false, code: 'provider_not_configured' } })
+    expect(await stateAfterBeat('mail_adapter', 30 * 24 * HOUR)).toMatchObject({ state: 'ok', detail: { available: true } })
+  })
+
+  it('stores a code, never the message, of an adapter error that carries a secret', async () => {
+    const error = new Error('connect to https://admin:hunter2@pay.example.test/v1?key=sk_live_123 failed\nforged line')
+    await recordAvailability(pool, 'payment_adapter', { startedAt: T0, error })
+    await recordAvailability(pool, 'alert_channel', { startedAt: T0, error: Object.assign(new Error('https://u:hunter2@x.test'), { code: 'telegram_not_configured\nforged' }) })
+    const stored = JSON.stringify((await pool.query('SELECT detail FROM service_heartbeats ORDER BY component')).rows)
+    for (const leak of ['hunter2', 'sk_live_123', 'pay.example.test', 'forged line', '\\n']) expect(stored).not.toContain(leak)
+    expect((await state('payment_adapter')).detail).toEqual({ available: false, code: 'Error' })
+    expect((await state('alert_channel')).detail).toEqual({ available: false, code: 'telegram_not_configured forged' })
+  })
+
+  it('hides detail from a caller who may not see it', async () => {
+    await beat(pool, 'commercial_scheduler', { startedAt: T0, detail: { ticks: 3, failed_jobs: ['vendor-alerts'] } })
+    expect((await state('commercial_scheduler', true)).detail).toEqual({ ticks: 3, failed_jobs: ['vendor-alerts'] })
+    expect((await state('commercial_scheduler', false)).detail).toBeNull()
+  })
+
+  it('lists a stale worker and an unavailable adapter as down, but not the adapters of a dead worker', async () => {
+    await beat(pool, 'shared_worker', { startedAt: T0 })
+    await recordAvailability(pool, 'payment_adapter', { startedAt: T0, error: new Error('x') })
+    await recordAvailability(pool, 'api_payment_adapter', { startedAt: T0, error: new Error('x') })
+    expect((await downComponents(pool)).map(d => d.component)).toEqual(['payment_adapter', 'api_payment_adapter'])
+    // The worker is now stale: its own adapters' last record is unknown, the API's is not.
+    await backdateBeat(pool, 'shared_worker', 3 * MINUTE)
+    const down = await downComponents(pool)
+    expect(down.map(d => [d.component, d.state])).toEqual([['shared_worker', 'stale'], ['api_payment_adapter', 'unavailable']])
+    expect((await state('payment_adapter')).state).toBe('unavailable')
+  })
+
+  it('never throws when a write fails: it logs and returns', async () => {
+    const logged: string[] = []
+    const broken = { query: async () => { throw new Error('connection to db.internal:5432 refused') } } as unknown as Pool
+    await expect(beat(broken, 'shared_worker', { startedAt: T0, log: (m, e) => logged.push(`${m} ${e instanceof Error ? e.message : ''}`) })).resolves.toBeUndefined()
+    await expect(recordAvailability(broken, 'mail_adapter', { startedAt: T0, log: (m) => logged.push(m) })).resolves.toBeUndefined()
+    await expect(expectBeats(broken, ['shared_worker'], { log: (m) => logged.push(m) })).resolves.toBeUndefined()
+    expect(logged).toHaveLength(3)
+  })
+
+  it('throws when the table cannot be read, so the caller decides what an unreadable table means', async () => {
+    const broken = { query: async () => { throw new Error('relation does not exist') } } as unknown as Pool
+    await expect(readHealth(broken, { includeDetail: false })).rejects.toThrow('relation')
+  })
+})

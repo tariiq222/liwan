@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { AuditEvent, AuditList } from '@liwan/commercial-contracts'
-import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
+import { formatBusinessDateTime } from '@/utils/vendorTime'
 import { AUDIT_CATEGORIES, AUDIT_PAGE_SIZE, auditActionParts, auditActor, auditFilterCount, auditFilters, auditListQuery } from '@/utils/vendorAudit'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 definePageMeta({ capability: 'vendor.audit.read' })
@@ -74,12 +74,12 @@ const columns = computed<TableColumn<AuditEvent>[]>(() => [
 <p v-if="data" class="text-sm text-muted" data-testid="audit-result-count">{{ t('vendor.pagination.total', { count: data.total }, data.total) }}</p>
 
 <SharedDataTable :rows="items" :columns="columns" row-key="id" :loading="pending" :error="error || customerError" :empty-text="t(filtered ? 'vendor.audit.noResults' : 'vendor.audit.empty')" :caption="t('vendor.audit.title')" @retry="retry" :page="page" :pages="pages" @update:page="value => patch({ page: value })">
-  <template #when-cell="{ row: { original: entry } }"><time :datetime="entry.created_at">{{ formatDateTime(entry.created_at) }}</time></template>
+  <template #when-cell="{ row: { original: entry } }"><time :datetime="entry.created_at">{{ formatBusinessDateTime(entry.created_at) }}</time></template>
   <template #action-cell="{ row: { original: entry } }">{{ actionLabel(entry.action) }}</template>
   <template #actor-cell="{ row: { original: entry } }"><bdi>{{ actorLabel(entry) }}</bdi></template>
   <template #subject-cell="{ row: { original: entry } }"><VendorAuditSubject :event="entry" /></template>
   <template #reason-cell="{ row: { original: entry } }">{{ entry.reason }}</template>
-  <template #mobile-row="{ row: entry }"><div class="flex flex-wrap justify-between gap-2"><h2 class="font-medium">{{ actionLabel(entry.action) }}</h2><time class="text-sm text-muted" :datetime="entry.created_at">{{ formatDateTime(entry.created_at) }}</time></div>
+  <template #mobile-row="{ row: entry }"><div class="flex flex-wrap justify-between gap-2"><h2 class="font-medium">{{ actionLabel(entry.action) }}</h2><time class="text-sm text-muted" :datetime="entry.created_at">{{ formatBusinessDateTime(entry.created_at) }}</time></div>
           <p class="mt-2 text-sm">{{ entry.reason }}</p>
           <p class="mt-1 text-xs text-muted">{{ t('vendor.audit.actor') }}: <bdi>{{ actorLabel(entry) }}</bdi></p>
           <p class="mt-1 text-xs">{{ t('vendor.audit.subject') }}: <VendorAuditSubject :event="entry" /></p></template>

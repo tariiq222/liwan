@@ -4,7 +4,7 @@ import { completeOutbox, deferOutbox, enqueueOutbox, failOutbox, leaseOutboxRow 
 import { daysText } from './billing-notices.js'
 import { TENANT_DELETION_REMINDER_DAYS } from './notice-timings.js'
 import { workspaceLines, workspaceOrigin, type ReturnOrigin } from './return-origin.js'
-import { TENANT_DELETION_HOLD_HOURS, TENANT_DELETION_LAST_CALL_HOURS } from '@liwan/commercial-contracts'
+import { BUSINESS_TIME_ZONE, TENANT_DELETION_HOLD_HOURS, TENANT_DELETION_LAST_CALL_HOURS } from '@liwan/commercial-contracts'
 import { DELETION_CODE_TTL_MINUTES, TENANT_DELETION_NOTICE_KIND, type DeletionNoticePayload } from './tenant-deletion.js'
 
 type Language = 'ar' | 'en'
@@ -122,7 +122,7 @@ export function tenantDeletionNotice(payload: DeletionNoticePayload, context: De
  * After a worker outage the thresholds it missed are skipped, never sent late in a batch. Days are counted on the database clock in the business zone.
  */
 async function queueReminders(pool: Pool): Promise<void> {
-  const rows = (await pool.query(`SELECT id,((due_at AT TIME ZONE 'Asia/Riyadh')::date - (now() AT TIME ZONE 'Asia/Riyadh')::date)::int AS days_left
+  const rows = (await pool.query(`SELECT id,((due_at AT TIME ZONE '${BUSINESS_TIME_ZONE}')::date - (now() AT TIME ZONE '${BUSINESS_TIME_ZONE}')::date)::int AS days_left
     FROM tenant_deletion_requests WHERE state='confirmed'`)).rows as { id: string; days_left: number }[]
   for (const row of rows) {
     const threshold = [...TENANT_DELETION_REMINDER_DAYS].sort((a, b) => a - b).find(days => row.days_left <= days)
@@ -135,10 +135,10 @@ async function queueReminders(pool: Pool): Promise<void> {
 /** The recipient and wording context when the request is still in the state the notice is about; undefined when it moved on and the notice is stale. */
 async function liveContext(pool: Pool, payload: DeletionNoticePayload): Promise<(DeletionNoticeContext & { customer_id: string; admin_login: string | null; days_left: number }) | undefined> {
   const row = (await pool.query(`SELECT r.state,r.code_seq,(r.code_expires_at > now()) AS code_live,r.renewal_outcome,r.renewal_refusal,c.name,c.id AS customer_id,c.admin_login,
-      (r.due_at AT TIME ZONE 'Asia/Riyadh')::date::text AS due_on,
+      (r.due_at AT TIME ZONE '${BUSINESS_TIME_ZONE}')::date::text AS due_on,
       COALESCE((SELECT (s.evidence->>'unremoved')::int FROM tenant_deletion_steps s WHERE s.request_id=r.id AND s.step='delete_cards'),0) AS cards_unremoved,
       EXISTS (SELECT 1 FROM tenant_deletion_steps s WHERE s.request_id=r.id AND s.step='unbind_relay' AND s.state='skipped') AS relay_skipped,
-      to_char(COALESCE(r.hold_until, r.due_at + make_interval(hours => $2)) AT TIME ZONE 'Asia/Riyadh','YYYY-MM-DD HH24:MI') AS final_at,((r.due_at AT TIME ZONE 'Asia/Riyadh')::date - (now() AT TIME ZONE 'Asia/Riyadh')::date)::int AS days_left
+      to_char(COALESCE(r.hold_until, r.due_at + make_interval(hours => $2)) AT TIME ZONE '${BUSINESS_TIME_ZONE}','YYYY-MM-DD HH24:MI') AS final_at,((r.due_at AT TIME ZONE '${BUSINESS_TIME_ZONE}')::date - (now() AT TIME ZONE '${BUSINESS_TIME_ZONE}')::date)::int AS days_left
     FROM tenant_deletion_requests r JOIN customers c ON c.id=r.customer_id WHERE r.id=$1`, [payload.request_id, TENANT_DELETION_HOLD_HOURS])).rows[0]
   if (!row) return undefined
   const live = {

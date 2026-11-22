@@ -278,6 +278,8 @@ export function createMockControl() {
       invitations.set(token, { accountId: id })
       json(res, 200, { token, email: `invitee${id}@example.test` })
     },
+    // The file the AI service reads is out of date: the setting is shown as pending until it is delivered again.
+    'POST /__mock/ai-pending': (_ctx, res) => { state.ai.delivery = 'pending'; json(res, 204) },
     'POST /__mock/age-step-up': (_ctx, res) => { for (const session of sessions.values()) session.steppedUpAt = 0; json(res, 204) },
     'GET /__mock/stats': (_ctx, res) => json(res, 200, { ...stats, sessions: sessions.size }),
   }

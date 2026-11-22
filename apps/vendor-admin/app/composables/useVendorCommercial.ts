@@ -18,22 +18,24 @@ export async function listPolicies(request: <T>(path: string) => Promise<T>): Pr
 export function useVendorCommercial() {
   const { request } = useVendorApi()
   const seg = (kind: CommercialKind) => (kind === 'bundle' ? 'bundles' : 'plans')
+  /** The server filters only by name substring and status, not by the bundle or plan id; renamed versions need the unfiltered list, so page through it. */
+  async function versionsOf<T extends BundleView | PlanView>(kind: CommercialKind, belongs: (version: T) => boolean): Promise<T[]> {
+    const out: T[] = []
+    for (let offset = 0; offset < 5000; offset += 200) {
+      const page = await request<VendorListEnvelope<T>>(`commercial/${seg(kind)}`, { query: { status: undefined, limit: 200, offset } })
+      out.push(...page.items.filter(belongs))
+      if (offset + 200 >= page.total) break
+    }
+    return out.sort((a, b) => b.version - a.version)
+  }
   return {
     releases: () => request<VendorListEnvelope<CatalogReleaseView>>('commercial/catalog/releases').then(r => r.items),
     createRelease: (body: { catalog_version: string; reason: string }) => request<CatalogReleaseView>('commercial/catalog/releases', { method: 'POST', body }),
     seedDefaultBundles: (releaseId: string, reason: string) => request<{ bundles: string[]; created: string[]; plan_revision_id: string; plan_created: boolean }>(`commercial/catalog/releases/${encodeURIComponent(releaseId)}/default-bundles`, { method: 'POST', body: { reason } }),
     policies: (): Promise<PricingPolicyView[]> => listPolicies(request),
     listBundles: (p: ListParams = {}) => request<VendorListEnvelope<BundleView>>('commercial/bundles', { query: listQuery(p) }),
-    /** The server filters only by name substring and status, not bundle_id; renamed versions need the unfiltered list, so page through it. */
-    bundleVersions: async (bundleId: string) => {
-      const out: BundleView[] = []
-      for (let offset = 0; offset < 5000; offset += 200) {
-        const page = await request<VendorListEnvelope<BundleView>>('commercial/bundles', { query: { status: undefined, limit: 200, offset } })
-        out.push(...page.items.filter(v => v.bundle_id === bundleId))
-        if (offset + 200 >= page.total) break
-      }
-      return out.sort((a, b) => b.version - a.version)
-    },
+    bundleVersions: (bundleId: string) => versionsOf<BundleView>('bundle', version => version.bundle_id === bundleId),
+    planVersions: (planId: string) => versionsOf<PlanView>('plan', version => version.plan_id === planId),
     listPlans: (p: ListParams = {}) => request<VendorListEnvelope<PlanView>>('commercial/plans', { query: listQuery(p) }),
     get: <T extends BundleView | PlanView>(kind: CommercialKind, id: string) => request<T>(`commercial/${seg(kind)}/${encodeURIComponent(id)}`),
     create: <T extends BundleView | PlanView>(kind: CommercialKind, body: unknown) => request<T>(`commercial/${seg(kind)}`, { method: 'POST', body }),

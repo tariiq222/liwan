@@ -120,6 +120,15 @@ export const aiProviderTestResultSchema = z.discriminatedUnion('ok', [
   z.strictObject({ ok: z.literal(false), code: aiProviderTestFailureSchema }),
 ])
 
+/** Delivering again takes a reason only: it writes the stored configuration to the file the AI service reads and changes nothing else. */
+export const aiProviderRedeliverRequestSchema = z.strictObject({ reason: z.string().trim().min(3).max(1000) })
+/** `written`: the file was missing or differed and now holds the stored configuration; `unchanged`: it already did. */
+export const aiProviderRedeliverOutcomeSchema = z.enum(['written', 'unchanged'])
+/** The same view as the current setting, plus what the call did. There is always a setting: without one nothing can be delivered. */
+export const aiProviderRedeliveredSchema = z.strictObject({ setting: aiProviderSettingSchema, outcome: aiProviderRedeliverOutcomeSchema })
+/** The 409 codes of a call that has nothing to deliver: no default model is routed, or the control plane has no file to write. */
+export const AI_PROVIDER_REDELIVER_REFUSALS = ['provider_incomplete', 'provider_file_unconfigured'] as const
+
 export type AiProviderPreset = z.infer<typeof aiProviderPresetSchema>
 export type AiProviderPresetList = z.infer<typeof aiProviderPresetListSchema>
 export type AiProviderEntry = z.infer<typeof aiProviderEntrySchema>
@@ -129,3 +138,5 @@ export type AiProviderCurrent = z.infer<typeof aiProviderCurrentSchema>
 export type AiProviderModels = z.infer<typeof aiProviderModelsSchema>
 export type AiProviderTestResult = z.infer<typeof aiProviderTestResultSchema>
 export type AiProviderSave = z.infer<typeof aiProviderSaveSchema>
+export type AiProviderRedelivered = z.infer<typeof aiProviderRedeliveredSchema>
+export type AiProviderRedeliverOutcome = z.infer<typeof aiProviderRedeliverOutcomeSchema>

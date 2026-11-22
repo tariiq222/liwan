@@ -10,7 +10,7 @@ const customers = (name: 'ar' | 'en') => JSON.parse(read(`i18n/locales/${name}/v
 describe('sign-up acceptance on the vendor customer page', () => {
   it('shows the accepted version and date only when the customer has an acceptance', () => {
     expect(page).toContain('<p v-if="customer.signup_acceptance"')
-    expect(page).toContain("t('vendor.customers.signupAcceptance', { version: customer.signup_acceptance.terms_version, date: formatLiwanDate(customer.signup_acceptance.accepted_at) })")
+    expect(page).toContain("t('vendor.customers.signupAcceptance', { version: customer.signup_acceptance.terms_version, date: formatBusinessDate(customer.signup_acceptance.accepted_at) })")
   })
   it('words the line in both languages with the version and the date', () => {
     for (const name of ['ar', 'en'] as const) {

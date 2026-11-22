@@ -118,8 +118,9 @@ class ProductionCompose(unittest.TestCase):
         self.assertEqual({n for n, c in commands.items() if 'worker-main' in c}, {'control-worker'})
         unit = UNIT.read_text(encoding='utf-8')
         self.assertEqual(len(re.findall(r'(?m)^ExecStart=.*run-shared-worker\.sh$', unit)), 1)
-        # The one unit file is the only definition of the scheduler's process.
-        self.assertEqual([p.name for p in CONTROL.glob('*.service')], ['liwan-shared-worker.service'])
+        # That unit file is the only one that defines the scheduler's process; the health alert unit starts a script of its own.
+        starters = sorted(p.name for p in CONTROL.glob('*.service') if 'shared-worker' in p.read_text(encoding='utf-8').split('[Service]')[1])
+        self.assertEqual(starters, ['liwan-shared-worker.service'])
 
     def test_the_ordinary_worker_is_off_unless_asked_for(self):
         self.assertEqual(self.services['control-worker']['profiles'], ['operator-jobs'])

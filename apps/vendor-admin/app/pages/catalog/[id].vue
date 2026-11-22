@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatLiwanDate } from '@liwan/ui/app/composables/calendarDate'
+import { formatBusinessDate } from '@/utils/vendorTime'
 import { lifecycleBadge } from '@/utils/vendorCommercial'
 import { packageLabel } from '@/utils/vendorPackages'
 import { sellableTiers } from '@/utils/vendorCatalogVersions'
@@ -23,7 +23,7 @@ const baseModules = computed(() => version.value?.solution.base_modules ?? [])
 <template>
   <SharedRecordPage :title="version?.version ?? t('vendor.catalog.details')" back-to="/catalog" :back-label="t('vendor.catalog.applications')" :loading="pending" :error="error" @retry="refresh">
     <template v-if="version">
-      <VendorCatalogFacts :facts="[{ key: 'sellable', label: t('vendor.catalog.sellableApps'), value: sellableCount }, { key: 'imported', label: t('vendor.catalog.imported'), value: formatLiwanDate(version.created_at) }]" class="mt-6">
+      <VendorCatalogFacts :facts="[{ key: 'sellable', label: t('vendor.catalog.sellableApps'), value: sellableCount }, { key: 'imported', label: t('vendor.catalog.imported'), value: formatBusinessDate(version.created_at) }]" class="mt-6">
         <template #status><SharedStatusBadge data-slot="lifecycle-badge" :tone="lifecycleBadge(version).tone" :label="t(lifecycleBadge(version).labelKey)" /></template>
       </VendorCatalogFacts>
       <SharedRecordSection :title="t('vendor.catalog.appsTitle')" class="mt-6" data-testid="catalog-apps">

@@ -1,38 +1,42 @@
 <script setup lang="ts">
-import { formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
+import { formatBusinessDateTime } from '@/utils/vendorTime'
 import type { TableColumn } from '@nuxt/ui'
 import { operationStatusBadge } from '@/utils/vendorBadges'
 import type { OperationFeed } from '@liwan/commercial-contracts'
 import { OPERATION_STATUS_FILTERS, operationFilterLabelKey, operationStatusFilter, operationTargetTo } from '@/utils/vendorOperations'
 definePageMeta({ capability: 'vendor.read' })
 const { t } = useI18n(); const route = useRoute(); const router = useRouter(); const hydrated = useHydrated(); const { request } = useVendorApi()
-const TENANT_PAGE = 25
-const MAX_TENANT_PAGES = 8
 const tenantId = computed(() => (typeof route.query.tenant_id === 'string' ? route.query.tenant_id : ''))
 const status = computed(() => operationStatusFilter(route.query.status))
 const page = computed(() => Math.max(1, Number(route.query.page ?? 1) || 1))
 const pages = computed(() => Math.max(1, Math.ceil((data.value?.total ?? 0) / 25)))
 function patch(change: Record<string, unknown>) { void router.replace({ path: '/operations', query: { ...route.query, page: undefined, ...change } }) }
 const { data, error, pending, refresh } = await useAsyncData(() => `vendor:operations:all:${tenantId.value}:${status.value}:${page.value}`, () => request<{ items: OperationFeed[]; total: number }>('operations', { query: { source: 'all', tenant_id: tenantId.value || undefined, status: status.value === 'all' ? undefined : status.value, page: page.value > 1 ? page.value : undefined } }), { watch: [tenantId, status, page] })
-// The tenant list is paged; the filter picker reads names from the first pages and falls back to the id. Rows carry their own workspace name.
-const { data: tenants } = await useAsyncData('vendor:operations:tenants', async () => {
-  const names: { id: string; name: string }[] = []
+// The workspace filter asks the server: the chosen workspace is read by its id (so a direct link shows its name), and the picker searches
+// by the typed text once it is opened or typed into. Rows carry their own workspace name.
+const { data: chosenTenant } = await useVendorTenant(tenantId)
+const tenantSearch = ref('')
+const tenantQuery = refDebounced(tenantSearch, 250)
+const tenantResults = ref<{ id: string; name: string }[]>([])
+const tenantsFailed = ref(false)
+let tenantSearchRound = 0
+async function searchTenants() {
+  const round = ++tenantSearchRound
   try {
-    for (let next = 1; next <= MAX_TENANT_PAGES; next++) {
-      const result = await request<{ items: { id: string; name: string }[]; total: number }>('tenants', { query: { page: next > 1 ? next : undefined } })
-      names.push(...result.items)
-      if (next * TENANT_PAGE >= result.total) break
-    }
-  } catch { /* the filter then lists only the selected id */ }
-  return names
-})
-const tenantName = (id: string) => tenants.value?.find(tenant => tenant.id === id)?.name ?? id
+    const result = await request<{ items: { id: string; name: string }[]; total: number }>('tenants', { query: { q: tenantQuery.value.trim() || undefined } })
+    if (round === tenantSearchRound) { tenantResults.value = result.items; tenantsFailed.value = false }
+  } catch {
+    if (round === tenantSearchRound) tenantsFailed.value = true
+  }
+}
+watch(tenantQuery, () => { void searchTenants() })
+const tenantName = (id: string) => [chosenTenant.value, ...tenantResults.value].find(tenant => tenant?.id === id)?.name ?? id
 const targetName = (op: OperationFeed) => op.tenant_name ?? tenantName(op.tenant_id)
-const tenantItems = computed(() => {
-  const known = (tenants.value ?? []).map(tenant => ({ value: tenant.id, label: tenant.name }))
-  const selected = tenantId.value && !known.some(item => item.value === tenantId.value) ? [{ value: tenantId.value, label: tenantId.value }] : []
-  return [{ value: 'all', label: t('vendor.operations.allTenants') }, ...selected, ...known]
-})
+const tenantItems = computed(() => [
+  { value: 'all', label: t('vendor.operations.allTenants') },
+  ...(tenantId.value ? [{ value: tenantId.value, label: tenantName(tenantId.value) }] : []),
+  ...tenantResults.value.filter(tenant => tenant.id !== tenantId.value).map(tenant => ({ value: tenant.id, label: tenant.name })),
+])
 const statusItems = computed(() => OPERATION_STATUS_FILTERS.map(value => ({ value, label: t(operationFilterLabelKey(value)) })))
 const filtered = computed(() => Boolean(tenantId.value) || status.value !== 'all')
 
@@ -41,7 +45,7 @@ const operationTo = (op: OperationFeed) => ({ path: `/operations/${op.id}`, quer
 function operationTime(op: OperationFeed) {
  const value = op.source === 'shared' ? (op.last_event_at ?? op.created_at) : op.updated_at
  const time = new Date(value ?? '')
- return `${t(op.source === 'shared' ? (op.last_event_at ? 'vendor.operations.lastEvent' : 'vendor.operations.created') : 'vendor.operations.updated')}: ${Number.isNaN(time.getTime()) ? t('app.notAvailable') : formatLiwanDateTime(time)}`
+ return `${t(op.source === 'shared' ? (op.last_event_at ? 'vendor.operations.lastEvent' : 'vendor.operations.created') : 'vendor.operations.updated')}: ${Number.isNaN(time.getTime()) ? t('app.notAvailable') : formatBusinessDateTime(time)}`
 }
 
 const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
@@ -56,7 +60,9 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
 <SharedListPage :title="t('vendor.operations.title')">
 
 <template #filters><SharedFilterBar :active-count="Number(Boolean(tenantId)) + Number(status !== 'all')" @clear="router.replace('/operations')">
-      <SharedFilterField :label="t('vendor.operations.tenantFilter')" for="operations-tenant"><USelect id="operations-tenant" :model-value="tenantId || 'all'" :items="tenantItems" class="w-full" :disabled="!hydrated" @update:model-value="patch({ tenant_id: $event && $event !== 'all' ? $event : undefined })" /></SharedFilterField>
+      <SharedFilterField :label="t('vendor.operations.tenantFilter')" for="operations-tenant"><USelectMenu id="operations-tenant" v-model:search-term="tenantSearch" :model-value="tenantId || 'all'" :items="tenantItems" value-key="value" :ignore-filter="true" :search-input="{ placeholder: t('vendor.operations.tenantSearch') }" class="w-full" :disabled="!hydrated" @update:open="open => { if (open) void searchTenants() }" @update:model-value="patch({ tenant_id: $event && $event !== 'all' ? $event : undefined })" />
+        <UAlert v-if="tenantsFailed" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('vendor.operations.tenantsLoadFailed')" :actions="[{ label: t('app.retry'), onClick: () => searchTenants() }]" data-testid="operations-tenants-error" />
+      </SharedFilterField>
       <SharedFilterChoice :label="t('vendor.common.status')" :model-value="status" :items="statusItems" :disabled="!hydrated" @update:model-value="patch({ status: $event && $event !== 'all' ? $event : undefined })" />
       <template #active><SharedFilterChip v-if="tenantId" :label="tenantName(tenantId)" @remove="patch({ tenant_id: undefined })" /><SharedFilterChip v-if="status !== 'all'" :label="t(operationFilterLabelKey(status))" @remove="patch({ status: undefined })" /></template>
     </SharedFilterBar></template>

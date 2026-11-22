@@ -19,8 +19,8 @@ afterEach(() => scopes.splice(0).forEach(s => s.stop()))
 const openai: AiProviderPreset = { id: 'openai', label: 'OpenAI', provider: 'openai', base_url: 'https://llm-a.example.com/v1', needs_base_url: false, needs_api_key: true, stream_usage: true, stream_usage_editable: false }
 const custom: AiProviderPreset = { id: 'custom', label: 'Custom', provider: 'openai_compatible', base_url: null, needs_base_url: true, needs_api_key: true, stream_usage: false, stream_usage_editable: true }
 
-const saved = (): Setting => ({
-  revision: 3, margin_bps: 2000, updated_at: '2026-11-06T10:00:00.000Z', updated_by: 'account:7', delivery: 'delivered',
+const saved = (delivery: Setting['delivery'] = 'delivered'): Setting => ({
+  revision: 3, margin_bps: 2000, updated_at: '2026-11-06T10:00:00.000Z', updated_by: 'account:7', delivery,
   providers: {
     oai: { preset: 'openai', provider: 'openai', base_url: null, stream_usage: true, key: { configured: true, last4: '6789' } },
     llm: { preset: 'custom', provider: 'openai_compatible', base_url: 'https://llm.example.com/v1', stream_usage: false, key: { configured: true, last4: '1234' } },
@@ -32,18 +32,22 @@ const saved = (): Setting => ({
   routes: { default: 'mid', balanced: { quick: 'local' } },
 })
 
-async function page(options: { saveFails?: unknown, failFirstLoad?: boolean } = {}) {
+async function page(options: { saveFails?: unknown, failFirstLoad?: boolean, delivery?: Setting['delivery'], redeliverFails?: unknown, outcome?: 'written' | 'unchanged' } = {}) {
   const filename = resolve(import.meta.dirname, '../ai-provider.vue')
   const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
   const script = stripImports(compileScript(descriptor, { id: 'ai-provider-mounted' }).content).replace('export default', 'return')
   const api = {
     current: vi.fn(async () => {
       if (options.failFirstLoad && api.current.mock.calls.length === 1) throw { statusCode: 503 }
-      return { setting: saved() }
+      return { setting: saved(options.delivery) }
     }),
     presets: vi.fn(async () => ({ items: [openai, custom], total: 2 })),
     models: vi.fn(async () => ({ items: [{ id: 'gpt-4o' }], total: 1 })),
     test: vi.fn(async () => ({ ok: true as const, latency_ms: 12, usage_reported: true })),
+    redeliver: vi.fn(async (_reason: string) => {
+      if (options.redeliverFails) throw options.redeliverFails
+      return { setting: saved('delivered'), outcome: options.outcome ?? 'written' }
+    }),
     save: vi.fn(async (body: { margin_bps: number }) => {
       if (options.saveFails) throw options.saveFails
       return { setting: { ...saved(), revision: 4, margin_bps: body.margin_bps } }
@@ -53,7 +57,7 @@ async function page(options: { saveFails?: unknown, failFirstLoad?: boolean } = 
   const bindings = {
     ...aiUtils, _defineComponent: Vue.defineComponent, _withAsyncContext: (fn: () => unknown) => [fn(), () => {}],
     computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, reactive: Vue.reactive,
-    formatDateTime: (value: string) => value, definePageMeta: () => {}, useHydrated: () => Vue.ref(true), useI18n: () => ({ t }), useAiProvider: () => api,
+    formatBusinessDateTime: (value: string) => value, definePageMeta: () => {}, useHydrated: () => Vue.ref(true), useI18n: () => ({ t }), useAiProvider: () => api,
     useAsyncData: async (_key: string, fn: () => Promise<unknown>) => {
       const data = Vue.ref<unknown>(null); const error = Vue.ref<unknown>(null); const pending = Vue.ref(false)
       const refresh = vi.fn(async () => { try { data.value = await fn(); error.value = null } catch (cause) { error.value = cause } })
@@ -149,6 +153,17 @@ describe('AI provider page, mounted', () => {
     expect(html).toContain(message)
   })
 
+  it('clears the errors of every section after a save succeeds', async () => {
+    const p = await page()
+    p.state.reason.value = 'A change'
+    p.api.save.mockRejectedValueOnce({ data: { code: 'model_not_tested' } })
+    await p.state.save()
+    expect((await p.rendered()).html).toContain('data-testid="ai-provider-routes-error"')
+    await p.state.save()
+    expect(p.state.notice.value).toContain('aiProvider.save.saved')
+    expect((await p.rendered()).html).not.toContain('ai-provider-routes-error')
+  })
+
   it('shows an error that belongs to no section at the top of the page', async () => {
     const p = await page({ saveFails: { data: { code: 'provider_file_unavailable' } } })
     p.state.reason.value = 'A change'
@@ -185,5 +200,122 @@ describe('AI provider page, mounted', () => {
     const html = (await p.rendered()).html
     expect(html).toContain('ai-provider-unpriced-warning')
     expect(html).toContain(aiUtils.ltr('mid'))
+  })
+
+  describe('delivering the saved configuration again', () => {
+    const shown = async (p: Awaited<ReturnType<typeof page>>) => (await p.rendered()).captured.filter(c => c.attrs['data-testid'] === 'ai-provider-redeliver')
+
+    it('offers the action only while the file is pending, and says the service still uses the previous file', async () => {
+      for (const delivery of ['delivered', 'unconfigured', 'incomplete'] as const) {
+        const p = await page({ delivery })
+        expect(await shown(p), delivery).toHaveLength(0)
+        expect((await p.rendered()).html, delivery).not.toContain('aiProvider.status.pendingNote')
+      }
+      const pending = await page({ delivery: 'pending' })
+      expect(await shown(pending)).toHaveLength(1)
+      expect((await pending.rendered()).html).toContain('aiProvider.status.pendingNote')
+    })
+
+    it('names the missing default model and has no button when nothing is routed', async () => {
+      const p = await page({ delivery: 'incomplete' })
+      expect((await p.rendered()).html).toContain('aiProvider.status.delivery.incomplete')
+      expect(await shown(p)).toHaveLength(0)
+    })
+
+    it('is disabled, with a hint, while the draft has unsaved changes, and never calls the control plane then', async () => {
+      const p = await page({ delivery: 'pending' })
+      expect((await shown(p))[0]!.attrs.disabled).toBe(false)
+      expect((await p.rendered()).html).not.toContain('ai-provider-redeliver-dirty')
+      p.state.draft.margin_percent = '35'
+      expect((await shown(p))[0]!.attrs.disabled).toBe(true)
+      expect((await p.rendered()).html).toContain('ai-provider-redeliver-dirty')
+      p.state.redeliverReason.value = 'The file was lost'
+      await p.state.redeliver()
+      expect(p.api.redeliver).not.toHaveBeenCalled()
+    })
+
+    it('asks for a reason of 3 characters, sends it trimmed, then shows the new setting and says what was done', async () => {
+      const p = await page({ delivery: 'pending' })
+      p.state.redelivering.value = true
+      expect((await p.rendered()).captured.find(c => c.name === 'SharedInlineConfirm' && c.attrs['confirm-label'] === 'aiProvider.redeliver.confirm')!.attrs.disabled).toBe(true)
+      p.state.redeliverReason.value = 'ab'
+      await p.state.redeliver()
+      expect(p.api.redeliver).not.toHaveBeenCalled()
+      p.state.redeliverReason.value = '  The file was lost  '
+      expect((await p.rendered()).captured.find(c => c.name === 'SharedInlineConfirm' && c.attrs['confirm-label'] === 'aiProvider.redeliver.confirm')!.attrs.disabled).toBe(false)
+      await p.state.redeliver()
+      expect(p.api.redeliver).toHaveBeenCalledWith('The file was lost')
+      expect(p.state.setting.value.delivery).toBe('delivered')
+      expect(p.state.redelivering.value).toBe(false)
+      expect(p.state.redeliverReason.value).toBe('')
+      expect(p.state.notice.value).toContain('aiProvider.redeliver.written')
+      expect(await shown(p)).toHaveLength(0)
+    })
+
+    it('says so when the service already had the file', async () => {
+      const p = await page({ delivery: 'pending', outcome: 'unchanged' })
+      p.state.redeliverReason.value = 'Check the file'
+      await p.state.redeliver()
+      expect(p.state.notice.value).toContain('aiProvider.redeliver.unchanged')
+    })
+
+    it.each([
+      ['provider_incomplete', 'aiProvider.errors.provider_incomplete'],
+      ['provider_file_unconfigured', 'aiProvider.errors.provider_file_unconfigured'],
+      ['provider_file_unavailable', 'aiProvider.errors.provider_file_unavailable'],
+      ['secret_key_unavailable', 'aiProvider.errors.secret_key_unavailable'],
+      ['audit_unavailable', 'aiProvider.errors.audit_unavailable'],
+      ['step_up_required', 'aiProvider.errors.step_up_required'],
+      ['forbidden', 'aiProvider.errors.forbidden'],
+    ])('shows the code %s as its own message and keeps the confirmation open', async (code, message) => {
+      const p = await page({ delivery: 'pending', redeliverFails: { data: { code } } })
+      p.state.redelivering.value = true
+      p.state.redeliverReason.value = 'The file was lost'
+      await p.state.redeliver()
+      const { html } = await p.rendered()
+      expect(html).toContain('data-testid="ai-provider-error"')
+      expect(html).toContain(message)
+      expect(p.state.redelivering.value).toBe(true)
+      expect(p.state.setting.value.delivery).toBe('pending')
+      expect(p.state.notice.value).toBeNull()
+    })
+
+    it('cancels without a call', async () => {
+      const p = await page({ delivery: 'pending' })
+      p.state.redelivering.value = true
+      p.state.redeliverReason.value = 'Typed'
+      p.state.cancelRedeliver()
+      expect(p.state.redelivering.value).toBe(false)
+      expect(p.state.redeliverReason.value).toBe('')
+      expect(p.api.redeliver).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('the three steps before a model can be the default', () => {
+    it('shows the numbered note above the models section whatever the state', async () => {
+      for (const delivery of ['delivered', 'pending', 'unconfigured', 'incomplete'] as const) {
+        const { html } = await (await page({ delivery })).rendered()
+        expect(html, delivery).toContain('id="ai-provider-steps"')
+        for (const step of ['save', 'test', 'route']) expect(html, `${delivery} ${step}`).toContain(`aiProvider.steps.${step}`)
+        expect(html.indexOf('id="ai-provider-steps"')).toBeLessThan(html.indexOf('aiProvider.models.title'))
+      }
+    })
+
+    it.each(['model_not_tested', 'model_not_priced'])('links the message of %s to the note, which is on the page', async (code) => {
+      const p = await page({ saveFails: { data: { code } } })
+      p.state.reason.value = 'A change'
+      await p.state.save()
+      const { html } = await p.rendered()
+      expect(html).toContain(`aiProvider.errors.${code}`)
+      expect(html).toContain('href="#ai-provider-steps"')
+      expect(html).toContain('id="ai-provider-steps"')
+    })
+
+    it.each(['default_required', 'unknown_model'])('adds no link to the message of %s', async (code) => {
+      const p = await page({ saveFails: { data: { code } } })
+      p.state.reason.value = 'A change'
+      await p.state.save()
+      expect((await p.rendered()).html).not.toContain('href="#ai-provider-steps"')
+    })
   })
 })

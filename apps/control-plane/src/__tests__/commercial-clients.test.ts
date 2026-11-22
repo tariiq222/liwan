@@ -42,8 +42,11 @@ suite('unified vendor client list on PostgreSQL', () => {
     await pool.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,1,$3,$4)', [randomUUID(), subscription, JSON.stringify({ plan_revision_id: revision }), randomUUID()])
     await pool.query('UPDATE subscriptions SET revision=revision+1, applied_revision_id=(SELECT id FROM subscription_revisions WHERE subscription_id=$1) WHERE id=$1', [subscription])
     await pool.query("INSERT INTO subscriptions(id,customer_id,state) VALUES($1,$2,'pending')", [pendingSubscription, ids.pendingCustomer])
+    await pool.query('UPDATE customers SET admin_login=$2 WHERE id=$1', [ids.activeCustomer, `Admin.${tag}@Example.test`])
+    await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$2,$2,false,1)', [ids.activeTenant, `w${tag}`, hostOf()])
   })
   afterAll(async () => { await pool.end() })
+  const hostOf = () => `w${tag}.workspaces.example.test`
   const find = (items: any[], name: string) => items.find(item => item.name === `${tag} ${name}`)
 
   it('lists customers with their workspace and workspaces without a customer', async () => {
@@ -72,6 +75,22 @@ suite('unified vendor client list on PostgreSQL', () => {
     expect(r.status).toBe(200)
     expect(r.body.items.map((item: any) => item.name.slice(tag.length + 1)).sort()).toEqual([...names].sort())
     expect(r.body.total).toBe(names.length)
+  })
+
+  it('finds a customer by its administrator e-mail, its workspace host or an exact customer or workspace id', async () => {
+    const names = async (q: string) => (await call('GET', `/clients?q=${encodeURIComponent(q)}`)).body.items.map((item: any) => item.name)
+    const active = [`${tag} active customer`]
+    expect(await names(`admin.${tag}@example`)).toEqual(active)
+    expect(await names(`ADMIN.${tag}`)).toEqual(active)
+    expect(await names(`w${tag}.workspaces`)).toEqual(active)
+    expect(await names(ids.activeCustomer)).toEqual(active)
+    expect(await names(ids.activeTenant)).toEqual(active)
+    expect(await names(ids.lonelyTenant)).toEqual([`${tag} lonely workspace`])
+    // An id is matched whole: a fragment of it finds nothing.
+    expect(await names(ids.activeCustomer.slice(0, 13))).toEqual([])
+    // The row never carries the e-mail or the host that matched it.
+    const row = (await call('GET', `/clients?q=${encodeURIComponent(`admin.${tag}`)}`)).body.items[0]
+    expect(JSON.stringify(row).toLowerCase()).not.toContain('example.test')
   })
 
   it('pages in stable order and reports the total on an empty page', async () => {

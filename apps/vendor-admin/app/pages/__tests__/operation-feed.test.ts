@@ -14,8 +14,8 @@ import { isNotAvailable } from '../../utils/vendorSubscriptions'
 import { failureKey, StepUpCancelled } from '../../composables/useStepUp'
 import { canAbandonJob } from '../../utils/sharedJobAbandon'
 import { canRecoverJob, recoveryTextKey } from '../../utils/sharedJobRecovery'
-import { useDebounceFn } from '@vueuse/core'
-import { formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
+import { refDebounced, useDebounceFn } from '@vueuse/core'
+import { formatBusinessDateTime } from '../../utils/vendorTime'
 
 type PageOptions = { pending?: boolean, client?: boolean, refresh?: () => Promise<void> }
 async function page(name: string, data: unknown, source?: string, query: Record<string, string> = {}, options: PageOptions = {}) {
@@ -32,7 +32,8 @@ async function page(name: string, data: unknown, source?: string, query: Record<
   const messages = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../../i18n/locales/en/vendor.json'), 'utf8'))
   const t = (key: string) => key.split('.').reduce((obj: unknown, key) => (obj as Record<string, unknown> | undefined)?.[key], messages) ?? key
   const bindings = {
-    formatLiwanDateTime, failureKey, useDebounceFn, ...clients, isNotAvailable, canAbandonJob, canRecoverJob, recoveryTextKey,
+    formatBusinessDateTime, failureKey, useDebounceFn, refDebounced,
+    useVendorTenant: (id: Vue.Ref<string>) => ({ data: Vue.ref(id.value === 'tenant-id' ? { id: 'tenant-id', name: 'Acme' } : null), error: Vue.ref(id.value && id.value !== 'tenant-id' ? { statusCode: 404 } : null) }), ...clients, isNotAvailable, canAbandonJob, canRecoverJob, recoveryTextKey,
     useVendorSubscriptions: () => ({ listClients: (query: Record<string, unknown>) => request('commercial/clients', { query }) }),
     invoiceStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge,
     _defineComponent: Vue.defineComponent, _withAsyncContext: (fn: () => unknown) => [fn(), () => {}],
@@ -67,7 +68,7 @@ it('lets the operation page return to Today and to the operations list', () => {
 })
 
 it('opts overview and list into the combined feed and carries source through links', async () => {
-  expect(readFileSync(resolve(import.meta.dirname, '../overview.vue'), 'utf8')).toContain("request<{ tenants: number, active: number, pending_operations: number, failed_operations: number, last_health_at: string | null }>('overview', { query: { source: 'all' } })")
+  expect(readFileSync(resolve(import.meta.dirname, '../overview.vue'), 'utf8')).toContain("request<VendorOverview>('overview', { query: { source: 'all' } })")
   const list = await page('operations/index.vue', { items: [operation], total: 1 })
   expect(list.request).toHaveBeenCalledWith('operations', expect.objectContaining({ query: expect.objectContaining({ source: 'all' }) }))
   expect(list.keys[0]).toContain(':all:')
@@ -142,6 +143,8 @@ it('filters the operation list by status and installation from the URL and shows
   const list = await page('operations/index.vue', { items: [operation], total: 1 }, undefined, { tenant_id: 'tenant-id', status: 'attention', page: '2' })
   expect(list.request).toHaveBeenCalledWith('operations', { query: { source: 'all', tenant_id: 'tenant-id', status: 'attention', page: 2 } })
   expect(list.keys[0]).toBe('vendor:operations:all:tenant-id:attention:2')
+  // The chosen workspace is read by its id: no page of workspaces is loaded for the filter.
+  expect(list.request.mock.calls.some(([path]) => path === 'tenants')).toBe(false)
   expect(list.state.tenantName('tenant-id')).toBe('Acme'); expect(list.state.tenantName('other-id')).toBe('other-id')
   expect(list.state.tenantItems.value.map((item: { value: string }) => item.value)).toEqual(['all', 'tenant-id'])
   expect(list.state.filtered.value).toBe(true)
@@ -151,8 +154,27 @@ it('filters the operation list by status and installation from the URL and shows
 it('keeps an unknown installation id selectable and ignores an invalid status', async () => {
   const list = await page('operations/index.vue', { items: [], total: 0 }, undefined, { tenant_id: 'gone-id', status: 'bogus' })
   expect(list.request).toHaveBeenCalledWith('operations', { query: { source: 'all', tenant_id: 'gone-id', status: undefined, page: undefined } })
-  expect(list.state.tenantItems.value.map((item: { value: string }) => item.value)).toEqual(['all', 'gone-id', 'tenant-id'])
+  expect(list.state.tenantItems.value.map((item: { value: string }) => item.value)).toEqual(['all', 'gone-id'])
   expect(list.state.status.value).toBe('all')
+})
+
+it('asks the server for workspaces by the typed text, only once the picker is opened or typed into', async () => {
+  const list = await page('operations/index.vue', { items: [], total: 0 })
+  expect(list.request.mock.calls.some(([path]) => path === 'tenants')).toBe(false)
+  await list.state.searchTenants()
+  expect(list.request).toHaveBeenCalledWith('tenants', { query: { q: undefined } })
+  expect(list.state.tenantItems.value.map((item: { value: string }) => item.value)).toEqual(['all', 'tenant-id'])
+  list.state.tenantSearch.value = ' acm '
+  await new Promise(resolve => setTimeout(resolve, 400))
+  expect(list.request).toHaveBeenLastCalledWith('tenants', { query: { q: 'acm' } })
+})
+
+it('keeps the chosen workspace in the picker while another search is shown, and says when the search failed', async () => {
+  const list = await page('operations/index.vue', { items: [], total: 0 }, undefined, { tenant_id: 'tenant-id' })
+  list.request.mockImplementation(async (path: string) => { if (path === 'tenants') throw { statusCode: 503 }; return {} })
+  await list.state.searchTenants()
+  expect(list.state.tenantItems.value.map((item: { value: string }) => item.value)).toEqual(['all', 'tenant-id'])
+  expect(list.state.tenantsFailed.value).toBe(true)
 })
 
 it('writes operation filters to the URL and resets the page', async () => {
@@ -188,7 +210,7 @@ it('offers the create action to tenant managers only', async () => {
 it('links an operation to its customer, else to the workspace page, and shows the workspace name', async () => {
   const owned = { ...operation, tenant_name: 'Acme Workspace', customer_id: 'cust-1' }
   const list = await page('operations/index.vue', { items: [owned, { ...operation, id: 'job-2', tenant_name: null, customer_id: null }], total: 2 })
-  expect(list.state.targetName(owned)).toBe('Acme Workspace'); expect(list.state.targetName({ ...operation, tenant_name: null })).toBe('Acme')
+  expect(list.state.targetName(owned)).toBe('Acme Workspace'); expect(list.state.targetName({ ...operation, tenant_name: null })).toBe(operation.tenant_id)
   expect(operationTargetTo(owned)).toEqual({ path: '/customers/cust-1', query: { tab: 'operations' } })
   expect(operationTargetTo({ tenant_id: 'tenant id', customer_id: null })).toEqual({ path: '/tenants/tenant%20id' })
   const detail = await page('operations/[id].vue', owned, 'shared')

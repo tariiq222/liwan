@@ -56,7 +56,7 @@ LAYER_COMPONENTS = frozenset(
     + ['shell/' + name + '.vue' for name in ('ShellAppTile', 'ShellBreadcrumb', 'ShellCoreApps', 'ShellFrame', 'ShellNavRow', 'ShellNavSection', 'ShellOrgCard', 'ShellPanelRow', 'ShellPanelStatus', 'ShellSidebar', 'ShellSlideOver', 'ShellTabBar', 'ShellTip', 'ShellToolButton', 'ShellTopBar')]
 )
 # Billing presentation shared by the customer subscription pages and the vendor console (@liwan/commercial-ui).
-COMMERCIAL_LAYER_COMPONENTS = frozenset(('shared/commerce/PriceBreakdown.vue', 'shared/data/InvoiceLines.vue'))
+COMMERCIAL_LAYER_COMPONENTS = frozenset(('shared/commerce/PriceBreakdown.vue', 'shared/data/InvoiceLines.vue', 'shared/data/InvoiceDocument.vue'))
 
 
 def component_file(relative: str) -> str:
@@ -130,7 +130,7 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'subscription/BranchSummary.vue', 'subscription/TrialEndPanel.vue',
     'shared/data/ChartPanel.vue', 'shared/layout/DashboardPage.vue',
     'shared/layout/TimelineFrame.vue', 'shared/layout/TimelineControls.vue', 'shared/layout/ConversationLayout.vue',
-    'shared/data/InvoiceLines.vue', 'shared/data/PersonAvatar.vue', 'pmo/tasks/TaskKpiStrip.vue', 'pmo/projects/ProjectKpiStrip.vue',
+    'shared/data/InvoiceLines.vue', 'shared/data/InvoiceDocument.vue', 'shared/data/PersonAvatar.vue', 'pmo/tasks/TaskKpiStrip.vue', 'pmo/projects/ProjectKpiStrip.vue',
     'settings/SettingsPreviewCard.vue', 'settings/SettingsPreviewList.vue', 'settings/SettingsPreviewRow.vue', 'settings/IntegrationConnectionsCard.vue', 'settings/IntegrationProvidersCard.vue', 'settings/IntegrationConnectionForm.vue', 'settings/IntegrationConnectionDetails.vue', 'settings/IntegrationProviderGuide.vue', 'settings/CommunicationSendersCard.vue', 'settings/CommunicationSenderForm.vue', 'settings/CommunicationLimitCard.vue', 'settings/CommunicationTestCard.vue', 'settings/CommunicationLogCard.vue', 'settings/CommunicationMessageStatus.vue', 'settings/CommunicationVoiceTestCard.vue', 'settings/CommunicationCallStatus.vue', 'settings/CommunicationCallLogCard.vue', 'settings/CommunicationLookupCard.vue', 'settings/TenantExportPanel.vue', 'finance/governance/AuditPreview.vue',
     'shared/layout/SettingsCard.vue', 'shared/layout/SettingRow.vue', 'shared/layout/SettingsSection.vue', 'shared/form/OptionCards.vue', 'shared/layout/SettingsList.vue', 'shared/layout/SettingsListRow.vue', 'shared/layout/SettingsSaveBar.vue',
     'shared/layout/SubCard.vue', 'shared/layout/KpiStrip.vue', 'shared/data/Progress.vue', 'shared/layout/LinkCard.vue', 'shared/layout/IdentityCard.vue', 'shared/layout/HeaderTags.vue',

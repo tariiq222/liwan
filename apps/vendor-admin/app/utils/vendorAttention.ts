@@ -1,10 +1,11 @@
 import type { AttentionItem, AttentionKind } from '@liwan/commercial-contracts'
 import type { StatusTone } from '@liwan/ui/app/utils/statusTone'
+import { clientTab, CUSTOMER_TABS, type ClientTab } from './vendorClients'
 
 /** One count of the overview status strip; `to` opens the list it counts. */
 export type StatusStat = { id: string, label: string, value: number, to?: string }
 export type AttentionLink = { path: string, query?: Record<string, string> }
-export type AttentionPresentation = { to: AttentionLink | null, tone: StatusTone, icon: `i-lucide-${string}`, actionKey: string }
+export type AttentionPresentation = { to: AttentionLink | null, tone: StatusTone, icon: `i-lucide-${string}`, actionKey: string | null }
 
 const DAY_MS = 86_400_000
 /** The audit action the control plane writes for a paid payment the provider reported that nothing could settle. */
@@ -74,11 +75,23 @@ export function attentionPresentation(item: AttentionItem): AttentionPresentatio
       return item.customer_id
         ? { to: customerTab(item, 'invoices'), tone: 'destructive', icon: 'i-lucide-credit-card', actionKey: action(item.kind) }
         : { to: { path: '/audit', query: { action: PROVIDER_PAYMENT_REJECTED_ACTION } }, tone: 'destructive', icon: 'i-lucide-credit-card', actionKey: `${action(item.kind)}_provider` }
+    case 'service_down':
+      // Read only: a service that is down has no page of its own to open.
+      return { to: null, tone: 'destructive', icon: 'i-lucide-server-off', actionKey: null }
     case 'renewal_missed':
       return { to: customerTab(item, 'subscription'), tone: 'warning', icon: 'i-lucide-calendar-x', actionKey: action(item.kind) }
     case 'renewal_soon':
       return { to: customerTab(item, 'subscription'), tone: 'info', icon: 'i-lucide-calendar-clock', actionKey: action(item.kind) }
   }
+}
+
+/** The tab of the customer page an item is resolved on (null when it opens nothing): the customer page shows the item at the top of that tab. */
+export function attentionTab(item: AttentionItem): ClientTab | null {
+  const to = attentionPresentation(item).to
+  if (!to) return null
+  if (to.path.startsWith('/invoices/')) return 'invoices'
+  if (to.path.startsWith('/operations/')) return 'operations'
+  return clientTab(to.query?.tab, CUSTOMER_TABS)
 }
 
 const FAILED_FULFILLMENT = ['failed', 'needs_intervention']
@@ -109,6 +122,7 @@ export function attentionMessage(item: AttentionItem, now: Date): { key: string,
     case 'tenant_deletion_due': return { key: 'tenant_deletion_due', days: null, operation: null }
     case 'tenant_deletion_stuck': return { key: 'tenant_deletion_stuck', days: null, operation: item.detail }
     case 'form_payment_review': return { key: 'form_payment_review', days: null, operation: item.detail }
+    case 'service_down': return { key: item.detail === 'unavailable' ? 'service_unavailable' : 'service_stale', days: null, operation: null }
     case 'renewal_missed': return { key: 'renewal_missed', days: daysSinceRenewal(item.since, now), operation: null }
     case 'renewal_soon': return { key: 'renewal_soon', days: daysUntil(item.since, now), operation: null }
   }

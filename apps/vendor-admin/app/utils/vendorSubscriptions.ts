@@ -1,7 +1,10 @@
 import type { StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
-import { riyadhDate, subscriptionDisplayState, type Adjustment, type BankTransferClaim, type Cadence, type Invoice, type InvoiceLine, type Money, type Order, type SignupAcceptance, type SubscriptionDisplayState, type SubscriptionView, type VoidBlock, type UsageMetric } from '@liwan/commercial-contracts'
-import { commercialErrorKey, commercialFailure, CURRENCY, emptyLimit, limitFromDraft, MB_PER_GB, minorToInput, normalizeDigits, parseCount, parseVendorMoneyInput, sar, type LimitDraft } from './vendorCommercial'
+import { daysBetween, riyadhDate, subscriptionDisplayState, type Adjustment, type BankTransferClaim, type Cadence, type Invoice, type InvoiceLine, type Money, type Order, type RefundRecheck, type SignupAcceptance, type StuckRefund, type SubscriptionDisplayState, type SubscriptionView, type VoidBlock, type UsageMetric } from '@liwan/commercial-contracts'
+import { commercialErrorKey, commercialFailure, CURRENCY, emptyLimit, limitFromDraft, minorToInput, normalizeDigits, parseCount, parseVendorMoneyInput, sar, type LimitDraft } from './vendorCommercial'
+import type { OwnerOnlyAccess } from './ownerOnly'
+import { MB_PER_GB } from './storage'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
+import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import { humanizeId } from '@liwan/ui/app/utils/humanizeId'
 import { invoiceLineQuantities, type InvoiceLineView } from '@liwan/commercial-ui/app/utils/invoiceLines'
 
@@ -12,12 +15,14 @@ export type VendorCustomerList = { items: VendorCustomer[]; total: number }
 /** Whether the owner may still refund this invoice's payment (only the customer's first payment, inside the window), and
  * whether recording its pending refund drops the subscription to the free base. */
 export type VendorRefundability = { refundable: boolean; first_payment: boolean; until: string | null; window_days: number; locks_subscription: boolean }
-/** The refund the system makes through the payment provider for a note the vendor requested; the server sets it only for a card payment. */
-export type VendorAutomaticRefund = { state: 'in_progress' | 'refunded_recording' | 'provider_unverified' | 'done' | 'failed'; reason: string | null }
+/** The refund the system makes through the payment provider for a note the vendor requested; the server sets it only for a card payment. `stuck` is set only while the refund row holds a mark (`refunded_recording`, `provider_unverified`): what the operator needs and the actions the server allows. */
+export type VendorAutomaticRefund = { state: 'in_progress' | 'refunded_recording' | 'provider_unverified' | 'done' | 'failed'; reason: string | null; stuck: StuckRefund | null }
 /** A credit note with what the server allows: `manual_record_allowed` is true only with no automatic refund, or one that failed with no money returned. */
 export type VendorAdjustment = Adjustment & { automatic_refund: VendorAutomaticRefund | null; manual_record_allowed: boolean }
 /** `voidable`: the unpaid renewal invoice can be voided now; `void_block`: why it cannot, when the action applies but is blocked (null with `voidable` false means it does not apply). */
 export type VendorInvoice = Invoice & { customer_name: string; adjustments: VendorAdjustment[]; bank_transfer_claim: BankTransferClaim | null; refund: VendorRefundability; voidable: boolean; void_block: VoidBlock | null }
+/** What a stuck automatic refund action answers: the invoice as it stands now, and the provider's figures when the action read them. */
+export type StuckRefundResult = { invoice: VendorInvoice; provider: RefundRecheck | null }
 export type VendorInvoiceList = { items: VendorInvoice[]; total: number; summary: { outstanding: Money[] } }
 
 // ---- Filters (URL-backed) ----
@@ -64,9 +69,9 @@ export function orderFulfillmentBadge(order: Pick<Order, 'fulfillment_state'>): 
 // ---- Branches / usage ----
 // ---- Customer glance: renewal countdown and stalled activation, matching the control plane's 24-hour threshold ----
 export const STALLED_HOURS = 24
+/** Whole calendar days from today to `isoDate`, both read in Riyadh time (the business day the control plane renews on). */
 export function daysUntilDate(isoDate: string, now: Date): number {
-  const [y, m, d] = isoDate.split('-').map(Number)
-  return Math.round((Date.UTC(y!, m! - 1, d!) - Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())) / 86_400_000)
+  return daysBetween(riyadhDate(now), isoDate)
 }
 export function isStalled(order: Order | null, now: Date): boolean {
   if (!order) return false
@@ -93,13 +98,6 @@ export function usageMetricLabel(metric: Pick<UsageMetric, 'key' | 'unit'>, t: (
   const byUnit = `vendor.customers.usage.units.${metric.unit}`
   if (te(byUnit)) return t(byUnit)
   return humanizeId(metric.key)
-}
-
-export function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  const units = ['KB', 'MB', 'GB', 'TB']; let v = bytes / 1024; let i = 0
-  while (v >= 1024 && i < units.length - 1) { v /= 1024; i++ }
-  return `${v.toFixed(v >= 10 ? 0 : 1)} ${units[i]}`
 }
 
 // ---- Invoices ----
@@ -167,21 +165,24 @@ export function parseUnitsUsed(text: string): number | null {
 export function refundErrorKey(cause: unknown): string {
   const code = commercialFailure(cause).code
   // The release-1 window rules have their own words: the vendor needs to know which one stopped the refund.
-  return ['credit_note_not_pending', 'refund_reference_in_use', 'refund_window_closed', 'refund_not_first_payment', 'units_used_required', 'ai_topup_used', 'lock_pending', 'fulfillment_pending', 'refund_in_progress', 'ai_topup_refund_mixed_order'].includes(code)
+  return ['credit_note_not_pending', 'refund_reference_in_use', 'refund_window_closed', 'refund_not_first_payment', 'units_used_required', 'ai_topup_used', 'lock_pending', 'fulfillment_pending', 'refund_in_progress', 'ai_topup_refund_mixed_order',
+    'refund_not_stuck', 'provider_status_unverified', 'provider_refund_unavailable', 'provider_refund_amount_unverified', 'provider_refund_partial', 'refund_attempt_too_recent', 'refund_attempt_unavailable',
+    'refund_over_credit', 'refund_not_duplicate', 'refund_note_unavailable'].includes(code)
     ? `vendor.invoices.refund.errors.${code}` : commercialErrorKey(cause)
 }
 
 // ---- Void of an unpaid renewal invoice ----
-export type VoidAction = { kind: 'hidden' } | { kind: 'available' } | { kind: 'blocked'; block: VoidBlock }
+export type VoidAction = { kind: 'hidden' } | { kind: 'available' } | { kind: 'blocked'; block: VoidBlock } | { kind: 'ownerOnly' }
 /**
  * What the invoice page shows for voiding an unpaid renewal invoice. The server decides whether it applies (`voidable`, `void_block`);
- * the page adds only who may ask (both grants the route needs) and that it never sits beside a refund: an invoice with a refund note
+ * the page adds only who may ask (both grants the route needs; an account holding one of them is told the platform owner voids) and that it never sits beside a refund: an invoice with a refund note
  * has had money move, so voiding it is not offered. A paid invoice is refunded, never voided, so the two actions cover different statuses.
  */
-export function voidAction(invoice: Pick<VendorInvoice, 'status' | 'kind' | 'voidable' | 'void_block'> & { adjustments: Pick<Adjustment, 'status'>[] }, granted: boolean): VoidAction {
-  if (!granted || invoice.status !== 'issued' || invoice.kind !== 'renewal' || invoice.adjustments.some(note => note.status !== 'void')) return { kind: 'hidden' }
-  if (invoice.void_block) return { kind: 'blocked', block: invoice.void_block }
-  return invoice.voidable ? { kind: 'available' } : { kind: 'hidden' }
+export function voidAction(invoice: Pick<VendorInvoice, 'status' | 'kind' | 'voidable' | 'void_block'> & { adjustments: Pick<Adjustment, 'status'>[] }, access: OwnerOnlyAccess): VoidAction {
+  if (access === 'none' || invoice.status !== 'issued' || invoice.kind !== 'renewal' || invoice.adjustments.some(note => note.status !== 'void')) return { kind: 'hidden' }
+  if (!invoice.void_block && !invoice.voidable) return { kind: 'hidden' }
+  if (access === 'partial') return { kind: 'ownerOnly' }
+  return invoice.void_block ? { kind: 'blocked', block: invoice.void_block } : { kind: 'available' }
 }
 /** The vendor chooses what happens to the subscription and states why; the reason is bounded like the server's contract. */
 export const validVoidDraft = (d: { outcome: string; reason: string }) => (d.outcome === 'end' || d.outcome === 'rebill') && validRefundReason(d.reason)
@@ -315,9 +316,12 @@ export function customersReturnTo(value: unknown): string {
   if (typeof value !== 'string' || !value.startsWith('/customers')) return '/customers'
   try { const u = new URL(value, 'http://liwan.local'); return u.pathname.replace(/\/$/, '') === '/customers' ? `${u.pathname}${u.search}` : '/customers' } catch { return '/customers' }
 }
+/** A draft has no number and is never printed; every other invoice has the document the customer prints. */
+export const invoicePrintable = (invoice: { status: string; number: string | null }): boolean => invoice.status !== 'draft' && invoice.number !== null
+
+/** An invoice goes back to the invoice list or to the customer it was opened from (its invoices tab), never to another page or origin. */
 export function invoicesReturnTo(value: unknown): string {
-  if (typeof value !== 'string' || !value.startsWith('/invoices')) return '/invoices'
-  try { const u = new URL(value, 'http://liwan.local'); return u.pathname.replace(/\/$/, '') === '/invoices' ? `${u.pathname}${u.search}` : '/invoices' } catch { return '/invoices' }
+  return safeReturnTo(value, '/invoices', ['/invoices', '/customers'])
 }
 
 /** Cancellation errors remain actionable without displaying provider internals. */

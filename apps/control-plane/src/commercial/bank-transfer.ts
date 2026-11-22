@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { z } from 'zod'
 import { transaction } from '../db.js'
-import { bankTransferClaimRequestSchema, riyadhDate, type BankTransferClaim, type BankTransferClaimRequest } from '@liwan/commercial-contracts'
+import { BUSINESS_TIME_ZONE, bankTransferClaimRequestSchema, riyadhDate, type BankTransferClaim, type BankTransferClaimRequest } from '@liwan/commercial-contracts'
 import { CommercialHttpError } from './lifecycle.js'
 import { closeOtherAttempts, settleAttemptIn } from './payments.js'
 import { enqueueOutbox } from './outbox.js'
@@ -74,7 +74,7 @@ function assertValueDateForInvoice(value: string, today: string, invoice?: Recor
  * date would produce a different instant (and a different refund-window day) depending on the client. Noon Riyadh is
  * used because it is unambiguously inside the intended calendar day in every timezone.
  */
-const RIYADH_SUCCEEDED_AT = (param: string) => `((${param}::timestamp + time '12:00') AT TIME ZONE 'Asia/Riyadh')`
+const RIYADH_SUCCEEDED_AT = (param: string) => `((${param}::timestamp + time '12:00') AT TIME ZONE '${BUSINESS_TIME_ZONE}')`
 
 /**
  * Records that the vendor received one bank transfer for one issued invoice, and settles it in the SAME transaction

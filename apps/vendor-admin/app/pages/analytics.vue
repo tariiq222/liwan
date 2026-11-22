@@ -2,6 +2,7 @@
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import type { RankedRow } from '@/components/analytics/RankedList.vue'
 import { usageMetricLabel } from '@/utils/vendorSubscriptions'
+import { downloadCsv } from '@/utils/csv'
 import { figureNumber, formatFigure, HEADLINE_IDS, KPIS, periodFromQuery, presetRange, riyadhToday, toCsv, type KpiGroup, type PeriodChoice } from '@/utils/vendorAnalytics'
 definePageMeta({ capability: 'vendor.billing.manage' })
 const { t, te, locale } = useI18n()
@@ -84,10 +85,7 @@ function exportCsv() {
     return { section: t(`analytics.groups.${spec.group}`), metric: label(spec.id), current: text(spec.pick(current.current)), previous: text(spec.pick(current.previous)) }
   })
   const header = [t('analytics.csv.section'), t('analytics.csv.metric'), `${t('analytics.csv.current')} ${current.period.from}..${current.period.to}`, `${t('analytics.csv.previous')} ${current.previous_period.from}..${current.previous_period.to}`]
-  const url = URL.createObjectURL(new Blob([toCsv(header, rows)], { type: 'text/csv;charset=utf-8' }))
-  const link = Object.assign(document.createElement('a'), { href: url, download: `liwan-analytics-${current.period.from}_${current.period.to}.csv` })
-  link.click()
-  URL.revokeObjectURL(url)
+  downloadCsv(`liwan-analytics-${current.period.from}_${current.period.to}.csv`, toCsv(header, rows))
 }
 </script>
 

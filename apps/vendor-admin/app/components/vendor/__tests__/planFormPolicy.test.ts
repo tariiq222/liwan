@@ -4,6 +4,8 @@ import * as selection from '../policySelection'
 
 const { approvedPolicies, defaultPolicyId, policyOptions } = selection
 import type { PricingPolicyView } from '../../../composables/useVendorCommercial'
+import { latinDigits } from '../../../utils/digits'
+import { MB_PER_GB } from '../../../utils/storage'
 import * as commercial from '../../../utils/vendorCommercial'
 import { handleCommercial } from '../../../../e2e/commercial-mock-routes.mjs'
 import { loadSfc } from '../../__tests__/sfc'
@@ -31,7 +33,7 @@ const savedPlan = (policyId: string) => ({
 
 const useI18n = () => ({ t: (key: string, params?: Record<string, unknown>) => (params ? `${key}:${JSON.stringify(params)}` : key), locale: Vue.ref('en') })
 // The form's auto-imported helpers, handed to the SFC harness as the app's own Nuxt import resolver would.
-const form = () => loadSfc('components/vendor/PlanForm.vue', { useI18n, useHydrated: () => Vue.ref(true), ...commercial, ...selection })
+const form = () => loadSfc('components/vendor/PlanForm.vue', { useI18n, useHydrated: () => Vue.ref(true), latinDigits, MB_PER_GB, ...commercial, ...selection })
 
 /** Mounts the form's setup() and fills every required value except the policy under test, field by field as the vendor would. */
 function fillDraft(draft: any) {
@@ -283,5 +285,24 @@ describe('the three storage step inputs', () => {
     expect(wrapper.attrs.error).toBe(`vendor.pricing.errors.${code}`)
     // Only the named input carries it.
     for (const other of [STEP, THRESHOLD, LARGE].filter(l => l !== label)) expect(field((await m.render()).captured, other).wrapper.attrs.error, other).toBeUndefined()
+  })
+})
+
+describe('plan form number fields', () => {
+  it('refuses zero included users with a field error instead of letting the payload builder throw', () => {
+    const emit = vi.fn()
+    const setup = filledSetup({ bundles: [], policies: [noTax] }, emit)
+    setup.draft.included_users = '0'
+    setup.attempted.value = true
+    expect(setup.errors.value.includedUsers).toBe('vendor.pricing.plan.usersRequired')
+    setup.submit()
+    expect(emit).not.toHaveBeenCalled()
+  })
+  it('accepts an AI limit typed with Arabic-Indic digits, as the payload builder does', () => {
+    const setup = filledSetup({ bundles: [], policies: [noTax] })
+    setup.draft.ai_limits['ai.messages.monthly'] = { mode: 'number', value: '٥٠٠' }
+    expect(setup.errors.value['ai_ai.messages.monthly']).toBeUndefined()
+    setup.draft.ai_limits['ai.messages.monthly'] = { mode: 'number', value: 'abc' }
+    expect(setup.errors.value['ai_ai.messages.monthly']).toBe('vendor.pricing.plan.aiLimitInvalid')
   })
 })

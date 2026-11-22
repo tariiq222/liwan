@@ -86,6 +86,28 @@ describe.skipIf(!url)('audit filters on PostgreSQL', () => {
     }
   })
 
+  it('names invoices, adjustments, subscriptions and shared jobs and says which customer and invoice they belong to', async () => {
+    const [invoice, note, jobId, order, revision, rec] = [randomUUID(), randomUUID(), randomUUID(), randomUUID(), randomUUID(), randomUUID()]
+    await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$2,$2,$2,false,1)', [tenant, `t${rec.slice(0, 8)}`])
+    await pool.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,2,$3,$4)', [revision, subscription, '{}', randomUUID()])
+    await pool.query("INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,payment_state,fulfillment_state,idempotency_key,request_digest,due_now_minor,currency,exponent) VALUES($1,$2,$3,'new',$4,$5,'paid','applied',$6,'d',0,'SAR',2)", [order, customer, subscription, randomUUID(), revision, randomUUID()])
+    await pool.query("INSERT INTO invoices(id,number,customer_id,subscription_id,order_id,kind,status,currency,exponent,subtotal_minor,tax_minor,total_minor,period_start,period_end,due_at) VALUES($1,'INV-2026-0042',$2,$3,$4,'initial','paid','SAR',2,100,15,115,'2026-01-01','2026-02-01',now())", [invoice, customer, subscription, order])
+    await pool.query("INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,created_by,origin,cause) VALUES($1,$2,$3,'credit_note','fixture',115,'SAR',2,'test','vendor','vendor_refund')", [note, invoice, customer])
+    await pool.query("INSERT INTO shared_jobs(id,control_tenant_id,business_key,payload,payload_digest,issuer,actor_uid,reason) VALUES($1::uuid,$2,$1::text,$3,$4,'t',7,'r')", [jobId, tenant, { operation: 'backup' }, 'a'.repeat(64)])
+    for (const [action, subject] of [['invoice.voided', invoice], ['invoice.credit_refunded', note], ['shared_job.abandoned', jobId]] as const) await event('operator', action, subject, `named ${action}`, '2026-10-12T08:00:00Z')
+    try {
+      const refs = Object.fromEntries((await listAudit(pool, { from: '2026-10-12', to: '2026-10-12' })).items.map(item => [item.action, item.subject_ref]))
+      expect(refs['invoice.voided']).toEqual({ kind: 'invoice', name: 'INV-2026-0042', customer_id: customer, tenant_id: tenant, invoice_id: invoice })
+      expect(refs['invoice.credit_refunded']).toEqual({ kind: 'adjustment', name: 'INV-2026-0042', customer_id: customer, tenant_id: tenant, invoice_id: invoice })
+      expect(refs['shared_job.abandoned']).toEqual({ kind: 'shared_job', name: 'backup · Acme Workspace', customer_id: customer, tenant_id: tenant, invoice_id: null })
+      expect(auditListSchema.parse(await listAudit(pool, { from: '2026-10-12', to: '2026-10-12' })).items).toHaveLength(3)
+      expect((await ids({ customer_id: customer, from: '2026-10-12', to: '2026-10-12' })).sort()).toEqual(['named invoice.credit_refunded', 'named invoice.voided', 'named shared_job.abandoned'])
+    } finally {
+      await pool.query("DELETE FROM audit_events WHERE created_at='2026-10-12T08:00:00Z'")
+      await pool.query('TRUNCATE shared_jobs, invoice_adjustments, invoices, orders, shared_registry_bindings CASCADE')
+    }
+  })
+
   it('lists newest first, valid against the contract, with resolved names', async () => {
     const result = auditListSchema.parse(await listAudit(pool, {}))
     expect(result.total).toBe(9)
@@ -93,7 +115,7 @@ describe.skipIf(!url)('audit filters on PostgreSQL', () => {
     const registered = result.items.find(item => item.reason === 'registered workspace')!
     expect(registered).toMatchObject({ actor_name: 'Layla Operator', subject_ref: { kind: 'tenant', name: 'Acme Workspace', customer_id: customer, tenant_id: tenant } })
     expect(result.items.find(item => item.reason === 'terms for the customer')!.subject_ref).toMatchObject({ kind: 'customer', name: 'Acme Trading', customer_id: customer })
-    expect(result.items.find(item => item.reason === 'accepted a_b%')!.subject_ref).toMatchObject({ kind: 'other', name: null, customer_id: null })
+    expect(result.items.find(item => item.reason === 'accepted a_b%')!.subject_ref).toMatchObject({ kind: 'subscription', name: 'Acme Trading', customer_id: customer, tenant_id: tenant })
     expect(result.items.find(item => item.reason === 'registered lonely')!.subject_ref).toMatchObject({ kind: 'tenant', customer_id: null, tenant_id: orphanTenant })
     expect(result.items.find(item => item.reason === 'bad password')!).toMatchObject({ actor_name: null, subject_ref: { kind: 'account', name: 'Layla Operator' } })
   })

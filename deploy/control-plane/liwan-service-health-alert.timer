@@ -1,0 +1,12 @@
+# Starts liwan-service-health-alert.service every minute. A worker is called stale after two minutes without a beat, so a dead
+# worker is announced within about three. See the service file for the install steps.
+[Unit]
+Description=Liwan vendor console service health alert, every minute
+
+[Timer]
+OnCalendar=minutely
+AccuracySec=10s
+Unit=liwan-service-health-alert.service
+
+[Install]
+WantedBy=timers.target

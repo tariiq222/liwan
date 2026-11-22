@@ -6,6 +6,8 @@ import * as Vue from 'vue'
 import ts from 'typescript'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as subscriptions from '../../utils/vendorSubscriptions'
+import * as ownerOnly from '../../utils/ownerOnly'
+import * as stuckRefund from '../../utils/stuckRefund'
 import * as deletionUtils from '../../utils/vendorDeletion'
 import * as commercial from '../../utils/vendorCommercial'
 import * as clients from '../../utils/vendorClients'
@@ -13,7 +15,7 @@ import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBad
 import { cadenceLabel, formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { adjustmentStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge } from '../../utils/vendorBadges'
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
-import { formatLiwanDate, formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
+import { formatBusinessDate, formatBusinessDateTime } from '../../utils/vendorTime'
 
 const transpile = (s: string) => ts.transpileModule(s, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None } }).outputText
 const stripImports = (s: string) => s.replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '')
@@ -51,9 +53,9 @@ async function page(name: string, options: { path?: string; tab?: string; tenant
   const hydrated = Vue.ref(options.hydrated ?? true)
   const slots = new Map<string, unknown>()
   const bindings = {
-    formatLiwanDate, formatLiwanDateTime,
+    formatBusinessDate, formatBusinessDateTime,
     invoiceStatusBadge, adjustmentStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge, formatCommercialMoney, cadenceLabel,
-    ...subscriptions, ...deletionUtils, ...commercial, ...clients, _defineComponent: Vue.defineComponent, _withAsyncContext: (fn: () => unknown) => [fn(), () => {}],
+    ...subscriptions, ...ownerOnly, ...stuckRefund, ...deletionUtils, ...commercial, ...clients, _defineComponent: Vue.defineComponent, _withAsyncContext: (fn: () => unknown) => [fn(), () => {}],
     computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, reactive: Vue.reactive, onMounted: () => {}, onBeforeUnmount: () => {}, safeReturnTo, sharedTenantLoginUrl: () => null, buildVendorPolicy: () => ({}),
     definePageMeta: () => {}, useHydrated: () => hydrated,
     useI18n: () => ({ t: (key: string) => key, locale: Vue.ref('en') }),
@@ -265,12 +267,12 @@ describe('customer detail repairs', () => {
 })
 
 describe('invoice payment attempts', () => {
-  it('renders actual status, amount and time without provider secrets', async () => {
+  it('renders actual status, amount, time and the provider reference, never the payment link', async () => {
     const p = await page('invoices/[id].vue')
     expect(p.api.paymentAttempts).toHaveBeenCalledWith(order.id)
     const { html } = await p.rendered()
     expect(html).toContain('vendor.invoices.attemptStatus.pending'); expect(html).toContain('123.45'); expect(html).toContain('2026')
-    expect(html).not.toContain('vendor.invoices.attemptsNone'); expect(html).not.toContain('private-provider'); expect(html).not.toContain('private.example')
+    expect(html).not.toContain('vendor.invoices.attemptsNone'); expect(html).toContain('private-provider-reference'); expect(html).not.toContain('private.example')
   })
   it('shows true empty, loading and retryable error separately', async () => {
     const empty = await page('invoices/[id].vue', { attempts: [] })

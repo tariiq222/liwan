@@ -8,6 +8,7 @@ import { customerHttp, type PaymentRuntime } from './commercial/customer-http.js
 import { returnOriginFromEnv } from './commercial/return-origin.js'
 import { routesB, paymentEventsHttp } from './commercial/routes-b.js'
 import { paymentAdapterFromEnv } from './commercial/payment-adapter.js'
+import { expectBeats, readHealth, recordAvailability } from './service-health.js'
 import { CommercialHttpError } from './commercial/lifecycle.js'
 import { invitationPublicHttp, invitationVendorHttp, REISSUE_PATH, verifiedReissueContext } from './commercial/invitation-http.js'
 import { FIND_WORKSPACE_BODY_LIMIT, FIND_WORKSPACE_PATH, workspaceLookupHandler } from './commercial/workspace-lookup-http.js'
@@ -340,11 +341,21 @@ function vendorClientAddress(headers: IncomingHttpHeaders): string | undefined {
   return typeof claimed === 'string' && isIP(claimed) ? claimed : undefined
 }
 
+/** The health of the services for the overview: the reasons only for who may run operations, and null when the table cannot be read (the overview never fails because of health). */
+async function overviewHealth(pool: Pool, auth: { capabilities: VendorCapability[] }) {
+  try { return await readHealth(pool, { includeDetail: auth.capabilities.includes('vendor.operations.run') }) }
+  catch (e) { console.error('service health unreadable: %s', logText(e)); return null }
+}
+
 export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; cert: Buffer } }, deps?: { webauthn?: WebAuthnLib; humanCheck?: HumanCheck }) {
   // Dedicated: the first LIWAN_PAYMENT_RETURN_ORIGINS entry. Shared: each customer's own tenant host, checked against that allowlist.
   const paymentRuntime: PaymentRuntime = {adapter:null,returnOrigin:returnOriginFromEnv(pool,process.env)}
   // Payment routes fail closed without an adapter; the other routes stay available. The reason is logged, never the secret.
-  try { paymentRuntime.adapter=paymentAdapterFromEnv(process.env) } catch (e) { console.error('commercial payment adapter unavailable: %s', logText(e)) }
+  const startedAt = new Date()
+  try { paymentRuntime.adapter=paymentAdapterFromEnv(process.env); void recordAvailability(pool, 'api_payment_adapter', { startedAt }) } catch (e) { console.error('commercial payment adapter unavailable: %s', logText(e)); void recordAvailability(pool, 'api_payment_adapter', { startedAt, error: e }) }
+  // In shared mode the worker and its scheduler are part of the product: say so at start, so that a worker that never starts is stale and alerted on.
+  // The mode alone decides, not a readable runtime config: a worker that cannot start because of its config is the very case to alert on.
+  if (process.env.LIWAN_TENANCY_MODE === 'shared') void expectBeats(pool, ['shared_worker', 'commercial_scheduler'])
   // Password setting runs in control-worker (the only Docker-capable process); unset channel = acceptance fails closed.
   const effect = config.internalEffect
   const setPassword: SetPassword | undefined = process.env.LIWAN_TENANCY_MODE === 'shared' && effect?.url && effect.ca
@@ -551,9 +562,10 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       if (method === 'GET' && pathname === '/v1/context') return respond(res, 200, { enabled: true, capabilities: auth.capabilities, shared_onboarding_enabled: await sharedOnboardingEnabled(config) })
       if (method === 'GET' && pathname === '/v1/overview') {
         requireCapability(auth, 'vendor.read')
-        if (operationSource(url, ['legacy', 'all']) === 'all') return respond(res, 200, await allOperationCounts(pool))
+        const health = await overviewHealth(pool, auth)
+        if (operationSource(url, ['legacy', 'all']) === 'all') return respond(res, 200, { ...await allOperationCounts(pool), health })
         const counts = await pool.query(`SELECT (SELECT count(*)::int FROM tenants) AS tenants, (SELECT count(*)::int FROM tenants WHERE status='active') AS active, (SELECT count(*)::int FROM operations WHERE status=ANY($1)) AS pending_operations, (SELECT count(*)::int FROM operations WHERE status=ANY($2)) AS failed_operations, (SELECT max(health_checked_at) FROM tenants) AS last_health_at`, [operationStatusesOf('pending'), operationStatusesOf('attention')])
-        return respond(res, 200, counts.rows[0])
+        return respond(res, 200, { ...counts.rows[0], health })
       }
       if (method === 'GET' && pathname === '/v1/targets') {
         requireCapability(auth, 'vendor.tenants.manage')
@@ -721,7 +733,7 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
     } catch (error) {
       const known = error instanceof Error && ['shared_job_unavailable','shared_backup_unavailable','shared_restore_approval_unavailable','shared_artifact_mismatch','shared_job_forbidden','tenant_operations_unavailable','restore_target_reserved','shared_replay_forbidden','shared_onboarding_forbidden','idempotency_conflict','published_catalog_missing','catalog_tier_missing','shared_adapter_unavailable','shared_onboarding_missing','shared_job_not_recoverable','shared_job_not_abandonable','shared_reconciliation_required','tenant_unavailable'].includes(error.message) ? new ApiError(error.message.endsWith('forbidden') ? 403 : error.message === 'shared_adapter_unavailable' ? 503 : error.message === 'shared_onboarding_missing' ? 404 : 409,error.message,'Shared onboarding request rejected') : null
       const failure = error instanceof UnsupportedRecoveryOperation || error instanceof UnsupportedAbandonOperation ? new ApiError(409, error.message, error.detail) : known ?? (error instanceof PackageError ? new ApiError(error.status,error.code,error.detail??'Package request rejected',error.field) : error instanceof z.ZodError ? new ApiError(422,'invalid','Invalid request body',String(error.issues[0]?.path[0]??'body')) : error instanceof ApiError ? error : error instanceof RegistryError ? new ApiError(error.status, error.code, 'Registry operation rejected') : new ApiError(503, 'service_unavailable', 'Control service is unavailable'))
-      if (error instanceof CommercialHttpError) return respond(res, error.status, { code: error.code, message: error.code, ...(error.field ? { field: error.field } : {}), ...(error.issues.length ? { issues: error.issues } : {}) })
+      if (error instanceof CommercialHttpError) return respond(res, error.status, { code: error.code, message: error.code, ...(error.field ? { field: error.field } : {}), ...(error.issues.length ? { issues: error.issues } : {}), ...(Object.keys(error.detail).length ? { detail: error.detail } : {}) })
       return respond(res, failure.status, { code: failure.code, message: failure.message, ...(failure.field ? { field: failure.field } : {}) })
     }
   }

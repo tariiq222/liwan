@@ -4,13 +4,13 @@ import { orderFulfillmentBadge, orderPaymentBadge } from '@/utils/vendorSubscrip
 import type { SubscriptionView } from '@liwan/commercial-contracts'
 import { cadenceLabel, formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { cardExpiryLabel, maskedCardNumber, savedCardState } from '@liwan/commercial-ui/app/utils/paymentMethod'
-import { formatLiwanDate } from '@liwan/ui/app/composables/calendarDate'
+import { formatBusinessDate } from '@/utils/vendorTime'
 import { subscriptionDisplayState, targetStatus } from '@/utils/vendorSubscriptions'
 const props = defineProps<{ subscription: SubscriptionView; planName?: string }>()
 const { t, locale } = useI18n()
 const display = computed(() => subscriptionDisplayState(props.subscription))
 const status = computed(() => targetStatus(props.subscription))
-const date = (value: string | null | undefined) => (value ? formatLiwanDate(value) : null)
+const date = (value: string | null | undefined) => (value ? formatBusinessDate(value) : null)
 const card = computed(() => props.subscription.auto_renew.payment_method)
 const cardState = computed(() => (card.value ? savedCardState(card.value, new Date()) : null))
 const CARD_TONE = { active: 'success', inactive: 'warning', expired: 'destructive' } as const

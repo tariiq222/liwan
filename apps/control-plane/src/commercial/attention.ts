@@ -1,15 +1,16 @@
 import type { Pool } from 'pg'
-import { ATTENTION_LIMIT, attentionItemSchema, attentionSchema } from '@liwan/commercial-contracts'
+// Renewal dates are calendar dates of the business, so "today" and the renewal instant are read in its zone, never the session's.
+import { ATTENTION_LIMIT, attentionItemSchema, attentionSchema, BUSINESS_TIME_ZONE } from '@liwan/commercial-contracts'
 import { creditedMinorSql } from './refund-credit.js'
 import { holdsFreeBaseLockSql, owesAtRenewalSql } from './free-base.js'
 import { tenantStatusSql } from './suspension.js'
+import { downComponents } from '../service-health.js'
+import { logText } from '../log-text.js'
 
 export const RENEWAL_WINDOW_DAYS = 7
 export const STALLED_HOURS = 24
 /** Two normal lapse scans without a state change. */
 const TRIAL_END_OVERDUE_MINUTES = 10
-/** Renewal dates are calendar dates of the business, so "today" and the renewal instant are read in this zone, never the session's. */
-export const BUSINESS_TIME_ZONE = 'Asia/Riyadh'
 
 const businessToday = `(now() AT TIME ZONE '${BUSINESS_TIME_ZONE}')::date`
 const renewalInstant = `(renewal_at::timestamp AT TIME ZONE '${BUSINESS_TIME_ZONE}')`
@@ -246,22 +247,30 @@ const countsSql = `SELECT
   (SELECT count(*)::int FROM customers c LEFT JOIN subscriptions s ON s.customer_id=c.id WHERE c.commercial_setup_required OR s.id IS NULL) AS setup_required,
   (SELECT count(*)::int FROM (SELECT s.*, ${renewalSkipped} AS renewal_skipped FROM subscriptions s) s WHERE ${renewalDue}) AS renewals`
 
-/** GET /v1/commercial/attention (vendor.read): a bounded, prioritized list of what needs the vendor today. Overdue invoices, refunds, claimed transfers, card payment review and saved-card refusals are billing detail: only `includeBilling` callers get them. */
-export async function attention(pool: Pool, includeBilling: boolean) {
+/** A service that is stale or unavailable, one item each and ahead of everything else: no customer is involved, `name` is the component and `detail` its state. The health table being unreadable lists none: the attention list never fails because of health. */
+async function serviceDownItems(pool: Pick<Pool, 'query'>) {
+  try {
+    return (await downComponents(pool)).map(d => attentionItemSchema.parse({ kind: 'service_down', customer_id: null, tenant_id: null, operation_id: null, invoice_id: null, name: d.component, since: d.state === 'stale' ? d.last_beat_at : d.since, detail: d.state }))
+  } catch (e) { console.error('service health unreadable: %s', logText(e)); return [] }
+}
+
+/** GET /v1/commercial/attention (vendor.read): a bounded, prioritized list of what needs the vendor today; `customer_id` limits it to one customer's items (the counts stay global). Overdue invoices, refunds, claimed transfers, card payment review and saved-card refusals are billing detail: only `includeBilling` callers get them. */
+export async function attention(pool: Pool, includeBilling: boolean, customerId: string | null = null) {
   const params = [STALLED_HOURS, RENEWAL_WINDOW_DAYS, includeBilling]
-  const [list, counts] = await Promise.all([
-    pool.query(`${subjectsSql}
-      SELECT (SELECT count(*)::int FROM subjects) AS total,
+  const [services, list, counts] = await Promise.all([
+    customerId ? [] : serviceDownItems(pool),
+    pool.query(`${subjectsSql}, scoped AS (SELECT * FROM subjects WHERE $4::uuid IS NULL OR customer_id = $4::uuid)
+      SELECT (SELECT count(*)::int FROM scoped) AS total,
         COALESCE((SELECT jsonb_agg(to_jsonb(p)-'rank'-'sort_at' ORDER BY p.rank,p.sort_at,p.customer_id,p.tenant_id)
-          FROM (SELECT * FROM subjects ORDER BY rank,sort_at,customer_id,tenant_id LIMIT ${ATTENTION_LIMIT}) p),'[]'::jsonb) AS items`, params),
+          FROM (SELECT * FROM scoped ORDER BY rank,sort_at,customer_id,tenant_id LIMIT ${ATTENTION_LIMIT}) p),'[]'::jsonb) AS items`, [...params, customerId]),
     pool.query(countsSql, params),
   ])
-  return attentionSchema.parse({ items: list.rows[0].items, total: list.rows[0].total, counts: counts.rows[0] })
+  return attentionSchema.parse({ items: [...services, ...list.rows[0].items].slice(0, ATTENTION_LIMIT), total: services.length + list.rows[0].total, counts: counts.rows[0] })
 }
 
 /** Every item `attention` would list without the cap (billing items included), most urgent first: the alert scan must see what the capped list hides. */
 export async function allAttentionItems(pool: Pick<Pool, 'query'>) {
   const list = await pool.query(`${subjectsSql}
     SELECT to_jsonb(p)-'rank'-'sort_at' AS item FROM subjects p ORDER BY p.rank,p.sort_at,p.customer_id,p.tenant_id`, [STALLED_HOURS, RENEWAL_WINDOW_DAYS, true])
-  return list.rows.map(row => attentionItemSchema.parse(row.item))
+  return [...await serviceDownItems(pool), ...list.rows.map(row => attentionItemSchema.parse(row.item))]
 }

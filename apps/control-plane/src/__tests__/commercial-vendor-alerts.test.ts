@@ -4,6 +4,9 @@ import { Pool } from 'pg'
 import { setup, client, money, monthly, url } from './commercial-helpers.js'
 import { acceptQuote } from '../commercial/orders.js'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
+import { allAttentionItems } from '../commercial/attention.js'
+import { beat, recordAvailability } from '../service-health.js'
+import { backdateBeat } from './service-health-helpers.js'
 import { ALERT_BURST_LIMIT, sendVendorAlerts, VENDOR_ALERT_KIND } from '../commercial/vendor-alerts.js'
 
 const suite = url ? describe : describe.skip
@@ -102,6 +105,22 @@ suite('live PostgreSQL owner alerts', () => {
     const count = (await alerts()).length
     await run(ch)
     expect((await alerts()).length).toBe(count)
+  })
+
+  it('sends no alert for a service that is down: the host timer is the one sender, and the attention item stays', async () => {
+    await pool.query('DELETE FROM service_heartbeats')
+    try {
+      await beat(pool, 'shared_worker', { startedAt: new Date(Date.now() - 3_600_000) })
+      await backdateBeat(pool, 'shared_worker', 10 * 60_000)
+      await recordAvailability(pool, 'api_payment_adapter', { startedAt: new Date(Date.now() - 60_000), error: new Error('https://u:secret@pay.internal') })
+      expect((await allAttentionItems(pool)).filter(i => i.kind === 'service_down').map(i => i.name).sort()).toEqual(['api_payment_adapter', 'shared_worker'])
+      // Other suites may leave attention items in the shared database, so the alert job may send for those: only what concerns the down services is judged.
+      const ch = channels(); await run(ch)
+      const aboutDownService = (text: string) => ['service_down', 'shared_worker', 'api_payment_adapter', 'عامل المنصة المشتركة'].some(needle => text.includes(needle))
+      expect((await alerts()).filter(r => aboutDownService(`${r.dedupe_key} ${JSON.stringify(r.payload)}`))).toEqual([])
+      expect(ch.mails.filter(m => aboutDownService(`${m.subject} ${m.text}`))).toEqual([])
+      expect(ch.texts.filter(aboutDownService)).toEqual([])
+    } finally { await pool.query('DELETE FROM service_heartbeats') }
   })
 
   it('treats customer text as data: no markup, no extra lines, capped length', async () => {

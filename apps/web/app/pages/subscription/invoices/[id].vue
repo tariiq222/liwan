@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { useCustomerCapabilities, useSubscriptionApi } from '@/composables/useSubscription'
-import { bankTransferOutcome, formatSubscriptionMoney, invoiceWantsTransfer, refusalCode, refusalKey, riyadhToday, subscriptionInvoiceView, transferClaimState, transferNotice } from '@/utils/subscription'
+import { invoiceLinesView } from '@liwan/commercial-ui/app/utils/invoiceDocument'
+import { bankTransferOutcome, formatSubscriptionMoney, invoiceWantsTransfer, refusalCode, refusalKey, riyadhToday, transferClaimState, transferNotice } from '@/utils/subscription'
 const { t, locale } = useI18n(); const route = useRoute(); const api = useSubscriptionApi(); const { can } = useCustomerCapabilities()
 const allowed = computed(() => can('billing.read'))
 const id = computed(() => String(route.params.id ?? ''))
 // Another tenant's invoice id answers 404 from the BFF/control plane; SharedPageState shows "not found", never the data.
 const { data, error, pending, refresh } = await useAsyncData(() => `subscription:invoice:${id.value}`, () => api.invoice(id.value), { immediate: allowed.value, watch: [id] })
-const view = computed(() => data.value ? subscriptionInvoiceView(data.value, t, locale.value) : null)
+const view = computed(() => data.value ? invoiceLinesView(data.value, t, locale.value) : null)
 // Where to transfer while the invoice is unpaid. The control plane answers 409 `bank_account_unavailable` until the
 // vendor fills the account in: that is "not configured", not a failure. Any other refusal is a real error worth showing.
 const wantsTransfer = computed(() => invoiceWantsTransfer(allowed.value, data.value))

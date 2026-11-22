@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
+import { formatBusinessDateTime } from '@/utils/vendorTime'
 import { operationStatusBadge } from '@/utils/vendorBadges'
 import type { Operation as LegacyOperation, OperationFeed } from '@liwan/commercial-contracts'
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import { canPublishRestore } from '@/utils/restorePublication'
+import { ownerOnlyAccess } from '@/utils/ownerOnly'
 import { operationTargetTo } from '@/utils/vendorOperations'
 import { canAbandonJob } from '@/utils/sharedJobAbandon'
 import { canRecoverJob, recoveryTextKey } from '@/utils/sharedJobRecovery'
@@ -27,6 +28,7 @@ const publishOpen = ref(false)
 const publishReason = ref('')
 const publication = computed(() => data.value && 'restore_publication' in data.value ? data.value.restore_publication : undefined)
 const publishAllowed = computed(() => canPublishRestore(data.value, can))
+const publishOwnerOnly = computed(() => Boolean(data.value) && ownerOnlyAccess('restorePublication', can) === 'partial' && canPublishRestore(data.value, () => true))
 const abandonOpen = ref(false)
 const abandonReason = ref('')
 const abandonment = computed(() => data.value && 'abandonment' in data.value ? data.value.abandonment : null)
@@ -41,6 +43,8 @@ type ActionName = 'publish' | 'recover' | 'abandon' | 'retry'
 /** The last failed action and its cause: each section shows only its own action's error. */
 const failedAction = ref<{ action: ActionName, cause: unknown } | null>(null)
 const errorKeyOf = (action: ActionName) => (failedAction.value?.action === action ? failureKey(failedAction.value.cause, 'vendor.errors.action') : null)
+// A reason typed into a form that was closed again stays in its field but is no longer on screen, so it is not input to protect.
+const dirty = computed(() => (publishOpen.value && Boolean(publishReason.value.trim())) || (recoverOpen.value && Boolean(recoverReason.value.trim())) || (abandonOpen.value && Boolean(abandonReason.value.trim())) || Boolean(reason.value.trim()))
 const pollCount = ref(0)
 let pollTimer: ReturnType<typeof setTimeout> | undefined
 let left = false
@@ -150,6 +154,7 @@ async function retry() {
           <p role="status">{{ t(`vendor.operations.publication.states.${publication.status}`) }}</p>
           <UAlert v-if="publication.code" color="warning" :title="t(publication.code === 'commercial_reconciliation_pending' ? 'vendor.operations.publication.reconcile' : 'vendor.operations.publication.failure')" />
           <p v-if="publication.status === 'published' && publication.host"><bdi>{{ publication.host }}</bdi></p>
+          <VendorOwnerOnlyHint v-if="publishOwnerOnly" class="mt-3" action="restorePublication" />
           <UButton v-if="publishAllowed && !publishOpen" class="mt-3" :disabled="!hydrated || busy" @click="publishOpen = true">{{ t('vendor.operations.publication.action') }}</UButton>
           <SharedInlineConfirm v-if="publishOpen && publishAllowed" :title="t('vendor.operations.publication.confirm')" :confirm-label="t('vendor.operations.publication.action')" :pending="busy" :disabled="!hydrated || busy || publishReason.trim().length < 3 || publishReason.trim().length > 1000" @confirm="publishRestore" @cancel="publishOpen = false">
             <UFormField :label="t('vendor.operations.publication.reason')" class="mt-3"><UTextarea v-model="publishReason" :maxlength="1000" :disabled="busy" /></UFormField>
@@ -193,7 +198,7 @@ async function retry() {
           <ol v-if="data.events?.length" class="grid gap-3" data-testid="operation-events">
             <li v-for="(event, index) in data.events" :key="`${event.at}:${index}`" class="border-s-2 border-default ps-3">
               <p class="flex flex-wrap items-center gap-2 font-medium">{{ t(`vendor.operations.stages.${event.stage}`, event.stage) }} <SharedStatusBadge :tone="operationStatusBadge(event.status).tone" :label="operationStatusBadge(event.status).labelKey ? t(operationStatusBadge(event.status).labelKey) : event.status" /></p>
-              <time class="text-xs text-muted" :datetime="event.at">{{ formatLiwanDateTime(event.at) }}</time>
+              <time class="text-xs text-muted" :datetime="event.at">{{ formatBusinessDateTime(event.at) }}</time>
             </li>
           </ol>
           <p v-else class="text-sm text-muted">{{ t('vendor.operations.noEvents') }}</p>
@@ -215,8 +220,9 @@ async function retry() {
 
   <template #aside><SharedPropertiesPanel v-if="data">
             <SharedPropertyRow :label="t('vendor.operations.target')"><NuxtLink v-if="targetTo" :to="targetTo" class="text-primary underline" data-testid="operation-target"><bdi>{{ data.tenant_name ?? data.tenant_id }}</bdi></NuxtLink></SharedPropertyRow>
-            <SharedPropertyRow :label="t('vendor.operations.created')" :value="formatLiwanDateTime(data.created_at)" />
-            <SharedPropertyRow v-if="updatedAt" :label="t('vendor.operations.updated')" :value="formatLiwanDateTime(updatedAt)" />
+            <SharedPropertyRow :label="t('vendor.operations.created')" :value="formatBusinessDateTime(data.created_at)" />
+            <SharedPropertyRow v-if="updatedAt" :label="t('vendor.operations.updated')" :value="formatBusinessDateTime(updatedAt)" />
           </SharedPropertiesPanel></template>
 </SharedRecordPage>
+  <SharedUnsavedChanges :dirty="dirty" />
 </template>

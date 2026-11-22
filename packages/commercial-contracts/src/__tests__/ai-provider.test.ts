@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  AI_CAPABILITIES, AI_QUALITY_LEVELS, aiPriceSchema, aiProviderCurrentSchema, aiProviderModelsRequestSchema, aiProviderSaveSchema, aiProviderTestRequestSchema,
-  aiProviderTestResultSchema,
+  AI_CAPABILITIES, AI_PROVIDER_REDELIVER_REFUSALS, AI_QUALITY_LEVELS, aiPriceSchema, aiProviderCurrentSchema, aiProviderModelsRequestSchema, aiProviderRedeliveredSchema,
+  aiProviderRedeliverRequestSchema, aiProviderSaveSchema, aiProviderTestRequestSchema, aiProviderTestResultSchema,
 } from '../index'
 
 const key = 'sk-0123456789abcdef'
@@ -86,5 +86,24 @@ describe('AI provider panel contracts', () => {
     expect(aiProviderTestResultSchema.safeParse({ ok: false, code: 'stream_usage_refused' }).success).toBe(true)
     expect(aiProviderTestResultSchema.safeParse({ ok: false, code: 'unauthorized' }).success).toBe(true)
     expect(aiProviderTestResultSchema.safeParse({ ok: false, code: 'The key sk-0123 was refused' }).success).toBe(false)
+  })
+
+  it('redelivers with a reason only, and answers with the view and what was done', () => {
+    expect(aiProviderRedeliverRequestSchema.safeParse({ reason: 'File was lost' }).success).toBe(true)
+    expect(aiProviderRedeliverRequestSchema.safeParse({ reason: ' ab ' }).success).toBe(false)
+    expect(aiProviderRedeliverRequestSchema.safeParse({ reason: 'x'.repeat(1001) }).success).toBe(false)
+    expect(aiProviderRedeliverRequestSchema.safeParse({}).success).toBe(false)
+    expect(aiProviderRedeliverRequestSchema.safeParse({ reason: 'File was lost', revision: 3 }).success).toBe(false)
+    const setting = {
+      revision: 2, margin_bps: 2000, updated_at: '2026-11-06T10:00:00.000Z', updated_by: 'owner@liwan.example', delivery: 'delivered',
+      providers: { oai: { preset: 'openai', provider: 'openai', base_url: null, stream_usage: true, key: { configured: true, last4: '6789' } } },
+      models: { mid: { provider: 'oai', model: 'gpt-4o', input_price: '2.5', cached_input_price: null, output_price: '10', usage_reported: true } },
+      routes: { default: 'mid' },
+    }
+    for (const outcome of ['written', 'unchanged']) expect(aiProviderRedeliveredSchema.safeParse({ setting, outcome }).success, outcome).toBe(true)
+    expect(aiProviderRedeliveredSchema.safeParse({ setting, outcome: 'failed' }).success).toBe(false)
+    expect(aiProviderRedeliveredSchema.safeParse({ setting }).success).toBe(false)
+    expect(aiProviderRedeliveredSchema.safeParse({ setting: null, outcome: 'written' }).success).toBe(false)
+    expect(AI_PROVIDER_REDELIVER_REFUSALS).toEqual(['provider_incomplete', 'provider_file_unconfigured'])
   })
 })

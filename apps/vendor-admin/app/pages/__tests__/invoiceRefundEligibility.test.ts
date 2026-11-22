@@ -6,11 +6,13 @@ import * as Vue from 'vue'
 import ts from 'typescript'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as subscriptions from '../../utils/vendorSubscriptions'
+import * as ownerOnly from '../../utils/ownerOnly'
+import * as stuckRefund from '../../utils/stuckRefund'
 import * as commercial from '../../utils/vendorCommercial'
 import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBadges'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { adjustmentStatusBadge, paymentAttemptBadge } from '../../utils/vendorBadges'
-import { formatLiwanDate, formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
+import { formatBusinessDate, formatBusinessDateTime } from '../../utils/vendorTime'
 
 // The mounting harness of admin-repairs.test.ts: the page's SFC script and template are compiled in place, every
 // Nuxt/UI binding it resolves is injected, and the child components are shallow stubs that record their props.
@@ -62,14 +64,14 @@ async function page(options: Options = {}) {
     voidRenewalInvoice: vi.fn(async () => ({})),
   }
   const bindings = {
-    formatLiwanDate, formatLiwanDateTime, invoiceStatusBadge, adjustmentStatusBadge, paymentAttemptBadge, formatCommercialMoney,
-    ...subscriptions, ...commercial, _defineComponent: Vue.defineComponent, _withAsyncContext: (fn: () => unknown) => [fn(), () => {}],
+    formatBusinessDate, formatBusinessDateTime, invoiceStatusBadge, adjustmentStatusBadge, paymentAttemptBadge, formatCommercialMoney,
+    ...subscriptions, ...ownerOnly, ...stuckRefund, ...commercial, _defineComponent: Vue.defineComponent, _withAsyncContext: (fn: () => unknown) => [fn(), () => {}],
     computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, reactive: Vue.reactive,
     definePageMeta: () => {}, useHydrated: () => hydrated,
     useI18n: () => ({ t: (key: string) => key, locale: Vue.ref('en') }),
     useRoute: () => ({ params: { id: 'invoice1' }, path: '/invoices/invoice1', query: {} }),
     useVendorContext: () => ({ can: (grant: string) => (options.grants ?? ['vendor.read', 'vendor.billing.manage']).includes(grant) }),
-    useVendorSubscriptions: () => api,
+    useVendorSubscriptions: () => api, useCopyLink: () => ({ copy: vi.fn(), outcomeFor: () => null }),
     useAsyncData: async (key: string | (() => string), fn: () => Promise<unknown>) => {
       const data = Vue.ref<unknown>(null); const error = Vue.ref<unknown>(null); const pending = Vue.ref(false)
       const refresh = vi.fn(async () => { pending.value = true; try { data.value = await fn(); error.value = null } catch (e) { error.value = e } finally { pending.value = false } })
@@ -101,7 +103,7 @@ describe('invoice refund eligibility', () => {
     expect(html).toContain('vendor.invoices.refund.firstPayment')
     expect(html).toContain('vendor.invoices.refund.eligibilityRefundable')
     expect(captured.some(c => c.name === 'UAlert' && c.props['data-testid'] === 'refund-window' && c.props.description === 'vendor.invoices.refund.eligibilityRefundable')).toBe(true)
-    expect(p.state.refundUntil.value).toBe(formatLiwanDate(refundable.until))
+    expect(p.state.refundUntil.value).toBe(formatBusinessDate(refundable.until))
     const button = captured.find(c => c.name === 'UButton' && c.props['data-testid'] === 'record-refund-action')
     expect(button?.props.disabled).toBe(false)
     expect(html).toContain('vendor.invoices.refund.action')
@@ -500,8 +502,7 @@ describe('voiding an unpaid renewal invoice', () => {
   })
 
   it.each([
-    ['without the subscription grant', { grants: ['vendor.read', 'vendor.billing.manage'] }, {}],
-    ['without the billing grant', { grants: ['vendor.read', 'vendor.subscriptions.manage'] }, {}],
+    ['for an account with neither grant', { grants: ['vendor.read'] }, {}],
     ['on a paid invoice', {}, { status: 'paid', voidable: false }],
     ['on an invoice already void', {}, { status: 'void', voidable: false }],
     ['on an invoice that is not a renewal', {}, { kind: 'initial', voidable: false }],
@@ -510,6 +511,22 @@ describe('voiding an unpaid renewal invoice', () => {
     const { html, captured } = await (await voidPage({ ...over, invoice })).rendered()
     expect(byTestId(captured, 'void-action')).toBeUndefined()
     expect(html).not.toContain('vendor.invoices.void.title')
+  })
+
+  it.each([
+    ['the subscription grant', ['vendor.read', 'vendor.billing.manage']],
+    ['the billing grant', ['vendor.read', 'vendor.subscriptions.manage']],
+  ])('tells an account without %s that the platform owner voids, and offers no void', async (_name, grants) => {
+    const { html, captured } = await (await voidPage({ grants })).rendered()
+    expect(byTestId(captured, 'void-action')).toBeUndefined()
+    expect(captured.find(node => node.name === 'VendorOwnerOnlyHint')?.props.action).toBe('voidInvoice')
+    expect(html).toContain('vendor.invoices.void.title')
+  })
+
+  it('shows no owner-only text to an account that holds both grants', async () => {
+    const { captured } = await (await voidPage()).rendered()
+    expect(captured.some(node => node.name === 'VendorOwnerOnlyHint')).toBe(false)
+    expect(byTestId(captured, 'void-action')).toBeDefined()
   })
 
   it('never offers the void beside a refund action, whatever the invoice state', async () => {

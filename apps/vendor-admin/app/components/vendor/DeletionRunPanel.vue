@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { TenantDeletionRun } from '@liwan/commercial-contracts'
-import { formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
+import { formatBusinessDateTime } from '@/utils/vendorTime'
 import { deletionCheckKey, deletionCodeText, stuckParts } from '@/utils/vendorDeletion'
 // Read-only: the frozen plan, the pre-checks as they stand now and the step ledger of one workspace deletion. The vendor's only act on a deletion is the withdrawal, which the customer page owns.
 const props = defineProps<{ run: TenantDeletionRun }>()
 const { t } = useI18n()
-const dateTime = (value: string | null) => (value ? formatLiwanDateTime(value) : '')
+const dateTime = (value: string | null) => (value ? formatBusinessDateTime(value) : '')
 const stuck = computed(() => stuckParts(props.run.request))
 /** A runner code as a sentence: a known cause, an unmet check, or one generic line that keeps the raw code for support. */
 const codeText = (code: string) => {

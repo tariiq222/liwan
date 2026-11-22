@@ -53,7 +53,8 @@ Storybook هو فهرس المكونات الملزم، وقاعدة ما يُش
 | `packages/ui/app/components/shared/feedback/SaduLoader.vue` | `apps/web/stories/shared/SaduLoader.stories.ts` | لودر السدو للأماكن الصغيرة: `mark` (مثلثات الشعار تضيء بالتناوب) و`dots` (نقاط سدو بجانب النص)، حالة واحدة باسم `label` أو `app.loading`؛ ثابت مع تقليل الحركة |
 | `packages/ui/app/components/shared/layout/SaduDivider.vue` | `apps/web/stories/shared/SaduDivider.stories.ts` | فاصل زخرفي: خط رمل في وسطه نقطة سدو بلون `--primary`، مخفي عن قارئ الشاشة |
 | `packages/ui/app/components/shared/feedback/ErrorState.vue` | `apps/web/stories/shared/ErrorState.stories.ts` | `UIcon` في دائرة بصبغة الخطأ و`UButton` لإعادة المحاولة بعد الترطيب؛ وصفة الثيم المشتركة |
-| `packages/commercial-ui/app/components/shared/data/InvoiceLines.vue` | `apps/web/stories/shared/InvoiceLines.stories.ts` | جدول أو قائمة لبنود الفاتورة مع إشعار وإجماليات اختيارية؛ `UBadge` لنوع البند؛ المبالغ ينسّقها المستدعي (`subscriptionInvoiceView`) |
+| `packages/commercial-ui/app/components/shared/data/InvoiceLines.vue` | `apps/web/stories/shared/InvoiceLines.stories.ts` | جدول أو قائمة لبنود الفاتورة مع إشعار وإجماليات اختيارية؛ `UBadge` لنوع البند؛ المبالغ ينسّقها المستدعي (`invoiceLinesView`) |
+| `packages/commercial-ui/app/components/shared/data/InvoiceDocument.vue` | `apps/web/stories/shared/InvoiceDocument.stories.ts` | وثيقة الفاتورة المطبوعة المشتركة بين تطبيق العميل ولوحة المورّد؛ التواريخ بيوم الرياض؛ فاتورة بلا ضريبة تُظهر إجماليًا واحدًا؛ `SharedInvoiceLines` |
 | `packages/ui/app/components/shared/feedback/ForbiddenState.vue` | `apps/web/stories/shared/ForbiddenState.stories.ts` | `UIcon`؛ 403 بلا إعادة محاولة |
 | `packages/ui/app/components/shared/feedback/NotFoundState.vue` | `apps/web/stories/shared/NotFoundState.stories.ts` | `UIcon`، `UButton` رابط رجوع اختياري؛ 404 |
 | `packages/ui/app/components/shared/layout/StandalonePage.vue` | `apps/web/stories/shared/StandalonePage.stories.ts` | `UCard`؛ `card` هي `<main>` الصفحة وتأخذ `title` أو شريحة `#header` (تستبدل العنوان ويرسم صاحبها `<h1>`)، و`surface="brand"` يملأ صفحة `card` بسطح الحبر `--primary-solid` (`--primary-solid-active` داكنًا) ويرسم فتحة `#brand` (الشعار الأبيض) فوق البطاقة البيضاء (صفحة الدخول فقط)، و`print` وثيقة `.liwan-print` تُطبع أسود على أبيض بلا إطار التطبيق (`packages/ui/app/assets/css/components.css`) |
@@ -208,7 +209,6 @@ Storybook هو فهرس المكونات الملزم، وقاعدة ما يُش
 | `apps/web/app/components/subscription/UsagePanel.vue` | `apps/web/stories/subscription/UsagePanel.stories.ts` | `SharedMetricTile` (مقياس بشريط `progress` ونبرة)، `SharedStatusBadge` |
 | `apps/web/app/components/subscription/TrialEndPanel.vue` | `apps/web/stories/subscription/TrialEndPanel.stories.ts` | `SharedRecordSection`، `SharedPropertyRow`، `SharedInvoiceLines`، `SharedSegmentedControl`، `SharedStatusBadge`، `UAlert`، `UButton` |
 | `apps/web/app/components/subscription/LockedApplication.vue` | `apps/web/stories/subscription/LockedApplication.stories.ts` | `UIcon`, `UButton`؛ صفحة التطبيق المقفل التي يعرضها `error.vue` عند `feature_not_included` أو `tenant_read_only`: السبب، وإجراء واحد لمدير الاشتراك (الباقات أو السداد)، و«افتح البيانات الحالية» للقراءة فقط، ولا رابط فواتير لغير المدير ولا في `non_saas` |
-| `apps/web/app/components/subscription/InvoiceDocument.vue` | `apps/web/stories/subscription/InvoiceDocument.stories.ts` | `SharedInvoiceLines` |
 
 ## مكونات لوحة إدارة المورّد — apps/vendor-admin
 
@@ -244,7 +244,10 @@ Storybook هو فهرس المكونات الملزم، وقاعدة ما يُش
 | `apps/vendor-admin/app/components/vendor/LifecyclePanel.vue` | إجراءات دورة حياة الاشتراك بتأكيد داخلي | `SharedFormSection`, `SharedInlineConfirm`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UFormField`, `UTextarea` |
 | `apps/vendor-admin/app/components/vendor/CatalogVersionAction.vue` | خطوة التحقق أو النشر لإصدار تركيبة التطبيقات بسبب إلزامي | `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UFormField`, `UTextarea` |
 | `apps/vendor-admin/app/components/vendor/CatalogReleaseAction.vue` | إنشاء إصدار الحزم من إصدار منشور بسبب إلزامي | `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UFormField`, `UTextarea` |
+| `apps/vendor-admin/app/components/vendor/HealthStrip.vue` | شريط خدمات اللوحة في صفحة اليوم: شريحة لكل عملية أو محوّل بحالتها والوقت منذ آخر نبضة، وآخر فحص لمساحات العمل، ورسالة بدل الشرائح إن تعذّرت القراءة | `UIcon` |
+| `apps/vendor-admin/app/components/vendor/StuckRefundActions.vue` | إجراءات الاسترداد التلقائي العالق على إشعار دائن: فحص من جديد ورفع الحجز وتسجيل الاسترداد العائد مع بيانات التعارض | `NuxtLink`, `SharedInlineConfirm`, `SharedUnsavedChanges`, `UButton`, `UFormField`, `UIcon`, `USelect`, `UTextarea` |
 | `apps/vendor-admin/app/components/vendor/LimitControl.vue` | قائمة نوع الحد وحقل العدد جنبًا إلى جنب | `UInput`, `USelect` |
+| `apps/vendor-admin/app/components/vendor/OwnerOnlyHint.vue` | نص قصير لحساب يملك واحدة فقط من صلاحيتين يحتاجهما إجراء يبقى لمالك المنصة | `UAlert` |
 | `apps/vendor-admin/app/components/vendor/PlanForm.vue` | نموذج الباقة: أربع بطاقات ثم المراجعة، والإجراءات في تذييل اللوحة | `SharedEmptyState`, `SharedFormActions`, `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UCheckbox`, `UFormField`, `UInput`, `USelect`, `UTextarea`, `VendorCapacityLimitsEditor`, `VendorFormSubsection`, `VendorLimitControl`, `VendorPriceListEditor` |
 | `apps/vendor-admin/app/components/vendor/PolicyComparison.vue` | مقارنة إعدادات المساحة المطلوبة بالمرصودة صفًا صفًا مع حالة كل صف | `SharedEmptyState`, `SharedStatusBadge` |
 | `apps/vendor-admin/app/components/vendor/PriceListEditor.vue` | محرر قائمة الأسعار | `SharedEmptyState`, `UButton`, `UFormField`, `UInput`, `USelect` |

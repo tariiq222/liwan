@@ -1,5 +1,6 @@
 import { reactive, ref } from 'vue'
 import { startRegistration, type PublicKeyCredentialCreationOptionsJSON, type RegistrationResponseJSON } from '@simplewebauthn/browser'
+import { normalizeOneTimeCode } from '../utils/oneTimeCode'
 import { authErrorKey, statusOf } from '../utils/authError'
 import { authPost, type AuthPost } from '../utils/authPost'
 import { takeInvitationToken } from '../utils/invitationToken'
@@ -107,7 +108,7 @@ export function createEnrollment(deps: EnrollmentDeps) {
     }
     await work(async () => {
       const done = await deps.post<{ recovery_codes: string[] }>('/api/auth/enroll/complete', {
-        token, password: form.password, totp_code: form.totpCode.trim(), totp_box: totpBox,
+        token, password: form.password, totp_code: normalizeOneTimeCode(form.totpCode), totp_box: totpBox,
       })
       recoveryCodes.value = done.recovery_codes
       Object.assign(form, { password: '', confirm: '', totpCode: '' })

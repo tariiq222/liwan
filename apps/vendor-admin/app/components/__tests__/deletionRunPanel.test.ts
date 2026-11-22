@@ -13,7 +13,7 @@ const request = (over: Partial<TenantDeletionRequest> = {}): TenantDeletionReque
 })
 const step = (name: string, over: Record<string, unknown> = {}) => ({ step: name, state: 'done', intent: null, attempts: 1, failures: 0, started_at: null, finished_at: null, next_attempt_at: null, error_code: null, evidence: {}, ...over })
 const run = (over: Record<string, unknown> = {}) => ({ request: request(), enabled: true, plan: { digest: 'd', database: 'liwan_acme', host: 'acme.example.sa', backups: 3, restore_copies: 1, cards: 2 }, prechecks: { blocked_by: null, checks: [{ code: 'no_open_invoice', ok: true }] }, steps: [step('preflight'), step('stop_access')], ...over })
-const sfc = loadSfc('components/vendor/DeletionRunPanel.vue', { useI18n: () => ({ t: (key: string, params?: Record<string, unknown>, plural?: number) => (params && Object.keys(params).length ? `${key}[${Object.entries(params).map(([name, value]) => `${name}=${value}`).join(',')}]${plural === undefined ? '' : `#${plural}`}` : key) }), formatLiwanDateTime: (value: string) => `@${value}`, stuckParts, deletionCodeText, deletionCheckKey })
+const sfc = loadSfc('components/vendor/DeletionRunPanel.vue', { useI18n: () => ({ t: (key: string, params?: Record<string, unknown>, plural?: number) => (params && Object.keys(params).length ? `${key}[${Object.entries(params).map(([name, value]) => `${name}=${value}`).join(',')}]${plural === undefined ? '' : `#${plural}`}` : key) }), formatBusinessDateTime: (value: string) => `@${value}`, stuckParts, deletionCodeText, deletionCheckKey })
 
 describe('DeletionRunPanel', () => {
   it('shows the runner state, the dates, the frozen plan, the checks and the ledger, read-only', async () => {

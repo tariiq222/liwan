@@ -1,5 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""The seven owner alerts: which events exist, who receives them, and what a failure must show.
+"""The nine owner alerts: which events exist, who receives them, and what a failure must show.
 
 Every assertion here fails when the rule it defends is removed from
 ``deploy/alerts.py``: dropping an event from the enum, letting an unknown name
@@ -109,6 +109,10 @@ def one_message(event: AlertEvent) -> AlertMessage:
     if event is AlertEvent.DEPLOY_ROLLBACK_FAILED:
         return alerts.deploy_message(event, environment='production', release='19.0.1.0.6',
                                      phase='rolling_back', reason='restore_failed', timestamp=NOW)
+    if event is AlertEvent.SERVICE_DOWN:
+        return alerts.service_message(event, component='shared_worker', state='stale', timestamp=NOW)
+    if event is AlertEvent.SERVICE_RECOVERED:
+        return alerts.service_message(event, component='shared_worker', timestamp=NOW)
     return alerts.restore_drill_failed_message(database=TENANT_DATABASE, reason='verify exited 1',
                                                timestamp=NOW)
 
@@ -117,12 +121,13 @@ def has_arabic(text: str) -> bool:
     return any(letter in text for letter in ARABIC_LETTERS)
 
 
-class TestTheSevenEvents(unittest.TestCase):
-    def test_exactly_the_seven_decided_events_exist_and_no_other(self):
+class TestTheNineEvents(unittest.TestCase):
+    def test_exactly_the_nine_decided_events_exist_and_no_other(self):
         self.assertEqual(
             sorted(event.value.name for event in AlertEvent),
             ['backup_failed', 'backup_stale', 'container_unhealthy', 'deploy_failed',
-             'deploy_rollback_failed', 'disk_high', 'restore_drill_failed'],
+             'deploy_rollback_failed', 'disk_high', 'restore_drill_failed', 'service_down',
+             'service_recovered'],
         )
 
     def test_each_event_has_a_stable_name_an_arabic_title_and_a_severity(self):
@@ -635,6 +640,16 @@ class TestCommandLine(unittest.TestCase):
         self.assertFalse(payload['channels']['email']['delivered'])
         self.assertTrue(payload['channels']['telegram']['delivered'])
 
+    def test_dispatch_says_whether_any_channel_delivered_while_main_still_exits_one(self):
+        def outcome(email, telegram):
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                return alerts.dispatch(['service_down', '--component', 'shared_worker', '--state', 'stale'], env=full_environment(),
+                                       transports=Transports(email=FakeTransport(email), telegram=FakeTransport(telegram)), now=NOW)
+
+        self.assertEqual(outcome(OSError('down'), None), alerts.Outcome(alerts.EXIT_DELIVERY_FAILED, delivered=True))
+        self.assertEqual(outcome(OSError('down'), OSError('down')), alerts.Outcome(alerts.EXIT_DELIVERY_FAILED, delivered=False))
+        self.assertEqual(outcome(None, None), alerts.Outcome(alerts.EXIT_OK, delivered=True))
+
     def test_a_deploy_event_names_environment_release_phase_and_reason(self):
         for command in ('deploy_failed', 'deploy_rollback_failed'):
             with self.subTest(command=command):
@@ -651,6 +666,48 @@ class TestCommandLine(unittest.TestCase):
                 self.assertEqual(payload['target'], 'staging')
                 for part in ('19.0.1.0.6', 'upgrading', 'upgrade_failed'):
                     self.assertIn(part, payload['body'])
+
+    def test_a_service_going_down_names_the_component_and_its_state(self):
+        for state, words in (('stale', 'متوقفة عن الإبلاغ'), ('unavailable', 'غير متاحة')):
+            with self.subTest(state=state):
+                code, stdout, stderr = self.run_main(
+                    ['service_down', '--component', 'shared_worker', '--state', state],
+                    env=full_environment(),
+                    transports=Transports(email=FakeTransport(), telegram=FakeTransport()),
+                )
+                self.assertEqual((code, stderr), (0, ''))
+                payload = json.loads(stdout)
+                self.assertEqual((payload['event'], payload['severity'], payload['target']),
+                                 ('service_down', 'critical', 'shared_worker'))
+                self.assertIn(words, payload['body'])
+
+    def test_a_recovered_service_is_a_warning_naming_the_component(self):
+        code, stdout, stderr = self.run_main(
+            ['service_recovered', '--component', 'mail_adapter'], env=full_environment(),
+            transports=Transports(email=FakeTransport(), telegram=FakeTransport()))
+        self.assertEqual((code, stderr), (0, ''))
+        payload = json.loads(stdout)
+        self.assertEqual((payload['event'], payload['severity'], payload['target']),
+                         ('service_recovered', 'warning', 'mail_adapter'))
+
+    def test_a_service_event_with_free_text_or_the_wrong_event_fields_is_refused(self):
+        email = FakeTransport()
+        transports = Transports(email=email, telegram=FakeTransport())
+        for argv in (['service_down', '--component', 'Shared worker', '--state', 'stale'],
+                     ['service_down', '--component', 'https://u:p@host/x', '--state', 'stale'],
+                     ['service_recovered', '--component', 'a' * 65]):
+            with self.subTest(argv=argv):
+                code, _, stderr = self.run_main(argv, env=full_environment(), transports=transports)
+                self.assertEqual(code, alerts.EXIT_REFUSED)
+                self.assertIn('alerts:', stderr)
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+            self.run_main(['service_down', '--component', 'shared_worker', '--state', 'ok'],
+                          env=full_environment(), transports=transports)
+        with self.assertRaises(alerts.AlertError):
+            alerts.service_message(AlertEvent.SERVICE_DOWN, component='shared_worker', timestamp=NOW)
+        with self.assertRaises(alerts.AlertError):
+            alerts.service_message(AlertEvent.DISK_HIGH, component='shared_worker', timestamp=NOW)
+        self.assertEqual(email.calls, [])
 
     def test_a_deploy_event_with_a_free_text_field_is_refused_and_sends_nothing(self):
         good = {'--environment': 'staging', '--release': '19.0.1.0.6', '--phase': 'upgrading',

@@ -3,9 +3,12 @@ import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBad
 import { adjustmentStatusBadge, paymentAttemptBadge } from '@/utils/vendorBadges'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { commercialErrorKey } from '@/utils/vendorCommercial'
-import { aiTopupRefundable, invoiceHasAiTopup, invoicesReturnTo, isNotAvailable, parseTransferAmount, parseUnitsUsed, refundErrorKey, refundRequestBlock, transferFormDefaults, validRefundDraft, validRefundReason, validVoidDraft, vendorInvoiceLineViews, voidAction, voidErrorKey, voidReasonKey } from '@/utils/vendorSubscriptions'
+import { ownerOnlyAccess } from '@/utils/ownerOnly'
+import { showsStuckRefund } from '@/utils/stuckRefund'
+import { aiTopupRefundable, invoiceHasAiTopup, invoicePrintable, invoicesReturnTo, isNotAvailable, parseTransferAmount, parseUnitsUsed, refundErrorKey, refundRequestBlock, transferFormDefaults, validRefundDraft, validRefundReason, validVoidDraft, vendorInvoiceLineViews, voidAction, voidErrorKey, voidReasonKey } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
-import { formatLiwanDate, formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
+import { useCopyLink } from '@/composables/useCopyLink'
+import { formatBusinessDate, formatBusinessDateTime } from '@/utils/vendorTime'
 definePageMeta({ capability: 'vendor.billing.manage' })
 const { t, locale } = useI18n(); const route = useRoute(); const api = useVendorSubscriptions()
 const { can } = useVendorContext()
@@ -16,14 +19,17 @@ const id = computed(() => String(route.params.id))
 const backTo = computed(() => invoicesReturnTo(route.query.returnTo))
 const { data, error, pending, refresh } = await useAsyncData(() => `vendor:invoice:${id.value}`, () => api.invoice(id.value))
 const orderId = computed(() => data.value?.order_id)
+const printable = computed(() => (data.value ? invoicePrintable(data.value) : false))
+const printTo = computed(() => ({ path: `/invoices/print/${encodeURIComponent(id.value)}`, query: { returnTo: backTo.value } }))
 const { data: attempts, error: attemptsError, pending: attemptsPending, refresh: refreshAttempts } = await useAsyncData(
   () => `vendor:invoice-attempts:${id.value}:${orderId.value ?? 'none'}:${canBilling.value}`,
   () => orderId.value && canBilling.value ? api.paymentAttempts(orderId.value) : Promise.resolve(null),
 )
-const attemptTime = (value: string) => formatLiwanDateTime(value)
+const attemptTime = (value: string) => formatBusinessDateTime(value)
+const copier = useCopyLink()
 const unavailable = computed(() => isNotAvailable(error.value) && !data.value)
 // Voiding ends a debt and may drop the customer to the free base: the control plane needs both grants, so the page offers it to neither alone.
-const canVoid = computed(() => canBilling.value && can('vendor.subscriptions.manage') && !unavailable.value)
+const voidAccess = computed(() => (unavailable.value ? 'none' as const : ownerOnlyAccess('voidInvoice', can)))
 const money = (m: NonNullable<typeof data.value>['total']) => formatCommercialMoney(m, locale.value)
 /** Subtotal, the tax line only when the invoice charged one, then the total. Liwan's own invoices carry no tax, so their subtotal is the whole amount and is never called "before tax". */
 const totals = computed(() => {
@@ -35,8 +41,8 @@ const totals = computed(() => {
     { label: t('vendor.invoices.total'), value: money(invoice.total) },
   ]
 })
-const date = (v: string | null) => (v ? formatLiwanDate(v) : null)
-const refundUntil = computed(() => (data.value?.refund?.until ? formatLiwanDate(data.value.refund.until) : ''))
+const date = (v: string | null) => (v ? formatBusinessDate(v) : null)
+const refundUntil = computed(() => (data.value?.refund?.until ? formatBusinessDate(data.value.refund.until) : ''))
 /**
  * Recording a refund needs only the billing grant. The window is judged once, by the server, when a vendor note is
  * created; a pending note is recordable afterwards whatever the date, and a system note (duplicate charge, payment after
@@ -73,7 +79,7 @@ const requestNeedsUnits = computed(() => (data.value ? invoiceHasAiTopup(data.va
 const requestUnits = computed(() => parseUnitsUsed(requestUnitsUsed.value))
 const requestUnitsError = computed(() => (requestNeedsUnits.value && requestUnitsUsed.value.trim() && requestUnits.value === null ? t('vendor.invoices.refund.request.unitsUsedInvalid') : undefined))
 const requestValid = computed(() => validRefundReason(requestReason.value) && (!requestNeedsUnits.value || requestUnits.value !== null))
-function openRequest() { requestOpen.value = true; requestReason.value = ''; requestUnitsUsed.value = ''; requestFailure.value = undefined }
+function openRequest() { begin(() => { requestOpen.value = true; requestReason.value = ''; requestUnitsUsed.value = ''; requestFailure.value = undefined }) }
 function closeRequest() { requestOpen.value = false; requestReason.value = ''; requestUnitsUsed.value = ''; requestFailure.value = undefined }
 async function requestRefund() {
   if (!hydrated.value || requestBusy.value || !canRequestRefund.value || !requestValid.value || !data.value) return
@@ -89,6 +95,8 @@ async function requestRefund() {
     try { await Promise.all([refresh(), refreshAttempts()]) } finally { requestBusy.value = false }
   }
 }
+// A stuck automatic refund acts on its own row and reloads the invoice afterwards, success or refusal: the server's state decides what is offered next.
+const reloadInvoice = () => refresh()
 const refundNoteId = ref<string | null>(null)
 const refundReference = ref('')
 const refundReason = ref('')
@@ -105,6 +113,8 @@ const transferAmount = ref('')
 const transferDate = ref('')
 const transferBusy = ref(false)
 const transferFailure = ref<string | undefined>()
+// The amount and the date open pre-filled: only a change from the pre-filled start, or a typed reference, is input to protect.
+const transferStart = ref({ amount: '', valueDate: '' })
 const transferParsed = computed(() => parseTransferAmount(transferAmount.value, data.value?.total.exponent ?? 2))
 // A typed amount the form cannot read says so; an empty one waits for the vendor.
 const transferAmountError = computed(() => {
@@ -113,10 +123,13 @@ const transferAmountError = computed(() => {
 })
 const transferValid = computed(() => transferReference.value.trim().length >= 3 && 'minor' in transferParsed.value && /^\d{4}-\d{2}-\d{2}$/.test(transferDate.value))
 function openTransfer() {
-  transferOpen.value = true; transferFailure.value = undefined
-  // The invoice total and today in Riyadh are pre-filled; the reference stays empty because the vendor types it from the bank statement, never from the customer's claim.
-  const start = data.value ? transferFormDefaults(data.value.total) : { amount: '', valueDate: '', reference: '' }
-  transferAmount.value = start.amount; transferDate.value = start.valueDate; transferReference.value = start.reference
+  begin(() => {
+    transferOpen.value = true; transferFailure.value = undefined
+    // The invoice total and today in Riyadh are pre-filled; the reference stays empty because the vendor types it from the bank statement, never from the customer's claim.
+    const start = data.value ? transferFormDefaults(data.value.total) : { amount: '', valueDate: '', reference: '' }
+    transferAmount.value = start.amount; transferDate.value = start.valueDate; transferReference.value = start.reference
+    transferStart.value = { amount: start.amount, valueDate: start.valueDate }
+  })
 }
 function closeTransfer() { transferOpen.value = false; transferFailure.value = undefined }
 async function recordTransfer() {
@@ -130,7 +143,7 @@ async function recordTransfer() {
   finally { try { await refresh() } finally { transferBusy.value = false } }
 }
 // Voiding an unpaid renewal invoice: the server says whether it applies and what blocks it; the vendor picks what happens to the subscription.
-const voidState = computed(() => (data.value ? voidAction(data.value, canVoid.value) : { kind: 'hidden' as const }))
+const voidState = computed(() => (data.value ? voidAction(data.value, voidAccess.value) : { kind: 'hidden' as const }))
 const voidOpen = ref(false)
 const voidOutcome = ref('')
 const voidReason = ref('')
@@ -139,7 +152,7 @@ const voidFailure = ref<string | undefined>()
 const voidOutcomes = computed(() => [{ label: t('vendor.invoices.void.outcomeEnd'), value: 'end' }, { label: t('vendor.invoices.void.outcomeRebill'), value: 'rebill' }])
 const voidOutcomeHint = computed(() => (voidOutcome.value === 'end' || voidOutcome.value === 'rebill' ? t(`vendor.invoices.void.outcome${voidOutcome.value === 'end' ? 'End' : 'Rebill'}Hint`) : undefined))
 const voidValid = computed(() => validVoidDraft({ outcome: voidOutcome.value, reason: voidReason.value }))
-function openVoid() { voidOpen.value = true; voidOutcome.value = ''; voidReason.value = ''; voidFailure.value = undefined }
+function openVoid() { begin(() => { voidOpen.value = true; voidOutcome.value = ''; voidReason.value = ''; voidFailure.value = undefined }) }
 function closeVoid() { voidOpen.value = false; voidOutcome.value = ''; voidReason.value = ''; voidFailure.value = undefined }
 // The server decides whether the void is offered: once it is not, the form and its failure go, so neither comes back if the block clears.
 watch(() => voidState.value.kind, kind => { if (kind !== 'available') closeVoid() })
@@ -156,7 +169,7 @@ async function voidInvoice() {
     try { await Promise.all([refresh(), refreshAttempts()]) } finally { voidBusy.value = false }
   }
 }
-function openRefund(noteId: string) { refundNoteId.value = noteId; refundReference.value = ''; refundReason.value = ''; refundFailure.value = undefined }
+function openRefund(noteId: string) { begin(() => { refundNoteId.value = noteId; refundReference.value = ''; refundReason.value = ''; refundFailure.value = undefined }) }
 function closeRefund() { refundNoteId.value = null; refundReference.value = ''; refundReason.value = ''; refundFailure.value = undefined }
 async function recordRefund() {
   if (!hydrated.value || refundBusy.value || !canRecordRefund.value || !refundNoteId.value || !refundValid.value) return
@@ -171,11 +184,42 @@ async function recordRefund() {
     try { await refresh() } finally { refundBusy.value = false }
   }
 }
+// A form counts (and keeps a draft) only while the page shows it: the request form needs the refund request to be offered, the record form a note the
+// server still lets the operator record. When a refresh stops offering one, it closes and its text goes, as the void form's watcher does below.
+const requestFormShown = computed(() => requestOpen.value && canRequestRefund.value)
+const refundFormShown = computed(() => refundNoteId.value !== null && canRecordRefund.value && Boolean(data.value?.adjustments.some(note => note.id === refundNoteId.value && note.manual_record_allowed)))
+watch(requestFormShown, shown => { if (!shown) closeRequest() })
+watch(refundFormShown, shown => { if (!shown) closeRefund() })
+// One draft at a time: opening a form closes the others, after asking when the open one holds typed input.
+const stuckForm = ref<{ note: string; action: 'release' | 'record' } | null>(null)
+const stuckDirty = ref(false)
+const pendingOpen = ref<(() => void) | null>(null)
+const stuckFormShown = computed(() => stuckForm.value !== null && Boolean(data.value?.adjustments.some(note => note.id === stuckForm.value?.note && showsStuckRefund(note, canBilling.value))))
+watch(stuckFormShown, shown => { if (!shown) closeStuck() })
+function closeStuck() { stuckForm.value = null; stuckDirty.value = false }
+function closeForms() { closeRequest(); closeRefund(); closeTransfer(); closeVoid(); closeStuck() }
+function begin(open: () => void) {
+  if (dirty.value) { pendingOpen.value = open; return }
+  closeForms(); open()
+}
+function confirmSwitch() { const open = pendingOpen.value; pendingOpen.value = null; closeForms(); open?.() }
+function cancelSwitch() { pendingOpen.value = null }
+function openStuckForm(note: string, action: 'release' | 'record') { begin(() => { stuckForm.value = { note, action } }) }
+function stuckDraft(typed: boolean) { stuckDirty.value = typed }
+const dirty = computed(() => Boolean(requestFormShown.value && (requestReason.value.trim() || requestUnitsUsed.value.trim()))
+  || Boolean(refundFormShown.value && (refundReason.value.trim() || refundReference.value.trim()))
+  || stuckDirty.value
+  || Boolean(transferOpen.value && (transferReference.value.trim() || transferAmount.value !== transferStart.value.amount || transferDate.value !== transferStart.value.valueDate))
+  || Boolean(voidOpen.value && (voidReason.value.trim() || voidOutcome.value)))
 const badge = computed(() => (data.value ? invoiceStatusBadge(data.value.status, 'vendor.invoices.status') : null))
 </script>
 <template>
-<SharedRecordPage :title="data ? (data.number ?? t('vendor.invoices.draftNumber')) : t('vendor.invoices.details')" :back-to="backTo" :loading="pending" :error="unavailable ? undefined : error" @retry="refresh">
+<SharedRecordPage :title="data ? (data.number ?? t('vendor.invoices.draftNumber')) : t('vendor.invoices.details')" :back-to="backTo" :loading="pending" :keep-content="!!data" :error="unavailable ? undefined : error" @retry="refresh">
   <UAlert v-if="unavailable" color="neutral" variant="subtle" icon="i-lucide-clock" :title="t('vendor.invoices.notAvailable')" :description="t('vendor.invoices.notAvailableHint')" />
+
+  <template v-if="data && !unavailable && printable" #actions>
+    <UButton color="neutral" variant="outline" icon="i-lucide-printer" :to="printTo" :label="t('vendor.invoices.print.action')" data-testid="invoice-print-open" />
+  </template>
 
   <template v-if="data && !unavailable" #summary>
     <div class="space-y-4" data-testid="invoice-header">
@@ -237,6 +281,7 @@ const badge = computed(() => (data.value ? invoiceStatusBadge(data.value.status,
     <!-- An unpaid renewal invoice can be voided instead of paid; a paid one is refunded (above), never voided, so the two never share an invoice. -->
     <SharedRecordSection v-if="voidState.kind !== 'hidden'" :title="t('vendor.invoices.void.title')">
       <p class="text-sm text-muted">{{ t('vendor.invoices.void.hint') }}</p>
+      <VendorOwnerOnlyHint v-if="voidState.kind === 'ownerOnly'" class="mt-3" action="voidInvoice" />
       <SharedInlineConfirm v-if="voidOpen && voidState.kind === 'available'" :title="t('vendor.invoices.void.confirmTitle')" :description="t('vendor.invoices.void.confirmHint')"
         :confirm-label="t('vendor.invoices.void.confirm')" :pending="voidBusy" :disabled="!hydrated || voidBusy || !voidValid" @confirm="voidInvoice" @cancel="closeVoid">
         <div class="mt-3 space-y-4">
@@ -244,7 +289,7 @@ const badge = computed(() => (data.value ? invoiceStatusBadge(data.value.status,
           <UFormField :label="t('vendor.invoices.void.reasonLabel')" required><UTextarea v-model="voidReason" :maxlength="1000" :disabled="!hydrated || voidBusy" class="w-full" data-testid="void-reason" /></UFormField>
         </div>
       </SharedInlineConfirm>
-      <div v-else class="flex flex-wrap items-center gap-3">
+      <div v-else-if="voidState.kind !== 'ownerOnly'" class="flex flex-wrap items-center gap-3">
         <UButton color="error" variant="soft" size="sm" :disabled="!hydrated || voidBusy || voidState.kind === 'blocked'" :aria-describedby="voidState.kind === 'blocked' ? 'void-blocked' : undefined" data-testid="void-action" @click="openVoid">{{ t('vendor.invoices.void.action') }}</UButton>
         <p v-if="voidState.kind === 'blocked'" id="void-blocked" class="text-sm text-muted" data-testid="void-blocked">{{ t(voidReasonKey(voidState.block)) }}</p>
       </div>
@@ -259,10 +304,20 @@ const badge = computed(() => (data.value ? invoiceStatusBadge(data.value.status,
             <SharedStatusBadge :tone="paymentAttemptBadge(attempt.status).tone" :label="t(paymentAttemptBadge(attempt.status).labelKey)" />
             <span class="tabular-nums">{{ money(attempt.amount) }}</span>
             <time :datetime="attempt.created_at" class="text-sm text-muted">{{ attemptTime(attempt.created_at) }}</time>
+            <div class="flex w-full flex-wrap items-center gap-2 text-sm text-muted">
+              <span>{{ t(`vendor.invoices.attemptKind.${attempt.kind}`) }}</span>
+              <template v-if="attempt.provider_ref">
+                <bdi dir="ltr" class="select-all font-mono text-default" data-testid="attempt-ref">{{ attempt.provider_ref }}</bdi>
+                <UButton type="button" color="neutral" variant="ghost" size="xs" icon="i-lucide-copy" :disabled="!hydrated" :aria-label="t('vendor.invoices.attemptRef.copy')" data-testid="attempt-ref-copy" @click="copier.copy(attempt.provider_ref)" />
+                <span v-if="copier.outcomeFor(attempt.provider_ref)" role="status" :class="copier.outcomeFor(attempt.provider_ref) === 'failed' ? 'text-error' : 'text-success'">{{ t(copier.outcomeFor(attempt.provider_ref) === 'copied' ? 'vendor.invoices.attemptRef.copied' : 'vendor.invoices.attemptRef.copyFailed') }}</span>
+              </template>
+            </div>
           </li>
         </ul>
       </SharedPageState>
     </SharedRecordSection>
+    <SharedInlineConfirm v-if="pendingOpen" :title="t('vendor.invoices.switchForm.title')" :description="t('vendor.invoices.switchForm.hint')" :confirm-label="t('vendor.invoices.switchForm.confirm')"
+      color="warning" @confirm="confirmSwitch" @cancel="cancelSwitch" data-testid="switch-form-confirm" />
     <SharedRecordSection :title="t('vendor.invoices.adjustments')">
       <p v-if="!data.adjustments.length" class="text-sm text-muted">{{ t('vendor.invoices.adjustmentsNone') }}</p>
       <ul v-else class="divide-y divide-default">
@@ -290,6 +345,8 @@ const badge = computed(() => (data.value ? invoiceStatusBadge(data.value.status,
           <UAlert v-else-if="note.automatic_refund?.state === 'failed'" color="warning" variant="subtle" icon="i-lucide-triangle-alert" data-testid="automatic-refund-failed"
             :title="t('vendor.invoices.refund.automatic.failed', { reason: note.automatic_refund.reason ?? '' })" :description="t('vendor.invoices.refund.automatic.failedHint')" />
           <p v-else-if="note.automatic_refund?.state === 'done'" class="text-sm text-muted" data-testid="automatic-refund-done">{{ t('vendor.invoices.refund.automatic.done') }}</p>
+          <VendorStuckRefundActions v-if="showsStuckRefund(note, canBilling)" :note="note" :form="stuckForm?.note === note.id ? stuckForm.action : null"
+            @open="action => openStuckForm(note.id, action)" @close="closeStuck" @draft="stuckDraft" @changed="reloadInvoice" />
           <template v-if="canBilling && note.manual_record_allowed">
             <SharedInlineConfirm v-if="refundNoteId === note.id && canRecordRefund" :title="t('vendor.invoices.refund.title')" :description="recordRefundDescription" :confirm-label="t('vendor.invoices.refund.confirm')" :pending="refundBusy" :disabled="!hydrated || refundBusy || !refundValid" @confirm="recordRefund" @cancel="closeRefund">
               <div class="mt-3 space-y-4">
@@ -318,4 +375,5 @@ const badge = computed(() => (data.value ? invoiceStatusBadge(data.value.status,
     </SharedPropertiesPanel>
   </template>
 </SharedRecordPage>
+  <SharedUnsavedChanges :dirty="dirty" />
 </template>

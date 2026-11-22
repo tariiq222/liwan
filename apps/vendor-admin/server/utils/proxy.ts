@@ -22,6 +22,8 @@ const ALLOWED = [
   new RegExp(`^/v1/commercial/orders/${SEGMENT}/(cancel|payment-attempts)$`),
   new RegExp(`^/v1/commercial/catalog/releases/${SEGMENT}/default-bundles$`),
   new RegExp(`^/v1/commercial/invoice-adjustments/${SEGMENT}/refund$`),
+  // An automatic refund the worker cannot finish: check it again, release its hold, record the returned money. None of them moves money; the control plane's worker is the only path that does.
+  new RegExp(`^/v1/commercial/invoice-adjustments/${SEGMENT}/automatic-refund/(check|release|record)$`),
   // Release 1 billing: the vendor-editable settings row, and recording a bank transfer against one invoice.
   /^\/v1\/commercial\/billing-settings$/,
   // Vendor-wide AI billing: top-up amounts, the conversion rate and the free allowances.
@@ -32,6 +34,8 @@ const ALLOWED = [
   new RegExp(`^/v1/commercial/invoices/${SEGMENT}/refund-request$`),
   // Voiding an unpaid renewal invoice (the control plane needs the billing and subscription grants and a fresh step-up).
   new RegExp(`^/v1/commercial/invoices/${SEGMENT}/void$`),
+  // The invoice as the customer prints it (the console's print route reads it).
+  new RegExp(`^/v1/commercial/invoices/${SEGMENT}/document$`),
   // D8: the refund of a later AI top-up, which the general refund request refuses (not the customer's first payment).
   new RegExp(`^/v1/commercial/ai-topups/${SEGMENT}/refund$`),
   new RegExp(`^/v1/commercial/customers/${SEGMENT}/(trial|invitations)$`),
@@ -45,7 +49,7 @@ const ALLOWED = [
   new RegExp(`^/v1/commercial/subscriptions/${SEGMENT}(/(branches|usage|suspend|resume|cancel-renewal|resume-renewal|disable-auto-renew))?$`),
   // Removing a customer's saved card, and stopping its automatic renewal without touching the card: reason and fresh step-up, POST only.
   new RegExp(`^/v1/commercial/subscriptions/${SEGMENT}/payment-methods/${SEGMENT}/remove$`),
-  /^\/v1\/platform\/ai-provider(\/(presets|models|test))?$/,
+  /^\/v1\/platform\/ai-provider(\/(presets|models|test|redeliver))?$/,
   /^\/v1\/admin\/(me|accounts)$/,
   /^\/v1\/admin\/accounts\/[1-9][0-9]{0,15}\/(roles|disable|enable|reset)$/,
 ]
@@ -83,6 +87,10 @@ const METHOD_BOUND = [
   { pattern: new RegExp(`^/v1/commercial/invoices/${SEGMENT}/bank-transfer$`), methods: ['POST'] },
   { pattern: new RegExp(`^/v1/commercial/invoices/${SEGMENT}/refund-request$`), methods: ['POST'] },
   { pattern: new RegExp(`^/v1/commercial/invoices/${SEGMENT}/void$`), methods: ['POST'] },
+  { pattern: new RegExp(`^/v1/commercial/invoices/${SEGMENT}/document$`), methods: ['GET'] },
+  // The audit record of an invoice export (the file itself is built in the browser).
+  { pattern: /^\/v1\/commercial\/invoices\/export$/, methods: ['POST'] },
+  { pattern: new RegExp(`^/v1/commercial/invoice-adjustments/${SEGMENT}/automatic-refund/(check|release|record)$`), methods: ['POST'] },
   { pattern: new RegExp(`^/v1/commercial/ai-topups/${SEGMENT}/refund$`), methods: ['POST'] },
   { pattern: /^\/v1\/commercial\/deletion-requests$/, methods: ['GET'] },
   { pattern: new RegExp(`^/v1/commercial/customers/${SEGMENT}/deletion$`), methods: ['GET'] },
@@ -91,6 +99,8 @@ const METHOD_BOUND = [
   { pattern: new RegExp(`^/v1/commercial/customers/${SEGMENT}/admin-login$`), methods: ['PATCH'] },
   { pattern: new RegExp(`^/v1/commercial/subscriptions/${SEGMENT}/disable-auto-renew$`), methods: ['POST'] },
   { pattern: new RegExp(`^/v1/commercial/subscriptions/${SEGMENT}/payment-methods/${SEGMENT}/remove$`), methods: ['POST'] },
+  // Delivering the stored AI provider configuration to the AI service's file again is a command: POST only.
+  { pattern: /^\/v1\/platform\/ai-provider\/redeliver$/, methods: ['POST'] },
   // Team account actions and the shared job actions are commands: POST only.
   { pattern: /^\/v1\/admin\/accounts\/[1-9][0-9]{0,15}\/(roles|disable|enable|reset)$/, methods: ['POST'] },
   { pattern: new RegExp(`^/v1/shared/tenants/${SEGMENT}/jobs/${SEGMENT}/(recover|abandon)$`), methods: ['POST'] },
