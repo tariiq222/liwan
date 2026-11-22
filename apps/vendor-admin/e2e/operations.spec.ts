@@ -15,9 +15,12 @@ test('the operations list keeps source, keyboard navigation and the return targe
 })
 test('the workspace filter is URL-backed and restarts at the first page; rows name the workspace', async ({ page }) => {
  await open(page,'/operations?page=2'); await expect(page.getByTestId('operation-target').first()).toContainText('نسخة')
- await expect(page.getByRole('region',{name:'البحث والفلاتر'})).toBeVisible(); await page.getByRole('combobox',{name:'نسخة العميل'}).click(); await page.getByRole('option',{name:'نسخة بيتا'}).click()
+ await expect(page.getByRole('region',{name:'البحث والفلاتر'})).toBeVisible(); await page.getByRole('button',{name:'نسخة العميل'}).click(); await page.getByPlaceholder('ابحث عن مساحة عمل').fill('بيتا'); await page.getByRole('option',{name:'نسخة بيتا'}).click()
  await expect.poll(()=>new URL(page.url()).searchParams.get('tenant_id')).toBe('tenant-2'); expect(new URL(page.url()).searchParams.has('page')).toBe(false)
  await expect(rows(page)).toHaveCount(1); await expect(page.getByTestId('operations-result-count')).toBeVisible()
+})
+test('a workspace filter opened from a link names the chosen workspace without searching', async ({ page }) => {
+ await open(page,'/operations?tenant_id=tenant-2'); await expect(page.getByRole('button',{name:'نسخة العميل'})).toContainText('نسخة بيتا')
 })
 test('the audit log pages through to the third page and keeps unknown actions readable', async ({ page }) => {
  await open(page,'/audit'); await expect(rows(page)).toHaveCount(25)
