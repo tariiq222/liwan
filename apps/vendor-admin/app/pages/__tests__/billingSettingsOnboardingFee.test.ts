@@ -264,3 +264,24 @@ describe('billing settings seller identity', () => {
     expect(labels).toEqual(expect.arrayContaining(['vendor.billingSettings.fields.sellerNameAr', 'vendor.billingSettings.fields.sellerNameEn', 'vendor.billingSettings.fields.sellerAddress']))
   })
 })
+
+describe('billing settings save feedback', () => {
+  it('does not mark the emptied reason wrong under the success message', async () => {
+    const p = await page(); p.ready()
+    p.state.draft.bank_account_name = 'Liwan'
+    await p.state.submit()
+    expect(p.patches()).toHaveLength(1)
+    expect(p.state.saved.value).toBe(true)
+    expect(p.state.draft.reason).toBe('')
+    expect(p.state.show('reason')).toBeUndefined()
+    const field = (await p.rendered()).captured.find(c => c.name === 'UFormField' && c.props.label === 'vendor.pricing.fields.reason')
+    expect(field?.props.error).toBeUndefined()
+  })
+
+  it('still asks for the reason when a save is attempted without one', async () => {
+    const p = await page()
+    await p.state.submit()
+    expect(p.patches()).toEqual([])
+    expect(p.state.show('reason')).toBe('vendor.pricing.reasonRequired')
+  })
+})

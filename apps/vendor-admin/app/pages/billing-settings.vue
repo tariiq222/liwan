@@ -88,6 +88,8 @@ async function submit() {
     } })
   } catch (cause) { failure.value = cause; busy.value = false; return }
   saved.value = true
+  // The saved draft starts over (the data watch clears the reason): its required-field errors are shown again only on the next attempt.
+  attempted.value = false
   try { await refresh() } finally { busy.value = false }
   // A failed reload is reported by the page state above, with its retry; it never sits next to «saved».
   if (error.value) saved.value = false
