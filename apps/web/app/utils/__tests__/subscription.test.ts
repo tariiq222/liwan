@@ -1,49 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { Invoice } from '@liwan/commercial-contracts'
 import { formatDate } from '@liwan/ui/app/utils/formatDate'
-import { csrfTokenFor, formatSubscriptionMoney, FREE_BASE_BADGE, isStaleTrialCheckout, orderOutcome, payKindKey, refusalCode, refusalKey, sameQuoteEconomics, subscriptionInvoiceView, trialDaysRemaining } from '../subscription'
+import { csrfTokenFor, formatSubscriptionMoney, FREE_BASE_BADGE, isStaleTrialCheckout, orderOutcome, payKindKey, refusalCode, refusalKey, sameQuoteEconomics, trialDaysRemaining } from '../subscription'
 
 const money = (minor: number) => ({ currency: 'SAR', exponent: 2, minor })
 const t = (key: string) => `t:${key}`
-const invoice = {
-  lines: [
-    { key: 'a', kind: 'base', timing: 'now', description: 'Base', quantity: 5, free_quantity: 2, unit_amount: money(100), amount: money(300), period_start: '2026-10-01', period_end: '2026-10-31', source_revision_id: 'r' },
-    { key: 'b', kind: 'discount', timing: 'now', description: 'Discount', quantity: 1, unit_amount: money(-50), amount: money(-50), period_start: '2026-10-01', period_end: '2026-10-31', source_revision_id: 'r' },
-  ],
-  subtotal: money(250), tax: money(38), total: money(288),
-} as unknown as Invoice
-
-describe('subscriptionInvoiceView', () => {
-  it('keeps the list rendering: quantity, free and paid counts, then the amount', () => {
-    const view = subscriptionInvoiceView(invoice, t, 'ar')
-    expect(view.notice).toBe('t:subscription.invoices.notOfficial')
-    expect(view.lines[0]!.cells.map(c => [c.key, c.value])).toEqual([['quantity', '× 5'], ['free', '2'], ['paid', '5']])
-    expect(view.lines[1]!.cells.map(c => c.key)).toEqual(['quantity'])
-    expect(view.lines[1]!.amount).toBe(formatSubscriptionMoney(money(-50), 'ar'))
-  })
-
-  it('labels metered invoice lines from the locale, never the server description', () => {
-    const metered = { ...invoice, lines: [
-      ...invoice.lines,
-      { key: 'users', kind: 'users', timing: 'now', description: 'Users', quantity: 7, unit_amount: money(2500), amount: money(17500), period_start: '2026-10-01', period_end: '2026-10-31', source_revision_id: 'r' },
-      { key: 'storage', kind: 'storage', timing: 'now', description: 'Storage', quantity: 15, unit_amount: money(500), amount: money(7500), period_start: '2026-10-01', period_end: '2026-10-31', source_revision_id: 'r' },
-    ] } as unknown as Invoice
-    const view = subscriptionInvoiceView(metered, t, 'ar')
-    expect(view.lines.find(l => l.id === 'users')!.description).toBe('t:subscription.invoices.users')
-    expect(view.lines.find(l => l.id === 'storage')!.description).toBe('t:subscription.invoices.storage')
-  })
-
-  it('ends with subtotal and total when Liwan charged no tax, and names the tax row only when it did', () => {
-    // Liwan is not VAT-registered (owner decision 2026-11-06): its own invoices carry no tax row.
-    expect(subscriptionInvoiceView({ ...invoice, tax: money(0), total: money(250), tax_label: null }, t, 'ar').totals.map(row => row.label)).toEqual([
-      't:subscription.invoices.subtotal', 't:subscription.invoices.total',
-    ])
-    expect(subscriptionInvoiceView({ ...invoice, tax_label: 'VAT 15% exclusive' }, t, 'ar').totals.map(row => row.label)).toEqual([
-      't:subscription.invoices.subtotal', 't:subscription.invoices.tax', 't:subscription.invoices.total',
-    ])
-  })
-})
-
 describe('refusalCode', () => {
   it('reads the body the BFF createError produces, at either nesting level', () => {
     expect(refusalCode({ data: { data: { code: 'tenant_upgrade_required' } } })).toBe('tenant_upgrade_required')

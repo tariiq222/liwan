@@ -29,7 +29,53 @@
       "description": "Description",
       "amount": "Amount",
       "lines": "Invoice lines",
-      "totals": "Totals"
+      "totals": "Totals",
+      "number": "Number",
+      "period": "Period",
+      "status": "Status",
+      "total": "Total",
+      "subtotal": "Before tax",
+      "tax": "Tax",
+      "free": "free",
+      "paidQty": "paid",
+      "notOfficial": "Liwan subscription invoice",
+      "users": "Users",
+      "storage": "Storage",
+      "statuses": {
+        "draft": "Draft",
+        "issued": "Issued",
+        "paid": "Paid",
+        "void": "Void",
+        "credit_pending": "Credit note pending"
+      },
+      "document": {
+        "title": "Subscription invoice",
+        "customer": "Billed to",
+        "issuedOn": "Issue date",
+        "dueOn": "Due date",
+        "paidOn": "Paid on",
+        "registration": "Commercial registration",
+        "refunded": "Refunded",
+        "creditNotes": "Credit notes",
+        "noteDate": "Date",
+        "noteCause": "Reason",
+        "noteReference": "Reference",
+        "noteAmount": "Amount",
+        "net": "Net amount after credit",
+        "causes": {
+          "vendor_refund": "Refund at your request",
+          "duplicate_payment": "Refund of a duplicate payment",
+          "provider_refund": "Payment returned by the payment provider",
+          "payment_after_cancellation": "Refund of a payment received after cancellation",
+          "automatic_refund": "Payment returned, order not delivered",
+          "fulfillment_failure": "Refund, the subscription could not be activated"
+        },
+        "noteStatuses": {
+          "pending": "Refund pending",
+          "applied": "Applied",
+          "refunded": "Refunded"
+        }
+      }
     }
   }
 }

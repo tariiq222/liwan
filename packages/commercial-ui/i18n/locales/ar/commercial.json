@@ -29,7 +29,53 @@
       "description": "الوصف",
       "amount": "المبلغ",
       "lines": "بنود الفاتورة",
-      "totals": "الإجماليات"
+      "totals": "الإجماليات",
+      "number": "الرقم",
+      "period": "الفترة",
+      "status": "الحالة",
+      "total": "الإجمالي",
+      "subtotal": "قبل الضريبة",
+      "tax": "الضريبة",
+      "free": "مجاني",
+      "paidQty": "مدفوع",
+      "notOfficial": "فاتورة اشتراك ليوان",
+      "users": "المستخدمون",
+      "storage": "التخزين",
+      "statuses": {
+        "draft": "مسودة",
+        "issued": "صادرة",
+        "paid": "مدفوعة",
+        "void": "ملغاة",
+        "credit_pending": "إشعار دائن معلّق"
+      },
+      "document": {
+        "title": "فاتورة اشتراك",
+        "customer": "الفاتورة إلى",
+        "issuedOn": "تاريخ الإصدار",
+        "dueOn": "تاريخ الاستحقاق",
+        "paidOn": "تاريخ السداد",
+        "registration": "السجل التجاري",
+        "refunded": "مستردة",
+        "creditNotes": "إشعارات دائنة",
+        "noteDate": "التاريخ",
+        "noteCause": "السبب",
+        "noteReference": "المرجع",
+        "noteAmount": "المبلغ",
+        "net": "الصافي بعد الإشعار الدائن",
+        "causes": {
+          "vendor_refund": "استرداد بطلبك",
+          "duplicate_payment": "استرداد دفعة مكررة",
+          "provider_refund": "دفعة أعادها مزود الدفع",
+          "payment_after_cancellation": "استرداد دفعة وصلت بعد الإلغاء",
+          "automatic_refund": "دفعة معادة، لم يُسلَّم الطلب",
+          "fulfillment_failure": "استرداد، تعذّر تفعيل الاشتراك"
+        },
+        "noteStatuses": {
+          "pending": "الاسترداد معلّق",
+          "applied": "مطبّق",
+          "refunded": "تم الاسترداد"
+        }
+      }
     }
   }
 }

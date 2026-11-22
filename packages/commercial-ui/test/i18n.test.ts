@@ -32,7 +32,12 @@ const usedKeys = (): string[] => {
   return [...new Set(keys)].sort()
 }
 // Keys the components build from a variable (`commercial.pricing.cadence.${unit}`).
-const DYNAMIC = ['commercial.pricing.cadence.month', 'commercial.pricing.cadence.year']
+const DYNAMIC = [
+  'commercial.pricing.cadence.month', 'commercial.pricing.cadence.year',
+  ...['draft', 'issued', 'paid', 'void', 'credit_pending'].map(state => `commercial.invoice.statuses.${state}`),
+  ...['vendor_refund', 'duplicate_payment', 'provider_refund', 'payment_after_cancellation', 'automatic_refund', 'fulfillment_failure'].map(cause => `commercial.invoice.document.causes.${cause}`),
+  ...['pending', 'applied', 'refunded'].map(status => `commercial.invoice.document.noteStatuses.${status}`),
+]
 
 describe('commercial-ui messages', () => {
   it('resolves every key the layer uses, in both locales', () => {

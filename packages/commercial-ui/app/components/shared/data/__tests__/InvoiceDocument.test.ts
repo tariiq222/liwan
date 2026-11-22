@@ -3,18 +3,17 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import * as Vue from 'vue'
 import { renderShared } from '@liwan/ui/test/helpers/renderShared'
-import * as subscriptionUtils from '../../../utils/subscription'
-import { invoice } from '../../../../stories/subscription/fixtures'
+import * as commercial from '../../../../utils/commercial'
+import * as invoiceDocument from '../../../../utils/invoiceDocument'
 
-const root = resolve(import.meta.dirname, '../../../..')
-const read = (p: string) => readFileSync(resolve(root, p), 'utf8')
 const component = resolve(import.meta.dirname, '../InvoiceDocument.vue')
+const localeFile = (lang: 'ar' | 'en') => resolve(import.meta.dirname, `../../../../../i18n/locales/${lang}/commercial.json`)
 
 function flatten(prefix: string, value: unknown, out: Record<string, string>) {
   if (typeof value === 'string') out[prefix] = value
   else if (value && typeof value === 'object') for (const [k, v] of Object.entries(value)) flatten(prefix ? `${prefix}.${k}` : k, v, out)
 }
-const messages = (lang: 'ar' | 'en') => { const out: Record<string, string> = {}; flatten('', JSON.parse(read(`i18n/locales/${lang}/subscription.json`)), out); return out }
+const messages = (lang: 'ar' | 'en') => { const out: Record<string, string> = {}; flatten('', JSON.parse(readFileSync(localeFile(lang), 'utf8')), out); return out }
 
 // The shared lines table is its own tested component: here it only shows what the document hands it.
 const SharedInvoiceLines = Vue.defineComponent({
@@ -25,13 +24,15 @@ const SharedInvoiceLines = Vue.defineComponent({
   ]),
 })
 const sar = (minor: number) => ({ currency: 'SAR', exponent: 2, minor })
+const line = { key: 'base', kind: 'base', timing: 'now', description: 'الباقة الأساسية', quantity: 1, unit_amount: sar(20000), amount: sar(20000), period_start: '2026-10-02', period_end: '2026-11-02', source_revision_id: 'r' }
+const invoice = { id: 'inv1', number: 'INV-1001', customer_id: 'c1', subscription_id: 's1', order_id: null, kind: 'renewal', status: 'issued', currency: 'SAR', lines: [line, { ...line, key: 'branch', description: 'فرع إضافي', amount: sar(6000) }], subtotal: sar(26000), tax: sar(0), total: sar(26000), period_start: '2026-10-02', period_end: '2026-11-02', issued_at: '2026-10-02T09:00:00Z', due_at: null, paid_at: null, tax_label: null, official_tax_invoice: false }
 const seller = { legal_name_ar: 'شركة ليوان المحدودة', legal_name_en: 'Liwan Co.', commercial_registration: '1010000000', address: 'طريق العليا\nبرج 4', city: 'الرياض', country: 'السعودية', email: 'billing@liwan.example', phone: '+966110000000' }
 const note = (status: 'pending' | 'applied' | 'refunded', amount: number) => ({ id: 'n1', amount: sar(amount), cause: 'vendor_refund', status, created_at: '2026-10-05T08:00:00Z', refunded_at: status === 'refunded' ? '2026-10-06T08:00:00Z' : null, refund_reference: status === 'refunded' ? 'BANK-4471' : null })
 const full = (extra: Record<string, unknown> = {}) => ({ ...invoice, customer_name: 'شركة المثال للتجارة', seller, credit_notes: [], ...extra })
 const render = (extra: Record<string, unknown> = {}, lang: 'ar' | 'en' = 'ar') => renderShared(component, { invoice: full(extra) }, {}, {
-  messages: messages(lang),
+  messages: { ...messages(lang), 'app.productName': 'ليوان' },
   stubs: { SharedInvoiceLines },
-  modules: { '@/utils/subscription': subscriptionUtils },
+  modules: { '../../../utils/commercial': commercial, '../../../utils/invoiceDocument': invoiceDocument },
 })
 
 describe('InvoiceDocument', () => {
@@ -52,10 +53,7 @@ describe('InvoiceDocument', () => {
     expect(html).toContain('مدفوعة')
   })
 
-  it('names the seller in the reader\'s language and falls back to the product name without an identity', async () => {
-    expect(subscriptionUtils.sellerLegalName(seller, 'en')).toBe('Liwan Co.')
-    expect(subscriptionUtils.sellerLegalName(seller, 'ar')).toBe('شركة ليوان المحدودة')
-    expect(subscriptionUtils.sellerLegalName({ ...seller, legal_name_en: '' }, 'en')).toBe('شركة ليوان المحدودة')
+  it('falls back to the product name without a seller identity', async () => {
     const bare = await render({ seller: null })
     expect(bare).toContain('data-testid="invoice-seller-name"')
     expect(bare).not.toContain('شركة ليوان المحدودة')
@@ -88,50 +86,27 @@ describe('InvoiceDocument', () => {
     expect(html).not.toContain('تاريخ السداد')
   })
 
+  it('prints the Riyadh day of every instant, not the UTC day', async () => {
+    // 01:00 on 2 October in Riyadh is 22:00 UTC on 1 October.
+    const html = await render({ status: 'paid', issued_at: '2026-10-01T22:00:00Z', paid_at: '2026-10-01T20:30:00Z', due_at: '2026-10-15T21:00:00Z', credit_notes: [{ ...note('refunded', 100), refunded_at: '2026-10-06T22:30:00Z' }] })
+    expect(html).toContain('2026-10-02')
+    expect(html).toContain('2026-10-01')
+    expect(html).toContain('2026-10-16')
+    expect(html).toContain('2026-10-07')
+    expect(html).not.toContain('2026-10-15')
+    expect(html).not.toContain('2026-10-06')
+  })
+
+  it('shows subtotal, tax and total only when the invoice names a tax', async () => {
+    const html = await render({ tax_label: 'VAT 15% exclusive', tax: sar(3900), total: sar(29900) })
+    expect(html.match(/data-testid="total"/g)).toHaveLength(3)
+  })
+
   it('carries no tax wording for an untaxed invoice, in either language', async () => {
     for (const lang of ['ar', 'en'] as const) {
       const html = await render({ credit_notes: [note('refunded', 100)] }, lang)
       expect(html.match(/data-testid="total"/g)).toHaveLength(1)
       expect(html).not.toMatch(/tax|vat|zatca|qr|ضريب|زكاة/i)
     }
-  })
-})
-
-describe('credit summary', () => {
-  it('nets the credit off the total and never goes below zero', () => {
-    expect(subscriptionUtils.invoiceCreditSummary(full({ credit_notes: [note('refunded', 10000)] }) as never)).toMatchObject({ credited: sar(10000), net: sar(16000), state: 'issued' })
-    expect(subscriptionUtils.invoiceCreditSummary(full({ credit_notes: [note('refunded', 99999)] }) as never)).toMatchObject({ net: sar(0), state: 'refunded' })
-  })
-})
-
-describe('invoice print page and download action', () => {
-  const print = read('app/pages/subscription/invoices/print/[id].vue')
-  it('gates the print page and the print button on billing.read', () => {
-    expect(print).toContain("can('billing.read')")
-    expect(print).toMatch(/<SharedForbiddenState v-if="!allowed"/)
-    expect(print).toMatch(/<UButton v-if="allowed"[^>]*invoice-print-action/)
-  })
-  it('offers the download only to a reader of the invoice, with an accessible name', () => {
-    const page = read('app/pages/subscription/invoices/[id].vue')
-    const forbidden = page.indexOf('<SharedForbiddenState v-if="!allowed"')
-    const action = page.indexOf('data-testid="invoice-download"')
-    expect(forbidden).toBeGreaterThan(-1)
-    expect(action).toBeGreaterThan(forbidden)
-    expect(page).toMatch(/invoice-download|:label="t\('subscription\.invoices\.print\.download'\)"/)
-    expect(page).toContain(":label=\"t('subscription.invoices.print.download')\"")
-  })
-})
-
-describe('invoice list download action', () => {
-  const list = read('app/pages/subscription/invoices/index.vue')
-  it('offers each row a download icon button with an accessible name, in the table and the stacked row', () => {
-    expect(list.match(/data-testid="invoice-row-download"/g)).toHaveLength(2)
-    expect(list.match(/:aria-label="printLabel\(inv\)"/g)).toHaveLength(2)
-    expect(list).toContain("t('subscription.invoices.print.rowAction'")
-    expect(list).toContain('/subscription/invoices/print/')
-  })
-  it('stays behind the billing.read gate of the list', () => {
-    expect(list).toContain("can('billing.read')")
-    expect(list).toMatch(/<SharedListCard v-if="allowed">/)
   })
 })

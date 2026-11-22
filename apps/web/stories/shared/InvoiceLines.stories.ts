@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { useI18n } from 'vue-i18n'
 import InvoiceLines from '@liwan/commercial-ui/app/components/shared/data/InvoiceLines.vue'
-import { subscriptionInvoiceView } from '../../app/utils/subscription'
+import { invoiceLinesView } from '@liwan/commercial-ui/app/utils/invoiceDocument'
 import { invoice as customerInvoice } from '../subscription/fixtures'
 import { storyContext } from '../support/context'
 
@@ -21,7 +21,7 @@ export const CustomerList: Story = {
     components: { InvoiceLines },
     setup() {
       const { t, locale } = useI18n()
-      return { view: subscriptionInvoiceView(customerInvoice, t, locale.value) }
+      return { view: invoiceLinesView(customerInvoice, t, locale.value) }
     },
     template: '<div class="max-w-2xl"><InvoiceLines layout="list" v-bind="view" /></div>',
   }),

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import type { CustomerCreditNote, CustomerInvoice } from '@liwan/commercial-contracts'
-import InvoiceDocument from '../../app/components/subscription/InvoiceDocument.vue'
-import { invoice } from './fixtures'
+import InvoiceDocument from '@liwan/commercial-ui/app/components/shared/data/InvoiceDocument.vue'
+import { invoice } from '../subscription/fixtures'
 import { storyContext } from '../support/context'
 
 const sar = (minor: number) => ({ currency: 'SAR', exponent: 2, minor })
@@ -10,9 +10,9 @@ const note = (status: CustomerCreditNote['status'], amount: number): CustomerCre
 const base: CustomerInvoice = { ...invoice, customer_name: 'شركة المثال للتجارة', seller, credit_notes: [] }
 
 const meta = {
-  title: 'Subscription/InvoiceDocument',
+  title: 'Shared/InvoiceDocument',
   component: InvoiceDocument,
-  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/subscription/invoices/print/[id].vue:24') },
+  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/subscription/invoices/print/[id].vue:23') },
   args: { invoice: base },
 } satisfies Meta<typeof InvoiceDocument>
 export default meta
