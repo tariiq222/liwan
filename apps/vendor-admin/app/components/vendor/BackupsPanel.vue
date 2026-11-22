@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
 import { operationStatusBadge } from '@/utils/vendorBadges'
-import { backupJobRequest, sharedBackupErrorKey, sharedJobLocation, startRefusalKey } from '@/utils/sharedBackups'
+import { approvalUsable, backupJobRequest, RestoreQueueFailed, restoreFromBackup, sharedBackupErrorKey, sharedJobLocation, startRefusalKey, type SharedBackupItem } from '@/utils/sharedBackups'
 import { reasonValid } from '@/utils/team'
 import { useSharedBackups } from '@/composables/useSharedBackups'
 const props = defineProps<{ tenantId: string }>()
@@ -24,8 +24,55 @@ const startError = ref<unknown>(null)
 const startRequestId = ref<string | null>(null)
 const canStart = computed(() => hydrated.value && can('vendor.operations.run') && !startBusy.value && reasonValid(startReason.value))
 watch(() => startReason.value.trim(), () => { confirmStart.value = false })
-watch(() => Boolean(startReason.value.trim()), value => { dirtyModel.value = value }, { immediate: true })
-onBeforeUnmount(() => { dirtyModel.value = false })
+
+onBeforeUnmount(() => { dirtyModel.value = false; clearInterval(clock) })
+
+// One restore at a time: the row whose form is open, and the open approval it resumes (none for a new restore).
+const restoreTarget = ref<{ backupId: string; approvalId: string | null } | null>(null)
+const restoreReason = ref('')
+const confirmRestore = ref(false)
+const restoreBusy = ref(false)
+const restoreError = ref<unknown>(null)
+// What a failed attempt leaves behind, kept for the retry: the request id of that restore and an approval whose job call failed.
+const restoreRequestIds = new Map<string, string>()
+const restoredApprovals = new Map<string, string>()
+const now = ref(Date.now())
+let clock: ReturnType<typeof setInterval> | undefined
+onMounted(() => { clock = setInterval(() => { now.value = Date.now() }, 15000) })
+const canRestore = computed(() => hydrated.value && can('vendor.operations.run') && !restoreBusy.value && reasonValid(restoreReason.value))
+const resumable = (item: SharedBackupItem) => approvalUsable(item.approval, now.value)
+const dirty = computed(() => Boolean(startReason.value.trim() || restoreReason.value.trim()))
+watch(dirty, value => { dirtyModel.value = value }, { immediate: true })
+watch(() => restoreReason.value.trim(), () => { confirmRestore.value = false })
+function openRestore(item: SharedBackupItem, resume: boolean) {
+  restoreTarget.value = { backupId: item.backup_id, approvalId: resume && item.approval ? item.approval.approval_id : null }
+  restoreReason.value = ''
+  restoreError.value = null
+  confirmRestore.value = false
+}
+function closeRestore() { restoreTarget.value = null; restoreReason.value = ''; confirmRestore.value = false }
+
+async function runRestore() {
+  const target = restoreTarget.value
+  if (!target || !canRestore.value) return
+  restoreBusy.value = true
+  restoreError.value = null
+  const requestId = restoreRequestIds.get(target.backupId) ?? crypto.randomUUID()
+  restoreRequestIds.set(target.backupId, requestId)
+  try {
+    const done = await restoreFromBackup(request, { tenantId: props.tenantId, backupId: target.backupId, reason: restoreReason.value, requestId, approvalId: target.approvalId ?? restoredApprovals.get(target.backupId) })
+    restoreRequestIds.delete(target.backupId)
+    restoredApprovals.delete(target.backupId)
+    closeRestore()
+    await refresh()
+    await navigateTo({ path: `/operations/${encodeURIComponent(done.jobId)}`, query: { source: 'shared', returnTo: `/operations?tenant_id=${encodeURIComponent(props.tenantId)}` } })
+  } catch (cause) {
+    if (cause instanceof RestoreQueueFailed) restoredApprovals.set(target.backupId, cause.approvalId)
+    restoreError.value = cause instanceof RestoreQueueFailed ? cause.original : cause
+    // The approval may exist although a call failed: show what the server holds, so a resume is offered.
+    await refresh()
+  } finally { restoreBusy.value = false; confirmRestore.value = false }
+}
 
 async function startBackup() {
   if (!canStart.value) return
@@ -36,6 +83,7 @@ async function startBackup() {
     const job = await request<{ id: string }>(`shared/tenants/${encodeURIComponent(props.tenantId)}/jobs`, { method: 'POST', body: backupJobRequest(startRequestId.value, startReason.value) })
     startReason.value = ''
     startRequestId.value = null
+    await refresh()
     await navigateTo({ path: `/operations/${encodeURIComponent(job.id)}`, query: { source: 'shared', returnTo: `/operations?tenant_id=${encodeURIComponent(props.tenantId)}` } })
   } catch (cause) { startError.value = cause }
   finally { startBusy.value = false; confirmStart.value = false }
@@ -55,6 +103,17 @@ async function startBackup() {
             {{ t('vendor.backups.approvalOpen', { time: formatLiwanDateTime(item.approval.expires_at) }) }}
             <template v-if="item.approval.approved_by"> {{ t('vendor.backups.approvedBy', { name: item.approval.approved_by }) }}</template>
           </p>
+          <div v-if="can('vendor.operations.run')" class="flex flex-wrap items-center gap-2" data-testid="backup-restore-actions">
+            <UButton v-if="item.approval" color="neutral" variant="outline" size="sm" icon="i-lucide-history" :disabled="!hydrated || restoreBusy || !resumable(item)" data-action="resume" @click="openRestore(item, true)">{{ t('vendor.backups.resume') }}</UButton>
+            <span v-if="item.approval && !resumable(item)" class="text-sm text-muted" data-testid="approval-expired">{{ t('vendor.backups.approvalExpired') }}</span>
+            <UButton v-if="!item.approval || !resumable(item)" color="neutral" variant="outline" size="sm" icon="i-lucide-rotate-ccw" :disabled="!hydrated || restoreBusy" data-action="restore" @click="openRestore(item, false)">{{ t('vendor.backups.restore') }}</UButton>
+          </div>
+          <form v-if="restoreTarget?.backupId === item.backup_id" class="grid gap-3" data-testid="backup-restore-form" novalidate @submit.prevent="confirmRestore = canRestore">
+            <UAlert v-if="restoreError" color="error" variant="subtle" :title="t(sharedBackupErrorKey(restoreError))" data-testid="backup-restore-error" />
+            <UFormField :label="t('vendor.backups.restoreReason')" required><UTextarea v-model="restoreReason" maxlength="1000" class="w-full" :disabled="restoreBusy" /></UFormField>
+            <SharedInlineConfirm v-if="confirmRestore" :title="t('vendor.backups.confirmRestore')" :description="t('vendor.backups.restoreEffect')" :confirm-label="restoreTarget.approvalId ? t('vendor.backups.resume') : t('vendor.backups.restore')" :pending="restoreBusy" :disabled="!canRestore" @cancel="confirmRestore = false" @confirm="runRestore" />
+            <div v-else class="flex gap-2"><UButton type="submit" :disabled="!canRestore">{{ restoreTarget.approvalId ? t('vendor.backups.resume') : t('vendor.backups.restore') }}</UButton><UButton color="neutral" variant="outline" :disabled="restoreBusy" @click="closeRestore">{{ t('app.cancel') }}</UButton></div>
+          </form>
           <ul v-if="item.restores.length" class="space-y-1" data-testid="backup-restores">
             <li v-for="restore in item.restores" :key="restore.job_id" class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
               <NuxtLink :to="sharedJobLocation(restore.job_id)" class="hover:underline">{{ t('vendor.backups.restoreCopy', { time: formatLiwanDateTime(restore.created_at) }) }}</NuxtLink>

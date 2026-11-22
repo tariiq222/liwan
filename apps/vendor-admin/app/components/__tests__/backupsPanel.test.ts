@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import * as Vue from 'vue'
 import { loadSfc } from './sfc'
 import { operationStatusBadge } from '../../utils/vendorBadges'
-import { backupJobRequest, sharedBackupErrorKey, sharedJobLocation, startRefusalKey } from '../../utils/sharedBackups'
+import { approvalUsable, backupJobRequest, restoreFromBackup, RestoreQueueFailed, sharedBackupErrorKey, sharedJobLocation, startRefusalKey } from '../../utils/sharedBackups'
 import { reasonValid } from '../../utils/team'
 import { StepUpCancelled, STEP_UP_CANCELLED_KEY } from '../../composables/useStepUp'
 
@@ -13,19 +13,20 @@ const listing = (over: Record<string, unknown> = {}) => ({ start: { allowed: tru
 
 type Setup = { data?: unknown; error?: unknown; pending?: boolean; capabilities?: string[]; request?: (path: string, options?: unknown) => Promise<unknown> }
 function panel(state: Setup) {
-  const refresh = () => {}
+  const refresh = vi.fn(async () => {})
   const fake = { data: Vue.ref(state.data ?? null), error: Vue.ref(state.error ?? null), pending: Vue.ref(state.pending ?? false), refresh }
   const request = vi.fn(state.request ?? (async () => ({ id: id(7), state: 'queued', replay: false })))
   const navigateTo = vi.fn(async () => {})
   const sfc = loadSfc('components/vendor/BackupsPanel.vue', {
     useI18n: () => ({ t: (key: string, params?: Record<string, unknown>) => (params ? `${key}[${Object.entries(params).map(([name, value]) => `${name}=${value}`).join(',')}]` : key) }),
     useSharedBackups: () => fake, formatLiwanDateTime: (value: string) => `@${value}`, operationStatusBadge, sharedJobLocation, startRefusalKey,
-    backupJobRequest, sharedBackupErrorKey, reasonValid, useVendorApi: () => ({ request }), navigateTo, useHydrated: () => Vue.ref(true),
+    approvalUsable, restoreFromBackup, RestoreQueueFailed, onMounted: () => {}, onBeforeUnmount: () => {}, backupJobRequest, sharedBackupErrorKey, reasonValid, useVendorApi: () => ({ request }), navigateTo, useHydrated: () => Vue.ref(true),
     useVendorContext: () => ({ can: (capability: string) => (state.capabilities ?? ['vendor.read', 'vendor.operations.run']).includes(capability) }),
   })
   const mounted = sfc.mount({ tenantId })
   return { sfc, fake, request, navigateTo, state: mounted.state, render: async () => mounted.render() }
 }
+const approval = { approval_id: id(5), expires_at: '2026-11-22T11:00:00.000Z', approved_by: 'Omar' }
 const stateOf = (captured: { name: string; attrs: Record<string, unknown> }[]) => captured.find(entry => entry.name === 'SharedPageState')!.attrs
 
 describe('BackupsPanel', () => {
@@ -69,11 +70,11 @@ describe('BackupsPanel', () => {
     const alertOf = (captured: { name: string; attrs: Record<string, unknown> }[]) => captured.find(entry => entry.name === 'UAlert')?.attrs
     const blocked = await panel({ data: listing({ start: { allowed: false, reason: 'job_in_progress', job_id: id(9) } }) }).render()
     expect(alertOf(blocked.captured)).toMatchObject({ title: 'vendor.backups.refusal.job_in_progress', 'data-testid': 'backups-start-refusal' })
-    const link = blocked.captured.find(entry => entry.name === 'UButton')!
+    const link = blocked.captured.find(entry => entry.name === 'UButton' && entry.attrs.to)!
     expect(link.attrs.to).toEqual(sharedJobLocation(id(9))); expect(blocked.html).toContain('vendor.backups.viewBlocking')
     const off = await panel({ data: listing({ start: { allowed: false, reason: 'operations_unavailable', job_id: null } }) }).render()
     expect(alertOf(off.captured)).toMatchObject({ title: 'vendor.backups.refusal.operations_unavailable' })
-    expect(off.captured.some(entry => entry.name === 'UButton')).toBe(false)
+    expect(off.captured.some(entry => entry.name === 'UButton' && entry.attrs.to)).toBe(false)
     expect(alertOf((await panel({ data: listing() }).render()).captured)).toBeUndefined()
   })
 })
@@ -111,7 +112,7 @@ describe('BackupsPanel: starting a backup', () => {
     await Vue.nextTick(); expect(state.confirmStart.value).toBe(false)
   })
   it('posts the reason and a request id only, then opens the operation page', async () => {
-    const { state, request, navigateTo } = panel({ data: listing() })
+    const { state, request, navigateTo, fake } = panel({ data: listing() })
     state.startReason.value = '  Before the upgrade  '
     await state.startBackup()
     expect(request).toHaveBeenCalledTimes(1)
@@ -120,6 +121,7 @@ describe('BackupsPanel: starting a backup', () => {
     expect(options.body).toEqual({ reason: 'Before the upgrade', job: { schemaVersion: 1, requestId: expect.stringMatching(/^[0-9a-f-]{36}$/), operation: 'backup' } })
     expect(navigateTo).toHaveBeenCalledWith({ path: `/operations/${id(7)}`, query: { source: 'shared', returnTo: `/operations?tenant_id=${tenantId}` } })
     expect(state.startReason.value).toBe('')
+    expect(fake.refresh).toHaveBeenCalledTimes(1)
   })
   it('words a cancelled step-up as the person\'s own choice, sends nothing more and keeps the typed reason', async () => {
     const { state, navigateTo, render } = panel({ data: listing(), request: async () => { throw new StepUpCancelled() } })
@@ -146,5 +148,89 @@ describe('BackupsPanel: starting a backup', () => {
     expect(state.dirtyModel.value).toBe(true)
     await state.startBackup(); await Vue.nextTick()
     expect(state.dirtyModel.value).toBe(false)
+  })
+})
+
+describe('BackupsPanel: restoring from a backup', () => {
+  type Call = [string, { method: string; body: Record<string, any> }]
+  const actionsOf = (captured: { name: string; attrs: Record<string, unknown> }[]) => captured.filter(entry => entry.name === 'UButton' && entry.attrs['data-action']).map(entry => entry.attrs)
+  const answer = (path: string) => (path.endsWith('restore-approvals') ? { approval_id: id(5), expires_at: approval.expires_at } : { id: id(8) })
+  const openFor = (backup: ReturnType<typeof panel>, mode: 'resume' | 'restore', reason = 'Restore check') => {
+    backup.state.openRestore({ backup_id: id(1), approval: mode === 'resume' ? approval : null }, mode === 'resume')
+    backup.state.restoreReason.value = reason
+  }
+  it('offers one restore per backup without an approval, and nothing without the permission', async () => {
+    const withRights = await panel({ data: listing() }).render()
+    expect(actionsOf(withRights.captured).map(attrs => [attrs['data-action'], attrs.disabled])).toEqual([['restore', false]])
+    expect(actionsOf((await panel({ data: listing(), capabilities: ['vendor.read'] }).render()).captured)).toEqual([])
+  })
+  it('keeps the restore disabled until a reason of 3 to 1000 characters is typed', async () => {
+    const view = panel({ data: listing() })
+    openFor(view, 'restore', '')
+    const submit = async () => (await view.render()).captured.find(entry => entry.name === 'UButton' && entry.attrs.type === 'submit')!.attrs.disabled
+    expect(await submit()).toBe(true)
+    view.state.restoreReason.value = 'ab'; expect(await submit()).toBe(true)
+    view.state.restoreReason.value = 'Restore check'; expect(await submit()).toBe(false)
+  })
+  it('asks for a confirmation that says the live workspace is untouched, and sends nothing before it', async () => {
+    const view = panel({ data: listing() })
+    openFor(view, 'restore'); view.state.confirmRestore.value = true
+    const confirm = (await view.render()).captured.find(entry => entry.name === 'SharedInlineConfirm')!.attrs
+    expect(confirm).toMatchObject({ title: 'vendor.backups.confirmRestore', description: 'vendor.backups.restoreEffect' })
+    expect(view.request).not.toHaveBeenCalled()
+  })
+  it('approves, then queues the job for that approval, refreshes the list and opens the operation page', async () => {
+    const view = panel({ data: listing(), request: async path => answer(path) })
+    openFor(view, 'restore'); await view.state.runRestore()
+    const calls = view.request.mock.calls as unknown as Call[]
+    expect(calls.map(call => call[0])).toEqual([`shared/tenants/${tenantId}/restore-approvals`, `shared/tenants/${tenantId}/jobs`])
+    expect(calls[0]![1]).toEqual({ method: 'POST', body: { backup_id: id(1), reason: 'Restore check' } })
+    expect(calls[1]![1].body).toEqual({ reason: 'Restore check', job: { schemaVersion: 1, requestId: expect.any(String), operation: 'restore', approvalId: id(5) } })
+    expect(view.fake.refresh).toHaveBeenCalledTimes(1)
+    expect(view.navigateTo).toHaveBeenCalledWith({ path: `/operations/${id(8)}`, query: { source: 'shared', returnTo: `/operations?tenant_id=${tenantId}` } })
+    expect(view.state.restoreTarget.value).toBeNull(); expect(view.state.restoreReason.value).toBe('')
+  })
+  it('after a failed job call, refreshes so the row can be resumed, and a retry keeps the request id and the approval', async () => {
+    let jobCalls = 0
+    const view = panel({ data: listing(), request: async path => { if (path.endsWith('/jobs') && ++jobCalls === 1) throw { statusCode: 409, data: { code: 'shared_reconciliation_required' } }; return answer(path) } })
+    openFor(view, 'restore')
+    await view.state.runRestore()
+    expect(view.navigateTo).not.toHaveBeenCalled(); expect(view.fake.refresh).toHaveBeenCalledTimes(1)
+    expect(sharedBackupErrorKey(view.state.restoreError.value)).toBe('vendor.backups.errors.shared_reconciliation_required')
+    expect(view.state.restoreTarget.value).not.toBeNull(); expect(view.state.restoreReason.value).toBe('Restore check')
+    await view.state.runRestore()
+    const calls = view.request.mock.calls as unknown as Call[]
+    expect(calls.map(call => call[0].split('/').pop())).toEqual(['restore-approvals', 'jobs', 'jobs'])
+    expect(calls[2]![1].body.job.requestId).toBe(calls[1]![1].body.job.requestId)
+    expect(calls[2]![1].body.job.approvalId).toBe(id(5))
+    expect(view.navigateTo).toHaveBeenCalledTimes(1)
+  })
+  it('offers resume for an open approval and queues the job with that approval alone', async () => {
+    const view = panel({ data: listing({ items: [item({ approval })] }), request: async path => answer(path) })
+    view.state.now.value = Date.parse(approval.expires_at) - 1000
+    expect(actionsOf((await view.render()).captured).map(attrs => [attrs['data-action'], attrs.disabled])).toEqual([['resume', false]])
+    openFor(view, 'resume'); await view.state.runRestore()
+    expect((view.request.mock.calls as unknown as Call[]).map(call => call[0].split('/').pop())).toEqual(['jobs'])
+    expect((view.request.mock.calls[0] as unknown as Call)[1].body.job.approvalId).toBe(id(5))
+  })
+  it('disables resume once the approval has expired, and offers a new restore instead', async () => {
+    const view = panel({ data: listing({ items: [item({ approval })] }) })
+    view.state.now.value = Date.parse(approval.expires_at) + 1
+    const { captured, html } = await view.render()
+    expect(actionsOf(captured).map(attrs => [attrs['data-action'], attrs.disabled])).toEqual([['resume', true], ['restore', false]])
+    expect(html).toContain('vendor.backups.approvalExpired')
+  })
+  it('sends no job call when the step-up for the approval is cancelled', async () => {
+    const view = panel({ data: listing(), request: async () => { throw new StepUpCancelled() } })
+    openFor(view, 'restore'); await view.state.runRestore()
+    expect(view.request).toHaveBeenCalledTimes(1); expect(view.navigateTo).not.toHaveBeenCalled()
+    expect(sharedBackupErrorKey(view.state.restoreError.value)).toBe(STEP_UP_CANCELLED_KEY)
+  })
+  it('counts an unsent restore reason as unsent input', async () => {
+    const view = panel({ data: listing() })
+    openFor(view, 'restore'); await Vue.nextTick()
+    expect(view.state.dirtyModel.value).toBe(true)
+    view.state.closeRestore(); await Vue.nextTick()
+    expect(view.state.dirtyModel.value).toBe(false)
   })
 })

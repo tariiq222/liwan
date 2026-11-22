@@ -314,7 +314,7 @@
       "confirmStart": "Start a backup of this workspace?",
       "outage": "Taking the backup stops the shared Odoo service for every customer workspace on this stack, not only this one, and starts it again when the capture is complete. Everyone's sessions are interrupted meanwhile. If the capture fails after the stop, the service can stay stopped until an operator recovers the job.",
       "errors": {
-        "generic": "The backup could not be started.",
+        "generic": "The action could not be completed.",
         "shared_reconciliation_required": "An operation is running or needs attention for this workspace. Finish or resolve it first, then try again.",
         "tenant_operations_unavailable": "Operations are disabled for this workspace.",
         "tenant_unavailable": "The workspace is not available for operations right now.",
@@ -323,8 +323,18 @@
         "shared_replay_forbidden": "Another operator started this request.",
         "idempotency_conflict": "The request id belongs to a different request. Reload the page and try again.",
         "vendor_unavailable": "The shared operations service is unavailable. Try again later.",
-        "invalid": "A reason is required (at least 3 characters)."
-      }
+        "invalid": "A reason is required (at least 3 characters).",
+        "shared_backup_unavailable": "This backup is not available for restore.",
+        "shared_restore_approval_unavailable": "The restore approval has expired or was already used. Start a new restore.",
+        "restore_target_reserved": "The restore target could not be reserved. Try again.",
+        "shared_artifact_mismatch": "The backup files do not match their record, so it cannot be restored."
+      },
+      "restore": "Restore",
+      "resume": "Resume restore",
+      "approvalExpired": "The restore approval has expired. Start a new restore.",
+      "restoreReason": "Reason for the restore",
+      "confirmRestore": "Restore this backup to a separate copy?",
+      "restoreEffect": "A new database and filestore are made from this backup. The live workspace is not changed or replaced, and the restored copy cannot be reached until you publish it from the operation page. The approval is valid for one hour."
     },
     "operations": {
       "title": "Operations",
