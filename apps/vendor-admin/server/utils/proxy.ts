@@ -94,6 +94,9 @@ const METHOD_BOUND = [
   // Team account actions and the shared job actions are commands: POST only.
   { pattern: /^\/v1\/admin\/accounts\/[1-9][0-9]{0,15}\/(roles|disable|enable|reset)$/, methods: ['POST'] },
   { pattern: new RegExp(`^/v1/shared/tenants/${SEGMENT}/jobs/${SEGMENT}/(recover|abandon)$`), methods: ['POST'] },
+  // The shared backup flow: read the listing, approve a restore of one backup, queue a backup or a restore job.
+  { pattern: new RegExp(`^/v1/shared/tenants/${SEGMENT}/backups$`), methods: ['GET'] },
+  { pattern: new RegExp(`^/v1/shared/tenants/${SEGMENT}/(restore-approvals|jobs)$`), methods: ['POST'] },
 ] as const
 
 /** Maps /api/vendor/v1/** to the control plane's /v1/**; anything outside the allowlist (the sign-in surface included) is 404. */

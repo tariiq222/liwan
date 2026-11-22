@@ -312,6 +312,21 @@ describe('vendor API proxy', () => {
     expect((await post(`/shared/tenants/${T}/restore-publications/a-1`)).status).toBe(200)
   })
 
+  it('binds the shared backup routes: the listing to GET, the restore approval and the job queue to POST', async () => {
+    const calls = stubUpstream(() => json(200, {}))
+    const T = '00000000-0000-4000-8000-000000000001'
+    const J = '00000000-0000-4000-8000-000000000002'
+    expect((await get(`/shared/tenants/${T}/backups`)).status).toBe(200)
+    for (const path of [`/shared/tenants/${T}/restore-approvals`, `/shared/tenants/${T}/jobs`]) expect((await post(path, { body: { reason: 'Because' } })).status, path).toBe(200)
+    expect(calls).toHaveLength(3)
+    for (const send of [post, patch]) expect((await send(`/shared/tenants/${T}/backups`)).status).toBe(405)
+    for (const path of [`/shared/tenants/${T}/restore-approvals`, `/shared/tenants/${T}/jobs`]) for (const send of [get, patch]) expect((await send(path)).status, path).toBe(405)
+    expect(calls).toHaveLength(3)
+    // The progress of one job stays a read, and the existing recover and abandon bindings are untouched.
+    expect((await get(`/shared/tenants/${T}/jobs/${J}`)).status).toBe(200)
+    expect((await get(`/shared/tenants/${T}/jobs/${J}/recover`)).status).toBe(405)
+  })
+
   it('waits long enough for the AI provider probes (15 s models, two 20 s asks for a test) and keeps 10 s everywhere else', async () => {
     expect(upstreamTimeoutMs('/v1/platform/ai-provider/models')).toBeGreaterThan(15_000)
     expect(upstreamTimeoutMs('/v1/platform/ai-provider/test')).toBeGreaterThan(40_000)
