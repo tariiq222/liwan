@@ -10,6 +10,10 @@ import { suspendSubscription, syncTenantStatus } from '../commercial/suspension.
 import { createPaymentAttempt, handleProviderEvent } from '../commercial/payments.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
 import { voidRenewalInvoice } from '../commercial/renewal-void.js'
+import { processFreeBaseLocks } from '../commercial/free-base-lock.js'
+import { processFulfillmentOutbox } from '../commercial/fulfillment.js'
+import { recordUsage } from '../commercial/usage.js'
+import { runSubscriptionReconfigure } from '../shared/subscription-reconfigure.js'
 import { getVendorInvoice } from '../commercial/invoices.js'
 import { fixedReturnOrigin } from '../commercial/return-origin.js'
 
@@ -111,7 +115,7 @@ suite('live PostgreSQL void of an unpaid renewal invoice', () => {
   })
 
   const callVoid = (f: Fixture, over: Partial<Parameters<typeof voidRenewalInvoice>[1]> = {}) =>
-    voidRenewalInvoice(pool, { invoice_id: f.invoice, actor: 'account:7', reason: 'Customer will not pay', outcome: 'rebill', ...over })
+    voidRenewalInvoice(pool, { invoice_id: f.invoice, actor: 'account:7', reason: 'Customer will not pay', outcome: 'rebill', ...over } as Parameters<typeof voidRenewalInvoice>[1])
   const sub = async (id: string) => (await pool.query('SELECT * FROM subscriptions WHERE id=$1', [id])).rows[0]
   const orderRow = async (id: string) => (await pool.query('SELECT cancelled,automatic_refund,payment_state FROM orders WHERE id=$1', [id])).rows[0]
   const renewalRow = async (id: string) => (await pool.query('SELECT status FROM renewals WHERE id=$1', [id])).rows[0].status
@@ -252,6 +256,105 @@ suite('live PostgreSQL void of an unpaid renewal invoice', () => {
       await handleProviderEvent(pool, { provider: 'simulator', rawBody: adapter.webhookBody(opened.provider_ref!), headers: {}, adapter })
       expect(await orderRow(f.order)).toMatchObject({ cancelled: true, payment_state: 'refund_pending' })
       expect((await pool.query("SELECT status FROM invoices WHERE id=$1", [f.invoice])).rows[0].status).toBe('void')
+    })
+  })
+
+  describe('voiding with the end outcome', () => {
+    const endVoid = (f: Fixture, over: Record<string, unknown> = {}) => callVoid(f, { outcome: 'end', ...over })
+    const lockRow = async (id: string) => (await pool.query('SELECT *,period_start::text AS start FROM free_base_locks WHERE subscription_id=$1', [id])).rows[0]
+    const outbox = async (id: string, kind: string) => (await pool.query('SELECT payload,status FROM commercial_outbox WHERE aggregate_id=$1 AND kind=$2 ORDER BY created_at', [id, kind])).rows
+    async function freshUsage(f: Fixture, at: Date) {
+      const numeric = Object.entries((await pool.query('SELECT snapshot FROM subscription_revisions WHERE id=(SELECT applied_revision_id FROM subscriptions WHERE id=$1)', [f.subscription])).rows[0].snapshot.entitlement.features)
+        .filter(([, value]) => typeof value === 'number').map(([key]) => key)
+      await recordUsage(pool, { tenant_id: f.tenant, observed_at: at, source: 'void', metrics: Object.fromEntries(numeric.map(key => [key, 0])), limit_gates: Object.fromEntries(numeric.map(key => [key, []])) })
+    }
+    const okRunner = (at: Date) => async ({ job }: { job: any }) => ({ order_id: job.authority.order_id, tenant_id: job.binding.database, database: job.binding.database,
+      target_revision_id: job.authority.target_revision_id, observed_entitlement_digest: job.authority.entitlement.digest, observed_at: at.toISOString(), branch_bindings: [], modules_installed: [] })
+    /** The scheduler's free-base pass: orders the lock, delivers it to the workspace as the shared worker would, and settles it. */
+    async function runLock(f: Fixture) {
+      const adapter = new SimulatorAdapter(), dropAt = new Date(Date.now() + 60_000)
+      await freshUsage(f, dropAt)
+      await processFreeBaseLocks(pool, { now: dropAt, adapter, subscription_id: f.subscription })
+      const order = (await pool.query("SELECT id FROM orders WHERE subscription_id=$1 AND idempotency_key LIKE $2", [f.subscription, `free-base-lock:${f.subscription}:%`])).rows[0]
+      for (let pass = 0; pass < 20; pass++) {
+        await processFulfillmentOutbox(pool, { limit: 100 })
+        if ((await pool.query('SELECT 1 FROM fulfillment_effects WHERE order_id=$1 AND job_id IS NOT NULL', [order.id])).rowCount) break
+      }
+      const job = (await pool.query('SELECT job_id FROM fulfillment_effects WHERE order_id=$1', [order.id])).rows[0].job_id
+      expect(await runSubscriptionReconfigure(pool, job, okRunner(dropAt))).toMatchObject({ state: 'verified' })
+      await processFreeBaseLocks(pool, { now: dropAt, adapter, subscription_id: f.subscription })
+    }
+    /** The first invoice is also unpaid and overdue (fixture only: its status and date are immutable for the application). */
+    async function firstInvoiceOverdue(f: Fixture) {
+      const c = await pool.connect()
+      try { await c.query('BEGIN'); await c.query('SET LOCAL session_replication_role=replica'); await c.query("UPDATE invoices SET status='issued',paid_at=NULL,due_at=now()-interval '10 days' WHERE order_id=$1", [f.firstOrder]); await c.query('COMMIT') } finally { c.release() }
+    }
+
+    it('records a vendor cancellation and arms the cancellation lock for the voided period, with no new renewal', async () => {
+      const f = await unpaidRenewal()
+      await endVoid(f, { reason: 'Customer left the company' })
+      expect(await sub(f.subscription)).toMatchObject({ state: 'active', cancel_requested_by: 'vendor', cancel_reason: 'Customer left the company' })
+      expect(await lockRow(f.subscription)).toMatchObject({ state: 'pending', cause: 'cancelled', start: '2026-10-01' })
+      expect((await pool.query("SELECT actor,reason FROM audit_events WHERE action='subscription.cancel_requested' AND subject=$1", [f.subscription])).rows).toEqual([{ actor: 'account:7', reason: 'Customer left the company' }])
+      expect((await pool.query("SELECT metadata FROM audit_events WHERE action='invoice.voided' AND subject=$1", [f.invoice])).rows[0].metadata).toMatchObject({ outcome: 'end', state: 'active' })
+      expect(await renew(new Date('2026-10-05T08:00:00Z'))).toEqual([])
+      expect((await pool.query('SELECT count(*)::int AS n FROM renewals WHERE subscription_id=$1 AND status<>$2', [f.subscription, 'superseded'])).rows[0].n).toBe(0)
+    })
+    it('drops the workspace to the free base on the next lock run and tells the customer once, with the notice of the cancelled cause', async () => {
+      const f = await unpaidRenewal()
+      await endVoid(f)
+      await runLock(f)
+      expect(await lockRow(f.subscription)).toMatchObject({ state: 'done', cause: 'cancelled' })
+      const dropped = await sub(f.subscription)
+      expect(dropped).toMatchObject({ state: 'active', cancel_requested_at: null })
+      expect(dropped.renewal_at).not.toEqual(new Date('2026-10-01'))
+      expect(await outbox(f.subscription, 'free_base.locked')).toEqual([{ status: 'pending', payload: expect.objectContaining({ cause: 'cancelled' }) }])
+      // The "cancelled, ends on a date" notice is never queued: the drop is immediate, so only the drop notice says it.
+      expect((await outbox(f.subscription, 'cancellation.notice')).map(row => row.payload.type)).toEqual([])
+      expect(await renew(new Date('2026-10-05T08:00:00Z'))).toEqual([])
+    })
+    it('takes a subscription dunning suspended a moment before: it is active again at once and the lock settles', async () => {
+      const f = await unpaidRenewal()
+      await applyDunning(pool, { now: await afterDue(f, 0) }); await applyDunning(pool, { now: await afterDue(f, 3) })
+      expect(await sub(f.subscription)).toMatchObject({ state: 'suspended' })
+      await endVoid(f)
+      expect(await sub(f.subscription)).toMatchObject({ state: 'active', left_service_at: null })
+      await runLock(f)
+      expect(await lockRow(f.subscription)).toMatchObject({ state: 'done' })
+      expect(await sub(f.subscription)).toMatchObject({ state: 'active', cancel_requested_at: null })
+    })
+    it('arms the lock even when another invoice keeps the subscription suspended, and the lock run settles it to active', async () => {
+      const f = await unpaidRenewal()
+      await applyDunning(pool, { now: await afterDue(f, 0) }); await applyDunning(pool, { now: await afterDue(f, 3) })
+      await firstInvoiceOverdue(f)
+      await endVoid(f)
+      expect(await sub(f.subscription)).toMatchObject({ state: 'suspended', manual_suspension: false })
+      expect(await lockRow(f.subscription)).toMatchObject({ state: 'pending', cause: 'cancelled' })
+      expect(await applyDunning(pool, { now: await afterDue(f, 30) })).toEqual([]) // the armed lock holds dunning
+      await runLock(f)
+      expect(await sub(f.subscription)).toMatchObject({ state: 'active', cancel_requested_at: null })
+    })
+    it('keeps an earlier customer cancellation request as it was', async () => {
+      const f = await unpaidRenewal()
+      await pool.query("UPDATE subscriptions SET cancel_requested_at='2026-09-20T09:00:00Z',cancel_requested_by='customer',revision=revision+1 WHERE id=$1", [f.subscription])
+      await endVoid(f)
+      expect(await sub(f.subscription)).toMatchObject({ cancel_requested_by: 'customer' })
+      expect(await lockRow(f.subscription)).toMatchObject({ state: 'pending', cause: 'cancelled' })
+      expect((await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE action='subscription.cancel_requested' AND subject=$1", [f.subscription])).rows[0].n).toBe(0)
+    })
+    it('is refused while the vendor has the subscription suspended, and while a change is pending, and changes nothing', async () => {
+      const f = await unpaidRenewal()
+      await suspendSubscription(pool, { subscription_id: f.subscription, reason: 'Vendor decision', actor: '7' })
+      let before = await snapshot(f)
+      await expect(endVoid(f)).rejects.toMatchObject({ status: 409, code: 'subscription_suspended' })
+      expect(await snapshot(f)).toEqual(before)
+      expect(await lockRow(f.subscription)).toBeUndefined()
+      const g = await unpaidRenewal()
+      await pool.query('UPDATE subscriptions SET target_revision_id=applied_revision_id,revision=revision+1 WHERE id=$1', [g.subscription])
+      before = await snapshot(g)
+      await expect(endVoid(g)).rejects.toMatchObject({ status: 409, code: 'subscription_change_pending' })
+      expect(await snapshot(g)).toEqual(before)
+      expect(await lockRow(g.subscription)).toBeUndefined()
     })
   })
 })

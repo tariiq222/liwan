@@ -22,7 +22,7 @@ export async function loadVoidSubject(client: Q, invoiceId: string, lock: boolea
   const head = (await client.query('SELECT subscription_id,order_id FROM invoices WHERE id=$1', [invoiceId])).rows[0]
   if (!head) return null
   const suffix = lock ? ' FOR UPDATE' : ''
-  const subscription = (await client.query(`SELECT * FROM subscriptions WHERE id=$1${suffix}`, [head.subscription_id])).rows[0]
+  const subscription = (await client.query(`SELECT *,renewal_at::text AS renewal_on FROM subscriptions WHERE id=$1${suffix}`, [head.subscription_id])).rows[0]
   const order = head.order_id ? (await client.query(`SELECT * FROM orders WHERE id=$1${suffix}`, [head.order_id])).rows[0] : undefined
   const invoice = (await client.query(`SELECT * FROM invoices WHERE id=$1${suffix}`, [invoiceId])).rows[0]
   const renewal = (await client.query(`SELECT *,period_start::text AS start FROM renewals WHERE invoice_id=$1${suffix}`, [invoiceId])).rows[0]
