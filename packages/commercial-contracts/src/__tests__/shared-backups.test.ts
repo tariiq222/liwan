@@ -13,6 +13,11 @@ it('accepts a backups listing and a refused start that names the blocking job', 
   const blocked = { ...listing, start: { allowed: false, reason: 'job_in_progress', job_id: id(6) } }
   expect(sharedBackupListSchema.parse(blocked)).toEqual(blocked)
 })
+it('accepts a restore job the operator abandoned', () => {
+  const item = listing.items[0]!
+  const abandoned = { ...listing, items: [{ ...item, restores: [{ ...item.restores[0], state: 'failed' }] }] }
+  expect(sharedBackupListSchema.parse(abandoned)).toEqual(abandoned)
+})
 it('rejects a start decision that contradicts itself and any field the browser must not see', () => {
   for (const start of [{ allowed: true, reason: 'job_in_progress', job_id: null }, { allowed: false, reason: null, job_id: null }, { allowed: false, reason: 'operations_unavailable', job_id: id(6) }, { allowed: false, reason: 'job_in_progress', job_id: null }]) {
     expect(sharedBackupListSchema.safeParse({ ...listing, start }).success).toBe(false)

@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { Pool } from 'pg'
 import { randomUUID } from 'node:crypto'
 import { migrate } from '../db.js'
+import { sharedBackupListSchema } from '@liwan/commercial-contracts'
 import { listSharedBackups } from './backup-list.js'
 import { vendorAccount } from '../__tests__/helpers/vendor-session.js'
 const url = process.env.CONTROL_TEST_DATABASE_URL
@@ -90,6 +91,14 @@ describe.skipIf(!url)('shared backup listing (live PostgreSQL)', () => {
     const firstJob = await job(f, 'restore', 'verified', { approvalId: first }), secondJob = await job(f, 'restore', 'needs_intervention', { approvalId: second })
     const restores = (await listSharedBackups(pool, f.tenant))!.items[0]!.restores
     expect(restores.map(r => [r.job_id, r.approval_id, r.state])).toEqual([[secondJob, second, 'needs_intervention'], [firstJob, first, 'verified']])
+  })
+  it('lists a restore the operator abandoned, and the listing still passes the contract', async () => {
+    const f = await workspace(), b = await backup(f)
+    const approvalId = await approval(f, b.id, { consumed: true })
+    const failed = await job(f, 'restore', 'failed', { approvalId })
+    const list = (await listSharedBackups(pool, f.tenant))!
+    expect(list.items[0]!.restores.map(r => [r.job_id, r.state])).toEqual([[failed, 'failed']])
+    expect(sharedBackupListSchema.parse(list)).toEqual(list)
   })
   it('says a backup cannot be started while a job needs intervention, and names it', async () => {
     const f = await workspace(), stuck = await job(f, 'restore', 'needs_intervention')

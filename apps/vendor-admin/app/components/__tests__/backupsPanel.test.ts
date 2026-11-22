@@ -45,6 +45,11 @@ describe('BackupsPanel', () => {
     expect(html).toContain('vendor.backups.approvalOpen[time=@2026-11-22T11:00:00.000Z]')
     expect(html).toContain('vendor.backups.approvedBy[name=Omar]')
   })
+  it('shows an abandoned restore with the failed state text', async () => {
+    const { render } = panel({ data: listing({ items: [item({ restores: [{ job_id: id(3), approval_id: id(4), state: 'failed', created_at: '2026-11-22T11:00:00.000Z' }] })] }) })
+    const { captured } = await render()
+    expect(captured.find(entry => entry.name === 'SharedStatusBadge')!.attrs).toMatchObject({ tone: 'destructive', label: 'vendor.status.failed' })
+  })
   it('names a backup whose starter is unknown instead of leaving a blank', async () => {
     const { render } = panel({ data: listing({ items: [item({ started_by: null })] }) })
     expect((await render()).html).toContain('vendor.backups.startedBy[name=vendor.common.unknown]')

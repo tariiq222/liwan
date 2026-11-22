@@ -104,7 +104,7 @@ export const sharedProvisioningProgressSchema = z.strictObject({
 
 // Backups of one shared workspace in the vendor console (GET /v1/shared/tenants/:id/backups). Ids, times, display names and
 // states only: never an artifact path, a digest, a database name or a binding.
-export const sharedJobStateSchema = z.enum(['queued', 'running', 'verified', 'needs_intervention'])
+export const sharedJobStateSchema = z.enum(['queued', 'running', 'verified', 'needs_intervention', 'failed'])
 const sharedBackupStartSchema = z.union([
   z.strictObject({ allowed: z.literal(true), reason: z.null(), job_id: z.null() }),
   z.strictObject({ allowed: z.literal(false), reason: z.literal('operations_unavailable'), job_id: z.null() }),
