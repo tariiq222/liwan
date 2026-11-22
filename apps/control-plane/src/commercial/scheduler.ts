@@ -98,9 +98,25 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
   const startedAt = new Date(clock())
   let lastBeat: number | undefined
   let jobCounts: Record<string, { runs: number; failures: number }> = {}
+  let previousTickFailed: string[] = []
+  const failedJobs = () => Object.keys(jobCounts).length === 0 ? previousTickFailed : Object.entries(jobCounts).filter(([, counts]) => counts.failures > 0).map(([name]) => name)
+  /** The scheduler's beat, at most every 30 s on the process clock (the write itself is stamped by the database). It is taken at the start of
+   * a tick and between its jobs, so a tick that runs long (many mails, retries across tenants) is never mistaken for a stopped scheduler;
+   * `final` forces it when the failed job names changed, so the end of a tick is not hidden by the throttle. A worker that is stopping no longer vouches for itself. */
+  let reportedFailed = ''
+  const pulse = async (final = false) => {
+    if (o.signal?.aborted) return
+    const failed_jobs = failedJobs()
+    const changed = final && failed_jobs.join() !== reportedFailed
+    if (!changed && lastBeat !== undefined && clock() - lastBeat < HEARTBEAT_INTERVAL_MS) return
+    lastBeat = clock()
+    reportedFailed = failed_jobs.join()
+    await beat(pool, 'commercial_scheduler', { startedAt, log, detail: { ticks, last_billing_at: lastBilling === undefined ? null : new Date(lastBilling).toISOString(), failed_jobs } })
+  }
   // After the worker shutdown signal no new job starts, so a stop waits for the job in flight only.
   const job = async (name: string, fn: () => Promise<unknown>) => {
     if (o.signal?.aborted) return
+    await pulse()
     const counts = jobCounts[name] ??= { runs: 0, failures: 0 }
     counts.runs++
     try { await fn() } catch (e) { counts.failures++; try { log(`${name} failed`, e) } catch { /* never throw */ } }
@@ -190,12 +206,8 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
         await job('refunds', () => processRefundOutbox(pool, o.paymentAdapter))
         await job('payment-tokens', () => processTokenDeletions(pool, o.paymentAdapter))
       }
-      // A worker that is stopping no longer vouches for itself.
-      if (!o.signal?.aborted && (lastBeat === undefined || clock() - lastBeat >= HEARTBEAT_INTERVAL_MS)) {
-        lastBeat = clock()
-        const failed_jobs = Object.entries(jobCounts).filter(([, counts]) => counts.failures > 0).map(([name]) => name)
-        await beat(pool, 'commercial_scheduler', { startedAt, log, detail: { ticks, last_billing_at: lastBilling === undefined ? null : new Date(lastBilling).toISOString(), failed_jobs } })
-      }
+      await pulse(true)
+      previousTickFailed = failedJobs()
       console.debug(JSON.stringify({ event: 'commercial_scheduler_tick', tick: ticks, jobs: jobCounts }))
     },
   }

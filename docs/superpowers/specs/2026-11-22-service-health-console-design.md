@@ -28,7 +28,7 @@
 | Component | Written by | When | `detail` |
 | --- | --- | --- | --- |
 | `shared_worker` | a timer in `shared-worker-main.ts`, independent of the job loop | every 30 s | none |
-| `commercial_scheduler` | the end of `tick()` | at most every 30 s | ticks, last billing pass, jobs that failed in the last tick |
+| `commercial_scheduler` | the start of `tick()` and between its jobs | at most every 30 s | ticks, last billing pass, jobs that failed in the last tick |
 | `payment_adapter`, `mail_adapter`, `alert_channel` | worker start-up, then the worker timer | on start and on change | `available`, and the logged reason when not |
 | `api_payment_adapter` | `createApp` start-up | on start | the same |
 
@@ -42,7 +42,8 @@ from named constants:
 
 - `shared_worker`: stale after 2 minutes without a beat.
 - `commercial_scheduler`: stale after 5 minutes without a tick, unless a `shared_jobs` row is `running`; then after
-  2 hours, the grace the deployment document gives a running operation.
+  2 hours, the grace the deployment document gives a running operation. Only a `running` row whose own
+  `lease_until` is unexpired counts (the worker renews it while it works): an orphaned row gives no grace.
 - Adapters: `unavailable` as recorded. Their row is shown as unknown while `shared_worker` is stale.
 
 **Console.** A "Services" section on `/overview` above the counts: one chip per component with a state word and

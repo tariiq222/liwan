@@ -10,7 +10,8 @@ CREATE TABLE service_heartbeats(
 -- The state of every component at one instant. This function is the single place the staleness thresholds live: the control plane reads it
 -- for the console and the host alert timer reads it directly, so the two cannot disagree.
 --   shared_worker: stale after 2 minutes without a beat (its beat is a timer of its own).
---   commercial_scheduler: stale after 5 minutes without a tick, but after 2 hours while a shared job runs (the tick does not run then).
+--   commercial_scheduler: stale after 5 minutes without a beat, but after 2 hours while a shared job runs (the tick does not run then). A job counts
+--     only while its own lease is unexpired (the worker renews it while it works), so a row left in `running` by a hung or dead worker gives no grace.
 --   adapters: ok or unavailable as recorded; never stale.
 -- `down` is the alert condition: stale or unavailable, except an adapter row of the worker while the worker itself is not ok
 -- (it is the worker that is down, and the adapter's last record is then unknown).
@@ -23,7 +24,7 @@ CREATE FUNCTION service_health_states(at timestamptz) RETURNS TABLE(component te
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
   WITH known(component, beat, worker_adapter, stale_after) AS (VALUES
     ('shared_worker', true, false, interval '2 minutes'),
-    ('commercial_scheduler', true, false, CASE WHEN EXISTS (SELECT 1 FROM shared_jobs WHERE state = 'running') THEN interval '2 hours' ELSE interval '5 minutes' END),
+    ('commercial_scheduler', true, false, CASE WHEN EXISTS (SELECT 1 FROM shared_jobs WHERE state = 'running' AND lease_until > at) THEN interval '2 hours' ELSE interval '5 minutes' END),
     ('payment_adapter', false, true, NULL::interval),
     ('mail_adapter', false, true, NULL::interval),
     ('alert_channel', false, true, NULL::interval),

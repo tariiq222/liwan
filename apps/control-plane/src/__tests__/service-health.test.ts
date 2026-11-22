@@ -36,12 +36,12 @@ suite('service health on PostgreSQL', () => {
   })
   beforeEach(async () => { await pool.query('DELETE FROM service_heartbeats'); await pool.query('TRUNCATE shared_job_events, shared_jobs, shared_registry_audit, shared_registry_hosts, shared_registry_bindings CASCADE') })
 
-  async function runningJob() {
+  async function runningJob(lease = "now() + interval '1 day'") {
     const tenant = randomUUID()
     await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,$2,'saas','dedicated_managed',$2,false)", [tenant, `health-${tenant}`])
     await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$2,$2,$2,false,1)', [tenant, `h${tenant.slice(0, 8)}`])
     await pool.query("INSERT INTO shared_jobs(id,control_tenant_id,business_key,payload,payload_digest,issuer,actor_uid,reason,state) VALUES($1,$2,'k','{}',$3,'health-test',7,'Fixture','queued')", [randomUUID(), tenant, 'a'.repeat(64)])
-    await pool.query("UPDATE shared_jobs SET state='running', attempt_id=$1, fence=1, lease_until=now()+interval '1 hour' WHERE control_tenant_id=$2", [randomUUID(), tenant])
+    await pool.query("UPDATE shared_jobs SET state='running', attempt_id=$1, fence=1, lease_until=" + lease + " WHERE control_tenant_id=$2", [randomUUID(), tenant])
   }
 
   describe('the host alert role', () => {
@@ -131,6 +131,16 @@ suite('service health on PostgreSQL', () => {
     // The grace is the scheduler's own: a worker that stops beating is still stale after two minutes.
     await beat(pool, 'shared_worker', { startedAt: T0 })
     expect((await stateAfterBeat('shared_worker', 2 * MINUTE + 1)).state).toBe('stale')
+  })
+
+  it('gives the scheduler the long grace only for a running job whose own lease is fresh, not for an orphaned row', async () => {
+    await beat(pool, 'commercial_scheduler', { startedAt: T0 })
+    await runningJob("now() - interval '3 minutes'")   // the worker that held it has stopped renewing the lease
+    expect((await stateAfterBeat('commercial_scheduler', 5 * MINUTE)).state).toBe('ok')
+    expect((await stateAfterBeat('commercial_scheduler', 5 * MINUTE + 1)).state).toBe('stale')
+    expect((await stateAfterBeat('commercial_scheduler', HOUR)).state).toBe('stale')
+    await pool.query("UPDATE shared_jobs SET lease_until = now() + interval '1 day'")
+    expect((await stateAfterBeat('commercial_scheduler', HOUR)).state).toBe('ok')
   })
 
   it('records an adapter as available or unavailable and never calls it stale', async () => {

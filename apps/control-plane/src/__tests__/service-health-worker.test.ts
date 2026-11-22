@@ -4,7 +4,7 @@ import { HEARTBEAT_INTERVAL_MS, startWorkerHeartbeat } from '../service-health.j
 
 type Beat = { component: string; at: string | null; startedAt: Date; detail: Record<string, any> }
 /** A pool that records every heartbeat write; `fail` makes the other queries, `failBeats` the heartbeat write, reject. */
-function recordingPool(o: { fail?: boolean; failBeats?: boolean; hangBeats?: boolean; clock?: () => number } = {}) {
+function recordingPool(o: { fail?: boolean; failBeats?: boolean; hangBeats?: boolean; clock?: () => number; onQuery?: () => void } = {}) {
   const beats: Beat[] = []
   const query = async (sql: string, params: unknown[] = []) => {
     if (String(sql).includes('INSERT INTO service_heartbeats')) {
@@ -13,6 +13,7 @@ function recordingPool(o: { fail?: boolean; failBeats?: boolean; hangBeats?: boo
       if (o.hangBeats) return new Promise(() => {})
       return { rows: [], rowCount: 1 }
     }
+    o.onQuery?.()
     if (o.fail) throw new Error('database_hiccup')
     return { rows: [], rowCount: 0 }
   }
@@ -40,10 +41,31 @@ describe('the scheduler beat', () => {
     const now = Date.parse('2026-11-22T10:00:00Z')
     const scheduler = createCommercialScheduler({ pool, config: {} as never, env: {}, clock: () => now, log: () => {} })
     await scheduler.tick()
-    expect(beats).toHaveLength(1)
-    expect(beats[0]!.detail).toMatchObject({ ticks: 1, last_billing_at: '2026-11-22T10:00:00.000Z' })
-    expect(beats[0]!.detail.failed_jobs).toEqual(expect.arrayContaining(['paid-fulfillment-recovery', 'fulfillment', 'vendor-alerts']))
-    expect(JSON.stringify(beats[0]!.detail)).not.toContain('database_hiccup')
+    const last = beats.at(-1)!
+    expect(last.detail).toMatchObject({ ticks: 1, last_billing_at: '2026-11-22T10:00:00.000Z' })
+    expect(last.detail.failed_jobs).toEqual(expect.arrayContaining(['paid-fulfillment-recovery', 'fulfillment', 'vendor-alerts']))
+    expect(JSON.stringify(beats.map(b => b.detail))).not.toContain('database_hiccup')
+  })
+
+  it('beats during a long tick, between its jobs, so a working scheduler is never stale', async () => {
+    vi.spyOn(console, 'debug').mockImplementation(() => {})
+    let now = Date.parse('2026-11-22T10:00:00Z')
+    const { pool, beats } = recordingPool({ clock: () => now, onQuery: () => { now += 10_000 } })   // every database step takes 10 s: the tick runs for minutes
+    const scheduler = createCommercialScheduler({ pool, config: {} as never, env: {}, clock: () => now, log: () => {} })
+    const start = now
+    await scheduler.tick()
+    expect(now - start).toBeGreaterThan(5 * 60_000)   // longer than the scheduler's stale limit
+    const times = beats.map(b => Date.parse(b.at!))
+    expect(times[0]).toBe(start)   // one at the start of the tick
+    const gaps = times.slice(1).map((t, i) => t - times[i]!)
+    expect(Math.max(...gaps, now - times.at(-1)!)).toBeLessThan(5 * 60_000)   // never as long as the stale limit, though the tick is longer than it
+  })
+
+  it('still reports the jobs that failed once the tick ends, even inside the throttle', async () => {
+    vi.spyOn(console, 'debug').mockImplementation(() => {})
+    const { pool, beats } = recordingPool({ fail: true })
+    await createCommercialScheduler({ pool, config: {} as never, env: {}, clock: () => 0, log: () => {} }).tick()
+    expect(beats.at(-1)!.detail.failed_jobs).toEqual(expect.arrayContaining(['paid-fulfillment-recovery', 'fulfillment', 'vendor-alerts']))
   })
 
   it('has no billing pass to report before the first one and no failed jobs when none failed', async () => {
