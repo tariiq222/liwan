@@ -205,6 +205,19 @@ describe('vendor API proxy', () => {
     expect(calls).toHaveLength(forwarded)
   })
 
+  it('forwards the AI provider redelivery as a POST only, and refuses its near misses', async () => {
+    const calls = stubUpstream(() => json(200, { outcome: 'written' }))
+    expect(await post('/platform/ai-provider/redeliver', { body: { reason: 'File lost' } })).toMatchObject({ status: 200, body: { outcome: 'written' } })
+    expect(calls.map(c => `${c.method} ${c.url.pathname}`)).toEqual(['POST /v1/platform/ai-provider/redeliver'])
+    const forwarded = calls.length
+    for (const method of ['GET', 'PATCH']) {
+      expect((await send(proxy, '/api/vendor/v1/platform/ai-provider/redeliver', { method, headers: cookieHeader() })).status, method).toBe(405)
+    }
+    for (const path of ['/platform/ai-provider/redeliver/x', '/platform/ai-provider/redeliverx']) expect((await post(path)).status, path).toBe(404)
+    expect(calls).toHaveLength(forwarded)
+    expect(upstreamTimeoutMs('/v1/platform/ai-provider/redeliver')).toBe(UPSTREAM_TIMEOUT_MS)
+  })
+
   it('forwards the saved-card actions as a POST only, and refuses their near misses', async () => {
     const calls = stubUpstream(() => json(200, {}))
     expect((await post('/commercial/subscriptions/s-1/payment-methods/pm-1/remove')).status).toBe(200)

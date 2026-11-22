@@ -47,7 +47,7 @@ const ALLOWED = [
   new RegExp(`^/v1/commercial/subscriptions/${SEGMENT}(/(branches|usage|suspend|resume|cancel-renewal|resume-renewal|disable-auto-renew))?$`),
   // Removing a customer's saved card, and stopping its automatic renewal without touching the card: reason and fresh step-up, POST only.
   new RegExp(`^/v1/commercial/subscriptions/${SEGMENT}/payment-methods/${SEGMENT}/remove$`),
-  /^\/v1\/platform\/ai-provider(\/(presets|models|test))?$/,
+  /^\/v1\/platform\/ai-provider(\/(presets|models|test|redeliver))?$/,
   /^\/v1\/admin\/(me|accounts)$/,
   /^\/v1\/admin\/accounts\/[1-9][0-9]{0,15}\/(roles|disable|enable|reset)$/,
 ]
@@ -96,6 +96,8 @@ const METHOD_BOUND = [
   { pattern: new RegExp(`^/v1/commercial/customers/${SEGMENT}/admin-login$`), methods: ['PATCH'] },
   { pattern: new RegExp(`^/v1/commercial/subscriptions/${SEGMENT}/disable-auto-renew$`), methods: ['POST'] },
   { pattern: new RegExp(`^/v1/commercial/subscriptions/${SEGMENT}/payment-methods/${SEGMENT}/remove$`), methods: ['POST'] },
+  // Delivering the stored AI provider configuration to the AI service's file again is a command: POST only.
+  { pattern: /^\/v1\/platform\/ai-provider\/redeliver$/, methods: ['POST'] },
   // Team account actions and the shared job actions are commands: POST only.
   { pattern: /^\/v1\/admin\/accounts\/[1-9][0-9]{0,15}\/(roles|disable|enable|reset)$/, methods: ['POST'] },
   { pattern: new RegExp(`^/v1/shared/tenants/${SEGMENT}/jobs/${SEGMENT}/(recover|abandon)$`), methods: ['POST'] },
