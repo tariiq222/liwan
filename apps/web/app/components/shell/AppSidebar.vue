@@ -73,7 +73,7 @@ const sections = computed(() => app.value?.sections ?? [])
     <template v-else-if="app">
       <!-- The block switches application directly (DESIGN.md §3): the «كل التطبيقات» row that used to sit above it
            pointed at /apps, which the footer already carries, so the same link appeared twice in one column. -->
-      <ShellAppSwitcher :app="{ id: app.id, label: app.label, icon: app.icon }" :items="switchItems" :menu-label="t('nav.switchApp')" :disabled="!hydrated" />
+      <ShellAppSwitcher :app="{ id: app.id, label: app.label, icon: app.icon }" :items="switchItems" :menu-label="t('nav.switchApp')" :disabled="!hydrated" :test-id-prefix="prefix" />
       <ShellNavSection v-if="actionRows.length" :label="t('nav.quickActionsList')" :items="actionRows" :test-id-prefix="prefix" :hydrated="hydrated" @navigate="emit('navigate')" />
       <ShellNavSection v-for="section in sections" :key="section.id" :label="app.label" :title="section.title || undefined" :items="section.items" :test-id-prefix="prefix" :hydrated="hydrated" @navigate="emit('navigate')" />
     </template>

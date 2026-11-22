@@ -12,19 +12,21 @@ const props = withDefaults(defineProps<{
   /** Accessible name of the menu trigger (the block's own name is the application's). */
   menuLabel: string
   disabled?: boolean
-}>(), { items: () => [], disabled: false })
+  /** The surface's prefix, so the drawer copy and the column never share a test id (`mobile-` inside the drawer). */
+  testIdPrefix?: string
+}>(), { items: () => [], disabled: false, testIdPrefix: '' })
 </script>
 
 <template>
-  <UDropdownMenu v-if="props.items.length" :items="[props.items.map(item => ({ label: item.label, icon: item.icon, to: item.to, 'data-testid': item.testId }))]" :disabled="props.disabled" :content="{ align: 'start' }" data-testid="navigation-app-switcher">
-    <button type="button" class="liwan-side-appblock" :disabled="props.disabled" :aria-label="`${props.app.label} — ${props.menuLabel}`" :aria-haspopup="'menu'">
+  <UDropdownMenu v-if="props.items.length" :items="[props.items.map(item => ({ label: item.label, icon: item.icon, to: item.to, 'data-testid': item.testId }))]" :disabled="props.disabled" :content="{ align: 'start' }" :data-testid="`${props.testIdPrefix}navigation-app-switcher`">
+    <button type="button" class="liwan-side-appblock" :disabled="props.disabled" :aria-label="`${props.app.label} — ${props.menuLabel}`" :aria-haspopup="'menu'" :data-testid="`${props.testIdPrefix}navigation-app-block`">
       <ShellAppTile :icon="props.app.icon" :app="props.app.id" size="md" />
       <span data-slot="name">{{ props.app.label }}</span>
       <UIcon data-slot="chevron" name="i-lucide-chevrons-up-down" class="size-4 shrink-0 opacity-60" aria-hidden="true" />
     </button>
   </UDropdownMenu>
   <ShellTip v-else :label="props.app.label">
-    <div class="liwan-side-appblock" :data-testid="'navigation-app-block'">
+    <div class="liwan-side-appblock" :data-testid="`${props.testIdPrefix}navigation-app-block`">
       <ShellAppTile :icon="props.app.icon" :app="props.app.id" size="md" />
       <span data-slot="name">{{ props.app.label }}</span>
     </div>

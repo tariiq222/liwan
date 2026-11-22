@@ -3,7 +3,7 @@ import type { ZodType } from 'zod'
 
 /**
  * Application manifest: the one place an application declares its web surface.
- * Data only: manifests import no components, except the lazy `quickPanel.load`
+ * Data only: manifests import no components, except the lazy `assistant.load` panel body
  * and `assistant.load` (dynamic imports of the application's own panel body). Icons are Iconify strings.
  */
 /** Local Lucide icons, the approved customer WhatsApp brand icon and the Liwan AI sparkle. */

@@ -17,18 +17,22 @@ test.describe('top bar (desktop)', () => {
   test('groups the controls in order and separates them with two dividers', async ({ page }) => {
     const bar = page.getByTestId('shell-header')
     const order = await bar.evaluate(header => {
-      const ids = ['global-search-trigger', 'assistant-button', 'meetings-tool', 'tasks-tool', 'chat-tool', 'notification-bell', 'account-menu']
+      // The application tool panels left this bar (DESIGN.md §3, 2026-11-21): the sidebar's core-app row and the phone
+      // tab bar open those pages, so the bar carries search, the assistant, the notifications and the account only.
+      const ids = ['global-search-trigger', 'assistant-button', 'notification-bell', 'account-menu']
       const items = ids.map(id => ({ id, node: header.querySelector(`[data-testid="${id}"]`) }))
       // In reading order the inline start is the visually later x in RTL: sort by the document position instead of geometry.
       return items.filter(item => item.node).sort((a, b) => (a.node!.compareDocumentPosition(b.node!) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1)).map(item => item.id)
     })
-    expect(order).toEqual(['global-search-trigger', 'assistant-button', 'meetings-tool', 'tasks-tool', 'chat-tool', 'notification-bell', 'account-menu'])
+    expect(order).toEqual(['global-search-trigger', 'assistant-button', 'notification-bell', 'account-menu'])
+    // The removed tools must be gone, not merely unlisted.
+    for (const id of ['meetings-tool', 'tasks-tool', 'chat-tool']) await expect(bar.getByTestId(id)).toHaveCount(0)
     await expect(bar.getByTestId('app-switcher')).toHaveCount(0)
     await expect(bar.getByTestId('theme-toggle')).toHaveCount(0)
   })
 
   test('every icon button sits in the soft capsule, 34px, with no background at rest and fills on hover', async ({ page }) => {
-    for (const id of ['meetings-tool', 'tasks-tool', 'chat-tool', 'notification-bell']) {
+    for (const id of ['notification-bell']) {
       const button = page.getByTestId(id)
       const box = (await button.boundingBox())!
       expect(box.width).toBeCloseTo(34, 0)
@@ -112,7 +116,8 @@ test.describe('top bar (phone)', () => {
     const bar = page.getByTestId('shell-header')
     await expect(bar.getByTestId('global-search-trigger')).toBeVisible()
     await expect(bar.getByTestId('notification-bell')).toBeVisible()
-    await expect(bar.getByTestId('meetings-tool')).toBeHidden()
+    // The tool panels are gone entirely now, not hidden at this width.
+    await expect(bar.getByTestId('meetings-tool')).toHaveCount(0)
     const trigger = bar.getByTestId('account-menu')
     await expect(trigger.locator('[data-slot="copy"]')).toBeHidden()
     expect(await fitsWidth(page)).toBe(true)

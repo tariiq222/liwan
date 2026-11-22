@@ -104,10 +104,11 @@ test.describe('core apps icon row', () => {
     await expect(menu.getByTestId('shell-org')).toBeVisible()
     await expect(menu.getByTestId('core-apps')).toBeVisible()
     const rowBox = (await menu.getByTestId('core-apps').boundingBox())!
-    const backBox = (await menu.getByTestId('navigation-app-back').boundingBox())!
     const blockBox = (await menu.getByTestId('navigation-app-block').boundingBox())!
-    expect(rowBox.y + rowBox.height).toBeLessThanOrEqual(backBox.y)
-    expect(backBox.y).toBeLessThan(blockBox.y)
+    // The order is organisation card, core row, application block: the back row that used to sit between them left the
+    // top of the sidebar (the footer carries «كل التطبيقات»).
+    expect(rowBox.y + rowBox.height).toBeLessThanOrEqual(blockBox.y)
+    await expect(menu.getByTestId('navigation-app-back')).toHaveCount(0)
     // No tile is lit on an application that is not a core one.
     await expect(menu.locator('[data-testid^="core-app-"][aria-current="page"]')).toHaveCount(0)
     await menu.getByTestId('core-app-tasks').click()

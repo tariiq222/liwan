@@ -27,10 +27,16 @@ function oneOf<T extends string>(values: readonly T[], value: unknown, fallback:
   return values.find(item => item === raw) ?? fallback
 }
 
+/**
+ * The URL key of the list's own tab. It is not `tab`: «أعمالي» owns `?tab=` for its attention slices, and the workspace
+ * keeps that key while switching to «المهام», so a shared key let `tab=closed` re-select «للتنفيذ» by accident.
+ */
+const TAB_KEY = 'state'
+
 /** The list state held in the URL; anything unknown falls back to its default. */
 export function parseListState(query: LocationQuery | LocationQueryRaw): MyTaskListState {
   return {
-    tab: oneOf(MY_TASK_TABS, query.tab, DEFAULTS.tab),
+    tab: oneOf(MY_TASK_TABS, query[TAB_KEY], DEFAULTS.tab),
     scope: oneOf(MY_TASK_SCOPES, query.scope, DEFAULTS.scope),
     sort: oneOf(MY_TASK_SORTS, query.sort, DEFAULTS.sort),
     q: firstQuery(query.q) ?? '',
@@ -61,8 +67,9 @@ export function listPatch(query: LocationQueryRaw, patch: Partial<MyTaskListStat
   for (const key of ['tab', 'scope', 'sort', 'q', 'offset'] as const) {
     if (!(key in patch)) continue
     const value = patch[key]
-    if (value === undefined || value === DEFAULTS[key]) delete next[key]
-    else next[key] = value
+    const urlKey = key === 'tab' ? TAB_KEY : key
+    if (value === undefined || value === DEFAULTS[key]) delete next[urlKey]
+    else next[urlKey] = value
   }
   const previous = parseListState(query)
   if ((['tab', 'scope', 'sort', 'q'] as const).some(key => key in patch && patch[key] !== previous[key])) delete next.offset

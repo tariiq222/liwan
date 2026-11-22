@@ -169,7 +169,6 @@ button.liwan-side-row { border: 0; background: transparent; cursor: pointer; }
 /* A nested branch is indented under its parent with a hairline guide on the parent icon centre. */
 .liwan-side-branch { position: relative; display: grid; gap: 2px; margin-inline-start: 22px; padding-inline-start: 6px; border-inline-start: 1px solid var(--liwan-rail-border); }
 .liwan-side-branch .liwan-side-row { height: 36px; }
-.liwan-side-back .liwan-side-row, .liwan-side-back .liwan-side-row [data-slot="icon"] { color: var(--ui-text-muted); }
 .liwan-side-appblock { display: flex; align-items: center; gap: 10px; margin-block: 10px 6px; padding: 6px 10px; color: var(--ui-text-highlighted); font-size: 1rem; font-weight: 700; }
 .liwan-side-appblock [data-slot="name"] { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -458,4 +457,3 @@ button.liwan-side-row { border: 0; background: transparent; cursor: pointer; }
 }
 
 /* The back arrow points toward the start side in either direction. */
-html[dir="rtl"] .liwan-side-back [data-slot="icon"] .iconify { transform: scaleX(-1); }

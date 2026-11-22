@@ -18,7 +18,9 @@ test.describe('unified application navigation', () => {
   test('the sidebar is in application mode: back row, the open application, its own links only', async ({ page }) => {
     const menu = page.getByTestId('application-navigation')
     await expect(menu).toHaveAttribute('data-mode', 'app')
-    await expect(menu.getByTestId('navigation-app-back')).toHaveAttribute('href', '/apps')
+    // No back row above the application block: «كل التطبيقات» sits in the footer, so the same link is not printed twice.
+    await expect(menu.getByTestId('navigation-app-back')).toHaveCount(0)
+    await expect(menu.getByTestId('navigation-app-apps')).toHaveAttribute('href', '/apps')
     await expect(menu.getByTestId('navigation-app-block')).toHaveText('الاجتماعات')
     // The pinned applications belong to the global mode; the organisation and the core icon row stay in both.
     await expect(menu.getByTestId('navigation-app-projects')).toHaveCount(0)
@@ -33,7 +35,7 @@ test.describe('unified application navigation', () => {
     await menu.getByTestId('context-link-meetings').click()
     await expect(menu.getByTestId('quick-view-done')).toBeVisible()
     expect(page.url()).toBe(initial)
-    await menu.getByTestId('navigation-app-back').click()
+    await menu.getByTestId('navigation-app-apps').click()
     await expect(page).toHaveURL(/\/apps$/)
     await expect(menu).toHaveAttribute('data-mode', 'global')
   })

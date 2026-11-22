@@ -13,7 +13,16 @@ import { useMyTaskSummary } from '@/composables/useMyTaskSummary'
 import { myTaskKpiTiles } from '@/utils/myTaskKpi'
 import { localIsoDay } from '@liwan/ui/app/utils/formatDate'
 import { errorStateKind } from '@liwan/ui/app/utils/errorState'
-import { currentListView, listViewQuery } from '@liwan/ui/app/utils/listView'
+import type { LocationQueryRaw } from 'vue-router'
+import { currentListView } from '@liwan/ui/app/utils/listView'
+
+// The workspace tab («أعمالي») and this list's own table/cards choice are two different settings that both wanted the
+// `view` key: switching to cards wrote `?view=cards`, which the workspace read as «neither tab», and the panel unmounted.
+// The tab keeps `view` (DESIGN.md §3 records `?view=tasks`); this list's layout lives in `layout`.
+const LAYOUT_KEY = 'layout'
+function layoutQuery(query: LocationQueryRaw, value: string): LocationQueryRaw {
+  return { ...query, [LAYOUT_KEY]: value === views.value[0]?.value ? undefined : value }
+}
 import { useRowNavigation } from '@liwan/ui/app/composables/useRowNavigation'
 import {
   lastPageOffset,
@@ -71,7 +80,7 @@ function update(patch: Partial<MyTaskListState>, nextView?: string) {
   const write = ++lastWrite
   lastPushed = next.q
   writesInFlight++
-  void router.replace({ query: listPatch(nextView ? listViewQuery(route.query, nextView, views.value) : route.query, next), hash: router.currentRoute.value.hash })
+  void router.replace({ query: listPatch(nextView ? layoutQuery(route.query, nextView) : route.query, next), hash: router.currentRoute.value.hash })
     .then(failure => { if (failure && write === lastWrite) lastPushed = null })
     .catch(() => { if (write === lastWrite) lastPushed = null })
     .finally(() => { writesInFlight--; flushSearch() })
@@ -157,7 +166,7 @@ const views = computed(() => [
   { value: 'table', label: t('myTasks.list.tableView'), icon: 'i-lucide-list', testId: 'my-tasks-view-table' },
   { value: 'cards', label: t('myTasks.list.cardView'), icon: 'i-lucide-layout-grid', testId: 'my-tasks-view-cards' },
 ])
-const view = computed(() => currentListView(route.query.view, views.value))
+const view = computed(() => currentListView(route.query[LAYOUT_KEY], views.value))
 const cardList = ref<HTMLElement | null>(null)
 useRowNavigation(cardList)
 function setView(value: string) {
@@ -176,6 +185,8 @@ function openLiveTask(_event: MouseEvent, task: (typeof items.value)[number]) { 
 </script>
 
 <template>
+  <!-- No page title of its own: «أعمالي» owns the page's one <h1> (DESIGN.md §3) and this is its second tab. Two
+       headings stacked read as two pages, and «مهامي» is reserved for the tab, not for a path outside /my-tasks. -->
   <SharedListPage
     :title="t('myTasks.title')"
     :tags="countTags"
@@ -183,6 +194,7 @@ function openLiveTask(_event: MouseEvent, task: (typeof items.value)[number]) { 
     :create-label="t('myTasks.new')"
     create-test-id="my-tasks-new"
     kpi-toggle
+    hide-header
   >
     <UAlert v-if="inlineError" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('myTasks.list.loadError')">
       <template #actions>

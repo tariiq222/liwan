@@ -9,7 +9,6 @@ import { pinnedCreateLinks } from '@/composables/nav/sidebarModel'
 import { clickPageCreate, createShortcutTarget, focusListSearch } from '@/composables/shortcuts/targets'
 import { useAssistantSheet } from '@/composables/useAssistantSheet'
 import { useShellModel } from '@/composables/useShellModel'
-import { slideOverId, useSlideOver } from '@/composables/useSlideOver'
 import { useShellShortcuts } from '@/composables/useShellShortcuts'
 
 // The flat 68px top bar, start to end: the ⌘K command palette (which also opens any application), the assistant, the
@@ -22,7 +21,6 @@ const route = useRoute()
 const { can } = useAccess()
 const { me } = useMe()
 const shell = useShellModel()
-const slideOver = useSlideOver()
 const assistant = useAssistantSheet()
 
 useShellShortcuts({
