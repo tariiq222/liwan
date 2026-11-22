@@ -18,6 +18,8 @@ const id = computed(() => String(route.params.id))
 const isChild = computed(() => /\/(?:change\/?$|terms\/)/.test(route.path))
 const backTo = computed(() => customersReturnTo(route.query.returnTo))
 const { data: customer, error, pending, refresh } = await useAsyncData(() => `vendor:customer:${id.value}`, async () => {
+  // A child page (change, terms) loads what it needs itself and shows nothing of this page: no request until the operator is back (the watch below).
+  if (isChild.value) return null
   const c = await api.customer(id.value)
   if (!c) throw createError({ statusCode: 404, statusMessage: 'not_found' })
   return c
@@ -35,6 +37,7 @@ async function soft<T>(fn: () => Promise<T>): Promise<{ value: T | null; unavail
   try { return { value: await fn(), unavailable: false, failed: false } } catch (e) { return { value: null, unavailable: isNotAvailable(e), failed: !isNotAvailable(e) } }
 }
 const { data: extra, refresh: refreshExtra } = await useAsyncData(() => `vendor:customer-extra:${id.value}`, async () => {
+  if (isChild.value) return null
   const s = subId.value
   const [full, branches, usage, invoices, plans, releases] = await Promise.all([
     s ? soft(() => api.subscription(s)) : Promise.resolve({ value: null, unavailable: false, failed: false }),
@@ -208,7 +211,7 @@ async function changeCard() {
   } catch (cause) { cardFailure.value = t(cardActionErrorKey(cause)) } finally { cardBusy.value = false }
 }
 // The customer's own workspace-deletion request: the console shows its dates and what happened to the renewal, and withdraws it on the customer's behalf with a reason and a fresh passkey confirmation. It cannot ask for or confirm one.
-const { data: deletionRun, refresh: refreshDeletion } = await useAsyncData(() => `vendor:customer-deletion:${id.value}`, async () => (await soft(() => api.tenantDeletionRun(id.value))).value?.run ?? null)
+const { data: deletionRun, refresh: refreshDeletion } = await useAsyncData(() => `vendor:customer-deletion:${id.value}`, async () => (isChild.value ? null : (await soft(() => api.tenantDeletionRun(id.value))).value?.run ?? null))
 const deletion = computed(() => (isDeletionShown(deletionRun.value?.request) ? deletionRun.value!.request : null))
 const workspaceDeleted = computed(() => deletion.value?.state === 'deleted' || tenant.value?.status === 'deleted')
 // Once access has stopped the control plane refuses every vendor action on the customer, so the console stops offering them.
@@ -242,6 +245,8 @@ const deletionRenewal = computed(() => {
   if (!request?.renewal_outcome) return null
   return t(`vendor.customers.deletion.renewal.${request.renewal_outcome}`, { reason: request.renewal_refusal ? t(`vendor.customers.deletion.refusals.${request.renewal_refusal}`) : '' })
 })
+// The child pages leave this page mounted: its data loads when the operator comes back from one.
+watch(isChild, child => { if (!child) void Promise.all([refresh(), refreshExtra(), refreshDeletion()]) })
 async function refreshCancellationState() {
   await refresh()
   await refreshExtra()

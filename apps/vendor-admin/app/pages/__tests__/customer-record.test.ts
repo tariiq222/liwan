@@ -47,3 +47,18 @@ it('guards the renewal and card reasons of the customer page', async () => {
   page.state.cardReason.value = 'Card was lost'
   expect((await guard())?.props.dirty).toBe(true)
 })
+
+it('sends no request for the customer while a child route (change, terms) is shown, and loads it when the operator goes back', async () => {
+  const { page, route, api, catalog } = await customerPage('/customers/c1/change')
+  expect(api.customer).not.toHaveBeenCalled()
+  expect(api.listInvoices).not.toHaveBeenCalled()
+  expect(api.tenantDeletionRun).not.toHaveBeenCalled()
+  expect(catalog.listPlans).not.toHaveBeenCalled()
+  expect(catalog.releases).not.toHaveBeenCalled()
+  route.path = '/customers/c1'
+  await new Promise(resolve => setTimeout(resolve, 0))
+  expect(api.customer).toHaveBeenCalledTimes(1)
+  expect(api.tenantDeletionRun).toHaveBeenCalledTimes(1)
+  expect(catalog.listPlans).toHaveBeenCalledTimes(1)
+  void page
+})
