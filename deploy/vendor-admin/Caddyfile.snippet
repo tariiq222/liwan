@@ -33,8 +33,28 @@
 		# `?` keeps it and gives every other response (API JSON, assets) a policy that loads nothing.
 		?Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
 		# Every response of the admin host, assets included, is private: nothing is cached by a browser or a proxy.
+		# The one exception is the hashed build assets below; documents, API answers and build metadata stay here.
 		Cache-Control "no-store"
 		-Server
+	}
+
+	# The console's build assets are the only cacheable responses. Their names carry the content hash and change with
+	# every release, so a stored copy can never be stale: the document that names them stays `no-store`, and a release
+	# is picked up on the next document load. Without this the browser may not store them, Nuxt's own prefetch hints
+	# (one per route chunk in the HTML of the sign-in page) are downloaded and thrown away, and the same files are
+	# fetched again on the first navigation.
+	# `private` keeps the browser as the only holder: no shared proxy stores the console's code, and the assets carry
+	# no tenant data. `/_nuxt/builds/` is excluded because `latest.json` changes without a new build.
+	@buildAssets {
+		path /_nuxt/*
+		not path /_nuxt/builds/*
+	}
+	header @buildAssets {
+		# Only a successful body is worth storing: a 404 after a release must not be kept for a year.
+		match status 2xx
+		# `>` defers the write to the moment the response is sent, so this value replaces the blanket `no-store`
+		# above whatever the upstream sent.
+		>Cache-Control "private, max-age=31536000, immutable"
 	}
 
 	# Refuse every request whose Host is not exactly the configured console host (case-folded). Caddy applies a
@@ -55,11 +75,17 @@
 		rate_limit {
 			zone liwan_admin {
 				key {client_ip}
-				events 120
+				# One budget for the console's documents, API answers and build assets. The customer UI's own zone
+				# (liwan_web in deploy/Caddyfile) allows 600 for the same traffic, and a cold console load is one
+				# document plus the ~90 files of its build, so 120 refused the first sign-in of an operator whose
+				# browser held no copy yet. Assets are cached now (see @buildAssets), so this budget is spent once
+				# per release instead of on every navigation.
+				events 600
 				window 1m
 				ipv6_prefix 64
 			}
-			# Sign-in, enrollment and step-up: same budget as the customer auth zone in deploy/Caddyfile.
+			# Sign-in, enrollment and step-up: same budget as the customer auth zone in deploy/Caddyfile. The module
+			# counts a request in every zone whose matcher accepts it, so these requests also draw from the zone above.
 			zone liwan_admin_auth {
 				match {
 					path /api/auth/* /api/vendor/v1/admin/auth/*

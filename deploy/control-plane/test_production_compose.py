@@ -253,6 +253,20 @@ class EnvTemplates(unittest.TestCase):
                     self.assertTrue(template.read_text(encoding='utf-8').count(f'# {name}=') >= 1 or value in ('', 'false'))
 
 
+def _zone_body(text: str, name: str) -> str:
+    """The body of one `zone <name> { ... }` block, braces counted so a nested `match` block does not end it."""
+    start = text.index(f'zone {name} {{')
+    depth = 0
+    for index in range(start, len(text)):
+        if text[index] == '{':
+            depth += 1
+        elif text[index] == '}':
+            depth -= 1
+            if depth == 0:
+                return text[start:index]
+    raise AssertionError(f'zone {name} is not closed')
+
+
 class EdgeSnippets(unittest.TestCase):
     def test_the_control_api_exposes_only_the_payment_event_route(self):
         text = (CONTROL / 'Caddyfile.snippet').read_text(encoding='utf-8')
@@ -274,6 +288,32 @@ class EdgeSnippets(unittest.TestCase):
         self.assertIn('not client_ip {$LIWAN_ADMIN_ALLOW}', text)
         self.assertNotIn('{remote_host}', text)
         self.assertNotRegex(text, r'(?m)^\s*log\b')
+
+    def test_the_console_caches_only_its_hashed_build_assets(self):
+        """Documents, API answers and build metadata stay private; the hashed assets are the one cacheable class.
+
+        Their names carry the content hash and change with every release, so a stored copy is never stale, and the
+        document that names them stays `no-store`.
+        """
+        text = (ROOT / 'deploy' / 'vendor-admin' / 'Caddyfile.snippet').read_text(encoding='utf-8')
+        self.assertIn('path /_nuxt/*', text)
+        # `latest.json` changes without a new build, so it is not one of them.
+        self.assertIn('not path /_nuxt/builds/*', text)
+        # A 404 after a release must not be kept for a year.
+        self.assertIn('match status 2xx', text)
+        # `private` keeps the browser as the only holder: no shared proxy stores the console's code.
+        self.assertIn('>Cache-Control "private, max-age=31536000, immutable"', text)
+        # The blanket rule stays: a response that is not a hashed asset is never stored.
+        self.assertIn('Cache-Control "no-store"', text)
+
+    def test_the_console_budget_covers_one_cold_load(self):
+        """One sign-in draws the document plus the ~90 files of its build: the budget must not refuse it."""
+        text = (ROOT / 'deploy' / 'vendor-admin' / 'Caddyfile.snippet').read_text(encoding='utf-8')
+        general = _zone_body(text, 'liwan_admin')
+        self.assertEqual(re.search(r'events (\d+)', general).group(1), '600')
+        # Credential attempts keep their own tight budget.
+        auth = _zone_body(text, 'liwan_admin_auth')
+        self.assertEqual(re.search(r'events (\d+)', auth).group(1), '20')
 
 
 if __name__ == '__main__':

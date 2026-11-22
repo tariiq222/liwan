@@ -29,6 +29,25 @@ guarded sites; a delivery the TikTok relay forwards reaches Odoo through a tenan
 `/websocket*` is not counted. `/web/health` is exempt so a probe cannot consume
 a customer's interactive budget. These are abuse boundaries, not billing quotas.
 
+### Vendor console host
+
+The vendor console has its own host (`ADMIN_DOMAIN`), its own edge block (`deploy/vendor-admin/Caddyfile.snippet`)
+and its own budgets, keyed on `{client_ip}` because that host is served by the shared edge behind an outer edge:
+
+| Zone | Paths | Events / minute | Why |
+| --- | --- | --- | --- |
+| `liwan_admin` | everything the console serves | 600 | documents, API answers and the console's build assets; the customer UI's own `liwan_web` zone allows the same 600 for the same traffic |
+| `liwan_admin_auth` | `/api/auth/*`, `/api/vendor/v1/admin/auth/*` | 20 | credential attempts, as on the customer edge |
+
+The module counts a request in every zone whose matcher accepts it, so a sign-in draws from both budgets; the 20
+is the tighter one and is what refuses a credential flood. A cold console load is one document plus the ~90 files
+of its build, which is why the general budget is 600 and not 120: with the browser holding no copy of the build
+yet, 120 refused the first sign-in of an operator.
+
+The console's build assets are the only responses its edge lets a browser store (`private, max-age=31536000,
+immutable` for `/_nuxt/*` except `/_nuxt/builds/*`): their names carry the content hash and change with every
+release, and the document that names them stays `no-store`. Everything else the console serves is `no-store`.
+
 ## Authentication client identity
 
 The dedicated edge overwrites `X-Liwan-Client-IP`, `X-Liwan-Client-Host` and
