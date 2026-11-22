@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
 import { operationStatusBadge } from '@/utils/vendorBadges'
-import { approvalUsable, backupJobRequest, RestoreQueueFailed, restoreFromBackup, sharedBackupErrorKey, sharedJobLocation, startRefusalKey, type SharedBackupItem } from '@/utils/sharedBackups'
+import { approvalRefused, approvalUsable, backupJobRequest, RestoreQueueFailed, restoreFromBackup, sharedBackupErrorKey, sharedJobLocation, startRefusalKey, type SharedBackupItem } from '@/utils/sharedBackups'
 import { reasonValid } from '@/utils/team'
 import { useSharedBackups } from '@/composables/useSharedBackups'
 const props = defineProps<{ tenantId: string }>()
@@ -35,7 +35,7 @@ const confirmRestore = ref(false)
 const restoreBusy = ref(false)
 const restoreError = ref<unknown>(null)
 // What a failed attempt leaves behind, kept for the retry: the request id of that restore (with the reason it was sent with, like the
-// backup's) and an approval whose job call failed.
+// backup's) and an approval whose job call failed. An approval the listing no longer offers is not used again: a new restore approves afresh.
 const restoreRequests = new Map<string, { id: string; reason: string }>()
 const restoredApprovals = new Map<string, string>()
 const now = ref(Date.now())
@@ -43,6 +43,10 @@ let clock: ReturnType<typeof setInterval> | undefined
 onMounted(() => { clock = setInterval(() => { now.value = Date.now() }, 15000) })
 const canRestore = computed(() => hydrated.value && can('vendor.operations.run') && !restoreBusy.value && reasonValid(restoreReason.value))
 const resumable = (item: SharedBackupItem) => approvalUsable(item.approval, now.value)
+const rememberedApprovalUsable = (backupId: string, approvalId: string) => {
+  const open = data.value?.items.find(item => item.backup_id === backupId)?.approval
+  return open?.approval_id === approvalId && approvalUsable(open, now.value)
+}
 const dirty = computed(() => Boolean(startReason.value.trim() || restoreReason.value.trim()))
 watch(dirty, value => { dirtyModel.value = value }, { immediate: true })
 watch(() => restoreReason.value.trim(), () => { confirmRestore.value = false })
@@ -59,6 +63,8 @@ async function runRestore() {
   if (!target || !canRestore.value) return
   restoreBusy.value = true
   restoreError.value = null
+  const remembered = restoredApprovals.get(target.backupId)
+  if (remembered && !rememberedApprovalUsable(target.backupId, remembered)) { restoredApprovals.delete(target.backupId); restoreRequests.delete(target.backupId) }
   const reason = restoreReason.value.trim()
   const sent = restoreRequests.get(target.backupId)
   const requestId = sent?.reason === reason ? sent.id : crypto.randomUUID()
@@ -71,8 +77,13 @@ async function runRestore() {
     await refresh()
     await navigateTo({ path: `/operations/${encodeURIComponent(done.jobId)}`, query: { source: 'shared', returnTo: `/operations?tenant_id=${encodeURIComponent(props.tenantId)}` } })
   } catch (cause) {
+    const failure = cause instanceof RestoreQueueFailed ? cause.original : cause
     if (cause instanceof RestoreQueueFailed) restoredApprovals.set(target.backupId, cause.approvalId)
-    restoreError.value = cause instanceof RestoreQueueFailed ? cause.original : cause
+    if (approvalRefused(failure)) {
+      restoredApprovals.delete(target.backupId); restoreRequests.delete(target.backupId)
+      target.approvalId = null
+    }
+    restoreError.value = failure
     // The approval may exist although a call failed: show what the server holds, so a resume is offered.
     await refresh()
   } finally { restoreBusy.value = false; confirmRestore.value = false }

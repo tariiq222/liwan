@@ -42,6 +42,9 @@ export const restoreJobRequest = (requestId: string, approvalId: string, reason:
 /** An approval can still start a restore while it has not expired (the server refuses an expired one). */
 export const approvalUsable = (approval: SharedBackupItem['approval'], now: number): boolean => Boolean(approval) && Date.parse(approval!.expires_at) > now
 
+/** The server refused the approval a restore named (expired, used or unknown): the approval is gone, so the next restore approves afresh. */
+export const approvalRefused = (cause: unknown): boolean => commercialFailure(cause).code === 'shared_restore_approval_unavailable'
+
 /** The approval exists but queuing the restore failed: the approval stays open and can be resumed. */
 export class RestoreQueueFailed extends Error {
   constructor(readonly approvalId: string, readonly original: unknown) {

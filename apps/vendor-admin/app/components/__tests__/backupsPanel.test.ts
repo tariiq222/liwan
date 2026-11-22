@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import * as Vue from 'vue'
 import { loadSfc } from './sfc'
 import { operationStatusBadge } from '../../utils/vendorBadges'
-import { approvalUsable, backupJobRequest, restoreFromBackup, RestoreQueueFailed, sharedBackupErrorKey, sharedJobLocation, startRefusalKey } from '../../utils/sharedBackups'
+import { approvalRefused, approvalUsable, backupJobRequest, restoreFromBackup, RestoreQueueFailed, sharedBackupErrorKey, sharedJobLocation, startRefusalKey } from '../../utils/sharedBackups'
 import { reasonValid } from '../../utils/team'
 import { StepUpCancelled, STEP_UP_CANCELLED_KEY } from '../../composables/useStepUp'
 
@@ -20,7 +20,7 @@ function panel(state: Setup) {
   const sfc = loadSfc('components/vendor/BackupsPanel.vue', {
     useI18n: () => ({ t: (key: string, params?: Record<string, unknown>) => (params ? `${key}[${Object.entries(params).map(([name, value]) => `${name}=${value}`).join(',')}]` : key) }),
     useSharedBackups: () => fake, formatLiwanDateTime: (value: string) => `@${value}`, operationStatusBadge, sharedJobLocation, startRefusalKey,
-    approvalUsable, restoreFromBackup, RestoreQueueFailed, onMounted: () => {}, onBeforeUnmount: () => {}, backupJobRequest, sharedBackupErrorKey, reasonValid, useVendorApi: () => ({ request }), navigateTo, useHydrated: () => Vue.ref(state.hydrated ?? true),
+    approvalUsable, approvalRefused, restoreFromBackup, RestoreQueueFailed, onMounted: () => {}, onBeforeUnmount: () => {}, backupJobRequest, sharedBackupErrorKey, reasonValid, useVendorApi: () => ({ request }), navigateTo, useHydrated: () => Vue.ref(state.hydrated ?? true),
     useVendorContext: () => ({ can: (capability: string) => (state.capabilities ?? ['vendor.read', 'vendor.operations.run']).includes(capability) }),
   })
   const mounted = sfc.mount({ tenantId })
@@ -208,6 +208,8 @@ describe('BackupsPanel: restoring from a backup', () => {
   it('after a failed job call, refreshes so the row can be resumed, and a retry keeps the request id and the approval', async () => {
     let jobCalls = 0
     const view = panel({ data: listing(), request: async path => { if (path.endsWith('/jobs') && ++jobCalls === 1) throw { statusCode: 409, data: { code: 'shared_reconciliation_required' } }; return answer(path) } })
+    view.fake.refresh.mockImplementation(async () => { view.fake.data.value = listing({ items: [item({ approval })] }) })
+    view.state.now.value = Date.parse(approval.expires_at) - 1000
     openFor(view, 'restore')
     await view.state.runRestore()
     expect(view.navigateTo).not.toHaveBeenCalled(); expect(view.fake.refresh).toHaveBeenCalledTimes(1)
@@ -219,6 +221,36 @@ describe('BackupsPanel: restoring from a backup', () => {
     expect(calls[2]![1].body.job.requestId).toBe(calls[1]![1].body.job.requestId)
     expect(calls[2]![1].body.job.approvalId).toBe(id(5))
     expect(view.navigateTo).toHaveBeenCalledTimes(1)
+  })
+  it('approves afresh when the server no longer lists the approval of a failed attempt', async () => {
+    let jobCalls = 0
+    const view = panel({ data: listing(), request: async path => { if (path.endsWith('/jobs') && ++jobCalls === 1) throw { statusCode: 409, data: { code: 'shared_restore_approval_unavailable' } }; return answer(path) } })
+    openFor(view, 'restore')
+    await view.state.runRestore()
+    expect(sharedBackupErrorKey(view.state.restoreError.value)).toBe('vendor.backups.errors.shared_restore_approval_unavailable')
+    await view.state.runRestore()
+    const calls = view.request.mock.calls as unknown as Call[]
+    expect(calls.map(call => call[0].split('/').pop())).toEqual(['restore-approvals', 'jobs', 'restore-approvals', 'jobs'])
+    expect(calls[3]![1].body.job.requestId).not.toBe(calls[1]![1].body.job.requestId)
+    expect(view.navigateTo).toHaveBeenCalledTimes(1)
+  })
+  it('turns a refused resume into a new restore that approves afresh', async () => {
+    let jobCalls = 0
+    const view = panel({ data: listing({ items: [item({ approval })] }), request: async path => { if (path.endsWith('/jobs') && ++jobCalls === 1) throw { statusCode: 409, data: { code: 'shared_restore_approval_unavailable' } }; return answer(path) } })
+    view.state.now.value = Date.parse(approval.expires_at) - 1000
+    openFor(view, 'resume')
+    await view.state.runRestore()
+    expect(view.state.restoreTarget.value).toMatchObject({ backupId: id(1), approvalId: null })
+    await view.state.runRestore()
+    expect((view.request.mock.calls as unknown as Call[]).map(call => call[0].split('/').pop())).toEqual(['jobs', 'restore-approvals', 'jobs'])
+  })
+  it('approves afresh when a retry finds no usable approval in the refreshed listing', async () => {
+    let jobCalls = 0
+    const view = panel({ data: listing(), request: async path => { if (path.endsWith('/jobs') && ++jobCalls === 1) throw { statusCode: 503, data: { code: 'vendor_unavailable' } }; return answer(path) } })
+    openFor(view, 'restore')
+    await view.state.runRestore()
+    await view.state.runRestore()
+    expect((view.request.mock.calls as unknown as Call[]).map(call => call[0].split('/').pop())).toEqual(['restore-approvals', 'jobs', 'restore-approvals', 'jobs'])
   })
   it('sends the same request id on a retry with the same reason and a new one once the reason changed', async () => {
     let jobCalls = 0
