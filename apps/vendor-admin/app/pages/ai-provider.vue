@@ -202,13 +202,13 @@ const blockerKey = computed(() => (blockers.value[0] ? `aiProvider.save.blockers
     <SharedFormSection panel :title="t('aiProvider.models.title')" :description="t('aiProvider.models.description')">
       <SharedDataTable v-if="draft.models.length" :rows="draft.models" :columns="columns" row-key="id" :caption="t('aiProvider.models.title')" density="comfortable">
                 <template #provider-cell="{ row: { original: model } }">
-          <USelect v-model="model.provider" :items="providerItems" class="w-20 max-w-full" :disabled="disabled" :aria-label="t('aiProvider.models.provider')" />
+          <USelect v-model="model.provider" :items="providerItems" class="w-40 max-w-full" :disabled="disabled" :aria-label="t('aiProvider.models.provider')" />
         </template>
         <template #model-cell="{ row: { original: model } }">
-          <UInput v-model="model.model" dir="ltr" maxlength="128" autocomplete="off" class="w-32 max-w-full" :list="`models-${model.provider}`" :disabled="disabled" :aria-label="t('aiProvider.models.name')" data-testid="ai-model-name" />
+          <UInput v-model="model.model" dir="ltr" maxlength="128" autocomplete="off" class="w-56 max-w-full" :list="`models-${model.provider}`" :disabled="disabled" :aria-label="t('aiProvider.models.name')" data-testid="ai-model-name" />
         </template>
         <template v-for="field in priceFields" :key="field" #[`${field}-cell`]="{ row: { original: model } }">
-          <UInput v-model="model[field]" dir="ltr" inputmode="decimal" class="w-16 max-w-full" :color="priceValid(model[field]) ? undefined : 'error'" :aria-invalid="!priceValid(model[field])" :aria-label="t(`aiProvider.models.${field}`)" :disabled="disabled" :data-testid="`ai-model-${field}`" />
+          <UInput v-model="model[field]" dir="ltr" inputmode="decimal" class="w-28 max-w-full" :color="priceValid(model[field]) ? undefined : 'error'" :aria-invalid="!priceValid(model[field])" :aria-label="t(`aiProvider.models.${field}`)" :disabled="disabled" :data-testid="`ai-model-${field}`" />
           <p v-if="!priceValid(model[field])" class="mt-1 text-xs text-error">{{ t('aiProvider.models.priceInvalid') }}</p>
         </template>
         <template #id-cell="{ row: { original: model } }">
