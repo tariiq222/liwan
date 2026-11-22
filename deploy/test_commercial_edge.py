@@ -322,7 +322,7 @@ def _webhook_route(adapted: dict, host: str) -> dict:
 def _edge_run(host: str, targets, *, env: dict[str, str | None] | None = None, ca: str = '',
               upstream_tls: tuple[str, str] | None = None, request_host: str = '',
               client_headers: tuple[str, ...] = (), domain_var: str = 'CONTROL_WEBHOOK_DOMAIN',
-              dial: str = 'control-api:4187') -> tuple[list[list[str]], int, list[dict]]:
+              dial: str = 'control-api:4187', asset_probe: bool = False) -> tuple[list[list[str]], int, list[dict]]:
     """Run the adapted site (the webhook by default; `domain_var` and `dial` pick another snippet's) in the pinned Caddy with its upstream replaced by a logging stub on loopback.
 
     Only the dial address changes: the transport (TLS, trust pool, server name) is kept as the snippet declares it. The stub
@@ -355,8 +355,15 @@ def _edge_run(host: str, targets, *, env: dict[str, str | None] | None = None, c
     redirect(adapted)
     if len(upstreams) != 1:
         raise AssertionError(f'exactly one route reaches {dial}')
+    stub_body = 'stub-upstream:{http.request.method}:{http.request.uri}'
+    # An upstream value of its own, so a test can prove the edge replaces it rather than passing it through.
+    upstream_cache = {'Cache-Control': ['public, max-age=60']} if asset_probe else {}
     stub = {'listen': ['127.0.0.1:8081'], 'logs': {}, 'routes': [{'handle': [
-        {'handler': 'static_response', 'body': 'stub-upstream:{http.request.method}:{http.request.uri}'}]}]}
+        {'handler': 'static_response', 'body': stub_body, 'headers': upstream_cache}]}]}
+    if asset_probe:
+        # A revalidation answer from the upstream, so the edge's treatment of a 304 is observable.
+        stub['routes'].insert(0, {'match': [{'query': {'revalidate': ['1']}}], 'handle': [
+            {'handler': 'static_response', 'status_code': 304, 'headers': upstream_cache}]})
     adapted['admin'] = {'disabled': True}
     adapted['logging'] = {'logs': {'stub': {'writer': {'output': 'file', 'filename': '/tmp/stub.log'},
                                             'include': ['http.log.access']}}}
@@ -375,16 +382,26 @@ def _edge_run(host: str, targets, *, env: dict[str, str | None] | None = None, c
                '[ "$ready" = 1 ] || { cat /tmp/caddy.log >&2; exit 1; }\n'
                ': > /tmp/stub.log\n')
     for i, (method, target) in enumerate(targets):
-        script += (f"printf 'LIWAN_CASE {i} '\ncurl --silent --max-time 5 --noproxy '*' --path-as-is -X {method} "
+        # `asset_probe` also keeps the response headers of each case (lowercased name, one line per value).
+        dump = "-D /tmp/h" if asset_probe else ''
+        script += (f"printf 'LIWAN_CASE {i} '\ncurl --silent --max-time 5 --noproxy '*' --path-as-is {dump} -X {method} "
                    f"-H {shlex.quote('Host: ' + (request_host or host))} -H 'X-Liwan-Proxy-Token: x' "
                    f"{''.join('-H ' + shlex.quote(h) + ' ' for h in client_headers)}-o /tmp/b -w '%{{http_code}}' "
                    f"--request-target {shlex.quote(target)} http://127.0.0.1:8080/ ; printf ' '; cat /tmp/b; printf '\\n'\n")
+        if asset_probe:
+            script += (f"printf 'LIWAN_HEADERS {i} '\n"
+                       "sed -e '1d' -e '/^\\r*$/d' /tmp/h | tr -d '\\r' | tr 'A-Z' 'a-z' | "
+                       "grep '^cache-control:' | cut -d' ' -f2- | paste -sd'|' -; printf '\\n'\n")
     script += ('sleep 0.3\nprintf "LIWAN_HITS %s\\n" "$(grep -c request /tmp/stub.log 2>/dev/null || true)"\n'
                'grep request /tmp/stub.log 2>/dev/null | sed \'s/^/LIWAN_LOG /\' || true\n')
     out = _caddy_container(script).stdout
     results = [line.split(' ', 3)[2:] for line in out.splitlines() if line.startswith('LIWAN_CASE ')]
     hits = int(next(line for line in out.splitlines() if line.startswith('LIWAN_HITS ')).split()[1] or 0)
     records = [json.loads(line[len('LIWAN_LOG '):]) for line in out.splitlines() if line.startswith('LIWAN_LOG ')]
+    if asset_probe:
+        headers = [line.split(' ', 2)[2] if len(line.split(' ', 2)) > 2 else ''
+                   for line in out.splitlines() if line.startswith('LIWAN_HEADERS ')]
+        return results, hits, records, headers
     return results, hits, records
 
 
@@ -448,12 +465,15 @@ OUTSIDE = '203.0.113.9'
 
 
 def _admin_run(targets=(('GET', '/'),), *, allow: str | None = LOOPBACK, host: str = ADMIN_HOST, trusted: str | None = None,
-               request_host: str = '', client_headers: tuple[str, ...] = (), domain: str | None = None):
+               request_host: str = '', client_headers: tuple[str, ...] = (), domain: str | None = None,
+               asset_probe: bool = False):
     """The adapted vendor console site with its upstream replaced by the logging stub. `allow` and `trusted` are the values of
-    LIWAN_ADMIN_ALLOW and LIWAN_TRUSTED_PROXIES (None leaves the variable unset)."""
+    LIWAN_ADMIN_ALLOW and LIWAN_TRUSTED_PROXIES (None leaves the variable unset). `asset_probe` adds the response's
+    Cache-Control values (one line per header) as a fourth return value."""
     env = {'LIWAN_ADMIN_ALLOW': allow, 'LIWAN_TRUSTED_PROXIES': trusted, 'CONTROL_WEBHOOK_DOMAIN': HOOK_HOST}
     return _edge_run(host if domain is None else domain, targets, env=env, request_host=request_host,
-                     client_headers=client_headers, domain_var='ADMIN_DOMAIN', dial=ADMIN_DIAL)
+                     client_headers=client_headers, domain_var='ADMIN_DOMAIN', dial=ADMIN_DIAL,
+                     asset_probe=asset_probe)
 
 
 class CaddyAdminBehavior(unittest.TestCase):
@@ -556,6 +576,27 @@ class CaddyAdminBehavior(unittest.TestCase):
         inner = allowed['handle'][0]['routes'][0]['handle']
         self.assertEqual([h['handler'] for h in inner], ['rate_limit', 'reverse_proxy'])
         self.assertEqual({zone['key'] for zone in inner[0]['rate_limits'].values()}, {'{http.vars.client_ip}'})
+
+    def test_only_the_hashed_build_assets_are_stored(self) -> None:
+        """Behavioral: the real edge decides every case, with an upstream that sends its own Cache-Control.
+
+        A hashed asset and a revalidation answer are stored for a year; the document, the API and Nuxt's build metadata
+        keep `no-store`, and the edge replaces the upstream's value instead of passing it through. This is what a text
+        assertion cannot prove: the matcher, the exclusion and the deferred replacement have to compose.
+        """
+        results, _, _, headers = _admin_run(
+            [('GET', '/_nuxt/app-abc123.js'), ('GET', '/_nuxt/app-abc123.js?revalidate=1'),
+             ('GET', '/login'), ('GET', '/api/v1/me'), ('GET', '/_nuxt/builds/latest.json')],
+            asset_probe=True)
+        stored = 'private, max-age=31536000, immutable'
+        self.assertEqual(results[0][0], '200')
+        self.assertEqual(headers[0], stored, 'a hashed asset is stored, and with one header only')
+        # A revalidation answer must not be blanked out with `no-store`: that would discard the copy it proved valid.
+        self.assertEqual(results[1][0], '304', results[1])
+        self.assertEqual(headers[1], stored, 'the 304 keeps the caching value')
+        for index in (2, 3, 4):
+            self.assertEqual(results[index][0], '200', results[index])
+            self.assertEqual(headers[index], 'no-store', f'case {index} must not be stored')
 
 
 class CaddyUpstreamTls(unittest.TestCase):

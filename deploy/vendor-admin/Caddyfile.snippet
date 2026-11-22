@@ -50,8 +50,10 @@
 		not path /_nuxt/builds/*
 	}
 	header @buildAssets {
-		# Only a successful body is worth storing: a 404 after a release must not be kept for a year.
-		match status 2xx
+		# A successful body and a revalidation answer are both worth storing. A 304 is a complete answer on its own:
+		# the deferred value below replaces the headers of the 304, and a `no-store` there would make the browser drop
+		# the copy it just proved valid. A 404 after a release is not matched, so it is never kept.
+		match status 2xx 304
 		# `>` defers the write to the moment the response is sent, so this value replaces the blanket `no-store`
 		# above whatever the upstream sent.
 		>Cache-Control "private, max-age=31536000, immutable"
@@ -76,10 +78,9 @@
 			zone liwan_admin {
 				key {client_ip}
 				# One budget for the console's documents, API answers and build assets. The customer UI's own zone
-				# (liwan_web in deploy/Caddyfile) allows 600 for the same traffic, and a cold console load is one
-				# document plus the ~90 files of its build, so 120 refused the first sign-in of an operator whose
-				# browser held no copy yet. Assets are cached now (see @buildAssets), so this budget is spent once
-				# per release instead of on every navigation.
+				# (liwan_web in deploy/Caddyfile) allows 600 for the same traffic. A cold load is one document plus
+				# the ~90 files of its build, which 120 refused before the browser held any copy; caching the assets
+				# (see @buildAssets) keeps later navigations from spending it again, but cannot shrink that first load.
 				events 600
 				window 1m
 				ipv6_prefix 64

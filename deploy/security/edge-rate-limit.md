@@ -39,10 +39,10 @@ and its own budgets, keyed on `{client_ip}` because that host is served by the s
 | `liwan_admin` | everything the console serves | 600 | documents, API answers and the console's build assets; the customer UI's own `liwan_web` zone allows the same 600 for the same traffic |
 | `liwan_admin_auth` | `/api/auth/*`, `/api/vendor/v1/admin/auth/*` | 20 | credential attempts, as on the customer edge |
 
-The module counts a request in every zone whose matcher accepts it, so a sign-in draws from both budgets; the 20
-is the tighter one and is what refuses a credential flood. A cold console load is one document plus the ~90 files
-of its build, which is why the general budget is 600 and not 120: with the browser holding no copy of the build
-yet, 120 refused the first sign-in of an operator.
+A request is counted in every zone whose matcher accepts it, so a sign-in draws from both budgets; the 20 is the
+tighter one and is what refuses a credential flood. The 600 is what admits one cold load: one document plus the
+~90 files of its build. With 120 that first load was refused, because the browser holds no copy of the build yet
+and a stored copy cannot reduce the requests of the very first visit.
 
 The console's build assets are the only responses its edge lets a browser store (`private, max-age=31536000,
 immutable` for `/_nuxt/*` except `/_nuxt/builds/*`): their names carry the content hash and change with every
