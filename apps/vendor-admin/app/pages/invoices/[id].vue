@@ -6,6 +6,7 @@ import { commercialErrorKey } from '@/utils/vendorCommercial'
 import { ownerOnlyAccess } from '@/utils/ownerOnly'
 import { aiTopupRefundable, invoiceHasAiTopup, invoicePrintable, invoicesReturnTo, isNotAvailable, parseTransferAmount, parseUnitsUsed, refundErrorKey, refundRequestBlock, transferFormDefaults, validRefundDraft, validRefundReason, validVoidDraft, vendorInvoiceLineViews, voidAction, voidErrorKey, voidReasonKey } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
+import { useCopyLink } from '@/composables/useCopyLink'
 import { formatBusinessDate, formatBusinessDateTime } from '@/utils/vendorTime'
 definePageMeta({ capability: 'vendor.billing.manage' })
 const { t, locale } = useI18n(); const route = useRoute(); const api = useVendorSubscriptions()
@@ -24,6 +25,7 @@ const { data: attempts, error: attemptsError, pending: attemptsPending, refresh:
   () => orderId.value && canBilling.value ? api.paymentAttempts(orderId.value) : Promise.resolve(null),
 )
 const attemptTime = (value: string) => formatBusinessDateTime(value)
+const copier = useCopyLink()
 const unavailable = computed(() => isNotAvailable(error.value) && !data.value)
 // Voiding ends a debt and may drop the customer to the free base: the control plane needs both grants, so the page offers it to neither alone.
 const voidAccess = computed(() => (unavailable.value ? 'none' as const : ownerOnlyAccess('voidInvoice', can)))
@@ -274,6 +276,14 @@ const badge = computed(() => (data.value ? invoiceStatusBadge(data.value.status,
             <SharedStatusBadge :tone="paymentAttemptBadge(attempt.status).tone" :label="t(paymentAttemptBadge(attempt.status).labelKey)" />
             <span class="tabular-nums">{{ money(attempt.amount) }}</span>
             <time :datetime="attempt.created_at" class="text-sm text-muted">{{ attemptTime(attempt.created_at) }}</time>
+            <div class="flex w-full flex-wrap items-center gap-2 text-sm text-muted">
+              <span>{{ t(`vendor.invoices.attemptKind.${attempt.kind}`) }}</span>
+              <template v-if="attempt.provider_ref">
+                <bdi dir="ltr" class="select-all font-mono text-default" data-testid="attempt-ref">{{ attempt.provider_ref }}</bdi>
+                <UButton type="button" color="neutral" variant="ghost" size="xs" icon="i-lucide-copy" :disabled="!hydrated" :aria-label="t('vendor.invoices.attemptRef.copy')" data-testid="attempt-ref-copy" @click="copier.copy(attempt.provider_ref)" />
+                <span v-if="copier.outcomeFor(attempt.provider_ref)" role="status" :class="copier.outcomeFor(attempt.provider_ref) === 'failed' ? 'text-error' : 'text-success'">{{ t(copier.outcomeFor(attempt.provider_ref) === 'copied' ? 'vendor.invoices.attemptRef.copied' : 'vendor.invoices.attemptRef.copyFailed') }}</span>
+              </template>
+            </div>
           </li>
         </ul>
       </SharedPageState>

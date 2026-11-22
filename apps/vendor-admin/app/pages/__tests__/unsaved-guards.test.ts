@@ -30,7 +30,7 @@ async function invoicePage() {
   const page = await mountPage('invoices/[id].vue', {
     ...subscriptions, ...ownerOnly, ...commercial, formatBusinessDate, formatBusinessDateTime, invoiceStatusBadge, adjustmentStatusBadge, paymentAttemptBadge, formatCommercialMoney,
     useRoute: () => ({ params: { id: 'invoice1' }, path: '/invoices/invoice1', query: {} }),
-    useVendorContext: () => ({ can: () => true }), useVendorSubscriptions: () => api,
+    useVendorContext: () => ({ can: () => true }), useVendorSubscriptions: () => api, useCopyLink: () => ({ copy: vi.fn(), outcomeFor: () => null }),
   })
   mounted.push(page)
   return { page, api }

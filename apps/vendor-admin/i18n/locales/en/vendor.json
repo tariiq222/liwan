@@ -1846,6 +1846,17 @@
       "lines": "Lines",
       "attempts": "Payment attempts",
       "attemptsNone": "Payment attempts are not yet attached to this invoice.",
+      "attemptKind": {
+        "hosted_invoice": "Hosted invoice",
+        "form": "Card form",
+        "saved_card": "Saved card",
+        "bank_transfer": "Bank transfer"
+      },
+      "attemptRef": {
+        "copy": "Copy the provider reference",
+        "copied": "Copied",
+        "copyFailed": "Could not copy"
+      },
       "adjustments": "Adjustments and credit notes",
       "adjustmentsNone": "No adjustments.",
       "adjustmentKind": {

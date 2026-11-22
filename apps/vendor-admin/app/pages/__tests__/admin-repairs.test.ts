@@ -266,12 +266,12 @@ describe('customer detail repairs', () => {
 })
 
 describe('invoice payment attempts', () => {
-  it('renders actual status, amount and time without provider secrets', async () => {
+  it('renders actual status, amount, time and the provider reference, never the payment link', async () => {
     const p = await page('invoices/[id].vue')
     expect(p.api.paymentAttempts).toHaveBeenCalledWith(order.id)
     const { html } = await p.rendered()
     expect(html).toContain('vendor.invoices.attemptStatus.pending'); expect(html).toContain('123.45'); expect(html).toContain('2026')
-    expect(html).not.toContain('vendor.invoices.attemptsNone'); expect(html).not.toContain('private-provider'); expect(html).not.toContain('private.example')
+    expect(html).not.toContain('vendor.invoices.attemptsNone'); expect(html).toContain('private-provider-reference'); expect(html).not.toContain('private.example')
   })
   it('shows true empty, loading and retryable error separately', async () => {
     const empty = await page('invoices/[id].vue', { attempts: [] })

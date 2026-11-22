@@ -1846,6 +1846,17 @@
       "lines": "البنود",
       "attempts": "محاولات الدفع",
       "attemptsNone": "محاولات الدفع غير مرفقة بهذه الفاتورة بعد.",
+      "attemptKind": {
+        "hosted_invoice": "فاتورة مستضافة",
+        "form": "نموذج البطاقة",
+        "saved_card": "بطاقة محفوظة",
+        "bank_transfer": "تحويل بنكي"
+      },
+      "attemptRef": {
+        "copy": "نسخ مرجع المزوّد",
+        "copied": "تم النسخ",
+        "copyFailed": "تعذّر النسخ"
+      },
       "adjustments": "التعديلات والإشعارات الدائنة",
       "adjustmentsNone": "لا تعديلات.",
       "adjustmentKind": {

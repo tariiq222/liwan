@@ -64,7 +64,7 @@ describe('invoice page print action', () => {
     const api = { invoice: vi.fn(async () => invoice), paymentAttempts: vi.fn(async () => ({ items: [], total: 0 })) }
     const page = await mountPage('invoices/[id].vue', {
       ...subscriptions, ...ownerOnly, ...vendorCommercial, invoiceStatusBadge, adjustmentStatusBadge, paymentAttemptBadge, formatCommercialMoney: commercial.formatCommercialMoney, formatBusinessDate, formatBusinessDateTime,
-      useRoute: () => ({ params: { id: 'inv1' }, query: { returnTo: '/invoices?status=issued' } }), useVendorSubscriptions: () => api, useVendorContext: () => ({ can: () => true }),
+      useRoute: () => ({ params: { id: 'inv1' }, query: { returnTo: '/invoices?status=issued' } }), useVendorSubscriptions: () => api, useVendorContext: () => ({ can: () => true }), useCopyLink: () => ({ copy: vi.fn(), outcomeFor: () => null }),
     })
     mounted.push(page)
     return page

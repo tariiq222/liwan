@@ -70,7 +70,7 @@ async function page(options: Options = {}) {
     useI18n: () => ({ t: (key: string) => key, locale: Vue.ref('en') }),
     useRoute: () => ({ params: { id: 'invoice1' }, path: '/invoices/invoice1', query: {} }),
     useVendorContext: () => ({ can: (grant: string) => (options.grants ?? ['vendor.read', 'vendor.billing.manage']).includes(grant) }),
-    useVendorSubscriptions: () => api,
+    useVendorSubscriptions: () => api, useCopyLink: () => ({ copy: vi.fn(), outcomeFor: () => null }),
     useAsyncData: async (key: string | (() => string), fn: () => Promise<unknown>) => {
       const data = Vue.ref<unknown>(null); const error = Vue.ref<unknown>(null); const pending = Vue.ref(false)
       const refresh = vi.fn(async () => { pending.value = true; try { data.value = await fn(); error.value = null } catch (e) { error.value = e } finally { pending.value = false } })
