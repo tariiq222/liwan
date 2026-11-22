@@ -52,6 +52,7 @@ describe.skipIf(!url)('real Odoo backup/restore authority (live PostgreSQL)',()=
   const approval=await approveOdooRestore(pool,runtime,actor,tenant,{backup_id:backupId,reason:'Record the approver'})
   const row=(await pool.query('SELECT approved_by FROM shared_restore_approvals WHERE id=$1',[approval.approval_id])).rows[0]
   expect(row.approved_by).toBe('account:7')
+  expect((await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE action='shared_odoo_restore.approved' AND subject=$1",[approval.approval_id])).rows[0].n).toBe(1)
   await expect(pool.query("UPDATE shared_restore_approvals SET approved_by='account:8' WHERE id=$1",[approval.approval_id])).rejects.toThrow('identity is immutable')
   const older=randomUUID(),target='liwan_scratch_'+randomUUID().replaceAll('-','')
   await pool.query("INSERT INTO shared_restore_approvals(id,backup_id,control_tenant_id,target_database,reason,expires_at) VALUES($1,$2,$3,$4,'Before the approver column',clock_timestamp()+interval '1 hour')",[older,backupId,tenant,target])
