@@ -51,7 +51,7 @@ async function archive(row: HelpdeskTeamResource, active: boolean) {
   }
 }
 
-const membersText = (row: HelpdeskTeamResource) => row.member_ids.map(member => member.name).join('، ')
+const membersText = (row: HelpdeskTeamResource) => joinList(row.member_ids.map(member => member.name), t)
 const leaderName = (row: HelpdeskTeamResource) => row.member_ids.find(member => member.id === row.leader_id)?.name ?? '—'
 const memberOptions = computed(() => known.value.map(member => ({ id: member.id, name: member.name })))
 </script>

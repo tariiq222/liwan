@@ -49,7 +49,9 @@ test.describe('Tasmim shell (desktop)', () => {
       await open(page, FRAME, `locale:${locale};appearance:light`)
       const block = page.getByTestId('navigation-app-block')
       await expect(block).toHaveText(locale === 'ar' ? 'المشاريع' : 'Projects')
-      await expect(page.getByTestId('navigation-app-back')).toHaveAttribute('href', '/apps')
+      // The story's sidebar has no back row above the block any more; the footer carries the same link.
+      await expect(page.getByTestId('navigation-app-back')).toHaveCount(0)
+      await expect(page.getByTestId('navigation-app-apps')).toHaveAttribute('href', '/apps')
       await expect(page.getByTestId('application-navigation')).toHaveCSS('background-color', 'rgb(249, 250, 251)')
     })
   }

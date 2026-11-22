@@ -31,8 +31,13 @@ describe('my-tasks locale', () => {
     for (const key of Object.keys(ar)) expect(tokens(ar[key]!)).toEqual(tokens(en[key]!))
   })
 
-  it('adds nav.myTasks to common.json in both locales', () => {
-    expect((load('ar', 'common.json').nav as Record<string, string>).myTasks).toBe('مهامي')
-    expect((load('en', 'common.json').nav as Record<string, string>).myTasks).toBe('My tasks')
+  it('names the personal workspace «أعمالي» in both locales', () => {
+    // Owner decision 2026-11-21: /work and /my-tasks became one workspace, «أعمالي», with «بانتظاري» and «المهام».
+    // «مهامي» now names the tasks tab inside it, not the application.
+    expect((load('ar', 'common.json').nav as Record<string, string>).myTasks).toBe('أعمالي')
+    expect((load('en', 'common.json').nav as Record<string, string>).myTasks).toBe('My work')
+    const work = (load('ar', 'my-tasks.json').myTasks as Record<string, unknown>).work as Record<string, unknown>
+    expect(work.title).toBe('أعمالي')
+    expect((work.tabs as Record<string, string>)).toEqual({ attention: 'بانتظاري', tasks: 'المهام' })
   })
 })

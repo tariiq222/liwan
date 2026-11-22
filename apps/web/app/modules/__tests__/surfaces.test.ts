@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { activeManifests, withManifests } from '../manifests'
-import { bellKindFor, manifestRoutePrefixes, recordLinkFor, recordPickerFor, routeScopeOf, quickPanels, searchProviders } from '../surfaces'
+import { bellKindFor, coreCounts, manifestRoutePrefixes, recordLinkFor, recordPickerFor, routeScopeOf, searchProviders } from '../surfaces'
 import { projectsSearch, tasksSearch } from '../pmo/search'
 import type { AppManifest, AppSearchApi } from '../types'
 
@@ -84,19 +84,20 @@ describe('manifest bell kinds', () => {
   })
 })
 
-describe('manifest quick panels', () => {
-  it('gives chat, tasks and meetings a top-bar tool and no other application one', () => {
-    expect(quickPanels().map(panel => panel.id).sort()).toEqual(['chat', 'meetings', 'tasks'])
-    for (const panel of quickPanels()) {
-      expect(typeof panel.load).toBe('function')
-      expect(typeof panel.count).toBe('function')
-      expect(panel.to).toMatch(/^\//)
+describe('manifest core counts', () => {
+  it('gives chat, tasks and meetings a badge and no other application one', () => {
+    // The tool panels left the top bar (2026-11-21); the numbers stayed, as one loader per application for the
+    // sidebar's core row and the phone tab bar.
+    expect(coreCounts().map(entry => entry.id).sort()).toEqual(['chat', 'meetings', 'tasks'])
+    for (const entry of coreCounts()) {
+      expect(typeof entry.count).toBe('function')
+      expect(entry.to).toMatch(/^\//)
     }
   })
-  it('finds a panel a newer application registers', () => {
-    const panel = { id: 'sales', labelKey: 'nav.sales', icon: 'i-lucide-box' as const, capability: 'sales.read', to: '/sales', queryKey: ['sales', 'badge'] as const, count: async () => 0, load: async () => ({ default: {} }) }
-    withManifests([...activeManifests(), { ...sales, quickPanel: panel }], () => {
-      expect(quickPanels()).toContain(panel)
+  it('finds a count a newer application registers', () => {
+    const entry = { id: 'sales', capability: 'sales.read', to: '/sales', queryKey: ['sales', 'badge'] as const, count: async () => 0 }
+    withManifests([...activeManifests(), { ...sales, coreCount: entry }], () => {
+      expect(coreCounts()).toContain(entry)
     })
   })
 })

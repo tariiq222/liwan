@@ -15,7 +15,19 @@ const messages = {
 const row = (id: number, tone: 'urgent' | 'normal' = 'normal') => ({ id: `r${id}`, label: `بند ${id}`, to: `/x/${id}`, tone, module: 'tasks', work: 'execute' })
 const ErrorState = (retry: (callback: () => void) => void) => Vue.defineComponent({ emits: ['retry'], setup: (_, { attrs, emit }) => { retry(() => emit('retry')); return () => Vue.h('div', { ...attrs, role: 'alert' }, 'error') } })
 
-function options({ available = true, pending = false, failed = false, refetch = vi.fn(), retry = (_callback: () => void) => {}, rows = [] as ReturnType<typeof row>[] } = {}) {
+// `settled` is the progressive signal: the list draws once the first provider answers, while `pending` stays true
+// until every provider has. A test that only names `pending` means «nothing has answered yet».
+function options({ available = true, pending = false, settled, failed = false, refetch = vi.fn(), retry = (_callback: () => void) => {}, rows = [] as ReturnType<typeof row>[] }: {
+  available?: boolean
+  pending?: boolean
+  /** Defaults to the inverse of `pending`: a test that only names `pending` means «nothing has answered yet». */
+  settled?: boolean
+  failed?: boolean
+  refetch?: () => unknown
+  retry?: (callback: () => void) => void
+  rows?: ReturnType<typeof row>[]
+} = {}) {
+  const hasAnswered = settled ?? !pending
   const stubs = { ...DEFAULT_STUBS, NuxtLink, UButton, UBadge, SharedErrorState: ErrorState(retry) }
   const load = (name: string) => ({ __esModule: true, default: loadShared(dir(name), { messages, stubs, globals: { ref: Vue.ref } }) })
   return {
@@ -25,7 +37,7 @@ function options({ available = true, pending = false, failed = false, refetch = 
       '@/components/home/HomeFocusSkeleton.vue': load('HomeFocusSkeleton.vue'),
       '@/components/home/HomeSection.vue': load('HomeSection.vue'),
       '@/composables/nav/shellModules': { shellModuleList: () => [{ id: 'tasks', labelKey: 'nav.myTasks', icon: 'i-lucide-check-square' }] },
-      '@/composables/useMyWork': { useMyWork: () => ({ available: Vue.computed(() => available), pending: Vue.computed(() => pending), failed: Vue.computed(() => failed), refetch, rows: Vue.computed(() => rows) }) },
+      '@/composables/useMyWork': { useMyWork: () => ({ available: Vue.computed(() => available), pending: Vue.computed(() => pending), settled: Vue.computed(() => hasAnswered), failed: Vue.computed(() => failed), refetch, rows: Vue.computed(() => rows) }) },
     },
   }
 }

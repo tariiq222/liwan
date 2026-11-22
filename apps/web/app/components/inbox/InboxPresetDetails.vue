@@ -60,7 +60,7 @@ const status = (exists: boolean) => ({ tone: exists ? 'neutral' : 'success', lab
             <span class="text-xs text-muted">
               {{ tn('ruleButton', { button: rule.button }) }}
               <template v-if="rule.department"> · {{ tn('ruleDepartment', { department: rule.department }) }}</template>
-              <template v-if="rule.tags.length"> · {{ tn('ruleTags', { tags: rule.tags.join('، ') }) }}</template>
+              <template v-if="rule.tags.length"> · {{ tn('ruleTags', { tags: joinList(rule.tags, t) }) }}</template>
             </span>
             <span class="text-muted">{{ rule.reply }}</span>
           </li>
@@ -76,8 +76,8 @@ const status = (exists: boolean) => ({ tone: exists ? 'neutral' : 'success', lab
       <section class="grid gap-2" :aria-labelledby="sectionId('campaigns')">
         <h4 :id="sectionId('campaigns')" class="text-sm font-semibold text-highlighted">{{ tn('campaigns') }}</h4>
         <dl class="grid gap-1 text-sm">
-          <div><dt class="text-xs text-muted">{{ tn('stopKeywords') }}</dt><dd>{{ data.campaigns.stop_keywords.join('، ') }}</dd></div>
-          <div><dt class="text-xs text-muted">{{ tn('startKeywords') }}</dt><dd>{{ data.campaigns.start_keywords.join('، ') }}</dd></div>
+          <div><dt class="text-xs text-muted">{{ tn('stopKeywords') }}</dt><dd>{{ joinList(data.campaigns.stop_keywords, t) }}</dd></div>
+          <div><dt class="text-xs text-muted">{{ tn('startKeywords') }}</dt><dd>{{ joinList(data.campaigns.start_keywords, t) }}</dd></div>
           <div><dt class="text-xs text-muted">{{ tn('stopReply') }}</dt><dd class="text-muted">{{ data.campaigns.stop_reply }}</dd></div>
           <div><dt class="text-xs text-muted">{{ tn('startReply') }}</dt><dd class="text-muted">{{ data.campaigns.start_reply }}</dd></div>
         </dl>

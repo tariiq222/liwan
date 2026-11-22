@@ -9,6 +9,24 @@ export const FINANCE_SETUP_STEPS: readonly Blocker[] = [
 
 export interface FinanceSetupStep { code: Blocker; done: boolean }
 
+/**
+ * Where each blocked step is fixed. Every step used to link to `/settings/apps/finance` itself, so the checklist
+ * was a loop: the page that showed the blocker was the only page it offered to answer it. Each target is the page
+ * that owns that setting.
+ */
+export const FINANCE_SETUP_TARGETS: Readonly<Record<Blocker, string>> = {
+  vat_15_tax_missing: '/settings/apps/finance/taxes',
+  company_vat_missing: '/settings/company#profile',
+  company_registry_missing: '/settings/company#profile',
+  company_address_incomplete: '/settings/company#address',
+  zatca_not_onboarded: '/settings/apps/finance?tab=zatca#zatca',
+}
+
+/** The route that fixes one step. */
+export function financeSetupTarget(code: Blocker): string {
+  return FINANCE_SETUP_TARGETS[code]
+}
+
 export function financeSetupSteps(setup: Pick<FinanceSetup, 'blockers'>): FinanceSetupStep[] {
   return FINANCE_SETUP_STEPS.map(code => ({ code, done: !setup.blockers.includes(code) }))
 }

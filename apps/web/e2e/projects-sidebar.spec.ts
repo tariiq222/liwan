@@ -14,7 +14,8 @@ test.describe('the flat projects sidebar and the status chips', () => {
     await expect(menu.getByTestId('navigation-app-block')).toHaveText('المشاريع')
     await expect(menu.getByTestId('quick-action-new-project')).toHaveAttribute('href', /\/projects\/new/)
     await expect(menu.locator('a[data-testid^="context-link-"], button[data-testid^="context-link-"]')).toHaveText(['نظرة عامة', 'المشاريع3', 'مهامي2', 'تحتاج انتباه2'])
-    await expect(menu.locator('[aria-expanded], .liwan-side-branch')).toHaveCount(0)
+    // Only the list rows: the application block above them is a switcher menu and carries `aria-expanded` itself.
+    await expect(menu.locator('.liwan-side-body [aria-expanded]:not([data-testid="navigation-app-block"]), .liwan-side-branch')).toHaveCount(0)
     await expect(menu.getByTestId('context-link-projects')).toHaveAttribute('aria-current', 'page')
     await expect(menu.getByTestId('context-link-tasks')).toHaveAttribute('href', '/tasks?assignee=me')
     // The status presets are no longer sidebar rows.

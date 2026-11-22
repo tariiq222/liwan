@@ -3,10 +3,11 @@ import { refDebounced, useMediaQuery } from '@vueuse/core'
 import type { CommandPaletteGroup, CommandPaletteItem, CommandPaletteProps } from '@nuxt/ui'
 import { useNav, visibleShellModules, type NavItem } from '@/composables/nav/shellModules'
 import {
-  appItems, commandItems, goToItems, helpItems, paletteGroups, PALETTE_SECTION_LIMIT, visibleCommands, type PaletteItem,
+  appItems, commandItems, goToItems, helpItems, paletteGroups, PALETTE_RESULT_LIMIT, visibleCommands, type PaletteItem,
 } from '@/composables/nav/paletteModel'
 import { isApplePlatform } from '@liwan/ui/app/composables/shortcuts/keymap'
 import { useAppSearch } from '@/composables/useAppSearch'
+import { paletteIndexText, paletteSearchTerm } from '@/composables/nav/paletteSearch'
 import { paletteNavigationBlocked, shouldRestoreTriggerFocus, usePalette } from '@/composables/usePalette'
 import { clearNavigationFocus, offerNavigationFocus } from '@liwan/ui/app/composables/useNavigationFocus'
 
@@ -119,6 +120,33 @@ function onBackspace() {
   if (view.value === 'shortcuts' && !term.value) view.value = 'main'
 }
 
+// UCommandPalette slices every group at `fuse.resultLimit`, including the ones it does not search (Apps, Go to,
+// Actions, the shortcut table). A fixed number cannot know how many destinations a tenant's applications add, so the cut
+// is the largest group's own size: it never removes a row, and the search sections still cap themselves at
+// PALETTE_SECTION_LIMIT with their own «عرض المزيد».
+// Read from `liveGroups` (what the palette is about to draw), not the rendered copy: `groups` is cleared during the exit
+// animation, and a cut of 0 would blank the list mid-close.
+const paletteLimit = computed(() => Math.max(
+  PALETTE_RESULT_LIMIT,
+  ...liveGroups.value.map(group => group.items?.length ?? 0),
+))
+
+/** Fuse options for the palette: the cut above, diacritics ignored, and the Arabic fold applied to BOTH sides.
+ *  Folding only the index made the search fail on the correct spelling: the stored «مهمة» became «مهمه» and the typed
+ *  «مهمة» stayed as it was, so the two no longer matched. Every field Fuse indexes is folded (the earlier version returned
+ *  an empty string for `description`, which silently stopped matching it), and the term is folded before it is searched. */
+const paletteFuse = computed(() => ({
+  resultLimit: paletteLimit.value,
+  ignoreDiacritics: true,
+  getFn: paletteIndexText,
+}))
+
+// The palette searches exactly what Fuse indexed: the same fold on the user's text as on the stored labels.
+const foldedTerm = computed({
+  get: () => paletteSearchTerm(term.value),
+  set: (value: string) => { term.value = value },
+})
+
 const liveGroups = computed<CommandPaletteGroup<CommandPaletteItem>[]>(() => {
   if (!open.value) return []
   const visible = useNav(me.value)
@@ -186,12 +214,12 @@ function onAfterLeave() {
     </UButton>
     <template #content>
       <UCommandPalette
-        v-model:search-term="term"
+        v-model:search-term="foldedTerm"
         :groups="groups"
         :placeholder="view === 'shortcuts' ? t('shortcuts.filter') : t('search.description')"
         :input="inputProps"
         :loading="searching"
-        :fuse="{ resultLimit: PALETTE_SECTION_LIMIT + 3 }"
+        :fuse="paletteFuse"
         preserve-group-order
         :dir="localeProperties.dir"
         :data-view="view"

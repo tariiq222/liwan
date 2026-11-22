@@ -9,7 +9,7 @@ const page = useInvoiceCreatePage('in_refund')
 
 <template>
   <SharedListPage v-bind="page.list"><InvoiceList move-type="in_refund" background /></SharedListPage>
-  <SharedCreatePanel :title="page.title" :back-to="page.backTo">
+  <SharedCreatePanel size="wide" :title="page.title" :back-to="page.backTo">
     <InvoiceForm v-if="page.allowed" move-type="in_refund" :back-to="page.backTo" @saved="page.saved" />
     <SharedForbiddenState v-else :description="t('financeDocuments.forbidden')" />
   </SharedCreatePanel>

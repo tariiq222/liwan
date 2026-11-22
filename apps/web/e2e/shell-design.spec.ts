@@ -18,7 +18,9 @@ test.describe('unified application navigation', () => {
   test('the sidebar is in application mode: back row, the open application, its own links only', async ({ page }) => {
     const menu = page.getByTestId('application-navigation')
     await expect(menu).toHaveAttribute('data-mode', 'app')
-    await expect(menu.getByTestId('navigation-app-back')).toHaveAttribute('href', '/apps')
+    // No back row above the application block: «كل التطبيقات» sits in the footer, so the same link is not printed twice.
+    await expect(menu.getByTestId('navigation-app-back')).toHaveCount(0)
+    await expect(menu.getByTestId('navigation-app-apps')).toHaveAttribute('href', '/apps')
     await expect(menu.getByTestId('navigation-app-block')).toHaveText('الاجتماعات')
     // The pinned applications belong to the global mode; the organisation and the core icon row stay in both.
     await expect(menu.getByTestId('navigation-app-projects')).toHaveCount(0)
@@ -33,7 +35,7 @@ test.describe('unified application navigation', () => {
     await menu.getByTestId('context-link-meetings').click()
     await expect(menu.getByTestId('quick-view-done')).toBeVisible()
     expect(page.url()).toBe(initial)
-    await menu.getByTestId('navigation-app-back').click()
+    await menu.getByTestId('navigation-app-apps').click()
     await expect(page).toHaveURL(/\/apps$/)
     await expect(menu).toHaveAttribute('data-mode', 'global')
   })
@@ -188,43 +190,43 @@ test.describe('top bar tools and slide-over panels', () => {
     await expect(bar.getByTestId('account-menu')).toBeVisible()
     await expect(bar.getByTestId('notification-bell')).toBeVisible()
     await expect(bar.getByTestId('assistant-button')).toBeVisible()
+    // The application tool panels left the bar (DESIGN.md §3, 2026-11-21): the sidebar's core-app row opens those pages
+    // and carries their numbers, so a second button with the same icon and count read as two.
+    for (const gone of ['chat-tool', 'tasks-tool', 'meetings-tool']) await expect(bar.getByTestId(gone)).toHaveCount(0)
     await expect(bar.locator('h1')).toHaveCount(0)
   })
 
-  for (const panel of ['notifications', 'chat', 'tasks', 'meetings'] as const) {
-    const tool = panel === 'notifications' ? 'notification-bell' : `${panel}-tool`
-    test(`${panel}: opens under the bar, closes with Escape and returns focus to its button`, async ({ page }) => {
-      const button = page.getByTestId(tool)
-      const slide = page.getByTestId(`slide-over-${panel}`)
-      await expect(button).toBeEnabled()
-      await expect(button).toHaveAttribute('aria-expanded', 'false')
-      await button.click()
-      await expect(slide).toBeVisible()
-      await expect(button).toHaveAttribute('aria-expanded', 'true')
-      await expect(button).toHaveAttribute('aria-controls', `slide-over-${panel}`)
-      const box = (await slide.boundingBox())!
-      expect(box.width).toBeCloseTo(380, 0)
-      expect(box.y).toBeGreaterThanOrEqual(68)
-      // Not a modal: the page behind keeps working.
-      await expect(page.getByTestId('shell-main')).not.toHaveAttribute('inert')
-      await expect(slide.getByTestId(`slide-over-${panel}-all`)).toHaveAttribute('href', /^\/\w/)
-      await page.keyboard.press('Escape')
-      await expect(slide).toBeHidden()
-      await expect(button).toBeFocused()
-      await expect(button).toHaveAttribute('aria-expanded', 'false')
-    })
-  }
+  test('notifications: opens under the bar, closes with Escape and returns focus to its button', async ({ page }) => {
+    const button = page.getByTestId('notification-bell')
+    const slide = page.getByTestId('slide-over-notifications')
+    await expect(button).toBeEnabled()
+    await expect(button).toHaveAttribute('aria-expanded', 'false')
+    await button.click()
+    await expect(slide).toBeVisible()
+    await expect(button).toHaveAttribute('aria-expanded', 'true')
+    await expect(button).toHaveAttribute('aria-controls', 'slide-over-notifications')
+    const box = (await slide.boundingBox())!
+    expect(box.width).toBeCloseTo(380, 0)
+    expect(box.y).toBeGreaterThanOrEqual(68)
+    // Not a modal: the page behind keeps working.
+    await expect(page.getByTestId('shell-main')).not.toHaveAttribute('inert')
+    await expect(slide.getByTestId('slide-over-notifications-all')).toHaveAttribute('href', /^\/\w/)
+    await page.keyboard.press('Escape')
+    await expect(slide).toBeHidden()
+    await expect(button).toBeFocused()
+    await expect(button).toHaveAttribute('aria-expanded', 'false')
+  })
 
   test('one panel at a time; a second click on the button, a click outside and the close button all close it', async ({ page }) => {
     const bell = page.getByTestId('notification-bell')
-    const tasks = page.getByTestId('tasks-tool')
+    const assistant = page.getByTestId('assistant-button')
     await bell.click()
     await expect(page.getByTestId('slide-over-notifications')).toBeVisible()
-    await tasks.click()
-    await expect(page.getByTestId('slide-over-tasks')).toBeVisible()
+    await assistant.click()
+    await expect(page.getByTestId('slide-over-assistant')).toBeVisible()
     await expect(page.getByTestId('slide-over-notifications')).toBeHidden()
-    await tasks.click()
-    await expect(page.getByTestId('slide-over-tasks')).toBeHidden()
+    await assistant.click()
+    await expect(page.getByTestId('slide-over-assistant')).toBeHidden()
     await bell.click()
     await page.getByTestId('shell-main').click({ position: { x: 20, y: 200 } })
     await expect(page.getByTestId('slide-over-notifications')).toBeHidden()
@@ -235,11 +237,11 @@ test.describe('top bar tools and slide-over panels', () => {
   })
 
   test('a route change closes the open panel and leaves focus on the page', async ({ page }) => {
-    await page.getByTestId('meetings-tool').click()
-    await expect(page.getByTestId('slide-over-meetings')).toBeVisible()
+    await page.getByTestId('assistant-button').click()
+    await expect(page.getByTestId('slide-over-assistant')).toBeVisible()
     await page.getByTestId('application-navigation').getByTestId('context-link-project-dashboard').click()
-    await expect(page.getByTestId('slide-over-meetings')).toBeHidden()
-    await expect(page.getByTestId('meetings-tool')).not.toBeFocused()
+    await expect(page.getByTestId('slide-over-assistant')).toBeHidden()
+    await expect(page.getByTestId('assistant-button')).not.toBeFocused()
   })
 
   test('the assistant panel opens from its button and keeps its content after closing', async ({ page }) => {

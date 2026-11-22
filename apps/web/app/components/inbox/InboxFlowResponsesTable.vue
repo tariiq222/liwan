@@ -21,12 +21,12 @@ type CellKind = 'none' | 'yes' | 'no' | 'text'
 function cellKind(submission: InboxFlowSubmission, key: string): CellKind {
   const answer = answerOf(submission.answers, key)
   if (!answer) return 'none'
-  const display = answerDisplay(answer)
+  const display = answerDisplay(answer, t)
   return display.kind === 'boolean' ? (display.value ? 'yes' : 'no') : 'text'
 }
 function cellText(submission: InboxFlowSubmission, key: string): string {
   const answer = answerOf(submission.answers, key)
-  const display = answer ? answerDisplay(answer) : null
+  const display = answer ? answerDisplay(answer, t) : null
   return display?.kind === 'text' && display.text ? display.text : '—'
 }
 const link = (submission: InboxFlowSubmission) => conversationRoute(submission.conversation_id, submission.message_id)

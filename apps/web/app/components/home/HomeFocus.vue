@@ -10,7 +10,7 @@ import { useMyWork } from '@/composables/useMyWork'
 // instead of drawing an empty card.
 const FOCUS_ROWS = 5
 const { t } = useI18n()
-const { available, rows, pending, failed, refetch } = useMyWork()
+const { available, rows, settled, failed, refetch } = useMyWork()
 const modules = new Map(shellModuleList().map(module => [module.id, module]))
 const items = computed(() => rows.value.slice(0, FOCUS_ROWS).map(row => {
   const module = modules.get(row.module)
@@ -23,7 +23,9 @@ const items = computed(() => rows.value.slice(0, FOCUS_ROWS).map(row => {
     <template #actions>
       <UButton to="/work" color="neutral" variant="link" size="sm" :label="t('home.viewAll')" data-testid="home-focus-all" />
     </template>
-    <HomeFocusSkeleton v-if="pending" />
+    <!-- Progressive: the list appears as soon as one application answers, instead of waiting for the slowest one
+         (which froze the greeting and the whole page behind it). The skeleton shows only before the first answer. -->
+    <HomeFocusSkeleton v-if="!settled" />
     <SharedErrorState v-else-if="failed" data-testid="home-focus-error" @retry="refetch()" />
     <p v-else-if="!items.length" class="rounded-card border-[1.5px] border-dashed border-default p-5 text-sm text-muted" data-testid="home-focus-empty">{{ t('home.focusEmpty') }}</p>
     <ul v-else :aria-label="t('home.focus')" class="liwan-soft-in divide-y divide-default overflow-hidden rounded-card border-[1.5px] border-default bg-default" data-testid="home-focus-list">

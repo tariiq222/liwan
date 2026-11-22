@@ -14,7 +14,7 @@ export interface CrmCallDraft {
 // Record one call. The outcome decides the rest: a sold outcome opens the sale fields, a losing outcome that carries
 // no reason asks for one, which goes with the call: one request logs the call and closes the opportunity as lost.
 const props = defineProps<{ outcomes: CrmOutcome[]; packages: CrmPackage[]; lostReasons: CrmLostReason[]; pending?: boolean; error?: string }>()
-const emit = defineEmits<{ record: [call: CrmCallDraft] }>()
+const emit = defineEmits<{ record: [call: CrmCallDraft]; cancel: [] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const outcomeId = ref<number | undefined>()
@@ -35,6 +35,18 @@ const locked = computed(() => !hydrated.value || props.pending)
 watch(outcomeId, () => { attempted.value = false })
 watch(entered, value => { dirty.value = value }, { immediate: true })
 onBeforeUnmount(() => { dirty.value = false })
+
+// Leaving the form with text typed used to be impossible from the row's own button, and closing it any other way
+// threw the text away silently. Cancel says it out loud.
+function cancel() {
+  outcomeId.value = undefined
+  note.value = ''
+  duration.value = undefined
+  sale.value = { package_id: null, final_price: null }
+  lostReasonId.value = undefined
+  attempted.value = false
+  emit('cancel')
+}
 
 function submit() {
   attempted.value = true
@@ -80,7 +92,10 @@ function submit() {
         <UFormField :label="t('crm.opportunities.call.note')" name="call-note">
           <UTextarea id="call-note" v-model="note" class="w-full" :rows="1" autoresize :maxlength="2000" :disabled="locked" />
         </UFormField>
-        <UButton type="submit" :loading="pending" :disabled="locked" :label="askReason ? t('crm.opportunities.call.lostSubmit') : selling ? t('crm.opportunities.sale.submit') : t('crm.opportunities.call.submit')" data-testid="crm-call-submit" />
+        <div class="flex items-center justify-end gap-2">
+          <UButton type="button" color="neutral" variant="outline" :disabled="locked" :label="t('app.cancel')" data-testid="crm-call-cancel" @click="cancel" />
+          <UButton type="submit" :loading="pending" :disabled="locked" :label="askReason ? t('crm.opportunities.call.lostSubmit') : selling ? t('crm.opportunities.sale.submit') : t('crm.opportunities.call.submit')" data-testid="crm-call-submit" />
+        </div>
       </div>
     </UForm>
   </SharedRecordSection>

@@ -142,7 +142,6 @@ function createRecommendation(topicKey?: string) {
             :legacy-agenda="agenda"
             :readonly="lifecycleLocked || !canEdit"
             :pending="isPending"
-            :can-save="dirty"
             @save-and-create-resolution="createRecommendation"
           />
         </UFormField>

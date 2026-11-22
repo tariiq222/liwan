@@ -42,7 +42,7 @@ test.describe('Plan 6b: the HR forms', () => {
 
     test('the department create panel preselects the parent from the link', async ({ page }) => {
       await open(page, '/hr/departments/new?parent_id=1')
-      await expect(page.getByRole('combobox', { name: 'القسم الأب', exact: true })).toContainText('إدارة العمليات')
+      await expect(page.getByRole('combobox', { name: 'القسم الرئيسي', exact: true })).toContainText('إدارة العمليات')
     })
 
     test('the employee edit page is a form page: back link, two panel sections, footer actions', async ({ page }) => {

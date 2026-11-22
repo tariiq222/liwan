@@ -24,7 +24,8 @@ describe('hidden KPIs ask nothing', () => {
     ['pages/documents.vue', ['const kpiEnabled = computed(() => isListRoute.value && kpisShown.value)', 'useDocuments({ limit: 1 }, kpiEnabled)']],
     ['pages/hr/index.vue', ['useHrEmployees({ limit: 1 }, kpisShown)', 'kpisShown.value && canManage.value']],
     ['pages/finance/index.vue', ["useFinanceAging('receivable', computed(() => kpisShown.value && canStatements.value))", 'useFinancePartners({ limit: 1 }, computed(() => kpisShown.value && canPartners.value))']],
-    ['pages/my-tasks/index.vue', ['}, kpisShown)']],
+    // The personal task list moved into the shared workspace when /my-tasks became a redirect (2026-11-21).
+    ['components/personal-tasks/MyTasksWorkspace.vue', ['}, kpisShown)']],
     ['pages/meetings/index.vue', ['}), kpisShown)']],
     ['pages/meetings/series.vue', ['useMeetingSeriesKpis(kpisShown)']],
     ['pages/meetings/follow-up.vue', ['}), kpisShown)']],

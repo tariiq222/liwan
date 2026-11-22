@@ -1,12 +1,12 @@
 import type { AppManifest } from '../types'
-import { chatQuickPanel } from './quickPanel'
+import { chatCoreCount } from './coreCount'
 import { chatAppCard } from './appCard'
 
 const manifest: AppManifest = {
   id: 'chat',
   feature: 'chat.enabled',
   routePrefixes: ['/chat'],
-  quickPanel: chatQuickPanel,
+  coreCount: chatCoreCount,
   appCard: chatAppCard,
   // The application's settings are one page under Settings > Applications; what deleting a message does is its first card.
   settings: {

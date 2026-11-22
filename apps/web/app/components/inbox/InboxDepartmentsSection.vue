@@ -89,7 +89,7 @@ function confirmDelete() {
         <li v-for="department in items" :key="department.id" class="flex flex-wrap items-center justify-between gap-2 py-2" :data-testid="`inbox-department-${department.id}`">
           <div class="min-w-0">
             <p class="truncate text-sm font-medium text-highlighted">{{ department.name }}</p>
-            <p class="truncate text-xs text-muted">{{ department.members.length ? department.members.map(member => member.name).join('، ') : t('inbox.settings.departments.noMembers') }}</p>
+            <p class="truncate text-xs text-muted">{{ department.members.length ? joinList(department.members.map(member => member.name), t) : t('inbox.settings.departments.noMembers') }}</p>
           </div>
           <div class="flex gap-1">
             <UButton type="button" color="neutral" variant="ghost" square icon="i-lucide-pencil" :disabled="locked" :aria-label="t('inbox.settings.edit', { name: department.name })" @click="edit(department)" />

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import * as Vue from 'vue'
@@ -40,10 +41,23 @@ describe('CrmDashboardDueList', () => {
     expect(await render({ canRecord: false, openId: 1 })).not.toContain('crm-due-record')
   })
 
-  it('disables every record button, the open row included, while the open form holds text', async () => {
+  it('keeps the open row closable while its form holds text and blocks the other rows', async () => {
+    // The row's own button used to disable itself once a character was typed, so a form with text could not be
+    // closed at all in a one-row list, and had no cancel button. It closes now; the other rows wait.
     const html = await render({ items: [item, { ...item, id: 2 }], openId: 1, dirty: true })
-    expect(html.match(/disabled/g)).toHaveLength(2)
+    expect(html.match(/disabled/g)).toHaveLength(1)
     expect(await render({ openId: 1, dirty: false })).not.toContain('disabled')
+  })
+
+  it('passes a cancel handler to the open form so text can be abandoned', async () => {
+    // The call form is stubbed in this harness, so its own button is checked in the component's file; what this
+    // test holds is the wiring: the row listens for the cancel the form emits.
+    const read = (path: string) => readFileSync(resolve(import.meta.dirname, '../../../../..', 'app', path), 'utf8')
+    const source = read('components/crm/opportunity/CrmOpportunityCallForm.vue')
+    expect(source).toContain("record: [call: CrmCallDraft]; cancel: []")
+    expect(source).toContain('crm-call-cancel')
+    const page = read('components/crm/dashboard/CrmDashboardDueList.vue')
+    expect(page).toContain('@cancel="openId = null"')
   })
 
   it('keeps the record button disabled until the page is hydrated', async () => {

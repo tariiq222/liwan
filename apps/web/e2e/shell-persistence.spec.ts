@@ -52,8 +52,9 @@ test('the shell keeps its DOM nodes across home, an application, all application
   await expect(page.getByTestId('shell-main')).toBeVisible()
   await expectSurvived(page)
 
-  // The application's back row «كل التطبيقات» -> /apps (the sidebar returns to the global mode in place).
-  await menu.getByTestId('navigation-app-back').click()
+  // «كل التطبيقات» is in the footer now (the back row left the top of the sidebar, DESIGN.md §3): the same
+  // destination, one place instead of two.
+  await menu.getByTestId('navigation-app-apps').click()
   await expect(page).toHaveURL(/\/apps$/)
   await expect(menu).toHaveAttribute('data-mode', 'global')
   await expect(page.getByTestId('apps-page')).toBeVisible()

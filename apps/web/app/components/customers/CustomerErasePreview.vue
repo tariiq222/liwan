@@ -74,7 +74,8 @@ const blockedByApp = (reason: string) => blockedByOwner(blockers.value, reason).
       <h3 class="font-medium">{{ t('customers.privacy.erase.unhandled') }}</h3>
       <ul class="mt-2 divide-y divide-default rounded-lg border border-default">
         <li v-for="item in groups.unhandled" :key="item.key" class="flex items-center justify-between gap-3 px-3 py-2" :data-testid="`customer-erase-item-${item.key}`">
-          <bdi dir="ltr">{{ label(item.key) }}</bdi>
+          <!-- `label` is translated: an Arabic label in an ltr box broke its own reading order. -->
+          <bdi dir="auto">{{ label(item.key) }}</bdi>
           <span v-if="item.complete" class="tabular-nums">{{ item.count }}</span>
           <span v-else class="text-muted" :title="t('customers.privacy.erase.unavailableHint')" data-testid="customer-erase-count-unavailable">{{ t('customers.privacy.erase.unavailable') }}</span>
         </li>

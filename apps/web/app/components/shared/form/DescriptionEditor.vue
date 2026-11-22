@@ -34,7 +34,7 @@ const editor = useEditor({
   editorProps: {
     attributes: {
       role: 'textbox',
-      'aria-label': props.ariaLabel || t('tasks.drawer.description'),
+      'aria-label': props.ariaLabel || t('app.description'),
       'aria-multiline': 'true',
       class: 'tiptap min-h-20 px-3 py-2 text-sm outline-none',
     },
@@ -126,30 +126,30 @@ function applyLink() {
   <ClientOnly>
     <div data-editor="description" class="overflow-hidden rounded-card border border-default bg-default shadow-sm">
       <div v-if="!readonly" class="flex items-center gap-1 border-b border-default bg-elevated/30 p-1">
-        <UButton color="neutral" square size="sm" :disabled="!hydrated" :aria-label="t('tasks.detail.bold')" :variant="editor?.isActive('bold') ? 'soft' : 'ghost'" :aria-pressed="!!editor?.isActive('bold')" type="button" @click="toggleBold">
+        <UButton color="neutral" square size="sm" :disabled="!hydrated" :aria-label="t('app.editor.bold')" :variant="editor?.isActive('bold') ? 'soft' : 'ghost'" :aria-pressed="!!editor?.isActive('bold')" type="button" @click="toggleBold">
           <UIcon name="i-lucide-bold" class="size-4.5" aria-hidden="true" />
         </UButton>
-        <UButton color="neutral" square size="sm" :disabled="!hydrated" :aria-label="t('tasks.detail.italic')" :variant="editor?.isActive('italic') ? 'soft' : 'ghost'" :aria-pressed="!!editor?.isActive('italic')" type="button" @click="toggleItalic">
+        <UButton color="neutral" square size="sm" :disabled="!hydrated" :aria-label="t('app.editor.italic')" :variant="editor?.isActive('italic') ? 'soft' : 'ghost'" :aria-pressed="!!editor?.isActive('italic')" type="button" @click="toggleItalic">
           <UIcon name="i-lucide-italic" class="size-4.5" aria-hidden="true" />
         </UButton>
-        <UButton color="neutral" square size="sm" :disabled="!hydrated" :aria-label="t('tasks.detail.bulletList')" :variant="editor?.isActive('bulletList') ? 'soft' : 'ghost'" :aria-pressed="!!editor?.isActive('bulletList')" type="button" @click="toggleBulletList">
+        <UButton color="neutral" square size="sm" :disabled="!hydrated" :aria-label="t('app.editor.bulletList')" :variant="editor?.isActive('bulletList') ? 'soft' : 'ghost'" :aria-pressed="!!editor?.isActive('bulletList')" type="button" @click="toggleBulletList">
           <UIcon name="i-lucide-list" class="size-4.5" aria-hidden="true" />
         </UButton>
         <UButton
-          color="neutral" square size="sm" :aria-label="t('tasks.detail.orderedList')" :variant="editor?.isActive('orderedList') ? 'soft' : 'ghost'" :aria-pressed="!!editor?.isActive('orderedList')" type="button"
+          color="neutral" square size="sm" :aria-label="t('app.editor.orderedList')" :variant="editor?.isActive('orderedList') ? 'soft' : 'ghost'" :aria-pressed="!!editor?.isActive('orderedList')" type="button"
           :disabled="!hydrated" @click="toggleOrderedList"
         >
           <UIcon name="i-lucide-list-ordered" class="size-4.5" aria-hidden="true" />
         </UButton>
-        <UButton color="neutral" square size="sm" :disabled="!hydrated" :aria-label="t('tasks.detail.linkPrompt')" :variant="editor?.isActive('link') ? 'soft' : 'ghost'" :aria-pressed="!!editor?.isActive('link')" type="button" @click="toggleLink">
+        <UButton color="neutral" square size="sm" :disabled="!hydrated" :aria-label="t('app.editor.linkPrompt')" :variant="editor?.isActive('link') ? 'soft' : 'ghost'" :aria-pressed="!!editor?.isActive('link')" type="button" @click="toggleLink">
           <UIcon name="i-lucide-link" class="size-4.5" aria-hidden="true" />
         </UButton>
       </div>
       <div v-if="linkEditorOpen" data-testid="link-editor" class="flex flex-wrap items-center gap-2 border-b border-default p-2">
-        <label for="description-link-url" class="sr-only">{{ t('tasks.detail.linkPrompt') }}</label>
-        <UInput id="description-link-url" v-model="linkDraft" :placeholder="t('tasks.detail.linkPrompt')" class="min-w-48 flex-1" dir="ltr" :disabled="!hydrated || readonly" @keydown.enter.prevent="applyLink" @keydown.escape="cancelLink" />
-        <UButton type="button" size="sm" :disabled="!hydrated || readonly" @click="applyLink">{{ t('tasks.detail.applyLink') }}</UButton>
-        <UButton type="button" size="sm" color="neutral" variant="outline" :disabled="!hydrated" @click="cancelLink">{{ t('tasks.detail.cancelLink') }}</UButton>
+        <label for="description-link-url" class="sr-only">{{ t('app.editor.linkPrompt') }}</label>
+        <UInput id="description-link-url" v-model="linkDraft" :placeholder="t('app.editor.linkPrompt')" class="min-w-48 flex-1" dir="ltr" :disabled="!hydrated || readonly" @keydown.enter.prevent="applyLink" @keydown.escape="cancelLink" />
+        <UButton type="button" size="sm" :disabled="!hydrated || readonly" @click="applyLink">{{ t('app.editor.applyLink') }}</UButton>
+        <UButton type="button" size="sm" color="neutral" variant="outline" :disabled="!hydrated" @click="cancelLink">{{ t('app.editor.cancelLink') }}</UButton>
       </div>
       <EditorContent :editor="editor" />
     </div>

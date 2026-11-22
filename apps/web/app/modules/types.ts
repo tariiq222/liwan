@@ -3,7 +3,7 @@ import type { ZodType } from 'zod'
 
 /**
  * Application manifest: the one place an application declares its web surface.
- * Data only: manifests import no components, except the lazy `quickPanel.load`
+ * Data only: manifests import no components, except the lazy `assistant.load` panel body
  * and `assistant.load` (dynamic imports of the application's own panel body). Icons are Iconify strings.
  */
 /** Local Lucide icons, the approved customer WhatsApp brand icon and the Liwan AI sparkle. */
@@ -137,25 +137,22 @@ export interface AppLandingEntry {
   late?: boolean
 }
 /**
- * A personal tool the application adds to the top bar (chat: recent conversations, tasks: my open tasks,
- * meetings: the upcoming ones). The button shows `count` as its badge and opens a slide-over whose body is the
- * application's own component, loaded lazily so the shell imports no application code (R3). The body takes no props.
+ * The badge one application shows beside its name, from its own count loader: the sidebar's core-app row and the
+ * phone tab bar read the same numbers.
  */
-export interface AppQuickPanel {
-  /** Unique across manifests; names the slide-over and its test ids. */
+export interface AppCoreCount {
+  /** Unique across manifests: the core application whose badge it is (`chat`, `tasks`, `meetings`). */
   id: string
-  labelKey: string
-  icon: AppIcon
-  /** Capability that shows the button and the panel (with the application's feature). */
+  /** Capability that shows the number (with the application's feature). */
   capability: string
-  /** The page «افتح الكل» goes to. */
+  /** The page the number belongs to. */
   to: string
-  /** Vue-query key of the badge count; the surfaces append nothing. */
+  /** Vue-query key of the count; the surfaces append the viewer's company and user. */
   queryKey: readonly unknown[]
-  /** The badge number; runs through useApi() with the caller's session. */
+  /** The number; runs through useApi() with the caller's session. */
   count: (api: AppSearchApi) => Promise<number>
-  load: () => Promise<{ default: Component }>
 }
+
 /**
  * The assistant's sheet: a panel the shell hosts beside the page, opened from a header button. The body is
  * the owning application's own component, loaded lazily so the shell imports no application code (R3).
@@ -388,7 +385,8 @@ export interface AppManifest {
   /** Palette actions (Actions group of the command palette). */
   commands?: AppCommand[]
   /** A top-bar tool with a slide-over panel (a personal list and its badge). */
-  quickPanel?: AppQuickPanel
+  /** The badge number of this application in the core-app row and the phone tab bar. */
+  coreCount?: AppCoreCount
   /** The assistant's header button and sheet; only the assistant application declares it. */
   assistant?: AppAssistantSurface
   /** What needs the user's attention, for the assistant surfaces and the home suggestions. */

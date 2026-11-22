@@ -62,13 +62,13 @@ function toggle(id: number) {
             :label="t('crm.dashboard.agent.recordResult')"
             :aria-expanded="openId === item.id"
             :aria-controls="formId(item.id)"
-            :disabled="!hydrated || dirty"
+            :disabled="!hydrated || (dirty && openId !== item.id)"
             data-testid="crm-due-record"
             @click="toggle(item.id)"
           />
         </div>
         <div v-if="canRecord && openId === item.id" :id="formId(item.id)" class="grid basis-full gap-2">
-          <CrmOpportunityCallForm v-model:dirty="dirty" :outcomes="callOutcomesFor(outcomes ?? [], item.win_by_order)" :packages="packages ?? []" :lost-reasons="lostReasons ?? []" :pending="pending" :error="failure" @record="call => emit('record', item.id, call)" />
+          <CrmOpportunityCallForm v-model:dirty="dirty" :outcomes="callOutcomesFor(outcomes ?? [], item.win_by_order)" :packages="packages ?? []" :lost-reasons="lostReasons ?? []" :pending="pending" :error="failure" @record="call => emit('record', item.id, call)" @cancel="openId = null" />
           <CustomerConflictStep v-if="candidates" :candidates="candidates" :pending="pending" :description="t('customers.link.conflictDescription')" :confirm-label="t('customers.link.conflictConfirm')" @open="emit('choose', { customer_id: $event })" @create-new="emit('choose', { create_new: true })" @cancel="emit('dismiss')" />
           <NuxtLink v-if="failure" :to="`/crm/opportunities/${item.id}`" class="text-sm font-semibold text-primary hover:underline" data-testid="crm-due-open-record">{{ t('crm.dashboard.agent.openRecord') }}</NuxtLink>
         </div>

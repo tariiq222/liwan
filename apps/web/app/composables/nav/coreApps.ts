@@ -21,3 +21,8 @@ export function coreAppItems(input: CoreAppsInput): ShellQuickItem[] {
     }
   })
 }
+
+/** The badge of a core application: nothing until the count is known and nothing for zero. */
+export function toolBadge(count: number | null): number | null {
+  return count && count > 0 ? count : null
+}

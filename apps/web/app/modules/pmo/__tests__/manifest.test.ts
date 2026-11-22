@@ -23,9 +23,9 @@ describe('pmo manifest next to the tasks application', () => {
 
   it('has a deterministic landing for a user holding both task capabilities', () => {
     // Landings follow application rail order; My tasks precedes projects.
-    expect(firstAllowedPath({ capabilities: ['tasks.tasks.read', 'pmo.tasks.read'] })).toBe('/my-tasks')
-    expect(firstAllowedPath({ capabilities: ['tasks.tasks.read'] })).toBe('/my-tasks')
-    // A reader of both applications enters the first visible application.
-    expect(firstAllowedPath({ capabilities: ['tasks.tasks.read', 'pmo.tasks.read', 'pmo.projects.read'] })).toBe('/my-tasks')
+    expect(firstAllowedPath({ capabilities: ['tasks.tasks.read', 'pmo.tasks.read'] })).toBe('/work')
+    expect(firstAllowedPath({ capabilities: ['tasks.tasks.read'] })).toBe('/work')
+    // A reader of both applications enters the first visible application, «أعمالي».
+    expect(firstAllowedPath({ capabilities: ['tasks.tasks.read', 'pmo.tasks.read', 'pmo.projects.read'] })).toBe('/work')
   })
 })
