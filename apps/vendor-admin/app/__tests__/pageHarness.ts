@@ -21,7 +21,7 @@ export type PageOptions = {
 }
 
 export async function mountPage(path: string, bindings: Record<string, unknown>, options: PageOptions = {}) {
-  const filename = resolve(import.meta.dirname, '..', path)
+  const filename = resolve(import.meta.dirname, '..', 'pages', path)
   const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
   const script = stripImports(compileScript(descriptor, { id: path }).content).replaceAll('import.meta.client', String(options.client ?? false)).replace('export default', 'return')
   const unmounts: (() => void)[] = []

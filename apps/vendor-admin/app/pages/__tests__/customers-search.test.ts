@@ -4,7 +4,7 @@ import * as vendorClients from '../../utils/vendorClients'
 import { hostingKey } from '../../utils/vendorTenant'
 import { isNotAvailable } from '../../utils/vendorSubscriptions'
 import { customerDisplayBadge, operationStatusBadge } from '../../utils/vendorBadges'
-import { mountPage } from './pageHarness'
+import { mountPage } from '../../__tests__/pageHarness'
 
 const mounted: { stop: () => void }[] = []
 afterEach(() => { mounted.splice(0).forEach(page => page.stop()); vi.useRealTimers() })

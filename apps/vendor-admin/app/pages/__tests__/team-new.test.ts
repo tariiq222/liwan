@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
-import { mountPage } from './pageHarness'
+import { mountPage } from '../../__tests__/pageHarness'
 
 const mounted: { stop: () => void }[] = []
 afterEach(() => mounted.splice(0).forEach(page => page.stop()))

@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
 import * as vendorAudit from '../../utils/vendorAudit'
-import { mountPage } from './pageHarness'
+import { mountPage } from '../../__tests__/pageHarness'
 
 const mounted: { stop: () => void }[] = []
 afterEach(() => mounted.splice(0).forEach(page => page.stop()))

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
 import { ref } from 'vue'
-import { mountPage } from '../../pages/__tests__/pageHarness'
+import { mountPage } from '../../__tests__/pageHarness'
 
 const mounted: { stop: () => void }[] = []
 afterEach(() => mounted.splice(0).forEach(page => page.stop()))
