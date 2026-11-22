@@ -141,6 +141,8 @@ const voidOutcomeHint = computed(() => (voidOutcome.value === 'end' || voidOutco
 const voidValid = computed(() => validVoidDraft({ outcome: voidOutcome.value, reason: voidReason.value }))
 function openVoid() { voidOpen.value = true; voidOutcome.value = ''; voidReason.value = ''; voidFailure.value = undefined }
 function closeVoid() { voidOpen.value = false; voidOutcome.value = ''; voidReason.value = ''; voidFailure.value = undefined }
+// The server decides whether the void is offered: once it is not, the form and its failure go, so neither comes back if the block clears.
+watch(() => voidState.value.kind, kind => { if (kind !== 'available') closeVoid() })
 async function voidInvoice() {
   if (!hydrated.value || voidBusy.value || voidState.value.kind !== 'available' || !voidValid.value || !data.value) return
   voidBusy.value = true; voidFailure.value = undefined

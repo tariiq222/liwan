@@ -551,6 +551,21 @@ describe('voiding an unpaid renewal invoice', () => {
     expect(p.state.voidOpen.value).toBe(false); expect(p.state.voidFailure.value).toBeUndefined(); expect(p.state.voidBusy.value).toBe(false)
   })
 
+  it('closes and clears the form when a refusal and the reload leave the invoice blocked, so nothing comes back once the block clears', async () => {
+    const p = await voidPage()
+    draft(p, 'end')
+    p.api.voidRenewalInvoice.mockRejectedValueOnce({ statusCode: 409, data: { code: 'transfer_claimed' } })
+    p.api.invoice.mockResolvedValueOnce({ ...(await p.api.invoice()), voidable: false, void_block: 'transfer_claimed' })
+    await p.state.voidInvoice(); await Vue.nextTick()
+    expect(p.state.voidState.value).toEqual({ kind: 'blocked', block: 'transfer_claimed' })
+    expect([p.state.voidOpen.value, p.state.voidOutcome.value, p.state.voidReason.value, p.state.voidFailure.value]).toEqual([false, '', '', undefined])
+    const { captured, html } = await p.rendered()
+    expect(byTestId(captured, 'void-failure')).toBeUndefined(); expect(html).toContain('id="void-blocked"')
+    await p.state.refresh(); await Vue.nextTick()
+    expect(p.state.voidState.value).toEqual({ kind: 'available' })
+    expect([p.state.voidOpen.value, p.state.voidOutcome.value, p.state.voidReason.value]).toEqual([false, '', ''])
+  })
+
   it('says why the server refused, keeps the draft and still reloads', async () => {
     const p = await voidPage()
     draft(p, 'end')
