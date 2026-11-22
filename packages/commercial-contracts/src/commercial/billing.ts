@@ -93,6 +93,14 @@ export const voidRenewalInvoiceRequestSchema = z.strictObject({
   reason: z.string().trim().min(3).max(1000),
   outcome: voidRenewalOutcomeSchema,
 })
+/** The most rows one invoice export holds: the console stops there and names the file partial, and the control plane refuses a larger count. */
+export const INVOICE_EXPORT_MAX_ROWS = 5000
+/** The console tells the control plane what it is about to download (the filters and how many rows), and the control plane writes the `invoices.exported` audit event. */
+export const invoiceExportSchema = z.strictObject({
+  customer_id: z.uuid().optional(),
+  status: invoiceStatusSchema.optional(),
+  row_count: z.number().int().min(0).max(INVOICE_EXPORT_MAX_ROWS),
+})
 /** Why a renewal invoice that could be voided cannot be voided now; the vendor invoice view carries it as `void_block` and the void route answers it as a 409. */
 export const voidBlockSchema = z.enum(['payment_reconciliation_required', 'transfer_claimed', 'renewal_in_progress', 'lock_pending', 'tenant_retiring'])
 
@@ -167,6 +175,7 @@ export type CustomerInvoice = Invoice & z.infer<typeof customerInvoiceExtrasSche
 export type Adjustment = z.infer<typeof adjustmentSchema>
 export type VoidRenewalOutcome = z.infer<typeof voidRenewalOutcomeSchema>
 export type VoidRenewalInvoiceRequest = z.infer<typeof voidRenewalInvoiceRequestSchema>
+export type InvoiceExport = z.infer<typeof invoiceExportSchema>
 export type VoidBlock = z.infer<typeof voidBlockSchema>
 export type RefundCreditNoteRequest = z.infer<typeof refundCreditNoteRequestSchema>
 export type PaymentAttempt = z.infer<typeof paymentAttemptSchema>

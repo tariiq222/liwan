@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
-import { adjustmentSchema, customerCreditNoteSchema, invoiceSchema, TAX_LABELS, type Adjustment, type BankTransferClaim, type VoidBlock, type CustomerCreditNote, type CustomerInvoice, type SellerIdentity, type Invoice, type Money, type Quote } from '@liwan/commercial-contracts'
+import { adjustmentSchema, customerCreditNoteSchema, invoiceSchema, TAX_LABELS, type Adjustment, type BankTransferClaim, type VoidBlock, type CustomerCreditNote, type CustomerInvoice, type SellerIdentity, type Invoice, type InvoiceExport, type Money, type Quote } from '@liwan/commercial-contracts'
 import { dateOnly } from './date-only.js'
 import { billingSettings, sellerIdentityOf } from './billing-settings.js'
 import { voidStateOf } from './invoice-void-rules.js'
@@ -150,6 +150,13 @@ export async function getInvoice(pool: Q, id: string, { customer_id }: { custome
   if (customer_id) { args.push(customer_id); w += ' AND customer_id = $2' }
   const rows = (await pool.query(`SELECT * FROM invoices WHERE ${w}`, args)).rows
   return (await hydrate(pool, rows))[0] ?? null
+}
+
+/** The audit event of an invoice export: the console posts the filters and the row count before it downloads, so the file leaves only with a record. */
+export async function recordInvoiceExport(pool: Q, { actor, ...request }: InvoiceExport & { actor: string }): Promise<{ id: string }> {
+  const id = randomUUID()
+  await pool.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)', [id, actor, 'invoices.exported', 'invoices', 'Invoice list exported to CSV', JSON.stringify(request)])
+  return { id }
 }
 
 /** A credit note as its own customer sees it: the typed cause stands in for the operator's free-text reason, and no operator name is carried. */

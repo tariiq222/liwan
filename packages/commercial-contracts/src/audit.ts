@@ -18,7 +18,7 @@ export const AUDIT_ACTIONS = [
   'bundle.created', 'bundle.deleted', 'bundle.edit', 'bundle.publish', 'bundle.restore', 'bundle.revision_created', 'bundle.validate', 'bundle.withdraw',
   'catalog.imported', 'catalog.publish', 'catalog.validate', 'catalog_release.created',
   'customer.admin_login_changed', 'customer_terms.created', 'free_base_lock.failed', 'invitation.reissued',
-  'invoice.credit_pending', 'invoice.credit_refunded', 'invoice.refund_requested', 'invoice.voided', 'order.accepted', 'order.cancelled',
+  'invoice.credit_pending', 'invoice.credit_refunded', 'invoice.refund_requested', 'invoice.voided', 'invoices.exported', 'order.accepted', 'order.cancelled',
   'payment.bank_transfer_duplicate', 'payment.bank_transfer_received', 'payment.card_not_saved', 'payment.direct_payment_missing', 'payment.duplicate_charge', 'payment.duplicate_refunded',
   'payment.form_attempt_closed', 'payment.form_attempt_needs_review', 'payment.form_declined', 'payment.form_hint_rejected', 'payment.form_payment_refunded', 'payment.form_payment_rejected',
   'payment.form_payment_searched', 'payment.form_rejection_suppressed', 'payment.form_search_rejected', 'payment.form_settled', 'payment.intervention', 'payment.refund_rejected',

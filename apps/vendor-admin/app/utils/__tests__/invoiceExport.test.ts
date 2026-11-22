@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { collectInvoices, INVOICE_EXPORT_CAP, INVOICE_EXPORT_COLUMNS, INVOICE_EXPORT_PAGE, invoiceExportCsv, invoiceExportFileName, plainAmount } from '../invoiceExport'
+import { INVOICE_EXPORT_MAX_ROWS } from '@liwan/commercial-contracts'
+import { collectInvoices, INVOICE_EXPORT_COLUMNS, INVOICE_EXPORT_PAGE, invoiceExportAudit, invoiceExportCsv, invoiceExportFileName, plainAmount } from '../invoiceExport'
 
 const sar = (minor: number, exponent = 2) => ({ currency: 'SAR', exponent, minor })
 const invoice = (n: number, extra: Record<string, unknown> = {}) => ({
@@ -54,8 +55,8 @@ describe('collectInvoices', () => {
   it('stops at 5,000 rows after 25 requests and says the export is partial', async () => {
     const { read } = plane(6200)
     const result = await collectInvoices(read, filters, {})
-    expect(INVOICE_EXPORT_CAP).toBe(5000)
-    expect(read).toHaveBeenCalledTimes(INVOICE_EXPORT_CAP / INVOICE_EXPORT_PAGE)
+    expect(INVOICE_EXPORT_MAX_ROWS).toBe(5000)
+    expect(read).toHaveBeenCalledTimes(INVOICE_EXPORT_MAX_ROWS / INVOICE_EXPORT_PAGE)
     expect(result.rows).toHaveLength(5000)
     expect(result).toMatchObject({ total: 6200, partial: true })
   })
@@ -133,6 +134,15 @@ describe('invoiceExportCsv', () => {
   it('does not apostrophe a negative amount the code wrote', () => {
     const csv = invoiceExportCsv([invoice(5, { total: sar(-500), subtotal: sar(-500) })], labels)
     expect(csv.split('\r\n')[1]!.split(',').slice(10, 13)).toEqual(['-5.00', '0.00', '-5.00'])
+  })
+})
+
+describe('invoiceExportAudit', () => {
+  it('names the filters in force and how many rows the file holds', () => {
+    expect(invoiceExportAudit({ customerId: 'cus-9', status: 'issued' }, 260)).toEqual({ customer_id: 'cus-9', status: 'issued', row_count: 260 })
+  })
+  it('leaves out a filter that is not set', () => {
+    expect(invoiceExportAudit({ customerId: '', status: 'all' }, 0)).toEqual({ row_count: 0 })
   })
 })
 

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as Vue from 'vue'
+import { INVOICE_EXPORT_MAX_ROWS } from '@liwan/commercial-contracts'
 import { refDebounced } from '@vueuse/core'
 import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBadges'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
@@ -16,21 +17,23 @@ const invoice = (n: number) => ({ id: `inv-${n}`, number: `INV-${n}`, customer_i
   period_start: '2026-10-02', period_end: '2026-11-02', issued_at: '2026-10-01T22:00:00Z', due_at: null, paid_at: null, adjustments: [] })
 
 /** A list of `total` invoices; `fail` makes the nth request (1-based) fail. */
-async function listPage(total: number, { query = {}, fail = 0 }: { query?: Record<string, string>, fail?: number } = {}) {
+async function listPage(total: number, { query = {}, fail = 0, auditFails = false }: { query?: Record<string, string>, fail?: number, auditFails?: boolean } = {}) {
   const requests: Record<string, unknown>[] = []
   const listInvoices = vi.fn(async (q: { limit: number, offset: number }) => {
     requests.push(q)
     if (requests.length === fail) throw new Error('upstream')
     return { items: Array.from({ length: Math.max(0, Math.min(q.limit, total - q.offset)) }, (_, i) => invoice(total - (q.offset + i))), total, summary: { outstanding: [] } }
   })
-  const downloadCsv = vi.fn()
+  const order: string[] = []
+  const recordInvoiceExport = vi.fn(async () => { order.push('audit'); if (auditFails) throw new Error('refused') })
+  const downloadCsv = vi.fn((_name: string, _csv: string) => { order.push('download') })
   const page = await mountPage('invoices/index.vue', {
-    ...subscriptions, ...invoiceExport, downloadCsv, invoiceStatusBadge, formatCommercialMoney, formatBusinessDate, refDebounced, riyadhDate: () => '2026-11-22',
+    ...subscriptions, ...invoiceExport, INVOICE_EXPORT_MAX_ROWS, downloadCsv, invoiceStatusBadge, formatCommercialMoney, formatBusinessDate, refDebounced, riyadhDate: () => '2026-11-22',
     useRoute: () => ({ query, fullPath: '/invoices' }), useRouter: () => ({ replace: vi.fn() }),
-    useVendorSubscriptions: () => ({ listInvoices, listClients: vi.fn(async () => ({ items: [], total: 0 })) }),
+    useVendorSubscriptions: () => ({ listInvoices, recordInvoiceExport, listClients: vi.fn(async () => ({ items: [], total: 0 })) }),
   })
   mounted.push(page)
-  return { ...page, requests, downloadCsv, listInvoices }
+  return { ...page, requests, downloadCsv, listInvoices, recordInvoiceExport, order }
 }
 const node = (captured: { name: string, props: Record<string, any> }[], testid: string) => captured.find(entry => entry.props['data-testid'] === testid)
 
@@ -47,6 +50,27 @@ describe('invoice list export', () => {
     expect(csv.startsWith('﻿')).toBe(true)
     expect(csv).toContain('INV-1,')
     expect(csv).toContain(',10.00,')
+  })
+
+  it('records the export with the filters and the row count before the file is handed over', async () => {
+    const { state, recordInvoiceExport, order } = await listPage(260, { query: { customer_id: 'cus-9', status: 'paid' } })
+    await state.exportCsv()
+    expect(recordInvoiceExport).toHaveBeenCalledTimes(1)
+    expect(recordInvoiceExport).toHaveBeenCalledWith({ customer_id: 'cus-9', status: 'paid', row_count: 260 })
+    expect(order).toEqual(['audit', 'download'])
+  })
+
+  it('makes no file when the audit record is refused, and says the export failed', async () => {
+    const { state, downloadCsv, rendered } = await listPage(30, { auditFails: true })
+    await state.exportCsv()
+    expect(downloadCsv).not.toHaveBeenCalled()
+    expect(node((await rendered()).captured, 'invoice-export-failure')).toBeDefined()
+  })
+
+  it('records only the rows of a partial file', async () => {
+    const { state, recordInvoiceExport } = await listPage(5600)
+    await state.exportCsv()
+    expect(recordInvoiceExport).toHaveBeenCalledWith({ row_count: 5000 })
   })
 
   it('exports 5,000 rows at most, names the file -partial and says so on the page', async () => {

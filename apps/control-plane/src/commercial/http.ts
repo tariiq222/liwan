@@ -25,8 +25,12 @@ export function parseBody<T>(raw: string, schema: z.ZodType<T>): T {
   if (!r.success) throw new CommercialHttpError('invalid', 422, String(r.error.issues[0]?.path[0] ?? 'body'))
   return r.data
 }
-export function need(input: CommercialInput, ...caps: VendorCapability[]) {
+/** The grant alone, with no step-up: for a mutation that changes nothing of the customer's (the audit record of a download). */
+export function needGrant(input: CommercialInput, ...caps: VendorCapability[]) {
   for (const c of caps) if (!input.capabilities.includes(c)) throw new CommercialHttpError('forbidden', 403)
+}
+export function need(input: CommercialInput, ...caps: VendorCapability[]) {
+  needGrant(input, ...caps)
   // Reads never need a fresh passkey confirmation; sensitive mutations do.
   if (input.method !== 'GET' && !input.stepUpFresh && caps.some((c) => STEP_UP_CAPABILITIES.includes(c))) throw new CommercialHttpError('step_up_required', 403)
 }

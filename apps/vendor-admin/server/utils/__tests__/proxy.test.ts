@@ -263,6 +263,17 @@ describe('vendor API proxy', () => {
     expect(calls).toHaveLength(forwarded)
   })
 
+  it('forwards the audit record of an invoice export, as a POST only', async () => {
+    const calls = stubUpstream(() => json(201, {}))
+    expect((await post('/commercial/invoices/export', { body: { row_count: 3 } })).status).toBe(201)
+    expect(calls.map(c => `${c.method} ${c.url.pathname}`)).toEqual(['POST /v1/commercial/invoices/export'])
+    const forwarded = calls.length
+    for (const method of ['GET', 'PATCH', 'PUT'] as const)
+      expect((await send(proxy, '/api/vendor/v1/commercial/invoices/export', { method, ...(method === 'GET' ? {} : { body: { row_count: 3 } }), headers: cookieHeader() })).status, method).toBe(405)
+    expect((await post('/commercial/invoices/export/x')).status).toBe(404)
+    expect(calls).toHaveLength(forwarded)
+  })
+
   it('lets the console read deletion requests and withdraw one, and never ask for or confirm one', async () => {
     // The customer alone asks for and confirms the deletion of its workspace; the console reads the requests and withdraws on the customer's behalf.
     const calls = stubUpstream(() => json(200, {}))

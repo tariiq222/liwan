@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { invoiceSchema, paymentAttemptSchema, paymentEventRecordSchema, adjustmentSchema, refundCreditNoteRequestSchema, customerInvoiceExtrasSchema, sellerIdentitySchema, voidBlockSchema, voidRenewalInvoiceRequestSchema } from '../commercial/index.js'
+import { invoiceSchema, paymentAttemptSchema, paymentEventRecordSchema, adjustmentSchema, refundCreditNoteRequestSchema, customerInvoiceExtrasSchema, sellerIdentitySchema, voidBlockSchema, voidRenewalInvoiceRequestSchema, invoiceExportSchema, INVOICE_EXPORT_MAX_ROWS } from '../commercial/index.js'
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
 const sar = (minor: number) => ({ currency: 'SAR', exponent: 2, minor })
@@ -116,5 +116,17 @@ describe('void renewal invoice', () => {
   })
   it('names the reasons an invoice cannot be voided now', () => {
     expect(voidBlockSchema.options).toEqual(['payment_reconciliation_required', 'transfer_claimed', 'renewal_in_progress', 'lock_pending', 'tenant_retiring'])
+  })
+})
+
+describe('invoice export audit request', () => {
+  it('carries the filters and the number of rows exported, nothing else', () => {
+    expect(INVOICE_EXPORT_MAX_ROWS).toBe(5000)
+    expect(invoiceExportSchema.parse({ customer_id: id(1), status: 'issued', row_count: 260 })).toEqual({ customer_id: id(1), status: 'issued', row_count: 260 })
+    expect(invoiceExportSchema.parse({ row_count: 0 })).toEqual({ row_count: 0 })
+    expect(invoiceExportSchema.parse({ row_count: INVOICE_EXPORT_MAX_ROWS }).row_count).toBe(5000)
+  })
+  it.each([{ row_count: -1 }, { row_count: 5001 }, { row_count: 1.5 }, {}, { row_count: 1, status: 'bogus' }, { row_count: 1, customer_id: 'x' }, { row_count: 1, reason: 'free text' }])('refuses %j', (body) => {
+    expect(invoiceExportSchema.safeParse(body).success).toBe(false)
   })
 })

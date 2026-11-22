@@ -537,6 +537,9 @@
           "refund_requested": "Invoice refund requested",
           "voided": "Unpaid invoice voided"
         },
+        "invoices": {
+          "exported": "Invoice list exported to CSV"
+        },
         "order": {
           "accepted": "Order accepted",
           "cancelled": "Order cancelled"

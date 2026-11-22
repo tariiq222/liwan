@@ -3,8 +3,8 @@ import { z } from 'zod'
 import { actorName } from '../admin-auth/accounts.js'
 import type { Pool } from 'pg'
 import type { IncomingHttpHeaders } from 'node:http'
-import { quoteRequestSchema, acceptQuoteRequestSchema, customerTermsRevisionSchema, invoiceStatusSchema, refundCreditNoteRequestSchema, voidRenewalInvoiceRequestSchema, tenantDeletionStateSchema, type Principal } from '@liwan/commercial-contracts'
-import { parseBody, need, type CommercialInput } from './http.js'
+import { quoteRequestSchema, acceptQuoteRequestSchema, customerTermsRevisionSchema, invoiceExportSchema, invoiceStatusSchema, refundCreditNoteRequestSchema, voidRenewalInvoiceRequestSchema, tenantDeletionStateSchema, type Principal } from '@liwan/commercial-contracts'
+import { parseBody, need, needGrant, type CommercialInput } from './http.js'
 import { CommercialHttpError, digestOf } from './lifecycle.js'
 import { appliedTermsOf, createCustomerTerms } from './customer-terms.js'
 import { buildQuote, createQuoteForCustomer } from './quotes.js'
@@ -14,7 +14,7 @@ import { acceptQuote, cancelOrder, cancelOrderBodySchema } from './orders.js'
 import { listCustomers, customerView } from './customers.js'
 import { attention } from './attention.js'
 import { listClients } from './clients.js'
-import { listVendorInvoices, getVendorInvoice, getCustomerInvoice } from './invoices.js'
+import { listVendorInvoices, getVendorInvoice, getCustomerInvoice, recordInvoiceExport } from './invoices.js'
 import { analyticsFromQuery } from './analytics.js'
 import { listBranches } from './branches.js'
 import { getUsage } from './usage.js'
@@ -244,6 +244,8 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
   const invoice=/^\/invoices\/([^/]+)$/.exec(path)
   if(m==='GET'&&invoice){need(input,'vendor.billing.manage');if(!z.uuid().safeParse(invoice[1]).success)throw new CommercialHttpError('not_found',404);const data=await getVendorInvoice(pool,invoice[1]!);if(!data)throw new CommercialHttpError('not_found',404);return {status:200,data}}
   // The vendor records that a bank transfer arrived; the order is then paid through the ordinary settlement path.
+  // The audit event of an export: the console posts the filters and the row count before the file is made.
+  if(m==='POST'&&path==='/invoices/export'){needGrant(input,'vendor.billing.manage');return {status:201,data:await recordInvoiceExport(pool,{...parseBody(input.raw,invoiceExportSchema),actor:principal.actor_id})}}
   // The printable document: what the customer prints, never the operator's own reasons or names.
   const document=/^\/invoices\/([^/]+)\/document$/.exec(path)
   if(m==='GET'&&document){need(input,'vendor.billing.manage');if(!z.uuid().safeParse(document[1]).success)throw new CommercialHttpError('not_found',404);const data=await getCustomerInvoice(pool,document[1]!);if(!data)throw new CommercialHttpError('not_found',404);return {status:200,data}}

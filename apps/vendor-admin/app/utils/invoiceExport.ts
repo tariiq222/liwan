@@ -1,12 +1,10 @@
-import { riyadhDate } from '@liwan/commercial-contracts'
-import type { Money } from '@liwan/commercial-contracts'
+import { INVOICE_EXPORT_MAX_ROWS, riyadhDate } from '@liwan/commercial-contracts'
+import type { InvoiceExport, Money } from '@liwan/commercial-contracts'
 import { csvLiteral, toCsvTable, type CsvCell } from './csv'
 import { invoiceListQuery, type VendorInvoice } from './vendorSubscriptions'
 
 /** The list route answers at most 200 rows a page; the export reads one page after another by offset. */
 export const INVOICE_EXPORT_PAGE = 200
-/** 25 requests: above it the first 5,000 invoices are exported and the file says so. */
-export const INVOICE_EXPORT_CAP = 5000
 
 /** The columns of the file, in order; the console's language names each one (`vendor.invoices.export.columns.<name>`). */
 export const INVOICE_EXPORT_COLUMNS = ['number', 'customer', 'kind', 'status', 'issued', 'due', 'paid', 'periodStart', 'periodEnd', 'currency', 'subtotal', 'tax', 'total', 'credited', 'invoiceId', 'customerId'] as const
@@ -31,12 +29,12 @@ export async function collectInvoices(
     signal?.throwIfAborted()
     const page = await readPage(invoiceListQuery({ customerId: filters.customerId, status: filters.status, page: index + 1, pageSize: INVOICE_EXPORT_PAGE }))
     if (index === 0) total = page.total
-    const wanted = Math.min(total, INVOICE_EXPORT_CAP)
+    const wanted = Math.min(total, INVOICE_EXPORT_MAX_ROWS)
     for (const item of page.items) if (rows.size < wanted && !rows.has(item.id)) rows.set(item.id, item)
     onProgress?.({ done: rows.size, total: wanted })
     if (rows.size >= wanted || page.items.length === 0 || (index + 1) * INVOICE_EXPORT_PAGE >= page.total) break
   }
-  return { rows: [...rows.values()], total, partial: total > INVOICE_EXPORT_CAP }
+  return { rows: [...rows.values()], total, partial: total > INVOICE_EXPORT_MAX_ROWS }
 }
 
 /** An amount as a plain number: Latin digits, a dot, the currency's decimals, no symbol or separator. */
@@ -65,6 +63,11 @@ export function invoiceExportCsv(
     day(invoice.issued_at), day(invoice.due_at), day(invoice.paid_at), csvLiteral(invoice.period_start), csvLiteral(invoice.period_end),
     invoice.currency, amount(invoice.subtotal), amount(invoice.tax), amount(invoice.total), amount(credited(invoice)), invoice.id, invoice.customer_id,
   ]))
+}
+
+/** What the control plane records of an export: the filters in force and the number of rows in the file. */
+export function invoiceExportAudit(filters: InvoiceExportFilters, rowCount: number): InvoiceExport {
+  return { ...(filters.customerId ? { customer_id: filters.customerId } : {}), ...(filters.status !== 'all' ? { status: filters.status as InvoiceExport['status'] } : {}), row_count: rowCount }
 }
 
 export const invoiceExportFileName = (status: string, today: string, partial: boolean): string =>

@@ -537,6 +537,9 @@
           "refund_requested": "طلب استرداد فاتورة",
           "voided": "إلغاء فاتورة غير مدفوعة"
         },
+        "invoices": {
+          "exported": "تصدير قائمة الفواتير إلى CSV"
+        },
         "order": {
           "accepted": "قبول طلب",
           "cancelled": "إلغاء طلب"
