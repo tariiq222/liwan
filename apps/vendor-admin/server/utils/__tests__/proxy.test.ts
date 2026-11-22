@@ -176,11 +176,20 @@ describe('vendor API proxy', () => {
     expect((await patch('/commercial/ai-billing-settings')).status).toBe(200)
     expect(calls.map(c => `${c.method} ${c.url.pathname}`)).toEqual(['GET /v1/commercial/ai-billing-settings', 'PATCH /v1/commercial/ai-billing-settings'])
     for (const path of ['/commercial/ai-billing-settings/extra', '/commercial/ai-billing-settingsx', '/commercial/ai-billing']) expect((await get(path)).status, path).toBe(404)
-    // The top-up refund route is not part of the console: a refund goes through the invoice's refund request.
-    expect((await post('/commercial/ai-topups/00000000-0000-4000-8000-000000000001/refund')).status).toBe(404)
     expect(calls).toHaveLength(2)
     expect((await post('/commercial/ai-billing-settings')).status).toBe(405)
     expect(calls).toHaveLength(2)
+  })
+
+  it('forwards the AI top-up refund with POST only, and refuses near misses', async () => {
+    const calls = stubUpstream(() => json(200, {}))
+    const topup = '00000000-0000-4000-8000-000000000001'
+    expect((await post(`/commercial/ai-topups/${topup}/refund`)).status).toBe(200)
+    expect(calls.map(c => `${c.method} ${c.url.pathname}`)).toEqual([`POST /v1/commercial/ai-topups/${topup}/refund`])
+    expect((await get(`/commercial/ai-topups/${topup}/refund`)).status).toBe(405)
+    expect((await patch(`/commercial/ai-topups/${topup}/refund`)).status).toBe(405)
+    for (const path of [`/commercial/ai-topups/${topup}`, `/commercial/ai-topups/${topup}/refund/extra`, '/commercial/ai-topups/refund']) expect((await post(path)).status, path).toBe(404)
+    expect(calls).toHaveLength(1)
   })
 
   it('binds the method of the two release 1 billing routes', async () => {

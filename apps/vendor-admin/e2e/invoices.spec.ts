@@ -22,6 +22,29 @@ test('the record shows invoice lines, a draft number label and the attempt witho
  await expect(page.getByText('private-provider')).toHaveCount(0)
  await open(page, '/invoices/inv-1'); await expect(page.getByTestId('invoice-line').first()).toBeVisible()
 })
+test('a first payment offers the general refund request, not the AI top-up refund', async ({ page }) => {
+ await open(page, '/invoices/inv-2')
+ await expect(page.getByTestId('request-refund-action')).toHaveAttribute('data-refund-kind', 'invoice')
+ await expect(page.getByTestId('request-refund-action')).toHaveCount(1)
+})
+test('a later AI top-up is refunded through its own action with the units used and a reason, never the general request', async ({ page }) => {
+ await open(page, '/invoices/inv-topup')
+ const action = page.getByTestId('request-refund-action')
+ await expect(action).toHaveAttribute('data-refund-kind', 'ai-topup'); await expect(action).toHaveCount(1)
+ await expect(page.getByTestId('refund-request-blocked')).toHaveCount(0)
+ let sent: { url: string, body: unknown } | undefined
+ await page.route('**/api/vendor/v1/commercial/ai-topups/*/refund', async (route) => {
+  sent = { url: route.request().url(), body: route.request().postDataJSON() }
+  await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ adjustment_id: 'note-1' }) })
+ })
+ await expect(action).toBeEnabled(); await action.click()
+ await page.getByTestId('request-units-used').fill('0')
+ await page.locator('textarea').last().fill('Customer asked for the unused top-up back')
+ await page.getByRole('button', { name: 'استرداد الرصيد' }).click()
+ await expect(page.getByTestId('request-refund-failure')).toHaveCount(0)
+ await expect.poll(() => sent?.body).toEqual({ reason: 'Customer asked for the unused top-up back', units_used: 0 })
+ expect(sent?.url).toContain('/commercial/ai-topups/order-alpha-topup/refund')
+})
 test('a free quantity never lowers the paid cell (owner decision)', async ({ page }) => {
  await open(page, '/invoices/inv-1')
  const line = page.getByTestId('invoice-line').first()

@@ -1694,6 +1694,14 @@
           "unitsUsedHint": "Read the units this top-up has spent in the customer's workspace. Enter 0 if none were used. A top-up with any use cannot be refunded.",
           "unitsUsedInvalid": "Enter a whole number, 0 or more."
         },
+        "topup": {
+          "title": "Refund this AI top-up",
+          "hint": "This is a later payment, so the general refund request does not apply. An AI top-up that is unused and still inside the refund window can be refunded here. It opens a credit note for the whole invoice and lowers the customer's AI balance. A card payment is returned through the provider automatically; a bank transfer is returned by you and recorded on the note.",
+          "action": "Refund this AI top-up",
+          "confirmTitle": "Refund this AI top-up in full",
+          "confirmHint": "This opens a credit note for the invoice total and removes the top-up from the customer's balance. A card payment is refunded by the system through the payment provider. A bank transfer is returned by you, then recorded on the note.",
+          "confirm": "Refund top-up"
+        },
         "errors": {
           "units_used_required": "Say how many AI units of this top-up were already used, then request the refund again.",
           "ai_topup_used": "Part of this invoice's AI top-up was already used, so it cannot be refunded.",
@@ -1703,7 +1711,8 @@
           "refund_not_first_payment": "Only the customer's first payment can be refunded; renewals and later payments cannot.",
           "lock_pending": "The subscription is still being moved to the free base. Record the refund again once that finishes.",
           "fulfillment_pending": "This order is still being delivered. Request the refund once the delivery ends.",
-          "refund_in_progress": "The system is still refunding this payment through the provider. Wait for the result; the manual form opens only if the provider cannot refund."
+          "refund_in_progress": "The system is still refunding this payment through the provider. Wait for the result; the manual form opens only if the provider cannot refund.",
+          "ai_topup_refund_mixed_order": "This invoice charged more than the AI top-up, so the top-up cannot be refunded on its own."
         }
       },
       "immutable": "An issued invoice is never edited; corrections are separate documents.",

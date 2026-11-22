@@ -57,6 +57,7 @@ async function page(options: Options = {}) {
     paymentAttempts: vi.fn(async () => ({ items: [], total: 0 })),
     refundCreditNote: vi.fn(async () => ({ ...creditNote, status: 'refunded' })),
     requestRefund: vi.fn(async () => creditNote),
+    refundAiTopup: vi.fn(async () => ({ adjustment_id: 'note1' })),
     recordBankTransfer: vi.fn(async () => ({})),
   }
   const bindings = {
@@ -409,5 +410,63 @@ describe('the bank transfer form', () => {
     await p.state.recordTransfer(); expect(p.api.recordBankTransfer).not.toHaveBeenCalled()
     p.state.transferAmount.value = '123.4'
     expect(p.state.transferValid.value).toBe(true)
+  })
+})
+
+describe('refunding a later AI top-up', () => {
+  const topupLine = { key: 'ai_topup', kind: 'ai_topup', description: 'AI top-up', quantity: 1, free_quantity: null, unit_amount: money, amount: money, period_start: '2026-10-01', period_end: '2026-11-01' }
+  const later = { ...refundable, refundable: false, first_payment: false, until: '2999-01-01T23:59:59+03:00' }
+  const laterTopup = (options: Options = {}) => page({ refund: later, overrides: { kind: 'change', lines: [topupLine] } as never, ...options })
+
+  it('offers the top-up refund, never the general request, and sends the units and reason to the top-up route', async () => {
+    const p = await laterTopup()
+    expect(p.state.topupMode.value).toBe(true)
+    p.state.openRequest(); p.state.requestReason.value = '  Customer asked  '; p.state.requestUnitsUsed.value = '0'
+    const { html, captured } = await p.rendered()
+    expect(html).toContain('vendor.invoices.refund.topup.confirmTitle')
+    expect(p.state.requestBlock.value).toBeNull()
+    expect(byTestId(captured, 'request-units-used')).toBeDefined()
+    await p.state.requestRefund()
+    expect(p.api.refundAiTopup).toHaveBeenCalledWith('order/1', { reason: '  Customer asked  ', units_used: 0 })
+    expect(p.api.requestRefund).not.toHaveBeenCalled()
+    expect(p.state.requestOpen.value).toBe(false)
+  })
+  it('shows the action as the top-up one, enabled, and keeps the units and reason required', async () => {
+    const p = await laterTopup()
+    const button = byTestId((await p.rendered()).captured, 'request-refund-action')
+    expect(button?.props['data-refund-kind']).toBe('ai-topup'); expect(button?.props.disabled).toBe(false)
+    p.state.openRequest(); p.state.requestReason.value = 'Customer asked'
+    await p.state.requestRefund(); expect(p.api.refundAiTopup).not.toHaveBeenCalled()
+  })
+  it('offers the general request for a first payment, and no top-up route', async () => {
+    const p = await page({ refund: refundable, overrides: { lines: [topupLine] } as never })
+    expect(p.state.topupMode.value).toBe(false)
+    expect(byTestId((await p.rendered()).captured, 'request-refund-action')?.props['data-refund-kind']).toBe('invoice')
+  })
+  it('is not offered once the window has passed, and keeps the general block text', async () => {
+    const p = await laterTopup({ refund: { ...later, until: '2020-01-01T23:59:59+03:00' } })
+    expect(p.state.topupMode.value).toBe(false)
+    const { captured, html } = await p.rendered()
+    expect(byTestId(captured, 'request-refund-action')?.props.disabled).toBe(true)
+    expect(html).toContain('vendor.invoices.refund.notFirstPayment')
+  })
+  it('does nothing before hydration or without the billing grant', async () => {
+    const cold = await laterTopup({ hydrated: false })
+    cold.state.openRequest(); cold.state.requestReason.value = 'Customer asked'; cold.state.requestUnitsUsed.value = '0'
+    await cold.state.requestRefund(); expect(cold.api.refundAiTopup).not.toHaveBeenCalled()
+    const viewer = await laterTopup({ grants: ['vendor.read'] })
+    viewer.state.openRequest(); viewer.state.requestReason.value = 'Customer asked'; viewer.state.requestUnitsUsed.value = '0'
+    await viewer.state.requestRefund(); expect(viewer.api.refundAiTopup).not.toHaveBeenCalled()
+    expect(byTestId((await viewer.rendered()).captured, 'request-refund-action')).toBeUndefined()
+  })
+  it('maps the top-up refusals through the refund wording and keeps the draft', async () => {
+    const p = await laterTopup()
+    p.state.openRequest(); p.state.requestReason.value = 'Customer asked'; p.state.requestUnitsUsed.value = '5'
+    for (const [code, key] of [['ai_topup_used', 'vendor.invoices.refund.errors.ai_topup_used'], ['ai_topup_refund_mixed_order', 'vendor.invoices.refund.errors.ai_topup_refund_mixed_order'], ['refund_already_requested', 'vendor.pricing.errors.refund_already_requested']]) {
+      p.api.refundAiTopup.mockRejectedValueOnce({ statusCode: 409, data: { code } })
+      await p.state.requestRefund()
+      expect(p.state.requestFailure.value).toBe(key)
+    }
+    expect(p.state.requestReason.value).toBe('Customer asked')
   })
 })

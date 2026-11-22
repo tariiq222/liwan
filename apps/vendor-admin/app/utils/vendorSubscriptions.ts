@@ -142,6 +142,18 @@ export function refundRequestBlock(invoice: Pick<VendorInvoice, 'refund'> & { ad
   if (invoice.refund.refundable) return null
   return invoice.refund.first_payment ? 'windowClosed' : 'notFirstPayment'
 }
+/**
+ * Whether the invoice is refunded through the AI top-up route instead of the general refund request: a paid invoice that bought
+ * only an AI top-up (tax aside), whose payment is NOT the customer's first (the general refund refuses those) and is still inside
+ * the window, with no credit note of any kind yet. Whether the units are unused is the operator's statement, judged by the server.
+ * `first_payment` is false here by definition, so this and a refundable invoice (always a first payment) never both hold.
+ */
+export function aiTopupRefundable(invoice: Pick<VendorInvoice, 'status' | 'order_id' | 'lines' | 'refund'> & { adjustments: Adjustment[] }, now: Date = new Date()): boolean {
+  if (invoice.status !== 'paid' || !invoice.order_id || invoice.refund.first_payment || !invoice.refund.until) return false
+  if (!invoiceHasAiTopup(invoice) || invoice.lines.some(line => line.kind !== 'ai_topup' && line.kind !== 'tax' && line.amount.minor > 0)) return false
+  if (invoice.adjustments.some(note => note.kind === 'credit_note' && note.status !== 'void')) return false
+  return now.getTime() <= Date.parse(invoice.refund.until)
+}
 /** An invoice whose order carries an AI top-up: the control plane then needs the units already spent before it opens the refund. */
 export const invoiceHasAiTopup = (invoice: Pick<VendorInvoice, 'lines'>) => invoice.lines.some(line => line.kind === 'ai_topup')
 /** AI units already spent, as the operator read them in the tenant: a non-negative whole number (Arabic-Indic digits included), bounded like the control plane's `units_used`. */
@@ -154,7 +166,7 @@ export function parseUnitsUsed(text: string): number | null {
 export function refundErrorKey(cause: unknown): string {
   const code = commercialFailure(cause).code
   // The release-1 window rules have their own words: the vendor needs to know which one stopped the refund.
-  return ['credit_note_not_pending', 'refund_reference_in_use', 'refund_window_closed', 'refund_not_first_payment', 'units_used_required', 'ai_topup_used', 'lock_pending', 'fulfillment_pending', 'refund_in_progress'].includes(code)
+  return ['credit_note_not_pending', 'refund_reference_in_use', 'refund_window_closed', 'refund_not_first_payment', 'units_used_required', 'ai_topup_used', 'lock_pending', 'fulfillment_pending', 'refund_in_progress', 'ai_topup_refund_mixed_order'].includes(code)
     ? `vendor.invoices.refund.errors.${code}` : commercialErrorKey(cause)
 }
 

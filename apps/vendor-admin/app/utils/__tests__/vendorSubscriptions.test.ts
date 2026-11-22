@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Adjustment, Invoice, Order, SubscriptionView } from '@liwan/commercial-contracts'
 import {
-  customersReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, daysUntilDate, invoiceListQuery, isNotAvailable, isStalled, targetStatus, termsPayload, usageDisplay, usageMetricLabel, lineQuantities, formatBytes, vendorInvoiceLineViews, parseTransferAmount, refundRequestBlock, transferFormDefaults, validRefundDraft, validRefundReason,
+  customersReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, daysUntilDate, invoiceListQuery, isNotAvailable, isStalled, targetStatus, termsPayload, usageDisplay, usageMetricLabel, lineQuantities, formatBytes, vendorInvoiceLineViews, parseTransferAmount, refundRequestBlock, aiTopupRefundable, transferFormDefaults, validRefundDraft, validRefundReason,
   planBundleIds, requestedQuantities, currentPaidQuantities, orderOutcomeUnknown,
   type VendorCustomer, type VendorInvoice, adminLoginErrorKey, cardActionErrorKey, deletionErrorKey,
 } from '../vendorSubscriptions'
@@ -223,5 +223,35 @@ describe('adminLoginErrorKey', () => {
     expect(adminLoginErrorKey({ status: 409, data: { code: 'workspace_not_activated' } })).toBe('vendor.customers.adminLogin.errors.workspace_not_activated')
     expect(adminLoginErrorKey({ status: 409, data: { code: 'no_workspace' } })).toBe('vendor.customers.adminLogin.errors.no_workspace')
     expect(adminLoginErrorKey({ status: 404, data: { code: 'not_found' } })).toBe('vendor.pricing.errors.not_found')
+  })
+})
+
+describe('AI top-up refund offer', () => {
+  const money = { minor: 2500, exponent: 2, currency: 'SAR' }
+  const line = (kind: string, minor = 2500) => ({ key: kind, kind, amount: { ...money, minor } })
+  const later = (o: Record<string, unknown> = {}) => ({ status: 'paid', order_id: 'order-1', lines: [line('ai_topup'), line('tax', 375)], adjustments: [] as Adjustment[],
+    refund: { refundable: false, first_payment: false, until: '2026-11-20T23:59:59+03:00', window_days: 14, locks_subscription: false }, ...o }) as never
+  const inside = new Date('2026-11-20T20:00:00Z'), after = new Date('2026-11-21T00:00:00Z')
+  it('is offered for a paid, later, in-window invoice that bought only an AI top-up (tax aside)', () => {
+    expect(aiTopupRefundable(later(), inside)).toBe(true)
+  })
+  it('is withheld otherwise: unpaid, first payment, window over or unknown, mixed lines, no top-up, no order, or any credit note', () => {
+    expect(aiTopupRefundable(later({ status: 'issued' }), inside)).toBe(false)
+    expect(aiTopupRefundable(later({ refund: { refundable: true, first_payment: true, until: '2026-11-20T23:59:59+03:00', window_days: 14, locks_subscription: false } }), inside)).toBe(false)
+    expect(aiTopupRefundable(later(), after)).toBe(false)
+    expect(aiTopupRefundable(later({ refund: { refundable: false, first_payment: false, until: null, window_days: 14, locks_subscription: false } }), inside)).toBe(false)
+    expect(aiTopupRefundable(later({ lines: [line('ai_topup'), line('base', 9900)] }), inside)).toBe(false)
+    expect(aiTopupRefundable(later({ lines: [line('base', 9900)] }), inside)).toBe(false)
+    expect(aiTopupRefundable(later({ order_id: null }), inside)).toBe(false)
+    for (const status of ['pending', 'refunded']) expect(aiTopupRefundable(later({ adjustments: [{ kind: 'credit_note', origin: 'system', status }] }), inside)).toBe(false)
+    expect(aiTopupRefundable(later({ adjustments: [{ kind: 'credit_note', origin: 'vendor', status: 'void' }] }), inside)).toBe(true)
+  })
+  it('never holds together with an open general refund request', () => {
+    for (const first_payment of [true, false]) for (const refundable of [true, false]) for (const open of [true, false]) {
+      const invoice = later({ refund: { refundable: refundable && first_payment, first_payment, until: '2026-11-20T23:59:59+03:00', window_days: 14, locks_subscription: false } }) as never
+      const topup = aiTopupRefundable(invoice, open ? inside : after)
+      const general = refundRequestBlock(invoice) === null
+      expect(topup && general, `${first_payment}/${refundable}/${open}`).toBe(false)
+    }
   })
 })
