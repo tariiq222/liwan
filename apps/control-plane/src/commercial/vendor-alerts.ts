@@ -42,6 +42,7 @@ const EVENTS = {
   refund_requested: { title: 'طُلب استرداد لعميل', plural: 'طلبات استرداد', need: 'none', collapsible: true, todo: 'لا إجراء مطلوب.' },
   refund_completed: { title: 'اكتمل استرداد لعميل', plural: 'استردادات مكتملة', need: 'none', collapsible: true, todo: 'لا إجراء مطلوب.' },
   refund_rejected: { title: 'فشل استرداد لعميل', plural: 'استردادات فاشلة', need: 'yes', collapsible: false, todo: 'افتح صفحة العميل وراجع السبب قبل أي محاولة ثانية.' },
+  refund_not_sent: { title: 'استرداد لعميل لم يُرسل إلى مزود الدفع', plural: 'استردادات لم تُرسل', need: 'yes', collapsible: false, todo: 'لم يخرج المبلغ من مزود الدفع. افتح صفحة العميل وراجع السبب، ثم ردّ المبلغ يدويًا إن لزم.' },
   refund_unrecorded: { title: 'استرداد عالق دون تسجيل', plural: 'استردادات عالقة', need: 'yes', collapsible: false, todo: 'قد يكون المبلغ ردّ للعميل فلا تُعد الاسترداد. راجع سبب تعذّر التسجيل.' },
   trial_converted: { title: 'انتهت تجربة وتحوّلت إلى اشتراك مدفوع', plural: 'تجارب تحوّلت إلى مدفوعة', need: 'none', collapsible: true, todo: 'لا إجراء مطلوب.' },
   trial_free_base: { title: 'انتهت تجربة ورجع العميل إلى الباقة المجانية', plural: 'تجارب رجعت إلى الباقة المجانية', need: 'none', collapsible: true, todo: 'لا إجراء مطلوب.' },
@@ -57,7 +58,7 @@ const EVENTS = {
 export type AlertEvent = keyof typeof EVENTS
 
 /** Attention kinds with no alert of their own here: `past_due` is the overdue-invoice alert, `renewal_soon` needs nothing from the owner. */
-const ATTENTION_ALERT_EVENT: Partial<Record<AttentionKind, AlertEvent>> = { bank_transfer_claimed: 'bank_transfer_claimed', refund_rejected: 'refund_rejected', refund_not_sent: 'refund_rejected', refund_unrecorded: 'refund_unrecorded', tenant_deletion_due: 'deletion_due', tenant_deletion_stuck: 'deletion_stuck' }
+const ATTENTION_ALERT_EVENT: Partial<Record<AttentionKind, AlertEvent>> = { bank_transfer_claimed: 'bank_transfer_claimed', refund_rejected: 'refund_rejected', refund_not_sent: 'refund_not_sent', refund_unrecorded: 'refund_unrecorded', tenant_deletion_due: 'deletion_due', tenant_deletion_stuck: 'deletion_stuck' }
 const ATTENTION_SKIPPED: readonly AttentionKind[] = ['past_due', 'renewal_soon']
 const ATTENTION_LABELS: Record<Exclude<AttentionKind, 'bank_transfer_claimed' | 'refund_rejected' | 'refund_not_sent' | 'refund_unrecorded' | 'tenant_deletion_due' | 'tenant_deletion_stuck' | 'past_due' | 'renewal_soon'>, string> = {
   billing_blocked: 'الفوترة موقوفة لهذا العميل',
