@@ -555,7 +555,7 @@ describe('voiding an unpaid renewal invoice', () => {
     const p = await voidPage()
     draft(p, 'end')
     p.api.voidRenewalInvoice.mockRejectedValueOnce({ statusCode: 409, data: { code: 'transfer_claimed' } })
-    p.api.invoice.mockResolvedValueOnce({ ...(await p.api.invoice()), voidable: false, void_block: 'transfer_claimed' })
+    p.api.invoice.mockResolvedValueOnce({ ...(await p.api.invoice()), voidable: false, void_block: 'transfer_claimed' } as never)
     await p.state.voidInvoice(); await Vue.nextTick()
     expect(p.state.voidState.value).toEqual({ kind: 'blocked', block: 'transfer_claimed' })
     expect([p.state.voidOpen.value, p.state.voidOutcome.value, p.state.voidReason.value, p.state.voidFailure.value]).toEqual([false, '', '', undefined])
