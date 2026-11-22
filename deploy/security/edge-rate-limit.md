@@ -65,7 +65,7 @@ has that configuration, below.
 | `trusted_proxies_strict` | on | The header is read right to left and trusted hops are skipped, so the first address that is not a trusted proxy is the client. Without it Caddy takes the leftmost value, which the client chooses. |
 | `client_ip_headers` | `X-Forwarded-For` | The only header consulted. `Forwarded` and `X-Real-IP` are ignored. |
 
-Development and staging each sit behind the Openship edge of their own host, which terminates TLS and forwards over HTTP to `127.0.0.1:18080`. That edge
+Staging sits behind the Openship edge on its own host, which terminates TLS and forwards over HTTP to `127.0.0.1:18080`. That edge
 appends the address it saw to the header (`$proxy_add_x_forwarded_for`), so a client that sends its own value arrives as
 `<claimed>, <real>`. A connection to a port published on loopback reaches the container from the gateway of the
 network it is on, not from `127.0.0.1`; the `edge` network has a pinned subnet (`172.29.50.0/24`, gateway
@@ -83,7 +83,7 @@ What follows from it:
 - Direct traffic (production today, a local acceptance stack) sets nothing and behaves as before.
 - The restore site matches `client_ip`, not `remote_ip`. Behind the edge the socket peer is the gateway, which a
   `remote_ip` allowlist would treat as one private client; `client_ip` matches the real one. An empty
-  `LIWAN_RESTORE_ALLOW` still answers 404 for every restore host. Restore is disabled on development and staging: they leave the
+  `LIWAN_RESTORE_ALLOW` still answers 404 for every restore host. Restore is disabled on staging: it leaves the
   allowlist empty, so the restore site answers 404 to everyone. Its address and the TikTok relay's carry
   `LIWAN_SITE_SCHEME=http://` there, so they sit on :80 with the tenant sites and the 404 is really served; without the
   prefix they would sit on :443, which the edge never reaches.

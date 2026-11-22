@@ -24,8 +24,8 @@ RELEASE_FILE = '/release.json'
 USER_VAR, TOKEN_VAR = 'LIWAN_GHCR_READ_USER', 'LIWAN_GHCR_READ_TOKEN'
 GITHUB_TOKEN_VAR = 'LIWAN_GITHUB_READ_TOKEN'
 GITHUB_USER = 'x-access-token'
-# development follows main; staging follows the highest release tag; production applies only the tag it is given.
-CHANNELS = {'development': 'main', 'staging': 'release', 'production': 'release'}
+# staging follows the highest release tag; production applies only the tag it is given.
+ENVIRONMENTS = ('staging', 'production')
 ARCHITECTURES = {'x86_64': 'amd64', 'amd64': 'amd64', 'aarch64': 'arm64', 'arm64': 'arm64'}
 RELEASE_PLATFORM = 'linux/arm64'
 VERSION_PART = r'(0|[1-9][0-9]*)'  # ASCII digits, no leading zero
@@ -80,18 +80,17 @@ def explicit_tag(environment: str, tag: str | None) -> str | None:
     return tag
 
 
-def required_platforms(environment: str, host: str) -> list[str]:
-    """The host's own architecture, and for staging and production always arm64 as well (both run on Arm)."""
+def required_platforms(host: str) -> list[str]:
+    """The host's own architecture, and always arm64 as well (staging and production both run on Arm)."""
     wanted = [f'linux/{host}']
-    if CHANNELS[environment] == 'release' and RELEASE_PLATFORM not in wanted:
+    if RELEASE_PLATFORM not in wanted:
         wanted.append(RELEASE_PLATFORM)
     return wanted
 
 
 class Source:
-    def __init__(self, environment: str, tag: str | None, state: Path, credential: Credential, github_token: str | None,
+    def __init__(self, tag: str | None, state: Path, credential: Credential, github_token: str | None,
                  runner, log, child_env: dict):
-        self.environment = environment
         self.tag = tag  # set for production only (``explicit_tag``)
         self.repository = state / 'repo.git'
         self.credential = credential
@@ -114,14 +113,10 @@ class Source:
         return code, output.strip()
 
     def candidate(self) -> dict | None:
-        """The head of ``main`` (development), the highest ``release/19.0.X.Y.Z`` tag (staging; None when no tag exists)
-        or exactly the tag production was given."""
+        """The highest ``release/19.0.X.Y.Z`` tag (staging; None when no tag exists) or exactly the tag production was given."""
         try:
-            if CHANNELS[self.environment] == 'main':
-                refs = self.listing('refs/heads/main')
-                return {'commit': refs['refs/heads/main'], 'ref': 'refs/heads/main', 'version': None}
             refs = self.listing(*self.tag_patterns())
-        except (CommandFailed, KeyError):
+        except CommandFailed:
             raise ReleaseError('github_unreachable', detail='git ls-remote on GitHub failed') from None
         if self.tag:
             return self.named_candidate(refs)
@@ -174,13 +169,12 @@ class Source:
             return
         if not self.is_ancestor(served['commit'], candidate['commit']):
             raise ReleaseError('older_candidate', EXIT_REFUSED, f'{candidate["commit"]} does not contain {served["commit"]}')
-        if candidate['version'] is not None and (served.get('version') is None
-                                                 or tuple(candidate['version']) <= tuple(served['version'])):
+        if tuple(candidate['version']) <= tuple(served['version']):
             raise ReleaseError('older_candidate', EXIT_REFUSED, 'the release version is not above the served one')
 
     def require_on_main(self, candidate: dict) -> None:
-        """A staging or production tag must point at a commit that GitHub ``main`` contains."""
-        if CHANNELS[self.environment] == 'release' and not self.is_ancestor(candidate['commit'], 'refs/heads/main'):
+        """A release tag must point at a commit that GitHub ``main`` contains."""
+        if not self.is_ancestor(candidate['commit'], 'refs/heads/main'):
             raise ReleaseError('not_on_main', EXIT_REFUSED, f'{candidate["commit"]} is not part of GitHub main')
 
     def archive(self, commit: str, archive: Path) -> None:
@@ -219,7 +213,7 @@ class Source:
             self.run_command(['docker', 'rmi', image], env=self.child_env, check=False)
             shutil.rmtree(work, ignore_errors=True)
         try:
-            document = parse_release_document(text, commit, tuple(required_platforms(self.environment, host)))
+            document = parse_release_document(text, commit, tuple(required_platforms(host)))
         except ValueError as error:
             raise ReleaseError('document_invalid', EXIT_REFUSED, str(error)) from None
         if not document['release'].get('upgradeModules'):
