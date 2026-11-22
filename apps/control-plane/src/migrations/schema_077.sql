@@ -14,8 +14,13 @@ CREATE TABLE service_heartbeats(
 --   adapters: ok or unavailable as recorded; never stale.
 -- `down` is the alert condition: stale or unavailable, except an adapter row of the worker while the worker itself is not ok
 -- (it is the worker that is down, and the adapter's last record is then unknown).
+-- Least privilege: the host alert timer reads this function with a role of its own that holds EXECUTE on it and nothing else. The function
+-- is SECURITY DEFINER (it runs as its owner, the role that migrates) rather than the role being granted SELECT on the tables, because it
+-- also reads `shared_jobs` (payloads, journals, receipts) of which it returns nothing but a yes or no. `search_path` is pinned, with
+-- `pg_temp` last, so a caller cannot shadow a table or an operator. EXECUTE is revoked from PUBLIC: the operator grants it to the role
+-- (docs/operations/environment-bringup.md A6.3).
 CREATE FUNCTION service_health_states(at timestamptz) RETURNS TABLE(component text, state text, since timestamptz, last_beat_at timestamptz, detail jsonb, down boolean)
-LANGUAGE sql STABLE AS $$
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
   WITH known(component, beat, worker_adapter, stale_after) AS (VALUES
     ('shared_worker', true, false, interval '2 minutes'),
     ('commercial_scheduler', true, false, CASE WHEN EXISTS (SELECT 1 FROM shared_jobs WHERE state = 'running') THEN interval '2 hours' ELSE interval '5 minutes' END),
@@ -34,3 +39,4 @@ LANGUAGE sql STABLE AS $$
     s.state IN ('stale', 'unavailable') AND (NOT s.worker_adapter OR (SELECT w.state FROM states w WHERE w.component = 'shared_worker') = 'ok') AS down
   FROM states s
 $$;
+REVOKE ALL ON FUNCTION service_health_states(timestamptz) FROM PUBLIC;

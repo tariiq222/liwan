@@ -1,5 +1,5 @@
 # systemd unit that runs the host alert for the vendor console's services (service_health_alert.py) once per start; the timer
-# next to it starts it every minute. It reads the control database directly through a read-only role, so it still alerts when
+# next to it starts it every minute. It reads the control database directly through a role that can only run one function, so it still alerts when
 # the control API and liwan-shared-worker.service are both down, and it needs neither of them (no Requires=, no After=).
 #
 # Example, not an installer. Adjust the /opt/liwan/current prefix to the host; keep the shape. Install:
@@ -12,7 +12,8 @@
 #   * /etc/liwan/service-health-alert.env, operator-owned, mode 0600, plain KEY=value lines (see the example file): the database
 #     name and read-only role, the PGPASSFILE, and the LIWAN_ALERT_* channels (the same keys the release env file holds). Values
 #     never go in this unit file.
-#   * `psql` on the host, and a role with pg_read_all_data (the control plane backup role does).
+#   * `psql` on the host, and the database role liwan_control_health (LOGIN, and EXECUTE on service_health_states(timestamptz) only;
+#     it reads no table). The operator creates it: step A6.3 of docs/operations/environment-bringup.md.
 # State: systemd gives it /var/lib/liwan-service-health (StateDirectory); it holds the file of what was already announced.
 [Unit]
 Description=Liwan vendor console service health alert

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Host alert for the services of the vendor console: one message when a service turns stale or unavailable, one when it recovers.
 
-Run once a minute by ``liwan-service-health-alert.timer``. It asks the control database directly (``psql``, a read-only role) for
+Run once a minute by ``liwan-service-health-alert.timer``. It asks the control database directly (``psql``, the role ``liwan_control_health`` that may only run that function) for
 ``service_health_states(now())``, the one place the staleness thresholds live, so it works when the control API and the shared
 worker are both down, and it cannot disagree with the console. What it already announced is kept in a small state file, so a
 service that stays down is announced once. A message no channel delivered is sent again on the next run; one that reached the owner

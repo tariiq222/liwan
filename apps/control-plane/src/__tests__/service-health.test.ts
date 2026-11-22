@@ -44,6 +44,38 @@ suite('service health on PostgreSQL', () => {
     await pool.query("UPDATE shared_jobs SET state='running', attempt_id=$1, fence=1, lease_until=now()+interval '1 hour' WHERE control_tenant_id=$2", [randomUUID(), tenant])
   }
 
+  describe('the host alert role', () => {
+    // The operator creates this role (docs/operations/environment-bringup.md A6.3): login, and EXECUTE on the one function, nothing else.
+    const monitorQuery = "SELECT coalesce(json_agg(json_build_object('component', component, 'state', state) ORDER BY component), '[]'::json) AS down FROM service_health_states(now()) WHERE down"
+    const suffix = randomUUID().slice(0, 8).replace(/-/g, '')
+    const reader = `liwan_health_reader_${suffix}`, stranger = `liwan_health_stranger_${suffix}`
+    const connect = (role: string) => { const u = new URL(withDb(dbName)); u.username = role; u.password = 'scratch-password'; return new Pool({ connectionString: u.toString() }) }
+    const denied = (pool: Pool, sql: string) => pool.query(sql).then(() => 'allowed', (e: { code?: string; message: string }) => `${e.code} ${e.message}`)
+    beforeAll(async () => {
+      for (const role of [reader, stranger]) await pool.query(`CREATE ROLE ${role} LOGIN PASSWORD 'scratch-password'`)
+      await pool.query(`GRANT EXECUTE ON FUNCTION service_health_states(timestamptz) TO ${reader}`)
+    })
+    afterAll(async () => { for (const role of [reader, stranger]) { await pool.query(`DROP OWNED BY ${role}`); await pool.query(`DROP ROLE ${role}`) } })
+
+    it('runs the monitor query, and sees what is down, with no other grant', async () => {
+      await pool.query("INSERT INTO service_heartbeats(component,beat_at,started_at) VALUES('shared_worker', now() - interval '3 minutes', now() - interval '1 hour')")
+      const as = connect(reader)
+      try { expect((await as.query(monitorQuery)).rows[0].down).toEqual([{ component: 'shared_worker', state: 'stale' }]) } finally { await as.end() }
+    })
+
+    it('cannot read any table of the control plane, the health table and the jobs included', async () => {
+      const as = connect(reader)
+      try {
+        for (const table of ['customers', 'service_heartbeats', 'shared_jobs', 'vendor_accounts']) expect(await denied(as, `SELECT * FROM ${table}`)).toBe(`42501 permission denied for table ${table}`)
+      } finally { await as.end() }
+    })
+
+    it('is not open to a role that was not granted it', async () => {
+      const as = connect(stranger)
+      try { expect(await denied(as, monitorQuery)).toBe('42501 permission denied for function service_health_states') } finally { await as.end() }
+    })
+  })
+
   it('reports every component as never seen on a fresh install, in a fixed order', async () => {
     const items = await readHealth(pool, { includeDetail: true })
     expect(items.map(i => i.component)).toEqual([...SERVICE_COMPONENTS])

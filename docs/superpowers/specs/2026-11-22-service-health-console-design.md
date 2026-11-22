@@ -57,6 +57,9 @@ event, so it works when the worker and the API are both down. It is the only sen
 skips `service_down` (the item stays in the console list), so one episode gives one message.
 A transition is recorded once at least one channel delivered it (`alerts.dispatch` reports it; the exit code of
 `alerts.py` stays 1 for the release command); when none delivered it is retried each minute.
+The timer reads the database through its own role `liwan_control_health`, which holds `EXECUTE` on `service_health_states`
+and nothing else: the function is `SECURITY DEFINER` with a pinned `search_path` and revoked from `PUBLIC` (it reads
+`shared_jobs`, whose payloads a table grant would expose), and the operator creates the role (bring-up A6.3).
 The timer is itself watched: after 3 consecutive failed reads of the table (counted in its state file) it sends one
 `service_down` for the component `health_monitor` (`unavailable`) and one `service_recovered` when it reads again; a single
 transient failure sends nothing.

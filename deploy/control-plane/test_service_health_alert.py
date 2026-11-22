@@ -220,7 +220,7 @@ class AMonitorThatCannotReadIsSaidSo(unittest.TestCase):
 
 class TheRealReaderAsksTheDatabaseDirectly(unittest.TestCase):
     ENV = {'LIWAN_CONTROL_HEALTH_DB_NAME': 'liwan_control', 'LIWAN_CONTROL_HEALTH_PG_HOST': '127.0.0.1',
-           'LIWAN_CONTROL_HEALTH_PG_PORT': '15432', 'LIWAN_CONTROL_HEALTH_PG_USER': 'liwan_control_backup',
+           'LIWAN_CONTROL_HEALTH_PG_PORT': '15432', 'LIWAN_CONTROL_HEALTH_PG_USER': 'liwan_control_health',
            'PGPASSFILE': '/etc/liwan/pgpass'}
 
     def test_it_runs_psql_against_the_one_function_that_holds_the_thresholds_with_no_password_in_argv(self):
@@ -234,7 +234,7 @@ class TheRealReaderAsksTheDatabaseDirectly(unittest.TestCase):
         self.assertEqual(rows, [row('shared_worker', 'stale')])
         argv = seen['argv']
         self.assertEqual(argv[0], 'psql')
-        for flag, value in (('--host', '127.0.0.1'), ('--port', '15432'), ('--username', 'liwan_control_backup'), ('--dbname', 'liwan_control')):
+        for flag, value in (('--host', '127.0.0.1'), ('--port', '15432'), ('--username', 'liwan_control_health'), ('--dbname', 'liwan_control')):
             self.assertEqual(argv[argv.index(flag) + 1], value)
         query = argv[argv.index('--command') + 1]
         self.assertIn('service_health_states(now())', query)
