@@ -235,8 +235,8 @@ export function createMockControl() {
 
   const aiRoutes = aiProviderRoutes(state, json, ownerSession)
 
-  /** /v1/admin/accounts/:id/(roles|disable|reset), matched by pattern because the id is part of the path. */
-  const ACCOUNT_ACTION = /^\/v1\/admin\/accounts\/([1-9][0-9]{0,15})\/(roles|disable|reset)$/
+  /** /v1/admin/accounts/:id/(roles|disable|enable|reset), matched by pattern because the id is part of the path. */
+  const ACCOUNT_ACTION = /^\/v1\/admin\/accounts\/([1-9][0-9]{0,15})\/(roles|disable|enable|reset)$/
   const accountActions = {
     roles: (target, actor, body, res) => {
       if (!validRoles(body.roles) || !validReason(body.reason) || !target || target.disabled) return json(res, 422, { code: 'invalid' })
@@ -254,6 +254,11 @@ export function createMockControl() {
       revokeSessions(target)
       for (const [token, invitation] of invitations) if (invitation.accountId === target.id) invitations.delete(token)
       return json(res, 204)
+    },
+    enable: (target, _actor, body, res) => {
+      if (!validReason(body.reason) || !target || !target.disabled) return json(res, 422, { code: 'invalid' })
+      Object.assign(target, { disabled: false, active: false, password: null, passkeys: new Set(), recovery: new Set() })
+      return json(res, 200, issueInvitation(target.id))
     },
     reset: (target, _actor, body, res) => {
       if (!validReason(body.reason) || !target || target.disabled) return json(res, 422, { code: 'invalid' })

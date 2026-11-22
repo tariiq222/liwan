@@ -5,12 +5,13 @@ import type { TeamAccount } from '../../utils/team'
 
 const account: TeamAccount = { id: 7, email: 'w@x.test', display_name: 'Wafa', status: 'active', roles: ['support'], passkeys: 1, last_seen_at: null }
 
-function setup(overrides: Partial<Record<'invite' | 'setRoles' | 'disable' | 'reset', unknown>> = {}) {
+function setup(overrides: Partial<Record<'invite' | 'setRoles' | 'disable' | 'enable' | 'reset', unknown>> = {}) {
   const accounts = {
     list: vi.fn(),
     invite: vi.fn().mockResolvedValue({ token: 'secret-token', expiresAt: '2026-10-17T00:00:00.000Z' }),
     setRoles: vi.fn().mockResolvedValue(undefined),
     disable: vi.fn().mockResolvedValue(undefined),
+    enable: vi.fn().mockResolvedValue({ token: 'enable-token', expiresAt: '2026-10-17T00:00:00.000Z' }),
     reset: vi.fn().mockResolvedValue({ token: 'fresh-token', expiresAt: '2026-10-17T00:00:00.000Z' }),
     ...overrides,
   } as unknown as Parameters<typeof createTeamActions>[0]['accounts']
@@ -42,6 +43,16 @@ describe('team actions', () => {
     await team.confirm('lost device')
     expect(accounts.reset).toHaveBeenCalledWith(7, 'lost device')
     expect(team.invitation.value?.link).toBe('https://admin.example.test/enroll#fresh-token')
+  })
+
+  it('enables a disabled account with a reason and shows its enrollment link once', async () => {
+    const { team, accounts, changed } = setup()
+    team.open({ kind: 'enable', account: { ...account, status: 'disabled' } })
+    await team.confirm('came back')
+    expect(accounts.enable).toHaveBeenCalledWith(7, 'came back')
+    expect(accounts.reset).not.toHaveBeenCalled()
+    expect(team.invitation.value).toEqual({ name: 'Wafa', link: 'https://admin.example.test/enroll#enable-token', expiresAt: '2026-10-17T00:00:00.000Z' })
+    expect(changed).toHaveBeenCalledOnce()
   })
 
   it('keeps the panel open and names the last owner when the disable is refused', async () => {

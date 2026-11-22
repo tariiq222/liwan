@@ -45,6 +45,7 @@
     "actions": {
       "roles": "Change roles",
       "disable": "Disable",
+      "enable": "Enable",
       "reset": "Re-enroll",
       "selfHint": "You cannot disable or re-enroll your own account here.",
       "label": "Actions for {name}"
@@ -60,6 +61,11 @@
       "description": "Their sign-in ends at once and their open invitations are cancelled.",
       "confirm": "Disable account",
       "done": "The account of {name} is disabled."
+    },
+    "enable": {
+      "title": "Enable the account of {name}?",
+      "description": "They get a new link to add a passkey and a password again. Nothing from before the account was disabled works again; they can sign in only after finishing the enrolment.",
+      "confirm": "Create a link"
     },
     "reset": {
       "title": "Re-enroll the account of {name}?",

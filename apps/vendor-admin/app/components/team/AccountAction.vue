@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { reasonValid, REASON_MAX, type TeamAccount, type TeamRole } from '../../utils/team'
 
-const props = defineProps<{ kind: 'roles' | 'disable' | 'reset', account: TeamAccount, busy?: boolean, errorKey?: string | null }>()
+const props = defineProps<{ kind: 'roles' | 'disable' | 'enable' | 'reset', account: TeamAccount, busy?: boolean, errorKey?: string | null }>()
 const emit = defineEmits<{ confirm: [reason: string, roles: TeamRole[]], cancel: [] }>()
 const { t } = useI18n()
 const hydrated = useHydrated()

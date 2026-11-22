@@ -43,7 +43,7 @@ const ALLOWED = [
   new RegExp(`^/v1/commercial/subscriptions/${SEGMENT}/payment-methods/${SEGMENT}/remove$`),
   /^\/v1\/platform\/ai-provider(\/(presets|models|test))?$/,
   /^\/v1\/admin\/(me|accounts)$/,
-  /^\/v1\/admin\/accounts\/[1-9][0-9]{0,15}\/(roles|disable|reset)$/,
+  /^\/v1\/admin\/accounts\/[1-9][0-9]{0,15}\/(roles|disable|enable|reset)$/,
 ]
 // The AI provider probes call a third party, and the control plane allows them 15 s (models) and two 20 s asks (test), apps/control-plane
 // ai-provider/client.ts. The BFF must wait longer than that or it gives up with a 503 on a probe that is still running; the margin covers

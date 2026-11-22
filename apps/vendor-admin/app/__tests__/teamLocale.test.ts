@@ -50,7 +50,7 @@ describe('team messages', () => {
 
   it('defines every key written in full, and every key has a reader', () => {
     expect([...literal].filter(key => !(key in ar))).toEqual([])
-    const dynamic = ['team.roles.', 'team.status.', 'team.disable.', 'team.reset.', 'team.actions.']
+    const dynamic = ['team.roles.', 'team.status.', 'team.disable.', 'team.enable.', 'team.reset.', 'team.actions.']
     const unread = Object.keys(ar).filter(key => !literal.has(key) && !dynamic.some(prefix => key.startsWith(prefix)))
     expect(unread).toEqual([])
   })

@@ -4,7 +4,7 @@ import { useAdminAccounts, type createAdminAccounts } from './useAdminAccounts'
 
 type Accounts = ReturnType<typeof createAdminAccounts>
 
-export interface TeamPanel { kind: 'roles' | 'disable' | 'reset', account: TeamAccount }
+export interface TeamPanel { kind: 'roles' | 'disable' | 'enable' | 'reset', account: TeamAccount }
 
 export interface InviteDraft { email: string, displayName: string, roles: TeamRole[], reason: string }
 
@@ -70,7 +70,7 @@ export function createTeamActions({ accounts, origin, changed }: TeamActionsDeps
     })
   }
 
-  /** Confirms the open role, disable or reset panel with the reason (and the chosen roles, for roles). */
+  /** Confirms the open role, disable, enable or reset panel with the reason (and the chosen roles, for roles). */
   function confirm(reason: string, roles: TeamRole[] = []): Promise<void> {
     const current = panel.value
     if (!current) return Promise.resolve()
@@ -84,7 +84,8 @@ export function createTeamActions({ accounts, origin, changed }: TeamActionsDeps
         await accounts.disable(account.id, reason)
         notice.value = { key: 'team.disable.done', name }
       } else {
-        show(name, await accounts.reset(account.id, reason))
+        // Enabling and re-enrolling both end in a one-time link: the person finishes the enrolment with it.
+        show(name, await (current.kind === 'enable' ? accounts.enable : accounts.reset)(account.id, reason))
         notice.value = null
       }
     })
