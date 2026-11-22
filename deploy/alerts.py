@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""Owner alerts for the seven operational events, by email and Telegram, nothing else.
+"""Owner alerts for the nine operational events, by email and Telegram, nothing else.
 
-One fact lives here: which seven things are worth telling the owner about, what the
+One fact lives here: which nine things are worth telling the owner about, what the
 owner is told about each, and over which two channels the message travels. The
 events are fixed, so no module can send an arbitrary text through this file: it
 names one of :class:`AlertEvent` or it does not send. The channels are fixed for
@@ -57,6 +57,8 @@ DOCKER_HEALTH_STATES = frozenset({DOCKER_HEALTHY, DOCKER_STARTING, DOCKER_UNHEAL
 # The deploy events carry closed, short identifiers only: never a path, a URL or a secret.
 DEPLOY_FIELD_PATTERN = re.compile(r'^[a-z0-9][a-z0-9._+-]{0,63}$')
 DEPLOY_CODE_PATTERN = re.compile(r'^[a-z][a-z0-9_]{0,63}$')
+# A service of the vendor console is named by its component code; only these two states are alerted.
+SERVICE_STATE_TEXT = {'stale': 'متوقفة عن الإبلاغ', 'unavailable': 'غير متاحة'}
 # The submission port of the SMTP relay this deployment uses.
 DEFAULT_SMTP_PORT = 587
 # A hung relay or a black-holed Bot API call must end the run instead of blocking it.
@@ -122,7 +124,7 @@ class Severity(Enum):
 
 @dataclass(frozen=True)
 class EventSpec:
-    """One of the seven events: its stable machine name and its owner-facing text."""
+    """One of the nine events: its stable machine name and its owner-facing text."""
 
     name: str
     title: str
@@ -131,7 +133,7 @@ class EventSpec:
 
 
 class AlertEvent(Enum):
-    """The seven events an alert may name. Nothing else can be sent (owner decision)."""
+    """The nine events an alert may name. Nothing else can be sent (owner decision)."""
 
     BACKUP_FAILED = EventSpec(
         name='backup_failed',
@@ -178,6 +180,19 @@ class AlertEvent(Enum):
         severity=Severity.CRITICAL,
         first_action='الخدمة متروكة في وضع الصيانة؛ ادخل المضيف فورًا، واقرأ حالة التحديث، '
                      'واستعد من اللقطة أو النسخة الاحتياطية المشفرة.',
+    )
+    SERVICE_DOWN = EventSpec(
+        name='service_down',
+        title='خدمة في لوحة المورّد متوقفة أو غير متاحة',
+        severity=Severity.CRITICAL,
+        first_action='افتح النظرة العامة في لوحة المورّد واقرأ سجل الخدمة بأمر journalctl، '
+                     'ثم أعد تشغيلها بعد تحديد السبب.',
+    )
+    SERVICE_RECOVERED = EventSpec(
+        name='service_recovered',
+        title='عادت خدمة في لوحة المورّد إلى العمل',
+        severity=Severity.WARNING,
+        first_action='لا إجراء مطلوب؛ اقرأ سجل الخدمة لتعرف سبب التوقف قبل أن يتكرر.',
     )
 
     @classmethod
@@ -603,6 +618,20 @@ def deploy_message(event: AlertEvent, *, environment: str, release: str, phase: 
                         timestamp=timestamp)
 
 
+def service_message(event: AlertEvent, *, component: str, timestamp: datetime,
+                    state: str | None = None) -> AlertMessage:
+    """A vendor-console service stopped (``state`` says how) or came back. Only closed codes enter the text."""
+    _require(event in (AlertEvent.SERVICE_DOWN, AlertEvent.SERVICE_RECOVERED),
+             f'{event.value.name} is not a service event')
+    _require(bool(DEPLOY_CODE_PATTERN.fullmatch(component)), 'the component is not a lowercase code')
+    if event is AlertEvent.SERVICE_RECOVERED:
+        return AlertMessage(event=event, target=component, observed='عادت إلى الحالة السليمة',
+                            timestamp=timestamp)
+    _require(state in SERVICE_STATE_TEXT, f'a service state is one of {", ".join(sorted(SERVICE_STATE_TEXT))}')
+    return AlertMessage(event=event, target=component, observed=f'الحالة {SERVICE_STATE_TEXT[state]}',
+                        timestamp=timestamp)
+
+
 def evaluate_backup_age(*, database: str, age_seconds: float, timestamp: datetime,
                         rpo_seconds: int = DEFAULT_BACKUP_RPO_SECONDS) -> AlertMessage | None:
     """Alert when the newest good backup is older than the RPO; silent at or within it."""
@@ -675,6 +704,10 @@ def _message_for(args: argparse.Namespace, timestamp: datetime) -> AlertMessage 
     if event in (AlertEvent.DEPLOY_FAILED, AlertEvent.DEPLOY_ROLLBACK_FAILED):
         return deploy_message(event, environment=args.environment, release=args.release,
                               phase=args.phase, reason=args.reason, timestamp=timestamp)
+    if event is AlertEvent.SERVICE_DOWN:
+        return service_message(event, component=args.component, state=args.state, timestamp=timestamp)
+    if event is AlertEvent.SERVICE_RECOVERED:
+        return service_message(event, component=args.component, timestamp=timestamp)
     raise AlertError(f'no message is defined for the event {event.value.name!r}')
 
 
@@ -705,7 +738,7 @@ def _write_json(payload: dict[str, object]) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog='alerts.py',
-        description='Send one owner alert for one of the seven operational events.',
+        description='Send one owner alert for one of the nine operational events.',
     )
     commands = parser.add_subparsers(dest='command', required=True)
     failed = commands.add_parser(AlertEvent.BACKUP_FAILED.value.name,
@@ -744,6 +777,13 @@ def build_parser() -> argparse.ArgumentParser:
         deploy.add_argument('--phase', required=True, help='phase code the run stopped in')
         deploy.add_argument('--reason', required=True,
                             help='closed reason code, lowercase letters, digits and underscores')
+    down = commands.add_parser(AlertEvent.SERVICE_DOWN.value.name, help=AlertEvent.SERVICE_DOWN.value.title)
+    down.add_argument('--component', required=True, help='component code, such as shared_worker')
+    down.add_argument('--state', required=True, choices=sorted(SERVICE_STATE_TEXT),
+                      help='how the component is down')
+    recovered = commands.add_parser(AlertEvent.SERVICE_RECOVERED.value.name,
+                                    help=AlertEvent.SERVICE_RECOVERED.value.title)
+    recovered.add_argument('--component', required=True, help='component code, such as shared_worker')
     return parser
 
 
