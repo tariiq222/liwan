@@ -74,7 +74,8 @@ suite('live PostgreSQL vendor analytics', () => {
     await seedCustomer(pool, { name: 'C', state: 'past_due', renewal_at: '2026-12-10', steps: [
       { at: '2026-07-01T09:00:00Z', plan_revision_id: p2, base_minor: 120000, cadence: yearly, paid_extra_branches: 2, branch_unit_minor: 1200 },
       { at: '2026-10-10T09:00:00Z', plan_revision_id: p1, base_minor: 5000 }] })
-    await seedCustomer(pool, { name: 'D suspended', state: 'suspended', steps: [{ at: '2026-06-01T09:00:00Z', plan_revision_id: p1, base_minor: 10000 }] })
+    const d = await seedCustomer(pool, { name: 'D suspended', state: 'suspended', steps: [{ at: '2026-06-01T09:00:00Z', plan_revision_id: p1, base_minor: 10000 }] })
+    await pool.query("UPDATE subscriptions SET left_service_at='2026-09-20T00:00:00Z' WHERE id=$1", [d.subscription_id])
     j = await seedCustomer(pool, { name: 'J unreadable', state: 'active', features: { 'users.limit': 10 }, usage: { 'users.limit': 1 }, steps: [
       { at: '2026-08-20T09:00:00Z', plan_revision_id: p1, base_minor: 100 }] })
     await pool.query("UPDATE usage_snapshots SET freshness='unavailable' WHERE tenant_id=$1", [j.tenant_id])
@@ -119,16 +120,53 @@ suite('live PostgreSQL vendor analytics', () => {
     expect(minor(data.trend[11]!.mrr)).toBe(45100)
   })
 
-  it('does not restate the past while a subscription that left service had revenue in it', async () => {
-    // D (suspended) was billing from June; the schema keeps no suspension time, so September cannot be told apart.
+  it('restates the past exactly for a subscription whose departure time is recorded', async () => {
+    // D (suspended) billed from June and left service on 20 September: it is in the book before then and out of it after.
     const data = await getAnalytics(pool, period, now)
-    const lost = { available: false, reason: 'history_not_recorded' }
-    const p = data.previous.revenue
-    expect([p.mrr, p.arr, p.arpc, p.extra_branch_mrr, data.previous.customers.active]).toEqual([lost, lost, lost, lost, lost])
-    expect(data.previous.revenue.new_mrr).toEqual({ available: true, value: expect.objectContaining({ minor: 0 }) })
-    expect(data.trend[10]).toMatchObject({ month: '2026-09', mrr: lost, customers: lost })
+    expect(minor(data.previous.revenue.mrr)).toBe(20300)
+    expect(minor(data.previous.revenue.extra_branch_mrr)).toBe(200)
+    expect(data.previous.customers.active).toEqual({ available: true, value: 3 })
+    expect(data.trend[10]).toMatchObject({ month: '2026-09', customers: { available: true, value: 3 } })
+    expect(minor(data.trend[10]!.mrr)).toBe(20300)
+    expect(data.trend[9]).toMatchObject({ month: '2026-08', customers: { available: true, value: 4 } })
+    expect(minor(data.trend[9]!.mrr)).toBe(30300)
     expect(data.trend[4]).toMatchObject({ month: '2026-03', customers: { available: true, value: 0 } })
-    expect(data.trend[0]!.mrr.available).toBe(true)
+    expect(data.current.customers.active).toEqual({ available: true, value: 4 })
+  })
+
+  it('does not restate the past for a subscription that left service before the time was recorded', async () => {
+    const solo = new Pool({ connectionString: url, max: 1 })
+    try {
+      await solo.query('BEGIN')
+      await solo.query("UPDATE subscriptions SET left_service_at=NULL WHERE state='suspended'")
+      const data = await getAnalytics(solo, period, now)
+      const lost = { available: false, reason: 'history_not_recorded' }
+      const p = data.previous.revenue
+      expect([p.mrr, p.arr, p.arpc, p.extra_branch_mrr, data.previous.customers.active]).toEqual([lost, lost, lost, lost, lost])
+      expect(data.previous.revenue.new_mrr).toEqual({ available: true, value: expect.objectContaining({ minor: 0 }) })
+      expect(data.trend[10]).toMatchObject({ month: '2026-09', mrr: lost, customers: lost })
+      expect(data.trend[4]).toMatchObject({ month: '2026-03', customers: { available: true, value: 0 } })
+      expect(data.trend[0]!.mrr.available).toBe(true)
+      await solo.query('ROLLBACK')
+    } finally { await solo.end() }
+  })
+
+  it('records when a subscription leaves service and clears it on return', async () => {
+    const solo = new Pool({ connectionString: url, max: 1 })
+    try {
+      await solo.query('BEGIN')
+      const sub = (await solo.query("SELECT id FROM subscriptions WHERE state='active' LIMIT 1")).rows[0].id
+      const left = async () => (await solo.query('SELECT left_service_at FROM subscriptions WHERE id=$1', [sub])).rows[0].left_service_at
+      expect(await left()).toBeNull()
+      await solo.query("UPDATE subscriptions SET state='suspended',revision=revision+1 WHERE id=$1", [sub])
+      const first = await left()
+      expect(first).toBeInstanceOf(Date)
+      await solo.query("UPDATE subscriptions SET state='cancelled',revision=revision+1 WHERE id=$1", [sub])
+      expect(await left()).toEqual(first)
+      await solo.query("UPDATE subscriptions SET state='active',revision=revision+1 WHERE id=$1", [sub])
+      expect(await left()).toBeNull()
+      await solo.query('ROLLBACK')
+    } finally { await solo.end() }
   })
 
   it('restates the past when nobody has left service', async () => {

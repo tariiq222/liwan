@@ -39,7 +39,7 @@
       "short": "Not available",
       "no_data": "Not available: nothing to measure in this period.",
       "no_cancellation_date": "Not available: the system does not store when a subscription ended.",
-      "history_not_recorded": "Not available: the system does not record when customers who have since left stopped, so this past figure cannot be restated."
+      "history_not_recorded": "Not available: the system did not record when some customers who have since left stopped, so this past figure cannot be restated."
     },
     "kpi": {
       "mrr": "Monthly recurring revenue (MRR)",

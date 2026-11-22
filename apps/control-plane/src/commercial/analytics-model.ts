@@ -161,13 +161,16 @@ export function settleTrials(timelines: Timelines, trialEnds: ReadonlyMap<string
   return settled
 }
 
+/** The departed (suspended or cancelled) subscriptions and when each left service, epoch ms; null when it left before the time was recorded. */
+export type Departed = ReadonlyMap<string, number | null>
+
 /**
- * The book at instant `at`. The control plane stores no time for a subscription leaving service, so a past instant
- * is only known when no departed (suspended or cancelled) subscription had started billing before it. An instant at or after
+ * The book at instant `at`. A departed subscription with a recorded time is in the book up to that time and out of it after.
+ * One without a recorded time leaves a past instant unknown if it had started billing before it. An instant at or after
  * `now` is today's book, where departed subscriptions are simply not billable.
  */
-export function bookInHistory(timelines: Timelines, departed: ReadonlySet<string>, at: number, now: number): BookAt | null {
+export function bookInHistory(timelines: Timelines, departed: Departed, at: number, now: number): BookAt | null {
   if (at > now) return bookAt(new Map([...timelines].filter(([id]) => !departed.has(id))), now + 1)
-  for (const id of departed) if ((timelines.get(id)?.[0]?.applied_at ?? Infinity) < at) return null
-  return bookAt(timelines, at)
+  for (const [id, left] of departed) if (left === null && (timelines.get(id)?.[0]?.applied_at ?? Infinity) < at) return null
+  return bookAt(new Map([...timelines].filter(([id]) => (departed.get(id) ?? Infinity) >= at)), at)
 }
