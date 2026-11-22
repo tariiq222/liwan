@@ -1,10 +1,15 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
-import { setup, client, money, monthly, url } from './commercial-helpers.js'
+import { setup, client, money, monthly, seedPaymentMethod, url } from './commercial-helpers.js'
 import { acceptQuote } from '../commercial/orders.js'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
-import { generateRenewals } from '../commercial/renewals.js'
+import { applyDunning, generateRenewals } from '../commercial/renewals.js'
+import { chargeSavedCards } from '../commercial/saved-card-charges.js'
+import { suspendSubscription, syncTenantStatus } from '../commercial/suspension.js'
+import { createPaymentAttempt, handleProviderEvent } from '../commercial/payments.js'
+import { SimulatorAdapter } from '../commercial/payment-simulator.js'
+import { voidRenewalInvoice } from '../commercial/renewal-void.js'
 import { getVendorInvoice } from '../commercial/invoices.js'
 import { fixedReturnOrigin } from '../commercial/return-origin.js'
 
@@ -33,8 +38,10 @@ suite('live PostgreSQL void of an unpaid renewal invoice', () => {
 
   /** A paid customer whose period ended on 2026-10-01 and whose renewal invoice was just issued, unpaid. */
   async function unpaidRenewal() {
-    const customer = randomUUID()
-    await pool.query('INSERT INTO customers(id,name,admin_name,admin_login) VALUES($1,$2,$3,$4)', [customer, 'Void customer', 'Manager', `${customer}@example.test`])
+    const customer = randomUUID(), tenant = randomUUID(), slug = `t${tenant.replaceAll('-', '')}`
+    await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled,post_trial_supported,excess_supported) VALUES($1,'Void','saas','shared_managed',$2,true,true,true)", [tenant, slug])
+    await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,true,1)', [tenant, slug, `${slug}.test`, `liwan_scratch_${slug.slice(1)}`])
+    await pool.query('INSERT INTO customers(id,name,tenant_id,admin_name,admin_login) VALUES($1,$2,$3,$4,$5)', [customer, 'Void customer', tenant, 'Manager', `${customer}@example.test`])
     const quote = await createQuoteForCustomer(pool, { customer_id: customer, request: { kind: 'new', plan_revision_id: plan.id, bundle_revision_ids: [], cadence: monthly, requested_extra_branches: 0, requested_users: 1, requested_storage_mb: 0 } })
     const { order } = await acceptQuote(pool, { quote_id: quote.id, expected_subscription_revision: 0, idempotency_key: randomUUID() }, vendor)
     await pool.query("UPDATE orders SET payment_state='paid',fulfillment_state='applied' WHERE id=$1", [order.id])
@@ -42,7 +49,7 @@ suite('live PostgreSQL void of an unpaid renewal invoice', () => {
     await pool.query("UPDATE subscriptions SET applied_revision_id=target_revision_id,target_revision_id=NULL,state='active',renewal_at='2026-10-01',revision=revision+1 WHERE id=$1", [order.subscription_id])
     await renew()
     const row = (await pool.query(`SELECT r.id AS renewal,r.order_id,r.invoice_id FROM renewals r WHERE r.subscription_id=$1`, [order.subscription_id])).rows[0]
-    return { customer, subscription: order.subscription_id as string, renewal: row.renewal as string, order: row.order_id as string, invoice: row.invoice_id as string, firstInvoice: order.id as string }
+    return { customer, tenant, subscription: order.subscription_id as string, renewal: row.renewal as string, order: row.order_id as string, invoice: row.invoice_id as string, firstOrder: order.id as string }
   }
   type Fixture = Awaited<ReturnType<typeof unpaidRenewal>>
   const attempt = (f: Fixture, status: string, kind = 'hosted_invoice') => pool.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,kind,succeeded_at)
@@ -100,6 +107,151 @@ suite('live PostgreSQL void of an unpaid renewal invoice', () => {
       const c = await pool.connect()
       try { await c.query('BEGIN'); await c.query("SET LOCAL session_replication_role=replica"); await c.query("UPDATE orders SET idempotency_key='trial-checkout:'||idempotency_key WHERE id=$1", [f.order]); await c.query('COMMIT') } finally { c.release() }
       expect(await view(f.invoice)).toMatchObject({ voidable: false, void_block: null })
+    })
+  })
+
+  const callVoid = (f: Fixture, over: Partial<Parameters<typeof voidRenewalInvoice>[1]> = {}) =>
+    voidRenewalInvoice(pool, { invoice_id: f.invoice, actor: 'account:7', reason: 'Customer will not pay', outcome: 'rebill', ...over })
+  const sub = async (id: string) => (await pool.query('SELECT * FROM subscriptions WHERE id=$1', [id])).rows[0]
+  const orderRow = async (id: string) => (await pool.query('SELECT cancelled,automatic_refund,payment_state FROM orders WHERE id=$1', [id])).rows[0]
+  const renewalRow = async (id: string) => (await pool.query('SELECT status FROM renewals WHERE id=$1', [id])).rows[0].status
+  const dueAt = async (f: Fixture) => new Date((await pool.query('SELECT due_at FROM invoices WHERE id=$1', [f.invoice])).rows[0].due_at)
+  const afterDue = async (f: Fixture, days: number) => new Date((await dueAt(f)).getTime() + days * 86_400_000 + 1000)
+  /** Every row the void would touch, to prove a refusal changed nothing. */
+  const snapshot = async (f: Fixture) => ({ sub: await sub(f.subscription), order: (await pool.query('SELECT * FROM orders WHERE id=$1', [f.order])).rows[0],
+    invoice: (await pool.query('SELECT status FROM invoices WHERE id=$1', [f.invoice])).rows[0], renewal: await renewalRow(f.renewal),
+    audits: (await pool.query("SELECT count(*)::int AS n FROM audit_events WHERE action='invoice.voided' AND subject=$1", [f.invoice])).rows[0].n })
+
+  describe('voiding with the rebill outcome', () => {
+    it('voids the invoice, cancels the order for automatic refund and frees the period, leaving an active subscription as it is', async () => {
+      const f = await unpaidRenewal()
+      const before = await sub(f.subscription)
+      const result = await callVoid(f)
+      expect(result).toMatchObject({ id: f.invoice, status: 'void', voidable: false, void_block: null })
+      expect(await orderRow(f.order)).toMatchObject({ cancelled: true, automatic_refund: true, payment_state: 'awaiting_payment' })
+      expect(await renewalRow(f.renewal)).toBe('superseded')
+      expect(await sub(f.subscription)).toMatchObject({ state: 'active', revision: before.revision })
+      expect((await pool.query("SELECT count(*)::int AS n FROM invoice_adjustments WHERE invoice_id=$1", [f.invoice])).rows[0].n).toBe(0)
+    })
+    it('records who voided it, why, and what the subscription was', async () => {
+      const f = await unpaidRenewal()
+      await callVoid(f, { reason: 'Customer closed the business' })
+      expect((await pool.query("SELECT actor,subject,reason,metadata FROM audit_events WHERE action='invoice.voided' AND subject=$1", [f.invoice])).rows).toEqual([{ actor: 'account:7', subject: f.invoice,
+        reason: 'Customer closed the business', metadata: { outcome: 'rebill', subscription_id: f.subscription, order_id: f.order, renewal_id: f.renewal, previous_state: 'active', state: 'active' } }])
+    })
+    it('brings a past-due subscription back to active with its grace cleared', async () => {
+      const f = await unpaidRenewal()
+      await applyDunning(pool, { now: await afterDue(f, 0) })
+      expect(await sub(f.subscription)).toMatchObject({ state: 'past_due' })
+      const before = await sub(f.subscription)
+      await callVoid(f)
+      expect(await sub(f.subscription)).toMatchObject({ state: 'active', grace_ends_at: null, revision: before.revision + 1 })
+      expect((await pool.query("SELECT metadata FROM audit_events WHERE action='invoice.voided' AND subject=$1", [f.invoice])).rows[0].metadata).toMatchObject({ previous_state: 'past_due', state: 'active' })
+    })
+    it('lifts a non-payment suspension: it clears when it left service and the workspace is told to resume', async () => {
+      const f = await unpaidRenewal()
+      await applyDunning(pool, { now: await afterDue(f, 0) })
+      await applyDunning(pool, { now: await afterDue(f, 3) })
+      const suspended = await sub(f.subscription)
+      expect(suspended).toMatchObject({ state: 'suspended', manual_suspension: false })
+      expect(suspended.left_service_at).not.toBeNull()
+      const runner = vi.fn(async () => ({}))
+      expect(await syncTenantStatus(pool, { runner })).toMatchObject({ pushed: [f.subscription] })
+      expect(runner).toHaveBeenLastCalledWith({ tenant_id: f.tenant, status: 'suspended', suspension_reason: 'non_payment' })
+      await callVoid(f)
+      const resumed = await sub(f.subscription)
+      expect(resumed).toMatchObject({ state: 'active', grace_ends_at: null, left_service_at: null, tenant_status_pushed: 'suspended' })
+      expect(resumed.tenant_status_pending_since).not.toBeNull()
+      expect(await syncTenantStatus(pool, { runner })).toMatchObject({ pushed: [f.subscription] })
+      expect(runner).toHaveBeenLastCalledWith({ tenant_id: f.tenant, status: 'active', suspension_reason: null })
+      expect((await sub(f.subscription)).tenant_status_pending_since).toBeNull()
+    })
+    it('does not lift a suspension the vendor ordered', async () => {
+      const f = await unpaidRenewal()
+      await suspendSubscription(pool, { subscription_id: f.subscription, reason: 'Vendor decision', actor: '7' })
+      await callVoid(f)
+      expect(await sub(f.subscription)).toMatchObject({ state: 'suspended', manual_suspension: true })
+      expect((await view(f.invoice)).status).toBe('void')
+    })
+    it('keeps the subscription in dunning while another invoice is still overdue', async () => {
+      const f = await unpaidRenewal()
+      await applyDunning(pool, { now: await afterDue(f, 0) })
+      // The customer's first invoice is also unpaid and overdue (fixture only: its status and date are immutable for the application).
+      const c = await pool.connect()
+      try { await c.query('BEGIN'); await c.query('SET LOCAL session_replication_role=replica'); await c.query("UPDATE invoices SET status='issued',paid_at=NULL,due_at=now()-interval '10 days' WHERE order_id=$1", [f.firstOrder]); await c.query('COMMIT') } finally { c.release() }
+      const before = await sub(f.subscription)
+      await callVoid(f)
+      expect(await sub(f.subscription)).toMatchObject({ state: 'past_due', revision: before.revision })
+    })
+    it('answers a second call on a voided invoice with the current view and writes nothing more', async () => {
+      const f = await unpaidRenewal()
+      await callVoid(f)
+      const once = await snapshot(f)
+      expect(await callVoid(f)).toMatchObject({ id: f.invoice, status: 'void' })
+      expect(await callVoid(f, { reason: 'A different reason' })).toMatchObject({ status: 'void' })
+      expect(await snapshot(f)).toEqual(once)
+    })
+    it('refuses an unknown invoice with 404, and a paid or non-renewal invoice with invoice_not_voidable', async () => {
+      const f = await unpaidRenewal()
+      await expect(callVoid({ ...f, invoice: randomUUID() })).rejects.toMatchObject({ status: 404, code: 'not_found' })
+      const paid = (await pool.query("SELECT id FROM invoices WHERE subscription_id=$1 AND kind='initial'", [f.subscription])).rows[0].id
+      await expect(callVoid({ ...f, invoice: paid })).rejects.toMatchObject({ status: 409, code: 'invoice_not_voidable' })
+    })
+    describe('refusals change nothing', () => {
+      const refused: [string, string, (f: Fixture) => Promise<unknown>][] = [
+        ['a live payment attempt', 'payment_reconciliation_required', f => attempt(f, 'pending')],
+        ['a created payment attempt', 'payment_reconciliation_required', f => attempt(f, 'created')],
+        ['a succeeded attempt on the order', 'payment_reconciliation_required', f => attempt(f, 'succeeded')],
+        ['a customer bank-transfer claim', 'transfer_claimed', f => pool.query("INSERT INTO bank_transfer_claims(invoice_id,value_date) VALUES($1,'2026-10-02')", [f.invoice])],
+        ['a renewal paid and still being applied', 'renewal_in_progress', f => pool.query("UPDATE orders SET payment_state='paid',fulfillment_state='queued' WHERE id=$1", [f.order])],
+        ['a free-base lock in flight', 'lock_pending', async f => pool.query(`INSERT INTO free_base_locks(subscription_id,pre_lock_revision_id,period_start,armed_at,cause,next_attempt_at)
+          VALUES($1,(SELECT applied_revision_id FROM subscriptions WHERE id=$1),'2026-10-01',now(),'cancelled',now())`, [f.subscription])],
+        ['a workspace being deleted', 'tenant_retiring', f => pool.query(`INSERT INTO tenant_deletion_requests(id,customer_id,state,requested_at,requested_by,confirmed_at,confirmed_by,due_at,due_marked_at,hold_until,deleting_at,plan,plan_digest,renewal_outcome,renewal_refusal)
+          VALUES($1,$2,'deleting',now(),'t',now(),'t',now(),now(),now(),now(),'{}'::jsonb,$3,'not_cancellable','no_subscription')`, [randomUUID(), f.customer, 'a'.repeat(64)])],
+      ]
+      it.each(refused)('%s', async (_name, code, arrange) => {
+        const f = await unpaidRenewal()
+        await arrange(f)
+        const before = await snapshot(f)
+        await expect(callVoid(f)).rejects.toMatchObject({ status: 409, code })
+        expect(await snapshot(f)).toEqual(before)
+      })
+    })
+    it('lets the next renewal run issue a new invoice for the same period with a new due date', async () => {
+      const f = await unpaidRenewal()
+      const oldDue = await dueAt(f)
+      await callVoid(f)
+      const later = new Date('2026-10-05T08:00:00Z')
+      await renew(later)
+      const rows = (await pool.query(`SELECT r.status,r.period_start::text AS start,i.status AS invoice_status,i.due_at,o.cancelled FROM renewals r JOIN invoices i ON i.id=r.invoice_id
+        JOIN orders o ON o.id=r.order_id WHERE r.subscription_id=$1 ORDER BY r.created_at`, [f.subscription])).rows
+      expect(rows.map(r => [r.start, r.status, r.invoice_status, r.cancelled])).toEqual([['2026-10-01', 'superseded', 'void', true], ['2026-10-01', 'invoiced', 'issued', false]])
+      expect(new Date(rows[1].due_at).getTime()).toBeGreaterThanOrEqual(oldDue.getTime())
+      expect(await renew(later)).toEqual([]) // and only one
+    })
+    it('stops card charges and dunning for the voided invoice', async () => {
+      const f = await unpaidRenewal()
+      const adapter = new SimulatorAdapter().addToken('tok_void')
+      const charge = vi.spyOn(adapter, 'chargeToken')
+      await seedPaymentMethod(pool, f.customer, 'tok_void')
+      await pool.query('UPDATE subscriptions SET auto_renew_enabled=true,auto_renew_consent_at=now(),revision=revision+1 WHERE id=$1', [f.subscription])
+      await callVoid(f)
+      expect(await chargeSavedCards(pool, { now: await afterDue(f, 0), adapter, returnOrigin: origin })).toEqual({ charged: 0, failed: 0 })
+      expect(charge).not.toHaveBeenCalled()
+      expect(await applyDunning(pool, { now: await afterDue(f, 30) })).toEqual([])
+      expect(await sub(f.subscription)).toMatchObject({ state: 'active' })
+    })
+    it('refunds a capture that reaches the provider after the void', async () => {
+      const f = await unpaidRenewal()
+      const adapter = new SimulatorAdapter()
+      const opened = await createPaymentAttempt(pool, { order_id: f.order, customer_id: f.customer, adapter, returnOrigin: origin })
+      // The attempt was closed on our side (timeout, hold expired) before the vendor voided; the provider captures it afterwards.
+      await pool.query("UPDATE payment_attempts SET status='canceled' WHERE id=$1", [opened.id])
+      await callVoid(f)
+      adapter.settle(opened.provider_ref!, 'succeeded')
+      await handleProviderEvent(pool, { provider: 'simulator', rawBody: adapter.webhookBody(opened.provider_ref!), headers: {}, adapter })
+      expect(await orderRow(f.order)).toMatchObject({ cancelled: true, payment_state: 'refund_pending' })
+      expect((await pool.query("SELECT status FROM invoices WHERE id=$1", [f.invoice])).rows[0].status).toBe('void')
     })
   })
 })

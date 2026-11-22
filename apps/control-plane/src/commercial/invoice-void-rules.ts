@@ -25,7 +25,7 @@ export async function loadVoidSubject(client: Q, invoiceId: string, lock: boolea
   const subscription = (await client.query(`SELECT * FROM subscriptions WHERE id=$1${suffix}`, [head.subscription_id])).rows[0]
   const order = head.order_id ? (await client.query(`SELECT * FROM orders WHERE id=$1${suffix}`, [head.order_id])).rows[0] : undefined
   const invoice = (await client.query(`SELECT * FROM invoices WHERE id=$1${suffix}`, [invoiceId])).rows[0]
-  const renewal = (await client.query(`SELECT * FROM renewals WHERE invoice_id=$1${suffix}`, [invoiceId])).rows[0]
+  const renewal = (await client.query(`SELECT *,period_start::text AS start FROM renewals WHERE invoice_id=$1${suffix}`, [invoiceId])).rows[0]
   return { subscription, order, invoice, renewal }
 }
 
