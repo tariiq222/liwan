@@ -5,6 +5,7 @@ import * as selection from '../policySelection'
 const { approvedPolicies, defaultPolicyId, policyOptions } = selection
 import type { PricingPolicyView } from '../../../composables/useVendorCommercial'
 import { latinDigits } from '../../../utils/digits'
+import { MB_PER_GB } from '../../../utils/storage'
 import * as commercial from '../../../utils/vendorCommercial'
 import { handleCommercial } from '../../../../e2e/commercial-mock-routes.mjs'
 import { loadSfc } from '../../__tests__/sfc'
@@ -32,7 +33,7 @@ const savedPlan = (policyId: string) => ({
 
 const useI18n = () => ({ t: (key: string, params?: Record<string, unknown>) => (params ? `${key}:${JSON.stringify(params)}` : key), locale: Vue.ref('en') })
 // The form's auto-imported helpers, handed to the SFC harness as the app's own Nuxt import resolver would.
-const form = () => loadSfc('components/vendor/PlanForm.vue', { useI18n, useHydrated: () => Vue.ref(true), latinDigits, ...commercial, ...selection })
+const form = () => loadSfc('components/vendor/PlanForm.vue', { useI18n, useHydrated: () => Vue.ref(true), latinDigits, MB_PER_GB, ...commercial, ...selection })
 
 /** Mounts the form's setup() and fills every required value except the policy under test, field by field as the vendor would. */
 function fillDraft(draft: any) {

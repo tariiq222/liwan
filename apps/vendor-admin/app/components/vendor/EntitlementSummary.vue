@@ -25,7 +25,7 @@ const limits = computed(() => Object.entries(props.limits ?? {}).sort(([a], [b])
       </li>
     </ul>
     <dl v-if="limits.length" class="grid gap-3 sm:grid-cols-2">
-      <div v-for="[key, value] in limits" :key="key"><dt class="text-sm text-muted">{{ keyLabel(key, t, te) }}</dt><dd class="font-semibold tabular-nums">{{ limitLabel(value, t) }}</dd></div>
+      <div v-for="[key, value] in limits" :key="key"><dt class="text-sm text-muted">{{ keyLabel(key, t, te) }}</dt><dd class="font-semibold tabular-nums">{{ limitLabel(value, t, key) }}</dd></div>
     </dl>
   </div>
 </template>

@@ -1,6 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import * as commercial from '../../utils/vendorCommercial'
 import { catalogReturn, priceFact } from '../../utils/vendorCatalog'
+import { formatStorageMb } from '../../utils/storage'
 import { policyTaxText } from '../../components/vendor/policySelection'
 import { cadenceLabel, formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { mountPage } from '../../__tests__/pageHarness'
@@ -25,7 +26,7 @@ async function planPage() {
     quote: vi.fn(async () => null),
   }
   const page = await mountPage('plans/[id].vue', {
-    ...commercial, catalogReturn, priceFact, policyTaxText, cadenceLabel, formatCommercialMoney,
+    ...commercial, formatStorageMb, catalogReturn, priceFact, policyTaxText, cadenceLabel, formatCommercialMoney,
     useRoute: () => ({ params: { id: 'p2' }, path: '/plans/p2', query: {}, fullPath: '/plans/p2' }),
     useVendorContext: () => ({ can: () => true }), useVendorCommercial: () => api,
   })
@@ -39,7 +40,7 @@ it('shows the plan\'s storage steps, pricing policy, AI limits and versions', as
   expect(api.planVersions).toHaveBeenCalledWith('plan-a')
   const sections = captured.filter(node => node.name === 'SharedRecordSection').map(node => node.props['data-testid'])
   expect(sections).toEqual(expect.arrayContaining(['plan-bundles', 'plan-storage', 'plan-policy', 'plan-ai-limits', 'plan-versions']))
-  for (const step of ['256', '1024', '5120']) expect(html).toContain(step)
+  for (const step of ['256 MB', '1 GB', '5 GB']) expect(html).toContain(step)
   expect(html).toContain('vendor.pricing.plan.vat')
   expect(html).toContain('vendor.pricing.plan.aiLimits.ai_messages_monthly')
   expect(html).toContain('1000')

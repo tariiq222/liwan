@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Adjustment, Invoice, Order, SubscriptionView } from '@liwan/commercial-contracts'
 import {
-  customersReturnTo, invoicesReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, daysUntilDate, invoiceListQuery, isNotAvailable, isStalled, targetStatus, termsPayload, usageDisplay, usageMetricLabel, lineQuantities, formatBytes, vendorInvoiceLineViews, parseTransferAmount, refundRequestBlock, voidAction, voidErrorKey, voidReasonKey, validVoidDraft, aiTopupRefundable, transferFormDefaults, validRefundDraft, validRefundReason,
+  customersReturnTo, invoicesReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, daysUntilDate, invoiceListQuery, isNotAvailable, isStalled, targetStatus, termsPayload, usageDisplay, usageMetricLabel, lineQuantities, vendorInvoiceLineViews, parseTransferAmount, refundRequestBlock, voidAction, voidErrorKey, voidReasonKey, validVoidDraft, aiTopupRefundable, transferFormDefaults, validRefundDraft, validRefundReason,
   planBundleIds, requestedQuantities, currentPaidQuantities, orderOutcomeUnknown,
   type VendorCustomer, type VendorInvoice, adminLoginErrorKey, cardActionErrorKey, deletionErrorKey,
 } from '../vendorSubscriptions'
@@ -46,7 +46,6 @@ describe('usage and invoices', () => {
   it('splits free and paid quantities', () => {
     expect(lineQuantities({ quantity: 2, free_quantity: 1 })).toEqual({ free: 1, paid: 2 })
     expect(lineQuantities({ quantity: 2 })).toEqual({ free: null, paid: 2 })
-    expect(formatBytes(5 * 1024 * 1024)).toBe('5.0 MB')
   })
 })
 describe('terms payload', () => {

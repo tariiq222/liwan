@@ -1,6 +1,7 @@
 import type { StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
 import { daysBetween, riyadhDate, subscriptionDisplayState, type Adjustment, type BankTransferClaim, type Cadence, type Invoice, type InvoiceLine, type Money, type Order, type SignupAcceptance, type SubscriptionDisplayState, type SubscriptionView, type VoidBlock, type UsageMetric } from '@liwan/commercial-contracts'
-import { commercialErrorKey, commercialFailure, CURRENCY, emptyLimit, limitFromDraft, MB_PER_GB, minorToInput, normalizeDigits, parseCount, parseVendorMoneyInput, sar, type LimitDraft } from './vendorCommercial'
+import { commercialErrorKey, commercialFailure, CURRENCY, emptyLimit, limitFromDraft, minorToInput, normalizeDigits, parseCount, parseVendorMoneyInput, sar, type LimitDraft } from './vendorCommercial'
+import { MB_PER_GB } from './storage'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import { humanizeId } from '@liwan/ui/app/utils/humanizeId'
@@ -94,13 +95,6 @@ export function usageMetricLabel(metric: Pick<UsageMetric, 'key' | 'unit'>, t: (
   const byUnit = `vendor.customers.usage.units.${metric.unit}`
   if (te(byUnit)) return t(byUnit)
   return humanizeId(metric.key)
-}
-
-export function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  const units = ['KB', 'MB', 'GB', 'TB']; let v = bytes / 1024; let i = 0
-  while (v >= 1024 && i < units.length - 1) { v /= 1024; i++ }
-  return `${v.toFixed(v >= 10 ? 0 : 1)} ${units[i]}`
 }
 
 // ---- Invoices ----

@@ -1,19 +1,21 @@
 <script setup lang="ts">
 import { keyLabel } from '@/utils/vendorCommercial'
+import { formatStorageMb, STORAGE_LIMIT_KEY } from '@/utils/storage'
 // The settings a workspace should have next to the ones the service last reported, row by row.
 const props = defineProps<{ desired: Record<string, unknown> | null; observed: Record<string, unknown> | null }>()
 const { t, te } = useI18n()
-function valueText(value: unknown): string {
+function valueText(key: string, value: unknown): string {
   if (value === undefined) return t('vendor.common.none')
   if (value === null) return t('vendor.common.unlimited')
   if (typeof value === 'boolean') return t(value ? 'vendor.common.enabled' : 'vendor.common.disabled')
+  if (key === STORAGE_LIMIT_KEY && typeof value === 'number') return formatStorageMb(value)
   return String(value)
 }
 const rows = computed(() => {
   const desired = props.desired ?? {}
   const observed = props.observed ?? {}
   const keys = [...new Set([...Object.keys(desired), ...Object.keys(observed)])].sort()
-  return keys.map(key => ({ key, label: keyLabel(key, t, te), desired: valueText(desired[key]), observed: valueText(observed[key]), same: desired[key] === observed[key] }))
+  return keys.map(key => ({ key, label: keyLabel(key, t, te), desired: valueText(key, desired[key]), observed: valueText(key, observed[key]), same: desired[key] === observed[key] }))
 })
 const pendingCount = computed(() => rows.value.filter(row => !row.same).length)
 </script>

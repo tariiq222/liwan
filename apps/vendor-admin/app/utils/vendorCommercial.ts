@@ -5,11 +5,11 @@ import {
 } from '@liwan/commercial-contracts'
 import { failureKey } from '../composables/useStepUp'
 import { latinDigits } from './digits'
+import { formatStorageMb, MB_PER_GB, STORAGE_LIMIT_KEY } from './storage'
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import type { StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
 
 export const CURRENCY = 'SAR'
-export const MB_PER_GB = 1024
 export const EXPONENT = 2
 /** The most a plan, bundle or terms limit may hold: what a workspace accepts (the contract's MAX_ENTITLEMENT_LIMIT). */
 export const MAX_LIMIT = MAX_ENTITLEMENT_LIMIT
@@ -78,7 +78,7 @@ export type LimitDraft = { mode: LimitMode; value: string }
 // imports and reads its scope from this file.
 export { MAX_STORAGE_STEP_MB, storageStepsAligned } from '@liwan/commercial-contracts'
 
-/** A11 seeds: 10 GiB steps below 100 GiB of extra storage, 100 GiB steps from there. Vendor-editable on the plan. */
+/** A11 seeds: 10 GB steps below 100 GB of extra storage, 100 GB steps from there. Vendor-editable on the plan. */
 export const DEFAULT_STORAGE_STEP_MB = 10240
 export const DEFAULT_STORAGE_THRESHOLD_MB = 102400
 export const DEFAULT_STORAGE_LARGE_STEP_MB = 102400
@@ -96,9 +96,12 @@ export function limitToDraft(value: number | null | undefined): LimitDraft {
   if (value === null) return { mode: 'unlimited', value: '' }
   return value === 0 ? { mode: 'none', value: '' } : { mode: 'number', value: String(value) }
 }
-export function limitLabel(value: number | null | undefined, t: (key: string) => string): string {
+/** A limit as the console prints it: a storage limit (by its key) in MB or GB, any other as a plain number. */
+export function limitLabel(value: number | null | undefined, t: (key: string) => string, key?: string): string {
   if (value === undefined) return t('vendor.pricing.limit.unset')
-  return value === null ? t('vendor.pricing.limit.unlimited') : value === 0 ? t('vendor.pricing.limit.none') : String(value)
+  if (value === null) return t('vendor.pricing.limit.unlimited')
+  if (value === 0) return t('vendor.pricing.limit.none')
+  return key === STORAGE_LIMIT_KEY ? formatStorageMb(value) : String(value)
 }
 export function limitsFromDrafts(drafts: Record<string, LimitDraft>, keys: string[]): CapacityMap {
   return Object.fromEntries(keys.map(key => [key, limitFromDraft(drafts[key])]))

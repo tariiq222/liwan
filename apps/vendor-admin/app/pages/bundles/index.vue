@@ -22,7 +22,7 @@ const items = computed<BundleView[]>(() => data.value?.bundles.items ?? [])
 const pages = computed(() => Math.max(1, Math.ceil((data.value?.bundles.total ?? 0) / PAGE)))
 const releaseOf = (b: BundleView) => data.value?.releases.find(r => r.id === b.catalog_release_id)
 const apps = (b: BundleView) => b.selections.map(s => { const a = releaseOf(b)?.applications.find(x => x.id === s.app_id); return a ? appName(a, locale.value) : s.app_id })
-const limits = (b: BundleView) => Object.entries(b.domain_limits).map(([k, v]) => `${keyLabel(k, t, te)}: ${limitLabel(v, t)}`)
+const limits = (b: BundleView) => Object.entries(b.domain_limits).map(([k, v]) => `${keyLabel(k, t, te)}: ${limitLabel(v, t, k)}`)
 // Owner decision 2026-10-29: the seeded LiwanOS plan ships with a default bundle set for the sold applications.
 const latestRelease = computed(() => data.value?.releases[0])
 const canSeed = computed(() => can('vendor.catalog.manage') && can('vendor.pricing.manage') && Boolean(latestRelease.value))

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { isEditable, lifecycleBadge } from '@/utils/vendorCommercial'
 import type { Quote } from '@liwan/commercial-contracts'
+import { formatStorageMb } from '@/utils/storage'
 import { AI_LIMIT_KEYS, cadenceKey, commercialErrorKey, limitLabel, parseCount, quoteRequestBody, type BundleView, type LifecycleAction, type PlanView } from '@/utils/vendorCommercial'
 import { cadenceLabel, formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { catalogReturn, priceFact } from '@/utils/vendorCatalog'
@@ -53,10 +54,11 @@ const facts = computed(() => {
 })
 // A plan that carries no value for an AI limit sells it unlimited, as the plan form shows it.
 const aiLimits = computed(() => AI_LIMIT_KEYS.map(key => ({ key, label: t(`vendor.pricing.plan.aiLimits.${key.replaceAll('.', '_')}`), value: limitLabel(view.value?.platform_limits[key] ?? null, t) })))
+const storageText = (mb: number | undefined) => (mb === undefined ? undefined : formatStorageMb(mb))
 const storageSteps = computed(() => [
-  { key: 'step', label: t('vendor.pricing.fields.storageStep'), value: view.value?.storage_step_mb },
-  { key: 'threshold', label: t('vendor.pricing.fields.storageStepThreshold'), value: view.value?.storage_step_threshold_mb },
-  { key: 'large', label: t('vendor.pricing.fields.storageLargeStep'), value: view.value?.storage_large_step_mb },
+  { key: 'step', label: t('vendor.pricing.fields.storageStep'), value: storageText(view.value?.storage_step_mb) },
+  { key: 'threshold', label: t('vendor.pricing.fields.storageStepThreshold'), value: storageText(view.value?.storage_step_threshold_mb) },
+  { key: 'large', label: t('vendor.pricing.fields.storageLargeStep'), value: storageText(view.value?.storage_large_step_mb) },
 ])
 const editable = computed(() => view.value && isEditable(view.value) && can('vendor.catalog.manage') && can('vendor.pricing.manage'))
 const cadenceItems = computed(() => (view.value?.prices ?? []).map(p => ({ value: cadenceKey(p.cadence), label: `${cadenceLabel(p.cadence, t)} · ${formatCommercialMoney(p.amount, locale.value)}` })))
@@ -80,7 +82,7 @@ const cadenceItems = computed(() => (view.value?.prices ?? []).map(p => ({ value
         </ul>
         <dl class="mt-4 grid gap-4 sm:grid-cols-2">
           <div><dt class="text-sm text-muted">{{ t('vendor.pricing.fields.includedUsers') }}</dt><dd class="font-semibold tabular-nums">{{ view.included_users }}</dd></div>
-          <div><dt class="text-sm text-muted">{{ t('vendor.pricing.fields.includedStorage') }}</dt><dd class="font-semibold tabular-nums">{{ view.included_storage_mb }}</dd></div>
+          <div><dt class="text-sm text-muted">{{ t('vendor.pricing.fields.includedStorage') }}</dt><dd class="font-semibold tabular-nums">{{ formatStorageMb(view.included_storage_mb) }}</dd></div>
           <div><dt class="text-sm text-muted">{{ t('vendor.pricing.fields.freeBranches') }}</dt><dd class="font-semibold tabular-nums">{{ view.included_extra_branches }}</dd></div>
           <div><dt class="text-sm text-muted">{{ t('vendor.pricing.fields.branchLimit') }}</dt><dd class="font-semibold tabular-nums">{{ limitLabel(view.extra_branches_limit, t) }}</dd></div>
         </dl>

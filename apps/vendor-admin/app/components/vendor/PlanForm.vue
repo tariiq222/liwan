@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { AI_LIMIT_KEYS, COMMERCIAL_MAX_USERS, commercialErrorKey, commercialFailure, emptyPlanDraft, fieldIssue, limitFromDraft, MAX_STORAGE_STEP_MB, MB_PER_GB, parseCount, planDraftFromView, priceRowErrors, storageStepsAligned, type BundleView, type PlanDraft, type PlanView } from '@/utils/vendorCommercial'
+import { AI_LIMIT_KEYS, COMMERCIAL_MAX_USERS, commercialErrorKey, commercialFailure, emptyPlanDraft, fieldIssue, limitFromDraft, MAX_STORAGE_STEP_MB, parseCount, planDraftFromView, priceRowErrors, storageStepsAligned, type BundleView, type PlanDraft, type PlanView } from '@/utils/vendorCommercial'
 import { latinDigits } from '@/utils/digits'
+import { MB_PER_GB } from '@/utils/storage'
 import { defaultPolicyId, policyOptions, policyTaxText } from './policySelection'
 import type { PricingPolicyView } from '@/composables/useVendorCommercial'
 // `policy` is the policy a saved plan keeps; the form only prefills it with an edit and lets the vendor choose any approved policy.

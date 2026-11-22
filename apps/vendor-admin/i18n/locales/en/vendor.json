@@ -728,7 +728,7 @@
       "included": "Included applications and features",
       "quotas": "Usage limits",
       "quotaHint": "Choose a whole number or explicitly select unlimited for every limit. Zero permits no usage.",
-      "storageHint": "Attachment storage in MiB (1,048,576 bytes per MiB); this does not limit the whole database or disk.",
+      "storageHint": "Attachment storage in MB (1 GB is 1024 MB); this does not limit the whole database or disk.",
       "adminHint": "The initial administrator counts toward the user limit. Publication requires at least one user or unlimited; initial system attachments also need storage.",
       "limited": "Set a limit",
       "zeroHint": "Zero prevents use of this capacity. User and storage limits of zero can be saved as drafts but cannot be published.",
@@ -786,7 +786,7 @@
       },
       "limits": {
         "users": "Users",
-        "storage": "Attachments (MiB)",
+        "storage": "Attachments",
         "projects": "Projects"
       },
       "errors": {
@@ -843,7 +843,7 @@
       "bundlesCount": "{included} included · {optional} optional bundles",
       "sold": "What the plan includes",
       "soldHint": "The bundles sold with the plan and its platform limits. Open a bundle to see its apps.",
-      "storageHint": "How extra storage is bought on this plan: the step below the threshold, the threshold, and the larger step above it (MiB).",
+      "storageHint": "How extra storage is bought on this plan: the step below the threshold, the threshold, and the larger step above it (MB).",
       "policyHint": "The approved policy this plan is priced under.",
       "aiHint": "The assistant's monthly quota and per-run limits on this plan. Unlimited means no limit."
     },
@@ -956,11 +956,11 @@
         "branchLimit": "Extra branch limit",
         "includedUsers": "Included users minimum",
         "includedStorage": "Included storage minimum (MB)",
-          "storageStep": "Storage step (MiB)",
+          "storageStep": "Storage step (MB)",
           "storageStepHint": "How much extra storage one purchase adds below the threshold.",
-          "storageStepThreshold": "Step threshold (MiB)",
+          "storageStepThreshold": "Step threshold (MB)",
           "storageStepThresholdHint": "At or above this much extra storage, the large step applies instead.",
-          "storageLargeStep": "Large storage step (MiB)",
+          "storageLargeStep": "Large storage step (MB)",
           "storageLargeStepHint": "How much extra storage one purchase adds from the threshold upward.",
         "userPrice": "Extra user price",
         "storagePrice": "Extra storage price (GB)",
@@ -992,7 +992,7 @@
       "usersCapExceeded": "The included users are more than the 100 users Release 1 sells. Lower it and save; larger plans are agreed outside the platform.",
         "storageMinimumGb": "Enter the included storage minimum in whole gigabytes (a multiple of 1024 MB).",
           "storageStepMisaligned": "The threshold must be a whole multiple of both steps, and the large step cannot be smaller than the small one.",
-          "storageStepTooLarge": "This step is larger than the database column allows (2 TiB).",
+          "storageStepTooLarge": "This step is larger than the database column allows (2048 GB).",
       "quantitiesHint": "The minimums are covered by the base price; anything above them is priced per unit.",
       "userPricesHint": "Price per user above the minimum, for each billing cadence.",
       "storagePricesHint": "Price per gigabyte above the minimum, for each billing cadence.",
@@ -1322,7 +1322,7 @@
         },
         "keys": {
           "users_limit": "Users",
-          "storage_limit_mb": "Attachment storage (MiB)",
+          "storage_limit_mb": "Attachment storage",
           "projects_max_projects": "Projects",
           "branches_extra_limit": "Extra branches"
         },
@@ -1332,7 +1332,7 @@
           "attachment_bytes": "Attachment storage",
           "extra_branches": "Extra branches",
           "count": "Usage",
-          "mebibytes": "Attachment storage (MiB)"
+          "mebibytes": "Attachment storage"
         }
       },
       "terms": {
