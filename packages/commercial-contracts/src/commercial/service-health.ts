@@ -19,3 +19,14 @@ export const serviceHealthSchema = z.array(serviceHealthItemSchema).refine(items
 export type ServiceComponent = z.infer<typeof serviceComponentSchema>
 export type ServiceState = z.infer<typeof serviceStateSchema>
 export type ServiceHealthItem = z.infer<typeof serviceHealthItemSchema>
+
+/** `GET /v1/overview`: the queue and workspace counts, and the health of the services, which is null when the table could not be read (the counts never depend on it). */
+export const vendorOverviewSchema = z.strictObject({
+  tenants: z.number().int().min(0),
+  active: z.number().int().min(0),
+  pending_operations: z.number().int().min(0),
+  failed_operations: z.number().int().min(0),
+  last_health_at: z.iso.datetime().nullable(),
+  health: serviceHealthSchema.nullable(),
+})
+export type VendorOverview = z.infer<typeof vendorOverviewSchema>
