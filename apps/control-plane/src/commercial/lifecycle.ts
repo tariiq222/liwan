@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { CommercialError } from '@liwan/commercial-contracts/server'
-import { canonicalJson, type CommercialIssue } from '@liwan/commercial-contracts'
+import { canonicalJson, type AuditAction, type CommercialIssue } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
 import { actorLabel } from '../admin-auth/grants.js'
 
@@ -17,7 +17,7 @@ export const digestOf = (value: unknown) => createHash('sha256').update(canonica
 export const iso = (v: unknown) => v instanceof Date ? v.toISOString() : v
 export function isoRow(row: Record<string, unknown>) { return Object.fromEntries(Object.entries(row).map(([k, v]) => [k, iso(v)])) }
 
-export async function audit(client: PoolClient, actor: CommercialActor, action: string, subject: string, reason: string, metadata: unknown) {
+export async function audit(client: PoolClient, actor: CommercialActor, action: AuditAction, subject: string, reason: string, metadata: unknown) {
   await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
     [randomUUID(), actorLabel(actor), action, subject, reason, JSON.stringify(metadata)])
 }
