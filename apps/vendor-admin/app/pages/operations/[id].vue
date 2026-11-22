@@ -39,6 +39,7 @@ const reason = ref('')
 const actionError = ref<unknown>(null)
 const pollCount = ref(0)
 let pollTimer: ReturnType<typeof setTimeout> | undefined
+let left = false
 
 const isActive = computed(() => data.value?.status === 'queued' || data.value?.status === 'running' || publication.value?.status === 'queued' || abandonment.value?.state === 'pending' || recovery.value?.state === 'pending')
 const isShared = computed(() => source.value === 'shared' || (data.value && 'source' in data.value && data.value.source === 'shared'))
@@ -58,7 +59,7 @@ const pollingPaused = computed(() => isActive.value && pollCount.value >= 24)
 
 function schedulePoll() {
   stopPolling()
-  if (!import.meta.client || !isActive.value || pollCount.value >= 24) return
+  if (left || !import.meta.client || !isActive.value || pollCount.value >= 24) return
   pollTimer = setTimeout(async () => {
     pollTimer = undefined
     pollCount.value++
@@ -75,7 +76,7 @@ async function manualRefresh() {
 
 watch(isActive, schedulePoll)
 onMounted(schedulePoll)
-onBeforeUnmount(stopPolling)
+onBeforeUnmount(() => { left = true; stopPolling() })
 
 async function publishRestore() {
   if (!hydrated.value || !data.value || !publication.value || !publishAllowed.value || busy.value || publishReason.value.trim().length < 3 || publishReason.value.trim().length > 1000) return
@@ -128,7 +129,7 @@ async function retry() {
 
 <template>
 
-    <SharedRecordPage :title="data ? t(`vendor.operations.types.${data.type}`, data.type) : t('vendor.operations.details')" :back-to="backTo" :loading="pending" :error="error" @retry="refresh">
+    <SharedRecordPage :title="data ? t(`vendor.operations.types.${data.type}`, data.type) : t('vendor.operations.details')" :back-to="backTo" :loading="pending" :keep-content="!!data" :error="error" @retry="refresh">
       <template #actions>
         <UButton color="neutral" variant="outline" icon="i-lucide-refresh-cw" :loading="pending" @click="manualRefresh">{{ t('vendor.common.refresh') }}</UButton>
       </template>

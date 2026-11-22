@@ -15,16 +15,18 @@ import { canAbandonJob } from '../../utils/sharedJobAbandon'
 import { canRecoverJob } from '../../utils/sharedJobRecovery'
 import { formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
 
-async function page(name: string, data: unknown, source?: string, query: Record<string, string> = {}) {
+type PageOptions = { pending?: boolean, client?: boolean, refresh?: () => Promise<void> }
+async function page(name: string, data: unknown, source?: string, query: Record<string, string> = {}, options: PageOptions = {}) {
   const filename = resolve(import.meta.dirname, '..', name)
   const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
   const script = compileScript(descriptor, { id: 'operation-feed' }).content
-    .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replaceAll('import.meta.client', 'false').replace('export default', 'return')
+    .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replaceAll('import.meta.client', String(options.client ?? false)).replace('export default', 'return')
   const transpile = (s: string) => ts.transpileModule(s, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None } }).outputText
   const tenants = { items: [{ id: 'tenant-id', name: 'Acme' }], total: 1 }
   const request = vi.fn(async (path: string, _options?: unknown) => (path === 'tenants' && name === 'operations/index.vue' ? tenants : data))
   const replace = vi.fn()
   const keys: string[] = []
+  const unmounts: (() => void)[] = []
   const messages = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../../i18n/locales/en/vendor.json'), 'utf8'))
   const t = (key: string) => key.split('.').reduce((obj: unknown, key) => (obj as Record<string, unknown> | undefined)?.[key], messages) ?? key
   const bindings = {
@@ -32,13 +34,13 @@ async function page(name: string, data: unknown, source?: string, query: Record<
     useVendorSubscriptions: () => ({ listClients: (query: Record<string, unknown>) => request('commercial/clients', { query }) }),
     invoiceStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge,
     _defineComponent: Vue.defineComponent, _withAsyncContext: (fn: () => unknown) => [fn(), () => {}],
-    computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, onMounted: () => {}, onBeforeUnmount: () => {},
+    computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, onMounted: (fn: () => void) => { if (options.client) fn() }, onBeforeUnmount: (fn: () => void) => { unmounts.push(fn) },
     definePageMeta: () => {}, useI18n: () => ({ t, locale: Vue.ref('en') }), safeReturnTo, OPERATION_STATUS_FILTERS, operationFilterLabelKey, operationStatusFilter, operationTargetTo,
     useRoute: () => ({ params: { id: 'job-id' }, query: { source, ...query }, fullPath: '/operations?source=all' }),
     useRouter: () => ({ replace }), useHydrated: () => Vue.ref(true), useVendorApi: () => ({ request }), useVendorContext: () => ({ can: () => true }),
     useAsyncData: async (key: string | (() => string), fn: () => Promise<unknown>) => {
       keys.push(typeof key === 'function' ? key() : key)
-      return { data: Vue.ref(await fn()), pending: Vue.ref(false), error: Vue.ref(null), refresh: vi.fn() }
+      return { data: Vue.ref(await fn()), pending: Vue.ref(options.pending ?? false), error: Vue.ref(null), refresh: options.refresh ?? vi.fn() }
     },
   }
   const component = new Function(...Object.keys(bindings), transpile(script))(...Object.values(bindings))
@@ -53,7 +55,7 @@ async function page(name: string, data: unknown, source?: string, query: Record<
   } }))
   const html = await renderToString(app)
   scope.stop()
-  return { state, request, replace, keys, captured, html }
+  return { state, request, replace, keys, captured, html, unmounts }
 }
 const operation = { id: 'job-id', tenant_id: 'tenant-id', type: 'provision', source: 'shared', status: 'verified', stage: 'verified', reason: 'shared_execution_verified', request_id: 'request-id', result: null, created_at: '2026-10-01T00:00:00Z', updated_at: null, last_event_at: null, events: [] }
 
@@ -186,4 +188,27 @@ it('links an operation to its customer, else to the workspace page, and shows th
   const detail = await page('operations/[id].vue', owned, 'shared')
   expect(detail.state.targetTo.value).toEqual({ path: '/customers/cust-1', query: { tab: 'operations' } })
   expect(detail.html).toContain('Acme Workspace'); expect(detail.html).not.toContain('open="')
+})
+
+it('keeps the operation on screen while a poll refresh is pending', async () => {
+  const running = { ...operation, status: 'running', stage: 'running' }
+  const detail = await page('operations/[id].vue', running, 'shared', {}, { pending: true })
+  const record = detail.captured.find(node => node.name === 'SharedRecordPage')!.props
+  // RecordPage draws the skeleton when `loading` is set and `keep-content` is not: a refresh must not replace the record.
+  expect(Boolean(record.loading) && !record['keep-content']).toBe(false)
+})
+it('starts no new poll once the page was left while a refresh was in flight', async () => {
+  vi.useFakeTimers()
+  try {
+    let finishRefresh = () => {}
+    const refresh = vi.fn(() => new Promise<void>((resolveRefresh) => { finishRefresh = resolveRefresh }))
+    const detail = await page('operations/[id].vue', { ...operation, status: 'running', stage: 'running' }, 'shared', {}, { client: true, refresh })
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(refresh).toHaveBeenCalledTimes(1)
+    detail.unmounts.forEach(fn => fn())
+    finishRefresh()
+    await vi.advanceTimersByTimeAsync(20000)
+    expect(refresh).toHaveBeenCalledTimes(1)
+    expect(vi.getTimerCount()).toBe(0)
+  } finally { vi.useRealTimers() }
 })
