@@ -15,11 +15,12 @@ test('a status filter narrows the table and survives a refresh', async ({ page }
  await open(page, '/invoices?status=paid'); await expect(rows(page)).toHaveCount(1)
  await page.reload(); await expect(rows(page)).toHaveCount(1)
 })
-test('the record shows invoice lines, a draft number label and the attempt without provider data', async ({ page }) => {
+test('the record shows invoice lines, a draft number label and the attempt with its kind and no reference when it has none', async ({ page }) => {
  await open(page, '/invoices/inv-3'); await expectNoSecondH1(page)
  await expect(page.locator('[data-template="record"]')).toHaveCount(1)
  await expect(page.getByTestId('payment-attempt')).toHaveCount(1)
- await expect(page.getByText('private-provider')).toHaveCount(0)
+ await expect(page.getByTestId('attempt-ref')).toHaveCount(0)
+ await expect(page.getByTestId('payment-attempt')).toContainText('فاتورة مستضافة')
  await open(page, '/invoices/inv-1'); await expect(page.getByTestId('invoice-line').first()).toBeVisible()
 })
 test('a first payment offers the general refund request, not the AI top-up refund', async ({ page }) => {
@@ -102,4 +103,60 @@ test('on a 390px phone the invoice rows retain periods and keyboard navigation w
 test('on a 390px phone the invoice record scrolls its lines table inside its own box, never the page', async ({ page }) => {
  await page.setViewportSize({width:390,height:844})
  for (const id of ['inv-1', 'inv-2', 'inv-3']) { await open(page, `/invoices/${id}`); expect(await fitsWidth(page), id).toBe(true) }
+})
+
+test('an issued invoice opens its print route: the customer document, a print action and a way back; no console chrome prints', async ({ page }) => {
+ await open(page, '/invoices/inv-1')
+ await page.getByTestId('invoice-print-open').click()
+ await expect(page).toHaveURL(/\/invoices\/print\/inv-1\?returnTo=/)
+ const document = page.getByTestId('invoice-document')
+ await expect(document).toBeVisible()
+ await expect(page.getByTestId('invoice-seller-name')).toHaveText('شركة ليوان المحدودة')
+ await expect(page.getByTestId('invoice-customer')).toBeVisible()
+ // A document of Liwan, which is not VAT-registered: no tax wording, no reference to a payment provider or an operator.
+ await expect(document).not.toContainText(/فاتورة ضريبية|tax invoice|VAT|private-provider|provider/i)
+ await page.evaluate(() => { (window as unknown as { printed: number }).printed = 0; window.print = () => { (window as unknown as { printed: number }).printed++ } })
+ await page.emulateMedia({ media: 'print' })
+ await expect(page.getByTestId('invoice-print-action')).toBeHidden()
+ await expect(page.getByTestId('invoice-print-back')).toBeHidden()
+ await page.emulateMedia({ media: 'screen' })
+ await page.getByTestId('invoice-print-action').click()
+ expect(await page.evaluate(() => (window as unknown as { printed: number }).printed)).toBe(1)
+ await page.getByTestId('invoice-print-back').click()
+ await expect(page).toHaveURL(/\/invoices\/inv-1(\?|$)/)
+})
+test('a draft invoice has no print button and its print route shows no document', async ({ page }) => {
+ await open(page, '/invoices/inv-3')
+ await expect(page.getByTestId('invoice-print-open')).toHaveCount(0)
+ await open(page, '/invoices/print/inv-3')
+ await expect(page.getByTestId('invoice-document')).toHaveCount(0)
+ await expect(page.getByTestId('invoice-print-action')).toHaveCount(0)
+ await expect(page.getByTestId('invoice-print-back')).toBeVisible()
+})
+test('the invoice list exports a CSV of every matching invoice after the audit record, and no file when that record fails', async ({ page }) => {
+ await open(page, '/invoices?status=paid')
+ let sent: unknown
+ await page.route('**/api/vendor/v1/commercial/invoices/export', async (route) => {
+  sent = route.request().postDataJSON()
+  await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ id: 'audit-1' }) })
+ })
+ const download = page.waitForEvent('download')
+ await page.getByTestId('invoices-export').click()
+ const file = await download
+ expect(file.suggestedFilename()).toMatch(/^liwan-invoices-paid-\d{4}-\d{2}-\d{2}\.csv$/)
+ const bytes = await (await import('node:fs/promises')).readFile((await file.path())!)
+ expect([...bytes.subarray(0, 3)]).toEqual([0xEF, 0xBB, 0xBF])
+ const lines = bytes.toString('utf8').slice(1).trimEnd().split('\r\n')
+ expect(lines).toHaveLength(2)
+ expect(lines[1]).toContain('inv-2')
+ expect(sent).toEqual({ status: 'paid', row_count: 1 })
+ await expect(page.getByTestId('invoice-export-failure')).toHaveCount(0)
+ // The record is refused: the page says so and no file is made.
+ await page.unroute('**/api/vendor/v1/commercial/invoices/export')
+ await page.route('**/api/vendor/v1/commercial/invoices/export', route => route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ code: 'internal_error' }) }))
+ let downloaded = false
+ page.on('download', () => { downloaded = true })
+ await page.getByTestId('invoices-export').click()
+ await expect(page.getByTestId('invoice-export-failure')).toBeVisible()
+ expect(downloaded).toBe(false)
 })
