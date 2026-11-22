@@ -19,10 +19,10 @@ const rows = computed(() => props.items.map((item, index) => ({ item, index, vie
       <component :is="view.to ? NuxtLink : 'div'" :to="view.to ?? undefined" class="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 focus-visible:outline-2 focus-visible:outline-primary" :class="view.to ? 'hover:bg-elevated' : ''">
         <UIcon :name="view.icon" class="size-5 shrink-0" :class="view.tone === 'destructive' ? 'text-error' : view.tone === 'warning' ? 'text-warning' : 'text-info'" aria-hidden="true" />
         <span class="min-w-0 flex-1 basis-56">
-          <span class="block truncate font-medium text-highlighted"><bdi>{{ item.name }}</bdi></span>
+          <span class="block truncate font-medium text-highlighted"><bdi>{{ item.kind === 'service_down' ? t(`vendor.today.health.components.${item.name}`) : item.name }}</bdi></span>
           <span class="block text-sm text-muted">{{ sentence(item) }}</span>
         </span>
-        <span v-if="view.to" class="flex items-center gap-1 text-sm font-medium text-primary">{{ t(view.actionKey) }}<UIcon name="i-lucide-arrow-left" class="size-4 ltr:rotate-180" aria-hidden="true" /></span>
+        <span v-if="view.to && view.actionKey" class="flex items-center gap-1 text-sm font-medium text-primary">{{ t(view.actionKey) }}<UIcon name="i-lucide-arrow-left" class="size-4 ltr:rotate-180" aria-hidden="true" /></span>
       </component>
     </li>
   </ul>

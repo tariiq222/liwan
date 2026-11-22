@@ -94,7 +94,9 @@
         "renewal_soon": "يتجدد خلال {duration}",
         "tenant_deletion_due": "طلب حذف مساحة العميل في مهلته الأخيرة. المساحة ما زالت تعمل: اسحب الطلب إن لم يكن مشروعًا، وإلا تُحذف المساحة عند انتهاء المهلة",
         "tenant_deletion_stuck": "حذف مساحة عميل متعثر ({operation}) وينتظر تدخلك",
-        "form_payment_review": "دفعة بطاقة تحتاج فحصًا عند مزود الدفع ({operation}): قد يكون مال سُحب ولم يُسوَّ شيء، أو لم يُحذف رمز بطاقة"
+        "form_payment_review": "دفعة بطاقة تحتاج فحصًا عند مزود الدفع ({operation}): قد يكون مال سُحب ولم يُسوَّ شيء، أو لم يُحذف رمز بطاقة",
+        "service_stale": "توقفت عن الإبلاغ: قد تكون العملية متوقفة فلا يعمل ما تشغّله",
+        "service_unavailable": "تعذّر تشغيلها عند البدء فتتعطل الميزات المعتمدة عليها"
       },
       "refundReasons": {
         "refund_exceeds_payment": "المبلغ المسترد أكبر من المدفوع",
@@ -127,6 +129,16 @@
         "tenant_deletion_stuck": "افتح الحذف",
         "form_payment_review": "افتح الفواتير",
         "form_payment_review_provider": "افتح سجل التدقيق"
+      },
+      "health": {
+        "components": {
+          "shared_worker": "عامل المنصة المشتركة",
+          "commercial_scheduler": "المجدول التجاري",
+          "payment_adapter": "مزود الدفع (العامل)",
+          "mail_adapter": "خدمة البريد",
+          "alert_channel": "قناة التنبيه",
+          "api_payment_adapter": "مزود الدفع (واجهة البرمجة)"
+        }
       },
       "statusTitle": "الحالة العامة",
       "statusLabel": "أعداد الحالة العامة",

@@ -94,7 +94,9 @@
         "renewal_soon": "Renews within {duration}",
         "tenant_deletion_due": "The customer's deletion request is in its final hold. The workspace still works: withdraw the request if it is not legitimate, otherwise it is deleted when the hold ends",
         "tenant_deletion_stuck": "A workspace deletion is stuck ({operation}) and waits for you",
-        "form_payment_review": "A card payment needs checking at the payment provider ({operation}): money may have been taken that nothing settled, or a card token was not deleted"
+        "form_payment_review": "A card payment needs checking at the payment provider ({operation}): money may have been taken that nothing settled, or a card token was not deleted",
+        "service_stale": "Stopped reporting: the process may be down, so what it runs is not running",
+        "service_unavailable": "Could not be started at launch, so what depends on it is switched off"
       },
       "refundReasons": {
         "refund_exceeds_payment": "refunded more than was paid",
@@ -127,6 +129,16 @@
         "tenant_deletion_stuck": "Open the deletion",
         "form_payment_review": "Open the invoices",
         "form_payment_review_provider": "Open the audit log"
+      },
+      "health": {
+        "components": {
+          "shared_worker": "Shared worker",
+          "commercial_scheduler": "Commercial scheduler",
+          "payment_adapter": "Payment provider (worker)",
+          "mail_adapter": "Mail service",
+          "alert_channel": "Alert channel",
+          "api_payment_adapter": "Payment provider (API)"
+        }
       },
       "statusTitle": "Overall status",
       "statusLabel": "Overall status counts",

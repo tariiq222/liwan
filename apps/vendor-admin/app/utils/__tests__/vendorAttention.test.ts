@@ -56,6 +56,13 @@ describe('attentionPresentation', () => {
   it('sends a provider payment no customer made to the audit log of rejected payments, worded for it', () => {
     expect(attentionPresentation(item({ kind: 'form_payment_review', customer_id: null }))).toMatchObject({ to: { path: '/audit', query: { action: 'payment.form_payment_rejected' } }, actionKey: 'vendor.today.actions.form_payment_review_provider' })
   })
+  it('opens nothing for a service that is down, and words each state', () => {
+    const down = (detail: string) => item({ kind: 'service_down', customer_id: null, name: 'shared_worker', detail })
+    expect(attentionPresentation(down('stale'))).toMatchObject({ to: null, tone: 'destructive', actionKey: null })
+    expect(attentionTab(down('stale'))).toBeNull()
+    expect(attentionMessage(down('stale'), now)).toEqual({ key: 'service_stale', days: null, operation: null })
+    expect(attentionMessage(down('unavailable'), now)).toEqual({ key: 'service_unavailable', days: null, operation: null })
+  })
   it('words a resume that did not reach the workspace as its own kind', () => {
     expect(attentionMessage(item({ kind: 'resume_undelivered', detail: '5' }), now)).toEqual({ key: 'resume_undelivered', days: null, operation: '5' })
   })

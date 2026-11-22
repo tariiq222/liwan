@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import type { Pool } from 'pg'
-import { TENANT_DELETION_WINDOW_DAYS, type AttentionItem, type AttentionKind } from '@liwan/commercial-contracts'
+import { TENANT_DELETION_WINDOW_DAYS, type AttentionItem, type AttentionKind, type ServiceComponent } from '@liwan/commercial-contracts'
 import { allAttentionItems } from './attention.js'
 import { refusalWords, renewalMayStillBill } from './tenant-deletion-notices.js'
 import type { MailAdapter } from './mail-adapter.js'
@@ -75,7 +75,19 @@ const ATTENTION_LABELS: Record<Exclude<AttentionKind, 'bank_transfer_claimed' | 
   setup_required: 'الإعداد التجاري لم يكتمل',
   renewal_missed: 'تجديد فات موعده',
   form_payment_review: 'دفعة بطاقة تحتاج مراجعة عند المزود',
+  service_down: 'خدمة التشغيل متوقفة أو غير متاحة',
 }
+
+/** What the owner reads for a component and for the state of a `service_down` item. */
+const SERVICE_NAMES: Record<ServiceComponent, string> = {
+  shared_worker: 'عامل المنصة المشتركة',
+  commercial_scheduler: 'المجدول التجاري',
+  payment_adapter: 'مزود الدفع في العامل',
+  mail_adapter: 'خدمة البريد',
+  alert_channel: 'قناة التنبيه',
+  api_payment_adapter: 'مزود الدفع في واجهة البرمجة',
+}
+const SERVICE_STATES: Record<string, string> = { stale: 'متوقفة عن الإرسال', unavailable: 'غير متاحة' }
 
 const UNSAFE_TEXT = /[\u0000-\u001f\u007f-\u009f\u2028\u2029\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g
 
@@ -130,10 +142,12 @@ async function attentionCandidates(pool: Pool): Promise<Candidate[]> {
       if (detail) lines.push(`تاريخ التحويل المذكور: ${detail}`)
       const reference = cleanAlertText(invoice?.sender_reference, DETAIL_MAX)
       if (reference) lines.push(`مرجع المرسل المذكور: ${reference}`)
+    } else if (item.kind === 'service_down') {
+      lines.push(`الخدمة: ${SERVICE_NAMES[item.name as ServiceComponent] ?? cleanAlertText(item.name, NAME_MAX)}`, `الحالة: ${SERVICE_STATES[detail] ?? detail}`)
     } else if (detail) lines.push(`السبب: ${detail}`)
     const label = event === 'attention' ? ATTENTION_LABELS[item.kind as keyof typeof ATTENTION_LABELS] : undefined
     return { key: attentionKey(item), event, customerId: item.customer_id, name: item.name, lines, amount: invoice ? money(invoice) : undefined,
-      ...(label ? { title: `${EVENTS.attention.title}: ${label}` } : {}) }
+      ...(label ? { title: `${EVENTS.attention.title}: ${label}` } : {}), ...(item.kind === 'service_down' ? { noCustomer: true as const } : {}) }
   })
 }
 
