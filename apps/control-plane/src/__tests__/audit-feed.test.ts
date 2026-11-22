@@ -61,7 +61,7 @@ describe.skipIf(!url)('audit filters on PostgreSQL', () => {
     const address = server.address(); if (!address || typeof address === 'string') throw Error('No address')
     origin = `http://127.0.0.1:${address.port}`
   })
-  afterAll(async () => { await pool.query('TRUNCATE audit_events, tenants, customers, vendor_accounts CASCADE'); await new Promise<void>(resolve => server.close(() => resolve())); await pool.end() })
+  afterAll(async () => { await pool.query('DELETE FROM plan_revisions WHERE id=$1', [plan]); await pool.query('TRUNCATE audit_events, tenants, customers, vendor_accounts CASCADE'); await new Promise<void>(resolve => server.close(() => resolve())); await pool.end() })
 
   it('finds the invoices, adjustments, backups, restore approvals and backup jobs of a customer', async () => {
     const [invoice, note, backup, approval, requestId] = [randomUUID(), randomUUID(), randomUUID(), randomUUID(), randomUUID()]
