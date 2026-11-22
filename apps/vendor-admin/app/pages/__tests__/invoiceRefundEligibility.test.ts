@@ -59,6 +59,7 @@ async function page(options: Options = {}) {
     requestRefund: vi.fn(async () => creditNote),
     refundAiTopup: vi.fn(async () => ({ adjustment_id: 'note1' })),
     recordBankTransfer: vi.fn(async () => ({})),
+    voidRenewalInvoice: vi.fn(async () => ({})),
   }
   const bindings = {
     formatLiwanDate, formatLiwanDateTime, invoiceStatusBadge, adjustmentStatusBadge, paymentAttemptBadge, formatCommercialMoney,
@@ -468,5 +469,100 @@ describe('refunding a later AI top-up', () => {
       expect(p.state.requestFailure.value).toBe(key)
     }
     expect(p.state.requestReason.value).toBe('Customer asked')
+  })
+})
+
+describe('voiding an unpaid renewal invoice', () => {
+  const GRANTS = ['vendor.read', 'vendor.billing.manage', 'vendor.subscriptions.manage']
+  const unpaidRenewal = { status: 'issued', kind: 'renewal', voidable: true, void_block: null }
+  const voidPage = (over: Partial<Options> & { invoice?: Record<string, unknown> } = {}) => page({ taxLabel: null, refund: later, grants: GRANTS, ...over, overrides: { ...unpaidRenewal, ...over.invoice } as never })
+  const draft = (p: Awaited<ReturnType<typeof page>>, outcome = 'end') => { p.state.openVoid(); p.state.voidOutcome.value = outcome; p.state.voidReason.value = 'Customer will not pay' }
+
+  it('offers the action on a voidable unpaid renewal invoice, enabled, with no reason line', async () => {
+    const { html, captured } = await (await voidPage()).rendered()
+    const button = byTestId(captured, 'void-action')
+    expect(button?.props.disabled).toBe(false)
+    expect(button?.props['aria-describedby']).toBeUndefined()
+    expect(byTestId(captured, 'void-blocked')).toBeUndefined()
+    expect(html).toContain('vendor.invoices.void.title')
+  })
+
+  it.each(['payment_reconciliation_required', 'transfer_claimed', 'renewal_in_progress', 'lock_pending', 'tenant_retiring'])('disables the action and says why when the server blocks it with %s', async block => {
+    const p = await voidPage({ invoice: { voidable: false, void_block: block } })
+    const { html, captured } = await p.rendered()
+    expect(byTestId(captured, 'void-action')?.props.disabled).toBe(true)
+    expect(byTestId(captured, 'void-action')?.props['aria-describedby']).toBe('void-blocked')
+    expect(html).toContain('id="void-blocked"')
+    expect(html).toContain(`vendor.invoices.void.reason.${block}`)
+    p.state.openVoid(); p.state.voidOutcome.value = 'end'; p.state.voidReason.value = 'Customer will not pay'
+    await p.state.voidInvoice()
+    expect(p.api.voidRenewalInvoice).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['without the subscription grant', { grants: ['vendor.read', 'vendor.billing.manage'] }, {}],
+    ['without the billing grant', { grants: ['vendor.read', 'vendor.subscriptions.manage'] }, {}],
+    ['on a paid invoice', {}, { status: 'paid', voidable: false }],
+    ['on an invoice already void', {}, { status: 'void', voidable: false }],
+    ['on an invoice that is not a renewal', {}, { kind: 'initial', voidable: false }],
+    ['when the server says it does not apply', {}, { voidable: false }],
+  ])('hides the whole section %s', async (_name, over, invoice) => {
+    const { html, captured } = await (await voidPage({ ...over, invoice })).rendered()
+    expect(byTestId(captured, 'void-action')).toBeUndefined()
+    expect(html).not.toContain('vendor.invoices.void.title')
+  })
+
+  it('never offers the void beside a refund action, whatever the invoice state', async () => {
+    const statuses = ['draft', 'issued', 'paid', 'void', 'credit_pending']
+    const notes = [[], [creditNote], [{ ...creditNote, status: 'refunded' }], [systemNote]]
+    const refunds = [refundable, later]
+    for (const status of statuses) for (const adjustments of notes) for (const refund of refunds) {
+      // The server's word is taken as given (voidable): the page must still keep the two apart.
+      const { captured } = await (await voidPage({ refund, adjustments, invoice: { status, voidable: true } })).rendered()
+      const voidOffered = byTestId(captured, 'void-action') !== undefined
+      const refundOffered = byTestId(captured, 'request-refund-action') !== undefined || byTestId(captured, 'record-refund-action') !== undefined
+      expect(voidOffered && refundOffered, `${status} ${adjustments.length} ${refund.refundable}`).toBe(false)
+    }
+  })
+
+  it('keeps the confirm disabled until an outcome and a reason are given, and sends one request on a double click', async () => {
+    const p = await voidPage()
+    const open = byTestId((await p.rendered()).captured, 'void-action')!
+    ;(open.props.onClick as () => void)()
+    expect((await p.rendered()).captured.find(c => c.name === 'SharedInlineConfirm' && c.props.title === 'vendor.invoices.void.confirmTitle')?.props.disabled).toBe(true)
+    p.state.voidReason.value = 'Customer will not pay'
+    await p.state.voidInvoice(); expect(p.api.voidRenewalInvoice).not.toHaveBeenCalled() // the reason alone is not enough
+    p.state.voidOutcome.value = 'rebill'
+    let answer!: () => void
+    p.api.voidRenewalInvoice.mockImplementationOnce(() => new Promise(resolve => { answer = () => resolve({}) }))
+    const confirm = (await p.rendered()).captured.find(c => c.name === 'SharedInlineConfirm')!
+    const first = (confirm.props.onConfirm as () => Promise<void>)(); const second = (confirm.props.onConfirm as () => Promise<void>)()
+    expect((await p.rendered()).captured.find(c => c.name === 'SharedInlineConfirm')?.props.pending).toBe(true)
+    answer(); await Promise.all([first, second])
+    expect(p.api.voidRenewalInvoice).toHaveBeenCalledTimes(1)
+    expect(p.api.voidRenewalInvoice).toHaveBeenCalledWith('invoice1', { reason: 'Customer will not pay', outcome: 'rebill' })
+  })
+
+  it('reloads the invoice and the attempts after success and closes the form', async () => {
+    const p = await voidPage()
+    const invoiceCalls = p.api.invoice.mock.calls.length; const attemptCalls = p.api.paymentAttempts.mock.calls.length
+    draft(p, 'end'); await p.state.voidInvoice()
+    expect(p.api.invoice.mock.calls.length).toBe(invoiceCalls + 1); expect(p.api.paymentAttempts.mock.calls.length).toBe(attemptCalls + 1)
+    expect(p.state.voidOpen.value).toBe(false); expect(p.state.voidFailure.value).toBeUndefined(); expect(p.state.voidBusy.value).toBe(false)
+  })
+
+  it('says why the server refused, keeps the draft and still reloads', async () => {
+    const p = await voidPage()
+    draft(p, 'end')
+    p.api.voidRenewalInvoice.mockRejectedValueOnce({ statusCode: 409, data: { code: 'subscription_suspended' } })
+    const before = p.api.invoice.mock.calls.length
+    await p.state.voidInvoice()
+    expect(p.state.voidFailure.value).toBe('vendor.invoices.void.reason.subscription_suspended')
+    expect([p.state.voidOutcome.value, p.state.voidReason.value]).toEqual(['end', 'Customer will not pay'])
+    expect(p.api.invoice.mock.calls.length).toBe(before + 1)
+    expect(byTestId((await p.rendered()).captured, 'void-failure')?.props.title).toBe('vendor.invoices.void.reason.subscription_suspended')
+    p.api.voidRenewalInvoice.mockRejectedValueOnce({ statusCode: 403, data: { code: 'step_up_required' } })
+    await p.state.voidInvoice()
+    expect(p.state.voidFailure.value).toBe('vendor.pricing.errors.step_up_required')
   })
 })

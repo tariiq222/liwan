@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Adjustment, Invoice, Order, SubscriptionView } from '@liwan/commercial-contracts'
 import {
-  customersReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, daysUntilDate, invoiceListQuery, isNotAvailable, isStalled, targetStatus, termsPayload, usageDisplay, usageMetricLabel, lineQuantities, formatBytes, vendorInvoiceLineViews, parseTransferAmount, refundRequestBlock, aiTopupRefundable, transferFormDefaults, validRefundDraft, validRefundReason,
+  customersReturnTo, customerQuoteBody, normalizeQuoteResponse, withoutDraftTerms, emptyTermsDraft, daysUntilDate, invoiceListQuery, isNotAvailable, isStalled, targetStatus, termsPayload, usageDisplay, usageMetricLabel, lineQuantities, formatBytes, vendorInvoiceLineViews, parseTransferAmount, refundRequestBlock, voidAction, voidErrorKey, voidReasonKey, validVoidDraft, aiTopupRefundable, transferFormDefaults, validRefundDraft, validRefundReason,
   planBundleIds, requestedQuantities, currentPaidQuantities, orderOutcomeUnknown,
   type VendorCustomer, type VendorInvoice, adminLoginErrorKey, cardActionErrorKey, deletionErrorKey,
 } from '../vendorSubscriptions'
@@ -253,5 +253,40 @@ describe('AI top-up refund offer', () => {
       const general = refundRequestBlock(invoice) === null
       expect(topup && general, `${first_payment}/${refundable}/${open}`).toBe(false)
     }
+  })
+})
+
+describe('void of an unpaid renewal invoice', () => {
+  const invoice = (o: Record<string, unknown> = {}) => ({ status: 'issued', kind: 'renewal', voidable: true, void_block: null, adjustments: [], ...o }) as Parameters<typeof voidAction>[0]
+  it('is available only on a voidable unpaid renewal invoice, for an operator who holds both grants', () => {
+    expect(voidAction(invoice(), true)).toEqual({ kind: 'available' })
+    expect(voidAction(invoice(), false)).toEqual({ kind: 'hidden' })
+  })
+  it('names the block the server gives when the invoice cannot be voided now', () => {
+    for (const block of ['payment_reconciliation_required', 'transfer_claimed', 'renewal_in_progress', 'lock_pending', 'tenant_retiring'] as const)
+      expect(voidAction(invoice({ voidable: false, void_block: block }), true)).toEqual({ kind: 'blocked', block })
+  })
+  it('is hidden when the server says it does not apply, whatever the status of the invoice', () => {
+    expect(voidAction(invoice({ voidable: false }), true)).toEqual({ kind: 'hidden' })
+    for (const status of ['draft', 'paid', 'void', 'credit_pending']) expect(voidAction(invoice({ status }), true), status).toEqual({ kind: 'hidden' })
+    for (const kind of ['initial', 'change', 'adjustment']) expect(voidAction(invoice({ kind }), true), kind).toEqual({ kind: 'hidden' })
+  })
+  it('never sits beside a refund: an invoice with any refund note offers no void', () => {
+    for (const status of ['pending', 'refunded', 'applied']) expect(voidAction(invoice({ adjustments: [{ kind: 'credit_note', status }] }), true), status).toEqual({ kind: 'hidden' })
+    expect(voidAction(invoice({ adjustments: [{ kind: 'credit_note', status: 'void' }] }), true)).toEqual({ kind: 'available' })
+  })
+  it('needs one of the two outcomes and a reason bounded like the server', () => {
+    expect(validVoidDraft({ outcome: 'end', reason: ' Customer left ' })).toBe(true)
+    expect(validVoidDraft({ outcome: 'rebill', reason: 'abc' })).toBe(true)
+    for (const draft of [{ outcome: '', reason: 'Customer left' }, { outcome: 'waive', reason: 'Customer left' }, { outcome: 'end', reason: 'ab' }, { outcome: 'end', reason: ' a ' }, { outcome: 'end', reason: 'x'.repeat(1001) }])
+      expect(validVoidDraft(draft), JSON.stringify(draft)).toBe(false)
+  })
+  it('words every block and refusal itself, and leaves other codes to the shared mapping', () => {
+    for (const code of ['invoice_not_voidable', 'payment_reconciliation_required', 'transfer_claimed', 'renewal_in_progress', 'lock_pending', 'tenant_retiring', 'subscription_suspended', 'subscription_change_pending']) {
+      expect(voidReasonKey(code)).toBe(`vendor.invoices.void.reason.${code}`)
+      expect(voidErrorKey({ statusCode: 409, data: { code } })).toBe(`vendor.invoices.void.reason.${code}`)
+    }
+    expect(voidErrorKey({ statusCode: 403, data: { code: 'step_up_required' } })).toBe('vendor.pricing.errors.step_up_required')
+    expect(voidErrorKey({ statusCode: 500, data: { code: 'database exploded' } })).toBe('vendor.pricing.errors.generic')
   })
 })

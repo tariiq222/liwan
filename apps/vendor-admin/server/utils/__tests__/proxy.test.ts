@@ -239,6 +239,18 @@ describe('vendor API proxy', () => {
     expect(calls).toHaveLength(forwarded)
   })
 
+  it('forwards the void of an unpaid renewal invoice, as a POST only', async () => {
+    const calls = stubUpstream(() => json(200, {}))
+    expect((await post('/commercial/invoices/inv-1/void')).status).toBe(200)
+    expect(calls.map(c => `${c.method} ${c.url.pathname}`)).toEqual(['POST /v1/commercial/invoices/inv-1/void'])
+    const forwarded = calls.length
+    for (const method of ['GET', 'PATCH', 'PUT'] as const)
+      expect((await send(proxy, '/api/vendor/v1/commercial/invoices/inv-1/void', { method, body: { a: 1 }, headers: cookieHeader() })).status, method).toBe(405)
+    for (const path of ['/commercial/invoices/inv-1/voids', '/commercial/invoices/inv-1/void/x', '/commercial/invoice-adjustments/inv-1/void'])
+      expect((await post(path)).status, path).toBe(404)
+    expect(calls).toHaveLength(forwarded)
+  })
+
   it('lets the console read deletion requests and withdraw one, and never ask for or confirm one', async () => {
     // The customer alone asks for and confirms the deletion of its workspace; the console reads the requests and withdraws on the customer's behalf.
     const calls = stubUpstream(() => json(200, {}))

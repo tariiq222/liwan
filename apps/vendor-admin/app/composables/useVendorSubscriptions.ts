@@ -1,6 +1,6 @@
 import { commercialFailure } from '@/utils/vendorCommercial'
 import { normalizeQuoteResponse, withoutDraftTerms } from '@/utils/vendorSubscriptions'
-import type { TenantDeletionRequest, TenantDeletionRun, Adjustment, BranchSummary, ClientList, Quote, SubscriptionView, UsageSnapshot, CustomerTermsRevision, Order, PaymentAttempt } from '@liwan/commercial-contracts'
+import type { TenantDeletionRequest, TenantDeletionRun, Adjustment, BranchSummary, ClientList, Quote, SubscriptionView, UsageSnapshot, CustomerTermsRevision, Order, PaymentAttempt, VoidRenewalOutcome } from '@liwan/commercial-contracts'
 import type { AdminLoginChange, AdminLoginPreview, VendorCustomer, VendorInvoice, VendorInvoiceList } from '@/utils/vendorSubscriptions'
 
 /** Typed access to the vendor customer / subscription / invoice endpoints (proxy /api/vendor/v1 → /v1). Totals and prices always come from the server. */
@@ -29,6 +29,8 @@ export function useVendorSubscriptions() {
     requestRefund: (id: string, body: { reason: string; units_used?: number }) => request<Adjustment>(`commercial/invoices/${seg(id)}/refund-request`, { method: 'POST', body: { reason: body.reason.trim(), ...(body.units_used === undefined ? {} : { units_used: body.units_used }) } }),
     /** Refunds a later AI top-up the general refund refuses: the same credit note, provider refund and ledger lowering, for an unused top-up inside the window; the operator states the units already spent. */
     refundAiTopup: (orderId: string, body: { reason: string; units_used: number }) => request<{ adjustment_id: string }>(`commercial/ai-topups/${seg(orderId)}/refund`, { method: 'POST', body: { reason: body.reason.trim(), units_used: body.units_used } }),
+    /** Voids one unpaid renewal invoice and chooses what happens to the subscription: `end` drops it to the free base now, `rebill` leaves the next renewal run to issue a new invoice for the same period. Nothing is refunded: no money was received. */
+    voidRenewalInvoice: (id: string, body: { reason: string; outcome: VoidRenewalOutcome }) => request<VendorInvoice>(`commercial/invoices/${seg(id)}/void`, { method: 'POST', body: { reason: body.reason.trim(), outcome: body.outcome } }),
     // The vendor records a bank transfer that arrived; the control plane then pays the order through its normal path.
     recordBankTransfer: (id: string, body: { reference: string; amount: number; value_date: string }) => request<unknown>(`commercial/invoices/${seg(id)}/bank-transfer`, { method: 'POST', body: { reference: body.reference.trim(), amount: body.amount, value_date: body.value_date } }),
     saveTerms: (body: unknown) => request<CustomerTermsRevision>('commercial/customer-terms', { method: 'POST', body }),

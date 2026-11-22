@@ -171,6 +171,28 @@ export function refundErrorKey(cause: unknown): string {
     ? `vendor.invoices.refund.errors.${code}` : commercialErrorKey(cause)
 }
 
+// ---- Void of an unpaid renewal invoice ----
+export type VoidAction = { kind: 'hidden' } | { kind: 'available' } | { kind: 'blocked'; block: VoidBlock }
+/**
+ * What the invoice page shows for voiding an unpaid renewal invoice. The server decides whether it applies (`voidable`, `void_block`);
+ * the page adds only who may ask (both grants the route needs) and that it never sits beside a refund: an invoice with a refund note
+ * has had money move, so voiding it is not offered. A paid invoice is refunded, never voided, so the two actions cover different statuses.
+ */
+export function voidAction(invoice: Pick<VendorInvoice, 'status' | 'kind' | 'voidable' | 'void_block'> & { adjustments: Pick<Adjustment, 'status'>[] }, granted: boolean): VoidAction {
+  if (!granted || invoice.status !== 'issued' || invoice.kind !== 'renewal' || invoice.adjustments.some(note => note.status !== 'void')) return { kind: 'hidden' }
+  if (invoice.void_block) return { kind: 'blocked', block: invoice.void_block }
+  return invoice.voidable ? { kind: 'available' } : { kind: 'hidden' }
+}
+/** The vendor chooses what happens to the subscription and states why; the reason is bounded like the server's contract. */
+export const validVoidDraft = (d: { outcome: string; reason: string }) => (d.outcome === 'end' || d.outcome === 'rebill') && validRefundReason(d.reason)
+const VOID_REASON_CODES = ['invoice_not_voidable', 'payment_reconciliation_required', 'transfer_claimed', 'renewal_in_progress', 'lock_pending', 'tenant_retiring', 'subscription_suspended', 'subscription_change_pending']
+/** The sentence for a block the invoice view carries or a refusal the void route answers: both say what the vendor does next. */
+export const voidReasonKey = (code: string) => `vendor.invoices.void.reason.${code}`
+export function voidErrorKey(cause: unknown): string {
+  const code = commercialFailure(cause).code
+  return VOID_REASON_CODES.includes(code) ? voidReasonKey(code) : commercialErrorKey(cause)
+}
+
 // ---- Bank transfer form ----
 /** The form opens on the invoice total, today's date in Riyadh (the calendar of the bank statement, never the UTC day) and an empty reference: the vendor types the date and reference from the bank statement, never from what the customer claimed. */
 export function transferFormDefaults(total: Money, now: Date = new Date()): { amount: string; valueDate: string; reference: string } {

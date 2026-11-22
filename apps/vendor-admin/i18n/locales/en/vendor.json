@@ -1655,6 +1655,31 @@
         "claimedReference": "Sender or bank reference given by the customer: {reference}",
         "valueDate": "Value date"
       },
+      "void": {
+        "title": "Void this renewal invoice",
+        "hint": "Cancels this unpaid renewal invoice. Nothing was received, so no credit note is made and nothing is refunded. Choose what happens to the subscription.",
+        "action": "Void the invoice",
+        "confirmTitle": "Void this invoice?",
+        "confirmHint": "This cannot be undone. The customer's card is no longer charged for it, and a payment that still arrives is refunded automatically.",
+        "confirm": "Void the invoice",
+        "outcome": "What happens to the subscription",
+        "outcomeChoose": "Choose what happens",
+        "outcomeEnd": "End the subscription now",
+        "outcomeRebill": "Bill the period again",
+        "outcomeEndHint": "The workspace drops to the free base now and the renewal is cancelled. The data is kept.",
+        "outcomeRebillHint": "The subscription stays as it is. The next renewal run issues a new invoice for the same period with a new due date.",
+        "reasonLabel": "Reason (3 to 1000 characters)",
+        "reason": {
+          "invoice_not_voidable": "This is not an unpaid renewal invoice, so it cannot be voided. Reload the page and check its status.",
+          "payment_reconciliation_required": "A payment attempt on this order is not settled yet. Check it with the payment provider and settle it before voiding the invoice.",
+          "transfer_claimed": "The customer says it transferred the amount. Check the transfer and record it first; the invoice cannot be voided before that.",
+          "renewal_in_progress": "A paid renewal is still being applied. Wait for it to finish, then check the invoice.",
+          "lock_pending": "The subscription is being moved to the free base. Try again later.",
+          "tenant_retiring": "The workspace is being deleted, so its billing is not changed.",
+          "subscription_suspended": "You suspended this subscription by hand. Resume it first, or choose to bill the period again.",
+          "subscription_change_pending": "A paid change is still being processed on this subscription. Let it finish or cancel it first."
+        }
+      },
       "refund": {
         "action": "Record refund",
         "title": "Record that this credit note was refunded",

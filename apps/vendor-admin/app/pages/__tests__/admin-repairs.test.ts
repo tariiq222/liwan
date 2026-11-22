@@ -354,6 +354,11 @@ describe('invoice credit notes', () => {
     await apiWith(request).requestRefund('invoice/1', { reason: '  Customer asked on day 3  ' })
     expect(request).toHaveBeenCalledWith('commercial/invoices/invoice%2F1/refund-request', { method: 'POST', body: { reason: 'Customer asked on day 3' } })
   })
+  it('sends the void to the invoice route with a trimmed reason and the chosen outcome', async () => {
+    const request = vi.fn(async () => ({}))
+    await apiWith(request).voidRenewalInvoice('invoice/1', { reason: '  Customer will not pay  ', outcome: 'end' })
+    expect(request).toHaveBeenCalledWith('commercial/invoices/invoice%2F1/void', { method: 'POST', body: { reason: 'Customer will not pay', outcome: 'end' } })
+  })
   it('sends the refund to the adjustment route with trimmed text', async () => {
     const request = vi.fn(async () => creditNote)
     await apiWith(request).refundCreditNote('note/1', { external_reference: ' MOY-1 ', reason: ' done ' })

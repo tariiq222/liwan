@@ -3,7 +3,7 @@ import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBad
 import { adjustmentStatusBadge, paymentAttemptBadge } from '@/utils/vendorBadges'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { commercialErrorKey } from '@/utils/vendorCommercial'
-import { aiTopupRefundable, invoiceHasAiTopup, invoicesReturnTo, isNotAvailable, parseTransferAmount, parseUnitsUsed, refundErrorKey, refundRequestBlock, transferFormDefaults, validRefundDraft, validRefundReason, vendorInvoiceLineViews } from '@/utils/vendorSubscriptions'
+import { aiTopupRefundable, invoiceHasAiTopup, invoicesReturnTo, isNotAvailable, parseTransferAmount, parseUnitsUsed, refundErrorKey, refundRequestBlock, transferFormDefaults, validRefundDraft, validRefundReason, validVoidDraft, vendorInvoiceLineViews, voidAction, voidErrorKey, voidReasonKey } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { formatLiwanDate, formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
 definePageMeta({ capability: 'vendor.billing.manage' })
@@ -11,6 +11,7 @@ const { t, locale } = useI18n(); const route = useRoute(); const api = useVendor
 const { can } = useVendorContext()
 const hydrated = useHydrated()
 const canBilling = computed(() => can('vendor.billing.manage'))
+// Voiding ends a debt and may drop the customer to the free base: the control plane needs both grants, so the page offers it to neither alone.
 const id = computed(() => String(route.params.id))
 const backTo = computed(() => invoicesReturnTo(route.query.returnTo))
 const { data, error, pending, refresh } = await useAsyncData(() => `vendor:invoice:${id.value}`, () => api.invoice(id.value))
@@ -21,6 +22,8 @@ const { data: attempts, error: attemptsError, pending: attemptsPending, refresh:
 )
 const attemptTime = (value: string) => formatLiwanDateTime(value)
 const unavailable = computed(() => isNotAvailable(error.value) && !data.value)
+// Voiding ends a debt and may drop the customer to the free base: the control plane needs both grants, so the page offers it to neither alone.
+const canVoid = computed(() => canBilling.value && can('vendor.subscriptions.manage') && !unavailable.value)
 const money = (m: NonNullable<typeof data.value>['total']) => formatCommercialMoney(m, locale.value)
 /** Subtotal, the tax line only when the invoice charged one, then the total. Liwan's own invoices carry no tax, so their subtotal is the whole amount and is never called "before tax". */
 const totals = computed(() => {
@@ -126,6 +129,31 @@ async function recordTransfer() {
   } catch (cause) { transferFailure.value = t(commercialErrorKey(cause)) }
   finally { try { await refresh() } finally { transferBusy.value = false } }
 }
+// Voiding an unpaid renewal invoice: the server says whether it applies and what blocks it; the vendor picks what happens to the subscription.
+const voidState = computed(() => (data.value ? voidAction(data.value, canVoid.value) : { kind: 'hidden' as const }))
+const voidOpen = ref(false)
+const voidOutcome = ref('')
+const voidReason = ref('')
+const voidBusy = ref(false)
+const voidFailure = ref<string | undefined>()
+const voidOutcomes = computed(() => [{ label: t('vendor.invoices.void.outcomeEnd'), value: 'end' }, { label: t('vendor.invoices.void.outcomeRebill'), value: 'rebill' }])
+const voidOutcomeHint = computed(() => (voidOutcome.value === 'end' || voidOutcome.value === 'rebill' ? t(`vendor.invoices.void.outcome${voidOutcome.value === 'end' ? 'End' : 'Rebill'}Hint`) : undefined))
+const voidValid = computed(() => validVoidDraft({ outcome: voidOutcome.value, reason: voidReason.value }))
+function openVoid() { voidOpen.value = true; voidOutcome.value = ''; voidReason.value = ''; voidFailure.value = undefined }
+function closeVoid() { voidOpen.value = false; voidOutcome.value = ''; voidReason.value = ''; voidFailure.value = undefined }
+async function voidInvoice() {
+  if (!hydrated.value || voidBusy.value || voidState.value.kind !== 'available' || !voidValid.value || !data.value) return
+  voidBusy.value = true; voidFailure.value = undefined
+  try {
+    await api.voidRenewalInvoice(data.value.id, { reason: voidReason.value, outcome: voidOutcome.value as 'end' | 'rebill' })
+    closeVoid()
+  } catch (cause) {
+    voidFailure.value = t(voidErrorKey(cause))
+  } finally {
+    // The server's state decides what is offered next: after a refusal too, and the attempts may have changed.
+    try { await Promise.all([refresh(), refreshAttempts()]) } finally { voidBusy.value = false }
+  }
+}
 function openRefund(noteId: string) { refundNoteId.value = noteId; refundReference.value = ''; refundReason.value = ''; refundFailure.value = undefined }
 function closeRefund() { refundNoteId.value = null; refundReference.value = ''; refundReason.value = ''; refundFailure.value = undefined }
 async function recordRefund() {
@@ -202,6 +230,23 @@ const badge = computed(() => (data.value ? invoiceStatusBadge(data.value.status,
       </SharedInlineConfirm>
       <UButton v-else color="primary" variant="soft" size="sm" :disabled="!hydrated || transferBusy" data-testid="bank-transfer-action" @click="openTransfer">{{ t('vendor.invoices.transfer.action') }}</UButton>
       <UAlert v-if="transferFailure" class="mt-3" color="error" variant="subtle" :title="transferFailure" data-testid="transfer-failure" />
+    </SharedRecordSection>
+
+    <!-- An unpaid renewal invoice can be voided instead of paid; a paid one is refunded (above), never voided, so the two never share an invoice. -->
+    <SharedRecordSection v-if="voidState.kind !== 'hidden'" :title="t('vendor.invoices.void.title')">
+      <p class="text-sm text-muted">{{ t('vendor.invoices.void.hint') }}</p>
+      <SharedInlineConfirm v-if="voidOpen && voidState.kind === 'available'" :title="t('vendor.invoices.void.confirmTitle')" :description="t('vendor.invoices.void.confirmHint')"
+        :confirm-label="t('vendor.invoices.void.confirm')" :pending="voidBusy" :disabled="!hydrated || voidBusy || !voidValid" @confirm="voidInvoice" @cancel="closeVoid">
+        <div class="mt-3 space-y-4">
+          <UFormField :label="t('vendor.invoices.void.outcome')" :help="voidOutcomeHint" required><USelect v-model="voidOutcome" :items="voidOutcomes" :placeholder="t('vendor.invoices.void.outcomeChoose')" :disabled="!hydrated || voidBusy" class="w-full" data-testid="void-outcome" /></UFormField>
+          <UFormField :label="t('vendor.invoices.void.reasonLabel')" required><UTextarea v-model="voidReason" :maxlength="1000" :disabled="!hydrated || voidBusy" class="w-full" data-testid="void-reason" /></UFormField>
+        </div>
+      </SharedInlineConfirm>
+      <div v-else class="flex flex-wrap items-center gap-3">
+        <UButton color="error" variant="soft" size="sm" :disabled="!hydrated || voidBusy || voidState.kind === 'blocked'" :aria-describedby="voidState.kind === 'blocked' ? 'void-blocked' : undefined" data-testid="void-action" @click="openVoid">{{ t('vendor.invoices.void.action') }}</UButton>
+        <p v-if="voidState.kind === 'blocked'" id="void-blocked" class="text-sm text-muted" data-testid="void-blocked">{{ t(voidReasonKey(voidState.block)) }}</p>
+      </div>
+      <UAlert v-if="voidFailure" class="mt-3" color="error" variant="subtle" :title="voidFailure" data-testid="void-failure" />
     </SharedRecordSection>
 
     <SharedRecordSection v-if="canBilling" :title="t('vendor.invoices.attempts')">

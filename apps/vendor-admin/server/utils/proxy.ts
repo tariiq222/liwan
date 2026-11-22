@@ -30,6 +30,8 @@ const ALLOWED = [
   // A2: the customer-requested refund. Creates the pending vendor credit note; the provider reference is recorded
   // through the existing invoice-adjustments refund route above.
   new RegExp(`^/v1/commercial/invoices/${SEGMENT}/refund-request$`),
+  // Voiding an unpaid renewal invoice (the control plane needs the billing and subscription grants and a fresh step-up).
+  new RegExp(`^/v1/commercial/invoices/${SEGMENT}/void$`),
   // D8: the refund of a later AI top-up, which the general refund request refuses (not the customer's first payment).
   new RegExp(`^/v1/commercial/ai-topups/${SEGMENT}/refund$`),
   new RegExp(`^/v1/commercial/customers/${SEGMENT}/(trial|invitations)$`),
@@ -80,6 +82,7 @@ const METHOD_BOUND = [
   { pattern: /^\/v1\/commercial\/ai-billing-settings$/, methods: ['GET', 'PATCH'] },
   { pattern: new RegExp(`^/v1/commercial/invoices/${SEGMENT}/bank-transfer$`), methods: ['POST'] },
   { pattern: new RegExp(`^/v1/commercial/invoices/${SEGMENT}/refund-request$`), methods: ['POST'] },
+  { pattern: new RegExp(`^/v1/commercial/invoices/${SEGMENT}/void$`), methods: ['POST'] },
   { pattern: new RegExp(`^/v1/commercial/ai-topups/${SEGMENT}/refund$`), methods: ['POST'] },
   { pattern: /^\/v1\/commercial\/deletion-requests$/, methods: ['GET'] },
   { pattern: new RegExp(`^/v1/commercial/customers/${SEGMENT}/deletion$`), methods: ['GET'] },
