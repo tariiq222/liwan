@@ -42,7 +42,6 @@ export const Application: Story = {
     template: `<div class="liwan-shell min-h-svh"><ShellSidebar v-bind="args" mode="app">
       <template #org><ShellOrgCard name="شركة الندى للتجارة" initial="ن" /></template>
       <template #core><ShellCoreApps label="التطبيقات الأساسية" :items="coreAppRows" /></template>
-      <div class="liwan-side-back"><ShellNavSection label="كل التطبيقات" :items="[{ id: 'back', label: 'كل التطبيقات', icon: 'i-lucide-arrow-left', to: '/apps', active: false, testId: 'back' }]" /></div>
       <div class="liwan-side-appblock"><ShellAppTile icon="i-lucide-folder-kanban" app="projects" size="md" /><span data-slot="name">المشاريع</span></div>
       <ShellNavSection label="إجراءات" :items="appActionRows" />
       <ShellNavSection label="المشاريع" title="المشاريع" :items="appLinkRows" />

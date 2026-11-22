@@ -28,7 +28,7 @@ describe('access policy navigation', () => {
     expect(firstAllowedPath({ capabilities: ['pmo.projects.read', 'pmo.tasks.read'] })).toBe('/projects/dashboard')
     expect(firstAllowedPath({ capabilities: ['pmo.projects.read'] })).toBe('/projects/dashboard')
     expect(firstAllowedPath({ capabilities: ['pmo.tasks.read'] })).toBe('/tasks')
-    expect(firstAllowedPath({ capabilities: ['tasks.tasks.read'] })).toBe('/my-tasks')
+    expect(firstAllowedPath({ capabilities: ['tasks.tasks.read'] })).toBe('/work')
     expect(firstAllowedPath({ capabilities: ['hr.employees.read'] })).toBe('/hr')
     expect(firstAllowedPath({ capabilities: ['access.users.read'] })).toBe('/settings/team/users')
     expect(firstAllowedPath({ capabilities: [] })).toBe('/account')

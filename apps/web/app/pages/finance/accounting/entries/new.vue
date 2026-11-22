@@ -9,7 +9,7 @@ const page = useEntryCreatePage()
 
 <template>
   <SharedListPage v-bind="page.list"><EntryList background /></SharedListPage>
-  <SharedCreatePanel :title="page.title" :back-to="page.backTo">
+  <SharedCreatePanel size="wide" :title="page.title" :back-to="page.backTo">
     <EntryForm v-if="page.allowed" :back-to="page.backTo" @saved="page.saved" />
     <SharedForbiddenState v-else :description="t('financeAccounting.forbidden')" />
   </SharedCreatePanel>

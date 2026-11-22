@@ -9,6 +9,8 @@ export interface TabBarInput {
   moreOpen: boolean
   translate: (key: string) => string
   moreLabel: string
+  /** The badge of each destination that has one, by rail id; the sidebar's core row reads the same numbers. */
+  badges?: Readonly<Record<string, number | null>>
 }
 
 /** The tabs that are their own destination, in bar order; «المزيد» follows them. */
@@ -22,7 +24,9 @@ const TAB_IDS = ['home', 'tasks', 'chat', 'ai'] as const
 export function tabBarItems(input: TabBarInput): ShellTabItem[] {
   const tabs = TAB_IDS.flatMap((id): ShellTabItem[] => {
     const entry = input.rail.find(item => item.id === id)
-    return entry ? [{ id, label: input.translate(entry.shortLabelKey ?? entry.labelKey), icon: entry.icon, to: entry.to, active: !input.moreOpen && input.activeModule === id }] : []
+    if (!entry) return []
+    const count = input.badges?.[id]
+    return [{ id, label: input.translate(entry.shortLabelKey ?? entry.labelKey), icon: entry.icon, to: entry.to, active: !input.moreOpen && input.activeModule === id, ...(count && count > 0 ? { count } : {}) }]
   })
   const ownTab = (TAB_IDS as readonly string[]).includes(input.activeModule ?? '')
   const elsewhere = input.activeModule !== null && !ownTab

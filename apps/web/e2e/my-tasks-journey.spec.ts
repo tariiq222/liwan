@@ -36,7 +36,13 @@ test('edit saves only the changed fields and preserves the exact list source thr
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('عنوان محفوظ')
   expect(api.writes().map(write => write.body)).toEqual([{ name: 'عنوان محفوظ' }])
   await page.getByRole('link', { name: 'العودة إلى مهامي', exact: true }).click()
-  await expect(page).toHaveURL(/\/my-tasks\?scope=created&q=a%26b#rows$/)
+  // The list moved into «أعمالي» (owner decision 2026-11-21): the back link keeps its query and adds the tab, so the
+  // path and the hash are exact and the query is checked by its parts rather than by their order.
+  await expect(page).toHaveURL(/\/work\?[^#]*#rows$/)
+  const back = new URL(page.url())
+  expect(back.searchParams.get('view')).toBe('tasks')
+  expect(back.searchParams.get('scope')).toBe('created')
+  expect(back.searchParams.get('q')).toBe('a&b')
 })
 
 for (const status of [403, 409, 500]) {
@@ -193,12 +199,14 @@ test('empty search recovery waits for hydration before accepting its first click
     if (route.request().resourceType() === 'script') await gate
     await route.continue()
   })
-  await page.goto('/my-tasks?q=zz-no-match', { waitUntil: 'commit' })
+  // /my-tasks forwards to the «المهام» tab; going straight there avoids depending on the redirect.
+  await page.goto('/work?view=tasks&q=zz-no-match', { waitUntil: 'commit' })
   const clear = page.getByRole('button', { name: 'مسح الفلاتر', exact: true }).last()
   try { await expect(clear).toBeDisabled({ timeout: 4000 }) } finally { resume() }
   await expect(clear).toBeEnabled()
   await clear.click()
-  await expect(page).toHaveURL(/\/my-tasks$/)
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/work')
+  expect(new URL(page.url()).searchParams.get('view')).toBe('tasks')
 })
 
 test('background refresh preserves the edit baseline and dirty values', async ({ page }) => {

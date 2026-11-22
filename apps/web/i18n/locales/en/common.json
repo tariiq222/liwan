@@ -174,7 +174,7 @@
     "projectSettings": "Project settings",
     "hr": "Human Resources",
     "chat": "Chat",
-    "myTasks": "My tasks",
+    "myTasks": "My work",
     "meetings": "Meetings",
     "ai": "Liwan AI",
     "rail": {
@@ -218,6 +218,7 @@
     "footer": "General links",
     "myApps": "My apps",
     "editApps": "Edit",
+    "switchApp": "Switch application",
     "allApps": "All apps",
     "tools": "My tools",
     "tabBar": "Quick navigation",

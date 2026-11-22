@@ -5,7 +5,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shell/ShellToolButton',
   component: ShellToolButton,
-  parameters: { layout: 'centered', ...storyContext('apps/web/app/components/shell/AppTopBar.vue:64') },
+  parameters: { layout: 'centered', ...storyContext('apps/web/app/components/notifications/NotificationCenter.vue:16') },
   args: { icon: 'i-lucide-bell', label: 'الإشعارات', badge: 3, controls: 'slide-over-notifications' },
   render: args => ({ components: { ShellToolButton }, setup: () => ({ args }), template: '<div class="liwan-shell" style="padding: 24px"><div class="liwan-tools"><ShellToolButton v-bind="args" /></div></div>' }),
 } satisfies Meta<typeof ShellToolButton>

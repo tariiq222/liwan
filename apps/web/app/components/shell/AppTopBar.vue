@@ -6,25 +6,21 @@ import NotificationCenter from '@/components/notifications/NotificationCenter.vu
 import { goKeyTargets } from '@/composables/nav/paletteModel'
 import { useNav, type ShellContextLink } from '@/composables/nav/shellModules'
 import { pinnedCreateLinks } from '@/composables/nav/sidebarModel'
-import { toolBadge } from '@/composables/nav/quickPanelModel'
 import { clickPageCreate, createShortcutTarget, focusListSearch } from '@/composables/shortcuts/targets'
 import { useAssistantSheet } from '@/composables/useAssistantSheet'
-import { useQuickPanels } from '@/composables/useQuickPanels'
 import { useShellModel } from '@/composables/useShellModel'
-import { slideOverId, useSlideOver } from '@/composables/useSlideOver'
 import { useShellShortcuts } from '@/composables/useShellShortcuts'
 
-// The flat 68px top bar, start to end: the ⌘K command palette (which also opens any application), the assistant, a
-// divider, the work tools the applications declare (meetings, tasks, chats), a divider, the notifications, and the user
-// menu at the far end. It also hosts the shell's one keyboard listener (useShellShortcuts). On a phone the bar shows
-// the product mark beside the search icon.
+// The flat 68px top bar, start to end: the ⌘K command palette (which also opens any application), the assistant, the
+// notifications, and the user menu at the far end. It also hosts the shell's one keyboard listener
+// (useShellShortcuts). On a phone the bar shows the product mark beside the search icon.
+// The application tool panels left this bar (DESIGN.md §3, 2026-11-21): the sidebar's core-app row and the phone tab
+// bar already open those pages and carry their numbers, so a second button with the same icon and count read as two.
 const { t } = useI18n()
 const route = useRoute()
 const { can } = useAccess()
 const { me } = useMe()
 const shell = useShellModel()
-const slideOver = useSlideOver()
-const { tools } = useQuickPanels()
 const assistant = useAssistantSheet()
 
 useShellShortcuts({
@@ -57,21 +53,8 @@ useShellShortcuts({
     <template #search><GlobalSearch /></template>
     <template #end>
       <AssistantButton />
-      <div v-if="tools.length || can('liwan.notifications')" class="liwan-tools" role="group" :aria-label="t('nav.tools')">
-        <ShellToolButton
-          v-for="tool in tools"
-          :key="tool.panel.id"
-          :data-testid="`${tool.panel.id}-tool`"
-          :icon="tool.panel.icon"
-          :label="t(tool.panel.labelKey)"
-          :badge="toolBadge(tool.count)"
-          :open="slideOver.open.value === tool.panel.id"
-          :controls="slideOverId(tool.panel.id)"
-          haspopup="dialog"
-          hide-on-mobile
-          @click="slideOver.toggle(tool.panel.id, $event.currentTarget as HTMLElement)"
-        />
-        <NotificationCenter v-if="can('liwan.notifications')" />
+      <div v-if="can('liwan.notifications')" class="liwan-tools" role="group" :aria-label="t('nav.tools')">
+        <NotificationCenter />
       </div>
       <AppUserMenu />
     </template>

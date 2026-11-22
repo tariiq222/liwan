@@ -1,5 +1,5 @@
 import { activeManifests, bellSources } from './manifests'
-import type { AppAssistantSurface, AppAttentionProvider, AppBellKind, AppCommand, AppRecordLink, AppRecordPicker, AppQuickPanel, AppSearchProvider } from './types'
+import type { AppAssistantSurface, AppAttentionProvider, AppBellKind, AppCommand, AppCoreCount, AppRecordLink, AppRecordPicker, AppSearchProvider } from './types'
 
 /** The assistant's sheet surface, declared by the one application that provides it. */
 export function assistantSurface(): AppAssistantSurface | undefined {
@@ -31,9 +31,9 @@ export function manifestRoutePrefixes(): string[] {
   return activeManifests().flatMap(manifest => manifest.routePrefixes)
 }
 
-/** The top-bar tool panels of every application, in rail order. */
-export function quickPanels(): AppQuickPanel[] {
-  return activeManifests().flatMap(manifest => manifest.quickPanel ?? [])
+/** The badge counts of the core applications, in rail order. */
+export function coreCounts(): AppCoreCount[] {
+  return activeManifests().flatMap(manifest => manifest.coreCount ?? [])
 }
 
 /** Palette commands of every application, in rail order. */

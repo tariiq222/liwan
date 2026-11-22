@@ -3,11 +3,15 @@ import type { RouteLocationRaw } from 'vue-router'
 import type { SlideoverProps } from '@nuxt/ui'
 import { FORM_ACTIONS_HOST } from '../../../utils/formActions'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   title: string
   backTo: RouteLocationRaw
   description?: string
-}>()
+  /** `wide` gives the multi-line forms (invoices, journal entries, sales quotes) a real line table; `default` keeps the
+   * 640px panel every simple form uses. Both are physical pixels, as 640 always was, so a size does not grow with the
+   * font scale; `wide` falls back to the full width below its breakpoint. */
+  size?: 'default' | 'wide'
+}>(), { size: 'default' })
 
 const { t, localeProperties } = useI18n()
 const router = useRouter()
@@ -33,7 +37,7 @@ const dialogContent = computed<NonNullable<SlideoverProps['content']> & { 'aria-
 const side = computed(() => localeProperties.value.dir === 'rtl' ? 'left' : 'right')
 const slots = useSlots()
 const panelUi = computed(() => ({
-  content: 'liwan-create-panel w-full max-w-none',
+  content: ['liwan-create-panel w-full max-w-none', props.size === 'wide' ? 'liwan-create-panel--wide' : ''].join(' ').trim(),
   body: 'p-4 sm:p-6',
   footer: footerActions.value || slots.footer ? 'liwan-create-panel-footer-surface shrink-0' : 'hidden',
 }))

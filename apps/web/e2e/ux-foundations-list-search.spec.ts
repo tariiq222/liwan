@@ -18,11 +18,11 @@ test('dialog and page search expose the same task provider and record return kee
 })
 
 test('clearing filters keeps the selected view and uses a neutral reset', async ({ page }) => {
-  await enterFoundation(page, '/my-tasks?q=مهمة&view=board')
+  await enterFoundation(page, '/work?view=tasks&q=مهمة&layout=cards')
   const clear = page.getByRole('button', { name: 'مسح الفلاتر', exact: true })
   await expect(clear).toBeVisible()
   await clear.click()
-  await expect(page).toHaveURL(/\/my-tasks\?view=board$/)
+  await expect(page).toHaveURL(/\/work\?view=tasks&layout=cards$/)
   await expect(page.locator('[data-shortcut-search] input')).toHaveValue('')
 })
 

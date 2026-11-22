@@ -1,6 +1,6 @@
 import { nextTick } from 'vue'
 
-/** The foundation's own panel; an application's panel uses the id of its manifest `quickPanel`, the assistant its own. */
+/** The panels the shell hosts: the foundation's notifications and the assistant's sheet. */
 export const NOTIFICATIONS_PANEL = 'notifications'
 export const ASSISTANT_PANEL = 'assistant'
 

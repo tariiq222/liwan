@@ -11,7 +11,7 @@ async function open(page: Page, path: string) {
 const CORE = [
   { id: 'home', route: /\/$/, name: 'يومي' },
   { id: 'ai', route: /\/ai$/, name: 'Liwan AI' },
-  { id: 'tasks', route: /\/my-tasks$/, name: 'مهامي' },
+  { id: 'tasks', route: /\/work$/, name: 'أعمالي' },
   { id: 'meetings', route: /\/meetings$/, name: 'الاجتماعات' },
   { id: 'chat', route: /\/chat$/, name: 'المحادثات' },
 ] as const
@@ -76,12 +76,12 @@ test.describe('core apps icon row', () => {
     await expect(page.locator('[data-testid^="slide-over-"]:visible')).toHaveCount(0)
   })
 
-  test('the top-bar tools still open their slide-over panels', async ({ page }) => {
+  test('the bar carries no application tool buttons: those pages open from the core row', async ({ page }) => {
     await open(page, '/projects')
-    await page.getByTestId('tasks-tool').click()
-    await expect(page.getByTestId('slide-over-tasks')).toBeVisible()
-    await page.keyboard.press('Escape')
-    await expect(page.getByTestId('slide-over-tasks')).toBeHidden()
+    // The panels left the bar with the 2026-11-21 shell decision (DESIGN.md §3); the core row is the single way in.
+    for (const gone of ['chat-tool', 'tasks-tool', 'meetings-tool']) await expect(page.getByTestId(gone)).toHaveCount(0)
+    await page.getByTestId('application-navigation').getByTestId('core-app-meetings').click()
+    await expect(page).toHaveURL(/\/meetings$/)
   })
 
   test('a hover shows the name in a tooltip below the tile, with no second description', async ({ page }) => {
@@ -104,25 +104,27 @@ test.describe('core apps icon row', () => {
     await expect(menu.getByTestId('shell-org')).toBeVisible()
     await expect(menu.getByTestId('core-apps')).toBeVisible()
     const rowBox = (await menu.getByTestId('core-apps').boundingBox())!
-    const backBox = (await menu.getByTestId('navigation-app-back').boundingBox())!
     const blockBox = (await menu.getByTestId('navigation-app-block').boundingBox())!
-    expect(rowBox.y + rowBox.height).toBeLessThanOrEqual(backBox.y)
-    expect(backBox.y).toBeLessThan(blockBox.y)
+    // The order is organisation card, core row, application block: the back row that used to sit between them left the
+    // top of the sidebar (the footer carries «كل التطبيقات»).
+    expect(rowBox.y + rowBox.height).toBeLessThanOrEqual(blockBox.y)
+    await expect(menu.getByTestId('navigation-app-back')).toHaveCount(0)
     // No tile is lit on an application that is not a core one.
     await expect(menu.locator('[data-testid^="core-app-"][aria-current="page"]')).toHaveCount(0)
     await menu.getByTestId('core-app-tasks').click()
-    await expect(page).toHaveURL(/\/my-tasks$/)
+    await expect(page).toHaveURL(/\/work$/)
     await expect(menu.getByTestId('shell-org')).toBeVisible()
   })
 
-  test('a badge shows the top-bar count of a tool and the accessible name carries it', async ({ page }) => {
+  test('the tile badge carries the count in its visible number and its accessible name', async ({ page }) => {
     await open(page, '/apps')
     const menu = page.getByTestId('application-navigation')
-    const barBadge = await page.getByTestId('tasks-tool').getAttribute('aria-label')
-    const count = barBadge?.match(/\((\d+)\)/)?.[1]
+    const tile = menu.getByTestId('core-app-tasks')
+    const label = await tile.getAttribute('aria-label')
+    const count = label?.match(/\((\d+)\)/)?.[1]
     test.skip(!count, 'the mock has no open tasks for this user')
-    await expect(menu.getByTestId('core-app-tasks').locator('[data-slot="badge"]')).toHaveText(count!)
-    await expect(menu.getByTestId('core-app-tasks')).toHaveAccessibleName(`مهامي (${count})`)
+    await expect(tile.locator('[data-slot="badge"]')).toHaveText(count!)
+    await expect(tile).toHaveAccessibleName(`أعمالي (${count})`)
   })
 
   test('the tiles fit the 264px column in a left-to-right interface too', async ({ page }) => {

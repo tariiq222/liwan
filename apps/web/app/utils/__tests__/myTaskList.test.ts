@@ -13,11 +13,14 @@ describe('my-tasks list route state', () => {
     expect(parseListState({})).toEqual({ tab: 'open', scope: 'all', sort: 'deadline', q: '', offset: 0 })
   })
 
-  it('reads valid values and ignores anything else', () => {
-    expect(parseListState({ tab: 'closed', scope: 'created', sort: 'name', q: ' x ', offset: 0 }))
+  it('reads valid values from the list\'s own key and ignores anything else', () => {
+    // The key is `state`, not `tab`: «أعمالي» keeps `?tab=` for its attention slices and this list must not fight it.
+    expect(parseListState({ state: 'closed', scope: 'created', sort: 'name', q: ' x ', offset: 0 }))
       .toEqual({ tab: 'closed', scope: 'created', sort: 'name', q: ' x ', offset: 0 })
-    expect(parseListState({ tab: 'x', scope: ['assigned', 'created'], sort: 'zzz', q: ['a'] }))
+    expect(parseListState({ state: 'x', scope: ['assigned', 'created'], sort: 'zzz', q: ['a'] }))
       .toEqual({ tab: 'open', scope: 'assigned', sort: 'deadline', q: 'a', offset: 0 })
+    // A `tab` meant for the workspace is not this list's tab.
+    expect(parseListState({ tab: 'closed' }).tab).toBe('open')
   })
 
   it('maps the state to API params', () => {
@@ -25,13 +28,13 @@ describe('my-tasks list route state', () => {
       .toEqual({ closed: true, scope: undefined, sort: undefined, q: 'hi', offset: 0 })
     expect(toListParams({ tab: 'archived', scope: 'all', sort: 'deadline', q: '', offset: 0 }))
       .toEqual({ closed: false, archived: true, scope: undefined, sort: undefined, q: undefined, offset: 0 })
-    expect(parseListState({ tab: 'archived' }).tab).toBe('archived')
+    expect(parseListState({ state: 'archived' }).tab).toBe('archived')
     expect(toListParams({ tab: 'open', scope: 'assigned', sort: 'created', q: '', offset: 0 }))
       .toEqual({ closed: false, scope: 'assigned', sort: 'created', q: undefined, offset: 0 })
   })
 
   it('drops default values from the URL and keeps unrelated keys', () => {
-    expect(listPatch({ keep: '1', tab: 'closed', q: 'a' }, { tab: 'open', q: '', offset: 0 })).toEqual({ keep: '1' })
+    expect(listPatch({ keep: '1', state: 'closed', q: 'a' }, { tab: 'open', q: '', offset: 0 })).toEqual({ keep: '1' })
     expect(listPatch({}, { scope: 'created' })).toEqual({ scope: 'created' })
     expect(listPatch({}, { scope: 'all', sort: 'deadline' })).toEqual({})
   })
@@ -55,14 +58,14 @@ describe('my-tasks deadline rendering', () => {
 
 describe('closed scope and URL pagination', () => {
   it('reads a closed scope with its actual page offset', () => {
-    expect(parseListState({ tab: 'closed', offset: '50' })).toEqual({ tab: 'closed', scope: 'all', sort: 'deadline', q: '', offset: 50 })
+    expect(parseListState({ state: 'closed', offset: '50' })).toEqual({ tab: 'closed', scope: 'all', sort: 'deadline', q: '', offset: 50 })
   })
   it('resets only pagination when search changes and retains other URL state', () => {
     expect(listPatch({ q: 'old', offset: '50', scope: 'created', view: 'board' }, { q: 'بحث & عربي' }))
       .toEqual({ q: 'بحث & عربي', scope: 'created', view: 'board' })
   })
   it('requests the server closed scope without client-filtering done versus cancelled', () => {
-    expect(toListParams(parseListState({ tab: 'closed', offset: '50' }))).toMatchObject({ closed: true, offset: 50 })
+    expect(toListParams(parseListState({ state: 'closed', offset: '50' }))).toMatchObject({ closed: true, offset: 50 })
   })
 })
 

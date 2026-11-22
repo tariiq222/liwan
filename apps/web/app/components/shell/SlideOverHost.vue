@@ -1,41 +1,24 @@
 <script setup lang="ts">
-import { defineAsyncComponent, type Component } from 'vue'
+import type { Component } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
-import LoadingSkeleton from '@liwan/ui/app/components/shared/feedback/LoadingSkeleton.vue'
 import NotificationsPanel from '@/components/notifications/NotificationsPanel.vue'
 import { assistantBodyView, useAssistantSheet } from '@/composables/useAssistantSheet'
-import { useQuickPanels } from '@/composables/useQuickPanels'
 import { useShellModel } from '@/composables/useShellModel'
 import { ASSISTANT_PANEL, NOTIFICATIONS_PANEL, slideOverId, useSlideOver } from '@/composables/useSlideOver'
-import type { AppQuickPanel } from '@/modules/types'
 
-// Hosts the top bar's slide-over panels: notifications (foundation), the assistant, and the application-declared
-// quick panels (chat, tasks, meetings). One is open at a time. Application bodies load lazily from the manifest
-// (R3: the shell imports no application code); the assistant's body stays mounted after its first open so a
-// half-typed message survives closing.
+// Hosts the top bar's two slide-overs: the notifications and the assistant. One is open at a time. The assistant's
+// body is declared by its application and loads lazily (R3: the shell imports no application code); it stays mounted
+// after its first open so a half-typed message survives closing. The application tool panels were removed from this
+// host on 2026-11-21 (DESIGN.md §3): the sidebar and the phone tab bar open those pages directly.
 const { t } = useI18n()
 const route = useRoute()
 const slideOver = useSlideOver()
 const assistant = useAssistantSheet()
-const { panels } = useQuickPanels()
 const { activeModule } = useShellModel()
-
-// One async wrapper per declared panel, so reopening a panel never reloads its body.
-const quickViews = new WeakMap<AppQuickPanel, Component>()
-function quickView(panel: AppQuickPanel): Component {
-  let view = quickViews.get(panel)
-  if (!view) {
-    // A panel whose chunk is slow to arrive shows rows in its place (after a short delay, so a fast load never flashes).
-    view = defineAsyncComponent({ loader: panel.load, loadingComponent: LoadingSkeleton, delay: 120 })
-    quickViews.set(panel, view)
-  }
-  return view
-}
 
 interface HostedPanel { id: string; title: string; allTo: RouteLocationRaw; allLabel: string; body: Component; flush?: boolean; keep?: boolean; icon: string }
 const hosted = computed<HostedPanel[]>(() => [
   { id: NOTIFICATIONS_PANEL, title: t('notifications.title'), allTo: '/notifications', allLabel: t('nav.panel.openAll'), body: NotificationsPanel, icon: 'i-lucide-bell' },
-  ...panels.value.map(panel => ({ id: panel.id, title: t(panel.labelKey), allTo: panel.to, allLabel: t('nav.panel.openAll'), body: quickView(panel), icon: panel.icon })),
   ...(assistant.surface.value && assistant.showButton.value
     ? [{ id: ASSISTANT_PANEL, title: t(assistant.surface.value.labelKey), allTo: assistant.fullPageTo(activeModule.value), allLabel: t('nav.assistantSheet.openFullPage'), body: assistantBodyView(assistant.surface.value), flush: true, keep: true, icon: 'i-lucide-sparkles' }]
     : []),

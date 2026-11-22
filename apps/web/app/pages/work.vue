@@ -4,8 +4,11 @@ import { useAttention } from '@/composables/useAttention'
 import { useModuleLabel } from '@/composables/useModuleLabel'
 import WorkRow from '@/components/work/WorkRow.vue'
 
-// «مهامي»: the work the user's applications ask of them, split by what is asked (do, decide, follow), from the applications'
-// own attention providers (no endpoint of its own). The kind lives in the URL (`?tab=`), so refresh and back keep it.
+// «أعمالي»: one personal workspace with two tabs (owner decision 2026-11-21). «بانتظاري» is the work the user's
+// applications ask of them, split by what is asked (do, decide, follow), from the applications' own attention
+// providers; its kind lives in `?tab=`. «المهام» is the personal task list, which used to be /my-tasks; it lives in
+// `?view=tasks` so the two query parameters never collide. /my-tasks redirects here with that tab open, and its record
+// routes (/my-tasks/{id}, /new, /{id}/edit) are untouched.
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
@@ -14,6 +17,17 @@ const sourceLabel = useModuleLabel()
 const hydrated = useHydrated()
 const { rows, pending, failed, cappedKinds, refetch } = useAttention('all', { limit: WORK_ROWS_LIMIT })
 const grouped = computed(() => groupByWork(rows.value))
+
+// The workspace tab: «بانتظاري» (the default) or «المهام».
+const workspaceTab = computed<'attention' | 'tasks'>(() => route.query.view === 'tasks' ? 'tasks' : 'attention')
+const workspaceTabs = computed(() => [
+  { value: 'attention', label: t('myTasks.work.tabs.attention') },
+  { value: 'tasks', label: t('myTasks.work.tabs.tasks') },
+])
+async function selectWorkspaceTab(value: string) {
+  const { view: _view, ...rest } = route.query
+  await router.push({ query: value === 'tasks' ? { ...rest, view: 'tasks' } : rest })
+}
 
 const kind = computed(() => parseWorkKind(route.query.tab))
 const kindItems = computed(() => WORK_KINDS.map(value => ({
@@ -47,9 +61,12 @@ function clearFilters() {
 <template>
   <SharedPageContainer data-testid="work-page">
     <SharedPageHeader :title="t('myTasks.work.title')">
-      <UButton to="/my-tasks" color="neutral" variant="outline" size="sm" icon="i-lucide-list-checks" :label="t('myTasks.work.myList')" data-testid="work-my-list" />
       <UButton v-if="can('tasks.tasks.create')" to="/my-tasks/new" size="sm" icon="i-lucide-plus" :label="t('myTasks.new')" data-testid="work-new-task" />
     </SharedPageHeader>
+    <SharedSegmentedControl :disabled="!hydrated" :model-value="workspaceTab" :items="workspaceTabs" :label="t('myTasks.work.tabsLabel')" data-testid="workspace-tabs" class="self-start" @update:model-value="selectWorkspaceTab" />
+    <!-- «المهام» is the personal task list itself, not a copy: the list keeps its own search, scope and view in the URL. -->
+    <MyTasksWorkspace v-if="workspaceTab === 'tasks'" />
+    <template v-else>
     <p class="-mt-2 text-sm text-muted">{{ t('myTasks.work.description') }}</p>
     <SharedListCard>
       <template #filters>
@@ -70,5 +87,6 @@ function clearFilters() {
         <WorkRow v-for="row in shown" :key="row.id" :row="row" :source-label="sourceLabel(row.module)" />
       </ul>
     </SharedListCard>
+    </template>
   </SharedPageContainer>
 </template>
