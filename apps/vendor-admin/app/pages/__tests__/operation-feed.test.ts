@@ -14,6 +14,7 @@ import { isNotAvailable } from '../../utils/vendorSubscriptions'
 import { failureKey, StepUpCancelled } from '../../composables/useStepUp'
 import { canAbandonJob } from '../../utils/sharedJobAbandon'
 import { canRecoverJob } from '../../utils/sharedJobRecovery'
+import { useDebounceFn } from '@vueuse/core'
 import { formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
 
 type PageOptions = { pending?: boolean, client?: boolean, refresh?: () => Promise<void> }
@@ -31,7 +32,7 @@ async function page(name: string, data: unknown, source?: string, query: Record<
   const messages = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../../i18n/locales/en/vendor.json'), 'utf8'))
   const t = (key: string) => key.split('.').reduce((obj: unknown, key) => (obj as Record<string, unknown> | undefined)?.[key], messages) ?? key
   const bindings = {
-    formatLiwanDateTime, failureKey, ...clients, isNotAvailable, canAbandonJob, canRecoverJob,
+    formatLiwanDateTime, failureKey, useDebounceFn, ...clients, isNotAvailable, canAbandonJob, canRecoverJob,
     useVendorSubscriptions: () => ({ listClients: (query: Record<string, unknown>) => request('commercial/clients', { query }) }),
     invoiceStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge,
     _defineComponent: Vue.defineComponent, _withAsyncContext: (fn: () => unknown) => [fn(), () => {}],
