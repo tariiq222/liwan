@@ -1206,7 +1206,7 @@
       "trial": {"title": "Trial", "ends": "Ends on", "remaining": "Days remaining", "state": "State", "extend": "Extend trial", "end": "End trial now", "extendHint": "Add days to the trial end. The action is audited.", "endHint": "Ends the trial now and moves the customer to the free base at once. No invoice is issued and their data stays. They can pay later from their workspace, and you can reopen the trial. The action is audited.", "reopen": "Reopen trial", "reopenHint": "Restores the trial configuration for the chosen number of days. Any unpaid first renewal invoice is voided. The action is audited.", "days": "Days", "reason": "Reason", "readOnly": "Changing a trial requires the subscription management capability.", "states": {"trialing": "Trial", "active": "Active", "past_due": "Past due", "suspended": "Suspended", "pending": "Provisioning", "cancelled": "Cancelled"}},
       "trialStart": {"title": "Start a trial", "hint": "The customer has no subscription yet. A trial creates the workspace and sends the administrator invitation; the customer can pay from inside the workspace at any time during the trial. If they do not, the trial ends on its deadline and they move to the free base.", "plan": "Plan", "cadence": "Billing cadence", "action": "Start {days}-day trial", "noPlans": "No published plan offers a trial."},
       "title": "Customers",
-      "search": "Search by client name",
+      "search": "Search by name, administrator e-mail, workspace address or ID",
       "empty": "No commercial customers yet.",
       "noResults": "No customers match the filters.",
       "notAvailable": "Not available yet",
