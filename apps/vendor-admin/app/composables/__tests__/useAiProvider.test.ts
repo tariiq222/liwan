@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { aiProviderModelsRequestSchema, aiProviderSaveSchema, aiProviderTestRequestSchema } from '@liwan/commercial-contracts'
+import { aiProviderModelsRequestSchema, aiProviderRedeliverRequestSchema, aiProviderSaveSchema, aiProviderTestRequestSchema } from '@liwan/commercial-contracts'
 import { createAiProvider } from '../useAiProvider'
 
 function setup(answer: unknown = {}) {
@@ -33,5 +33,12 @@ describe('AI provider calls', () => {
     await api.save(body)
     expect(request).toHaveBeenCalledWith('platform/ai-provider', { method: 'PATCH', body })
     expect(aiProviderSaveSchema.safeParse(body).success).toBe(true)
+  })
+
+  it('delivers the saved configuration again with a reason only, by POST', async () => {
+    const { api, request } = setup()
+    await api.redeliver('The file was lost')
+    expect(request).toHaveBeenCalledWith('platform/ai-provider/redeliver', { method: 'POST', body: { reason: 'The file was lost' } })
+    expect(aiProviderRedeliverRequestSchema.safeParse((request.mock.calls[0]![1] as { body: unknown }).body).success).toBe(true)
   })
 })

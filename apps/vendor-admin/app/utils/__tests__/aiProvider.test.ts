@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { aiProviderSaveSchema, type AiProviderPreset } from '@liwan/commercial-contracts'
+import { AI_PROVIDER_REDELIVER_REFUSALS, aiProviderSaveSchema, type AiProviderPreset } from '@liwan/commercial-contracts'
 import { StepUpCancelled } from '../../composables/useStepUp'
 import {
   aiProviderErrorKey, aiProviderErrorSection, chargeForOneDollar, configDirty, draftFromSetting, effectiveModel, emptyConfig, freeId, marginBps, modelUsable, modelsOfProvider, quickUnmapped,
@@ -206,5 +206,9 @@ describe('errors', () => {
     for (const code of ['api_key_required', 'invalid_base_url', 'invalid_base_url_port']) expect(aiProviderErrorSection(failure(code)), code).toBe('providers')
     expect(aiProviderErrorSection(failure('default_required'))).toBe('routes')
     expect(aiProviderErrorSection(failure('provider_file_unavailable'))).toBe('general')
+    for (const code of AI_PROVIDER_REDELIVER_REFUSALS) {
+      expect(aiProviderErrorKey(failure(code)), code).toBe(`aiProvider.errors.${code}`)
+      expect(aiProviderErrorSection(failure(code)), code).toBe('general')
+    }
   })
 })

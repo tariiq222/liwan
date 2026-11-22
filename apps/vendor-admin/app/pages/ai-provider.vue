@@ -36,6 +36,8 @@ const notice = ref<string | null>(null)
 const busy = ref<string | null>(null)
 const reason = ref('')
 const confirming = ref(false)
+const redelivering = ref(false)
+const redeliverReason = ref('')
 const addPreset = ref('')
 const addProviderId = ref('')
 const addModelId = ref('')
@@ -44,6 +46,7 @@ const addModelProvider = ref('')
 const dirty = computed(() => configDirty(draft, setting.value))
 const blockers = computed(() => saveBlockers(draft, setting.value, presets.value))
 const reasonValid = computed(() => reason.value.trim().length >= REASON_MIN)
+const redeliverReasonValid = computed(() => redeliverReason.value.trim().length >= REASON_MIN)
 const margin = computed(() => marginBps(draft.margin_percent))
 const disabled = computed(() => !hydrated.value || Boolean(busy.value))
 const presetItems = computed(() => presets.value.map(item => ({ label: item.label, value: item.id })))
@@ -132,6 +135,20 @@ async function save() {
   notice.value = t('aiProvider.save.saved', { revision: ltr(saved.setting?.revision ?? 0) })
 }
 
+/** Writes what is saved to the file the AI service reads, again. It sends the saved setting, not the form, so it waits for a clean draft. */
+async function redeliver() {
+  if (dirty.value || !redeliverReasonValid.value) return
+  const answer = await run('redeliver', 'general', () => api.redeliver(redeliverReason.value.trim()))
+  if (!answer) return
+  data.value = { presets: presets.value, setting: answer.setting }
+  cancelRedeliver()
+  notice.value = t(answer.outcome === 'written' ? 'aiProvider.redeliver.written' : 'aiProvider.redeliver.unchanged', { revision: ltr(answer.setting.revision) })
+}
+function cancelRedeliver() {
+  redelivering.value = false
+  redeliverReason.value = ''
+}
+
 const presetLabel = (id: string) => presetOf(id)?.label ?? id
 const keyState = (provider: ProviderDraft): { text: string, last4: string | null } => {
   if (provider.api_key) return { text: t('aiProvider.providers.keyPending'), last4: null }
@@ -158,8 +175,24 @@ const blockerKey = computed(() => (blockers.value[0] ? `aiProvider.save.blockers
       <template v-else>
         <UAlert
           :color="setting.delivery === 'delivered' ? 'success' : 'warning'" variant="subtle" :icon="setting.delivery === 'delivered' ? 'i-lucide-check' : 'i-lucide-triangle-alert'"
-          :title="t(`aiProvider.status.delivery.${setting.delivery}`, { revision: ltr(setting.revision) })" data-testid="ai-provider-delivery"
+          :title="t(`aiProvider.status.delivery.${setting.delivery}`, { revision: ltr(setting.revision) })"
+          :description="setting.delivery === 'pending' ? t('aiProvider.status.pendingNote') : undefined" data-testid="ai-provider-delivery"
         />
+        <template v-if="setting.delivery === 'pending'">
+          <div v-if="!redelivering" class="flex flex-wrap items-center justify-between gap-2">
+            <p v-if="dirty" class="text-xs text-muted" data-testid="ai-provider-redeliver-dirty">{{ t('aiProvider.redeliver.dirtyHint') }}</p>
+            <span v-else />
+            <UButton color="neutral" variant="outline" icon="i-lucide-refresh-cw" :disabled="disabled || dirty" data-testid="ai-provider-redeliver" @click="redelivering = true">{{ t('aiProvider.redeliver.button') }}</UButton>
+          </div>
+          <SharedInlineConfirm
+            v-else :title="t('aiProvider.redeliver.confirmTitle')" :description="t('aiProvider.redeliver.confirmDescription', { revision: ltr(setting.revision) })" :confirm-label="t('aiProvider.redeliver.confirm')"
+            :pending="busy === 'redeliver'" :disabled="!redeliverReasonValid || dirty" color="warning" @confirm="redeliver" @cancel="cancelRedeliver"
+          >
+            <UFormField class="mt-3" :label="t('aiProvider.redeliver.reason')" :help="t('aiProvider.save.reasonHint')" required>
+              <UInput v-model="redeliverReason" maxlength="1000" class="w-full" :disabled="!hydrated || busy === 'redeliver'" data-testid="ai-provider-redeliver-reason" />
+            </UFormField>
+          </SharedInlineConfirm>
+        </template>
         <p class="text-xs text-muted">{{ t('aiProvider.status.updated', { date: ltr(formatBusinessDateTime(setting.updated_at)) }) }}</p>
       </template>
     </SharedFormSection>

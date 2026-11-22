@@ -1,6 +1,6 @@
 // The platform AI page's vocabulary: the draft the form edits, the rules that decide what a model may serve, and the message each failure shows.
 import {
-  AI_CAPABILITIES, AI_QUALITY_LEVELS, aiConfigIdSchema, aiPriceSchema, type AiCapability, type AiProviderCurrent, type AiProviderPreset, type AiProviderSave, type AiQuality,
+  AI_CAPABILITIES, AI_PROVIDER_REDELIVER_REFUSALS, AI_QUALITY_LEVELS, aiConfigIdSchema, aiPriceSchema, type AiCapability, type AiProviderCurrent, type AiProviderPreset, type AiProviderSave, type AiQuality,
 } from '@liwan/commercial-contracts'
 import { failureKey } from '../composables/useStepUp'
 
@@ -163,6 +163,7 @@ export const configDirty = (draft: ConfigDraft, setting: Setting | null) =>
 const CODES = new Set([
   'invalid', 'invalid_preset', 'invalid_base_url', 'invalid_base_url_port', 'invalid_stream_usage', 'api_key_required', 'api_key_not_allowed', 'secret_key_unavailable', 'provider_file_unavailable',
   'unknown_provider', 'unknown_model', 'model_not_priced', 'model_not_tested', 'model_price_required', 'default_required',
+  ...AI_PROVIDER_REDELIVER_REFUSALS,
   'provider_unauthorized', 'provider_endpoint_refused', 'provider_unreachable', 'provider_timeout', 'provider_rate_limited', 'provider_error', 'provider_invalid_response', 'forbidden', 'step_up_required',
 ])
 export type Section = 'providers' | 'models' | 'routes' | 'general'
