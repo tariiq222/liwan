@@ -6,6 +6,7 @@ import {
   bookAt, bookInHistory, DAY_MS, inForceAt, monthEnds, movementIn, notOnlyAiTopupSql, periodBounds, previousPeriod, ratio, recurringOf, riyadhDay, settleTrials, toTimelines,
   type AppliedOrder, type BookAt, type Departed, type Period, type PricingBaseline, type Timelines,
 } from './analytics-model.js'
+import { owesAtRenewal } from './free-base.js'
 import { CommercialHttpError } from './lifecycle.js'
 import { creditedMinorSql } from './refund-credit.js'
 import { signupFunnel } from './signup-funnel.js'
@@ -64,7 +65,7 @@ async function loadBook(db: Ask): Promise<Book> {
   const kept = rows.filter(row => row.currency === currency)
   const orders = kept.map((row): AppliedOrder => ({
     subscription_id: row.subscription_id, applied_at: new Date(row.applied_at).getTime(), plan_id: row.plan_id, plan_name: row.plan_name,
-    ...recurringOf(row.pricing as PricingBaseline, row.cadence as Cadence), churn: row.churn === true,
+    ...recurringOf(row.pricing as PricingBaseline, row.cadence as Cadence), churn: row.churn === true, paying: owesAtRenewal(row.pricing),
   }))
   const trialEnds = new Map<string, number>(kept.filter(row => row.trial_ends_at).map(row => [row.subscription_id, new Date(row.trial_ends_at).getTime()]))
   const departed: Departed = new Map(kept.filter(row => DEPARTED_STATES.includes(row.state)).map(row => [row.subscription_id, row.left_service_at ? new Date(row.left_service_at).getTime() : null]))
@@ -149,7 +150,7 @@ async function figuresFor(db: Ask, book: Book, unit: Money, period: Period, now:
       mrr: stockMoney(at => at.mrr_minor), arr: stockMoney(at => at.arr_minor),
       new_mrr: moneyFigure(unit, movement.new_minor), expansion_mrr: moneyFigure(unit, movement.expansion_minor),
       contraction_mrr: moneyFigure(unit, movement.contraction_minor), churned_mrr: moneyFigure(unit, movement.churned_minor),
-      arpc: !stock ? historyLost : stock.customers > 0 ? moneyFigure(unit, stock.mrr_minor / stock.customers) : unavailable('no_data'),
+      arpc: !stock ? historyLost : stock.paying_customers > 0 ? moneyFigure(unit, stock.mrr_minor / stock.paying_customers) : unavailable('no_data'),
       extra_branch_mrr: stockMoney(at => at.branch_mrr_minor),
     },
     collection: await collection(db, unit, period, now),
@@ -218,7 +219,8 @@ async function snapshotOf(db: Pool, live: readonly Live[], book: Book, unit: Mon
   const renewals = RENEWAL_WINDOWS.map(days => {
     const limit = new Date(Date.parse(today) + days * DAY_MS).toISOString().slice(0, 10)
     const due = live.filter(sub => sub.renewal_at !== null && sub.renewal_at >= today && sub.renewal_at <= limit)
-    const value = due.reduce((sum, sub) => sum + (inForceAt(timelines.get(sub.subscription_id) ?? [], nowMs + 1)?.cycle_minor ?? 0), 0)
+      .map(sub => inForceAt(timelines.get(sub.subscription_id) ?? [], nowMs + 1)).filter(order => order?.paying)
+    const value = due.reduce((sum, order) => sum + order!.cycle_minor, 0)
     return { within_days: days, count: due.length, value: money(unit, value) }
   })
   return {

@@ -48,7 +48,7 @@
       "expansionMrr": "Upgrade MRR",
       "contractionMrr": "Downgrade MRR",
       "churnedMrr": "Churned MRR",
-      "arpc": "Average revenue per customer",
+      "arpc": "Average revenue per paying customer",
       "extraBranchMrr": "Extra-branch add-on revenue",
       "collected": "Collected in period",
       "outstanding": "Outstanding",
@@ -121,7 +121,7 @@
     "usageSkipped": "{count} customer's usage could not be read and is not in these lists. | {count} customers' usage could not be read and is not in these lists.",
     "renewals": {
       "title": "Upcoming renewals",
-      "description": "Renewal value of billable customers, counted from today.",
+      "description": "Renewal value of paying customers, counted from today.",
       "empty": "No renewals due.",
       "within": "Within {days} days",
       "count": "{count} renewal | {count} renewals"

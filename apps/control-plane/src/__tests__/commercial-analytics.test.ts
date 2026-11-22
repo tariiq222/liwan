@@ -41,7 +41,7 @@ describe('analytics model', () => {
     expect(riyadhDay(Date.parse('2026-10-15T20:59:00Z'))).toBe('2026-10-15')
   })
   it('starts billing at the end of the trial, with only the last order inside the trial kept', () => {
-    const order = (applied: string, mrr: number): AppliedOrder => ({ subscription_id: 's', applied_at: Date.parse(applied), plan_id: 'p', plan_name: 'P', mrr_minor: mrr, branch_mrr_minor: 0, cycle_minor: mrr, arr_minor: mrr * 12 })
+    const order = (applied: string, mrr: number): AppliedOrder => ({ subscription_id: 's', applied_at: Date.parse(applied), plan_id: 'p', plan_name: 'P', mrr_minor: mrr, branch_mrr_minor: 0, cycle_minor: mrr, arr_minor: mrr * 12, paying: true })
     const trialEnd = Date.parse('2026-10-08T00:00:00Z')
     const timelines = settleTrials(toTimelines([order('2026-09-20T00:00:00Z', 100), order('2026-09-25T00:00:00Z', 200)]), new Map([['s', trialEnd]]))
     expect(timelines.get('s')!.map(o => [o.applied_at, o.mrr_minor])).toEqual([[trialEnd, 200]])
@@ -165,6 +165,21 @@ suite('live PostgreSQL vendor analytics', () => {
       expect(await left()).toEqual(first)
       await solo.query("UPDATE subscriptions SET state='active',revision=revision+1 WHERE id=$1", [sub])
       expect(await left()).toBeNull()
+      await solo.query('ROLLBACK')
+    } finally { await solo.end() }
+  })
+
+  it('leaves free-base customers out of ARPC and of the renewal count and value, but not out of the customer totals', async () => {
+    const solo = new Pool({ connectionString: url, max: 1 })
+    try {
+      await solo.query('BEGIN')
+      await seedCustomer(solo, { name: 'L free base', state: 'active', renewal_at: '2026-10-25', steps: [{ at: '2026-09-01T09:00:00Z', plan_revision_id: p1, base_minor: 0 }] })
+      const data = await getAnalytics(solo, period, now)
+      expect(data.current.customers.active).toEqual({ available: true, value: 5 })
+      expect(minor(data.current.revenue.mrr)).toBe(45100)
+      expect(minor(data.current.revenue.arpc)).toBe(11275)
+      expect(data.snapshot.renewals.map(r => [r.within_days, r.count, r.value.minor])).toEqual([[30, 1, 30000], [60, 3, 45000], [90, 3, 45000]])
+      expect(data.snapshot.plans.reduce((sum, plan) => sum + plan.customers, 0)).toBe(5)
       await solo.query('ROLLBACK')
     } finally { await solo.end() }
   })

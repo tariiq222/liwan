@@ -16,6 +16,8 @@ export interface AppliedOrder {
   mrr_minor: number, branch_mrr_minor: number, cycle_minor: number, arr_minor: number
   /** The order that dropped a cancelled subscription to the free base: its lost recurring revenue is churn, not contraction. */
   churn?: boolean
+  /** The revision owes something each period (`owesAtRenewal`); a free-base or free-plan subscription is a customer but not a paying one. */
+  paying: boolean
 }
 
 export type Timelines = Map<string, AppliedOrder[]>
@@ -63,10 +65,10 @@ export function inForceAt(timeline: readonly AppliedOrder[], at: number): Applie
   return found
 }
 
-export interface BookAt { mrr_minor: number, arr_minor: number, branch_mrr_minor: number, customers: number, plans: Map<string, { name: string, customers: number, mrr_minor: number }> }
+export interface BookAt { mrr_minor: number, arr_minor: number, branch_mrr_minor: number, customers: number, paying_customers: number, plans: Map<string, { name: string, customers: number, mrr_minor: number }> }
 
 export function bookAt(timelines: Timelines, at: number): BookAt {
-  const book: BookAt = { mrr_minor: 0, arr_minor: 0, branch_mrr_minor: 0, customers: 0, plans: new Map() }
+  const book: BookAt = { mrr_minor: 0, arr_minor: 0, branch_mrr_minor: 0, customers: 0, paying_customers: 0, plans: new Map() }
   for (const timeline of timelines.values()) {
     const order = inForceAt(timeline, at)
     if (!order) continue
@@ -74,6 +76,7 @@ export function bookAt(timelines: Timelines, at: number): BookAt {
     book.arr_minor += order.arr_minor
     book.branch_mrr_minor += order.branch_mrr_minor
     book.customers += 1
+    if (order.paying) book.paying_customers += 1
     const plan = book.plans.get(order.plan_id) ?? { name: order.plan_name, customers: 0, mrr_minor: 0 }
     plan.customers += 1
     plan.mrr_minor += order.mrr_minor
