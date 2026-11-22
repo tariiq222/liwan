@@ -447,6 +447,9 @@
           "verified": "The effect was verified and the operation is complete.",
           "still_needs_intervention": "The effect could not be confirmed, so the operation still needs review.",
           "failed": "The recovery request could not run."
+        },
+        "errors": {
+          "effect_identity_mismatch": "Recovery refused to complete the operation: the effect found in the workspace has a different key or content than this operation expects. Nothing was changed. Check the workspace by hand before doing anything else."
         }
       },
       "operationId": "Operation ID",

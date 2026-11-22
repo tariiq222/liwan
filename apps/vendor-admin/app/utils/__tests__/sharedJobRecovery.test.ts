@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canRecoverJob } from '../sharedJobRecovery'
+import { canRecoverJob, recoveryTextKey } from '../sharedJobRecovery'
 
 describe('recover control for a stuck shared job', () => {
   const stuck = { source: 'shared', type: 'provision', status: 'needs_intervention', recovery: null }
@@ -17,5 +17,14 @@ describe('recover control for a stuck shared job', () => {
   it('waits for a pending request, and allows asking again after it ended', () => {
     expect(canRecoverJob({ ...stuck, recovery: { state: 'pending' } }, run)).toBe(false)
     for (const state of ['verified', 'still_needs_intervention', 'failed']) expect(canRecoverJob({ ...stuck, recovery: { state } }, run)).toBe(true)
+  })
+})
+
+describe('the sentence for a recovery request', () => {
+  it('gives an identity mismatch its own text and every other outcome its state text', () => {
+    expect(recoveryTextKey({ state: 'failed', error: 'effect_identity_mismatch' })).toBe('vendor.operations.recover.errors.effect_identity_mismatch')
+    expect(recoveryTextKey({ state: 'failed', error: 'authority_lost' })).toBe('vendor.operations.recover.states.failed')
+    expect(recoveryTextKey({ state: 'failed', error: null })).toBe('vendor.operations.recover.states.failed')
+    expect(recoveryTextKey({ state: 'still_needs_intervention', error: 'effect_identity_mismatch' })).toBe('vendor.operations.recover.states.still_needs_intervention')
   })
 })
