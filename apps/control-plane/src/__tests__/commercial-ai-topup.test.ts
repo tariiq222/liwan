@@ -13,7 +13,7 @@ import { applyReceipt, failFulfillment, processFulfillmentOutbox } from '../comm
 import { generateRenewals } from '../commercial/renewals.js'
 import { customerCatalog } from '../commercial/customer-http.js'
 import { deliveredEntitlement, grantedUnits, markTopupRefunded } from '../commercial/ai-ledger.js'
-import { requestInvoiceRefund } from '../commercial/settlements.js'
+import { processRefundOutbox, requestInvoiceRefund } from '../commercial/settlements.js'
 import { extendTrial, pushCommercialExpiry } from '../commercial/trial.js'
 import { transaction } from '../db.js'
 import { expireSharedLeases } from '../shared/job-worker.js'
@@ -238,6 +238,58 @@ suite('AI balance top-up: quote, payment, ledger, delivery, refund', () => {
       await handleProviderEvent(pool, { provider: 'simulator', rawBody: adapter.webhookBody(ref), headers: {}, adapter })
       expect(await grantedUnits(pool, id)).toBe(0)
       expect(await lastJobGranted(id)).toBe(0)
+    })
+    /** A later top-up of a customer who already paid once: the general invoice refund refuses it (`refund_not_first_payment`). */
+    async function laterTopup(amount = 5000) {
+      const { id } = await paidTopup(free, 2500, true)
+      const sub = (await pool.query('SELECT id,revision FROM subscriptions WHERE customer_id=$1', [id])).rows[0]
+      const o = (await order(id, { ...newRequest(free, amount), kind: 'change', subscription_id: sub.id, expected_subscription_revision: sub.revision })).order
+      await pay(id, o.id)
+      await pool.query("UPDATE payment_attempts SET succeeded_at=now()+interval '1 minute' WHERE order_id=$1", [o.id])
+      const invoice = (await pool.query('SELECT id FROM invoices WHERE order_id=$1', [o.id])).rows[0]
+      return { id, o, invoice }
+    }
+    const refundRows = async (order_id: string) => (await pool.query("SELECT payload FROM commercial_outbox WHERE kind='reconcile.refund' AND aggregate_id=$1", [order_id])).rows
+    it('a later unused top-up is returned through the provider once, which the general invoice refund would refuse', async () => {
+      const { id, o, invoice } = await laterTopup()
+      await expect(requestInvoiceRefund(pool, { invoice_id: invoice.id, actor, reason: 'Generic refund', units_used: 0 })).rejects.toMatchObject({ code: 'refund_not_first_payment' })
+      const asked = vi.spyOn(adapter, 'refund')
+      try {
+        const r = await refund(o.id, { reason: 'Customer asked', units_used: 0 })
+        expect(r!.data).toMatchObject({ units: 1_333_333, granted_units: 666_666 })
+        const rows = await refundRows(o.id)
+        expect(rows).toHaveLength(1)
+        expect(rows[0].payload).toMatchObject({ adjustment_id: (r!.data as any).adjustment_id, automatic: true })
+        expect(await processRefundOutbox(pool, adapter)).toBe(1)
+        expect(asked).toHaveBeenCalledTimes(1)
+        expect(await processRefundOutbox(pool, adapter)).toBe(0)
+        expect(asked).toHaveBeenCalledTimes(1)
+        expect((await pool.query('SELECT status,refunded_by FROM invoice_adjustments WHERE invoice_id=$1', [invoice.id])).rows).toEqual([{ status: 'refunded', refunded_by: 'system' }])
+        expect(await grantedUnits(pool, id)).toBe(666_666)
+      } finally { asked.mockRestore() }
+    })
+    it('a retried or concurrent top-up refund queues the provider refund once', async () => {
+      const { o } = await laterTopup()
+      const results = await Promise.allSettled([refund(o.id, { reason: 'First try', units_used: 0 }), refund(o.id, { reason: 'Second try', units_used: 0 })])
+      expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1)
+      expect(results.find(r => r.status === 'rejected')).toMatchObject({ reason: { code: 'refund_already_requested' } })
+      await expect(refund(o.id, { reason: 'Retry', units_used: 0 })).rejects.toMatchObject({ code: 'refund_already_requested' })
+      expect(await refundRows(o.id)).toHaveLength(1)
+    })
+    it('a top-up paid by bank transfer queues no provider refund and is left to the operator\'s form', async () => {
+      const { o } = await laterTopup()
+      await pool.query("UPDATE payment_attempts SET provider='bank_transfer',kind='bank_transfer' WHERE order_id=$1", [o.id])
+      await refund(o.id, { reason: 'Customer asked', units_used: 0 })
+      expect(await refundRows(o.id)).toHaveLength(0)
+    })
+    it('a refused top-up refund queues nothing', async () => {
+      const used = await laterTopup()
+      await expect(refund(used.o.id, { reason: 'Used some', units_used: 5 })).rejects.toMatchObject({ code: 'ai_topup_used' })
+      const late = await laterTopup()
+      await pool.query("UPDATE payment_attempts SET succeeded_at=now()-interval '20 days' WHERE order_id=$1", [late.o.id])
+      await expect(refund(late.o.id, { reason: 'Too late', units_used: 0 })).rejects.toMatchObject({ code: 'refund_window_closed' })
+      expect(await refundRows(used.o.id)).toHaveLength(0)
+      expect(await refundRows(late.o.id)).toHaveLength(0)
     })
     it('refuses once any of it was used', async () => {
       const { id, o } = await paidTopup()

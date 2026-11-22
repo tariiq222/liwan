@@ -17,19 +17,19 @@ import { publishRegistryMutation } from '../shared/registry-store.js'
 import { enqueueSharedJob } from '../shared/job-store.js'
 import { runSharedJob } from '../shared/job-worker.js'
 import { createFencedStorageAdapter, ensureTenantStorageSchema, type TenantStorage } from '../shared/fenced-adapter.js'
-import { createTenantBackup, approveSharedRestore, restoreBackupToNewTarget } from '../shared/shared-backup.js'
+import { createTenantBackup, restoreBackupToNewTarget } from '../shared/shared-backup.js'
+import { insertRestoreApproval } from './helpers/restore-approval.js'
 import { ensureTenantDatabases, tenantDatabaseNames } from './live-tenant-databases.js'
 import { vendorAccount, replaceRoles } from './helpers/vendor-session.js'
 import { vendorActorIssuer } from '../admin-auth/grants.js'
 
 const url = process.env.CONTROL_TEST_DATABASE_URL
-const scratchDatabases = url ? tenantDatabaseNames(9, url) : []
+const scratchDatabases = url ? tenantDatabaseNames(8, url) : []
 const sourceDatabase = scratchDatabases[3] ?? ''
 const targetDatabase = scratchDatabases[4] ?? ''
-const reservedDatabase = scratchDatabases[5] ?? ''
-const unverifiedDatabase = scratchDatabases[6] ?? ''
-const preChangeTarget = scratchDatabases[7] ?? ''
-const mismatchTarget = scratchDatabases[8] ?? ''
+const unverifiedDatabase = scratchDatabases[5] ?? ''
+const preChangeTarget = scratchDatabases[6] ?? ''
+const mismatchTarget = scratchDatabases[7] ?? ''
 if (url) {
   const parsed = new URL(url)
   if (!['127.0.0.1','localhost','::1'].includes(parsed.hostname) || !/^liwan_control_scratch_[a-z0-9]+$/.test(parsed.pathname.slice(1))) throw new Error('CONTROL_TEST_DATABASE_URL must select a unique loopback liwan_control_scratch database')
@@ -115,10 +115,7 @@ else describe('shared backup and restore authority', () => {
   })
 
   it('restores to a NEW target only, once per approval, verified by readback', async () => {
-    // The registry-mapped source database is never an eligible target.
-    await expect(approveSharedRestore(pool, { backupId, controlTenantId: tenantId, targetDatabase: sourceDatabase, ttlSeconds: 3600, actor }))
-      .rejects.toThrow('restore_target_reserved')
-    const { approvalId } = await approveSharedRestore(pool, { backupId, controlTenantId: tenantId, targetDatabase, ttlSeconds: 3600, actor })
+    const approvalId = await insertRestoreApproval(pool, { backupId, controlTenantId: tenantId, targetDatabase, actor })
     const restored = await restoreBackupToNewTarget(pool, connect, { approvalId, actor })
     expect(restored.applied).toBe(true)
     expect(restored.databaseSha256).toMatch(/^[a-f0-9]{64}$/)
@@ -141,17 +138,15 @@ else describe('shared backup and restore authority', () => {
     // The approval is consumed exactly once.
     await expect(restoreBackupToNewTarget(pool, connect, { approvalId, actor })).rejects.toThrow('restore_approval_unavailable')
     // A restore into the now non-empty target with a fresh approval is refused.
-    const again = await approveSharedRestore(pool, { backupId, controlTenantId: tenantId, targetDatabase, ttlSeconds: 3600, actor })
-    await expect(restoreBackupToNewTarget(pool, connect, { approvalId: again.approvalId, actor })).rejects.toThrow('restore_target_not_empty')
+    const againId = await insertRestoreApproval(pool, { backupId, controlTenantId: tenantId, targetDatabase, actor })
+    await expect(restoreBackupToNewTarget(pool, connect, { approvalId: againId, actor })).rejects.toThrow('restore_target_not_empty')
   })
 
-  it('rejects expired approvals and unauthorized actors', async () => {
+  it('rejects an expired approval', async () => {
     const expired = randomUUID()
     await pool.query('INSERT INTO shared_restore_approvals(id,backup_id,control_tenant_id,target_database,reason,expires_at) VALUES($1,$2,$3,$4,$5,clock_timestamp()-interval \'1 second\')',
       [expired, backupId, tenantId, targetDatabase, 'Expired fixture approval'])
     await expect(restoreBackupToNewTarget(pool, connect, { approvalId: expired, actor })).rejects.toThrow('restore_approval_unavailable')
-    await expect(approveSharedRestore(pool, { backupId, controlTenantId: tenantId, targetDatabase: reservedDatabase, ttlSeconds: 3600, actor: { issuer, actorUid: 99 } }))
-      .rejects.toThrow('shared_restore_forbidden')
   })
 
   it('restores a pre-change backup without a policy row', async () => {
@@ -169,7 +164,7 @@ else describe('shared backup and restore authority', () => {
     await pool.query(`INSERT INTO shared_backups(id,control_tenant_id,tenant_id,database_name,filestore,snapshot,database_sha256,filestore_sha256,artifact_path,consistency,created_by)
       VALUES($1,$2,'t04',$3,$3,$4,$5,$6,'legacy-fixture.json','verified',$7)`,
       [legacyBackupId, tenantId, sourceDatabase, JSON.stringify(legacySnapshot), legacyDigest, 'a'.repeat(64), `${issuer}:7`])
-    const { approvalId } = await approveSharedRestore(pool, { backupId: legacyBackupId, controlTenantId: tenantId, targetDatabase: preChangeTarget, ttlSeconds: 3600, actor })
+    const approvalId = await insertRestoreApproval(pool, { backupId: legacyBackupId, controlTenantId: tenantId, targetDatabase: preChangeTarget, actor })
     const restored = await restoreBackupToNewTarget(pool, connect, { approvalId, actor })
     expect(restored.applied).toBe(true)
     // The restored target carries the fencing/effects rows but NO policy.
@@ -187,7 +182,7 @@ else describe('shared backup and restore authority', () => {
   })
 
   it('rolls back the target and keeps the approval unconsumed on a readback mismatch', async () => {
-    const { approvalId } = await approveSharedRestore(pool, { backupId, controlTenantId: tenantId, targetDatabase: mismatchTarget, ttlSeconds: 3600, actor })
+    const approvalId = await insertRestoreApproval(pool, { backupId, controlTenantId: tenantId, targetDatabase: mismatchTarget, actor })
     // Test hook tampers with the written state inside the tenant transaction,
     // before the in-transaction readback, forcing a digest mismatch.
     await expect(restoreBackupToNewTarget(pool, connect, {

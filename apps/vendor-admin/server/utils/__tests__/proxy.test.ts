@@ -176,11 +176,20 @@ describe('vendor API proxy', () => {
     expect((await patch('/commercial/ai-billing-settings')).status).toBe(200)
     expect(calls.map(c => `${c.method} ${c.url.pathname}`)).toEqual(['GET /v1/commercial/ai-billing-settings', 'PATCH /v1/commercial/ai-billing-settings'])
     for (const path of ['/commercial/ai-billing-settings/extra', '/commercial/ai-billing-settingsx', '/commercial/ai-billing']) expect((await get(path)).status, path).toBe(404)
-    // The top-up refund route is not part of the console: a refund goes through the invoice's refund request.
-    expect((await post('/commercial/ai-topups/00000000-0000-4000-8000-000000000001/refund')).status).toBe(404)
     expect(calls).toHaveLength(2)
     expect((await post('/commercial/ai-billing-settings')).status).toBe(405)
     expect(calls).toHaveLength(2)
+  })
+
+  it('forwards the AI top-up refund with POST only, and refuses near misses', async () => {
+    const calls = stubUpstream(() => json(200, {}))
+    const topup = '00000000-0000-4000-8000-000000000001'
+    expect((await post(`/commercial/ai-topups/${topup}/refund`)).status).toBe(200)
+    expect(calls.map(c => `${c.method} ${c.url.pathname}`)).toEqual([`POST /v1/commercial/ai-topups/${topup}/refund`])
+    expect((await get(`/commercial/ai-topups/${topup}/refund`)).status).toBe(405)
+    expect((await patch(`/commercial/ai-topups/${topup}/refund`)).status).toBe(405)
+    for (const path of [`/commercial/ai-topups/${topup}`, `/commercial/ai-topups/${topup}/refund/extra`, '/commercial/ai-topups/refund']) expect((await post(path)).status, path).toBe(404)
+    expect(calls).toHaveLength(1)
   })
 
   it('binds the method of the two release 1 billing routes', async () => {
@@ -226,6 +235,18 @@ describe('vendor API proxy', () => {
       expect((await send(proxy, '/api/vendor/v1/commercial/invoices/inv-1/refund-request', { method, body: { a: 1 }, headers: cookieHeader() })).status, method).toBe(405)
     // A near miss is not the route.
     for (const path of ['/commercial/invoices/inv-1/refund-requests', '/commercial/invoices/inv-1/refund', '/commercial/invoice-adjustments/inv-1/refund-request'])
+      expect((await post(path)).status, path).toBe(404)
+    expect(calls).toHaveLength(forwarded)
+  })
+
+  it('forwards the void of an unpaid renewal invoice, as a POST only', async () => {
+    const calls = stubUpstream(() => json(200, {}))
+    expect((await post('/commercial/invoices/inv-1/void')).status).toBe(200)
+    expect(calls.map(c => `${c.method} ${c.url.pathname}`)).toEqual(['POST /v1/commercial/invoices/inv-1/void'])
+    const forwarded = calls.length
+    for (const method of ['GET', 'PATCH', 'PUT'] as const)
+      expect((await send(proxy, '/api/vendor/v1/commercial/invoices/inv-1/void', { method, body: { a: 1 }, headers: cookieHeader() })).status, method).toBe(405)
+    for (const path of ['/commercial/invoices/inv-1/voids', '/commercial/invoices/inv-1/void/x', '/commercial/invoice-adjustments/inv-1/void'])
       expect((await post(path)).status, path).toBe(404)
     expect(calls).toHaveLength(forwarded)
   })
@@ -289,6 +310,29 @@ describe('vendor API proxy', () => {
     // The other shared tenant routes the console uses keep their methods.
     expect((await get(`/shared/tenants/${T}/provisioning`)).status).toBe(200)
     expect((await post(`/shared/tenants/${T}/restore-publications/a-1`)).status).toBe(200)
+  })
+
+  it('binds the shared backup routes: the listing to GET, the restore approval and the job queue to POST', async () => {
+    const calls = stubUpstream(() => json(200, {}))
+    const T = '00000000-0000-4000-8000-000000000001'
+    const J = '00000000-0000-4000-8000-000000000002'
+    expect((await get(`/shared/tenants/${T}/backups`)).status).toBe(200)
+    for (const path of [`/shared/tenants/${T}/restore-approvals`, `/shared/tenants/${T}/jobs`]) expect((await post(path, { body: { reason: 'Because' } })).status, path).toBe(200)
+    expect(calls).toHaveLength(3)
+    for (const send of [post, patch]) expect((await send(`/shared/tenants/${T}/backups`)).status).toBe(405)
+    for (const path of [`/shared/tenants/${T}/restore-approvals`, `/shared/tenants/${T}/jobs`]) for (const send of [get, patch]) expect((await send(path)).status, path).toBe(405)
+    expect(calls).toHaveLength(3)
+    // The progress of one job stays a read, and the existing recover and abandon bindings are untouched.
+    expect((await get(`/shared/tenants/${T}/jobs/${J}`)).status).toBe(200)
+    expect((await get(`/shared/tenants/${T}/jobs/${J}/recover`)).status).toBe(405)
+  })
+
+  it('hands a refused shared backup start to the browser as the control plane answered it', async () => {
+    const T = '00000000-0000-4000-8000-000000000001'
+    stubUpstream(() => json(409, { code: 'shared_reconciliation_required', message: 'Shared onboarding request rejected' }))
+    const response = await post(`/shared/tenants/${T}/jobs`, { body: { reason: 'Because', job: { schemaVersion: 1, requestId: T, operation: 'backup' } } })
+    expect(response.status).toBe(409)
+    expect(response.body).toMatchObject({ code: 'shared_reconciliation_required' })
   })
 
   it('waits long enough for the AI provider probes (15 s models, two 20 s asks for a test) and keeps 10 s everywhere else', async () => {

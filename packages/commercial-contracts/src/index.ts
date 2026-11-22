@@ -102,6 +102,29 @@ export const sharedProvisioningProgressSchema = z.strictObject({
   admin_login: z.string(), stage: z.string(), error_code: z.string().nullable(),
 })
 
+// Backups of one shared workspace in the vendor console (GET /v1/shared/tenants/:id/backups). Ids, times, display names and
+// states only: never an artifact path, a digest, a database name or a binding.
+export const sharedJobStateSchema = z.enum(['queued', 'running', 'verified', 'needs_intervention', 'failed'])
+const sharedBackupStartSchema = z.union([
+  z.strictObject({ allowed: z.literal(true), reason: z.null(), job_id: z.null() }),
+  z.strictObject({ allowed: z.literal(false), reason: z.literal('operations_unavailable'), job_id: z.null() }),
+  z.strictObject({ allowed: z.literal(false), reason: z.literal('job_in_progress'), job_id: z.uuid() }),
+])
+export const sharedBackupListSchema = z.strictObject({
+  /** Whether a backup can be started now; a refusal names the job that blocks it. */
+  start: sharedBackupStartSchema,
+  total: z.number().int().nonnegative(),
+  items: z.array(z.strictObject({
+    backup_id: z.uuid(), job_id: z.uuid(), created_at: z.iso.datetime(), started_by: z.string().nullable(),
+    /** An unexpired approval that no restore job has used yet: the operator may resume it. */
+    approval: z.strictObject({ approval_id: z.uuid(), expires_at: z.iso.datetime(), approved_by: z.string().nullable() }).nullable(),
+    restores: z.array(z.strictObject({ job_id: z.uuid(), approval_id: z.uuid(), state: sharedJobStateSchema, created_at: z.iso.datetime() })),
+  })),
+})
+export type SharedBackupList = z.infer<typeof sharedBackupListSchema>
+export const sharedRestoreApprovalRequestSchema = z.strictObject({ backup_id: z.uuid(), reason: z.string().trim().min(3).max(1000) })
+export const sharedRestoreApprovalSchema = z.strictObject({ approval_id: z.uuid(), expires_at: z.iso.datetime() })
+
 // Additive vendor read model. Legacy operationSchema remains unchanged.
 export const restorePublicationSchema = z.strictObject({
   approvalId:z.uuid(), status:z.enum(['not_requested','queued','published','needs_intervention']),

@@ -13,7 +13,7 @@ import * as clients from '../../utils/vendorClients'
 import { isNotAvailable } from '../../utils/vendorSubscriptions'
 import { failureKey, StepUpCancelled } from '../../composables/useStepUp'
 import { canAbandonJob } from '../../utils/sharedJobAbandon'
-import { canRecoverJob } from '../../utils/sharedJobRecovery'
+import { canRecoverJob, recoveryTextKey } from '../../utils/sharedJobRecovery'
 import { useDebounceFn } from '@vueuse/core'
 import { formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
 
@@ -32,7 +32,7 @@ async function page(name: string, data: unknown, source?: string, query: Record<
   const messages = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../../i18n/locales/en/vendor.json'), 'utf8'))
   const t = (key: string) => key.split('.').reduce((obj: unknown, key) => (obj as Record<string, unknown> | undefined)?.[key], messages) ?? key
   const bindings = {
-    formatLiwanDateTime, failureKey, useDebounceFn, ...clients, isNotAvailable, canAbandonJob, canRecoverJob,
+    formatLiwanDateTime, failureKey, useDebounceFn, ...clients, isNotAvailable, canAbandonJob, canRecoverJob, recoveryTextKey,
     useVendorSubscriptions: () => ({ listClients: (query: Record<string, unknown>) => request('commercial/clients', { query }) }),
     invoiceStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge,
     _defineComponent: Vue.defineComponent, _withAsyncContext: (fn: () => unknown) => [fn(), () => {}],
@@ -103,6 +103,10 @@ it('offers recover for a stuck provision, sends the reason, and reports the requ
   expect(detail.request).toHaveBeenCalledWith('shared/tenants/tenant-id/jobs/job-id/recover', { method: 'POST', body: { reason: 'The workspace is reachable again' } })
   const ended = await page('operations/[id].vue', { ...stuck, recovery: { state: 'still_needs_intervention', error: null, requested_at: '2026-11-10T00:00:00Z' } }, 'shared')
   expect(ended.html).toContain('still needs review')
+  const refused = await page('operations/[id].vue', { ...stuck, recovery: { state: 'failed', error: 'effect_identity_mismatch', requested_at: '2026-11-10T00:00:00Z' } }, 'shared')
+  expect(refused.html).toContain('different key or content'); expect(refused.html).not.toContain('could not run')
+  const failed = await page('operations/[id].vue', { ...stuck, recovery: { state: 'failed', error: 'authority_lost', requested_at: '2026-11-10T00:00:00Z' } }, 'shared')
+  expect(failed.html).toContain('could not run')
   const pending = await page('operations/[id].vue', { ...stuck, recovery: { state: 'pending', error: null, requested_at: '2026-11-10T00:00:00Z' } }, 'shared')
   expect(pending.state.recoverAllowed.value).toBe(false); expect(pending.state.isActive.value).toBe(true)
   const empty = await page('operations/[id].vue', stuck, 'shared'); empty.request.mockClear(); await empty.state.recoverJob()

@@ -6,7 +6,7 @@ import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import { canPublishRestore } from '@/utils/restorePublication'
 import { operationTargetTo } from '@/utils/vendorOperations'
 import { canAbandonJob } from '@/utils/sharedJobAbandon'
-import { canRecoverJob } from '@/utils/sharedJobRecovery'
+import { canRecoverJob, recoveryTextKey } from '@/utils/sharedJobRecovery'
 import { failureKey } from '@/composables/useStepUp'
 definePageMeta({ capability: 'vendor.read' })
 type Operation = LegacyOperation | OperationFeed
@@ -164,7 +164,7 @@ async function retry() {
         </div>
 
         <SharedRecordSection v-if="recoverAllowed || recovery" :title="t('vendor.operations.recover.title')" :description="t('vendor.operations.recover.hint')" variant="panel" data-testid="operation-recover">
-          <p v-if="recovery" role="status" class="mb-3">{{ t(`vendor.operations.recover.states.${recovery.state}`) }}</p>
+          <p v-if="recovery" role="status" class="mb-3">{{ t(recoveryTextKey(recovery)) }}</p>
           <UButton v-if="recoverAllowed && !recoverOpen" color="neutral" variant="outline" :disabled="!hydrated || busy" @click="recoverOpen = true">{{ t('vendor.operations.recover.action') }}</UButton>
           <SharedInlineConfirm v-if="recoverOpen && recoverAllowed" :title="t('vendor.operations.recover.confirm')" :confirm-label="t('vendor.operations.recover.action')" :pending="busy" :disabled="!hydrated || busy || recoverReason.trim().length < 3 || recoverReason.trim().length > 1000" @confirm="recoverJob" @cancel="recoverOpen = false">
             <UFormField :label="t('vendor.operations.recover.reason')" class="mt-3"><UTextarea v-model="recoverReason" :maxlength="1000" :disabled="busy" /></UFormField>

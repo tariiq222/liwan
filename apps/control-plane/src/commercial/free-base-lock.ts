@@ -93,6 +93,20 @@ export async function armCancellationLocks(pool: Pool, input: { now: Date; subsc
   return due.length
 }
 
+/**
+ * Arms (or re-arms) the cancellation lock for the period starting `start`: the subscription drops to the free base when the lock runs.
+ * It judges nothing; the caller holds the subscription lock and has checked that the drop may start now. A lock that is done, or
+ * superseded, is armed again in place.
+ */
+export async function insertCancellationLock(client: PoolClient, sub: { id: string; applied_revision_id: string }, start: string, now: Date) {
+  await client.query(`INSERT INTO free_base_locks(subscription_id,pre_lock_revision_id,period_start,armed_at,trial_ended_at,cause,next_attempt_at)
+    VALUES($1,$2,$3,$4,NULL,'cancelled',$4)
+    ON CONFLICT(subscription_id) DO UPDATE SET excluded_until=CASE WHEN free_base_locks.cause<>'cancelled' THEN free_base_locks.armed_at ELSE free_base_locks.excluded_until END,
+      pre_lock_revision_id=EXCLUDED.pre_lock_revision_id,period_start=EXCLUDED.period_start,
+      armed_at=EXCLUDED.armed_at,cause='cancelled',next_attempt_at=EXCLUDED.next_attempt_at,kept=NULL,
+      customer_retry_at=NULL,state='pending',order_id=NULL,attempts=0,reason=NULL`, [sub.id, sub.applied_revision_id, start, now])
+}
+
 async function armCancellationLock(pool: Pool, id: string, today: string, now: Date) {
   await transaction(pool, async client => {
     const sub = (await client.query('SELECT *,renewal_at::text AS renewal_on FROM subscriptions WHERE id=$1 FOR UPDATE', [id])).rows[0]
@@ -101,12 +115,7 @@ async function armCancellationLock(pool: Pool, id: string, today: string, now: D
     if ((await client.query(`SELECT ${holdsFreeBaseLockSql('s')} AS held FROM subscriptions s WHERE s.id=$1`, [id])).rows[0].held) return
     if (await paidRenewalInFlight(client, id, true)) return
     const start = sub.renewal_on as string
-    await client.query(`INSERT INTO free_base_locks(subscription_id,pre_lock_revision_id,period_start,armed_at,trial_ended_at,cause,next_attempt_at)
-      VALUES($1,$2,$3,$4,NULL,'cancelled',$4)
-      ON CONFLICT(subscription_id) DO UPDATE SET excluded_until=CASE WHEN free_base_locks.cause<>'cancelled' THEN free_base_locks.armed_at ELSE free_base_locks.excluded_until END,
-        pre_lock_revision_id=EXCLUDED.pre_lock_revision_id,period_start=EXCLUDED.period_start,
-        armed_at=EXCLUDED.armed_at,cause='cancelled',next_attempt_at=EXCLUDED.next_attempt_at,kept=NULL,
-        customer_retry_at=NULL,state='pending',order_id=NULL,attempts=0,reason=NULL`, [id, sub.applied_revision_id, start, now])
+    await insertCancellationLock(client, sub, start, now)
     await voidUnpaidRenewals(client, id, start)
   })
 }

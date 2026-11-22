@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { actorName } from '../admin-auth/accounts.js'
 import type { Pool } from 'pg'
 import type { IncomingHttpHeaders } from 'node:http'
-import { quoteRequestSchema, acceptQuoteRequestSchema, customerTermsRevisionSchema, invoiceStatusSchema, refundCreditNoteRequestSchema, tenantDeletionStateSchema, type Principal } from '@liwan/commercial-contracts'
+import { quoteRequestSchema, acceptQuoteRequestSchema, customerTermsRevisionSchema, invoiceStatusSchema, refundCreditNoteRequestSchema, voidRenewalInvoiceRequestSchema, tenantDeletionStateSchema, type Principal } from '@liwan/commercial-contracts'
 import { parseBody, need, type CommercialInput } from './http.js'
 import { CommercialHttpError, digestOf } from './lifecycle.js'
 import { appliedTermsOf, createCustomerTerms } from './customer-terms.js'
@@ -35,6 +35,7 @@ import { disableAutoRenew } from './auto-renew.js'
 import { SimulatorAdapter } from './payment-simulator.js'
 import { refundCreditNote, requestInvoiceRefund } from './settlements.js'
 import { confirmBankTransfer, parseBankTransferInput } from './bank-transfer.js'
+import { voidRenewalInvoice } from './renewal-void.js'
 import { billingSettings, billingSettingsInputSchema, setBillingSettings } from './billing-settings.js'
 import { refundTopup, topupRefundBodySchema } from './ai-topup.js'
 import { aiBillingSettings } from './ai-ledger.js'
@@ -245,6 +246,14 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
     if(!z.uuid().safeParse(transfer[1]).success)throw new CommercialHttpError('not_found',404)
     const body=parseBankTransferInput(parseBody(input.raw,z.unknown()))
     return {status:201,data:await confirmBankTransfer(pool,{invoice_id:transfer[1]!,operator:principal.actor_id,...body,adapter:runtime?.adapter ?? undefined})}
+  }
+  // Voiding an unpaid renewal invoice ends a debt and may drop a customer to the free base: it needs both the billing and the subscription grants, and a fresh step-up.
+  const voidInvoice=/^\/invoices\/([^/]+)\/void$/.exec(path)
+  if(m==='POST'&&voidInvoice){
+    need(input,'vendor.billing.manage','vendor.subscriptions.manage')
+    if(!z.uuid().safeParse(voidInvoice[1]).success)throw new CommercialHttpError('not_found',404)
+    const body=parseBody(input.raw,voidRenewalInvoiceRequestSchema)
+    return {status:200,data:await voidRenewalInvoice(pool,{invoice_id:voidInvoice[1]!,actor:principal.actor_id,...body})}
   }
   // Vendor-editable billing settings: the refund window and the bank account customers transfer to.
   if(path==='/billing-settings'){

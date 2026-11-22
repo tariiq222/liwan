@@ -62,6 +62,23 @@ the customer asks by message, and the vendor acts in the vendor console.
   `payment_after_cancellation`, `duplicate_payment`, `automatic_refund`) never drop the subscription. They stay with the
   manual review above.
 
+## Voiding an unpaid renewal invoice is not a refund
+
+Owner decision 2026-11-22. An issued renewal invoice that nobody paid is **voided**, not credited: no money was
+received, so no credit note is made and nothing is refunded. The invoice and its lines are kept with status `void`.
+A **credit note** is for money that was received; a **void** is for an invoice that was never paid. The two never share an
+invoice: the console offers the void only on an unpaid renewal invoice and the refund only on a paid one.
+
+- The vendor opens the unpaid renewal invoice and chooses "Void the invoice", picks what happens to the subscription
+  (`end` drops it to the free base now, `rebill` leaves the next renewal run to issue a new invoice for the same period)
+  and writes a reason. It needs `vendor.billing.manage` and `vendor.subscriptions.manage` together and a fresh step-up.
+- It is refused while money may exist: a live or succeeded payment attempt on the order (`payment_reconciliation_required`),
+  a customer's bank-transfer claim (`transfer_claimed`: record the transfer first), a paid renewal still being applied, a
+  free-base lock in flight, or a workspace being deleted. A paid invoice is refunded as above, never voided.
+- The order is cancelled for automatic refund, so a payment that still reaches the provider afterwards is refunded by
+  the system and a `payment_after_cancellation` credit note records it.
+- Audit event `invoice.voided` records who, why, the outcome, and the subscription state before and after.
+
 ## Procedure
 
 1. Find the invoice in the vendor-admin invoice page: a pending credit note is shown on it.

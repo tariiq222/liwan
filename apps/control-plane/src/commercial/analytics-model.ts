@@ -16,6 +16,8 @@ export interface AppliedOrder {
   mrr_minor: number, branch_mrr_minor: number, cycle_minor: number, arr_minor: number
   /** The order that dropped a cancelled subscription to the free base: its lost recurring revenue is churn, not contraction. */
   churn?: boolean
+  /** The revision owes something each period (`owesAtRenewal`); a free-base or free-plan subscription is a customer but not a paying one. */
+  paying: boolean
 }
 
 export type Timelines = Map<string, AppliedOrder[]>
@@ -63,10 +65,10 @@ export function inForceAt(timeline: readonly AppliedOrder[], at: number): Applie
   return found
 }
 
-export interface BookAt { mrr_minor: number, arr_minor: number, branch_mrr_minor: number, customers: number, plans: Map<string, { name: string, customers: number, mrr_minor: number }> }
+export interface BookAt { mrr_minor: number, arr_minor: number, branch_mrr_minor: number, customers: number, paying_customers: number, plans: Map<string, { name: string, customers: number, mrr_minor: number }> }
 
 export function bookAt(timelines: Timelines, at: number): BookAt {
-  const book: BookAt = { mrr_minor: 0, arr_minor: 0, branch_mrr_minor: 0, customers: 0, plans: new Map() }
+  const book: BookAt = { mrr_minor: 0, arr_minor: 0, branch_mrr_minor: 0, customers: 0, paying_customers: 0, plans: new Map() }
   for (const timeline of timelines.values()) {
     const order = inForceAt(timeline, at)
     if (!order) continue
@@ -74,6 +76,7 @@ export function bookAt(timelines: Timelines, at: number): BookAt {
     book.arr_minor += order.arr_minor
     book.branch_mrr_minor += order.branch_mrr_minor
     book.customers += 1
+    if (order.paying) book.paying_customers += 1
     const plan = book.plans.get(order.plan_id) ?? { name: order.plan_name, customers: 0, mrr_minor: 0 }
     plan.customers += 1
     plan.mrr_minor += order.mrr_minor
@@ -161,13 +164,16 @@ export function settleTrials(timelines: Timelines, trialEnds: ReadonlyMap<string
   return settled
 }
 
+/** The departed (suspended or cancelled) subscriptions and when each left service, epoch ms; null when it left before the time was recorded. */
+export type Departed = ReadonlyMap<string, number | null>
+
 /**
- * The book at instant `at`. The control plane stores no time for a subscription leaving service, so a past instant
- * is only known when no departed (suspended or cancelled) subscription had started billing before it. An instant at or after
+ * The book at instant `at`. A departed subscription with a recorded time is in the book up to that time and out of it after.
+ * One without a recorded time leaves a past instant unknown if it had started billing before it. An instant at or after
  * `now` is today's book, where departed subscriptions are simply not billable.
  */
-export function bookInHistory(timelines: Timelines, departed: ReadonlySet<string>, at: number, now: number): BookAt | null {
+export function bookInHistory(timelines: Timelines, departed: Departed, at: number, now: number): BookAt | null {
   if (at > now) return bookAt(new Map([...timelines].filter(([id]) => !departed.has(id))), now + 1)
-  for (const id of departed) if ((timelines.get(id)?.[0]?.applied_at ?? Infinity) < at) return null
-  return bookAt(timelines, at)
+  for (const [id, left] of departed) if (left === null && (timelines.get(id)?.[0]?.applied_at ?? Infinity) < at) return null
+  return bookAt(new Map([...timelines].filter(([id]) => (departed.get(id) ?? Infinity) >= at)), at)
 }

@@ -53,13 +53,33 @@ function page(collection, url, filter = () => true) {
 const q = (url, name) => url.searchParams.get(name) ?? ''
 const byId = (collection, id) => collection.items.find(item => item.id === id)
 
-/** The vendor invoice view: the contract invoice plus its adjustments and the server's refund verdict (a paid invoice is the customer's first payment, inside the 14 days). */
+/**
+ * The vendor invoice view: the contract invoice plus its adjustments and the server's refund verdict (a paid invoice is the
+ * customer's first payment, inside the 14 days). A `change` invoice stands for a later payment: not the first, so the general
+ * refund refuses it; it is paid just now so its window is open whenever the spec runs.
+ */
 const REFUND_WINDOW_DAYS = 14
 function vendorInvoice(invoice) {
   if (!invoice) return invoice
   const paid = invoice.status === 'paid' && invoice.paid_at
-  const until = paid ? `${new Date(Date.parse(invoice.paid_at) + REFUND_WINDOW_DAYS * 86_400_000).toISOString().slice(0, 10)}T23:59:59+03:00` : null
-  return { ...invoice, adjustments: [], refund: { refundable: Boolean(paid), first_payment: Boolean(paid), until, window_days: REFUND_WINDOW_DAYS, locks_subscription: false } }
+  const later = invoice.kind === 'change'
+  const paidAt = later ? Date.now() : Date.parse(invoice.paid_at)
+  const until = paid ? `${new Date(paidAt + REFUND_WINDOW_DAYS * 86_400_000).toISOString().slice(0, 10)}T23:59:59+03:00` : null
+  // An unpaid renewal invoice can be voided unless a customer transfer claim stands in the way (the server's word, never the page's).
+  const unpaidRenewal = invoice.kind === 'renewal' && invoice.status === 'issued'
+  const claimed = invoice.id === CLAIMED_RENEWAL_INVOICE_ID
+  return { ...invoice, adjustments: [], voidable: unpaidRenewal && !claimed, void_block: unpaidRenewal && claimed ? 'transfer_claimed' : null,
+    refund: { refundable: Boolean(paid) && !later, first_payment: Boolean(paid) && !later, until, window_days: REFUND_WINDOW_DAYS, locks_subscription: false } }
+}
+/** Not in the list (the list specs count its rows): unpaid renewal invoices, one voidable and one with a customer transfer claim in the way. */
+const RENEWAL_INVOICE_ID = 'inv-renewal'
+const CLAIMED_RENEWAL_INVOICE_ID = 'inv-renewal-claimed'
+const renewalInvoice = id => ({ ...byId(fixtures.invoices, 'inv-1'), id, kind: 'renewal', order_id: `order-${id}` })
+/** Not in the list (the list specs count its rows): a later payment of an AI top-up alone, opened by its link. */
+const LATER_TOPUP_INVOICE_ID = 'inv-topup'
+const laterTopupInvoice = () => {
+  const base = byId(fixtures.invoices, 'inv-2')
+  return { ...base, id: LATER_TOPUP_INVOICE_ID, kind: 'change', order_id: 'order-alpha-topup', lines: base.lines.map(line => ({ ...line, key: 'ai_topup', kind: 'ai_topup', description: 'AI top-up' })) }
 }
 
 /** Workspace name and owning customer, resolved for display the way the control plane does. */
@@ -155,7 +175,7 @@ export function handleCommercial(req, res, url, { capabilities, body } = {}) {
   else if ((m = /^\/v1\/commercial\/subscriptions\/([^/]+)$/.exec(path))) send(withSavedCard(fixtures.subscriptions[m[1]]))
   else if ((m = /^\/v1\/commercial\/subscriptions\/([^/]+)\/(branches|usage)$/.exec(path))) send(fixtures.subscriptionParts[`${m[1]}:${m[2]}`])
   else if (path === '/v1/commercial/invoices') { const listed = page(fixtures.invoices, url, i => (!q(url, 'status') || i.status === q(url, 'status')) && (!q(url, 'customer_id') || i.customer_id === q(url, 'customer_id'))); send({ ...listed, items: listed.items.map(vendorInvoice), summary: invoiceSummary(q(url, 'customer_id')) }) }
-  else if ((m = /^\/v1\/commercial\/invoices\/([^/]+)$/.exec(path))) send(vendorInvoice(byId(fixtures.invoices, m[1])))
+  else if ((m = /^\/v1\/commercial\/invoices\/([^/]+)$/.exec(path))) send(vendorInvoice(m[1] === LATER_TOPUP_INVOICE_ID ? laterTopupInvoice() : [RENEWAL_INVOICE_ID, CLAIMED_RENEWAL_INVOICE_ID].includes(m[1]) ? renewalInvoice(m[1]) : byId(fixtures.invoices, m[1])))
   else if ((m = /^\/v1\/commercial\/orders\/([^/]+)\/payment-attempts$/.exec(path))) send(fixtures.paymentAttempts[decodeURIComponent(m[1])] ?? { items: [], total: 0 })
   else if (path === '/v1/commercial/plans') send(page(fixtures.plans, url, p => (!q(url, 'status') || p.status === q(url, 'status')) && (!q(url, 'q') || p.name.includes(q(url, 'q')))))
   else if ((m = /^\/v1\/commercial\/plans\/([^/]+)$/.exec(path))) send(byId(fixtures.plans, m[1]))

@@ -30,6 +30,10 @@ const ALLOWED = [
   // A2: the customer-requested refund. Creates the pending vendor credit note; the provider reference is recorded
   // through the existing invoice-adjustments refund route above.
   new RegExp(`^/v1/commercial/invoices/${SEGMENT}/refund-request$`),
+  // Voiding an unpaid renewal invoice (the control plane needs the billing and subscription grants and a fresh step-up).
+  new RegExp(`^/v1/commercial/invoices/${SEGMENT}/void$`),
+  // D8: the refund of a later AI top-up, which the general refund request refuses (not the customer's first payment).
+  new RegExp(`^/v1/commercial/ai-topups/${SEGMENT}/refund$`),
   new RegExp(`^/v1/commercial/customers/${SEGMENT}/(trial|invitations)$`),
   // Workspace deletions are the customer's own: the console reads every request and its run (plan, pre-checks, step ledger) and withdraws one on the customer's behalf. It cannot ask for or confirm one, or drive the run.
   /^\/v1\/commercial\/deletion-requests$/,
@@ -78,6 +82,8 @@ const METHOD_BOUND = [
   { pattern: /^\/v1\/commercial\/ai-billing-settings$/, methods: ['GET', 'PATCH'] },
   { pattern: new RegExp(`^/v1/commercial/invoices/${SEGMENT}/bank-transfer$`), methods: ['POST'] },
   { pattern: new RegExp(`^/v1/commercial/invoices/${SEGMENT}/refund-request$`), methods: ['POST'] },
+  { pattern: new RegExp(`^/v1/commercial/invoices/${SEGMENT}/void$`), methods: ['POST'] },
+  { pattern: new RegExp(`^/v1/commercial/ai-topups/${SEGMENT}/refund$`), methods: ['POST'] },
   { pattern: /^\/v1\/commercial\/deletion-requests$/, methods: ['GET'] },
   { pattern: new RegExp(`^/v1/commercial/customers/${SEGMENT}/deletion$`), methods: ['GET'] },
   { pattern: new RegExp(`^/v1/commercial/customers/${SEGMENT}/deletion/run$`), methods: ['GET'] },
@@ -88,6 +94,9 @@ const METHOD_BOUND = [
   // Team account actions and the shared job actions are commands: POST only.
   { pattern: /^\/v1\/admin\/accounts\/[1-9][0-9]{0,15}\/(roles|disable|enable|reset)$/, methods: ['POST'] },
   { pattern: new RegExp(`^/v1/shared/tenants/${SEGMENT}/jobs/${SEGMENT}/(recover|abandon)$`), methods: ['POST'] },
+  // The shared backup flow: read the listing, approve a restore of one backup, queue a backup or a restore job.
+  { pattern: new RegExp(`^/v1/shared/tenants/${SEGMENT}/backups$`), methods: ['GET'] },
+  { pattern: new RegExp(`^/v1/shared/tenants/${SEGMENT}/(restore-approvals|jobs)$`), methods: ['POST'] },
 ] as const
 
 /** Maps /api/vendor/v1/** to the control plane's /v1/**; anything outside the allowlist (the sign-in surface included) is 404. */

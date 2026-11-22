@@ -295,6 +295,47 @@
         "enabled": "Private messaging"
       }
     },
+    "backups": {
+      "title": "Backups",
+      "hint": "Verified backups of this workspace. A restore makes a separate copy and never touches the live workspace.",
+      "empty": "There are no verified backups yet.",
+      "startedBy": "Started by {name}",
+      "approvalOpen": "A restore approval is open until {time}.",
+      "approvedBy": "Approved by {name}.",
+      "restoreCopy": "Restored copy, {time}",
+      "viewBlocking": "View the blocking operation",
+      "refusal": {
+        "operations_unavailable": "Operations are disabled for this workspace, so a backup cannot be started.",
+        "job_in_progress": "An operation is running or needs attention for this workspace, so a backup cannot be started now."
+      },
+      "reason": "Reason for the backup",
+      "start": "Start a backup",
+      "needsPermission": "Starting a backup needs the permission to run operations.",
+      "confirmStart": "Start a backup of this workspace?",
+      "outage": "Taking the backup stops the shared Odoo service for every customer workspace on this stack, not only this one, and starts it again when the capture is complete. Everyone's sessions are interrupted meanwhile. If the capture fails after the stop, the service can stay stopped until an operator recovers the job.",
+      "errors": {
+        "generic": "The action could not be completed.",
+        "shared_reconciliation_required": "An operation is running or needs attention for this workspace. Finish or resolve it first, then try again.",
+        "tenant_operations_unavailable": "Operations are disabled for this workspace.",
+        "tenant_unavailable": "The workspace is not available for operations right now.",
+        "shared_job_forbidden": "You do not have the permission to run operations.",
+        "forbidden": "You do not have the permission to run operations.",
+        "shared_replay_forbidden": "Another operator started this request.",
+        "idempotency_conflict": "The request id belongs to a different request. Reload the page and try again.",
+        "vendor_unavailable": "The shared operations service is unavailable. Try again later.",
+        "invalid": "A reason is required (at least 3 characters).",
+        "shared_backup_unavailable": "This backup is not available for restore.",
+        "shared_restore_approval_unavailable": "The restore approval has expired or was already used. Start a new restore.",
+        "restore_target_reserved": "The restore target could not be reserved. Try again.",
+        "shared_artifact_mismatch": "The backup files do not match their record, so it cannot be restored."
+      },
+      "restore": "Restore",
+      "resume": "Resume restore",
+      "approvalExpired": "The restore approval has expired. Start a new restore.",
+      "restoreReason": "Reason for the restore",
+      "confirmRestore": "Restore this backup to a separate copy?",
+      "restoreEffect": "A new database and filestore are made from this backup. The live workspace is not changed or replaced, and the restored copy cannot be reached until you publish it from the operation page. The approval is valid for one hour."
+    },
     "operations": {
       "title": "Operations",
       "enqueue": "Queue operation",
@@ -406,6 +447,9 @@
           "verified": "The effect was verified and the operation is complete.",
           "still_needs_intervention": "The effect could not be confirmed, so the operation still needs review.",
           "failed": "The recovery request could not run."
+        },
+        "errors": {
+          "effect_identity_mismatch": "Recovery refused to complete the operation: the effect found in the workspace has a different key or content than this operation expects. Nothing was changed. Check the workspace by hand before doing anything else."
         }
       },
       "operationId": "Operation ID",
@@ -1655,6 +1699,32 @@
         "claimedReference": "Sender or bank reference given by the customer: {reference}",
         "valueDate": "Value date"
       },
+      "void": {
+        "title": "Void this renewal invoice",
+        "hint": "Cancels this unpaid renewal invoice. Nothing was received, so no credit note is made and nothing is refunded. Choose what happens to the subscription.",
+        "action": "Void the invoice",
+        "confirmTitle": "Void this invoice?",
+        "confirmHint": "This cannot be undone. The customer's card is no longer charged for it, and a payment that still arrives is refunded automatically.",
+        "confirm": "Void the invoice",
+        "outcome": "What happens to the subscription",
+        "outcomeChoose": "Choose what happens",
+        "outcomeEnd": "End the subscription now",
+        "outcomeRebill": "Bill the period again",
+        "outcomeEndHint": "The workspace drops to the free base now and the renewal is cancelled. The data is kept.",
+        "outcomeRebillHint": "The subscription stays as it is. The next renewal run issues a new invoice for the same period with a new due date.",
+        "reasonLabel": "Reason (3 to 1000 characters)",
+        "reason": {
+          "invoice_not_voidable": "This is not an unpaid renewal invoice, so it cannot be voided. Reload the page and check its status.",
+          "payment_reconciliation_required": "A payment attempt on this order is not settled yet. Check it with the payment provider and settle it before voiding the invoice.",
+          "transfer_claimed": "The customer says it transferred the amount. Check the transfer and record it first; the invoice cannot be voided before that.",
+          "renewal_in_progress": "A paid renewal is still being applied. Wait for it to finish, then check the invoice.",
+          "lock_pending": "The subscription is being moved to the free base. Try again later.",
+          "tenant_retiring": "The workspace is being deleted, so its billing is not changed.",
+          "subscription_suspended": "You suspended this subscription by hand. Resume it first, or choose to bill the period again.",
+          "subscription_change_pending": "A paid change is still being processed on this subscription. Let it finish or cancel it first.",
+          "invoice_void_retry": "Another change was made to this subscription at the same moment, so nothing was voided. Reload the invoice and try again."
+        }
+      },
       "refund": {
         "action": "Record refund",
         "title": "Record that this credit note was refunded",
@@ -1694,6 +1764,14 @@
           "unitsUsedHint": "Read the units this top-up has spent in the customer's workspace. Enter 0 if none were used. A top-up with any use cannot be refunded.",
           "unitsUsedInvalid": "Enter a whole number, 0 or more."
         },
+        "topup": {
+          "title": "Refund this AI top-up",
+          "hint": "This is a later payment, so the general refund request does not apply. An AI top-up that is unused and still inside the refund window can be refunded here. It opens a credit note for the whole invoice and lowers the customer's AI balance. A card payment is returned through the provider automatically; a bank transfer is returned by you and recorded on the note.",
+          "action": "Refund this AI top-up",
+          "confirmTitle": "Refund this AI top-up in full",
+          "confirmHint": "This opens a credit note for the invoice total and removes the top-up from the customer's balance. A card payment is refunded by the system through the payment provider. A bank transfer is returned by you, then recorded on the note.",
+          "confirm": "Refund top-up"
+        },
         "errors": {
           "units_used_required": "Say how many AI units of this top-up were already used, then request the refund again.",
           "ai_topup_used": "Part of this invoice's AI top-up was already used, so it cannot be refunded.",
@@ -1703,7 +1781,8 @@
           "refund_not_first_payment": "Only the customer's first payment can be refunded; renewals and later payments cannot.",
           "lock_pending": "The subscription is still being moved to the free base. Record the refund again once that finishes.",
           "fulfillment_pending": "This order is still being delivered. Request the refund once the delivery ends.",
-          "refund_in_progress": "The system is still refunding this payment through the provider. Wait for the result; the manual form opens only if the provider cannot refund."
+          "refund_in_progress": "The system is still refunding this payment through the provider. Wait for the result; the manual form opens only if the provider cannot refund.",
+          "ai_topup_refund_mixed_order": "This invoice charged more than the AI top-up, so the top-up cannot be refunded on its own."
         }
       },
       "immutable": "An issued invoice is never edited; corrections are separate documents.",

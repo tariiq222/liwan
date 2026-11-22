@@ -30,6 +30,7 @@ import { accountsHttp } from './admin-auth/accounts-http.js'
 import { aiProviderHttp } from './ai-provider/http.js'
 import { defaultWebAuthn, type WebAuthnLib } from './admin-auth/webauthn.js'
 import { enqueueSharedJob } from './shared/job-store.js'
+import { listSharedBackups } from './shared/backup-list.js'
 import { requestSharedJobRecovery, UnsupportedRecoveryOperation } from './shared/job-recovery.js'
 import { requestSharedJobAbandon, UnsupportedAbandonOperation } from './shared/job-abandon.js'
 import { createHash, randomUUID } from 'node:crypto'
@@ -44,7 +45,7 @@ import { clientAddressBucket } from './client-address-bucket.js'
 import { isPublicSiteEndpoint, PUBLIC_CONTACT_BODY_LIMIT, publicSiteHandler } from './public-site/http.js'
 import { promisify } from 'node:util'
 import type { Pool, PoolClient } from 'pg'
-import { abandonJobRequestSchema, auditListQuerySchema, operationListStatusSchema, operationRequestSchema, operationsGrantSchema, operationStatusesOf, reasonRequestSchema, retryRequestSchema, tenantCreateSchema, type VendorCapability } from '@liwan/commercial-contracts'
+import { abandonJobRequestSchema, auditListQuerySchema, operationListStatusSchema, operationRequestSchema, operationsGrantSchema, operationStatusesOf, reasonRequestSchema, retryRequestSchema, sharedBackupListSchema, sharedRestoreApprovalRequestSchema, sharedRestoreApprovalSchema, tenantCreateSchema, type VendorCapability } from '@liwan/commercial-contracts'
 import { verifyServiceRequest } from '@liwan/commercial-contracts/server'
 import type { Config } from './config.js'
 import { hasUnresolvedMutation, transaction } from './db.js'
@@ -469,6 +470,18 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
         requireCapability(auth, 'vendor.read')
         return respond(res, 200, await sharedProvisioningProgress(pool,sharedProgress[1]!))
       }
+      // The backups of one workspace for the console: ids, times, names and states only (see shared/backup-list.ts).
+      // Starting one (`POST .../jobs`, operation backup) stops the shared Odoo service for EVERY workspace on the stack
+      // while the capture runs, then starts it again; a capture that fails after the stop leaves it stopped until an
+      // operator recovers the job (tools/shared_saas_lifecycle/odoo_backup.py, `capture`).
+      const sharedBackups = pathname.match(new RegExp(`^/v1/shared/tenants/(${UUID})/backups$`))
+      if (method === 'GET' && sharedBackups) {
+        requireCapability(auth, 'vendor.read')
+        if (process.env.LIWAN_TENANCY_MODE !== 'shared') throw new ApiError(503, 'shared_execution_unavailable', 'Shared runtime is unavailable')
+        const backups = await listSharedBackups(pool, sharedBackups[1]!)
+        if (!backups) throw new ApiError(404, 'not_found', 'Workspace not found')
+        return respond(res, 200, sharedBackupListSchema.parse(backups))
+      }
       const publication=pathname.match(new RegExp(`^/v1/shared/tenants/(${UUID})/restore-publications/(${UUID})$`))
       if(publication && (method==='GET'||method==='POST')){
         if(process.env.LIWAN_TENANCY_MODE!=='shared'||!config.sharedRuntimeConfigPath)throw new ApiError(503,'shared_execution_unavailable','Shared runtime is unavailable')
@@ -506,7 +519,7 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
         const runtime=loadSharedRuntimeConfig(config.sharedRuntimeConfigPath)
         if(realProgress){requireCapability(auth,'vendor.read');return respond(res,200,await odooJobProgress(pool,realProgress[1]!,realProgress[2]!))}
         requireCapability(auth,'vendor.operations.run')
-        return respond(res,201,await approveOdooRestore(pool,runtime,{issuer:vendorActorIssuer(config.installationId),actorUid:auth.actor},realApproval![1]!,parseJson(raw,z.strictObject({backup_id:z.uuid(),reason:z.string().trim().min(3).max(1000)}))))
+        return respond(res,201,sharedRestoreApprovalSchema.parse(await approveOdooRestore(pool,runtime,{issuer:vendorActorIssuer(config.installationId),actorUid:auth.actor},realApproval![1]!,parseJson(raw,sharedRestoreApprovalRequestSchema))))
       }
       const sharedQueue = pathname.match(new RegExp(`^/v1/shared/tenants/(${UUID})/jobs$`))
       if (method === 'POST' && sharedQueue) {
@@ -706,7 +719,7 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       }
       throw new ApiError(404, 'not_found', 'Endpoint not found')
     } catch (error) {
-      const known = error instanceof Error && ['shared_job_unavailable','shared_backup_unavailable','shared_restore_approval_unavailable','shared_artifact_mismatch','shared_job_forbidden','tenant_operations_unavailable','restore_target_reserved','shared_replay_forbidden','shared_onboarding_forbidden','idempotency_conflict','published_catalog_missing','catalog_tier_missing','shared_adapter_unavailable','shared_onboarding_missing','shared_job_not_recoverable','shared_job_not_abandonable'].includes(error.message) ? new ApiError(error.message.endsWith('forbidden') ? 403 : error.message === 'shared_adapter_unavailable' ? 503 : error.message === 'shared_onboarding_missing' ? 404 : 409,error.message,'Shared onboarding request rejected') : null
+      const known = error instanceof Error && ['shared_job_unavailable','shared_backup_unavailable','shared_restore_approval_unavailable','shared_artifact_mismatch','shared_job_forbidden','tenant_operations_unavailable','restore_target_reserved','shared_replay_forbidden','shared_onboarding_forbidden','idempotency_conflict','published_catalog_missing','catalog_tier_missing','shared_adapter_unavailable','shared_onboarding_missing','shared_job_not_recoverable','shared_job_not_abandonable','shared_reconciliation_required','tenant_unavailable'].includes(error.message) ? new ApiError(error.message.endsWith('forbidden') ? 403 : error.message === 'shared_adapter_unavailable' ? 503 : error.message === 'shared_onboarding_missing' ? 404 : 409,error.message,'Shared onboarding request rejected') : null
       const failure = error instanceof UnsupportedRecoveryOperation || error instanceof UnsupportedAbandonOperation ? new ApiError(409, error.message, error.detail) : known ?? (error instanceof PackageError ? new ApiError(error.status,error.code,error.detail??'Package request rejected',error.field) : error instanceof z.ZodError ? new ApiError(422,'invalid','Invalid request body',String(error.issues[0]?.path[0]??'body')) : error instanceof ApiError ? error : error instanceof RegistryError ? new ApiError(error.status, error.code, 'Registry operation rejected') : new ApiError(503, 'service_unavailable', 'Control service is unavailable'))
       if (error instanceof CommercialHttpError) return respond(res, error.status, { code: error.code, message: error.code, ...(error.field ? { field: error.field } : {}), ...(error.issues.length ? { issues: error.issues } : {}) })
       return respond(res, failure.status, { code: failure.code, message: failure.message, ...(failure.field ? { field: failure.field } : {}) })

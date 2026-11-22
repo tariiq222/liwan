@@ -134,24 +134,69 @@ D4 to D6 and are not built.
 
 ## 5. Outcome (2026-11-22)
 
-Built, each reproduced in a failing test first: T01 to T31, T33 to T35, T38 to T41, the settings page of T36, the
-recover action of T32, and two of the three T37 defects (overdue clamp, AI top-up conversion).
+Built, each reproduced in a failing test first: T01 to T31, T43 (after D5, see below), T44 (after D6, see below), T33 to T35, T38 to T41, the settings page of T36, the
+recover action of T32, and two of the three T37 defects (overdue clamp, AI top-up conversion). Built after the owner
+decisions of 2026-11-22: the recovery of a job in `needs_intervention` (T32, D7), the history of a departed customer
+(T37, D9), free-base customers in ARPC and renewals (T42, D4) and the AI top-up refund in the console (T36, D8); see
+"Decisions taken" below.
 
 Not built, with the reason:
 
 | Item | Reason | Decision |
 | --- | --- | --- |
-| T32, recovery of a job already in `needs_intervention` | Two tests and `shared/INTEGRATION.md` record "intervention is sticky"; recovering such a job reverses that decision. | D7 |
-| T36, AI top-up refund in the console | The invoice page's refund request already refunds a top-up and also queues the provider refund; the separate route duplicates it. | D8 |
-| T37, history blanked by a suspended or cancelled customer | No time is recorded for a subscription leaving service. | D9 |
 | T40, state kept between two customers | Not reproduced: Nuxt remounts the page when the id changes. | none |
-| T42, T43, T44 | Wait for D4, D5, D6. | D4 to D6 |
 
 | # | Question | Recommended default | Alternative |
 | --- | --- | --- | --- |
 | D7 | May an operator recovery complete a job in `needs_intervention` when the effect is present and verified? | Yes, in `recoverSharedJob` only. | Keep it sticky and change the abandon refusal text, which today says to recover. |
-| D8 | The AI top-up refund route. | Remove it; the invoice refund is the one path. | Expose it as a second action on the invoice page. |
+| D8 | The AI top-up refund route. | Remove it; the invoice refund is the one path. | Expose it as a second action on the invoice page. Taken (2026-11-22, second answer). |
 | D9 | Leaving-service time for analytics history. | Add `left_service_at`, written at each departure; history is exact from then on. | Keep the blank. |
+
+Decisions taken on 2026-11-22: D7 yes: only the operator's recovery request (`recoverSharedJob`) completes a job whose
+journal is in `needs_intervention`, and only when a fresh readback shows the effect present, verified and matching the
+job's key and digest; the automatic worker never does, an absent effect keeps the job, and a mismatch is refused
+(`shared/INTEGRATION.md` step 7 states the one exception). D9 yes: migration `schema_074.sql` adds
+`subscriptions.left_service_at`, written by a trigger on the state column (every departure to suspended or cancelled,
+manual suspension and workspace deletion included, and cleared on return to service, so no code path can miss it);
+analytics history is exact from the recorded time, and a row that left before the column existed keeps no time and
+stays unknown. D4 yes: customer totals still count a free-base customer; ARPC divides recurring revenue by paying
+customers (`owesAtRenewal` on the applied revision) and the upcoming renewals count and value only paying
+subscriptions. D8, second answer: keep the route and expose it as a second action on the invoice page, and make it send
+the refund to the payment provider; the general refund keeps its first-payment-only rule. The route now queues the same
+`reconcile.refund` row the invoice refund request queues (one shared `queueProviderRefund`, keyed by the credit note, so a
+repeat or concurrent request refunds once; a bank transfer is left to the operator's form); its capability
+(`vendor.billing.manage`) and fresh step-up are the same as the invoice refund's. The console forwards it (POST only) and the
+invoice page offers "refund this AI top-up" only for a paid invoice that bought only an AI top-up, is not the customer's
+first payment, is inside the window and has no credit note; one form serves either action, so both are never offered.
+
+T44 (void an unpaid renewal invoice, D6 taken 2026-11-22 as designed in
+[the void design](2026-11-22-void-renewal-invoice-design.md)) is built in six commits on `cp-audit-decisions`:
+the contract and the vendor invoice view (`voidable`, `void_block`), `voidRenewalInvoice` with the `rebill` outcome, the `end`
+outcome (a vendor cancellation record plus the armed free-base lock of cause `cancelled`, no migration), the route
+`POST /invoices/:id/void` (both `vendor.billing.manage` and `vendor.subscriptions.manage`, step-up), the console action
+on the invoice page, and the runbook and refund policy. The two checks the design asked for before `end`: the lock run
+accepts a subscription dunning suspended a moment before (it has no state check and settles it to `active`; the void also
+restores `active` itself when nothing else is overdue), and cause `cancelled` is right (same drop, the vendor chose it).
+Found while building, not settled by the design, built conservatively: `end` is refused while the vendor holds a manual
+suspension (`subscription_suspended`) or a paid change is pending (`subscription_change_pending`), as the customer
+cancellation rules refuse them; the "cancelled, ends on a date" notice is not queued for `end` (the lock is armed in the same
+transaction, so it would be closed unsent) and the customer gets the existing drop notice of cause `cancelled`, whose text
+says "after you cancelled the renewal"; and no console action refuses a customer's bank-transfer claim, so a claimed invoice
+can only be voided after the transfer is confirmed.
+
+T43 (the shared backup and restore flow, D5 taken 2026-11-22 as designed in
+[the backup and restore design](2026-11-22-shared-backup-restore-console-design.md)) is built in eight commits on
+`cp-audit-decisions`: the listing route `GET /v1/shared/tenants/:tenant/backups` (`vendor.read`, a read projection with no
+path, digest or database name, scoped to one workspace), the approver recorded on the approval row (migration
+`schema_075.sql`, immutable like the rest of the approval identity), the listing contract, the proxy bindings (listing GET;
+restore approvals and the job queue POST), the Backups section of the operations tab, starting a backup, restoring from a
+backup (approve then queue, resume of an open approval) and this documentation. Found while building: the adapter does stop the
+shared Odoo service for every workspace on the stack during a backup (`compose stop odoo`, then `start odoo`), so the console
+confirmation says so, and a failure after the stop leaves it stopped until the job is recovered; the control plane answered
+`shared_reconciliation_required` and `tenant_unavailable` with a masked 503, now 409 with their own codes; the existing
+`shared-queue-http` test file's `beforeEach` returned the mock (a cleanup callback that re-threw), fixed with braces. Not
+done: the live proof against a real shared stack (the steps are in `apps/vendor-admin/README.md`), and the console e2e
+(no mock control route exists for the shared routes).
 
 Decisions taken while building: public sign-up reads `LIWAN_SIGNUP_PLAN_ID` (a plan id; the old revision-id
 variable is gone); a resume that did not reach the workspace needed a clock, so migration `schema_073.sql` renames
