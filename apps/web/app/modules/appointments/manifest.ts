@@ -10,6 +10,7 @@ const manifest: AppManifest = {
     { to: '/appointments', labelKey: 'appointments.nav.types', icon: 'i-lucide-calendar-clock', shortcut: 'd', capability: 'appointments.bookings.read' },
   ],
   contextLinks: () => [
+    { id: 'appointments-new', labelKey: 'appointments.list.new', icon: 'i-lucide-plus', to: '/appointments/new', capability: 'appointments.bookings.manage', pinned: true },
     { id: 'appointments-types', labelKey: 'appointments.nav.types', icon: 'i-lucide-calendar-clock', to: '/appointments', capability: 'appointments.bookings.read' },
   ],
   landing: [{ path: '/appointments', capability: 'appointments.bookings.read' }],
@@ -21,6 +22,9 @@ const manifest: AppManifest = {
       { id: 'requester', labelKey: 'appointments.settings.requester.title', icon: 'i-lucide-user-round-check', capability: 'appointments.bookings.manage' },
     ],
   },
-  routeCapabilities: [{ pattern: /^\/appointments(?:\/|$)/, capability: 'appointments.bookings.read' }],
+  routeCapabilities: [
+    { pattern: /^\/appointments\/new$/, capability: 'appointments.bookings.manage' },
+    { pattern: /^\/appointments(?:\/|$)/, capability: 'appointments.bookings.read' },
+  ],
 }
 export default manifest

@@ -267,8 +267,39 @@ async function onHeaderPicked(event: Event) {
   }
 }
 
+// Inserting text at the caret rather than replacing the draft: picking a canned reply used to wipe whatever the agent
+// had already typed, which lost their words with no undo.
+function insertAtCaret(body: string) {
+  const element = textarea.value?.textareaRef
+  const current = draft.value
+  // The suggestion list shows only while the whole draft is a shortcut («/شكر»), and picking one must consume it: inserting
+  // at the caret left `/شكر` in the message, which then went to the customer with the reply.
+  if (/^\/\S*$/.test(current.trim())) {
+    draft.value = body
+    void nextTick(() => {
+      const target = element
+      if (!target) return
+      target.focus()
+      target.setSelectionRange(body.length, body.length)
+    })
+    return
+  }
+  if (!element) {
+    draft.value = current ? `${current}${current.endsWith(' ') ? '' : ' '}${body}` : body
+    return
+  }
+  const start = element.selectionStart ?? current.length
+  const end = element.selectionEnd ?? start
+  draft.value = `${current.slice(0, start)}${body}${current.slice(end)}`
+  void nextTick(() => {
+    const caret = start + body.length
+    element.focus()
+    element.setSelectionRange(caret, caret)
+  })
+}
+
 function pickSuggestion(body: string) {
-  draft.value = body
+  insertAtCaret(body)
 }
 // A canned reply is text: it returns from a structured panel to text composition so the textarea shows it and send sends it.
 function pickCanned(body: string) {

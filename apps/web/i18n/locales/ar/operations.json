@@ -176,6 +176,7 @@
       "single": "اعتماد واحد يكفي"
     },
     "archivedNotEditable": "لا يمكن تعديل إجراء مؤرشف.",
-    "ineligibleReviewers": "لا يملك صلاحية المراجعة: {names}"
+    "ineligibleReviewers": "لا يملك صلاحية المراجعة: {names}",
+    "createAndSubmit": "إنشاء وإرسال للموافقة"
   }
 }
