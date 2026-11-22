@@ -36,6 +36,22 @@ export function recordAvailability(pool: Writer, component: AvailabilityComponen
   return write(pool, component, { startedAt: input.startedAt, now: input.now, detail, log: input.log })
 }
 
+/** The shared worker's own beat: one at start and one every `intervalMs`, from a timer that does not depend on the job loop (a long backup or restore holds the loop, not the timer).
+ * The timer does not keep the process alive and ends with the shutdown signal. A write still running when the next one is due is not repeated. */
+export function startWorkerHeartbeat(pool: Writer, input: { startedAt: Date; signal: AbortSignal; intervalMs?: number; log?: Log }): void {
+  if (input.signal.aborted) return
+  let writing = false
+  const tick = () => {
+    if (writing) return
+    writing = true
+    void beat(pool, 'shared_worker', { startedAt: input.startedAt, log: input.log }).finally(() => { writing = false })
+  }
+  tick()
+  const timer = setInterval(tick, input.intervalMs ?? HEARTBEAT_INTERVAL_MS)
+  timer.unref()
+  input.signal.addEventListener('abort', () => clearInterval(timer), { once: true })
+}
+
 const SELECT = `SELECT component, state,
   to_char(since AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') AS since,
   to_char(last_beat_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') AS last_beat_at, detail, down

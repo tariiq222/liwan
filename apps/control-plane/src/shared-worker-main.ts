@@ -17,6 +17,8 @@ import { processJobAbandonments } from './shared/job-abandon.js'
 import { onShutdownSignal } from './shutdown.js'
 import { createDeletionEffects } from './shared/tenant-deletion-effects-runner.js'
 import { logText } from './log-text.js'
+import { startWorkerHeartbeat,recordAvailability,type AvailabilityComponent } from './service-health.js'
+import { telegramSenderFromEnv } from './commercial/telegram-adapter.js'
 const config=getConfig()
 if(!await sharedOnboardingEnabled(config))throw Error('shared_adapter_unavailable')
 const pool=new Pool({connectionString:config.databaseUrl,max:8})
@@ -26,11 +28,20 @@ onShutdownSignal(()=>controller.abort())
 let scheduler:ReturnType<typeof createCommercialScheduler>|undefined
 try{
   await migrate(pool)
+  const startedAt=new Date()
+  // The worker's own beat runs on a timer, not in the job loop: a long backup or restore holds the loop, not the timer.
+  startWorkerHeartbeat(pool,{startedAt,signal:controller.signal})
   const adapter=createOdooAdapter(pool,config,controller.signal)
   let paymentAdapter:ReturnType<typeof paymentAdapterFromEnv>|undefined
   let mailAdapter:ReturnType<typeof mailAdapterFromEnv>|undefined
-  try{paymentAdapter=paymentAdapterFromEnv(process.env)}catch(e){console.error('commercial payment adapter unavailable: %s',logText(e))}
-  try{mailAdapter=mailAdapterFromEnv(process.env,SCHEDULED_MAIL_SEND_TIMEOUT_MS)}catch(e){console.error('commercial mail adapter unavailable: %s',logText(e))}
+  let telegramSender:ReturnType<typeof telegramSenderFromEnv>|undefined
+  const adapterReports:Promise<void>[]=[]
+  const reportAdapter=(component:AvailabilityComponent,error?:unknown)=>{adapterReports.push(recordAvailability(pool,component,{startedAt,error}))}
+  try{paymentAdapter=paymentAdapterFromEnv(process.env);reportAdapter('payment_adapter')}catch(e){console.error('commercial payment adapter unavailable: %s',logText(e));reportAdapter('payment_adapter',e)}
+  try{mailAdapter=mailAdapterFromEnv(process.env,SCHEDULED_MAIL_SEND_TIMEOUT_MS);reportAdapter('mail_adapter')}catch(e){console.error('commercial mail adapter unavailable: %s',logText(e));reportAdapter('mail_adapter',e)}
+  // No channel configured is a choice, not a failure: nothing is reported for it.
+  try{telegramSender=telegramSenderFromEnv(process.env);if(telegramSender)reportAdapter('alert_channel')}catch(e){console.error('telegram alert channel unavailable: %s',logText(e));reportAdapter('alert_channel',e)}
+  await Promise.all(adapterReports)
   const effect=config.internalEffect
   // The password effect runs here because only the worker may reach Docker; control-api calls it over authenticated HTTPS.
   try{
@@ -45,7 +56,7 @@ try{
         }},controller.signal)
     }
   }catch{console.error('internal_effect_unavailable','start_failed')}
-  scheduler=createCommercialScheduler({pool,config,env:process.env,paymentAdapter,mailAdapter,subscriptionRunner:adapter.subscriptionRunner,usageRunner:adapter.observeUsage,tenantStatusRunner:adapter.setTenantStatus,tenantDeletionEffects:createDeletionEffects(config,loadSharedRuntimeConfig(config.sharedRuntimeConfigPath!),controller.signal),signal:controller.signal})
+  scheduler=createCommercialScheduler({pool,config,env:process.env,paymentAdapter,mailAdapter,telegramSender:telegramSender??undefined,subscriptionRunner:adapter.subscriptionRunner,usageRunner:adapter.observeUsage,tenantStatusRunner:adapter.setTenantStatus,tenantDeletionEffects:createDeletionEffects(config,loadSharedRuntimeConfig(config.sharedRuntimeConfigPath!),controller.signal),signal:controller.signal})
   const log=(message:string,error?:unknown)=>console.error('%s %s',logText(message),logText(error instanceof Error?error.stack??error.message:error,2000))
   const isStopping=()=>controller.signal.aborted
   const maintenance:MaintenanceStep[]=[
