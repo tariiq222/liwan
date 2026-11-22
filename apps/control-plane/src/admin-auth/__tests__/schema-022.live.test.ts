@@ -16,7 +16,7 @@ else describe('schema 022', () => {
   })
   it('tags legacy uid audit actors and leaves the current format alone', async () => {
     await migrate(pool)
-    const sql = await readFile(new URL('../../schema_022.sql', import.meta.url), 'utf8')
+    const sql = await readFile(new URL('../../migrations/schema_022.sql', import.meta.url), 'utf8')
     const statements = sql.match(/UPDATE audit_events[^;]*;/g) ?? []
     expect(statements).toHaveLength(2)
     const actors = ['7', 'vendor-scratch:7', 'account:7', 'operator', 'anonymous', 'legacy-migration:1', 'x:commercial-fulfillment:1']

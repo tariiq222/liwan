@@ -86,6 +86,16 @@ export const refundCreditNoteRequestSchema = z.strictObject({
   reason: z.string().trim().min(3).max(1000),
 })
 
+/** What the subscription does after the vendor voids an unpaid renewal invoice: `end` drops it to the free base at once, `rebill` leaves it to the next renewal run, which issues a new invoice for the same period. */
+export const voidRenewalOutcomeSchema = z.enum(['end', 'rebill'])
+/** Vendor-only: void one unpaid renewal invoice. No credit note is made: no money was received. */
+export const voidRenewalInvoiceRequestSchema = z.strictObject({
+  reason: z.string().trim().min(3).max(1000),
+  outcome: voidRenewalOutcomeSchema,
+})
+/** Why a renewal invoice that could be voided cannot be voided now; the vendor invoice view carries it as `void_block` and the void route answers it as a 409. */
+export const voidBlockSchema = z.enum(['payment_reconciliation_required', 'transfer_claimed', 'renewal_in_progress', 'lock_pending', 'tenant_retiring'])
+
 /** A customer's "I made the transfer" for one issued invoice: the day it says it paid, an optional sender name or bank reference, and when it was first said. */
 export const bankTransferClaimSchema = z.strictObject({
   value_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -155,6 +165,9 @@ export type CustomerCreditNote = z.infer<typeof customerCreditNoteSchema>
 /** One invoice as its own customer reads it. */
 export type CustomerInvoice = Invoice & z.infer<typeof customerInvoiceExtrasSchema>
 export type Adjustment = z.infer<typeof adjustmentSchema>
+export type VoidRenewalOutcome = z.infer<typeof voidRenewalOutcomeSchema>
+export type VoidRenewalInvoiceRequest = z.infer<typeof voidRenewalInvoiceRequestSchema>
+export type VoidBlock = z.infer<typeof voidBlockSchema>
 export type RefundCreditNoteRequest = z.infer<typeof refundCreditNoteRequestSchema>
 export type PaymentAttempt = z.infer<typeof paymentAttemptSchema>
 export type PaymentMethodChoice = z.infer<typeof paymentMethodChoiceSchema>

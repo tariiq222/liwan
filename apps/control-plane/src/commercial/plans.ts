@@ -2,14 +2,14 @@ import { randomUUID } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import { planViewSchema, planCreateSchema, planEditSchema, lifecycleActionSchema, storageStepsAligned, STORAGE_STEP_MISALIGNED, type PlanView, type PlanRevision, type Price } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
-import { audit, CommercialHttpError, digestOf, iso, lockRevision, nextVersion, pageParams, referenceCount, requireStatus, statusSql, type CommercialActor, type Kind } from './lifecycle.js'
+import { audit, CommercialHttpError, customerCountSql, digestOf, iso, lockRevision, nextVersion, pageParams, referenceCount, requireStatus, statusSql, type CommercialActor, type Kind } from './lifecycle.js'
 import { DERIVED_LIMITS, priceIssues, bundleRevision, loadRelease } from './bundles.js'
 import { compileEntitlements, CommercialError } from '@liwan/commercial-contracts/server'
 
 export const PLAN_KIND: Kind = { table: 'plan_revisions', parent: 'commercial_plans', parentCol: 'plan_id', label: 'plan' }
 type Row = Record<string, any>
 type Issue = { code: string; field?: string }
-const FIELDS = 'r.*, (SELECT count(*)::int FROM revision_references x WHERE x.revision_id=r.id) AS customer_count'
+const FIELDS = `r.*, ${customerCountSql("sr.snapshot->>'plan_revision_id' = r.id::text")}`
 const PLAN_COLS = ['name', 'audience', 'term_months', 'currency', 'prices', 'platform_limits', 'included_bundle_revision_ids', 'optional_bundle_revision_ids', 'included_extra_branches', 'extra_branch_prices', 'extra_branches_limit', 'included_users', 'included_storage_mb', 'storage_step_mb', 'storage_step_threshold_mb', 'storage_large_step_mb',
   'user_prices', 'storage_prices', 'policy_revision_id', 'trial_days', 'grace_days', 'auto_suspend', 'auto_renew_allowed'] as const
 
@@ -75,6 +75,8 @@ export async function planIssues(client: Pool | PoolClient, row: Row): Promise<I
         : 'storage_large_step_mb'
     issues.push({ code: STORAGE_STEP_MISALIGNED, field })
   }
+  // The quote prices whole gigabytes, so a step that is not a multiple of 1024 MiB sells sizes no quote can price.
+  for (const field of STORAGE_STEP_FIELDS) if (row[field] % 1024 !== 0) issues.push({ code: 'storage_step_not_whole_gb', field })
   issues.push(...priceIssues(prices, 'prices'), ...priceIssues(branchPrices, 'extra_branch_prices'),
     ...priceIssues(userPrices, 'user_prices'), ...priceIssues(storagePrices, 'storage_prices'))
   // Storage is sold in whole gigabytes above the included minimum (the quote engine enforces the
@@ -189,6 +191,16 @@ export async function createPlan(pool: Pool, actor: CommercialActor, value: unkn
   })
 }
 type Action = 'edit' | 'delete' | 'validate' | 'publish' | 'withdraw' | 'restore' | 'revisions'
+/**
+ * Publishing or restoring a revision withdraws every other sellable revision of the same plan in this transaction,
+ * so the customer catalog never lists the same plan twice. Bundles stay manual: a withdrawn
+ * bundle would strand every published plan that references it.
+ */
+async function withdrawOtherAvailable(client: PoolClient, actor: CommercialActor, row: Row, reason: string) {
+  const withdrawn = await client.query("UPDATE plan_revisions SET available=false,edit_revision=edit_revision+1 WHERE plan_id=$1 AND id<>$2 AND status='published' AND available RETURNING id", [row.plan_id, row.id])
+  for (const predecessor of withdrawn.rows)
+    await audit(client, actor, 'plan.withdrawn_by_publish', row.id, reason, { predecessor_id: predecessor.id, plan_id: row.plan_id })
+}
 export async function mutatePlan(pool: Pool, actor: CommercialActor, id: string, action: Action, value: unknown) {
   const input: Record<string, any> = action === 'edit' ? parsePlanInput<Record<string, any>>(planEditSchema, value) : lifecycleActionSchema.parse(value)
   return transaction(pool, async client => {
@@ -223,19 +235,20 @@ export async function mutatePlan(pool: Pool, actor: CommercialActor, id: string,
       if (action === 'validate') { if (!(await client.query("UPDATE plan_revisions SET status='validated',validated_digest=content_digest,edit_revision=edit_revision+1 WHERE id=$1 AND edit_revision=$2", [id, row.edit_revision])).rowCount) throw new CommercialHttpError('revision_conflict', 409) }
       else {
         await client.query("UPDATE plan_revisions SET status='published',available=true,published_at=now(),edit_revision=edit_revision+1 WHERE id=$1", [id])
-        // Publishing withdraws every other sellable revision of the same plan in this transaction,
-        // so the customer catalog never lists the same plan twice. Bundles stay manual: a withdrawn
-        // bundle would strand every published plan that references it.
-        const withdrawn = await client.query("UPDATE plan_revisions SET available=false,edit_revision=edit_revision+1 WHERE plan_id=$1 AND id<>$2 AND status='published' AND available RETURNING id", [row.plan_id, id])
-        for (const predecessor of withdrawn.rows)
-          await audit(client, actor, 'plan.withdrawn_by_publish', id, reason, { predecessor_id: predecessor.id, plan_id: row.plan_id })
+        await withdrawOtherAvailable(client, actor, row, reason)
         for (const b of new Set<string>([...row.included_bundle_revision_ids, ...row.optional_bundle_revision_ids]))
           await client.query("INSERT INTO revision_references(revision_id,revision_kind,referenced_by_kind,referenced_by_id) VALUES($1,'bundle','plan',$2) ON CONFLICT DO NOTHING", [b, id])
       }
     } else {
       requireStatus(row, ['published'])
       if ((action === 'withdraw') !== row.available) throw new CommercialHttpError('transition_invalid', 409)
+      if (action === 'restore') {
+        // What made the revision sellable can be gone since it was withdrawn (a bundle, a policy), so it is checked as at publish.
+        const issues = await planIssues(client, row)
+        if (issues.length) throw new CommercialHttpError('invalid', 422, issues[0]!.field, issues)
+      }
       await client.query('UPDATE plan_revisions SET available=$2,edit_revision=edit_revision+1 WHERE id=$1', [id, action === 'restore'])
+      if (action === 'restore') await withdrawOtherAvailable(client, actor, row, reason)
     }
     await audit(client, actor, `plan.${action}`, id, reason ?? 'Save plan draft', { edit_revision: row.edit_revision, next_edit_revision: row.edit_revision + 1, previous_digest: row.content_digest })
     return view(client, id)

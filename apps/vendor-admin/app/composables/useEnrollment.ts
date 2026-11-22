@@ -65,14 +65,16 @@ export function createEnrollment(deps: EnrollmentDeps) {
   async function checkInvitation(): Promise<void> {
     await work(async () => {
       try {
-        const invitation = await deps.post<{ email: string }>('/api/auth/enroll/invitation', { token })
+        const invitation = await deps.post<{ email: string, passkey_registered: boolean }>('/api/auth/enroll/invitation', { token })
         email.value = invitation.email
-        step.value = 'passkey'
+        // Reopening the link after the passkey was stored (the page was closed or lost) goes on at the next step.
+        step.value = invitation.passkey_registered ? 'totp' : 'passkey'
       } catch (error) {
         step.value = [401, 422].includes(statusOf(error) ?? 0) ? 'invalid' : 'retry'
         throw error
       }
     })
+    if (step.value === 'totp') await loadTotp()
   }
 
   async function loadTotp(): Promise<void> {

@@ -65,7 +65,14 @@ policyForCreate/verifiedManagedCreate/publicReceipt), not their dedicated runtim
 7. Crash reconciliation never repeats an effect from started/verified when absent.
    It requires intervention. Present+verified with matching persisted intent may
    propose `record_verified`; persist that event by CAS before `verifiedReceipt`.
-   Intervention is sticky. Verified replay still requires fresh matching readback.
+   Intervention is sticky on the automatic path: the worker never completes a job
+   in `needs_intervention`. The one exception is an operator's explicit recovery
+   request (`recoverSharedJob`): when a fresh readback shows the effect present,
+   verified and matching the job's business key and payload digest, it records
+   the verified event and completes the job without executing anything. An
+   absent, partial, unknown or unverified readback leaves the job in
+   `needs_intervention`, and a key or digest mismatch is refused.
+   Verified replay still requires fresh matching readback.
    Do not mark active from `record_verified`, a journal alone, or a process exit.
 8. Receipt construction requires durable verified journal AND fresh readback.
    Persist receipt atomically with operation completion. Reuse existing independent

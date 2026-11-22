@@ -63,7 +63,8 @@
       "lead": "This action is sensitive. Confirm it is you in the browser prompt to continue.",
       "retry": "Try again",
       "cancel": "Cancel",
-      "devConfirm": "Developer confirm"
+      "devConfirm": "Developer confirm",
+      "cancelled": "The passkey confirmation was cancelled; nothing was changed."
     },
     "errors": {
       "failed": "Sign-in failed. Check your details and try again.",

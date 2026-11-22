@@ -175,7 +175,7 @@ suite('fulfillment enqueue retry on scratch PostgreSQL', () => {
     const waiting = await seed({ invoice: false }), done = await seed({ invoice: false })
     await pool.query("UPDATE orders SET fulfillment_state='applied' WHERE id=$1", [done.order])
     await pool.query("UPDATE commercial_outbox SET status='failed',processed_at=now(),attempts=3 WHERE aggregate_id = ANY($1)", [[waiting.order, done.order]])
-    const sql = (await import('node:fs/promises')).readFile(new URL('../schema_028.sql', import.meta.url), 'utf8')
+    const sql = (await import('node:fs/promises')).readFile(new URL('../migrations/schema_028.sql', import.meta.url), 'utf8')
     const requeue = (await sql).slice((await sql).indexOf('UPDATE commercial_outbox'))
     await pool.query(requeue)
     expect(await row(waiting.order)).toMatchObject({ status: 'pending', attempts: 0, waiting: false })

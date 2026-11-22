@@ -43,7 +43,7 @@ export async function previewAdminLogin(pool: Pool, customerId: string, admin_lo
 
 /**
  * Changes the address that receives every control-plane mail for the customer's activated workspace (billing, trial, cancellation and
- * deletion notices, the manager's own invitation requests), under the tenant's invitation lock so it cannot interleave with an issue or a
+ * deletion notices, the manager's own invitation requests, and the workspace onboarding address the password setter checks), under the tenant's invitation lock so it cannot interleave with an issue or a
  * self re-issue. It never touches the workspace itself: no Odoo user, password or login changes, so the new person must already hold an
  * account there. A workspace nobody has activated is refused (`workspace_not_activated`), nothing written.
  *
@@ -58,6 +58,8 @@ export async function changeAdminLogin(pool: Pool, input: AdminLoginChange): Pro
     const previous: string | null = customer.admin_login
     if (previous?.toLowerCase() === next) throw new CommercialHttpError('admin_login_unchanged', 409)
     await c.query('UPDATE customers SET admin_login=$2 WHERE id=$1', [input.customer_id, next])
+    // The onboarding keeps the address the first manager was provisioned with: the password setter and the console's workspace read it, so it moves with the address on record.
+    await c.query('UPDATE shared_onboardings SET admin_login=$2 WHERE control_tenant_id=$1', [tenantId, next])
     if (previous) await c.query('UPDATE admin_invitations SET revoked_at=now() WHERE tenant_id=$1 AND admin_login=$2 AND consumed_at IS NULL AND revoked_at IS NULL', [tenantId, previous])
     const deletionCodeInvalidated = await invalidateDeletionCode(c, { actor: input.actor, client_address: input.client_address }, input.customer_id, input.reason)
     await c.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',

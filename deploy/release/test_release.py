@@ -37,7 +37,8 @@ RELEASE_MANIFEST_IMAGE = {'odoo': 'liwan-odoo', 'web': 'liwan-web', 'guard': 'li
 
 
 def document(commit, platforms=('linux/amd64', 'linux/arm64')):
-    images = {reference: f'{REGISTRY}/{reference}@{AMD64}' for reference in REFERENCES}
+    first = {'linux/amd64': AMD64, 'linux/arm64': ARM64}[platforms[0]]
+    images = {reference: f'{REGISTRY}/{reference}@{first}' for reference in REFERENCES}
     return {'schemaVersion': 1, 'commit': commit,
             'release': {'releaseId': f'r{commit[:12]}', 'liwanCommit': commit, 'odooCommit': 'd' * 40,
                         'images': {key: images[reference] for key, reference in RELEASE_MANIFEST_IMAGE.items()},
@@ -254,8 +255,6 @@ class FakeRunner:
         case = self.case
         if 'ls-remote' in argv:
             patterns = argv[argv.index('ls-remote') + 2:]
-            if patterns == ['refs/heads/main']:
-                return 0, f'{case.head}\trefs/heads/main\n'
             return 0, ''.join(ls_remote_lines(case, patterns))
         if 'merge-base' in argv:
             return (0 if (case.on_main if argv[-1] == 'refs/heads/main' else case.ancestor) else 1), ''
@@ -298,7 +297,7 @@ class ReleaseTest(unittest.TestCase):
         self.environ = {'PATH': '/usr/bin', 'LIWAN_GHCR_READ_USER': USER, 'LIWAN_GHCR_READ_TOKEN': TOKEN}
         self.paths = release.Paths(config_root=root / 'etc', state_root=root / 'state', releases=root / 'releases',
                                    current=root / 'current', maintenance=root / 'maintenance/active')
-        self.state = self.paths.state_root / 'development'
+        self.state = self.paths.state_root / 'staging'
         self.tenant_names = ['tenant_one']
         for name in ('tenant_one', 'tenant_two'):
             (root / 'data/filestore' / name).mkdir(parents=True)
@@ -311,12 +310,12 @@ class ReleaseTest(unittest.TestCase):
         shared_env.write_text(f'LIWAN_TENANT_REGISTRY_DIR={root}/registry\nLIWAN_SHARED_COMPOSE_FILE={root}/shared.compose.json\n'
                               f'LIWAN_SHARED_ODOO_CONFIG={self.odoo_config}\nLIWAN_VENDOR_ADMIN_ENV_FILE={self.vendor_env}\n'
                               f'DB_PASSWORD={SECRET}\n')
-        for environment in ('development', 'staging', 'production'):
+        for environment in ('staging', 'production'):
             self.write_config(shared_env, environment)
         self.paths.releases.mkdir()
         (self.paths.releases / OLD).mkdir()
         self.paths.current.symlink_to(self.paths.releases / OLD)
-        self.head, self.tags, self.ancestor, self.published, self.fetched = NEW, {}, True, True, True
+        self.tags, self.ancestor, self.published, self.fetched = {'release/19.0.1.0.7': NEW}, True, True, True
         self.annotated = set()
         self.on_main = True
         self.fail_health, self.fail_upgrade_of = False, None
@@ -363,15 +362,15 @@ class ReleaseTest(unittest.TestCase):
     def filestore(self, database):
         return self.root / 'data/filestore' / database
 
-    def serve(self, commit, version=None):
+    def serve(self, commit, version=(1, 0, 6)):
         self.state.mkdir(parents=True, exist_ok=True)
-        release.write_json(self.state / 'served.json', {'commit': commit, 'ref': 'refs/heads/main', 'version': version,
+        release.write_json(self.state / 'served.json', {'commit': commit, 'ref': 'refs/tags/release/19.0.1.0.6', 'version': list(version),
                                                         'odooCommit': 'e' * 40})
         release.write_atomic(self.state / 'release.env', release.release_env_text(commit, 'e' * 40))
 
     def main(self, *argv, environ=None):
         log = make_log([USER, TOKEN], self.log_stream)
-        return release.main(list(argv) or ['run', '--environment', 'development'], paths=self.paths, runner=self.runner,
+        return release.main(list(argv) or ['run', '--environment', 'staging'], paths=self.paths, runner=self.runner,
                             log=log, environ=self.environ if environ is None else environ, machine=self.machine)
 
     def served(self):
@@ -415,7 +414,7 @@ class ReleaseTest(unittest.TestCase):
     def test_candidate_comes_from_github_and_the_document_from_ghcr(self):
         self.assertEqual(self.main(), release.EXIT_OK)
         listing = next(call for call in self.runner.calls if 'ls-remote' in call)
-        self.assertEqual(listing[-2:], ['https://github.com/tariiq222/liwan.git', 'refs/heads/main'])
+        self.assertEqual(listing[-2:], ['https://github.com/tariiq222/liwan.git', 'refs/tags/release/*'])
         docker = [call for call in self.runner.calls if call[0] == 'docker'][:6]
         self.assertEqual(docker[0], ['docker', 'login', 'ghcr.io', '--username', USER, '--password-stdin'])
         self.assertEqual(docker[1], ['docker', 'pull', '--quiet', f'{REGISTRY}/liwan-release:{NEW}'])
@@ -424,7 +423,7 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(docker[4], ['docker', 'rm', 'container-1'])
 
     def test_no_change_stops_nothing(self):
-        self.head = OLD
+        self.tags = {'release/19.0.1.0.7': OLD}
         self.assertEqual(self.main(), release.EXIT_OK)
         self.assertEqual(self.result(), f'nothing to do: serving {OLD}')
         self.assertFalse(self.compose_stops())
@@ -463,8 +462,10 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(self.runner.calls, [])
 
     def test_unknown_environment_and_loose_config_are_refused(self):
-        self.assertEqual(self.main('run', '--environment', 'unknown'), release.EXIT_REFUSED)
-        (self.paths.config_root / 'development.env').chmod(0o644)
+        for name in ('unknown', 'development'):
+            self.assertEqual(self.main('run', '--environment', name), release.EXIT_REFUSED)
+            self.assertEqual(self.result(), 'refused invalid_environment')
+        (self.paths.config_root / 'staging.env').chmod(0o644)
         self.assertEqual(self.main(), release.EXIT_REFUSED)
         self.assertEqual(self.result(), 'refused config_not_private')
         self.assertEqual(self.runner.calls, [])
@@ -514,9 +515,13 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(self.main(), release.EXIT_REFUSED)
         self.assertFalse(self.product_pulls() or self.compose_stops())
 
-    def test_development_accepts_an_amd64_only_document_on_an_amd64_host(self):
-        self.document = document(NEW, platforms=('linux/amd64',))
-        self.assertEqual(self.main(), release.EXIT_OK)
+    def test_an_arm64_server_accepts_an_arm64_only_document_and_one_listing_both(self):
+        self.machine = 'aarch64'
+        for platforms in (('linux/arm64',), ('linux/amd64', 'linux/arm64')):
+            with self.subTest(platforms=platforms):
+                self.document = document(NEW, platforms=platforms)
+                self.assertEqual(self.main(), release.EXIT_OK)
+                self.serve(OLD)
 
     def test_production_refuses_a_document_without_arm64_even_on_an_amd64_host(self):
         self.use_production(OLD, [1, 0, 6])
@@ -608,10 +613,9 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(self.result(), 'refused tag_repeated')
         self.assertEqual(self.runner.calls, [])
 
-    def test_a_tag_is_refused_for_development_staging_and_the_other_commands(self):
+    def test_a_tag_is_refused_for_staging_and_the_other_commands(self):
         self.tags = {'release/19.0.1.0.7': NEW}
-        for argv, reason in ((('run', '--environment', 'development', '--tag', 'release/19.0.1.0.7'), 'tag_not_allowed'),
-                             (('run', '--environment', 'staging', '--tag', 'release/19.0.1.0.7'), 'tag_not_allowed'),
+        for argv, reason in ((('run', '--environment', 'staging', '--tag', 'release/19.0.1.0.7'), 'tag_not_allowed'),
                              (('rollback', '--environment', 'production', '--tag', 'release/19.0.1.0.7'), 'tag_not_allowed'),
                              (('status', '--environment', 'production', '--tag', 'release/19.0.1.0.7'), 'tag_not_allowed')):
             with self.subTest(argv=argv):
@@ -619,17 +623,9 @@ class ReleaseTest(unittest.TestCase):
                 self.assertEqual(self.result(), f'refused {reason}')
         self.assertEqual(self.runner.calls, [])
 
-    # --- staging candidate (the same release channel as production) -----------------------------------------
-    def test_development_follows_main_and_never_reads_tags(self):
-        self.tags = {'release/19.0.1.0.7': 'c' * 40}
-        self.assertEqual(self.main('run', '--environment', 'development'), release.EXIT_OK)
-        self.assertEqual(self.served(), NEW)
-        listing = next(call for call in self.runner.calls if 'ls-remote' in call)
-        self.assertEqual(listing[-1], 'refs/heads/main')
-
-    def test_staging_applies_the_highest_release_tag_not_the_main_head(self):
+    # --- staging candidate (the same release tags as production) -----------------------------------------
+    def test_staging_applies_the_highest_release_tag(self):
         self.use_environment('staging', OLD, [1, 0, 6])
-        self.head = 'c' * 40
         self.tags = {'release/19.0.1.0.10': NEW, 'release/19.0.1.0.7': 'c' * 40}
         self.assertEqual(self.main('run', '--environment', 'staging'), release.EXIT_OK)
         listing = next(call for call in self.runner.calls if 'ls-remote' in call)
@@ -731,20 +727,20 @@ class ReleaseTest(unittest.TestCase):
     def test_rollback_command_clears_the_halt_and_finishes_the_rollback(self):
         self.test_rollback_that_fails_halts_and_keeps_maintenance()
         self.runner.answer = FakeRunner.answer.__get__(self.runner)
-        self.assertEqual(self.main('rollback', '--environment', 'development'), release.EXIT_FAILED)
+        self.assertEqual(self.main('rollback', '--environment', 'staging'), release.EXIT_FAILED)
         self.assertEqual(self.result(), 'rolled back interrupted')
         self.assertFalse((self.state / 'halted.json').exists() or self.paths.maintenance.exists())
         self.assertEqual(self.served(), OLD)
 
     def test_rollback_command_without_an_unfinished_run_only_clears_the_halt(self):
         release.write_json(self.state / 'halted.json', {'reason': 'x'})
-        self.assertEqual(self.main('rollback', '--environment', 'development'), release.EXIT_OK)
+        self.assertEqual(self.main('rollback', '--environment', 'staging'), release.EXIT_OK)
         self.assertFalse((self.state / 'halted.json').exists())
         self.assertEqual(self.runner.calls, [])
 
     def test_rollback_command_refuses_a_committed_run(self):
         self.interrupted('cleanup')
-        self.assertEqual(self.main('rollback', '--environment', 'development'), release.EXIT_REFUSED)
+        self.assertEqual(self.main('rollback', '--environment', 'staging'), release.EXIT_REFUSED)
         self.assertEqual(self.runner.calls, [])
 
     def test_rollback_command_cancels_a_run_that_never_recorded_its_inventory(self):
@@ -759,7 +755,7 @@ class ReleaseTest(unittest.TestCase):
                         release.write_json(self.state / 'run.json', run)
                     release.write_json(self.state / 'failed.json', {'commit': NEW, 'reason': 'x', 'at': 'now'})
                     self.runner.calls.clear()
-                    self.assertEqual(self.main('rollback', '--environment', 'development'), release.EXIT_OK)
+                    self.assertEqual(self.main('rollback', '--environment', 'staging'), release.EXIT_OK)
                     self.assertTrue(self.result().startswith(f'cancelled {NEW}'))
                     self.assertFalse(self.compose_stops() or self.commands('-u') or self.renames())
                     self.assertFalse([call for call in self.runner.calls if call[:2] == ['systemctl', 'stop']])
@@ -790,7 +786,7 @@ class ReleaseTest(unittest.TestCase):
                 run = json.loads((self.state / 'run.json').read_text())
                 self.assertNotIn('tenants', run)
                 self.runner.calls.clear()
-                self.assertEqual(self.main('rollback', '--environment', 'development'), release.EXIT_OK)
+                self.assertEqual(self.main('rollback', '--environment', 'staging'), release.EXIT_OK)
                 self.assertFalse(self.compose_stops() or self.renames() or self.paths.maintenance.exists())
                 self.assertFalse((self.state / 'run.json').exists())
                 self.assertEqual(self.main(), release.EXIT_OK)
@@ -799,7 +795,7 @@ class ReleaseTest(unittest.TestCase):
     def test_status_reports_and_exits_3_when_halted(self):
         release.write_json(self.state / 'halted.json', {'reason': 'x'})
         with mock.patch('sys.stdout', new=io.StringIO()) as out:
-            self.assertEqual(self.main('status', '--environment', 'development'), release.EXIT_HALTED)
+            self.assertEqual(self.main('status', '--environment', 'staging'), release.EXIT_HALTED)
         self.assertEqual(json.loads(out.getvalue())['served']['commit'], OLD)
 
     def test_worker_not_ready_after_commit_is_incomplete_and_the_next_run_resumes(self):
@@ -846,8 +842,8 @@ class ReleaseTest(unittest.TestCase):
 
     def interrupted(self, phase):
         names = [name for name in self.tenant_names]
-        run = {'commit': NEW, 'ref': 'refs/heads/main', 'version': None, 'document': document(NEW),
-               'previous': {'commit': OLD, 'odooCommit': 'e' * 40, 'version': None},
+        run = {'commit': NEW, 'ref': 'refs/tags/release/19.0.1.0.7', 'version': [1, 0, 7], 'document': document(NEW),
+               'previous': {'commit': OLD, 'odooCommit': 'e' * 40, 'version': [1, 0, 6]},
                'previousReleaseEnv': release.release_env_text(OLD, 'e' * 40), 'phase': phase,
                'tenants': [{'tenantId': 't1', 'database': name, 'filestore': str(self.filestore(name))} for name in names],
                'snapshots': {name: True for name in names + ['liwan_control']},
@@ -1087,7 +1083,7 @@ class ReleaseTest(unittest.TestCase):
             self.assertTrue(any(arg.endswith('deploy/docker-compose.host-link.yml') for arg in call))
 
     def test_pgpassfile_from_the_config_reaches_the_backup_environment(self):
-        config = self.paths.config_root / 'development.env'
+        config = self.paths.config_root / 'staging.env'
         config.write_text(config.read_text() + 'PGPASSFILE=/etc/liwan-release/pgpass\n')
         self.assertEqual(self.main(), release.EXIT_OK)
         capture = self.commands('capture')[0]
@@ -1411,7 +1407,7 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(self.main(), release.EXIT_ROLLBACK_FAILED)
         self.assertFalse((self.root / 'shared.compose.json').exists())
         self.fail_restore_render = False
-        self.assertEqual(self.main('rollback', '--environment', 'development'), release.EXIT_FAILED)
+        self.assertEqual(self.main('rollback', '--environment', 'staging'), release.EXIT_FAILED)
         self.assertEqual(self.shared_compose(), OLD)
         self.assertIn(['systemctl', 'start', release.SHARED_WORKER_UNIT], self.runner.calls)
 
@@ -1431,7 +1427,7 @@ class ReleaseTest(unittest.TestCase):
         shutil.rmtree(self.paths.releases / OLD)
         for command in ('run', 'rollback'):
             self.runner.calls.clear()
-            self.assertEqual(self.main(command, '--environment', 'development'), release.EXIT_REFUSED)
+            self.assertEqual(self.main(command, '--environment', 'staging'), release.EXIT_REFUSED)
             self.assertEqual(self.result(), 'refused current_dangling')
             self.assertEqual(self.runner.calls, [])
         self.assertTrue(self.paths.current.is_symlink())
@@ -1441,7 +1437,7 @@ class ReleaseTest(unittest.TestCase):
         self.paths.current.mkdir()
         for command in ('run', 'rollback'):
             self.runner.calls.clear()
-            self.assertEqual(self.main(command, '--environment', 'development'), release.EXIT_REFUSED)
+            self.assertEqual(self.main(command, '--environment', 'staging'), release.EXIT_REFUSED)
             self.assertEqual(self.result(), 'refused current_not_symlink')
             self.assertEqual(self.runner.calls, [])
         self.assertTrue(self.paths.current.is_dir() and not self.paths.current.is_symlink())
@@ -1497,14 +1493,14 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(self.main(), release.EXIT_HALTED)  # red in the job, nothing touched
         self.assertEqual(self.result(), f'nothing to do: {NEW} failed before (health_check_failed); run "rollback" to try it again')
         self.assertFalse(self.compose_stops() or self.commands('capture'))
-        self.head = 'c' * 40  # a new candidate is tried
-        self.document = document(self.head)
+        self.tags = {'release/19.0.1.0.8': 'c' * 40}  # a new candidate is tried
+        self.document = document('c' * 40)
         self.assertEqual(self.main(), release.EXIT_OK)
         self.assertEqual(self.served(), 'c' * 40)
 
     def test_rollback_command_clears_the_failed_candidate(self):
         release.write_json(self.state / 'failed.json', {'commit': NEW, 'reason': 'x'})
-        self.assertEqual(self.main('rollback', '--environment', 'development'), release.EXIT_OK)
+        self.assertEqual(self.main('rollback', '--environment', 'staging'), release.EXIT_OK)
         self.assertFalse((self.state / 'failed.json').exists())
         self.assertEqual(self.main(), release.EXIT_OK)
         self.assertEqual(self.served(), NEW)
@@ -1548,7 +1544,7 @@ class ReleaseTest(unittest.TestCase):
         with open(self.state / 'lock', 'a+') as handle:
             fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
             with mock.patch('sys.stdout', new=io.StringIO()) as out:
-                self.assertEqual(self.main('status', '--environment', 'development'), release.EXIT_OK)
+                self.assertEqual(self.main('status', '--environment', 'staging'), release.EXIT_OK)
         self.assertEqual(json.loads(out.getvalue())['served']['commit'], OLD)
 
     def test_commit_prunes_run_folders_of_older_releases(self):
@@ -1576,7 +1572,7 @@ class ReleaseTest(unittest.TestCase):
                     return 1, inner.last_output
                 return super().answer(argv, stdin)
         runner = TailingRunner(self)
-        release.main(['run', '--environment', 'development'], paths=self.paths, runner=runner, log=log,
+        release.main(['run', '--environment', 'staging'], paths=self.paths, runner=runner, log=log,
                      environ=self.environ, machine=self.machine)
         logged = self.log_stream.getvalue()
         self.assertIn('db password *** and s3 *** and token ***', logged)

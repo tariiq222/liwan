@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { catalogApplicationsFromSolution, catalogDigest } from '../commercial/catalog.js'
 import { CommercialError, compileEntitlements } from '../commercial/entitlements.js'
-import { admitsRequiredAdmin, customerTermsRevisionSchema, planCreateSchema, planRevisionSchema } from '../commercial/schemas.js'
+import { admitsRequiredAdmin, bundleCreateSchema, customerTermsRevisionSchema, INT4_MAX, MAX_ENTITLEMENT_LIMIT, planCreateSchema, planEditSchema, planRevisionSchema } from '../commercial/schemas.js'
 import type { BundleRevision, CatalogRelease, PlanRevision } from '../commercial/types.js'
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
@@ -119,6 +119,20 @@ describe('commercial catalog and entitlement compiler', () => {
   it('refuses a chosen quantity that cannot admit the required customer administrator', () => {
     expect(() => compileEntitlements({ ...fixture(), quantities: { users: 0, storage_mb: 0 } }))
       .toThrowError(expect.objectContaining({ code: 'users_limit_admin_required', field: 'quantities' }))
+  })
+  it('bounds plan numbers by the integer columns and by what a workspace accepts', () => {
+    const { plan } = fixture()
+    const { id: _i, plan_id: _p, version: _v, edit_revision: _e, status: _s, available: _a, ...fields } = plan
+    const parsed = (over: Record<string, unknown>) => planCreateSchema.safeParse({ ...fields, ...over })
+    // subscription_effect.validate_features takes 0..1,000,000,000 per feature, so no plan, bundle or terms limit may exceed it.
+    expect(parsed({ platform_limits: { 'tasks.limit': MAX_ENTITLEMENT_LIMIT } }).success).toBe(true)
+    expect(parsed({ platform_limits: { 'tasks.limit': MAX_ENTITLEMENT_LIMIT + 1 } }).success).toBe(false)
+    for (const field of ['included_users', 'included_storage_mb', 'included_extra_branches', 'extra_branches_limit']) {
+      expect(parsed({ [field]: MAX_ENTITLEMENT_LIMIT }).success, field).toBe(true)
+      expect(parsed({ [field]: INT4_MAX + 1 }).success, field).toBe(false)
+    }
+    expect(planEditSchema.safeParse({ ...fields, edit_revision: INT4_MAX + 1, reason: 'Check' }).success).toBe(false)
+    expect(bundleCreateSchema.safeParse({ name: 'b', description: 'd', audience: { kind: 'public' }, catalog_release_id: id(1), selections: [], domain_limits: { 'crm.contacts': MAX_ENTITLEMENT_LIMIT + 1 }, prices: [] }).success).toBe(false)
   })
   it('refuses a terms revision that overrides the chosen metered capacity', () => {
     const terms = (limits: Record<string, number | null>) => ({ id: id(9), customer_id: id(10), reason: 'Special terms', limits })

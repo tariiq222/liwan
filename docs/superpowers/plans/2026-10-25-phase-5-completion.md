@@ -33,7 +33,7 @@
 ### Task 1: Every sellable application gets a complete bundle
 
 **Files:**
-- Modify: `apps/control-plane/src/schema_028.sql` (create; seeds the missing bundles and prices)
+- Modify: `apps/control-plane/src/migrations/schema_028.sql` (create; seeds the missing bundles and prices)
 - Modify: `apps/control-plane/src/db.ts` (register 28)
 - Test: `apps/control-plane/src/__tests__/commercial-catalog.test.ts`
 
@@ -75,7 +75,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/control-plane/src/schema_028.sql apps/control-plane/src/db.ts
+git add apps/control-plane/src/migrations/schema_028.sql apps/control-plane/src/db.ts
 git commit -m "feat(cp): seed a complete bundle for every sellable application"
 ```
 

@@ -81,7 +81,7 @@ describe('the VAT mechanism stays ready for the day Liwan registers', () => {
 describe('no Liwan billing surface names VAT or ZATCA by default', () => {
   const read = (path: string) => readFileSync(new URL(`../../../../${path}`, import.meta.url), 'utf8')
   it('pins the seeded plan to the no-tax policy, never to the 15% one', () => {
-    const plan = read('apps/control-plane/src/schema_025.sql')
+    const plan = read('apps/control-plane/src/migrations/schema_025.sql')
     // The plan seed names exactly one policy revision, and it is the no-tax one.
     const policyIds = new Set(plan.match(/6f1c3d8e-0000-4000-8000-00000000000[12]/g) ?? [])
     expect([...policyIds]).toEqual(['6f1c3d8e-0000-4000-8000-000000000002'])

@@ -16,7 +16,7 @@ import { bankAccountOf, billingSettings } from './billing-settings.js'
 /** A transfer the vendor saw arrive: their own reference, the exact amount, and the day the money reached the account. */
 const bankTransferInputSchema = z.strictObject({
   reference: z.string().trim().min(3).max(200),
-  amount: z.number().int().nonnegative(),
+  amount: z.number().int().positive(),
   value_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   reason: z.string().trim().min(3).max(1000).optional(),
 })
@@ -42,6 +42,9 @@ const attemptView = (row: Record<string, any>) => ({
   status: row.status as string, amount: { minor: Number(row.amount_minor), currency: row.currency, exponent: Number(row.exponent) },
   value_date: row.value_date as string | null,
 })
+
+/** The attempt's columns with `value_date` read as text: node-postgres hands a `date` back as a local-midnight Date, which neither serializes nor formats as the calendar day. */
+const ATTEMPT_COLUMNS = '*,value_date::text AS value_date'
 
 /** A real calendar date, and never in the future: a transfer cannot have arrived tomorrow. */
 function assertValueDate(value: string, today: string) {
@@ -100,7 +103,7 @@ export async function confirmBankTransfer(pool: Pool, input: BankTransferInput &
     if (!invoice) throw new CommercialHttpError('not_found', 404)
     assertValueDateForInvoice(parsed.value_date, today, invoice)
     if (Number(invoice.total_minor) !== parsed.amount) throw new CommercialHttpError('transfer_amount_mismatch', 422)
-    const existing = (await client.query("SELECT * FROM payment_attempts WHERE provider='bank_transfer' AND provider_ref=$1", [parsed.reference])).rows[0]
+    const existing = (await client.query(`SELECT ${ATTEMPT_COLUMNS} FROM payment_attempts WHERE provider='bank_transfer' AND provider_ref=$1`, [parsed.reference])).rows[0]
     if (existing) {
       // The same reference on another invoice is a recorded mistake; the same one on this invoice is a replay.
       if (existing.invoice_id !== invoice.id) throw new CommercialHttpError('transfer_reference_in_use', 409)
@@ -133,15 +136,19 @@ export async function confirmBankTransfer(pool: Pool, input: BankTransferInput &
     // succeeded_at is the value date: the day the money reached the account, not the day it was recorded. apply()
     // keeps the first value it finds, so this survives the settlement that follows.
     const row = (await client.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,value_date,succeeded_at,kind)
-      VALUES($1,$2,$3,'bank_transfer','live',$4,$5,$6,$7,'pending',$8::date,${RIYADH_SUCCEEDED_AT('$8')},'bank_transfer') RETURNING *`,
+      VALUES($1,$2,$3,'bank_transfer','live',$4,$5,$6,$7,'pending',$8::date,${RIYADH_SUCCEEDED_AT('$8')},'bank_transfer') RETURNING ${ATTEMPT_COLUMNS}`,
     [randomUUID(), order.id, invoice.id, parsed.reference, Number(invoice.total_minor), invoice.currency, Number(invoice.exponent), parsed.value_date])).rows[0]
     const outcome = await settleAttemptIn(client, transferEvent(row, order))
     if (outcome !== 'accepted') throw new CommercialHttpError('order_not_payable', 409)
     await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
       [randomUUID(), input.operator, 'payment.bank_transfer_received', order.id, parsed.reason ?? 'Bank transfer received',
         JSON.stringify({ attempt_id: row.id, invoice_id: invoice.id, reference: parsed.reference, amount_minor: Number(invoice.total_minor), value_date: parsed.value_date })])
-    const after = (await client.query('SELECT * FROM payment_attempts WHERE id=$1', [row.id])).rows[0]
+    const after = (await client.query(`SELECT ${ATTEMPT_COLUMNS} FROM payment_attempts WHERE id=$1`, [row.id])).rows[0]
     return { attempt: after, order_id: order.id as string, replay: false }
+  }).catch(error => {
+    // Two recordings of one reference for different invoices can both pass the check above; the unique index decides, and the loser is the same mistake the check names.
+    if ((error as { code?: string }).code === '23505' && (error as { constraint?: string }).constraint === 'payment_attempts_provider_ref') throw new CommercialHttpError('transfer_reference_in_use', 409)
+    throw error
   })
   // After the commit: an open Moyasar attempt on the same order must not stay payable and later become an
   // unrefundable duplicate. This needs the provider, so it cannot live inside the transaction.
@@ -165,7 +172,7 @@ const isPaid = (order: Record<string, any>) => ['paid', 'refund_pending', 'refun
 async function recordDuplicateTransfer(client: PoolClient, input: { invoice: Record<string, any>; order: Record<string, any>; parsed: BankTransferInput; operator: string }) {
   const { invoice, order, parsed, operator } = input
   const row = (await client.query(`INSERT INTO payment_attempts(id,order_id,invoice_id,provider,mode,provider_ref,amount_minor,currency,exponent,status,value_date,succeeded_at,kind)
-    VALUES($1,$2,$3,'bank_transfer','live',$4,$5,$6,$7,'succeeded',$8::date,${RIYADH_SUCCEEDED_AT('$8')},'bank_transfer') RETURNING *`,
+    VALUES($1,$2,$3,'bank_transfer','live',$4,$5,$6,$7,'succeeded',$8::date,${RIYADH_SUCCEEDED_AT('$8')},'bank_transfer') RETURNING ${ATTEMPT_COLUMNS}`,
   [randomUUID(), order.id, invoice.id, parsed.reference, Number(invoice.total_minor), invoice.currency, Number(invoice.exponent), parsed.value_date])).rows[0]
   const reason = `duplicate bank transfer — manual review (attempt ${row.id})`
   const eventId = `bank-transfer-duplicate:${row.id}`
@@ -189,7 +196,7 @@ async function replayOf(client: PoolClient, existing: Record<string, any>, order
   if (order.payment_state === 'awaiting_payment' && !order.cancelled) {
     const outcome = await settleAttemptIn(client, transferEvent(existing, order))
     if (outcome !== 'accepted') throw new CommercialHttpError('order_not_payable', 409)
-    const after = (await client.query('SELECT * FROM payment_attempts WHERE id=$1', [existing.id])).rows[0]
+    const after = (await client.query(`SELECT ${ATTEMPT_COLUMNS} FROM payment_attempts WHERE id=$1`, [existing.id])).rows[0]
     return { attempt: after, order_id: order.id as string, replay: after.status === 'succeeded' }
   }
   throw new CommercialHttpError('order_not_payable', 409)

@@ -80,8 +80,24 @@ describe('shared tenant-bound operation contract', () => {
   it('rejects swapped journal identity', () => {
     expect(() => reconcileSharedJob(job(), target, { ...journal(), job: { ...job(), binding: { ...binding, tenantId: 'other' } } }, absent)).toThrow('tenant_binding_mismatch')
   })
-  it('does not revive an intervention journal from a later observation', () => {
+  it('does not revive an intervention journal from a later observation on the automatic path', () => {
     expect(reconcileSharedJob(job(), target, journal('needs_intervention'), present()).action).toBe('needs_intervention')
+  })
+  describe('operator recovery of an intervention journal', () => {
+    const recovery = { operatorRecovery: true }
+    it('completes it when the effect is present, verified and matching', () => {
+      expect(reconcileSharedJob(job(), target, journal('needs_intervention'), present(), recovery).action).toBe('record_verified')
+    })
+    it('keeps it when the effect is absent, unverified, partial or unknown', () => {
+      expect(reconcileSharedJob(job(), target, journal('needs_intervention'), absent, recovery).action).toBe('needs_intervention')
+      expect(reconcileSharedJob(job(), target, journal('needs_intervention'), { ...present(), verified: false }, recovery).action).toBe('needs_intervention')
+      expect(reconcileSharedJob(job(), target, journal('needs_intervention'), { state: 'partial' }, recovery).action).toBe('needs_intervention')
+      expect(reconcileSharedJob(job(), target, journal('needs_intervention'), { state: 'unknown' }, recovery).action).toBe('needs_intervention')
+    })
+    it.each(['businessKey', 'payloadDigest'])('refuses an observed %s that does not match', (field) => {
+      const wrong = { ...present(), [field]: field === 'payloadDigest' ? 'b'.repeat(64) : 'other' }
+      expect(() => reconcileSharedJob(job(), target, journal('needs_intervention'), wrong, recovery)).toThrow('effect_identity_mismatch')
+    })
   })
 })
 

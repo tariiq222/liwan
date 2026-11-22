@@ -18,7 +18,7 @@
 - The client sends ids and quantities only. Amounts, tax and totals are computed server-side (`quoteRequestSchema` comment; keep it true).
 - Money is integer minor units; proration is `prorateMinor` (half-up, exact rational). Never float arithmetic.
 - Plan and bundle revisions stay immutable once published; a change is a new revision.
-- Database change: one new file `apps/control-plane/src/schema_025.sql`, registered in the `for (const [version, body] of …)` loop in `apps/control-plane/src/db.ts`.
+- Database change: one new file `apps/control-plane/src/migrations/schema_025.sql`, registered in the `for (const [version, body] of …)` loop in `apps/control-plane/src/db.ts`.
 - Every new contract field is `.strict()` on both sides: zod schema and the Postgres column, no extras.
 - Vendor console writes need `vendor.catalog.manage` **and** `vendor.pricing.manage` plus a fresh step-up; the route already enforces this (`http.ts:97,104`).
 - Web app strings live in `apps/web/i18n/locales/{ar,en}/subscription.json` under the `subscription` root key; vendor strings in `apps/vendor-admin/i18n/locales/{ar,en}/vendor.json` under `vendor`.
@@ -254,7 +254,7 @@ git commit -am "feat(cp): derive entitlement limits from the chosen quantities"
 ### Task 5: Add the plan columns and the seed
 
 **Files:**
-- Create: `apps/control-plane/src/schema_025.sql`
+- Create: `apps/control-plane/src/migrations/schema_025.sql`
 - Modify: `apps/control-plane/src/db.ts` (read + register version 25)
 - Test: `apps/control-plane/src/__tests__/commercial-plans.test.ts`
 
@@ -297,7 +297,7 @@ Expected: PASS. Never run this against `liwan_control_dev` while the running con
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/control-plane/src/schema_025.sql apps/control-plane/src/db.ts
+git add apps/control-plane/src/migrations/schema_025.sql apps/control-plane/src/db.ts
 git commit -m "feat(cp): add metered plan columns"
 ```
 
@@ -539,7 +539,7 @@ git commit -am "feat(web): one subscription screen with a live total"
 
 **Files:**
 - Create: `docs/superpowers/plans/2026-10-25-pricing-seed.md` (operator runbook, not code)
-- Modify: `apps/control-plane/src/schema_025.sql` (data statements)
+- Modify: `apps/control-plane/src/migrations/schema_025.sql` (data statements)
 - Test: `apps/control-plane/src/__tests__/commercial-plans.test.ts`
 
 **Interfaces:**
@@ -573,7 +573,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/control-plane/src/schema_025.sql docs/superpowers/plans/2026-10-25-pricing-seed.md
+git add apps/control-plane/src/migrations/schema_025.sql docs/superpowers/plans/2026-10-25-pricing-seed.md
 git commit -m "feat(cp): seed one platform plan and placeholder application prices"
 ```
 

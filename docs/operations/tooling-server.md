@@ -1,36 +1,42 @@
-# Tooling server (Contabo)
+# Tooling server (Contabo) and where Openship runs
 
-The Contabo host (`158.220.75.44`) runs Openship (deploy control), Sentry and the development environment. Source,
-CI, image build and release live on GitHub only (owner decision 2026-11-21, see
+The Contabo host (`158.220.75.44`) now runs only Sentry, the registry that serves Sentry's images and an old Openship
+panel that manages Sentry only. Source, CI, image build and release live on GitHub only (owner decision 2026-11-21, see
 [integration-rules.md](../agents/integration-rules.md#from-task-branch-to-each-environment-owner-decision-2026-11-21)).
-This page states what is installed on the host and what is still to be removed from it; it is not a release or
+LiwanOS has two server environments, staging and production, both on Oracle (arm64); the owner's machine is development.
+This page states what is installed on the Contabo host and what is still to be removed from it; it is not a release or
 deployment approval. The release command is in [`deploy/release/README.md`](../../deploy/release/README.md); this page
 does not repeat it.
 
-## What runs here and why
+## What runs on the Contabo host
 
 | Part | Why it is on this host |
 | --- | --- |
-| Openship | Deploy control. It holds the job `liwan-development-release` and its hook, which the GitHub `publish` workflow calls after a `main` build. It also holds the staging and production jobs. |
-| Sentry | Error tracking, with its own notes. |
-| Development environment | The LiwanOS stack (amd64) that follows `main`, behind the Openship edge. Details below and in [environment-bringup.md](environment-bringup.md) section A. |
+| Sentry | Error tracking at `sentry.liwanos.com`, with its own notes. |
+| Registry | Serves Sentry's images. |
+| Old Openship panel | Manages Sentry only. It lost its public name and is reached by an SSH tunnel. |
 
-No self-hosted GitHub runner is registered for the repository while it is public: a pull request from a fork could run
-code on it. Builds run on GitHub-hosted runners. No production credential exists on this host's runners or on GitHub.
+The host reaches neither Oracle host: its address was removed from port 22 of both security lists and from the key
+lines. No self-hosted GitHub runner is registered for the repository while it is public: a pull request from a fork
+could run code on it. Builds run on GitHub-hosted runners. No production credential exists on this host or on GitHub.
 
-## Development environment on this host
+## Where Openship runs
 
-| Item | Fact |
-| --- | --- |
-| Edge route | Openship 1.0.1 writes a vhost only for a project with an active deployment. The tracked project `dev.liwanos.com` holds the domains and certificates and is never deployed (a deploy would run `npm start` on port 18080). The route comes from two files, `/var/lib/openship/edge/sites-enabled/dev-liwanos-com.route.json` and `-dev-liwanos-com.route.json`; steps in [environment-bringup.md](environment-bringup.md) A2.3a. |
-| Docker group | `liwan-worker` is the only member of the `docker` group. |
-| Database ports | The tenant `db` is published on loopback `15433` and the control database on `15432`. The `db` bridge `liwan-dbhost` (fixed name) has two host rules, `iptables -I DOCKER-USER -i liwan-dbhost -m conntrack --ctstate NEW -j DROP` and `iptables -I INPUT -i liwan-dbhost -m conntrack --ctstate NEW -j DROP`, so the database container cannot start connections out or to host services (the compose file also turns masquerade off on that bridge, so replies from outside never reach it; the rules stay required for the host side); they do not survive a reboot unless a boot unit loads them (check and persistence: [environment-bringup.md](environment-bringup.md) A3.6). Accepted risk: any local process on the host can still reach the loopback port, with the database password as the only barrier. The control database overlay has the same shape and no fixed bridge name yet. |
-| Release credentials | The release command reads `/etc/liwan-release/github-read` (root, 0600), see [environment-bringup.md](environment-bringup.md) A5. |
+On 2026-11-21 Openship moved from this host to `liwanos-staging` (fresh install of Openship 1.0.1, compose mode,
+`openship.liwanos.com`, reserved public address). Its edge sits in front of the staging stack and routes to loopback
+`127.0.0.1:18080`. It holds the tracked project `staging.liwanos.com` (domains, certificates and the job hook only;
+never deploy or save it), the job `liwan-staging-release`, and the server record of `liwanos-prod`. On that host its
+CLI is `sudo -H openship --local ...`. The rows to install and wire it are in
+[environment-bringup.md](environment-bringup.md) (section A and the production sections).
 
-## Removed on 2026-11-21: the old self-hosted git service
+## Removed on 2026-11-21
 
-On the owner's word «نعم احذفه», after a check that `main` and the six release tags matched GitHub and that it held no
-issues or pull requests, the old self-hosted git service of the earlier plan was removed from this host. Removed:
+The development environment was deleted on the owner's word: its stack, volumes, networks, images, host users, units
+and firewall rules on this host, its DNS records, its Openship project and jobs, its Turnstile widget and the two
+`LIWAN_DEVELOPMENT_HOOK_*` repository secrets.
+
+The old self-hosted git service of the earlier plan was removed after a check that `main` and the six release tags
+matched GitHub and that it held no issues or pull requests. Removed:
 
 - Its Openship project and data volume: the three repositories, the ten image packages, run logs, accounts and tokens.
 - The three runners with their two system users and home directories.
@@ -39,26 +45,22 @@ issues or pull requests, the old self-hosted git service of the earlier plan was
 - The `git` DNS record of `liwanos.com`.
 
 Not recoverable: the two small repositories that existed only there (a hand-installed copy of the publish workflow
-and a CI trial), the run logs and the images built there. The old read-credential file for the release job is no
-longer referenced: the job `liwan-development-release` now sources `/etc/liwan-release/github-read`, which does not
-exist yet (see the pending list).
-
-The Oracle hosts `liwanos-prod` and `liwanos-staging` are registered in Openship, each with its own key. SSH to them is
-allowed only from the tooling server address.
+and a CI trial), the run logs and the images built there.
 
 ## Pending
 
 None of these is done:
 
-- The GitHub secrets for the staging hook (`LIWAN_STAGING_HOOK_URL`, `LIWAN_STAGING_HOOK_TOKEN`).
-- The machine GitHub account and one read token per environment, written to `/etc/liwan-release/github-read`.
-- The ten private GHCR packages and the `release/**` tag ruleset ([environment-bringup.md](environment-bringup.md)
-  A0.1 and A0.2).
-- Simplify the disk guard (`liwan-disk-guard`): it still carries logic to stop the removed runners. It is harmless.
+- The `git.liwanos.com` certificate leftover on this host.
+- The old Cloudflare DNS token `openship-liwanos-dns01`, which only the owner can delete.
+- Sentry answers 502 (since 2026-11-21, before the changes above); it is outside this task.
+- The `release/**` tag ruleset ([environment-bringup.md](environment-bringup.md) A0.2). The ten private GHCR packages
+  exist (A0.1).
+- The production bring-up and the first production release, and the after-release steps ([environment-bringup.md](environment-bringup.md) section C).
 
 ## Check the host
 
 ```sh
-systemctl list-timers --all     # expected: the host's own timers only, none of the removed units
-docker ps --format '{{.Names}}'
+systemctl list-timers --all     # expected: the host's own timers only
+docker ps --format '{{.Names}}' # expected: Sentry, the registry, the old Openship panel, none of LiwanOS
 ```

@@ -27,7 +27,7 @@ beforeAll(async()=>{
   origin=`http://127.0.0.1:${address.port}`
 })
 afterAll(async()=>{vi.unstubAllEnvs();await new Promise<void>(resolve=>server.close(()=>resolve()))})
-beforeEach(()=>vi.mocked(enqueueSharedJob).mockReset())
+beforeEach(()=>{vi.mocked(enqueueSharedJob).mockReset()})
 async function post(value:unknown){
   const body=JSON.stringify(value)
   return fetch(origin+path,{method:'POST',body,headers:{...signServiceRequest({method:'POST',path,body,actor:7,issuer:config.installationId,key}),'content-type':'application/json'}})
@@ -82,4 +82,16 @@ it('rejects caller actor override before enqueue',async()=>{
   const response=await post({reason:'Forged actor',job:{},actorUid:999})
   expect(response.status).toBe(422)
   expect(enqueueSharedJob).not.toHaveBeenCalled()
+})
+// The console tells an operator why a backup or restore was refused; a refusal it cannot tell from an outage (503) is a defect.
+it.each([
+  ['shared_reconciliation_required', 409],
+  ['tenant_unavailable', 409],
+  ['tenant_operations_unavailable', 409],
+  ['shared_job_forbidden', 403],
+])('answers %s with %s and its own code', async (code, status) => {
+  vi.mocked(enqueueSharedJob).mockRejectedValue(new Error(code))
+  const response = await post({ reason: 'Synthetic queue request', job: { schemaVersion: 1, operation: 'backup', requestId: tenant } })
+  expect(response.status).toBe(status)
+  expect((await response.json()).code).toBe(code)
 })

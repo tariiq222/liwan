@@ -16,6 +16,16 @@ const comment = useHelpdeskComment()
 const files = useHelpdeskAttachments(() => props.ticketId)
 const body = ref('')
 const internal = ref(false)
+// A small checkbox decided whether the text went to the customer or stayed an internal note: a missed tick sent a
+// secret note out. The choice is now a visible two-way switch, and the send button names what it will do.
+const mode = computed<'reply' | 'note'>({
+  get: () => internal.value ? 'note' : 'reply',
+  set: value => { internal.value = value === 'note' },
+})
+const modeItems = computed(() => [
+  { value: 'reply', label: t('helpdesk.thread.modeReply') },
+  { value: 'note', label: t('helpdesk.thread.modeNote') },
+])
 const failure = ref<string | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
 
@@ -91,8 +101,8 @@ const busy = computed(() => files.upload.isPending.value || files.remove.isPendi
         <div class="mt-4 flex flex-col gap-2">
           <UTextarea v-model="body" class="w-full" :rows="3" :disabled="comment.isPending.value || !hydrated" :placeholder="t('helpdesk.thread.placeholder')" data-testid="helpdesk-comment" />
           <div class="flex flex-wrap items-center justify-between gap-2">
-            <UCheckbox v-if="canWrite" v-model="internal" :disabled="!hydrated" :label="t('helpdesk.thread.note')" data-testid="helpdesk-note" />
-            <UButton :loading="comment.isPending.value" :disabled="!hydrated || !body.trim()" :label="t('helpdesk.thread.send')" data-testid="helpdesk-comment-send" @click="send" />
+            <SharedSegmentedControl v-if="canWrite" :model-value="mode" :items="modeItems" :label="t('helpdesk.thread.mode')" :disabled="!hydrated" data-testid="helpdesk-note" @update:model-value="mode = $event as 'reply' | 'note'" />
+            <UButton :loading="comment.isPending.value" :disabled="!hydrated || !body.trim()" :label="mode === 'note' ? t('helpdesk.thread.sendNote') : t('helpdesk.thread.send')" :color="mode === 'note' ? 'warning' : 'primary'" data-testid="helpdesk-comment-send" @click="send" />
           </div>
         </div>
       </template>

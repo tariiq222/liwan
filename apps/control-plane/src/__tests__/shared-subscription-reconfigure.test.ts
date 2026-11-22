@@ -17,7 +17,7 @@ export const scratchUrl = source ? (() => {
 export async function setupScratch(pool: Pool) {
   await migrate(pool)
   // TODO(B1): register migration 15 centrally; remove fallback once registered.
-  if (!(await pool.query("SELECT to_regclass('commercial_branches') AS name")).rows[0].name) await pool.query(await readFile(new URL('../schema_015.sql', import.meta.url), 'utf8'))
+  if (!(await pool.query("SELECT to_regclass('commercial_branches') AS name")).rows[0].name) await pool.query(await readFile(new URL('../migrations/schema_015.sql', import.meta.url), 'utf8'))
 }
 export async function seedOrder(pool: Pool, tenantRequired = false) {
   const tenant = randomUUID(), customer = randomUUID(), subscription = randomUUID(), previous = randomUUID(), target = randomUUID(), order = randomUUID(), branch = randomUUID()

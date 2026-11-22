@@ -52,6 +52,12 @@ export const abandonmentSchema = z.strictObject({
   state: z.enum(['pending', 'abandoned', 'effect_present', 'failed']), error: z.string().nullable(), requested_at: z.iso.datetime(),
 })
 export type Abandonment = z.infer<typeof abandonmentSchema>
+/** Operations whose stuck shared job is reconciled by observation when recovered; a `reconfigure` job has its own receipt protocol (shared/job-recovery.ts). */
+export const RECOVERABLE_OPERATIONS = ['provision', 'backup', 'restore'] as const
+export const recoverySchema = z.strictObject({
+  state: z.enum(['pending', 'verified', 'still_needs_intervention', 'failed']), error: z.string().nullable(), requested_at: z.iso.datetime(),
+})
+export type Recovery = z.infer<typeof recoverySchema>
 
 export const tenantSchema = z.strictObject({
   id: z.uuid(), name: z.string(), commercial_mode: commercialModeSchema, hosting_model: hostingModelSchema,
@@ -96,6 +102,29 @@ export const sharedProvisioningProgressSchema = z.strictObject({
   admin_login: z.string(), stage: z.string(), error_code: z.string().nullable(),
 })
 
+// Backups of one shared workspace in the vendor console (GET /v1/shared/tenants/:id/backups). Ids, times, display names and
+// states only: never an artifact path, a digest, a database name or a binding.
+export const sharedJobStateSchema = z.enum(['queued', 'running', 'verified', 'needs_intervention', 'failed'])
+const sharedBackupStartSchema = z.union([
+  z.strictObject({ allowed: z.literal(true), reason: z.null(), job_id: z.null() }),
+  z.strictObject({ allowed: z.literal(false), reason: z.literal('operations_unavailable'), job_id: z.null() }),
+  z.strictObject({ allowed: z.literal(false), reason: z.literal('job_in_progress'), job_id: z.uuid() }),
+])
+export const sharedBackupListSchema = z.strictObject({
+  /** Whether a backup can be started now; a refusal names the job that blocks it. */
+  start: sharedBackupStartSchema,
+  total: z.number().int().nonnegative(),
+  items: z.array(z.strictObject({
+    backup_id: z.uuid(), job_id: z.uuid(), created_at: z.iso.datetime(), started_by: z.string().nullable(),
+    /** An unexpired approval that no restore job has used yet: the operator may resume it. */
+    approval: z.strictObject({ approval_id: z.uuid(), expires_at: z.iso.datetime(), approved_by: z.string().nullable() }).nullable(),
+    restores: z.array(z.strictObject({ job_id: z.uuid(), approval_id: z.uuid(), state: sharedJobStateSchema, created_at: z.iso.datetime() })),
+  })),
+})
+export type SharedBackupList = z.infer<typeof sharedBackupListSchema>
+export const sharedRestoreApprovalRequestSchema = z.strictObject({ backup_id: z.uuid(), reason: z.string().trim().min(3).max(1000) })
+export const sharedRestoreApprovalSchema = z.strictObject({ approval_id: z.uuid(), expires_at: z.iso.datetime() })
+
 // Additive vendor read model. Legacy operationSchema remains unchanged.
 export const restorePublicationSchema = z.strictObject({
   approvalId:z.uuid(), status:z.enum(['not_requested','queued','published','needs_intervention']),
@@ -103,12 +132,14 @@ export const restorePublicationSchema = z.strictObject({
 })
 export const sharedOperationFeedSchema = operationSchema.extend({
   source: z.literal('shared'),
-  type: z.enum(['provision', 'backup', 'restore', 'unknown']),
+  type: z.enum(['provision', 'backup', 'restore', 'reconfigure', 'unknown']),
   status: z.enum(['queued', 'running', 'verified', 'needs_intervention', 'failed']),
   stage: z.enum(['queued', 'running', 'prepared', 'started', 'verified', 'needs_intervention', 'failed']),
   reason: z.enum(['shared_execution_pending', 'shared_execution_verified', 'shared_execution_needs_attention', 'shared_execution_abandoned']),
   /** The operator's latest request to abandon the job, when there was one. */
   abandonment: abandonmentSchema.nullable().optional(),
+  /** The operator's latest request to recover the job, when there was one. */
+  recovery: recoverySchema.nullable().optional(),
   restore_publication:restorePublicationSchema.optional(),
   result: z.null(), updated_at: z.null(), last_event_at: z.iso.datetime().nullable(),
 })

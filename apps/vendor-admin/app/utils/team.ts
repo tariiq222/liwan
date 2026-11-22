@@ -1,7 +1,7 @@
 // The team page's vocabulary: the roles and account shapes come from the contracts package,
 // and this adds the mapping from a failed call to the locale key shown to the person.
 import { VENDOR_ROLES, type AdminAccountItem, type AdminAccountStatus, type VendorRole } from '@liwan/commercial-contracts'
-import { StepUpCancelled } from '../composables/useStepUp'
+import { failureKey } from '../composables/useStepUp'
 
 export type TeamRole = VendorRole
 
@@ -43,8 +43,9 @@ const CODE_KEYS: Record<string, string> = {
 }
 
 /** Which message a failed mutation shows. A cancelled step-up is not an error of the call itself. */
-export function teamErrorKey(error: unknown): string {
-  if (error instanceof StepUpCancelled) return 'team.errors.stepUpCancelled'
+export const teamErrorKey = (error: unknown): string => failureKey(error, teamFailureKey(error))
+
+function teamFailureKey(error: unknown): string {
   const e = error as { statusCode?: number, response?: { status?: number }, data?: { code?: string } } | null
   const code = e?.data?.code
   if (code && code in CODE_KEYS) return CODE_KEYS[code]!

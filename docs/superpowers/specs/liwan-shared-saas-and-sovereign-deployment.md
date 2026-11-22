@@ -140,7 +140,7 @@
 
 ## 9. العقود القائمة التي لا يُعاد بناؤها
 
-لا يُنشأ عقد طلب أو فوترة موازٍ. المرجع التنفيذي هو `apps/control-plane/src/commercial/` و`packages/commercial-contracts/src/` و`apps/control-plane/src/schema_013.sql`. المطلوب هنا هو الفجوة فقط: webhook مزود حقيقي، والتحويل البنكي، وسياسة الاسترداد، والفاتورة بلا ضريبة. لا يُعاد وصف ما هو قائم.
+لا يُنشأ عقد طلب أو فوترة موازٍ. المرجع التنفيذي هو `apps/control-plane/src/commercial/` و`packages/commercial-contracts/src/` و`apps/control-plane/src/migrations/schema_013.sql`. المطلوب هنا هو الفجوة فقط: webhook مزود حقيقي، والتحويل البنكي، وسياسة الاسترداد، والفاتورة بلا ضريبة. لا يُعاد وصف ما هو قائم.
 
 ## 10. القيود المعروفة (بقايا مقبولة بمالك)
 

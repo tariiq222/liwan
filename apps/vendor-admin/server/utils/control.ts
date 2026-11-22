@@ -18,11 +18,19 @@ export type ControlRequest = {
   anonymous?: boolean
   /** How long the control plane may take, when a route is slower than the default (the AI provider probes, see proxy.ts). */
   timeoutMs?: number
+  /** Codes of a 502 body that may reach the browser (only the code, never the rest of the body); every other 5xx stays 503. */
+  passThrough502?: readonly string[]
 }
 
 export type ControlResult = { status: number; data: unknown }
 
 const unavailable = (): never => bffFail(503, 'vendor_unavailable')
+
+function passedThrough502(text: string, codes: readonly string[]): ControlResult {
+  let code: unknown
+  try { code = (JSON.parse(text) as { code?: unknown } | null)?.code } catch { return unavailable() }
+  return typeof code === 'string' && codes.includes(code) ? { status: 502, data: { code } } : unavailable()
+}
 
 function parseJson(text: string): unknown {
   if (!text) return undefined
@@ -32,7 +40,8 @@ function parseJson(text: string): unknown {
 /**
  * One signed control-plane request. Request headers are built from scratch: no browser header or
  * cookie is forwarded, and x-liwan-client-ip always carries the address this BFF observed.
- * 2xx and 4xx come back as data; anything else (5xx, network, timeout, redirect) is 503.
+ * 2xx and 4xx come back as data; anything else (5xx, network, timeout, redirect) is 503, except a 502 whose code the
+ * caller listed in `passThrough502`: that one answers with its code alone.
  */
 export async function controlCall(event: H3Event, request: ControlRequest): Promise<ControlResult> {
   const config = bffConfig(event)
@@ -65,6 +74,7 @@ export async function controlCall(event: H3Event, request: ControlRequest): Prom
   } catch {
     return unavailable()
   }
+  if (response.status === 502 && request.passThrough502) return passedThrough502(await response.text(), request.passThrough502)
   if (response.status < 200 || response.status >= 500) unavailable()
   const text = await response.text()
   if (response.status >= 400) {

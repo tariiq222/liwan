@@ -74,6 +74,24 @@ describe('vendor API proxy', () => {
     expect(await get('/context')).toMatchObject({ status: 503, body: { code: 'vendor_unavailable' } })
   })
 
+  it('lets the provider errors of the AI models route through with only their code, and masks every other 5xx', async () => {
+    for (const code of ['provider_timeout', 'provider_unreachable', 'provider_rate_limited', 'provider_error', 'provider_invalid_response']) {
+      stubUpstream(() => json(502, { code, detail: 'secret upstream text', field: 'x' }))
+      const result = await post('/platform/ai-provider/models', { body: { provider: 'oai' } })
+      expect(result, code).toMatchObject({ status: 502, body: { code } })
+      expect(result.body).toEqual({ code }); expect(result.text).not.toContain('secret')
+    }
+    stubUpstream(() => json(502, { code: 'provider_timeout' }))
+    expect(await post('/commercial/plans')).toMatchObject({ status: 503, body: { code: 'vendor_unavailable' } })
+    expect(await post('/platform/ai-provider/test', { body: { provider: 'oai', model: 'm' } })).toMatchObject({ status: 503, body: { code: 'vendor_unavailable' } })
+    stubUpstream(() => json(502, { code: 'service_unavailable' }))
+    expect(await post('/platform/ai-provider/models', { body: { provider: 'oai' } })).toMatchObject({ status: 503, body: { code: 'vendor_unavailable' } })
+    stubUpstream(() => json(500, { code: 'provider_timeout' }))
+    expect(await post('/platform/ai-provider/models', { body: { provider: 'oai' } })).toMatchObject({ status: 503, body: { code: 'vendor_unavailable' } })
+    stubUpstream(() => new Response('not json', { status: 502 }))
+    expect(await post('/platform/ai-provider/models', { body: { provider: 'oai' } })).toMatchObject({ status: 503, body: { code: 'vendor_unavailable' } })
+  })
+
   it('clears the cookie on an upstream 401', async () => {
     stubUpstream(() => json(401, { code: 'unauthorized' }))
     const result = await get('/context')
@@ -121,7 +139,7 @@ describe('vendor API proxy', () => {
 
   it('forwards only the vendor surface the console uses', async () => {
     const calls = stubUpstream(() => json(200, {}))
-    const allowed = ['/context', '/overview', '/targets', '/tenants', '/tenants/00000000-0000-4000-8000-000000000001/operations-grant', '/operations', '/catalog', '/audit', '/packages', '/packages/00000000-0000-4000-8000-000000000001', '/commercial/customers', '/commercial/customers/c-1', '/commercial/customers/c-1/trial', '/commercial/customers/c-1/invitations', '/commercial/customers/c-1/deletion', '/commercial/deletion-requests', '/commercial/attention', '/commercial/clients', '/commercial/orders', '/commercial/catalog/releases/r-1/default-bundles', '/commercial/orders/ab-1/cancel', '/commercial/orders/ab-1/payment-attempts', '/commercial/invoice-adjustments/a-1/refund', '/commercial/trials/s-1/extend', '/commercial/trials/s-1/end', '/commercial/subscriptions/s-1', '/commercial/subscriptions/s-1/usage', '/commercial/subscriptions/s-1/cancel-renewal', '/commercial/subscriptions/s-1/resume-renewal', '/commercial/invoices/i-1', '/commercial/quotes', '/commercial/quotes/q-1', '/commercial/customer-terms', '/commercial/billing-settings', '/commercial/customer-quotes', '/commercial/catalog/releases', '/commercial/policies', '/commercial/plans/p-1/publish', '/commercial/bundles/b-1/revisions', '/shared/tenants/00000000-0000-4000-8000-000000000001/provisioning', '/platform/ai-provider', '/platform/ai-provider/presets', '/platform/ai-provider/models', '/platform/ai-provider/test', '/admin/me', '/admin/accounts', '/admin/accounts/12/roles']
+    const allowed = ['/context', '/overview', '/targets', '/tenants', '/tenants/00000000-0000-4000-8000-000000000001/operations-grant', '/operations', '/catalog', '/audit', '/packages', '/packages/00000000-0000-4000-8000-000000000001', '/commercial/customers', '/commercial/customers/c-1', '/commercial/customers/c-1/trial', '/commercial/customers/c-1/invitations', '/commercial/customers/c-1/deletion', '/commercial/deletion-requests', '/commercial/attention', '/commercial/clients', '/commercial/orders', '/commercial/catalog/releases/r-1/default-bundles', '/commercial/orders/ab-1/cancel', '/commercial/orders/ab-1/payment-attempts', '/commercial/invoice-adjustments/a-1/refund', '/commercial/trials/s-1/extend', '/commercial/trials/s-1/end', '/commercial/subscriptions/s-1', '/commercial/subscriptions/s-1/usage', '/commercial/subscriptions/s-1/cancel-renewal', '/commercial/subscriptions/s-1/resume-renewal', '/commercial/invoices/i-1', '/commercial/quotes', '/commercial/quotes/q-1', '/commercial/customer-terms', '/commercial/billing-settings', '/commercial/customer-quotes', '/commercial/catalog/releases', '/commercial/policies', '/commercial/plans/p-1/publish', '/commercial/bundles/b-1/revisions', '/shared/tenants/00000000-0000-4000-8000-000000000001/provisioning', '/platform/ai-provider', '/platform/ai-provider/presets', '/platform/ai-provider/models', '/platform/ai-provider/test', '/admin/me', '/admin/accounts']
     for (const path of allowed) expect((await get(path)).status, path).toBe(200)
     expect(calls).toHaveLength(allowed.length)
     const denied = ['/', '/registry/mutations', '/invitations/accept', '/admin', '/admin/accounts/x/roles', '/admin/accounts/12/other', '/admin/secret', '/internal/anything', '/tenantsx', '/contexts', '/packagesx', '/commercial', '/commercial/payment-events/moyasar', '/commercial/payment-simulator/a-1/settle', '/commercial/renewals/run', '/commercial/branch-quotes', '/commercial/customers/c-1/trial/x', '/commercial/customers/c-1/deletion/request', '/commercial/customers/c-1/deletion/confirm', '/commercial/customers/c-1/deletion/withdraw/x', '/commercial/deletion-requests/x', '/commercial/attention/x', '/platform', '/platform/ai-provider/other', '/platform/ai-provider/models/x', '/platform/other', '/commercial/clients/c-1', '/commercial/orders/ab-1/other', '/commercial/invoice-adjustments/a-1', '/commercial/trials/s-1', '/commercial/trials/s-1/other', '/commercial/trials', '/commercial/invoice-adjustments/a-1/other', '/commercial/invoice-adjustments', '/commercial/plans/p-1/other', '/commercial/subscriptions/s-1/other', '/commercial/catalog', '/customer/orders', '/customer/invoices/i-1', '/invitations/accept']
@@ -150,6 +168,28 @@ describe('vendor API proxy', () => {
     const before = calls.length
     expect((await send(proxy, '/api/vendor/v1/commercial/invoices/00000000-0000-4000-8000-000000000001/bank-transfer', { method: 'GET', headers: cookieHeader() })).status).toBe(405)
     expect(calls).toHaveLength(before)
+  })
+
+  it('forwards the AI billing settings with GET and PATCH only, and refuses near misses', async () => {
+    const calls = stubUpstream(() => json(200, {}))
+    expect((await get('/commercial/ai-billing-settings')).status).toBe(200)
+    expect((await patch('/commercial/ai-billing-settings')).status).toBe(200)
+    expect(calls.map(c => `${c.method} ${c.url.pathname}`)).toEqual(['GET /v1/commercial/ai-billing-settings', 'PATCH /v1/commercial/ai-billing-settings'])
+    for (const path of ['/commercial/ai-billing-settings/extra', '/commercial/ai-billing-settingsx', '/commercial/ai-billing']) expect((await get(path)).status, path).toBe(404)
+    expect(calls).toHaveLength(2)
+    expect((await post('/commercial/ai-billing-settings')).status).toBe(405)
+    expect(calls).toHaveLength(2)
+  })
+
+  it('forwards the AI top-up refund with POST only, and refuses near misses', async () => {
+    const calls = stubUpstream(() => json(200, {}))
+    const topup = '00000000-0000-4000-8000-000000000001'
+    expect((await post(`/commercial/ai-topups/${topup}/refund`)).status).toBe(200)
+    expect(calls.map(c => `${c.method} ${c.url.pathname}`)).toEqual([`POST /v1/commercial/ai-topups/${topup}/refund`])
+    expect((await get(`/commercial/ai-topups/${topup}/refund`)).status).toBe(405)
+    expect((await patch(`/commercial/ai-topups/${topup}/refund`)).status).toBe(405)
+    for (const path of [`/commercial/ai-topups/${topup}`, `/commercial/ai-topups/${topup}/refund/extra`, '/commercial/ai-topups/refund']) expect((await post(path)).status, path).toBe(404)
+    expect(calls).toHaveLength(1)
   })
 
   it('binds the method of the two release 1 billing routes', async () => {
@@ -199,6 +239,18 @@ describe('vendor API proxy', () => {
     expect(calls).toHaveLength(forwarded)
   })
 
+  it('forwards the void of an unpaid renewal invoice, as a POST only', async () => {
+    const calls = stubUpstream(() => json(200, {}))
+    expect((await post('/commercial/invoices/inv-1/void')).status).toBe(200)
+    expect(calls.map(c => `${c.method} ${c.url.pathname}`)).toEqual(['POST /v1/commercial/invoices/inv-1/void'])
+    const forwarded = calls.length
+    for (const method of ['GET', 'PATCH', 'PUT'] as const)
+      expect((await send(proxy, '/api/vendor/v1/commercial/invoices/inv-1/void', { method, body: { a: 1 }, headers: cookieHeader() })).status, method).toBe(405)
+    for (const path of ['/commercial/invoices/inv-1/voids', '/commercial/invoices/inv-1/void/x', '/commercial/invoice-adjustments/inv-1/void'])
+      expect((await post(path)).status, path).toBe(404)
+    expect(calls).toHaveLength(forwarded)
+  })
+
   it('lets the console read deletion requests and withdraw one, and never ask for or confirm one', async () => {
     // The customer alone asks for and confirms the deletion of its workspace; the console reads the requests and withdraws on the customer's behalf.
     const calls = stubUpstream(() => json(200, {}))
@@ -244,6 +296,43 @@ describe('vendor API proxy', () => {
     // `subscriptions/suspend` is a subscription whose id is "suspend", which the id segment already allowed.
     for (const path of ['/commercial/subscriptions/s-1/suspends', '/commercial/subscriptions/s-1/suspend/x', '/commercial/subscriptions/s-1/delete'])
       expect((await get(path)).status, path).toBe(404)
+  })
+
+  it('binds the account actions and the shared job actions to POST', async () => {
+    const calls = stubUpstream(() => json(200, {}))
+    const T = '00000000-0000-4000-8000-000000000001'
+    const J = '00000000-0000-4000-8000-000000000002'
+    const actions = ['/admin/accounts/12/roles', '/admin/accounts/12/disable', '/admin/accounts/12/enable', '/admin/accounts/12/reset', `/shared/tenants/${T}/jobs/${J}/recover`, `/shared/tenants/${J}/jobs/${J}/abandon`]
+    for (const path of actions) expect((await post(path)).status, path).toBe(200)
+    expect(calls).toHaveLength(actions.length)
+    for (const path of actions) for (const send of [get, patch]) expect((await send(path)).status, path).toBe(405)
+    expect(calls).toHaveLength(actions.length)
+    // The other shared tenant routes the console uses keep their methods.
+    expect((await get(`/shared/tenants/${T}/provisioning`)).status).toBe(200)
+    expect((await post(`/shared/tenants/${T}/restore-publications/a-1`)).status).toBe(200)
+  })
+
+  it('binds the shared backup routes: the listing to GET, the restore approval and the job queue to POST', async () => {
+    const calls = stubUpstream(() => json(200, {}))
+    const T = '00000000-0000-4000-8000-000000000001'
+    const J = '00000000-0000-4000-8000-000000000002'
+    expect((await get(`/shared/tenants/${T}/backups`)).status).toBe(200)
+    for (const path of [`/shared/tenants/${T}/restore-approvals`, `/shared/tenants/${T}/jobs`]) expect((await post(path, { body: { reason: 'Because' } })).status, path).toBe(200)
+    expect(calls).toHaveLength(3)
+    for (const send of [post, patch]) expect((await send(`/shared/tenants/${T}/backups`)).status).toBe(405)
+    for (const path of [`/shared/tenants/${T}/restore-approvals`, `/shared/tenants/${T}/jobs`]) for (const send of [get, patch]) expect((await send(path)).status, path).toBe(405)
+    expect(calls).toHaveLength(3)
+    // The progress of one job stays a read, and the existing recover and abandon bindings are untouched.
+    expect((await get(`/shared/tenants/${T}/jobs/${J}`)).status).toBe(200)
+    expect((await get(`/shared/tenants/${T}/jobs/${J}/recover`)).status).toBe(405)
+  })
+
+  it('hands a refused shared backup start to the browser as the control plane answered it', async () => {
+    const T = '00000000-0000-4000-8000-000000000001'
+    stubUpstream(() => json(409, { code: 'shared_reconciliation_required', message: 'Shared onboarding request rejected' }))
+    const response = await post(`/shared/tenants/${T}/jobs`, { body: { reason: 'Because', job: { schemaVersion: 1, requestId: T, operation: 'backup' } } })
+    expect(response.status).toBe(409)
+    expect(response.body).toMatchObject({ code: 'shared_reconciliation_required' })
   })
 
   it('waits long enough for the AI provider probes (15 s models, two 20 s asks for a test) and keeps 10 s everywhere else', async () => {

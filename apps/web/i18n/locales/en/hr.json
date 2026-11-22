@@ -323,7 +323,9 @@
         "documentHint": "This type needs a supporting document, such as a medical report.",
         "requiredHint": "Marked fields are required.",
         "submit": "Send request",
-        "noTypes": "No leave types are available for your company"
+        "noTypes": "No leave types are available for your company",
+        "balanceLeft": "Remaining for this type: {days} days",
+        "daysCount": "Requested days: {count}"
       },
       "allocation": {
         "details": "Balance details",

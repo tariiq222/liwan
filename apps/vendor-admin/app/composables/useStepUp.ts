@@ -13,6 +13,11 @@ export class StepUpCancelled extends Error {
 
 const isStepUpCancelled = (error: unknown): error is StepUpCancelled => error instanceof StepUpCancelled
 
+/** The one text every flow shows for a cancelled step-up: the person's own choice, not a failure of the request. */
+export const STEP_UP_CANCELLED_KEY = 'adminAuth.stepUp.cancelled'
+/** The message key for a failed call: the cancelled step-up's own text, else the flow's `key`. Every error mapping ends here. */
+export const failureKey = (error: unknown, key: string): string => (isStepUpCancelled(error) ? STEP_UP_CANCELLED_KEY : key)
+
 export interface StepUpDeps {
   post: AuthPost
   authenticate: (options: { optionsJSON: PublicKeyCredentialRequestOptionsJSON }) => Promise<AuthenticationResponseJSON>

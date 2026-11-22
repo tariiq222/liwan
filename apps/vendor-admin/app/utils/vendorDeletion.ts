@@ -5,6 +5,10 @@ const SHOWN_STATES: ReadonlyArray<TenantDeletionRequest['state']> = ['requested'
 export const isDeletionShown = (request: TenantDeletionRequest | null | undefined): request is TenantDeletionRequest =>
   Boolean(request && (SHOWN_STATES.includes(request.state) || (request.state === 'withdrawn' && request.deleting_at !== null)))
 
+/** The workspace's access has stopped or is gone: the states in which the control plane refuses vendor actions on the customer (`tenant_retiring`). */
+export const isWorkspaceRetiring = (request: TenantDeletionRequest | null | undefined): boolean =>
+  request?.state === 'deleting' || request?.state === 'deleted'
+
 /** The vendor may withdraw until the point of no return: while the request is open, and while a running deletion has not committed. */
 export function deletionWithdrawable(request: TenantDeletionRequest): boolean {
   return ['requested', 'confirmed', 'due'].includes(request.state) || (request.state === 'deleting' && request.committed_at === null)

@@ -6,15 +6,25 @@ const ev = (patch: Partial<ShortcutKeyEvent> = {}): ShortcutKeyEvent => ({
   key: 'j', code: 'KeyJ', metaKey: false, ctrlKey: false, altKey: false, shiftKey: false,
   repeat: false, isComposing: false, keyCode: 74, defaultPrevented: false, target: { tagName: 'BODY', closest: () => null }, ...patch,
 })
-const ready = { hydrated: true, overlayOpen: false }
+const ready = { hydrated: true, overlayOpen: false, inList: false }
+const inRows = { hydrated: true, overlayOpen: false, inList: true }
 
 describe('rowMove', () => {
   it.each([
     [{ key: 'j', code: 'KeyJ' }, 'j'], [{ key: 'k', code: 'KeyK' }, 'k'],
     [{ key: 'ت', code: 'KeyJ' }, 'j'], [{ key: 'ن', code: 'KeyK' }, 'k'],
-    [{ key: 'ArrowDown', code: 'ArrowDown' }, 'j'], [{ key: 'ArrowUp', code: 'ArrowUp' }, 'k'],
   ] as const)('%o moves %s', (patch, move) => {
     expect(rowMove(ev(patch), ready)).toBe(move)
+  })
+
+  it('moves on the arrows only once focus is inside the list', () => {
+    expect(rowMove(ev({ key: 'ArrowDown', code: 'ArrowDown' }), inRows)).toBe('j')
+    expect(rowMove(ev({ key: 'ArrowUp', code: 'ArrowUp' }), inRows)).toBe('k')
+    // The page keeps the arrows for scrolling when focus is anywhere else.
+    expect(rowMove(ev({ key: 'ArrowDown', code: 'ArrowDown' }), ready)).toBeNull()
+    expect(rowMove(ev({ key: 'ArrowUp', code: 'ArrowUp' }), ready)).toBeNull()
+    // J and K stay deliberate row keys outside the list.
+    expect(rowMove(ev({ key: 'j', code: 'KeyJ' }), ready)).toBe('j')
   })
 
   it.each([
@@ -33,14 +43,14 @@ describe('rowMove', () => {
     ['a textarea', { tagName: 'TEXTAREA' }],
     ['a combobox trigger', { tagName: 'BUTTON', closest: (s: string) => (s.includes('combobox') ? {} : null) }],
   ] as const)('leaves the arrows to %s', (_label, target) => {
-    expect(rowMove(ev({ key: 'ArrowDown', code: 'ArrowDown', target }), ready)).toBeNull()
-    expect(rowMove(ev({ key: 'ArrowUp', code: 'ArrowUp', target }), ready)).toBeNull()
+    expect(rowMove(ev({ key: 'ArrowDown', code: 'ArrowDown', target }), inRows)).toBeNull()
+    expect(rowMove(ev({ key: 'ArrowUp', code: 'ArrowUp', target }), inRows)).toBeNull()
   })
 
   it('leaves the arrows alone with a modifier, with Shift, or while a menu is open', () => {
-    expect(rowMove(ev({ key: 'ArrowDown', code: 'ArrowDown', altKey: true }), ready)).toBeNull()
-    expect(rowMove(ev({ key: 'ArrowDown', code: 'ArrowDown', shiftKey: true }), ready)).toBeNull()
-    expect(rowMove(ev({ key: 'ArrowDown', code: 'ArrowDown' }), { hydrated: true, overlayOpen: true })).toBeNull()
+    expect(rowMove(ev({ key: 'ArrowDown', code: 'ArrowDown', altKey: true }), inRows)).toBeNull()
+    expect(rowMove(ev({ key: 'ArrowDown', code: 'ArrowDown', shiftKey: true }), inRows)).toBeNull()
+    expect(rowMove(ev({ key: 'ArrowDown', code: 'ArrowDown' }), { hydrated: true, overlayOpen: true, inList: true })).toBeNull()
   })
 
   it('still moves from a row that lives inside a grid, but not from a plain grid cell', () => {
@@ -54,8 +64,8 @@ describe('rowMove', () => {
   })
 
   it('ignores keys while a menu is open or before hydration', () => {
-    expect(rowMove(ev(), { hydrated: true, overlayOpen: true })).toBeNull()
-    expect(rowMove(ev(), { hydrated: false, overlayOpen: false })).toBeNull()
+    expect(rowMove(ev(), { hydrated: true, overlayOpen: true, inList: true })).toBeNull()
+    expect(rowMove(ev(), { hydrated: false, overlayOpen: false, inList: true })).toBeNull()
   })
 })
 

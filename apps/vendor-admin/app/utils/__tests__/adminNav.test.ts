@@ -22,12 +22,12 @@ const BEFORE_INVOICES = ['overview', 'analytics', 'customers', 'catalog']
 
 describe('adminNav', () => {
   it('shows the owner every section in the fixed order', () => {
-    expect(ids(caps('owner'))).toEqual([...BEFORE_INVOICES, 'invoices', 'billing-settings', 'operations', 'audit', 'ai-provider', 'team'])
+    expect(ids(caps('owner'))).toEqual([...BEFORE_INVOICES, 'invoices', 'billing-settings', 'ai-billing-settings', 'operations', 'audit', 'ai-provider', 'team'])
   })
 
   it.each([
     ['customer_success', READ_SECTIONS],
-    ['finance', [...BEFORE_INVOICES, 'invoices', 'billing-settings', 'operations']],
+    ['finance', [...BEFORE_INVOICES, 'invoices', 'billing-settings', 'ai-billing-settings', 'operations']],
     ['product', READ_SECTIONS],
     ['operations', READ_SECTIONS],
     ['support', [...READ_SECTIONS, 'audit']],
@@ -40,17 +40,17 @@ describe('adminNav', () => {
   })
 
   it('leaks no section when its own capability is missing', () => {
-    const gated: Record<string, string> = { invoices: 'vendor.billing.manage', 'billing-settings': 'vendor.billing.manage', analytics: 'vendor.billing.manage', audit: 'vendor.audit.read', 'ai-provider': 'vendor.ai.manage', team: 'vendor.accounts.manage' }
+    const gated: Record<string, string> = { invoices: 'vendor.billing.manage', 'billing-settings': 'vendor.billing.manage', 'ai-billing-settings': 'vendor.billing.manage', analytics: 'vendor.billing.manage', audit: 'vendor.audit.read', 'ai-provider': 'vendor.ai.manage', team: 'vendor.accounts.manage' }
     for (const [section, capability] of Object.entries(gated)) {
       const withoutIt = caps('owner').filter(name => name !== capability)
       expect(ids(withoutIt)).not.toContain(section)
     }
-    expect(ids(caps('owner').filter(name => name !== 'vendor.read'))).toEqual(['analytics', 'invoices', 'billing-settings', 'audit', 'ai-provider', 'team'])
+    expect(ids(caps('owner').filter(name => name !== 'vendor.read'))).toEqual(['analytics', 'invoices', 'billing-settings', 'ai-billing-settings', 'audit', 'ai-provider', 'team'])
   })
 
   it('points every item at a root path without the old /vendor prefix', () => {
     for (const item of adminNav(caps('owner'))) {
-      expect(item.to).toBe(item.id === 'catalog' ? '/plans' : `/${item.id}`)
+      expect(item.to).toBe(`/${item.id}`)
       expect(item.labelKey).toBe(`app.nav.${item.id}`)
       expect(item.icon).toMatch(/^i-lucide-/)
     }
@@ -75,8 +75,8 @@ describe('activeNavId', () => {
     expect(items.map(item => item.id)).not.toContain('tenants')
   })
 
-  it('keeps plans, bundles and the retired legacy packages under the catalog', () => {
-    for (const path of ['/plans', '/plans/p-1/edit', '/bundles', '/bundles/new', '/catalog', '/catalog/pkg-1']) expect(activeNavId(items, path), path).toBe('catalog')
+  it('keeps applications, plans, bundles and the retired legacy packages under the catalog', () => {
+    for (const path of ['/plans', '/plans/p-1/edit', '/bundles', '/bundles/new', '/catalog', '/catalog/c-1', '/packages', '/packages/pkg-1']) expect(activeNavId(items, path), path).toBe('catalog')
     expect(items.map(item => item.id)).not.toContain('plans')
     expect(items.map(item => item.id)).not.toContain('bundles')
     expect(activeNavId(items, '/catalogx')).toBeNull()
@@ -101,6 +101,12 @@ describe('activeNavId', () => {
     expect(activeNavId(adminNav(caps('support')), '/invoices')).toBeNull()
   })
 
+  it('highlights ai-billing-settings on its own path, not billing-settings', () => {
+    const items = adminNav(caps('owner'))
+    expect(activeNavId(items, '/ai-billing-settings')).toBe('ai-billing-settings')
+    expect(items.find(item => item.id === 'ai-billing-settings')?.to).toBe('/ai-billing-settings')
+  })
+
   it('highlights billing-settings on its own path, not invoices', () => {
     expect(activeNavId(items, '/billing-settings')).toBe('billing-settings')
     expect(activeNavId(items, '/billing-settings/')).toBe('billing-settings')
@@ -121,7 +127,7 @@ describe('splitRail', () => {
     const { top, applications, utility } = splitRail(items)
     expect(utility.map(item => item.id)).toEqual(['audit', 'ai-provider', 'team'])
     expect(top).toEqual([])
-    expect(applications.map(item => item.id)).toEqual([...BEFORE_INVOICES, 'invoices', 'billing-settings', 'operations'])
+    expect(applications.map(item => item.id)).toEqual([...BEFORE_INVOICES, 'invoices', 'billing-settings', 'ai-billing-settings', 'operations'])
     expect([...applications, ...utility]).toHaveLength(items.length)
     expect(splitRail(adminNav(caps('finance'))).utility).toEqual([])
   })

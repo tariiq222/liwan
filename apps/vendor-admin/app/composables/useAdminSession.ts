@@ -44,9 +44,13 @@ export function useAdminSession() {
     return pending
   }
 
+  // The BFF drops the session cookie before it asks the control plane, so a failed answer still ended the local session:
+  // the profile and every page's data go either way, and the failure is not hidden behind a signed-in screen.
   async function signOut(): Promise<void> {
-    await $fetch('/api/auth/logout', { method: 'POST', body: {} })
+    // The cookie is gone whatever the answer, so a failed logout call is not an error the account can act on.
+    await $fetch('/api/auth/logout', { method: 'POST', body: {} }).catch(() => undefined)
     me.value = null
+    clearNuxtData()
     await navigateTo('/login')
   }
 

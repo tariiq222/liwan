@@ -75,7 +75,8 @@
     "editorRequired": "Keep at least one editor with document management permission.",
     "linkPrompt": "Link URL",
     "columns": {
-      "name": "Title"
+      "name": "Title",
+      "expiry": "Expiry date"
     },
     "footer": {
       "results": "Showing {shown} of {total} results"

@@ -5,8 +5,8 @@
   release.py status   --environment <name>   print the served release, the unfinished run and the halt record
   release.py rollback --environment <name>   clear a halt and finish the rollback of an unfinished run
 
-``development`` follows the head of GitHub ``main``; ``staging`` follows the highest ``release/19.0.X.Y.Z`` tag;
-``production`` applies only the tag it is given with ``--tag`` and refuses to run without one. The
+``staging`` follows the highest ``release/19.0.X.Y.Z`` tag; ``production``
+applies only the tag it is given with ``--tag`` and refuses to run without one. The
 candidate and its release document (the image ``liwan-release:<commit>`` in the private GHCR registry) are read with
 the read-only credentials in ``LIWAN_GHCR_READ_USER``, ``LIWAN_GHCR_READ_TOKEN`` and, optionally,
 ``LIWAN_GITHUB_READ_TOKEN`` (the source repository is public today). The command never waits for
@@ -39,7 +39,7 @@ from deploy.release.common import (  # noqa: E402
     EXIT_FAILED, EXIT_HALTED, EXIT_OK, EXIT_REFUSED, EXIT_ROLLBACK_FAILED, TIMED_OUT, CommandFailed, Lock, ReleaseError,
     Runner, free_bytes, make_log, now, read_env_file, sensitive_values, read_json, write_atomic, write_json)
 from deploy.release.source import (  # noqa: E402
-    CHANNELS, COMMIT, GITHUB_TOKEN_VAR, TOKEN_VAR, USER_VAR, Credential, Source, explicit_tag, host_architecture)
+    COMMIT, ENVIRONMENTS, GITHUB_TOKEN_VAR, TOKEN_VAR, USER_VAR, Credential, Source, explicit_tag, host_architecture)
 from deploy.releases.postgres import identifier, tenant_isolation_statements  # noqa: E402
 
 TENANT_DATABASE = re.compile(r'^[a-z][a-z0-9_]{0,62}$')
@@ -102,8 +102,8 @@ class Paths:
 
 def load_config(paths: Paths, environment: str) -> dict[str, str]:
     """The root-only config of one environment; a readable-by-others or foreign-owned file is refused."""
-    if environment not in CHANNELS:
-        raise ReleaseError('invalid_environment', EXIT_REFUSED, f'environment must be one of {sorted(CHANNELS)}')
+    if environment not in ENVIRONMENTS:
+        raise ReleaseError('invalid_environment', EXIT_REFUSED, f'environment must be one of {list(ENVIRONMENTS)}')
     path = paths.config_root / f'{environment}.env'
     if not path.is_file():
         raise ReleaseError('missing_config', EXIT_REFUSED, f'{path} does not exist')
@@ -215,7 +215,7 @@ class Releaser:
         self.docker_config.mkdir(exist_ok=True, mode=0o700)
         self.docker_config.chmod(0o700)
         github_token = self.environ.get(GITHUB_TOKEN_VAR) or None
-        self.source = Source(self.environment, tag, self.state, credential, github_token, self.run_command, self.log,
+        self.source = Source(tag, self.state, credential, github_token, self.run_command, self.log,
                              self.child_env)
         self.source.login()
         unfinished = read_json(self.file('run.json'))

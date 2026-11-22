@@ -22,7 +22,7 @@ ENV_TEMPLATES = (CONTROL / 'env.production.example', CONTROL / 'shared-worker.en
                  ROOT / 'deploy' / 'vendor-admin' / 'env.example')
 SECRET_NAME = re.compile(r'(?:KEY|SECRET|PASSWORD|TOKEN|DATABASE_URL)$')
 # Names that look like secrets but are not: identifiers and public keys.
-NOT_SECRET = {'LIWAN_SIGNUP_TURNSTILE_SITE_KEY', 'LIWAN_SIGNUP_PLAN_REVISION_ID', 'MOYASAR_ACCOUNT_NAME',
+NOT_SECRET = {'LIWAN_SIGNUP_TURNSTILE_SITE_KEY', 'LIWAN_SIGNUP_PLAN_ID', 'MOYASAR_ACCOUNT_NAME',
               'MOYASAR_PUBLISHABLE_KEY',
               # Paths of key files, not key material.
               'CONTROL_TLS_KEY', 'INTERNAL_EFFECT_TLS_KEY'}

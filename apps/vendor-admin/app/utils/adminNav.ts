@@ -1,17 +1,18 @@
 import type { ShellRailGroups, ShellRailItem } from '@liwan/ui/app/types/shell'
 import { CATALOG_TABS } from './vendorCatalog'
 
-/** `to`: the section's landing path when it is not `/<id>`; `alsoUnder`: further path prefixes that belong to this section (workspaces without a customer sit under customers, bundles and the retired legacy packages under the catalog). */
-interface AdminNavEntry { id: string, icon: string, capability: string, to?: string, alsoUnder?: readonly string[] }
+/** `alsoUnder`: further path prefixes that belong to this section (workspaces without a customer sit under customers, bundles and the retired legacy packages under the catalog). */
+interface AdminNavEntry { id: string, icon: string, capability: string, alsoUnder?: readonly string[] }
 
 // Display order. The control plane enforces every capability; hiding an entry here is presentation only.
 const ENTRIES: readonly AdminNavEntry[] = [
   { id: 'overview', icon: 'i-lucide-house', capability: 'vendor.read' },
   { id: 'analytics', icon: 'i-lucide-chart-line', capability: 'vendor.billing.manage' },
   { id: 'customers', icon: 'i-lucide-users', capability: 'vendor.read', alsoUnder: ['/tenants'] },
-  { id: 'catalog', icon: 'i-lucide-boxes', capability: 'vendor.read', to: CATALOG_TABS[0].to, alsoUnder: CATALOG_TABS.map(tab => tab.to) },
+  { id: 'catalog', icon: 'i-lucide-boxes', capability: 'vendor.read', alsoUnder: CATALOG_TABS.map(tab => tab.to) },
   { id: 'invoices', icon: 'i-lucide-receipt', capability: 'vendor.billing.manage' },
   { id: 'billing-settings', icon: 'i-lucide-settings-2', capability: 'vendor.billing.manage' },
+  { id: 'ai-billing-settings', icon: 'i-lucide-sparkles', capability: 'vendor.billing.manage' },
   { id: 'operations', icon: 'i-lucide-wrench', capability: 'vendor.read' },
   { id: 'audit', icon: 'i-lucide-history', capability: 'vendor.audit.read' },
   { id: 'ai-provider', icon: 'i-lucide-bot', capability: 'vendor.ai.manage' },
@@ -24,7 +25,7 @@ const EXTRA_PREFIXES: Record<string, readonly string[] | undefined> = Object.fro
 export function adminNav(capabilities: readonly string[]): ShellRailItem[] {
   return ENTRIES
     .filter(entry => capabilities.includes(entry.capability))
-    .map(entry => ({ id: entry.id, labelKey: `app.nav.${entry.id}`, icon: entry.icon, to: entry.to ?? `/${entry.id}` }))
+    .map(entry => ({ id: entry.id, labelKey: `app.nav.${entry.id}`, icon: entry.icon, to: `/${entry.id}` }))
 }
 
 /**

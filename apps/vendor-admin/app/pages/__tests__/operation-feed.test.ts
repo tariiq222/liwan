@@ -11,33 +11,38 @@ import { OPERATION_STATUS_FILTERS, operationFilterLabelKey, operationStatusFilte
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import * as clients from '../../utils/vendorClients'
 import { isNotAvailable } from '../../utils/vendorSubscriptions'
+import { failureKey, StepUpCancelled } from '../../composables/useStepUp'
 import { canAbandonJob } from '../../utils/sharedJobAbandon'
+import { canRecoverJob, recoveryTextKey } from '../../utils/sharedJobRecovery'
+import { useDebounceFn } from '@vueuse/core'
 import { formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
 
-async function page(name: string, data: unknown, source?: string, query: Record<string, string> = {}) {
+type PageOptions = { pending?: boolean, client?: boolean, refresh?: () => Promise<void> }
+async function page(name: string, data: unknown, source?: string, query: Record<string, string> = {}, options: PageOptions = {}) {
   const filename = resolve(import.meta.dirname, '..', name)
   const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
   const script = compileScript(descriptor, { id: 'operation-feed' }).content
-    .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replaceAll('import.meta.client', 'false').replace('export default', 'return')
+    .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replaceAll('import.meta.client', String(options.client ?? false)).replace('export default', 'return')
   const transpile = (s: string) => ts.transpileModule(s, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None } }).outputText
   const tenants = { items: [{ id: 'tenant-id', name: 'Acme' }], total: 1 }
   const request = vi.fn(async (path: string, _options?: unknown) => (path === 'tenants' && name === 'operations/index.vue' ? tenants : data))
   const replace = vi.fn()
   const keys: string[] = []
+  const unmounts: (() => void)[] = []
   const messages = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../../i18n/locales/en/vendor.json'), 'utf8'))
   const t = (key: string) => key.split('.').reduce((obj: unknown, key) => (obj as Record<string, unknown> | undefined)?.[key], messages) ?? key
   const bindings = {
-    formatLiwanDateTime, ...clients, isNotAvailable, canAbandonJob,
+    formatLiwanDateTime, failureKey, useDebounceFn, ...clients, isNotAvailable, canAbandonJob, canRecoverJob, recoveryTextKey,
     useVendorSubscriptions: () => ({ listClients: (query: Record<string, unknown>) => request('commercial/clients', { query }) }),
     invoiceStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge,
     _defineComponent: Vue.defineComponent, _withAsyncContext: (fn: () => unknown) => [fn(), () => {}],
-    computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, onMounted: () => {}, onBeforeUnmount: () => {},
+    computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, onMounted: (fn: () => void) => { if (options.client) fn() }, onBeforeUnmount: (fn: () => void) => { unmounts.push(fn) },
     definePageMeta: () => {}, useI18n: () => ({ t, locale: Vue.ref('en') }), safeReturnTo, OPERATION_STATUS_FILTERS, operationFilterLabelKey, operationStatusFilter, operationTargetTo,
     useRoute: () => ({ params: { id: 'job-id' }, query: { source, ...query }, fullPath: '/operations?source=all' }),
     useRouter: () => ({ replace }), useHydrated: () => Vue.ref(true), useVendorApi: () => ({ request }), useVendorContext: () => ({ can: () => true }),
     useAsyncData: async (key: string | (() => string), fn: () => Promise<unknown>) => {
       keys.push(typeof key === 'function' ? key() : key)
-      return { data: Vue.ref(await fn()), pending: Vue.ref(false), error: Vue.ref(null), refresh: vi.fn() }
+      return { data: Vue.ref(await fn()), pending: Vue.ref(options.pending ?? false), error: Vue.ref(null), refresh: options.refresh ?? vi.fn() }
     },
   }
   const component = new Function(...Object.keys(bindings), transpile(script))(...Object.values(bindings))
@@ -52,7 +57,7 @@ async function page(name: string, data: unknown, source?: string, query: Record<
   } }))
   const html = await renderToString(app)
   scope.stop()
-  return { state, request, replace, keys, captured, html }
+  return { state, request, replace, keys, captured, html, unmounts }
 }
 const operation = { id: 'job-id', tenant_id: 'tenant-id', type: 'provision', source: 'shared', status: 'verified', stage: 'verified', reason: 'shared_execution_verified', request_id: 'request-id', result: null, created_at: '2026-10-01T00:00:00Z', updated_at: null, last_event_at: null, events: [] }
 
@@ -87,6 +92,25 @@ it('offers abandon for a stuck backup, sends the confirmation with the job id, a
   detail.state.abandonReason.value = '  The backup never started on the host  '
   await detail.state.abandonJob()
   expect(detail.request).toHaveBeenCalledWith('shared/tenants/tenant-id/jobs/job-id/abandon', { method: 'POST', body: { reason: 'The backup never started on the host', confirm_job_id: 'job-id' } })
+})
+it('offers recover for a stuck provision, sends the reason, and reports the request outcome', async () => {
+  const stuck = { ...operation, status: 'needs_intervention', stage: 'needs_intervention', reason: 'shared_execution_needs_attention', recovery: null }
+  const detail = await page('operations/[id].vue', stuck, 'shared')
+  expect(detail.state.recoverAllowed.value).toBe(true)
+  expect(detail.captured.find(node => node.props['data-testid'] === 'operation-recover')?.props.title).toBe('Recover this operation')
+  detail.state.recoverReason.value = '  The workspace is reachable again  '
+  await detail.state.recoverJob()
+  expect(detail.request).toHaveBeenCalledWith('shared/tenants/tenant-id/jobs/job-id/recover', { method: 'POST', body: { reason: 'The workspace is reachable again' } })
+  const ended = await page('operations/[id].vue', { ...stuck, recovery: { state: 'still_needs_intervention', error: null, requested_at: '2026-11-10T00:00:00Z' } }, 'shared')
+  expect(ended.html).toContain('still needs review')
+  const refused = await page('operations/[id].vue', { ...stuck, recovery: { state: 'failed', error: 'effect_identity_mismatch', requested_at: '2026-11-10T00:00:00Z' } }, 'shared')
+  expect(refused.html).toContain('different key or content'); expect(refused.html).not.toContain('could not run')
+  const failed = await page('operations/[id].vue', { ...stuck, recovery: { state: 'failed', error: 'authority_lost', requested_at: '2026-11-10T00:00:00Z' } }, 'shared')
+  expect(failed.html).toContain('could not run')
+  const pending = await page('operations/[id].vue', { ...stuck, recovery: { state: 'pending', error: null, requested_at: '2026-11-10T00:00:00Z' } }, 'shared')
+  expect(pending.state.recoverAllowed.value).toBe(false); expect(pending.state.isActive.value).toBe(true)
+  const empty = await page('operations/[id].vue', stuck, 'shared'); empty.request.mockClear(); await empty.state.recoverJob()
+  expect(empty.request).not.toHaveBeenCalled()
 })
 it('does not send an abandon request without a reason, and offers none for provision or a pending request', async () => {
   const stuck = { ...operation, type: 'backup', status: 'needs_intervention', stage: 'needs_intervention', abandonment: null }
@@ -170,4 +194,37 @@ it('links an operation to its customer, else to the workspace page, and shows th
   const detail = await page('operations/[id].vue', owned, 'shared')
   expect(detail.state.targetTo.value).toEqual({ path: '/customers/cust-1', query: { tab: 'operations' } })
   expect(detail.html).toContain('Acme Workspace'); expect(detail.html).not.toContain('open="')
+})
+
+it('keeps the operation on screen while a poll refresh is pending', async () => {
+  const running = { ...operation, status: 'running', stage: 'running' }
+  const detail = await page('operations/[id].vue', running, 'shared', {}, { pending: true })
+  const record = detail.captured.find(node => node.name === 'SharedRecordPage')!.props
+  // RecordPage draws the skeleton when `loading` is set and `keep-content` is not: a refresh must not replace the record.
+  expect(Boolean(record.loading) && !record['keep-content']).toBe(false)
+})
+it('starts no new poll once the page was left while a refresh was in flight', async () => {
+  vi.useFakeTimers()
+  try {
+    let finishRefresh = () => {}
+    const refresh = vi.fn(() => new Promise<void>((resolveRefresh) => { finishRefresh = resolveRefresh }))
+    const detail = await page('operations/[id].vue', { ...operation, status: 'running', stage: 'running' }, 'shared', {}, { client: true, refresh })
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(refresh).toHaveBeenCalledTimes(1)
+    detail.unmounts.forEach(fn => fn())
+    finishRefresh()
+    await vi.advanceTimersByTimeAsync(20000)
+    expect(refresh).toHaveBeenCalledTimes(1)
+    expect(vi.getTimerCount()).toBe(0)
+  } finally { vi.useRealTimers() }
+})
+
+it('words a cancelled step-up on the operation page as its own message, not as a failed action', async () => {
+  const stuck = { ...operation, type: 'backup', status: 'needs_intervention', stage: 'needs_intervention', reason: 'shared_execution_needs_attention', abandonment: null }
+  const detail = await page('operations/[id].vue', stuck, 'shared')
+  detail.state.abandonOpen.value = true
+  detail.state.failedAction.value = { action: 'abandon', cause: new StepUpCancelled() }
+  expect(detail.state.errorKeyOf('abandon')).toBe('adminAuth.stepUp.cancelled')
+  detail.state.failedAction.value = { action: 'abandon', cause: { statusCode: 500 } }
+  expect(detail.state.errorKeyOf('abandon')).toBe('vendor.errors.action')
 })

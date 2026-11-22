@@ -3,10 +3,12 @@ import { formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
 import { operationStatusBadge } from '@/utils/vendorBadges'
 import { buildVendorPolicy, type VendorFeatureValue } from '@/utils/vendorPolicy'
 import type { VendorTenant } from '@/utils/vendorTenant'
+import { useVendorCatalogVersions } from '@/composables/useVendorCatalogVersions'
+import { showsSharedBackups } from '@/utils/sharedBackups'
+import { failureKey } from '@/composables/useStepUp'
 import type { OperationFeed } from '@liwan/commercial-contracts'
 type TenantOperation = 'tenant.create' | 'tenant.inspect' | 'health' | 'backup' | 'tenant.entitle'
 const tenantOperationTypes = new Set<TenantOperation>(['tenant.create', 'tenant.inspect', 'health', 'backup', 'tenant.entitle'])
-type Catalog = { version: string; status: string; solution: { tiers?: { id: string; name: string; features?: string[]; limits?: Record<string, number> }[] } }
 const props = defineProps<{ tenantId: string }>()
 /** True while a typed reason or limit change has not been sent; the page guards leaving with it. */
 const dirtyModel = defineModel<boolean>('dirty', { default: false })
@@ -15,9 +17,9 @@ const { request } = useVendorApi()
 const { can: canVendor } = useVendorContext()
 const tenantId = toRef(props, 'tenantId')
 const { data, error: tenantError, pending: tenantPending, refresh } = useVendorTenant(tenantId)
-const { data: catalog } = useAsyncData('vendor:catalog-features', () => request<{ items: Catalog[]; total: number }>('catalog'))
+const { data: catalog } = useVendorCatalogVersions().load()
 const { data: recent, error: recentError, pending: recentPending, refresh: refreshRecent } = useTenantRecentOperations(tenantId)
-const publishedCatalog = computed(() => catalog.value?.items.find(item => item.status === 'published' && item.version === data.value?.catalog_version))
+const publishedCatalog = computed(() => catalog.value?.find(item => item.status === 'published' && item.version === data.value?.catalog_version))
 const selectedTier = computed(() => publishedCatalog.value?.solution.tiers?.find(item => item.id === data.value?.catalog_tier))
 const featureKeys = computed(() => {
   const result = new Map<string, 'boolean' | 'limit'>([['users.limit', 'limit'], ['storage.limit_mb', 'limit']])
@@ -50,7 +52,8 @@ const dirty = computed(() => !submitted.value && Boolean(reason.value.trim() || 
   const current = currentFeatures.value[key]
   return edits[key] !== (kind === 'boolean' ? current === true : typeof current === 'number' ? String(current) : '')
 }))))
-watch(dirty, value => { dirtyModel.value = value }, { immediate: true })
+const backupsDirty = ref(false)
+watch([dirty, backupsDirty], () => { dirtyModel.value = dirty.value || backupsDirty.value }, { immediate: true })
 onBeforeUnmount(() => { dirtyModel.value = false })
 watch([data, selectedTier, availableOperations], () => {
   submitted.value = false
@@ -64,7 +67,7 @@ watch([data, selectedTier, availableOperations], () => {
 function fieldErrorKey(cause: unknown): string {
   const value = cause as { data?: { data?: { field?: unknown }; field?: unknown }; field?: unknown } | null
   const field = value?.data?.data?.field ?? value?.data?.field ?? value?.field
-  return typeof field === 'string' ? `vendor.errors.field.${field}` : 'vendor.errors.action'
+  return failureKey(cause, typeof field === 'string' ? `vendor.errors.field.${field}` : 'vendor.errors.action')
 }
 
 async function updateGrant(enabled: boolean) {
@@ -116,6 +119,7 @@ const pickedLabel = computed(() => operationTypes.value.find(operation => operat
 const canEnqueue = computed(() => Boolean(reason.value.trim()) && !(actionType.value === 'tenant.entitle' && expectedRevision.value === null))
 // Anything the confirmation names (type, reason, limits, switches) closes it when it changes.
 watch([actionType, reason, edits], () => { confirmEnqueue.value = false }, { deep: true })
+const sharedWorkspace = computed(() => showsSharedBackups(data.value))
 const operationsNeedEnabling = computed(() => Boolean(data.value && !data.value.operations_enabled))
 const operationTime = (op: OperationFeed) => formatLiwanDateTime(op.source === 'shared' ? (op.last_event_at ?? op.created_at) : op.updated_at)
 </script>
@@ -126,7 +130,7 @@ const operationTime = (op: OperationFeed) => formatLiwanDateTime(op.source === '
     <SharedRecordSection variant="panel" :title="t('vendor.tenants.operationsTitle')" :description="t('vendor.tenants.operationsHint')">
       <template #actions><SharedStatusBadge :tone="data.operations_enabled ? 'success' : 'neutral'" :label="data.operations_enabled ? t('vendor.tenants.operationsOn') : t('vendor.tenants.operationsOff')" /></template>
       <UAlert v-if="operationsNeedEnabling" color="neutral" variant="subtle" icon="i-lucide-lock" :title="t('vendor.tenants.operationsDisabledHint')" />
-      <UAlert v-else-if="!availableOperations.length" color="neutral" variant="subtle" icon="i-lucide-info" :title="t('vendor.tenants.operationsUnavailableHint')" />
+      <UAlert v-else-if="!availableOperations.length && !sharedWorkspace" color="neutral" variant="subtle" icon="i-lucide-info" :title="t('vendor.tenants.operationsUnavailableHint')" />
       <UAlert v-if="actionError" class="mb-4" color="error" variant="subtle" :title="t(fieldErrorKey(actionError))" />
       <form v-if="canVendor('vendor.operations.run') && !operationsNeedEnabling && availableOperations.length" class="grid gap-4" @submit.prevent="confirmEnqueue = canEnqueue">
         <UFormField :label="t('vendor.operations.type')" required><USelect v-model="actionType" :items="operationTypes" class="w-full sm:max-w-md" /></UFormField>
@@ -146,6 +150,8 @@ const operationTime = (op: OperationFeed) => formatLiwanDateTime(op.source === '
       </form>
       <SharedForbiddenState v-else-if="!operationsNeedEnabling && availableOperations.length && !canVendor('vendor.operations.run')" />
     </SharedRecordSection>
+
+    <VendorBackupsPanel v-if="sharedWorkspace" v-model:dirty="backupsDirty" :tenant-id="tenantId" />
 
     <SharedRecordSection variant="panel" :title="t('vendor.tenants.recentOperations')">
       <template #actions><UButton :to="{ path: '/operations', query: { tenant_id: tenantId } }" color="neutral" variant="outline" size="sm">{{ t('vendor.tenants.viewOperations') }}</UButton></template>

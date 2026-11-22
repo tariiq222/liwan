@@ -1,10 +1,9 @@
 import type { PricingPolicy, Quote } from '@liwan/commercial-contracts'
-import type { BundleView, CatalogReleaseView, CommercialKind, LifecycleAction, VendorListEnvelope, PlanView, StatusFilter } from '@/utils/vendorCommercial'
-import { lifecycleBody, lifecycleUrl } from '@/utils/vendorCommercial'
+import type { BundleView, CatalogReleaseView, CommercialKind, LifecycleAction, ListParams, VendorListEnvelope, PlanView } from '@/utils/vendorCommercial'
+import { lifecycleBody, lifecycleUrl, listQuery } from '@/utils/vendorCommercial'
 import { approvedPolicies } from '@/components/vendor/policySelection'
 
 export type PricingPolicyView = PricingPolicy
-export type ListParams = { status?: StatusFilter; q?: string; limit?: number; offset?: number }
 
 /**
  * Every approved pricing policy, in the order the control plane lists them (by created_at, then id). The order is not
@@ -19,13 +18,12 @@ export async function listPolicies(request: <T>(path: string) => Promise<T>): Pr
 export function useVendorCommercial() {
   const { request } = useVendorApi()
   const seg = (kind: CommercialKind) => (kind === 'bundle' ? 'bundles' : 'plans')
-  const query = (p: ListParams) => ({ status: p.status && p.status !== 'all' ? p.status : undefined, q: p.q || undefined, limit: p.limit, offset: p.offset })
   return {
     releases: () => request<VendorListEnvelope<CatalogReleaseView>>('commercial/catalog/releases').then(r => r.items),
     createRelease: (body: { catalog_version: string; reason: string }) => request<CatalogReleaseView>('commercial/catalog/releases', { method: 'POST', body }),
     seedDefaultBundles: (releaseId: string, reason: string) => request<{ bundles: string[]; created: string[]; plan_revision_id: string; plan_created: boolean }>(`commercial/catalog/releases/${encodeURIComponent(releaseId)}/default-bundles`, { method: 'POST', body: { reason } }),
     policies: (): Promise<PricingPolicyView[]> => listPolicies(request),
-    listBundles: (p: ListParams = {}) => request<VendorListEnvelope<BundleView>>('commercial/bundles', { query: query(p) }),
+    listBundles: (p: ListParams = {}) => request<VendorListEnvelope<BundleView>>('commercial/bundles', { query: listQuery(p) }),
     /** The server filters only by name substring and status, not bundle_id; renamed versions need the unfiltered list, so page through it. */
     bundleVersions: async (bundleId: string) => {
       const out: BundleView[] = []
@@ -36,7 +34,7 @@ export function useVendorCommercial() {
       }
       return out.sort((a, b) => b.version - a.version)
     },
-    listPlans: (p: ListParams = {}) => request<VendorListEnvelope<PlanView>>('commercial/plans', { query: query(p) }),
+    listPlans: (p: ListParams = {}) => request<VendorListEnvelope<PlanView>>('commercial/plans', { query: listQuery(p) }),
     get: <T extends BundleView | PlanView>(kind: CommercialKind, id: string) => request<T>(`commercial/${seg(kind)}/${encodeURIComponent(id)}`),
     create: <T extends BundleView | PlanView>(kind: CommercialKind, body: unknown) => request<T>(`commercial/${seg(kind)}`, { method: 'POST', body }),
     update: <T extends BundleView | PlanView>(kind: CommercialKind, id: string, body: unknown) => request<T>(`commercial/${seg(kind)}/${encodeURIComponent(id)}`, { method: 'PATCH', body }),

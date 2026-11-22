@@ -1,10 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""Development, staging and production run one compose set; the env file is the only per-environment input.
+"""Staging and production run one compose set; the env file is the only per-environment input.
 
 Renders the shared stack and the control plane with each env template (`docker compose config`, nothing is started)
-and fails when the development or staging rendering differs from production anywhere but the allowlisted variables:
+and fails when the staging rendering differs from production anywhere but the allowlisted variables:
 names, domains, secret placeholders, host paths and the edge publish address and ports, trusted proxy list and TLS
-mode. The development and staging templates are also checked on their own: both sit behind an Openship edge, so the
+mode. The staging template is also checked on its own: it sits behind an Openship edge, so the
 stack publishes on loopback only and Caddy trusts that edge's gateway and nothing else.
 """
 from __future__ import annotations
@@ -24,11 +24,11 @@ from deploy.test_edge_rate_limit import (
 
 DEPLOY = Path(__file__).resolve().parents[1]
 ENVIRONMENTS = Path(__file__).resolve().parent
-TEMPLATES = {name: ENVIRONMENTS / f'{name}.env.example' for name in ('development', 'staging', 'production')}
-# The two environments that sit behind an Openship edge; production decides its own edge at bring-up.
-EDGE_ENVIRONMENTS = ('development', 'staging')
+TEMPLATES = {name: ENVIRONMENTS / f'{name}.env.example' for name in ('staging', 'production')}
+# The environment that sits behind an Openship edge; production decides its own edge at bring-up.
+EDGE_ENVIRONMENTS = ('staging',)
 # Hostname label of each edge environment's base domain (`<label>.example.test`).
-BASE_LABELS = {'development': 'dev', 'staging': 'staging'}
+BASE_LABELS = {'staging': 'staging'}
 STACKS = {
     'shared': SHARED_COMPOSE_FILES,
     'control': ('control-plane/compose.production.yml', 'control-plane/compose.host-link.yml'),
@@ -41,7 +41,7 @@ VALUE_ALLOWLIST = frozenset({
     'LIWAN_EDGE_BIND', 'LIWAN_EDGE_HTTP_PORT', 'LIWAN_EDGE_HTTPS_PORT', 'LIWAN_TRUSTED_PROXIES', 'LIWAN_AUTO_HTTPS',
     'LIWAN_SITE_SCHEME',
     'DOMAIN', 'LIWAN_PROSPECT_HOST', 'NUXT_CUSTOMER_COMMERCIAL_PUBLIC_ORIGIN', 'LIWAN_RESTORE_DOMAIN',
-    'NUXT_CUSTOMER_COMMERCIAL_CONTROL_URL', 'DB_NAME', 'DB_PASSWORD', 'LIWAN_SHARED_PROXY_TOKEN',
+    'DB_NAME', 'DB_PASSWORD', 'LIWAN_SHARED_PROXY_TOKEN',
     'LIWAN_SESSION_KEYS', 'CUSTOMER_COMMERCIAL_SERVICE_KEY', 'LIWAN_SHARED_ODOO_CONFIG',
     'LIWAN_TENANT_REGISTRY_DIR', 'LIWAN_COMMERCIAL_CONTROL_NETWORK', 'LIWAN_ADMIN_EDGE_NETWORK',
     'LIWAN_CONTROL_EDGE_NETWORK',
@@ -119,17 +119,23 @@ class EnvironmentTemplates(unittest.TestCase):
                 differing = {variable for variable in values if values[variable] != production[variable]}
                 self.assertEqual(set(), differing - VALUE_ALLOWLIST)
 
-    def test_each_edge_environment_names_only_its_own_database_hosts_and_paths(self):
-        self.assertEqual('liwan_development', self.values['development']['DB_NAME'])
+    def test_each_environment_names_only_its_own_database_hosts_and_paths(self):
         self.assertEqual('liwan_staging', self.values['staging']['DB_NAME'])
-        for name, label in BASE_LABELS.items():
-            self.assertIn(f'http://{label}.example.test', self.values[name]['DOMAIN'])
-            foreign = [other for other in EDGE_ENVIRONMENTS if other != name][0]
-            for variable, value in self.values[name].items():
-                with self.subTest(template=name, variable=variable):
-                    self.assertNotIn(f'{BASE_LABELS[foreign]}.example.test', value)
-                    self.assertNotIn(f'liwan-{foreign}', value)
-                    self.assertNotIn(f'liwan_{foreign}', value)
+        self.assertIn('http://staging.example.test', self.values['staging']['DOMAIN'])
+        for variable, value in self.values['production'].items():
+            with self.subTest(template='production', variable=variable):
+                self.assertNotIn('staging', value)
+        for variable, value in self.values['staging'].items():
+            with self.subTest(template='staging', variable=variable):
+                if value.startswith('/srv/'):
+                    self.assertTrue(value.startswith('/srv/liwan-staging/'), value)
+                if value.startswith('liwan_') and variable.endswith('_NETWORK'):
+                    self.assertTrue(value.startswith('liwan_staging_'), value)
+
+    def test_the_web_tier_reaches_the_control_api_by_the_name_in_its_certificate(self):
+        for name, values in self.values.items():
+            with self.subTest(template=name):
+                self.assertEqual('https://control-api:4187', values['NUXT_CUSTOMER_COMMERCIAL_CONTROL_URL'])
 
     def test_the_ai_platform_directory_is_under_the_control_state_directory(self):
         for name, values in self.values.items():
@@ -322,8 +328,7 @@ class EnvironmentTemplates(unittest.TestCase):
                     self.assertEqual('', values[variable])
 
     def test_the_control_edge_network_is_named_per_environment_and_apart_from_the_other_networks(self):
-        expected = {'development': 'liwan_development_control_edge', 'staging': 'liwan_staging_control_edge',
-                    'production': 'liwan_control_edge'}
+        expected = {'staging': 'liwan_staging_control_edge', 'production': 'liwan_control_edge'}
         for name, values in self.values.items():
             with self.subTest(template=name):
                 self.assertEqual(expected[name], values['LIWAN_CONTROL_EDGE_NETWORK'])

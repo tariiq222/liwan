@@ -7,10 +7,13 @@ import { plainShortcutBlocked, shortcutKey, type ShortcutKeyEvent } from './keym
  * targets (input, select, textarea), a Select trigger, a listbox, a tree or a plain grid cell, and
  * an open menu, which is what keeps the arrows from hijacking those widgets.
  */
-export function rowMove(event: ShortcutKeyEvent, context: { hydrated: boolean; overlayOpen: boolean }): 'j' | 'k' | null {
+export function rowMove(event: ShortcutKeyEvent, context: { hydrated: boolean; overlayOpen: boolean, inList: boolean }): 'j' | 'k' | null {
   if (event.shiftKey || plainShortcutBlocked(event, context)) return null
-  if (event.key === 'ArrowDown') return 'j'
-  if (event.key === 'ArrowUp') return 'k'
+  // J and K are deliberate row keys anywhere in the list's page; the arrows are the browser's scroll keys, so they
+  // only move between rows once focus is already inside the list. Capturing ArrowDown/ArrowUp document-wide stopped
+  // the page from scrolling and jumped focus to the first or last row on any arrow press.
+  if (event.key === 'ArrowDown') return context.inList ? 'j' : null
+  if (event.key === 'ArrowUp') return context.inList ? 'k' : null
   const key = shortcutKey(event)
   return key === 'j' || key === 'k' ? key : null
 }

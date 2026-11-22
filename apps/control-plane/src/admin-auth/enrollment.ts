@@ -2,7 +2,7 @@ import type { PoolClient } from 'pg'
 import { hashToken, newRecoveryCodes, newToken, open, totpBoxAad } from './crypto.js'
 import { checkTotp } from './totp.js'
 import { hashPassword, passwordAcceptable } from './passwords.js'
-import { actorName, AdminAuthError, audit, lockOwners, normalizeEmail, setRoles } from './accounts.js'
+import { actorName, AdminAuthError, audit, lockOwners, normalizeEmail, requireActingOwner, setRoles } from './accounts.js'
 import type { VendorRole } from '@liwan/commercial-contracts'
 
 const DAY = 24 * 3600_000
@@ -36,13 +36,35 @@ export async function issueReset(client: PoolClient, actor: { id: number } | 'op
   const account = await client.query('SELECT status FROM vendor_accounts WHERE id=$1 FOR UPDATE', [accountId])
   if (!account.rowCount) throw new AdminAuthError(404, 'not_found')
   if (account.rows[0].status === 'disabled') throw new AdminAuthError(422, 'invalid')
-  await client.query("UPDATE vendor_accounts SET status='enrolling', password_hash=NULL WHERE id=$1", [accountId])
+  const invitation = await restartEnrollment(client, actor, accountId, now)
+  await audit(client, actorName(actor), 'account.reset_issued', `account:${accountId}`, reason)
+  return invitation
+}
+
+/**
+ * A disabled account comes back as an account that has never signed in: `enrolling` with no password, passkey, authenticator or recovery
+ * code, no session and no old invitation, so nothing from before it was disabled works again. The person signs in by finishing the
+ * enrolment with the link this returns, the same path as a reset. Only an owner may enable, and the account counts as an owner again
+ * only once that enrolment is finished (`lockOwners` counts active accounts).
+ */
+export async function enableAccount(client: PoolClient, actor: { id: number } | 'operator', accountId: number, reason: string, now: Date) {
+  requireActingOwner(actor, await lockOwners(client))
+  const account = await client.query('SELECT status FROM vendor_accounts WHERE id=$1 FOR UPDATE', [accountId])
+  if (!account.rowCount) throw new AdminAuthError(404, 'not_found')
+  if (account.rows[0].status !== 'disabled') throw new AdminAuthError(422, 'invalid')
+  const invitation = await restartEnrollment(client, actor, accountId, now)
+  await audit(client, actorName(actor), 'account.enabled', `account:${accountId}`, reason)
+  return invitation
+}
+
+/** Wipes every credential, challenge, session and open invitation of the account, puts it in `enrolling` and issues the one reset link that finishes the enrolment. */
+async function restartEnrollment(client: PoolClient, actor: { id: number } | 'operator', accountId: number, now: Date) {
+  await client.query("UPDATE vendor_accounts SET status='enrolling', password_hash=NULL, disabled_at=NULL WHERE id=$1", [accountId])
   for (const table of ['vendor_passkeys', 'vendor_totp', 'vendor_recovery_codes', 'vendor_auth_challenges']) await client.query(`DELETE FROM ${table} WHERE account_id=$1`, [accountId])
   await client.query('UPDATE vendor_invitations SET consumed_at=$2 WHERE account_id=$1 AND consumed_at IS NULL', [accountId, now])
   await client.query('UPDATE vendor_sessions SET revoked_at=$2 WHERE account_id=$1 AND revoked_at IS NULL', [accountId, now])
   const token = newToken(); const expiresAt = new Date(now.getTime() + DAY)
   await client.query("INSERT INTO vendor_invitations(token_hash,account_id,purpose,created_by,expires_at,created_at) VALUES($1,$2,'reset',$3,$4,$5)", [hashToken(token), accountId, actorName(actor), expiresAt, now])
-  await audit(client, actorName(actor), 'account.reset_issued', `account:${accountId}`, reason)
   return { token, expiresAt }
 }
 

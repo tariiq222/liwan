@@ -9,8 +9,9 @@ const UAvatar = Vue.defineComponent({
   setup(props, { attrs }) { return () => Vue.h('i', { ...attrs, 'data-avatar': props.src ? 'photo' : 'initials' }, props.text) },
 })
 const people = (count: number) => Array.from({ length: count }, (_, index) => ({ id: index + 1, name: `Person ${index + 1}` }))
+const MESSAGES = { 'states.listSeparator': '، ' }
 const render = (list: { id: number; name: string; src?: string }[]) =>
-  renderShared('PersonAvatar', { people: list }, {}, { modules: { '../../../utils/avatarTone': avatarTone }, stubs: { UAvatar } })
+  renderShared('PersonAvatar', { people: list }, {}, { messages: MESSAGES, modules: { '../../../utils/avatarTone': avatarTone }, stubs: { UAvatar } })
 
 describe('SharedPersonAvatar', () => {
   it('shows one avatar and no chip for a single person', async () => {
@@ -40,6 +41,7 @@ describe('SharedPersonAvatar', () => {
 
   it('lists every name once for the whole group and renders a photo when given', async () => {
     const html = await render([{ id: 1, name: 'Sara', src: 'data:image/png;base64,x' }, { id: 2, name: 'Omar' }])
+    // The separator comes from the locale (states.listSeparator), not from the component's own source.
     expect(html).toContain('title="Sara، Omar"')
     expect(html).toContain('aria-label="Sara، Omar"')
     expect(html).toContain('data-avatar="photo"')

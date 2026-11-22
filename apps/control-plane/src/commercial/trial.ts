@@ -3,7 +3,7 @@ import type { Pool, PoolClient } from 'pg'
 import { acceptQuoteRequestSchema, canonicalJson, quoteRequestSchema, quoteSchema, riyadhDate, type Principal, type Quote } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
 import { CommercialHttpError, digestOf } from './lifecycle.js'
-import { acceptQuoteOn, orderView } from './orders.js'
+import { acceptQuoteOn, orderView, requireReachableManager } from './orders.js'
 import { buildQuoteOn } from './quotes.js'
 import { buildRenewalOn, trialEndsAt } from './renewals.js'
 import { endTrialOn } from './trial-expiry.js'
@@ -41,6 +41,8 @@ export async function startTrialOn(client: PoolClient, input: TrialInput) {
   if (customer.trial_used_at) throw new CommercialHttpError('trial_already_used', 409)
   const existing = (await client.query('SELECT * FROM subscriptions WHERE customer_id=$1 FOR UPDATE', [input.customer_id])).rows[0]
   if (existing?.applied_revision_id) throw new CommercialHttpError('trial_not_available', 409)
+  // The trial's order provisions the workspace and invites its manager, as a paid first order does.
+  await requireReachableManager(client, customer, existing)
   const capability = (await client.query('SELECT post_trial_supported,excess_supported FROM tenants WHERE id=$1', [customer.tenant_id])).rows[0]
   if (customer.tenant_id && (capability?.post_trial_supported !== true || capability?.excess_supported !== true)) throw new CommercialHttpError('tenant_upgrade_required', 409)
   const plan = (await client.query('SELECT trial_days FROM plan_revisions WHERE id=$1 FOR SHARE', [request.plan_revision_id])).rows[0]
@@ -49,7 +51,7 @@ export async function startTrialOn(client: PoolClient, input: TrialInput) {
   const built = await buildQuoteOn(client, { customer_id: input.customer_id, request: { ...request, effective_date: riyadhDate(now) } }, now)
   const endsAt = trialEndsAt(plan.trial_days, now)
   const trialQuote = redigest({ ...built, due_now: { ...built.due_now, minor: 0 }, next_renewal_at: riyadhDate(new Date(endsAt)) })
-  const acceptInput = acceptQuoteRequestSchema.parse({ quote_id: trialQuote.id, expected_subscription_revision: 0, idempotency_key: key })
+  const acceptInput = acceptQuoteRequestSchema.parse({ quote_id: trialQuote.id, expected_subscription_revision: trialQuote.expected_subscription_revision, idempotency_key: key })
   await client.query('INSERT INTO commercial_quotes(id,customer_id,payload,digest,expires_at) VALUES($1,$2,$3,$4,$5)', [trialQuote.id, input.customer_id, JSON.stringify(quoteSchema.parse(trialQuote)), trialQuote.digest, trialQuote.expires_at])
   await client.query('UPDATE customers SET trial_used_at=now() WHERE id=$1', [input.customer_id])
   await client.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES($1,$2,$3,$4,$5,$6)',
