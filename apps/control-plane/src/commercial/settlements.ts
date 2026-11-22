@@ -30,7 +30,7 @@ export async function processRefundOutbox(pool: Pool, adapter?: PaymentAdapter):
       await refundThroughProvider(pool, adapter, row)
       automatic++
     } catch (error) {
-      const code = error instanceof Error ? error.message : 'provider_refund_failed'
+      const code = refundReferenceConflict(error) ? 'refund_reference_in_use' : error instanceof Error ? error.message : 'provider_refund_failed'
       try {
         // A row that may hold returned money is never handed over (see handOffAutomaticRefund): it keeps retrying with backoff.
         if ((NON_RETRYABLE_REFUND.includes(code) || row.attempts + 1 >= AUTOMATIC_REFUND_ATTEMPTS) && await handOffAutomaticRefund(pool, row, code)) automatic++
@@ -70,10 +70,11 @@ const SYSTEM_REFUNDER = 'system'
  * The payload of a `reconcile.refund` row the worker refunds through the provider. `adjustment_id` and `requested_by` mark a
  * vendor-requested refund. `provider_refund` is what the worker knows of the provider's side, written in its own committed
  * write so a rolled-back recording cannot forget it: `attempted` (a refund call was made and its outcome is not verified: money
- * may have left) or `returned` (the provider returned the whole payment, `provider_payment_id`). Absent means nothing was asked.
+ * may have left; `attempted_at` is when the mark was written) or `returned` (the provider returned the whole payment,
+ * `provider_payment_id`). Absent means nothing was asked.
  */
 type RefundOutboxPayload = { attempt_id?: string; payment_id?: string; automatic?: boolean; adjustment_id?: string; requested_by?: CommercialActor
-  provider_refund?: 'attempted' | 'returned'; provider_payment_id?: string }
+  provider_refund?: 'attempted' | 'returned'; provider_payment_id?: string; attempted_at?: string }
 
 /**
  * An automatic refund that cannot finish is closed as failed with its reason; the row keeps its payload, which trial
@@ -181,8 +182,8 @@ async function refundThroughProvider(pool: Pool, adapter: PaymentAdapter | undef
 }
 
 /** Writes what the worker knows of the provider's side onto the row, in its own committed write (never inside the recording transaction). */
-async function noteProviderRefund(pool: Pool, outboxId: string, patch: Pick<RefundOutboxPayload, 'provider_refund' | 'provider_payment_id'> | null) {
-  await pool.query("UPDATE commercial_outbox SET payload = CASE WHEN $2::jsonb IS NULL THEN payload - 'provider_refund' ELSE payload || $2::jsonb END WHERE id=$1 AND status='pending'",
+async function noteProviderRefund(pool: Pool, outboxId: string, patch: Pick<RefundOutboxPayload, 'provider_refund' | 'provider_payment_id' | 'attempted_at'> | null) {
+  await pool.query("UPDATE commercial_outbox SET payload = CASE WHEN $2::jsonb IS NULL THEN payload - 'provider_refund' - 'attempted_at' ELSE (payload - 'attempted_at') || $2::jsonb END WHERE id=$1 AND status='pending'",
     [outboxId, patch ? JSON.stringify(patch) : null])
 }
 
@@ -207,7 +208,7 @@ async function returnPaymentAtProvider(pool: Pool, adapter: PaymentAdapter, outb
   const fullyReturned = (event: ProviderEvent | undefined) => event?.payment_id === payment.payment_id && event.refunded?.minor === total
     && event.refunded.currency === attempt.currency && event.refunded.exponent === attempt.exponent
   if (returned < total) {
-    await noteProviderRefund(pool, outboxId, { provider_refund: 'attempted' })
+    await noteProviderRefund(pool, outboxId, { provider_refund: 'attempted', attempted_at: new Date().toISOString() })
     let result: Extract<Awaited<ReturnType<PaymentAdapter['refund']>>, { outcome: 'refunded' }> | undefined
     try {
       const refunded = await adapter.refund(payment.payment_id, { minor: total - returned, currency: attempt.currency, exponent: attempt.exponent })
@@ -329,9 +330,13 @@ export async function refundCreditNote(pool: Pool, { adjustment_id, actor, reque
   try { return await recordRefund(pool, { adjustment_id, actor, request }) }
   catch (error) {
     // One provider refund closes one credit note: a reference already recorded on another note is refused.
-    if ((error as { code?: string; constraint?: string }).constraint === 'invoice_adjustments_refund_reference') throw new CommercialHttpError('refund_reference_in_use', 409)
+    if (refundReferenceConflict(error)) throw new CommercialHttpError('refund_reference_in_use', 409)
     throw error
   }
+}
+/** Whether the database refused a refund reference another note already holds (the unique index on `invoice_adjustments.refund_reference`). */
+function refundReferenceConflict(error: unknown): boolean {
+  return (error as { constraint?: string }).constraint === 'invoice_adjustments_refund_reference'
 }
 async function recordRefund(pool: Pool, { adjustment_id, actor, request }: { adjustment_id: string; actor: CommercialActor; request: RefundCreditNoteRequest }) {
   return transaction(pool, client => recordRefundIn(client, { adjustment_id, actor, refundedBy: actorLabel(actor), request, automatic: false }))
