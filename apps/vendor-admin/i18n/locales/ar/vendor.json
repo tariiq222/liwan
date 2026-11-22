@@ -477,110 +477,214 @@
       "subject": "الموضوع",
       "action": "الإجراء",
       "actions": {
-        "membership": {
-          "granted": "مُنحت صلاحية الإدارة",
-          "revoked": "سُحبت صلاحية الإدارة"
+        "account": {
+          "dev_owner": "إنشاء حساب المالك التجريبي",
+          "disabled": "تعطيل حساب",
+          "enabled": "تفعيل حساب مُعطّل",
+          "enrolled": "إكمال تسجيل حساب",
+          "invited": "دعوة حساب",
+          "reset_completed": "إكمال إعادة التعيين",
+          "reset_issued": "إصدار رابط إعادة تعيين",
+          "roles_set": "تغيير أدوار حساب"
         },
-        "catalog": {
-          "imported": "استيراد تركيبة التطبيقات",
-          "validate": "التحقق من تركيبة التطبيقات",
-          "publish": "نشر تركيبة التطبيقات"
-        },
-        "tenant": {
-          "registered": "تسجيل نسخة عميل",
-          "operations": {
-            "enabled": "تفعيل عمليات النسخة",
-            "disabled": "تعطيل عمليات النسخة"
+        "ai": {
+          "platform_provider": {
+            "models_listed": "جلب قائمة نماذج مزوّد الذكاء الاصطناعي",
+            "saved": "حفظ إعدادات مزوّد الذكاء الاصطناعي",
+            "tested": "اختبار مزوّد الذكاء الاصطناعي"
           }
         },
-        "restore": {
-          "approved": "اعتماد طلب الاستعادة"
+        "ai_billing": {
+          "settings_updated": "تحديث إعدادات فوترة الذكاء الاصطناعي"
         },
-        "shared_odoo_restore": {
-          "route_published": "نشر مسار المساحة المستعادة",
-          "approved": "اعتماد الاستعادة المشتركة"
-        },
-        "shared_job": {
-          "replayed": "إعادة عرض طلب عملية مشتركة سابق",
-          "queued": "إدراج عملية مشتركة في قائمة الانتظار",
-          "lease_expired": "انتهاء مهلة تنفيذ العملية المشتركة"
-        },
-        "shared_restore": {
-          "completed": "اكتمال الاستعادة المشتركة"
-        },
-        "shared_odoo_backup": {
-          "verified": "التحقق من النسخة الاحتياطية المشتركة"
-        },
-        "shared_onboarding": {
-          "reserved": "حجز مساحة عميل مشتركة"
+        "ai_topup": {
+          "refunded": "استرداد شحنة رصيد الذكاء الاصطناعي"
         },
         "auth": {
-          "signed_in": "تسجيل دخول",
           "failed": "محاولة دخول فاشلة",
           "locked": "قفل مؤقت بعد محاولات فاشلة",
-          "step_up": "تأكيد هوية إضافي",
+          "passkey_registered": "تسجيل مفتاح مرور",
+          "signed_in": "تسجيل دخول",
           "signed_out": "تسجيل خروج",
-          "passkey_registered": "تسجيل مفتاح مرور"
+          "step_up": "تأكيد هوية إضافي"
         },
-        "account": {
-          "roles_set": "تغيير أدوار حساب",
-          "disabled": "تعطيل حساب",
-          "dev_owner": "إنشاء حساب المالك التجريبي",
-          "invited": "دعوة حساب",
-          "reset_issued": "إصدار رابط إعادة تعيين",
-          "reset_completed": "إكمال إعادة التعيين",
-          "enrolled": "إكمال تسجيل حساب"
+        "auto_renew": {
+          "disabled": "إيقاف التجديد التلقائي",
+          "enabled": "تفعيل التجديد التلقائي",
+          "not_enabled": "حُفظت البطاقة دون تفعيل التجديد التلقائي"
         },
-        "plan": {
-          "created": "إنشاء باقة",
-          "revision_created": "إنشاء إصدار جديد من باقة",
-          "deleted": "حذف مسودة باقة",
-          "edit": "تعديل باقة",
-          "validate": "التحقق من باقة",
-          "publish": "نشر باقة",
-          "withdraw": "سحب باقة من البيع",
-          "restore": "استعادة باقة"
+        "billing": {
+          "settings_updated": "تحديث إعدادات الفوترة"
         },
         "bundle": {
           "created": "إنشاء حزمة",
-          "revision_created": "إنشاء إصدار جديد من حزمة",
           "deleted": "حذف مسودة حزمة",
           "edit": "تعديل حزمة",
-          "validate": "التحقق من حزمة",
           "publish": "نشر حزمة",
-          "withdraw": "سحب حزمة",
-          "restore": "استعادة حزمة"
+          "restore": "استعادة حزمة",
+          "revision_created": "إنشاء إصدار جديد من حزمة",
+          "validate": "التحقق من حزمة",
+          "withdraw": "سحب حزمة"
+        },
+        "catalog": {
+          "imported": "استيراد تركيبة التطبيقات",
+          "publish": "نشر تركيبة التطبيقات",
+          "validate": "التحقق من تركيبة التطبيقات"
+        },
+        "catalog_release": {
+          "created": "إنشاء إصدار من تركيبة التطبيقات"
+        },
+        "customer": {
+          "admin_login_changed": "تغيير البريد المسجّل للعميل"
+        },
+        "customer_terms": {
+          "created": "حفظ شروط عميل"
+        },
+        "free_base_lock": {
+          "failed": "تعذّر تطبيق القفل بعد الإلغاء"
+        },
+        "invitation": {
+          "reissued": "إصدار رابط دعوة جديد"
+        },
+        "invoice": {
+          "credit_pending": "رصيد دائن معلّق على فاتورة",
+          "credit_refunded": "تسجيل استرداد إشعار دائن",
+          "refund_requested": "طلب استرداد فاتورة",
+          "voided": "إلغاء فاتورة غير مدفوعة"
         },
         "order": {
           "accepted": "قبول طلب",
           "cancelled": "إلغاء طلب"
         },
-        "invoice": {
-          "credit_pending": "رصيد دائن معلّق على فاتورة"
-        },
         "payment": {
-          "intervention": "دفعة تحتاج تدخلًا"
+          "bank_transfer_duplicate": "تحويل بنكي مكرر لفاتورة مدفوعة",
+          "bank_transfer_received": "تسجيل استلام تحويل بنكي",
+          "card_not_saved": "لم تُحفظ البطاقة",
+          "direct_payment_missing": "لا توجد دفعة لدى المزوّد وأُغلقت المحاولة",
+          "duplicate_charge": "دفعة مكررة لطلب مدفوع",
+          "duplicate_refunded": "استرداد دفعة مكررة لدى المزوّد",
+          "form_attempt_closed": "إغلاق محاولة دفع بنموذج البطاقة",
+          "form_attempt_needs_review": "محاولة دفع بنموذج البطاقة تحتاج مراجعة",
+          "form_declined": "رفض دفعة نموذج البطاقة",
+          "form_hint_rejected": "رفض إشارة دفع من نموذج البطاقة",
+          "form_payment_refunded": "استرداد كامل لدفعة نموذج البطاقة",
+          "form_payment_rejected": "رفض إشعار دفعة نموذج البطاقة",
+          "form_payment_searched": "بحث عن دفعة نموذج البطاقة لدى المزوّد",
+          "form_rejection_suppressed": "إخفاء رفض مكرر لدفعة نموذج البطاقة",
+          "form_search_rejected": "رفض نتيجة بحث دفعة نموذج البطاقة",
+          "form_settled": "تسوية دفعة نموذج البطاقة",
+          "intervention": "دفعة تحتاج تدخلًا",
+          "refund_rejected": "رفض المزوّد طلب استرداد",
+          "saved_card_charge_refused": "رفض المزوّد طلب الخصم من البطاقة المحفوظة",
+          "saved_card_declined": "رفض المزوّد الخصم من البطاقة المحفوظة",
+          "saved_card_needs_customer_action": "البطاقة المحفوظة تحتاج تدخل العميل",
+          "saved_card_unusable": "بطاقة محفوظة غير صالحة للخصم",
+          "token_orphan_deleted": "حذف رمز بطاقة لم يُطلب حفظه",
+          "webhook_verification": "استلام رمز تسجيل خطاف الدفع"
         },
-        "trial": {
-          "started": "بدء تجربة",
-          "enrolled": "تسجيل تجربة بانتظار أول دخول",
-          "extended": "تمديد تجربة",
-          "reopened": "إعادة فتح تجربة",
-          "ended": "إنهاء تجربة يدويًا",
-          "lapsed": "انتهاء تجربة غير مدفوعة والانتقال إلى القاعدة المجانية",
-          "converted": "تحويل التجربة إلى اشتراك مدفوع بعد الدفع",
-          "conversion_reverted": "إرجاع التجربة بعد استرداد دفعة التحويل",
-          "expiry_push_failed": "تحذير: لم تصل المضيف نهاية التجربة الجديدة",
-          "policy_bootstrap_queued": "تجهيز سياسة نهاية التجربة"
+        "payment_method": {
+          "removed": "حذف البطاقة المحفوظة",
+          "saved": "حفظ بطاقة من دفعة"
         },
-        "customer_terms": {
-          "created": "حفظ شروط عميل"
-        },
-        "catalog_release": {
-          "created": "إنشاء إصدار من تركيبة التطبيقات"
+        "plan": {
+          "created": "إنشاء باقة",
+          "deleted": "حذف مسودة باقة",
+          "edit": "تعديل باقة",
+          "publish": "نشر باقة",
+          "restore": "استعادة باقة",
+          "revision_created": "إنشاء إصدار جديد من باقة",
+          "validate": "التحقق من باقة",
+          "withdraw": "سحب باقة من البيع",
+          "withdrawn_by_publish": "سحب باقة بنشر إصدار أحدث"
         },
         "registry": {
           "recovery_requested": "طلب استرداد سجل المساحات"
+        },
+        "restore": {
+          "approved": "اعتماد طلب الاستعادة"
+        },
+        "shared_backup": {
+          "verified": "التحقق من لقطة النسخة الاحتياطية"
+        },
+        "shared_job": {
+          "abandon_refused": "رُفض التخلي عن عملية مشتركة",
+          "abandon_requested": "طلب التخلي عن عملية مشتركة",
+          "abandoned": "التخلي عن عملية مشتركة",
+          "enrollment_authority_invalid": "سلطة تسجيل عملية مشتركة غير صالحة",
+          "lease_expired": "انتهاء مهلة تنفيذ العملية المشتركة",
+          "queued": "إدراج عملية مشتركة في قائمة الانتظار",
+          "recovery_completed": "اكتمال استرداد عملية مشتركة",
+          "recovery_observed": "رصد أثر عملية مشتركة عالقة",
+          "recovery_requested": "طلب استرداد عملية مشتركة",
+          "replayed": "إعادة عرض طلب عملية مشتركة سابق"
+        },
+        "shared_odoo_backup": {
+          "verified": "التحقق من النسخة الاحتياطية المشتركة"
+        },
+        "shared_odoo_restore": {
+          "approved": "اعتماد الاستعادة المشتركة",
+          "publication_requested": "طلب نشر مسار المساحة المستعادة",
+          "route_published": "نشر مسار المساحة المستعادة"
+        },
+        "shared_onboarding": {
+          "reserved": "حجز مساحة عميل مشتركة"
+        },
+        "shared_order": {
+          "created": "إنشاء طلب مشترك بعرض سعر ثابت"
+        },
+        "shared_restore": {
+          "completed": "اكتمال الاستعادة المشتركة"
+        },
+        "subscription": {
+          "cancel_requested": "طلب إيقاف تجديد الاشتراك",
+          "cancel_withdrawn": "سحب طلب إيقاف التجديد",
+          "cancellation_effective": "سريان إلغاء الاشتراك",
+          "refund_lock_armed": "تجهيز القفل بعد استرداد الدفعة الأولى",
+          "resumed": "استئناف اشتراك معلّق",
+          "suspended": "تعليق اشتراك"
+        },
+        "tenant": {
+          "operations": {
+            "disabled": "تعطيل عمليات النسخة",
+            "enabled": "تفعيل عمليات النسخة"
+          },
+          "registered": "تسجيل نسخة عميل"
+        },
+        "tenant_deletion": {
+          "card_not_deleted": "تعذّر حذف بطاقة محفوظة عند حذف المساحة",
+          "code_invalidated": "إبطال رمز تأكيد حذف المساحة",
+          "code_sent": "إرسال رمز تأكيد حذف المساحة",
+          "committed": "اعتماد حذف المساحة بلا رجعة",
+          "confirmed": "تأكيد طلب حذف المساحة",
+          "deleted": "اكتمال حذف المساحة",
+          "deleting": "بدء تنفيذ حذف المساحة",
+          "due": "حلّ موعد حذف المساحة",
+          "hold_extended": "تمديد مهلة الاحتفاظ قبل الحذف",
+          "hold_rearmed": "إعادة ضبط مهلة الاحتفاظ قبل الحذف",
+          "hold_rearmed_after_restore": "إعادة ضبط مهلة الحذف بعد استعادة",
+          "marker_stamped": "وسم قاعدة بيانات المساحة قبل الحذف",
+          "plan_refrozen": "إعادة تثبيت خطة الحذف",
+          "requested": "طلب حذف المساحة",
+          "returned_to_hold_after_restore": "عودة طلب الحذف إلى مهلة الاحتفاظ بعد استعادة",
+          "stuck": "تعثّر حذف المساحة",
+          "withdrawn": "سحب طلب حذف المساحة"
+        },
+        "trial": {
+          "conversion_reverted": "إرجاع التجربة بعد استرداد دفعة التحويل",
+          "converted": "تحويل التجربة إلى اشتراك مدفوع بعد الدفع",
+          "ended": "إنهاء تجربة يدويًا",
+          "enrolled": "تسجيل تجربة بانتظار أول دخول",
+          "expiry_push_failed": "تحذير: لم تصل المضيف نهاية التجربة الجديدة",
+          "extended": "تمديد تجربة",
+          "lapsed": "انتهاء تجربة غير مدفوعة والانتقال إلى القاعدة المجانية",
+          "policy_bootstrap_queued": "تجهيز سياسة نهاية التجربة",
+          "reopened": "إعادة فتح تجربة",
+          "started": "بدء تجربة"
+        },
+        "workspace": {
+          "lookup": {
+            "mailed": "إرسال عنوان المساحة بالبريد للمدير"
+          }
         }
       },
       "when": "الوقت",

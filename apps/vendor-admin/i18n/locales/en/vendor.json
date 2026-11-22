@@ -477,110 +477,214 @@
       "subject": "Subject",
       "action": "Action",
       "actions": {
-        "membership": {
-          "granted": "Vendor access granted",
-          "revoked": "Vendor access revoked"
+        "account": {
+          "dev_owner": "Developer owner account created",
+          "disabled": "Account disabled",
+          "enabled": "Account enabled",
+          "enrolled": "Account enrollment completed",
+          "invited": "Account invited",
+          "reset_completed": "Reset completed",
+          "reset_issued": "Reset link issued",
+          "roles_set": "Account roles changed"
         },
-        "catalog": {
-          "imported": "Catalog imported",
-          "validate": "Catalog validated",
-          "publish": "Catalog published"
-        },
-        "tenant": {
-          "registered": "Installation registered",
-          "operations": {
-            "enabled": "Installation operations enabled",
-            "disabled": "Installation operations disabled"
+        "ai": {
+          "platform_provider": {
+            "models_listed": "AI provider models listed",
+            "saved": "AI provider settings saved",
+            "tested": "AI provider tested"
           }
         },
-        "restore": {
-          "approved": "Restore approved"
+        "ai_billing": {
+          "settings_updated": "AI billing settings updated"
         },
-        "shared_odoo_restore": {
-          "route_published": "Restored workspace route published",
-          "approved": "Shared restore approved"
-        },
-        "shared_job": {
-          "replayed": "Existing shared operation request replayed",
-          "queued": "Shared operation queued",
-          "lease_expired": "Shared operation execution lease expired"
-        },
-        "shared_restore": {
-          "completed": "Shared restore completed"
-        },
-        "shared_odoo_backup": {
-          "verified": "Shared backup verified"
-        },
-        "shared_onboarding": {
-          "reserved": "Shared customer workspace reserved"
+        "ai_topup": {
+          "refunded": "AI top-up refunded"
         },
         "auth": {
-          "signed_in": "Signed in",
           "failed": "Failed sign-in attempt",
           "locked": "Temporarily locked after failed attempts",
-          "step_up": "Extra identity check",
+          "passkey_registered": "Passkey registered",
+          "signed_in": "Signed in",
           "signed_out": "Signed out",
-          "passkey_registered": "Passkey registered"
+          "step_up": "Extra identity check"
         },
-        "account": {
-          "roles_set": "Account roles changed",
-          "disabled": "Account disabled",
-          "dev_owner": "Developer owner account created",
-          "invited": "Account invited",
-          "reset_issued": "Reset link issued",
-          "reset_completed": "Reset completed",
-          "enrolled": "Account enrollment completed"
+        "auto_renew": {
+          "disabled": "Automatic renewal stopped",
+          "enabled": "Automatic renewal turned on",
+          "not_enabled": "Card saved, automatic renewal left off"
         },
-        "plan": {
-          "created": "Plan created",
-          "revision_created": "New plan revision created",
-          "deleted": "Plan draft deleted",
-          "edit": "Plan edited",
-          "validate": "Plan validated",
-          "publish": "Plan published",
-          "withdraw": "Plan withdrawn from sale",
-          "restore": "Plan restored"
+        "billing": {
+          "settings_updated": "Billing settings updated"
         },
         "bundle": {
           "created": "Bundle created",
-          "revision_created": "New bundle revision created",
           "deleted": "Bundle draft deleted",
           "edit": "Bundle edited",
-          "validate": "Bundle validated",
           "publish": "Bundle published",
-          "withdraw": "Bundle withdrawn",
-          "restore": "Bundle restored"
+          "restore": "Bundle restored",
+          "revision_created": "New bundle revision created",
+          "validate": "Bundle validated",
+          "withdraw": "Bundle withdrawn"
+        },
+        "catalog": {
+          "imported": "Catalog imported",
+          "publish": "Catalog published",
+          "validate": "Catalog validated"
+        },
+        "catalog_release": {
+          "created": "Catalog release created"
+        },
+        "customer": {
+          "admin_login_changed": "Customer registered e-mail changed"
+        },
+        "customer_terms": {
+          "created": "Customer terms saved"
+        },
+        "free_base_lock": {
+          "failed": "Lock after cancellation failed"
+        },
+        "invitation": {
+          "reissued": "Invitation link reissued"
+        },
+        "invoice": {
+          "credit_pending": "Invoice credit pending",
+          "credit_refunded": "Credit note refund recorded",
+          "refund_requested": "Invoice refund requested",
+          "voided": "Unpaid invoice voided"
         },
         "order": {
           "accepted": "Order accepted",
           "cancelled": "Order cancelled"
         },
-        "invoice": {
-          "credit_pending": "Invoice credit pending"
-        },
         "payment": {
-          "intervention": "Payment needs intervention"
+          "bank_transfer_duplicate": "Duplicate bank transfer for a paid invoice",
+          "bank_transfer_received": "Bank transfer recorded",
+          "card_not_saved": "Card not saved",
+          "direct_payment_missing": "No payment at the provider, attempt closed",
+          "duplicate_charge": "Duplicate charge for a paid order",
+          "duplicate_refunded": "Duplicate payment refunded at the provider",
+          "form_attempt_closed": "Card form attempt closed",
+          "form_attempt_needs_review": "Card form attempt needs review",
+          "form_declined": "Card form payment declined",
+          "form_hint_rejected": "Card form payment hint rejected",
+          "form_payment_refunded": "Card form payment refunded in full",
+          "form_payment_rejected": "Card form payment notice rejected",
+          "form_payment_searched": "Card form payment searched at the provider",
+          "form_rejection_suppressed": "Repeated card form rejection suppressed",
+          "form_search_rejected": "Card form search result rejected",
+          "form_settled": "Card form payment settled",
+          "intervention": "Payment needs intervention",
+          "refund_rejected": "Provider rejected a refund",
+          "saved_card_charge_refused": "Provider refused the saved card charge request",
+          "saved_card_declined": "Provider declined the saved card",
+          "saved_card_needs_customer_action": "Saved card needs the customer to act",
+          "saved_card_unusable": "Saved card cannot be charged",
+          "token_orphan_deleted": "Unrequested card token deleted",
+          "webhook_verification": "Payment webhook registration code received"
         },
-        "trial": {
-          "started": "Trial started",
-          "enrolled": "Trial enrolled, waiting for first sign-in",
-          "extended": "Trial extended",
-          "reopened": "Trial reopened",
-          "ended": "Trial ended by the vendor",
-          "lapsed": "Unpaid trial lapsed to the free base",
-          "converted": "Trial converted to a paid subscription after payment",
-          "conversion_reverted": "Trial restored after the conversion payment was refunded",
-          "expiry_push_failed": "Warning: the host did not receive the new trial deadline",
-          "policy_bootstrap_queued": "Trial end policy queued"
+        "payment_method": {
+          "removed": "Saved card removed",
+          "saved": "Card saved from a payment"
         },
-        "customer_terms": {
-          "created": "Customer terms saved"
-        },
-        "catalog_release": {
-          "created": "Catalog release created"
+        "plan": {
+          "created": "Plan created",
+          "deleted": "Plan draft deleted",
+          "edit": "Plan edited",
+          "publish": "Plan published",
+          "restore": "Plan restored",
+          "revision_created": "New plan revision created",
+          "validate": "Plan validated",
+          "withdraw": "Plan withdrawn from sale",
+          "withdrawn_by_publish": "Plan withdrawn by a newer revision"
         },
         "registry": {
           "recovery_requested": "Workspace registry recovery requested"
+        },
+        "restore": {
+          "approved": "Restore approved"
+        },
+        "shared_backup": {
+          "verified": "Backup snapshot verified"
+        },
+        "shared_job": {
+          "abandon_refused": "Abandoning a shared operation refused",
+          "abandon_requested": "Shared operation abandon requested",
+          "abandoned": "Shared operation abandoned",
+          "enrollment_authority_invalid": "Shared operation enrollment authority invalid",
+          "lease_expired": "Shared operation execution lease expired",
+          "queued": "Shared operation queued",
+          "recovery_completed": "Shared operation recovery completed",
+          "recovery_observed": "Stuck shared operation effect observed",
+          "recovery_requested": "Shared operation recovery requested",
+          "replayed": "Existing shared operation request replayed"
+        },
+        "shared_odoo_backup": {
+          "verified": "Shared backup verified"
+        },
+        "shared_odoo_restore": {
+          "approved": "Shared restore approved",
+          "publication_requested": "Restored workspace route publication requested",
+          "route_published": "Restored workspace route published"
+        },
+        "shared_onboarding": {
+          "reserved": "Shared customer workspace reserved"
+        },
+        "shared_order": {
+          "created": "Shared order created with a fixed quote"
+        },
+        "shared_restore": {
+          "completed": "Shared restore completed"
+        },
+        "subscription": {
+          "cancel_requested": "Renewal cancellation requested",
+          "cancel_withdrawn": "Renewal cancellation withdrawn",
+          "cancellation_effective": "Subscription cancellation took effect",
+          "refund_lock_armed": "Lock armed after the first payment refund",
+          "resumed": "Subscription resumed",
+          "suspended": "Subscription suspended"
+        },
+        "tenant": {
+          "operations": {
+            "disabled": "Installation operations disabled",
+            "enabled": "Installation operations enabled"
+          },
+          "registered": "Installation registered"
+        },
+        "tenant_deletion": {
+          "card_not_deleted": "Saved card not deleted during workspace deletion",
+          "code_invalidated": "Workspace deletion code invalidated",
+          "code_sent": "Workspace deletion code sent",
+          "committed": "Workspace deletion committed",
+          "confirmed": "Workspace deletion confirmed",
+          "deleted": "Workspace deleted",
+          "deleting": "Workspace deletion started",
+          "due": "Workspace deletion due",
+          "hold_extended": "Deletion hold extended",
+          "hold_rearmed": "Deletion hold re-armed",
+          "hold_rearmed_after_restore": "Deletion hold re-armed after a restore",
+          "marker_stamped": "Workspace database marked for deletion",
+          "plan_refrozen": "Deletion plan frozen again",
+          "requested": "Workspace deletion requested",
+          "returned_to_hold_after_restore": "Deletion returned to hold after a restore",
+          "stuck": "Workspace deletion stuck",
+          "withdrawn": "Workspace deletion withdrawn"
+        },
+        "trial": {
+          "conversion_reverted": "Trial restored after the conversion payment was refunded",
+          "converted": "Trial converted to a paid subscription after payment",
+          "ended": "Trial ended by the vendor",
+          "enrolled": "Trial enrolled, waiting for first sign-in",
+          "expiry_push_failed": "Warning: the host did not receive the new trial deadline",
+          "extended": "Trial extended",
+          "lapsed": "Unpaid trial lapsed to the free base",
+          "policy_bootstrap_queued": "Trial end policy queued",
+          "reopened": "Trial reopened",
+          "started": "Trial started"
+        },
+        "workspace": {
+          "lookup": {
+            "mailed": "Workspace address mailed to the manager"
+          }
         }
       },
       "when": "When",

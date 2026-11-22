@@ -1,5 +1,5 @@
 import type { RouteLocationRaw } from 'vue-router'
-import { AUDIT_PAGE_SIZE, auditListQuerySchema, type AuditEvent, type AuditListQuery } from '@liwan/commercial-contracts'
+import { AUDIT_OPERATION_STATUSES, AUDIT_OPERATION_TYPES, AUDIT_PAGE_SIZE, auditListQuerySchema, type AuditEvent, type AuditListQuery } from '@liwan/commercial-contracts'
 
 /** The action families offered by the audit filter; `action` also accepts any exact action from a link. */
 export const AUDIT_CATEGORIES = ['auth', 'account', 'tenant', 'operation', 'catalog', 'catalog_release', 'plan', 'bundle', 'order', 'invoice', 'payment', 'customer_terms'] as const
@@ -26,7 +26,7 @@ export const auditListQuery = (filters: AuditFilters, page: number): Record<stri
 
 export const auditFilterCount = (filters: AuditFilters): number => FILTER_KEYS.filter(key => filters[key]).length
 
-const OPERATION_ACTION = /^operation\.(tenant\.(?:create|inspect|entitle)|health|backup|upgrade|restore)\.(queued|succeeded|failed|needs_intervention)$/
+const OPERATION_ACTION = new RegExp(`^operation\\.(${AUDIT_OPERATION_TYPES.map(type => type.replace('.', '\\.')).join('|')})\\.(${AUDIT_OPERATION_STATUSES.join('|')})$`)
 
 /** The locale key of an action and, for operation events, of its status; any other action reads from `vendor.audit.actions.<action>` and falls back to the raw action. */
 export function auditActionParts(action: string): { type: string; status: string } | null {
