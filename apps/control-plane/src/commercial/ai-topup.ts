@@ -5,7 +5,7 @@ import { AI_TOPUP_CURRENCY, AI_TOPUP_EXPONENT, AI_UNITS_MAX, sarMinorToAiUnits, 
 import { transaction } from '../db.js'
 import { audit, CommercialHttpError, type CommercialActor } from './lifecycle.js'
 import { billingSettings } from './billing-settings.js'
-import { refundWindow } from './settlements.js'
+import { queueProviderRefund, refundWindow } from './settlements.js'
 import { actorLabel } from '../admin-auth/grants.js'
 import { aiBillingSettings, assertTopupUnused, grantedUnits, markTopupRefunded } from './ai-ledger.js'
 
@@ -35,7 +35,8 @@ export const topupRefundBodySchema = z.strictObject({
 /**
  * Vendor refund of a top-up order: inside the refund window and only if none of it was used. Marks the ledger row
  * refunded, pushes the lowered total to the tenant, and opens the pending credit note for the invoice, which the
- * existing flow then records once the operator has refunded at the provider. Only an order that charged nothing else
+ * refund worker returns through the provider for a card payment (a bank transfer is recorded by the operator's form).
+ * Unlike the invoice refund request it is not limited to the customer's first payment: a later unused top-up is refundable. Only an order that charged nothing else
  * can be refunded here, because a credit note is for the whole invoice. The same existing-note rule as the generic
  * refund applies: any live credit note on the invoice (a provider's included) means a refund is already under way.
  */
@@ -58,6 +59,7 @@ export async function refundTopup(pool: Pool, { order_id, actor, reason, units_u
     await client.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin,cause)
       VALUES($1,$2,$3,'credit_note',$4,$5,$6,$7,'pending',$8,'vendor','vendor_refund')`, [noteId, invoice.id, invoice.customer_id, reason, invoice.total_minor, invoice.currency, invoice.exponent, actorLabel(actor)])
     await markTopupRefunded(client, order_id, actorLabel(actor), reason)
+    await queueProviderRefund(client, { invoice, adjustment_id: noteId, actor })
     await audit(client, actor, 'ai_topup.refunded', order_id, reason, { adjustment_id: noteId, units: Number(topup.units), amount_minor: Number(topup.amount_minor) })
     return { order_id, units: Number(topup.units), amount_minor: Number(topup.amount_minor), adjustment_id: noteId, granted_units: await grantedUnits(client, topup.customer_id) }
   })
