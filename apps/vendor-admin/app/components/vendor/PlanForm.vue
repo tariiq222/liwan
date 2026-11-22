@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { AI_LIMIT_KEYS, COMMERCIAL_MAX_USERS, commercialErrorKey, commercialFailure, emptyPlanDraft, fieldIssue, limitFromDraft, MAX_STORAGE_STEP_MB, MB_PER_GB, parseCount, planDraftFromView, priceRowErrors, storageStepsAligned, type BundleView, type PlanDraft, type PlanView } from '@/utils/vendorCommercial'
+import { latinDigits } from '@/utils/digits'
 import { defaultPolicyId, policyOptions, policyTaxText } from './policySelection'
 import type { PricingPolicyView } from '@/composables/useVendorCommercial'
 // `policy` is the policy a saved plan keeps; the form only prefills it with an edit and lets the vendor choose any approved policy.
@@ -48,7 +49,7 @@ const errors = computed(() => {
   // Release 1 sells at most COMMERCIAL_MAX_USERS users; the cap is refused here, before any request is sent.
   // Parsed without the cap: a value above it must say so, not read as "required" (the cap used to swallow the number).
   const includedUserCount = parseCount(draft.included_users)
-  if (includedUserCount === null) e.includedUsers = t('vendor.pricing.plan.usersRequired')
+  if (includedUserCount === null || includedUserCount < 1) e.includedUsers = t('vendor.pricing.plan.usersRequired')
   else if (includedUserCount > COMMERCIAL_MAX_USERS) e.includedUsers = t('vendor.pricing.plan.usersCapExceeded')
   const storage = parseCount(draft.included_storage_mb)
   if (storage === null) e.includedStorage = req
@@ -75,7 +76,7 @@ const errors = computed(() => {
   // The AI budget is a non-negative integer or unlimited; an unreadable value stops the save with a clear message.
   for (const key of AI_LIMIT_KEYS) {
     const limit = draft.ai_limits[key]
-    if (limit?.mode === 'number' && !/^\d+$/.test(String(limit.value).trim())) e[`ai_${key}`] = t('vendor.pricing.plan.aiLimitInvalid')
+    if (limit?.mode === 'number' && !/^\d+$/.test(latinDigits(String(limit.value).trim()))) e[`ai_${key}`] = t('vendor.pricing.plan.aiLimitInvalid')
   }
   if (parseCount(draft.trial_days, 3650) === null) e.trial = req
   if (parseCount(draft.grace_days, 3650) === null) e.grace = req

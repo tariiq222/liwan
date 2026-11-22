@@ -263,9 +263,13 @@ export function planDraftFromView(v: PlanRevision): PlanDraft {
     auto_suspend: triOf(v.auto_suspend), auto_renew_allowed: triOf(v.auto_renew_allowed), reason: '', policy_revision_id: v.policy_revision_id,
   }
 }
-/** The limits a saved plan carries, as form rows: a missing key is empty (unlimited). */
+/** The limits a saved plan carries, as form rows: a missing key is empty (unlimited); a stored 0 is the number 0, as these rows have no "none" choice. */
 function aiLimitsDraftFromView(limits: CapacityMap | undefined): AiLimitsDraft {
-  return Object.fromEntries(AI_LIMIT_KEYS.map(key => [key, Object.hasOwn(limits ?? {}, key) ? limitToDraft(limits![key]) : emptyLimit()]))
+  return Object.fromEntries(AI_LIMIT_KEYS.map(key => {
+    if (!Object.hasOwn(limits ?? {}, key)) return [key, emptyLimit()]
+    const value = limits![key]
+    return [key, value === 0 ? { mode: 'number', value: '0' } : limitToDraft(value)]
+  }))
 }
 function triValue(v: Tri): boolean { if (!v) throw new Error('invalid_choice'); return v === 'true' }
 function requireCount(v: string, max = MAX_LIMIT): number { const n = parseCount(v, max); if (n === null) throw new Error('invalid_count'); return n }
