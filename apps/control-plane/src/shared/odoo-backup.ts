@@ -4,6 +4,7 @@ import {join} from 'node:path'
 import type {Pool,PoolClient} from 'pg'
 import {z} from 'zod'
 import {tenantBindingSchema,sharedJobSchema,sharedReconfigureJobSchema,type SharedJob,type TenantBinding,sharedReceiptSchema} from '@liwan/commercial-contracts/shared'
+import {sharedRestoreApprovalRequestSchema} from '@liwan/commercial-contracts'
 import {transaction} from '../db.js'
 import {requireJobAuthority} from './job-store.js'
 import {REGISTRY_DIR_MODE,REGISTRY_FILE_MODE} from './registry-publisher.js'
@@ -122,7 +123,7 @@ export async function findVerifiedRestoreCommercialEffect(pool:Pool,controlTenan
 }
 
 export async function approveOdooRestore(pool:Pool,runtime:SharedRuntimeConfig,actor:RegistryActor,controlTenantId:string,input:unknown){
- const request=z.strictObject({backup_id:z.uuid(),reason:z.string().trim().min(3).max(1000)}).parse(input)
+ const request=sharedRestoreApprovalRequestSchema.parse(input)
  z.uuid().parse(controlTenantId)
  const artifact=await readManifest(runtime,request.backup_id)
  return transaction(pool,async client=>{

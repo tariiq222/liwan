@@ -45,7 +45,7 @@ import { clientAddressBucket } from './client-address-bucket.js'
 import { isPublicSiteEndpoint, PUBLIC_CONTACT_BODY_LIMIT, publicSiteHandler } from './public-site/http.js'
 import { promisify } from 'node:util'
 import type { Pool, PoolClient } from 'pg'
-import { abandonJobRequestSchema, auditListQuerySchema, operationListStatusSchema, operationRequestSchema, operationsGrantSchema, operationStatusesOf, reasonRequestSchema, retryRequestSchema, tenantCreateSchema, type VendorCapability } from '@liwan/commercial-contracts'
+import { abandonJobRequestSchema, auditListQuerySchema, operationListStatusSchema, operationRequestSchema, operationsGrantSchema, operationStatusesOf, reasonRequestSchema, retryRequestSchema, sharedBackupListSchema, sharedRestoreApprovalRequestSchema, tenantCreateSchema, type VendorCapability } from '@liwan/commercial-contracts'
 import { verifyServiceRequest } from '@liwan/commercial-contracts/server'
 import type { Config } from './config.js'
 import { hasUnresolvedMutation, transaction } from './db.js'
@@ -480,7 +480,7 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
         if (process.env.LIWAN_TENANCY_MODE !== 'shared') throw new ApiError(503, 'shared_execution_unavailable', 'Shared runtime is unavailable')
         const backups = await listSharedBackups(pool, sharedBackups[1]!)
         if (!backups) throw new ApiError(404, 'not_found', 'Workspace not found')
-        return respond(res, 200, backups)
+        return respond(res, 200, sharedBackupListSchema.parse(backups))
       }
       const publication=pathname.match(new RegExp(`^/v1/shared/tenants/(${UUID})/restore-publications/(${UUID})$`))
       if(publication && (method==='GET'||method==='POST')){
@@ -519,7 +519,7 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
         const runtime=loadSharedRuntimeConfig(config.sharedRuntimeConfigPath)
         if(realProgress){requireCapability(auth,'vendor.read');return respond(res,200,await odooJobProgress(pool,realProgress[1]!,realProgress[2]!))}
         requireCapability(auth,'vendor.operations.run')
-        return respond(res,201,await approveOdooRestore(pool,runtime,{issuer:vendorActorIssuer(config.installationId),actorUid:auth.actor},realApproval![1]!,parseJson(raw,z.strictObject({backup_id:z.uuid(),reason:z.string().trim().min(3).max(1000)}))))
+        return respond(res,201,await approveOdooRestore(pool,runtime,{issuer:vendorActorIssuer(config.installationId),actorUid:auth.actor},realApproval![1]!,parseJson(raw,sharedRestoreApprovalRequestSchema)))
       }
       const sharedQueue = pathname.match(new RegExp(`^/v1/shared/tenants/(${UUID})/jobs$`))
       if (method === 'POST' && sharedQueue) {
