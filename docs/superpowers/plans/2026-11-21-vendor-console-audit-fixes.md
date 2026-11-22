@@ -134,7 +134,7 @@ D4 to D6 and are not built.
 
 ## 5. Outcome (2026-11-22)
 
-Built, each reproduced in a failing test first: T01 to T31, T44 (after D6, see below), T33 to T35, T38 to T41, the settings page of T36, the
+Built, each reproduced in a failing test first: T01 to T31, T43 (after D5, see below), T44 (after D6, see below), T33 to T35, T38 to T41, the settings page of T36, the
 recover action of T32, and two of the three T37 defects (overdue clamp, AI top-up conversion). Built after the owner
 decisions of 2026-11-22: the recovery of a job in `needs_intervention` (T32, D7), the history of a departed customer
 (T37, D9), free-base customers in ARPC and renewals (T42, D4) and the AI top-up refund in the console (T36, D8); see
@@ -145,7 +145,6 @@ Not built, with the reason:
 | Item | Reason | Decision |
 | --- | --- | --- |
 | T40, state kept between two customers | Not reproduced: Nuxt remounts the page when the id changes. | none |
-| T43 | Waits for D5. | D5 |
 
 | # | Question | Recommended default | Alternative |
 | --- | --- | --- | --- |
@@ -184,6 +183,20 @@ cancellation rules refuse them; the "cancelled, ends on a date" notice is not qu
 transaction, so it would be closed unsent) and the customer gets the existing drop notice of cause `cancelled`, whose text
 says "after you cancelled the renewal"; and no console action refuses a customer's bank-transfer claim, so a claimed invoice
 can only be voided after the transfer is confirmed.
+
+T43 (the shared backup and restore flow, D5 taken 2026-11-22 as designed in
+[the backup and restore design](2026-11-22-shared-backup-restore-console-design.md)) is built in eight commits on
+`cp-audit-decisions`: the listing route `GET /v1/shared/tenants/:tenant/backups` (`vendor.read`, a read projection with no
+path, digest or database name, scoped to one workspace), the approver recorded on the approval row (migration
+`schema_075.sql`, immutable like the rest of the approval identity), the listing contract, the proxy bindings (listing GET;
+restore approvals and the job queue POST), the Backups section of the operations tab, starting a backup, restoring from a
+backup (approve then queue, resume of an open approval) and this documentation. Found while building: the adapter does stop the
+shared Odoo service for every workspace on the stack during a backup (`compose stop odoo`, then `start odoo`), so the console
+confirmation says so, and a failure after the stop leaves it stopped until the job is recovered; the control plane answered
+`shared_reconciliation_required` and `tenant_unavailable` with a masked 503, now 409 with their own codes; the existing
+`shared-queue-http` test file's `beforeEach` returned the mock (a cleanup callback that re-threw), fixed with braces. Not
+done: the live proof against a real shared stack (the steps are in `apps/vendor-admin/README.md`), and the console e2e
+(no mock control route exists for the shared routes).
 
 Decisions taken while building: public sign-up reads `LIWAN_SIGNUP_PLAN_ID` (a plan id; the old revision-id
 variable is gone); a resume that did not reach the workspace needed a clock, so migration `schema_073.sql` renames
