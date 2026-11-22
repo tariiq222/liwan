@@ -4,6 +4,7 @@ import { operationStatusBadge } from '@/utils/vendorBadges'
 import { buildVendorPolicy, type VendorFeatureValue } from '@/utils/vendorPolicy'
 import type { VendorTenant } from '@/utils/vendorTenant'
 import { useVendorCatalogVersions } from '@/composables/useVendorCatalogVersions'
+import { showsSharedBackups } from '@/utils/sharedBackups'
 import { failureKey } from '@/composables/useStepUp'
 import type { OperationFeed } from '@liwan/commercial-contracts'
 type TenantOperation = 'tenant.create' | 'tenant.inspect' | 'health' | 'backup' | 'tenant.entitle'
@@ -117,6 +118,7 @@ const pickedLabel = computed(() => operationTypes.value.find(operation => operat
 const canEnqueue = computed(() => Boolean(reason.value.trim()) && !(actionType.value === 'tenant.entitle' && expectedRevision.value === null))
 // Anything the confirmation names (type, reason, limits, switches) closes it when it changes.
 watch([actionType, reason, edits], () => { confirmEnqueue.value = false }, { deep: true })
+const sharedWorkspace = computed(() => showsSharedBackups(data.value))
 const operationsNeedEnabling = computed(() => Boolean(data.value && !data.value.operations_enabled))
 const operationTime = (op: OperationFeed) => formatLiwanDateTime(op.source === 'shared' ? (op.last_event_at ?? op.created_at) : op.updated_at)
 </script>
@@ -127,7 +129,7 @@ const operationTime = (op: OperationFeed) => formatLiwanDateTime(op.source === '
     <SharedRecordSection variant="panel" :title="t('vendor.tenants.operationsTitle')" :description="t('vendor.tenants.operationsHint')">
       <template #actions><SharedStatusBadge :tone="data.operations_enabled ? 'success' : 'neutral'" :label="data.operations_enabled ? t('vendor.tenants.operationsOn') : t('vendor.tenants.operationsOff')" /></template>
       <UAlert v-if="operationsNeedEnabling" color="neutral" variant="subtle" icon="i-lucide-lock" :title="t('vendor.tenants.operationsDisabledHint')" />
-      <UAlert v-else-if="!availableOperations.length" color="neutral" variant="subtle" icon="i-lucide-info" :title="t('vendor.tenants.operationsUnavailableHint')" />
+      <UAlert v-else-if="!availableOperations.length && !sharedWorkspace" color="neutral" variant="subtle" icon="i-lucide-info" :title="t('vendor.tenants.operationsUnavailableHint')" />
       <UAlert v-if="actionError" class="mb-4" color="error" variant="subtle" :title="t(fieldErrorKey(actionError))" />
       <form v-if="canVendor('vendor.operations.run') && !operationsNeedEnabling && availableOperations.length" class="grid gap-4" @submit.prevent="confirmEnqueue = canEnqueue">
         <UFormField :label="t('vendor.operations.type')" required><USelect v-model="actionType" :items="operationTypes" class="w-full sm:max-w-md" /></UFormField>
@@ -147,6 +149,8 @@ const operationTime = (op: OperationFeed) => formatLiwanDateTime(op.source === '
       </form>
       <SharedForbiddenState v-else-if="!operationsNeedEnabling && availableOperations.length && !canVendor('vendor.operations.run')" />
     </SharedRecordSection>
+
+    <VendorBackupsPanel v-if="sharedWorkspace" :tenant-id="tenantId" />
 
     <SharedRecordSection variant="panel" :title="t('vendor.tenants.recentOperations')">
       <template #actions><UButton :to="{ path: '/operations', query: { tenant_id: tenantId } }" color="neutral" variant="outline" size="sm">{{ t('vendor.tenants.viewOperations') }}</UButton></template>

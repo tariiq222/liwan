@@ -295,6 +295,20 @@
         "enabled": "Private messaging"
       }
     },
+    "backups": {
+      "title": "Backups",
+      "hint": "Verified backups of this workspace. A restore makes a separate copy and never touches the live workspace.",
+      "empty": "There are no verified backups yet.",
+      "startedBy": "Started by {name}",
+      "approvalOpen": "A restore approval is open until {time}.",
+      "approvedBy": "Approved by {name}.",
+      "restoreCopy": "Restored copy, {time}",
+      "viewBlocking": "View the blocking operation",
+      "refusal": {
+        "operations_unavailable": "Operations are disabled for this workspace, so a backup cannot be started.",
+        "job_in_progress": "An operation is running or needs attention for this workspace, so a backup cannot be started now."
+      }
+    },
     "operations": {
       "title": "Operations",
       "enqueue": "Queue operation",
