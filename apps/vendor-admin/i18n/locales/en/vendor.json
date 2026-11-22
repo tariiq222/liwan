@@ -320,6 +320,8 @@
       "empty": "No operations found.",
       "tenantFilter": "Customer installation",
       "allTenants": "All installations",
+      "tenantSearch": "Search workspaces",
+      "tenantsLoadFailed": "Could not load workspaces",
       "noResults": "No operations match the filter.",
       "filter": {
         "all": "All",

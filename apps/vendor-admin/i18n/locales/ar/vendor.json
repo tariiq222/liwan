@@ -320,6 +320,8 @@
       "empty": "لا توجد عمليات.",
       "tenantFilter": "نسخة العميل",
       "allTenants": "كل النسخ",
+      "tenantSearch": "ابحث عن مساحة عمل",
+      "tenantsLoadFailed": "تعذّر تحميل مساحات العمل",
       "noResults": "لا توجد عمليات مطابقة للتصفية.",
       "filter": {
         "all": "الكل",
