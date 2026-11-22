@@ -71,7 +71,9 @@ transient failure sends nothing.
 - The health read never fails the overview: an unreadable table yields `health: null` and the page says so.
 - One row per component, updated in place: the table does not grow. No history is kept.
 - A component never seen (fresh install, dedicated mode without the shared worker) is `never_seen`, shown plainly
-  and never alerted on.
+  and never alerted on. In shared mode (`LIWAN_TENANCY_MODE=shared`) the API registers `shared_worker` and
+  `commercial_scheduler` at start (a row dated then, never replacing a beat), so a worker that never starts is stale
+  after its threshold and alerted on; the mode alone decides, not a readable runtime config.
 
 ## 4. Not monitored
 

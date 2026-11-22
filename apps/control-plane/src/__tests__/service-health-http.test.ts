@@ -6,7 +6,8 @@ import { vendorOverviewSchema } from '@liwan/commercial-contracts'
 import { vendorSession } from './helpers/vendor-session.js'
 import { createApp } from '../http.js'
 import { migrate } from '../db.js'
-import { beat, recordAvailability } from '../service-health.js'
+import { beat, downComponents, recordAvailability } from '../service-health.js'
+import { backdateBeat } from './service-health-helpers.js'
 import { url } from './commercial-helpers.js'
 
 const suite = url ? describe : describe.skip
@@ -80,6 +81,48 @@ suite('service health on the vendor overview', () => {
     const all = await get('/v1/overview?source=all', operations)
     expect(all.status).toBe(200)
     expect(vendorOverviewSchema.parse(all.body).health).toHaveLength(6)
+  })
+
+  describe('the components the API expects', () => {
+    const expected = ['shared_worker', 'commercial_scheduler']
+    const rows = async () => (await pool.query("SELECT component, detail FROM service_heartbeats WHERE component = ANY($1) ORDER BY component", [expected])).rows
+    const startApi = async (mode: string | undefined) => {
+      vi.stubEnv('LIWAN_TENANCY_MODE', mode ?? '')
+      const other = createApp(pool, config)
+      await new Promise(res => setTimeout(res, 300))
+      other.close()
+      vi.stubEnv('LIWAN_TENANCY_MODE', '')
+      return other
+    }
+    const clear = () => pool.query("DELETE FROM service_heartbeats WHERE component = ANY($1)", [expected])
+
+    it('registers them in shared mode, so a worker that never starts turns stale and is alerted on', async () => {
+      await clear()
+      await startApi('shared')
+      expect((await rows()).map(r => r.component)).toEqual(['commercial_scheduler', 'shared_worker'])
+      expect((await downComponents(pool)).map(d => d.component)).not.toContain('shared_worker')
+      await backdateBeat(pool, 'shared_worker', 3 * 60_000)
+      await backdateBeat(pool, 'commercial_scheduler', 3 * 60_000)
+      expect((await downComponents(pool)).map(d => d.component)).toEqual(['shared_worker'])
+      await backdateBeat(pool, 'commercial_scheduler', 3 * 60_000)
+      expect((await downComponents(pool)).map(d => d.component)).toEqual(['shared_worker', 'commercial_scheduler'])
+    })
+
+    it('keeps the beat of a worker that is already running', async () => {
+      await clear()
+      await beat(pool, 'shared_worker', { startedAt: new Date(Date.now() - 3600_000) })
+      const before = await rows()
+      await startApi('shared')
+      expect((await rows()).find(r => r.component === 'shared_worker')).toEqual(before[0])
+      expect((await pool.query("SELECT count(*)::int AS n FROM service_heartbeats WHERE component='shared_worker' AND started_at < now() - interval '30 minutes'")).rows[0].n).toBe(1)
+    })
+
+    it('registers nothing in dedicated mode, where the worker is not part of the product and the components stay never seen', async () => {
+      await clear()
+      await startApi(undefined)
+      await startApi('dedicated')
+      expect(await rows()).toEqual([])
+    })
   })
 
   it('answers the overview with health null when the table cannot be read', async () => {

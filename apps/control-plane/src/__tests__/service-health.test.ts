@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
 import { SERVICE_COMPONENTS, serviceHealthSchema } from '@liwan/commercial-contracts'
 import { migrate } from '../db.js'
-import { beat, downComponents, readHealth, recordAvailability } from '../service-health.js'
+import { beat, downComponents, expectBeats, readHealth, recordAvailability } from '../service-health.js'
 import { url } from './commercial-helpers.js'
 import { backdateBeat } from './service-health-helpers.js'
 
@@ -173,7 +173,8 @@ suite('service health on PostgreSQL', () => {
     const broken = { query: async () => { throw new Error('connection to db.internal:5432 refused') } } as unknown as Pool
     await expect(beat(broken, 'shared_worker', { startedAt: T0, log: (m, e) => logged.push(`${m} ${e instanceof Error ? e.message : ''}`) })).resolves.toBeUndefined()
     await expect(recordAvailability(broken, 'mail_adapter', { startedAt: T0, log: (m) => logged.push(m) })).resolves.toBeUndefined()
-    expect(logged).toHaveLength(2)
+    await expect(expectBeats(broken, ['shared_worker'], { log: (m) => logged.push(m) })).resolves.toBeUndefined()
+    expect(logged).toHaveLength(3)
   })
 
   it('throws when the table cannot be read, so the caller decides what an unreadable table means', async () => {

@@ -37,6 +37,15 @@ export function recordAvailability(pool: Writer, component: AvailabilityComponen
   return write(pool, component, { startedAt: input.startedAt, detail, log: input.log })
 }
 
+const EXPECT = `INSERT INTO service_heartbeats(component,beat_at,started_at) SELECT c, now(), now() FROM unnest($1::text[]) AS c ON CONFLICT (component) DO NOTHING`
+
+/** Says that a process is expected to report from now on: a component with no row yet gets one dated now, so a process that never starts
+ * turns stale after its threshold and is alerted on, instead of staying `never_seen` for ever. A row that exists (a beat) is left as it is. Never throws. */
+export async function expectBeats(pool: Writer, components: readonly BeatComponent[], input: { log?: Log } = {}): Promise<void> {
+  try { await pool.query(EXPECT, [components]) }
+  catch (error) { try { (input.log ?? defaultLog)('service heartbeat expectation not written', error) } catch { /* never throw */ } }
+}
+
 /** The shared worker's own beat: one at start and one every `intervalMs`, from a timer that does not depend on the job loop (a long backup or restore holds the loop, not the timer).
  * The timer does not keep the process alive and ends with the shutdown signal. A write still running when the next one is due is not repeated. */
 export function startWorkerHeartbeat(pool: Writer, input: { startedAt: Date; signal: AbortSignal; intervalMs?: number; log?: Log }): void {

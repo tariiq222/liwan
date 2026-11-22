@@ -8,7 +8,7 @@ import { customerHttp, type PaymentRuntime } from './commercial/customer-http.js
 import { returnOriginFromEnv } from './commercial/return-origin.js'
 import { routesB, paymentEventsHttp } from './commercial/routes-b.js'
 import { paymentAdapterFromEnv } from './commercial/payment-adapter.js'
-import { readHealth, recordAvailability } from './service-health.js'
+import { expectBeats, readHealth, recordAvailability } from './service-health.js'
 import { CommercialHttpError } from './commercial/lifecycle.js'
 import { invitationPublicHttp, invitationVendorHttp, REISSUE_PATH, verifiedReissueContext } from './commercial/invitation-http.js'
 import { FIND_WORKSPACE_BODY_LIMIT, FIND_WORKSPACE_PATH, workspaceLookupHandler } from './commercial/workspace-lookup-http.js'
@@ -353,6 +353,9 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
   // Payment routes fail closed without an adapter; the other routes stay available. The reason is logged, never the secret.
   const startedAt = new Date()
   try { paymentRuntime.adapter=paymentAdapterFromEnv(process.env); void recordAvailability(pool, 'api_payment_adapter', { startedAt }) } catch (e) { console.error('commercial payment adapter unavailable: %s', logText(e)); void recordAvailability(pool, 'api_payment_adapter', { startedAt, error: e }) }
+  // In shared mode the worker and its scheduler are part of the product: say so at start, so that a worker that never starts is stale and alerted on.
+  // The mode alone decides, not a readable runtime config: a worker that cannot start because of its config is the very case to alert on.
+  if (process.env.LIWAN_TENANCY_MODE === 'shared') void expectBeats(pool, ['shared_worker', 'commercial_scheduler'])
   // Password setting runs in control-worker (the only Docker-capable process); unset channel = acceptance fails closed.
   const effect = config.internalEffect
   const setPassword: SetPassword | undefined = process.env.LIWAN_TENANCY_MODE === 'shared' && effect?.url && effect.ca
