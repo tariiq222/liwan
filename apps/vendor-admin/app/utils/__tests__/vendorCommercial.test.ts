@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { actionBlockedReason, appName, isEditable, availableActions, audienceFromDraft, bundleCreatePayload, bundleDraftFromView, bundleEditPayload, bundleLimitKeys, commercialFailure, commercialErrorKey, commercialReturnTo, dependencyHints, emptyBundleDraft, emptyPlanDraft, fieldIssue, limitFromDraft, limitToDraft, lifecycleStatus, lifecycleUrl, keyLabel, minorToInput, parseVendorMoneyInput, planCreatePayload, planDraftFromView, planEditPayload, priceRowErrors, pricesFromDrafts, quoteRequestBody, listQuery } from '../vendorCommercial'
+import { actionBlockedReason, appName, isEditable, availableActions, audienceFromDraft, bundleCreatePayload, bundleDraftFromView, bundleEditPayload, bundleLimitKeys, commercialFailure, commercialErrorKey, commercialReturnTo, dependencyHints, emptyBundleDraft, emptyPlanDraft, fieldIssue, limitFromDraft, limitToDraft, lifecycleStatus, lifecycleUrl, keyLabel, minorToInput, parseCount, parseVendorMoneyInput, planCreatePayload, planDraftFromView, planEditPayload, priceRowErrors, pricesFromDrafts, quoteRequestBody, listQuery } from '../vendorCommercial'
 
 const rid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
 const release = { id: rid(1), version: '1', source_digest: 'a'.repeat(64), artifact_digest: 'a'.repeat(64), applications: [
@@ -23,6 +23,21 @@ describe('money', () => {
   })
   it('round-trips', () => {
     expect(minorToInput(1999)).toBe('19.99')
+  })
+  // The rule: a comma, an Arabic thousands mark or a space is a thousands separator only between groups of exactly three
+  // digits (what the console itself prints: 1,250.00 / ١٬٢٥٠٫٠٠). Any other use is ambiguous (12,50 is 12.50 in a decimal-comma
+  // locale and 1250 in another), so the input is refused, never reinterpreted.
+  it('reads a thousands separator only between groups of three and refuses every other comma', () => {
+    expect(parseVendorMoneyInput('1,250')).toBe(125000)
+    expect(parseVendorMoneyInput('1,250.50')).toBe(125050)
+    expect(parseVendorMoneyInput('١٬٢٥٠٫٥٠')).toBe(125050)
+    expect(parseVendorMoneyInput('1 250')).toBe(125000)
+    for (const ambiguous of ['12,50', '1,5', '0,5', ',5', '12٬5', '1,25,000', '1,2500', '1,250,5', '12 50', '1.250,50', '1,250,']) expect(parseVendorMoneyInput(ambiguous), ambiguous).toBeNull()
+  })
+  it('refuses an ambiguous comma in a whole number too, instead of joining its digits', () => {
+    expect(parseCount('1,5')).toBeNull()
+    expect(parseCount('1,250', 5000)).toBe(1250)
+    expect(() => limitFromDraft({ mode: 'number', value: '1,5' })).toThrow('invalid_limit')
   })
 })
 describe('limit tri-state', () => {

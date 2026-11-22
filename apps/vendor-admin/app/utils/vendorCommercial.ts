@@ -44,8 +44,16 @@ export function isStatusFilter(value: unknown): value is StatusFilter { return t
 
 // ---- Money ----
 const ARABIC_DIGITS = '٠١٢٣٤٥٦٧٨٩'
+const GROUPED_INTEGER = /^\d{1,3}(?:[,٬\s]\d{3})+$/
+/**
+ * Latin digits with `.` as the decimal mark. A comma, an Arabic thousands mark or a space is a thousands separator only
+ * between groups of exactly three digits (1,250 and ١٬٢٥٠٫٥٠, as the console prints amounts); any other use (12,50) is
+ * ambiguous between a decimal comma and a thousands comma, so it is left in the text and the caller's digit pattern refuses it.
+ */
 export function normalizeDigits(value: string): string {
-  return value.replace(/[٠-٩]/g, d => String(ARABIC_DIGITS.indexOf(d))).replace(/٫/g, '.').replace(/[٬,\s]/g, '')
+  const text = value.trim().replace(/[٠-٩]/g, d => String(ARABIC_DIGITS.indexOf(d))).replace(/٫/g, '.')
+  const whole = text.split('.', 1)[0]!
+  return GROUPED_INTEGER.test(whole) ? whole.replace(/[,٬\s]/g, '') + text.slice(whole.length) : text
 }
 /** "12.5" → 1250. Returns null for blank/negative/too many decimals/non-numeric; never coerces blank to 0. */
 export function parseVendorMoneyInput(value: string, exponent = EXPONENT): number | null {

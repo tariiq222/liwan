@@ -756,7 +756,7 @@
         "add": "Add price",
         "cadenceInvalid": "Choose a unit and a count from 1 to 12.",
         "duplicate": "Duplicate cadence.",
-        "amountInvalid": "Enter an amount with at most 2 decimals.",
+        "amountInvalid": "Enter the amount with a point before the decimals, such as 12.50 (at most 2 decimals).",
         "invalid": "Review the prices.",
         "cadenceMissing": "Add a user and storage unit price for every offered billing cadence."
       },
@@ -1635,7 +1635,7 @@
         "reference": "Transfer reference",
         "amount": "Amount received",
         "amountHint": "In riyals, with at most two decimals, such as 123.45.",
-        "amountInvalid": "Enter the amount as a number in riyals, such as 123.45, with no sign or letters.",
+        "amountInvalid": "Enter the amount as a number in riyals, such as 123.45, with a point before the decimals and no sign or letters.",
         "amountDecimals": "A riyal amount has at most two decimals. Enter the exact amount received, without rounding.",
         "claimed": "Stated by the customer, not verified: it transferred this on {date}",
         "claimedReference": "Sender or bank reference given by the customer: {reference}",
