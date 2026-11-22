@@ -19,6 +19,9 @@ describe.each(['ar', 'en'] as const)('audit action texts (%s)', lang => {
   it('has no text for an action nobody writes', () => {
     expect(leaves(strings.audit.actions).filter(key => !(AUDIT_ACTIONS as readonly string[]).includes(key))).toEqual([])
   })
+  it('does not promise an e-mail search: the control plane matches display names only', () => {
+    expect(strings.audit.actorPlaceholder).not.toMatch(/mail|بريد/i)
+  })
   it('reads every operation event from its type and status texts', () => {
     for (const type of AUDIT_OPERATION_TYPES) for (const status of AUDIT_OPERATION_STATUSES) {
       const parts = auditActionParts(`operation.${type}.${status}`)

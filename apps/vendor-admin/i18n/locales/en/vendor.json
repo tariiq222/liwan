@@ -670,7 +670,7 @@
       "category": "Action type",
       "allCategories": "All types",
       "actorFilter": "Actor",
-      "actorPlaceholder": "Actor name or email",
+      "actorPlaceholder": "Actor name",
       "from": "From date",
       "to": "To date",
       "customerFilter": "Customer log: {name}",

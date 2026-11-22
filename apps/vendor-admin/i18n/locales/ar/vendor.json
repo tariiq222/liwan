@@ -670,7 +670,7 @@
       "category": "نوع الإجراء",
       "allCategories": "كل الأنواع",
       "actorFilter": "المنفذ",
-      "actorPlaceholder": "اسم أو بريد المنفذ",
+      "actorPlaceholder": "اسم المنفذ",
       "from": "من تاريخ",
       "to": "إلى تاريخ",
       "customerFilter": "سجل العميل: {name}",
