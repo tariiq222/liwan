@@ -20,8 +20,15 @@ describe('toCsvTable', () => {
     expect(unquoted).toBe(`'${name}`)
   })
 
+  it.each([' =1+1', '\n=1+1', ' \t+SUM(A1)', '\u00a0@cmd', '＝1+1', '＋1', '－1', '＠cmd', ' ＝1'])('writes a name whose first visible character starts a formula, %j, as text', (name) => {
+    const csv = toCsvTable(['name'], [[name]])
+    const cell = csv.slice(`${BOM}name\r\n`.length, -2)
+    const unquoted = cell.startsWith('"') ? cell.slice(1, -1).replaceAll('""', '"') : cell
+    expect(unquoted).toBe(`'${name}`)
+  })
+
   it('leaves a name that merely contains a dangerous character alone', () => {
-    expect(toCsvTable(['n'], [['A-B'], ['a=b'], ["'quoted"], [' =lead']])).toBe(`${BOM}n\r\nA-B\r\na=b\r\n'quoted\r\n =lead\r\n`)
+    expect(toCsvTable(['n'], [['A-B'], ['a=b'], ["'quoted"], [' lead =']])).toBe(`${BOM}n\r\nA-B\r\na=b\r\n'quoted\r\n lead =\r\n`)
   })
 
   it('writes number cells and literal cells as given, with no apostrophe, and a null cell empty', () => {

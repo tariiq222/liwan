@@ -5,8 +5,9 @@ export type CsvCell = string | number | CsvLiteral | null
 
 export const csvLiteral = (literal: string): CsvLiteral => ({ literal })
 
-// A spreadsheet reads a text cell starting with one of these as a formula (CSV injection); the customer's name is the risk.
-const FORMULA_START = /^[=+\-@\t\r]/
+// A spreadsheet reads a text cell as a formula (CSV injection; the customer's name is the risk) when its first character is one of
+// these, a tab or a carriage return, or when only whitespace comes before one of them. The full-width forms are read the same way.
+const FORMULA_START = /^(?:[\t\r]|\s*[=+\-@\uFF1D\uFF0B\uFF0D\uFF20])/
 
 const quoted = (value: string) => (/[",\n\r]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value)
 
