@@ -1,10 +1,10 @@
 <script setup lang="ts">
+import type { ShellAppSwitchItem } from '../../types/shell'
+
 // The application block of app mode: the open application's tile and name, and — when the user has other pinned
 // applications — a chevron that opens them as a menu, so switching application is one click without leaving the page.
 // It replaced a static block plus a duplicated «كل التطبيقات» back row above it: that row stayed in the footer, and
 // the block could not do anything. Presentational: the rows arrive from the shell.
-/** One row of the switch menu: the application id (for its coloured tile), its name, icon and page. */
-export interface ShellAppSwitchItem { id: string, label: string, icon: string, to: string, testId?: string }
 const props = withDefaults(defineProps<{
   app: { id?: string, label: string, icon: string }
   /** The applications the user pinned, in rail order. Empty or one leaves the block static. */
