@@ -787,8 +787,20 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: list[str] | None = None, *, env: Mapping[str, str] | None = None,
-         transports: Transports | None = None, now: datetime | None = None) -> int:
+@dataclass(frozen=True)
+class Outcome:
+    """What one run did: its exit code, and whether at least one channel delivered the message.
+
+    A caller that records "this was announced" (the host service-health timer) reads ``delivered``: with two channels
+    and one down, the exit code is ``EXIT_DELIVERY_FAILED`` although the owner was told.
+    """
+
+    code: int
+    delivered: bool = False
+
+
+def dispatch(argv: list[str] | None = None, *, env: Mapping[str, str] | None = None,
+             transports: Transports | None = None, now: datetime | None = None) -> Outcome:
     """Fire one event from the command line; JSON on stdout, never a credential."""
     args = build_parser().parse_args(argv)
     timestamp = now if now is not None else datetime.now(timezone.utc)
@@ -801,19 +813,26 @@ def main(argv: list[str] | None = None, *, env: Mapping[str, str] | None = None,
         message = _message_for(args, timestamp)
         if message is None:
             _write_json({'event': args.command, 'alerted': False})
-            return EXIT_OK
+            return Outcome(EXIT_OK)
         report = notifiers.notify(message)
     except AlertError as error:
         sys.stderr.write(f'alerts: {error}\n')
-        return EXIT_REFUSED
+        return Outcome(EXIT_REFUSED)
 
     _write_json(_report_payload(message, report, config))
+    delivered = any(delivery.delivered for delivery in report.deliveries)
     try:
         report.raise_for_failures()
     except AlertDeliveryError as error:
         sys.stderr.write(f'alerts: {error}\n')
-        return EXIT_DELIVERY_FAILED
-    return EXIT_OK
+        return Outcome(EXIT_DELIVERY_FAILED, delivered)
+    return Outcome(EXIT_OK, delivered)
+
+
+def main(argv: list[str] | None = None, *, env: Mapping[str, str] | None = None,
+         transports: Transports | None = None, now: datetime | None = None) -> int:
+    """The exit code of :func:`dispatch`: 0 done, 1 a channel failed, 2 refused."""
+    return dispatch(argv, env=env, transports=transports, now=now).code
 
 
 if __name__ == '__main__':

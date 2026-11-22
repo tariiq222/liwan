@@ -4,7 +4,8 @@
 Run once a minute by ``liwan-service-health-alert.timer``. It asks the control database directly (``psql``, a read-only role) for
 ``service_health_states(now())``, the one place the staleness thresholds live, so it works when the control API and the shared
 worker are both down, and it cannot disagree with the console. What it already announced is kept in a small state file, so a
-service that stays down is announced once, and a message that was not delivered is sent again on the next run.
+service that stays down is announced once. A message no channel delivered is sent again on the next run; one that reached the owner
+on at least one channel is recorded (that run still exits 1, so the journal shows the failed channel) and never repeated.
 
 The monitor is itself watched by this script: when it cannot read the table (database down, ``psql`` missing, credentials or a
 timeout) several runs in a row, it announces once that ``health_monitor`` is unavailable, and once when it can read again; a
@@ -14,7 +15,7 @@ Environment (names only; see ``service-health-alert.env.example``): LIWAN_CONTRO
 LIWAN_CONTROL_HEALTH_PG_HOST / _PG_PORT / _PG_USER / _PSQL (optional), PGPASSFILE (the password; never an argument),
 LIWAN_SERVICE_HEALTH_STATE_FILE (or the STATE_DIRECTORY systemd sets), and the LIWAN_ALERT_* channels of ``deploy/alerts.py``.
 
-Exit codes are those of ``alerts.py``: 0 done, 1 an alert or the read failed (retried next run), 2 refused (configuration or data).
+Exit codes are those of ``alerts.py``: 0 done, 1 a channel or the read failed, 2 refused (configuration or data).
 """
 from __future__ import annotations
 
@@ -145,20 +146,26 @@ def _validated(rows: object) -> dict[str, str]:
     return down
 
 
-def _announce_blindness(memory: Memory, alerter: Callable[[list[str]], int], state: StateFile) -> int:
+def _announced(outcome: alerts.Outcome) -> bool:
+    """The owner was told: every channel delivered, or at least one did. Retrying would only repeat the message on the channel that works."""
+    return outcome.code == alerts.EXIT_OK or outcome.delivered
+
+
+def _announce_blindness(memory: Memory, alerter: Callable[[list[str]], alerts.Outcome], state: StateFile) -> int:
     """One more failed read: count it, and say once that the monitor is blind when the count is reached."""
     failures = min(memory.read_failures + 1, READ_FAILURES_BEFORE_ALERT)
     down = memory.down
     code = alerts.EXIT_OK
     if failures >= READ_FAILURES_BEFORE_ALERT and MONITOR not in down:
-        code = alerter(['service_down', '--component', MONITOR, '--state', 'unavailable'])
-        if code == alerts.EXIT_OK:
+        outcome = alerter(['service_down', '--component', MONITOR, '--state', 'unavailable'])
+        code = outcome.code
+        if _announced(outcome):
             down = {**down, MONITOR: 'unavailable'}
     state.save(Memory(down, failures))
     return max(code, alerts.EXIT_DELIVERY_FAILED)
 
 
-def run(reader: Callable[[], list[dict[str, str]]], alerter: Callable[[list[str]], int], state: StateFile) -> int:
+def run(reader: Callable[[], list[dict[str, str]]], alerter: Callable[[list[str]], alerts.Outcome], state: StateFile) -> int:
     """Announce what changed since the last run; the worst exit code of the run."""
     try:
         memory = state.load()
@@ -183,18 +190,17 @@ def run(reader: Callable[[], list[dict[str, str]]], alerter: Callable[[list[str]
             after = {name: value for name, value in remembered.items() if name != component}
         else:
             continue
-        code = alerter(argv)
-        if code == alerts.EXIT_OK:
+        outcome = alerter(argv)
+        if _announced(outcome):
             remembered = after
             state.save(Memory(remembered))
-        else:
-            worst = max(worst, code)
+        worst = max(worst, outcome.code)
     return worst
 
 
-def alerts_main(env: Mapping[str, str], transports: alerts.Transports | None = None, now: datetime | None = None) -> Callable[[list[str]], int]:
+def alerts_main(env: Mapping[str, str], transports: alerts.Transports | None = None, now: datetime | None = None) -> Callable[[list[str]], alerts.Outcome]:
     """The real sender: ``deploy/alerts.py`` with this environment's channels."""
-    return lambda argv: alerts.main(argv, env=env, transports=transports, now=now)
+    return lambda argv: alerts.dispatch(argv, env=env, transports=transports, now=now)
 
 
 def main(argv: list[str] | None = None, *, env: Mapping[str, str] | None = None, reader=None, alerter=None) -> int:

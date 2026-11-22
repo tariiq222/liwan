@@ -55,6 +55,8 @@ adapter is alerted like a stale component. The alert is one message when a compo
 one when it recovers. It is sent by a host systemd timer that reads the table and sends a new `deploy/alerts.py`
 event, so it works when the worker and the API are both down. It is the only sender: the scheduler's `sendVendorAlerts`
 skips `service_down` (the item stays in the console list), so one episode gives one message.
+A transition is recorded once at least one channel delivered it (`alerts.dispatch` reports it; the exit code of
+`alerts.py` stays 1 for the release command); when none delivered it is retried each minute.
 The timer is itself watched: after 3 consecutive failed reads of the table (counted in its state file) it sends one
 `service_down` for the component `health_monitor` (`unavailable`) and one `service_recovered` when it reads again; a single
 transient failure sends nothing.

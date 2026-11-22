@@ -640,6 +640,16 @@ class TestCommandLine(unittest.TestCase):
         self.assertFalse(payload['channels']['email']['delivered'])
         self.assertTrue(payload['channels']['telegram']['delivered'])
 
+    def test_dispatch_says_whether_any_channel_delivered_while_main_still_exits_one(self):
+        def outcome(email, telegram):
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                return alerts.dispatch(['service_down', '--component', 'shared_worker', '--state', 'stale'], env=full_environment(),
+                                       transports=Transports(email=FakeTransport(email), telegram=FakeTransport(telegram)), now=NOW)
+
+        self.assertEqual(outcome(OSError('down'), None), alerts.Outcome(alerts.EXIT_DELIVERY_FAILED, delivered=True))
+        self.assertEqual(outcome(OSError('down'), OSError('down')), alerts.Outcome(alerts.EXIT_DELIVERY_FAILED, delivered=False))
+        self.assertEqual(outcome(None, None), alerts.Outcome(alerts.EXIT_OK, delivered=True))
+
     def test_a_deploy_event_names_environment_release_phase_and_reason(self):
         for command in ('deploy_failed', 'deploy_rollback_failed'):
             with self.subTest(command=command):

@@ -40,7 +40,7 @@ class FakeReader:
 
 
 class FakeAlerter:
-    """Records the argv of every alert; `codes` is what each call returns, default 0 (delivered)."""
+    """Records the argv of every alert; `codes` is what each call returns (an exit code or an `alerts.Outcome`), default 0 (delivered)."""
 
     def __init__(self, codes=None):
         self.calls = []
@@ -48,7 +48,8 @@ class FakeAlerter:
 
     def __call__(self, argv):
         self.calls.append(argv)
-        return self.codes.pop(0) if self.codes else alerts.EXIT_OK
+        code = self.codes.pop(0) if self.codes else alerts.EXIT_OK
+        return code if isinstance(code, alerts.Outcome) else alerts.Outcome(code, delivered=code == alerts.EXIT_OK)
 
 
 def row(component, state):
@@ -303,6 +304,35 @@ class TheCommandLine(unittest.TestCase):
         self.assertIn('service_down', telegram[0])
         self.assertIn('shared_worker', telegram[0])
         self.assertIn('service_recovered', telegram[1])
+
+    def test_a_transition_one_channel_delivered_is_recorded_so_the_working_channel_is_not_repeated_every_minute(self):
+        email = []
+
+        def refused(text):
+            raise OSError('the Bot API is down')
+
+        env = {**self.env, alerts.ENV_SMTP_HOST: 'smtp.example.test', alerts.ENV_SMTP_FROM: 'a@example.test',
+               alerts.ENV_SMTP_TO: 'o@example.test', alerts.ENV_TELEGRAM_BOT_TOKEN: '1:tok', alerts.ENV_TELEGRAM_CHAT_ID: '4'}
+        alerter = health.alerts_main(env, transports=alerts.Transports(email=email.append, telegram=refused), now=NOW)
+        reader = FakeReader([row('shared_worker', 'stale')])
+        with contextlib.redirect_stdout(io.StringIO()):
+            first, _ = self.main(env, reader, alerter)
+            for _ in range(3):
+                self.assertEqual(self.main(env, reader, alerter)[0], alerts.EXIT_OK)
+        self.assertEqual(first, alerts.EXIT_DELIVERY_FAILED)   # the run still says that one channel failed
+        self.assertEqual(len(email), 1)
+
+    def test_when_no_channel_delivered_the_transition_is_retried(self):
+        def refused(_):
+            raise OSError('down')
+
+        env = {**self.env, alerts.ENV_TELEGRAM_BOT_TOKEN: '1:tok', alerts.ENV_TELEGRAM_CHAT_ID: '4'}
+        alerter = health.alerts_main(env, transports=alerts.Transports(telegram=refused), now=NOW)
+        reader = FakeReader([row('shared_worker', 'stale')])
+        with contextlib.redirect_stdout(io.StringIO()):
+            codes = [self.main(env, reader, alerter)[0] for _ in range(2)]
+        self.assertEqual(codes, [alerts.EXIT_DELIVERY_FAILED] * 2)
+        self.assertFalse(Path(self.env['LIWAN_SERVICE_HEALTH_STATE_FILE']).exists())
 
     def test_with_no_alert_channel_the_transition_is_not_remembered(self):
         alerter = health.alerts_main(self.env, now=NOW)
