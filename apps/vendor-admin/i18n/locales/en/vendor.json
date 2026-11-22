@@ -1792,6 +1792,31 @@
       "notAvailableHint": "The invoices service is not enabled in the control plane yet.",
       "details": "Invoice",
       "draftNumber": "Draft (no number)",
+      "export": {
+        "action": "Export CSV",
+        "progress": "Exporting {done} of {total}",
+        "cancel": "Cancel",
+        "failed": "The export failed and no file was created. Try again.",
+        "capped": "Only the first {cap} invoices are exported and the file name ends in -partial. Narrow the filters to export the rest.",
+        "columns": {
+          "number": "Number",
+          "customer": "Customer",
+          "kind": "Kind",
+          "status": "Status",
+          "issued": "Issue date",
+          "due": "Due date",
+          "paid": "Paid date",
+          "periodStart": "Period start",
+          "periodEnd": "Period end",
+          "currency": "Currency",
+          "subtotal": "Subtotal",
+          "tax": "Tax",
+          "total": "Total",
+          "credited": "Credit notes",
+          "invoiceId": "Invoice ID",
+          "customerId": "Customer ID"
+        }
+      },
       "print": {
         "title": "Invoice document",
         "action": "Print or save as PDF",

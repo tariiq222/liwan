@@ -2,6 +2,9 @@
 import type { TableColumn } from '@nuxt/ui'
 import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBadges'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
+import { riyadhDate } from '@liwan/commercial-contracts'
+import { downloadCsv } from '@/utils/csv'
+import { collectInvoices, INVOICE_EXPORT_CAP, INVOICE_EXPORT_COLUMNS, invoiceExportCsv, invoiceExportFileName, type InvoiceExportProgress } from '@/utils/invoiceExport'
 import { formatBusinessDate } from '@/utils/vendorTime'
 import { INVOICE_STATUS_FILTERS, invoiceListQuery, isInvoiceStatusFilter, isNotAvailable } from '@/utils/vendorSubscriptions'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
@@ -32,6 +35,29 @@ const outstanding = computed(() => {
 })
 const badge = (i: (typeof items.value)[number]) => invoiceStatusBadge(i.status, 'vendor.invoices.status')
 
+// The export reads every invoice matching the current filters, not only this page, and writes one file in the browser.
+const exporting = ref(false)
+const exportProgress = ref<InvoiceExportProgress | null>(null)
+const exportFailed = ref(false)
+let exportController: AbortController | null = null
+const overCap = computed(() => (data.value?.total ?? 0) > INVOICE_EXPORT_CAP)
+async function exportCsv() {
+  if (!hydrated.value || exporting.value) return
+  exporting.value = true; exportFailed.value = false; exportProgress.value = null
+  const controller = exportController = new AbortController()
+  try {
+    const { rows, partial } = await collectInvoices(api.listInvoices, { customerId: customerId.value, status: status.value }, { signal: controller.signal, onProgress: (progress) => { exportProgress.value = progress } })
+    const csv = invoiceExportCsv(rows, { header: INVOICE_EXPORT_COLUMNS.map(column => t(`vendor.invoices.export.columns.${column}`)), kind: kind => t(`vendor.invoices.kind.${kind}`), status: value => t(invoiceStatusBadge(value, 'vendor.invoices.status').labelKey) })
+    downloadCsv(invoiceExportFileName(status.value, riyadhDate(new Date()), partial), csv)
+  } catch (cause) {
+    // A cancel is the vendor's own choice; any other failure leaves no file.
+    if (!controller.signal.aborted) exportFailed.value = true
+  } finally {
+    exporting.value = false; exportProgress.value = null; exportController = null
+  }
+}
+const cancelExport = () => exportController?.abort()
+
 const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
   { id: 'number', header: t('vendor.invoices.details') },
   { id: 'customer', header: t('vendor.invoices.customer') },
@@ -51,6 +77,12 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
       <SharedFilterChoice :label="t('vendor.common.status')" :model-value="status" :items="statusItems" :disabled="!hydrated" @update:model-value="patch({ status: $event && $event !== 'all' ? $event : undefined })" />
       <template #active><SharedFilterChip v-if="customerId" :label="customerLabel" @remove="patch({ customer_id: undefined })" /><SharedFilterChip v-if="status !== 'all'" :label="t(`vendor.invoices.filter.${status}`)" @remove="patch({ status: undefined })" /></template>
     </SharedFilterBar></template>
+<template #actions>
+  <UButton v-if="exporting" icon="i-lucide-x" variant="outline" color="neutral" data-testid="invoice-export-cancel" @click="cancelExport">{{ t('vendor.invoices.export.cancel') }}</UButton>
+  <UButton icon="i-lucide-download" variant="outline" color="neutral" :loading="exporting" :disabled="!hydrated || exporting || !data?.total" data-testid="invoices-export" @click="exportCsv">{{ exportProgress ? t('vendor.invoices.export.progress', { done: exportProgress.done, total: exportProgress.total }) : t('vendor.invoices.export.action') }}</UButton>
+</template>
+<UAlert v-if="overCap" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('vendor.invoices.export.capped', { cap: INVOICE_EXPORT_CAP })" data-testid="invoice-export-cap" />
+<UAlert v-if="exportFailed" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('vendor.invoices.export.failed')" data-testid="invoice-export-failure" />
 <p class="text-xs text-muted" data-testid="not-official"><span class="font-medium">{{ t('vendor.invoices.notOfficial') }}</span> — {{ t('vendor.invoices.notOfficialHint') }}</p>
 <UAlert v-if="unavailable" color="neutral" variant="subtle" icon="i-lucide-clock" :title="t('vendor.invoices.notAvailable')" :description="t('vendor.invoices.notAvailableHint')" />
 <template v-else>

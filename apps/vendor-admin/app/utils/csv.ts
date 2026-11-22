@@ -28,3 +28,10 @@ export function toCsvTable(header: readonly string[], rows: readonly (readonly C
   const lines = [header.map(quoted), ...rows.map(row => row.map(cellText))]
   return `﻿${lines.map(line => line.join(',')).join('\r\n')}\r\n`
 }
+
+/** Hands the browser the CSV text as a file to save. */
+export function downloadCsv(fileName: string, csv: string): void {
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+  Object.assign(document.createElement('a'), { href: url, download: fileName }).click()
+  URL.revokeObjectURL(url)
+}
