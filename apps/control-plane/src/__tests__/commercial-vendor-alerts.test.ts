@@ -114,12 +114,12 @@ suite('live PostgreSQL owner alerts', () => {
       await backdateBeat(pool, 'shared_worker', 10 * 60_000)
       await recordAvailability(pool, 'api_payment_adapter', { startedAt: new Date(Date.now() - 60_000), error: new Error('https://u:secret@pay.internal') })
       expect((await allAttentionItems(pool)).filter(i => i.kind === 'service_down').map(i => i.name).sort()).toEqual(['api_payment_adapter', 'shared_worker'])
-      const before = (await alerts()).length
+      // Other suites may leave attention items in the shared database, so the alert job may send for those: only what concerns the down services is judged.
       const ch = channels(); await run(ch)
-      expect(sentOf(ch, 'خدمة')).toHaveLength(0)
-      expect(sentOf(ch, 'عامل المنصة المشتركة')).toHaveLength(0)
-      expect((await alerts()).filter(r => JSON.stringify(r.payload).includes('service_down') || JSON.stringify(r.payload).includes('عامل المنصة المشتركة'))).toEqual([])
-      expect((await alerts()).length).toBe(before)
+      const aboutDownService = (text: string) => ['service_down', 'shared_worker', 'api_payment_adapter', 'عامل المنصة المشتركة'].some(needle => text.includes(needle))
+      expect((await alerts()).filter(r => aboutDownService(`${r.dedupe_key} ${JSON.stringify(r.payload)}`))).toEqual([])
+      expect(ch.mails.filter(m => aboutDownService(`${m.subject} ${m.text}`))).toEqual([])
+      expect(ch.texts.filter(aboutDownService)).toEqual([])
     } finally { await pool.query('DELETE FROM service_heartbeats') }
   })
 
