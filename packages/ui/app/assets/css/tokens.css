@@ -42,12 +42,13 @@
   --liwan-fs-title: clamp(1.286rem, 1rem + 1.1vw, 2rem);
   --liwan-fs-greeting: clamp(1.714rem, 1.1rem + 2.6vw, 2.857rem);
   --liwan-fs-figure: clamp(1.5rem, 1.2rem + 0.8vw, 2rem);
-  /* Fixed label and count sizes from the dashboard design. */
-  --liwan-fs-section: 15px;
-  --liwan-fs-conversation-title: 17px;
-  --liwan-fs-tab-count: 11px;
-  --liwan-fs-small-label: 13px;
-  --liwan-fs-avatar-initials: 10px;
+  /* Label and count sizes from the dashboard design. rem, not px, so they follow the 14/16/18px root: a fixed
+     15px label stayed the same while --text-xs grew to 15.4px at the large root, which inverted the scale. */
+  --liwan-fs-section: 1.071429rem;
+  --liwan-fs-conversation-title: 1.214286rem;
+  --liwan-fs-tab-count: 0.785714rem;
+  --liwan-fs-small-label: 0.928571rem;
+  --liwan-fs-avatar-initials: 0.714286rem;
   /* Fixed geometry in conversation rows and CRM cards. */
   --liwan-conversation-avatar: 42px;
   --liwan-conversation-unread-dot: 9px;
@@ -178,6 +179,10 @@
   --liwan-row-hover: #f9fafb;
   /* Page canvas: white behind content cards, which stay --ui-bg (bg-default) with a hairline ring. */
   --liwan-canvas: #ffffff;
+  /* The brand surface of the standalone pages (login) carries the white wordmark, so it stays ink in both
+     modes: the dark-mode --primary-solid-active is a light fill and left the wordmark at 1.48:1. */
+  --liwan-brand-surface: #14102a;
+  --liwan-brand-foreground: #ffffff;
   --shell-background: var(--liwan-canvas);
   --shell-foreground: var(--ui-text);
   --context-surface: var(--liwan-sidebar);
@@ -271,6 +276,8 @@
   --ui-text-toned: #dadee5;
   --ui-text-dimmed: #a8aeba;
   --liwan-canvas: #1c1e24;
+  --liwan-brand-surface: #14102a;
+  --liwan-brand-foreground: #ffffff;
   --liwan-sidebar: #21242b;
   --liwan-sand: #d2c3a3;
   --liwan-table-head: var(--ui-bg-muted);

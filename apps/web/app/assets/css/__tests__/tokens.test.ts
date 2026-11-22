@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { layerFile } from '@liwan/ui/test/helpers/layerFile'
 import {
-  APP_TILES, contrastRatio, DARK_MID_TEXT, DARK_MUTED_TEXT, DARK_NAV_ACTIVE, DARK_PRIMARY_FILL, DARK_PRIMARY_LABEL, DARK_SURFACES, DARK_TEXT,
+  APP_TILES, contrastRatio, DARK_MID_TEXT, DARK_MUTED_TEXT, DARK_NAV_ACTIVE, DARK_PRIMARY_ACTIVE, DARK_PRIMARY_FILL, DARK_PRIMARY_LABEL, DARK_SURFACES, DARK_TEXT,
   INK, INK_ACTIVE, INK_HOVER, LIGHT_BORDER, LIGHT_CANVAS, LIGHT_INK, LIGHT_MID_TEXT, LIGHT_MUTED_TEXT, LIGHT_SIDEBAR, LIGHT_SOFT, STATUS_TEXT,
 } from '../../../utils/liwanPalette'
 
@@ -117,6 +117,26 @@ describe('page canvas', () => {
     for (const selector of ['.liwan-shell', '.liwan-shell-workspace', '.liwan-shell-main']) {
       expect(declarations(ruleBodies(shell, selector)).get('background'), selector).toBe('var(--liwan-canvas)')
     }
+  })
+})
+
+describe('the brand surface of the standalone pages', () => {
+  // The login page draws the white wordmark on this surface. It used to take --primary-solid-active in dark
+  // mode (#d4d4dc), which left the white mark at 1.48:1. It is a fixed ink surface in both modes instead.
+  it('carries the white wordmark at 4.5:1 or better in both modes', () => {
+    for (const selector of [':root', '.dark']) {
+      const found = declarations(ruleBodies(sheet('tokens.css'), selector))
+      const surface = found.get('--liwan-brand-surface')
+      expect(surface, selector).toBeDefined()
+      expect(contrastRatio('#ffffff', surface!), `${selector}: white on ${surface}`).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
+  it('is not the dark solid-active fill that caused the defect', () => {
+    const dark = declarations(ruleBodies(sheet('tokens.css'), '.dark'))
+    // The dark solid-active fill is the light tone that caused the defect; the constant documents why.
+    expect(dark.get('--primary-solid-active')).toBe(DARK_PRIMARY_ACTIVE)
+    expect(dark.get('--liwan-brand-surface')).not.toBe(dark.get('--primary-solid-active'))
   })
 })
 

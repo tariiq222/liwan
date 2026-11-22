@@ -12,6 +12,8 @@ export const INK_ACTIVE = '#3a3550'
 /** Dark mode inverts the primary: a light fill under a near-black label. */
 export const DARK_PRIMARY_FILL = '#f3f3f6'
 export const DARK_PRIMARY_LABEL = '#0a0a0c'
+/** The pressed step of that light fill. It is a light surface, so it cannot carry white text (the login wordmark). */
+export const DARK_PRIMARY_ACTIVE = '#d4d4dc'
 
 /** Light text roles: ink for titles and numbers, a mid tone, and secondary text. */
 export const LIGHT_INK = INK
@@ -52,6 +54,7 @@ export const APP_TILES = {
   hr: { light: '#e0644f', dark: '#ef7d6a', action: '#c2412d' },
   finance: { light: '#1f8a5b', dark: '#34b07a', action: '#166c47' },
   appointments: { light: '#8bb513', dark: '#9fca2a', action: '#557309' },
+  helpdesk: { light: '#0e808c', dark: '#2a9aa8', action: '#0b6470' },
 } as const
 
 /** Status badge text, kept apart from the indicator colour (dot, ring, soft fill): >= 4.5:1 on its own soft fill. */
