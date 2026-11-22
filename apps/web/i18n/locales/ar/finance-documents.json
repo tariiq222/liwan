@@ -53,7 +53,7 @@
       "partial": "مدفوع جزئيًا",
       "reversed": "معكوس",
       "blocked": "موقوف",
-      "invoicing_legacy": "مسوّاة سابقًا"
+      "invoicing_legacy": "من تطبيق الفوترة السابق"
     },
     "zatcaStates": {
       "not_applicable": "غير مطلوب",

@@ -120,17 +120,25 @@ function onBackspace() {
   if (view.value === 'shortcuts' && !term.value) view.value = 'main'
 }
 
-/** Fuse options for the palette: the per-group cut, diacritics ignored, and the Arabic fold applied to the indexed
- *  text so «اعدادات» reaches «إعدادات» and «مهمه» reaches «مهمة». */
+/** Fuse options for the palette: the per-group cut, diacritics ignored, and the Arabic fold applied to BOTH sides.
+ *  Folding only the index made the search fail on the correct spelling: the stored «مهمة» became «مهمه» and the typed
+ *  «مهمة» stayed as it was, so the two no longer matched. Every field Fuse indexes is folded (the earlier version returned
+ *  an empty string for `description`, which silently stopped matching it), and the term is folded before it is searched. */
 const paletteFuse = computed(() => ({
   resultLimit: PALETTE_SECTION_LIMIT + 3,
   ignoreDiacritics: true,
-  getFn: (item: { label?: string, suffix?: string }, path: string | string[]) => {
+  getFn: (item: Record<string, unknown>, path: string | string[]) => {
     const field = Array.isArray(path) ? path[0] : path
-    const value = field === 'label' ? item.label : field === 'suffix' ? item.suffix : undefined
-    return foldForIndex(value ?? '')
+    const value = field === undefined ? undefined : item[field]
+    return typeof value === 'string' ? foldForIndex(value) : ''
   },
 }))
+
+// The palette searches exactly what Fuse indexed: the same fold on the user's text as on the stored labels.
+const foldedTerm = computed({
+  get: () => foldForIndex(term.value),
+  set: (value: string) => { term.value = value },
+})
 
 const liveGroups = computed<CommandPaletteGroup<CommandPaletteItem>[]>(() => {
   if (!open.value) return []
@@ -199,7 +207,7 @@ function onAfterLeave() {
     </UButton>
     <template #content>
       <UCommandPalette
-        v-model:search-term="term"
+        v-model:search-term="foldedTerm"
         :groups="groups"
         :placeholder="view === 'shortcuts' ? t('shortcuts.filter') : t('search.description')"
         :input="inputProps"
