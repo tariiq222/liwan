@@ -11,7 +11,7 @@ const id = (n: number) => `10000000-0000-4000-8000-0000000000${String(n).padStar
 const item = (over: Record<string, unknown> = {}) => ({ backup_id: id(1), job_id: id(2), created_at: '2026-11-22T10:00:00.000Z', started_by: 'Layla', approval: null, restores: [], ...over })
 const listing = (over: Record<string, unknown> = {}) => ({ start: { allowed: true, reason: null, job_id: null }, total: 1, items: [item()], ...over })
 
-type Setup = { data?: unknown; error?: unknown; pending?: boolean; capabilities?: string[]; request?: (path: string, options?: unknown) => Promise<unknown> }
+type Setup = { hydrated?: boolean; data?: unknown; error?: unknown; pending?: boolean; capabilities?: string[]; request?: (path: string, options?: unknown) => Promise<unknown> }
 function panel(state: Setup) {
   const refresh = vi.fn(async () => {})
   const fake = { data: Vue.ref(state.data ?? null), error: Vue.ref(state.error ?? null), pending: Vue.ref(state.pending ?? false), refresh }
@@ -20,7 +20,7 @@ function panel(state: Setup) {
   const sfc = loadSfc('components/vendor/BackupsPanel.vue', {
     useI18n: () => ({ t: (key: string, params?: Record<string, unknown>) => (params ? `${key}[${Object.entries(params).map(([name, value]) => `${name}=${value}`).join(',')}]` : key) }),
     useSharedBackups: () => fake, formatLiwanDateTime: (value: string) => `@${value}`, operationStatusBadge, sharedJobLocation, startRefusalKey,
-    approvalUsable, restoreFromBackup, RestoreQueueFailed, onMounted: () => {}, onBeforeUnmount: () => {}, backupJobRequest, sharedBackupErrorKey, reasonValid, useVendorApi: () => ({ request }), navigateTo, useHydrated: () => Vue.ref(true),
+    approvalUsable, restoreFromBackup, RestoreQueueFailed, onMounted: () => {}, onBeforeUnmount: () => {}, backupJobRequest, sharedBackupErrorKey, reasonValid, useVendorApi: () => ({ request }), navigateTo, useHydrated: () => Vue.ref(state.hydrated ?? true),
     useVendorContext: () => ({ can: (capability: string) => (state.capabilities ?? ['vendor.read', 'vendor.operations.run']).includes(capability) }),
   })
   const mounted = sfc.mount({ tenantId })
@@ -209,6 +209,14 @@ describe('BackupsPanel: restoring from a backup', () => {
     expect(calls[2]![1].body.job.requestId).toBe(calls[1]![1].body.job.requestId)
     expect(calls[2]![1].body.job.approvalId).toBe(id(5))
     expect(view.navigateTo).toHaveBeenCalledTimes(1)
+  })
+  it('keeps the textareas disabled until the page is hydrated', async () => {
+    const view = panel({ data: listing(), hydrated: false })
+    openFor(view, 'restore')
+    const areas = (await view.render()).captured.filter(entry => entry.name === 'UTextarea').map(entry => entry.attrs.disabled)
+    expect(areas).toEqual([true, true])
+    const ready = panel({ data: listing() }); openFor(ready, 'restore')
+    expect((await ready.render()).captured.filter(entry => entry.name === 'UTextarea').map(entry => entry.attrs.disabled)).toEqual([false, false])
   })
   it('offers resume for an open approval and queues the job with that approval alone', async () => {
     const view = panel({ data: listing({ items: [item({ approval })] }), request: async path => answer(path) })

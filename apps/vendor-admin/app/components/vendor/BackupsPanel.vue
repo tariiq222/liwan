@@ -110,7 +110,7 @@ async function startBackup() {
           </div>
           <form v-if="restoreTarget?.backupId === item.backup_id" class="grid gap-3" data-testid="backup-restore-form" novalidate @submit.prevent="confirmRestore = canRestore">
             <UAlert v-if="restoreError" color="error" variant="subtle" :title="t(sharedBackupErrorKey(restoreError))" data-testid="backup-restore-error" />
-            <UFormField :label="t('vendor.backups.restoreReason')" required><UTextarea v-model="restoreReason" maxlength="1000" class="w-full" :disabled="restoreBusy" /></UFormField>
+            <UFormField :label="t('vendor.backups.restoreReason')" required><UTextarea v-model="restoreReason" maxlength="1000" class="w-full" :disabled="!hydrated || restoreBusy" /></UFormField>
             <SharedInlineConfirm v-if="confirmRestore" :title="t('vendor.backups.confirmRestore')" :description="t('vendor.backups.restoreEffect')" :confirm-label="restoreTarget.approvalId ? t('vendor.backups.resume') : t('vendor.backups.restore')" :pending="restoreBusy" :disabled="!canRestore" @cancel="confirmRestore = false" @confirm="runRestore" />
             <div v-else class="flex gap-2"><UButton type="submit" :disabled="!canRestore">{{ restoreTarget.approvalId ? t('vendor.backups.resume') : t('vendor.backups.restore') }}</UButton><UButton color="neutral" variant="outline" :disabled="restoreBusy" @click="closeRestore">{{ t('app.cancel') }}</UButton></div>
           </form>
@@ -129,7 +129,7 @@ async function startBackup() {
       </UAlert>
       <form v-if="data.start.allowed" class="mt-4 grid gap-3" data-testid="backup-start" novalidate @submit.prevent="confirmStart = canStart">
         <UAlert v-if="startError" color="error" variant="subtle" :title="t(sharedBackupErrorKey(startError))" data-testid="backup-start-error" />
-        <UFormField :label="t('vendor.backups.reason')" required><UTextarea v-model="startReason" maxlength="1000" class="w-full" :disabled="startBusy" /></UFormField>
+        <UFormField :label="t('vendor.backups.reason')" required><UTextarea v-model="startReason" maxlength="1000" class="w-full" :disabled="!hydrated || startBusy" /></UFormField>
         <p v-if="!can('vendor.operations.run')" class="text-sm text-muted">{{ t('vendor.backups.needsPermission') }}</p>
         <SharedInlineConfirm v-if="confirmStart" color="warning" :title="t('vendor.backups.confirmStart')" :description="t('vendor.backups.outage')" :confirm-label="t('vendor.backups.start')" :pending="startBusy" :disabled="!canStart" @cancel="confirmStart = false" @confirm="startBackup" />
         <div v-else><UButton type="submit" icon="i-lucide-database-backup" :disabled="!canStart">{{ t('vendor.backups.start') }}</UButton></div>
