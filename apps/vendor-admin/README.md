@@ -53,6 +53,10 @@ The edge block is `deploy/vendor-admin/Caddyfile.snippet`; the environment templ
 - With an https `NUXT_ADMIN_ORIGIN`, `NUXT_TRUST_PROXY` must be `true`; the BFF answers `503` otherwise.
 - The Caddy block sets `X-Forwarded-For` to the remote address itself (it overwrites, never appends) and caps request
   bodies at 64KB. The control plane stays on the private network.
+- The edge answers every response with `Cache-Control: no-store`, except the hashed build assets (`/_nuxt/*`): they carry
+  `private, max-age=31536000, immutable` so the browser keeps them, because their names change with every build and
+  the document that names them stays `no-store`. Without this the browser fetched the same files again on the first page after sign-in (22 of 28 in one measurement).
+  `/_nuxt/builds/*` is excluded: `latest.json` keeps its name while its content changes with every build.
 
 ## Run locally
 
