@@ -1,6 +1,6 @@
 # Service health in the vendor console
 
-> Design. Status: the owner approved building it and took the decisions of section 5 on 2026-11-22; not built.
+> Design. Status: the owner approved building it and took the decisions of section 5 on 2026-11-22. Built on the branch `claude/gallant-gauss-gxh9lh` (seven commits, section 7); not merged, not deployed, and the host timer is installed on no server.
 > Paths are under `apps/control-plane/src/` unless noted. The study read code only; nothing was run.
 
 ## 1. What exists today
