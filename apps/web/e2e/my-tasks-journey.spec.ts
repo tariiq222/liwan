@@ -205,7 +205,8 @@ test('empty search recovery waits for hydration before accepting its first click
   try { await expect(clear).toBeDisabled({ timeout: 4000 }) } finally { resume() }
   await expect(clear).toBeEnabled()
   await clear.click()
-  await expect(page).toHaveURL(/\/my-tasks$/)
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/work')
+  expect(new URL(page.url()).searchParams.get('view')).toBe('tasks')
 })
 
 test('background refresh preserves the edit baseline and dirty values', async ({ page }) => {

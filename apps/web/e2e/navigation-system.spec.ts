@@ -151,7 +151,8 @@ test('meetings share the hierarchy and documents without archive access stay dir
       // This mock identity may read/manage documents, but may not archive them.
       await expect(menu.getByTestId('context-link-documents')).toHaveAttribute('href', path)
       await expect(menu.getByTestId('context-link-documents')).toHaveAttribute('data-active', 'true')
-      await expect(menu.locator('button[aria-expanded]')).toHaveCount(0)
+      // Only the list rows: the application block above them is a switcher menu and carries `aria-expanded` itself.
+      await expect(menu.locator('button[aria-expanded]:not([data-testid="navigation-app-block"])')).toHaveCount(0)
       continue
     }
     const parentId = await menu.locator('button[aria-expanded="true"]').first().getAttribute('data-testid')

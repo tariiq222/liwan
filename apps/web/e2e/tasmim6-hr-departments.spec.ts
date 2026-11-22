@@ -82,7 +82,8 @@ test.describe('Plan 6b: the departments list', () => {
       for (const view of ['tree', 'list']) {
         const url = view === 'list' ? '/hr/departments?q=الموارد' : `/hr/departments?view=${view}&q=الموارد`
         await open(page, url)
-        if (view === 'tree') await page.getByRole('button', { name: /^الموارد البشرية/ }).first().click()
+        // The row's own name, not its actions: the row carries an actions control whose label is the department name too.
+        if (view === 'tree') await page.getByTestId('hr-department-tree-row-2').getByText('الموارد البشرية', { exact: true }).click()
         else await rows(page).first().getByRole('link', { name: 'الموارد البشرية' }).click()
         await expect(page).toHaveURL(/\/hr\/departments\/2\?/)
         await page.getByRole('link', { name: 'رجوع', exact: true }).click()

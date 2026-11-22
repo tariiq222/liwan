@@ -92,7 +92,7 @@ test.describe('Plan 6a: my tasks list', () => {
     test('the list is the list template: one h1, the create button, the tabs, the toolbar and a table', async ({ page }) => {
       await mockList(page, fixtureList)
       await open(page, '/my-tasks')
-      await expect(page.getByRole('heading', { level: 1, name: 'مهامي' })).toHaveCount(1)
+      await expect(page.getByRole('heading', { level: 1, name: 'أعمالي' })).toHaveCount(1)
       await expect(page.locator('[data-template="list"]')).toHaveCount(1)
       const create = page.getByTestId('my-tasks-new')
       await expect(create).toHaveAttribute('data-shortcut-create', '')
