@@ -303,7 +303,9 @@ d('find my workspace', () => {
     await scheduler.tick()
     const tick = JSON.parse((console.debug as unknown as { mock: { calls: string[][] } }).mock.calls.at(-1)![0])
     expect(tick.jobs['workspace-lookup']).toEqual({ runs: 1, failures: 0 })
-    expect(sent.map(m => m.to)).toEqual(['admin@x.test'])
-    expect(sent[0]!.text).toContain(w.host)
+    // The tick runs every mail job, so notices for rows other suites left in the shared database may go out too: only mail to the asking address is judged.
+    const lookupMail = sent.filter(m => m.to === 'admin@x.test')
+    expect(lookupMail).toHaveLength(1)
+    expect(lookupMail[0]!.text).toContain(w.host)
   })
 })
