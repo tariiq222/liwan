@@ -23,6 +23,11 @@ const abortingMail = (controller: AbortController) => {
 
 const recoveryScan = (sql: string) => sql.startsWith('SELECT id,subscription_id FROM orders o WHERE')
   && sql.includes('fulfillment_retry_at')
+const isBeat = (c: Call) => c.sql.includes('INSERT INTO service_heartbeats')
+/** The scheduler's heartbeat is a legitimate statement before a job while the worker runs; every assertion about jobs ignores it by what it is. */
+const withoutBeats = (calls: Call[]) => calls.filter(c => !isBeat(c))
+/** A worker that is stopping no longer vouches for itself: no heartbeat statement may follow the statement that raised the signal. */
+const beatsAfter = (calls: Call[], index: number) => calls.slice(index + 1).filter(isBeat)
 const noticeNow = new Date('2026-11-10T09:00:00Z')
 const noticeEnd = new Date(noticeNow.getTime() + 86_400_000)
 const noticeLease = '2026-11-10 09:05:00.123456+00'
@@ -106,11 +111,13 @@ describe('worker shutdown during a scheduler tick', () => {
     const scheduler = createCommercialScheduler({ pool: pool as never, config: {} as never, env: {}, log: () => {}, signal: controller.signal,
       mailAdapter: { async send() { throw new Error('no mail may be sent') } } })
     await scheduler.tick()
-    expect(calls).toHaveLength(1)
-    expect(recoveryScan(calls[0].sql)).toBe(true)
+    const jobCalls = withoutBeats(calls)
+    expect(jobCalls).toHaveLength(1)
+    expect(recoveryScan(jobCalls[0].sql)).toBe(true)
+    expect(beatsAfter(calls, calls.indexOf(jobCalls[0]))).toEqual([])
 
     calls.length = 0
-    await scheduler.tick() // already aborted: nothing starts at all
+    await scheduler.tick() // already aborted: nothing starts at all, not even a heartbeat
     expect(calls).toEqual([])
   })
 
@@ -127,10 +134,12 @@ describe('worker shutdown during a scheduler tick', () => {
     const released = calls.filter(c => c.sql.includes('SET next_attempt_at = now() WHERE')).map(c => c.params[0])
     expect(released).toEqual(['row-a', 'row-b'])
     // The first job did its read-only recovery scan; the stopped batch only claimed and released.
-    expect(recoveryScan(calls[0].sql)).toBe(true)
-    expect(calls.filter(c => !c.sql.includes('FOR UPDATE SKIP LOCKED') && !c.sql.includes('SET next_attempt_at = now() WHERE'))).toEqual([calls[0]])
+    const jobCalls = withoutBeats(calls)
+    expect(recoveryScan(jobCalls[0].sql)).toBe(true)
+    expect(jobCalls.filter(c => !c.sql.includes('FOR UPDATE SKIP LOCKED') && !c.sql.includes('SET next_attempt_at = now() WHERE'))).toEqual([jobCalls[0]])
     const stoppedClaim = calls.findIndex(c => c.sql.includes('FOR UPDATE SKIP LOCKED') && (c.params[0] as string[]).includes(kind))
     expect(calls.slice(stoppedClaim + 1).map(c => c.params[0])).toEqual(['row-a', 'row-b'])
+    expect(beatsAfter(calls, stoppedClaim)).toEqual([])
   })
 })
 
