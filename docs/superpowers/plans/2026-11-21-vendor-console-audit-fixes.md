@@ -135,23 +135,34 @@ D4 to D6 and are not built.
 ## 5. Outcome (2026-11-22)
 
 Built, each reproduced in a failing test first: T01 to T31, T33 to T35, T38 to T41, the settings page of T36, the
-recover action of T32, and two of the three T37 defects (overdue clamp, AI top-up conversion).
+recover action of T32, and two of the three T37 defects (overdue clamp, AI top-up conversion). Built after the owner
+decisions of 2026-11-22: the recovery of a job in `needs_intervention` (T32, D7), the history of a departed customer
+(T37, D9) and free-base customers in ARPC and renewals (T42, D4); see "Decisions taken" below.
 
 Not built, with the reason:
 
 | Item | Reason | Decision |
 | --- | --- | --- |
-| T32, recovery of a job already in `needs_intervention` | Two tests and `shared/INTEGRATION.md` record "intervention is sticky"; recovering such a job reverses that decision. | D7 |
-| T36, AI top-up refund in the console | The invoice page's refund request already refunds a top-up and also queues the provider refund; the separate route duplicates it. | D8 |
-| T37, history blanked by a suspended or cancelled customer | No time is recorded for a subscription leaving service. | D9 |
+| T36, AI top-up refund in the console | The invoice page's refund request already refunds a top-up and also queues the provider refund; the separate route duplicates it. D8 chose to remove the route, but the invoice refund refuses every payment that is not the customer's first (`refund_not_first_payment`), while the route refunds any unused top-up inside the window, so removing it would leave a later top-up with no refund path. | D8, open |
 | T40, state kept between two customers | Not reproduced: Nuxt remounts the page when the id changes. | none |
-| T42, T43, T44 | Wait for D4, D5, D6. | D4 to D6 |
+| T43, T44 | Wait for D5, D6. | D5, D6 |
 
 | # | Question | Recommended default | Alternative |
 | --- | --- | --- | --- |
 | D7 | May an operator recovery complete a job in `needs_intervention` when the effect is present and verified? | Yes, in `recoverSharedJob` only. | Keep it sticky and change the abandon refusal text, which today says to recover. |
 | D8 | The AI top-up refund route. | Remove it; the invoice refund is the one path. | Expose it as a second action on the invoice page. |
 | D9 | Leaving-service time for analytics history. | Add `left_service_at`, written at each departure; history is exact from then on. | Keep the blank. |
+
+Decisions taken on 2026-11-22: D7 yes: only the operator's recovery request (`recoverSharedJob`) completes a job whose
+journal is in `needs_intervention`, and only when a fresh readback shows the effect present, verified and matching the
+job's key and digest; the automatic worker never does, an absent effect keeps the job, and a mismatch is refused
+(`shared/INTEGRATION.md` step 7 states the one exception). D9 yes: migration `schema_074.sql` adds
+`subscriptions.left_service_at`, written by a trigger on the state column (every departure to suspended or cancelled,
+manual suspension and workspace deletion included, and cleared on return to service, so no code path can miss it);
+analytics history is exact from the recorded time, and a row that left before the column existed keeps no time and
+stays unknown. D4 yes: customer totals still count a free-base customer; ARPC divides recurring revenue by paying
+customers (`owesAtRenewal` on the applied revision) and the upcoming renewals count and value only paying
+subscriptions. D8 is not built (see the table).
 
 Decisions taken while building: public sign-up reads `LIWAN_SIGNUP_PLAN_ID` (a plan id; the old revision-id
 variable is gone); a resume that did not reach the workspace needed a clock, so migration `schema_073.sql` renames
