@@ -2,6 +2,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
 import { setup, client, money, monthly, seedPaymentMethod, url } from './commercial-helpers.js'
+import { routesB } from '../commercial/routes-b.js'
+import { CommercialHttpError } from '../commercial/lifecycle.js'
 import { acceptQuote } from '../commercial/orders.js'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
 import { applyDunning, generateRenewals } from '../commercial/renewals.js'
@@ -355,6 +357,62 @@ suite('live PostgreSQL void of an unpaid renewal invoice', () => {
       await expect(endVoid(g)).rejects.toMatchObject({ status: 409, code: 'subscription_change_pending' })
       expect(await snapshot(g)).toEqual(before)
       expect(await lockRow(g.subscription)).toBeUndefined()
+    })
+  })
+
+  describe('the void route', () => {
+    const BOTH = ['vendor.read', 'vendor.billing.manage', 'vendor.subscriptions.manage']
+    const post = async (id: string, body: unknown, over: { capabilities?: string[]; stepUpFresh?: boolean } = {}) => {
+      try {
+        const pathname = `/v1/commercial/invoices/${id}/void`
+        const r = await routesB(pool, { method: 'POST', pathname, raw: JSON.stringify(body), issuer: 'commercial-test', actor: 7,
+          capabilities: (over.capabilities ?? BOTH) as any[], stepUpFresh: over.stepUpFresh ?? true }, new URL(pathname, 'http://localhost'))
+        return { status: r!.status, body: r!.data as any }
+      } catch (error) {
+        if (error instanceof CommercialHttpError) return { status: error.status, body: { code: error.code } }
+        throw error
+      }
+    }
+    const valid = { reason: 'Customer will not pay', outcome: 'rebill' }
+
+    it('voids the invoice for an operator who holds both grants and a fresh step-up, and answers the invoice', async () => {
+      const f = await unpaidRenewal()
+      const res = await post(f.invoice, valid)
+      expect(res).toMatchObject({ status: 200, body: { id: f.invoice, status: 'void', voidable: false } })
+      expect((await pool.query("SELECT actor FROM audit_events WHERE action='invoice.voided' AND subject=$1", [f.invoice])).rows).toEqual([{ actor: 'account:7' }])
+      expect(await post(f.invoice, valid)).toMatchObject({ status: 200, body: { status: 'void' } })
+    })
+    it.each([['billing only', ['vendor.read', 'vendor.billing.manage']], ['subscriptions only', ['vendor.read', 'vendor.subscriptions.manage']], ['read only', ['vendor.read']]])('answers 403 forbidden with %s and changes nothing', async (_name, capabilities) => {
+      const f = await unpaidRenewal()
+      expect(await post(f.invoice, valid, { capabilities })).toMatchObject({ status: 403, body: { code: 'forbidden' } })
+      expect((await pool.query('SELECT status FROM invoices WHERE id=$1', [f.invoice])).rows[0].status).toBe('issued')
+    })
+    it('answers 403 step_up_required without a fresh step-up and changes nothing', async () => {
+      const f = await unpaidRenewal()
+      expect(await post(f.invoice, valid, { stepUpFresh: false })).toMatchObject({ status: 403, body: { code: 'step_up_required' } })
+      expect((await pool.query('SELECT status FROM invoices WHERE id=$1', [f.invoice])).rows[0].status).toBe('issued')
+    })
+    it('answers 404 for an unknown or malformed invoice id', async () => {
+      expect(await post(randomUUID(), valid)).toMatchObject({ status: 404, body: { code: 'not_found' } })
+      expect(await post('not-a-uuid', valid)).toMatchObject({ status: 404, body: { code: 'not_found' } })
+    })
+    it.each([['a short reason', { reason: 'ab', outcome: 'end' }], ['a reason over 1000 characters', { reason: 'x'.repeat(1001), outcome: 'end' }], ['no reason', { outcome: 'end' }],
+      ['no outcome', { reason: 'fine reason' }], ['the waive outcome', { reason: 'fine reason', outcome: 'waive' }], ['an unknown field', { reason: 'fine reason', outcome: 'end', extra: 1 }]])('answers 422 for %s', async (_name, body) => {
+      const f = await unpaidRenewal()
+      expect(await post(f.invoice, body)).toMatchObject({ status: 422, body: { code: 'invalid' } })
+      expect((await pool.query('SELECT status FROM invoices WHERE id=$1', [f.invoice])).rows[0].status).toBe('issued')
+    })
+    it('answers a blocked invoice with its 409 code', async () => {
+      const f = await unpaidRenewal()
+      await pool.query("INSERT INTO bank_transfer_claims(invoice_id,value_date) VALUES($1,'2026-10-02')", [f.invoice])
+      expect(await post(f.invoice, valid)).toMatchObject({ status: 409, body: { code: 'transfer_claimed' } })
+    })
+    it('takes only POST', async () => {
+      const f = await unpaidRenewal()
+      for (const method of ['GET', 'PUT', 'PATCH', 'DELETE']) {
+        const pathname = `/v1/commercial/invoices/${f.invoice}/void`
+        await expect(routesB(pool, { method, pathname, raw: '', issuer: 'commercial-test', actor: 7, capabilities: BOTH as any[], stepUpFresh: true }, new URL(pathname, 'http://localhost'))).resolves.toBeNull()
+      }
     })
   })
 })
