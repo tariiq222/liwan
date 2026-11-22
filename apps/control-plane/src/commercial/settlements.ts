@@ -389,6 +389,9 @@ export async function recordRefundIn(client: PoolClient, { adjustment_id, actor,
   if (note.kind === 'credit_note' && note.status === 'refunded' && note.refund_reference === request.external_reference) return adjustmentView(note)
   if (note.kind !== 'credit_note' || note.status !== 'pending') throw new CommercialHttpError('credit_note_not_pending', 409)
   if (!automatic && (await systemRefunds(client, [note.id])).get(note.id)?.status === 'pending') throw new CommercialHttpError('refund_in_progress', 409)
+  // Every recording on one invoice goes through this gate first, so the over-credit check below reads what the recording before it committed.
+  // The gate is taken before the subscription and invoice locks and no other path takes it, so it adds no lock-order edge among them.
+  await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [`commercial-refund-credit:${note.invoice_id}`])
   // A note that may drop the subscription to the free base takes the subscription lock before the invoice, the order the
   // renewal, fulfilment and lock writers use (subscription, then its orders and invoices), so the two cannot deadlock.
   if (REFUND_LOCK_CAUSES.includes(note.cause)) await client.query(`SELECT 1 FROM subscriptions WHERE id=(SELECT subscription_id FROM invoices WHERE id=$1)
@@ -405,6 +408,12 @@ export async function recordRefundIn(client: PoolClient, { adjustment_id, actor,
   if (note.origin === 'vendor') {
     const already = await client.query("SELECT 1 FROM invoice_adjustments WHERE invoice_id=$1 AND status='refunded' AND origin='vendor' AND id<>$2", [note.invoice_id, note.id])
     if (already.rowCount) throw new CommercialHttpError('invoice_already_refunded', 409)
+  }
+  // The refunded credit of the invoice never exceeds what it paid. A duplicate-charge note credits another attempt's payment, so it is outside the rule.
+  if (note.cause !== 'duplicate_payment') {
+    const refunded = Number((await client.query(`SELECT COALESCE(sum(amount_minor),0) AS amount FROM invoice_adjustments
+      WHERE invoice_id=$1 AND kind='credit_note' AND status='refunded' AND cause<>'duplicate_payment' AND id<>$2`, [note.invoice_id, note.id])).rows[0].amount)
+    if (refunded + Number(note.amount_minor) > Number(invoice.total_minor)) throw new CommercialHttpError('refund_over_credit', 409)
   }
   // The release-1 window (owner decision 2026-11-06) is judged ONCE, when `requestInvoiceRefund` creates the vendor
   // note. Recording the provider reference happens later, after the operator has refunded at the provider, so judging

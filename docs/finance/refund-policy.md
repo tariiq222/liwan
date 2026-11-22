@@ -87,7 +87,7 @@ refund worker does, under the same per-order advisory lock; a held lock is `refu
 - **Record the returned refund** (`returned` only; fresh step-up, a reason and a resolution): `record` runs the worker's own
   recording with the operator as actor, under the payment id, or `<payment id>#<first eight characters of the note id>` when
   another note holds it (the other note is untouched and named in the audit event); it settles the order, arms the free-base lock as
-  usual and finishes the row. It is refused with `refund_over_credit` when the invoice's refunded credit plus this note would exceed
+  usual and finishes the row. The form and this action share one rule, serialised per invoice: both are refused with `refund_over_credit` when the invoice's refunded credit plus this note would exceed
   what the paying attempt paid. `already_recorded` voids the stuck note and finishes the row, only when the note holding the payment
   id is on the same invoice, settled and covers this note (otherwise `refund_not_duplicate`).
 

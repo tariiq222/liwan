@@ -75,10 +75,17 @@ conflict, the conflicting note (invoice number, amount, cause, status, who recor
   the 60 minutes nor the backoff changes. A release that arrives while the worker retries cannot do harm: both take the
   advisory lock `commercial-refund:<order id>` with a try-lock and neither waits. If the worker holds it, the release is 409
   `refund_in_progress` and the worker's new mark restarts the clock. If the release holds it, the worker's run does nothing
-  (its lease on the row expires, then it runs again) and then meets the released row, which it handles by its guarded path: a
+  (the release made the row due, so its next run) and then meets the released row, which it handles by its guarded path: a
   mark `returned` is only recorded, a removed mark is read again at the provider before any refund call, and a stale payload it
   claimed before the release is read again at the provider too. Either order, a refund call is made only after a fresh read
   that shows the money not returned.
+- The `refund_over_credit` rule lives in `recordRefundIn`, the one recording both the form and the stuck record go through. It
+  runs under a transaction advisory lock `commercial-refund-credit:<invoice id>` taken right after the note's own row lock
+  (and the form's `refund_in_progress` check) and before the subscription and invoice locks, so two recordings on one invoice
+  queue up and the second reads what the first committed. Nothing else takes that lock while holding the subscription or the
+  invoice (the documented order is subscription, then invoice), so it adds no wait edge among them. A cycle would need a path
+  that holds the invoice and waits for a note row another recording holds while queued on the gate; a deadlock is then
+  detected by PostgreSQL and one transaction fails without writing.
 - Record is refused when: the row is not `returned`; the note is not a pending credit note of the paying attempt's
   invoice; refunded credit plus this note would exceed what the attempt paid (`refund_over_credit`); or
   `already_recorded` is chosen while the conflicting note is on another invoice or covers less than this note.

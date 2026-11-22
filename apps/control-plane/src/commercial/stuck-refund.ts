@@ -187,9 +187,6 @@ export function recordReturnedRefund(pool: Pool, { adjustment_id, actor, reason,
       const paymentId = row.payload.provider_payment_id!
       const holder = (await client.query('SELECT * FROM invoice_adjustments WHERE refund_reference=$1 AND id<>$2', [paymentId, note.id])).rows[0]
       if (resolution === 'already_recorded') return closeAsDuplicate(client, { actor, reason, note, row, holder, paymentId })
-      const credited = Number((await client.query(`SELECT COALESCE(sum(amount_minor),0) AS amount FROM invoice_adjustments
-        WHERE invoice_id=$1 AND kind='credit_note' AND status='refunded' AND cause<>'duplicate_payment' AND id<>$2`, [note.invoice_id, note.id])).rows[0].amount)
-      if (credited + Number(note.amount_minor) > Number(attempt.amount_minor)) throw refused('refund_over_credit')
       await recordRefundIn(client, { adjustment_id: note.id, actor, refundedBy: actorLabel(actor), automatic: true, resolvedStuck: { conflicting_adjustment_id: holder?.id ?? null },
         request: { external_reference: holder ? `${paymentId}#${note.id.slice(0, 8)}` : paymentId, reason } })
       await completeOutbox(client, row.id)

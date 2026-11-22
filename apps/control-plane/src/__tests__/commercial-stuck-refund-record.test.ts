@@ -1,6 +1,8 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Pool } from 'pg'
 import { getVendorInvoice } from '../commercial/invoices.js'
+import { recordRefundIn, refundCreditNote } from '../commercial/settlements.js'
+import { operator } from './stuck-refund-fixtures.js'
 import { setup, url } from './commercial-helpers.js'
 import { stuckRefundFixtures } from './stuck-refund-fixtures.js'
 import { callStuckAction, holdOrderLock } from './stuck-refund-calls.js'
@@ -190,6 +192,51 @@ suite('record the returned refund of a stuck automatic refund on PostgreSQL', ()
       try { await expect(call(f.note, 'record', record, { adapter: f.adapter })).rejects.toMatchObject({ status: 409, code: 'refund_in_progress' }) }
       finally { await held.release() }
       await expectUntouched(f, before)
+    })
+
+    /**
+     * A second pending note of the invoice (a provider-refund note for part of it), which the operator's form records. Each note alone fits what the
+     * invoice paid; the two together do not.
+     */
+    async function secondPendingNote(f: { invoice: string; customer: string }, minor = 5000) {
+      const id = (await pool.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin,cause)
+        VALUES(gen_random_uuid(),$1,$2,'credit_note','Provider refunded part of it',$3,'SAR',2,'pending','system','system','provider_refund') RETURNING id`, [f.invoice, f.customer, minor])).rows[0].id as string
+      return id
+    }
+    const manualForm = { reason: 'Refunded by hand through the provider', external_reference: 'MANUAL-REF-1' }
+    /** Holds a recording open (its note, the invoice-level lock and the writes) in a transaction of its own until `finish` commits it. */
+    async function openRecording(noteId: string, request: { reason: string; external_reference: string }, automatic: boolean) {
+      const client = await pool.connect()
+      await client.query('BEGIN')
+      await recordRefundIn(client, { adjustment_id: noteId, actor: operator, refundedBy: 'vendor-test:9', request, automatic })
+      return { finish: async () => { await client.query('COMMIT'); client.release() } }
+    }
+    const settle = (ms = 400) => new Promise(resolve => setTimeout(resolve, ms))
+
+    it('does not let the form record a second note of the invoice while the stuck note is being recorded: together they would credit more than was paid', async () => {
+      const f = await fx.returnedInConflict()
+      const other = await secondPendingNote(f)
+      const open = await openRecording(f.note, { reason: record.reason, external_reference: `${f.paymentId}#${f.note.slice(0, 8)}` }, true)
+      const form = refundCreditNote(pool, { adjustment_id: other, actor: operator, request: manualForm })
+      const settled = form.then(() => 'recorded', (error: { code?: string }) => error.code)
+      await settle()
+      await open.finish()
+      expect(await settled).toBe('refund_over_credit')
+      expect(await note(other)).toMatchObject({ status: 'pending', refund_reference: null })
+      expect(await note(f.note)).toMatchObject({ status: 'refunded' })
+    })
+
+    it('does not let the stuck note be recorded while the form records another note of the invoice', async () => {
+      const f = await fx.returnedInConflict()
+      const other = await secondPendingNote(f)
+      const open = await openRecording(other, manualForm, false)
+      const stuck = call(f.note, 'record', record, { adapter: f.adapter }).then(() => 'recorded', (error: { code?: string }) => error.code)
+      await settle()
+      await open.finish()
+      expect(await stuck).toBe('refund_over_credit')
+      expect(await note(f.note)).toMatchObject({ status: 'pending' })
+      expect(await fx.refundRow(f.order)).toMatchObject({ status: 'pending' })
+      expect(await note(other)).toMatchObject({ status: 'refunded' })
     })
 
     it('records once when two operators act together: the loser is refused or sees the finished view', async () => {
