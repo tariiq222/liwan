@@ -18,6 +18,11 @@ const { data, error, pending, refresh } = await useAsyncData(() => `vendor:chang
   return { customer, sub, plans, bundles }
 })
 const planId = ref(''); const cadence = ref(''); const extra = ref('0'); const paidUsers = ref('0'); const paidStorage = ref('0'); const chosenBundles = ref<string[]>([]); const onboarding = ref(false)
+// What the form held when it opened (the current subscription, or empty for a first one): a change from it, or a placed order, decides the guard.
+const formState = computed(() => JSON.stringify([planId.value, cadence.value, extra.value, paidUsers.value, paidStorage.value, chosenBundles.value, onboarding.value]))
+const openedWith = ref(formState.value)
+const placed = ref(false)
+const dirty = computed(() => !placed.value && formState.value !== openedWith.value)
 const base = computed(() => data.value?.sub?.target ?? data.value?.sub?.applied ?? null)
 const isInitial = computed(() => !base.value)
 // A vendor-added customer never starts a trial: a first order is a package the vendor collects (trial plans have their own panel on the customer page).
@@ -46,6 +51,7 @@ watch(data, d => {
   if (base.value) {
     extra.value = String(base.value.extra_branch_count); cadence.value = cadenceKey(base.value.cadence); chosenBundles.value = [...base.value.bundle_revision_ids]
     choosePlan(base.value.plan_revision_id)
+    openedWith.value = formState.value
   }
 }, { immediate: true })
 const counts = computed(() => ({ extra: parseCount(extra.value), users: parseCount(paidUsers.value), storage: parseCount(paidStorage.value) }))
@@ -67,6 +73,7 @@ async function place() {
   busy.value = true; failure.value = undefined
   try {
     await api.placeOrder({ quote_id: quote.value.id, expected_subscription_revision: sub?.revision ?? 0, idempotency_key: orderKey.value })
+    placed.value = true
     await refreshNuxtData(); await navigateTo(detailTo.value)
   } catch (cause) {
     if (!orderOutcomeUnknown(cause)) resetQuote()
@@ -103,4 +110,5 @@ async function place() {
       </form>
     </SharedPageState>
   </SharedPageContainer>
+  <SharedUnsavedChanges :dirty="dirty" />
 </template>

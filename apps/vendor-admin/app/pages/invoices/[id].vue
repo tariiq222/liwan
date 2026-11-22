@@ -105,6 +105,8 @@ const transferAmount = ref('')
 const transferDate = ref('')
 const transferBusy = ref(false)
 const transferFailure = ref<string | undefined>()
+// The amount and the date open pre-filled: only a change from the pre-filled start, or a typed reference, is input to protect.
+const transferStart = ref({ amount: '', valueDate: '' })
 const transferParsed = computed(() => parseTransferAmount(transferAmount.value, data.value?.total.exponent ?? 2))
 // A typed amount the form cannot read says so; an empty one waits for the vendor.
 const transferAmountError = computed(() => {
@@ -117,6 +119,7 @@ function openTransfer() {
   // The invoice total and today in Riyadh are pre-filled; the reference stays empty because the vendor types it from the bank statement, never from the customer's claim.
   const start = data.value ? transferFormDefaults(data.value.total) : { amount: '', valueDate: '', reference: '' }
   transferAmount.value = start.amount; transferDate.value = start.valueDate; transferReference.value = start.reference
+  transferStart.value = { amount: start.amount, valueDate: start.valueDate }
 }
 function closeTransfer() { transferOpen.value = false; transferFailure.value = undefined }
 async function recordTransfer() {
@@ -171,6 +174,10 @@ async function recordRefund() {
     try { await refresh() } finally { refundBusy.value = false }
   }
 }
+const dirty = computed(() => Boolean(requestOpen.value && (requestReason.value.trim() || requestUnitsUsed.value.trim()))
+  || Boolean(refundNoteId.value && (refundReason.value.trim() || refundReference.value.trim()))
+  || Boolean(transferOpen.value && (transferReference.value.trim() || transferAmount.value !== transferStart.value.amount || transferDate.value !== transferStart.value.valueDate))
+  || Boolean(voidOpen.value && (voidReason.value.trim() || voidOutcome.value)))
 const badge = computed(() => (data.value ? invoiceStatusBadge(data.value.status, 'vendor.invoices.status') : null))
 </script>
 <template>
@@ -318,4 +325,5 @@ const badge = computed(() => (data.value ? invoiceStatusBadge(data.value.status,
     </SharedPropertiesPanel>
   </template>
 </SharedRecordPage>
+  <SharedUnsavedChanges :dirty="dirty" />
 </template>

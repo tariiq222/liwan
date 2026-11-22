@@ -463,5 +463,5 @@ async function cancelPendingOrder() {
         </template>
       </div>
 </SharedRecordPage>
-  <SharedUnsavedChanges v-if="!isChild" :dirty="Boolean(cancelReason.trim()) || Boolean(suspensionReason.trim()) || Boolean(deletionReason.trim()) || Boolean(adminLoginReason.trim()) || Boolean(adminLoginValue.trim()) || operationsDirty" guard-route-updates />
+  <SharedUnsavedChanges v-if="!isChild" :dirty="Boolean(cancelReason.trim()) || Boolean(suspensionReason.trim()) || Boolean(deletionReason.trim()) || Boolean(adminLoginReason.trim()) || Boolean(adminLoginValue.trim()) || Boolean(renewalReason.trim()) || Boolean(cardReason.trim()) || operationsDirty" guard-route-updates />
 </template>

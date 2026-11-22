@@ -41,6 +41,8 @@ type ActionName = 'publish' | 'recover' | 'abandon' | 'retry'
 /** The last failed action and its cause: each section shows only its own action's error. */
 const failedAction = ref<{ action: ActionName, cause: unknown } | null>(null)
 const errorKeyOf = (action: ActionName) => (failedAction.value?.action === action ? failureKey(failedAction.value.cause, 'vendor.errors.action') : null)
+// A reason typed into a form that was closed again stays in its field but is no longer on screen, so it is not input to protect.
+const dirty = computed(() => (publishOpen.value && Boolean(publishReason.value.trim())) || (recoverOpen.value && Boolean(recoverReason.value.trim())) || (abandonOpen.value && Boolean(abandonReason.value.trim())) || Boolean(reason.value.trim()))
 const pollCount = ref(0)
 let pollTimer: ReturnType<typeof setTimeout> | undefined
 let left = false
@@ -219,4 +221,5 @@ async function retry() {
             <SharedPropertyRow v-if="updatedAt" :label="t('vendor.operations.updated')" :value="formatLiwanDateTime(updatedAt)" />
           </SharedPropertiesPanel></template>
 </SharedRecordPage>
+  <SharedUnsavedChanges :dirty="dirty" />
 </template>
