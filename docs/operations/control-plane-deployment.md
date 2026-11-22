@@ -92,10 +92,36 @@ Health checks:
 - API: `docker compose ... ps` shows `control-api` healthy (the probe calls `GET /healthz`, which includes `SELECT 1`). From the web tier network, `GET https://control-api:4187/healthz` returns 200.
 - Migrate: exits 0; running it again is a no-op.
 - Shared worker: `systemctl status liwan-shared-worker`; `journalctl -u liwan-shared-worker | grep commercial_scheduler_tick` shows ticks.
+- Service health: the Services section of the console overview shows every component as running, and `systemctl list-timers liwan-service-health-alert.timer` lists the host alert timer (see Service health below).
 - Console: `vendor-console` healthy; the admin host serves the sign-in page; sign in with the enrollment link.
 - Webhook: from outside, `POST` to another path of the control host answers 404; `GET` of the event path answers 404; a Moyasar test event reaches the log as an accepted or a named rejection (`signature_invalid`, `merchant_mismatch`, `mode_mismatch`).
 - Mail and alerts: no dry-run command exists. Use test recipients on a test customer, and one Telegram test event. Authentica SMS and Turnstile are exercised by one test sign-up on an authorized deployment.
 - Backup: `deploy/control-plane/backup-control-plane.sh check` (see `control-plane-backup-restore.md`).
+
+## Service health
+
+The vendor console overview has a Services section, and a service that stops raises an attention item and a host alert. The design is `docs/superpowers/specs/2026-11-22-service-health-console-design.md`. It is read only: nothing in it starts, stops or restarts anything.
+
+What reports, into the table `service_heartbeats` (one row per component, updated in place, no history):
+
+| Component | Written by | When | Detail |
+| --- | --- | --- | --- |
+| `shared_worker` | a timer of the shared worker, independent of its job loop | at start, then every 30 s | none |
+| `commercial_scheduler` | the end of the scheduler tick | at most every 30 s | tick count, last billing pass, names of the jobs that failed in the last tick |
+| `payment_adapter`, `mail_adapter`, `alert_channel` | the shared worker at start-up | once per start | `available`, and the error code (never its message) when not |
+| `api_payment_adapter` | the control API at start-up | once per start | the same |
+
+A heartbeat that cannot be written is logged and never stops a tick or the worker. The worker's timer does not keep the process alive and ends on SIGTERM; a worker that is stopping writes no beat. An alert channel that is not configured at all is a choice and reports nothing.
+
+Thresholds live in one place, the SQL function `service_health_states(at)` created by the migration: `shared_worker` is stale after 2 minutes without a beat; `commercial_scheduler` after 5 minutes without a tick, or after 2 hours while a `shared_jobs` row is `running` (the tick does not run then, the same grace as a running operation); adapters are `ok` or `unavailable` as recorded and never stale. A component that never wrote a row is `never_seen`, shown plainly and never alerted on (a fresh install, or dedicated mode without the shared worker). The console and the host alert both read that function, so they cannot disagree. The adapters of the worker are shown as unknown while the worker is stale, and are not listed as down then: the worker is.
+
+What the console shows: `GET /v1/overview` carries `health` for everyone with `vendor.read` (state and times); the reason codes and the scheduler's failed job names only for `vendor.operations.run` holders. An unreadable table gives `health: null` and the page says so; the counts and the attention list never fail because of health. A stale or unavailable component is an attention item of kind `service_down`, ahead of the customer items, named by the component, with no customer. The scheduler's own owner alert (`vendor-alerts`) also reports an unavailable adapter, once per episode; it cannot report the scheduler's own death.
+
+Host alert (works with the control API and the worker both down): `deploy/control-plane/service_health_alert.py`, run every minute by `liwan-service-health-alert.timer`, asks the control database with `psql` through a read-only role (the control plane backup role, password only through `PGPASSFILE`) and sends the `service_down` and `service_recovered` events of `deploy/alerts.py`, one message per transition. What it already announced is kept in `/var/lib/liwan-service-health/service-health-alert.json`; a message that was not delivered is sent again on the next run, a partly delivered one is sent again to every channel. If the database itself is unreachable the run fails (exit 1) and says so in the journal, and nothing is announced: the database is covered by `/healthz` and the backup alerts. Install and variables: the unit files and `service-health-alert.env.example` in `deploy/control-plane/`, step A6.3 of `environment-bringup.md`. It is not installed on any server yet.
+
+Not monitored: Odoo and tenant workspaces (the existing workspace check stays as it is), the edge and TLS, the database, the AI service, the ordinary worker of dedicated mode, whether the payment provider or the SMTP server answers (only whether the adapter was built), disk and backups (`deploy/alerts.py` covers them).
+
+First action by state: `stale` worker or scheduler: `systemctl status liwan-shared-worker`, then `journalctl -u liwan-shared-worker`; a long backup, restore or provision legitimately holds the scheduler (up to 2 hours). `unavailable` adapter: read the one log line at start-up (`commercial payment adapter unavailable`, `commercial mail adapter unavailable`, `telegram alert channel unavailable`) and fix the environment variable it names, then restart the worker (or the API for `api_payment_adapter`).
 
 ## Upgrade
 
