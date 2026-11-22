@@ -14,7 +14,9 @@ const RETRY_MINUTES = [5, 15, 60]
 /** A first trial keeps retrying after the backoff above is used up: one retry this often, until the window below closes. */
 export const FIRST_TRIAL_RETRY_MINUTES = 60
 export const FIRST_TRIAL_RETRY_WINDOW_HOURS = 72
-const PERMANENT = ['stale_target', 'provision_needs_intervention', 'order_not_released', 'renewal_missing',
+/** A paid top-up that would take the customer past the balance cap: the money is refunded, never retried into a delivery without the top-up. */
+export const AI_BALANCE_LIMIT_EXCEEDED = 'ai_balance_limit_exceeded'
+const PERMANENT = ['stale_target', AI_BALANCE_LIMIT_EXCEEDED, 'provision_needs_intervention', 'order_not_released', 'renewal_missing',
   'enrollment_base_catalog_missing', 'enrollment_link_conflict', 'idempotency_conflict', 'shared_replay_forbidden']
 
 /** A zero-due `new` order is a first trial: the customer was promised a workspace and there is no money to refund. */
