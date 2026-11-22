@@ -1,13 +1,13 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { Pool } from 'pg'
 import { SERVICE_COMPONENTS, serviceHealthSchema } from '@liwan/commercial-contracts'
 import { migrate } from '../db.js'
 import { beat, downComponents, readHealth, recordAvailability } from '../service-health.js'
 import { url } from './commercial-helpers.js'
+import { backdateBeat } from './service-health-helpers.js'
 
-const T0 = new Date('2026-11-22T10:00:00Z')
-const after = (ms: number) => new Date(T0.getTime() + ms)
+const T0 = new Date('2026-11-22T10:00:00Z')   // a start time to record; beats themselves are stamped by the database
 const SECOND = 1000, MINUTE = 60 * SECOND, HOUR = 60 * MINUTE
 
 const suite = url ? describe : describe.skip
@@ -16,7 +16,11 @@ suite('service health on PostgreSQL', () => {
   const withDb = (name: string) => { const u = new URL(url!); u.pathname = `/${name}`; return u.toString() }
   let pool: Pool
   let created = false
-  const state = async (component: string, now: Date, includeDetail = true) => (await readHealth(pool, { now, includeDetail })).find(i => i.component === component)!
+  /** The component's state `offsetMs` after its own last beat, read through the one function that holds the thresholds. */
+  const stateAfterBeat = async (component: string, offsetMs: number) => (await pool.query(
+    `SELECT s.component, s.state, s.detail, to_char(s.since AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') AS since
+     FROM service_heartbeats h, service_health_states(h.beat_at + make_interval(secs => $2::float / 1000)) s WHERE h.component = $1 AND s.component = $1`, [component, offsetMs])).rows[0]
+  const state = async (component: string, includeDetail = true) => (await readHealth(pool, { includeDetail })).find(i => i.component === component)!
 
   beforeAll(async () => {
     const admin = new Pool({ connectionString: withDb('postgres') })
@@ -41,85 +45,107 @@ suite('service health on PostgreSQL', () => {
   }
 
   it('reports every component as never seen on a fresh install, in a fixed order', async () => {
-    const items = await readHealth(pool, { now: T0, includeDetail: true })
+    const items = await readHealth(pool, { includeDetail: true })
     expect(items.map(i => i.component)).toEqual([...SERVICE_COMPONENTS])
     expect(items.every(i => i.state === 'never_seen' && i.since === null && i.last_beat_at === null && i.detail === null)).toBe(true)
     expect(serviceHealthSchema.parse(items)).toHaveLength(SERVICE_COMPONENTS.length)
-    expect(await downComponents(pool, T0)).toEqual([])
+    expect(await downComponents(pool)).toEqual([])
   })
 
   it('calls the worker stale only after two minutes without a beat', async () => {
-    await beat(pool, 'shared_worker', { startedAt: after(-HOUR), now: T0 })
-    expect((await state('shared_worker', after(2 * MINUTE))).state).toBe('ok')
-    expect((await state('shared_worker', after(2 * MINUTE + 1))).state).toBe('stale')
-    const seen = await state('shared_worker', after(SECOND))
-    expect(seen).toMatchObject({ state: 'ok', since: '2026-11-22T09:00:00Z', last_beat_at: '2026-11-22T10:00:00Z' })
+    await beat(pool, 'shared_worker', { startedAt: new Date(T0.getTime() - HOUR) })
+    expect((await stateAfterBeat('shared_worker', 2 * MINUTE)).state).toBe('ok')
+    expect((await stateAfterBeat('shared_worker', 2 * MINUTE + 1)).state).toBe('stale')
+    const seen = await state('shared_worker')
+    expect(seen).toMatchObject({ state: 'ok', since: '2026-11-22T09:00:00Z' })
+    expect(Math.abs(Date.parse(seen.last_beat_at!) - Date.now())).toBeLessThan(5 * SECOND)
+  })
+
+  it('stamps a beat with the database clock, so a writer whose own clock is fast cannot hide a dead worker', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(Date.now() + 3 * MINUTE)
+    try { await beat(pool, 'shared_worker', { startedAt: new Date() }) } finally { vi.useRealTimers() }
+    const skew = (await pool.query('SELECT abs(extract(epoch FROM now() - beat_at))::float AS s FROM service_heartbeats')).rows[0].s
+    expect(skew).toBeLessThan(5)
+  })
+
+  it('judges staleness by the database clock for the console and the alert alike, whatever clock the reader runs on', async () => {
+    await pool.query("INSERT INTO service_heartbeats(component,beat_at,started_at) VALUES('shared_worker', now() - interval '3 minutes', now() - interval '1 hour')")
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(Date.now() - 10 * MINUTE)
+    try {
+      expect((await readHealth(pool, { includeDetail: false })).find(i => i.component === 'shared_worker')!.state).toBe('stale')
+      expect((await downComponents(pool)).map(d => d.component)).toEqual(['shared_worker'])
+    } finally { vi.useRealTimers() }
   })
 
   it('updates the one row of a component in place', async () => {
-    await beat(pool, 'shared_worker', { startedAt: T0, now: T0 })
-    await beat(pool, 'shared_worker', { startedAt: T0, now: after(30 * SECOND) })
+    await beat(pool, 'shared_worker', { startedAt: T0 })
+    await backdateBeat(pool, 'shared_worker', 30 * SECOND)
+    const first = Date.parse((await state('shared_worker')).last_beat_at!)
+    await beat(pool, 'shared_worker', { startedAt: T0 })
     expect((await pool.query('SELECT count(*)::int AS n FROM service_heartbeats')).rows[0].n).toBe(1)
-    expect((await state('shared_worker', after(31 * SECOND))).last_beat_at).toBe('2026-11-22T10:00:30Z')
+    expect(Date.parse((await state('shared_worker')).last_beat_at!)).toBeGreaterThanOrEqual(first + 29 * SECOND)
   })
 
   it('calls the scheduler stale after five minutes, and after two hours while a shared job runs', async () => {
-    await beat(pool, 'commercial_scheduler', { startedAt: T0, now: T0, detail: { ticks: 3 } })
-    expect((await state('commercial_scheduler', after(5 * MINUTE))).state).toBe('ok')
-    expect((await state('commercial_scheduler', after(5 * MINUTE + 1))).state).toBe('stale')
+    await beat(pool, 'commercial_scheduler', { startedAt: T0, detail: { ticks: 3 } })
+    expect((await stateAfterBeat('commercial_scheduler', 5 * MINUTE)).state).toBe('ok')
+    expect((await stateAfterBeat('commercial_scheduler', 5 * MINUTE + 1)).state).toBe('stale')
     await runningJob()
-    expect((await state('commercial_scheduler', after(HOUR))).state).toBe('ok')
-    expect((await state('commercial_scheduler', after(2 * HOUR))).state).toBe('ok')
-    expect((await state('commercial_scheduler', after(2 * HOUR + 1))).state).toBe('stale')
+    expect((await stateAfterBeat('commercial_scheduler', HOUR)).state).toBe('ok')
+    expect((await stateAfterBeat('commercial_scheduler', 2 * HOUR)).state).toBe('ok')
+    expect((await stateAfterBeat('commercial_scheduler', 2 * HOUR + 1)).state).toBe('stale')
     // The grace is the scheduler's own: a worker that stops beating is still stale after two minutes.
-    await beat(pool, 'shared_worker', { startedAt: T0, now: T0 })
-    expect((await state('shared_worker', after(2 * MINUTE + 1))).state).toBe('stale')
+    await beat(pool, 'shared_worker', { startedAt: T0 })
+    expect((await stateAfterBeat('shared_worker', 2 * MINUTE + 1)).state).toBe('stale')
   })
 
   it('records an adapter as available or unavailable and never calls it stale', async () => {
-    await recordAvailability(pool, 'payment_adapter', { startedAt: T0, now: T0, error: Object.assign(new Error('missing MOYASAR_SECRET_KEY'), { code: 'provider_not_configured' }) })
-    await recordAvailability(pool, 'mail_adapter', { startedAt: T0, now: T0 })
-    expect(await state('payment_adapter', after(30 * 24 * HOUR))).toMatchObject({ state: 'unavailable', detail: { available: false, code: 'provider_not_configured' } })
-    expect(await state('mail_adapter', after(30 * 24 * HOUR))).toMatchObject({ state: 'ok', detail: { available: true } })
+    await recordAvailability(pool, 'payment_adapter', { startedAt: T0, error: Object.assign(new Error('missing MOYASAR_SECRET_KEY'), { code: 'provider_not_configured' }) })
+    await recordAvailability(pool, 'mail_adapter', { startedAt: T0 })
+    expect(await stateAfterBeat('payment_adapter', 30 * 24 * HOUR)).toMatchObject({ state: 'unavailable', detail: { available: false, code: 'provider_not_configured' } })
+    expect(await stateAfterBeat('mail_adapter', 30 * 24 * HOUR)).toMatchObject({ state: 'ok', detail: { available: true } })
   })
 
   it('stores a code, never the message, of an adapter error that carries a secret', async () => {
     const error = new Error('connect to https://admin:hunter2@pay.example.test/v1?key=sk_live_123 failed\nforged line')
-    await recordAvailability(pool, 'payment_adapter', { startedAt: T0, now: T0, error })
-    await recordAvailability(pool, 'alert_channel', { startedAt: T0, now: T0, error: Object.assign(new Error('https://u:hunter2@x.test'), { code: 'telegram_not_configured\nforged' }) })
+    await recordAvailability(pool, 'payment_adapter', { startedAt: T0, error })
+    await recordAvailability(pool, 'alert_channel', { startedAt: T0, error: Object.assign(new Error('https://u:hunter2@x.test'), { code: 'telegram_not_configured\nforged' }) })
     const stored = JSON.stringify((await pool.query('SELECT detail FROM service_heartbeats ORDER BY component')).rows)
     for (const leak of ['hunter2', 'sk_live_123', 'pay.example.test', 'forged line', '\\n']) expect(stored).not.toContain(leak)
-    expect((await state('payment_adapter', T0)).detail).toEqual({ available: false, code: 'Error' })
-    expect((await state('alert_channel', T0)).detail).toEqual({ available: false, code: 'telegram_not_configured forged' })
+    expect((await state('payment_adapter')).detail).toEqual({ available: false, code: 'Error' })
+    expect((await state('alert_channel')).detail).toEqual({ available: false, code: 'telegram_not_configured forged' })
   })
 
   it('hides detail from a caller who may not see it', async () => {
-    await beat(pool, 'commercial_scheduler', { startedAt: T0, now: T0, detail: { ticks: 3, failed_jobs: ['vendor-alerts'] } })
-    expect((await state('commercial_scheduler', T0, true)).detail).toEqual({ ticks: 3, failed_jobs: ['vendor-alerts'] })
-    expect((await state('commercial_scheduler', T0, false)).detail).toBeNull()
+    await beat(pool, 'commercial_scheduler', { startedAt: T0, detail: { ticks: 3, failed_jobs: ['vendor-alerts'] } })
+    expect((await state('commercial_scheduler', true)).detail).toEqual({ ticks: 3, failed_jobs: ['vendor-alerts'] })
+    expect((await state('commercial_scheduler', false)).detail).toBeNull()
   })
 
   it('lists a stale worker and an unavailable adapter as down, but not the adapters of a dead worker', async () => {
-    await beat(pool, 'shared_worker', { startedAt: T0, now: T0 })
-    await recordAvailability(pool, 'payment_adapter', { startedAt: T0, now: T0, error: new Error('x') })
-    await recordAvailability(pool, 'api_payment_adapter', { startedAt: T0, now: T0, error: new Error('x') })
-    expect((await downComponents(pool, after(MINUTE))).map(d => d.component)).toEqual(['payment_adapter', 'api_payment_adapter'])
+    await beat(pool, 'shared_worker', { startedAt: T0 })
+    await recordAvailability(pool, 'payment_adapter', { startedAt: T0, error: new Error('x') })
+    await recordAvailability(pool, 'api_payment_adapter', { startedAt: T0, error: new Error('x') })
+    expect((await downComponents(pool)).map(d => d.component)).toEqual(['payment_adapter', 'api_payment_adapter'])
     // The worker is now stale: its own adapters' last record is unknown, the API's is not.
-    const down = await downComponents(pool, after(3 * MINUTE))
+    await backdateBeat(pool, 'shared_worker', 3 * MINUTE)
+    const down = await downComponents(pool)
     expect(down.map(d => [d.component, d.state])).toEqual([['shared_worker', 'stale'], ['api_payment_adapter', 'unavailable']])
-    expect((await state('payment_adapter', after(3 * MINUTE))).state).toBe('unavailable')
+    expect((await state('payment_adapter')).state).toBe('unavailable')
   })
 
   it('never throws when a write fails: it logs and returns', async () => {
     const logged: string[] = []
     const broken = { query: async () => { throw new Error('connection to db.internal:5432 refused') } } as unknown as Pool
-    await expect(beat(broken, 'shared_worker', { startedAt: T0, now: T0, log: (m, e) => logged.push(`${m} ${e instanceof Error ? e.message : ''}`) })).resolves.toBeUndefined()
-    await expect(recordAvailability(broken, 'mail_adapter', { startedAt: T0, now: T0, log: (m) => logged.push(m) })).resolves.toBeUndefined()
+    await expect(beat(broken, 'shared_worker', { startedAt: T0, log: (m, e) => logged.push(`${m} ${e instanceof Error ? e.message : ''}`) })).resolves.toBeUndefined()
+    await expect(recordAvailability(broken, 'mail_adapter', { startedAt: T0, log: (m) => logged.push(m) })).resolves.toBeUndefined()
     expect(logged).toHaveLength(2)
   })
 
   it('throws when the table cannot be read, so the caller decides what an unreadable table means', async () => {
     const broken = { query: async () => { throw new Error('relation does not exist') } } as unknown as Pool
-    await expect(readHealth(broken, { now: T0, includeDetail: false })).rejects.toThrow('relation')
+    await expect(readHealth(broken, { includeDetail: false })).rejects.toThrow('relation')
   })
 })

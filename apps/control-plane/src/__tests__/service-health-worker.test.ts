@@ -2,14 +2,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createCommercialScheduler } from '../commercial/scheduler.js'
 import { HEARTBEAT_INTERVAL_MS, startWorkerHeartbeat } from '../service-health.js'
 
-type Beat = { component: string; beatAt: Date; startedAt: Date; detail: Record<string, any> }
+type Beat = { component: string; at: string | null; startedAt: Date; detail: Record<string, any> }
 /** A pool that records every heartbeat write; `fail` makes the other queries, `failBeats` the heartbeat write, reject. */
-function recordingPool(o: { fail?: boolean; failBeats?: boolean; hangBeats?: boolean } = {}) {
+function recordingPool(o: { fail?: boolean; failBeats?: boolean; hangBeats?: boolean; clock?: () => number } = {}) {
   const beats: Beat[] = []
   const query = async (sql: string, params: unknown[] = []) => {
     if (String(sql).includes('INSERT INTO service_heartbeats')) {
       if (o.failBeats) throw new Error('write failed at db.internal:5432')
-      beats.push({ component: params[0] as string, beatAt: params[1] as Date, startedAt: params[2] as Date, detail: JSON.parse(params[3] as string) })
+      beats.push({ component: params[0] as string, at: o.clock ? new Date(o.clock()).toISOString() : null, startedAt: params[1] as Date, detail: JSON.parse(params[2] as string) })
       if (o.hangBeats) return new Promise(() => {})
       return { rows: [], rowCount: 1 }
     }
@@ -22,11 +22,11 @@ function recordingPool(o: { fail?: boolean; failBeats?: boolean; hangBeats?: boo
 describe('the scheduler beat', () => {
   it('writes one beat on the first tick and then at most every 30 seconds', async () => {
     vi.spyOn(console, 'debug').mockImplementation(() => {})
-    const { pool, beats } = recordingPool()
     let now = Date.parse('2026-11-22T10:00:00Z')
+    const { pool, beats } = recordingPool({ clock: () => now })
     const scheduler = createCommercialScheduler({ pool, config: {} as never, env: {}, clock: () => now, log: () => {} })
     for (const step of [0, 10_000, 19_000, 1_000]) { now += step; await scheduler.tick() }   // 0 s, 10 s, 29 s, 30 s
-    expect(beats.map(b => b.beatAt.toISOString())).toEqual(['2026-11-22T10:00:00.000Z', '2026-11-22T10:00:30.000Z'])
+    expect(beats.map(b => b.at)).toEqual(['2026-11-22T10:00:00.000Z', '2026-11-22T10:00:30.000Z'])
     expect(beats.every(b => b.component === 'commercial_scheduler' && b.startedAt.toISOString() === '2026-11-22T10:00:00.000Z')).toBe(true)
     now += 20_000; await scheduler.tick()
     expect(beats).toHaveLength(2)

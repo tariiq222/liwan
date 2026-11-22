@@ -6,6 +6,7 @@ import { allAttentionItems, attention } from '../commercial/attention.js'
 import { migrate } from '../db.js'
 import { beat, recordAvailability } from '../service-health.js'
 import { url } from './commercial-helpers.js'
+import { backdateBeat } from './service-health-helpers.js'
 
 const suite = url ? describe : describe.skip
 suite('service_down in the vendor attention list', () => {
@@ -42,7 +43,7 @@ suite('service_down in the vendor attention list', () => {
   })
 
   it('lists a stale worker once, named by the component and dated by its last beat, and drops it when it beats again', async () => {
-    await beat(pool, 'shared_worker', { startedAt: ago(60 * MINUTE), now: ago(10 * MINUTE) })
+    await beat(pool, 'shared_worker', { startedAt: ago(60 * MINUTE) }); await backdateBeat(pool, 'shared_worker', 10 * MINUTE)
     const [item, ...rest] = await down()
     expect(rest).toEqual([])
     expect(item).toMatchObject({ kind: 'service_down', name: 'shared_worker', customer_id: null, tenant_id: null, operation_id: null, invoice_id: null, detail: 'stale' })
@@ -58,13 +59,13 @@ suite('service_down in the vendor attention list', () => {
     const items = await down()
     expect(items.map(i => [i.name, i.detail])).toEqual([['mail_adapter', 'unavailable'], ['api_payment_adapter', 'unavailable']])
     expect(JSON.stringify(items)).not.toContain('mail_not_configured')
-    await beat(pool, 'shared_worker', { startedAt: ago(10 * MINUTE), now: ago(5 * MINUTE) })
+    await beat(pool, 'shared_worker', { startedAt: ago(10 * MINUTE) }); await backdateBeat(pool, 'shared_worker', 5 * MINUTE)
     expect((await down()).map(i => i.name)).toEqual(['shared_worker', 'api_payment_adapter'])
   })
 
   it('comes first in the list and in the total, for a vendor with or without billing access', async () => {
     await pool.query("INSERT INTO customers(id,name,commercial_setup_required) VALUES($1,'Needs setup',true)", [randomUUID()])
-    await beat(pool, 'shared_worker', { startedAt: ago(60 * MINUTE), now: ago(10 * MINUTE) })
+    await beat(pool, 'shared_worker', { startedAt: ago(60 * MINUTE) }); await backdateBeat(pool, 'shared_worker', 10 * MINUTE)
     for (const billing of [true, false]) {
       const list = attentionSchema.parse(await attention(pool, billing))
       expect(list.items.map(i => i.kind)).toEqual(['service_down', 'setup_required'])
@@ -75,7 +76,7 @@ suite('service_down in the vendor attention list', () => {
   it('does not belong to one customer, so a customer-scoped list has none', async () => {
     const customer = randomUUID()
     await pool.query("INSERT INTO customers(id,name,commercial_setup_required) VALUES($1,'Needs setup',true)", [customer])
-    await beat(pool, 'shared_worker', { startedAt: ago(60 * MINUTE), now: ago(10 * MINUTE) })
+    await beat(pool, 'shared_worker', { startedAt: ago(60 * MINUTE) }); await backdateBeat(pool, 'shared_worker', 10 * MINUTE)
     const scoped = await attention(pool, true, customer)
     expect(scoped.items.map(i => i.kind)).toEqual(['setup_required'])
     expect(scoped.total).toBe(1)
@@ -83,7 +84,7 @@ suite('service_down in the vendor attention list', () => {
 
   it('keeps the list within its cap and counts every item in the total', async () => {
     for (let i = 0; i < ATTENTION_LIMIT; i++) await pool.query("INSERT INTO customers(id,name,commercial_setup_required) VALUES($1,$2,true)", [randomUUID(), `Needs setup ${i}`])
-    await beat(pool, 'shared_worker', { startedAt: ago(60 * MINUTE), now: ago(10 * MINUTE) })
+    await beat(pool, 'shared_worker', { startedAt: ago(60 * MINUTE) }); await backdateBeat(pool, 'shared_worker', 10 * MINUTE)
     const list = await attention(pool, true)
     expect(list.items).toHaveLength(ATTENTION_LIMIT)
     expect(list.items[0]!.kind).toBe('service_down')

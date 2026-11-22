@@ -194,7 +194,7 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
       if (!o.signal?.aborted && (lastBeat === undefined || clock() - lastBeat >= HEARTBEAT_INTERVAL_MS)) {
         lastBeat = clock()
         const failed_jobs = Object.entries(jobCounts).filter(([, counts]) => counts.failures > 0).map(([name]) => name)
-        await beat(pool, 'commercial_scheduler', { startedAt, now: new Date(lastBeat), log, detail: { ticks, last_billing_at: lastBilling === undefined ? null : new Date(lastBilling).toISOString(), failed_jobs } })
+        await beat(pool, 'commercial_scheduler', { startedAt, log, detail: { ticks, last_billing_at: lastBilling === undefined ? null : new Date(lastBilling).toISOString(), failed_jobs } })
       }
       console.debug(JSON.stringify({ event: 'commercial_scheduler_tick', tick: ticks, jobs: jobCounts }))
     },

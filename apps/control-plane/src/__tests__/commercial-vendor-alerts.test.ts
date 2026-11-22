@@ -6,6 +6,7 @@ import { acceptQuote } from '../commercial/orders.js'
 import { createQuoteForCustomer } from '../commercial/quotes.js'
 import { allAttentionItems } from '../commercial/attention.js'
 import { beat, recordAvailability } from '../service-health.js'
+import { backdateBeat } from './service-health-helpers.js'
 import { ALERT_BURST_LIMIT, sendVendorAlerts, VENDOR_ALERT_KIND } from '../commercial/vendor-alerts.js'
 
 const suite = url ? describe : describe.skip
@@ -109,7 +110,8 @@ suite('live PostgreSQL owner alerts', () => {
   it('sends no alert for a service that is down: the host timer is the one sender, and the attention item stays', async () => {
     await pool.query('DELETE FROM service_heartbeats')
     try {
-      await beat(pool, 'shared_worker', { startedAt: new Date(Date.now() - 3_600_000), now: new Date(Date.now() - 10 * 60_000) })
+      await beat(pool, 'shared_worker', { startedAt: new Date(Date.now() - 3_600_000) })
+      await backdateBeat(pool, 'shared_worker', 10 * 60_000)
       await recordAvailability(pool, 'api_payment_adapter', { startedAt: new Date(Date.now() - 60_000), error: new Error('https://u:secret@pay.internal') })
       expect((await allAttentionItems(pool)).filter(i => i.kind === 'service_down').map(i => i.name).sort()).toEqual(['api_payment_adapter', 'shared_worker'])
       const before = (await alerts()).length

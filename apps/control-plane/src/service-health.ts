@@ -15,25 +15,26 @@ const defaultLog: Log = (message, error) => console.error('[service-health] %s %
 export type BeatComponent = 'shared_worker' | 'commercial_scheduler'
 export type AvailabilityComponent = Exclude<ServiceComponent, BeatComponent>
 
-const UPSERT = `INSERT INTO service_heartbeats(component,beat_at,started_at,detail) VALUES($1,$2,$3,$4::jsonb)
+// `beat_at` is the database's clock and so is every reader's: a writer or a reader whose own clock is off cannot make a dead service look alive.
+const UPSERT = `INSERT INTO service_heartbeats(component,beat_at,started_at,detail) VALUES($1,now(),$2,$3::jsonb)
   ON CONFLICT (component) DO UPDATE SET beat_at=EXCLUDED.beat_at, started_at=EXCLUDED.started_at, detail=EXCLUDED.detail`
 
-async function write(pool: Writer, component: ServiceComponent, input: { startedAt: Date; now?: Date; detail: Record<string, unknown>; log?: Log }) {
+async function write(pool: Writer, component: ServiceComponent, input: { startedAt: Date; detail: Record<string, unknown>; log?: Log }) {
   const log = input.log ?? defaultLog
-  try { await pool.query(UPSERT, [component, input.now ?? new Date(), input.startedAt, JSON.stringify(input.detail)]) }
+  try { await pool.query(UPSERT, [component, input.startedAt, JSON.stringify(input.detail)]) }
   // A heartbeat is never worth stopping a tick or the worker for: the reader sees the gap as staleness.
   catch (error) { try { log(`service heartbeat ${component} not written`, error) } catch { /* never throw */ } }
 }
 
 /** One beat of a process: `startedAt` is when it started, `detail` holds fixed codes and counters only. Never throws. */
-export function beat(pool: Writer, component: BeatComponent, input: { startedAt: Date; now?: Date; detail?: Record<string, unknown>; log?: Log }) {
+export function beat(pool: Writer, component: BeatComponent, input: { startedAt: Date; detail?: Record<string, unknown>; log?: Log }) {
   return write(pool, component, { ...input, detail: input.detail ?? {} })
 }
 
 /** Whether an adapter could be built. A failure is recorded as its code (or class name), never its message: a message may carry a URL or a secret. Never throws. */
-export function recordAvailability(pool: Writer, component: AvailabilityComponent, input: { startedAt: Date; now?: Date; error?: unknown; log?: Log }) {
+export function recordAvailability(pool: Writer, component: AvailabilityComponent, input: { startedAt: Date; error?: unknown; log?: Log }) {
   const detail = input.error === undefined ? { available: true } : { available: false, code: logCode(input.error) }
-  return write(pool, component, { startedAt: input.startedAt, now: input.now, detail, log: input.log })
+  return write(pool, component, { startedAt: input.startedAt, detail, log: input.log })
 }
 
 /** The shared worker's own beat: one at start and one every `intervalMs`, from a timer that does not depend on the job loop (a long backup or restore holds the loop, not the timer).
@@ -55,17 +56,17 @@ export function startWorkerHeartbeat(pool: Writer, input: { startedAt: Date; sig
 const SELECT = `SELECT component, state,
   to_char(since AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') AS since,
   to_char(last_beat_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') AS last_beat_at, detail, down
-  FROM service_health_states($1)`
+  FROM service_health_states(now())`
 
-/** Every component's state at `now`. `detail` (the reasons) is returned only when `includeDetail`. Throws when the table cannot be read. */
-export async function readHealth(pool: Writer, input: { now?: Date; includeDetail: boolean }): Promise<ServiceHealthItem[]> {
-  const rows = (await pool.query(SELECT, [input.now ?? new Date()])).rows
+/** Every component's state now, by the database clock. `detail` (the reasons) is returned only when `includeDetail`. Throws when the table cannot be read. */
+export async function readHealth(pool: Writer, input: { includeDetail: boolean }): Promise<ServiceHealthItem[]> {
+  const rows = (await pool.query(SELECT)).rows
   const items = rows.map(({ down: _down, ...row }) => ({ ...row, detail: input.includeDetail && row.state !== 'never_seen' ? row.detail : null }))
   return serviceHealthSchema.parse(items.sort((a, b) => SERVICE_COMPONENTS.indexOf(a.component) - SERVICE_COMPONENTS.indexOf(b.component)))
 }
 
 /** The components that need attention now (stale, or unavailable): an adapter of the worker is left out while the worker itself is down. Throws when the table cannot be read. */
-export async function downComponents(pool: Writer, now: Date = new Date()): Promise<Array<{ component: ServiceComponent; state: 'stale' | 'unavailable'; since: string; last_beat_at: string }>> {
-  const rows = (await pool.query(`${SELECT} WHERE down`, [now])).rows
+export async function downComponents(pool: Writer): Promise<Array<{ component: ServiceComponent; state: 'stale' | 'unavailable'; since: string; last_beat_at: string }>> {
+  const rows = (await pool.query(`${SELECT} WHERE down`)).rows
   return rows.sort((a, b) => SERVICE_COMPONENTS.indexOf(a.component) - SERVICE_COMPONENTS.indexOf(b.component))
 }

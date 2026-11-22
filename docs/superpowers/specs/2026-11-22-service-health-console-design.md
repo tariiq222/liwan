@@ -32,6 +32,8 @@
 | `payment_adapter`, `mail_adapter`, `alert_channel` | worker start-up, then the worker timer | on start and on change | `available`, and the logged reason when not |
 | `api_payment_adapter` | `createApp` start-up | on start | the same |
 
+`beat_at` is written with the database's `now()` and every reader (console, attention, host alert) evaluates
+`service_health_states(now())`: one clock, so a host with a wrong clock cannot hide a dead worker.
 A heartbeat write that fails is logged and never stops a tick or the worker. Reasons pass through `logText`.
 
 **Reading.** `GET /v1/overview` gains `health`: for each component `state` (`ok`, `stale`, `unavailable`,
