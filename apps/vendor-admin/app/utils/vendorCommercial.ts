@@ -44,10 +44,10 @@ export function isStatusFilter(value: unknown): value is StatusFilter { return t
 
 // ---- Money ----
 const ARABIC_DIGITS = '٠١٢٣٤٥٦٧٨٩'
-const GROUPED_INTEGER = /^\d{1,3}(?:[,٬\s]\d{3})+$/
+const GROUPED_INTEGER = /^[1-9]\d{0,2}(?:[,٬\s]\d{3})+$/
 /**
  * Latin digits with `.` as the decimal mark. A comma, an Arabic thousands mark or a space is a thousands separator only
- * between groups of exactly three digits (1,250 and ١٬٢٥٠٫٥٠, as the console prints amounts); any other use (12,50) is
+ * between groups of exactly three digits after a first group of one to three digits that does not start with 0 (1,250 and ١٬٢٥٠٫٥٠, as the console prints amounts); any other use (12,50) is
  * ambiguous between a decimal comma and a thousands comma, so it is left in the text and the caller's digit pattern refuses it.
  */
 export function normalizeDigits(value: string): string {

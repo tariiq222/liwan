@@ -32,7 +32,7 @@ describe('money', () => {
     expect(parseVendorMoneyInput('1,250.50')).toBe(125050)
     expect(parseVendorMoneyInput('١٬٢٥٠٫٥٠')).toBe(125050)
     expect(parseVendorMoneyInput('1 250')).toBe(125000)
-    for (const ambiguous of ['12,50', '1,5', '0,5', ',5', '12٬5', '1,25,000', '1,2500', '1,250,5', '12 50', '1.250,50', '1,250,']) expect(parseVendorMoneyInput(ambiguous), ambiguous).toBeNull()
+    for (const ambiguous of ['12,50', '1,5', '0,5', ',5', '12٬5', '1,25,000', '1,2500', '1,250,5', '12 50', '1.250,50', '1,250,', '0,500', '٠٬٥٠٠', '0 500', '00,500', '0,500.50']) expect(parseVendorMoneyInput(ambiguous), ambiguous).toBeNull()
   })
   it('refuses an ambiguous comma in a whole number too, instead of joining its digits', () => {
     expect(parseCount('1,5')).toBeNull()
