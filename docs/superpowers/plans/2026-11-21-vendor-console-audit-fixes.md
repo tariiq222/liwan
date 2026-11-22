@@ -1,9 +1,9 @@
 # Vendor console and control plane: audit fixes plan
 
 > Source: an external audit of `apps/vendor-admin`, `apps/control-plane` and `packages/commercial-contracts`
-> (run on `main` at `506dca1dc`), checked claim by claim against the code on 2026-11-21. Status: written on
-> 2026-11-21, not approved, nothing built. Each row below is a requirement candidate, not implementation present
-> in a branch.
+> (run on `main` at `506dca1dc`), checked claim by claim against the code on 2026-11-21. Status: built on
+> 2026-11-21 and 2026-11-22 on branch `claude/gallant-gauss-gxh9lh`, one commit per task; section 5 lists what is
+> built, what is not, and the checks that ran. Not merged; nothing here is verified on a server.
 
 ## 1. What was checked
 
@@ -131,3 +131,43 @@ D4 to D6 and are not built.
 - Verification per task: `apps/control-plane` and `apps/vendor-admin` unit tests for the files it touches,
   `npm -w apps/vendor-admin run lint`, and the vendor-admin e2e spec of the changed page
   ([testing guide](../../testing.md)).
+
+## 5. Outcome (2026-11-22)
+
+Built, each reproduced in a failing test first: T01 to T31, T33 to T35, T38 to T41, the settings page of T36, the
+recover action of T32, and two of the three T37 defects (overdue clamp, AI top-up conversion).
+
+Not built, with the reason:
+
+| Item | Reason | Decision |
+| --- | --- | --- |
+| T32, recovery of a job already in `needs_intervention` | Two tests and `shared/INTEGRATION.md` record "intervention is sticky"; recovering such a job reverses that decision. | D7 |
+| T36, AI top-up refund in the console | The invoice page's refund request already refunds a top-up and also queues the provider refund; the separate route duplicates it. | D8 |
+| T37, history blanked by a suspended or cancelled customer | No time is recorded for a subscription leaving service. | D9 |
+| T40, state kept between two customers | Not reproduced: Nuxt remounts the page when the id changes. | none |
+| T42, T43, T44 | Wait for D4, D5, D6. | D4 to D6 |
+
+| # | Question | Recommended default | Alternative |
+| --- | --- | --- | --- |
+| D7 | May an operator recovery complete a job in `needs_intervention` when the effect is present and verified? | Yes, in `recoverSharedJob` only. | Keep it sticky and change the abandon refusal text, which today says to recover. |
+| D8 | The AI top-up refund route. | Remove it; the invoice refund is the one path. | Expose it as a second action on the invoice page. |
+| D9 | Leaving-service time for analytics history. | Add `left_service_at`, written at each departure; history is exact from then on. | Keep the blank. |
+
+Decisions taken while building: public sign-up reads `LIWAN_SIGNUP_PLAN_ID` (a plan id; the old revision-id
+variable is gone); a resume that did not reach the workspace needed a clock, so migration `schema_073.sql` renames
+`suspension_pending_since` to `tenant_status_pending_since`; an enabled team account starts a fresh enrolment and
+keeps only its roles; a price accepts a comma only as a thousands mark between groups of three digits, and the AI
+top-up list is separated by `،` or `;`.
+
+Checks that ran on the final tree: control plane suites in the four CI groups on scratch PostgreSQL (2,420 passed,
+2 skipped, none failed) and its type check; commercial contracts (240); vendor console unit tests (956) and type
+check; `tools/arch_policy.py`, `tools/git_policy.py`, `tools/ui_policy.py`. The vendor console e2e specs of the
+changed pages ran per batch against the mock control plane with a temporary Playwright config (the installed
+browser does not match the repository's Playwright version); the full e2e suite did not run on the final tree.
+Not run: the mail suites (no Mailpit here), the real control plane, CI. Two independent reviews of the whole
+branch (control plane, vendor console) found no blocking defect; their seven smaller findings are fixed.
+
+Found outside the tasks and left: anonymous quote previews are stored under the customer `preview`; the invitation
+panel does not know an invitation was accepted until the server refuses; `view.issues` in the plan and bundle view
+is always empty; `requested_storage_mb` in a quote is not bounded by what the workspace accepts; a bundle restore
+is not re-checked; hardcoded list separators in `ai-provider.vue` and `packages/ui` `PersonAvatar.vue`.
