@@ -20,8 +20,12 @@ suite('check again now on a stuck automatic refund on PostgreSQL', () => {
   const audits = async (note: string) => (await pool.query("SELECT actor,reason,metadata FROM audit_events WHERE subject=$1 AND action='payment.refund_rechecked'", [note])).rows
   const postpone = (order: string) => pool.query("UPDATE commercial_outbox SET next_attempt_at=now() + interval '55 minutes' WHERE aggregate_id=$1", [order])
 
-  it.each([['attempted', async () => fx.attempted(), { status: 'succeeded', refunded: null }],
-    ['returned', async () => fx.returnedInConflict(), { status: 'refunded', refunded: { currency: 'SAR', exponent: 2, minor: 11500 } }]] as const)('reads a %s row\'s payment, makes the row due and changes nothing else', async (_mark, arrange, shown) => {
+  const shownAttempted = { status: 'succeeded', refunded: null }
+  const agePast = (order: string, minutes: number) => pool.query("UPDATE commercial_outbox SET payload=payload || jsonb_build_object('attempted_at',$2::text) WHERE aggregate_id=$1",
+    [order, new Date(Date.now() - minutes * 60_000).toISOString()])
+
+  it.each([['an attempted row at least 60 minutes old', async () => { const f = await fx.attempted(); await agePast(f.order, 61); return f }, 'attempted', shownAttempted],
+    ['a returned row', async () => fx.returnedInConflict(), 'returned', { status: 'refunded', refunded: { currency: 'SAR', exponent: 2, minor: 11500 } }]] as const)('reads %s, makes it due and changes nothing else', async (_name, arrange, mark, shown) => {
     const f = await arrange()
     await postpone(f.order)
     const before = await fx.refundRow(f.order)
@@ -35,11 +39,26 @@ suite('check again now on a stuck automatic refund on PostgreSQL', () => {
     expect(after.next_attempt_at.getTime()).toBeLessThanOrEqual(Date.now())
     expect(before.next_attempt_at.getTime()).toBeGreaterThan(Date.now())
     expect(refund).not.toHaveBeenCalled()
-    expect(await audits(f.note)).toEqual([expect.objectContaining({ actor: 'vendor-test:7', metadata: expect.objectContaining({ payment_id: f.paymentId, provider_status: shown.status, provider_refund: _mark }) })])
+    expect(await audits(f.note)).toEqual([expect.objectContaining({ actor: 'vendor-test:7', metadata: expect.objectContaining({ payment_id: f.paymentId, provider_status: shown.status, provider_refund: mark }) })])
+  })
+
+  it('shows a young attempted row\'s payment but leaves the row waiting, so no number of checks makes the worker repeat the refund call', async () => {
+    const f = await fx.attempted()
+    await postpone(f.order)
+    const before = await fx.refundRow(f.order)
+    const refund = vi.spyOn(f.adapter, 'refund')
+    for (let i = 0; i < 3; i++) {
+      await expect(call(f.note, 'check', undefined, { adapter: f.adapter })).resolves.toMatchObject({ status: 200, data: { provider: { ...shownAttempted, payment_id: f.paymentId } } })
+      expect(await processRefundOutbox(pool, f.adapter)).toBeDefined()
+    }
+    expect(await fx.refundRow(f.order)).toEqual(before)
+    expect(refund).not.toHaveBeenCalled()
+    expect(await audits(f.note)).toHaveLength(3)
   })
 
   it('shows what the provider returned when the money is already back, and lets the worker record it with no second call', async () => {
     const f = await fx.attempted()
+    await agePast(f.order, 61)
     await fx.refundWholePayment(f)
     const result = await call(f.note, 'check', undefined, { adapter: f.adapter })
     expect(result!.data).toMatchObject({ provider: { status: 'refunded', payment_id: f.paymentId, refunded: { minor: f.total, currency: 'SAR', exponent: 2 } } })

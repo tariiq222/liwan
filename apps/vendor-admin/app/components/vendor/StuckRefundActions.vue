@@ -77,7 +77,7 @@ function submit() {
         <div><dt class="text-muted">{{ t('vendor.invoices.refund.stuck.check.refunded') }}</dt><dd class="tabular-nums">{{ checked.refunded ? money(checked.refunded) : t('vendor.invoices.refund.stuck.check.none') }}</dd></div>
         <div><dt class="text-muted">{{ t('vendor.invoices.refund.stuck.check.paymentId') }}</dt><dd><bdi dir="ltr" class="select-all font-mono">{{ checked.payment_id ?? '' }}</bdi></dd></div>
       </dl>
-      <p class="text-sm text-muted">{{ t('vendor.invoices.refund.stuck.check.due') }}</p>
+      <p class="text-sm text-muted">{{ t('vendor.invoices.refund.stuck.check.outcome') }}</p>
     </div>
 
     <SharedInlineConfirm v-if="action" :title="t(`vendor.invoices.refund.stuck.${action}.confirmTitle`)" :description="t(`vendor.invoices.refund.stuck.${action}.confirmHint`)"

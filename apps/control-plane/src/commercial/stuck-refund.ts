@@ -93,24 +93,31 @@ async function runStuckAction(pool: Pool, adjustmentId: string, unmatched: strin
   return view(locked.value)
 }
 
+/** How long an `attempted` mark must stand before it may be released or re-tried: a refund call made before it may still land at the provider. */
+export const RELEASE_MIN_AGE_MINUTES = 60
+
+/** The time of the mark on a row: its own `attempted_at`, or the row's creation for a row marked before the stamp existed. */
+const markedAtOf = (row: StuckContext['row']) => Date.parse(row.payload.attempted_at ?? row.created_at.toISOString())
+/** Whether an `attempted` mark is old enough (RELEASE_MIN_AGE_MINUTES) for the worker to act on the row again. */
+const markStood = (row: StuckContext['row'], now: number) => now - markedAtOf(row) >= RELEASE_MIN_AGE_MINUTES * 60_000
+
 /**
- * Check again now: reads the payment at the provider, shows its status, refunded figure and payment id, and makes the row due so the worker
- * runs its own next step. Nothing else on the row changes.
+ * Check again now: reads the payment at the provider and shows its status, refunded figure and payment id. It makes the row due, so the worker
+ * runs its own next step, only for a `returned` row (the worker then only records) or an `attempted` row that has stood RELEASE_MIN_AGE_MINUTES:
+ * a younger `attempted` row is left waiting, because a worker run that finds less than the whole amount refunded calls the provider's refund
+ * again, and a refund call made less than an hour ago may still land. Nothing else on the row changes.
  */
-export function recheckAutomaticRefund(pool: Pool, { adjustment_id, actor, adapter }: { adjustment_id: string; actor: CommercialActor; adapter?: PaymentAdapter }): Promise<StuckRefundResult> {
+export function recheckAutomaticRefund(pool: Pool, { adjustment_id, actor, adapter, now = Date.now() }: { adjustment_id: string; actor: CommercialActor; adapter?: PaymentAdapter; now?: number }): Promise<StuckRefundResult> {
   return runStuckAction(pool, adjustment_id, 'provider_status_unverified', {
     marks: ['attempted', 'returned'],
     read: async ({ attempt, row }) => recheckOf(await readProviderPayment(adapter, attempt, row.payload)),
     write: async (client, { note, row, mark }, provider) => {
-      await releaseOutbox(client, row.id)
+      if (mark === 'returned' || markStood(row, now)) await releaseOutbox(client, row.id)
       await audit(client, actor, 'payment.refund_rechecked', note.id, 'Checked the payment at the provider',
         { outbox_id: row.id, order_id: row.aggregate_id, provider_refund: mark, payment_id: provider!.payment_id, provider_status: provider!.status, refunded_minor: provider!.refunded?.minor ?? null })
     },
   })
 }
-
-/** How long an `attempted` mark must stand before it may be released: a refund call made before it may still land at the provider. */
-export const RELEASE_MIN_AGE_MINUTES = 60
 
 /**
  * What the provider's answer proves about an `attempted` mark: `returned` (the whole payment is refunded) or `not_returned` (the payment is paid and
@@ -140,8 +147,7 @@ export function releaseRefundHold(pool: Pool, { adjustment_id, actor, adapter, r
     marks: ['attempted'],
     read: async ({ attempt, row }) => {
       if (!adapter) throw refused('provider_refund_unavailable')
-      const markedAt = Date.parse(row.payload.attempted_at ?? row.created_at.toISOString())
-      if (now - markedAt < RELEASE_MIN_AGE_MINUTES * 60_000) throw refused('refund_attempt_too_recent')
+      if (!markStood(row, now)) throw refused('refund_attempt_too_recent')
       const provider = recheckOf(await readProviderPayment(adapter, attempt, row.payload))
       holdOutcome(provider, attempt)
       return provider

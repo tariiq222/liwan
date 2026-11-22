@@ -34,7 +34,10 @@ stuck states. The view gains `since`, `attempts`, `next_attempt_at`, `provider_p
 conflict, the conflicting note (invoice number, amount, cause, status, who recorded it and when).
 
 - **Check again now** (both states). Reads the payment at the provider and shows status, refunded amount and payment
-  id. It then makes the row due (`next_attempt_at = now()`), so the worker runs its own next step. It changes
+  id. It makes the row due (`next_attempt_at = now()`), so the worker runs its own next step, only for a `returned`
+  row (the worker then only records) or an `attempted` row whose mark is at least 60 minutes old. A younger
+  `attempted` row is only read and shown: a worker run that finds less than the whole amount refunded calls the
+  provider's refund again, so making it due would let every click repeat a call that may still land. It changes
   nothing else.
 - **Release the hold** (`attempted` only). The server reads the provider and acts only on a definitive answer:
   - Refunded in full: the row is marked `returned`, as the worker would mark it.

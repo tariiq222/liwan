@@ -71,8 +71,10 @@ page shows the note as stuck, with the row's age, tries, next try, the provider 
 that holds the payment id. Three console actions, each needing `vendor.billing.manage`, none of which refunds money (only the
 refund worker does, under the same per-order advisory lock; a held lock is `refund_in_progress`, 409):
 
-- **Check again now** (both states): reads the payment at the provider, shows its status, refunded amount and payment id, and
-  makes the row due so the worker runs its next step. Changes nothing else; needs no step-up and no reason.
+- **Check again now** (both states): reads the payment at the provider, shows its status, refunded amount and payment id. It
+  makes the row due so the worker runs its next step only for a `returned` row or an `attempted` row whose mark is at least 60
+  minutes old; a younger `attempted` row is only read, because the worker would repeat the refund call at once. Changes nothing
+  else; needs no step-up and no reason.
 - **Release the hold** (`attempted` only; fresh step-up and a reason of 3 to 1000 characters): acts only on a definitive provider
   answer. The read must succeed and match the paying attempt (payment id, amount, currency, merchant account, mode). A payment
   refunded in full is marked `returned` as the worker would mark it; a paid payment with no refunded figure loses the mark and the

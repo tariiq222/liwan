@@ -1995,7 +1995,7 @@
             "refunded": "Refunded so far",
             "none": "Nothing refunded",
             "paymentId": "Payment id",
-            "due": "The refund is due now: the worker takes its next step on its next run.",
+            "outcome": "Nothing was refunded or changed by this check. A refund the provider returned is recorded by the worker on its next run. A refund call made less than an hour ago is not repeated: the worker retries it only after that hour, on its own schedule.",
             "status": {
               "pending": "Pending",
               "succeeded": "Paid",
