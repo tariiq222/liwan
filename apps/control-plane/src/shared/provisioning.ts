@@ -64,8 +64,10 @@ export type SharedDecision = {
 /** Pure planner, never executes an effect or marks a tenant active.
  * Caller MUST hold a fenced tenant lock, use fresh authoritative observation,
  * and persist/CAS journal transitions before invoking an effect adapter.
+ * An `intervention` journal is sticky: only an operator's explicit recovery request (`operatorRecovery`) lets a fresh
+ * present, verified and matching observation complete it. Absent or mismatching evidence never does.
  */
-export function reconcileSharedJob(input: unknown, currentTarget: unknown, durableJournal: unknown, observation: unknown): SharedDecision {
+export function reconcileSharedJob(input: unknown, currentTarget: unknown, durableJournal: unknown, observation: unknown, options: { operatorRecovery?: boolean } = {}): SharedDecision {
   const job = bindJob(input)
   const target = targetSchema.parse(currentTarget)
   const { enabled, ...currentBinding } = target
@@ -85,7 +87,7 @@ export function reconcileSharedJob(input: unknown, currentTarget: unknown, durab
     if (observed.businessKey !== key || observed.payloadDigest !== hash) throw new Error('effect_identity_mismatch')
   }
   let action: SharedDecision['action'] = 'needs_intervention'
-  if (journal?.stage !== 'needs_intervention') {
+  if (journal?.stage !== 'needs_intervention' || options.operatorRecovery) {
     if (observed.state === 'absent') {
       if (!journal) action = 'persist_intent'
       else if (journal.stage === 'prepared') action = 'execute'
