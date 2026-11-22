@@ -22,3 +22,8 @@ export function policyOptions(policies: PricingPolicy[], taxText: (policy: Prici
   const rank = (p: PricingPolicy) => (p.tax.kind === 'none' ? 0 : 1)
   return [...policies].sort((a, b) => rank(a) - rank(b)).map(p => ({ label: taxText(p), value: p.id }))
 }
+
+/** The tax a policy applies, in words: VAT only when the policy charges it, never assumed. */
+export function policyTaxText(policy: PricingPolicy, t: (key: string, params?: Record<string, unknown>) => string): string {
+  return policy.tax.kind === 'vat_exclusive' ? t('vendor.pricing.plan.vat', { rate: policy.tax.rate_bps / 100 }) : t('vendor.pricing.plan.noTax')
+}

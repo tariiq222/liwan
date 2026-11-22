@@ -836,7 +836,10 @@
       "termMonths": "{count}-month term | {count}-month term",
       "bundlesCount": "{included} included · {optional} optional bundles",
       "sold": "What the plan includes",
-      "soldHint": "The bundles sold with the plan and its platform limits. Open a bundle to see its apps."
+      "soldHint": "The bundles sold with the plan and its platform limits. Open a bundle to see its apps.",
+      "storageHint": "How extra storage is bought on this plan: the step below the threshold, the threshold, and the larger step above it (MiB).",
+      "policyHint": "The approved policy this plan is priced under.",
+      "aiHint": "The assistant's monthly quota and per-run limits on this plan. Unlimited means no limit."
     },
     "pricing": {
       "status": {
@@ -930,6 +933,7 @@
         "basePrices": "Billing cadences and base price",
         "bundles": "Bundles",
         "lifecycle": "Trial, grace and renewal",
+        "storage": "Extra storage",
         "quantities": "Included quantities",
         "included": "What the bundle includes"
       },

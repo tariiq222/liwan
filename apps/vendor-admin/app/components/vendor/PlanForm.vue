@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { AI_LIMIT_KEYS, COMMERCIAL_MAX_USERS, commercialErrorKey, commercialFailure, emptyPlanDraft, fieldIssue, limitFromDraft, MAX_STORAGE_STEP_MB, MB_PER_GB, parseCount, planDraftFromView, priceRowErrors, storageStepsAligned, type BundleView, type PlanDraft, type PlanView } from '@/utils/vendorCommercial'
-import { defaultPolicyId, policyOptions } from './policySelection'
+import { defaultPolicyId, policyOptions, policyTaxText } from './policySelection'
 import type { PricingPolicyView } from '@/composables/useVendorCommercial'
 // `policy` is the policy a saved plan keeps; the form only prefills it with an edit and lets the vendor choose any approved policy.
 const props = withDefaults(defineProps<{ bundles: BundleView[]; policies?: PricingPolicyView[]; policy?: PricingPolicyView; initial?: PlanView; busy?: boolean; error?: unknown; resetKey?: number; requireReason?: boolean }>(), { busy: false, resetKey: 0, requireReason: false })
@@ -94,9 +94,8 @@ function submit() {
 const show = (k: string) => (attempted.value ? errors.value[k] : undefined)
 // The approved policy the vendor chose (never the first listed row); VAT wording appears only after an explicit VAT choice.
 const policy = computed(() => policyList.value.find(p => p.id === draft.policy_revision_id))
-const policyTaxText = (policy: PricingPolicyView) => (policy.tax.kind === 'vat_exclusive' ? t('vendor.pricing.plan.vat', { rate: policy.tax.rate_bps / 100 }) : t('vendor.pricing.plan.noTax'))
-const policyItems = computed(() => policyOptions(policyList.value, policyTaxText))
-const taxText = computed<string | null>(() => (policy.value ? policyTaxText(policy.value) : null))
+const policyItems = computed(() => policyOptions(policyList.value, policy => policyTaxText(policy, t)))
+const taxText = computed<string | null>(() => (policy.value ? policyTaxText(policy.value, t) : null))
 </script>
 <template>
   <form class="space-y-6" novalidate data-testid="plan-form" @submit.prevent="submit">

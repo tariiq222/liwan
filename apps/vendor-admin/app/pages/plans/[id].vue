@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { isEditable, lifecycleBadge } from '@/utils/vendorCommercial'
 import type { Quote } from '@liwan/commercial-contracts'
-import { cadenceKey, commercialErrorKey, limitLabel, parseCount, quoteRequestBody, type BundleView, type LifecycleAction, type PlanView } from '@/utils/vendorCommercial'
+import { AI_LIMIT_KEYS, cadenceKey, commercialErrorKey, limitLabel, parseCount, quoteRequestBody, type BundleView, type LifecycleAction, type PlanView } from '@/utils/vendorCommercial'
 import { cadenceLabel, formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { catalogReturn, priceFact } from '@/utils/vendorCatalog'
+import { policyTaxText } from '@/components/vendor/policySelection'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 definePageMeta({ capability: 'vendor.read' })
 const { t, te, locale } = useI18n(); const route = useRoute(); const { can } = useVendorContext(); const api = useVendorCommercial(); const hydrated = useHydrated()
@@ -12,8 +13,8 @@ const back = computed(() => catalogReturn(route.query.returnTo, 'plans')); const
 const { data, error, pending, refresh } = await useAsyncData(() => `vendor:plan:${id.value}`, async () => {
   const view = await api.get<PlanView>('plan', id.value)
   const ids = [...view.included_bundle_revision_ids, ...view.optional_bundle_revision_ids]
-  const bundles = await Promise.all(ids.map(x => api.get<BundleView>('bundle', x)))
-  return { view, bundles }
+  const [bundles, policies, versions] = await Promise.all([Promise.all(ids.map(x => api.get<BundleView>('bundle', x))), api.policies(), api.planVersions(view.plan_id)])
+  return { view, bundles, policy: policies.find(p => p.id === view.policy_revision_id), versions }
 }, { watch: [id] })
 const view = computed(() => data.value?.view)
 const bundleName = (x: string) => data.value?.bundles.find(b => b.id === x)?.name ?? x
@@ -50,6 +51,13 @@ const facts = computed(() => {
     { key: 'customers', label: t('vendor.customers.title'), value: t('vendor.pricing.customers', { count: v.customer_count }, v.customer_count) },
   ]
 })
+// A plan that carries no value for an AI limit sells it unlimited, as the plan form shows it.
+const aiLimits = computed(() => AI_LIMIT_KEYS.map(key => ({ key, label: t(`vendor.pricing.plan.aiLimits.${key.replaceAll('.', '_')}`), value: limitLabel(view.value?.platform_limits[key] ?? null, t) })))
+const storageSteps = computed(() => [
+  { key: 'step', label: t('vendor.pricing.fields.storageStep'), value: view.value?.storage_step_mb },
+  { key: 'threshold', label: t('vendor.pricing.fields.storageStepThreshold'), value: view.value?.storage_step_threshold_mb },
+  { key: 'large', label: t('vendor.pricing.fields.storageLargeStep'), value: view.value?.storage_large_step_mb },
+])
 const editable = computed(() => view.value && isEditable(view.value) && can('vendor.catalog.manage') && can('vendor.pricing.manage'))
 const cadenceItems = computed(() => (view.value?.prices ?? []).map(p => ({ value: cadenceKey(p.cadence), label: `${cadenceLabel(p.cadence, t)} · ${formatCommercialMoney(p.amount, locale.value)}` })))
 </script>
@@ -83,6 +91,18 @@ const cadenceItems = computed(() => (view.value?.prices ?? []).map(p => ({ value
         <ul v-if="view.user_prices.length" class="mt-2 grid gap-2 sm:grid-cols-2"><li v-for="p in view.user_prices" :key="cadenceKey(p.cadence)" class="flex justify-between rounded-control p-3 ring ring-default"><span>{{ t('vendor.pricing.fields.userPrice') }} · {{ cadenceLabel(p.cadence, t) }}</span><span class="font-semibold tabular-nums">{{ formatCommercialMoney(p.amount, locale) }}</span></li></ul>
         <ul v-if="view.storage_prices.length" class="mt-2 grid gap-2 sm:grid-cols-2"><li v-for="p in view.storage_prices" :key="cadenceKey(p.cadence)" class="flex justify-between rounded-control p-3 ring ring-default"><span>{{ t('vendor.pricing.fields.storagePrice') }} · {{ cadenceLabel(p.cadence, t) }}</span><span class="font-semibold tabular-nums">{{ formatCommercialMoney(p.amount, locale) }}</span></li></ul>
       </SharedRecordSection>
+      <SharedRecordSection :title="t('vendor.pricing.sections.storage')" :description="t('vendor.plans.storageHint')" class="mt-6" data-testid="plan-storage">
+        <dl class="grid gap-4 sm:grid-cols-3"><div v-for="step in storageSteps" :key="step.key"><dt class="text-sm text-muted">{{ step.label }}</dt><dd class="font-semibold tabular-nums" dir="ltr">{{ step.value }}</dd></div></dl>
+      </SharedRecordSection>
+      <SharedRecordSection :title="t('vendor.pricing.policy.select')" :description="t('vendor.plans.policyHint')" class="mt-6" data-testid="plan-policy">
+        <dl class="grid gap-4 sm:grid-cols-2">
+          <div><dt class="text-sm text-muted">{{ t('vendor.pricing.policy.tax') }}</dt><dd class="font-semibold">{{ data.policy ? policyTaxText(data.policy, t) : '—' }}</dd></div>
+          <div><dt class="text-sm text-muted">{{ t('vendor.pricing.policy.timezone') }}</dt><dd class="font-semibold">{{ data.policy?.timezone ?? '—' }}</dd></div>
+        </dl>
+      </SharedRecordSection>
+      <SharedRecordSection :title="t('vendor.pricing.sections.ai')" :description="t('vendor.plans.aiHint')" class="mt-6" data-testid="plan-ai-limits">
+        <dl class="grid gap-4 sm:grid-cols-2"><div v-for="limit in aiLimits" :key="limit.key"><dt class="text-sm text-muted">{{ limit.label }}</dt><dd class="font-semibold tabular-nums">{{ limit.value }}</dd></div></dl>
+      </SharedRecordSection>
       <SharedRecordSection :title="t('vendor.pricing.quote.title')" :description="t('vendor.pricing.quote.hint')" class="mt-6" data-testid="quote-preview">
         <div class="grid gap-3 sm:grid-cols-2">
           <UFormField :label="t('commercial.pricing.quote.cadence')"><USelect v-model="cadence" :items="cadenceItems" class="w-full" :disabled="!hydrated" /></UFormField>
@@ -92,6 +112,7 @@ const cadenceItems = computed(() => (view.value?.prices ?? []).map(p => ({ value
         <SharedCommercePriceBreakdown :quote="quote" :pending="quotePending" :error="quoteError" @retry="recompute" />
       </SharedRecordSection>
       <VendorLifecyclePanel class="mt-6" kind="plan" :view="view" @done="done" @reload="refresh" />
+      <SharedRecordSection class="mt-6" :title="t('vendor.pricing.history')" data-testid="plan-versions"><ul class="space-y-2"><li v-for="item in data.versions" :key="item.id"><NuxtLink :to="{ path: `/plans/${item.id}`, query: { returnTo: backTo } }" class="text-primary">{{ item.name }} · {{ t('vendor.pricing.version', { count: item.version }) }}</NuxtLink><span class="ms-2"><SharedStatusBadge data-slot="lifecycle-badge" :tone="lifecycleBadge(item).tone" :label="t(lifecycleBadge(item).labelKey)" /></span></li></ul></SharedRecordSection>
       <details class="mt-6"><summary class="cursor-pointer text-sm text-muted">{{ t('vendor.pricing.technical') }}</summary>
         <dl class="mt-3 space-y-2 text-sm"><div><dt>{{ t('vendor.pricing.contentDigest') }}</dt><dd class="break-all" dir="ltr">{{ view.content_digest }}</dd></div><div><dt>{{ t('vendor.pricing.revisionId') }}</dt><dd dir="ltr">{{ view.id }}</dd></div><div><dt>{{ t('vendor.pricing.editRevision') }}</dt><dd dir="ltr">{{ view.edit_revision }}</dd></div></dl>
       </details>
