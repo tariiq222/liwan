@@ -28,13 +28,14 @@ export async function listSharedBackups(pool: Pool, controlTenantId: string) {
   const blocking = await findBlockingJob(pool, controlTenantId, { aiPush: false })
   const refusal: StartRefusal | null = !tenant.rows[0].operable ? 'operations_unavailable' : blocking ? 'job_in_progress' : null
   const backups = await pool.query(`SELECT b.id AS backup_id, m.job_id, b.created_at, va.display_name AS started_by,
-      ap.id AS approval_id, ap.expires_at, count(*) OVER () AS total
+      ap.id AS approval_id, ap.expires_at, ap.approver, count(*) OVER () AS total
     FROM shared_backups b
     JOIN shared_odoo_backups m ON m.backup_id=b.id
     JOIN shared_jobs j ON j.id=m.job_id AND j.state='verified'
     LEFT JOIN vendor_accounts va ON 'account:'||va.id=b.created_by
     LEFT JOIN LATERAL (
-      SELECT a.id,a.expires_at FROM shared_restore_approvals a
+      SELECT a.id,a.expires_at,ab.display_name AS approver FROM shared_restore_approvals a
+      LEFT JOIN vendor_accounts ab ON 'account:'||ab.id=a.approved_by
       WHERE a.backup_id=b.id AND a.control_tenant_id=b.control_tenant_id AND a.consumed_at IS NULL AND a.expires_at>clock_timestamp()
         AND NOT EXISTS (SELECT 1 FROM shared_jobs r WHERE r.control_tenant_id=a.control_tenant_id AND r.payload->>'operation'='restore' AND r.payload->>'approvalId'=a.id::text)
       ORDER BY a.created_at DESC LIMIT 1
@@ -55,7 +56,7 @@ export async function listSharedBackups(pool: Pool, controlTenantId: string) {
       job_id: row.job_id as string,
       created_at: iso(row.created_at),
       started_by: (row.started_by ?? null) as string | null,
-      approval: row.approval_id ? { approval_id: row.approval_id as string, expires_at: iso(row.expires_at) } : null,
+      approval: row.approval_id ? { approval_id: row.approval_id as string, expires_at: iso(row.expires_at), approved_by: (row.approver ?? null) as string | null } : null,
       restores: restores.rows.filter(restore => restore.backup_id === row.backup_id).map(restore => ({
         job_id: restore.job_id as string, approval_id: restore.approval_id as string, state: restore.state as string, created_at: iso(restore.created_at),
       })),

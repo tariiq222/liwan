@@ -138,8 +138,8 @@ export async function approveOdooRestore(pool:Pool,runtime:SharedRuntimeConfig,a
   const approvalId=randomUUID(),target='liwan_scratch_'+randomUUID().replaceAll('-','')
   const reserved=await client.query('SELECT 1 FROM shared_registry_bindings WHERE database_name=$1 OR filestore=$1',[target])
   if(reserved.rowCount)throw Error('restore_target_reserved')
-  const result=await client.query(`INSERT INTO shared_restore_approvals(id,backup_id,control_tenant_id,target_database,reason,expires_at)
-   VALUES($1,$2,$3,$4,$5,clock_timestamp()+interval '1 hour') RETURNING expires_at`,[approvalId,request.backup_id,controlTenantId,target,request.reason])
+  const result=await client.query(`INSERT INTO shared_restore_approvals(id,backup_id,control_tenant_id,target_database,reason,expires_at,approved_by)
+   VALUES($1,$2,$3,$4,$5,clock_timestamp()+interval '1 hour',$6) RETURNING expires_at`,[approvalId,request.backup_id,controlTenantId,target,request.reason,actorLabel(actor)])
   await client.query('INSERT INTO shared_odoo_restore_targets(approval_id,backup_id,control_tenant_id,target_database,source_binding,runtime_scope) VALUES($1,$2,$3,$4,$5,$6)',[approvalId,request.backup_id,controlTenantId,target,binding,runtime.projectName])
   await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)',[randomUUID(),actorLabel(actor),'shared_odoo_restore.approved',approvalId,request.reason])
   return {approval_id:approvalId,expires_at:new Date(result.rows[0].expires_at).toISOString()}

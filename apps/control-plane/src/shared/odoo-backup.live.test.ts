@@ -48,6 +48,15 @@ describe.skipIf(!url)('real Odoo backup/restore authority (live PostgreSQL)',()=
   await expect(pool.query('DELETE FROM shared_odoo_restore_targets WHERE approval_id=$1',[approval.approval_id])).rejects.toThrow('permanent')
   await expect(pool.query("UPDATE shared_odoo_restore_targets SET target_database=$2 WHERE approval_id=$1",[approval.approval_id,'liwan_scratch_'+randomUUID().replaceAll('-','')])).rejects.toThrow('append only')
  })
+ it('records who approved on the approval row, keeps it immutable, and reads an older row without one',async()=>{
+  const approval=await approveOdooRestore(pool,runtime,actor,tenant,{backup_id:backupId,reason:'Record the approver'})
+  const row=(await pool.query('SELECT approved_by FROM shared_restore_approvals WHERE id=$1',[approval.approval_id])).rows[0]
+  expect(row.approved_by).toBe('account:7')
+  await expect(pool.query("UPDATE shared_restore_approvals SET approved_by='account:8' WHERE id=$1",[approval.approval_id])).rejects.toThrow('identity is immutable')
+  const older=randomUUID(),target='liwan_scratch_'+randomUUID().replaceAll('-','')
+  await pool.query("INSERT INTO shared_restore_approvals(id,backup_id,control_tenant_id,target_database,reason,expires_at) VALUES($1,$2,$3,$4,'Before the approver column',clock_timestamp()+interval '1 hour')",[older,backupId,tenant,target])
+  expect((await pool.query('SELECT approved_by FROM shared_restore_approvals WHERE id=$1',[older])).rows[0].approved_by).toBeNull()
+ })
  it('rejects registry publication into a permanently reserved restore target',async()=>{
   const approval=await approveOdooRestore(pool,runtime,actor,tenant,{backup_id:backupId,reason:'Reserve new target'})
   const target=(await pool.query('SELECT target_database FROM shared_odoo_restore_targets WHERE approval_id=$1',[approval.approval_id])).rows[0].target_database

@@ -30,9 +30,9 @@ describe.skipIf(!url)('shared backup listing (live PostgreSQL)', () => {
     await pool.query("INSERT INTO shared_odoo_backups(backup_id,job_id,format,manifest_sha256,source_registry_revision) VALUES($1,$2,'odoo-pg-filestore-v1',$3,1)", [id, jobId, sha('f')])
     return { id, jobId }
   }
-  async function approval(f: Fixture, backupId: string, options: { interval?: string; consumed?: boolean } = {}) {
+  async function approval(f: Fixture, backupId: string, options: { interval?: string; consumed?: boolean; approvedBy?: string | null } = {}) {
     const id = randomUUID(), target = 'liwan_scratch_' + randomUUID().replaceAll('-', '')
-    await pool.query("INSERT INTO shared_restore_approvals(id,backup_id,control_tenant_id,target_database,reason,expires_at,consumed_at) VALUES($1,$2,$3,$4,'Fixture approval',clock_timestamp()+$5::interval,CASE WHEN $6 THEN clock_timestamp() ELSE NULL END)", [id, backupId, f.tenant, target, options.interval ?? '1 hour', options.consumed ?? false])
+    await pool.query("INSERT INTO shared_restore_approvals(id,backup_id,control_tenant_id,target_database,reason,expires_at,consumed_at,approved_by) VALUES($1,$2,$3,$4,'Fixture approval',clock_timestamp()+$5::interval,CASE WHEN $6 THEN clock_timestamp() ELSE NULL END,$7)", [id, backupId, f.tenant, target, options.interval ?? '1 hour', options.consumed ?? false, options.approvedBy === undefined ? 'account:7' : options.approvedBy])
     await pool.query("INSERT INTO shared_odoo_restore_targets(approval_id,backup_id,control_tenant_id,target_database,source_binding,runtime_scope) VALUES($1,$2,$3,$4,$5,'scope')", [id, backupId, f.tenant, target, f.binding])
     return id
   }
@@ -76,8 +76,13 @@ describe.skipIf(!url)('shared backup listing (live PostgreSQL)', () => {
     await approval(f, expired.id, { interval: '-1 second' }); await approval(f, consumed.id, { consumed: true })
     await job(f, 'restore', 'queued', { approvalId: await approval(f, queued.id) })
     const byBackup = new Map((await listSharedBackups(pool, f.tenant))!.items.map(i => [i.backup_id, i]))
-    expect(byBackup.get(usable.id)!.approval).toEqual({ approval_id: approvalId, expires_at: expect.any(String) })
+    expect(byBackup.get(usable.id)!.approval).toEqual({ approval_id: approvalId, expires_at: expect.any(String), approved_by: 'Layla Operator' })
     for (const other of [expired, consumed, queued]) expect(byBackup.get(other.id)!.approval).toBeNull()
+  })
+  it('shows no approver for an approval made before the approver was recorded', async () => {
+    const f = await workspace(), b = await backup(f)
+    await approval(f, b.id, { approvedBy: null })
+    expect((await listSharedBackups(pool, f.tenant))!.items[0]!.approval).toEqual({ approval_id: expect.any(String), expires_at: expect.any(String), approved_by: null })
   })
   it('lists the restore jobs made from a backup, newest first', async () => {
     const f = await workspace(), b = await backup(f)
