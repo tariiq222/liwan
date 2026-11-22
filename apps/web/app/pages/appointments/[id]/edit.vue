@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import SharedDateField from '@liwan/ui/app/components/shared/form/DateField.vue'
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
+import { bookingParts, bookingTimestamp } from '@/utils/appointmentTime'
 import { useAppointmentBooking, useAppointmentBookingMutation } from '@/composables/appointments/useAppointments'
 
 // Rescheduling one booking: the start is the only field, because that is what the schedule route changes. The record
@@ -22,27 +23,25 @@ const day = ref('')
 const time = ref('')
 watch(() => booking.data.value, (record) => {
   if (!record?.start) return
-  const date = new Date(record.start)
-  day.value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-  time.value = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+  const parts = bookingParts(record.start)
+  day.value = parts.day
+  time.value = parts.time
 }, { immediate: true })
 
-const start = computed(() => day.value && time.value ? `${day.value}T${time.value}` : '')
+const start = computed(() => bookingTimestamp(day.value, time.value) ?? '')
 const failure = ref<string | null>(null)
 const saving = computed(() => mutation.isPending.value)
 const dirty = computed(() => {
   const record = booking.data.value
   if (!record?.start) return Boolean(day.value && time.value)
-  const current = new Date(record.start)
-  return start.value !== `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}T${String(current.getHours()).padStart(2, '0')}:${String(current.getMinutes()).padStart(2, '0')}`
+  return start.value !== bookingTimestamp(bookingParts(record.start).day, bookingParts(record.start).time)
 })
 
 async function save() {
   if (!hydrated.value || saving.value || !id.value || !start.value) return
   failure.value = null
   try {
-    const iso = new Date(start.value).toISOString()
-    await mutation.mutateAsync({ action: 'schedule', id: id.value, body: { start: iso } })
+    await mutation.mutateAsync({ action: 'schedule', id: id.value, body: { start: start.value } })
     await navigateTo(backTo.value)
   } catch (cause) {
     failure.value = cause instanceof Error ? cause.message : t('errors.generic')

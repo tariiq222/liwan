@@ -14,13 +14,19 @@ const backTo = computed(() => router.resolve(owningListBack(route.query, sourceP
 const backgroundScope = computed(() => backTo.value.startsWith('/operations/pending') ? 'pending' : backTo.value.startsWith('/operations/monitoring') ? 'monitoring' : 'mine')
 const processes = useOperationProcesses(() => ({ published: 1, requestable: 1, purpose: props.personal ? 'employee' : 'work', limit: 200 }), computed(() => can('operations.requests.create')))
 const mutation = useOperationRequestMutation()
+// The draft this form already created. A second press of «إنشاء وإرسال» after a refused submit reused to create another
+// request; the draft id lets the retry send the same one instead.
+let draft: { id: number, revision: number } | null = null
 async function save(body: RequestFormPayload, options?: { submitAfter?: boolean }) {
-  const created = await mutation.mutateAsync({ action: 'create', body: { name: body.name, description: body.description, process_id: body.process_id!, ...(body.target_id ? { target_id: body.target_id } : {}) } })
+  const record = draft
+    ? await mutation.mutateAsync({ action: 'edit', id: draft.id, body: { name: body.name, description: body.description, revision: draft.revision } })
+    : await mutation.mutateAsync({ action: 'create', body: { name: body.name, description: body.description, process_id: body.process_id!, ...(body.target_id ? { target_id: body.target_id } : {}) } })
+  draft = { id: record.id, revision: record.revision }
   // «إنشاء وإرسال» sends the draft it just made, so the request reaches its approver without a second visit.
-  if (options?.submitAfter && created.allowed_actions.submit) {
-    return mutation.mutateAsync({ action: 'submit', id: created.id, body: { revision: created.revision } })
+  if (options?.submitAfter && record.allowed_actions.submit) {
+    return mutation.mutateAsync({ action: 'submit', id: record.id, body: { revision: record.revision } })
   }
-  return created
+  return record
 }
 </script>
 <template>

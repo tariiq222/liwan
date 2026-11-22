@@ -272,6 +272,18 @@ async function onHeaderPicked(event: Event) {
 function insertAtCaret(body: string) {
   const element = textarea.value?.textareaRef
   const current = draft.value
+  // The suggestion list shows only while the whole draft is a shortcut («/شكر»), and picking one must consume it: inserting
+  // at the caret left `/شكر` in the message, which then went to the customer with the reply.
+  if (/^\/\S*$/.test(current.trim())) {
+    draft.value = body
+    void nextTick(() => {
+      const target = element
+      if (!target) return
+      target.focus()
+      target.setSelectionRange(body.length, body.length)
+    })
+    return
+  }
   if (!element) {
     draft.value = current ? `${current}${current.endsWith(' ') ? '' : ' '}${body}` : body
     return

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import SharedDateField from '@liwan/ui/app/components/shared/form/DateField.vue'
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
+import { bookingTimestamp } from '@/utils/appointmentTime'
 import { useAppointmentBookingMutation, useAppointmentTypes } from '@/composables/appointments/useAppointments'
 
 // A staff booking: the type, the requester and the time. `walk_in` marks a person who arrived without an appointment,
@@ -25,7 +26,8 @@ const failure = ref<string | null>(null)
 const saving = computed(() => mutation.isPending.value)
 
 const typeItems = computed(() => (types.data.value?.items ?? []).map(type => ({ value: String(type.id), label: type.name })))
-const start = computed(() => day.value && time.value ? new Date(`${day.value}T${time.value}`).toISOString() : null)
+// The wire form the server validates: whole seconds, no `.000` (utils/appointmentTime).
+const start = computed(() => bookingTimestamp(day.value, time.value))
 const typeError = computed(() => attempted.value && !typeId.value ? t('appointments.form.typeRequired') : undefined)
 const nameError = computed(() => attempted.value && !requesterName.value.trim() ? t('appointments.form.nameRequired') : undefined)
 const timeError = computed(() => attempted.value && !start.value ? t('appointments.form.timeRequired') : undefined)
@@ -45,6 +47,8 @@ async function save() {
         notes: notes.value.trim() || null,
       },
     })
+    // Only a create answers a booking; the union includes the invitation's `{path}`.
+    if (!('id' in created)) return
     await navigateTo({ path: `/appointments/${created.id}`, query: { returnTo: backTo.value } })
   } catch (cause) {
     failure.value = cause instanceof Error ? cause.message : t('errors.generic')

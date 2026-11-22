@@ -1,7 +1,7 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
-  AppointmentBookingListSchema, AppointmentBookingSchema, AppointmentTypeListSchema, AppointmentResourceListSchema,
+  AppointmentBookingListSchema, AppointmentBookingSchema, AppointmentInvitationSchema, AppointmentTypeListSchema, AppointmentResourceListSchema,
   type AppointmentBookingCreate, type AppointmentBookingListQuery,
 } from '@liwan/contracts'
 
@@ -72,7 +72,7 @@ export type AppointmentBookingAction =
   | { action: 'confirm'; id: number }
   | { action: 'cancel'; id: number; body: { cancel_reason_id?: number | null; notes?: string | null } }
   | { action: 'update'; id: number; body: Record<string, unknown> }
-  | { action: 'attendance'; id: number; body: { attended: boolean } }
+  | { action: 'attendance'; id: number; body: { outcome: 'arrived' | 'in_service' | 'done' | 'no_show' } }
   | { action: 'invitation'; id: number }
 
 export function useAppointmentBookingMutation() {
@@ -95,7 +95,8 @@ export function useAppointmentBookingMutation() {
         case 'attendance':
           return $api(`/api/v1/appointments/bookings/${command.id}/attendance`, { method: 'POST', body: command.body, schema: AppointmentBookingSchema })
         case 'invitation':
-          return $api(`/api/v1/appointments/bookings/${command.id}/invitation`, { method: 'POST', body: {}, schema: AppointmentBookingSchema })
+          // The invitation route answers `{path}`, not the booking: reading it as a booking failed `.strict()` every time.
+          return $api(`/api/v1/appointments/bookings/${command.id}/invitation`, { method: 'POST', body: {}, schema: AppointmentInvitationSchema })
       }
     },
     onSuccess: async () => {
