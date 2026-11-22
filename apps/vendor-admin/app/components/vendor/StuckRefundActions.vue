@@ -8,13 +8,14 @@ import { formatBusinessDateTime } from '@/utils/vendorTime'
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 // One pending credit note whose automatic refund is stuck (`note.automatic_refund.stuck` is set): what it waits for and the three actions the server allows.
 // None of them refunds money; the control plane's refund worker is the only path that does. The page shows this only to an account that manages billing.
-const props = defineProps<{ note: VendorAdjustment }>()
-const emit = defineEmits<{ changed: [] }>()
+// The page owns which form is open (one draft at a time on the invoice page): `form` is the open one, `open`/`close` ask the page, `draft` says whether it holds typed text.
+const props = defineProps<{ note: VendorAdjustment; form: 'release' | 'record' | null }>()
+const emit = defineEmits<{ changed: []; open: [action: 'release' | 'record']; close: []; draft: [typed: boolean] }>()
 const { t, locale } = useI18n(); const hydrated = useHydrated(); const api = useVendorSubscriptions()
 const stuck = computed(() => props.note.automatic_refund?.stuck ?? null)
 const conflict = computed(() => stuck.value?.conflict ?? null)
 const allows = (action: 'check' | 'release' | 'record') => Boolean(stuck.value?.actions.includes(action))
-const action = ref<'release' | 'record' | null>(null)
+const action = computed(() => props.form)
 const reason = ref('')
 const resolution = ref<ReturnedRefundResolution>('record')
 const busy = ref(false)
@@ -24,10 +25,13 @@ const resolutions = computed(() => recordResolutions(props.note, conflict.value)
 const resolutionItems = computed(() => resolutions.value.map(value => ({ label: t(`vendor.invoices.refund.stuck.record.resolutions.${value}`), value })))
 const valid = computed(() => validRefundReason(reason.value))
 const dirty = computed(() => Boolean(action.value && reason.value.trim()))
+watch(dirty, typed => emit('draft', typed))
+// Another form on the page took over, or this one closed: the typed text and the last refusal go with it.
+watch(action, () => { reason.value = ''; resolution.value = 'record'; failure.value = undefined })
 const money = (m: NonNullable<RefundRecheck['refunded']>) => formatCommercialMoney(m, locale.value)
 const time = (value: string) => formatBusinessDateTime(value)
-function open(next: 'release' | 'record') { action.value = next; reason.value = ''; resolution.value = 'record'; failure.value = undefined }
-function close() { action.value = null; reason.value = ''; resolution.value = 'record'; failure.value = undefined }
+const open = (next: 'release' | 'record') => emit('open', next)
+const close = () => emit('close')
 /** Runs one call, then tells the page to reload: the server's state decides what is offered next, after a refusal too. */
 async function run(call: () => Promise<{ provider: RefundRecheck | null }>, onDone: (provider: RefundRecheck | null) => void) {
   if (!hydrated.value || busy.value) return
@@ -45,7 +49,6 @@ function submit() {
 </script>
 <template>
   <div v-if="stuck" class="space-y-3 rounded-md border border-default p-3" data-testid="stuck-refund">
-    <SharedUnsavedChanges :dirty="dirty" />
     <p class="text-sm font-medium">{{ t('vendor.invoices.refund.stuck.title') }}</p>
     <p class="text-sm text-muted">{{ t('vendor.invoices.refund.stuck.hint') }}</p>
     <dl class="grid gap-2 text-sm sm:grid-cols-5" data-testid="stuck-refund-facts">

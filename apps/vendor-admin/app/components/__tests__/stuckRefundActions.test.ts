@@ -60,6 +60,17 @@ describe('StuckRefundActions', () => {
     expect((await painted(sfc, { note: note(null, { automatic_refund: null }) })).has('stuck-refund')).toBe(false)
   })
 
+  it('asks the page to open a form instead of opening it, and tells the page when it holds typed text', async () => {
+    const emit = vi.fn()
+    const view = mounted().sfc.mount({ note: note(attempted), form: null }, emit)
+    view.state.open('release'); view.state.open('record'); view.state.close()
+    expect(emit.mock.calls).toEqual([['open', 'release'], ['open', 'record'], ['close']])
+    expect((await view.render()).captured.some(item => item.name === 'SharedInlineConfirm')).toBe(false)
+    const draft = mounted().sfc.mount({ note: note(attempted), form: 'release' }, emit)
+    draft.state.reason.value = 'A reason'; await Promise.resolve()
+    expect(emit).toHaveBeenCalledWith('draft', true)
+  })
+
   it('offers only the actions the server allows', async () => {
     expect(buttons(await painted(mounted().sfc, { note: note({ ...attempted, actions: ['check'] }) }))).toEqual(['check'])
   })
@@ -78,8 +89,7 @@ describe('StuckRefundActions', () => {
   it('releases the hold only with a valid reason, then closes the form and reloads', async () => {
     const { sfc, api } = mounted()
     const emit = vi.fn()
-    const view = sfc.mount({ note: note(attempted) }, emit)
-    view.state.open('release')
+    const view = sfc.mount({ note: note(attempted), form: 'release' }, emit)
     expect((await view.render()).captured.find(item => item.name === 'SharedInlineConfirm')?.attrs.disabled).toBe(true)
     await view.state.submit(); expect(api.releaseRefundHold).not.toHaveBeenCalled()
     view.state.reason.value = '  The provider shows nothing refunded  '
@@ -88,20 +98,19 @@ describe('StuckRefundActions', () => {
     await view.state.submit()
     expect(api.releaseRefundHold).toHaveBeenCalledTimes(1)
     expect(api.releaseRefundHold).toHaveBeenCalledWith('note1', { reason: '  The provider shows nothing refunded  ' })
-    expect(view.state.action.value).toBeNull(); expect(view.state.dirty.value).toBe(false)
-    expect(emit).toHaveBeenCalledWith('changed')
+    expect(emit).toHaveBeenCalledWith('close'); expect(emit).toHaveBeenCalledWith('changed')
   })
 
   it('records the returned refund with the chosen resolution, offering already_recorded only when it can apply', async () => {
     const { sfc, api } = mounted()
-    const other = sfc.mount({ note: note(returned()) })
+    const other = sfc.mount({ note: note(returned()), form: 'record' })
     expect(other.state.resolutions.value).toEqual(['record'])
-    const same = sfc.mount({ note: note(returned({ conflict: conflict({ same_invoice: true }) })) })
+    const same = sfc.mount({ note: note(returned({ conflict: conflict({ same_invoice: true }) })), form: 'record' })
     expect(same.state.resolutions.value).toEqual(['record', 'already_recorded'])
-    same.state.open('record'); same.state.reason.value = 'Another note credits this money'; same.state.resolution.value = 'already_recorded'
+    same.state.reason.value = 'Another note credits this money'; same.state.resolution.value = 'already_recorded'
     await same.state.submit()
     expect(api.recordReturnedRefund).toHaveBeenCalledWith('note1', { reason: 'Another note credits this money', resolution: 'already_recorded' })
-    other.state.open('record'); other.state.reason.value = 'The money is back'
+    other.state.reason.value = 'The money is back'
     await other.state.submit()
     expect(api.recordReturnedRefund).toHaveBeenLastCalledWith('note1', { reason: 'The money is back', resolution: 'record' })
   })
@@ -109,12 +118,12 @@ describe('StuckRefundActions', () => {
   it('shows the server\'s refusal in words, keeps the form and the typed reason, and still reloads', async () => {
     const { sfc, api } = mounted({ releaseRefundHold: vi.fn(async () => { throw { statusCode: 409, data: { code: 'provider_refund_partial' } } }) })
     const emit = vi.fn()
-    const view = sfc.mount({ note: note(attempted) }, emit)
-    view.state.open('release'); view.state.reason.value = 'Try the release'
+    const view = sfc.mount({ note: note(attempted), form: 'release' }, emit)
+    view.state.reason.value = 'Try the release'
     await view.state.submit()
     expect(api.releaseRefundHold).toHaveBeenCalledTimes(1)
     expect(view.state.failure.value).toBe('vendor.invoices.refund.errors.provider_refund_partial')
-    expect(view.state.action.value).toBe('release'); expect(view.state.reason.value).toBe('Try the release')
+    expect(emit).not.toHaveBeenCalledWith('close'); expect(view.state.reason.value).toBe('Try the release')
     expect(emit).toHaveBeenCalledWith('changed')
     expect((await view.render()).html).toContain('vendor.invoices.refund.errors.provider_refund_partial')
   })
@@ -122,8 +131,8 @@ describe('StuckRefundActions', () => {
   it('sends one call at a time', async () => {
     let finish!: () => void
     const { sfc, api } = mounted({ releaseRefundHold: vi.fn(() => new Promise(resolve => { finish = () => resolve({ invoice: {}, provider: null }) })) })
-    const view = sfc.mount({ note: note(attempted) })
-    view.state.open('release'); view.state.reason.value = 'A reason'
+    const view = sfc.mount({ note: note(attempted), form: 'release' })
+    view.state.reason.value = 'A reason'
     const first = view.state.submit(); await view.state.submit()
     expect(api.releaseRefundHold).toHaveBeenCalledTimes(1)
     finish(); await first

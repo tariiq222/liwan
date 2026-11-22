@@ -2080,6 +2080,11 @@
           "ai_topup_refund_mixed_order": "This invoice charged more than the AI top-up, so the top-up cannot be refunded on its own."
         }
       },
+      "switchForm": {
+        "title": "Discard what you typed?",
+        "hint": "Another form on this invoice is open with text you have not sent. Opening this one closes it and the text is lost.",
+        "confirm": "Discard and continue"
+      },
       "immutable": "An issued invoice is never edited; corrections are separate documents.",
       "techId": "Invoice id",
       "techOrder": "Order id",

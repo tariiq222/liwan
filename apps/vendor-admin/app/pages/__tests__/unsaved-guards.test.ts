@@ -1,3 +1,4 @@
+import { nextTick } from 'vue'
 import { afterEach, expect, it, vi } from 'vitest'
 import * as subscriptions from '../../utils/vendorSubscriptions'
 import * as ownerOnly from '../../utils/ownerOnly'
@@ -20,8 +21,12 @@ afterEach(() => mounted.splice(0).forEach(page => page.stop()))
 const guardOf = async (page: Awaited<ReturnType<typeof mountPage>>) => (await page.rendered()).captured.find(node => node.name === 'SharedUnsavedChanges')
 
 const money = { minor: 12345, exponent: 2, currency: 'SAR' }
+function recordableNote(over: Record<string, unknown> = {}) {
+  return { id: 'note1', invoice_id: 'invoice1', customer_id: 'customer1', kind: 'credit_note', reason: 'Customer asked for the money back', amount: money, status: 'pending', origin: 'vendor', created_at: '2026-11-22T05:00:00Z',
+    created_by: 'v:1', refund_reference: null, refunded_at: null, refunded_by: null, manual_record_allowed: true, automatic_refund: null, ...over }
+}
 const invoice = { id: 'invoice1', order_id: 'order1', customer_id: 'customer1', status: 'paid', kind: 'initial', total: money, subtotal: money, tax: { ...money, minor: 0 }, tax_label: null, due_at: null,
-  period_start: '2026-10-01', period_end: '2026-11-01', lines: [], adjustments: [], refund: { refundable: true, first_payment: true, until: '2026-12-20T23:59:59+03:00', window_days: 14, locks_subscription: false } }
+  period_start: '2026-10-01', period_end: '2026-11-01', lines: [], adjustments: [] as Record<string, unknown>[], refund: { refundable: true, first_payment: true, until: '2026-12-20T23:59:59+03:00', window_days: 14, locks_subscription: false } }
 
 async function invoicePage() {
   const api = {
@@ -49,6 +54,7 @@ it('guards each form of the invoice page while it holds typed input, and release
   expect(api.requestRefund).toHaveBeenCalled()
   expect((await guardOf(page))?.props.dirty).toBe(false)
 
+  api.invoice.mockResolvedValueOnce({ ...invoice, adjustments: [recordableNote()] }); await state.refresh()
   state.openRefund('note1'); state.refundReason.value = 'Sent from the bank'
   expect((await guardOf(page))?.props.dirty).toBe(true)
   state.closeRefund(); expect((await guardOf(page))?.props.dirty).toBe(false)
@@ -65,6 +71,62 @@ it('guards each form of the invoice page while it holds typed input, and release
   state.openVoid(); state.voidReason.value = 'Customer will not pay'
   expect((await guardOf(page))?.props.dirty).toBe(true)
   state.closeVoid(); expect((await guardOf(page))?.props.dirty).toBe(false)
+})
+
+it('closes and clears the request and record forms when a refresh stops offering them, so the guard no longer asks about text nobody can see', async () => {
+  const { page, api } = await invoicePage()
+  const { state } = page
+  state.openRequest(); state.requestReason.value = 'Customer asked on day 3'
+  expect((await guardOf(page))?.props.dirty).toBe(true)
+  api.invoice.mockResolvedValueOnce({ ...invoice, status: 'issued' })
+  await state.refresh(); await nextTick()
+  expect(state.requestOpen.value).toBe(false); expect(state.requestReason.value).toBe('')
+  expect((await guardOf(page))?.props.dirty).toBe(false)
+
+  api.invoice.mockResolvedValueOnce({ ...invoice, adjustments: [recordableNote()] }); await state.refresh()
+  state.openRefund('note1'); state.refundReason.value = 'Sent from the bank'; state.refundReference.value = 'REF-9'
+  expect((await guardOf(page))?.props.dirty).toBe(true)
+  api.invoice.mockResolvedValueOnce({ ...invoice, adjustments: [recordableNote({ manual_record_allowed: false })] })
+  await state.refresh(); await nextTick()
+  expect(state.refundNoteId.value).toBeNull(); expect(state.refundReason.value).toBe(''); expect(state.refundReference.value).toBe('')
+  expect((await guardOf(page))?.props.dirty).toBe(false)
+})
+
+it('keeps one draft at a time: opening a form closes the open one, and asks first when it holds typed input', async () => {
+  const { page, api } = await invoicePage()
+  const { state } = page
+  api.invoice.mockResolvedValueOnce({ ...invoice, adjustments: [recordableNote()] }); await state.refresh()
+  state.openTransfer()
+  state.openRefund('note1')
+  expect(state.transferOpen.value).toBe(false); expect(state.refundNoteId.value).toBe('note1'); expect(state.pendingOpen.value).toBeNull()
+
+  state.refundReason.value = 'Sent from the bank'
+  state.openTransfer()
+  expect(state.transferOpen.value).toBe(false); expect(state.refundNoteId.value).toBe('note1'); expect(state.refundReason.value).toBe('Sent from the bank')
+  expect(state.pendingOpen.value).not.toBeNull()
+  expect((await page.rendered()).captured.some(node => node.name === 'SharedInlineConfirm' && node.props['data-testid'] === 'switch-form-confirm')).toBe(true)
+
+  state.cancelSwitch()
+  expect(state.pendingOpen.value).toBeNull(); expect(state.refundNoteId.value).toBe('note1'); expect(state.transferOpen.value).toBe(false)
+
+  state.openTransfer(); state.confirmSwitch()
+  expect(state.refundNoteId.value).toBeNull(); expect(state.refundReason.value).toBe(''); expect(state.transferOpen.value).toBe(true); expect(state.pendingOpen.value).toBeNull()
+  expect((await guardOf(page))?.props.dirty).toBe(false)
+})
+
+it('counts the draft of a stuck-refund form as the open draft, and a stuck-refund form closes the others', async () => {
+  const { page } = await invoicePage()
+  const { state } = page
+  state.openRequest(); state.requestReason.value = 'Customer asked on day 3'
+  state.openStuckForm('note1', 'release')
+  expect(state.stuckForm.value).toBeNull(); expect(state.pendingOpen.value).not.toBeNull()
+  state.confirmSwitch()
+  expect(state.requestOpen.value).toBe(false); expect(state.stuckForm.value).toEqual({ note: 'note1', action: 'release' })
+  state.stuckDraft(true)
+  state.openRequest()
+  expect(state.requestOpen.value).toBe(false); expect(state.pendingOpen.value).not.toBeNull()
+  state.confirmSwitch()
+  expect(state.stuckForm.value).toBeNull(); expect(state.requestOpen.value).toBe(true)
 })
 
 async function operationPage(data: unknown, navigateTo = vi.fn()) {

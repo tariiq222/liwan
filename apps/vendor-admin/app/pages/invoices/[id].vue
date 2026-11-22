@@ -79,7 +79,7 @@ const requestNeedsUnits = computed(() => (data.value ? invoiceHasAiTopup(data.va
 const requestUnits = computed(() => parseUnitsUsed(requestUnitsUsed.value))
 const requestUnitsError = computed(() => (requestNeedsUnits.value && requestUnitsUsed.value.trim() && requestUnits.value === null ? t('vendor.invoices.refund.request.unitsUsedInvalid') : undefined))
 const requestValid = computed(() => validRefundReason(requestReason.value) && (!requestNeedsUnits.value || requestUnits.value !== null))
-function openRequest() { requestOpen.value = true; requestReason.value = ''; requestUnitsUsed.value = ''; requestFailure.value = undefined }
+function openRequest() { begin(() => { requestOpen.value = true; requestReason.value = ''; requestUnitsUsed.value = ''; requestFailure.value = undefined }) }
 function closeRequest() { requestOpen.value = false; requestReason.value = ''; requestUnitsUsed.value = ''; requestFailure.value = undefined }
 async function requestRefund() {
   if (!hydrated.value || requestBusy.value || !canRequestRefund.value || !requestValid.value || !data.value) return
@@ -123,11 +123,13 @@ const transferAmountError = computed(() => {
 })
 const transferValid = computed(() => transferReference.value.trim().length >= 3 && 'minor' in transferParsed.value && /^\d{4}-\d{2}-\d{2}$/.test(transferDate.value))
 function openTransfer() {
-  transferOpen.value = true; transferFailure.value = undefined
-  // The invoice total and today in Riyadh are pre-filled; the reference stays empty because the vendor types it from the bank statement, never from the customer's claim.
-  const start = data.value ? transferFormDefaults(data.value.total) : { amount: '', valueDate: '', reference: '' }
-  transferAmount.value = start.amount; transferDate.value = start.valueDate; transferReference.value = start.reference
-  transferStart.value = { amount: start.amount, valueDate: start.valueDate }
+  begin(() => {
+    transferOpen.value = true; transferFailure.value = undefined
+    // The invoice total and today in Riyadh are pre-filled; the reference stays empty because the vendor types it from the bank statement, never from the customer's claim.
+    const start = data.value ? transferFormDefaults(data.value.total) : { amount: '', valueDate: '', reference: '' }
+    transferAmount.value = start.amount; transferDate.value = start.valueDate; transferReference.value = start.reference
+    transferStart.value = { amount: start.amount, valueDate: start.valueDate }
+  })
 }
 function closeTransfer() { transferOpen.value = false; transferFailure.value = undefined }
 async function recordTransfer() {
@@ -150,7 +152,7 @@ const voidFailure = ref<string | undefined>()
 const voidOutcomes = computed(() => [{ label: t('vendor.invoices.void.outcomeEnd'), value: 'end' }, { label: t('vendor.invoices.void.outcomeRebill'), value: 'rebill' }])
 const voidOutcomeHint = computed(() => (voidOutcome.value === 'end' || voidOutcome.value === 'rebill' ? t(`vendor.invoices.void.outcome${voidOutcome.value === 'end' ? 'End' : 'Rebill'}Hint`) : undefined))
 const voidValid = computed(() => validVoidDraft({ outcome: voidOutcome.value, reason: voidReason.value }))
-function openVoid() { voidOpen.value = true; voidOutcome.value = ''; voidReason.value = ''; voidFailure.value = undefined }
+function openVoid() { begin(() => { voidOpen.value = true; voidOutcome.value = ''; voidReason.value = ''; voidFailure.value = undefined }) }
 function closeVoid() { voidOpen.value = false; voidOutcome.value = ''; voidReason.value = ''; voidFailure.value = undefined }
 // The server decides whether the void is offered: once it is not, the form and its failure go, so neither comes back if the block clears.
 watch(() => voidState.value.kind, kind => { if (kind !== 'available') closeVoid() })
@@ -167,7 +169,7 @@ async function voidInvoice() {
     try { await Promise.all([refresh(), refreshAttempts()]) } finally { voidBusy.value = false }
   }
 }
-function openRefund(noteId: string) { refundNoteId.value = noteId; refundReference.value = ''; refundReason.value = ''; refundFailure.value = undefined }
+function openRefund(noteId: string) { begin(() => { refundNoteId.value = noteId; refundReference.value = ''; refundReason.value = ''; refundFailure.value = undefined }) }
 function closeRefund() { refundNoteId.value = null; refundReference.value = ''; refundReason.value = ''; refundFailure.value = undefined }
 async function recordRefund() {
   if (!hydrated.value || refundBusy.value || !canRecordRefund.value || !refundNoteId.value || !refundValid.value) return
@@ -182,8 +184,31 @@ async function recordRefund() {
     try { await refresh() } finally { refundBusy.value = false }
   }
 }
-const dirty = computed(() => Boolean(requestOpen.value && (requestReason.value.trim() || requestUnitsUsed.value.trim()))
-  || Boolean(refundNoteId.value && (refundReason.value.trim() || refundReference.value.trim()))
+// A form counts (and keeps a draft) only while the page shows it: the request form needs the refund request to be offered, the record form a note the
+// server still lets the operator record. When a refresh stops offering one, it closes and its text goes, as the void form's watcher does below.
+const requestFormShown = computed(() => requestOpen.value && canRequestRefund.value)
+const refundFormShown = computed(() => refundNoteId.value !== null && canRecordRefund.value && Boolean(data.value?.adjustments.some(note => note.id === refundNoteId.value && note.manual_record_allowed)))
+watch(requestFormShown, shown => { if (!shown) closeRequest() })
+watch(refundFormShown, shown => { if (!shown) closeRefund() })
+// One draft at a time: opening a form closes the others, after asking when the open one holds typed input.
+const stuckForm = ref<{ note: string; action: 'release' | 'record' } | null>(null)
+const stuckDirty = ref(false)
+const pendingOpen = ref<(() => void) | null>(null)
+const stuckFormShown = computed(() => stuckForm.value !== null && Boolean(data.value?.adjustments.some(note => note.id === stuckForm.value?.note && showsStuckRefund(note, canBilling.value))))
+watch(stuckFormShown, shown => { if (!shown) closeStuck() })
+function closeStuck() { stuckForm.value = null; stuckDirty.value = false }
+function closeForms() { closeRequest(); closeRefund(); closeTransfer(); closeVoid(); closeStuck() }
+function begin(open: () => void) {
+  if (dirty.value) { pendingOpen.value = open; return }
+  closeForms(); open()
+}
+function confirmSwitch() { const open = pendingOpen.value; pendingOpen.value = null; closeForms(); open?.() }
+function cancelSwitch() { pendingOpen.value = null }
+function openStuckForm(note: string, action: 'release' | 'record') { begin(() => { stuckForm.value = { note, action } }) }
+function stuckDraft(typed: boolean) { stuckDirty.value = typed }
+const dirty = computed(() => Boolean(requestFormShown.value && (requestReason.value.trim() || requestUnitsUsed.value.trim()))
+  || Boolean(refundFormShown.value && (refundReason.value.trim() || refundReference.value.trim()))
+  || stuckDirty.value
   || Boolean(transferOpen.value && (transferReference.value.trim() || transferAmount.value !== transferStart.value.amount || transferDate.value !== transferStart.value.valueDate))
   || Boolean(voidOpen.value && (voidReason.value.trim() || voidOutcome.value)))
 const badge = computed(() => (data.value ? invoiceStatusBadge(data.value.status, 'vendor.invoices.status') : null))
@@ -291,6 +316,8 @@ const badge = computed(() => (data.value ? invoiceStatusBadge(data.value.status,
         </ul>
       </SharedPageState>
     </SharedRecordSection>
+    <SharedInlineConfirm v-if="pendingOpen" :title="t('vendor.invoices.switchForm.title')" :description="t('vendor.invoices.switchForm.hint')" :confirm-label="t('vendor.invoices.switchForm.confirm')"
+      color="warning" @confirm="confirmSwitch" @cancel="cancelSwitch" data-testid="switch-form-confirm" />
     <SharedRecordSection :title="t('vendor.invoices.adjustments')">
       <p v-if="!data.adjustments.length" class="text-sm text-muted">{{ t('vendor.invoices.adjustmentsNone') }}</p>
       <ul v-else class="divide-y divide-default">
@@ -318,7 +345,8 @@ const badge = computed(() => (data.value ? invoiceStatusBadge(data.value.status,
           <UAlert v-else-if="note.automatic_refund?.state === 'failed'" color="warning" variant="subtle" icon="i-lucide-triangle-alert" data-testid="automatic-refund-failed"
             :title="t('vendor.invoices.refund.automatic.failed', { reason: note.automatic_refund.reason ?? '' })" :description="t('vendor.invoices.refund.automatic.failedHint')" />
           <p v-else-if="note.automatic_refund?.state === 'done'" class="text-sm text-muted" data-testid="automatic-refund-done">{{ t('vendor.invoices.refund.automatic.done') }}</p>
-          <VendorStuckRefundActions v-if="showsStuckRefund(note, canBilling)" :note="note" @changed="reloadInvoice" />
+          <VendorStuckRefundActions v-if="showsStuckRefund(note, canBilling)" :note="note" :form="stuckForm?.note === note.id ? stuckForm.action : null"
+            @open="action => openStuckForm(note.id, action)" @close="closeStuck" @draft="stuckDraft" @changed="reloadInvoice" />
           <template v-if="canBilling && note.manual_record_allowed">
             <SharedInlineConfirm v-if="refundNoteId === note.id && canRecordRefund" :title="t('vendor.invoices.refund.title')" :description="recordRefundDescription" :confirm-label="t('vendor.invoices.refund.confirm')" :pending="refundBusy" :disabled="!hydrated || refundBusy || !refundValid" @confirm="recordRefund" @cancel="closeRefund">
               <div class="mt-3 space-y-4">
