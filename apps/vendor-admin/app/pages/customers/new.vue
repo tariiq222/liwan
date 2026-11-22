@@ -2,6 +2,7 @@
 import type { Cadence } from '@liwan/commercial-contracts'
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import { cadenceKey, commercialErrorKey } from '@/utils/vendorCommercial'
+import { failureKey } from '@/composables/useStepUp'
 import { cadenceLabel, formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { planRequestBody, planTenantCustomerBody, planTenantQuoteBody } from '@/utils/vendorTenantPlan'
 import { orderOutcomeUnknown } from '@/utils/vendorSubscriptions'
@@ -43,7 +44,7 @@ const dirty = computed(() => !submitted.value && Boolean(form.admin_name.trim() 
 function fieldError(error: unknown): string {
   const value = error as { data?: { field?: unknown; data?: { field?: unknown } }; field?: unknown; response?: { _data?: { field?: unknown } } } | null
   const field = value?.data?.field ?? value?.data?.data?.field ?? value?.response?._data?.field ?? value?.field
-  return typeof field === 'string' && ['name', 'inventory_target', 'catalog_version', 'catalog_tier', 'reason', 'admin_name', 'admin_login'].includes(field) ? `vendor.errors.field.${field}` : 'vendor.errors.save'
+  return failureKey(error, typeof field === 'string' && ['name', 'inventory_target', 'catalog_version', 'catalog_tier', 'reason', 'admin_name', 'admin_login'].includes(field) ? `vendor.errors.field.${field}` : 'vendor.errors.save')
 }
 watch(() => form.catalog_version, () => { form.catalog_tier = '' })
 watch(() => form.plan_revision_id, () => { form.cadence = '' })

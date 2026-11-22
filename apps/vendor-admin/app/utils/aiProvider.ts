@@ -2,7 +2,7 @@
 import {
   AI_CAPABILITIES, AI_QUALITY_LEVELS, aiConfigIdSchema, aiPriceSchema, type AiCapability, type AiProviderCurrent, type AiProviderPreset, type AiProviderSave, type AiQuality,
 } from '@liwan/commercial-contracts'
-import { StepUpCancelled } from '../composables/useStepUp'
+import { failureKey } from '../composables/useStepUp'
 
 export { AI_CAPABILITIES, AI_QUALITY_LEVELS }
 export type Setting = NonNullable<AiProviderCurrent['setting']>
@@ -175,8 +175,9 @@ function codeOf(error: unknown): string | undefined {
   return (error as { data?: { code?: string } } | null)?.data?.code
 }
 /** Which message a failed call shows. A cancelled step-up is not an error of the call itself. */
-export function aiProviderErrorKey(error: unknown): string {
-  if (error instanceof StepUpCancelled) return 'aiProvider.errors.stepUpCancelled'
+export const aiProviderErrorKey = (error: unknown): string => failureKey(error, aiProviderFailureKey(error))
+
+function aiProviderFailureKey(error: unknown): string {
   const code = codeOf(error)
   if (code && CODES.has(code)) return `aiProvider.errors.${code}`
   const e = error as { statusCode?: number, response?: { status?: number } } | null

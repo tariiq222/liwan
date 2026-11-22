@@ -75,7 +75,7 @@ describe('team actions', () => {
     const { team } = setup({ disable: vi.fn().mockRejectedValue(new StepUpCancelled()) })
     team.open({ kind: 'disable', account })
     await team.confirm('cleanup')
-    expect(team.errorKey.value).toBe('team.errors.stepUpCancelled')
+    expect(team.errorKey.value).toBe('adminAuth.stepUp.cancelled')
     expect(team.panel.value).not.toBeNull()
   })
 

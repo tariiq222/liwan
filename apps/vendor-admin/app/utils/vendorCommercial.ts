@@ -3,6 +3,7 @@ import {
   type Audience, type BundleRevision, type BundleView, type CapacityMap, type CatalogApplication, type CatalogRelease, type CatalogReleaseView, type PlanView,
   type PricingPolicy, type Cadence, type Money, type PlanRevision, type Price, type Selection,
 } from '@liwan/commercial-contracts'
+import { failureKey } from '../composables/useStepUp'
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import type { StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
 
@@ -332,7 +333,7 @@ export const COMMERCIAL_ERROR_CODES = ['revision_conflict', 'invalid', 'forbidde
 const KNOWN_ERRORS = new Set<string>(COMMERCIAL_ERROR_CODES)
 export function commercialErrorKey(cause: unknown): string {
   const f = commercialFailure(cause)
-  return KNOWN_ERRORS.has(f.code) ? `vendor.pricing.errors.${f.code}` : 'vendor.pricing.errors.generic'
+  return failureKey(cause, KNOWN_ERRORS.has(f.code) ? `vendor.pricing.errors.${f.code}` : 'vendor.pricing.errors.generic')
 }
 /** Field-scoped server issue for a form field name (matches exact name or `name.` / `name[` prefix). */
 export function fieldIssue(failure: CommercialFailure | null, field: string): string | undefined {

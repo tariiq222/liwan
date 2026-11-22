@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { StepUpCancelled } from '../../composables/useStepUp'
+import { cancellationErrorKey, cardActionErrorKey, refundErrorKey } from '../vendorSubscriptions'
 import { COMMERCIAL_ERROR_CODES, commercialErrorKey } from '../vendorCommercial'
 
 /**
@@ -76,5 +78,10 @@ describe('commercial error codes', () => {
     expect(commercialErrorKey({ data: { data: { code: 'not_a_real_code' } } })).toBe(GENERIC)
     expect(commercialErrorKey({})).toBe(GENERIC)
     expect(commercialErrorKey(new Error('offline'))).toBe(GENERIC)
+  })
+
+  it('shows one message for a cancelled step-up in every commercial flow, never a failure', () => {
+    const cancelled = new StepUpCancelled()
+    for (const key of [commercialErrorKey, refundErrorKey, cancellationErrorKey, cardActionErrorKey]) expect(key(cancelled)).toBe('adminAuth.stepUp.cancelled')
   })
 })

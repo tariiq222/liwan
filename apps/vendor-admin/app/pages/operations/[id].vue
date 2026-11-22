@@ -7,6 +7,7 @@ import { canPublishRestore } from '@/utils/restorePublication'
 import { operationTargetTo } from '@/utils/vendorOperations'
 import { canAbandonJob } from '@/utils/sharedJobAbandon'
 import { canRecoverJob } from '@/utils/sharedJobRecovery'
+import { failureKey } from '@/composables/useStepUp'
 definePageMeta({ capability: 'vendor.read' })
 type Operation = LegacyOperation | OperationFeed
 
@@ -37,6 +38,7 @@ const recoverAllowed = computed(() => canRecoverJob(data.value, can))
 const busy = ref(false)
 const reason = ref('')
 const actionError = ref<unknown>(null)
+const actionErrorKey = computed(() => failureKey(actionError.value, 'vendor.errors.action'))
 const pollCount = ref(0)
 let pollTimer: ReturnType<typeof setTimeout> | undefined
 let left = false
@@ -150,7 +152,7 @@ async function retry() {
           <SharedInlineConfirm v-if="publishOpen && publishAllowed" :title="t('vendor.operations.publication.confirm')" :confirm-label="t('vendor.operations.publication.action')" :pending="busy" :disabled="!hydrated || busy || publishReason.trim().length < 3 || publishReason.trim().length > 1000" @confirm="publishRestore" @cancel="publishOpen = false">
             <UFormField :label="t('vendor.operations.publication.reason')" class="mt-3"><UTextarea v-model="publishReason" :maxlength="1000" :disabled="busy" /></UFormField>
           </SharedInlineConfirm>
-          <UAlert v-if="actionError" class="mt-3" color="error" :title="t('vendor.errors.action')" />
+          <UAlert v-if="actionError" class="mt-3" color="error" :title="t(actionErrorKey)" />
         </SharedRecordSection>
         <p v-if="data.reason" class="text-sm text-muted" data-testid="operation-reason">{{ isShared ? t(`vendor.operations.reasons.${data.reason}`) : data.reason }}</p>
         <div v-if="isShared || needsAttention || backupUnverified" class="space-y-3">
@@ -165,7 +167,7 @@ async function retry() {
           <SharedInlineConfirm v-if="recoverOpen && recoverAllowed" :title="t('vendor.operations.recover.confirm')" :confirm-label="t('vendor.operations.recover.action')" :pending="busy" :disabled="!hydrated || busy || recoverReason.trim().length < 3 || recoverReason.trim().length > 1000" @confirm="recoverJob" @cancel="recoverOpen = false">
             <UFormField :label="t('vendor.operations.recover.reason')" class="mt-3"><UTextarea v-model="recoverReason" :maxlength="1000" :disabled="busy" /></UFormField>
           </SharedInlineConfirm>
-          <UAlert v-if="actionError" class="mt-3" color="error" variant="subtle" :title="t('vendor.errors.action')" />
+          <UAlert v-if="actionError" class="mt-3" color="error" variant="subtle" :title="t(actionErrorKey)" />
         </SharedRecordSection>
 
         <SharedRecordSection v-if="abandonAllowed || abandonment" :title="t('vendor.operations.abandon.title')" :description="t('vendor.operations.abandon.hint')" variant="panel" data-testid="operation-abandon">
@@ -174,11 +176,11 @@ async function retry() {
           <SharedInlineConfirm v-if="abandonOpen && abandonAllowed" :title="t('vendor.operations.abandon.confirm')" :confirm-label="t('vendor.operations.abandon.action')" :pending="busy" :disabled="!hydrated || busy || abandonReason.trim().length < 3 || abandonReason.trim().length > 1000" @confirm="abandonJob" @cancel="abandonOpen = false">
             <UFormField :label="t('vendor.operations.abandon.reason')" class="mt-3"><UTextarea v-model="abandonReason" :maxlength="1000" :disabled="busy" /></UFormField>
           </SharedInlineConfirm>
-          <UAlert v-if="actionError" class="mt-3" color="error" variant="subtle" :title="t('vendor.errors.action')" />
+          <UAlert v-if="actionError" class="mt-3" color="error" variant="subtle" :title="t(actionErrorKey)" />
         </SharedRecordSection>
 
         <SharedRecordSection v-if="can('vendor.operations.run') && canRetry" :title="t('vendor.operations.retryTitle')" :description="t('vendor.operations.retryHint')" variant="panel">
-          <UAlert v-if="actionError" class="mb-3" color="error" variant="subtle" :title="t('vendor.errors.action')" />
+          <UAlert v-if="actionError" class="mb-3" color="error" variant="subtle" :title="t(actionErrorKey)" />
           <form class="grid gap-3" @submit.prevent="retry">
             <UFormField :label="t('vendor.tenants.fields.reason')" required><UTextarea v-model="reason" required maxlength="1000" class="w-full" /></UFormField>
             <div><UButton type="submit" color="neutral" variant="outline" :loading="busy" :disabled="busy || !reason.trim()">{{ t('vendor.operations.retry') }}</UButton></div>

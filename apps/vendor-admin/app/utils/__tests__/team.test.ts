@@ -42,6 +42,6 @@ describe('team error messages', () => {
   })
 
   it('tells a cancelled step-up apart from a failed call', () => {
-    expect(teamErrorKey(new StepUpCancelled())).toBe('team.errors.stepUpCancelled')
+    expect(teamErrorKey(new StepUpCancelled())).toBe('adminAuth.stepUp.cancelled')
   })
 })

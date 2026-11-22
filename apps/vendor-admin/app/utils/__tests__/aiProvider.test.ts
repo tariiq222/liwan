@@ -199,7 +199,7 @@ describe('errors', () => {
     expect(aiProviderErrorKey(failure('model_not_tested'))).toBe('aiProvider.errors.model_not_tested')
     expect(aiProviderErrorKey(failure('nope'))).toBe('aiProvider.errors.generic')
     expect(aiProviderErrorKey({ statusCode: 503 })).toBe('aiProvider.errors.unavailable')
-    expect(aiProviderErrorKey(new StepUpCancelled())).toBe('aiProvider.errors.stepUpCancelled')
+    expect(aiProviderErrorKey(new StepUpCancelled())).toBe('adminAuth.stepUp.cancelled')
     expect(aiProviderErrorSection(failure('unknown_provider'))).toBe('models')
     for (const code of ['unknown_model', 'model_not_priced', 'model_not_tested']) expect(aiProviderErrorSection(failure(code)), code).toBe('routes')
     for (const code of ['api_key_required', 'invalid_base_url', 'invalid_base_url_port']) expect(aiProviderErrorSection(failure(code)), code).toBe('providers')

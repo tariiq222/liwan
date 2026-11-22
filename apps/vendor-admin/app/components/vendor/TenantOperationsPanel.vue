@@ -4,6 +4,7 @@ import { operationStatusBadge } from '@/utils/vendorBadges'
 import { buildVendorPolicy, type VendorFeatureValue } from '@/utils/vendorPolicy'
 import type { VendorTenant } from '@/utils/vendorTenant'
 import { useVendorCatalogVersions } from '@/composables/useVendorCatalogVersions'
+import { failureKey } from '@/composables/useStepUp'
 import type { OperationFeed } from '@liwan/commercial-contracts'
 type TenantOperation = 'tenant.create' | 'tenant.inspect' | 'health' | 'backup' | 'tenant.entitle'
 const tenantOperationTypes = new Set<TenantOperation>(['tenant.create', 'tenant.inspect', 'health', 'backup', 'tenant.entitle'])
@@ -64,7 +65,7 @@ watch([data, selectedTier, availableOperations], () => {
 function fieldErrorKey(cause: unknown): string {
   const value = cause as { data?: { data?: { field?: unknown }; field?: unknown }; field?: unknown } | null
   const field = value?.data?.data?.field ?? value?.data?.field ?? value?.field
-  return typeof field === 'string' ? `vendor.errors.field.${field}` : 'vendor.errors.action'
+  return failureKey(cause, typeof field === 'string' ? `vendor.errors.field.${field}` : 'vendor.errors.action')
 }
 
 async function updateGrant(enabled: boolean) {

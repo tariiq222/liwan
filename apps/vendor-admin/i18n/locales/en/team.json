@@ -90,7 +90,6 @@
       "rateLimited": "Too many attempts. Wait a moment and try again.",
       "unavailable": "The control service is unavailable. Try again shortly.",
       "stepUpRequired": "The passkey confirmation did not complete. Try again and confirm when asked.",
-      "stepUpCancelled": "The passkey confirmation was cancelled; nothing was changed.",
       "generic": "The action failed. Try again."
     },
     "reason": {

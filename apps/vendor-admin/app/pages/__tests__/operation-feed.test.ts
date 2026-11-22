@@ -11,6 +11,7 @@ import { OPERATION_STATUS_FILTERS, operationFilterLabelKey, operationStatusFilte
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import * as clients from '../../utils/vendorClients'
 import { isNotAvailable } from '../../utils/vendorSubscriptions'
+import { failureKey, StepUpCancelled } from '../../composables/useStepUp'
 import { canAbandonJob } from '../../utils/sharedJobAbandon'
 import { canRecoverJob } from '../../utils/sharedJobRecovery'
 import { formatLiwanDateTime } from '@liwan/ui/app/composables/calendarDate'
@@ -30,7 +31,7 @@ async function page(name: string, data: unknown, source?: string, query: Record<
   const messages = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../../i18n/locales/en/vendor.json'), 'utf8'))
   const t = (key: string) => key.split('.').reduce((obj: unknown, key) => (obj as Record<string, unknown> | undefined)?.[key], messages) ?? key
   const bindings = {
-    formatLiwanDateTime, ...clients, isNotAvailable, canAbandonJob, canRecoverJob,
+    formatLiwanDateTime, failureKey, ...clients, isNotAvailable, canAbandonJob, canRecoverJob,
     useVendorSubscriptions: () => ({ listClients: (query: Record<string, unknown>) => request('commercial/clients', { query }) }),
     invoiceStatusBadge, paymentAttemptBadge, customerDisplayBadge, operationStatusBadge,
     _defineComponent: Vue.defineComponent, _withAsyncContext: (fn: () => unknown) => [fn(), () => {}],
@@ -211,4 +212,14 @@ it('starts no new poll once the page was left while a refresh was in flight', as
     expect(refresh).toHaveBeenCalledTimes(1)
     expect(vi.getTimerCount()).toBe(0)
   } finally { vi.useRealTimers() }
+})
+
+it('words a cancelled step-up on the operation page as its own message, not as a failed action', async () => {
+  const stuck = { ...operation, type: 'backup', status: 'needs_intervention', stage: 'needs_intervention', reason: 'shared_execution_needs_attention', abandonment: null }
+  const detail = await page('operations/[id].vue', stuck, 'shared')
+  detail.state.abandonOpen.value = true
+  detail.state.actionError.value = new StepUpCancelled()
+  expect(detail.state.actionErrorKey.value).toBe('adminAuth.stepUp.cancelled')
+  detail.state.actionError.value = { statusCode: 500 }
+  expect(detail.state.actionErrorKey.value).toBe('vendor.errors.action')
 })
