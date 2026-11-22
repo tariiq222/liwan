@@ -185,6 +185,13 @@
       "reason": "Reason for delivering again",
       "written": "Revision {revision} was delivered to the AI service.",
       "unchanged": "The AI service already had revision {revision}. Nothing was written."
+    },
+    "steps": {
+      "title": "The order that makes a model usable",
+      "save": "Add the provider and the model with its prices, then save.",
+      "test": "Test the model. The test must report token counts.",
+      "route": "Choose it as the default, or for a quality level, and save again.",
+      "link": "See the steps"
     }
   }
 }

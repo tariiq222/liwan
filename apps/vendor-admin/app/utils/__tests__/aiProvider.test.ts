@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { AI_PROVIDER_REDELIVER_REFUSALS, aiProviderSaveSchema, type AiProviderPreset } from '@liwan/commercial-contracts'
 import { StepUpCancelled } from '../../composables/useStepUp'
 import {
-  aiProviderErrorKey, aiProviderErrorSection, chargeForOneDollar, configDirty, draftFromSetting, effectiveModel, emptyConfig, freeId, marginBps, modelUsable, modelsOfProvider, quickUnmapped,
+  aiProviderErrorKey, aiProviderErrorSection, aiProviderErrorHasSteps, chargeForOneDollar, configDirty, draftFromSetting, effectiveModel, emptyConfig, freeId, marginBps, modelUsable, modelsOfProvider, quickUnmapped,
   ltr, providerSaved, saveBlockers, savePayload, unusableReason, type ConfigDraft, type ProviderDraft, type Setting,
 } from '../aiProvider'
 
@@ -210,5 +210,11 @@ describe('errors', () => {
       expect(aiProviderErrorKey(failure(code)), code).toBe(`aiProvider.errors.${code}`)
       expect(aiProviderErrorSection(failure(code)), code).toBe('general')
     }
+  })
+
+  it('points the two route blockers at the three-step note, and nothing else', () => {
+    expect(['model_not_tested', 'model_not_priced'].map(code => aiProviderErrorHasSteps(aiProviderErrorKey(failure(code))))).toEqual([true, true])
+    expect(['default_required', 'unknown_model', 'model_price_required', 'nope'].map(code => aiProviderErrorHasSteps(aiProviderErrorKey(failure(code))))).toEqual([false, false, false, false])
+    expect(aiProviderErrorHasSteps(undefined)).toBe(false)
   })
 })

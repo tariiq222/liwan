@@ -289,4 +289,32 @@ describe('AI provider page, mounted', () => {
       expect(p.api.redeliver).not.toHaveBeenCalled()
     })
   })
+
+  describe('the three steps before a model can be the default', () => {
+    it('shows the numbered note above the models section whatever the state', async () => {
+      for (const delivery of ['delivered', 'pending', 'unconfigured', 'incomplete'] as const) {
+        const { html } = await (await page({ delivery })).rendered()
+        expect(html, delivery).toContain('id="ai-provider-steps"')
+        for (const step of ['save', 'test', 'route']) expect(html, `${delivery} ${step}`).toContain(`aiProvider.steps.${step}`)
+        expect(html.indexOf('id="ai-provider-steps"')).toBeLessThan(html.indexOf('aiProvider.models.title'))
+      }
+    })
+
+    it.each(['model_not_tested', 'model_not_priced'])('links the message of %s to the note, which is on the page', async (code) => {
+      const p = await page({ saveFails: { data: { code } } })
+      p.state.reason.value = 'A change'
+      await p.state.save()
+      const { html } = await p.rendered()
+      expect(html).toContain(`aiProvider.errors.${code}`)
+      expect(html).toContain('href="#ai-provider-steps"')
+      expect(html).toContain('id="ai-provider-steps"')
+    })
+
+    it.each(['default_required', 'unknown_model'])('adds no link to the message of %s', async (code) => {
+      const p = await page({ saveFails: { data: { code } } })
+      p.state.reason.value = 'A change'
+      await p.state.save()
+      expect((await p.rendered()).html).not.toContain('href="#ai-provider-steps"')
+    })
+  })
 })

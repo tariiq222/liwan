@@ -185,6 +185,9 @@ function aiProviderFailureKey(error: unknown): string {
   if ((e?.statusCode ?? e?.response?.status) === 503) return 'aiProvider.errors.unavailable'
   return 'aiProvider.errors.generic'
 }
+/** The two refusals a vendor meets by routing a model before the save, test, route order: their message points at the note that explains it. */
+const STEPS_ERRORS = new Set(['aiProvider.errors.model_not_tested', 'aiProvider.errors.model_not_priced'])
+export const aiProviderErrorHasSteps = (key: string | undefined): boolean => key !== undefined && STEPS_ERRORS.has(key)
 /** The part of the page a failure belongs to, so the message sits next to the field it concerns. */
 export const aiProviderErrorSection = (error: unknown): Section => SECTION_OF[codeOf(error) ?? ''] ?? 'general'
 

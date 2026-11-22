@@ -41,6 +41,14 @@ export function aiProviderRoutes(state, json, owner) {
       if (model) model.usage_reported = true
       return json(res, 200, { ok: true, latency_ms: 420, usage_reported: true })
     },
+    'POST /v1/platform/ai-provider/redeliver': ({ req, body }, res) => {
+      if (!owner(req, res, true)) return
+      if (typeof body.reason !== 'string' || body.reason.trim().length < 3) return json(res, 422, { code: 'invalid' })
+      if (!state.ai?.routes.default) return json(res, 409, { code: 'provider_incomplete' })
+      const outcome = state.ai.delivery === 'pending' ? 'written' : 'unchanged'
+      state.ai.delivery = 'delivered'
+      return json(res, 200, { setting: state.ai, outcome })
+    },
     'PATCH /v1/platform/ai-provider': ({ req, body }, res) => {
       if (!owner(req, res, true)) return
       if (!body.routes?.default && state.ai?.routes.default) return json(res, 422, { code: 'default_required' })

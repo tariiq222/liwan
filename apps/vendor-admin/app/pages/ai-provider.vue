@@ -3,7 +3,7 @@ import type { TableColumn } from '@nuxt/ui'
 import { formatBusinessDateTime } from '@/utils/vendorTime'
 import type { AiCapability, AiQuality } from '@liwan/commercial-contracts'
 import {
-  AI_CAPABILITIES, AI_QUALITY_LEVELS, aiProviderErrorKey, aiProviderErrorSection, cellKey, chargeForOneDollar, configDirty, draftFromSetting, effectiveModel, freeId, idProblem, ltr, marginBps,
+  AI_CAPABILITIES, AI_QUALITY_LEVELS, aiProviderErrorHasSteps, aiProviderErrorKey, aiProviderErrorSection, cellKey, chargeForOneDollar, configDirty, draftFromSetting, effectiveModel, freeId, idProblem, ltr, marginBps,
   modelSaved, modelsOfProvider, modelUsable, priceFilled, priceValid, providerSaved, quickUnmapped, saveBlockers, savePayload, unusableReason, type ConfigDraft, type ModelDraft, type ProviderDraft, type Section,
 } from '@/utils/aiProvider'
 import { useAiProvider } from '@/composables/useAiProvider'
@@ -236,6 +236,15 @@ const blockerKey = computed(() => (blockers.value[0] ? `aiProvider.save.blockers
       </div>
     </SharedFormSection>
 
+    <aside id="ai-provider-steps" class="max-w-3xl space-y-2 rounded-card border border-default p-4" :aria-label="t('aiProvider.steps.title')" data-testid="ai-provider-steps">
+      <p class="font-medium text-highlighted">{{ t('aiProvider.steps.title') }}</p>
+      <ol class="list-decimal space-y-1 ps-5 text-sm text-muted">
+        <li>{{ t('aiProvider.steps.save') }}</li>
+        <li>{{ t('aiProvider.steps.test') }}</li>
+        <li>{{ t('aiProvider.steps.route') }}</li>
+      </ol>
+    </aside>
+
     <SharedFormSection panel :title="t('aiProvider.models.title')" :description="t('aiProvider.models.description')">
       <SharedDataTable v-if="draft.models.length" :rows="draft.models" :columns="columns" row-key="id" :caption="t('aiProvider.models.title')" density="comfortable">
                 <template #provider-cell="{ row: { original: model } }">
@@ -309,7 +318,10 @@ const blockerKey = computed(() => (blockers.value[0] ? `aiProvider.save.blockers
           </div>
         </div>
       </div>
-      <p v-if="failure('routes')" class="text-sm text-error" role="alert" data-testid="ai-provider-routes-error">{{ failure('routes') }}</p>
+      <p v-if="failure('routes')" class="text-sm text-error" role="alert" data-testid="ai-provider-routes-error">
+        {{ failure('routes') }}
+        <a v-if="aiProviderErrorHasSteps(failures.routes)" href="#ai-provider-steps" class="underline" data-testid="ai-provider-steps-link">{{ t('aiProvider.steps.link') }}</a>
+      </p>
     </SharedFormSection>
 
     <SharedFormSection panel :title="t('aiProvider.save.title')">

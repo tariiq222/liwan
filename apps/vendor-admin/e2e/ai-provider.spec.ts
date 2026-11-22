@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { completeEnrollment, leaveRecoveryCodes, mintInvitation, openInvitation, resetMock, addVirtualAuthenticator } from './support'
+import { completeEnrollment, leaveRecoveryCodes, makeAiDeliveryPending, mintInvitation, openInvitation, resetMock, addVirtualAuthenticator } from './support'
 
 // The platform AI page against the mock control service (e2e/ai-provider-mock.mjs): the configuration is shown, the save-then-test order
 // is visible in the controls, and a save round-trips. Screenshots (Arabic right to left and English, at 1280 and 390 px) go to SHOTS_DIR.
@@ -58,4 +58,32 @@ test('a provider that is not saved cannot list or test yet, and a save round-tri
   await expect(page.getByTestId('ai-provider-notice')).toBeVisible()
   for (const key of await page.getByTestId('ai-provider-key').all()) await expect(key).toHaveValue('')
   await expect(page.getByTestId('ai-provider-save-first')).toHaveCount(0)
+})
+
+test('shows the three steps above the models, and offers no redelivery while the file is delivered', async ({ page, context }) => {
+  await ownerOnAiPage(page, context, 'en')
+  await expect(page.getByTestId('ai-provider-steps')).toBeVisible()
+  await expect(page.getByTestId('ai-provider-steps').locator('li')).toHaveCount(3)
+  await expect(page.getByTestId('ai-provider-redeliver')).toHaveCount(0)
+})
+
+test('a pending file is delivered again with a reason, and the page then shows it delivered', async ({ page, context }) => {
+  await ownerOnAiPage(page, context, 'en')
+  await makeAiDeliveryPending()
+  await page.reload()
+  await expect(page.getByTestId('ai-provider-delivery')).toContainText('still using the previous file')
+  // Unsaved edits block the action: it would send the saved setting, not the form.
+  await page.getByTestId('ai-provider-margin').fill('25')
+  await expect(page.getByTestId('ai-provider-redeliver')).toBeDisabled()
+  await expect(page.getByTestId('ai-provider-redeliver-dirty')).toBeVisible()
+  await page.getByTestId('ai-provider-margin').fill('20')
+  await expect(page.getByTestId('ai-provider-redeliver')).toBeEnabled()
+  await page.getByTestId('ai-provider-redeliver').click()
+  const confirm = page.getByRole('button', { name: 'Deliver', exact: true })
+  await expect(confirm).toBeDisabled()
+  await page.getByTestId('ai-provider-redeliver-reason').fill('The file was lost')
+  await confirm.click()
+  await expect(page.getByTestId('ai-provider-notice')).toContainText('was delivered to the AI service')
+  await expect(page.getByTestId('ai-provider-delivery')).toContainText('Delivered to the AI service')
+  await expect(page.getByTestId('ai-provider-redeliver')).toHaveCount(0)
 })
