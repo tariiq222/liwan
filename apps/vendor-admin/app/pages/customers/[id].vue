@@ -50,7 +50,7 @@ const { data: extra, refresh: refreshExtra } = await useAsyncData(() => `vendor:
     soft(() => useVendorCommercial().releases()),
     soft(() => api.attention(id.value)),
   ])
-  return { full, branches, usage, invoices, plans, releases, attention }
+  return { full, branches, usage, invoices, plans, releases, attention, loadedAt: new Date() }
 }, { watch: [subId] })
 const view = computed(() => extra.value?.full.value ?? sub.value)
 const planNameOf = (planRevisionId: string | undefined) => extra.value?.plans.value?.items.find(p => p.id === planRevisionId)?.name
@@ -62,7 +62,8 @@ const selections = computed(() => entitledSelections(release.value, view.value?.
 const branchText = computed(() => (extra.value?.branches.value ? branchSummaryText(extra.value.branches.value) : null))
 const invoices = computed(() => extra.value?.invoices.value?.items ?? [])
 // What needs the vendor for this customer, on the tab each item is resolved on: its reason and action are the overview's.
-const now = new Date()
+// The day counts are taken at the moment the data was read, so a page left open does not show them stale after a refresh.
+const now = computed(() => extra.value?.loadedAt ?? new Date())
 const tabAttention = computed(() => (extra.value?.attention.value?.items ?? []).filter(item => attentionTab(item) === tab.value))
 // Undefined while the invoices are not offered or could not be read: the summary then leaves the tile out.
 const glanceInvoices = computed(() => (canBilling.value && extra.value?.invoices.value ? invoices.value : undefined))

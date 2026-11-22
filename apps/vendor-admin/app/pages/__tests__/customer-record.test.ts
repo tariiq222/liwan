@@ -77,6 +77,19 @@ it('shows the open attention items of this customer, with their reason, at the t
   expect(list[0]!.props.items.map((i: { kind: string }) => i.kind)).toEqual(['billing_blocked'])
 })
 
+it('counts the attention days from the time the data was loaded, not from when the page was set up', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  try {
+    vi.setSystemTime(new Date('2026-11-22T08:00:00Z'))
+    const { page, api } = await customerPage('/customers/c1', { tab: 'subscription' })
+    api.attention.mockResolvedValue({ items: [attentionItem('billing_blocked')], total: 1, counts: {} })
+    vi.setSystemTime(new Date('2026-11-25T08:00:00Z'))
+    await page.state.refreshExtra()
+    const list = (await page.rendered()).captured.find(node => node.name === 'VendorAttentionList')
+    expect((list!.props.now as Date).toISOString()).toBe('2026-11-25T08:00:00.000Z')
+  } finally { vi.useRealTimers() }
+})
+
 it('shows no attention block when the customer has nothing open', async () => {
   const { page } = await customerPage('/customers/c1', { tab: 'subscription' })
   expect((await page.rendered()).captured.some(node => node.name === 'VendorAttentionList')).toBe(false)
