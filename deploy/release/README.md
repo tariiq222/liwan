@@ -163,8 +163,21 @@ The command never waits for input. A second start while one runs exits 0 at once
 `/etc/liwan-release/<environment>.env`, mode `0600`, owned by the running user. Required keys: `LIWAN_RELEASE_PROJECT`,
 `LIWAN_SHARED_ENV_FILE`, `LIWAN_RELEASE_PG_DUMP`, `LIWAN_RELEASE_PG_HOST`,
 `LIWAN_RELEASE_CONTROL_PG_HOST`, `LIWAN_RELEASE_ODOO_DATA_DIR`,
-`LIWAN_RELEASE_DISK_PATH` (a path on the filesystem that holds the database volume and the filestores). Optional:
-`LIWAN_RELEASE_BACKUP_STORE_ROOT`. Other keys in the file reach the backup pipeline through its environment.
+`LIWAN_RELEASE_DISK_PATH` (a path on the filesystem that holds the database volume and the filestores) and
+`LIWAN_BACKUP_PASSPHRASE_FILE`. A store is also required, in one of two forms: `LIWAN_RELEASE_BACKUP_STORE_ROOT`, or the five
+`LIWAN_BACKUP_S3_*` keys. Other keys in the file reach the backup pipeline through its environment.
+
+The first deploy of a host skips the backup, so a host can pass its first release and fail its second on any of the three
+items below. Each one ends the run with `RESULT: rolled back backup_failed`; the job log carries the symptom line.
+
+| Item | Rule | Symptom in the job log |
+| --- | --- | --- |
+| `LIWAN_BACKUP_PASSPHRASE_FILE` | an absolute path to a file of mode `0600` or `0400` holding one line of 16 to 1022 bytes, for example the output of `openssl rand -hex 32`. It is the only key of these backups: keep a copy off the host. The rule is owned by [control-plane-backup-restore.md](../../docs/operations/control-plane-backup-restore.md) | `backup_pipeline: LIWAN_BACKUP_PASSPHRASE_FILE must name the passphrase file` (a wrong mode or length is refused with its own message) |
+| store | `LIWAN_RELEASE_BACKUP_STORE_ROOT`: an existing directory; the release passes it as `--store-root` and the encrypted copy stays on the host's filesystem. Without it the pipeline uses a bucket and reads `LIWAN_BACKUP_S3_ENDPOINT`, `LIWAN_BACKUP_S3_REGION`, `LIWAN_BACKUP_S3_BUCKET`, `LIWAN_BACKUP_S3_ACCESS_KEY` and `LIWAN_BACKUP_S3_SECRET_KEY` from this file. The store root is optional only when all five S3 keys are present | `backup_pipeline: LIWAN_BACKUP_S3_ENDPOINT is required` (the first missing S3 key is named) |
+| `LIWAN_RELEASE_PG_DUMP` | the real binary, for example `/usr/lib/postgresql/16/bin/pg_dump`, not `/usr/bin/pg_dump`. On Debian and Ubuntu the latter is a symlink to `/usr/share/postgresql-common/pg_wrapper`; the release resolves the symlink and so runs the wrapper under its own name, which exits 1. Check with `readlink -f` that the configured path is its own target | `backup_pipeline: pg_dump failed with exit code 1` (pg_dump's own stderr is not printed) |
+
+After a failed run the same commit is answered `nothing to do: <commit> failed before (...)` until `release.py rollback` clears
+`failed.json` (see Result and exit code and State); then run the job again.
 
 Alert channels are read from the same file. One complete channel is `LIWAN_ALERT_SMTP_HOST`, `LIWAN_ALERT_SMTP_FROM` and
 `LIWAN_ALERT_SMTP_TO` (optional `LIWAN_ALERT_SMTP_PORT`, `_USER`, `_PASSWORD`, `_STARTTLS`), or `LIWAN_ALERT_TELEGRAM_BOT_TOKEN`
