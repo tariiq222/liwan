@@ -1,7 +1,7 @@
 import type { Cadence } from '@liwan/commercial-contracts'
 
 export const DAY_MS = 86_400_000
-/** The business runs on Asia/Riyadh (invoice numbering uses it too); it has no daylight saving, so a fixed offset is exact. */
+/** The business runs on BUSINESS_TIME_ZONE, Riyadh (invoice numbering uses it too); it has no daylight saving, so a fixed offset is exact. */
 const RIYADH_OFFSET_MS = 3 * 3_600_000
 
 /** The price lines a subscription revision was sold with (`pricing` of the revision snapshot). */
@@ -133,7 +133,7 @@ export const riyadhDay = (ms: number): string => new Date(ms + RIYADH_OFFSET_MS)
 /** The instant a Riyadh calendar day starts, epoch ms. */
 const riyadhDayStart = (day: string): number => Date.parse(`${day}T00:00:00Z`) - RIYADH_OFFSET_MS
 
-/** First instant of `period.from` and the first instant after `period.to`, in Asia/Riyadh, epoch ms. */
+/** First instant of `period.from` and the first instant after `period.to`, in the business zone, epoch ms. */
 export const periodBounds = (period: Period) => ({ start: riyadhDayStart(period.from), end: riyadhDayStart(period.to) + DAY_MS })
 
 /** The period of equal length that ends the day before `period` starts. */
