@@ -589,6 +589,7 @@
           "form_search_rejected": "رفض نتيجة بحث دفعة نموذج البطاقة",
           "form_settled": "تسوية دفعة نموذج البطاقة",
           "intervention": "دفعة تحتاج تدخلًا",
+          "refund_duplicate_closed": "إغلاق استرداد عالق لأنه مسجّل مسبقًا",
           "refund_hold_released": "رفع الحجز عن استرداد عالق",
           "refund_rechecked": "فحص دفعة الاسترداد من جديد لدى المزوّد",
           "refund_rejected": "رفض المزوّد طلب استرداد",

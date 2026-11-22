@@ -1,24 +1,27 @@
 import type { Pool, PoolClient } from 'pg'
-import { refundConflictSchema, stuckRefundSchema, type RefundRecheck, type StuckRefund, type StuckRefundAction } from '@liwan/commercial-contracts'
+import { refundConflictSchema, stuckRefundSchema, type RecordReturnedRefundRequest, type RefundRecheck, type StuckRefund, type StuckRefundAction } from '@liwan/commercial-contracts'
 import { transaction } from '../db.js'
+import { actorLabel } from '../admin-auth/grants.js'
 import { audit, CommercialHttpError, type CommercialActor } from './lifecycle.js'
 import { getVendorInvoice, type VendorInvoiceView } from './invoices.js'
-import { releaseOutbox } from './outbox.js'
+import { completeOutbox, releaseOutbox } from './outbox.js'
 import type { PaymentAdapter, ProviderEvent } from './payment-adapter.js'
-import { findRefundAttempt, noteProviderRefund, readVerifiedPayment, systemRefunds, withRefundLock, type RefundOutboxPayload, type SystemRefund } from './settlements.js'
+import { findRefundAttempt, noteProviderRefund, readVerifiedPayment, recordRefundIn, refundReferenceConflict, settleUndeliveredOrder, systemRefunds, withRefundLock, type RefundOutboxPayload, type SystemRefund } from './settlements.js'
 
 type Q = Pick<Pool, 'query'>
 
 /** A pending automatic refund whose row holds a mark: the only rows the operator may check, release or record. */
 export const isStuckRefund = (refund: SystemRefund) => refund.status === 'pending' && (refund.provider_refund === 'attempted' || refund.provider_refund === 'returned')
 
-/**
- * The actions the operator is offered for a stuck row of one note. `record` is for the note the row names (a vendor-requested refund): the
- * order-level row of an undelivered order records through the worker's own order settlement, which the operator never repeats.
- */
-function allowedActions(noteId: string, refund: SystemRefund): StuckRefundAction[] {
+/** The causes of the notes an undelivered order's own refund row serves (no `adjustment_id`): the fulfilment-failure and the payment-after-cancellation note. */
+const ORDER_LEVEL_CAUSES = ['fulfillment_failure', 'payment_after_cancellation']
+/** Whether the row's refund is the one this note records: the note the row names (a vendor-requested refund), or an undelivered order's own note. */
+const recordsNote = (note: { id: string; cause: string }, rowAdjustmentId: string | null) => rowAdjustmentId === note.id || (rowAdjustmentId === null && ORDER_LEVEL_CAUSES.includes(note.cause))
+
+/** The actions the operator is offered for a stuck row of one note. */
+function allowedActions(note: { id: string; cause: string }, refund: SystemRefund): StuckRefundAction[] {
   if (refund.provider_refund === 'attempted') return ['check', 'release']
-  return refund.adjustment_id === noteId ? ['check', 'record'] : ['check']
+  return recordsNote(note, refund.adjustment_id) ? ['check', 'record'] : ['check']
 }
 
 /** The note that already holds the payment id as its refund reference, or null. */
@@ -154,15 +157,57 @@ export function releaseRefundHold(pool: Pool, { adjustment_id, actor, adapter, r
   })
 }
 
+/**
+ * Record the returned refund: the provider returned the money (the `returned` mark came from a verified read) and the worker cannot record it,
+ * usually because another note holds the payment id. `record` is the worker's own recording with the operator as actor, under the payment id or,
+ * when another note holds it, `<payment id>#<short note id>`; the row is completed. `already_recorded` closes the stuck note as void when a note of the
+ * same invoice that covers at least as much already credits this money, and completes the row. It never needs the provider and never moves money.
+ */
+export function recordReturnedRefund(pool: Pool, { adjustment_id, actor, reason, resolution }: { adjustment_id: string; actor: CommercialActor } & RecordReturnedRefundRequest): Promise<StuckRefundResult> {
+  return runStuckAction(pool, adjustment_id, 'refund_attempt_unavailable', {
+    marks: ['returned'],
+    read: async ({ note, row }) => {
+      if (!row.payload.provider_payment_id || !recordsNote(note as { id: string; cause: string }, row.payload.adjustment_id ?? null)) throw refused('refund_not_stuck')
+      return null
+    },
+    write: async (client, { note: seen, row, attempt }) => {
+      const note = (await client.query('SELECT * FROM invoice_adjustments WHERE id=$1 FOR UPDATE', [seen.id])).rows[0]
+      if (note.kind !== 'credit_note' || note.status !== 'pending') throw refused('credit_note_not_pending')
+      if (note.invoice_id !== attempt.invoice_id) throw refused('refund_note_unavailable')
+      const paymentId = row.payload.provider_payment_id!
+      const holder = (await client.query('SELECT * FROM invoice_adjustments WHERE refund_reference=$1 AND id<>$2', [paymentId, note.id])).rows[0]
+      if (resolution === 'already_recorded') return closeAsDuplicate(client, { actor, reason, note, row, holder, paymentId })
+      const credited = Number((await client.query(`SELECT COALESCE(sum(amount_minor),0) AS amount FROM invoice_adjustments
+        WHERE invoice_id=$1 AND kind='credit_note' AND status='refunded' AND cause<>'duplicate_payment' AND id<>$2`, [note.invoice_id, note.id])).rows[0].amount)
+      if (credited + Number(note.amount_minor) > Number(attempt.amount_minor)) throw refused('refund_over_credit')
+      await recordRefundIn(client, { adjustment_id: note.id, actor, refundedBy: actorLabel(actor), automatic: true, resolvedStuck: { conflicting_adjustment_id: holder?.id ?? null },
+        request: { external_reference: holder ? `${paymentId}#${note.id.slice(0, 8)}` : paymentId, reason } })
+      await completeOutbox(client, row.id)
+    },
+  }).catch(error => { throw refundReferenceConflict(error) ? refused('refund_reference_in_use') : error })
+}
+
+/** `already_recorded`: the stuck note is void and its row done, when the note holding the payment id is on the same invoice and covers this note. */
+async function closeAsDuplicate(client: PoolClient, { actor, reason, note, row, holder, paymentId }: {
+  actor: CommercialActor; reason: string; note: Record<string, any>; row: StuckContext['row']; holder: Record<string, any> | undefined; paymentId: string
+}) {
+  if (!holder || holder.invoice_id !== note.invoice_id || holder.kind !== 'credit_note' || holder.status !== 'refunded' || Number(holder.amount_minor) < Number(note.amount_minor)) throw refused('refund_not_duplicate')
+  await client.query("UPDATE invoice_adjustments SET status='void' WHERE id=$1", [note.id])
+  if (ORDER_LEVEL_CAUSES.includes(note.cause)) await settleUndeliveredOrder(client, note.invoice_id)
+  await completeOutbox(client, row.id)
+  await audit(client, actor, 'payment.refund_duplicate_closed', note.id, reason,
+    { invoice_id: note.invoice_id, outbox_id: row.id, order_id: row.aggregate_id, conflicting_adjustment_id: holder.id, payment_id: paymentId, amount_minor: Number(note.amount_minor), currency: note.currency })
+}
+
 /** The stuck detail of each note whose refund row is stuck (keyed by note id); every other note has none. Only stuck rows pay for a read. */
-export async function stuckRefundViews(db: Q, notes: { id: string; invoice_id: string }[], refunds: Map<string, SystemRefund>): Promise<Map<string, StuckRefund>> {
+export async function stuckRefundViews(db: Q, notes: { id: string; invoice_id: string; cause: string }[], refunds: Map<string, SystemRefund>): Promise<Map<string, StuckRefund>> {
   const out = new Map<string, StuckRefund>()
   for (const note of notes) {
     const refund = refunds.get(note.id)
     if (!refund || !isStuckRefund(refund)) continue
     out.set(note.id, stuckRefundSchema.parse({ since: refund.created_at.toISOString(), attempts: refund.attempts, next_attempt_at: refund.next_attempt_at.toISOString(),
       provider_payment_id: refund.provider_payment_id, conflict: refund.provider_refund === 'returned' ? await conflictOf(db, note.id, note.invoice_id, refund.provider_payment_id) : null,
-      actions: allowedActions(note.id, refund) }))
+      actions: allowedActions(note, refund) }))
   }
   return out
 }

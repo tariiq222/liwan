@@ -4,7 +4,7 @@ import type { Pool } from 'pg'
 import { transaction } from '../db.js'
 import { SimulatorAdapter } from '../commercial/payment-simulator.js'
 import { PaymentError } from '../commercial/payment-adapter.js'
-import { processRefundOutbox, requestInvoiceRefund } from '../commercial/settlements.js'
+import { processRefundOutbox, recordFulfillmentFailure, requestInvoiceRefund } from '../commercial/settlements.js'
 
 /** The operator who asks for the refunds of these fixtures. */
 export const operator = { issuer: 'vendor-test', actorUid: 7 }
@@ -15,15 +15,15 @@ export const operator = { issuer: 'vendor-test', actorUid: 7 }
  */
 export function stuckRefundFixtures(pool: Pool) {
   /** A delivered first payment whose attempt is a real payment inside the simulator, so the worker can look it up and refund it. */
-  async function simulatorPaid(options: { total?: number; customer?: string } = {}) {
+  async function simulatorPaid(options: { total?: number } = {}) {
     const total = options.total ?? 11500
-    const customer = options.customer ?? randomUUID(), sub = randomUUID(), revision = randomUUID(), order = randomUUID(), invoice = randomUUID(), attempt = randomUUID()
+    const customer = randomUUID(), sub = randomUUID(), revision = randomUUID(), order = randomUUID(), invoice = randomUUID(), attempt = randomUUID()
     const adapter = new SimulatorAdapter()
     const created = await adapter.createAttempt({ attempt_id: attempt, order_id: order, amount: { minor: total, currency: 'SAR', exponent: 2 },
       description: 'x', success_url: '', back_url: '', callback_url: '' })
     adapter.settle(created.provider_ref)
     await transaction(pool, async c => {
-      if (!options.customer) await c.query('INSERT INTO customers(id,name) VALUES($1,$2)', [customer, 'Stuck refund test'])
+      await c.query('INSERT INTO customers(id,name) VALUES($1,$2)', [customer, 'Stuck refund test'])
       await c.query('INSERT INTO subscriptions(id,customer_id) VALUES($1,$2)', [sub, customer])
       await c.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,1,$3,$4)',
         [revision, sub, JSON.stringify({ period_start: '2026-01-01', period_end: '2026-02-01' }), randomUUID()])
@@ -51,11 +51,11 @@ export function stuckRefundFixtures(pool: Pool) {
   }
   const refundWholePayment = (f: Paid) => f.adapter.refund(f.paymentId, { minor: f.total, currency: 'SAR', exponent: 2 })
   /** Settles a note holding `reference`, on another invoice or (with `onto`) on the given one, so recording a payment id on a second note breaks the unique index. */
-  async function holdReference(reference: string, onto?: { invoice: string; customer: string; total: number }) {
+  async function holdReference(reference: string, onto?: { invoice: string; customer: string; total: number }, minor?: number) {
     const target = onto ?? await simulatorPaid()
     const id = randomUUID()
     await pool.query(`INSERT INTO invoice_adjustments(id,invoice_id,customer_id,kind,reason,amount_minor,currency,exponent,status,created_by,origin,cause,refund_reference,refunded_by,refunded_at)
-      VALUES($1,$2,$3,'credit_note','Fixture holder',$4,'SAR',2,'refunded','vendor-test:9','system','provider_refund',$5,'vendor-test:9',now())`, [id, target.invoice, target.customer, target.total, reference])
+      VALUES($1,$2,$3,'credit_note','Fixture holder',$4,'SAR',2,'refunded','vendor-test:9','system','provider_refund',$5,'vendor-test:9',now())`, [id, target.invoice, target.customer, minor ?? target.total, reference])
     return { invoice: target.invoice, note: id }
   }
 
@@ -72,12 +72,32 @@ export function stuckRefundFixtures(pool: Pool) {
     return { ...f, note: note.id }
   }
   /** A vendor-requested refund the provider returned whole, whose recording keeps failing because another note holds the payment id. */
-  async function returnedInConflict(options: { sameInvoice?: boolean } = {}) {
+  async function returnedInConflict(options: { sameInvoice?: boolean; holderMinor?: number } = {}) {
     const f = await simulatorPaid()
     const note = await askRefund(f.invoice)
-    const holder = await holdReference(f.paymentId, options.sameInvoice ? f : undefined)
+    const holder = await holdReference(f.paymentId, options.sameInvoice ? f : undefined, options.holderMinor)
     await processRefundOutbox(pool, f.adapter)
     return { ...f, note: note.id, holder }
   }
-  return { simulatorPaid, askRefund, refundRow, notes, runAgain, refundWholePayment, holdReference, attempted, returnedInConflict }
+  /** A returned mark with no conflicting note: the row waits for a reason of its own (written by hand). */
+  async function returnedWithoutConflict() {
+    const f = await simulatorPaid()
+    const note = await askRefund(f.invoice)
+    await pool.query("UPDATE commercial_outbox SET payload=payload || jsonb_build_object('provider_refund','returned','provider_payment_id',$2::text,'error','refund_requester_missing') WHERE aggregate_id=$1", [f.order, f.paymentId])
+    return { ...f, note: note.id }
+  }
+  /**
+   * An order cancelled before delivery whose late payment the worker refunded through the provider: the note is the fulfilment-failure note, the row
+   * is the order-level one (it names no note), and another note holds the payment id.
+   */
+  async function undeliveredReturnedInConflict() {
+    const f = await simulatorPaid()
+    await pool.query("UPDATE orders SET payment_state='refund_pending',fulfillment_state='not_started',cancelled=true,automatic_refund=true WHERE id=$1", [f.order])
+    const [note] = await transaction(pool, c => recordFulfillmentFailure(c, { order_id: f.order, reason: 'Fulfillment failed permanently', actor: 'commercial-fulfillment' }))
+    await pool.query("INSERT INTO commercial_outbox(id,kind,aggregate_id,dedupe_key,payload) VALUES($1,'reconcile.refund',$2,'fulfillment-undelivered',$3)", [randomUUID(), f.order, JSON.stringify({ attempt_id: f.attempt, automatic: true })])
+    const holder = await holdReference(f.paymentId)
+    await processRefundOutbox(pool, f.adapter)
+    return { ...f, note: note!, holder }
+  }
+  return { simulatorPaid, askRefund, refundRow, notes, runAgain, refundWholePayment, holdReference, attempted, returnedInConflict, returnedWithoutConflict, undeliveredReturnedInConflict }
 }

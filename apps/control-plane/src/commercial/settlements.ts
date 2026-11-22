@@ -367,7 +367,7 @@ export async function refundCreditNote(pool: Pool, { adjustment_id, actor, reque
   }
 }
 /** Whether the database refused a refund reference another note already holds (the unique index on `invoice_adjustments.refund_reference`). */
-function refundReferenceConflict(error: unknown): boolean {
+export function refundReferenceConflict(error: unknown): boolean {
   return (error as { constraint?: string }).constraint === 'invoice_adjustments_refund_reference'
 }
 async function recordRefund(pool: Pool, { adjustment_id, actor, request }: { adjustment_id: string; actor: CommercialActor; request: RefundCreditNoteRequest }) {
@@ -379,8 +379,10 @@ async function recordRefund(pool: Pool, { adjustment_id, actor, request }: { adj
  * refunded through the provider (`automatic` true, `actor` the operator who requested it, `refundedBy` the system).
  * The form is refused while the worker still owns the refund (`refund_in_progress`), so the money is returned once.
  */
-async function recordRefundIn(client: PoolClient, { adjustment_id, actor, refundedBy, request, automatic }: {
+export async function recordRefundIn(client: PoolClient, { adjustment_id, actor, refundedBy, request, automatic, resolvedStuck }: {
   adjustment_id: string; actor: CommercialActor; refundedBy: string; request: RefundCreditNoteRequest; automatic: boolean
+  /** Set when the operator records a stuck automatic refund (`automatic` is then true only to pass the in-progress refusal): the audit names the note that held the reference. */
+  resolvedStuck?: { conflicting_adjustment_id: string | null }
 }) {
   const note = (await client.query('SELECT * FROM invoice_adjustments WHERE id=$1 FOR UPDATE', [adjustment_id])).rows[0]
   if (!note) throw new CommercialHttpError('not_found', 404)
@@ -412,7 +414,8 @@ async function recordRefundIn(client: PoolClient, { adjustment_id, actor, refund
     [note.id, request.external_reference, refundedBy])).rows[0]
   if (updated.cause === 'fulfillment_failure' || updated.cause === 'payment_after_cancellation') await settleUndeliveredOrder(client, note.invoice_id)
   await audit(client, actor, 'invoice.credit_refunded', note.id, request.reason,
-    { invoice_id: note.invoice_id, external_reference: request.external_reference, amount_minor: Number(note.amount_minor), currency: note.currency, ...(automatic ? { executed_by: refundedBy, automatic: true } : {}) })
+    { invoice_id: note.invoice_id, external_reference: request.external_reference, amount_minor: Number(note.amount_minor), currency: note.currency,
+      ...(resolvedStuck ? { resolved_stuck: true, ...resolvedStuck } : automatic ? { executed_by: refundedBy, automatic: true } : {}) })
   // Owner decision 2026-11-13: the refunded first payment bought nothing, so the subscription drops to the free base now.
   if (REFUND_LOCK_CAUSES.includes(updated.cause) && (await refundLockedInvoices(client, [note.invoice_id], ['refunded'])).has(note.invoice_id)) {
     await armRefundLock(client, { subscription_id: invoice.subscription_id, now: new Date() })
@@ -481,7 +484,7 @@ export async function refundLockedInvoices(client: Pick<Pool, 'query'>, invoiceI
  * provider could not do) finishes the order left in refund_pending, and closes its automatic outbox row if it is still
  * pending, once the invoice is credited in full.
  */
-async function settleUndeliveredOrder(client: PoolClient, invoiceId: string) {
+export async function settleUndeliveredOrder(client: PoolClient, invoiceId: string) {
   const settled = (await client.query(`UPDATE orders o SET payment_state='refunded' FROM invoices i
     WHERE i.id=$1 AND o.id=i.order_id AND o.payment_state='refund_pending' AND ${creditedMinorSql('i.id')}>=i.total_minor RETURNING o.id`, [invoiceId])).rows[0]
   if (settled) await client.query("UPDATE commercial_outbox SET status='done',processed_at=now() WHERE kind='reconcile.refund' AND aggregate_id=$1 AND dedupe_key='fulfillment-undelivered' AND status='pending'", [settled.id])
