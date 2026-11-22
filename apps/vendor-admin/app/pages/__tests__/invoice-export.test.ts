@@ -110,6 +110,41 @@ describe('invoice list export', () => {
     expect(listInvoices).toHaveBeenCalledTimes(1 + 1)
   })
 
+  it('makes no record and no file when cancelled while the last page was being read', async () => {
+    const { state, downloadCsv, recordInvoiceExport, listInvoices } = await listPage(30)
+    listInvoices.mockImplementation(async () => { state.cancelExport(); return { items: Array.from({ length: 30 }, (_, i) => invoice(30 - i)), total: 30, summary: { outstanding: [] } } })
+    await state.exportCsv()
+    expect(recordInvoiceExport).not.toHaveBeenCalled()
+    expect(downloadCsv).not.toHaveBeenCalled()
+  })
+
+  it('stops reading, and makes no record and no file, when the page is left', async () => {
+    const page = await listPage(900)
+    const release: (() => void)[] = []
+    page.listInvoices.mockImplementation(() => new Promise(resolve => release.push(() => resolve({ items: Array.from({ length: 200 }, (_, i) => invoice(900 - i)), total: 900, summary: { outstanding: [] } }))))
+    const running = page.state.exportCsv()
+    await Vue.nextTick()
+    page.unmounts.forEach(unmount => unmount())
+    release[0]!()
+    await running
+    expect(page.listInvoices).toHaveBeenCalledTimes(1 + 1)
+    expect(page.recordInvoiceExport).not.toHaveBeenCalled()
+    expect(page.downloadCsv).not.toHaveBeenCalled()
+  })
+
+  it('does not offer to cancel once the record is being written, so a recorded export always has its file', async () => {
+    const { state, downloadCsv, recordInvoiceExport, rendered } = await listPage(30)
+    let finish: () => void = () => {}
+    recordInvoiceExport.mockImplementation(() => new Promise<void>((resolve) => { finish = resolve }))
+    const running = state.exportCsv()
+    await vi.waitFor(() => expect(recordInvoiceExport).toHaveBeenCalled())
+    expect(node((await rendered()).captured, 'invoice-export-cancel')).toBeUndefined()
+    state.cancelExport()
+    finish()
+    await running
+    expect(downloadCsv).toHaveBeenCalledTimes(1)
+  })
+
   it('offers the export only while there is something to export', async () => {
     expect(node((await (await listPage(0)).rendered()).captured, 'invoices-export')?.props.disabled).toBe(true)
     expect(node((await (await listPage(3)).rendered()).captured, 'invoices-export')?.props.disabled).toBe(false)

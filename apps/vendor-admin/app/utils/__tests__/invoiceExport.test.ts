@@ -84,6 +84,12 @@ describe('collectInvoices', () => {
     await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
     expect(read).toHaveBeenCalledTimes(1)
   })
+
+  it('returns no rows when cancelled while the last page was being read', async () => {
+    const controller = new AbortController()
+    const read = vi.fn(async () => { controller.abort(); return { items: Array.from({ length: 3 }, (_, i) => invoice(i)), total: 3 } })
+    await expect(collectInvoices(read, filters, { signal: controller.signal })).rejects.toMatchObject({ name: 'AbortError' })
+  })
 })
 
 describe('plainAmount', () => {

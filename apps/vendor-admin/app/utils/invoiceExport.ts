@@ -28,6 +28,7 @@ export async function collectInvoices(
   for (let index = 0; ; index++) {
     signal?.throwIfAborted()
     const page = await readPage(invoiceListQuery({ customerId: filters.customerId, status: filters.status, page: index + 1, pageSize: INVOICE_EXPORT_PAGE }))
+    signal?.throwIfAborted()
     if (index === 0) total = page.total
     const wanted = Math.min(total, INVOICE_EXPORT_MAX_ROWS)
     for (const item of page.items) if (rows.size < wanted && !rows.has(item.id)) rows.set(item.id, item)
