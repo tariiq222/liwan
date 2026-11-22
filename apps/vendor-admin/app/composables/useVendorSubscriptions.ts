@@ -1,6 +1,6 @@
 import { commercialFailure } from '@/utils/vendorCommercial'
 import { normalizeQuoteResponse, withoutDraftTerms } from '@/utils/vendorSubscriptions'
-import type { TenantDeletionRequest, TenantDeletionRun, Adjustment, BranchSummary, ClientList, Quote, SubscriptionView, UsageSnapshot, CustomerTermsRevision, Order, PaymentAttempt, VoidRenewalOutcome } from '@liwan/commercial-contracts'
+import type { Attention, TenantDeletionRequest, TenantDeletionRun, Adjustment, BranchSummary, ClientList, Quote, SubscriptionView, UsageSnapshot, CustomerTermsRevision, Order, PaymentAttempt, VoidRenewalOutcome } from '@liwan/commercial-contracts'
 import type { AdminLoginChange, AdminLoginPreview, VendorCustomer, VendorInvoice, VendorInvoiceList } from '@/utils/vendorSubscriptions'
 
 /** Typed access to the vendor customer / subscription / invoice endpoints (proxy /api/vendor/v1 → /v1). Totals and prices always come from the server. */
@@ -21,6 +21,8 @@ export function useVendorSubscriptions() {
     subscription: (id: string) => request<SubscriptionView>(`commercial/subscriptions/${seg(id)}`),
     branches: (subscriptionId: string) => request<BranchSummary>(`commercial/subscriptions/${seg(subscriptionId)}/branches`),
     usage: (subscriptionId: string) => request<UsageSnapshot>(`commercial/subscriptions/${seg(subscriptionId)}/usage`),
+    /** What needs the vendor for one customer (the same list as the overview, limited to this customer). */
+    attention: (customerId: string) => request<Attention>('commercial/attention', { query: { customer_id: customerId } }),
     listInvoices: (query: Record<string, unknown>) => request<VendorInvoiceList>('commercial/invoices', { query }),
     invoice: (id: string) => request<VendorInvoice>(`commercial/invoices/${seg(id)}`),
     /** Records a refund the operator made by hand (a bank transfer, or after the system could not refund); nothing is refunded by this call. */

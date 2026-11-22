@@ -246,14 +246,14 @@ const countsSql = `SELECT
   (SELECT count(*)::int FROM customers c LEFT JOIN subscriptions s ON s.customer_id=c.id WHERE c.commercial_setup_required OR s.id IS NULL) AS setup_required,
   (SELECT count(*)::int FROM (SELECT s.*, ${renewalSkipped} AS renewal_skipped FROM subscriptions s) s WHERE ${renewalDue}) AS renewals`
 
-/** GET /v1/commercial/attention (vendor.read): a bounded, prioritized list of what needs the vendor today. Overdue invoices, refunds, claimed transfers, card payment review and saved-card refusals are billing detail: only `includeBilling` callers get them. */
-export async function attention(pool: Pool, includeBilling: boolean) {
+/** GET /v1/commercial/attention (vendor.read): a bounded, prioritized list of what needs the vendor today; `customer_id` limits it to one customer's items (the counts stay global). Overdue invoices, refunds, claimed transfers, card payment review and saved-card refusals are billing detail: only `includeBilling` callers get them. */
+export async function attention(pool: Pool, includeBilling: boolean, customerId: string | null = null) {
   const params = [STALLED_HOURS, RENEWAL_WINDOW_DAYS, includeBilling]
   const [list, counts] = await Promise.all([
-    pool.query(`${subjectsSql}
-      SELECT (SELECT count(*)::int FROM subjects) AS total,
+    pool.query(`${subjectsSql}, scoped AS (SELECT * FROM subjects WHERE $4::uuid IS NULL OR customer_id = $4::uuid)
+      SELECT (SELECT count(*)::int FROM scoped) AS total,
         COALESCE((SELECT jsonb_agg(to_jsonb(p)-'rank'-'sort_at' ORDER BY p.rank,p.sort_at,p.customer_id,p.tenant_id)
-          FROM (SELECT * FROM subjects ORDER BY rank,sort_at,customer_id,tenant_id LIMIT ${ATTENTION_LIMIT}) p),'[]'::jsonb) AS items`, params),
+          FROM (SELECT * FROM scoped ORDER BY rank,sort_at,customer_id,tenant_id LIMIT ${ATTENTION_LIMIT}) p),'[]'::jsonb) AS items`, [...params, customerId]),
     pool.query(countsSql, params),
   ])
   return attentionSchema.parse({ items: list.rows[0].items, total: list.rows[0].total, counts: counts.rows[0] })

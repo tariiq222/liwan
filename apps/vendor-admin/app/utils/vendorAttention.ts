@@ -1,5 +1,6 @@
 import type { AttentionItem, AttentionKind } from '@liwan/commercial-contracts'
 import type { StatusTone } from '@liwan/ui/app/utils/statusTone'
+import { clientTab, CUSTOMER_TABS, type ClientTab } from './vendorClients'
 
 /** One count of the overview status strip; `to` opens the list it counts. */
 export type StatusStat = { id: string, label: string, value: number, to?: string }
@@ -79,6 +80,15 @@ export function attentionPresentation(item: AttentionItem): AttentionPresentatio
     case 'renewal_soon':
       return { to: customerTab(item, 'subscription'), tone: 'info', icon: 'i-lucide-calendar-clock', actionKey: action(item.kind) }
   }
+}
+
+/** The tab of the customer page an item is resolved on (null when it opens nothing): the customer page shows the item at the top of that tab. */
+export function attentionTab(item: AttentionItem): ClientTab | null {
+  const to = attentionPresentation(item).to
+  if (!to) return null
+  if (to.path.startsWith('/invoices/')) return 'invoices'
+  if (to.path.startsWith('/operations/')) return 'operations'
+  return clientTab(to.query?.tab, CUSTOMER_TABS)
 }
 
 const FAILED_FULFILLMENT = ['failed', 'needs_intervention']

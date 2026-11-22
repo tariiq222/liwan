@@ -4,6 +4,7 @@ import * as subscriptions from '../../utils/vendorSubscriptions'
 import * as commercial from '../../utils/vendorCommercial'
 import * as deletion from '../../utils/vendorDeletion'
 import * as clients from '../../utils/vendorClients'
+import { attentionTab } from '../../utils/vendorAttention'
 import { entitledSelections } from '../../utils/vendorEntitlement'
 import { customerDisplayBadge, operationStatusBadge } from '../../utils/vendorBadges'
 import { invoiceStatusBadge } from '@liwan/commercial-ui/app/utils/commercialBadges'
@@ -16,16 +17,16 @@ afterEach(() => mounted.splice(0).forEach(page => page.stop()))
 
 const customer = { id: 'c1', name: 'Acme', tenant_id: 't1', subscription: null }
 
-async function customerPage(path: string) {
-  const route = reactive({ path, query: {} as Record<string, string>, params: { id: 'c1' }, fullPath: path })
+async function customerPage(path: string, query: Record<string, string> = {}) {
+  const route = reactive({ path, query, params: { id: 'c1' }, fullPath: path })
   const api = {
     customer: vi.fn(async () => customer), subscription: vi.fn(async () => null), branches: vi.fn(async () => null), usage: vi.fn(async () => null),
-    listInvoices: vi.fn(async () => ({ items: [], total: 0 })), tenantDeletionRun: vi.fn(async () => ({ run: null })),
+    listInvoices: vi.fn(async () => ({ items: [], total: 0 })), attention: vi.fn(async (_customerId: string): Promise<{ items: ReturnType<typeof attentionItem>[], total: number, counts: object }> => ({ items: [], total: 0, counts: {} })), tenantDeletionRun: vi.fn(async () => ({ run: null })),
   }
   const catalog = { listPlans: vi.fn(async () => ({ items: [], total: 0 })), releases: vi.fn(async () => []) }
   const tenantId = ref('')
   const page = await mountPage('customers/[id].vue', {
-    ...subscriptions, ...commercial, ...deletion, ...clients, entitledSelections, customerDisplayBadge, operationStatusBadge, invoiceStatusBadge, formatCommercialMoney, formatLiwanDate, formatLiwanDateTime,
+    ...subscriptions, ...commercial, ...deletion, ...clients, attentionTab, entitledSelections, customerDisplayBadge, operationStatusBadge, invoiceStatusBadge, formatCommercialMoney, formatLiwanDate, formatLiwanDateTime,
     createError: (e: unknown) => e, useCopyLink: () => ({}),
     useVendorTenant: (id: { value: string }) => { tenantId.value = id.value; return { data: ref(null), error: ref(null), pending: ref(false), refresh: vi.fn() } },
     useTenantRecentOperations: () => ({ data: ref([]), error: ref(null), refresh: vi.fn() }),
@@ -36,6 +37,7 @@ async function customerPage(path: string) {
   mounted.push(page)
   return { page, route, api, catalog }
 }
+function attentionItem(kind: string) { return { kind, customer_id: 'c1', tenant_id: 't1', operation_id: null, invoice_id: null, name: 'Acme', since: '2026-11-01T00:00:00Z', detail: null } }
 
 it('guards the renewal and card reasons of the customer page', async () => {
   const { page } = await customerPage('/customers/c1')
@@ -61,4 +63,19 @@ it('sends no request for the customer while a child route (change, terms) is sho
   expect(api.tenantDeletionRun).toHaveBeenCalledTimes(1)
   expect(catalog.listPlans).toHaveBeenCalledTimes(1)
   void page
+})
+
+it('shows the open attention items of this customer, with their reason, at the top of the tab they are resolved on', async () => {
+  const { page, api } = await customerPage('/customers/c1', { tab: 'subscription' })
+  api.attention.mockResolvedValue({ items: [attentionItem('billing_blocked'), attentionItem('stalled_activation')], total: 2, counts: {} })
+  await page.state.refreshExtra()
+  expect(api.attention).toHaveBeenCalledWith('c1')
+  const list = (await page.rendered()).captured.filter(node => node.name === 'VendorAttentionList')
+  expect(list).toHaveLength(1)
+  expect(list[0]!.props.items.map((i: { kind: string }) => i.kind)).toEqual(['billing_blocked'])
+})
+
+it('shows no attention block when the customer has nothing open', async () => {
+  const { page } = await customerPage('/customers/c1', { tab: 'subscription' })
+  expect((await page.rendered()).captured.some(node => node.name === 'VendorAttentionList')).toBe(false)
 })

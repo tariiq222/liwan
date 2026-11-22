@@ -1,9 +1,22 @@
 import { describe, expect, it } from 'vitest'
 import type { AttentionItem } from '@liwan/commercial-contracts'
-import { attentionMessage, attentionPresentation, daysSinceRenewal, daysUntil } from '../vendorAttention'
+import { attentionMessage, attentionPresentation, attentionTab, daysSinceRenewal, daysUntil } from '../vendorAttention'
 
 const now = new Date('2026-10-16T12:00:00Z')
 const item = (o: Partial<AttentionItem>): AttentionItem => ({ kind: 'setup_required', customer_id: 'c1', tenant_id: null, operation_id: null, invoice_id: null, name: 'شركة س', since: '2026-10-04T12:00:00Z', detail: null, ...o })
+
+describe('attentionTab', () => {
+  it('names the customer tab an item is resolved on', () => {
+    expect(attentionTab(item({ kind: 'billing_blocked' }))).toBe('subscription')
+    expect(attentionTab(item({ kind: 'renewal_failed' }))).toBe('subscription')
+    expect(attentionTab(item({ kind: 'stalled_activation' }))).toBe('workspace')
+    expect(attentionTab(item({ kind: 'past_due', invoice_id: 'i1' }))).toBe('invoices')
+    expect(attentionTab(item({ kind: 'past_due' }))).toBe('invoices')
+    expect(attentionTab(item({ kind: 'operation_failed', operation_id: 'o1' }))).toBe('operations')
+    expect(attentionTab(item({ kind: 'shared_operation_failed', operation_id: 'o1' }))).toBe('operations')
+    expect(attentionTab(item({ kind: 'operation_failed', operation_id: null }))).toBeNull()
+  })
+})
 
 describe('attentionPresentation', () => {
   it('opens the exact place for every kind', () => {

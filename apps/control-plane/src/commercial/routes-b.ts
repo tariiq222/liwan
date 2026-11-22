@@ -73,7 +73,12 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
       return {status:200,data:existing}
     }
   }
-  if(path==='/attention'&&m==='GET'){need(input,'vendor.read');return {status:200,data:await attention(pool,input.capabilities.includes('vendor.billing.manage'))}}
+  if(path==='/attention'&&m==='GET'){
+    need(input,'vendor.read')
+    const customerId=url.searchParams.get('customer_id')
+    if(customerId!==null&&!z.uuid().safeParse(customerId).success)throw new CommercialHttpError('invalid',422,'customer_id')
+    return {status:200,data:await attention(pool,input.capabilities.includes('vendor.billing.manage'),customerId)}
+  }
   if(path==='/clients'&&m==='GET'){need(input,'vendor.read');return {status:200,data:await listClients(pool,url)}}
   // Workspace deletions are asked and confirmed only by the customer; the vendor sees every request and can withdraw one on the customer's behalf.
   if(path==='/deletion-requests'&&m==='GET'){

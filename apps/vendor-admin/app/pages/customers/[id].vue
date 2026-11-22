@@ -8,6 +8,7 @@ import { adminLoginErrorKey, cancellationErrorKey, cardActionErrorKey, deletionE
 import { useVendorSubscriptions } from '@/composables/useVendorSubscriptions'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
 import { useCopyLink } from '@/composables/useCopyLink'
+import { attentionTab } from '@/utils/vendorAttention'
 import { entitledSelections } from '@/utils/vendorEntitlement'
 import { customerDisplayBadge, operationStatusBadge } from '@/utils/vendorBadges'
 import type { StatusBadgeEntry } from '@liwan/ui/app/utils/statusBadge'
@@ -39,15 +40,16 @@ async function soft<T>(fn: () => Promise<T>): Promise<{ value: T | null; unavail
 const { data: extra, refresh: refreshExtra } = await useAsyncData(() => `vendor:customer-extra:${id.value}`, async () => {
   if (isChild.value) return null
   const s = subId.value
-  const [full, branches, usage, invoices, plans, releases] = await Promise.all([
+  const [full, branches, usage, invoices, plans, releases, attention] = await Promise.all([
     s ? soft(() => api.subscription(s)) : Promise.resolve({ value: null, unavailable: false, failed: false }),
     s ? soft(() => api.branches(s)) : Promise.resolve({ value: null, unavailable: false, failed: false }),
     s ? soft(() => api.usage(s)) : Promise.resolve({ value: null, unavailable: false, failed: false }),
     canBilling.value ? soft(() => api.listInvoices({ customer_id: id.value, limit: 10 })) : Promise.resolve({ value: null, unavailable: false, failed: false }),
     soft(() => useVendorCommercial().listPlans({ limit: 200, customer_id: id.value })),
     soft(() => useVendorCommercial().releases()),
+    soft(() => api.attention(id.value)),
   ])
-  return { full, branches, usage, invoices, plans, releases }
+  return { full, branches, usage, invoices, plans, releases, attention }
 }, { watch: [subId] })
 const view = computed(() => extra.value?.full.value ?? sub.value)
 const planNameOf = (planRevisionId: string | undefined) => extra.value?.plans.value?.items.find(p => p.id === planRevisionId)?.name
@@ -58,6 +60,9 @@ const release = computed(() => extra.value?.releases.value?.find(r => r.id === v
 const selections = computed(() => entitledSelections(release.value, view.value?.applied?.entitlement.features))
 const branchText = computed(() => (extra.value?.branches.value ? branchSummaryText(extra.value.branches.value) : null))
 const invoices = computed(() => extra.value?.invoices.value?.items ?? [])
+// What needs the vendor for this customer, on the tab each item is resolved on: its reason and action are the overview's.
+const now = new Date()
+const tabAttention = computed(() => (extra.value?.attention.value?.items ?? []).filter(item => attentionTab(item) === tab.value))
 // Undefined while the invoices are not offered or could not be read: the summary then leaves the tile out.
 const glanceInvoices = computed(() => (canBilling.value && extra.value?.invoices.value ? invoices.value : undefined))
 const display = computed(() => (view.value ? subscriptionDisplayState(view.value) : null))
@@ -291,6 +296,10 @@ async function cancelPendingOrder() {
       <template #tabs><SharedRouteTabs :items="tabs" :ariaLabel="t('vendor.clientTabs.label')" /></template>
 
       <div v-if="customer" class="space-y-6">
+        <section v-if="tabAttention.length" aria-labelledby="customer-attention-title" class="space-y-3" data-testid="customer-attention">
+          <h2 id="customer-attention-title" class="text-lg font-semibold">{{ t('vendor.today.attentionTitle') }}</h2>
+          <VendorAttentionList :items="tabAttention" :now="now" />
+        </section>
         <template v-if="tab === 'summary'">
           <UAlert v-if="customer.commercial_setup_required" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('vendor.customers.setupRequired')" :description="t('vendor.customers.setupHint')" />
           <VendorCustomerGlance :setup-required="customer.commercial_setup_required" :subscription="view" :plan-name="planNameOf(view?.applied?.plan_revision_id) ?? pendingPlanName" :plan-pending="!view?.applied && Boolean(pendingPlanName)" :invoices="glanceInvoices" :has-workspace="hasWorkspace" :workspace-badge="workspaceBadge" :provisioning-failed="progress.failed" :operation-failed="operationFailed" :workspace-unreadable="workspaceUnreadable" :invoices-offered="canBilling" :login-url="progress.loginUrl" :tab-to="tabTo" @retry="retryWorkspaceState" />

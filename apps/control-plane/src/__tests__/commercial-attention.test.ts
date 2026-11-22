@@ -30,8 +30,8 @@ suite('vendor attention list on PostgreSQL', () => {
     return { order: orderId, attempt, invoice }
   }
 
-  const get = async (caps: any[]) => {
-    const r = await routesB(pool, { method: 'GET', pathname: '/v1/commercial/attention', search: '', raw: '', issuer: 'attention-test', actor: 7, capabilities: caps }, new URL('http://localhost/v1/commercial/attention'))
+  const get = async (caps: any[], customerId?: string) => {
+    const r = await routesB(pool, { method: 'GET', pathname: '/v1/commercial/attention', search: '', raw: '', issuer: 'attention-test', actor: 7, capabilities: caps }, new URL(`http://localhost/v1/commercial/attention${customerId ? `?customer_id=${customerId}` : ''}`))
     return attentionSchema.parse(r!.data)
   }
   const mine = <T extends { name: string }>(items: T[]) => items.filter(i => i.name.startsWith(tag))
@@ -164,6 +164,17 @@ suite('vendor attention list on PostgreSQL', () => {
     expect(mine(items).map(i => i.kind)).not.toContain('refund_rejected')
     expect(mine(items).every(i => i.invoice_id === null)).toBe(true)
     expect((await get(['vendor.read'])).counts.past_due).toBeNull()
+  })
+
+  it('limits the list to one customer, with the same billing rules, and refuses a malformed id', async () => {
+    const own = await get(BILLING, id.overdue)
+    expect(own.items.map(i => i.kind)).toContain('past_due')
+    expect(own.items.every(i => i.customer_id === id.overdue)).toBe(true)
+    expect(own.total).toBe(own.items.length)
+    expect((await get(['vendor.read'], id.overdue)).items).toEqual([])
+    expect((await get(BILLING, id.calm)).items).toEqual([])
+    expect((await get(['vendor.read'], id.blocked)).items.map(i => i.kind)).toEqual(['billing_blocked'])
+    await expect(get(BILLING, 'not-a-uuid')).rejects.toMatchObject({ status: 422 })
   })
 
   it('counts server-side and bounds the list, keeping the most urgent kinds', async () => {
