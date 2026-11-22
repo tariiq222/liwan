@@ -1,6 +1,7 @@
 import { ANALYTICS_MAX_DAYS, type AnalyticsFigure, type AnalyticsFigures, type Money } from '@liwan/commercial-contracts'
 import { formatCommercialMoney } from '@liwan/commercial-ui/app/utils/commercial'
 import { BUSINESS_TIME_ZONE } from '@liwan/commercial-contracts'
+import { csvLiteral, toCsvTable } from './csv'
 
 export const PERIOD_PRESETS = ['month', 'quarter', 'year', 'custom'] as const
 export type PeriodPreset = (typeof PERIOD_PRESETS)[number]
@@ -65,12 +66,9 @@ export function deltaTone(change: Delta['change'], direction: Direction): 'good'
 
 export interface CsvRow { section: string, metric: string, current: string, previous: string }
 
-const csvCell = (value: string) => (/[",\n\r]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value)
-
-/** Semicolon-free comma CSV with a byte-order mark so spreadsheets open Arabic text correctly. */
+/** Comma CSV with a byte-order mark so spreadsheets open Arabic text correctly; every cell is a label or a figure the page formatted. */
 export function toCsv(header: readonly string[], rows: readonly CsvRow[]): string {
-  const lines = [header, ...rows.map(row => [row.section, row.metric, row.current, row.previous])]
-  return `﻿${lines.map(line => line.map(csvCell).join(',')).join('\r\n')}\r\n`
+  return toCsvTable(header, rows.map(row => [csvLiteral(row.section), csvLiteral(row.metric), csvLiteral(row.current), csvLiteral(row.previous)]))
 }
 
 export type KpiGroup = 'revenue' | 'collection' | 'customers' | 'operations'

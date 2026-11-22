@@ -70,4 +70,7 @@ describe('toCsv', () => {
     const csv = toCsv(['a', 'b', 'c', 'd'], [{ section: 'S', metric: 'He said "hi", ok', current: '1', previous: '2' }])
     expect(csv).toBe('﻿a,b,c,d\r\nS,"He said ""hi"", ok",1,2\r\n')
   })
+  it('writes its own formatted figures as they are, even a negative or signed one', () => {
+    expect(toCsv(['a', 'b', 'c', 'd'], [{ section: 'قسم', metric: 'صافي', current: '-SAR 5.00', previous: '+12%' }])).toBe('﻿a,b,c,d\r\nقسم,صافي,-SAR 5.00,+12%\r\n')
+  })
 })
