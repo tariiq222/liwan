@@ -14,7 +14,7 @@ import { acceptQuote, cancelOrder, cancelOrderBodySchema } from './orders.js'
 import { listCustomers, customerView } from './customers.js'
 import { attention } from './attention.js'
 import { listClients } from './clients.js'
-import { listVendorInvoices, getVendorInvoice } from './invoices.js'
+import { listVendorInvoices, getVendorInvoice, getCustomerInvoice } from './invoices.js'
 import { analyticsFromQuery } from './analytics.js'
 import { listBranches } from './branches.js'
 import { getUsage } from './usage.js'
@@ -244,6 +244,9 @@ export async function routesB(pool: Pool, input: CommercialInput, url: URL, runt
   const invoice=/^\/invoices\/([^/]+)$/.exec(path)
   if(m==='GET'&&invoice){need(input,'vendor.billing.manage');if(!z.uuid().safeParse(invoice[1]).success)throw new CommercialHttpError('not_found',404);const data=await getVendorInvoice(pool,invoice[1]!);if(!data)throw new CommercialHttpError('not_found',404);return {status:200,data}}
   // The vendor records that a bank transfer arrived; the order is then paid through the ordinary settlement path.
+  // The printable document: what the customer prints, never the operator's own reasons or names.
+  const document=/^\/invoices\/([^/]+)\/document$/.exec(path)
+  if(m==='GET'&&document){need(input,'vendor.billing.manage');if(!z.uuid().safeParse(document[1]).success)throw new CommercialHttpError('not_found',404);const data=await getCustomerInvoice(pool,document[1]!);if(!data)throw new CommercialHttpError('not_found',404);return {status:200,data}}
   const transfer=/^\/invoices\/([^/]+)\/bank-transfer$/.exec(path)
   if(m==='POST'&&transfer){
     need(input,'vendor.billing.manage')

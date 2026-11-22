@@ -166,7 +166,7 @@ export function customerCreditNoteView(row: any): CustomerCreditNote {
  * invoice was issued (`invoices.seller`); an invoice issued before that column existed, or while no legal name was set,
  * has none and shows the current identity.
  */
-export async function getCustomerInvoice(pool: Q, id: string, { customer_id }: { customer_id: string }): Promise<CustomerInvoice | null> {
+export async function getCustomerInvoice(pool: Q, id: string, { customer_id }: { customer_id?: string } = {}): Promise<CustomerInvoice | null> {
   const invoice = await getInvoice(pool, id, { customer_id })
   if (!invoice) return null
   const row = (await pool.query('SELECT i.seller, c.name AS customer_name FROM invoices i JOIN customers c ON c.id = i.customer_id WHERE i.id = $1', [id])).rows[0]

@@ -32,6 +32,8 @@ const ALLOWED = [
   new RegExp(`^/v1/commercial/invoices/${SEGMENT}/refund-request$`),
   // Voiding an unpaid renewal invoice (the control plane needs the billing and subscription grants and a fresh step-up).
   new RegExp(`^/v1/commercial/invoices/${SEGMENT}/void$`),
+  // The invoice as the customer prints it (the console's print route reads it).
+  new RegExp(`^/v1/commercial/invoices/${SEGMENT}/document$`),
   // D8: the refund of a later AI top-up, which the general refund request refuses (not the customer's first payment).
   new RegExp(`^/v1/commercial/ai-topups/${SEGMENT}/refund$`),
   new RegExp(`^/v1/commercial/customers/${SEGMENT}/(trial|invitations)$`),
@@ -83,6 +85,7 @@ const METHOD_BOUND = [
   { pattern: new RegExp(`^/v1/commercial/invoices/${SEGMENT}/bank-transfer$`), methods: ['POST'] },
   { pattern: new RegExp(`^/v1/commercial/invoices/${SEGMENT}/refund-request$`), methods: ['POST'] },
   { pattern: new RegExp(`^/v1/commercial/invoices/${SEGMENT}/void$`), methods: ['POST'] },
+  { pattern: new RegExp(`^/v1/commercial/invoices/${SEGMENT}/document$`), methods: ['GET'] },
   { pattern: new RegExp(`^/v1/commercial/ai-topups/${SEGMENT}/refund$`), methods: ['POST'] },
   { pattern: /^\/v1\/commercial\/deletion-requests$/, methods: ['GET'] },
   { pattern: new RegExp(`^/v1/commercial/customers/${SEGMENT}/deletion$`), methods: ['GET'] },
