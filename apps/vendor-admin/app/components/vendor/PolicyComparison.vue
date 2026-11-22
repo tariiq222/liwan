@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { keyLabel } from '@/utils/vendorCommercial'
 // The settings a workspace should have next to the ones the service last reported, row by row.
 const props = defineProps<{ desired: Record<string, unknown> | null; observed: Record<string, unknown> | null }>()
 const { t, te } = useI18n()
@@ -12,7 +13,7 @@ const rows = computed(() => {
   const desired = props.desired ?? {}
   const observed = props.observed ?? {}
   const keys = [...new Set([...Object.keys(desired), ...Object.keys(observed)])].sort()
-  return keys.map(key => ({ key, label: te(`vendor.features.${key}`) ? t(`vendor.features.${key}`) : key, desired: valueText(desired[key]), observed: valueText(observed[key]), same: desired[key] === observed[key] }))
+  return keys.map(key => ({ key, label: keyLabel(key, t, te), desired: valueText(desired[key]), observed: valueText(observed[key]), same: desired[key] === observed[key] }))
 })
 const pendingCount = computed(() => rows.value.filter(row => !row.same).length)
 </script>

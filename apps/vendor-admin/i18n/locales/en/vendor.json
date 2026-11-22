@@ -272,29 +272,6 @@
         "catalog_invalid": "Validation of the version failed. Check its source with the platform operator, then try again."
       }
     },
-    "features": {
-      "users": {
-        "limit": "Maximum users"
-      },
-      "storage": {
-        "limit_mb": "Storage limit (MB)"
-      },
-      "pmo": {
-        "enabled": "Projects"
-      },
-      "meetings": {
-        "enabled": "Meetings"
-      },
-      "projects": {
-        "max_projects": "Maximum projects"
-      },
-      "hr": {
-        "enabled": "People directory"
-      },
-      "chat": {
-        "enabled": "Private messaging"
-      }
-    },
     "backups": {
       "title": "Backups",
       "hint": "Verified backups of this workspace. A restore makes a separate copy and never touches the live workspace.",
@@ -1156,14 +1133,61 @@
         "tenant_required": "This subscription has no workspace linked yet, so the change cannot be reserved. Finish provisioning the workspace, then repeat the action."
       },
       "keys": {
-        "users_limit": "Users",
-        "storage_limit_mb": "Counted attachment storage (MB)",
+        "ai_allowance_monthly": "Included monthly AI allowance",
+        "ai_allowance_trial": "AI allowance during the trial",
+        "ai_assist_monthly": "Monthly AI assist requests",
+        "ai_balance_granted": "Granted AI balance",
+        "ai_enabled": "AI assistant",
+        "ai_knowledge": "AI assistant knowledge base",
+        "ai_messages_monthly": "Monthly AI assistant messages",
+        "ai_output_tokens_per_run": "AI output limit per run",
+        "ai_tokens_monthly": "Monthly AI tokens",
+        "ai_tool_calls_per_run": "AI tool calls per run",
+        "appointments_enabled": "Appointments",
         "branches_extra_limit": "Extra branches",
-        "pmo_enabled": "Projects and tasks",
-        "meetings_enabled": "Meetings",
-        "hr_enabled": "HR",
         "chat_enabled": "Chat",
-        "projects_max_projects": "Maximum projects"
+        "crm_enabled": "Customer management",
+        "crm_export": "Lead export",
+        "crm_import": "Lead import",
+        "finance_enabled": "Finance",
+        "helpdesk_auto_close": "Automatic ticket closing",
+        "helpdesk_enabled": "Helpdesk",
+        "helpdesk_merge": "Ticket merging",
+        "helpdesk_portal": "Customer support portal",
+        "helpdesk_reports": "Support reports",
+        "hr_assets": "Employee assets",
+        "hr_enabled": "HR",
+        "hr_insurance": "Medical insurance",
+        "hr_offboarding": "Employee offboarding",
+        "hr_onboarding": "Employee onboarding",
+        "hr_payroll": "Payroll",
+        "hr_recruitment": "Recruitment",
+        "hr_shifts": "Shifts",
+        "hr_warnings": "Warnings",
+        "inbox_automation": "Message automation",
+        "inbox_campaign_recipients": "Message campaign recipients",
+        "inbox_campaigns": "Message campaigns",
+        "inbox_catalog": "Product catalog in messages",
+        "inbox_channels": "Message channels",
+        "inbox_enabled": "Customer inbox",
+        "inbox_flows": "Conversation flows",
+        "inbox_messages_out": "Outgoing messages",
+        "inbox_reports": "Message reports",
+        "inbox_templates": "Message templates",
+        "inbox_tiktok": "TikTok channel",
+        "inbox_whatsapp": "WhatsApp channel",
+        "integrations_enabled": "Saudi integrations",
+        "meetings_enabled": "Meetings",
+        "payments_enabled": "Own payment gateway connection",
+        "pmo_baselines": "Project baselines",
+        "pmo_change_control": "Project change control",
+        "pmo_enabled": "Projects and tasks",
+        "pmo_evm": "Earned value management",
+        "projects_max_projects": "Maximum projects",
+        "sales_enabled": "Sales",
+        "storage_limit_mb": "Counted attachment storage (MB)",
+        "tasks_enabled": "Tasks",
+        "users_limit": "Users"
       }
     },
     "customers": {

@@ -2,13 +2,14 @@ import { describe, expect, it } from 'vitest'
 import * as Vue from 'vue'
 import { loadSfc } from './sfc'
 import { showsSharedBackups } from '../../utils/sharedBackups'
+import { keyLabel } from '../../utils/vendorCommercial'
 
 const tenantId = '10000000-0000-4000-8000-000000000001'
 const tenant = (over: Record<string, unknown> = {}) => ({ id: tenantId, name: 'Acme', commercial_mode: 'saas', hosting_model: 'shared_managed', inventory_target: 'x', catalog_version: null, catalog_tier: null, status: 'active', desired_policy: null, observed_policy: null, policy_revision: 1, health_checked_at: null, operations_enabled: true, available_operations: [], created_at: '2026-11-01T00:00:00.000Z', ...over })
 
 async function mount(data: unknown) {
   const sfc = loadSfc('components/vendor/TenantOperationsPanel.vue', {
-    useI18n: () => ({ t: (key: string) => key }), useVendorApi: () => ({ request: async () => ({}) }),
+    useI18n: () => ({ t: (key: string) => key, te: () => false }), keyLabel, useVendorApi: () => ({ request: async () => ({}) }),
     useVendorContext: () => ({ can: () => true }),
     useVendorTenant: () => ({ data: Vue.ref(data), error: Vue.ref(null), pending: Vue.ref(false), refresh: async () => {} }),
     useVendorCatalogVersions: () => ({ load: () => ({ data: Vue.ref([]) }) }),

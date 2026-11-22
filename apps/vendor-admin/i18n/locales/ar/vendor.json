@@ -272,29 +272,6 @@
         "catalog_invalid": "فشل التحقق من الإصدار. راجع مصدره مع مشغّل المنصة ثم أعد المحاولة."
       }
     },
-    "features": {
-      "users": {
-        "limit": "الحد الأعلى للمستخدمين"
-      },
-      "storage": {
-        "limit_mb": "حد التخزين (ميغابايت)"
-      },
-      "pmo": {
-        "enabled": "المشاريع"
-      },
-      "meetings": {
-        "enabled": "الاجتماعات"
-      },
-      "projects": {
-        "max_projects": "الحد الأعلى للمشاريع"
-      },
-      "hr": {
-        "enabled": "دليل الأفراد"
-      },
-      "chat": {
-        "enabled": "المراسلة الخاصة"
-      }
-    },
     "backups": {
       "title": "النسخ الاحتياطية",
       "hint": "نسخ احتياطية متحقَّق منها لمساحة العمل. الاستعادة تنشئ نسخة منفصلة ولا تمسّ بيانات المساحة الحالية.",
@@ -1156,14 +1133,61 @@
         "tenant_required": "هذا الاشتراك بلا مساحة عمل مرتبطة بعد، فلا يمكن حجز التعديل. أكمل تجهيز المساحة ثم أعد الإجراء."
       },
       "keys": {
-        "users_limit": "المستخدمون",
-        "storage_limit_mb": "تخزين المرفقات المحتسبة (م.ب)",
+        "ai_allowance_monthly": "الرصيد الشهري المشمول للذكاء الاصطناعي",
+        "ai_allowance_trial": "رصيد الذكاء الاصطناعي في التجربة",
+        "ai_assist_monthly": "طلبات المساعدة الذكية الشهرية",
+        "ai_balance_granted": "رصيد الذكاء الاصطناعي الممنوح",
+        "ai_enabled": "المساعد الذكي",
+        "ai_knowledge": "قاعدة معرفة المساعد الذكي",
+        "ai_messages_monthly": "رسائل المساعد الذكي الشهرية",
+        "ai_output_tokens_per_run": "حد مخرجات المساعد الذكي في كل تشغيل",
+        "ai_tokens_monthly": "رموز الذكاء الاصطناعي الشهرية",
+        "ai_tool_calls_per_run": "استدعاءات الأدوات في كل تشغيل",
+        "appointments_enabled": "المواعيد",
         "branches_extra_limit": "الفروع الإضافية",
-        "pmo_enabled": "إدارة المشاريع والمهام",
-        "meetings_enabled": "الاجتماعات",
-        "hr_enabled": "الموارد البشرية",
         "chat_enabled": "المحادثات",
-        "projects_max_projects": "أقصى عدد للمشاريع"
+        "crm_enabled": "إدارة العملاء",
+        "crm_export": "تصدير العملاء المحتملين",
+        "crm_import": "استيراد العملاء المحتملين",
+        "finance_enabled": "المالية",
+        "helpdesk_auto_close": "الإغلاق التلقائي للتذاكر",
+        "helpdesk_enabled": "الدعم الفني",
+        "helpdesk_merge": "دمج التذاكر",
+        "helpdesk_portal": "بوابة العملاء للدعم",
+        "helpdesk_reports": "تقارير الدعم",
+        "hr_assets": "عهد الموظفين",
+        "hr_enabled": "الموارد البشرية",
+        "hr_insurance": "التأمين الطبي",
+        "hr_offboarding": "إنهاء خدمة الموظفين",
+        "hr_onboarding": "تهيئة الموظفين الجدد",
+        "hr_payroll": "الرواتب",
+        "hr_recruitment": "التوظيف",
+        "hr_shifts": "الورديات",
+        "hr_warnings": "الإنذارات والمخالفات",
+        "inbox_automation": "أتمتة الرسائل",
+        "inbox_campaign_recipients": "مستلمو حملات الرسائل",
+        "inbox_campaigns": "حملات الرسائل",
+        "inbox_catalog": "كتالوج المنتجات في الرسائل",
+        "inbox_channels": "قنوات الرسائل",
+        "inbox_enabled": "صندوق رسائل العملاء",
+        "inbox_flows": "مسارات المحادثة",
+        "inbox_messages_out": "الرسائل الصادرة",
+        "inbox_reports": "تقارير الرسائل",
+        "inbox_templates": "قوالب الرسائل",
+        "inbox_tiktok": "قناة تيك توك",
+        "inbox_whatsapp": "قناة واتساب",
+        "integrations_enabled": "التكاملات السعودية",
+        "meetings_enabled": "الاجتماعات",
+        "payments_enabled": "ربط بوابة الدفع الخاصة بالعميل",
+        "pmo_baselines": "خطوط الأساس للمشاريع",
+        "pmo_change_control": "ضبط تغييرات المشاريع",
+        "pmo_enabled": "إدارة المشاريع والمهام",
+        "pmo_evm": "إدارة القيمة المكتسبة",
+        "projects_max_projects": "أقصى عدد للمشاريع",
+        "sales_enabled": "المبيعات",
+        "storage_limit_mb": "تخزين المرفقات المحتسبة (م.ب)",
+        "tasks_enabled": "المهام",
+        "users_limit": "المستخدمون"
       }
     },
     "customers": {

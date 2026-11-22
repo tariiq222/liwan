@@ -7,12 +7,13 @@ import { useVendorCatalogVersions } from '@/composables/useVendorCatalogVersions
 import { showsSharedBackups } from '@/utils/sharedBackups'
 import { failureKey } from '@/composables/useStepUp'
 import type { OperationFeed } from '@liwan/commercial-contracts'
+import { keyLabel } from '@/utils/vendorCommercial'
 type TenantOperation = 'tenant.create' | 'tenant.inspect' | 'health' | 'backup' | 'tenant.entitle'
 const tenantOperationTypes = new Set<TenantOperation>(['tenant.create', 'tenant.inspect', 'health', 'backup', 'tenant.entitle'])
 const props = defineProps<{ tenantId: string }>()
 /** True while a typed reason or limit change has not been sent; the page guards leaving with it. */
 const dirtyModel = defineModel<boolean>('dirty', { default: false })
-const { t } = useI18n()
+const { t, te } = useI18n()
 const { request } = useVendorApi()
 const { can: canVendor } = useVendorContext()
 const tenantId = toRef(props, 'tenantId')
@@ -139,8 +140,8 @@ const operationTime = (op: OperationFeed) => formatLiwanDateTime(op.source === '
           <p v-if="expectedRevision === null" role="alert" class="text-sm text-error">{{ t('vendor.tenants.revisionUnavailable') }}</p>
           <div class="grid gap-3 sm:grid-cols-2">
             <div v-for="[key, kind] in featureKeys" :key="key" class="rounded-control p-3 ring ring-default">
-              <label v-if="kind === 'boolean'" class="flex items-center gap-3"><UCheckbox v-model="edits[key]" :aria-label="t(`vendor.features.${key}`, key)" /><span>{{ t(`vendor.features.${key}`, key) }}</span></label>
-              <UFormField v-else :label="t(`vendor.features.${key}`, key)" :help="t('vendor.tenants.limitHelp')"><UInput v-model="edits[key]" type="number" min="0" step="1" inputmode="numeric" class="w-full" /></UFormField>
+              <label v-if="kind === 'boolean'" class="flex items-center gap-3"><UCheckbox v-model="edits[key]" :aria-label="keyLabel(key, t, te)" /><span>{{ keyLabel(key, t, te) }}</span></label>
+              <UFormField v-else :label="keyLabel(key, t, te)" :help="t('vendor.tenants.limitHelp')"><UInput v-model="edits[key]" type="number" min="0" step="1" inputmode="numeric" class="w-full" /></UFormField>
             </div>
           </div>
         </template>
