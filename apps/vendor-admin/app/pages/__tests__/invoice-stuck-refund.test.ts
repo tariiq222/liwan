@@ -13,7 +13,7 @@ const mounted: { stop: () => void }[] = []
 afterEach(() => mounted.splice(0).forEach(page => page.stop()))
 
 const sar = (minor: number) => ({ currency: 'SAR', exponent: 2, minor })
-const stuck = { since: '2026-11-22T06:00:00.000Z', attempts: 2, next_attempt_at: '2026-11-22T09:00:00.000Z', provider_payment_id: null, conflict: null, actions: ['check', 'release'] }
+const stuck = { since: '2026-11-22T06:00:00.000Z', attempts: 2, next_attempt_at: '2026-11-22T09:00:00.000Z', provider_payment_id: null, conflict: null, actions: ['check', 'release'], release_from: '2026-11-22T07:00:00.000Z' }
 const note = (over: Record<string, unknown> = {}) => ({ id: 'note1', invoice_id: 'inv1', customer_id: 'c1', kind: 'credit_note', reason: 'Customer asked for the money back', amount: sar(11500), status: 'pending', origin: 'vendor',
   created_at: '2026-11-22T05:00:00Z', created_by: 'v:1', refund_reference: null, refunded_at: null, refunded_by: null, manual_record_allowed: false,
   automatic_refund: { state: 'provider_unverified', reason: null, stuck }, ...over })

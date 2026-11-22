@@ -1965,6 +1965,7 @@
           "since": "Waiting since",
           "attempts": "Tries",
           "nextAttempt": "Next try",
+          "releaseFrom": "Release possible from",
           "paymentId": "Provider payment id",
           "noPaymentId": "Not known yet",
           "conflict": {
@@ -2071,7 +2072,7 @@
           "provider_refund_unavailable": "No payment provider is connected for this payment, so the control plane cannot read it.",
           "provider_refund_amount_unverified": "The provider says the payment is refunded but gives no usable amount, so the hold stays.",
           "provider_refund_partial": "The provider shows only part of the payment refunded. The worker keeps asking for the rest, so the hold stays.",
-          "refund_attempt_too_recent": "The refund call was made less than an hour ago and may still land at the provider. Release the hold later.",
+          "refund_attempt_too_recent": "The last refund call was made less than an hour ago and may still land at the provider. Release the hold from the time shown under \"Release possible from\". Each time the worker repeats the refund call, that time moves an hour on.",
           "refund_attempt_unavailable": "The order of this payment has moved on, so the refund cannot be checked or recorded from here.",
           "refund_over_credit": "Recording this note would credit more than the invoice's payment. Close it as already recorded instead, if another note credits this money.",
           "refund_not_duplicate": "The note that holds the payment id is not on this invoice, is not settled, or covers less than this note, so this note cannot be closed as a duplicate.",

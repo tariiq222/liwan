@@ -141,7 +141,9 @@ suite('release the hold of a stuck automatic refund on PostgreSQL', () => {
         await age(f.order, minutes)
         const before = await fx.refundRow(f.order)
         const refund = vi.spyOn(f.adapter, 'refund')
-        await expect(call(f.note, 'release', body, { adapter: f.adapter })).rejects.toMatchObject({ status: 409, code: 'refund_attempt_too_recent' })
+        // The refusal names the time from which a release is possible: 60 minutes after the mark, the time the invoice page shows too.
+        const releaseFrom = new Date(Date.parse(before.payload.attempted_at) + 60 * 60_000).toISOString()
+        await expect(call(f.note, 'release', body, { adapter: f.adapter })).rejects.toMatchObject({ status: 409, code: 'refund_attempt_too_recent', detail: { release_from: releaseFrom } })
         await expectUntouched(f, before, refund)
       }
       await age(f.order, 61)
@@ -150,7 +152,7 @@ suite('release the hold of a stuck automatic refund on PostgreSQL', () => {
     it('a row marked before attempted_at existed is as old as the row itself', async () => {
       const f = await fx.attempted()
       await pool.query("UPDATE commercial_outbox SET payload=payload - 'attempted_at' WHERE aggregate_id=$1", [f.order])
-      await expect(call(f.note, 'release', body, { adapter: f.adapter })).rejects.toMatchObject({ status: 409, code: 'refund_attempt_too_recent' })
+      await expect(call(f.note, 'release', body, { adapter: f.adapter })).rejects.toMatchObject({ status: 409, code: 'refund_attempt_too_recent', detail: { release_from: expect.any(String) } })
       await pool.query("UPDATE commercial_outbox SET created_at=now() - interval '3 hours' WHERE aggregate_id=$1", [f.order])
       await expect(call(f.note, 'release', body, { adapter: f.adapter })).resolves.toMatchObject({ status: 200 })
     })

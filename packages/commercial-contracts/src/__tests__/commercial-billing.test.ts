@@ -139,7 +139,7 @@ describe('stuck automatic refund contracts', () => {
     for (const body of [{ reason: 'okay' }, { reason: 'okay', resolution: 'force' }, { resolution: 'record' }]) expect(recordReturnedRefundRequestSchema.safeParse(body).success).toBe(false)
   })
   it('names only the three actions', () => {
-    const stuck = { since: 'x', attempts: 1, next_attempt_at: 'y', provider_payment_id: null, conflict: null, actions: ['check', 'release'] }
+    const stuck = { since: 'x', attempts: 1, next_attempt_at: 'y', provider_payment_id: null, conflict: null, actions: ['check', 'release'], release_from: 'z' }
     expect(stuckRefundSchema.parse(stuck).actions).toEqual(['check', 'release'])
     expect(stuckRefundSchema.safeParse({ ...stuck, actions: ['refund'] }).success).toBe(false)
   })

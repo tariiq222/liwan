@@ -12,8 +12,8 @@ const conflict = (over: Record<string, unknown> = {}) => ({ adjustment_id: 'hold
   refunded_by: 'vendor:9', refunded_at: '2026-11-22T07:00:00.000Z', same_invoice: false, ...over })
 const note = (stuck: Record<string, unknown> | null, over: Record<string, unknown> = {}) => ({ id: 'note1', invoice_id: 'invoice-1', kind: 'credit_note', status: 'pending', amount: money(11500),
   automatic_refund: { state: 'provider_unverified', reason: null, stuck }, ...over })
-const attempted = { since: '2026-11-22T06:00:00.000Z', attempts: 3, next_attempt_at: '2026-11-22T09:00:00.000Z', provider_payment_id: null, conflict: null, actions: ['check', 'release'] }
-const returned = (over: Record<string, unknown> = {}) => ({ ...attempted, provider_payment_id: 'pay_123', conflict: conflict(), actions: ['check', 'record'], ...over })
+const attempted = { since: '2026-11-22T06:00:00.000Z', attempts: 3, next_attempt_at: '2026-11-22T09:00:00.000Z', provider_payment_id: null, conflict: null, actions: ['check', 'release'], release_from: '2026-11-22T10:00:00.000Z' }
+const returned = (over: Record<string, unknown> = {}) => ({ ...attempted, provider_payment_id: 'pay_123', conflict: conflict(), actions: ['check', 'record'], release_from: null, ...over })
 
 function mounted(api: Record<string, unknown> = {}) {
   const fullApi = { checkStuckRefund: vi.fn(async () => ({ invoice: {}, provider: { status: 'succeeded', payment_id: 'pay_123', refunded: null } })), releaseRefundHold: vi.fn(async () => ({ invoice: {}, provider: null })),
@@ -36,6 +36,7 @@ describe('StuckRefundActions', () => {
     expect(page.has('stuck-refund')).toBe(true); expect(page.html).toContain('vendor.invoices.refund.stuck.noPaymentId')
     expect(buttons(page)).toEqual(['check', 'release'])
     expect(page.has('stuck-refund-conflict')).toBe(false)
+    expect(page.html).toContain('vendor.invoices.refund.stuck.releaseFrom'); expect(page.html).toContain(formatBusinessDateTime('2026-11-22T10:00:00.000Z'))
   })
 
   it('shows a returned row\'s payment id, the conflicting note and the check and record actions, never release', async () => {
@@ -43,6 +44,7 @@ describe('StuckRefundActions', () => {
     expect(buttons(page)).toEqual(['check', 'record'])
     expect(page.html).toContain('pay_123'); expect(page.has('stuck-refund-conflict')).toBe(true); expect(page.html).toContain('INV-9')
     expect(page.has('stuck-refund-conflict-link')).toBe(true)
+    expect(page.html).not.toContain('vendor.invoices.refund.stuck.releaseFrom')
     expect(page.html).toContain('vendor.invoices.refund.stuck.conflict.causes.provider_refund')
     expect(page.html).toContain('vendor.invoices.adjustmentStatus.refunded')
   })

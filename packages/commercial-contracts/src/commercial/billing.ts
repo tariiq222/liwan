@@ -105,6 +105,8 @@ export const stuckRefundSchema = z.strictObject({
   /** When the refund row was queued. */
   since: z.string(), attempts: z.number().int().nonnegative(), next_attempt_at: z.string(),
   provider_payment_id: z.string().nullable(), conflict: refundConflictSchema.nullable(), actions: z.array(stuckRefundActionSchema),
+  /** The time from which the `attempted` mark may be released (60 minutes after the worker's last refund call); null for a `returned` row. */
+  release_from: z.string().nullable(),
 })
 /** What a fresh read of the payment at the provider shows: its status, how much it has refunded so far and its payment id. */
 export const refundRecheckSchema = z.strictObject({ status: z.enum(['pending', 'succeeded', 'failed', 'refunded', 'canceled']), payment_id: z.string().nullable(), refunded: moneySchema.nullable() })

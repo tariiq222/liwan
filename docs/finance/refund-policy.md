@@ -81,7 +81,8 @@ refund worker does, under the same per-order advisory lock; a held lock is `refu
   worker takes over by its guarded path (a refund, or the manual form by the existing rules). Everything else is refused with 409:
   a failed read or a mismatch (`provider_status_unverified`), a refunded status with no usable figure
   (`provider_refund_amount_unverified`), a partial figure (`provider_refund_partial`), a mark younger than 60 minutes
-  (`refund_attempt_too_recent`, from `attempted_at`, or the row's creation for an older row), no payment adapter
+  (`refund_attempt_too_recent`, from `attempted_at`, or the row's creation for an older row; the refusal and the invoice view
+  give the time from which a release is possible, `release_from`, and every repeated refund call by the worker moves it an hour on), no payment adapter
   (`provider_refund_unavailable`). There is no operator override.
 - **Record the returned refund** (`returned` only; fresh step-up, a reason and a resolution): `record` runs the worker's own
   recording with the operator as actor, under the payment id, or `<payment id>#<first eight characters of the note id>` when

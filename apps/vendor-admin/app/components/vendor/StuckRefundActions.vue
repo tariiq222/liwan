@@ -48,10 +48,11 @@ function submit() {
     <SharedUnsavedChanges :dirty="dirty" />
     <p class="text-sm font-medium">{{ t('vendor.invoices.refund.stuck.title') }}</p>
     <p class="text-sm text-muted">{{ t('vendor.invoices.refund.stuck.hint') }}</p>
-    <dl class="grid gap-2 text-sm sm:grid-cols-4" data-testid="stuck-refund-facts">
+    <dl class="grid gap-2 text-sm sm:grid-cols-5" data-testid="stuck-refund-facts">
       <div><dt class="text-muted">{{ t('vendor.invoices.refund.stuck.since') }}</dt><dd>{{ time(stuck.since) }}</dd></div>
       <div><dt class="text-muted">{{ t('vendor.invoices.refund.stuck.attempts') }}</dt><dd>{{ stuck.attempts }}</dd></div>
       <div><dt class="text-muted">{{ t('vendor.invoices.refund.stuck.nextAttempt') }}</dt><dd>{{ time(stuck.next_attempt_at) }}</dd></div>
+      <div v-if="stuck.release_from"><dt class="text-muted">{{ t('vendor.invoices.refund.stuck.releaseFrom') }}</dt><dd>{{ time(stuck.release_from) }}</dd></div>
       <div><dt class="text-muted">{{ t('vendor.invoices.refund.stuck.paymentId') }}</dt><dd><bdi v-if="stuck.provider_payment_id" dir="ltr" class="select-all font-mono">{{ stuck.provider_payment_id }}</bdi><span v-else>{{ t('vendor.invoices.refund.stuck.noPaymentId') }}</span></dd></div>
     </dl>
 

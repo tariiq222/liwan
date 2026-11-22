@@ -3,7 +3,7 @@ import type { RefundConflict } from '@liwan/commercial-contracts'
 import { recordResolutions, showsStuckRefund } from '../stuckRefund'
 import { refundErrorKey } from '../vendorSubscriptions'
 
-const stuck = { since: '2026-11-22T08:00:00.000Z', attempts: 3, next_attempt_at: '2026-11-22T09:00:00.000Z', provider_payment_id: null, conflict: null, actions: ['check', 'release'] as const }
+const stuck = { since: '2026-11-22T08:00:00.000Z', attempts: 3, next_attempt_at: '2026-11-22T09:00:00.000Z', provider_payment_id: null, conflict: null, actions: ['check', 'release'] as const, release_from: '2026-11-22T09:00:00.000Z' }
 const note = (over: Record<string, unknown> = {}) => ({ kind: 'credit_note' as const, status: 'pending' as const, amount: { currency: 'SAR', exponent: 2, minor: 11500 },
   automatic_refund: { state: 'provider_unverified' as const, reason: null, stuck: { ...stuck, actions: [...stuck.actions] } }, ...over })
 const conflict = (over: Partial<RefundConflict> = {}): RefundConflict => ({ adjustment_id: 'a', invoice_id: 'i', invoice_number: 'INV-1', amount: { currency: 'SAR', exponent: 2, minor: 11500 },

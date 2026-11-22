@@ -20,13 +20,13 @@ suite('the vendor invoice view of a stuck automatic refund on PostgreSQL', () =>
     const row = await fx.refundRow(f.order)
     expect(await automatic(f.invoice, f.note)).toEqual({ state: 'provider_unverified', reason: 'timeout: refund', stuck: {
       since: row.created_at.toISOString(), attempts: row.attempts, next_attempt_at: row.next_attempt_at.toISOString(), provider_payment_id: null,
-      conflict: null, actions: ['check', 'release'] } })
+      conflict: null, actions: ['check', 'release'], release_from: new Date(Date.parse(row.payload.attempted_at) + 60 * 60_000).toISOString() } })
   })
 
   it('shows a returned row with the payment id, the conflicting note on another invoice, and the check and record actions', async () => {
     const f = await fx.returnedInConflict()
     const view = await automatic(f.invoice, f.note)
-    expect(view).toMatchObject({ state: 'refunded_recording', reason: 'refund_reference_in_use', stuck: { provider_payment_id: f.paymentId, actions: ['check', 'record'] } })
+    expect(view).toMatchObject({ state: 'refunded_recording', reason: 'refund_reference_in_use', stuck: { provider_payment_id: f.paymentId, actions: ['check', 'record'], release_from: null } })
     expect(view!.stuck!.conflict).toEqual({ adjustment_id: f.holder.note, invoice_id: f.holder.invoice, invoice_number: `INV-${f.holder.invoice.slice(0, 8)}`,
       amount: { currency: 'SAR', exponent: 2, minor: 11500 }, cause: 'provider_refund', status: 'refunded',
       refunded_by: 'vendor-test:9', refunded_at: expect.any(String), same_invoice: false })

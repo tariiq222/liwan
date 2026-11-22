@@ -96,10 +96,13 @@ async function runStuckAction(pool: Pool, adjustmentId: string, unmatched: strin
 /** How long an `attempted` mark must stand before it may be released or re-tried: a refund call made before it may still land at the provider. */
 export const RELEASE_MIN_AGE_MINUTES = 60
 
-/** The time of the mark on a row: its own `attempted_at`, or the row's creation for a row marked before the stamp existed. */
-const markedAtOf = (row: StuckContext['row']) => Date.parse(row.payload.attempted_at ?? row.created_at.toISOString())
-/** Whether an `attempted` mark is old enough (RELEASE_MIN_AGE_MINUTES) for the worker to act on the row again. */
-const markStood = (row: StuckContext['row'], now: number) => now - markedAtOf(row) >= RELEASE_MIN_AGE_MINUTES * 60_000
+/**
+ * The time from which an `attempted` mark may be released or its row retried by a check: RELEASE_MIN_AGE_MINUTES after the mark's own `attempted_at`,
+ * or after the row's creation for a row marked before the stamp existed. Every worker retry that calls the provider's refund writes a new mark.
+ */
+const releaseFromOf = (row: { attempted_at?: string | null; created_at: Date }) => Date.parse(row.attempted_at ?? row.created_at.toISOString()) + RELEASE_MIN_AGE_MINUTES * 60_000
+/** Whether an `attempted` mark is old enough for the worker to act on the row again. */
+const markStood = (row: StuckContext['row'], now: number) => now >= releaseFromOf({ attempted_at: row.payload.attempted_at, created_at: row.created_at })
 
 /**
  * Check again now: reads the payment at the provider and shows its status, refunded figure and payment id. It makes the row due, so the worker
@@ -147,7 +150,8 @@ export function releaseRefundHold(pool: Pool, { adjustment_id, actor, adapter, r
     marks: ['attempted'],
     read: async ({ attempt, row }) => {
       if (!adapter) throw refused('provider_refund_unavailable')
-      if (!markStood(row, now)) throw refused('refund_attempt_too_recent')
+      if (!markStood(row, now)) throw new CommercialHttpError('refund_attempt_too_recent', 409, undefined, [],
+        { release_from: new Date(releaseFromOf({ attempted_at: row.payload.attempted_at, created_at: row.created_at })).toISOString() })
       const provider = recheckOf(await readProviderPayment(adapter, attempt, row.payload))
       holdOutcome(provider, attempt)
       return provider
@@ -212,7 +216,7 @@ export async function stuckRefundViews(db: Q, notes: { id: string; invoice_id: s
     const refund = refunds.get(note.id)
     if (!refund || !isStuckRefund(refund)) continue
     out.set(note.id, stuckRefundSchema.parse({ since: refund.created_at.toISOString(), attempts: refund.attempts, next_attempt_at: refund.next_attempt_at.toISOString(),
-      provider_payment_id: refund.provider_payment_id, conflict: refund.provider_refund === 'returned' ? await conflictOf(db, note.id, note.invoice_id, refund.provider_payment_id) : null,
+      provider_payment_id: refund.provider_payment_id, release_from: refund.provider_refund === 'attempted' ? new Date(releaseFromOf(refund)).toISOString() : null, conflict: refund.provider_refund === 'returned' ? await conflictOf(db, note.id, note.invoice_id, refund.provider_payment_id) : null,
       actions: allowedActions(note, refund) }))
   }
   return out

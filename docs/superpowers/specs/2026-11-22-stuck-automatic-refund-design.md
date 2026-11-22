@@ -67,6 +67,18 @@ conflict, the conflicting note (invoice number, amount, cause, status, who recor
   with no figure; a partial figure (`provider_refund_partial`, the worker keeps asking for the rest); a mark
   younger than 60 minutes (`refund_attempt_too_recent`, a call may still land); no payment adapter
   (`provider_refund_unavailable`).
+- `refund_attempt_too_recent` carries `detail.release_from`, the time from which a release is possible (the mark plus 60
+  minutes), and the invoice view carries it as `release_from` for an `attempted` row; the console shows it next to the next
+  try. The worker writes a new `attempted_at` each time it calls the provider's refund again, so the clock restarts then, and
+  its backoff is capped at 60 minutes (`deferOutbox`): the next retry is due at the end of the call plus 60 minutes. The window
+  in which a release is allowed is therefore from `release_from` to the worker's next try, as long as that call lasted. Neither
+  the 60 minutes nor the backoff changes. A release that arrives while the worker retries cannot do harm: both take the
+  advisory lock `commercial-refund:<order id>` with a try-lock and neither waits. If the worker holds it, the release is 409
+  `refund_in_progress` and the worker's new mark restarts the clock. If the release holds it, the worker's run does nothing
+  (its lease on the row expires, then it runs again) and then meets the released row, which it handles by its guarded path: a
+  mark `returned` is only recorded, a removed mark is read again at the provider before any refund call, and a stale payload it
+  claimed before the release is read again at the provider too. Either order, a refund call is made only after a fresh read
+  that shows the money not returned.
 - Record is refused when: the row is not `returned`; the note is not a pending credit note of the paying attempt's
   invoice; refunded credit plus this note would exceed what the attempt paid (`refund_over_credit`); or
   `already_recorded` is chosen while the conflicting note is on another invoice or covers less than this note.
