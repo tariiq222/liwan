@@ -325,7 +325,7 @@ class EdgeSnippets(unittest.TestCase):
         self.assertNotIn('_nuxt', blanket)
 
     def test_the_console_budget_covers_one_cold_load(self):
-        """One sign-in draws the document plus the ~90 files of its build: the budget must not refuse it."""
+        """A cold sign-in page draws 89 requests, 84 of them build files: the budget must not refuse it."""
         text = (ROOT / 'deploy' / 'vendor-admin' / 'Caddyfile.snippet').read_text(encoding='utf-8')
         general = _zone_body(text, 'liwan_admin')
         self.assertEqual(re.search(r'events (\d+)', general).group(1), '600')

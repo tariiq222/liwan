@@ -43,7 +43,7 @@ A request is counted in every zone whose matcher accepts it, so a sign-in draws 
 tighter one and is what refuses a credential flood. A measured cold sign-in took 121 requests: 89 for the sign-in
 page (84 build files, most of them prefetch hints for other pages) and 32 for the first page after it, 22 of them
 files fetched seconds earlier that the browser could not keep. The 121st was refused at 120. Storing the assets
-removes those re-downloads; the first page load still needs about 90, and 600 leaves a margin for a second tab.
+removes those re-downloads; the sign-in page itself still needs 89, and 600 leaves a margin for a second tab.
 
 The console's build assets are the only responses its edge lets a browser store (`private, max-age=31536000,
 immutable` for `/_nuxt/*` except `/_nuxt/builds/*`): their names carry the content hash and change with every

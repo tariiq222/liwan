@@ -80,8 +80,8 @@
 				# One budget for the console's documents, API answers and build assets. The customer UI's own zone
 				# (liwan_web in deploy/Caddyfile) allows 600 for the same traffic. A measured cold sign-in took 121
 				# requests (89 for the sign-in page, 32 for the first page after it) and the 121st was refused at 120.
-				# Caching the assets (see @buildAssets) removes the re-downloads among those 32, but the first page load
-				# still needs about 90, so the budget keeps a margin for a second tab or a reload.
+				# Caching the assets (see @buildAssets) removes the re-downloads among those 32, but the sign-in page
+				# itself still needs 89, so the budget keeps a margin for a second tab or a reload.
 				events 600
 				window 1m
 				ipv6_prefix 64
