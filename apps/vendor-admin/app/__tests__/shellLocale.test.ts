@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { adminNav } from '../utils/adminNav'
 
@@ -20,5 +21,15 @@ describe('shell locale keys', () => {
     const tree = load(locale)
     for (const item of adminNav(ALL_CAPABILITIES)) expect(lookup(tree, item.labelKey), item.labelKey).toBeTypeOf('string')
     for (const role of ROLE_KEYS) expect(lookup(tree, `app.shell.roles.${role}`), role).toBeTypeOf('string')
+  })
+
+  it.each(['ar', 'en'])('gives each rail group of the layout its own accessible name in %s', (locale) => {
+    const layout = readFileSync(resolve(import.meta.dirname, '../layouts/default.vue'), 'utf8')
+    const labels = [...layout.matchAll(/<ShellNavSection[^>]*:label="t\('([^']+)'\)"/g)].map(match => match[1]!)
+    expect(labels).toHaveLength(2)
+    expect(new Set(labels).size).toBe(2)
+    const tree = load(locale)
+    for (const label of labels) expect(lookup(tree, label), label).toBeTypeOf('string')
+    expect(new Set(labels.map(label => lookup(tree, label))).size).toBe(2)
   })
 })
