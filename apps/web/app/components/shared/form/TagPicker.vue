@@ -80,7 +80,7 @@ function onCreateItem() {
           square
           size="xs"
           class="hover:bg-elevated/50"
-          :aria-label="t('projects.followers.remove')"
+          :aria-label="t('app.tags.remove', { name: tag.name })"
           :disabled="!hydrated"
           @click="remove(tag.id)"
         >
@@ -102,15 +102,15 @@ function onCreateItem() {
       size="sm"
       :class="props.plain ? '' : 'w-full'"
       :disabled="!hydrated"
-      :placeholder="t('tasks.drawer.addTag')"
+      :placeholder="t('app.tags.add')"
       :search-input="{ placeholder: t('app.search') }"
       :aria-labelledby="props.labelledby"
       @update:model-value="onSelectMenuChange"
       @create="onCreateItem"
     >
-        <template #default><span class="truncate">{{ modelValue.length ? joinList(modelValue.map(tag => tag.name), t) : t('tasks.drawer.addTag') }}</span></template>
+        <template #default><span class="truncate">{{ modelValue.length ? joinList(modelValue.map(tag => tag.name), t) : t('app.tags.add') }}</span></template>
       <template v-if="showCreate" #create-item-label>
-        {{ t('tasks.drawer.createTag', { name: trimmedQ }) }}
+        {{ t('app.tags.create', { name: trimmedQ }) }}
       </template>
     </USelectMenu>
   </div>

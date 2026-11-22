@@ -27,6 +27,21 @@
       "newName": "New name"
     },
     "loadMore": "Load more",
+    "tags": {
+      "add": "Add tag",
+      "create": "Create \"{name}\"",
+      "remove": "Remove tag: {name}"
+    },
+    "description": "Description",
+    "editor": {
+      "bold": "Bold",
+      "italic": "Italic",
+      "bulletList": "Bulleted list",
+      "orderedList": "Numbered list",
+      "linkPrompt": "Link URL",
+      "applyLink": "Apply link",
+      "cancelLink": "Cancel"
+    },
     "listSeparator": ", "
   },
   "customFields": {
@@ -217,8 +232,7 @@
       "close": "Close",
       "loading": "Loading…",
       "error": "Could not load the list.",
-      "retry": "Try again",
-      "chatEmpty": "No conversations yet.",
+        "chatEmpty": "No conversations yet.",
       "tasksEmpty": "No open tasks. Well done!",
       "meetingsEmpty": "No upcoming meetings.",
       "noDeadline": "No deadline"
@@ -461,7 +475,7 @@
         "description": "Private conversations with people in this organization."
       },
       "hr": {
-        "description": "Employee directory and work details."
+        "description": "Employee records, hiring, working hours and leave, payroll and insurance."
       },
       "finance": {
         "description": "Accounts, invoices, and the company's financial reports."
@@ -477,6 +491,18 @@
       },
       "crm": {
         "description": "Track prospects and sales deals through to close."
+      },
+      "helpdesk": {
+        "description": "Support tickets, team replies, and response times."
+      },
+      "sales": {
+        "description": "Quotes, sales orders, and salesperson reports."
+      },
+      "customers": {
+        "description": "The customer record shared by sales, finance, and customer messages."
+      },
+      "products": {
+        "description": "The product and service catalogue and their prices."
       }
     }
   }
