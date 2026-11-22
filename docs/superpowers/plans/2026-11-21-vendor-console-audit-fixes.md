@@ -134,7 +134,7 @@ D4 to D6 and are not built.
 
 ## 5. Outcome (2026-11-22)
 
-Built, each reproduced in a failing test first: T01 to T31, T33 to T35, T38 to T41, the settings page of T36, the
+Built, each reproduced in a failing test first: T01 to T31, T44 (after D6, see below), T33 to T35, T38 to T41, the settings page of T36, the
 recover action of T32, and two of the three T37 defects (overdue clamp, AI top-up conversion). Built after the owner
 decisions of 2026-11-22: the recovery of a job in `needs_intervention` (T32, D7), the history of a departed customer
 (T37, D9), free-base customers in ARPC and renewals (T42, D4) and the AI top-up refund in the console (T36, D8); see
@@ -145,7 +145,7 @@ Not built, with the reason:
 | Item | Reason | Decision |
 | --- | --- | --- |
 | T40, state kept between two customers | Not reproduced: Nuxt remounts the page when the id changes. | none |
-| T43, T44 | Wait for D5, D6. | D5, D6 |
+| T43 | Waits for D5. | D5 |
 
 | # | Question | Recommended default | Alternative |
 | --- | --- | --- | --- |
@@ -169,6 +169,21 @@ repeat or concurrent request refunds once; a bank transfer is left to the operat
 (`vendor.billing.manage`) and fresh step-up are the same as the invoice refund's. The console forwards it (POST only) and the
 invoice page offers "refund this AI top-up" only for a paid invoice that bought only an AI top-up, is not the customer's
 first payment, is inside the window and has no credit note; one form serves either action, so both are never offered.
+
+T44 (void an unpaid renewal invoice, D6 taken 2026-11-22 as designed in
+[the void design](2026-11-22-void-renewal-invoice-design.md)) is built in six commits on `cp-audit-decisions`:
+the contract and the vendor invoice view (`voidable`, `void_block`), `voidRenewalInvoice` with the `rebill` outcome, the `end`
+outcome (a vendor cancellation record plus the armed free-base lock of cause `cancelled`, no migration), the route
+`POST /invoices/:id/void` (both `vendor.billing.manage` and `vendor.subscriptions.manage`, step-up), the console action
+on the invoice page, and the runbook and refund policy. The two checks the design asked for before `end`: the lock run
+accepts a subscription dunning suspended a moment before (it has no state check and settles it to `active`; the void also
+restores `active` itself when nothing else is overdue), and cause `cancelled` is right (same drop, the vendor chose it).
+Found while building, not settled by the design, built conservatively: `end` is refused while the vendor holds a manual
+suspension (`subscription_suspended`) or a paid change is pending (`subscription_change_pending`), as the customer
+cancellation rules refuse them; the "cancelled, ends on a date" notice is not queued for `end` (the lock is armed in the same
+transaction, so it would be closed unsent) and the customer gets the existing drop notice of cause `cancelled`, whose text
+says "after you cancelled the renewal"; and no console action refuses a customer's bank-transfer claim, so a claimed invoice
+can only be voided after the transfer is confirmed.
 
 Decisions taken while building: public sign-up reads `LIWAN_SIGNUP_PLAN_ID` (a plan id; the old revision-id
 variable is gone); a resume that did not reach the workspace needed a clock, so migration `schema_073.sql` renames

@@ -1,7 +1,7 @@
 # Void an unpaid renewal invoice from the vendor console
 
 > Design for plan task T44 of [the audit fixes plan](../plans/2026-11-21-vendor-console-audit-fixes.md). Status:
-> the owner took the decisions of section 5 on 2026-11-22; not built. Paths are under
+> the owner took the decisions of section 5 on 2026-11-22; built in six commits on branch `cp-audit-decisions` (not merged; see the audit plan, section 5). Paths are under
 > `apps/control-plane/src/commercial/` unless noted. The study read code only; nothing was run.
 
 ## 1. What happens today
