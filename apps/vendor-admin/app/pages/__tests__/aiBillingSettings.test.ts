@@ -15,7 +15,7 @@ afterEach(() => scopes.splice(0).forEach(s => s.stop()))
 
 const stored = { topup_amounts_minor: [2500, 5000], topup_minimum_minor: 2500, usd_rate: '3.75', trial_allowance_minor: 500, monthly_allowance_minor: 1000 }
 
-async function page(options: { pushed?: number, grants?: string[] } = {}) {
+async function page(options: { pushed?: number, grants?: string[], reloadFails?: boolean } = {}) {
   const filename = resolve(import.meta.dirname, '../ai-billing-settings.vue')
   const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
   const script = stripImports(compileScript(descriptor, { id: 'ai-billing-settings' }).content).replaceAll('import.meta.client', 'false').replace('export default', 'return')
@@ -28,7 +28,7 @@ async function page(options: { pushed?: number, grants?: string[] } = {}) {
     useVendorApi: () => ({ request }),
     useAsyncData: async (_key: string, fn: () => Promise<unknown>) => {
       const data = Vue.ref<unknown>(null); const error = Vue.ref<unknown>(null); const pending = Vue.ref(false)
-      const refresh = vi.fn(async () => { data.value = await fn() })
+      const refresh = vi.fn(async () => { try { data.value = await fn(); error.value = null } catch (cause) { error.value = cause } })
       await refresh()
       return { data, error, pending, refresh }
     },
@@ -37,7 +37,8 @@ async function page(options: { pushed?: number, grants?: string[] } = {}) {
   const scope = Vue.effectScope(); scopes.push(scope)
   const state = await scope.run(() => component.setup({}, { expose: () => {} }))
   const patches = () => request.mock.calls.filter(([, init]) => (init as { method?: string } | undefined)?.method === 'PATCH')
-  return { state, request, patches }
+  const failReload = () => request.mockImplementation(async (_path, init) => { if (init?.method === 'PATCH') return { ...stored, ...init.body, pushed_tenants: 0 }; throw { statusCode: 503 } })
+  return { state, request, patches, failReload }
 }
 
 describe('AI billing settings page', () => {
@@ -74,6 +75,16 @@ describe('AI billing settings page', () => {
     await p.state.submit()
     expect(p.state.saved.value).toBe(false)
     expect(p.state.failure.value).toMatchObject({ statusCode: 403 })
+  })
+
+  it('does not mark saved data as unsaved when the reload after the save fails', async () => {
+    const p = await page()
+    p.failReload()
+    p.state.draft.monthly_allowance = '12.50'; p.state.draft.reason = 'Quarter allowance'
+    expect(p.state.dirty.value).toBe(true)
+    await p.state.submit()
+    expect(p.patches()).toHaveLength(1)
+    expect(p.state.dirty.value).toBe(false)
   })
 
   it('does nothing for an account that may not manage billing', async () => {

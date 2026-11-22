@@ -229,6 +229,15 @@ describe('billing settings refund window and reload', () => {
     expect(p.state.busy.value).toBe(false)
   })
 
+  it('does not count a saved record as unsaved when the reload after the save fails', async () => {
+    const p = await page({ reloadFails: true }); p.ready()
+    p.state.draft.bank_account_name = 'Liwan'
+    expect(p.state.dirty.value).toBe(true)
+    await p.state.submit()
+    expect(p.patches()).toHaveLength(1)
+    expect(p.state.dirty.value).toBe(false)
+  })
+
   it('shows the refusal alone when the save itself fails', async () => {
     const p = await page(); p.ready()
     p.request.mockRejectedValueOnce({ statusCode: 422, data: { code: 'invalid' } })

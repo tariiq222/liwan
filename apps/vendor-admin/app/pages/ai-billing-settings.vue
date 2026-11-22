@@ -32,6 +32,8 @@ async function submit() {
     pushed.value = reply.pushed_tenants
   } catch (cause) { failure.value = cause; busy.value = false; return }
   saved.value = true
+  // What was sent is now the stored record: a failed reload below must not leave it counted as unsaved.
+  draft.reason = ''; original.value = serialized()
   try { await refresh() } finally { busy.value = false }
   // A failed reload is reported by the page state above, with its retry; it never sits next to «saved».
   if (error.value) saved.value = false

@@ -90,6 +90,8 @@ async function submit() {
     } })
   } catch (cause) { failure.value = cause; busy.value = false; return }
   saved.value = true
+  // What was sent is now the stored record: a failed reload below must not leave it counted as unsaved.
+  draft.reason = ''; original.value = serialized()
   // The saved draft starts over (the data watch clears the reason): its required-field errors are shown again only on the next attempt.
   attempted.value = false
   try { await refresh() } finally { busy.value = false }
