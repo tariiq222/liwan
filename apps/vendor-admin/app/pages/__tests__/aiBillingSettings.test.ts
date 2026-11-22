@@ -52,7 +52,7 @@ describe('AI billing settings page', () => {
 
   it('sends the whole setting in minor units with the trimmed reason, and reports the workspaces updated', async () => {
     const p = await page({ pushed: 3 })
-    p.state.draft.topup_amounts = '25, 50, 100'; p.state.draft.monthly_allowance = '12.50'; p.state.draft.reason = '  New allowance for the quarter  '
+    p.state.draft.topup_amounts = '25، 50؛ 100'; p.state.draft.monthly_allowance = '12.50'; p.state.draft.reason = '  New allowance for the quarter  '
     await p.state.submit()
     expect(p.patches()).toEqual([['commercial/ai-billing-settings', { method: 'PATCH', body: { topup_amounts_minor: [2500, 5000, 10000], topup_minimum_minor: 2500, usd_rate: '3.75', trial_allowance_minor: 500, monthly_allowance_minor: 1250, reason: 'New allowance for the quarter' } }]])
     expect(p.state.saved.value).toBe(true); expect(p.state.pushed.value).toBe(3)

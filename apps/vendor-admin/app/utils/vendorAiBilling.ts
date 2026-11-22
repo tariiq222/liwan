@@ -9,17 +9,24 @@ export type AiBillingField = typeof AI_BILLING_FIELDS[number]
 /** What the form edits: every value as the text the operator types. */
 export interface AiBillingDraft { topup_amounts: string, topup_minimum: string, usd_rate: string, trial_allowance: string, monthly_allowance: string }
 
+/**
+ * The amounts of the list are separated by an Arabic comma or a semicolon, never by a Latin comma: a Latin comma inside an
+ * amount is its thousands mark (1,250 is one amount), so "25, 50" is refused as ambiguous instead of being split.
+ */
+const AMOUNT_SEPARATOR = '، '
+const AMOUNT_SEPARATORS = /[،;؛]/
+
 export const draftFromAiBilling = (settings: AiBillingSettings): AiBillingDraft => ({
-  topup_amounts: settings.topup_amounts_minor.map(minor => minorToInput(minor, EXPONENT)).join('، '),
+  topup_amounts: settings.topup_amounts_minor.map(minor => minorToInput(minor, EXPONENT)).join(AMOUNT_SEPARATOR),
   topup_minimum: minorToInput(settings.topup_minimum_minor, EXPONENT),
   usd_rate: settings.usd_rate,
   trial_allowance: minorToInput(settings.trial_allowance_minor, EXPONENT),
   monthly_allowance: minorToInput(settings.monthly_allowance_minor, EXPONENT),
 })
 
-/** The amounts of a list typed with commas, Arabic commas or semicolons between them; null when one is not an amount. */
+/** The amounts of a list typed with Arabic commas or semicolons between them; null when one is not an amount (a Latin comma inside one is refused by the money parser unless it is a thousands mark). */
 function parseAmounts(text: string): number[] | null {
-  const parts = text.split(/[,،;؛]/).filter(part => part.trim() !== '')
+  const parts = text.split(AMOUNT_SEPARATORS).filter(part => part.trim() !== '')
   const amounts = parts.map(part => parseVendorMoneyInput(part, EXPONENT))
   return parts.length > 0 && amounts.every((minor): minor is number => minor !== null) ? amounts : null
 }

@@ -1537,7 +1537,7 @@
       },
       "fields": {
         "amounts": "Top-up amounts (SAR)",
-        "amountsHint": "Separate the amounts with commas, from the smallest to the largest, for example 25, 50, 100. Up to 12 amounts.",
+        "amountsHint": "Separate the amounts with an Arabic comma (،) or a semicolon (;), from the smallest to the largest, for example 25; 50; 100. A Latin comma never separates amounts; it is only a thousands mark inside one, as in 1,250. Up to 12 amounts.",
         "minimum": "Lowest amount (SAR)",
         "minimumHint": "Every amount offered must reach it.",
         "rate": "Riyals per US dollar",
