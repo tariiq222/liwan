@@ -206,6 +206,7 @@ describe('errors', () => {
     for (const code of ['api_key_required', 'invalid_base_url', 'invalid_base_url_port']) expect(aiProviderErrorSection(failure(code)), code).toBe('providers')
     expect(aiProviderErrorSection(failure('default_required'))).toBe('routes')
     expect(aiProviderErrorSection(failure('provider_file_unavailable'))).toBe('general')
+    expect(aiProviderErrorKey(failure('audit_unavailable'))).toBe('aiProvider.errors.audit_unavailable')
     for (const code of AI_PROVIDER_REDELIVER_REFUSALS) {
       expect(aiProviderErrorKey(failure(code)), code).toBe(`aiProvider.errors.${code}`)
       expect(aiProviderErrorSection(failure(code)), code).toBe('general')

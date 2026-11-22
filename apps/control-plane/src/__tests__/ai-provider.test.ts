@@ -798,6 +798,33 @@ suite('live PostgreSQL platform provider routes', () => {
       expect((await audits()).map(row => row.metadata.outcome)).toEqual(['secret_key_unavailable'])
     })
 
+    it('answers 503 secret_key_unavailable for a sealed key the secret cannot open, and audits it', async () => {
+      await routedSave()
+      await rm(providerFile())
+      const wrong = { ...config, admin: { ...config.admin!, secretKey: Buffer.alloc(32, 9) } } as Config
+      expect(await redeliver(REASON, { config: wrong })).toEqual({ status: 503, body: { code: 'secret_key_unavailable' } })
+      await expect(readFile(providerFile(), 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+      expect((await audits()).map(row => row.metadata.outcome)).toEqual(['secret_key_unavailable'])
+    })
+
+    it('audits any other failure as a failed outcome and answers it as it is', async () => {
+      await routedSave()
+      const down = { query: pool.query.bind(pool), connect: () => Promise.reject(new Error('database went away')) } as unknown as Pool
+      await expect(redeliver(REASON, { pool: down })).rejects.toThrow('database went away')
+      expect((await audits()).map(row => row.metadata)).toEqual([{ revision: null, outcome: 'failed', delivery_before: null }])
+    })
+
+    it('answers 503 audit_unavailable when the file was replaced but its audit entry could not be written', async () => {
+      await routedSave()
+      await rm(providerFile())
+      const noAudit = { query: (sql: string, ...rest: unknown[]) => (String(sql).includes('INSERT INTO audit_events') ? Promise.reject(new Error('audit down')) : (pool.query as (...a: unknown[]) => unknown)(sql, ...rest)), connect: () => pool.connect() } as unknown as Pool
+      expect(await redeliver(REASON, { pool: noAudit })).toEqual({ status: 503, body: { code: 'audit_unavailable' } })
+      expect((await call('GET', '')).body.setting.delivery).toBe('delivered')
+      expect(await audits()).toEqual([])
+      expect((await redeliver()).body.outcome).toBe('unchanged')  // a second call records the entry
+      expect((await audits()).map(row => row.metadata.outcome)).toEqual(['unchanged'])
+    })
+
     it('answers 503 provider_file_unavailable when the file cannot be written, and puts the previous file back', async () => {
       await routedSave()
       const broken = { ...config, aiPlatformProviderPath: join(dir, 'missing-dir', 'platform-provider.json') } as Config

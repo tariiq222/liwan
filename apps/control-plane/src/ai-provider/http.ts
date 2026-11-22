@@ -9,7 +9,8 @@ import type { Config } from '../config.js'
 import { listModels, ProviderCallError, testCompletion, type Fetcher, type ProbeTarget } from './client.js'
 import { checkEndpoint, EndpointError, type Resolver } from './endpoint.js'
 import { guardedFetcher } from './guarded-fetch.js'
-import { DeliveryError, deliverProviderFile } from './sync.js'
+import { DeliveryError, deliverProviderFile, type Delivered } from './sync.js'
+import { logText } from '../log-text.js'
 import { findPreset, PRESETS, publicPreset, type Preset } from './presets.js'
 import {
   AI_PROVIDER_SAVE_LOCK, isComplete, openKey, providerFileContent, readConfig, recordUsageReported, replaceProviderFile, routeRows, sealKey, settingOf, writeConfig,
@@ -169,18 +170,28 @@ export async function aiProviderHttp(pool: Pool, config: Config, input: Input, d
 async function redeliver(pool: Pool, config: Config, input: Input): Promise<unknown> {
   const { auth, fail } = input
   const { reason } = body(aiProviderRedeliverRequestSchema, input.raw, fail)
-  const audit = (revision: number | null, outcome: string, before: string) => pool.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES(gen_random_uuid(),$1,$2,$3,$4,$5)', [
+  const audit = (revision: number | null, outcome: string, before: string | null) => pool.query('INSERT INTO audit_events(id,actor,action,subject,reason,metadata) VALUES(gen_random_uuid(),$1,$2,$3,$4,$5)', [
     actorName({ id: auth.actor }), 'ai.platform_provider.redelivered', SUBJECT, reason, { revision, outcome, delivery_before: before },
   ])
-  try {
-    const { outcome, stored, before } = await deliverProviderFile(pool, config)
-    await audit(stored.revision, outcome, before)
-    return aiProviderRedeliveredSchema.parse({ setting: await settingOf(stored, config.aiPlatformProviderPath), outcome })
-  } catch (error) {
-    if (!(error instanceof DeliveryError)) throw error
-    await audit(error.revision, error.code, error.before)
-    throw fail((AI_PROVIDER_REDELIVER_REFUSALS as readonly string[]).includes(error.code) ? 409 : 503, error.code)
+  let delivered: Delivered
+  try { delivered = await deliverProviderFile(pool, config) }
+  catch (error) {
+    if (error instanceof DeliveryError) {
+      await audit(error.revision, error.code, error.before)
+      throw fail((AI_PROVIDER_REDELIVER_REFUSALS as readonly string[]).includes(error.code) ? 409 : 503, error.code)
+    }
+    // Any other failure is still an outcome: the entry is written, and the failure itself is answered as it is.
+    await audit(null, 'failed', null).catch(() => undefined)
+    throw error
   }
+  const { outcome, stored, before } = delivered
+  // The file is already replaced when the entry is written: if the entry cannot be, say so, and let the next call record it (it answers `unchanged`).
+  try { await audit(stored.revision, outcome, before) }
+  catch (error) {
+    console.error('[control-plane] the AI platform provider file was delivered (%s) but its audit entry was not written: %s', outcome, logText(error))
+    throw fail(503, 'audit_unavailable')
+  }
+  return aiProviderRedeliveredSchema.parse({ setting: await settingOf(stored, config.aiPlatformProviderPath), outcome })
 }
 
 /** The rules a configuration must meet before any row is written; each failure is a stable 422 code. */

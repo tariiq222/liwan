@@ -161,7 +161,7 @@ export const configDirty = (draft: ConfigDraft, setting: Setting | null) =>
   JSON.stringify(draft) !== JSON.stringify(draftFromSetting(setting)) || draft.providers.some(p => p.api_key !== '')
 
 const CODES = new Set([
-  'invalid', 'invalid_preset', 'invalid_base_url', 'invalid_base_url_port', 'invalid_stream_usage', 'api_key_required', 'api_key_not_allowed', 'secret_key_unavailable', 'provider_file_unavailable',
+  'invalid', 'invalid_preset', 'invalid_base_url', 'invalid_base_url_port', 'invalid_stream_usage', 'api_key_required', 'api_key_not_allowed', 'secret_key_unavailable', 'provider_file_unavailable', 'audit_unavailable',
   'unknown_provider', 'unknown_model', 'model_not_priced', 'model_not_tested', 'model_price_required', 'default_required',
   ...AI_PROVIDER_REDELIVER_REFUSALS,
   'provider_unauthorized', 'provider_endpoint_refused', 'provider_unreachable', 'provider_timeout', 'provider_rate_limited', 'provider_error', 'provider_invalid_response', 'forbidden', 'step_up_required',

@@ -264,6 +264,7 @@ describe('AI provider page, mounted', () => {
       ['provider_file_unconfigured', 'aiProvider.errors.provider_file_unconfigured'],
       ['provider_file_unavailable', 'aiProvider.errors.provider_file_unavailable'],
       ['secret_key_unavailable', 'aiProvider.errors.secret_key_unavailable'],
+      ['audit_unavailable', 'aiProvider.errors.audit_unavailable'],
       ['step_up_required', 'aiProvider.errors.step_up_required'],
       ['forbidden', 'aiProvider.errors.forbidden'],
     ])('shows the code %s as its own message and keeps the confirmation open', async (code, message) => {

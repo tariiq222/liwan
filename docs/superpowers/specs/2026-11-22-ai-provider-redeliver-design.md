@@ -51,7 +51,7 @@ default, or for a quality level, and save again. The blocker messages for `model
 
 - Capability `vendor.ai.manage` with a fresh step-up, as every write of this resource (confirm in code that a POST
   to the new route gets the step-up check). Reason of 3 to 1000 characters.
-- Audit event `ai.platform_provider.redelivered`: actor, reason, revision, `outcome`, and the delivery state before.
+- Audit event `ai.platform_provider.redelivered`: actor, reason, revision, `outcome`, and the delivery state before. A key that cannot be decrypted is `secret_key_unavailable`; any other failure is audited with `outcome: failed` and answered as it is. If the file was replaced but the entry cannot be written, the answer is 503 `audit_unavailable` (the next call answers `unchanged` and records the entry).
   It is written for `unchanged` and for a failure too. Never a key.
 - The write reuses `replaceProviderFile` unchanged: temporary file in the same directory, mode 640, `fsync`,
   rename, directory `fsync`, removal of stale temporary files, absolute path required, restore on failure.

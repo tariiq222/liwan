@@ -16,6 +16,11 @@ export class DeliveryError extends Error {
     super(code, { cause })
   }
 }
+/** A sealed key as plain text; one the control plane has no secret for, or cannot decrypt with it, is `secret_key_unavailable`. */
+function openSealedKey(config: Config, sealed: Buffer, revision: number | null, before: AiProviderSetting['delivery']): string {
+  if (!config.admin) throw new DeliveryError('secret_key_unavailable', revision, before)
+  try { return openKey(config.admin.secretKey, sealed) } catch (error) { throw new DeliveryError('secret_key_unavailable', revision, before, error) }
+}
 export type Delivered = { outcome: DeliveryOutcome; stored: StoredConfig; before: AiProviderSetting['delivery'] }
 
 /**
@@ -39,8 +44,7 @@ export async function deliverProviderFile(pool: Pool, config: Config): Promise<D
       if (!stored || !isComplete(stored)) throw new DeliveryError('provider_incomplete', revision, before)
       const keys = new Map<string, string | null>()
       for (const provider of stored.providers) {
-        if (provider.sealed && !config.admin) throw new DeliveryError('secret_key_unavailable', revision, before)
-        keys.set(provider.id, provider.sealed ? openKey(config.admin!.secretKey, provider.sealed) : null)
+        keys.set(provider.id, provider.sealed ? openSealedKey(config, provider.sealed, revision, before) : null)
       }
       const content = providerFileContent(stored, keys)
       try {

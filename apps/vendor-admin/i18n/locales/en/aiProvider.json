@@ -158,6 +158,7 @@
       "api_key_not_allowed": "This provider does not take an API key.",
       "secret_key_unavailable": "The control plane has no secret to open or encrypt the key with, so nothing was changed.",
       "provider_file_unavailable": "The file for the AI service could not be written, so nothing was changed.",
+      "audit_unavailable": "The file for the AI service was delivered, but the audit entry could not be written. Deliver again to record it.",
       "unknown_provider": "A model points to a provider that is not saved, or the provider is not saved yet.",
       "unknown_model": "A route points to a model that is not in the list.",
       "model_not_priced": "A routed model has no input and output price.",
