@@ -414,11 +414,22 @@ export function flowPreviewModel(draft: FlowDraft): FlowPreviewModel {
 
 // ---------------------------------------------------------------- answers
 
+type Translate = (key: string) => string
+
+/** The locale's list separator, inline so this module stays free of app imports (it is unit-tested under plain vitest). */
+function joinList(items: readonly string[], t: Translate): string {
+  return items.join(t('app.listSeparator'))
+}
+
 export type AnswerDisplay = { kind: 'text'; text: string } | { kind: 'boolean'; value: boolean }
 
-/** An answer ready to show: its text, the titles of the chosen options joined, a date, or a yes / no. */
-export function answerDisplay(answer: InboxFlowAnswer): AnswerDisplay {
-  if ('choices' in answer) return { kind: 'text', text: answer.choices.map(choice => choice.title).join('، ') }
+/** An answer ready to show: its text, the titles of the chosen options joined, a date, or a yes / no.
+ *  `t` supplies the list separator, so an English page joins with «, » rather than the Arabic comma. */
+export function answerDisplay(answer: InboxFlowAnswer, t?: (key: string) => string): AnswerDisplay {
+  if ('choices' in answer) {
+    const titles = answer.choices.map(choice => choice.title)
+    return { kind: 'text', text: t ? joinList(titles, t) : titles.join('، ') }
+  }
   if (answer.kind === 'opt_in') return { kind: 'boolean', value: answer.value }
   return { kind: 'text', text: answer.value ?? '' }
 }

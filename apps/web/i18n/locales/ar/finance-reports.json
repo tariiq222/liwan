@@ -12,7 +12,7 @@
         "title": "أعمار الذمم"
       },
       "partnerStatement": {
-        "title": "كشف حساب طرف"
+        "title": "كشف حساب جهة تعامل"
       },
       "vat": {
         "title": "ضريبة القيمة المضافة"
@@ -80,7 +80,7 @@
       "cashDifference": "فرق غير مفسَّر"
     },
     "filters": {
-      "partner": "الطرف",
+      "partner": "جهة التعامل",
       "partnerPlaceholder": "اختر العميل أو المورد",
       "dateFrom": "من تاريخ",
       "dateTo": "إلى تاريخ",
@@ -115,10 +115,10 @@
       "endingBalance": "الرصيد الختامي",
       "accountOrDate": "الحساب / التاريخ",
       "entry": "القيد",
-      "partner": "الطرف",
+      "partner": "جهة التعامل",
       "label": "البيان",
       "runningBalance": "الرصيد الجاري",
-      "partnerOrAccount": "الحساب / الطرف",
+      "partnerOrAccount": "الحساب / جهة التعامل",
       "date": "التاريخ",
       "dueDate": "الاستحقاق",
       "reference": "المرجع",
@@ -166,9 +166,9 @@
     },
     "pickPartner": {
       "title": "اختر العميل أو المورد",
-      "description": "يُعرض الكشف بعد اختيار الطرف."
+      "description": "يُعرض الكشف بعد اختيار جهة التعامل."
     },
-    "noPartner": "بلا طرف",
+    "noPartner": "بلا جهة تعامل",
     "balanceForward": "رصيد منقول",
     "empty": "لا توجد بيانات في هذه الفترة.",
     "forbidden": "لا تملك صلاحية عرض هذا التقرير.",

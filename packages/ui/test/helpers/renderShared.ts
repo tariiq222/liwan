@@ -113,6 +113,9 @@ export function loadShared(name: string, options: SharedRenderOptions = {}): Vue
     toRef: Vue.toRef, provide: Vue.provide, inject: Vue.inject, useId: Vue.useId, useSlots: Vue.useSlots, onMounted: Vue.onMounted, onBeforeUnmount: Vue.onBeforeUnmount, useTemplateRef: Vue.useTemplateRef,
     useI18n: () => ({ t, te: (key: string) => options.messages !== undefined && key in options.messages, locale: Vue.ref('ar'), localeProperties: Vue.ref({ dir: 'rtl' }) }),
     useHydrated: () => Vue.ref(options.hydrated ?? true),
+    // The application-side list joiner; Nuxt auto-imports it from app/utils, and the harness has to do the same for a
+    // component that joins names with the locale's separator.
+    joinList: (items: readonly string[], translate: (key: string) => string) => items.join(translate('app.listSeparator')),
     useRoute: () => ({ path: options.routePath ?? '/current' }),
     // Outside a shell there is no published trail; a test that wants one passes it in `globals`.
     usePageTrail: () => Vue.readonly(Vue.ref([])),
@@ -134,6 +137,9 @@ export async function renderShared(
   const app = Vue.createSSRApp({ render: () => Vue.h(loadShared(name, options), props, slots) })
   VueUse.provideSSRWidth(options.ssrWidth ?? 1280, app)
   app.config.globalProperties.$t = fakeT(options.messages) as never
+  // A template calls an auto-imported helper through its setup context; the compiled test component has no Nuxt
+  // transformer, so the helper is reachable on the app as well.
+  ;(app.config.globalProperties as Record<string, unknown>).joinList = (items: readonly string[], translate: (key: string) => string) => items.join(translate('app.listSeparator'))
   // Components the layer's own shared components draw through their auto-import name are compiled for real.
   const layerComponents = { SharedHeaderTags: loadShared('HeaderTags', options) }
   for (const [tag, component] of Object.entries({ ...DEFAULT_STUBS, ...layerComponents, ...options.stubs })) app.component(tag, component)

@@ -92,7 +92,7 @@ defineExpose({ reset })
             </div>
             <p class="flex flex-wrap gap-x-3 text-sm text-muted">
               <span>{{ task.date_deadline ? t('crm.opportunities.tasks.due', { date: formatCalendarDate(task.date_deadline) }) : t('crm.opportunities.tasks.noDeadline') }}</span>
-              <span v-if="task.assignees.length">{{ task.assignees.map(person => person.name).join('، ') }}</span>
+              <span v-if="task.assignees.length">{{ joinList(task.assignees.map(person => person.name), t) }}</span>
             </p>
           </li>
         </ul>

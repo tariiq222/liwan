@@ -18,7 +18,7 @@ const id = useId()
     </div>
     <div class="flex shrink-0 items-center gap-2">
       <UTooltip v-if="props.card.pinnable" :text="t(props.pinned ? 'launcher.unpin' : 'launcher.pin')">
-        <UButton type="button" square size="sm" color="neutral" :variant="props.pinned ? 'soft' : 'ghost'" :icon="props.pinned ? 'i-lucide-pin-off' : 'i-lucide-pin'" :disabled="props.pinPending" data-testid="launcher-pin" :aria-pressed="props.pinned" :aria-label="`${t(props.pinned ? 'launcher.unpin' : 'launcher.pin')}: ${t(props.card.labelKey)}`" @click="emit('togglePin')" />
+        <UButton type="button" square size="sm" color="neutral" :variant="props.pinned ? 'soft' : 'ghost'" :class="props.pinned ? 'text-primary' : undefined" icon="i-lucide-pin" :disabled="props.pinPending" data-testid="launcher-pin" :aria-pressed="props.pinned" :aria-label="`${t(props.pinned ? 'launcher.unpin' : 'launcher.pin')}: ${t(props.card.labelKey)}`" @click="emit('togglePin')" />
       </UTooltip>
       <UButton :to="props.card.to" size="sm" color="neutral" variant="soft" data-testid="launcher-open" :aria-label="`${t('launcher.open')}: ${t(props.card.labelKey)}`">{{ t('launcher.openShort') }}</UButton>
     </div>

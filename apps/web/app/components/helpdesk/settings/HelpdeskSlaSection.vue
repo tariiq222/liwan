@@ -36,9 +36,9 @@ const teamItems = computed(() => props.teams.map(team => ({ value: team.id, labe
 const categoryItems = computed(() => props.categories.map(row => ({ value: row.id, label: row.name })))
 const tagItems = computed(() => props.tags.map(row => ({ value: row.id, label: row.name })))
 const stageName = (id: number | null) => props.stages.find(stage => stage.id === id)?.name ?? '—'
-const scopeText = (policy: HelpdeskSlaPolicy) => policy.team_ids
+const scopeText = (policy: HelpdeskSlaPolicy) => joinList(policy.team_ids
   .map(id => props.teams.find(team => team.id === id)?.name)
-  .filter(Boolean).join('، ') || t('helpdesk.settings.sla.everyTeam')
+  .filter((name): name is string => Boolean(name)), t) || t('helpdesk.settings.sla.everyTeam')
 
 function start(policy?: HelpdeskSlaPolicy) {
   failure.value = null

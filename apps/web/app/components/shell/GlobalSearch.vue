@@ -7,6 +7,7 @@ import {
 } from '@/composables/nav/paletteModel'
 import { isApplePlatform } from '@liwan/ui/app/composables/shortcuts/keymap'
 import { useAppSearch } from '@/composables/useAppSearch'
+import { paletteIndexText, paletteSearchTerm } from '@/composables/nav/paletteSearch'
 import { paletteNavigationBlocked, shouldRestoreTriggerFocus, usePalette } from '@/composables/usePalette'
 import { clearNavigationFocus, offerNavigationFocus } from '@liwan/ui/app/composables/useNavigationFocus'
 
@@ -130,6 +131,22 @@ const paletteLimit = computed(() => Math.max(
   ...liveGroups.value.map(group => group.items?.length ?? 0),
 ))
 
+/** Fuse options for the palette: the cut above, diacritics ignored, and the Arabic fold applied to BOTH sides.
+ *  Folding only the index made the search fail on the correct spelling: the stored «مهمة» became «مهمه» and the typed
+ *  «مهمة» stayed as it was, so the two no longer matched. Every field Fuse indexes is folded (the earlier version returned
+ *  an empty string for `description`, which silently stopped matching it), and the term is folded before it is searched. */
+const paletteFuse = computed(() => ({
+  resultLimit: paletteLimit.value,
+  ignoreDiacritics: true,
+  getFn: paletteIndexText,
+}))
+
+// The palette searches exactly what Fuse indexed: the same fold on the user's text as on the stored labels.
+const foldedTerm = computed({
+  get: () => paletteSearchTerm(term.value),
+  set: (value: string) => { term.value = value },
+})
+
 const liveGroups = computed<CommandPaletteGroup<CommandPaletteItem>[]>(() => {
   if (!open.value) return []
   const visible = useNav(me.value)
@@ -197,12 +214,12 @@ function onAfterLeave() {
     </UButton>
     <template #content>
       <UCommandPalette
-        v-model:search-term="term"
+        v-model:search-term="foldedTerm"
         :groups="groups"
         :placeholder="view === 'shortcuts' ? t('shortcuts.filter') : t('search.description')"
         :input="inputProps"
         :loading="searching"
-        :fuse="{ resultLimit: paletteLimit }"
+        :fuse="paletteFuse"
         preserve-group-order
         :dir="localeProperties.dir"
         :data-view="view"
