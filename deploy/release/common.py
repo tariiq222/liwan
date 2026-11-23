@@ -71,14 +71,19 @@ def unquote(value: str) -> str:
     return value[1:-1] if len(value) >= 2 and value[0] == value[-1] and value[0] in '"\'' else value
 
 
-def read_env_file(path: Path) -> dict[str, str]:
+def parse_env_text(text: str) -> dict[str, str]:
+    """KEY=VALUE lines of an env file: blank lines and ``#`` comments skipped, one pair of quotes around a value removed."""
     values = {}
-    for line in path.read_text(encoding='utf-8').splitlines():
+    for line in text.splitlines():
         line = line.strip()
         if line and not line.startswith('#') and '=' in line:
             key, value = line.split('=', 1)
             values[key.strip()] = unquote(value.strip())
     return values
+
+
+def read_env_file(path: Path) -> dict[str, str]:
+    return parse_env_text(path.read_text(encoding='utf-8'))
 
 
 def write_atomic(path: Path, text: str) -> None:

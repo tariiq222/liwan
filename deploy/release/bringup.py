@@ -26,6 +26,9 @@ import stat
 import subprocess
 import sys
 import tempfile
+import urllib.error
+import urllib.parse
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
@@ -37,7 +40,7 @@ from deploy.release.release import (  # noqa: E402
     CONFIG_KEYS, CONTROL_DB_PORT, DB_SUPERUSER, RELEASE_FOLDER, SHARED_WORKER_UNIT, TENANT_DB_PORT, Paths)
 from deploy.release.source import (  # noqa: E402
     COMMIT as COMMIT_ID, CREDENTIAL_HELPER, ENVIRONMENTS, GITHUB_TOKEN_VAR, REGISTRY as IMAGE_REGISTRY, REGISTRY_HOST,
-    RELEASE_IMAGE, REPOSITORY_URL, TOKEN_VAR, USER_VAR)
+    RELEASE_IMAGE, REPOSITORY_URL, TOKEN_VAR, USER_VAR, release_version, tag_order)
 
 EXIT_INCOMPLETE, EXIT_USAGE = 1, 2
 ROOT_UID = 0
@@ -83,6 +86,11 @@ LOOPBACK = '127.0.0.1'
 CREDENTIAL_FILE = 'github-read'
 CREDENTIAL_KEYS = (USER_VAR, TOKEN_VAR)
 PROBE_REF = 'HEAD:refs/heads/liwan-bringup-probe'
+# A5.2: the scope header of a classic token; the registry token must list this scope and no other.
+SCOPES_URL = 'https://api.github.com/user'
+SCOPES_HEADER = 'x-oauth-scopes'
+READ_ONLY_SCOPES = {'read:packages'}
+RELEASE_TAG_PATTERN = 'refs/tags/release/*'
 # What git prints when the server refuses a write for lack of permission (the only refusal that proves a read-only token).
 WRITE_REFUSED_MARKERS = ('The requested URL returned error: 403', 'Write access to repository not granted', 'remote: Permission to ')
 # A8.4b: the only container allowed on the host network.
@@ -121,17 +129,6 @@ class Item:
     post_run: bool = False
 
 
-def parse_env(text: str) -> dict[str, str]:
-    """KEY=VALUE lines as the release command reads them (``common.read_env_file``), from text read without following a link."""
-    values = {}
-    for line in text.splitlines():
-        line = line.strip()
-        if line and not line.startswith('#') and '=' in line:
-            key, value = line.split('=', 1)
-            values[key.strip()] = common.unquote(value.strip())
-    return values
-
-
 class Host:
     """Everything the tool does to the machine. Thin on purpose; tests replace it with a fake."""
 
@@ -157,7 +154,7 @@ class Host:
             return []
 
     def read_env(self, path) -> dict[str, str]:
-        return parse_env(self.read_text(path))
+        return common.parse_env_text(self.read_text(path))
 
     def read_text(self, path) -> str:
         fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
@@ -213,6 +210,17 @@ class Host:
         except subprocess.TimeoutExpired:
             raise ItemError(f'{argv[0]} timed out') from None
         return done.returncode, done.stdout
+
+    def https_headers(self, url: str, token: str) -> tuple[int, dict[str, str]]:
+        """Status and lower-cased headers of a HEAD request with the token in a header (never in an argument)."""
+        request = urllib.request.Request(url, method='HEAD', headers={'Authorization': f'Bearer {token}', 'User-Agent': 'liwan-bringup'})
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                return response.status, {key.lower(): value for key, value in response.headers.items()}
+        except urllib.error.HTTPError as error:
+            return error.code, {key.lower(): value for key, value in error.headers.items()}
+        except (urllib.error.URLError, OSError):
+            raise ItemError(f'{urllib.parse.urlsplit(url).hostname} is unreachable') from None
 
     def user(self, name: str):
         try:
@@ -477,7 +485,7 @@ def apply_checkout(ctx: Context) -> None:
     if ctx.host.lstat(ctx.paths.current) is not None:
         return  # never replaced: a link that points elsewhere is the operator's to fix
     candidates = checkout_candidates(ctx)
-    if len(candidates) == 1:
+    if len(candidates) == 1 and inspect(ctx.host, candidates[0], DIRECTORY) is not None:
         ctx.host.symlink(str(candidates[0]), ctx.paths.current)
 
 
@@ -538,38 +546,44 @@ def apply_firewall_rules(ctx: Context) -> None:
     ctx.must(['sh', firewall_script(ctx)])
 
 
-def unit_status(ctx: Context, unit: str, source: Path, compare: bool) -> Status:
+def unit_status(ctx: Context, unit: str, source: Path, compare: bool, active: bool = False) -> Status:
     path = SYSTEMD_DIR / unit
     if inspect(ctx.host, path, REGULAR_FILE) is None:
         return missing(f'{path} is not installed')
     if compare and unit_differs(ctx, path, source):
         return missing(f'{path} differs from {source}; review it and replace it by hand')
     code, output = ctx.host.run(['systemctl', 'is-enabled', unit])
-    return OK if code == 0 and output.strip() == 'enabled' else missing(f'{unit} is not enabled')
+    if code != 0 or output.strip() != 'enabled':
+        return missing(f'{unit} is not enabled')
+    if active:
+        code, output = ctx.host.run(['systemctl', 'is-active', unit])
+        if code != 0 or output.strip() != 'active':
+            return missing(f'{unit} is not active')
+    return OK
 
 
 def unit_differs(ctx: Context, path: Path, source: Path) -> bool:
     return ctx.host.read_text(path) != source.read_text(encoding='utf-8')
 
 
-def install_unit(ctx: Context, unit: str, source: Path, compare: bool) -> None:
+def install_unit(ctx: Context, unit: str, source: Path, compare: bool, start: bool = False) -> None:
     """Writes a missing unit file; an installed one that must match the repository copy and does not is left alone, with
-    no systemctl call, for the check to report."""
+    no systemctl call, for the check to report. ``start`` enables and starts it (systemd restarts only active units)."""
     path = SYSTEMD_DIR / unit
     if inspect(ctx.host, path, REGULAR_FILE) is None:
         ctx.host.write_new(path, source.read_text(encoding='utf-8'), UNIT_FILE_MODE)
     elif compare and unit_differs(ctx, path, source):
         return
     ctx.must(['systemctl', 'daemon-reload'])
-    ctx.must(['systemctl', 'enable', unit])
+    ctx.must(['systemctl', 'enable', *(['--now'] if start else []), unit])
 
 
 def check_firewall_unit(ctx: Context) -> Status:
-    return unit_status(ctx, FIREWALL_UNIT, ctx.repo_dir / FIREWALL_UNIT, compare=True)
+    return unit_status(ctx, FIREWALL_UNIT, ctx.repo_dir / FIREWALL_UNIT, compare=True, active=True)
 
 
 def apply_firewall_unit(ctx: Context) -> None:
-    install_unit(ctx, FIREWALL_UNIT, ctx.repo_dir / FIREWALL_UNIT, compare=True)
+    install_unit(ctx, FIREWALL_UNIT, ctx.repo_dir / FIREWALL_UNIT, compare=True, start=True)
 
 
 # --- A5 read credential ----------------------------------------------------------------------------------------------
@@ -598,26 +612,61 @@ def check_credential_access(ctx: Context) -> Status:
     values, problem = credential_values(ctx)
     if values is None:
         return missing(problem)
+    problem = registry_scope_problem(ctx, values)
+    if problem:
+        return missing(problem)
     token = values.get(GITHUB_TOKEN_VAR)
-    if not token:
-        return missing(f'{credential_path(ctx)} lacks {GITHUB_TOKEN_VAR}, so a refused write cannot be shown')
+    git = ['git', '-c', f'credential.helper={CREDENTIAL_HELPER}'] if token else ['git']
+    env = {'GIT_TERMINAL_PROMPT': '0', **({GITHUB_TOKEN_VAR: token} if token else {})}
+    code, output = ctx.host.run([*git, 'ls-remote', '--tags', REPOSITORY_URL, RELEASE_TAG_PATTERN], env=env)
+    if code != 0:
+        return missing('the credential cannot read the repository')
+    commit = highest_release_commit(output)
+    if commit is None:
+        return missing('no release document exists yet: the first release must be published (A8.1) before the registry read can be checked')
+    problem = registry_read_problem(ctx, values, commit)
+    if problem:
+        return missing(problem)
+    return git_write_problem(ctx, git, env) if token else OK
+
+
+def highest_release_commit(listing: str) -> str | None:
+    """The commit of the highest ``release/19.0.X.Y.Z`` tag in ``git ls-remote --tags`` output; a peeled ``^{}`` line wins."""
+    tags, peeled = {}, {}
+    for line in listing.splitlines():
+        commit, _, ref = line.partition('\t')
+        if COMMIT_ID.match(commit) and ref.startswith('refs/tags/'):
+            (peeled if ref.endswith('^{}') else tags)[ref.removeprefix('refs/tags/').removesuffix('^{}')] = commit
+    names = [name for name in tags if release_version(name)]
+    if not names:
+        return None
+    best = max(names, key=tag_order)
+    return peeled.get(best, tags[best])
+
+
+def git_write_problem(ctx: Context, git: list[str], env: dict) -> Status:
+    """A5.2: the source token cannot push. Only a refusal for lack of permission proves it."""
     checkout = str(ctx.paths.current)
     code, output = ctx.host.run(['git', '-C', checkout, 'rev-parse', 'HEAD'])
     if code != 0 or not COMMIT_ID.match(output.strip()):
         return missing(f'{checkout} is not a git checkout yet, so the write probe cannot run')
-    git = ['git', '-c', f'credential.helper={CREDENTIAL_HELPER}']
-    env = {GITHUB_TOKEN_VAR: token, 'GIT_TERMINAL_PROMPT': '0'}
-    if ctx.host.run([*git, 'ls-remote', REPOSITORY_URL, 'main'], env=env)[0] != 0:
-        return missing('the credential cannot read the repository')
-    problem = registry_read_problem(ctx, values, output.strip())
-    if problem:
-        return missing(problem)
     code, output = ctx.host.run([*git, 'push', '--dry-run', REPOSITORY_URL, PROBE_REF], env=env, cwd=checkout)
     if code == 0:
         return missing('the credential can write to the repository: replace it with a read-only token')
     if not any(marker in output for marker in WRITE_REFUSED_MARKERS):
         raise ItemError('write probe inconclusive')  # a network or git failure proves nothing about the token
     return OK
+
+
+def registry_scope_problem(ctx: Context, values: dict) -> str:
+    """A5.2: the registry token lists ``read:packages`` only (the scope header of a classic token, no write attempt)."""
+    status, headers = ctx.host.https_headers(SCOPES_URL, values[TOKEN_VAR])
+    if status != 200:
+        return 'api.github.com does not accept the registry token'
+    if SCOPES_HEADER not in headers:
+        return f'api.github.com shows no {SCOPES_HEADER} for the registry token, so a missing write scope cannot be shown'
+    scopes = {scope.strip() for scope in headers[SCOPES_HEADER].split(',') if scope.strip()}
+    return '' if scopes == READ_ONLY_SCOPES else 'the registry token has scopes beyond read:packages: replace it with a read-only token'
 
 
 def registry_read_problem(ctx: Context, values: dict, commit: str) -> str:
@@ -722,6 +771,11 @@ def check_release_state(ctx: Context) -> Status:
     return missing('; '.join(problems)) if problems else OK
 
 
+def shared_port(shared: dict, setting: tuple[str, str]) -> str:
+    """The port the release command uses: an absent or empty key means the default."""
+    return shared.get(setting[0]) or setting[1]
+
+
 def check_pg_dump(ctx: Context) -> Status:
     config = ctx.config()
     if config is None:
@@ -732,7 +786,7 @@ def check_pg_dump(ctx: Context) -> Status:
     _, status = shared_values(ctx)
     if not status.ok:
         return status
-    port = ctx.shared_env().get(*TENANT_DB_PORT)
+    port = shared_port(ctx.shared_env(), TENANT_DB_PORT)
     argv = [config['LIWAN_RELEASE_PG_DUMP'], '-h', config['LIWAN_RELEASE_PG_HOST'], '-p', port, '-U', DB_SUPERUSER,
             '--schema-only', '-d', 'postgres']
     code, _ = ctx.host.run(argv, env={'PGPASSFILE': pgpass})
@@ -751,7 +805,7 @@ def listeners(output: str) -> list[tuple[str, str]]:
 
 
 def expected_binds(shared: dict) -> dict[str, str]:
-    binds = {shared.get(*TENANT_DB_PORT): LOOPBACK, shared.get(*CONTROL_DB_PORT): LOOPBACK,
+    binds = {shared_port(shared, TENANT_DB_PORT): LOOPBACK, shared_port(shared, CONTROL_DB_PORT): LOOPBACK,
              WORKER_EFFECT_PORT: WORKER_EFFECT_ADDRESS}
     if shared.get('LIWAN_EDGE_BIND'):
         binds.update({shared[key]: shared['LIWAN_EDGE_BIND'] for key in ('LIWAN_EDGE_HTTP_PORT', 'LIWAN_EDGE_HTTPS_PORT')

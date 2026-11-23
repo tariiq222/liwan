@@ -20,6 +20,7 @@ from deploy.release.release import Paths
 HERE = Path(bringup.__file__).resolve().parent
 SECRET = 'SECRET-TOKEN-VALUE-0123456789'
 COMMIT = 'a' * 40
+TAG_COMMIT = 'c' * 40
 SRV = '/srv/liwan-staging'
 CONFIG = '/etc/liwan-release/staging.env'
 CONFIG_TEXT = (f'LIWAN_RELEASE_PROJECT=liwan-shared-staging\nLIWAN_SHARED_ENV_FILE={SRV}/shared.env\n'
@@ -68,6 +69,10 @@ class FakeHost:
         self.users: dict[str, tuple[int, int]] = {}
         self.groups: dict[str, list] = {'root': [0, []]}
         self.enabled: set[str] = set()
+        self.active: set[str] = set()
+        self.tags = f'{TAG_COMMIT}\trefs/tags/release/19.0.1.0.0\n'
+        self.scopes = (200, {'x-oauth-scopes': 'read:packages'})
+        self.https: list[tuple[str, str]] = []
         self.versions: dict[str, str] = {}
         self.firewall = False
         self.mutations: list[str] = []
@@ -104,6 +109,10 @@ class FakeHost:
         self.undecodable(path)
         pairs = (line.split('=', 1) for line in self.files[str(path)].text.splitlines() if '=' in line)
         return {key: value for key, value in pairs}
+
+    def https_headers(self, url, token):
+        self.https.append((url, token))
+        return self.scopes
 
     def user(self, name):
         return self.users.get(name)
@@ -170,6 +179,8 @@ class FakeHost:
     def git(self, argv):
         if 'rev-parse' in argv:
             return 0, COMMIT + '\n'
+        if 'ls-remote' in argv and '--tags' in argv:
+            return 0, self.tags
         if 'push' in argv:
             if '--dry-run' not in argv:
                 self.mutations.append('real push')
@@ -179,9 +190,13 @@ class FakeHost:
     def systemctl(self, argv):
         if argv[1] == 'is-enabled':
             return (0, 'enabled\n') if argv[2] in self.enabled else (1, 'disabled\n')
+        if argv[1] == 'is-active':
+            return (0, 'active\n') if argv[2] in self.active else (3, 'inactive\n')
         self.mutations.append(' '.join(argv))
         if argv[1] == 'enable':
-            self.enabled.add(argv[2])
+            self.enabled.add(argv[-1])
+            if '--now' in argv:
+                self.active.add(argv[-1])
         return 0, ''
 
     def firewall_script(self, argv):
@@ -320,6 +335,24 @@ class BringupTest(unittest.TestCase):
         host.files[f'/opt/liwan/releases/{"b" * 40}'] = directory()
         run(host, '--apply')
         self.assertNotIn('/opt/liwan/current', host.files)
+
+    def test_a_current_link_to_an_existing_directory_outside_releases_is_reported_as_outside(self):
+        host = seeded_host()
+        host.files['/elsewhere'] = directory()
+        host.files['/opt/liwan/current'] = symlink_entry('/elsewhere')
+        _, lines = run(host)
+        self.assertTrue(line_of(lines, 'current-checkout').startswith('MISSING'))
+        self.assertIn('outside /opt/liwan/releases', line_of(lines, 'current-checkout'))
+
+    def test_a_single_candidate_that_is_not_a_real_directory_is_not_linked(self):
+        for name, candidate in {'file': regular(), 'symlink': symlink_entry('/etc')}.items():
+            with self.subTest(name):
+                host = seeded_host()
+                host.files[f'/opt/liwan/releases/{COMMIT}'] = candidate
+                _, lines = run(host, '--apply')
+                self.assertEqual('FAILED', statuses(lines)['current-checkout'])
+                self.assertNotIn('/opt/liwan/current', host.files)
+                self.assertNotIn('symlink /opt/liwan/current', host.mutations)
 
     def test_credential_that_can_write_is_refused(self):
         host = seeded_host()
@@ -563,6 +596,28 @@ class SafetyTest(unittest.TestCase):
         self.assertNotIn(f'write_new {SYSTEMD}/liwan-shared-worker.service', host.mutations)
         self.assertEqual('adjusted prefix', host.files[f'{SYSTEMD}/liwan-shared-worker.service'].text)
 
+    def test_only_the_firewall_unit_is_started_on_apply(self):
+        host = seeded_host()
+        run(host, '--apply')
+        self.assertIn('systemctl enable --now liwan-firewall.service', host.mutations)
+        self.assertIn('systemctl enable liwan-shared-worker.service', host.mutations)
+        self.assertNotIn('systemctl enable --now liwan-shared-worker.service', host.mutations)
+        self.assertEqual({'liwan-firewall.service'}, host.active)
+
+    def test_an_enabled_but_inactive_firewall_unit_is_missing_then_started_by_apply(self):
+        host = seeded_host()
+        run(host, '--apply')
+        host.active.clear()
+        host.mutations.clear()
+        _, lines = run(host)
+        self.assertTrue(line_of(lines, 'firewall-unit').startswith('MISSING'))
+        self.assertIn('is not active', line_of(lines, 'firewall-unit'))
+        self.assertEqual('ok', statuses(lines)['shared-worker-unit'])  # never required to be active
+        self.assertEqual([], host.mutations)
+        _, lines = run(host, '--apply')
+        self.assertEqual('created', statuses(lines)['firewall-unit'])
+        self.assertIn('liwan-firewall.service', host.active)
+
     def test_units_are_written_with_mode_0644(self):
         host = seeded_host()
         run(host, '--apply')
@@ -689,7 +744,7 @@ class CredentialProbeTest(unittest.TestCase):
     def test_the_read_token_inspects_one_release_document_without_pulling_or_removing(self):
         host = seeded_host()
         run(host)
-        image = f'ghcr.io/tariiq222/liwan-release:{COMMIT}'
+        image = f'ghcr.io/tariiq222/liwan-release:{TAG_COMMIT}'
         inspect = host.calls.index(['docker', 'manifest', 'inspect', image])
         self.assertEqual('/scratch/docker-config', host.envs[inspect]['DOCKER_CONFIG'])
         self.assertEqual([], [call for call in host.calls if 'pull' in call or 'rmi' in call])
@@ -716,6 +771,73 @@ class CredentialProbeTest(unittest.TestCase):
         self.assertNotIn(SECRET, '\n'.join(lines))
         host.overrides[0] = (lambda argv: 'push' in argv, (0, ''))
         self.assertEqual('MISSING', statuses(run(host)[1])['read-credential-access'])
+
+
+class ReadCredentialAccessTest(unittest.TestCase):
+    def access(self, host):
+        return statuses(run(host)[1])['read-credential-access']
+
+    def ghcr_only(self, host):
+        text = f'LIWAN_GHCR_READ_USER=reader\nLIWAN_GHCR_READ_TOKEN={SECRET}\n'
+        host.files['/etc/liwan-release/github-read'] = regular(0o600, text=text)
+
+    def test_a_file_with_the_ghcr_keys_only_and_read_only_scopes_is_ok_without_a_git_probe(self):
+        host = seeded_host()
+        self.ghcr_only(host)
+        self.assertEqual('ok', self.access(host))
+        self.assertEqual([], [call for call in host.calls if 'push' in call])
+        self.assertFalse([env for env in host.envs if 'LIWAN_GITHUB_READ_TOKEN' in env])
+        self.assertEqual([('https://api.github.com/user', SECRET)], host.https)
+
+    def test_a_write_scope_on_the_registry_token_is_refused(self):
+        for header in ('read:packages, write:packages', 'repo', ''):
+            with self.subTest(header):
+                host = seeded_host()
+                self.ghcr_only(host)
+                host.scopes = (200, {'x-oauth-scopes': header})
+                self.assertEqual('MISSING', self.access(host))
+
+    def test_a_missing_scope_header_or_a_refused_token_is_not_ok(self):
+        for response in ((200, {}), (401, {})):
+            with self.subTest(response):
+                host = seeded_host()
+                host.scopes = response
+                self.assertEqual('MISSING', self.access(host))
+
+    def test_with_the_git_token_a_refused_write_is_ok_and_an_accepted_one_is_not(self):
+        host = seeded_host()
+        self.assertEqual('ok', self.access(host))
+        self.assertTrue([call for call in host.calls if 'push' in call])
+        host.overrides.append((lambda argv: 'push' in argv, (0, '')))
+        self.assertEqual('MISSING', self.access(host))
+
+    def test_no_token_is_in_any_argument(self):
+        host = seeded_host()
+        self.access(host)
+        self.assertEqual([], [call for call in host.calls if SECRET in ' '.join(call)])
+
+    def test_the_image_of_the_release_tag_commit_is_inspected(self):
+        host = seeded_host()
+        self.access(host)
+        self.assertIn(['docker', 'manifest', 'inspect', f'ghcr.io/tariiq222/liwan-release:{TAG_COMMIT}'], host.calls)
+        self.assertNotIn(['docker', 'manifest', 'inspect', f'ghcr.io/tariiq222/liwan-release:{COMMIT}'], host.calls)
+
+    def test_the_highest_tag_wins_by_number_and_a_peeled_line_names_the_commit(self):
+        host = seeded_host()
+        host.tags = (f'{"1" * 40}\trefs/tags/release/19.0.1.9.0\n{"2" * 40}\trefs/tags/release/19.0.1.10.0\n'
+                     f'{"3" * 40}\trefs/tags/release/19.0.1.10.0^{{}}\n{"4" * 40}\trefs/tags/other\n')
+        self.access(host)
+        self.assertIn(['docker', 'manifest', 'inspect', f'ghcr.io/tariiq222/liwan-release:{"3" * 40}'], host.calls)
+
+    def test_no_release_tag_yet_is_reported_as_a_missing_release_document(self):
+        host = seeded_host()
+        host.tags = ''
+        _, lines = run(host)
+        line = line_of(lines, 'read-credential-access')
+        self.assertTrue(line.startswith('MISSING'))
+        self.assertIn('no release document exists yet', line)
+        self.assertNotIn('cannot', line)
+        self.assertEqual([], [call for call in host.calls if call[:2] == ['docker', 'manifest']])
 
 
 class PostRunTest(unittest.TestCase):
@@ -761,6 +883,101 @@ class PostRunTest(unittest.TestCase):
         del host.files[f'{STATE}/run.json']
         host.files[f'{STATE}/halted.json'] = regular(0o600)
         self.assertEqual('MISSING', self.release_state(host))
+
+    def post(self, host, name):
+        return statuses(run(host, '--post-run')[1])[name]
+
+    def only(self, host, prefix, answer):
+        host.overrides = [(lambda argv: argv[:len(prefix)] == prefix, answer)]
+
+    def test_shared_files_must_be_private_and_owned_by_the_worker(self):
+        def prepared(compose, env):
+            host = self.post_host()
+            host.users['liwan-worker'] = (990, 990)
+            host.files[f'{SRV}/shared.compose.json'] = compose
+            host.files[f'{SRV}/shared.env'] = env
+            return host
+
+        owned = regular(0o600, 990, 990, text=SHARED_TEXT)
+        self.assertEqual('ok', self.post(prepared(regular(0o600, 990, 990), owned), 'post-run-shared-files'))
+        for name, compose, env in (('mode', regular(0o644, 990, 990), owned), ('owner', regular(0o600, 0, 0), owned),
+                                   ('env owner', regular(0o600, 990, 990), regular(0o600, 0, 0, text=SHARED_TEXT)),
+                                   ('absent', None, owned)):
+            with self.subTest(name):
+                host = prepared(compose or regular(), env)
+                if compose is None:
+                    del host.files[f'{SRV}/shared.compose.json']
+                self.assertEqual('MISSING', self.post(host, 'post-run-shared-files'))
+
+    def test_ai_role_and_container_must_both_be_there(self):
+        def host_with(role, containers):
+            host = self.post_host()
+            host.overrides = [(lambda argv: argv[:2] == ['docker', 'exec'], role), (lambda argv: argv[:2] == ['docker', 'ps'], containers)]
+            return host
+
+        self.assertEqual('ok', self.post(host_with((0, '1\n'), (0, 'Up 2 hours (healthy)\n')), 'post-run-ai-role'))
+        for name, role, containers in (('no role', (0, '0\n'), (0, 'Up 2 hours (healthy)\n')),
+                                       ('role query failed', (1, '1\n'), (0, 'Up 2 hours (healthy)\n')),
+                                       ('unhealthy', (0, '1\n'), (0, 'Up 2 hours (unhealthy)\n')),
+                                       ('no health state', (0, '1\n'), (0, 'Up 2 hours\n')),
+                                       ('not up', (0, '1\n'), (0, 'Exited (1) 2 hours ago\n')),
+                                       ('docker ps failed', (0, '1\n'), (1, 'Up (healthy)\n'))):
+            with self.subTest(name):
+                self.assertEqual('MISSING', self.post(host_with(role, containers), 'post-run-ai-role'))
+
+    def test_pg_dump_runs_with_the_pgpass_file_on_the_tenant_port_and_its_failure_is_reported(self):
+        host = self.post_host()
+        self.assertEqual('ok', self.post(host, 'post-run-pg-dump'))
+        call = next(call for call in host.calls if call[0] == '/usr/bin/pg_dump')
+        self.assertEqual(['-h', '127.0.0.1', '-p', '15433'], call[1:5])
+        self.assertEqual('/etc/liwan-release/pgpass', host.envs[host.calls.index(call)]['PGPASSFILE'])
+        self.only(host, ['/usr/bin/pg_dump'], (1, SECRET))
+        self.assertEqual('MISSING', self.post(host, 'post-run-pg-dump'))
+        no_pgpass = self.post_host()
+        with_config(no_pgpass, **{'PGPASSFILE=/etc/liwan-release/pgpass\n': ''})
+        self.assertEqual('MISSING', self.post(no_pgpass, 'post-run-pg-dump'))
+
+    def test_empty_database_port_keys_mean_the_release_defaults(self):
+        host = self.post_host('LIWAN_DB_HOST_PORT=\nLIWAN_CONTROL_DB_HOST_PORT=\n')
+        self.post(host, 'post-run-pg-dump')
+        self.assertEqual('15433', next(call for call in host.calls if call[0] == '/usr/bin/pg_dump')[4])
+        self.only(host, ['ss'], (0, f'{SS_HEADER}\nLISTEN 0 4096 0.0.0.0:15433 0.0.0.0:*\n'))
+        self.assertEqual('MISSING', self.post(host, 'post-run-listeners'))
+        self.only(host, ['ss'], (0, f'{SS_HEADER}\nLISTEN 0 4096 0.0.0.0:15432 0.0.0.0:*\n'))
+        self.assertEqual('MISSING', self.post(host, 'post-run-listeners'))
+        self.only(host, ['ss'], (0, f'{SS_HEADER}\nLISTEN 0 4096 127.0.0.1:15433 0.0.0.0:*\nLISTEN 0 4096 127.0.0.1:15432 0.0.0.0:*\n'))
+        self.assertEqual('ok', self.post(host, 'post-run-listeners'))
+
+    def test_only_the_openship_container_may_use_the_host_network(self):
+        host = self.post_host()
+        for output, expected in (('', 'ok'), ('openship-edge\n', 'ok'), ('openship-edge\nliwan-proxy-1\n', 'MISSING')):
+            with self.subTest(output):
+                self.only(host, ['docker', 'ps'], (0, output))
+                self.assertEqual(expected, self.post(host, 'post-run-host-network'))
+        self.only(host, ['docker', 'ps'], (1, ''))
+        self.assertEqual('MISSING', self.post(host, 'post-run-host-network'))
+
+    def test_the_edge_must_answer_with_a_good_status_and_valid_tls(self):
+        host = self.post_host('LIWAN_PROSPECT_HOST=prospect.example.com\n')
+        for answer, expected in (((0, '200 0'), 'ok'), ((0, '301 0'), 'ok'), ((0, '200 19'), 'MISSING'), ((0, '404 0'), 'MISSING'),
+                                 ((60, '000 20'), 'MISSING'), ((0, ''), 'MISSING')):
+            with self.subTest(answer):
+                self.only(host, ['curl'], answer)
+                self.assertEqual(expected, self.post(host, 'post-run-edge-answer'))
+        self.assertIn('https://prospect.example.com/favicon.ico', next(call for call in host.calls if call[0] == 'curl'))
+        self.assertEqual('MISSING', self.post(self.post_host(), 'post-run-edge-answer'))
+
+    def test_the_worker_must_be_active_and_log_a_tick(self):
+        host = self.post_host()
+        unit_active, ticking = (lambda argv: argv[:2] == ['systemctl', 'is-active']), (lambda argv: argv[0] == 'journalctl')
+        for name, active, journal, expected in (
+                ('ticking', (0, 'active\n'), (0, 'x commercial_scheduler_tick done\n'), 'ok'),
+                ('inactive', (3, 'inactive\n'), (0, 'commercial_scheduler_tick\n'), 'MISSING'),
+                ('no tick', (0, 'active\n'), (0, 'started\n'), 'MISSING'),
+                ('journal failed', (0, 'active\n'), (1, 'commercial_scheduler_tick\n'), 'MISSING')):
+            with self.subTest(name):
+                host.overrides = [(unit_active, active), (ticking, journal)]
+                self.assertEqual(expected, self.post(host, 'post-run-worker-ticks'))
 
 
 class RealHostTest(unittest.TestCase):
