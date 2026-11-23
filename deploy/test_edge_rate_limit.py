@@ -500,7 +500,7 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
             'LIWAN_TIKTOK_CLIENT_SECRET': 'test-only-client-secret',
             'LIWAN_SESSION_ACTIVE_KID': 'k1', 'LIWAN_SHARED_PROXY_TOKEN': 'dummy', 'LIWAN_TIKTOK_RELAY_TOKEN': 'test-only-relay-token',
             'LIWAN_SHARED_ODOO_CONFIG': '/tmp/dummy-odoo.conf', 'LIWAN_TENANT_REGISTRY_DIR': '/tmp',
-            'POSTGRES_PASSWORD': 'dummy', 'LIWAN_DOMAIN': 'example.test',
+            'DB_PASSWORD': 'dummy', 'DB_ADMIN_PASSWORD': 'dummy-admin', 'LIWAN_DOMAIN': 'example.test',
             # The edge address and ports have no default in the compose file; production's values here.
             'LIWAN_EDGE_BIND': '0.0.0.0', 'LIWAN_EDGE_HTTP_PORT': '80', 'LIWAN_EDGE_HTTPS_PORT': '443', **extra,
         }
@@ -523,7 +523,7 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
             self.skipTest('docker compose unavailable')
         env = {
             'LIWAN_IMAGE_TAG': 'test', 'ODOO_COMMIT': 'dummy',
-            'DB_PASSWORD': 'dummy', 'DOMAIN': 'example.test', **extra,
+            'DB_PASSWORD': 'dummy', 'DB_ADMIN_PASSWORD': 'dummy-admin', 'DOMAIN': 'example.test', **extra,
         }
         with tempfile.TemporaryDirectory() as tmp:
             envfile = Path(tmp) / 'dummy.env'

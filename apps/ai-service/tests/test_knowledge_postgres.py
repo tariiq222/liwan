@@ -9,7 +9,7 @@ from psycopg import sql
 from psycopg.conninfo import make_conninfo
 from psycopg_pool import AsyncConnectionPool
 
-from liwan_ai_service.control import StateCompatibilityError
+from liwan_ai_service.control import StateCompatibilityError, queue_writer_role
 from liwan_ai_service.knowledge import (
     DRAIN_BATCH,
     QUEUE_MAX_AGE_HOURS,
@@ -17,8 +17,10 @@ from liwan_ai_service.knowledge import (
     PostgresKnowledgeStore,
     QueueRow,
     current_upserts,
+    grant_knowledge_queue,
     vector_literal,
 )
+from liwan_ai_service.memory import grant_outbox
 from liwan_ai_service.store import initialize_tenant, validate_tenant
 
 pytestmark = pytest.mark.skipif(not os.environ.get("AI_TEST_DATABASE_URL"), reason="needs AI_TEST_DATABASE_URL")
@@ -245,43 +247,59 @@ def test_only_the_upserts_that_still_matter_are_current():
     assert vector_literal([1, 0.5, 1e-07]) == "[1.0,0.5,1e-07]"
 
 
-async def test_the_database_owner_may_append_to_the_queue_and_nothing_else(pool):
-    """Odoo's role is the database owner: it gets INSERT and the sequence, never a read, and the shape checks still run for it."""
-    role = f"tkn_owner_{uuid4().hex[:10]}"
+async def test_the_role_holding_usage_may_append_to_the_queues_and_nothing_else(pool):
+    """Odoo's role is named by its USAGE on the schema, never by being the database owner (which is the admin role)."""
+    writer, bystander = f"tkn_writer_{uuid4().hex[:10]}", f"tkn_other_{uuid4().hex[:10]}"
     admin = await psycopg.AsyncConnection.connect(os.environ["AI_TEST_DATABASE_URL"], autocommit=True)
     if not (await (await admin.execute("SELECT rolsuper FROM pg_roles WHERE rolname = current_user")).fetchone())[0]:
         await admin.close()
-        pytest.skip("changing the database owner needs a superuser AI_TEST_DATABASE_URL")
+        pytest.skip("creating roles needs a superuser AI_TEST_DATABASE_URL")
     try:
-        await admin.execute(sql.SQL("CREATE ROLE {}").format(sql.Identifier(role)))
-        await admin.execute(sql.SQL("ALTER DATABASE {} OWNER TO {}").format(sql.Identifier(await _database(admin)), sql.Identifier(role)))
-        async with pool.connection() as conn:  # the grant runs on every bootstrap: a new owner is covered by the next one
-            from liwan_ai_service.knowledge import grant_knowledge_queue
-
-            await grant_knowledge_queue(conn)
+        for role in (writer, bystander):
+            await admin.execute(sql.SQL("CREATE ROLE {}").format(sql.Identifier(role)))
+        async with pool.connection() as conn:
             schema = (await (await conn.execute("SELECT current_schema()")).fetchone())[0]
+            await admin.execute(sql.SQL("GRANT USAGE ON SCHEMA {} TO {}").format(sql.Identifier(schema), sql.Identifier(writer)))
+            await grant_knowledge_queue(conn)
+            await grant_outbox(conn)
+        owner = (await (await admin.execute("SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = current_database()")).fetchone())[0]
+        assert owner != writer  # the grantee is not the database owner
         privileges = (await (await admin.execute(
             "SELECT has_table_privilege(%(r)s, %(q)s, 'INSERT'), has_table_privilege(%(r)s, %(q)s, 'SELECT'),"
             " has_table_privilege(%(r)s, %(q)s, 'DELETE'), has_table_privilege(%(r)s, %(c)s, 'INSERT'),"
-            " has_sequence_privilege(%(r)s, %(s)s, 'USAGE')",
-            {"r": role, "q": f"{schema}.ai_knowledge_queue", "c": f"{schema}.ai_knowledge_chunk", "s": f"{schema}.ai_knowledge_queue_id_seq"},
+            " has_sequence_privilege(%(r)s, %(s)s, 'USAGE'), has_table_privilege(%(r)s, %(o)s, 'INSERT'),"
+            " has_table_privilege(%(r)s, %(o)s, 'SELECT'), has_table_privilege(%(b)s, %(q)s, 'INSERT'),"
+            " has_table_privilege(%(b)s, %(o)s, 'INSERT')",
+            {"r": writer, "b": bystander, "q": f"{schema}.ai_knowledge_queue", "c": f"{schema}.ai_knowledge_chunk",
+             "s": f"{schema}.ai_knowledge_queue_id_seq", "o": f"{schema}.ai_outbox"},
         )).fetchone())
-        assert privileges == (True, False, False, False, True)
-        await admin.execute(sql.SQL("SET ROLE {}").format(sql.Identifier(role)))
+        assert privileges == (True, False, False, False, True, True, False, False, False)
+        await admin.execute(sql.SQL("SET ROLE {}").format(sql.Identifier(writer)))
         insert = sql.SQL("INSERT INTO {}.ai_knowledge_queue (kind, model, res_id, company_id, chunks) VALUES ('upsert', 'm', 1, 1, {})")
         await admin.execute(insert.format(sql.Identifier(schema), sql.Literal('["text"]')))
+        await admin.execute(sql.SQL("INSERT INTO {}.ai_outbox (kind, user_ref) VALUES ('user_deactivated', '7')").format(sql.Identifier(schema)))
         with pytest.raises(psycopg.errors.CheckViolation):
             await admin.execute(insert.format(sql.Identifier(schema), sql.Literal("[]")))
+        await admin.execute("RESET ROLE")
+        await admin.execute(sql.SQL("GRANT USAGE ON SCHEMA {} TO {}").format(sql.Identifier(schema), sql.Identifier(bystander)))
+        async with pool.connection() as conn:  # a second role with USAGE is refused, never granted to
+            with pytest.raises(StateCompatibilityError, match="more than one role"):
+                await grant_knowledge_queue(conn)
     finally:
         await admin.execute("RESET ROLE")
-        await admin.execute(sql.SQL("ALTER DATABASE {} OWNER TO CURRENT_USER").format(sql.Identifier(await _database(admin))))
-        await admin.execute(sql.SQL("DROP OWNED BY {}").format(sql.Identifier(role)))
-        await admin.execute(sql.SQL("DROP ROLE {}").format(sql.Identifier(role)))
+        for role in (writer, bystander):
+            await admin.execute(sql.SQL("DROP OWNED BY {}").format(sql.Identifier(role)))
+            await admin.execute(sql.SQL("DROP ROLE {}").format(sql.Identifier(role)))
         await admin.close()
 
 
-async def _database(conn) -> str:
-    return (await (await conn.execute("SELECT current_database()")).fetchone())[0]
+async def test_without_a_role_holding_usage_nothing_is_granted(pool, caplog):
+    """A bare schema (the operator script never ran) has no writer, so the bootstrap grants nothing and does not fail."""
+    async with pool.connection() as conn:
+        await grant_knowledge_queue(conn)
+        await grant_outbox(conn)
+        assert await queue_writer_role(conn) is None
+    assert "ai_queue_writer_role_absent" in caplog.text
 
 
 async def test_a_database_without_pgvector_is_refused_clearly_before_any_ddl():

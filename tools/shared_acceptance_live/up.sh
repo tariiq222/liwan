@@ -84,6 +84,7 @@ PROXY_TOKEN="$(openssl rand -hex 32)"
 SESSION_KEY_1="$(openssl rand -hex 32)"
 SESSION_KEY_2="$(openssl rand -hex 32)"
 DB_PASSWORD="$(openssl rand -hex 16)"
+DB_ADMIN_PASSWORD="$(openssl rand -hex 16)"
 ADMIN_PASSWD="$(openssl rand -hex 16)"
 ADMIN_A_PASSWORD="$(openssl rand -hex 16)"
 ADMIN_B_PASSWORD="$(openssl rand -hex 16)"
@@ -106,7 +107,7 @@ TENANT_A_DB="liwan_accept_a_scratch"
 TENANT_B_DB="liwan_accept_b_scratch"
 TENANT_DATABASES=("$TENANT_A_DB" "$TENANT_B_DB")
 export DB_NAME="$TENANT_A_DB"
-export DB_PASSWORD
+export DB_PASSWORD DB_ADMIN_PASSWORD
 export LIWAN_EDGE_BIND="127.0.0.1"
 export LIWAN_EDGE_HTTPS_PORT="443"
 export LIWAN_EDGE_HTTP_PORT="80"
@@ -156,7 +157,8 @@ chmod 0644 "$LIWAN_TENANT_REGISTRY_DIR/registry.json"
 
 # --- odoo.conf ---
 # db_user/db_password must match the db service env in docker-compose.yml:
-# POSTGRES_USER=odoo, POSTGRES_PASSWORD=${DB_PASSWORD}.
+# the odoo role is created by the db init script from ${DB_PASSWORD}; the db bootstrap superuser is postgres
+# (${DB_ADMIN_PASSWORD}), used here by tooling only.
 # validate_odoo_config.py requires: mode 0400|0440 owned by root or the runtime
 # uid, dbfilter=^%h$, list_db=False, proxy_mode=False, workers=2,
 # data_dir=/var/lib/odoo, no db_name, no placeholders.
@@ -213,15 +215,16 @@ done
 echo "PostgreSQL healthy."
 
 # --- 3. Create tenant databases (no host psql), close them to PUBLIC and add pg_trgm ---
-# Shared odoo.conf connects every tenant as db_user (odoo). A new database is open to every role through
+# Shared odoo.conf connects every tenant as db_user (odoo), a plain role; the admin role postgres creates and
+# grants. A new database is open to every role through
 # PUBLIC, so CONNECT is revoked right after creation and granted to that role only. The SQL comes from
 # deploy/releases/postgres.py (the one source); psql stops on the first error and the pipeline fails with it.
 TENANT_DB_ROLE="odoo"
 create_tenant_database() {
-  (cd "$REPO_ROOT" && python3 -B -c 'import sys; from deploy.releases.postgres import tenant_create_database_sql, tenant_isolation_sql; sys.stdout.write(tenant_create_database_sql(sys.argv[1]) + ";\n" + tenant_isolation_sql(sys.argv[1], sys.argv[2]))' "$1" "$TENANT_DB_ROLE") \
-    | compose exec -T db psql -U odoo -d postgres -v ON_ERROR_STOP=1 -q
-  (cd "$REPO_ROOT" && python3 -B -c 'import sys; from deploy.releases.postgres import TENANT_EXTENSION_SQL; sys.stdout.write(TENANT_EXTENSION_SQL + ";\n")') \
-    | compose exec -T db psql -U odoo -d "$1" -v ON_ERROR_STOP=1 -q
+  (cd "$REPO_ROOT" && python3 -B -c 'import sys; from deploy.releases.postgres import tenant_create_database_sql, tenant_isolation_sql, cluster_connect_grant_sql; sys.stdout.write(tenant_create_database_sql(sys.argv[1]) + ";\n" + tenant_isolation_sql(sys.argv[1], sys.argv[2]) + cluster_connect_grant_sql(sys.argv[2]) + ";\n")' "$1" "$TENANT_DB_ROLE") \
+    | compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 -q
+  (cd "$REPO_ROOT" && python3 -B -c 'import sys; from deploy.releases.postgres import tenant_bootstrap_sql; sys.stdout.write(tenant_bootstrap_sql(sys.argv[1]))' "$TENANT_DB_ROLE") \
+    | compose exec -T db psql -U postgres -d "$1" -v ON_ERROR_STOP=1 -q
 }
 for DBT in "${TENANT_DATABASES[@]}"; do
   create_tenant_database "$DBT"

@@ -6,6 +6,7 @@ needs, so it is opened once, not per tenant. The runtime only validates it: DDL 
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
 from typing import Protocol
 from uuid import uuid4
@@ -14,10 +15,40 @@ from liwan_ai_service.contracts import AI_STATE_VERSION
 
 CONTROL_LOCK = (184732, 1)  # operator-only session lock: serializes bootstrap across processes
 STATE_ID = re.compile(r"^state_[a-f0-9]{32}$")
+log = logging.getLogger("liwan_ai_service")
 
 
 class StateCompatibilityError(RuntimeError):
     """State needs explicit operator initialization or an offline migration, never runtime setup."""
+
+
+# Odoo's database role is the one role other than the schema owner that holds USAGE on the tenant schema: the operator
+# script deploy/ai/tenant_schema.sql grants it, as the admin role, before this bootstrap runs. Nobody else is named, and
+# neither the database owner (the admin role) nor PUBLIC counts.
+QUEUE_WRITER_QUERY = """
+SELECT DISTINCT current_schema(), pg_catalog.pg_get_userbyid(a.grantee)
+FROM pg_catalog.pg_namespace n, LATERAL pg_catalog.aclexplode(n.nspacl) a
+WHERE n.nspname = current_schema() AND a.privilege_type = 'USAGE' AND a.grantee NOT IN (0, n.nspowner)
+"""
+
+
+async def queue_writer_role(conn) -> tuple[str, str] | None:
+    """The tenant schema and the role that appends to the AI queues; ``None`` when no role holds USAGE yet.
+
+    Without the operator script (a bare test schema) nobody can write, so there is nothing to grant. A second role
+    holding USAGE is refused: a queue grant must never reach a role the script did not name.
+    """
+    rows = await (await conn.execute(QUEUE_WRITER_QUERY)).fetchall()
+    if len(rows) > 1:
+        msg = "ai_state_incompatible: more than one role besides the owner holds USAGE on the tenant schema"
+        raise StateCompatibilityError(msg)
+    if not rows:
+        # deploy/ai/tenant_schema.sql grants USAGE to the literal role `odoo`; with another runtime role name (or none) no queue
+        # grant is made and Odoo's inserts into ai_outbox and ai_knowledge_queue fail at run time, so say so at bootstrap.
+        log.warning("ai_queue_writer_role_absent: no role besides the schema owner holds USAGE on the tenant schema; "
+                    "Odoo cannot append to the AI queues (deploy/ai/tenant_schema.sql grants only the role named odoo)")
+        return None
+    return rows[0]
 
 
 class ControlState(Protocol):

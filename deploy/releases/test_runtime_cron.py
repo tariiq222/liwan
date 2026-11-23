@@ -49,7 +49,7 @@ class BackupCursor:
         # database and plain login roles without membership, ownership or PUBLIC.
         if 'count(*)' in self.sql: return (self.connection.active,)
         if 'FROM pg_database WHERE datname' in self.sql: return (True,)
-        if 'FROM pg_roles WHERE rolname' in self.sql: return (True, False, False, False, False, False)
+        if 'FROM pg_roles WHERE rolname' in self.sql: return (False,)
         if self.sql.startswith('SELECT EXISTS'): return (False,)
         return (0,)
     def fetchall(self):

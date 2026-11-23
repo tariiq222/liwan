@@ -19,7 +19,7 @@ from .manifest import load_manifest, manifest_digest
 from .migrate import migrate_tenant, verify_tenant
 from .runtime_identity import inspect_odoo_runtime
 from .source_gate import verify_sources, snapshot_digest
-from .postgres import WRITER_LOGINS, bounded_connection, fence_runtime, fence_writers, validate_runtime_role, identifier, writer_grants
+from .postgres import WRITER_LOGINS, bounded_connection, fence_runtime, fence_writers, session_role, validate_runtime_role, identifier, writer_grants
 from .state import ReleaseConflict, atomic_json, name, safe_directory
 
 
@@ -67,11 +67,19 @@ class LocalRuntime:
         self.proofs = {}
         self.classifications = {}
 
-    def _connect(self, database, **options):
+    def _connect(self, database, *, role=None, **options):
+        """An admin session (no ``role``) is pinned to ``pg_catalog``, so no name it uses resolves through a schema a
+        tenant can write; its callers run catalog queries and ACL statements only. A session that reads tenant
+        tables logs in as ``role``, the owning role, whose password the passfile must hold next to the admin's."""
         import psycopg2
         pg = self.config['postgres']
-        return psycopg2.connect(dbname=database, host=pg['host'], port=pg['port'], user=pg['adminUser'],
+        login = {'user': pg['adminUser'], 'options': '-c search_path=pg_catalog'} if role is None else {'user': role}
+        return psycopg2.connect(dbname=database, host=pg['host'], port=pg['port'], **login,
                                **({'passfile': pg['passfile']} if pg.get('passfile') else {}), **options)
+
+    def tenant_connector(self, database, **options):
+        """Connector for a session that reads or writes tenant tables: it logs in as ``session_role(database)``, never the admin."""
+        return self.connector(database, role=session_role(database), **options)
 
     def _tenant(self, binding):
         if not binding['database'].startswith('liwan_scratch_'):
