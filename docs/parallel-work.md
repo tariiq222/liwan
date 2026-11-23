@@ -220,9 +220,7 @@ the resulting branch and runtime state. A passing local
 test, health endpoint, or UI observation proves only the checked layer; it does
 not prove deployment, DNS, or release approval.
 
-The LiwanOS Git remote is `origin` (`https://github.com/tariiq222/liwan.git`),
-tracked by `main`. Push a task branch only on the owner's explicit words; `main` changes only
-through a merged PR; never force-push published history, and do not imply that a push occurred. Do not remove a
-branch or worktree until its content is preserved and no process is using it. A production deployment or DNS cutover
-requires separate authorization; local `:8069`/`:3000` development is not
-production evidence.
+The LiwanOS Git remote is `origin` (`https://github.com/tariiq222/liwan.git`), tracked by
+`main`; push, force-push, protection, deployment and cleanup authorization are owned by
+[integration-rules.md](agents/integration-rules.md), and local `:8069`/`:3000` development is
+not production evidence.

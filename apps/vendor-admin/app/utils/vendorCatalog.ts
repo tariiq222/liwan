@@ -1,12 +1,11 @@
 import { safeReturnTo } from '@liwan/ui/app/utils/safeReturnTo'
 import type { PlanView } from './vendorCommercial'
 
-/** The catalog section's tabs, in the order things are built (applications, bundles of them, plans of bundles; the retired packages last): each keeps its own URL (links elsewhere point at them) and its own list filters. */
+/** The catalog section's tabs, in the order things are built (applications, bundles of them, plans of bundles): each keeps its own URL (links elsewhere point at them) and its own list filters. */
 export const CATALOG_TABS = [
   { key: 'catalog', to: '/catalog', labelKey: 'vendor.catalog.applications' },
   { key: 'bundles', to: '/bundles', labelKey: 'vendor.bundles.title' },
   { key: 'plans', to: '/plans', labelKey: 'vendor.plans.title' },
-  { key: 'packages', to: '/packages', labelKey: 'vendor.packages.title' },
 ] as const
 
 export type CatalogTabKey = (typeof CATALOG_TABS)[number]['key']

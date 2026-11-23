@@ -26,13 +26,20 @@ const limits = (b: BundleView) => Object.entries(b.domain_limits).map(([k, v]) =
 // Owner decision 2026-10-29: the seeded LiwanOS plan ships with a default bundle set for the sold applications.
 const latestRelease = computed(() => data.value?.releases[0])
 const canSeed = computed(() => can('vendor.catalog.manage') && can('vendor.pricing.manage') && Boolean(latestRelease.value))
-const seedBusy = ref(false); const seedState = ref<'done' | 'failed' | undefined>()
+// Seeding also publishes a new plan revision, so it confirms first and then reports what it created.
+const seedConfirm = ref(false)
+const seedBusy = ref(false)
+const seedFailure = ref(false)
+const seedResult = ref<{ created: number, planCreated: boolean, planRevisionId: string | null } | null>(null)
 async function seedBundles() {
   const release = latestRelease.value
   if (!hydrated.value || seedBusy.value || !release) return
-  seedBusy.value = true; seedState.value = undefined
-  try { await api.seedDefaultBundles(release.id, t('vendor.bundles.seed.reason')); seedState.value = 'done'; await refresh() }
-  catch { seedState.value = 'failed' } finally { seedBusy.value = false }
+  seedBusy.value = true; seedFailure.value = false; seedConfirm.value = false
+  try {
+    const result = await api.seedDefaultBundles(release.id, t('vendor.bundles.seed.reason'))
+    seedResult.value = { created: result.created.length, planCreated: result.plan_created, planRevisionId: result.plan_created ? result.plan_revision_id : null }
+    await refresh()
+  } catch { seedResult.value = null; seedFailure.value = true } finally { seedBusy.value = false }
 }
 const nextKey = (b: BundleView) => (b.status === 'draft' ? 'validate' : b.status === 'validated' ? 'publish' : b.available ? 'view' : 'restore')
 const path = (b: BundleView) => ({ path: `/bundles/${encodeURIComponent(b.id)}`, query: { returnTo: listTo.value } })
@@ -48,17 +55,32 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
 ])
 </script>
 <template>
-<SharedListPage :title="t('vendor.catalog.title')" :create-to="can('vendor.catalog.manage') ? { path: '/bundles/new', query: { returnTo: listTo } } : undefined" :create-label="t('vendor.bundles.create')" create-test-id="vendor-bundle-new">
+<SharedListPage :title="t('vendor.bundles.title')" :description="t('vendor.bundles.help')" :create-to="can('vendor.catalog.manage') ? { path: '/bundles/new', query: { returnTo: listTo } } : undefined" :create-label="t('vendor.bundles.create')" create-test-id="vendor-bundle-new">
 
 <template #filters><VendorCatalogTabs class="mb-3" /><SharedFilterBar :active-count="Number(Boolean(q)) + Number(status !== 'all')" @clear="router.replace('/bundles')">
       <template #search><UInput :model-value="q" :aria-label="t('vendor.bundles.search')" :placeholder="t('vendor.bundles.search')" icon="i-lucide-search" :disabled="!hydrated" @update:model-value="patch({ q: $event || undefined })" /></template>
       <SharedFilterChoice :label="t('vendor.common.status')" :model-value="status" :items="statusItems" :disabled="!hydrated" @update:model-value="patch({ status: $event && $event !== 'all' ? $event : undefined })" />
       <template #active><SharedFilterChip v-if="q" :label="q" @remove="patch({ q: undefined })" /><SharedFilterChip v-if="status !== 'all'" :label="t(`vendor.pricing.filter.${status}`)" @remove="patch({ status: undefined })" /></template>
     </SharedFilterBar></template>
-<div v-if="canSeed" class="mb-3 flex flex-wrap items-center gap-3" data-testid="seed-default-bundles">
-  <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-package-plus" :disabled="!hydrated || seedBusy" :loading="seedBusy" @click="seedBundles">{{ t('vendor.bundles.seed.action') }}</UButton>
-  <span class="text-sm text-muted">{{ t('vendor.bundles.seed.hint') }}</span>
-  <span v-if="seedState" role="status" class="text-sm" :class="seedState === 'failed' ? 'text-error' : 'text-muted'">{{ t(seedState === 'done' ? 'vendor.bundles.seed.done' : 'vendor.bundles.seed.failed') }}</span>
+<VendorCatalogGlossary class="mb-3" />
+<div v-if="canSeed" class="mb-3 space-y-3" data-testid="seed-default-bundles">
+  <div class="flex flex-wrap items-center gap-3">
+    <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-package-plus" :disabled="!hydrated || seedBusy" :loading="seedBusy" @click="seedConfirm = true">{{ t('vendor.bundles.seed.action') }}</UButton>
+    <span class="text-sm text-muted">{{ t('vendor.bundles.seed.hint') }}</span>
+  </div>
+  <SharedInlineConfirm v-if="seedConfirm" :title="t('vendor.bundles.seed.confirmTitle')" color="primary" :confirm-label="t('vendor.bundles.seed.confirm')" :pending="seedBusy" @confirm="seedBundles" @cancel="seedConfirm = false">
+    <ul class="list-disc space-y-1 ps-5">
+      <li>{{ t('vendor.bundles.seed.confirmEffect1') }}</li>
+      <li>{{ t('vendor.bundles.seed.confirmEffect2') }}</li>
+      <li>{{ t('vendor.bundles.seed.confirmEffect3') }}</li>
+    </ul>
+  </SharedInlineConfirm>
+  <div v-if="seedFailure" role="status" class="text-sm text-error" data-testid="seed-failed">{{ t('vendor.bundles.seed.failed') }}</div>
+  <div v-else-if="seedResult" role="status" class="space-y-1 text-sm text-muted" data-testid="seed-result">
+    <p v-if="seedResult.created">{{ t('vendor.bundles.seed.createdCount', { count: seedResult.created }, seedResult.created) }}</p>
+    <p v-if="seedResult.planCreated">{{ t('vendor.bundles.seed.planCreated') }} <NuxtLink :to="`/plans/${seedResult.planRevisionId}`" class="font-medium text-primary hover:underline">{{ t('vendor.bundles.seed.planLink') }}</NuxtLink></p>
+    <p v-if="!seedResult.created && !seedResult.planCreated">{{ t('vendor.bundles.seed.nothingCreated') }}</p>
+  </div>
 </div>
 <p v-if="data" class="text-sm text-muted" data-testid="bundles-result-count">{{ t('vendor.pagination.total', { count: data.bundles.total }, data.bundles.total) }}</p>
 

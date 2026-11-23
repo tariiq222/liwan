@@ -7,13 +7,13 @@ const PUBLISHED = 'cat-1'
 
 test.beforeEach(async ({ page }) => { await login(page) })
 
-test('the tabs follow the build order: applications, bundles, plans, then the retired packages', async ({ page }) => {
+test('the tabs follow the build order: applications, bundles, plans', async ({ page }) => {
   await open(page, '/catalog'); await expectNoSecondH1(page)
   const tabs = page.locator('[data-testid^="catalog-tab-"]')
-  await expect(tabs).toHaveCount(4)
-  expect(await tabs.evaluateAll(items => items.map(item => item.getAttribute('data-testid')))).toEqual(['catalog-tab-catalog', 'catalog-tab-bundles', 'catalog-tab-plans', 'catalog-tab-packages'])
+  await expect(tabs).toHaveCount(3)
+  expect(await tabs.evaluateAll(items => items.map(item => item.getAttribute('data-testid')))).toEqual(['catalog-tab-catalog', 'catalog-tab-bundles', 'catalog-tab-plans'])
   await expect(page.getByTestId('catalog-tab-catalog')).toHaveAttribute('aria-current', 'page')
-  await page.getByTestId('catalog-tab-packages').click(); await expect(page).toHaveURL(/\/packages$/)
+  await page.getByTestId('catalog-tab-plans').click(); await expect(page).toHaveURL(/\/plans$/)
 })
 
 test('the catalog lists every imported version with its status and explains the three steps', async ({ page }) => {
