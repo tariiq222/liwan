@@ -81,13 +81,13 @@ class TestClassification(unittest.TestCase):
         result = subprocess.run(['bash', str(deploy / 'provision.sh'), '--stage-only'], cwd=elsewhere, env=env, text=True, capture_output=True, check=False)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(sorted(path.name for path in (deploy / 'data/seed').iterdir()),
-                         ['branding.json', 'seed_ai_usage_key.py', 'seed_branding.py', 'seed_legacy_policy.py'])
+                         ['branding.json', 'seed_branding.py', 'seed_legacy_policy.py'])
         self.assertEqual(list(elsewhere.iterdir()), [])
 
     def provision_fixture(self):
         deploy = self.root / 'deploy'
         deploy.mkdir()
-        for name in ('provision.sh', 'classification.py', 'seed_branding.py', 'seed_legacy_policy.py', 'seed_public_origin.py', 'seed_ai_usage_key.py'):
+        for name in ('provision.sh', 'classification.py', 'seed_branding.py', 'seed_legacy_policy.py', 'seed_public_origin.py'):
             shutil.copy(ROOT / 'deploy' / name, deploy / name)
         config = self.root / 'odoo-addons/liwan_platform'
         config.mkdir(parents=True)

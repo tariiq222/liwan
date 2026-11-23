@@ -780,6 +780,14 @@ def check_db_passwords(ctx: Context) -> Status:
     return missing('DB_PASSWORD and DB_ADMIN_PASSWORD must differ') if values[0] == values[1] else OK
 
 
+def check_ai_usage_key(ctx: Context) -> Status:
+    """A4.8: LIWAN_AI_USAGE_KEY is 64 hex characters (the value is never printed)."""
+    values, status = shared_values(ctx, 'LIWAN_AI_USAGE_KEY')
+    if values is None:
+        return status
+    return OK if re.fullmatch(r'[0-9a-f]{64}', values[0]) else missing('LIWAN_AI_USAGE_KEY must be 64 hex characters')
+
+
 def served_commit(ctx: Context, served: Path) -> str | None:
     try:
         record = json.loads(ctx.host.read_text(served))
@@ -939,6 +947,7 @@ REGISTRY: list[Item] = [
          f'as root: create /etc/liwan-release/{CREDENTIAL_FILE} (A5.1), mode 0600, with the read-only tokens'),
     Item('read-credential-access', check_credential_access, 'the read credential must read the repository, pull a release document and must not write (A5.2)'),
     Item('shared-db-passwords', check_db_passwords, 'put DB_PASSWORD and a different DB_ADMIN_PASSWORD in the shared env file (A4.1)'),
+    Item('shared-ai-usage-key', check_ai_usage_key, 'put LIWAN_AI_USAGE_KEY (64 hex) in the shared env file (A4.8)'),
     Item('shared-worker-unit', check_worker_unit, f'install and enable {SHARED_WORKER_UNIT} without starting it (A6.1)',
          apply_worker_unit),
     Item('post-run-shared-files', check_shared_file_owners, 'shared.compose.json and shared.env must be 0600, owned by the worker (A8.2a)',

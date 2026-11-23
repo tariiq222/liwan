@@ -29,9 +29,11 @@ CONFIG_TEXT = (f'LIWAN_RELEASE_PROJECT=liwan-shared-staging\nLIWAN_SHARED_ENV_FI
                'LIWAN_RELEASE_PG_DUMP=/usr/bin/pg_dump\nLIWAN_RELEASE_PG_HOST=127.0.0.1\n'
                'LIWAN_RELEASE_CONTROL_PG_HOST=127.0.0.1\nLIWAN_RELEASE_ODOO_DATA_DIR=/var/lib/docker/volumes/x/_data\n'
                'LIWAN_RELEASE_DISK_PATH=/var/lib/docker\nPGPASSFILE=/etc/liwan-release/pgpass\n')
+USAGE_KEY = 'ab' * 32
 SHARED_TEXT = (f'LIWAN_CONTROL_CONFIG_DIR={SRV}/control/config\nLIWAN_CONTROL_PRIVATE_DIR={SRV}/control/private\n'
                f'LIWAN_TENANT_REGISTRY_DIR={SRV}/state/registry\nLIWAN_AI_PLATFORM_DIR={SRV}/control/state/ai-platform\n'
-               f'LIWAN_SHARED_COMPOSE_FILE={SRV}/shared.compose.json\nDB_PASSWORD=runtime-pass\nDB_ADMIN_PASSWORD=admin-pass\n')
+               f'LIWAN_SHARED_COMPOSE_FILE={SRV}/shared.compose.json\nDB_PASSWORD=runtime-pass\nDB_ADMIN_PASSWORD=admin-pass\n'
+               f'LIWAN_AI_USAGE_KEY={USAGE_KEY}\n')
 CREDENTIAL_TEXT = f'LIWAN_GHCR_READ_USER=reader\nLIWAN_GHCR_READ_TOKEN={SECRET}\nLIWAN_GITHUB_READ_TOKEN={SECRET}\n'
 GIB = 1024 ** 3
 SS_HEADER = 'State Recv-Q Send-Q Local Address:Port Peer Address:Port'
@@ -963,6 +965,14 @@ class PostRunTest(unittest.TestCase):
                 host = seeded_host()
                 host.files[f'{SRV}/shared.env'] = regular(0o600, text=text)
                 self.assertEqual(expected, statuses(run(host)[1])['shared-db-passwords'])
+
+    def test_ai_usage_key_must_be_64_hex(self):
+        for name, text, expected in (('good', SHARED_TEXT, 'ok'), ('absent', SHARED_TEXT.replace(f'LIWAN_AI_USAGE_KEY={USAGE_KEY}\n', ''), 'MISSING'),
+                                     ('placeholder', SHARED_TEXT.replace(USAGE_KEY, 'REPLACE_WITH_GENERATED_AI_USAGE_ROOT_SECRET'), 'MISSING')):
+            with self.subTest(name):
+                host = seeded_host()
+                host.files[f'{SRV}/shared.env'] = regular(0o600, text=text)
+                self.assertEqual(expected, statuses(run(host)[1])['shared-ai-usage-key'])
 
     def test_empty_database_port_keys_mean_the_release_defaults(self):
         host = self.post_host('LIWAN_DB_HOST_PORT=\nLIWAN_CONTROL_DB_HOST_PORT=\n')

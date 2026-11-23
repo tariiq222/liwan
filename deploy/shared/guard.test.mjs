@@ -680,13 +680,13 @@ test('public signup allows only its exact routes and relays the address supplied
 const recorderKey = 'a1'.repeat(20)
 const trusted = (headers = {}) => ({ 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1', ...headers })
 const usageTarget = '/api/v1/ai/usage/service'
-test('the recorder key passes only on the trusted hop, to the exact AI usage report, as POST', () => {
+test('the recorder bearer passes only on the trusted hop, to the exact AI usage report, as POST', () => {
   const plan = requestPlan({ ...req(0, trusted({ authorization: `Bearer ${recorderKey}` }), usageTarget), method: 'POST' }, registry, token, codec)
   assert.equal(plan.odoo, true)
   assert.equal(plan.headers.authorization, `Bearer ${recorderKey}`)
   assert.equal(plan.headers.host, targets[0].database)
 })
-test('the recorder key is stripped on every other path, method, spelling and hop (issue #557)', () => {
+test('the recorder bearer is stripped on every other path, method, spelling and hop (issue #557)', () => {
   const authorization = `Bearer ${recorderKey}`
   const near = [usageTarget + '/', usageTarget.toUpperCase(), usageTarget + '?x=1', usageTarget + '#f', usageTarget + '/x', usageTarget + '/../x', '/api/v1/ai/usage/./service', '/api/v1/ai//usage/service',
     '/api/v1/ai/usage', '/api/v1/ai/audit', '/api/v1/ai/tools', '/api/v1/me', '/api/v1/ai/usage/service%2f', '/api/v1/ai/usage%2fservice', '/api/v1/ai/usage/servic%65',

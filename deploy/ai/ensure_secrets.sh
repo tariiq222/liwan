@@ -40,6 +40,8 @@ ensure_secret AI_TOKEN_KEY
 ensure_secret AI_DB_PASSWORD
 # The password of the postgres admin role (tooling and the db service only); distinct from DB_PASSWORD, the odoo runtime role.
 ensure_secret DB_ADMIN_PASSWORD
+# The usage root held by web and odoo (the derived recorder bearer comes from it); without it the assistant answers 503 ai_unavailable. Never rotated here: both services must restart together.
+ensure_secret LIWAN_AI_USAGE_KEY
 # Tenant provider keys are encrypted under a versioned key-encryption value (id k1 first, more pairs after a rotation).
 ensure_secret AI_KEY_ENCRYPTION_KEYS "k1:$(openssl rand -hex 32)"
 ensure_secret AI_KEY_ENCRYPTION_KEY_ID k1

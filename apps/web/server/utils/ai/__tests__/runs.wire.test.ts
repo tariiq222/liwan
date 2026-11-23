@@ -1,6 +1,7 @@
 import http from 'node:http'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { AiUsageBatchSchema, AiUsageServiceBatchSchema } from '@liwan/contracts'
+import { AiUsageServiceBatchSchema } from '@liwan/contracts'
+import { usageBearer } from '../recorder'
 import { appendResponseHeader, createApp, createError, createEventStream, defineEventHandler, getCookie, getHeader, getQuery, getRequestHeader, getRouterParam, readBody, setResponseHeader, toNodeListener } from 'h3'
 
 let odoo: http.Server, service: http.Server, deadService: http.Server, app: http.Server
@@ -29,8 +30,7 @@ let runId = 'r_1' // what the fake service announces: the run id the start reque
 let usageStatus = 200
 let usageDelayMs = 0
 let usageAnsweredAt = 0
-let usageBatches: { user_company_id: number; items: Record<string, unknown>[] }[] = []
-let serviceUsageBatches: { user_id: number; user_company_id: number; items: Record<string, unknown>[] }[] = []
+let usageBatches: { user_id: number; user_company_id: number; items: Record<string, unknown>[] }[] = []
 let usageInvalid: string[] = []
 let companyAuthorizeStatus = 200
 let conversationModes: Record<string, string> = {}
@@ -46,6 +46,8 @@ const TOOLS = {
   agents: [],
   limits: { tool_calls_per_run: 8, messages_monthly: 100, messages_used: 1, assist_monthly: null, assist_used: 0, policy: { provider_mode: 'platform', consent_signed: true, balance_granted: null, balance_left: null, allowance: null, allowance_left: null, allowance_resets_at: null, blocked: null, blocked_resets_at: null, spend_ceiling: null, spend_this_month: null, output_tokens_per_run: 8000, input_tokens_per_run: 100000 } }, blocked_fields: [],
 }
+/** The deployment root and the database the recorder derives its credential for; every run of this file needs them (D2). */
+const ROOT = 'ab'.repeat(32), DATABASE = 'liwan_wire_db'
 const ME = { id: 42, name: 'سارة', company: { id: 1, name: 'ليوان' } }
 
 const CALL_A = '00000000000000a1', CALL_B = '00000000000000b2', CALL_C = '00000000000000c3', CALL_D = '00000000000000d4'
@@ -88,13 +90,9 @@ beforeAll(async () => {
       }
       odooToolsStatus === 200 ? res.end(JSON.stringify({ id: 1, messages_used: 2, messages_limit: 100 })) : (res.statusCode = 403, res.end(JSON.stringify({ code: 'feature_not_included', message: 'limit', details: { reason: 'limit', limit_key: 'ai.messages.monthly' } }))); return }
     if (req.url === '/api/v1/ai/usage/service') {
+      // No items is the web gate's probe of the recorder: answered at once, never counted as a report.
+      if (!JSON.parse(body).items?.length) return res.end(JSON.stringify({ items: [], total: 0 }))
       const parsed = AiUsageServiceBatchSchema.safeParse(JSON.parse(body))
-      if (!parsed.success) usageInvalid.push(parsed.error.message)
-      else serviceUsageBatches.push(parsed.data)
-      return res.end(JSON.stringify({ items: [], total: 0 }))
-    }
-    if (req.url === '/api/v1/ai/usage') {
-      const parsed = AiUsageBatchSchema.safeParse(JSON.parse(body))
       if (!parsed.success) usageInvalid.push(parsed.error.message)
       else usageBatches.push(parsed.data)
       await new Promise(resolve => setTimeout(resolve, usageDelayMs))
@@ -256,7 +254,7 @@ beforeAll(async () => {
 afterAll(() => { odoo.close(); service.close(); deadService.close(); app.close() })
 const DRAFT_PENDING = { call_id: 'c_2', tool: 'pmo.draft_project', kind: 'draft', agent: 'pmo', requires_approval: true, input: { name: 'بوابة' } }
 const WRITE_PENDING = { call_id: 'c_3', tool: 'pmo.update_task_state', kind: 'write_light', agent: 'pmo', requires_approval: true, input: { task_id: 7, state: 'done' } }
-beforeEach(() => { odooCalls = []; serviceCalls = []; scenario = 'read'; serviceDown = false; odooToolsStatus = 200; pending = DRAFT_PENDING; serviceToken = ''; claimMode = 'atomic'; claimed = false; doneSentAt = 0; odooMode = 'normal'; auditFailKind = null; runStatus = 'waiting_user'; resumeMode = 'ok'; resumeStreamFinished = false; resumeStreamCancelled = false; runList = RUN_LIST; patchStatus = 200; runId = 'r_1'; usageStatus = 200; usageDelayMs = 0; usageAnsweredAt = 0; usageBatches = []; serviceUsageBatches = []; usageInvalid = []; companyAuthorizeStatus = 200; conversationModes = {}; taskName = 'تقرير' })
+beforeEach(() => { vi.stubEnv('LIWAN_AI_USAGE_KEY', ROOT); vi.stubEnv('LIWAN_TENANCY_MODE', 'dedicated'); vi.stubEnv('NUXT_ODOO_DB', DATABASE); odooCalls = []; serviceCalls = []; scenario = 'read'; serviceDown = false; odooToolsStatus = 200; pending = DRAFT_PENDING; serviceToken = ''; claimMode = 'atomic'; claimed = false; doneSentAt = 0; odooMode = 'normal'; auditFailKind = null; runStatus = 'waiting_user'; resumeMode = 'ok'; resumeStreamFinished = false; resumeStreamCancelled = false; runList = RUN_LIST; patchStatus = 200; runId = 'r_1'; usageStatus = 200; usageDelayMs = 0; usageAnsweredAt = 0; usageBatches = []; usageInvalid = []; companyAuthorizeStatus = 200; conversationModes = {}; taskName = 'تقرير' })
 
 const post = (path: string, body: unknown, cookie = 'session_id=s1') => fetch(`${url}${path}`, {
   method: 'POST', headers: { 'content-type': 'application/json', cookie, origin: url, 'sec-fetch-site': 'same-origin' }, body: JSON.stringify(body),
@@ -484,7 +482,7 @@ describe('provider usage', () => {
     expect(serviceCalls).toEqual([])
   })
 
-  it('reports every attempt of the start and the resume in one batch, and relays no model event to the browser', async () => {
+  it('reports every attempt of the start and the resume in one batch as the run\'s user, by the derived bearer alone, and relays no model event to the browser', async () => {
     scenario = 'usage'
     const list = await events(await post('/api/ai/runs', { message: 'هلا' }))
     expect(list.map(([n]) => n)).toEqual(['run', 'tool_request', 'tool_result', 'token', 'answer', 'done'])
@@ -492,33 +490,30 @@ describe('provider usage', () => {
     await waitFor(() => usageBatches.length > 0)
     expect(usageInvalid).toEqual([])
     expect(usageBatches).toHaveLength(1)
-    expect(usageBatches[0]!.user_company_id).toBe(ME.company.id)
+    expect(usageBatches[0]).toMatchObject({ user_id: ME.id, user_company_id: ME.company.id })
     const id = startedBody().new_run_id
     expect(usageBatches[0]!.items.map(item => [item.conversation_id, item.kind, item.outcome, item.input_tokens, item.output_tokens])).toEqual([
       [id, 'plan', 'retried', null, null], [id, 'plan', 'ok', 120, 7], [id, 'plan', 'ok', 200, 15], [id, 'title', 'ok', 20, 3],
     ])
-    expect(odooCalls.filter(c => c.url === '/api/v1/ai/usage')).toHaveLength(1)
+    const report = odooCalls.filter(call => call.url === '/api/v1/ai/usage/service' && JSON.parse(call.body ?? '{}').items?.length)
+    expect(report).toHaveLength(1)
+    expect(report[0]).toMatchObject({ method: 'POST', authorization: `Bearer ${usageBearer(ROOT, DATABASE)}`, cookie: undefined })
+    // The bearer travels on the usage requests only: every other Odoo call of the run carries the user's cookie and no Authorization header.
+    expect(odooCalls.filter(call => call.url !== '/api/v1/ai/usage/service').every(call => call.authorization === undefined)).toBe(true)
+    expect(odooCalls.some(call => call.url === '/api/v1/ai/usage')).toBe(false)
   })
 
-  it('with the deployment key, reports the run as its user by the key alone: no cookie, nothing to the session route (issue #557)', async () => {
-    const key = 'e5'.repeat(20)
-    vi.stubEnv('LIWAN_AI_USAGE_KEY', key); vi.stubEnv('LIWAN_TENANCY_MODE', 'dedicated')
-    try {
-      scenario = 'usage'
-      const list = await events(await post('/api/ai/runs', { message: 'هلا' }))
-      expect(list.at(-1)![1]).toEqual({ status: 'done' })
-      await waitFor(() => serviceUsageBatches.length > 0)
-      expect(usageInvalid).toEqual([])
-      expect(serviceUsageBatches).toHaveLength(1)
-      expect(serviceUsageBatches[0]).toMatchObject({ user_id: ME.id, user_company_id: ME.company.id })
-      expect(serviceUsageBatches[0]!.items.map(item => [item.kind, item.outcome])).toEqual([['plan', 'retried'], ['plan', 'ok'], ['plan', 'ok'], ['title', 'ok']])
-      const report = odooCalls.filter(call => call.url === '/api/v1/ai/usage/service')
-      expect(report).toHaveLength(1)
-      expect(report[0]).toMatchObject({ method: 'POST', authorization: `Bearer ${key}`, cookie: undefined })
-      expect(odooCalls.filter(call => call.url === '/api/v1/ai/usage')).toHaveLength(0)
-      // The key travels on that one request only: every other Odoo call of the run carries the user's cookie and no Authorization header.
-      expect(odooCalls.filter(call => call.url !== '/api/v1/ai/usage/service').every(call => call.authorization === undefined)).toBe(true)
-    } finally { vi.unstubAllEnvs() }
+  it.each([
+    ['a missing root', { LIWAN_AI_USAGE_KEY: '' }],
+    ['a malformed root', { LIWAN_AI_USAGE_KEY: 'not-hex' }],
+    ['no database', { NUXT_ODOO_DB: '' }],
+  ])('refuses a run with 503 ai_unavailable before its audit row and the service when it has %s', async (_label, env) => {
+    for (const [name, value] of Object.entries(env)) vi.stubEnv(name, value)
+    const response = await post('/api/ai/runs', { message: 'هلا' })
+    expect(response.status).toBe(503)
+    expect((await response.json()).data.code).toBe('ai_unavailable')
+    expect(odooCalls.some(call => call.url === '/api/v1/ai/audit')).toBe(false)
+    expect(serviceCalls).toEqual([])
   })
 
   it('reports a call whose stream was cut as aborted', async () => {
@@ -563,7 +558,7 @@ describe('provider usage', () => {
     const list = await events(await post('/api/ai/runs', { message: 'هلا' }))
     expect(list.map(([n]) => n)).toEqual(['run', 'tool_request', 'tool_result', 'token', 'answer', 'done'])
     expect(list.at(-1)![1]).toEqual({ status: 'done' })
-    const reported = '[liwan-ai] usage report of 4 rows failed: UsageRefused'
+    const reported = '[liwan-ai] usage report of 4 rows failed with status 500: UsageRefused'
     await waitFor(() => spy.mock.calls.some(call => call[0] === reported))
     expect(spy.mock.calls.map(call => call[0])).toContain(reported)
     expect(JSON.stringify(spy.mock.calls)).not.toContain('secret detail')

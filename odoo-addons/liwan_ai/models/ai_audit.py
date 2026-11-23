@@ -8,6 +8,7 @@ from odoo.exceptions import AccessError, ValidationError
 
 from odoo.addons.liwan_ai.models.access_service import AI_USE
 from odoo.addons.liwan_ai.models.tool_registry import ASSIST_KINDS
+from odoo.addons.liwan_ai.models.usage_key import usage_recordable
 from odoo.addons.liwan_api.models.ai_agent_registry import (
     AI_SERVICE_FEATURE,
     CORE_AGENT,
@@ -285,6 +286,10 @@ class LiwanAiAudit(models.Model):
         self.env['liwan.entitlement.service'].require(AI_SERVICE_FEATURE)
         self.env['liwan.access.service']._liwan_require_capability(AI_USE)
         rows = [self._liwan_ai_prepare(values) for values in vals_list]
+        if any(row['kind'] in MESSAGE_KINDS for row in rows) and not usage_recordable():
+            # A run starts here, and its usage cannot be recorded without the deployment's root: refuse it rather than lose the rows.
+            code = 'ai_unavailable'
+            raise LiwanAccessRule(code, 'the assistant is unavailable', status=503)
         messages = sum(row['kind'] == 'message' for row in rows)
         setup = sum(row['kind'] == 'setup' for row in rows)
         assist = setup + sum(row['kind'] == 'help' for row in rows)

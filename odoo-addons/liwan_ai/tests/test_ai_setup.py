@@ -3,7 +3,7 @@ from odoo.exceptions import AccessError, ValidationError
 from odoo.fields import Command
 from odoo.tests import new_test_user, tagged
 
-from odoo.addons.liwan_ai.tests.common import AiProbe
+from odoo.addons.liwan_ai.tests.common import AiProbe, configure_usage_root
 from odoo.addons.liwan_api.tests.common import LiwanApiCase
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
@@ -38,6 +38,7 @@ class TestAiSetupAgent(AiProbe, LiwanApiCase):
 
     def setUp(self):
         super().setUp()
+        configure_usage_root(self)
         self._grant_ai_use(self.employee)
         self.manager = new_test_user(
             self.env, login='ai_setup_admin', password='ai_setup_admin_pass_123', name='Sara',

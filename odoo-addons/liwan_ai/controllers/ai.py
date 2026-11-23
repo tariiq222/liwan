@@ -80,33 +80,6 @@ class AiController(http.Controller):
         entitlement = request.env['liwan.entitlement.service']
         return dump_audit_receipt(row, Audit._liwan_ai_count_messages(), entitlement._liwan_limit_value('ai.messages.monthly'))
 
-    # Two routes carry one fact (a run's usage rows) while the shared SaaS registry has no per-tenant recorder key. This session
-    # route is the fallback for those deployments and for a run reported without the key. REMOVE IT, with the cookie spool in
-    # apps/web/server/utils/ai/usage.ts and `_liwan_ai_record_own`, in the change that delivers that key (tracked in #557);
-    # record_usage_service below is then the only path. This route refuses a non-null cost or charge: any user with ai.use can reach
-    # it, and those figures are deducted from the tenant's balance, so only the recorder account may write them.
-    @http.route('/api/v1/ai/usage', type='json2', auth='user', methods=['POST'], readonly=False)
-    @api_handler
-    @requires_feature(AI_SERVICE_FEATURE, operation='write')
-    def record_usage(self, **payload):
-        # ai.use is required by the model in the company the batch names, not here in the company the session works in now.
-        unknown = sorted(set(payload) - {'items', 'user_company_id'})
-        if unknown:
-            raise ApiError(422, 'unknown_field', f'field {unknown[0]!r} is not accepted', field=unknown[0])
-        items = payload.get('items')
-        if not isinstance(items, list) or not 1 <= len(items) <= MAX_USAGE_ITEMS:
-            raise ApiError(422, 'invalid', f'items must be a list of 1 to {MAX_USAGE_ITEMS} objects', field='items')
-        for index, item in enumerate(items):
-            if not isinstance(item, dict):
-                raise ApiError(422, 'invalid', 'each item must be an object', field=f'items.{index}')
-        if 'user_company_id' not in payload:
-            raise ApiError(422, 'invalid', 'user_company_id is required', field='user_company_id')
-        try:
-            rows = request.env['liwan.ai.usage']._liwan_ai_record_own(items, payload['user_company_id'])
-        except ValidationError as error:
-            raise as_api_error(error, 'items') from error
-        return {'items': [dump_usage(row) for row in rows], 'total': len(rows)}
-
     @http.route(USAGE_SERVICE_PATH, type='json2', auth='bearer', methods=['POST'], readonly=False)
     @api_handler
     @requires_feature(AI_SERVICE_FEATURE, operation='write')
@@ -117,13 +90,17 @@ class AiController(http.Controller):
         Two checks, both required: the caller holds ``ai.usage.record`` AND is the recorder account itself
         (``liwan_ai.user_ai_usage``). The capability alone is not enough, because liwan_core gives the superuser every
         capability and liwan_core must not name an application's capability; the identity check
-        is what keeps any other key (an administrator's, a vendor-support user's) out. The browser never reaches this
+        is what keeps any other caller out. Only the bearer derived for this database authenticates here (models/usage_key.py). The browser never reaches this
         route. The rows belong to ``user_id`` in ``user_company_id``, validated by the model. The company has its own
         field name because ``company_id`` in a payload is the platform's "which company do you write in" guard,
         which the recorder (a member of every company) must not be pinned by.
         """
         if request.env.user.id != request.env['liwan.access.service']._liwan_usage_recorder_id():
             raise ApiError(403, 'forbidden', 'this route is for the usage recorder account only')
+        if payload == {'items': []}:
+            # The probe `web` uses to learn that the recorder works (credential, feature, capability and identity all passed) before it
+            # starts a run; it writes nothing and takes no lock.
+            return {'items': [], 'total': 0}
         unknown = sorted(set(payload) - {'items', 'user_id', 'user_company_id'})
         if unknown:
             raise ApiError(422, 'unknown_field', f'field {unknown[0]!r} is not accepted', field=unknown[0])
@@ -141,7 +118,7 @@ class AiController(http.Controller):
         # written, so two parallel requests would each see the same remaining budget. The recorder's own user row is locked
         # through the ORM until this transaction ends; a request that cannot get it is refused at once (the lock skips, it
         # never waits, so nothing queues or deadlocks) and `web` retries it. ``allow_referencing`` is a FOR NO KEY UPDATE lock:
-        # the rows inserted here reference this user (create_uid) and the API key lookup reads it, and neither is blocked.
+        # the rows inserted here reference this user (create_uid) and the bearer hook reads it, and neither is blocked.
         try:
             request.env.user.lock_for_update(allow_referencing=True)
         except LockError:

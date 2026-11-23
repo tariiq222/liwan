@@ -101,6 +101,8 @@ services:
       LIWAN_TENANT_REGISTRY_PATH: /etc/liwan/registry.json
       LIWAN_RESTORE_REGISTRY_PATH: /etc/liwan-restore/registry.json
       LIWAN_SHARED_PROXY_TOKEN: ${LIWAN_SHARED_PROXY_TOKEN:?set LIWAN_SHARED_PROXY_TOKEN}
+      # The AI usage root secret (64 hex): only web and odoo hold it. Web derives each tenant database's recorder bearer from it.
+      LIWAN_AI_USAGE_KEY: ${LIWAN_AI_USAGE_KEY:-}
     volumes:
       - ${LIWAN_TENANT_REGISTRY_DIR:?set LIWAN_TENANT_REGISTRY_DIR}:/etc/liwan:ro
       - ${LIWAN_RESTORE_REGISTRY_DIR:-./data/restore-registry}:/etc/liwan-restore:ro
@@ -115,6 +117,8 @@ services:
     command: []
     environment:
       LIWAN_TENANCY_MODE: shared
+      # The AI usage root secret, the same value as web's: Odoo recomputes the recorder bearer of the database it serves.
+      LIWAN_AI_USAGE_KEY: ${LIWAN_AI_USAGE_KEY:-}
       # A shared tenant registers its connected TikTok account with the relay (D13) and exchanges
       # codes with the platform app; a deployment without these keeps its own direct webhook, so an
       # empty value must render instead of stopping the stack.
