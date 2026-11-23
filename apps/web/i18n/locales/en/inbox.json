@@ -121,8 +121,22 @@
       "deliveries": {
         "title": "Failed deliveries",
         "description": "Deliveries the provider sent that could not be applied after their attempts ran out. The good items of the delivery are already stored; retrying adds only what is missing.",
-        "empty": "No failed deliveries",
-        "caption": "Failed deliveries",
+        "state": "Delivery state",
+        "states": {
+          "failed": "Failed",
+          "pending": "Pending",
+          "done": "Applied"
+        },
+        "empty": {
+          "failed": "No failed deliveries",
+          "pending": "No deliveries waiting to be processed",
+          "done": "No applied deliveries"
+        },
+        "caption": {
+          "failed": "Failed deliveries",
+          "pending": "Pending deliveries",
+          "done": "Applied deliveries"
+        },
         "attempts": "Attempts: {count}",
         "retry": "Retry",
         "retried": "The delivery was queued again; it is processed in the next run."
@@ -229,6 +243,11 @@
       "anyPriority": "Any priority",
       "channel": "Channel",
       "anyChannel": "All channels",
+      "channelAccount": "Number or account",
+      "anyChannelAccount": "All numbers and accounts",
+      "agent": "Agent",
+      "anyAgent": "All agents",
+      "unreadOnly": "Unread only",
       "department": "Department",
       "anyDepartment": "Any department",
       "empty": "No conversations yet",
@@ -473,6 +492,8 @@
         "title": "Agents",
         "hint": "Automatic distribution skips an agent who is unavailable, or outside their shift when shifts are on. Manual assignment is still allowed.",
         "empty": "No one can reply in the inbox yet.",
+        "search": "Search agents by name",
+        "noMatch": "No agent has that name.",
         "available": "{name} is available for conversations",
         "shift": "Shift",
         "alwaysInShift": "No ranges: the agent is always in shift.",
@@ -983,6 +1004,7 @@
     "flows": {
       "title": "Forms",
       "pageTitle": "{name} forms",
+      "publishedAt": "Published {time}",
       "hint": "In-chat forms: the customer fills them without leaving WhatsApp and the answers reach the conversation.",
       "create": "New form",
       "createHint": "The form is saved as a draft in LiwanOS and Meta, and is published only when you decide.",
@@ -1818,6 +1840,7 @@
       "expired": "The payment time has run out",
       "expiresIn": "The order expires in {minutes} minutes",
       "linkSentAt": "Pay link sent {time}",
+      "createdBy": "Created by {name}",
       "lineCount": "{n} lines",
       "edit": "Edit",
       "checkout": "Create the order and send the pay link",
@@ -1954,7 +1977,8 @@
         "unsubscribed": "Unsubscribed",
         "held": "Held by Meta",
         "heldHint": "Meta holds them for a template quality check",
-        "progress": "Sending progress"
+        "progress": "Sending progress",
+        "completedAt": "Completed at"
       },
       "test": {
         "title": "Test send",
@@ -1974,6 +1998,8 @@
         "search": "Search by name or number",
         "failureLabel": "Failure reason",
         "allFailures": "All reasons",
+        "retryable": "Can be retried",
+        "finalFailure": "Final failure",
         "empty": "No matching recipients",
         "footer": "{shown} of {total}",
         "open": "Conversation",

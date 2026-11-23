@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
 import InboxFlowBuilder from '@/components/inbox/InboxFlowBuilder.vue'
 import InboxFlowLifecycle from '@/components/inbox/InboxFlowLifecycle.vue'
 import InboxFlowState from '@/components/inbox/InboxFlowState.vue'
@@ -38,7 +39,7 @@ const mismatch = computed(() => !!flow.value && flow.value.channel.id !== channe
     @retry="hydrated && query.refetch()"
   >
     <template v-if="flow && channelId">
-      <p class="flex flex-wrap items-center gap-2 text-sm text-muted"><InboxFlowState :flow="flow" /></p>
+      <p class="flex flex-wrap items-center gap-2 text-sm text-muted"><InboxFlowState :flow="flow" /><time v-if="flow.published_at" :datetime="flow.published_at" data-testid="inbox-flow-published-at">{{ t('inbox.flows.publishedAt', { time: formatDateTime(flow.published_at) }) }}</time></p>
       <InboxFlowBuilder :key="`${flow.id}-${flow.status}-${flow.editable}`" ref="builder" :flow="flow" :readonly="readonly" :back-to="backTo" />
       <InboxFlowLifecycle
         :flow="flow"

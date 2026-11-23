@@ -65,9 +65,17 @@ describe('InboxChannelOpportunityMode', () => {
 })
 
 describe('the channel page', () => {
-  // A TikTok contact has no phone, so no opportunity is opened for it automatically: the mode is a WhatsApp setting.
-  it('offers the opportunity mode on a WhatsApp channel only', () => {
-    const page = readFileSync(resolve(import.meta.dirname, '../../../pages/settings/apps/inbox/channels/[id]/index.vue'), 'utf8')
-    expect(page).toContain('<InboxChannelOpportunityMode v-if="manage && !isTikTok"')
+  const page = readFileSync(resolve(import.meta.dirname, '../../../pages/settings/apps/inbox/channels/[id]/index.vue'), 'utf8')
+
+  it('offers the opportunity mode on both channel kinds', () => {
+    expect(page).toContain('<InboxChannelOpportunityMode v-if="manage"')
+  })
+
+  it('offers the connection test on both kinds and keeps templates, forms and sync on WhatsApp', () => {
+    expect(page).toContain('<template v-if="channel && manage" #actions>')
+    for (const testid of ['inbox-channel-templates', 'inbox-channel-flows', 'inbox-channel-automation']) {
+      expect(page).toMatch(new RegExp(`v-if="!isTikTok && [^"]*"[^>]*data-testid="${testid}"`))
+    }
+    expect(page).toMatch(/v-if="!isTikTok && manageTemplates"/)
   })
 })

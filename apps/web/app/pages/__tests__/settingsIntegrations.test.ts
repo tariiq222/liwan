@@ -92,6 +92,39 @@ describe('the connections card of /settings/integrations', () => {
   })
 })
 
+const providersCard = resolve(import.meta.dirname, '../../components/settings/IntegrationProvidersCard.vue')
+const OAUTH = { code: 'tiktok', auth: 'oauth', secrets: [], generated_secrets: [], attributes: [], uses: [], settings_path: null }
+
+async function renderProviders(items: unknown[]) {
+  const component = loadShared(providersCard, {
+    messages,
+    modules: {
+      '@/composables/useIntegrationProviders': {
+        useIntegrationProviders: () => ({ data: Vue.ref({ items, total: items.length }), isLoading: Vue.ref(false), error: Vue.ref(null), refetch: () => undefined }),
+        useStartIntegrationOAuth: () => ({ isPending: Vue.ref(false), mutateAsync: async () => ({ authorize_url: '/x' }) }),
+      },
+      '@/utils/integrationLabels': { integrationProviderLabel, integrationUseLabel: (key: string) => key, integrationErrorText },
+    },
+  })
+  const app = Vue.createSSRApp({ render: () => Vue.h(component) })
+  app.config.globalProperties.$t = t as never
+  for (const [tag, impl] of Object.entries(stubs)) app.component(tag, impl)
+  return renderToString(app)
+}
+
+describe('the providers card of /settings/integrations', () => {
+  it('explains an oauth provider that is not configured on this system', async () => {
+    const html = await renderProviders([{ ...OAUTH, oauth_ready: false }])
+    expect(html).toContain('integration-oauth-not-ready-tiktok')
+    expect(html).toContain(ar.integrations.oauth.notConfiguredHint)
+  })
+
+  it('shows no hint for a ready oauth provider or a keys provider', async () => {
+    const html = await renderProviders([{ ...OAUTH, oauth_ready: true }, { ...OAUTH, code: 'meta', auth: 'keys', oauth_ready: null }])
+    expect(html).not.toContain('integration-oauth-not-ready')
+  })
+})
+
 describe('integration labels', () => {
   it('names a provider and falls back to its code', () => {
     expect(integrationProviderLabel('tiktok', t, te)).toBe('TikTok')

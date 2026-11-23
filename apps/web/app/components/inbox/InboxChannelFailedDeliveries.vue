@@ -1,14 +1,19 @@
 <script setup lang="ts">
+import type { InboxEventState } from '@liwan/contracts'
 import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
 import { useInboxChannelEvents, useRetryInboxEvent } from '@/composables/inbox/useInboxSettings'
 
-// A delivery the worker could not apply after all its attempts. The good items of the same delivery are already
-// stored; re-running applies only the missing ones, because a stored message is skipped by its provider id.
+// The webhook deliveries of a channel by state. A failed one could not be applied after all its attempts: the good items
+// of the same delivery are already stored; re-running applies only the missing ones, because a stored message is skipped
+// by its provider id. A pending delivery waits for the worker and a done one is applied, so only a failed row offers a retry.
+const STATES: InboxEventState[] = ['failed', 'pending', 'done']
 const props = defineProps<{ channelId: number }>()
 const { t } = useI18n()
 const hydrated = useHydrated()
 const toast = useToast()
-const query = useInboxChannelEvents(() => props.channelId)
+const state = ref<InboxEventState>('failed')
+const stateItems = computed(() => STATES.map(value => ({ value, label: t(`inbox.health.deliveries.states.${value}`) })))
+const query = useInboxChannelEvents(() => props.channelId, state)
 const items = computed(() => query.data.value?.items ?? [])
 const { mutate: retry, isPending, variables } = useRetryInboxEvent(() => props.channelId)
 function run(eventId: number) {
@@ -26,12 +31,21 @@ function run(eventId: number) {
     :description="t('inbox.health.deliveries.description')"
     data-testid="inbox-health-deliveries"
   >
+    <div class="px-(--liwan-card-pad) pt-3">
+      <SharedSegmentedControl
+        v-model="state"
+        :items="stateItems"
+        :label="t('inbox.health.deliveries.state')"
+        :disabled="!hydrated"
+        data-testid="inbox-health-deliveries-state"
+      />
+    </div>
     <SharedPageState v-if="query.error.value" class="m-4" :error="query.error.value" @retry="query.refetch()" />
     <SharedLoadingSkeleton v-else-if="query.isPending.value" class="m-4" />
     <p v-else-if="!items.length" class="px-(--liwan-card-pad) py-4 text-sm text-muted" data-testid="inbox-health-deliveries-empty">
-      {{ t('inbox.health.deliveries.empty') }}
+      {{ t(`inbox.health.deliveries.empty.${state}`) }}
     </p>
-    <ol v-else :aria-label="t('inbox.health.deliveries.caption')" class="divide-y divide-default">
+    <ol v-else :aria-label="t(`inbox.health.deliveries.caption.${state}`)" class="divide-y divide-default">
       <li v-for="event in items" :key="event.id" class="flex flex-wrap items-start justify-between gap-3 px-(--liwan-card-pad) py-3" :data-testid="`inbox-health-delivery-${event.id}`">
         <div class="flex min-w-0 flex-1 flex-col gap-1">
           <div class="flex flex-wrap items-center gap-2">
@@ -41,6 +55,7 @@ function run(eventId: number) {
           <p v-if="event.error" class="break-words text-xs text-muted"><bdi dir="ltr">{{ event.error }}</bdi></p>
         </div>
         <UButton
+          v-if="event.state === 'failed'"
           type="button"
           size="sm"
           color="neutral"

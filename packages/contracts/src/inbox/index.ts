@@ -850,6 +850,7 @@ export type InboxMessagingLimit = z.infer<typeof InboxMessagingLimitSchema>
 export type InboxThroughputLevel = z.infer<typeof InboxThroughputLevelSchema>
 export type InboxAccountState = z.infer<typeof InboxAccountStateSchema>
 export type InboxChannelAlert = z.infer<typeof InboxChannelAlertSchema>
+export type InboxEventState = z.infer<typeof InboxEventStateSchema>
 export type InboxChannelAlertKind = z.infer<typeof InboxChannelAlertKindSchema>
 export type InboxBusinessVertical = z.infer<typeof InboxBusinessVerticalSchema>
 export type InboxBusinessProfile = z.infer<typeof InboxBusinessProfileSchema>

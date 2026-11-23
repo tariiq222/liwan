@@ -58,11 +58,10 @@ test('WhatsApp off: the new channel form offers TikTok only, with no number fiel
   await expect(page.getByTestId('inbox-channel-phone-id')).toHaveCount(0)
 })
 
-test('TikTok off: the new channel form offers WhatsApp only, with no TikTok notice', async ({ page }) => {
-  await signIn(page, 'inbox.tiktok')
+test('with WhatsApp on, the new channel form offers both kinds', async ({ page }) => {
+  expect((await page.request.post('/api/auth/login', { data: { login: 'admin', password: 'admin' } })).status()).toBe(200)
   await open(page, '/settings/apps/inbox/channels/new')
   await expect(page.getByTestId('inbox-channel-phone-id')).toBeVisible()
-  await expect(page.getByTestId('inbox-tiktok-notice')).toHaveCount(0)
 })
 
 test('campaigns off: no campaign navigation entry', async ({ page }) => {

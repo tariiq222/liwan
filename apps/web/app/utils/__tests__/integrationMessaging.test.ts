@@ -39,7 +39,7 @@ describe('parseTemplateVariables', () => {
 })
 
 describe('providerHasSenders', () => {
-  const provider = (key: string) => ({ code: 'x', auth: 'keys' as const, secrets: [], generated_secrets: [], attributes: [], uses: [{ key, owner: 'o' }], settings_path: null })
+  const provider = (key: string) => ({ code: 'x', auth: 'keys' as const, secrets: [], generated_secrets: [], attributes: [], uses: [{ key, owner: 'o' }], settings_path: null, oauth_ready: null })
   it('is true for a messaging or voice use and false for an application use', () => {
     expect(providerHasSenders(provider('twilio.messaging'))).toBe(true)
     expect(providerHasSenders(provider('twilio.voice'))).toBe(true)

@@ -3,9 +3,9 @@ import { InboxChannelKindSchema, type InboxConversation, type InboxMessageKind }
 import { useDebounceFn } from '@vueuse/core'
 import { avatarProps } from '@liwan/ui/app/utils/avatarTone'
 import EmptyState from '@liwan/ui/app/components/shared/feedback/EmptyState.vue'
-import { useInboxConversations } from '@/composables/inbox/useInbox'
+import { useInboxAgents, useInboxConversations } from '@/composables/inbox/useInbox'
 import { CHANNEL_KIND_ICON, channelKindLabelKey } from '@/composables/inbox/inboxChannelKind'
-import { useInboxDepartments } from '@/composables/inbox/useInboxSettings'
+import { useInboxChannelWork, useInboxDepartments } from '@/composables/inbox/useInboxSettings'
 import { CONVERSATION_STATES, CONVERSATION_STATE_TONE, CSAT_SCORES, CSAT_TONE, DEFAULT_CONVERSATION_STATE, PRIORITIES, INBOX_PRIORITY_TONE, inboxAbsoluteTime, inboxFileKindKey, inboxListTime, inboxWaitingTime } from '@/composables/inbox/inboxPresentation'
 import { inboxContactName } from '@/composables/inbox/inboxContactName'
 import { useInboxConversationsExport } from '@/composables/inbox/useInboxConversationsExport'
@@ -23,7 +23,7 @@ const { data, isLoading, isError, isPlaceholderData, error, refetch } = useInbox
 const departments = useInboxDepartments()
 const items = computed(() => data.value?.items ?? [])
 const total = computed(() => data.value?.total ?? 0)
-const filtered = computed(() => props.routeState.assignee !== 'all' || !!props.routeState.state || !!props.routeState.priority || !!props.routeState.channel || !!props.routeState.departmentId || !!props.routeState.csat || !!props.routeState.q)
+const filtered = computed(() => props.routeState.assignee !== 'all' || !!props.routeState.state || !!props.routeState.priority || !!props.routeState.channel || !!props.routeState.channelId || !!props.routeState.departmentId || !!props.routeState.csat || props.routeState.unreadOnly || !!props.routeState.q)
 const q = ref(props.routeState.q)
 watch(() => props.routeState.q, (value) => { q.value = value })
 // Typing applies the search after a short pause, Enter applies it at once and clearing the box resets the results at once.
@@ -63,11 +63,26 @@ const csatItems = computed(() => [
   { value: ALL, label: t('inbox.list.anyCsat') },
   ...CSAT_SCORES.map(value => ({ value, label: t(`inbox.csat.${value}`) })),
 ])
-const activeFilterCount = computed(() => [props.routeState.state, props.routeState.departmentId, props.routeState.priority, props.routeState.channel, props.routeState.csat].filter(Boolean).length)
+// An agent picked by user id is a filter of the folded region; the scope control above owns 'all', 'me' and 'unassigned'.
+const agentId = computed(() => (typeof props.routeState.assignee === 'number' ? props.routeState.assignee : null))
+const activeFilterCount = computed(() => [props.routeState.state, props.routeState.departmentId, props.routeState.priority, props.routeState.channel, props.routeState.channelId, props.routeState.csat, props.routeState.unreadOnly, agentId.value].filter(Boolean).length)
 const sorted = computed(() => props.routeState.sort !== DEFAULT_INBOX_LIST_ROUTE.sort)
 const canClear = computed(() => activeFilterCount.value > 0 || !!props.routeState.q || sorted.value)
 // A deep link shows the filters and the sort it carries; after that the agent folds the region open or shut.
 const filtersOpen = ref(activeFilterCount.value > 0 || sorted.value)
+// The channel and agent lists load once the region is open; a channel select is offered only when there is a choice.
+const channelWork = useInboxChannelWork(() => hydrated.value && filtersOpen.value)
+const agents = useInboxAgents(() => hydrated.value && filtersOpen.value)
+const channelAccountItems = computed(() => [
+  { value: ALL, label: t('inbox.list.anyChannelAccount') },
+  ...(channelWork.data.value?.items ?? []).map(channel => ({ value: String(channel.id), label: channel.name, icon: CHANNEL_KIND_ICON[channel.kind] })),
+])
+const showChannelAccounts = computed(() => (channelWork.data.value?.items.length ?? 0) > 1)
+const agentItems = computed(() => [
+  { value: ALL, label: t('inbox.list.anyAgent') },
+  ...(agents.data.value?.items ?? []).map(agent => ({ value: String(agent.id), label: agent.name })),
+])
+const showAgents = computed(() => (agents.data.value?.items.length ?? 0) > 0)
 const sortItems = computed(() => [
   { value: 'recent', label: t('inbox.list.sortRecent') },
   { value: 'waiting', label: t('inbox.list.sortWaiting') },
@@ -84,7 +99,10 @@ function applySearch() {
   emit('update:routeState', { ...props.routeState, q: term, offset: 0 }, term && props.routeState.q ? { replace: true } : undefined)
 }
 function clearFilters() {
-  update({ state: '', departmentId: null, priority: '', channel: '', csat: '', q: '', sort: DEFAULT_INBOX_LIST_ROUTE.sort })
+  update({
+    state: '', departmentId: null, priority: '', channel: '', channelId: null, csat: '', unreadOnly: false, q: '', sort: DEFAULT_INBOX_LIST_ROUTE.sort,
+    ...(agentId.value !== null ? { assignee: DEFAULT_INBOX_LIST_ROUTE.assignee } : {}),
+  })
 }
 // Arrow keys move between the rows' links; Tab order and the links themselves are untouched.
 const rowList = useTemplateRef<HTMLUListElement>('rowList')
@@ -174,10 +192,10 @@ const empty = computed(() => hydrated.value && !isLoading.value && !isError.valu
       <SharedSegmentedControl
         class="w-full"
         block
-        :model-value="props.routeState.assignee"
+        :model-value="agentId === null ? props.routeState.assignee as string : undefined"
         :items="scopeItems"
         :label="t('inbox.list.scope')"
-        @update:model-value="update({ assignee: $event as InboxListRoute['assignee'] })"
+        @update:model-value="update({ assignee: $event as 'all' | 'me' | 'unassigned' })"
       />
       <UCollapsible v-model:open="filtersOpen" :unmount-on-hide="false">
         <template #content>
@@ -222,6 +240,28 @@ const empty = computed(() => hydrated.value && !isLoading.value && !isError.valu
               @update:model-value="update({ channel: $event === ALL ? '' : ($event as InboxListRoute['channel']) })"
             />
             <USelect
+              v-if="showChannelAccounts"
+              :model-value="props.routeState.channelId ? String(props.routeState.channelId) : ALL"
+              :items="channelAccountItems"
+              variant="soft"
+              :class="FILTER_SELECT"
+              :aria-label="t('inbox.list.channelAccount')"
+              :disabled="!hydrated"
+              data-testid="inbox-channel-account-filter"
+              @update:model-value="update({ channelId: $event === ALL ? null : Number($event) })"
+            />
+            <USelect
+              v-if="showAgents"
+              :model-value="agentId ? String(agentId) : ALL"
+              :items="agentItems"
+              variant="soft"
+              :class="FILTER_SELECT"
+              :aria-label="t('inbox.list.agent')"
+              :disabled="!hydrated"
+              data-testid="inbox-agent-filter"
+              @update:model-value="update({ assignee: $event === ALL ? DEFAULT_INBOX_LIST_ROUTE.assignee : Number($event) })"
+            />
+            <USelect
               :model-value="props.routeState.csat || ALL"
               :items="csatItems"
               variant="soft"
@@ -240,6 +280,14 @@ const empty = computed(() => hydrated.value && !isLoading.value && !isError.valu
               :disabled="!hydrated"
               data-testid="inbox-sort"
               @update:model-value="update({ sort: $event as InboxListRoute['sort'] })"
+            />
+            <USwitch
+              :model-value="props.routeState.unreadOnly"
+              class="w-full"
+              :label="t('inbox.list.unreadOnly')"
+              :disabled="!hydrated"
+              data-testid="inbox-unread-filter"
+              @update:model-value="update({ unreadOnly: $event })"
             />
           </div>
         </template>

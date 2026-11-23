@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { InboxCampaign } from '@liwan/contracts'
+import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
 import { campaignTiles, dispatchedPercent } from '@/composables/inbox/inboxCampaignPresentation'
 
 // The live numbers of one campaign: why it is paused or waiting (with Meta's own words), the figures of its recipients and
@@ -19,6 +20,9 @@ const waiting = computed(() => props.campaign.waiting && (props.campaign.state =
     />
     <UAlert v-else-if="waiting" role="status" color="info" variant="subtle" icon="i-lucide-clock" :title="t(`inbox.campaigns.waiting.${waiting}`)" data-testid="inbox-campaign-waiting" />
     <SharedKpiStrip :tiles="tiles" :loading="props.loading" :skeleton-count="7" :label="t('inbox.campaigns.stats.label')" />
+    <p v-if="props.campaign.completed_at" class="text-sm text-muted" data-testid="inbox-campaign-completed-at">
+      {{ t('inbox.campaigns.stats.completedAt') }}: <time :datetime="props.campaign.completed_at">{{ formatDateTime(props.campaign.completed_at) }}</time>
+    </p>
     <SharedRecordSection v-if="sent !== null" variant="panel" :title="t('inbox.campaigns.stats.progress')">
       <div class="flex items-center gap-3">
         <SharedProgress class="flex-1" size="md" :value="sent" :label="t('inbox.campaigns.stats.progress')" />

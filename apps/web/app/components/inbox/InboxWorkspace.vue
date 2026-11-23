@@ -35,7 +35,7 @@ const contactName = computed(() => (data.value ? inboxContactName(data.value.con
 const { data: conversations } = useInboxConversations(() => routeState.value)
 const { mutate: markRead } = useMarkInboxConversationRead()
 watch(() => data.value, conversation => { if (conversation?.unread) markRead(conversation.id) }, { immediate: true })
-const hasConversations = computed(() => (conversations.value?.total ?? 0) > 0 || !!routeState.value.q || routeState.value.assignee !== 'all' || !!routeState.value.state || !!routeState.value.priority || !!routeState.value.channel || !!routeState.value.departmentId || !!routeState.value.csat)
+const hasConversations = computed(() => (conversations.value?.total ?? 0) > 0 || !!routeState.value.q || routeState.value.assignee !== 'all' || !!routeState.value.state || !!routeState.value.priority || !!routeState.value.channel || !!routeState.value.channelId || !!routeState.value.departmentId || !!routeState.value.csat || routeState.value.unreadOnly)
 const hasSelection = computed(() => !!props.conversationId)
 const infoOpen = computed(() => !!props.infoOpen && hasSelection.value)
 // Products and orders exist only with the catalog feature: the channel's commerce answer says whether it has a catalog.

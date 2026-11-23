@@ -63,6 +63,7 @@
       "connected": "The account is connected.",
       "failedTitle": "The account could not be connected",
       "startFailed": "The provider's page could not be opened. Try again.",
+      "notConfiguredHint": "Connecting this provider is not set up on this system yet. Ask your system administrator to enable it.",
       "errors": {
         "denied": "You did not approve the link at the provider.",
         "invalid_state": "The connection session expired. Start again.",

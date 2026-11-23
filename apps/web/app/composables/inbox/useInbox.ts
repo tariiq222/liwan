@@ -159,13 +159,14 @@ export function useInboxCannedReplies() {
   })
 }
 
-/** The company's users who may reply: the only valid assignees. */
-export function useInboxAgents(enabled: MaybeRefOrGetter<boolean> = true) {
+/** The company's users who may reply: the only valid assignees. `q` narrows them by name on the server; without it every agent is listed. */
+export function useInboxAgents(enabled: MaybeRefOrGetter<boolean> = true, q: MaybeRefOrGetter<string> = '') {
   const { $api } = useApi()
+  const term = () => toValue(q).trim()
   return useQuery({
-    queryKey: inboxKeys.agents,
+    queryKey: computed(() => (term() ? [...inboxKeys.agents, 'search', term()] : inboxKeys.agents)),
     // Every page: a company may have more agents than one page holds, and the assignee picker and the agents settings need them all.
-    queryFn: ({ signal }) => fetchAllPages(offset => $api('/api/v1/inbox/agents', { signal, query: { limit: INBOX_LIST_PAGE, offset }, schema: InboxAgentListSchema }), signal),
+    queryFn: ({ signal }) => fetchAllPages(offset => $api('/api/v1/inbox/agents', { signal, query: { limit: INBOX_LIST_PAGE, offset, ...(term() ? { q: term() } : {}) }, schema: InboxAgentListSchema }), signal),
     enabled: () => toValue(enabled),
   })
 }
