@@ -219,11 +219,15 @@ services:
     tmpfs: ["/tmp", "/var/run/postgresql:uid=999,gid=999"]
     environment:
       POSTGRES_DB: postgres
-      POSTGRES_USER: odoo
-      POSTGRES_PASSWORD: "${DB_PASSWORD}"
+      # The bootstrap role is the admin used by tooling only; Odoo connects as the `odoo` role that
+      # db/init-runtime-role.sh creates from ODOO_DB_PASSWORD. DB_ADMIN_PASSWORD reaches no other service.
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "${DB_ADMIN_PASSWORD:?set DB_ADMIN_PASSWORD}"
+      ODOO_DB_PASSWORD: "${DB_PASSWORD:?set DB_PASSWORD}"
       AI_DB_PASSWORD: "${AI_DB_PASSWORD:-}"
     volumes:
       - db_data:/var/lib/postgresql/data
+      - ./db/init-runtime-role.sh:/docker-entrypoint-initdb.d/10-liwan-runtime-role.sh:ro
       - ./ai/init-db.sh:/docker-entrypoint-initdb.d/20-liwan-ai.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U odoo"]

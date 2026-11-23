@@ -33,7 +33,7 @@ ADMIN_HOST = 'admin.example.test'
 ENV = {
     'LIWAN_IMAGE_TAG': 'test', 'ODOO_COMMIT': 'dummy', 'LIWAN_SESSION_KEYS': 'dummy', 'LIWAN_SESSION_ACTIVE_KID': 'k1',
     'LIWAN_SHARED_PROXY_TOKEN': 'dummy', 'LIWAN_SHARED_ODOO_CONFIG': '/tmp/dummy-odoo.conf',
-    'LIWAN_TENANT_REGISTRY_DIR': '/tmp', 'POSTGRES_PASSWORD': 'dummy', 'LIWAN_DOMAIN': 'example.test',
+    'LIWAN_TENANT_REGISTRY_DIR': '/tmp', 'DB_PASSWORD': 'dummy', 'DB_ADMIN_PASSWORD': 'dummy-admin', 'LIWAN_DOMAIN': 'example.test',
     'LIWAN_EDGE_BIND': '0.0.0.0', 'LIWAN_EDGE_HTTP_PORT': '80', 'LIWAN_EDGE_HTTPS_PORT': '443',
     'LIWAN_PROSPECT_HOST': 'example.test', 'NUXT_CUSTOMER_COMMERCIAL_PUBLIC_ORIGIN': 'https://example.test',
     'NUXT_CUSTOMER_COMMERCIAL_CONTROL_URL': 'https://control-api:4187', 'CUSTOMER_COMMERCIAL_SERVICE_KEY': 'dummy',

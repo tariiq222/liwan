@@ -21,6 +21,9 @@ MAX_DB_MAXCONN = 8
 # Odoo's limit_memory_* options are in bytes, so the ceilings are too.
 MAX_LIMIT_MEMORY_SOFT = 640 * 1024 * 1024
 MAX_LIMIT_MEMORY_HARD = 800 * 1024 * 1024
+# The tooling-only superuser of the cluster (`deploy/releases/postgres.py` POSTGRES_ADMIN_ROLE, copied here for
+# the same standalone reason): Odoo never runs as it, so a config naming it is refused.
+POSTGRES_ADMIN_ROLE = "postgres"
 
 
 class ConfigRejected(Exception):
@@ -150,6 +153,8 @@ def validate_config(path):
             value = options.get(name, "").strip()
             if not value or value.lower() in ("false", "none", "admin", "changeme") or "${" in value:
                 raise ConfigRejected()
+        if options["db_user"].strip().lower() == POSTGRES_ADMIN_ROLE:
+            raise ConfigRejected()
         required = {
             "dbfilter": "^%h$", "list_db": "False", "proxy_mode": "False",
             "data_dir": "/var/lib/odoo",

@@ -57,6 +57,11 @@ class SharedConfigTest(unittest.TestCase):
             with self.assertRaises(ConfigRejected):
                 validate_config(self.fixture(FIXTURE + suffix))
 
+    def test_db_user_may_not_be_the_cluster_admin_role(self):
+        for user in ("postgres", "Postgres", " postgres "):
+            with self.subTest(user=user), self.assertRaises(ConfigRejected):
+                validate_config(self.fixture(FIXTURE.replace("synthetic_user", user)))
+
     def test_permission_placeholder_missing_and_parse_failure(self):
         for mode in (0o644, 0o600, 0o666):
             with self.assertRaises(ConfigRejected):
