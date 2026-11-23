@@ -1,6 +1,4 @@
-"""The AI usage recorder key (issue #557): how provisioning stores it and what the seed script may print."""
-import contextlib
-import io
+"""The AI usage root secret: how provision.sh generates and stores it, and which services receive it."""
 import os
 import re
 import stat
@@ -60,91 +58,59 @@ class WriteEnvSecretTest(unittest.TestCase):
         self.assertEqual(self.env_file.read_text(), 'A=1\n')
 
 
-class SeedScriptTest(unittest.TestCase):
-    def run_seed(self, existing=0):
-        calls = []
-
-        class Keys:
-            def search(self, domain):
-                calls.append(('search', domain))
-                return self
-
-            def remove(self):
-                calls.append(('remove', existing))
-
-            def with_user(self, user):
-                calls.append(('with_user', user))
-                return self
-
-            def sudo(self):
-                return self
-
-            def _generate(self, scope, name, expiration):
-                calls.append(('generate', scope, name, expiration))
-                return KEY
-
-        class Cursor:
-            def commit(self):
-                calls.append(('commit',))
-
-        class Env:
-            cr = Cursor()
-
-            def ref(self, xmlid):
-                calls.append(('ref', xmlid))
-                return type('User', (), {'id': 7})()
-
-            def __getitem__(self, model):
-                assert model == 'res.users.apikeys'
-                return Keys()
-
-        out = io.StringIO()
-        with contextlib.redirect_stdout(out):
-            exec(compile((DEPLOY / 'seed_ai_usage_key.py').read_text(), 'seed_ai_usage_key.py', 'exec'), {'env': Env()})
-        return calls, out.getvalue()
-
-    def test_rotates_the_recorders_keys_and_prints_exactly_one_line(self):
-        calls, out = self.run_seed()
-        self.assertEqual(out, f'LIWAN_AI_USAGE_KEY={KEY}\n')
-        kinds = [call[0] for call in calls]
-        self.assertEqual(kinds, ['ref', 'search', 'remove', 'with_user', 'generate', 'commit'])
-        self.assertEqual(calls[0], ('ref', 'liwan_ai.user_ai_usage'))
-        self.assertEqual(calls[1], ('search', [('user_id', '=', 7)]))
-        # Scope `rpc` is the one Odoo's bearer authentication accepts; no expiry date is asked for (rotation replaces it).
-        self.assertEqual(calls[4], ('generate', 'rpc', 'LiwanOS AI usage recorder', None))
-
-
 class ProvisionWiringTest(unittest.TestCase):
     """provision.sh needs Docker, so what is checked here is the wiring a regression would silently break."""
 
     def setUp(self):
         self.script = (DEPLOY / 'provision.sh').read_text()
-        self.compose = (DEPLOY / 'docker-compose.yml').read_text()
 
-    def test_the_seed_is_staged_and_the_key_is_filtered_then_stored_without_echo(self):
-        self.assertIn('cp seed_ai_usage_key.py data/seed/seed_ai_usage_key.py', self.script)
-        self.assertIn("sed -n 's/^LIWAN_AI_USAGE_KEY=", self.script)
-        self.assertIn('ai/write_env_secret.sh .env LIWAN_AI_USAGE_KEY', self.script)
-        # The key reaches neither a log line nor a command line: no echo expands it, only stdin carries it.
+    def test_the_root_is_generated_locally_and_stored_without_echo(self):
+        self.assertIn('openssl rand -hex 32', self.script)
+        self.assertIn("printf '%s' \"$root\" | sh ai/write_env_secret.sh .env LIWAN_AI_USAGE_KEY", self.script)
+        # No Odoo shell and no seeding script take part in it.
+        self.assertIsNone(re.search(r'seed_ai', self.script))
+        self.assertNotIn('mint_ai_usage_key', self.script)
+        # The value reaches neither a log line nor a command line: no echo expands it, only stdin carries it.
         for line in self.script.splitlines():
             if 'echo' in line:
-                self.assertIsNone(re.search(r'echo[^;]*\$\{?(minted|LIWAN_AI_USAGE_KEY)', line), line)
-        self.assertIn("printf '%s' \"$minted\" | sh ai/write_env_secret.sh", self.script)
+                self.assertIsNone(re.search(r'echo[^;]*\$\{?(root|LIWAN_AI_USAGE_KEY)', line), line)
 
-    def test_a_key_already_in_the_env_file_is_kept_and_rotation_is_explicit(self):
+    def test_a_root_already_in_the_env_file_is_kept_and_rotation_is_explicit(self):
         self.assertIn('[ -z "${LIWAN_AI_USAGE_KEY:-}" ]', self.script)
         self.assertIn('--rotate-ai-usage-key', self.script)
-        self.assertIn('docker compose up -d web', self.script)
 
-    def test_only_web_receives_the_key(self):
-        holder, holders = None, []
-        for line in self.compose.splitlines():
+    def test_rotation_recreates_odoo_then_web(self):
+        rotation = self.script[self.script.index('if [ "$MODE" = rotate-ai-usage-key ]'):]
+        rotation = rotation[:rotation.index('exit 0')]
+        self.assertLess(rotation.index('docker compose up -d odoo'), rotation.index('docker compose up -d web'))
+        self.assertIn('generate_ai_usage_key', rotation)
+        self.assertNotIn(' shell ', rotation)
+
+
+class ComposeDeliveryTest(unittest.TestCase):
+    """The root reaches web and odoo and no other service, in the base file and in the shared overlay."""
+
+    @staticmethod
+    def holders(path):
+        holder, found = None, []
+        for line in (DEPLOY / path).read_text().splitlines():
             service = re.match(r'^  ([a-z0-9-]+):\s*$', line)
             if service:
                 holder = service.group(1)
-            elif 'LIWAN_AI_USAGE_KEY' in line and holder not in holders:
-                holders.append(holder)
-        self.assertEqual(holders, ['web'])
+            elif line.strip().startswith('LIWAN_AI_USAGE_KEY:') and holder not in found:
+                found.append(holder)
+        return found
+
+    def test_only_web_and_odoo_receive_the_root(self):
+        for path in ('docker-compose.yml', 'docker-compose.shared.yml'):
+            with self.subTest(path=path):
+                self.assertEqual(sorted(self.holders(path)), ['odoo', 'web'])
+
+    def test_no_other_compose_file_names_the_root(self):
+        for path in sorted(DEPLOY.glob('docker-compose*.yml')):
+            if path.name not in ('docker-compose.yml', 'docker-compose.shared.yml'):
+                with self.subTest(path=path.name):
+                    self.assertNotIn('LIWAN_AI_USAGE_KEY', path.read_text())
 
 
 if __name__ == '__main__':

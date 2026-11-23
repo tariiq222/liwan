@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const serviceFetch = vi.fn()
+const assertUsageRecordable = vi.fn()
+const retryUsage = vi.fn()
 vi.mock('../upstream', () => ({ serviceFetch }))
+vi.mock('../recorder', () => ({ assertUsageRecordable }))
+vi.mock('../usage', () => ({ retryUsage }))
 
 const OWNER = { tenant: 't1', user: '42' }
 const PROVIDERS = [{ name: 'ollama', needs_api_key: false, needs_base_url: false }, { name: 'anthropic', needs_api_key: true, needs_base_url: false }]
@@ -18,6 +22,8 @@ function serviceConfig(key: object) {
 
 beforeEach(() => {
   serviceFetch.mockReset()
+  assertUsageRecordable.mockReset().mockResolvedValue(false)
+  retryUsage.mockReset()
   vi.stubGlobal('createError', (e: any) => Object.assign(new Error(e.data?.code ?? 'err'), e))
 })
 
@@ -84,5 +90,35 @@ describe('assertRunnable and the prepaid balance', () => {
     serviceConfig(KEY)
     await assertRunnable({} as any, session({ ...EMPTY, provider_mode: 'tenant_key' }))
     await expect(assertRunnable({} as any, session({ ...EMPTY, consent_signed: false }))).rejects.toMatchObject({ data: { code: 'ai_consent_required' } })
+  })
+})
+
+describe('assertRunnable and the usage recorder', () => {
+  const refusal = Object.assign(new Error('ai_unavailable'), { statusCode: 503, data: { code: 'ai_unavailable' } })
+
+  it('needs a working recorder for every run and every resume, in every provider mode and agent mode', async () => {
+    const { assertRunnable } = await import('../policy')
+    serviceConfig(KEY)
+    assertUsageRecordable.mockRejectedValue(refusal)
+    for (const [policy, mode] of [[{}, 'assistant'], [{ provider_mode: 'tenant_key' }, 'assistant'], [{}, 'setup'], [{}, 'help']] as const) {
+      await expect(assertRunnable({} as any, session(policy, mode))).rejects.toMatchObject({ statusCode: 503, data: { code: 'ai_unavailable' } })
+    }
+    await expect(assertRunnable({} as any, session({}), { resuming: true })).rejects.toMatchObject({ statusCode: 503, data: { code: 'ai_unavailable' } })
+    expect(serviceFetch).not.toHaveBeenCalled()
+  })
+
+  it('asks the recorder after the user-fixable refusals, so an unsigned acknowledgement still answers 403', async () => {
+    const { assertRunnable } = await import('../policy')
+    assertUsageRecordable.mockRejectedValue(refusal)
+    await expect(assertRunnable({} as any, session({ consent_signed: false }))).rejects.toMatchObject({ statusCode: 403, data: { code: 'ai_consent_required' } })
+  })
+
+  it('retries the rows that waited when the recorder just came back, and only then', async () => {
+    const { assertRunnable } = await import('../policy')
+    await assertRunnable({} as any, session({}))
+    expect(retryUsage).not.toHaveBeenCalled()
+    assertUsageRecordable.mockResolvedValue(true)
+    await assertRunnable({} as any, session({}))
+    expect(retryUsage).toHaveBeenCalledTimes(1)
   })
 })

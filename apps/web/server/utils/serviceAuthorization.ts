@@ -1,6 +1,6 @@
 /**
  * The one request that may carry an `Authorization` header to Odoo: the AI usage report, sent by this server with the
- * deployment's recorder key (issue #557). Every other request has the header stripped, at the Nuxt hop (`tenantTransport`)
+ * bearer derived for the tenant's database (issue #557). Every other request has the header stripped, at the Nuxt hop (`tenantTransport`)
  * and at the shared guard (`deploy/shared/guard.mjs`). The match is exact on purpose: the raw request target, with no
  * query, no trailing slash, no other case and no dot segment, and the POST method only.
  */
@@ -10,5 +10,5 @@ export function isServiceAuthorizedRequest(method: string | undefined, target: s
   return method === 'POST' && target === SERVICE_AUTHORIZED_PATH
 }
 
-/** The shape of an Odoo API key (hex), as a bearer credential; anything else is not forwarded. */
+/** The shape of the derived recorder bearer (hex), as a credential; anything else is not forwarded. */
 export const BEARER_KEY = /^Bearer [0-9a-f]{32,128}$/

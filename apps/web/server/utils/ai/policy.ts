@@ -2,6 +2,8 @@ import type { H3Event } from 'h3'
 import { createError } from 'h3'
 import { AiTenantConfigSchema, type AiPolicy } from '@liwan/contracts'
 import type { RunSession } from './session'
+import { assertUsageRecordable } from './recorder'
+import { retryUsage } from './usage'
 import { serviceFetch } from './upstream'
 
 /** What the AI service enforces on one request: whose provider runs it, whether the tenant signed the AI acknowledgement, the output cap, the input ceiling. */
@@ -40,7 +42,8 @@ function assertBalance(policy: AiPolicy): void {
  * Refuses a request the service would refuse, before the message is counted or a write is claimed: any request of a tenant
  * that has not signed the current AI acknowledgement (403 `ai_consent_required`, whatever the provider, spec 2026-11-04 §6.8),
  * a new run of the paid assistant with no balance left (`assertBalance`), or a tenant-key policy without a key (409
- * `ai_tenant_key_missing`). The service checks the first and last again; this only keeps a refused request from spending the
+ * `ai_tenant_key_missing`). Every run and resume also needs a working usage recorder (503 `ai_unavailable`, `assertUsageRecordable`),
+ * in every mode and on every provider, so no run starts whose usage cannot be recorded. The service checks the first and last again; this only keeps a refused request from spending the
  * user's quota or running a tool. A run in progress (`resuming`) is never stopped by the balance: it may overdraw it.
  */
 export async function assertRunnable(event: H3Event, session: RunSession, { resuming = false } = {}): Promise<void> {
@@ -48,6 +51,7 @@ export async function assertRunnable(event: H3Event, session: RunSession, { resu
     throw createError({ statusCode: 403, data: { code: 'ai_consent_required', message: 'the organization has not signed the AI acknowledgement' } })
   }
   if (providerMode(session) === 'platform' && !resuming) assertBalance(session.policy)
+  if (await assertUsageRecordable(event)) void retryUsage(event)
   if (providerMode(session) !== 'tenant_key') return
   const response = await serviceFetch(event, 'GET', '/v1/tenant/config', session.owner)
   if (!response.ok) throw createError({ statusCode: 502, data: { code: 'ai_upstream', message: `AI service status ${response.status}` } })

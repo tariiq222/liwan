@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { legacyTenantResponse, tenantTransport } from '../tenantTransport'
 
-// Issue #557: the AI usage report carries the deployment's recorder key; nothing else the server sends to Odoo may carry an Authorization header.
+// Issue #557: the AI usage report carries the derived recorder bearer; nothing else the server sends to Odoo may carry an Authorization header.
 const token = 'synthetic-wire-token'.repeat(3)
 const key = `Bearer ${'a1'.repeat(20)}`
 const usagePath = '/api/v1/ai/usage/service'
@@ -25,7 +25,7 @@ async function withOdoo(run: (context: { base: string; event: never; seen: http.
 }
 afterEach(() => vi.unstubAllEnvs())
 
-describe('tenantTransport authorization (recorder key)', () => {
+describe('tenantTransport authorization (recorder bearer)', () => {
   it('sends the key on the exact usage report, without the user cookie or a browser header, still bound to the tenant', async () => {
     await withOdoo(async ({ base, event, seen }) => {
       const response = await tenantTransport(event, base, usagePath, { method: 'POST', body: '{}', headers: { cookie: '', 'content-type': 'application/json' }, authorization: key })

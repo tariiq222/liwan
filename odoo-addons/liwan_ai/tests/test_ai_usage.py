@@ -1,19 +1,21 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 from datetime import datetime, timedelta, timezone
 
-from odoo.exceptions import AccessError, ValidationError
+from odoo.exceptions import AccessError
 from odoo.fields import Command
 from odoo.tests import new_test_user, tagged
 
-from odoo.addons.liwan_ai.tests.common import AiProbe
+from odoo.addons.liwan_ai.models.ai_usage import USAGE_SERVICE_PATH
+from odoo.addons.liwan_ai.tests.common import AiProbe, usage_key
 from odoo.addons.liwan_api.tests.common import LiwanApiCase
-from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
+# The service route takes only rows from the last 24 hours: the fixed instants of the cases below are this one, an hour ago.
+CALLED = datetime.now(timezone.utc).replace(microsecond=0) - timedelta(hours=2)
 ITEM = {
     'conversation_id': 'r_test_01', 'call_id': '0f1e2d3c4b5a6978', 'kind': 'plan', 'capability': 'standard', 'billing': 'platform',
     'provider': 'acme-ai', 'model': 'acme-large-1',
-    'outcome': 'ok', 'input_tokens': 120, 'output_tokens': 45, 'cost': None, 'charge': None, 'called_at': '2026-10-27T09:30:00+03:00',
+    'outcome': 'ok', 'input_tokens': 120, 'output_tokens': 45, 'cost': None, 'charge': None, 'called_at': CALLED.astimezone(timezone(timedelta(hours=3))).isoformat(),
 }
 MESSAGE = {
     'conversation_id': 'r_test_01', 'kind': 'message', 'tool_name': None, 'input': None,
@@ -41,8 +43,21 @@ class TestAiUsage(AiProbe, LiwanApiCase):
             'features': {**(profile.features or {}), key: value},
         })
 
-    def _post(self, *items):
-        return self.api('POST', '/api/v1/ai/usage', {'user_company_id': self.employee.company_id.id, 'items': list(items)})
+    def _send(self, body, key=None):
+        """A report as the Nuxt server sends it: the derived bearer and no session (the signed-in cookie is set aside for the call)."""
+        cookies = list(self.opener.cookies)
+        self.opener.cookies.clear()
+        try:
+            return self.url_open(
+                USAGE_SERVICE_PATH, json=body, headers={'Content-Type': 'application/json', 'Authorization': f'bearer {key or usage_key(self)}'},
+            )
+        finally:
+            for cookie in cookies:
+                self.opener.cookies.set_cookie(cookie)
+
+    def _post(self, *items, user=None, company=None):
+        user = user or self.employee
+        return self._send({'user_id': user.id, 'user_company_id': (company or user.company_id).id, 'items': list(items)})
 
     @staticmethod
     def _attempt(index):
@@ -56,16 +71,16 @@ class TestAiUsage(AiProbe, LiwanApiCase):
             self.assertEqual(response.json()['code'], code)
         self.assertFalse(self.Usage.search([]))
 
-    def test_batch_is_recorded_as_the_caller_with_the_exact_response_shape(self):
-        second = {**ITEM, 'call_id': '1122334455667788', 'kind': 'title', 'outcome': 'retried', 'called_at': '2026-10-27T06:31:00Z'}
+    def test_batch_is_recorded_for_the_user_with_the_exact_response_shape(self):
+        second = {**ITEM, 'call_id': '1122334455667788', 'kind': 'title', 'outcome': 'retried', 'called_at': (CALLED + timedelta(minutes=1)).strftime('%Y-%m-%dT%H:%M:%SZ')}
         response = self._post(ITEM, second)
         self.assertEqual(response.status_code, 200)
         body = response.json()
         first_id, second_id = (item['id'] for item in body['items'])
         self.assertEqual(body, {
             'items': [
-                {**ITEM, 'id': first_id, 'called_at': '2026-10-27T06:30:00Z', 'charge_paid': 0},
-                {**second, 'id': second_id, 'called_at': '2026-10-27T06:31:00Z', 'charge_paid': 0},
+                {**ITEM, 'id': first_id, 'called_at': CALLED.strftime('%Y-%m-%dT%H:%M:%SZ'), 'charge_paid': 0},
+                {**second, 'id': second_id, 'charge_paid': 0},
             ],
             'total': 2,
         })
@@ -73,7 +88,7 @@ class TestAiUsage(AiProbe, LiwanApiCase):
         self.assertEqual(rows.user_id, self.employee)
         self.assertEqual(rows.company_id, self.employee.company_id)
         self.assertEqual(rows[0].tokens_reported, True)
-        self.assertEqual(rows[0].called_at, datetime(2026, 10, 27, 6, 30))
+        self.assertEqual(rows[0].called_at, CALLED.replace(tzinfo=None))
 
     def test_the_same_batch_twice_yields_one_set_of_rows_and_one_total(self):
         """Issue #557: a batch Odoo accepted before a timeout is re-sent; it is one attempt, counted once."""
@@ -126,15 +141,10 @@ class TestAiUsage(AiProbe, LiwanApiCase):
         self.assertEqual((body['items'][0]['input_tokens'], body['items'][0]['output_tokens']), (0, 0))
         self.assertTrue(self.Usage.browse(body['items'][0]['id']).tokens_reported)
 
-    def test_the_session_route_refuses_a_cost_or_charge(self):
-        """Any user with ai.use reaches this route and those figures are deducted from the balance: only the recorder may write them."""
-        for change, field in (
-            ({'cost': 0}, 'cost'), ({'cost': 12}, 'cost'), ({'cost': 12, 'charge': 15}, 'cost'), ({'cost': 0, 'charge': 0}, 'cost'),
-            ({'charge': 5}, 'charge'),
-        ):
-            with self.subTest(change=change):
-                self._assert_422(self._post({**ITEM, **change}), f'items.0.{field}', 'invalid')
-        self.assertEqual(self._post({**ITEM, 'cost': None, 'charge': None}).status_code, 200)
+    def test_cost_and_charge_are_recorded_as_reported(self):
+        """Only the recorder reports these figures, so the route takes them: null stays null and zero stays zero."""
+        body = self._post({**ITEM, 'cost': 0, 'charge': 0}).json()
+        self.assertEqual((body['items'][0]['cost'], body['items'][0]['charge']), (0, 0))
 
     def test_every_call_kind_is_stored_and_returned(self):
         for index, kind in enumerate(('plan', 'title', 'route', 'summary')):
@@ -212,12 +222,14 @@ class TestAiUsage(AiProbe, LiwanApiCase):
         self._assert_422(self._post(item), 'items.0.model')
 
     def test_item_count_and_shape(self):
+        company = self.employee.company_id.id
+        batch = {'user_id': self.employee.id, 'user_company_id': company}
         self._assert_422(self._post(), 'items')
         self._assert_422(self._post(*[self._attempt(index) for index in range(65)]), 'items')
-        self._assert_422(self.api('POST', '/api/v1/ai/usage', {}), 'items')
-        self._assert_422(self.api('POST', '/api/v1/ai/usage', {'items': ITEM}), 'items')
+        self._assert_422(self._send(batch), 'items')
+        self._assert_422(self._send({**batch, 'items': ITEM}), 'items')
         self._assert_422(self._post(ITEM, 'x'), 'items.1')
-        self._assert_422(self.api('POST', '/api/v1/ai/usage', {'user_company_id': self.employee.company_id.id, 'items': [ITEM], 'extra': 1}), 'extra', 'unknown_field')
+        self._assert_422(self._send({**batch, 'items': [ITEM], 'extra': 1}), 'extra', 'unknown_field')
         self.assertEqual(len(self._post(*[self._attempt(index) for index in range(64)]).json()['items']), 64)
 
     def test_one_bad_item_rejects_the_whole_batch(self):
@@ -239,36 +251,17 @@ class TestAiUsage(AiProbe, LiwanApiCase):
         self.assertEqual(response.json()['details'], {'reason': 'feature', 'feature': 'ai.enabled'})
         self.assertFalse(self.Usage.search([]))
 
-    def test_route_without_the_ai_use_capability_is_403(self):
-        self.employee.write({'group_ids': [Command.unlink(self.env.ref('liwan_ai.group_cap_ai_use').id)]})
-        self.assertEqual(self._post(ITEM).status_code, 403)
-        self.assertFalse(self.Usage.search([]))
-
-    def test_direct_create_obeys_the_same_gates(self):
-        self._set_feature('ai.enabled', False)
-        with self.assertRaises(LiwanAccessRule) as caught:
-            self.Usage.with_user(self.employee).create(ITEM)
-        self.assertEqual(caught.exception.code, 'feature_not_included')
-        self._set_feature('ai.enabled', True)
-        self.employee.write({'group_ids': [Command.unlink(self.env.ref('liwan_ai.group_cap_ai_use').id)]})
-        with self.assertRaises(AccessError):
-            self.Usage.with_user(self.employee).create(ITEM)
-        self.assertFalse(self.Usage.search([]))
-
-    def test_direct_create_rejects_forged_owner_and_derives_it(self):
+    def test_a_user_with_ai_use_cannot_create_a_row(self):
+        """The right to create usage rows is the recorder's alone: a user's balance and quota are settled from them."""
         usage = self.Usage.with_user(self.employee)
-        for change, field in (
-            ({'user_id': self.other.id}, 'user_id'),
-            ({'company_id': self.env.company.id}, 'company_id'),
-            ({'tokens_reported': True}, 'tokens_reported'),
-            ({'cost_reported': True}, 'cost_reported'),
-            ({'charge_reported': True}, 'charge_reported'),
-        ):
-            with self.assertRaises(ValidationError, msg=change) as caught:
-                usage.create({**ITEM, **change})
-            self.assertEqual(caught.exception.liwan_field, field)
-        row = usage.create(ITEM)
-        self.assertEqual((row.user_id, row.company_id), (self.employee, self.employee.company_id))
+        self.assertTrue(usage.has_access('read'))
+        self.assertFalse(usage.has_access('create'))
+        with self.assertRaises(AccessError):
+            usage.create({
+                'user_id': self.employee.id, 'company_id': self.employee.company_id.id, 'conversation_id': 'r_forged', 'call_id': '0f1e2d3c4b5a6978',
+                'kind': 'plan', 'billing': 'platform', 'provider': 'acme-ai', 'model': 'acme-large-1', 'outcome': 'ok', 'called_at': datetime.now(),
+            })
+        self.assertFalse(self.Usage.search([]))
 
     def test_users_see_only_their_own_rows(self):
         self._post(ITEM)
@@ -293,7 +286,7 @@ class TestAiUsage(AiProbe, LiwanApiCase):
         )
         self._post(ITEM)
         self.assertFalse(self.Usage.with_user(outsider).with_company(company).search([]))
-        mine = self.Usage.with_user(outsider).with_company(company).create(ITEM)
+        mine = self.Usage.browse(self._post(self._attempt(7), user=outsider, company=company).json()['items'][0]['id'])
         self.assertEqual(self.Usage.with_user(outsider).with_company(company).search([]), mine)
         self.assertNotIn(mine, self.Usage.with_user(self.employee).search([]))
 

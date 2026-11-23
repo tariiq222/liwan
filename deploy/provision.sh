@@ -9,8 +9,8 @@
 #     After a DOMAIN change of a provisioned environment: pins the database's public
 #     origin (web.base.url) to https://<domain> again and exits.
 #   deploy/provision.sh --rotate-ai-usage-key app.customer.sa customerdb
-#     Revokes the tenant's AI usage recorder key, mints a new one into deploy/.env (mode 600, never printed)
-#     and recreates `web` with it. Needs the ai profile and a provisioned database.
+#     Replaces the deployment's AI usage root secret in deploy/.env (mode 600, never printed), then recreates
+#     `odoo` and `web` with it. No Odoo shell runs. Needs a provisioned environment.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -77,7 +77,6 @@ stage_branding() {
   cp branding.json data/seed/branding.json
   cp seed_branding.py data/seed/seed_branding.py
   cp seed_legacy_policy.py data/seed/seed_legacy_policy.py
-  cp seed_ai_usage_key.py data/seed/seed_ai_usage_key.py
 
   local logo_path resolved_path staged_name
   logo_path="$(sed -n 's/.*"logo_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' branding.json | head -n 1)"
@@ -139,29 +138,27 @@ DB_NAME="${2:?usage: provision.sh <domain> <db name>}"
   || { echo "domain must be a lowercase DNS name" >&2; exit 1; }
 export DOMAIN DB_NAME
 
-# The tenant's AI usage recorder key (issue #557). The Odoo shell prints exactly one line, LIWAN_AI_USAGE_KEY=<hex>, which is
-# filtered here and written to deploy/.env by ai/write_env_secret.sh (mode 600): the key is never echoed, logged or passed on a
-# command line. Needs the ai profile (no AI service, no usage to record) and a database where liwan_ai is installed.
-mint_ai_usage_key() {
-  local minted
-  minted="$(docker compose run --rm -T -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$PWD/data/seed:/seed:ro" odoo \
-    shell -d "$DB_NAME" --no-http < data/seed/seed_ai_usage_key.py | sed -n 's/^LIWAN_AI_USAGE_KEY=\([0-9a-f]\{32,128\}\)$/\1/p' | tail -n 1)"
-  [ -n "$minted" ] || { echo "provision: could not mint the AI usage key (seed_ai_usage_key.py printed no key)" >&2; exit 1; }
-  printf '%s' "$minted" | sh ai/write_env_secret.sh .env LIWAN_AI_USAGE_KEY \
+# The AI usage root secret is 64 hex characters from openssl, written to deploy/.env (mode 600) by ai/write_env_secret.sh. The value
+# travels only on a pipe: it is never echoed, logged or passed on a command line. Only `web` and `odoo` receive it
+# (docker-compose.yml); each derives the recorder bearer of a tenant database from it, so no Odoo shell and no stored key exist.
+generate_ai_usage_key() {
+  local root
+  root="$(openssl rand -hex 32)" && [[ "$root" =~ ^[0-9a-f]{64}$ ]] \
+    || { echo "provision: could not generate the AI usage root secret" >&2; exit 1; }
+  printf '%s' "$root" | sh ai/write_env_secret.sh .env LIWAN_AI_USAGE_KEY \
     || { echo "provision: could not store LIWAN_AI_USAGE_KEY in deploy/.env" >&2; exit 1; }
-  export LIWAN_AI_USAGE_KEY="$minted"
+  export LIWAN_AI_USAGE_KEY="$root"
 }
-ai_profile_enabled() { grep -Eq '^COMPOSE_PROFILES=([^#]*,)?ai(,|$|[[:space:]])' .env; }
 
 if [ "$MODE" = rotate-ai-usage-key ]; then
-  ai_profile_enabled || { echo "provision: --rotate-ai-usage-key needs COMPOSE_PROFILES with ai in deploy/.env" >&2; exit 1; }
   [ -f data/odoo.conf ] || { echo "provision: data/odoo.conf missing; provision $DB_NAME first" >&2; exit 1; }
   export ODOO_COMMIT="$(cat "$PWD/odoo/ODOO_COMMIT")"
   export LIWAN_IMAGE_TAG="${LIWAN_IMAGE_TAG:?set LIWAN_IMAGE_TAG to the running image tag}"
-  stage_branding
-  mint_ai_usage_key
+  generate_ai_usage_key
+  # odoo first, then web: AI runs are refused 503 for the moments the two disagree, and nothing else is affected.
+  docker compose up -d odoo
   docker compose up -d web
-  echo "provision: AI usage key rotated; web restarted with the new key."
+  echo "provision: AI usage root secret rotated; odoo and web restarted with it."
   exit 0
 fi
 
@@ -239,10 +236,10 @@ docker compose run --rm -T -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$
 docker compose run --rm -T -e VENDOR_PASSWORD -e VENDOR_EMAIL -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" -v "$PWD/data/seed:/seed:ro" odoo \
   shell -d "$DB_NAME" --no-http < data/seed/seed_branding.py
 set_public_origin
-# A key already in deploy/.env is kept: the Odoo side cannot show it again, and re-minting would cut the running web off until it
-# restarts. A new database needs the line removed first; `--rotate-ai-usage-key` replaces it on purpose.
-if ai_profile_enabled && [ -z "${LIWAN_AI_USAGE_KEY:-}" ]; then
-  mint_ai_usage_key
+# A root already in deploy/.env is kept: replacing it would refuse every AI run until odoo and web restart.
+# `--rotate-ai-usage-key` replaces it on purpose.
+if [ -z "${LIWAN_AI_USAGE_KEY:-}" ]; then
+  generate_ai_usage_key
 fi
 # Give LiwanOS AI's role CONNECT and its own schema in the tenant database, with no access to schema public
 # (ai/tenant_schema.sql; the PUBLIC revoke is the isolation step above). A no-op when the liwan_ai role does not
