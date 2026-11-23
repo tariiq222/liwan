@@ -76,10 +76,19 @@ class LiwanMailMail(models.Model):
     liwan_provider_checked_at = fields.Datetime('liwan Provider Checked At', copy=False)
 
     def _postprocess_sent_message(self, success_pids, success_emails, failure_reason=False, failure_type=None):
-        """Odoo calls this once an attempt has ended, sent or failed: scrub the sensitive rows that cannot be sent again."""
+        """Odoo calls this once an attempt has ended, sent or failed: scrub the sensitive rows that cannot be sent again.
+
+        When the relay connection fails, ``send`` writes only the state and passes the failure type as an argument.
+        A contract row left in ``exception`` without a type takes that type here, before anything is wiped, so it
+        is retried like any transient failure and only a final failure loses its content.
+        """
         result = super()._postprocess_sent_message(
             success_pids, success_emails, failure_reason=failure_reason, failure_type=failure_type,
         )
+        if failure_type:
+            untyped = self.filtered(lambda mail: mail.liwan_kind and mail.state == 'exception' and not mail.failure_type)
+            if untyped:
+                self.env['liwan.mail.send']._liwan_outbox().browse(untyped.ids).write({'failure_type': failure_type})
         self._liwan_wipe_unsendable()
         return result
 
@@ -148,6 +157,14 @@ class LiwanMailMail(models.Model):
         queued at once, outside the attempt cap, and keeps its attempt count. An invalid or missing address is a final
         failure and is not in ``RETRYABLE_FAILURES``.
         """
+        # Stock ``_send`` re-raises a dropped relay session or a MemoryError without the post-processing, so a row can
+        # be left failed for good with its content. Sweep these first: the sweep must not depend on the tenant being
+        # allowed to send. An attempt in flight is not seen here: its pre-attempt ``exception`` state is written
+        # inside ``_send``'s own uncommitted transaction.
+        self.search([
+            ('liwan_kind', '!=', False), ('liwan_sensitive', '=', True), ('state', '=', 'exception'),
+            '|', ('body_html', '!=', False), ('attachment_ids', '!=', False),
+        ])._liwan_wipe_unsendable()
         send = self.env['liwan.mail.send']
         sender, refusal = send._liwan_sender_or_refusal()
         if refusal or not sender:

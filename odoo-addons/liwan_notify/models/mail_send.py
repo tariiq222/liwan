@@ -89,7 +89,7 @@ class LiwanMailSend(models.AbstractModel):
         configured nothing is queued and an empty recordset comes back; a tenant domain that may not send raises
         ``LiwanMailRefused`` and nothing is created. A ceiling defers the row (``scheduled_date``), never refuses it.
         Every row is kept for 90 days. A ``sensitive`` row (payroll) loses its body and attachments as soon as it can
-        no longer be sent (sent, cancelled, or failed for good: a non-transient failure or the attempts exhausted),
+        no longer be sent (sent, cancelled, or failed for good: a non-transient failure or the attempts exhausted; the retry cron sweeps rows a dropped relay session left behind),
         and keeps its weight, so it still counts toward the ceilings. While a retry may still come it keeps them.
 
         Caller gate: nothing here checks the caller's right to the record or the application feature; the caller
