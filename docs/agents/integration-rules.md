@@ -13,16 +13,16 @@ actual diff still follows `REVIEW.md`; any selected available agent or a human
 may perform it, without an exclusive model requirement or paid API fallback.
 
 Keep a PR draft while local preparation is incomplete. Marking ready requests
-CI and review; it does not by itself authorize publication, merging or release.
-A local commit is covered by the standing authorization below; publication, merging,
-release, deployment and the other excluded operations need the owner's explicit words for
-their scope. Prior approved product, access and data decisions remain binding. New
+CI and review; it does not by itself authorize merging or release.
+A local commit, the push of the task branch, opening the PR and marking it ready are covered by the
+standing authorization below; merging, release, deployment and the other excluded operations
+need the owner's explicit words for their scope. Prior approved product, access and data decisions remain binding. New
 changes require updated evidence and any authorization their scope needs.
 
 The `ci` workflow reports checks; it does not repair code, merge PRs, create tags or deploy. The `publish` workflow runs only on `release/**` tags and calls the staging hook on release tags as described in the flow below.
 Task authorization, remote publication, merge, release, production deployment
 and cleanup remain distinct operations. Local consolidation authority does not
-authorize a remote push or production deployment. Missing services, stale checks and failed
+authorize production deployment. Missing services, stale checks and failed
 checks never justify bypassing branch protection.
 
 ### Standing authorization (owner decision 2026-11-11)
@@ -30,18 +30,20 @@ checks never justify bypassing branch protection.
 The owner authorizes every agent (Claude and Codex), in every session, to do the following
 without asking each time, provided the evidence rules of this file hold:
 
-- commit the task's work locally on its task branch;
+- commit the task's work locally on its task branch (the orchestrator commits);
+- push the task branch, open its pull request and mark it ready (owner decision 2026-11-23,
+  replacing the requirement of explicit words for these steps), only after the independent reviewer
+  returned no unresolved findings, the tester passed on sensitive work, the applicable local checks
+  passed and, for marking ready, current-head `ci-result` is green;
 - resolve a review thread after verifying the fix in the code;
-- after a merge, return the lane with `python3 -B tools/wt.py done`, or remove a temporary
+- after a merge, return the lanes with `python3 -B tools/wt.py done --orchestrator <id>`, or remove a temporary
   lane with `python3 -B tools/wt.py lane remove <name>`, once the content is preserved and no
   process uses the worktree (step 6).
 
-Publication and merging need the owner's explicit words in the current conversation, each
-for its own step: pushing a branch, opening a pull request, moving it from draft to ready,
-merging it, and enabling auto-merge. No new pull request is opened unless the owner asks
-for one. The owner keywords below are explicit words for the steps they name. Words given
-for one branch, one PR or one conversation do not carry to the next. The 2026-11-08
-authorization, which also covered push, PR, ready and merge, is superseded.
+Merging and enabling auto-merge need the owner's explicit words in the current conversation, each
+for its own step. The owner keywords below are explicit words for the steps they name. Words given
+for one branch, one PR or one conversation do not carry to the next. The 2026-11-11
+requirement of explicit words for push, PR and ready is superseded.
 
 Also excluded, and needing the owner's explicit words each time: a `release/19.0.X.Y.Z`
 tag («انشر على الاستيج»), deploying to production («انشر على الإنتاج»), deploying to any other server by hand, a DNS cutover, force-push or history rewrite, a direct push to `main`,
@@ -59,15 +61,12 @@ Owner keywords:
   the latest remote `main`, preserving previously approved behavior and adding the
   requested changes, then follow the six steps. It does not authorize undoing an
   earlier decision, merging unrelated worktrees or deleting recovery material.
-- «انشر» means: commit, run the checks, get the independent review and fix its findings,
-  push the task branch, open the PR, mark it ready,
-  merge it after current-head `ci-result` is green, and return the lane (`wt done`, or `wt lane remove` for a temporary lane). It never means a direct push to `main`,
+- «انشر» means: merge the ready PR after current-head `ci-result` is green, and return the lanes (`wt done --orchestrator <id>`, or `wt lane remove` for a temporary lane). When the PR does not exist yet, it first runs the automatic steps (commit, checks, independent review and its fixes, push, PR, ready). It never means a direct push to `main`,
   a release tag, or a deployment to staging or production. Nothing follows `main` by itself: a merge
   updates no environment (see [the flow](#from-task-branch-to-each-environment-owner-decision-2026-11-21)).
 - «دمج» or «ادمج» means: merge the work the owner is pointing at into `main` through its PR,
   following the six steps. These are also the words that allow enabling auto-merge on that PR.
-  When that work has no PR yet, the word covers pushing its branch, after the independent
-  review, and opening the PR. It never means a direct push to `main`, a release tag, or a deployment to staging or production (a merge updates no environment, as under «انشر»).
+  When that work has no PR yet, the automatic steps (independent review, push, PR, ready) run first. It never means a direct push to `main`, a release tag, or a deployment to staging or production (a merge updates no environment, as under «انشر»).
 - «انشر على الاستيج» means: create and push the tag `release/19.0.X.Y.Z` on a `main` commit that passed the release checks below, so that the staging environment updates through its hook. It
   needs that commit to be on `main` already; with the work still on a branch, «انشر» comes first. It never
   means production.
@@ -108,8 +107,8 @@ review of that branch. It applies to ordinary and [sensitive](#sensitive-change-
   push. After a fix, repeat the affected checks and review the fix and the behavior it
   affects before pushing; name the reviewed head in the PR.
 
-This is review, not authorization. It does not grant push, PR, ready, merge or release,
-which still need the owner's explicit words as stated above.
+Push, PR and ready follow automatically once this review has no unresolved findings
+(see the standing authorization above); merge and release still need the owner's explicit words.
 
 ## Sensitive change and batching (single definitions)
 
@@ -200,10 +199,11 @@ the release command and the server setup are described in `deploy/release/README
 
 | Step | Who says it | Who acts | What happens |
 | --- | --- | --- | --- |
-| 1. Lane and branch | none | the agent | `npm run wt -- take <branch> --owner <who>` starts the branch from current `origin/main`. |
-| 2. Local commit | none (standing authorization) | the agent | Commit on the task branch with the applicable local checks. |
+| 1. Lane and branch | none | the orchestrator | `npm run wt -- take <branch> --holder <worker role(s)> --orchestrator <id>` starts the branch from current `origin/main`. |
+| 2. Local commit | none (standing authorization) | the orchestrator | Commit on the task branch with the applicable local checks. |
 | 3. Independent review | none | an independent reviewer | The [review before every push](#independent-review-before-every-push-owner-decision-2026-11-21); confirmed findings are fixed first. |
-| 4. «انشر» | the owner | the agent | Push, PR, current-head `ci-result`, merge, lane return (steps 5 and 6 above). |
+| 4. Push, PR, ready | none (standing authorization, owner decision 2026-11-23) | the orchestrator | Push the task branch, open the PR and mark it ready once step 3 is clean and current-head `ci-result` is green. |
+| 4a. «انشر» | the owner | the orchestrator | Merge the ready PR, then return the lanes (steps 5 and 6 above). |
 | 5. Push to `main` | nobody | `.github/workflows/publish.yml` | A merge to `main` runs CI only. The publish workflow does not start: no image is built, no release document is published, no hook is called and no server is updated. |
 | 6. «انشر على الاستيج» | the owner | the coordinator | After checking that the `main` CI for the commit is green, the coordinator creates and pushes `release/19.0.X.Y.Z` on it. The publish workflow runs only on a `release/**` tag and builds arm64 only. On the tag push it checks that the commit is on `main`, builds the nine arm64 images on `ubuntu-24.04-arm` (about 17 to 18 minutes, measured), pushes them to private GHCR, publishes the release document and calls the staging hook. Staging therefore waits for that build; Oracle `liwanos-staging` (arm64) then serves the tag. A tag that fails on staging is never promoted; the fix takes the next number. |
 | 7. «انشر على الإنتاج» | the owner, after testing staging | the owner starts the job from Openship; the coordinator prepares and verifies | The job `liwan-production-release` has no hook and no credential on GitHub. It is started with an explicit tag (`release.py run --environment production --tag release/19.0.X.Y.Z`) and never picks the highest tag by itself (owner decision 2026-11-21). It takes only a tag that staging served and passed. Oracle `liwanos-prod` (arm64) serves it. The automatic proof that staging served that tag is not built: the owner and the coordinator confirm it before «انشر على الإنتاج» (an enforced gate is not built). Owner decision in principle, 2026-11-21, on who starts the production and rollback jobs: «نستخدم الايجنت الموجود في اوبن شيب ونضع اليه سليمه له مع ربطه معنا هنا». It is not built: the Openship assistant is still disabled on the panel that runs on `liwanos-staging` and no agent exists. The hosts `liwanos-prod` and `liwanos-staging` were registered in that panel on 2026-11-21; production is reached by SSH from the staging address through the panel, and the Contabo tooling host reaches neither Oracle host. Until that mechanism is designed and approved, the owner starts the production job from Openship himself. |

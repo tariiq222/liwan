@@ -60,10 +60,12 @@ Read `docs/parallel-work.md` before parallel work or changing shared files.
 
 - Verify the current branch, worktree, and dirty paths before editing. The
   canonical local development checkout is `/Users/tariq/code/liwan` on `main`.
-- Develop in a lane from the pool under `.worktrees/` (owner decision 2026-11-16): one task, one branch, one
-  lane, one writing session, whichever tool runs it. Take a lane with `npm run wt -- take <branch> --owner <who>`;
-  the branch starts from current `origin/main` (any normal branch name). The main checkout stays on `main` for
-  the owner; no agent develops in it. Give each session explicit file ownership. One orchestrator owns
+- Develop in a lane from the pool under `.worktrees/` (owner decisions 2026-11-16 and 2026-11-23): one task,
+  one branch, one orchestrator session that runs from the main checkout, takes the lanes with
+  `npm run wt -- take <branch> --holder <worker role(s)> --orchestrator <id>` and writes no product code;
+  only workers are bound to a lane, shared role agents work in it by absolute path. The branch starts from
+  current `origin/main` (any normal branch name). The main checkout stays on `main` for
+  the owner; no agent develops in it. Give each worker explicit file ownership. The orchestrator owns
   Git integration, shared-file edits, runtime changes, and final checks.
 - Preserve stock Odoo source. Extend `project` through `liwan_pmo` and `hr`
   through `liwan_hr`. Do not recreate either pillar.
@@ -77,10 +79,11 @@ Read `docs/parallel-work.md` before parallel work or changing shared files.
   older WIP describe their own checkpoints, not the current source state.
 - When reviewing a diff, follow `REVIEW.md` (what to report and what is already automated).
 - Never run tests on `liwan_dev` or `odoo19`. A local commit on the task branch and returning the lane
-  after a merge (`wt done`, or `wt lane remove` for a temporary lane) fall under the standing authorization in
-  [integration-rules.md](docs/agents/integration-rules.md). Push, opening a PR, marking it ready, merging and
-  auto-merge each need the owner's explicit words in the current conversation (owner decision 2026-11-11), as do
-  deploying, release tags, force-push, direct push to `main` and discarding work.
+  after a merge (`wt done --orchestrator <id>`, or `wt lane remove` for a temporary lane) fall under the standing
+  authorization in [integration-rules.md](docs/agents/integration-rules.md), as do the push of the task branch,
+  opening the PR and marking it ready once the independent review is clean and current-head `ci-result` is green
+  (owner decision 2026-11-23). Merging and auto-merge each need the owner's explicit words in the current
+  conversation, as do deploying, release tags, force-push, direct push to `main` and discarding work.
 - Local verification does not prove production deployment. Report fresh test
   evidence and the actual branch/runtime state.
 
@@ -257,8 +260,8 @@ another application) needs the owner's approval, recorded by the owner as an
   directory in the same commit.
 - `main` is protected on GitHub with PR and current CI requirements and no admin bypass.
   Integration uses a pull request; direct pushes and protection bypasses are prohibited. The
-  preservation procedure, the standing authorization (local commit, lane return after a merge), the
-  steps that need the owner's explicit words (push, PR, ready, merge, auto-merge), the independent review that precedes
+  preservation procedure, the standing authorization (local commit, push, PR and ready after a clean review,
+  lane return after a merge), the steps that need the owner's explicit words (merge, auto-merge), the independent review that precedes
   every push ([section](docs/agents/integration-rules.md#independent-review-before-every-push-owner-decision-2026-11-21)),
   the exclusions and the merge checklist have one
   owner: [integration-rules.md](docs/agents/integration-rules.md). Read it before any push and before integrating an
@@ -300,7 +303,7 @@ Implementation is delegated by default to native Sonnet subagents (owner decisio
 the coordinator plans, writes the brief with explicit file ownership and checks, splits independent
 work across parallel agents, reviews the returned patch and re-runs the checks. Scopes stay
 explicit and mutable resources isolated: one writer per file, per `docs/parallel-work.md`. Delegation
-does not change who may commit, push, merge or clean up; that is in
+does not change who may commit, push, merge or clean up (the orchestrator commits and publishes, workers never do); that is in
 [integration-rules.md](docs/agents/integration-rules.md).
 
 ## Code Review Rules
@@ -374,8 +377,9 @@ cross-addon links.
 ## Safe lane workflow
 
 Work happens in a pool of lanes: permanent worktrees in `<main checkout>/.worktrees/`, any tool, no fixed
-names; one task, one branch, one writing session per lane. Take one with
-`npm run wt -- take <branch> --owner <who>`, return it after the merge with `npm run wt -- done`, and
+names; one task, one branch, one orchestrator, with only workers bound to a lane. Take one with
+`npm run wt -- take <branch> --holder <worker role(s)> --orchestrator <id>`, return it after the merge with
+`npm run wt -- done --orchestrator <id>`, and
 never create another worktree (`git worktree add` or a tool-owned folder) unless the owner asks for one
 in words for that task; it then becomes a lane. Read-only and review sessions take no lane. Never run
 tests against `liwan_dev` or `odoo19`; use a scratch database. Temporary integration databases,

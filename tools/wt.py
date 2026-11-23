@@ -1,10 +1,11 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Run the lane pool: add lanes, take and return them, check and list worktrees, clean up leftovers.
 
-    npm run wt -- lane add <name> [--owner <who> --task <what>] [--no-install]
+    npm run wt -- lane add <name> [--holder <who> --orchestrator <id> --task <what>] [--no-install]
     npm run wt -- lane remove <name>
-    npm run wt -- take <branch> --owner <who> [--task <what>] [--lane <name>]
+    npm run wt -- take <branch> --holder <who> --orchestrator <id> [--task <what>] [--lane <name>]
     npm run wt -- done [--lane <name>] [--park]
+    npm run wt -- done --orchestrator <id> [--park]
     npm run wt -- status
     npm run wt -- check
     npm run wt -- gc [--apply] [--branch <branch>]
@@ -12,18 +13,20 @@
 A lane is a permanent worktree at ``.worktrees/<name>`` (see ``tools/worktree_lanes.py``): one task is one branch, one
 lane and one writing session. Between tasks a lane rests on a detached ``origin/main``. ``lane add`` creates a lane
 (a worktree at ``origin/main`` with its ``.env.worktree``, free ports, scratch database name and dependencies) or adopts
-an existing worktree under ``.worktrees/`` in place; adopting a worktree that is on a branch needs ``--owner`` and
-``--task`` and drops its record files of the removed claim model. ``take`` gives a branch to the first resting clean lane
+an existing worktree under ``.worktrees/`` in place; adopting a worktree that is on a branch needs ``--holder``,
+``--orchestrator`` and ``--task`` and drops its record files of the removed claim model. ``take`` gives a branch to the first resting clean lane
 (or the one named by ``--lane``): it starts the branch from ``origin/main`` without upstream, or resumes a parked local
 branch, records the holder and task, and reinstalls dependencies when ``package-lock.json`` changed since the last
 install. It refuses ``main``, an occupied or dirty lane, and says "no free lane" with each lane's holder when all are taken.
 ``done`` returns a clean lane (the current one, or ``--lane``) to a detached ``origin/main`` once its branch is merged
 and deletes the branch; ``--park`` keeps the unmerged branch so a later ``take`` of the same name resumes it.
+``done --orchestrator <id>`` does the same for every lane that orchestrator took, keeps going past a lane it must
+refuse (dirty, unmerged), prints the reason for each lane left and exits 1 when any remained.
 
 ``status`` prints one table of every worktree (``*`` marks one outside ``.worktrees``; ``missing`` one whose folder is
 gone) with its holder, the files two occupied lanes both change, and the violations. ``check`` only reads and exits 1
 when a worktree is neither the main checkout nor a lane, a lane's checked-out branch differs from its record, an
-occupied lane has no holder, or two lanes change the same addon's ``migrations/``. ``gc`` lists the leftover
+occupied lane has no holder or no orchestrator, or two lanes change the same addon's ``migrations/``. ``gc`` lists the leftover
 non-lane worktrees and branches that are merged into main with commits of their own, clean and held by no process,
 plus the scratch databases of those worktrees nobody is connected to; it only prints unless ``--apply`` is given,
 which needs the owner's authorization. A lane is never removed by ``gc``; ``lane remove`` deletes a resting
@@ -362,6 +365,8 @@ def lane_violations(worktree):
         problems.append(template % (state, worktree.branch or 'a detached HEAD', take.branch or '--detach ' + LANE_BASE))
     if take.occupied and not (take.holder or '').strip():
         problems.append('occupied lane has no holder; record one with: npm run wt -- done --park, then take it again')
+    if take.occupied and not (take.orchestrator or '').strip():
+        problems.append('occupied lane has no orchestrator; record one with: npm run wt -- done --park, then take it again')
     return problems
 
 
@@ -370,7 +375,7 @@ def non_lane_violation(worktree):
         return 'folder is missing (git worktree prune)'
     if not worktree.canonical:
         return 'outside %s/ and not a lane; remove it with: git worktree remove' % WORKTREES_DIR
-    return 'not a lane; adopt it with: npm run wt -- lane add %s --owner <who> --task <what>, or remove it once merged' % worktree.path.name
+    return 'not a lane; adopt it with: npm run wt -- lane add %s --holder <who> --orchestrator <id> --task <what>, or remove it once merged' % worktree.path.name
 
 
 def violations(worktrees, changes):
@@ -415,18 +420,26 @@ def holder_label(worktree):
     return (worktree.take.holder or '(no holder)') if worktree.take.occupied else 'resting'
 
 
+def orchestrator_label(worktree):
+    if not worktree.is_lane or worktree.missing or not worktree.take.occupied:
+        return '-'
+    return worktree.take.orchestrator or '(no orchestrator)'
+
+
 def format_status(worktrees, root, changes):
-    header = ('WORKTREE', 'BRANCH', 'HOLDER', 'AHEAD/BEHIND', 'MERGED', 'DIRTY', 'AGE', 'NODE_MODULES', 'SCRATCH DB', 'PORTS')
-    rows = [header]
-    for w in worktrees:
+    header = (
+        'WORKTREE', 'BRANCH', 'ORCHESTRATOR', 'HOLDER', 'AHEAD/BEHIND', 'MERGED', 'DIRTY', 'AGE', 'NODE_MODULES', 'SCRATCH DB', 'PORTS')
+    rows = []
+    for w in sorted(worktrees, key=lambda item: (orchestrator_label(item) == '-', orchestrator_label(item))):
         name = display_name(w, root) + ('' if w.canonical else ' *')
         if w.missing:
-            rows.append((name, w.branch or '(detached)', '-', 'missing', '-', '-', '-', '-', w.database or '-', '-'))
+            rows.append((name, w.branch or '(detached)', '-', '-', 'missing', '-', '-', '-', '-', w.database or '-', '-'))
             continue
         rows.append((
-            name, w.branch or '(detached)', holder_label(w),
+            name, w.branch or '(detached)', orchestrator_label(w), holder_label(w),
             '+%d/-%d' % (w.ahead, w.behind), 'yes' if w.merged else 'no', 'yes' if w.dirty else 'no',
             format_age(w.age_days), format_size(w.size), w.database or '-', ','.join(map(str, w.ports)) or '-'))
+    rows.insert(0, header)
     widths = [max(len(row[i]) for row in rows) for i in range(len(header))]
     lines = ['  '.join(cell.ljust(width) for cell, width in zip(row, widths)).rstrip() for row in rows]
     others = [w for w in worktrees if not w.is_main]
@@ -686,15 +699,19 @@ def pick_lane(lanes, name):
     return lane
 
 
-def take_lane(root, branch, owner, task, lane_name, now=None):
+def take_lane(root, branch, holder, orchestrator, task, lane_name, now=None):
     """Give ``branch`` to a lane: start it from origin/main, or resume the local branch of a parked task."""
     problem = check_branch(branch)
     if problem or branch in (MAIN, 'HEAD'):
         message = problem or "'%s' cannot be a lane branch" % branch
         raise WorktreeError(message)
-    holder = owner.strip()
+    holder = holder.strip()
     if not holder:
-        message = 'take needs --owner: the session, agent or person that writes in the lane'
+        message = 'take needs --holder: the session, agent or person that writes in the lane'
+        raise WorktreeError(message)
+    orchestrator = orchestrator.strip()
+    if not orchestrator:
+        message = 'take needs --orchestrator: the session that takes lanes for its workers and closes them at the end'
         raise WorktreeError(message)
     lanes = find_lanes(root)
     held = next((lane for lane in lanes if lane.take.branch == branch), None)
@@ -707,7 +724,8 @@ def take_lane(root, branch, owner, task, lane_name, now=None):
     sh(['git', 'switch', branch] if exists else ['git', 'switch', '--no-track', '-c', branch, LANE_BASE], lane.path)
     stale = lock_digest(lane.path) != lane.take.lock_hash
     # a changed lock file leaves the hash empty until the install succeeds, so a failed install is retried by the next take
-    record = Take(branch, holder, task.strip(), int(time.time() if now is None else now), None if stale else lane.take.lock_hash)
+    record = Take(
+        branch, holder, task.strip(), int(time.time() if now is None else now), None if stale else lane.take.lock_hash, orchestrator)
     write_take(git_dir(lane.path), record)
     if stale:
         write_take(git_dir(lane.path), record._replace(lock_hash=sync_dependencies(lane.path, None)))
@@ -724,6 +742,10 @@ def done_lane(root, lane_name, current, park):
         if lane is None:
             message = 'run done inside a lane, or name it with --lane; lanes:\n%s' % describe_lanes(lanes)
             raise WorktreeError(message)
+    return finish_lane(root, lane, park)
+
+
+def finish_lane(root, lane, park):
     take = lane.take
     if not take.occupied:
         message = 'lane %s is already resting; there is nothing to finish' % lane.name
@@ -742,7 +764,28 @@ def done_lane(root, lane_name, current, park):
     return 'lane %s %s %s and rests on %s' % (lane.name, 'parked' if park else 'finished', take.branch, LANE_BASE)
 
 
-def add_lane(root, name, owner, task, install, now=None):
+def done_orchestrator(root, orchestrator, park):
+    """Finish every lane ``orchestrator`` took; a lane that must be refused is left and reported, the rest still close."""
+    orchestrator = orchestrator.strip()
+    if not orchestrator:
+        message = 'done needs a non-empty --orchestrator'
+        raise WorktreeError(message)
+    lanes = [lane for lane in find_lanes(root) if lane.take.occupied and lane.take.orchestrator == orchestrator]
+    if not lanes:
+        message = 'orchestrator %s holds no lane; lanes:\n%s' % (orchestrator, describe_lanes(find_lanes(root)))
+        raise WorktreeError(message)
+    lines, left = [], 0
+    for lane in lanes:
+        try:
+            lines.append(finish_lane(root, lane, park))
+        except WorktreeError as error:
+            left += 1
+            lines.append('left: %s' % error)
+    lines.append('%d of %d lanes of %s returned; %d left' % (len(lanes) - left, len(lanes), orchestrator, left))
+    return '\n'.join(lines), 1 if left else 0
+
+
+def add_lane(root, name, holder, orchestrator, task, install, now=None):
     """Create the lane ``name`` at origin/main, or adopt the existing worktree of that name under ``.worktrees/``."""
     validate_name(name)
     path = root / WORKTREES_DIR / name
@@ -756,8 +799,8 @@ def add_lane(root, name, owner, task, install, now=None):
         message = 'lane %s already exists at %s' % (name, path)
         raise WorktreeError(message)
     branch = None if fresh else current_branch(path) or None
-    if branch and not (owner.strip() and task.strip()):
-        message = 'worktree %s is on %s; adopting it needs --owner and --task' % (name, branch)
+    if branch and not (holder.strip() and orchestrator.strip() and task.strip()):
+        message = 'worktree %s is on %s; adopting it needs --holder, --orchestrator and --task' % (name, branch)
         raise WorktreeError(message)
     if fresh:
         sh(['git', 'fetch', 'origin', MAIN], root)
@@ -766,7 +809,9 @@ def add_lane(root, name, owner, task, install, now=None):
     for stale in REMOVED_RECORDS:
         (git_path / stale).unlink(missing_ok=True)
     recorded = lock_digest(path) if (path / 'node_modules').is_dir() else None
-    take = Take(branch, owner.strip(), task.strip(), int(time.time() if now is None else now), recorded) if branch else resting(recorded)
+    take = Take(
+        branch, holder.strip(), task.strip(), int(time.time() if now is None else now), recorded, orchestrator.strip(),
+    ) if branch else resting(recorded)
     write_take(git_path, take)
     env = write_env(root, path, entries, name)
     if install:
@@ -814,18 +859,22 @@ def build_parser():
     lane_sub = lane.add_subparsers(dest='lane_command', required=True)
     add = lane_sub.add_parser('add', help='create a lane, or adopt an existing worktree under .worktrees/')
     add.add_argument('name', help='one folder name under .worktrees/')
-    add.add_argument('--owner', default='', help='the holder, needed when the adopted worktree is on a branch')
+    add.add_argument('--holder', default='', help='the holder, needed when the adopted worktree is on a branch')
+    add.add_argument('--orchestrator', default='', help='the orchestrator session, needed when the adopted worktree is on a branch')
     add.add_argument('--task', default='', help='one line: what the adopted branch is for')
     add.add_argument('--no-install', action='store_true')
     remove = lane_sub.add_parser('remove', help='remove a resting clean lane, its worktree and its scratch database')
     remove.add_argument('name')
     take = sub.add_parser('take', help='give a branch to a free lane')
     take.add_argument('branch')
-    take.add_argument('--owner', required=True, help='the session, agent or person that writes in the lane')
+    take.add_argument('--holder', required=True, help='the session, agent or person that writes in the lane')
+    take.add_argument('--orchestrator', required=True, help='the orchestrator session that closes the lane at the end')
     take.add_argument('--task', default='', help='one line: what the branch is for')
     take.add_argument('--lane', help='take this lane instead of the first free one')
     done = sub.add_parser('done', help='return a lane whose branch is merged to a detached origin/main')
-    done.add_argument('--lane', help='the lane to return (default: the current directory\'s lane)')
+    target = done.add_mutually_exclusive_group()
+    target.add_argument('--lane', help='the lane to return (default: the current directory\'s lane)')
+    target.add_argument('--orchestrator', help='return every lane this orchestrator took')
     done.add_argument('--park', action='store_true', help='keep the unmerged branch; a later take of it resumes it')
     sub.add_parser('check', help='report rule violations of every worktree; exit 1 when there is one')
     sub.add_parser('status')
@@ -847,12 +896,14 @@ def run_command(root, args):
         return gc(root, args.apply, Path.cwd(), args.branch)
     with pool_lock(root / GIT_DIR):
         if args.command == 'take':
-            return take_lane(root, args.branch, args.owner, args.task, args.lane)
+            return take_lane(root, args.branch, args.holder, args.orchestrator, args.task, args.lane)
         if args.command == 'done':
+            if args.orchestrator is not None:
+                return done_orchestrator(root, args.orchestrator, args.park)
             return done_lane(root, args.lane, Path.cwd(), args.park)
         if args.lane_command == 'remove':
             return remove_lane(root, args.name, Path.cwd())
-        return add_lane(root, args.name, args.owner, args.task, not args.no_install)
+        return add_lane(root, args.name, args.holder, args.orchestrator, args.task, not args.no_install)
 
 
 def main(argv=None):
