@@ -314,7 +314,7 @@ export async function tenantTransport(event: H3Event, configuredUpstream: string
   // Only explicitly selected application headers, never hop-by-hop or client authority.
   // The two expected-context headers state the identity a finance setup screen was read for; Odoo compares
   // them with the authenticated session, so they never select a company and never grant access. A service-authorized
-  // request (the usage key speaks for no screen) never carries them.
+  // request (the usage bearer speaks for no screen) never carries them.
   // `idempotency-key` is the client's retry key for a finance write; Odoo's `idempotent` decorator replays the first answer
   // for it, so dropping it would silently turn duplicate protection off. A service-authorized request is the server's own
   // call and never carries a browser's key.

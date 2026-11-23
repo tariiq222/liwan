@@ -95,6 +95,12 @@ class LiwanPlatformIrHttp(models.AbstractModel):
         """The user id a bearer ``token`` speaks for on the current registered route, or ``None``; an application answers through ``super()``."""
 
     @classmethod
+    def _liwan_bearer_unauthorized(cls):
+        """The JSON 401 the web app reads for a missing, malformed, unrecognised or archived-account bearer token."""
+        response = request.make_json_response({'code': 'unauthorized', 'message': 'A valid API key is required.'}, status=401)
+        return Unauthorized(response=response)
+
+    @classmethod
     def _auth_method_bearer(cls):
         """Authenticate a registered bearer route through the application that registered it, never through Odoo's API-key table.
 
@@ -106,15 +112,15 @@ class LiwanPlatformIrHttp(models.AbstractModel):
         match = BEARER_HEADER.match(header)
         uid = cls._liwan_bearer_user_id(match.group(1)) if match else None
         if not uid:
-            response = request.make_json_response(
-                {'code': 'unauthorized', 'message': 'A valid API key is required.'}, status=401,
-            )
-            raise Unauthorized(response=response)
+            raise cls._liwan_bearer_unauthorized()
         if request.env.uid and request.env.uid != uid:
             message = 'Session user does not match the bearer token.'
             raise AccessDenied(message)
         request.update_env(user=uid)
         request.session.can_save = False
+        # Like stock, an archived account speaks for nobody.
+        if not request.env.user.active:
+            raise cls._liwan_bearer_unauthorized()
         cls._auth_method_user()
 
     @classmethod

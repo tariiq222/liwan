@@ -1,5 +1,6 @@
 import { createHmac } from 'node:crypto'
 import { createError, type H3Event } from 'h3'
+import type { AiUsageProbe } from '@liwan/contracts'
 import { tenantRequest } from '../tenantRequest'
 import { logFailure, odooServiceUsageJson } from './upstream'
 
@@ -65,7 +66,7 @@ export async function assertUsageRecordable(event: H3Event): Promise<boolean> {
     return unavailable(new UsageRecorderUnavailable())
   }
   let status = 0
-  try { status = (await odooServiceUsageJson(event, recorder.bearer, { items: [] })).status } catch { /* an unreachable Odoo is a refused probe */ }
+  try { status = (await odooServiceUsageJson(event, recorder.bearer, { items: [] } satisfies AiUsageProbe)).status } catch { /* an unreachable Odoo is a refused probe */ }
   states.set(recorder.tenant, { state: status === 200 ? 'healthy' : 'refused', at: Date.now() })
   if (status !== 200) return unavailable(new UsageRecorderUnavailable())
   return known?.state === 'refused'

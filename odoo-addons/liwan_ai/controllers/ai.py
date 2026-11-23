@@ -118,7 +118,7 @@ class AiController(http.Controller):
         # written, so two parallel requests would each see the same remaining budget. The recorder's own user row is locked
         # through the ORM until this transaction ends; a request that cannot get it is refused at once (the lock skips, it
         # never waits, so nothing queues or deadlocks) and `web` retries it. ``allow_referencing`` is a FOR NO KEY UPDATE lock:
-        # the rows inserted here reference this user (create_uid) and the API key lookup reads it, and neither is blocked.
+        # the rows inserted here reference this user (create_uid) and the bearer hook reads it, and neither is blocked.
         try:
             request.env.user.lock_for_update(allow_referencing=True)
         except LockError:

@@ -185,10 +185,10 @@ export function requestPlan(req, registry, token, codec) {
   const headers = { ...req.headers }
   for (const key of Object.keys(headers)) if (forbidden.test(key) && (odoo || !browserHeaders.has(key))) delete headers[key]
   delete headers.authorization
-  // The AI usage report is the one request that carries a credential: the recorder key the Nuxt server holds (issue #557).
+  // The AI usage report is the one request that carries a credential: the bearer the Nuxt server derives for the tenant's database (issue #557).
   // Only the trusted hop (the proxy token) on the exact target can pass it; a browser's header on any path was removed above.
-  const serviceKey = req.headers.authorization
-  if (internal && odoo && isServiceAuthorizedRequest(req.method, req.url) && typeof serviceKey === 'string' && BEARER_KEY.test(serviceKey)) headers.authorization = serviceKey
+  const serviceBearer = req.headers.authorization
+  if (internal && odoo && isServiceAuthorizedRequest(req.method, req.url) && typeof serviceBearer === 'string' && BEARER_KEY.test(serviceBearer)) headers.authorization = serviceBearer
   if (internal && uiLocale(req.headers[UI_LOCALE_HEADER])) headers[UI_LOCALE_HEADER] = req.headers[UI_LOCALE_HEADER]
   // Validated above; Odoo gets them only on the trusted API hop, the Nuxt hop gets them from the browser.
   if (!odoo || (internal && url.pathname.startsWith('/api/v1/'))) for (const name of EXPECTED_ID_HEADERS) if (req.headers[name] !== undefined) headers[name] = req.headers[name]

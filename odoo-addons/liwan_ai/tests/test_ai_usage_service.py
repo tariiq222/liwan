@@ -188,6 +188,14 @@ class TestAiUsageService(AiProbe, LiwanApiCase):
                 self.assertEqual((response.status_code, response.json()['code']), (401, 'unauthorized'), response.text)
         self.assertFalse(self.Usage.search([]))
 
+    def test_an_archived_recorder_account_is_refused_with_the_json_401(self):
+        self.recorder.write({'active': False})
+        response = self._post(self._batch())
+        self.assertEqual((response.status_code, response.json()['code']), (401, 'unauthorized'), response.text)
+        self.assertFalse(self.Usage.search([]))
+        self.recorder.write({'active': True})
+        self.assertEqual(self._post(self._batch()).status_code, 200)
+
     def test_a_signed_in_session_with_the_valid_bearer_is_refused_and_never_saved(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
         response = self._post(self._batch())

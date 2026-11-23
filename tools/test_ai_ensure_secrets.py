@@ -77,6 +77,21 @@ class EnsureSecretsTest(unittest.TestCase):
         self.run_script()
         self.assertEqual(self.values('AI_KEY_ENCRYPTION_KEYS'), [pair])
 
+    def test_the_usage_root_is_generated_once_never_printed_and_never_rotated(self):
+        self.env_file.write_text('COMPOSE_PROFILES=ai\nLIWAN_AI_USAGE_KEY=\n')
+        output = self.run_script()
+        [root] = self.values('LIWAN_AI_USAGE_KEY')
+        self.assertRegex(root, HEX_64)
+        self.assertNotIn(root, output)
+        self.assertNotEqual(root, self.values('AI_SERVICE_TOKEN')[0])
+        self.run_script()
+        self.assertEqual(self.values('LIWAN_AI_USAGE_KEY'), [root])
+        # An existing value, including one an operator rotated by hand, is left alone.
+        rotated = 'ab' * 32
+        self.env_file.write_text(f'LIWAN_AI_USAGE_KEY={rotated}\n')
+        self.run_script()
+        self.assertEqual(self.values('LIWAN_AI_USAGE_KEY'), [rotated])
+
 
 if __name__ == '__main__':
     unittest.main()

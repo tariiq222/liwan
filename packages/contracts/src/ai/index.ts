@@ -207,6 +207,12 @@ export const AiUsageServiceBatchSchema = z.object({
   items: z.array(AiUsageRecordSchema).min(1).max(AI_USAGE_BATCH_MAX),
 }).strict()
 export type AiUsageServiceBatch = z.infer<typeof AiUsageServiceBatchSchema>
+/** The probe `web` sends before a run to learn that the recorder works: an empty `items` and nothing else; Odoo writes nothing for it. */
+export const AiUsageProbeSchema = z.object({ items: z.tuple([]) }).strict()
+export type AiUsageProbe = z.infer<typeof AiUsageProbeSchema>
+/** Everything `POST /api/v1/ai/usage/service` accepts: a batch of rows, or the probe. */
+export const AiUsageServiceRequestSchema = z.union([AiUsageServiceBatchSchema, AiUsageProbeSchema])
+export type AiUsageServiceRequest = z.infer<typeof AiUsageServiceRequestSchema>
 /**
  * The size rules of `POST /api/v1/ai/usage/service` (odoo-addons/liwan_ai/models/ai_usage.py), so the Nuxt server splits its
  * requests the way Odoo admits them. A row is one provider call, and no tighter number is a safe per-row bound: a per-run input
@@ -217,6 +223,12 @@ export type AiUsageServiceBatch = z.infer<typeof AiUsageServiceBatchSchema>
  * `max_age_hours` bounds `called_at`; the web spool gives a row up after an hour, far inside it.
  */
 export const AI_USAGE_SERVICE_LIMITS = { max_row_tokens: 100_000_000, max_request_tokens: 200_000_000, max_age_hours: 24 } as const
+/** `charge_paid`: the part of the charge taken from the prepaid balance, set by Odoo only (never part of a report). */
+export const AiUsageRowSchema = z.object({ id: z.number().int().positive(), ...AiUsageFields, charge_paid: z.number().int().nonnegative().max(AI_MAX_COST_UNITS) }).strict().refine(tokensComeInPairs, TOKENS_IN_PAIRS).refine(costFollowsTokens, COST_FOLLOWS_TOKENS).refine(pricedByBilling, PRICED_BY_BILLING)
+export type AiUsageRow = z.infer<typeof AiUsageRowSchema>
+/** The response of `POST /api/v1/ai/usage/service`: the recorded rows, or no rows for the probe. */
+export const AiUsageBatchResponseSchema = z.object({ items: z.array(AiUsageRowSchema), total: z.number().int().nonnegative() }).strict()
+export type AiUsageBatchResponse = z.infer<typeof AiUsageBatchResponseSchema>
 
 export const AiRunStatusSchema = z.object({
   run_id: z.string(),

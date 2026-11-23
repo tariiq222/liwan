@@ -1,4 +1,4 @@
-import { AI_USAGE_BATCH_MAX, AiPolicySchema, AiCompanyNoteListSchema, AiNoteListSchema, AiNoteSchema, AiAgentPatchSchema, AiAgentSettingsSchema, AiAuditRequestSchema, AiKeyPutSchema, AiKnowledgeRebuildSchema, AiMonitoringSchema, AiRetentionPutSchema, AiSettingsPatchSchema, AiSettingsSchema, AiTenantConfigSchema, AiDraftPayloadSchema, AiEventSchema, AiModelCallEventSchema, AiModelUsageEventSchema, AiRunListQuerySchema, AiRunListSchema, AiRunPatchSchema, AiRunStatusSchema, AiStartRequestSchema, AiToolsResponseSchema, AiUsageRecordSchema, AiUsageServiceBatchSchema } from '../index'
+import { AI_USAGE_BATCH_MAX, AiPolicySchema, AiCompanyNoteListSchema, AiNoteListSchema, AiNoteSchema, AiAgentPatchSchema, AiAgentSettingsSchema, AiAuditRequestSchema, AiKeyPutSchema, AiKnowledgeRebuildSchema, AiMonitoringSchema, AiRetentionPutSchema, AiSettingsPatchSchema, AiSettingsSchema, AiTenantConfigSchema, AiDraftPayloadSchema, AiEventSchema, AiModelCallEventSchema, AiModelUsageEventSchema, AiRunListQuerySchema, AiRunListSchema, AiRunPatchSchema, AiRunStatusSchema, AiStartRequestSchema, AiToolsResponseSchema, AiUsageBatchResponseSchema, AiUsageProbeSchema, AiUsageRecordSchema, AiUsageRowSchema, AiUsageServiceBatchSchema, AiUsageServiceRequestSchema } from '../index'
 
 const READ = {
   name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'مهامي', en: 'My tasks' },
@@ -146,6 +146,7 @@ describe('LiwanOS AI usage contracts', () => {
     expect(AiUsageRecordSchema.parse({ ...record, billing: 'setup', cost: 1, charge: null }).cost).toBe(1)
     expect(AiUsageRecordSchema.parse({ ...record, billing: 'tenant_key', cost: null, charge: null }).cost).toBeNull()
     expect(() => AiUsageRecordSchema.parse({ ...record, input_tokens: null, output_tokens: null })).toThrow()
+    expect(AiUsageRowSchema.parse({ ...record, id: 5, cost: null, charge: null, charge_paid: 0 }).cost).toBeNull()
   })
 
   it('keeps the model events out of the browser stream', () => {
@@ -176,6 +177,21 @@ describe('LiwanOS AI usage contracts', () => {
     expect(AiUsageRecordSchema.safeParse({ ...record, call_id: undefined }).success).toBe(false)
     // The part taken from the balance is the server's: a report never carries it.
     expect(() => AiUsageRecordSchema.parse({ ...record, charge_paid: 1 })).toThrow()
+    expect(AiUsageRowSchema.parse({ ...record, id: 5, charge_paid: 3 }).charge_paid).toBe(3)
+    expect(AiUsageBatchResponseSchema.parse({ items: [{ ...record, id: 5, charge_paid: 0 }], total: 1 }).total).toBe(1)
+    expect(() => AiUsageRowSchema.parse({ ...record, id: 5 })).toThrow()
+    expect(() => AiUsageRowSchema.parse({ ...record, id: 5, charge_paid: -1 })).toThrow()
+  })
+
+  it('accepts the recorder probe as its own request shape: empty items and nothing else', () => {
+    expect(AiUsageProbeSchema.parse({ items: [] })).toEqual({ items: [] })
+    expect(AiUsageServiceRequestSchema.parse({ items: [] })).toEqual({ items: [] })
+    expect(AiUsageServiceRequestSchema.parse({ user_id: 7, user_company_id: 1, items: [record] }).items).toHaveLength(1)
+    expect(AiUsageBatchResponseSchema.parse({ items: [], total: 0 }).total).toBe(0)
+    for (const bad of [{ items: [record] }, { user_id: 7, user_company_id: 1, items: [] }, { items: [], extra: 1 }, {}]) {
+      expect(() => AiUsageProbeSchema.parse(bad)).toThrow()
+    }
+    expect(() => AiUsageServiceRequestSchema.parse({ user_id: 7, user_company_id: 1, items: [] })).toThrow()
   })
 
   it('parses the AI settings with the consent text and the month usage', () => {
