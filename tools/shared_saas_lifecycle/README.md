@@ -13,6 +13,7 @@ and `apps/control-plane/src/shared/admin-password-runner.ts`.
 | `tenant_status_effect.py` | Set the tenant profile status (`active` or `suspended`) so a suspended subscription stops the tenant's users. |
 | `tenant_drop_effect.py` | Final deletion of a tenant workspace in separate idempotent stages (see `docs/operations/tenant-deletion-effects.md`). `tenant_drop_files.py` is its stdlib-only file removal, also run inside the Odoo containers. |
 | `effect_gate.py` | The only entry to the six effects above (see below). |
+| `effect_schema.py` | The gate's per-effect request schemas: allowed keys, exact types, strict identifier patterns. |
 | `scratch_effect.py` | Scratch-only driver used by the packages acceptance test. |
 | `catalog_source.py` | Re-export of the registered catalog source resolver from `tools/liwan_cli`. |
 
@@ -23,7 +24,10 @@ worker needs no docker access. systemd starts it per socket connection as the `l
 tests spawn it with pipes. Wire protocol, JSON lines on stdin and stdout:
 
 - in line 1 `{"effect": "<module name>"}` from the fixed map of the six effects; in line 2 the request (at most 65536
-  bytes, no `config` field). The gate adds `config` from the file named by its own `LIWAN_SHARED_RUNTIME_CONFIG`
+  bytes, no `config` field, matching the effect's schema in `effect_schema.py`: only the keys the control plane sends,
+  exact types and sizes, a strict full-match pattern for every identifier, and no `/`, backslash, NUL or `.`/`..`
+  value outside the named free-text fields (names, logins, the password, the issuer); anything else is `request_invalid`
+  and no effect starts). The gate adds `config` from the file named by its own `LIWAN_SHARED_RUNTIME_CONFIG`
   (`releaseBackupConfig` removed for `tenant_drop_effect`). Later lines, such as `{"proceed": true}`, go to the effect.
   The peer keeps the connection open until the final line: stdin EOF means it hung up.
 - out: the effect's lines unchanged, then `{"exit": <code>}` (128 plus the signal number when a signal ended it).
@@ -31,7 +35,8 @@ tests spawn it with pipes. Wire protocol, JSON lines on stdin and stdout:
   `runtime_unconfigured`, `runtime_invalid`, `runtime_untrusted`, `deletion_disabled` or `effect_start_failed`.
 - trust rule: the config file, `composeFile`, `envFile` and all their ancestor directories belong to root or the gate's
   account and are not group or other writable; `stateDir` may be group-writable only with the sticky bit and its effect
-  subdirectories belong to the gate's account. A real `tenant_drop_effect` run (`dryRun` not `true`) also needs
+  subdirectories belong to the gate's account and are not writable by group or other (`backups` is 0750: the worker
+  reads manifests there and cannot write; `classifications` is 0755). A real `tenant_drop_effect` run (`dryRun` not `true`) also needs
   `LIWAN_TENANT_DELETION_ENABLED=true` in the gate's own environment.
 - the effect runs with an explicit minimal environment in its own process group; on hang-up or SIGTERM the group gets
   SIGTERM, then SIGKILL after 20 seconds.

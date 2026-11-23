@@ -28,13 +28,23 @@
 # Keys and certificates are made in a work directory inside the private directory and moved into place only when complete.
 # Run it as root (ownership goes to the worker account) or as the worker account itself. Prints paths only, no secret values.
 # As root it also applies the effect boundary of liwan-effect.socket (docs/operations/environment-bringup.md), idempotently:
-#   config dir and its json files   root:<worker group> 0750 / 0640 (the effect gate trusts only root-owned inputs)
+#   config dir and its json files   root:<worker group> 0750 / 0640 (the effect gate trusts only root-owned inputs); the directory is
+#                                   settled before anything is made in it. An existing json file that is not root-owned, or is writable by
+#                                   group or other, is replaced by a fresh root-owned copy when its content is exactly what this script
+#                                   writes, and refused otherwise (review it: it names the compose file the effect account runs as root)
 #   state dir                       root:<worker group> 3770 (setgid and sticky: the worker cannot rename what the effect account owns)
 #   effect subdirectories           reservations credentials classifications restore-effects reconfigure runtime-gate-history backups,
 #                                   created when absent, owned by the effect account (LIWAN_EFFECT_USER, default liwan-effect), 0700;
-#                                   classifications 0755 (containers read it as another uid), backups 0770 (shared with the worker)
-#   shared env file                 root:docker 0640, when it exists (LIWAN_DOCKER_GROUP, default docker); the worker is not in that group
-#   docker client config            LIWAN_DOCKER_CONFIG_DIR (default /etc/liwan/docker): config.json `{}`, root-owned, created when absent
+#                                   classifications 0755 (containers read it as another uid), backups 0750 (the worker reads manifests
+#                                   and cannot write there). An existing one must be a real directory owned by the effect account and not
+#                                   writable by group or other, else the script stops and says what to review
+#   shared env file                 root:docker 0640, when it exists (LIWAN_DOCKER_GROUP, default docker); the worker is not in that group.
+#                                   An existing one must already be root-owned and not writable by group or other (its content is the operator's)
+#   docker client config            LIWAN_DOCKER_CONFIG_DIR (default /etc/liwan/docker): config.json `{}`, root-owned, created when absent;
+#                                   an existing one must be root-owned and not writable by group or other
+# As root nothing is settled through a symbolic link: a link, or anything but a regular file or real directory, stops the script, and the
+# directory holding a settled path must be root-owned and not writable by group or other. LIWAN_ROOT_UID (default 0) is the uid counted as
+# root; it exists so the tests can run as an ordinary account. Never set it on a host.
 # restore-registry stays with the worker account and is not created here. The effect account must exist and is the only `docker` member.
 # Every run warns on stderr (exit 0) about a kept certificate that expires within 60 days.
 # The compose file named in shared-runtime.json (LIWAN_SHARED_COMPOSE_FILE) is not made here: release.py renders it from the
@@ -63,10 +73,36 @@ absolute_path() {
   printf '%s' "$2"
 }
 
-# settle <path> <mode> <owner> <group>: root only for the owner and group, set first because chown clears the setgid bit; then the mode.
+ROOT_UID="${LIWAN_ROOT_UID:-0}"  # the uid counted as root; the tests run as an ordinary account (never set it on a host)
+
+owner_of() { stat -c '%u' "$1" 2>/dev/null || stat -f '%u' "$1"; }
+mode_of() { stat -c '%a' "$1" 2>/dev/null || stat -f '%Lp' "$1"; }
+
+# plain <path> <d|f>: refuse a symbolic link and anything but a real directory (d) or regular file (f); the checks come before any
+# chown or chmod, so a link planted by a less trusted account is never followed.
+plain() {
+  [[ ! -L "$1" ]] || die "Refusing: $1 is a symbolic link; review where it points, remove it, then run again"
+  if [[ "$2" == d ]]; then [[ -d "$1" ]] || die "Refusing: $1 is not a directory"
+  else [[ -f "$1" ]] || die "Refusing: $1 is not a regular file"; fi
+}
+
+# root_safe <path>: owned by root and writable by neither group nor other.
+root_safe() { [[ "$(owner_of "$1")" == "$ROOT_UID" ]] && (( (8#$(mode_of "$1") & 022) == 0 )); }
+
+# trusted_parent <path>: the directory that holds it is a real directory, root-owned and closed to group and other, so nobody else can
+# swap the entry between a check and the chown after it.
+trusted_parent() {
+  plain "$(dirname "$1")" d
+  root_safe "$(dirname "$1")" || die "Refusing: $(dirname "$1") must be owned by root and not writable by group or other (it holds $1)"
+}
+
+# settle <path> <d|f> <mode> <owner> <group>: root only for the owner and group, set first because chown clears the setgid bit; then the
+# mode. The path is re-checked after the chown (chown -h never follows a link; chmod does), so a swap in between is refused.
 settle() {
-  if [[ "$(id -u)" == 0 ]]; then chown "$3:$4" "$1"; fi
-  chmod "$2" "$1"
+  plain "$1" "$2"
+  if [[ "$(id -u)" == 0 ]]; then chown -h "$4:$5" "$1"; fi
+  plain "$1" "$2"
+  chmod "$3" "$1"
 }
 
 # own <path> <mode> [owner]: the worker (or the given owner, with the worker's group) owns what it must read or write; as
@@ -209,20 +245,49 @@ CA_PEM="$PRIVATE/control-ca.pem"
 umask 077
 ensure_dir "$CONFIG" 0750
 ensure_dir "$STATE" 0750
+# As root the two directories the effect gate trusts are settled before anything is made or inspected in them: from then on the worker
+# account (which may own whatever an older host left behind) can no longer swap an entry between a check and the chown after it.
+if [[ "$(id -u)" == 0 ]]; then
+  trusted_parent "$CONFIG"; trusted_parent "$STATE"
+  settle "$CONFIG" d 0750 root "$WORKER_GROUP"
+  settle "$STATE" d 3770 root "$WORKER_GROUP"
+fi
 ensure_readable_dir "$REGISTRY"
 ensure_dir "$PRIVATE" 0750
 ensure_ai_dir "$AI_PLATFORM"
 WORK="$(mktemp -d "$PRIVATE/.init.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 
-if ! exists_all "$CONFIG/shared-runtime.json"; then
-  printf '{"schemaVersion":1,"projectName":"%s","composeFile":"%s","envFile":"%s","stateDir":"%s","domainSuffix":"%s"}\n' \
-    "$PROJECT" "$COMPOSE_FILE" "$SHARED_ENV_FILE" "$STATE" "$DOMAIN_SUFFIX" | write_file "$CONFIG/shared-runtime.json" 0640
-else printf 'kept    %s\n' "$CONFIG/shared-runtime.json"; fi
+# ensure_config_file <path> <content>: created (root-owned when run as root) or kept. As root a kept file must be root-owned and closed to
+# group and other: one that is not (an older host, where the worker owned it) is never blessed as it stands. Its content is only
+# compared with what this script writes; equal, a fresh root-owned copy replaces it (a new inode, so a descriptor the worker still holds
+# writes nowhere); different, the script stops for review.
+ensure_config_file() {
+  local file="$1" content="$2" tmp
+  if [[ ! -e "$file" && ! -L "$file" ]]; then
+    printf '%s\n' "$content" | write_file "$file" 0640 "$([[ "$(id -u)" == 0 ]] && echo root)"
+    return
+  fi
+  if [[ "$(id -u)" == 0 ]]; then
+    plain "$file" f
+    if ! root_safe "$file"; then
+      [[ "$(cat "$file")" == "$content" ]] || die "Refusing: $file is not owned by root or is writable by group or other, and its content is not what this script writes. Review it (it names what the effect account runs as root), then fix its owner and mode, or remove it so it is made again"
+      tmp="$(mktemp "$CONFIG/.init.XXXXXX")"
+      printf '%s\n' "$content" > "$tmp"
+      chown -h "root:$WORKER_GROUP" "$tmp"
+      chmod 0640 "$tmp"
+      mv -f "$tmp" "$file"
+      printf 'replaced %s (it was not root-owned, or was writable by group or other)\n' "$file"
+      return
+    fi
+    settle "$file" f 0640 root "$WORKER_GROUP"
+  fi
+  printf 'kept    %s\n' "$file"
+}
 
-if ! exists_all "$CONFIG/inventory-v2.json"; then
-  printf '{"version":2,"targets":{}}\n' | write_file "$CONFIG/inventory-v2.json" 0640
-else printf 'kept    %s\n' "$CONFIG/inventory-v2.json"; fi
+ensure_config_file "$CONFIG/shared-runtime.json" "$(printf '{"schemaVersion":1,"projectName":"%s","composeFile":"%s","envFile":"%s","stateDir":"%s","domainSuffix":"%s"}' \
+  "$PROJECT" "$COMPOSE_FILE" "$SHARED_ENV_FILE" "$STATE" "$DOMAIN_SUFFIX")"
+ensure_config_file "$CONFIG/inventory-v2.json" '{"version":2,"targets":{}}'
 
 if ! exists_all "$REGISTRY/registry.json"; then
   printf '{"schemaVersion":1,"snapshotRevision":0,"targets":[]}\n' | write_file "$REGISTRY/registry.json" 0644
@@ -244,26 +309,43 @@ if ! exists_all "$PRIVATE/control-db-password"; then
 else printf 'kept    %s\n' "$PRIVATE/control-db-password"; fi
 
 # The effect boundary (root only): what the effect gate trusts and what the effect account owns. Applied on every run, so a host
-# initialised before the boundary converges; the effect subdirectories are created when absent and otherwise left as they are.
+# initialised before the boundary converges; the effect subdirectories are created when absent and otherwise only checked.
 if [[ "$(id -u)" == 0 ]]; then
-  settle "$CONFIG" 0750 root "$WORKER_GROUP"
-  for file in "$CONFIG/shared-runtime.json" "$CONFIG/inventory-v2.json"; do settle "$file" 0640 root "$WORKER_GROUP"; done
-  settle "$STATE" 3770 root "$WORKER_GROUP"
-  for entry in reservations:0700 credentials:0700 classifications:0755 restore-effects:0700 reconfigure:0700 runtime-gate-history:0700 backups:0770; do
+  EFFECT_UID="$(id -u "$EFFECT")"
+  for entry in reservations:0700 credentials:0700 classifications:0755 restore-effects:0700 reconfigure:0700 runtime-gate-history:0700 backups:0750; do
     directory="$STATE/${entry%%:*}"
-    if [[ -d "$directory" ]]; then printf 'kept    %s\n' "$directory"; continue; fi
+    if [[ -e "$directory" || -L "$directory" ]]; then
+      plain "$directory" d
+      [[ "$(owner_of "$directory")" == "$EFFECT_UID" ]] && (( (8#$(mode_of "$directory") & 022) == 0 )) \
+        || die "Refusing: $directory must be owned by $EFFECT and not writable by group or other. A less trusted account may have written in it: review its content, then chown $EFFECT:$WORKER_GROUP and chmod ${entry##*:} it"
+      printf 'kept    %s\n' "$directory"
+      continue
+    fi
     (umask 022; mkdir "$directory")
-    settle "$directory" "${entry##*:}" "$EFFECT" "$WORKER_GROUP"
+    settle "$directory" d "${entry##*:}" "$EFFECT" "$WORKER_GROUP"
     printf 'created %s\n' "$directory"
   done
-  if [[ -e "$SHARED_ENV_FILE" ]]; then settle "$SHARED_ENV_FILE" 0640 root "$DOCKER_GROUP"; printf 'settled %s\n' "$SHARED_ENV_FILE"
+  if [[ -e "$SHARED_ENV_FILE" || -L "$SHARED_ENV_FILE" ]]; then
+    plain "$SHARED_ENV_FILE" f
+    trusted_parent "$SHARED_ENV_FILE"
+    root_safe "$SHARED_ENV_FILE" || die "Refusing: $SHARED_ENV_FILE is not owned by root or is writable by group or other. Review its content, then chown root:$DOCKER_GROUP and chmod 0640 it"
+    settle "$SHARED_ENV_FILE" f 0640 root "$DOCKER_GROUP"
+    printf 'settled %s\n' "$SHARED_ENV_FILE"
   else printf 'skipped %s (not there yet; it must end up root:%s 0640)\n' "$SHARED_ENV_FILE" "$DOCKER_GROUP"; fi
-  if [[ -e "$DOCKER_CONFIG_DIR/config.json" ]]; then printf 'kept    %s\n' "$DOCKER_CONFIG_DIR/config.json"
+  if [[ -e "$DOCKER_CONFIG_DIR" || -L "$DOCKER_CONFIG_DIR" ]]; then
+    plain "$DOCKER_CONFIG_DIR" d
+    root_safe "$DOCKER_CONFIG_DIR" || die "Refusing: $DOCKER_CONFIG_DIR must be owned by root and not writable by group or other (the docker client reads its plugins and credential helpers from it)"
   else
     (umask 022; mkdir -p "$DOCKER_CONFIG_DIR")
-    settle "$DOCKER_CONFIG_DIR" 0755 root root
+    settle "$DOCKER_CONFIG_DIR" d 0755 root root
+  fi
+  if [[ -e "$DOCKER_CONFIG_DIR/config.json" || -L "$DOCKER_CONFIG_DIR/config.json" ]]; then
+    plain "$DOCKER_CONFIG_DIR/config.json" f
+    root_safe "$DOCKER_CONFIG_DIR/config.json" || die "Refusing: $DOCKER_CONFIG_DIR/config.json is not owned by root or is writable by group or other; it can name a program the docker client runs. Review it, then fix its owner and mode"
+    printf 'kept    %s\n' "$DOCKER_CONFIG_DIR/config.json"
+  else
     printf '{}\n' > "$DOCKER_CONFIG_DIR/config.json"
-    settle "$DOCKER_CONFIG_DIR/config.json" 0644 root root
+    settle "$DOCKER_CONFIG_DIR/config.json" f 0644 root root
     printf 'created %s\n' "$DOCKER_CONFIG_DIR/config.json"
   fi
 fi

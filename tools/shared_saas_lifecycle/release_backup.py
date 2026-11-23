@@ -48,7 +48,7 @@ def capture_release_backup(runner):
             'databaseSha256':sha256_file(runner.artifact/'database.dump'),'filestoreSha256':sha256_file(runner.artifact/'filestore.tar'),
             'sourceImageId':image_id,'postgresImageId':runner.inspect_service('db')['Image'],
             'capturedAt':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),'inventory':inventory}
-        permit('complete');reserve(runner.artifact/'manifest.json',manifest)
+        permit('complete');reserve(runner.artifact/'manifest.json',manifest);(runner.artifact/'manifest.json').chmod(0o640)
         runner.read_artifact()
         permit('resume')
     return backup_current(state,runtime,binding,'backup_'+runner.backup_id.replace('-',''),runner.artifact,finalize)

@@ -14,6 +14,7 @@ import unittest
 from pathlib import Path
 
 from tools.shared_saas_lifecycle import effect_gate as gate
+from tools.shared_saas_lifecycle import effect_schema as schema
 
 FAKE_EFFECT = textwrap.dedent('''
     import json, os, signal, sys, time
@@ -106,7 +107,7 @@ class Connection:
         self.buffer = b''
         self.thread = threading.Thread(target=lambda: self.result.append(gate.run(
             self.in_r, self.out_w, env, stop=self.stop, effects=case.effects, argv=case.argv, grace=grace,
-            head_timeout=2, euid=kwargs.get('euid', case.euid), lstat=kwargs.get('lstat', case.lstat))))
+            head_timeout=2, euid=kwargs.get('euid', case.euid), lstat=kwargs.get('lstat', case.lstat), validator=kwargs.get('validator', lambda _effect, request: request))))
         self.thread.start()
         if head is not None:
             os.write(self.in_w, head if isinstance(head, bytes) else (json.dumps(head) + '\n').encode())
@@ -268,6 +269,33 @@ class TrustRuleTests(unittest.TestCase):
                 gate.check_state_dir('/srv/s', 700, self.fs(bad))
         # restore-registry belongs to the worker and is not checked
         gate.check_state_dir('/srv/s', 700, self.fs(dict(good, **{'/srv/s/restore-registry': (self.DIR, 999)})))
+
+
+class EffectSubdirectoryModeTests(unittest.TestCase):
+    DIR = stat.S_IFDIR
+
+    def check(self, name, mode, owner=700):
+        chain = {'/': (self.DIR, 0), '/srv': (self.DIR, 0), '/srv/s': (stat.S_IFDIR | 0o3770, 0), '/srv/s/' + name: (stat.S_IFDIR | mode, owner)}
+        gate.check_state_dir('/srv/s', 700, lambda path: stat_of(*chain[path]) if path in chain else (_ for _ in ()).throw(FileNotFoundError(path)))
+
+    def test_no_effect_subdirectory_may_be_writable_by_group_or_other(self):
+        for name in gate.EFFECT_STATE_DIRS:
+            for mode in (0o770, 0o720, 0o702, 0o777, 0o3770):
+                with self.subTest(name=name, mode=oct(mode)), self.assertRaises(gate.Refusal) as caught:
+                    self.check(name, mode)
+                self.assertEqual('runtime_untrusted', caught.exception.code)
+
+    def test_the_documented_read_bits_are_accepted(self):
+        self.check('backups', 0o750)  # the worker reads manifests and cannot write
+        self.check('classifications', 0o755)  # containers read it as another uid
+        for name in gate.EFFECT_STATE_DIRS:
+            self.check(name, 0o700)
+
+    def test_a_symlink_or_file_in_place_of_a_subdirectory_is_refused(self):
+        for kind in (stat.S_IFLNK, stat.S_IFREG):
+            chain = {'/': (self.DIR, 0), '/srv': (self.DIR, 0), '/srv/s': (stat.S_IFDIR | 0o3770, 0), '/srv/s/backups': (kind | 0o700, 700)}
+            with self.assertRaises(gate.Refusal):
+                gate.check_state_dir('/srv/s', 700, lambda path: stat_of(*chain[path]) if path in chain else (_ for _ in ()).throw(FileNotFoundError(path)))
 
 
 class StateDirectoryTests(GateCase):
@@ -445,6 +473,333 @@ class KillTests(GateCase):
         conn.finish()
         time.sleep(0.1)
         self.assertFalse(alive(kid))
+
+
+UUID_A = '687674dc-5789-4a99-b151-12d69f010cc3'
+UUID_B = '1b4e28ba-2fa1-41d2-883f-0016d3cca427'
+UUID_C = '3f2b8c1e-5d4a-4e6f-9a7b-0c1d2e3f4a5b'
+DIGEST = 'a' * 64
+SCRATCH = 'liwan_scratch_' + 'b' * 32
+BINDING = {'tenantId': 'acme', 'database': SCRATCH, 'filestore': SCRATCH, 'registryRevision': 2}
+CATALOG = {'version': '19.0.1', 'tier': 'standard', 'sourceSha256': DIGEST}
+POLICY = {'schema_version': 1, 'channel': 'control_plane', 'modules': ['liwan_core', 'liwan_platform'],
+          'features': {'users.limit': 10, 'storage.limit_mb': 100, 'pmo.enabled': True, 'x.y': None}}
+ACTOR = {'issuer': 'commercial-fulfillment', 'actorUid': 1}
+
+
+def business_key(operation, request_id=UUID_A):
+    return json.dumps(['shared-v1', 'acme', operation, 'initial' if operation == 'provision' else request_id], separators=(',', ':'))
+
+
+def provision_request(**over):
+    request = {'action': 'apply', 'job': {'schemaVersion': 1, 'requestId': UUID_A, 'binding': BINDING, 'operation': 'provision',
+                                          'catalog': CATALOG, 'policy': POLICY},
+               'businessKey': business_key('provision'), 'payloadDigest': DIGEST,
+               'admin': {'name': 'Customer Administrator', 'login': 'admin@example.test', 'mobile': '+966500000000'},
+               'companyName': 'Acme Trading', 'host': 'tacme.example.test', 'controlTenantId': UUID_C,
+               'attemptId': UUID_B, 'fence': 7}
+    request.update(over)
+    return request
+
+
+def package_authority():
+    return {'schemaVersion': 2, 'revisionId': UUID_B, 'digest': DIGEST, 'catalog': CATALOG, 'policy': POLICY}
+
+
+def backup_request(**over):
+    request = {'action': 'apply', 'job': {'schemaVersion': 1, 'requestId': UUID_A, 'binding': BINDING, 'operation': 'backup'},
+               'businessKey': business_key('backup'), 'payloadDigest': DIGEST,
+               'authority': {'controlTenantId': UUID_C, 'actor': ACTOR, 'backupId': UUID_A, 'manifestSha256': DIGEST},
+               'attemptId': UUID_B, 'fence': 3}
+    request.update(over)
+    return request
+
+
+def restore_request(**over):
+    request = {'action': 'observe', 'job': {'schemaVersion': 1, 'requestId': UUID_A, 'binding': BINDING, 'operation': 'restore', 'approvalId': UUID_B,
+                                            'backup': {'schemaVersion': 1, 'backupId': UUID_C, 'binding': BINDING, 'databaseSha256': DIGEST,
+                                                       'filestoreSha256': DIGEST, 'consistency': 'verified'}},
+               'businessKey': business_key('restore'), 'payloadDigest': DIGEST,
+               'authority': {'controlTenantId': UUID_C, 'actor': ACTOR, 'backupId': UUID_C, 'approvalId': UUID_B, 'targetDatabase': SCRATCH,
+                             'manifestSha256': DIGEST, 'databaseSha256': DIGEST, 'filestoreSha256': DIGEST},
+               'commercial': {'revisionId': UUID_B, 'digest': DIGEST}}
+    request.update(over)
+    return request
+
+
+def subscription_request(**over):
+    request = {'action': 'reconfigure', 'tenant': {'database': SCRATCH, 'host': 'tacme.example.test'}, 'releaseBinding': BINDING,
+               'order_id': UUID_A, 'operation_id': UUID_B, 'previous_revision_id': None, 'target_revision_id': UUID_C,
+               'entitlement': {'modules': ['liwan_core', 'liwan_pmo'], 'features': {'users.limit': 10, 'pmo.enabled': True}, 'digest': DIGEST,
+                               'compiler_version': 1},
+               'branches': {'apply': [{'branch_id': UUID_A, 'name': 'Main branch'}], 'archive': [UUID_B], 'restore': [UUID_C]},
+               'commercial_valid_until': '2027-01-01', 'commercial_valid_until_revision': 4, 'trial_ends_at': '2026-12-01T00:00:00.000Z',
+               'post_trial_features': {'users.limit': 3}, 'post_trial_modules': ['liwan_core'], 'post_trial_digest': DIGEST,
+               'excess_settle': True, 'admin_login': 'admin@example.test', 'attemptId': UUID_B, 'fence': 1,
+               'restore': {'requestId': UUID_A, 'approvalId': UUID_B, 'backupId': UUID_C, 'digest': DIGEST, 'manifestSha256': DIGEST}}
+    request.update(over)
+    return request
+
+
+def subscription_observe(**over):
+    request = {'action': 'observe', 'tenant': {'database': SCRATCH, 'host': 'tacme.example.test'}, 'releaseBinding': BINDING,
+               'attemptId': UUID_A, 'fence': 0}
+    request.update(over)
+    return request
+
+
+def password_request(**over):
+    request = {'action': 'set_admin_password', 'tenant': {'database': SCRATCH, 'host': 'tacme.example.test'}, 'releaseBinding': BINDING,
+               'login': 'admin@example.test', 'password': 'a long Passw0rd / with symbols'}
+    request.update(over)
+    return request
+
+
+def status_request(**over):
+    request = {'action': 'set_tenant_status', 'tenant': {'database': SCRATCH, 'host': 'tacme.example.test'}, 'releaseBinding': BINDING,
+               'status': 'suspended', 'reason': 'non_payment'}
+    request.update(over)
+    return request
+
+
+def drop_request(**over):
+    request = {'action': 'verify', 'dryRun': False, 'planDigest': DIGEST,
+               'plan': {'schemaVersion': 1, 'requestId': UUID_A, 'controlTenantId': UUID_C, 'tenantId': 'acme', 'database': 'liwan_acme',
+                        'filestore': 'liwan_acme', 'host': 'tacme.example.test', 'customerName': 'Acme / Trading', 'controlPlaneDatabase': 'liwan_control',
+                        'restoreCopies': [SCRATCH], 'backupIds': [UUID_A, UUID_B]}}
+    request.update(over)
+    return request
+
+
+def at(request, path, value):
+    """A deep copy of the request with the value at `path` replaced (a key of None removes it)."""
+    copy = json.loads(json.dumps(request))
+    node = copy
+    for key in path[:-1]:
+        node = node[key]
+    if value is DELETE:
+        del node[path[-1]]
+    else:
+        node[path[-1]] = value
+    return copy
+
+
+DELETE = object()
+TRAVERSAL = ('../x', 'a/b', 'a\\b', 'a\x00b', '..', '.', '/etc/passwd', 'x/../../y', '')
+
+# (effect, request builder, path to an identifier field): every one is refused for each traversal value
+IDENTIFIER_FIELDS = [
+    ('odoo_effect', provision_request, path) for path in (
+        ('job', 'requestId'), ('job', 'binding', 'tenantId'), ('job', 'binding', 'database'), ('job', 'binding', 'filestore'),
+        ('job', 'catalog', 'version'), ('job', 'catalog', 'tier'), ('job', 'catalog', 'sourceSha256'), ('job', 'policy', 'modules', 0),
+        ('businessKey',), ('payloadDigest',), ('host',), ('controlTenantId',), ('attemptId',))
+] + [
+    ('odoo_backup', backup_request, path) for path in (
+        ('job', 'requestId'), ('job', 'binding', 'database'), ('businessKey',), ('payloadDigest',), ('attemptId',),
+        ('authority', 'controlTenantId'), ('authority', 'backupId'), ('authority', 'manifestSha256'))
+] + [
+    ('odoo_backup', restore_request, path) for path in (
+        ('job', 'approvalId'), ('job', 'backup', 'backupId'), ('job', 'backup', 'databaseSha256'), ('authority', 'targetDatabase'),
+        ('authority', 'approvalId'), ('authority', 'backupId'), ('commercial', 'revisionId'), ('commercial', 'digest'))
+] + [
+    ('subscription_effect', subscription_request, path) for path in (
+        ('tenant', 'database'), ('tenant', 'host'), ('releaseBinding', 'tenantId'), ('order_id',), ('operation_id',), ('target_revision_id',),
+        ('entitlement', 'digest'), ('entitlement', 'modules', 0), ('branches', 'archive', 0), ('branches', 'apply', 0, 'branch_id'),
+        ('post_trial_digest',), ('post_trial_modules', 0), ('attemptId',), ('commercial_valid_until',),
+        ('restore', 'requestId'), ('restore', 'backupId'), ('restore', 'approvalId'), ('restore', 'digest'), ('restore', 'manifestSha256'))
+] + [
+    ('admin_password_effect', password_request, path) for path in (('tenant', 'database'), ('tenant', 'host'), ('releaseBinding', 'database'))
+] + [
+    ('tenant_status_effect', status_request, path) for path in (('tenant', 'database'), ('tenant', 'host'), ('releaseBinding', 'filestore'))
+] + [
+    ('tenant_drop_effect', drop_request, path) for path in (
+        ('planDigest',), ('plan', 'requestId'), ('plan', 'controlTenantId'), ('plan', 'tenantId'), ('plan', 'database'), ('plan', 'filestore'),
+        ('plan', 'host'), ('plan', 'controlPlaneDatabase'), ('plan', 'restoreCopies', 0), ('plan', 'backupIds', 0), ('action',))
+]
+
+VALID = [
+    ('odoo_effect', provision_request()),
+    ('odoo_effect', provision_request(action='observe', attemptId=DELETE, fence=DELETE)),
+    ('odoo_effect', at(provision_request(packageAuthority=package_authority()), ('job', 'packageAuthority'), package_authority())),
+    ('odoo_effect', at(provision_request(), ('admin',), {'name': 'A', 'login': 'a@b.test'})),
+    ('odoo_backup', backup_request()),
+    ('odoo_backup', at(backup_request(action='observe'), ('authority', 'manifestSha256'), DELETE)),
+    ('odoo_backup', restore_request()),
+    ('odoo_backup', at(restore_request(), ('commercial',), DELETE)),
+    ('subscription_effect', subscription_request()),
+    ('subscription_effect', subscription_request(previous_revision_id=UUID_A, trial_ends_at=None, ai_push=True, ai_expected_post_trial_digest=DIGEST,
+                                                 recoverable_predecessors=[{'revision_id': UUID_A, 'digest': DIGEST}])),
+    ('subscription_effect', subscription_observe()),
+    ('subscription_effect', subscription_observe(restore=subscription_request()['restore'], releaseBinding=DELETE)),
+    ('admin_password_effect', password_request()),
+    ('tenant_status_effect', status_request()),
+    ('tenant_status_effect', status_request(status='active', reason=None)),
+] + [('tenant_drop_effect', drop_request(action=stage)) for stage in schema.DROP_STAGES] + [
+    ('tenant_drop_effect', drop_request(action='drop_database', dryRun=True)),
+    ('tenant_drop_effect', at(drop_request(), ('dryRun',), DELETE)),
+]
+
+
+def drop_marked(request):
+    """Fixtures mark a key to remove with the DELETE sentinel; the JSON round trip of `at` cannot carry it."""
+    if not isinstance(request, dict):
+        return request
+    return {key: drop_marked(value) for key, value in request.items() if value is not DELETE}
+
+
+class RequestSchemaTests(unittest.TestCase):
+    def accepts(self, effect, request):
+        schema.validate(effect, drop_marked(request))
+
+    def refuses(self, effect, request):
+        with self.assertRaises(schema.SchemaError):
+            schema.validate(effect, drop_marked(request))
+
+    def test_every_request_shape_the_control_plane_sends_passes(self):
+        for index, (effect, request) in enumerate(VALID):
+            with self.subTest(effect=effect, index=index):
+                self.accepts(effect, request)
+
+    def test_the_effects_are_exactly_the_gates(self):
+        self.assertEqual(set(gate.EFFECTS), set(schema.SCHEMAS))
+
+    def test_the_drop_stages_are_the_effects_own(self):
+        from tools.shared_saas_lifecycle import tenant_drop_effect
+        self.assertEqual(tuple(tenant_drop_effect.STAGES), schema.DROP_STAGES)
+
+    def test_traversal_and_separators_are_refused_in_every_identifier_field(self):
+        for effect, build, path in IDENTIFIER_FIELDS:
+            for value in TRAVERSAL:
+                with self.subTest(effect=effect, path=path, value=value):
+                    self.refuses(effect, at(build(), path, value))
+
+    def test_a_double_dot_component_or_slash_hidden_inside_a_longer_value_is_refused(self):
+        for value in (UUID_A + '/..', '../' + UUID_A, UUID_A + '\\', 'liwan_scratch_' + 'b' * 31 + '/'):
+            self.refuses('odoo_backup', at(restore_request(), ('authority', 'targetDatabase'), value))
+            self.refuses('odoo_backup', at(restore_request(), ('authority', 'backupId'), value))
+
+    def test_an_unknown_top_level_or_nested_key_is_refused(self):
+        for effect, build in (('odoo_effect', provision_request), ('odoo_backup', backup_request), ('odoo_backup', restore_request),
+                              ('subscription_effect', subscription_request), ('admin_password_effect', password_request),
+                              ('tenant_status_effect', status_request), ('tenant_drop_effect', drop_request)):
+            with self.subTest(effect=effect):
+                self.refuses(effect, {**build(), 'extra': 1})
+                self.refuses(effect, {**build(), 'config': {}})
+        self.refuses('odoo_effect', at(provision_request(), ('job', 'extra'), 1))
+        self.refuses('odoo_effect', at(provision_request(), ('job', 'binding', 'extra'), 1))
+        self.refuses('odoo_effect', at(provision_request(), ('admin', 'extra'), 1))
+        self.refuses('odoo_backup', at(backup_request(), ('authority', 'actor', 'extra'), 1))
+        self.refuses('subscription_effect', at(subscription_request(), ('tenant', 'extra'), 1))
+        self.refuses('subscription_effect', at(subscription_request(), ('entitlement', 'extra'), 1))
+        self.refuses('subscription_effect', at(subscription_request(), ('branches', 'extra'), 1))
+        self.refuses('tenant_drop_effect', at(drop_request(), ('plan', 'extra'), 1))
+
+    def test_a_missing_required_key_is_refused(self):
+        for effect, build, path in (('odoo_effect', provision_request, ('host',)), ('odoo_effect', provision_request, ('job', 'policy')),
+                                    ('odoo_backup', backup_request, ('authority',)), ('odoo_backup', restore_request, ('authority', 'targetDatabase')),
+                                    ('subscription_effect', subscription_request, ('tenant',)), ('subscription_effect', subscription_request, ('attemptId',)),
+                                    ('admin_password_effect', password_request, ('password',)), ('tenant_status_effect', status_request, ('reason',)),
+                                    ('tenant_drop_effect', drop_request, ('plan',))):
+            with self.subTest(effect=effect, path=path):
+                self.refuses(effect, at(build(), path, DELETE))
+        reconfigure = subscription_request()
+        for key in ('order_id', 'entitlement', 'branches', 'target_revision_id', 'operation_id', 'previous_revision_id'):
+            self.refuses('subscription_effect', at(reconfigure, (key,), DELETE))
+
+    def test_wrong_types_are_refused(self):
+        for effect, build, path, value in (
+                ('odoo_effect', provision_request, ('fence',), '7'), ('odoo_effect', provision_request, ('fence',), True),
+                ('odoo_effect', provision_request, ('fence',), -1), ('odoo_effect', provision_request, ('fence',), 1.5),
+                ('odoo_effect', provision_request, ('job', 'binding', 'registryRevision'), 0),
+                ('odoo_effect', provision_request, ('job', 'policy', 'features'), []), ('odoo_effect', provision_request, ('job', 'policy', 'modules'), []),
+                ('odoo_effect', provision_request, ('job', 'policy', 'features', 'x.y'), 'yes'),
+                ('odoo_effect', provision_request, ('action',), 'drop'), ('odoo_effect', provision_request, ('admin',), 'root'),
+                ('odoo_backup', backup_request, ('authority', 'actor', 'actorUid'), '1'), ('odoo_backup', backup_request, ('authority', 'actor', 'actorUid'), 0),
+                ('odoo_backup', backup_request, ('job', 'operation'), 'drop'), ('odoo_backup', restore_request, ('job', 'backup', 'consistency'), 'maybe'),
+                ('subscription_effect', subscription_request, ('excess_settle',), False), ('subscription_effect', subscription_request, ('trial_ends_at',), 'tomorrow'),
+                ('subscription_effect', subscription_request, ('branches', 'apply'), {}), ('subscription_effect', subscription_request, ('entitlement', 'features'), []),
+                ('subscription_effect', subscription_request, ('entitlement', 'compiler_version'), True),
+                ('subscription_effect', subscription_request, ('commercial_valid_until_revision',), -1),
+                ('admin_password_effect', password_request, ('password',), 123), ('admin_password_effect', password_request, ('password',), 'x\x00y' * 6),
+                ('tenant_status_effect', status_request, ('status',), 'deleted'), ('tenant_status_effect', status_request, ('reason',), 'because'),
+                ('tenant_drop_effect', drop_request, ('dryRun',), 'false'), ('tenant_drop_effect', drop_request, ('dryRun',), 0),
+                ('tenant_drop_effect', drop_request, ('plan', 'schemaVersion'), 2), ('tenant_drop_effect', drop_request, ('plan', 'restoreCopies'), 'x'),
+                ('tenant_drop_effect', drop_request, ('action',), 'drop_everything')):
+            with self.subTest(effect=effect, path=path, value=value):
+                self.refuses(effect, at(build(), path, value))
+        self.refuses('odoo_effect', [])
+        self.refuses('odoo_effect', 'x')
+        self.refuses('odoo_backup', {})
+
+    def test_oversize_values_are_refused(self):
+        for effect, build, path, value in (
+                ('odoo_effect', provision_request, ('host',), 'a' * 300), ('odoo_effect', provision_request, ('companyName',), 'c' * 513),
+                ('odoo_effect', provision_request, ('admin', 'login'), 'l' * 257), ('odoo_effect', provision_request, ('job', 'policy', 'modules'), ['liwan_core'] * 2),
+                ('odoo_effect', provision_request, ('job', 'policy', 'modules'), ['liwan_m%d' % n for n in range(1025)]),
+                ('odoo_backup', backup_request, ('authority', 'actor', 'issuer'), 'i' * 257),
+                ('subscription_effect', subscription_request, ('branches', 'archive'), [UUID_A] * 257),
+                ('subscription_effect', subscription_request, ('entitlement', 'features'), {'k%d.x' % n: 1 for n in range(257)}),
+                ('subscription_effect', subscription_request, ('admin_login',), 'l' * 255),
+                ('subscription_effect', subscription_request, ('branches', 'apply', 0, 'name'), 'n' * 121),
+                ('admin_password_effect', password_request, ('password',), 'p' * 257), ('admin_password_effect', password_request, ('login',), 'l' * 257),
+                ('tenant_drop_effect', drop_request, ('plan', 'customerName'), 'c' * 201),
+                ('tenant_drop_effect', drop_request, ('plan', 'backupIds'), [UUID_A] * 2)):
+            with self.subTest(effect=effect, path=path):
+                self.refuses(effect, at(build(), path, value))
+
+    def test_free_text_fields_may_hold_a_slash_but_not_a_control_character(self):
+        self.accepts('odoo_backup', at(backup_request(), ('authority', 'actor', 'issuer'), 'https://issuer.example.test/realm'))
+        self.accepts('tenant_drop_effect', at(drop_request(), ('plan', 'customerName'), 'A/B \\ C'))
+        self.accepts('odoo_effect', at(provision_request(), ('companyName',), 'Acme / Trading'))
+        for effect, build, path in (('odoo_backup', backup_request, ('authority', 'actor', 'issuer')), ('tenant_drop_effect', drop_request, ('plan', 'customerName')),
+                                    ('odoo_effect', provision_request, ('companyName',)), ('odoo_effect', provision_request, ('admin', 'login')),
+                                    ('subscription_effect', subscription_request, ('admin_login',))):
+            for value in ('a\x00b', 'a\nb', 'a\x1bb'):
+                with self.subTest(path=path, value=value):
+                    self.refuses(effect, at(build(), path, value))
+
+    def test_the_business_key_must_be_the_exact_shape_the_control_plane_builds(self):
+        for value in ('["shared-v1","acme","provision","initial"] ', '["shared-v1","a/b","provision","initial"]', '["shared-v1","acme","drop","initial"]',
+                      '["shared-v1","acme","provision","../x"]', 'shared-v1', '["shared-v1","acme","backup","' + UUID_A + '"],1'):
+            with self.subTest(value=value):
+                self.refuses('odoo_effect', at(provision_request(), ('businessKey',), value))
+
+    def test_the_job_decides_the_authority_shape_of_the_backup_effect(self):
+        self.refuses('odoo_backup', {**backup_request(), 'authority': restore_request()['authority']})
+        self.refuses('odoo_backup', {**restore_request(), 'authority': backup_request()['authority']})
+        self.refuses('odoo_backup', at(backup_request(), ('job', 'operation'), 'provision'))
+        self.refuses('odoo_backup', {**backup_request(), 'commercial': restore_request()['commercial']})
+
+
+class GateRequestSchemaTests(GateCase):
+    """The schema runs inside the gate, after the head and before the deletion switch, the config and the start of the effect."""
+
+    def setUp(self):
+        super().setUp()
+        self.effects = {name: 'echo' for name in gate.EFFECTS}
+
+    def refused(self, head, request):
+        lines, code = self.converse(head, request, validator=schema.validate)
+        self.assertEqual([{'error_code': 'request_invalid'}, {'exit': 2}], lines)
+        self.assertEqual(2, code)
+
+    def test_a_traversal_in_an_identifier_never_starts_the_effect(self):
+        self.refused({'effect': 'odoo_backup'}, at(backup_request(), ('authority', 'backupId'), '../../../etc'))
+        self.refused({'effect': 'tenant_drop_effect'}, at(drop_request(dryRun=True), ('plan', 'backupIds', 0), '../x'))
+
+    def test_an_unknown_key_is_refused(self):
+        self.refused({'effect': 'tenant_status_effect'}, {**status_request(), 'composeFile': '/tmp/evil.yml'})
+
+    def test_the_schema_runs_before_the_deletion_switch(self):
+        self.refused({'effect': 'tenant_drop_effect'}, {**drop_request(), 'x': 1})
+
+    def test_a_valid_request_reaches_the_effect_with_the_config_injected(self):
+        conn = self.connect({'effect': 'tenant_status_effect'}, status_request(), validator=schema.validate)
+        message = conn.read_line()
+        self.assertEqual(status_request()['tenant'], message['request']['tenant'])
+        self.assertEqual(self.config['projectName'], message['request']['config']['projectName'])
+        conn.send({'proceed': True})
+        conn.finish()
 
 
 class EntryPointTests(unittest.TestCase):

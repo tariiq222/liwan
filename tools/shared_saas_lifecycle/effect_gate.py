@@ -5,7 +5,8 @@ The control-plane worker has no docker access. systemd starts this gate once per
 pipes. One wire protocol either way, JSON lines:
 
     in   line 1  {"effect": "<name>"}      name from EFFECTS
-    in   line 2  the effect request, at most MAX_REQUEST bytes, without a `config` field
+    in   line 2  the effect request, at most MAX_REQUEST bytes, without a `config` field, matching the effect's schema
+             in effect_schema.py (known keys only, strict identifier patterns; refusal code `request_invalid`)
     in   later   lines the effect reads itself, such as {"proceed": true}; the peer keeps the connection open
     out  lines   the effect's own lines, relayed unchanged
     out  last    {"exit": <code>}          a socket carries no exit status
@@ -26,6 +27,8 @@ import subprocess
 import sys
 import threading
 import time
+
+from tools.shared_saas_lifecycle.effect_schema import SchemaError, validate
 
 EFFECTS = {name: 'tools.shared_saas_lifecycle.' + name for name in (
     'odoo_effect', 'odoo_backup', 'subscription_effect', 'admin_password_effect', 'tenant_status_effect', 'tenant_drop_effect')}
@@ -143,7 +146,8 @@ def check_file(path, euid, lstat=os.lstat):
 
 def check_state_dir(path, euid, lstat=os.lstat):
     """Ancestors as for a file. The directory may be group-writable only with the sticky bit; its effect
-    subdirectories, where they exist, belong to the gate's own account."""
+    subdirectories, where they exist, belong to the gate's own account and are writable by it alone (group and
+    other may read: `backups` is 0750 so the worker can read manifests, `classifications` 0755 for the containers)."""
     if not isinstance(path, str) or not path.startswith('/') or os.path.normpath(path) != path:
         raise Refusal('runtime_untrusted')
     for directory in _ancestors(path):
@@ -162,7 +166,7 @@ def check_state_dir(path, euid, lstat=os.lstat):
             continue
         except OSError:
             raise Refusal('runtime_untrusted') from None
-        if not stat.S_ISDIR(sub.st_mode) or sub.st_uid != euid:
+        if not stat.S_ISDIR(sub.st_mode) or sub.st_uid != euid or _group_other_writable(sub):
             raise Refusal('runtime_untrusted')
 
 
@@ -186,6 +190,14 @@ def load_config(env, euid, effect, lstat=os.lstat):
     check_file(config['envFile'], euid, lstat)
     check_state_dir(config['stateDir'], euid, lstat)
     return config
+
+
+def check_request_schema(effect, request, validator=validate):
+    """Allowed keys, exact types and strict identifier patterns per effect (effect_schema.py), before anything is started."""
+    try:
+        validator(effect, request)
+    except SchemaError:
+        raise Refusal('request_invalid') from None
 
 
 def check_deletion_switch(effect, request, env):
@@ -303,13 +315,14 @@ def _finish(child, pending, out_fd):
 
 
 def run(in_fd, out_fd, env, *, stop, effects=EFFECTS, argv=child_argv, grace=KILL_GRACE, head_timeout=HEAD_TIMEOUT,
-        euid=None, lstat=os.lstat):
+        euid=None, lstat=os.lstat, validator=validate):
     """One connection. Returns the gate's exit code (the same code its last output line carries)."""
     euid = os.geteuid() if euid is None else euid
     reader = LineReader(in_fd, head_timeout)
     try:
         effect = parse_effect(reader.line(MAX_HEAD_LINE), effects)
         request = parse_request(reader.line(MAX_REQUEST))
+        check_request_schema(effect, request, validator)
         check_deletion_switch(effect, request, env)
         request['config'] = load_config(env, euid, effect, lstat)
         try:

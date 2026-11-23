@@ -389,7 +389,7 @@ print('{}')
         self.assert_no_effect_containers()
         permit('reserve')
         backups=self.root/'backups';backups.mkdir(mode=0o700,exist_ok=True);no_symlink(backups)
-        self.artifact.mkdir(mode=0o700)
+        self.artifact.mkdir(mode=0o750)  # the worker's group reads the manifest; the dump and the archive stay 0600
         reserve(self.artifact/'reservation.json',{'digest':self.request['payloadDigest'],'attemptId':self.request['attemptId']})
         source_image=self.inspect_service('odoo')['Image'];postgres_image=self.inspect_service('db')['Image']
         permit('drain')
@@ -429,7 +429,7 @@ with tarfile.open(fileobj=sys.stdout.buffer,mode='w|') as out:
         self.command(self.base+['start','odoo'],timeout=60)
         self.wait_healthy('odoo');self.verify_originals()
         permit('complete')
-        reserve(self.artifact/'manifest.json',manifest)
+        reserve(self.artifact/'manifest.json',manifest);(self.artifact/'manifest.json').chmod(0o640)
         self.read_artifact()
 
     def restore(self):
