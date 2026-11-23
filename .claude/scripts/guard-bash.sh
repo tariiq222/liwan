@@ -2,7 +2,9 @@
 # PreToolUse guard for Bash. Enforces two CLAUDE.md rules that nothing else enforces:
 #   1. no mutating git commands inside the Odoo checkout (it is upstream-only)
 #   2. never run Odoo tests / installs against the dev DB liwan_dev (or the legacy odoo19)
-# The Odoo checkout is LIWAN_ODOO_SRC (default: the owner's ~/code/odoo); the LiwanOS checkout is the project dir.
+# The Odoo checkout is LIWAN_ODOO_SRC (default: the owner's ~/code/odoo). LIWAN is the LiwanOS checkout,
+# defaulting to CLAUDE_PROJECT_DIR or ~/code/liwan; when that is the main checkout, lanes under its
+# .worktrees/ match by path prefix (`git -C $LIWAN`, `cd $LIWAN`).
 # Exit 2 = block (stderr goes back to Claude). Anything else = allow.
 input=$(cat)
 cmd=$(printf '%s' "$input" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("tool_input",{}).get("command",""))' 2>/dev/null || true)
@@ -10,7 +12,7 @@ cwd=$(printf '%s' "$input" | python3 -c 'import json,sys; d=json.load(sys.stdin)
 [ -n "$cmd" ] || exit 0
 
 ODOO=${LIWAN_ODOO_SRC:-$HOME/code/odoo}
-LIWAN=${CLAUDE_PROJECT_DIR:-$HOME/code/webvue}
+LIWAN=${CLAUDE_PROJECT_DIR:-$HOME/code/liwan}
 # --- rule 2: tests against liwan_dev / odoo19 -------------------------------------------------------
 if printf '%s' "$cmd" | grep -qE -- '-d[= ]+(liwan_dev|odoo19)\b' && printf '%s' "$cmd" | grep -qE -- '--test-(tags|enable|file)|(^|\s)-i[= ]'; then
   echo "BLOCKED: liwan_dev (and the legacy odoo19) is the dev database. Run tests/installs against a scratch database (docs/agents/odoo-rules.md); use '-d liwan_dev -u <addon> --no-http --stop-after-init' only to load changes." >&2

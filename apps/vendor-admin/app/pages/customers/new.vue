@@ -110,6 +110,10 @@ const backTo = computed(() => safeReturnTo(route.query.returnTo, '/customers', [
           <SharedFormSection panel :title="t('vendor.customers.newPage.planTitle')" :description="t('vendor.customers.newPage.planHint')">
             <div class="grid gap-4">
               <UAlert v-if="!canSubscribe" color="warning" variant="subtle" :title="t('vendor.tenants.plan.forbidden')" />
+              <!-- Published plans that no vendor-added customer can start on: trials, or a plan made for one customer. -->
+              <UAlert v-else-if="!startablePlans.length && (plans?.length ?? 0) > 0" color="neutral" variant="subtle" :title="t('vendor.tenants.plan.noneStartable')">
+                <template #description><p>{{ t('vendor.tenants.plan.noneStartableHint') }}</p><p class="mt-1"><NuxtLink to="/plans" class="font-medium text-primary hover:underline">{{ t('vendor.tenants.plan.viewPlans') }}</NuxtLink></p></template>
+              </UAlert>
               <UAlert v-else-if="!startablePlans.length" color="neutral" variant="subtle" :title="t('vendor.tenants.plan.none')" />
               <div class="grid gap-4 sm:grid-cols-2">
                 <UFormField :label="t('vendor.tenants.plan.field')" required><USelect v-model="form.plan_revision_id" :items="startablePlans.map(p => ({ label: p.name, value: p.id }))" :disabled="!hydrated || busy || !canSubscribe" class="w-full" /></UFormField>

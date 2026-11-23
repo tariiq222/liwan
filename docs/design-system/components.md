@@ -235,7 +235,8 @@ Storybook هو فهرس المكونات الملزم، وقاعدة ما يُش
 | `apps/vendor-admin/app/components/vendor/BundleForm.vue` | نموذج الحزمة التجارية | `CapacityLimitsEditor`, `PriceListEditor`, `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UCheckbox`, `UFormField`, `UIcon`, `UInput`, `USelect`, `UTextarea` |
 | `apps/vendor-admin/app/components/vendor/CapacityLimitsEditor.vue` | محرر حدود السعة | `UFormField`, `VendorLimitControl` |
 | `apps/vendor-admin/app/components/vendor/CatalogFacts.vue` | شريط حقائق سجل الكتالوج تحت العنوان: الحالة ثم السعر والمحتوى والعملاء | |
-| `apps/vendor-admin/app/components/vendor/CatalogTabs.vue` | تبويبات قسم الكتالوج (الباقات والحزم والحزم القديمة) عبر `SharedRouteTabs` | `SharedRouteTabs` |
+| `apps/vendor-admin/app/components/vendor/CatalogGlossary.vue` | معجم القسم التجاري أعلى صفحاته: بطاقة مطويّة مفتوحة افتراضيًا تعرّف التطبيق وإصداره والحزمة والباقة بجملة لكل واحد | `UIcon` |
+| `apps/vendor-admin/app/components/vendor/CatalogTabs.vue` | تبويبات قسم تطبيقات ليوان (التطبيقات والحزم والباقات) عبر `SharedRouteTabs` | `SharedRouteTabs` |
 | `apps/vendor-admin/app/components/vendor/CustomerGlance.vue` | ملخص العميل في لمحة: الباقة والتجديد وآخر فاتورة والمساحة وما يحتاج متابعة مع رابط لتبويبه | `SharedMetricTile`, `SharedStatusBadge`, `UButton`, `UIcon` |
 | `apps/vendor-admin/app/components/vendor/CustomerTermsForm.vue` | نموذج شروط العميل | `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UFormField`, `UInput`, `USelect`, `UTextarea` |
 | `apps/vendor-admin/app/components/vendor/DeletionRunPanel.vue` | تنفيذ حذف مساحة العميل للقراءة فقط: حالة المنفّذ، التواريخ، الخطة المجمّدة، الفحوص المسبقة وسجل الخطوات مع المتعثر منها | `SharedPropertiesPanel`, `SharedPropertyRow`, `SharedStatusBadge`, `UAlert` |

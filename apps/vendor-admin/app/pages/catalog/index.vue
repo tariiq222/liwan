@@ -23,8 +23,9 @@ const columns = computed<TableColumn<CatalogVersion>[]>(() => [
 ])
 </script>
 <template>
-  <SharedListPage :title="t('vendor.catalog.title')">
+  <SharedListPage :title="t('vendor.catalog.applications')">
     <template #filters><VendorCatalogTabs class="mb-3" /></template>
+    <VendorCatalogGlossary class="mb-4" />
     <section class="mb-4 space-y-3" data-testid="catalog-steps">
       <p class="text-sm text-muted">{{ t('vendor.catalog.intro') }}</p>
       <ol class="grid gap-2 text-sm sm:grid-cols-3" :aria-label="t('vendor.catalog.stepsLabel')">

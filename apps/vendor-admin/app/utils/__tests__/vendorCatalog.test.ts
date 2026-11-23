@@ -10,8 +10,6 @@ describe('catalogTabOf', () => {
     expect(catalogTabOf('/bundles/b-1')?.key).toBe('bundles')
     expect(catalogTabOf('/catalog/c-1')?.key).toBe('catalog')
     expect(catalogTabOf('/catalog?status=draft')?.key).toBe('catalog')
-    expect(catalogTabOf('/packages/pkg-1')?.key).toBe('packages')
-    expect(catalogTabOf('/packages?status=draft')?.key).toBe('packages')
   })
 
   it('ignores paths outside the catalog and mere prefixes', () => {
@@ -20,8 +18,8 @@ describe('catalogTabOf', () => {
     expect(catalogTabOf('/')).toBeNull()
   })
 
-  it('offers the tabs in the order things are built, the retired packages last', () => {
-    expect(CATALOG_TABS.map(tab => tab.key)).toEqual(['catalog', 'bundles', 'plans', 'packages'])
+  it('offers the tabs in the order things are built', () => {
+    expect(CATALOG_TABS.map(tab => tab.key)).toEqual(['catalog', 'bundles', 'plans'])
   })
 })
 
@@ -29,7 +27,6 @@ describe('catalogReturn', () => {
   it('keeps a return to any catalog tab and names that tab', () => {
     expect(catalogReturn('/bundles/b-1?x=1', 'plans')).toEqual({ to: '/bundles/b-1?x=1', labelKey: 'vendor.bundles.title' })
     expect(catalogReturn('/plans?status=draft', 'bundles')).toEqual({ to: '/plans?status=draft', labelKey: 'vendor.plans.title' })
-    expect(catalogReturn('/packages/pkg-1', 'plans')).toEqual({ to: '/packages/pkg-1', labelKey: 'vendor.packages.title' })
     expect(catalogReturn('/catalog/c-1', 'bundles')).toEqual({ to: '/catalog/c-1', labelKey: 'vendor.catalog.applications' })
   })
 
