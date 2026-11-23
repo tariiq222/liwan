@@ -17,6 +17,7 @@ from .common import (
 )
 from odoo.addons.liwan_api.tests.common import set_probe_feature
 from odoo.addons.liwan_inbox.adapters import errors, whatsapp
+from odoo.addons.liwan_inbox.models.constants import WHATSAPP_FEATURE
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 NEW_CHANNEL = {'name': 'Branch line', 'kind': 'whatsapp', 'phone_number_id': '300000000001'}
@@ -77,6 +78,18 @@ class TestChannelsApi(LiwanInboxCase):
         self.assertEqual(channel._liwan_credentials().access_token, ACCESS_TOKEN)
         self.assertEqual(channel._liwan_credentials().business_account_id, BUSINESS_ACCOUNT_ID)
 
+    def test_the_inbox_feature_alone_offers_tiktok_and_creates_its_channel(self):
+        set_probe_feature(self, key=WHATSAPP_FEATURE, enabled=False)
+        uses = {use['key'] for use in self.env['liwan.integration.registry']._liwan_open_uses()}
+        self.assertLessEqual({'inbox.tiktok'}, uses)
+        self.assertNotIn('inbox.whatsapp', uses)
+        connection = self.make_tiktok_connection('business-open-id-alone')
+        self.login(self.manager)
+        result = self.api('POST', CHANNELS, {'name': 'TikTok alone', 'kind': 'tiktok', 'connection_id': connection.id})
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual((result.json()['kind'], result.json()['state']), ('tiktok', 'connected'))
+        self.assertError(self.api('POST', CHANNELS, self.body()), 403, 'feature_not_included')
+
     def test_a_channel_cannot_name_a_connection_that_does_not_fit(self):
         tiktok = self.make_tiktok_connection('business-open-id-create')
         other = self.env['res.company'].create({'name': 'Other company'})
@@ -116,9 +129,9 @@ class TestChannelsApi(LiwanInboxCase):
             result = self.get(f'{CHANNELS}/accounts{query}')
             self.assertError(result, 422, 'invalid')
             self.assertEqual(result.json()['field'], 'kind')
-        set_probe_feature(self, key='inbox.tiktok', enabled=False)
-        self.assertEqual(self.get(f'{CHANNELS}/accounts?kind=tiktok').status_code, 403)
-        self.assertEqual(self.get(f'{CHANNELS}/accounts?kind=whatsapp').status_code, 200)
+        set_probe_feature(self, key=WHATSAPP_FEATURE, enabled=False)
+        self.assertEqual(self.get(f'{CHANNELS}/accounts?kind=whatsapp').status_code, 403)
+        self.assertEqual(self.get(f'{CHANNELS}/accounts?kind=tiktok').status_code, 200)
         for user in (self.agent, self.outsider):
             self.login(user)
             self.assertError(self.get(f'{CHANNELS}/accounts?kind=whatsapp'), 403, 'forbidden')
@@ -286,6 +299,14 @@ class TestChannelsApi(LiwanInboxCase):
             self.assertError(self.get(f'/api/v1/inbox/channels/{self.channel.id}/events'), 403, 'forbidden')
             self.assertError(self.api('POST', f'/api/v1/inbox/events/{event.id}/retry', {}), 403, 'forbidden')
 
+    def test_the_work_channel_list_of_a_reader_holds_only_the_companies_where_the_capability_is_held(self):
+        other = self.env['res.company'].create({'name': 'Work picker branch'})
+        foreign = self.make_channel(phone_id='100000000077', business_account_id='400000000077', owner_company_id=other.id)
+        self.login(self.reader_only)
+        body = self.get('/api/v1/inbox/channels/work').json()
+        self.assertEqual((body['total'], [row['id'] for row in body['items']]), (1, [self.channel.id]))
+        self.assertNotIn(foreign.id, [row['id'] for row in body['items']])
+
     def test_the_work_channel_list_is_a_picker_of_the_work_capabilities_only(self):
         self.channel.department_id = self.department
         self.login(self.templates_only)
@@ -297,9 +318,15 @@ class TestChannelsApi(LiwanInboxCase):
             'id': self.channel.id, 'name': self.channel.name, 'kind': 'whatsapp',
             'department': {'id': self.department.id, 'name': self.department.name},
         })
-        for user in (self.agent, self.reader_only, self.outsider):
+        self.login(self.outsider)
+        self.assertError(self.get('/api/v1/inbox/channels/work'), 403, 'forbidden')
+        # Reading conversations is the fourth work right: a reader picks a channel to filter by, and sees no more than the reference.
+        for user in (self.agent, self.reader_only):
             self.login(user)
-            self.assertError(self.get('/api/v1/inbox/channels/work'), 403, 'forbidden')
+            reading = self.get('/api/v1/inbox/channels/work')
+            self.assertEqual(reading.status_code, 200, reading.text)
+            self.assertEqual([set(row) for row in reading.json()['items']], [{'id', 'name', 'kind', 'department'}])
+            self.assertEqual([row['id'] for row in reading.json()['items']], [self.channel.id])
         # Automation is the third work right the picker serves: it sees the same channel without channel administration.
         self.login(self._capability_user('inbox_automation_only', 'inbox.automation.manage'))
         automation = self.get('/api/v1/inbox/channels/work')

@@ -16,8 +16,8 @@ from odoo.addons.liwan_api.tests.common import cover_isolation_routes, set_probe
 from odoo.addons.liwan_inbox.adapters import errors, tiktok
 from odoo.addons.liwan_inbox.models.constants import (
     AUTOMATION_FEATURE,
+    INBOX_FEATURE,
     TIKTOK_ECHO_SETTLE,
-    TIKTOK_FEATURE,
 )
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
@@ -75,7 +75,7 @@ class TestTikTokSync(LiwanInboxCase):
 
     def setUp(self):
         super().setUp()
-        set_probe_feature(self, key=TIKTOK_FEATURE, enabled=True)
+        set_probe_feature(self, key=INBOX_FEATURE, enabled=True)
         self.login(self.manager)
         # The per-conversation image capability is one request of its own and the adapter tests cover its answer:
         # stubbing it keeps every expected HTTP answer below the one answer the history import reads.
@@ -430,7 +430,7 @@ class TestTikTokSync(LiwanInboxCase):
             self.assertEqual((job.phase, listing.call_count), ('stranger', 1))
             self.env['liwan.inbox.tiktok.sync']._liwan_run_tiktok_sync()
         self.assertEqual((job.state, job.phase, listing.call_count), ('done', 'messages', 2))
-        set_probe_feature(self, key=TIKTOK_FEATURE, enabled=False)
+        set_probe_feature(self, key=INBOX_FEATURE, enabled=False)
         other = self.queue()
         with patch.object(tiktok, 'list_conversations') as listing:
             self.env['liwan.inbox.tiktok.sync']._liwan_run_tiktok_sync()
@@ -470,10 +470,10 @@ class TestTikTokSync(LiwanInboxCase):
         self.assertError(self.api('POST', self.path()), 403, 'forbidden')
         self.assertError(self.api('GET', self.path()), 403, 'forbidden')
         self.login(self.manager)
-        set_probe_feature(self, key=TIKTOK_FEATURE, enabled=False)
+        set_probe_feature(self, key=INBOX_FEATURE, enabled=False)
         self.assertError(self.api('POST', self.path()), 403, 'feature_not_included')
         self.assertError(self.api('GET', self.path()), 403, 'feature_not_included')
-        set_probe_feature(self, key=TIKTOK_FEATURE, enabled=True)
+        set_probe_feature(self, key=INBOX_FEATURE, enabled=True)
         self.assertError(self.api('GET', self.path(self.channel)), 404, 'not_found')
         other = self.env['res.company'].create({'name': 'Other tenant'})
         channel = self.make_tiktok_channel('other-business-open-id', owner_company_id=other.id, name='Other TikTok')

@@ -44,6 +44,25 @@ describe('channel health queries', () => {
   })
 })
 
+describe('channel webhook deliveries', () => {
+  it('asks for failed ones by default and keeps each state under its own key, below the channel root', async () => {
+    const { useInboxChannelEvents, useRetryInboxEvent } = await import('../useInboxSettings')
+    useInboxChannelEvents(4)
+    expect(Vue.toValue(last().queryKey as never)).toEqual([...inboxSettingsKeys.channelEvents(4), 'failed'])
+    await last().queryFn!()
+    expect($api).toHaveBeenLastCalledWith('/api/v1/inbox/channels/4/events', expect.objectContaining({ query: { state: 'failed' } }))
+    const state = Vue.ref<'failed' | 'pending' | 'done'>('pending')
+    useInboxChannelEvents(4, state)
+    expect(Vue.toValue(last().queryKey as never)).toEqual([...inboxSettingsKeys.channelEvents(4), 'pending'])
+    state.value = 'done'
+    await last().queryFn!()
+    expect($api).toHaveBeenLastCalledWith('/api/v1/inbox/channels/4/events', expect.objectContaining({ query: { state: 'done' } }))
+    useRetryInboxEvent(() => 4)
+    await last().onSuccess!({}, 9)
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: inboxSettingsKeys.channelEvents(4) })
+  })
+})
+
 describe('channel health mutations', () => {
   it('patches the profile and puts the answer in the cache', async () => {
     hooks.useSaveInboxBusinessProfile(4)

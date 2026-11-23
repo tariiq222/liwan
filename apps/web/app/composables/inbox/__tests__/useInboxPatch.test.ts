@@ -98,6 +98,18 @@ describe('agent queries', () => {
     $api.mockImplementation(async () => ({}))
   })
 
+  it('narrows the agents by name on the server and keys the search apart from the full list', async () => {
+    const { useInboxAgents } = await import('../useInbox')
+    $api.mockImplementation(async () => ({ items: [], total: 0 }))
+    useInboxAgents(true, ' سار ')
+    expect(Vue.toValue(queries.at(-1)!.queryKey as never)).toEqual(['inbox', 'agents', 'search', 'سار'])
+    await queries.at(-1)!.queryFn({})
+    expect($api).toHaveBeenLastCalledWith('/api/v1/inbox/agents', expect.objectContaining({ query: { limit: 200, offset: 0, q: 'سار' } }))
+    useInboxAgents()
+    expect(Vue.toValue(queries.at(-1)!.queryKey as never)).toEqual(['inbox', 'agents'])
+    $api.mockImplementation(async () => ({}))
+  })
+
   it.each([['canned replies', 'useInboxCannedReplies', '/api/v1/inbox/canned-replies'], ['tags', 'useInboxTags', '/api/v1/inbox/tags']] as const)('reads every page of the %s', async (_label, hook, path) => {
     const module = await import('../useInbox')
     $api.mockImplementation(async (_path: string, options?: unknown) => {

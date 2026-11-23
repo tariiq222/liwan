@@ -17,9 +17,9 @@ from odoo.addons.liwan_inbox.adapters import errors, tiktok
 from odoo.addons.liwan_inbox.controllers.reply_parsing import parse_interactive
 from odoo.addons.liwan_inbox.models.constants import (
     AUTOMATION_FEATURE,
+    INBOX_FEATURE,
     REPLY_WINDOWS,
     TIKTOK_ECHO_SETTLE,
-    TIKTOK_FEATURE,
 )
 
 ACCESS_TOKEN = 'tiktok-access-token-send'
@@ -65,7 +65,7 @@ class TikTokCase(LiwanInboxCase):
 
     def setUp(self):
         super().setUp()
-        set_probe_feature(self, key=TIKTOK_FEATURE, enabled=True)
+        set_probe_feature(self, key=INBOX_FEATURE, enabled=True)
         self.login(self.agent)
         capability = patch.object(tiktok, 'image_send_capable', return_value=True)
         capability.start()
@@ -329,7 +329,7 @@ class TestTikTokAutomation(TikTokCase):
         self.assertEqual(self.tiktok._liwan_auto_message('welcome').body, 'Welcome to the shop')
 
     def test_a_welcome_that_is_not_a_short_text_is_refused(self):
-        set_probe_feature(self, key=TIKTOK_FEATURE, enabled=True)
+        set_probe_feature(self, key=INBOX_FEATURE, enabled=True)
         for content in (
             {'body': 'x' * (tiktok.WELCOME_MAX + 1)},
             {'interactive': {'type': 'buttons', 'body': 'Pick', 'buttons': [{'id': 'yes', 'title': 'Yes'}]}},

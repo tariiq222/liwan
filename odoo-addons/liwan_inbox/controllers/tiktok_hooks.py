@@ -21,7 +21,7 @@ from odoo.addons.liwan_inbox.controllers.hooks import (
     read_body,
     reject_webhook,
 )
-from odoo.addons.liwan_inbox.models.constants import TIKTOK_FEATURE
+from odoo.addons.liwan_inbox.models.constants import INBOX_FEATURE
 from odoo.addons.liwan_integrations_sa.providers import tiktok as integration_tiktok
 from odoo.addons.liwan_platform.models.read_only_guard import (
     INBOUND_EVENT_CONTEXT,
@@ -35,7 +35,7 @@ class TikTokHookController(http.Controller):
         '/api/v1/inbox/hooks/tiktok', type='http', auth='inbox_hook', methods=['POST'], csrf=False, save_session=False,
     )
     @api_handler
-    @requires_feature(TIKTOK_FEATURE, operation='read')
+    @requires_feature(INBOX_FEATURE, operation='read')
     def receive(self, **_):
         raw = read_body()
         payload = parse_payload(raw)

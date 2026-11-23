@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { CHANNEL_KIND_ICON, channelKindLabelKey } from '@/composables/inbox/inboxChannelKind'
-import { useInboxFlowsEnabled, useInboxTemplatesEnabled, useInboxWhatsAppEnabled } from '@/composables/inbox/inboxFeatures'
+import { useInboxFlowsEnabled, useInboxTemplatesEnabled } from '@/composables/inbox/inboxFeatures'
 import { CHANNEL_STATE_TONE } from '@/composables/inbox/inboxPresentation'
-import { useInboxTikTokEnabled } from '@/composables/inbox/inboxTikTok'
 import { useInboxChannels, useInboxChannelWork } from '@/composables/inbox/useInboxSettings'
 
 // The channels, one row each by kind: a WhatsApp number or a TikTok account. A channel opens its own page (status, name,
@@ -14,8 +13,6 @@ const { t } = useI18n()
 const hydrated = useHydrated()
 const { can } = useAccess()
 const canManage = computed(() => can('inbox.channels.manage'))
-const whatsappOn = useInboxWhatsAppEnabled()
-const tiktokOn = useInboxTikTokEnabled()
 const templatesOn = useInboxTemplatesEnabled()
 const flowsOn = useInboxFlowsEnabled()
 const admin = useInboxChannels(computed(() => canManage.value))
@@ -35,7 +32,7 @@ const refetch = () => (canManage.value ? admin.refetch() : work.refetch())
 <template>
   <SharedRecordSection id="channels" variant="list" class="liwan-settings-anchor" :title="t('inbox.settings.channels.title')" :description="canManage ? t('inbox.settings.channels.hint') : t('inbox.settings.channels.workHint')">
     <template #actions>
-      <UButton v-if="canManage && (whatsappOn || tiktokOn)" to="/settings/apps/inbox/channels/new" icon="i-lucide-plus" :disabled="!hydrated" :label="t('inbox.settings.channels.connect')" data-testid="inbox-channel-connect" />
+      <UButton v-if="canManage" to="/settings/apps/inbox/channels/new" icon="i-lucide-plus" :disabled="!hydrated" :label="t('inbox.settings.channels.connect')" data-testid="inbox-channel-connect" />
     </template>
     <SharedLoadingSkeleton v-if="isLoading" class="m-4" />
     <SharedPageState v-else-if="error" class="m-4" :error="error" @retry="refetch()" />

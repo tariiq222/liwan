@@ -10,12 +10,10 @@ import {
   type InboxTikTokShortcutEnable,
   type InboxTikTokShortcutPatch,
 } from '@liwan/contracts'
-import { hasFeature } from '../../modules/registry'
 
 // The TikTok channel's own surface: the refusal reasons its routes answer with. Every
 // reason becomes one translated line in the inbox namespace, so a failed reply or settings save never shows the
 // server's English text; a reason this build does not know keeps the message the server sent.
-export const INBOX_TIKTOK_FEATURE = 'inbox.tiktok'
 
 /** The `details.reason` values of the TikTok routes: D3 sends, E5 automation, E6 import, E7 guards.
  * The closed reply window (`inbox_window_closed`) is the two kinds' shared reason, so it is not listed here:
@@ -41,12 +39,6 @@ export function inboxTikTokReasonKey(reason: unknown): string | null {
 export function inboxTikTokErrorKey(error: unknown): string | null {
   const details = (error as { details?: { reason?: unknown } } | null | undefined)?.details
   return inboxTikTokReasonKey(details?.reason)
-}
-
-/** Whether the tenant holds the `inbox.tiktok` sub-feature, so its screens are offered at all. */
-export function useInboxTikTokEnabled() {
-  const { me } = useMe()
-  return computed(() => hasFeature(me.value, INBOX_TIKTOK_FEATURE))
 }
 
 // ---------------------------------------------------------------- suggested questions, chat prompts and import

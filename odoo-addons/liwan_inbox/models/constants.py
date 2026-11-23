@@ -6,9 +6,9 @@ INBOX_FEATURE = 'inbox.enabled'
 CHANNELS_LIMIT = 'inbox.channels'
 MESSAGES_OUT_LIMIT = 'inbox.messages_out'
 WHATSAPP_FEATURE = 'inbox.whatsapp'
-TIKTOK_FEATURE = 'inbox.tiktok'
-# The sub-feature that gates one channel kind, checked on the channel create and on its routes.
-CHANNEL_FEATURES = {'whatsapp': WHATSAPP_FEATURE, 'tiktok': TIKTOK_FEATURE}
+# The feature that gates one channel kind, checked on the channel create and on its routes: WhatsApp has its own
+# sub-feature, TikTok follows the application.
+CHANNEL_FEATURES = {'whatsapp': WHATSAPP_FEATURE, 'tiktok': INBOX_FEATURE}
 # The channel kinds whose contact address is the number the provider authenticated: a WhatsApp id is the sender's phone,
 # while a TikTok id is an opaque account id.
 AUTHENTICATED_KINDS = ('whatsapp',)

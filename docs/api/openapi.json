@@ -87965,6 +87965,12 @@
                   },
                   "type": "array"
                 },
+                "oauth_ready": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
                 "secrets": {
                   "items": {
                     "minLength": 1,
@@ -88013,7 +88019,8 @@
                 "generated_secrets",
                 "attributes",
                 "uses",
-                "settings_path"
+                "settings_path",
+                "oauth_ready"
               ],
               "type": "object"
             },
@@ -88060,6 +88067,12 @@
               "type": "string"
             },
             "type": "array"
+          },
+          "oauth_ready": {
+            "type": [
+              "boolean",
+              "null"
+            ]
           },
           "secrets": {
             "items": {
@@ -88109,7 +88122,8 @@
           "generated_secrets",
           "attributes",
           "uses",
-          "settings_path"
+          "settings_path",
+          "oauth_ready"
         ],
         "type": "object"
       },
@@ -150344,7 +150358,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "The channels the caller works on (templates, forms or automation), as minimal references.",
+        "summary": "The channels the caller works on (conversations, templates, forms or automation), as minimal references.",
         "tags": [
           "liwan_inbox"
         ],
@@ -152005,7 +152019,7 @@
           "contract_namespace": "inbox",
           "controller": "TikTokSettingsController",
           "feature_keys": [
-            "inbox.tiktok"
+            "inbox.enabled"
           ],
           "feature_operation": "read",
           "handler": "list_shortcuts",
@@ -152056,7 +152070,7 @@
           "contract_namespace": "inbox",
           "controller": "TikTokSettingsController",
           "feature_keys": [
-            "inbox.tiktok"
+            "inbox.enabled"
           ],
           "feature_operation": "write",
           "handler": "create_shortcut",
@@ -152109,7 +152123,7 @@
           "contract_namespace": "inbox",
           "controller": "TikTokSettingsController",
           "feature_keys": [
-            "inbox.tiktok"
+            "inbox.enabled"
           ],
           "feature_operation": "write",
           "handler": "enable_shortcuts",
@@ -152170,7 +152184,7 @@
           "contract_namespace": "inbox",
           "controller": "TikTokSettingsController",
           "feature_keys": [
-            "inbox.tiktok"
+            "inbox.enabled"
           ],
           "feature_operation": "write",
           "handler": "delete_shortcut",
@@ -152229,7 +152243,7 @@
           "contract_namespace": "inbox",
           "controller": "TikTokSettingsController",
           "feature_keys": [
-            "inbox.tiktok"
+            "inbox.enabled"
           ],
           "feature_operation": "write",
           "handler": "patch_shortcut",
@@ -152282,7 +152296,7 @@
           "contract_namespace": "inbox",
           "controller": "TikTokSettingsController",
           "feature_keys": [
-            "inbox.tiktok"
+            "inbox.enabled"
           ],
           "feature_operation": "read",
           "handler": "latest_sync",
@@ -152333,7 +152347,7 @@
           "contract_namespace": "inbox",
           "controller": "TikTokSettingsController",
           "feature_keys": [
-            "inbox.tiktok"
+            "inbox.enabled"
           ],
           "feature_operation": "write",
           "handler": "start_sync",
@@ -154525,7 +154539,7 @@
           "contract_namespace": "inbox",
           "controller": "TikTokHookController",
           "feature_keys": [
-            "inbox.tiktok"
+            "inbox.enabled"
           ],
           "feature_operation": "read",
           "handler": "receive",

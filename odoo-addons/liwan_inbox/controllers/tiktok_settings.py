@@ -20,7 +20,7 @@ from odoo.addons.liwan_inbox.controllers.helpers import (
 )
 from odoo.addons.liwan_inbox.controllers.reply_parsing import parse_string
 from odoo.addons.liwan_inbox.models.access_service import MANAGE_CHANNELS
-from odoo.addons.liwan_inbox.models.constants import TIKTOK_FEATURE
+from odoo.addons.liwan_inbox.models.constants import INBOX_FEATURE
 from odoo.addons.liwan_inbox.models.tiktok_shortcut import LIMITS
 from odoo.addons.liwan_inbox.serializers.tiktok import dump_shortcut, dump_sync
 
@@ -88,7 +88,7 @@ class TikTokSettingsController(http.Controller):
 
     @http.route(SHORTCUTS_PATH, type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @requires_feature(TIKTOK_FEATURE, operation='read')
+    @requires_feature(INBOX_FEATURE, operation='read')
     @requires_capability(MANAGE_CHANNELS)
     def list_shortcuts(self, channel_id, **_):
         shortcuts = tiktok_channel(channel_id).tiktok_shortcut_ids
@@ -96,7 +96,7 @@ class TikTokSettingsController(http.Controller):
 
     @http.route(SHORTCUTS_PATH, type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    @requires_feature(TIKTOK_FEATURE, operation='write')
+    @requires_feature(INBOX_FEATURE, operation='write')
     @requires_capability(MANAGE_CHANNELS)
     def create_shortcut(self, channel_id, **payload):
         channel = tiktok_channel(channel_id)
@@ -108,7 +108,7 @@ class TikTokSettingsController(http.Controller):
 
     @http.route(f'{SHORTCUTS_PATH}/<int:shortcut_id>', type='json2', auth='user', methods=['PATCH'], readonly=False)
     @api_handler
-    @requires_feature(TIKTOK_FEATURE, operation='write')
+    @requires_feature(INBOX_FEATURE, operation='write')
     @requires_capability(MANAGE_CHANNELS)
     def patch_shortcut(self, channel_id, shortcut_id, **payload):
         shortcut = find_shortcut(tiktok_channel(channel_id), shortcut_id)
@@ -118,7 +118,7 @@ class TikTokSettingsController(http.Controller):
 
     @http.route(f'{SHORTCUTS_PATH}/<int:shortcut_id>', type='json2', auth='user', methods=['DELETE'], readonly=False)
     @api_handler
-    @requires_feature(TIKTOK_FEATURE, operation='write')
+    @requires_feature(INBOX_FEATURE, operation='write')
     @requires_capability(MANAGE_CHANNELS)
     def delete_shortcut(self, channel_id, shortcut_id, **_):
         find_shortcut(tiktok_channel(channel_id), shortcut_id).unlink()
@@ -126,7 +126,7 @@ class TikTokSettingsController(http.Controller):
 
     @http.route(f'{SHORTCUTS_PATH}/enable', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    @requires_feature(TIKTOK_FEATURE, operation='write')
+    @requires_feature(INBOX_FEATURE, operation='write')
     @requires_capability(MANAGE_CHANNELS)
     def enable_shortcuts(self, channel_id, **payload):
         channel = tiktok_channel(channel_id)
@@ -146,7 +146,7 @@ class TikTokSettingsController(http.Controller):
 
     @http.route(SYNC_PATH, type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
-    @requires_feature(TIKTOK_FEATURE, operation='read')
+    @requires_feature(INBOX_FEATURE, operation='read')
     @requires_capability(MANAGE_CHANNELS)
     def latest_sync(self, channel_id, **_):
         """The channel's latest history import, or null before the first one."""
@@ -155,7 +155,7 @@ class TikTokSettingsController(http.Controller):
 
     @http.route(SYNC_PATH, type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    @requires_feature(TIKTOK_FEATURE, operation='write')
+    @requires_feature(INBOX_FEATURE, operation='write')
     @requires_capability(MANAGE_CHANNELS)
     def start_sync(self, channel_id, **_):
         """Queue a history import on demand; a second one while it runs is 422 `inbox_tiktok_sync_running`."""

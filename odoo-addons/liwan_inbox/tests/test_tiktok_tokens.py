@@ -11,7 +11,7 @@ from . import tiktok_payloads as tt
 from .common import LiwanInboxCase, tiktok_grant
 from odoo.addons.liwan_api.tests.common import set_probe_feature
 from odoo.addons.liwan_inbox.adapters import errors
-from odoo.addons.liwan_inbox.models.constants import TIKTOK_FEATURE
+from odoo.addons.liwan_inbox.models.constants import INBOX_FEATURE
 from odoo.addons.liwan_integrations_sa.providers import errors as integration_errors
 from odoo.addons.liwan_integrations_sa.providers import tiktok as integration_tiktok
 
@@ -35,7 +35,7 @@ class TestTikTokTokens(LiwanInboxCase):
 
     def setUp(self):
         super().setUp()
-        set_probe_feature(self, key=TIKTOK_FEATURE, enabled=True)
+        set_probe_feature(self, key=INBOX_FEATURE, enabled=True)
 
     def test_the_credentials_are_the_connections_account_and_token(self):
         channel = self.make_tiktok_channel(BUSINESS_ID)

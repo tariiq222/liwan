@@ -1,10 +1,22 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import os
+
 from odoo.addons.liwan_api.serializers.common import iso
-from odoo.addons.liwan_integrations_sa.models.constants import AUTH_EXTERNAL
+from odoo.addons.liwan_integrations_sa import providers
+from odoo.addons.liwan_integrations_sa.models.constants import AUTH_EXTERNAL, AUTH_OAUTH
+
+
+def _oauth_ready(provider):
+    if provider['auth'] != AUTH_OAUTH:
+        return None
+    return providers.MODULES[provider['code']].app_config(os.environ) is not None
 
 
 def dump_provider(provider, uses):
-    """Whitelist one provider with the open uses that may hold a connection to it."""
+    """Whitelist one provider with the open uses that may hold a connection to it.
+
+    ``oauth_ready`` tells whether the operator set the app keys an oauth provider needs (None for other providers).
+    """
     return {
         'code': provider['code'],
         'auth': provider['auth'],
@@ -13,6 +25,7 @@ def dump_provider(provider, uses):
         'attributes': list(provider['attributes']),
         'uses': [{'key': use['key'], 'owner': use['owner']} for use in uses],
         'settings_path': provider['settings_path'],
+        'oauth_ready': _oauth_ready(provider),
     }
 
 

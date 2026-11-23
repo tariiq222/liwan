@@ -12,7 +12,7 @@ from .common import LiwanInboxCase
 from odoo.addons.liwan_api.tests.common import set_probe_feature
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_inbox.models import channel_tiktok
-from odoo.addons.liwan_inbox.models.constants import TIKTOK_FEATURE
+from odoo.addons.liwan_inbox.models.constants import INBOX_FEATURE
 
 RELAY_URL = 'http://tiktok-relay:8090'
 PROXY_TOKEN = 'test-only-relay-proxy-token-0123456789'
@@ -46,7 +46,7 @@ class TestTikTokRelay(LiwanInboxCase):
 
     def setUp(self):
         super().setUp()
-        set_probe_feature(self, key=TIKTOK_FEATURE, enabled=True)
+        set_probe_feature(self, key=INBOX_FEATURE, enabled=True)
 
     def relay(self, url=RELAY_URL, token=PROXY_TOKEN):
         """The operator's relay configuration for one deployment, restored at the end of the test."""

@@ -15,10 +15,10 @@ import {
 
 export const providers = IntegrationProviderListSchema.parse({
   items: [
-    { code: 'meta', auth: 'keys', secrets: ['access_token', 'app_secret'], generated_secrets: ['verify_token'], attributes: ['app_id'], uses: [{ key: 'inbox.whatsapp', owner: 'liwan_inbox' }], settings_path: null },
-    { code: 'tiktok', auth: 'oauth', secrets: [], generated_secrets: [], attributes: [], uses: [{ key: 'inbox.tiktok', owner: 'liwan_inbox' }], settings_path: null },
-    { code: 'paymob', auth: 'external', secrets: [], generated_secrets: [], attributes: [], uses: [], settings_path: '/settings/apps/payments#providers' },
-    { code: 'twilio', auth: 'keys', secrets: ['auth_token'], generated_secrets: [], attributes: [], uses: [{ key: 'twilio.messaging', owner: 'liwan_integrations_sa' }, { key: 'twilio.voice', owner: 'liwan_integrations_sa' }, { key: 'twilio.lookup', owner: 'liwan_integrations_sa' }], settings_path: null },
+    { code: 'meta', auth: 'keys', secrets: ['access_token', 'app_secret'], generated_secrets: ['verify_token'], attributes: ['app_id'], uses: [{ key: 'inbox.whatsapp', owner: 'liwan_inbox' }], settings_path: null, oauth_ready: null },
+    { code: 'tiktok', auth: 'oauth', secrets: [], generated_secrets: [], attributes: [], uses: [{ key: 'inbox.tiktok', owner: 'liwan_inbox' }], settings_path: null, oauth_ready: true },
+    { code: 'paymob', auth: 'external', secrets: [], generated_secrets: [], attributes: [], uses: [], settings_path: '/settings/apps/payments#providers', oauth_ready: null },
+    { code: 'twilio', auth: 'keys', secrets: ['auth_token'], generated_secrets: [], attributes: [], uses: [{ key: 'twilio.messaging', owner: 'liwan_integrations_sa' }, { key: 'twilio.voice', owner: 'liwan_integrations_sa' }, { key: 'twilio.lookup', owner: 'liwan_integrations_sa' }], settings_path: null, oauth_ready: null },
   ],
   total: 4,
 })

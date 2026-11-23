@@ -21,12 +21,6 @@ class LiwanInboxFeatureRegistry(models.AbstractModel):
                 'module': 'liwan_inbox',
             },
             {
-                'key': 'inbox.tiktok',
-                'type': 'boolean',
-                'owner': 'liwan_inbox',
-                'module': 'liwan_inbox',
-            },
-            {
                 'key': 'inbox.templates',
                 'type': 'boolean',
                 'owner': 'liwan_inbox',

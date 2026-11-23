@@ -13,9 +13,7 @@ vi.mock('@tanstack/vue-query', () => ({
   useQueryClient: () => queryClient,
 }))
 const $api = vi.fn(async (_path: string, _options?: unknown): Promise<unknown> => ({}))
-const identity = Vue.ref<Record<string, unknown>>({ platform: { readable_features: ['inbox.tiktok'], writable_features: ['inbox.tiktok'] } })
 vi.stubGlobal('useApi', () => ({ $api }))
-vi.stubGlobal('useMe', () => ({ me: identity }))
 vi.stubGlobal('computed', Vue.computed)
 vi.stubGlobal('toValue', Vue.toValue)
 
@@ -25,15 +23,6 @@ beforeEach(() => {
   seen.length = 0
   $api.mockClear()
   Object.values(queryClient).forEach(fn => fn.mockClear())
-})
-
-describe('TikTok tenant feature', () => {
-  it('is on only while the tenant holds inbox.tiktok', () => {
-    expect(Vue.toValue(tiktok.useInboxTikTokEnabled())).toBe(true)
-    identity.value = { platform: { readable_features: [], writable_features: [] } }
-    expect(Vue.toValue(tiktok.useInboxTikTokEnabled())).toBe(false)
-    identity.value = { platform: { readable_features: ['inbox.tiktok'], writable_features: ['inbox.tiktok'] } }
-  })
 })
 
 describe('TikTok refusal reasons', () => {

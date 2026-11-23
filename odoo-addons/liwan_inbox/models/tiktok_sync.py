@@ -13,7 +13,7 @@ from odoo import api, fields, models
 from odoo.exceptions import UserError
 
 from .batch import process_each
-from .constants import TIKTOK_FEATURE, TIKTOK_SYNC_CRON
+from .constants import INBOX_FEATURE, TIKTOK_SYNC_CRON
 from odoo.addons.liwan_inbox.adapters import errors, tiktok
 
 _logger = logging.getLogger(__name__)
@@ -79,7 +79,7 @@ class LiwanInboxTikTokSync(models.Model):
     @api.model
     def _liwan_run_tiktok_sync(self):
         """Cron: advance every unfinished import by one step, committing after each (D11)."""
-        if not self.env['liwan.entitlement.service']._liwan_feature_write(TIKTOK_FEATURE):
+        if not self.env['liwan.entitlement.service']._liwan_feature_write(INBOX_FEATURE):
             return
         process_each(
             self.search([('state', 'in', ACTIVE_STATES)], order='id', limit=SYNC_BATCH),

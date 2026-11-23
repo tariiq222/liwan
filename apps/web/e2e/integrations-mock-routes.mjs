@@ -34,7 +34,7 @@ const MAX_VALUE_LENGTH = 4096
 
 const PROVIDERS = [
   { code: 'meta', auth: 'keys', secrets: ['access_token', 'app_secret'], generated_secrets: ['verify_token'], attributes: ['app_id'], uses: [{ key: 'inbox.whatsapp', owner: 'liwan_inbox' }], settings_path: null, webhook: { use: 'inbox.whatsapp', path: '/api/v1/inbox/hooks/whatsapp' } },
-  { code: 'tiktok', auth: 'oauth', secrets: [], generated_secrets: [], attributes: [], uses: [{ key: 'inbox.tiktok', owner: 'liwan_inbox' }], settings_path: null },
+  { code: 'tiktok', auth: 'oauth', secrets: [], generated_secrets: [], attributes: [], uses: [{ key: 'inbox.tiktok', owner: 'liwan_inbox' }], settings_path: null, oauth_ready: true },
   { code: 'paymob', auth: 'external', secrets: [], generated_secrets: [], attributes: [], uses: [], settings_path: '/settings/apps/payments#providers' },
   { code: 'zatca', auth: 'external', secrets: [], generated_secrets: [], attributes: [], uses: [], settings_path: '/settings/apps/finance#zatca' },
 ]
@@ -65,7 +65,7 @@ const notFound = () => refusal(404, 'not_found', 'not found')
 const findConnection = id => state.connections.find(connection => connection.id === id)
 
 function dumpProvider(provider) {
-  return { code: provider.code, auth: provider.auth, secrets: provider.secrets, generated_secrets: provider.generated_secrets, attributes: provider.attributes, uses: provider.uses, settings_path: provider.settings_path }
+  return { code: provider.code, auth: provider.auth, secrets: provider.secrets, generated_secrets: provider.generated_secrets, attributes: provider.attributes, uses: provider.uses, settings_path: provider.settings_path, oauth_ready: provider.auth === 'oauth' ? provider.oauth_ready : null }
 }
 
 function dumpConnection(connection, origin) {

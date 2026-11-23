@@ -11,7 +11,7 @@ export const INBOX_CAPABILITIES = [
   'inbox.channels.manage', 'inbox.settings.manage', 'inbox.templates.manage', 'inbox.automation.manage', 'inbox.flows.manage', 'inbox.reports.read',
   'inbox.catalog.manage', 'inbox.orders.manage', 'inbox.campaigns.manage',
 ]
-export const INBOX_FEATURES = ['inbox.enabled', 'inbox.whatsapp', 'inbox.tiktok', 'inbox.templates', 'inbox.automation', 'inbox.flows', 'inbox.reports', 'inbox.catalog', 'inbox.campaigns']
+export const INBOX_FEATURES = ['inbox.enabled', 'inbox.whatsapp', 'inbox.templates', 'inbox.automation', 'inbox.flows', 'inbox.reports', 'inbox.catalog', 'inbox.campaigns']
 
 const ME = { id: 2, name: 'Admin' }
 const AGENTS = [{ id: 5, name: 'نورة الحربي' }, { id: 6, name: 'سارة محمد' }]
@@ -354,8 +354,12 @@ function conversationList(url) {
     channelKind: url.searchParams.get('channel_kind'),
     department: Number(url.searchParams.get('department_id')) || null,
     csat: url.searchParams.get('csat'),
+    channelId: Number(url.searchParams.get('channel_id')) || null,
+    unread: url.searchParams.get('unread'),
   }
   const items = state.conversations
+    .filter(c => !wanted.channelId || c.channel.id === wanted.channelId)
+    .filter(c => !wanted.unread || !!c.unread === (wanted.unread === 'true'))
     .filter(c => !wanted.state || c.state === wanted.state)
     .filter(c => !wanted.priority || c.priority === wanted.priority)
     .filter(c => !wanted.channelKind || c.channel.kind === wanted.channelKind)

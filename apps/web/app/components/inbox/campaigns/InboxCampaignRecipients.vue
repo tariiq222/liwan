@@ -49,6 +49,8 @@ const columns = computed<TableColumn<InboxCampaignRecipient>[]>(() => [
 const detailOf = (row: InboxCampaignRecipient) => row.skip_reason
   ? t(`inbox.campaigns.recipients.skip.${row.skip_reason}`)
   : row.failure ? t(`inbox.campaigns.recipients.failure.${row.failure}`) : ''
+// Only a failed recipient has a retry outcome: the server says whether sending to it again can still succeed.
+const retryOf = (row: InboxCampaignRecipient) => (row.state !== 'failed' ? '' : t(row.can_retry ? 'inbox.campaigns.recipients.retryable' : 'inbox.campaigns.recipients.finalFailure'))
 </script>
 
 <template>
@@ -85,6 +87,7 @@ const detailOf = (row: InboxCampaignRecipient) => row.skip_reason
         <template #error-cell="{ row }">
           <span class="flex min-w-0 flex-col text-sm">
             <span>{{ detailOf(row.original) }}</span>
+            <span v-if="retryOf(row.original)" class="text-xs" :class="row.original.can_retry ? 'text-warning' : 'text-error'" :data-testid="`inbox-recipient-retry-${row.original.id}`">{{ retryOf(row.original) }}</span>
             <span v-if="row.original.error" class="truncate text-xs text-muted"><bdi v-if="row.original.error_code" dir="ltr">{{ row.original.error_code }}</bdi> {{ row.original.error }}</span>
           </span>
         </template>
@@ -104,6 +107,7 @@ const detailOf = (row: InboxCampaignRecipient) => row.skip_reason
             <SharedStatusBadge size="sm" :tone="RECIPIENT_STATE_TONE[row.state]" :label="t(`inbox.campaigns.recipients.states.${row.state}`)" />
           </div>
           <p class="mt-1 text-sm text-muted">{{ detailOf(row) }}</p>
+          <p v-if="retryOf(row)" class="text-xs" :class="row.can_retry ? 'text-warning' : 'text-error'">{{ retryOf(row) }}</p>
         </template>
       </SharedDataTable>
     </SharedPageState>

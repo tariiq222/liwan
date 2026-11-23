@@ -21,7 +21,7 @@ describe('callDuration', () => {
 })
 
 describe('providerHasVoice', () => {
-  const provider = (key: string) => ({ code: 'x', auth: 'keys' as const, secrets: [], generated_secrets: [], attributes: [], uses: [{ key, owner: 'o' }], settings_path: null })
+  const provider = (key: string) => ({ code: 'x', auth: 'keys' as const, secrets: [], generated_secrets: [], attributes: [], uses: [{ key, owner: 'o' }], settings_path: null, oauth_ready: null })
   it('is true for a voice use and false for messaging and application uses', () => {
     expect(providerHasVoice(provider('twilio.voice'))).toBe(true)
     expect(providerHasVoice(provider('twilio.messaging'))).toBe(false)

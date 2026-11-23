@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { refDebounced } from '@vueuse/core'
 import InboxAgentShiftsForm from '@/components/inbox/InboxAgentShiftsForm.vue'
 import { INBOX_AGENT_STATUS_TONE, inboxAgentStatus } from '@/composables/inbox/inboxAgents'
 import { useInboxAgents, useSetInboxAgentAvailability } from '@/composables/inbox/useInbox'
@@ -8,12 +9,17 @@ import { useInboxSettings } from '@/composables/inbox/useInboxSettings'
 // their shift when shifts are on. A holder of the assign capability switches anyone; an agent switches only themselves.
 // The weekly shift of each agent is edited here, by a holder of the settings capability, and only when the company turned
 // shifts on. A holder of the assign capability alone sees the list and the switches, not the settings.
+const SEARCH_DEBOUNCE_MS = 300
 const { t } = useI18n()
 const hydrated = useHydrated()
 const toast = useToast()
 const { me } = useMe()
 const { can } = useAccess()
-const { data, isLoading, error, refetch } = useInboxAgents()
+const search = ref('')
+// The server narrows the list by name once typing pauses; clearing the box restores every agent.
+const term = refDebounced(search, SEARCH_DEBOUNCE_MS)
+const { data, isLoading, error, refetch } = useInboxAgents(true, term)
+const searching = computed(() => term.value.trim().length > 0)
 const canManage = computed(() => can('inbox.settings.manage'))
 const settings = useInboxSettings(canManage)
 const { mutate: setAvailability, isPending } = useSetInboxAgentAvailability()
@@ -47,9 +53,18 @@ function toggle(userId: number, available: boolean) {
 
 <template>
   <SharedRecordSection id="agents" variant="panel" class="liwan-settings-anchor" :title="t('inbox.settings.agents.title')" :description="t('inbox.settings.agents.hint')">
+    <UInput
+      v-model="search"
+      class="mb-3 w-full"
+      icon="i-lucide-search"
+      :placeholder="t('inbox.settings.agents.search')"
+      :aria-label="t('inbox.settings.agents.search')"
+      :disabled="!hydrated"
+      data-testid="inbox-agents-search"
+    />
     <SharedLoadingSkeleton v-if="isLoading" />
     <SharedPageState v-else-if="error" :error="error" @retry="refetch()" />
-    <p v-else-if="!items.length" class="text-sm text-muted">{{ t('inbox.settings.agents.empty') }}</p>
+    <p v-else-if="!items.length" class="text-sm text-muted" data-testid="inbox-agents-empty">{{ searching ? t('inbox.settings.agents.noMatch') : t('inbox.settings.agents.empty') }}</p>
     <ul v-else class="flex flex-col divide-y divide-default" data-testid="inbox-agents">
       <li v-for="agent in items" :key="agent.id" class="flex flex-col gap-3 py-3" :data-testid="`inbox-agent-${agent.id}`">
         <div class="flex flex-wrap items-center gap-3">

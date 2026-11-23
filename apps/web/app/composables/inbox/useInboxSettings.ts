@@ -22,6 +22,7 @@ import {
   type InboxCannedReplyWrite,
   type InboxChannelCreate,
   type InboxChannelKind,
+  type InboxEventState,
   type InboxChannelPatch,
   type InboxDepartmentWrite,
   type InboxPresetKey,
@@ -163,18 +164,18 @@ export function useInboxChannels(enabled: MaybeRefOrGetter<boolean> = true) {
   })
 }
 
-/** The failed webhook deliveries of one channel, newest first: the ones an operator may re-run. */
-export function useInboxChannelEvents(channelId: MaybeRefOrGetter<number | undefined>) {
+/** The webhook deliveries of one channel in one state, newest first; the failed ones are those an operator may re-run. */
+export function useInboxChannelEvents(channelId: MaybeRefOrGetter<number | undefined>, state: MaybeRefOrGetter<InboxEventState> = 'failed') {
   const { $api } = useApi()
   return useQuery({
-    queryKey: computed(() => inboxSettingsKeys.channelEvents(toValue(channelId) ?? 0)),
+    queryKey: computed(() => [...inboxSettingsKeys.channelEvents(toValue(channelId) ?? 0), toValue(state)] as const),
     enabled: computed(() => !!toValue(channelId)),
     retry: false,
-    queryFn: () => $api(`/api/v1/inbox/channels/${toValue(channelId)}/events`, { query: { state: 'failed' }, schema: InboxEventListSchema }),
+    queryFn: () => $api(`/api/v1/inbox/channels/${toValue(channelId)}/events`, { query: { state: toValue(state) }, schema: InboxEventListSchema }),
   })
 }
 
-/** Give one failed delivery a fresh set of attempts; its stored messages are skipped, so nothing is applied twice. */
+/** Give one failed delivery a fresh set of attempts; its stored messages are skipped, so nothing is applied twice. Every state list of the channel reloads, because the delivery moves to pending. */
 export function useRetryInboxEvent(channelId: () => number) {
   const { $api } = useApi()
   const qc = useQueryClient()

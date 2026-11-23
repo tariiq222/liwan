@@ -23,6 +23,8 @@ export const IntegrationProviderSchema = z.object({
   uses: z.array(IntegrationUseSchema),
   /** `external` only: the settings page that manages the link. */
   settings_path: z.string().startsWith('/').nullable(),
+  /** `oauth` only: whether this system holds the provider's app credentials, so authorizing can start. `null` for other auth types. */
+  oauth_ready: z.boolean().nullable(),
 }).strict()
 
 export const IntegrationProviderListSchema = z.object({

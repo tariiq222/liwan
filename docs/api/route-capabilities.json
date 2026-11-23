@@ -433,7 +433,7 @@
       "capability_match": "all",
       "capability_source": "decorator",
       "feature_keys": [
-        "inbox.tiktok"
+        "inbox.enabled"
       ],
       "handler": "delete_shortcut",
       "no_capability_reason": null
@@ -4676,6 +4676,7 @@
       "addon": "liwan_inbox",
       "auth": "user",
       "capability_keys": [
+        "inbox.conversations.read",
         "inbox.templates.manage",
         "inbox.flows.manage",
         "inbox.automation.manage"
@@ -4869,7 +4870,7 @@
       "capability_match": "all",
       "capability_source": "decorator",
       "feature_keys": [
-        "inbox.tiktok"
+        "inbox.enabled"
       ],
       "handler": "list_shortcuts",
       "no_capability_reason": null
@@ -4883,7 +4884,7 @@
       "capability_match": "all",
       "capability_source": "decorator",
       "feature_keys": [
-        "inbox.tiktok"
+        "inbox.enabled"
       ],
       "handler": "latest_sync",
       "no_capability_reason": null
@@ -8468,7 +8469,7 @@
       "capability_match": "all",
       "capability_source": "decorator",
       "feature_keys": [
-        "inbox.tiktok"
+        "inbox.enabled"
       ],
       "handler": "patch_shortcut",
       "no_capability_reason": null
@@ -12841,7 +12842,7 @@
       "capability_match": "all",
       "capability_source": "decorator",
       "feature_keys": [
-        "inbox.tiktok"
+        "inbox.enabled"
       ],
       "handler": "create_shortcut",
       "no_capability_reason": null
@@ -12855,7 +12856,7 @@
       "capability_match": "all",
       "capability_source": "decorator",
       "feature_keys": [
-        "inbox.tiktok"
+        "inbox.enabled"
       ],
       "handler": "enable_shortcuts",
       "no_capability_reason": null
@@ -12869,7 +12870,7 @@
       "capability_match": "all",
       "capability_source": "decorator",
       "feature_keys": [
-        "inbox.tiktok"
+        "inbox.enabled"
       ],
       "handler": "start_sync",
       "no_capability_reason": null
@@ -13114,7 +13115,7 @@
       "capability_match": null,
       "capability_source": "none",
       "feature_keys": [
-        "inbox.tiktok"
+        "inbox.enabled"
       ],
       "handler": "receive",
       "no_capability_reason": "TikTok webhook (machine to machine): TikTok signs every POST with HMAC-SHA256 over the timestamp and raw body using the app secret; the route runs as the inactive inbox hook identity that may only read channels and create raw events."

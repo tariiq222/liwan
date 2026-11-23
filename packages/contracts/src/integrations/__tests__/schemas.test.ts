@@ -14,7 +14,7 @@ import {
 
 const PROVIDER = {
   code: 'meta', auth: 'keys', secrets: ['access_token', 'app_secret'], generated_secrets: ['verify_token'], attributes: ['app_id'],
-  uses: [{ key: 'inbox.whatsapp', owner: 'liwan_inbox' }], settings_path: null,
+  uses: [{ key: 'inbox.whatsapp', owner: 'liwan_inbox' }], settings_path: null, oauth_ready: null,
 }
 const CONNECTION = {
   ref: 'connection:3', id: 3, provider: 'meta', auth: 'keys', external_id: '1029384756', label: 'متجر الورد',
@@ -33,6 +33,13 @@ describe('IntegrationProviderSchema', () => {
   it('accepts the registry shape and lists it with a total', () => {
     expect(IntegrationProviderSchema.parse(PROVIDER)).toEqual(PROVIDER)
     expect(IntegrationProviderListSchema.parse({ items: [PROVIDER], total: 1 }).total).toBe(1)
+  })
+
+  it('carries oauth readiness as a boolean for oauth providers and null otherwise', () => {
+    const oauth = { ...PROVIDER, code: 'tiktok', auth: 'oauth' }
+    expect(IntegrationProviderSchema.parse({ ...oauth, oauth_ready: true }).oauth_ready).toBe(true)
+    expect(IntegrationProviderSchema.parse({ ...oauth, oauth_ready: false }).oauth_ready).toBe(false)
+    expect(() => IntegrationProviderSchema.parse({ ...PROVIDER, oauth_ready: undefined })).toThrow()
   })
 
   it('is strict and rejects an unknown auth type or a relative settings path', () => {
