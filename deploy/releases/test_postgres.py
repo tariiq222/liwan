@@ -3,7 +3,8 @@ import unittest
 from .backup import Deadline
 from .postgres import (validate_runtime_role, fence_runtime, fence_writers, writer_grants, runtime_role_fixture,
                        tenant_create_database_sql, tenant_isolation_sql, tenant_isolation_statements,
-                       TENANT_EXTENSION_SQL)
+                       TENANT_EXTENSION_SQL, POSTGRES_ADMIN_ROLE, ODOO_RUNTIME_ROLE, RUNTIME_ROLE_RULES,
+                       runtime_role_assertion_sql, tenant_schema_grant_sql, cluster_connect_grant_sql)
 
 
 class Cursor:
@@ -18,7 +19,9 @@ class Cursor:
         if 'pg_stat_activity' in self.sql:  # session counts and pg_terminate_backend
             return (self.connection.active,) if 'count(*)' in self.sql else (True,)
         if 'SELECT EXISTS (SELECT 1 FROM pg_database WHERE' in self.sql: return (self.connection.database_exists,)
-        if 'FROM pg_roles WHERE' in self.sql: return self.connection.flags
+        if 'FROM pg_roles WHERE' in self.sql:
+            flags = self.connection.flags
+            return (not (flags and len(flags) == 6 and flags[0] is True and not any(flags[1:])),)
         if 'aclexplode' in self.sql: return (self.connection.public,)
         if 'pg_database' in self.sql and 'datdba' in self.sql: return (self.connection.owner,)
         if 'pg_auth_members' in self.sql: return (self.connection.member,)
@@ -93,6 +96,61 @@ class TenantCreationTests(unittest.TestCase):
         for database in ('tenant"; DROP', 'Tenant', '1db', 'bad-name'):
             with self.assertRaises(ValueError):
                 tenant_create_database_sql(database)
+
+
+class RuntimeRoleTests(unittest.TestCase):
+    def test_role_names_are_distinct_valid_identifiers(self):
+        self.assertEqual(('postgres', 'odoo'), (POSTGRES_ADMIN_ROLE, ODOO_RUNTIME_ROLE))
+
+    def test_grants_quote_the_role_and_reject_unsafe_names(self):
+        self.assertEqual('GRANT CREATE ON SCHEMA public TO "odoo"', tenant_schema_grant_sql('odoo'))
+        self.assertEqual('GRANT CONNECT ON DATABASE "postgres" TO "odoo"', cluster_connect_grant_sql('odoo'))
+        for build in (tenant_schema_grant_sql, cluster_connect_grant_sql):
+            for role in ('odoo"; DROP', 'Odoo', 'odoo; x', ''):
+                with self.assertRaises(ValueError):
+                    build(role)
+
+    def test_validate_keeps_its_reasons_per_rule(self):
+        cases = {'privileged_or_missing_role': {'flags': None},
+                 'role_membership_rejected': {'member': True},
+                 'database_owner_rejected': {'owner': True},
+                 'public_connect_rejected': {'public': True},
+                 'database_missing': {'database_exists': False}}
+        for reason, attributes in cases.items():
+            connection = Connection()
+            for name, value in attributes.items(): setattr(connection, name, value)
+            self.assertEqual([reason], validate_runtime_role(connection, 'odoo', 'tenant_a')['reasons'])
+        self.assertEqual(['privileged_or_missing_role', 'role_membership_rejected', 'database_owner_rejected'],
+                         [reason for reason, _ in RUNTIME_ROLE_RULES])
+
+    def test_validate_runs_each_rule_with_role_and_database_parameters(self):
+        connection = Connection()
+        validate_runtime_role(connection, 'odoo', 'tenant_a')
+        rule_calls = [args for sql, args in connection.commands if isinstance(args, dict)]
+        self.assertEqual(3, len(rule_calls))
+        self.assertTrue(all(args == {'role': 'odoo', 'databases': ['tenant_a']} for args in rule_calls))
+
+    def test_assertion_raises_the_reason_of_every_rule(self):
+        sql = runtime_role_assertion_sql('odoo', ['tenant_a', 'tenant_b'])
+        self.assertTrue(sql.startswith('DO $$ BEGIN ') and sql.endswith(' END $$'))
+        for reason, _ in RUNTIME_ROLE_RULES:
+            self.assertIn(f"RAISE EXCEPTION '{reason}'", sql)
+        self.assertEqual(len(RUNTIME_ROLE_RULES), sql.count('RAISE EXCEPTION'))
+        for attribute in ('rolsuper', 'rolcreatedb', 'rolcreaterole', 'rolreplication', 'rolbypassrls', 'rolcanlogin'):
+            self.assertIn(attribute, sql)
+        self.assertIn('pg_auth_members', sql)
+        self.assertIn("d.datname = ANY(ARRAY['tenant_a', 'tenant_b']::text[])", sql)
+        self.assertIn("rolname = 'odoo'", sql)
+        self.assertNotIn('%(', sql)
+
+    def test_assertion_accepts_no_databases_and_rejects_unsafe_input(self):
+        self.assertIn('ARRAY[]::text[]', runtime_role_assertion_sql('odoo', []))
+        for role, databases in (('odoo"; x', []), ("od'oo", []), ('odoo', ['tenant"; DROP']), ('odoo', ["a'b"]),
+                                ('odoo', ['Tenant']), ('Odoo', [])):
+            with self.assertRaises(ValueError):
+                runtime_role_assertion_sql(role, databases)
+        with self.assertRaises(ValueError):
+            runtime_role_assertion_sql('odoo', 'tenant_a')
 
 
 class PostgresTests(unittest.TestCase):

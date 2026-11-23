@@ -13,6 +13,26 @@ def identifier(value):
     return '"' + value + '"'
 
 
+# The two roles of the shared stack: the admin role is used by tooling only (create, drop, snapshot, ACLs,
+# extensions, dump, restore); the runtime role is what Odoo, its release run and pgbouncer connect as.
+POSTGRES_ADMIN_ROLE = 'postgres'
+ODOO_RUNTIME_ROLE = 'odoo'
+
+# What a runtime role must never be. Each rule is (reason, SQL predicate that is true when the rule is
+# violated); %(role)s and %(databases)s are the only parameters. validate_runtime_role runs the predicates
+# through a driver and runtime_role_assertion_sql renders them into a raising script, so both enforce one rule.
+RUNTIME_ROLE_RULES = (
+    ('privileged_or_missing_role',
+     'NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = %(role)s AND rolcanlogin AND NOT rolsuper AND NOT rolcreatedb '
+     'AND NOT rolcreaterole AND NOT rolreplication AND NOT rolbypassrls)'),
+    ('role_membership_rejected',
+     'EXISTS (SELECT 1 FROM pg_auth_members m JOIN pg_roles r ON r.oid = m.member WHERE r.rolname = %(role)s)'),
+    ('database_owner_rejected',
+     'EXISTS (SELECT 1 FROM pg_database d JOIN pg_roles r ON r.oid = d.datdba '
+     'WHERE d.datname = ANY(%(databases)s::text[]) AND r.rolname = %(role)s)'),
+)
+
+
 def validate_runtime_role(connection, role, database):
     """Inspect login flags, all memberships, DB ownership and PUBLIC CONNECT.
 
@@ -25,19 +45,30 @@ def validate_runtime_role(connection, role, database):
         with connection.cursor() as cursor:
             cursor.execute('SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname=%s)', (database,))
             if cursor.fetchone()[0] is not True: reasons.append('database_missing')
-            cursor.execute('SELECT rolcanlogin, rolsuper, rolcreatedb, rolcreaterole, rolreplication, rolbypassrls FROM pg_roles WHERE rolname = %s', (role,))
-            flags = cursor.fetchone()
-            if not flags or len(flags) != 6 or flags[0] is not True or any(flags[1:]):
-                reasons.append('privileged_or_missing_role')
-            cursor.execute('SELECT EXISTS (SELECT 1 FROM pg_auth_members m JOIN pg_roles r ON r.oid=m.member WHERE r.rolname=%s)', (role,))
-            if cursor.fetchone()[0]: reasons.append('role_membership_rejected')
-            cursor.execute('SELECT EXISTS (SELECT 1 FROM pg_database d JOIN pg_roles r ON r.oid=d.datdba WHERE d.datname=%s AND r.rolname=%s)', (database, role))
-            if cursor.fetchone()[0]: reasons.append('database_owner_rejected')
+            for reason, violated in RUNTIME_ROLE_RULES:
+                cursor.execute('SELECT ' + violated, {'role': role, 'databases': [database]})
+                if cursor.fetchone()[0]: reasons.append(reason)
             cursor.execute("SELECT EXISTS (SELECT 1 FROM pg_database d, LATERAL aclexplode(COALESCE(d.datacl,acldefault('d',d.datdba))) a WHERE d.datname=%s AND a.grantee=0 AND a.privilege_type='CONNECT')", (database,))
             if cursor.fetchone()[0]: reasons.append('public_connect_rejected')
     except Exception:
         return {'valid': False, 'reasons': ['role_inspection_failed']}
     return {'valid': not reasons, 'reasons': reasons}
+
+
+def runtime_role_assertion_sql(role, databases):
+    """One statement that raises in PostgreSQL unless ``role`` is a plain login role that owns none of ``databases``.
+
+    Run it as the admin role; it raises the reason of the first violated rule of RUNTIME_ROLE_RULES
+    (a missing role, a privileged attribute, any membership, or ownership of a listed database).
+    """
+    if not isinstance(databases, (list, tuple)):
+        raise ValueError('runtime_databases_rejected')
+    identifier(role)
+    for database in databases: identifier(database)
+    literals = {'role': f"'{role}'", 'databases': 'ARRAY[' + ', '.join(f"'{d}'" for d in databases) + ']'}
+    checks = ' '.join(f"IF {violated % literals} THEN RAISE EXCEPTION '{reason}'; END IF;"
+                      for reason, violated in RUNTIME_ROLE_RULES)
+    return f'DO $$ BEGIN {checks} END $$'
 
 
 # Odoo's own recipe for an empty database (odoo/service/db.py _create_empty_database): unicode, C
@@ -67,6 +98,19 @@ def tenant_isolation_statements(database, application_role):
         f"WHERE d.datname = '{database}' AND a.grantee = 0 AND a.privilege_type = 'CONNECT') "
         "THEN RAISE EXCEPTION 'public_connect_not_revoked'; END IF; END $$",
     )
+
+
+def tenant_schema_grant_sql(application_role):
+    """Lets the non-superuser application role create its tables; run inside the tenant database.
+
+    PostgreSQL 15 and later give CREATE on schema public to the database owner only.
+    """
+    return f'GRANT CREATE ON SCHEMA public TO {identifier(application_role)}'
+
+
+def cluster_connect_grant_sql(application_role):
+    """Lets the application role reach the ``postgres`` database (Odoo cron and health probes); once per cluster."""
+    return f'GRANT CONNECT ON DATABASE "postgres" TO {identifier(application_role)}'
 
 
 def tenant_isolation_sql(database, application_role):
