@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import os
 from unittest.mock import patch
 
 from odoo.exceptions import UserError
@@ -21,7 +22,7 @@ CONNECTION_KEYS = {
     'ref', 'id', 'provider', 'auth', 'external_id', 'label', 'app_id', 'state', 'status_message', 'last_checked',
     'token_expires_at', 'secrets', 'used_by', 'webhooks', 'settings_path',
 }
-PROVIDER_KEYS = {'code', 'auth', 'secrets', 'generated_secrets', 'attributes', 'uses', 'settings_path'}
+PROVIDER_KEYS = {'code', 'auth', 'secrets', 'generated_secrets', 'attributes', 'uses', 'settings_path', 'oauth_ready'}
 GOOD_PROBE = patch.object(meta, 'probe', return_value='Acme Business')
 
 
@@ -52,6 +53,16 @@ class TestIntegrationKeysApi(LiwanIntegrationsCase):
         set_probe_feature(self, enabled=False)
         closed = self.api('GET', f'{BASE}/providers').json()['items']
         self.assertFalse({use['key'] for item in closed for use in item['uses']} & {'test.meta', 'test.tiktok'})
+
+    def test_oauth_ready_tells_whether_the_operator_set_the_app_keys_and_leaks_nothing(self):
+        keys = {'LIWAN_TIKTOK_CLIENT_KEY': 'ck-1', 'LIWAN_TIKTOK_CLIENT_SECRET': 'cs-secret-1', 'LIWAN_TIKTOK_REDIRECT_URI': 'https://liwan.test/cb'}
+        for environ, expected in ((keys, True), ({**keys, 'LIWAN_TIKTOK_CLIENT_SECRET': ''}, False), ({k: '' for k in keys}, False)):
+            with self.subTest(expected=expected), patch.dict(os.environ, environ):
+                result = self.api('GET', f'{BASE}/providers')
+                by_code = {item['code']: item for item in result.json()['items']}
+                self.assertEqual(by_code['tiktok']['oauth_ready'], expected)
+                self.assertIsNone(by_code['meta']['oauth_ready'])
+                self.assertNotIn('cs-secret-1', result.text)
 
     def test_connect_stores_encrypted_secrets_and_answers_the_whitelisted_shape(self):
         result = self.connect(label='Main account')

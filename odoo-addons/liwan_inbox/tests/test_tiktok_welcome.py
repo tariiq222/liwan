@@ -7,7 +7,7 @@ from odoo.tests import tagged
 from .common import LiwanInboxCase, tiktok_grant
 from odoo.addons.liwan_api.tests.common import set_probe_feature
 from odoo.addons.liwan_inbox.adapters import errors, tiktok
-from odoo.addons.liwan_inbox.models.constants import AUTOMATION_FEATURE, TIKTOK_FEATURE
+from odoo.addons.liwan_inbox.models.constants import AUTOMATION_FEATURE, INBOX_FEATURE
 
 ACCESS_TOKEN = 'tiktok-access-token-welcome'
 REFRESH_TOKEN = 'tiktok-refresh-token-welcome'
@@ -28,7 +28,7 @@ class TestTikTokWelcome(LiwanInboxCase):
 
     def setUp(self):
         super().setUp()
-        set_probe_feature(self, key=TIKTOK_FEATURE, enabled=True)
+        set_probe_feature(self, key=INBOX_FEATURE, enabled=True)
         set_probe_feature(self, key=AUTOMATION_FEATURE, enabled=True)
         self.login(self.manager)
 

@@ -9,7 +9,11 @@ from odoo.tools import mute_logger
 from .common import BUSINESS_ACCOUNT_ID, LiwanInboxCase
 from odoo.addons.liwan_api.tests.common import set_probe_feature
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
-from odoo.addons.liwan_inbox.models.constants import CHANNELS_LIMIT, TIKTOK_FEATURE
+from odoo.addons.liwan_inbox.models.constants import (
+    CHANNELS_LIMIT,
+    INBOX_FEATURE,
+    WHATSAPP_FEATURE,
+)
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
 BUSINESS_ID = 'business-open-id-0001'
@@ -53,13 +57,16 @@ class TestTikTokChannel(LiwanInboxCase):
         with self.assertRaises(ValidationError), self.env.cr.savepoint():
             self.make_tiktok(connection=self.make_connection('400000000003'))
 
-    def test_creating_a_tiktok_channel_needs_the_tiktok_feature(self):
-        set_probe_feature(self, key=TIKTOK_FEATURE, enabled=False)
-        with self.assertRaises(LiwanAccessRule) as refused:
-            self.make_tiktok()
+    def test_creating_a_tiktok_channel_follows_the_inbox_feature_alone(self):
+        set_probe_feature(self, key=WHATSAPP_FEATURE, enabled=False)
+        self.make_tiktok()
+        with self.assertRaises(LiwanAccessRule) as refused, self.env.cr.savepoint():
+            self.make_channel(phone_id='100000000009')
         self.assertEqual(refused.exception.code, 'feature_not_included')
-        # The WhatsApp channel keeps its own feature: TikTok being off does not close it.
-        self.make_channel(phone_id='100000000009')
+        set_probe_feature(self, key=INBOX_FEATURE, enabled=False)
+        with self.assertRaises(LiwanAccessRule) as refused:
+            self.make_tiktok(business_id='business-open-id-0003')
+        self.assertEqual(refused.exception.code, 'feature_not_included')
 
     def test_a_tiktok_account_has_one_channel(self):
         channel = self.make_tiktok()

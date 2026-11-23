@@ -14,9 +14,9 @@ from odoo.addons.liwan_api.tests.common import set_probe_feature
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_inbox.adapters import errors, tiktok
 from odoo.addons.liwan_inbox.models.constants import (
+    INBOX_FEATURE,
     REPLY_WINDOWS,
     TIKTOK_ECHO_SETTLE,
-    TIKTOK_FEATURE,
 )
 from odoo.addons.liwan_inbox.models.inbound_tiktok import NOTE_TIKTOK_AUTO_WELCOME
 from odoo.addons.liwan_inbox.serializers import conversation as conversation_dump
@@ -33,7 +33,7 @@ class TestTikTokInbound(LiwanInboxCase):
 
     def setUp(self):
         super().setUp()
-        set_probe_feature(self, key=TIKTOK_FEATURE, enabled=True)
+        set_probe_feature(self, key=INBOX_FEATURE, enabled=True)
         self.tiktok = self.make_tiktok_channel(
             authorization=tiktok_grant(access_token=ACCESS_TOKEN, refresh_token=REFRESH_TOKEN),
         )

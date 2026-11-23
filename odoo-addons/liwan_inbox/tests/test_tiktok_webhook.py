@@ -11,7 +11,7 @@ from odoo.tests import tagged
 from . import tiktok_payloads as tt
 from .common import LiwanInboxCase
 from odoo.addons.liwan_api.tests.common import set_probe_feature
-from odoo.addons.liwan_inbox.models.constants import TIKTOK_ECHO_SETTLE, TIKTOK_FEATURE
+from odoo.addons.liwan_inbox.models.constants import INBOX_FEATURE, TIKTOK_ECHO_SETTLE
 
 HOOK = '/api/v1/inbox/hooks/tiktok'
 BUSINESS_ID = tt.BUSINESS_ID
@@ -35,7 +35,7 @@ class TestTikTokWebhook(LiwanInboxCase):
 
     def setUp(self):
         super().setUp()
-        set_probe_feature(self, key=TIKTOK_FEATURE, enabled=True)
+        set_probe_feature(self, key=INBOX_FEATURE, enabled=True)
 
     def post(self, payload, secret=tt.CLIENT_SECRET, now=None, raw=None):
         raw = json.dumps(payload).encode() if raw is None else raw
@@ -118,7 +118,7 @@ class TestTikTokWebhook(LiwanInboxCase):
         self.assertFalse(self.events())
 
     def test_a_closed_feature_refuses_the_hook(self):
-        set_probe_feature(self, key=TIKTOK_FEATURE, enabled=False)
+        set_probe_feature(self, key=INBOX_FEATURE, enabled=False)
         self.assertError(self.post(tt.receive_text()), 403, 'feature_not_included')
         self.assertFalse(self.events())
 

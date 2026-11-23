@@ -26,12 +26,14 @@ from odoo.addons.liwan_inbox.models.access_service import (
     MANAGE_CHANNELS,
     MANAGE_FLOWS,
     MANAGE_TEMPLATES,
+    READ,
 )
 from odoo.addons.liwan_inbox.models.constants import (
     AUTOMATION_FEATURE,
     CHANNEL_FEATURES,
     CHANNEL_USES,
     FLOWS_FEATURE,
+    INBOX_FEATURE,
     TEMPLATES_FEATURE,
 )
 from odoo.addons.liwan_inbox.models.integration_registry import USE_PROVIDERS
@@ -42,8 +44,10 @@ from odoo.addons.liwan_inbox.serializers.settings import (
     dump_event,
 )
 
-# The channels a page may pick from, by the capability and sub-feature that give a user work on them.
-WORK_SCOPES = ((MANAGE_TEMPLATES, TEMPLATES_FEATURE), (MANAGE_FLOWS, FLOWS_FEATURE), (MANAGE_AUTOMATION, AUTOMATION_FEATURE))
+# The channels a page may pick from, by the capability and feature that give a user work on them (reading conversations included).
+WORK_SCOPES = (
+    (READ, INBOX_FEATURE), (MANAGE_TEMPLATES, TEMPLATES_FEATURE), (MANAGE_FLOWS, FLOWS_FEATURE), (MANAGE_AUTOMATION, AUTOMATION_FEATURE),
+)
 CREATE_FIELDS = {'name', 'kind', 'department_id', 'connection_id', 'phone_number_id'}
 PATCH_FIELDS = {'name', 'department_id', 'state'}
 KINDS = tuple(USE_PROVIDERS)
@@ -134,11 +138,11 @@ class ChannelController(http.Controller):
     @http.route('/api/v1/inbox/channels/work', type='json2', auth='user', methods=['GET'], readonly=True)
     @api_handler
     @requires_feature('inbox.enabled', operation='read')
-    @requires_capability(MANAGE_TEMPLATES, MANAGE_FLOWS, MANAGE_AUTOMATION, match='any')
+    @requires_capability(READ, MANAGE_TEMPLATES, MANAGE_FLOWS, MANAGE_AUTOMATION, match='any')
     def list_work_channels(self, **_):
-        """The channels the caller works on (templates, forms or automation), as minimal references.
+        """The channels the caller works on (conversations, templates, forms or automation), as minimal references.
 
-        The channel list itself needs the channels capability; this one names only what a template, form or
+        The channel list itself needs the channels capability; this one names only what a conversation filter or a template, form or
         automation page needs to pick a channel, for the companies where the caller holds that work's capability
         and the matching sub-feature is readable.
         """

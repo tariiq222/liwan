@@ -58,7 +58,7 @@ ASSIGN_FIELDS = {'assignee_id', 'department_id'}
 
 
 def conversation_domain(args):
-    """The list filters of the query string (state, priority, assignee, department_id, channel_id, channel_kind, csat, q)."""
+    """The list filters of the query string (state, priority, assignee, department_id, channel_id, channel_kind, csat, unread, q)."""
     domain = []
     if args.get('state'):
         if args['state'] not in CONVERSATION_STATES:
@@ -87,10 +87,15 @@ def conversation_domain(args):
         if args['channel_kind'] not in kinds:
             reject(f'channel_kind must be one of {tuple(kinds)}', 'channel_kind')
         domain.append(('channel_id.kind', '=', args['channel_kind']))
+    if args.get('unread'):
+        if args['unread'] not in ('true', 'false'):
+            reject('unread must be true or false', 'unread')
+        domain.append(('unread', '=', args['unread'] == 'true'))
     if args.get('q'):
+        # The message-body term is one indexed `conversation_id` subquery under the caller's own message rules.
         domain += [
-            '|', '|', ('contact_id.name', 'ilike', args['q']), ('contact_id.phone', 'ilike', args['q']),
-            ('last_message_preview', 'ilike', args['q']),
+            '|', '|', '|', ('contact_id.name', 'ilike', args['q']), ('contact_id.phone', 'ilike', args['q']),
+            ('last_message_preview', 'ilike', args['q']), ('message_ids.body', 'ilike', args['q']),
         ]
     return domain
 

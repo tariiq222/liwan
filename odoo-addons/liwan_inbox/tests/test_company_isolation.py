@@ -21,7 +21,7 @@ from odoo.addons.liwan_api.tests.common import (
 )
 from odoo.addons.liwan_core.models.secret_box import KEY_ENV
 from odoo.addons.liwan_inbox.adapters import whatsapp
-from odoo.addons.liwan_inbox.models.constants import TIKTOK_FEATURE
+from odoo.addons.liwan_inbox.models.constants import INBOX_FEATURE
 from odoo.addons.liwan_inbox.tests.common import ACCESS_TOKEN, APP_SECRET, store_event
 
 EXPECTED_GET_RECORD_ROUTES = 41  # includes the failed-delivery list an operator re-runs, the catalog and order routes, the preset preview and an agent and their shifts
@@ -302,7 +302,7 @@ class TestTikTokCompanyIsolation(CompanyIsolationCase):
         env_patch = patch.dict(os.environ, TIKTOK_APP_ENV)
         env_patch.start()
         cls.addClassCleanup(env_patch.stop)
-        set_probe_feature(cls, key=TIKTOK_FEATURE, enabled=True)
+        set_probe_feature(cls, key=INBOX_FEATURE, enabled=True)
         cls.manager_a = cls._company_manager('iso_tiktok_manager_a', cls.company_p)
         cls.manager_b = cls._company_manager('iso_tiktok_manager_b', cls.company_c)
         # iso_user manages both companies: an A request made by it must still hide B, so the pin is what keeps

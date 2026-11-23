@@ -135,7 +135,6 @@ describe('release 1 entitlement boundaries', () => {
     const open = features([bundle(release, 3, 'inbox')])
     expect(open['inbox.enabled']).toBe(true)
     expect(open['inbox.whatsapp']).toBe(true)
-    expect(open['inbox.tiktok']).toBe(true)
     for (const key of SOLD.filter(k => k !== 'inbox.enabled').concat(LOCKED)) expect(open[key], key).toBe(false)
   })
 

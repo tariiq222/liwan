@@ -11,7 +11,7 @@ from . import tiktok_payloads as tt
 from .common import LiwanInboxCase, tiktok_grant
 from odoo.addons.liwan_api.tests.common import cover_isolation_routes, set_probe_feature
 from odoo.addons.liwan_inbox.adapters import errors, tiktok
-from odoo.addons.liwan_inbox.models.constants import TIKTOK_ECHO_SETTLE, TIKTOK_FEATURE
+from odoo.addons.liwan_inbox.models.constants import INBOX_FEATURE, TIKTOK_ECHO_SETTLE
 
 ACCESS_TOKEN = 'tiktok-access-token-shortcuts'
 REFRESH_TOKEN = 'tiktok-refresh-token-shortcuts'
@@ -38,7 +38,7 @@ class TestTikTokShortcuts(LiwanInboxCase):
 
     def setUp(self):
         super().setUp()
-        set_probe_feature(self, key=TIKTOK_FEATURE, enabled=True)
+        set_probe_feature(self, key=INBOX_FEATURE, enabled=True)
         self.login(self.manager)
 
     def path(self, suffix='', channel=None):

@@ -127,6 +127,52 @@ class TestConversationsApi(LiwanInboxCase):
         self.assertIn(self.conversation.id, ids('assignee=unassigned'))
         self.assertEqual(ids(f'assignee={self.agent.id}') & {mine.id}, {mine.id})
 
+    def test_channel_and_assignee_filters_apply_to_the_list_and_the_export(self):
+        other_channel = self.make_tiktok_channel()
+        mine = self.make_conversation(channel=other_channel, assignee_id=self.agent.id)
+        self.login(self.supervisor)
+        ids = lambda query: {r['id'] for r in self.get(f'/api/v1/inbox/conversations?{query}').json()['items']}  # noqa: E731
+        self.assertEqual(ids(f'channel_id={other_channel.id}'), {mine.id})
+        self.assertEqual(ids(f'channel_id={other_channel.id}&assignee={self.agent.id}'), {mine.id})
+        self.assertEqual(ids(f'channel_id={self.channel.id}&assignee={self.agent.id}'), set())
+        export = self.get(f'/api/v1/inbox/conversations/export.csv?channel_id={other_channel.id}&assignee={self.agent.id}')
+        self.assertIn(f'{mine.contact_id.name},', export.text)
+        self.assertNotIn(f'{self.conversation.contact_id.name},', export.text)
+
+    def test_the_unread_filter_serves_the_list_the_count_and_the_export(self):
+        read = self.make_conversation(unread=False)
+        self.login(self.supervisor)
+        ids = lambda query: {r['id'] for r in self.get(f'/api/v1/inbox/conversations?{query}').json()['items']}  # noqa: E731
+        self.assertIn(self.conversation.id, ids('unread=true'))
+        self.assertNotIn(read.id, ids('unread=true'))
+        self.assertIn(read.id, ids('unread=false'))
+        self.assertNotIn(self.conversation.id, ids('unread=false'))
+        counted = self.get('/api/v1/inbox/conversations?unread=true&limit=1').json()
+        self.assertEqual((len(counted['items']), counted['total']), (1, len(ids('unread=true'))))
+        self.assertIn(f'{self.conversation.contact_id.name},', self.get('/api/v1/inbox/conversations/export.csv?unread=true').text)
+        self.assertNotIn(f'{read.contact_id.name},', self.get('/api/v1/inbox/conversations/export.csv?unread=true').text)
+        self.assertError(self.get('/api/v1/inbox/conversations?unread=maybe'), 422, 'invalid')
+
+    def test_the_query_also_searches_message_bodies_inside_the_callers_companies(self):
+        hit = self.make_conversation()
+        self.env['liwan.inbox.message'].create({
+            'conversation_id': hit.id, 'company_id': hit.company_id.id, 'direction': 'in',
+            'body': 'Where is parcel ZX-9981?', 'delivery_state': 'received', 'date': fields.Datetime.now(),
+        })
+        other = self.env['res.company'].create({'name': 'Body search branch'})
+        foreign = self.make_conversation(channel=self.make_channel(
+            phone_id='100000000088', business_account_id='400000000088', owner_company_id=other.id,
+        ))
+        self.env['liwan.inbox.message'].create({
+            'conversation_id': foreign.id, 'company_id': other.id, 'direction': 'in',
+            'body': 'Where is parcel ZX-9981 abroad?', 'delivery_state': 'received', 'date': fields.Datetime.now(),
+        })
+        self.login(self.agent)
+        found = self.get('/api/v1/inbox/conversations?q=zx-9981').json()
+        self.assertEqual([row['id'] for row in found['items']], [hit.id])
+        self.assertEqual(found['total'], 1)
+        self.assertEqual(self.get('/api/v1/inbox/conversations?q=no-such-body-text').json()['total'], 0)
+
     def test_detail_reports_capabilities_and_read_clears_the_flag(self):
         self.login(self.agent)
         body = self.get(self.path()).json()
