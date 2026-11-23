@@ -75,8 +75,8 @@ describe('activeNavId', () => {
     expect(items.map(item => item.id)).not.toContain('tenants')
   })
 
-  it('keeps applications, plans, bundles and the retired legacy packages under the catalog', () => {
-    for (const path of ['/plans', '/plans/p-1/edit', '/bundles', '/bundles/new', '/catalog', '/catalog/c-1', '/packages', '/packages/pkg-1']) expect(activeNavId(items, path), path).toBe('catalog')
+  it('keeps the catalog tabs and their records under the catalog', () => {
+    for (const path of ['/plans', '/plans/p-1/edit', '/bundles', '/bundles/new', '/catalog', '/catalog/c-1']) expect(activeNavId(items, path), path).toBe('catalog')
     expect(items.map(item => item.id)).not.toContain('plans')
     expect(items.map(item => item.id)).not.toContain('bundles')
     expect(activeNavId(items, '/catalogx')).toBeNull()
