@@ -106,12 +106,12 @@ separate, later work.
 
 With no `fs.storage` record, storage location is unchanged, but `ir.attachment` no longer behaves exactly like
 stock. `write` of `raw` or `datas` without `name` or `mimetype` keeps the attachment's current mimetype when the
-content type is not recognised, and raises `UserError` when the records written in one call have different
-mimetypes (`fs_attachment/models/ir_attachment.py:353-395`). `create` stores records that carry a `res_model` one
-by one and returns them before the rest, so a mixed batch comes back in a different order than `vals_list` (same
-file, `:326-351`). `_compute_raw` returns `b""` instead of `False` (same file, `:314-323`). Each autovacuum
-`fs.file.gc._gc_files` run takes a `SHARE` lock on `ir_attachment`, after the one on `fs_file_gc`, with a
-`lock_timeout` of 10 seconds (`fs_attachment/models/fs_file_gc.py:108-110`).
+content type is not recognised, and in that case raises `UserError` if the records written in one call have
+different mimetypes (`fs_attachment/models/ir_attachment.py:353-398`). `create` stores records that carry a
+`res_model` one by one and returns them before the rest, so a mixed batch comes back in a different order than
+`vals_list` (same file, `:326-351`). `_compute_raw` returns `b""` instead of `False` (same file, `:314-323`).
+Each autovacuum `fs.file.gc._gc_files` run takes a `SHARE` lock on `ir_attachment`, after the one on `fs_file_gc`,
+with a `lock_timeout` of 10 seconds (`fs_attachment/models/fs_file_gc.py:108-110`).
 
 `date_range` and `report_xlsx` (server-ux, reporting-engine) come in as their dependencies. `account_tax_balance` and
 `account_fiscal_year` are in the pinned repositories but unused.
