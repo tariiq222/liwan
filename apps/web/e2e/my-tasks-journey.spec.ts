@@ -95,7 +95,12 @@ test('a child edit keeps its parent and the parent keeps the filtered list', asy
   await page.getByRole('link', { name: 'العودة إلى اشترِ الورق', exact: true }).click()
   await expect(page).toHaveURL(/\/my-tasks\/7\?returnTo=/)
   await page.getByRole('link', { name: 'العودة إلى مهامي', exact: true }).click()
-  await expect(page).toHaveURL(/\/my-tasks\?scope=created#rows$/)
+  // The list moved into «أعمالي» (owner decision 2026-11-21): the back link keeps its query and adds the tab, so the
+  // path and the hash are exact and the query is checked by its parts rather than by their order.
+  await expect(page).toHaveURL(/\/work\?[^#]*#rows$/)
+  const back = new URL(page.url())
+  expect(back.searchParams.get('view')).toBe('tasks')
+  expect(back.searchParams.get('scope')).toBe('created')
 })
 
 for (const field of ['comment', 'subtask'] as const) {
