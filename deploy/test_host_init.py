@@ -290,10 +290,88 @@ class InitHost(unittest.TestCase):
         (stubs / 'chown').write_text(f'#!/bin/sh\necho "$@" >> {log}\n')
         for stub in stubs.iterdir():
             stub.chmod(0o755)
-        self.run_script(env={'PATH': f'{stubs}:{os.environ["PATH"]}'})
+        self.run_script(env={'PATH': f'{stubs}:{os.environ["PATH"]}', 'LIWAN_EFFECT_USER': pwd.getpwuid(os.getuid()).pw_name,
+                             'LIWAN_DOCKER_CONFIG_DIR': str(Path(self.tmp.name) / 'etc-liwan-docker')})
         group = subprocess.run([shutil.which('id'), '-gn'], capture_output=True, text=True, check=True).stdout.strip()
         self.assertIn(f'999:{group} {self.private}/control-db-password', log.read_text().splitlines())
         self.assertEqual(0o400, stat.S_IMODE((self.private / 'control-db-password').stat().st_mode))
+
+    def run_as_stubbed_root(self, extra_env: dict | None = None) -> tuple[subprocess.CompletedProcess, list[str], Path]:
+        """Run the script as if root: `id -u` prints 0 and `chown` only logs its arguments; chmod and mkdir are real."""
+        stubs = Path(self.tmp.name) / 'root-stubs'
+        stubs.mkdir(exist_ok=True)
+        log = Path(self.tmp.name) / 'root-chown.log'
+        docker_dir = Path(self.tmp.name) / 'etc-liwan-docker'
+        real_id = shutil.which('id')
+        (stubs / 'id').write_text(f'#!/bin/sh\nif [ "$#" = 1 ] && [ "$1" = "-u" ]; then echo 0; exit 0; fi\nexec {real_id} "$@"\n')
+        (stubs / 'chown').write_text(f'#!/bin/sh\necho "$@" >> {log}\n')
+        for stub in stubs.iterdir():
+            stub.chmod(0o755)
+        account = pwd.getpwuid(os.getuid()).pw_name
+        env = {'PATH': f'{stubs}:{os.environ["PATH"]}', 'LIWAN_EFFECT_USER': account, 'LIWAN_DOCKER_CONFIG_DIR': str(docker_dir),
+               **(extra_env or {})}
+        done = self.run_script(env=env)
+        return done, (log.read_text().splitlines() if log.exists() else []), docker_dir
+
+    def test_as_root_the_effect_boundary_owners_and_modes_are_applied(self):
+        # docs/operations/environment-bringup.md A3.2: the gate trusts only root-owned inputs, the effect account owns what it
+        # writes, only backups/ is shared with the worker, and shared.env belongs to the docker group the worker is not in.
+        shared_env = self.root / 'shared.env'
+        self.root.mkdir(parents=True)
+        shared_env.write_text('X=1\n')
+        shared_env.chmod(0o600)
+        done, chowns, docker_dir = self.run_as_stubbed_root()
+        group = subprocess.run([shutil.which('id'), '-gn'], capture_output=True, text=True, check=True).stdout.strip()
+        account = pwd.getpwuid(os.getuid()).pw_name
+        mode = lambda path: stat.S_IMODE(path.stat().st_mode)  # noqa: E731
+        self.assertEqual(0o750, mode(self.config))
+        self.assertEqual(0o640, mode(self.config / 'shared-runtime.json'))
+        self.assertEqual(0o640, mode(self.config / 'inventory-v2.json'))
+        self.assertEqual(0o3770, mode(self.state))
+        self.assertEqual(0o640, mode(shared_env))
+        for path in (self.config, self.config / 'shared-runtime.json', self.config / 'inventory-v2.json', self.state):
+            self.assertIn(f'root:{group} {path}', chowns)
+        self.assertIn(f'root:docker {shared_env}', chowns)
+        modes = {'reservations': 0o700, 'credentials': 0o700, 'classifications': 0o755, 'restore-effects': 0o700,
+                 'reconfigure': 0o700, 'runtime-gate-history': 0o700, 'backups': 0o770}
+        for name, expected in modes.items():
+            with self.subTest(directory=name):
+                self.assertEqual(expected, mode(self.state / name))
+                self.assertIn(f'{account}:{group} {self.state / name}', chowns)
+        self.assertFalse((self.state / 'restore-registry').exists())  # the worker's own, never made here
+        self.assertEqual({}, json.loads((docker_dir / 'config.json').read_text()))
+        self.assertIn(f'root:root {docker_dir / "config.json"}', chowns)
+        self.assertEqual(0o644, mode(docker_dir / 'config.json'))
+        self.assertIn(f'created {docker_dir / "config.json"}', done.stdout)
+
+    def test_as_root_a_second_run_keeps_the_effect_directories_and_their_content(self):
+        self.run_as_stubbed_root()
+        marker = self.state / 'reservations' / 'a'
+        marker.write_text('x')
+        (self.state / 'backups').chmod(0o700)
+        done, _, docker_dir = self.run_as_stubbed_root()
+        self.assertEqual('x', marker.read_text())
+        self.assertEqual(0o700, stat.S_IMODE((self.state / 'backups').stat().st_mode))  # an existing directory is never changed
+        self.assertIn(f'kept    {self.state / "backups"}', done.stdout)
+        self.assertIn(f'kept    {docker_dir / "config.json"}', done.stdout)
+
+    def test_as_root_a_missing_effect_account_stops_the_script_before_anything_is_made(self):
+        stubs = Path(self.tmp.name) / 'root-stubs'
+        stubs.mkdir()
+        real_id = shutil.which('id')
+        (stubs / 'id').write_text(f'#!/bin/sh\nif [ "$#" = 1 ] && [ "$1" = "-u" ]; then echo 0; exit 0; fi\nexec {real_id} "$@"\n')
+        (stubs / 'id').chmod(0o755)
+        done = self.run_script(check=False, env={'PATH': f'{stubs}:{os.environ["PATH"]}', 'LIWAN_EFFECT_USER': 'liwan-no-such-effect-account'})
+        self.assertEqual(2, done.returncode)
+        self.assertIn('The effect account does not exist: liwan-no-such-effect-account', done.stderr)
+        self.assertFalse(self.root.exists())
+
+    def test_as_the_worker_itself_no_effect_directory_is_made(self):
+        self.run_script()
+        for name in ('reservations', 'credentials', 'classifications', 'backups'):
+            self.assertFalse((self.state / name).exists())
+        self.assertEqual(0o750, stat.S_IMODE(self.state.stat().st_mode))
+        self.assertEqual(0o640, stat.S_IMODE((self.config / 'shared-runtime.json').stat().st_mode))
 
     def test_missing_or_placeholder_variable_is_refused(self):
         self.env_file.write_text(self.env_file.read_text().replace(RESTORE_DOMAIN, 'REPLACE_WITH_RESTORE_DOMAIN'))

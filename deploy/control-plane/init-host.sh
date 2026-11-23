@@ -27,6 +27,15 @@
 #                control-host.internal), control-db-password
 # Keys and certificates are made in a work directory inside the private directory and moved into place only when complete.
 # Run it as root (ownership goes to the worker account) or as the worker account itself. Prints paths only, no secret values.
+# As root it also applies the effect boundary of liwan-effect.socket (docs/operations/environment-bringup.md), idempotently:
+#   config dir and its json files   root:<worker group> 0750 / 0640 (the effect gate trusts only root-owned inputs)
+#   state dir                       root:<worker group> 3770 (setgid and sticky: the worker cannot rename what the effect account owns)
+#   effect subdirectories           reservations credentials classifications restore-effects reconfigure runtime-gate-history backups,
+#                                   created when absent, owned by the effect account (LIWAN_EFFECT_USER, default liwan-effect), 0700;
+#                                   classifications 0755 (containers read it as another uid), backups 0770 (shared with the worker)
+#   shared env file                 root:docker 0640, when it exists (LIWAN_DOCKER_GROUP, default docker); the worker is not in that group
+#   docker client config            LIWAN_DOCKER_CONFIG_DIR (default /etc/liwan/docker): config.json `{}`, root-owned, created when absent
+# restore-registry stays with the worker account and is not created here. The effect account must exist and is the only `docker` member.
 # Every run warns on stderr (exit 0) about a kept certificate that expires within 60 days.
 # The compose file named in shared-runtime.json (LIWAN_SHARED_COMPOSE_FILE) is not made here: release.py renders it from the
 # shared stack at every activation, before it starts the worker. The shared env file is the operator's.
@@ -52,6 +61,12 @@ env_value() {
 absolute_path() {
   [[ "$2" =~ ^/[A-Za-z0-9._/-]+$ ]] || die "$1 must be an absolute path of letters, digits and ._/- only: $2"
   printf '%s' "$2"
+}
+
+# settle <path> <mode> <owner> <group>: root only for the owner and group, set first because chown clears the setgid bit; then the mode.
+settle() {
+  if [[ "$(id -u)" == 0 ]]; then chown "$3:$4" "$1"; fi
+  chmod "$2" "$1"
 }
 
 # own <path> <mode> [owner]: the worker (or the given owner, with the worker's group) owns what it must read or write; as
@@ -169,6 +184,10 @@ command -v openssl >/dev/null || die "openssl is required"
 WORKER="${LIWAN_WORKER_USER:-liwan-worker}"
 WORKER_GROUP="$(id -gn "$WORKER" 2>/dev/null)" || die "The worker account does not exist: $WORKER"
 if [[ "$(id -u)" != 0 && "$(id -un)" != "$WORKER" ]]; then die "Run as root or as $WORKER"; fi
+EFFECT="${LIWAN_EFFECT_USER:-liwan-effect}"
+DOCKER_GROUP="${LIWAN_DOCKER_GROUP:-docker}"
+DOCKER_CONFIG_DIR="$(absolute_path LIWAN_DOCKER_CONFIG_DIR "${LIWAN_DOCKER_CONFIG_DIR:-/etc/liwan/docker}")"
+if [[ "$(id -u)" == 0 ]]; then id -u "$EFFECT" >/dev/null 2>&1 || die "The effect account does not exist: $EFFECT (docs/operations/environment-bringup.md, A3.1)"; fi
 
 CONTROL_UID="$(env_value LIWAN_CONTROL_UID)"
 CONTROL_GID="$(env_value LIWAN_CONTROL_GID)"
@@ -198,11 +217,11 @@ trap 'rm -rf "$WORK"' EXIT
 
 if ! exists_all "$CONFIG/shared-runtime.json"; then
   printf '{"schemaVersion":1,"projectName":"%s","composeFile":"%s","envFile":"%s","stateDir":"%s","domainSuffix":"%s"}\n' \
-    "$PROJECT" "$COMPOSE_FILE" "$SHARED_ENV_FILE" "$STATE" "$DOMAIN_SUFFIX" | write_file "$CONFIG/shared-runtime.json" 0644
+    "$PROJECT" "$COMPOSE_FILE" "$SHARED_ENV_FILE" "$STATE" "$DOMAIN_SUFFIX" | write_file "$CONFIG/shared-runtime.json" 0640
 else printf 'kept    %s\n' "$CONFIG/shared-runtime.json"; fi
 
 if ! exists_all "$CONFIG/inventory-v2.json"; then
-  printf '{"version":2,"targets":{}}\n' | write_file "$CONFIG/inventory-v2.json" 0644
+  printf '{"version":2,"targets":{}}\n' | write_file "$CONFIG/inventory-v2.json" 0640
 else printf 'kept    %s\n' "$CONFIG/inventory-v2.json"; fi
 
 if ! exists_all "$REGISTRY/registry.json"; then
@@ -223,3 +242,28 @@ if ! exists_all "$PRIVATE/control-db-password"; then
     openssl rand -hex 32 | write_file "$PRIVATE/control-db-password" 0444
   fi
 else printf 'kept    %s\n' "$PRIVATE/control-db-password"; fi
+
+# The effect boundary (root only): what the effect gate trusts and what the effect account owns. Applied on every run, so a host
+# initialised before the boundary converges; the effect subdirectories are created when absent and otherwise left as they are.
+if [[ "$(id -u)" == 0 ]]; then
+  settle "$CONFIG" 0750 root "$WORKER_GROUP"
+  for file in "$CONFIG/shared-runtime.json" "$CONFIG/inventory-v2.json"; do settle "$file" 0640 root "$WORKER_GROUP"; done
+  settle "$STATE" 3770 root "$WORKER_GROUP"
+  for entry in reservations:0700 credentials:0700 classifications:0755 restore-effects:0700 reconfigure:0700 runtime-gate-history:0700 backups:0770; do
+    directory="$STATE/${entry%%:*}"
+    if [[ -d "$directory" ]]; then printf 'kept    %s\n' "$directory"; continue; fi
+    (umask 022; mkdir "$directory")
+    settle "$directory" "${entry##*:}" "$EFFECT" "$WORKER_GROUP"
+    printf 'created %s\n' "$directory"
+  done
+  if [[ -e "$SHARED_ENV_FILE" ]]; then settle "$SHARED_ENV_FILE" 0640 root "$DOCKER_GROUP"; printf 'settled %s\n' "$SHARED_ENV_FILE"
+  else printf 'skipped %s (not there yet; it must end up root:%s 0640)\n' "$SHARED_ENV_FILE" "$DOCKER_GROUP"; fi
+  if [[ -e "$DOCKER_CONFIG_DIR/config.json" ]]; then printf 'kept    %s\n' "$DOCKER_CONFIG_DIR/config.json"
+  else
+    (umask 022; mkdir -p "$DOCKER_CONFIG_DIR")
+    settle "$DOCKER_CONFIG_DIR" 0755 root root
+    printf '{}\n' > "$DOCKER_CONFIG_DIR/config.json"
+    settle "$DOCKER_CONFIG_DIR/config.json" 0644 root root
+    printf 'created %s\n' "$DOCKER_CONFIG_DIR/config.json"
+  fi
+fi
