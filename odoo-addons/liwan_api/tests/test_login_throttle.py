@@ -174,10 +174,37 @@ class TestLoginThrottle(LiwanApiCase):
         def broken(model, recipient, name, purpose):
             raise ValueError(recipient)
 
-        self.patch(type(self.env['liwan.account.mail']), '_liwan_send_notice', broken)
-        with mute_logger('odoo.addons.liwan_api.models.login_throttle'):
-            self._fail(self.alice.login, CAP_FAILURES)
-        self.assertEqual(self._row(self.alice.login).failures, CAP_FAILURES)
+        with patch.object(type(self.env['liwan.account.mail']), '_liwan_send_notice', broken):
+            with mute_logger('odoo.addons.liwan_api.models.login_throttle'):
+                self._fail(self.alice.login, CAP_FAILURES)
+        row = self._row(self.alice.login)
+        self.assertEqual(row.failures, CAP_FAILURES)
+        self.assertFalse(row.notified_at, 'a notice that failed stays unclaimed')
+        self.assertFalse(self.env['liwan.access.audit'].search([('action', '=', AUDIT_ACTION)]))
+        self._fail(self.alice.login, 1)
+        self.assertEqual(self.mails, [(self.alice.login, 'Alice', 'login_throttled')])
+        self.assertTrue(self._row(self.alice.login).notified_at)
+
+    def test_the_cap_reached_by_a_spelling_variant_notifies_the_real_account_once(self):
+        self._fail(' Throttle_ALICE@Example.com ', CAP_FAILURES + 2)
+        self.assertEqual(self.mails, [(self.alice.login, 'Alice', 'login_throttled')])
+        self.assertEqual(self.env['liwan.access.audit'].search([('action', '=', AUDIT_ACTION)]).target_id, self.alice.id)
+
+    def test_nobody_is_notified_when_the_login_matches_two_accounts(self):
+        twin = new_test_user(self.env, login='THROTTLE_ALICE@example.com', password=PASSWORD, name='Twin',
+                             groups='liwan_core.group_employee')
+        self._fail(self.alice.login, CAP_FAILURES)
+        self.assertEqual(twin.login.casefold(), self.alice.login)
+        self.assertFalse(self.mails)
+
+    def test_a_counter_fault_still_surfaces_the_plain_refusal(self):
+        def broken(model, key, login):
+            raise ValueError(login)
+
+        with patch.object(type(self.env['liwan.login.throttle']), '_liwan_record_failure', broken):
+            with mute_logger('odoo.addons.liwan_api.models.res_users'):
+                refusal = self._refused(self.alice.login, 'wrong')
+        self.assertEqual(type(refusal), AccessDenied)
 
     def test_the_vacuum_drops_only_idle_rows(self):
         self._refused('old@example.com', 'wrong')

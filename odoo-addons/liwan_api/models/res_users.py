@@ -1,11 +1,14 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import contextlib
+import logging
 import secrets
 from time import time
 
 from odoo import fields, models
 from odoo.exceptions import AccessDenied
 from odoo.http import request
+
+_logger = logging.getLogger(__name__)
 
 LOGIN_CHALLENGE = 'liwan_login_challenge'
 LOGIN_CHALLENGE_TTL = 10 * 60
@@ -72,7 +75,10 @@ class LiwanApiResUsers(models.Model):
         try:
             yield
         except AccessDenied:
-            throttle._liwan_record_failure(key, login)
+            try:
+                throttle._liwan_record_failure(key, login)
+            except Exception as error:  # noqa: BLE001 - a counter fault must not turn the refusal into a server error
+                _logger.warning('sign-in failure not counted: %s', type(error).__name__)
             raise
         else:
             if state:

@@ -4,6 +4,7 @@ import logging
 from datetime import timedelta
 
 from odoo import api, fields, models
+from odoo.tools import escape_psql
 
 _logger = logging.getLogger(__name__)
 
@@ -106,26 +107,34 @@ class LiwanApiLoginThrottle(models.Model):
             failures = cr.fetchone()[0]
             if delay_after(failures) < timedelta(seconds=MAX_DELAY):
                 return
-            # Only the failure that finds the notice unsent sends it, so the account owner is told once.
-            cr.execute(
-                'UPDATE liwan_login_throttle SET notified_at = %s WHERE key = %s AND notified_at IS NULL RETURNING id',
-                [now, key],
-            )
-            if not cr.fetchone():
-                return
             try:
+                # The claim and the notice commit together: a failed notice leaves the claim open for a later failure.
                 with cr.savepoint():
-                    self._liwan_notify(cr, login, failures)
+                    self._liwan_claim_and_notify(cr, key, login, failures, now)
             except Exception as error:  # noqa: BLE001 - the notice must not change the answer of the refused sign-in
                 _logger.warning('sign-in throttle notice not sent: %s', type(error).__name__)
 
     @api.model
+    def _liwan_claim_and_notify(self, cr, key, login, failures, now):
+        # Only the failure that finds the notice unsent sends it; the row lock keeps it to one under concurrency.
+        cr.execute(
+            'UPDATE liwan_login_throttle SET notified_at = %s WHERE key = %s AND notified_at IS NULL RETURNING id',
+            [now, key],
+        )
+        if cr.fetchone():
+            self._liwan_notify(cr, login, failures)
+
+    @api.model
     def _liwan_notify(self, cr, login, failures):
-        """Audit the cap and mail the account's owner; an unknown login or a portal one has nobody to tell."""
+        """Audit the cap and mail the account's owner; nobody is told unless exactly one internal account matches.
+
+        The counter key ignores case and padding, so the account is found the same way; a login that matches no
+        account or several never gets a notice, rather than a wrong person.
+        """
         env = self._liwan_elevated(cr)
         users = env['res.users']
-        user = users.search([*users._get_login_domain(login), ('share', '=', False)], limit=1)
-        if not user:
+        user = users.search([('login', '=ilike', escape_psql(login.strip())), ('share', '=', False)], limit=2)
+        if len(user) != 1:
             return
         env['liwan.access.audit']._liwan_log(
             AUDIT_ACTION, user, after={'failures': failures, 'delay_seconds': MAX_DELAY}, actor=users,
