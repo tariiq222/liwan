@@ -1,7 +1,7 @@
 import type { ShellRailGroups, ShellRailItem } from '@liwan/ui/app/types/shell'
 import { CATALOG_TABS } from './vendorCatalog'
 
-/** `alsoUnder`: further path prefixes that belong to this section (workspaces without a customer sit under customers, bundles and the retired legacy packages under the catalog). */
+/** `alsoUnder`: further path prefixes that belong to this section (workspaces without a customer sit under customers, and the catalog's tabs and records sit under the catalog). */
 interface AdminNavEntry { id: string, icon: string, capability: string, alsoUnder?: readonly string[] }
 
 // Display order. The control plane enforces every capability; hiding an entry here is presentation only.

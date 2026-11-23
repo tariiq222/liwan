@@ -172,8 +172,6 @@ export function handleCommercial(req, res, url, { capabilities, body } = {}) {
   else if (path === '/v1/overview') send(fixtures.overview)
   else if (path === '/v1/commercial/attention') send(attention(!capabilities || capabilities.includes('vendor.billing.manage'), url.searchParams.get('customer_id')))
   else if (path === '/v1/catalog') send({ items: catalogVersions, total: catalogVersions.length })
-  else if (path === '/v1/packages') send({ items: fixtures.catalog.items, total: fixtures.catalog.total })
-  else if ((m = /^\/v1\/packages\/([^/]+)$/.exec(path))) send(byId(fixtures.catalog, decodeURIComponent(m[1])))
   else if (path === '/v1/audit') {
     const events = fixtures.audit.items.filter(auditMatches(url))
     const from = (Math.max(1, Number(q(url, 'page')) || 1) - 1) * 25

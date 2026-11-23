@@ -77,8 +77,6 @@ export function upstreamPassThrough502(path: string): readonly string[] | undefi
   return PROVIDER_ERROR_ROUTE.test(path.split('?', 1)[0]!) ? PROVIDER_ERROR_CODES : undefined
 }
 
-// Package revisions are read-only history (the control plane answers 410 to any write).
-const READ_ONLY = [new RegExp(`^/v1/packages(/${SEGMENT})?$`)]
 /** Routes whose method matters to the console: the allowlist is otherwise path-only. Each entry lists the methods the
  * console actually calls, so a stray DELETE cannot reach the control plane through a path that is only ever read. */
 const METHOD_BOUND = [
@@ -114,7 +112,7 @@ function upstreamPath(event: H3Event, method: string): string {
   const url = getRequestURL(event)
   if (!url.pathname.startsWith(BROWSER_PREFIX)) bffFail(404, 'not_found')
   const path = `/v1/${url.pathname.slice(BROWSER_PREFIX.length)}`
-  const allowed = ALLOWED.some(pattern => pattern.test(path)) || (method === 'GET' && READ_ONLY.some(pattern => pattern.test(path)))
+  const allowed = ALLOWED.some(pattern => pattern.test(path))
   if (!allowed) bffFail(404, 'not_found')
   const bound = METHOD_BOUND.find(route => route.pattern.test(path))
   if (bound && !(bound.methods as readonly string[]).includes(method)) bffFail(405, 'method_not_allowed')

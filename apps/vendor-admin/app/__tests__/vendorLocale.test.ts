@@ -64,19 +64,19 @@ describe('vendor locale', () => {
     expect(unused.sort()).toEqual([])
   })
 
-  it('names the section once and its four tabs apart', () => {
+  it('names the section in the nav and its three tabs apart', () => {
+    const nav = (lang: string) => (JSON.parse(readFileSync(join(localesRoot, lang, 'app.json'), 'utf8')) as { app: { nav: { catalog: string } } }).app.nav.catalog
+    expect(nav('ar')).toBe('تطبيقات ليوان')
+    expect(nav('en')).toBe('Liwan applications')
     const titles = (lang: string) => (JSON.parse(readFileSync(join(localesRoot, lang, 'vendor.json'), 'utf8')) as {
-      vendor: { plans: { title: string }, bundles: { title: string }, packages: { title: string }, catalog: { title: string, applications: string } }
+      vendor: { plans: { title: string }, bundles: { title: string }, catalog: { applications: string } }
     }).vendor
     for (const lang of ['ar', 'en']) {
       const v = titles(lang)
-      expect(new Set([v.catalog.applications, v.plans.title, v.bundles.title, v.packages.title]).size).toBe(4)
-      expect(new Set([v.catalog.title, v.catalog.applications, v.plans.title, v.bundles.title, v.packages.title]).size).toBe(5)
+      expect(new Set([v.catalog.applications, v.plans.title, v.bundles.title]).size).toBe(3)
     }
-    const ar = titles('ar')
-    expect([ar.catalog.title, ar.catalog.applications, ar.bundles.title, ar.plans.title, ar.packages.title]).toEqual(['تركيبة تطبيقات ليوان', 'التطبيقات', 'الحزم', 'الباقات', 'الحزم القديمة'])
-    const en = titles('en')
-    expect([en.catalog.title, en.catalog.applications, en.bundles.title, en.plans.title, en.packages.title]).toEqual(['Catalog', 'Applications', 'Bundles', 'Plans', 'Legacy packages'])
+    expect([titles('ar').catalog.applications, titles('ar').bundles.title, titles('ar').plans.title]).toEqual(['التطبيقات', 'الحزم', 'الباقات'])
+    expect([titles('en').catalog.applications, titles('en').bundles.title, titles('en').plans.title]).toEqual(['Applications', 'Bundles', 'Plans'])
   })
 
   it('has a text in both languages for every invoice line kind the contract names', () => {

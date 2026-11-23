@@ -24,14 +24,11 @@ test('on a 390px phone the rows keep their information and fit the width', async
  await open(page,'/bundles/00000000-0000-4000-8000-000000000020'); expect(await fitsWidth(page)).toBe(true)
 })
 
-test('bundle history keeps returnTo and the retired catalog is read only', async ({ page }) => {
+test('bundle history keeps returnTo', async ({ page }) => {
  await open(page,'/bundles/00000000-0000-4000-8000-000000000020?returnTo=%2Fbundles%3Fstatus%3Dpublished')
  await expect(page.locator('[data-slot="entitlement-summary"]')).toBeVisible()
  const history=page.locator('[data-slot="record-section"]').filter({has:page.getByRole('heading',{name:'السجل'})})
  await expect(history.locator('a').first()).toHaveAttribute('href',/returnTo=/)
- await open(page,'/packages'); await expect(rows(page)).toHaveCount(2); await expect(page.locator('[data-shortcut-create]')).toHaveCount(0)
- await rows(page).first().locator('a').first().click(); await expectNoSecondH1(page); await expect(page.locator('[data-template="record"]')).toHaveCount(1)
- await page.setViewportSize({width:390,height:844}); await open(page,'/packages'); await expect(mobileRows(page)).toHaveCount(2); expect(await fitsWidth(page)).toBe(true)
 })
 
 const RELEASE = '00000000-0000-4000-8000-000000000100'
