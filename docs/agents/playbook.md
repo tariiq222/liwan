@@ -15,7 +15,7 @@ its owning file, and where this page and an owner file disagree, the owner file 
    [integration-rules.md](integration-rules.md#standing-authorization-owner-decision-2026-11-11)).
 4. Run the track's checks, then report result, changed files and one evidence line per
    check.
-5. Push, PR and ready follow automatically after a clean independent review; merge, auto-merge,
+5. Push, PR and ready follow automatically once the standing-authorization conditions hold; merge, auto-merge,
    release tags and deployments each need the owner's explicit words
    ([integration-rules.md](integration-rules.md)).
 
