@@ -1582,7 +1582,7 @@
             "database_name_invalid": "اسم قاعدة البيانات غير صالح",
             "database_filestore_mismatch": "قاعدة البيانات لا تطابق مجلد الملفات",
             "database_blocklisted": "قاعدة البيانات محمية من الحذف",
-            "database_is_scratch_copy": "قاعدة البيانات نسخة تجريبية",
+            "database_is_restore_copy": "قاعدة البيانات مدرجة ضمن نسخ الاستعادة",
             "database_is_control_plane": "قاعدة البيانات هي قاعدة نظام المراقبة",
             "host_invalid": "مضيف المساحة غير صالح",
             "identity_query_failed": "تعذّر قراءة هوية المساحة",
