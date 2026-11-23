@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import json
 import os
 import re
 import socket
@@ -203,13 +204,15 @@ class TestStatusAndGc(unittest.TestCase):
 
     def test_format_status_has_a_row_per_worktree_a_summary_shared_files_and_the_violations(self):
         root = Path('/r')
-        lane = worktree(path=Path('/r/.worktrees/one'), take=Take('tools-x', 'session-a', 'task', 1, None))
+        lane = worktree(path=Path('/r/.worktrees/one'), take=Take('tools-x', 'session-a', 'task', 1, None, 'orch-1'))
         resting_lane = worktree(path=Path('/r/.worktrees/two'), take=resting())
         outside = worktree(canonical=False, dirty=True, path=Path('/x/y'))
         changes = {'one': frozenset({'a.py', 'b.py'}), 'two': frozenset({'b.py'})}
         text = wt.format_status([worktree(is_main=True, path=root), lane, resting_lane, outside], root, changes)
         lines = text.splitlines()
-        self.assertIn('session-a', lines[2])
+        self.assertIn('ORCHESTRATOR', lines[0])
+        self.assertIn('orch-1', lines[1])  # sorted by orchestrator: the occupied lane comes first
+        self.assertIn('session-a', lines[1])
         self.assertIn('resting', lines[3])
         self.assertIn('/x/y *', lines[4])
         self.assertTrue(lines[6].startswith('3 worktrees: 3 merged, 1 dirty, 1 outside .worktrees'))
@@ -383,10 +386,10 @@ class LanePoolCase(unittest.TestCase):
         return self.root / '.worktrees' / name
 
     def add(self, name, install=False):
-        return wt.add_lane(self.root, name, '', '', install)
+        return wt.add_lane(self.root, name, '', '', '', install)
 
-    def take(self, branch, lane=None, owner='session-a'):
-        return wt.take_lane(self.root, branch, owner, 'a task', lane)
+    def take(self, branch, lane=None, owner='session-a', orchestrator='orch-1'):
+        return wt.take_lane(self.root, branch, owner, orchestrator, 'a task', lane)
 
     def record(self, name):
         return read_take(Path(self.git('rev-parse', '--absolute-git-dir', cwd=self.lane_path(name))))
@@ -438,10 +441,13 @@ class TestLanePool(LanePoolCase):
         git_dir = Path(self.git('rev-parse', '--absolute-git-dir', cwd=self.lane_path('old')))
         for stale in wt.REMOVED_RECORDS:
             (git_dir / stale).write_text('{}', encoding='utf-8')
-        with self.assertRaisesRegex(WorktreeError, 'needs --owner and --task'):
+        with self.assertRaisesRegex(WorktreeError, 'needs --holder, --orchestrator and --task'):
             self.add('old')
-        wt.add_lane(self.root, 'old', 'session-a', 'fix it', False)
+        with self.assertRaisesRegex(WorktreeError, 'needs --holder, --orchestrator and --task'):
+            wt.add_lane(self.root, 'old', 'session-a', ' ', 'fix it', False)
+        wt.add_lane(self.root, 'old', 'session-a', 'orch-1', 'fix it', False)
         self.assertEqual(self.record('old')[:3], ('tools-x', 'session-a', 'fix it'))
+        self.assertEqual(self.record('old').orchestrator, 'orch-1')
         self.assertEqual([stale for stale in wt.REMOVED_RECORDS if (git_dir / stale).exists()], [])
 
     def test_adopting_a_detached_worktree_makes_a_resting_lane(self):
@@ -486,8 +492,64 @@ class TestLanePool(LanePoolCase):
             self.take('tools-b', lane='two')
         with self.assertRaisesRegex(WorktreeError, 'no free lane'):
             self.take('tools-b')
-        with self.assertRaisesRegex(WorktreeError, '--owner'):
+        with self.assertRaisesRegex(WorktreeError, '--holder'):
             self.take('tools-b', lane='two', owner=' ')
+        with self.assertRaisesRegex(WorktreeError, '--orchestrator'):
+            self.take('tools-b', lane='two', orchestrator=' ')
+        self.assertFalse(self.record('two').occupied)
+
+    def test_take_records_the_orchestrator_and_the_cli_requires_it(self):
+        self.add('one')
+        self.take('tools-a', orchestrator='orch-7')
+        self.assertEqual(self.record('one').orchestrator, 'orch-7')
+        with self.assertRaises(SystemExit), mock.patch.object(wt.sys, 'stderr'):
+            wt.build_parser().parse_args(['take', 'tools-b', '--holder', 'x'])
+        with self.assertRaises(SystemExit), mock.patch.object(wt.sys, 'stderr'):
+            wt.build_parser().parse_args(['take', 'tools-b', '--owner', 'x', '--orchestrator', 'y'])
+
+    def test_done_by_orchestrator_returns_only_its_lanes_and_reports_the_ones_it_leaves(self):
+        for name in ('one', 'two', 'three'):
+            self.add(name)
+        self.take('tools-a', lane='one', orchestrator='orch-1')
+        self.take('tools-b', lane='two', orchestrator='orch-1')
+        self.take('tools-c', lane='three', orchestrator='orch-2')
+        self.commit_in('one', 'a.txt')
+        self.merge_into_origin('one')
+        self.commit_in('two', 'b.txt')  # unmerged
+        text, code = wt.done_orchestrator(self.root, 'orch-1', False)
+        self.assertEqual(code, 1)
+        self.assertIn('left: lane two: tools-b is not merged', text)
+        self.assertIn('1 of 2 lanes of orch-1 returned; 1 left', text)
+        self.assertFalse(self.record('one').occupied)
+        self.assertEqual(self.record('two').branch, 'tools-b')
+        self.assertEqual(self.record('three').orchestrator, 'orch-2')
+        text, code = wt.done_orchestrator(self.root, 'orch-1', True)
+        self.assertEqual(code, 0)
+        self.assertFalse(self.record('two').occupied)
+        self.assertTrue(self.record('three').occupied)
+        with self.assertRaisesRegex(WorktreeError, 'holds no lane'):
+            wt.done_orchestrator(self.root, 'orch-1', False)
+        with self.assertRaisesRegex(WorktreeError, 'non-empty'):
+            wt.done_orchestrator(self.root, ' ', False)
+
+    def test_done_by_orchestrator_leaves_a_dirty_lane(self):
+        self.add('one')
+        self.take('tools-a')
+        (self.lane_path('one') / 'dirty.txt').write_text('x', encoding='utf-8')
+        text, code = wt.done_orchestrator(self.root, 'orch-1', True)
+        self.assertEqual(code, 1)
+        self.assertIn('left: ', text)
+        self.assertTrue(self.record('one').occupied)
+
+    def test_an_old_record_without_an_orchestrator_reads_and_fails_the_check(self):
+        self.add('one')
+        self.take('tools-a')
+        git_dir = Path(self.git('rev-parse', '--absolute-git-dir', cwd=self.lane_path('one')))
+        data = json.loads((git_dir / 'liwan-take.json').read_text(encoding='utf-8'))
+        del data['orchestrator']
+        (git_dir / 'liwan-take.json').write_text(json.dumps(data), encoding='utf-8')
+        self.assertIsNone(self.record('one').orchestrator)
+        self.assertIn('no orchestrator', [problem for _, problem in self.violations()][0])
 
     def test_take_refuses_a_resting_lane_that_was_put_on_a_branch(self):
         self.add('one')
@@ -675,9 +737,10 @@ class TestLaneChecks(LanePoolCase):
         self.git('switch', '-q', '--detach', cwd=self.lane_path('one'))
         write_take(self.git('rev-parse', '--absolute-git-dir', cwd=self.lane_path('two')), Take('tools-b', None, None, 1, None))
         problems = [problem for _, problem in self.violations()]
-        self.assertEqual(len(problems), 2)
+        self.assertEqual(len(problems), 3)
         self.assertIn('holds tools-a but a detached HEAD is checked out', problems[0])
         self.assertIn('no holder', problems[1])
+        self.assertIn('no orchestrator', problems[2])
         wt.done_lane(self.root, 'two', Path.cwd(), True)
         self.git('switch', '-q', 'tools-b', cwd=self.lane_path('two'))
         self.assertIn('rests but tools-b is checked out', self.violations()[-1][1])

@@ -3,7 +3,7 @@
 
 A lane is a worktree of ``<main checkout>/.worktrees/`` whose own git directory (``.git/worktrees/<id>/``) holds
 ``liwan-take.json``. The record is never tracked, never shows in ``git status`` and disappears with the worktree.
-One task is one branch, one lane and one writing session. ``tools/wt.py`` writes the record on ``lane add``,
+One task is one branch and one lane, taken by its orchestrator for the workers. ``tools/wt.py`` writes the record on ``lane add``,
 ``take`` and ``done``; ``take`` and ``lane add`` run under ``pool_lock`` so two sessions cannot take the same lane.
 ``commit_refusal`` is the rule behind the pre-commit guard of ``tools/hooks.py``.
 """
@@ -34,6 +34,7 @@ class Take(NamedTuple):
     task: str | None
     taken_at: int | None
     lock_hash: str | None  # hash of package-lock.json at the last dependency install
+    orchestrator: str | None = None  # the session that took the lane for a worker and closes it at the end
 
     @property
     def occupied(self):
@@ -73,7 +74,7 @@ def take_from_json(data):
         raise TypeError(message)
     return Take(
         optional_text(data, 'branch'), optional_text(data, 'holder'), optional_text(data, 'task'), taken_at,
-        optional_text(data, 'lock_hash'))
+        optional_text(data, 'lock_hash'), optional_text(data, 'orchestrator') if 'orchestrator' in data else None)
 
 
 def read_take(git_dir):
@@ -120,14 +121,16 @@ def commit_refusal(branch, take, linked):
     """
     wt = 'npm run wt --'
     if branch == MAIN:
-        return 'the checked-out branch is main; commit on a task branch: %s take <branch> --owner <who>' % wt
+        return 'the checked-out branch is main; commit on a task branch: %s take <branch> --holder <who> --orchestrator <id>' % wt
     if take is None:
         if linked:
-            template = 'this worktree is not a lane; add it with: %s lane add <name> --owner <who> --task <what>, or take a free lane with: %s take <branch> --owner <who>'
+            template = (
+                'this worktree is not a lane; add it with: %s lane add <name> --holder <who> --orchestrator <id> --task <what>, '
+                'or take a free lane with: %s take <branch> --holder <who> --orchestrator <id>')
             return template % (wt, wt)
         return None
     if not take.occupied:
-        return 'this lane is resting; take it for a branch with: %s take <branch> --owner <who> --lane <name>' % wt
+        return 'this lane is resting; take it for a branch with: %s take <branch> --holder <who> --orchestrator <id> --lane <name>' % wt
     if branch != take.branch:
         template = 'this lane holds %s but %s is checked out; another session moved it. Do not commit here; return with: git switch %s'
         return template % (take.branch, branch or 'a detached HEAD', take.branch)

@@ -90,5 +90,5 @@ State explicitly:
   it would need;
 - the residual risk the owner is accepting by not covering it.
 
-Nothing you produce authorizes a merge, a push, a tag, a deploy or a release. Those need the owner's
+Nothing you produce authorizes a merge, a tag, a deploy or a release. Those need the owner's
 explicit words in the current conversation (`docs/agents/integration-rules.md`).
