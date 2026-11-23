@@ -49,13 +49,19 @@ class ComposeBootstrapTest(unittest.TestCase):
                     with self.subTest(file=path.name, service=service):
                         self.assertEqual(DATABASE_SERVICES.get(path.name), service)
 
-    def test_the_healthchecks_need_the_admin_role_to_log_in(self):
-        """A volume whose bootstrap role is still `odoo` has no `postgres` role, so it must never turn healthy."""
+    def test_the_healthchecks_need_the_admin_role_to_log_in_with_its_password(self):
+        """`pg_isready` proves nothing, and the image trusts 127.0.0.1 in pg_hba.conf: the check must be a psql login as
+        `postgres` over the container's own address, where a missing role or a wrong password fails it."""
         for name, service in DATABASE_SERVICES.items():
             with self.subTest(file=name):
                 block = self.blocks(name)[service]
-                self.assertIn(f"psql -U {POSTGRES_ADMIN_ROLE} -d postgres -tAc 'select 1'", block)
-                self.assertNotIn('pg_isready', block)
+                self.assertIn('POSTGRES_PASSWORD: "${DB_ADMIN_PASSWORD:?', block)
+                check = next(line for line in block.splitlines() if line.strip().startswith('test: ['))
+                self.assertIn('PGPASSWORD=$${POSTGRES_PASSWORD}', check)
+                self.assertIn('psql -h \\"$$(hostname -i | awk', check)
+                self.assertIn(f"-U {POSTGRES_ADMIN_ROLE} -d postgres -tAc 'SELECT 1' >/dev/null", check)
+                self.assertNotIn('pg_isready', check)
+                self.assertNotIn('127.0.0.1', check)  # trusted by pg_hba.conf: it would accept a wrong password
 
 
 class InitScriptTest(unittest.TestCase):

@@ -45,8 +45,14 @@ from deploy.releases.postgres import (  # noqa: E402
     ODOO_RUNTIME_ROLE, POSTGRES_ADMIN_ROLE, RUNTIME_ROLE_RULES, identifier, runtime_role_assertion_sql, tenant_isolation_statements)
 
 TENANT_DATABASE = re.compile(r'^[a-z][a-z0-9_]{0,62}$')
-# What psql prints when the volume has no usable admin role (the other refusals print the rule name of RUNTIME_ROLE_RULES).
-ROLE_PROBLEM_OUTPUT = re.compile(rf'role "{POSTGRES_ADMIN_ROLE}" does not exist|authentication failed for user "{POSTGRES_ADMIN_ROLE}"')
+# What psql prints when the host's volume has no usable admin role: the role is missing, its login is refused, or
+# DB_ADMIN_PASSWORD does not match the password the volume was bootstrapped with. The other refusals print the reason of
+# RUNTIME_ROLE_RULES. A transient connection failure (the container restarting, the server still starting) names none of
+# these, so the next run retries it instead of recording the candidate as failed.
+ROLE_PROBLEM_OUTPUT = re.compile(
+    rf'role "{POSTGRES_ADMIN_ROLE}" does not exist'
+    rf'|password authentication failed for user "{POSTGRES_ADMIN_ROLE}"'
+    rf'|role "{POSTGRES_ADMIN_ROLE}" is not permitted to log in')
 RELEASE_FOLDER = re.compile(r'^([0-9a-f]{40})(\.partial|\.tar)?$')
 CONTROL_DB = 'liwan_control'
 CONTROL_DB_USER = 'liwan_control'
@@ -93,6 +99,12 @@ CONFIG_KEYS = ('LIWAN_RELEASE_PROJECT', 'LIWAN_SHARED_ENV_FILE', 'LIWAN_RELEASE_
 # The loopback ports the two host-link overlays publish; the shared env file sets them, these are the overlays' defaults.
 TENANT_DB_PORT = ('LIWAN_DB_HOST_PORT', '15433')
 CONTROL_DB_PORT = ('LIWAN_CONTROL_DB_HOST_PORT', '15432')
+
+
+def runtime_role_failure_output(output: str) -> bool:
+    """Whether a failed role check names a problem with the host's volume — a rule of RUNTIME_ROLE_RULES, or a missing,
+    unloggable or wrongly authenticated admin role — rather than a transient connection error the next run can retry."""
+    return any(reason in output for reason, _ in RUNTIME_ROLE_RULES) or bool(ROLE_PROBLEM_OUTPUT.search(output))
 
 
 class Paths:
@@ -611,15 +623,16 @@ class Releaser:
 
     def assert_runtime_role(self, checkout: Path, run: dict) -> None:
         """Odoo's database role must be a plain login role that owns no tenant database; an old volume that still has
-        a privileged ``odoo`` (or no admin role at all) is refused here instead of running on. Only a failure whose
-        output names the role problem is a refusal about the volume (recorded once per candidate); any other failure
-        (a db container that is restarting, a timeout) is an ordinary failure that the next run retries."""
+        a privileged ``odoo`` (or no admin role at all) is refused here instead of running on, as is a DB_ADMIN_PASSWORD
+        that the volume's admin role rejects. Only a failure whose output names the role problem is a refusal about the
+        volume (recorded once per candidate); any other failure (a db container that is restarting, a timeout) is an
+        ordinary failure that the next run retries."""
         names = [tenant['database'] for tenant in run['tenants']]
         sql = runtime_role_assertion_sql(ODOO_RUNTIME_ROLE, names) + ';\n'
         code, output = self.run_command(self.psql_command(checkout), stdin=sql, env=self.child_env, check=False)
         if code == 0:
             return
-        if any(reason in output for reason, _ in RUNTIME_ROLE_RULES) or ROLE_PROBLEM_OUTPUT.search(output):
+        if runtime_role_failure_output(output):
             raise ReleaseError('runtime_role_rejected', EXIT_REFUSED)
         for line in output.splitlines()[-FAILURE_TAIL_LINES:]:
             self.log('  ' + line)
