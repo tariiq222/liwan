@@ -416,6 +416,122 @@ class CaptureRestartTests(unittest.TestCase):
             self.assertEqual(len(finished), 1)
             self.assertEqual(detached, [True])  # own session, signals ignored
 
+    def test_a_termination_signal_beside_a_live_command_thread_still_starts_odoo_and_is_handled_after(self):
+        # A timed-out command can leave its feeder thread alive (a surviving grandchild holds the pipe, and only the
+        # feeder is joined on the timeout path). A process-directed SIGTERM accepted by such a thread is consumed
+        # instead of staying pending for the main thread, defeating the restart shield no matter when the handler
+        # fires. The command threads are started with the signals blocked, so the signal stays pending and aborts the
+        # run only after odoo is back up.
+        import os, signal, time
+        saved = {signum: signal.getsignal(signum) for signum in odoo_effect.TERMINATION_SIGNALS}
+        self.addCleanup(lambda: [signal.signal(signum, handler) for signum, handler in saved.items()])
+        self.addCleanup(signal.pthread_sigmask, signal.SIG_UNBLOCK, odoo_effect.TERMINATION_SIGNALS)
+        with tempfile.TemporaryDirectory() as raw:
+            runner, _ = self.capture_runner(Path(raw).resolve())
+            runner.current_container = None
+            finished, detached = [], []
+            restart = runner.restart_after_failure
+            def restart_after_failure():
+                os.kill(os.getpid(), signal.SIGTERM)  # the first signal, in the cleanup path beside the live feeder
+                # Give the kernel a moment to deliver: with the command threads' masks blocked nobody accepts the
+                # signal and it stays pending for the whole wait; an unblocked feeder consumes it within moments.
+                for _ in range(50):
+                    if not signal.sigpending():
+                        break
+                    time.sleep(0.01)
+                self.assertTrue(signal.sigpending())  # the live feeder must not have consumed it
+                restart()
+            runner.restart_after_failure = restart_after_failure
+            plain = runner.command
+            real = odoo_effect.Runner.command.__get__(runner)
+            def command(args, **kwargs):
+                if 'stop' in args:
+                    stuck = ('import subprocess, sys, time;'
+                             'subprocess.Popen([sys.executable, "-c", "import time; time.sleep(8)"],'
+                             ' stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); time.sleep(8)')
+                    # The real command times out with its feeder thread still alive, blocked on the grandchild's pipe.
+                    return real([sys.executable, '-c', stuck], stdin='x' * (1024 * 1024), timeout=1)
+                if args[-2:] == ['start', 'odoo']:
+                    detached.append(kwargs.get('detached'))
+                    finished.append(args)
+                    return ''
+                return plain(args, **kwargs)
+            runner.command = command
+            odoo_effect.install_termination_handler(runner)
+            with self.assertRaises(odoo_effect.EffectError) as caught:
+                self.capture(runner, None)
+            self.assertEqual(str(caught.exception), 'authority_lost')  # the signal is handled, after the restart
+            self.assertEqual(len(finished), 1)
+            self.assertEqual(detached, [True])  # own session, signals ignored
+
+    def test_a_termination_signal_in_the_normal_start_cleanup_still_starts_odoo_and_is_handled_after(self):
+        # The second cleanup path (a failure in the normal `start odoo`) is shielded the same way: a SIGTERM landing
+        # between entering it and the restart must not skip the restart either.
+        import os, signal
+        saved = {signum: signal.getsignal(signum) for signum in odoo_effect.TERMINATION_SIGNALS}
+        self.addCleanup(lambda: [signal.signal(signum, handler) for signum, handler in saved.items()])
+        self.addCleanup(signal.pthread_sigmask, signal.SIG_UNBLOCK, odoo_effect.TERMINATION_SIGNALS)
+        with tempfile.TemporaryDirectory() as raw:
+            runner, _ = self.capture_runner(Path(raw).resolve())
+            cancelled, finished, detached = [], [], []
+            runner.cancel = lambda: cancelled.append(True)
+            restart = runner.restart_after_failure
+            def restart_after_failure():
+                os.kill(os.getpid(), signal.SIGTERM)  # the first signal, in the cleanup path before the restart
+                restart()
+            runner.restart_after_failure = restart_after_failure
+            plain = runner.command
+            def command(args, **kwargs):
+                if args[-2:] == ['start', 'odoo'] and not kwargs.get('detached'):
+                    raise odoo_effect.EffectError('compose_down')  # the normal start fails
+                if args[-2:] == ['start', 'odoo']:
+                    detached.append(kwargs.get('detached'))
+                    finished.append(args)
+                    return ''
+                return plain(args, **kwargs)
+            runner.command = command
+            odoo_effect.install_termination_handler(runner)
+            with self.assertRaises(odoo_effect.EffectError) as caught:
+                self.capture(runner, None)
+            self.assertEqual(str(caught.exception), 'authority_lost')  # the signal is handled, after the restart
+            self.assertEqual(cancelled, [True])
+            self.assertEqual(len(finished), 1)
+            self.assertEqual(detached, [True])  # own session, signals ignored
+
+    def test_a_second_signal_during_the_restart_discards_the_held_one_with_the_original_error(self):
+        # While the first signal is held pending, a second one that arrives during the restart runs the handler, whose
+        # `_ignore_termination()` ignores every termination signal for the rest of the process: the held signal is
+        # discarded when the mask is restored, and the run fails with the original error instead of `authority_lost`.
+        import os, signal
+        saved = {signum: signal.getsignal(signum) for signum in odoo_effect.TERMINATION_SIGNALS}
+        self.addCleanup(lambda: [signal.signal(signum, handler) for signum, handler in saved.items()])
+        self.addCleanup(signal.pthread_sigmask, signal.SIG_UNBLOCK, odoo_effect.TERMINATION_SIGNALS)
+        with tempfile.TemporaryDirectory() as raw:
+            runner, _ = self.capture_runner(Path(raw).resolve(), fail_at='inventory')
+            cancelled, finished, detached = [], [], []
+            runner.cancel = lambda: cancelled.append(True)
+            restart = runner.restart_after_failure
+            def restart_after_failure():
+                os.kill(os.getpid(), signal.SIGTERM)  # the first signal, held pending in the cleanup path
+                restart()
+            runner.restart_after_failure = restart_after_failure
+            plain = runner.command
+            def command(args, **kwargs):
+                if args[-2:] == ['start', 'odoo']:
+                    detached.append(kwargs.get('detached'))
+                    os.kill(os.getpid(), signal.SIGINT)  # the second, different signal, during the restart
+                    finished.append(args)
+                    return ''
+                return plain(args, **kwargs)
+            runner.command = command
+            odoo_effect.install_termination_handler(runner)
+            with self.assertRaises(odoo_effect.EffectError) as caught:
+                self.capture(runner, 'inventory')
+            self.assertEqual(str(caught.exception), 'boom')  # the original error; the held signal was discarded
+            self.assertEqual(cancelled, [])  # no authority_lost anywhere
+            self.assertEqual(len(finished), 1)
+            self.assertEqual(detached, [True])  # own session, signals ignored
+
     def test_a_successful_capture_starts_odoo_once(self):
         with tempfile.TemporaryDirectory() as raw:
             runner, _ = self.capture_runner(Path(raw).resolve())

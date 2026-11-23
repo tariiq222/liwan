@@ -170,12 +170,13 @@ def install_termination_handler(runner):
 
 @contextmanager
 def block_termination_signals():
-    """Shield the post-failure odoo restart from a termination signal that lands between entering the cleanup path
-    and the start of the restart: the handler would raise `authority_lost` right there and skip the restart, leaving
-    odoo down for every tenant. The signal stays pending, and the previous mask is restored when the restart is done,
-    so it is delivered then and still cancels the run with `authority_lost`, only once odoo is back up. A signal that
-    arrives while the restart itself runs is released to the handler again, whose `restarting` guard ignores it
-    without touching the restart."""
+    """Shield the post-failure odoo restart from a termination signal: the handler would raise `authority_lost` and
+    skip the restart, leaving odoo down for every tenant. From the moment the signals are blocked here, a signal
+    stays pending and is delivered when the previous mask is restored, so it still cancels the run with
+    `authority_lost`, only once odoo is back up. The few instructions between entering the cleanup path and this
+    call stay uncovered: a signal landing there is consumed straight away and can still skip the restart — nothing
+    in Python can block signals before its own cleanup path starts running. A signal that arrives while the restart
+    itself runs is released to the handler again, whose `restarting` guard ignores it without touching the restart."""
     previous = signal.pthread_sigmask(signal.SIG_BLOCK, TERMINATION_SIGNALS)
     try:
         yield
@@ -319,7 +320,11 @@ class Runner:
                 if len(tail) > MAX_OUTPUT:
                     del tail[:-MAX_OUTPUT]
         reader = threading.Thread(target=drain, daemon=True)
-        reader.start()
+        # Both helper threads start with the termination signals blocked (a thread inherits the mask of the thread
+        # that starts it): a process-directed signal accepted by a helper is consumed instead of staying pending for
+        # the main thread, which would defeat the post-failure restart shield no matter when the handler then fires.
+        with block_termination_signals():
+            reader.start()
         def feed():
             # A client that never reads must not block the effect on the pipe (only the worker's deadline would
             # rescue it then): the write runs beside `wait(timeout)` and the child's exit status decides the outcome.
@@ -331,7 +336,8 @@ class Runner:
                 with suppress(OSError):
                     child.stdin.close()
         writer = threading.Thread(target=feed, daemon=True)
-        writer.start()
+        with block_termination_signals():  # see the reader above: the helpers never accept a termination signal
+            writer.start()
         try:
             child.wait(timeout=timeout)
             reader.join(timeout=5)

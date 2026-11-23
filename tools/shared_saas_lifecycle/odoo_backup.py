@@ -489,7 +489,9 @@ print('{}')
         # Runs under the caller's `block_termination_signals`: a signal that landed between entering the cleanup and
         # this call is pending now and must not abort the restart. Release the other termination signals so a signal
         # that arrives while the restart itself runs still reaches the handler's `restarting` guard, which ignores it;
-        # the held signal is delivered when the caller restores the mask and aborts the run only after odoo is back up.
+        # that handler ignores every termination signal for the rest of the process, so a held signal is then
+        # discarded when the caller restores the mask and the original error stands. Otherwise the held signal is
+        # delivered on restore and aborts the run with `authority_lost` only after odoo is back up.
         pending = signal.sigpending()
         self.restarting = True
         signal.pthread_sigmask(signal.SIG_UNBLOCK, set(TERMINATION_SIGNALS) - pending)
