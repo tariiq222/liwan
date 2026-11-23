@@ -46,7 +46,7 @@ try{
   // The password effect runs here because only the worker may reach Docker; control-api calls it over authenticated HTTPS.
   try{
     if(effect?.host && effect.port && effect.tls){
-      const runner=createAdminPasswordRunner(pool,config,loadSharedRuntimeConfig(config.sharedRuntimeConfigPath!))
+      const runner=createAdminPasswordRunner(pool,config)
       startInternalEffectServer({host:effect.host,port:effect.port,tls:effect.tls},{key:effect.key,inFlight:new Set<string>(),
         run:(input,requestSignal)=>runner(input,AbortSignal.any([requestSignal,controller.signal])),
         claimNonce:async(issuer,nonce)=>{

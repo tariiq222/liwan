@@ -8,9 +8,16 @@ function groupAlive(id: number): boolean {
   catch (error) { return (error as NodeJS.ErrnoException).code !== 'ESRCH' }
 }
 
-function signalGroup(id: number, signal: NodeJS.Signals): void {
+export function signalGroup(id: number, signal: NodeJS.Signals): void {
   try { process.kill(-id, signal) }
   catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error }
+}
+
+/** SIGTERM now, SIGKILL after `graceMs`; the returned function cancels the pending SIGKILL. */
+export function terminateGroup(send: (signal: NodeJS.Signals) => void, graceMs: number): () => void {
+  send('SIGTERM')
+  const timer = setTimeout(() => send('SIGKILL'), graceMs)
+  return () => clearTimeout(timer)
 }
 
 export async function runProcessGroup(command: string, args: string[], options: Options): Promise<ProcessGroupResult> {
@@ -21,14 +28,13 @@ export async function runProcessGroup(command: string, args: string[], options: 
   let timedOut = false
   let outputExceeded = false
   let stopped = false
-  let killTimer: ReturnType<typeof setTimeout> | undefined
+  let cancelKill: (() => void) | undefined
   const chunks: Buffer[] = []
   let bytes = 0
   const stop = () => {
     if (stopped || !group) return
     stopped = true
-    signalGroup(group, 'SIGTERM')
-    killTimer = setTimeout(() => signalGroup(group, 'SIGKILL'), options.graceMs)
+    cancelKill = terminateGroup(signal => signalGroup(group, signal), options.graceMs)
   }
   child.stdout?.on('data', (chunk: Buffer) => {
     bytes += chunk.length
@@ -42,7 +48,7 @@ export async function runProcessGroup(command: string, args: string[], options: 
     child.once('close', (code) => resolve({ code, error: failed }))
   })
   clearTimeout(timer)
-  if (killTimer) clearTimeout(killTimer)
+  cancelKill?.()
   const orphaned = Boolean(group && groupAlive(group) && !timedOut && !outputExceeded)
   if (group && groupAlive(group)) signalGroup(group, 'SIGKILL')
   let groupTerminated = !group || !groupAlive(group)

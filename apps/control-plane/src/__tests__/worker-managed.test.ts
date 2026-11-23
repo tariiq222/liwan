@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -450,6 +450,33 @@ describe('executeClaimed lanes', () => {
     expect(calls[0].moduleName).toBe('liwan_cli.operator')
     expect(calls[0].env.LIWAN_CLI_INVENTORY).toBe(config.inventoryPath)
     expect(calls[0].env.LIWAN_MANAGED_INVENTORY).toBeUndefined()
+  })
+
+  it('starts the operator CLI with an allowlisted environment: the parent secrets are absent, every name the CLI reads is present', async () => {
+    const claim = fakeClaim('health', 'saas')
+    claim.tenant.inventory_target = 'scratch'
+    const config = await managedConfig(async () => ({ code: 0, receipt: {} }))
+    delete config.invokeAdapter
+    const dump = join(fixture, 'env-dump.json')
+    const fakePython = join(fixture, 'fake-python.sh')
+    await writeFile(fakePython, `#!/bin/sh\nenv > '${dump}'\nprintf '{"status":"ok","target":"scratch","operation":"health"}'\n`)
+    await chmod(fakePython, 0o700)
+    config.python = fakePython
+    await writeFile(join(fixture, 'classification.json'), JSON.stringify({ schema_version: 1, database: 'scratch_db', commercial_mode: 'saas', entitlement_source: 'control_plane' }))
+    const secrets = { CONTROL_DATABASE_URL: 'postgres://secret', MOYASAR_SECRET_KEY: 'sk_live_x', ADMIN_SECRET_KEY: 'admin-x', CONTROL_SERVICE_KEY: 'svc-x' }
+    const needed = { PGPASSWORD: 'pg-x', PGPASSFILE: '/tmp/pgpass-x', AI_DATABASE_URL: 'postgres://ai-x' }
+    const saved = Object.fromEntries([...Object.keys(secrets), ...Object.keys(needed)].map((name) => [name, process.env[name]]))
+    Object.assign(process.env, secrets, needed)
+    try { await executeClaimed(fakePool(claim), claim, config) }
+    finally { for (const [name, value] of Object.entries(saved)) { if (value === undefined) delete process.env[name]; else process.env[name] = value } }
+    const child = Object.fromEntries((await readFile(dump, 'utf8')).split('\n').filter(Boolean).map((line) => { const at = line.indexOf('='); return [line.slice(0, at), line.slice(at + 1)] }))
+    for (const name of Object.keys(secrets)) expect(child).not.toHaveProperty(name)
+    for (const [name, value] of Object.entries(needed)) expect(child[name]).toBe(value)
+    expect(child.LIWAN_CLI_INVENTORY).toBe(config.inventoryPath)
+    expect(child.LIWAN_CLI_STATE_DIR).toBe(config.stateDir)
+    expect(child.PYTHONPATH).toBe(join(repo, 'tools'))
+    expect(child).not.toHaveProperty('LIWAN_MANAGED_INVENTORY')
+    expect(child.PATH).toBe(process.env.PATH)
   })
 
   it('routes managed create and its status check to managed adapter with the identical policy bytes', async () => {

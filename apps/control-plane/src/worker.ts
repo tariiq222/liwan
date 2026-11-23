@@ -8,6 +8,7 @@ import type { Config } from './config.js'
 import { dedicatedExecutionEnabled, inventory, resolveTargetLane, type TargetLane } from './http.js'
 import { hasUnresolvedMutation, transaction } from './db.js'
 import { runProcessGroup } from './process-group.js'
+import { effectEnv } from './shared/effect-channel.js'
 import { resolveCatalogSource } from './shared/catalog-source.js'
 import { derivePolicy } from './shared/catalog-features.js'
 
@@ -172,9 +173,28 @@ export function publicReceipt(value: Record<string, unknown>): Record<string, un
 }
 
 type OperatorResult = { code: number; receipt: Record<string, unknown> }
+
+/**
+ * Names the operator CLI reads from its environment beyond the shared effect allowlist. Exact names only, no prefixes:
+ * PGPASSWORD and PGPASSFILE reach psql (tools/liwan_cli/operator.py:322), AI_DATABASE_URL is the AI tenant-schema step's connection (operator.py:430).
+ * The control database URL, the payment and admin keys and the service key are not here: the operator never needs them.
+ */
+const OPERATOR_PASSTHROUGH = ['PGPASSWORD', 'PGPASSFILE', 'AI_DATABASE_URL'] as const
+
+/** The operator child's whole environment: the effect allowlist, the passthrough names above, and the names this spawn sets itself. */
+export function operatorEnv(config: Config, lane: TargetLane, parent: NodeJS.ProcessEnv = process.env): Record<string, string> {
+  const managed = lane.kind === 'compose-local'
+  const env = effectEnv(parent)
+  for (const name of OPERATOR_PASSTHROUGH) { const value = parent[name]; if (value !== undefined) env[name] = value }
+  env.LIWAN_CLI_INVENTORY = config.inventoryPath // adapters.py:114, operator.py:198
+  if (managed) env.LIWAN_MANAGED_INVENTORY = lane.inventoryPath // managed_runtime.py:1038
+  env.LIWAN_CLI_STATE_DIR = managed ? lane.stateDir : config.stateDir // operator.py:487, managed_runtime.py:817,1034
+  env.PYTHONPATH = join(config.repositoryRoot, 'tools')
+  return env
+}
 async function operator(config: Config, args: string[], lane: TargetLane, policyBytes?: Buffer, journalFields?: Record<string, string>): Promise<OperatorResult> {
   const managed = lane.kind === 'compose-local'
-  const env = { ...process.env, LIWAN_CLI_INVENTORY: config.inventoryPath, LIWAN_MANAGED_INVENTORY: managed ? lane.inventoryPath : undefined, LIWAN_CLI_STATE_DIR: managed ? lane.stateDir : config.stateDir, PYTHONPATH: join(config.repositoryRoot, 'tools') }
+  const env = operatorEnv(config, lane)
   const moduleName = managed ? 'liwan_cli.managed_runtime' : 'liwan_cli.operator'
   if (config.invokeAdapter) {
     const invocation: import('./worker.js').OperatorInvocation = { moduleName, args, env, policyBytes, descriptorBytes: managed ? lane.descriptorBytes : undefined, target: managed ? journalFields?.target : undefined, operation: managed ? journalFields?.operation : undefined, requestId: managed ? journalFields?.request_id : undefined, fingerprint: managed ? lane.descriptorDigest : undefined }

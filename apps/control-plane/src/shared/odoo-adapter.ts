@@ -1,6 +1,5 @@
 import { provisioningActor } from './commercial-enrollment-authority.js'
 import { resolvePackageJobAuthority,assertPackageJobAuthority } from '../packages.js'
-import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { assertReconfigureAuthority, type SubscriptionRunner } from './subscription-reconfigure.js'
 import type { ObserveRunner } from './subscription-reconcile.js'
@@ -19,6 +18,7 @@ import { publishRegistryMutation, recoverRegistry } from './registry-store.js'
 import { lstat } from 'node:fs/promises'
 import { createAdminPasswordRunner } from './admin-password-runner.js'
 import { createTenantStatusRunner } from './tenant-status-runner.js'
+import { openEffectChannel } from './effect-channel.js'
 import { resolveOdooBackupAuthority,recordOdooBackup,resolveCommercialOdooRestore,findVerifiedRestoreCommercialEffect } from './odoo-backup.js'
 
 /** Non-secret refusal codes the provision effect may report; all others are opaque.
@@ -43,8 +43,8 @@ export const PROVISION_ERROR_CODES=new Set(['target_mismatch','profile_invalid',
 export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):SharedFencedAdapter & Required<import('../commercial/invitation-odoo.js').OdooPasswordAdapter> & {setTenantStatus:import('../commercial/suspension.js').TenantStatusRunner} {
   if(!config.sharedRuntimeConfigPath || !config.tenantRegistryPath)throw Error('shared_adapter_unavailable')
   const runtime=loadSharedRuntimeConfig(config.sharedRuntimeConfigPath)
-  const adminPasswordRunner=createAdminPasswordRunner(pool,config,runtime)
-  const tenantStatusRunner=createTenantStatusRunner(pool,config,runtime,signal)
+  const adminPasswordRunner=createAdminPasswordRunner(pool,config)
+  const tenantStatusRunner=createTenantStatusRunner(pool,config,signal)
   const execute=async(job:SharedJob,action:'observe'|'apply',claim?:{attemptId:string;fence:number;assertOwned:()=>Promise<void>})=>{
     const packageAuthority=job.operation==='provision'?await resolvePackageJobAuthority(pool,job):undefined
     const authority=job.operation==='provision'?null:await resolveOdooBackupAuthority(pool,runtime,job,{starting:action==='apply'})
@@ -72,25 +72,12 @@ export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):Sh
     }
     if(signal.aborted)throw Error('shared_worker_stopping')
     return new Promise<unknown>((resolve,reject)=>{
-      const child=spawn(config.python,['-B','-m',job.operation==='provision'?'tools.shared_saas_lifecycle.odoo_effect':'tools.shared_saas_lifecycle.odoo_backup'],{cwd:config.repositoryRoot,stdio:['pipe','pipe','ignore'],env:{...process.env,PYTHONUNBUFFERED:'1'}})
-      let buffer='',result:unknown,failed=false,checking=false,chain=Promise.resolve(),errorCode:string|undefined
-      const fail=()=>{if(!failed){failed=true;child.kill('SIGTERM')}}
-      const timeout=setTimeout(fail,30*60*1000)
-      const abort=()=>fail()
-      signal.addEventListener('abort',abort,{once:true})
-      const heartbeat=setInterval(()=>{
-        if(!claim || checking || failed)return
-        checking=true
-        assertCurrent().catch(fail).finally(()=>{checking=false})
-      },15000)
-      child.on('error',()=>{failed=true})
-      child.stdin.on('error',fail)
-      child.stdout.on('data',chunk=>{
-        buffer+=String(chunk)
-        if(buffer.length>65536){fail();return}
-        let newline:number
-        while((newline=buffer.indexOf('\n'))>=0){
-          const line=buffer.slice(0,newline);buffer=buffer.slice(newline+1)
+      let result:unknown,failed=false,checking=false,chain=Promise.resolve(),errorCode:string|undefined
+      const fail=()=>{if(!failed){failed=true;channel.stop()}}
+      const channel=openEffectChannel({config,effect:job.operation==='provision'?'odoo_effect':'odoo_backup',
+        request:{action,job,businessKey:businessKey(job),payloadDigest:payloadDigest(job),...(job.operation==='provision'?{admin:provisionAdmin(row),companyName:row.name,host:row.host,controlTenantId:row.control_tenant_id,...(packageAuthority?{packageAuthority}:{})}:{authority,...(commercial?{commercial}:{})}),...(claim?{attemptId:claim.attemptId,fence:claim.fence}:{})},
+        onFault:fail,
+        onLine:line=>{
           chain=chain.then(async()=>{
             if(failed)return
             const message=JSON.parse(line)
@@ -101,47 +88,43 @@ export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):Sh
               if(job.operation==='restore' && ['runtime','reserve','restore-database'].includes(message.permit))await resolveOdooBackupAuthority(pool,runtime,job,{starting:true})
               if(job.operation==='provision' && ['policy','password','admin','complete'].includes(message.permit)) await pool.query("UPDATE shared_onboardings SET stage='verifying' WHERE request_id=$1 AND stage IN ('queued','verifying')",[job.requestId])
               if(failed || signal.aborted)throw Error('shared_lease_lost')
-              child.stdin.write(JSON.stringify({proceed:true})+'\n')
+              channel.send({proceed:true})
             }else if(Object.hasOwn(message,'result')){if(result!==undefined)throw Error('shared_protocol_invalid');result=message.result}
             else if(Object.keys(message).length===1 && typeof message.error_code==='string'){
               // Only allowlisted non-secret refusal codes surface; anything else stays opaque.
               errorCode=PROVISION_ERROR_CODES.has(message.error_code)?message.error_code:'shared_effect_unverified'
-              failed=true;child.kill('SIGTERM')
+              fail()
             }
             else throw Error('shared_effect_unverified')
           }).catch(fail)
-        }
-      })
-      child.on('close',code=>{
-        clearTimeout(timeout);clearInterval(heartbeat);signal.removeEventListener('abort',abort)
-        void chain.then(()=>{
-          if(errorCode)reject(Error(errorCode))
-          else if(failed || code!==0 || result===undefined)reject(Error('shared_effect_unverified'))
-          else resolve(result)
-        })
-      })
-      child.stdin.write(JSON.stringify({action,config:runtime,job,businessKey:businessKey(job),payloadDigest:payloadDigest(job),...(job.operation==='provision'?{admin:provisionAdmin(row),companyName:row.name,host:row.host,controlTenantId:row.control_tenant_id,...(packageAuthority?{packageAuthority}:{})}:{authority,...(commercial?{commercial}:{})}),...(claim?{attemptId:claim.attemptId,fence:claim.fence}:{})})+'\n')
+        },
+        onClose:code=>{
+          clearTimeout(timeout);clearInterval(heartbeat);signal.removeEventListener('abort',abort)
+          void chain.then(()=>{
+            if(errorCode)reject(Error(errorCode))
+            else if(failed || code!==0 || result===undefined)reject(Error('shared_effect_unverified'))
+            else resolve(result)
+          })
+        }})
+      const timeout=setTimeout(fail,30*60*1000)
+      const abort=()=>fail()
+      signal.addEventListener('abort',abort,{once:true})
+      const heartbeat=setInterval(()=>{
+        if(!claim || checking || failed)return
+        checking=true
+        assertCurrent().catch(fail).finally(()=>{checking=false})
+      },15000)
     })
   }
   const subscriptionExecute=async(request:Record<string,unknown>,assertOwned?:()=>Promise<void>,cancel?:AbortSignal)=>{
     if(signal.aborted)throw Error('shared_worker_stopping')
     if(cancel?.aborted)throw Error('observe_aborted')
     return new Promise<unknown>((resolve,reject)=>{
-      const child=spawn(config.python,['-B','-m','tools.shared_saas_lifecycle.subscription_effect'],{cwd:config.repositoryRoot,stdio:['pipe','pipe','ignore'],env:{...process.env,PYTHONUNBUFFERED:'1'}})
-      let buffer='',result:unknown,error:Error|undefined,chain=Promise.resolve()
-      const fail=(e:unknown)=>{error=e instanceof Error?e:Error('shared_effect_unverified');child.kill('SIGTERM')}
-      const abort=()=>fail(Error('shared_worker_stopping'))
-      const cancelled=()=>fail(Error('observe_aborted'))
-      signal.addEventListener('abort',abort,{once:true});cancel?.addEventListener('abort',cancelled,{once:true})
-      const timer=setTimeout(()=>fail(Error('shared_effect_timeout')),30*60*1000)
-      const heartbeat=setInterval(()=>{if(assertOwned)void assertOwned().catch(fail)},15000)
-      child.on('error',fail);child.stdin.on('error',fail)
-      child.stdout.on('data',chunk=>{
-        buffer+=String(chunk)
-        if(buffer.length>65536){fail(Error('shared_protocol_invalid'));return}
-        let newline:number
-        while((newline=buffer.indexOf('\n'))>=0){
-          const line=buffer.slice(0,newline);buffer=buffer.slice(newline+1)
+      let result:unknown,error:Error|undefined,chain=Promise.resolve()
+      const fail=(e:unknown)=>{error=e instanceof Error?e:Error('shared_effect_unverified');channel.stop()}
+      const channel=openEffectChannel({config,effect:'subscription_effect',request,
+        onFault:()=>fail(Error('shared_protocol_invalid')),
+        onLine:line=>{
           chain=chain.then(async()=>{
             if(error)return
             const message=JSON.parse(line)
@@ -149,18 +132,21 @@ export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):Sh
               if(!assertOwned || !['modules','apply'].includes(message.permit))throw Error('shared_protocol_invalid')
               await assertOwned()
               if(error || signal.aborted)throw Error('shared_lease_lost')
-              child.stdin.write(JSON.stringify({proceed:true})+'\n')
+              channel.send({proceed:true})
             }else if(message.error_code)throw Error(message.error_code)
             else if(Object.hasOwn(message,'result') && result===undefined)result=message.result
             else throw Error('shared_protocol_invalid')
           }).catch(fail)
-        }
-      })
-      child.on('close',code=>{
-        clearTimeout(timer);clearInterval(heartbeat);signal.removeEventListener('abort',abort);cancel?.removeEventListener('abort',cancelled)
-        void chain.then(()=>error?reject(error):code!==0 || result===undefined?reject(Error('shared_effect_unverified')):resolve(result))
-      })
-      child.stdin.write(JSON.stringify({...request,config:runtime})+'\n')
+        },
+        onClose:code=>{
+          clearTimeout(timer);clearInterval(heartbeat);signal.removeEventListener('abort',abort);cancel?.removeEventListener('abort',cancelled)
+          void chain.then(()=>error?reject(error):code!==0 || result===undefined?reject(Error('shared_effect_unverified')):resolve(result))
+        }})
+      const abort=()=>fail(Error('shared_worker_stopping'))
+      const cancelled=()=>fail(Error('observe_aborted'))
+      signal.addEventListener('abort',abort,{once:true});cancel?.addEventListener('abort',cancelled,{once:true})
+      const timer=setTimeout(()=>fail(Error('shared_effect_timeout')),30*60*1000)
+      const heartbeat=setInterval(()=>{if(assertOwned)void assertOwned().catch(fail)},15000)
     })
   }
   const subscriptionRunner:SubscriptionRunner=async input=>{

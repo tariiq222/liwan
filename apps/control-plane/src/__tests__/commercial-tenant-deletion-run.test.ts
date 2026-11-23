@@ -496,7 +496,7 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
       const lines: string[] = []; let waiting: ((l: string) => void) | undefined; let buffer = ''
       stdin.on('data', chunk => { buffer += String(chunk); let i; while ((i = buffer.indexOf('\n')) >= 0) { const l = buffer.slice(0, i); buffer = buffer.slice(i + 1); if (waiting) { const w = waiting; waiting = undefined; w(l) } else lines.push(l) } })
       const nextLine = () => new Promise<string>(resolve => { const l = lines.shift(); if (l !== undefined) resolve(l); else waiting = resolve })
-      void (async () => { const request = JSON.parse(await nextLine()); await script(request, line => stdout.write(JSON.stringify(line) + '\n'), nextLine); emitter.emit('close', 0) })()
+      void (async () => { expect(JSON.parse(await nextLine())).toEqual({ effect: 'tenant_drop_effect' }); const request = JSON.parse(await nextLine()); await script(request, line => stdout.write(JSON.stringify(line) + '\n'), nextLine); stdout.write(JSON.stringify({ exit: 0 }) + '\n'); emitter.emit('close', 0) })()
       return proc
     }
     const seen: any[] = []
@@ -511,9 +511,9 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
     const out = await real.stage({ stage: 'drop_database', plan: effectPlan, planDigest: planDigestOf(effectPlan), dryRun: false, assertOwned: async () => { permits++ } })
     expect(out).toEqual({ state: 'dropped' })
     expect(permits).toBe(1)
-    // The child receives exactly the effect's plan and runtime keys, and never the release backup path.
+    // The gate receives the effect's plan only: it injects the runtime config itself.
     expect(seen[0]).toMatchObject({ action: 'drop_database', dryRun: false, planDigest: planDigestOf(effectPlan) })
-    expect(Object.keys(seen[0].config).sort()).toEqual(['composeFile', 'domainSuffix', 'envFile', 'projectName', 'schemaVersion', 'stateDir'])
+    expect(seen[0]).not.toHaveProperty('config')
     // Ownership lost at the permit: the effect gets no `proceed` and the stage fails with the code.
     const denied = await refused(real.stage({ stage: 'drop_database', plan: effectPlan, planDigest: planDigestOf(effectPlan), dryRun: false, assertOwned: async () => { throw new Error('deletion_lease_lost') } }))
     expect(denied).toMatchObject({ code: 'deletion_lease_lost' })
