@@ -445,6 +445,33 @@ class TestOperationsWorkflow(LiwanApiCase):
         self.authenticate('api_emp', 'api_emp_pass_123')
         self.assertEqual(self.api('GET', self._path(foreign, foreign_file)).status_code, 404)
 
+    def test_request_detail_and_attachments_are_limited_to_the_requester_and_reviewers(self):
+        colleague = new_test_user(self.env, login='ops_colleague', password='ops_colleague_test_123', groups='liwan_core.group_employee')
+        self.service._liwan_replace_assignments(colleague, [{'role_id': self.env.ref('liwan_core.role_employee').id, 'company_id': self.env.company.id}])
+        work = self._request()
+        work_file = self._file(work)
+        work.action_submit(0)
+        self.process.with_user(self.manager).action_configure(1, 'Employee service', '', 'approval', [
+            {'name': 'Review', 'reviewer_ids': [self.reviewers[0].id]},
+        ], purpose='employee')
+        self.process.with_user(self.manager).action_publish(2)
+        personal = self._request()
+        personal_file = self._file(personal)
+        personal.action_submit(0)
+        self.assertEqual((work.purpose, personal.purpose), ('work', 'employee'))
+        for record, attachment in ((work, work_file), (personal, personal_file)):
+            detail = f'/api/v1/operations/requests/{record.id}'
+            self.authenticate('ops_colleague', 'ops_colleague_test_123')
+            for path in (detail, self._path(record, attachment)):
+                response = self.api('GET', path)
+                self.assertEqual((response.status_code, response.json()['code']), (404, 'not_found'), path)
+            for login, password in (('api_emp', 'api_emp_pass_123'), ('ops_reviewer_1', 'ops_reviewer_1_test_123')):
+                self.authenticate(login, password)
+                for path in (detail, self._path(record, attachment)):
+                    self.assertEqual(self.api('GET', path).status_code, 200, (login, path))
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        self.assertEqual(self.api('GET', f'/api/v1/operations/requests/employee/me/{personal.id}').status_code, 200)
+
     def test_a_process_the_requester_cannot_see_is_refused_with_the_request_message(self):
         draft = self.env['liwan.operation.process'].with_user(self.manager).create({'name': 'Still a draft'})
         archived = self.env['liwan.operation.process'].with_user(self.manager).create({'name': 'Retired'})
