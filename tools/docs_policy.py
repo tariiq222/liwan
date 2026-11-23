@@ -21,7 +21,8 @@ from urllib.parse import unquote
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ('CLAUDE.md', 'AGENTS.md', 'docs/agents/odoo-rules.md', 'docs/agents/web-rules.md', 'docs/agents/repository-layout.md', 'docs/agents/integration-rules.md', 'docs/parallel-work.md', 'REVIEW.md',
-        'docs/WORKSPACE.md', 'docs/testing.md', 'README.md', 'docs/agents/issue-tracker.md')
+        'docs/WORKSPACE.md', 'docs/testing.md', 'README.md', 'docs/agents/issue-tracker.md',
+        'docs/agents/playbook.md')
 FILE_SUFFIXES = ('.py', '.ts', '.vue', '.md', '.json', '.yml', '.yaml', '.sh', '.mjs', '.js')
 CODE_RE = re.compile(r'`([^`\n]+)`')
 LINK_RE = re.compile(r'\]\(([^)\s#]+)(?:#[^)]*)?\)')
