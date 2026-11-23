@@ -81,8 +81,9 @@ Read `docs/parallel-work.md` before parallel work or changing shared files.
 - Never run tests on `liwan_dev` or `odoo19`. A local commit on the task branch and returning the lane
   after a merge (`wt done --orchestrator <id>`, or `wt lane remove` for a temporary lane) fall under the standing
   authorization in [integration-rules.md](docs/agents/integration-rules.md), as do the push of the task branch,
-  opening the PR and marking it ready once the independent review is clean and current-head `ci-result` is green
-  (owner decision 2026-11-23). Merging and auto-merge each need the owner's explicit words in the current
+  opening the PR and marking it ready once the conditions in the standing authorization hold (clean independent review,
+  tester on sensitive work, local checks; owner decision 2026-11-23). Current-head `ci-result` is a condition for the merge, not
+  for ready. Merging and auto-merge each need the owner's explicit words in the current
   conversation, as do deploying, release tags, force-push, direct push to `main` and discarding work.
 - Local verification does not prove production deployment. Report fresh test
   evidence and the actual branch/runtime state.

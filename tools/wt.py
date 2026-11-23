@@ -10,8 +10,8 @@
     npm run wt -- check
     npm run wt -- gc [--apply] [--branch <branch>]
 
-A lane is a permanent worktree at ``.worktrees/<name>`` (see ``tools/worktree_lanes.py``): one task is one branch, one
-lane and one writing session. Between tasks a lane rests on a detached ``origin/main``. ``lane add`` creates a lane
+A lane is a permanent worktree at ``.worktrees/<name>`` (see ``tools/worktree_lanes.py``): one task is one branch and one
+lane, taken by its orchestrator for the workers. Between tasks a lane rests on a detached ``origin/main``. ``lane add`` creates a lane
 (a worktree at ``origin/main`` with its ``.env.worktree``, free ports, scratch database name and dependencies) or adopts
 an existing worktree under ``.worktrees/`` in place; adopting a worktree that is on a branch needs ``--holder``,
 ``--orchestrator`` and ``--task`` and drops its record files of the removed claim model. ``take`` gives a branch to the first resting clean lane

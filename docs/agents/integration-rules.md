@@ -34,7 +34,8 @@ without asking each time, provided the evidence rules of this file hold:
 - push the task branch, open its pull request and mark it ready (owner decision 2026-11-23,
   replacing the requirement of explicit words for these steps), only after the independent reviewer
   returned no unresolved findings, the tester passed on sensitive work, the applicable local checks
-  passed and, for marking ready, current-head `ci-result` is green;
+  passed. Marking ready does not wait for CI: CI does not run on drafts, so a green current-head `ci-result`
+  is a condition for the merge only;
 - resolve a review thread after verifying the fix in the code;
 - after a merge, return the lanes with `python3 -B tools/wt.py done --orchestrator <id>`, or remove a temporary
   lane with `python3 -B tools/wt.py lane remove <name>`, once the content is preserved and no
@@ -157,8 +158,8 @@ land together: it merges only those agreed branches with merge commits and goes 
    for any additional local checks. Record commands, commit, environment, results,
    and coverage left to CI in the PR. Retain baseline regression requirements.
    Disclose any reproduced baseline failure. After local preparation and
-   publication, mark the PR ready.
-   Require successful current-head `ci-result` and every selected stage; inspect
+   publication, the PR is marked ready automatically (standing authorization) and CI runs on it.
+   Before merging, require successful current-head `ci-result` and every selected stage; inspect
    skipped stages and scope. An old green head, local checks or a conflict check
    alone does not establish readiness for protected remote integration.
 5. **Merge the candidate.** Recheck the current base/head, current-head
@@ -202,8 +203,8 @@ the release command and the server setup are described in `deploy/release/README
 | 1. Lane and branch | none | the orchestrator | `npm run wt -- take <branch> --holder <worker role(s)> --orchestrator <id>` starts the branch from current `origin/main`. |
 | 2. Local commit | none (standing authorization) | the orchestrator | Commit on the task branch with the applicable local checks. |
 | 3. Independent review | none | an independent reviewer | The [review before every push](#independent-review-before-every-push-owner-decision-2026-11-21); confirmed findings are fixed first. |
-| 4. Push, PR, ready | none (standing authorization, owner decision 2026-11-23) | the orchestrator | Push the task branch, open the PR and mark it ready once step 3 is clean and current-head `ci-result` is green. |
-| 4a. «انشر» | the owner | the orchestrator | Merge the ready PR, then return the lanes (steps 5 and 6 above). |
+| 4. Push, PR, ready | none (standing authorization, owner decision 2026-11-23) | the orchestrator | Push the task branch, open the PR as a draft, and mark it ready once step 3 is clean, the tester passed on sensitive work and the applicable local checks passed (the conditions in the standing authorization above). CI then runs. |
+| 4a. «انشر» | the owner | the orchestrator | After current-head `ci-result` is green, merge the ready PR, then return the lanes (steps 5 and 6 above). |
 | 5. Push to `main` | nobody | `.github/workflows/publish.yml` | A merge to `main` runs CI only. The publish workflow does not start: no image is built, no release document is published, no hook is called and no server is updated. |
 | 6. «انشر على الاستيج» | the owner | the coordinator | After checking that the `main` CI for the commit is green, the coordinator creates and pushes `release/19.0.X.Y.Z` on it. The publish workflow runs only on a `release/**` tag and builds arm64 only. On the tag push it checks that the commit is on `main`, builds the nine arm64 images on `ubuntu-24.04-arm` (about 17 to 18 minutes, measured), pushes them to private GHCR, publishes the release document and calls the staging hook. Staging therefore waits for that build; Oracle `liwanos-staging` (arm64) then serves the tag. A tag that fails on staging is never promoted; the fix takes the next number. |
 | 7. «انشر على الإنتاج» | the owner, after testing staging | the owner starts the job from Openship; the coordinator prepares and verifies | The job `liwan-production-release` has no hook and no credential on GitHub. It is started with an explicit tag (`release.py run --environment production --tag release/19.0.X.Y.Z`) and never picks the highest tag by itself (owner decision 2026-11-21). It takes only a tag that staging served and passed. Oracle `liwanos-prod` (arm64) serves it. The automatic proof that staging served that tag is not built: the owner and the coordinator confirm it before «انشر على الإنتاج» (an enforced gate is not built). Owner decision in principle, 2026-11-21, on who starts the production and rollback jobs: «نستخدم الايجنت الموجود في اوبن شيب ونضع اليه سليمه له مع ربطه معنا هنا». It is not built: the Openship assistant is still disabled on the panel that runs on `liwanos-staging` and no agent exists. The hosts `liwanos-prod` and `liwanos-staging` were registered in that panel on 2026-11-21; production is reached by SSH from the staging address through the panel, and the Contabo tooling host reaches neither Oracle host. Until that mechanism is designed and approved, the owner starts the production job from Openship himself. |

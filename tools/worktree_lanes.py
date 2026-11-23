@@ -3,7 +3,7 @@
 
 A lane is a worktree of ``<main checkout>/.worktrees/`` whose own git directory (``.git/worktrees/<id>/``) holds
 ``liwan-take.json``. The record is never tracked, never shows in ``git status`` and disappears with the worktree.
-One task is one branch, one lane and one writing session. ``tools/wt.py`` writes the record on ``lane add``,
+One task is one branch and one lane, taken by its orchestrator for the workers. ``tools/wt.py`` writes the record on ``lane add``,
 ``take`` and ``done``; ``take`` and ``lane add`` run under ``pool_lock`` so two sessions cannot take the same lane.
 ``commit_refusal`` is the rule behind the pre-commit guard of ``tools/hooks.py``.
 """
