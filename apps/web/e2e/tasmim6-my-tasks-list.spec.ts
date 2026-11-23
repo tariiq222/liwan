@@ -102,9 +102,13 @@ test.describe('Plan 6a: my tasks list', () => {
       await expect(page.getByTestId('my-task-row')).toHaveCount(3)
       await expect(rows(page).first().getByTestId('my-task-deadline')).toBeVisible()
     })
-    test('J and K move between rows and Enter opens the focused task', async ({ page }) => {
+    test('J and K move between rows', async ({ page }) => {
       await mockList(page, fixtureList)
       await open(page, '/my-tasks')
+      // Client navigation resolves before the list data arrives (useQuery is not awaited), and a J
+      // pressed while no row is marked yet is dropped by useRowNavigation: wait for the marked rows
+      // the handler will act on before pressing anything (the phone cards test below does the same).
+      await expect(rows(page)).toHaveCount(3)
       await page.getByRole('heading', { level: 1 }).click()
       await page.keyboard.press('j')
       await expect(rows(page).nth(0)).toBeFocused()
