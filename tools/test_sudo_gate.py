@@ -11,8 +11,13 @@ from arch_policy import sudo_calls, sudo_sites
 from sudo_gate import (
     ACCESS_TOKEN,
     CALL_TOKEN,
+    FIXABLE_KINDS,
+    KINDS,
     REASON_MIN_WORDS,
     allowances,
+    fixable_growth,
+    fixable_total,
+    kind_problems,
     main,
     reason_problems,
     undocumented_sites,
@@ -94,6 +99,37 @@ class TestReasonShape(unittest.TestCase):
         self.assertEqual(len(self.problems(REASON, REASON.replace(' ', '  '))), 1)
 
 
+class TestKinds(unittest.TestCase):
+    """R7: every documented case declares one of the five kinds, and only fixes are counted."""
+
+    def case(self, kind):
+        case = {'count': 2, 'reason': REASON}
+        if kind is not None:
+            case['kind'] = kind
+        return case
+
+    def test_a_case_without_a_kind_fails(self):
+        problems = kind_problems({'odoo-addons/liwan_x/models/m.py': self.case(None)})
+        self.assertEqual(len(problems), 1)
+        self.assertIn('has kind None', problems[0])
+        self.assertIn('acl_gap', problems[0])
+
+    def test_an_unknown_kind_fails(self):
+        problems = kind_problems({'odoo-addons/liwan_x/models/m.py': self.case('fix_later')})
+        self.assertEqual(len(problems), 1)
+        self.assertIn("kind 'fix_later'", problems[0])
+
+    def test_every_declared_kind_passes(self):
+        for kind in KINDS:
+            with self.subTest(kind=kind):
+                self.assertEqual(kind_problems({'odoo-addons/liwan_x/models/m.py': self.case(kind)}), [])
+
+    def test_only_the_fixable_kinds_are_counted(self):
+        cases = {f'odoo-addons/liwan_x/models/m{i}.py': self.case(kind) for i, kind in enumerate(KINDS)}
+        self.assertEqual(fixable_total(cases), 2 * len(FIXABLE_KINDS))
+        self.assertEqual(FIXABLE_KINDS, {'acl_gap', 'own_design', 'temporary'})
+
+
 class TestAllowedSites(unittest.TestCase):
     """The allowance of a file is its baseline count plus its documented case count."""
 
@@ -169,14 +205,33 @@ class GateCase(unittest.TestCase):
 
     def test_a_documented_case_covers_its_sites(self):
         self.sudo(3)
-        self.document({self.ADDON: {'count': 2, 'reason': REASON}})
+        self.document({self.ADDON: {'count': 2, 'kind': 'required', 'reason': REASON}})
         self.assertEqual(self.problems(), (0, ''))
 
     def test_a_boilerplate_reason_fails(self):
-        self.document({self.ADDON: {'count': 1, 'reason': 'required for the feature to work'}})
+        self.document({self.ADDON: {'count': 1, 'kind': 'required', 'reason': 'required for the feature to work'}})
         code, text = self.problems()
         self.assertEqual(code, 1)
         self.assertIn('not specific enough', text)
+
+    def test_a_documented_case_without_a_kind_fails(self):
+        self.document({self.ADDON: {'count': 1, 'reason': REASON}})
+        code, text = self.problems()
+        self.assertEqual(code, 1)
+        self.assertIn(f'R7: {self.ADDON}: the documented sudo case', text)
+        self.assertIn('declare one of acl_gap', text)
+
+    def test_a_documented_case_with_an_unknown_kind_fails(self):
+        self.document({self.ADDON: {'count': 1, 'kind': 'later', 'reason': REASON}})
+        code, text = self.problems()
+        self.assertEqual(code, 1)
+        self.assertIn("kind 'later'", text)
+
+    def test_every_declared_kind_passes(self):
+        for kind in KINDS:
+            with self.subTest(kind=kind):
+                self.document({self.ADDON: {'count': 1, 'kind': kind, 'reason': REASON}})
+                self.assertEqual(self.problems(), (0, ''))
 
     def test_an_unregistered_addon_leaves_its_sites_unchecked(self):
         self.write('odoo-addons/liwan_new/__manifest__.py', HEADER + repr({'name': 'new', 'depends': ['base']}))
@@ -217,7 +272,7 @@ class TestDocumentedTrailer(BaseRefCase):
     def document_a_new_case(self):
         self.git('checkout', '-q', '-b', 'work')
         self.sudo(2)
-        self.document({self.ADDON: {'count': 2, 'reason': REASON}})
+        self.document({self.ADDON: {'count': 2, 'kind': 'required', 'reason': REASON}})
 
     def test_a_new_case_passes_without_a_trailer(self):
         # Owner decision 2026-10-25: documenting a sudo case no longer needs a trailer.
@@ -227,7 +282,7 @@ class TestDocumentedTrailer(BaseRefCase):
 
     def test_a_documented_count_the_code_no_longer_reaches_fails(self):
         # The reason is still mandatory; only the trailer requirement was removed.
-        self.document({self.ADDON: {'count': 2, 'reason': REASON}})
+        self.document({self.ADDON: {'count': 2, 'kind': 'required', 'reason': REASON}})
         code, text = self.problems()
         self.assertEqual(code, 1)
         self.assertIn('documented', text)
@@ -243,6 +298,39 @@ class TestDocumentedTrailer(BaseRefCase):
         self.document_a_new_case()
         self.commit('document')
         self.assertEqual(self.problems(), (0, ''))
+
+
+class TestFixableGrowth(BaseRefCase):
+    """The fixable total (acl_gap, own_design, temporary) may not grow above the base ref."""
+
+    def commit_registry(self, count, kind=None):
+        case = {'count': count, 'reason': REASON}
+        if kind is not None:
+            case['kind'] = kind
+        self.document({self.ADDON: case})
+        self.commit('documented')
+
+    def test_fixable_total_above_the_base_fails(self):
+        self.commit_registry(1, 'own_design')
+        self.sudo(2)
+        self.document({self.ADDON: {'count': 2, 'kind': 'own_design', 'reason': REASON}})
+        code, text = self.problems('--base', 'HEAD')
+        self.assertEqual(code, 1)
+        self.assertIn('fixable sudo total rose from 1 to 2', text)
+
+    def test_fixable_total_equal_or_below_the_base_passes(self):
+        self.commit_registry(2, 'own_design')
+        self.sudo(2)
+        self.document({self.ADDON: {'count': 2, 'kind': 'own_design', 'reason': REASON}})
+        self.assertEqual(self.problems('--base', 'HEAD'), (0, ''))
+        self.document({self.ADDON: {'count': 1, 'kind': 'own_design', 'reason': REASON}})
+        self.assertEqual(self.problems('--base', 'HEAD'), (0, ''))
+
+    def test_a_base_without_kinds_skips_the_comparison(self):
+        self.commit_registry(1)
+        self.sudo(2)
+        self.document({self.ADDON: {'count': 2, 'kind': 'own_design', 'reason': REASON}})
+        self.assertEqual(self.problems('--base', 'HEAD'), (0, ''))
 
 
 class TestRepository(unittest.TestCase):

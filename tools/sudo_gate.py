@@ -14,7 +14,12 @@ together. This tool closes that hole and runs inside `npm test`:
 3. every documented reason must name the elevating call and the blocking ACL, record rule, group
    or capability, and no two cases may share one reason (`arch_policy.documented_weakenings`);
 4. a documented count that the code no longer reaches fails, and a documented count must not fall
-   below what the reference allows (`arch_policy.documented_growth`, run when `--base` is given).
+   below what the reference allows (`arch_policy.documented_growth`, run when `--base` is given);
+5. every documented case carries a `kind` from the five values in `KINDS`, so the registry says how
+   much of the elevation is fixable rather than a recorded system limit;
+6. the fixable total — the sum of the counts whose kind is in `FIXABLE_KINDS` — must not rise above
+   the same total at the base ref (run when `--base` is given; a base registry without kinds is not
+   compared, so the measurement can be introduced without rewriting history).
 
 Owner decision 2026-10-25: adding a documented case no longer needs an
 `Architecture-approved-by:` trailer. A reason is still mandatory and is still judged for
@@ -41,11 +46,18 @@ from arch_policy import (
     ROOT,
     UnknownRef,
     collect,
+    documented_at,
     documented_counts,
     documented_growth,
     documented_problems,
     sudo_sites,
 )
+
+# How a documented case is blocked; exactly one kind per file, chosen from its reason and its code.
+# A fixable kind marks elevation that an ACL, a record rule or a design change could remove, and the
+# fixable total is what `--base` keeps from growing. A non-fixable kind marks a real system boundary.
+KINDS = ('acl_gap', 'own_design', 'temporary', 'public_entry', 'required')
+FIXABLE_KINDS = frozenset({'acl_gap', 'own_design', 'temporary'})
 
 # A reason names the elevating call with a code token (a `backticked` name, a snake_case symbol, a
 # dotted key of three or more segments, or a `name()` call), not just prose about needing sudo.
@@ -112,6 +124,40 @@ def reason_problems(cases: dict) -> list[str]:
     return problems
 
 
+def kind_problems(cases: dict) -> list[str]:
+    """R7: every documented case declares a kind from `KINDS`; a case with no or unknown kind fails."""
+    problems = []
+    for rel, case in sorted(cases.items()):
+        kind = case.get('kind') if isinstance(case, dict) else None
+        if kind not in KINDS:
+            problems.append(
+                f'R7: {rel}: the documented sudo case in {DOCUMENTED_SUDO_FILE.name} has '
+                f'kind {kind!r}; declare one of {", ".join(KINDS)}',
+            )
+    return problems
+
+
+def fixable_total(cases: dict) -> int:
+    """The sudo sites whose kind is fixable: an ACL or rule or a design change could remove them."""
+    return sum(case.get('count', 0) for case in cases.values() if case.get('kind') in FIXABLE_KINDS)
+
+
+def fixable_growth(ref: str, root: Path, documented_file: Path, cases: dict) -> list[str]:
+    """R7: the fixable total must not exceed the base registry's; a base without kinds is not compared."""
+    before = documented_at(ref, root, documented_file)
+    old_cases = before.get('cases', {}) if before is not None else {}
+    if not old_cases or any(not isinstance(case, dict) or 'kind' not in case for case in old_cases.values()):
+        return []
+    current, base = fixable_total(cases), fixable_total(old_cases)
+    if current <= base:
+        return []
+    return [
+        f'R7: the fixable sudo total rose from {base} to {current} sites: an acl_gap, own_design or '
+        f'temporary case must be fixed to a real ACL or rule, or recorded as required, in '
+        f'{DOCUMENTED_SUDO_FILE.name}',
+    ]
+
+
 def sudo_lines(rel: str, text: str) -> list[int]:
     """The lines of the sudo sites of one addon file, with the same semantics as `collect`."""
     return [line for line, _kind in sudo_sites(text, superuser_id='migrations' not in Path(rel).parts)]
@@ -173,16 +219,19 @@ def main(
     args = parser.parse_args(argv)
     documented_file = documented_file or baseline_file.with_name(DOCUMENTED_SUDO_FILE.name)
     document = json.loads(documented_file.read_text(encoding='utf-8')) if documented_file.is_file() else {}
+    cases = document.get('cases', {})
     documented = documented_counts(document)
     found, hard = collect(root, json.loads(layers_file.read_text(encoding='utf-8')))
     baseline = json.loads(baseline_file.read_text(encoding='utf-8')).get('R7', {}) if baseline_file.is_file() else {}
     sites, problems = site_lines(root, found, hard)
     problems += undocumented_sites(sites, allowances(baseline, documented))
-    problems += reason_problems(document.get('cases', {}))
+    problems += reason_problems(cases)
+    problems += kind_problems(cases)
     problems += documented_problems(documented, found)
     try:
         if args.base:
             problems += documented_growth(args.base, root, documented_file)
+            problems += fixable_growth(args.base, root, documented_file, cases)
     except UnknownRef as error:
         sys.stderr.write(f'{error}\n')
         return 2
