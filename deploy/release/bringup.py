@@ -40,7 +40,7 @@ from deploy.release.release import (  # noqa: E402
     CONFIG_KEYS, CONTROL_DB_PORT, DB_SUPERUSER, RELEASE_FOLDER, SHARED_WORKER_UNIT, TENANT_DB_PORT, Paths)
 from deploy.release.source import (  # noqa: E402
     COMMIT as COMMIT_ID, CREDENTIAL_HELPER, ENVIRONMENTS, GITHUB_TOKEN_VAR, REGISTRY as IMAGE_REGISTRY, REGISTRY_HOST,
-    RELEASE_IMAGE, REPOSITORY_URL, TOKEN_VAR, USER_VAR, release_version, tag_order)
+    RELEASE_IMAGE, REPOSITORY_URL, TOKEN_VAR, USER_VAR, highest_release_tag, parse_listing)
 
 EXIT_INCOMPLETE, EXIT_USAGE = 1, 2
 ROOT_UID = 0
@@ -104,6 +104,16 @@ FIRST_NUMBER = re.compile(r'\d+')
 
 class ItemError(Exception):
     """An item cannot proceed: a symlink or wrong file type on a path it must touch, or a command that failed."""
+
+
+REDIRECT_CODES = (301, 302, 303, 307, 308)
+
+
+class RefuseRedirect(urllib.request.HTTPRedirectHandler):
+    """No redirect is followed: urllib would forward the Authorization header to the target host."""
+
+    def redirect_request(self, *args, **kwargs):
+        return None
 
 
 @dataclass(frozen=True)
@@ -214,13 +224,16 @@ class Host:
     def https_headers(self, url: str, token: str) -> tuple[int, dict[str, str]]:
         """Status and lower-cased headers of a HEAD request with the token in a header (never in an argument)."""
         request = urllib.request.Request(url, method='HEAD', headers={'Authorization': f'Bearer {token}', 'User-Agent': 'liwan-bringup'})
+        host = urllib.parse.urlsplit(url).hostname
         try:
-            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+            with urllib.request.build_opener(RefuseRedirect).open(request, timeout=self.timeout) as response:
                 return response.status, {key.lower(): value for key, value in response.headers.items()}
         except urllib.error.HTTPError as error:
+            if error.code in REDIRECT_CODES:
+                raise ItemError(f'{host} answered with a redirect') from None
             return error.code, {key.lower(): value for key, value in error.headers.items()}
         except (urllib.error.URLError, OSError):
-            raise ItemError(f'{urllib.parse.urlsplit(url).hostname} is unreachable') from None
+            raise ItemError(f'{host} is unreachable') from None
 
     def user(self, name: str):
         try:
@@ -621,27 +634,14 @@ def check_credential_access(ctx: Context) -> Status:
     code, output = ctx.host.run([*git, 'ls-remote', '--tags', REPOSITORY_URL, RELEASE_TAG_PATTERN], env=env)
     if code != 0:
         return missing('the credential cannot read the repository')
-    commit = highest_release_commit(output)
-    if commit is None:
+    refs = parse_listing(output)
+    tag = highest_release_tag(refs)
+    if tag is None:
         return missing('no release document exists yet: the first release must be published (A8.1) before the registry read can be checked')
-    problem = registry_read_problem(ctx, values, commit)
+    problem = registry_read_problem(ctx, values, tag, refs[f'refs/tags/{tag}'])
     if problem:
         return missing(problem)
     return git_write_problem(ctx, git, env) if token else OK
-
-
-def highest_release_commit(listing: str) -> str | None:
-    """The commit of the highest ``release/19.0.X.Y.Z`` tag in ``git ls-remote --tags`` output; a peeled ``^{}`` line wins."""
-    tags, peeled = {}, {}
-    for line in listing.splitlines():
-        commit, _, ref = line.partition('\t')
-        if COMMIT_ID.match(commit) and ref.startswith('refs/tags/'):
-            (peeled if ref.endswith('^{}') else tags)[ref.removeprefix('refs/tags/').removesuffix('^{}')] = commit
-    names = [name for name in tags if release_version(name)]
-    if not names:
-        return None
-    best = max(names, key=tag_order)
-    return peeled.get(best, tags[best])
 
 
 def git_write_problem(ctx: Context, git: list[str], env: dict) -> Status:
@@ -669,7 +669,7 @@ def registry_scope_problem(ctx: Context, values: dict) -> str:
     return '' if scopes == READ_ONLY_SCOPES else 'the registry token has scopes beyond read:packages: replace it with a read-only token'
 
 
-def registry_read_problem(ctx: Context, values: dict, commit: str) -> str:
+def registry_read_problem(ctx: Context, values: dict, tag: str, commit: str) -> str:
     """A5.2: the token reads one release document of the private registry. It goes to docker on stdin, into a throwaway config."""
     image = f'{IMAGE_REGISTRY}/{RELEASE_IMAGE}:{commit}'
     with ctx.host.scratch_dir() as scratch:
@@ -678,7 +678,7 @@ def registry_read_problem(ctx: Context, values: dict, commit: str) -> str:
         if ctx.host.run(login, env=env, stdin=values[TOKEN_VAR] + '\n')[0] != 0:
             return f'the credential cannot log in to {REGISTRY_HOST}'
         if ctx.host.run(['docker', 'manifest', 'inspect', image], env=env)[0] != 0:
-            return f'the credential cannot read {image}'
+            return f'cannot read {image}: either the release document of {tag} is not published yet or the token cannot read the registry'
     return ''
 
 

@@ -27,6 +27,18 @@ def build(output, github_token=None, tag=None):
     return source.Source(tag, state, credential, github_token, runner, lambda _: None, {}), runner
 
 
+class PureListingTest(unittest.TestCase):
+    def test_parse_listing_maps_refs_to_commits_and_the_peeled_line_wins(self):
+        text = f'{A}\trefs/tags/release/19.0.1.0.1\n{B}\trefs/tags/release/19.0.1.0.1^{{}}\n{C}\trefs/tags/x\nnot-a-commit\trefs/tags/y\n'
+        self.assertEqual(source.parse_listing(text), {'refs/tags/release/19.0.1.0.1': B, 'refs/tags/x': C})
+
+    def test_highest_release_tag_orders_by_version_and_ignores_other_tags(self):
+        refs = {'refs/tags/release/19.0.1.0.9': A, 'refs/tags/release/19.0.1.0.10': B, 'refs/tags/other': C}
+        self.assertEqual(source.highest_release_tag(refs), 'release/19.0.1.0.10')
+        self.assertIsNone(source.highest_release_tag({'refs/tags/other': C}))
+        self.assertIsNone(source.highest_release_tag({}))
+
+
 class SourceTest(unittest.TestCase):
     def test_candidate_is_the_highest_release_tag_by_version_not_by_text(self):
         subject, _ = build(f'{A}\trefs/tags/release/19.0.1.0.9\n{B}\trefs/tags/release/19.0.1.0.10\n'

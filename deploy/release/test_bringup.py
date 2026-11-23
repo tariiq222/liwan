@@ -10,6 +10,8 @@ import stat
 import subprocess
 import tempfile
 import unittest
+import urllib.error
+import urllib.request
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
@@ -754,7 +756,7 @@ class CredentialProbeTest(unittest.TestCase):
         self.assertEqual('/scratch/docker-config', host.envs[login]['DOCKER_CONFIG'])
 
     def test_a_registry_refusal_is_reported(self):
-        for command, text in (('login', 'cannot log in'), ('manifest', 'cannot read')):
+        for command, text in (('login', 'cannot log in'), ('manifest', 'either the release document of')):
             with self.subTest(command):
                 host = seeded_host()
                 host.overrides.append((lambda argv, command=command: argv[:2] == ['docker', command], (1, SECRET)))
@@ -798,7 +800,7 @@ class ReadCredentialAccessTest(unittest.TestCase):
                 self.assertEqual('MISSING', self.access(host))
 
     def test_a_missing_scope_header_or_a_refused_token_is_not_ok(self):
-        for response in ((200, {}), (401, {})):
+        for response in ((200, {}), (401, {'x-oauth-scopes': 'read:packages'})):
             with self.subTest(response):
                 host = seeded_host()
                 host.scopes = response
@@ -986,6 +988,39 @@ class RealHostTest(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(os.path.realpath(self.tmp.name))
         self.host = bringup.Host()
+
+    def https_with(self, outcome):
+        class Opener:
+            requests = []
+
+            def open(self, request, timeout=None):
+                self.requests.append(request)
+                if isinstance(outcome, BaseException):
+                    raise outcome
+                return outcome
+
+        with mock.patch.object(urllib.request, 'build_opener', return_value=Opener()) as build:
+            return Opener, build, self.host.https_headers('https://api.github.com/user', SECRET)
+
+    def test_https_headers_sends_the_token_in_a_header_and_reads_status_and_headers(self):
+        response = mock.MagicMock()
+        response.__enter__.return_value = SimpleNamespace(status=200, headers={'X-OAuth-Scopes': 'read:packages'})
+        opener, build, result = self.https_with(response)
+        self.assertEqual((200, {'x-oauth-scopes': 'read:packages'}), result)
+        self.assertIs(bringup.RefuseRedirect, build.call_args.args[0])
+        self.assertEqual(f'Bearer {SECRET}', opener.requests[0].get_header('Authorization'))
+
+    def test_https_headers_refuses_a_redirect_without_leaking_the_token(self):
+        self.assertIsNone(bringup.RefuseRedirect().redirect_request(None, None, 302, 'Found', {}, 'https://evil.example/'))
+        error = urllib.error.HTTPError('https://api.github.com/user', 302, 'Found', {}, None)
+        with self.assertRaises(bringup.ItemError) as caught:
+            self.https_with(error)
+        self.assertEqual('api.github.com answered with a redirect', str(caught.exception))
+
+    def test_https_headers_turns_a_network_error_into_unreachable_without_the_token(self):
+        with self.assertRaises(bringup.ItemError) as caught:
+            self.https_with(urllib.error.URLError(f'boom {SECRET}'))
+        self.assertEqual('api.github.com is unreachable', str(caught.exception))
 
     def test_write_new_refuses_an_existing_path_and_a_symlink(self):
         existing = self.root / 'a'
