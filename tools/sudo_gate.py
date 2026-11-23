@@ -14,7 +14,19 @@ together. This tool closes that hole and runs inside `npm test`:
 3. every documented reason must name the elevating call and the blocking ACL, record rule, group
    or capability, and no two cases may share one reason (`arch_policy.documented_weakenings`);
 4. a documented count that the code no longer reaches fails, and a documented count must not fall
-   below what the reference allows (`arch_policy.documented_growth`, run when `--base` is given).
+   below what the reference allows (`arch_policy.documented_growth`, run when `--base` is given);
+5. every documented case carries a `kind` from the five values in `KINDS`, so the registry says how
+   much of the elevation is fixable rather than a recorded system limit;
+6. the fixable total — the sum of the counts whose kind is in `FIXABLE_KINDS` — must not rise above
+   the same total at the base ref, and an existing fixable case may not move to a non-fixable kind
+   without its reason being rewritten (run when `--base` is given; a base registry without kinds is
+   not compared, so the measurement can be introduced without rewriting history).
+
+The gate measures shape, not truth: it can see that a reason is specific, that the counts are
+consistent and that the fixable total did not rise, but it cannot see whether a case labelled
+`required` is really a system boundary. Review of the actual diff judges the accuracy of both the
+`kind` and the `reason` — a relabel without a rewritten reason is refused here precisely so that the
+reviewer always has a new text to judge.
 
 Owner decision 2026-10-25: adding a documented case no longer needs an
 `Architecture-approved-by:` trailer. A reason is still mandatory and is still judged for
@@ -41,11 +53,18 @@ from arch_policy import (
     ROOT,
     UnknownRef,
     collect,
+    documented_at,
     documented_counts,
     documented_growth,
     documented_problems,
     sudo_sites,
 )
+
+# How a documented case is blocked; exactly one kind per file, chosen from its reason and its code.
+# A fixable kind marks elevation that an ACL, a record rule or a design change could remove, and the
+# fixable total is what `--base` keeps from growing. A non-fixable kind marks a real system boundary.
+KINDS = ('acl_gap', 'own_design', 'temporary', 'public_entry', 'required')
+FIXABLE_KINDS = frozenset({'acl_gap', 'own_design', 'temporary'})
 
 # A reason names the elevating call with a code token (a `backticked` name, a snake_case symbol, a
 # dotted key of three or more segments, or a `name()` call), not just prose about needing sudo.
@@ -73,10 +92,16 @@ REASON_MIN_CHARS = 40
 UNREGISTERED_ADDON = 'unregistered addon'
 
 
+def reason_key(case: dict) -> str:
+    """The normalized reason of a case: case and spacing do not make it a different reason."""
+    reason = case.get('reason') if isinstance(case, dict) else None
+    return ' '.join(reason.casefold().split()) if isinstance(reason, str) else ''
+
+
 def reason_problems(cases: dict) -> list[str]:
     """R7: every documented case carries a specific reason, and no two cases share one.
 
-    `cases` is the `cases` object of `tools/arch_documented_sudo.json`: `{file: {count, reason}}`.
+    `cases` is the `cases` object of `tools/arch_documented_sudo.json`: `{file: {count, kind, reason}}`.
     """
     problems = []
     seen: dict[str, str] = {}
@@ -101,7 +126,7 @@ def reason_problems(cases: dict) -> list[str]:
                 f'enough; it needs {"; ".join(missing)}',
             )
             continue
-        key = ' '.join(reason.casefold().split())
+        key = reason_key(case)
         if key in seen:
             problems.append(
                 f'R7: {rel}: the documented sudo reason in {DOCUMENTED_SUDO_FILE.name} duplicates the '
@@ -109,6 +134,69 @@ def reason_problems(cases: dict) -> list[str]:
             )
         else:
             seen[key] = rel
+    return problems
+
+
+def kind_problems(cases: dict) -> list[str]:
+    """R7: every documented case declares a kind from `KINDS`; a case with no or unknown kind fails."""
+    problems = []
+    for rel, case in sorted(cases.items()):
+        kind = case.get('kind') if isinstance(case, dict) else None
+        if kind not in KINDS:
+            problems.append(
+                f'R7: {rel}: the documented sudo case in {DOCUMENTED_SUDO_FILE.name} has '
+                f'kind {kind!r}; declare one of {", ".join(KINDS)}',
+            )
+    return problems
+
+
+def fixable_total(cases: dict) -> int:
+    """The sudo sites whose kind is fixable: an ACL or rule or a design change could remove them."""
+    return sum(case.get('count', 0) for case in cases.values() if case.get('kind') in FIXABLE_KINDS)
+
+
+def fixable_relabelling(old_cases: dict, cases: dict) -> list[str]:
+    """R7: an existing fixable case may not become non-fixable with its reason left word for word.
+
+    Otherwise a change could free fixable budget without fixing anything: relabel an elevation
+    `required` and the total drops. The reason is the record of why the elevation is a system
+    boundary, so a non-fixable kind has to rewrite it, and the diff review judges that new text.
+    """
+    problems = []
+    for rel, before in sorted(old_cases.items()):
+        after = cases.get(rel)
+        if not isinstance(before, dict) or not isinstance(after, dict):
+            continue
+        if before.get('kind') not in FIXABLE_KINDS or after.get('kind') not in KINDS:
+            continue
+        if after['kind'] in FIXABLE_KINDS or reason_key(after) != reason_key(before):
+            continue
+        problems.append(
+            f'R7: {rel}: the documented sudo case moved from the fixable kind {before["kind"]!r} to '
+            f'{after["kind"]!r} with its reason unchanged; a non-fixable kind records a system boundary, so '
+            f'rewrite the reason in {DOCUMENTED_SUDO_FILE.name} that says why, for the diff review to judge',
+        )
+    return problems
+
+
+def fixable_growth(ref: str, root: Path, documented_file: Path, cases: dict) -> list[str]:
+    """R7: the fixable total must not exceed the base registry's, and a fixable case may not be relabelled.
+
+    A base registry without kinds is not compared, so the measurement could be introduced without
+    rewriting history.
+    """
+    before = documented_at(ref, root, documented_file)
+    old_cases = before.get('cases', {}) if before is not None else {}
+    if not old_cases or any(not isinstance(case, dict) or 'kind' not in case for case in old_cases.values()):
+        return []
+    problems = fixable_relabelling(old_cases, cases)
+    current, base = fixable_total(cases), fixable_total(old_cases)
+    if current > base:
+        problems.append(
+            f'R7: the fixable sudo total rose from {base} to {current} sites: an acl_gap, own_design or '
+            f'temporary case must be fixed to a real ACL or rule, or recorded as required, in '
+            f'{DOCUMENTED_SUDO_FILE.name}',
+        )
     return problems
 
 
@@ -173,16 +261,19 @@ def main(
     args = parser.parse_args(argv)
     documented_file = documented_file or baseline_file.with_name(DOCUMENTED_SUDO_FILE.name)
     document = json.loads(documented_file.read_text(encoding='utf-8')) if documented_file.is_file() else {}
+    cases = document.get('cases', {})
     documented = documented_counts(document)
     found, hard = collect(root, json.loads(layers_file.read_text(encoding='utf-8')))
     baseline = json.loads(baseline_file.read_text(encoding='utf-8')).get('R7', {}) if baseline_file.is_file() else {}
     sites, problems = site_lines(root, found, hard)
     problems += undocumented_sites(sites, allowances(baseline, documented))
-    problems += reason_problems(document.get('cases', {}))
+    problems += reason_problems(cases)
+    problems += kind_problems(cases)
     problems += documented_problems(documented, found)
     try:
         if args.base:
             problems += documented_growth(args.base, root, documented_file)
+            problems += fixable_growth(args.base, root, documented_file, cases)
     except UnknownRef as error:
         sys.stderr.write(f'{error}\n')
         return 2
