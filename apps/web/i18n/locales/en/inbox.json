@@ -119,7 +119,7 @@
         "ok": "The account works normally"
       },
       "deliveries": {
-        "title": "Failed deliveries",
+        "title": "Incoming deliveries",
         "description": "Deliveries the provider sent that could not be applied after their attempts ran out. The good items of the delivery are already stored; retrying adds only what is missing.",
         "state": "Delivery state",
         "states": {

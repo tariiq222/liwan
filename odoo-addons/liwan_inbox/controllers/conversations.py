@@ -92,7 +92,7 @@ def conversation_domain(args):
             reject('unread must be true or false', 'unread')
         domain.append(('unread', '=', args['unread'] == 'true'))
     if args.get('q'):
-        # The message-body term is one indexed `conversation_id` subquery under the caller's own message rules.
+        # The message-body term is an unindexed body ILIKE scan (no pg_trgm index), bounded by the caller's company and message rules.
         domain += [
             '|', '|', '|', ('contact_id.name', 'ilike', args['q']), ('contact_id.phone', 'ilike', args['q']),
             ('last_message_preview', 'ilike', args['q']), ('message_ids.body', 'ilike', args['q']),
