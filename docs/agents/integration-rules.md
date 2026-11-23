@@ -2,8 +2,7 @@
 
 This is the operational source for integration. `AGENTS.md` owns architecture and
 product contracts; `REVIEW.md` owns review criteria; `docs/testing.md` owns check
-commands. Historical plans and an incoming worktree's older instructions do not
-replace the current policy. The former direct-push exception is superseded.
+commands. The former direct-push exception is superseded.
 
 ## Authorization and deterministic CI
 
@@ -45,7 +44,7 @@ for one branch, one PR or one conversation do not carry to the next. The 2026-11
 authorization, which also covered push, PR, ready and merge, is superseded.
 
 Also excluded, and needing the owner's explicit words each time: a `release/19.0.X.Y.Z`
-tag («انشر على الاستيج»), deploying to production («انشر على الإنتاج»), deploying to any other server by hand, force-push or history rewrite, a direct push to `main`,
+tag («انشر على الاستيج»), deploying to production («انشر على الإنتاج»), deploying to any other server by hand, a DNS cutover, force-push or history rewrite, a direct push to `main`,
 bypassing branch protection or a failing check, and merging unrelated worktrees.
 Changes to external source versions still follow [UPDATE_POLICY.md](../UPDATE_POLICY.md).
 Missing, stale or failing checks never widen this authorization.
