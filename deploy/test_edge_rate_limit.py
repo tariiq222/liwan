@@ -23,9 +23,9 @@ CADDYFILE = ROOT / 'deploy' / 'Caddyfile'
 DOCKERFILE = ROOT / 'deploy' / 'proxy' / 'Dockerfile'
 COMPOSE = ROOT / 'deploy' / 'docker-compose.yml'
 
-DEDICATED_ZONES = ('liwan_auth', 'liwan_provider_hook', 'liwan_api', 'liwan_public_appointments_ip', 'liwan_odoo',
+DEDICATED_ZONES = ('liwan_auth', 'liwan_provider_hook', 'liwan_account', 'liwan_api', 'liwan_public_appointments_ip', 'liwan_odoo',
                    'liwan_web')
-ZONES = ('liwan_auth', 'liwan_provider_hook', 'liwan_api', 'liwan_public_appointments_ip', 'liwan_odoo_image',
+ZONES = ('liwan_auth', 'liwan_provider_hook', 'liwan_account', 'liwan_api', 'liwan_public_appointments_ip', 'liwan_odoo_image',
          'liwan_odoo', 'liwan_signup', 'liwan_public_site', 'liwan_web', 'liwan_tiktok')
 SHARED_CADDYFILE = ROOT / 'deploy' / 'shared' / 'Caddyfile'
 RESERVED_PROXY = '192.0.2.1/32'  # TEST-NET-1: the default trusted list trusts no real peer
@@ -58,7 +58,8 @@ SHARED_ZONE_CASES = (
     ('/api/v1/me', {'liwan_api'}),
     ('/api/v1/inbox/hooks/whatsapp', {'liwan_provider_hook'}),
     ('/api/v1/inbox/hooks/tiktok', {'liwan_provider_hook'}),
-    ('/api/v1/public/appointments/bookings/7/slots', {'liwan_api', 'liwan_public_appointments_ip'}),
+    ('/api/v1/public/account/password/forgot', {'liwan_account'}),
+    ('/api/v1/public/appointments/bookings/7/slots', {'liwan_public_appointments_ip'}),
     ('/', {'liwan_web'}),
 )
 
@@ -411,7 +412,8 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
 
         self.assertEqual(zones['liwan_api']['max_events'], 300)
         self.assertEqual(zones['liwan_api']['match'][0]['path'], ['/api/v1/*'])
-        self.assertEqual(zones['liwan_api']['match'][0]['not'][0]['path'], ['/api/v1/auth/*', '/api/v1/inbox/hooks/*'])
+        self.assertEqual(zones['liwan_api']['match'][0]['not'][0]['path'], ['/api/v1/auth/*', '/api/v1/public/account/*',
+                                                                          '/api/v1/public/appointments/*', '/api/v1/inbox/hooks/*'])
 
         # A9-F12: a provider webhook has its own budget, kept out of the UI's 300 a minute.
         hook = zones['liwan_provider_hook']
@@ -741,7 +743,7 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
         hook = text.split('zone liwan_provider_hook {', 1)[1].split('zone liwan_api {', 1)[0]
         self.assertIn('events 20', auth)
         self.assertIn('events 300', api)
-        self.assertIn('not path /api/v1/auth/* /api/v1/public/appointments/* /api/v1/inbox/hooks/*', api)
+        self.assertIn('not path /api/v1/auth/* /api/v1/public/account/* /api/v1/public/appointments/* /api/v1/inbox/hooks/*', api)
         # The provider webhook budget is the larger one and holds the hook paths alone.
         self.assertIn('events 1200', hook)
         self.assertIn('path /api/v1/inbox/hooks/*', hook)
