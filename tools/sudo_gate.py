@@ -18,8 +18,15 @@ together. This tool closes that hole and runs inside `npm test`:
 5. every documented case carries a `kind` from the five values in `KINDS`, so the registry says how
    much of the elevation is fixable rather than a recorded system limit;
 6. the fixable total — the sum of the counts whose kind is in `FIXABLE_KINDS` — must not rise above
-   the same total at the base ref (run when `--base` is given; a base registry without kinds is not
-   compared, so the measurement can be introduced without rewriting history).
+   the same total at the base ref, and an existing fixable case may not move to a non-fixable kind
+   without its reason being rewritten (run when `--base` is given; a base registry without kinds is
+   not compared, so the measurement can be introduced without rewriting history).
+
+The gate measures shape, not truth: it can see that a reason is specific, that the counts are
+consistent and that the fixable total did not rise, but it cannot see whether a case labelled
+`required` is really a system boundary. Review of the actual diff judges the accuracy of both the
+`kind` and the `reason` — a relabel without a rewritten reason is refused here precisely so that the
+reviewer always has a new text to judge.
 
 Owner decision 2026-10-25: adding a documented case no longer needs an
 `Architecture-approved-by:` trailer. A reason is still mandatory and is still judged for
@@ -85,10 +92,16 @@ REASON_MIN_CHARS = 40
 UNREGISTERED_ADDON = 'unregistered addon'
 
 
+def reason_key(case: dict) -> str:
+    """The normalized reason of a case: case and spacing do not make it a different reason."""
+    reason = case.get('reason') if isinstance(case, dict) else None
+    return ' '.join(reason.casefold().split()) if isinstance(reason, str) else ''
+
+
 def reason_problems(cases: dict) -> list[str]:
     """R7: every documented case carries a specific reason, and no two cases share one.
 
-    `cases` is the `cases` object of `tools/arch_documented_sudo.json`: `{file: {count, reason}}`.
+    `cases` is the `cases` object of `tools/arch_documented_sudo.json`: `{file: {count, kind, reason}}`.
     """
     problems = []
     seen: dict[str, str] = {}
@@ -113,7 +126,7 @@ def reason_problems(cases: dict) -> list[str]:
                 f'enough; it needs {"; ".join(missing)}',
             )
             continue
-        key = ' '.join(reason.casefold().split())
+        key = reason_key(case)
         if key in seen:
             problems.append(
                 f'R7: {rel}: the documented sudo reason in {DOCUMENTED_SUDO_FILE.name} duplicates the '
@@ -142,20 +155,49 @@ def fixable_total(cases: dict) -> int:
     return sum(case.get('count', 0) for case in cases.values() if case.get('kind') in FIXABLE_KINDS)
 
 
+def fixable_relabelling(old_cases: dict, cases: dict) -> list[str]:
+    """R7: an existing fixable case may not become non-fixable with its reason left word for word.
+
+    Otherwise a change could free fixable budget without fixing anything: relabel an elevation
+    `required` and the total drops. The reason is the record of why the elevation is a system
+    boundary, so a non-fixable kind has to rewrite it, and the diff review judges that new text.
+    """
+    problems = []
+    for rel, before in sorted(old_cases.items()):
+        after = cases.get(rel)
+        if not isinstance(before, dict) or not isinstance(after, dict):
+            continue
+        if before.get('kind') not in FIXABLE_KINDS or after.get('kind') not in KINDS:
+            continue
+        if after['kind'] in FIXABLE_KINDS or reason_key(after) != reason_key(before):
+            continue
+        problems.append(
+            f'R7: {rel}: the documented sudo case moved from the fixable kind {before["kind"]!r} to '
+            f'{after["kind"]!r} with its reason unchanged; a non-fixable kind records a system boundary, so '
+            f'rewrite the reason in {DOCUMENTED_SUDO_FILE.name} that says why, for the diff review to judge',
+        )
+    return problems
+
+
 def fixable_growth(ref: str, root: Path, documented_file: Path, cases: dict) -> list[str]:
-    """R7: the fixable total must not exceed the base registry's; a base without kinds is not compared."""
+    """R7: the fixable total must not exceed the base registry's, and a fixable case may not be relabelled.
+
+    A base registry without kinds is not compared, so the measurement could be introduced without
+    rewriting history.
+    """
     before = documented_at(ref, root, documented_file)
     old_cases = before.get('cases', {}) if before is not None else {}
     if not old_cases or any(not isinstance(case, dict) or 'kind' not in case for case in old_cases.values()):
         return []
+    problems = fixable_relabelling(old_cases, cases)
     current, base = fixable_total(cases), fixable_total(old_cases)
-    if current <= base:
-        return []
-    return [
-        f'R7: the fixable sudo total rose from {base} to {current} sites: an acl_gap, own_design or '
-        f'temporary case must be fixed to a real ACL or rule, or recorded as required, in '
-        f'{DOCUMENTED_SUDO_FILE.name}',
-    ]
+    if current > base:
+        problems.append(
+            f'R7: the fixable sudo total rose from {base} to {current} sites: an acl_gap, own_design or '
+            f'temporary case must be fixed to a real ACL or rule, or recorded as required, in '
+            f'{DOCUMENTED_SUDO_FILE.name}',
+        )
+    return problems
 
 
 def sudo_lines(rel: str, text: str) -> list[int]:

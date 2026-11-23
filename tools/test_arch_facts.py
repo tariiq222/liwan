@@ -77,14 +77,28 @@ class TestR9Facts(FactsCase):
         ])
 
 
+class TestR3Facts(FactsCase):
+    """R3: bridge models and bridge size are reported by their own sub-entries, never summed."""
+
+    def test_totals_and_sub_entries(self):
+        r3 = self.facts()['r3']
+        self.assertEqual((r3['source'], r3['entries'], r3['files']), ('arch_baseline.json', 408, 2))
+        self.assertEqual(r3['sub_entries'], [
+            {'kind': 'bridge-limit', 'entries': 0, 'files': 1},
+            {'kind': 'bridge-model', 'entries': 1, 'files': 1},
+            {'kind': 'bridge-size', 'entries': 407, 'files': 1},
+        ])
+        self.assertEqual(r3['entries'], sum(sub['entries'] for sub in r3['sub_entries']))
+
+
 class TestBaselineRules(FactsCase):
-    """Every other baselined rule reports its total and the paths it names; R9 is reported apart."""
+    """Every other baselined rule reports its total and the paths it names; R3 and R9 are reported apart."""
 
     def test_rules_totals_and_file_counts(self):
         rules = {rule['rule']: rule for rule in self.facts()['baseline_rules']}
-        self.assertEqual(sorted(rules), ['R10', 'R3'])
-        self.assertEqual((rules['R3']['source'], rules['R3']['entries'], rules['R3']['files']), ('arch_baseline.json', 408, 2))
-        self.assertEqual((rules['R10']['entries'], rules['R10']['files']), (1, 1))
+        self.assertEqual(sorted(rules), ['R10'])
+        self.assertEqual((rules['R10']['source'], rules['R10']['entries'], rules['R10']['files']),
+                         ('arch_baseline.json', 1, 1))
 
     def test_ranks_count_their_addons(self):
         self.assertEqual(self.facts()['ranks'], [
@@ -101,6 +115,8 @@ class TestRender(FactsCase):
         for source in ('collect()', 'arch_documented_sudo.json', 'arch_baseline.json', 'arch_layers.json'):
             self.assertIn(source, text)
         self.assertIn('sites 6, files 3', text)
+        self.assertIn('R3 bridge models and bridge size [arch_baseline.json]: entries 408, files 2', text)
+        self.assertIn('bridge-size: entries 407, files 1', text)
         self.assertIn('R9 direct SQL and overrides [arch_baseline.json]: entries 17, files 2', text)
         self.assertIn('acl_gap 5', text)
         self.assertIn('rank 4: addons 2', text)
@@ -163,6 +179,8 @@ class TestRepository(unittest.TestCase):
         self.assertGreater(facts['sudo']['sites'], 0)
         self.assertEqual(facts['sudo']['sites'], sum(entry['sites'] for entry in facts['sudo']['per_addon']))
         self.assertNotIn('R9', [rule['rule'] for rule in facts['baseline_rules']])
+        self.assertNotIn('R3', [rule['rule'] for rule in facts['baseline_rules']])
+        self.assertEqual(facts['r3']['entries'], sum(sub['entries'] for sub in facts['r3']['sub_entries']))
         self.assertTrue(facts['ranks'])
 
 

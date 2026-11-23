@@ -301,7 +301,8 @@ class TestDocumentedTrailer(BaseRefCase):
 
 
 class TestFixableGrowth(BaseRefCase):
-    """The fixable total (acl_gap, own_design, temporary) may not grow above the base ref."""
+    """The fixable total (acl_gap, own_design, temporary) may not grow above the base ref, and a
+    fixable case may not be relabelled non-fixable without a rewritten reason."""
 
     def commit_registry(self, count, kind=None):
         case = {'count': count, 'reason': REASON}
@@ -330,6 +331,31 @@ class TestFixableGrowth(BaseRefCase):
         self.commit_registry(1)
         self.sudo(2)
         self.document({self.ADDON: {'count': 2, 'kind': 'own_design', 'reason': REASON}})
+        self.assertEqual(self.problems('--base', 'HEAD'), (0, ''))
+
+
+class TestFixableRelabelling(BaseRefCase):
+    """A fixable case that becomes non-fixable with its old reason would free budget without a fix."""
+
+    def test_relabelling_to_non_fixable_with_the_same_reason_fails(self):
+        self.document({self.ADDON: {'count': 1, 'kind': 'own_design', 'reason': REASON}})
+        self.commit('documented')
+        self.document({self.ADDON: {'count': 1, 'kind': 'required', 'reason': REASON}})
+        code, text = self.problems('--base', 'HEAD')
+        self.assertEqual(code, 1)
+        self.assertIn("moved from the fixable kind 'own_design' to 'required'", text)
+        self.assertIn('with its reason unchanged', text)
+
+    def test_relabelling_with_a_rewritten_reason_passes_and_awaits_diff_review(self):
+        self.document({self.ADDON: {'count': 1, 'kind': 'own_design', 'reason': REASON}})
+        self.commit('documented')
+        rewritten = f'{REASON} The elevation stays because the engine itself asks for the superuser uid.'
+        self.document({self.ADDON: {'count': 1, 'kind': 'required', 'reason': rewritten}})
+        self.assertEqual(self.problems('--base', 'HEAD'), (0, ''))
+
+    def test_a_kind_already_non_fixable_at_the_base_is_not_judged(self):
+        self.document({self.ADDON: {'count': 1, 'kind': 'required', 'reason': REASON}})
+        self.commit('documented')
         self.assertEqual(self.problems('--base', 'HEAD'), (0, ''))
 
 

@@ -73,10 +73,14 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   private mutation helpers. Task writes, approvals, archive, dependency edits
   and attachment mutations preserve their dedicated capability/visibility gates.
 - Elevated operations (`sudo()`, `with_user`, `env.su`): the single registry is
-  `tools/arch_documented_sudo.json`, listed per file. Do not copy its cases into prose; read
-  the registry. Rule R7 in `AGENTS.md` is enforced by `tools/sudo_gate.py` (inside `npm test`):
-  a site beyond its file's documented cases or the `tools/arch_baseline.json` count fails,
-  and every reason must name the elevating call and the blocking ACL or record rule. An
+  `tools/arch_documented_sudo.json`, listed per file with a `count`, a `kind`
+  (`acl_gap | own_design | temporary | public_entry | required`) and a `reason`. Do not copy its
+  cases into prose; read the registry. Rule R7 in `AGENTS.md` is enforced by `tools/sudo_gate.py`
+  (inside `npm test`): a site beyond its file's documented cases or the `tools/arch_baseline.json`
+  count fails, every reason must name the elevating call and the blocking ACL or record rule, and a
+  missing or unknown `kind` fails. With `--base` the gate also rejects a rise in the fixable total
+  (`acl_gap` + `own_design` + `temporary`) and a fixable case relabelled non-fixable with its reason
+  unchanged; diff review remains the human gate on whether the `kind` and the reason are true. An
   elevated read keeps the caller's authorization in front of it (for notifications, rows are
   first restricted to the current partner's inbox, and the owning application decides in the
   caller's ordinary environment what is still readable; meeting-only access must not reveal

@@ -52,7 +52,7 @@
     },
     "odoo-addons/liwan_meetings/models/meeting_minute_activity.py": {
       "count": 1,
-      "kind": "required",
+      "kind": "acl_gap",
       "reason": "liwan_meetings server-controlled minutes feed: `self.env['liwan.meeting.event'].sudo().create({...})`; blocked because security/ir.model.access-meetings.csv:5 and :7 grant read only (`1,0,0,0`) to every group and no create ACL exists for any group; the feed row is written by the server after the caller's own meeting authorization, and granting create would let any reader forge feed rows."
     },
     "odoo-addons/liwan_meetings/models/meeting_minute_form.py": {
@@ -77,12 +77,12 @@
     },
     "odoo-addons/liwan_notify/models/mail_domain_attempt.py": {
       "count": 1,
-      "kind": "required",
+      "kind": "acl_gap",
       "reason": "liwan_notify domain pending clock: `self.sudo()` in `_liwan_store` is the only way `liwan.mail.domain.attempt` rows are created, written (`first_started_at`, `expired_at`) or removed, by `_liwan_begin` after a start, `_liwan_expire` from the verify cron and `_liwan_clear` once the domain is verified; blocked by `access_liwan_mail_domain_attempt_manager` (odoo-addons/liwan_notify/security/ir.model.access.csv), which gives the `mail.domain.manage` capability group read only, so a domain manager cannot reset the clock that stops a tenant from holding a domain it does not own. The server sets every value; no caller passes a date."
     },
     "odoo-addons/liwan_notify/models/mail_domain.py": {
       "count": 2,
-      "kind": "required",
+      "kind": "acl_gap",
       "reason": "liwan_notify tenant mail domain: `self.sudo().search(...)` in `_liwan_tenant_domain` reads the tenant root's one `liwan.mail.domain` row for the send contract, whose callers (any application user sending business mail) hold no right on it; blocked by `access_liwan_mail_domain_manager` and `access_liwan_mail_domain_system` (odoo-addons/liwan_notify/security/ir.model.access.csv), which grant the model only to the `mail.domain.manage` capability group and `base.group_system`. Only the sender address, state and pause leave it. `self.env['ir.config_parameter'].sudo().set_param('mail.default.from_filter', ...)` in `_liwan_write_from_filter` writes that one key (platform domain plus the verified tenant domain) after a verify or removal by a `mail.domain.manage` holder or the verify cron; blocked by the system-only `ir.config_parameter` ACL row."
     },
     "odoo-addons/liwan_notify/models/mail_send.py": {
@@ -97,7 +97,7 @@
     },
     "odoo-addons/liwan_platform/models/entitlement_service.py": {
       "count": 3,
-      "kind": "required",
+      "kind": "own_design",
       "reason": "liwan_platform tenant-profile lookup: `self.env['liwan.tenant.profile'].sudo()` and its singleton search; blocked by odoo-addons/liwan_platform/security/ir.model.access.csv:2 `access_liwan_tenant_profile_system` (base.group_system only), with no group_user or public row; the service answers every caller including the public routes, and a read grant would expose the tenant's commercial policy and terminology to all users. Two more sites are in `_liwan_create_branch` (the tenant administrator's non-SaaS branch creation, after the route's `settings.company.manage` check and `require_within_limit('branches.extra_limit')`): `self.env['res.company'].with_user(SUPERUSER_ID).create(...)` is blocked because a LiwanOS system administrator holds no `base.group_erp_manager` ACL on `res.company`, `liwan_platform/models/res_company.py` refuses a non-superuser child company with `branch_requires_subscription`, and installed applications (for example `liwan_documents/models/res_company.py`) bootstrap a new company's structural resources only when the acting user is the actual superuser, which a plain `sudo()` does not satisfy; `self.env['liwan.tenant.branch'].sudo()` is blocked because `access_liwan_tenant_branch_user` in ir.model.access.csv (row 3) is read-only for base.group_user."
     },
     "odoo-addons/liwan_pmo/controllers/timeline.py": {
@@ -137,7 +137,7 @@
     },
     "odoo-addons/liwan_pmo/models/liwan_settings.py": {
       "count": 2,
-      "kind": "required",
+      "kind": "own_design",
       "reason": "liwan_pmo settings policy: `self.sudo().write(vals)` in `set_values` (:90) — blocked by /Users/tariq/code/odoo/addons/base/security/ir.model.access.csv:45 `access_res_company_employee` (write=0) plus `res_company_rule_employee`, because the caller is gated on the LiwanOS `pmo.settings.manage` capability, not on Odoo's system or erp-manager groups; and `self.env['ir.config_parameter'].sudo()` in `_params` (:114) — blocked by ir.model.access.csv:118 `access_ir_config_parameter_system` (group_system only) for the legacy global fallback."
     },
     "odoo-addons/liwan_pmo/serializers/task.py": {

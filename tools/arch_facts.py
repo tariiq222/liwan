@@ -6,7 +6,8 @@ Ad-hoc greps used to report different numbers for the same tree (128 or 145 sudo
 prints the figure each one holds, next to the name of the file it comes from:
 
 - R7 sudo sites and files from `arch_policy.collect()` (per addon, and by documented kind);
-- R9 direct SQL and access overrides from `tools/arch_baseline.json`;
+- R3 bridge models and bridge size, and R9 direct SQL and access overrides, each with its
+  `sub_entries` so a count of one kind never sums into another;
 - the total and file count of every other rule recorded in the baseline;
 - the addon count at each rank of `tools/arch_layers.json`.
 
@@ -114,8 +115,8 @@ def sub_entries(entries: dict[str, int]) -> list[dict]:
     ]
 
 
-def r9_facts(entries: dict[str, int]) -> dict:
-    """R9 as the baseline records it: direct SQL and access overrides, with their sub-entries."""
+def sub_entry_facts(entries: dict[str, int]) -> dict:
+    """A baselined rule grouped by its sub-entries (R3 bridges, R9 SQL and overrides), never summed across kinds."""
     return {
         'source': BASELINE_FILE.name,
         'entries': sum(entries.values()),
@@ -146,9 +147,10 @@ def build_facts(violations: dict, documented: dict, baseline: dict, ranks: dict[
     """The facts dict from loaded inputs: the `collect()` violations, documented cases, baseline and ranks."""
     return {
         'sudo': sudo_facts(violations.get('R7', {}), documented),
-        'r9': r9_facts(baseline.get('R9', {})),
+        'r3': sub_entry_facts(baseline.get('R3', {})),
+        'r9': sub_entry_facts(baseline.get('R9', {})),
         'baseline_rules': [
-            rule_facts(rule, entries) for rule, entries in sorted(baseline.items()) if rule != 'R9'
+            rule_facts(rule, entries) for rule, entries in sorted(baseline.items()) if rule not in ('R3', 'R9')
         ],
         'ranks': rank_facts(ranks),
     }
@@ -170,12 +172,19 @@ def render_sudo(sudo: dict) -> list[str]:
     return rows
 
 
+def render_sub_entries(title: str, rule: dict) -> list[str]:
+    """One baselined rule with its sub-entry breakdown, each figure next to its source file."""
+    return [
+        f"{title} [{rule['source']}]: entries {rule['entries']}, files {rule['files']}",
+        *[f"  {sub['kind']}: entries {sub['entries']}, files {sub['files']}" for sub in rule['sub_entries']],
+    ]
+
+
 def render(facts: dict) -> str:
     """The compact text table of FACTS, each figure next to its source file."""
-    r9 = facts['r9']
     lines = ['architecture facts (measured inputs only)', '', *render_sudo(facts['sudo'])]
-    lines += ['', f"R9 direct SQL and overrides [{r9['source']}]: entries {r9['entries']}, files {r9['files']}"]
-    lines += [f"  {sub['kind']}: entries {sub['entries']}, files {sub['files']}" for sub in r9['sub_entries']]
+    lines += ['', *render_sub_entries('R3 bridge models and bridge size', facts['r3'])]
+    lines += ['', *render_sub_entries('R9 direct SQL and overrides', facts['r9'])]
     lines += ['', f"baseline rules [{BASELINE_FILE.name}]"]
     lines += [
         f"  {rule['rule']:<4} entries {rule['entries']}, files {rule['files']}" for rule in facts['baseline_rules']
