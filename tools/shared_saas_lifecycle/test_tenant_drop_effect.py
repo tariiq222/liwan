@@ -432,9 +432,6 @@ class PostgresCluster:
         shutil.rmtree(self.root, ignore_errors=True)
 
 
-HOSTILE_TAGS = frozenset({'predicate', 'index', 'check', 'default', 'trigger'})
-
-
 def plant_hostile_code(cluster, database, marker_file):
     """Plants code owned by `odoo` in a tenant database whose tables `odoo` owns (see PostgresCluster.create_tenant_database).
 
@@ -856,6 +853,17 @@ class RealDropTests(unittest.TestCase):
         self.assertEqual((verdict['verdict'], verdict['fenced']), ('ok', True))
         self.assertEqual(effect.execute({**request, 'dryRun': True}, self.backend, self.permits.append)['state'], 'would_drop')
         self.assertTrue(self.cluster.exists(self.database))
+        result = effect.execute(request, self.backend, self.permits.append)
+        self.assertEqual(result['state'], 'dropped')
+        self.assertFalse(self.cluster.exists(self.database))
+
+    def test_a_drop_killed_after_the_first_fence_statement_resumes_and_completes(self):
+        self.create_tenant()
+        request = make_request(self.root, 'drop_database', self.plan)
+        # The identity was proven and the stamp written; the run died after the first statement of the fence.
+        self.cluster.sql('postgres', f'COMMENT ON DATABASE "{self.database}" IS \'liwan-drop {self.plan["requestId"]} {request["planDigest"]}\'')
+        self.cluster.sql('postgres', f'ALTER DATABASE "{self.database}" WITH ALLOW_CONNECTIONS false')
+        self.assertEqual(self.fenced_state().split('|')[0], 'false')
         result = effect.execute(request, self.backend, self.permits.append)
         self.assertEqual(result['state'], 'dropped')
         self.assertFalse(self.cluster.exists(self.database))

@@ -4,7 +4,7 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from deploy.releases.cli import document
-from deploy.releases.postgres import POSTGRES_ADMIN_ROLE
+from deploy.releases.postgres import POSTGRES_ADMIN_ROLE, session_role
 from deploy.releases.state import ReleaseState
 from deploy.releases.runtime import LocalRuntime
 from deploy.releases.backup_operation import backup_current
@@ -19,6 +19,9 @@ def capture_release_backup(runner):
     binding=runner.request['job']['binding']
     # A matching DB name is insufficient: the queued registry identity must match.
     if state.binding(binding['tenantId']) != binding:raise EffectError('release_binding_mismatch')
+    # The inventory is read after the writer fence, which revokes CONNECT from every declared writer role and ends its
+    # sessions, so the login that reads tenant tables must not be one of them: refuse before anything is fenced.
+    if session_role(binding['database']) in (runtime.config['tenants'][binding['tenantId']].get('roles') or {}).values():raise EffectError('inventory_role_fenced')
     # Prove the native dump connector and the legacy restore service describe the
     # same physical PostgreSQL cluster before producing a mixed-format manifest.
     with runtime.connector('postgres') as connection:

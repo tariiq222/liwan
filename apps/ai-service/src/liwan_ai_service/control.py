@@ -6,6 +6,7 @@ needs, so it is opened once, not per tenant. The runtime only validates it: DDL 
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
 from typing import Protocol
 from uuid import uuid4
@@ -14,6 +15,7 @@ from liwan_ai_service.contracts import AI_STATE_VERSION
 
 CONTROL_LOCK = (184732, 1)  # operator-only session lock: serializes bootstrap across processes
 STATE_ID = re.compile(r"^state_[a-f0-9]{32}$")
+log = logging.getLogger("liwan_ai_service")
 
 
 class StateCompatibilityError(RuntimeError):
@@ -40,7 +42,13 @@ async def queue_writer_role(conn) -> tuple[str, str] | None:
     if len(rows) > 1:
         msg = "ai_state_incompatible: more than one role besides the owner holds USAGE on the tenant schema"
         raise StateCompatibilityError(msg)
-    return rows[0] if rows else None
+    if not rows:
+        # deploy/ai/tenant_schema.sql grants USAGE to the literal role `odoo`; with another runtime role name (or none) no queue
+        # grant is made and Odoo's inserts into ai_outbox and ai_knowledge_queue fail at run time, so say so at bootstrap.
+        log.warning("ai_queue_writer_role_absent: no role besides the schema owner holds USAGE on the tenant schema; "
+                    "Odoo cannot append to the AI queues (deploy/ai/tenant_schema.sql grants only the role named odoo)")
+        return None
+    return rows[0]
 
 
 class ControlState(Protocol):

@@ -208,9 +208,10 @@ on the `public` schema lives inside each tenant database and is carried by the s
 
 Session rule: no tenant-controlled code ever runs in a superuser session. Every `psql` of the release connects to the `postgres` database
 only and never opens a session inside a tenant database. Whatever reads or writes tenant tables logs in as `odoo`. The one admin session
-inside a tenant database is the `pg_dump` of the capture. The release checks this with a single SQL assertion run as `postgres` (`runtime_role_assertion_sql`), at the capture
-step when a release is already served (`RESULT: refused runtime_role_rejected`, nothing stopped and the served release untouched, the worker
-restarted) and in the start step before any application starts (the run rolls back). A volume that still has a privileged `odoo` or no
+inside a tenant database is the `pg_dump` of the capture. The release checks this with a single SQL assertion run as `postgres` (`runtime_role_assertion_sql`), in the prepare
+step when a release is already served, before the first image pull and the first admin size query (`RESULT: refused runtime_role_rejected`, nothing stopped
+and the served release untouched; the candidate is recorded in `failed.json`, so the schedule alerts once per candidate and `rollback` clears it), again at the capture step with the tenant
+databases of the stopped worker, and in the start step before any application starts (the run rolls back). A volume that still has a privileged `odoo` or no
 `postgres` role fails both checks. The release does not convert such a volume: the cutover is an operator step, see the bring-up guide.
 
 ## Bootstrap (first run on a fresh host)

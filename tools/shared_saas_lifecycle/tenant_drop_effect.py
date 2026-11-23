@@ -371,10 +371,12 @@ class TenantDrop:
 
     def _fence(self, service, database, quoted):
         """Close the database to new sessions the way tenant provisioning closes it, then end the open ones."""
+        # ALLOW_CONNECTIONS false comes first: it is the state `_prove_identity` resumes from (with the stamp). A run killed
+        # after any later statement therefore never leaves a database whose identity can no longer be read as `odoo`.
         statements = (
+            f'ALTER DATABASE {quoted} WITH ALLOW_CONNECTIONS false',
             f'REVOKE CONNECT ON DATABASE {quoted} FROM PUBLIC',
             f'REVOKE CONNECT ON DATABASE {quoted} FROM {quote_identifier(TENANT_DB_ROLE)}',
-            f'ALTER DATABASE {quoted} WITH ALLOW_CONNECTIONS false',
             'SELECT count(pg_terminate_backend(pid)) FROM pg_stat_activity WHERE datname = ' + quote_literal(database) + ' AND pid <> pg_backend_pid()',
         )
         try:

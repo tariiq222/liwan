@@ -632,6 +632,10 @@ REPORTABLE_CODES = frozenset(ERROR_CODES) | {
 } | set(POLICY_ERROR_CODES)
 
 WRITER_REFUSALS = frozenset({'runtime_writer_present', 'runtime_writer_after_effect'})
+# What a restore stage writes to its stderr when it refuses on purpose; the only stderr text that reaches a result.
+STREAM_REFUSALS = ('ai_password_missing', 'ai_data_without_role', 'ai_archive_unreadable')
+# Refusals raised before any effect; non-secret and distinct for the operator.
+PRE_EFFECT_REFUSALS = frozenset({'inventory_role_fenced'})
 
 
 def classify_error(error):
@@ -643,7 +647,7 @@ def classify_error(error):
         return error.code
     # Writer refusals are non-secret and the control plane tells them apart: only the
     # pre-gate one (nothing ran) may be retried.
-    if isinstance(error, EffectError) and str(error) in WRITER_REFUSALS | {'release_operation_blocked'}:  # Safe release barrier refusal, distinct from CP claims.
+    if isinstance(error, EffectError) and str(error) in WRITER_REFUSALS | PRE_EFFECT_REFUSALS | set(STREAM_REFUSALS) | {'release_operation_blocked'}:  # Safe release barrier refusal, distinct from CP claims.
         return str(error)
     return 'shared_effect_unverified'
 

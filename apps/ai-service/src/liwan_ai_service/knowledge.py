@@ -59,7 +59,6 @@ $check$
 # Odoo's database role (the one role besides the owner that holds USAGE on the schema, see queue_writer_role) may append
 # to the queue and nothing else in this schema.
 GRANT_KNOWLEDGE_QUEUE = (
-    "GRANT USAGE ON SCHEMA {schema} TO {role}",
     "GRANT INSERT ON {schema}.ai_knowledge_queue TO {role}",
     "GRANT USAGE ON SEQUENCE {schema}.ai_knowledge_queue_id_seq TO {role}",
 )

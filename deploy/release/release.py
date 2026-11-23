@@ -274,7 +274,9 @@ class Releaser:
                 reason = self.restart_worker(reason)
             self.alert('deploy_failed', run['commit'], phase, reason)
             self.file('run.json').unlink()
-            if phase != 'verified':  # a refusal before anything stopped costs nothing to repeat
+            if phase != 'verified' or reason == 'runtime_role_rejected':
+                # A refusal before anything stopped costs nothing to repeat, except one about the host's volume: it
+                # does not change with the next scheduled run, so it alerts once per candidate (``rollback`` clears it).
                 self.record_failure(run['commit'], reason)
             if code == EXIT_REFUSED:
                 return self.finish(EXIT_REFUSED, f'refused {reason}')
@@ -326,6 +328,8 @@ class Releaser:
             self.install_dependencies(target)
             normalize_tree(target)
         self.require_renderable(run, target)
+        if run['previous'] is not None:  # before the first image pull and the first size query, both of which assume the admin role
+            self.assert_runtime_role(self.paths.current.resolve(), {'tenants': self.tenants(target)})
         images = self.images(target, run['document'])
         for image in self.external_images(target):  # not recorded below: no old release's prune may remove one
             self.pull(image)
