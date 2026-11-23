@@ -9,6 +9,7 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 import shlex
+import signal
 import subprocess
 import sys
 import tarfile
@@ -18,7 +19,7 @@ from datetime import datetime, timezone
 from tools.shared_saas_lifecycle.odoo_effect import (
     Runner, EffectError, no_symlink, reserve, permit, emit, validate_database,
     require_new_target, verified_observation, MAX_OUTPUT, OBSERVE_CONTAINER, classify_error,
-    install_termination_handler, STREAM_REFUSALS, release_routes_enabled, effect_operation, TENANT_DB_ROLE, AI_TENANT_SCHEMA,
+    install_termination_handler, block_termination_signals, TERMINATION_SIGNALS, STREAM_REFUSALS, release_routes_enabled, effect_operation, TENANT_DB_ROLE, AI_TENANT_SCHEMA,
 )
 from deploy.releases.postgres import POSTGRES_ADMIN_ROLE, identifier, tenant_bootstrap_sql, tenant_create_database_sql, tenant_isolation_sql
 AI_ROLE = 'liwan_ai'
@@ -467,14 +468,17 @@ print('{}')
             permit('resume')
         except BaseException:
             # Odoo is shared by every tenant: whatever failed, never leave it stopped. No permit here;
-            # the authority may be gone and the restart must not wait for it.
-            self.restart_after_failure()
+            # the authority may be gone and the restart must not wait for it. A termination signal landing
+            # in this cleanup path is held pending until the restart is done, then aborts the run.
+            with block_termination_signals():
+                self.restart_after_failure()
             raise
         try:
             self.command(self.base+['start','odoo'],timeout=60)
         except BaseException:
             # A termination during the normal start must not leave odoo stopped either.
-            self.restart_after_failure()
+            with block_termination_signals():
+                self.restart_after_failure()
             raise
         self.wait_healthy('odoo');self.verify_originals()
         permit('complete')
@@ -482,10 +486,13 @@ print('{}')
         self.read_artifact()
 
     def restart_after_failure(self):
-        # This start must complete: it runs detached (own session, signals ignored), and the termination handler ignores
-        # a signal that arrives while it is in flight instead of cancelling the one command that brings odoo back for
-        # every tenant.
+        # Runs under the caller's `block_termination_signals`: a signal that landed between entering the cleanup and
+        # this call is pending now and must not abort the restart. Release the other termination signals so a signal
+        # that arrives while the restart itself runs still reaches the handler's `restarting` guard, which ignores it;
+        # the held signal is delivered when the caller restores the mask and aborts the run only after odoo is back up.
+        pending = signal.sigpending()
         self.restarting = True
+        signal.pthread_sigmask(signal.SIG_UNBLOCK, set(TERMINATION_SIGNALS) - pending)
         try:
             self.command(self.base+['start','odoo'],timeout=RESTART_TIMEOUT,detached=True)
         except Exception as restart_error:

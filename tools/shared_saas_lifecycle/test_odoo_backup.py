@@ -383,6 +383,39 @@ class CaptureRestartTests(unittest.TestCase):
             self.assertEqual(len(finished), 1)
             self.assertEqual(detached, [True])  # own session, signals ignored
 
+    def test_a_termination_signal_in_the_cleanup_path_still_starts_odoo_and_is_handled_after(self):
+        # A first SIGTERM that lands between entering the cleanup and the start of the restart would raise
+        # `authority_lost` right there and skip the start, leaving odoo down for every tenant. It is held pending
+        # instead and still cancels the run once odoo is back up.
+        import os, signal
+        saved = {signum: signal.getsignal(signum) for signum in odoo_effect.TERMINATION_SIGNALS}
+        self.addCleanup(lambda: [signal.signal(signum, handler) for signum, handler in saved.items()])
+        self.addCleanup(signal.pthread_sigmask, signal.SIG_UNBLOCK, odoo_effect.TERMINATION_SIGNALS)
+        with tempfile.TemporaryDirectory() as raw:
+            runner, _ = self.capture_runner(Path(raw).resolve(), fail_at='inventory')
+            cancelled, finished, detached = [], [], []
+            runner.cancel = lambda: cancelled.append(True)
+            restart = runner.restart_after_failure
+            def restart_after_failure():
+                os.kill(os.getpid(), signal.SIGTERM)  # the first signal, in the cleanup path before the restart
+                restart()
+            runner.restart_after_failure = restart_after_failure
+            plain = runner.command
+            def command(args, **kwargs):
+                if args[-2:] == ['start', 'odoo']:
+                    detached.append(kwargs.get('detached'))
+                    finished.append(args)
+                    return ''
+                return plain(args, **kwargs)
+            runner.command = command
+            odoo_effect.install_termination_handler(runner)
+            with self.assertRaises(odoo_effect.EffectError) as caught:
+                self.capture(runner, 'inventory')
+            self.assertEqual(str(caught.exception), 'authority_lost')  # the signal is handled, after the restart
+            self.assertEqual(cancelled, [True])
+            self.assertEqual(len(finished), 1)
+            self.assertEqual(detached, [True])  # own session, signals ignored
+
     def test_a_successful_capture_starts_odoo_once(self):
         with tempfile.TemporaryDirectory() as raw:
             runner, _ = self.capture_runner(Path(raw).resolve())

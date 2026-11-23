@@ -168,6 +168,21 @@ def install_termination_handler(runner):
         signal.signal(signum, terminate)
 
 
+@contextmanager
+def block_termination_signals():
+    """Shield the post-failure odoo restart from a termination signal that lands between entering the cleanup path
+    and the start of the restart: the handler would raise `authority_lost` right there and skip the restart, leaving
+    odoo down for every tenant. The signal stays pending, and the previous mask is restored when the restart is done,
+    so it is delivered then and still cancels the run with `authority_lost`, only once odoo is back up. A signal that
+    arrives while the restart itself runs is released to the handler again, whose `restarting` guard ignores it
+    without touching the restart."""
+    previous = signal.pthread_sigmask(signal.SIG_BLOCK, TERMINATION_SIGNALS)
+    try:
+        yield
+    finally:
+        signal.pthread_sigmask(signal.SIG_SETMASK, previous)
+
+
 class RuntimeGate:
     """Persistent project-wide ownership. Never reclaimed after unknown failure."""
     def __init__(self, root, identity):
