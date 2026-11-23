@@ -10,7 +10,7 @@ team that may use them. It is a separate Nuxt 4 application from the customer ap
   `@liwan/commercial-contracts`. It never imports `apps/web`, `odoo-addons`, `@liwan/contracts` or the control plane code,
   and never calls an Odoo route (rule `VA1` in `tools/arch_policy.py`). `apps/web` never imports this app.
 - There is no `/vendor` page prefix: pages are `/overview`, `/customers` (`/customers/new`, `/customers/{id}?tab=` and, for a workspace that has no commercial record, `/tenants/{id}`), `/operations`, `/catalog` (the imported application versions, validated and published here), `/bundles`, `/plans`,
-  `/packages` (the retired legacy packages, read only), `/invoices`, `/audit`, `/team`, `/login` and `/enroll`. The API prefix `/api/vendor/v1/**` names the upstream
+  `/invoices`, `/audit`, `/team`, `/login` and `/enroll`. The API prefix `/api/vendor/v1/**` names the upstream
   control plane surface, not a page.
 
 ## How the BFF relates to the control plane
@@ -53,6 +53,10 @@ The edge block is `deploy/vendor-admin/Caddyfile.snippet`; the environment templ
 - With an https `NUXT_ADMIN_ORIGIN`, `NUXT_TRUST_PROXY` must be `true`; the BFF answers `503` otherwise.
 - The Caddy block sets `X-Forwarded-For` to the remote address itself (it overwrites, never appends) and caps request
   bodies at 64KB. The control plane stays on the private network.
+- The edge answers every response with `Cache-Control: no-store`, except the hashed build assets (`/_nuxt/*`): they carry
+  `private, max-age=31536000, immutable` so the browser keeps them, because their names change with every build and
+  the document that names them stays `no-store`. Without this the browser fetched the same files again on the first page after sign-in (22 of 28 in one measurement).
+  `/_nuxt/builds/*` is excluded: `latest.json` keeps its name while its content changes with every build.
 
 ## Run locally
 

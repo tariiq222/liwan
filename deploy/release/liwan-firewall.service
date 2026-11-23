@@ -1,0 +1,14 @@
+# Re-applies the host firewall rules of docs/operations/environment-bringup.md step A3.6 at boot and whenever Docker restarts.
+# bringup.py installs and enables it; the script adds each rule only when `iptables -C` says it is absent.
+[Unit]
+Description=Liwan host firewall rules for the tenant database bridge and the shared worker
+After=docker.service
+PartOf=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh /opt/liwan/current/deploy/release/liwan-firewall.sh
+
+[Install]
+WantedBy=multi-user.target

@@ -40,8 +40,8 @@ services:
       NUXT_AI_SERVICE_TOKEN: "${AI_SERVICE_TOKEN:-}"
       # web only: the ai service must never hold the key that opens the tokens it is given.
       NUXT_AI_TOKEN_KEY: "${AI_TOKEN_KEY:-}"
-      # web only: the API key of the tenant's technical AI usage account (provision.sh mints it). With it the usage ledger is
-      # recorded for a user whose session already ended; without it web reports with the user's session as before.
+      # The AI usage root secret (64 hex, provision.sh generates it): web and odoo hold it and nothing else does. Each side derives the
+      # per-database recorder bearer from it; without it every AI run is refused 503.
       LIWAN_AI_USAGE_KEY: "${LIWAN_AI_USAGE_KEY:-}"
       # Admission ceilings of the API proxy. Unset keeps the defaults in apps/web/server/utils
       # (tenantTransport.ts, bufferAdmission.mjs, apiSessionAdmission.ts); an invalid value stops the server at start.
@@ -92,6 +92,8 @@ services:
       USER: odoo
       PASSWORD: "${DB_PASSWORD}"
       LIWAN_INBOX_SECRET_KEY: "${LIWAN_INBOX_SECRET_KEY:-}"
+      # The AI usage root secret, the same value as web's: Odoo recomputes the recorder bearer of its own database from it.
+      LIWAN_AI_USAGE_KEY: "${LIWAN_AI_USAGE_KEY:-}"
       # Sign-in SMS through Authentica (operator configuration, never per tenant). Both unset means the sign-in
       # screen offers email only. See deploy/shared/README.md, "Sign-in SMS (Authentica)".
       LIWAN_AUTHENTICA_API_KEY: "${LIWAN_AUTHENTICA_API_KEY:-}"

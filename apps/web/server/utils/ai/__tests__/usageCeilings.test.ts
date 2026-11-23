@@ -1,6 +1,7 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { usageBearer } from '../recorder'
 import { AI_MAX_COST_UNITS, AI_USAGE_SERVICE_LIMITS, AiModelUsageEventSchema, AiUsageRecordSchema } from '@liwan/contracts'
 
 // Odoo cannot import the contracts package, and Nuxt must split its requests the way Odoo admits them (issue #557): this test reads
@@ -56,5 +57,16 @@ describe('the usage service size rules', () => {
     const timeout = /^const TIMEOUT_SECONDS = ([0-9_]+)$/m.exec(session)
     if (!timeout) throw new Error('TIMEOUT_SECONDS is not a plain integer constant')
     expect(number(balance, 'RUN_TIMEOUT_SECONDS')).toBe(Number(timeout[1]!.replaceAll('_', '')))
+  })
+})
+
+describe('the usage credential', () => {
+  it('derives from the label Odoo derives from: the web side and liwan_ai/models read one string', () => {
+    const models = join(root, 'odoo-addons/liwan_ai/models')
+    const labels = readdirSync(models).filter(name => name.endsWith('.py')).flatMap(name => [...read(`odoo-addons/liwan_ai/models/${name}`).matchAll(/^USAGE_KEY_LABEL = '([^']+)'$/gm)].map(match => match[1]))
+    expect(labels).toEqual(['liwan-ai-usage/v1'])
+    // The same vector Odoo's own test uses: bytes 0x00..0x1f as the root, so a drift in either label breaks both suites.
+    const rootKey = Array.from({ length: 32 }, (_, index) => index.toString(16).padStart(2, '0')).join('')
+    expect(usageBearer(rootKey, 'liwan_vector_db')).toBe('d0e9be6ebd73f6029db8709fa445f5051521423db46675b15ff528dd0182cdaf')
   })
 })

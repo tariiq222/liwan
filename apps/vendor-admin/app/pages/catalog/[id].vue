@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { formatBusinessDate } from '@/utils/vendorTime'
 import { lifecycleBadge } from '@/utils/vendorCommercial'
-import { packageLabel } from '@/utils/vendorPackages'
+import { catalogLabel } from '@/utils/catalogLabels'
 import { sellableTiers } from '@/utils/vendorCatalogVersions'
 import { useVendorCatalogVersions } from '@/composables/useVendorCatalogVersions'
 import { useVendorCommercial } from '@/composables/useVendorCommercial'
@@ -23,6 +23,7 @@ const baseModules = computed(() => version.value?.solution.base_modules ?? [])
 <template>
   <SharedRecordPage :title="version?.version ?? t('vendor.catalog.details')" back-to="/catalog" :back-label="t('vendor.catalog.applications')" :loading="pending" :error="error" @retry="refresh">
     <template v-if="version">
+      <VendorCatalogGlossary />
       <VendorCatalogFacts :facts="[{ key: 'sellable', label: t('vendor.catalog.sellableApps'), value: sellableCount }, { key: 'imported', label: t('vendor.catalog.imported'), value: formatBusinessDate(version.created_at) }]" class="mt-6">
         <template #status><SharedStatusBadge data-slot="lifecycle-badge" :tone="lifecycleBadge(version).tone" :label="t(lifecycleBadge(version).labelKey)" /></template>
       </VendorCatalogFacts>
@@ -32,7 +33,7 @@ const baseModules = computed(() => version.value?.solution.base_modules ?? [])
           <li v-for="tier in tiers" :key="tier.id" class="rounded-control p-3 ring ring-default" data-testid="catalog-app">
             <p class="flex flex-wrap items-center gap-2 font-medium">{{ tier.name }}<UBadge v-if="tier.sellable === true && tier.id !== 'core'" color="success" variant="subtle" data-testid="catalog-sellable">{{ t('vendor.catalog.sellable') }}</UBadge></p>
             <p v-if="tier.description" class="mt-1 text-sm text-muted">{{ tier.description }}</p>
-            <div v-if="tier.features?.length" class="mt-2 flex flex-wrap gap-2"><UBadge v-for="feature in tier.features" :key="feature" color="neutral" variant="subtle">{{ packageLabel('feature', feature, t) }}</UBadge></div>
+            <div v-if="tier.features?.length" class="mt-2 flex flex-wrap gap-2"><UBadge v-for="feature in tier.features" :key="feature" color="neutral" variant="subtle">{{ catalogLabel('feature', feature, t) }}</UBadge></div>
           </li>
         </ul>
       </SharedRecordSection>
@@ -42,7 +43,7 @@ const baseModules = computed(() => version.value?.solution.base_modules ?? [])
         <template #description><NuxtLink to="/bundles/new" class="font-medium text-primary hover:underline">{{ t('vendor.catalog.toBundles') }}</NuxtLink></template>
       </UAlert>
       <details class="mt-6"><summary class="cursor-pointer text-sm text-muted">{{ t('vendor.pricing.technical') }}</summary>
-        <dl class="mt-3 space-y-2 text-sm"><div><dt>{{ t('vendor.catalog.baseModules') }}</dt><dd class="flex flex-wrap gap-2"><UBadge v-for="module in baseModules" :key="module" color="neutral" variant="outline">{{ packageLabel('module', module, t) }}</UBadge></dd></div><div><dt>{{ t('vendor.pricing.revisionId') }}</dt><dd dir="ltr">{{ version.id }}</dd></div></dl>
+        <dl class="mt-3 space-y-2 text-sm"><div><dt>{{ t('vendor.catalog.baseModules') }}</dt><dd class="flex flex-wrap gap-2"><UBadge v-for="module in baseModules" :key="module" color="neutral" variant="outline">{{ catalogLabel('module', module, t) }}</UBadge></dd></div><div><dt>{{ t('vendor.pricing.revisionId') }}</dt><dd dir="ltr">{{ version.id }}</dd></div></dl>
       </details>
     </template>
   </SharedRecordPage>

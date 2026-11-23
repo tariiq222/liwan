@@ -1,4 +1,4 @@
-import { AI_USAGE_BATCH_MAX, AiPolicySchema, AiCompanyNoteListSchema, AiNoteListSchema, AiNoteSchema, AiAgentPatchSchema, AiAgentSettingsSchema, AiAuditRequestSchema, AiKeyPutSchema, AiKnowledgeRebuildSchema, AiMonitoringSchema, AiRetentionPutSchema, AiSettingsPatchSchema, AiSettingsSchema, AiTenantConfigSchema, AiDraftPayloadSchema, AiEventSchema, AiModelCallEventSchema, AiModelUsageEventSchema, AiRunListQuerySchema, AiRunListSchema, AiRunPatchSchema, AiRunStatusSchema, AiStartRequestSchema, AiToolsResponseSchema, AiUsageBatchResponseSchema, AiUsageBatchSchema, AiUsageRecordSchema, AiUsageRowSchema, AiUsageServiceBatchSchema } from '../index'
+import { AI_USAGE_BATCH_MAX, AiPolicySchema, AiCompanyNoteListSchema, AiNoteListSchema, AiNoteSchema, AiAgentPatchSchema, AiAgentSettingsSchema, AiAuditRequestSchema, AiKeyPutSchema, AiKnowledgeRebuildSchema, AiMonitoringSchema, AiRetentionPutSchema, AiSettingsPatchSchema, AiSettingsSchema, AiTenantConfigSchema, AiDraftPayloadSchema, AiEventSchema, AiModelCallEventSchema, AiModelUsageEventSchema, AiRunListQuerySchema, AiRunListSchema, AiRunPatchSchema, AiRunStatusSchema, AiStartRequestSchema, AiToolsResponseSchema, AiUsageBatchResponseSchema, AiUsageProbeSchema, AiUsageRecordSchema, AiUsageRowSchema, AiUsageServiceBatchSchema, AiUsageServiceRequestSchema } from '../index'
 
 const READ = {
   name: 'pmo.list_my_tasks', kind: 'read', description: { ar: 'مهامي', en: 'My tasks' },
@@ -163,16 +163,10 @@ describe('LiwanOS AI usage contracts', () => {
     expect(() => AiUsageServiceBatchSchema.parse({ ...batch, items: [{ ...record, user_id: 7 }] })).toThrow()
   })
 
-  it('batches 1 to 64 records and answers with the stored rows', () => {
+  it('batches 1 to 64 records', () => {
     expect(AI_USAGE_BATCH_MAX).toBe(64)
-    expect(AiUsageBatchSchema.parse({ user_company_id: 3, items: [record] }).items).toHaveLength(1)
-    expect(() => AiUsageBatchSchema.parse({ user_company_id: 3, items: [] })).toThrow()
-    expect(() => AiUsageBatchSchema.parse({ user_company_id: 3, items: Array.from({ length: 65 }, () => record) })).toThrow()
-    expect(AiUsageBatchSchema.parse({ user_company_id: 3, items: Array.from({ length: 64 }, () => record) }).items).toHaveLength(64)
-    // The batch names the company the run started in: required, a positive integer, and nothing else rides along.
-    expect(() => AiUsageBatchSchema.parse({ items: [record] })).toThrow()
-    for (const user_company_id of [0, -1, 1.5, '3', null, true]) expect(() => AiUsageBatchSchema.parse({ user_company_id, items: [record] }), String(user_company_id)).toThrow()
-    expect(() => AiUsageBatchSchema.parse({ user_company_id: 3, company_id: 3, items: [record] })).toThrow()
+    expect(AiUsageServiceBatchSchema.parse({ user_id: 7, user_company_id: 3, items: Array.from({ length: 64 }, () => record) }).items).toHaveLength(64)
+    expect(() => AiUsageServiceBatchSchema.parse({ user_id: 7, user_company_id: 3, items: Array.from({ length: 65 }, () => record) })).toThrow()
     expect(() => AiUsageRecordSchema.parse({ ...record, conversation_id: '' })).toThrow()
     expect(() => AiUsageRecordSchema.parse({ ...record, conversation_id: 'x'.repeat(65) })).toThrow()
     // The provider attempt's own id is what Odoo deduplicates a re-sent batch on (issue #557).
@@ -181,12 +175,23 @@ describe('LiwanOS AI usage contracts', () => {
       expect(() => AiUsageRecordSchema.parse({ ...record, call_id }), call_id).toThrow()
     }
     expect(AiUsageRecordSchema.safeParse({ ...record, call_id: undefined }).success).toBe(false)
+    // The part taken from the balance is the server's: a report never carries it.
+    expect(() => AiUsageRecordSchema.parse({ ...record, charge_paid: 1 })).toThrow()
     expect(AiUsageRowSchema.parse({ ...record, id: 5, charge_paid: 3 }).charge_paid).toBe(3)
     expect(AiUsageBatchResponseSchema.parse({ items: [{ ...record, id: 5, charge_paid: 0 }], total: 1 }).total).toBe(1)
-    // The part taken from the balance is the server's: a report never carries it, and a stored row always does.
-    expect(() => AiUsageRecordSchema.parse({ ...record, charge_paid: 1 })).toThrow()
     expect(() => AiUsageRowSchema.parse({ ...record, id: 5 })).toThrow()
     expect(() => AiUsageRowSchema.parse({ ...record, id: 5, charge_paid: -1 })).toThrow()
+  })
+
+  it('accepts the recorder probe as its own request shape: empty items and nothing else', () => {
+    expect(AiUsageProbeSchema.parse({ items: [] })).toEqual({ items: [] })
+    expect(AiUsageServiceRequestSchema.parse({ items: [] })).toEqual({ items: [] })
+    expect(AiUsageServiceRequestSchema.parse({ user_id: 7, user_company_id: 1, items: [record] }).items).toHaveLength(1)
+    expect(AiUsageBatchResponseSchema.parse({ items: [], total: 0 }).total).toBe(0)
+    for (const bad of [{ items: [record] }, { user_id: 7, user_company_id: 1, items: [] }, { items: [], extra: 1 }, {}]) {
+      expect(() => AiUsageProbeSchema.parse(bad)).toThrow()
+    }
+    expect(() => AiUsageServiceRequestSchema.parse({ user_id: 7, user_company_id: 1, items: [] })).toThrow()
   })
 
   it('parses the AI settings with the consent text and the month usage', () => {

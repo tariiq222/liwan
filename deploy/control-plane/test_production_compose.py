@@ -253,6 +253,30 @@ class EnvTemplates(unittest.TestCase):
                     self.assertTrue(template.read_text(encoding='utf-8').count(f'# {name}=') >= 1 or value in ('', 'false'))
 
 
+def _block_body(text: str, start: int) -> str:
+    """The text from `start` (the opening brace of a block) to the brace that closes it, counting nesting."""
+    depth = 0
+    for index in range(start, len(text)):
+        if text[index] == '{':
+            depth += 1
+        elif text[index] == '}':
+            depth -= 1
+            if depth == 0:
+                return text[start:index]
+    message = 'block is not closed'
+    raise AssertionError(message)
+
+
+def _zone_body(text: str, name: str) -> str:
+    """The body of one `zone <name> { ... }` block, braces counted so a nested `match` block does not end it."""
+    return _block_body(text, text.index(f'zone {name} {{'))
+
+
+def _header_block(text: str) -> str:
+    """The body of the site's blanket `header { ... }` block (the one with no matcher)."""
+    return _block_body(text, text.index('\n\theader {') + len('\n\theader '))
+
+
 class EdgeSnippets(unittest.TestCase):
     def test_the_control_api_exposes_only_the_payment_event_route(self):
         text = (CONTROL / 'Caddyfile.snippet').read_text(encoding='utf-8')
@@ -274,6 +298,47 @@ class EdgeSnippets(unittest.TestCase):
         self.assertIn('not client_ip {$LIWAN_ADMIN_ALLOW}', text)
         self.assertNotIn('{remote_host}', text)
         self.assertNotRegex(text, r'(?m)^\s*log\b')
+
+    def test_the_console_caches_only_its_hashed_build_assets(self):
+        """Documents, API answers and build metadata stay private; the hashed assets are the one cacheable class.
+
+        Their names carry the content hash and change with every release, so a stored copy is never stale, and the
+        document that names them stays `no-store`. The behavioral proof against the real edge lives in
+        `deploy/test_commercial_edge.py:test_only_the_hashed_build_assets_are_stored`; this test pins the wiring, so a
+        rule that is present in the file but no longer applied to the asset matcher fails here.
+        """
+        text = (ROOT / 'deploy' / 'vendor-admin' / 'Caddyfile.snippet').read_text(encoding='utf-8')
+        # The header rule must be bound to the asset matcher, not to the whole site: `header {` would cache documents
+        # and API answers for a year.
+        self.assertIn('header @buildAssets {', text)
+        # The matcher must be defined, and its exclusion is what keeps Nuxt's build metadata out: `latest.json`
+        # keeps its name while its content changes with every build, so a one-year copy of it would freeze the console on an old release.
+        self.assertRegex(text, r'@buildAssets \{\s*path /_nuxt/\*\s*not path /_nuxt/builds/\*\s*\}')
+        # A 404 after a release must not be kept for a year, but a 304 must keep the caching value: the deferred
+        # `no-store` of the blanket rule would otherwise reach the revalidation answer and discard the proven copy.
+        self.assertRegex(text, r'(?m)^\s*match status 2xx 304\s*$')
+        # `private` keeps the browser as the only holder: no shared proxy stores the console's code.
+        self.assertIn('>Cache-Control "private, max-age=31536000, immutable"', text)
+        # The blanket rule stays and stays on the whole site: a response that is not a hashed asset is never stored.
+        blanket = _header_block(text)
+        self.assertIn('Cache-Control "no-store"', blanket)
+        self.assertNotIn('_nuxt', blanket)
+
+    def test_the_console_budget_covers_one_cold_load(self):
+        """A cold sign-in page draws 89 requests, 84 of them build files: the budget must not refuse it."""
+        text = (ROOT / 'deploy' / 'vendor-admin' / 'Caddyfile.snippet').read_text(encoding='utf-8')
+        general = _zone_body(text, 'liwan_admin')
+        self.assertEqual(re.search(r'events (\d+)', general).group(1), '600')
+        # The budget is per client address over one minute, IPv6 grouped by /64: a wider window or a different key
+        # would change what the number means.
+        self.assertIn('key {client_ip}', general)
+        self.assertIn('window 1m', general)
+        self.assertIn('ipv6_prefix 64', general)
+        # Credential attempts keep their own tight budget, keyed and windowed the same way.
+        auth = _zone_body(text, 'liwan_admin_auth')
+        self.assertEqual(re.search(r'events (\d+)', auth).group(1), '20')
+        self.assertIn('key {client_ip}', auth)
+        self.assertIn('window 1m', auth)
 
 
 if __name__ == '__main__':

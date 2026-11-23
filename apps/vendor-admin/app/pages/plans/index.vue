@@ -32,13 +32,14 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
 ])
 </script>
 <template>
-<SharedListPage :title="t('vendor.catalog.title')" :create-to="can('vendor.catalog.manage') && can('vendor.pricing.manage') ? { path: '/plans/new', query: { returnTo: listTo } } : undefined" :create-label="t('vendor.plans.create')" create-test-id="vendor-plan-new">
+<SharedListPage :title="t('vendor.plans.title')" :description="t('vendor.plans.help')" :create-to="can('vendor.catalog.manage') && can('vendor.pricing.manage') ? { path: '/plans/new', query: { returnTo: listTo } } : undefined" :create-label="t('vendor.plans.create')" create-test-id="vendor-plan-new">
 
 <template #filters><VendorCatalogTabs class="mb-3" /><SharedFilterBar :active-count="Number(Boolean(q)) + Number(status !== 'all')" @clear="router.replace('/plans')">
       <template #search><UInput :model-value="q" :aria-label="t('vendor.plans.search')" :placeholder="t('vendor.plans.search')" icon="i-lucide-search" :disabled="!hydrated" @update:model-value="patch({ q: $event || undefined })" /></template>
       <SharedFilterChoice :label="t('vendor.common.status')" :model-value="status" :items="statusItems" :disabled="!hydrated" @update:model-value="patch({ status: $event && $event !== 'all' ? $event : undefined })" />
       <template #active><SharedFilterChip v-if="q" :label="q" @remove="patch({ q: undefined })" /><SharedFilterChip v-if="status !== 'all'" :label="t(`vendor.pricing.filter.${status}`)" @remove="patch({ status: undefined })" /></template>
     </SharedFilterBar></template>
+<VendorCatalogGlossary class="mb-3" />
 <p v-if="data" class="text-sm text-muted" data-testid="plans-result-count">{{ t('vendor.pagination.total', { count: data.total }, data.total) }}</p>
 
 <SharedDataTable  :rows="items" :columns="columns" row-key="id" :row-to="path" :loading="pending" :error="error" :empty-text="t(q || status !== 'all' ? 'vendor.plans.noResults' : 'vendor.plans.empty')" :caption="t('vendor.plans.title')" @retry="refresh" :page="page" :pages="pages" @update:page="value => patch({ page: value })">

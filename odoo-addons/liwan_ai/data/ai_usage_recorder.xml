@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!-- The account the Nuxt server reports AI usage with once the user's session may be gone (issue #557). Active, because
-         Odoo accepts an API key only for an active user, yet nobody signs in as it: it has no password, and an account in no user
+         the platform's bearer path refuses an archived user, yet nobody signs in as it: it has no password, and an account in no user
          type (neither internal nor portal) is not a seat (the user quota counts internal users only), and models/res_users.py refuses every credential check for
-         it. The deployment mints its one API key (deploy/seed_ai_usage_key.py); that key reaches only the usage route
-         registered in models/ir_http.py. Its companies are kept in step with the tenant's like the indexer's. -->
+         it. Its credential is no stored key: the bearer is derived per database from the deployment's
+         LIWAN_AI_USAGE_KEY (models/usage_key.py) and reaches only the usage route registered in models/ir_http.py. Its companies are kept in step with the tenant's like the indexer's. -->
     <data noupdate="1">
         <record id="user_ai_usage" model="res.users">
             <field name="name">LiwanOS AI usage recorder</field>

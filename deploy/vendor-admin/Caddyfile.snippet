@@ -32,9 +32,31 @@
 		# Pages carry the app's own nonce-based policy (apps/vendor-admin/server/plugins/content-security-policy.ts);
 		# `?` keeps it and gives every other response (API JSON, assets) a policy that loads nothing.
 		?Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
-		# Every response of the admin host, assets included, is private: nothing is cached by a browser or a proxy.
+		# Every response of the admin host is private: nothing is cached by a browser or a proxy, except the hashed
+		# build assets below. Documents, API answers and build metadata stay `no-store`.
 		Cache-Control "no-store"
 		-Server
+	}
+
+	# The console's build assets are the only cacheable responses. Their names carry the content hash and change with
+	# every release, so a stored copy can never be stale: the document that names them stays `no-store`, and a release
+	# is picked up on the next document load. Without this the browser may not store them, Nuxt's own prefetch hints
+	# (one per route chunk in the HTML of the sign-in page) are downloaded and thrown away, and the same files are
+	# fetched again on the first navigation.
+	# `private` keeps the browser as the only holder: no shared proxy stores the console's code, and the assets carry
+	# no tenant data. `/_nuxt/builds/` is excluded: `latest.json` keeps its name while its content changes with every build.
+	@buildAssets {
+		path /_nuxt/*
+		not path /_nuxt/builds/*
+	}
+	header @buildAssets {
+		# A successful body and a revalidation answer are both worth storing. A 304 is a complete answer on its own:
+		# the deferred value below replaces the headers of the 304, and a `no-store` there would make the browser drop
+		# the copy it just proved valid. A 404 after a release is not matched, so it is never kept.
+		match status 2xx 304
+		# `>` defers the write to the moment the response is sent, so this value replaces the blanket `no-store`
+		# above whatever the upstream sent.
+		>Cache-Control "private, max-age=31536000, immutable"
 	}
 
 	# Refuse every request whose Host is not exactly the configured console host (case-folded). Caddy applies a
@@ -55,11 +77,17 @@
 		rate_limit {
 			zone liwan_admin {
 				key {client_ip}
-				events 120
+				# One budget for the console's documents, API answers and build assets. The customer UI's own zone
+				# (liwan_web in deploy/Caddyfile) allows 600 for the same traffic. A measured cold sign-in took 121
+				# requests (89 for the sign-in page, 32 for the first page after it) and the 121st was refused at 120.
+				# Caching the assets (see @buildAssets) removes the re-downloads among those 32, but the sign-in page
+				# itself still needs 89, so the budget keeps a margin for a second tab or a reload.
+				events 600
 				window 1m
 				ipv6_prefix 64
 			}
-			# Sign-in, enrollment and step-up: same budget as the customer auth zone in deploy/Caddyfile.
+			# Sign-in, enrollment and step-up: same budget as the customer auth zone in deploy/Caddyfile. The module
+			# counts a request in every zone whose matcher accepts it, so these requests also draw from the zone above.
 			zone liwan_admin_auth {
 				match {
 					path /api/auth/* /api/vendor/v1/admin/auth/*

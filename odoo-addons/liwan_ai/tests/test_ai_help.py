@@ -22,7 +22,7 @@ from odoo.addons.liwan_ai.serializers.agent_settings import (
     dump_agent_settings,
     parse_agent_patch,
 )
-from odoo.addons.liwan_ai.tests.common import AiProbe
+from odoo.addons.liwan_ai.tests.common import AiProbe, configure_usage_root
 from odoo.addons.liwan_api.controllers.common import ApiError
 from odoo.addons.liwan_api.tests.common import LiwanApiCase
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
@@ -136,6 +136,7 @@ class TestHelpAgent(AiProbe, LiwanApiCase):
 
     def setUp(self):
         super().setUp()
+        configure_usage_root(self)
         self._grant_ai_use(self.employee)
         self.authenticate('api_emp', 'api_emp_pass_123')
 

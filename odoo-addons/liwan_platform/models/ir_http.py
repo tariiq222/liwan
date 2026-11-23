@@ -49,14 +49,15 @@ UI_LOCALE_HEADER = 'X-Liwan-Ui-Locale'
 UI_LOCALES = {'ar': 'ar_001', 'en': 'en_US'}
 # The favicon version is the 12-hex content hash of the logo (``_logo_version`` in liwan_api), never a write time.
 VERSION_VALUE = re.compile(r'^[a-f0-9]{12}$')
+BEARER_HEADER = re.compile(r'^bearer\s+(.+)$', re.IGNORECASE)
 # Attachments are never served by Odoo's /web/content: each owning application streams
 # its own files from /api/v1/.../attachments/<id>/download after its capability check.
 LOGO_QUERY_KEYS = frozenset({'company', 'v'})
 
 
-# A bearer API key authenticates a request on no route by default: an application that has a machine caller registers its
-# one exact path by extending ``_liwan_bearer_routes``. Every other route with ``auth='bearer'`` (Odoo's own ``/json/2``
-# among them) is a 404 before the key is even looked at.
+# A bearer token authenticates a request on no route by default: an application that has a machine caller registers its
+# one exact path by extending ``_liwan_bearer_routes`` and decides the user in ``_liwan_bearer_user_id``. Every other route with
+# ``auth='bearer'`` (Odoo's own ``/json/2`` among them) is a 404 before the token is even looked at.
 
 
 def _query_keys(httprequest):
@@ -86,19 +87,41 @@ class LiwanPlatformIrHttp(models.AbstractModel):
 
     @classmethod
     def _liwan_bearer_routes(cls):
-        """The exact paths a bearer API key may reach; an application adds its own through ``super()``."""
+        """The exact paths a bearer token may reach; an application adds its own through ``super()``."""
         return frozenset()
 
     @classmethod
+    def _liwan_bearer_user_id(cls, token):
+        """The user id a bearer ``token`` speaks for on the current registered route, or ``None``; an application answers through ``super()``."""
+
+    @classmethod
+    def _liwan_bearer_unauthorized(cls):
+        """The JSON 401 the web app reads for a missing, malformed, unrecognised or archived-account bearer token."""
+        response = request.make_json_response({'code': 'unauthorized', 'message': 'A valid bearer token is required.'}, status=401)
+        return Unauthorized(response=response)
+
+    @classmethod
     def _auth_method_bearer(cls):
-        """Answer a missing or wrong key on a registered route with the JSON 401 the web app reads."""
-        try:
-            super()._auth_method_bearer()
-        except Unauthorized:
-            response = request.make_json_response(
-                {'code': 'unauthorized', 'message': 'A valid API key is required.'}, status=401,
-            )
-            raise Unauthorized(response=response) from None
+        """Authenticate a registered bearer route through the application that registered it, never through Odoo's API-key table.
+
+        Odoo's own check stores keys as hashes in ``res_users_apikeys``, which a derived credential cannot be installed into
+        without SQL on an Odoo table (R9). The application that owns the route decides which user a token speaks for. Stateless
+        like stock: the session is never saved. A missing, malformed or unrecognised token is the JSON 401 the web app reads.
+        """
+        header = request.httprequest.headers.get('Authorization') or ''
+        match = BEARER_HEADER.match(header)
+        uid = cls._liwan_bearer_user_id(match.group(1)) if match else None
+        if not uid:
+            raise cls._liwan_bearer_unauthorized()
+        if request.env.uid and request.env.uid != uid:
+            message = 'Session user does not match the bearer token.'
+            raise AccessDenied(message)
+        request.update_env(user=uid)
+        request.session.can_save = False
+        # Like stock, an archived account speaks for nobody.
+        if not request.env.user.active:
+            raise cls._liwan_bearer_unauthorized()
+        cls._auth_method_user()
 
     @classmethod
     def _auth_method_user(cls):
