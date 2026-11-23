@@ -723,6 +723,12 @@ def documented_counts(documented: dict) -> dict[str, int]:
     return {rel: case['count'] for rel, case in documented.get('cases', {}).items()}
 
 
+def documented_at(ref: str, root: Path, documented_file: Path) -> dict | None:
+    """The sudo registry content at REF, or None when REF has no such file; an unknown ref raises."""
+    ref_text = _git_show(root, ref, documented_file.relative_to(root).as_posix())
+    return json.loads(ref_text) if ref_text is not None else None
+
+
 def documented_growth(ref: str, root: Path, documented_file: Path) -> list[str]:
     """R7: a documented case that no longer exists in the code, or a count below it.
 

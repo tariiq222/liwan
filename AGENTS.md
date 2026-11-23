@@ -214,13 +214,17 @@ never add an entry or raise a count to make a check pass.
 - **R6** No condition on a customer name or customer type. Differences come from `commercial_mode`,
   entitlements and `customer_<name>_*` addons.
 - **R7** No new `sudo()` outside the documented cases. `tools/arch_documented_sudo.json` is the single
-  registry of them, per file, outside the shrink-only baseline. `tools/sudo_gate.py` (inside `npm test`)
-  fails a `sudo()` site beyond its file's documented cases and `tools/arch_baseline.json` count, naming
-  `file:line`, and requires every documented case to carry a non-boilerplate reason that names the
-  elevating call and the blocking ACL or rule (empty and duplicated reasons are rejected). A documented
-  count that the code no longer reaches fails as stale. Adding a case needs no approval trailer (owner
-  decision 2026-10-25); the reason itself is the record, and review of the actual diff is what judges it.
-  Document a case only after fixing ACLs/rules where possible.
+  registry of them, per file, outside the shrink-only baseline: each entry carries its `count`, a `kind`
+  (`acl_gap | own_design | temporary | public_entry | required`) and a `reason`. `tools/sudo_gate.py`
+  (inside `npm test`) fails a `sudo()` site beyond its file's documented cases and
+  `tools/arch_baseline.json` count, naming `file:line`, and requires every documented case to carry a
+  non-boilerplate reason that names the elevating call and the blocking ACL or rule (empty and duplicated
+  reasons are rejected), and a missing or unknown `kind` fails. A documented count that the code no
+  longer reaches fails as stale. With `--base` the gate also rejects a rise in the fixable total
+  (`acl_gap` + `own_design` + `temporary`) above the base ref, and relabelling an existing fixable case
+  to a non-fixable kind without rewriting its reason. Adding a case needs no approval trailer (owner
+  decision 2026-10-25); the `kind` and the reason are the record, and review of the actual diff is the
+  human gate on both. Document a case only after fixing ACLs/rules where possible.
 - **R8** Every feature works in `saas` and `non_saas`, or is explicitly commercial and hidden in `non_saas`.
 - **R9** Customise Odoo through its public extension points only: no edits to Odoo source, no new direct
   SQL on Odoo tables, no new override of a private access method on an Odoo model without a documented
@@ -351,12 +355,15 @@ cross-addon links.
 - Keep `/api/v1/people?q=` and its user-id `PersonRef` contract unchanged.
   HR employee ids and user ids are distinct resources and must not be merged.
 - `sudo()` is allowed only in the documented cases. `tools/arch_documented_sudo.json` is their single
-  source: per file, a count and a reason that names the elevating call and the blocking ACL or record
-  rule. `tools/sudo_gate.py` (inside `npm test`) fails any site beyond that registry plus the
-  `tools/arch_baseline.json` count, any weak or duplicated reason, and any documented count the code no
-  longer reaches. Do not add a case without documenting it and fixing ACLs/rules where possible.
-  Adding or raising one needs no approval trailer (owner decision 2026-10-25): the reason is the
-  record and review of the actual diff is the human gate. Weakening `tools/arch_layers.json` still
+  source: per file, a `count`, a `kind` (`acl_gap | own_design | temporary | public_entry | required`) and
+  a reason that names the elevating call and the blocking ACL or record rule. `tools/sudo_gate.py` (inside
+  `npm test`) fails any site beyond that registry plus the `tools/arch_baseline.json` count, any weak or
+  duplicated reason, any missing or unknown `kind`, and any documented count the code no longer reaches;
+  with `--base` it also rejects a rise in the fixable total (`acl_gap` + `own_design` + `temporary`) and
+  relabelling a fixable case to a non-fixable kind with its reason unchanged. Do not add a case without
+  documenting it and fixing ACLs/rules where possible.
+  Adding or raising one needs no approval trailer (owner decision 2026-10-25): the `kind` and the reason
+  are the record, and review of the actual diff is the human gate on both. Weakening `tools/arch_layers.json` still
   needs the owner's `Architecture-approved-by:` trailer; agents never add that trailer.
   `liwan_tasks`, `liwan_operations` and their bridges have no `sudo()` path. Never write `sudo()` inside
   an `@api.constrains` method: Odoo's `_validate_fields` already runs constraints on `self.sudo()`, so
