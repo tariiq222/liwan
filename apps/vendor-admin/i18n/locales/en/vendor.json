@@ -24,8 +24,8 @@
       "field": {
         "name": "Check the tenant name.",
         "inventory_target": "Select an available target.",
-        "catalog_version": "Select a published catalog version.",
-        "catalog_tier": "Choose a valid catalog composition.",
+        "catalog_version": "Select a published applications release.",
+        "catalog_tier": "Choose a valid tier of the applications release.",
         "reason": "Enter a reason.",
         "request_id": "The request identifier is invalid.",
         "page": "The selected page is invalid.",
@@ -174,7 +174,7 @@
     "tenants": {
       "details": "Customer installation",
       "noTargets": "No available environments are currently listed.",
-      "noPublishedCatalog": "A published catalog version is required before registering an installation.",
+      "noPublishedCatalog": "A published applications release is required before registering an installation.",
       "target": "Installation environment",
       "targetHelp": "Choose an available environment. Connection details stay private on the server.",
       "operations": "Operations access",
@@ -200,7 +200,7 @@
         "mode": "Commercial mode",
         "hosting": "Hosting model",
         "target": "Installation environment",
-        "catalogVersion": "Catalog version",
+        "catalogVersion": "Applications release",
         "catalogTier": "Catalog composition",
         "reason": "Reason",
         "adminName": "Administrator name",
@@ -237,6 +237,9 @@
         "cadence": "Billing cycle",
         "hint": "Creates the customer and their plan order; the tenant is provisioned once the order is paid or needs no payment.",
         "none": "No published plans. Publish a plan first.",
+        "noneStartable": "The published plans are trials or made for one customer.",
+        "noneStartableHint": "This form starts a paid subscription, not a trial.",
+        "viewPlans": "Open Plans",
         "forbidden": "Creating a tenant from a plan requires subscription management access."
       },
       "recentOperations": "Latest operations",
@@ -254,21 +257,31 @@
       "workspaceDetails": "Workspace details"
     },
     "catalog": {
-      "title": "Catalog",
       "tiers": {
         "core": "Core",
         "projects": "Projects",
         "people": "People",
         "messaging": "Messaging"
       },
-      "tabs": "Catalog sections",
+      "tabs": "Liwan applications sections",
       "applications": "Applications",
+      "glossary": {
+        "summary": "The difference between applications, bundles, and plans, in half a minute",
+        "app": "Application",
+        "appText": "A unit the customer works with, such as Projects, Finance, or HR.",
+        "release": "Applications release",
+        "releaseText": "Today's approved list of applications; prices are built from it. It is imported from a file and then published.",
+        "bundle": "Bundle",
+        "bundleText": "A price card for one application: its monthly and yearly price and its limits. Price changes start here.",
+        "plan": "Plan",
+        "planText": "What the customer actually buys every month; it includes the applications you approved for them."
+      },
       "intro": "The commercial catalog is built in order: applications first, then bundles, then plans. Each step is made of the one before it.",
       "stepsLabel": "Order of building the commercial catalog",
       "steps": {
         "apps": {
           "title": "Applications",
-          "hint": "A version you validate and publish; bundles are built on it."
+          "hint": "A release you validate and publish; bundles are built on it."
         },
         "bundles": {
           "title": "Bundles",
@@ -297,11 +310,31 @@
       "toBundles": "Start building bundles on it",
       "release": {
         "title": "Create a release for bundles",
-        "hint": "Bundles are built on a release created from this version. Needs a passkey confirmation."
+        "hint": "Bundles are built on a published bundle release from these applications. Needs a passkey confirmation."
       },
       "errors": {
         "conflict": "This version changed state. Reload the page and try again.",
         "catalog_invalid": "Validation of the version failed. Check its source with the platform operator, then try again."
+      },
+      "labels": {
+        "apps": {
+          "core": "Identity and permissions",
+          "platform": "Company workspace",
+          "api": "Shared platform services",
+          "projects": "Projects",
+          "people": "Human resources",
+          "messaging": "Private messaging",
+          "meetings": "Meetings and decisions"
+        },
+        "features": {
+          "projects": "Project management",
+          "meetings": "Meetings and decisions",
+          "hr": "Employee directory and documents",
+          "chat": "Private member conversations",
+          "users": "User capacity",
+          "storage": "Attachment capacity",
+          "projectLimit": "Project capacity"
+        }
       }
     },
     "backups": {
@@ -539,12 +572,12 @@
           "withdraw": "Bundle withdrawn"
         },
         "catalog": {
-          "imported": "Catalog imported",
-          "publish": "Catalog published",
-          "validate": "Catalog validated"
+          "imported": "Applications release imported",
+          "publish": "Applications release published",
+          "validate": "Applications release validated"
         },
         "catalog_release": {
-          "created": "Catalog release created"
+          "created": "Bundle release created"
         },
         "customer": {
           "admin_login_changed": "Customer registered e-mail changed"
@@ -721,8 +754,8 @@
         "account": "Team accounts",
         "tenant": "Customer workspaces",
         "operation": "Operations",
-        "catalog": "Catalog",
-        "catalog_release": "Catalog releases",
+        "catalog": "Applications releases",
+        "catalog_release": "Bundle releases",
         "plan": "Plans",
         "bundle": "Bundles",
         "order": "Orders",
@@ -741,7 +774,7 @@
         "shared_job": "Shared operation",
         "plan": "Plan",
         "bundle": "Bundle",
-        "catalog": "Catalog",
+        "catalog": "Applications release",
         "other": "Record"
       },
       "actors": {
@@ -752,101 +785,23 @@
         "legacy": "Former account"
       }
     },
-    "packages": {
-      "title": "Legacy packages",
-      "create": "Create package",
-      "empty": "There are no legacy packages.",
-      "noResults": "No packages match these filters. Clear the filters or try another name.",
-      "search": "Search packages",
-      "name": "Package name",
-      "descriptionField": "What this package is for",
-      "identity": "Package details",
-      "composition": "Application composition",
-      "compositionHint": "Choose one existing composition. Compositions are independent: HR does not include projects. Required platform applications are included below.",
-      "source": "Trusted software version",
-      "included": "Included applications and features",
-      "quotas": "Usage limits",
-      "quotaHint": "Choose a whole number or explicitly select unlimited for every limit. Zero permits no usage.",
-      "storageHint": "Attachment storage in MB (1 GB is 1024 MB); this does not limit the whole database or disk.",
-      "adminHint": "The initial administrator counts toward the user limit. Publication requires at least one user or unlimited; initial system attachments also need storage.",
-      "limited": "Set a limit",
-      "zeroHint": "Zero prevents use of this capacity. User and storage limits of zero can be saved as drafts but cannot be published.",
-      "noUsage": "No usage",
-      "required": "Complete this field.",
-      "invalidLimit": "Select unlimited or enter a whole number from 0 to 1,000,000,000 (the technical maximum).",
-      "saveDraft": "Save draft",
-      "details": "Package details",
-      "edit": "Edit package",
-      "version": "Version {count}",
-      "customers": "{count} customer on this version | {count} customers on this version",
-      "noSources": "No published software version is available. Ask the platform operator to provide a trusted published source before creating a package.",
-      "publishedEdit": "Published content is preserved. Return to the package and choose Edit package to create a new draft version.",
-      "editReviewHint": "Saving changes returns this version to draft and cancels its previous review.",
-      "history": "Package versions",
-      "technical": "Technical source details",
-      "sourceHash": "Source fingerprint",
-      "revisionId": "Version identifier",
-      "legacyHint": "This compatibility path uses the historical catalog without an approved commercial package. Existing unspecified quotas stay unlimited.",
-      "status": {
-        "all": "All states",
-        "draft": "Draft",
-        "validated": "Ready for approval",
-        "published": "Published and available",
-        "unavailable": "Published · unavailable"
-      },
-      "next": {
-        "draft": "Review package",
-        "validated": "Approve and publish",
-        "published": "Manage availability"
-      },
-      "tiers": {
-        "core": "Platform foundation",
-        "projects": "Projects",
-        "people": "Human resources",
-        "messaging": "Private messaging"
-      },
-      "apps": {
-        "core": "Identity and permissions",
-        "platform": "Company workspace",
-        "api": "Shared platform services",
-        "projects": "Projects",
-        "people": "Human resources",
-        "messaging": "Private messaging",
-        "meetings": "Meetings and decisions"
-      },
-      "features": {
-        "projects": "Project management",
-        "meetings": "Meetings and decisions",
-        "hr": "Employee directory and documents",
-        "chat": "Private member conversations",
-        "users": "User capacity",
-        "storage": "Attachment capacity",
-        "projectLimit": "Project capacity"
-      },
-      "limits": {
-        "users": "Users",
-        "storage": "Attachments",
-        "projects": "Projects"
-      },
-      "errors": {
-        "package_revision_conflict": "Someone changed this version. Reload the package before retrying; keep a copy of your unsaved changes.",
-        "package_transition_invalid": "This action is no longer available for the current state. Reload the package.",
-        "package_missing": "This package version no longer exists. Return to the list.",
-        "package_forbidden": "You do not have permission to manage packages.",
-        "package_limits_invalid": "The quotas do not match this composition. Check each usage limit.",
-        "package_unavailable": "This version is unavailable for new customers. Choose an available published version.",
-        "package_authority_mismatch": "The package no longer matches its trusted source. Ask the platform operator to check it.",
-        "package_admin_required": "The initial administrator counts as a user. Choose at least one user or unlimited before review and publication.",
-        "package_storage_required": "Attachment capacity must accommodate the installation’s initial system files. A zero storage limit cannot be published.",
-        "package_source_unavailable": "The trusted software version is unavailable. Select an available published source.",
-        "package_source_mismatch": "The trusted source changed. Select the current source and review this draft again.",
-        "published_catalog_missing": "Select an available published software version."
-      },
-      "retired": "Legacy packages are read-only: they cannot be created, edited or offered.",
-      "retiredHint": "Plans are sold from the Plans page. Customers already on a legacy package keep it unchanged."
-    },
     "bundles": {
-      "seed": {"action": "Create default bundles", "hint": "Publishes one bundle per application of the latest catalog release and adds them to the LiwanOS plan at placeholder prices you edit later.", "reason": "Create the default bundles for the LiwanOS plan", "done": "The default bundles were published.", "failed": "The bundles could not be created. Check the catalog and the approved policy."},
+      "seed": {
+        "action": "Create default bundles",
+        "hint": "Publishes one bundle per application of the latest applications release and adds them to the LiwanOS plan at placeholder prices you edit later.",
+        "reason": "Create the default bundles for the LiwanOS plan",
+        "confirmTitle": "Creating the default bundles also publishes a new plan",
+        "confirmEffect1": "Creates a simple bundle for every sellable application that has none yet.",
+        "confirmEffect2": "Publishes a new revision of the LiwanOS plan that includes the new bundles.",
+        "confirmEffect3": "Replaces the plan's optional applications list with this revision's bundles.",
+        "confirm": "Create and publish",
+        "createdCount": "One new bundle was created. | {count} new bundles were created.",
+        "planCreated": "A new plan was published.",
+        "nothingCreated": "Nothing new was created.",
+        "planLink": "Open the new plan",
+        "failed": "The bundles could not be created. Check the applications and the approved policy."
+      },
+      "help": "A bundle is one application's price card: its monthly and yearly price and its limits. Change an application's price or limits here.",
       "title": "Bundles",
       "create": "New bundle",
       "search": "Search bundles",
@@ -856,10 +811,10 @@
       "edit": "Edit bundle draft",
       "createRelease": "Create release and continue",
       "guide": {
-        "title": "Create a catalog release first",
-        "why": "A bundle is built on a catalog release: a fixed snapshot of the available apps and features, so a published bundle never changes underneath. There is none yet. Create one from the latest published catalog version with a reason, then continue building the bundle.",
+        "title": "Create an applications release first",
+        "why": "A bundle is built on a bundle release: a fixed snapshot of the available apps and features, so a published bundle never changes underneath. There is none yet. Create one from the latest published applications release with a reason, then continue building the bundle.",
         "steps": "Steps to create the bundle",
-        "step1": "Create a catalog release",
+        "step1": "Create a bundle release",
         "step2": "Build the bundle"
       },
       "usedBy": "Plans that include this bundle",
@@ -871,6 +826,7 @@
       "openCatalog": "Open Applications"
     },
     "plans": {
+      "help": "A plan is what the customer buys every month: it sets the bundles included at no extra cost and the optional ones priced when chosen.",
       "title": "Plans",
       "create": "New plan",
       "search": "Search plans",
@@ -969,7 +925,7 @@
       "sections": {
         "basics": "Basics",
         "ai": "AI assistant budget",
-        "release": "Catalog release",
+        "release": "Bundle release",
         "apps": "Apps and features",
         "limits": "Usage limits",
         "prices": "Prices",
@@ -986,7 +942,7 @@
         "name": "Name",
         "description": "Description",
         "audience": "Audience",
-        "release": "Catalog release",
+        "release": "Bundle release",
         "reason": "Reason",
         "currency": "Currency",
         "termMonths": "Contract term (months)",
@@ -995,19 +951,19 @@
         "branchLimit": "Extra branch limit",
         "includedUsers": "Included users minimum",
         "includedStorage": "Included storage minimum (MB)",
-          "storageStep": "Storage step (MB)",
-          "storageStepHint": "How much extra storage one purchase adds below the threshold.",
-          "storageStepThreshold": "Step threshold (MB)",
-          "storageStepThresholdHint": "At or above this much extra storage, the large step applies instead.",
-          "storageLargeStep": "Large storage step (MB)",
-          "storageLargeStepHint": "How much extra storage one purchase adds from the threshold upward.",
+        "storageStep": "Storage step (MB)",
+        "storageStepHint": "How much extra storage one purchase adds below the threshold.",
+        "storageStepThreshold": "Step threshold (MB)",
+        "storageStepThresholdHint": "At or above this much extra storage, the large step applies instead.",
+        "storageLargeStep": "Large storage step (MB)",
+        "storageLargeStepHint": "How much extra storage one purchase adds from the threshold upward.",
         "userPrice": "Extra user price",
         "storagePrice": "Extra storage price (GB)",
         "trialDays": "Trial days",
         "graceDays": "Grace days",
         "autoSuspend": "Auto-suspend when overdue",
         "autoRenew": "Allow auto-renew",
-        "catalogVersion": "Catalog version"
+        "catalogVersion": "Applications release"
       },
       "audience": {
         "public": "Public",
@@ -1017,7 +973,7 @@
       "bundle": {
         "appsRequired": "Select at least one app.",
         "dependencyBlock": "Resolve the dependency notices before saving.",
-        "releaseHint": "A bundle is built on a fixed catalog release.",
+        "releaseHint": "A bundle is built on a fixed bundle release.",
         "appsHint": "Core apps are always included. Locked features come with the app.",
         "grantedFeatures": "Selecting this application grants all of its selectable features:",
         "requires": "{app} requires {other}.",
@@ -1026,17 +982,17 @@
         "pricesHint": "Amounts in SAR with two decimals."
       },
       "plan": {
-      "usersRequired": "The included minimum must admit at least one user.",
-      "usersCapNote": "Release 1 sells up to 100 users. For more than 100 users, contact the platform owner.",
-      "usersCapExceeded": "The included users are more than the 100 users Release 1 sells. Lower it and save; larger plans are agreed outside the platform.",
+        "usersRequired": "The included minimum must admit at least one user.",
+        "usersCapNote": "Release 1 sells up to 100 users. For more than 100 users, contact the platform owner.",
+        "usersCapExceeded": "The included users are more than the 100 users Release 1 sells. Lower it and save; larger plans are agreed outside the platform.",
         "storageMinimumGb": "Enter the included storage minimum in whole gigabytes (a multiple of 1024 MB).",
-          "storageStepMisaligned": "The threshold must be a whole multiple of both steps, and the large step cannot be smaller than the small one.",
-          "storageStepTooLarge": "This step is larger than the database column allows (2048 GB).",
-      "quantitiesHint": "The minimums are covered by the base price; anything above them is priced per unit.",
-      "userPricesHint": "Price per user above the minimum, for each billing cadence.",
-      "storagePricesHint": "Price per gigabyte above the minimum, for each billing cadence.",
+        "storageStepMisaligned": "The threshold must be a whole multiple of both steps, and the large step cannot be smaller than the small one.",
+        "storageStepTooLarge": "This step is larger than the database column allows (2048 GB).",
+        "quantitiesHint": "The minimums are covered by the base price; anything above them is priced per unit.",
+        "userPricesHint": "Price per user above the minimum, for each billing cadence.",
+        "storagePricesHint": "Price per gigabyte above the minimum, for each billing cadence.",
         "bundlesRequired": "Select at least one bundle.",
-        "singleRelease": "All bundles must come from one catalog release.",
+        "singleRelease": "All bundles must come from one bundle release.",
         "policyMissing": "Pricing policy unavailable.",
         "policyRequired": "Choose the approved pricing policy this plan is priced under.",
         "vat": "VAT {rate}% exclusive",
@@ -1090,7 +1046,7 @@
         "withdrawReferenced": "A published plan references this bundle. Withdrawing it makes that plan unsellable until the plan moves to another bundle revision."
       },
       "blocked": {
-        "catalog": "Requires catalog management permission.",
+        "catalog": "Requires applications management permission.",
         "pricing": "Requires pricing management permission."
       },
       "errors": {
@@ -1103,9 +1059,9 @@
         "dependency_missing": "A required app is not in the bundle.",
         "app_conflict": "Two conflicting apps cannot be in the same bundle.",
         "dependency_cycle": "App dependencies are circular.",
-        "unknown_app": "App is not in the catalog release.",
-        "app_not_selectable": "This app is included with the platform or is not sold in this catalog, so it cannot be selected as an add-on.",
-        "catalog_release_mismatch": "Selected bundles come from a different catalog release.",
+        "unknown_app": "App is not in the applications release.",
+        "app_not_selectable": "This app is included with the platform or is not sold in this release, so it cannot be selected as an add-on.",
+        "catalog_release_mismatch": "Selected bundles come from a different bundle release.",
         "bundle_not_allowed": "Bundle is not allowed in this plan.",
         "bundle_missing": "An included bundle is missing.",
         "transition_forbidden": "This transition is not allowed.",
@@ -1113,7 +1069,7 @@
         "customers_attached": "A record with customers cannot be deleted.",
         "generic": "The request could not be completed.",
         "atField": "At field: {field}",
-        "pricingRequired": "This operation needs both catalog and pricing permissions.",
+        "pricingRequired": "This operation needs both applications and pricing permissions.",
         "bundle_unavailable": "Bundle is unpublished or withdrawn; pick a published, available bundle.",
         "bundle_duplicated": "Bundle is duplicated or both included and optional.",
         "bundle_delete_forbidden": "Only an unreferenced draft can be deleted.",
@@ -1122,8 +1078,8 @@
         "plan_unavailable": "This plan is unpublished or withdrawn.",
         "plan_delete_forbidden": "Only a draft with no customers can be deleted.",
         "policy_missing": "The approved pricing policy is unavailable.",
-        "release_missing": "Catalog release not found.",
-        "published_catalog_missing": "Pick a published, available catalog version.",
+        "release_missing": "Bundle release not found.",
+        "published_catalog_missing": "Pick a published, available applications release.",
         "quote_missing": "Quote not found.",
         "quote_kind_unsupported": "Preview supports new subscriptions only.",
         "terms_unsupported": "Customer terms are not supported in preview.",
@@ -1151,7 +1107,17 @@
         "payload_too_large": "The request is too large.",
         "unauthorized": "Session expired. Sign in again.",
         "vendor_unavailable": "Vendor service is temporarily unavailable. Try later.",
-        "method_not_allowed": "Method not allowed.", "tenant_upgrade_required": "This tenant has not been upgraded and cannot store the commercial expiry. Upgrade the Odoo image, then repeat the action.", "tenant_binding_unavailable": "No enabled tenant binding exists for this subscription, so the trial date cannot be pushed. Fix the binding and repeat.", "trial_not_reopenable": "This trial cannot reopen while a change is pending or after a paid conversion or renewal.", "trial_not_applied": "This trial's workspace is not active yet, so there is nothing to move to the free base. Wait for activation, then repeat.", "subscription_not_suspendable": "This subscription cannot be suspended in its current state.", "subscription_not_suspended": "This subscription is not suspended.", "trial_order_unavailable": "No applied order is available to attach the date change to. Wait for fulfilment, then repeat.", "trial_already_used": "This customer has already used their trial.", "trial_not_available": "A trial can only start before the customer has an active subscription.", "trial_disabled": "The selected plan does not offer a trial.",
+        "method_not_allowed": "Method not allowed.",
+        "tenant_upgrade_required": "This tenant has not been upgraded and cannot store the commercial expiry. Upgrade the Odoo image, then repeat the action.",
+        "tenant_binding_unavailable": "No enabled tenant binding exists for this subscription, so the trial date cannot be pushed. Fix the binding and repeat.",
+        "trial_not_reopenable": "This trial cannot reopen while a change is pending or after a paid conversion or renewal.",
+        "trial_not_applied": "This trial's workspace is not active yet, so there is nothing to move to the free base. Wait for activation, then repeat.",
+        "subscription_not_suspendable": "This subscription cannot be suspended in its current state.",
+        "subscription_not_suspended": "This subscription is not suspended.",
+        "trial_order_unavailable": "No applied order is available to attach the date change to. Wait for fulfilment, then repeat.",
+        "trial_already_used": "This customer has already used their trial.",
+        "trial_not_available": "A trial can only start before the customer has an active subscription.",
+        "trial_disabled": "The selected plan does not offer a trial.",
         "users_limit_exceeded": "Release 1 sells up to 100 users per company. Lower the requested users and save, or record a custom agreement outside the platform.",
         "transfer_amount_mismatch": "The transfer amount does not match the invoice total. Correct the amount, then record the transfer again.",
         "transfer_reference_in_use": "This transfer reference is already recorded on another invoice. Use the bank statement line's reference, not one already used.",
@@ -1175,10 +1141,10 @@
         "invoice_not_paid": "Only a paid invoice can be refunded. This invoice is still issued or void, so there is no payment to return.",
         "refund_already_requested": "A refund note already exists for this invoice. Record its provider reference from the invoice's adjustments list instead of opening a second one.",
         "storage_step_invalid": "Extra storage is bought in the plan's steps. Lower the requested storage, or raise the plan's storage step.",
-          "storage_step_misaligned": "The storage steps do not line up: the threshold must be a multiple of the small step, and the large step must not be smaller than it.",
+        "storage_step_misaligned": "The storage steps do not line up: the threshold must be a multiple of the small step, and the large step must not be smaller than it.",
         "onboarding_first_order_only": "The onboarding fee applies to a paid first order only. Take the change or renewal without it, and record it as a separate order if it is due.",
         "onboarding_unavailable": "No onboarding fee is set. Set it in Billing settings before quoting onboarding.",
-        "catalog_source_not_publishable": "Only the current catalog source can be published. Rebuild the catalog from the release source, then validate and publish it again.",
+        "catalog_source_not_publishable": "Only the current applications release source can be published. Rebuild the release from its source, then validate and publish it again.",
         "tenant_required": "This subscription has no workspace linked yet, so the change cannot be reserved. Finish provisioning the workspace, then repeat the action."
       },
       "keys": {
@@ -1243,9 +1209,45 @@
       "resendInvitation": "Resend invitation",
       "resendInvitationHint": "Sends a new invitation to the customer administrator and replaces the previous one. It is valid for 72 hours.",
       "invitationQueued": "The invitation is queued for delivery.",
-      "payLink": {"create": "Create hosted payment link (saves no card)", "label": "Payment link", "copy": "Copy link", "copied": "Link copied.", "copyFailed": "Copy failed. Copy it by hand.", "failed": "The payment link could not be created. Check the payment provider setup."},
-      "trial": {"title": "Trial", "ends": "Ends on", "remaining": "Days remaining", "state": "State", "extend": "Extend trial", "end": "End trial now", "extendHint": "Add days to the trial end. The action is audited.", "endHint": "Ends the trial now and moves the customer to the free base at once. No invoice is issued and their data stays. They can pay later from their workspace, and you can reopen the trial. The action is audited.", "reopen": "Reopen trial", "reopenHint": "Restores the trial configuration for the chosen number of days. Any unpaid first renewal invoice is voided. The action is audited.", "days": "Days", "reason": "Reason", "readOnly": "Changing a trial requires the subscription management capability.", "states": {"trialing": "Trial", "active": "Active", "past_due": "Past due", "suspended": "Suspended", "pending": "Provisioning", "cancelled": "Cancelled"}},
-      "trialStart": {"title": "Start a trial", "hint": "The customer has no subscription yet. A trial creates the workspace and sends the administrator invitation; the customer can pay from inside the workspace at any time during the trial. If they do not, the trial ends on its deadline and they move to the free base.", "plan": "Plan", "cadence": "Billing cadence", "action": "Start {days}-day trial", "noPlans": "No published plan offers a trial."},
+      "payLink": {
+        "create": "Create hosted payment link (saves no card)",
+        "label": "Payment link",
+        "copy": "Copy link",
+        "copied": "Link copied.",
+        "copyFailed": "Copy failed. Copy it by hand.",
+        "failed": "The payment link could not be created. Check the payment provider setup."
+      },
+      "trial": {
+        "title": "Trial",
+        "ends": "Ends on",
+        "remaining": "Days remaining",
+        "state": "State",
+        "extend": "Extend trial",
+        "end": "End trial now",
+        "extendHint": "Add days to the trial end. The action is audited.",
+        "endHint": "Ends the trial now and moves the customer to the free base at once. No invoice is issued and their data stays. They can pay later from their workspace, and you can reopen the trial. The action is audited.",
+        "reopen": "Reopen trial",
+        "reopenHint": "Restores the trial configuration for the chosen number of days. Any unpaid first renewal invoice is voided. The action is audited.",
+        "days": "Days",
+        "reason": "Reason",
+        "readOnly": "Changing a trial requires the subscription management capability.",
+        "states": {
+          "trialing": "Trial",
+          "active": "Active",
+          "past_due": "Past due",
+          "suspended": "Suspended",
+          "pending": "Provisioning",
+          "cancelled": "Cancelled"
+        }
+      },
+      "trialStart": {
+        "title": "Start a trial",
+        "hint": "The customer has no subscription yet. A trial creates the workspace and sends the administrator invitation; the customer can pay from inside the workspace at any time during the trial. If they do not, the trial ends on its deadline and they move to the free base.",
+        "plan": "Plan",
+        "cadence": "Billing cadence",
+        "action": "Start {days}-day trial",
+        "noPlans": "No published plan offers a trial."
+      },
       "title": "Customers",
       "search": "Search by name, administrator e-mail, workspace address or ID",
       "empty": "No commercial customers yet.",
@@ -1312,7 +1314,7 @@
         "not_required": "No payment required",
         "awaiting_payment": "Awaiting payment",
         "paid": "Paid",
-                "refund_pending": "Refund pending",
+        "refund_pending": "Refund pending",
         "refunded": "Refunded"
       },
       "fulfillment": {
@@ -1329,7 +1331,11 @@
         "card": "Payment card",
         "cardNone": "No card saved",
         "cardExpiry": "Card expiry",
-        "cardState": { "active": "Active", "inactive": "Inactive", "expired": "Expired" },
+        "cardState": {
+          "active": "Active",
+          "inactive": "Inactive",
+          "expired": "Expired"
+        },
         "trialEnds": "Trial ends",
         "trialOutcome": "Trial outcome",
         "graceEnds": "Grace ends",
@@ -1386,7 +1392,7 @@
         "includedBranches": "Included extra branches",
         "termMonths": "Term (months)",
         "extraBranchesLimit": "Extra branches limit",
-      "meteredHint": "Users and storage change through the customer subscription itself (raise or lower), not through custom terms. Only the branch limit remains here.",
+        "meteredHint": "Users and storage change through the customer subscription itself (raise or lower), not through custom terms. Only the branch limit remains here.",
         "inherit": "As in the plan",
         "invalidValue": "Invalid value.",
         "nothing": "Change at least one value.",
@@ -1512,7 +1518,11 @@
           "title": "Deletion run",
           "runnerOn": "The deletion runner is on.",
           "runnerOff": "The deletion runner is off: it records its plan and carries nothing out.",
-          "runnerOffReasons": {"kill_switch_off": "The kill switch is off.", "mail_host_unset": "No mail host is configured, so no notice could be delivered.", "local_mail_capture": "The mail host is a local capture (localhost or mailpit): a mail accepted there reaches no customer."},
+          "runnerOffReasons": {
+            "kill_switch_off": "The kill switch is off.",
+            "mail_host_unset": "No mail host is configured, so no notice could be delivered.",
+            "local_mail_capture": "The mail host is a local capture (localhost or mailpit): a mail accepted there reaches no customer."
+          },
           "restoreHold": "Restore hold: after a control plane restore no request leaves its final hold before this time.",
           "holdUntil": "Hold ends",
           "deletingAt": "Access stopped",
@@ -1582,7 +1592,7 @@
             "database_name_invalid": "The database name is invalid",
             "database_filestore_mismatch": "The database does not match the file folder",
             "database_blocklisted": "The database is protected from deletion",
-            "database_is_scratch_copy": "The database is a scratch copy",
+            "database_is_restore_copy": "The database is listed as a restore copy",
             "database_is_control_plane": "The database is the control plane database",
             "host_invalid": "The workspace host is invalid",
             "identity_query_failed": "The workspace identity could not be read",
@@ -1651,7 +1661,9 @@
             "reinstate": "Reinstate the workspace"
           }
         },
-        "errors": { "deletion_in_progress": "The deletion has passed its point of no return: the request can no longer be withdrawn." }
+        "errors": {
+          "deletion_in_progress": "The deletion has passed its point of no return: the request can no longer be withdrawn."
+        }
       },
       "cancelOrder": {
         "action": "Cancel pending order",
@@ -1726,19 +1738,19 @@
         "termsPlan": "With plan terms"
       },
       "newPage": {
-        "noRelease": "There is no catalog release yet.",
-        "noReleaseHint": "Publish a catalog release from the catalog page before adding the first customer, or the quote will fail.",
-        "legacyDescription": "Register a customer instance from a published catalog.",
+        "noRelease": "There is no applications release yet.",
+        "noReleaseHint": "Publish an applications release from the applications page before adding the first customer, or the quote will fail.",
+        "legacyDescription": "Register a customer instance from a published applications release.",
         "customerTitle": "Customer and administrator",
         "customerHint": "The customer name and its first administrator in the workspace.",
         "planTitle": "Plan and billing",
         "price": "Price per cycle by plan",
         "onboarding": "Add assisted onboarding",
         "onboardingHint": "A one-time line on this first invoice only, at the fee in the billing settings. Renewals never carry it.",
-        "legacyTitle": "Legacy catalog path",
-        "legacyHint": "This deployment has no shared workspaces, so the customer is registered as a standalone instance of a published catalog instead of a plan.",
+        "legacyTitle": "Legacy registration path",
+        "legacyHint": "This deployment has no shared workspaces, so the customer is registered as a standalone instance of a published applications release instead of a plan.",
         "hostingTitle": "Environment and hosting",
-        "catalogTitle": "Catalog",
+        "catalogTitle": "Liwan applications",
         "nameTitle": "Customer",
         "planHint": "Choose the plan the customer subscribes to and its billing cycle."
       },

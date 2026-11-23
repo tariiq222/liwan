@@ -14,6 +14,7 @@ This file is the single source of repository instructions for every coding agent
 
 | Subject | Owning reference |
 | --- | --- |
+| Task entry gate by request type | [Playbook](docs/agents/playbook.md) |
 | Architecture, product contracts, security and authorization boundaries | This file |
 | Presentation and shared design | [DESIGN.md](DESIGN.md) |
 | Layer-specific implementation | [Odoo/API rules](docs/agents/odoo-rules.md), [web rules](docs/agents/web-rules.md) |
@@ -281,11 +282,11 @@ another application) needs the owner's approval, recorded by the owner as an
 
 ## Preserve approved work on every merge — 2026-09-08
 
-Before every integration, including from an older worktree, follow the six steps in
-`docs/agents/integration-rules.md`. They are mandatory, as is its definition of the owner
-keywords «كومت ودمج», «انشر» and «دمج»/«ادمج». These are agent workflow instructions, not a Git hook or
-server-enforced branch protection; do not claim automated merge protection exists unless it has
-actually been installed and verified.
+Before every integration, including from an older worktree, follow the six steps and the
+owner keywords («كومت ودمج», «انشر», «دمج»/«ادمج») in
+[integration-rules.md](docs/agents/integration-rules.md), which own them. These are agent workflow
+instructions, not a Git hook or server-enforced branch protection; do not claim automated merge
+protection exists unless it has actually been installed and verified.
 
 ## Agent execution
 
@@ -373,24 +374,14 @@ cross-addon links.
 ## Safe lane workflow
 
 Work happens in a pool of lanes: permanent worktrees in `<main checkout>/.worktrees/`, any tool, no fixed
-names. A lane holds one branch and one writing session at a time. `npm run wt -- take <branch> --owner <who>`
-takes a resting lane and starts the branch from `origin/main` (or resumes a parked local branch),
-`npm run wt -- done` returns it after the merge (`--park` keeps the branch and rests the lane), and
-`npm run wt -- lane add <name>` adds a lane when none is free. Each tool is opened with the lane folder as its
-working directory and its built-in worktree option off. Inside its lane a session may use any git command on its
-own unpublished branch. Read-only and review sessions take no lane. `npm run wt -- check` reports violations
-and changes nothing; the full rules are in `docs/parallel-work.md` ("Lane pool").
-
-Never create another worktree: no bare `git worktree add` or tool-owned worktree folder (the
-Claude app's `worktrees` folder under `.claude`) unless the owner asks for one in words for that task; it is then a lane too (`wt lane add`, removed with
-`wt lane remove` after the merge). During a rebase the pre-commit guard compares the rebase's branch to the lane record.
-Lanes have independent `node_modules` and
-`.nuxt` (never symlinked); install with `npm ci --ignore-scripts`. Ports, databases and Odoo/Nuxt
-endpoints come from the lane's `.env.worktree` profile, not from command-line overrides.
-One writer owns each file and one orchestrator owns shared files, Git integration, runtime state
-and final checks; install, port and collision rules are in `docs/parallel-work.md`. Never run
+names; one task, one branch, one writing session per lane. Take one with
+`npm run wt -- take <branch> --owner <who>`, return it after the merge with `npm run wt -- done`, and
+never create another worktree (`git worktree add` or a tool-owned folder) unless the owner asks for one
+in words for that task; it then becomes a lane. Read-only and review sessions take no lane. Never run
 tests against `liwan_dev` or `odoo19`; use a scratch database. Temporary integration databases,
 ports and logs are disposable and are not production evidence.
+The take record, command semantics, install and port rules, git freedom inside a lane, and the
+violation list (`npm run wt -- check`) are owned by `docs/parallel-work.md` ("Lane pool").
 
 The LiwanOS Git remote is `origin` (`https://github.com/tariiq222/liwan.git`), tracked by `main`.
 Fetch and compare `main` with `origin/main` before integration work. Do not force-push or

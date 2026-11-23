@@ -1,10 +1,10 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Encryption at rest of the secrets LiwanOS stores (channel tokens, gateway keys).
 
-Fernet under a key derived (HKDF-SHA256) per purpose and per database from the platform secret
+Fernet under a key derived (HKDF-SHA256) per purpose and per database identity (the stock ``database.uuid`` parameter) from the platform secret
 storage master key in the environment variable LIWAN_INBOX_SECRET_KEY (urlsafe base64 of 32
-bytes), shared by every LiwanOS secret. Without a valid master key nothing can be stored or
-read: the caller gets a clear UserError.
+bytes), shared by every LiwanOS secret. Without a valid master key or database identity nothing can
+be stored or read: the caller gets a clear UserError.
 """
 import base64
 import binascii
@@ -18,6 +18,7 @@ from odoo.exceptions import UserError
 
 KEY_ENV = 'LIWAN_INBOX_SECRET_KEY'
 MASTER_KEY_BYTES = 32
+DATABASE_UUID_PARAM = 'database.uuid'
 
 
 def _fernet(env, purpose):
@@ -25,11 +26,12 @@ def _fernet(env, purpose):
         master = base64.urlsafe_b64decode(os.environ.get(KEY_ENV, '').encode())
     except (binascii.Error, ValueError):
         master = b''
-    if len(master) != MASTER_KEY_BYTES:
+    database_uuid = env['ir.config_parameter']._get_param(DATABASE_UUID_PARAM)
+    if len(master) != MASTER_KEY_BYTES or not database_uuid:
         raise UserError(env._('Secret storage is not configured.'))
     derived = HKDF(
         algorithm=hashes.SHA256(), length=MASTER_KEY_BYTES, salt=None,
-        info=purpose.encode() + b':' + env.cr.dbname.encode(),
+        info=purpose.encode() + b':' + database_uuid.encode(),
     ).derive(master)
     return Fernet(base64.urlsafe_b64encode(derived))
 

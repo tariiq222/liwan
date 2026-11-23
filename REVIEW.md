@@ -106,4 +106,6 @@ compatibility path or a second UI library) is not applied.
 ## How to report
 
 Findings first, ranked by severity, each with `file:line` and the input or state that breaks it.
-No style commentary unless it hides a bug. If nothing is wrong, say so in one line. The Odoo upstream checkout remains read-only, including its source, configuration and Git state. Read framework source with Read or Grep; read-only Git inspection (`status`, `log`, `diff`, `rev-parse`) is allowed by `docs/parallel-work.md`. Never change its index, refs, configuration or worktree.
+No style commentary unless it hides a bug. If nothing is wrong, say so in one line. The Odoo
+upstream checkout is read-only: its source, configuration and Git rules are owned by
+`docs/parallel-work.md`.
