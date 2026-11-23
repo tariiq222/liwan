@@ -90,7 +90,7 @@ class HrPayrollFilesController(http.Controller):
     @api_handler
     @hr_rule_handler
     @requires_feature('hr.enabled', 'hr.payroll', operation='write')
-    @requires_capability('hr.payroll.read')
+    @requires_capability('hr.payroll.finance.manage')
     def bank_file(self, run_id, **payload):
         """The bank salary file of a fixed run: employees with a net to pay, each of them with an IBAN."""
         _require_same_site_json()
@@ -108,7 +108,7 @@ class HrPayrollFilesController(http.Controller):
     @api_handler
     @hr_rule_handler
     @requires_feature('hr.enabled', 'hr.payroll', operation='write')
-    @requires_capability('hr.payroll.read')
+    @requires_capability('hr.payroll.finance.manage')
     def wps_file(self, run_id, **payload):
         """The WPS file of a fixed run: every payslip, zero net included, once its totals add up."""
         _require_same_site_json()

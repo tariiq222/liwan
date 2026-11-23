@@ -46,7 +46,7 @@ const employeeNames = computed(() => new Map(rows.value.map(row => [row.employee
 const transitions = useHrPayrollRunTransition(() => runId.value ?? 0)
 const patchInputs = usePatchHrPayslipInputs(() => runId.value ?? 0)
 const { $api, $download } = useApi()
-const { can } = useAccess()
+const { can, capabilities } = useAccess()
 const { me } = useMe()
 // The salary files are kept server-side, so they are writes: a read-only tenant is refused, and the buttons say so first.
 const filesWritable = computed(() => payrollFilesWritable(me.value))
@@ -266,6 +266,7 @@ const partial = computed(() => !!run.value && !payslips.isLoading.value && rows.
         :profiles-ready="!!profiles.data.value"
         :pending="downloading"
         :writable="filesWritable"
+        :can-issue="capabilities.includes('hr.payroll.finance.manage')"
         :default-date="localIsoDay()"
         :gosi-to="recordChildTo(`/hr/payroll/${run.id}/gosi`, route.query, sourcePaths, route.hash)"
         @download="downloadFile"

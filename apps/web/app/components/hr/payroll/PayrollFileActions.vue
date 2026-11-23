@@ -14,6 +14,8 @@ const props = defineProps<{
   pending: Kind | null
   /** False while the tenant is read-only (`hr.payroll` not writable): the files are kept server-side, so they are not offered. */
   writable: boolean
+  /** False without `hr.payroll.finance.manage`: only the GOSI link is offered, the payment files are issued by finance. */
+  canIssue: boolean
   /** The value date the bank file starts with (`YYYY-MM-DD`). */
   defaultDate: string
   /** The GOSI statement page of the run. */
@@ -40,7 +42,7 @@ function download(kind: Kind) {
 
 <template>
   <SharedFormSection class="liwan-print-hide" panel :title="t('hrPayroll.files.title')" :description="t('hrPayroll.files.hint')" data-testid="hr-payroll-files">
-    <div class="liwan-auto-grid">
+    <div v-if="props.canIssue" class="liwan-auto-grid">
       <UFormField :label="t('hrPayroll.files.bankProfile')" name="hr-payroll-file-bank-profile">
         <USelect id="hr-payroll-file-bank-profile" class="w-full" :items="items('bank')" :model-value="profileId('bank')" @update:model-value="chosen.bank = String($event)" :disabled="!hydrated || props.pending !== null" data-testid="hr-payroll-file-bank-profile" />
       </UFormField>
@@ -52,11 +54,11 @@ function download(kind: Kind) {
       </UFormField>
     </div>
     <div class="flex flex-wrap items-center gap-2">
-      <UButton color="primary" variant="outline" icon="i-lucide-landmark" :disabled="!canDownload('bank')" :loading="props.pending === 'bank'" :label="t('hrPayroll.files.downloadBank')" data-testid="hr-payroll-download-bank" @click="download('bank')" />
-      <UButton color="primary" variant="outline" icon="i-lucide-file-spreadsheet" :disabled="!canDownload('wps')" :loading="props.pending === 'wps'" :label="t('hrPayroll.files.downloadWps')" data-testid="hr-payroll-download-wps" @click="download('wps')" />
+      <UButton v-if="props.canIssue" color="primary" variant="outline" icon="i-lucide-landmark" :disabled="!canDownload('bank')" :loading="props.pending === 'bank'" :label="t('hrPayroll.files.downloadBank')" data-testid="hr-payroll-download-bank" @click="download('bank')" />
+      <UButton v-if="props.canIssue" color="primary" variant="outline" icon="i-lucide-file-spreadsheet" :disabled="!canDownload('wps')" :loading="props.pending === 'wps'" :label="t('hrPayroll.files.downloadWps')" data-testid="hr-payroll-download-wps" @click="download('wps')" />
       <UButton color="neutral" variant="outline" icon="i-lucide-shield-check" :to="props.gosiTo" :label="t('hrPayroll.gosiStatement.open')" data-testid="hr-payroll-open-gosi" />
     </div>
-    <p v-if="!props.writable" class="text-sm text-muted" data-testid="hr-payroll-files-read-only">{{ t('hrPayroll.files.readOnly') }}</p>
-    <p v-if="props.profilesReady && props.profiles.length === 0" class="text-sm text-muted" data-testid="hr-payroll-files-no-profiles">{{ t('hrPayroll.files.noProfiles') }}</p>
+    <p v-if="props.canIssue && !props.writable" class="text-sm text-muted" data-testid="hr-payroll-files-read-only">{{ t('hrPayroll.files.readOnly') }}</p>
+    <p v-if="props.canIssue && props.profilesReady && props.profiles.length === 0" class="text-sm text-muted" data-testid="hr-payroll-files-no-profiles">{{ t('hrPayroll.files.noProfiles') }}</p>
   </SharedFormSection>
 </template>
