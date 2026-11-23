@@ -1,24 +1,26 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { H3Event } from 'h3'
-import { AI_USAGE_SERVICE_LIMITS, AiUsageBatchSchema, AiUsageServiceBatchSchema } from '@liwan/contracts'
-import { createUsageLedger, SPOOL_MAX_AGE_MS } from '../usage'
+import { AI_USAGE_SERVICE_LIMITS, AiUsageServiceBatchSchema } from '@liwan/contracts'
+import { usageBearer } from '../recorder'
+import { createUsageLedger, retryUsage, SPOOL_MAX_AGE_MS } from '../usage'
 
-const odooJson = vi.hoisted(() => vi.fn())
 const odooServiceUsageJson = vi.hoisted(() => vi.fn())
-vi.mock('../upstream', async importOriginal => ({ ...await importOriginal<typeof import('../upstream')>(), odooJson, odooServiceUsageJson }))
+vi.mock('../upstream', async importOriginal => ({ ...await importOriginal<typeof import('../upstream')>(), odooServiceUsageJson }))
+// A request names its tenant by `db` (a shared deployment); one without it is a dedicated deployment's, whose database is NUXT_ODOO_DB.
+vi.mock('../../tenantRequest', () => ({ tenantRequest: (event: { db?: string }) => event.db ? { database: event.db } : null }))
 
+const ROOT = 'c3'.repeat(32)
+/** The spool lives as long as the process, so each test reports in a database of its own and never retries another test's rows. */
+let tests = 0
+let DATABASE = ''
+let BEARER = ''
 const callEvent = (id: string, extra: Record<string, unknown> = {}) => ({ call_id: id.padStart(16, '0'), kind: 'plan', capability: 'standard', billing: 'platform', provider: 'openrouter', model: 'anthropic/claude-sonnet-4.5', called_at: '2026-10-27T10:00:00Z', ...extra })
 const usageEvent = (id: string, extra: Record<string, unknown> = {}) => ({ call_id: id.padStart(16, '0'), outcome: 'ok', input_tokens: 120, output_tokens: 7, cost: 4, charge: 5, ...extra })
-/** Each test reports as its own session, because the spool is per session and one test must never retry another's rows. */
-const ledgerEvent = (session: string) => ({ node: { req: { headers: { cookie: `session_id=${session}` } } } }) as unknown as H3Event
-/** A request carrying a whole cookie jar, for when another cookie rides along with the session. */
-const cookieEvent = (cookie: string) => ({ node: { req: { headers: { cookie } } } }) as unknown as H3Event
-const event = ledgerEvent('plain')
-/** The run every flush reports for unless a test says otherwise: it started in company 1. */
-const RUN = { owner: { user: '7' }, company: '1' }
-/** A flush that observed nothing is the retry trigger for the rows an earlier refused report left behind. */
-const retried = (session: H3Event) => createUsageLedger().flush(session, 'r_retry', RUN)
-const sent = () => odooJson.mock.calls.map(([, , , options]) => options as { body: { items: Record<string, unknown>[] }; signal: unknown })
+/** A request whose session is gone (no cookie at all): the report never needs one. */
+const noSession = {} as unknown as H3Event
+/** A request of one tenant of a shared deployment. */
+const sharedEvent = (db: string) => ({ db }) as unknown as H3Event
+const SOMEONE = { user: '7', company: '1' }
 const logged = (spy: { mock: { calls: unknown[][] } }) => spy.mock.calls.map(call => call[0])
 
 /** The retry window after a refused batch, as the module under test defines it. */
@@ -36,20 +38,24 @@ const ledgerOf = (count: number, first = 0) => {
   }
   return ledger
 }
-const conversations = (call: { body: { items: Record<string, unknown>[] } }) => call.body.items.map(item => item.conversation_id)
 
 beforeEach(() => {
   // Only the clock is faked: the module reads `Date.now()` and nothing else, and promise scheduling stays real.
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(NOW)
-  odooJson.mockReset()
-  odooJson.mockResolvedValue({ status: 200, body: { items: [], total: 0 } })
   odooServiceUsageJson.mockReset()
   odooServiceUsageJson.mockResolvedValue({ status: 200, body: { items: [], total: 0 } })
+  vi.stubEnv('LIWAN_AI_USAGE_KEY', ROOT)
+  vi.stubEnv('LIWAN_TENANCY_MODE', 'dedicated')
+  DATABASE = `liwan_usage_db_${++tests}`
+  BEARER = usageBearer(ROOT, DATABASE)
+  vi.stubEnv('NUXT_ODOO_DB', DATABASE)
 })
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllEnvs() })
 
 describe('usage ledger', () => {
+  const sent = () => odooServiceUsageJson.mock.calls.map(([, , body]) => body as { items: Record<string, unknown>[] })
+
   it('pairs a call with its usage and reports one row per attempt', async () => {
     const ledger = createUsageLedger()
     expect(ledger.observe('model_call', callEvent('a1'))).toBe(true)
@@ -59,30 +65,11 @@ describe('usage ledger', () => {
     ledger.observe('model_call', callEvent('c3', { kind: 'title' }))
     ledger.observe('model_usage', usageEvent('c3', { input_tokens: 20, output_tokens: 3 }))
     ledger.endStream()
-    await ledger.flush(event, 'r_1', RUN)
-    expect(odooJson).toHaveBeenCalledTimes(1)
-    const [, method, path] = odooJson.mock.calls[0]!
-    expect([method, path]).toEqual(['POST', '/api/v1/ai/usage'])
-    const { body, signal } = sent()[0]!
-    expect(signal).toBeNull()
-    expect(AiUsageBatchSchema.parse(body).items.map(item => [item.call_id, item.kind, item.outcome, item.input_tokens, item.output_tokens, item.conversation_id])).toEqual([
+    await ledger.flush(noSession, 'r_1', { owner: { user: '7' }, company: '1' })
+    expect(odooServiceUsageJson).toHaveBeenCalledTimes(1)
+    expect(AiUsageServiceBatchSchema.parse(sent()[0]).items.map(item => [item.call_id, item.kind, item.outcome, item.input_tokens, item.output_tokens, item.conversation_id])).toEqual([
       ['00000000000000a1', 'plan', 'retried', null, null, 'r_1'], ['00000000000000b2', 'plan', 'ok', 120, 7, 'r_1'], ['00000000000000c3', 'title', 'ok', 20, 3, 'r_1'],
     ])
-    expect(body.items[0]).toMatchObject({ provider: 'openrouter', model: 'anthropic/claude-sonnet-4.5', called_at: '2026-10-27T10:00:00Z' })
-  })
-
-  it('skips a model_usage whose charge has no cost and closes that call as aborted', async () => {
-    const ledger = createUsageLedger()
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-    ledger.observe('model_call', callEvent('a1'))
-    ledger.observe('model_usage', usageEvent('a1', { cost: null, charge: 5 }))
-    await ledger.flush(event, 'r_bad', RUN)
-    expect(sent()[0]!.body.items).toEqual([expect.objectContaining({ outcome: 'aborted', cost: null, charge: null })])
-  })
-
-  it('strips cost and charge on the cookie path, which Odoo refuses from a session', async () => {
-    await ledgerOf(2).flush(ledgerEvent('cookie-cost'), 'r_cookie', RUN)
-    expect(sent()[0]!.body.items.map(item => [item.cost, item.charge])).toEqual([[null, null], [null, null]])
   })
 
   it('does not consume the events of the browser stream', () => {
@@ -90,332 +77,73 @@ describe('usage ledger', () => {
     for (const name of ['token', 'answer', 'tool_request', 'run', 'done']) expect(ledger.observe(name, { text: 'x' })).toBe(false)
   })
 
-  it('re-sends a retried batch row for row, with the call id that makes Odoo count it once', async () => {
-    // Issue #557: the retry carries the same `call_id`, so Odoo's unique (user, conversation, call) index settles it.
-    const session = ledgerEvent('resent')
-    odooJson.mockRejectedValueOnce(new TypeError('answer never arrived'))
-    await ledgerOf(2).flush(session, 'r_resent', RUN)
-    expect(sent()[0]!.body.items.map(item => item.call_id)).toEqual(['0000000000000000', '0000000000000001'])
-
-    advance(RETRY_AFTER_MS + 1)
-    await retried(session)
-    // The retry repeats the same attempts: Odoo answers success and records the two rows it already holds.
-    expect(sent()[1]!.body.items.map(item => item.call_id)).toEqual(['0000000000000000', '0000000000000001'])
-    expect(sent()[1]!.body.items).toEqual(sent()[0]!.body.items)
-  })
-
-  it('reports a call whose stream ended before its usage as aborted without tokens', async () => {
+  it('skips a model_usage whose charge has no cost and closes that call as aborted', async () => {
     const ledger = createUsageLedger()
+    vi.spyOn(console, 'error').mockImplementation(() => {})
     ledger.observe('model_call', callEvent('a1'))
-    ledger.endStream()
-    await ledger.flush(event, 'r_1', RUN)
-    expect(sent()[0]!.body.items).toEqual([expect.objectContaining({ outcome: 'aborted', input_tokens: null, output_tokens: null })])
+    ledger.observe('model_usage', usageEvent('a1', { cost: null, charge: 5 }))
+    await ledger.flush(noSession, 'r_bad', { owner: { user: '7' }, company: '1' })
+    expect(sent()[0]!.items).toEqual([expect.objectContaining({ outcome: 'aborted', cost: null, charge: null })])
   })
 
   it.each([
-    ['a call with a loose id', 'model_call', { call_id: 'xyz' }],
-    ['a call with an unknown kind', 'model_call', { kind: 'other' }],
-    ['a call with an extra key', 'model_call', { extra: 1 }],
-    ['a call without an offset', 'model_call', { called_at: '2026-10-27T10:00:00' }],
-  ])('logs and skips %s without failing the turn', async (_label, name, patch) => {
+    ['a call with a loose id', { call_id: 'xyz' }],
+    ['a call with an unknown kind', { kind: 'other' }],
+    ['a call with an extra key', { extra: 1 }],
+    ['a call without an offset', { called_at: '2026-10-27T10:00:00' }],
+  ])('logs and skips %s without failing the turn', async (_label, patch) => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const ledger = createUsageLedger()
-    expect(ledger.observe(name, callEvent('a1', patch))).toBe(true)
+    expect(ledger.observe('model_call', callEvent('a1', patch))).toBe(true)
     ledger.endStream()
-    await ledger.flush(event, 'r_1', RUN)
-    expect(odooJson).not.toHaveBeenCalled()
-    expect(spy.mock.calls.map(call => call[0])).toEqual(['[liwan-ai] skipped a malformed model_call event: MalformedUsageEvent'])
+    await ledger.flush(noSession, 'r_1', { owner: { user: '7' }, company: '1' })
+    expect(odooServiceUsageJson).not.toHaveBeenCalled()
+    expect(logged(spy)).toEqual(['[liwan-ai] skipped a malformed model_call event: MalformedUsageEvent'])
   })
 
-  it.each([
-    ['unpaired tokens', { output_tokens: null }],
-    ['negative tokens', { input_tokens: -1 }],
-    ['an unknown outcome', { outcome: 'lost' }],
-  ])('closes a known call as aborted when its usage has %s', async (_label, patch) => {
-    vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    const ledger = createUsageLedger()
-    ledger.observe('model_call', callEvent('a1'))
-    expect(ledger.observe('model_usage', usageEvent('a1', patch))).toBe(true)
-    await ledger.flush(event, 'r_1', RUN)
-    expect(sent()[0]!.body.items).toEqual([expect.objectContaining({ outcome: 'aborted', input_tokens: null, output_tokens: null })])
+  it('sends 70 calls as two posts of at most 64 rows, and nothing when no call was reported, and only once', async () => {
+    await ledgerOf(70).flush(noSession, 'r_1', { owner: { user: '7' }, company: '1' })
+    expect(sent().map(call => call.items.length)).toEqual([64, 6])
+    odooServiceUsageJson.mockClear()
+    const ledger = ledgerOf(1, 100)
+    await createUsageLedger().flush(noSession, 'r_2', { owner: { user: '7' }, company: '1' })
+    await ledger.flush(noSession, 'r_3', { owner: { user: '7' }, company: '1' })
+    await ledger.flush(noSession, 'r_3', { owner: { user: '7' }, company: '1' })
+    expect(odooServiceUsageJson).toHaveBeenCalledTimes(1)
   })
 
-  it('skips a usage for a call it never saw, a repeated call id and a second usage for one call', async () => {
+  it('never throws from a flush, even when the request cannot name its tenant', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    const ledger = createUsageLedger()
-    ledger.observe('model_usage', usageEvent('f'.padStart(16, 'f')))
-    ledger.observe('model_call', callEvent('a1'))
-    ledger.observe('model_call', callEvent('a1', { kind: 'title' }))
-    ledger.observe('model_usage', usageEvent('a1'))
-    ledger.observe('model_usage', usageEvent('a1', { outcome: 'failed' }))
-    ledger.endStream()
-    await ledger.flush(event, 'r_1', RUN)
-    expect(spy).toHaveBeenCalledTimes(3)
-    expect(sent()[0]!.body.items).toEqual([expect.objectContaining({ kind: 'plan', outcome: 'ok', input_tokens: 120 })])
-  })
-
-  it('sends 70 calls as two posts of at most 64 rows', async () => {
-    const ledger = createUsageLedger()
-    for (let index = 0; index < 70; index++) {
-      const id = index.toString(16)
-      ledger.observe('model_call', callEvent(id))
-      ledger.observe('model_usage', usageEvent(id))
-    }
-    await ledger.flush(event, 'r_1', RUN)
-    expect(sent().map(call => call.body.items.length)).toEqual([64, 6])
-    expect(sent().every(call => call.signal === null)).toBe(true)
-    sent().forEach(call => AiUsageBatchSchema.parse(call.body))
-  })
-
-  it('sends nothing when no call was reported, and only once', async () => {
-    const empty = createUsageLedger()
-    await empty.flush(event, 'r_1', RUN)
-    expect(odooJson).not.toHaveBeenCalled()
-    const ledger = createUsageLedger()
-    ledger.observe('model_call', callEvent('a1'))
-    ledger.endStream()
-    await ledger.flush(event, 'r_1', RUN)
-    await ledger.flush(event, 'r_1', RUN)
-    expect(odooJson).toHaveBeenCalledTimes(1)
-  })
-
-  it('logs a failed or refused flush on the server with the class name and the row count only, and never throws', async () => {
-    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    odooJson.mockRejectedValueOnce(new TypeError('secret detail from odoo'))
-    const failing = createUsageLedger()
-    failing.observe('model_call', callEvent('a1'))
-    failing.endStream()
-    await expect(failing.flush(ledgerEvent('failed'), 'r_1', RUN)).resolves.toBeUndefined()
-    odooJson.mockResolvedValueOnce({ status: 500, body: { code: 'boom', message: 'secret detail from odoo' } })
-    const refused = createUsageLedger()
-    refused.observe('model_call', callEvent('b2'))
-    refused.endStream()
-    await expect(refused.flush(ledgerEvent('refused'), 'r_1', RUN)).resolves.toBeUndefined()
-    expect(spy.mock.calls.map(call => call[0])).toEqual([
-      '[liwan-ai] usage report of 1 rows failed: TypeError', '[liwan-ai] usage report of 1 rows failed: UsageRefused',
-    ])
-    expect(JSON.stringify(spy.mock.calls)).not.toContain('secret detail')
-  })
-})
-
-describe('usage spool', () => {
-  it('keeps the rows of a refused report and reports them with the next flush of the same session', async () => {
-    const session = ledgerEvent('refused-then-retried')
-    odooJson.mockResolvedValueOnce({ status: 500, body: { code: 'boom', message: 'secret detail from odoo' } })
-    const refused = ledgerOf(1)
-    await refused.flush(session, 'r_a', RUN)
-    expect(conversations(sent()[0]!)).toEqual(['r_a'])
-
-    // A refused batch is due again after the retry window: a flush inside it reports only its own rows.
-    const next = ledgerOf(1, 1)
-    await next.flush(session, 'r_b', RUN)
-    expect(sent().map(conversations)).toEqual([['r_a'], ['r_b']])
-
-    // The next flush past the window carries what the refused one left behind first, then its own rows.
-    advance(RETRY_AFTER_MS + 1)
-    const later = ledgerOf(1, 2)
-    await later.flush(session, 'r_c', RUN)
-    expect(sent().map(conversations)).toEqual([['r_a'], ['r_b'], ['r_a', 'r_c']])
-    expect(sent()[2]!.signal).toBeNull()
-
-    // Everything was accepted: a flush that observed nothing has nothing left to report.
-    await retried(session)
-    expect(sent()).toHaveLength(3)
-  })
-
-  it('keeps a timeout, a dead connection and a 401 of an ended session for a retry instead of dropping them', async () => {
-    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    const timedOut = ledgerEvent('timed-out')
-    odooJson.mockRejectedValueOnce(new TypeError('secret detail from odoo'))
-    await ledgerOf(2).flush(timedOut, 'r_timeout', RUN)
-    const ended = ledgerEvent('ended-session')
-    odooJson.mockResolvedValueOnce({ status: 401, body: { code: 'unauthorized', message: 'no session' } })
-    await ledgerOf(3).flush(ended, 'r_ended', RUN)
-    expect(logged(spy)).toEqual([
-      '[liwan-ai] usage report of 2 rows failed: TypeError',
-      '[liwan-ai] usage report of 3 rows failed: UsageRefused',
-    ])
-    expect(JSON.stringify(spy.mock.calls)).not.toContain('secret detail')
-
-    // The rows survived their session: both are reported in full once a session may report again.
-    advance(RETRY_AFTER_MS + 1)
-    await retried(timedOut)
-    await retried(ended)
-    expect(sent().slice(2).map(call => call.body.items.length)).toEqual([2, 3])
-    expect(sent().slice(2).flatMap(call => call.body.items).every(item => item.outcome === 'ok')).toBe(true)
-  })
-
-  it('bounds the spool, drops the oldest rows and logs one line by count only, never the payload', async () => {
-    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    // Nine sessions at their own bound (256) hold 2304 rows, so the process bound is what drops the oldest 256.
-    const sessions = Array.from({ length: 9 }, (_, index) => ledgerEvent(`bounded-${index}`))
-    odooJson.mockResolvedValue({ status: 500, body: { code: 'boom' } })
-    for (const session of sessions) await ledgerOf(256).flush(session, 'r_bound', RUN)
-    expect(logged(spy)).toContain('[liwan-ai] dropped 256 usage rows over the 2048-row spool bound: UsageSpoolOverflow')
-    expect(JSON.stringify(spy.mock.calls)).not.toMatch(/openrouter|claude-sonnet|r_bound|secret detail/)
-
-    // Exactly the bounded remainder survives, reported in batches of at most 64: the newest rows are the ones kept.
-    advance(RETRY_AFTER_MS + 1)
-    odooJson.mockResolvedValue({ status: 200, body: { items: [], total: 0 } })
-    const before = sent().length
-    for (const session of sessions) await retried(session)
-    const reported = sent().slice(before).flatMap(call => call.body.items)
-    expect(reported).toHaveLength(2048)
-    expect(sent().slice(before).every(call => call.body.items.length <= 64)).toBe(true)
-    expect(reported.every(item => item.conversation_id === 'r_bound')).toBe(true)
-  })
-
-  it('bounds one session separately, so a busy session never evicts the rows of another', async () => {
-    // Issue #557: on a shared process a busy tenant must not push another tenant's rows out of the global spool.
-    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    const quiet = ledgerEvent('quiet-tenant')
-    const busy = ledgerEvent('busy-tenant')
-    odooJson.mockResolvedValueOnce({ status: 500, body: { code: 'boom' } })
-    await ledgerOf(2).flush(quiet, 'r_quiet', RUN)
-
-    // The busy session reports far more than its own bound; only its own rows are dropped, oldest first.
-    odooJson.mockResolvedValue({ status: 500, body: { code: 'boom' } })
-    await ledgerOf(400).flush(busy, 'r_busy', RUN)
-    expect(logged(spy)).toEqual([
-      '[liwan-ai] usage report of 2 rows failed: UsageRefused',
-      '[liwan-ai] dropped 144 usage rows of one session over the 256-row bound: UsageSessionOverflow',
-      '[liwan-ai] usage report of 64 rows failed: UsageRefused',
-    ])
-    expect(spy.mock.calls.map(call => call[0])).toContain('[liwan-ai] dropped 144 usage rows of one session over the 256-row bound: UsageSessionOverflow')
-
-    // The quiet session still holds its two rows, and reports them once its retry window passed.
-    spy.mockClear()
-    odooJson.mockResolvedValue({ status: 200, body: { items: [], total: 0 } })
-    advance(RETRY_AFTER_MS + 1)
-    await retried(quiet)
-    expect(sent().at(-1)!.body.items.map(item => item.conversation_id)).toEqual(['r_quiet', 'r_quiet'])
-    expect(spy).not.toHaveBeenCalled()
-  })
-
-  it('never spools the rows of a request with no session, and logs them by count only', async () => {
-    // Issue #557: a usage row is billed to the session that sends it, so one with no session has no owner to retry under.
-    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    const anonymous = { node: { req: { headers: {} } } } as unknown as H3Event
-    odooJson.mockRejectedValueOnce(new TypeError('answer never arrived'))
-    await expect(ledgerOf(3).flush(anonymous, 'r_anonymous', RUN)).resolves.toBeUndefined()
-    expect(odooJson).not.toHaveBeenCalled()
-    expect(logged(spy)).toEqual(['[liwan-ai] dropped 3 usage rows of a request with no session: UsageUnattributed'])
-    expect(JSON.stringify(spy.mock.calls)).not.toMatch(/openrouter|claude-sonnet|r_anonymous/)
-
-    // Nothing was spooled, so no later session reports those rows as its own.
-    advance(RETRY_AFTER_MS + 1)
-    await retried(ledgerEvent('someone-else'))
-    expect(odooJson).not.toHaveBeenCalled()
-  })
-
-  it('drops a spooled row past its age bound and reports it by count only, never the payload', async () => {
-    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    const session = ledgerEvent('aged')
-    odooJson.mockResolvedValueOnce({ status: 403, body: { code: 'forbidden', message: 'no' } })
-    await ledgerOf(2).flush(session, 'r_aged', RUN)
-    spy.mockClear()
-    advance(60 * 60 * 1000 + 1)
-    await retried(session)
-    expect(logged(spy)).toEqual([expect.stringMatching(/^\[liwan-ai] expired \d+ usage rows unaccepted for 60 minutes: UsageSpoolExpired$/)])
-    expect(odooJson).toHaveBeenCalledTimes(1)
-    expect(JSON.stringify(spy.mock.calls)).not.toMatch(/openrouter|r_aged/)
-  })
-
-  it('never reports the rows of another session: a usage row belongs to the session that observed it', async () => {
-    const mine = ledgerEvent('owning-session')
-    const other = ledgerEvent('another-session')
-    odooJson.mockResolvedValueOnce({ status: 403, body: { code: 'forbidden', message: 'no' } })
-    await ledgerOf(1).flush(mine, 'r_mine', RUN)
-    expect(sent()).toHaveLength(1)
-
-    advance(RETRY_AFTER_MS + 1)
-    await ledgerOf(1, 1).flush(other, 'r_other', RUN)
-    expect(sent().map(conversations)).toEqual([['r_mine'], ['r_other']])
-
-    await retried(mine)
-    expect(sent().slice(2).map(conversations)).toEqual([['r_mine']])
-  })
-
-  it('makes a flush that observed nothing a retry trigger for the rows an earlier refusal left behind', async () => {
-    const session = ledgerEvent('quiet-run')
-    odooJson.mockResolvedValueOnce({ status: 500, body: { code: 'boom' } })
-    await ledgerOf(1).flush(session, 'r_failed', RUN)
-    expect(sent()).toHaveLength(1)
-
-    advance(RETRY_AFTER_MS + 1)
-    await createUsageLedger().flush(session, 'r_quiet', RUN)
-    expect(sent().map(conversations)).toEqual([['r_failed'], ['r_failed']])
-
-    // Accepted, so the spool is empty and the next run reports only its own rows.
-    await ledgerOf(1, 1).flush(session, 'r_loud', RUN)
-    expect(sent().map(conversations)).toEqual([['r_failed'], ['r_failed'], ['r_loud']])
-  })
-
-  it('keys the spool by the session cookie, so a UI language switch still retries the rows an earlier report left behind', async () => {
-    // Issue #557: `liwan-locale` rides in the same browser jar, so hashing the whole `Cookie` header would strand the rows.
-    const arabic = cookieEvent('session_id=s1; liwan-locale=ar')
-    const english = cookieEvent('session_id=s1; liwan-locale=en')
-    odooJson.mockResolvedValueOnce({ status: 500, body: { code: 'boom' } })
-    await ledgerOf(1).flush(arabic, 'r_locale', RUN)
-    expect(sent().map(conversations)).toEqual([['r_locale']])
-
-    advance(RETRY_AFTER_MS + 1)
-    await retried(english)
-    // The same session, so the earlier run's rows are reported rather than nothing at all.
-    expect(sent().map(conversations)).toEqual([['r_locale'], ['r_locale']])
-  })
-
-  it('keys two different sessions apart, so one never reports the rows of the other', async () => {
-    const first = cookieEvent('session_id=s3')
-    const second = cookieEvent('session_id=s4')
-    odooJson.mockResolvedValueOnce({ status: 500, body: { code: 'boom' } })
-    await ledgerOf(1).flush(first, 'r_first', RUN)
-
-    advance(RETRY_AFTER_MS + 1)
-    await retried(second)
-    expect(sent().map(conversations)).toEqual([['r_first']])
-  })
-
-  it('never throws from a flush, even when the request cannot name its session', async () => {
-    // `relay` chains `flush` last and nobody awaits it: a throw here would be an unhandled rejection on the server.
-    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    const hostile = { get node(): never { throw new Error('secret request detail') } } as unknown as H3Event
-    await expect(ledgerOf(1).flush(hostile, 'r_1', RUN)).resolves.toBeUndefined()
+    const hostile = { get db(): never { throw new Error('secret request detail') } } as unknown as H3Event
+    await expect(ledgerOf(1).flush(hostile, 'r_1', { owner: { user: '7' }, company: '1' })).resolves.toBeUndefined()
     expect(JSON.stringify(spy.mock.calls)).not.toContain('secret request detail')
-    spy.mockRestore()
   })
 
-  it('serializes the reports of one session, so two runs finishing together can never send a row twice', async () => {
-    const session = ledgerEvent('concurrent')
+  it('serializes the reports of one tenant, so two runs finishing together can never send a row twice', async () => {
     let release!: () => void
-    odooJson.mockImplementationOnce(() => new Promise(resolve => { release = () => resolve({ status: 200, body: { items: [], total: 0 } }) }))
-    const first = ledgerOf(1).flush(session, 'r_one', RUN)
+    odooServiceUsageJson.mockImplementationOnce(() => new Promise(resolve => { release = () => resolve({ status: 200, body: {} }) }))
+    const first = ledgerOf(1).flush(noSession, 'r_one', { owner: { user: '7' }, company: '1' })
     await Promise.resolve()
-    const second = ledgerOf(1, 1).flush(session, 'r_two', RUN)
+    const second = ledgerOf(1, 1).flush(noSession, 'r_two', { owner: { user: '7' }, company: '1' })
     await Promise.resolve()
-    expect(sent()).toHaveLength(1) // the second report waits for the first to settle
+    expect(odooServiceUsageJson).toHaveBeenCalledTimes(1) // the second report waits for the first to settle
     release()
     await Promise.all([first, second])
-    expect(sent().map(conversations)).toEqual([['r_one'], ['r_two']])
+    expect(sent().map(call => call.items.map(item => item.conversation_id))).toEqual([['r_one'], ['r_two']])
   })
 })
 
-/** Issue #557: with the deployment's recorder key the ledger reports as the run's user, whatever became of their session. */
-describe('usage ledger reporting with the recorder key', () => {
-  const KEY = 'c3'.repeat(20)
+describe('usage ledger reporting with the tenant bearer', () => {
   const SOMEONE = { user: '7', company: '1' }
   /** A request whose session is gone: no cookie at all (logout mid-stream, an expired cookie). */
-  const noSession = {} as unknown as H3Event
   const serviceCalls = () => odooServiceUsageJson.mock.calls.map(([, key, body]) => ({ key: key as string, body: body as { user_id: number; user_company_id: number; items: Record<string, unknown>[] } }))
   const flushed = (ledger: ReturnType<typeof createUsageLedger>, request: H3Event = noSession, who = SOMEONE, conversation = 'r_svc') => ledger.flush(request, conversation, { owner: { user: who.user }, company: who.company })
-  beforeEach(() => { vi.stubEnv('LIWAN_AI_USAGE_KEY', KEY); vi.stubEnv('LIWAN_TENANCY_MODE', 'dedicated') })
 
-  it('records a run whose session ended: no cookie is needed and the session path is never used', async () => {
+  it('records a run whose session ended: no cookie is needed', async () => {
     await flushed(ledgerOf(2), noSession, { user: '21', company: '3' }, 'r_gone')
-    expect(odooJson).not.toHaveBeenCalled()
-    const [call] = serviceCalls()
+        const [call] = serviceCalls()
     expect(serviceCalls()).toHaveLength(1)
-    expect(call!.key).toBe(KEY)
+    expect(call!.key).toBe(usageBearer(ROOT, DATABASE))
     expect(AiUsageServiceBatchSchema.parse(call!.body)).toMatchObject({ user_id: 21, user_company_id: 3 })
     expect(call!.body.items.map(item => [item.call_id, item.conversation_id])).toEqual([['0000000000000000', 'r_gone'], ['0000000000000001', 'r_gone']])
     // The wire names the owner once, on the batch; a row never carries one.
@@ -438,19 +166,20 @@ describe('usage ledger reporting with the recorder key', () => {
     ])
   })
 
-  it('keeps the cost and charge on the recorder-key path', async () => {
+  it('keeps the cost and charge, in shared and dedicated deployments alike', async () => {
     await flushed(ledgerOf(1), noSession)
     expect(serviceCalls()[0]!.body.items).toEqual([expect.objectContaining({ cost: 4, charge: 5 })])
+    await flushed(ledgerOf(1, 1), sharedEvent('liwan_cost_shared'))
+    expect(serviceCalls()[1]!.body.items).toEqual([expect.objectContaining({ cost: 4, charge: 5 })])
   })
 
-  it('records a run whose browser went away mid-stream (every open attempt aborted) and one whose cookie is expired', async () => {
+  it('records a run whose browser went away mid-stream (every open attempt aborted)', async () => {
     const ledger = createUsageLedger()
     ledger.observe('model_call', callEvent('a1'))
     ledger.endStream()
-    await flushed(ledger, cookieEvent('session_id=expired-or-revoked'))
+    await flushed(ledger, noSession)
     expect(serviceCalls().map(call => call.body.items)).toEqual([[expect.objectContaining({ outcome: 'aborted', input_tokens: null, output_tokens: null })]])
-    expect(odooJson).not.toHaveBeenCalled()
-  })
+      })
 
   it('keeps the rows when Odoo cannot be reached and settles them on the next run of anyone, once', async () => {
     odooServiceUsageJson.mockRejectedValueOnce(new TypeError('connection refused'))
@@ -478,7 +207,7 @@ describe('usage ledger reporting with the recorder key', () => {
     expect(serviceCalls().map(call => [call.body.user_id, call.body.user_company_id, call.body.items.length])).toEqual([[5, 1, 64], [5, 1, 6], [6, 1, 1], [5, 2, 1]])
   })
 
-  it('stops at a refused key without sending the other owners, keeps every row and names the status', async () => {
+  it('stops at a refused credential without sending the other owners, keeps every row and names the status', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     odooServiceUsageJson.mockResolvedValue({ status: 401, body: { code: 'unauthorized' } })
     await flushed(ledgerOf(1, 100), noSession, { user: '30', company: '1' })
@@ -488,13 +217,13 @@ describe('usage ledger reporting with the recorder key', () => {
     odooServiceUsageJson.mockResolvedValue({ status: 200, body: { items: [], total: 0 } })
     advance(RETRY_AFTER_MS + 1)
     await flushed(createUsageLedger(), noSession, { user: '32', company: '1' })
-    // Both held batches are delivered once the key is accepted again.
+    // Both held batches are delivered once the credential is accepted again.
     expect(serviceCalls().slice(2).map(call => call.body.user_id).sort()).toEqual([30, 31])
   })
 
   it('keeps the rows of an owner Odoo refuses as a whole, retries them, and gives them up only at the spool age bound', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    odooServiceUsageJson.mockResolvedValueOnce({ status: 422, body: { code: 'invalid', field: 'user_id' } })
+    odooServiceUsageJson.mockResolvedValue({ status: 422, body: { code: 'invalid', field: 'user_id' } })
     await flushed(ledgerOf(3, 400), noSession, { user: '40', company: '1' })
     expect(logged(spy)).toContain('[liwan-ai] KEPT 3 usage rows Odoo refuses as a whole (422 user_id); they are retried until the spool age bound: UsageRefusedRow')
     advance(RETRY_AFTER_MS + 1)
@@ -627,92 +356,93 @@ describe('usage ledger reporting with the recorder key', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     for (const who of [{ user: '', company: '1' }, { user: 'abc', company: '1' }, { user: '7', company: '0' }, { user: '-7', company: '1' }, { user: '7;1', company: '1' }]) await flushed(ledgerOf(1, 500), noSession, who)
     expect(serviceCalls()).toHaveLength(0)
-    expect(odooJson).not.toHaveBeenCalled()
-    expect(logged(spy)).toEqual(Array(5).fill('[liwan-ai] dropped 1 usage rows of a run with no usable user or company: UsageOwnerInvalid'))
+        expect(logged(spy)).toEqual(Array(5).fill('[liwan-ai] dropped 1 usage rows of a run with no usable user or company: UsageOwnerInvalid'))
   })
 
-  it('writes the key to no log line, whatever fails', async () => {
+  it('writes the bearer to no log line, whatever fails', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    odooServiceUsageJson.mockRejectedValueOnce(Object.assign(new Error(`Bearer ${KEY}`), { statusCode: 502 }))
+    odooServiceUsageJson.mockRejectedValueOnce(Object.assign(new Error(`Bearer ${BEARER}`), { statusCode: 502 }))
     await flushed(ledgerOf(1, 600), noSession, { user: '50', company: '1' })
-    odooServiceUsageJson.mockResolvedValueOnce({ status: 500, body: KEY })
+    odooServiceUsageJson.mockResolvedValueOnce({ status: 500, body: BEARER })
     advance(RETRY_AFTER_MS + 1)
     await flushed(createUsageLedger(), noSession, { user: '51', company: '1' })
     expect(spy).toHaveBeenCalled()
-    expect(JSON.stringify(spy.mock.calls)).not.toContain(KEY)
+    expect(JSON.stringify(spy.mock.calls)).not.toContain(BEARER)
   })
 
-  it('reports with the session when there is no key, or a shared deployment holds none for a tenant, or the key is not an Odoo key', async () => {
+  it('drops the rows of a run with no usable recorder, logging the count and the class only, and spools nothing', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    vi.stubEnv('LIWAN_AI_USAGE_KEY', '')
-    await flushed(ledgerOf(1, 700), ledgerEvent('no-key'))
-    vi.stubEnv('LIWAN_AI_USAGE_KEY', KEY); vi.stubEnv('LIWAN_TENANCY_MODE', 'shared')
-    await flushed(ledgerOf(1, 701), ledgerEvent('shared'))
-    vi.stubEnv('LIWAN_TENANCY_MODE', 'dedicated'); vi.stubEnv('LIWAN_AI_USAGE_KEY', 'not-a-key')
-    await flushed(ledgerOf(1, 702), ledgerEvent('malformed'))
+    for (const root of ['', 'not-hex']) {
+      vi.stubEnv('LIWAN_AI_USAGE_KEY', root)
+      await flushed(ledgerOf(2, 800), noSession, { user: '55', company: '1' })
+    }
     expect(odooServiceUsageJson).not.toHaveBeenCalled()
-    expect(odooJson).toHaveBeenCalledTimes(3)
-    expect(logged(spy)).toEqual(['[liwan-ai] LIWAN_AI_USAGE_KEY is set but is not an Odoo API key; reporting usage as the user instead: UsageKeyMalformed'])
+    expect(logged(spy)).toEqual(Array(2).fill('[liwan-ai] dropped 2 usage rows of a run with no usable recorder: UsageRecorderUnavailable'))
+    vi.stubEnv('LIWAN_AI_USAGE_KEY', ROOT)
+    advance(RETRY_AFTER_MS + 1)
+    await flushed(createUsageLedger(), noSession, { user: '56', company: '1' })
+    expect(odooServiceUsageJson).not.toHaveBeenCalled()
   })
 })
 
-/** A finished run is recorded in the company it started in: a later company switch of the session must not move or refuse it. */
-describe('usage ledger reporting with the session, per company', () => {
-  const runIn = (company: string) => ({ owner: { user: '7' }, company })
-  const bodies = () => odooJson.mock.calls.map(([, , , options]) => options as { body: { user_company_id: number; items: Record<string, unknown>[] }; signal: unknown; statesCompany: boolean })
+/** Two tenants of a shared process have the same user and company ids; their rows must never meet. */
+describe('usage spool per tenant', () => {
+  let A = '', B = ''
+  beforeEach(() => { A = `liwan_tenant_a_${tests}`; B = `liwan_tenant_b_${tests}` })
+  const serviceCalls = () => odooServiceUsageJson.mock.calls.map(([request, key, body]) => ({ request: request as { db: string }, key: key as string, body: body as { user_id: number; user_company_id: number; items: Record<string, unknown>[] } }))
+  const flushedIn = (db: string, ledger: ReturnType<typeof createUsageLedger>, conversation: string) => ledger.flush(sharedEvent(db), conversation, { owner: { user: '2' }, company: '1' })
 
-  it('names the company the run started in and states no company precondition', async () => {
-    await ledgerOf(2).flush(ledgerEvent('named-company'), 'r_named', runIn('4'))
-    expect(bodies()).toHaveLength(1)
-    const [{ body, signal, statesCompany }] = bodies() as [ReturnType<typeof bodies>[number]]
-    expect(AiUsageBatchSchema.parse(body).user_company_id).toBe(4)
-    expect(Object.keys(body).sort()).toEqual(['items', 'user_company_id'])
-    expect([signal, statesCompany]).toEqual([null, false])
+  it('never batches two tenants together nor sends a row on another tenant\'s event or credential', async () => {
+    odooServiceUsageJson.mockRejectedValue(new TypeError('connection refused'))
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    await flushedIn(A, ledgerOf(2, 10), 'r_a')
+    await flushedIn(B, ledgerOf(1, 20), 'r_b')
+    odooServiceUsageJson.mockReset().mockResolvedValue({ status: 200, body: {} })
+    advance(RETRY_AFTER_MS + 1)
+    await flushedIn(B, createUsageLedger(), 'r_quiet_b')
+    expect(serviceCalls().map(call => [call.request.db, call.key, call.body.items.map(item => item.conversation_id)])).toEqual([[B, usageBearer(ROOT, B), ['r_b']]])
+    await flushedIn(A, createUsageLedger(), 'r_quiet_a')
+    expect(serviceCalls().slice(1).map(call => [call.request.db, call.key, call.body.items.map(item => item.conversation_id)])).toEqual([[A, usageBearer(ROOT, A), ['r_a', 'r_a']]])
   })
 
-  it('reports two runs of one session that started in different companies as two requests, in order, each naming its own', async () => {
-    const session = ledgerEvent('two-companies')
-    odooJson.mockResolvedValueOnce({ status: 500, body: {} })
-    await ledgerOf(1).flush(session, 'r_home', runIn('4'))
-    advance(RETRY_AFTER_MS + 1)
-    await ledgerOf(1, 1).flush(session, 'r_branch', runIn('9'))
-    await ledgerOf(1, 2).flush(session, 'r_branch2', runIn('9'))
-    const calls = bodies()
-    expect(calls.map(call => [call.body.user_company_id, conversations(call)])).toEqual([
-      [4, ['r_home']], [4, ['r_home']], [9, ['r_branch']], [9, ['r_branch2']],
-    ])
-  })
-
-  it('keeps the rows of a company Odoo refuses and still reports the rows of another company', async () => {
-    const session = ledgerEvent('refused-company')
-    // The caller left company 4 after the run: Odoo refuses every batch that names it and accepts the others.
-    odooJson.mockImplementation(async (_event: unknown, _method: unknown, _path: unknown, options: { body: { user_company_id: number } }) => options.body.user_company_id === 4
-      ? { status: 422, body: { field: 'user_company_id' } }
-      : { status: 200, body: { items: [], total: 0 } })
-    await ledgerOf(1).flush(session, 'r_left', runIn('4'))
-    advance(RETRY_AFTER_MS + 1)
-    await ledgerOf(1, 1).flush(session, 'r_home', runIn('9'))
-    expect(bodies().map(call => [call.body.user_company_id, conversations(call)])).toEqual([[4, ['r_left']], [4, ['r_left']], [9, ['r_home']]])
-    // The refused rows wait for the next retry window; the accepted ones left the spool.
-    advance(RETRY_AFTER_MS + 1)
-    await retried(session)
-    expect(bodies().slice(3).map(call => [call.body.user_company_id, conversations(call)])).toEqual([[4, ['r_left']]])
-  })
-
-  it('defers the later rows of a company behind its failed batch, so one company is never reported out of order in a flush', async () => {
-    const session = ledgerEvent('ordered-company')
-    odooJson.mockResolvedValueOnce({ status: 500, body: {} })
-    await ledgerOf(70).flush(session, 'r_long', runIn('4'))
-    expect(bodies().map(call => call.body.items.length)).toEqual([64])
-    advance(RETRY_AFTER_MS + 1)
-    await retried(session)
-    expect(bodies().slice(1).map(call => call.body.items.length)).toEqual([64, 6])
-  })
-
-  it('drops a run with an unusable company by count and sends nothing', async () => {
+  it('bounds one tenant separately, so a busy tenant never evicts the rows of another', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    for (const company of ['', 'abc', '0', '-1', '4;9', '1.5']) await ledgerOf(1, 40).flush(ledgerEvent('no-company'), 'r_none', runIn(company))
-    expect(odooJson).not.toHaveBeenCalled()
-    expect(logged(spy)).toEqual(Array(6).fill('[liwan-ai] dropped 1 usage rows of a run with no usable company: UsageOwnerInvalid'))
+    odooServiceUsageJson.mockResolvedValue({ status: 500, body: {} })
+    await flushedIn(A, ledgerOf(2, 3000), 'r_quiet')
+    await flushedIn(B, ledgerOf(1100, 4000), 'r_busy')
+    expect(logged(spy)).toContain('[liwan-ai] dropped 76 usage rows of one tenant over the 1024-row bound: UsageTenantOverflow')
+    odooServiceUsageJson.mockReset().mockResolvedValue({ status: 200, body: {} })
+    advance(RETRY_AFTER_MS + 1)
+    await flushedIn(A, createUsageLedger(), 'r_next')
+    expect(serviceCalls().map(call => [call.request.db, call.body.items.length])).toEqual([[A, 2]])
+  })
+
+  it('marks only the refused tenant when its credential is refused (401), and keeps its rows', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const { assertUsageRecordable } = await import('../recorder')
+    vi.stubEnv('LIWAN_TENANCY_MODE', 'shared')
+    odooServiceUsageJson.mockResolvedValue({ status: 401, body: {} })
+    await flushedIn(A, ledgerOf(1, 5000), 'r_refused')
+    odooServiceUsageJson.mockReset().mockResolvedValue({ status: 200, body: {} })
+    await expect(assertUsageRecordable(sharedEvent(A))).rejects.toMatchObject({ statusCode: 503, data: { code: 'ai_unavailable' } })
+    await expect(assertUsageRecordable(sharedEvent(B))).resolves.toBe(false)
+    expect(odooServiceUsageJson).toHaveBeenCalledTimes(1)
+  })
+
+  it('retryUsage sends the due rows of its own tenant only and never throws', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    odooServiceUsageJson.mockResolvedValue({ status: 500, body: {} })
+    await flushedIn(A, ledgerOf(1, 6000), 'r_a')
+    await flushedIn(B, ledgerOf(1, 6100), 'r_b')
+    odooServiceUsageJson.mockReset().mockResolvedValue({ status: 200, body: {} })
+    advance(RETRY_AFTER_MS + 1)
+    await retryUsage(sharedEvent(A))
+    expect(serviceCalls().map(call => [call.request.db, call.body.items.map(item => item.conversation_id)])).toEqual([[A, ['r_a']]])
+    vi.stubEnv('LIWAN_AI_USAGE_KEY', '')
+    await expect(retryUsage(sharedEvent(A))).resolves.toBeUndefined()
+  })
+
+  it('keeps the spool age bound across tenants', () => {
+    expect(SPOOL_MAX_AGE_MS).toBeLessThan(AI_USAGE_SERVICE_LIMITS.max_age_hours * 3600 * 1000)
   })
 })

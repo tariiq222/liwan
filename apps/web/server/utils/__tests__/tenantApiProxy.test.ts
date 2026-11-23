@@ -80,20 +80,8 @@ describe('API proxy tenancy mode separation', () => {
 })
 
 describe('server-only API routes', () => {
-  it.each(['POST', 'GET', 'PATCH'])('refuses %s /api/v1/ai/usage from a browser before any session check or dispatch', async (method) => {
-    vi.stubEnv('LIWAN_TENANCY_MODE', 'dedicated')
-    transport.mockClear()
-    const { proxy, handler } = await setup()
-    for (const path of ['/api/v1/ai/usage', '/api/v1/ai/usage/', '/api/v1/ai/usage?x=1', '/api/v1/ai/%75sage']) {
-      const event = { path, method, node: { req: { headers: { cookie: 'session_id=synthetic' } } } }
-      await expect(handler(event as never)).rejects.toMatchObject({ statusCode: 404, data: { code: 'not_found' } })
-    }
-    expect(proxy).not.toHaveBeenCalled()
-    expect(transport).not.toHaveBeenCalled()
-  })
-
   it.each(['POST', 'GET', 'PATCH'])('refuses a browser %s to the server-only /api/v1/ai/usage/service, even carrying an Authorization header', async (method) => {
-    // Issue #557: this route takes the deployment's recorder key and is for the Nuxt server alone.
+    // Issue #557: this route takes the tenant's derived recorder bearer and is for the Nuxt server alone.
     vi.stubEnv('LIWAN_TENANCY_MODE', 'dedicated')
     transport.mockClear()
     proxyMock.mockClear()

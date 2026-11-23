@@ -11,8 +11,9 @@ from odoo.tests import new_test_user, tagged
 from odoo.tools import mute_logger
 
 from odoo.addons.liwan_ai.models.ai_balance import RUN_RESERVE
+from odoo.addons.liwan_ai.models.ai_usage import USAGE_SERVICE_PATH
 from odoo.addons.liwan_ai.serializers.usage import dump_usage
-from odoo.addons.liwan_ai.tests.common import AiProbe
+from odoo.addons.liwan_ai.tests.common import AiProbe, usage_key
 from odoo.addons.liwan_api.tests.common import LiwanApiCase
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
@@ -179,15 +180,29 @@ class TestAiBalance(AiProbe, LiwanApiCase):
 
     # -- the wire ------------------------------------------------------------------------------------------------------------
 
-    def test_charge_paid_is_not_accepted_from_either_route(self):
-        self.authenticate('api_emp', 'api_emp_pass_123')
-        wire = self._item(None, cost=None, charge_paid=5)
-        response = self.api('POST', '/api/v1/ai/usage', {'user_company_id': self.employee.company_id.id, 'items': [wire]})
+    def _report(self, *items):
+        """A batch as the Nuxt server sends it: the derived bearer, no session."""
+        self.opener.cookies.clear()
+        return self.url_open(
+            USAGE_SERVICE_PATH, headers={'Content-Type': 'application/json', 'Authorization': f'bearer {usage_key(self)}'},
+            json={'user_id': self.employee.id, 'user_company_id': self.employee.company_id.id, 'items': list(items)},
+        )
+
+    def test_charge_paid_is_not_accepted_from_the_wire(self):
+        response = self._report(self._item(None, cost=None, charge_paid=5))
         self.assertEqual((response.status_code, response.json()['field']), (422, 'items.0.charge_paid'))
         with self.assertRaises(ValidationError) as caught:
             self._record(self._item(15, charge_paid=0))
         self.assertEqual(caught.exception.liwan_field, 'charge_paid')
         self.assertFalse(self.Usage.search([]))
+
+    def test_a_charged_row_reported_on_the_service_route_moves_the_paid_part_and_the_total(self):
+        response = self._report(self._item(15))
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['items'][0]['charge_paid'], 15)
+        self.assertEqual(self.Usage.search([]).mapped('charge_paid'), [15])
+        self.profile.invalidate_recordset()
+        self.assertEqual((self.profile.ai_paid_total, self.Balance._liwan_ai_paid_total()), (15, 15))
 
     def test_the_serializer_returns_the_paid_part(self):
         row = self.Usage.with_user(self.recorder)._liwan_ai_record_for([self._item(15)], self.employee.id, self.employee.company_id.id)

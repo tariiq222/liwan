@@ -10,11 +10,11 @@ import { HEAVY_TIMEOUT } from '../../../utils/upstreamDeadlines'
 import { forwardPublicApi, isBookingApiPath, isPublicApiPath, PUBLIC_API_METHODS, PUBLIC_API_NAMESPACE_METHODS, publicBodyLimit } from '../../../utils/publicApi'
 
 // Routes only this server may call (Nuxt writes them to Odoo directly, never through this proxy): a browser must not forge them.
-// The provider usage ledger is one: its rows come from the AI service's own stream. The audit is the other: every row
+// The provider usage report is one: its rows come from the AI service's own stream and carry a credential only this server holds. The audit is the other: every row
 // (a message, a tool call, a draft's proposal or approval) is written by this server, and an approval carries the
 // acknowledgement the server stamps, so a client that could reach the route could count messages or claim an approval it
 // never made (issue #556).
-const SERVER_ONLY_API_PATHS = new Set(['/api/v1/ai/usage', '/api/v1/ai/usage/service', '/api/v1/ai/audit'])
+const SERVER_ONLY_API_PATHS = new Set(['/api/v1/ai/usage/service', '/api/v1/ai/audit'])
 
 // SSR and browser calls to /api/v1/** both land here. The target is read from
 // runtime config per request, so the container's NUXT_ODOO_URL applies at boot

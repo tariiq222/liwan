@@ -15,7 +15,8 @@ from odoo.tools import config
 from odoo.addons.liwan_ai.models import ai_usage
 from odoo.addons.liwan_ai.models.access_service import AI_USAGE_RECORD
 from odoo.addons.liwan_ai.models.ai_usage import MAX_TOKENS, USAGE_SERVICE_PATH
-from odoo.addons.liwan_ai.tests.common import AiProbe
+from odoo.addons.liwan_ai.models.usage_key import USAGE_KEY_LABEL, usage_bearer
+from odoo.addons.liwan_ai.tests.common import AiProbe, configure_usage_root, usage_key
 from odoo.addons.liwan_api.tests.common import LiwanApiCase
 from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
@@ -36,13 +37,10 @@ class TestAiUsageService(AiProbe, LiwanApiCase):
         super().setUp()
         self._install_probe()
         self.recorder = self.env.ref('liwan_ai.user_ai_usage')
-        self.key = self._key(self.recorder)
+        self.key = usage_key(self)
         self.other_company = self.env['res.company'].create({'name': 'Usage Other Company'})
         self.Usage = self.env['liwan.ai.usage']
         self.opener.cookies.clear()
-
-    def _key(self, user):
-        return self.env['res.users.apikeys'].with_user(user)._generate('rpc', 'usage test', datetime.now() + timedelta(days=1))
 
     def _post(self, body, key=None, path=USAGE_SERVICE_PATH, headers=None):
         auth = {} if key is False else {'Authorization': f'bearer {key or self.key}'}
@@ -116,11 +114,61 @@ class TestAiUsageService(AiProbe, LiwanApiCase):
         self._assert_422(self._post(self._batch(None, None, {**ITEM, 'user_id': self.employee.id})), 'items.0.user_id')
 
     def test_a_missing_or_wrong_key_is_a_structured_401(self):
-        for key in (False, 'a' * 64, 'not-a-key'):
+        for key in (False, 'a' * 64, 'not-a-key', usage_bearer('another_database')):
             with self.subTest(key=key):
                 response = self._post(self._batch(), key=key)
                 self.assertEqual(response.status_code, 401, response.text)
                 self.assertEqual(response.json()['code'], 'unauthorized')
+        self.assertFalse(self.Usage.search([]))
+
+    def test_the_documented_vector_authenticates_and_the_derivation_matches_it(self):
+        root = bytes(range(32)).hex()
+        configure_usage_root(self, root)
+        self.assertEqual(USAGE_KEY_LABEL, 'liwan-ai-usage/v1')
+        self.assertEqual(usage_bearer('liwan_vector_db'), 'd0e9be6ebd73f6029db8709fa445f5051521423db46675b15ff528dd0182cdaf')
+        self.assertEqual(self._post(self._batch(), key=usage_bearer(self.env.cr.dbname)).status_code, 200)
+
+    def test_no_well_formed_root_means_nothing_authenticates(self):
+        derived = usage_key(self)
+        for root in (None, '', 'ab' * 31, 'zz' * 32, 'ab' * 33):
+            with self.subTest(root=root):
+                configure_usage_root(self, root)
+                self.assertIsNone(usage_bearer(self.env.cr.dbname))
+                for key in (derived, False, 'None'):
+                    response = self._post(self._batch(), key=key)
+                    self.assertEqual((response.status_code, response.json()['code']), (401, 'unauthorized'), response.text)
+        self.assertFalse(self.Usage.search([]))
+
+    def test_a_run_cannot_start_without_a_root_to_record_it(self):
+        """The backstop of the web gate: the audit row that starts a message, setup or help run is refused while usage cannot be recorded."""
+        self._grant_ai_use(self.employee)
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        message = {'conversation_id': 'r_no_root', 'kind': 'message', 'tool_name': None, 'input': None, 'result': 'ok', 'http_status': None, 'draft': None, 'approved': None}
+        configure_usage_root(self, None)
+        for kind in ('message', 'setup', 'help'):
+            with self.subTest(kind=kind):
+                response = self.api('POST', '/api/v1/ai/audit', {**message, 'kind': kind, 'conversation_id': f'r_no_root_{kind}'})
+                self.assertEqual((response.status_code, response.json()['code']), (503, 'ai_unavailable'), response.text)
+        self.assertFalse(self.env['liwan.ai.audit'].search([('conversation_id', 'like', 'r_no_root%')]))
+        configure_usage_root(self)
+        self.assertEqual(self.api('POST', '/api/v1/ai/audit', message).status_code, 200)
+
+    def test_the_empty_probe_is_a_200_that_writes_nothing(self):
+        for body in ({'items': []},):
+            response = self._post(body)
+            self.assertEqual((response.status_code, response.json()), (200, {'items': [], 'total': 0}), response.text)
+        self.assertFalse(self.Usage.search([]))
+        # The probe passes the same gates as a report: without a credential, or with the feature off, it answers like one.
+        self.assertEqual(self._post({'items': []}, key='a' * 64).status_code, 401)
+        profile = self.env.ref('liwan_platform.tenant_profile')
+        profile.sudo().with_context(**{OPERATOR_CONTEXT: True}).write({'features': {**(profile.features or {}), 'ai.enabled': False}})
+        self.assertEqual(self._post({'items': []}).status_code, 403)
+
+    def test_the_session_route_is_gone(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        body = {'user_company_id': self.employee.company_id.id, 'items': [ITEM]}
+        response = self.url_open('/api/v1/ai/usage', json=body, headers={'Content-Type': 'application/json'})
+        self.assertEqual((response.status_code, response.json()['code']), (404, 'not_found'), response.text)
         self.assertFalse(self.Usage.search([]))
 
     def test_a_session_alone_does_not_authenticate_the_service_route(self):
@@ -129,8 +177,36 @@ class TestAiUsageService(AiProbe, LiwanApiCase):
         self.assertEqual(response.status_code, 401, response.text)
         self.assertFalse(self.Usage.search([]))
 
-    def test_another_users_key_is_forbidden_here(self):
-        response = self._post(self._batch(), key=self._key(self.employee))
+    def _stock_api_key(self, user):
+        """A genuine Odoo API key of ``user``, as the res_users_apikeys table holds it."""
+        return self.env['res.users.apikeys'].with_user(user).sudo()._generate(None, 'attack', None)
+
+    def test_a_stock_odoo_api_key_opens_nothing_on_the_service_route(self):
+        for user in (self.recorder, self.employee):
+            with self.subTest(user=user.login):
+                response = self._post(self._batch(), key=self._stock_api_key(user))
+                self.assertEqual((response.status_code, response.json()['code']), (401, 'unauthorized'), response.text)
+        self.assertFalse(self.Usage.search([]))
+
+    def test_a_signed_in_session_with_the_valid_bearer_is_refused_and_never_saved(self):
+        self.authenticate('api_emp', 'api_emp_pass_123')
+        response = self._post(self._batch())
+        self.assertIn(response.status_code, (401, 403), response.text)
+        self.assertNotIn('session_id', response.headers.get('Set-Cookie', ''))
+        self.assertFalse(self.Usage.search([]))
+
+    def test_the_valid_bearer_leaves_no_session_cookie(self):
+        response = self._post(self._batch())
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertNotIn('session_id', response.headers.get('Set-Cookie', ''))
+
+    def _speak_for(self, user):
+        """Make the bearer hook name ``user``, as if some credential identified them: only the route's own identity check is left."""
+        self.patch(type(self.env['ir.http']), '_liwan_bearer_user_id', classmethod(lambda cls, token: user.id))
+
+    def test_another_user_reaching_the_route_is_forbidden_here(self):
+        self._speak_for(self.employee)
+        response = self._post(self._batch())
         self.assertEqual(response.status_code, 403, response.text)
         self.assertEqual(response.json()['code'], 'forbidden')
         self.assertFalse(self.Usage.search([]))
@@ -284,23 +360,20 @@ class TestAiUsageService(AiProbe, LiwanApiCase):
             self.assertEqual(self._post(self._batch(self.employee, second, self._attempt(90), self._attempt(91))).status_code, 200)
 
     def test_a_user_without_the_recorder_identity_is_still_refused(self):
-        """Only the recorder itself may report: not the superuser, who holds every capability, nor a vendor support user."""
+        """Only the recorder itself may report: not an administrator, nor a vendor support user."""
         support = new_test_user(self.env, login='usage_support', groups='liwan_core.group_vendor_support')
         admin = new_test_user(self.env, login='usage_admin', groups='base.group_system')
         service = self.env['liwan.access.service']
         self.assertNotIn(AI_USAGE_RECORD, service.with_user(support)._liwan_capability_keys(support))
-        # Worst case: these users also hold the recorder's ACL group, so only the identity check stands between their key and the ledger.
+        # Worst case: these users also hold the recorder's ACL group, so only the identity check stands between them and the ledger.
         (support | admin).write({'group_ids': [Command.link(self.env.ref('liwan_ai.group_cap_ai_usage_record').id)]})
         for user in (support, admin):
             with self.subTest(user=user.login):
-                response = self._post(self._batch(), key=self._key(user))
+                self._speak_for(user)
+                response = self._post(self._batch())
                 self.assertEqual(response.status_code, 403, response.text)
                 self.assertEqual(response.json()['code'], 'forbidden')
                 self.assertFalse(self.Usage.search([]))
-        # The superuser is inactive, and Odoo accepts an API key of an active user only.
-        root = self.env.ref('base.user_root')
-        self.assertFalse(root.active)
-        self.assertEqual(self._post(self._batch(), key=self._key(root)).status_code, 401)
 
     def test_a_key_is_refused_with_404_on_every_bearer_route_the_platform_does_not_list(self):
         """The platform guard answers before it reads the key: a wrong key and the real one get the same 404.
@@ -328,10 +401,10 @@ class TestAiUsageService(AiProbe, LiwanApiCase):
 
     def test_the_key_means_nothing_on_the_session_routes(self):
         """These routes never read a bearer key: the key is not a password, a token or a session."""
-        for path, status in (('/api/v1/ai/usage', 401), ('/api/v1/ai/audit', 401), ('/api/v1/ai/tools', 401), ('/api/v1/me', 401)):
+        for path in ('/api/v1/ai/audit', '/api/v1/ai/tools', '/api/v1/me'):
             with self.subTest(path=path):
                 response = self._post_raw(path, self.key, method='GET' if path.endswith(('tools', '/me')) else 'POST')
-                self.assertEqual(response.status_code, status, (path, response.text))
+                self.assertEqual(response.status_code, 401, (path, response.text))
                 self.assertEqual(response.json()['code'], 'session_required')
         for path in ('/xmlrpc/2/object', '/xmlrpc/2/common'):
             with self.subTest(path=path):
@@ -403,7 +476,7 @@ class TestAiUsageServiceLock(AiProbe, LiwanApiCase):
         super().setUp()
         self._install_probe()
         self.recorder = self.env.ref('liwan_ai.user_ai_usage')
-        self.key = self.env['res.users.apikeys'].with_user(self.recorder)._generate('rpc', 'lock test', datetime.now() + timedelta(days=1))
+        self.key = usage_key(self)
         self.Usage = self.env['liwan.ai.usage']
         self.opener.cookies.clear()
 

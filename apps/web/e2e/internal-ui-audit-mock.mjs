@@ -169,7 +169,7 @@ const PROJECTS = [
 const COPIES = []
 // Rows the Liwan AI audit endpoint received; GET /__mock/ai-audit exposes them to specs.
 const AI_AUDIT = []
-// Provider usage rows (POST /api/v1/ai/usage); GET /__mock/ai-usage exposes them to specs.
+// Provider usage rows (POST /api/v1/ai/usage/service); GET /__mock/ai-usage exposes them to specs.
 const AI_USAGE = []
 // The web gate for /ai checks this alias capability literally (apps/web/app/modules/ai/manifest.ts).
 const AI_USE = 'ai.use'
@@ -613,10 +613,15 @@ async function handle(req, res) {
     AI_AUDIT.push(entry.result === 'approved' ? { ...entry, attested_at: NOW() } : entry)
     return json(res, 200, { id: AI_AUDIT.length, messages_used: AI_AUDIT.filter(a => a.kind === 'message').length, messages_limit: 500 })
   }
-  if (method === 'POST' && path === '/api/v1/ai/usage') {
+  if (method === 'POST' && path === '/api/v1/ai/usage/service') {
+    // The recorder credential is a 64-hex bearer derived per database; the mock checks its shape, not its value.
+    if (!/^Bearer [0-9a-f]{64}$/.test(req.headers.authorization ?? '')) return json(res, 401, { code: 'unauthorized', message: 'bearer required' })
     let batch = {}
     try { batch = JSON.parse(await readBody(req) || '{}') } catch { batch = {} }
-    if (!Array.isArray(batch.items) || !batch.items.length) return json(res, 422, { code: 'invalid', message: 'items are required', field: 'items' })
+    if (!Array.isArray(batch.items)) return json(res, 422, { code: 'invalid', message: 'items are required', field: 'items' })
+    // No items is the web gate's probe of the recorder.
+    if (!batch.items.length) return json(res, 200, { items: [], total: 0 })
+    if (!Number.isInteger(batch.user_id) || batch.user_id < 1) return json(res, 422, { code: 'invalid', message: 'user_id is required', field: 'user_id' })
     if (!Number.isInteger(batch.user_company_id) || batch.user_company_id < 1) return json(res, 422, { code: 'invalid', message: 'user_company_id is required', field: 'user_company_id' })
     const rows = batch.items.map((item, index) => ({ ...item, id: AI_USAGE.length + index + 1 }))
     AI_USAGE.push(...rows)

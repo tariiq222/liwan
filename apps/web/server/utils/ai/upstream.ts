@@ -81,21 +81,20 @@ const EXPECTED_COMPANY_HEADER = 'x-liwan-expected-company-id'
 /**
  * One Odoo call as the caller: the request cookie travels, plus the company the browser's tab was loaded for when it stated one.
  * Odoo refuses a call whose stated company is no longer the session's working company (409 `request_context_changed`), so every
- * call of a run, the first `/api/v1/me` and each later tool and audit call, is checked by Odoo itself. `statesCompany: false`
- * leaves the header out of a call that records something already done and must not be refused for a later switch (the usage report).
+ * call of a run, the first `/api/v1/me` and each later tool and audit call, is checked by Odoo itself.
  */
-export async function odooJson(event: H3Event, method: 'GET' | 'POST' | 'PATCH', path: string, options: { query?: Record<string, unknown>; body?: unknown; signal?: SignalOption; statesCompany?: boolean } = {}): Promise<Upstream> {
+export async function odooJson(event: H3Event, method: 'GET' | 'POST' | 'PATCH', path: string, options: { query?: Record<string, unknown>; body?: unknown; signal?: SignalOption } = {}): Promise<Upstream> {
   const dispatch = async (): Promise<Upstream> => {
     const { odooUrl } = useRuntimeConfig(event)
     const cookie = getHeader(event, 'cookie')
     if (!cookie) throw createError({ statusCode: 401, data: { code: 'unauthorized', message: 'no session' } })
     const target = withQuery(path, (options.query ?? {}) as QueryObject)
-    const expectedCompany = options.statesCompany === false ? undefined : getHeader(event, EXPECTED_COMPANY_HEADER)
+    const expectedCompany = getHeader(event, EXPECTED_COMPANY_HEADER)
     const headers: Record<string, string> = { cookie, accept: 'application/json', ...uiLocaleHeaders(event), ...(expectedCompany ? { [EXPECTED_COMPANY_HEADER]: expectedCompany } : {}), ...(options.body !== undefined ? { 'content-type': 'application/json' } : {}) }
     const body = options.body !== undefined ? JSON.stringify(options.body) : undefined
     const tenantHeaders = tenantUpstreamHeaders(event)
     const response = Object.keys(tenantHeaders).length
-      ? await tenantTransport(event, odooUrl, target, { method, body, headers, signal: options.signal ?? undefined, ignoreClientClose: options.signal === null, expectedContext: options.statesCompany !== false })
+      ? await tenantTransport(event, odooUrl, target, { method, body, headers, signal: options.signal ?? undefined, ignoreClientClose: options.signal === null })
       : await fetch(joinURL(odooUrl, target), { method, body, headers, redirect: 'error', signal: withTimeout(event, ODOO_TIMEOUT_MS, options.signal) })
     const text = await response.text()
     let parsed: unknown = text
@@ -106,11 +105,10 @@ export async function odooJson(event: H3Event, method: 'GET' | 'POST' | 'PATCH',
 }
 
 /**
- * The AI usage report as the deployment's technical recorder, not as the user: the credential is the server-held API key, so the
- * report no longer depends on the user's session still being valid when a run ends (issue #557). Nothing the browser sent is
- * forwarded: no cookie, no `Authorization` header of the request. The key is read by the caller from the server's own
- * environment, never from runtime config the client bundle could reach, and appears only in the `Authorization` header of this
- * one request (path and method are checked again by `tenantTransport` and by the shared guard).
+ * The AI usage report as the technical recorder, not as the user: the credential is the bearer derived for the tenant's database
+ * (`recorder.ts`), so the report does not depend on the user's session still being valid when a run ends (issue #557). Nothing the
+ * browser sent is forwarded: no cookie, no `Authorization` header of the request. The bearer appears only in the `Authorization`
+ * header of this one request (path and method are checked again by `tenantTransport` and by the shared guard).
  */
 export async function odooServiceUsageJson(event: H3Event, key: string, body: unknown): Promise<Upstream> {
   const dispatch = async (): Promise<Upstream> => {

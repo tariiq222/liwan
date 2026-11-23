@@ -7,7 +7,6 @@ from psycopg2.errors import UniqueViolation
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
-from odoo.addons.liwan_ai.models.access_service import AI_USE
 from odoo.addons.liwan_ai.models.ai_audit import (
     CONVERSATION_ID_MESSAGE,
     is_conversation_id,
@@ -15,7 +14,7 @@ from odoo.addons.liwan_ai.models.ai_audit import (
 )
 from odoo.addons.liwan_api.models.ai_agent_registry import AI_SERVICE_FEATURE
 
-# The one route the usage recorder's API key may reach (models/ir_http.py registers it with the platform guard).
+# The one route the usage recorder's derived bearer may reach (models/ir_http.py registers it with the platform guard).
 USAGE_SERVICE_PATH = '/api/v1/ai/usage/service'
 USAGE_KINDS = ('plan', 'title', 'route', 'summary')
 # What kind of task a call served (the AI service's ``Capability`` and the zod ``AiCapabilitySchema``).
@@ -90,11 +89,10 @@ def parse_called_at(value):
 class LiwanAiUsage(models.Model):
     """One row per AI provider call, owned by the user who made it.
 
-    Written by the Nuxt executor, either as the user (``/api/v1/ai/usage``, their session) or, once their session no
-    longer matters, as the tenant's technical recorder account for that user (``/api/v1/ai/usage/service``); never
-    elevated by ``sudo()``. The calls already happened, so ``create`` applies no limit: it
-    only validates and derives the owner. Record rules mirror the audit's: each
-    user sees their own rows, the access audit readers see their company's.
+    Written by the Nuxt executor as the tenant's technical recorder account for the user who made the calls
+    (``/api/v1/ai/usage/service``, authenticated by the bearer derived in models/usage_key.py); never elevated by
+    ``sudo()``. The calls already happened, so recording applies no limit: it only validates and derives the owner.
+    Record rules mirror the audit's: each user sees their own rows, the access audit readers see their company's.
     """
     _name = 'liwan.ai.usage'
     _description = 'LiwanOS AI usage'
@@ -139,7 +137,7 @@ class LiwanAiUsage(models.Model):
     _user_conversation_call_uniq = models.UniqueIndex('(user_id, conversation_id, call_id)')
 
     @api.model
-    def _liwan_ai_prepare(self, values, user, company, service=False):
+    def _liwan_ai_prepare(self, values, user, company):
         """Validate one wire payload and return the create values for ``user`` in ``company``.
 
         Raises ``ValidationError`` with ``liwan_field`` for a bad value.
@@ -198,19 +196,13 @@ class LiwanAiUsage(models.Model):
             invalid('cost' if values['cost'] is not None else 'charge', 'a call on the tenant key has no cost or charge')
         if billing == 'setup' and values['charge'] is not None:
             invalid('charge', 'a setup call is paid by the vendor and has no charge')
-        if not service:
-            # The session route is open to every user with ai.use: a user must not write the figures deducted from the balance.
-            for field in ('cost', 'charge'):
-                if values[field] is not None:
-                    invalid(field, f'{field} is only accepted from the usage recorder')
         called_at = parse_called_at(values['called_at'])
         if called_at is None:
             invalid('called_at', 'called_at must be an ISO-8601 datetime with an offset')
         if called_at > datetime.now(timezone.utc) + FUTURE_TOLERANCE:
             invalid('called_at', 'called_at must not be more than 5 minutes in the future')
-        if service:
-            if called_at < datetime.now(timezone.utc) - SERVICE_MAX_AGE:
-                invalid('called_at', 'called_at must be within the last 24 hours on this route')
+        if called_at < datetime.now(timezone.utc) - SERVICE_MAX_AGE:
+            invalid('called_at', 'called_at must be within the last 24 hours on this route')
         return {
             'company_id': company.id,
             'user_id': user.id,
@@ -232,33 +224,6 @@ class LiwanAiUsage(models.Model):
             'charge_paid': 0,
             'called_at': called_at.replace(tzinfo=None),
         }
-
-    @api.model_create_multi
-    def create(self, vals_list):
-        """Record the attempts of a batch as the signed-in user in the company this environment works in, each row once."""
-        self.env['liwan.entitlement.service'].require(AI_SERVICE_FEATURE)
-        self.env['liwan.access.service']._liwan_require_capability(AI_USE)
-        return self._liwan_ai_record(vals_list, self.env.user, self.env.company)
-
-    @api.model
-    def _liwan_ai_record_own(self, vals_list, company_id):
-        """Record the attempts of a batch the signed-in user made in ``company_id`` (the browser-session path).
-
-        A run reports after it ends, and the session may work in another company by then, so the batch names the company
-        the run started in. It must be an active membership of the caller (an archived company, one the caller does not
-        belong to and one that does not exist are refused alike); the write then runs in that one company, where the feature and
-        ``ai.use`` are required, so membership alone records nothing and a later switch never refuses a report.
-        """
-        if not isinstance(company_id, int) or isinstance(company_id, bool):
-            raise_invalid(self.env, 'user_company_id', 'user_company_id must be an integer')
-        if company_id not in self.env['liwan.access.service']._liwan_membership_company_ids():
-            raise_invalid(self.env, 'user_company_id', 'user_company_id must be a company the caller belongs to')
-        scoped = self.with_context(allowed_company_ids=[company_id], liwan_pinned_company_ids=[company_id], liwan_capability_scope=None)
-        # The same gates as ``create``, stated here: tools/route_gate_policy.py reads the capability of the session route
-        # from this method, and it must be the one evaluated in the named company.
-        scoped.env['liwan.entitlement.service'].require(AI_SERVICE_FEATURE)
-        scoped.env['liwan.access.service']._liwan_require_capability(AI_USE)
-        return scoped._liwan_ai_record(vals_list, scoped.env.user, scoped.env.company)
 
     @api.model
     def _liwan_ai_record_for(self, vals_list, user_id, company_id):
@@ -283,10 +248,10 @@ class LiwanAiUsage(models.Model):
         ], limit=1)
         if not user:
             raise_invalid(self.env, 'user_id', 'user_id must be an internal user of user_company_id')
-        return scoped._liwan_ai_record(vals_list, user, scoped.env['res.company'].browse(company_id), service=True)
+        return scoped._liwan_ai_record(vals_list, user, scoped.env['res.company'].browse(company_id))
 
     @api.model
-    def _liwan_ai_record(self, vals_list, user, company, service=False):
+    def _liwan_ai_record(self, vals_list, user, company):
         """Record the attempts of a batch, each row once; a row this user already reported is not counted again.
 
         The spool retries a batch whose answer it never saw, so the same attempt can arrive twice (issue #557). The unique
@@ -296,14 +261,14 @@ class LiwanAiUsage(models.Model):
         rows = []
         for index, values in enumerate(vals_list):
             try:
-                rows.append(self._liwan_ai_prepare(values, user, company, service=service))
+                rows.append(self._liwan_ai_prepare(values, user, company))
             except ValidationError as error:
                 error.liwan_index = index
                 raise
         created = []
         balance = self.env['liwan.ai.balance']
         profile = self.env['liwan.entitlement.service']._liwan_profile()
-        if service and any(row['billing'] == 'platform' and row['charge_reported'] for row in rows):
+        if any(row['billing'] == 'platform' and row['charge_reported'] for row in rows):
             # Settling a charge reads the free allowance the rows of the window already used. Odoo runs REPEATABLE READ, so a
             # batch whose snapshot is older than the previous batch's commit would count too little: the tenant's quota fence
             # (the write the message check also uses) makes it fail serialization and be replayed on fresh data. The recorder
@@ -314,8 +279,7 @@ class LiwanAiUsage(models.Model):
             if existing:
                 created.append(existing.id)
                 continue
-            if service:
-                row.update(balance._liwan_ai_settle(row))
+            row.update(balance._liwan_ai_settle(row))
             try:
                 with self.env.cr.savepoint():
                     created.append(super().create([row]).id)

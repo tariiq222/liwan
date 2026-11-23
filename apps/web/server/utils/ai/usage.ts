@@ -1,8 +1,7 @@
-import { getCookie, getHeader, type H3Event } from 'h3'
-import { createHash } from 'node:crypto'
+import type { H3Event } from 'h3'
 import { AI_USAGE_BATCH_MAX, AI_USAGE_SERVICE_LIMITS, AiModelCallEventSchema, AiModelUsageEventSchema, type AiModelCallEvent, type AiModelUsageEvent, type AiUsageRecord } from '@liwan/contracts'
-import { BEARER_KEY } from '../serviceAuthorization'
-import { logFailure, odooJson, odooServiceUsageJson } from './upstream'
+import { markUsageRefused, usageRecorder, type UsageRecorder } from './recorder'
+import { logFailure, odooServiceUsageJson } from './upstream'
 
 type Attempt = { call: AiModelCallEvent; usage: AiModelUsageEvent | null }
 
@@ -19,14 +18,10 @@ class UsageRefused extends Error {
 
 /** Logged by count only: the spool reached its row bound, so its oldest rows were dropped. */
 class UsageSpoolOverflow extends Error {}
-/** Logged by count only: one session reached its own row bound, so its oldest rows there were dropped. */
-class UsageSessionOverflow extends Error {}
-/** Logged by count only: a run ended on a request that carried no session, so its rows had no owner to be reported under. */
-class UsageUnattributed extends Error {}
+/** Logged by count only: one tenant reached its own row bound, so its oldest rows there were dropped. */
+class UsageTenantOverflow extends Error {}
 /** Logged by count only: spooled rows waited past the age bound without Odoo accepting them. */
 class UsageSpoolExpired extends Error {}
-/** Logged by count only: the recorder key is set but is not an Odoo API key, so the report falls back to the user's session. */
-class UsageKeyMalformed extends Error {}
 /** Logged by count only: the run's user or company is not a usable id, so its rows could not be reported as that user. */
 class UsageOwnerInvalid extends Error {}
 /** Logged by count and field: Odoo refuses these rows now (422); they are kept and retried, and only the spool age bound expires them. */
@@ -36,76 +31,39 @@ class UsageSettled extends Error {}
 
 /**
  * Rows kept for a retry: at most 2048 in the process, oldest dropped first, none older than an hour. A busy tenant must not
- * evict the rows of another on a shared process, so each session also keeps at most `SPOOL_SESSION_MAX_ROWS` (issue #557).
- * A run reports at most a handful of attempts, so the per-session bound is far above any one conversation's need.
+ * evict the rows of another on a shared process, so each tenant also keeps at most `SPOOL_TENANT_MAX_ROWS` (issue #557).
+ * A run reports at most a handful of attempts, so the per-tenant bound is far above any one run's need.
  */
 const SPOOL_MAX_ROWS = 2048
-const SPOOL_SESSION_MAX_ROWS = 256
+const SPOOL_TENANT_MAX_ROWS = 1024
 export const SPOOL_MAX_AGE_MS = 60 * 60 * 1000
 /**
- * A refused row becomes due again this long after its refusal. It is bounded on purpose: a failing or ended session would
- * otherwise be retried by every run that ends in the same session, so one broken Odoo would take the load of every finished
- * run at once. Nothing is dropped by waiting: a row stays spooled until it is accepted or passes the age bound.
+ * A refused row becomes due again this long after its refusal. It is bounded on purpose: one broken Odoo would otherwise take
+ * the load of every finished run at once. Nothing is dropped by waiting: a row stays spooled until it is accepted or passes the
+ * age bound.
  */
 const SPOOL_RETRY_AFTER_MS = 60 * 1000
 
-/** The user and company a service-reported run belongs to: the batch names them, a row never does. */
-type ServiceOwner = { user: number; company: number }
 /** What the ledger needs of the run's session: the caller's id and the company the run started in, as `runSession` knew them at its start. */
 export type ReportingRun = { owner: { user: string }; company: string }
 
 /**
- * A row this process observed and Odoo has not accepted yet. `company` is the company the run started in, which a report names
- * (the session may work in another one by the time it is sent). `serviceUser` is the run's user when the deployment's recorder key
- * reports the row, and null when the user's own session does. `session` is the key its retries are grouped and bounded by: the
- * hash of the session that observed it (Odoo derives the owner of a cookie-reported row from the session that sends it, so such a
- * row is retried only under that session and is never billed to whoever happens to flush next), or `service:<user>:<company>` for a
- * row reported with the deployment's recorder key, which is retried by any later flush because the key, not a session, speaks for
- * it. Neither the session cookie, the recorder key nor the host is ever retained in clear or logged. The spool is memory only:
- * rows not yet accepted by Odoo are lost when this process restarts (residual window, `deploy/OPERATIONS.md`).
+ * A row this process observed and Odoo has not accepted yet. `tenant` is the database it is recorded into (the recorder's
+ * tenant), so a retry is sent only on that tenant's event with that tenant's credential: user and company ids repeat across the
+ * databases of a shared process. `user` and `company` are the run's, named once per batch, never per row. The spool is memory
+ * only: rows not yet accepted by Odoo are lost when this process restarts (residual window, `deploy/OPERATIONS.md`).
  */
-type SpooledRow = { row: AiUsageRecord; company: number; session: string; serviceUser: number | null; observedAt: number; dueAt: number }
+type SpooledRow = { row: AiUsageRecord; tenant: string; user: number; company: number; observedAt: number; dueAt: number }
 const spool: SpooledRow[] = []
 
-/**
- * The deployment's recorder key (an Odoo API key of the tenant's technical usage account), or '' when this process reports as the
- * user. Only a dedicated deployment has one: a shared process serves many tenants and no single key can speak for them (the
- * shared-SaaS key is a later step of issue #557), so there it keeps reporting with the user's session. Read from the server's
- * own environment on every call, never from runtime config the client could reach.
- */
-function recorderKey(): string {
-  if ((process.env.LIWAN_TENANCY_MODE ?? 'dedicated') !== 'dedicated') return ''
-  const key = process.env.LIWAN_AI_USAGE_KEY ?? ''
-  if (!key) return ''
-  if (!BEARER_KEY.test(`Bearer ${key}`)) {
-    logFailure('LIWAN_AI_USAGE_KEY is set but is not an Odoo API key; reporting usage as the user instead', new UsageKeyMalformed())
-    return ''
-  }
-  return key
-}
-
-const serviceKeyOf = (owner: ServiceOwner): string => `service:${owner.user}:${owner.company}`
 const positiveId = (value: string): number => /^[1-9][0-9]{0,9}$/.test(value) ? Number(value) : 0
-
-/**
- * The reporting identity of one request: its tenant host and its Odoo session cookie, hashed. A shared process never mixes two
- * tenants. Only the session cookie keys it, so a UI language switch (`liwan-locale` in the same browser jar) never strands rows
- * an earlier request spooled (issue #557); a request with no session has no key.
- */
-function sessionKey(event: H3Event): string {
-  const session = getCookie(event, 'session_id')
-  if (!session) return ''
-  return createHash('sha256').update(`${getHeader(event, 'host') ?? ''}\n${session}`).digest('base64url').slice(0, 22)
-}
 
 /**
  * Drops rows that waited past the age bound, naming the count only: no row payload ever reaches a log line. This is the only way
  * a row Odoo refused (or could not be asked about) is given up, and it is the last resort on purpose: this process keeps no
- * durable store (adding one would be new infrastructure), so rows wait in memory for an hour. There is no timer: a waiting row
- * is retried when the next AI run ends on this process, and at most once a minute per row, so a quiet tenant can let rows reach
- * the age bound even after Odoo has recovered. They are then expired with a count that an operator can alert on. A server
- * refusal alone never discards real usage. The two size bounds (`SPOOL_MAX_ROWS`, `SPOOL_SESSION_MAX_ROWS`) still evict the
- * oldest rows when they are exceeded, each with its own counted log line.
+ * durable store, so rows wait in memory for an hour. There is no timer: a waiting row is retried when the next AI run ends on
+ * this process, and at most once a minute per row. A server refusal alone never discards real usage. The two size bounds
+ * (`SPOOL_MAX_ROWS`, `SPOOL_TENANT_MAX_ROWS`) still evict the oldest rows when they are exceeded, each with its own counted log line.
  */
 function expireSpooled(now: number): void {
   const kept = spool.filter(entry => now - entry.observedAt <= SPOOL_MAX_AGE_MS)
@@ -115,30 +73,22 @@ function expireSpooled(now: number): void {
   logFailure(`expired ${expired} usage rows unaccepted for ${SPOOL_MAX_AGE_MS / 60_000} minutes`, new UsageSpoolExpired())
 }
 
-/** Drops the oldest rows one session holds beyond its own bound, so a busy session cannot push another's rows out. */
-function enforceSessionBound(session: string): void {
-  const held = spool.filter(entry => entry.session === session)
-  const excess = held.length - SPOOL_SESSION_MAX_ROWS
+/** Drops the oldest rows one tenant holds beyond its own bound, so a busy tenant cannot push another's rows out. */
+function enforceTenantBound(tenant: string): void {
+  const held = spool.filter(entry => entry.tenant === tenant)
+  const excess = held.length - SPOOL_TENANT_MAX_ROWS
   if (excess <= 0) return
   const dropped = new Set(held.slice(0, excess))
   for (let index = spool.length - 1; index >= 0; index--) if (dropped.has(spool[index]!)) spool.splice(index, 1)
-  logFailure(`dropped ${excess} usage rows of one session over the ${SPOOL_SESSION_MAX_ROWS}-row bound`, new UsageSessionOverflow())
+  logFailure(`dropped ${excess} usage rows of one tenant over the ${SPOOL_TENANT_MAX_ROWS}-row bound`, new UsageTenantOverflow())
 }
 
-/**
- * Appends the rows of one run in the order the provider attempts were observed, then enforces both bounds: the session's own,
- * then the process's. A row of no session is never spooled: it could only be retried under that empty key, and Odoo bills a
- * usage row to the session that sends it (issue #557). Every row carries the company its run started in.
- */
-function spoolRows(rows: readonly AiUsageRecord[], company: number, session: string, serviceUser: number | null = null): void {
-  if (!session) {
-    logFailure(`dropped ${rows.length} usage rows of a request with no session`, new UsageUnattributed())
-    return
-  }
+/** Appends the rows of one run in the order the provider attempts were observed, then enforces both bounds: the tenant's own, then the process's. */
+function spoolRows(rows: readonly AiUsageRecord[], tenant: string, user: number, company: number): void {
   const now = Date.now()
   expireSpooled(now)
-  for (const row of rows) spool.push({ row, company, session, serviceUser, observedAt: now, dueAt: now })
-  enforceSessionBound(session)
+  for (const row of rows) spool.push({ row, tenant, user, company, observedAt: now, dueAt: now })
+  enforceTenantBound(tenant)
   const excess = spool.length - SPOOL_MAX_ROWS
   if (excess <= 0) return
   spool.splice(0, excess)
@@ -148,37 +98,6 @@ function spoolRows(rows: readonly AiUsageRecord[], company: number, session: str
 function removeSpooled(accepted: readonly SpooledRow[]): void {
   const settled = new Set(accepted)
   for (let index = spool.length - 1; index >= 0; index--) if (settled.has(spool[index]!)) spool.splice(index, 1)
-}
-
-/**
- * Reports the rows this session still holds and is due, one company at a time: each request names the company its rows' runs
- * started in and carries at most `AI_USAGE_BATCH_MAX` of them, in the order they were observed. The report states no company
- * precondition: the session may work in another company by now and a finished run is still recorded where it started. A batch
- * leaves the spool only once Odoo answered 200, so a refusal, a timeout or a dead connection keeps every row of it and makes it
- * due again after the retry window, together with the later rows of the same company in this report. The rows of another company
- * are still sent: a company Odoo refuses (the caller left it, or lost `ai.use` there) must not hold back usage Odoo would accept.
- * A retry can repeat a row Odoo already stored and never counted it twice: the row carries the provider's `call_id`, which Odoo
- * holds once per user and conversation (issue #557).
- */
-async function sendSpooled(event: H3Event, session: string): Promise<void> {
-  const now = Date.now()
-  const due = new Map<number, SpooledRow[]>()
-  for (const entry of spool) if (entry.serviceUser === null && entry.session === session && entry.dueAt <= now) due.set(entry.company, [...(due.get(entry.company) ?? []), entry])
-  for (const [company, rows] of due) {
-    for (let start = 0; start < rows.length; start += AI_USAGE_BATCH_MAX) {
-      const batch = rows.slice(start, start + AI_USAGE_BATCH_MAX)
-      try {
-        const receipt = await odooJson(event, 'POST', '/api/v1/ai/usage', { body: { user_company_id: company, items: batch.map(entry => entry.row) }, signal: null, statesCompany: false })
-        if (receipt.status !== 200) throw new UsageRefused(receipt.status)
-      } catch (error) {
-        logFailure(`usage report of ${batch.length} rows failed`, error)
-        const retryAt = Date.now() + SPOOL_RETRY_AFTER_MS
-        for (const entry of rows.slice(start)) entry.dueAt = retryAt
-        break
-      }
-      removeSpooled(batch)
-    }
-  }
 }
 
 const rowTokens = (row: AiUsageRecord): number => (row.input_tokens ?? 0) + (row.output_tokens ?? 0)
@@ -207,11 +126,11 @@ function refusalOf(body: unknown): { field: string; retryAfterMs: number } {
 }
 
 /**
- * Reports every due row of the service owners with the recorder key, one request per user and company in the order the rows
+ * Reports every due row of this request's tenant with that tenant's credential, one request per user and company in the order the rows
  * were observed, sized the way Odoo admits them (`chunkRows`). A row leaves the spool in exactly two ways: Odoo has it, or the
  * spool age bound expires it (`expireSpooled`, which logs the count, and is the last resort for a row Odoo will not take: this
- * process keeps no other store, and a refusal is never a licence to discard real usage; the 2048-row process bound and the 256-row
- * per-owner bound still evict the oldest rows, each with a counted log line). Retries happen when the next AI run ends on this
+ * process keeps no other store, and a refusal is never a licence to discard real usage; the 2048-row process bound and the 1024-row
+ * per-tenant bound still evict the oldest rows, each with a counted log line). Retries happen when the next AI run ends on this
  * process, at most once a minute per row; there is no timer. Every server answer:
  *  - 200: recorded; the rows leave the spool.
  *  - 409 naming `items.<i>.<field>`: that row is already held (under another company); Odoo has it, so it leaves the spool.
@@ -221,26 +140,28 @@ function refusalOf(body: unknown): { field: string; retryAfterMs: number } {
  *  - 422 naming `items` (the request is above the per-minute token ceiling): split in halves; a lone row that is still refused is kept.
  *  - 422 naming the owner (`user_id`, `user_company_id`): this owner's rows are kept and deferred, loudly, until the age bound.
  *  - 429: the recorder is over its budget. Every due row backs off for what Odoo asked (at least the retry window); nothing is lost.
- *  - 401/403: the key is wrong or revoked, nothing else would pass either; every due row backs off.
+ *  - 401/403: the credential is wrong or revoked, nothing else would pass either; the tenant is marked refused (the run gate then
+ *    refuses new runs) and every due row of the tenant backs off.
  *  - a timeout, a 5xx, a dead connection: the request and the rows behind it of this owner keep for the retry window.
  */
-async function sendServiceSpooled(event: H3Event, key: string): Promise<void> {
+async function sendSpooled(event: H3Event, recorder: UsageRecorder): Promise<void> {
   const now = Date.now()
+  const mine = spool.filter(entry => entry.tenant === recorder.tenant && entry.dueAt <= now)
   const groups = new Map<string, SpooledRow[]>()
-  for (const entry of spool) if (entry.serviceUser !== null && entry.dueAt <= now) groups.set(entry.session, [...(groups.get(entry.session) ?? []), entry])
+  for (const entry of mine) { const owner = `${entry.user}:${entry.company}`; groups.set(owner, [...(groups.get(owner) ?? []), entry]) }
   const deferAll = (retryAfterMs: number) => {
     const retryAt = Date.now() + Math.max(SPOOL_RETRY_AFTER_MS, retryAfterMs)
-    for (const entry of spool) if (entry.serviceUser !== null && entry.dueAt <= now) entry.dueAt = retryAt
+    for (const entry of mine) entry.dueAt = retryAt
   }
   const keep = (entries: readonly SpooledRow[]) => { for (const entry of entries) entry.dueAt = Date.now() + SPOOL_RETRY_AFTER_MS }
   for (const due of groups.values()) {
-    const owner: ServiceOwner = { user: due[0]!.serviceUser!, company: due[0]!.company }
+    const { user, company } = due[0]!
     const queue = chunkRows(due)
     while (queue.length) {
       const batch = queue.shift()!
       let receipt: { status: number; body: unknown }
       try {
-        receipt = await odooServiceUsageJson(event, key, { user_id: owner.user, user_company_id: owner.company, items: batch.map(entry => entry.row) })
+        receipt = await odooServiceUsageJson(event, recorder.bearer, { user_id: user, user_company_id: company, items: batch.map(entry => entry.row) })
       } catch (error) {
         logFailure(`usage report of ${batch.length} rows failed`, error)
         keep([batch, ...queue].flat())
@@ -249,6 +170,7 @@ async function sendServiceSpooled(event: H3Event, key: string): Promise<void> {
       if (receipt.status === 200) { removeSpooled(batch); continue }
       if (receipt.status === 401 || receipt.status === 403 || receipt.status === 429) {
         logFailure(`usage report of ${batch.length} rows failed with status ${receipt.status}`, new UsageRefused(receipt.status))
+        if (receipt.status !== 429) markUsageRefused(recorder.tenant)
         deferAll(receipt.status === 429 ? refusalOf(receipt.body).retryAfterMs : 0)
         return
       }
@@ -283,28 +205,10 @@ async function sendServiceSpooled(event: H3Event, key: string): Promise<void> {
 }
 
 /**
- * One report at a time per session: two runs finishing together in the same session can never send the same spooled row twice,
- * while one session's slow report never holds another session or tenant back. An entry is dropped as soon as its chain settles.
+ * One report at a time per tenant: two runs finishing together can never send the same spooled row twice, while one tenant's slow
+ * report never holds another back. An entry is dropped as soon as its chain settles.
  */
 const reporting = new Map<string, Promise<void>>()
-
-/**
- * Reports now what this request's session still holds and is due. Module-private: every `flush` calls it, so the next flush of
- * any ledger is the retry trigger for rows an earlier refused report left behind once their retry window passed. A retry needs a
- * request that still carries the reporting session's cookie (a usage row is billed to the session that sends it), so no timer
- * can do it alone. Serialized per session, and it never throws: a failure stays spooled for the next attempt.
- */
-function retryPending(event: H3Event, key: string): Promise<void> {
-  if (key) return chain(SERVICE_CHAIN, () => sendServiceSpooled(event, key))
-  const session = sessionKey(event)
-  // A request with no session gives the rows no owner to be reported under, so it neither sends nor waits.
-  if (!session) return Promise.resolve()
-  expireSpooled(Date.now())
-  return chain(session, () => sendSpooled(event, session))
-}
-
-/** The one chain every service-reported row goes through: the recorder key speaks for all of them, so two reports never overlap. */
-const SERVICE_CHAIN = 'service'
 
 function chain(name: string, send: () => Promise<void>): Promise<void> {
   expireSpooled(Date.now())
@@ -314,6 +218,21 @@ function chain(name: string, send: () => Promise<void>): Promise<void> {
   reporting.set(name, report)
   void report.finally(() => { if (reporting.get(name) === report) reporting.delete(name) })
   return report
+}
+
+/**
+ * Reports now what this tenant's spool still holds and is due. Every `flush` calls it, so the next flush of any ledger is the
+ * retry trigger for rows an earlier refused report left behind once their retry window passed. Serialized per tenant, and it
+ * never throws: a failure stays spooled for the next attempt.
+ */
+const retryPending = (event: H3Event, recorder: UsageRecorder): Promise<void> => chain(recorder.tenant, () => sendSpooled(event, recorder))
+
+/** Retries the rows of this request's tenant that waited, used when the run gate finds the recorder healthy again. Never throws. */
+export function retryUsage(event: H3Event): Promise<void> {
+  try { return retryPending(event, usageRecorder(event)) } catch (error) {
+    logFailure('usage spool retry could not be attempted', error)
+    return Promise.resolve()
+  }
 }
 
 /**
@@ -361,44 +280,35 @@ export function createUsageLedger() {
     : [])
 
   /**
-   * Hands this run's attempts to the process spool once per ledger, in order, then reports what the spool holds. With the
-   * deployment's recorder key, the rows are reported as the run's user by the key, so a session that ended mid-run (logout, an
-   * expired cookie, a revoked `ai.use`) no longer loses them; any flush retries every due service row. Without a key (a shared
-   * deployment, until its per-tenant key exists) they are reported with the request's session, naming the company the run started
-   * in (`run.company`; a run without a usable one is dropped and logged by count, never sent without a company): a batch Odoo
-   * refuses stays spooled for the next flush of that session, and a run whose request carried no session cookie has no owner
-   * for its rows, which are dropped and logged by count, never spooled under an empty key. Every failure to record is logged by
-   * class and count, never silently dropped. The call is shielded from the browser (`signal: null`) and runs after the browser
-   * stream closed, so a slow or failing report never holds the UI busy.
+   * Hands this run's attempts to the process spool once per ledger, in order, then reports what the tenant's spool holds. The rows
+   * are reported as the run's user with the tenant's derived credential (`recorder.ts`), so a session that ended mid-run (logout,
+   * an expired cookie, a revoked `ai.use`) no longer loses them, and any flush retries the due rows of its own tenant only. A run
+   * without a usable user or company, or a request with no usable credential, is dropped and logged by count, never sent. Every
+   * failure to record is logged by class and count, never silently dropped. The call is shielded from the browser and runs after
+   * the browser stream closed, so a slow or failing report never holds the UI busy.
    *
    * Residual limits, stated rather than hidden: the spool is in memory, so rows Odoo has not yet accepted are lost if this process
    * restarts, and a spooled row is retried only when some later run ends (no timer, because a retry needs a live request for the
-   * release and tenant binding) and is given up after the age bound. On a cookie-reported run, a session that ended mid-run is
-   * refused with 401/403 and its rows are never sent under another session, because Odoo would bill that session's owner.
+   * release and tenant binding) and is given up after the age bound.
    */
   async function flush(event: H3Event, conversationId: string, run: ReportingRun): Promise<void> {
     if (flushed) return
     flushed = true
     try {
       const rows = records(conversationId)
-      const key = recorderKey()
+      const user = positiveId(run.owner.user)
       const company = positiveId(run.company)
-      if (key) {
-        const owner = { user: positiveId(run.owner.user), company }
-        if (!owner.user || !owner.company) logFailure(`dropped ${rows.length} usage rows of a run with no usable user or company`, new UsageOwnerInvalid())
-        else {
-          if (rows.length) spoolRows(rows, company, serviceKeyOf(owner), owner.user)
-          await retryPending(event, key)
-        }
+      if (!user || !company) { logFailure(`dropped ${rows.length} usage rows of a run with no usable user or company`, new UsageOwnerInvalid()); return }
+      let recorder: UsageRecorder
+      try { recorder = usageRecorder(event) } catch (error) {
+        if (rows.length) logFailure(`dropped ${rows.length} usage rows of a run with no usable recorder`, error)
         return
       }
-      // The session route refuses cost and charge (any user with ai.use reaches it); only the recorder key may report them.
-      if (rows.length && !company) logFailure(`dropped ${rows.length} usage rows of a run with no usable company`, new UsageOwnerInvalid())
-      else if (rows.length) spoolRows(rows.map(row => ({ ...row, cost: null, charge: null })), company, sessionKey(event))
-      await retryPending(event, '')
+      if (rows.length) spoolRows(rows, recorder.tenant, user, company)
+      await retryPending(event, recorder)
     } catch (error) {
-      // Bookkeeping never touches the user's turn, and this call is the last link of a chain nobody awaits: a request that
-      // cannot even name its session is logged, not thrown into an unhandled rejection.
+      // Bookkeeping never touches the user's turn, and this call is the last link of a chain nobody awaits: a failure here is
+      // logged, not thrown into an unhandled rejection.
       logFailure('usage report could not be attempted', error)
     }
   }

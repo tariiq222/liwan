@@ -34,25 +34,14 @@ describe('odooJson states the tab\'s company', () => {
     tenantHeaders.mockReturnValue({ host: 'a.example.test' })
     const { odooJson } = await import('../upstream')
     await odooJson(eventWith({ [HEADER]: '7' }), 'GET', '/api/v1/me')
-    expect(transport.mock.calls[0]![3]).toMatchObject({ headers: { [HEADER]: '7' }, expectedContext: true })
+    expect(transport.mock.calls[0]![3]).toMatchObject({ headers: { [HEADER]: '7' } })
   })
   it('sends nothing when the request stated no company', async () => {
     const { odooJson } = await import('../upstream')
     await odooJson(eventWith(), 'GET', '/api/v1/me')
     expect(Object.values(sentHeaders())[0]).not.toHaveProperty(HEADER)
   })
-  it('leaves it out of a call that opts out (the usage report)', async () => {
-    tenantHeaders.mockReturnValue({ host: 'a.example.test' })
-    const { odooJson } = await import('../upstream')
-    const event = eventWith({ [HEADER]: '7' })
-    await odooJson(event, 'POST', '/api/v1/ai/usage', { body: {}, statesCompany: false })
-    expect(transport.mock.calls[0]![3].headers).not.toHaveProperty(HEADER)
-    expect(transport.mock.calls[0]![3]).toMatchObject({ expectedContext: false })
-    tenantHeaders.mockReturnValue({})
-    await odooJson(event, 'POST', '/api/v1/ai/usage', { body: {}, statesCompany: false })
-    expect(Object.values(sentHeaders())[0]).not.toHaveProperty(HEADER)
-  })
-  it('never lets the service-key recorder carry it', async () => {
+  it('never lets the usage recorder carry it', async () => {
     const { odooServiceUsageJson } = await import('../upstream')
     await odooServiceUsageJson(eventWith({ [HEADER]: '7' }), 'k', { items: [] })
     expect(Object.values(sentHeaders())[0]).not.toHaveProperty(HEADER)

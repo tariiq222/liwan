@@ -194,19 +194,12 @@ const AiUsageFields = {
   provider: AiProviderNameSchema, model: AiModelNameSchema, outcome: AiModelCallOutcomeSchema, input_tokens: AiTokenCountSchema, output_tokens: AiTokenCountSchema,
   cost: AiCostUnitsSchema, charge: AiCostUnitsSchema, called_at: z.iso.datetime({ offset: true }),
 }
-/** One provider attempt as `POST /api/v1/ai/usage` records it. */
+/** One provider attempt as `POST /api/v1/ai/usage/service` records it. */
 export const AiUsageRecordSchema = z.object(AiUsageFields).strict().refine(tokensComeInPairs, TOKENS_IN_PAIRS).refine(costFollowsTokens, COST_FOLLOWS_TOKENS).refine(pricedByBilling, PRICED_BY_BILLING)
 export type AiUsageRecord = z.infer<typeof AiUsageRecordSchema>
 /**
- * One batch as `POST /api/v1/ai/usage` records it, reported with the user's own session after a run ended. The session may work
- * in another company by then, so the batch names the company the run started in (`user_company_id`, the field name of the
- * service route): Odoo records the rows there for the caller, who must belong to it and hold `ai.use` in it.
- */
-export const AiUsageBatchSchema = z.object({ user_company_id: z.number().int().positive(), items: z.array(AiUsageRecordSchema).min(1).max(AI_USAGE_BATCH_MAX) }).strict()
-export type AiUsageBatch = z.infer<typeof AiUsageBatchSchema>
-/**
- * The same batch as `POST /api/v1/ai/usage/service` records it: the Nuxt server reports it with the tenant's technical
- * recorder key, so the batch names the user who made the calls and the company they were made in (`user_company_id`, not `company_id`:
+ * One batch as `POST /api/v1/ai/usage/service` records it: the Nuxt server reports it with the credential derived for the tenant's
+ * database, so the batch names the user who made the calls and the company they were made in (`user_company_id`, not `company_id`:
  * a payload `company_id` is the platform's own pinned-company guard). A row never names its own owner.
  */
 export const AiUsageServiceBatchSchema = z.object({
@@ -224,11 +217,6 @@ export type AiUsageServiceBatch = z.infer<typeof AiUsageServiceBatchSchema>
  * `max_age_hours` bounds `called_at`; the web spool gives a row up after an hour, far inside it.
  */
 export const AI_USAGE_SERVICE_LIMITS = { max_row_tokens: 100_000_000, max_request_tokens: 200_000_000, max_age_hours: 24 } as const
-/** `charge_paid`: the part of the charge taken from the prepaid balance, set by Odoo only (never part of a report). */
-export const AiUsageRowSchema = z.object({ id: z.number().int().positive(), ...AiUsageFields, charge_paid: z.number().int().nonnegative().max(AI_MAX_COST_UNITS) }).strict().refine(tokensComeInPairs, TOKENS_IN_PAIRS).refine(costFollowsTokens, COST_FOLLOWS_TOKENS).refine(pricedByBilling, PRICED_BY_BILLING)
-export type AiUsageRow = z.infer<typeof AiUsageRowSchema>
-export const AiUsageBatchResponseSchema = z.object({ items: z.array(AiUsageRowSchema), total: z.number().int().nonnegative() }).strict()
-export type AiUsageBatchResponse = z.infer<typeof AiUsageBatchResponseSchema>
 
 export const AiRunStatusSchema = z.object({
   run_id: z.string(),
