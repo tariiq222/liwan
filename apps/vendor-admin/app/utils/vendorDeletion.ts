@@ -43,7 +43,7 @@ const DELETION_CODES = [
   'database_fence_unproven',
   'database_filestore_mismatch',
   'database_is_control_plane',
-  'database_is_scratch_copy',
+  'database_is_restore_copy',
   'database_missing',
   'database_name_invalid',
   'database_still_present',

@@ -4,6 +4,7 @@ from datetime import timedelta
 
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
+from odoo.fields import Domain
 
 from .mail_domain_provider import MailProviderError
 
@@ -69,25 +70,62 @@ class LiwanMailMail(models.Model):
     )
     liwan_sensitive = fields.Boolean(
         'liwan Sensitive Mail', copy=False,
-        help='After a successful send the body and attachments are removed; the row stays for its weight and its log.',
+        help='The body and attachments are removed as soon as the row can no longer be sent (sent, cancelled, or '
+             'failed for good); the row stays for its weight and its log.',
     )
     liwan_provider_status = fields.Selection(PROVIDER_STATUSES, 'liwan Provider Status', copy=False)
     liwan_provider_checked_at = fields.Datetime('liwan Provider Checked At', copy=False)
 
     def _postprocess_sent_message(self, success_pids, success_emails, failure_reason=False, failure_type=None):
-        """Scrub a sensitive contract row once it is sent: its content goes, its row (weight, kind, state) stays."""
+        """Odoo calls this once an attempt has ended, sent or failed: scrub the sensitive rows that cannot be sent again.
+
+        When the relay connection fails, ``send`` writes only the state and passes the failure type as an argument.
+        A contract row left in ``exception`` without a type takes that type here, before anything is wiped, so it
+        is retried like any transient failure and only a final failure loses its content.
+        """
         result = super()._postprocess_sent_message(
             success_pids, success_emails, failure_reason=failure_reason, failure_type=failure_type,
         )
-        outbox = self.env['liwan.mail.send']._liwan_outbox()
-        sent = outbox.browse(self.ids).exists().filtered(
-            lambda mail: mail.liwan_kind and mail.liwan_sensitive and mail.state == 'sent',
-        )
-        if sent:
-            attachments = sent.attachment_ids
-            sent.write({'body_html': False, 'attachment_ids': [(5, 0, 0)]})
-            attachments.unlink()
+        if failure_type:
+            untyped = self.filtered(lambda mail: mail.liwan_kind and mail.state == 'exception' and not mail.failure_type)
+            if untyped:
+                self.env['liwan.mail.send']._liwan_outbox().browse(untyped.ids).write({'failure_type': failure_type})
+        self._liwan_wipe_unsendable()
         return result
+
+    def write(self, vals):
+        """A cancelled sensitive row will never be sent: scrub it at the write, whichever caller cancels it."""
+        result = super().write(vals)
+        if vals.get('state') == 'cancel':
+            self._liwan_wipe_unsendable()
+        return result
+
+    @api.model
+    def _liwan_retry_domain(self):
+        """The failed contract rows ``_liwan_retry_failed`` queues again: a later send of each is still possible."""
+        return [
+            ('liwan_kind', '!=', False),
+            ('state', '=', 'exception'),
+            ('failure_type', 'in', RETRYABLE_FAILURES),
+            ('liwan_attempts', '>=', 1),
+            '|', ('failure_reason', 'in', HOLD_REASONS), ('liwan_attempts', '<', MAX_ATTEMPTS),
+        ]
+
+    def _liwan_wipe_unsendable(self):
+        """Remove the body and attachments of sensitive contract rows that can no longer be sent.
+
+        A row is final when it is sent or cancelled, or failed and outside ``_liwan_retry_domain`` (a failure that is
+        not transient, or its attempts exhausted). A row still waiting for a retry, held ones included, keeps its
+        content because the next send needs it. The row itself (weight, kind, state) stays for its log.
+        """
+        rows = self.env['liwan.mail.send']._liwan_outbox().browse(self.ids).exists().filtered(
+            lambda mail: mail.liwan_kind and mail.liwan_sensitive and mail.state in ('sent', 'cancel', 'exception'),
+        )
+        final = rows - rows.filtered_domain(self._liwan_retry_domain())
+        if final:
+            attachments = final.attachment_ids
+            final.write({'body_html': False, 'attachment_ids': [(5, 0, 0)]})
+            attachments.unlink()
 
     def send(self, auto_commit=False, raise_exception=False, post_send_callback=None):
         """Hold back a contract row whose sender the tenant may not use now (unverified, paused, or a changed domain).
@@ -120,17 +158,21 @@ class LiwanMailMail(models.Model):
         queued at once, outside the attempt cap, and keeps its attempt count. An invalid or missing address is a final
         failure and is not in ``RETRYABLE_FAILURES``.
         """
+        # Stock ``_send`` re-raises a dropped relay session or a MemoryError without the post-processing, so a row can
+        # be left failed for good with its content. Sweep these first: the sweep must not depend on the tenant being
+        # allowed to send. An attempt in flight is not seen here: its pre-attempt ``exception`` state is written
+        # inside ``_send``'s own uncommitted transaction.
+        # Rows a retry will still send are left out here, so a paused domain's held rows are not re-read with their
+        # bodies every run; the helper keeps its own exclusion as the safety net.
+        self.search(Domain([
+            ('liwan_kind', '!=', False), ('liwan_sensitive', '=', True), ('state', '=', 'exception'),
+            '|', ('body_html', '!=', False), ('attachment_ids', '!=', False),
+        ]) & ~Domain(self._liwan_retry_domain()))._liwan_wipe_unsendable()
         send = self.env['liwan.mail.send']
         sender, refusal = send._liwan_sender_or_refusal()
         if refusal or not sender:
             return
-        failed = self.search([
-            ('liwan_kind', '!=', False),
-            ('state', '=', 'exception'),
-            ('failure_type', 'in', RETRYABLE_FAILURES),
-            ('liwan_attempts', '>=', 1),
-            '|', ('failure_reason', 'in', HOLD_REASONS), ('liwan_attempts', '<', MAX_ATTEMPTS),
-        ])
+        failed = self.search(self._liwan_retry_domain())
         now = fields.Datetime.now()
         send._liwan_lock_slots()
         for mail in failed:

@@ -23,11 +23,11 @@ Distinguish focused checks, combined-candidate checks and a full release run.
 
 ## Authorization and delivery
 
-- Authorization basis: the owner's explicit words for this push and PR, and their scope (integration-rules.md):
+- Authorization basis: the standing authorization (clean independent review, tester on sensitive work, local checks) or the owner's words, and their scope (integration-rules.md):
 - Remaining risks / recovery approach:
 
-Keep this PR **draft** until local preparation and checks are complete. Mark
-ready to request CI and review of the current candidate. The required status-check
+Keep this PR **draft** until local preparation and checks are complete. Ready
+is marked automatically after the review, tester and local checks, which starts CI on the current candidate. The required status-check
 policy is `ci-result` only; review uses the selected available agent or a human.
 Before merging, recheck base/head, live rules, selected CI stages and review
 findings, and repeat affected verification when either head moves. Merging, release

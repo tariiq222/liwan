@@ -7,12 +7,16 @@ feature and by capability keys the test grants through a patched
 ``_liwan_has_capability``. The tests behave the same with or without an
 application installed.
 """
+import os
+from unittest.mock import patch
+
 from odoo import fields
 from odoo.fields import Command
 
 from odoo.addons.liwan_ai.models import consent_text
 from odoo.addons.liwan_ai.models.access_service import AI_SETTINGS_MANAGE
 from odoo.addons.liwan_ai.models.knowledge_indexer import KNOWLEDGE_FEATURE
+from odoo.addons.liwan_ai.models.usage_key import USAGE_KEY_ENV, usage_bearer
 from odoo.addons.liwan_api.tests.common import (
     PROBE_FEATURE,
     register_probe_feature,
@@ -20,9 +24,28 @@ from odoo.addons.liwan_api.tests.common import (
 )
 from odoo.addons.liwan_platform.models.entitlement_service import OPERATOR_CONTEXT
 
+# The deployment root the tests configure: bytes 0x00..0x1f, the vector shared with apps/web.
+USAGE_TEST_ROOT = bytes(range(32)).hex()
 READ_CAP = 'probe.things.read'
 WRITE_CAP = 'probe.things.write'
 CREATE_CAP = 'probe.things.create'
+
+
+def configure_usage_root(case, root=USAGE_TEST_ROOT):
+    """Set ``LIWAN_AI_USAGE_KEY`` to ``root`` (``None`` removes it) for the length of one test."""
+    patcher = patch.dict(os.environ)
+    patcher.start()
+    case.addCleanup(patcher.stop)
+    if root is None:
+        os.environ.pop(USAGE_KEY_ENV, None)
+    else:
+        os.environ[USAGE_KEY_ENV] = root
+
+
+def usage_key(case):
+    """The bearer the usage recorder presents for the database of ``case`` under the configured root."""
+    return usage_bearer(case.env.cr.dbname)
+
 
 PROBE_AGENT = {
     'key': 'probe',
@@ -185,6 +208,7 @@ class AiProbe:
         return [row for row in self.env.cr.fetchall() if model is None or row[1] in (model, None)]
 
     def _install_probe(self, tools=PROBE_TOOLS, agents=(PROBE_AGENT,)):
+        configure_usage_root(self)
         self.granted = set()
         self.patch(type(self.env['liwan.ai.agent.registry']), '_liwan_ai_agent_definitions', lambda model: agents)
         self.settings_managers = self.env['res.users']

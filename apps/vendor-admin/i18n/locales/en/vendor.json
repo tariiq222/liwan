@@ -1592,7 +1592,7 @@
             "database_name_invalid": "The database name is invalid",
             "database_filestore_mismatch": "The database does not match the file folder",
             "database_blocklisted": "The database is protected from deletion",
-            "database_is_scratch_copy": "The database is a scratch copy",
+            "database_is_restore_copy": "The database is listed as a restore copy",
             "database_is_control_plane": "The database is the control plane database",
             "host_invalid": "The workspace host is invalid",
             "identity_query_failed": "The workspace identity could not be read",

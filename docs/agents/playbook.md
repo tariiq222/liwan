@@ -9,14 +9,15 @@ its owning file, and where this page and an owner file disagree, the owner file 
    yourself and state the track in one line before starting.
 2. Read `AGENTS.md`, plus the track's references below — at least the layer rule that
    matches the files you will change.
-3. Take a lane: `npm run wt -- take <branch> --owner <who>`. Implement through a
-   delegated implementer when you coordinate; a single-session task implements in its
-   own lane. Commit locally on the task branch (standing authorization,
+3. Take a lane: `npm run wt -- take <branch> --holder <worker role(s)> --orchestrator <id>`.
+   Implement through delegated workers in that lane ([parallel-work.md](../parallel-work.md#lane-pool)).
+   The orchestrator commits locally on the task branch (standing authorization,
    [integration-rules.md](integration-rules.md#standing-authorization-owner-decision-2026-11-11)).
 4. Run the track's checks, then report result, changed files and one evidence line per
    check.
-5. Push, PR, ready, merge, auto-merge, release tags and deployments each need the
-   owner's explicit words ([integration-rules.md](integration-rules.md)).
+5. Push, PR and ready follow automatically once the standing-authorization conditions hold; merge, auto-merge,
+   release tags and deployments each need the owner's explicit words
+   ([integration-rules.md](integration-rules.md)).
 
 | Prefix | Track | When it applies |
 | --- | --- | --- |
@@ -38,7 +39,7 @@ Fix, UI, Maintenance.
   (`AGENTS.md`) — no parallel or compatibility copy — and pin it with a regression test.
 - Verify: the policy commands plus `npm run check:fast`; `npm run test:odoo` when an
   addon changed, `npm -w apps/web run lint` when `apps/web` changed.
-- Owner words: push, PR, ready, merge ([integration-rules.md](integration-rules.md)).
+- Owner words: merge ([integration-rules.md](integration-rules.md)).
 
 ## Feature — «ميزة:»
 

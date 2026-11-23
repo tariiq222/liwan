@@ -57,6 +57,23 @@ def host_architecture(machine: str) -> str:
     return architecture
 
 
+def parse_listing(text: str) -> dict[str, str]:
+    """``git ls-remote`` output -> ref -> commit; an annotated tag's peeled ``^{}`` line wins over the tag object."""
+    refs: dict[str, str] = {}
+    peeled: dict[str, str] = {}
+    for line in text.splitlines():
+        commit, _, ref = line.partition('\t')
+        if COMMIT.match(commit):
+            (peeled if ref.endswith('^{}') else refs)[ref.removesuffix('^{}')] = commit
+    return {ref: peeled.get(ref, commit) for ref, commit in refs.items()}
+
+
+def highest_release_tag(refs: dict[str, str]) -> str | None:
+    """The highest ``release/19.0.X.Y.Z`` tag name among ``refs/tags/...`` keys (None when there is none)."""
+    tags = [ref.removeprefix('refs/tags/') for ref in refs if release_version(ref.removeprefix('refs/tags/'))]
+    return max(tags, key=tag_order) if tags else None
+
+
 def release_version(tag: str) -> tuple[int, int, int] | None:
     match = RELEASE_TAG.fullmatch(tag)
     return tuple(int(part) for part in match.groups()) if match else None
@@ -120,10 +137,9 @@ class Source:
             raise ReleaseError('github_unreachable', detail='git ls-remote on GitHub failed') from None
         if self.tag:
             return self.named_candidate(refs)
-        tags = [ref.removeprefix('refs/tags/') for ref in refs if release_version(ref.removeprefix('refs/tags/'))]
-        if not tags:
+        tag = highest_release_tag(refs)
+        if tag is None:
             return None
-        tag = max(tags, key=tag_order)
         return {'commit': refs[f'refs/tags/{tag}'], 'ref': f'refs/tags/{tag}', 'version': list(tag_order(tag))}
 
     def tag_patterns(self) -> tuple[str, ...]:
@@ -140,13 +156,7 @@ class Source:
 
     def listing(self, *patterns: str) -> dict[str, str]:
         """ref -> commit; an annotated tag's peeled ``^{}`` line wins over the tag object."""
-        refs: dict[str, str] = {}
-        peeled: dict[str, str] = {}
-        for line in self.remote('ls-remote', REPOSITORY_URL, *patterns).splitlines():
-            commit, _, ref = line.partition('\t')
-            if COMMIT.match(commit):
-                (peeled if ref.endswith('^{}') else refs)[ref.removesuffix('^{}')] = commit
-        return {ref: peeled.get(ref, commit) for ref, commit in refs.items()}
+        return parse_listing(self.remote('ls-remote', REPOSITORY_URL, *patterns))
 
     def fetch(self, commit: str) -> None:
         """Bring the refs into the local bare repository (ancestry checks and ``git archive``); the commit must arrive."""
