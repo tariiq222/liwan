@@ -133,7 +133,8 @@
       "module": "fs_attachment_s3",
       "repo": "OCA/storage",
       "packages": [
-        "fsspec"
+        "fsspec",
+        "s3fs"
       ]
     }
   ]
