@@ -58,6 +58,7 @@ function download(kind: Kind) {
       <UButton v-if="props.canIssue" color="primary" variant="outline" icon="i-lucide-file-spreadsheet" :disabled="!canDownload('wps')" :loading="props.pending === 'wps'" :label="t('hrPayroll.files.downloadWps')" data-testid="hr-payroll-download-wps" @click="download('wps')" />
       <UButton color="neutral" variant="outline" icon="i-lucide-shield-check" :to="props.gosiTo" :label="t('hrPayroll.gosiStatement.open')" data-testid="hr-payroll-open-gosi" />
     </div>
+    <p v-if="!props.canIssue" class="text-sm text-muted" data-testid="hr-payroll-files-finance-only">{{ t('hrPayroll.files.financeOnly') }}</p>
     <p v-if="props.canIssue && !props.writable" class="text-sm text-muted" data-testid="hr-payroll-files-read-only">{{ t('hrPayroll.files.readOnly') }}</p>
     <p v-if="props.canIssue && props.profilesReady && props.profiles.length === 0" class="text-sm text-muted" data-testid="hr-payroll-files-no-profiles">{{ t('hrPayroll.files.noProfiles') }}</p>
   </SharedFormSection>
