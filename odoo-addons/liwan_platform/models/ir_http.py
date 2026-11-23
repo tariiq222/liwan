@@ -97,7 +97,7 @@ class LiwanPlatformIrHttp(models.AbstractModel):
     @classmethod
     def _liwan_bearer_unauthorized(cls):
         """The JSON 401 the web app reads for a missing, malformed, unrecognised or archived-account bearer token."""
-        response = request.make_json_response({'code': 'unauthorized', 'message': 'A valid API key is required.'}, status=401)
+        response = request.make_json_response({'code': 'unauthorized', 'message': 'A valid bearer token is required.'}, status=401)
         return Unauthorized(response=response)
 
     @classmethod
