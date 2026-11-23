@@ -30,7 +30,7 @@ def _path_safe(value):
 
 
 def pattern(expression, limit=256):
-    compiled = re.compile(expression)
+    compiled = re.compile(expression, re.ASCII)  # \d must not match non-ASCII digits
 
     def check(value):
         if not isinstance(value, str) or len(value) > limit or not compiled.fullmatch(value) or not _path_safe(value):

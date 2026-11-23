@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import select
 import signal
 import stat
@@ -37,11 +38,16 @@ MAX_REQUEST = 65536
 MAX_HEAD_LINE = 1024
 MAX_CONFIG = 65536
 HEAD_TIMEOUT = 30
-KILL_GRACE = 20
+# KILL_GRACE covers the longest cleanup of an effect that gets SIGTERM: odoo_effect's `cancel` (docker kill 15 s +
+# child wait 10 s) and the restart of the shared odoo service (RESTART_TIMEOUT 30 s) = 55 s, so 60 s here; the unit's
+# TimeoutStopSec (90 s) must stay above it.
+KILL_GRACE = 60
 REFUSED_EXIT = 2
 CONFIG_ENV = 'LIWAN_SHARED_RUNTIME_CONFIG'
 DELETION_ENV = 'LIWAN_TENANT_DELETION_ENABLED'
 DROP_EFFECT = 'tenant_drop_effect'
+PATH_KEY = re.compile(r'(File|Path|Dir|passfile)$')
+URL_PATH_KEYS = frozenset({'httpPath', 'relativePath'})
 # The effects need exactly these; the gate's other variables (the runtime config path, the deletion flag, secrets) stay behind.
 CHILD_ENV = ('PATH', 'HOME', 'LANG', 'LC_ALL', 'TMPDIR', 'DOCKER_HOST', 'DOCKER_CONFIG',
              'LIWAN_RELEASE_ROUTES_DIR', 'LIWAN_RELEASE_HELPER_POOL_ID')
@@ -84,11 +90,17 @@ class LineReader:
             self.buffer += chunk
 
 
-def parse_effect(raw, effects):
+def _loads(raw):
+    """json.loads with every parse failure a refusal: bad UTF-8 and bad syntax (ValueError), nesting deeper than the
+    interpreter allows (RecursionError) and exhausted memory. The input is already bounded by MAX_REQUEST."""
     try:
-        head = json.loads(raw)
-    except ValueError:
+        return json.loads(raw)
+    except (ValueError, RecursionError, MemoryError):
         raise Refusal('request_invalid') from None
+
+
+def parse_effect(raw, effects):
+    head = _loads(raw)
     if not isinstance(head, dict) or set(head) != {'effect'} or not isinstance(head['effect'], str):
         raise Refusal('request_invalid')
     if head['effect'] not in effects:
@@ -97,10 +109,7 @@ def parse_effect(raw, effects):
 
 
 def parse_request(raw):
-    try:
-        request = json.loads(raw)
-    except ValueError:
-        raise Refusal('request_invalid') from None
+    request = _loads(raw)
     if not isinstance(request, dict):
         raise Refusal('request_invalid')
     if 'config' in request:
@@ -147,7 +156,8 @@ def check_file(path, euid, lstat=os.lstat):
 def check_state_dir(path, euid, lstat=os.lstat):
     """Ancestors as for a file. The directory may be group-writable only with the sticky bit; its effect
     subdirectories, where they exist, belong to the gate's own account and are writable by it alone (group and
-    other may read: `backups` is 0750 so the worker can read manifests, `classifications` 0755 for the containers)."""
+    other may read: `backups` is 0750 so the worker can read manifests, `classifications` 0755 for the containers).
+    `restore-registry`, where it exists, must be a real directory owned by the gate's account (group-writable for the worker)."""
     if not isinstance(path, str) or not path.startswith('/') or os.path.normpath(path) != path:
         raise Refusal('runtime_untrusted')
     for directory in _ancestors(path):
@@ -168,6 +178,18 @@ def check_state_dir(path, euid, lstat=os.lstat):
             raise Refusal('runtime_untrusted') from None
         if not stat.S_ISDIR(sub.st_mode) or sub.st_uid != euid or _group_other_writable(sub):
             raise Refusal('runtime_untrusted')
+    # restore-registry is bind-mounted into containers and the worker publishes files in it (group-writable), so it must be a
+    # real directory owned by the gate's account: in the sticky state directory only the owner of an entry (or the
+    # directory's owner) may rename or remove it, so a worker-owned one could be swapped for a link dockerd would follow
+    # to a host directory of the worker's choosing.
+    try:
+        registry = lstat(path + '/restore-registry')
+    except FileNotFoundError:
+        registry = None
+    except OSError:
+        raise Refusal('runtime_untrusted') from None
+    if registry is not None and (not stat.S_ISDIR(registry.st_mode) or registry.st_uid != euid or registry.st_mode & stat.S_IWOTH):
+        raise Refusal('runtime_untrusted')
 
 
 def load_config(env, euid, effect, lstat=os.lstat):
@@ -180,7 +202,7 @@ def load_config(env, euid, effect, lstat=os.lstat):
         with open(path, 'rb') as handle:
             raw = handle.read(MAX_CONFIG + 1)
         config = json.loads(raw) if len(raw) <= MAX_CONFIG else None
-    except (OSError, ValueError):
+    except (OSError, ValueError, RecursionError, MemoryError):
         raise Refusal('runtime_invalid') from None
     if not isinstance(config, dict) or not all(isinstance(config.get(key), str) for key in ('composeFile', 'envFile', 'stateDir')):
         raise Refusal('runtime_invalid')
@@ -189,7 +211,53 @@ def load_config(env, euid, effect, lstat=os.lstat):
     check_file(config['composeFile'], euid, lstat)
     check_file(config['envFile'], euid, lstat)
     check_state_dir(config['stateDir'], euid, lstat)
+    if 'releaseBackupConfig' in config:
+        check_release_backup_config(config['releaseBackupConfig'], euid, lstat)
     return config
+
+
+def _path_keys(value, key=''):
+    """Every absolute path the operator document names: a string under a key that ends in File, Path, Dir or
+    passfile (the release adapter's `stateDir`, `runtime.postgres.passfile`, `proxyTokenFile`, `filestorePath`...).
+    A URL path such as a probe's `httpPath` is not a host path."""
+    if isinstance(value, dict):
+        for name, item in value.items():
+            yield from _path_keys(item, name)
+    elif isinstance(value, list):
+        for item in value:
+            yield from _path_keys(item, key)
+    elif (isinstance(value, str) and key not in URL_PATH_KEYS and PATH_KEY.search(key)):
+        yield value
+
+
+def check_path(path, euid, lstat=os.lstat):
+    """As check_file, for a path that may be a regular file or a directory (never a link)."""
+    if not isinstance(path, str) or not path.startswith('/') or os.path.normpath(path) != path:
+        raise Refusal('runtime_untrusted')
+    for directory in _ancestors(path):
+        info = _stat(directory, lstat)
+        if not stat.S_ISDIR(info.st_mode) or not _owned(info, euid) or _group_other_writable(info):
+            raise Refusal('runtime_untrusted')
+    info = _stat(path, lstat)
+    if not (stat.S_ISREG(info.st_mode) or stat.S_ISDIR(info.st_mode)) or not _owned(info, euid) or _group_other_writable(info):
+        raise Refusal('runtime_untrusted')
+
+
+def check_release_backup_config(path, euid, lstat=os.lstat):
+    """The operator document named by releaseBackupConfig, and every path it names, meet the rule of the other inputs
+    (the effect reads them as root-equivalent): the document itself, its release state directory, the passfile, token
+    files and each tenant's filestore and session directories."""
+    check_file(path, euid, lstat)
+    try:
+        with open(path, 'rb') as handle:
+            raw = handle.read(MAX_CONFIG + 1)
+        document = json.loads(raw) if len(raw) <= MAX_CONFIG else None
+    except (OSError, ValueError, RecursionError, MemoryError):
+        raise Refusal('runtime_invalid') from None
+    if not isinstance(document, dict):
+        raise Refusal('runtime_invalid')
+    for named in _path_keys(document):
+        check_path(named, euid, lstat)
 
 
 def check_request_schema(effect, request, validator=validate):
@@ -240,13 +308,13 @@ def stop_group(child, grace):
         child.poll()
         try:
             os.killpg(child.pid, 0)
-        except ProcessLookupError:
+        except (ProcessLookupError, PermissionError):  # PermissionError: the group just ended (seen on macOS)
             return False
         return True
 
     try:
         os.killpg(child.pid, signal.SIGTERM)
-    except ProcessLookupError:
+    except (ProcessLookupError, PermissionError):
         pass
     deadline = time.monotonic() + grace
     while group_alive() and time.monotonic() < deadline:
@@ -254,7 +322,7 @@ def stop_group(child, grace):
     if group_alive():
         try:
             os.killpg(child.pid, signal.SIGKILL)
-        except ProcessLookupError:
+        except (ProcessLookupError, PermissionError):
             pass
     child.wait()
 
@@ -314,9 +382,36 @@ def _finish(child, pending, out_fd):
     return exit_code(child.returncode)
 
 
-def run(in_fd, out_fd, env, *, stop, effects=EFFECTS, argv=child_argv, grace=KILL_GRACE, head_timeout=HEAD_TIMEOUT,
+def run(in_fd, out_fd, env, *, grace=KILL_GRACE, **kwargs):
+    """One connection. Returns the gate's exit code (the same code its last output line carries). Whatever goes wrong
+    inside, the stream ends with `{"exit": n}`: an unexpected error stops the effect, answers `gate_internal` and never
+    prints the error, its traceback or any request data."""
+    state = {}
+    try:
+        return _run(state, in_fd, out_fd, env, grace=grace, **kwargs)
+    except Exception:  # last resort: no traceback may carry request data
+        child = state.get('child')
+        if child is not None:
+            try:
+                stop_group(child, grace)
+            except Exception:
+                pass
+            for stream in (child.stdin, child.stdout):
+                try:
+                    stream.close()
+                except Exception:
+                    pass
+        try:
+            emit(out_fd, {'error_code': 'gate_internal'})
+            emit(out_fd, {'exit': REFUSED_EXIT})
+        except Exception:
+            pass
+        return REFUSED_EXIT
+
+
+def _run(state, in_fd, out_fd, env, *, stop, effects=EFFECTS, argv=child_argv, grace=KILL_GRACE, head_timeout=HEAD_TIMEOUT,
         euid=None, lstat=os.lstat, validator=validate):
-    """One connection. Returns the gate's exit code (the same code its last output line carries)."""
+    """The body of one connection; `state` records the effect process so `run` can stop it on an unexpected error."""
     euid = os.geteuid() if euid is None else euid
     reader = LineReader(in_fd, head_timeout)
     try:
@@ -330,6 +425,7 @@ def run(in_fd, out_fd, env, *, stop, effects=EFFECTS, argv=child_argv, grace=KIL
                                      stderr=subprocess.DEVNULL, env=child_env(env), start_new_session=True)
         except OSError:
             raise Refusal('effect_start_failed') from None
+        state['child'] = child
     except Refusal as refusal:
         try:
             emit(out_fd, {'error_code': refusal.code})
@@ -355,7 +451,10 @@ def main():
     stop = threading.Event()
     for signum in (signal.SIGTERM, signal.SIGINT):
         signal.signal(signum, lambda _signum, _frame: stop.set())
-    return run(0, 1, os.environ, stop=stop)
+    try:
+        return run(0, 1, os.environ, stop=stop)
+    except BaseException:  # the stream's last line is written by `run`; never a traceback
+        return REFUSED_EXIT
 
 
 if __name__ == '__main__':

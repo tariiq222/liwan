@@ -45,7 +45,12 @@
 # As root nothing is settled through a symbolic link: a link, or anything but a regular file or real directory, stops the script, and the
 # directory holding a settled path must be root-owned and not writable by group or other. LIWAN_ROOT_UID (default 0) is the uid counted as
 # root; it exists so the tests can run as an ordinary account. Never set it on a host.
-# restore-registry stays with the worker account and is not created here. The effect account must exist and is the only `docker` member.
+#   restore-registry                created when absent, owned by the effect account, group worker, 0775 (the worker writes files in it and cannot
+#                                   replace the directory; the sticky state directory lets only an entry's owner rename it, so a worker-owned one
+#                                   could become a link that dockerd follows when it bind-mounts it into the guard and restore-odoo containers)
+# The effect account must exist and is the only `docker` member.
+# Files are never written through a path a less trusted account can influence: they are built in a root-owned work directory and copied
+# in by `place` (exclusive create, final mode from the umask, chown -h, no-clobber rename), and every existing link is refused.
 # Every run warns on stderr (exit 0) about a kept certificate that expires within 60 days.
 # The compose file named in shared-runtime.json (LIWAN_SHARED_COMPOSE_FILE) is not made here: release.py renders it from the
 # shared stack at every activation, before it starts the worker. The shared env file is the operator's.
@@ -105,17 +110,16 @@ settle() {
   chmod "$3" "$1"
 }
 
-# own <path> <mode> [owner]: the worker (or the given owner, with the worker's group) owns what it must read or write; as
-# the worker itself there is nothing to change.
-own() {
-  chmod "$2" "$1"
-  if [[ "$(id -u)" == 0 ]]; then chown "${3:-$WORKER}:$WORKER_GROUP" "$1"; fi
-}
-
+# ensure_dir <dir> <mode>: an existing entry must be a real directory (a link, even to a directory, stops the script: root would write
+# through it). A new one is made, and as root its parent must be root-owned and closed to group and other before anything is
+# changed on it (settle: chown -h, then chmod), because an owner of the parent could swap the new entry for a link in between.
 ensure_dir() {
-  if [[ -d "$1" ]]; then printf 'kept    %s\n' "$1"; return; fi
+  if [[ -e "$1" || -L "$1" ]]; then plain "$1" d; printf 'kept    %s\n' "$1"; return; fi
   (umask 022; mkdir -p "$1")
-  own "$1" "$2"
+  if [[ "$(id -u)" == 0 ]]; then
+    (trusted_parent "$1") || { rmdir "$1" 2>/dev/null || true; exit 2; }
+    settle "$1" d "$2" "$WORKER" "$WORKER_GROUP"
+  else chmod "$2" "$1"; fi
   printf 'created %s\n' "$1"
 }
 
@@ -134,7 +138,8 @@ ensure_readable_dir() {
 # An existing directory is kept only when it already has exactly that shape: Docker creates a missing bind-mount source as
 # root:root 0755, and a hand-made one is usually the wrong group, so the provider file would be unwritable or unreadable.
 ensure_ai_dir() {
-  if [[ -d "$1" ]]; then
+  if [[ -e "$1" || -L "$1" ]]; then
+    plain "$1" d
     local shape  # GNU stat prints the mode as 2750; BSD stat prints the special bits (%Mp) and the permissions (%Lp) apart, as 02750
     shape="$(stat -c '%u:%g:%a' "$1" 2>/dev/null || stat -f '%u:%g:%Mp%Lp' "$1")"
     shape="${shape%:*}:$(printf '%s' "${shape##*:}" | sed 's/^0//')"
@@ -143,24 +148,55 @@ ensure_ai_dir() {
     return
   fi
   (umask 022; mkdir -p "$1")
-  if [[ "$(id -u)" == 0 ]]; then chown "$WORKER:$AI_GID" "$1"
-  elif ! chgrp "$AI_GID" "$1" 2>/dev/null; then rmdir "$1"; die "Cannot give $1 to group $AI_GID as $WORKER; run as root"; fi
-  chmod 2750 "$1"
+  if [[ "$(id -u)" == 0 ]]; then
+    # Its parent is the sticky state directory (settled before this runs): the new entry belongs to root, so the worker cannot swap it
+    # until the chown below hands it over; the mode goes on first for that reason, and the shape is checked after.
+    plain "$1" d
+    chmod 2750 "$1"
+    chown -h "$WORKER:$AI_GID" "$1"
+    plain "$1" d
+    [[ "$(mode_of "$1")" == 2750 || "$(mode_of "$1")" == 750 ]] || die "Refusing: $1 lost its mode while it was handed over; review it"
+  else
+    if ! chgrp "$AI_GID" "$1" 2>/dev/null; then rmdir "$1"; die "Cannot give $1 to group $AI_GID as $WORKER; run as root"; fi
+    chmod 2750 "$1"
+  fi
   printf 'created %s\n' "$1"
 }
 
-# exists_all <file...>: true when every file exists, false when none does; a mix is an error.
+# exists_all <file...>: true when every file exists, false when none does; a mix is an error. A symbolic link counts as present and is
+# refused whatever it points at (a dangling one too), so nothing is ever created through it.
 exists_all() {
   local count=0 file
-  for file in "$@"; do if [[ -e "$file" ]]; then count=$((count + 1)); fi; done
+  for file in "$@"; do
+    if [[ -L "$file" ]]; then die "Refusing: $file is a symbolic link; review where it points, remove it, then run again"; fi
+    if [[ -e "$file" ]]; then count=$((count + 1)); fi
+  done
   if (( count != 0 && count != $# )); then die "Refusing: only part of this set exists: $*"; fi
   (( count != 0 ))
 }
 
+# place <source> <destination> <mode> [owner]: copies a finished file (made in the root-owned work directory) into a directory that may
+# belong to the worker, without ever following a link. The destination must not exist (a link included). The copy is made under an
+# unpredictable name with noclobber (open with O_EXCL, which never follows a link, a dangling one included), and with the final mode
+# already set by the umask, so no chmod on a path is needed; as root the owner is set with chown -h; then a no-clobber rename puts it
+# in place (rename never follows a link either). The owner is the worker (with its group) unless given.
+place() {
+  local source="$1" destination="$2" mode="$3" owner="${4:-$WORKER}" temporary
+  [[ ! -e "$destination" && ! -L "$destination" ]] || die "Refusing: $destination already exists (or is a link); review it, remove it, then run again"
+  temporary="$(dirname "$destination")/.init.$(openssl rand -hex 8)"
+  (umask "$(printf '%04o' $((0777 & ~8#$mode)))"; set -o noclobber; cat "$source" > "$temporary")
+  if [[ "$(id -u)" == 0 ]]; then chown -h "$owner:$WORKER_GROUP" "$temporary"; fi
+  mv -n "$temporary" "$destination"
+  if [[ -e "$temporary" || -L "$temporary" ]]; then rm -f "$temporary"; die "Refusing: $destination appeared while it was being made; review it, then run again"; fi
+  [[ -f "$destination" && ! -L "$destination" ]] || die "Refusing: $destination is not the regular file this script placed; review it"
+}
+
 # write_file <path> <mode> [owner]: the content comes on stdin.
 write_file() {
-  cat > "$1"
-  own "$1" "$2" "${3:-}"
+  local staged="$WORK/staged.$$"
+  cat > "$staged"
+  place "$staged" "$1" "$2" "${3:-}"
+  rm -f "$staged"
   printf 'created %s\n' "$1"
 }
 
@@ -171,11 +207,11 @@ warn_if_expiring() {
   fi
 }
 
-# install_pair <key> <certificate>: the finished pair goes to the private directory (same filesystem: a rename), key first.
-# If the second move fails the first file is removed, so a half pair is never taken for a complete one.
+# install_pair <key> <certificate>: the finished pair goes to the private directory through `place` (key 0600, certificate 0644, the
+# worker's), key first. If the second placement fails the first file is removed, so a half pair is never taken for a complete one.
 install_pair() {
-  mv "$1" "$PRIVATE/$(basename "$1")"
-  mv "$2" "$PRIVATE/$(basename "$2")" || { rm -f "$PRIVATE/$(basename "$1")"; die "Could not install $2"; }
+  place "$1" "$PRIVATE/$(basename "$1")" 0600
+  ( place "$2" "$PRIVATE/$(basename "$2")" 0644 ) || { rm -f "$PRIVATE/$(basename "$1")"; die "Could not install $2"; }
   printf 'created %s\ncreated %s\n' "$PRIVATE/$(basename "$1")" "$PRIVATE/$(basename "$2")"
 }
 
@@ -192,8 +228,6 @@ ensure_ca() {
   openssl req -new -key "$WORK/control-ca.key" -subj "/CN=liwan control CA" -out "$WORK/ca.csr"
   printf 'basicConstraints=critical,CA:TRUE\nkeyUsage=critical,keyCertSign,cRLSign\n' > "$WORK/ca.ext"
   openssl x509 -req -in "$WORK/ca.csr" -signkey "$WORK/control-ca.key" -extfile "$WORK/ca.ext" -days "$CA_DAYS" -out "$WORK/control-ca.pem"
-  own "$WORK/control-ca.key" 0600
-  own "$WORK/control-ca.pem" 0644
   install_pair "$WORK/control-ca.key" "$WORK/control-ca.pem"
 }
 
@@ -201,13 +235,11 @@ ensure_ca() {
 ensure_leaf() {
   local key="$PRIVATE/$1.key" cert="$PRIVATE/$1.crt"
   if exists_all "$key" "$cert"; then warn_if_expiring "$cert"; printf 'kept    %s\n' "$cert"; return; fi
-  [[ -f "$CA_KEY" && -f "$CA_PEM" ]] || die "Cannot sign $1: the CA key or certificate is missing"
+  plain "$CA_KEY" f; plain "$CA_PEM" f
   new_key "$WORK/$1.key"
   openssl req -new -key "$WORK/$1.key" -subj "/CN=$2" -out "$WORK/$1.csr"
   printf 'basicConstraints=CA:FALSE\nextendedKeyUsage=serverAuth\nsubjectAltName=DNS:%s\n' "$2" > "$WORK/$1.ext"
   sign "$WORK/$1.csr" "$CA_KEY" "$CA_PEM" "$WORK/$1.ext" "$LEAF_DAYS" "$WORK/$1.crt"
-  own "$WORK/$1.key" 0600
-  own "$WORK/$1.crt" 0644
   install_pair "$WORK/$1.key" "$WORK/$1.crt"
 }
 
@@ -255,7 +287,9 @@ fi
 ensure_readable_dir "$REGISTRY"
 ensure_dir "$PRIVATE" 0750
 ensure_ai_dir "$AI_PLATFORM"
-WORK="$(mktemp -d "$PRIVATE/.init.XXXXXX")"
+# The work directory (keys, requests, staged content) is root's own, outside every directory the worker owns: nothing in it can be swapped
+# for a link, and only a finished file is copied into the worker's directories (place).
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/liwan-init.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 
 # ensure_config_file <path> <content>: created (root-owned when run as root) or kept. As root a kept file must be root-owned and closed to
@@ -325,6 +359,21 @@ if [[ "$(id -u)" == 0 ]]; then
     settle "$directory" d "${entry##*:}" "$EFFECT" "$WORKER_GROUP"
     printf 'created %s\n' "$directory"
   done
+  # restore-registry is bind-mounted read-only into the guard and restore-odoo containers, and the worker publishes files in it. The
+  # worker must not own the directory: in the sticky state directory the owner of an entry may rename or remove it, so a worker-owned
+  # one could be replaced by a link that dockerd follows to a host directory of the worker's choosing. It belongs to the effect
+  # account instead (0775, group worker: the worker creates files in it, cannot replace the directory; the containers read it as others).
+  directory="$STATE/restore-registry"
+  if [[ -e "$directory" || -L "$directory" ]]; then
+    plain "$directory" d
+    [[ "$(owner_of "$directory")" == "$EFFECT_UID" ]] && (( (8#$(mode_of "$directory") & 002) == 0 )) \
+      || die "Refusing: $directory must be owned by $EFFECT and not writable by other (a worker-owned one can be swapped for a link). Review its content, then chown $EFFECT:$WORKER_GROUP and chmod 0775 it"
+    printf 'kept    %s\n' "$directory"
+  else
+    (umask 022; mkdir "$directory")
+    settle "$directory" d 0775 "$EFFECT" "$WORKER_GROUP"
+    printf 'created %s\n' "$directory"
+  fi
   if [[ -e "$SHARED_ENV_FILE" || -L "$SHARED_ENV_FILE" ]]; then
     plain "$SHARED_ENV_FILE" f
     trusted_parent "$SHARED_ENV_FILE"
@@ -337,6 +386,7 @@ if [[ "$(id -u)" == 0 ]]; then
     root_safe "$DOCKER_CONFIG_DIR" || die "Refusing: $DOCKER_CONFIG_DIR must be owned by root and not writable by group or other (the docker client reads its plugins and credential helpers from it)"
   else
     (umask 022; mkdir -p "$DOCKER_CONFIG_DIR")
+    trusted_parent "$DOCKER_CONFIG_DIR"
     settle "$DOCKER_CONFIG_DIR" d 0755 root root
   fi
   if [[ -e "$DOCKER_CONFIG_DIR/config.json" || -L "$DOCKER_CONFIG_DIR/config.json" ]]; then

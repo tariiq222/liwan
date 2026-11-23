@@ -21,7 +21,9 @@ After=docker.service
 User=liwan-effect
 Group=liwan-worker
 SupplementaryGroups=docker
-UMask=0007
+# Closed by default: what the worker's group must read is given its mode explicitly (backups/<id> 0750, manifest.json 0640,
+# classifications 0755 and its files 0644).
+UMask=0077
 StandardInput=socket
 StandardOutput=socket
 StandardError=journal
@@ -33,7 +35,8 @@ Environment=DOCKER_CONFIG=/etc/liwan/docker
 Environment=LIWAN_SHARED_RUNTIME_CONFIG=/srv/liwan/control/config/shared-runtime.json
 EnvironmentFile=-/etc/liwan/effect.env
 KillMode=control-group
-TimeoutStopSec=30
+# Above the gate's KILL_GRACE (60 s: effect cancel 25 s + odoo restart 30 s), so the unit is not killed mid-cleanup.
+TimeoutStopSec=90
 RuntimeMaxSec=7500
 NoNewPrivileges=true
 PrivateTmp=true

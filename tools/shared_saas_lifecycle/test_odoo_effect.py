@@ -46,6 +46,16 @@ class PhysicalBoundaryTests(unittest.TestCase):
     def test_observation_never_returns_present_from_marker_only(self):
         self.assertEqual(odoo_effect.verified_observation({}, False), {'state': 'partial'})
 
+class DetachedCommandTests(unittest.TestCase):
+    def test_a_detached_command_has_its_own_session_and_ignores_termination(self):
+        import os, sys
+        runner = object.__new__(odoo_effect.Runner)
+        runner.child = None
+        probe = 'import os,signal;print(os.getsid(0)==os.getpid(),signal.getsignal(signal.SIGTERM)==signal.SIG_IGN,signal.getsignal(signal.SIGHUP)==signal.SIG_IGN)'
+        self.assertEqual('True True True', runner.command([sys.executable, '-c', probe], detached=True).strip())
+        self.assertEqual('False False False', runner.command([sys.executable, '-c', probe]).strip())
+
+
 class PasswordStepScriptTests(unittest.TestCase):
     def test_probe_requires_pending_session_and_an_email_channel(self):
         script = odoo_effect.password_step_script('liwan_scratch_probe', {'login': 'admin@example.test', 'password': 'fixture'})

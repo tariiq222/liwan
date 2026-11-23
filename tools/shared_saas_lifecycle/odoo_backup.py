@@ -9,7 +9,6 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 import shlex
-import signal
 import subprocess
 import sys
 import tarfile
@@ -19,10 +18,11 @@ from datetime import datetime, timezone
 from tools.shared_saas_lifecycle.odoo_effect import (
     Runner, EffectError, no_symlink, reserve, permit, emit, validate_database,
     require_new_target, verified_observation, MAX_OUTPUT, OBSERVE_CONTAINER, classify_error,
-    release_routes_enabled, effect_operation, TENANT_DB_ROLE, AI_TENANT_SCHEMA,
+    release_routes_enabled, effect_operation, TENANT_DB_ROLE, AI_TENANT_SCHEMA, install_termination_handler,
 )
 from deploy.releases.postgres import POSTGRES_ADMIN_ROLE, identifier, tenant_bootstrap_sql, tenant_create_database_sql, tenant_isolation_sql
 AI_ROLE = 'liwan_ai'
+RESTART_TIMEOUT = 30  # the restart after a failure or a termination; with the 25 s cancel it fits the gate's 60 s grace
 MAX_ARCHIVE = 2 * 1024 * 1024 * 1024
 MAX_MEMBERS = 100000
 MAX_INVENTORY = 64 * 1024 * 1024
@@ -439,7 +439,7 @@ print('{}')
         self.assert_no_effect_containers()
         permit('reserve')
         backups=self.root/'backups';backups.mkdir(mode=0o700,exist_ok=True);no_symlink(backups)
-        self.artifact.mkdir(mode=0o750)  # the worker's group reads the manifest; the dump and the archive stay 0600
+        self.artifact.mkdir(mode=0o700);self.artifact.chmod(0o750)  # explicit: UMask=0077 masks mkdir's mode; the worker's group reads the manifest, the dump and the archive stay 0600
         reserve(self.artifact/'reservation.json',{'digest':self.request['payloadDigest'],'attemptId':self.request['attemptId']})
         source_image=self.inspect_service('odoo')['Image'];postgres_image=self.inspect_service('db')['Image']
         permit('drain')
@@ -452,7 +452,12 @@ print('{}')
             # the authority may be gone and the restart must not wait for it.
             self.restart_after_failure()
             raise
-        self.command(self.base+['start','odoo'],timeout=60)
+        try:
+            self.command(self.base+['start','odoo'],timeout=60)
+        except BaseException:
+            # A termination during the normal start must not leave odoo stopped either.
+            self.restart_after_failure()
+            raise
         self.wait_healthy('odoo');self.verify_originals()
         permit('complete')
         reserve(self.artifact/'manifest.json',manifest);(self.artifact/'manifest.json').chmod(0o640)
@@ -460,7 +465,7 @@ print('{}')
 
     def restart_after_failure(self):
         try:
-            self.command(self.base+['start','odoo'],timeout=60)
+            self.command(self.base+['start','odoo'],timeout=RESTART_TIMEOUT,detached=True)
         except Exception as restart_error:
             raise EffectError('odoo_restart_failed') from restart_error
 
@@ -595,9 +600,7 @@ def main():
         raw=sys.stdin.readline(MAX_OUTPUT+1)
         if len(raw)>MAX_OUTPUT:raise EffectError('input_invalid')
         request=json.loads(raw);runner=BackupRunner(request)
-        def terminate(_signum,_frame):
-            runner.cancel();raise EffectError('authority_lost')
-        signal.signal(signal.SIGTERM,terminate);signal.signal(signal.SIGINT,terminate)
+        install_termination_handler(runner)
         if request['action']=='observe':emit({'result':runner.observe()})
         elif request['action']=='apply':runner.apply_owned()
         else:raise EffectError('operation_unavailable')

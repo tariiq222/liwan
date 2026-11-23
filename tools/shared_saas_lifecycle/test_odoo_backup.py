@@ -308,6 +308,34 @@ class CaptureRestartTests(unittest.TestCase):
                 self.assertEqual(str(caught.exception), expected)
                 self.assertEqual(len(self.started(runner)), 1)
 
+    def test_two_termination_signals_in_a_row_still_start_odoo_once_and_complete_it(self):
+        # systemd (KillMode=control-group) and the gate both signal the group: the second SIGTERM arrives while the restart runs.
+        import os, signal
+        saved = {signum: signal.getsignal(signum) for signum in odoo_effect.TERMINATION_SIGNALS}
+        self.addCleanup(lambda: [signal.signal(signum, handler) for signum, handler in saved.items()])
+        self.addCleanup(signal.pthread_sigmask, signal.SIG_UNBLOCK, odoo_effect.TERMINATION_SIGNALS)
+        with tempfile.TemporaryDirectory() as raw:
+            runner, _ = self.capture_runner(Path(raw).resolve())
+            runner.cancel = lambda: None
+            finished, detached = [], []
+            plain = runner.command
+            def command(args, **kwargs):
+                if args[-2:] == ['start', 'odoo']:
+                    detached.append(kwargs.get('detached'))
+                    os.kill(os.getpid(), signal.SIGTERM)  # the second signal, during the restart
+                    os.kill(os.getpid(), signal.SIGHUP)
+                    finished.append(args)
+                    return ''
+                return plain(args, **kwargs)
+            runner.command = command
+            runner.pg_stream = lambda *_, **__: os.kill(os.getpid(), signal.SIGTERM)  # the first signal, during the dump
+            odoo_effect.install_termination_handler(runner)
+            with self.assertRaises(odoo_effect.EffectError) as caught:
+                self.capture(runner, None)
+            self.assertEqual(str(caught.exception), 'authority_lost')
+            self.assertEqual(len(finished), 1)
+            self.assertEqual(detached, [True])  # own session, signals ignored
+
     def test_a_successful_capture_starts_odoo_once(self):
         with tempfile.TemporaryDirectory() as raw:
             runner, _ = self.capture_runner(Path(raw).resolve())

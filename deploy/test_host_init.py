@@ -293,7 +293,9 @@ class InitHost(unittest.TestCase):
         self.run_script(env={'PATH': f'{stubs}:{os.environ["PATH"]}', 'LIWAN_EFFECT_USER': pwd.getpwuid(os.getuid()).pw_name,
                              'LIWAN_ROOT_UID': str(os.getuid()), 'LIWAN_DOCKER_CONFIG_DIR': str(Path(self.tmp.name) / 'etc-liwan-docker')})
         group = subprocess.run([shutil.which('id'), '-gn'], capture_output=True, text=True, check=True).stdout.strip()
-        self.assertIn(f'999:{group} {self.private}/control-db-password', log.read_text().splitlines())
+        # The file is made under an unpredictable name and handed over with chown -h before the no-clobber rename into place.
+        self.assertTrue(any(re.fullmatch(rf'-h 999:{group} {re.escape(str(self.private))}/\.init\.[0-9a-f]{{16}}', line)
+                            for line in log.read_text().splitlines()), log.read_text())
         self.assertEqual(0o400, stat.S_IMODE((self.private / 'control-db-password').stat().st_mode))
 
     def run_as_stubbed_root(self, extra_env: dict | None = None, check: bool = True) -> tuple[subprocess.CompletedProcess, list[str], Path]:
@@ -333,8 +335,9 @@ class InitHost(unittest.TestCase):
         self.assertEqual(0o640, mode(shared_env))
         for path in (self.config, self.state):
             self.assertIn(f'-h root:{group} {path}', chowns)
-        for path in (self.config / 'shared-runtime.json', self.config / 'inventory-v2.json'):  # made by the script inside the settled directory
-            self.assertIn(f'root:{group} {path}', chowns)
+        # The config files are made inside the settled directory, handed to root with chown -h under a temporary name, then renamed.
+        handed = [line for line in chowns if re.fullmatch(rf'-h root:{group} {re.escape(str(self.config))}/\.init\.[0-9a-f]{{16}}', line)]
+        self.assertEqual(2, len(handed), chowns)
         self.assertIn(f'-h root:docker {shared_env}', chowns)
         modes = {'reservations': 0o700, 'credentials': 0o700, 'classifications': 0o755, 'restore-effects': 0o700,
                  'reconfigure': 0o700, 'runtime-gate-history': 0o700, 'backups': 0o750}
@@ -342,7 +345,10 @@ class InitHost(unittest.TestCase):
             with self.subTest(directory=name):
                 self.assertEqual(expected, mode(self.state / name))
                 self.assertIn(f'-h {account}:{group} {self.state / name}', chowns)
-        self.assertFalse((self.state / 'restore-registry').exists())  # the worker's own, never made here
+        # The effect account owns restore-registry: in the sticky state directory the owner of an entry may rename it, so a worker-owned
+        # one could be swapped for a link that dockerd follows. The worker (group) writes files in it.
+        self.assertEqual(0o775, mode(self.state / 'restore-registry'))
+        self.assertIn(f'-h {account}:{group} {self.state / "restore-registry"}', chowns)
         self.assertEqual({}, json.loads((docker_dir / 'config.json').read_text()))
         self.assertIn(f'-h root:root {docker_dir / "config.json"}', chowns)
         self.assertEqual(0o644, mode(docker_dir / 'config.json'))
@@ -479,6 +485,52 @@ class InitHost(unittest.TestCase):
         self.assertEqual(2, done.returncode)
         self.assertIn('LIWAN_RESTORE_DOMAIN', done.stderr)
         self.assertFalse(self.root.exists())
+
+    def test_a_dangling_symlink_planted_in_a_worker_owned_directory_is_not_written_through(self):
+        # Tester finding: the registry and private directories belong to the worker, and `write_file` runs `cat >` and then
+        # chmod/chown on the path as root. `[[ -e ]]` is false for a dangling link, so the link is followed: root creates and
+        # hands to the worker (or uid 999) a file at any path the worker names. Both must be refused like the other links.
+        self.run_script()
+        for planted in (self.registry / 'registry.json', self.private / 'control-db-password'):
+            planted.unlink()
+            target = Path(self.tmp.name) / ('elsewhere-' + planted.name)
+            planted.symlink_to(target)
+            done = self.run_script(check=False)
+            self.assertFalse(target.exists(), f'{planted} was written through to {target}')
+            self.assertNotEqual(0, done.returncode)
+            planted.unlink()
+            target.unlink(missing_ok=True)
+            self.run_script()
+
+    def test_a_symlink_in_place_of_a_managed_directory_is_refused_even_to_a_directory(self):
+        self.run_script()
+        for name in ('registry', 'private', 'ai_platform'):
+            directory = getattr(self, name)
+            moved = Path(self.tmp.name) / f'moved-{name}'
+            directory.rename(moved)
+            directory.symlink_to(moved)
+            done = self.run_script(check=False)
+            self.assertNotEqual(0, done.returncode, name)
+            self.assertIn('symbolic link', done.stderr)
+            directory.unlink()
+            moved.rename(directory)
+
+    def test_a_symlink_in_place_of_restore_registry_is_refused_as_root(self):
+        self.run_as_stubbed_root()
+        link = self.state / 'restore-registry'
+        link.rmdir()
+        elsewhere = Path(self.tmp.name) / 'elsewhere'
+        elsewhere.mkdir()
+        link.symlink_to(elsewhere)
+        done, _, _ = self.run_as_stubbed_root(check=False)
+        self.assertNotEqual(0, done.returncode)
+        self.assertIn('symbolic link', done.stderr)
+        self.assertEqual([], list(elsewhere.iterdir()))
+
+    def test_no_work_file_is_left_in_a_worker_directory(self):
+        self.run_script()
+        for directory in (self.registry, self.private, self.config):
+            self.assertEqual([], [path.name for path in directory.iterdir() if path.name.startswith('.init.')], directory)
 
 
 if __name__ == '__main__':

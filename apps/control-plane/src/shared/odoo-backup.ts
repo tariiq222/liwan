@@ -160,7 +160,10 @@ export async function requireOdooRestorePublicationAuthority(client:import('pg')
 }
 /** The restore registry file the guard reads (`LIWAN_RESTORE_REGISTRY_PATH`): restore targets only, never the tenant registry. */
 export async function writeRestoreRoute(stateDir:string,approvalId:string,host:string,database:string){
- const dir=join(stateDir,'restore-registry');await mkdir(dir,{recursive:true});assertNoSymlink(dir);await chmod(dir,REGISTRY_DIR_MODE)
+ const dir=join(stateDir,'restore-registry')
+ // On a prepared host init-host.sh made the directory and it belongs to the effect account: it is never chmod-ed here (the worker is not the owner).
+ // Only a directory this call just created (local, dev, test) gets its mode, because mkdir's own mode is masked by the umask.
+ const created=await mkdir(dir,{recursive:true});assertNoSymlink(dir);if(created)await chmod(dir,REGISTRY_DIR_MODE)
  const path=join(dir,'registry.json')
  let existing:{schemaVersion:number;snapshotRevision:number;targets:Array<Record<string,unknown>>}={schemaVersion:1,snapshotRevision:0,targets:[]}
  try{assertNoSymlink(path);existing=z.strictObject({schemaVersion:z.literal(1),snapshotRevision:z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER-1),targets:z.array(registryTargetSchema)}).parse(JSON.parse(await readFile(path,'utf8')))}catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error}

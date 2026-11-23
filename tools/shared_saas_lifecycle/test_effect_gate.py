@@ -63,6 +63,7 @@ class GateCase(unittest.TestCase):
         self.script.write_text(FAKE_EFFECT)
         self.compose = self.write('shared.compose.json', '{}')
         self.envfile = self.write('shared.env', '')
+        self.release_config = self.write('release.json', '{}')
         self.state = self.root / 'state'
         self.state.mkdir(mode=0o755)
         os.chmod(self.state, 0o755)
@@ -267,8 +268,31 @@ class TrustRuleTests(unittest.TestCase):
             bad = dict(good, **{'/srv/s/backups': (self.DIR, owner)})
             with self.assertRaises(gate.Refusal):
                 gate.check_state_dir('/srv/s', 700, self.fs(bad))
-        # restore-registry belongs to the worker and is not checked
-        gate.check_state_dir('/srv/s', 700, self.fs(dict(good, **{'/srv/s/restore-registry': (self.DIR, 999)})))
+        # restore-registry: a real directory owned by the gate's account, group-writable for the worker (see RestoreRegistryTests)
+        gate.check_state_dir('/srv/s', 700, self.fs(dict(good, **{'/srv/s/restore-registry': (stat.S_IFDIR | 0o775, 700)})))
+
+
+class RestoreRegistryTests(unittest.TestCase):
+    """restore-registry is bind-mounted into containers; the worker must not be able to swap it for a link."""
+
+    def check(self, kind, mode, owner):
+        chain = {'/': (stat.S_IFDIR, 0), '/srv': (stat.S_IFDIR, 0), '/srv/s': (stat.S_IFDIR | 0o3770, 0),
+                 '/srv/s/restore-registry': (kind | mode, owner)}
+        gate.check_state_dir('/srv/s', 700, lambda path: stat_of(*chain[path]) if path in chain else (_ for _ in ()).throw(FileNotFoundError(path)))
+
+    def test_a_real_directory_of_the_gate_account_is_accepted(self):
+        self.check(stat.S_IFDIR, 0o775, 700)
+        self.check(stat.S_IFDIR, 0o770, 700)
+
+    def test_a_symlink_a_file_or_a_directory_the_worker_owns_is_refused(self):
+        for kind, owner in ((stat.S_IFLNK, 700), (stat.S_IFREG, 700), (stat.S_IFDIR, 999)):
+            with self.subTest(kind=kind, owner=owner), self.assertRaises(gate.Refusal) as caught:
+                self.check(kind, 0o775, owner)
+            self.assertEqual('runtime_untrusted', caught.exception.code)
+
+    def test_a_directory_writable_by_other_is_refused(self):
+        with self.assertRaises(gate.Refusal):
+            self.check(stat.S_IFDIR, 0o777, 700)
 
 
 class EffectSubdirectoryModeTests(unittest.TestCase):
@@ -814,7 +838,122 @@ class EntryPointTests(unittest.TestCase):
         self.assertEqual(gate.child_argv('m')[1:], ['-E', '-s', '-B', '-m', 'm'])
 
     def test_grace_default_is_twenty_seconds(self):
-        self.assertEqual(gate.KILL_GRACE, 20)
+        self.assertEqual(gate.KILL_GRACE, 60)
+
+
+class ReleaseBackupConfigTests(GateCase):
+    def write_document(self, document):
+        path = self.write('release.json', json.dumps(document))
+        return str(path)
+
+    def test_every_path_the_document_names_meets_the_trust_rule(self):
+        document = {'stateDir': str(self.state), 'runtime': {'postgres': {'passfile': str(self.compose)}, 'proxyTokenFile': str(self.envfile),
+                                                            'tenants': {'t': {'filestorePath': str(self.state)}}}}
+        self.assertIsNone(gate.check_release_backup_config(self.write_document(document), self.euid, self.lstat))
+        target = str(self.state)
+        real = self.lstat
+        for bad in (stat_of(stat.S_IFDIR | 0o777, self.euid), stat_of(stat.S_IFDIR | 0o755, self.euid + 1), stat_of(stat.S_IFLNK | 0o755, self.euid)):
+            self.lstat = lambda path, bad=bad: bad if path == target else real(path)
+            for document in ({'stateDir': target}, {'runtime': {'tenants': {'t': {'filestorePath': target}}}}):
+                with self.subTest(document=document), self.assertRaises(gate.Refusal) as caught:
+                    gate.check_release_backup_config(self.write_document(document), self.euid, self.lstat)
+                self.assertEqual('runtime_untrusted', caught.exception.code)
+
+    def test_a_missing_named_path_is_untrusted_and_a_url_path_is_not_a_host_path(self):
+        with self.assertRaises(gate.Refusal) as caught:
+            gate.check_release_backup_config(self.write_document({'stateDir': str(self.root / 'missing')}), self.euid, self.lstat)
+        self.assertEqual('runtime_untrusted', caught.exception.code)
+        gate.check_release_backup_config(self.write_document({'runtime': {'probe': {'httpPath': '/api/v1/x', 'relativePath': 'a/b'}}}), self.euid, self.lstat)
+
+    def test_a_document_that_is_not_an_object_or_not_json_is_invalid(self):
+        for text in ('[]', '{', '[' * 5000):
+            self.write('release.json', text)
+            with self.subTest(text=text[:5]), self.assertRaises(gate.Refusal) as caught:
+                gate.check_release_backup_config(str(self.release_config), self.euid, self.lstat)
+            self.assertEqual('runtime_invalid', caught.exception.code)
+
+    def test_load_config_applies_it_but_not_for_the_drop_effect(self):
+        self.write_document({'stateDir': str(self.root / 'missing')})
+        with self.assertRaises(gate.Refusal):
+            gate.load_config(self.env, self.euid, 'echo', self.lstat)
+        self.assertNotIn('releaseBackupConfig', gate.load_config(self.env, self.euid, gate.DROP_EFFECT, self.lstat))
+
+
+class NeverACrashTests(GateCase):
+    def test_every_parse_failure_is_request_invalid_with_an_exit_line(self):
+        for raw in (b'[' * 60000 + b'\n', b'{"a":' * 20000 + b'\n', b'\xff\xfe\n', b'{"x"\n'):
+            with self.subTest(raw=raw[:6]):
+                lines, status = self.converse({'effect': 'echo'}, raw)
+                self.assertEqual(lines, [{'error_code': 'request_invalid'}, {'exit': 2}])
+                self.assertEqual(status, 2)
+        lines, _ = self.converse(b'[' * 5000 + b'\n', None)
+        self.assertEqual(lines, [{'error_code': 'request_invalid'}, {'exit': 2}])
+
+    def test_an_unexpected_error_still_ends_with_the_exit_line_and_stops_the_effect(self):
+        def boom(_effect, _request):
+            raise RuntimeError('secret-request-data')
+        lines, status = self.converse({'effect': 'echo'}, {'token': 'secret-request-data'}, validator=boom)
+        self.assertEqual(lines, [{'error_code': 'gate_internal'}, {'exit': 2}])
+        self.assertEqual(status, 2)
+        self.assertNotIn('secret-request-data', json.dumps(lines))
+
+    def test_an_error_after_the_effect_started_stops_its_process_group(self):
+        def argv(module):
+            return [sys.executable, str(self.script), 'ignoreterm']
+        self.argv = argv
+        original = gate.relay
+        def broken(*_args, **_kwargs):
+            raise OSError('relay broke')
+        gate.relay = broken
+        self.addCleanup(setattr, gate, 'relay', original)
+        lines, status = self.converse({'effect': 'echo'}, {})
+        self.assertEqual(lines, [{'error_code': 'gate_internal'}, {'exit': 2}])
+
+    def test_a_group_that_just_ended_is_gone_not_a_crash(self):
+        class Child:
+            pid = 1
+            def poll(self):
+                return 0
+            def wait(self):
+                return 0
+        real = os.killpg
+        os.killpg = lambda *_: (_ for _ in ()).throw(PermissionError())
+        try:
+            gate.stop_group(Child(), 0.1)
+        finally:
+            os.killpg = real
+
+    def test_the_schema_patterns_are_ascii_only(self):
+        for value in ('\u0661\u0662\u0663\u0664-\u0660\u0661-\u0660\u0661', '2026-01-0\u0661'):
+            with self.assertRaises(schema.SchemaError):
+                schema.DATE(value)
+        schema.DATE('2026-01-01')
+        with self.assertRaises(schema.SchemaError):
+            schema.DATETIME('\u0662\u0660\u0662\u0666-01-01T00:00Z')
+
+
+class TesterFindingTests(GateCase):
+    """Defects found by the independent tester: both fail until the gate closes them."""
+
+    def test_untrusted_release_backup_config_is_refused(self):
+        # releaseBackupConfig names an operator document the effect reads as root-equivalent (its stateDir, runtime, filestorePath);
+        # a worker-writable one must meet the same trust rule as the compose and env files.
+        target = str(self.root / 'release.json')
+        real = self.lstat
+        self.lstat = lambda path: stat_of(stat.S_IFREG | 0o664, self.euid + 1) if path == target else real(path)
+        conn = self.connect({'effect': 'echo'}, {})
+        try:
+            first = conn.read_line()  # a bounded read: an accepted request starts the effect and would wait for ever
+        except AssertionError:
+            first = None
+        os.close(conn.in_w)  # hang up so a started effect stops
+        self.assertEqual(first, {'error_code': 'runtime_untrusted'})
+
+    def test_deeply_nested_json_is_a_refusal_not_a_crash(self):
+        # json.loads raises RecursionError (not ValueError) on deep nesting; the gate must answer request_invalid.
+        for parse in (gate.parse_request, lambda raw: gate.parse_effect(raw, gate.EFFECTS)):
+            with self.assertRaises(gate.Refusal):
+                parse(b'[' * 60000)
 
 
 if __name__ == '__main__':
