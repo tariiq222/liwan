@@ -500,7 +500,7 @@ class CaptureRestartTests(unittest.TestCase):
 
     def test_a_second_signal_during_the_restart_discards_the_held_one_with_the_original_error(self):
         # While the first signal is held pending, a second one that arrives during the restart runs the handler, whose
-        # `_ignore_termination()` ignores every termination signal for the rest of the process: the held signal is
+        # `ignore_termination()` ignores every termination signal for the rest of the process: the held signal is
         # discarded when the mask is restored, and the run fails with the original error instead of `authority_lost`.
         import os, signal
         saved = {signum: signal.getsignal(signum) for signum in odoo_effect.TERMINATION_SIGNALS}
@@ -532,6 +532,33 @@ class CaptureRestartTests(unittest.TestCase):
             self.assertEqual(len(finished), 1)
             self.assertEqual(detached, [True])  # own session, signals ignored
 
+    def test_a_held_signal_does_not_replace_a_failed_restart_with_authority_lost(self):
+        # The control plane keys on `odoo_restart_failed` to learn that odoo is down for every tenant. A SIGTERM held
+        # pending in the cleanup path is delivered on the caller's mask restore while that failure is unwinding, and
+        # its handler would replace it with `authority_lost` (`shared_effect_unverified` for the operator), so the
+        # failing restart ignores the termination signals first and the held signal is discarded.
+        import os, signal
+        saved = {signum: signal.getsignal(signum) for signum in odoo_effect.TERMINATION_SIGNALS}
+        self.addCleanup(lambda: [signal.signal(signum, handler) for signum, handler in saved.items()])
+        self.addCleanup(signal.pthread_sigmask, signal.SIG_UNBLOCK, odoo_effect.TERMINATION_SIGNALS)
+        with tempfile.TemporaryDirectory() as raw:
+            runner, boom = self.capture_runner(Path(raw).resolve(), fail_at='inventory', fail_start=True)
+            cancelled = []
+            runner.cancel = lambda: cancelled.append(True)
+            restart = runner.restart_after_failure
+            def restart_after_failure():
+                os.kill(os.getpid(), signal.SIGTERM)  # the first signal, held pending in the cleanup path
+                restart()
+            runner.restart_after_failure = restart_after_failure
+            odoo_effect.install_termination_handler(runner)
+            with self.assertRaises(odoo_effect.EffectError) as caught:
+                self.capture(runner, 'inventory')
+            self.assertEqual(str(caught.exception), 'odoo_restart_failed')
+            self.assertEqual(str(caught.exception.__cause__), 'compose_down')
+            self.assertIs(caught.exception.__cause__.__context__, boom)
+            self.assertEqual(cancelled, [])  # the held signal is discarded, not turned into authority_lost
+            self.assertEqual(len(self.started(runner)), 1)
+
     def test_a_successful_capture_starts_odoo_once(self):
         with tempfile.TemporaryDirectory() as raw:
             runner, _ = self.capture_runner(Path(raw).resolve())
@@ -539,6 +566,10 @@ class CaptureRestartTests(unittest.TestCase):
             self.assertEqual(len(self.started(runner)), 1)
 
     def test_a_failed_restart_is_reported_explicitly_with_the_original_error_attached(self):
+        import signal
+        # A failed restart ignores the termination signals; restore the test process's dispositions afterwards.
+        saved = {signum: signal.getsignal(signum) for signum in odoo_effect.TERMINATION_SIGNALS}
+        self.addCleanup(lambda: [signal.signal(signum, handler) for signum, handler in saved.items()])
         with tempfile.TemporaryDirectory() as raw:
             runner, boom = self.capture_runner(Path(raw).resolve(), fail_at='inventory', fail_start=True)
             with self.assertRaises(odoo_effect.EffectError) as caught:

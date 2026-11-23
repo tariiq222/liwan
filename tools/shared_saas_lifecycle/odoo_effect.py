@@ -143,7 +143,7 @@ def reserve(path, value):
 TERMINATION_SIGNALS = (signal.SIGTERM, signal.SIGINT, signal.SIGHUP)
 
 
-def _ignore_termination():
+def ignore_termination():
     for signum in TERMINATION_SIGNALS:
         signal.signal(signum, signal.SIG_IGN)
 
@@ -159,7 +159,7 @@ def install_termination_handler(runner):
     of 90 s)."""
     def terminate(_signum, _frame):
         signal.pthread_sigmask(signal.SIG_BLOCK, TERMINATION_SIGNALS)
-        _ignore_termination()
+        ignore_termination()
         if runner.restarting:
             return
         runner.cancel()
@@ -172,11 +172,13 @@ def install_termination_handler(runner):
 def block_termination_signals():
     """Shield the post-failure odoo restart from a termination signal: the handler would raise `authority_lost` and
     skip the restart, leaving odoo down for every tenant. From the moment the signals are blocked here, a signal
-    stays pending and is delivered when the previous mask is restored, so it still cancels the run with
-    `authority_lost`, only once odoo is back up. The few instructions between entering the cleanup path and this
-    call stay uncovered: a signal landing there is consumed straight away and can still skip the restart — nothing
-    in Python can block signals before its own cleanup path starts running. A signal that arrives while the restart
-    itself runs is released to the handler again, whose `restarting` guard ignores it without touching the restart."""
+    stays pending for the restart's duration. If odoo is started again, it is delivered when the previous mask is
+    restored and still cancels the run with `authority_lost`; if the restart itself fails, `restart_after_failure`
+    ignores the signals and the held one is discarded so that `odoo_restart_failed` stays the outcome. The few
+    instructions between entering the cleanup path and this call stay uncovered: a signal landing there is consumed
+    straight away and can still skip the restart — nothing in Python can block signals before its own cleanup path
+    starts running. A signal that arrives while the restart itself runs is released to the handler again, whose
+    `restarting` guard ignores it without touching the restart."""
     previous = signal.pthread_sigmask(signal.SIG_BLOCK, TERMINATION_SIGNALS)
     try:
         yield
@@ -308,7 +310,7 @@ class Runner:
         stderr = subprocess.DEVNULL if stdout_only else subprocess.STDOUT
         # `detached`: its own session, and the termination signals ignored (the disposition survives exec), so neither a
         # group signal from the gate nor a second signal to the effect can cut a command that must finish (the odoo restart).
-        extra = {'start_new_session': True, 'preexec_fn': _ignore_termination} if detached else {}
+        extra = {'start_new_session': True, 'preexec_fn': ignore_termination} if detached else {}
         self.child = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr, **extra)
         child = self.child
         def drain():
