@@ -8,8 +8,10 @@ route refuses before anything is fenced when it is.
 """
 import json
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 import types
 import unittest
 import uuid
@@ -147,8 +149,13 @@ class ReleaseBackupRoleTests(unittest.TestCase):
             return PsqlConnection(self.cluster, dbname, user)
 
         binding = {'tenantId': 't', 'database': database}
+        # finalize closes the artifact's permissions for real, so the artifact must be a real directory holding the files the
+        # manifest hashes and reserves; both are patched below, so empty files are enough.
+        artifact = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, artifact)
+        for name in ('database.dump', 'filestore.tar', 'manifest.json'): (artifact / name).touch()
         runner = mock.MagicMock(config={'releaseBackupConfig': 'x'}, request={'job': {'binding': binding}, 'businessKey': 'k', 'payloadDigest': 'd'},
-                                base=[], backup_id='b', authority={'controlTenantId': 'c'}, artifact=Path('/nonexistent'))
+                                base=[], backup_id='b', authority={'controlTenantId': 'c'}, artifact=artifact)
         runner.command.return_value = self.cluster.sql('postgres', 'SELECT system_identifier::text FROM pg_control_system()')
         config = {'mode': 'local', 'postgres': {'host': '127.0.0.1', 'port': 1, 'adminUser': 'postgres'}, 'backup': {'image': 'img', 'allowedPrincipals': ['odoo']},
                   'tenants': {'t': {'database': database, 'filestore': database, 'filestorePath': '/nonexistent-store', 'roles': roles}}}

@@ -61,7 +61,7 @@
 | البيئة | الآلية | التحقق |
 |---|---|---|
 | محلية/قبول | `deploy/control-plane/run-local.sh` عند `LIWAN_TENANCY_MODE=shared` في `runtime.env` (يبدأ `shared-worker` ويسجّل pid/start/generation مثل `api` و`worker`) | `deploy/control-plane/status-local.sh` يطبع سطر العامل المشترك |
-| خادم оператор | وحدة systemd [liwan-shared-worker.service](../../deploy/control-plane/liwan-shared-worker.service) | `systemctl status liwan-shared-worker` و`journalctl -u liwan-shared-worker` |
+| خادم оператор | وحدة systemd [liwan-shared-worker.service](../../deploy/control-plane/liwan-shared-worker.service) | `systemctl status liwan-shared-worker` و`journalctl -u liwan-shared-worker`. العامل ليس في مجموعة docker؛ يصل إلى منفّذي دورة حياة المستأجر عبر `liwan-effect.socket` (وحدة [liwan-effect@.service](../../deploy/control-plane/liwan-effect@.service) بحساب `liwan-effect`)، وسجلها `journalctl -u 'liwan-effect@*'` |
 | اختبار قبول | `tools/foundation_acceptance/provision_two_tenants.mjs` و`tools/saas_e12/recovery.mjs` | يراقبان `commercial_scheduler_tick` في سجل العامل |
 
 **لماذا لا يوجد service في `deploy/docker-compose.shared.yml`:** شيفرة لوحة التحكم

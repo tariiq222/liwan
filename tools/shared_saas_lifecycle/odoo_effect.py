@@ -6,7 +6,7 @@ expiry. A controller grants every physical stage after fresh authoritative
 claim validation. Interrupted attempts can only be independently observed.
 """
 from __future__ import annotations
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 import json
 import os
 from pathlib import Path
@@ -140,6 +140,34 @@ def reserve(path, value):
         os.close(parent)
 
 
+TERMINATION_SIGNALS = (signal.SIGTERM, signal.SIGINT, signal.SIGHUP)
+
+
+def _ignore_termination():
+    for signum in TERMINATION_SIGNALS:
+        signal.signal(signum, signal.SIG_IGN)
+
+
+def install_termination_handler(runner):
+    """The first termination signal cancels the running command and aborts the effect with `authority_lost`, so the
+    cleanup in the `except` blocks runs (the backup restarts the shared odoo service). Every later signal is ignored
+    for the rest of the process, so the cleanup is not interrupted: systemd (KillMode=control-group) and the gate both
+    signal the group, and a second SIGTERM would otherwise kill the restart and leave odoo down for every tenant.
+    A signal that arrives while that restart itself runs (`runner.restarting`) is ignored the same way: it is the only
+    command that brings odoo back, so cancelling or aborting it would turn a signal into `odoo_restart_failed`.
+    The cleanup is bounded (cancel 25 s + restart 30 s, inside the gate's grace of 60 s and the unit's TimeoutStopSec
+    of 90 s)."""
+    def terminate(_signum, _frame):
+        signal.pthread_sigmask(signal.SIG_BLOCK, TERMINATION_SIGNALS)
+        _ignore_termination()
+        if runner.restarting:
+            return
+        runner.cancel()
+        raise EffectError('authority_lost')
+    for signum in TERMINATION_SIGNALS:
+        signal.signal(signum, terminate)
+
+
 class RuntimeGate:
     """Persistent project-wide ownership. Never reclaimed after unknown failure."""
     def __init__(self, root, identity):
@@ -224,6 +252,10 @@ def permit(stage):
 
 
 class Runner:
+    # Set while the post-failure `start odoo` runs: `install_termination_handler` ignores a signal that arrives then
+    # instead of cancelling the one command that brings the shared odoo back for every tenant.
+    restarting = False
+
     def __init__(self, request):
         self.request = request
         self.config = request['config']
@@ -253,12 +285,15 @@ class Runner:
         self.current_container = None
         self.child = None
 
-    def command(self, args, *, stdin='', timeout=90, stdout_only=False):
+    def command(self, args, *, stdin='', timeout=90, stdout_only=False, detached=False):
         # Continuously drain into a bounded tail; installation logs cannot grow
         # Python memory or a temporary disk spool without limit.
         tail = bytearray()
         stderr = subprocess.DEVNULL if stdout_only else subprocess.STDOUT
-        self.child = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr)
+        # `detached`: its own session, and the termination signals ignored (the disposition survives exec), so neither a
+        # group signal from the gate nor a second signal to the effect can cut a command that must finish (the odoo restart).
+        extra = {'start_new_session': True, 'preexec_fn': _ignore_termination} if detached else {}
+        self.child = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr, **extra)
         child = self.child
         def drain():
             while True:
@@ -270,16 +305,28 @@ class Runner:
                     del tail[:-MAX_OUTPUT]
         reader = threading.Thread(target=drain, daemon=True)
         reader.start()
+        def feed():
+            # A client that never reads must not block the effect on the pipe (only the worker's deadline would
+            # rescue it then): the write runs beside `wait(timeout)` and the child's exit status decides the outcome.
+            try:
+                child.stdin.write(stdin.encode())
+            except OSError:
+                pass  # the child exited or stopped reading; its return code reports the failure
+            finally:
+                with suppress(OSError):
+                    child.stdin.close()
+        writer = threading.Thread(target=feed, daemon=True)
+        writer.start()
         try:
-            child.stdin.write(stdin.encode())
-            child.stdin.close()
             child.wait(timeout=timeout)
             reader.join(timeout=5)
+            writer.join(timeout=5)
             if child.returncode != 0 or reader.is_alive():
                 raise EffectError('runtime_command_failed')
             return bytes(tail).decode('utf-8', errors='replace')
         except subprocess.TimeoutExpired:
             self.cancel()
+            writer.join(timeout=5)  # the killed child closes the pipe; the feeder then closes its write end
             raise EffectError('runtime_timeout') from None
         finally:
             child.stdout.close()
@@ -448,7 +495,9 @@ class Runner:
         for name in ('reservations', 'credentials', 'classifications'):
             entry = self.root / name
             if not entry.exists():
-                entry.mkdir(mode=0o755 if name == 'classifications' else 0o700)
+                mode = 0o755 if name == 'classifications' else 0o700
+                entry.mkdir(mode=mode)
+                entry.chmod(mode)  # mkdir's mode is masked by the unit's UMask=0077
             no_symlink(entry)
         require_new_target(self.exists(), self.filestore_exists())
         reserve(self.reservation, {'requestId': self.request['job']['requestId'], 'digest': self.request['payloadDigest'],
@@ -636,6 +685,9 @@ WRITER_REFUSALS = frozenset({'runtime_writer_present', 'runtime_writer_after_eff
 STREAM_REFUSALS = ('ai_password_missing', 'ai_data_without_role', 'ai_archive_unreadable')
 # Refusals raised before any effect; non-secret and distinct for the operator.
 PRE_EFFECT_REFUSALS = frozenset({'inventory_role_fenced'})
+# Backup outcomes the operator must tell apart: the shared Odoo could not be restarted (down for every tenant),
+# and an inventory that cannot fit a valid manifest (refused before any outage when knowable).
+BACKUP_REFUSALS = frozenset({'odoo_restart_failed', 'inventory_too_large'})
 
 
 def classify_error(error):
@@ -647,7 +699,7 @@ def classify_error(error):
         return error.code
     # Writer refusals are non-secret and the control plane tells them apart: only the
     # pre-gate one (nothing ran) may be retried.
-    if isinstance(error, EffectError) and str(error) in WRITER_REFUSALS | PRE_EFFECT_REFUSALS | set(STREAM_REFUSALS) | {'release_operation_blocked'}:  # Safe release barrier refusal, distinct from CP claims.
+    if isinstance(error, EffectError) and str(error) in WRITER_REFUSALS | PRE_EFFECT_REFUSALS | BACKUP_REFUSALS | set(STREAM_REFUSALS) | {'release_operation_blocked'}:  # Safe release barrier refusal, distinct from CP claims.
         return str(error)
     return 'shared_effect_unverified'
 
@@ -660,11 +712,7 @@ def main():
             raise EffectError('input_invalid')
         request = json.loads(raw)
         runner = Runner(request)
-        def terminate(_signum, _frame):
-            runner.cancel()
-            raise EffectError('authority_lost')
-        signal.signal(signal.SIGTERM, terminate)
-        signal.signal(signal.SIGINT, terminate)
+        install_termination_handler(runner)
         if request['action'] == 'observe':
             emit({'result': runner.observe()})
         elif request['action'] == 'apply':

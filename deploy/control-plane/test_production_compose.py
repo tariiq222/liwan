@@ -121,6 +121,11 @@ class ProductionCompose(unittest.TestCase):
         # That unit file is the only one that defines the scheduler's process; the health alert unit starts a script of its own.
         starters = sorted(p.name for p in CONTROL.glob('*.service') if 'shared-worker' in p.read_text(encoding='utf-8').split('[Service]')[1])
         self.assertEqual(starters, ['liwan-shared-worker.service'])
+        # The effect gate is a separate account and unit: only it may join the docker group, and the worker unit never names it.
+        effect = (CONTROL / 'liwan-effect@.service').read_text(encoding='utf-8')
+        self.assertIn('SupplementaryGroups=docker', effect)
+        self.assertNotIn('SupplementaryGroups', unit)
+        self.assertNotIn('Requires=docker.service', unit)
 
     def test_the_ordinary_worker_is_off_unless_asked_for(self):
         self.assertEqual(self.services['control-worker']['profiles'], ['operator-jobs'])

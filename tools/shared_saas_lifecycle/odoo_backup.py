@@ -9,7 +9,6 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 import shlex
-import signal
 import subprocess
 import sys
 import tarfile
@@ -19,12 +18,16 @@ from datetime import datetime, timezone
 from tools.shared_saas_lifecycle.odoo_effect import (
     Runner, EffectError, no_symlink, reserve, permit, emit, validate_database,
     require_new_target, verified_observation, MAX_OUTPUT, OBSERVE_CONTAINER, classify_error,
-    release_routes_enabled, effect_operation, TENANT_DB_ROLE, AI_TENANT_SCHEMA, STREAM_REFUSALS,
+    install_termination_handler, STREAM_REFUSALS, release_routes_enabled, effect_operation, TENANT_DB_ROLE, AI_TENANT_SCHEMA,
 )
 from deploy.releases.postgres import POSTGRES_ADMIN_ROLE, identifier, tenant_bootstrap_sql, tenant_create_database_sql, tenant_isolation_sql
 AI_ROLE = 'liwan_ai'
+RESTART_TIMEOUT = 30  # the restart after a failure or a termination; with the 25 s cancel it fits the gate's 60 s grace
 MAX_ARCHIVE = 2 * 1024 * 1024 * 1024
 MAX_MEMBERS = 100000
+MAX_MANIFEST = 16 * 1024 * 1024  # what read_artifact accepts; the inventory is written whole into the manifest
+MANIFEST_OVERHEAD = 64 * 1024  # the manifest's other fields (hashes, ids, binding, business key)
+MAX_INVENTORY = MAX_MANIFEST - MANIFEST_OVERHEAD
 RESTORE_HOST = '-h restore-db'
 
 
@@ -267,25 +270,25 @@ class BackupRunner(Runner):
         return self.base + ['run', '--rm', '--no-deps', '-T', '--name', name,
                             '--entrypoint', '/opt/venv/bin/python', service, '-c', script]
 
-    def helper(self, service, stage, script):
+    def helper(self, service, stage, script, *, stdin=''):
         try:
             # Compose emits progress on stderr independently of the helper's JSON.
-            return self.command(self.helper_args(service, stage, script), timeout=180, stdout_only=True)
+            return self.command(self.helper_args(service, stage, script), stdin=stdin, timeout=180, stdout_only=True)
         finally:
             self.current_container = None
 
-    def stream(self, args, *, destination=None, source=None):
+    def stream(self, args, *, destination=None, source=None, limit=MAX_ARCHIVE):
         # Binary artifacts bypass JSON/log buffers. Docker descendant is tracked.
         incoming = open(source, 'rb') if source else subprocess.DEVNULL
-        outgoing = open(destination, 'xb') if destination else subprocess.DEVNULL
+        # Created 0600 from the first moment: the artifact directory is readable by the worker's group.
+        outgoing = os.fdopen(os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600), 'wb') if destination else subprocess.DEVNULL
+        # The stage's own refusal word goes to a private file, never to the log the group can read.
         reason = tempfile.TemporaryFile()
         try:
-            if destination:
-                os.chmod(destination, 0o600)
             self.child = subprocess.Popen(args, stdin=incoming, stdout=outgoing, stderr=reason)
             deadline = time.monotonic() + 600
             while self.child.poll() is None:
-                if time.monotonic() >= deadline or (destination and Path(destination).stat().st_size > MAX_ARCHIVE):
+                if time.monotonic() >= deadline or (destination and Path(destination).stat().st_size > limit):
                     self.cancel()
                     raise EffectError('artifact_limit')
                 time.sleep(0.1)
@@ -295,7 +298,7 @@ class BackupRunner(Runner):
                 raise EffectError(next((code for code in STREAM_REFUSALS if code in refusal), 'artifact_command_failed'))
             if destination:
                 outgoing.flush(); os.fsync(outgoing.fileno())
-                if Path(destination).stat().st_size > MAX_ARCHIVE:
+                if Path(destination).stat().st_size > limit:
                     raise EffectError('archive_limit')
         except subprocess.TimeoutExpired:
             self.cancel()
@@ -328,11 +331,18 @@ class BackupRunner(Runner):
     def inventory(self, service, database):
         validation='import hashlib\nclass EffectError(Exception): pass\nMAX_DATABASE_ATTACHMENT='+str(MAX_DATABASE_ATTACHMENT)+'\nMAX_MEMBERS='+str(MAX_MEMBERS)+'\nMAX_ARCHIVE='+str(MAX_ARCHIVE)+'\n'+inspect.getsource(database_attachment_digest)
         script = CONNECTION + validation + '\nfrom contextlib import closing\n' + inspect.getsource(read_inventory) + '\nprint(json.dumps(read_inventory(connect,' + repr(database) + '),default=str,separators=(\",\",\":\")))'
-        # Bounded inventory: selected fixture is intentionally small, fail on overflow.
-        output = self.helper(service, 'inventory', script)
-        if len(output) >= MAX_OUTPUT:
-            raise EffectError('inventory_limit')
-        return json.loads(output)
+        # Streamed to a file: the helper's JSON grows with the attachment count and must not pass
+        # through the 64 KiB command buffer. A runaway ends in the stream's artifact_limit or archive_limit error.
+        with tempfile.TemporaryDirectory() as directory:
+            destination = Path(directory) / 'inventory.json'
+            try:
+                self.stream(self.helper_args(service, 'inventory', script), destination=destination, limit=MAX_INVENTORY)
+            except EffectError as error:
+                # A stream stopped at the limit is an inventory that cannot fit a valid manifest.
+                if str(error) in ('artifact_limit', 'archive_limit') and destination.exists() and destination.stat().st_size > MAX_INVENTORY:
+                    raise EffectError('inventory_too_large') from None
+                raise
+            return json.loads(destination.read_text())
 
     def files_exist(self, service, database):
         script = 'import json;from pathlib import Path;p=Path(' + repr('/var/lib/odoo/filestore/' + database) + ');print(json.dumps(p.exists() or p.is_symlink()))'
@@ -345,9 +355,11 @@ class BackupRunner(Runner):
     def check_files(self, service, database, inventory):
         # Every referenced file gets SHA1, size and containment checks. DB-backed
         # attachments are independently streamed and hashed by inventory().
-        script = '''import hashlib,json,re
+        # The rows travel on stdin: one argv string is capped at 128 KiB (MAX_ARG_STRLEN) and the list grows with the tenant.
+        script = '''import hashlib,json,re,sys
 from pathlib import Path
 root=Path('/var/lib/odoo/filestore/') / database
+attachments=json.load(sys.stdin)
 for _,name,checksum,size in attachments:
  if name is None: continue
  if not re.fullmatch(r'[a-f0-9]{2}/[a-f0-9]{40}',name): raise Exception('attachment_path')
@@ -359,7 +371,7 @@ for _,name,checksum,size in attachments:
  if total!=size or value.hexdigest()!=checksum: raise Exception('attachment_bytes')
 print('{}')
 '''
-        self.helper(service, 'check-files', 'database=' + repr(database) + '\nattachments=' + repr(inventory['attachments']) + '\n' + script)
+        self.helper(service, 'check-files', 'database=' + repr(database) + '\n' + script, stdin=json.dumps(inventory['attachments'], separators=(',', ':')))
 
     def verify_odoo_readiness(self, service, database):
         database = validate_database(database)
@@ -394,7 +406,7 @@ print('{}')
 
     def read_artifact(self):
         no_symlink(self.artifact / 'manifest.json')
-        if (self.artifact/'manifest.json').stat().st_size > 16*1024*1024:
+        if (self.artifact/'manifest.json').stat().st_size > MAX_MANIFEST:
             raise EffectError('manifest_invalid')
         if self.authority.get('manifestSha256'):
             require_hash(self.artifact/'manifest.json',self.authority['manifestSha256'])
@@ -445,11 +457,43 @@ print('{}')
         self.assert_no_effect_containers()
         permit('reserve')
         backups=self.root/'backups';backups.mkdir(mode=0o700,exist_ok=True);no_symlink(backups)
-        self.artifact.mkdir(mode=0o700)
+        self.artifact.mkdir(mode=0o700);self.artifact.chmod(0o750)  # explicit: UMask=0077 masks mkdir's mode; the worker's group reads the manifest, the dump and the archive stay 0600
         reserve(self.artifact/'reservation.json',{'digest':self.request['payloadDigest'],'attemptId':self.request['attemptId']})
         source_image=self.inspect_service('odoo')['Image'];postgres_image=self.inspect_service('db')['Image']
         permit('drain')
-        self.command(self.base+['stop','--timeout','30','odoo'],timeout=45)
+        try:
+            self.command(self.base+['stop','--timeout','30','odoo'],timeout=45)
+            manifest=self.capture_while_stopped(source_image,postgres_image)
+            permit('resume')
+        except BaseException:
+            # Odoo is shared by every tenant: whatever failed, never leave it stopped. No permit here;
+            # the authority may be gone and the restart must not wait for it.
+            self.restart_after_failure()
+            raise
+        try:
+            self.command(self.base+['start','odoo'],timeout=60)
+        except BaseException:
+            # A termination during the normal start must not leave odoo stopped either.
+            self.restart_after_failure()
+            raise
+        self.wait_healthy('odoo');self.verify_originals()
+        permit('complete')
+        reserve(self.artifact/'manifest.json',manifest);(self.artifact/'manifest.json').chmod(0o640)
+        self.read_artifact()
+
+    def restart_after_failure(self):
+        # This start must complete: it runs detached (own session, signals ignored), and the termination handler ignores
+        # a signal that arrives while it is in flight instead of cancelling the one command that brings odoo back for
+        # every tenant.
+        self.restarting = True
+        try:
+            self.command(self.base+['start','odoo'],timeout=RESTART_TIMEOUT,detached=True)
+        except Exception as restart_error:
+            raise EffectError('odoo_restart_failed') from restart_error
+        finally:
+            self.restarting = False
+
+    def capture_while_stopped(self,source_image,postgres_image):
         if self.inspect_service('odoo')['State']['Running']:
             raise EffectError('writers_not_stopped')
         self.drain_observers()
@@ -478,12 +522,10 @@ with tarfile.open(fileobj=sys.stdout.buffer,mode='w|') as out:
             'binding':self.request['job']['binding'],'businessKey':self.request['businessKey'],'payloadDigest':self.request['payloadDigest'],
             'databaseSha256':sha256_file(self.artifact/'database.dump'),'filestoreSha256':sha256_file(self.artifact/'filestore.tar'),
             'sourceImageId':source_image,'postgresImageId':postgres_image,'capturedAt':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),'inventory':inventory}
-        permit('resume')
-        self.command(self.base+['start','odoo'],timeout=60)
-        self.wait_healthy('odoo');self.verify_originals()
-        permit('complete')
-        reserve(self.artifact/'manifest.json',manifest)
-        self.read_artifact()
+        # reserve() writes json.dump (ASCII escapes can outgrow the raw inventory): refuse here, not after the manifest is unverifiable.
+        if len(json.dumps(manifest).encode()) > MAX_MANIFEST:
+            raise EffectError('inventory_too_large')
+        return manifest
 
     def restore(self):
         with effect_operation(self.request, 'restore'):
@@ -585,9 +627,7 @@ def main():
         raw=sys.stdin.readline(MAX_OUTPUT+1)
         if len(raw)>MAX_OUTPUT:raise EffectError('input_invalid')
         request=json.loads(raw);runner=BackupRunner(request)
-        def terminate(_signum,_frame):
-            runner.cancel();raise EffectError('authority_lost')
-        signal.signal(signal.SIGTERM,terminate);signal.signal(signal.SIGINT,terminate)
+        install_termination_handler(runner)
         if request['action']=='observe':emit({'result':runner.observe()})
         elif request['action']=='apply':runner.apply_owned()
         else:raise EffectError('operation_unavailable')

@@ -1,0 +1,68 @@
+# One tenant lifecycle effect per connection, started by liwan-effect.socket (Accept=yes):
+# stdin and stdout are the accepted socket. The gate is the only entry to the effect
+# modules; it checks the request and the trust of the runtime files, injects the
+# runtime config, runs the effect and relays its lines. This account is the only member
+# of the docker group, so it is root-equivalent through dockerd: the gate and the effects
+# are the trusted base and the sandbox below is defence in depth.
+#
+# Paths are shown for production (/srv/liwan); a staging host substitutes /srv/liwan-staging in
+# LIWAN_SHARED_RUNTIME_CONFIG and ReadWritePaths=. Adjust the /opt/liwan/current prefix to
+# the host. Install with the socket and the worker unit (see liwan-shared-worker.service).
+#
+# Optional /etc/liwan/effect.env (operator-owned, mode 0600, plain KEY=value lines): the
+# gate refuses a real tenant drop unless it holds LIWAN_TENANT_DELETION_ENABLED=true here,
+# in addition to the worker's own setting. Absent, a drop stays a dry run.
+[Unit]
+Description=Liwan tenant lifecycle effect (one connection)
+Documentation=file:///opt/liwan/current/docs/operations/environment-bringup.md
+After=docker.service
+
+[Service]
+User=liwan-effect
+Group=liwan-worker
+SupplementaryGroups=docker
+# Closed by default: what the worker's group must read is given its mode explicitly (backups/<id> 0750, manifest.json 0640,
+# classifications 0755 and its files 0644).
+UMask=0077
+StandardInput=socket
+StandardOutput=socket
+StandardError=journal
+WorkingDirectory=/opt/liwan/current
+ExecStart=/usr/bin/python3 -E -s -B -m tools.shared_saas_lifecycle.effect_gate
+Environment=PATH=/usr/bin:/bin
+Environment=HOME=/nonexistent
+Environment=DOCKER_CONFIG=/etc/liwan/docker
+Environment=LIWAN_SHARED_RUNTIME_CONFIG=/srv/liwan/control/config/shared-runtime.json
+EnvironmentFile=-/etc/liwan/effect.env
+KillMode=control-group
+# Above the gate's KILL_GRACE (60 s: effect cancel 25 s + odoo restart 30 s), so the unit is not killed mid-cleanup.
+TimeoutStopSec=90
+RuntimeMaxSec=7500
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+ProcSubset=pid
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged
+SystemCallErrorNumber=EPERM
+MemoryDenyWriteExecute=true
+ReadWritePaths=/srv/liwan/control/state
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+IPAddressDeny=any
+IPAddressAllow=localhost

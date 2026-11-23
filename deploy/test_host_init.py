@@ -290,10 +290,195 @@ class InitHost(unittest.TestCase):
         (stubs / 'chown').write_text(f'#!/bin/sh\necho "$@" >> {log}\n')
         for stub in stubs.iterdir():
             stub.chmod(0o755)
-        self.run_script(env={'PATH': f'{stubs}:{os.environ["PATH"]}'})
+        self.run_script(env={'PATH': f'{stubs}:{os.environ["PATH"]}', 'LIWAN_EFFECT_USER': pwd.getpwuid(os.getuid()).pw_name,
+                             'LIWAN_ROOT_UID': str(os.getuid()), 'LIWAN_DOCKER_CONFIG_DIR': str(Path(self.tmp.name) / 'etc-liwan-docker')})
         group = subprocess.run([shutil.which('id'), '-gn'], capture_output=True, text=True, check=True).stdout.strip()
-        self.assertIn(f'999:{group} {self.private}/control-db-password', log.read_text().splitlines())
+        # The file is made under an unpredictable name and handed over with chown -h before the no-clobber rename into place.
+        self.assertTrue(any(re.fullmatch(rf'-h 999:{group} {re.escape(str(self.private))}/\.init\.[0-9a-f]{{16}}', line)
+                            for line in log.read_text().splitlines()), log.read_text())
         self.assertEqual(0o400, stat.S_IMODE((self.private / 'control-db-password').stat().st_mode))
+
+    def run_as_stubbed_root(self, extra_env: dict | None = None, check: bool = True) -> tuple[subprocess.CompletedProcess, list[str], Path]:
+        """Run the script as if root: `id -u` prints 0 and `chown` only logs its arguments; chmod and mkdir are real."""
+        stubs = Path(self.tmp.name) / 'root-stubs'
+        stubs.mkdir(exist_ok=True)
+        log = Path(self.tmp.name) / 'root-chown.log'
+        docker_dir = Path(self.tmp.name) / 'etc-liwan-docker'
+        real_id = shutil.which('id')
+        (stubs / 'id').write_text(f'#!/bin/sh\nif [ "$#" = 1 ] && [ "$1" = "-u" ]; then echo 0; exit 0; fi\nexec {real_id} "$@"\n')
+        (stubs / 'chown').write_text(f'#!/bin/sh\necho "$@" >> {log}\n')
+        for stub in stubs.iterdir():
+            stub.chmod(0o755)
+        account = pwd.getpwuid(os.getuid()).pw_name
+        # The files the script makes belong to the test account, which therefore stands in for root (LIWAN_ROOT_UID); a test that needs
+        # a file of a less trusted owner passes another uid.
+        env = {'PATH': f'{stubs}:{os.environ["PATH"]}', 'LIWAN_EFFECT_USER': account, 'LIWAN_DOCKER_CONFIG_DIR': str(docker_dir),
+               'LIWAN_ROOT_UID': str(os.getuid()), **(extra_env or {})}
+        done = self.run_script(env=env, check=check)
+        return done, (log.read_text().splitlines() if log.exists() else []), docker_dir
+
+    def test_as_root_the_effect_boundary_owners_and_modes_are_applied(self):
+        # docs/operations/environment-bringup.md A3.2: the gate trusts only root-owned inputs, the effect account owns what it
+        # writes, backups/ is readable by the worker group and writable by nobody but the effect account, and shared.env belongs to the docker group the worker is not in.
+        shared_env = self.root / 'shared.env'
+        self.root.mkdir(parents=True)
+        shared_env.write_text('X=1\n')
+        shared_env.chmod(0o600)
+        done, chowns, docker_dir = self.run_as_stubbed_root()
+        group = subprocess.run([shutil.which('id'), '-gn'], capture_output=True, text=True, check=True).stdout.strip()
+        account = pwd.getpwuid(os.getuid()).pw_name
+        def mode(path):
+            return stat.S_IMODE(path.stat().st_mode)
+        self.assertEqual(0o750, mode(self.config))
+        self.assertEqual(0o640, mode(self.config / 'shared-runtime.json'))
+        self.assertEqual(0o640, mode(self.config / 'inventory-v2.json'))
+        self.assertEqual(0o3770, mode(self.state))
+        self.assertEqual(0o640, mode(shared_env))
+        for path in (self.config, self.state):
+            self.assertIn(f'-h root:{group} {path}', chowns)
+        # The config files are made inside the settled directory, handed to root with chown -h under a temporary name, then renamed.
+        handed = [line for line in chowns if re.fullmatch(rf'-h root:{group} {re.escape(str(self.config))}/\.init\.[0-9a-f]{{16}}', line)]
+        self.assertEqual(2, len(handed), chowns)
+        self.assertIn(f'-h root:docker {shared_env}', chowns)
+        modes = {'reservations': 0o700, 'credentials': 0o700, 'classifications': 0o755, 'restore-effects': 0o700,
+                 'reconfigure': 0o700, 'runtime-gate-history': 0o700, 'backups': 0o750}
+        for name, expected in modes.items():
+            with self.subTest(directory=name):
+                self.assertEqual(expected, mode(self.state / name))
+                self.assertIn(f'-h {account}:{group} {self.state / name}', chowns)
+        # The effect account owns restore-registry: in the sticky state directory the owner of an entry may rename it, so a worker-owned
+        # one could be swapped for a link that dockerd follows. The worker (group) writes files in it.
+        self.assertEqual(0o775, mode(self.state / 'restore-registry'))
+        self.assertIn(f'-h {account}:{group} {self.state / "restore-registry"}', chowns)
+        self.assertEqual({}, json.loads((docker_dir / 'config.json').read_text()))
+        self.assertIn(f'-h root:root {docker_dir / "config.json"}', chowns)
+        self.assertEqual(0o644, mode(docker_dir / 'config.json'))
+        self.assertIn(f'created {docker_dir / "config.json"}', done.stdout)
+
+    def test_as_root_a_second_run_keeps_the_effect_directories_and_their_content(self):
+        self.run_as_stubbed_root()
+        marker = self.state / 'reservations' / 'a'
+        marker.write_text('x')
+        (self.state / 'backups').chmod(0o700)
+        done, _, docker_dir = self.run_as_stubbed_root()
+        self.assertEqual('x', marker.read_text())
+        self.assertEqual(0o700, stat.S_IMODE((self.state / 'backups').stat().st_mode))  # an existing directory is never changed
+        self.assertIn(f'kept    {self.state / "backups"}', done.stdout)
+        self.assertIn(f'kept    {docker_dir / "config.json"}', done.stdout)
+
+    def refused_as_root(self, fragment: str) -> subprocess.CompletedProcess:
+        done, _, _ = self.run_as_stubbed_root(check=False)
+        self.assertEqual(2, done.returncode, done.stdout + done.stderr)
+        self.assertIn(fragment, done.stderr)
+        return done
+
+    def test_as_root_a_symlinked_config_file_is_refused_and_its_target_left_alone(self):
+        self.run_as_stubbed_root()
+        target = Path(self.tmp.name) / 'victim'
+        target.write_text('x')
+        target.chmod(0o600)
+        (self.config / 'inventory-v2.json').unlink()
+        (self.config / 'inventory-v2.json').symlink_to(target)
+        self.refused_as_root('is a symbolic link')
+        self.assertEqual(0o600, stat.S_IMODE(target.stat().st_mode))
+        self.assertEqual('x', target.read_text())
+
+    def test_as_root_a_symlinked_effect_subdirectory_is_refused_and_its_target_left_alone(self):
+        self.run_as_stubbed_root()
+        target = Path(self.tmp.name) / 'victim-dir'
+        target.mkdir()
+        target.chmod(0o777)
+        (self.state / 'credentials').rmdir()
+        (self.state / 'credentials').symlink_to(target)
+        self.refused_as_root(f'{self.state / "credentials"} is a symbolic link')
+        self.assertEqual(0o777, stat.S_IMODE(target.stat().st_mode))
+
+    def test_as_root_a_symlinked_config_directory_or_parent_is_refused(self):
+        target = Path(self.tmp.name) / 'elsewhere'
+        target.mkdir()
+        target.chmod(0o755)  # explicit: mkdir's mode is cut by the umask other tests leave behind
+        self.config.parent.mkdir(parents=True)
+        self.config.symlink_to(target)
+        self.refused_as_root(f'{self.config} is a symbolic link')
+        self.assertEqual(0o755, stat.S_IMODE(target.stat().st_mode))
+        self.config.unlink()
+        moved = self.config.parent.with_name('control-real')
+        self.config.parent.rename(moved)
+        self.config.parent.symlink_to(moved)
+        self.refused_as_root(f'{self.config.parent} is a symbolic link')
+
+    def test_as_root_a_config_file_the_worker_could_write_is_refused_when_its_content_is_not_what_the_script_writes(self):
+        self.run_as_stubbed_root()
+        runtime = self.config / 'shared-runtime.json'
+        runtime.write_text(runtime.read_text().replace(PROJECT, 'liwan-shared-planted'))
+        runtime.chmod(0o660)
+        self.refused_as_root('Review it')
+        self.assertIn('liwan-shared-planted', runtime.read_text())
+        self.assertEqual(0o660, stat.S_IMODE(runtime.stat().st_mode))  # never blessed as it stands
+
+    def test_as_root_a_writable_config_file_with_the_expected_content_is_replaced_by_a_fresh_root_copy(self):
+        self.run_as_stubbed_root()
+        runtime = self.config / 'shared-runtime.json'
+        before = runtime.stat().st_ino
+        runtime.chmod(0o660)
+        done, chowns, _ = self.run_as_stubbed_root()
+        self.assertIn(f'replaced {runtime}', done.stdout)
+        self.assertEqual(0o640, stat.S_IMODE(runtime.stat().st_mode))
+        self.assertNotEqual(before, runtime.stat().st_ino)  # a new inode: a descriptor the worker holds writes nowhere
+        self.assertEqual(PROJECT, json.loads(runtime.read_text())['projectName'])
+        self.assertEqual([], [name for name in os.listdir(self.config) if name.startswith('.init.')])
+
+    def test_as_root_a_config_file_owned_by_another_uid_is_not_trusted(self):
+        self.run_as_stubbed_root()
+        inventory = self.config / 'inventory-v2.json'
+        inventory.write_text('{"version":2,"targets":{"a":{}}}\n')
+        done, _, _ = self.run_as_stubbed_root(extra_env={'LIWAN_ROOT_UID': str(os.getuid() + 7)}, check=False)
+        self.assertEqual(2, done.returncode)
+        self.assertIn('must be owned by root', done.stderr)  # the directory that holds it is not root's either
+
+    def test_as_root_a_writable_existing_effect_directory_or_shared_env_is_refused_for_review(self):
+        self.run_as_stubbed_root()
+        (self.state / 'backups').chmod(0o770)
+        self.refused_as_root('review its content')
+        (self.state / 'backups').chmod(0o750)
+        shared_env = self.root / 'shared.env'
+        shared_env.write_text('X=1\n')
+        shared_env.chmod(0o660)
+        self.refused_as_root(f'{shared_env} is not owned by root or is writable')
+        self.assertEqual(0o660, stat.S_IMODE(shared_env.stat().st_mode))
+
+    def test_as_root_a_shared_env_or_docker_config_that_is_a_symlink_or_writable_is_refused(self):
+        self.root.mkdir(parents=True)
+        victim = Path(self.tmp.name) / 'victim-env'
+        victim.write_text('X=1\n')
+        victim.chmod(0o600)
+        (self.root / 'shared.env').symlink_to(victim)
+        self.refused_as_root(f'{self.root / "shared.env"} is a symbolic link')
+        self.assertEqual(0o600, stat.S_IMODE(victim.stat().st_mode))
+        (self.root / 'shared.env').unlink()
+        docker_dir = Path(self.tmp.name) / 'etc-liwan-docker'
+        docker_dir.mkdir()
+        (docker_dir / 'config.json').write_text('{"credsStore":"x"}')
+        (docker_dir / 'config.json').chmod(0o666)
+        self.refused_as_root('can name a program the docker client runs')
+
+    def test_as_root_a_missing_effect_account_stops_the_script_before_anything_is_made(self):
+        stubs = Path(self.tmp.name) / 'root-stubs'
+        stubs.mkdir()
+        real_id = shutil.which('id')
+        (stubs / 'id').write_text(f'#!/bin/sh\nif [ "$#" = 1 ] && [ "$1" = "-u" ]; then echo 0; exit 0; fi\nexec {real_id} "$@"\n')
+        (stubs / 'id').chmod(0o755)
+        done = self.run_script(check=False, env={'PATH': f'{stubs}:{os.environ["PATH"]}', 'LIWAN_EFFECT_USER': 'liwan-no-such-effect-account'})
+        self.assertEqual(2, done.returncode)
+        self.assertIn('The effect account does not exist: liwan-no-such-effect-account', done.stderr)
+        self.assertFalse(self.root.exists())
+
+    def test_as_the_worker_itself_no_effect_directory_is_made(self):
+        self.run_script()
+        for name in ('reservations', 'credentials', 'classifications', 'backups'):
+            self.assertFalse((self.state / name).exists())
+        self.assertEqual(0o750, stat.S_IMODE(self.state.stat().st_mode))
+        self.assertEqual(0o640, stat.S_IMODE((self.config / 'shared-runtime.json').stat().st_mode))
 
     def test_missing_or_placeholder_variable_is_refused(self):
         self.env_file.write_text(self.env_file.read_text().replace(RESTORE_DOMAIN, 'REPLACE_WITH_RESTORE_DOMAIN'))
@@ -301,6 +486,52 @@ class InitHost(unittest.TestCase):
         self.assertEqual(2, done.returncode)
         self.assertIn('LIWAN_RESTORE_DOMAIN', done.stderr)
         self.assertFalse(self.root.exists())
+
+    def test_a_dangling_symlink_planted_in_a_worker_owned_directory_is_not_written_through(self):
+        # Tester finding: the registry and private directories belong to the worker, and `write_file` runs `cat >` and then
+        # chmod/chown on the path as root. `[[ -e ]]` is false for a dangling link, so the link is followed: root creates and
+        # hands to the worker (or uid 999) a file at any path the worker names. Both must be refused like the other links.
+        self.run_script()
+        for planted in (self.registry / 'registry.json', self.private / 'control-db-password'):
+            planted.unlink()
+            target = Path(self.tmp.name) / ('elsewhere-' + planted.name)
+            planted.symlink_to(target)
+            done = self.run_script(check=False)
+            self.assertFalse(target.exists(), f'{planted} was written through to {target}')
+            self.assertNotEqual(0, done.returncode)
+            planted.unlink()
+            target.unlink(missing_ok=True)
+            self.run_script()
+
+    def test_a_symlink_in_place_of_a_managed_directory_is_refused_even_to_a_directory(self):
+        self.run_script()
+        for name in ('registry', 'private', 'ai_platform'):
+            directory = getattr(self, name)
+            moved = Path(self.tmp.name) / f'moved-{name}'
+            directory.rename(moved)
+            directory.symlink_to(moved)
+            done = self.run_script(check=False)
+            self.assertNotEqual(0, done.returncode, name)
+            self.assertIn('symbolic link', done.stderr)
+            directory.unlink()
+            moved.rename(directory)
+
+    def test_a_symlink_in_place_of_restore_registry_is_refused_as_root(self):
+        self.run_as_stubbed_root()
+        link = self.state / 'restore-registry'
+        link.rmdir()
+        elsewhere = Path(self.tmp.name) / 'elsewhere'
+        elsewhere.mkdir()
+        link.symlink_to(elsewhere)
+        done, _, _ = self.run_as_stubbed_root(check=False)
+        self.assertNotEqual(0, done.returncode)
+        self.assertIn('symbolic link', done.stderr)
+        self.assertEqual([], list(elsewhere.iterdir()))
+
+    def test_no_work_file_is_left_in_a_worker_directory(self):
+        self.run_script()
+        for directory in (self.registry, self.private, self.config):
+            self.assertEqual([], [path.name for path in directory.iterdir() if path.name.startswith('.init.')], directory)
 
 
 if __name__ == '__main__':

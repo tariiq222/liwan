@@ -33,6 +33,8 @@ RUN_LOCAL = CONTROL / 'run-local.sh'
 LOCAL_PROCESS = CONTROL / 'local-process.sh'
 TENANCY = CONTROL / 'runtime-tenancy.sh'
 UNIT = CONTROL / 'liwan-shared-worker.service'
+EFFECT_SOCKET = CONTROL / 'liwan-effect.socket'
+EFFECT_UNIT = CONTROL / 'liwan-effect@.service'
 ENTRYPOINT = CONTROL / 'run-shared-worker.sh'
 WORKER_MAIN = ROOT / 'apps' / 'control-plane' / 'src' / 'shared-worker-main.ts'
 MAIL_ADAPTER = ROOT / 'apps' / 'control-plane' / 'src' / 'commercial' / 'mail-adapter.ts'
@@ -288,6 +290,136 @@ class SupervisorUnit(unittest.TestCase):
     def test_unit_documents_the_install_and_the_health_signal(self):
         self.assertIn('/etc/systemd/system/', self.text)
         self.assertIn('systemctl enable --now liwan-shared-worker', self.text)
+
+
+def _parse_unit(path: Path) -> dict[str, list[tuple[str, str]]]:
+    """Every `Key=value` of a unit file in order, per section (a key may repeat, as SystemCallFilter does)."""
+    sections: dict[str, list[tuple[str, str]]] = {}
+    section = None
+    for line in path.read_text(encoding='utf-8').splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith(('#', ';')):
+            continue
+        if stripped.startswith('[') and stripped.endswith(']'):
+            section = stripped[1:-1]
+            sections[section] = []
+        elif section is not None and '=' in stripped:
+            key, value = stripped.split('=', 1)
+            sections[section].append((key.strip(), value.strip()))
+    return sections
+
+
+# The directives both services carry (docs: the common sandbox set of the effect boundary).
+COMMON_SANDBOX = [
+    ('NoNewPrivileges', 'true'), ('PrivateTmp', 'true'), ('ProtectSystem', 'strict'), ('ProtectHome', 'true'),
+    ('PrivateDevices', 'true'), ('ProtectKernelTunables', 'true'), ('ProtectKernelModules', 'true'),
+    ('ProtectKernelLogs', 'true'), ('ProtectControlGroups', 'true'), ('ProtectClock', 'true'),
+    ('ProtectHostname', 'true'), ('ProtectProc', 'invisible'), ('ProcSubset', 'pid'), ('CapabilityBoundingSet', ''),
+    ('AmbientCapabilities', ''), ('RestrictNamespaces', 'true'), ('RestrictRealtime', 'true'),
+    ('RestrictSUIDSGID', 'true'), ('LockPersonality', 'true'), ('SystemCallArchitectures', 'native'),
+    ('SystemCallFilter', '@system-service'), ('SystemCallFilter', '~@privileged'), ('SystemCallErrorNumber', 'EPERM'),
+]
+
+
+class EffectBoundaryUnits(unittest.TestCase):
+    """The worker has no docker access; tenant effects run as `liwan-effect`, started per connection by a socket."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.worker = _parse_unit(UNIT)
+        cls.socket = _parse_unit(EFFECT_SOCKET)
+        cls.effect = _parse_unit(EFFECT_UNIT)
+
+    @staticmethod
+    def values(section: list[tuple[str, str]], key: str) -> list[str]:
+        return [value for name, value in section if name == key]
+
+    def test_the_socket_is_root_owned_group_shared_with_the_worker_and_accepts_per_connection(self):
+        self.assertEqual([('ListenStream', '/run/liwan-effect.sock'), ('SocketUser', 'root'), ('SocketGroup', 'liwan-worker'),
+                          ('SocketMode', '0660'), ('Accept', 'yes'), ('MaxConnections', '8')], self.socket['Socket'])
+        self.assertEqual([('WantedBy', 'sockets.target')], self.socket['Install'])
+
+    def test_the_effect_service_runs_the_gate_as_its_own_account_with_the_socket_as_stdio(self):
+        service = dict(self.effect['Service'])
+        self.assertEqual('liwan-effect', service['User'])
+        self.assertEqual('liwan-worker', service['Group'])
+        self.assertEqual('docker', service['SupplementaryGroups'])
+        self.assertEqual('0077', service['UMask'])
+        self.assertEqual('socket', service['StandardInput'])
+        self.assertEqual('socket', service['StandardOutput'])
+        self.assertEqual('journal', service['StandardError'])
+        self.assertEqual('/opt/liwan/current', service['WorkingDirectory'])
+        self.assertEqual('/usr/bin/python3 -E -s -B -m tools.shared_saas_lifecycle.effect_gate', service['ExecStart'])
+        self.assertEqual('control-group', service['KillMode'])
+        self.assertEqual('90', service['TimeoutStopSec'])
+        self.assertEqual('7500', service['RuntimeMaxSec'])
+        self.assertEqual(['docker.service'], self.values(self.effect['Unit'], 'After'))
+        self.assertNotIn('Install', self.effect, 'a template instance is started by its socket, never enabled')
+        # The gate reads its runtime config from its own environment and the docker client config from a root-owned directory.
+        self.assertEqual(['PATH=/usr/bin:/bin', 'HOME=/nonexistent', 'DOCKER_CONFIG=/etc/liwan/docker',
+                          'LIWAN_SHARED_RUNTIME_CONFIG=/srv/liwan/control/config/shared-runtime.json'],
+                         self.values(self.effect['Service'], 'Environment'))
+
+    def test_the_deletion_kill_switch_is_set_for_the_gate_only_by_an_optional_operator_file(self):
+        self.assertEqual(['-/etc/liwan/effect.env'], self.values(self.effect['Service'], 'EnvironmentFile'))
+        text = EFFECT_UNIT.read_text(encoding='utf-8')
+        # Disabled by default: the unit never names the flag with a value.
+        self.assertNotRegex(text, r'(?m)^(?:Environment=)?LIWAN_TENANT_DELETION_ENABLED=')
+        self.assertIn('LIWAN_TENANT_DELETION_ENABLED=true', text)  # the header tells the operator what to put in the file
+
+    def test_the_effect_service_has_the_common_sandbox_and_its_own_network_and_write_scope(self):
+        service = self.effect['Service']
+        for entry in COMMON_SANDBOX:
+            with self.subTest(directive=entry):
+                self.assertIn(entry, service)
+        self.assertIn(('MemoryDenyWriteExecute', 'true'), service)
+        self.assertEqual(['/srv/liwan/control/state'], self.values(service, 'ReadWritePaths'))
+        self.assertEqual(['AF_UNIX AF_INET AF_INET6'], self.values(service, 'RestrictAddressFamilies'))
+        self.assertEqual(['any'], self.values(service, 'IPAddressDeny'))
+        self.assertEqual(['localhost'], self.values(service, 'IPAddressAllow'))
+
+    def test_the_worker_has_the_common_sandbox_without_docker_and_without_write_exec_denial(self):
+        service = self.worker['Service']
+        for entry in COMMON_SANDBOX:
+            with self.subTest(directive=entry):
+                self.assertIn(entry, service)
+        self.assertEqual(['0007'], self.values(service, 'UMask'))
+        self.assertEqual(['/srv/liwan/control/state /srv/liwan/state/registry'], self.values(service, 'ReadWritePaths'))
+        self.assertEqual(['-/run/docker.sock -/run/containerd'], self.values(service, 'InaccessiblePaths'))
+        self.assertEqual(['AF_INET AF_INET6 AF_UNIX AF_NETLINK'], self.values(service, 'RestrictAddressFamilies'))
+        self.assertNotIn('MemoryDenyWriteExecute', dict(service), 'the V8 JIT needs writable executable memory')
+        self.assertIn('Environment=LIWAN_EFFECT_SOCKET=/run/liwan-effect.sock', [f'{k}={v}' for k, v in service])
+        # Kept as before.
+        self.assertIn(('User', 'liwan-worker'), service)
+        self.assertIn(('Group', 'liwan-worker'), service)
+        self.assertIn(('EnvironmentFile', '/etc/liwan/shared-worker.env'), service)
+        self.assertIn(('TimeoutStopSec', '300'), service)
+
+    def test_the_worker_waits_for_the_effect_socket_and_no_longer_requires_docker(self):
+        unit = self.worker['Unit']
+        self.assertIn(('Requires', 'liwan-effect.socket'), unit)
+        self.assertIn('liwan-effect.socket', ' '.join(self.values(unit, 'After')))
+        self.assertNotIn('docker', ' '.join(v for k, v in unit if k in ('After', 'Requires', 'Wants', 'BindsTo')))
+
+    def test_docker_access_exists_only_on_the_effect_service(self):
+        for path in (UNIT, EFFECT_SOCKET):
+            directives = [(k, v) for section in _parse_unit(path).values() for k, v in section]
+            with self.subTest(file=path.name):
+                self.assertNotIn('SupplementaryGroups', [k for k, _ in directives])
+                self.assertEqual([], [d for d in directives if 'docker' in d[1].split()], directives)
+        effect_groups = [(k, v) for k, v in self.effect['Service'] if k in ('Group', 'SupplementaryGroups')]
+        self.assertEqual([('Group', 'liwan-worker'), ('SupplementaryGroups', 'docker')], effect_groups)
+        self.assertNotIn('shared-worker', EFFECT_UNIT.read_text(encoding='utf-8').split('[Service]')[1])
+        self.assertNotIn('liwan-worker', self.values(self.effect['Service'], 'User'))
+
+    def test_the_worker_unit_header_installs_all_three_units(self):
+        header = UNIT.read_text(encoding='utf-8').split('[Unit]')[0]
+        for name in ('liwan-shared-worker.service', 'liwan-effect.socket', 'liwan-effect@.service'):
+            self.assertIn(name, header)
+        self.assertIn('systemctl enable --now liwan-effect.socket', header)
+
+    def test_the_effect_socket_is_documented_where_the_code_reads_it(self):
+        self.assertIn('LIWAN_EFFECT_SOCKET', (CONTROL / 'shared-worker.env.example').read_text(encoding='utf-8'))
 
 
 class RunbookNamesTheRealMechanism(unittest.TestCase):

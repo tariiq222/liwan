@@ -3,7 +3,7 @@ import { EventEmitter } from 'node:events'
 import { PassThrough } from 'node:stream'
 import type { Pool } from 'pg'
 import type { Config } from '../config.js'
-import { buildEffectEnv, createAdminPasswordRunner } from '../shared/admin-password-runner.js'
+import { createAdminPasswordRunner } from '../shared/admin-password-runner.js'
 
 const input = { tenant_id: '11111111-1111-4111-8111-111111111111', admin_login: 'admin@example.test', password: 'correct-horse-battery', token: 't'.repeat(43) }
 const config = { python: 'python3', repositoryRoot: '/repo' } as Config
@@ -16,24 +16,26 @@ function fakeChild() {
 }
 const runnerWith = (child: ReturnType<typeof fakeChild>, opts = {}) => {
   const spawnChild = vi.fn(() => child)
-  return { spawnChild, run: createAdminPasswordRunner(pool, config, {}, spawnChild as never, opts) }
+  return { spawnChild, run: createAdminPasswordRunner(pool, config, { ...opts, deps: { spawnChild: spawnChild as never } }) }
 }
+/** What the gate sends: the effect's lines, then its exit status. */
+const reply = (child: ReturnType<typeof fakeChild>, message: unknown, exit = 0) => child.stdout.emit('data', JSON.stringify(message) + '\n' + JSON.stringify({ exit }) + '\n')
 afterEach(() => vi.unstubAllEnvs())
 
-describe('buildEffectEnv', () => {
-  it('keeps only what the effect needs and drops control-plane secrets', () => {
-    const env = buildEffectEnv({ PATH: '/bin', HOME: '/h', LANG: 'C', LC_ALL: 'C', PYTHONPATH: '/p', DOCKER_HOST: 'unix:///d.sock',
-      INTERNAL_EFFECT_KEY: 'a', CONTROL_SERVICE_KEY: 'b', CONTROL_DATABASE_URL: 'c', CUSTOMER_COMMERCIAL_SERVICE_KEY: 'd', NODE_OPTIONS: 'x' })
-    expect(Object.keys(env).sort()).toEqual(['DOCKER_HOST', 'HOME', 'LANG', 'LC_ALL', 'PATH', 'PYTHONPATH', 'PYTHONUNBUFFERED'])
-  })
-  it('is what the child is spawned with', async () => {
+describe('effect request', () => {
+  it('opens the gate with the effect name and the request without config, and a worker environment with no secrets', async () => {
     vi.stubEnv('INTERNAL_EFFECT_KEY', 'secret-key-value'); vi.stubEnv('CONTROL_SERVICE_KEY', 'other-secret')
     const child = fakeChild(); const { spawnChild, run } = runnerWith(child)
+    const written: string[] = []; child.stdin.on('data', c => written.push(String(c)))
     const p = run(input, new AbortController().signal)
     await vi.waitFor(() => expect(spawnChild).toHaveBeenCalled())
-    const options = (spawnChild.mock.calls[0] as unknown[])[2] as { env: Record<string, string> }
+    const [command, args, options] = spawnChild.mock.calls[0] as unknown as [string, string[], { env: Record<string, string>; detached: boolean }]
+    expect(command).toBe('python3'); expect(args).toEqual(['-E', '-s', '-B', '-m', 'tools.shared_saas_lifecycle.effect_gate']); expect(options.detached).toBe(true)
     expect(JSON.stringify(options.env)).not.toMatch(/secret/)
-    child.stdout.emit('data', JSON.stringify({ result: { ok: 1 } })); child.emit('close', 0)
+    const [header, request] = written.join('').split('\n').filter(Boolean).map(line => JSON.parse(line))
+    expect(header).toEqual({ effect: 'admin_password_effect' })
+    expect(request).not.toHaveProperty('config')
+    reply(child, { result: { ok: 1 } }); child.emit('close', 0)
     expect(await p).toEqual({ ok: 1 })
   })
 })
@@ -49,7 +51,7 @@ describe('child lifecycle', () => {
     const child = fakeChild(); const { run } = runnerWith(child, { killGraceMs: 30 })
     const ac = new AbortController()
     const p = run(input, ac.signal).then(() => null, e => e as Error)
-    await vi.waitFor(() => expect(child.stdin.writableEnded).toBe(true))
+    await vi.waitFor(() => expect(child.stdin.readableLength).toBeGreaterThan(0))
     ac.abort()
     expect((await p)?.message).toBe('script_failed')
     expect(child.kill.mock.calls.map(c => c[0])).toEqual(['SIGTERM', 'SIGKILL'])
@@ -66,7 +68,7 @@ describe('child lifecycle', () => {
   it('fails on output overflow', async () => {
     const child = fakeChild(); const { run } = runnerWith(child, { killGraceMs: 20 })
     const p = run(input, new AbortController().signal).then(() => null, e => e as Error)
-    await vi.waitFor(() => expect(child.stdin.writableEnded).toBe(true))
+    await vi.waitFor(() => expect(child.stdin.readableLength).toBeGreaterThan(0))
     child.stdout.emit('data', 'x'.repeat(70000))
     expect((await p)?.message).toBe('script_failed')
   })

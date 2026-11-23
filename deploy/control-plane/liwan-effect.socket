@@ -1,0 +1,19 @@
+# Socket for the tenant lifecycle effect gate. systemd listens here and starts one
+# liwan-effect@.service instance per connection (Accept=yes) as the `liwan-effect`
+# account, the only member of the docker group. The control-plane worker connects as
+# `liwan-worker` (group access to this socket) and has no docker access of its own.
+# Install next to the two service files, see liwan-shared-worker.service.
+[Unit]
+Description=Liwan tenant lifecycle effect socket
+Documentation=file:///opt/liwan/current/docs/operations/environment-bringup.md
+
+[Socket]
+ListenStream=/run/liwan-effect.sock
+SocketUser=root
+SocketGroup=liwan-worker
+SocketMode=0660
+Accept=yes
+MaxConnections=8
+
+[Install]
+WantedBy=sockets.target

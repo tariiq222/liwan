@@ -1,6 +1,9 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import hashlib
 import io
+import os
+import stat
+import subprocess
 import json
 import re
 import sys
@@ -232,6 +235,324 @@ class BackupBoundaryTests(unittest.TestCase):
             path.write_bytes(b'tampered')
             with self.assertRaises(odoo_effect.EffectError):
                 odoo_backup.require_hash(path, expected)
+
+
+class StdinWriteTests(unittest.TestCase):
+    """A Compose client that never drains its stdin must not block the effect past its own timeout."""
+    def test_a_client_that_never_reads_stdin_times_out_instead_of_blocking_the_write(self):
+        runner = object.__new__(odoo_effect.Runner)
+        runner.child = None
+        runner.current_container = None
+        with self.assertRaises(odoo_effect.EffectError) as caught:
+            runner.command([sys.executable, '-c', 'import time; time.sleep(30)'], stdin='x' * (1024 * 1024), timeout=1)
+        self.assertEqual(str(caught.exception), 'runtime_timeout')
+
+    def test_stdin_is_delivered_and_closed_for_a_client_that_reads_it(self):
+        runner = object.__new__(odoo_effect.Runner)
+        runner.child = None
+        runner.current_container = None
+        script = 'import sys; print(len(sys.stdin.buffer.read()))'
+        self.assertEqual('4', runner.command([sys.executable, '-c', script], stdin='rows').strip())
+
+
+class CaptureRestartTests(unittest.TestCase):
+    """Odoo is shared by every tenant: once stopped, a capture must always start it again."""
+    STEPS = ('stop', 'writers_not_stopped', 'drain_observers', 'assert_no_effect_containers', 'drain_check',
+             'dump', 'pack', 'inventory', 'check_files', 'validate_archive', 'sha256_file', 'resume_permit')
+
+    def capture_runner(self, root, fail_at=None, fail_start=False):
+        runner = object.__new__(odoo_backup.BackupRunner)
+        runner.root = root
+        runner.base = ['compose']
+        runner.config = {'projectName': 'liwan-shared-test'}
+        runner.database = 'liwan_scratch_a'
+        runner.backup_id = '00000000-0000-4000-8000-000000000000'
+        runner.artifact = root / 'backups' / runner.backup_id
+        runner.authority = {'controlTenantId': 'tenant'}
+        runner.request = {'payloadDigest': 'd', 'attemptId': 'attempt01', 'businessKey': 'b', 'job': {'binding': {}}}
+        runner.commands = []
+        boom = odoo_effect.EffectError('boom')
+        def maybe(step):
+            if step == fail_at:
+                raise boom
+        def command(args, **_):
+            runner.commands.append(args)
+            if 'stop' in args:
+                maybe('stop')
+            if 'start' in args and fail_start:
+                raise odoo_effect.EffectError('compose_down')
+            if 'psql' in args:
+                maybe('drain_check')
+                return '0\n'
+            return ''
+        runner.command = command
+        runner.assert_no_effect_containers = lambda **_: maybe('assert_no_effect_containers') if runner.commands else None
+        runner.inspect_service = lambda _service: {'Image': 'image', 'State': {'Running': fail_at == 'writers_not_stopped'}}
+        runner.drain_observers = lambda: maybe('drain_observers')
+        runner.pg_stream = lambda *_, **__: maybe('dump')
+        runner.stream = lambda *_, **__: maybe('pack')
+        runner.inventory = lambda *_: maybe('inventory') or {'attachments': []}
+        runner.check_files = lambda *_: maybe('check_files')
+        runner.wait_healthy = lambda _service: None
+        runner.verify_originals = lambda: None
+        runner.read_artifact = lambda: None
+        return runner, boom
+
+    def capture(self, runner, fail_at):
+        def validate(_path):
+            if fail_at == 'validate_archive':
+                raise odoo_effect.EffectError('boom')
+        def sha(_path):
+            if fail_at == 'sha256_file':
+                raise odoo_effect.EffectError('boom')
+            return 'a' * 64
+        def permit(stage):
+            if stage == 'resume' and fail_at == 'resume_permit':
+                raise odoo_effect.EffectError('boom')
+        with patch.object(odoo_backup, 'permit', permit), patch.object(odoo_backup, 'reserve', lambda path, _value: Path(path).write_text('{}')), \
+                patch.object(odoo_backup, 'validate_archive', validate), patch.object(odoo_backup, 'sha256_file', sha), \
+                patch.object(odoo_backup, 'release_routes_enabled', lambda: False):
+            runner.capture()
+
+    def started(self, runner):
+        return [args for args in runner.commands if args[-2:] == ['start', 'odoo']]
+
+    def test_odoo_is_started_again_when_any_step_after_the_stop_fails(self):
+        for step in self.STEPS:
+            with self.subTest(step=step), tempfile.TemporaryDirectory() as raw:
+                runner, _ = self.capture_runner(Path(raw).resolve(), fail_at=step)
+                with self.assertRaises(odoo_effect.EffectError) as caught:
+                    self.capture(runner, step)
+                expected = 'writers_not_stopped' if step == 'writers_not_stopped' else 'boom'
+                self.assertEqual(str(caught.exception), expected)
+                self.assertEqual(len(self.started(runner)), 1)
+
+    def test_two_termination_signals_in_a_row_still_start_odoo_once_and_complete_it(self):
+        # systemd (KillMode=control-group) and the gate both signal the group: the second SIGTERM arrives while the restart runs.
+        import os, signal
+        saved = {signum: signal.getsignal(signum) for signum in odoo_effect.TERMINATION_SIGNALS}
+        self.addCleanup(lambda: [signal.signal(signum, handler) for signum, handler in saved.items()])
+        self.addCleanup(signal.pthread_sigmask, signal.SIG_UNBLOCK, odoo_effect.TERMINATION_SIGNALS)
+        with tempfile.TemporaryDirectory() as raw:
+            runner, _ = self.capture_runner(Path(raw).resolve())
+            runner.cancel = lambda: None
+            finished, detached = [], []
+            plain = runner.command
+            def command(args, **kwargs):
+                if args[-2:] == ['start', 'odoo']:
+                    detached.append(kwargs.get('detached'))
+                    os.kill(os.getpid(), signal.SIGTERM)  # the second signal, during the restart
+                    os.kill(os.getpid(), signal.SIGHUP)
+                    finished.append(args)
+                    return ''
+                return plain(args, **kwargs)
+            runner.command = command
+            runner.pg_stream = lambda *_, **__: os.kill(os.getpid(), signal.SIGTERM)  # the first signal, during the dump
+            odoo_effect.install_termination_handler(runner)
+            with self.assertRaises(odoo_effect.EffectError) as caught:
+                self.capture(runner, None)
+            self.assertEqual(str(caught.exception), 'authority_lost')
+            self.assertEqual(len(finished), 1)
+            self.assertEqual(detached, [True])  # own session, signals ignored
+
+    def test_the_first_termination_signal_during_the_restart_does_not_kill_it(self):
+        # A non-signal failure stops odoo; the restart is the only command that brings it back for every tenant, so a
+        # SIGTERM that arrives while it runs must neither cancel it nor abort it (no `odoo_restart_failed`).
+        import os, signal
+        saved = {signum: signal.getsignal(signum) for signum in odoo_effect.TERMINATION_SIGNALS}
+        self.addCleanup(lambda: [signal.signal(signum, handler) for signum, handler in saved.items()])
+        self.addCleanup(signal.pthread_sigmask, signal.SIG_UNBLOCK, odoo_effect.TERMINATION_SIGNALS)
+        with tempfile.TemporaryDirectory() as raw:
+            runner, _ = self.capture_runner(Path(raw).resolve(), fail_at='inventory')
+            cancelled, finished, detached = [], [], []
+            runner.cancel = lambda: cancelled.append(True)
+            plain = runner.command
+            def command(args, **kwargs):
+                if args[-2:] == ['start', 'odoo']:
+                    detached.append(kwargs.get('detached'))
+                    os.kill(os.getpid(), signal.SIGTERM)  # the first signal, during the restart
+                    finished.append(args)
+                    return ''
+                return plain(args, **kwargs)
+            runner.command = command
+            odoo_effect.install_termination_handler(runner)
+            with self.assertRaises(odoo_effect.EffectError) as caught:
+                self.capture(runner, 'inventory')
+            self.assertEqual(str(caught.exception), 'boom')  # the original failure, not a killed restart
+            self.assertEqual(cancelled, [])
+            self.assertEqual(len(finished), 1)
+            self.assertEqual(detached, [True])  # own session, signals ignored
+
+    def test_a_successful_capture_starts_odoo_once(self):
+        with tempfile.TemporaryDirectory() as raw:
+            runner, _ = self.capture_runner(Path(raw).resolve())
+            self.capture(runner, None)
+            self.assertEqual(len(self.started(runner)), 1)
+
+    def test_a_failed_restart_is_reported_explicitly_with_the_original_error_attached(self):
+        with tempfile.TemporaryDirectory() as raw:
+            runner, boom = self.capture_runner(Path(raw).resolve(), fail_at='inventory', fail_start=True)
+            with self.assertRaises(odoo_effect.EffectError) as caught:
+                self.capture(runner, 'inventory')
+            self.assertEqual(str(caught.exception), 'odoo_restart_failed')
+            self.assertEqual(str(caught.exception.__cause__), 'compose_down')
+            self.assertIs(caught.exception.__cause__.__context__, boom)
+
+
+class ArtifactModeTests(unittest.TestCase):
+    """The artifact directory is 0750 for the worker's group: only the manifest is meant to be read there."""
+
+    def test_streamed_artifacts_are_created_0600_even_under_umask_zero(self):
+        runner = object.__new__(odoo_backup.BackupRunner)
+        modes = []
+        real_open = os.open
+
+        def recording_open(path, flags, mode=0o777, **kwargs):
+            modes.append(mode)
+            return real_open(path, flags, mode, **kwargs)
+        old = os.umask(0)
+        try:
+            with tempfile.TemporaryDirectory() as raw, patch.object(odoo_backup.os, 'open', recording_open):
+                destination = Path(raw) / 'database.dump'
+                runner.stream(['sh', '-c', 'echo data'], destination=destination)
+                self.assertEqual(modes[0], 0o600)
+                self.assertEqual(stat.S_IMODE(destination.stat().st_mode), 0o600)
+        finally:
+            os.umask(old)
+
+    def test_a_captured_artifact_has_a_0750_directory_and_only_the_manifest_group_readable(self):
+        runner = CaptureRestartTests().capture_runner(Path(tempfile.mkdtemp()).resolve())[0]
+
+        def create(*_args, destination=None, **_kwargs):
+            if destination:
+                os.close(os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600))
+        runner.stream = create
+        runner.pg_stream = create
+        old = os.umask(0o007)
+        try:
+            with patch.object(odoo_backup, 'permit', lambda _stage: None), \
+                    patch.object(odoo_backup, 'validate_archive', lambda _path: None), \
+                    patch.object(odoo_backup, 'sha256_file', lambda _path: 'a' * 64), \
+                    patch.object(odoo_backup, 'release_routes_enabled', lambda: False):
+                runner.capture()
+        finally:
+            os.umask(old)
+        modes = {entry.name: stat.S_IMODE(entry.stat().st_mode) for entry in runner.artifact.iterdir()}
+        self.assertEqual(stat.S_IMODE(runner.artifact.stat().st_mode), 0o750)
+        self.assertEqual(modes['manifest.json'], 0o640)
+        self.assertEqual({name: mode for name, mode in modes.items() if name != 'manifest.json'},
+                         {'database.dump': 0o600, 'filestore.tar': 0o600, 'reservation.json': 0o600})
+
+
+class InventoryChannelTests(unittest.TestCase):
+    def inventory_runner(self, output):
+        runner = object.__new__(odoo_backup.BackupRunner)
+        runner.config = {'projectName': 'liwan-shared-test'}
+        runner.request = {'attemptId': 'attempt01', 'job': {'requestId': 'req'}}
+        runner.base = []
+        runner.current_container = None
+        runner.child = None
+        runner.helper_args = lambda *_: [sys.executable, '-c', output]
+        return runner
+
+    def test_inventory_far_above_the_command_buffer_is_read_whole(self):
+        rows = 'import json;print(json.dumps({"attachments":[[i,"ab/"+"c"*40,"d"*40,10] for i in range(20000)]}))'
+        inventory = self.inventory_runner(rows).inventory('odoo', 'liwan_scratch_a')
+        self.assertEqual(len(inventory['attachments']), 20000)
+
+    def test_runaway_inventory_is_an_explicit_limit_error(self):
+        runner = self.inventory_runner('print("x" * 4096)')
+        with patch.object(odoo_backup, 'MAX_INVENTORY', 1024):
+            with self.assertRaisesRegex(odoo_effect.EffectError, '^inventory_too_large$'):
+                runner.inventory('odoo', 'liwan_scratch_a')
+
+
+class HelperArgvTests(unittest.TestCase):
+    """One argv string is capped at 128 KiB: attachment rows must travel on stdin, never in the helper's -c script."""
+    LIMIT = 128 * 1024
+    TARGET = 'liwan_scratch_' + 'b' * 32
+
+    def runner(self):
+        runner = object.__new__(odoo_backup.BackupRunner)
+        runner.config = {'projectName': 'liwan-shared-test'}
+        runner.request = {'attemptId': 'attempt01', 'job': {'requestId': 'req'}}
+        runner.base = []
+        runner.current_container = None
+        calls = []
+        runner.command = lambda args, **kwargs: calls.append((args, kwargs)) or '{}'
+        return runner, calls
+
+    def rows(self, count=20000, name=None):
+        return [[i, name, 'd' * 40, 10] for i in range(count)]
+
+    def test_check_files_keeps_every_argv_element_small_and_sends_the_rows_on_stdin(self):
+        runner, calls = self.runner()
+        rows = self.rows(name='ab/' + 'c' * 40)
+        runner.check_files('odoo', 'liwan_scratch_a', {'attachments': rows})
+        args, kwargs = calls[0]
+        self.assertTrue(all(len(item.encode()) < self.LIMIT // 8 for item in args))
+        self.assertEqual(json.loads(kwargs['stdin']), rows)
+
+    def test_the_check_files_helper_reads_the_rows_from_stdin(self):
+        runner, calls = self.runner()
+        runner.check_files('odoo', 'liwan_scratch_a', {'attachments': self.rows()})
+        args, kwargs = calls[0]
+        script = args[args.index('-c') + 1]
+        done = subprocess.run([sys.executable, '-c', script], input=kwargs['stdin'].encode(), capture_output=True)
+        self.assertEqual((done.returncode, done.stdout), (0, b'{}\n'))
+        bad = json.dumps([[1, 'not-a-path', 'd' * 40, 10]]).encode()
+        done = subprocess.run([sys.executable, '-c', script], input=bad, capture_output=True)
+        self.assertNotEqual(done.returncode, 0)
+        self.assertIn(b'attachment_path', done.stderr)
+
+    def test_verify_restore_keeps_argv_small_with_many_attachments(self):
+        runner, calls = self.runner()
+        rows = self.rows()
+        inventory = {'attachments': rows, 'databaseAttachments': [], 'profile': [{'id': 1}]}
+        runner.target = self.TARGET
+        runner.inventory = lambda *_: inventory
+        runner.verify_odoo_readiness = lambda *_: None
+        runner.verify_restore({'inventory': inventory})
+        args, kwargs = calls[0]
+        self.assertTrue(all(len(item.encode()) < self.LIMIT // 8 for item in args))
+        self.assertEqual(json.loads(kwargs['stdin']), rows)
+
+
+class InventoryManifestLimitTests(unittest.TestCase):
+    def test_the_inventory_limit_fits_inside_the_manifest_limit(self):
+        self.assertLess(odoo_backup.MAX_INVENTORY, odoo_backup.MAX_MANIFEST)
+        self.assertEqual(odoo_backup.MAX_INVENTORY, odoo_backup.MAX_MANIFEST - odoo_backup.MANIFEST_OVERHEAD)
+
+    def test_a_manifest_that_json_escaping_pushes_over_the_limit_is_refused_when_built(self):
+        case = CaptureRestartTests()
+        with tempfile.TemporaryDirectory() as raw:
+            runner, _ = case.capture_runner(Path(raw).resolve())
+            runner.inventory = lambda *_: {'attachments': [], 'note': '\u00e9' * 600}
+            with patch.object(odoo_backup, 'permit', lambda _stage: None), patch.object(odoo_backup, 'validate_archive', lambda _p: None), \
+                    patch.object(odoo_backup, 'sha256_file', lambda _p: 'a' * 64), patch.object(odoo_backup, 'MAX_MANIFEST', 1024):
+                with self.assertRaises(odoo_effect.EffectError) as caught:
+                    runner.capture_while_stopped('img', 'pg')
+        self.assertEqual(str(caught.exception), 'inventory_too_large')
+
+
+class ReportedErrorCodeTests(unittest.TestCase):
+    def emitted(self, code):
+        class Failing:
+            def __init__(self, _request): pass
+            def apply_owned(self): raise odoo_effect.EffectError(code)
+        out = io.StringIO()
+        request = {'action': 'apply'}
+        with patch.object(odoo_backup, 'BackupRunner', Failing), patch.object(odoo_backup, 'install_termination_handler', lambda _r: None), \
+                patch.object(sys, 'stdin', io.StringIO(json.dumps(request) + '\n')), patch.object(sys, 'stdout', out):
+            status = odoo_backup.main()
+        return status, json.loads(out.getvalue().strip())
+
+    def test_main_emits_the_restart_and_inventory_codes_as_they_are(self):
+        for code in ('odoo_restart_failed', 'inventory_too_large'):
+            self.assertEqual(self.emitted(code), (1, {'error_code': code}))
+
+    def test_an_unlisted_code_stays_opaque(self):
+        self.assertEqual(self.emitted('boom'), (1, {'error_code': 'shared_effect_unverified'}))
 
 
 class ReleaseBackupBoundaryTests(unittest.TestCase):

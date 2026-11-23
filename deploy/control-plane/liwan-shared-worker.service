@@ -7,14 +7,23 @@
 # image contains neither the control-plane code nor its Node/tsx dependencies, its
 # Python or a docker client. See docs/operations/saas-commercial-runbook.md.
 #
-# Example, not an installer. Adjust the /opt/liwan/current prefix and the account to
-# the host; keep the shape. Install:
-#   install -m 0644 deploy/control-plane/liwan-shared-worker.service /etc/systemd/system/
+# Example, not an installer. Paths are shown for production (/srv/liwan); a staging host
+# substitutes /srv/liwan-staging in ReadWritePaths= and keeps the rest. Adjust the
+# /opt/liwan/current prefix and the account to the host; keep the shape. Install the
+# three units together:
+#   install -m 0644 deploy/control-plane/liwan-shared-worker.service \
+#     deploy/control-plane/liwan-effect.socket deploy/control-plane/liwan-effect@.service /etc/systemd/system/
 #   systemctl daemon-reload
+#   systemctl enable --now liwan-effect.socket
 #   systemctl enable --now liwan-shared-worker
 #
+# This process has no docker access. Tenant lifecycle effects run in a separate account
+# through liwan-effect.socket (see liwan-effect@.service); LIWAN_EFFECT_SOCKET below
+# names that socket.
+#
 # Prerequisites this unit does not create:
-#   * a `liwan-worker` account that is a member of the docker group (never root);
+#   * a `liwan-worker` account that is NOT a member of the docker group (never root);
+#     only `liwan-effect` is;
 #   * /etc/liwan/shared-worker.env, operator-owned, mode 0600, plain KEY=value lines
 #     (systemd does not accept the `export` keyword init-local.sh writes into a local
 #     runtime.env). Values never go in this unit file.
@@ -35,15 +44,14 @@
 # LIWAN_PAYMENT_* / MOYASAR_* and LIWAN_MAIL_* (unset payment or mail adapter is logged
 # and the scheduler keeps the jobs that do not need them).
 #
-# Docker: the worker runs tools/shared_saas_lifecycle effects through a docker client
-# (docker inspect/ps/compose/kill). On a host whose Docker is socket-activated, replace
-# Requires=docker.service with After=docker.socket and the matching Wants=.
+# Docker: the effects (docker inspect/ps/compose/kill) run in liwan-effect@.service, which
+# orders itself after docker.service. This unit orders only after the effect socket.
 [Unit]
 Description=Liwan shared control-plane worker (commercial scheduler)
 Documentation=file:///opt/liwan/current/docs/operations/saas-commercial-runbook.md
-After=network-online.target docker.service
+After=network-online.target liwan-effect.socket
 Wants=network-online.target
-Requires=docker.service
+Requires=liwan-effect.socket
 
 [Service]
 Type=simple
@@ -51,6 +59,7 @@ User=liwan-worker
 Group=liwan-worker
 WorkingDirectory=/opt/liwan/current
 EnvironmentFile=/etc/liwan/shared-worker.env
+Environment=LIWAN_EFFECT_SOCKET=/run/liwan-effect.sock
 # run-shared-worker.sh refuses to start unless LIWAN_TENANCY_MODE=shared and both
 # shared paths are set, then execs `node --import tsx src/shared-worker-main.ts` in the
 # foreground, so SIGTERM reaches the worker itself and not a shell.
@@ -61,8 +70,34 @@ KillSignal=SIGTERM
 # The worker aborts on SIGTERM, waits for an in-flight usage run and closes the pool;
 # one tenant status effect has a 180 s bound of its own.
 TimeoutStopSec=300
+UMask=0007
+# Sandbox. No MemoryDenyWriteExecute: the V8 JIT needs writable executable memory.
 NoNewPrivileges=true
 PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+ProcSubset=pid
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged
+SystemCallErrorNumber=EPERM
+ReadWritePaths=/srv/liwan/control/state /srv/liwan/state/registry
+InaccessiblePaths=-/run/docker.sock -/run/containerd
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
 
 [Install]
 WantedBy=multi-user.target

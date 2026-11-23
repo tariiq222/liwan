@@ -6,7 +6,7 @@ Staging and production run the same compose set. The env file is the only per-en
 | --- | --- |
 | Shared stack | `deploy/docker-compose.yml`, `docker-compose.shared.yml`, `docker-compose.shared-commercial.yml`, `docker-compose.production.yml`, `docker-compose.host-link.yml` |
 | Control plane | `deploy/control-plane/compose.production.yml`, `compose.host-link.yml` |
-| Shared worker | `deploy/control-plane/liwan-shared-worker.service`, which reads `shared-worker.env.example` (the same values as the control-plane env, see that file) |
+| Shared worker | `deploy/control-plane/liwan-shared-worker.service`, which reads `shared-worker.env.example` (the same values as the control-plane env, see that file). The worker has no docker access: it reaches the tenant effects through `liwan-effect.socket` and `liwan-effect@.service` in the same folder, which run as the `liwan-effect` account, the only `docker` member (see the bring-up guide, A3 and A6) |
 
 Render without starting anything:
 
