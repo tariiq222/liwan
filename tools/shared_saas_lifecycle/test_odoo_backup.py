@@ -237,6 +237,24 @@ class BackupBoundaryTests(unittest.TestCase):
                 odoo_backup.require_hash(path, expected)
 
 
+class StdinWriteTests(unittest.TestCase):
+    """A Compose client that never drains its stdin must not block the effect past its own timeout."""
+    def test_a_client_that_never_reads_stdin_times_out_instead_of_blocking_the_write(self):
+        runner = object.__new__(odoo_effect.Runner)
+        runner.child = None
+        runner.current_container = None
+        with self.assertRaises(odoo_effect.EffectError) as caught:
+            runner.command([sys.executable, '-c', 'import time; time.sleep(30)'], stdin='x' * (1024 * 1024), timeout=1)
+        self.assertEqual(str(caught.exception), 'runtime_timeout')
+
+    def test_stdin_is_delivered_and_closed_for_a_client_that_reads_it(self):
+        runner = object.__new__(odoo_effect.Runner)
+        runner.child = None
+        runner.current_container = None
+        script = 'import sys; print(len(sys.stdin.buffer.read()))'
+        self.assertEqual('4', runner.command([sys.executable, '-c', script], stdin='rows').strip())
+
+
 class CaptureRestartTests(unittest.TestCase):
     """Odoo is shared by every tenant: once stopped, a capture must always start it again."""
     STEPS = ('stop', 'writers_not_stopped', 'drain_observers', 'assert_no_effect_containers', 'drain_check',
@@ -334,6 +352,34 @@ class CaptureRestartTests(unittest.TestCase):
             with self.assertRaises(odoo_effect.EffectError) as caught:
                 self.capture(runner, None)
             self.assertEqual(str(caught.exception), 'authority_lost')
+            self.assertEqual(len(finished), 1)
+            self.assertEqual(detached, [True])  # own session, signals ignored
+
+    def test_the_first_termination_signal_during_the_restart_does_not_kill_it(self):
+        # A non-signal failure stops odoo; the restart is the only command that brings it back for every tenant, so a
+        # SIGTERM that arrives while it runs must neither cancel it nor abort it (no `odoo_restart_failed`).
+        import os, signal
+        saved = {signum: signal.getsignal(signum) for signum in odoo_effect.TERMINATION_SIGNALS}
+        self.addCleanup(lambda: [signal.signal(signum, handler) for signum, handler in saved.items()])
+        self.addCleanup(signal.pthread_sigmask, signal.SIG_UNBLOCK, odoo_effect.TERMINATION_SIGNALS)
+        with tempfile.TemporaryDirectory() as raw:
+            runner, _ = self.capture_runner(Path(raw).resolve(), fail_at='inventory')
+            cancelled, finished, detached = [], [], []
+            runner.cancel = lambda: cancelled.append(True)
+            plain = runner.command
+            def command(args, **kwargs):
+                if args[-2:] == ['start', 'odoo']:
+                    detached.append(kwargs.get('detached'))
+                    os.kill(os.getpid(), signal.SIGTERM)  # the first signal, during the restart
+                    finished.append(args)
+                    return ''
+                return plain(args, **kwargs)
+            runner.command = command
+            odoo_effect.install_termination_handler(runner)
+            with self.assertRaises(odoo_effect.EffectError) as caught:
+                self.capture(runner, 'inventory')
+            self.assertEqual(str(caught.exception), 'boom')  # the original failure, not a killed restart
+            self.assertEqual(cancelled, [])
             self.assertEqual(len(finished), 1)
             self.assertEqual(detached, [True])  # own session, signals ignored
 

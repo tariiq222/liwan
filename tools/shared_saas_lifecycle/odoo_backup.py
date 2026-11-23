@@ -482,10 +482,16 @@ print('{}')
         self.read_artifact()
 
     def restart_after_failure(self):
+        # This start must complete: it runs detached (own session, signals ignored), and the termination handler ignores
+        # a signal that arrives while it is in flight instead of cancelling the one command that brings odoo back for
+        # every tenant.
+        self.restarting = True
         try:
             self.command(self.base+['start','odoo'],timeout=RESTART_TIMEOUT,detached=True)
         except Exception as restart_error:
             raise EffectError('odoo_restart_failed') from restart_error
+        finally:
+            self.restarting = False
 
     def capture_while_stopped(self,source_image,postgres_image):
         if self.inspect_service('odoo')['State']['Running']:

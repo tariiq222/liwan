@@ -18,8 +18,8 @@ import { signalGroup, terminateGroup } from '../process-group.js'
 export const EFFECT_NAMES = ['odoo_effect', 'odoo_backup', 'subscription_effect', 'admin_password_effect', 'tenant_status_effect', 'tenant_drop_effect'] as const
 export type EffectName = typeof EFFECT_NAMES[number]
 export const EFFECT_GATE_MODULE = 'tools.shared_saas_lifecycle.effect_gate'
-/** The effects need up to 15 s for their own `docker kill` on SIGTERM, and the gate gives 20 s: SIGKILL comes only after that. */
-export const EFFECT_KILL_GRACE_MS = 25_000
+/** The gate itself waits `KILL_GRACE` (60 s) for an effect's cleanup — its `cancel` (25 s) plus the detached odoo restart (30 s) — so SIGKILL comes only after that. */
+export const EFFECT_KILL_GRACE_MS = 75_000
 /** The longest line either side accepts; the gate refuses a larger request. */
 export const EFFECT_MAX_LINE = 65_536
 

@@ -327,7 +327,8 @@ class InitHost(unittest.TestCase):
         done, chowns, docker_dir = self.run_as_stubbed_root()
         group = subprocess.run([shutil.which('id'), '-gn'], capture_output=True, text=True, check=True).stdout.strip()
         account = pwd.getpwuid(os.getuid()).pw_name
-        mode = lambda path: stat.S_IMODE(path.stat().st_mode)  # noqa: E731
+        def mode(path):
+            return stat.S_IMODE(path.stat().st_mode)
         self.assertEqual(0o750, mode(self.config))
         self.assertEqual(0o640, mode(self.config / 'shared-runtime.json'))
         self.assertEqual(0o640, mode(self.config / 'inventory-v2.json'))

@@ -6,7 +6,7 @@ expiry. A controller grants every physical stage after fresh authoritative
 claim validation. Interrupted attempts can only be independently observed.
 """
 from __future__ import annotations
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 import json
 import os
 from pathlib import Path
@@ -153,11 +153,15 @@ def install_termination_handler(runner):
     cleanup in the `except` blocks runs (the backup restarts the shared odoo service). Every later signal is ignored
     for the rest of the process, so the cleanup is not interrupted: systemd (KillMode=control-group) and the gate both
     signal the group, and a second SIGTERM would otherwise kill the restart and leave odoo down for every tenant.
+    A signal that arrives while that restart itself runs (`runner.restarting`) is ignored the same way: it is the only
+    command that brings odoo back, so cancelling or aborting it would turn a signal into `odoo_restart_failed`.
     The cleanup is bounded (cancel 25 s + restart 30 s, inside the gate's grace of 60 s and the unit's TimeoutStopSec
     of 90 s)."""
     def terminate(_signum, _frame):
         signal.pthread_sigmask(signal.SIG_BLOCK, TERMINATION_SIGNALS)
         _ignore_termination()
+        if runner.restarting:
+            return
         runner.cancel()
         raise EffectError('authority_lost')
     for signum in TERMINATION_SIGNALS:
@@ -248,6 +252,10 @@ def permit(stage):
 
 
 class Runner:
+    # Set while the post-failure `start odoo` runs: `install_termination_handler` ignores a signal that arrives then
+    # instead of cancelling the one command that brings the shared odoo back for every tenant.
+    restarting = False
+
     def __init__(self, request):
         self.request = request
         self.config = request['config']
@@ -297,16 +305,28 @@ class Runner:
                     del tail[:-MAX_OUTPUT]
         reader = threading.Thread(target=drain, daemon=True)
         reader.start()
+        def feed():
+            # A client that never reads must not block the effect on the pipe (only the worker's deadline would
+            # rescue it then): the write runs beside `wait(timeout)` and the child's exit status decides the outcome.
+            try:
+                child.stdin.write(stdin.encode())
+            except OSError:
+                pass  # the child exited or stopped reading; its return code reports the failure
+            finally:
+                with suppress(OSError):
+                    child.stdin.close()
+        writer = threading.Thread(target=feed, daemon=True)
+        writer.start()
         try:
-            child.stdin.write(stdin.encode())
-            child.stdin.close()
             child.wait(timeout=timeout)
             reader.join(timeout=5)
+            writer.join(timeout=5)
             if child.returncode != 0 or reader.is_alive():
                 raise EffectError('runtime_command_failed')
             return bytes(tail).decode('utf-8', errors='replace')
         except subprocess.TimeoutExpired:
             self.cancel()
+            writer.join(timeout=5)  # the killed child closes the pipe; the feeder then closes its write end
             raise EffectError('runtime_timeout') from None
         finally:
             child.stdout.close()
