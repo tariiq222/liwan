@@ -26,6 +26,7 @@ import sys
 import time
 import unicodedata
 
+from deploy.releases.postgres import POSTGRES_ADMIN_ROLE
 from tools.shared_saas_lifecycle import tenant_drop_files as files
 from tools.shared_saas_lifecycle.odoo_effect import (
     EffectError, MAX_OUTPUT, TENANT_DB_ROLE, TENANT_MARKER_PARAMETER, no_symlink, permit, validate_host,
@@ -241,7 +242,7 @@ class ComposeBackend(Backend):
                      '--file', config['composeFile'], '--profile', 'restore']
 
     def psql(self, service, database, sql):
-        args = self.base + ['exec', '-T', '-e', 'PGCLIENTENCODING=UTF8', service, 'psql', '-U', TENANT_DB_ROLE, '-d', database] + PSQL_FLAGS
+        args = self.base + ['exec', '-T', '-e', 'PGCLIENTENCODING=UTF8', service, 'psql', '-U', POSTGRES_ADMIN_ROLE, '-d', database] + PSQL_FLAGS
         return _run(args, sql, 180, 'database_command_failed')
 
     def data_dir(self, service):

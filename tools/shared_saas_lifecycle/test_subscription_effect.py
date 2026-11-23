@@ -729,6 +729,7 @@ class RestoreRuntimeTests(unittest.TestCase):
                 install = command.call_args.args[0]
             self.assertIn('restore-db', exists)
             self.assertNotIn('db', exists)
+            self.assertEqual(exists[exists.index('-U') + 1], 'postgres')
             for args in (observe, install):
                 self.assertIn('restore-odoo', args)
                 self.assertNotIn('odoo', args)

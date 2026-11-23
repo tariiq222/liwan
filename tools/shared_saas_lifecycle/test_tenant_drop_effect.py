@@ -128,6 +128,14 @@ class GuardTests(unittest.TestCase):
             with self.subTest(value=value):
                 self.refuse('backup_id_invalid', backupIds=[value])
 
+    def test_the_compose_backend_runs_sql_as_the_admin_role_not_the_runtime_role(self):
+        backend = effect.ComposeBackend({'projectName': 'liwan-shared-droptest', 'envFile': 'runtime.env', 'composeFile': 'compose.yml'})
+        with mock.patch.object(effect, '_run', return_value='') as run:
+            backend.psql('db', 'postgres', 'SELECT 1')
+        args = run.call_args.args[0]
+        self.assertEqual(args[args.index('-U') + 1], 'postgres')
+        self.assertNotIn('odoo', args[args.index('psql'):])
+
     def test_the_host_must_belong_to_this_runtime(self):
         for host in ('Tacme.example.test', 'tacme.other.test', 'example.test', 'https://tacme.example.test', ''):
             with self.subTest(host=host):

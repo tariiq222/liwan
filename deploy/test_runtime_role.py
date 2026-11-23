@@ -97,5 +97,23 @@ class InitScriptTest(unittest.TestCase):
         self.assertIn(f'--username {POSTGRES_ADMIN_ROLE}', args)
 
 
+class HarnessSuppliesAdminPasswordTest(unittest.TestCase):
+    """The db service interpolates DB_ADMIN_PASSWORD with `:?`, so every harness that renders or tears down the
+    shared stack must supply it, or `docker compose config|ps|down` fails before anything runs."""
+
+    HARNESSES = (
+        'tools/shared_acceptance_live/probe.mjs',
+        'tools/shared_acceptance_live/down.sh',
+        'tools/foundation_acceptance/provision_two_tenants.mjs',
+        'apps/control-plane/src/__tests__/shared-topology.test.ts',
+    )
+
+    def test_every_compose_harness_names_the_admin_password(self):
+        root = DEPLOY.parent
+        for relative in self.HARNESSES:
+            with self.subTest(harness=relative):
+                self.assertIn('DB_ADMIN_PASSWORD', (root / relative).read_text())
+
+
 if __name__ == '__main__':
     unittest.main()

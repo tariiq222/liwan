@@ -99,7 +99,7 @@ Each phase is written to `run.json` before it acts, so a killed run resumes from
    the run is refused when the free space on `LIWAN_RELEASE_DISK_PATH` is below 1.5 times the size of one snapshot of
    every tenant database, the control-plane database and every filestore (the snapshots all exist at once).
 3. Quiesce: stop the shared worker, read the tenant list with `deploy/shared/backup-binding.mjs --list`.
-4. Capture: an encrypted `backup_pipeline.py` backup of every tenant and the control plane.
+4. Capture: first the database role check (below), then an encrypted `backup_pipeline.py` backup of every tenant and the control plane.
 5. Maintenance: create `<state root>/maintenance/active` (Caddy shows its maintenance page only while it exists), stop
    `guard`, `web`, `ai`, `odoo`, `control-api` and `vendor-console`.
 6. Snapshot every database (`CREATE DATABASE ... TEMPLATE`) and hard-link every filestore.
@@ -108,7 +108,7 @@ Each phase is written to `run.json` before it acts, so a killed run resumes from
    (`compose run --rm ai python -m liwan_ai_service.store --initialize-control`, idempotent; skipped when `AI_DATABASE_URL`
    is empty in every place compose reads it: the process environment and release config, then the shared env file). The `ai` service validates them when it starts and refuses to start without them, and the
    per-tenant provisioning creates them only after the first start; failure reason `ai_control_initialization_failed`.
-8. Start `control-api` and `vendor-console` first (their project creates the networks the shared stack joins as external:
+8. Bring `db` up alone and run the database role check again (a first deploy included), so no application connects with a bad role. Then start `control-api` and `vendor-console` first (their project creates the networks the shared stack joins as external:
    the control ingress, the edge's own control network and the console's `admin_edge`, so a fresh host needs this
    order; the console waits for the API's health). The console's health gates the customer release: a console that fails
    its health check fails the start and rolls the release back, because it is the only service on `admin_edge`, which `proxy`
@@ -194,9 +194,20 @@ PGPASSFILE=/etc/liwan-release/pgpass
 ```
 
 `pg_dump` runs with `--no-password`, so the passwords come from the `PGPASSFILE` key: a root-owned file of mode `0600`
-with one line per database user (`host:port:*:user:password`: the `odoo` superuser on port 15433 and `liwan_control`
+with one line per database user (`host:port:*:user:password`: the `postgres` admin role on port 15433 and `liwan_control`
 on port 15432). The pgpass file necessarily repeats the two ports, so change them there too. The key reaches the backup
 pipeline like every other key of the config.
+
+## Database roles
+
+The tenant database has two roles. `postgres` is the superuser the `db` image bootstraps with (password `DB_ADMIN_PASSWORD`); only tooling
+uses it: every `psql` the release runs (snapshot, drop, rename, ACLs), the `pg_dump` of the capture and the pgpass line for port 15433.
+`odoo` is a plain login role (no superuser, createdb, createrole, replication or bypassrls, no memberships, owns no tenant database); Odoo,
+the `-u` upgrade run, the smoke run and pgbouncer connect as it, and the release grants it `CONNECT` on every tenant database and `CREATE`
+on its `public` schema. The release checks this with a single SQL assertion run as `postgres` (`runtime_role_assertion_sql`), at the capture
+step when a release is already served (`RESULT: refused runtime_role_rejected`, nothing stopped and the served release untouched, the worker
+restarted) and in the start step before any application starts (the run rolls back). A volume that still has a privileged `odoo` or no
+`postgres` role fails both checks. The release does not convert such a volume: the cutover is an operator step, see the bring-up guide.
 
 ## Bootstrap (first run on a fresh host)
 

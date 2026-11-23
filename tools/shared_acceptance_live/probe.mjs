@@ -204,6 +204,7 @@ async function run() {
       DOMAIN: state.DOMAIN || 'a.accept.liwan.test b.accept.liwan.test',
       DB_NAME: state.DB_NAME || 'liwan_accept_a_scratch',
       DB_PASSWORD: process.env.DB_PASSWORD || 'compose-config-only',
+      DB_ADMIN_PASSWORD: process.env.DB_ADMIN_PASSWORD || 'compose-config-only-admin',
       LIWAN_TENANT_REGISTRY_DIR: state.LIWAN_TENANT_REGISTRY_DIR || '/tmp',
       LIWAN_SHARED_ODOO_CONFIG: state.LIWAN_SHARED_ODOO_CONFIG || '/tmp/none',
       LIWAN_COMMERCIAL_CONFIG_DIR: state.LIWAN_COMMERCIAL_CONFIG_DIR || '/tmp',

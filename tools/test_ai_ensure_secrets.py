@@ -50,6 +50,12 @@ class EnsureSecretsTest(unittest.TestCase):
         self.assertRegex(token_key[0], HEX_64)
         self.assertNotEqual(token_key[0], token[0])
         self.assertNotIn(token_key[0], output)
+        # The postgres admin role's password: generated like the others, distinct, never printed.
+        admin_password = self.values('DB_ADMIN_PASSWORD')
+        self.assertEqual(len(admin_password), 1)
+        self.assertRegex(admin_password[0], HEX_64)
+        self.assertNotEqual(admin_password[0], password[0])
+        self.assertNotIn(admin_password[0], output)
 
     def test_provision_keeps_existing_token(self):
         self.env_file.write_text(f'COMPOSE_PROFILES=ai\nAI_SERVICE_TOKEN={TOKEN}\n')

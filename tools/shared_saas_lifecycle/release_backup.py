@@ -4,6 +4,7 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from deploy.releases.cli import document
+from deploy.releases.postgres import POSTGRES_ADMIN_ROLE
 from deploy.releases.state import ReleaseState
 from deploy.releases.runtime import LocalRuntime
 from deploy.releases.backup_operation import backup_current
@@ -25,7 +26,7 @@ def capture_release_backup(runner):
             cursor.execute('SELECT system_identifier::text FROM pg_control_system()')
             cluster=cursor.fetchone()[0]
     connection.close()
-    observed=runner.command(runner.base+['exec','-T','db','psql','-U','odoo','-d','postgres','-tAc','SELECT system_identifier::text FROM pg_control_system()']).strip()
+    observed=runner.command(runner.base+['exec','-T','db','psql','-U',POSTGRES_ADMIN_ROLE,'-d','postgres','-tAc','SELECT system_identifier::text FROM pg_control_system()']).strip()
     if observed != cluster:raise EffectError('release_database_binding_mismatch')
     permit('reserve')
     def finalize(result):

@@ -714,9 +714,11 @@ class TenantIsolationOrderTests(unittest.TestCase):
         self.assertLess(revoke, grant)
         self.assertLess(grant, create_sql.index('public_connect_not_revoked'))
         self.assertIn('pg_trgm', extension_sql)
+        self.assertLess(extension_sql.index('pg_trgm'), extension_sql.index('GRANT CREATE ON SCHEMA public TO "odoo"'))
         for args, _ in self.commands:
             if 'psql' in args:
                 self.assertIn('ON_ERROR_STOP=1', args)
+                self.assertEqual(args[args.index('-U') + 1], 'postgres')
 
     def test_failed_isolation_fails_the_job_before_the_install(self):
         with tempfile.TemporaryDirectory() as raw:

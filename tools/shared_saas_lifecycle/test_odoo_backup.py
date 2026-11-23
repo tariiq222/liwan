@@ -264,7 +264,12 @@ class RestoreIsolationTests(unittest.TestCase):
         self.assertTrue(create < revoke < grant < assertion < restore)
         self.assertNotIn('createdb', script)
         self.assertTrue(script.startswith('set -eu;'))
-        self.assertEqual(script.count('-v ON_ERROR_STOP=1'), 2)
+        self.assertEqual(script.count('-v ON_ERROR_STOP=1'), 3)
+        # The admin role creates and restores; ownership returns to the dumped owners, so no --no-owner.
+        self.assertEqual(script.count('-U postgres'), 4)
+        self.assertNotIn('-U odoo', script)
+        self.assertNotIn('--no-owner', script)
+        self.assertTrue(assertion < script.index('GRANT CREATE ON SCHEMA public TO "odoo"') < restore)
 
     def test_restore_operation_passes_the_isolating_script_to_the_restore_container(self):
         self.assertTrue(odoo_backup)

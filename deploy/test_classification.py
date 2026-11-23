@@ -105,7 +105,7 @@ class TestClassification(unittest.TestCase):
         (deploy / 'branding.json').write_text('{}')
         self.source.write_text(json.dumps(self.data))
         (deploy / '.env').write_text(
-            'DB_PASSWORD=long-test-only-password\nODOO_ADMIN_PASSWORD=long-test-only-password\n'
+            'DB_PASSWORD=long-test-only-password\nDB_ADMIN_PASSWORD=another-test-only-password\nODOO_ADMIN_PASSWORD=long-test-only-password\n'
             'VENDOR_PASSWORD=long-test-only-password\nVENDOR_EMAIL=operator@example.test\n',
         )
         binpath = self.root / 'bin'
@@ -183,6 +183,12 @@ with open(os.environ['DOCKER_LOG'], 'a') as f:
         self.assertIn(f'REVOKE CONNECT ON DATABASE "{db}" FROM PUBLIC;', record['stdin'])
         self.assertIn(f'GRANT CONNECT ON DATABASE "{db}" TO "odoo";', record['stdin'])
         self.assertNotIn('liwan_ai', record['stdin'])
+        # Every DDL and grant runs as the admin role, never as the odoo runtime role, which only receives the grants.
+        for psql in (r for r in records if 'psql' in r['args']):
+            self.assertEqual(psql['args'][psql['args'].index('-U') + 1], 'postgres')
+        self.assertTrue(any('GRANT CREATE ON SCHEMA public TO "odoo"' in r.get('stdin', '') and r['args'][r['args'].index('-d') + 1] == db
+                            for r in records if 'psql' in r['args']))
+        self.assertTrue(any('GRANT CONNECT ON DATABASE "postgres" TO "odoo"' in r.get('stdin', '') for r in records if 'psql' in r['args']))
 
     def test_provision_skips_creation_for_an_existing_database_but_still_isolates_it(self):
         deploy, env = self.provision_fixture()

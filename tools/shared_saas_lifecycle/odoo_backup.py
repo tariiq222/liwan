@@ -21,7 +21,7 @@ from tools.shared_saas_lifecycle.odoo_effect import (
     require_new_target, verified_observation, MAX_OUTPUT, OBSERVE_CONTAINER, classify_error,
     release_routes_enabled, effect_operation, TENANT_DB_ROLE,
 )
-from deploy.releases.postgres import tenant_create_database_sql, tenant_isolation_sql
+from deploy.releases.postgres import POSTGRES_ADMIN_ROLE, tenant_create_database_sql, tenant_isolation_sql, tenant_schema_grant_sql
 MAX_ARCHIVE = 2 * 1024 * 1024 * 1024
 MAX_MEMBERS = 100000
 
@@ -32,10 +32,14 @@ def restore_database_script(database):
     # against a missing or open database.
     create = shlex.quote(tenant_create_database_sql(database))
     isolation = shlex.quote(tenant_isolation_sql(database, TENANT_DB_ROLE))
-    host_role = '-h restore-db -U ' + TENANT_DB_ROLE
-    psql = 'psql ' + host_role + ' -d postgres -v ON_ERROR_STOP=1 -q -c '
-    return ('set -eu; export PGPASSWORD="$POSTGRES_PASSWORD"; ' + psql + create + '; ' + psql + isolation + '; '
-            'exec pg_restore ' + host_role + ' --no-owner --exit-on-error --single-transaction -d "$1"')
+    schema_grant = shlex.quote(tenant_schema_grant_sql(TENANT_DB_ROLE))
+    # The admin role creates and restores (it owns the database; pg_restore without --no-owner returns every
+    # object to its dumped owner: tables to the runtime role, the AI schema to liwan_ai).
+    host_role = '-h restore-db -U ' + POSTGRES_ADMIN_ROLE
+    psql = 'psql ' + host_role + ' -v ON_ERROR_STOP=1 -q '
+    return ('set -eu; export PGPASSWORD="$POSTGRES_PASSWORD"; ' + psql + '-d postgres -c ' + create + '; '
+            + psql + '-d postgres -c ' + isolation + '; ' + psql + '-d "$1" -c ' + schema_grant + '; '
+            'exec pg_restore ' + host_role + ' --exit-on-error --single-transaction -d "$1"')
 
 
 def sha256_file(path):
@@ -399,15 +403,12 @@ print('{}')
         self.drain_observers()
         self.assert_no_effect_containers(code='runtime_writer_after_effect')
         # No ordinary application session may remain in any source tenant DB.
-        script=CONNECTION+'''\nwith connect('postgres') as c:
- with c.cursor() as cr:
-  cr.execute("SELECT count(*) FROM pg_stat_activity WHERE datname LIKE 'liwan_scratch_%' AND backend_type='client backend'")
-  assert cr.fetchone()[0]==0
-print('{}')
-'''
-        self.helper('odoo','drain-check',script)
+        # Run as the admin role: a non-superuser sees no backend_type for other roles' sessions.
+        sessions=self.command(self.base+['exec','-T','db','psql','-U',POSTGRES_ADMIN_ROLE,'-d','postgres','-At','-c',
+            "SELECT count(*) FROM pg_stat_activity WHERE datname LIKE 'liwan_scratch_%' AND backend_type='client backend'"]).strip()
+        if sessions!='0':raise EffectError('writers_not_stopped')
         permit('capture')
-        self.pg_stream('db','dump','set -eu; export PGPASSWORD="$POSTGRES_PASSWORD"; exec pg_dump -h db -U odoo --format=custom --no-owner "$1"',self.database,destination=self.artifact/'database.dump')
+        self.pg_stream('db','dump','set -eu; export PGPASSWORD="$POSTGRES_PASSWORD"; exec pg_dump -h db -U '+POSTGRES_ADMIN_ROLE+' --format=custom "$1"',self.database,destination=self.artifact/'database.dump')
         pack='''import os,sys,tarfile
 from pathlib import Path
 root=Path('/var/lib/odoo/filestore') / database
