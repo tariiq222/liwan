@@ -4,6 +4,7 @@ from datetime import timedelta
 
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
+from odoo.fields import Domain
 
 from .mail_domain_provider import MailProviderError
 
@@ -161,10 +162,12 @@ class LiwanMailMail(models.Model):
         # be left failed for good with its content. Sweep these first: the sweep must not depend on the tenant being
         # allowed to send. An attempt in flight is not seen here: its pre-attempt ``exception`` state is written
         # inside ``_send``'s own uncommitted transaction.
-        self.search([
+        # Rows a retry will still send are left out here, so a paused domain's held rows are not re-read with their
+        # bodies every run; the helper keeps its own exclusion as the safety net.
+        self.search(Domain([
             ('liwan_kind', '!=', False), ('liwan_sensitive', '=', True), ('state', '=', 'exception'),
             '|', ('body_html', '!=', False), ('attachment_ids', '!=', False),
-        ])._liwan_wipe_unsendable()
+        ]) & ~Domain(self._liwan_retry_domain()))._liwan_wipe_unsendable()
         send = self.env['liwan.mail.send']
         sender, refusal = send._liwan_sender_or_refusal()
         if refusal or not sender:

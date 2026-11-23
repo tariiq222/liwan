@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import smtplib
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -394,6 +395,22 @@ class TestMailSend(TransactionCase):
         self._assert_content(retryable, kept=True)
         self._assert_content(ordinary, kept=True)
         self.assertEqual(retryable.state, 'exception')
+
+    def test_a_dropped_relay_session_on_the_last_attempt_is_wiped_by_the_retry_cron(self):
+        mail = self._sensitive()
+        mail.write({'liwan_attempts': MAX_ATTEMPTS, 'scheduled_date': False})
+        server = type(self.env['ir.mail_server'])
+        with patch.object(server, '_connect__', autospec=True, return_value=MagicMock()), \
+                patch.object(server, 'send_email', autospec=True, side_effect=smtplib.SMTPServerDisconnected()), \
+                patch.object(server, '_disable_send', return_value=False), \
+                patch.object(type(mail), '_postprocess_sent_message', autospec=True) as postprocess:
+            self.env['mail.mail'].process_email_queue(email_ids=mail.ids)
+        postprocess.assert_not_called()
+        self.assertEqual((mail.state, mail.failure_type), ('exception', 'unknown'))
+        self._assert_content(mail, kept=True)
+        self._retry()
+        self.assertEqual(mail.state, 'exception')
+        self._assert_content(mail, kept=False)
 
     def test_slot_choice_takes_the_database_lock(self):
         with patch.object(type(self.send_service), '_liwan_lock_slots', autospec=True) as lock:
