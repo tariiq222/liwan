@@ -5,28 +5,29 @@ its owning file, and where this page and an owner file disagree, the owner file 
 
 ## The gate
 
-1. Pick the lane from the request prefix. Without a prefix, classify the request
-   yourself and state the lane in one line before starting.
-2. Read `AGENTS.md`, plus the lane's references below — at least the layer rule that
+1. Pick the track from the request prefix. Without a prefix, classify the request
+   yourself and state the track in one line before starting.
+2. Read `AGENTS.md`, plus the track's references below — at least the layer rule that
    matches the files you will change.
 3. Take a lane: `npm run wt -- take <branch> --owner <who>`. Implement through a
    delegated implementer when you coordinate; a single-session task implements in its
    own lane. Commit locally on the task branch (standing authorization,
    [integration-rules.md](integration-rules.md#standing-authorization-owner-decision-2026-11-11)).
-4. Run the lane's checks, then report result, changed files and one evidence line per
+4. Run the track's checks, then report result, changed files and one evidence line per
    check.
 5. Push, PR, ready, merge, auto-merge, release tags and deployments each need the
    owner's explicit words ([integration-rules.md](integration-rules.md)).
 
-| Prefix | Lane | When it applies |
+| Prefix | Track | When it applies |
 | --- | --- | --- |
 | «إصلاح:» | Fix | A defect: wrong behavior, a traceback, a failing test, a broken error state. |
 | «ميزة:» | Feature | A new capability, endpoint or screen, or any change that adds product behavior. |
 | «واجهة:» | UI | Customer-visible presentation in `apps/web`: pages, components, layout, locale strings. |
 | «صيانة:» | Maintenance | Dependencies, docs, CI, tooling, cleanups, upgrades — no intended product behavior change. |
 
-A request that spans lanes (a feature with UI and Odoo work) takes the heaviest lane
-and reads both layer rules.
+A request that spans tracks applies the union of their Read lists and runs the union of
+their Verify commands. Report under the first track it matches in this order: Feature,
+Fix, UI, Maintenance.
 
 ## Fix — «إصلاح:»
 

@@ -2,8 +2,9 @@
 # PreToolUse guard for Bash. Enforces two CLAUDE.md rules that nothing else enforces:
 #   1. no mutating git commands inside the Odoo checkout (it is upstream-only)
 #   2. never run Odoo tests / installs against the dev DB liwan_dev (or the legacy odoo19)
-# The Odoo checkout is LIWAN_ODOO_SRC (default: the owner's ~/code/odoo); the LiwanOS checkout is the project dir
-# (lanes under its .worktrees/ count too: `git -C $LIWAN` and `cd $LIWAN` match by prefix).
+# The Odoo checkout is LIWAN_ODOO_SRC (default: the owner's ~/code/odoo). LIWAN is the LiwanOS checkout,
+# defaulting to CLAUDE_PROJECT_DIR or ~/code/liwan; when that is the main checkout, lanes under its
+# .worktrees/ match by path prefix (`git -C $LIWAN`, `cd $LIWAN`).
 # Exit 2 = block (stderr goes back to Claude). Anything else = allow.
 input=$(cat)
 cmd=$(printf '%s' "$input" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("tool_input",{}).get("command",""))' 2>/dev/null || true)
