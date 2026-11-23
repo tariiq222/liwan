@@ -37,7 +37,9 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 from deploy.release import common  # noqa: E402 - path set just above
 from deploy.release.release import (  # noqa: E402
-    CONFIG_KEYS, CONTROL_DB_PORT, DB_SUPERUSER, RELEASE_FOLDER, SHARED_WORKER_UNIT, TENANT_DB_PORT, Paths)
+    CONFIG_KEYS, CONTROL_DB_PORT, RELEASE_FOLDER, SHARED_WORKER_UNIT, TENANT_DB_PORT, Paths)
+from deploy.releases.postgres import (  # noqa: E402
+    ODOO_RUNTIME_ROLE, POSTGRES_ADMIN_ROLE, runtime_role_assertion_sql)
 from deploy.release.source import (  # noqa: E402
     COMMIT as COMMIT_ID, CREDENTIAL_HELPER, ENVIRONMENTS, GITHUB_TOKEN_VAR, REGISTRY as IMAGE_REGISTRY, REGISTRY_HOST,
     RELEASE_IMAGE, REPOSITORY_URL, TOKEN_VAR, USER_VAR, highest_release_tag, parse_listing)
@@ -100,6 +102,8 @@ HTTP_OK = re.compile(r'^[23]\d\d 0$')
 STATUS_LINE = re.compile(r'^\s*HTTP/\d(?:\.\d)?\s+(\d{3})\b')
 RESTORE_PROXY_PORT = '443'
 FIRST_NUMBER = re.compile(r'\d+')
+POSTGRES_VERSION = re.compile(r'(\d+)\.(\d+)')
+MIN_POSTGRES = (16, 4)
 
 
 class ItemError(Exception):
@@ -731,12 +735,49 @@ def check_ai_role(ctx: Context) -> Status:
         return NEEDS_CONFIG
     project = config['LIWAN_RELEASE_PROJECT']
     query = "select count(*) from pg_roles where rolname='liwan_ai'"
-    code, output = ctx.host.run(['docker', 'exec', f'{project}-db-1', 'psql', '-U', DB_SUPERUSER, '-d', 'postgres', '-tAc', query])
+    code, output = ctx.host.run(['docker', 'exec', f'{project}-db-1', 'psql', '-U', POSTGRES_ADMIN_ROLE, '-d', 'postgres', '-tAc', query])
     if code != 0 or output.strip() != '1':
         return missing('role liwan_ai does not exist in the tenant database')
     code, output = ctx.host.run(['docker', 'ps', '--filter', 'name=-ai-1', '--format', '{{.Status}}'])
     healthy = code == 0 and 'Up' in output and 'healthy' in output and 'unhealthy' not in output
     return OK if healthy else missing('the ai container is not up and healthy')
+
+
+def check_runtime_role(ctx: Context) -> Status:
+    """A4.4a: ``odoo`` is a plain login role (the release refuses the volume otherwise); runs as the admin in database ``postgres``."""
+    config = ctx.config()
+    if config is None:
+        return NEEDS_CONFIG
+    sql = runtime_role_assertion_sql(ODOO_RUNTIME_ROLE, []) + ';'
+    code, _ = ctx.host.run(['docker', 'exec', f'{config["LIWAN_RELEASE_PROJECT"]}-db-1', 'psql', '-U', POSTGRES_ADMIN_ROLE,
+                            '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-c', sql])
+    return OK if code == 0 else missing(f'the role {ODOO_RUNTIME_ROLE} is missing or privileged, or {POSTGRES_ADMIN_ROLE} cannot be reached: see A4.4a')
+
+
+def version_at_least(output: str, floor: tuple[int, int]) -> bool:
+    found = POSTGRES_VERSION.search(output)
+    return found is not None and (int(found[1]), int(found[2])) >= floor
+
+
+def check_postgres_floor(ctx: Context) -> Status:
+    """A3.4b: the dump client and the pinned server are both 16.4 or later (CVE-2024-7348, the admin ``pg_dump``)."""
+    config = ctx.config()
+    if config is None:
+        return NEEDS_CONFIG
+    client = ctx.host.run([config['LIWAN_RELEASE_PG_DUMP'], '--version'])[1]
+    code, server = ctx.host.run(['docker', 'exec', f'{config["LIWAN_RELEASE_PROJECT"]}-db-1', 'psql', '-U', POSTGRES_ADMIN_ROLE,
+                                 '-d', 'postgres', '-tAc', 'show server_version'])
+    if version_at_least(client, MIN_POSTGRES) and code == 0 and version_at_least(server, MIN_POSTGRES):
+        return OK
+    return missing('pg_dump or the db server is older than 16.4 (A3.4b); do not release')
+
+
+def check_db_passwords(ctx: Context) -> Status:
+    """A4.1: the runtime role and the admin role each have a password, and the two differ (values are never printed)."""
+    values, status = shared_values(ctx, 'DB_PASSWORD', 'DB_ADMIN_PASSWORD')
+    if values is None:
+        return status
+    return missing('DB_PASSWORD and DB_ADMIN_PASSWORD must differ') if values[0] == values[1] else OK
 
 
 def served_commit(ctx: Context, served: Path) -> str | None:
@@ -787,7 +828,7 @@ def check_pg_dump(ctx: Context) -> Status:
     if not status.ok:
         return status
     port = shared_port(ctx.shared_env(), TENANT_DB_PORT)
-    argv = [config['LIWAN_RELEASE_PG_DUMP'], '-h', config['LIWAN_RELEASE_PG_HOST'], '-p', port, '-U', DB_SUPERUSER,
+    argv = [config['LIWAN_RELEASE_PG_DUMP'], '-h', config['LIWAN_RELEASE_PG_HOST'], '-p', port, '-U', POSTGRES_ADMIN_ROLE,
             '--schema-only', '-d', 'postgres']
     code, _ = ctx.host.run(argv, env={'PGPASSFILE': pgpass})
     return OK if code == 0 else missing('pg_dump cannot reach the tenant database over loopback')
@@ -897,11 +938,14 @@ REGISTRY: list[Item] = [
     Item('read-credential-file', check_credential_file,
          f'as root: create /etc/liwan-release/{CREDENTIAL_FILE} (A5.1), mode 0600, with the read-only tokens'),
     Item('read-credential-access', check_credential_access, 'the read credential must read the repository, pull a release document and must not write (A5.2)'),
+    Item('shared-db-passwords', check_db_passwords, 'put DB_PASSWORD and a different DB_ADMIN_PASSWORD in the shared env file (A4.1)'),
     Item('shared-worker-unit', check_worker_unit, f'install and enable {SHARED_WORKER_UNIT} without starting it (A6.1)',
          apply_worker_unit),
     Item('post-run-shared-files', check_shared_file_owners, 'shared.compose.json and shared.env must be 0600, owned by the worker (A8.2a)',
          post_run=True),
     Item('post-run-ai-role', check_ai_role, 'the liwan_ai role and a healthy ai container (A8.2b)', post_run=True),
+    Item('post-run-runtime-role', check_runtime_role, 'the odoo runtime role must be a plain login role (A4.4a)', post_run=True),
+    Item('post-run-postgres-floor', check_postgres_floor, 'pg_dump and the db server must be 16.4 or later (A3.4b)', post_run=True),
     Item('post-run-release-state', check_release_state, 'a committed release that is the checkout current points to, with no run and no halt (A8.3)', post_run=True),
     Item('post-run-pg-dump', check_pg_dump, 'the host pg_dump over loopback (A8.3a)', post_run=True),
     Item('post-run-listeners', check_listeners, 'a port listens beyond its expected address (A8.4)', post_run=True),

@@ -31,7 +31,7 @@ CONFIG_TEXT = (f'LIWAN_RELEASE_PROJECT=liwan-shared-staging\nLIWAN_SHARED_ENV_FI
                'LIWAN_RELEASE_DISK_PATH=/var/lib/docker\nPGPASSFILE=/etc/liwan-release/pgpass\n')
 SHARED_TEXT = (f'LIWAN_CONTROL_CONFIG_DIR={SRV}/control/config\nLIWAN_CONTROL_PRIVATE_DIR={SRV}/control/private\n'
                f'LIWAN_TENANT_REGISTRY_DIR={SRV}/state/registry\nLIWAN_AI_PLATFORM_DIR={SRV}/control/state/ai-platform\n'
-               f'LIWAN_SHARED_COMPOSE_FILE={SRV}/shared.compose.json\n')
+               f'LIWAN_SHARED_COMPOSE_FILE={SRV}/shared.compose.json\nDB_PASSWORD=runtime-pass\nDB_ADMIN_PASSWORD=admin-pass\n')
 CREDENTIAL_TEXT = f'LIWAN_GHCR_READ_USER=reader\nLIWAN_GHCR_READ_TOKEN={SECRET}\nLIWAN_GITHUB_READ_TOKEN={SECRET}\n'
 GIB = 1024 ** 3
 SS_HEADER = 'State Recv-Q Send-Q Local Address:Port Peer Address:Port'
@@ -930,8 +930,8 @@ class PostRunTest(unittest.TestCase):
     def test_pg_dump_runs_with_the_pgpass_file_on_the_tenant_port_and_its_failure_is_reported(self):
         host = self.post_host()
         self.assertEqual('ok', self.post(host, 'post-run-pg-dump'))
-        call = next(call for call in host.calls if call[0] == '/usr/bin/pg_dump')
-        self.assertEqual(['-h', '127.0.0.1', '-p', '15433'], call[1:5])
+        call = next(call for call in host.calls if call[:2] == ['/usr/bin/pg_dump', '-h'])
+        self.assertEqual(['-h', '127.0.0.1', '-p', '15433', '-U', 'postgres'], call[1:7])
         self.assertEqual('/etc/liwan-release/pgpass', host.envs[host.calls.index(call)]['PGPASSFILE'])
         self.only(host, ['/usr/bin/pg_dump'], (1, SECRET))
         self.assertEqual('MISSING', self.post(host, 'post-run-pg-dump'))
@@ -939,10 +939,35 @@ class PostRunTest(unittest.TestCase):
         with_config(no_pgpass, **{'PGPASSFILE=/etc/liwan-release/pgpass\n': ''})
         self.assertEqual('MISSING', self.post(no_pgpass, 'post-run-pg-dump'))
 
+    def test_runtime_role_is_asserted_as_the_admin_in_database_postgres(self):
+        host = self.post_host()
+        self.assertEqual('ok', self.post(host, 'post-run-runtime-role'))
+        call = next(call for call in host.calls if call[:2] == ['docker', 'exec'] and '-c' in call)
+        self.assertEqual(['-U', 'postgres', '-d', 'postgres'], call[4:8])
+        self.only(host, ['docker', 'exec'], (1, SECRET))
+        self.assertEqual('MISSING', self.post(host, 'post-run-runtime-role'))
+
+    def test_postgres_client_and_server_must_be_16_4_or_later(self):
+        for client, server, expected in (('pg_dump (PostgreSQL) 16.4', '16.4\n', 'ok'), ('pg_dump (PostgreSQL) 16.3', '16.4\n', 'MISSING'),
+                                         ('pg_dump (PostgreSQL) 16.4', '16.3 (Debian)\n', 'MISSING'), ('pg_dump (PostgreSQL) 17.0', '17.0\n', 'ok')):
+            with self.subTest(client, server=server):
+                host = self.post_host()
+                host.versions['/usr/bin/pg_dump'] = client
+                self.only(host, ['docker', 'exec'], (0, server))
+                self.assertEqual(expected, self.post(host, 'post-run-postgres-floor'))
+
+    def test_db_passwords_must_both_be_set_and_differ(self):
+        for name, text, expected in (('both', SHARED_TEXT, 'ok'), ('same', SHARED_TEXT.replace('admin-pass', 'runtime-pass'), 'MISSING'),
+                                     ('no admin', SHARED_TEXT.replace('DB_ADMIN_PASSWORD=admin-pass\n', ''), 'MISSING')):
+            with self.subTest(name):
+                host = seeded_host()
+                host.files[f'{SRV}/shared.env'] = regular(0o600, text=text)
+                self.assertEqual(expected, statuses(run(host)[1])['shared-db-passwords'])
+
     def test_empty_database_port_keys_mean_the_release_defaults(self):
         host = self.post_host('LIWAN_DB_HOST_PORT=\nLIWAN_CONTROL_DB_HOST_PORT=\n')
         self.post(host, 'post-run-pg-dump')
-        self.assertEqual('15433', next(call for call in host.calls if call[0] == '/usr/bin/pg_dump')[4])
+        self.assertEqual('15433', next(call for call in host.calls if call[:2] == ['/usr/bin/pg_dump', '-h'])[4])
         self.only(host, ['ss'], (0, f'{SS_HEADER}\nLISTEN 0 4096 0.0.0.0:15433 0.0.0.0:*\n'))
         self.assertEqual('MISSING', self.post(host, 'post-run-listeners'))
         self.only(host, ['ss'], (0, f'{SS_HEADER}\nLISTEN 0 4096 0.0.0.0:15432 0.0.0.0:*\n'))
