@@ -3,6 +3,7 @@ import hashlib
 import io
 import os
 import stat
+import subprocess
 import json
 import re
 import sys
@@ -416,8 +417,96 @@ class InventoryChannelTests(unittest.TestCase):
     def test_runaway_inventory_is_an_explicit_limit_error(self):
         runner = self.inventory_runner('print("x" * 4096)')
         with patch.object(odoo_backup, 'MAX_INVENTORY', 1024):
-            with self.assertRaisesRegex(odoo_effect.EffectError, '^(artifact|archive)_limit$'):
+            with self.assertRaisesRegex(odoo_effect.EffectError, '^inventory_too_large$'):
                 runner.inventory('odoo', 'liwan_scratch_a')
+
+
+class HelperArgvTests(unittest.TestCase):
+    """One argv string is capped at 128 KiB: attachment rows must travel on stdin, never in the helper's -c script."""
+    LIMIT = 128 * 1024
+    TARGET = 'liwan_scratch_' + 'b' * 32
+
+    def runner(self):
+        runner = object.__new__(odoo_backup.BackupRunner)
+        runner.config = {'projectName': 'liwan-shared-test'}
+        runner.request = {'attemptId': 'attempt01', 'job': {'requestId': 'req'}}
+        runner.base = []
+        runner.current_container = None
+        calls = []
+        runner.command = lambda args, **kwargs: calls.append((args, kwargs)) or '{}'
+        return runner, calls
+
+    def rows(self, count=20000, name=None):
+        return [[i, name, 'd' * 40, 10] for i in range(count)]
+
+    def test_check_files_keeps_every_argv_element_small_and_sends_the_rows_on_stdin(self):
+        runner, calls = self.runner()
+        rows = self.rows(name='ab/' + 'c' * 40)
+        runner.check_files('odoo', 'liwan_scratch_a', {'attachments': rows})
+        args, kwargs = calls[0]
+        self.assertTrue(all(len(item.encode()) < self.LIMIT // 8 for item in args))
+        self.assertEqual(json.loads(kwargs['stdin']), rows)
+
+    def test_the_check_files_helper_reads_the_rows_from_stdin(self):
+        runner, calls = self.runner()
+        runner.check_files('odoo', 'liwan_scratch_a', {'attachments': self.rows()})
+        args, kwargs = calls[0]
+        script = args[args.index('-c') + 1]
+        done = subprocess.run([sys.executable, '-c', script], input=kwargs['stdin'].encode(), capture_output=True)
+        self.assertEqual((done.returncode, done.stdout), (0, b'{}\n'))
+        bad = json.dumps([[1, 'not-a-path', 'd' * 40, 10]]).encode()
+        done = subprocess.run([sys.executable, '-c', script], input=bad, capture_output=True)
+        self.assertNotEqual(done.returncode, 0)
+        self.assertIn(b'attachment_path', done.stderr)
+
+    def test_verify_restore_keeps_argv_small_with_many_attachments(self):
+        runner, calls = self.runner()
+        rows = self.rows()
+        inventory = {'attachments': rows, 'databaseAttachments': [], 'profile': [{'id': 1}]}
+        runner.target = self.TARGET
+        runner.inventory = lambda *_: inventory
+        runner.verify_odoo_readiness = lambda *_: None
+        runner.verify_restore({'inventory': inventory})
+        args, kwargs = calls[0]
+        self.assertTrue(all(len(item.encode()) < self.LIMIT // 8 for item in args))
+        self.assertEqual(json.loads(kwargs['stdin']), rows)
+
+
+class InventoryManifestLimitTests(unittest.TestCase):
+    def test_the_inventory_limit_fits_inside_the_manifest_limit(self):
+        self.assertLess(odoo_backup.MAX_INVENTORY, odoo_backup.MAX_MANIFEST)
+        self.assertEqual(odoo_backup.MAX_INVENTORY, odoo_backup.MAX_MANIFEST - odoo_backup.MANIFEST_OVERHEAD)
+
+    def test_a_manifest_that_json_escaping_pushes_over_the_limit_is_refused_when_built(self):
+        case = CaptureRestartTests()
+        with tempfile.TemporaryDirectory() as raw:
+            runner, _ = case.capture_runner(Path(raw).resolve())
+            runner.inventory = lambda *_: {'attachments': [], 'note': '\u00e9' * 600}
+            with patch.object(odoo_backup, 'permit', lambda _stage: None), patch.object(odoo_backup, 'validate_archive', lambda _p: None), \
+                    patch.object(odoo_backup, 'sha256_file', lambda _p: 'a' * 64), patch.object(odoo_backup, 'MAX_MANIFEST', 1024):
+                with self.assertRaises(odoo_effect.EffectError) as caught:
+                    runner.capture_while_stopped('img', 'pg')
+        self.assertEqual(str(caught.exception), 'inventory_too_large')
+
+
+class ReportedErrorCodeTests(unittest.TestCase):
+    def emitted(self, code):
+        class Failing:
+            def __init__(self, _request): pass
+            def apply_owned(self): raise odoo_effect.EffectError(code)
+        out = io.StringIO()
+        request = {'action': 'apply'}
+        with patch.object(odoo_backup, 'BackupRunner', Failing), patch.object(odoo_backup, 'install_termination_handler', lambda _r: None), \
+                patch.object(sys, 'stdin', io.StringIO(json.dumps(request) + '\n')), patch.object(sys, 'stdout', out):
+            status = odoo_backup.main()
+        return status, json.loads(out.getvalue().strip())
+
+    def test_main_emits_the_restart_and_inventory_codes_as_they_are(self):
+        for code in ('odoo_restart_failed', 'inventory_too_large'):
+            self.assertEqual(self.emitted(code), (1, {'error_code': code}))
+
+    def test_an_unlisted_code_stays_opaque(self):
+        self.assertEqual(self.emitted('boom'), (1, {'error_code': 'shared_effect_unverified'}))
 
 
 class ReleaseBackupBoundaryTests(unittest.TestCase):

@@ -25,7 +25,9 @@ AI_ROLE = 'liwan_ai'
 RESTART_TIMEOUT = 30  # the restart after a failure or a termination; with the 25 s cancel it fits the gate's 60 s grace
 MAX_ARCHIVE = 2 * 1024 * 1024 * 1024
 MAX_MEMBERS = 100000
-MAX_INVENTORY = 64 * 1024 * 1024
+MAX_MANIFEST = 16 * 1024 * 1024  # what read_artifact accepts; the inventory is written whole into the manifest
+MANIFEST_OVERHEAD = 64 * 1024  # the manifest's other fields (hashes, ids, binding, business key)
+MAX_INVENTORY = MAX_MANIFEST - MANIFEST_OVERHEAD
 RESTORE_HOST = '-h restore-db'
 
 
@@ -265,10 +267,10 @@ class BackupRunner(Runner):
         return self.base + ['run', '--rm', '--no-deps', '-T', '--name', name,
                             '--entrypoint', '/opt/venv/bin/python', service, '-c', script]
 
-    def helper(self, service, stage, script):
+    def helper(self, service, stage, script, *, stdin=''):
         try:
             # Compose emits progress on stderr independently of the helper's JSON.
-            return self.command(self.helper_args(service, stage, script), timeout=180, stdout_only=True)
+            return self.command(self.helper_args(service, stage, script), stdin=stdin, timeout=180, stdout_only=True)
         finally:
             self.current_container = None
 
@@ -325,7 +327,13 @@ class BackupRunner(Runner):
         # through the 64 KiB command buffer. A runaway ends in the stream's artifact_limit or archive_limit error.
         with tempfile.TemporaryDirectory() as directory:
             destination = Path(directory) / 'inventory.json'
-            self.stream(self.helper_args(service, 'inventory', script), destination=destination, limit=MAX_INVENTORY)
+            try:
+                self.stream(self.helper_args(service, 'inventory', script), destination=destination, limit=MAX_INVENTORY)
+            except EffectError as error:
+                # A stream stopped at the limit is an inventory that cannot fit a valid manifest.
+                if str(error) in ('artifact_limit', 'archive_limit') and destination.exists() and destination.stat().st_size > MAX_INVENTORY:
+                    raise EffectError('inventory_too_large') from None
+                raise
             return json.loads(destination.read_text())
 
     def files_exist(self, service, database):
@@ -339,9 +347,11 @@ class BackupRunner(Runner):
     def check_files(self, service, database, inventory):
         # Every referenced file gets SHA1, size and containment checks. DB-backed
         # attachments are independently streamed and hashed by inventory().
-        script = '''import hashlib,json,re
+        # The rows travel on stdin: one argv string is capped at 128 KiB (MAX_ARG_STRLEN) and the list grows with the tenant.
+        script = '''import hashlib,json,re,sys
 from pathlib import Path
 root=Path('/var/lib/odoo/filestore/') / database
+attachments=json.load(sys.stdin)
 for _,name,checksum,size in attachments:
  if name is None: continue
  if not re.fullmatch(r'[a-f0-9]{2}/[a-f0-9]{40}',name): raise Exception('attachment_path')
@@ -353,7 +363,7 @@ for _,name,checksum,size in attachments:
  if total!=size or value.hexdigest()!=checksum: raise Exception('attachment_bytes')
 print('{}')
 '''
-        self.helper(service, 'check-files', 'database=' + repr(database) + '\nattachments=' + repr(inventory['attachments']) + '\n' + script)
+        self.helper(service, 'check-files', 'database=' + repr(database) + '\n' + script, stdin=json.dumps(inventory['attachments'], separators=(',', ':')))
 
     def verify_odoo_readiness(self, service, database):
         database = validate_database(database)
@@ -388,7 +398,7 @@ print('{}')
 
     def read_artifact(self):
         no_symlink(self.artifact / 'manifest.json')
-        if (self.artifact/'manifest.json').stat().st_size > 16*1024*1024:
+        if (self.artifact/'manifest.json').stat().st_size > MAX_MANIFEST:
             raise EffectError('manifest_invalid')
         if self.authority.get('manifestSha256'):
             require_hash(self.artifact/'manifest.json',self.authority['manifestSha256'])
@@ -498,6 +508,9 @@ with tarfile.open(fileobj=sys.stdout.buffer,mode='w|') as out:
             'binding':self.request['job']['binding'],'businessKey':self.request['businessKey'],'payloadDigest':self.request['payloadDigest'],
             'databaseSha256':sha256_file(self.artifact/'database.dump'),'filestoreSha256':sha256_file(self.artifact/'filestore.tar'),
             'sourceImageId':source_image,'postgresImageId':postgres_image,'capturedAt':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),'inventory':inventory}
+        # reserve() writes json.dump (ASCII escapes can outgrow the raw inventory): refuse here, not after the manifest is unverifiable.
+        if len(json.dumps(manifest).encode()) > MAX_MANIFEST:
+            raise EffectError('inventory_too_large')
         return manifest
 
     def restore(self):

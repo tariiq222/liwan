@@ -661,6 +661,9 @@ REPORTABLE_CODES = frozenset(ERROR_CODES) | {
 } | set(POLICY_ERROR_CODES)
 
 WRITER_REFUSALS = frozenset({'runtime_writer_present', 'runtime_writer_after_effect'})
+# Backup outcomes the operator must tell apart: the shared Odoo could not be restarted (down for every tenant),
+# and an inventory that cannot fit a valid manifest (refused before any outage when knowable).
+BACKUP_REFUSALS = frozenset({'odoo_restart_failed', 'inventory_too_large'})
 
 
 def classify_error(error):
@@ -672,7 +675,7 @@ def classify_error(error):
         return error.code
     # Writer refusals are non-secret and the control plane tells them apart: only the
     # pre-gate one (nothing ran) may be retried.
-    if isinstance(error, EffectError) and str(error) in WRITER_REFUSALS | {'release_operation_blocked'}:  # Safe release barrier refusal, distinct from CP claims.
+    if isinstance(error, EffectError) and str(error) in WRITER_REFUSALS | BACKUP_REFUSALS | {'release_operation_blocked'}:  # Safe release barrier refusal, distinct from CP claims.
         return str(error)
     return 'shared_effect_unverified'
 
