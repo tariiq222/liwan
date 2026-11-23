@@ -79,6 +79,16 @@
         "helpdesk_mgmt_sla",
         "helpdesk_type"
       ]
+    },
+    {
+      "repo": "OCA/storage",
+      "branch": "19.0",
+      "commit": "d57ad3c426a43f72f2b203b5f1fd4680703f8c16",
+      "modules": [
+        "fs_storage",
+        "fs_attachment",
+        "fs_attachment_s3"
+      ]
     }
   ],
   "python_requirements": [
@@ -102,6 +112,29 @@
       "repo": "OCA/calendar",
       "packages": [
         "cssselect"
+      ]
+    },
+    {
+      "module": "fs_storage",
+      "repo": "OCA/storage",
+      "packages": [
+        "fsspec"
+      ]
+    },
+    {
+      "module": "fs_attachment",
+      "repo": "OCA/storage",
+      "packages": [
+        "python-slugify",
+        "fsspec"
+      ]
+    },
+    {
+      "module": "fs_attachment_s3",
+      "repo": "OCA/storage",
+      "packages": [
+        "fsspec",
+        "s3fs"
       ]
     }
   ]

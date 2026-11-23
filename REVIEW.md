@@ -18,8 +18,8 @@ status is not. Current-head `ci-result` is the required status-check policy; ins
 live GitHub rules before remote delivery.
 
 Review findings remain binding until resolved or explicitly decided by the owner.
-A clean report does not replace tests or authorize publication, merging, release
-or deployment. Changes after review need a review of their affected behavior and
+A clean report does not replace tests or authorize merging, release tags or
+server deployment; it is the review gate for the automatic push, PR and ready. Changes after review need a review of their affected behavior and
 fresh relevant checks. Read-only review must not mutate the candidate or invoke
 paid APIs without explicit authorization.
 

@@ -163,8 +163,25 @@ The command never waits for input. A second start while one runs exits 0 at once
 `/etc/liwan-release/<environment>.env`, mode `0600`, owned by the running user. Required keys: `LIWAN_RELEASE_PROJECT`,
 `LIWAN_SHARED_ENV_FILE`, `LIWAN_RELEASE_PG_DUMP`, `LIWAN_RELEASE_PG_HOST`,
 `LIWAN_RELEASE_CONTROL_PG_HOST`, `LIWAN_RELEASE_ODOO_DATA_DIR`,
-`LIWAN_RELEASE_DISK_PATH` (a path on the filesystem that holds the database volume and the filestores). Optional:
-`LIWAN_RELEASE_BACKUP_STORE_ROOT`. Other keys in the file reach the backup pipeline through its environment.
+`LIWAN_RELEASE_DISK_PATH` (a path on the filesystem that holds the database volume and the filestores) and
+`LIWAN_BACKUP_PASSPHRASE_FILE`. A store is also required, in one of two forms: `LIWAN_RELEASE_BACKUP_STORE_ROOT`, or the five
+`LIWAN_BACKUP_S3_*` keys. Once a tenant exists on the host, the absolute `LIWAN_TENANT_REGISTRY_PATH`
+(`<LIWAN_TENANT_REGISTRY_DIR>/registry.json`, where `LIWAN_TENANT_REGISTRY_DIR` is the shared env file's key of that name) is
+required too: the tenant capture reads the database and filestore binding from it. Other keys in the file reach the backup
+pipeline through its environment.
+
+The first deploy of a host skips the backup, so a host can pass its first release and fail its second on any of the items
+below. Each one ends the run with `RESULT: rolled back backup_failed`; the job log carries the symptom line.
+
+| Item | Rule | Symptom in the job log |
+| --- | --- | --- |
+| `LIWAN_BACKUP_PASSPHRASE_FILE` | an absolute path to a file of mode `0600` or `0400` holding one line of 16 to 1022 bytes, for example the output of `openssl rand -hex 32`. It is the only key of these backups: keep a copy off the host. The rule is owned by [control-plane-backup-restore.md](../../docs/operations/control-plane-backup-restore.md) | `backup_pipeline: LIWAN_BACKUP_PASSPHRASE_FILE must name the passphrase file` (a wrong mode or length is refused with its own message) |
+| `LIWAN_TENANT_REGISTRY_PATH` | the absolute path of the tenant registry file, `<LIWAN_TENANT_REGISTRY_DIR>/registry.json`. Required once a tenant exists; without it, or with a relative path, the tenant capture cannot name the database and filestore | `backup_pipeline: LIWAN_TENANT_REGISTRY_PATH must be an absolute tenant registry path` |
+| store | `LIWAN_RELEASE_BACKUP_STORE_ROOT`: a directory path, created if absent; the release passes it as `--store-root` and the encrypted copy stays on the host's filesystem. Without it the pipeline uses a bucket and reads `LIWAN_BACKUP_S3_ENDPOINT`, `LIWAN_BACKUP_S3_REGION`, `LIWAN_BACKUP_S3_BUCKET`, `LIWAN_BACKUP_S3_ACCESS_KEY` and `LIWAN_BACKUP_S3_SECRET_KEY` from this file. The store root is optional only when all five S3 keys are present | `backup_pipeline: LIWAN_BACKUP_S3_ENDPOINT is required` (the first missing S3 key is named) |
+| `LIWAN_RELEASE_PG_DUMP` | the real binary, for example `/usr/lib/postgresql/16/bin/pg_dump`, not `/usr/bin/pg_dump`. On Debian and Ubuntu the latter is a symlink to `/usr/share/postgresql-common/pg_wrapper`; the release resolves the symlink and so runs the wrapper under its own name, which exits 1. Check with `readlink -f` that the configured path is its own target | the tenant capture runs first when tenants exist, through `deploy/backup.py`: it exits 2, and the pipeline reports only `backup_pipeline: deploy/backup.py failed with exit code 2`. The control-plane capture runs `pg_dump` itself and reports only `backup_pipeline: pg_dump failed with exit code 1`. Both captures run their child with captured output and discard it, so neither `deploy/backup.py`'s `pg_dump failed; no success manifest written` nor `pg_dump`'s own stderr reaches the job log |
+
+After a failed run the same commit is answered `nothing to do: <commit> failed before (...)` until `release.py rollback` clears
+`failed.json` (see Result and exit code and State); then run the job again.
 
 Alert channels are read from the same file. One complete channel is `LIWAN_ALERT_SMTP_HOST`, `LIWAN_ALERT_SMTP_FROM` and
 `LIWAN_ALERT_SMTP_TO` (optional `LIWAN_ALERT_SMTP_PORT`, `_USER`, `_PASSWORD`, `_STARTTLS`), or `LIWAN_ALERT_TELEGRAM_BOT_TOKEN`
