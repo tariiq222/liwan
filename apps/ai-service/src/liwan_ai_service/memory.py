@@ -15,6 +15,10 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Literal, Protocol
 
+from psycopg import sql
+
+from liwan_ai_service.control import queue_writer_role
+
 MAX_NOTE_CHARS = 300
 MAX_NOTES = 20  # per employee, and approved per company: what a prompt may carry
 CONTROL = re.compile(r"[\x00-\x1f\x7f]")
@@ -197,25 +201,24 @@ CREATE_MEMORY = (
     "CREATE TABLE IF NOT EXISTS ai_leavers (user_ref TEXT PRIMARY KEY, deactivated_at TIMESTAMPTZ NOT NULL,"
     " swept BOOLEAN NOT NULL DEFAULT false)",
 )
-# The database owner is Odoo's role: it may append offboarding events and nothing else in this schema. The role and the
-# schema (liwan_ai in a deployment) are read by the server itself, inside one literal statement.
-GRANT_OUTBOX = """
-DO $grant$
-DECLARE
-    owner_role TEXT := (SELECT pg_catalog.pg_get_userbyid(datdba) FROM pg_catalog.pg_database WHERE datname = current_database());
-BEGIN
-    EXECUTE format('GRANT USAGE ON SCHEMA %I TO %I', current_schema(), owner_role);
-    EXECUTE format('GRANT INSERT ON %I.ai_outbox TO %I', current_schema(), owner_role);
-    EXECUTE format('GRANT USAGE ON SEQUENCE %I.ai_outbox_id_seq TO %I', current_schema(), owner_role);
-END
-$grant$
-"""
+# Odoo's database role (the one role besides the owner that holds USAGE on the schema, see queue_writer_role) may append
+# offboarding events and nothing else in this schema.
+GRANT_OUTBOX = (
+    "GRANT USAGE ON SCHEMA {schema} TO {role}",
+    "GRANT INSERT ON {schema}.ai_outbox TO {role}",
+    "GRANT USAGE ON SEQUENCE {schema}.ai_outbox_id_seq TO {role}",
+)
 MEMORY_TABLES = ("ai_memory", "ai_outbox", "ai_leavers")
 
 
 async def grant_outbox(conn) -> None:
-    """Lets the database owner (Odoo) insert offboarding events; the AI role keeps ownership of everything."""
-    await conn.execute(GRANT_OUTBOX)
+    """Lets Odoo's role insert offboarding events; the AI role keeps ownership of everything."""
+    writer = await queue_writer_role(conn)
+    if writer is None:
+        return
+    schema, role = (sql.Identifier(name) for name in writer)
+    for statement in GRANT_OUTBOX:
+        await conn.execute(sql.SQL(statement).format(schema=schema, role=role))
 
 
 class PostgresMemoryStore:

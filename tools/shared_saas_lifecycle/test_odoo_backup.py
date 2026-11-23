@@ -252,24 +252,59 @@ class ReleaseBackupBoundaryTests(unittest.TestCase):
 class RestoreIsolationTests(unittest.TestCase):
     DATABASE = 'liwan_scratch_' + 'b' * 32
 
-    def test_restore_script_creates_with_the_tenant_recipe_then_closes_before_pg_restore(self):
-        self.assertTrue(odoo_backup)
-        script = odoo_backup.restore_database_script(self.DATABASE)
+    def test_create_stage_is_one_admin_statement_in_database_postgres(self):
+        script = odoo_backup.create_database_script(self.DATABASE)
         create = script.index('CREATE DATABASE "' + self.DATABASE + '"')
         # shlex.quote splits the recipe's single quotes, so the options are checked after the name.
         self.assertTrue(create < script.index('LC_COLLATE') < script.index('TEMPLATE template0'))
+        self.assertTrue(script.startswith('set -eu\nexport PGPASSWORD="$POSTGRES_PASSWORD"\n'))
+        self.assertIn('-U postgres -v ON_ERROR_STOP=1 -q -d postgres -c ', script)
+        self.assertEqual(script.count('-U postgres'), 1)
+        self.assertNotIn('CREATE DATABASE', odoo_backup.restore_database_script(self.DATABASE))
+
+    def test_restore_script_prepares_as_admin_then_restores_as_the_runtime_role_only(self):
+        script = odoo_backup.restore_database_script(self.DATABASE)
         revoke = script.index('REVOKE CONNECT ON DATABASE "' + self.DATABASE + '" FROM PUBLIC')
         grant, assertion = script.index('GRANT CONNECT ON DATABASE'), script.index('public_connect_not_revoked')
-        restore = script.index('pg_restore ')
-        self.assertTrue(create < revoke < grant < assertion < restore)
+        bootstrap, skeleton = script.index('CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public'), script.index("<<'LIWAN_TENANT_SCHEMA'")
+        restore = script.index('exec pg_restore ')
+        self.assertTrue(revoke < grant < assertion < bootstrap < skeleton < restore)
+        self.assertTrue(script.startswith('set -eu\n'))
         self.assertNotIn('createdb', script)
-        self.assertTrue(script.startswith('set -eu;'))
-        self.assertEqual(script.count('-v ON_ERROR_STOP=1'), 3)
-        # The admin role creates and restores; ownership returns to the dumped owners, so no --no-owner.
-        self.assertEqual(script.count('-U postgres'), 4)
-        self.assertNotIn('-U odoo', script)
-        self.assertNotIn('--no-owner', script)
-        self.assertTrue(assertion < script.index('GRANT CREATE ON SCHEMA public TO "odoo"') < restore)
+        # Admin: isolation, bootstrap in the target, skeleton script. Odoo: the archive, schema public only.
+        self.assertEqual(script.count('-U postgres'), 3)
+        self.assertEqual(script[:skeleton].count('-v ON_ERROR_STOP=1'), 3)
+        self.assertIn('exec pg_restore -h restore-db -U odoo --no-owner -n public --exit-on-error --single-transaction -d "$1"', script)
+        self.assertEqual(script.count('exec pg_restore'), 1)
+        self.assertNotIn('-U postgres --', script)
+        self.assertNotIn('--use-set-session-authorization', script)
+        # The password of each login comes from the container environment, never from a command line.
+        self.assertTrue(script.index('export PGPASSWORD="$POSTGRES_PASSWORD"') < revoke)
+        self.assertTrue(skeleton < script.index('export PGPASSWORD="$ODOO_DB_PASSWORD"') < restore)
+        # The skeleton script is the repository file itself, in a quoted here-document, run in database postgres.
+        self.assertIn(odoo_effect.AI_TENANT_SCHEMA.read_text().rstrip('\n'), script)
+        self.assertIn('-d postgres -v tenant_db="$1" -f - <<', script)
+
+    def test_ai_stage_logs_in_as_the_ai_role_or_drains_the_archive_without_one(self):
+        script = odoo_backup.restore_ai_script()
+        self.assertEqual(script.count('pg_restore'), 1)
+        self.assertIn('exec pg_restore -h restore-db -U liwan_ai --no-owner -n liwan_ai --exit-on-error --single-transaction -d "$1"', script)
+        self.assertTrue(script.index('cat >/dev/null; exit 0') < script.index('export PGPASSWORD="$AI_DB_PASSWORD"') < script.index('pg_restore'))
+        # The admin role only looks the AI role up in the catalog of database postgres; it never touches the archive.
+        self.assertEqual(script.count('-U postgres'), 1)
+        self.assertIn("-d postgres -c 'SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = '\"'\"'liwan_ai'\"'\"''", script)
+        self.assertTrue(script.index('-U postgres') < script.index('ai_password_missing') < script.index('cat >/dev/null; exit 0'))
+
+    def test_drop_stage_removes_only_the_target_in_database_postgres(self):
+        script = odoo_backup.drop_target_script(self.DATABASE)
+        self.assertIn('-d postgres -c \'DROP DATABASE IF EXISTS "' + self.DATABASE + '" WITH (FORCE)\'', script)
+        self.assertEqual(script.count('-U postgres'), 1)
+
+    def test_drop_stage_quotes_the_name_as_an_identifier_and_refuses_a_malformed_one(self):
+        with self.assertRaisesRegex(ValueError, '^database_identifier_rejected$'):
+            odoo_backup.drop_target_script('liwan_scratch_x" CASCADE; --')
+        with self.assertRaisesRegex(ValueError, '^database_identifier_rejected$'):
+            odoo_backup.drop_target_script('')
 
     def test_restore_operation_passes_the_isolating_script_to_the_restore_container(self):
         self.assertTrue(odoo_backup)
@@ -289,13 +324,67 @@ class RestoreIsolationTests(unittest.TestCase):
             streams = []
             def pg_stream(service, stage, script, database, **kwargs):
                 streams.append((stage, script, database))
-                raise odoo_effect.EffectError('restore_stopped_after_database')
+                if stage != 'restore-create':
+                    raise odoo_effect.EffectError('restore_stopped_after_database')
             runner.pg_stream = pg_stream
             with patch.object(odoo_backup, 'permit', lambda stage: None), \
                     patch.object(odoo_backup, 'reserve', lambda path, payload: Path(path).write_text('{}')):
                 with self.assertRaisesRegex(odoo_effect.EffectError, '^restore_stopped_after_database$'):
                     runner._restore_operation()
-        self.assertEqual(streams, [('restore-db', odoo_backup.restore_database_script(self.DATABASE), self.DATABASE)])
+        # The failing first stage is followed by the drop of the fresh target; the AI stage never starts.
+        self.assertEqual(streams, [('restore-create', odoo_backup.create_database_script(self.DATABASE), self.DATABASE),
+                                   ('restore-db', odoo_backup.restore_database_script(self.DATABASE), self.DATABASE),
+                                   ('restore-drop', odoo_backup.drop_target_script(self.DATABASE), self.DATABASE)])
+
+    def test_a_failed_create_never_drops_the_name(self):
+        with tempfile.TemporaryDirectory() as raw:
+            runner = object.__new__(odoo_backup.BackupRunner)
+            runner.root = Path(raw).resolve()
+            (runner.root / 'classifications').mkdir()
+            runner.target, runner.artifact = self.DATABASE, Path(raw) / 'artifact'
+            runner.authority, runner.backup_id = {'approvalId': 'a'}, 'b'
+            runner.request = {'payloadDigest': 'c' * 64, 'attemptId': 'd' * 32, 'fence': 1}
+            runner.read_artifact = lambda: {'sourceImageId': 'i', 'postgresImageId': 'p'}
+            runner.inspect_service = lambda service: {'Image': 'i' if service == 'restore-odoo' else 'p'}
+            runner.database_exists = lambda *_: False
+            runner.files_exist = lambda *_: False
+            streams = []
+            def pg_stream(service, stage, script, database, **kwargs):
+                streams.append(stage)
+                raise odoo_effect.EffectError('artifact_command_failed')  # the name already exists, made by someone else
+            runner.pg_stream = pg_stream
+            with patch.object(odoo_backup, 'permit', lambda stage: None), \
+                    patch.object(odoo_backup, 'reserve', lambda path, payload: Path(path).write_text('{}')):
+                with self.assertRaisesRegex(odoo_effect.EffectError, '^artifact_command_failed$'):
+                    runner._restore_operation()
+        self.assertEqual(streams, ['restore-create'])
+
+    def test_both_restore_stages_run_in_order_and_a_failing_ai_stage_drops_the_target(self):
+        with tempfile.TemporaryDirectory() as raw:
+            runner = object.__new__(odoo_backup.BackupRunner)
+            runner.root = Path(raw).resolve()
+            (runner.root / 'classifications').mkdir()
+            runner.target, runner.artifact = self.DATABASE, Path(raw) / 'artifact'
+            runner.authority, runner.backup_id = {'approvalId': 'a'}, 'b'
+            runner.request = {'payloadDigest': 'c' * 64, 'attemptId': 'd' * 32, 'fence': 1}
+            runner.read_artifact = lambda: {'sourceImageId': 'i', 'postgresImageId': 'p'}
+            runner.inspect_service = lambda service: {'Image': 'i' if service == 'restore-odoo' else 'p'}
+            runner.database_exists = lambda *_: False
+            runner.files_exist = lambda *_: False
+            streams = []
+            def pg_stream(service, stage, script, database, **kwargs):
+                streams.append((service, stage, kwargs.get('source') is not None))
+                if stage == 'restore-ai':
+                    raise odoo_effect.EffectError('artifact_command_failed')
+                if stage == 'restore-drop':
+                    return
+            runner.pg_stream = pg_stream
+            with patch.object(odoo_backup, 'permit', lambda stage: None), \
+                    patch.object(odoo_backup, 'reserve', lambda path, payload: Path(path).write_text('{}')):
+                with self.assertRaisesRegex(odoo_effect.EffectError, '^artifact_command_failed$'):
+                    runner._restore_operation()
+        self.assertEqual(streams, [('restore-db', 'restore-create', False), ('restore-db', 'restore-db', True), ('restore-db', 'restore-ai', True),
+                                   ('restore-db', 'restore-drop', False)])
 
 
 class RestoreServicesDeclaredTests(unittest.TestCase):

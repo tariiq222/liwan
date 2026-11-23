@@ -412,9 +412,9 @@ def _isolate_database(entry, runner, database):
                              _release_postgres().tenant_isolation_sql(database, entry['pg_user']))
 
 
-def _enable_trigram_extension(entry, runner, database):
-    """Install pg_trgm in the new database, as Odoo does; without it Odoo drops its trigram indexes."""
-    return _run_database_sql(entry, runner, database, _release_postgres().TENANT_EXTENSION_SQL + ';\n')
+def _bootstrap_database(entry, runner, database):
+    """Run the tenant bootstrap in the new, empty database: pg_trgm (without it Odoo drops its trigram indexes), then CREATE on public for the inventory role."""
+    return _run_database_sql(entry, runner, database, _release_postgres().tenant_bootstrap_sql(entry['pg_user']))
 
 
 def _bootstrap_ai_state(entry, runner, database):
@@ -764,7 +764,7 @@ def _other_mutation(fields, entry, fingerprint, runner, store):
                 return _payload(fields, 'needs_intervention', 'database_isolation', changed=True,
                                 error={'code': 'operation_failed',
                                        'message': 'Scratch database isolation requires inspection'})
-            if not _enable_trigram_extension(entry, runner, database):
+            if not _bootstrap_database(entry, runner, database):
                 return _payload(fields, 'needs_intervention', 'database_extension', changed=True,
                                 error={'code': 'operation_failed',
                                        'message': 'Scratch database extension requires inspection'})

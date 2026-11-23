@@ -15,9 +15,9 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from psycopg import Rollback
+from psycopg import Rollback, sql
 
-from liwan_ai_service.control import StateCompatibilityError
+from liwan_ai_service.control import StateCompatibilityError, queue_writer_role
 from liwan_ai_service.embeddings import Embedder
 
 QUEUE_KINDS = ("upsert", "delete", "reset")
@@ -56,18 +56,13 @@ $check$
     " PRIMARY KEY (model, res_id, chunk_no))",
     "CREATE INDEX IF NOT EXISTS ai_knowledge_chunk_company ON ai_knowledge_chunk (company_id)",
 )
-# The database owner is Odoo's role: it may append to the queue and nothing else in this schema.
-GRANT_KNOWLEDGE_QUEUE = """
-DO $grant$
-DECLARE
-    owner_role TEXT := (SELECT pg_catalog.pg_get_userbyid(datdba) FROM pg_catalog.pg_database WHERE datname = current_database());
-BEGIN
-    EXECUTE format('GRANT USAGE ON SCHEMA %I TO %I', current_schema(), owner_role);
-    EXECUTE format('GRANT INSERT ON %I.ai_knowledge_queue TO %I', current_schema(), owner_role);
-    EXECUTE format('GRANT USAGE ON SEQUENCE %I.ai_knowledge_queue_id_seq TO %I', current_schema(), owner_role);
-END
-$grant$
-"""
+# Odoo's database role (the one role besides the owner that holds USAGE on the schema, see queue_writer_role) may append
+# to the queue and nothing else in this schema.
+GRANT_KNOWLEDGE_QUEUE = (
+    "GRANT USAGE ON SCHEMA {schema} TO {role}",
+    "GRANT INSERT ON {schema}.ai_knowledge_queue TO {role}",
+    "GRANT USAGE ON SEQUENCE {schema}.ai_knowledge_queue_id_seq TO {role}",
+)
 KNOWLEDGE_TABLES = ("ai_knowledge_queue", "ai_knowledge_chunk")
 
 
@@ -86,8 +81,13 @@ async def require_vector(conn) -> None:
 
 
 async def grant_knowledge_queue(conn) -> None:
-    """Lets the database owner (Odoo) append to the queue; the AI role keeps ownership of everything."""
-    await conn.execute(GRANT_KNOWLEDGE_QUEUE)
+    """Lets Odoo's role append to the queue; the AI role keeps ownership of everything."""
+    writer = await queue_writer_role(conn)
+    if writer is None:
+        return
+    schema, role = (sql.Identifier(name) for name in writer)
+    for statement in GRANT_KNOWLEDGE_QUEUE:
+        await conn.execute(sql.SQL(statement).format(schema=schema, role=role))
 
 
 def rejects_the_input(error: Exception) -> bool:

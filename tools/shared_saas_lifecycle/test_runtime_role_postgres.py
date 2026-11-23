@@ -13,15 +13,49 @@ import tempfile
 import unittest
 import uuid
 
+from deploy.release.databases import snapshot_sql, swap_sql
 from deploy.releases.postgres import (
-    ODOO_RUNTIME_ROLE, POSTGRES_ADMIN_ROLE, TENANT_EXTENSION_SQL, runtime_role_assertion_sql, tenant_create_database_sql,
-    tenant_isolation_sql, tenant_schema_grant_sql,
+    ODOO_RUNTIME_ROLE, POSTGRES_ADMIN_ROLE, runtime_role_assertion_sql, tenant_bootstrap_sql, tenant_create_database_sql,
+    tenant_isolation_sql,
 )
 from tools.shared_saas_lifecycle import odoo_backup
-from tools.shared_saas_lifecycle.test_tenant_drop_effect import POSTGRES, POSTGRES_AVAILABLE, PostgresCluster, postgres_binary
+from tools.shared_saas_lifecycle.odoo_effect import AI_TENANT_SCHEMA
+from tools.shared_saas_lifecycle.test_tenant_drop_effect import (
+    POSTGRES, POSTGRES_AVAILABLE, PostgresCluster, assert_no_hostile_effect, hostile_effects, plant_hostile_code, postgres_binary,
+    reset_hostile_effects,
+)
 
 INIT_SCRIPT = Path(__file__).resolve().parents[2] / 'deploy' / 'db' / 'init-runtime-role.sh'
 PG_DUMP, PG_RESTORE = postgres_binary('pg_dump'), postgres_binary('pg_restore')
+ENVIRONMENT = {'POSTGRES_PASSWORD': 'unused-under-trust-auth', 'ODOO_DB_PASSWORD': 'unused-under-trust-auth', 'AI_DB_PASSWORD': 'unused-under-trust-auth'}
+
+
+def cluster_environment(cluster):
+    binaries = str(Path(POSTGRES['psql']).parent)
+    return {**os.environ, 'LC_ALL': 'C', 'LANG': 'C', 'PATH': binaries + os.pathsep + os.environ['PATH'],
+            'PGHOST': str(cluster.socket), 'PGPORT': cluster.port, **ENVIRONMENT}
+
+
+def create_tenant(cluster, database, *, ai_skeleton=True):
+    """What the lifecycle tools run as the admin role: create, close to PUBLIC, bootstrap, then the AI schema skeleton."""
+    cluster.sql('postgres', tenant_create_database_sql(database) + ';\n' + tenant_isolation_sql(database, ODOO_RUNTIME_ROLE))
+    cluster.sql(database, tenant_bootstrap_sql(ODOO_RUNTIME_ROLE))
+    if ai_skeleton:
+        done = subprocess.run(cluster.argv[:-1] + ['postgres', '-X', '-q', '-v', 'ON_ERROR_STOP=1', '-v', 'tenant_db=' + database, '-d', 'postgres',
+                                                   '-f', str(AI_TENANT_SCHEMA)], capture_output=True, check=False)
+        assert done.returncode == 0, done.stderr
+
+
+def run_stage(cluster, script, target, dump):
+    """One restore stage, with the restore-db host replaced by the throwaway cluster."""
+    script = script.replace('-h restore-db', f'-h {cluster.socket} -p {cluster.port}')
+    assert 'restore-db' not in script
+    return subprocess.run(['sh', '-c', script, 'liwan-backup', target], input=dump, capture_output=True, check=False, env=cluster_environment(cluster))
+
+
+def restore_stages(cluster, dump, target):
+    """The real stages of BackupRunner._restore_operation, in order; returns the completed processes."""
+    return [run_stage(cluster, script, target, dump) for script in (odoo_backup.create_database_script(target), odoo_backup.restore_database_script(target), odoo_backup.restore_ai_script())]
 
 
 @unittest.skipUnless(POSTGRES_AVAILABLE and PG_DUMP and PG_RESTORE, 'initdb, pg_ctl, psql, pg_dump and pg_restore are required for the real PostgreSQL tests')
@@ -30,10 +64,8 @@ class RuntimeRoleTests(unittest.TestCase):
     def setUpClass(cls):
         cls.cluster = PostgresCluster()
         # The shared harness creates a plain `odoo` login role; replace it with the one the init script makes.
-        cls.cluster.sql('postgres', 'DROP ROLE odoo; CREATE ROLE liwan_ai NOLOGIN')
-        binaries = str(Path(POSTGRES['psql']).parent)
-        cls.environment = {**os.environ, 'LC_ALL': 'C', 'LANG': 'C', 'PATH': binaries + os.pathsep + os.environ['PATH'],
-                           'PGHOST': str(cls.cluster.socket), 'PGPORT': cls.cluster.port, 'POSTGRES_PASSWORD': 'unused-under-trust-auth'}
+        cls.cluster.sql('postgres', 'DROP ROLE odoo; CREATE ROLE liwan_ai LOGIN')
+        cls.environment = cluster_environment(cls.cluster)
         subprocess.run(['sh', str(INIT_SCRIPT)], check=True, capture_output=True, env={
             **cls.environment, 'POSTGRES_USER': POSTGRES_ADMIN_ROLE, 'ODOO_DB_PASSWORD': 'test-only-password'})
 
@@ -49,10 +81,8 @@ class RuntimeRoleTests(unittest.TestCase):
     def drop(self, database):
         self.cluster.sql('postgres', f'DROP DATABASE IF EXISTS "{database}" WITH (FORCE)')
 
-    def create_tenant(self, database):
-        """What Runner.create_isolated_database runs, as the admin role."""
-        self.cluster.sql('postgres', tenant_create_database_sql(database) + ';\n' + tenant_isolation_sql(database, ODOO_RUNTIME_ROLE))
-        self.cluster.sql(database, TENANT_EXTENSION_SQL + ';\n' + tenant_schema_grant_sql(ODOO_RUNTIME_ROLE) + ';\n')
+    def create_tenant(self, database, **options):
+        create_tenant(self.cluster, database, **options)
 
     def as_runtime(self, database, statement):
         return subprocess.run(self.cluster.argv[:-1] + [ODOO_RUNTIME_ROLE, '-X', '-q', '-At', '-v', 'ON_ERROR_STOP=1', '-d', database],
@@ -129,35 +159,166 @@ class RuntimeRoleTests(unittest.TestCase):
         return done.stdout
 
     def restore(self, dump, target):
-        """The real restore_database_script, pointed at the throwaway cluster instead of the restore-db service."""
-        script = odoo_backup.restore_database_script(target).replace(
-            '-h restore-db', f'-h {self.cluster.socket} -p {self.cluster.port}')
-        self.assertNotIn('restore-db', script)
-        done = subprocess.run(['sh', '-c', script, 'liwan-backup', target], input=dump, capture_output=True, check=False, env=self.environment)
-        self.assertEqual(done.returncode, 0, done.stderr)
+        """The real restore stages, pointed at the throwaway cluster instead of the restore-db service."""
+        for stage in restore_stages(self.cluster, dump, target):
+            self.assertEqual(stage.returncode, 0, stage.stderr)
 
-    def test_a_backup_and_restore_round_trip_returns_the_tables_to_the_runtime_role(self):
-        self.as_runtime(self.database, 'CREATE TABLE res_partner (id serial PRIMARY KEY, name text); INSERT INTO res_partner (name) VALUES (\'ahmad\')')
-        self.cluster.sql(self.database, 'CREATE SCHEMA liwan_ai AUTHORIZATION liwan_ai')
+    def source_with_ai_table(self):
+        """Rows, an AI table owned by liwan_ai that odoo may insert into (the outbox grant), then the hostile fixture."""
+        self.as_runtime(self.database, "CREATE TABLE ir_config_parameter (key text PRIMARY KEY, value text); "
+                                       "INSERT INTO ir_config_parameter VALUES ('a', '1'), ('b', '2'); "
+                                       "CREATE TABLE res_partner (id serial PRIMARY KEY, name text); INSERT INTO res_partner (name) VALUES ('ahmad')").check_returncode()
+        self.cluster.sql(self.database, 'CREATE TABLE liwan_ai.ai_outbox (id serial PRIMARY KEY, body text); '
+                                        'GRANT INSERT ON liwan_ai.ai_outbox TO odoo; GRANT USAGE ON SEQUENCE liwan_ai.ai_outbox_id_seq TO odoo; '
+                                        "INSERT INTO liwan_ai.ai_outbox (body) VALUES ('queued')", role='liwan_ai')
+
+    def marker(self):
+        directory = tempfile.mkdtemp(prefix='ldp-marker-')
+        self.addCleanup(shutil.rmtree, directory, True)
+        return Path(directory) / 'program-ran'
+
+    def target(self):
+        target = 'liwan_scratch_' + uuid.uuid4().hex
+        self.addCleanup(self.drop, target)
+        return target
+
+    def test_a_backup_and_restore_round_trip_returns_the_tables_to_their_owning_roles(self):
+        self.source_with_ai_table()
         # pg_dump --no-owner is ignored for an archive, so the dump with and without it restores the same owners.
         for options in ((), ('--no-owner',)):
             with self.subTest(dump_options=options):
-                target = 'liwan_scratch_' + uuid.uuid4().hex
-                self.addCleanup(self.drop, target)
+                target = self.target()
                 self.restore(self.dump(*options), target)
                 self.assertEqual(self.cluster.sql(target, 'SELECT name FROM res_partner'), 'ahmad')
-                self.assertEqual(self.owners(target), ['res_partner:odoo', 'res_partner_id_seq:odoo'])
+                self.assertEqual(self.cluster.sql(target, 'SELECT body FROM liwan_ai.ai_outbox', role='liwan_ai'), 'queued')
+                self.assertEqual(self.owners(target), ['ir_config_parameter:odoo', 'res_partner:odoo', 'res_partner_id_seq:odoo'])
+                self.assertEqual(self.cluster.sql(target, "SELECT relname || ':' || pg_get_userbyid(relowner) FROM pg_class WHERE relnamespace = 'liwan_ai'::regnamespace "
+                                                          "AND relkind IN ('r', 'S') ORDER BY 1"), 'ai_outbox:liwan_ai\nai_outbox_id_seq:liwan_ai')
                 self.assertEqual(self.cluster.sql(target, "SELECT pg_get_userbyid(nspowner) FROM pg_namespace WHERE nspname = 'liwan_ai'"), 'liwan_ai')
+                self.assertEqual(self.cluster.sql(target, "SELECT string_agg(extname || ':' || pg_get_userbyid(extowner), ',' ORDER BY extname) FROM pg_extension WHERE extname <> 'plpgsql'"),
+                                 'pg_trgm:postgres,pgcrypto:postgres,vector:postgres')
                 self.assertEqual(self.cluster.sql('postgres', f"SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = '{target}'"), POSTGRES_ADMIN_ROLE)
                 self.cluster.sql('postgres', runtime_role_assertion_sql(ODOO_RUNTIME_ROLE, [target]))
-                done = self.as_runtime(target, 'INSERT INTO res_partner (name) VALUES (\'sara\'); CREATE TABLE after_restore (id int)')
+                # Odoo keeps its AI queue grants: the schema USAGE from the skeleton and the table grants the liwan_ai pass restored.
+                done = self.as_runtime(target, "INSERT INTO liwan_ai.ai_outbox (body) VALUES ('again'); INSERT INTO res_partner (name) VALUES ('sara'); CREATE TABLE after_restore (id int)")
                 self.assertEqual(done.returncode, 0, done.stderr)
 
+    def test_planted_code_runs_only_as_the_owning_non_superuser_role_through_a_whole_restore(self):
+        self.source_with_ai_table()
+        marker = self.marker()
+        plant_hostile_code(self.cluster, self.database, marker)
+        assert_no_hostile_effect(self, self.cluster, marker)
+        target = self.target()
+        self.restore(self.dump(), target)
+        # The fixture was reached by the restore (CHECK, both index builds and the materialized view refresh; triggers are created after the data), every time as plain `odoo`.
+        tags = assert_no_hostile_effect(self, self.cluster, marker, target)
+        self.assertTrue({'check', 'index', 'predicate', 'view'} <= tags, tags)
+        self.assertEqual(hostile_effects(self.cluster, marker), {'newRoles': [], 'superusers': [], 'programRan': False})
+        self.assertEqual(self.owners(target)[:2], ['evil_log:odoo', 'ir_config_parameter:odoo'])
+        self.assertEqual(self.cluster.sql(target, "SELECT count(*) FROM pg_class WHERE relnamespace = 'public'::regnamespace AND pg_get_userbyid(relowner) <> 'odoo' "
+                                                  "AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid = pg_class.oid AND d.deptype = 'e')"), '0')
+        self.cluster.sql('postgres', runtime_role_assertion_sql(ODOO_RUNTIME_ROLE, [target]))
+
+    def test_the_old_superuser_restore_would_have_been_exploited_by_the_same_fixture(self):
+        """Control: the fixture bites. The pre-change restore (admin session, dumped owners) lets planted code reach superuser power."""
+        self.source_with_ai_table()
+        marker = self.marker()
+        plant_hostile_code(self.cluster, self.database, marker)
+        target = self.target()
+        self.cluster.sql('postgres', f'CREATE DATABASE "{target}"')
+        self.addCleanup(reset_hostile_effects, self.cluster, marker)
+        subprocess.run([PG_RESTORE, '-h', str(self.cluster.socket), '-p', self.cluster.port, '-U', POSTGRES_ADMIN_ROLE, '--exit-on-error',
+                        '--single-transaction', '-d', target], input=self.dump(), capture_output=True, check=False, env=self.environment)
+        effects = hostile_effects(self.cluster, marker)
+        self.assertTrue(effects['newRoles'] or effects['superusers'] or effects['programRan'], effects)
+
+    def test_the_fixed_admin_scripts_leave_no_trace_on_a_database_full_of_planted_code(self):
+        self.source_with_ai_table()
+        marker = self.marker()
+        plant_hostile_code(self.cluster, self.database, marker)
+        self.cluster.sql(self.database, tenant_bootstrap_sql(ODOO_RUNTIME_ROLE))
+        done = subprocess.run(self.cluster.argv[:-1] + ['postgres', '-X', '-q', '-v', 'ON_ERROR_STOP=1', '-v', 'tenant_db=' + self.database, '-d', 'postgres',
+                                                        '-f', str(AI_TENANT_SCHEMA)], capture_output=True, check=False)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        # Nothing ran at all: the admin scripts read no tenant table and call nothing outside pg_catalog.
+        self.assertEqual(assert_no_hostile_effect(self, self.cluster, marker, self.database), set())
+
+    def test_a_snapshot_and_rename_of_a_restored_database_keeps_the_runtime_role_create_on_public(self):
+        """deploy/release/databases.py: CREATE DATABASE .. TEMPLATE .. STRATEGY FILE_COPY, then the swap rename."""
+        self.source_with_ai_table()
+        target = self.target()
+        self.restore(self.dump(), target)
+        self.cluster.sql('postgres', snapshot_sql(target))
+        self.cluster.sql('postgres', swap_sql(target, live=True))
+        self.cluster.sql('postgres', f'ALTER DATABASE "{target}" ALLOW_CONNECTIONS true')
+        self.assertEqual(self.cluster.sql(target, "SELECT has_schema_privilege('odoo', 'public', 'CREATE')"), 't')
+        self.assertEqual(self.cluster.sql(target, "SELECT pg_get_userbyid(nspowner) FROM pg_namespace WHERE nspname = 'liwan_ai'"), 'liwan_ai')
+        self.assertEqual(self.cluster.sql(target, "SELECT has_schema_privilege('odoo', 'liwan_ai', 'USAGE')"), 't')
+        done = self.as_runtime(target, 'CREATE TABLE after_swap (id int)')
+        self.assertEqual(done.returncode, 0, done.stderr)
+
+    def test_a_failed_odoo_phase_is_dropped_whole_by_the_drop_stage(self):
+        target = self.target()
+        script = odoo_backup.restore_database_script(target)
+        self.assertEqual(run_stage(self.cluster, odoo_backup.create_database_script(target), target, b'').returncode, 0)
+        failed = run_stage(self.cluster, script, target, b'this is not a dump archive')
+        self.assertNotEqual(failed.returncode, 0)
+        # The admin prepared the target before the archive was read, so it exists half-built until the drop stage runs.
+        self.assertTrue(self.cluster.exists(target))
+        dropped = run_stage(self.cluster, odoo_backup.drop_target_script(target), target, b'')
+        self.assertEqual(dropped.returncode, 0, dropped.stderr)
+        self.assertFalse(self.cluster.exists(target))
+        # Dropping an absent database is not an error: the stage also covers a failure before the create.
+        self.assertEqual(run_stage(self.cluster, odoo_backup.drop_target_script(target), target, b'').returncode, 0)
+
+    def test_the_liwan_ai_phase_without_an_ai_password_fails_when_the_cluster_has_the_ai_role(self):
+        self.source_with_ai_table()
+        target = self.target()
+        dump = self.dump()
+        for script in (odoo_backup.create_database_script(target), odoo_backup.restore_database_script(target)):
+            self.assertEqual(run_stage(self.cluster, script, target, dump).returncode, 0)
+        script = odoo_backup.restore_ai_script().replace('-h restore-db', f'-h {self.cluster.socket} -p {self.cluster.port}')
+        refused = subprocess.run(['sh', '-c', script, 'liwan-backup', target], input=dump, capture_output=True, check=False,
+                                 env={**self.environment, 'AI_DB_PASSWORD': ''})
+        self.assertEqual(refused.returncode, 1)
+        self.assertIn(b'ai_password_missing', refused.stderr)
+        self.assertEqual(self.cluster.sql(target, "SELECT count(*) FROM pg_class WHERE relnamespace = 'liwan_ai'::regnamespace AND relkind = 'r'"), '0')
+
+    def test_a_dump_without_the_ai_schema_restores_with_an_empty_ai_phase(self):
+        self.drop(self.database)
+        self.create_tenant(self.database, ai_skeleton=False)
+        self.as_runtime(self.database, 'CREATE TABLE res_partner (id serial PRIMARY KEY, name text); INSERT INTO res_partner (name) VALUES (\'ahmad\')').check_returncode()
+        target = self.target()
+        self.restore(self.dump(), target)
+        self.assertEqual(self.cluster.sql(target, 'SELECT name FROM res_partner'), 'ahmad')
+        self.assertEqual(self.cluster.sql(target, "SELECT count(*) FROM pg_class WHERE relnamespace = 'liwan_ai'::regnamespace AND relkind = 'r'"), '0')
+
     def test_the_restored_database_is_closed_to_public(self):
-        target = 'liwan_scratch_' + uuid.uuid4().hex
-        self.addCleanup(self.drop, target)
+        target = self.target()
         self.restore(self.dump(), target)
         self.assertEqual(self.public_connect(target), '0')
+
+
+@unittest.skipUnless(POSTGRES_AVAILABLE and PG_DUMP and PG_RESTORE, 'initdb, pg_ctl, psql, pg_dump and pg_restore are required for the real PostgreSQL tests')
+class RestoreWithoutAiRoleTests(unittest.TestCase):
+    """A deployment without AI: the cluster has no liwan_ai role, so the skeleton is a no-op and the AI phase drains."""
+
+    def test_the_two_stages_restore_a_tenant_when_the_cluster_has_no_ai_role(self):
+        cluster = PostgresCluster()
+        self.addCleanup(cluster.stop)
+        source, target = 'liwan_role_noai_src', 'liwan_scratch_' + uuid.uuid4().hex
+        create_tenant(cluster, source)
+        cluster.sql(source, 'CREATE TABLE res_partner (id serial PRIMARY KEY, name text); INSERT INTO res_partner (name) VALUES (\'ahmad\')', role='odoo')
+        dump = subprocess.run([PG_DUMP, '-h', str(cluster.socket), '-p', cluster.port, '-U', POSTGRES_ADMIN_ROLE, '--format=custom', source],
+                              capture_output=True, check=True, env=cluster_environment(cluster)).stdout
+        stages = [run_stage(cluster, odoo_backup.create_database_script(target), target, dump),
+                  run_stage(cluster, odoo_backup.restore_database_script(target), target, dump)]
+        script = odoo_backup.restore_ai_script().replace('-h restore-db', f'-h {cluster.socket} -p {cluster.port}')
+        stages.append(subprocess.run(['sh', '-c', script, 'liwan-backup', target], input=dump, capture_output=True, check=False,
+                                     env={**cluster_environment(cluster), 'AI_DB_PASSWORD': ''}))
+        self.assertEqual([stage.returncode for stage in stages], [0, 0, 0], [stage.stderr for stage in stages])
+        self.assertEqual(cluster.sql(target, 'SELECT name FROM res_partner'), 'ahmad')
+        self.assertEqual(cluster.sql(target, "SELECT count(*) FROM pg_namespace WHERE nspname = 'liwan_ai'"), '0')
 
 
 AI_INIT_SCRIPT = INIT_SCRIPT.parents[1] / 'ai' / 'init-db.sh'

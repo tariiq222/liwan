@@ -20,6 +20,29 @@ class StateCompatibilityError(RuntimeError):
     """State needs explicit operator initialization or an offline migration, never runtime setup."""
 
 
+# Odoo's database role is the one role other than the schema owner that holds USAGE on the tenant schema: the operator
+# script deploy/ai/tenant_schema.sql grants it, as the admin role, before this bootstrap runs. Nobody else is named, and
+# neither the database owner (the admin role) nor PUBLIC counts.
+QUEUE_WRITER_QUERY = """
+SELECT DISTINCT current_schema(), pg_catalog.pg_get_userbyid(a.grantee)
+FROM pg_catalog.pg_namespace n, LATERAL pg_catalog.aclexplode(n.nspacl) a
+WHERE n.nspname = current_schema() AND a.privilege_type = 'USAGE' AND a.grantee NOT IN (0, n.nspowner)
+"""
+
+
+async def queue_writer_role(conn) -> tuple[str, str] | None:
+    """The tenant schema and the role that appends to the AI queues; ``None`` when no role holds USAGE yet.
+
+    Without the operator script (a bare test schema) nobody can write, so there is nothing to grant. A second role
+    holding USAGE is refused: a queue grant must never reach a role the script did not name.
+    """
+    rows = await (await conn.execute(QUEUE_WRITER_QUERY)).fetchall()
+    if len(rows) > 1:
+        msg = "ai_state_incompatible: more than one role besides the owner holds USAGE on the tenant schema"
+        raise StateCompatibilityError(msg)
+    return rows[0] if rows else None
+
+
 class ControlState(Protocol):
     state_id: str
 

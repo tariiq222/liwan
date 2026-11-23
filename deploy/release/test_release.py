@@ -138,8 +138,6 @@ class FakePostgres:
             return error
         if statement.startswith('DO $$') and 'privileged_or_missing_role' in statement:
             return 'privileged_or_missing_role' if case.runtime_role_violation else None
-        if statement.startswith('GRANT CREATE ON SCHEMA'):
-            return None
         if statement.startswith(('GRANT', 'REVOKE')):
             return self.require(names[0], True) or self.change_acl(statement, names)
         if statement.startswith('ALTER DATABASE'):
@@ -1463,15 +1461,14 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual({call[call.index('--pg-user') + 1] for call in dumps}, {'postgres'})
         self.assertEqual(len(dumps), len(self.tenant_names))
 
-    def test_the_rollback_regrants_the_runtime_role_and_its_schema_privilege(self):
+    def test_the_rollback_regrants_the_runtime_role_and_issues_no_tenant_database_admin_session(self):
         self.fail_upgrade_of = 'tenant_one'
         self.assertEqual(self.main(), release.EXIT_FAILED)
         self.assertTrue(any('GRANT CONNECT ON DATABASE "tenant_one" TO "odoo"' in sql for sql in self.sql))
-        self.assertTrue(any('GRANT CREATE ON SCHEMA public TO "odoo"' in sql for sql in self.sql))
-        schema_calls = [call for call, stdin in zip(self.runner.calls, self.runner.stdins)
-                        if stdin and 'ON SCHEMA public' in stdin]
-        self.assertTrue(schema_calls and all(call[call.index('-d') + 1] == 'tenant_one' for call in schema_calls))
-        self.assertTrue(all(call[call.index('-U') + 1] == 'postgres' for call in schema_calls))
+        self.assertFalse(any('ON SCHEMA' in sql for sql in self.sql))  # the snapshot copy already carries the schema ACL
+        psql_calls = [call for call in self.runner.calls if 'psql' in call]
+        self.assertTrue(psql_calls)
+        self.assertEqual({call[call.index('-d') + 1] for call in psql_calls}, {'postgres'})
 
     def test_the_role_assertion_runs_before_the_capture_when_a_release_is_served(self):
         self.assertEqual(self.main(), release.EXIT_OK)

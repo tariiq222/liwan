@@ -30,6 +30,9 @@ RUNTIME_ROLE_RULES = (
     ('database_owner_rejected',
      'EXISTS (SELECT 1 FROM pg_database d JOIN pg_roles r ON r.oid = d.datdba '
      'WHERE d.datname = ANY(%(databases)s::text[]) AND r.rolname = %(role)s)'),
+    ('database_create_granted',
+     "EXISTS (SELECT 1 FROM pg_database d, LATERAL aclexplode(COALESCE(d.datacl, acldefault('d', d.datdba))) a "
+     "WHERE d.datname = ANY(%(databases)s::text[]) AND a.privilege_type = 'CREATE' AND a.grantee <> d.datdba)"),
 )
 
 
@@ -59,7 +62,8 @@ def runtime_role_assertion_sql(role, databases):
     """One statement that raises in PostgreSQL unless ``role`` is a plain login role that owns none of ``databases``.
 
     Run it as the admin role; it raises the reason of the first violated rule of RUNTIME_ROLE_RULES
-    (a missing role, a privileged attribute, any membership, or ownership of a listed database).
+    (a missing role, a privileged attribute, any membership, ownership of a listed database, or any grantee
+    other than the owner holding CREATE on one).
     """
     if not isinstance(databases, (list, tuple)):
         raise ValueError('runtime_databases_rejected')
@@ -71,10 +75,19 @@ def runtime_role_assertion_sql(role, databases):
     return f'DO $$ BEGIN {checks} END $$'
 
 
+def session_role(database):
+    """The role a session on ``database`` logs in as: the admin role in ``postgres`` only, the owning role in a tenant database.
+
+    No tenant-controlled code may run in a superuser session, so everything that reads or writes tenant
+    tables connects as the application role; the admin role stays in the ``postgres`` database.
+    """
+    identifier(database)
+    return POSTGRES_ADMIN_ROLE if database == 'postgres' else ODOO_RUNTIME_ROLE
+
+
 # Odoo's own recipe for an empty database (odoo/service/db.py _create_empty_database): unicode, C
 # collation and template0, then pg_trgm in the new database. Without the C collation and the extension
 # Odoo silently drops its trigram indexes, so every tenant database is created through these two.
-TENANT_EXTENSION_SQL = 'CREATE EXTENSION IF NOT EXISTS pg_trgm'
 
 
 def tenant_create_database_sql(database):
@@ -100,12 +113,17 @@ def tenant_isolation_statements(database, application_role):
     )
 
 
-def tenant_schema_grant_sql(application_role):
-    """Lets the non-superuser application role create its tables; run inside the tenant database.
+def tenant_bootstrap_sql(application_role):
+    """The one admin script that runs inside a tenant database before the application role works there.
 
-    PostgreSQL 15 and later give CREATE on schema public to the database owner only.
+    It pins ``search_path`` to ``pg_catalog`` so no tenant-planted function can shadow a call, writes every
+    schema out, creates ``pg_trgm`` before it grants ``CREATE`` on schema public (the extension script never
+    runs in a schema the tenant role can write), then lets the application role create its tables
+    (PostgreSQL 15 and later give CREATE on schema public to the database owner only). Safe to rerun.
     """
-    return f'GRANT CREATE ON SCHEMA public TO {identifier(application_role)}'
+    return ('SET search_path = pg_catalog;\n'
+            'CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;\n'
+            f'GRANT CREATE ON SCHEMA public TO {identifier(application_role)};\n')
 
 
 def cluster_connect_grant_sql(application_role):

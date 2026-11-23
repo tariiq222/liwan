@@ -7,7 +7,12 @@ import tempfile
 import unittest
 import unittest.mock
 from pathlib import Path
+import shutil
+import subprocess
 from tools.shared_saas_lifecycle import odoo_effect
+from tools.shared_saas_lifecycle.test_tenant_drop_effect import (
+    POSTGRES, POSTGRES_AVAILABLE, PostgresCluster, assert_no_hostile_effect, plant_hostile_code,
+)
 
 class PhysicalBoundaryTests(unittest.TestCase):
     def test_database_and_modules_fail_closed(self):
@@ -713,7 +718,8 @@ class TenantIsolationOrderTests(unittest.TestCase):
         self.assertLess(create_sql.index('CREATE DATABASE'), revoke)
         self.assertLess(revoke, grant)
         self.assertLess(grant, create_sql.index('public_connect_not_revoked'))
-        self.assertIn('pg_trgm', extension_sql)
+        self.assertTrue(extension_sql.startswith('SET search_path = pg_catalog;'))
+        self.assertIn('CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public', extension_sql)
         self.assertLess(extension_sql.index('pg_trgm'), extension_sql.index('GRANT CREATE ON SCHEMA public TO "odoo"'))
         for args, _ in self.commands:
             if 'psql' in args:
@@ -784,6 +790,63 @@ class TenantIsolationOrderTests(unittest.TestCase):
                 self.apply(runner)
         self.assertEqual(self.kinds(), ['psql', 'psql', 'psql', 'ai'])
         self.assertNotIn('complete', self.permits)
+
+
+@unittest.skipUnless(POSTGRES_AVAILABLE, 'initdb, pg_ctl and psql are required for the real PostgreSQL tests')
+class RealBootstrapTests(unittest.TestCase):
+    """The provisioning effect against a real server: admin statements stay in `postgres` or in the fixed bootstrap."""
+    DATABASE = 'liwan_scratch_' + 'b' * 32
+
+    @classmethod
+    def setUpClass(cls):
+        cls.cluster = PostgresCluster()
+        cls.available = 'pg_trgm' in cls.cluster.sql('postgres', 'SELECT name FROM pg_available_extensions').split()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.cluster.stop()
+
+    def setUp(self):
+        if not self.available:
+            self.skipTest('the pg_trgm extension is not installed on this PostgreSQL')
+        self.root = Path(tempfile.mkdtemp(prefix='liwan-bootstrap-real-')).resolve()
+        self.addCleanup(shutil.rmtree, self.root, True)
+        self.addCleanup(self.cluster.sql, 'postgres', f'DROP DATABASE IF EXISTS "{self.DATABASE}" WITH (FORCE)')
+
+    def runner(self):
+        runner = object.__new__(odoo_effect.Runner)
+        runner.database = self.DATABASE
+        runner.base = []
+        self.databases = []
+
+        def command(args, *, stdin='', timeout=90):
+            arguments = args[args.index('psql') + 1:]
+            self.databases.append(arguments[arguments.index('-d') + 1])
+            done = subprocess.run([POSTGRES['psql'], '-h', str(self.cluster.socket), '-p', self.cluster.port, '-X', *arguments],
+                                  input=stdin.encode(), capture_output=True, check=True)
+            return done.stdout.decode()
+        runner.command = command
+        return runner
+
+    def test_the_bootstrap_lets_the_application_role_create_its_tables_and_installs_the_extension_in_public(self):
+        runner = self.runner()
+        runner.create_isolated_database()
+        self.assertEqual(self.databases, ['postgres', self.DATABASE])
+        self.assertEqual(self.cluster.sql(self.DATABASE, "SELECT nspname FROM pg_extension e JOIN pg_namespace n ON n.oid = e.extnamespace WHERE extname = 'pg_trgm'"), 'public')
+        self.cluster.sql(self.DATABASE, 'CREATE TABLE ir_config_parameter (key text PRIMARY KEY, value text)', role='odoo')
+        self.assertEqual(self.cluster.sql('postgres', f"SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = '{self.DATABASE}'"), 'postgres')
+
+    def test_planted_code_runs_in_no_superuser_session_when_the_bootstrap_runs_again(self):
+        runner = self.runner()
+        runner.create_isolated_database()
+        marker_file = self.root / 'program-ran'
+        self.cluster.sql(self.DATABASE, 'CREATE TABLE ir_config_parameter (key text PRIMARY KEY, value text)', role='odoo')
+        plant_hostile_code(self.cluster, self.DATABASE, marker_file)
+        self.databases.clear()
+        runner.bootstrap_tenant_database()
+        self.assertEqual(self.databases, [self.DATABASE])
+        # The bootstrap touches no table: nothing planted ran, in any session.
+        self.assertEqual(assert_no_hostile_effect(self, self.cluster, marker_file, self.DATABASE), set())
 
 
 if __name__ == '__main__':

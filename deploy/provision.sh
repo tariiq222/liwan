@@ -230,15 +230,22 @@ if [ -z "$db_exists" ]; then
 fi
 repo_python 'import sys; from deploy.releases.postgres import tenant_isolation_sql; sys.stdout.write(tenant_isolation_sql(sys.argv[1], sys.argv[2]))' "$DB_NAME" odoo \
   | tenant_psql -d postgres
-repo_python 'import sys; from deploy.releases.postgres import TENANT_EXTENSION_SQL; sys.stdout.write(TENANT_EXTENSION_SQL + ";\n")' \
-  | tenant_psql -d "$DB_NAME"
-# The runtime role is not a superuser: it needs CREATE on the tenant's public schema (PostgreSQL 15 and later give it
-# to the database owner only) and CONNECT on the postgres database, which Odoo's cron and health probe use.
-repo_python 'import sys; from deploy.releases.postgres import tenant_schema_grant_sql; sys.stdout.write(tenant_schema_grant_sql(sys.argv[1]) + ";\n")' odoo \
+# Inside the tenant database the admin role runs two fixed scripts and nothing else (deploy/OPERATIONS.md, "Database
+# roles"): this bootstrap (search_path pinned, pg_trgm, then the CREATE grant) and ai/tenant_schema.sql below, both on
+# the still empty database. The runtime role is not a superuser: it needs CREATE on the tenant's public schema
+# (PostgreSQL 15 and later give it to the database owner only) and CONNECT on the postgres database, which Odoo's cron
+# and health probe use.
+repo_python 'import sys; from deploy.releases.postgres import tenant_bootstrap_sql; sys.stdout.write(tenant_bootstrap_sql(sys.argv[1]))' odoo \
   | tenant_psql -d "$DB_NAME"
 repo_python 'import sys; from deploy.releases.postgres import cluster_connect_grant_sql; sys.stdout.write(cluster_connect_grant_sql(sys.argv[1]) + ";\n")' odoo \
   | tenant_psql -d postgres
 
+# Give LiwanOS AI's role CONNECT and its own schema in the tenant database, with no access to schema public, and the
+# Odoo role USAGE on that schema (ai/tenant_schema.sql; the PUBLIC revoke is the isolation step above). It runs on the
+# empty database, before the install; a rerun is safe too. A no-op when the liwan_ai role does not exist
+# (deployments without AI); a real error still stops provisioning.
+docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v tenant_db="$DB_NAME" \
+  < ai/tenant_schema.sql
 # Every pillar must be listed explicitly: pillars depend on liwan_api, not the other way round.
 docker compose -f docker-compose.yml -f docker-compose.classification.yml run --rm \
   -v "$PWD/data/odoo.conf:/etc/odoo/odoo.conf:ro" odoo \
@@ -253,11 +260,6 @@ set_public_origin
 if ai_profile_enabled && [ -z "${LIWAN_AI_USAGE_KEY:-}" ]; then
   mint_ai_usage_key
 fi
-# Give LiwanOS AI's role CONNECT and its own schema in the tenant database, with no access to schema public
-# (ai/tenant_schema.sql; the PUBLIC revoke is the isolation step above). A no-op when the liwan_ai role does not
-# exist (deployments without AI); a real error still stops provisioning.
-docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v tenant_db="$DB_NAME" \
-  < ai/tenant_schema.sql
 # The runtime validates AI state and never runs DDL: the operator bootstrap creates the tables in that
 # schema, so it runs here for every tenant while the ai profile is enabled. The control state comes first (once per
 # deployment, idempotent: it validates an existing state), so the service does not restart-loop on

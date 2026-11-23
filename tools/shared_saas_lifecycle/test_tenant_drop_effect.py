@@ -136,6 +136,16 @@ class GuardTests(unittest.TestCase):
         self.assertEqual(args[args.index('-U') + 1], 'postgres')
         self.assertNotIn('odoo', args[args.index('psql'):])
 
+    def test_the_compose_backend_logs_in_as_the_application_role_inside_a_tenant_database(self):
+        backend = effect.ComposeBackend({'projectName': 'liwan-shared-droptest', 'envFile': 'runtime.env', 'composeFile': 'compose.yml'})
+        for service, database, role in (('db', 'liwan_scratch_' + 'a' * 32, 'odoo'), ('restore-db', 'liwan_scratch_' + 'a' * 32, 'odoo'),
+                                        ('db', 'postgres', 'postgres')):
+            with self.subTest(database=database, service=service), mock.patch.object(effect, '_run', return_value='') as run:
+                backend.psql(service, database, 'SELECT 1')
+            args = run.call_args.args[0]
+            self.assertEqual(args[args.index('-U') + 1], role)
+            self.assertNotIn('PGPASSWORD', ' '.join(args))
+
     def test_the_host_must_belong_to_this_runtime(self):
         for host in ('Tacme.example.test', 'tacme.other.test', 'example.test', 'https://tacme.example.test', ''):
             with self.subTest(host=host):
@@ -400,10 +410,19 @@ class PostgresCluster:
         self.argv = [POSTGRES['psql'], '-h', str(self.socket), '-p', self.port, '-U', 'postgres']
         self.sql('postgres', 'CREATE ROLE odoo LOGIN')
 
-    def sql(self, database, statement):
-        done = subprocess.run(self.argv + ['-X', '-q', '-At', '-v', 'ON_ERROR_STOP=1', '-d', database], input=statement.encode(),
+    def sql(self, database, statement, role=None):
+        argv = list(self.argv)
+        if role:
+            argv[argv.index('-U') + 1] = role
+        done = subprocess.run(argv + ['-X', '-q', '-At', '-v', 'ON_ERROR_STOP=1', '-d', database], input=statement.encode(),
                               capture_output=True, check=True)
         return done.stdout.decode().strip()
+
+    def create_tenant_database(self, database, statements):
+        """A database whose tables belong to the application role, as in production (the role creates its own tables)."""
+        self.sql('postgres', f'CREATE DATABASE "{database}"')
+        self.sql(database, 'GRANT CREATE ON SCHEMA public TO odoo')
+        self.sql(database, statements, role='odoo')
 
     def exists(self, database):
         return self.sql('postgres', f"SELECT count(*) FROM pg_database WHERE datname = '{database}'") == '1'
@@ -411,6 +430,78 @@ class PostgresCluster:
     def stop(self):
         subprocess.run([POSTGRES['pg_ctl'], '-D', str(self.root / 'data'), '-m', 'immediate', '-w', 'stop'], capture_output=True, check=False)
         shutil.rmtree(self.root, ignore_errors=True)
+
+
+HOSTILE_TAGS = frozenset({'predicate', 'index', 'check', 'default', 'trigger'})
+
+
+def plant_hostile_code(cluster, database, marker_file):
+    """Plants code owned by `odoo` in a tenant database whose tables `odoo` owns (see PostgresCluster.create_tenant_database).
+
+    The function tries, each in its own exception block, RESET SESSION AUTHORIZATION, SET SESSION AUTHORIZATION postgres,
+    SET ROLE postgres, CREATE ROLE evil_x SUPERUSER, ALTER ROLE odoo SUPERUSER and COPY .. TO PROGRAM 'touch <marker_file>'.
+    It is wired into a CHECK, a column default, a BEFORE INSERT trigger on ir_config_parameter, an expression index, a
+    partial-index predicate, a materialized view and a shadowing public.format(text, text). Every run is recorded in
+    evil_log; the log is emptied once the planting is done. The table ir_config_parameter must already exist.
+    """
+    attempts = ["RESET SESSION AUTHORIZATION", "SET SESSION AUTHORIZATION postgres", "SET ROLE postgres",
+                "CREATE ROLE evil_x SUPERUSER", "ALTER ROLE odoo SUPERUSER",
+                "COPY (SELECT 1) TO PROGRAM ''touch " + str(marker_file) + "''"]
+    statements = [
+        'CREATE TABLE evil_log (tag text, session_name text, current_name text, superuser text)',
+        # IMMUTABLE wrappers reach the planner (index predicates, index builds); the volatile function does the work.
+        "CREATE FUNCTION evil_attempt(tag text) RETURNS boolean LANGUAGE plpgsql AS $f$ DECLARE statement text; BEGIN "
+        "INSERT INTO public.evil_log VALUES (tag, session_user::text, current_user::text, current_setting('is_superuser')); "
+        "FOREACH statement IN ARRAY ARRAY['" + "', '".join(attempts) + "'] LOOP "
+        "BEGIN EXECUTE statement; EXCEPTION WHEN OTHERS THEN NULL; END; END LOOP; RETURN true; END $f$",
+        'CREATE FUNCTION evil_bool(tag text) RETURNS boolean IMMUTABLE LANGUAGE plpgsql AS $f$ BEGIN RETURN public.evil_attempt(tag); END $f$',
+        "CREATE FUNCTION evil_trigger() RETURNS trigger LANGUAGE plpgsql AS $f$ BEGIN PERFORM public.evil_attempt('trigger'); RETURN NEW; END $f$",
+        "CREATE FUNCTION public.format(text, text) RETURNS text LANGUAGE plpgsql AS $f$ BEGIN PERFORM public.evil_attempt('shadow'); RETURN $1; END $f$",
+        "ALTER TABLE ir_config_parameter ADD COLUMN evil_default boolean DEFAULT public.evil_attempt('default')",
+        "ALTER TABLE ir_config_parameter ADD CONSTRAINT evil_check CHECK (public.evil_attempt('check'))",
+        'CREATE TRIGGER evil_trigger BEFORE INSERT ON ir_config_parameter FOR EACH ROW EXECUTE FUNCTION evil_trigger()',
+        "CREATE INDEX evil_index ON ir_config_parameter ((CASE WHEN public.evil_bool('index') THEN key END))",
+        "CREATE INDEX evil_predicate ON ir_config_parameter (key) WHERE public.evil_bool('predicate')",
+        "CREATE MATERIALIZED VIEW evil_view AS SELECT key FROM ir_config_parameter WHERE public.evil_attempt('view')",
+        'DELETE FROM evil_log',
+    ]
+    cluster.sql(database, ';\n'.join(statements), role='odoo')
+
+
+def reset_hostile_effects(cluster, marker_file):
+    """Undoes what planted code did when it ran as the superuser (a control run only)."""
+    for role in cluster.sql('postgres', "SELECT rolname FROM pg_roles WHERE rolname LIKE 'evil%'").split():
+        cluster.sql('postgres', f'DROP ROLE "{role}"')
+    cluster.sql('postgres', 'ALTER ROLE odoo NOSUPERUSER')
+    Path(marker_file).unlink(missing_ok=True)
+
+
+def hostile_effects(cluster, marker_file):
+    """What planted code changed outside its database: new evil roles, superuser roles other than postgres, the program's file."""
+    return {
+        'newRoles': cluster.sql('postgres', "SELECT rolname FROM pg_roles WHERE rolname LIKE 'evil%' ORDER BY 1").split(),
+        'superusers': cluster.sql('postgres', "SELECT rolname FROM pg_roles WHERE rolsuper AND rolname <> 'postgres' ORDER BY 1").split(),
+        'programRan': Path(marker_file).exists(),
+    }
+
+
+def recorded_attempts(cluster, database):
+    """The (tag, session_user, is_superuser) rows the planted code recorded, read as `odoo`."""
+    rows = cluster.sql(database, "SELECT tag || '|' || session_name || '|' || superuser FROM evil_log", role='odoo')
+    return [tuple(row.split('|')) for row in rows.split()]
+
+
+def assert_no_hostile_effect(test, cluster, marker_file, database=None):
+    """Asserts by effect, never by error text. With ``database`` it also needs every recorded run to have been a plain `odoo` session.
+
+    Returns the set of tags that ran, so a test can prove the planted code was reached.
+    """
+    test.assertEqual(hostile_effects(cluster, marker_file), {'newRoles': [], 'superusers': [], 'programRan': False})
+    if database is None:
+        return set()
+    attempts = recorded_attempts(cluster, database)
+    test.assertEqual({(session, superuser) for _, session, superuser in attempts}, {('odoo', 'off')} if attempts else set())
+    return {tag for tag, _, _ in attempts}
 
 
 def tenant_schema_sql(plan, **change):
@@ -465,14 +556,12 @@ class RealDropTests(unittest.TestCase):
     # ---- fixtures -------------------------------------------------------------------------------------
 
     def create_tenant(self, **change):
-        self.cluster.sql('postgres', f'CREATE DATABASE "{self.database}"')
-        self.cluster.sql(self.database, tenant_schema_sql(self.plan, **change))
+        self.cluster.create_tenant_database(self.database, tenant_schema_sql(self.plan, **change))
 
     def create_copy(self, name, marker=CONTROL_TENANT):
         """A restore copy: a database that carries the marker of the tenant it was restored from."""
-        self.cluster.sql('postgres', f'CREATE DATABASE "{name}"')
-        self.cluster.sql(name, 'CREATE TABLE ir_config_parameter (key text PRIMARY KEY, value text)'
-                         + ('' if marker is None else f"; INSERT INTO ir_config_parameter VALUES ('liwan.control.tenant_id', '{marker}')"))
+        self.cluster.create_tenant_database(name, 'CREATE TABLE ir_config_parameter (key text PRIMARY KEY, value text)'
+                                            + ('' if marker is None else f"; INSERT INTO ir_config_parameter VALUES ('liwan.control.tenant_id', '{marker}')"))
 
     def create_filestore(self, root='data', name=None):
         store = self.root / root / 'filestore' / (name or self.database)
@@ -859,6 +948,62 @@ class RealDropTests(unittest.TestCase):
             with self.subTest(name=name), self.assertRaisesRegex(EffectError, '^restore_copy_unreadable$'):
                 self.run_stage('remove_restore_copies', plan={**self.plan, 'restoreCopies': [name]})
             self.assertTrue(self.cluster.exists(name))
+
+    # ---- planted tenant code never runs in a superuser session -------------------------------------------
+
+    def plant(self, database=None):
+        self.marker_file = self.root / 'program-ran'
+        plant_hostile_code(self.cluster, database or self.database, self.marker_file)
+
+    def assert_clean(self, database=None):
+        return assert_no_hostile_effect(self, self.cluster, self.marker_file, database)
+
+    def test_the_control_planted_code_does_bite_when_the_admin_role_reads_the_identity(self):
+        self.create_tenant()
+        self.plant()
+        self.addCleanup(reset_hostile_effects, self.cluster, self.marker_file)
+        self.cluster.sql(self.database, effect.IDENTITY_SQL)
+        self.assertEqual(hostile_effects(self.cluster, self.marker_file),
+                         {'newRoles': ['evil_x'], 'superusers': ['evil_x', 'odoo'], 'programRan': True})
+
+    def test_verify_runs_the_identity_read_as_the_application_role_whatever_the_tenant_planted(self):
+        self.create_tenant()
+        self.plant()
+        self.assertEqual(self.run_stage('verify')['verdict'], 'ok')
+        self.assertLessEqual({'predicate'}, self.assert_clean(self.database))
+
+    def test_stamp_marker_reads_and_writes_as_the_application_role_whatever_the_tenant_planted(self):
+        self.create_tenant(marker=None)
+        self.plant()
+        self.assertEqual(self.run_stage('stamp_marker')['state'], 'stamped')
+        self.assertLessEqual({'predicate', 'trigger', 'check', 'default'}, self.assert_clean(self.database))
+        self.assertEqual(self.cluster.sql(self.database, effect.MARKER_SQL), CONTROL_TENANT)
+
+    def test_the_drop_reads_the_identity_as_the_application_role_whatever_the_tenant_planted(self):
+        self.create_tenant()
+        self.plant()
+        self.assertEqual(self.run_stage('drop_database')['state'], 'dropped')
+        self.assertFalse(self.cluster.exists(self.database))
+        self.assert_clean()
+
+    def test_the_restore_copy_marker_is_read_as_the_application_role_whatever_the_copy_holds(self):
+        other = 'liwan_scratch_' + 'f' * 32
+        self.create_copy(other, marker='another-tenant')
+        self.plant(other)
+        with self.assertRaisesRegex(EffectError, '^restore_copy_marker_mismatch$'):
+            self.run_stage('remove_restore_copies', plan={**self.plan, 'restoreCopies': [other]})
+        self.assertIn('predicate', self.assert_clean(other))
+        mine = 'liwan_scratch_' + 'a' * 32
+        self.create_copy(mine)
+        self.plant(mine)
+        self.run_stage('remove_restore_copies', plan={**self.plan, 'restoreCopies': [mine]})
+        self.assertFalse(self.cluster.exists(mine))
+        self.assert_clean()
+
+    def test_the_backends_take_the_role_from_the_database(self):
+        self.create_tenant()
+        self.assertEqual(self.backend.psql('db', self.database, 'SELECT session_user').strip(), 'odoo')
+        self.assertEqual(self.backend.psql('db', 'postgres', 'SELECT session_user').strip(), 'postgres')
 
     # ---- idempotence -------------------------------------------------------------------------------------
 

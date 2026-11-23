@@ -223,7 +223,7 @@ TENANT_DB_ROLE="odoo"
 create_tenant_database() {
   (cd "$REPO_ROOT" && python3 -B -c 'import sys; from deploy.releases.postgres import tenant_create_database_sql, tenant_isolation_sql, cluster_connect_grant_sql; sys.stdout.write(tenant_create_database_sql(sys.argv[1]) + ";\n" + tenant_isolation_sql(sys.argv[1], sys.argv[2]) + cluster_connect_grant_sql(sys.argv[2]) + ";\n")' "$1" "$TENANT_DB_ROLE") \
     | compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 -q
-  (cd "$REPO_ROOT" && python3 -B -c 'import sys; from deploy.releases.postgres import TENANT_EXTENSION_SQL, tenant_schema_grant_sql; sys.stdout.write(TENANT_EXTENSION_SQL + ";\n" + tenant_schema_grant_sql(sys.argv[1]) + ";\n")' "$TENANT_DB_ROLE") \
+  (cd "$REPO_ROOT" && python3 -B -c 'import sys; from deploy.releases.postgres import tenant_bootstrap_sql; sys.stdout.write(tenant_bootstrap_sql(sys.argv[1]))' "$TENANT_DB_ROLE") \
     | compose exec -T db psql -U postgres -d "$1" -v ON_ERROR_STOP=1 -q
 }
 for DBT in "${TENANT_DATABASES[@]}"; do

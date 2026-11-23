@@ -31,7 +31,8 @@ def capture_release_backup(runner):
     permit('reserve')
     def finalize(result):
         permit('capture')
-        inventory=read_inventory(runtime.connector,binding['database'])
+        # The inventory reads tenant tables, so it logs in as the owning role: no tenant code runs in an admin session.
+        inventory=read_inventory(runtime.tenant_connector,binding['database'])
         store=Path(runtime.config['tenants'][binding['tenantId']]['filestorePath'])
         for _,name,checksum,size in inventory['attachments']:
             if not name:continue
