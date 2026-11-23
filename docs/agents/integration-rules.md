@@ -2,8 +2,7 @@
 
 This is the operational source for integration. `AGENTS.md` owns architecture and
 product contracts; `REVIEW.md` owns review criteria; `docs/testing.md` owns check
-commands. Historical plans and an incoming worktree's older instructions do not
-replace the current policy. The former direct-push exception is superseded.
+commands. The former direct-push exception is superseded.
 
 ## Authorization and deterministic CI
 
