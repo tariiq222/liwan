@@ -50,12 +50,9 @@ class EnsureSecretsTest(unittest.TestCase):
         self.assertRegex(token_key[0], HEX_64)
         self.assertNotEqual(token_key[0], token[0])
         self.assertNotIn(token_key[0], output)
-        # The postgres admin role's password: generated like the others, distinct, never printed.
-        admin_password = self.values('DB_ADMIN_PASSWORD')
-        self.assertEqual(len(admin_password), 1)
-        self.assertRegex(admin_password[0], HEX_64)
-        self.assertNotEqual(admin_password[0], password[0])
-        self.assertNotIn(admin_password[0], output)
+        # The postgres admin role's password is the operator's: it only takes effect on an empty `db` volume, so the
+        # script never invents one (a generated value on a host with an old volume would hide the missing cutover).
+        self.assertEqual(self.values('DB_ADMIN_PASSWORD'), [])
 
     def test_provision_keeps_existing_token(self):
         self.env_file.write_text(f'COMPOSE_PROFILES=ai\nAI_SERVICE_TOKEN={TOKEN}\n')
@@ -82,6 +79,21 @@ class EnsureSecretsTest(unittest.TestCase):
         self.assertNotIn(pair.split(':')[1], output)
         self.run_script()
         self.assertEqual(self.values('AI_KEY_ENCRYPTION_KEYS'), [pair])
+
+    def test_the_usage_root_is_generated_once_never_printed_and_never_rotated(self):
+        self.env_file.write_text('COMPOSE_PROFILES=ai\nLIWAN_AI_USAGE_KEY=\n')
+        output = self.run_script()
+        [root] = self.values('LIWAN_AI_USAGE_KEY')
+        self.assertRegex(root, HEX_64)
+        self.assertNotIn(root, output)
+        self.assertNotEqual(root, self.values('AI_SERVICE_TOKEN')[0])
+        self.run_script()
+        self.assertEqual(self.values('LIWAN_AI_USAGE_KEY'), [root])
+        # An existing value, including one an operator rotated by hand, is left alone.
+        rotated = 'ab' * 32
+        self.env_file.write_text(f'LIWAN_AI_USAGE_KEY={rotated}\n')
+        self.run_script()
+        self.assertEqual(self.values('LIWAN_AI_USAGE_KEY'), [rotated])
 
 
 if __name__ == '__main__':

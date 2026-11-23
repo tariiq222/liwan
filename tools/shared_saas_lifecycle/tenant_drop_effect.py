@@ -37,8 +37,6 @@ MUTATING_STAGES = frozenset(STAGES) - {'verify'}
 
 DATABASE_IDENTIFIER = re.compile(r'^[a-z][a-z0-9_]{0,62}$')
 TENANT_ID = re.compile(r'^[a-z][a-z0-9_-]{0,62}$')
-RESTORE_COPY = re.compile(r'^liwan_scratch_[a-f0-9]{32}$')
-TENANT_SCRATCH = re.compile(r'^liwan_scratch_')
 UUID = re.compile(r'^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$')
 SHA256 = re.compile(r'^[a-f0-9]{64}$')
 LIVE_SEGMENT = re.compile(r'(?:^|_)(odoo19|production|prod|postgres|template0|template1)(?:_|$)')
@@ -54,7 +52,7 @@ FENCE_WAIT_SECONDS = 30
 # Non-secret refusal codes that may cross the boundary; anything else is reported as `tenant_drop_failed`.
 ERROR_CODES = frozenset({
     'input_invalid', 'runtime_invalid', 'plan_invalid', 'plan_digest_mismatch', 'operation_unavailable',
-    'database_name_invalid', 'database_filestore_mismatch', 'database_blocklisted', 'database_is_scratch_copy',
+    'database_name_invalid', 'database_filestore_mismatch', 'database_blocklisted', 'database_is_restore_copy',
     'database_is_control_plane', 'host_invalid',
     'identity_query_failed', 'identity_base_url_mismatch', 'identity_base_url_not_frozen', 'identity_profile_count',
     'identity_profile_mode', 'identity_company_mismatch', 'identity_marker_missing', 'identity_marker_mismatch',
@@ -103,35 +101,39 @@ def validate_plan(plan, digest, config):
         raise EffectError('host_invalid') from None
     if not _is_plain_list(plan['restoreCopies']) or not _is_plain_list(plan['backupIds']):
         raise EffectError('plan_invalid')
-    if not all(RESTORE_COPY.fullmatch(name) for name in plan['restoreCopies']):
-        raise EffectError('restore_target_invalid')
+    for name in plan['restoreCopies']:
+        try:
+            validate_database_name(name, plan['controlPlaneDatabase'])
+        except EffectError:
+            raise EffectError('restore_target_invalid') from None
+    if plan['database'] in plan['restoreCopies']:
+        raise EffectError('database_is_restore_copy')
     if not all(UUID.fullmatch(name) for name in plan['backupIds']):
         raise EffectError('backup_id_invalid')
     return plan
 
 
-def validate_tenant_database(plan):
-    """The name guards of a TENANT drop. Nothing about the database content is read here."""
-    database = plan['database']
-    if not DATABASE_IDENTIFIER.fullmatch(database) or not DATABASE_IDENTIFIER.fullmatch(plan['filestore']):
+def validate_database_name(database, control):
+    """The one name guard, for the tenant database and for every restore copy: a plain identifier that is neither
+    a protected database nor the control-plane database. The name never says whether a database is live or a copy."""
+    if not isinstance(database, str) or not DATABASE_IDENTIFIER.fullmatch(database):
         raise EffectError('database_name_invalid')
-    if database != plan['filestore']:
-        raise EffectError('database_filestore_mismatch')
-    control = plan['controlPlaneDatabase']
     if database == control or database.startswith(control + '_') or database.endswith('_' + control) or ('_' + control + '_') in database:
         raise EffectError('database_is_control_plane')
     if database in BLOCKED_DATABASES or LIVE_SEGMENT.search(database):
         raise EffectError('database_blocklisted')
-    if TENANT_SCRATCH.match(database):
-        raise EffectError('database_is_scratch_copy')
     return database
 
 
-def validate_restore_copy(name):
-    """The name guard of a restore-copy removal: the opposite rule of the tenant drop."""
-    if not isinstance(name, str) or not RESTORE_COPY.fullmatch(name):
-        raise EffectError('restore_target_invalid')
-    return name
+def validate_tenant_database(plan):
+    """The name guards of a TENANT drop. Nothing about the database content is read here."""
+    database = plan['database']
+    if not DATABASE_IDENTIFIER.fullmatch(plan['filestore']):
+        raise EffectError('database_name_invalid')
+    validate_database_name(database, plan['controlPlaneDatabase'])
+    if database != plan['filestore']:
+        raise EffectError('database_filestore_mismatch')
+    return database
 
 
 def nfc(value):
@@ -369,10 +371,12 @@ class TenantDrop:
 
     def _fence(self, service, database, quoted):
         """Close the database to new sessions the way tenant provisioning closes it, then end the open ones."""
+        # ALLOW_CONNECTIONS false comes first: it is the state `_prove_identity` resumes from (with the stamp). A run killed
+        # after any later statement therefore never leaves a database whose identity can no longer be read as `odoo`.
         statements = (
+            f'ALTER DATABASE {quoted} WITH ALLOW_CONNECTIONS false',
             f'REVOKE CONNECT ON DATABASE {quoted} FROM PUBLIC',
             f'REVOKE CONNECT ON DATABASE {quoted} FROM {quote_identifier(TENANT_DB_ROLE)}',
-            f'ALTER DATABASE {quoted} WITH ALLOW_CONNECTIONS false',
             'SELECT count(pg_terminate_backend(pid)) FROM pg_stat_activity WHERE datname = ' + quote_literal(database) + ' AND pid <> pg_backend_pid()',
         )
         try:
@@ -577,7 +581,6 @@ class TenantDrop:
         """
         copies = []
         for name in self.plan['restoreCopies']:
-            validate_restore_copy(name)
             present = self._prove_restore_copy(name)
             if present and not self.dry_run:
                 self._permit('remove-restore-copies')

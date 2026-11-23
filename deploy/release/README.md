@@ -163,8 +163,25 @@ The command never waits for input. A second start while one runs exits 0 at once
 `/etc/liwan-release/<environment>.env`, mode `0600`, owned by the running user. Required keys: `LIWAN_RELEASE_PROJECT`,
 `LIWAN_SHARED_ENV_FILE`, `LIWAN_RELEASE_PG_DUMP`, `LIWAN_RELEASE_PG_HOST`,
 `LIWAN_RELEASE_CONTROL_PG_HOST`, `LIWAN_RELEASE_ODOO_DATA_DIR`,
-`LIWAN_RELEASE_DISK_PATH` (a path on the filesystem that holds the database volume and the filestores). Optional:
-`LIWAN_RELEASE_BACKUP_STORE_ROOT`. Other keys in the file reach the backup pipeline through its environment.
+`LIWAN_RELEASE_DISK_PATH` (a path on the filesystem that holds the database volume and the filestores) and
+`LIWAN_BACKUP_PASSPHRASE_FILE`. A store is also required, in one of two forms: `LIWAN_RELEASE_BACKUP_STORE_ROOT`, or the five
+`LIWAN_BACKUP_S3_*` keys. Once a tenant exists on the host, the absolute `LIWAN_TENANT_REGISTRY_PATH`
+(`<LIWAN_TENANT_REGISTRY_DIR>/registry.json`, where `LIWAN_TENANT_REGISTRY_DIR` is the shared env file's key of that name) is
+required too: the tenant capture reads the database and filestore binding from it. Other keys in the file reach the backup
+pipeline through its environment.
+
+The first deploy of a host skips the backup, so a host can pass its first release and fail its second on any of the items
+below. Each one ends the run with `RESULT: rolled back backup_failed`; the job log carries the symptom line.
+
+| Item | Rule | Symptom in the job log |
+| --- | --- | --- |
+| `LIWAN_BACKUP_PASSPHRASE_FILE` | an absolute path to a file of mode `0600` or `0400` holding one line of 16 to 1022 bytes, for example the output of `openssl rand -hex 32`. It is the only key of these backups: keep a copy off the host. The rule is owned by [control-plane-backup-restore.md](../../docs/operations/control-plane-backup-restore.md) | `backup_pipeline: LIWAN_BACKUP_PASSPHRASE_FILE must name the passphrase file` (a wrong mode or length is refused with its own message) |
+| `LIWAN_TENANT_REGISTRY_PATH` | the absolute path of the tenant registry file, `<LIWAN_TENANT_REGISTRY_DIR>/registry.json`. Required once a tenant exists; without it, or with a relative path, the tenant capture cannot name the database and filestore | `backup_pipeline: LIWAN_TENANT_REGISTRY_PATH must be an absolute tenant registry path` |
+| store | `LIWAN_RELEASE_BACKUP_STORE_ROOT`: a directory path, created if absent; the release passes it as `--store-root` and the encrypted copy stays on the host's filesystem. Without it the pipeline uses a bucket and reads `LIWAN_BACKUP_S3_ENDPOINT`, `LIWAN_BACKUP_S3_REGION`, `LIWAN_BACKUP_S3_BUCKET`, `LIWAN_BACKUP_S3_ACCESS_KEY` and `LIWAN_BACKUP_S3_SECRET_KEY` from this file. The store root is optional only when all five S3 keys are present | `backup_pipeline: LIWAN_BACKUP_S3_ENDPOINT is required` (the first missing S3 key is named) |
+| `LIWAN_RELEASE_PG_DUMP` | the real binary, for example `/usr/lib/postgresql/16/bin/pg_dump`, not `/usr/bin/pg_dump`. On Debian and Ubuntu the latter is a symlink to `/usr/share/postgresql-common/pg_wrapper`; the release resolves the symlink and so runs the wrapper under its own name, which exits 1. Check with `readlink -f` that the configured path is its own target | the tenant capture runs first when tenants exist, through `deploy/backup.py`: it exits 2, and the pipeline reports only `backup_pipeline: deploy/backup.py failed with exit code 2`. The control-plane capture runs `pg_dump` itself and reports only `backup_pipeline: pg_dump failed with exit code 1`. Both captures run their child with captured output and discard it, so neither `deploy/backup.py`'s `pg_dump failed; no success manifest written` nor `pg_dump`'s own stderr reaches the job log |
+
+After a failed run the same commit is answered `nothing to do: <commit> failed before (...)` until `release.py rollback` clears
+`failed.json` (see Result and exit code and State); then run the job again.
 
 Alert channels are read from the same file. One complete channel is `LIWAN_ALERT_SMTP_HOST`, `LIWAN_ALERT_SMTP_FROM` and
 `LIWAN_ALERT_SMTP_TO` (optional `LIWAN_ALERT_SMTP_PORT`, `_USER`, `_PASSWORD`, `_STARTTLS`), or `LIWAN_ALERT_TELEGRAM_BOT_TOKEN`
@@ -208,10 +225,19 @@ on the `public` schema lives inside each tenant database and is carried by the s
 
 Session rule: no tenant-controlled code ever runs in a superuser session. Every `psql` of the release connects to the `postgres` database
 only and never opens a session inside a tenant database. Whatever reads or writes tenant tables logs in as `odoo`. The one admin session
-inside a tenant database is the `pg_dump` of the capture. The release checks this with a single SQL assertion run as `postgres` (`runtime_role_assertion_sql`), at the capture
-step when a release is already served (`RESULT: refused runtime_role_rejected`, nothing stopped and the served release untouched, the worker
-restarted) and in the start step before any application starts (the run rolls back). A volume that still has a privileged `odoo` or no
-`postgres` role fails both checks. The release does not convert such a volume: the cutover is an operator step, see the bring-up guide.
+inside a tenant database is the `pg_dump` of the capture. The release checks this with a single SQL assertion run as `postgres` (`runtime_role_assertion_sql`), in the prepare
+step when a release is already served, before the first image pull and the first admin size query (`RESULT: refused runtime_role_rejected`, nothing stopped
+and the served release untouched; the candidate is recorded in `failed.json`, so the schedule alerts once per candidate and `rollback` clears it), again at the capture step with the tenant
+databases of the stopped worker, and in the start step before any application starts (the run rolls back). A volume that still has a privileged `odoo` or no
+`postgres` role fails both checks. The refusal is recorded (`failed.json`) only when the output names the role problem (a rule of `RUNTIME_ROLE_RULES`, or
+`role "postgres" does not exist` / a failed authentication of `postgres`); any other failure of that SQL (a `db` container that is restarting, a timeout) is the
+ordinary `runtime_role_check_failed`, rolled back or retried by the next run, and never persisted.
+
+The release does not convert such a volume: the cutover of an existing host is an operator step (bring-up guide, A4.4a) and MUST be done BEFORE the first release that carries
+this change. That first release is driven by the release command that is already served (the job runs `/opt/liwan/current/deploy/release/release.py`), which has no
+assertion, so `runtime_role_rejected` protects only releases that already run the new code. What protects an operator who forgot is different: the `db` health check in
+both compose files requires the `postgres` role to log in (`psql -U postgres -d postgres`), so on an old volume (bootstrap role `odoo`) `db` never turns healthy,
+`up --wait` fails and even the older command rolls back; and `ensure_secrets.sh` does not generate `DB_ADMIN_PASSWORD`, so a host without it is refused at the render check.
 
 ## Bootstrap (first run on a fresh host)
 

@@ -321,6 +321,26 @@ class RestoreWithoutAiRoleTests(unittest.TestCase):
         self.assertEqual(cluster.sql(target, "SELECT count(*) FROM pg_namespace WHERE nspname = 'liwan_ai'"), '0')
 
 
+    def test_a_dump_with_ai_data_is_refused_when_the_cluster_has_no_ai_role(self):
+        cluster = PostgresCluster()
+        self.addCleanup(cluster.stop)
+        source, target = 'liwan_role_aidata_src', 'liwan_scratch_' + uuid.uuid4().hex
+        create_tenant(cluster, source, ai_skeleton=False)
+        cluster.sql(source, "CREATE TABLE res_partner (id serial PRIMARY KEY, name text); CREATE SCHEMA liwan_ai; CREATE TABLE liwan_ai.chunks (id integer); INSERT INTO liwan_ai.chunks VALUES (1)")
+        dump = subprocess.run([PG_DUMP, '-h', str(cluster.socket), '-p', cluster.port, '-U', POSTGRES_ADMIN_ROLE, '--format=custom', source],
+                              capture_output=True, check=True, env=cluster_environment(cluster)).stdout
+        for script in (odoo_backup.create_database_script(target), odoo_backup.restore_database_script(target)):
+            self.assertEqual(run_stage(cluster, script, target, dump).returncode, 0)
+        script = odoo_backup.restore_ai_script().replace('-h restore-db', f'-h {cluster.socket} -p {cluster.port}')
+        refused = subprocess.run(['sh', '-c', script, 'liwan-backup', target], input=dump, capture_output=True, check=False,
+                                 env={**cluster_environment(cluster), 'AI_DB_PASSWORD': ''})
+        self.assertEqual(refused.returncode, 1)
+        self.assertIn(b'ai_data_without_role', refused.stderr)
+        # The runner drops the fresh target on any failed stage; the drop stage itself removes it here.
+        self.assertEqual(run_stage(cluster, odoo_backup.drop_target_script(target), target, b'').returncode, 0)
+        self.assertFalse(cluster.exists(target))
+
+
 AI_INIT_SCRIPT = INIT_SCRIPT.parents[1] / 'ai' / 'init-db.sh'
 
 

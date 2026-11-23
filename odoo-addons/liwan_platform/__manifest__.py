@@ -2,12 +2,13 @@
 {
     'name': 'liwan Platform',
     'summary': 'liwan platform: tenant profile, entitlements and feature registry',
-    'version': '19.0.1.14.0',
+    'version': '19.0.1.15.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
     # http_routing redirects a request by language prefix inside its own ``_match``; ours must run first.
-    'depends': ['liwan_core', 'http_routing'],
+    # fs_attachment_s3 pulls the pinned OCA fs_storage and fs_attachment engines every tenant gets.
+    'depends': ['liwan_core', 'http_routing', 'fs_attachment_s3'],
     'data': [
         'security/maintenance_security.xml',
         'security/ir.model.access.csv',

@@ -197,7 +197,7 @@ class PinFileTest(unittest.TestCase):
         pins = oca_addons.load_pins(oca_addons.PINS)
         entry = next(item for item in pins['repos'] if item['repo'] == 'OCA/helpdesk')
         self.assertEqual(entry['modules'], ['helpdesk_mgmt', 'helpdesk_mgmt_sla', 'helpdesk_type'])
-        self.assertTrue(oca_addons.image_path().endswith('/opt/oca/.selected/helpdesk'))
+        self.assertIn('/opt/oca/.selected/helpdesk', oca_addons.image_path().split(','))
 
     def test_image_path_uses_the_image_destination(self):
         for part in oca_addons.image_path().split(','):

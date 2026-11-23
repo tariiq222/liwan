@@ -1,6 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+import smtplib
 from datetime import datetime, timedelta
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 from odoo import fields
 from odoo.exceptions import AccessError, ValidationError
@@ -10,6 +12,7 @@ from odoo.tools import config
 from odoo.addons.liwan_notify.models.mail_mail import (
     CHUNK_BYTES,
     DAILY_CEILING_PARAM,
+    HOLD_REASONS,
     MAX_ATTEMPTS,
     MAX_ENCODED_BYTES,
     MAX_RECIPIENTS,
@@ -270,11 +273,144 @@ class TestMailSend(TransactionCase):
         start, end = self.send_service._liwan_day_bounds(NOON, self.send_service._liwan_zone())
         self.assertEqual(self.send_service._liwan_load(self.env['mail.mail'], start, end), 2)
 
-    def test_a_failed_sensitive_row_keeps_its_content(self):
-        mail = self._send(sensitive=True, attachments=[('slip.pdf', b'salary')])
-        mail.write({'state': 'exception'})
-        mail._postprocess_sent_message(success_pids=self.env['res.partner'], success_emails=[], failure_type='mail_smtp')
-        self.assertTrue(mail.body_html and mail.attachment_ids)
+    def _assert_content(self, mail, kept):
+        """``kept``: the row still has its body and attachments; otherwise both are gone, the attachment records too."""
+        attachment = self._attachments[mail.id]
+        if kept:
+            self.assertTrue(mail.body_html and mail.attachment_ids and attachment.exists())
+        else:
+            self.assertFalse(mail.body_html or mail.attachment_ids or attachment.exists())
+        self.assertTrue(mail.exists())
+
+    def test_a_sensitive_row_keeps_its_content_only_while_a_send_is_still_possible(self):
+        self._attachments = {}
+        cases = [
+            # (name, write values, content kept)
+            ('first transient failure', {'state': 'exception', 'failure_type': 'mail_smtp', 'liwan_attempts': 1}, True),
+            ('last retry still allowed', {'state': 'exception', 'failure_type': 'unknown', 'liwan_attempts': MAX_ATTEMPTS - 1}, True),
+            ('attempts exhausted', {'state': 'exception', 'failure_type': 'mail_smtp', 'liwan_attempts': MAX_ATTEMPTS}, False),
+            ('permanent failure', {'state': 'exception', 'failure_type': 'mail_email_invalid', 'liwan_attempts': 1}, False),
+            ('held row', {'state': 'exception', 'failure_type': 'unknown', 'failure_reason': HOLD_REASONS[0],
+                          'liwan_attempts': MAX_ATTEMPTS}, True),
+            ('waiting to be sent', {'state': 'outgoing'}, True),
+        ]
+        for name, values, kept in cases:
+            for sensitive in (True, False):
+                with self.subTest(case=name, sensitive=sensitive):
+                    mail = self._send(sensitive=sensitive, attachments=[('slip.pdf', b'salary')])
+                    self._attachments[mail.id] = mail.attachment_ids
+                    mail.write(values)
+                    mail._postprocess_sent_message(
+                        success_pids=self.env['res.partner'], success_emails=[], failure_type=values.get('failure_type'),
+                    )
+                    self._assert_content(mail, kept or not sensitive)
+
+    def test_a_cancelled_sensitive_row_is_wiped_at_once(self):
+        self._attachments = {}
+        sensitive = self._send(sensitive=True, attachments=[('slip.pdf', b'salary')])
+        ordinary = self._send(attachments=[('note.txt', b'hello')])
+        for mail in (sensitive, ordinary):
+            self._attachments[mail.id] = mail.attachment_ids
+        (sensitive | ordinary).cancel()
+        self.assertEqual((sensitive.state, ordinary.state), ('cancel', 'cancel'))
+        self._assert_content(sensitive, kept=False)
+        self._assert_content(ordinary, kept=True)
+
+    def _real_send(self, mail, connect_error=None, send_email=None):
+        """Run the stock ``mail.send()`` with only the relay connection and the SMTP call replaced."""
+        server = type(self.env['ir.mail_server'])
+        with patch.object(server, '_connect__', autospec=True, side_effect=connect_error, return_value=MagicMock()), \
+                patch.object(server, 'send_email', autospec=True, side_effect=send_email), \
+                patch.object(server, '_disable_send', return_value=False):
+            mail.send()
+
+    def _sensitive(self):
+        mail = self._send(sensitive=True, body='<p>Payslip body</p>', attachments=[('slip.pdf', b'salary')])
+        self._attachments = {mail.id: mail.attachment_ids}
+        return mail
+
+    def _retry(self):
+        with self._clock():
+            self.env['mail.mail']._liwan_retry_failed()
+
+    def test_a_relay_connection_failure_keeps_the_content_and_the_retry_delivers_it(self):
+        mail = self._sensitive()
+        self._real_send(mail, connect_error=OSError('relay down'))
+        self.assertEqual((mail.state, mail.failure_type), ('exception', 'mail_smtp'))
+        self._assert_content(mail, kept=True)
+        self._retry()
+        self.assertEqual((mail.state, mail.liwan_attempts), ('outgoing', 2))
+        seen = []
+
+        def deliver(server, message, **kwargs):
+            seen.append(message.as_string())
+            return '<delivered@liwanos.example>'
+        self._real_send(mail, send_email=deliver)
+        self.assertEqual(mail.state, 'sent')
+        self.assertTrue(seen and 'Payslip body' in seen[0] and 'slip.pdf' in seen[0])
+        self._assert_content(mail, kept=False)
+
+    def test_a_retryable_send_failure_keeps_the_content_until_the_last_attempt(self):
+        mail = self._sensitive()
+        for attempt in range(1, MAX_ATTEMPTS + 1):
+            self._real_send(mail, send_email=Exception('relay refused'))
+            self.assertEqual((mail.state, mail.liwan_attempts), ('exception', attempt))
+            if attempt < MAX_ATTEMPTS:
+                self._assert_content(mail, kept=True)
+                self._retry()
+                self.assertEqual(mail.state, 'outgoing')
+        self._assert_content(mail, kept=False)
+
+    def test_a_non_retryable_send_failure_wipes_at_once(self):
+        mail = self._sensitive()
+        self._real_send(mail, send_email=AssertionError(self.env['ir.mail_server'].NO_VALID_RECIPIENT))
+        self.assertEqual((mail.state, mail.failure_type), ('exception', 'mail_email_invalid'))
+        self._assert_content(mail, kept=False)
+
+    def test_the_pre_attempt_exception_state_never_wipes_before_the_send_uses_the_content(self):
+        mail = self._sensitive()
+        inside = []
+
+        def deliver(server, message, **kwargs):
+            inside.append((mail.state, mail.failure_type, bool(mail.body_html), bool(mail.attachment_ids)))
+            return '<delivered@liwanos.example>'
+        self._real_send(mail, send_email=deliver)
+        self.assertEqual(inside, [('exception', 'unknown', True, True)])
+        self.assertEqual(mail.state, 'sent')
+        self._assert_content(mail, kept=False)
+
+    def test_the_retry_cron_wipes_a_sensitive_row_a_dropped_session_left_failed_for_good(self):
+        final = self._sensitive()
+        retryable = self._send(sensitive=True, attachments=[('slip.pdf', b'salary')])
+        ordinary = self._send(attachments=[('note.txt', b'hello')])
+        for mail in (retryable, ordinary):
+            self._attachments[mail.id] = mail.attachment_ids
+        self._fail(final, 'unknown', MAX_ATTEMPTS)
+        self._fail(retryable, 'unknown', 1)
+        self._fail(ordinary, 'unknown', MAX_ATTEMPTS)
+        refused = (None, SimpleNamespace(code='mail_paused'))
+        with patch.object(type(self.send_service), '_liwan_sender_or_refusal', return_value=refused):
+            self._retry()
+        self._assert_content(final, kept=False)
+        self._assert_content(retryable, kept=True)
+        self._assert_content(ordinary, kept=True)
+        self.assertEqual(retryable.state, 'exception')
+
+    def test_a_dropped_relay_session_on_the_last_attempt_is_wiped_by_the_retry_cron(self):
+        mail = self._sensitive()
+        mail.write({'liwan_attempts': MAX_ATTEMPTS, 'scheduled_date': False})
+        server = type(self.env['ir.mail_server'])
+        with patch.object(server, '_connect__', autospec=True, return_value=MagicMock()), \
+                patch.object(server, 'send_email', autospec=True, side_effect=smtplib.SMTPServerDisconnected()), \
+                patch.object(server, '_disable_send', return_value=False), \
+                patch.object(type(mail), '_postprocess_sent_message', autospec=True) as postprocess:
+            self.env['mail.mail'].process_email_queue(email_ids=mail.ids)
+        postprocess.assert_not_called()
+        self.assertEqual((mail.state, mail.failure_type), ('exception', 'unknown'))
+        self._assert_content(mail, kept=True)
+        self._retry()
+        self.assertEqual(mail.state, 'exception')
+        self._assert_content(mail, kept=False)
 
     def test_slot_choice_takes_the_database_lock(self):
         with patch.object(type(self.send_service), '_liwan_lock_slots', autospec=True) as lock:

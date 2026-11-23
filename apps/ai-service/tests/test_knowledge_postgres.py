@@ -293,12 +293,13 @@ async def test_the_role_holding_usage_may_append_to_the_queues_and_nothing_else(
         await admin.close()
 
 
-async def test_without_a_role_holding_usage_nothing_is_granted(pool):
+async def test_without_a_role_holding_usage_nothing_is_granted(pool, caplog):
     """A bare schema (the operator script never ran) has no writer, so the bootstrap grants nothing and does not fail."""
     async with pool.connection() as conn:
         await grant_knowledge_queue(conn)
         await grant_outbox(conn)
         assert await queue_writer_role(conn) is None
+    assert "ai_queue_writer_role_absent" in caplog.text
 
 
 async def test_a_database_without_pgvector_is_refused_clearly_before_any_ddl():

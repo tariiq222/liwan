@@ -38,6 +38,13 @@ composite probe whose part did not run stays `not_verified` rather than inheriti
 - An axis scores only where its listed probes passed; one probe is `2`, not a clean bill of health.
 - Findings carry `file:line` or a run artifact, and the report never prints a secret value.
 
+## Architecture counts
+
+Counts of architecture rules quoted in an audit — sudo sites, direct SQL and access overrides,
+baseline entries, addons per rank — come from `python3 -B tools/arch_facts.py` (`--json` for the
+same data), never from manual greps. The command reads the inputs `tools/arch_policy.py` enforces,
+so an audit figure and a CI figure are the same number.
+
 ## Tests
 
 `python3 -B -m unittest tools.test_audit_framework` pins the crash-vs-finding distinction, the

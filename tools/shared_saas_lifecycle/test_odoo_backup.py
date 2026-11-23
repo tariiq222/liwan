@@ -562,13 +562,13 @@ class RestoreIsolationTests(unittest.TestCase):
 
     def test_ai_stage_logs_in_as_the_ai_role_or_drains_the_archive_without_one(self):
         script = odoo_backup.restore_ai_script()
-        self.assertEqual(script.count('pg_restore'), 1)
         self.assertIn('exec pg_restore -h restore-db -U liwan_ai --no-owner -n liwan_ai --exit-on-error --single-transaction -d "$1"', script)
-        self.assertTrue(script.index('cat >/dev/null; exit 0') < script.index('export PGPASSWORD="$AI_DB_PASSWORD"') < script.index('pg_restore'))
+        self.assertEqual(script.count('pg_restore '), 2)  # the archive listing and the exec line
+        self.assertTrue(script.index('ai_data_without_role') < script.index('exit 0') < script.index('export PGPASSWORD="$AI_DB_PASSWORD"'))
         # The admin role only looks the AI role up in the catalog of database postgres; it never touches the archive.
         self.assertEqual(script.count('-U postgres'), 1)
         self.assertIn("-d postgres -c 'SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = '\"'\"'liwan_ai'\"'\"''", script)
-        self.assertTrue(script.index('-U postgres') < script.index('ai_password_missing') < script.index('cat >/dev/null; exit 0'))
+        self.assertTrue(script.index('-U postgres') < script.index('ai_password_missing') < script.index('ai_data_without_role'))
 
     def test_drop_stage_removes_only_the_target_in_database_postgres(self):
         script = odoo_backup.drop_target_script(self.DATABASE)
@@ -660,6 +660,29 @@ class RestoreIsolationTests(unittest.TestCase):
                     runner._restore_operation()
         self.assertEqual(streams, [('restore-db', 'restore-create', False), ('restore-db', 'restore-db', True), ('restore-db', 'restore-ai', True),
                                    ('restore-db', 'restore-drop', False)])
+
+
+class StreamRefusalTests(unittest.TestCase):
+    """A restore stage's fixed refusal word on stderr is the error code; any other stderr text is never reported."""
+
+    def run_stream(self, stderr_text):
+        runner = object.__new__(odoo_backup.BackupRunner)
+        runner.child = None
+        runner.stream([sys.executable, '-c', 'import sys; sys.stderr.write(' + repr(stderr_text) + '); sys.exit(1)'])
+
+    def test_a_known_refusal_word_reaches_the_error_code(self):
+        for code in ('ai_password_missing', 'ai_data_without_role'):
+            with self.subTest(code=code):
+                with self.assertRaisesRegex(odoo_effect.EffectError, '^' + code + '$'):
+                    self.run_stream(code + '\n')
+
+    def test_other_stderr_text_stays_out_of_the_error(self):
+        with self.assertRaisesRegex(odoo_effect.EffectError, '^artifact_command_failed$'):
+            self.run_stream('FATAL: password authentication failed for secret-value')
+
+    def test_the_refusal_codes_are_reported_as_themselves(self):
+        for code in odoo_effect.STREAM_REFUSALS:
+            self.assertEqual(odoo_effect.classify_error(odoo_effect.EffectError(code)), code)
 
 
 class RestoreServicesDeclaredTests(unittest.TestCase):

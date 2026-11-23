@@ -204,7 +204,6 @@ CREATE_MEMORY = (
 # Odoo's database role (the one role besides the owner that holds USAGE on the schema, see queue_writer_role) may append
 # offboarding events and nothing else in this schema.
 GRANT_OUTBOX = (
-    "GRANT USAGE ON SCHEMA {schema} TO {role}",
     "GRANT INSERT ON {schema}.ai_outbox TO {role}",
     "GRANT USAGE ON SEQUENCE {schema}.ai_outbox_id_seq TO {role}",
 )

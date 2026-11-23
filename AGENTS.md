@@ -14,6 +14,7 @@ This file is the single source of repository instructions for every coding agent
 
 | Subject | Owning reference |
 | --- | --- |
+| Task entry gate by request type | [Playbook](docs/agents/playbook.md) |
 | Architecture, product contracts, security and authorization boundaries | This file |
 | Presentation and shared design | [DESIGN.md](DESIGN.md) |
 | Layer-specific implementation | [Odoo/API rules](docs/agents/odoo-rules.md), [web rules](docs/agents/web-rules.md) |
@@ -59,10 +60,12 @@ Read `docs/parallel-work.md` before parallel work or changing shared files.
 
 - Verify the current branch, worktree, and dirty paths before editing. The
   canonical local development checkout is `/Users/tariq/code/liwan` on `main`.
-- Develop in a lane from the pool under `.worktrees/` (owner decision 2026-11-16): one task, one branch, one
-  lane, one writing session, whichever tool runs it. Take a lane with `npm run wt -- take <branch> --owner <who>`;
-  the branch starts from current `origin/main` (any normal branch name). The main checkout stays on `main` for
-  the owner; no agent develops in it. Give each session explicit file ownership. One orchestrator owns
+- Develop in a lane from the pool under `.worktrees/` (owner decisions 2026-11-16 and 2026-11-23): one task,
+  one branch, one orchestrator session that runs from the main checkout, takes the lanes with
+  `npm run wt -- take <branch> --holder <worker role(s)> --orchestrator <id>` and writes no product code;
+  only workers are bound to a lane, shared role agents work in it by absolute path. The branch starts from
+  current `origin/main` (any normal branch name). The main checkout stays on `main` for
+  the owner; no agent develops in it. Give each worker explicit file ownership. The orchestrator owns
   Git integration, shared-file edits, runtime changes, and final checks.
 - Preserve stock Odoo source. Extend `project` through `liwan_pmo` and `hr`
   through `liwan_hr`. Do not recreate either pillar.
@@ -76,10 +79,12 @@ Read `docs/parallel-work.md` before parallel work or changing shared files.
   older WIP describe their own checkpoints, not the current source state.
 - When reviewing a diff, follow `REVIEW.md` (what to report and what is already automated).
 - Never run tests on `liwan_dev` or `odoo19`. A local commit on the task branch and returning the lane
-  after a merge (`wt done`, or `wt lane remove` for a temporary lane) fall under the standing authorization in
-  [integration-rules.md](docs/agents/integration-rules.md). Push, opening a PR, marking it ready, merging and
-  auto-merge each need the owner's explicit words in the current conversation (owner decision 2026-11-11), as do
-  deploying, release tags, force-push, direct push to `main` and discarding work.
+  after a merge (`wt done --orchestrator <id>`, or `wt lane remove` for a temporary lane) fall under the standing
+  authorization in [integration-rules.md](docs/agents/integration-rules.md), as do the push of the task branch,
+  opening the PR and marking it ready once the conditions in the standing authorization hold (clean independent review,
+  tester on sensitive work, local checks; owner decision 2026-11-23). Current-head `ci-result` is a condition for the merge, not
+  for ready. Merging and auto-merge each need the owner's explicit words in the current
+  conversation, as do deploying, release tags, force-push, direct push to `main` and discarding work.
 - Local verification does not prove production deployment. Report fresh test
   evidence and the actual branch/runtime state.
 
@@ -209,13 +214,17 @@ never add an entry or raise a count to make a check pass.
 - **R6** No condition on a customer name or customer type. Differences come from `commercial_mode`,
   entitlements and `customer_<name>_*` addons.
 - **R7** No new `sudo()` outside the documented cases. `tools/arch_documented_sudo.json` is the single
-  registry of them, per file, outside the shrink-only baseline. `tools/sudo_gate.py` (inside `npm test`)
-  fails a `sudo()` site beyond its file's documented cases and `tools/arch_baseline.json` count, naming
-  `file:line`, and requires every documented case to carry a non-boilerplate reason that names the
-  elevating call and the blocking ACL or rule (empty and duplicated reasons are rejected). A documented
-  count that the code no longer reaches fails as stale. Adding a case needs no approval trailer (owner
-  decision 2026-10-25); the reason itself is the record, and review of the actual diff is what judges it.
-  Document a case only after fixing ACLs/rules where possible.
+  registry of them, per file, outside the shrink-only baseline: each entry carries its `count`, a `kind`
+  (`acl_gap | own_design | temporary | public_entry | required`) and a `reason`. `tools/sudo_gate.py`
+  (inside `npm test`) fails a `sudo()` site beyond its file's documented cases and
+  `tools/arch_baseline.json` count, naming `file:line`, and requires every documented case to carry a
+  non-boilerplate reason that names the elevating call and the blocking ACL or rule (empty and duplicated
+  reasons are rejected), and a missing or unknown `kind` fails. A documented count that the code no
+  longer reaches fails as stale. With `--base` the gate also rejects a rise in the fixable total
+  (`acl_gap` + `own_design` + `temporary`) above the base ref, and relabelling an existing fixable case
+  to a non-fixable kind without rewriting its reason. Adding a case needs no approval trailer (owner
+  decision 2026-10-25); the `kind` and the reason are the record, and review of the actual diff is the
+  human gate on both. Document a case only after fixing ACLs/rules where possible.
 - **R8** Every feature works in `saas` and `non_saas`, or is explicitly commercial and hidden in `non_saas`.
 - **R9** Customise Odoo through its public extension points only: no edits to Odoo source, no new direct
   SQL on Odoo tables, no new override of a private access method on an Odoo model without a documented
@@ -256,8 +265,8 @@ another application) needs the owner's approval, recorded by the owner as an
   directory in the same commit.
 - `main` is protected on GitHub with PR and current CI requirements and no admin bypass.
   Integration uses a pull request; direct pushes and protection bypasses are prohibited. The
-  preservation procedure, the standing authorization (local commit, lane return after a merge), the
-  steps that need the owner's explicit words (push, PR, ready, merge, auto-merge), the independent review that precedes
+  preservation procedure, the standing authorization (local commit, push, PR and ready after a clean review,
+  lane return after a merge), the steps that need the owner's explicit words (merge, auto-merge), the independent review that precedes
   every push ([section](docs/agents/integration-rules.md#independent-review-before-every-push-owner-decision-2026-11-21)),
   the exclusions and the merge checklist have one
   owner: [integration-rules.md](docs/agents/integration-rules.md). Read it before any push and before integrating an
@@ -281,11 +290,11 @@ another application) needs the owner's approval, recorded by the owner as an
 
 ## Preserve approved work on every merge — 2026-09-08
 
-Before every integration, including from an older worktree, follow the six steps in
-`docs/agents/integration-rules.md`. They are mandatory, as is its definition of the owner
-keywords «كومت ودمج», «انشر» and «دمج»/«ادمج». These are agent workflow instructions, not a Git hook or
-server-enforced branch protection; do not claim automated merge protection exists unless it has
-actually been installed and verified.
+Before every integration, including from an older worktree, follow the six steps and the
+owner keywords («كومت ودمج», «انشر», «دمج»/«ادمج») in
+[integration-rules.md](docs/agents/integration-rules.md), which own them. These are agent workflow
+instructions, not a Git hook or server-enforced branch protection; do not claim automated merge
+protection exists unless it has actually been installed and verified.
 
 ## Agent execution
 
@@ -299,7 +308,7 @@ Implementation is delegated by default to native Sonnet subagents (owner decisio
 the coordinator plans, writes the brief with explicit file ownership and checks, splits independent
 work across parallel agents, reviews the returned patch and re-runs the checks. Scopes stay
 explicit and mutable resources isolated: one writer per file, per `docs/parallel-work.md`. Delegation
-does not change who may commit, push, merge or clean up; that is in
+does not change who may commit, push, merge or clean up (the orchestrator commits and publishes, workers never do); that is in
 [integration-rules.md](docs/agents/integration-rules.md).
 
 ## Code Review Rules
@@ -346,12 +355,15 @@ cross-addon links.
 - Keep `/api/v1/people?q=` and its user-id `PersonRef` contract unchanged.
   HR employee ids and user ids are distinct resources and must not be merged.
 - `sudo()` is allowed only in the documented cases. `tools/arch_documented_sudo.json` is their single
-  source: per file, a count and a reason that names the elevating call and the blocking ACL or record
-  rule. `tools/sudo_gate.py` (inside `npm test`) fails any site beyond that registry plus the
-  `tools/arch_baseline.json` count, any weak or duplicated reason, and any documented count the code no
-  longer reaches. Do not add a case without documenting it and fixing ACLs/rules where possible.
-  Adding or raising one needs no approval trailer (owner decision 2026-10-25): the reason is the
-  record and review of the actual diff is the human gate. Weakening `tools/arch_layers.json` still
+  source: per file, a `count`, a `kind` (`acl_gap | own_design | temporary | public_entry | required`) and
+  a reason that names the elevating call and the blocking ACL or record rule. `tools/sudo_gate.py` (inside
+  `npm test`) fails any site beyond that registry plus the `tools/arch_baseline.json` count, any weak or
+  duplicated reason, any missing or unknown `kind`, and any documented count the code no longer reaches;
+  with `--base` it also rejects a rise in the fixable total (`acl_gap` + `own_design` + `temporary`) and
+  relabelling a fixable case to a non-fixable kind with its reason unchanged. Do not add a case without
+  documenting it and fixing ACLs/rules where possible.
+  Adding or raising one needs no approval trailer (owner decision 2026-10-25): the `kind` and the reason
+  are the record, and review of the actual diff is the human gate on both. Weakening `tools/arch_layers.json` still
   needs the owner's `Architecture-approved-by:` trailer; agents never add that trailer.
   `liwan_tasks`, `liwan_operations` and their bridges have no `sudo()` path. Never write `sudo()` inside
   an `@api.constrains` method: Odoo's `_validate_fields` already runs constraints on `self.sudo()`, so
@@ -373,24 +385,15 @@ cross-addon links.
 ## Safe lane workflow
 
 Work happens in a pool of lanes: permanent worktrees in `<main checkout>/.worktrees/`, any tool, no fixed
-names. A lane holds one branch and one writing session at a time. `npm run wt -- take <branch> --owner <who>`
-takes a resting lane and starts the branch from `origin/main` (or resumes a parked local branch),
-`npm run wt -- done` returns it after the merge (`--park` keeps the branch and rests the lane), and
-`npm run wt -- lane add <name>` adds a lane when none is free. Each tool is opened with the lane folder as its
-working directory and its built-in worktree option off. Inside its lane a session may use any git command on its
-own unpublished branch. Read-only and review sessions take no lane. `npm run wt -- check` reports violations
-and changes nothing; the full rules are in `docs/parallel-work.md` ("Lane pool").
-
-Never create another worktree: no bare `git worktree add` or tool-owned worktree folder (the
-Claude app's `worktrees` folder under `.claude`) unless the owner asks for one in words for that task; it is then a lane too (`wt lane add`, removed with
-`wt lane remove` after the merge). During a rebase the pre-commit guard compares the rebase's branch to the lane record.
-Lanes have independent `node_modules` and
-`.nuxt` (never symlinked); install with `npm ci --ignore-scripts`. Ports, databases and Odoo/Nuxt
-endpoints come from the lane's `.env.worktree` profile, not from command-line overrides.
-One writer owns each file and one orchestrator owns shared files, Git integration, runtime state
-and final checks; install, port and collision rules are in `docs/parallel-work.md`. Never run
+names; one task, one branch, one orchestrator, with only workers bound to a lane. Take one with
+`npm run wt -- take <branch> --holder <worker role(s)> --orchestrator <id>`, return it after the merge with
+`npm run wt -- done --orchestrator <id>`, and
+never create another worktree (`git worktree add` or a tool-owned folder) unless the owner asks for one
+in words for that task; it then becomes a lane. Read-only and review sessions take no lane. Never run
 tests against `liwan_dev` or `odoo19`; use a scratch database. Temporary integration databases,
 ports and logs are disposable and are not production evidence.
+The take record, command semantics, install and port rules, git freedom inside a lane, and the
+violation list (`npm run wt -- check`) are owned by `docs/parallel-work.md` ("Lane pool").
 
 The LiwanOS Git remote is `origin` (`https://github.com/tariiq222/liwan.git`), tracked by `main`.
 Fetch and compare `main` with `origin/main` before integration work. Do not force-push or

@@ -101,6 +101,8 @@ services:
       LIWAN_TENANT_REGISTRY_PATH: /etc/liwan/registry.json
       LIWAN_RESTORE_REGISTRY_PATH: /etc/liwan-restore/registry.json
       LIWAN_SHARED_PROXY_TOKEN: ${LIWAN_SHARED_PROXY_TOKEN:?set LIWAN_SHARED_PROXY_TOKEN}
+      # The AI usage root secret (64 hex): only web and odoo hold it. Web derives each tenant database's recorder bearer from it.
+      LIWAN_AI_USAGE_KEY: ${LIWAN_AI_USAGE_KEY:-}
     volumes:
       - ${LIWAN_TENANT_REGISTRY_DIR:?set LIWAN_TENANT_REGISTRY_DIR}:/etc/liwan:ro
       - ${LIWAN_RESTORE_REGISTRY_DIR:-./data/restore-registry}:/etc/liwan-restore:ro
@@ -115,6 +117,8 @@ services:
     command: []
     environment:
       LIWAN_TENANCY_MODE: shared
+      # The AI usage root secret, the same value as web's: Odoo recomputes the recorder bearer of the database it serves.
+      LIWAN_AI_USAGE_KEY: ${LIWAN_AI_USAGE_KEY:-}
       # A shared tenant registers its connected TikTok account with the relay (D13) and exchanges
       # codes with the platform app; a deployment without these keeps its own direct webhook, so an
       # empty value must render instead of stopping the stack.
@@ -328,7 +332,13 @@ services:
       - ./db/init-runtime-role.sh:/docker-entrypoint-initdb.d/10-liwan-runtime-role.sh:ro
       - ./ai/init-db.sh:/docker-entrypoint-initdb.d/20-liwan-ai.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U odoo"]
+      # A real login as the admin role, not `pg_isready`, which exits 0 as soon as the postmaster answers, even when the
+      # role does not exist. The image trusts 127.0.0.1 in pg_hba.conf, so the check connects to the container's own
+      # address, where the password is required: a volume bootstrapped before the two roles existed (no `postgres` role)
+      # or a DB_ADMIN_PASSWORD that does not match the volume never turns healthy, so `up --wait` fails and even a
+      # release command that predates the role assertion rolls back. The password stays in the environment, never argv:
+      # the brace form is a plain shell expansion, and an assignment prefix is not field-split, so no quoting is needed.
+      test: ["CMD-SHELL", "PGPASSWORD=$${POSTGRES_PASSWORD} psql -h \"$$(hostname -i | awk '{print $$1}')\" -U postgres -d postgres -tAc 'SELECT 1' >/dev/null"]
       interval: 5s
       timeout: 5s
       retries: 20

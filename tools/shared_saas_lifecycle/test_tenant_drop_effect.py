@@ -112,16 +112,16 @@ class GuardTests(unittest.TestCase):
             with self.subTest(name=name):
                 self.refuse('database_is_control_plane', database=name, filestore=name)
 
-    def test_a_tenant_drop_refuses_a_restore_copy_name_and_a_restore_removal_refuses_a_tenant_name(self):
-        copy = 'liwan_scratch_' + 'a' * 32
-        self.refuse('database_is_scratch_copy', database=copy, filestore=copy)
-        for name in ('liwan_drop_test_ab12cd34', 'acme', 'liwan_scratch_' + 'A' * 32, 'liwan_scratch_' + 'a' * 31,
-                     'liwan_scratch_' + 'a' * 33, 'liwan_scratch_' + 'a' * 32 + '_x', 'x_liwan_scratch_' + 'a' * 32, 'liwan_scratch_zz'):
+    def test_a_plan_whose_database_is_also_a_restore_copy_is_refused(self):
+        name = 'liwan_scratch_' + 'a' * 32
+        self.refuse('database_is_restore_copy', database=name, filestore=name, restoreCopies=[name])
+
+    def test_a_restore_copy_name_goes_through_the_same_name_guard(self):
+        for name, code in (('', 'restore_target_invalid'), ('Upper', 'restore_target_invalid'), ('a/b', 'restore_target_invalid'),
+                           ('postgres', 'restore_target_invalid'), ('x_prod_y', 'restore_target_invalid'),
+                           (CONTROL_DATABASE, 'restore_target_invalid'), ('a_' + CONTROL_DATABASE + '_b', 'restore_target_invalid')):
             with self.subTest(name=name):
-                with self.assertRaisesRegex(EffectError, '^restore_target_invalid$'):
-                    effect.validate_restore_copy(name)
-                self.refuse('restore_target_invalid', restoreCopies=[name])
-        self.assertEqual(effect.validate_restore_copy(copy), copy)
+                self.refuse(code, restoreCopies=[name])
 
     def test_a_backup_id_must_be_a_uuid(self):
         for value in ('../x', 'abc', str(uuid.uuid4()).upper(), '', 'a/b'):
@@ -432,9 +432,6 @@ class PostgresCluster:
         shutil.rmtree(self.root, ignore_errors=True)
 
 
-HOSTILE_TAGS = frozenset({'predicate', 'index', 'check', 'default', 'trigger'})
-
-
 def plant_hostile_code(cluster, database, marker_file):
     """Plants code owned by `odoo` in a tenant database whose tables `odoo` owns (see PostgresCluster.create_tenant_database).
 
@@ -692,6 +689,15 @@ class RealDropTests(unittest.TestCase):
         self.assertTrue(store.is_dir())
         self.assertEqual(self.permits, ['drop-database'])
 
+    def test_a_database_named_as_onboarding_names_it_is_verified_and_dropped(self):
+        self.database = 'liwan_scratch_' + uuid.uuid4().hex
+        self.plan = make_plan(self.database)
+        self.create_tenant()
+        self.assertEqual(self.run_stage('verify')['verdict'], 'ok')
+        result = self.run_stage('drop_database')
+        self.assertEqual(result['state'], 'dropped')
+        self.assertFalse(self.cluster.exists(self.database))
+
     def test_the_drop_ends_an_open_session_with_force(self):
         self.create_tenant()
         holder = subprocess.Popen(self.cluster.argv + ['-X', '-q', '-d', self.database, '-c', 'SELECT pg_sleep(120)'],
@@ -847,6 +853,17 @@ class RealDropTests(unittest.TestCase):
         self.assertEqual((verdict['verdict'], verdict['fenced']), ('ok', True))
         self.assertEqual(effect.execute({**request, 'dryRun': True}, self.backend, self.permits.append)['state'], 'would_drop')
         self.assertTrue(self.cluster.exists(self.database))
+        result = effect.execute(request, self.backend, self.permits.append)
+        self.assertEqual(result['state'], 'dropped')
+        self.assertFalse(self.cluster.exists(self.database))
+
+    def test_a_drop_killed_after_the_first_fence_statement_resumes_and_completes(self):
+        self.create_tenant()
+        request = make_request(self.root, 'drop_database', self.plan)
+        # The identity was proven and the stamp written; the run died after the first statement of the fence.
+        self.cluster.sql('postgres', f'COMMENT ON DATABASE "{self.database}" IS \'liwan-drop {self.plan["requestId"]} {request["planDigest"]}\'')
+        self.cluster.sql('postgres', f'ALTER DATABASE "{self.database}" WITH ALLOW_CONNECTIONS false')
+        self.assertEqual(self.fenced_state().split('|')[0], 'false')
         result = effect.execute(request, self.backend, self.permits.append)
         self.assertEqual(result['state'], 'dropped')
         self.assertFalse(self.cluster.exists(self.database))

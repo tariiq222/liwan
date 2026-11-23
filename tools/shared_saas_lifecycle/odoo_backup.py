@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from tools.shared_saas_lifecycle.odoo_effect import (
     Runner, EffectError, no_symlink, reserve, permit, emit, validate_database,
     require_new_target, verified_observation, MAX_OUTPUT, OBSERVE_CONTAINER, classify_error,
-    release_routes_enabled, effect_operation, TENANT_DB_ROLE, AI_TENANT_SCHEMA, install_termination_handler,
+    install_termination_handler, STREAM_REFUSALS, release_routes_enabled, effect_operation, TENANT_DB_ROLE, AI_TENANT_SCHEMA,
 )
 from deploy.releases.postgres import POSTGRES_ADMIN_ROLE, identifier, tenant_bootstrap_sql, tenant_create_database_sql, tenant_isolation_sql
 AI_ROLE = 'liwan_ai'
@@ -70,15 +70,18 @@ def restore_database_script(database):
 def restore_ai_script():
     """Stage `restore-ai`: schema liwan_ai restored while logged in as its owner.
 
-    Without an AI password the archive is drained only when the cluster has no `liwan_ai` role at all; a cluster
-    that has the role but no password to log in with fails, instead of silently restoring an empty AI schema.
+    Without an AI password the stage only skips a cluster that has no `liwan_ai` role at all and an archive that holds
+    no `liwan_ai` object beyond the empty schema; a cluster that has the role but no password to log in with, or an
+    archive that carries AI data the cluster cannot restore, fails with an explicit code instead of silently losing it.
     """
     role = shlex.quote("SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = '" + AI_ROLE + "'")
     return ('set -eu\nif [ -z "${AI_DB_PASSWORD:-}" ]; then\n'
             '  export PGPASSWORD="$POSTGRES_PASSWORD"\n'
             '  present=$(psql ' + RESTORE_HOST + ' -U ' + POSTGRES_ADMIN_ROLE + ' -v ON_ERROR_STOP=1 -q -At -d postgres -c ' + role + ')\n'
             '  if [ -n "$present" ]; then echo ai_password_missing >&2; exit 1; fi\n'
-            '  cat >/dev/null; exit 0\nfi\n'
+            '  listing=$(pg_restore -l -n ' + AI_ROLE + ') || { echo ai_archive_unreadable >&2; exit 1; }\n'
+            '  if printf \'%s\\n\' "$listing" | grep -Ev \'^;|^[0-9]+; [0-9]+ [0-9]+ (SCHEMA|ACL|COMMENT) \' | grep -q .; then echo ai_data_without_role >&2; exit 1; fi\n'
+            '  exit 0\nfi\n'
             'export PGPASSWORD="$AI_DB_PASSWORD"\n'
             'exec pg_restore ' + RESTORE_HOST + ' -U ' + AI_ROLE + ' --no-owner -n liwan_ai --exit-on-error --single-transaction -d "$1"')
 
@@ -279,8 +282,10 @@ class BackupRunner(Runner):
         incoming = open(source, 'rb') if source else subprocess.DEVNULL
         # Created 0600 from the first moment: the artifact directory is readable by the worker's group.
         outgoing = os.fdopen(os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600), 'wb') if destination else subprocess.DEVNULL
+        # The stage's own refusal word goes to a private file, never to the log the group can read.
+        reason = tempfile.TemporaryFile()
         try:
-            self.child = subprocess.Popen(args, stdin=incoming, stdout=outgoing, stderr=subprocess.DEVNULL)
+            self.child = subprocess.Popen(args, stdin=incoming, stdout=outgoing, stderr=reason)
             deadline = time.monotonic() + 600
             while self.child.poll() is None:
                 if time.monotonic() >= deadline or (destination and Path(destination).stat().st_size > limit):
@@ -288,7 +293,9 @@ class BackupRunner(Runner):
                     raise EffectError('artifact_limit')
                 time.sleep(0.1)
             if self.child.returncode:
-                raise EffectError('artifact_command_failed')
+                reason.seek(0)
+                refusal = reason.read(4096).decode('utf-8', 'replace')
+                raise EffectError(next((code for code in STREAM_REFUSALS if code in refusal), 'artifact_command_failed'))
             if destination:
                 outgoing.flush(); os.fsync(outgoing.fileno())
                 if Path(destination).stat().st_size > limit:
@@ -297,6 +304,7 @@ class BackupRunner(Runner):
             self.cancel()
             raise EffectError('artifact_timeout') from None
         finally:
+            reason.close()
             if source: incoming.close()
             if destination: outgoing.close()
             self.child = None

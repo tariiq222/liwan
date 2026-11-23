@@ -235,6 +235,16 @@ class FakeRunner:
                                   for index, name in enumerate(case.tenant_names, 1)]
                                  if case.tenant_entry is None else [case.tenant_entry])
         if 'psql' in argv:
+            if case.db_restarting:
+                return 1, 'Error response from daemon: Container abc is restarting, wait until the container is running'
+            if case.db_unreachable:
+                return 1, ('psql: error: connection to server at "127.0.0.1", port 15433 failed: Connection refused\n'
+                           '\tIs the server running on that host and accepting TCP/IP connections?')
+            if case.admin_role_missing and argv[argv.index('-U') + 1] == 'postgres':
+                return 2, 'FATAL: role "postgres" does not exist'  # a volume made before the two roles existed
+            if case.admin_password_wrong and argv[argv.index('-U') + 1] == 'postgres':
+                return 2, ('psql: error: connection to server at "127.0.0.1", port 15433 failed: FATAL:  '
+                           'password authentication failed for user "postgres"')
             case.sql.append(stdin)
             return case.postgres.run(stdin, case)
         if 'up' in argv and '--wait' in argv and case.fail_health and argv[-1] == 'guard':
@@ -341,6 +351,10 @@ class ReleaseTest(unittest.TestCase):
         self.stop_at_create = False
         self.fail_create = False
         self.runtime_role_violation = False
+        self.admin_role_missing = False
+        self.admin_password_wrong = False
+        self.db_unreachable = False
+        self.db_restarting = False
         self.postgres = FakePostgres()
         self.runner = FakeRunner(self)
         self.log_stream = io.StringIO()
@@ -1197,7 +1211,7 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(self.result(), 'rolled back image_pull_failed')
         self.assertEqual(len([call for call in self.runner.calls if call[-1] == stuck]), release.PULL_ATTEMPTS)
         self.assertEqual(self.compose_stops(), [])
-        self.assertEqual(self.commands('psql'), [])
+        self.assertEqual(self.commands('psql'), self.assertion_runs())  # the role check only: no size query ran
         self.assertEqual(self.served(), OLD)
         self.assertEqual(self.alert_events(), ['deploy_failed'])
 
@@ -1450,6 +1464,9 @@ class ReleaseTest(unittest.TestCase):
         return {call[call.index('-U') + 1] for call in self.runner.calls if 'psql' in call and '-U' in call
                 and 'control-db' not in call}
 
+    def image_pulls(self):
+        return [call for call in self.commands('pull') if 'liwan-release' not in call[-1]]  # the release document's own pull is not an image
+
     def assertion_runs(self):
         return [call for call, stdin in zip(self.runner.calls, self.runner.stdins)
                 if 'psql' in call and stdin and 'privileged_or_missing_role' in stdin]
@@ -1475,7 +1492,8 @@ class ReleaseTest(unittest.TestCase):
         calls = self.runner.calls
         first_assertion = calls.index(self.assertion_runs()[0])
         self.assertLess(first_assertion, calls.index(self.commands('capture')[0]))
-        self.assertEqual(len(self.assertion_runs()), 2)  # again in the start step
+        self.assertEqual(len(self.assertion_runs()), 3)  # first in prepare, then in capture, again in the start step
+        self.assertLess(first_assertion, calls.index(self.image_pulls()[0]))
         self.assertIn("'tenant_one'", self.runner.stdins[first_assertion])
         self.assertLess(first_assertion, calls.index(self.compose_stops()[0]))
 
@@ -1491,6 +1509,72 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(self.alert_events(), ['deploy_failed'])
         self.assertEqual(len(self.assertion_runs()), 1)
         self.assertEqual(os.readlink(self.paths.current), str(self.paths.releases / OLD))
+
+    def test_an_old_volume_without_the_admin_role_is_refused_before_any_pull_and_once_per_candidate(self):
+        self.admin_role_missing = True  # every `-U postgres` session fails, not only the role assertion
+        self.assertEqual(self.main(), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused runtime_role_rejected')
+        self.assertEqual(self.image_pulls(), [])
+        self.assertEqual(self.compose_stops(), [])
+        self.assertEqual(self.served(), OLD)
+        self.assertEqual(self.alert_events(), ['deploy_failed'])
+        queries = len(self.commands('psql'))
+        # The next scheduled run does not pull, query or alert again until the candidate changes or `rollback` clears it.
+        self.assertEqual(self.main(), release.EXIT_HALTED)
+        self.assertIn('failed before (runtime_role_rejected)', self.result())
+        self.assertEqual(self.image_pulls(), [])
+        self.assertEqual(self.alert_events(), ['deploy_failed'])
+        self.assertEqual(len(self.commands('psql')), queries)
+
+    def test_a_failed_role_check_that_names_no_role_problem_is_retried_and_never_recorded(self):
+        self.db_restarting = True  # the db container restarts while `prepare` asks the role question
+        self.assertEqual(self.main(), release.EXIT_FAILED)
+        self.assertEqual(self.result(), 'rolled back runtime_role_check_failed')
+        self.assertFalse((self.state / 'failed.json').exists())
+        self.assertEqual(self.served(), OLD)
+        self.assertEqual(self.compose_stops(), [])
+        self.db_restarting = False  # the next scheduled run goes through
+        self.assertEqual(self.main(), release.EXIT_OK)
+        self.assertEqual(self.served(), NEW)
+
+    def test_a_role_problem_in_the_output_is_recorded_once_per_candidate(self):
+        self.runtime_role_violation = True
+        self.assertEqual(self.main(), release.EXIT_REFUSED)
+        self.assertTrue((self.state / 'failed.json').exists())
+
+    def test_a_wrong_admin_password_is_refused_and_recorded_once_per_candidate(self):
+        self.admin_password_wrong = True  # DB_ADMIN_PASSWORD does not match the password of the volume's admin role
+        self.assertEqual(self.main(), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused runtime_role_rejected')
+        self.assertTrue((self.state / 'failed.json').exists())
+        self.assertEqual(self.served(), OLD)
+        self.assertEqual(self.compose_stops(), [])
+        self.assertEqual(self.main(), release.EXIT_HALTED)
+
+    def test_a_transient_connection_failure_is_retried_and_never_recorded(self):
+        self.db_unreachable = True  # the server is not accepting connections yet, which says nothing about the volume
+        self.assertEqual(self.main(), release.EXIT_FAILED)
+        self.assertEqual(self.result(), 'rolled back runtime_role_check_failed')
+        self.assertFalse((self.state / 'failed.json').exists())
+        self.assertEqual(self.served(), OLD)
+        self.db_unreachable = False  # the next scheduled run goes through
+        self.assertEqual(self.main(), release.EXIT_OK)
+        self.assertEqual(self.served(), NEW)
+
+    def test_the_role_check_separates_volume_problems_from_connection_problems(self):
+        for output in ('FATAL: role "postgres" does not exist',
+                       'psql: error: connection to server at "127.0.0.1", port 15433 failed: FATAL:  password '
+                       'authentication failed for user "postgres"',
+                       'FATAL:  role "postgres" is not permitted to log in',
+                       'ERROR:  privileged_or_missing_role'):
+            with self.subTest(output=output):
+                self.assertTrue(release.runtime_role_failure_output(output))
+        for output in ('Error response from daemon: Container abc is restarting, wait until the container is running',
+                       'psql: error: connection to server at "127.0.0.1", port 15433 failed: Connection refused',
+                       'psql: error: FATAL:  the database system is starting up',
+                       'psql: error: could not connect to server: No such file or directory'):
+            with self.subTest(output=output):
+                self.assertFalse(release.runtime_role_failure_output(output))
 
     def test_a_rejected_runtime_role_on_a_first_deploy_starts_no_application(self):
         self.first_deploy()

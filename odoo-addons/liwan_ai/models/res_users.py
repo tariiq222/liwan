@@ -22,7 +22,7 @@ class LiwanAiResUsers(models.Model):
     def _check_credentials(self, credential, env):
         """The usage recorder is a machine account: no password, key or code ever signs it in to a session.
 
-        Its API key authenticates only through the bearer path, which never calls this method.
+        Its derived bearer authenticates only through the bearer path, which never calls this method.
         """
         recorder = self.env['ir.model.data']._xmlid_to_res_id(USAGE_RECORDER, raise_if_not_found=False)
         # Base Odoo verifies the password of the environment's user, so both the record and the acting user are checked.

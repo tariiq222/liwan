@@ -4,10 +4,10 @@
 
 LiwanOS development runs in a pool of lanes (owner decision 2026-11-16, replacing the four named lanes of
 2026-11-13). A lane is a permanent worktree under `/Users/tariq/code/liwan/.worktrees/`. One task is one
-branch, one lane and one writing session, whichever tool the session runs (Claude, Codex or OpenCode).
+branch with its own PR, normally in one lane, and one orchestrator session owns it end to end (owner decision 2026-11-23), whichever tool the session runs (Claude, Codex or OpenCode).
 The main checkout `/Users/tariq/code/liwan` rests on `main` and
 belongs to the owner, for manual testing and the one running development stack; no agent develops in it.
-One writer owns each file. One orchestrator
+One writer owns each file. The orchestrator
 owns shared files, Git integration, runtime state, and final verification.
 
 ## Checkout and delivery context
@@ -77,9 +77,10 @@ shared change must state the contract and the single writer before work starts.
 1. Inspect the lane's branch, status, remotes, and changed paths. Preserve unrelated edits.
    Use any normal task branch name (for example `<area>-<slug>`).
 2. Decide file ownership and list collisions before editing. Keep dependent work in one branch and one
-   session; independent tasks go to separate lanes.
-3. Take a lane with `npm run wt -- take <branch> --owner <who>` (see "Lane pool"). The lane already has its
-   own `node_modules`, `.nuxt`, ports and scratch database name, so there is nothing else to set up.
+   lane; independent tasks go to separate lanes.
+3. Take a lane with `npm run wt -- take <branch> --holder <worker role(s)> --orchestrator <id>` (see "Lane
+   pool"). The lane already has its own `node_modules`, `.nuxt`, ports and scratch database name, so there is
+   nothing else to set up.
 4. Each lane has its own `NUXT_ODOO_URL`, `NUXT_ODOO_DB`, `NUXT_PUBLIC_WS_URL`, Nuxt port and Odoo
    HTTP port. They live in the git-ignored `.env.worktree`; `npm run dev` (`tools/dev_web.mjs`) reads that
    file and rejects command-line overrides, so do not pass `--port` or export those variables by hand.
@@ -88,31 +89,55 @@ shared change must state the contract and the single writer before work starts.
 ### Lane pool
 
 A lane is any worktree under `<main checkout>/.worktrees/` that holds a take record
-(the file liwan-take.json in its git directory: branch, holder, task, `taken_at` and the hash of
-`package-lock.json` at the last install). Lanes have no fixed names and no tool split. The number of lanes
-is the owner's choice and grows with `lane add`.
+(the file liwan-take.json in its git directory: branch, holder, orchestrator, task, `taken_at` and the hash of
+`package-lock.json` at the last install). The holder names the worker role(s) that write in the lane; the
+orchestrator is a short readable id such as `opencode-<slug>`. Lanes have no fixed names and no tool split.
+The number of lanes is the owner's choice and grows with `lane add`.
+
+Lifecycle of one piece of work (owner decision 2026-11-23). The orchestrator runs from the main checkout,
+holds no lane and writes no product code:
+
+| Phase | Agent | Command or action |
+| --- | --- | --- |
+| 1. Intake and plan | orchestrator, `planner` | Read the request, plan parts and file ownership. |
+| 2. Take lanes | orchestrator | `npm run wt -- take <branch> --holder <worker role(s)> --orchestrator <id>` |
+| 3. Implement | workers (`worker`, `worker-deep`, `ui`, `ui-deep`, `worker-hard`) | Work in the lane's absolute path, `workdir` set on every command. |
+| 4. Verify and commit | orchestrator, `runner` | After each worker report, `git -C <main checkout> status --porcelain` is empty and `npm run wt -- check` passes; run the applicable checks; commit. |
+| 5. Test | `tester` (sensitive work) | Runs in the lane with its `.env.worktree` ports and scratch database. |
+| 6. Review | `reviewer` | Reads `git -C <lane> diff origin/main...<branch>`; confirmed findings are fixed first. |
+| 7. Publish | orchestrator | Push, open the PR as a draft, and mark it ready once review is clean, the tester passed on sensitive work and the local checks passed (automatic, per integration-rules.md); CI then runs. |
+| 8. Merge | the owner's words | After current-head `ci-result` is green, merge on the owner's explicit words. |
+| 9. Close | orchestrator | `npm run wt -- done --orchestrator <id>`, then report. |
 
 | Command | What it does |
 | --- | --- |
-| `npm run wt -- lane add <name> [--owner X --task Y] [--no-install]` | Creates a new lane from the fetched `origin/main` and prepares it: ports, scratch database name, `.env.worktree` and dependencies. Given an existing worktree folder under `.worktrees/`, it adopts that folder in place: it records the folder's current branch with `--owner` and `--task` and deletes the old lane and claim record files. |
-| `npm run wt -- take <branch> --owner <who> [--task <what>] [--lane <name>]` | Takes the named lane, or the first resting clean one. Fetches `origin/main`, creates the branch from it (or switches to the local branch when it exists, which resumes a parked task), records the holder, reinstalls dependencies when `package-lock.json` changed since the last install, and prints the lane path. Refuses `main` and `HEAD`, an occupied or dirty lane, and reports "no free lane" with the holders and a pointer to `lane add`. |
-| `npm run wt -- done [--lane <name>] [--park]` | Needs a clean tree. Without `--park` the branch must be merged into `origin/main`: the lane detaches to `origin/main`, the local branch is deleted and the record is emptied. With `--park` the local branch stays and the lane rests; resume later with `take <branch>`. |
-| `npm run wt -- status` | Lists lanes with holder, branch, ahead/behind, dirty state, ports and database, then a "shared files" section with the files changed in two occupied lanes at once. It only reports. |
+| `npm run wt -- lane add <name> [--holder X --orchestrator Y --task Z] [--no-install]` | Creates a new lane from the fetched `origin/main` and prepares it: ports, scratch database name, `.env.worktree` and dependencies. Given an existing worktree folder under `.worktrees/`, it adopts that folder in place (`--holder`, `--orchestrator` and `--task` are then required together when it is on a branch): it records the folder's current branch with `--holder`, `--orchestrator` and `--task` and deletes the old lane and claim record files. |
+| `npm run wt -- take <branch> --holder <worker role(s)> --orchestrator <id> [--task <what>] [--lane <name>]` | Takes the named lane, or the first resting clean one. Fetches `origin/main`, creates the branch from it (or switches to the local branch when it exists, which resumes a parked task), records the holder and orchestrator, reinstalls dependencies when `package-lock.json` changed since the last install, and prints the lane path. Refuses `main` and `HEAD`, an occupied or dirty lane, and reports "no free lane" with the holders and a pointer to `lane add`. |
+| `npm run wt -- done [--lane <name>] [--park]` | Returns one lane (the current one by default); it needs a clean tree and, without `--park`, a branch merged into `origin/main`. Use `done --lane <name> --park` to rest a lane whose record lacks an orchestrator, then `take` it again. |
+| `npm run wt -- done --orchestrator <id> [--park]` | Returns every lane of that orchestrator; each needs a clean tree. Without `--park` the branch must be merged into `origin/main`: the lane detaches to `origin/main`, the local branch is deleted and the record is emptied. With `--park` the local branches stay and the lanes rest; resume later with `take <branch>`. Scratch databases stay with the lane and are dropped only by `lane remove`. |
+| `npm run wt -- status` | Lists lanes with orchestrator, holder, branch, ahead/behind, dirty state, ports and database, then a "shared files" section with the files changed in two occupied lanes at once. It only reports. |
 | `npm run wt -- check` | Read-only; exit 1 on a violation. See the rules below. |
 | `npm run wt -- lane remove <name>` | Removes a resting, clean lane (a parked branch survives as a local branch and can be taken again). Refuses an occupied, dirty, missing or in-use lane; drops the lane's scratch database when nobody is connected. |
 | `npm run wt -- gc [--apply] [--branch ...]` | Cleans merged, clean, idle worktrees that are not lanes (leftovers from before the pool). It never removes a lane. |
 
 Rules:
 
-1. **One writing session per lane.** The session that takes a lane is its only writer, whatever the tool.
-   Subagents of that session work in the same lane under its direction. Read-only and review sessions take no
-   lane. Two sessions never write in one lane, and no agent develops in the main checkout.
-2. **Open the tool in the lane.** Each tool starts with the lane folder as its working directory and its
-   built-in worktree option off. No tool-owned worktree (the Claude app's `worktrees` folder under `.claude`
-   and the like) is created.
-3. **Free use of Git inside the lane.** On its own unpublished branch a session may use any git command
-   (stash, reset, rebase and amend included). Published history is never rewritten, and a push, a PR, a
-   merge and an auto-merge still need the owner's explicit words.
+1. **One orchestrator per task, workers bound to lanes.** The orchestrator takes the lanes and writes no
+   product code. Shared role agents (`planner`, `reviewer`, `tester`, `scout`, `runner`) serve all tasks and
+   never take a lane: the orchestrator gives them the lane's absolute path and they run commands with
+   `workdir` set to it (`tester` and `runner` use that lane's `.env.worktree` ports and scratch database;
+   `reviewer` reads `git -C <lane> diff origin/main...<branch>`). Heavy commands in one lane are serialized.
+   Workers are the only agents bound to a lane, through its absolute path in their brief and `workdir` on every
+   command. Several workers may share one lane and branch under one orchestrator when their files do not
+   overlap. Use several lanes only for independent tasks, or for parts that need concurrent
+   dev servers or databases; each extra lane has its own branch and its own PR. No agent develops in the main checkout.
+2. **Absolute paths, no tool worktrees.** Agents address the lane by its absolute path. The built-in worktree
+   option of each tool stays off, and no tool-owned worktree (the Claude app's `worktrees` folder under
+   `.claude` and the like) is created.
+3. **Free use of Git inside the lane.** On its own unpublished branch the orchestrator may use any git command
+   (stash, reset, rebase and amend included). Published history is never rewritten. Push, PR and ready follow
+   the review-gated flow in [integration-rules.md](agents/integration-rules.md#standing-authorization-owner-decision-2026-11-11);
+   a merge and an auto-merge still need the owner's explicit words.
 4. **One schema writer per addon.** A schema change (version bump and migration) of one addon stays in one
    lane. `wt check` fails when two lanes both change the same `odoo-addons/<addon>/migrations/`.
 5. **Shared files.** `wt status` lists files changed in two occupied lanes at once. Report only: the
@@ -129,7 +154,8 @@ Rules:
 
 - a worktree that is neither the main checkout nor a lane;
 - a lane whose checked-out branch differs from its record;
-- an occupied lane with no holder;
+- an occupied lane with no holder (fix: `done --lane <name> --park`, then `take`);
+- an occupied lane with no orchestrator (fix: `done --lane <name> --park`, then `take`);
 - two lanes that both change the same `odoo-addons/<addon>/migrations/`.
 
 The pre-commit guard (`tools/hooks.py`) runs for every tool. It refuses a commit on `main`; in a lane it
@@ -146,7 +172,7 @@ the new `main`. An older branch runs its own older copy of the hook.
 
 Never create another worktree (no `git worktree add`, no tool-owned worktree folder) unless the owner asks
 for one in words for that task. `wt check` reports it, and the pre-commit guard refuses a commit in it. A
-worktree the owner asks for is a lane too: add it with `npm run wt -- lane add <name> [--owner X --task Y]`
+worktree the owner asks for is a lane too: add it with `npm run wt -- lane add <name> [--holder X --orchestrator Y --task Z]`
 and remove it when it rests and is clean with `npm run wt -- lane remove <name>` (a parked branch survives as a local branch and can be taken again). `lane remove` refuses an
 occupied, dirty, missing or in-use lane, removes the worktree and drops its scratch database when nobody is
 connected. Throwaway `spike/<slug>` experiments use plain
@@ -203,14 +229,14 @@ The per-branch route gate is `tools/route_gate_policy.py`, run inside `npm test`
 
 Use [integration-rules.md](agents/integration-rules.md) for delivery: one draft PR
 per independent task or agreed integration batch, opened after the independent review that
-precedes every push, followed by checks and
-a protected merge on the owner's explicit words after current-head `ci-result`
-and review of the actual combined diff. CI does not repair code, merge PRs or create tags. `wt status` compares ancestry with **local** `main`; when it is stale, compare
+precedes every push; the push, the PR and marking it ready are automatic after that
+review, and the protected merge needs the owner's explicit words after current-head `ci-result`
+is green and review of the actual combined diff. CI does not repair code, merge PRs or create tags. `wt status` compares ancestry with **local** `main`; when it is stale, compare
 with current remote `main` too. A merged head with dirty files still contains
 undelivered work. A child sharing its parent's head is dependent work, not a
 second independent delivery.
 
-After the merge, the session returns its lane with `wt done`; a lane the owner
+After the merge, the orchestrator returns its lanes with `wt done --orchestrator <id>`; a lane the owner
 asked for as a temporary one is removed with `wt lane remove <name>`.
 
 The task owner reports the files changed and verification evidence. The
@@ -220,9 +246,7 @@ the resulting branch and runtime state. A passing local
 test, health endpoint, or UI observation proves only the checked layer; it does
 not prove deployment, DNS, or release approval.
 
-The LiwanOS Git remote is `origin` (`https://github.com/tariiq222/liwan.git`),
-tracked by `main`. Push a task branch only on the owner's explicit words; `main` changes only
-through a merged PR; never force-push published history, and do not imply that a push occurred. Do not remove a
-branch or worktree until its content is preserved and no process is using it. A production deployment or DNS cutover
-requires separate authorization; local `:8069`/`:3000` development is not
-production evidence.
+The LiwanOS Git remote is `origin` (`https://github.com/tariiq222/liwan.git`), tracked by
+`main`; push, force-push, protection, deployment and cleanup authorization are owned by
+[integration-rules.md](agents/integration-rules.md), and local `:8069`/`:3000` development is
+not production evidence.

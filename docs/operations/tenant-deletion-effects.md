@@ -32,7 +32,7 @@ A mutating stage asks for a permit (`{"permit": "<stage>"}` on stdout, `{"procee
 | `stamp_marker` | Backfills `liwan.control.tenant_id` for a tenant provisioned before the marker existed. See "The tenant marker". |
 | `drop_database` | Proves identity (below), asks the permit `drop-database`, proves it again, then writes the **stamp** (`COMMENT ON DATABASE` carrying `liwan-drop <request id> <plan digest>`), closes the database the way provisioning closes it (`REVOKE CONNECT` from `PUBLIC` and the application role, `ALLOW_CONNECTIONS false`, terminate sessions), then `DROP DATABASE ... WITH (FORCE)` and observes that it is gone. **Resume:** a database that refuses connections whose stamp equals this request and plan digest was fenced by an earlier run after identity was proven; identity is not read again (it cannot be) and the run continues to the drop. A fenced database with no stamp or another stamp is refused (`database_fence_unproven`); a stamp on a database that still accepts connections is ignored and identity is read as usual. The stamp is read from the maintenance database (`shobj_description`), never from inside the tenant database. |
 | `remove_filestore` | Refuses while the database still exists. Resolves `<dataDir>/filestore/<database>` strictly (`dataDir` is `/var/lib/odoo` inside the container, see below), renames it to `<database>.deleting-<request id>`, removes it, observes. A leftover renamed directory from a crashed run is finished (`state: resumed`). The tenant export archive lives inside the filestore and goes with it (counted as `exportFiles`). |
-| `remove_restore_copies` | Only the names in `plan.restoreCopies`, each matching `^liwan_scratch_[a-f0-9]{32}$` **and carrying this tenant's marker**: a restored copy keeps the source tenant's `liwan.control.tenant_id`, which is read from inside the copy and must equal `plan.controlTenantId`. Then its database in `restore-db`, its files in `restore-odoo`, `restore-effects/<name>.json` and `classifications/<name>.json`. Never enumerates by pattern. A copy that is fenced, cannot be queried or lacks the table is `restore_copy_unreadable`; no marker is `restore_copy_marker_missing`; another tenant's marker is `restore_copy_marker_mismatch`; all change nothing. A copy whose database is already gone is finished by name (files and side files), since nothing is left to read. |
+| `remove_restore_copies` | Only the names in `plan.restoreCopies`, each passing the same name guard as the tenant database **and carrying this tenant's marker**: a restored copy keeps the source tenant's `liwan.control.tenant_id`, which is read from inside the copy and must equal `plan.controlTenantId`. Then its database in `restore-db`, its files in `restore-odoo`, `restore-effects/<name>.json` and `classifications/<name>.json`. Never enumerates by pattern. A copy that is fenced, cannot be queried or lacks the table is `restore_copy_unreadable`; no marker is `restore_copy_marker_missing`; another tenant's marker is `restore_copy_marker_mismatch`; all change nothing. A copy whose database is already gone is finished by name (files and side files), since nothing is left to read. |
 | `purge_local_backups` | Only the ids in `plan.backupIds`, each `<stateDir>/backups/<uuid>`. |
 | `remove_side_files` | `credentials/<db>.json`, `classifications/<db>.json` and `<aiEgressDir>/<db>.hosts`. |
 
@@ -46,12 +46,12 @@ The tenant database is dropped only when every check passes. A mismatch is a har
 | --- | --- |
 | Plan is not an object with exactly the plan keys, digest malformed, floats | `plan_invalid` |
 | Digest does not match | `plan_digest_mismatch` |
-| Database or filestore is not `^[a-z][a-z0-9_]{0,62}$` | `database_name_invalid` |
+| Database or filestore is not `^[a-z][a-z0-9_]{0,62}$` (the name prefix says nothing about a database being live or a copy) | `database_name_invalid` |
 | `database != filestore` | `database_filestore_mismatch` |
 | `postgres`, `template0`, `template1`, `odoo19`, `production`, `liwan_dev`, `liwan_ai`, or a `_`-separated segment `odoo19`, `production`, `prod`, `postgres`, `template0`, `template1` | `database_blocklisted` |
 | Equals, or contains as a `_` segment, `plan.controlPlaneDatabase` | `database_is_control_plane` |
-| Starts with `liwan_scratch_` (a restore copy, never a tenant drop) | `database_is_scratch_copy` |
-| Restore copy name is not `^liwan_scratch_[a-f0-9]{32}$` | `restore_target_invalid` |
+| `plan.database` is also listed in `plan.restoreCopies` | `database_is_restore_copy` |
+| A restore copy name fails the database name guard (identifier shape, blocklist, control-plane database) | `restore_target_invalid` |
 | Backup id is not a lowercase UUID | `backup_id_invalid` |
 | Host is not a routed host of this runtime | `host_invalid` |
 | The identity query cannot be read | `identity_query_failed` |

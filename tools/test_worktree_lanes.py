@@ -14,7 +14,7 @@ from worktree_lanes import (
     write_take,
 )
 
-TAKEN = Take('tools-x', 'session-a', 'a task', 100, 'abc')
+TAKEN = Take('tools-x', 'session-a', 'a task', 100, 'abc', 'orch-1')
 
 
 class TestRecord(unittest.TestCase):
@@ -27,8 +27,14 @@ class TestRecord(unittest.TestCase):
             self.assertEqual(read_take(tmp), Take(None, None, None, None, 'abc'))
             self.assertEqual([p.name for p in Path(tmp).iterdir()], [lanes.TAKE_FILE])  # no draft file is left behind
 
+    def test_an_old_record_without_an_orchestrator_reads_as_none(self):
+        old = {key: value for key, value in TAKEN.as_json().items() if key != 'orchestrator'}
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / lanes.TAKE_FILE).write_text(json.dumps(old), encoding='utf-8')
+            self.assertEqual(read_take(tmp), TAKEN._replace(orchestrator=None))
+
     def test_an_unreadable_record_raises_with_its_path(self):
-        bad = ('not json', '{}', json.dumps({**TAKEN.as_json(), 'branch': 3}), json.dumps({**TAKEN.as_json(), 'taken_at': 'x'}))
+        bad = ('not json', '{}', json.dumps({**TAKEN.as_json(), 'orchestrator': 3}), json.dumps({**TAKEN.as_json(), 'branch': 3}), json.dumps({**TAKEN.as_json(), 'taken_at': 'x'}))
         for text in bad:
             with self.subTest(text=text), tempfile.TemporaryDirectory() as tmp:
                 (Path(tmp) / lanes.TAKE_FILE).write_text(text, encoding='utf-8')
