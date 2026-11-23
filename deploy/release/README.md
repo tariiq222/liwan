@@ -173,8 +173,8 @@ with `LIWAN_ALERT_TELEGRAM_CHAT_ID`. With none, `deploy/alerts.py` exits 2 and t
 The path comes from `LIWAN_SHARED_COMPOSE_FILE` in the shared env file (the same key `init-host.sh` reads for the `composeFile` of the
 worker's `shared-runtime.json`); it is not a release config key. Before anything stops (the `verified` phase), the run refuses with
 `RESULT: refused invalid_shared_env` when the key is missing or not an absolute path, when its directory does not exist or is not
-writable, or when the shared env file is owned by root and unreadable by group and others (the worker account could never read the
-rendered copy). At each activation, after `release.env` is written and before any service or the worker starts, the run renders the
+writable, or when the shared env file is owned by root and unreadable by group and others (the effect account, which reads the
+rendered copy through the `docker` group, could never read it). At each activation, after `release.env` is written and before any service or the worker starts, the run renders the
 shared stack (the files of `SHARED_COMPOSE_FILES`, every profile) to that path with `docker compose config --format json`, through
 a temporary file and an atomic replace. The file holds the shared env file's secrets, so it takes that file's owner, group and
 mode. A rollback renders it again for the restored release, so the worker and the running stack always describe the same release.

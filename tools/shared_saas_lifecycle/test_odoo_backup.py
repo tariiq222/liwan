@@ -1,6 +1,8 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import hashlib
 import io
+import os
+import stat
 import json
 import re
 import sys
@@ -320,6 +322,51 @@ class CaptureRestartTests(unittest.TestCase):
             self.assertEqual(str(caught.exception), 'odoo_restart_failed')
             self.assertEqual(str(caught.exception.__cause__), 'compose_down')
             self.assertIs(caught.exception.__cause__.__context__, boom)
+
+
+class ArtifactModeTests(unittest.TestCase):
+    """The artifact directory is 0750 for the worker's group: only the manifest is meant to be read there."""
+
+    def test_streamed_artifacts_are_created_0600_even_under_umask_zero(self):
+        runner = object.__new__(odoo_backup.BackupRunner)
+        modes = []
+        real_open = os.open
+
+        def recording_open(path, flags, mode=0o777, **kwargs):
+            modes.append(mode)
+            return real_open(path, flags, mode, **kwargs)
+        old = os.umask(0)
+        try:
+            with tempfile.TemporaryDirectory() as raw, patch.object(odoo_backup.os, 'open', recording_open):
+                destination = Path(raw) / 'database.dump'
+                runner.stream(['sh', '-c', 'echo data'], destination=destination)
+                self.assertEqual(modes[0], 0o600)
+                self.assertEqual(stat.S_IMODE(destination.stat().st_mode), 0o600)
+        finally:
+            os.umask(old)
+
+    def test_a_captured_artifact_has_a_0750_directory_and_only_the_manifest_group_readable(self):
+        runner = CaptureRestartTests().capture_runner(Path(tempfile.mkdtemp()).resolve())[0]
+
+        def create(*_args, destination=None, **_kwargs):
+            if destination:
+                os.close(os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600))
+        runner.stream = create
+        runner.pg_stream = create
+        old = os.umask(0o007)
+        try:
+            with patch.object(odoo_backup, 'permit', lambda _stage: None), \
+                    patch.object(odoo_backup, 'validate_archive', lambda _path: None), \
+                    patch.object(odoo_backup, 'sha256_file', lambda _path: 'a' * 64), \
+                    patch.object(odoo_backup, 'release_routes_enabled', lambda: False):
+                runner.capture()
+        finally:
+            os.umask(old)
+        modes = {entry.name: stat.S_IMODE(entry.stat().st_mode) for entry in runner.artifact.iterdir()}
+        self.assertEqual(stat.S_IMODE(runner.artifact.stat().st_mode), 0o750)
+        self.assertEqual(modes['manifest.json'], 0o640)
+        self.assertEqual({name: mode for name, mode in modes.items() if name != 'manifest.json'},
+                         {'database.dump': 0o600, 'filestore.tar': 0o600, 'reservation.json': 0o600})
 
 
 class InventoryChannelTests(unittest.TestCase):

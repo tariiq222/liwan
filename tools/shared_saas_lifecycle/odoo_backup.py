@@ -275,10 +275,9 @@ class BackupRunner(Runner):
     def stream(self, args, *, destination=None, source=None, limit=MAX_ARCHIVE):
         # Binary artifacts bypass JSON/log buffers. Docker descendant is tracked.
         incoming = open(source, 'rb') if source else subprocess.DEVNULL
-        outgoing = open(destination, 'xb') if destination else subprocess.DEVNULL
+        # Created 0600 from the first moment: the artifact directory is readable by the worker's group.
+        outgoing = os.fdopen(os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600), 'wb') if destination else subprocess.DEVNULL
         try:
-            if destination:
-                os.chmod(destination, 0o600)
             self.child = subprocess.Popen(args, stdin=incoming, stdout=outgoing, stderr=subprocess.DEVNULL)
             deadline = time.monotonic() + 600
             while self.child.poll() is None:
