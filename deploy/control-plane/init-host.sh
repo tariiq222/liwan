@@ -102,12 +102,15 @@ trusted_parent() {
 }
 
 # settle <path> <d|f> <mode> <owner> <group>: root only for the owner and group, set first because chown clears the setgid bit; then the
-# mode. The path is re-checked after the chown (chown -h never follows a link; chmod does), so a swap in between is refused.
+# mode. The path is re-checked after the chown (chown -h never follows a link; chmod does), so a swap in between is refused. The mode goes
+# on with that extra leading zero because a directory made inside the setgid state directory inherits the setgid bit, and GNU chmod keeps
+# a directory's special bits unless the numeric mode carries that fifth digit: `chmod 0700` on such a directory leaves 2700, only
+# `chmod 00700` gives it the 0700 this script documents.
 settle() {
   plain "$1" "$2"
   if [[ "$(id -u)" == 0 ]]; then chown -h "$4:$5" "$1"; fi
   plain "$1" "$2"
-  chmod "$3" "$1"
+  chmod "0$3" "$1"
 }
 
 # ensure_dir <dir> <mode>: an existing entry must be a real directory (a link, even to a directory, stops the script: root would write
