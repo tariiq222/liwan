@@ -24,6 +24,7 @@ from tools.shared_saas_lifecycle.odoo_effect import (
 from deploy.releases.postgres import tenant_create_database_sql, tenant_isolation_sql
 MAX_ARCHIVE = 2 * 1024 * 1024 * 1024
 MAX_MEMBERS = 100000
+MAX_INVENTORY = 64 * 1024 * 1024
 
 
 def restore_database_script(database):
@@ -222,7 +223,7 @@ class BackupRunner(Runner):
         finally:
             self.current_container = None
 
-    def stream(self, args, *, destination=None, source=None):
+    def stream(self, args, *, destination=None, source=None, limit=MAX_ARCHIVE):
         # Binary artifacts bypass JSON/log buffers. Docker descendant is tracked.
         incoming = open(source, 'rb') if source else subprocess.DEVNULL
         outgoing = open(destination, 'xb') if destination else subprocess.DEVNULL
@@ -232,7 +233,7 @@ class BackupRunner(Runner):
             self.child = subprocess.Popen(args, stdin=incoming, stdout=outgoing, stderr=subprocess.DEVNULL)
             deadline = time.monotonic() + 600
             while self.child.poll() is None:
-                if time.monotonic() >= deadline or (destination and Path(destination).stat().st_size > MAX_ARCHIVE):
+                if time.monotonic() >= deadline or (destination and Path(destination).stat().st_size > limit):
                     self.cancel()
                     raise EffectError('artifact_limit')
                 time.sleep(0.1)
@@ -240,7 +241,7 @@ class BackupRunner(Runner):
                 raise EffectError('artifact_command_failed')
             if destination:
                 outgoing.flush(); os.fsync(outgoing.fileno())
-                if Path(destination).stat().st_size > MAX_ARCHIVE:
+                if Path(destination).stat().st_size > limit:
                     raise EffectError('archive_limit')
         except subprocess.TimeoutExpired:
             self.cancel()
@@ -272,11 +273,12 @@ class BackupRunner(Runner):
     def inventory(self, service, database):
         validation='import hashlib\nclass EffectError(Exception): pass\nMAX_DATABASE_ATTACHMENT='+str(MAX_DATABASE_ATTACHMENT)+'\nMAX_MEMBERS='+str(MAX_MEMBERS)+'\nMAX_ARCHIVE='+str(MAX_ARCHIVE)+'\n'+inspect.getsource(database_attachment_digest)
         script = CONNECTION + validation + '\nfrom contextlib import closing\n' + inspect.getsource(read_inventory) + '\nprint(json.dumps(read_inventory(connect,' + repr(database) + '),default=str,separators=(\",\",\":\")))'
-        # Bounded inventory: selected fixture is intentionally small, fail on overflow.
-        output = self.helper(service, 'inventory', script)
-        if len(output) >= MAX_OUTPUT:
-            raise EffectError('inventory_limit')
-        return json.loads(output)
+        # Streamed to a file: the helper's JSON grows with the attachment count and must not pass
+        # through the 64 KiB command buffer. A runaway ends in the stream's artifact_limit or archive_limit error.
+        with tempfile.TemporaryDirectory() as directory:
+            destination = Path(directory) / 'inventory.json'
+            self.stream(self.helper_args(service, 'inventory', script), destination=destination, limit=MAX_INVENTORY)
+            return json.loads(destination.read_text())
 
     def files_exist(self, service, database):
         script = 'import json;from pathlib import Path;p=Path(' + repr('/var/lib/odoo/filestore/' + database) + ');print(json.dumps(p.exists() or p.is_symlink()))'
@@ -393,7 +395,28 @@ print('{}')
         reserve(self.artifact/'reservation.json',{'digest':self.request['payloadDigest'],'attemptId':self.request['attemptId']})
         source_image=self.inspect_service('odoo')['Image'];postgres_image=self.inspect_service('db')['Image']
         permit('drain')
-        self.command(self.base+['stop','--timeout','30','odoo'],timeout=45)
+        try:
+            self.command(self.base+['stop','--timeout','30','odoo'],timeout=45)
+            manifest=self.capture_while_stopped(source_image,postgres_image)
+            permit('resume')
+        except BaseException:
+            # Odoo is shared by every tenant: whatever failed, never leave it stopped. No permit here;
+            # the authority may be gone and the restart must not wait for it.
+            self.restart_after_failure()
+            raise
+        self.command(self.base+['start','odoo'],timeout=60)
+        self.wait_healthy('odoo');self.verify_originals()
+        permit('complete')
+        reserve(self.artifact/'manifest.json',manifest);(self.artifact/'manifest.json').chmod(0o640)
+        self.read_artifact()
+
+    def restart_after_failure(self):
+        try:
+            self.command(self.base+['start','odoo'],timeout=60)
+        except Exception as restart_error:
+            raise EffectError('odoo_restart_failed') from restart_error
+
+    def capture_while_stopped(self,source_image,postgres_image):
         if self.inspect_service('odoo')['State']['Running']:
             raise EffectError('writers_not_stopped')
         self.drain_observers()
@@ -425,12 +448,7 @@ with tarfile.open(fileobj=sys.stdout.buffer,mode='w|') as out:
             'binding':self.request['job']['binding'],'businessKey':self.request['businessKey'],'payloadDigest':self.request['payloadDigest'],
             'databaseSha256':sha256_file(self.artifact/'database.dump'),'filestoreSha256':sha256_file(self.artifact/'filestore.tar'),
             'sourceImageId':source_image,'postgresImageId':postgres_image,'capturedAt':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),'inventory':inventory}
-        permit('resume')
-        self.command(self.base+['start','odoo'],timeout=60)
-        self.wait_healthy('odoo');self.verify_originals()
-        permit('complete')
-        reserve(self.artifact/'manifest.json',manifest);(self.artifact/'manifest.json').chmod(0o640)
-        self.read_artifact()
+        return manifest
 
     def restore(self):
         with effect_operation(self.request, 'restore'):

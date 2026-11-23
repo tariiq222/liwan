@@ -234,6 +234,115 @@ class BackupBoundaryTests(unittest.TestCase):
                 odoo_backup.require_hash(path, expected)
 
 
+class CaptureRestartTests(unittest.TestCase):
+    """Odoo is shared by every tenant: once stopped, a capture must always start it again."""
+    STEPS = ('stop', 'writers_not_stopped', 'drain_observers', 'assert_no_effect_containers', 'drain_check',
+             'dump', 'pack', 'inventory', 'check_files', 'validate_archive', 'sha256_file', 'resume_permit')
+
+    def capture_runner(self, root, fail_at=None, fail_start=False):
+        runner = object.__new__(odoo_backup.BackupRunner)
+        runner.root = root
+        runner.base = ['compose']
+        runner.config = {'projectName': 'liwan-shared-test'}
+        runner.database = 'liwan_scratch_a'
+        runner.backup_id = '00000000-0000-4000-8000-000000000000'
+        runner.artifact = root / 'backups' / runner.backup_id
+        runner.authority = {'controlTenantId': 'tenant'}
+        runner.request = {'payloadDigest': 'd', 'attemptId': 'attempt01', 'businessKey': 'b', 'job': {'binding': {}}}
+        runner.commands = []
+        boom = odoo_effect.EffectError('boom')
+        def maybe(step):
+            if step == fail_at:
+                raise boom
+        def command(args, **_):
+            runner.commands.append(args)
+            if 'stop' in args:
+                maybe('stop')
+            if 'start' in args and fail_start:
+                raise odoo_effect.EffectError('compose_down')
+            return ''
+        runner.command = command
+        runner.assert_no_effect_containers = lambda **_: maybe('assert_no_effect_containers') if runner.commands else None
+        runner.inspect_service = lambda _service: {'Image': 'image', 'State': {'Running': fail_at == 'writers_not_stopped'}}
+        runner.drain_observers = lambda: maybe('drain_observers')
+        runner.helper = lambda *_: maybe('drain_check')
+        runner.pg_stream = lambda *_, **__: maybe('dump')
+        runner.stream = lambda *_, **__: maybe('pack')
+        runner.inventory = lambda *_: maybe('inventory') or {'attachments': []}
+        runner.check_files = lambda *_: maybe('check_files')
+        runner.wait_healthy = lambda _service: None
+        runner.verify_originals = lambda: None
+        runner.read_artifact = lambda: None
+        return runner, boom
+
+    def capture(self, runner, fail_at):
+        def validate(_path):
+            if fail_at == 'validate_archive':
+                raise odoo_effect.EffectError('boom')
+        def sha(_path):
+            if fail_at == 'sha256_file':
+                raise odoo_effect.EffectError('boom')
+            return 'a' * 64
+        def permit(stage):
+            if stage == 'resume' and fail_at == 'resume_permit':
+                raise odoo_effect.EffectError('boom')
+        with patch.object(odoo_backup, 'permit', permit), patch.object(odoo_backup, 'reserve', lambda path, _value: Path(path).write_text('{}')), \
+                patch.object(odoo_backup, 'validate_archive', validate), patch.object(odoo_backup, 'sha256_file', sha), \
+                patch.object(odoo_backup, 'release_routes_enabled', lambda: False):
+            runner.capture()
+
+    def started(self, runner):
+        return [args for args in runner.commands if args[-2:] == ['start', 'odoo']]
+
+    def test_odoo_is_started_again_when_any_step_after_the_stop_fails(self):
+        for step in self.STEPS:
+            with self.subTest(step=step), tempfile.TemporaryDirectory() as raw:
+                runner, _ = self.capture_runner(Path(raw).resolve(), fail_at=step)
+                with self.assertRaises(odoo_effect.EffectError) as caught:
+                    self.capture(runner, step)
+                expected = 'writers_not_stopped' if step == 'writers_not_stopped' else 'boom'
+                self.assertEqual(str(caught.exception), expected)
+                self.assertEqual(len(self.started(runner)), 1)
+
+    def test_a_successful_capture_starts_odoo_once(self):
+        with tempfile.TemporaryDirectory() as raw:
+            runner, _ = self.capture_runner(Path(raw).resolve())
+            self.capture(runner, None)
+            self.assertEqual(len(self.started(runner)), 1)
+
+    def test_a_failed_restart_is_reported_explicitly_with_the_original_error_attached(self):
+        with tempfile.TemporaryDirectory() as raw:
+            runner, boom = self.capture_runner(Path(raw).resolve(), fail_at='inventory', fail_start=True)
+            with self.assertRaises(odoo_effect.EffectError) as caught:
+                self.capture(runner, 'inventory')
+            self.assertEqual(str(caught.exception), 'odoo_restart_failed')
+            self.assertEqual(str(caught.exception.__cause__), 'compose_down')
+            self.assertIs(caught.exception.__cause__.__context__, boom)
+
+
+class InventoryChannelTests(unittest.TestCase):
+    def inventory_runner(self, output):
+        runner = object.__new__(odoo_backup.BackupRunner)
+        runner.config = {'projectName': 'liwan-shared-test'}
+        runner.request = {'attemptId': 'attempt01', 'job': {'requestId': 'req'}}
+        runner.base = []
+        runner.current_container = None
+        runner.child = None
+        runner.helper_args = lambda *_: [sys.executable, '-c', output]
+        return runner
+
+    def test_inventory_far_above_the_command_buffer_is_read_whole(self):
+        rows = 'import json;print(json.dumps({"attachments":[[i,"ab/"+"c"*40,"d"*40,10] for i in range(20000)]}))'
+        inventory = self.inventory_runner(rows).inventory('odoo', 'liwan_scratch_a')
+        self.assertEqual(len(inventory['attachments']), 20000)
+
+    def test_runaway_inventory_is_an_explicit_limit_error(self):
+        runner = self.inventory_runner('print("x" * 4096)')
+        with patch.object(odoo_backup, 'MAX_INVENTORY', 1024):
+            with self.assertRaisesRegex(odoo_effect.EffectError, '^(artifact|archive)_limit$'):
+                runner.inventory('odoo', 'liwan_scratch_a')
+
+
 class ReleaseBackupBoundaryTests(unittest.TestCase):
     def test_enabled_release_capture_refuses_before_shared_stop_or_reservation(self):
         import os
