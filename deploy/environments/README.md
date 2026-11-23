@@ -80,7 +80,8 @@ environments), **release** (written by the release path), **fixed** (the same in
 | `ADMIN_DOMAIN` | Host of the vendor console, served by the shared edge. Empty means the reserved name: nothing is exposed | empty until its DNS and edge route exist (staging and production only) | empty until its DNS and edge route exist | owner | no |
 | `LIWAN_ADMIN_ALLOW` | Operator allowlist (`client_ip` syntax: CIDRs or bare addresses, space separated, never commas; one malformed entry stops Caddy from loading its whole configuration, so validate before recreating `proxy`, see `docs/operations/environment-bringup.md` D4) for the vendor console host, on top of the console's own sign-in; empty answers 404 to everyone. Change it and recreate `proxy` | empty | empty | owner | no |
 | `DB_NAME` | Name of the base database | a test name (`liwan_staging`) | the production name | owner | yes |
-| `DB_PASSWORD` | PostgreSQL password | generated | generated | host | yes |
+| `DB_PASSWORD` | Password of the `odoo` runtime role (no superuser; Odoo, its release run and pgbouncer connect as it); the `db` init script creates the role from it on a fresh volume | generated | generated | host | yes |
+| `DB_ADMIN_PASSWORD` | Password of the `postgres` admin role, the image bootstrap superuser used by release and lifecycle tooling only; it reaches the `db` and `restore-db` services and no other service | generated | generated | host | yes |
 | `LIWAN_SHARED_PROXY_TOKEN` | Trust token between the edge tier and the guard | generated | generated | host | yes |
 | `LIWAN_SESSION_KEYS` | Session signing keyring: a JSON object mapping key id to a secret of at least 32 bytes, in single quotes in the env file, e.g. `'{"k1":"<secret>"}'`; it must contain `LIWAN_SESSION_ACTIVE_KID` | generated | generated | host | yes |
 | `LIWAN_SESSION_ACTIVE_KID` | Key id used for new sessions | `k1` | `k1` | owner | no |

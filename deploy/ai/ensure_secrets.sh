@@ -38,6 +38,8 @@ ensure_secret AI_SERVICE_TOKEN
 # The web server's own key for the AI tokens that carry mobile numbers and emails past the provider; never given to ai.
 ensure_secret AI_TOKEN_KEY
 ensure_secret AI_DB_PASSWORD
+# The password of the postgres admin role (tooling and the db service only); distinct from DB_PASSWORD, the odoo runtime role.
+ensure_secret DB_ADMIN_PASSWORD
 # Tenant provider keys are encrypted under a versioned key-encryption value (id k1 first, more pairs after a rotation).
 ensure_secret AI_KEY_ENCRYPTION_KEYS "k1:$(openssl rand -hex 32)"
 ensure_secret AI_KEY_ENCRYPTION_KEY_ID k1

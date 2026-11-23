@@ -85,6 +85,7 @@ bytes (`openssl rand -hex 32`), keep them distinct, and never reuse one for anot
 | `AI_SERVICE_TOKEN` | web, ai | Call ai-service for any tenant: the tenant and user travel as plain `x-liwan-tenant` / `x-liwan-user` headers. |
 | `CUSTOMER_COMMERCIAL_SERVICE_KEY` | web, control-api | Sign a commercial principal (tenant and capabilities) that the control plane accepts. |
 | `AI_DB_PASSWORD` (role `liwan_ai`) | ai | Connect to its own `liwan_ai` database and to each tenant database that `ai/tenant_schema.sql` opened to it; `PUBLIC` keeps no `CONNECT`. |
+| `DB_ADMIN_PASSWORD` (role `postgres`) | db, restore-db, release and lifecycle tooling | Superuser of the PostgreSQL cluster: create, drop and restore databases, change grants, read every schema including `liwan_ai`, run OS commands through PostgreSQL. It never executes tenant-controlled code: it works in database `postgres`, runs only two fixed scripts inside a tenant database (the bootstrap and `ai/tenant_schema.sql`, `search_path` pinned to `pg_catalog`), and everything that touches tenant tables logs in as the owning role (`odoo`, `liwan_ai`); the one other admin session there is `pg_dump` (PostgreSQL 16.4 or later). Never in the `odoo` or `pgbouncer` environment. Odoo connects as the plain role `odoo` (`DB_PASSWORD`), which owns its tables but no database and cannot create roles or databases. |
 
 ## Sign-in SMS (Authentica)
 

@@ -397,7 +397,7 @@ class SquidParseCase(unittest.TestCase):
 class ComposeNetworksCase(unittest.TestCase):
     REQUIRED = {
         'COMPOSE_PROFILES': 'ai', 'AI_SERVICE_TOKEN': 'synthetic-not-a-real-token', 'DB_NAME': 'synthetic',
-        'DB_PASSWORD': 'synthetic-not-secret', 'LIWAN_IMAGE_TAG': 'synthetic', 'ODOO_COMMIT': 'synthetic',
+        'DB_PASSWORD': 'synthetic-not-secret', 'DB_ADMIN_PASSWORD': 'synthetic-admin-not-secret', 'LIWAN_IMAGE_TAG': 'synthetic', 'ODOO_COMMIT': 'synthetic',
         'DOMAIN': 'tenant.invalid',
     }
 

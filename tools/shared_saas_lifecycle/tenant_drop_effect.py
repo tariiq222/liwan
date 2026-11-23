@@ -26,6 +26,7 @@ import sys
 import time
 import unicodedata
 
+from deploy.releases.postgres import session_role
 from tools.shared_saas_lifecycle import tenant_drop_files as files
 from tools.shared_saas_lifecycle.odoo_effect import (
     EffectError, MAX_OUTPUT, TENANT_DB_ROLE, TENANT_MARKER_PARAMETER, no_symlink, permit, validate_host,
@@ -241,7 +242,9 @@ class ComposeBackend(Backend):
                      '--file', config['composeFile'], '--profile', 'restore']
 
     def psql(self, service, database, sql):
-        args = self.base + ['exec', '-T', '-e', 'PGCLIENTENCODING=UTF8', service, 'psql', '-U', TENANT_DB_ROLE, '-d', database] + PSQL_FLAGS
+        # The role follows the database: the admin role in `postgres` only, the owning role in a tenant database,
+        # over the container's local socket like the admin session (no password on any command line).
+        args = self.base + ['exec', '-T', '-e', 'PGCLIENTENCODING=UTF8', service, 'psql', '-U', session_role(database), '-d', database] + PSQL_FLAGS
         return _run(args, sql, 180, 'database_command_failed')
 
     def data_dir(self, service):
@@ -260,7 +263,9 @@ class LocalBackend(Backend):
         self.psql_argv, self.data_dirs = psql_argv, data_dirs
 
     def psql(self, service, database, sql):
-        return _run(list(self.psql_argv[service]) + ['-d', database] + PSQL_FLAGS, "SET client_encoding TO 'UTF8';\n" + sql, 180, 'database_command_failed')
+        argv = list(self.psql_argv[service])
+        argv[argv.index('-U') + 1] = session_role(database)
+        return _run(argv + ['-d', database] + PSQL_FLAGS, "SET client_encoding TO 'UTF8';\n" + sql, 180, 'database_command_failed')
 
     def data_dir(self, service):
         return str(self.data_dirs[service])

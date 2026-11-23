@@ -20,7 +20,9 @@ import threading
 
 from deploy.releases.helper_runtime import verify_helper_runtime
 from deploy.releases.fencing import ReleaseOperationError, release_routes_enabled, tenant_operation
-from deploy.releases.postgres import TENANT_EXTENSION_SQL, tenant_create_database_sql, tenant_isolation_sql
+from deploy.releases.postgres import (
+    ODOO_RUNTIME_ROLE, POSTGRES_ADMIN_ROLE, tenant_bootstrap_sql, tenant_create_database_sql, tenant_isolation_sql,
+)
 
 from tools.liwan_cli.managed_verify import ERROR_CODES, VerificationError, build_policy_script, build_snapshot_script, parse_snapshot
 from tools.shared_saas_lifecycle.catalog_source import CatalogSourceError, resolve_catalog_path
@@ -34,7 +36,7 @@ MODULE_ID = re.compile(r'(?:liwan|customer)_[a-z0-9_]+')
 # The routed tenant host (`t<id>.<domain suffix>`), the same DNS name the routing registry accepts.
 TENANT_HOST = re.compile(r'(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+')
 MAX_OUTPUT = 65536
-TENANT_DB_ROLE = 'odoo'  # db_user of deploy/shared/odoo.conf
+TENANT_DB_ROLE = ODOO_RUNTIME_ROLE  # db_user of deploy/shared/odoo.conf: the grantee, never the role that runs DDL
 # The AI role's grants and schema in a tenant database: the file deploy/provision.sh and the operator also run.
 AI_TENANT_SCHEMA = Path(__file__).resolve().parents[2] / 'deploy' / 'ai' / 'tenant_schema.sql'
 # System parameter that binds a tenant database to its control-plane tenant. The final deletion of a workspace
@@ -335,14 +337,24 @@ class Runner:
 
     def exists(self):
         sql = "SELECT count(*) FROM pg_database WHERE datname='" + self.database + "'"
-        result = self.command(self.base + ['exec', '-T', 'db', 'psql', '-U', 'odoo', '-d', 'postgres', '-At', '-c', sql]).strip()
+        result = self.command(self.base + ['exec', '-T', 'db', 'psql', '-U', POSTGRES_ADMIN_ROLE, '-d', 'postgres', '-At', '-c', sql]).strip()
         if result not in ('0', '1'):
             raise EffectError('database_observation_invalid')
         return result == '1'
 
-    def psql(self, database, sql, variables=()):
+    def _admin_psql(self, database, sql, variables=()):
         assignments = [argument for name, value in variables for argument in ('-v', name + '=' + value)]
-        self.command(self.base + ['exec', '-T', 'db', 'psql', '-U', TENANT_DB_ROLE, '-d', database, '-v', 'ON_ERROR_STOP=1', '-q', *assignments], stdin=sql)
+        self.command(self.base + ['exec', '-T', 'db', 'psql', '-U', POSTGRES_ADMIN_ROLE, '-d', database, '-v', 'ON_ERROR_STOP=1', '-q', *assignments], stdin=sql)
+
+    def psql(self, sql, variables=()):
+        # Admin statements run in database `postgres` only (c1b rule 1); the AI schema script reconnects to the
+        # tenant database itself, pinned to pg_catalog.
+        self._admin_psql('postgres', sql, variables)
+
+    def bootstrap_tenant_database(self):
+        # The one other admin script inside a tenant database (c1b rule 2): the fixed bootstrap, run in the still
+        # empty target. Nothing that reads or writes tenant tables runs as the admin role.
+        self._admin_psql(self.database, tenant_bootstrap_sql(TENANT_DB_ROLE))
 
     def create_isolated_database(self):
         # Odoo would create the database itself on `-d`, open to every role through PUBLIC. Create it
@@ -350,9 +362,10 @@ class Runner:
         # database (it initializes any database without ir_module_module). The creation recipe is
         # Odoo's own (deploy/releases/postgres.py). Any failure raises and the job fails before the
         # install runs.
-        self.psql('postgres', tenant_create_database_sql(self.database) + ';\n'
+        self.psql(tenant_create_database_sql(self.database) + ';\n'
                   + tenant_isolation_sql(self.database, TENANT_DB_ROLE))
-        self.psql(self.database, TENANT_EXTENSION_SQL + ';\n')
+        # The database belongs to the admin role: the runtime role may create its tables in `public` only by the grant in the bootstrap.
+        self.bootstrap_tenant_database()
 
     def prepare_ai_state(self, ai_enabled):
         # The AI role needs its grants and schema (a no-op without the role) and, when the deployment
@@ -361,7 +374,7 @@ class Runner:
         # for `ai_control_state_uninitialized`), then the tenant state. All depend on the isolated empty
         # database only, not on the Odoo install, so they run first and a failure costs no install.
         # All are idempotent.
-        self.psql('postgres', AI_TENANT_SCHEMA.read_text(), variables=[('tenant_db', self.database)])
+        self.psql(AI_TENANT_SCHEMA.read_text(), variables=[('tenant_db', self.database)])
         if not ai_enabled:
             return
         self.run_ai_initialization('control', '--initialize-control')

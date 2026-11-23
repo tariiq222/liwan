@@ -139,7 +139,7 @@ try {
     if (!occupied.some(([a, b]) => low <= b && a <= high)) subnets.push(subnet)
   }
   if (subnets.length !== networkRoles.length) throw new Error('isolated acceptance subnets are unavailable')
-  const env = { ...baseEnv, LIWAN_IMAGE_TAG: tag, ODOO_COMMIT: readFileSync(join(sourceRoot, 'deploy/odoo/ODOO_COMMIT'), 'utf8').trim(), DB_NAME: '', DB_PASSWORD: dbPassword,
+  const env = { ...baseEnv, LIWAN_IMAGE_TAG: tag, ODOO_COMMIT: readFileSync(join(sourceRoot, 'deploy/odoo/ODOO_COMMIT'), 'utf8').trim(), DB_NAME: '', DB_PASSWORD: dbPassword, DB_ADMIN_PASSWORD: secret(),
     LIWAN_SHARED_PROXY_TOKEN: secret(), LIWAN_SESSION_KEYS: JSON.stringify({ k1: secret() }), LIWAN_SESSION_ACTIVE_KID: 'k1',
     LIWAN_TENANT_REGISTRY_DIR: registryDir, LIWAN_RESTORE_REGISTRY_DIR: restoreRegistryDir, LIWAN_SHARED_ODOO_CONFIG: odooConfig,
     ...(commercial ? {

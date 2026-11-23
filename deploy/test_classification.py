@@ -105,7 +105,7 @@ class TestClassification(unittest.TestCase):
         (deploy / 'branding.json').write_text('{}')
         self.source.write_text(json.dumps(self.data))
         (deploy / '.env').write_text(
-            'DB_PASSWORD=long-test-only-password\nODOO_ADMIN_PASSWORD=long-test-only-password\n'
+            'DB_PASSWORD=long-test-only-password\nDB_ADMIN_PASSWORD=another-test-only-password\nODOO_ADMIN_PASSWORD=long-test-only-password\n'
             'VENDOR_PASSWORD=long-test-only-password\nVENDOR_EMAIL=operator@example.test\n',
         )
         binpath = self.root / 'bin'
@@ -183,6 +183,12 @@ with open(os.environ['DOCKER_LOG'], 'a') as f:
         self.assertIn(f'REVOKE CONNECT ON DATABASE "{db}" FROM PUBLIC;', record['stdin'])
         self.assertIn(f'GRANT CONNECT ON DATABASE "{db}" TO "odoo";', record['stdin'])
         self.assertNotIn('liwan_ai', record['stdin'])
+        # Every DDL and grant runs as the admin role, never as the odoo runtime role, which only receives the grants.
+        for psql in (r for r in records if 'psql' in r['args']):
+            self.assertEqual(psql['args'][psql['args'].index('-U') + 1], 'postgres')
+        self.assertTrue(any('GRANT CREATE ON SCHEMA public TO "odoo"' in r.get('stdin', '') and r['args'][r['args'].index('-d') + 1] == db
+                            for r in records if 'psql' in r['args']))
+        self.assertTrue(any('GRANT CONNECT ON DATABASE "postgres" TO "odoo"' in r.get('stdin', '') for r in records if 'psql' in r['args']))
 
     def test_provision_skips_creation_for_an_existing_database_but_still_isolates_it(self):
         deploy, env = self.provision_fixture()
@@ -219,7 +225,7 @@ with open(os.environ['DOCKER_LOG'], 'a') as f:
                 self.assertIn('db name', result.stderr)
         self.assertFalse((self.root / 'docker.log').exists())
 
-    def test_provision_grants_the_ai_role_its_schema_after_the_database_is_closed(self):
+    def test_provision_grants_the_ai_role_its_schema_after_the_database_is_closed_and_before_the_install(self):
         deploy, env = self.provision_fixture()
         records = self.provision_records(deploy, env)
         schema = [index for index, record in enumerate(records)
@@ -228,8 +234,15 @@ with open(os.environ['DOCKER_LOG'], 'a') as f:
         self.assertEqual(len(schema), 1)
         isolate = next(i for i, r in enumerate(records) if 'public_connect_not_revoked' in r.get('stdin', ''))
         self.assertLess(isolate, schema[0])
-        self.assertLess(max(i for i, r in enumerate(records) if 'snapshot' in r), schema[0])
-        self.assertLess(schema[0], len(records) - 1)
+        bootstrap = [i for i, r in enumerate(records) if 'psql' in r['args'] and 'CREATE EXTENSION IF NOT EXISTS pg_trgm' in r.get('stdin', '')]
+        self.assertEqual(len(bootstrap), 1)
+        self.assertLess(isolate, bootstrap[0])
+        bootstrap_sql = records[bootstrap[0]]['stdin']  # the one admin script run inside the tenant database
+        self.assertTrue(bootstrap_sql.startswith('SET search_path = pg_catalog;'), bootstrap_sql)
+        self.assertLess(bootstrap_sql.index('pg_trgm'), bootstrap_sql.index('GRANT CREATE ON SCHEMA public TO "odoo"'))
+        self.assertEqual(records[bootstrap[0]]['args'][records[bootstrap[0]]['args'].index('-d') + 1], self.data['database'])
+        self.assertLess(bootstrap[0], schema[0])
+        self.assertLess(schema[0], min(i for i, r in enumerate(records) if 'snapshot' in r))
         record = records[schema[0]]
         self.assertIn('ON_ERROR_STOP=1', record['args'])
         sql = record['stdin']  # deploy/ai/tenant_schema.sql, the one place that grants the AI role its schema
@@ -237,6 +250,8 @@ with open(os.environ['DOCKER_LOG'], 'a') as f:
         self.assertIn("rolname = 'liwan_ai'", sql)
         self.assertNotIn('FROM PUBLIC', sql)  # the PUBLIC revoke lives only in the shared isolation helper
         self.assertNotIn(self.data['database'], sql)
+        self.assertIn('SET search_path = pg_catalog;', sql)  # pinned for the admin session, again after the connect
+        self.assertEqual(sql.count('SET search_path = pg_catalog;'), 2)
 
     def origin_records(self):
         records = [json.loads(line) for line in (self.root / 'docker.log').read_text().splitlines()]

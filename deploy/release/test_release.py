@@ -136,6 +136,8 @@ class FakePostgres:
                 self.databases.add(names[1])
                 self.acls[names[1]] = self.acls.pop(names[0], None)
             return error
+        if statement.startswith('DO $$') and 'privileged_or_missing_role' in statement:
+            return 'privileged_or_missing_role' if case.runtime_role_violation else None
         if statement.startswith(('GRANT', 'REVOKE')):
             return self.require(names[0], True) or self.change_acl(statement, names)
         if statement.startswith('ALTER DATABASE'):
@@ -338,6 +340,7 @@ class ReleaseTest(unittest.TestCase):
         self.registry_file.write_text('{}')
         self.stop_at_create = False
         self.fail_create = False
+        self.runtime_role_violation = False
         self.postgres = FakePostgres()
         self.runner = FakeRunner(self)
         self.log_stream = io.StringIO()
@@ -1147,7 +1150,7 @@ class ReleaseTest(unittest.TestCase):
 
     def test_the_control_api_starts_before_the_shared_stack_that_joins_its_network(self):
         self.assertEqual(self.main(), release.EXIT_OK)
-        self.assertEqual(self.up_projects(), ['liwan-control', 'liwan', 'liwan'])
+        self.assertEqual(self.up_projects(), ['liwan', 'liwan-control', 'liwan', 'liwan'])  # db alone, then control, then the stack
 
     def control_calls(self, verb):
         return [call for call in self.runner.calls if 'compose' in call and 'liwan-control' in call and verb in call]
@@ -1164,7 +1167,7 @@ class ReleaseTest(unittest.TestCase):
     def test_a_rollback_restarts_the_control_api_before_the_shared_stack_too(self):
         self.fail_health = True
         self.main()
-        self.assertEqual(self.up_projects(), ['liwan-control', 'liwan', 'liwan', 'liwan-control', 'liwan'])
+        self.assertEqual(self.up_projects(), ['liwan', 'liwan-control', 'liwan', 'liwan', 'liwan-control', 'liwan'])
 
     def test_external_images_are_pulled_by_their_pinned_digest(self):
         pgvector = 'pgvector/pgvector:pg16@sha256:' + 'c' * 64
@@ -1442,6 +1445,63 @@ class ReleaseTest(unittest.TestCase):
             self.assertEqual(self.runner.calls, [])
         self.assertTrue(self.paths.current.is_dir() and not self.paths.current.is_symlink())
 
+    # --- database roles ---------------------------------------------------------------------------------------
+    def psql_users(self):
+        return {call[call.index('-U') + 1] for call in self.runner.calls if 'psql' in call and '-U' in call
+                and 'control-db' not in call}
+
+    def assertion_runs(self):
+        return [call for call, stdin in zip(self.runner.calls, self.runner.stdins)
+                if 'psql' in call and stdin and 'privileged_or_missing_role' in stdin]
+
+    def test_tooling_sql_and_the_dump_run_as_the_admin_role_and_the_grantee_is_the_runtime_role(self):
+        self.assertEqual(self.main(), release.EXIT_OK)
+        self.assertEqual(self.psql_users(), {'postgres'})
+        dumps = [call for call in self.runner.calls if '--pg-user' in call and '--control-plane' not in call]
+        self.assertEqual({call[call.index('--pg-user') + 1] for call in dumps}, {'postgres'})
+        self.assertEqual(len(dumps), len(self.tenant_names))
+
+    def test_the_rollback_regrants_the_runtime_role_and_issues_no_tenant_database_admin_session(self):
+        self.fail_upgrade_of = 'tenant_one'
+        self.assertEqual(self.main(), release.EXIT_FAILED)
+        self.assertTrue(any('GRANT CONNECT ON DATABASE "tenant_one" TO "odoo"' in sql for sql in self.sql))
+        self.assertFalse(any('ON SCHEMA' in sql for sql in self.sql))  # the snapshot copy already carries the schema ACL
+        psql_calls = [call for call in self.runner.calls if 'psql' in call]
+        self.assertTrue(psql_calls)
+        self.assertEqual({call[call.index('-d') + 1] for call in psql_calls}, {'postgres'})
+
+    def test_the_role_assertion_runs_before_the_capture_when_a_release_is_served(self):
+        self.assertEqual(self.main(), release.EXIT_OK)
+        calls = self.runner.calls
+        first_assertion = calls.index(self.assertion_runs()[0])
+        self.assertLess(first_assertion, calls.index(self.commands('capture')[0]))
+        self.assertEqual(len(self.assertion_runs()), 2)  # again in the start step
+        self.assertIn("'tenant_one'", self.runner.stdins[first_assertion])
+        self.assertLess(first_assertion, calls.index(self.compose_stops()[0]))
+
+    def test_a_rejected_runtime_role_is_refused_before_anything_stops_and_the_served_release_is_untouched(self):
+        self.runtime_role_violation = True
+        self.assertEqual(self.main(), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused runtime_role_rejected')
+        self.assertEqual(self.served(), OLD)
+        self.assertEqual(self.compose_stops(), [])
+        self.assertEqual(self.commands('capture'), [])
+        self.assertEqual(self.commands('-u'), [])
+        self.assertFalse(self.paths.maintenance.exists())
+        self.assertEqual(self.alert_events(), ['deploy_failed'])
+        self.assertEqual(len(self.assertion_runs()), 1)
+        self.assertEqual(os.readlink(self.paths.current), str(self.paths.releases / OLD))
+
+    def test_a_rejected_runtime_role_on_a_first_deploy_starts_no_application(self):
+        self.first_deploy()
+        self.runtime_role_violation = True
+        self.assertNotEqual(self.main(), release.EXIT_OK)
+        started = [call for call in self.runner.calls if 'up' in call and 'odoo' in call]
+        self.assertEqual(started, [])
+        self.assertEqual(len(self.assertion_runs()), 1)
+        self.assertTrue(any('db' == call[-1] for call in self.runner.calls if 'up' in call))
+        self.assertFalse((self.state / 'served.json').exists())
+
     # --- first deploy -------------------------------------------------------------------------------------------
     def first_deploy(self):
         (self.state / 'served.json').unlink()
@@ -1452,7 +1512,9 @@ class ReleaseTest(unittest.TestCase):
         self.first_deploy()
         self.assertEqual(self.main(), release.EXIT_OK)
         self.assertEqual(self.served(), NEW)
-        self.assertFalse(self.compose_stops() or self.commands('capture') or self.sql)
+        self.assertFalse(self.compose_stops() or self.commands('capture'))
+        self.assertEqual(len(self.sql), 1)  # only the runtime role assertion, run before any application starts
+        self.assertIn("RAISE EXCEPTION 'privileged_or_missing_role'", self.sql[0])
 
     def test_first_deploy_failure_stops_halts_and_stays_in_maintenance(self):
         self.first_deploy()

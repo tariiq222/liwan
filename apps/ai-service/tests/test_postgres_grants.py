@@ -4,6 +4,7 @@
 database: schema ``liwan_ai`` of its own, and nothing in schema ``public``. Each test applies the real
 script with the ``psql`` binary, exactly as provisioning does.
 """
+import asyncio
 import importlib.util
 import os
 import shutil
@@ -15,7 +16,7 @@ from uuid import uuid4
 import psycopg
 import pytest
 from psycopg import sql
-from psycopg.conninfo import conninfo_to_dict
+from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
 BASE_URL = os.environ.get("AI_TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(not BASE_URL, reason="needs a superuser AI_TEST_DATABASE_URL")
@@ -142,3 +143,42 @@ def test_tenant_schema_is_idempotent():
                 " WHERE datname = current_database())) acl"
                 " WHERE acl.grantee = 0 AND acl.privilege_type = 'CONNECT'").fetchone()
             assert public_connect == (0,)
+
+
+@contextmanager
+def odoo_role():
+    """The script names Odoo's role ``odoo``; create it (no login needed) when the server has none."""
+    created = not admin("SELECT 1 FROM pg_roles WHERE rolname = 'odoo'")
+    if created:
+        admin("CREATE ROLE odoo")
+    try:
+        yield
+    finally:
+        if created:
+            admin("DROP ROLE IF EXISTS odoo")
+
+
+def test_odoo_can_append_to_the_queues_after_the_ai_bootstrap_although_the_admin_owns_the_database():
+    """The database owner is the admin role, not Odoo's: the grant must follow the USAGE the script gives ``odoo``."""
+    from liwan_ai_service.store import initialize_tenant
+
+    with ai_role() as password, odoo_role(), scratch_database() as database:
+        if password is None:
+            pytest.skip("role liwan_ai already exists on this server with an unknown password")
+        result = run_script(database)
+        assert result.returncode == 0, result.stderr
+        params = conninfo_to_dict(BASE_URL)
+        params.update(dbname=database, user=AI_ROLE, password=password, options="-c search_path=liwan_ai")
+        asyncio.run(initialize_tenant(make_conninfo(**params)))
+        with closing(connect(database)) as conn:
+            owner = conn.execute("SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = current_database()").fetchone()[0]
+            assert owner != "odoo"
+            checks = conn.execute(
+                "SELECT has_schema_privilege('odoo', 'liwan_ai', 'USAGE'),"
+                " has_table_privilege('odoo', 'liwan_ai.ai_outbox', 'INSERT'),"
+                " has_table_privilege('odoo', 'liwan_ai.ai_knowledge_queue', 'INSERT'),"
+                " has_sequence_privilege('odoo', 'liwan_ai.ai_outbox_id_seq', 'USAGE'),"
+                " has_sequence_privilege('odoo', 'liwan_ai.ai_knowledge_queue_id_seq', 'USAGE'),"
+                " has_table_privilege('odoo', 'liwan_ai.ai_outbox', 'SELECT'),"
+                " has_table_privilege('odoo', 'liwan_ai.ai_runs', 'SELECT')").fetchone()
+            assert checks == (True, True, True, True, True, False, False)

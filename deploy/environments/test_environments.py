@@ -41,7 +41,7 @@ VALUE_ALLOWLIST = frozenset({
     'LIWAN_EDGE_BIND', 'LIWAN_EDGE_HTTP_PORT', 'LIWAN_EDGE_HTTPS_PORT', 'LIWAN_TRUSTED_PROXIES', 'LIWAN_AUTO_HTTPS',
     'LIWAN_SITE_SCHEME',
     'DOMAIN', 'LIWAN_PROSPECT_HOST', 'NUXT_CUSTOMER_COMMERCIAL_PUBLIC_ORIGIN', 'LIWAN_RESTORE_DOMAIN',
-    'DB_NAME', 'DB_PASSWORD', 'LIWAN_SHARED_PROXY_TOKEN',
+    'DB_NAME', 'DB_PASSWORD', 'DB_ADMIN_PASSWORD', 'LIWAN_SHARED_PROXY_TOKEN',
     'LIWAN_SESSION_KEYS', 'CUSTOMER_COMMERCIAL_SERVICE_KEY', 'LIWAN_SHARED_ODOO_CONFIG',
     'LIWAN_TENANT_REGISTRY_DIR', 'LIWAN_COMMERCIAL_CONTROL_NETWORK', 'LIWAN_ADMIN_EDGE_NETWORK',
     'LIWAN_CONTROL_EDGE_NETWORK',
@@ -350,6 +350,15 @@ class EnvironmentTemplates(unittest.TestCase):
             with self.subTest(template=name):
                 self.assertEqual('', values.get('AI_EGRESS_HOSTS'))
 
+
+    def test_the_database_admin_password_is_declared_apart_from_the_runtime_password_and_documented(self):
+        rows = {line.split('|')[1].strip() for line in (ENVIRONMENTS / 'README.md').read_text(encoding='utf-8').splitlines()
+                if line.startswith('| `')}
+        self.assertIn('`DB_ADMIN_PASSWORD`', rows)
+        for name, values in self.values.items():
+            with self.subTest(template=name):
+                self.assertIn('DB_ADMIN_PASSWORD', values)
+                self.assertNotEqual(values['DB_PASSWORD'], values['DB_ADMIN_PASSWORD'])
 
     def test_release_credentials_are_documented_and_never_set_in_a_template(self):
         readme = (ENVIRONMENTS / 'README.md').read_text(encoding='utf-8')

@@ -40,11 +40,11 @@ from deploy.release.common import (  # noqa: E402
     Runner, free_bytes, make_log, now, read_env_file, sensitive_values, read_json, write_atomic, write_json)
 from deploy.release.source import (  # noqa: E402
     COMMIT, ENVIRONMENTS, GITHUB_TOKEN_VAR, TOKEN_VAR, USER_VAR, Credential, Source, explicit_tag, host_architecture)
-from deploy.releases.postgres import identifier, tenant_isolation_statements  # noqa: E402
+from deploy.releases.postgres import (  # noqa: E402
+    ODOO_RUNTIME_ROLE, POSTGRES_ADMIN_ROLE, identifier, runtime_role_assertion_sql, tenant_isolation_statements)
 
 TENANT_DATABASE = re.compile(r'^[a-z][a-z0-9_]{0,62}$')
 RELEASE_FOLDER = re.compile(r'^([0-9a-f]{40})(\.partial|\.tar)?$')
-DB_SUPERUSER = 'odoo'
 CONTROL_DB = 'liwan_control'
 CONTROL_DB_USER = 'liwan_control'
 CONTROL_PROJECT = 'liwan-control'
@@ -456,6 +456,7 @@ class Releaser:
         """Encrypted disaster copy of every tenant and the control plane, through the existing pipeline."""
         if run['previous'] is None:
             return  # first deploy: no stack has run, so there is no data to copy
+        self.assert_runtime_role(self.paths.current.resolve(), run)  # refused before anything but the worker stopped
         work = self.file(f'runs/{run["commit"]}/backup')
         common = ['--kind', 'hourly', '--work-root', str(work), '--pg-dump', self.config['LIWAN_RELEASE_PG_DUMP']]
         if self.config.get('LIWAN_RELEASE_BACKUP_STORE_ROOT'):
@@ -466,7 +467,7 @@ class Releaser:
                 self.run_command(pipeline + common + [
                     '--tenant', tenant['tenantId'], '--data-dir', self.config['LIWAN_RELEASE_ODOO_DATA_DIR'],
                     '--pg-host', self.config['LIWAN_RELEASE_PG_HOST'], '--pg-port', self.db_port(TENANT_DB_PORT),
-                    '--pg-user', DB_SUPERUSER], env=self.child_env)
+                    '--pg-user', POSTGRES_ADMIN_ROLE], env=self.child_env)
             self.run_command(pipeline + common + [
                 '--control-plane', '--db-name', CONTROL_DB, '--pg-host', self.config['LIWAN_RELEASE_CONTROL_PG_HOST'],
                 '--pg-port', self.db_port(CONTROL_DB_PORT), '--pg-user', CONTROL_DB_USER],
@@ -590,12 +591,23 @@ class Releaser:
             self.stop_services(self.paths.current.resolve())
 
     def psql(self, checkout: Path, sql: str, *, control: bool = False) -> str:
+        """Tooling SQL runs as the admin role (the runtime role is no superuser), always in database ``postgres``: the release
+        never opens a session inside a tenant database, where tenant-controlled code could run with admin rights."""
         if control:
             base = self.control_compose(checkout) + ['exec', '-T', 'control-db', 'psql', '-U', CONTROL_DB_USER]
         else:
-            base = self.compose(checkout) + ['exec', '-T', 'db', 'psql', '-U', DB_SUPERUSER]
+            base = self.compose(checkout) + ['exec', '-T', 'db', 'psql', '-U', POSTGRES_ADMIN_ROLE]
         return self.run_command(base + ['-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-At', '-f', '-'],
                                 stdin=sql, env=self.child_env)[1].strip()
+
+    def assert_runtime_role(self, checkout: Path, run: dict) -> None:
+        """Odoo's database role must be a plain login role that owns no tenant database; an old volume that still has
+        a privileged ``odoo`` (or no admin role at all) is refused here instead of running on."""
+        names = [tenant['database'] for tenant in run['tenants']]
+        try:
+            self.psql(checkout, runtime_role_assertion_sql(ODOO_RUNTIME_ROLE, names) + ';\n')
+        except CommandFailed:
+            raise ReleaseError('runtime_role_rejected', EXIT_REFUSED) from None
 
     def databases(self, run: dict) -> list[dict]:
         tenants = [{'database': t['database'], 'filestore': t['filestore'], 'control': False} for t in run['tenants']]
@@ -709,8 +721,14 @@ class Releaser:
         self.run_command(self.compose(checkout) + [*UP, *services], env=self.child_env)
 
     def start(self, run: dict) -> None:
+        checkout = self.checkout(run['commit'])
         try:
-            self.start_services(self.checkout(run['commit']), with_edge=False)
+            self.run_command(self.compose(checkout) + [*UP, 'db'], env=self.child_env)
+        except CommandFailed:
+            raise ReleaseError('health_check_failed') from None
+        self.assert_runtime_role(checkout, run)  # before any application connects
+        try:
+            self.start_services(checkout, with_edge=False)
         except CommandFailed:
             raise ReleaseError('health_check_failed') from None
 
@@ -835,7 +853,7 @@ class Releaser:
         statements = [f'ALTER DATABASE {identifier(database)} ALLOW_CONNECTIONS true',
                       f'ALTER DATABASE {identifier(database)} OWNER TO {identifier(owner)}']
         if not item['control']:
-            statements += list(tenant_isolation_statements(database, DB_SUPERUSER))
+            statements += list(tenant_isolation_statements(database, ODOO_RUNTIME_ROLE))
         statements += databases.grant_statements(database, recorded['grants'], owner)  # last: the recorded ACL wins
         self.psql(checkout, ''.join(statement + ';\n' for statement in statements), control=item['control'])
         if self.acl(checkout, database, item['control']) != recorded:

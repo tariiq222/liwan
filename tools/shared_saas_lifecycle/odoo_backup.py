@@ -19,24 +19,73 @@ from datetime import datetime, timezone
 from tools.shared_saas_lifecycle.odoo_effect import (
     Runner, EffectError, no_symlink, reserve, permit, emit, validate_database,
     require_new_target, verified_observation, MAX_OUTPUT, OBSERVE_CONTAINER, classify_error,
-    release_routes_enabled, effect_operation, TENANT_DB_ROLE,
+    release_routes_enabled, effect_operation, TENANT_DB_ROLE, AI_TENANT_SCHEMA,
 )
-from deploy.releases.postgres import tenant_create_database_sql, tenant_isolation_sql
+from deploy.releases.postgres import POSTGRES_ADMIN_ROLE, identifier, tenant_bootstrap_sql, tenant_create_database_sql, tenant_isolation_sql
+AI_ROLE = 'liwan_ai'
 MAX_ARCHIVE = 2 * 1024 * 1024 * 1024
 MAX_MEMBERS = 100000
 MAX_INVENTORY = 64 * 1024 * 1024
+RESTORE_HOST = '-h restore-db'
+
+
+def create_database_script(database):
+    """Stage `restore-create`: the admin creates the empty target, in database postgres only.
+
+    A separate stage so that restore() drops the name only after THIS operation created it: a failed CREATE
+    (the name already exists, made by someone else) must never lead to a drop of that other database.
+    """
+    create = shlex.quote(tenant_create_database_sql(database))
+    return ('set -eu\nexport PGPASSWORD="$POSTGRES_PASSWORD"\n'
+            'exec psql ' + RESTORE_HOST + ' -U ' + POSTGRES_ADMIN_ROLE + ' -v ON_ERROR_STOP=1 -q -d postgres -c ' + create)
 
 
 def restore_database_script(database):
-    # Create the database with the provisioning recipe, then close it to PUBLIC before the first dump byte
-    # is restored; `set -e` stops the script on a failed create or isolation, so pg_restore never runs
-    # against a missing or open database.
-    create = shlex.quote(tenant_create_database_sql(database))
+    """Stage `restore-db`: the admin prepares the created target, then the runtime role restores schema `public`.
+
+    No tenant-controlled code runs in a superuser session. The admin only closes the database to
+    PUBLIC, runs the fixed bootstrap (extension, CREATE on public) and the fixed AI schema skeleton, all catalog
+    statements pinned to pg_catalog. The archive is then restored while logged in as the runtime role, which
+    cannot get back to a superuser. `-n public` leaves out entries without a schema (extensions and their comments,
+    schema entries and their ACLs) because the skeleton owns them; `--no-owner` gives every object to the login role.
+    Nothing is atomic across the stages: restore() drops the fresh target when one fails after its creation.
+    """
     isolation = shlex.quote(tenant_isolation_sql(database, TENANT_DB_ROLE))
-    host_role = '-h restore-db -U ' + TENANT_DB_ROLE
-    psql = 'psql ' + host_role + ' -d postgres -v ON_ERROR_STOP=1 -q -c '
-    return ('set -eu; export PGPASSWORD="$POSTGRES_PASSWORD"; ' + psql + create + '; ' + psql + isolation + '; '
-            'exec pg_restore ' + host_role + ' --no-owner --exit-on-error --single-transaction -d "$1"')
+    bootstrap = shlex.quote(tenant_bootstrap_sql(TENANT_DB_ROLE))
+    admin = 'psql ' + RESTORE_HOST + ' -U ' + POSTGRES_ADMIN_ROLE + ' -v ON_ERROR_STOP=1 -q '
+    schema = AI_TENANT_SCHEMA.read_text()
+    delimiter = 'LIWAN_TENANT_SCHEMA'
+    if delimiter in schema:
+        raise EffectError('restore_script_invalid')
+    return ('set -eu\nexport PGPASSWORD="$POSTGRES_PASSWORD"\n'
+            + admin + '-d postgres -c ' + isolation + '\n'
+            + admin + '-d "$1" -c ' + bootstrap + '\n'
+            + admin + '-d postgres -v tenant_db="$1" -f - <<\'' + delimiter + "'\n" + schema.rstrip('\n') + '\n' + delimiter + '\n'
+            + 'export PGPASSWORD="$ODOO_DB_PASSWORD"\n'
+            + 'exec pg_restore ' + RESTORE_HOST + ' -U ' + TENANT_DB_ROLE + ' --no-owner -n public --exit-on-error --single-transaction -d "$1"')
+
+
+def restore_ai_script():
+    """Stage `restore-ai`: schema liwan_ai restored while logged in as its owner.
+
+    Without an AI password the archive is drained only when the cluster has no `liwan_ai` role at all; a cluster
+    that has the role but no password to log in with fails, instead of silently restoring an empty AI schema.
+    """
+    role = shlex.quote("SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = '" + AI_ROLE + "'")
+    return ('set -eu\nif [ -z "${AI_DB_PASSWORD:-}" ]; then\n'
+            '  export PGPASSWORD="$POSTGRES_PASSWORD"\n'
+            '  present=$(psql ' + RESTORE_HOST + ' -U ' + POSTGRES_ADMIN_ROLE + ' -v ON_ERROR_STOP=1 -q -At -d postgres -c ' + role + ')\n'
+            '  if [ -n "$present" ]; then echo ai_password_missing >&2; exit 1; fi\n'
+            '  cat >/dev/null; exit 0\nfi\n'
+            'export PGPASSWORD="$AI_DB_PASSWORD"\n'
+            'exec pg_restore ' + RESTORE_HOST + ' -U ' + AI_ROLE + ' --no-owner -n liwan_ai --exit-on-error --single-transaction -d "$1"')
+
+
+def drop_target_script(database):
+    """Stage `restore-drop`: removes the fresh target after a failed restore; the admin runs it in database postgres only."""
+    drop = shlex.quote('DROP DATABASE IF EXISTS ' + identifier(database) + ' WITH (FORCE)')
+    return ('set -eu\nexport PGPASSWORD="$POSTGRES_PASSWORD"\n'
+            'exec psql ' + RESTORE_HOST + ' -U ' + POSTGRES_ADMIN_ROLE + ' -v ON_ERROR_STOP=1 -q -d postgres -c ' + drop)
 
 
 def sha256_file(path):
@@ -422,15 +471,12 @@ print('{}')
         self.drain_observers()
         self.assert_no_effect_containers(code='runtime_writer_after_effect')
         # No ordinary application session may remain in any source tenant DB.
-        script=CONNECTION+'''\nwith connect('postgres') as c:
- with c.cursor() as cr:
-  cr.execute("SELECT count(*) FROM pg_stat_activity WHERE datname LIKE 'liwan_scratch_%' AND backend_type='client backend'")
-  assert cr.fetchone()[0]==0
-print('{}')
-'''
-        self.helper('odoo','drain-check',script)
+        # Run as the admin role: a non-superuser sees no backend_type for other roles' sessions.
+        sessions=self.command(self.base+['exec','-T','db','psql','-U',POSTGRES_ADMIN_ROLE,'-d','postgres','-At','-c',
+            "SELECT count(*) FROM pg_stat_activity WHERE datname LIKE 'liwan_scratch_%' AND backend_type='client backend'"]).strip()
+        if sessions!='0':raise EffectError('writers_not_stopped')
         permit('capture')
-        self.pg_stream('db','dump','set -eu; export PGPASSWORD="$POSTGRES_PASSWORD"; exec pg_dump -h db -U odoo --format=custom --no-owner "$1"',self.database,destination=self.artifact/'database.dump')
+        self.pg_stream('db','dump','set -eu; export PGPASSWORD="$POSTGRES_PASSWORD"; exec pg_dump -h db -U '+POSTGRES_ADMIN_ROLE+' --format=custom "$1"',self.database,destination=self.artifact/'database.dump')
         pack='''import os,sys,tarfile
 from pathlib import Path
 root=Path('/var/lib/odoo/filestore') / database
@@ -468,7 +514,14 @@ with tarfile.open(fileobj=sys.stdout.buffer,mode='w|') as out:
         reserve(classification,{'schema_version':1,'database':self.target,'commercial_mode':'saas','entitlement_source':'control_plane','expected_valid_until':None,'valid_until_action':'preserve'})
         classification.chmod(0o644)
         permit('restore-database')
-        self.pg_stream('restore-db','restore-db',restore_database_script(self.target),self.target,source=self.artifact/'database.dump')
+        self.pg_stream('restore-db','restore-create',create_database_script(self.target),self.target)
+        try:
+            self.pg_stream('restore-db','restore-db',restore_database_script(self.target),self.target,source=self.artifact/'database.dump')
+            self.pg_stream('restore-db','restore-ai',restore_ai_script(),self.target,source=self.artifact/'database.dump')
+        except BaseException:
+            # The stages are not one transaction: this operation created the target, so a failed phase drops it whole.
+            self.pg_stream('restore-db','restore-drop',drop_target_script(self.target),self.target)
+            raise
         permit('restore-filestore')
         # Validation is repeated INSIDE the destination before writing its first file.
         unpack='import os,sys,tarfile,tempfile,shutil\nfrom pathlib import Path,PurePosixPath\nclass EffectError(Exception): pass\nMAX_ARCHIVE='+str(MAX_ARCHIVE)+'\nMAX_MEMBERS='+str(MAX_MEMBERS)+'\n'+inspect.getsource(safe_members)+'''

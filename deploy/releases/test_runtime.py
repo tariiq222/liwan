@@ -401,7 +401,7 @@ class RuntimeTests(unittest.TestCase):
             def execute(self, sql, args=()): self.sql = sql; statements.append(sql)
             def fetchone(self):
                 if 'FROM pg_database WHERE' in self.sql: return (True,)
-                if 'FROM pg_roles WHERE' in self.sql: return (True, False, False, False, False, False)
+                if 'FROM pg_roles WHERE' in self.sql: return (False,)
                 if 'count(*)' in self.sql: return (0,)
                 return (False,)
             def fetchall(self): return []

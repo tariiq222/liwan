@@ -16,6 +16,7 @@ import re
 import signal
 import sys
 
+from deploy.releases.postgres import POSTGRES_ADMIN_ROLE
 from tools.shared_saas_lifecycle import odoo_effect
 from tools.shared_saas_lifecycle.odoo_effect import EffectError, MAX_OUTPUT
 
@@ -874,7 +875,7 @@ class ComposeRunner(odoo_effect.Runner):
         if not self.restore:
             return self.exists()
         sql = "SELECT count(*) FROM pg_database WHERE datname='" + self.database + "'"
-        result = self.command(self.base + ['exec', '-T', 'restore-db', 'psql', '-U', 'odoo',
+        result = self.command(self.base + ['exec', '-T', 'restore-db', 'psql', '-U', POSTGRES_ADMIN_ROLE,
                                           '-d', 'postgres', '-At', '-c', sql]).strip()
         if result not in ('0', '1'):
             raise EffectError('database_observation_invalid')

@@ -611,12 +611,15 @@ class OperatorCase(unittest.TestCase):
             elif stdin_text and 'CREATE EXTENSION IF NOT EXISTS pg_trgm' in stdin_text:
                 order['extension'] = index
                 extension = argv
+                extension_sql = stdin_text
             elif '-i' in argv:
                 order['install'] = index
         self.assertLess(order['create'], order['isolate'])
         self.assertLess(order['isolate'], order['extension'])
         self.assertLess(order['extension'], order['install'])
         self.assertEqual(extension[extension.index('-d') + 1], 'liwan_scratch_demo')
+        self.assertTrue(extension_sql.startswith('SET search_path = pg_catalog;'), extension_sql)
+        self.assertIn('GRANT CREATE ON SCHEMA public TO', extension_sql)
         argv, sql = isolate
         self.assertEqual(argv[0], self.tools['psql'])
         self.assertEqual(argv[argv.index('-d') + 1], 'postgres')
