@@ -332,7 +332,9 @@ services:
       - ./db/init-runtime-role.sh:/docker-entrypoint-initdb.d/10-liwan-runtime-role.sh:ro
       - ./ai/init-db.sh:/docker-entrypoint-initdb.d/20-liwan-ai.sh:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U odoo"]
+      # The admin role must log in: a volume bootstrapped before the two roles existed (bootstrap role `odoo`) never
+      # turns healthy, so `up --wait` fails and even a release command that predates the role assertion rolls back.
+      test: ["CMD-SHELL", "psql -U postgres -d postgres -tAc 'select 1' >/dev/null"]
       interval: 5s
       timeout: 5s
       retries: 20

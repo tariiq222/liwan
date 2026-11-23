@@ -49,10 +49,13 @@ class ComposeBootstrapTest(unittest.TestCase):
                     with self.subTest(file=path.name, service=service):
                         self.assertEqual(DATABASE_SERVICES.get(path.name), service)
 
-    def test_the_healthchecks_stay_on_the_runtime_role(self):
+    def test_the_healthchecks_need_the_admin_role_to_log_in(self):
+        """A volume whose bootstrap role is still `odoo` has no `postgres` role, so it must never turn healthy."""
         for name, service in DATABASE_SERVICES.items():
             with self.subTest(file=name):
-                self.assertIn(f'pg_isready -U {ODOO_RUNTIME_ROLE}', self.blocks(name)[service])
+                block = self.blocks(name)[service]
+                self.assertIn(f"psql -U {POSTGRES_ADMIN_ROLE} -d postgres -tAc 'select 1'", block)
+                self.assertNotIn('pg_isready', block)
 
 
 class InitScriptTest(unittest.TestCase):

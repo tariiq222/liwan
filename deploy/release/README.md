@@ -212,7 +212,15 @@ inside a tenant database is the `pg_dump` of the capture. The release checks thi
 step when a release is already served, before the first image pull and the first admin size query (`RESULT: refused runtime_role_rejected`, nothing stopped
 and the served release untouched; the candidate is recorded in `failed.json`, so the schedule alerts once per candidate and `rollback` clears it), again at the capture step with the tenant
 databases of the stopped worker, and in the start step before any application starts (the run rolls back). A volume that still has a privileged `odoo` or no
-`postgres` role fails both checks. The release does not convert such a volume: the cutover is an operator step, see the bring-up guide.
+`postgres` role fails both checks. The refusal is recorded (`failed.json`) only when the output names the role problem (a rule of `RUNTIME_ROLE_RULES`, or
+`role "postgres" does not exist` / a failed authentication of `postgres`); any other failure of that SQL (a `db` container that is restarting, a timeout) is the
+ordinary `runtime_role_check_failed`, rolled back or retried by the next run, and never persisted.
+
+The release does not convert such a volume: the cutover of an existing host is an operator step (bring-up guide, A4.4a) and MUST be done BEFORE the first release that carries
+this change. That first release is driven by the release command that is already served (the job runs `/opt/liwan/current/deploy/release/release.py`), which has no
+assertion, so `runtime_role_rejected` protects only releases that already run the new code. What protects an operator who forgot is different: the `db` health check in
+both compose files requires the `postgres` role to log in (`psql -U postgres -d postgres`), so on an old volume (bootstrap role `odoo`) `db` never turns healthy,
+`up --wait` fails and even the older command rolls back; and `ensure_secrets.sh` does not generate `DB_ADMIN_PASSWORD`, so a host without it is refused at the render check.
 
 ## Bootstrap (first run on a fresh host)
 

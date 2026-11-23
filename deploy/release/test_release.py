@@ -235,6 +235,8 @@ class FakeRunner:
                                   for index, name in enumerate(case.tenant_names, 1)]
                                  if case.tenant_entry is None else [case.tenant_entry])
         if 'psql' in argv:
+            if case.db_restarting:
+                return 1, 'Error response from daemon: Container abc is restarting, wait until the container is running'
             if case.admin_role_missing and argv[argv.index('-U') + 1] == 'postgres':
                 return 2, 'FATAL: role "postgres" does not exist'  # a volume made before the two roles existed
             case.sql.append(stdin)
@@ -344,6 +346,7 @@ class ReleaseTest(unittest.TestCase):
         self.fail_create = False
         self.runtime_role_violation = False
         self.admin_role_missing = False
+        self.db_restarting = False
         self.postgres = FakePostgres()
         self.runner = FakeRunner(self)
         self.log_stream = io.StringIO()
@@ -1514,6 +1517,22 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(self.image_pulls(), [])
         self.assertEqual(self.alert_events(), ['deploy_failed'])
         self.assertEqual(len(self.commands('psql')), queries)
+
+    def test_a_failed_role_check_that_names_no_role_problem_is_retried_and_never_recorded(self):
+        self.db_restarting = True  # the db container restarts while `prepare` asks the role question
+        self.assertEqual(self.main(), release.EXIT_FAILED)
+        self.assertEqual(self.result(), 'rolled back runtime_role_check_failed')
+        self.assertFalse((self.state / 'failed.json').exists())
+        self.assertEqual(self.served(), OLD)
+        self.assertEqual(self.compose_stops(), [])
+        self.db_restarting = False  # the next scheduled run goes through
+        self.assertEqual(self.main(), release.EXIT_OK)
+        self.assertEqual(self.served(), NEW)
+
+    def test_a_role_problem_in_the_output_is_recorded_once_per_candidate(self):
+        self.runtime_role_violation = True
+        self.assertEqual(self.main(), release.EXIT_REFUSED)
+        self.assertTrue((self.state / 'failed.json').exists())
 
     def test_a_rejected_runtime_role_on_a_first_deploy_starts_no_application(self):
         self.first_deploy()

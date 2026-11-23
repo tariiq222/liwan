@@ -118,7 +118,7 @@ The stack waits on the real compose healthchecks and then on a routed probe:
 
 | Service | Healthcheck source | What it actually proves |
 |---|---|---|
-| db | base compose | `pg_isready -U odoo` |
+| db | base compose | `psql -U postgres -d postgres -tAc 'select 1'` |
 | guard | shared overlay | loopback TCP liveness on 8080 |
 | web | **acceptance override** (TCP liveness on 3000) | process is listening |
 | odoo | **acceptance override** (TCP connect to 8069) | HTTP listener is up |

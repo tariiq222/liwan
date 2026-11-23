@@ -36,14 +36,17 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 from deploy.release import databases  # noqa: E402 - path set just above
 from deploy.release.common import (  # noqa: E402
-    EXIT_FAILED, EXIT_HALTED, EXIT_OK, EXIT_REFUSED, EXIT_ROLLBACK_FAILED, TIMED_OUT, CommandFailed, Lock, ReleaseError,
+    EXIT_FAILED, EXIT_HALTED, EXIT_OK, EXIT_REFUSED, EXIT_ROLLBACK_FAILED, FAILURE_TAIL_LINES, TIMED_OUT, CommandFailed, Lock,
+    ReleaseError,
     Runner, free_bytes, make_log, now, read_env_file, sensitive_values, read_json, write_atomic, write_json)
 from deploy.release.source import (  # noqa: E402
     COMMIT, ENVIRONMENTS, GITHUB_TOKEN_VAR, TOKEN_VAR, USER_VAR, Credential, Source, explicit_tag, host_architecture)
 from deploy.releases.postgres import (  # noqa: E402
-    ODOO_RUNTIME_ROLE, POSTGRES_ADMIN_ROLE, identifier, runtime_role_assertion_sql, tenant_isolation_statements)
+    ODOO_RUNTIME_ROLE, POSTGRES_ADMIN_ROLE, RUNTIME_ROLE_RULES, identifier, runtime_role_assertion_sql, tenant_isolation_statements)
 
 TENANT_DATABASE = re.compile(r'^[a-z][a-z0-9_]{0,62}$')
+# What psql prints when the volume has no usable admin role (the other refusals print the rule name of RUNTIME_ROLE_RULES).
+ROLE_PROBLEM_OUTPUT = re.compile(rf'role "{POSTGRES_ADMIN_ROLE}" does not exist|authentication failed for user "{POSTGRES_ADMIN_ROLE}"')
 RELEASE_FOLDER = re.compile(r'^([0-9a-f]{40})(\.partial|\.tar)?$')
 CONTROL_DB = 'liwan_control'
 CONTROL_DB_USER = 'liwan_control'
@@ -594,24 +597,33 @@ class Releaser:
         if run['previous'] is not None:
             self.stop_services(self.paths.current.resolve())
 
-    def psql(self, checkout: Path, sql: str, *, control: bool = False) -> str:
-        """Tooling SQL runs as the admin role (the runtime role is no superuser), always in database ``postgres``: the release
-        never opens a session inside a tenant database, where tenant-controlled code could run with admin rights."""
+    def psql_command(self, checkout: Path, *, control: bool = False, database: str = 'postgres') -> list[str]:
         if control:
             base = self.control_compose(checkout) + ['exec', '-T', 'control-db', 'psql', '-U', CONTROL_DB_USER]
         else:
             base = self.compose(checkout) + ['exec', '-T', 'db', 'psql', '-U', POSTGRES_ADMIN_ROLE]
-        return self.run_command(base + ['-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-At', '-f', '-'],
-                                stdin=sql, env=self.child_env)[1].strip()
+        return base + ['-d', database, '-v', 'ON_ERROR_STOP=1', '-At', '-f', '-']
+
+    def psql(self, checkout: Path, sql: str, *, control: bool = False) -> str:
+        """Tooling SQL runs as the admin role (the runtime role is no superuser), always in database ``postgres``: the release
+        never opens a session inside a tenant database, where tenant-controlled code could run with admin rights."""
+        return self.run_command(self.psql_command(checkout, control=control), stdin=sql, env=self.child_env)[1].strip()
 
     def assert_runtime_role(self, checkout: Path, run: dict) -> None:
         """Odoo's database role must be a plain login role that owns no tenant database; an old volume that still has
-        a privileged ``odoo`` (or no admin role at all) is refused here instead of running on."""
+        a privileged ``odoo`` (or no admin role at all) is refused here instead of running on. Only a failure whose
+        output names the role problem is a refusal about the volume (recorded once per candidate); any other failure
+        (a db container that is restarting, a timeout) is an ordinary failure that the next run retries."""
         names = [tenant['database'] for tenant in run['tenants']]
-        try:
-            self.psql(checkout, runtime_role_assertion_sql(ODOO_RUNTIME_ROLE, names) + ';\n')
-        except CommandFailed:
-            raise ReleaseError('runtime_role_rejected', EXIT_REFUSED) from None
+        sql = runtime_role_assertion_sql(ODOO_RUNTIME_ROLE, names) + ';\n'
+        code, output = self.run_command(self.psql_command(checkout), stdin=sql, env=self.child_env, check=False)
+        if code == 0:
+            return
+        if any(reason in output for reason, _ in RUNTIME_ROLE_RULES) or ROLE_PROBLEM_OUTPUT.search(output):
+            raise ReleaseError('runtime_role_rejected', EXIT_REFUSED)
+        for line in output.splitlines()[-FAILURE_TAIL_LINES:]:
+            self.log('  ' + line)
+        raise ReleaseError('runtime_role_check_failed')
 
     def databases(self, run: dict) -> list[dict]:
         tenants = [{'database': t['database'], 'filestore': t['filestore'], 'control': False} for t in run['tenants']]
