@@ -1,7 +1,7 @@
 # Pinned OCA addons
 
 LiwanOS's Odoo runs with a few OCA 19.0 repositories on its addons path (finance reporting,
-reconciliation, bank statement files, assets, MIS reports, document management, payroll, shifts, appointments and paid bookings). They are separate, pinned dependencies fetched at run or build
+reconciliation, bank statement files, assets, MIS reports, document management, object storage, payroll, shifts, appointments and paid bookings). They are separate, pinned dependencies fetched at run or build
 time. The fetched repositories stay outside this checkout. The separately maintained
 `odoo-addons/base_tier_validation` is the documented vendored OCA exception.
 
@@ -36,6 +36,11 @@ relative symlink per module; `path` prints that directory instead of the reposit
 copies it with the rest of `DIR`. The repository itself stays complete, unmodified and at its pin, and
 `check` refuses an empty, duplicated or malformed `modules` list. A pin without `modules` keeps its
 whole repository on the path, as the other pins do.
+
+OCA/storage has three `auto_install` modules (`fs_storage_environment`, `fs_attachment_environment`,
+`fs_attachment_s3_environment`). Each needs the `server_environment` module, which LiwanOS does not install
+and does not pin, so none could install itself today; the pin names only the three engines to keep the other
+twenty-odd modules of the repository off the addons path regardless.
 
 ## Where the path is appended
 
@@ -87,6 +92,26 @@ The other fifteen modules of OCA/helpdesk are not on the addons path: its merge,
 auto-close, activity, rating and project/sale/product/crm bridges are engine behaviour LiwanOS either
 owns in `liwan_helpdesk` or adds with its own bridge addon, and `helpdesk_mgmt_timesheet` needs
 `hr_timesheet`, which has no product surface.
+
+`liwan_platform` depends on the three OCA/storage engines (owner-approved pin 2026-11-23), so every tenant
+installs them. With no `fs.storage` record configured they change nothing about where attachments are
+stored; tenant object storage (one OCI bucket and one key per customer) and the `fs.storage` record are
+separate, later work.
+
+| OCA module (repository) | Used for |
+|---|---|
+| `fs_storage` (storage) | the `fs.storage` backend model over `fsspec`, installed with `fs_attachment` |
+| `fs_attachment` (storage) | routes `ir.attachment` storage through an `fs.storage` record; keeps the default filestore when none is set |
+| `fs_attachment_s3` (storage) | the S3 backend of `fs.storage` (`fsspec[s3]`); the reason `liwan_platform` names it in `depends` |
+
+With no `fs.storage` record, storage location is unchanged, but `ir.attachment` no longer behaves exactly like
+stock. `write` of `raw` or `datas` without `name` or `mimetype` keeps the attachment's current mimetype when the
+content type is not recognised, and in that case raises `UserError` if the records written in one call have
+different mimetypes (`fs_attachment/models/ir_attachment.py:353-398`). `create` stores records that carry a
+`res_model` one by one and returns them before the rest, so a mixed batch comes back in a different order than
+`vals_list` (same file, `:326-351`). `_compute_raw` returns `b""` instead of `False` (same file, `:314-323`).
+Each autovacuum `fs.file.gc._gc_files` run takes a `SHARE` lock on `ir_attachment`, after the one on `fs_file_gc`,
+with a `lock_timeout` of 10 seconds (`fs_attachment/models/fs_file_gc.py:108-110`).
 
 `date_range` and `report_xlsx` (server-ux, reporting-engine) come in as their dependencies. `account_tax_balance` and
 `account_fiscal_year` are in the pinned repositories but unused.
@@ -142,8 +167,15 @@ Add a repository only when a module LiwanOS depends on needs it (check `depends`
 
 The runtime already provides them through `deploy/odoo/requirements-python312-linux.txt`:
 `python-dateutil` (`account_asset_management`), `xlsxwriter` and `xlrd` (`report_xlsx`), `cssselect`
-(`resource_booking`). Changing the
+(`resource_booking`), `fsspec` and `python-slugify` (`fs_storage` and `fs_attachment`). Changing the
 pins must keep that file satisfying `python_requirements`.
+
+`fs_attachment_s3` declares `fsspec[s3]`, which installs `s3fs` and its own closure: `aiobotocore`,
+`botocore`, `aiohttp` and their dependencies. Both requirements files pin the whole closure as exact
+`==` versions, identical on Linux and macOS and leaving every pre-existing pin unchanged. The three
+modules import `fsspec`, `fsspec.asyn` and `slugify`, and no module imports `boto3`, so it is not added.
+`packaging` is added although no module imports it: Odoo parses a versioned external dependency
+(`fsspec>=2024.5.0`) with `packaging` and refuses to install the module without it.
 
 ## Licensing (owner decision 2026-10-18)
 
@@ -152,6 +184,10 @@ used unmodified, as separate dependencies, and fetched from OCA rather than copi
 addons are LGPL-3. The owner accepted AGPL-3 OCA dependencies for LiwanOS on 2026-10-18. Keep the OCA
 modules unmodified; if one ever has to be changed, the change is published with its source as AGPL-3
 requires.
+
+OCA/storage follows the same position (owner decision 2026-11-23): `fs_attachment` and `fs_attachment_s3`
+are AGPL-3, `fs_storage` is LGPL-3, and all three are pinned and fetched unmodified from OCA, never copied
+or patched here.
 
 ## Launchers that do not use the OCA path yet
 
