@@ -287,6 +287,25 @@ class IssueTest(unittest.TestCase):
         self.assertEqual([second['accessKeyId']], [k['id'] for k in handle(self.prov, 'inspect')['keys']])
         self.assertNotEqual(first['accessKeyId'], second['accessKeyId'])
 
+    def test_an_inactive_key_is_cleaned_so_the_limit_of_two_cannot_wedge_issuance(self):
+        handle(self.prov, 'ensure')
+        user = next(iter(self.api.users.values()))
+        first, second = handle(self.prov, 'issue', keepKeyIds=[]), None
+        self.api.keys[user['id']].append({'id': 'ak-inactive', 'displayName': 'old', 'timeCreated': iso(self.clock()), 'lifecycleState': 'INACTIVE', 'key': 'x', 'born': 0})
+        self.assertEqual(2, len(self.api.keys[user['id']]))  # at the limit: a plain create would be refused
+        second = handle(self.prov, 'issue', keepKeyIds=[first['accessKeyId']])
+        ids = [key['id'] for key in self.api.keys[user['id']]]
+        self.assertEqual(sorted([first['accessKeyId'], second['accessKeyId']]), sorted(ids))
+        self.assertNotIn('ak-inactive', ids)
+
+    def test_inspect_and_ensure_list_only_active_keys_but_delete_key_reaches_an_inactive_one(self):
+        handle(self.prov, 'ensure')
+        user = next(iter(self.api.users.values()))
+        self.api.keys[user['id']].append({'id': 'ak-inactive', 'displayName': 'old', 'timeCreated': iso(self.clock()), 'lifecycleState': 'INACTIVE', 'key': 'x', 'born': 0})
+        self.assertEqual([], handle(self.prov, 'inspect')['keys'])
+        handle(self.prov, 'delete_key', keyId='ak-inactive')
+        self.assertEqual([], self.api.keys[user['id']])
+
     def test_a_malformed_keep_list_or_request_id_is_refused(self):
         handle(self.prov, 'ensure')
         for extra in ({'keepKeyIds': 'x'}, {'keepKeyIds': ['a', 'b']}, {'keepKeyIds': ['../x']}, {}):

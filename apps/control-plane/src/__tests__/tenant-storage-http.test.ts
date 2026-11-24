@@ -6,7 +6,7 @@ import { mockSessionQuery, signMock } from './helpers/vendor-session.js'
 const tenant = '11111111-1111-4111-8111-111111111111'
 const key = 'tenant-storage-route-synthetic-key-'.repeat(2), issuer = 'storage-route-test'
 
-async function withServer(roles: string[], opts: { enabled?: boolean; asked?: boolean }, run: (call: (method: string, body?: unknown) => Promise<Response>, sql: Array<[string, unknown[]]>) => Promise<void>) {
+async function withServer(roles: string[], opts: { enabled?: boolean; asked?: boolean; notStored?: boolean }, run: (call: (method: string, body?: unknown) => Promise<Response>, sql: Array<[string, unknown[]]>) => Promise<void>) {
   const sql: Array<[string, unknown[]]> = []
   const result = (rows: unknown[] = [], rowCount = rows.length) => ({ rows, rowCount })
   const client = { release() {}, async query(text: string, params: unknown[] = []) {
@@ -16,6 +16,8 @@ async function withServer(roles: string[], opts: { enabled?: boolean; asked?: bo
     if (text.includes('FROM vendor_accounts WHERE id')) return result([{}])
     if (text.includes('FROM vendor_account_roles')) return result(roles.map(role => ({ role })))
     if (text.startsWith('INSERT INTO audit_events')) { sql.push([text, params]); return result() }
+    if (text.startsWith('SELECT 1 FROM shared_registry_bindings')) return result([], opts.asked === false ? 0 : 1)
+    if (text.startsWith('UPDATE tenant_storage')) { sql.push([text, params]); return result([], opts.notStored ? 0 : 1) }
     if (text.includes('tenant_storage')) { sql.push([text, params]); return text.startsWith('INSERT') ? result([], opts.asked === false ? 0 : 1) : result([{ operation: 'rotate', state: 'pending_key' }]) }
     throw Error('unexpected_sql:' + text)
   } }
@@ -41,6 +43,14 @@ describe('tenant storage routes', () => {
       expect(response.status).toBe(202); expect(await response.json()).toEqual({ state: 'queued' })
       expect(sql[0]![1]).toEqual([tenant, 'rotate'])
       expect(sql[1]![1]!.slice(1)).toEqual(['account:7', 'tenant_storage.requested', tenant, 'rotate: Rotate the tenant key'])
+    })
+  })
+  it('answers 409 tenant_storage_not_ready for a rotation of a tenant that never stored a key, and audits nothing', async () => {
+    await withServer(['operations'], { notStored: true }, async (call, sql) => {
+      const response = await call('POST', { operation: 'rotate', reason: 'Rotate the tenant key' })
+      expect(response.status).toBe(409)
+      expect(await response.json()).toMatchObject({ code: 'tenant_storage_not_ready' })
+      expect(sql.some(([text]) => text.includes('audit_events'))).toBe(false)
     })
   })
   it('refuses a read-only role, a free operation name and an extra field, and does nothing', async () => {

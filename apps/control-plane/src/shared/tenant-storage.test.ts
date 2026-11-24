@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { Pool } from 'pg'
 import { vendorActorIssuer } from '../admin-auth/grants.js'
-import { recordTenantStorageRun, runTenantStorageDue, storageBackoffSeconds, storageResponseSchema, requestTenantStorage, STORAGE_MAX_ATTEMPTS, type StorageClaim } from './tenant-storage.js'
+import { runSharedLoop } from './job-loop.js'
+import { recordTenantStorageRun, runTenantStorageDue, runTenantStorageLoop, storageBackoffSeconds, storageResponseSchema, requestTenantStorage, STORAGE_MAX_ATTEMPTS, type StorageClaim } from './tenant-storage.js'
 
 const actor = { issuer: vendorActorIssuer('storage-unit'), actorUid: 7 }
 const tenant = '11111111-1111-4111-8111-111111111111'
@@ -47,6 +48,16 @@ describe('recording a run', () => {
       const params = query.mock.calls[0]![1]!
       expect(params[3]).toBe(next); expect(params[4]).toBe('key_stored'); expect(params[5]).toBe(480)
     }
+  })
+  it('a pending answer keeps the failure count, so a key that never starts to work still stops', async () => {
+    const { pool, query } = poolRecording()
+    await recordTenantStorageRun(pool, claim({ operation: 'rotate', attempts: 4 }), { ok: true, response: { ...pending, operation: 'rotate' } })
+    expect(String(query.mock.calls[0]![0])).not.toMatch(/attempts/)
+  })
+  it('only an active answer clears the count', async () => {
+    const { pool, query } = poolRecording()
+    await recordTenantStorageRun(pool, claim({ attempts: 4 }), { ok: true, response: active })
+    expect(String(query.mock.calls[0]![0])).toMatch(/attempts=0/)
   })
   it('never waits less than the minimum', async () => {
     const { pool, query } = poolRecording()
@@ -133,24 +144,80 @@ describe('the pass', () => {
       expect(sql).toMatch(/enabled=true/); expect(sql).toMatch(/commercial_mode='saas'/)
     }
     expect(calls[0]![0]).toMatch(/o\.stage='active'/)
+    for (const operation of ['ensure', 'rotate'] as const) {
+      const sql: string[] = []
+      const client = { release() {}, async query(text: string) { sql.push(text); return { rowCount: text.startsWith('INSERT INTO tenant_storage') || text.startsWith('SELECT 1') ? 0 : 1, rows: [] } } }
+      await expect(requestTenantStorage({ connect: async () => client } as unknown as Pool, tenant, operation, actor, 'rotate keys')).rejects.toThrow('tenant_operations_unavailable')
+      expect(sql.find(text => /^(INSERT INTO tenant_storage|SELECT 1)/.test(text))).toMatch(/commercial_mode='saas'[\s\S]*o\.stage='active'/)
+      expect(sql).toContain('ROLLBACK'); expect(sql.some(text => text.includes('audit_events'))).toBe(false)
+    }
+  })
+  it('a rotation needs a key that was stored once: otherwise it is refused as not ready and nothing is audited', async () => {
     const sql: string[] = []
-    const client = { release() {}, async query(text: string) { sql.push(text); return { rowCount: text.startsWith('INSERT INTO tenant_storage') ? 0 : 1, rows: [] } } }
-    await expect(requestTenantStorage({ connect: async () => client } as unknown as Pool, tenant, 'rotate', actor, 'rotate keys')).rejects.toThrow('tenant_operations_unavailable')
-    expect(sql.find(text => text.startsWith('INSERT INTO tenant_storage'))).toMatch(/commercial_mode='saas'[\s\S]*o\.stage='active'/)
+    const client = { release() {}, async query(text: string) { sql.push(text); return { rowCount: text.startsWith('UPDATE tenant_storage') ? 0 : 1, rows: [] } } }
+    await expect(requestTenantStorage({ connect: async () => client } as unknown as Pool, tenant, 'rotate', actor, 'rotate keys')).rejects.toThrow('tenant_storage_not_ready')
+    expect(sql.find(text => text.startsWith('UPDATE tenant_storage'))).toMatch(/stage IS NOT NULL/)
+    expect(sql.some(text => text.startsWith('INSERT INTO tenant_storage'))).toBe(false)  // a rotation never creates the row
     expect(sql).toContain('ROLLBACK'); expect(sql.some(text => text.includes('audit_events'))).toBe(false)
   })
   it('writes the audit row with the operator, the operation and the reason in the same transaction', async () => {
-    const calls: Array<[string, unknown[] | undefined]> = []
-    const client = { release() {}, async query(text: string, params?: unknown[]) { calls.push([text, params]); return { rowCount: 1, rows: [] } } }
-    await requestTenantStorage({ connect: async () => client } as unknown as Pool, tenant, 'rotate', actor, 'rotate keys')
-    expect(calls.map(([text]) => text.split(' ')[0])).toEqual(['BEGIN', 'INSERT', 'INSERT', 'COMMIT'])
-    expect(calls[2]![0]).toMatch(/INSERT INTO audit_events/)
-    expect(calls[2]![1]!.slice(1)).toEqual(['account:7', 'tenant_storage.requested', tenant, 'rotate: rotate keys'])
+    for (const operation of ['ensure', 'rotate'] as const) {
+      const calls: Array<[string, unknown[] | undefined]> = []
+      const client = { release() {}, async query(text: string, params?: unknown[]) { calls.push([text, params]); return { rowCount: 1, rows: [] } } }
+      await requestTenantStorage({ connect: async () => client } as unknown as Pool, tenant, operation, actor, 'rotate keys')
+      const audit = calls.find(([text]) => text.startsWith('INSERT INTO audit_events'))!
+      expect(calls[0]![0]).toBe('BEGIN'); expect(calls.at(-1)![0]).toBe('COMMIT')
+      expect(audit[1]!.slice(1)).toEqual(['account:7', 'tenant_storage.requested', tenant, `${operation}: rotate keys`])
+    }
   })
   it('rejects a bad tenant id or reason before the database', async () => {
     const { pool, calls } = pass([])
     await expect(requestTenantStorage(pool, 'x', 'rotate', actor, 'rotate keys')).rejects.toThrow()
     await expect(requestTenantStorage(pool, tenant, 'rotate', actor, 'x')).rejects.toThrow()
     expect(calls).toHaveLength(0)
+  })
+})
+
+describe('the storage loop', () => {
+  const idlePool = () => ({ query: vi.fn(async (sql: string) => sql.includes('WITH due AS') ? { rowCount: 1, rows: [claim()] } : { rowCount: 0, rows: [] }) }) as unknown as Pool
+  const flush = async () => { for (let i = 0; i < 20; i++) await Promise.resolve() }
+  it('runs one pass at a time: a run in flight is not joined by a second one', async () => {
+    let release!: (value: unknown) => void
+    const runner = vi.fn(() => new Promise<unknown>(resolve => { release = resolve }))
+    const controller = new AbortController()
+    const loop = runTenantStorageLoop(idlePool(), runner, { signal: controller.signal, wait: async () => {}, idleMs: 0, busyMs: 0 })
+    await flush(); await flush()
+    expect(runner).toHaveBeenCalledTimes(1)
+    release(pending); await flush()
+    expect(runner.mock.calls.length).toBeGreaterThanOrEqual(2)
+    controller.abort(); release(pending); await loop
+  })
+  it('does not hold back the job loop: dispatch keeps going while a storage run is in flight', async () => {
+    let release!: (value: unknown) => void
+    const runner = vi.fn(() => new Promise<unknown>(resolve => { release = resolve }))
+    const controller = new AbortController()
+    const loop = runTenantStorageLoop(idlePool(), runner, { signal: controller.signal, wait: async () => {} })
+    await flush()
+    expect(runner).toHaveBeenCalledTimes(1)  // the storage run is now in flight and unresolved
+    let dispatched = 0
+    await runSharedLoop({ dispatch: async () => ({ state: ++dispatched < 5 ? 'verified' : 'idle' }), isStopping: () => dispatched >= 5, isTransient: () => false, wait: async () => {} })
+    expect(dispatched).toBe(5)
+    expect(runner).toHaveBeenCalledTimes(1)  // still in flight: the dispatches did not wait for it
+    controller.abort(); release(pending); await loop
+  })
+  it('logs a failing pass and keeps going, and waits longer when nothing was due', async () => {
+    const waits: number[] = []
+    const controller = new AbortController()
+    const pool = { query: vi.fn(async () => { if (waits.length === 0) throw Error('database down'); return { rowCount: 0, rows: [] } }) } as unknown as Pool
+    const log = vi.fn()
+    await runTenantStorageLoop(pool, vi.fn(), { signal: controller.signal, log, idleMs: 111, wait: async ms => { waits.push(ms); if (waits.length === 2) controller.abort() } })
+    expect(log).toHaveBeenCalledWith('tenant-storage pass failed', expect.any(Error))
+    expect(waits).toEqual([111, 111])
+  })
+  it('stops at once when the worker stops', async () => {
+    const controller = new AbortController(); controller.abort()
+    const runner = vi.fn()
+    await runTenantStorageLoop(idlePool(), runner, { signal: controller.signal })
+    expect(runner).not.toHaveBeenCalled()
   })
 })

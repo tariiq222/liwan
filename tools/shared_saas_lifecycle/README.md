@@ -29,10 +29,10 @@ tenant at a time (an advisory lock file in the effect-owned `tenant-storage` sta
 |---|---|
 | `result` with `state: pending_key`, `stage`, `retryAfterSeconds` | the key is stored but a new OCI key needs about 7 minutes; call `verify` (or `ensure`) again after that. No call waits |
 | `result` with `state: active`, `stage: verified` | a real write and read through the stored key worked; only now is the storage the attachment default |
-| `error_code` | `oci_refused`, `oci_unreachable`, `key_not_valid` (not working 15 minutes after issue), `store_failed`, `limit_reached`, or an effect code (`request_invalid`, `operation_in_progress`, `release_operation_blocked`, `authority_lost`, `script_failed`) |
+| `error_code` | `oci_refused`, `oci_unreachable`, `key_not_valid` (not working 15 minutes after issue), `store_failed`, `limit_reached`, `bucket_mismatch` (the stored record names another bucket: never overwritten), or an effect code (`request_invalid`, `operation_in_progress`, `release_operation_blocked`, `authority_lost`, `script_failed`) |
 
-Stages: `resources_ready`, `key_issued`, `key_stored`, `verified`. The control plane records the answer on the job (`requestId` is the
-shared job id). The request carries no resource name: the container derives `lw-<24 hex>` from an HMAC of the tenant id with the
+Stages: `key_stored` (pending) and `verified` (active). The control plane records the answer on the tenant's row (`requestId` is the id of one
+run, a fresh uuid per run). The request carries no resource name: the container derives `lw-<24 hex>` from an HMAC of the tenant id with the
 naming key, and uses it for the bucket, the IAM user and (per tenant) the group and policy. Policy mode `OCI_POLICY_MODE`:
 `per_tenant` (default; one group and one policy per tenant, `target.bucket.name = '<bucket>'`) or `fixed` (one shared policy comparing
 `request.user.name` with `target.bucket.name`; unproven on the real account, test it there before relying on it).
@@ -40,16 +40,16 @@ naming key, and uses it for the bucket, the IAM user and (per tenant) the group 
 The secret key is readable only when OCI creates it. It travels in memory from the container's stdout to the stdin of the Odoo
 script that writes `fs.storage`, and is in no answer, log or exception (tests prove it); the gate relays this effect's stdout to the worker.
 
-Who calls it: the shared worker of the control plane (`apps/control-plane/src/shared/tenant-storage.ts`), as a maintenance step that is
-off unless `LIWAN_TENANT_STORAGE_ENABLED=true`. It adds a `tenant_storage` row for each enabled SaaS tenant whose onboarding is active and
+Who calls it: the shared worker of the control plane (`apps/control-plane/src/shared/tenant-storage.ts`), in a loop of its own beside the job loop
+(one run at a time, so a run never holds back a backup, restore or reconfiguration), off unless `LIWAN_TENANT_STORAGE_ENABLED=true`. It adds a `tenant_storage` row for each enabled SaaS tenant whose onboarding is active and
 runs `ensure`; a `pending_key` answer schedules `verify` after `retryAfterSeconds`; failures back off (1 minute doubling to an hour) and stop
-after six, until an operator asks again. An operator reads or requests work at `GET`/`POST /v1/shared/tenants/<id>/storage`
-(`operation`: `rotate` or `ensure`, with a `reason`). The product (`odoo-addons`, `apps/web`) does not depend on it, and a tenant outside
+after six failed runs since the last `active` (a pending answer does not clear the count), until an operator asks again. An operator reads or requests work at `GET`/`POST /v1/shared/tenants/<id>/storage`
+(`operation`: `rotate` or `ensure`, with a `reason`; each request is audited as `tenant_storage.requested`; a rotation of a tenant that never stored a key answers 409 `tenant_storage_not_ready`). The product (`odoo-addons`, `apps/web`) does not depend on it, and a tenant outside
 SaaS gets no row and keeps local storage.
 
 What bring-up must provide (nothing here edits Compose or host files):
 
-- A compose service `tenant-storage` (profile-gated, never started by `up`): the image that holds this repository's `tools/` and the
+- A compose service `tenant-storage` (profile-gated, never started by `up`), with `logging: driver: none`: the container prints the new secret key on its stdout (the one moment it can be read), and the default `json-file` driver would write it to the host disk: the image that holds this repository's `tools/` and the
   `openssl` binary, entrypoint `python3 -E -s -B -m tools.shared_saas_lifecycle.oci_provision`, `stdin_open` off (the effect pipes the
   request), no published port, on an internal network whose only route out is an allowlist forward proxy (`HTTPS_PROXY`) that permits
   CONNECT to `identity.<home region>.oci.oraclecloud.com:443` and `objectstorage.<region>.oraclecloud.com:443` and nothing else.

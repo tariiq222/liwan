@@ -188,7 +188,7 @@ class EnsureTest(Case):
         answer = self.run_op('ensure')
         self.assertEqual({'operation': 'ensure', 'tenantId': 'acme', 'requestId': REQUEST_ID, 'state': 'pending_key',
                           'stage': 'key_stored', 'retryAfterSeconds': 480}, answer)
-        self.assertIn(answer['stage'], effect.STAGES)
+        self.assertIn(answer['stage'], ('key_stored', 'verified'))
         primary = self.world.primary()
         self.assertEqual(oci.resource_name('acme', NAMING_KEY), primary.directory_path)
         self.assertEqual('s3', primary.protocol)
@@ -259,6 +259,27 @@ class EnsureTest(Case):
         self.wait(KEY_DELAY)
         self.assertEqual('active', self.run_op('verify')['state'])
         self.assertEqual({oci.FIXED_POLICY_NAME}, set(self.world.api.policies))
+
+
+class BucketMismatchTest(Case):
+    def point_primary_elsewhere(self):
+        self.run_op('ensure')
+        self.world.primary().directory_path = 'lw-someoneelse'
+        return dict(self.world.primary().__dict__), len(self.world.keys()), len(self.world.writes)
+
+    def test_ensure_refuses_to_overwrite_a_record_for_another_bucket(self):
+        before = self.point_primary_elsewhere()
+        self.assertEqual('bucket_mismatch', self.code_of('ensure'))
+        self.assertEqual(before, (dict(self.world.primary().__dict__), len(self.world.keys()), len(self.world.writes)))
+
+    def test_rotate_refuses_too_and_writes_no_candidate(self):
+        before = self.point_primary_elsewhere()
+        self.assertEqual('bucket_mismatch', self.code_of('rotate'))
+        self.assertEqual(before, (dict(self.world.primary().__dict__), len(self.world.keys()), len(self.world.writes)))
+        self.assertIsNone(self.world.candidate())
+
+    def test_the_code_is_one_the_runner_may_report(self):
+        self.assertIn('bucket_mismatch', effect.ERROR_CODES)
 
 
 class FailureTest(Case):
@@ -389,6 +410,40 @@ class RotateTest(Case):
         self.assertEqual(2, len(self.world.keys()))
         self.assertEqual('active', self.run_op('ensure')['state'])
         self.assertEqual(1, len(self.world.keys()))
+
+    def test_a_rotation_that_stopped_after_promotion_is_finished_not_repeated(self):
+        self.activate()
+        self.run_op('rotate')
+        self.wait(KEY_DELAY)
+        with patch.object(self.world.api, 'delete_key', lambda *a: None):
+            self.run_op('rotate')  # promoted; the old key was not deleted
+        promoted = json.loads(self.world.primary().options)['key']
+        self.assertEqual(2, len(self.world.keys()))
+        issued_before = len([c for c in self.world.api.created if c[0] == 'key'])
+        answer = self.run_op('rotate')
+        self.assertEqual(('active', 'verified'), (answer['state'], answer['stage']))
+        self.assertEqual([promoted], [key['id'] for key in self.world.keys()])
+        self.assertEqual(promoted, json.loads(self.world.primary().options)['key'])
+        self.assertIsNone(self.world.candidate())
+        self.assertEqual(issued_before, len([c for c in self.world.api.created if c[0] == 'key']))  # no new key
+
+    def test_a_new_rotation_request_after_a_finished_one_rotates_again(self):
+        self.activate()
+        self.run_op('rotate'); self.wait(KEY_DELAY); self.run_op('rotate')
+        first = json.loads(self.world.primary().options)['key']
+        self.assertEqual('pending_key', self.run_op('rotate')['state'])
+        self.wait(KEY_DELAY)
+        self.assertEqual('active', self.run_op('rotate')['state'])
+        self.assertNotEqual(first, json.loads(self.world.primary().options)['key'])
+
+    def test_a_key_issued_but_not_stored_during_rotation_is_replaced_not_mistaken_for_leftover(self):
+        self.activate()
+        user = next(iter(self.world.api.users.values()))
+        self.wait(10)
+        self.world.api.create_key(user['id'], 'stray-newer')  # newer than the live key, held by no record
+        self.assertEqual('pending_key', self.run_op('rotate')['state'])
+        self.assertIsNotNone(self.world.candidate())
+        self.assertEqual(2, len(self.world.keys()))
 
     def test_ensure_during_a_rotation_does_not_remove_the_candidate_key(self):
         self.activate()

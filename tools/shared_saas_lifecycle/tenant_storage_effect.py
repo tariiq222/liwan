@@ -17,10 +17,10 @@ Operations (all idempotent, none waits):
   working key; a later call verifies the candidate, makes it the live record, then deletes the old key.
 
 State is not kept here: OCI (resources, key ids, creation times) and the tenant's `fs.storage` records are the truth, and
-each call reconciles them. The answer carries `state` (`pending_key` or `active`) and `stage` (`resources_ready`,
-`key_issued`, `key_stored`, `verified`); a failure is `{"error_code": ...}` with one of `oci_refused`, `oci_unreachable`,
-`key_not_valid`, `store_failed`, `limit_reached`, or an effect code. The control plane records the answer on its job
-(the request's `requestId` is the job id). The secret is passed from the container's stdout to the Odoo script's stdin in memory
+each call reconciles them. The answer carries `state` (`pending_key` or `active`) and `stage` (`key_stored` while pending,
+`verified` when active); a failure is `{"error_code": ...}` with one of `oci_refused`, `oci_unreachable`, `key_not_valid`,
+`store_failed`, `limit_reached`, `bucket_mismatch`, or an effect code. The control plane records the answer on its row
+(the request's `requestId` is the id of this one run, a fresh uuid per run). The secret is passed from the container's stdout to the Odoo script's stdin in memory
 and appears in no answer, log or exception; the gate relays this effect's stdout to the worker, so it never prints it.
 Dropping the resources belongs to the tenant drop effect, not to this one.
 """
@@ -42,8 +42,7 @@ from tools.shared_saas_lifecycle.odoo_effect import EffectError, MAX_OUTPUT, eff
 from tools.shared_saas_lifecycle.tenant_status_effect import ComposeRunner as OdooComposeRunner
 
 OPERATIONS = ('ensure', 'verify', 'rotate')
-STAGES = ('resources_ready', 'key_issued', 'key_stored', 'verified')
-FAILURE_CODES = frozenset({'oci_refused', 'oci_unreachable', 'key_not_valid', 'store_failed', 'limit_reached'})
+FAILURE_CODES = frozenset({'oci_refused', 'oci_unreachable', 'key_not_valid', 'store_failed', 'limit_reached', 'bucket_mismatch'})
 EFFECT_CODES = frozenset({'request_invalid', 'operation_in_progress', 'release_operation_blocked', 'authority_lost',
                           'script_failed', 'runtime_invalid', 'runtime_command_failed', 'runtime_timeout'})
 ERROR_CODES = FAILURE_CODES | EFFECT_CODES
@@ -388,7 +387,10 @@ class TenantStorageEffect:
         resources = self.oci.call('ensure')
         keys = {key['id']: key for key in resources['keys']}
         primary, candidate = observed['primary'], observed['candidate']
-        if primary and primary['bucket'] == resources['bucket'] and primary['accessKeyId'] in keys:
+        # A stored record for another bucket (a lost naming key, a record edited by hand) is never overwritten: its key may still be the only way to the files.
+        if primary and primary['bucket'] != resources['bucket']:
+            raise EffectError('bucket_mismatch')
+        if primary and primary['accessKeyId'] in keys:
             self._prune(resources['keys'], {primary['accessKeyId']} | ({candidate['accessKeyId']} if candidate else set()))
             return self._check(request, 'primary', keys[primary['accessKeyId']]['createdAt'])
         return self._issue_and_store(request, resources, 'primary', [])
@@ -410,6 +412,8 @@ class TenantStorageEffect:
             raise EffectError('store_failed')
         resources = self.oci.call('ensure')
         keys = {key['id']: key for key in resources['keys']}
+        if primary['bucket'] != resources['bucket']:
+            raise EffectError('bucket_mismatch')
         if candidate is not None and candidate['accessKeyId'] in keys and candidate['bucket'] == resources['bucket']:
             created_at = keys[candidate['accessKeyId']]['createdAt']
             try:
@@ -430,6 +434,13 @@ class TenantStorageEffect:
             return self._answer(request, 'active', 'verified')
         if candidate is not None:
             self.odoo.discard()  # its key is gone from OCI: nothing to verify
+        live = keys.get(primary['accessKeyId'])
+        older = [key for key in resources['keys'] if key['id'] != primary['accessKeyId'] and live is not None and key['createdAt'] < live['createdAt']]
+        if older:
+            # A promotion that stopped before it deleted the old key: the live key is newer than the others and nothing waits for verification.
+            # Finish that rotation instead of starting a second one.
+            self._prune(resources['keys'], {primary['accessKeyId']})
+            return self._check(request, 'primary', live['createdAt'])
         return self._issue_and_store(request, resources, 'candidate', [primary['accessKeyId']])
 
 

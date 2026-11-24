@@ -314,10 +314,12 @@ class Provisioner:
         name = resource_name(request['tenantId'], self.naming_key)
         return getattr(self, '_' + operation)(name, request)
 
-    def _keys(self, user):
+    def _keys(self, user, every_state=False):
+        """The user's keys with their creation time. Only an ACTIVE key can sign a request; cleanup (`every_state`) also sees the
+        INACTIVE ones, which still count against the limit of two keys per user."""
         return [{'id': key['id'], 'createdAt': epoch(key.get('timeCreated'), self.clock())}
                 for key in self.api.list_keys(user['id']) if isinstance(key.get('id'), str)
-                and key.get('lifecycleState', 'ACTIVE') == 'ACTIVE']
+                and (every_state or key.get('lifecycleState', 'ACTIVE') == 'ACTIVE')]
 
     def _ensure(self, name, request):
         config, api = self.config, self.api
@@ -373,7 +375,7 @@ class Provisioner:
                 or not isinstance(request_id, str) or not UUID.fullmatch(request_id)):
             raise OciError('script_failed')
         user = self._user(name)
-        existing = self._keys(user)
+        existing = self._keys(user, every_state=True)
         # A key nobody stored (an earlier call died between issue and store) cannot be recovered: drop it first.
         for key in existing:
             if key['id'] not in keep:
@@ -389,7 +391,7 @@ class Provisioner:
         if not isinstance(key_id, str) or not KEY_ID.fullmatch(key_id):
             raise OciError('script_failed')
         user = self.api.find_user(name)
-        if user and isinstance(user.get('id'), str) and any(k['id'] == key_id for k in self._keys(user)):
+        if user and isinstance(user.get('id'), str) and any(k['id'] == key_id for k in self._keys(user, every_state=True)):
             self.api.delete_key(user['id'], key_id)
         return {}
 

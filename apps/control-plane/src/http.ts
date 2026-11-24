@@ -540,7 +540,11 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
         requireCapability(auth, 'vendor.operations.run')
         const input = parseJson(raw, z.strictObject({ operation: z.enum(['ensure', 'rotate']), reason: z.string().trim().min(3).max(1000) }))
         try { await requestTenantStorage(pool, tenantStorage[1]!, input.operation, { issuer: vendorActorIssuer(config.installationId), actorUid: auth.actor }, input.reason) }
-        catch (error) { if (error instanceof Error && error.message === 'tenant_operations_unavailable') throw new ApiError(409, 'tenant_operations_unavailable', 'Tenant is not ready for storage'); throw error }
+        catch (error) {
+          if (error instanceof Error && error.message === 'tenant_operations_unavailable') throw new ApiError(409, 'tenant_operations_unavailable', 'Tenant is not ready for storage')
+          if (error instanceof Error && error.message === 'tenant_storage_not_ready') throw new ApiError(409, 'tenant_storage_not_ready', 'Tenant has no stored storage key to rotate; run ensure first')
+          throw error
+        }
         return respond(res, 202, { state: 'queued' })
       }
       const sharedQueue = pathname.match(new RegExp(`^/v1/shared/tenants/(${UUID})/jobs$`))

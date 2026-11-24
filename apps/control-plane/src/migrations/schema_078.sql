@@ -9,7 +9,7 @@ CREATE TABLE tenant_storage (
   control_tenant_id uuid PRIMARY KEY REFERENCES tenants(id),
   operation text NOT NULL DEFAULT 'ensure' CHECK (operation IN ('ensure','verify','rotate')),
   state text NOT NULL DEFAULT 'queued' CHECK (state IN ('queued','pending_key','active','failed')),
-  stage text CHECK (stage IN ('resources_ready','key_issued','key_stored','verified')),
+  stage text CHECK (stage IN ('key_stored','verified')),
   error_code text CHECK (error_code ~ '^[a-z][a-z0-9_]{2,63}$'),
   attempts integer NOT NULL DEFAULT 0 CHECK (attempts >= 0),
   -- NULL: nothing is due (active, or failed for good until an operator asks again).

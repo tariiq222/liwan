@@ -4,7 +4,7 @@ import { runEffectChild, type EffectRunOptions } from './admin-password-runner.j
 
 /** Everything tenant_storage_effect.py can answer with: its own failure states and the codes of the effect gate and the shared runner. They name a check, never a value. */
 export const TENANT_STORAGE_ERROR_CODES: ReadonlySet<string> = new Set([
-  'oci_refused', 'oci_unreachable', 'key_not_valid', 'store_failed', 'limit_reached',
+  'oci_refused', 'oci_unreachable', 'key_not_valid', 'store_failed', 'limit_reached', 'bucket_mismatch',
   'request_invalid', 'operation_in_progress', 'release_operation_blocked', 'authority_lost', 'script_failed',
   'runtime_invalid', 'runtime_command_failed', 'runtime_timeout',
 ])

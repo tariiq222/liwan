@@ -99,10 +99,11 @@ describe.skipIf(!url)('tenant storage state (live PostgreSQL)', () => {
     const id = await tenant()
     await discoverTenantStorage(pool)
     const [inFlight] = await claimTenantStorage(pool, 1)
+    await pool.query("UPDATE tenant_storage SET state='pending_key',stage='key_stored' WHERE control_tenant_id=$1", [id])  // a key was stored once
     await requestTenantStorage(pool, id, 'rotate', actor, 'Rotate the tenant key')
     expect(await recordTenantStorageRun(pool, inFlight!, { ok: true, response: answer(inFlight!.requestId) as never })).toBe(false)
     let row = await state(id)
-    expect([row.operation, row.state, row.request_id, row.revision]).toEqual(['rotate', 'queued', null, 2])
+    expect([row.operation, row.state, row.request_id, row.revision]).toEqual(['rotate', 'pending_key', null, 2])
     const [next] = await claimTenantStorage(pool, 1)
     expect(next).toMatchObject({ tenantId: id, operation: 'rotate', revision: 2 })
     await recordTenantStorageRun(pool, next!, { ok: true, response: answer(next!.requestId, { operation: 'rotate' }) as never })
@@ -110,6 +111,41 @@ describe.skipIf(!url)('tenant storage state (live PostgreSQL)', () => {
     expect([row.operation, row.state]).toEqual(['rotate', 'pending_key'])  // a rotation keeps asking for rotate
     expect(await readTenantStorage(pool, id)).toMatchObject({ operation: 'rotate', state: 'pending_key', stage: 'key_stored', errorCode: null })
     expect(Object.keys((await readTenantStorage(pool, id))!).sort()).toEqual(['attempts', 'errorCode', 'nextRunAt', 'operation', 'stage', 'state', 'updatedAt'])
+  })
+
+  it('a rotation of a tenant that never stored a key is refused as not ready: nothing changes and nothing is audited', async () => {
+    const id = await tenant()
+    await discoverTenantStorage(pool)
+    await expect(requestTenantStorage(pool, id, 'rotate', actor, 'Rotate the tenant key')).rejects.toThrow('tenant_storage_not_ready')
+    const row = await state(id)
+    expect([row.operation, row.revision, row.stage]).toEqual(['ensure', 1, null])
+    expect((await pool.query("SELECT 1 FROM audit_events WHERE action='tenant_storage.requested' AND subject=$1", [id])).rowCount).toBe(0)
+    const none = await tenant()  // no row at all: a rotation does not create one
+    await expect(requestTenantStorage(pool, none, 'rotate', actor, 'Rotate the tenant key')).rejects.toThrow('tenant_storage_not_ready')
+    expect(await state(none)).toBeUndefined()
+  })
+
+  it('a rotation whose candidate never verifies stops after the allowed failures instead of issuing keys for ever', async () => {
+    const id = await tenant()
+    await discoverTenantStorage(pool)
+    await pool.query("UPDATE tenant_storage SET state='active',stage='verified',next_run_at=NULL WHERE control_tenant_id=$1", [id])
+    await requestTenantStorage(pool, id, 'rotate', actor, 'Rotate the tenant key')
+    let pendings = 0
+    const runner = async (input: { request_id: string; operation: string }) => {
+      if (pendings === failuresSeen) { pendings++; return answer(input.request_id, { operation: 'rotate' }) }  // a new candidate is stored
+      throw Error('key_not_valid')  // and it never verifies
+    }
+    let failuresSeen = 0
+    for (let guard = 0; guard < 40; guard++) {
+      const row = await state(id)
+      if (row.next_run_at === null) break
+      await pool.query('UPDATE tenant_storage SET next_run_at=clock_timestamp() WHERE control_tenant_id=$1', [id])
+      await runTenantStorageDue(pool, runner, { signal })
+      if ((await state(id)).state === 'failed') failuresSeen++
+    }
+    const row = await state(id)
+    expect([row.state, row.error_code, row.attempts, row.next_run_at, row.operation]).toEqual(['failed', 'key_not_valid', STORAGE_MAX_ATTEMPTS, null, 'rotate'])
+    expect(pendings).toBe(STORAGE_MAX_ATTEMPTS)  // one new candidate key per failed attempt, never more
   })
 
   it('an operator cannot ask for a tenant that is not a ready enabled SaaS tenant, and nothing is audited', async () => {
