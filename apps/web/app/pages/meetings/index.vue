@@ -272,26 +272,47 @@ function setPage(next: number) {
     <div
       v-if="hydrated && nextUpcoming && !invalidDateRange && !query.error.value"
       data-testid="meeting-next-up"
-      class="flex flex-wrap items-center justify-between gap-3 rounded-card bg-linear-270 from-info/12 via-info/[0.04] to-default px-(--liwan-card-pad-dense) py-3 ring ring-info/25 dark:from-info/15 dark:via-info/5 dark:to-default"
+      class="flex flex-wrap items-center justify-between gap-3 rounded-card bg-linear-270 from-info/12 via-info/[0.04] to-default px-(--liwan-card-pad) py-3.5 ring ring-info/25 dark:from-info/15 dark:via-info/5 dark:to-default"
     >
-      <div class="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1.5">
-        <UBadge color="info" variant="subtle" size="sm" class="shrink-0">{{ t('meetingsUi.nextUp') }}</UBadge>
-        <NuxtLink
-          :to="meetingTo(nextUpcoming)"
-          @click.capture="openRecord($event, nextUpcoming)"
-          class="min-w-0 truncate text-sm font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        >{{ nextUpcoming.name }}</NuxtLink>
-        <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
-          <RecordNumber :value="meetingRecordNumber(nextUpcoming)" />
-          <span v-if="nextUpcoming.meeting_date">{{ formatCalendarDate(nextUpcoming.meeting_date) }}</span>
-          <span v-if="nextUpcoming.start_datetime">{{ localTime(nextUpcoming.start_datetime) }}</span>
-          <span v-if="nextUpcoming.organizer" class="truncate">{{ nextUpcoming.organizer.name }}</span>
+      <div class="flex min-w-0 flex-1 items-center gap-3.5">
+        <span class="hidden size-10 shrink-0 place-items-center rounded-control bg-info/15 text-status-info-foreground sm:grid" aria-hidden="true">
+          <UIcon name="i-lucide-calendar-clock" class="size-5" />
+        </span>
+        <div class="grid min-w-0 gap-1">
+          <div class="flex min-w-0 flex-wrap items-center gap-2">
+            <UBadge color="info" variant="subtle" size="xs" class="shrink-0 gap-1.5">
+              <span class="size-1.5 rounded-full bg-info" aria-hidden="true" />
+              <span>{{ t('meetingsUi.nextUp') }}</span>
+            </UBadge>
+            <NuxtLink
+              :to="meetingTo(nextUpcoming)"
+              @click.capture="openRecord($event, nextUpcoming)"
+              class="min-w-0 truncate text-base font-bold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >{{ nextUpcoming.name }}</NuxtLink>
+            <RecordNumber :value="meetingRecordNumber(nextUpcoming)" class="shrink-0" />
+          </div>
+          <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+            <span v-if="nextUpcoming.meeting_date" class="inline-flex items-center gap-1 whitespace-nowrap">
+              <UIcon name="i-lucide-calendar" class="size-3.5 shrink-0" aria-hidden="true" />
+              <span>{{ formatCalendarDate(nextUpcoming.meeting_date) }}</span>
+              <UBadge v-if="todayIso && nextUpcoming.meeting_date === todayIso" color="info" variant="subtle" size="xs">{{ t('meetingsUi.today') }}</UBadge>
+            </span>
+            <span v-if="nextUpcoming.start_datetime" class="inline-flex items-center gap-1 whitespace-nowrap">
+              <UIcon name="i-lucide-clock" class="size-3.5 shrink-0" aria-hidden="true" />
+              <span>{{ localTime(nextUpcoming.start_datetime) }}</span>
+            </span>
+            <span v-if="nextUpcoming.organizer" class="inline-flex min-w-0 items-center gap-1">
+              <UIcon name="i-lucide-user" class="size-3.5 shrink-0" aria-hidden="true" />
+              <span class="truncate">{{ nextUpcoming.organizer.name }}</span>
+            </span>
+          </div>
         </div>
       </div>
       <UButton
         size="sm"
         color="neutral"
         variant="outline"
+        icon="i-lucide-file-text"
         :to="meetingTo(nextUpcoming)"
         :label="t('meetingsUi.openMeeting')"
         class="shrink-0 bg-default"
