@@ -14,7 +14,7 @@ type Story = StoryObj<typeof meta>
 
 export const InForm: Story = {
   name: 'قسم داخل نموذج',
-  parameters: storyContext('apps/web/app/pages/settings/team/users/new.vue:136'),
+  parameters: storyContext('apps/web/app/pages/settings/team/users/new.vue:169'),
   render: () => ({
     components: { SettingsPage, FormSection },
     setup: () => ({ t: useI18n().t }),
@@ -24,7 +24,7 @@ export const InForm: Story = {
 
 export const Panel: Story = {
   name: 'لوحة إعدادات',
-  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectCreateForm.vue:58', 'لوحة `panel` داخل `div.liwan-settings-cards` من صفحات الإعدادات؛ محتوى المثال توضيحي.'),
+  parameters: storyContext('apps/web/app/components/pmo/projects/ProjectCreateForm.vue:63', 'لوحة `panel` داخل `div.liwan-settings-cards` من صفحات الإعدادات؛ محتوى المثال توضيحي.'),
   render: () => ({
     components: { SettingsPage, FormSection },
     setup: () => ({ t: useI18n().t, modes: ['light', 'dark'] }),

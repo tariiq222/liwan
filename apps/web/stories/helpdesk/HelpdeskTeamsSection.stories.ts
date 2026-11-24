@@ -23,7 +23,7 @@ const meta = {
   component: HelpdeskTeamsSection,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/pages/settings/apps/helpdesk/index.vue:158', 'فرق الدعم في الإعدادات: اسم كل فريق وقائده وأعضائه، ونموذج مضمّن يُحفظ كاملًا، ومفتاح أرشفة يرفضه الخادم ما دام الفريق يحمل تذاكر مفتوحة.'),
+    ...storyContext('apps/web/app/pages/settings/apps/helpdesk/index.vue:159', 'فرق الدعم في الإعدادات: اسم كل فريق وقائده وأعضائه، ونموذج مضمّن يُحفظ كاملًا، ومفتاح أرشفة يرفضه الخادم ما دام الفريق يحمل تذاكر مفتوحة.'),
     msw: { handlers: { api: [people, save] } },
   },
   args: { rows: teamRows, canEdit: true },

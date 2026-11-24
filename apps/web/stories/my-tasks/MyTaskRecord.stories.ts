@@ -9,7 +9,7 @@ import { storyContext } from '../support/context'
 
 const meta = {
   title: 'MyTasks/MyTaskRecord', component: RecordPage,
-  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/pages/my-tasks/[id]/index.vue:148', 'توزيع سجل مهامي على القوالب المشتركة: ملخص قرار، وصف ومتابعة، ثم معلومات التوثيق. بيانات قصة ثابتة بلا طلبات API.') },
+  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/pages/my-tasks/[id]/index.vue:152', 'توزيع سجل مهامي على القوالب المشتركة: ملخص قرار، وصف ومتابعة، ثم معلومات التوثيق. بيانات قصة ثابتة بلا طلبات API.') },
   args: { title: 'متابعة التوريد', backTo: '/my-tasks' },
   render: args => ({
     components: { RecordPage, RecordSection, PropertiesPanel, PropertyRow, EmptyState },

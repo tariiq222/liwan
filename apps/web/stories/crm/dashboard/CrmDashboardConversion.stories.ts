@@ -6,7 +6,7 @@ import { sourcesBlock } from './crmDashboardFixtures'
 const meta = {
   title: 'CRM/CrmDashboardConversion',
   component: CrmDashboardConversion,
-  parameters: storyContext('apps/web/app/pages/crm/index.vue:34', 'التحويل حسب المصدر: المباع من الإجمالي بشريط ونسبة.'),
+  parameters: storyContext('apps/web/app/pages/crm/index.vue:99', 'التحويل حسب المصدر: المباع من الإجمالي بشريط ونسبة.'),
   args: { sources: sourcesBlock },
 } satisfies Meta<typeof CrmDashboardConversion>
 export default meta

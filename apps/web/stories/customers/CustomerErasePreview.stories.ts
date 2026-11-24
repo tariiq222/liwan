@@ -22,7 +22,7 @@ const meta = {
   component: CustomerErasePreview,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/pages/customers/[id]/privacy.vue:112', 'مراجعة المسح بلغة بسيطة: ما سيُمسح مع أعداده، وما يبقى بحكم القانون وسببه، وما لا يغيّره المسح. وحين يمنع شيء المسح يذكر لكل عنصر سببه والإجراء المطلوب.'),
+    ...storyContext('apps/web/app/pages/customers/[id]/privacy.vue:113', 'مراجعة المسح بلغة بسيطة: ما سيُمسح مع أعداده، وما يبقى بحكم القانون وسببه، وما لا يغيّره المسح. وحين يمنع شيء المسح يذكر لكل عنصر سببه والإجراء المطلوب.'),
   },
   args: { preview },
 } satisfies Meta<typeof CustomerErasePreview>

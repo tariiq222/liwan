@@ -11,7 +11,7 @@ const roles = [
 ]
 const meta = {
   title: 'Access/RoleCheckboxes', component: RoleCheckboxes,
-  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/components/access/users/UserAccessForm.vue:117') },
+  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/components/access/users/UserAccessForm.vue:123') },
   args: { roles, modelValue: [], legend: 'الأدوار', emptyText: 'لا توجد أدوار متاحة للإسناد.' },
   render: args => ({ components: { RoleCheckboxes, PageContainer }, setup: () => ({ args, selected: ref(args.modelValue) }), template: '<main class="liwan-shell-main"><PageContainer><RoleCheckboxes v-bind="args" v-model="selected" /></PageContainer></main>' }),
 } satisfies Meta<typeof RoleCheckboxes>

@@ -5,7 +5,7 @@ import { storyContext } from '../../support/context'
 const meta = {
   title: 'CRM/CrmImportUploadStep',
   component: CrmImportUploadStep,
-  parameters: storyContext('apps/web/app/components/crm/imports/CrmImportFlow.vue:160', 'الخطوة الأولى من الاستيراد: اختيار ملف CSV أو XLSX.'),
+  parameters: storyContext('apps/web/app/components/crm/imports/CrmImportFlow.vue:163', 'الخطوة الأولى من الاستيراد: اختيار ملف CSV أو XLSX.'),
 } satisfies Meta<typeof CrmImportUploadStep>
 export default meta
 type Story = StoryObj<typeof meta>

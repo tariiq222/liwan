@@ -10,7 +10,7 @@ const meta = {
   title: 'CRM/CrmCustomFieldsCard',
   component: CrmCustomFieldsCard,
   parameters: {
-    ...storyContext('apps/web/app/pages/settings/apps/crm/index.vue:40', 'حقول الفرص المخصصة للشركة: تعريف واحد يمتد إلى كل فرصة، والموظفون يملؤون قيمه.'),
+    ...storyContext('apps/web/app/pages/settings/apps/crm/index.vue:46', 'حقول الفرص المخصصة للشركة: تعريف واحد يمتد إلى كل فرصة، والموظفون يملؤون قيمه.'),
     msw: { handlers: { api: [manage, http.patch('/api/v1/crm/settings', async ({ request }) => HttpResponse.json({ ...crmSettings, revision: 4, values: { ...crmSettings.values, ...(await request.json() as { values: object }).values } }))] } },
   },
   args: { settings: crmSettings, canEdit: true, reloadSettings: async () => crmSettings },

@@ -10,7 +10,7 @@ const full = {
 const meta = {
   title: 'Inbox/InboxProfilePreview',
   component: InboxProfilePreview,
-  parameters: storyContext('apps/web/app/components/inbox/InboxBusinessProfileForm.vue:124', 'معاينة بطاقة النشاط التجاري على واتساب بحسب المسودة قبل حفظها في ميتا.'),
+  parameters: storyContext('apps/web/app/components/inbox/InboxBusinessProfileForm.vue:136', 'معاينة بطاقة النشاط التجاري على واتساب بحسب المسودة قبل حفظها في ميتا.'),
   args: { name: 'عيادة الأمل', profile: full },
 } satisfies Meta<typeof InboxProfilePreview>
 export default meta

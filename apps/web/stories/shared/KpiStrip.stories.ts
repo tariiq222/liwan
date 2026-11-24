@@ -12,7 +12,7 @@ const tiles = [
 const meta = {
   title: 'Shared/KpiStrip',
   component: KpiStrip,
-  parameters: storyContext('apps/web/app/components/pmo/tasks/TaskKpiStrip.vue:28', 'شريط المؤشرات فوق الصفحات الرئيسية وصفحات القوائم: بطاقات `SharedMetricTile` مدمجة (تتقاسم الصف بالتساوي: لا يقل عرض البطاقة عن 220px وبحد أقصى أربع في الصف، واثنتان على الجوال). القيم أرقام ينسّقها المستدعي. يختفي كله حين يطفئ المستخدم المؤشرات بزر واحد في ترويسة الصفحة (`kpi-toggle` على `SharedPageHeader`)، ويُحفظ الاختيار في الكوكي `liwan-kpis`.'),
+  parameters: storyContext('apps/web/app/components/pmo/tasks/TaskKpiStrip.vue:29', 'شريط المؤشرات فوق الصفحات الرئيسية وصفحات القوائم: بطاقات `SharedMetricTile` مدمجة (تتقاسم الصف بالتساوي: لا يقل عرض البطاقة عن 220px وبحد أقصى أربع في الصف، واثنتان على الجوال). القيم أرقام ينسّقها المستدعي. يختفي كله حين يطفئ المستخدم المؤشرات بزر واحد في ترويسة الصفحة (`kpi-toggle` على `SharedPageHeader`)، ويُحفظ الاختيار في الكوكي `liwan-kpis`.'),
   args: { tiles: [...tiles] },
   render: args => ({
     components: { KpiStrip },

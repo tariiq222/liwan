@@ -7,7 +7,7 @@ const meta = {
   component: ShellNoticeBar,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/layouts/default.vue:77', 'الإشعار الواحد للاشتراك أعلى المحتوى: يختاره useShellNotice، وهذا المكوّن يرسم نصه وزره الواحد وإغلاقه إن سمح به.'),
+    ...storyContext('apps/web/app/layouts/default.vue:78', 'الإشعار الواحد للاشتراك أعلى المحتوى: يختاره useShellNotice، وهذا المكوّن يرسم نصه وزره الواحد وإغلاقه إن سمح به.'),
   },
 } satisfies Meta<typeof ShellNoticeBar>
 

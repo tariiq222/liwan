@@ -6,7 +6,7 @@ import { draftOrder, onlineOrder } from './salesFixtures'
 const meta = {
   title: 'Sales/SalesOrderDetails',
   component: SalesOrderDetails,
-  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/sales/[id].vue:177', 'جانب المستند: العميل والمندوب والمصدر والتواريخ والشروط.') },
+  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/sales/[id].vue:184', 'جانب المستند: العميل والمندوب والمصدر والتواريخ والشروط.') },
   args: { order: draftOrder },
 } satisfies Meta<typeof SalesOrderDetails>
 export default meta

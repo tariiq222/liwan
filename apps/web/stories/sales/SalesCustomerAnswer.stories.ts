@@ -6,7 +6,7 @@ import { acceptedAnswer, declinedAnswer, waitingAnswer } from './salesFixtures'
 const meta = {
   title: 'Sales/SalesCustomerAnswer',
   component: SalesCustomerAnswer,
-  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/sales/[id].vue:174', 'رد العميل على عرض السعر المُرسَل: بانتظار الرد، أو قبول باسم الموقّع ووقته، أو رفض بسببه.') },
+  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/sales/[id].vue:181', 'رد العميل على عرض السعر المُرسَل: بانتظار الرد، أو قبول باسم الموقّع ووقته، أو رفض بسببه.') },
   args: { answer: waitingAnswer },
 } satisfies Meta<typeof SalesCustomerAnswer>
 export default meta

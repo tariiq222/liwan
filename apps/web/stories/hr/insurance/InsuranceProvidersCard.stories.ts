@@ -6,7 +6,7 @@ import { providersFixture } from './fixtures'
 const meta = {
   title: 'HR/Insurance/InsuranceProvidersCard',
   component: InsuranceProvidersCard,
-  parameters: storyContext('apps/web/app/pages/settings/apps/hr/index.vue:228', 'مزوّدو التأمين في إعدادات الموارد البشرية وقسم المزوّدين في صفحة التأمين: إعادة تسمية وأرشفة واستعادة وإضافة مزوّد.'),
+  parameters: storyContext('apps/web/app/pages/settings/apps/hr/index.vue:236', 'مزوّدو التأمين في إعدادات الموارد البشرية وقسم المزوّدين في صفحة التأمين: إعادة تسمية وأرشفة واستعادة وإضافة مزوّد.'),
   args: { providers: providersFixture, canEdit: true, reloadProviders: async () => undefined },
 } satisfies Meta<typeof InsuranceProvidersCard>
 

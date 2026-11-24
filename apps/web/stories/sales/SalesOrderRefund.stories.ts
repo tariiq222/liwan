@@ -12,7 +12,7 @@ const refused = (status: number, body: object) => http.post('/api/v1/sales/order
 const meta = {
   title: 'Sales/SalesOrderRefund',
   component: SalesOrderRefund,
-  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/sales/[id].vue:163', 'تسجيل رد مبلغ أُجري فعلًا من لوحة بوابة الدفع: المبلغ (حتى المتاح) ومرجع الرد.'), msw: { handlers: { api: [record] } } },
+  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/sales/[id].vue:170', 'تسجيل رد مبلغ أُجري فعلًا من لوحة بوابة الدفع: المبلغ (حتى المتاح) ومرجع الرد.'), msw: { handlers: { api: [record] } } },
   args: { order, payment },
 } satisfies Meta<typeof SalesOrderRefund>
 export default meta

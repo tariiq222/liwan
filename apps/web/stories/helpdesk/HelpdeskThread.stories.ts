@@ -11,7 +11,7 @@ const meta = {
   component: HelpdeskThread,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/pages/helpdesk/[id].vue:137', 'محادثة التذكرة: الردود العامة والملاحظات الداخلية بالترتيب الزمني، ومؤلّف يرسل أحدهما، والمرفقات بالرفع والتنزيل والحذف.'),
+    ...storyContext('apps/web/app/pages/helpdesk/[id].vue:147', 'محادثة التذكرة: الردود العامة والملاحظات الداخلية بالترتيب الزمني، ومؤلّف يرسل أحدهما، والمرفقات بالرفع والتنزيل والحذف.'),
     msw: { handlers: { api: [thread(threadMessages)] } },
   },
   args: { ticketId: 101, attachments: threadAttachments, closed: false, canWrite: true, canRequest: false },

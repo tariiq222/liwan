@@ -5,7 +5,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shared/SaduLoader',
   component: SaduLoader,
-  parameters: { a11y: { test: 'error' }, ...storyContext('packages/ui/app/components/shared/data/ChartPanel.vue:47', 'لودر السدو للأماكن الصغيرة: مثلثات الشعار تضيء بالتناوب، أو نقاط السدو بجانب النص. الصفحات والقوائم تبقى على LoadingSkeleton.') },
+  parameters: { a11y: { test: 'error' }, ...storyContext('packages/ui/app/components/shared/data/ChartPanel.vue:63', 'لودر السدو للأماكن الصغيرة: مثلثات الشعار تضيء بالتناوب، أو نقاط السدو بجانب النص. الصفحات والقوائم تبقى على LoadingSkeleton.') },
   args: { variant: 'mark' },
 } satisfies Meta<typeof SaduLoader>
 export default meta

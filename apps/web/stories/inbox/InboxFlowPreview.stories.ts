@@ -35,7 +35,7 @@ type Story = StoryObj<typeof meta>
 
 export const BuilderSideBySide: Story = {
   name: 'بجانب المنشئ (شاشتان)',
-  parameters: storyContext('apps/web/app/components/inbox/InboxFlowBuilder.vue:147'),
+  parameters: storyContext('apps/web/app/components/inbox/InboxFlowBuilder.vue:138'),
   render: args => ({
     components: { InboxFlowPreview },
     setup: () => ({ args }),
@@ -45,7 +45,7 @@ export const BuilderSideBySide: Story = {
 
 export const SecondScreen: Story = {
   name: 'الشاشة الثانية',
-  parameters: storyContext('apps/web/app/components/inbox/InboxFlowBuilder.vue:147'),
+  parameters: storyContext('apps/web/app/components/inbox/InboxFlowBuilder.vue:138'),
   render: args => ({
     components: { InboxFlowPreview },
     setup: () => ({ args }),
@@ -55,7 +55,7 @@ export const SecondScreen: Story = {
 
 export const EnglishLtr: Story = {
   name: 'نموذج إنجليزي (اتجاه يسار لليمين)',
-  parameters: storyContext('apps/web/app/components/inbox/InboxFlowBuilder.vue:147', 'اتجاه المعاينة يتبع لغة النموذج لا لغة الصفحة.'),
+  parameters: storyContext('apps/web/app/components/inbox/InboxFlowBuilder.vue:138', 'اتجاه المعاينة يتبع لغة النموذج لا لغة الصفحة.'),
   render: () => ({
     components: { InboxFlowPreview },
     setup: () => ({
@@ -70,7 +70,7 @@ export const EnglishLtr: Story = {
 
 export const UnfinishedDraft: Story = {
   name: 'مسودة غير مكتملة',
-  parameters: storyContext('apps/web/app/components/inbox/InboxFlowBuilder.vue:147', 'ما لم يُكتب بعد يظهر علامة …، والمعاينة لا تتحقق من الصحة.'),
+  parameters: storyContext('apps/web/app/components/inbox/InboxFlowBuilder.vue:138', 'ما لم يُكتب بعد يظهر علامة …، والمعاينة لا تتحقق من الصحة.'),
   render: () => ({
     components: { InboxFlowPreview },
     setup: () => ({ model: flowPreviewModel({ name: '', category: 'other', language: 'ar', completionMessage: '', screens: [screen('', '', [field('text_input', { key: 'field_1' }), field('dropdown', { key: 'field_2' })])] }) }),

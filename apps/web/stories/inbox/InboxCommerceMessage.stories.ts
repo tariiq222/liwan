@@ -19,7 +19,7 @@ const meta = {
   component: InboxCommerceMessage,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/components/inbox/InboxMessageContent.vue:75', 'ما تحمله رسالة تجارية في المحادثة: بطاقة منتج أو قائمة منتجات أو الكتالوج، وشريحة استفسار العميل عن منتج، وسلة طلب العميل بحالة طلبها وإجراءاتها.'),
+    ...storyContext('apps/web/app/components/inbox/InboxMessageContent.vue:83', 'ما تحمله رسالة تجارية في المحادثة: بطاقة منتج أو قائمة منتجات أو الكتالوج، وشريحة استفسار العميل عن منتج، وسلة طلب العميل بحالة طلبها وإجراءاتها.'),
     msw: { handlers: { api: [manage] } },
   },
   args: { conversationId: 3, channelId: 1, windowOpen: true },

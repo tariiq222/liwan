@@ -11,7 +11,7 @@ const tasks = [
 const meta = {
   title: 'CRM/CrmOpportunityTasks',
   component: CrmOpportunityTasks,
-  parameters: storyContext('apps/web/app/pages/crm/opportunities/[id].vue:357', 'مهام المتابعة على الفرصة (جسر مع تطبيق المهام): الحالة والموعد والمكلّفون مع رابط المهمة، ونموذج إضافة مهمة داخل الصفحة.'),
+  parameters: storyContext('apps/web/app/pages/crm/opportunities/[id].vue:199', 'مهام المتابعة على الفرصة (جسر مع تطبيق المهام): الحالة والموعد والمكلّفون مع رابط المهمة، ونموذج إضافة مهمة داخل الصفحة.'),
   args: { tasks: [...tasks], total: tasks.length, canWrite: true, onCreate: fn(), onRetry: fn() },
 } satisfies Meta<typeof CrmOpportunityTasks>
 export default meta

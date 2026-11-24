@@ -6,7 +6,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shell/ShellTopBar',
   component: ShellTopBar,
-  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/components/shell/AppTopBar.vue:52') },
+  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/components/shell/AppTopBar.vue:46') },
   args: { label: 'رأس التطبيق' },
   render: args => ({
     components: { ShellTopBar, ShellToolButton }, setup: () => ({ args }),

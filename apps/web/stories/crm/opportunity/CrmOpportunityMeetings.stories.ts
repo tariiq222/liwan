@@ -11,7 +11,7 @@ const meetings = [
 const meta = {
   title: 'CRM/CrmOpportunityMeetings',
   component: CrmOpportunityMeetings,
-  parameters: storyContext('apps/web/app/pages/crm/opportunities/[id].vue:358', 'اجتماعات الفرصة (جسر مع تطبيق الاجتماعات): الاسم والتاريخ والحالة مع رابط الاجتماع، ونموذج إضافة اجتماع داخل الصفحة.'),
+  parameters: storyContext('apps/web/app/pages/crm/opportunities/[id].vue:200', 'اجتماعات الفرصة (جسر مع تطبيق الاجتماعات): الاسم والتاريخ والحالة مع رابط الاجتماع، ونموذج إضافة اجتماع داخل الصفحة.'),
   args: { meetings: [...meetings], total: meetings.length, canWrite: true, onCreate: fn(), onRetry: fn() },
 } satisfies Meta<typeof CrmOpportunityMeetings>
 export default meta

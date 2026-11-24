@@ -15,7 +15,7 @@ const meta = {
   component: CustomerForm,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/pages/customers/new.vue:23', 'نموذج إنشاء العميل وتعديله: الاسم والجوال والبريد، وخيار فرد/شركة بحسب أنواع العملاء في الإعدادات، وحقول الشركة المخصصة. عند تطابق الجوال يعرض العملاء المطابقين ليفتح أحدهم أو ينشئ عميلًا جديدًا.'),
+    ...storyContext('apps/web/app/pages/customers/new.vue:24', 'نموذج إنشاء العميل وتعديله: الاسم والجوال والبريد، وخيار فرد/شركة بحسب أنواع العملاء في الإعدادات، وحقول الشركة المخصصة. عند تطابق الجوال يعرض العملاء المطابقين ليفتح أحدهم أو ينشئ عميلًا جديدًا.'),
     msw: { handlers: { api: [manage, companies] } },
   },
   args: { settings, backTo: '/customers' },

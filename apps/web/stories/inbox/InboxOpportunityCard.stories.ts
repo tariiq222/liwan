@@ -13,7 +13,7 @@ const meta = {
   component: InboxOpportunityCard,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/components/inbox/InboxContactPanel.vue:133', 'فرصة المبيعات المرتبطة بالمحادثة: الاسم والمرحلة والحالة مع رابط الفرصة وفصلها، أو ربط فرصة موجودة (بحث برقم جهة الاتصال أولًا ثم بالاسم). لا تُنشأ فرصة من هنا.'),
+    ...storyContext('apps/web/app/components/inbox/InboxContactPanel.vue:205', 'فرصة المبيعات المرتبطة بالمحادثة: الاسم والمرحلة والحالة مع رابط الفرصة وفصلها، أو ربط فرصة موجودة (بحث برقم جهة الاتصال أولًا ثم بالاسم). لا تُنشأ فرصة من هنا.'),
     ...answer({ opportunity: null, hidden: false }).parameters,
   },
   args: { conversationId: 3, contactPhone: '+966500000001', canReply: true },

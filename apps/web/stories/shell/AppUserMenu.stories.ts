@@ -9,7 +9,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shell/AppUserMenu',
   component: AppUserMenu,
-  parameters: { layout: 'centered', msw: { handlers: { api: shellHandlers } }, ...storyContext('apps/web/app/components/shell/AppTopBar.vue:80') },
+  parameters: { layout: 'centered', msw: { handlers: { api: shellHandlers } }, ...storyContext('apps/web/app/components/shell/AppTopBar.vue:59') },
 } satisfies Meta<typeof AppUserMenu>
 export default meta
 type Story = StoryObj<typeof meta>

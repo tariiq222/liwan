@@ -27,7 +27,7 @@ type Story = StoryObj<typeof meta>
 
 export const InThread: Story = {
   name: 'داخل رسالة العميل',
-  parameters: storyContext('apps/web/app/components/inbox/InboxMessageContent.vue:79'),
+  parameters: storyContext('apps/web/app/components/inbox/InboxMessageContent.vue:81'),
   render: args => ({
     components: { InboxFlowSubmissionCard, SubCard },
     setup: () => ({ args }),
@@ -47,7 +47,7 @@ export const InContactPanel: Story = {
 
 export const UnknownForm: Story = {
   name: 'نموذج غير معروف وإجابات غير مقروءة',
-  parameters: storyContext('apps/web/app/components/inbox/InboxMessageContent.vue:79'),
+  parameters: storyContext('apps/web/app/components/inbox/InboxMessageContent.vue:81'),
   render: () => ({
     components: { InboxFlowSubmissionCard, SubCard },
     setup: () => ({
@@ -62,7 +62,7 @@ export const UnknownForm: Story = {
 
 export const NoAnswers: Story = {
   name: 'بلا إجابات',
-  parameters: storyContext('apps/web/app/components/inbox/InboxMessageContent.vue:79'),
+  parameters: storyContext('apps/web/app/components/inbox/InboxMessageContent.vue:81'),
   render: () => ({
     components: { InboxFlowSubmissionCard, SubCard },
     setup: () => ({ empty: { ...submission, answers: [] } }),

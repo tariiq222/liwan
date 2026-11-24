@@ -23,7 +23,7 @@ export const InMeetingAttachments: Story = {
 
 export const InDocumentCard: Story = {
   name: 'رفع فوري من ترويسة المستند',
-  parameters: storyContext('apps/web/app/components/documents/DocumentFiles.vue:31', 'زر رفع مباشر بلا اسم ملف معلّق؛ يحافظ الحقل في النماذج على الاختيار التقليدي افتراضيًا.'),
+  parameters: storyContext('apps/web/app/components/documents/DocumentFiles.vue:38', 'زر رفع مباشر بلا اسم ملف معلّق؛ يحافظ الحقل في النماذج على الاختيار التقليدي افتراضيًا.'),
   render: args => ({
     components: { FileField },
     setup: () => ({ args, t: useI18n().t }),
@@ -33,7 +33,7 @@ export const InDocumentCard: Story = {
 
 export const IconOnly: Story = {
   name: 'أيقونة فقط في شريط أدوات',
-  parameters: storyContext('apps/web/app/components/inbox/InboxComposer.vue:444', 'زر مرفق بلا نص داخل صف أدوات المحرّر؛ التسمية في aria-label وتلميح يغلّفه المستدعي.'),
+  parameters: storyContext('apps/web/app/components/inbox/InboxComposer.vue:418', 'زر مرفق بلا نص داخل صف أدوات المحرّر؛ التسمية في aria-label وتلميح يغلّفه المستدعي.'),
   render: args => ({
     components: { FileField },
     setup: () => ({ args, t: useI18n().t }),

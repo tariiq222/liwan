@@ -13,7 +13,7 @@ const meta = {
   component: CustomerPartyKindsCard,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/pages/settings/apps/customers/index.vue:32', 'بطاقة أنواع العملاء: أفراد أو شركات أو كلاهما. تحدد نموذج العميل الجديد ولا تغيّر العملاء الحاليين.'),
+    ...storyContext('apps/web/app/pages/settings/apps/customers/index.vue:33', 'بطاقة أنواع العملاء: أفراد أو شركات أو كلاهما. تحدد نموذج العميل الجديد ولا تغيّر العملاء الحاليين.'),
     msw: { handlers: { api: [manage, save] } },
   },
   args: { settings, canEdit: true, reloadSettings: async () => ({ ...settings, revision: 4 }) },
