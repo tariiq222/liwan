@@ -1,13 +1,25 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+"""What a verified restore promises, proven offline against a fake PostgreSQL.
+
+The frozen manifest is the point: the dump digest, the filestore tree digest and the file
+count the capture pinned are compared before any database is created, so an artifact that
+changed after the copy cannot be reported as restored. The target database must be a new
+scratch name and may not resemble a live one. The provisioning, isolation, ``pg_restore``
+and read-back commands are faked; nothing here opens a socket or starts a database.
+"""
+from __future__ import annotations
+
 import hashlib
 import json
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
-from deploy import backup as backup_script
-from deploy import restore_verify as rv
+from deploy.backup import snapshot, verify
+from deploy.backup.errors import BackupError
+from deploy.backup.verify import PostgresConnection, RestoreTools, restore_verified
 
 
 class Completed:
@@ -31,28 +43,29 @@ def make_backup(root: Path, files=('ab/abcdef',)) -> Path:
 
 
 def write_manifest(backup_dir: Path) -> None:
-    """The manifest as backup.py pins the bytes now on disk."""
-    filestore_sha256, file_count = backup_script.filestore_digest(backup_dir / 'filestore')
+    """The snapshot manifest as this package pins the bytes now on disk."""
+    filestore_sha256, file_count = snapshot.filestore_digest(backup_dir / 'filestore')
     (backup_dir / 'manifest.json').write_text(json.dumps({
         'db_name': 'src',
         'consistency': 'UNVERIFIED',
         'database_dump_sha256': hashlib.sha256((backup_dir / 'database.dump').read_bytes()).hexdigest(),
         'filestore_sha256': filestore_sha256,
         'filestore_file_count': file_count,
-    }))
+    }), encoding='utf-8')
 
 
 class TestRestoreVerify(unittest.TestCase):
     def setUp(self):
-        self.tmp = Path(tempfile.mkdtemp())
+        self.tmp = Path(tempfile.mkdtemp()).resolve()
+        self.addCleanup(shutil.rmtree, self.tmp, True)
         self.tools = {}
         for name in ('pg_restore', 'psql'):
             tool = self.tmp / name
-            tool.write_text('')
-            self.tools[name] = str(tool)
+            tool.write_text('', encoding='utf-8')
+            self.tools[name] = tool
         # The release module list is a separate concern: these tests pin the verification logic.
         self.expected = ['liwan_api', 'liwan_core', 'liwan_hr']
-        patcher = mock.patch.object(rv, 'expected_modules', return_value=self.expected)
+        patcher = mock.patch.object(verify, 'expected_modules', return_value=self.expected)
         patcher.start()
         self.addCleanup(patcher.stop)
 
@@ -69,18 +82,23 @@ class TestRestoreVerify(unittest.TestCase):
                 return Completed(stdout=next(answers))
             return Completed()
 
-        return rv.perform_restore(
-            backup_dir=str(backup), target_db=target_db,
-            target_filestore=str(self.tmp / 'restored' / target_db),
-            pg_restore=self.tools['pg_restore'], psql=self.tools['psql'],
-            pg_user=pg_user, runner=runner,
+        return restore_verified(
+            artifact=Path(backup).resolve(),
+            target_db=target_db,
+            target_filestore=self.tmp / 'restored' / target_db,
+            tools=RestoreTools(
+                pg_restore=self.tools['pg_restore'], psql=self.tools['psql'], runner=runner,
+            ),
+            pg=PostgresConnection(user=pg_user),
         )
 
-    def test_refuses_forbidden_and_non_scratch_targets(self):
+    def test_refuses_a_target_that_is_not_a_new_scratch_database(self):
         backup = make_backup(self.tmp)
-        for name in ('odoo19', 'production', 'customer_live', 'postgres', 'odoo19_scratch'):
-            with self.assertRaises(rv.RestoreError):
+        for name in ('liwan_dev', 'odoo19', 'odoo19_scratch', 'production', 'liwan_prod_scratch',
+                     'customer_live', 'postgres'):
+            with self.subTest(name=name), self.assertRaises(BackupError):
                 self.run_verify(backup, [], target_db=name)
+        self.assertEqual(self.calls, [])
 
     def test_creates_with_the_tenant_recipe_then_closes_to_public_before_pg_restore(self):
         backup = make_backup(self.tmp)
@@ -99,7 +117,7 @@ class TestRestoreVerify(unittest.TestCase):
 
     def test_aborts_before_isolation_and_pg_restore_when_the_create_fails(self):
         backup = make_backup(self.tmp)
-        with self.assertRaises(rv.RestoreError):
+        with self.assertRaises(BackupError):
             self.run_verify(backup, [], failing='CREATE DATABASE')
         self.assertEqual([Path(argv[0]).name for argv, _ in self.calls], ['psql'])
         self.assertFalse((self.tmp / 'restored' / 'liwan_restore_scratch').exists())
@@ -107,23 +125,23 @@ class TestRestoreVerify(unittest.TestCase):
 
     def test_aborts_before_pg_restore_when_the_isolation_fails(self):
         backup = make_backup(self.tmp)
-        with self.assertRaises(rv.RestoreError):
+        with self.assertRaises(BackupError):
             self.run_verify(backup, [], failing='REVOKE CONNECT')
         self.assertEqual([Path(argv[0]).name for argv, _ in self.calls], ['psql', 'psql'])
         self.assertFalse((self.tmp / 'restored' / 'liwan_restore_scratch').exists())
         self.assertFalse((backup / 'restore-verification.json').exists())
 
-    def test_refuses_a_missing_role_or_unquotable_database_before_any_command(self):
+    def test_refuses_a_missing_or_unquotable_role_before_any_command(self):
         backup = make_backup(self.tmp)
-        for kwargs in ({'pg_user': None}, {'pg_user': 'bad role'}, {'target_db': 'liwan_Restore_scratch'}):
-            with self.subTest(**kwargs), self.assertRaises(rv.RestoreError):
+        for kwargs in ({'pg_user': None}, {'pg_user': 'bad role'}):
+            with self.subTest(**kwargs), self.assertRaises(BackupError):
                 self.run_verify(backup, [], **kwargs)
             self.assertEqual(self.calls, [])
 
     def test_refuses_incomplete_backup(self):
         backup = make_backup(self.tmp)
         (backup / 'database.dump').unlink()
-        with self.assertRaises(rv.RestoreError):
+        with self.assertRaises(BackupError):
             self.run_verify(backup, [])
 
     def test_passes_when_modules_installed_and_attachments_present(self):
@@ -162,15 +180,14 @@ class TestRestoreVerify(unittest.TestCase):
 
     def test_an_empty_expected_list_never_verifies(self):
         backup = make_backup(self.tmp)
-        with mock.patch.object(rv, 'expected_modules', return_value=[]):
+        with mock.patch.object(verify, 'expected_modules', return_value=[]):
             self.assertFalse(self.run_verify(backup, [MODULES_ANSWER, '0\n', 'ab/abcdef\n'])['restore_verified'])
 
     def test_an_unreadable_release_list_fails_the_restore(self):
         backup = make_backup(self.tmp)
-        with mock.patch.object(rv, 'expected_modules', side_effect=rv.RestoreError('missing catalog')):
-            with self.assertRaises(rv.RestoreError):
+        with mock.patch.object(verify, 'expected_modules', side_effect=BackupError('missing catalog')):
+            with self.assertRaises(BackupError):
                 self.run_verify(backup, [MODULES_ANSWER, '0\n', 'ab/abcdef\n'])
-
 
     def passing_answers(self):
         return [MODULES_ANSWER, '0\n', 'ab/abcdef\n']
@@ -181,6 +198,10 @@ class TestRestoreVerify(unittest.TestCase):
         self.assertEqual(result['checks']['backup_integrity_mismatches'], [])
         self.assertEqual(result['checks']['filestore_files_expected'], 1)
         self.assertEqual(result['checks']['filestore_files_actual'], 1)
+        pinned = result['source_manifest']
+        self.assertEqual(pinned['database_dump_sha256'], hashlib.sha256(b'PGDMP').hexdigest())
+        self.assertEqual(pinned['filestore_file_count'], 1)
+        self.assertEqual(pinned['filestore_sha256'], snapshot.filestore_digest(backup / 'filestore')[0])
 
     def test_a_dump_with_wrong_content_is_detected(self):
         backup = make_backup(self.tmp)
@@ -213,7 +234,7 @@ class TestRestoreVerify(unittest.TestCase):
     def test_a_symlink_in_the_backup_filestore_is_refused_before_any_command(self):
         backup = make_backup(self.tmp)
         (backup / 'filestore' / 'ab' / 'escape').symlink_to('/etc/hosts')
-        with self.assertRaisesRegex(rv.RestoreError, 'symlink'):
+        with self.assertRaisesRegex(BackupError, 'symlink'):
             self.run_verify(backup, [])
         self.assertEqual(self.calls, [])
         self.assertFalse((backup / 'restore-verification.json').exists())
@@ -224,13 +245,13 @@ class TestRestoreVerify(unittest.TestCase):
         real.write_bytes(b'PGDMP')
         (backup / 'database.dump').unlink()
         (backup / 'database.dump').symlink_to(real)
-        with self.assertRaisesRegex(rv.RestoreError, 'symlink'):
+        with self.assertRaisesRegex(BackupError, 'symlink'):
             self.run_verify(backup, [])
         self.assertEqual(self.calls, [])
 
     def test_the_filestore_copy_does_not_carry_links(self):
         backup = make_backup(self.tmp)
-        with mock.patch.object(rv.shutil, 'copytree', wraps=rv.shutil.copytree) as copytree:
+        with mock.patch.object(verify.shutil, 'copytree', wraps=verify.shutil.copytree) as copytree:
             self.run_verify(backup, self.passing_answers())
         self.assertFalse(copytree.call_args.kwargs.get('symlinks', False))
 
@@ -239,16 +260,20 @@ class TestRestoreVerify(unittest.TestCase):
                        {'database_dump_sha256': 'nothex', 'filestore_sha256': 'a' * 64, 'filestore_file_count': 1},
                        {'database_dump_sha256': 'a' * 64, 'filestore_sha256': 'a' * 64, 'filestore_file_count': True}):
             with self.subTest(pinned=pinned):
-                backup = make_backup(Path(tempfile.mkdtemp()))
-                (backup / 'manifest.json').write_text(json.dumps({'db_name': 'src', **pinned}))
-                with self.assertRaisesRegex(rv.RestoreError, 'does not pin the backup'):
+                root = Path(tempfile.mkdtemp()).resolve()
+                self.addCleanup(shutil.rmtree, root, True)
+                backup = make_backup(root)
+                (backup / 'manifest.json').write_text(json.dumps({
+                    'db_name': 'src', 'consistency': 'UNVERIFIED', **pinned,
+                }), encoding='utf-8')
+                with self.assertRaisesRegex(BackupError, 'does not pin the backup'):
                     self.run_verify(backup, [])
                 self.assertEqual(self.calls, [])
 
     def test_an_unreadable_manifest_is_refused(self):
         backup = make_backup(self.tmp)
         (backup / 'manifest.json').write_text('{not json')
-        with self.assertRaisesRegex(rv.RestoreError, 'not valid JSON'):
+        with self.assertRaisesRegex(BackupError, 'not valid JSON'):
             self.run_verify(backup, [])
 
 
