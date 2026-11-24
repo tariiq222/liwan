@@ -117,8 +117,8 @@ elif "SELECT state" in ' '.join(args): print('installed')
     def fake(self, name, body):
         file = self.bin / name
         if name == 'odoo-python':
-            # `-m unittest` is the stage's launcher test (deploy/security), not an Odoo run: record the checkout it is given and pass.
-            body = ("if 'unittest' in args:\n Path(%r).write_text(os.environ.get('LIWAN_ODOO_ROOT', ''))\n sys.exit(0)\n"
+            # `-m unittest` is a unit run of the stage, not an Odoo run: the launcher test (deploy/security) records the checkout it is given; all pass.
+            body = ("if 'unittest' in args:\n if 'deploy/security' in args: Path(%r).write_text(os.environ.get('LIWAN_ODOO_ROOT', ''))\n sys.exit(0)\n"
                     % str(self.root / 'launcher-root')) + body
         file.write_text(f'#!{sys.executable}\nimport os,sys,json\nfrom pathlib import Path\n'
                         f'args=sys.argv[1:]\nwith open({str(self.calls)!r}, "a") as out: '
@@ -337,8 +337,14 @@ if args[:2] == ['-m','venv']:
                 self.calls.write_text('')
                 process = self.execute('odoo', *(('--shard', shard) if shard else ()))
                 self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
-                launcher = [json.loads(line) for line in self.calls.read_text().splitlines()
-                            if json.loads(line)[0] == 'odoo-python' and 'unittest' in json.loads(line)]
+                unit_runs = [json.loads(line) for line in self.calls.read_text().splitlines()
+                             if json.loads(line)[0] == 'odoo-python' and 'unittest' in json.loads(line)]
+                # The stage's other unittest run is the real-Odoo cases of the shared database selection; the launcher test
+                # is the discover run of deploy/security and must still run exactly once.
+                launcher = [run for run in unit_runs if 'deploy/security' in run]
+                database_selection = [run for run in unit_runs if 'deploy/shared/test_dbselect.py' in run]
+                self.assertEqual(len(database_selection), 1 if expected else 0)
+                self.assertEqual(len(unit_runs), len(launcher) + len(database_selection))
                 self.assertEqual(len(launcher), 1 if expected else 0)
                 if expected:
                     self.assertEqual(launcher[0][launcher[0].index('-s') + 1], 'deploy/security')
