@@ -230,6 +230,10 @@ class OdooStore:
     def __init__(self, runner, database, request_id):
         self.runner, self.database, self.request_id = runner, database, request_id
 
+    def database_exists(self):
+        """Whether the tenant database is there. A failed observation raises; it is never read as "gone"."""
+        return self.runner.database_exists()
+
     def _call(self, op, **values):
         data = {'database': self.database, 'op': op, 'requestId': self.request_id, **values}
         return parse_output(self.runner.run_script(build_script(), stdin=json.dumps(data, ensure_ascii=True)), op)
@@ -323,6 +327,14 @@ class OciClient:
 # ---- the state machine ---------------------------------------------------------------------------------------------
 
 
+def dropped_marker(state_dir, tenant_id):
+    """The marker a finished `drop` leaves: once a tenant's resources are gone, no `ensure` may create them again for that tenant id.
+    Only an explicit re-provision the operator starts clears it: a documented admin action (delete this file, then `ensure`), or a new
+    tenant id, which never shares the name."""
+    directory = odoo_effect.no_symlink(os.path.join(state_dir, STATE_DIRECTORY))
+    return odoo_effect.no_symlink(directory / (tenant_id + '.dropped'))
+
+
 @contextmanager
 def tenant_lock(state_dir, tenant_id):
     """One operation per tenant at a time, across processes: an advisory lock the kernel drops when the effect dies."""
@@ -352,7 +364,28 @@ class TenantStorageEffect:
         self.oci, self.odoo, self.clock = oci, odoo, clock
 
     def run(self, request):
-        return getattr(self, '_' + request['operation'])(request)
+        marker = dropped_marker(request['config']['stateDir'], request['tenantId'])
+        # A tenant whose storage was removed is not provisioned again by the loop: only an explicit re-provision clears the marker.
+        if request['operation'] != 'drop' and marker.exists():
+            raise EffectError('authority_lost')
+        answer = getattr(self, '_' + request['operation'])(request)
+        if request['operation'] == 'drop' and answer['state'] == 'removed':
+            self._mark_dropped(marker, request)
+        return answer
+
+    def _mark_dropped(self, marker, request):
+        """Written under the same lock the drop ran under, before the answer leaves: a crash before this line leaves the row `emptying` and the
+        next run repeats the drop, which is idempotent."""
+        body = json.dumps({'requestId': request['requestId'], 'droppedAt': int(self.clock())}).encode()
+        try:
+            marker.parent.mkdir(mode=0o700, exist_ok=True)
+            fd = os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600)
+        except OSError:
+            raise EffectError('runtime_invalid') from None
+        try:
+            os.write(fd, body)
+        finally:
+            os.close(fd)
 
     def _answer(self, request, state, stage, retry_after=None):
         answer = {'operation': request['operation'], 'tenantId': request['tenantId'], 'requestId': request['requestId'],
@@ -467,12 +500,12 @@ class TenantStorageEffect:
         return self._issue_and_store(request, resources, 'candidate', [primary['accessKeyId']])
 
     def _primary_for_drop(self):
-        """The stored record when the tenant database can still be read. A drop resumed after the database went answers
-        nothing: the OCI names come from the tenant id, and the record is only read to refuse a foreign bucket."""
-        try:
-            return self.odoo.observe()['primary']
-        except EffectError:
+        """The stored record, or None when the tenant database is gone (a drop resumed after it went): the OCI names come from the tenant id,
+        and the record is only read to refuse a foreign bucket. An observation that fails for any other reason is raised, because reading it as
+        "absent" would skip that check over a stale record that points at another bucket."""
+        if not self.odoo.database_exists():
             return None
+        return self.odoo.observe()['primary']
 
     def _drop(self, request):
         """Empty the bucket and remove everything `ensure` created, under the tenant lock the whole effect runs under."""

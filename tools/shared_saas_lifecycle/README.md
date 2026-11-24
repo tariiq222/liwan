@@ -26,10 +26,22 @@ during a rotation) are the truth, and every call reconciles them, so a repeated 
 tenant at a time (an advisory lock file in the effect-owned `tenant-storage` state directory, created by `init-host.sh`; a second call answers `operation_in_progress`).
 
 `drop` is the other direction of `ensure`, and it belongs to this effect: the tenant deletion runs it as its own step before the
-database goes (`remove_storage` in `docs/operations/tenant-deletion-effects.md`). It empties the tenant's bucket, deletes it, then
-deletes the keys and the IAM user of that name, plus the policy and the group in the `per_tenant` mode; the `fixed` policy and group
-serve every tenant and are never deleted. Every step treats "already absent" as done, so a resumed deletion finishes what an earlier
-run started.
+database goes (`remove_storage` in `docs/operations/tenant-deletion-effects.md`). It empties the tenant's bucket, aborts the incomplete
+multipart uploads that would keep it non-empty, deletes it, then deletes the keys and the IAM user of that name, plus the policy and the
+group in the `per_tenant` mode; the `fixed` policy and group serve every tenant and are never deleted. Every step treats "already
+absent" as done, so a resumed deletion finishes what an earlier run started. The object batch goes to `POST
+/n/<namespace>/b/<bucket>/actions/batchDeleteObjects` (`{"objects": [{"objectName": ...}]}`, answered `deleted` and `failed`; a `failed`
+entry is accepted only with status 404).
+
+A finished `drop` (`state: removed`) writes `<tenant-storage>/<tenantId>.dropped` in the state directory, while it still holds the tenant
+lock. From then on `ensure`, `verify` and `rotate` refuse with `authority_lost` and create nothing: a run claimed before the deletion
+disabled the tenant cannot bring a bucket, a user or a policy back. Clearing the marker is an explicit re-provision the operator starts, a
+documented admin action (remove the file, then `ensure`); a new workspace gets a new tenant id and never shares the marker. A `drop`
+itself stays allowed, so a resumed deletion finishes.
+
+Before reading the tenant's `fs.storage` record, a `drop` asks whether the database still exists: a database that is gone is not read at
+all (the OCI names come from the tenant id), and any other failure of the observation is raised rather than read as "gone", because that
+would skip the `bucket_mismatch` check over a stale record that points at another bucket.
 
 | Answer | Meaning |
 |---|---|

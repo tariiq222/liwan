@@ -33,6 +33,7 @@ class FakeOci:
         self.clock = clock
         self.buckets, self.users, self.groups, self.policies, self.members, self.keys = {}, {}, {}, {}, set(), {}
         self.objects = {}
+        self.uploads = {}
         self.created = []
         self.fail = None  # an OciError code raised by every call
         self.deny_all = False  # the service refuses every key, whatever the policies say
@@ -57,9 +58,21 @@ class FakeOci:
 
     def delete_bucket(self, namespace, name):
         self._check()
+        if self.uploads.get(name):
+            raise oci.OciError('oci_refused')  # OCI keeps a bucket non-empty while an upload is in progress
         self.buckets.pop(name, None)
         self.objects.pop(name, None)
+        self.uploads.pop(name, None)
         self.created.append(('bucket_delete', name))
+
+    def list_multipart_uploads(self, namespace, name, limit):
+        self._check()
+        return list(self.uploads.get(name, []))[:limit]
+
+    def abort_multipart_upload(self, namespace, name, object_name, upload_id):
+        self._check()
+        self.uploads[name] = [item for item in self.uploads.get(name, []) if item != (object_name, upload_id)]
+        self.created.append(('upload_abort', object_name))
 
     def list_objects(self, namespace, name, limit):
         self._check()
@@ -495,6 +508,56 @@ class RestTest(unittest.TestCase):
         with self.assertRaises(oci.OciError):
             self.rest(FakeTransport(200, b'<html>')).list_keys('u1')
 
+    def test_a_batch_delete_uses_the_batch_endpoint_and_its_own_body(self):
+        transport = FakeTransport(200, json.dumps({'deleted': [{'objectName': 'a'}, {'objectName': 'b'}], 'failed': []}).encode())
+        self.assertEqual(2, self.rest(transport).delete_objects('tenantns', 'lw-x', ['a', 'b']))
+        method, url, headers, body = transport.calls[0]
+        self.assertEqual('POST', method)
+        self.assertEqual('https://objectstorage.me-jeddah-1.oraclecloud.com/n/tenantns/b/lw-x/actions/batchDeleteObjects', url)
+        self.assertEqual({'objects': [{'objectName': 'a'}, {'objectName': 'b'}]}, json.loads(body))
+        self.assertIn('x-content-sha256 content-type content-length', headers['authorization'])
+
+    def test_a_batch_delete_counts_an_already_absent_object_as_gone_and_any_other_failure_as_a_refusal(self):
+        not_found = FakeTransport(200, json.dumps({'deleted': [{'objectName': 'a'}],
+                                                   'failed': [{'objectName': 'b', 'statusCode': 404, 'errorMessage': 'Not Found'}]}).encode())
+        self.assertEqual(2, self.rest(not_found).delete_objects('ns', 'b', ['a', 'b']))
+        for failed in ([{'objectName': 'b', 'statusCode': 500, 'errorMessage': 'Internal'}],
+                       [{'objectName': 'b', 'statusCode': 409, 'errorMessage': 'Conflict'}], 'x'):
+            with self.subTest(failed=failed):
+                body = json.dumps({'deleted': [{'objectName': 'a'}], 'failed': failed}).encode()
+                with self.assertRaises(oci.OciError) as caught:
+                    self.rest(FakeTransport(200, body)).delete_objects('ns', 'b', ['a', 'b'])
+                self.assertEqual('oci_refused', caught.exception.code)
+        short = json.dumps({'deleted': [{'objectName': 'a'}], 'failed': []}).encode()
+        with self.assertRaises(oci.OciError):
+            self.rest(FakeTransport(200, short)).delete_objects('ns', 'b', ['a', 'b'])
+
+    def test_an_incomplete_upload_is_listed_and_aborted_on_its_own_paths(self):
+        transport = FakeTransport(200, json.dumps([{'object': 'big/a.bin', 'uploadId': 'up-1'}]).encode())
+        rest = self.rest(transport)
+        self.assertEqual([('big/a.bin', 'up-1')], rest.list_multipart_uploads('ns', 'lw-x', 1000))
+        self.assertEqual('https://objectstorage.me-jeddah-1.oraclecloud.com/n/ns/b/lw-x/u?limit=1000', transport.calls[0][1])
+        transport.status, transport.body = 204, b''
+        self.assertEqual({}, rest.abort_multipart_upload('ns', 'lw-x', 'big/a.bin', 'up-1'))
+        self.assertEqual(('DELETE', 'https://objectstorage.me-jeddah-1.oraclecloud.com/n/ns/b/lw-x/u/big/a.bin?uploadId=up-1'),
+                         transport.calls[1][:2])
+        # A name with a space or a special character stays one escaped path segment, and the signature covers the escaped target.
+        transport.calls.clear()
+        rest.abort_multipart_upload('ns', 'lw-x', 'big dir/a b.bin', 'up-2')
+        self.assertEqual('https://objectstorage.me-jeddah-1.oraclecloud.com/n/ns/b/lw-x/u/big%20dir/a%20b.bin?uploadId=up-2', transport.calls[0][1])
+        self.assertTrue(self.signed[-1].startswith('(request-target): delete /n/ns/b/lw-x/u/big%20dir/a%20b.bin?uploadId=up-2'))
+
+    def test_a_conflicting_iam_delete_is_an_error_not_a_value(self):
+        with self.assertRaises(oci.OciError) as caught:
+            self.rest(FakeTransport(409)).delete_user('u1')
+        self.assertEqual('oci_refused', caught.exception.code)
+        for method, status, expect in (('remove_membership', 204, {}), ('delete_group', 404, None), ('delete_policy', 204, {})):
+            with self.subTest(method=method):
+                transport = FakeTransport(status, b'' if status == 204 else b'{}')
+                rest = self.rest(transport)
+                answer = getattr(rest, method)('x1')
+                self.assertEqual(expect, answer)
+
     def test_only_the_two_oracle_hosts_are_ever_called(self):
         transport = FakeTransport(200, b'[]')
         rest = self.rest(transport)
@@ -583,6 +646,27 @@ class DropTest(unittest.TestCase):
             done = handle(prov, 'drop')
         self.assertEqual(('removed', 1), (done['state'], done['objectsDeleted']))
         self.assertNotIn(bucket, self.api.buckets)
+
+    def test_an_incomplete_multipart_upload_is_aborted_before_the_bucket_goes(self):
+        prov, bucket, _ = self.provisioned()
+        self.api.uploads[bucket] = [('big/archive.bin', 'up-1'), ('big/second.bin', 'up-2')]
+        result = handle(prov, 'drop')
+        self.assertEqual('removed', result['state'])
+        self.assertNotIn(bucket, self.api.uploads)
+        dropped = [call for call in self.api.created if call[0] in ('upload_abort', 'bucket_delete')]
+        self.assertEqual([('upload_abort', 'big/archive.bin'), ('upload_abort', 'big/second.bin'), ('bucket_delete', bucket)], dropped)
+
+    def test_an_upload_that_is_still_listed_after_the_abort_reports_emptying_and_keeps_the_bucket(self):
+        prov, bucket, _ = self.provisioned()
+        self.api.uploads[bucket] = [('big/archive.bin', 'up-1')]
+        # The service accepts the abort and still lists it (a slow purge): the bucket is not deleted over it, and the next call continues.
+        with patch.object(self.api, 'abort_multipart_upload', lambda *a: None):
+            result = handle(prov, 'drop')
+        self.assertEqual('emptying', result['state'])
+        self.assertIn(bucket, self.api.buckets)
+        self.assertNotIn(('bucket_delete', bucket), self.api.created)
+        self.api.uploads.pop(bucket, None)
+        self.assertEqual('removed', handle(prov, 'drop')['state'])
 
     def test_a_bucket_that_is_still_there_after_the_delete_is_a_code(self):
         prov, bucket, _ = self.provisioned()

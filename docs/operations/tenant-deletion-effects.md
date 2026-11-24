@@ -99,9 +99,13 @@ Provisioning (`odoo_effect.py`) writes the system parameter `liwan.control.tenan
 
 `remove_storage` is a step of the runner, not a stage of the drop effect: it runs the tenant storage effect with `operation: 'drop'` (see `tools/shared_saas_lifecycle/README.md`). It empties the tenant's bucket, deletes the bucket, then the keys and the IAM user whose name is derived from the tenant id, and in the `per_tenant` policy mode the policy and the group too. In the `fixed` policy mode the policy and the group are shared by every tenant and are **never** deleted; the decision is final. Every step treats "already absent" as done, so a resumed deletion finishes what an earlier run started.
 
-The step is skipped as `storage_not_configured` when tenant storage is off, and it runs before `drop_database`: a bucket too large for one run answers `emptying` and the step defers (`defer: storage_emptying`) until the next pass, so the database is never dropped while its objects are still there.
+The step is skipped as `storage_not_configured` only for a tenant that has no `tenant_storage` row, i.e. was never given object storage. The deployment flag (`LIWAN_TENANT_STORAGE_ENABLED`) says whether the storage loop runs, not whether a tenant has a bucket: a tenant provisioned while it was on keeps its bucket after it is switched off, and the deletion removes it anyway. A row that is there makes the step a real removal, so it cannot be skipped silently.
 
-The `tenant_storage` row is what makes the removal safe against the storage loop: the step marks it `operation='drop'` with no due time before it calls the effect, and a row with that operation is never claimed by the loop, so no `ensure` can recreate a bucket or a user that the drop already removed. The effect's own answer (`emptying` or `removed`) is recorded on that row with the run id and revision the step claimed. An effect answer for another run or another tenant is a `script_failed`, not a recorded result.
+It runs before `drop_database`: a bucket too large for one run answers `emptying` and the step defers (`defer: storage_emptying`) until the next pass, so the database is never dropped while its objects are still there. Incomplete multipart uploads are aborted before the bucket is deleted.
+
+The `tenant_storage` row is what makes the removal safe against the storage loop: the step marks it `operation='drop'` with no due time before it calls the effect, and a row with that operation is never claimed by the loop, so no `ensure` can recreate a bucket or a user that the drop already removed. The effect's own answer (`emptying` or `removed`) is recorded on that row with the run id and revision the step claimed. An effect answer for another run or another tenant is a `script_failed`; a row that moved on (an operator request, another runner) is `deletion_state_changed`, and the step fails and backs off instead of recording a removal that is not its own.
+
+A finished drop also leaves `<tenant-storage>/<tenantId>.dropped` in the effect's state directory, written under the tenant lock. Every later `ensure`, `verify` or `rotate` for that tenant id refuses with `authority_lost` and creates nothing, so a run that was claimed before the tenant was disabled can never bring the bucket, the user or the policy back. Clearing the marker is an explicit re-provision the operator starts (a documented admin action: remove the file, then `ensure`); a new workspace has a new tenant id and never meets it.
 
 ## Off-site backups
 
@@ -127,7 +131,7 @@ A clean dry run of all stages proves: the plan and its digest, every name guard,
 - Production-size data: no timing, no large filestore, no large prefix on S3 (pagination was proven with a capped fake listing and the S3 client's own tests).
 - `docker compose exec` into `db`, `restore-db`, `odoo` and `restore-odoo`: the argument lists are tested, no container was started.
 - Backup artifacts the control plane writes as `<backupRoot>/<id>.json` (`shared-backup.ts`) are not under `<stateDir>/backups/` and are not removed here.
-- A real `drop` of a bucket and an IAM user: the OCI calls of the storage effect (bulk object delete, bucket delete, key, membership, user, policy and group) are proven against the fake OCI in `test_oci_provision.py` and `test_tenant_storage_effect.py`, not against the account.
+- A real `drop` of a bucket and an IAM user: the OCI call shapes are read from Oracle's own SDK (`POST .../actions/batchDeleteObjects`, `GET/DELETE .../u` for multipart uploads), and are proven against the fake OCI in `test_oci_provision.py` and `test_tenant_storage_effect.py`, not against the account.
 - A capture that started before the retirement may still be running outside the settle wait.
 
 ## Order of the steps and what the control plane gates (second review)

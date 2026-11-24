@@ -509,15 +509,21 @@ async function dropStage(ctx: Ctx, stage: Exclude<DropStage, 'verify'>): Promise
  * The tenant's own object storage goes before its database: every object of its bucket, then the bucket, the keys and the IAM user. The storage row is marked
  * `drop` first, so the storage loop can never `ensure` what this step removes; the shared policy and group of the fixed policy mode serve other tenants and
  * stay. A bucket too large for one run answers `emptying` and the next pass continues.
+ *
+ * The row decides whether there is anything to remove, not the deployment flag: a tenant given object storage while the loop was on keeps its bucket after
+ * `LIWAN_TENANT_STORAGE_ENABLED` is switched off, and leaving that bucket behind would be a silent leftover. A tenant without a row never had one and is
+ * recorded as skipped.
  */
 async function removeStorage(ctx: Ctx): Promise<Outcome> {
-  if (!ctx.config.tenantStorageEnabled) return { skip: 'storage_not_configured' }
   const row = await currentRow(ctx), effect = planOf(row).effect
+  const stored = await ctx.pool.query('SELECT 1 FROM tenant_storage WHERE control_tenant_id=$1', [effect.controlTenantId])
+  if (!stored.rowCount) return { skip: 'storage_not_configured' }
   const claim = await beginTenantStorageDrop(ctx.pool, effect.controlTenantId)
   const answer = await ctx.effects.removeStorage({ tenantId: effect.tenantId, database: effect.database, requestId: claim.requestId,
     assertOwned: ownership(ctx, row.plan_digest, true) })
   if (answer.requestId !== claim.requestId || answer.tenantId !== effect.tenantId) throw Error('script_failed')
-  await finishTenantStorageDrop(ctx.pool, claim, effect.controlTenantId, answer)
+  // A row that moved on (an operator request, another runner) is not recorded over: the step fails and the request pauses for its backoff.
+  if (!(await finishTenantStorageDrop(ctx.pool, claim, effect.controlTenantId, answer))) throw Error('deletion_state_changed')
   return answer.state === 'emptying' ? { defer: 'storage_emptying', evidence: { objects_deleted: answer.objectsDeleted } }
     : { evidence: { objects_deleted: answer.objectsDeleted, keys_deleted: answer.keysDeleted } }
 }

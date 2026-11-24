@@ -27,7 +27,7 @@ import type { PaymentAdapter } from '../commercial/payment-adapter.js'
 import { removePaymentMethod } from '../commercial/payment-method-removal.js'
 
 const suite = url ? describe : describe.skip
-const config = { installationId: 'del-run', key: 'vendor-test-key-'.repeat(4), customerCommercialIssuer: 'del-customer', customerCommercialServiceKey: 'customer-test-key-'.repeat(4), tenantStorageEnabled: true as const, inventoryPath: '', repositoryRoot: '', python: 'python3', stateDir: '' } as any
+const config = { installationId: 'del-run', key: 'vendor-test-key-'.repeat(4), customerCommercialIssuer: 'del-customer', customerCommercialServiceKey: 'customer-test-key-'.repeat(4), inventoryPath: '', repositoryRoot: '', python: 'python3', stateDir: '' } as any
 const who = { actor: 'tester', client_address: null }
 
 /** Effects that record every call, can fail a named call once, and re-check ownership before a mutation as the real runner does at a permit. */
@@ -86,6 +86,8 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
     const slug = `t${tenant.replaceAll('-', '').slice(0, 20)}`
     const database = `liwan_scratch_${slug.slice(1)}`
     await pool.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled,status) VALUES($1,$2,'saas','shared_managed',$3,true,'active')", [tenant, `Tenant ${slug}`, slug])
+    // Object storage was provisioned for this tenant: the deletion owns removing it (a tenant without a row never had one).
+    await pool.query("INSERT INTO tenant_storage(control_tenant_id,operation,state,stage,next_run_at) VALUES($1,'ensure','active','verified',NULL)", [tenant])
     await pool.query('INSERT INTO customers(id,name,tenant_id,admin_name,admin_login) VALUES($1,$2,$3,$4,$5)', [customer, `Company ${slug}`, tenant, 'Manager Name', `${slug}@example.test`])
     await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,true,1)', [tenant, slug, `${slug}.test`, database])
     await pool.query("INSERT INTO subscriptions(id,customer_id,tenant_id,state) VALUES($1,$2,$3,'active')", [randomUUID(), customer, tenant])
@@ -161,6 +163,26 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
     expect(atDatabaseDrop).toMatchObject({ operation: 'drop', state: 'removed', stage: 'resources_removed', next_run_at: null })
     expect(atDatabaseDrop.request_id).toBe(beforeStorageDrop.request_id)
     expect((await steps(f)).remove_storage).toMatchObject({ state: 'done', failures: 0 })
+  })
+
+  it('skips the storage step for a tenant that never had a storage row, and records it as skipped', async () => {
+    const f = await fixture()
+    await pool.query('DELETE FROM tenant_storage WHERE control_tenant_id=$1', [f.tenant])
+    await run()
+    expect((await steps(f)).remove_storage).toMatchObject({ state: 'skipped', error_code: 'storage_not_configured' })
+    expect(effects.calls).not.toContain('remove_storage')
+    expect((await req(f)).state).toBe('deleted')
+  })
+
+  it('fails the storage step when its row moved on, so the removal is never recorded over another run', async () => {
+    const f = await fixture()
+    effects.removeStorage = async input => {
+      await pool.query('UPDATE tenant_storage SET revision=revision+1 WHERE control_tenant_id=$1', [f.tenant])
+      return { operation: 'drop', tenantId: input.tenantId, requestId: input.requestId, state: 'removed', stage: 'resources_removed', objectsDeleted: 0, keysDeleted: 0 }
+    }
+    await run()
+    expect((await steps(f)).remove_storage).toMatchObject({ state: 'failed', error_code: 'deletion_state_changed', failures: 1 })
+    expect((await req(f)).committed_at).toBeInstanceOf(Date)
   })
 
   it('clears a requested renewal cancellation when the workspace is deleted, so no resumable cancellation is left on a deleted customer', async () => {

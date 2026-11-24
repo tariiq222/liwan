@@ -131,6 +131,11 @@ class World:
         self.mode = mode
         self.records, self.objects, self.writes, self.events, self.scripts = [], {}, [], [], []
         self.fail_write = None
+        self.database_gone = False
+
+    # the effect's OdooStore asks this before a drop reads the record
+    def database_exists(self):
+        return not self.database_gone
 
     # the effect's OdooStore talks to this
     def run_script(self, script, *, stdin):
@@ -172,6 +177,9 @@ def run(world, operation, **over):
 class Case(unittest.TestCase):
     def setUp(self):
         self.world = World()
+        self.marker = effect.dropped_marker(STATE_DIR, 'acme')
+        self.marker.unlink(missing_ok=True)
+        self.addCleanup(self.marker.unlink, missing_ok=True)
         # OciClient.call(op, **values) -> world.run_oci(payload) through the real parser
         self.effect = effect.TenantStorageEffect(
             effect.OciClient(self.world, 'acme', REQUEST_ID), effect.OdooStore(self.world, DATABASE, REQUEST_ID), self.world.clock)
@@ -526,12 +534,38 @@ class DropTest(Case):
 
     def test_a_drop_resumed_after_the_tenant_database_went_still_removes_the_resources(self):
         bucket = self.provisioned(objects=2)
+        self.world.database_gone = True
         self.world.run_script = lambda script, *, stdin: effect.SENTINEL + json.dumps({'error_code': 'script_failed'})
+        scripts = len(self.world.scripts)
         answer = self.run_op('drop')
         self.assertEqual('removed', answer['state'])
         self.assertEqual(2, answer['objectsDeleted'])
         self.assertNotIn(bucket, self.world.api.buckets)
         self.assertEqual([], self.world.keys())
+        # A database that is gone is not read at all: the names come from the tenant id.
+        self.assertEqual([], [json.loads(stdin)['op'] for _, stdin in self.world.scripts[scripts:]])
+
+    def test_an_observation_that_fails_is_raised_and_nothing_is_deleted(self):
+        bucket = self.provisioned(objects=2)
+        self.world.primary().directory_path = 'lw-someoneelse'  # a stale record the check exists to catch
+        self.world.run_script = lambda script, *, stdin: effect.SENTINEL + json.dumps({'error_code': 'script_failed'})
+        self.assertEqual('script_failed', self.code_of('drop'))
+        self.assertIn(bucket, self.world.api.buckets)
+        self.assertEqual(2, len(self.world.api.objects[bucket]))
+        self.assertEqual([], self.destructive())
+
+    def test_a_finished_drop_blocks_every_later_provisioning_of_that_tenant(self):
+        self.provisioned(objects=1)
+        self.assertEqual('removed', self.run_op('drop')['state'])
+        created, writes = len(self.world.api.created), len(self.world.writes)
+        for operation in ('ensure', 'verify', 'rotate'):
+            self.assertEqual('authority_lost', self.code_of(operation))
+        self.assertEqual((created, writes), (len(self.world.api.created), len(self.world.writes)))  # no bucket, user, key or record came back
+        self.assertTrue(self.marker.exists())
+        self.assertEqual('removed', self.run_op('drop')['state'])  # a resumed drop stays safe and idempotent
+        # The marker is the gate and nothing else hides it: an explicit re-provision the operator starts removes it (documented admin action).
+        self.marker.unlink()
+        self.assertEqual('pending_key', self.run_op('ensure')['state'])
 
     def test_every_oci_failure_is_an_allowed_code_and_the_bucket_stays(self):
         bucket = self.provisioned(objects=1)

@@ -261,16 +261,40 @@ class OciRest:
         return [item['name'] for item in objects if isinstance(item, dict) and isinstance(item.get('name'), str)]
 
     def delete_objects(self, namespace, name, names):
-        """One bulk delete; returns how many of `names` the service reports deleted or already gone."""
-        found = self._call('POST', self.config.object_storage_host, f'/n/{namespace}/b/{name}/o', query={'delete': ''},
-                           payload={'objects': [{'name': item} for item in names]})
+        """One batch delete; returns how many of `names` are gone. A `failed` entry counts as a failure unless the service says
+        the object was not found (404), which is the same state as a deleted one."""
+        found = self._call('POST', self.config.object_storage_host, f'/n/{namespace}/b/{name}/actions/batchDeleteObjects',
+                           payload={'objects': [{'objectName': item} for item in names]})
         if not isinstance(found, dict):
             raise OciError('oci_refused')
-        deleted, missing = found.get('deleted'), found.get('notFound')
-        count = sum(len(value) for value in (deleted, missing) if isinstance(value, list))
-        if count != len(names):
+        deleted, failed = found.get('deleted'), found.get('failed')
+        if not isinstance(deleted, list) or not isinstance(failed, list):
             raise OciError('oci_refused')
-        return count
+        for item in failed:
+            if not isinstance(item, dict) or item.get('statusCode') != 404:
+                raise OciError('oci_refused')
+        if len(deleted) + len(failed) != len(names):
+            raise OciError('oci_refused')
+        return len(names)
+
+    def list_multipart_uploads(self, namespace, name, limit):
+        """The bucket's incomplete multipart uploads, as (object, uploadId); a bucket that is gone has none."""
+        found = self._call('GET', self.config.object_storage_host, f'/n/{namespace}/b/{name}/u', query={'limit': limit})
+        if found is None:
+            return []
+        if not isinstance(found, list):
+            raise OciError('oci_refused')
+        uploads = []
+        for item in found:
+            if not (isinstance(item, dict) and isinstance(item.get('object'), str) and isinstance(item.get('uploadId'), str)):
+                raise OciError('oci_refused')
+            uploads.append((item['object'], item['uploadId']))
+        return uploads
+
+    def abort_multipart_upload(self, namespace, name, object_name, upload_id):
+        # An object name may hold slashes and spaces: it is one path segment of this route and is escaped as such, in the signed target too.
+        return self._call('DELETE', self.config.object_storage_host,
+                          f'/n/{namespace}/b/{name}/u/{urllib.parse.quote(object_name, safe="/")}', query={'uploadId': upload_id})
 
     # IAM
     def _find(self, kind, compartment, name):
@@ -306,16 +330,24 @@ class OciRest:
         return [item for item in found if isinstance(item, dict) and isinstance(item.get('id'), str)] if isinstance(found, list) else []
 
     def remove_membership(self, membership_id):
-        return self._identity('DELETE', '/userGroupMemberships/' + membership_id)
+        return self._delete_iam('/userGroupMemberships/' + membership_id)
 
     def delete_user(self, user_id):
-        return self._identity('DELETE', '/users/' + user_id)
+        return self._delete_iam('/users/' + user_id)
 
     def delete_group(self, group_id):
-        return self._identity('DELETE', '/groups/' + group_id)
+        return self._delete_iam('/groups/' + group_id)
 
     def delete_policy(self, policy_id):
-        return self._identity('DELETE', '/policies/' + policy_id)
+        return self._delete_iam('/policies/' + policy_id)
+
+    def _delete_iam(self, path):
+        """An IAM delete that answers 409 is in conflict (a user still holding a key or a membership, a policy still referenced): a failure,
+        never read as "already gone"."""
+        answer = self._identity('DELETE', path)
+        if isinstance(answer, dict) and answer.get('conflict'):
+            raise OciError('oci_refused')
+        return answer
 
     def find_policy(self, name):
         return self._find('policies', self.config.tenancy, name)
@@ -465,6 +497,17 @@ class Provisioner:
                 return {'bucket': name, 'state': 'emptying', 'objectsDeleted': objects_deleted, 'keysDeleted': 0,
                         'removed': {'bucket': False, 'policy': False, 'user': False, 'group': False}}
             if self.api.list_objects(namespace, name, 1):
+                return {'bucket': name, 'state': 'emptying', 'objectsDeleted': objects_deleted, 'keysDeleted': 0,
+                        'removed': {'bucket': False, 'policy': False, 'user': False, 'group': False}}
+            # Incomplete multipart uploads keep a bucket non-empty in OCI even with no object in it: abort them, then delete the bucket.
+            for _ in range(EMPTY_BATCHES):
+                uploads = self.api.list_multipart_uploads(namespace, name, EMPTY_BATCH)
+                if not uploads:
+                    break
+                for object_name, upload_id in uploads:
+                    self.api.abort_multipart_upload(namespace, name, object_name, upload_id)
+            if self.api.list_multipart_uploads(namespace, name, 1):
+                # More uploads than one call may abort: a later call continues, exactly like the object drain.
                 return {'bucket': name, 'state': 'emptying', 'objectsDeleted': objects_deleted, 'keysDeleted': 0,
                         'removed': {'bucket': False, 'policy': False, 'user': False, 'group': False}}
             self.api.delete_bucket(namespace, name)

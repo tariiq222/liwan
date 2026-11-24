@@ -177,9 +177,14 @@ describe.skipIf(!url)('tenant storage state (live PostgreSQL)', () => {
     expect(await claimTenantStorage(pool, 5)).toEqual([])
   })
 
-  it('never claims a row the tenant deletion owns with a drop, and the drop keeps the run id it recorded', async () => {
+  it('never claims a row the tenant deletion owns with a drop, and a claimed ensure can never record over it', async () => {
     const id = await tenant()
+    await discoverTenantStorage(pool)
+    // The storage loop claimed this tenant an instant before the deletion started: the ensure is in flight.
+    const [inFlight] = await claimTenantStorage(pool, 1)
     const claim = await beginTenantStorageDrop(pool, id)
+    // Its late answer is thrown away (run id and revision moved on), so nothing of the ensure survives the drop.
+    expect(await recordTenantStorageRun(pool, inFlight!, { ok: true, response: answer(inFlight!.requestId) as never })).toBe(false)
     // Even a row the loop would otherwise take now (due, enabled binding, operations on) belongs to the deletion: an `ensure` must not create what it removes.
     await pool.query('UPDATE tenant_storage SET next_run_at=clock_timestamp() WHERE control_tenant_id=$1', [id])
     expect(await claimTenantStorage(pool, 5)).toEqual([])
