@@ -101,8 +101,9 @@ def probe_user(env):
             'company_id': company.id, 'company_ids': [(6, 0, company.ids)],
             'group_ids': [(4, env.ref('liwan_core.group_employee').id)],
         })
-    if not user.liwan_mobile:
-        user.liwan_mobile = PROBE_MOBILE
+    if not user.liwan_mobile_verified_at:
+        # The API refuses an account without a verified mobile; the fixture stamps it as the account screen would.
+        user.write({'liwan_mobile': PROBE_MOBILE, 'liwan_mobile_verified_at': env.cr.now()})
     roles = env['liwan.access.role'].search([
         ('active', '=', True), ('assignable', '=', True), ('company_id', 'in', (False, company.id)),
     ])

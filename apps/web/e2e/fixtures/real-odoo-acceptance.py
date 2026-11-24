@@ -77,8 +77,8 @@ def ensure_account(environment, company, roles, key, mobile):
     values = {
         'name': name, 'email': f'{login}@example.test', 'password': password, 'company_id': company.id,
         'company_ids': [(6, 0, company.ids)], 'group_ids': [(6, 0, environment.ref('base.group_user').ids)],
-        # The API refuses an account without a mobile number, and the number is unique per account.
-        'liwan_mobile': mobile,
+        # The API refuses an account without a verified mobile number, and the number is unique per account.
+        'liwan_mobile': mobile, 'liwan_mobile_verified_at': environment.cr.now(),
     }
     if user:
         user.write(values)

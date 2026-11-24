@@ -18,7 +18,9 @@ user = user_model.with_context(active_test=False).search([('login', '=', login)]
 values = {
     'name': 'Outage Fixture Administrator',
     'password': password,
-    'liwan_mobile': '+966500000001',  # the probe calls routes that refuse an account without a mobile number
+    # The probe calls routes that refuse an account without a verified mobile number.
+    'liwan_mobile': '+966500000001',
+    'liwan_mobile_verified_at': env.cr.now(),
     'company_id': company.id,
     'company_ids': [(6, 0, [company.id])],
     'group_ids': [(6, 0, [env.ref('base.group_user').id,
