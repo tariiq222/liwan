@@ -8,7 +8,8 @@ import ipaddress
 from pathlib import PurePosixPath
 import re
 from urllib.parse import urlsplit
-from .manifest import MODULE, manifest_digest, validate_manifest
+from deploy.release.manifest import MODULE, validate_manifest
+from .manifest import manifest_digest
 
 POOL = re.compile(r'^[a-z][a-z0-9-]{0,39}$')
 VOLUME = re.compile(r'^[a-zA-Z][a-zA-Z0-9_-]{0,63}$')

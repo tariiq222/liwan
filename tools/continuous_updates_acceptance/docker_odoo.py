@@ -21,7 +21,7 @@ from urllib.request import HTTPCookieProcessor, Request, build_opener
 
 from deploy.releases.backup import restore_tenant, validate_backup
 from deploy.releases.migrate import source_tree_digest
-from deploy.releases.postgres import fence_runtime, identifier, runtime_role_fixture, validate_runtime_role
+from deploy.release.tenant_postgres import fence_runtime, identifier, runtime_role_fixture, validate_runtime_role
 from deploy.releases.runtime_identity import RuntimeIdentityError, inspect_odoo_runtime
 from deploy.releases.state import ReleaseState, atomic_json
 

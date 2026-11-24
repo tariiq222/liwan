@@ -38,7 +38,7 @@ sys.path.insert(0, str(ROOT))
 from deploy.release import common  # noqa: E402 - path set just above
 from deploy.release.release import (  # noqa: E402
     CONFIG_KEYS, CONTROL_DB_PORT, RELEASE_FOLDER, SHARED_WORKER_UNIT, TENANT_DB_PORT, Paths)
-from deploy.releases.postgres import (  # noqa: E402
+from deploy.release.tenant_postgres import (  # noqa: E402
     ODOO_RUNTIME_ROLE, POSTGRES_ADMIN_ROLE, runtime_role_assertion_sql)
 from deploy.release.source import (  # noqa: E402
     COMMIT as COMMIT_ID, CREDENTIAL_HELPER, ENVIRONMENTS, GITHUB_TOKEN_VAR, REGISTRY as IMAGE_REGISTRY, REGISTRY_HOST,

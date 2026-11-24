@@ -11,7 +11,7 @@ from pathlib import Path
 import re
 import stat
 import subprocess
-from .manifest import IMAGE
+from deploy.release.manifest import IMAGE
 
 _FIELDS = {'projectName', 'composeFile', 'envFile', 'composeSha256', 'envSha256',
            'odooImage', 'odooConfig', 'odooConfigSha256', 'dbUser'}

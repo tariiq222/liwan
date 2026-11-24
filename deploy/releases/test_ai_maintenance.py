@@ -9,7 +9,8 @@ import threading
 import unittest
 from unittest.mock import patch
 
-from .manifest import manifest_digest, validate_manifest
+from deploy.release.manifest import validate_manifest
+from .manifest import manifest_digest
 from .state import ReleaseConflict, ReleaseState, atomic_json
 
 TOKEN = 't' * 30

@@ -19,7 +19,7 @@ from pathlib import Path
 from unittest import mock
 
 from deploy.releases.backup import Deadline
-from deploy.releases.postgres import fence_writers
+from deploy.release.tenant_postgres import fence_writers
 from deploy.releases.runtime import LocalRuntime
 from tools.shared_saas_lifecycle import release_backup
 from tools.shared_saas_lifecycle.odoo_effect import EffectError

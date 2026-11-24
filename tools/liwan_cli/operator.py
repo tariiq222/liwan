@@ -73,7 +73,7 @@ SESSIONS_SQL = ("SELECT count(*) FROM pg_stat_activity WHERE datname = current_d
                 "AND pid <> pg_backend_pid()")
 BACKUP_WRAPPER = Path(__file__).resolve().parents[2] / 'deploy' / 'backup.py'
 RESTORE_WRAPPER = Path(__file__).resolve().parents[2] / 'deploy' / 'restore_verify.py'
-RELEASE_POSTGRES = Path(__file__).resolve().parents[2] / 'deploy' / 'releases' / 'postgres.py'
+RELEASE_POSTGRES = Path(__file__).resolve().parents[2] / 'deploy' / 'release' / 'tenant_postgres.py'
 
 # The row lock and revision check are in the same Odoo transaction as the ORM
 # update. The read-only psql snapshot used by preflight cannot authorize a write.
@@ -380,7 +380,7 @@ def _same_server(database_url, entry):
 
 
 def _release_postgres():
-    """The tenant database SQL of deploy/releases/postgres.py, the one source.
+    """The tenant database SQL of deploy/release/tenant_postgres.py, the one source.
 
     Loaded by path because the operator runs with PYTHONPATH=tools and the repository root need not
     be importable.

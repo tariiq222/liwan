@@ -20,7 +20,7 @@ import threading
 
 from deploy.releases.helper_runtime import verify_helper_runtime
 from deploy.releases.fencing import ReleaseOperationError, release_routes_enabled, tenant_operation
-from deploy.releases.postgres import (
+from deploy.release.tenant_postgres import (
     ODOO_RUNTIME_ROLE, POSTGRES_ADMIN_ROLE, tenant_bootstrap_sql, tenant_create_database_sql, tenant_isolation_sql,
 )
 

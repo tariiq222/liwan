@@ -8,7 +8,7 @@ import re
 import shutil
 import tempfile
 from .assets import publish_assets
-from .manifest import NAME
+from deploy.release.manifest import NAME
 
 
 def _directory(value):
