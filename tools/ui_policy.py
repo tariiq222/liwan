@@ -55,7 +55,7 @@ LAYER_COMPONENTS = frozenset(
     + ['shared/data/' + name + '.vue' for name in (
         'ChartPanel', 'DataTable', 'FilterBar', 'FilterChip', 'FilterChoice', 'FilterField', 'MetricTile', 'Pagination',
         'PersonAvatar', 'Progress', 'RecordNumber', 'RowActions', 'SegmentedControl', 'StatusBadge', 'ViewSwitch', 'ListFooter')]
-    + ['shared/form/' + name + '.vue' for name in ('DateField', 'FileField', 'FormActions', 'InlineConfirm', 'InlineText', 'OptionCards', 'RichText', 'UnsavedChanges')]
+    + ['shared/form/' + name + '.vue' for name in ('DateField', 'ErrorSummary', 'FileField', 'FormActions', 'FormField', 'InlineConfirm', 'InlineText', 'MoneyField', 'MoneyListField', 'OptionCards', 'RichText', 'UnsavedChanges')]
     + ['shell/' + name + '.vue' for name in ('ShellAppTile', 'ShellBreadcrumb', 'ShellCoreApps', 'ShellFooterBar', 'ShellFrame', 'ShellNavRow', 'ShellNavSection', 'ShellOrgCard', 'ShellPanelRow', 'ShellPanelStatus', 'ShellSidebar', 'ShellSlideOver', 'ShellTabBar', 'ShellTip', 'ShellToolButton', 'ShellTopBar')]
 )
 # Billing presentation shared by the customer subscription pages and the vendor console (@liwan/commercial-ui).
@@ -112,7 +112,7 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'shared/data/DataTable.vue',
     'shared/layout/ListPage.vue', 'shared/layout/ListCard.vue', 'shared/data/ViewSwitch.vue', 'shared/data/SegmentedControl.vue', 'shared/data/ListFooter.vue',
     'shared/layout/BrandWordmark.vue',
-    'shared/layout/FormSection.vue', 'shared/form/FormActions.vue', 'shared/data/RecordNumber.vue', 'shared/layout/SettingsPage.vue', 'shared/feedback/EmptyState.vue', 'shared/layout/RouteTabs.vue',
+    'shared/layout/FormSection.vue', 'shared/form/FormActions.vue', 'shared/form/FormField.vue', 'shared/form/MoneyField.vue', 'shared/form/MoneyListField.vue', 'shared/form/ErrorSummary.vue', 'shared/data/RecordNumber.vue', 'shared/layout/SettingsPage.vue', 'shared/feedback/EmptyState.vue', 'shared/layout/RouteTabs.vue',
     'shared/data/FilterBar.vue', 'shared/form/DateField.vue', 'shared/form/DescriptionEditor.vue', 'meetings/MeetingProjectFilter.vue',
     'meetings/MeetingPeopleFields.vue', 'meetings/MeetingEventList.vue', 'meetings/MeetingMinutesDocument.vue',
     'meetings/MeetingMinutesForm.vue', 'meetings/MeetingTimeline.vue', 'meetings/MeetingVersionList.vue',
@@ -702,6 +702,30 @@ def page_shell_errors(current: dict[str, str]) -> list[str]:
     return errors
 
 
+# Settings forms (DESIGN.md §6, the settings reference page apps/web/app/pages/settings/company/index.vue). Two drifts the vendor
+# AI-billing audit found, each with one shared replacement, so a new occurrence is drift:
+# - a currency unit drawn in a text field's `#trailing` slot sits on the reader's end, which in RTL is the left edge where an
+#   `ltr` number starts, so the two overlap: use SharedMoneyField (the unit sits beside the box);
+# - a field grid locked on two columns on a vendor settings page (`*-settings.vue`): fields tile on the shared auto grid
+#   (`liwan-auto-grid liwan-field-grid`); the other vendor forms still carry the old grid and are listed in the rollout;
+CURRENCY_TRAILING = re.compile(r"#trailing>\s*<span[^>]*>\s*\{\{\s*t\(['\"][^'\"]*\.sar['\"]")
+LOCKED_FIELD_GRID = re.compile(r'(?:sm|md|lg):grid-cols-2')
+VENDOR_SETTINGS_PAGE = re.compile(r'^apps/vendor-admin/app/pages/(?:[\w-]+/)*[\w-]*-settings\.vue$')
+
+
+def settings_form_errors(current: dict[str, str]) -> list[str]:
+    errors = []
+    for path, source in sorted(current.items()):
+        if not path.startswith(APP_SOURCES) or '/__tests__/' in path or not path.endswith('.vue'):
+            continue
+        text = COMMENTS.sub('', source)
+        if CURRENCY_TRAILING.search(text):
+            errors.append(f'{path}: currency unit in a #trailing slot overlaps an ltr number in RTL; use SharedMoneyField')
+        if VENDOR_SETTINGS_PAGE.match(path) and LOCKED_FIELD_GRID.search(text):
+            errors.append(f'{path}: settings field grid locked on two columns; use "liwan-auto-grid liwan-field-grid"')
+    return errors
+
+
 # A credential or session identifier must never be rendered, and never travel in
 # a URL path or query string.
 SECRET_RENDER = re.compile(r'\{\{[^}]*\b(?:password|password_hash|session_id|token)\b[^}]*\}\}', re.I)
@@ -1065,6 +1089,7 @@ def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str
     errors.extend(scoped_style_errors(current))
     errors.extend(locale_parity_errors(current))
     errors.extend(button_rank_errors(current))
+    errors.extend(settings_form_errors(current))
     errors.extend(retired_artifact_errors(current))
     errors.extend(hr_boundary_errors(current))
     errors.extend(toolbar_errors(current))

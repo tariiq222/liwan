@@ -24,6 +24,10 @@ Storybook هو فهرس المكونات الملزم، وقاعدة ما يُش
 | محولات الرسوم | `apps/web/app/components/charts/ChartContainer.vue` (قصة: `apps/web/stories/charts/ChartContainer.stories.ts`), `apps/web/app/components/charts/ChartLegendContent.vue`, `apps/web/app/components/charts/ChartStyle.vue`, `apps/web/app/components/charts/ChartTooltipContent.vue` | Unovis وتوكنات الرسم المشتقة من الهوية |
 | الشعار المعتمد | `packages/ui/app/components/shared/layout/BrandWordmark.vue` (قصة: `apps/web/stories/shared/BrandWordmark.stories.ts`) | علامة LiwanOS «الفناء المطرّز» (أربعة أقواس ومثلثات سدو في الزوايا ومعيّن سدو مدرّج) SVG بـ`currentColor` بلون `text-primary` (بيضاء عند `inverted`) مع «نظام ليوان» أو `LiwanOS` من `brand.name`؛ دون 24px بالسُّمك الأثقل؛ `markOnly` للعلامة وحدها |
 | تذييل إجراءات النماذج | `packages/ui/app/components/shared/form/FormActions.vue` (قصة: `apps/web/stories/shared/FormActions.stories.ts`) | HTML form association وVue Teleport إلى تذييل `SharedCreatePanel`؛ نفس الأزرار الأصلية، بلا وصفة ألوان جديدة |
+| غلاف حقل النموذج | `packages/ui/app/components/shared/form/FormField.vue` (قصة: `apps/web/stories/shared/FormField.stories.ts`) | `UFormField` مع ثلاثة سلوكات ثابتة: الحقل المطلوب يضع `aria-required="true"` على عنصره، والخطأ الحي يظهر بعد مغادرة الحقل أو بعد محاولة الحفظ (`submitted`) لا أثناء الكتابة، و`name` يجعل الحقل هدفًا لرابط ملخص الأخطاء (`id="field-<name>"` و`data-field`). كل نصه خصائص وفتحات | `UFormField` |
+| حقل مبلغ | `packages/ui/app/components/shared/form/MoneyField.vue` (قصة: `apps/web/stories/shared/MoneyField.stories.ts`) | الرقم في `UInput dir="ltr"` بلوحة `inputmode="decimal"` (أو `numeric` مع `whole` للمبلغ الصحيح)، والوحدة من الخاصية `unit` بجانب الصندوق لا في فتحة `#trailing` فلا تتراكب مع الرقم في RTL ولا يقرؤها قارئ الشاشة من مكانها (`aria-hidden`) بل تُضاف إلى تسمية الحقل نصًا مخفيًا بصريًا (`unitLabel` للاسم المنطوق)، والفتحة `#after` لعنصر بعد الوحدة (زر إزالة سطر مثلًا). يغني عن أي `<span>` عملة يدوي داخل الحقل (يمنعه فحص `ui_policy`) | `SharedFormField`, `UInput` |
+| قائمة مبالغ | `packages/ui/app/components/shared/form/MoneyListField.vue` (قصة: `apps/web/stories/shared/MoneyListField.stories.ts`) | مبلغ واحد في كل سطر: كل سطر `SharedMoneyField` بتسميته (`rowLabel` ورقمه) وخطئه (`errors[i]`)، وخطأ القائمة (`error`: العدد والترتيب) تحت الأسطر ولا يظهر إلا بعد محاولة الحفظ (`submitted`)، وإضافة (`max`) وإزالة (`min`) بزرّين بأيقونة ونص، والسطر الجديد يأخذ التركيز. يحل محل حقل المبالغ المفصولة بفواصل | `SharedMoneyField`, `UButton` |
+| ملخص أخطاء النموذج | `packages/ui/app/components/shared/form/ErrorSummary.vue` (قصة: `apps/web/stories/shared/ErrorSummary.stories.ts`) | أعلى النموذج بعد محاولة حفظ فاشلة: عنوان وسطر برابط لكل خطأ ينقل التركيز إلى أول عنصر غير صالح في حقله (`focusFormField` في `packages/ui/app/utils/formErrors.ts`، ويبحث داخل أقرب `form` وإلا في المستند)، والصفحة تستدعي `focus()` المكشوف مرة واحدة بعد الرفض. لا يُرسم شيء بلا أخطاء | `<section tabindex="-1">` |
 
 ## الغلاف والتنقل
 
@@ -89,6 +93,54 @@ Storybook هو فهرس المكونات الملزم، وقاعدة ما يُش
 | `packages/ui/app/components/shared/data/StatusBadge.vue` | `apps/web/stories/shared/StatusBadge.stories.ts` | `UBadge` بلون `STATUS_COLOR` (محايد/معلومة/تحذير/نجاح/خطأ/أساسي للمدير فقط) والنوع الافتراضي `subtle` (`outline` للأزرار لا للشارات) ونص ≥ 12px؛ الدلالة في DESIGN.md §2 «الشارات والحالات»؛ الخرائط تبقى في ملفات التطبيقات (`projectStatusBadge`، `taskStateBadge`، `deadlineTone`، `accessStateBadge`، `hrAccessBadge`، `subscriptionStateBadge`، `lifecycleBadge`، `orderPaymentBadge`/`orderFulfillmentBadge`، `invoiceStatusBadge`، `customerDisplayBadge`، `operationStatusBadge`، `paymentAttemptBadge`) |
 | `packages/ui/app/components/shared/layout/RouteTabs.vue` | `apps/web/stories/shared/RouteTabs.stories.ts` | `UButton` روابط، `UIcon`؛ `variant="underline"` (الافتراضي: `routeTabsStripClass`/`routeTabClass`) أو `variant="pill"` (شريط مستدير بارتفاع 36px: `routeTabsPillStripClass`/`routeTabPillClass`، التبويب الحالي حبّة بصبغة أساسية، تمرير أفقي في الضيق)، و`aria-current="page"` للقسم الحالي |
 | `packages/ui/app/components/shared/layout/SettingsPage.vue` | `apps/web/stories/shared/SettingsPage.stories.ts` | `SharedPageContainer` وأنماط `.liwan-settings-*` العامة، و`provideSettingsSave` لتسجيل بطاقات الصفحة، و`SharedSettingsSaveBar` بعد المحتوى |
+
+## الصفحات المرجعية لكل نوع صفحة
+
+صفحة مرجعية واحدة معتمدة لكل نوع صفحة. تُقاس عليها كل صفحة من النوع نفسه عند فحص التطابق، ولا تُستبدل إلا بقرار المالك. السجل هنا يحفظ اسم النمط ومسار المرجع وقواعده؛ القواعد نفسها يملكها [DESIGN.md](../../DESIGN.md) ولا تنسخ هنا إلا موجزة.
+
+| نوع الصفحة | اسم النمط | الصفحة المرجعية | الحالة |
+| --- | --- | --- | --- |
+| إعدادات | بطاقات قيم بحفظ واحد للصفحة | `apps/web/app/pages/settings/company/index.vue` | معتمدة من المالك؛ اللقطة معلّقة |
+
+### إعدادات: بطاقات قيم بشريط حفظ واحد
+
+**المرجع:** `apps/web/app/pages/settings/company/index.vue`. منطق النماذج في البطاقات لا في الصفحة: تحمّل الصفحة بياناتها وتركّب `SharedSettingsPage` ثم بطاقات كل واحدة تملك حالتها.
+
+**ما تفوّضه إليه الصفحة:**
+
+| الدور | المكوّن أو الملف |
+| --- | --- |
+| غلاف الصفحة: يقدّم سجل الحفظ الواحد ويرسم الشريط عند الحاجة | `SharedSettingsPage` (`packages/ui/app/components/shared/layout/SettingsPage.vue`) |
+| بطاقة قيم بمعرّف ثابت وحالة محفوظ/غير محفوظ/تعارض/فشل، تسجّل نفسها في السجل | `SharedSettingsCard` (`packages/ui/app/components/shared/layout/SettingsCard.vue`) |
+| مسودة البطاقة والمقارنة والحفظ وتعارض 409 (في `apps/web` فقط؛ صفحات `apps/vendor-admin` تملك حالتها بنفسها) | `useSettingsForm` (`apps/web/app/composables/settings/useSettingsForm.ts`)، يغذي `v-bind="state"` على البطاقة |
+| سجل الحفظ المشترك وتركيز أول حقل خاطئ بعد فشل | `useSettingsSave` (`packages/ui/app/composables/useSettingsSave.ts`) |
+| شريط الحفظ الوحيد: عدد التغييرات، حفظ الكل، تراجع الكل | `SharedSettingsSaveBar` (`packages/ui/app/components/shared/layout/SettingsSaveBar.vue`) |
+| أقسام الصفحة الطويلة وقائمتها اللاصقة | `SharedSettingsSection` (`packages/ui/app/components/shared/layout/SettingsSection.vue`) |
+
+لا يوجد `SharedSettingsBaseCard` في الكود، فلا يُذكر في هذا النمط ولا يُنشأ لهذا الغرض.
+
+**القواعد التي يجسّدها النمط، وسطر `DESIGN.md` المالك لكل منها:**
+
+| القاعدة | السطر |
+| --- | --- |
+| الصفحة قالب «إعدادات» `SharedSettingsPage`: بطاقات بمعرّفات ثابتة، والقوائم الطويلة بطاقات معاينة | `DESIGN.md:342` |
+| كل صفحة إعدادات صفحة واحدة من بطاقات بمعرّف ثابت، والقائمة الفرعية تنتقل إلى البطاقة وتتبع التمرير | `DESIGN.md:241` |
+| كل بطاقة قيم `SharedSettingsCard` وحالتها من `useSettingsForm` في `apps/web` (لوحة المورّد تملك حالتها في الصفحة، بلا قفل 409)؛ الحقول في شبكة الحقول والقرارات صفوف `SharedSettingRow` | `DESIGN.md:385` |
+| شريط حفظ واحد لكل صفحة يظهر فقط مع تغيير غير محفوظ، ويحفظ ويرجع كل البطاقات المعدّلة؛ لا حفظ تلقائي لكل حقل | `DESIGN.md:385` |
+| خطأ الحفظ داخل البطاقة لا في تنبيه منبثق وحده، والتعارض 409 يقفل البطاقة حتى «تحميل القيم الحالية» | `DESIGN.md:385` |
+| من يملك العرض فقط يرى الحقول نفسها معطّلة وشارة «عرض فقط» بلا شريط حفظ | `DESIGN.md:385` |
+| الصفحة الطويلة تُقسَّم بـ`SharedSettingsSection` وقائمة أقسام لاصقة من 1100px عند أكثر من قسمين | `DESIGN.md:385` |
+| من لا يملك أي جزء يرى `SharedForbiddenState` | `DESIGN.md:384` |
+| أثناء التحميل أو الفشل يبقى هدف المعرّف (`liwan-settings-anchor`) في مكانه فيعمل الرابط المباشر | من كود المرجع، لا سطر مالك في `DESIGN.md` |
+| قوائم القيم صفوف تُحفظ كل واحد وحده، خارج شريط الحفظ | `DESIGN.md:386` |
+
+**اللقطة:** معلّقة. تؤخذ من خادم التطوير لـ`apps/web` (صفحة `/settings/company`) في الوضعين بالعربية، لا من لوحة المورّد `apps/vendor-admin`. المسار المتوقع لها يُسجَّل هنا عند التقاطها.
+
+**الانحرافات المعروفة وقت التسجيل (2026-11-24):**
+
+| الصفحة | الحالة |
+| --- | --- |
+| `apps/vendor-admin/app/pages/ai-billing-settings.vue`، `billing-settings.vue`، `ai-provider.vue` | منقولة إلى `SharedSettingsPage` و`SharedSettingsCard`. حالة بطاقاتها من حالة الصفحة نفسها (مسودة ومقارنة وحفظ) لا من `useSettingsForm`، لأن `apps/vendor-admin` لا يستورد من `apps/web` (القاعدة VA1)؛ وليس فيها قفل تعارض 409 على البطاقة: الفشل يظهر في البطاقة نفسها وبعد إعادة التحميل تُقارن القيم من جديد |
 
 ## المشاريع والمهام
 
@@ -251,7 +303,7 @@ Storybook هو فهرس المكونات الملزم، وقاعدة ما يُش
 | `apps/vendor-admin/app/components/vendor/OwnerOnlyHint.vue` | نص قصير لحساب يملك واحدة فقط من صلاحيتين يحتاجهما إجراء يبقى لمالك المنصة | `UAlert` |
 | `apps/vendor-admin/app/components/vendor/PlanForm.vue` | نموذج الباقة: أربع بطاقات ثم المراجعة، والإجراءات في تذييل اللوحة | `SharedEmptyState`, `SharedFormActions`, `SharedFormSection`, `SharedUnsavedChanges`, `UAlert`, `UButton`, `UCheckbox`, `UFormField`, `UInput`, `USelect`, `UTextarea`, `VendorCapacityLimitsEditor`, `VendorFormSubsection`, `VendorLimitControl`, `VendorPriceListEditor` |
 | `apps/vendor-admin/app/components/vendor/PolicyComparison.vue` | مقارنة إعدادات المساحة المطلوبة بالمرصودة صفًا صفًا مع حالة كل صف | `SharedEmptyState`, `SharedStatusBadge` |
-| `apps/vendor-admin/app/components/vendor/PriceListEditor.vue` | محرر قائمة الأسعار | `SharedEmptyState`, `UButton`, `UFormField`, `UInput`, `USelect` |
+| `apps/vendor-admin/app/components/vendor/PriceListEditor.vue` | محرر قائمة الأسعار؛ مبلغ كل سطر `SharedMoneyField` بوحدة الريال | `SharedEmptyState`, `SharedMoneyField`, `UButton`, `UFormField`, `USelect` |
 | `apps/vendor-admin/app/components/vendor/ProvisioningSteps.vue` | مراحل تجهيز مساحة العمل قائمة مرتبة: منجزة وحالية وقادمة | `UIcon` |
 | `apps/vendor-admin/app/components/vendor/StatusStrip.vue` | شريط الحالة المضغوط في صفحة اليوم: أعداد تفتح القوائم التي تعدّها | `NuxtLink` |
 | `apps/vendor-admin/app/components/vendor/SubscriptionSummary.vue` | ملخص اشتراك العميل والطلب المعلّق ومساحة لإجراءاته | `SharedPropertiesPanel`, `SharedPropertyRow`, `SharedStatusBadge`, `UAlert` |
