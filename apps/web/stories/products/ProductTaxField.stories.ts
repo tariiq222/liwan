@@ -9,7 +9,7 @@ const meta = {
   component: ProductTaxField,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/components/products/ProductForm.vue:139', 'ضريبة المنتج: اختيار واحد من ضرائب المنشأة بالاسم والنسبة، والمعطّلة تنبّه أنها ستُفعَّل عند اختيارها. المنتج بأكثر من ضريبة يعرضها للقراءة ولا تُستبدل إلا باختيار ضريبة.'),
+    ...storyContext('apps/web/app/components/products/ProductForm.vue:142', 'ضريبة المنتج: اختيار واحد من ضرائب المنشأة بالاسم والنسبة، والمعطّلة تنبّه أنها ستُفعَّل عند اختيارها. المنتج بأكثر من ضريبة يعرضها للقراءة ولا تُستبدل إلا باختيار ضريبة.'),
   },
   args: { modelValue: null, choices: taxChoices },
   render: args => ({

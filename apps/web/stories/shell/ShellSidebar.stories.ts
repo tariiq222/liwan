@@ -17,7 +17,7 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 const components = { ShellSidebar, ShellNavSection, ShellOrgCard, ShellCoreApps, ShellAppTile }
-const context = storyContext('apps/web/app/components/shell/AppSidebar.vue:48')
+const context = storyContext('apps/web/app/components/shell/AppSidebar.vue:55')
 const footer = `<template #footer><ShellNavSection label="روابط عامة" :items="footerRows" /></template>`
 
 export const Global: Story = {

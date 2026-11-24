@@ -21,5 +21,5 @@ const render = (open: boolean) => () => ({
   template: '<div class="liwan-shell" style="padding: 24px"><AssistantButton /></div>',
 })
 
-export const Closed: Story = { name: 'مغلق', parameters: storyContext('apps/web/app/components/shell/AppTopBar.vue:57'), loaders: [at('/tasks')], render: render(false) }
-export const Open: Story = { name: 'مفتوح', parameters: storyContext('apps/web/app/components/shell/AppTopBar.vue:57', 'حلقة بسماكة 2px وaria-expanded.'), loaders: [at('/tasks')], render: render(true) }
+export const Closed: Story = { name: 'مغلق', parameters: storyContext('apps/web/app/components/shell/AppTopBar.vue:55'), loaders: [at('/tasks')], render: render(false) }
+export const Open: Story = { name: 'مفتوح', parameters: storyContext('apps/web/app/components/shell/AppTopBar.vue:55', 'حلقة بسماكة 2px وaria-expanded.'), loaders: [at('/tasks')], render: render(true) }

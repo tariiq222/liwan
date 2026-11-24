@@ -818,5 +818,30 @@ class StaticGateTest(unittest.TestCase):
     def test_the_real_list_names_every_contract_template(self):
         self.assertEqual([path for path in policy.CONTRACT_TEMPLATES if path not in policy.STORYBOOK_COMPONENTS], [])
 
+    def lock_snapshot(self, override="3.3.1", declared="3.2.2", copies=("node_modules/tailwind-variants",)):
+        packages = {"node_modules/@nuxt/ui": {"dependencies": {"tailwind-variants": declared}}}
+        packages.update({path: {"version": "3.3.1"} for path in copies})
+        return {"package.json": json.dumps({"overrides": {"tailwind-variants": override}}),
+                policy.LOCKFILE: json.dumps({"packages": packages})}
+
+    def test_tailwind_variants_override_stays_while_nuxt_ui_pins_older(self):
+        self.assertEqual(policy.override_errors(self.lock_snapshot()), [])
+        self.assertEqual(policy.override_errors(self.lock_snapshot(declared="^3.4.0")), [])
+        self.assertEqual(policy.override_errors({"package.json": "{}"}), [])
+
+    def test_tailwind_variants_override_must_go_when_nuxt_ui_accepts_it(self):
+        for declared in ("3.3.1", "^3.2.2", "~3.3.0", "^3.3.1"):
+            errors = policy.override_errors(self.lock_snapshot(declared=declared))
+            self.assertEqual(len(errors), 1, declared)
+            self.assertIn("remove the tailwind-variants override", errors[0])
+        self.assertEqual(policy.override_errors(self.lock_snapshot(declared="~3.2.2")), [])
+        self.assertEqual(policy.override_errors(self.lock_snapshot(declared="^2.9.0")), [])
+
+    def test_second_tailwind_variants_copy_fails(self):
+        errors = policy.override_errors(self.lock_snapshot(
+            copies=("node_modules/tailwind-variants", "node_modules/@nuxt/ui/node_modules/tailwind-variants")))
+        self.assertEqual(len(errors), 1)
+        self.assertIn("more than one tailwind-variants copy", errors[0])
+
 if __name__ == '__main__':
     unittest.main()

@@ -6,7 +6,7 @@ import { agentsBlock } from './crmDashboardFixtures'
 const meta = {
   title: 'CRM/CrmDashboardAgentTable',
   component: CrmDashboardAgentTable,
-  parameters: storyContext('apps/web/app/pages/crm/index.vue:35', 'جدول المسؤولين: المفتوح والمستحق والمباع لكل مسؤول.'),
+  parameters: storyContext('apps/web/app/pages/crm/index.vue:100', 'جدول المسؤولين: المفتوح والمستحق والمباع لكل مسؤول.'),
   args: { agents: agentsBlock },
 } satisfies Meta<typeof CrmDashboardAgentTable>
 export default meta

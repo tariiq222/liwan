@@ -7,7 +7,7 @@ import { opportunities } from './crmDashboardFixtures'
 const meta = {
   title: 'CRM/CrmDashboardDueList',
   component: CrmDashboardDueList,
-  parameters: storyContext('apps/web/app/pages/crm/index.vue:63', 'مكالمات المسؤول المستحقة الآن: الهاتف رابط tel: و«سجّل النتيجة» يفتح نموذج المكالمة داخل الصف.'),
+  parameters: storyContext('apps/web/app/pages/crm/index.vue:75', 'مكالمات المسؤول المستحقة الآن: الهاتف رابط tel: و«سجّل النتيجة» يفتح نموذج المكالمة داخل الصف.'),
   args: { items: opportunities, total: 2, viewAllTo: '/crm/opportunities?due=1', now: Date.parse('2026-10-28T12:00:00Z'), canRecord: true, outcomes, packages, lostReasons },
 } satisfies Meta<typeof CrmDashboardDueList>
 export default meta

@@ -6,7 +6,7 @@ import { storyContext } from '../support/context'
 // The same step serves the invitation dialog and the «give an account» dialog (users/new, with ?employee_id=).
 const meta = {
   title: 'Access/ExistingAccountConfirm', component: ExistingAccountConfirm,
-  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/pages/settings/team/users/new.vue:169') },
+  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/pages/settings/team/users/new.vue:165') },
   args: { name: 'نورة العتيبي', homeCompany: { id: 2, name: 'فرع الرياض' } },
   render: args => ({ components: { ExistingAccountConfirm, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer><ExistingAccountConfirm v-bind="args" /></PageContainer></main>' }),
 } satisfies Meta<typeof ExistingAccountConfirm>

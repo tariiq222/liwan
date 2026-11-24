@@ -31,7 +31,7 @@ const creditNote = { id: 'note1', invoice_id: invoice.id, customer_id: 'customer
 const plan = { id: 'plan2', name: 'New plan', included_bundle_revision_ids: ['bundle2'], optional_bundle_revision_ids: [] as string[], trial_days: 0, prices: [{ cadence: { unit: 'month', count: 1 }, amount: money }], included_users: 3, included_storage_mb: 5120 }
 const attempt = { id: 'attempt1', order_id: order.id, invoice_id: invoice.id, status: 'pending', amount: money, created_at: '2026-10-04T12:34:00Z', provider_ref: 'private-provider-reference', redirect_url: 'https://private.example/pay' }
 
-async function page(name: string, options: { path?: string; tab?: string; tenantId?: string; query?: Record<string, string>; grants?: string[]; subscription?: unknown; orderId?: string | null; attempts?: unknown[]; attemptsError?: unknown; attemptsLoading?: boolean; hydrated?: boolean; tenantError?: unknown; adjustments?: unknown[] } = {}) {
+async function page(name: string, options: { path?: string; tab?: string; tenantId?: string; query?: Record<string, string>; grants?: string[]; subscription?: unknown; orderId?: string | null; attempts?: unknown[]; attemptsError?: unknown; attemptsLoading?: boolean; hydrated?: boolean; tenantError?: unknown; adjustments?: unknown[]; plansError?: unknown; bundlesError?: unknown } = {}) {
   const filename = resolve(import.meta.dirname, '..', name)
   const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
   const script = stripImports(compileScript(descriptor, { id: 'admin-repairs' }).content).replaceAll('import.meta.client', 'false').replace('export default', 'return')
@@ -62,7 +62,7 @@ async function page(name: string, options: { path?: string; tab?: string; tenant
     useRoute: () => ({ params: { id: options.tenantId && name.startsWith('tenants/') ? options.tenantId : 'customer1' }, path: options.path ?? '/customers/customer1', query: { returnTo: '/customers?state=active', ...(options.tab ? { tab: options.tab } : {}), ...options.query }, fullPath: '/customers/customer1?returnTo=%2Fcustomers' }),
     useVendorContext: () => ({ sharedOnboardingEnabled: Vue.ref(false), can: (grant: string) => (options.grants ?? ['vendor.read', 'vendor.billing.manage', 'vendor.subscriptions.manage']).includes(grant) }),
     useVendorSubscriptions: () => api, useCopyLink: () => ({ copy: vi.fn(), outcomeFor: () => null }),
-    useVendorCommercial: () => ({ listPlans: async () => ({ items: [plan] }), listBundles: async () => ({ items: [] }), releases: async () => [] }),
+    useVendorCommercial: () => ({ listPlans: async () => { if (options.plansError) throw options.plansError; return { items: [plan] } }, listBundles: async () => { if (options.bundlesError) throw options.bundlesError; return { items: [] } }, releases: async () => [] }),
     useVendorApi: () => ({ request: async (path: string) => path === 'catalog' ? { items: [] } : { tenants: 1, available_operations: [] } }),
     useTenantRecentOperations: async () => ({ data: Vue.ref([]), error: Vue.ref(null), pending: Vue.ref(false), refresh: vi.fn() }),
     useWorkspaceProvisioning: () => Vue.reactive({ provisioning: null, error: null, pending: false, loginUrl: null, failed: false, stage: 'pending', pollingPaused: false, refreshNow: vi.fn() }),
@@ -240,6 +240,13 @@ describe('customer detail repairs', () => {
     await p.state.place(); expect(p.api.placeOrder).not.toHaveBeenCalled()
     finish(); await pending
     expect(p.state.quote.value.id).toBe('fresh-quote')
+  })
+  it.each([['plans', { plansError: { status: 503 } }], ['bundles', { bundlesError: { status: 503 } }]])('shows the retryable error state, not an empty form, when the %s catalog cannot be read', async (_name, options) => {
+    const p = await page('customers/[id]/change.vue', { subscription: { ...subscription, pending_order: null }, ...options })
+    const { html, captured } = await p.rendered()
+    expect(html).toContain('ERROR')
+    expect(captured.some(c => c.name === 'USelect')).toBe(false)
+    expect(captured.find(c => c.name === 'SharedPageState')?.props.onRetry).toBeTypeOf('function')
   })
   it('preserves applied subscription change requests', async () => {
     const applied = { plan_revision_id: 'plan1', bundle_revision_ids: ['bundle1'], cadence: { unit: 'year', count: 1 }, extra_branch_count: 2, entitlement: { features: { 'users.limit': 3, 'storage.limit_mb': 5120 } } }

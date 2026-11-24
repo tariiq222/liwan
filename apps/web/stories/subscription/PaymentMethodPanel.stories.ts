@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import PaymentMethodPanel from '../../app/components/subscription/PaymentMethodPanel.vue'
 import { storyContext } from '../support/context'
 const card = { brand: 'visa', last_four: '4242', exp_month: 3, exp_year: 2030, status: 'active' }
-const meta = { title: 'Subscription/PaymentMethodPanel', component: PaymentMethodPanel, parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/subscription/index.vue:185') }, args: { card, autoRenew: true, now: new Date('2026-11-14T09:00:00Z') } } satisfies Meta<typeof PaymentMethodPanel>
+const meta = { title: 'Subscription/PaymentMethodPanel', component: PaymentMethodPanel, parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/subscription/index.vue:192') }, args: { card, autoRenew: true, now: new Date('2026-11-14T09:00:00Z') } } satisfies Meta<typeof PaymentMethodPanel>
 export default meta
 type Story = StoryObj<typeof meta>
 export const ActiveAutoRenewOn: Story = {}

@@ -14,7 +14,7 @@ const meta = {
   component: CustomerFieldsCard,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/pages/settings/apps/customers/index.vue:34', 'بطاقة حقول العملاء: يعرّف المسؤول حقول شركته على محرر الحقول المخصصة المشترك. حذف حقل أو خيار يحمله عملاء يسأل أولًا بعدد القيم عند كل حقل وخيار.'),
+    ...storyContext('apps/web/app/pages/settings/apps/customers/index.vue:36', 'بطاقة حقول العملاء: يعرّف المسؤول حقول شركته على محرر الحقول المخصصة المشترك. حذف حقل أو خيار يحمله عملاء يسأل أولًا بعدد القيم عند كل حقل وخيار.'),
     msw: { handlers: { api: [manage, save] } },
   },
   args: { settings, canEdit: true, reloadSettings: async () => ({ ...settings, revision: 4 }) },

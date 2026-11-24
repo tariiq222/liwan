@@ -6,7 +6,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shared/FormActions',
   component: FormActions,
-  parameters: storyContext('apps/web/app/components/pmo/tasks/TaskCreateForm.vue:285'),
+  parameters: storyContext('apps/web/app/components/pmo/tasks/TaskCreateForm.vue:293'),
 } satisfies Meta<typeof FormActions>
 export default meta
 type Story = StoryObj<typeof meta>

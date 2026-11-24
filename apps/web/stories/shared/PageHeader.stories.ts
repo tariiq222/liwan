@@ -25,7 +25,7 @@ type Story = StoryObj<typeof meta>
 
 export const WithActions: Story = {
   name: 'مع إجراءات الصفحة',
-  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:49'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:34'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
@@ -35,7 +35,7 @@ export const WithActions: Story = {
 
 export const WithKpiToggle: Story = {
   name: 'مع زر المؤشرات',
-  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:49', '`kpi-toggle` يرسم قبل الإجراءات زر أيقونة دائريًا واحدًا يخفي شريط المؤشرات `SharedKpiStrip` أو يظهره؛ الاختيار عام ويُحفظ في الكوكي `liwan-kpis`.'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:34', '`kpi-toggle` يرسم قبل الإجراءات زر أيقونة دائريًا واحدًا يخفي شريط المؤشرات `SharedKpiStrip` أو يظهره؛ الاختيار عام ويُحفظ في الكوكي `liwan-kpis`.'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
@@ -47,7 +47,7 @@ export const WithKpiToggle: Story = {
 // page passes nothing; a title alone is the smallest header.
 export const TitleOnly: Story = {
   name: 'عنوان فقط',
-  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:40', 'أصغر ترويسة: ترويسة مفتوحة بلا بطاقة، ببلاطة التطبيق من الغلاف وعنوان واحد وخط فاصل، بلا وصف ولا وسوم ولا إجراءات.'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:41', 'أصغر ترويسة: ترويسة مفتوحة بلا بطاقة، ببلاطة التطبيق من الغلاف وعنوان واحد وخط فاصل، بلا وصف ولا وسوم ولا إجراءات.'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => {
@@ -61,7 +61,7 @@ export const TitleOnly: Story = {
 // Tags are short facts about the page's subject (state, count, owner) drawn inline after the title; a tag with `to` is a link.
 export const WithTags: Story = {
   name: 'وسوم بعد العنوان',
-  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:40', 'الوسوم: حالة السجل وعدد القائمة وصاحبه تظهر بعد العنوان في السطر نفسه كشارات ناعمة، والوسم الذي له `to` رابط.'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:41', 'الوسوم: حالة السجل وعدد القائمة وصاحبه تظهر بعد العنوان في السطر نفسه كشارات ناعمة، والوسم الذي له `to` رابط.'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => {
@@ -81,7 +81,7 @@ export const WithTags: Story = {
 // shell's published ancestors come before it. A step that only links back to this same page is dropped.
 export const WithBack: Story = {
   name: 'مسار فوق العنوان',
-  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:40'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:41'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
@@ -93,7 +93,7 @@ export const WithBack: Story = {
 // stays quiet and the reader still sees where the page sits.
 export const TrailUnderTitle: Story = {
   name: 'مسار الأسلاف فوق العنوان',
-  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:49', 'المسار من الغلاف: ينشر الغلاف سلسلة الأسلاف ويستقبلها رأس الصفحة ويرسمها فوق العنوان، ويُسقط العنوان الحالي والخطوة التي تشير إلى الصفحة نفسها.'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:34', 'المسار من الغلاف: ينشر الغلاف سلسلة الأسلاف ويستقبلها رأس الصفحة ويرسمها فوق العنوان، ويُسقط العنوان الحالي والخطوة التي تشير إلى الصفحة نفسها.'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => {
@@ -111,7 +111,7 @@ export const TrailUnderTitle: Story = {
 
 export const TitleAndDescription: Story = {
   name: 'عنوان ووصف',
-  parameters: storyContext('apps/web/app/pages/account/settings.vue:47'),
+  parameters: storyContext('apps/web/app/pages/account/settings.vue:31'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
@@ -122,7 +122,7 @@ export const TitleAndDescription: Story = {
 // The open header over the page toolbar: filters, quick choices, the scope and view switches and the active filter chips.
 export const UnifiedHeaderWithFilters: Story = {
   name: 'الترويسة والفلاتر الموحدة (شامل المكونات)',
-  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:49', 'الترويسة الموحدة لجميع الصفحات: عنوان ووصف مع زر الرجوع، إجراءات الصفحة الأساسية، وشريط الفلاتر المدمج (بحث، منسدلة متعددة، خيارات سريعة، نطاق الحالات، تبديل العرض، وشرائح التصفية النشطة).'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:34', 'الترويسة الموحدة لجميع الصفحات: عنوان ووصف مع زر الرجوع، إجراءات الصفحة الأساسية، وشريط الفلاتر المدمج (بحث، منسدلة متعددة، خيارات سريعة، نطاق الحالات، تبديل العرض، وشرائح التصفية النشطة).'),
   render: () => ({
     components: { FilterBar, FilterChip, PageContainer, PageHeader, RecordSection, SegmentedControl, ViewSwitch },
     setup: () => {
@@ -226,7 +226,7 @@ export const UnifiedHeaderWithFilters: Story = {
 // inline end in the application's button colour, and the views tabs on the 1px divider (the active one underlined 2.5px with its count).
 export const WithTaglineAndTabs: Story = {
   name: 'وصف وتبويبات العروض',
-  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:49', 'الترويسة المفتوحة كما في النموذج: مسار، بلاطة 64px بلون التطبيق، العنوان بخط Rubik وتحته سطر وصف، الإجراءات عند نهاية السطر بلون زر التطبيق، وفي الأسفل تبويبات العروض فوق الخط الفاصل (الفتحة `tabs`).'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:34', 'الترويسة المفتوحة كما في النموذج: مسار، بلاطة 64px بلون التطبيق، العنوان بخط Rubik وتحته سطر وصف، الإجراءات عند نهاية السطر بلون زر التطبيق، وفي الأسفل تبويبات العروض فوق الخط الفاصل (الفتحة `tabs`).'),
   render: () => ({
     components: { PageContainer, PageHeader, RouteTabs },
     setup: () => {
@@ -244,7 +244,7 @@ export const WithTaglineAndTabs: Story = {
 
 export const HiddenTitle: Story = {
   name: 'عنوان يملكه الإطار',
-  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:40', 'داخل إطار مشروع يملك العنوان: `hideTitle` يرسم الإجراءات وحدها ويبقى اسم الصفحة مسجلًا للغلاف.'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:41', 'داخل إطار مشروع يملك العنوان: `hideTitle` يرسم الإجراءات وحدها ويبقى اسم الصفحة مسجلًا للغلاف.'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),

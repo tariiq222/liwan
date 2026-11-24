@@ -16,7 +16,7 @@ type Story = StoryObj<typeof meta>
 
 export const CustomerList: Story = {
   name: 'فاتورة العميل (قائمة وإجماليات)',
-  parameters: storyContext('apps/web/app/pages/subscription/invoices/[id].vue:16'),
+  parameters: storyContext('apps/web/app/pages/subscription/invoices/[id].vue:53'),
   render: () => ({
     components: { InvoiceLines },
     setup() {

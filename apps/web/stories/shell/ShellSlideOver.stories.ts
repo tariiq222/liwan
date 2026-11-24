@@ -7,7 +7,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shell/ShellSlideOver',
   component: ShellSlideOver,
-  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/components/shell/SlideOverHost.vue:70') },
+  parameters: { layout: 'fullscreen', ...storyContext('apps/web/app/components/shell/SlideOverHost.vue:55') },
   args: { open: true, id: 'slide-over-tasks', title: 'مهامي', closeLabel: 'إغلاق', allTo: '/my-tasks', allLabel: 'افتح الكل' },
   render: args => ({
     components: { ShellSlideOver, ShellPanelRow, ShellAppTile }, setup: () => ({ args }),

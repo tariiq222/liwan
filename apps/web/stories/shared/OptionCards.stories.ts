@@ -8,7 +8,7 @@ const meta = {
   component: OptionCards,
   parameters: {
     a11y: { test: 'error' },
-    ...storyContext('apps/web/app/components/settings/ProjectSettingsForm.vue:216', 'خيارات موصوفة، تعمل كمجموعة راديو أصلية وتبيّن سبب تعطيل الخيار.'),
+    ...storyContext('apps/web/app/components/settings/ProjectSettingsForm.vue:220', 'خيارات موصوفة، تعمل كمجموعة راديو أصلية وتبيّن سبب تعطيل الخيار.'),
   },
   args: {
     label: 'ضبط التغيير',

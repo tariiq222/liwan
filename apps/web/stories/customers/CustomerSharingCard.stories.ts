@@ -14,7 +14,7 @@ const meta = {
   component: CustomerSharingCard,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/pages/settings/apps/customers/index.vue:31', 'بطاقة مشاركة العملاء: عملاء كل فرع أو عملاء المنشأة كلها، مع تنبيه نتائج المشاركة قبل الاختيار. يُحفظ الإعداد مع رقم المراجعة، ويبقى القديم إن رفض الخادم النقل.'),
+    ...storyContext('apps/web/app/pages/settings/apps/customers/index.vue:32', 'بطاقة مشاركة العملاء: عملاء كل فرع أو عملاء المنشأة كلها، مع تنبيه نتائج المشاركة قبل الاختيار. يُحفظ الإعداد مع رقم المراجعة، ويبقى القديم إن رفض الخادم النقل.'),
     msw: { handlers: { api: [manage, save] } },
   },
   args: { settings, canEdit: true, reloadSettings: async () => ({ ...settings, revision: 4 }) },

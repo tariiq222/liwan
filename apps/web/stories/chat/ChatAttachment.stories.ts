@@ -19,7 +19,7 @@ type Story = StoryObj<typeof meta>
 
 export const InMessage: Story = {
   name: 'داخل رسالة',
-  parameters: storyContext('apps/web/app/components/chat/MessageHistory.vue:306'),
+  parameters: storyContext('apps/web/app/components/chat/MessageHistory.vue:370'),
   render: () => ({
     components: { ChatAttachment },
     setup: () => ({ attachments }),
@@ -29,7 +29,7 @@ export const InMessage: Story = {
 
 export const InConversationInfo: Story = {
   name: 'في معلومات المحادثة',
-  parameters: storyContext('apps/web/app/components/chat/ChatInfoPanel.vue:133'),
+  parameters: storyContext('apps/web/app/components/chat/ChatInfoPanel.vue:175'),
   render: () => ({
     components: { ChatAttachment, FormSection },
     setup: () => ({ attachments }),

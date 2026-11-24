@@ -25,7 +25,7 @@ const meta = {
   component: CompanyTaxCard,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/pages/settings/company/index.vue:53', 'بطاقة ضريبة المنشأة: اختيار واحد لكل الفروع بين «بدون ضريبة» و«السعر شامل الضريبة» و«الضريبة تُضاف إلى السعر»، مع مثال محسوب، وقفل طريقة السعر بعد أول قيد محاسبي، وعرض للقراءة فقط من جلسة فرع أو بلا صلاحية.'),
+    ...storyContext('apps/web/app/pages/settings/company/index.vue:58', 'بطاقة ضريبة المنشأة: اختيار واحد لكل الفروع بين «بدون ضريبة» و«السعر شامل الضريبة» و«الضريبة تُضاف إلى السعر»، مع مثال محسوب، وقفل طريقة السعر بعد أول قيد محاسبي، وعرض للقراءة فقط من جلسة فرع أو بلا صلاحية.'),
     msw: { handlers: { api: [manage, save] } },
   },
   args: { tax: tax(), vatNumber: '300000000000003', reloadTax: async () => tax({ locked: true }) },

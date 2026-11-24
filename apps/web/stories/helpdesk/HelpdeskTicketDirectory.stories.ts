@@ -29,7 +29,7 @@ const meta = {
   component: HelpdeskTicketDirectory,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/pages/helpdesk/index.vue:17', 'بطاقة الدعم في «/helpdesk»: الطابور (المفتوحة والمغلقة والكل)، والبحث والفريق والمرحلة والأولوية والمسند إليه، والفلاتر في الرابط مع حالات الفراغ والخطأ وبلا صلاحية.'),
+    ...storyContext('apps/web/app/pages/helpdesk/index.vue:34', 'بطاقة الدعم في «/helpdesk»: الطابور (المفتوحة والمغلقة والكل)، والبحث والفريق والمرحلة والأولوية والمسند إليه، والفلاتر في الرابط مع حالات الفراغ والخطأ وبلا صلاحية.'),
   },
 } satisfies Meta<typeof HelpdeskTicketDirectory>
 export default meta

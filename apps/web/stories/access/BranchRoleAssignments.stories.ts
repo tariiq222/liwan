@@ -15,7 +15,7 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 export const Inherited: Story = {
-  parameters: storyContext('apps/web/app/components/access/branches/BranchPolicyCard.vue:32'),
+  parameters: storyContext('apps/web/app/components/access/branches/BranchPolicyCard.vue:35'),
   render: args => ({ components: { BranchRoleAssignments, PageContainer }, setup: () => ({ args, branches: ref(args.modelValue) }), template: '<main class="liwan-shell-main"><PageContainer><BranchRoleAssignments v-bind="args" v-model="branches" /></PageContainer></main>' }),
 }
 export const Delegated: Story = { ...Inherited, args: { inherited: false } }

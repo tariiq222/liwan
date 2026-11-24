@@ -8,7 +8,7 @@ const meta = {
   component: ProductImageField,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/components/products/ProductForm.vue:144', 'صورة المنتج: اختيار ملف JPEG أو PNG ومعاينته قبل الحفظ، أو حذف الصورة المحفوظة. الخادم لا يعيد الملف المحفوظ فلا معاينة له، وغير المعدّلة لا تُرسل.'),
+    ...storyContext('apps/web/app/components/products/ProductForm.vue:147', 'صورة المنتج: اختيار ملف JPEG أو PNG ومعاينته قبل الحفظ، أو حذف الصورة المحفوظة. الخادم لا يعيد الملف المحفوظ فلا معاينة له، وغير المعدّلة لا تُرسل.'),
   },
   args: { modelValue: { kind: 'keep' }, stored: false },
   render: args => ({

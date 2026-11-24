@@ -6,7 +6,7 @@ import { cleanPreview, preview } from './crmImportFixtures'
 const meta = {
   title: 'CRM/CrmImportPreviewStep',
   component: CrmImportPreviewStep,
-  parameters: storyContext('apps/web/app/components/crm/imports/CrmImportFlow.vue:169', 'معاينة الاستيراد: العدّادات والصفوف غير الصالحة وأرقام الصفوف المكررة فقط.'),
+  parameters: storyContext('apps/web/app/components/crm/imports/CrmImportFlow.vue:172', 'معاينة الاستيراد: العدّادات والصفوف غير الصالحة وأرقام الصفوف المكررة فقط.'),
   args: { preview },
 } satisfies Meta<typeof CrmImportPreviewStep>
 export default meta

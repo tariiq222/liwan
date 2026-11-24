@@ -11,7 +11,7 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 export const Default: Story = {
-  parameters: storyContext('apps/web/app/pages/documents/[documentId].vue:87'),
+  parameters: storyContext('apps/web/app/pages/documents/[documentId].vue:88'),
   render: args => ({ components: { DocumentFiles, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer><DocumentFiles v-bind="args" /></PageContainer></main>' }),
 }
 
@@ -22,4 +22,4 @@ export const Locked: Story = { ...Default, args: { document, files: [{ ...files[
 export const Empty: Story = { ...Default, args: { document: { ...document, file_count: 0 }, files: [] } }
 export const EmptyReader: Story = { ...Empty, args: { files: [], document: { ...document, file_count: 0, allowed_actions: { update: false, archive: false, restore: false, upload_file: false, manage_access: false } } } }
 
-export const Personal: Story = { ...Default, args: { readonly: true }, parameters: storyContext('apps/web/app/pages/documents/self/[documentId].vue:39') }
+export const Personal: Story = { ...Default, args: { readonly: true }, parameters: storyContext('apps/web/app/pages/documents/self/[documentId].vue:40') }

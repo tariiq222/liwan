@@ -13,7 +13,7 @@ const handlers = (me: unknown, list: unknown) => ({ msw: { handlers: { api: [
 ] } } })
 const meta = {
   title: 'Access/CompanyMembers', component: CompanyMembers,
-  parameters: { layout: 'fullscreen', ...handlers(membersMe, membershipList), ...storyContext('apps/web/app/pages/settings/team/users/index.vue:132') },
+  parameters: { layout: 'fullscreen', ...handlers(membersMe, membershipList), ...storyContext('apps/web/app/pages/settings/team/users/index.vue:131') },
   args: { roles: memberRoles },
   render: args => ({ components: { CompanyMembers, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer><CompanyMembers v-bind="args" /></PageContainer></main>' }),
 } satisfies Meta<typeof CompanyMembers>

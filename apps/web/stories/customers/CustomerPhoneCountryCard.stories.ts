@@ -19,7 +19,7 @@ const meta = {
   component: CustomerPhoneCountryCard,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/pages/settings/apps/customers/index.vue:33', 'بطاقة دولة الجوال الافتراضية: قائمة بحث بكل الدول مع خيار «دولة الشركة الرئيسية» الذي يُحفظ فارغًا. للعرض فقط لا تجلب القائمة.'),
+    ...storyContext('apps/web/app/pages/settings/apps/customers/index.vue:34', 'بطاقة دولة الجوال الافتراضية: قائمة بحث بكل الدول مع خيار «دولة الشركة الرئيسية» الذي يُحفظ فارغًا. للعرض فقط لا تجلب القائمة.'),
     msw: { handlers: { api: [manage, list, save] } },
   },
   args: { settings, canEdit: true, reloadSettings: async () => ({ ...settings, revision: 4 }) },

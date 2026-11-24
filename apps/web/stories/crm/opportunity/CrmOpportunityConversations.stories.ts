@@ -16,7 +16,7 @@ const conversations = [
 const meta = {
   title: 'CRM/CrmOpportunityConversations',
   component: CrmOpportunityConversations,
-  parameters: storyContext('apps/web/app/pages/crm/opportunities/[id].vue:361', 'محادثات العملاء المرتبطة بالفرصة (جسر مع الرسائل): القناة والحالة وآخر رسالة مع رابط المحادثة في الرسائل. للقراءة فقط.'),
+  parameters: storyContext('apps/web/app/pages/crm/opportunities/[id].vue:388', 'محادثات العملاء المرتبطة بالفرصة (جسر مع الرسائل): القناة والحالة وآخر رسالة مع رابط المحادثة في الرسائل. للقراءة فقط.'),
   args: { conversations: [...conversations], total: conversations.length, onRetry: fn() },
 } satisfies Meta<typeof CrmOpportunityConversations>
 export default meta

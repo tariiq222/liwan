@@ -7,7 +7,7 @@ const meta = {
   component: SettingsListRow,
   parameters: {
     a11y: { test: 'error' },
-    ...storyContext('apps/web/app/components/crm/settings/CrmStageListCard.vue:50', 'صف في بطاقة قائمة قيم: الاسم يُعدّل في مكانه، وعناصر الصف الخاصة في الفتحة، ثم الحالة وزر الأرشفة أو الاستعادة.'),
+    ...storyContext('apps/web/app/components/crm/settings/CrmStageListCard.vue:59', 'صف في بطاقة قائمة قيم: الاسم يُعدّل في مكانه، وعناصر الصف الخاصة في الفتحة، ثم الحالة وزر الأرشفة أو الاستعادة.'),
   },
   args: { name: 'تم التواصل', active: true, locked: false, canEdit: true },
   render: args => ({
