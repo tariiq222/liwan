@@ -87,21 +87,25 @@ watch(() => [details.company_name, details.email] as const, ([company, email]) =
 })
 
 let slugTimer: ReturnType<typeof setTimeout> | undefined
+// Every change of the address makes the answers of the earlier ones stale: the counter is raised on each change and the
+// slug a request was sent for is kept, so a late answer for a value the visitor has left is dropped.
 let slugRequest = 0
+const currentSlug = () => details.slug.trim().toLowerCase()
 watch(() => details.slug, (value) => {
   clearTimeout(slugTimer)
+  const mine = ++slugRequest
   const slug = value.trim().toLowerCase()
   if (!slug) { slugState.value = 'idle'; return }
   if (!workspaceSlugShapeOk(slug)) { slugState.value = 'invalid'; return }
   slugState.value = 'checking'
-  // The address is checked once typing pauses; only the answer to the latest request is shown.
+  // The address is checked once typing pauses; only the answer to the latest request for the value still typed is shown.
   slugTimer = setTimeout(async () => {
-    const mine = ++slugRequest
+    const belongs = () => mine === slugRequest && slug === currentSlug()
     try {
       const answer = await request<{ result: SlugState }>('check-slug', { slug })
-      if (mine === slugRequest) slugState.value = answer.result
+      if (belongs()) slugState.value = answer.result
     } catch {
-      if (mine === slugRequest) slugState.value = 'idle'
+      if (belongs()) slugState.value = 'idle'
     }
   }, 400)
 })
@@ -183,46 +187,81 @@ async function loadRegistration() {
 
 let pollTimer: ReturnType<typeof setTimeout> | undefined
 let pollStartedAt = 0
+// Consecutive reads that did not return a signup; a successful one starts the run again.
+let statusFailures = 0
+const STATUS_FAILURE_LIMIT = 5
 onBeforeUnmount(() => { clearTimeout(pollTimer); clearTimeout(slugTimer) })
 
-/** One status read. Resolves false when there is no signup to follow (no cookie, or it expired). */
-async function readStatus(): Promise<boolean> {
+/** One status read. Resolves 'signup' while this browser is following a signup, 'none' when it holds none to follow,
+ *  'error' when the read itself failed. Only a polling read keeps retrying: a failure there is counted, and the run
+ *  ends on the delayed state rather than leaving a spinner on a page nobody is answering. */
+async function readStatus(polling = false): Promise<'signup' | 'none' | 'error'> {
   try {
     const answer = await request<{ state: Preparing; handoff_url?: string }>('status', {})
+    statusFailures = 0
     preparing.value = answer.state
-    if (answer.state === 'ready' && answer.handoff_url) {
-      window.location.assign(answer.handoff_url)
-      return true
-    }
-    if (answer.state === 'preparing' || answer.state === 'delayed') schedulePoll()
-    return true
+    // `ready` without a link means the handoff was already spent (another tab, or a link used before): the page says
+    // the workspace is ready and lets the visitor sign in from the find-workspace page instead of waiting on nothing.
+    if (answer.state === 'ready' && answer.handoff_url) window.location.assign(answer.handoff_url)
+    else if (answer.state === 'preparing' || answer.state === 'delayed') schedulePoll()
+    return 'signup'
   } catch (error) {
-    if (errorCode(error) === 'not_found') return false
-    schedulePoll()
-    return true
+    if (!polling) return errorCode(error) === 'not_found' ? 'none' : 'error'
+    statusFailures += 1
+    if (statusFailures >= STATUS_FAILURE_LIMIT) preparing.value = 'delayed'
+    // A refusal that names its wait (429) sets the next try; the countdown stays under the limit meanwhile.
+    else schedulePoll(errorSeconds(error) * 1000)
+    return 'error'
   }
 }
 
-function schedulePoll() {
+function schedulePoll(waitMs = 0) {
   clearTimeout(pollTimer)
   // Every 3 seconds for the first two minutes, then every 10 seconds.
-  const delay = Date.now() - pollStartedAt < 120_000 ? 3_000 : 10_000
-  pollTimer = setTimeout(() => { void readStatus() }, delay)
+  const delay = waitMs || (Date.now() - pollStartedAt < 120_000 ? 3_000 : 10_000)
+  pollTimer = setTimeout(() => { void readStatus(true) }, delay)
 }
 
 function startPreparing() {
   step.value = 'preparing'
   preparing.value = 'preparing'
+  statusFailures = 0
   pollStartedAt = Date.now()
-  void readStatus()
+  void readStatus(true)
 }
 
 onMounted(async () => {
-  // A browser that already completed a signup in the last 24 hours resumes its waiting screen.
+  // A browser that already completed a signup resumes its waiting screen; a read that answers anything else (no
+  // cookie, a refusal, an outage) leaves the visitor on the form they came for.
   pollStartedAt = Date.now()
-  if (await readStatus()) { step.value = 'preparing'; return }
+  if (await readStatus() === 'signup') { step.value = 'preparing'; return }
+  clearTimeout(pollTimer)
   await loadRegistration()
 })
+
+/** "Start a new signup": forgets this browser's link to the old waiting page, then shows the form again. The control
+ *  plane keeps its own record; nothing here reaches it. */
+async function startNewSignup() {
+  if (!hydrated.value || pending.value) return
+  pending.value = 'reset'
+  clearTimeout(pollTimer)
+  try {
+    await $fetch('/api/commercial/signup-reset', { method: 'POST' })
+  } catch {
+    // A link that cannot be cleared is still a link this page stops following; the form is the way on.
+  } finally {
+    pending.value = undefined
+  }
+  resetVerification()
+  errorKey.value = undefined
+  emailErrorKey.value = undefined
+  slugState.value = 'idle'
+  details.accept_terms = false
+  preparing.value = 'preparing'
+  statusFailures = 0
+  step.value = 'details'
+  await loadRegistration()
+}
 
 async function run(action: string, execute: () => Promise<void>) {
   if (!hydrated.value || pending.value) return
@@ -272,7 +311,7 @@ async function submitDetails() {
   const version = legal.value?.terms_version
   const token = humanToken.value
   const revision = offer.value?.offer_revision
-  if (!revision || !selectedApps.value.length || !version || !details.accept_terms || !token || slugState.value === 'unavailable') return
+  if (!revision || !selectedApps.value.length || !version || !details.accept_terms || !token || slugState.value === 'checking' || slugState.value === 'unavailable') return
   try {
     await run('start', async () => {
       const answer = await request<{ signup_id: string }>('start', {
@@ -432,7 +471,7 @@ const headingKey = computed(() => step.value === 'preparing' ? `signup.headings.
         />
         <UButton
           type="submit" size="lg" class="w-full justify-center"
-          :disabled="!hydrated || !!pending || !offer || !selectedApps.length || slugState === 'unavailable' || slugState === 'invalid' || (!(signupId && verified.sms && verified.email) && !checkReady)"
+          :disabled="!hydrated || !!pending || !offer || !selectedApps.length || slugState === 'checking' || slugState === 'unavailable' || slugState === 'invalid' || (!(signupId && verified.sms && verified.email) && !checkReady)"
           :loading="pending === 'start' || pending === 'complete'" :label="t('signup.offer.begin')"
         />
       </UForm>
@@ -472,14 +511,21 @@ const headingKey = computed(() => step.value === 'preparing' ? `signup.headings.
       </template>
 
       <template v-else>
-        <div v-if="preparing === 'preparing' || preparing === 'ready'" role="status" class="flex items-center justify-center gap-3 text-sm text-muted">
+        <div v-if="preparing === 'preparing'" role="status" class="flex items-center justify-center gap-3 text-sm text-muted">
           <UIcon name="i-lucide-loader-circle" class="size-5 shrink-0 animate-spin motion-reduce:animate-none" aria-hidden="true" />
-          <span>{{ t(preparing === 'ready' ? 'signup.preparing.ready' : 'signup.preparing.body') }}</span>
+          <span>{{ t('signup.preparing.body') }}</span>
         </div>
+        <UAlert v-else-if="preparing === 'ready'" role="status" color="success" variant="subtle" icon="i-lucide-circle-check" :title="t('signup.preparing.readyTitle')" :description="t('signup.preparing.readyBody')" />
         <UAlert v-else-if="preparing === 'delayed'" role="status" color="warning" variant="subtle" icon="i-lucide-clock" :title="t('signup.preparing.delayedTitle')" :description="t('signup.preparing.delayedBody')" />
         <UAlert v-else role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="t('signup.preparing.failedTitle')" :description="t('signup.preparing.failedBody')" />
-        <p class="text-center text-sm text-muted">{{ t('signup.trialStarts') }}</p>
-        <UButton v-if="preparing !== 'preparing'" to="/find-workspace" color="neutral" variant="link" class="justify-center" :label="t('signup.findLater')" />
+        <p v-if="preparing !== 'ready'" class="text-center text-sm text-muted">{{ t('signup.trialStarts') }}</p>
+        <template v-if="preparing !== 'preparing'">
+          <UButton to="/find-workspace" color="neutral" variant="link" class="justify-center" :label="t('signup.findLater')" />
+          <UButton
+            type="button" color="neutral" variant="link" class="justify-center" :disabled="!hydrated || !!pending"
+            :loading="pending === 'reset'" :label="t('signup.startOver')" @click="startNewSignup"
+          />
+        </template>
       </template>
     </div>
   </SharedStandalonePage>

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { verifyServiceRequest } from '@liwan/commercial-contracts/server'
-import { assertCustomerMutationOrigin, assertNoForgedFields, csrfMatches, customerPrincipal, customerCommercialEnabled, customerRoute, allowPaymentReturn, forwardCustomerRequest, forwardSignupRequest, issueCsrfCookie, PAYMENT_RETURN_LIMITS, paymentReturnStoreSize, rateLimitMutation, prospectLanding, relayPaymentReturn, resetRateLimitForTests, signedBodyFor } from '../customer-commercial'
+import { assertCustomerMutationOrigin, assertNoForgedFields, csrfMatches, customerPrincipal, customerCommercialEnabled, customerRoute, allowPaymentReturn, forwardCustomerRequest, forwardSignupRequest, resetSignup, issueCsrfCookie, PAYMENT_RETURN_LIMITS, paymentReturnStoreSize, rateLimitMutation, prospectLanding, relayPaymentReturn, resetRateLimitForTests, signedBodyFor } from '../customer-commercial'
 import { deriveCustomerCapabilities } from '../../../app/utils/customerCapabilities'
 
 vi.mock('../tenantRequest', async (orig) => {
@@ -503,6 +503,24 @@ describe('signup relay', () => {
     const [, options] = raw.mock.calls[0]!
     expect(JSON.parse(options.body)).toEqual({ signup_id: SIGNUP_ID })
     expect(options.headers['x-liwan-signup-handoff']).toBe(SECRET)
+  })
+  it('resets the signup by dropping only its own cookie, on the common host with the right origin', () => {
+    vi.stubEnv('LIWAN_TENANCY_MODE', 'shared'); vi.stubEnv('LIWAN_SHARED_PROXY_TOKEN', PROXY_TOKEN)
+    const raw = setup({
+      method: 'POST', url: 'https://acme.example/api/commercial/signup-reset',
+      headers: { host: 'acme.example', 'x-liwan-proxy-token': PROXY_TOKEN }, cfg: { publicSignupEnabled: true },
+    })
+    const deleteCookie = vi.fn()
+    vi.stubGlobal('deleteCookie', deleteCookie)
+    expect(resetSignup({} as never)).toBeNull()
+    expect(deleteCookie).toHaveBeenCalledWith(expect.anything(), '__Host-liwan_signup', { path: '/', secure: true })
+    expect(raw).not.toHaveBeenCalled()
+    setup({
+      method: 'POST', url: 'https://acme.example/api/commercial/signup-reset',
+      headers: { host: 'acme.example', 'x-liwan-proxy-token': PROXY_TOKEN, origin: 'https://evil.example' }, cfg: { publicSignupEnabled: true },
+    })
+    vi.stubGlobal('deleteCookie', deleteCookie)
+    expect(() => resetSignup({} as never)).toThrow()
   })
   it('answers 404 to a status call with no usable cookie, without calling the control plane', async () => {
     vi.stubEnv('LIWAN_TENANCY_MODE', 'shared'); vi.stubEnv('LIWAN_SHARED_PROXY_TOKEN', PROXY_TOKEN)

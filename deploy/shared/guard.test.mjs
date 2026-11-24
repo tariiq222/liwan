@@ -677,6 +677,23 @@ test('public signup allows only its exact routes and relays the address supplied
     assert.throws(() => prospectPlan(prospect(target, {}, method), 'app.liwan.test', token))
   }
 })
+test('the signup status call carries only the signup handoff cookie, and no other signup call carries any', () => {
+  const ip = { 'x-liwan-signup-client': '192.0.2.9' }
+  const handoff = '__Host-liwan_signup=00000000-0000-4000-8000-0000000000aa.' + 's'.repeat(43)
+  const status = prospectPlan(prospect('/api/commercial/signup/status', { ...ip, cookie: `session_id=forged; ${handoff}; other=1` }, 'POST'), 'app.liwan.test', token)
+  assert.equal(status.headers.cookie, handoff)
+  assert.equal(prospectPlan(prospect('/api/commercial/signup/status', ip, 'POST'), 'app.liwan.test', token).headers.cookie, undefined)
+  assert.equal(prospectPlan(prospect('/api/commercial/signup/status', { ...ip, cookie: `${handoff}; ${handoff}` }, 'POST'), 'app.liwan.test', token).headers.cookie, undefined)
+  for (const action of ['start', 'complete', 'verify']) {
+    assert.equal(prospectPlan(prospect(`/api/commercial/signup/${action}`, { ...ip, cookie: handoff }, 'POST'), 'app.liwan.test', token).headers.cookie, undefined)
+  }
+})
+test('the common host lets the waiting page reset its signup by POST only', () => {
+  const plan = prospectPlan(prospect('/api/commercial/signup-reset', { cookie: 'session_id=forged' }, 'POST'), 'app.liwan.test', token)
+  assert.equal(plan.path, '/api/commercial/signup-reset')
+  assert.equal(plan.headers.cookie, undefined)
+  assert.throws(() => prospectPlan(prospect('/api/commercial/signup-reset', {}, 'GET'), 'app.liwan.test', token))
+})
 const recorderKey = 'a1'.repeat(20)
 const trusted = (headers = {}) => ({ 'x-liwan-proxy-token': token, 'x-liwan-tenant-revision': '1', ...headers })
 const usageTarget = '/api/v1/ai/usage/service'

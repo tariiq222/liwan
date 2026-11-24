@@ -33,6 +33,8 @@ function mount(fetch: ReturnType<typeof vi.fn>, language = 'ar') {
   const state = new Function(...Object.keys(bindings), transpile(script))(...Object.values(bindings)).setup({}, { expose: () => {} })
   Object.assign(state.details, person)
   state.offer.value = { offer_revision: 'test-revision' }
+  // The address check runs on a timer the tests do not drive; the address is taken as checked and free.
+  state.slugState.value = 'available'
   return { state, mounted }
 }
 
@@ -63,6 +65,9 @@ describe('register page, terms acceptance', () => {
     const { state } = mount(fetch)
     state.legal.value = current
     state.humanToken.value = 'tok'
+    // The address watcher runs after the fixture set it; the check it starts is settled as free here.
+    await Vue.nextTick()
+    state.slugState.value = 'available'
     await state.submitDetails()
     expect(fetch).not.toHaveBeenCalled()
     state.details.accept_terms = true

@@ -6,7 +6,7 @@ import { MeSchema } from '@liwan/contracts'
 import { signServiceRequest } from '@liwan/commercial-contracts/server'
 import { tenantRequest } from './tenantRequest'
 import { boundedTenantBody, tenantTransport, withTenantBody } from './tenantTransport'
-import { FIND_WORKSPACE_API, isProspectRequest, PROSPECT_TENANT, PUBLIC_SITE_API, SIGNUP_API } from './prospectHost'
+import { FIND_WORKSPACE_API, isProspectRequest, PROSPECT_TENANT, PUBLIC_SITE_API, SIGNUP_API, SIGNUP_RESET_PATH } from './prospectHost'
 import { deriveCustomerCapabilities, type CustomerCommercialCapability } from '../../app/utils/customerCapabilities'
 
 type CustomerConfig = {
@@ -303,16 +303,35 @@ function readSignupCookie(event: H3Event): { id: string; secret: string } | null
   return id && secret && !rest.length && SIGNUP_ID.test(id) && SIGNUP_SECRET.test(secret) ? { id: id.toLowerCase(), secret } : null
 }
 
+/** The trust path every sign-up relay shares: the configured public origin, the host binding and the shared proxy token
+ * (checked by `isProspectRequest`), and the request's own origin. */
+function assertSignupRelay(event: H3Event, config: CustomerConfig, pathname: string): void {
+  if (!isProspectRequest({ host: getHeader(event, 'host'), proxyToken: getHeader(event, 'x-liwan-proxy-token'), pathname }, config)) fail(404, 'not_found', 'Not found')
+  const origin = config.customerCommercialPublicOrigin ? new URL(config.customerCommercialPublicOrigin).origin : ''
+  if (!origin || getHeader(event, 'origin') !== origin) fail(403, 'forbidden', 'Origin denied')
+}
+
+/** `POST /api/commercial/signup-reset`: the waiting page's "start a new signup". It only drops this browser's own
+ *  handoff cookie — the same link the completion set — so a visitor whose workspace is stuck, or whose link was already
+ *  used elsewhere, can begin again without a control-plane call. The signup itself stays with the control plane. */
+export function resetSignup(event: H3Event): null {
+  const config = useRuntimeConfig(event) as CustomerConfig
+  const pathname = getRequestURL(event).pathname
+  if (pathname !== SIGNUP_RESET_PATH) fail(404, 'not_found', 'Not found')
+  assertSignupRelay(event, config, pathname)
+  deleteCookie(event, SIGNUP_COOKIE, { path: '/', secure: true })
+  setResponseHeader(event, 'cache-control', 'no-store')
+  setResponseStatus(event, 204)
+  return null
+}
+
 /** Relays only this prospect's anonymous signup operation, with the edge-derived address signed in the body. */
 export async function forwardSignupRequest(event: H3Event): Promise<unknown> {
   const config = useRuntimeConfig(event) as CustomerConfig
   const incoming = getRequestURL(event)
   const action = SIGNUP_API.exec(incoming.pathname)?.[1]
-  if (!action || incoming.search || !isProspectRequest({
-    host: getHeader(event, 'host'), proxyToken: getHeader(event, 'x-liwan-proxy-token'), pathname: incoming.pathname,
-  }, config)) fail(404, 'not_found', 'Not found')
-  const origin = new URL(config.customerCommercialPublicOrigin!).origin
-  if (getHeader(event, 'origin') !== origin) fail(403, 'forbidden', 'Origin denied')
+  if (!action || incoming.search) fail(404, 'not_found', 'Not found')
+  assertSignupRelay(event, config, incoming.pathname)
   const type = getHeader(event, 'content-type')?.split(';', 1)[0]?.trim().toLowerCase()
   if (type !== 'application/json') fail(415, 'invalid', 'JSON is required')
   const ip = getHeader(event, 'x-liwan-signup-client')

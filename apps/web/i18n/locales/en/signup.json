@@ -98,11 +98,13 @@
     "complete": "Start my trial",
     "preparing": {
       "body": "We are preparing your workspace. You will move on to set your password automatically when it is ready.",
-      "ready": "Your workspace is ready. Taking you there now.",
       "delayedTitle": "This is slower than usual",
       "delayedBody": "We are still working on it and will move you on automatically. If you close this page, come back later through \"Find my workspace\" and then \"Forgot password\".",
       "failedTitle": "We could not prepare the workspace",
-      "failedBody": "The Liwan team has been told and will follow up. You will get an email when it is ready, then sign in through \"Forgot password\"."
-    }
+      "failedBody": "The Liwan team has been told and will follow up. You will get an email when it is ready, then sign in through \"Forgot password\".",
+      "readyTitle": "Your workspace is ready",
+      "readyBody": "Sign in to your workspace. If you do not have its link, find it through \"Find my workspace\", then set your password through \"Forgot password\"."
+    },
+    "startOver": "Start a new signup"
   }
 }
