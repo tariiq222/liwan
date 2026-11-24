@@ -980,7 +980,7 @@ class PostRunTest(unittest.TestCase):
                 host.files[f'{SRV}/shared.env'] = regular(0o600, text=text)
                 self.assertEqual(expected, statuses(run(host)[1])['shared-ai-usage-key'])
 
-    # --- A3.2a tenant storage files
+    # --- A3.2b tenant storage files
     STORAGE = f'{SRV}/control/tenant-storage'
 
     def storage_host(self, shared_extra=''):
@@ -1096,10 +1096,18 @@ class TenantStorageItemsTest(unittest.TestCase):
                       'networks:\n'
                       '  tenant_storage: { internal: true }\n')
 
+    def resolved(self, **overrides):
+        """The resolved compose file the release writes: both services, the four settings in the provisioner's environment."""
+        environment = dict(self.SETTINGS)
+        environment.update(overrides)
+        return {'services': {bringup.TENANT_STORAGE_PROFILE: {'environment': environment},
+                             bringup.TENANT_STORAGE_EGRESS: {'environment': {}}}}
+
     def prepared(self, flag=None, settings=True, files=True, stack=True):
         host = seeded_host()
         extra = ''.join(f'{key}={value}\n' for key, value in self.SETTINGS if settings)
         host.files[f'{SRV}/shared.env'] = regular(0o600, text=SHARED_TEXT + extra)
+        host.files[f'{SRV}/shared.compose.json'] = regular(0o600, text=json.dumps(self.resolved()))
         if files:
             host.files[self.STORAGE] = directory(0o700)
             host.files[f'{self.STORAGE}/oci_naming_key'] = regular(0o400, 10001, 10001, text='ab' * 32)
@@ -1125,6 +1133,55 @@ class TenantStorageItemsTest(unittest.TestCase):
             self.assertIn(key, line)
         flagged = self.prepared(flag='true', settings=False)
         self.assertTrue(line_of(run(flagged)[1], 'tenant-storage-settings').startswith('MISSING'))
+
+    def test_a_stale_resolved_compose_file_is_named_with_the_release_to_run(self):
+        host = self.prepared()
+        host.files[f'{SRV}/shared.compose.json'] = regular(0o600, text=json.dumps(self.resolved(OCI_TENANCY_OCID='')))
+        line = line_of(run(host)[1], 'tenant-storage-settings')
+        self.assertTrue(line.startswith('MISSING'))
+        self.assertIn('carries no OCI_TENANCY_OCID', line)
+        self.assertIn('release again so the rendered compose file carries the settings', line)
+        host.files[f'{SRV}/shared.compose.json'] = regular(
+            0o600, text=json.dumps(self.resolved(OCI_USER_OCID='ocid1.user.oc1..other')))
+        line = line_of(run(host)[1], 'tenant-storage-settings')
+        self.assertIn('carries a different OCI_USER_OCID than the shared env file', line)
+
+    def test_the_resolved_compose_file_keeps_both_services(self):
+        host = self.prepared()
+        self.assertEqual('ok', self.found(host)['tenant-storage-settings'])
+        resolved = self.resolved()
+        del resolved['services'][bringup.TENANT_STORAGE_EGRESS]
+        host.files[f'{SRV}/shared.compose.json'] = regular(0o600, text=json.dumps(resolved))
+        self.assertIn(f'has no service {bringup.TENANT_STORAGE_EGRESS}', line_of(run(host)[1], 'tenant-storage-settings'))
+
+    def test_a_missing_resolved_compose_file_names_the_release_command(self):
+        host = self.prepared()
+        del host.files[f'{SRV}/shared.compose.json']
+        line = line_of(run(host)[1], 'tenant-storage-settings')
+        self.assertTrue(line.startswith('MISSING'))
+        self.assertIn(f'{SRV}/shared.compose.json is absent', line)
+        self.assertIn('/opt/liwan/current/deploy/release/release.py run --environment staging', line)
+
+    def test_the_runtime_config_compose_file_is_used_when_the_shared_env_names_none(self):
+        host = self.prepared()
+        host.files[f'{SRV}/shared.env'] = regular(
+            0o600, text=SHARED_TEXT.replace(f'{bringup.SHARED_COMPOSE_KEY}={SRV}/shared.compose.json\n', '')
+            + ''.join(f'{key}={value}\n' for key, value in self.SETTINGS))
+        host.files[f'{SRV}/control/config'] = directory(0o750)
+        host.files[f'{SRV}/control/config/shared-runtime.json'] = regular(
+            0o600, text=json.dumps({'composeFile': f'{SRV}/shared.compose.json'}))
+        self.assertEqual('ok', self.found(host)['tenant-storage-settings'])
+        del host.files[f'{SRV}/control/config/shared-runtime.json']
+        line = line_of(run(host)[1], 'tenant-storage-settings')
+        self.assertIn(f'names no {bringup.SHARED_COMPOSE_KEY}', line)
+        self.assertIn('release.py run --environment staging', line)
+
+    def test_the_flag_guard_sees_a_stale_resolved_compose_file(self):
+        host = self.prepared(flag='true')
+        host.files[f'{SRV}/shared.compose.json'] = regular(0o600, text=json.dumps(self.resolved(OCI_COMPARTMENT_OCID='')))
+        line = line_of(run(host)[1], 'tenant-storage-enabled')
+        self.assertTrue(line.startswith('MISSING'))
+        self.assertIn('carries no OCI_COMPARTMENT_OCID', line)
 
     def test_the_stack_item_needs_the_provisioner_and_its_egress_proxy_in_the_served_checkout(self):
         self.assertEqual([], bringup.storage_stack_problems(bringup.compose_services(REAL_STACK_COMPOSE)))

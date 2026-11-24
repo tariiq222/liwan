@@ -60,14 +60,15 @@ ETC_LIWAN = Path('/etc/liwan')
 PUBLIC_DIR_MODE, STATE_DIR_MODE, WORKER_DIR_MODE = 0o755, 0o700, 0o750
 # A3.2: what init-host.sh creates, by the env-file key that names the directory.
 INIT_HOST_SCRIPT = ('deploy', 'control-plane', 'init-host.sh')
+SHARED_RUNTIME_FILE = 'shared-runtime.json'
 INIT_HOST_FILES = {
-    'LIWAN_CONTROL_CONFIG_DIR': ('shared-runtime.json', 'inventory-v2.json'),
+    'LIWAN_CONTROL_CONFIG_DIR': (SHARED_RUNTIME_FILE, 'inventory-v2.json'),
     'LIWAN_TENANT_REGISTRY_DIR': ('registry.json',),
     'LIWAN_CONTROL_PRIVATE_DIR': ('control-ca.key', 'control-ca.pem', 'control-tls.key', 'control-tls.crt',
                                   'effect-tls.key', 'effect-tls.crt', 'control-db-password'),
 }
 INIT_HOST_DIRS = ('LIWAN_AI_PLATFORM_DIR',)
-# A3.2a: the two files the `tenant-storage` service mounts as secrets (never environment variables). Mode 0400 and owned by the
+# A3.2b: the two files the `tenant-storage` service mounts as secrets (never environment variables). Mode 0400 and owned by the
 # container user (the `liwan-odoo` image's `odoo`). Bring-up generates the naming key once and never replaces it: changing it changes
 # every tenant's resource names. It never creates the OCI API signing key; that file is required only once tenant storage is
 # configured, either by the settings that name a tenancy (OCI_TENANCY_OCID) or by its flag.
@@ -83,6 +84,7 @@ NAMING_KEY_BYTES = 32
 # provisioner and its allowlist proxy are services of the stack template, never started by `up`.
 TENANT_STORAGE_FLAG_KEY = 'LIWAN_TENANT_STORAGE_ENABLED'
 CONTROL_ENV_KEY = 'LIWAN_CONTROL_ENV_FILE'
+SHARED_COMPOSE_KEY = 'LIWAN_SHARED_COMPOSE_FILE'
 SHARED_WORKER_ENV_FILE = Path('/etc/liwan/shared-worker.env')
 OCI_SETTING_KEYS = ('OCI_TENANCY_OCID', 'OCI_USER_OCID', 'OCI_FINGERPRINT', 'OCI_COMPARTMENT_OCID')
 STACK_COMPOSE = ('deploy', 'stack', 'compose.yml')
@@ -520,19 +522,78 @@ def apply_tenant_storage_files(ctx: Context) -> None:
         ctx.host.chown(naming_key, TENANT_STORAGE_FILE_UID, TENANT_STORAGE_FILE_UID)
 
 
+def resolved_compose_path(ctx: Context, shared: dict) -> Path | None:
+    """The resolved compose file that `up`, the shared worker and its effects run: the key the release writes with
+    ``write_shared_compose``, else the ``composeFile`` of the worker's runtime config."""
+    if shared.get(SHARED_COMPOSE_KEY):
+        return Path(shared[SHARED_COMPOSE_KEY])
+    config_dir = shared.get('LIWAN_CONTROL_CONFIG_DIR')
+    if not config_dir:
+        return None
+    runtime = Path(config_dir) / SHARED_RUNTIME_FILE
+    if inspect(ctx.host, runtime, REGULAR_FILE) is None:
+        return None
+    try:
+        record = json.loads(ctx.host.read_text(runtime))
+    except json.JSONDecodeError:
+        raise ItemError(f'{runtime} is not valid JSON') from None
+    compose = record.get('composeFile') if isinstance(record, dict) else None
+    return Path(compose) if isinstance(compose, str) and compose else None
+
+
+def release_command(ctx: Context) -> str:
+    """The release the operator runs to render the resolved compose file again."""
+    return shlex.join(['python3', '-B', str(ctx.paths.current / 'deploy' / 'release' / 'release.py'), 'run',
+                       '--environment', ctx.environment])
+
+
+def resolved_storage_problems(ctx: Context, path: Path, shared: dict) -> list[str]:
+    """A4.13: the settings are baked into the resolved compose file at release time, so a release that ran before they were
+    filled in leaves the provisioner with empty ones while the shared env file already reads complete."""
+    try:
+        resolved = json.loads(ctx.host.read_text(path))
+    except json.JSONDecodeError:
+        raise ItemError(f'{path} is not valid JSON') from None
+    services = resolved.get('services') if isinstance(resolved, dict) else None
+    if not isinstance(services, dict):
+        raise ItemError(f'{path} names no services')
+    problems = [f'{path} has no service {name}' for name in (TENANT_STORAGE_PROFILE, TENANT_STORAGE_EGRESS)
+                if name not in services]
+    provisioner = services.get(TENANT_STORAGE_PROFILE)
+    environment = provisioner.get('environment') if isinstance(provisioner, dict) else None
+    environment = environment if isinstance(environment, dict) else {}
+    for key in OCI_SETTING_KEYS:
+        value = environment.get(key)
+        if not value:
+            problems.append(f'{path} carries no {key} for {TENANT_STORAGE_PROFILE}')
+        elif value != shared.get(key):
+            problems.append(f'{path} carries a different {key} than the shared env file')
+    return problems
+
+
 def check_tenant_storage_settings(ctx: Context) -> Status:
-    """A4.13: the OCI settings the provisioner requires, once tenant storage is configured or switched on. Empty while it is off."""
+    """A4.13: the OCI settings the provisioner requires, in the shared env file and in the resolved compose file the release
+    rendered. Both stay empty while tenant storage is off."""
     values, status = shared_values(ctx)
     if values is None:
         return status
     shared = ctx.shared_env()
-    absent = [key for key in OCI_SETTING_KEYS if not shared.get(key)]
-    if not absent:
-        return OK
     if not any(shared.get(key) for key in OCI_SETTING_KEYS) and not tenant_storage_flag(ctx)[0]:
         return OK  # off: the settings stay empty and the provisioner never runs
-    return missing(f'the shared env file lacks {", ".join(absent)} (the OCI provisioning user of '
-                   'tools/shared_saas_lifecycle/README.md, "Tenant storage effect")')
+    absent = [key for key in OCI_SETTING_KEYS if not shared.get(key)]
+    if absent:
+        return missing(f'the shared env file lacks {", ".join(absent)} (the OCI provisioning user of '
+                       'tools/shared_saas_lifecycle/README.md, "Tenant storage effect")')
+    path = resolved_compose_path(ctx, shared)
+    if path is None:
+        return missing(f'the shared env file names no {SHARED_COMPOSE_KEY} and no {SHARED_RUNTIME_FILE} names a composeFile; '
+                       f'run {release_command(ctx)}')
+    if inspect(ctx.host, path, REGULAR_FILE) is None:
+        return missing(f'{path} is absent; run {release_command(ctx)}')
+    problems = resolved_storage_problems(ctx, path, shared)
+    if problems:
+        return missing('; '.join(problems) + '; release again so the rendered compose file carries the settings')
+    return OK
 
 
 def compose_services(text: str) -> dict[str, str]:
