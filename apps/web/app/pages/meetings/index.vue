@@ -309,9 +309,9 @@ function setPage(next: number) {
             </UInput>
           </template>
           <template #default>
-            <USelect data-testid="meeting-state" class="w-full md:w-40" icon="i-lucide-activity" :items="stateOptions" :model-value="stateSelect" :disabled="!hydrated" :aria-label="t('meetingsUi.stateLabel')" @update:model-value="onStateChange" />
-            <MeetingProjectFilter v-if="hasProjectFilter" id="meeting-project" hide-label class="w-full md:w-40" :model-value="projectId" @update:model-value="setProject" @resolved-name="projectName = $event" />
-            <div class="grid w-full gap-1 md:w-40">
+            <USelect data-testid="meeting-state" class="w-full md:w-32" icon="i-lucide-activity" :items="stateOptions" :model-value="stateSelect" :disabled="!hydrated" :aria-label="t('meetingsUi.stateLabel')" @update:model-value="onStateChange" />
+            <MeetingProjectFilter v-if="hasProjectFilter" id="meeting-project" hide-label class="w-full md:w-32" :model-value="projectId" @update:model-value="setProject" @resolved-name="projectName = $event" />
+            <div class="grid w-full gap-1 md:w-32">
               <USelectMenu
                 id="meeting-organizer"
                 v-model:search-term="organizerSearch"
@@ -337,8 +337,8 @@ function setPage(next: number) {
               <p v-if="organizerQuery.isLoading.value" class="text-xs text-muted" role="status">{{ t('meetingsFilters.organizersLoading') }}</p>
               <div v-else-if="organizerQuery.error.value" class="flex items-center gap-2 text-xs text-error" role="alert"><span>{{ t('meetingsFilters.organizersError') }}</span><UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated" :label="t('meetingsFilters.retry')" @click="organizerQuery.refetch()" /></div>
             </div>
-            <SharedDateField id="meeting-date-from" v-model="dateFromField" class="w-full md:w-40" :label="dateFromField ? undefined : t('meetingsFilters.fromDateLabel')" :aria-label="t('meetingsFilters.fromDateLabel')" :disabled="!hydrated" />
-            <SharedDateField id="meeting-date-to" v-model="dateToField" class="w-full md:w-40" :label="dateToField ? undefined : t('meetingsFilters.toDateLabel')" :aria-label="t('meetingsFilters.toDateLabel')" :disabled="!hydrated" />
+            <SharedDateField id="meeting-date-from" v-model="dateFromField" class="w-full md:w-32" :label="dateFromField ? undefined : t('meetingsFilters.fromDateLabel')" :aria-label="t('meetingsFilters.fromDateLabel')" :disabled="!hydrated" />
+            <SharedDateField id="meeting-date-to" v-model="dateToField" class="w-full md:w-32" :label="dateToField ? undefined : t('meetingsFilters.toDateLabel')" :aria-label="t('meetingsFilters.toDateLabel')" :disabled="!hydrated" />
           </template>
           <template #scope>
             <SharedSegmentedControl data-testid="meeting-scope" :label="t('meetingsFilters.scope')" :items="scopeItems" :model-value="mine ? 'mine' : 'all'" :disabled="!hydrated" @update:model-value="onScopeChange" />

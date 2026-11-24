@@ -10,7 +10,7 @@ const DOT_CLASS: Record<StatusTone, string> = {
   info: 'bg-info',
   warning: 'bg-warning',
   destructive: 'bg-error',
-  neutral: 'bg-dimmed',
+  neutral: 'bg-(--ui-text-muted)',
   primary: 'bg-primary',
 }
 const props = withDefaults(defineProps<{ tone: StatusTone; label: string; variant?: 'subtle' | 'outline'; icon?: string; size?: 'sm' | 'md' }>(), { variant: 'subtle', size: 'md' })

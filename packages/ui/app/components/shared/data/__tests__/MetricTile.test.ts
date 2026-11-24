@@ -27,7 +27,7 @@ describe('SharedMetricTile', () => {
   it('compact stacks label + 32px chip on the top row over the figure with dense vertical padding', async () => {
     const html = await render({ density: 'compact', tone: 'success', hint: 'Confirmed' })
     expect(html).toContain('data-density="compact"')
-    expect(html).toContain('flex w-full min-w-0 flex-col gap-2')
+    expect(html).toContain('flex h-full w-full min-w-0 flex-col justify-between gap-2')
     expect(html).toContain('hidden shrink-0 items-center justify-center sm:flex')
     expect(html).toContain('size-8')
     expect(html).toContain('rounded-control')

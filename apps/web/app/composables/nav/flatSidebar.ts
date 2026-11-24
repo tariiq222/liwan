@@ -32,20 +32,30 @@ const insidePath = (path: string, target: string) => path === target || path.sta
 export function flatSidebar(input: FlatSidebarInput): FlatSidebar {
   const { menu, route } = input
   const currentPath = normalizedPath(route.path)
-  const rows: ShellNavigationLink[] = menu.rows
-    .filter(row => input.canOpen(row.capability, row.to.path))
-    .map((row) => {
-      const kept = currentPath === row.to.path
-        ? Object.fromEntries((row.keep ?? []).flatMap((key) => { const value = firstValue(route.query[key]); return value === undefined ? [] : [[key, value] as const] }))
-        : {}
-      const query = { ...row.to.query, ...kept }
-      return {
-        id: row.id, label: input.translate(row.labelKey), icon: row.icon,
-        to: Object.keys(query).length ? { path: row.to.path, query } : row.to.path,
-        active: row.active(route), count: input.counts[row.id], testId: `context-link-${row.id}`,
-      }
-    })
-  const sections: ShellSubListSection[] = [{ id: 'pages', title: '', items: rows }]
+  const visible = menu.rows.filter(row => input.canOpen(row.capability, row.to.path))
+  const toLink = (row: typeof visible[number]): ShellNavigationLink => {
+    const kept = currentPath === row.to.path
+      ? Object.fromEntries((row.keep ?? []).flatMap((key) => { const value = firstValue(route.query[key]); return value === undefined ? [] : [[key, value] as const] }))
+      : {}
+    const query = { ...row.to.query, ...kept }
+    return {
+      id: row.id, label: input.translate(row.labelKey), icon: row.icon,
+      to: Object.keys(query).length ? { path: row.to.path, query } : row.to.path,
+      active: row.active(route), count: input.counts[row.id], testId: `context-link-${row.id}`,
+    }
+  }
+  const sections: ShellSubListSection[] = []
+  if (visible.some(row => row.section)) {
+    for (const row of visible) {
+      const id = row.section?.id ?? 'pages'
+      const title = row.section ? input.translate(row.section.titleKey) : ''
+      const last = sections[sections.length - 1]
+      if (last && last.id === id) last.items.push(toLink(row))
+      else sections.push({ id, title, items: [toLink(row)] })
+    }
+  } else {
+    sections.push({ id: 'pages', title: '', items: visible.map(toLink) })
+  }
   const recent = menu.recent
   if (recent && input.recents.length && input.canOpen(recent.capability)) {
     sections.push({

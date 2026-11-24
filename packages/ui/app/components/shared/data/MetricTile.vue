@@ -46,15 +46,15 @@ const appTile = computed(() => compact.value && props.tone === 'neutral' && !pro
 
 <template>
   <UCard
-    :class="{ 'liwan-lift relative': props.to }"
-    :ui="{ body: compact ? 'flex px-(--liwan-card-pad-dense) py-3.5 sm:px-(--liwan-card-pad-dense) sm:py-3.5' : 'flex items-start gap-4 p-5 sm:p-5' }"
+    :class="{ 'liwan-lift relative': props.to, 'h-full': compact }"
+    :ui="{ body: compact ? 'flex h-full w-full min-w-0 flex-col justify-between gap-2 px-(--liwan-card-pad-dense) py-3.5 sm:px-(--liwan-card-pad-dense) sm:py-3.5' : 'flex items-start gap-4 p-5 sm:p-5' }"
     data-testid="metric-tile"
     :data-density="props.density"
     :data-tone="props.tone"
     :data-emphasis="props.emphasis || undefined"
   >
     <template v-if="compact">
-      <div class="flex w-full min-w-0 flex-col gap-2">
+      <div class="flex h-full w-full min-w-0 flex-col justify-between gap-2">
         <div class="flex min-w-0 items-center justify-between gap-3">
           <p class="min-w-0 text-(length:--liwan-fs-small-label)/5 text-muted">{{ props.label }}</p>
           <span

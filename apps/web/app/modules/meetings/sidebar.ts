@@ -6,6 +6,9 @@ const onPath = (route: AppSidebarRoute, path: string) => normalizedPath(route.pa
 const insidePath = (route: AppSidebarRoute, path: string) => onPath(route, path) || normalizedPath(route.path).startsWith(`${path}/`)
 const isMine = (route: AppSidebarRoute) => onPath(route, '/meetings') && (route.query.mine === '1' || route.query.mine === 'true')
 
+const listSection = { id: 'meetings-list', titleKey: 'meetingsUi.sidebarList' } as const
+const toolsSection = { id: 'meetings-tools', titleKey: 'meetingsUi.sidebarTools' } as const
+
 /**
  * The meetings sidebar: one flat level matching the projects sidebar pattern, with live server counts for
  * all meetings, my meetings, and active follow-up resolutions.
@@ -15,27 +18,27 @@ export const meetingsSidebar: AppSidebarMenu = {
   rows: [
     {
       id: 'meetings', labelKey: 'nav.meetings', icon: 'i-lucide-calendar-days', to: { path: '/meetings' },
-      capability: 'meetings.read',
+      capability: 'meetings.read', section: listSection,
       active: route => (onPath(route, '/meetings') || onPath(route, '/meetings/new')) && !isMine(route),
     },
     {
       id: 'my-meetings', labelKey: 'meetingsUi.mine', icon: 'i-lucide-user', to: { path: '/meetings', query: { mine: '1' } },
-      capability: 'meetings.read',
+      capability: 'meetings.read', section: listSection,
       active: isMine,
     },
     {
       id: 'meeting-followup', labelKey: 'nav.meetingFollowup', icon: 'i-lucide-list-checks', to: { path: '/meetings/follow-up' },
-      capability: 'meetings.read',
+      capability: 'meetings.read', section: toolsSection,
       active: route => onPath(route, '/meetings/follow-up'),
     },
     {
       id: 'meeting-calendar', labelKey: 'nav.meetingCalendar', icon: 'i-lucide-calendar-range', to: { path: '/meetings/calendar' },
-      capability: 'meetings.read',
+      capability: 'meetings.read', section: toolsSection,
       active: route => onPath(route, '/meetings/calendar'),
     },
     {
       id: 'meeting-series', labelKey: 'nav.meetingSeriesShort', icon: 'i-lucide-repeat', to: { path: '/meetings/series' },
-      capability: 'meetings.read',
+      capability: 'meetings.read', section: toolsSection,
       active: route => insidePath(route, '/meetings/series'),
     },
   ],

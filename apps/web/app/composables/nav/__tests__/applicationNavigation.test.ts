@@ -86,10 +86,13 @@ describe('shared section hierarchy across applications', () => {
 })
 
 describe('unified application navigation', () => {
-  it('keeps all meeting destinations flat inside their application with one primary create action', () => {
+  it('keeps all meeting destinations flat inside two titled sections with one primary create action', () => {
     const item = build().find(item => item.id === 'meetings')!
     expect(item).toBeDefined()
-    expect(item.sections.flatMap(section => section.items.map(row => row.id))).toEqual(['meetings', 'my-meetings', 'meeting-followup', 'meeting-calendar', 'meeting-series'])
+    expect(item.sections.map(section => [section.id, section.title, section.items.map(row => row.id)])).toEqual([
+      ['meetings-list', 'meetingsUi.sidebarList', ['meetings', 'my-meetings']],
+      ['meetings-tools', 'meetingsUi.sidebarTools', ['meeting-followup', 'meeting-calendar', 'meeting-series']],
+    ])
     expect(item.sections.flatMap(section => section.items).every(row => !row.children)).toBe(true)
     expect(item.actions.filter(action => typeof action.to === 'object' && action.to.path === '/meetings/new')).toHaveLength(1)
     expect(item.actions[0]).toMatchObject({ id: 'new-meeting', primary: true })
