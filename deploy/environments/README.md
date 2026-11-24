@@ -73,7 +73,7 @@ environments), **release** (written by the release path), **fixed** (the same in
 | `DOMAIN` | Site-address list of the tenant edge: base domain and wildcard (`http://` when an outer edge terminates TLS) | `http://<env>.<base>, http://*.<env>.<base>` | `<base>, *.<base>` | owner | yes |
 | `LIWAN_PROSPECT_HOST` | Public sign-up and marketing host | `app.<env>.<base>` | `app.<base>` | owner | yes |
 | `NUXT_CUSTOMER_COMMERCIAL_PUBLIC_ORIGIN` | Public origin of that host | `https://app.<env>.<base>` | `https://app.<base>` | owner | yes |
-| `LIWAN_RESTORE_DOMAIN` | Base domain under which Caddy serves the restore sites `*.restore.<value>`; equal to the control plane's `domainSuffix`, so tenant hosts are `t<hex>.<value>` and restore hosts `r<hex>.restore.<value>` | `<env>.<base>` | `<base>` | owner | yes |
+| `LIWAN_RESTORE_DOMAIN` | Base domain under which Caddy serves the restore sites `*.restore.<value>`; equal to the control plane's `domainSuffix`, so tenant hosts are `<slug>.<value>` (the workspace address chosen at signup, or `w<hex>` for a company the team creates) and restore hosts `r<hex>.restore.<value>` | `<env>.<base>` | `<base>` | owner | yes |
 | `LIWAN_RESTORE_ALLOW` | Operator allowlist (`client_ip` syntax) for restore hosts; empty answers 404 | empty | empty | owner | no |
 | `LIWAN_TIKTOK_RELAY_HOST` | TikTok relay host; empty disables it | empty | empty or the relay host | owner | no |
 | `CONTROL_WEBHOOK_DOMAIN` | Host of the payment webhook site; the edge forwards only `POST /v1/commercial/payment-events/moyasar` there. Empty (or unset) means the reserved name `control-webhook.invalid`: nothing is exposed | empty until its DNS and edge route exist (staging and production only) | empty until its DNS and edge route exist | owner | no |

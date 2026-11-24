@@ -1,5 +1,7 @@
 # Account invitations, self-set passwords and mobile numbers
 
+
+> **2026-11-24:** the self-service invitation reissue described here is removed. Self-signup founders receive a one-time handoff link from the signup waiting page instead of an email invitation, joining no longer asks for a mobile, and a mobile counts for SMS sign-in only after its code is verified. The current behaviour is in `docs/operations/saas-commercial-runbook.md`.
 Status: implemented and merged on 2026-11-06 (commits 5abdc9462, 0df25b332, fc4f0da2a; `liwan_core` 19.0.1.12.0 migration). A dated owner approval of this design is not recorded.
 
 ## Why
