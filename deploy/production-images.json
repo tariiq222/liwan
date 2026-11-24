@@ -57,6 +57,18 @@
       "evidence": "deploy/docker-compose.shared.yml runs liwan-odoo-mail:${LIWAN_IMAGE_TAG} for the odoo-mail service (build kept for local use only); deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-odoo-mail for linux/arm64 on every release tag; its digest per platform is recorded in that commit's release document (liwan-release:<commit>)."
     },
     {
+      "service": "tenant-storage",
+      "reference": "liwan-odoo",
+      "status": "released",
+      "evidence": "deploy/stack/compose.yml runs liwan-odoo:${LIWAN_IMAGE_TAG} for the tenant-storage service (profile tenant-storage); deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-odoo for linux/arm64 on every release tag; its digest per platform is recorded in that commit's release document (liwan-release:<commit>)."
+    },
+    {
+      "service": "tenant-storage-egress",
+      "reference": "liwan-ai-egress",
+      "status": "released",
+      "evidence": "deploy/stack/compose.yml runs liwan-ai-egress:${LIWAN_IMAGE_TAG} for the tenant-storage-egress service (profile tenant-storage); deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-ai-egress for linux/arm64 on every release tag; its digest per platform is recorded in that commit's release document (liwan-release:<commit>)."
+    },
+    {
       "service": "db",
       "reference": "pgvector/pgvector:pg16",
       "digest": "sha256:0dd3149a06e4579a0d70d8fef9945636cd514005e7237deb27f9b67886f8dc4f",

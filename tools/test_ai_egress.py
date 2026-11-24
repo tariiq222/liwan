@@ -15,14 +15,15 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from deploy.stack import render as stack_render
+
 ROOT = Path(__file__).resolve().parents[1]
 RENDER = ROOT / 'deploy' / 'ai-egress' / 'render.sh'
 WATCH = ROOT / 'deploy' / 'ai-egress' / 'watch-tenant-hosts.sh'
 ENTRYPOINT = ROOT / 'deploy' / 'ai-egress' / 'entrypoint.sh'
 EGRESS_DIR = ROOT / 'deploy' / 'ai-egress'
 HOSTS = ROOT / 'deploy' / 'ai' / 'egress_hosts.sh'
-COMPOSE = ROOT / 'deploy' / 'docker-compose.yml'
-SHARED = ROOT / 'deploy' / 'docker-compose.shared.yml'
+LOCAL_ENV = ROOT / 'deploy' / 'environments' / 'local.env.example'
 
 
 class RenderCase(unittest.TestCase):
@@ -380,7 +381,7 @@ class SquidParseCase(unittest.TestCase):
         self.assertNotIn('ERROR', completed.stderr)
 
     def test_squid_parses_the_odoo_instance_configuration(self):
-        # The Odoo instance: `.domain` items and the private-destination denial, no tenant files (docker-compose.shared.yml).
+        # The Odoo instance: `.domain` items and the private-destination denial, no tenant files (deploy/stack/compose.yml).
         hosts = 'api.authentica.sa,graph.facebook.com,business-api.tiktok.com,.tiktokcdn.com,.tiktokcdn-us.com,ksa.paymob.com'
         script = 'sh /usr/local/lib/ai-egress/render.sh /run/squid/squid.conf && squid -k parse -f /run/squid/squid.conf'
         completed = subprocess.run(
@@ -399,94 +400,75 @@ class ComposeNetworksCase(unittest.TestCase):
         'COMPOSE_PROFILES': 'ai', 'AI_SERVICE_TOKEN': 'synthetic-not-a-real-token', 'DB_NAME': 'synthetic',
         'DB_PASSWORD': 'synthetic-not-secret', 'DB_ADMIN_PASSWORD': 'synthetic-admin-not-secret', 'LIWAN_IMAGE_TAG': 'synthetic', 'ODOO_COMMIT': 'synthetic',
         'DOMAIN': 'tenant.invalid',
+        'LIWAN_TENANT_REGISTRY_DIR': tempfile.gettempdir(),
+        'LIWAN_AI_PLATFORM_DIR': tempfile.gettempdir(),
+        'LIWAN_SHARED_PROXY_TOKEN': 'synthetic-not-a-real-token',
+        'LIWAN_SESSION_KEYS': '{}', 'LIWAN_SESSION_ACTIVE_KID': 'test',
+        'LIWAN_EDGE_BIND': '127.0.0.1', 'LIWAN_EDGE_HTTP_PORT': '80', 'LIWAN_EDGE_HTTPS_PORT': '443',
+        'LIWAN_SHARED_ODOO_CONFIG': '/synthetic/odoo.conf',
+        'LIWAN_TIKTOK_CLIENT_KEY': 'synthetic-not-a-key',
+        'LIWAN_TIKTOK_CLIENT_SECRET': 'synthetic-not-a-secret',
+        'LIWAN_TIKTOK_RELAY_HOST': 'tiktok.synthetic.invalid',
+        'LIWAN_CONTROL_STATE_DIR': tempfile.gettempdir(),
+        'LIWAN_TENANT_STORAGE_FILES_DIR': tempfile.gettempdir(),
     }
 
-    def render(self, shared):
-        values = dict(self.REQUIRED)
-        files = [str(COMPOSE)]
-        if shared:
-            files.append(str(SHARED))
-            values.update({
-                'LIWAN_TENANT_REGISTRY_DIR': tempfile.gettempdir(),
-                'LIWAN_AI_PLATFORM_DIR': tempfile.gettempdir(),
-                'LIWAN_SHARED_PROXY_TOKEN': 'synthetic-not-a-real-token',
-                'LIWAN_SESSION_KEYS': '{}', 'LIWAN_SESSION_ACTIVE_KID': 'test',
-                'LIWAN_EDGE_BIND': '127.0.0.1', 'LIWAN_EDGE_HTTP_PORT': '80', 'LIWAN_EDGE_HTTPS_PORT': '443',
-                'LIWAN_SHARED_ODOO_CONFIG': '/synthetic/odoo.conf',
-                'LIWAN_TIKTOK_CLIENT_KEY': 'synthetic-not-a-key',
-                'LIWAN_TIKTOK_CLIENT_SECRET': 'synthetic-not-a-secret',
-                'LIWAN_TIKTOK_RELAY_HOST': 'tiktok.synthetic.invalid',
-            })
-        argv = ['docker', 'compose']
+    def render(self):
+        """The stack of local.env.example with the synthetic values above, as `docker compose config` resolves it."""
+        values = {**stack_render.read_env(LOCAL_ENV), **self.REQUIRED}
         with tempfile.TemporaryDirectory() as tmp:
             env_file = Path(tmp) / 'synthetic.env'
             env_file.write_text(''.join(f'{key}={value}\n' for key, value in values.items()), encoding='utf-8')
-            argv += ['--env-file', str(env_file)]
-            for path in files:
-                argv += ['-f', path]
-            argv += ['config', '--format', 'json']
-            env = {key: value for key, value in os.environ.items()
-                   if not key.startswith(('LIWAN_', 'ODOO_', 'AI_', 'POSTGRES_', 'COMPOSE_'))}
-            completed = subprocess.run(argv, capture_output=True, text=True, timeout=120, cwd=ROOT, env=env)
+            with stack_render.rendered_stack(env_file) as stack:
+                argv = ['docker', 'compose', '--project-directory', str(ROOT / 'deploy'), '--env-file', str(env_file),
+                        '--env-file', str(stack.with_name(stack_render.SIZING_FILE)), '-f', str(stack), 'config', '--format', 'json']
+                env = {key: value for key, value in os.environ.items()
+                       if not key.startswith(('LIWAN_', 'ODOO_', 'AI_', 'POSTGRES_', 'COMPOSE_'))}
+                completed = subprocess.run(argv, capture_output=True, text=True, timeout=120, cwd=ROOT, env=env)
         self.assertEqual(completed.returncode, 0, completed.stderr)
         return json.loads(completed.stdout)
 
-    def assert_ai_is_internal_only(self, model, shared):
-        networks = model['services']['ai']['networks']
-        self.assertTrue(networks, 'ai must be attached to at least one network')
-        for name in networks:
-            with self.subTest(shared=shared, network=name):
-                self.assertTrue(model['networks'][name].get('internal'), f'{name} must be internal')
-        if shared:
-            self.assertEqual(sorted(networks), ['ai_internal', 'database', 'guard_web'])
-        else:
-            self.assertEqual(list(networks), ['ai_internal'])
-
     def test_ai_is_on_internal_networks_only(self):
-        self.assert_ai_is_internal_only(self.render(shared=False), shared=False)
-
-    def test_ai_is_on_internal_networks_only_in_the_shared_overlay(self):
-        self.assert_ai_is_internal_only(self.render(shared=True), shared=True)
+        model = self.render()
+        networks = model['services']['ai']['networks']
+        self.assertEqual(sorted(networks), ['ai_internal', 'database', 'guard_web'])
+        for name in networks:
+            with self.subTest(network=name):
+                self.assertTrue(model['networks'][name].get('internal'), f'{name} must be internal')
 
     def test_ai_egress_is_the_only_service_on_a_routed_network_for_ai(self):
-        for shared in (False, True):
-            with self.subTest(shared=shared):
-                model = self.render(shared=shared)
-                egress = model['services']['ai-egress']
-                routed = [name for name in egress['networks'] if not model['networks'][name].get('internal')]
-                # Exactly one network leaves the host, and it is the proxy's own egress path.
-                self.assertEqual(len(routed), 1, egress['networks'])
-                self.assertEqual(model['services']['ai']['depends_on']['ai-egress']['condition'], 'service_started')
-                self.assertEqual(model['services']['ai']['environment']['HTTPS_PROXY'], 'http://ai-egress:3128')
-                self.assertEqual(model['services']['ai']['environment']['HTTP_PROXY'], 'http://ai-egress:3128')
-                self.assertEqual(model['services']['ai']['environment']['NO_PROXY'], 'db,web,localhost,127.0.0.1')
-                self.assertEqual(egress['profiles'], ['ai'])
-                self.assertIn('ALL', egress['cap_drop'])
-                self.assertTrue(egress['read_only'])
+        model = self.render()
+        egress = model['services']['ai-egress']
+        routed = [name for name in egress['networks'] if not model['networks'][name].get('internal')]
+        # Exactly one network leaves the host, and it is the proxy's own egress path.
+        self.assertEqual(len(routed), 1, egress['networks'])
+        self.assertEqual(model['services']['ai']['depends_on']['ai-egress']['condition'], 'service_started')
+        self.assertEqual(model['services']['ai']['environment']['HTTPS_PROXY'], 'http://ai-egress:3128')
+        self.assertEqual(model['services']['ai']['environment']['HTTP_PROXY'], 'http://ai-egress:3128')
+        self.assertEqual(model['services']['ai']['environment']['NO_PROXY'], 'db,web,localhost,127.0.0.1')
+        self.assertEqual(egress['profiles'], ['ai'])
+        self.assertIn('ALL', egress['cap_drop'])
+        self.assertTrue(egress['read_only'])
 
     def test_the_tenant_host_volume_is_written_by_ai_and_read_only_in_the_proxy(self):
-        for shared in (False, True):
-            with self.subTest(shared=shared):
-                model = self.render(shared=shared)
-                mounts = {name: {v['target']: v for v in model['services'][name]['volumes']} for name in ('ai', 'ai-egress')}
-                self.assertFalse(mounts['ai']['/egress'].get('read_only', False))
-                self.assertTrue(mounts['ai-egress']['/egress']['read_only'])
-                for name in ('ai', 'ai-egress'):
-                    self.assertEqual(mounts[name]['/egress']['source'], 'ai_tenant_hosts')
-                    self.assertEqual(model['services'][name]['environment']['AI_TENANT_EGRESS_DIR'], '/egress')
+        model = self.render()
+        mounts = {name: {v['target']: v for v in model['services'][name]['volumes']} for name in ('ai', 'ai-egress')}
+        self.assertFalse(mounts['ai']['/egress'].get('read_only', False))
+        self.assertTrue(mounts['ai-egress']['/egress']['read_only'])
+        for name in ('ai', 'ai-egress'):
+            self.assertEqual(mounts[name]['/egress']['source'], 'ai_tenant_hosts')
+            self.assertEqual(model['services'][name]['environment']['AI_TENANT_EGRESS_DIR'], '/egress')
 
     def test_the_platform_provider_is_read_from_a_read_only_directory_and_never_from_the_environment(self):
-        for shared in (False, True):
-            with self.subTest(shared=shared):
-                service = self.render(shared=shared)['services']['ai']
-                mounts = {v['target']: v for v in service['volumes']}
-                self.assertTrue(mounts['/etc/liwan-ai']['read_only'])
-                self.assertEqual(mounts['/etc/liwan-ai']['type'], 'bind')
-                if shared:  # the operator points it at the directory the control plane writes
-                    self.assertEqual(mounts['/etc/liwan-ai']['source'], tempfile.gettempdir())
-                self.assertEqual(service['environment']['AI_PLATFORM_PROVIDER_FILE'], '/etc/liwan-ai/platform-provider.json')
-                for name in ('AI_PROVIDER', 'AI_MODEL', 'AI_API_KEY', 'AI_BASE_URL'):
-                    self.assertNotIn(name, service['environment'])
+        service = self.render()['services']['ai']
+        mounts = {v['target']: v for v in service['volumes']}
+        self.assertTrue(mounts['/etc/liwan-ai']['read_only'])
+        self.assertEqual(mounts['/etc/liwan-ai']['type'], 'bind')
+        # the operator points it at the directory the control plane writes
+        self.assertEqual(mounts['/etc/liwan-ai']['source'], tempfile.gettempdir())
+        self.assertEqual(service['environment']['AI_PLATFORM_PROVIDER_FILE'], '/etc/liwan-ai/platform-provider.json')
+        for name in ('AI_PROVIDER', 'AI_MODEL', 'AI_API_KEY', 'AI_BASE_URL'):
+            self.assertNotIn(name, service['environment'])
 
 
 if __name__ == '__main__':

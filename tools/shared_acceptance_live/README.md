@@ -4,6 +4,13 @@ Two-tenant shared-mode acceptance test for the LiwanOS platform. Provisions a co
 stack (PostgreSQL → Odoo init → admin/role/employee seeding → guard → web → Caddy edge)
 and runs browser-level isolation proofs. **NOT deployment authorization.**
 
+The harness runs the one stack, `deploy/stack/compose.yml`, the same definition every environment runs. `stack_render.py`
+renders it from `deploy/environments/local.env.example` plus the harness's own values (image tag, domain, ports,
+subnets, secrets; written by `up.sh` into a private run directory as `harness.env`). Nothing is stacked over the
+compose file, no source file is mounted into a container (Odoo runs the launcher and validator its image was built
+with) and the harness has no Caddyfile of its own. `subnets.yml` only pins network subnets and defines no service. A
+harness compose file never redefines a stack service (`tools/test_acceptance_harness_stack.py` refuses it).
+
 ## Exact commands
 
 ```bash
@@ -37,46 +44,35 @@ gitignored.
 
 ## Image tags
 
-All four images use `${LIWAN_IMAGE_TAG}` (the short HEAD sha); only Caddy has an
-`accept` image name. The base compose and `acceptance.override.yml` select the
-images below through `${LIWAN_IMAGE_TAG}`, matching the names used by `up.sh`.
+Every image of the stack uses `${LIWAN_IMAGE_TAG}` (the short HEAD sha) under the stack's own names, which `up.sh` reads
+with `--no-build --pull never`. Build them from the repository root, with the Dockerfiles the stack's `build:` entries name:
 
 | Service | Image | Dockerfile | Extra |
 |---|---|---|---|
 | odoo | `liwan-odoo` | `deploy/odoo/Dockerfile` | build arg `ODOO_COMMIT=$(cat deploy/odoo/ODOO_COMMIT)` |
 | web | `liwan-web` | `apps/web/Dockerfile` | build arg `LIWAN_TENANCY_MODE=shared` (Never a dedicated build, per T6-F01) |
 | guard | `liwan-guard` | `deploy/shared/Dockerfile` | — |
-| caddy | `liwan-accept-caddy` | `deploy/proxy/Dockerfile` | must show `http.handlers.rate_limit` in `caddy list-modules` |
-
-Build all four from the repository root:
+| caddy | `liwan-caddy` | `deploy/proxy/Dockerfile` | must show `http.handlers.rate_limit` in `caddy list-modules` |
+| ai-egress / odoo-egress | `liwan-ai-egress` | `deploy/ai-egress/Dockerfile` | build context `deploy/ai-egress` |
+| odoo-mail | `liwan-odoo-mail` | `deploy/odoo-mail/Dockerfile` | build context `deploy/odoo-mail` |
 
 ```bash
 export LIWAN_IMAGE_TAG=$(git rev-parse --short HEAD)
 docker build -f deploy/odoo/Dockerfile --build-arg ODOO_COMMIT="$(cat deploy/odoo/ODOO_COMMIT)" -t "liwan-odoo:$LIWAN_IMAGE_TAG" .
 docker build -f apps/web/Dockerfile --build-arg LIWAN_TENANCY_MODE=shared -t "liwan-web:$LIWAN_IMAGE_TAG" .
 docker build -f deploy/shared/Dockerfile -t "liwan-guard:$LIWAN_IMAGE_TAG" .
-docker build -f deploy/proxy/Dockerfile -t "liwan-accept-caddy:$LIWAN_IMAGE_TAG" .
+docker build -f deploy/proxy/Dockerfile -t "liwan-caddy:$LIWAN_IMAGE_TAG" .
+docker build -t "liwan-ai-egress:$LIWAN_IMAGE_TAG" deploy/ai-egress
+docker build -t "liwan-odoo-mail:$LIWAN_IMAGE_TAG" deploy/odoo-mail
 ```
 
-Build context is always the repository root.
+## Compose invocation
 
-## Compose path base (this is the part that keeps breaking)
-
-`up.sh`/`down.sh` run `docker compose` with the **working directory set to `deploy/`**
-and do **not** pass `--project-directory`.
-
-Compose resolves every relative bind-mount source against the project directory, which
-defaults to the directory of the first `-f` file (`deploy/`). Consequences:
-
-- the committed `deploy/docker-compose.shared.yml` mounts `./shared/Caddyfile`,
-  `./shared/launch_odoo.py`, `./shared/validate_odoo_config.py`, which resolve to real
-  files;
-- this harness is addressed as `../tools/shared_acceptance_live/...`.
-
-Do **not** reintroduce `--project-directory "$REPO_ROOT"`: that breaks the committed
-`./shared/*` mounts, and bare relative sources like `tools/shared_acceptance_live/x`
-then parse as *named volumes* ("service proxy refers to undefined volume
-tools/...").
+`up.sh`/`down.sh` call `stack_render.py command <run dir> <project>`, which prints the one argument list: `docker compose
+--project-directory <repo>/deploy -p <project> --env-file local.env.example --env-file harness.env --env-file sizing.env
+-f compose.yml -f subnets.yml`. The project directory is `deploy/`, so the stack's own relative paths (`./stack/Caddyfile`,
+`./db/...`) resolve exactly as in every environment. The run directory (`$TMPDIR_BASE/stack`, mode 0700) holds the
+rendered compose file, `sizing.env`, `harness.env` and the Odoo config, and is removed with the temp dir by `down.sh`.
 
 ## Edge port decision: 443/80 on 127.0.0.1
 
@@ -87,10 +83,10 @@ The edge proxy publishes on `127.0.0.1:443` and `127.0.0.1:80` (not 18443/18080)
 (`/^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/`)
 matches only lowercase alphanumeric dots and hyphens — it rejects any Host containing
 a colon/port. Caddy's `reverse_proxy` forwards the incoming `Host` header unchanged.
-If the browser connects to `a.accept.liwan.test:18443`, the Host header includes
+If the browser connects to `a.accept.liwan.localhost:18443`, the Host header includes
 `:18443`, the resolver throws `tenant_host_unavailable`, and guard returns 403.
 
-Using standard ports means the browser sends a port-less Host (`a.accept.liwan.test`),
+Using standard ports means the browser sends a port-less Host (`a.accept.liwan.localhost`),
 which matches the registry exactly. We bind to `127.0.0.1` only, so this does not
 conflict with other services on the host network interface.
 
@@ -107,38 +103,28 @@ lets Docker pick from the default pool fails with:
 all predefined address pools have been fully subnetted
 ```
 
-`acceptance.override.yml` therefore pins explicit subnets in `10.240.0.0/16`
-(edge .2, guard_web .4, guard_odoo .6, database .8 — all `/24`). Explicit subnets do
-not need pool arbitration. The three private networks keep the `internal: true` flag
-inherited from the shared overlay.
+The stack pins its `edge` network itself (`LIWAN_EDGE_SUBNET`). `subnets.yml` pins every other network of the stack from
+`LIWAN_HARNESS_SUBNET_*` values that `up.sh` writes into `harness.env`, all `/24` in `10.240.0.0/16` (edge .2, guard_web .4,
+guard_odoo .6, database .8, ai_internal .10, odoo_egress .12, odoo_mail .14, relay_odoo .16, guard_restore .18,
+restore_database .20, tenant_storage .22). Explicit subnets do not need pool arbitration. The networks keep the
+`internal: true` of the stack definition.
 
 ## Healthchecks and readiness
 
-The stack waits on the real compose healthchecks and then on a routed probe:
+The stack waits on the healthchecks the stack itself defines, unchanged:
 
-| Service | Healthcheck source | What it actually proves |
-|---|---|---|
-| db | base compose | `psql -U postgres -d postgres -tAc 'select 1'` |
-| guard | shared overlay | loopback TCP liveness on 8080 |
-| web | **acceptance override** (TCP liveness on 3000) | process is listening |
-| odoo | **acceptance override** (TCP connect to 8069) | HTTP listener is up |
-| proxy | **acceptance override** (`wget https://127.0.0.1/` expecting 403/200) | TLS listener + guard answering |
-
-Two base healthchecks had to be replaced:
-
-- `web`'s base check fetches `/login`, which in shared mode traverses
-  web → guard → Odoo; the shared README explicitly forbids using an untrusted
-  `/login` as the shared web check, and it would make dependants wait on a routed
-  request.
-- `odoo`'s base check probes `http://localhost:8069/web/health`, but shared Odoo runs
-  `dbfilter=^%h$` / `list_db=False`; `localhost` is not a database name, so
-  `/web/health` answers 5xx and the container can **never** report healthy. Every
-  service depending on `odoo: service_healthy` would then block forever.
+| Service | What it proves |
+|---|---|
+| db | a real `psql` login as the admin role |
+| odoo | an HTTP worker answers `/web/health?db_server_status=1` and the database server is reachable |
+| web | the Nitro server answers the static `/favicon.ico` |
+| guard | loopback liveness on 8080 |
+| proxy | no healthcheck; it starts only once web, odoo and guard are healthy |
 
 After the containers are healthy, `up.sh` performs the real readiness probe: an HTTPS
 request to `https://<host>/` for **both** tenant hosts, resolved to 127.0.0.1, with the
 exported root CA. A 403 (no valid tenant session) or 200 proves Caddy, the pinned
-rate-limit module, TLS and guard host resolution are all live.
+rate-limit module, TLS with the registry hostname and guard host resolution are all live.
 
 ## Tenant registry
 
@@ -190,20 +176,20 @@ not match `liwan_*scratch*`, so the acceptance databases are named
 **`liwan_accept_a_scratch` / `liwan_accept_b_scratch`**. They are disposable
 loopback-only databases inside a project that is removed at the end.
 
-Mode is **`saas`** (the shared SaaS lane). No control plane or billing connection is
-made at classification time: `load_classification()` runs only inside
-`liwan.tenant.profile.create()`, and the profile is persisted in the database. The
-steady-state service therefore gets an **empty** `LIWAN_COMMERCIAL_CONFIG`, matching
-the `unset LIWAN_COMMERCIAL_CONFIG` precedent used before the service starts in CI.
+The files are written into `<temp dir>/control-state/classifications/`, the host directory the stack mounts read-only into
+Odoo at `/run/liwan-runtime/classifications` (the directory the control plane's effects use). The one-off install and
+seeding runs name the file with `LIWAN_COMMERCIAL_CONFIG=/run/liwan-runtime/classifications/<db>.json`. Mode is **`saas`**
+(the shared SaaS lane). No control plane or billing connection is made at classification time: `load_classification()`
+runs only inside `liwan.tenant.profile.create()`, and the profile is persisted in the database. The running service sets
+no `LIWAN_COMMERCIAL_CONFIG`, matching the `unset LIWAN_COMMERCIAL_CONFIG` precedent used before the service starts in CI.
 
 ## Odoo config (operator-owned secret, never in Git)
 
-`up.sh` generates `$TMPDIR_BASE/odoo.conf` mode 0400 (chowned to the container uid when
-running as root on Linux) and validates it twice: with the repository validator on the
-host, then inside the image as the runtime uid. Required values:
-`dbfilter=^%h$`, `list_db=False`, `proxy_mode=False`,
-`server_wide_modules=base,rpc,web,liwan_shared_dbselect`, `workers=2`,
-`data_dir=/var/lib/odoo`, no `db_name`, no placeholder credentials.
+`stack_render.py` renders `<run dir>/odoo.conf` (mode 0400) from the stack's own `deploy/stack/odoo.conf.template`: the
+`odoo` role's password and the master-password hash of the harness, with the worker and memory budget of
+`deploy/odoo_sizing.py`. `up.sh` chowns it to the container uid when it runs as root on Linux and validates it once, with the
+validator the Odoo image was built with, as the runtime uid (`/opt/liwan/shared/validate_odoo_config.py`). The harness
+mounts no launcher or validator from the source tree.
 
 ## Seeding: capabilities are not `base.group_system`
 
@@ -238,7 +224,10 @@ Session cookie value format: `base64url(JSON([1,kid,tenantId,registryRevision,ex
 
 ## TLS trust mechanism
 
-Caddy generates an internal CA (`local_certs`). `up.sh` exports the root certificate to
+The harness domain is `accept.liwan.localhost`. A `.localhost` name never qualifies for a public certificate, so Caddy
+issues it from its internal CA with no Caddyfile of the harness: the stack Caddyfile is used as it is. The restore and
+TikTok relay site names of the stack are also set to `.localhost` names (`restore.accept.liwan.localhost`,
+`tiktok.accept.liwan.localhost`) so that no site asks a public CA. `up.sh` exports the root certificate to
 `$TMPDIR_BASE/root.crt` and computes its SPKI SHA-256 pin to `$TMPDIR_BASE/root.spki`.
 
 - **probe.mjs**: Uses `rejectUnauthorized: true` with `ca: readFileSync(root.crt)`
@@ -250,18 +239,12 @@ Caddy generates an internal CA (`local_certs`). `up.sh` exports the root certifi
 
 ## The asset-exhaustion variant (finding F4)
 
-`deploy/shared/Caddyfile` keys every non-API path — formerly including the application's own
-`/_nuxt/*` build output — to one `liwan_web` bucket of 600 events/minute per client IP.
-A single cold `/login` response references 127 `/_nuxt/*` files, so two tenants
-cold-loading inside a minute exhausted the bucket and the second tenant received `429`
-for its own `.js`/`.css`/font requests. The page then rendered an empty body (white
-screen), not a degraded one. That was a production finding, recorded as F4 in
-`docs/verification/shared-live-acceptance.md`.
-
-F4 is now fixed directly in `deploy/shared/Caddyfile` by exempting immutable static
-asset prefixes (`/_nuxt/*`, `/_i18n/*`, `/i18n/*`, `/fonts/*`, `/favicon.ico`, `/robots.txt`)
-from `liwan_web`. The temporary harness-local variant files have been removed, and
-`acceptance.Caddyfile` imports the production Caddyfile directly for live reruns.
+The stack Caddyfile (`deploy/stack/Caddyfile`) keys every non-API path to one `liwan_web` bucket of 600 events/minute per
+client IP, except the application's own immutable static assets (`/_nuxt/*`, `/_i18n/*`, `/fonts/*`, `/favicon.ico`,
+`/robots.txt`). A single cold `/login` response references 127 `/_nuxt/*` files, so without that exemption two tenants
+cold-loading inside a minute exhausted the bucket and the second tenant received `429` for its own `.js`/`.css`/font
+requests, and the page rendered an empty body. That was a production finding, recorded as F4 in
+`docs/verification/shared-live-acceptance.md`, and the harness runs the production Caddyfile unchanged.
 
 ## Proof map
 

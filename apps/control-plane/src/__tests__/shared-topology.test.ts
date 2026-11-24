@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { runInNewContext } from 'node:vm'
 import { expect, it } from 'vitest'
@@ -11,22 +12,39 @@ const root = resolve(import.meta.dirname, '../../../..')
 const hasDocker = (() => {
   try { execFileSync('docker', ['compose', 'version'], { stdio: 'ignore' }); return true } catch { return false }
 })()
-function rendered(shared: boolean, extra: readonly string[] = [], env: Readonly<Record<string, string>> = {}) {
-  const args = ['compose', '--env-file', '/dev/null', '-f', 'deploy/docker-compose.yml']
-  if (shared) args.push('-f', 'deploy/docker-compose.shared.yml')
-  args.push(...extra, 'config', '--format', 'json')
-  return JSON.parse(execFileSync('docker', args, { cwd: root, encoding: 'utf8', env: {
-    PATH: process.env.PATH, HOME: process.env.HOME, DOCKER_CONFIG: process.env.DOCKER_CONFIG,
+// The one stack definition (deploy/stack/compose.yml) rendered the way the release renders it: local.env.example with
+// synthetic values, through deploy/stack/render.py, with the sizing values beside it.
+const renderStack = [
+  'import shutil, sys', 'from pathlib import Path', 'from deploy.stack import render',
+  'with render.rendered_stack(Path(sys.argv[1])) as stack:',
+  '    shutil.copy(stack, Path(sys.argv[2]) / "compose.yml")',
+  '    shutil.copy(stack.with_name(render.SIZING_FILE), Path(sys.argv[2]) / render.SIZING_FILE)',
+].join('\n')
+function rendered(extra: readonly string[] = [], env: Readonly<Record<string, string>> = {}) {
+  const dir = mkdtempSync(resolve(tmpdir(), 'liwan-topology-'))
+  const values: Record<string, string> = {
     LIWAN_IMAGE_TAG: 'synthetic', DOMAIN: 'tenant.invalid',
     ODOO_COMMIT: 'synthetic', DB_NAME: 'synthetic', DB_PASSWORD: 'synthetic-not-secret', DB_ADMIN_PASSWORD: 'synthetic-admin-not-secret',
     LIWAN_SHARED_PROXY_TOKEN: 'synthetic-not-a-real-token', LIWAN_SESSION_KEYS: '{}', LIWAN_SESSION_ACTIVE_KID: 'test',
     LIWAN_TENANT_REGISTRY_DIR: '/synthetic/registry', LIWAN_SHARED_ODOO_CONFIG: '/synthetic/odoo.conf',
+    LIWAN_CONTROL_STATE_DIR: '/synthetic/state', LIWAN_TENANT_STORAGE_FILES_DIR: '/synthetic/storage',
     LIWAN_EDGE_BIND: '0.0.0.0', LIWAN_EDGE_HTTP_PORT: '80', LIWAN_EDGE_HTTPS_PORT: '443',
     ...env,
-  } }))
+  }
+  const envFile = resolve(dir, 'synthetic.env')
+  writeFileSync(envFile, `${readFileSync(resolve(root, 'deploy/environments/local.env.example'), 'utf8')}\n${Object.entries(values).map(([k, v]) => `${k}=${v}`).join('\n')}\n`)
+  const clean = { PATH: process.env.PATH, HOME: process.env.HOME, DOCKER_CONFIG: process.env.DOCKER_CONFIG }
+  try {
+    execFileSync('python3', ['-B', '-c', renderStack, envFile, dir], { cwd: root, env: clean })
+    const args = ['compose', '--project-directory', resolve(root, 'deploy'), '--env-file', envFile, '--env-file', resolve(dir, 'sizing.env'),
+      '-f', resolve(dir, 'compose.yml'), ...extra, 'config', '--format', 'json']
+    return JSON.parse(execFileSync('docker', args, { cwd: root, encoding: 'utf8', env: clean }))
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
 }
 it.skipIf(!hasDocker)('renders the TikTok relay on its own internal network when the profile is on', () => {
-  const model = rendered(true, ['--profile', 'tiktok'], {
+  const model = rendered(['--profile', 'tiktok'], {
     LIWAN_TIKTOK_CLIENT_SECRET: 'synthetic-not-a-real-secret', LIWAN_TIKTOK_RELAY_HOST: 'tiktok.invalid',
   })
   const relay = model.services['tiktok-relay']
@@ -38,14 +56,8 @@ it.skipIf(!hasDocker)('renders the TikTok relay on its own internal network when
   expect(model.networks.relay_odoo.internal).toBe(true)
   expect(Object.keys(model.services.odoo.networks).sort()).toEqual(['database', 'guard_odoo', 'odoo_egress', 'odoo_mail', 'relay_odoo'])
 })
-it.skipIf(!hasDocker)('renders dedicated defaults without shared services or build mode', () => {
-  const s = rendered(false).services
-  expect(s.guard).toBeUndefined()
-  expect(s.odoo.command).toEqual(['--workers', '2', '--proxy-mode'])
-  expect(s.web.environment.NUXT_ODOO_URL).toBe('http://odoo:8069')
-})
 it.skipIf(!hasDocker)('renders shared network boundaries, commands, directory mounts and compiled mode', () => {
-  const model = rendered(true)
+  const model = rendered()
   const s = model.services
   for (const name of ['web', 'odoo', 'guard', 'db']) expect(s[name].ports ?? []).toEqual([])
   expect(s.proxy.ports.map((p: { published: string }) => p.published).sort()).toEqual(['443', '80'])
@@ -68,10 +80,10 @@ it.skipIf(!hasDocker)('renders shared network boundaries, commands, directory mo
 })
 it.skipIf(!hasDocker)('declares the restore services the restore runner requires, inert and isolated from the live database', () => {
   // tools/shared_saas_lifecycle/odoo_backup.py selects `--profile restore` and restores into these two services.
-  const live = rendered(true)
+  const live = rendered()
   expect(live.services['restore-db']).toBeUndefined()
   expect(live.services['restore-odoo']).toBeUndefined()
-  const model = rendered(true, ['--profile', 'restore'])
+  const model = rendered(['--profile', 'restore'])
   const s = model.services
   expect(s['restore-db'].image).toBe(s.db.image)
   // Compose renders the tag the odoo service builds; the restore runner compares image ids, so the tag must be shared.
@@ -100,7 +112,7 @@ it.skipIf(!hasDocker)('declares the restore services the restore runner requires
   expect(readFileSync(resolve(root, 'deploy/shared/odoo.restore.conf'), 'utf8')).toMatch(/^db_host = restore-db$/m)
 })
 it.skipIf(!hasDocker)('mounts the restore registry read-only on the guard and web, and points the guard at restore-odoo', () => {
-  const s = rendered(true, [], { LIWAN_RESTORE_REGISTRY_DIR: '/synthetic/restore-registry' }).services
+  const s = rendered([], { LIWAN_RESTORE_REGISTRY_DIR: '/synthetic/restore-registry' }).services
   for (const name of ['guard', 'web']) {
     expect(s[name].volumes).toContainEqual(expect.objectContaining({ source: '/synthetic/restore-registry', target: '/etc/liwan-restore', read_only: true }))
     expect(s[name].environment.LIWAN_RESTORE_REGISTRY_PATH).toBe('/etc/liwan-restore/registry.json')

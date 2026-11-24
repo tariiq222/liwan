@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 
 DEPLOY = Path(__file__).resolve().parent
+STACK = DEPLOY / 'stack' / 'compose.yml'
 KEY = 'ab12' * 10
 
 
@@ -59,12 +60,12 @@ class WriteEnvSecretTest(unittest.TestCase):
 
 
 class ComposeDeliveryTest(unittest.TestCase):
-    """The root reaches web and odoo and no other service, in the base file and in the shared overlay."""
+    """The root reaches web and odoo and no other service of the stack, and no other compose file names it."""
 
     @staticmethod
     def holders(path):
         holder, found = None, []
-        for line in (DEPLOY / path).read_text().splitlines():
+        for line in path.read_text().splitlines():
             service = re.match(r'^  ([a-z0-9-]+):\s*$', line)
             if service:
                 holder = service.group(1)
@@ -73,15 +74,14 @@ class ComposeDeliveryTest(unittest.TestCase):
         return found
 
     def test_only_web_and_odoo_receive_the_root(self):
-        for path in ('docker-compose.yml', 'docker-compose.shared.yml'):
-            with self.subTest(path=path):
-                self.assertEqual(sorted(self.holders(path)), ['odoo', 'web'])
+        self.assertEqual(sorted(self.holders(STACK)), ['odoo', 'web'])
 
     def test_no_other_compose_file_names_the_root(self):
-        for path in sorted(DEPLOY.glob('docker-compose*.yml')):
-            if path.name not in ('docker-compose.yml', 'docker-compose.shared.yml'):
-                with self.subTest(path=path.name):
-                    self.assertNotIn('LIWAN_AI_USAGE_KEY', path.read_text())
+        others = [path for path in sorted(DEPLOY.glob('*/*compose*.yml')) if path != STACK]
+        self.assertTrue(others)
+        for path in others:
+            with self.subTest(path=str(path.relative_to(DEPLOY))):
+                self.assertNotIn('LIWAN_AI_USAGE_KEY', path.read_text())
 
 
 if __name__ == '__main__':

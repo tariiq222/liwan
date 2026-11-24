@@ -24,6 +24,7 @@ from pathlib import Path
 from deploy import odoo_sizing
 
 STACK = Path(__file__).resolve().parent
+CADDYFILE = STACK / 'Caddyfile'  # the one edge of every environment
 TOGGLES = frozenset({'LIWAN_STACK_COMMERCIAL_EDGE', 'LIWAN_STACK_DB_HOST_LINK'})
 TOGGLE_PREFIX = 'LIWAN_STACK_'
 IF_LINE = re.compile(r'^\s*# @if (\S+)\s*$')

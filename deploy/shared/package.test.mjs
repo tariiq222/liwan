@@ -15,8 +15,8 @@ test('guard image includes all runtime import paths and unprivileged native Node
   assert.match(docker, /mkdir -p \/var\/lib\/liwan && chown node:node \/var\/lib\/liwan/)
   assert.match(docker, /HEALTHCHECK.*healthcheck.mjs/)
 })
-test('shared Odoo selection config never names a default database or trusts forwarding', () => {
-  const config = read('odoo.conf')
+test('the shared Odoo config template never names a default database or trusts forwarding', () => {
+  const config = read('../stack/odoo.conf.template')
   assert.match(config, /^dbfilter = \^%h\$$/m)
   assert.match(config, /^proxy_mode = False$/m)
   assert.match(config, /^list_db = False$/m)

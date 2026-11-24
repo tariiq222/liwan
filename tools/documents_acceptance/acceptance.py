@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Real Linux/Odoo bytes and policy matrix through direct and original edge transports."""
+"""Real Linux/Odoo bytes and policy matrix through the guarded shared edge (deploy/stack/Caddyfile to the guard)."""
 
 # CLI receipts and top-level failure capture must survive arbitrary transport failures.
 # ruff: noqa: T201, BLE001
@@ -37,8 +37,8 @@ class HttpResult:
 
 
 class Matrix:
-    def __init__(self, transport, mode=None):
-        self.transport, self.mode, self.rows = transport, mode, []
+    def __init__(self, mode=None):
+        self.mode, self.rows = mode, []
 
     def check(
         self,
@@ -51,7 +51,6 @@ class Matrix:
         forbidden=None,
         private=False,
         json_subset=None,
-        rpc_error=False,
         response_headers=None,
     ):
         errors = []
@@ -72,25 +71,16 @@ class Matrix:
                 "attachment;",
             ):
                 errors.append("content_disposition")
-        if json_subset is not None or rpc_error:
+        if json_subset is not None:
             try:
                 data = response.json()
-                if json_subset is not None and any(
-                    data.get(key) != value for key, value in json_subset.items()
-                ):
+                if any(data.get(key) != value for key, value in json_subset.items()):
                     errors.append("json_fields")
-                if rpc_error and not data.get("error"):
-                    errors.append("rpc_error_missing")
-                if rpc_error and data.get("error", {}).get("code") != 404:
-                    errors.append("rpc_route_not_closed")
-                if rpc_error and "result" in data:
-                    errors.append("rpc_result_present")
             except (ValueError, AttributeError):
                 errors.append("json")
         row = {
             "actor": actor,
             "resource": resource,
-            "transport": self.transport,
             "mode": self.mode,
             "expected": {"status": status},
             "actual": {
@@ -127,7 +117,6 @@ class Matrix:
             {
                 "actor": "runner",
                 "resource": resource,
-                "transport": self.transport,
                 "mode": self.mode,
                 "expected": {"execution": "complete"},
                 "actual": {"error_type": type(error).__name__},
@@ -142,7 +131,6 @@ class Matrix:
             "passed": bool(self.rows) and not failed,
             "total": len(self.rows),
             "failed": failed,
-            "transport": self.transport,
             "mode": self.mode,
         }
 
@@ -271,30 +259,19 @@ def run_matrix(args):
     raw = base64.b64decode(fixture["raw_b64"])
     original_features = fixture["features"]
     sessions = native_login(state, tenant, credentials)
-    cookies = (
-        seal_sessions(state, tenant, sessions, runner)
-        if args.transport == "shared"
-        else sessions
-    )
+    cookies = seal_sessions(state, tenant, sessions, runner)
     private_json(
         args.evidence_dir / "session-setup.json",
         {
-            "setup": "native Odoo login on owned private listener; shared envelopes sealed by real exported sessionCodec",
+            "setup": "native Odoo login on the owned private setup listener; session envelopes sealed by the real exported guard sessionCodec",
             "tenant": tenant["tenantId"],
             "actor_ids": fixture["actors"],
             "cookie_values": cookies,
         },
     )
-    entry = state["modes"][args.mode]
-    base = (
-        entry["direct_url"]
-        if args.transport == "direct"
-        else entry["dedicated_url"]
-        if args.transport == "dedicated"
-        else state["shared_edge_url"]
-    )
-    host = tenant["host"] if args.transport == "shared" else None
-    matrix = Matrix(args.transport, args.mode)
+    base = state["shared_edge_url"]
+    host = tenant["host"]
+    matrix = Matrix(args.mode)
     path = "/api/v1/documents/" + str(fixture["document_id"])
     download = path + "/files/" + str(fixture["file_id"]) + "/download"
     native = "/web/content/" + str(fixture["attachment_id"])
@@ -444,7 +421,7 @@ def run_matrix(args):
             method="PATCH",
             payload={
                 "expected_revision": current,
-                "name": "Verified " + args.mode + " " + args.transport,
+                "name": "Verified " + args.mode,
             },
         )
         check(
@@ -461,7 +438,7 @@ def run_matrix(args):
             path,
             json_subset={
                 "revision": current + 1,
-                "name": "Verified " + args.mode + " " + args.transport,
+                "name": "Verified " + args.mode,
             },
         )
         check(
@@ -496,12 +473,11 @@ def run_matrix(args):
                 "context": {"kind": "res.users", "id": fixture["actors"]["manager"]},
             },
         )
-        expected = 403 if args.transport == "shared" else 404
         check(
             "outsider",
             "forged-actor-header",
             download,
-            expected,
+            403,
             forbidden=raw,
             headers={"X-Odoo-Uid": "1", "X-Liwan-Proxy-Token": "not-the-owned-key"},
         )
@@ -520,11 +496,10 @@ def run_matrix(args):
             "outsider",
             "native-RPC-dms-file-read",
             "/web/dataset/call_kw/dms.file/read",
-            403 if args.transport == "shared" else 200,
+            403,
             method="POST",
             payload=rpc,
             forbidden=raw,
-            rpc_error=args.transport != "shared",
         )
         rpc["params"].update(
             method="write", args=[[fixture["file_id"]], {"name": "raw bypass.txt"}],
@@ -533,10 +508,9 @@ def run_matrix(args):
             "manager",
             "native-RPC-raw-write",
             "/web/dataset/call_kw/dms.file/write",
-            403 if args.transport == "shared" else 200,
+            403,
             method="POST",
             payload=rpc,
-            rpc_error=args.transport != "shared",
         )
 
     def revoke_matrix():
@@ -641,19 +615,17 @@ def run_matrix(args):
             "reader",
             "archived-native-RPC-attachment-read",
             "/web/dataset/call_kw/ir.attachment/read",
-            403 if args.transport == "shared" else 200,
+            403,
             method="POST",
             payload=rpc,
             forbidden=base64.b64encode(raw),
-            rpc_error=args.transport != "shared",
         )
         check("reader", "archived-native-file-denied", native, 404, forbidden=raw)
         rpc["params"].update(method="search_read", args=[[("id", "=", fixture["attachment_id"])]], kwargs={"fields": ["datas"]})
         check(
             "reader", "archived-native-RPC-attachment-query", "/web/dataset/call_kw/ir.attachment/search_read",
-            403 if args.transport == "shared" else 200,
+            403,
             method="POST", payload=rpc, forbidden=base64.b64encode(raw),
-            json_subset={"result": []} if args.transport != "shared" else None,
         )
         check(
             "manager",
@@ -746,7 +718,7 @@ def run_matrix(args):
             reset()
 
     def tenant_matrix():
-        if args.transport != "shared" or args.mode != "saas":
+        if args.mode != "saas":
             return
         other = next(
             item
@@ -805,7 +777,7 @@ def run_matrix(args):
                 "results": matrix.rows,
                 "stack_state": str(args.stack_state),
                 "image_id": state["image_id"],
-                "login_setup": "native private listener; tests use selected actual HTTP transport",
+                "login_setup": "native private setup listener; every request of the matrix goes through the guarded shared edge",
             },
         )
     print(
@@ -824,9 +796,6 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--worktree", type=Path, required=True)
     parser.add_argument("--mode", choices=["saas", "non_saas"], required=True)
-    parser.add_argument(
-        "--transport", choices=["direct", "dedicated", "shared"], required=True,
-    )
     parser.add_argument("--database-prefix", default="liwan_scratch_docs_accept")
     parser.add_argument("--evidence-dir", type=Path, required=True)
     parser.add_argument("--stack-state", type=Path, required=True)

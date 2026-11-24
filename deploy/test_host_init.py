@@ -16,15 +16,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import yaml
-
-from deploy.release.release import SHARED_COMPOSE_FILES
+from deploy.stack import render as stack_render
 
 DEPLOY = Path(__file__).resolve().parent
-HOST_LINK = DEPLOY / 'docker-compose.host-link.yml'
 INIT_HOST = DEPLOY / 'control-plane' / 'init-host.sh'
 TEMPLATE = DEPLOY / 'environments' / 'staging.env.example'
-BASE_STACK = tuple(name for name in SHARED_COMPOSE_FILES if name != HOST_LINK.name)
 BRIDGE = 'liwan-dbhost'  # the interface name the host firewall rule in the runbook matches
 PROJECT = 'liwan-shared-staging'
 RESTORE_DOMAIN = 'staging.example.test'
@@ -32,18 +28,16 @@ PRIVATE_FILES = ('control-ca.key', 'control-ca.pem', 'control-tls.key', 'control
                  'effect-tls.crt', 'control-db-password')
 
 
-def _render(workdir: Path, files: tuple[str, ...]) -> dict:
-    """The rendered shared stack as docker compose resolves it (the control-plane env files are empty stand-ins)."""
+def _render(workdir: Path, host_link: bool) -> dict:
+    """The rendered stack of the staging template as docker compose resolves it, with the host link on or off."""
     env = dict(os.environ)
-    for variable in ('LIWAN_CONTROL_ENV_FILE', 'LIWAN_VENDOR_ADMIN_ENV_FILE'):
-        empty = workdir / f'{variable}.env'
-        empty.write_text('')
-        env[variable] = str(empty)
-    command = ['docker', 'compose']
-    for name in files:
-        command += ['-f', name]
-    command += ['--env-file', str(TEMPLATE), 'config', '--format', 'json']
-    done = subprocess.run(command, cwd=DEPLOY, env=env, capture_output=True, text=True, timeout=120)
+    template = workdir / f'staging-host-link-{str(host_link).lower()}.env'
+    template.write_text(''.join(f'{name}={value}\n' for name, value in
+                                {**stack_render.read_env(TEMPLATE), 'LIWAN_STACK_DB_HOST_LINK': str(host_link).lower()}.items()))
+    with stack_render.rendered_stack(template) as stack:
+        command = ['docker', 'compose', '--project-directory', str(DEPLOY), '-f', str(stack), '--env-file', str(template),
+                   '--env-file', str(stack.with_name(stack_render.SIZING_FILE)), 'config', '--format', 'json']
+        done = subprocess.run(command, cwd=DEPLOY, env=env, capture_output=True, text=True, timeout=120)
     if done.returncode != 0:
         raise AssertionError(f'render failed: {done.stderr.strip()[:600]}')
     return json.loads(done.stdout)
@@ -53,30 +47,22 @@ def _ports(rendered: dict) -> dict[str, list[dict]]:
     return {name: service['ports'] for name, service in rendered['services'].items() if 'ports' in service}
 
 
-class HostLinkOverlay(unittest.TestCase):
-    def test_it_publishes_only_the_tenant_database_on_loopback_on_its_own_network(self):
-        overlay = yaml.safe_load(HOST_LINK.read_text(encoding='utf-8'))
-        self.assertEqual(['db'], list(overlay['services']))
-        self.assertEqual(['127.0.0.1:${LIWAN_DB_HOST_PORT:-15433}:5432'], overlay['services']['db']['ports'])
-        self.assertEqual(['db_host'], overlay['services']['db']['networks'])
-        self.assertEqual(['db_host'], list(overlay['networks']))
-        self.assertNotIn('internal', overlay['networks']['db_host'])
-        self.assertEqual({'com.docker.network.bridge.name': BRIDGE, 'com.docker.network.bridge.enable_ip_masquerade': 'false'},
-                         overlay['networks']['db_host']['driver_opts'])
-
-    @unittest.skipIf(shutil.which('docker') is None, 'docker CLI not installed: cannot render the compose set')
-    def test_merged_stack_gains_one_loopback_port_and_keeps_the_internal_network(self):
+class HostLink(unittest.TestCase):
+    @unittest.skipIf(shutil.which('docker') is None, 'docker CLI not installed: cannot render the stack')
+    def test_the_toggle_adds_only_the_tenant_database_on_loopback_on_its_own_network(self):
         with tempfile.TemporaryDirectory() as tmp:
-            before = _render(Path(tmp), BASE_STACK)
-            after = _render(Path(tmp), SHARED_COMPOSE_FILES)
+            before = _render(Path(tmp), False)
+            after = _render(Path(tmp), True)
         self.assertNotIn('db', _ports(before))
+        self.assertNotIn('db_host', before['networks'])
         self.assertEqual(_ports(before), {name: ports for name, ports in _ports(after).items() if name != 'db'})
         self.assertEqual([('127.0.0.1', '15433', 5432)],
                          [(port['host_ip'], port['published'], port['target']) for port in _ports(after)['db']])
         self.assertEqual({'database', 'db_host'}, set(after['services']['db']['networks']))
         self.assertTrue(after['networks']['database']['internal'])
-        self.assertEqual(BRIDGE, after['networks']['db_host']['driver_opts']['com.docker.network.bridge.name'])
-        self.assertEqual('false', after['networks']['db_host']['driver_opts']['com.docker.network.bridge.enable_ip_masquerade'])
+        self.assertNotIn('internal', after['networks']['db_host'])
+        self.assertEqual({'com.docker.network.bridge.name': BRIDGE, 'com.docker.network.bridge.enable_ip_masquerade': 'false'},
+                         after['networks']['db_host']['driver_opts'])
 
 
 @unittest.skipIf(shutil.which('openssl') is None, 'openssl not installed: cannot create the host certificates')

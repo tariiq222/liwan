@@ -107,7 +107,7 @@ done
 
 # web: the published build is the shared one (compiled tenancy mode `shared`; the server refuses to start when the runtime
 # mode differs), so it runs as the shared stack runs it. A public static file is answered by the Nitro server before the
-# tenant boundary, needing no upstream (the probe of deploy/docker-compose.shared.yml). Throwaway per-run token.
+# tenant boundary, needing no upstream (the probe of deploy/stack/compose.yml). Throwaway per-run token.
 for name in web guard; do
   mkdir -p "$IMAGE_ROOT/$name-files"
   printf '%s\n' '{"schemaVersion":1,"snapshotRevision":0,"targets":[]}' > "$IMAGE_ROOT/$name-files/registry.json"
@@ -149,25 +149,35 @@ SMOKE_TAG="$(files_tag_of guard)" smoke_started guard \
 # The guard denies an unknown host with 403 (a 5xx or no answer would be a broken guard).
 [ "$(docker exec "$(container_of guard)" node -e "fetch('http://127.0.0.1:8080/',{headers:{host:'unknown.invalid'}}).then(r => console.log(r.status))")" = 403 ]
 # odoo-mail: no start check (it needs an SMTP relay account); it is built, scanned and recorded like every other image.
-# proxy: both Caddyfiles validate against the image's Caddy, which has the rate-limit module compiled in.
+# proxy: the stack Caddyfile validates against the image's Caddy, which has the rate-limit module compiled in.
 # Caddy runs as an unprivileged user; ports 80/443 are bound through its NET_BIND_SERVICE file capability.
+# Caddy fails to parse a placeholder with no default that is unset, so the container gets every variable the Caddyfile
+# reads, with the values of the local environment file (deploy/environments/local.env.example). Compose turns an empty
+# value of a variable with a default in the Caddyfile into that default, and an empty string would not parse, so such
+# a variable is left unset here.
 mkdir -p "$IMAGE_ROOT/proxy-files"
-for caddyfile in deploy/Caddyfile deploy/stack/Caddyfile; do
-  cp "$caddyfile" "$IMAGE_ROOT/proxy-files/Caddyfile"
-  chmod 644 "$IMAGE_ROOT/proxy-files/Caddyfile"
-  derive proxy "$(tag_of proxy)" Caddyfile:/etc/caddy/Caddyfile
-  docker run --rm --name "$(container_of proxy)" -e DOMAIN=ci.invalid "$(files_tag_of proxy)" caddy validate --config /etc/caddy/Caddyfile
+PROXY_ENV="$IMAGE_ROOT/proxy.env"
+: > "$PROXY_ENV"
+for variable in $(grep -oE '\{\$[A-Z_]+' deploy/stack/Caddyfile | tr -d '{$' | sort -u); do
+  line="$(grep -E "^$variable=" deploy/environments/local.env.example)" \
+    || { echo "deploy/environments/local.env.example sets no $variable, which deploy/stack/Caddyfile reads" >&2; exit 1; }
+  if [ "$line" = "$variable=" ] && grep -qF "{\$$variable:" deploy/stack/Caddyfile; then continue; fi
+  printf '%s\n' "$line" >> "$PROXY_ENV"
 done
+cp deploy/stack/Caddyfile "$IMAGE_ROOT/proxy-files/Caddyfile"
+chmod 644 "$IMAGE_ROOT/proxy-files/Caddyfile"
+derive proxy "$(tag_of proxy)" Caddyfile:/etc/caddy/Caddyfile
+docker run --rm --name "$(container_of proxy)" --env-file "$PROXY_ENV" "$(files_tag_of proxy)" caddy validate --config /etc/caddy/Caddyfile
 docker run --rm --name "$(container_of proxy)" "$(tag_of proxy)" sh -c 'caddy list-modules | grep -q http.handlers.rate_limit'
 docker run --rm --name "$(container_of proxy)" --cap-drop ALL --cap-add NET_BIND_SERVICE "$(tag_of proxy)" \
   sh -c 'test "$(id -u)" != 0 && getcap /usr/bin/caddy | grep -q cap_net_bind_service'
 # The compose settings of the proxy (read-only root, no capability but NET_BIND_SERVICE, writable /config and /data as in
-# compose, where /data is the caddy_data volume): it must serve.
+# compose, where /data is the caddy_data volume): it must serve. The local file turns automatic HTTPS off for a machine
+# behind no outer edge, so the served host and the HTTPS mode are set back to serve TLS on localhost.
 PROXY_RUN="$(container_of proxy)-hardened"
-cp deploy/Caddyfile "$IMAGE_ROOT/proxy-files/Caddyfile"
-derive proxy "$(tag_of proxy)" Caddyfile:/etc/caddy/Caddyfile
 docker run -d --name "$PROXY_RUN" --read-only --cap-drop ALL --cap-add NET_BIND_SERVICE --tmpfs /tmp \
-  --tmpfs /config:uid=10002,gid=10002 --tmpfs /data:uid=10002,gid=10002 -e DOMAIN=localhost "$(files_tag_of proxy)" >/dev/null
+  --tmpfs /config:uid=10002,gid=10002 --tmpfs /data:uid=10002,gid=10002 --env-file "$PROXY_ENV" \
+  -e DOMAIN=localhost -e LIWAN_AUTO_HTTPS=ignore_loaded_certs "$(files_tag_of proxy)" >/dev/null
 # wget exits non-zero on the expected 502 (no upstreams), so read its text instead of its status.
 proxy_answer() { docker exec "$PROXY_RUN" wget -q -S -O /dev/null --no-check-certificate https://localhost/ 2>&1 || true; }
 for _ in $(seq 1 15); do

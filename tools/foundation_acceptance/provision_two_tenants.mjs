@@ -26,18 +26,24 @@ for (const port of ports) {
   await new Promise((ok, fail) => { server.once('error', fail); server.listen(port, '127.0.0.1', ok) })
   await new Promise(ok => server.close(ok))
 }
+// One `KEY=value` per line, the format of the stack's env files: a value with anything beyond plain characters is single-quoted.
+const dotenv = values => Object.entries(values).map(([key, value]) => {
+  if (value.includes("'") || value.includes('\n')) throw new Error(`env value of ${key} cannot be written`)
+  return `${key}=${/^[A-Za-z0-9_./:@,+=-]*$/.test(value) ? value : `'${value}'`}`
+}).join('\n') + '\n'
 const baseEnv = Object.fromEntries(['PATH', 'HOME', 'USER', 'LANG', 'TMPDIR', 'DOCKER_HOST', 'DOCKER_CONFIG', 'DOCKER_CONTEXT'].filter(key => process.env[key]).map(key => [key, process.env[key]]))
 const sourceCommit = run('git', ['rev-parse', 'HEAD'], { cwd: sourceRoot }).stdout.trim()
 if (!/^[a-f0-9]{40}$/.test(sourceCommit)) throw new Error('source root must identify a Git checkout')
 if (run('git', ['status', '--porcelain', '--untracked-files=all'], { cwd: sourceRoot }).stdout.trim()) throw new Error('source root must be clean and committed before acceptance')
-for (const image of ['liwan-odoo', 'liwan-web', 'liwan-guard', 'liwan-accept-caddy'].map(name => `${name}:${tag}`).concat('postgres:16')) {
+for (const image of ['liwan-odoo', 'liwan-web', 'liwan-guard', 'liwan-caddy', 'liwan-ai-egress', 'liwan-odoo-mail'].map(name => `${name}:${tag}`).concat('postgres:16')) {
   if (!run('docker', ['image', 'inspect', image]).ok) throw new Error(`required local image is absent: ${image}`)
 }
 const outputParent = realpathSync(process.env.FOUNDATION_OUTPUT_DIR ?? tmpdir())
 const runDir = realpathSync(mkdtempSync(join(outputParent, 'liwan-foundation-')))
 chmodSync(runDir, 0o700)
 const project = `liwan-shared-found-${randomBytes(8).toString('hex')}`
-const domainSuffix = 'foundation.liwan.test'
+// A `.localhost` name never qualifies for a public certificate: Caddy issues it from its internal CA, so the harness needs no Caddyfile of its own.
+const domainSuffix = 'foundation.liwan.localhost'
 const stateDir = join(runDir, 'state')
 const registryDir = join(stateDir, 'registry')
 const restoreRegistryDir = join(stateDir, 'restore-registry')
@@ -93,19 +99,64 @@ for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => { interru
 console.log(`retained run directory: ${runDir}\nproject: ${project}`)
 writePrivate(join(runDir, 'run.json'), JSON.stringify({ schemaVersion: 1, sourceRoot, sourceCommit, imageTag: tag, project, ports: { httpsPort, httpPort, controlPort, controlDbPort }, runDir }, null, 2))
 try {
-  for (const image of ['liwan-odoo', 'liwan-web', 'liwan-guard', 'liwan-accept-caddy'].map(name => `${name}:${tag}`)) {
+  for (const image of ['liwan-odoo', 'liwan-web', 'liwan-guard', 'liwan-caddy', 'liwan-ai-egress', 'liwan-odoo-mail'].map(name => `${name}:${tag}`)) {
     imageIdentities[image] = JSON.parse(command('image-identity', 'docker', ['image', 'inspect', '--format', '{{json .Id}}', image]).stdout)
   }
   const { signServiceRequest } = await import(pathToFileURL(join(sourceRoot, 'packages/commercial-contracts/src/server.ts')).href)
   const dbPassword = secret()
-  const mailAlias = 'mailpit'
+  const mailAlias = 'odoo-mail'
   const controlDbPassword = secret()
-  const odooConfig = join(runDir, 'odoo.conf')
-  writePrivate(odooConfig, `[options]\ndb_host = db\ndb_user = odoo\ndb_password = ${dbPassword}\nadmin_passwd = ${secret()}\ndbfilter = ^%h$\nlist_db = False\nserver_wide_modules = base,rpc,web,liwan_shared_dbselect\nproxy_mode = False\ndata_dir = /var/lib/odoo\nworkers = 2\n${commercial ? `smtp_server = ${mailAlias}\nsmtp_port = 1025\nemail_from = notifications@foundation.test\n` : ''}`)
-  chmodSync(odooConfig, 0o400)
+  // The stack runs as the one stack definition: stack_render.py renders it from deploy/environments/local.env.example plus
+  // the harness values below, and `docker compose config` resolves it into compose.yml for the control plane.
+  const stackDir = join(runDir, 'stack')
+  mkdirSync(stackDir, { recursive: true, mode: 0o700 })
+  const odooConfig = join(stackDir, 'odoo.conf')
   const restoreOdooConfig = join(runDir, 'restore-odoo.conf')
+  const adminHash = command('admin-hash', 'python3', ['-B', '-c', 'import secrets, sys; sys.path.insert(0, sys.argv[1]); import stack_render; print(stack_render.odoo_admin_hash(secrets.token_hex(16)))', join(sourceRoot, 'tools/shared_acceptance_live')]).stdout.trim()
+  if (!adminHash.startsWith('$pbkdf2-sha512$')) throw new Error('cannot derive the Odoo master-password hash')
+  const ids = command('network-list', 'docker', ['network', 'ls', '-q'])
+  if (!ids.ok) throw new Error('Docker network inventory unavailable')
+  const networks = ids.stdout.trim() ? command('network-inspect', 'docker', ['network', 'inspect', ...ids.stdout.trim().split(/\s+/)]) : { ok: true, stdout: '[]' }
+  if (!networks.ok) throw new Error('Docker network inspection failed')
+  const toRange = cidr => {
+    const [address, bits] = cidr.split('/')
+    const base = address.split('.').reduce((value, part) => value * 256 + Number(part), 0)
+    const size = 2 ** (32 - Number(bits))
+    const first = Math.floor(base / size) * size
+    return [first, first + size - 1]
+  }
+  const occupied = JSON.parse(networks.stdout).flatMap(network => (network.IPAM?.Config ?? []).map(entry => entry.Subnet).filter(subnet => subnet && !subnet.includes(':'))).map(toRange)
+  // The stack's edge subnet, every other network of the stack (shared_acceptance_live/subnets.yml) and the harness-only control database network.
+  const networkVariables = ['LIWAN_EDGE_SUBNET', ...['GUARD_WEB', 'GUARD_ODOO', 'DATABASE', 'AI_INTERNAL', 'ODOO_EGRESS', 'ODOO_MAIL', 'RELAY_ODOO', 'GUARD_RESTORE', 'RESTORE_DATABASE', 'TENANT_STORAGE'].map(role => `LIWAN_HARNESS_SUBNET_${role}`), 'FOUNDATION_NET_CONTROL']
+  const subnets = []
+  for (let third = 16; third < 240 && subnets.length < networkVariables.length; third++) {
+    const subnet = `10.245.${third}.0/24`
+    const [low, high] = toRange(subnet)
+    if (!occupied.some(([a, b]) => low <= b && a <= high)) subnets.push(subnet)
+  }
+  if (subnets.length !== networkVariables.length) throw new Error('isolated acceptance subnets are unavailable')
+  mkdirSync(join(stateDir, 'classifications'), { mode: 0o755 })
+  chmodSync(join(stateDir, 'classifications'), 0o755)
+  const harness = { LIWAN_IMAGE_TAG: tag, ODOO_COMMIT: readFileSync(join(sourceRoot, 'deploy/odoo/ODOO_COMMIT'), 'utf8').trim(), DB_NAME: '', DB_PASSWORD: dbPassword, DB_ADMIN_PASSWORD: secret(),
+    LIWAN_ODOO_ADMIN_PASSWD: adminHash,
+    LIWAN_SHARED_PROXY_TOKEN: secret(), LIWAN_SESSION_KEYS: JSON.stringify({ k1: secret() }), LIWAN_SESSION_ACTIVE_KID: 'k1',
+    DOMAIN: `*.${domainSuffix}`, LIWAN_PROSPECT_HOST: `app.${domainSuffix}`, LIWAN_RESTORE_DOMAIN: domainSuffix, LIWAN_TIKTOK_RELAY_HOST: `tiktok.${domainSuffix}`,
+    LIWAN_SITE_SCHEME: '', LIWAN_AUTO_HTTPS: 'ignore_loaded_certs',
+    LIWAN_TENANT_REGISTRY_DIR: registryDir, LIWAN_RESTORE_REGISTRY_DIR: restoreRegistryDir, LIWAN_SHARED_ODOO_CONFIG: odooConfig,
+    LIWAN_CONTROL_STATE_DIR: stateDir, LIWAN_MAINTENANCE_DIR: join(runDir, 'maintenance'),
+    ...(commercial ? {
+      LIWAN_RESTORE_ODOO_CONFIG: restoreOdooConfig,
+      LIWAN_RESTORE_ALLOW: 'private_ranges 127.0.0.1 ::1',
+    } : {}),
+    LIWAN_EDGE_BIND: '127.0.0.1', LIWAN_EDGE_HTTPS_PORT: String(httpsPort), LIWAN_EDGE_HTTP_PORT: String(httpPort),
+    FOUNDATION_CONTROL_DB_PASSWORD: controlDbPassword, FOUNDATION_CONTROL_DB_PORT: String(controlDbPort),
+    ...Object.fromEntries(networkVariables.map((key, index) => [key, subnets[index]])),
+  }
+  mkdirSync(harness.LIWAN_MAINTENANCE_DIR, { mode: 0o755 })
+  writePrivate(join(stackDir, 'harness.env'), dotenv(harness))
+  if (!command('render-stack', 'python3', ['-B', join(sourceRoot, 'tools/shared_acceptance_live/stack_render.py'), 'render', stackDir]).ok) throw new Error('stack render failed')
   if (commercial) {
-    writePrivate(restoreOdooConfig, readFileSync(odooConfig, 'utf8').replace('db_host = db\n', 'db_host = restore-db\n') + 'max_cron_threads = 0\n')
+    writePrivate(restoreOdooConfig, readFileSync(odooConfig, 'utf8').replace('db_host = db\n', 'db_host = restore-db\n').replace(/^max_cron_threads = .*$/m, 'max_cron_threads = 0'))
     chmodSync(restoreOdooConfig, 0o400)
   }
   // Linux needs exact ownership; Docker Desktop exposes the mounted file differently.
@@ -119,40 +170,8 @@ try {
     else if (process.getuid() !== uid) throw new Error('Linux config ownership needs an operator-owned config readable by Odoo runtime uid; no permission bypass applied')
   }
   record('Odoo secret config validated by image runtime uid', command('validate-config', 'docker', ['run', '--rm', '--mount', `type=bind,source=${odooConfig},target=/etc/odoo/odoo.conf,readonly`, '--entrypoint', '/opt/venv/bin/python', `liwan-odoo:${tag}`, '/opt/liwan/shared/validate_odoo_config.py', '/etc/odoo/odoo.conf']).ok)
-  const ids = command('network-list', 'docker', ['network', 'ls', '-q'])
-  if (!ids.ok) throw new Error('Docker network inventory unavailable')
-  const networks = ids.stdout.trim() ? command('network-inspect', 'docker', ['network', 'inspect', ...ids.stdout.trim().split(/\s+/)]) : { ok: true, stdout: '[]' }
-  if (!networks.ok) throw new Error('Docker network inspection failed')
-  const toRange = cidr => {
-    const [address, bits] = cidr.split('/')
-    const base = address.split('.').reduce((value, part) => value * 256 + Number(part), 0)
-    const size = 2 ** (32 - Number(bits))
-    const first = Math.floor(base / size) * size
-    return [first, first + size - 1]
-  }
-  const occupied = JSON.parse(networks.stdout).flatMap(network => (network.IPAM?.Config ?? []).map(entry => entry.Subnet).filter(subnet => subnet && !subnet.includes(':'))).map(toRange)
-  const networkRoles = ['EDGE', 'WEB', 'ODOO', 'DB', 'CONTROL', 'RELAY', 'RESTORE_EDGE', 'RESTORE_DB']
-  const subnets = []
-  for (let third = 16; third < 240 && subnets.length < networkRoles.length; third++) {
-    const subnet = `10.245.${third}.0/24`
-    const [low, high] = toRange(subnet)
-    if (!occupied.some(([a, b]) => low <= b && a <= high)) subnets.push(subnet)
-  }
-  if (subnets.length !== networkRoles.length) throw new Error('isolated acceptance subnets are unavailable')
-  const env = { ...baseEnv, LIWAN_IMAGE_TAG: tag, ODOO_COMMIT: readFileSync(join(sourceRoot, 'deploy/odoo/ODOO_COMMIT'), 'utf8').trim(), DB_NAME: '', DB_PASSWORD: dbPassword, DB_ADMIN_PASSWORD: secret(),
-    LIWAN_SHARED_PROXY_TOKEN: secret(), LIWAN_SESSION_KEYS: JSON.stringify({ k1: secret() }), LIWAN_SESSION_ACTIVE_KID: 'k1',
-    LIWAN_TENANT_REGISTRY_DIR: registryDir, LIWAN_RESTORE_REGISTRY_DIR: restoreRegistryDir, LIWAN_SHARED_ODOO_CONFIG: odooConfig,
-    ...(commercial ? {
-      LIWAN_RESTORE_ODOO_CONFIG: restoreOdooConfig,
-      LIWAN_RESTORE_DOMAIN: domainSuffix,
-      LIWAN_RESTORE_ALLOW: 'private_ranges 127.0.0.1 ::1',
-    } : {}),
-    LIWAN_EDGE_BIND: '127.0.0.1', LIWAN_EDGE_HTTPS_PORT: String(httpsPort), LIWAN_EDGE_HTTP_PORT: String(httpPort),
-    FOUNDATION_CADDYFILE: join(sourceRoot, 'tools/shared_acceptance_live/acceptance.Caddyfile'), FOUNDATION_STATE_DIR: stateDir, FOUNDATION_DOMAIN_SUFFIX: domainSuffix,
-    FOUNDATION_CONTROL_DB_PASSWORD: controlDbPassword, FOUNDATION_CONTROL_DB_PORT: String(controlDbPort),
-    ...Object.fromEntries(networkRoles.map((key, index) => [`FOUNDATION_NET_${key}`, subnets[index]])),
-  }
-  const rendered = command('render', 'docker', ['compose', '-f', 'docker-compose.yml', '-f', 'docker-compose.shared.yml', '-f', join(toolDir, 'stack.override.yml'), '--project-name', project, ...(commercial ? ['--profile', 'restore'] : []), 'config'], { cwd: join(sourceRoot, 'deploy'), env })
+  const stackCommand = command('stack-command', 'python3', ['-B', join(sourceRoot, 'tools/shared_acceptance_live/stack_render.py'), 'command', stackDir, project]).stdout.split('\0').filter(Boolean)
+  const rendered = command('render', stackCommand[0], [...stackCommand.slice(1), '-f', join(toolDir, 'control-db.yml'), ...(commercial ? ['--profile', 'restore'] : []), 'config'])
   if (!rendered.ok) throw new Error('Compose render failed')
   writePrivate(join(runDir, 'compose.yml'), rendered.stdout)
   writePrivate(join(runDir, 'compose.env'), '')
@@ -160,7 +179,7 @@ try {
   writePrivate(join(runDir, 'inventory.json'), JSON.stringify({ schema_version: 2, targets: {} }))
   composeReady = true
   // Empty registry bootstrap is an acceptance condition. Never defer guard until onboarding.
-  record('all shared services healthy before any tenant is created', compose(['up', '--detach', '--no-build', '--pull', 'never', '--wait', '--wait-timeout', '300', 'db', 'odoo', 'web', 'guard', 'proxy', 'control-db']).ok)
+  record('all shared services healthy before any tenant is created', compose(['up', '--detach', '--no-build', '--pull', 'never', '--wait', '--wait-timeout', '300', '--no-deps', 'db', 'odoo', 'odoo-egress', ...(commercial ? [] : ['odoo-mail']), 'web', 'guard', 'proxy', 'control-db']).ok)
   const installationId = 'foundation-vendor'
   const serviceKey = secret()
   const controlEnv = { ...baseEnv, NODE_ENV: 'development', CONTROL_DATABASE_URL: `postgresql://foundation:${controlDbPassword}@127.0.0.1:${controlDbPort}/liwan_control_scratch_foundation`, CONTROL_INSTALLATION_ID: installationId, CONTROL_SERVICE_KEY: serviceKey,
@@ -175,10 +194,10 @@ try {
     if (!mailImage.ok || !/^sha256:[a-f0-9]{64}$/.test(mailImage.stdout.trim())) throw new Error('a local Mailpit image is required')
     imageIdentities.mailpit = mailImage.stdout.trim()
     record('isolated SMTP capture started', command('mailpit-start', 'docker', ['run', '--detach', '--rm', '--name', name,
-      '--publish', '127.0.0.1::1025', '--publish', '127.0.0.1::8025', imageIdentities.mailpit]).ok)
+      '--env', 'MP_SMTP_BIND_ADDR=0.0.0.0:2525', '--publish', '127.0.0.1::2525', '--publish', '127.0.0.1::8025', imageIdentities.mailpit]).ok)
     mailContainer = name
     record('isolated SMTP capture connected to scratch Odoo only',
-      command('mailpit-connect', 'docker', ['network', 'connect', '--alias', mailAlias, `${project}_database`, mailContainer]).ok)
+      command('mailpit-connect', 'docker', ['network', 'connect', '--alias', mailAlias, `${project}_odoo_mail`, mailContainer]).ok)
     const publishedPort = servicePort => {
       const port = command('mailpit-port', 'docker', ['port', mailContainer, `${servicePort}/tcp`]).stdout.trim().match(/^127\.0\.0\.1:(\d+)$/)?.[1]
       if (!port) throw new Error('Mailpit port is not loopback')
@@ -197,7 +216,7 @@ try {
     })
     workerEnv = { ...controlEnv, INTERNAL_EFFECT_HOST: '127.0.0.1', INTERNAL_EFFECT_PORT: String(effectPort),
       INTERNAL_EFFECT_TLS_CERT: cert, INTERNAL_EFFECT_TLS_KEY: key, LIWAN_MAIL_SMTP_HOST: '127.0.0.1',
-      LIWAN_MAIL_SMTP_PORT: publishedPort(1025), LIWAN_MAIL_FROM: 'notifications@foundation.test', LIWAN_MAIL_REQUIRE_TLS: 'false' }
+      LIWAN_MAIL_SMTP_PORT: publishedPort(2525), LIWAN_MAIL_FROM: 'notifications@foundation.test', LIWAN_MAIL_REQUIRE_TLS: 'false' }
     Object.assign(controlEnv, { INTERNAL_EFFECT_URL: `https://127.0.0.1:${effectPort}`, INTERNAL_EFFECT_CA: cert })
   }
   const api = startProcess('control-api', 'npm', ['-w', 'apps/control-plane', 'run', 'dev'], controlEnv)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Own isolated Linux/Odoo transport resources; never reuse or remove foreign data."""
+"""Own isolated Linux/Odoo stack resources (guarded shared edge); never reuse or remove foreign data."""
 
 # CLI receipts and top-level failure capture must survive arbitrary transport failures.
 # ruff: noqa: T201, BLE001, TRY301
@@ -292,7 +292,6 @@ def start(args):
         "image": args.image,
         "compose": str(runtime / "compose.json"),
         "tenants": [],
-        "modes": {},
         "health": [],
     }
     private_json(runtime / "state.json", state)
@@ -448,7 +447,6 @@ def start(args):
     shared_port = free_port()
     state["shared_odoo_url"] = "http://127.0.0.1:" + str(shared_port)
     state["shared_edge_url"] = "http://127.0.0.1:" + str(free_port())
-    state["web_host_port"] = free_port()
     services = {
         "db": {
             "image": "postgres:16",
@@ -476,18 +474,6 @@ def start(args):
             "volumes": ["config:/etc/odoo:ro", "filestore:/var/lib/odoo"],
             "depends_on": {"db": {"condition": "service_healthy"}},
         },
-        "web": {
-            "image": CADDY_IMAGE,
-            "command": [
-                "caddy",
-                "reverse-proxy",
-                "--from",
-                ":3000",
-                "--to",
-                "host.docker.internal:" + str(state["web_host_port"]),
-            ],
-            "extra_hosts": ["host.docker.internal:host-gateway"],
-        },
         "guard": {
             "image": guard_image,
             "env_file": [str(runtime / "guard.env")],
@@ -503,7 +489,12 @@ def start(args):
         },
         "edge-shared": {
             "image": CADDY_IMAGE,
-            "environment": {"DOMAIN": "http://:80"},
+            # No public certificate is requested: the edge speaks plain HTTP on the loopback port.
+            "environment": {
+                "DOMAIN": "http://:80",
+                "LIWAN_AUTO_HTTPS": "off",
+                "LIWAN_SITE_SCHEME": "http://",
+            },
             "ports": [
                 "127.0.0.1:" + state["shared_edge_url"].rsplit(":", 1)[1] + ":80",
             ],
@@ -525,60 +516,8 @@ def start(args):
         "retries": 60,
     }
     services["odoo-shared"]["healthcheck"] = tcp_health
-    for mode in ["saas", "non_saas"]:
-        tenant = next(item for item in state["tenants"] if item["mode"] == mode)
-        direct_port = free_port()
-        edge_port = free_port(8380 if mode == "saas" else 8381)
-        state["modes"][mode] = {
-            "database": tenant["database"],
-            "host": tenant["host"],
-            "direct_url": "http://127.0.0.1:" + str(direct_port),
-            "dedicated_url": "http://127.0.0.1:" + str(edge_port),
-            "fixture": str(runtime / (tenant["database"] + ".fixture.json")),
-        }
-        (runtime / (mode + ".conf")).write_text(
-            common
-            + "dbfilter = ^"
-            + tenant["database"]
-            + "$\ndb_name = "
-            + tenant["database"]
-            + "\nworkers = 0\n",
-        )
-        (runtime / (mode + ".conf")).chmod(0o600)
-        services["odoo-" + mode] = {
-            "image": args.image,
-            "command": ["server", "-c", "/etc/odoo/" + mode + ".conf"],
-            "ports": ["127.0.0.1:" + str(direct_port) + ":8069"],
-            "volumes": ["config:/etc/odoo:ro", "filestore:/var/lib/odoo"],
-            "depends_on": {"db": {"condition": "service_healthy"}},
-            "healthcheck": tcp_health,
-            "networks": {"default": {"aliases": ["odoo"]}},
-        }
-        services["edge-" + mode] = {
-            "image": CADDY_IMAGE,
-            "environment": {"DOMAIN": "http://:80"},
-            "ports": ["127.0.0.1:" + str(edge_port) + ":80"],
-            "volumes": [
-                str(worktree / "deploy/Caddyfile") + ":/etc/caddy/Caddyfile:ro",
-            ],
-            "depends_on": ["odoo-" + mode],
-            "networks": {"default": {}},
-        }
-    # Each dedicated edge needs the literal upstream name "odoo" to resolve to its own fixed-DB process.
-    # Give it a private per-mode network; shared uses its own literal guard upstream unchanged.
     subnet = ipaddress.ip_network(choose_subnet(runner))
     networks = {"default": {"ipam": {"config": [{"subnet": str(subnet)}]}}}
-    for index, mode in enumerate(["saas", "non_saas"], 1):
-        network = mode.replace("_", "-")
-        networks[network] = {}
-        services["odoo-" + mode]["networks"] = {
-            "default": {},
-            network: {"aliases": ["odoo"]},
-        }
-        services["edge-" + mode]["networks"] = {network: {}}
-        services["web"].setdefault("networks", {"default": {}})[network] = {
-            "aliases": ["web"],
-        }
     for name, service in services.items():
         service.setdefault("labels", {})["sa.liwan.acceptance.owner"] = project
     compose_value = {
@@ -597,7 +536,6 @@ def provision(state, runner):
     runtime = Path(state["runtime"])
     project = state["project"]
     worktree = Path(state["worktree"])
-    actor_values = json.loads((runtime / "credentials.json").read_text(encoding="utf-8"))["actors"]
     # Only this new project's named config+filestore volumes are initialized by the operator container.
     initialize = r"""
 import os,shutil
@@ -680,45 +618,11 @@ os.chown('/data',10001,10001)
         private_json(fixture, result)
         tenant["fixture"] = str(fixture)
         private_json(runtime / "state.json", state)
-    print("Starting direct, dedicated and shared transports", flush=True)
-    runner.run(
-        compose(
-            state,
-            "up",
-            "-d",
-            "odoo-saas",
-            "odoo-non_saas",
-            "odoo-shared",
-            "web",
-            "guard",
-            "edge-saas",
-            "edge-non_saas",
-            "edge-shared",
-        ),
-    )
-    for service in ["odoo-saas", "odoo-non_saas", "odoo-shared", "guard"]:
+    print("Starting the guarded shared edge", flush=True)
+    runner.run(compose(state, "up", "-d", "odoo-shared", "guard", "edge-shared"))
+    for service in ["odoo-shared", "guard"]:
         state["health"].append(wait_health(state, runner, service))
     state["health"].append(wait_http(state["shared_edge_url"], state["tenants"][0]["host"]))
-    for mode, entry in state["modes"].items():
-        state["health"].append(wait_http(entry["dedicated_url"]))
-        envpath = runtime / ("browser-" + mode + ".env")
-        envpath.write_text(
-            "NUXT_ODOO_URL="
-            + entry["direct_url"]
-            + "\nNUXT_ODOO_DB="
-            + entry["database"]
-            + "\nNUXT_AUTH_PROXY_CLIENT_IP_HEADER=x-liwan-client-ip\nNUXT_PUBLIC_WS_URL=\nE2E_BASE_URL="
-            + entry["dedicated_url"]
-            + "\nE2E_ADMIN_LOGIN="
-            + actor_values["manager"]["login"]
-            + "\nE2E_ADMIN_PASSWORD="
-            + actor_values["manager"]["password"]
-            + "\nNUXT_PORT="
-            + str(state["web_host_port"])
-            + "\n",
-        )
-        envpath.chmod(0o600)
-        entry["browser_env"] = str(envpath)
     state["status"] = "ready"
     private_json(runtime / "state.json", state)
     print(
@@ -728,8 +632,7 @@ os.chown('/data',10001,10001)
                 "state": str(runtime / "state.json"),
                 "project": project,
                 "image_id": state["image_id"],
-                "dedicated_url": state["modes"]["saas"]["dedicated_url"],
-                "browser_env": state["modes"]["saas"]["browser_env"],
+                "shared_edge_url": state["shared_edge_url"],
             },
         ),
         flush=True,
