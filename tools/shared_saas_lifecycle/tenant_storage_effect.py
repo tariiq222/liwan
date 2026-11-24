@@ -50,6 +50,7 @@ OCI_CODES = frozenset({'oci_refused', 'oci_unreachable', 'limit_reached', 'scrip
 SCRIPT_CODES = frozenset({'script_failed', 'store_failed', 'key_not_valid'})
 SENTINEL = 'LIWAN_TENANT_STORAGE:'
 OCI_SERVICE = 'tenant-storage'
+OCI_PROXY_SERVICE = 'tenant-storage-egress'  # the allowlist proxy the one-shot's only route runs through
 STATE_DIRECTORY = 'tenant-storage'  # beside `reservations`, `reconfigure`...: owned by the effect account (init-host.sh), 0700
 PRIMARY_CODE = 'tenant_files'
 CANDIDATE_CODE = 'tenant_files_next'
@@ -288,6 +289,8 @@ class ComposeRunner(OdooComposeRunner):
         self.current_container = self.config['projectName'] + '-effect-storage-' + secrets.token_hex(8)
         args = self.base + ['run', '--rm', '--no-deps', '-T', '--name', self.current_container, OCI_SERVICE]
         try:
+            # `run --no-deps` starts no dependency, so the proxy comes up first; a second `up` of a running one changes nothing.
+            self.command(self.base + ['up', '-d', '--no-deps', OCI_PROXY_SERVICE], stdout_only=True)
             # stdout only: the container's stderr is dropped, so nothing but its one answer line is ever read.
             return self.command(args, stdin=json.dumps(payload, ensure_ascii=True), timeout=120, stdout_only=True)
         finally:

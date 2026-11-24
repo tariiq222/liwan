@@ -22,6 +22,7 @@ filestore copies back and restarts the previous release. Arguments never carry a
 from __future__ import annotations
 
 import argparse
+import hmac
 import json
 import os
 import platform
@@ -99,8 +100,6 @@ ODOO_CONFIG_TEMPLATE = 'deploy/stack/odoo.conf.template'
 # The first line of a config this command rendered: a live config without it is a hand-written one, adopted only when it
 # says what the render says (`odoo_config_drift`). Both lines of the template header carry it.
 RENDERED_MARKER = '; Rendered by deploy/stack/render.py'
-# Odoo config keys whose value is a secret: the drift check compares their presence, never their value.
-SECRET_CONFIG_KEYS = ('db_password', 'admin_passwd')
 CONFIG_KEYS = ('LIWAN_RELEASE_PROJECT', 'LIWAN_SHARED_ENV_FILE', 'LIWAN_RELEASE_PG_DUMP', 'LIWAN_RELEASE_PG_HOST',
                'LIWAN_RELEASE_CONTROL_PG_HOST', 'LIWAN_RELEASE_ODOO_DATA_DIR', 'LIWAN_RELEASE_DISK_PATH')
 # The loopback ports the two host-link overlays publish; the shared env file sets them, these are the overlays' defaults.
@@ -343,6 +342,7 @@ class Releaser:
         self.shared_compose_target()  # a render that can only fail after the stop is refused here
         self.require_config_target(ODOO_CONFIG_KEY)
         self.require_host_file(VENDOR_ADMIN_ENV_KEY)
+        self.require_classification_dir()
         target = self.checkout(run['commit'])
         if not target.exists():
             self.extract(run['commit'], target)
@@ -608,35 +608,51 @@ class Releaser:
         return options
 
     def config_drift(self, live_text: str, rendered_text: str) -> list[str]:
-        """Names of the options the hand-written live config and the render disagree on (a secret by presence only)."""
+        """Names of the options the hand-written live config and the render disagree on. Values are compared in constant time
+        (a secret included) and only the names are ever reported."""
         live, rendered = self.config_options(live_text), self.config_options(rendered_text)
         return sorted(name for name in live.keys() | rendered.keys()
                       if (name in live) != (name in rendered)
-                      or (name not in SECRET_CONFIG_KEYS and live[name] != rendered[name]))
+                      or not hmac.compare_digest(live[name].encode(), rendered[name].encode()))
 
     def prepare_odoo_config(self, checkout: Path) -> None:
         """Render the candidate's Odoo config beside the live file (``<file>.next``), validate it with the candidate's own
         validator as the container's launcher will run it, and refuse a hand-written live file that differs from it. Nothing
-        running changes: ``activate`` renames it into place. A live file this command rendered earlier is replaced freely;
-        one it did not is adopted only when it says what the render says, key by key (names are logged, never values)."""
+        running changes: ``activate`` renames it into place. The live file must exist (the operator creates it as root with the
+        Odoo group, A4.7): a file this command made would not be readable by the container. The render takes the live file's
+        owner, group and mode exactly. One this command rendered earlier is replaced freely; a hand-written one is adopted only
+        when it says what the render says, option by option (names are logged, never values)."""
         live = Path(self.shared_env()[ODOO_CONFIG_KEY])
         pending = live.with_name(live.name + '.next')
+        if not live.exists():
+            raise ReleaseError('odoo_config_missing', EXIT_REFUSED,
+                               f'{live} ({ODOO_CONFIG_KEY}) does not exist; create it as the bring-up guide row A4.7 says '
+                               f'(owner root, the Odoo group, mode 0440) before this release')
         text = self.rendered_odoo_config(checkout)
-        owner = live.stat() if live.exists() else None
-        if owner is not None and RENDERED_MARKER not in live.read_text(encoding='utf-8'):
+        owner = live.stat()
+        if RENDERED_MARKER not in live.read_text(encoding='utf-8'):
             drift = self.config_drift(live.read_text(encoding='utf-8'), text)
             if drift:
                 raise ReleaseError('odoo_config_drift', EXIT_REFUSED,
                                    f'{live} ({ODOO_CONFIG_KEY}) was not rendered by this command and differs from the render of '
                                    f'{checkout.name} in: {", ".join(drift)}; move it aside so the release renders it, or make it match')
         pending.unlink(missing_ok=True)
+        live.with_name(live.name + '.prev').unlink(missing_ok=True)  # only the run in flight may leave one for its rollback
         os.close(os.open(pending, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600))
         pending.write_text(text, encoding='utf-8')
-        mode = stat.S_IMODE(owner.st_mode) if owner is not None and stat.S_IMODE(owner.st_mode) in (0o400, 0o440) else 0o400
-        pending.chmod(mode)
-        if owner is not None and (owner.st_uid, owner.st_gid) != (pending.stat().st_uid, pending.stat().st_gid):
+        pending.chmod(stat.S_IMODE(owner.st_mode))
+        if (owner.st_uid, owner.st_gid) != (pending.stat().st_uid, pending.stat().st_gid):
             os.chown(pending, owner.st_uid, owner.st_gid)
         self.require_odoo_config(checkout, pending)
+
+    def require_classification_dir(self) -> None:
+        """Odoo bind-mounts ``<LIWAN_CONTROL_STATE_DIR>/classifications`` read-only without creating it (``create_host_path:
+        false``), so a missing directory would stop ``compose up`` after the stop. An unset key is the compose render's refusal."""
+        state = self.shared_env().get('LIWAN_CONTROL_STATE_DIR')
+        if state and not (Path(state) / 'classifications').is_dir():
+            raise ReleaseError('classification_dir_missing', EXIT_REFUSED,
+                               f'{Path(state) / "classifications"} (LIWAN_CONTROL_STATE_DIR) is not a directory; '
+                               f'create it before this release')
 
     def require_odoo_config(self, checkout: Path, pending: Path) -> None:
         """The rendered Odoo config, and the restore profile's external one when it is set, must pass the candidate's own
@@ -659,12 +675,24 @@ class Releaser:
                                    f'{checkout.name}; fix the file before this release') from None
 
     def adopt_odoo_config(self) -> None:
-        """The rendered config replaces the live one (same owner and mode, set when it was rendered); a second call, after a
-        resume, finds nothing left to rename."""
+        """The rendered config replaces the live one, which is kept as ``<file>.prev`` with its owner and mode for a rollback;
+        a second call, after a resume, finds nothing left to rename and leaves ``.prev`` alone."""
         live = Path(self.shared_env()[ODOO_CONFIG_KEY])
         pending = live.with_name(live.name + '.next')
         if pending.exists():
+            previous = live.with_name(live.name + '.prev')
+            if live.exists():
+                shutil.copy2(live, previous)
+                owner = live.stat()
+                os.chown(previous, owner.st_uid, owner.st_gid)
             os.replace(pending, live)
+
+    def restore_odoo_config(self) -> None:
+        """A rollback puts back the config the previous release ran with (kept at adoption), before it starts."""
+        live = Path(self.shared_env()[ODOO_CONFIG_KEY])
+        previous = live.with_name(live.name + '.prev')
+        if previous.exists():
+            os.replace(previous, live)
 
     def require_renderable(self, run: dict, checkout: Path) -> None:
         """Both compose projects of the candidate render as later steps run them, with its own image tag (a temporary env file,
@@ -985,6 +1013,7 @@ class Releaser:
         write_atomic(self.file('release.env'), run['previousReleaseEnv']
                      or release_env_text(previous['commit'], previous['odooCommit']))
         self.point_current(checkout)
+        self.restore_odoo_config()
         self.start_services(checkout, with_edge=True)
         self.leave_maintenance()  # the previous release serves from here on, whatever the worker's file does
         self.shared_compose_target().unlink(missing_ok=True)  # still the failed release's render: a failed render below must leave no file

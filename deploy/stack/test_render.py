@@ -73,6 +73,28 @@ class ToggleBlocks(unittest.TestCase):
                 self.fail('the stack must not render')
 
 
+class EnvParsing(unittest.TestCase):
+    def test_quotes_and_hashes_are_read_as_the_release_command_reads_them(self):
+        from deploy.release.common import read_env_file
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'x.env'
+            path.write_text('# note\nLIWAN_STACK_COMMERCIAL_EDGE="true"\nLIWAN_STACK_DB_HOST_LINK=\'false\'\nPLAIN=a#b\nQUOTED="a#b"\n', encoding='utf-8')
+            values = render.read_env(path)
+            self.assertEqual(values, read_env_file(path))
+        self.assertEqual({'LIWAN_STACK_COMMERCIAL_EDGE': 'true', 'LIWAN_STACK_DB_HOST_LINK': 'false', 'PLAIN': 'a#b', 'QUOTED': 'a#b'}, values)
+        self.assertEqual({True, False}, set(render.toggles_of(values).values()))
+
+
+class OutDirectory(unittest.TestCase):
+    def test_out_writes_the_compose_file_and_the_sizing_values_beside_it(self):
+        env = Path(__file__).resolve().parents[1] / 'environments' / 'local.env.example'
+        with tempfile.TemporaryDirectory() as directory:
+            self.assertEqual(0, render.main(['--out', str(Path(directory) / 'r'), str(env)]))
+            self.assertEqual(render.render_stack(render.read_env(env)), (Path(directory) / 'r/compose.yml').read_text())
+            self.assertIn('LIWAN_ODOO_MEM_LIMIT=', (Path(directory) / 'r' / render.SIZING_FILE).read_text())
+            self.assertEqual(2, render.main(['--out']))
+
+
 class RenderedStack(unittest.TestCase):
     def test_the_template_leaves_no_marker_behind_in_any_shape(self):
         for toggles in (ENV_ON, {key: 'false' for key in ENV_ON}):

@@ -332,6 +332,7 @@ class ReleaseTest(unittest.TestCase):
         for name in ('tenant_one', 'tenant_two'):
             (root / 'data/filestore' / name).mkdir(parents=True)
             (root / 'data/filestore' / name / 'f').write_text('old')
+        (root / 'control-state/classifications').mkdir(parents=True)
         shared_env = root / 'shared.env'
         self.odoo_config = root / 'odoo.conf'
         self.odoo_config.write_text(RENDERED + '[options]\n')  # a config this command rendered earlier
@@ -340,6 +341,7 @@ class ReleaseTest(unittest.TestCase):
         shared_text = (f'LIWAN_TENANT_REGISTRY_DIR={root}/registry\nLIWAN_SHARED_COMPOSE_FILE={root}/shared.compose.json\n'
                        f'LIWAN_SHARED_ODOO_CONFIG={self.odoo_config}\nLIWAN_VENDOR_ADMIN_ENV_FILE={self.vendor_env}\n'
                        f'DB_PASSWORD={SECRET}\nLIWAN_ODOO_ADMIN_PASSWD=$pbkdf2-sha512$1$c2FsdA$aGFzaA\n'
+                       f'LIWAN_CONTROL_STATE_DIR={root}/control-state\n'
                        'LIWAN_STACK_COMMERCIAL_EDGE=true\nLIWAN_STACK_DB_HOST_LINK=true\n')
         shared_env.write_text(shared_text + 'LIWAN_RELEASE_TAG_POLICY=highest\n')
         (root / 'shared-production.env').write_text(shared_text + 'LIWAN_RELEASE_TAG_POLICY=explicit\n')
@@ -1495,11 +1497,63 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual({live for live, _ in seen}, {RENDERED + '[options]\n'})
         self.assertIn(True, [pending for _, pending in seen])
 
-    def test_a_missing_live_config_is_rendered_on_the_first_release(self):
+    def test_a_missing_live_config_is_refused_before_anything_stops(self):
         self.odoo_config.unlink()
+        self.assertEqual(self.main(), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused odoo_config_missing')
+        self.assertIn('A4.7', self.log_stream.getvalue())
+        self.assertFalse(self.odoo_config.exists() or self.pending_config.exists())
+        self.assertEqual(self.compose_stops(), [])
+        self.assertEqual(self.commands('systemctl'), [])
+        self.assertEqual(self.served(), OLD)
+
+    def test_an_adopted_hand_written_config_keeps_its_owner_group_and_mode_exactly(self):
+        self.hand_written_config()
+        self.odoo_config.chmod(0o440)
+        before = self.odoo_config.stat()
         self.assertEqual(self.main(), release.EXIT_OK)
-        self.assertEqual(self.odoo_config.read_text(), self.rendered_config())
-        self.assertEqual(stat.S_IMODE(self.odoo_config.stat().st_mode), 0o400)
+        after = self.odoo_config.stat()
+        self.assertEqual((stat.S_IMODE(after.st_mode), after.st_uid, after.st_gid), (0o440, before.st_uid, before.st_gid))
+
+    def test_a_rollback_puts_back_the_config_the_previous_release_ran_with_owner_and_mode_included(self):
+        self.hand_written_config()
+        self.odoo_config.chmod(0o440)
+        original = self.odoo_config.read_text()
+        before = self.odoo_config.stat()
+        seen = []
+        original_answer = FakeRunner.answer
+
+        def answer(runner, argv, stdin):
+            if argv[:2] == ['docker', 'pull'] or 'up' in argv:
+                seen.append(self.odoo_config.read_text())
+            return original_answer(runner, argv, stdin)
+
+        self.fail_health = True
+        with mock.patch.object(FakeRunner, 'answer', answer):
+            self.assertEqual(self.main(), release.EXIT_FAILED)
+        self.assertEqual(self.result(), 'rolled back health_check_failed')
+        self.assertIn(self.rendered_config(), seen)  # the failed release ran with the rendered one
+        after = self.odoo_config.stat()
+        self.assertEqual(self.odoo_config.read_text(), original)
+        self.assertEqual((stat.S_IMODE(after.st_mode), after.st_uid, after.st_gid), (0o440, before.st_uid, before.st_gid))
+        self.assertFalse(self.odoo_config.with_name('odoo.conf.prev').exists())
+        self.assertFalse(self.pending_config.exists())
+
+    def test_a_stale_previous_config_of_an_earlier_release_is_never_restored(self):
+        stale = self.odoo_config.with_name('odoo.conf.prev')
+        stale.write_text('[options]\nstale = yes\n')
+        self.fail_health = True
+        self.assertEqual(self.main(), release.EXIT_FAILED)
+        self.assertNotIn('stale', self.odoo_config.read_text())
+
+    def test_a_missing_classification_directory_is_refused_before_anything_stops(self):
+        (self.root / 'control-state/classifications').rmdir()
+        self.assertEqual(self.main(), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused classification_dir_missing')
+        self.assertIn('classifications', self.log_stream.getvalue())
+        self.assertEqual(self.compose_stops(), [])
+        self.assertEqual(self.commands('systemctl'), [])
+        self.assertEqual(self.served(), OLD)
 
     def hand_written_config(self, **changes):
         options = release.Releaser.config_options(self.rendered_config())
@@ -1512,8 +1566,8 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(self.main(), release.EXIT_REFUSED)
         self.assertEqual(self.result(), 'refused odoo_config_drift')
         log = self.log_stream.getvalue()
-        self.assertIn('limit_memory_hard, workers', log)
-        self.assertNotIn('db_password', log)  # a secret is compared by presence only
+        self.assertIn('db_password, limit_memory_hard, workers', log)
+        self.assertIn('db_password', log)  # a secret that differs is reported by name
         self.assertNotIn('a-different-secret-never-logged', log)
         self.assertNotIn(SECRET, log)
         self.assertEqual(self.odoo_config.read_text(), before)
@@ -1530,8 +1584,19 @@ class ReleaseTest(unittest.TestCase):
                 self.assertEqual(self.main(), release.EXIT_REFUSED)
                 self.assertEqual(self.result(), 'refused odoo_config_drift')
 
+    def test_a_changed_secret_is_drift_reported_by_name_and_never_by_value(self):
+        for key in ('db_password', 'admin_passwd'):
+            with self.subTest(key):
+                self.hand_written_config(**{key: 'a-different-secret-never-logged'})
+                self.assertEqual(self.main(), release.EXIT_REFUSED)
+                self.assertEqual(self.result(), 'refused odoo_config_drift')
+                log = self.log_stream.getvalue()
+                self.assertIn(key, log)
+                self.assertNotIn('a-different-secret-never-logged', log)
+                self.assertNotIn(SECRET, log)
+
     def test_a_hand_written_config_that_says_what_the_render_says_is_adopted(self):
-        self.hand_written_config(db_password='another-secret-only-its-presence-counts')
+        self.hand_written_config()
         self.assertEqual(self.main(), release.EXIT_OK)
         self.assertEqual(self.odoo_config.read_text(), self.rendered_config())
 

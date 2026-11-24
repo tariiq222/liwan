@@ -22,6 +22,7 @@ import tempfile
 from pathlib import Path
 
 from deploy import odoo_sizing
+from deploy.release.common import parse_env_text
 
 STACK = Path(__file__).resolve().parent
 CADDYFILE = STACK / 'Caddyfile'  # the one edge of every environment
@@ -39,13 +40,10 @@ class StackError(Exception):
 
 
 def read_env(*paths: Path) -> dict[str, str]:
-    """Merge env files in order (later wins): ``KEY=value`` lines, comments and blanks skipped, values kept verbatim."""
+    """Merge env files in order (later wins), parsed exactly as the release command parses them (``common.parse_env_text``)."""
     values: dict[str, str] = {}
     for path in paths:
-        for line in Path(path).read_text(encoding='utf-8').splitlines():
-            if line.strip() and not line.startswith('#'):
-                name, _, value = line.partition('=')
-                values[name] = value
+        values.update(parse_env_text(Path(path).read_text(encoding='utf-8')))
     return values
 
 
@@ -140,14 +138,25 @@ def rendered_stack(*env_files: Path):
 
 
 def main(argv: list[str]) -> int:
+    out = None
+    if argv[:1] == ['--out']:
+        out, argv = (Path(argv[1]) if len(argv) > 1 else None), argv[2:]
+        if out is None:
+            argv = []
     if not argv:
-        sys.stderr.write('usage: render.py <env file> [<env file> ...]\n')
+        sys.stderr.write('usage: render.py [--out <directory>] <env file> [<env file> ...]\n')
         return 2
     try:
-        sys.stdout.write(render_stack(read_env(*(Path(path) for path in argv))))
+        text = render_stack(read_env(*(Path(path) for path in argv)))
     except StackError as error:
         sys.stderr.write(f'render: {error}\n')
         return 1
+    if out is None:
+        sys.stdout.write(text)
+        return 0
+    out.mkdir(parents=True, exist_ok=True, mode=0o700)
+    (out / 'compose.yml').write_text(text, encoding='utf-8')
+    (out / SIZING_FILE).write_text(''.join(f'{name}={value}\n' for name, value in sizing_variables().items()), encoding='utf-8')
     return 0
 
 

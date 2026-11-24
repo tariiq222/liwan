@@ -659,8 +659,14 @@ class LockAndGateTest(Case):
     def test_the_compose_runner_runs_the_oci_service_one_shot_and_reads_stdout_only(self):
         runner = effect.ComposeRunner({'tenant': {'database': DATABASE}, 'config': CONFIG})
         seen = {}
-        runner.command = lambda args, **kw: seen.update(args=args, kw=kw) or '{"result":{}}'
+        calls = []
+        runner.command = lambda args, **kw: calls.append(args) or seen.update(args=args, kw=kw) or '{"result":{}}'
         runner.run_oci({'operation': 'inspect'})
+        # the proxy is brought up first, idempotently and alone, with the same compose file and project as the one-shot run
+        self.assertEqual(2, len(calls))
+        self.assertEqual(['up', '-d', '--no-deps', 'tenant-storage-egress'], calls[0][len(runner.base):])
+        self.assertEqual(runner.base, calls[0][:len(runner.base)])
+        self.assertEqual(runner.base, calls[1][:len(runner.base)])
         self.assertEqual('tenant-storage', seen['args'][-1])
         self.assertEqual(['run', '--rm', '--no-deps', '-T'], seen['args'][seen['args'].index('run'):seen['args'].index('run') + 4])
         self.assertIs(True, seen['kw']['stdout_only'])

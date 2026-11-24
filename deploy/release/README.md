@@ -174,12 +174,15 @@ refused with `invalid_tag_policy`. An environment is any name (lowercase letters
 `/etc/liwan-release/`.
 
 `prepare` also renders `deploy/stack/odoo.conf.template` (from `DB_PASSWORD`, `LIWAN_ODOO_ADMIN_PASSWD` and the sizing plan) to
-`<LIWAN_SHARED_ODOO_CONFIG>.next`, mode `0400` (or the live file's `0440`) with the live file's owner, and validates it with the
-candidate's `deploy/shared/validate_odoo_config.py` (`odoo_config_invalid`); the restore profile's `LIWAN_RESTORE_ODOO_CONFIG` is
-validated as before. A live file that does not carry the render marker (a hand-written one) must match the render option by option or
-the run stops with `RESULT: refused odoo_config_drift`, naming the differing option names only (a secret, `db_password` and
-`admin_passwd`, by presence). A missing live file is simply rendered. `activate` renames `.next` over the live file after the stop; a
-resumed run finds nothing left to rename.
+`<LIWAN_SHARED_ODOO_CONFIG>.next` with the live file's owner, group and mode exactly, and validates it with the candidate's
+`deploy/shared/validate_odoo_config.py` (`odoo_config_invalid`); the restore profile's `LIWAN_RESTORE_ODOO_CONFIG` is validated as
+before. The live file must exist: a missing one is `RESULT: refused odoo_config_missing`, because a file the command made as root
+would not be readable by the container (the operator creates it as row A4.7 says). A live file that does not carry the render marker
+(a hand-written one) must match the render option by option, secrets included (compared in constant time) or the run stops with
+`RESULT: refused odoo_config_drift`, naming the differing option names only, never a value. `activate` keeps the live file as
+`<file>.prev` (same owner and mode) and renames `.next` over it after the stop; a resumed run finds nothing left to rename. A
+rollback puts `.prev` back before it starts the previous release. `prepare` also refuses with `classification_dir_missing` when
+`<LIWAN_CONTROL_STATE_DIR>/classifications` (bind-mounted read-only into Odoo, never created by Docker) is not a directory.
 
 ## Config
 
