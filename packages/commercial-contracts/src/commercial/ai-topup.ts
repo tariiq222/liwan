@@ -18,7 +18,7 @@ export const AI_TOPUP_CURRENCY = 'SAR'
 export const AI_TOPUP_EXPONENT = 2
 const AI_UNITS_PER_USD = 100_000n
 
-const MAX_MINOR = 100_000_000
+export const MAX_MINOR = 100_000_000
 /** A decimal string so the rate is exact; no float ever touches money. */
 export const usdRateSchema = z.string().regex(/^\d{1,4}(?:\.\d{1,6})?$/, 'invalid_usd_rate').refine(v => /[1-9]/.test(v), 'invalid_usd_rate')
 const amountMinor = z.number().int().min(1).max(MAX_MINOR)

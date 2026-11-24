@@ -3,6 +3,7 @@ import { commercialErrorKey, minorToInput, parseCount, parseVendorMoneyInput } f
 definePageMeta({ capability: 'vendor.billing.manage' })
 const { t } = useI18n(); const hydrated = useHydrated(); const { request } = useVendorApi(); const { can } = useVendorContext()
 const canManage = computed(() => can('vendor.billing.manage'))
+const locked = computed(() => !hydrated.value || busy.value || !canManage.value)
 type Settings = {
   refund_window_days: number; onboarding_fee_minor: number; onboarding_exponent: number; bank_account_name: string; bank_account_number: string
   bank_iban: string; bank_instructions_ar: string; bank_instructions_en: string
@@ -14,13 +15,17 @@ const emptySeller = () => Object.fromEntries(SELLER_FIELDS.map(field => [field, 
 const { data, error, pending, refresh } = await useAsyncData('vendor:billing-settings', () => request<Settings>('commercial/billing-settings'))
 const draft = reactive({ refund_window_days: '', onboarding_fee: '', bank_account_name: '', bank_account_number: '', bank_iban: '', bank_instructions_ar: '', bank_instructions_en: '', ...emptySeller(), reason: '' })
 const original = ref('')
-const serialized = () => JSON.stringify(draft)
+const attempted = ref(false); const busy = ref(false); const failure = ref<unknown>(null); const saved = ref(false)
+// The audit reason is typed per save and never counts as an edit: only the settings themselves make the page "unsaved".
+const serialized = () => JSON.stringify({ ...draft, reason: '' })
 const dirty = computed(() => original.value !== '' && serialized() !== original.value)
 /** The fee and exponent as last loaded from the server, so an untouched field is never re-sent. */
 let loadedFee: { minor: number; exponent: number } | null = null
 /** The fee field as loaded: an unchanged value is never judged, so a stored fee with fractional riyals cannot block saving another setting. */
 let loadedFeeText = ''
-watch(data, (value) => {
+/** Puts the stored settings back in the form (a load, a refetch, or «Revert») and forgets every message about the last attempt. */
+function reset() {
+  const value = data.value
   if (!value) return
   loadedFeeText = value.onboarding_exponent === undefined ? '' : feeInput(value.onboarding_fee_minor, value.onboarding_exponent)
   Object.assign(draft, {
@@ -29,10 +34,13 @@ watch(data, (value) => {
     bank_iban: value.bank_iban, bank_instructions_ar: value.bank_instructions_ar, bank_instructions_en: value.bank_instructions_en,
     ...Object.fromEntries(SELLER_FIELDS.map(field => [field, value[field]])), reason: '',
   })
-  original.value = serialized()
+  original.value = serialized(); attempted.value = false; failure.value = null
   loadedFee = value.onboarding_exponent === undefined ? null : { minor: value.onboarding_fee_minor, exponent: value.onboarding_exponent }
-}, { immediate: true })
-const attempted = ref(false); const busy = ref(false); const failure = ref<unknown>(null); const saved = ref(false)
+}
+watch(data, reset, { immediate: true })
+// The first edit after a save ends the «saved» message: it no longer describes what is on the screen.
+watch(dirty, (edited) => { if (edited) saved.value = false })
+const failureMessage = computed(() => (failure.value ? t(commercialErrorKey(failure.value)) : ''))
 /** The stored fee as the whole amount the field takes; a row with minor units outside the major unit keeps its full form. */
 function feeInput(minor: number, exponent: number): string {
   return minor % 10 ** exponent === 0 ? String(minor / 10 ** exponent) : minorToInput(minor, exponent)
@@ -65,10 +73,9 @@ const errors = computed(() => {
   const iban = normalizedIban()
   if (iban && !/^SA[0-9]{22}$/.test(iban)) e.iban = t('vendor.billingSettings.errors.iban')
   if (draft.seller_email.trim() && !/^\S+@\S+\.\S+$/.test(draft.seller_email.trim())) e.sellerEmail = t('vendor.billingSettings.errors.sellerEmail')
-  if (draft.reason.trim().length < 3) e.reason = t('vendor.pricing.reasonRequired')
+  if (draft.reason.trim().length < 3) e.reason = t('vendor.billingSettings.errors.reason')
   return e
 })
-const show = (k: string) => (attempted.value ? errors.value[k] : undefined)
 /** Blank keeps the stored fee; 0 is sent as such and means no customer is offered onboarding. */
 function onboardingFeeChange(): { onboarding_fee_minor?: number } {
   const minor = onboardingFeeMinor()
@@ -76,10 +83,15 @@ function onboardingFeeChange(): { onboarding_fee_minor?: number } {
   if (Boolean(loadedFee) && minor === loadedFee!.minor) return {}
   return { onboarding_fee_minor: minor }
 }
+const summary = ref<{ focus: () => void } | null>(null)
+/** The error summary: one line per wrong field, in form order, each a link to its field (the field's `name`). */
+const FORM_ORDER = ['window', 'iban', 'sellerEmail', 'onboardingFee', 'reason']
+const summaryErrors = computed(() => (attempted.value ? FORM_ORDER.filter(field => errors.value[field]).map(field => ({ field, message: errors.value[field]! })) : []))
 async function submit() {
-  if (!hydrated.value || busy.value || !canManage.value) return
+  if (locked.value || !dirty.value) return
+  failure.value = null
   attempted.value = true
-  if (Object.keys(errors.value).length) return
+  if (Object.keys(errors.value).length) { await nextTick(); summary.value?.focus(); return }
   busy.value = true; failure.value = null; saved.value = false
   try {
     await request('commercial/billing-settings', { method: 'PATCH', body: {
@@ -100,52 +112,61 @@ async function submit() {
 }
 </script>
 <template>
-  <SharedRecordPage :title="t('vendor.billingSettings.title')" :description="t('vendor.billingSettings.hint')">
-    <SharedUnsavedChanges :dirty="dirty" guard-route-updates />
-    <SharedPageState :loading="pending" :error="error" @retry="refresh">
-      <form v-if="data" class="mx-auto grid max-w-2xl gap-6" novalidate @submit.prevent="submit">
-        <UAlert v-if="failure" color="error" variant="subtle" :title="t(commercialErrorKey(failure))" data-testid="billing-settings-failure" />
-        <UAlert v-if="saved" color="success" variant="subtle" :title="t('vendor.billingSettings.saved')" data-testid="billing-settings-saved" />
-        <SharedFormSection panel :title="t('vendor.billingSettings.sections.refund')">
-          <UFormField :label="t('vendor.billingSettings.fields.window')" :help="t('vendor.billingSettings.fields.windowHint')" required :error="show('window')">
-            <UInput v-model="draft.refund_window_days" inputmode="numeric" dir="ltr" class="w-full" :disabled="!hydrated || busy || !canManage" />
-          </UFormField>
-        </SharedFormSection>
-        <SharedFormSection panel :title="t('vendor.billingSettings.sections.bank')" :description="t('vendor.billingSettings.sections.bankHint')">
-          <div class="grid gap-4 sm:grid-cols-2">
-            <UFormField :label="t('vendor.billingSettings.fields.accountName')"><UInput v-model="draft.bank_account_name" class="w-full" :disabled="!hydrated || busy || !canManage" /></UFormField>
-            <UFormField :label="t('vendor.billingSettings.fields.accountNumber')"><UInput v-model="draft.bank_account_number" dir="ltr" class="w-full" :disabled="!hydrated || busy || !canManage" /></UFormField>
+  <SharedSettingsPage>
+    <SharedPageHeader :title="t('vendor.billingSettings.title')" :description="t('vendor.billingSettings.hint')" />
+    <SharedPageState :loading="pending && !data" :error="error" :empty="!pending && !error && !data" @retry="refresh">
+      <SharedSettingsCard
+        v-if="data"
+        id="billing"
+        :title="t('vendor.billingSettings.sections.refund')"
+        :can-edit="canManage"
+        :dirty="dirty"
+        :saving="busy"
+        :message="failureMessage"
+        data-testid="billing-settings-card"
+        @save="submit"
+        @revert="reset"
+      >
+        <SharedErrorSummary ref="summary" :title="t('vendor.billingSettings.errorSummary')" :errors="summaryErrors" />
+        <div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
+          <SharedFormField name="window" :label="t('vendor.billingSettings.fields.window')" :help="t('vendor.billingSettings.fields.windowHint')" required :error="errors.window" :submitted="attempted">
+            <UInput v-model="draft.refund_window_days" inputmode="numeric" dir="ltr" class="w-full" :disabled="locked" />
+          </SharedFormField>
+        </div>
+        <SharedRecordSection :title="t('vendor.billingSettings.sections.bank')" :description="t('vendor.billingSettings.sections.bankHint')">
+          <div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
+            <SharedFormField name="accountName" :label="t('vendor.billingSettings.fields.accountName')"><UInput v-model="draft.bank_account_name" class="w-full" :disabled="locked" /></SharedFormField>
+            <SharedFormField name="accountNumber" :label="t('vendor.billingSettings.fields.accountNumber')"><UInput v-model="draft.bank_account_number" dir="ltr" class="w-full" :disabled="locked" /></SharedFormField>
+            <SharedFormField name="iban" :label="t('vendor.billingSettings.fields.iban')" :help="t('vendor.billingSettings.fields.ibanHint')" :error="errors.iban" :submitted="attempted"><UInput v-model="draft.bank_iban" dir="ltr" class="w-full" :disabled="locked" /></SharedFormField>
+            <SharedFormField name="instructionsAr" :label="t('vendor.billingSettings.fields.instructionsAr')"><UTextarea v-model="draft.bank_instructions_ar" :maxlength="500" class="w-full" :disabled="locked" /></SharedFormField>
+            <SharedFormField name="instructionsEn" :label="t('vendor.billingSettings.fields.instructionsEn')"><UTextarea v-model="draft.bank_instructions_en" :maxlength="500" dir="ltr" class="w-full" :disabled="locked" /></SharedFormField>
           </div>
-          <UFormField :label="t('vendor.billingSettings.fields.iban')" :help="t('vendor.billingSettings.fields.ibanHint')" :error="show('iban')"><UInput v-model="draft.bank_iban" dir="ltr" class="w-full" :disabled="!hydrated || busy || !canManage" /></UFormField>
-          <div class="grid gap-4 sm:grid-cols-2">
-            <UFormField :label="t('vendor.billingSettings.fields.instructionsAr')"><UTextarea v-model="draft.bank_instructions_ar" :maxlength="500" class="w-full" :disabled="!hydrated || busy || !canManage" /></UFormField>
-            <UFormField :label="t('vendor.billingSettings.fields.instructionsEn')"><UTextarea v-model="draft.bank_instructions_en" :maxlength="500" dir="ltr" class="w-full" :disabled="!hydrated || busy || !canManage" /></UFormField>
+        </SharedRecordSection>
+        <SharedRecordSection :title="t('vendor.billingSettings.sections.seller')" :description="t('vendor.billingSettings.sections.sellerHint')">
+          <div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
+            <SharedFormField name="sellerNameAr" :label="t('vendor.billingSettings.fields.sellerNameAr')"><UInput v-model="draft.seller_legal_name_ar" maxlength="200" class="w-full" :disabled="locked" /></SharedFormField>
+            <SharedFormField name="sellerNameEn" :label="t('vendor.billingSettings.fields.sellerNameEn')"><UInput v-model="draft.seller_legal_name_en" dir="ltr" maxlength="200" class="w-full" :disabled="locked" /></SharedFormField>
+            <SharedFormField name="sellerRegistration" :label="t('vendor.billingSettings.fields.sellerRegistration')"><UInput v-model="draft.seller_commercial_registration" dir="ltr" maxlength="64" class="w-full" :disabled="locked" /></SharedFormField>
+            <SharedFormField name="sellerPhone" :label="t('vendor.billingSettings.fields.sellerPhone')"><UInput v-model="draft.seller_phone" dir="ltr" maxlength="40" class="w-full" :disabled="locked" /></SharedFormField>
+            <SharedFormField name="sellerEmail" :label="t('vendor.billingSettings.fields.sellerEmail')" :error="errors.sellerEmail" :submitted="attempted"><UInput v-model="draft.seller_email" type="email" dir="ltr" maxlength="200" class="w-full" :disabled="locked" /></SharedFormField>
+            <SharedFormField name="sellerCity" :label="t('vendor.billingSettings.fields.sellerCity')"><UInput v-model="draft.seller_city" maxlength="100" class="w-full" :disabled="locked" /></SharedFormField>
+            <SharedFormField name="sellerCountry" :label="t('vendor.billingSettings.fields.sellerCountry')"><UInput v-model="draft.seller_country" maxlength="100" class="w-full" :disabled="locked" /></SharedFormField>
+            <SharedFormField name="sellerAddress" :label="t('vendor.billingSettings.fields.sellerAddress')" :help="t('vendor.billingSettings.fields.sellerAddressHint')"><UTextarea v-model="draft.seller_address" :maxlength="500" class="w-full" :disabled="locked" /></SharedFormField>
           </div>
-        </SharedFormSection>
-        <SharedFormSection panel :title="t('vendor.billingSettings.sections.seller')" :description="t('vendor.billingSettings.sections.sellerHint')">
-          <div class="grid gap-4 sm:grid-cols-2">
-            <UFormField :label="t('vendor.billingSettings.fields.sellerNameAr')"><UInput v-model="draft.seller_legal_name_ar" maxlength="200" class="w-full" :disabled="!hydrated || busy || !canManage" /></UFormField>
-            <UFormField :label="t('vendor.billingSettings.fields.sellerNameEn')"><UInput v-model="draft.seller_legal_name_en" dir="ltr" maxlength="200" class="w-full" :disabled="!hydrated || busy || !canManage" /></UFormField>
-            <UFormField :label="t('vendor.billingSettings.fields.sellerRegistration')"><UInput v-model="draft.seller_commercial_registration" dir="ltr" maxlength="64" class="w-full" :disabled="!hydrated || busy || !canManage" /></UFormField>
-            <UFormField :label="t('vendor.billingSettings.fields.sellerPhone')"><UInput v-model="draft.seller_phone" dir="ltr" maxlength="40" class="w-full" :disabled="!hydrated || busy || !canManage" /></UFormField>
-            <UFormField :label="t('vendor.billingSettings.fields.sellerEmail')" :error="show('sellerEmail')"><UInput v-model="draft.seller_email" type="email" dir="ltr" maxlength="200" class="w-full" :disabled="!hydrated || busy || !canManage" /></UFormField>
-            <UFormField :label="t('vendor.billingSettings.fields.sellerCity')"><UInput v-model="draft.seller_city" maxlength="100" class="w-full" :disabled="!hydrated || busy || !canManage" /></UFormField>
-            <UFormField :label="t('vendor.billingSettings.fields.sellerCountry')"><UInput v-model="draft.seller_country" maxlength="100" class="w-full" :disabled="!hydrated || busy || !canManage" /></UFormField>
+        </SharedRecordSection>
+        <SharedRecordSection :title="t('vendor.billingSettings.sections.onboarding')">
+          <div class="liwan-auto-grid liwan-field-grid liwan-setting-fields">
+            <SharedMoneyField v-model="draft.onboarding_fee" name="onboardingFee" whole :label="t('vendor.billingSettings.fields.onboardingFee')" :help="t('vendor.billingSettings.fields.onboardingFeeHint')" :unit="t('vendor.pricing.sar')" :unit-label="t('vendor.pricing.sarName')" :error="errors.onboardingFee" :submitted="attempted" :disabled="locked" />
           </div>
-          <UFormField :label="t('vendor.billingSettings.fields.sellerAddress')" :help="t('vendor.billingSettings.fields.sellerAddressHint')"><UTextarea v-model="draft.seller_address" :maxlength="500" class="w-full" :disabled="!hydrated || busy || !canManage" /></UFormField>
-        </SharedFormSection>
-        <SharedFormSection panel :title="t('vendor.billingSettings.sections.onboarding')">
-          <UFormField :label="t('vendor.billingSettings.fields.onboardingFee')" :help="t('vendor.billingSettings.fields.onboardingFeeHint')" :error="show('onboardingFee')">
-            <UInput v-model="draft.onboarding_fee" dir="ltr" inputmode="numeric" class="w-full sm:w-48" :disabled="!hydrated || busy || !canManage">
-              <template #trailing><span class="text-xs text-muted">{{ t('vendor.pricing.sar') }}</span></template>
-            </UInput>
-          </UFormField>
-        </SharedFormSection>
-        <UFormField :label="t('vendor.pricing.fields.reason')" required :error="show('reason')"><UTextarea v-model="draft.reason" :maxlength="1000" class="w-full" :disabled="!hydrated || busy || !canManage" /></UFormField>
-        <SharedFormActions>
-          <UButton type="submit" :loading="busy" :disabled="!hydrated || !canManage">{{ t('vendor.billingSettings.save') }}</UButton>
-        </SharedFormActions>
-      </form>
+        </SharedRecordSection>
+        <SharedFormField name="reason" :label="t('vendor.billingSettings.fields.reason')" :help="t('vendor.billingSettings.fields.reasonHint')" :error="dirty ? errors.reason : undefined" :submitted="attempted" required>
+          <UTextarea v-model="draft.reason" :maxlength="1000" class="w-full" :disabled="locked" />
+        </SharedFormField>
+        <!-- The live region stays mounted so the result is announced when it appears; «saved» ends with the first edit. -->
+        <div role="status" aria-live="polite" aria-atomic="true" data-testid="billing-settings-status">
+          <UAlert v-if="saved" color="success" variant="subtle" :title="t('vendor.billingSettings.saved')" data-testid="billing-settings-saved" />
+        </div>
+      </SharedSettingsCard>
     </SharedPageState>
-  </SharedRecordPage>
+  </SharedSettingsPage>
 </template>

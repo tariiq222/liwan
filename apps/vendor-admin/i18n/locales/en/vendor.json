@@ -1205,7 +1205,8 @@
         "storage_limit_mb": "Counted attachment storage (MB)",
         "tasks_enabled": "Tasks",
         "users_limit": "Users"
-      }
+      },
+      "sarName": "Saudi riyal"
     },
     "customers": {
       "resendInvitation": "Resend invitation",
@@ -1760,7 +1761,6 @@
     "aiBillingSettings": {
       "title": "AI billing settings",
       "hint": "The AI balance customers can buy and the free AI allowances. They apply to every customer.",
-      "save": "Save settings",
       "saved": "The AI billing settings were saved.",
       "pushed": "{count} workspace received its new AI allowance. | {count} workspaces received their new AI allowance.",
       "sections": {
@@ -1770,27 +1770,34 @@
         "allowancesHint": "AI usage included for every customer, expressed as a value in riyals. Changing an allowance updates the customers' workspaces."
       },
       "fields": {
-        "amounts": "Top-up amounts (SAR)",
-        "amountsHint": "Separate the amounts with an Arabic comma (،) or a semicolon (;), from the smallest to the largest, for example 25; 50; 100. A Latin comma never separates amounts; it is only a thousands mark inside one, as in 1,250. Up to 12 amounts.",
-        "minimum": "Lowest amount (SAR)",
-        "minimumHint": "Every amount offered must reach it.",
+        "amounts": "Top-up amounts",
+        "amountsHint": "One amount per row, from smallest to largest, with no repeats. Up to 12 amounts.",
+        "minimum": "Minimum amount",
+        "minimumHint": "No amount offered may be lower than this.",
         "rate": "Riyals per US dollar",
         "rateHint": "Converts a top-up into AI balance, for example 3.75. Up to six decimals.",
-        "trial": "Trial allowance (SAR)",
-        "monthly": "Monthly allowance (SAR)"
+        "trial": "Trial allowance",
+        "monthly": "Monthly allowance",
+        "amountRow": "Amount",
+        "addAmount": "Add an amount",
+        "removeAmount": "Remove",
+        "reason": "Reason for the change",
+        "reasonHint": "Recorded in the audit log with every change to these settings, and required to save. At least 3 characters."
       },
       "errors": {
-        "amounts": "Enter between 1 and 12 different amounts in riyals, with at most two decimals, from the smallest to the largest.",
-        "minimum": "Enter the lowest amount in riyals; every amount offered must be at least this much.",
-        "rate": "Enter a positive rate with at most six decimals, such as 3.75.",
+        "amounts": "Enter between 1 and 12 different amounts in riyals, with at most two decimals, from the smallest to the largest. The maximum amount is 1,000,000 SAR.",
+        "minimum": "Enter the lowest amount in riyals, at most 1,000,000 SAR; no amount offered may be lower than it.",
+        "rate": "Enter a positive rate of at most 9999.999999, with at most six decimals, such as 3.75.",
         "trial": "Enter an amount in riyals, or 0 for no trial allowance.",
-        "monthly": "Enter an amount in riyals, or 0 for no monthly allowance."
-      }
+        "monthly": "Enter an amount in riyals, or 0 for no monthly allowance.",
+        "amountRow": "Enter an amount in riyals with at most two decimals.",
+        "reason": "Enter a reason of at least 3 characters."
+      },
+      "errorSummary": "Fix these fields before saving"
     },
     "billingSettings": {
       "title": "Billing settings",
       "hint": "The values Liwan's own billing runs on. Change them here, never in code.",
-      "save": "Save settings",
       "saved": "The billing settings were saved.",
       "sections": {
         "seller": "Seller identity on invoices",
@@ -1818,15 +1825,19 @@
         "ibanHint": "A Saudi IBAN: SA followed by 22 digits.",
         "instructionsAr": "Transfer instructions (Arabic)",
         "instructionsEn": "Transfer instructions (English)",
-        "onboardingFee": "Onboarding fee (SAR)",
-        "onboardingFeeHint": "A positive whole amount charged once when a customer starts with assisted onboarding. Enter 0 to stop offering it; leave it empty to keep the current fee."
+        "onboardingFee": "Onboarding fee",
+        "onboardingFeeHint": "A positive whole amount charged once when a customer starts with assisted onboarding. Enter 0 to stop offering it; leave it empty to keep the current fee.",
+        "reason": "Reason for the change",
+        "reasonHint": "Recorded in the audit log with every change to these settings, and required to save. At least 3 characters."
       },
       "errors": {
         "sellerEmail": "Enter a valid email address, or leave it empty.",
         "window": "Enter a whole number of days between 0 and 365.",
         "iban": "Enter a Saudi IBAN (SA and 22 digits), or leave it empty.",
-        "onboardingFee": "Enter a whole amount in SAR, without fractions, such as 499, or 0 to stop offering onboarding."
-      }
+        "onboardingFee": "Enter a whole amount in SAR, without fractions, such as 499, or 0 to stop offering onboarding.",
+        "reason": "Enter a reason of at least 3 characters."
+      },
+      "errorSummary": "Fix these fields before saving"
     },
     "invoices": {
       "title": "Invoices and collection",

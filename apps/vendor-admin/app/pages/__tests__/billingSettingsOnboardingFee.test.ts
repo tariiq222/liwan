@@ -36,7 +36,7 @@ async function page(options: Options = {}) {
   })
   const bindings = {
     ...vendorCommercial, _defineComponent: Vue.defineComponent, _withAsyncContext: (fn: () => unknown) => [fn(), () => {}],
-    computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, reactive: Vue.reactive,
+    computed: Vue.computed, ref: Vue.ref, nextTick: Vue.nextTick, watch: Vue.watch, reactive: Vue.reactive,
     definePageMeta: () => {}, useHydrated: () => Vue.ref(options.hydrated ?? true),
     useI18n: () => ({ t: (key: string) => key, locale: Vue.ref('en') }),
     useVendorContext: () => ({ can: (grant: string) => (options.grants ?? ['vendor.read', 'vendor.billing.manage']).includes(grant) }),
@@ -81,7 +81,7 @@ describe('billing settings onboarding fee', () => {
     expect(p.state.draft.onboarding_fee).toBe('499')
     // Loading a stored fee unchanged is valid: it is what the vendor already has, and the save omits it.
     expect(p.state.errors.value).toEqual({})
-    const field = (await p.rendered()).captured.find(c => c.name === 'UFormField' && c.props.label === 'vendor.billingSettings.fields.onboardingFee')
+    const field = (await p.rendered()).captured.find(c => c.name === 'SharedMoneyField' && c.props.label === 'vendor.billingSettings.fields.onboardingFee')
     expect(field?.props.help).toBe('vendor.billingSettings.fields.onboardingFeeHint')
     expect(field?.props.error).toBeUndefined()
   })
@@ -107,7 +107,7 @@ describe('billing settings onboarding fee', () => {
     await p.state.submit()
     expect(p.state.errors.value.onboardingFee).toBe('vendor.billingSettings.errors.onboardingFee')
     expect(p.patches()).toEqual([])
-    expect((await p.rendered()).captured.find(c => c.name === 'UFormField' && c.props.label === 'vendor.billingSettings.fields.onboardingFee')?.props.error).toBe('vendor.billingSettings.errors.onboardingFee')
+    expect((await p.rendered()).captured.find(c => c.name === 'SharedMoneyField' && c.props.label === 'vendor.billingSettings.fields.onboardingFee')?.props.error).toBe('vendor.billingSettings.errors.onboardingFee')
   })
 
   it.each(['499.00', '0.00', '1,5', '499 SAR', '٤٩٩ريال'])('refuses the non-major-unit form %j, which the stored "" field would turn into a change', async value => {
@@ -269,7 +269,7 @@ describe('billing settings seller identity', () => {
 
   it('shows the seller section with its fields', async () => {
     const p = await page()
-    const labels = (await p.rendered()).captured.filter(c => c.name === 'UFormField').map(c => c.props.label)
+    const labels = (await p.rendered()).captured.filter(c => c.name === 'SharedFormField').map(c => c.props.label)
     expect(labels).toEqual(expect.arrayContaining(['vendor.billingSettings.fields.sellerNameAr', 'vendor.billingSettings.fields.sellerNameEn', 'vendor.billingSettings.fields.sellerAddress']))
   })
 })
@@ -282,16 +282,19 @@ describe('billing settings save feedback', () => {
     expect(p.patches()).toHaveLength(1)
     expect(p.state.saved.value).toBe(true)
     expect(p.state.draft.reason).toBe('')
-    expect(p.state.show('reason')).toBeUndefined()
-    const field = (await p.rendered()).captured.find(c => c.name === 'UFormField' && c.props.label === 'vendor.pricing.fields.reason')
+    expect(p.state.attempted.value).toBe(false)
+    const field = (await p.rendered()).captured.find(c => c.name === 'SharedFormField' && c.props.label === 'vendor.billingSettings.fields.reason')
     expect(field?.props.error).toBeUndefined()
   })
 
   it('still asks for the reason when a save is attempted without one', async () => {
     const p = await page()
+    p.state.draft.bank_account_name = 'Liwan'
     await p.state.submit()
     expect(p.patches()).toEqual([])
-    expect(p.state.show('reason')).toBe('vendor.pricing.reasonRequired')
+    expect(p.state.attempted.value).toBe(true)
+    expect(p.state.errors.value.reason).toBe('vendor.billingSettings.errors.reason')
+    expect(p.state.summaryErrors.value).toEqual([{ field: 'reason', message: 'vendor.billingSettings.errors.reason' }])
   })
 })
 

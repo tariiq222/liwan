@@ -843,5 +843,23 @@ class StaticGateTest(unittest.TestCase):
         self.assertEqual(len(errors), 1)
         self.assertIn("more than one tailwind-variants copy", errors[0])
 
+    def test_settings_form_currency_in_trailing_slot_is_reported(self):
+        page = "apps/web/app/pages/x.vue"
+        bad = "<template><UInput><template #trailing><span class=\"text-sm\">{{ t('vendor.currency.sar') }}</span></template></UInput></template>"
+        self.assertEqual(len(policy.settings_form_errors({page: bad})), 1)
+        good = "<template><SharedMoneyField v-model=\"v\" label=\"L\" unit=\"SAR\" /></template>"
+        self.assertEqual(policy.settings_form_errors({page: good}), [])
+        # The same markup inside a comment is not usage.
+        self.assertEqual(policy.settings_form_errors({page: "<!-- " + bad + " -->"}), [])
+
+    def test_vendor_settings_page_locked_two_column_grid_is_reported(self):
+        settings = "apps/vendor-admin/app/pages/billing-settings.vue"
+        self.assertEqual(len(policy.settings_form_errors({settings: '<template><div class="grid sm:grid-cols-2" /></template>'})), 1)
+        self.assertEqual(policy.settings_form_errors({settings: '<template><div class="liwan-auto-grid liwan-field-grid" /></template>'}), [])
+        # Other vendor pages are not settings pages: they keep their grid until the rollout reaches them.
+        other = "apps/vendor-admin/app/pages/plans.vue"
+        self.assertEqual(policy.settings_form_errors({other: '<template><div class="grid sm:grid-cols-2" /></template>'}), [])
+
+
 if __name__ == '__main__':
     unittest.main()

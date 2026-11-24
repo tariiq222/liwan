@@ -10,7 +10,8 @@
  * the card; a 409 locks the card until the manager reloads the current values, so a stale draft never overwrites a change
  * made elsewhere. The state comes from the page's form composable; the card only draws it. When a save fails, the card
  * moves focus to its first `aria-invalid` control once the DOM has updated (`focusFirstInvalidControl`), which makes
- * the screen reader read that field's error; the page bar's «save all» asks only the first failing card to do so.
+ * the screen reader read that field's error; a request failure marks no control invalid, so the card's failure alert takes
+ * focus instead and focus never falls to the body. The page bar's «save all» asks only the first failing card to do so.
  * UForm's own submit loading is off: it would disable every field for a tick, so the control could not take focus.
  */
 import { nextTick, reactive, useTemplateRef, watch, watchEffect } from 'vue'
@@ -43,6 +44,7 @@ const busy = computed(() => !hydrated.value || props.saving || props.reloading)
 // Resolves once the card's save handler returned and its `saving` state settled, so the next card starts afterwards.
 // A failed save then moves focus to the card's first invalid control, unless `focus` is false (the bar saving every card).
 const form = useTemplateRef<{ $el: ParentNode }>('form')
+const failure = useTemplateRef<{ $el: unknown }>('failure')
 async function runSave(options?: { focus?: boolean }) {
   await props.onSave?.()
   if (props.saving) {
@@ -57,7 +59,13 @@ async function runSave(options?: { focus?: boolean }) {
   // The failure message and the field errors reach the DOM on the next render, so the control exists only after it.
   await nextTick()
   if (options?.focus === false || !props.message) return false
-  return focusFirstInvalidControl(form.value?.$el)
+  if (focusFirstInvalidControl(form.value?.$el)) return true
+  // A request failure marks no control invalid: the failure alert itself takes focus, so it is announced and in view.
+  const alert = failure.value?.$el as HTMLElement | undefined
+  if (typeof alert?.focus !== 'function') return false
+  alert.focus({ preventScroll: true })
+  alert.scrollIntoView({ block: 'center' })
+  return true
 }
 const registry = useSettingsSaveRegistry()
 // An action card with its own label owns its button and confirm, so it keeps its footer even inside a settings page.
@@ -90,7 +98,7 @@ watchEffect(() => {
         <UBadge v-else-if="managed && dirty" color="warning" variant="subtle" :label="t('app.unsaved')" />
       </template>
       <div class="grid gap-4">
-        <UAlert v-if="message" role="alert" color="error" variant="subtle" :title="t('app.saveFailed')" :description="message" />
+        <UAlert v-if="message" ref="failure" tabindex="-1" role="alert" color="error" variant="subtle" :title="t('app.saveFailed')" :description="message" />
         <div v-if="conflict" class="flex flex-wrap items-center gap-3">
           <UButton type="button" color="neutral" variant="outline" icon="i-lucide-refresh-cw" :label="t('app.reloadCurrent')" :loading="reloading" :disabled="busy" @click="emit('reload')" />
         </div>
