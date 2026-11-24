@@ -302,7 +302,9 @@ Compose (`deploy/docker-compose.shared.yml`). `LIWAN_RESTORE_REGISTRY_DIR` must 
 services `tools/shared_saas_lifecycle/odoo_backup.py` restores into. They start only with `--profile restore`, publish
 no port, share no network with `db` or `odoo`, and use their own volumes. `restore-odoo` mounts
 `LIWAN_RESTORE_ODOO_CONFIG`, a validated external config whose `db_host` is `restore-db`; unset, it mounts
-`deploy/shared/odoo.restore.conf`, an incomplete reference the startup validator rejects.
+`deploy/shared/odoo.restore.conf`, an incomplete reference the startup validator rejects. The external file needs the
+same `server_wide_modules = base,rpc,web,liwan_shared_dbselect` line as the live config (and `max_cron_threads = 0`); the release
+checks it in `prepare` when the key is set.
 
 **Access control: who may reach a restore host (owner decision 2026-11-08).** A restore host is on the public edge and
 is authenticated like a tenant host, by the restored database's own users, so it would otherwise accept the

@@ -185,6 +185,7 @@ class FakeRunner:
         self.stdins.append(stdin)
         self.envs.append(env)
         self.timeouts.append(timeout)
+        self.last_env = env
         code, output = self.answer(argv, stdin or '')
         if check and code != 0:
             raise CommandFailed(argv, code)
@@ -198,7 +199,8 @@ class FakeRunner:
         if argv[0] == 'docker' and argv[1] in ('login', 'pull', 'create', 'cp', 'rm', 'rmi', 'image'):
             return self.docker(argv)
         if 'deploy/shared/validate_odoo_config.py' in joined:  # the candidate's own validator, run on the host's file
-            return (1, 'shared_config_rejected') if case.odoo_config_invalid else (0, '')
+            restore = (self.last_env or {}).get('LIWAN_RESTORE_ROLE') == '1'
+            return (1, 'shared_config_rejected') if (case.restore_config_invalid if restore else case.odoo_config_invalid) else (0, '')
         if 'config' in argv and '--quiet' in argv:  # the candidate's render check: silent, as the release.env it names says
             env_file = Path(argv[len(argv) - 1 - argv[::-1].index('--env-file') + 1])
             case.candidate_renders.append((argv, env_file.read_text()))
@@ -335,6 +337,7 @@ class ReleaseTest(unittest.TestCase):
         self.fail_health, self.fail_upgrade_of = False, None
         self.fail_render, self.fail_restore_render = False, False
         self.missing_required, self.candidate_renders, self.odoo_config_invalid = None, [], False
+        self.restore_config_invalid = False
         self.document = document(NEW)
         self.alerts, self.sql = [], []
         self.builds = BUILDS
@@ -1378,6 +1381,41 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(self.commands('systemctl'), [])
         self.assertEqual(self.candidate_renders, [])  # refused before the render, the pulls and the disk check
         self.assertFalse((self.state / 'halted.json').exists())
+
+    def set_restore_config(self):
+        restore = self.root / 'restore-odoo.conf'
+        restore.write_text('[options]\n')
+        shared = self.root / 'shared.env'
+        shared.write_text(shared.read_text() + f'LIWAN_RESTORE_ODOO_CONFIG={restore}\n')
+        return restore
+
+    def validator_calls(self):
+        return [(argv, env) for argv, env in zip(self.runner.calls, self.runner.envs)
+                if 'deploy/shared/validate_odoo_config.py' in ' '.join(argv)]
+
+    def test_a_restore_config_the_candidate_validator_rejects_is_refused_in_prepare_with_nothing_stopped(self):
+        restore = self.set_restore_config()
+        self.restore_config_invalid = True
+        self.assertEqual(self.main(), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused odoo_config_invalid')
+        self.assertIn(f'{restore} (LIWAN_RESTORE_ODOO_CONFIG)', self.log_stream.getvalue())
+        self.assertEqual(self.compose_stops(), [])
+        self.assertEqual(self.commands('psql'), [])
+        self.assertEqual(self.commands('systemctl'), [])
+        self.assertEqual(self.candidate_renders, [])
+        self.assertFalse((self.state / 'halted.json').exists())
+
+    def test_a_set_restore_config_is_validated_as_the_restore_profile_and_the_live_one_is_not(self):
+        restore = self.set_restore_config()
+        self.assertEqual(self.main(), release.EXIT_OK)
+        calls = self.validator_calls()
+        self.assertEqual([argv[3] for argv, _ in calls], [str(self.odoo_config), str(restore)])
+        self.assertNotIn('LIWAN_RESTORE_ROLE', calls[0][1])
+        self.assertEqual(calls[1][1]['LIWAN_RESTORE_ROLE'], '1')
+
+    def test_an_unset_restore_config_is_skipped(self):
+        self.assertEqual(self.main(), release.EXIT_OK)
+        self.assertEqual([argv[3] for argv, _ in self.validator_calls()], [str(self.odoo_config)])
 
     def test_a_valid_odoo_config_is_checked_once_by_the_candidates_validator_with_the_hosts_path(self):
         self.assertEqual(self.main(), release.EXIT_OK)

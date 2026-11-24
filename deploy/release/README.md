@@ -95,7 +95,7 @@ Each phase is written to `run.json` before it acts, so a killed run resumes from
    Odoo would die after the stop). The same refusal applies to `LIWAN_VENDOR_ADMIN_ENV_FILE`, the vendor console's env file (Compose would fail on it only after the
    stop); only the path is logged, never the content. Both compose projects of the candidate are also rendered with `config --quiet` (its own image
    tag in a temporary env file, nothing activated, nothing printed), so a required key the shared env file lacks (compose names the variable) is refused as
-   `invalid_shared_env` before anything stops. The host's `LIWAN_SHARED_ODOO_CONFIG` is also run through the candidate's `deploy/shared/validate_odoo_config.py` (as the container's launcher will), and a rejection is `RESULT: refused odoo_config_invalid` before anything stops (only the path is logged). Then the disk check:
+   `invalid_shared_env` before anything stops. The host's `LIWAN_SHARED_ODOO_CONFIG` is also run through the candidate's `deploy/shared/validate_odoo_config.py` (as the container's launcher will), and a rejection is `RESULT: refused odoo_config_invalid` before anything stops (only the path is logged). When `LIWAN_RESTORE_ODOO_CONFIG` is set, that file is validated the same way as the restore profile (`LIWAN_RESTORE_ROLE=1`, zero cron threads); unset, it is skipped. Then the disk check:
    the run is refused when the free space on `LIWAN_RELEASE_DISK_PATH` is below 1.5 times the size of one snapshot of
    every tenant database, the control-plane database and every filestore (the snapshots all exist at once).
 3. Quiesce: stop the shared worker, read the tenant list with `deploy/shared/backup-binding.mjs --list`.
