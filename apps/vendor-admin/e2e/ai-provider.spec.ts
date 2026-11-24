@@ -52,7 +52,7 @@ test('a provider that is not saved cannot list or test yet, and a save round-tri
   await expect(page.getByTestId('ai-provider-save-first')).toHaveCount(1)
   await page.getByTestId('ai-provider-margin').fill('25')
   await page.getByTestId('ai-provider-key').last().fill('sk-e2e-secret-0123456789')
-  await page.getByTestId('ai-provider-save').click()
+  await page.getByRole('button', { name: 'حفظ الإعداد', exact: true }).click()
   await page.getByTestId('ai-provider-reason').fill('Add a provider')
   await page.getByRole('button', { name: 'حفظ', exact: true }).click()
   await expect(page.getByTestId('ai-provider-notice')).toBeVisible()

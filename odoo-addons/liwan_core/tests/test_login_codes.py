@@ -37,7 +37,8 @@ class LoginCodeCase(TransactionCase):
             cls.env, login='code_user', password=PASSWORD, name='Code User',
             groups='liwan_core.group_employee',
         )
-        cls.user.liwan_mobile = MOBILE
+        # A sign-in SMS goes only to a number a code has verified: the fixture holds it verified.
+        cls.user.write({'liwan_mobile': MOBILE, 'liwan_mobile_verified_at': fields.Datetime.now()})
         cls.service = cls.env['liwan.login.code']
 
     def setUp(self):
@@ -171,7 +172,7 @@ class TestLoginCodeIssue(LoginCodeCase):
 
     def other_user(self, login):
         user = new_test_user(self.env, login=login, password=PASSWORD, name=login, groups='liwan_core.group_employee')
-        user.liwan_mobile = OTHER_MOBILE
+        user.write({'liwan_mobile': OTHER_MOBILE, 'liwan_mobile_verified_at': fields.Datetime.now()})
         return user
 
     def test_the_daily_cap_per_user_refuses_only_that_user(self):

@@ -110,7 +110,7 @@ export function loadShared(name: string, options: SharedRenderOptions = {}): Vue
   const t = fakeT(options.messages)
   const autoImports: Record<string, unknown> = {
     ref: Vue.ref, computed: Vue.computed, watch: Vue.watch, shallowRef: Vue.shallowRef, nextTick: Vue.nextTick,
-    toRef: Vue.toRef, provide: Vue.provide, inject: Vue.inject, useId: Vue.useId, useSlots: Vue.useSlots, onMounted: Vue.onMounted, onBeforeUnmount: Vue.onBeforeUnmount, useTemplateRef: Vue.useTemplateRef,
+    toRef: Vue.toRef, provide: Vue.provide, inject: Vue.inject, useId: Vue.useId, useSlots: Vue.useSlots, onMounted: Vue.onMounted, onUpdated: Vue.onUpdated, onBeforeUnmount: Vue.onBeforeUnmount, useTemplateRef: Vue.useTemplateRef,
     useI18n: () => ({ t, te: (key: string) => options.messages !== undefined && key in options.messages, locale: Vue.ref('ar'), localeProperties: Vue.ref({ dir: 'rtl' }) }),
     useHydrated: () => Vue.ref(options.hydrated ?? true),
     // The application-side list joiner; Nuxt auto-imports it from app/utils, and the harness has to do the same for a

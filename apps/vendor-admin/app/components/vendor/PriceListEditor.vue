@@ -21,9 +21,7 @@ const unitItems = computed(() => [{ label: t('vendor.pricing.cadence.month.unit'
       <UFormField :label="t('vendor.pricing.prices.count')">
         <UInput :model-value="row.count" inputmode="numeric" class="w-full" :disabled="!hydrated || disabled" @update:model-value="patch(index, { count: String($event) })" />
       </UFormField>
-      <UFormField :label="t('vendor.pricing.prices.amount')" :error="showErrors && errors[index] === 'amount' ? t('vendor.pricing.prices.amountInvalid') : undefined">
-        <UInput :model-value="row.amount" inputmode="decimal" class="w-full" :disabled="!hydrated || disabled" @update:model-value="patch(index, { amount: String($event) })"><template #trailing><span class="text-xs text-muted">{{ t('vendor.pricing.sar') }}</span></template></UInput>
-      </UFormField>
+      <SharedMoneyField :model-value="row.amount" :label="t('vendor.pricing.prices.amount')" :unit="t('vendor.pricing.sar')" :unit-label="t('vendor.pricing.sarName')" :error="errors[index] === 'amount' ? t('vendor.pricing.prices.amountInvalid') : undefined" :submitted="showErrors" :disabled="!hydrated || disabled" @update:model-value="patch(index, { amount: String($event) })" />
       <UButton color="error" variant="ghost" icon="i-lucide-trash-2" class="sm:mt-6" :aria-label="t('vendor.pricing.prices.remove')" :disabled="!hydrated || disabled" @click="remove(index)" />
     </div>
     <p v-if="serverError" class="text-sm text-error">{{ serverError }}</p>

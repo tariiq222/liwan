@@ -3,7 +3,7 @@ import { ERROR_REPORT_PATH } from '../../shared/utils/errorReportScrub'
 
 type ProspectConfig = { customerCommercialEnabled?: boolean | string; customerCommercialPublicOrigin?: string; publicSignupEnabled?: boolean | string }
 
-export const SIGNUP_API = /^\/api\/commercial\/signup\/(terms|offer|start|verify-sms|send-email|verify-email)$/
+export const SIGNUP_API = /^\/api\/commercial\/signup\/(terms|offer|check-slug|start|resend|verify|complete|status)$/
 export const isSignupPage = (pathname: string) => /^\/register\/?$/.test(pathname)
 /** The marketing site's two public routes: the published pricing and the contact form. Served on the common host whenever the commercial integration is on. */
 export const PUBLIC_SITE_API = /^\/api\/commercial\/public\/(pricing|contact)$/

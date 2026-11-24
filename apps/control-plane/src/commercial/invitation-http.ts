@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { isIP } from 'node:net'
 import type { Pool } from 'pg'
 import { CommercialHttpError } from './lifecycle.js'
 import { assertCustomerNotRetiring } from './tenant-deletion-read.js'
@@ -29,15 +30,19 @@ async function invitationCheck(pool: Pool, raw: string) {
  *  invitation routes are: the Nuxt server vouches for the workspace its host belongs to. The tenant is never taken
  *  from the body, so a visitor cannot aim the accept at another workspace. */
 export const ACCEPT_PATH = '/v1/invitations/accept'
-export type AcceptTenantContext = { tenant_id: string }
+export type AcceptTenantContext = { tenant_id: string; client_address: string }
 export async function verifiedAcceptTenant(pool: Pool, headers: Record<string, string | string[] | undefined>, service: { issuer?: string; key?: string }): Promise<AcceptTenantContext | null> {
   const tenant = headers['x-liwan-tenant']
+  const ip = headers['x-liwan-client-ip']
   if (typeof tenant !== 'string' || !isSignedTenantFormat(tenant) || !service.issuer || !service.key) return null
-  const signed = verifyServiceRequest({ method: 'POST', path: ACCEPT_PATH, body: `liwan-invitation-accept:${tenant}\n`, headers, key: service.key, anonymous: true })
+  // The visitor address is part of the same signature: the route budgets one accept per visitor, and a
+  // second signature over the same headers would need a second nonce and signature the protocol has no room for.
+  if (typeof ip !== 'string' || !isIP(ip)) return null
+  const signed = verifyServiceRequest({ method: 'POST', path: ACCEPT_PATH, body: `liwan-invitation-accept:${tenant}\n${ip}\n`, headers, key: service.key, anonymous: true })
   if (signed?.issuer !== service.issuer) return null
   // Only now, with the signature checked over the value exactly as sent, may it name a control tenant (a registry id goes through its enabled binding).
   const controlTenant = await controlTenantForSigned(pool, tenant)
-  return controlTenant ? { tenant_id: controlTenant.toLowerCase() } : null
+  return controlTenant ? { tenant_id: controlTenant.toLowerCase(), client_address: ip } : null
 }
 
 /** Public: POST /v1/invitations/accept {token,password}. No vendor auth. The request must carry the signed workspace

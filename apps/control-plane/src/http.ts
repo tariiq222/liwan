@@ -405,11 +405,14 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       if (pathname === '/v1/invitations/accept' || pathname === '/v1/invitations/check') {
         if (method !== 'POST') return respond(res, 404, { code: 'not_found', message: 'Endpoint not found' })
         // The workspace an accept is bound to is trusted only as signed by the Nuxt server; the tenant is never read from the body.
-        const tenant = pathname === '/v1/invitations/accept' ? (await verifiedAcceptTenant(pool, req.headers, bffService))?.tenant_id : undefined
+        // The same signature covers the visitor address, so the budget below counts the visitor the edge named.
+        const accept = pathname === '/v1/invitations/accept' ? await verifiedAcceptTenant(pool, req.headers, bffService) : null
+        const tenant = accept?.tenant_id
         // Unsigned forwarding headers are never trusted for this public limit.
         // accept and check count separately so a page-load check never uses up the accept budget.
         const limit = INVITATION_LIMITS[pathname]!
-        const ip = `${pathname}|${clientAddressBucket(invitationClientAddress(req, pathname, bffService))}`
+        const visitor = accept ? accept.client_address : invitationClientAddress(req, pathname, bffService)
+        const ip = `${pathname}|${clientAddressBucket(visitor)}`
         if (overLimit(ip, limit)) return respond(res, 429, { code: 'rate_limited', message: 'Too many requests' })
         if (invitationsInFlight >= 4) return respond(res, 503, { code: 'unavailable', message: INVITATION_MESSAGES.unavailable })
         invitationsInFlight++

@@ -74,9 +74,9 @@ class TestAccessAdminUsers(LiwanApiCase):
         _token, raw = self.env['liwan.account.token'].sudo()._liwan_issue(user, purpose)
         return raw
 
-    def _accept(self, user_id, password='accepted_password_123', mobile='+966500000010'):
+    def _accept(self, user_id, password='accepted_password_123'):
         return self.api('POST', '/api/v1/public/account/invitation/accept', {
-            'token': self._issued_link(user_id, 'invite'), 'mobile': mobile, 'password': password,
+            'token': self._issued_link(user_id, 'invite'), 'password': password,
         })
 
     def test_user_list_is_capability_gated_and_server_counted(self):
@@ -161,7 +161,8 @@ class TestAccessAdminUsers(LiwanApiCase):
         self._admin()
         detail = self.api('GET', f"/api/v1/admin/users/{created['id']}").json()
         self.assertIsNone(detail['invitation'])
-        self.assertEqual(detail['mobile'], '+966500000010')
+        # Joining sets a password only; the number is saved and verified once the holder signs in.
+        self.assertIsNone(detail['mobile'])
         self.assertIn('send_reset_link', detail['allowed_actions'])
         response = self.api('POST', f"/api/v1/admin/users/{created['id']}/reset-link", {
             'expected_version': detail['version'],

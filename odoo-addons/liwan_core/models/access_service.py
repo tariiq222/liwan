@@ -15,7 +15,7 @@ from .access_permission import IDENTIFIER
 from .account_token import RESET_LINKS_PER_HOUR
 from .protected_write import marked
 from .res_partner import PARTNER_CREATE_MARKER, PARTNER_GRANT_MARKER
-from .res_users import MOBILE_PATTERN
+from .res_users import MOBILE_PATTERN, SELF_MOBILE_MARKER
 
 MIN_PASSWORD_LENGTH = 12
 MOBILE_SEPARATORS = str.maketrans('', '', ' -()')
@@ -739,9 +739,10 @@ class LiwanAccessService(models.AbstractModel):
 
     @api.model
     def _liwan_mobile_required(self, user):
-        """Whether USER must still save a mobile number: every internal user but the root and vendor support."""
+        """Whether USER must still save and verify a mobile number: every internal user but the root and vendor support."""
         return bool(
-            user.active and not user.share and not user.liwan_mobile
+            user.active and not user.share
+            and not (user.liwan_mobile and user.liwan_mobile_verified_at)
             and not user._is_superuser()
             and not user.has_group('liwan_core.group_vendor_support'),
         )
@@ -769,17 +770,36 @@ class LiwanAccessService(models.AbstractModel):
             raise LiwanAccessRule(msg, field='mobile', status=409) from None
 
     @api.model
-    def _liwan_set_own_mobile(self, mobile):
+    def _liwan_send_mobile_code(self, mobile):
+        """Save the caller's own number, unverified, and send it the verification code.
+
+        A number no code has verified may not carry a sign-in code (``_liwan_issue`` refuses the
+        SMS of a pending sign-in for it). The answer is the :class:`IssueOutcome` of the SMS: a
+        refusal code says why nothing went out, while the number itself is already saved.
+        """
         value = self._liwan_normalize_mobile(mobile)
-        # The caller's own record without env.user's implicit elevation: the stock self-write path
-        # (SELF_WRITEABLE_FIELDS) is what authorizes this one field.
-        user = self.env['res.users'].browse(self.env.uid)
-        with self._liwan_mobile_guard():
+        Users = self.env['res.users']
+        if Users.search_count([('liwan_mobile', '=', value), ('id', '!=', self.env.uid)], limit=1):
+            msg = 'mobile_taken'
+            raise LiwanAccessRule(msg, field='mobile', status=409)
+        user = Users.browse(self.env.uid)
+        with self._liwan_mobile_guard(), marked(self.env, {SELF_MOBILE_MARKER: {user.id}}):
             user.write({'liwan_mobile': value})
         self.env['liwan.access.audit']._liwan_log(
             'user.mobile_set', user, before=None, after={'mobile_set': True},
         )
-        return user
+        return self._liwan_codes()._liwan_issue(user, 'sms', purpose='verify_mobile')
+
+    @api.model
+    def _liwan_verify_mobile_code(self, code):
+        """Consume the caller's verify_mobile code and stamp their number verified: a refusal code, or None."""
+        user = self.env['res.users'].browse(self.env.uid)
+        error = self._liwan_codes()._liwan_verify(user, code, purpose='verify_mobile')
+        if error:
+            return error
+        with marked(self.env, {SELF_MOBILE_MARKER: {user.id}}):
+            user.write({'liwan_mobile_verified_at': fields.Datetime.now()})
+        return None
 
     @api.model
     def _liwan_awaiting_users(self, users):
@@ -1071,7 +1091,7 @@ class LiwanAccessService(models.AbstractModel):
 
     @api.model
     def _liwan_use_link(self, link, vals, audit_action):
-        """Consume LINK and write VALS (a password, maybe a mobile number) on its user as the account holder."""
+        """Consume LINK and write VALS (a password) on its user as the account holder."""
         user = link.user_id
         with self._liwan_mobile_guard():
             if not link._liwan_consume():
@@ -1088,12 +1108,11 @@ class LiwanAccessService(models.AbstractModel):
         return user
 
     @api.model
-    def _liwan_accept_invitation(self, token, mobile, password):
-        """Public: the invitee sets a password and a mobile number from the emailed link (works once)."""
+    def _liwan_accept_invitation(self, token, password):
+        """Public: the invitee sets a password from the emailed link (works once). The join flow has no mobile."""
         link = self._liwan_usable_link(token, 'invite')
-        mobile = self._liwan_normalize_mobile(mobile)
         password = self._liwan_check_password(password)
-        return self._liwan_use_link(link, {'password': password, 'liwan_mobile': mobile}, 'user.password_set')
+        return self._liwan_use_link(link, {'password': password}, 'user.password_set')
 
     @api.model
     def _liwan_reset_password_with_token(self, token, password):

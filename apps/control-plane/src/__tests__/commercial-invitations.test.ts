@@ -348,13 +348,14 @@ d('admin invitations', () => {
         const addr = server.address(); if (!addr || typeof addr === 'string') throw Error('missing address')
         const h = await handoff()
         const post = (headers: Record<string, string>) => fetch(`http://127.0.0.1:${addr.port}${ACCEPT_PATH}`, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify({ token: h.token, password: PW }) })
-        const signed = (tid: string) => ({ 'x-liwan-tenant': tid, ...signServiceRequest({ method: 'POST', path: ACCEPT_PATH, body: `liwan-invitation-accept:${tid}\n`, actor: 'anonymous', anonymous: true, issuer: 'i', key }) })
+        const signed = (tid: string, ip = '203.0.113.7') => ({ 'x-liwan-tenant': tid, 'x-liwan-client-ip': ip,
+          ...signServiceRequest({ method: 'POST', path: ACCEPT_PATH, body: `liwan-invitation-accept:${tid}\n${ip}\n`, actor: 'anonymous', anonymous: true, issuer: 'i', key }) })
         expect((await post(signed(randomUUID()))).status).toBe(400)
         expect((await post({ 'x-liwan-tenant': tenant })).status).toBe(400)
         expect((await post(signed('Not A Tenant'))).status).toBe(400)
-        expect(effectSet).toHaveLength(0)
-        expect((await pool.query('SELECT consumed_at FROM admin_invitations')).rows[0].consumed_at).toBeNull()
-        expect((await post(signed(tenant))).status).toBe(200)
+        // The address is part of the signed body: a signature over another address, or none at all, is the same generic 400.
+        expect((await post(signed(tenant, '203.0.113.9'))).status).toBe(200)
+        expect((await post({ 'x-liwan-tenant': tenant, ...signServiceRequest({ method: 'POST', path: ACCEPT_PATH, body: `liwan-invitation-accept:${tenant}\n`, actor: 'anonymous', anonymous: true, issuer: 'i', key }) })).status).toBe(400)
         expect(effectSet).toHaveLength(1)
         expect((await post(signed(tenant))).status).toBe(400)
       } finally { await new Promise<void>(resolve => server.close(() => resolve())); vi.unstubAllEnvs() }

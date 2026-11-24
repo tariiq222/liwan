@@ -8,6 +8,9 @@ from .res_partner import PARTNER_GRANT_MARKER
 
 USER_CREATE_MARKER = 'liwan_core.access_user_create_depth'
 USER_WRITE_MARKER = 'liwan_core.access_user_write'
+# The account service's two writes of the holder's own number: saving it (unverified) and stamping it verified.
+SELF_MOBILE_MARKER = 'liwan_core.self_mobile_write'
+SELF_MOBILE_FIELDS = frozenset({'liwan_mobile', 'liwan_mobile_verified_at'})
 # Credential fields whose stock security alert the protected account operations replace with the audit log.
 SECURITY_NOTIFIED_FIELDS = frozenset({'password', 'login', 'email'})
 # E.164: a plus sign, a country code that does not start with 0, 8 to 15 digits in all.
@@ -22,9 +25,11 @@ class LiwanResUsers(models.Model):
     )
     liwan_access_version = fields.Integer(default=0, required=True, readonly=True)
     liwan_access_managed = fields.Boolean(default=False, required=True, readonly=True)
-    # E.164, entered by the account holder; only the account service writes it and only administrator
-    # shapes and /api/v1/me read it.
+    # E.164, saved by the account holder through the account service and verified by an SMS code before
+    # it may carry a sign-in code; only administrator shapes and /api/v1/me read it.
     liwan_mobile = fields.Char(copy=False)
+    # When the code of ``liwan_mobile`` was consumed; any later write of the number clears it.
+    liwan_mobile_verified_at = fields.Datetime(copy=False, readonly=True)
 
     _liwan_mobile_unique = models.UniqueIndex(
         '(liwan_mobile) WHERE active AND liwan_mobile IS NOT NULL',
@@ -33,12 +38,13 @@ class LiwanResUsers(models.Model):
 
     @property
     def SELF_READABLE_FIELDS(self):
-        return super().SELF_READABLE_FIELDS + ['liwan_mobile']
+        return super().SELF_READABLE_FIELDS + ['liwan_mobile', 'liwan_mobile_verified_at']
 
     @property
     def SELF_WRITEABLE_FIELDS(self):
-        # The account holder saves their own number; the account service normalizes it first.
-        return super().SELF_WRITEABLE_FIELDS + ['liwan_mobile']
+        # Stock elevates a write of these fields on the holder's own record past the res.users ACLs; the
+        # account service's marked write relies on that elevation. ``write`` refuses them for anyone else.
+        return super().SELF_WRITEABLE_FIELDS + ['liwan_mobile', 'liwan_mobile_verified_at']
 
     @api.constrains('liwan_mobile')
     def _check_liwan_mobile_format(self):
@@ -86,13 +92,22 @@ class LiwanResUsers(models.Model):
 
     def write(self, vals):
         allowed = self.env.cr.precommit.data.get(USER_WRITE_MARKER, {})
+        own_mobile = self.env.cr.precommit.data.get(SELF_MOBILE_MARKER)
         protected_write = (
             bool(self.ids)
             and all(set(vals) <= allowed.get(user_id, set()) for user_id in self.ids)
         )
+        own_mobile_write = (
+            bool(self.ids) and own_mobile and set(vals) <= SELF_MOBILE_FIELDS
+            and all(user_id in own_mobile for user_id in self.ids)
+        )
         self_write = (
             self == self.env.user
             and set(vals) <= self._self_accessible_fields()[1]
+            # Stock elevates a self write of these fields past the res.users ACLs, so they stay listed in
+            # SELF_WRITEABLE_FIELDS for the account service's marked write. The guard refuses them here for
+            # every caller that did not mark the operation.
+            and not (set(vals) & SELF_MOBILE_FIELDS)
         )
         if (
             not self.env.is_superuser()
@@ -100,10 +115,14 @@ class LiwanResUsers(models.Model):
             and not self.env.cr.precommit.data.get(USER_CREATE_MARKER)
             and not protected_write
             and not self_write
+            and not own_mobile_write
         ):
             fields = ','.join(sorted(vals))
             msg = f'use_protected_liwan_access_operation:res_users_write:{fields}'
             raise AccessError(msg)
+        # A number re-saved is a number to verify again, unless the same write stamps the verification itself.
+        if 'liwan_mobile' in vals and 'liwan_mobile_verified_at' not in vals:
+            vals = {**vals, 'liwan_mobile_verified_at': False}
         result = super().write(vals)
         if set(vals) - self._liwan_unversioned_fields():
             self._liwan_bump_record_versions()
@@ -177,6 +196,9 @@ class LiwanResUsers(models.Model):
             allowed[user_id] = allowed.get(user_id, set()) | internal_fields
         marker[USER_WRITE_MARKER] = allowed
         try:
+            # Same rule as write(): a number re-saved is a number to verify again.
+            if 'liwan_mobile' in vals and 'liwan_mobile_verified_at' not in vals:
+                vals = {**vals, 'liwan_mobile_verified_at': False}
             result = super().write(vals)
         finally:
             if previous is None:
