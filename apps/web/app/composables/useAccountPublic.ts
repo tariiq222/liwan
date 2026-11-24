@@ -15,7 +15,7 @@ import { ApiError } from './useApi'
 const PUBLIC_ACCOUNT = '/api/v1/public/account'
 
 /** Why an emailed-link page could not finish: the link is gone, one field was refused, or the service did not answer. */
-export type AccountLinkFailure = 'invalid_link' | 'weak_password' | 'invalid_mobile' | 'mobile_taken' | 'unavailable'
+export type AccountLinkFailure = 'invalid_link' | 'weak_password' | 'unavailable'
 
 /**
  * Sorts a failed public call. A busy or unreachable service (no status, 429, 5xx) is `unavailable` and the page keeps what
@@ -24,7 +24,7 @@ export type AccountLinkFailure = 'invalid_link' | 'weak_password' | 'invalid_mob
 export function accountLinkFailure(error: unknown): AccountLinkFailure {
   if (!(error instanceof ApiError)) return 'unavailable'
   if (error.status === 0 || error.status === 429 || error.status >= 500) return 'unavailable'
-  if (error.code === 'weak_password' || error.code === 'invalid_mobile' || error.code === 'mobile_taken') return error.code
+  if (error.code === 'weak_password') return error.code
   return 'invalid_link'
 }
 

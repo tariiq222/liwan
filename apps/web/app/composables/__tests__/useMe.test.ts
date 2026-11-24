@@ -1,7 +1,12 @@
 import { MeSchema } from '@liwan/contracts'
 import { createError } from 'h3'
-import { describe, expect, it } from 'vitest'
-import { isLoggedOutError, isSchemaError, isTenantSuspendedError, MOBILE_STEP_PATH, mobileStepRedirect, normalizeMobileInput } from '../useMe'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { isLoggedOutError, isSchemaError, isTenantSuspendedError, MOBILE_STEP_PATH, mobileStepRedirect, normalizeMobileInput, useRequestMobileCode } from '../useMe'
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.clearAllMocks()
+})
 
 // A real ZodError, produced the same way `transform` in useMe.ts produces one:
 // parsing a `/api/v1/me` payload that fails schema validation (lang: null).

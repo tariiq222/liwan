@@ -16,6 +16,7 @@ const securityPage = read('app/pages/settings/team/users/[userId]/security.vue')
 const detail = read('app/pages/settings/team/users/[userId]/index.vue')
 const login = read('app/pages/login.vue')
 const settings = read('app/pages/account/settings.vue')
+const useMe = read('app/composables/useMe.ts')
 const middleware = read('app/middleware/mobile-required.global.ts')
 
 describe('the emailed-link pages', () => {
@@ -27,13 +28,14 @@ describe('the emailed-link pages', () => {
     expect(page).not.toMatch(/\b(ml|mr|pl|pr)-\d/)
   })
 
-  it('join sends the token, the normalized mobile number and the password, and checks the link on mount', () => {
-    expect(join).toContain("acceptInvitation({ token: token.value, mobile: mobileValue.value, password: password.value })")
+  it('join sends the token and the password only, and checks the link on mount', () => {
+    expect(join).toContain('acceptInvitation({ token: token.value, password: password.value })')
+    expect(join).not.toContain('mobileValue')
     expect(join).toContain("checkToken(token.value, 'invite')")
     expect(join).toContain('route.query.token')
     expect(join).toMatch(/catch \{\s*state\.value = 'form'/)
     expect(join).toContain('MIN_PASSWORD_LENGTH')
-    expect(join.match(/<UFormField/g)?.length).toBe(3)
+    expect(join.match(/<UFormField/g)?.length).toBe(2)
   })
 
   it('join explains an expired or used invitation in its own words, and reset keeps the generic link text', () => {
@@ -45,6 +47,8 @@ describe('the emailed-link pages', () => {
       expect(accountLink.join.invalidTitle).toBeTruthy()
       expect(accountLink.join.invalidBody).toBeTruthy()
       expect(accountLink.join.invalidTitle).not.toBe(accountLink.invalidTitle)
+      // The invitation link takes a password alone; the holder verifies a number later, from the account page.
+      expect(accountLink.join.subtitle).not.toMatch(/mobile|جوال/i)
     }
   })
 
@@ -107,12 +111,44 @@ describe('the add-user form', () => {
 
 describe('the mobile step', () => {
   it('saves the normalized number and returns to where the user was going', () => {
-    expect(mobile).toContain('saveOwnMobile(mobileValue.value)')
+    expect(mobile).toContain('requestCode(mobileValue.value)')
+    expect(mobile).toContain("step.value = 'code'")
     expect(mobile).toContain('postLoginPath(me.value, route.query.next)')
     expect(mobile).toContain("'/account/settings'")
     expect(mobile).toContain('useSignOut()')
     expect(mobile).not.toContain('/api/auth/logout')
-    expect(mobile).toContain("error.code === 'mobile_taken'")
+    expect(mobile).toContain("code === 'mobile_taken'")
+  })
+
+  it('reads the code through the shared normalizer, so Arabic-Indic digits are codes too', () => {
+    expect(mobile).toContain("import { errorSeconds, normalizeCode } from '@/components/auth/loginFlow'")
+    expect(mobile).toContain('normalizeCode(code.value)')
+    expect(mobile).toContain('verifyCode(codeDigits.value)')
+    expect(mobile).not.toContain('[0-9]{6}')
+  })
+
+  it('words each refused send itself, and counts the cooldown down from the server seconds', () => {
+    expect(mobile).toMatch(/code === 'resend_cooldown'[\s\S]*countDown\(waitOf\(error\) \|\| RESEND_SECONDS\)/)
+    for (const code of ['send_limit_reached', 'daily_send_cap', 'channel_unavailable']) expect(mobile).toContain(`code === '${code}'`)
+    expect(mobile).toContain('error.details?.resend_after')
+    expect(mobile).toContain('errorSeconds(error)')
+  })
+
+  it('answers a verify refusal with the one code the server sends', () => {
+    expect(mobile).toContain("refusalOf(error) === 'invalid_code'")
+    expect(mobile).not.toContain('code_expired')
+    expect(mobile).not.toContain('too_many_attempts')
+    for (const lang of ['ar', 'en']) {
+      const step = locale(lang, 'invite').accountLink.mobileStep
+      for (const gone of ['codeExpired', 'codeAttempts']) expect(step, `${lang}: ${gone}`).not.toHaveProperty(gone)
+      for (const key of ['sendLimitReached', 'dailySendCap', 'channelUnavailable', 'invalidCode', 'resendIn']) expect(step, `${lang}: ${key}`).toHaveProperty(key)
+      // An expired or burned code answers `invalid_code` on the server, so the sentence names both paths itself.
+      expect(step.invalidCode).toMatch(/resend|new|جديد/)
+    }
+  })
+
+  it('reads the identity again after the number is saved, because the save clears the verification stamp', () => {
+    expect(useMe).toMatch(/const saved = await \$api\('\/api\/v1\/me\/mobile\/code'[\s\S]*await refreshNuxtData\('me'\)/)
   })
 
   it('signs out through the same composable as the account settings page', () => {

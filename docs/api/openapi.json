@@ -37,10 +37,6 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
-          "mobile": {
-            "pattern": "^\\+[1-9]\\d{7,14}$",
-            "type": "string"
-          },
           "password": {
             "type": "string"
           },
@@ -51,7 +47,6 @@
         },
         "required": [
           "token",
-          "mobile",
           "password"
         ],
         "type": "object"
