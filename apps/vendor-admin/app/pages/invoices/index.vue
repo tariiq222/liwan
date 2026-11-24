@@ -66,11 +66,11 @@ const cancelExport = () => { if (!exportRecording.value) exportController?.abort
 onBeforeUnmount(cancelExport)
 
 const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
-  { id: 'number', header: t('vendor.invoices.details') },
-  { id: 'customer', header: t('vendor.invoices.customer') },
-  { id: 'status', header: t('vendor.common.status') },
-  { id: 'due', header: t('vendor.invoices.dueAt') },
-  { id: 'total', header: t('vendor.invoices.total') },
+  { id: 'number', header: t('vendor.invoices.details'), meta: { class: { th: 'w-40', td: 'w-40 whitespace-nowrap' } } },
+  { id: 'customer', header: t('vendor.invoices.customer'), meta: { class: { th: 'min-w-48', td: 'max-w-0' } } },
+  { id: 'status', header: t('vendor.common.status'), meta: { class: { th: 'w-36', td: 'w-36 whitespace-nowrap' } } },
+  { id: 'due', header: t('vendor.invoices.dueAt'), meta: { class: { th: 'w-36', td: 'w-36 whitespace-nowrap' } } },
+  { id: 'total', header: t('vendor.invoices.total'), meta: { class: { th: 'w-36 text-end', td: 'w-36 whitespace-nowrap text-end' } } },
 ])
 </script>
 <template>
@@ -99,7 +99,7 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
 <p v-if="data" class="text-sm text-muted" data-testid="invoices-result-count">{{ t('vendor.pagination.total', { count: data.total }, data.total) }}</p>
 <SharedDataTable :rows="items" :columns="columns" row-key="id" :row-to="i => to(i.id)" :loading="pending" :error="error" :empty-text="t(customerId || status !== 'all' ? 'vendor.invoices.noResults' : 'vendor.invoices.empty')" :caption="t('vendor.invoices.title')" @retry="refresh" :page="page" :pages="pages" @update:page="value => patch({ page: value })">
   <template #number-cell="{ row: { original: i } }"><NuxtLink :to="to(i.id)" data-testid="invoice-row" class="font-medium hover:underline">{{ i.number ?? t('vendor.invoices.draftNumber') }}</NuxtLink></template>
-  <template #customer-cell="{ row: { original: i } }"><NuxtLink :to="customerTo(i.customer_id)" class="hover:underline">{{ i.customer_name }}</NuxtLink></template>
+  <template #customer-cell="{ row: { original: i } }"><NuxtLink :to="customerTo(i.customer_id)" class="block min-w-0 truncate hover:underline">{{ i.customer_name }}</NuxtLink></template>
   <template #status-cell="{ row: { original: i } }"><SharedStatusBadge :tone="badge(i).tone" :label="t(badge(i).labelKey)" /></template>
   <template #due-cell="{ row: { original: i } }">{{ date(i.due_at) ?? t('app.notAvailable') }}</template>
   <template #total-cell="{ row: { original: i } }"><bdi dir="ltr" class="font-semibold tabular-nums">{{ formatCommercialMoney(i.total, locale) }}</bdi></template>

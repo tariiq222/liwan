@@ -29,12 +29,12 @@ const modeText = (row: ClientRow) => (row.commercial_mode && row.hosting_model ?
 const workspaceLabel = (row: ClientRow) => (row.tenant_status ? (operationStatusBadge(row.tenant_status).labelKey ? t(operationStatusBadge(row.tenant_status).labelKey) : row.tenant_status) : '')
 
 const columns = computed<TableColumn<ClientRow>[]>(() => [
-  { id: 'name', header: t('vendor.customers.title') },
-  { id: 'status', header: t('vendor.common.status') },
-  { id: 'plan', header: t('vendor.customers.plan') },
-  { id: 'workspace', header: t('vendor.customers.workspace') },
-  { id: 'mode', header: t('vendor.customers.modeHosting') },
-  { id: 'renewal', header: t('vendor.customers.renewal') },
+  { id: 'name', header: t('vendor.customers.title'), meta: { class: { th: 'min-w-52 w-[26%]', td: 'max-w-0' } } },
+  { id: 'status', header: t('vendor.common.status'), meta: { class: { th: 'w-40', td: 'w-40 whitespace-nowrap' } } },
+  { id: 'plan', header: t('vendor.customers.plan'), meta: { class: { th: 'w-40', td: 'w-40' } } },
+  { id: 'workspace', header: t('vendor.customers.workspace'), meta: { class: { th: 'w-36', td: 'w-36 whitespace-nowrap' } } },
+  { id: 'mode', header: t('vendor.customers.modeHosting'), meta: { class: { th: 'w-44', td: 'w-44' } } },
+  { id: 'renewal', header: t('vendor.customers.renewal'), meta: { class: { th: 'w-36', td: 'w-36 whitespace-nowrap' } } },
 ])
 </script>
 <template>
@@ -48,7 +48,7 @@ const columns = computed<TableColumn<ClientRow>[]>(() => [
 <p v-if="data" class="text-sm text-muted" data-testid="customers-result-count">{{ t('vendor.pagination.total', { count: data.total }, data.total) }}</p>
 <UAlert v-if="unavailable" color="neutral" variant="subtle" icon="i-lucide-clock" :title="t('vendor.customers.notAvailable')" :description="t('vendor.customers.notAvailableHint')" />
 <SharedDataTable v-else :rows="items" :columns="columns" :row-key="rowKey" :row-to="to" :loading="pending" :error="error" :empty-text="t(q || state !== 'all' ? 'vendor.customers.noResults' : 'vendor.customers.empty')" :caption="t('vendor.customers.title')" @retry="refresh" :page="page" :pages="pages" @update:page="value => patch({ page: value })">
-  <template #name-cell="{ row: { original: c } }"><NuxtLink :to="to(c)" data-testid="customer-row" class="font-medium hover:underline">{{ c.name }}</NuxtLink></template>
+  <template #name-cell="{ row: { original: c } }"><NuxtLink :to="to(c)" data-testid="customer-row" class="block min-w-0 truncate font-medium hover:underline">{{ c.name }}</NuxtLink></template>
   <template #status-cell="{ row: { original: c } }"><SharedStatusBadge v-if="c.setup_required" tone="warning" :label="t('vendor.customers.setupRequired')" data-testid="setup-required" /><SharedStatusBadge v-if="c.subscription_state" :tone="customerDisplayBadge(c.subscription_state).tone" :label="t(customerDisplayBadge(c.subscription_state).labelKey)" /><SharedStatusBadge v-else-if="c.customer_id" tone="neutral" variant="outline" :label="t('vendor.customers.noSubscription')" /><SharedStatusBadge v-else tone="neutral" variant="outline" :label="t('vendor.customers.noCommercial')" data-testid="no-commercial" /></template>
   <template #plan-cell="{ row: { original: c } }">{{ planLabel(c) }}</template>
   <template #workspace-cell="{ row: { original: c } }"><SharedStatusBadge v-if="c.tenant_status" :tone="operationStatusBadge(c.tenant_status).tone" :label="workspaceLabel(c)" /><SharedStatusBadge v-else tone="neutral" variant="outline" :label="t('vendor.customers.noWorkspace')" data-testid="no-workspace" /></template>

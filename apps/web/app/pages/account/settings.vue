@@ -39,7 +39,7 @@ async function logout() {
       <SharedPropertyRow :label="t('account.company')" :value="me.company.name" />
     </SharedPropertiesPanel>
     <SharedFormSection panel :title="t('account.preferences')">
-      <div class="space-y-5">
+      <div class="space-y-(--liwan-gap-card)">
         <fieldset class="space-y-2">
           <legend class="text-sm font-medium">{{ t('nav.language') }}</legend>
           <div role="radiogroup" :aria-label="t('nav.language')" class="flex flex-wrap gap-2">

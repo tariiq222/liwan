@@ -84,7 +84,7 @@ const facts = computed(() => [
     </div>
     <p v-if="employerShare !== null" class="text-xs text-muted">{{ t('hrPayroll.payslip.gosiEmployerNote', { amount: money(employerShare) }) }}</p>
 
-    <footer class="grid grid-cols-2 gap-7 pt-5">
+    <footer class="grid grid-cols-2 gap-(--liwan-gap-section) pt-5">
       <div v-for="label in [t('hrPayroll.payslip.employeeSignature'), t('hrPayroll.payslip.accountantSignature')]" :key="label" class="grid gap-4.5">
         <span>{{ label }}</span>
         <span class="block min-h-7 border-b border-default" />

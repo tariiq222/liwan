@@ -13,7 +13,7 @@ describe('the project frame uses one tab helper', () => {
     const frame = read('pages/projects/[id].vue')
     expect(frame).not.toContain('ProjectGovernanceTabs')
     expect(frame).toContain('level="governance"')
-    // The open header of SharedPageHeader: no card, the 64px app tile, the display title, tag pills, a 1px divider under the tabs.
+    // The open header of SharedPageHeader: no card, the large app tile (var(--liwan-tile-lg)), the display title, tag pills, a 1px divider under the tabs.
     expect(frame).toContain('liwan-print-hide')
     expect(frame.slice(frame.indexOf('<header'), frame.indexOf('</header>'))).not.toMatch(/ ring ring-default|bg-default|rounded-card/)
     expect(frame).not.toContain('liwan-workspace-head')

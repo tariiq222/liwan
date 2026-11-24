@@ -101,7 +101,7 @@ async function submit() {
       </template>
       <template #thread>
         <div class="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
-          <form id="chat-create-form" data-testid="chat-create-form" :aria-label="t(copy.title)" class="mx-auto w-full max-w-xl space-y-6" @submit.prevent="submit">
+          <form id="chat-create-form" data-testid="chat-create-form" :aria-label="t(copy.title)" class="mx-auto w-full max-w-xl space-y-(--liwan-gap-section)" @submit.prevent="submit">
             <SharedUnsavedChanges :dirty="dirty" guard-route-updates :ignore-query-keys="['q', 'filter', 'offset']" />
             <SharedFormSection v-if="kind !== 'channel'" :title="t('chat.recipients')" class="space-y-4">
               <UFormField :label="t('chat.recipientSearch')" name="recipientSearch">

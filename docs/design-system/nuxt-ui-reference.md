@@ -18,10 +18,11 @@
 | الرسوم | `apps/web/app/components/shared/data/DashboardChart.client.vue` ومحولات `apps/web/app/components/charts/` باستخدام Unovis |
 | ملكية المكونات | [فهرس المكونات](components.md)؛ المسارات تشمل `apps/web/app/components/` و`packages/ui/app/components/` و`packages/commercial-ui/app/` |
 
-مدخلات الثيم (كما في DESIGN.md §1): لوحة ليوان الثابتة (الحبر `#14102a` يمرّ بنص أبيض، وداكنًا `#f3f3f6` بنص `#0a0a0c`) تغذّي `primary`، والمحايد `stone`، وهوية ليوان (الحبر والرمادي الفاتح والفحمي) في `tokens.css`، وخط IBM Plex Sans Arabic بثلاثة أحجام،
+مدخلات الثيم (كما في DESIGN.md §1): لوحة ليوان الثابتة (الحبر `#14102a` يمرّ بنص أبيض، وداكنًا `#f3f3f6` بنص `#0a0a0c`) تغذّي `primary`، والمحايد `stone`، وهوية ليوان (الحبر والرمادي الفاتح والفحمي) في `tokens.css`، وخط IBM Plex Sans Arabic بثلاثة أحجام مع Rubik (`font-display`) للعناوين العرضية وأرقام المؤشرات (`--liwan-fs-display` و`--liwan-fs-title` و`--liwan-fs-figure`)،
 ومظهران فقط (فاتح وداكن؛ أي قيمة قديمة مخزنة تُقرأ فاتحًا). الكثافة من
-`--liwan-control-h` (42px) و`--liwan-row-h` (44px)، والزوايا من
-`--radius-card` (18px) و`--radius-control` (12px)، والظلال للطبقات العائمة فقط. ألوان الشريط الجانبي ثابتة
+`--liwan-control-h` (40px، والصغير 34px) و`--liwan-row-h` (48px، والمريح 52px)، والمسافات من
+`--liwan-card-pad` (20px، والكثيف 16px) و`--liwan-gap-card` (16px) و`--liwan-gap-section` (24px)، وعرض المحتوى `--shell-content-max` (1680px)، والزوايا من
+`--radius-card` (18px) و`--radius-control` (12px) و`--radius-inner` (8px) و`--radius-tile`، والظلال للطبقات العائمة فقط. ألوان الشريط الجانبي ثابتة
 من عائلة `--liwan-rail-*` و`--liwan-chip*` في `tokens.css`. هندسة الغلاف في قسم «الغلاف» أدناه.
 اللون الافتراضي للشركة (`primary_color`) هو حبر الهوية `#14102a`. الواجهة لا تتبع لون الشركة: عائلة `--primary*` و`--chart-*` وتوكنات النجاح
 والتحذير والخطأ والمعلومة ثابتة في `tokens.css` لكل مظهر. الشعار المعتمد في

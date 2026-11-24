@@ -71,11 +71,11 @@ const total = computed(() => query.data.value?.total ?? 0)
 
 const columns = computed<TableColumn<MeetingSeriesListItem>[]>(() => [
   { id: 'record_number', header: () => recordNumberHeader(t), meta: { class: { th: 'w-12 px-2 text-start', td: 'w-12 px-2 whitespace-nowrap' } } },
-  { accessorKey: 'name', header: t('meetingsUx.seriesName') },
-  { accessorKey: 'recurrence', header: t('meetingsUi.recurrenceLabel') },
-  { accessorKey: 'organizer', header: t('meetingsUi.organizer') },
-  { accessorKey: 'project', header: t('meetingsUi.project') },
-  { accessorKey: 'open_resolution_count', header: t('meetingsUi.resolutions') },
+  { accessorKey: 'name', header: t('meetingsUx.seriesName'), meta: { class: { th: 'min-w-56 w-[28%]', td: 'max-w-0' } } },
+  { accessorKey: 'recurrence', header: t('meetingsUi.recurrenceLabel'), meta: { class: { th: 'w-36', td: 'w-36 whitespace-nowrap' } } },
+  { accessorKey: 'organizer', header: t('meetingsUi.organizer'), meta: { class: { th: 'w-44', td: 'w-44 max-w-0' } } },
+  { accessorKey: 'project', header: t('meetingsUi.project'), meta: { class: { th: 'w-44', td: 'w-44 max-w-0' } } },
+  { accessorKey: 'open_resolution_count', header: t('meetingsUi.resolutions'), meta: { class: { th: 'w-32', td: 'w-32 whitespace-nowrap' } } },
 ])
 
 function seriesTo(series: { id: number }) {
@@ -160,7 +160,7 @@ function setPage(next: number) {
           <div v-if="row.original.organizer" class="flex min-w-0 items-center gap-2"><SharedPersonAvatar :people="[row.original.organizer]" /><span class="min-w-0 truncate text-muted">{{ row.original.organizer.name }}</span></div>
           <span v-else class="text-muted">—</span>
         </template>
-        <template #project-cell="{ row }"><span class="text-muted">{{ row.original.project?.name || '—' }}</span></template>
+        <template #project-cell="{ row }"><span class="block truncate text-muted">{{ row.original.project?.name || '—' }}</span></template>
         <template #open_resolution_count-cell="{ row }">
           <div class="flex flex-wrap items-center gap-2">
             <span class="text-muted">{{ row.original.open_resolution_count ? t('meetingsUi.openCount', { count: row.original.open_resolution_count }, row.original.open_resolution_count) : '—' }}</span>

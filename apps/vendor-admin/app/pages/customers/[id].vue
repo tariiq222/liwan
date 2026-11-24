@@ -298,7 +298,7 @@ async function cancelPendingOrder() {
       </template>
       <template #tabs><SharedRouteTabs :items="tabs" :ariaLabel="t('vendor.clientTabs.label')" /></template>
 
-      <div v-if="customer" class="space-y-6">
+      <div v-if="customer" class="space-y-(--liwan-gap-section)">
         <section v-if="tabAttention.length" aria-labelledby="customer-attention-title" class="space-y-3" data-testid="customer-attention">
           <h2 id="customer-attention-title" class="text-lg font-semibold">{{ t('vendor.today.attentionTitle') }}</h2>
           <VendorAttentionList :items="tabAttention" :now="now" />
@@ -390,7 +390,7 @@ async function cancelPendingOrder() {
             <UAlert v-if="cancelFailure" class="mt-3" color="error" variant="subtle" :title="cancelFailure" />
             <UAlert v-if="extra?.full.failed" class="mt-3" color="error" variant="subtle" :title="t('vendor.customers.cancelOrder.refreshFailed')"><template #actions><UButton color="neutral" variant="outline" :disabled="!hydrated || cancelBusy" @click="refreshCancellationState">{{ t('app.retry') }}</UButton></template></UAlert>
           </SharedRecordSection>
-          <div v-if="view" class="grid items-start gap-6 lg:grid-cols-2">
+          <div v-if="view" class="grid items-start gap-(--liwan-gap-card) lg:grid-cols-2">
             <SharedRecordSection v-if="view.applied" variant="panel" :title="t('vendor.customers.sections.services')">
               <VendorEntitlementSummary :release="release" :selections="selections" include-core />
             </SharedRecordSection>
@@ -436,7 +436,7 @@ async function cancelPendingOrder() {
           <SharedEmptyState v-if="!customer.tenant_id" :title="t('vendor.customers.noWorkspaceYet')" :description="t('vendor.customers.noWorkspaceHint')" />
           <SharedEmptyState v-else-if="workspaceDeleted" :title="workspaceDeletedText" data-testid="workspace-deleted" />
           <SharedPageState v-else-if="tab === 'workspace'" :loading="tenantPending && !tenant" :error="tenantError" @retry="refreshTenant">
-            <div v-if="tenant" class="space-y-6">
+            <div v-if="tenant" class="space-y-(--liwan-gap-section)">
               <VendorTenantProperties :tenant="tenant" :progress="progress" hide-open />
               <VendorWorkspacePanel :tenant="tenant" :progress="progress" />
               <SharedRecordSection variant="panel" :title="t('vendor.customers.adminLogin.title')" :description="t('vendor.customers.adminLogin.hint')">

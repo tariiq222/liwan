@@ -26,9 +26,9 @@ const pages = computed(() => Math.max(1, Math.ceil(total.value / LIMIT)))
 const showEmpty = computed(() => !mine.isLoading.value && !mine.error.value && items.value.length === 0)
 
 const columns = computed<TableColumn<HrMyPayslipSummary>[]>(() => [
-  { accessorKey: 'month', header: t('hrPayroll.mine.columns.month') },
-  { accessorKey: 'number', header: t('hrPayroll.mine.columns.number') },
-  { accessorKey: 'net', header: t('hrPayroll.mine.columns.net') },
+  { accessorKey: 'month', header: t('hrPayroll.mine.columns.month'), meta: { class: { th: 'min-w-44', td: 'max-w-0' } } },
+  { accessorKey: 'number', header: t('hrPayroll.mine.columns.number'), meta: { class: { th: 'w-44', td: 'w-44 whitespace-nowrap' } } },
+  { accessorKey: 'net', header: t('hrPayroll.mine.columns.net'), meta: { class: { th: 'w-40', td: 'w-40 whitespace-nowrap' } } },
 ])
 const amount = (value: number) => formatPayrollAmount(value, locale.value)
 
@@ -63,7 +63,7 @@ function payslipTo(row: HrMyPayslipSummary) {
           data-testid="hr-my-payslips-table"
         >
           <template #month-cell="{ row }">
-            <NuxtLink :to="payslipTo(row.original)" class="font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" @click="!hydrated && $event.preventDefault()">{{ formatPayrollMonth(row.original.month, locale) }}</NuxtLink>
+            <NuxtLink :to="payslipTo(row.original)" class="block min-w-0 truncate font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" @click="!hydrated && $event.preventDefault()">{{ formatPayrollMonth(row.original.month, locale) }}</NuxtLink>
           </template>
           <template #number-cell="{ row }"><bdi>{{ row.original.number }}</bdi></template>
           <template #net-cell="{ row }"><span class="font-semibold tabular-nums text-highlighted">{{ amount(row.original.net) }} {{ payrollCurrencyLabel(row.original.currency, t('hrPayroll.currency')) }}</span></template>

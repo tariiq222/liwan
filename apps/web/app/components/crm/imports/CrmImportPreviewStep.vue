@@ -16,7 +16,7 @@ const duplicateHidden = computed(() => props.preview.duplicate - props.preview.d
 </script>
 
 <template>
-  <div class="grid gap-5" data-testid="crm-import-preview">
+  <div class="grid gap-(--liwan-gap-card)" data-testid="crm-import-preview">
     <div class="grid grid-cols-3 gap-(--liwan-gap-card)">
       <SharedMetricTile v-for="tile in tiles" :key="tile.id" density="compact" :tone="tile.tone" :icon="tile.icon" :label="tile.label" :value="tile.value" value-dir="ltr" :data-testid="`crm-import-count-${tile.id}`" />
     </div>

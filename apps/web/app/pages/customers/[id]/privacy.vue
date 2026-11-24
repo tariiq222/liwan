@@ -91,7 +91,7 @@ const confirmable = computed(() => mayConfirm.value && eraseRefusal.value?.kind 
     <SharedPageHeader :title="t('customers.privacy.title')" :back-to="backTo" />
     <SharedPageState empty-icon="i-lucide-lock" v-if="!allowed" :empty="true" :empty-text="t('customers.privacy.forbidden')" />
     <SharedPageState empty-icon="i-lucide-contact-round" v-else :loading="query.isLoading.value" :error="query.error.value" :empty="!customer" @retry="query.refetch">
-      <div v-if="customer" class="space-y-6">
+      <div v-if="customer" class="space-y-(--liwan-gap-section)">
         <p class="text-muted">{{ t('customers.privacy.intro') }}</p>
 
         <CustomerPrivacyExport

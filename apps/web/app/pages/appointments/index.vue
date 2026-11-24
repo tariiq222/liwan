@@ -91,9 +91,9 @@ const bookingTo = (id: number) => ({ path: `/appointments/${id}`, query: { retur
           :row-to="row => bookingTo(row.id)"
           :caption="t('appointments.title')"
           :columns="[
-            { accessorKey: 'requester_name', header: t('appointments.list.requester') },
-            { accessorKey: 'start', header: t('appointments.list.time') },
-            { accessorKey: 'state', header: t('appointments.list.state') },
+            { accessorKey: 'requester_name', header: t('appointments.list.requester'), meta: { class: { th: 'min-w-56', td: 'max-w-0' } } },
+            { accessorKey: 'start', header: t('appointments.list.time'), meta: { class: { th: 'w-48', td: 'w-48 whitespace-nowrap' } } },
+            { accessorKey: 'state', header: t('appointments.list.state'), meta: { class: { th: 'w-36', td: 'w-36 whitespace-nowrap' } } },
           ]"
           data-testid="appointments-table"
         >

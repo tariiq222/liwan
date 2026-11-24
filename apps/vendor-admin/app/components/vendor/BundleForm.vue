@@ -48,7 +48,7 @@ const audienceItems = computed(() => [{ label: t('vendor.pricing.audience.public
 const dis = computed(() => !hydrated.value || props.busy)
 </script>
 <template>
-  <form class="space-y-6" novalidate data-testid="bundle-form" @submit.prevent="submit">
+  <form class="space-y-(--liwan-gap-section)" novalidate data-testid="bundle-form" @submit.prevent="submit">
     <SharedUnsavedChanges :dirty="dirty" guard-route-updates />
     <UAlert v-if="failure" color="error" variant="subtle" :title="t(commercialErrorKey(error))" :description="failure.field ? t('vendor.pricing.errors.atField', { field: failure.field }) : undefined" />
     <SharedFormSection :title="t('vendor.pricing.sections.basics')">

@@ -241,7 +241,7 @@ watch(status, (now, before) => {
               <AiContextChip v-if="context" :page="context.page" />
             </header>
             <div ref="scroller" class="min-h-0 flex-1 overflow-y-auto">
-              <div class="mx-auto flex w-full max-w-180 flex-col gap-5 px-4 py-6" role="log" aria-live="polite">
+              <div class="mx-auto flex w-full max-w-180 flex-col gap-(--liwan-gap-card) px-4 py-6" role="log" aria-live="polite">
                 <template v-for="(item, index) in items" :key="index">
                   <AiMessage v-if="item.kind === 'user'" role="user" :text="item.text" />
                   <AiMessage v-else-if="item.kind === 'assistant'" role="assistant" :text="item.text" :streaming="item.streaming">

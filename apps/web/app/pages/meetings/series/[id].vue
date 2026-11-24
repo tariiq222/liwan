@@ -332,10 +332,10 @@ function setHistoryPage(page: number) {
                 </UInput>
               </template>
               <template #default>
-                <USelect data-testid="series-session-state" class="w-full md:w-44" icon="i-lucide-activity" :items="sessionStateOptions" :model-value="sessionStateSelect" :disabled="!hydrated" :aria-label="t('meetingsUi.stateLabel')" @update:model-value="sessionStateSelect = String($event)" />
-                <USelect data-testid="series-session-sort" class="w-full md:w-44" icon="i-lucide-arrow-up-down" :items="sessionSortOptions" :model-value="occurrenceSort" :disabled="!hydrated" :aria-label="t('meetingTimeline.sort')" @update:model-value="occurrenceSort = String($event)" />
-                <SharedDateField id="series-session-from" v-model="dateFromField" class="w-full md:w-44" :label="dateFromField ? undefined : t('meetingTimeline.from')" :aria-label="t('meetingTimeline.from')" :disabled="!hydrated" :aria-invalid="!validDateRange" />
-                <SharedDateField id="series-session-to" v-model="dateToField" class="w-full md:w-44" :label="dateToField ? undefined : t('meetingTimeline.to')" :aria-label="t('meetingTimeline.to')" :disabled="!hydrated" :aria-invalid="!validDateRange" />
+                <USelect data-testid="series-session-state" class="w-full md:w-40" icon="i-lucide-activity" :items="sessionStateOptions" :model-value="sessionStateSelect" :disabled="!hydrated" :aria-label="t('meetingsUi.stateLabel')" @update:model-value="sessionStateSelect = String($event)" />
+                <USelect data-testid="series-session-sort" class="w-full md:w-40" icon="i-lucide-arrow-up-down" :items="sessionSortOptions" :model-value="occurrenceSort" :disabled="!hydrated" :aria-label="t('meetingTimeline.sort')" @update:model-value="occurrenceSort = String($event)" />
+                <SharedDateField id="series-session-from" v-model="dateFromField" class="w-full md:w-40" :label="dateFromField ? undefined : t('meetingTimeline.from')" :aria-label="t('meetingTimeline.from')" :disabled="!hydrated" :aria-invalid="!validDateRange" />
+                <SharedDateField id="series-session-to" v-model="dateToField" class="w-full md:w-40" :label="dateToField ? undefined : t('meetingTimeline.to')" :aria-label="t('meetingTimeline.to')" :disabled="!hydrated" :aria-invalid="!validDateRange" />
               </template>
               <template #view>
                 <SharedSegmentedControl :label="t('meetingTimeline.scheduleSummary')" :items="viewItems" :model-value="occurrenceView" :disabled="!hydrated" @update:model-value="occurrenceView = $event === 'table' ? 'table' : 'timeline'" />

@@ -100,7 +100,7 @@ const policyItems = computed(() => policyOptions(policyList.value, policy => pol
 const taxText = computed<string | null>(() => (policy.value ? policyTaxText(policy.value, t) : null))
 </script>
 <template>
-  <form class="space-y-6" novalidate data-testid="plan-form" @submit.prevent="submit">
+  <form class="space-y-(--liwan-gap-section)" novalidate data-testid="plan-form" @submit.prevent="submit">
     <SharedUnsavedChanges :dirty="dirty" guard-route-updates />
     <UAlert v-if="failure" color="error" variant="subtle" :title="t(commercialErrorKey(error))" :description="failure.field ? t('vendor.pricing.errors.atField', { field: failure.field }) : undefined" />
     <SharedFormSection panel :title="t('vendor.pricing.sections.basics')">
@@ -116,7 +116,7 @@ const taxText = computed<string | null>(() => (policy.value ? policyTaxText(poli
       </div>
     </SharedFormSection>
     <SharedFormSection panel :title="t('vendor.pricing.sections.pricesAndBundles')">
-      <div class="space-y-6">
+      <div class="space-y-(--liwan-gap-card)">
         <VendorPriceListEditor v-model="draft.prices" :label="t('vendor.pricing.sections.basePrices')" :hint="t('vendor.pricing.plan.basePricesHint')" :disabled="dis" :show-errors="attempted" :server-error="serverIssue('prices')" />
         <VendorPriceListEditor v-model="draft.user_prices" :label="t('vendor.pricing.fields.userPrice')" :hint="t('vendor.pricing.plan.userPricesHint')" :disabled="dis" :show-errors="attempted" :server-error="serverIssue('user_prices')" />
         <VendorPriceListEditor v-model="draft.storage_prices" :label="t('vendor.pricing.fields.storagePrice')" :hint="t('vendor.pricing.plan.storagePricesHint')" :disabled="dis" :show-errors="attempted" :server-error="serverIssue('storage_prices')" />
@@ -135,7 +135,7 @@ const taxText = computed<string | null>(() => (policy.value ? policyTaxText(poli
       </div>
     </SharedFormSection>
     <SharedFormSection panel :title="t('vendor.pricing.sections.quantities')" :description="t('vendor.pricing.plan.quantitiesHint')">
-      <div class="space-y-6">
+      <div class="space-y-(--liwan-gap-card)">
         <div class="grid gap-4 sm:grid-cols-2">
           <UFormField :label="t('vendor.pricing.fields.includedUsers')" required :help="t('vendor.pricing.plan.usersCapNote')" :error="show('includedUsers') ?? serverIssue('included_users')"><UInput v-model="draft.included_users" inputmode="numeric" dir="ltr" class="w-full" :disabled="dis" /></UFormField>
           <UFormField :label="t('vendor.pricing.fields.includedStorage')" required :error="show('includedStorage') ?? serverIssue('included_storage_mb')"><UInput v-model="draft.included_storage_mb" inputmode="numeric" dir="ltr" class="w-full" :disabled="dis" /></UFormField>

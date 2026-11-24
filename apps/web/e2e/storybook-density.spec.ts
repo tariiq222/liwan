@@ -21,8 +21,8 @@ test.describe('Tasmim density', () => {
       const scale = root / 14
       const button = await page.getByTestId('density-button').boundingBox()
       const input = await page.locator('input[data-testid="density-input"]').boundingBox()
-      expect(Math.abs(button!.height - 42 * scale)).toBeLessThanOrEqual(1)
-      expect(Math.abs(input!.height - 42 * scale)).toBeLessThanOrEqual(1)
+      expect(Math.abs(button!.height - 40 * scale)).toBeLessThanOrEqual(1)
+      expect(Math.abs(input!.height - 40 * scale)).toBeLessThanOrEqual(1)
       const xs = await page.getByTestId('density-button-xs').boundingBox()
       const sm = await page.getByTestId('density-button-sm').boundingBox()
       const icon = await page.getByTestId('density-button-icon').boundingBox()
@@ -35,7 +35,7 @@ test.describe('Tasmim density', () => {
 
       await page.goto(url('foundations-density--table', globals))
       const row = await page.getByTestId('density-table').locator('tbody tr').first().boundingBox()
-      expect(Math.abs(row!.height - 44 * scale)).toBeLessThanOrEqual(1)
+      expect(Math.abs(row!.height - 48 * scale)).toBeLessThanOrEqual(1)
       const cardRadius = await page.getByTestId('density-card').evaluate(el => Number.parseFloat(getComputedStyle(el).borderTopLeftRadius))
       expect(Math.abs(cardRadius - 18 * scale)).toBeLessThanOrEqual(0.6)
     })

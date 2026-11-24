@@ -61,7 +61,7 @@ function confirmDelete() {
 </script>
 
 <template>
-  <div class="grid gap-5" data-testid="crm-import-mapping">
+  <div class="grid gap-(--liwan-gap-card)" data-testid="crm-import-mapping">
     <p class="text-sm text-muted">{{ t('crm.imports.flow.mapping.hint') }}</p>
     <UFormField v-if="profiles.length" :label="t('crm.imports.flow.mapping.profile')" name="import-profile">
       <div class="flex min-w-0 items-center gap-2">

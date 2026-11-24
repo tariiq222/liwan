@@ -106,9 +106,9 @@ function exportCsv() {
       </template>
     </template>
 
-    <div class="grid gap-5 @min-[768px]:col-span-2">
+    <div class="grid gap-(--liwan-gap-section) @min-[768px]:col-span-2">
       <SharedPageState :loading="pending && !data" :error="error" @retry="refresh">
-        <div v-if="data" class="grid gap-8">
+        <div v-if="data" class="grid gap-(--liwan-gap-section)">
           <p class="text-sm text-muted" data-testid="analytics-disclaimer">{{ t('analytics.disclaimer') }}</p>
           <p class="text-sm text-muted">
             {{ t('analytics.scope', { from: data.period.from, to: data.period.to, previousFrom: data.previous_period.from, previousTo: data.previous_period.to, currency: data.currency }) }}
@@ -138,7 +138,7 @@ function exportCsv() {
               />
             </div>
             <div class="@container min-w-0">
-              <div class="grid gap-5 @min-[768px]:grid-cols-2">
+              <div class="grid gap-(--liwan-gap-card) @min-[768px]:grid-cols-2">
                 <template v-if="group === 'revenue'">
                   <SharedChartPanel class="@min-[768px]:col-span-2" :title="t('analytics.trend.title')" :description="t('analytics.trend.description')" :empty="!trendHasRevenue" :empty-text="t('analytics.trend.empty')">
                     <AnalyticsTrendChart :points="trend" :axis-label="compact" :title="t('analytics.trend.title')" />
@@ -173,7 +173,7 @@ function exportCsv() {
             <h2 id="analytics-opportunities-title" class="text-lg font-semibold">{{ t('analytics.groups.opportunities') }}</h2>
             <p v-if="data.snapshot.usage_unavailable" class="text-sm text-warning" data-testid="analytics-usage-skipped">{{ t('analytics.usageSkipped', { count: data.snapshot.usage_unavailable }, data.snapshot.usage_unavailable) }}</p>
             <div class="@container min-w-0">
-              <div class="grid gap-5 @min-[768px]:grid-cols-2">
+              <div class="grid gap-(--liwan-gap-card) @min-[768px]:grid-cols-2">
                 <SharedChartPanel :title="t('analytics.upsell.title')" :description="t('analytics.upsell.description')">
                   <AnalyticsRankedList :rows="upsell" :empty-text="t('analytics.upsell.empty')" />
                 </SharedChartPanel>

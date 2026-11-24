@@ -60,7 +60,7 @@ async function changeState() {
 
 <template>
   <SharedFormSection panel :title="t('access.users.securityTitle')">
-    <div class="grid gap-5">
+    <div class="grid gap-(--liwan-gap-card)">
       <UAlert v-if="props.user.protected" color="neutral" variant="subtle" icon="i-lucide-lock" :title="t('access.protectedUser')" />
       <template v-else>
         <div v-if="canReset" class="grid gap-3">

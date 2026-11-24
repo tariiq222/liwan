@@ -23,7 +23,7 @@ const hydrated = useHydrated()
       </div>
     </template>
 
-    <div class="grid gap-5">
+    <div class="grid gap-(--liwan-gap-card)">
       <UAlert v-if="errorKey" role="alert" color="error" variant="subtle" :title="t(errorKey)" />
 
       <template v-if="mode === 'passkey'">
@@ -37,7 +37,7 @@ const hydrated = useHydrated()
         </div>
       </template>
 
-      <UForm v-else novalidate :state="form" class="grid gap-5" @submit="signInWithPassword">
+      <UForm v-else novalidate :state="form" class="grid gap-(--liwan-gap-card)" @submit="signInWithPassword">
         <div>
           <h2 class="text-base font-semibold text-highlighted">
             {{ mode === 'recovery' ? t('adminAuth.login.recoveryTitle') : t('adminAuth.login.fallbackTitle') }}

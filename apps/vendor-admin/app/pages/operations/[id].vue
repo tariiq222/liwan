@@ -149,7 +149,7 @@ async function retry() {
         </div>
       </template>
 
-      <div v-if="data" class="space-y-6">
+      <div v-if="data" class="space-y-(--liwan-gap-section)">
         <SharedRecordSection v-if="publication" :title="t('vendor.operations.publication.title')">
           <p role="status">{{ t(`vendor.operations.publication.states.${publication.status}`) }}</p>
           <UAlert v-if="publication.code" color="warning" :title="t(publication.code === 'commercial_reconciliation_pending' ? 'vendor.operations.publication.reconcile' : 'vendor.operations.publication.failure')" />

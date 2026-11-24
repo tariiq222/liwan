@@ -26,11 +26,11 @@ const now = computed(() => props.now ?? new Date())
 const groups = computed(() => groupMeetingsByMonth(props.meetings, locale.value, now.value, t('meetingTimeline.unknownDate'), props.preserveOrder))
 const tableColumns = computed<TableColumn<MeetingListItem>[]>(() => [
   { accessorKey: 'reference', header: () => recordNumberHeader(t), meta: { class: { th: 'w-12 px-2 text-start', td: 'w-12 px-2 whitespace-nowrap' } } },
-  { accessorKey: 'name', header: t('meetingTimeline.session') },
-  { accessorKey: 'meeting_date', header: t('meetingsUi.date') },
-  { accessorKey: 'state', header: t('meetingsUi.stateLabel') },
-  { accessorKey: 'open_resolution_count', header: t('meetingsUi.resolutions') },
-  { id: 'actions', header: t('app.actions') },
+  { accessorKey: 'name', header: t('meetingTimeline.session'), meta: { class: { th: 'min-w-56 w-[32%]', td: 'max-w-0' } } },
+  { accessorKey: 'meeting_date', header: t('meetingsUi.date'), meta: { class: { th: 'w-44', td: 'w-44 whitespace-nowrap' } } },
+  { accessorKey: 'state', header: t('meetingsUi.stateLabel'), meta: { class: { th: 'w-40', td: 'w-40 whitespace-nowrap' } } },
+  { accessorKey: 'open_resolution_count', header: t('meetingsUi.resolutions'), meta: { class: { th: 'w-28', td: 'w-28 whitespace-nowrap' } } },
+  { id: 'actions', header: t('app.actions'), meta: { class: { td: 'whitespace-nowrap' } } },
 ])
 
 function phase(meeting: MeetingListItem) {

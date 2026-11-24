@@ -83,7 +83,7 @@ const signatures = computed(() => [t('meetingMinutesForm.chairperson'), t('meeti
           </div>
         </div>
         <MeetingMinutesDocument :meeting="meetingQuery.data.value" :snapshot="snapshot" :form="form" :recommendations="recommendations" :legacy-agenda="legacyAgenda" :legacy-minutes="legacyMinutes" :legacy-recommendations="recommendations" :title="t('meetingMinutesForm.documentTitle')" />
-        <footer class="grid grid-cols-3 gap-7 pt-5">
+        <footer class="grid grid-cols-3 gap-(--liwan-gap-section) pt-5">
           <div v-for="label in signatures" :key="label" class="grid gap-4.5">
             <span>{{ label }}</span>
             <span class="block min-h-7 border-b border-default" />

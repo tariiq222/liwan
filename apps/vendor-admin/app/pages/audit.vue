@@ -45,11 +45,11 @@ function actorLabel(event: AuditEvent): string {
 const customerLabel = computed(() => (customer.value?.name ? t('vendor.audit.customerFilter', { name: customer.value.name }) : t('vendor.audit.customerFilterUnknown')))
 
 const columns = computed<TableColumn<AuditEvent>[]>(() => [
-  { id: 'when', header: t('vendor.audit.when') },
-  { id: 'action', header: t('vendor.audit.action') },
-  { id: 'actor', header: t('vendor.audit.actor') },
-  { id: 'subject', header: t('vendor.audit.subject') },
-  { id: 'reason', header: t('vendor.tenants.fields.reason') },
+  { id: 'when', header: t('vendor.audit.when'), meta: { class: { th: 'w-44', td: 'w-44 whitespace-nowrap' } } },
+  { id: 'action', header: t('vendor.audit.action'), meta: { class: { th: 'w-48', td: 'w-48' } } },
+  { id: 'actor', header: t('vendor.audit.actor'), meta: { class: { th: 'w-40', td: 'w-40' } } },
+  { id: 'subject', header: t('vendor.audit.subject'), meta: { class: { th: 'w-44', td: 'w-44' } } },
+  { id: 'reason', header: t('vendor.tenants.fields.reason'), meta: { class: { th: 'min-w-52', td: 'min-w-52' } } },
 ])
 </script>
 <template>

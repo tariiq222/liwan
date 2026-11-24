@@ -88,7 +88,7 @@ async function place() {
       <SharedForbiddenState v-if="!can('vendor.subscriptions.manage')" />
       <UAlert v-else-if="!data?.customer" color="neutral" variant="subtle" :title="t('vendor.pricing.errors.not_found')" />
       <UAlert v-else-if="data.sub?.pending_order" color="warning" variant="subtle" :title="t('vendor.customers.change.pendingOrder')" />
-      <form v-else class="space-y-5" novalidate @submit.prevent="place">
+      <form v-else class="space-y-(--liwan-gap-card)" novalidate @submit.prevent="place">
         <UAlert color="info" variant="subtle" icon="i-lucide-user-cog" :title="t(isInitial ? 'vendor.customers.change.firstOnBehalf' : 'vendor.customers.change.onBehalf')" />
         <UFormField :label="t('vendor.customers.plan')" required><USelect :model-value="planId" :items="planItems" class="w-full" :disabled="!hydrated || quoting || busy" @update:model-value="choosePlan(String($event))" /></UFormField>
         <UFormField :label="t('vendor.customers.change.cadence')" required><USelect v-model="cadence" :items="cadenceItems" class="w-full" :disabled="!hydrated || quoting || busy || !selectedPlan" @update:model-value="resetQuote" /></UFormField>

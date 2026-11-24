@@ -16,10 +16,10 @@ const steps = [
   { key: 'plans', to: '/plans' },
 ] as const
 const columns = computed<TableColumn<CatalogVersion>[]>(() => [
-  { id: 'version', header: t('vendor.catalog.version') },
-  { id: 'status', header: t('vendor.common.status') },
-  { id: 'sellable', header: t('vendor.catalog.sellableApps') },
-  { id: 'created', header: t('vendor.catalog.imported') },
+  { id: 'version', header: t('vendor.catalog.version'), meta: { class: { th: 'min-w-44', td: 'whitespace-nowrap' } } },
+  { id: 'status', header: t('vendor.common.status'), meta: { class: { th: 'w-36', td: 'w-36 whitespace-nowrap' } } },
+  { id: 'sellable', header: t('vendor.catalog.sellableApps'), meta: { class: { th: 'w-36', td: 'w-36 whitespace-nowrap' } } },
+  { id: 'created', header: t('vendor.catalog.imported'), meta: { class: { th: 'w-40', td: 'w-40 whitespace-nowrap' } } },
 ])
 </script>
 <template>

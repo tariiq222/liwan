@@ -26,7 +26,7 @@ function submit() {
 </script>
 
 <template>
-  <form class="grid gap-6" novalidate data-slot="account-form" :aria-label="t('team.form.title')" @submit.prevent="submit">
+  <form class="grid gap-(--liwan-gap-section)" novalidate data-slot="account-form" :aria-label="t('team.form.title')" @submit.prevent="submit">
     <SharedUnsavedChanges :dirty="dirty" guard-route-updates />
     <UAlert v-if="props.errorKey" role="alert" color="error" variant="subtle" :title="t(props.errorKey)" data-testid="team-error" />
     <SharedFormSection panel :title="t('team.form.personTitle')" :description="t('team.form.personHint')">

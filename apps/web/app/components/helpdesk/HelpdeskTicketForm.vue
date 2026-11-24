@@ -87,7 +87,7 @@ const saveLabel = computed(() => editing.value ? t('helpdesk.form.save') : t('he
 </script>
 
 <template>
-  <form class="flex flex-col gap-5" novalidate data-testid="helpdesk-form" @submit.prevent="submit">
+  <form class="flex flex-col gap-(--liwan-gap-card)" novalidate data-testid="helpdesk-form" @submit.prevent="submit">
     <UFormField :label="t('helpdesk.form.subject')" name="helpdesk-subject" required :error="errors.subject ? t('helpdesk.form.subjectRequired') : undefined">
       <UInput v-model="subject" class="w-full" :maxlength="200" :disabled="off" data-testid="helpdesk-subject" />
     </UFormField>

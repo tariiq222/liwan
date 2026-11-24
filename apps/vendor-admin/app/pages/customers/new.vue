@@ -93,7 +93,7 @@ const backTo = computed(() => safeReturnTo(route.query.returnTo, '/customers', [
     <SharedUnsavedChanges :dirty="dirty" />
     <SharedForbiddenState v-if="!can('vendor.tenants.manage')" />
     <SharedPageState v-else :loading="pending || (!catalog && !catalogError) || (!plans && !plansError)" :error="error || catalogError || plansError" @retry="async () => { await refresh(); await refreshCatalog(); await refreshPlans() }">
-      <form v-if="targets && catalog && plans" class="mx-auto grid max-w-2xl gap-6" @submit.prevent="submit">
+      <form v-if="targets && catalog && plans" class="mx-auto grid max-w-2xl gap-(--liwan-gap-section)" @submit.prevent="submit">
         <UAlert v-if="noRelease" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('vendor.customers.newPage.noRelease')" :description="t('vendor.customers.newPage.noReleaseHint')" />
         <VendorOwnerOnlyHint v-if="sharedEnabled && ownerOnlyAccess('sharedOnboarding', can) === 'partial'" action="sharedOnboarding" />
         <UAlert v-if="saveError" color="error" variant="subtle" :title="t(errorKey)" />

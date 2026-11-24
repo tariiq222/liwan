@@ -41,7 +41,7 @@ async function save(draft: TermsDraft) {
       <VendorOwnerOnlyHint v-if="access === 'partial'" action="customTerms" />
       <SharedForbiddenState v-else-if="!allowed" />
       <UAlert v-else-if="!sub" color="neutral" variant="subtle" :title="t('vendor.customers.terms.needsSubscription')" />
-      <div v-else class="space-y-6">
+      <div v-else class="space-y-(--liwan-gap-section)">
         <VendorCustomerTermsForm :busy="busy" :previewing="previewing" :error="saveError" :reset-key="resetKey" @preview="preview" @save="save" @cancel="navigateTo(detailTo)" />
         <UAlert v-if="saved" color="success" variant="subtle" icon="i-lucide-check" :title="t('vendor.customers.terms.saved')" :description="t('vendor.customers.terms.savedHint')" data-testid="terms-saved" />
         <UAlert v-if="previewError" color="error" variant="subtle" :title="previewError" />
