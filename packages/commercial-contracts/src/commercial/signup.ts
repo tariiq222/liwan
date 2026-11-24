@@ -53,7 +53,8 @@ export const signupVerifySchema = z.strictObject({
   signup_id: z.uuid(), channel: signupChannelSchema, code: z.string().regex(/^[0-9]{6}$/),
 })
 /** Finishes a signup whose email is verified and starts the workspace. */
-export const signupCompleteSchema = z.strictObject({ signup_id: z.uuid() })
+/** `slug` replaces the address chosen at start, for a visitor who comes back after `slug_taken` with both codes already verified. */
+export const signupCompleteSchema = z.strictObject({ signup_id: z.uuid(), slug: workspaceSlugSchema.optional() })
 
 /** A candidate slug as typed: normalized before the check, so a bad candidate comes back `invalid` rather than as a body error. */
 export const slugCheckSchema = z.strictObject({

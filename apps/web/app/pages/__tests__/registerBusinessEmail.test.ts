@@ -6,6 +6,7 @@ import ts from 'typescript'
 import { describe, expect, it, vi } from 'vitest'
 import { errorCode, errorSeconds, normalizeCode } from '../../components/auth/loginFlow'
 import { normalizeMobileInput } from '../../composables/useMe'
+import { suggestWorkspaceSlug, workspaceSlugShapeOk } from '../../utils/workspaceSlug'
 import ar from '../../../i18n/locales/ar/signup.json'
 import en from '../../../i18n/locales/en/signup.json'
 
@@ -19,7 +20,7 @@ function mount(failure: unknown, answer?: unknown) {
   const script = stripImports(compileScript(descriptor, { id: 'register-business-email' }).content).replace('export default', 'return')
   const fetch = answer === undefined ? vi.fn().mockRejectedValue(failure) : vi.fn().mockResolvedValue(answer)
   const bindings = {
-    errorCode, errorSeconds, normalizeCode, normalizeMobileInput,
+    errorCode, errorSeconds, normalizeCode, normalizeMobileInput, suggestWorkspaceSlug, workspaceSlugShapeOk, onBeforeUnmount: () => {},
     ForgotPasswordInputSchema: { safeParse: () => ({ success: true }) },
     _defineComponent: Vue.defineComponent, computed: Vue.computed, onMounted: () => {}, reactive: Vue.reactive, ref: Vue.ref, watch: Vue.watch, $fetch: fetch,
     definePageMeta: () => {}, useHydrated: () => Vue.ref(true),
@@ -38,7 +39,7 @@ describe('register page, free-mail refusal', () => {
   it('shows the server refusal on the email field and clears it when the email changes', async () => {
     const state = mount({ data: { code: 'business_email_required' } })
     state.details.email = 'owner@gmail.com'
-    await state.startSignup()
+    await state.submitDetails()
     expect(state.emailErrorKey.value).toBe('signup.errors.businessEmailRequired')
     expect(state.errorKey.value).toBeUndefined()
     state.details.email = 'owner@company.sa'
@@ -47,13 +48,13 @@ describe('register page, free-mail refusal', () => {
   })
   it('keeps the general alert for other refusals', async () => {
     const state = mount({ data: { code: 'rate_limited' } })
-    await state.startSignup()
+    await state.submitDetails()
     expect(state.errorKey.value).toBe('signup.errors.rateLimited')
     expect(state.emailErrorKey.value).toBeUndefined()
   })
   it('says the company already used its trial when the server refuses the claim, in both locales', async () => {
     const state = mount({ data: { code: 'trial_already_used' } })
-    await state.startSignup()
+    await state.submitDetails()
     expect(state.errorKey.value).toBe('signup.errors.trialAlreadyUsed')
     expect(state.emailErrorKey.value).toBeUndefined()
     for (const locale of [ar, en]) {
@@ -64,26 +65,45 @@ describe('register page, free-mail refusal', () => {
   it('has the message in both locales, in plain words', () => {
     for (const locale of [ar, en]) expect(locale.signup.errors.businessEmailRequired.length).toBeGreaterThan(20)
   })
-  it('the done step names the address, promises minutes, and says what to do when the invitation is late', () => {
-    for (const locale of [ar, en]) {
-      expect(locale.signup.invitation).toContain('{email}')
-      expect(locale.signup.invitationLate.length).toBeGreaterThan(60)
-    }
-    const page = readFileSync(resolve(import.meta.dirname, '../register.vue'), 'utf8')
-    expect(page).toContain("t('signup.invitation', { email: verifiedEmail })")
-    expect(page).toContain("t('signup.invitationLate')")
-  })
-  it('after a successful email verification the done step keeps the verified address and clears the form', async () => {
+  it('verifies each channel on its own and completes only when both are confirmed', async () => {
     const state = mount(null, { ok: true })
-    state.details.email = '  owner@company.sa '
     state.signupId.value = 'signup-1'
-    state.step.value = 'email'
-    state.verification.code = '123456'
-    await state.verifyCode()
-    expect(state.step.value).toBe('done')
-    expect(state.verifiedEmail.value).toBe('owner@company.sa')
-    expect(state.details.email).toBe('')
-    for (const locale of [ar, en]) expect(locale.signup.invitation.replace('{email}', state.verifiedEmail.value)).toContain('owner@company.sa')
+    state.step.value = 'verify'
+    state.details.slug = 'acme'
+    await state.complete()
+    expect(state.step.value).toBe('verify')
+    state.codes.email = '654321'
+    await state.verifyCode('email')
+    expect(state.verified.email).toBe(true)
+    expect(state.verified.sms).toBe(false)
+    state.codes.sms = '123456'
+    await state.verifyCode('sms')
+    expect(state.verified.sms).toBe(true)
+    await state.complete()
+    expect(state.step.value).toBe('preparing')
+  })
+  it('keeps both confirmations and returns to the address when someone took it first', async () => {
+    const state = mount({ data: { code: 'slug_taken' } })
+    state.signupId.value = 'signup-1'
+    state.step.value = 'verify'
+    state.verified.sms = true
+    state.verified.email = true
+    await state.complete()
+    expect(state.step.value).toBe('details')
+    expect(state.slugState.value).toBe('unavailable')
+    expect(state.errorKey.value).toBe('signup.errors.slugTaken')
+    expect(state.verified.sms && state.verified.email).toBe(true)
+    for (const locale of [ar, en]) expect(locale.signup.errors.slugTaken.length).toBeGreaterThan(20)
+  })
+  it('suggests an address from the company name until the visitor types their own', async () => {
+    const state = mount(null, { result: 'available' })
+    state.details.company_name = 'Acme Trading'
+    await Vue.nextTick()
+    expect(state.details.slug).toBe('acme-trading')
+    state.editSlug('acme-sa')
+    state.details.company_name = 'Other Name'
+    await Vue.nextTick()
+    expect(state.details.slug).toBe('acme-sa')
   })
   it('says the trial starts at first sign-in, without numbers', () => {
     const page = readFileSync(resolve(import.meta.dirname, '../register.vue'), 'utf8')

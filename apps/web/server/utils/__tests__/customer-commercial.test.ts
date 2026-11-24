@@ -478,4 +478,39 @@ describe('signup relay', () => {
     signup({ status: 500, _data: { code: 'database_exploded' } })
     await expect(forwardSignupRequest({} as never)).rejects.toMatchObject({ statusCode: 503, data: { code: 'unavailable' } })
   })
+
+  const SIGNUP_ID = '00000000-0000-4000-8000-0000000000aa'
+  const SECRET = 's'.repeat(43)
+  it('keeps the handoff secret in an HttpOnly cookie on complete and never returns it to the page', async () => {
+    vi.stubEnv('LIWAN_TENANCY_MODE', 'shared'); vi.stubEnv('LIWAN_SHARED_PROXY_TOKEN', PROXY_TOKEN)
+    const raw = setup({
+      method: 'POST', url: 'https://acme.example/api/commercial/signup/complete', body: JSON.stringify({ signup_id: SIGNUP_ID }),
+      headers: { host: 'acme.example', 'x-liwan-proxy-token': PROXY_TOKEN, 'x-liwan-signup-client': '203.0.113.7' }, cfg: { publicSignupEnabled: true },
+    })
+    raw.mockResolvedValue({ status: 200, ok: true, _data: { handoff_secret: SECRET } })
+    await expect(forwardSignupRequest({} as never)).resolves.toEqual({ ok: true })
+    expect(vi.mocked(setCookie)).toHaveBeenCalledWith(expect.anything(), '__Host-liwan_signup', `${SIGNUP_ID}.${SECRET}`,
+      expect.objectContaining({ httpOnly: true, secure: true, sameSite: 'strict', path: '/', maxAge: 86400 }))
+  })
+  it('reads the cookie for status, sends the secret as a header and never in the body', async () => {
+    vi.stubEnv('LIWAN_TENANCY_MODE', 'shared'); vi.stubEnv('LIWAN_SHARED_PROXY_TOKEN', PROXY_TOKEN)
+    const raw = setup({
+      method: 'POST', url: 'https://acme.example/api/commercial/signup/status', body: '{}', cookies: { '__Host-liwan_signup': `${SIGNUP_ID}.${SECRET}` },
+      headers: { host: 'acme.example', 'x-liwan-proxy-token': PROXY_TOKEN, 'x-liwan-signup-client': '203.0.113.7' }, cfg: { publicSignupEnabled: true },
+    })
+    raw.mockResolvedValue({ status: 200, ok: true, _data: { state: 'preparing' } })
+    await expect(forwardSignupRequest({} as never)).resolves.toEqual({ state: 'preparing' })
+    const [, options] = raw.mock.calls[0]!
+    expect(JSON.parse(options.body)).toEqual({ signup_id: SIGNUP_ID })
+    expect(options.headers['x-liwan-signup-handoff']).toBe(SECRET)
+  })
+  it('answers 404 to a status call with no usable cookie, without calling the control plane', async () => {
+    vi.stubEnv('LIWAN_TENANCY_MODE', 'shared'); vi.stubEnv('LIWAN_SHARED_PROXY_TOKEN', PROXY_TOKEN)
+    const raw = setup({
+      method: 'POST', url: 'https://acme.example/api/commercial/signup/status', body: '{}', cookies: { '__Host-liwan_signup': 'not-a-cookie' },
+      headers: { host: 'acme.example', 'x-liwan-proxy-token': PROXY_TOKEN, 'x-liwan-signup-client': '203.0.113.7' }, cfg: { publicSignupEnabled: true },
+    })
+    await expect(forwardSignupRequest({} as never)).rejects.toMatchObject({ statusCode: 404 })
+    expect(raw).not.toHaveBeenCalled()
+  })
 })

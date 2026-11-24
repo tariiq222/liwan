@@ -55,7 +55,7 @@ export function isAllowedInvitationOrigin(origin: string): boolean {
 export function buildInvitationUrl(origin: string, token: string): string {
   if (!isAllowedInvitationOrigin(origin)) throw new Error("invitation_origin_not_allowed");
   const u = new URL(origin);
-  return `${u.origin}/invite/accept?token=${encodeURIComponent(token)}`;
+  return `${u.origin}/invite/accept#token=${encodeURIComponent(token)}`;
 }
 
 export function escapeHtml(s: string): string {
