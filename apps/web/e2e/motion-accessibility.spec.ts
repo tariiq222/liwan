@@ -36,7 +36,7 @@ test('assistant panel uses the approved text scale without changing family, prim
   await expect(sheet).toHaveCSS('width', '380px')
   await expect(page.locator('.liwan-shell-header')).toHaveCSS('height', '68px')
   await expect(page.locator('.liwan-sidebar')).toHaveCSS('width', '264px')
-  await expect(page.locator('.liwan-ai-button')).toHaveCSS('font-size', '12.25px')
+  await expect(page.locator('.liwan-ai-button')).toHaveCSS('font-size', '13px')
   expect(await sheet.evaluate(el => getComputedStyle(el).fontFamily)).toContain('IBM Plex Sans Arabic')
   expect(await sheet.evaluate(el => getComputedStyle(el).getPropertyValue('--primary').trim())).toBe('#14102a')
   await expect(page.locator('.liwan-slideover-body')).toHaveCSS('overscroll-behavior-y', 'contain')
