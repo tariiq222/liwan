@@ -102,12 +102,20 @@ export function normalizeMobileInput(raw: string): string {
   return international.replace(/^\+9660/, '+966')
 }
 
-/** Saves the signed-in user's own mobile number (the server checks the format and that no one else holds it), then reloads `me`. */
-export function useSaveOwnMobile() {
+/** Asks the server to send a verification code to the signed-in user's own mobile, saving the number unverified. */
+export function useRequestMobileCode() {
   const { $api } = useApi()
   return async (mobile: string): Promise<Me> => {
     const body = MobileInputSchema.parse({ mobile })
-    const saved = await $api('/api/v1/me/mobile', { method: 'PATCH', body, schema: MeSchema })
+    return await $api('/api/v1/me/mobile/code', { method: 'POST', body, schema: MeSchema })
+  }
+}
+
+/** Consumes the code the server sent and stamps the number verified; the account can then sign in by SMS. */
+export function useVerifyMobileCode() {
+  const { $api } = useApi()
+  return async (code: string): Promise<Me> => {
+    const saved = await $api('/api/v1/me/mobile/verify', { method: 'POST', body: { code }, schema: MeSchema })
     await refreshNuxtData('me')
     return saved
   }

@@ -27,13 +27,14 @@ describe('the emailed-link pages', () => {
     expect(page).not.toMatch(/\b(ml|mr|pl|pr)-\d/)
   })
 
-  it('join sends the token, the normalized mobile number and the password, and checks the link on mount', () => {
-    expect(join).toContain("acceptInvitation({ token: token.value, mobile: mobileValue.value, password: password.value })")
+  it('join sends the token and the password only, and checks the link on mount', () => {
+    expect(join).toContain('acceptInvitation({ token: token.value, password: password.value })')
+    expect(join).not.toContain('mobileValue')
     expect(join).toContain("checkToken(token.value, 'invite')")
     expect(join).toContain('route.query.token')
     expect(join).toMatch(/catch \{\s*state\.value = 'form'/)
     expect(join).toContain('MIN_PASSWORD_LENGTH')
-    expect(join.match(/<UFormField/g)?.length).toBe(3)
+    expect(join.match(/<UFormField/g)?.length).toBe(2)
   })
 
   it('join explains an expired or used invitation in its own words, and reset keeps the generic link text', () => {
@@ -107,12 +108,14 @@ describe('the add-user form', () => {
 
 describe('the mobile step', () => {
   it('saves the normalized number and returns to where the user was going', () => {
-    expect(mobile).toContain('saveOwnMobile(mobileValue.value)')
+    expect(mobile).toContain('requestCode(mobileValue.value)')
+    expect(mobile).toContain('verifyCode(code.value.trim())')
+    expect(mobile).toContain("step.value = 'code'")
     expect(mobile).toContain('postLoginPath(me.value, route.query.next)')
     expect(mobile).toContain("'/account/settings'")
     expect(mobile).toContain('useSignOut()')
     expect(mobile).not.toContain('/api/auth/logout')
-    expect(mobile).toContain("error.code === 'mobile_taken'")
+    expect(mobile).toContain("code === 'mobile_taken'")
   })
 
   it('signs out through the same composable as the account settings page', () => {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { formatDateTime } from '@liwan/ui/app/utils/formatDate'
 import { canReachPath } from '@/utils/accessPolicy'
+import { SETUP_PATH, canUseSetup } from '@/composables/setup/setupSteps'
 
 definePageMeta({ layout: false, middleware: 'customer-commercial' })
 const { t } = useI18n()
@@ -39,8 +40,10 @@ async function openTrial(start: boolean) {
       if (disposed) return
       const identity = me.value
       if (identity) checked.value = identity.id
+      // A workspace that just became ready starts its setup once; the guard sends the founder here only while the
+      // trial is pending, applying or failed, so this redirect cannot loop.
       const target = status.state === 'ready' && identity
-        ? ['/inbox', '/crm'].find(path => canReachPath(identity, path)) ?? '/'
+        ? (canUseSetup(identity) ? SETUP_PATH : ['/inbox', '/crm'].find(path => canReachPath(identity, path)) ?? '/')
         : '/'
       await router.replace(target)
     }

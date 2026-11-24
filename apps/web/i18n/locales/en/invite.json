@@ -79,13 +79,22 @@
     "mobileStep": {
       "title": "Add your mobile number",
       "titleChange": "Mobile number",
-      "subtitle": "Every account needs a mobile number. Your colleagues cannot see it; only user administrators can.",
-      "submit": "Save and continue",
-      "save": "Save",
+      "subtitle": "Every account needs a verified mobile number. We send it a code, and it cannot sign in until you confirm it.",
+      "codeLabel": "Verification code",
+      "codeSubtitle": "We sent a 6-digit code to {mobile}.",
+      "codeValidity": "The code works for 5 minutes.",
+      "sendCode": "Send the code",
+      "verify": "Confirm the number",
+      "resend": "Send the code again",
+      "resendIn": "Send again in {seconds}s",
+      "changeNumber": "Change the number",
+      "invalidCode": "That code is not correct.",
+      "codeExpired": "The code expired. Ask for a new one.",
+      "codeAttempts": "Too many attempts on this code. Ask for a new one.",
       "back": "Back",
       "signOut": "Sign out",
-      "signOutFailed": "Could not end the session. Try again.",
-      "saved": "Mobile number saved."
+      "signOutFailed": "Could not end the session. Please try again.",
+      "verified": "Your mobile number is verified."
     }
   }
 }

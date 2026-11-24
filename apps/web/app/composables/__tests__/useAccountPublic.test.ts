@@ -23,16 +23,15 @@ describe('useAccountPublic', () => {
     expect(await account().checkToken('tok', 'reset')).toBe(false)
   })
 
-  it('accepts an invitation with the mobile number and password, and returns the login', async () => {
+  it('accepts an invitation with the token and password, and returns the login', async () => {
     api.mockResolvedValue({ login: 'sara@example.com', read_only: false })
-    const login = await account().acceptInvitation({ token: 'tok', mobile: '+966500000001', password: 'twelve-chars!' })
+    const login = await account().acceptInvitation({ token: 'tok', password: 'twelve-chars!' })
     expect(login).toBe('sara@example.com')
-    expect(api).toHaveBeenCalledWith('/api/v1/public/account/invitation/accept', expect.objectContaining({ method: 'POST', body: { token: 'tok', mobile: '+966500000001', password: 'twelve-chars!' } }))
+    expect(api).toHaveBeenCalledWith('/api/v1/public/account/invitation/accept', expect.objectContaining({ method: 'POST', body: { token: 'tok', password: 'twelve-chars!' } }))
   })
 
-  it('refuses a short password or a malformed mobile before any request', async () => {
-    await expect(account().acceptInvitation({ token: 'tok', mobile: '+966500000001', password: 'short' })).rejects.toThrow()
-    await expect(account().acceptInvitation({ token: 'tok', mobile: '0500000001', password: 'twelve-chars!' })).rejects.toThrow()
+  it('refuses a short password before any request', async () => {
+    await expect(account().acceptInvitation({ token: 'tok', password: 'short' })).rejects.toThrow()
     await expect(account().resetPassword({ token: 'tok', password: 'short' })).rejects.toThrow()
     await expect(account().requestPasswordReset({ email: 'nope' })).rejects.toThrow()
     expect(api).not.toHaveBeenCalled()
