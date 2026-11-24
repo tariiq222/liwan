@@ -516,7 +516,7 @@ ul.list-disc > li::marker { content: "◆  "; color: var(--primary); font-size: 
 
 /* The dashboard mock identity (mono): app tiles, interactive card lift, the open page header's tab strip and the tiny Sadu section marks. */
 /* App tile sizes (the default tile and its 28% corner are app-identity.css). The 48px tile of the page header keeps its coloured shadow. */
-.liwan-app-tile.liwan-app-tile-md { width: 32px; height: 32px; }
+.liwan-app-tile.liwan-app-tile-md { width: calc(32px * var(--liwan-ui-scale)); height: calc(32px * var(--liwan-ui-scale)); }
 .liwan-app-tile.liwan-app-tile-lg {
   width: var(--liwan-tile-lg);
   height: var(--liwan-tile-lg);

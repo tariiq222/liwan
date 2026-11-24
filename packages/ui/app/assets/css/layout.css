@@ -163,10 +163,10 @@ html[dir="rtl"] body { padding-right: 0 !important; }
 }
 
 /* Creation actions have a dedicated surface outside the body scroller. */
-.liwan-create-panel { max-width: min(640px, 100vw); }
+.liwan-create-panel { max-width: min(calc(640px * var(--liwan-ui-scale)), 100vw); }
 /* The wide create panel: a line table with unit price, tax and a running total needs the room. Physical px like the
    640 default, so the two panels stay proportional to each other at every font scale. */
-.liwan-create-panel--wide { max-width: min(920px, 100vw); }
+.liwan-create-panel--wide { max-width: min(calc(920px * var(--liwan-ui-scale)), 100vw); }
 .liwan-create-panel-footer-surface { padding-block-end: max(16px, env(safe-area-inset-bottom)); }
 .liwan-form-footer[data-panel="true"] { width: 100%; margin: 0; padding: 0; border: 0; justify-content: space-between; }
 [data-slot="record-summary"] { container-type: inline-size; }
