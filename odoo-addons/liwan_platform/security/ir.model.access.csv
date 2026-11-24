@@ -1,5 +1,7 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_liwan_tenant_profile_system,liwan.tenant.profile.system,model_liwan_tenant_profile,base.group_system,1,1,1,0
+access_liwan_storage_orphan_check_system,liwan.storage.orphan.check.system,model_liwan_storage_orphan_check,base.group_system,1,1,1,0
+access_liwan_storage_orphan_object_system,liwan.storage.orphan.object.system,model_liwan_storage_orphan_object,base.group_system,1,1,1,0
 access_liwan_tenant_branch_user,liwan.tenant.branch.user,model_liwan_tenant_branch,base.group_user,1,0,0,0
 access_maintenance_preference_manager,maintenance.preference.manager,model_liwan_maintenance_preference,liwan_platform.group_maintenance_manager,1,1,1,0
 access_maintenance_release_manager,maintenance.release.manager,model_liwan_maintenance_release,liwan_platform.group_maintenance_manager,1,0,0,0
