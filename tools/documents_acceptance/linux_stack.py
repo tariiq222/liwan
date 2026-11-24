@@ -441,7 +441,7 @@ def start(args):
         + db_password
         + "\nadmin_passwd = "
         + admin_password
-        + "\nlist_db = False\nserver_wide_modules = base,web,liwan_shared_dbselect\nproxy_mode = False\ndata_dir = /var/lib/odoo\nmax_cron_threads = 0\n"
+        + "\nlist_db = False\nserver_wide_modules = base,rpc,web,liwan_shared_dbselect\nproxy_mode = False\ndata_dir = /var/lib/odoo\nmax_cron_threads = 0\n"
     )
     (runtime / "odoo.conf").write_text(common + "dbfilter = ^%h$\nworkers = 2\n")
     (runtime / "odoo.conf").chmod(0o600)

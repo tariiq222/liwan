@@ -47,7 +47,7 @@ edge; private HTTP hops are assumed protected. Cookies always Secure in shared.
 Odoo MUST have `proxy_mode=False`, `dbfilter=^%h$`, `list_db=False`. Guard sets Odoo
 Host to the registry's validated database identifier, not user input, and does not
 send X-Odoo-Database. Thus monodb discovery is restricted to that exact name, never
-the sole unrelated DB. No stock Odoo source changes. One exception: the server-wide module `liwan_shared_dbselect` (`server_wide_modules = base,web,liwan_shared_dbselect`, required by the config validator) replaces only how the database list is built, because stock Odoo lists databases the runtime role owns, while tenant databases are owned by the cluster admin role and the runtime role holds an explicit CONNECT grant (no PUBLIC grant counts). Without it no host selects a database and no cron thread starts. Stock filestore
+the sole unrelated DB. No stock Odoo source changes. One documented R9 exception, the server-wide module `liwan_shared_dbselect` (`server_wide_modules = base,rpc,web,liwan_shared_dbselect`, required by the config validator); see `docs/agents/odoo-rules.md` "Shared database list (R9 exception)". Stock filestore
 layout is `data_dir/filestore/<database>`: runtime registry rejects database != filestore.
 Odoo sessions are unwrapped only on the Odoo hop after tenant binding verification.
 
@@ -155,7 +155,7 @@ Shared startup integration contract for t5: mount `launch_odoo.py` and
 fixed config path, then execs `/usr/local/bin/liwan-odoo` unchanged. It does not
 replace the secure PDF launcher. Dedicated continues using its original entrypoint.
 The validator requires exact `dbfilter=^%h$`, `list_db=False`, `proxy_mode=False`,
-`workers=2`, `data_dir=/var/lib/odoo`, forbids any `db_name`, and fails missing or
+`server_wide_modules=base,rpc,web,liwan_shared_dbselect`, `workers=2`, `data_dir=/var/lib/odoo`, forbids any `db_name`, and fails missing or
 placeholder credentials. Parser errors and failures emit only
 `shared_config_rejected`, never values or config contents. It is not a credential
 strength/validity check and does not connect to DB.

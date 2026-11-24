@@ -159,7 +159,7 @@ def validate_config(path):
             "dbfilter": "^%h$", "list_db": "False", "proxy_mode": "False",
             "data_dir": "/var/lib/odoo",
             # The only server-wide module besides Odoo's own: it lists databases by explicit CONNECT grant.
-            "server_wide_modules": "base,web,liwan_shared_dbselect",
+            "server_wide_modules": "base,rpc,web,liwan_shared_dbselect",
         }
         if any(options.get(key) != value for key, value in required.items()):
             raise ConfigRejected()

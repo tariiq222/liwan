@@ -197,6 +197,8 @@ class FakeRunner:
             return self.git(argv)
         if argv[0] == 'docker' and argv[1] in ('login', 'pull', 'create', 'cp', 'rm', 'rmi', 'image'):
             return self.docker(argv)
+        if 'deploy/shared/validate_odoo_config.py' in joined:  # the candidate's own validator, run on the host's file
+            return (1, 'shared_config_rejected') if case.odoo_config_invalid else (0, '')
         if 'config' in argv and '--quiet' in argv:  # the candidate's render check: silent, as the release.env it names says
             env_file = Path(argv[len(argv) - 1 - argv[::-1].index('--env-file') + 1])
             case.candidate_renders.append((argv, env_file.read_text()))
@@ -332,7 +334,7 @@ class ReleaseTest(unittest.TestCase):
         self.on_main = True
         self.fail_health, self.fail_upgrade_of = False, None
         self.fail_render, self.fail_restore_render = False, False
-        self.missing_required, self.candidate_renders = None, []
+        self.missing_required, self.candidate_renders, self.odoo_config_invalid = None, [], False
         self.document = document(NEW)
         self.alerts, self.sql = [], []
         self.builds = BUILDS
@@ -1365,6 +1367,25 @@ class ReleaseTest(unittest.TestCase):
         shared.write_text(text.replace(str(self.vendor_env), 'vendor-admin.env'))
         self.assert_refused_before_anything_stops('absolute path')
         self.assertNotIn(SECRET, self.log_stream.getvalue())
+
+    def test_an_odoo_config_the_candidate_validator_rejects_is_refused_in_prepare_with_nothing_stopped(self):
+        self.odoo_config_invalid = True
+        self.assertEqual(self.main(), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused odoo_config_invalid')
+        self.assertIn(str(self.odoo_config), self.log_stream.getvalue())
+        self.assertEqual(self.compose_stops(), [])
+        self.assertEqual(self.commands('psql'), [])
+        self.assertEqual(self.commands('systemctl'), [])
+        self.assertEqual(self.candidate_renders, [])  # refused before the render, the pulls and the disk check
+        self.assertFalse((self.state / 'halted.json').exists())
+
+    def test_a_valid_odoo_config_is_checked_once_by_the_candidates_validator_with_the_hosts_path(self):
+        self.assertEqual(self.main(), release.EXIT_OK)
+        checks = [argv for argv in self.runner.calls if 'deploy/shared/validate_odoo_config.py' in ' '.join(argv)]
+        self.assertEqual(len(checks), 1)
+        self.assertEqual(checks[0][:2], ['python3', '-B'])
+        self.assertTrue(checks[0][2].endswith(f'{NEW}/deploy/shared/validate_odoo_config.py'))
+        self.assertEqual(checks[0][3], str(self.odoo_config))
 
     # --- the candidate's compose files, rendered before the stop ------------------------------------------------
     def test_a_required_key_missing_from_the_shared_env_is_refused_in_prepare_with_nothing_stopped(self):

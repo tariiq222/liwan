@@ -21,7 +21,7 @@ list_db = False
 proxy_mode = False
 data_dir = /var/lib/odoo
 workers = 2
-server_wide_modules = base,web,liwan_shared_dbselect
+server_wide_modules = base,rpc,web,liwan_shared_dbselect
 """
 
 
@@ -59,13 +59,13 @@ class SharedConfigTest(unittest.TestCase):
                 validate_config(self.fixture(FIXTURE + suffix))
 
     def test_server_wide_modules_must_be_exactly_the_shared_set_for_both_profiles(self):
-        line = "server_wide_modules = base,web,liwan_shared_dbselect\n"
+        line = "server_wide_modules = base,rpc,web,liwan_shared_dbselect\n"
         for restore in (None, "1"):
             environment = {} if restore is None else {"LIWAN_RESTORE_ROLE": "1"}
             extra = "" if restore is None else "max_cron_threads = 0\n"
             with patch.dict(os.environ, environment):
                 validate_config(self.fixture(FIXTURE + extra))
-                for replacement in ("", "server_wide_modules = base,web\n", "server_wide_modules = base,web,liwan_shared_dbselect,other\n",
+                for replacement in ("", "server_wide_modules = base,web\n", "server_wide_modules = base,web,liwan_shared_dbselect\n", "server_wide_modules = base,rpc,web,liwan_shared_dbselect,other\n",
                                     "server_wide_modules = web,base,liwan_shared_dbselect\n", "server_wide_modules = base,web,malicious\n",
                                     "server_wide_modules = \n"):
                     with self.subTest(restore=restore, replacement=replacement), self.assertRaises(ConfigRejected):
@@ -74,7 +74,7 @@ class SharedConfigTest(unittest.TestCase):
     def test_reference_templates_name_the_module_and_still_fail_the_validator(self):
         for name in ("odoo.conf", "odoo.restore.conf"):
             path = Path(__file__).with_name(name)
-            self.assertIn("\nserver_wide_modules = base,web,liwan_shared_dbselect\n", path.read_text())
+            self.assertIn("\nserver_wide_modules = base,rpc,web,liwan_shared_dbselect\n", path.read_text())
             with self.assertRaises(ConfigRejected):
                 validate_config(path)
 

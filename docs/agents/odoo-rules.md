@@ -258,6 +258,20 @@ operation and every other caller keeps Odoo's ACLs and record rules. No Odoo met
 Regression evidence: `test_grant_capability_creates_a_contact_only_inside_the_account_create` in
 `odoo-addons/liwan_api/tests/test_access_admin.py`. Do not widen the marker to other fields or callers.
 
+## Shared database list (R9 exception)
+
+Stock Odoo's `odoo.service.db.list_dbs` returns only the databases the connecting role owns. In the shared stack the
+runtime role `odoo` must own none (`deploy/release/tenant_postgres.py`, `database_owner_rejected`: tenant databases belong
+to the cluster admin role) and holds an explicit `CONNECT` grant instead, so stock Odoo would list nothing: no host selects
+a database and no cron thread starts. The one allowed module-level replacement is therefore `list_dbs`, in
+`odoo.service.db` and `odoo.service.server`, done by the `post_load` hook of the server-wide module
+`odoo-addons/liwan_shared_dbselect`, and only when `LIWAN_TENANCY_MODE` is `shared`. It lists databases by an explicit
+`CONNECT` grant of the current role (PUBLIC grants do not count; templates, the `postgres` database and databases that do
+not allow connections stay out); host selection still goes through `dbfilter = ^%h$`. The module is not installable, is
+named in `server_wide_modules = base,rpc,web,liwan_shared_dbselect` of the shared and restore configs (required by
+`deploy/shared/validate_odoo_config.py`) and runs no SQL on Odoo tables. No other monkey patch of Odoo is allowed.
+Regression evidence: `deploy/shared/test_dbselect.py`. Do not widen the replacement to another function or mode.
+
 ## Managed document engine boundaries
 
 `liwan_document_service` uses pinned, unmodified OCA DMS in attachment mode. Its business

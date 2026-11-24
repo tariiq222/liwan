@@ -46,6 +46,8 @@ def build_databases(cluster):
     cluster.sql('postgres', 'GRANT CONNECT ON DATABASE granted_elsewhere TO other_runtime')
     cluster.sql('postgres', 'ALTER DATABASE closed WITH ALLOW_CONNECTIONS false')
     cluster.sql('postgres', 'CREATE DATABASE other')  # default ACL: PUBLIC holds CONNECT, odoo holds no explicit grant
+    # deploy/db/init-runtime-role.sh grants the runtime role an explicit CONNECT on `postgres`; only the name list keeps it out.
+    cluster.sql('postgres', 'GRANT CONNECT ON DATABASE postgres TO odoo')
     cluster.sql('postgres', 'CREATE DATABASE tpl IS_TEMPLATE true')
     cluster.sql('postgres', 'GRANT CONNECT ON DATABASE tpl TO odoo')
 
@@ -103,6 +105,16 @@ class ConnectableDatabasesTests(unittest.TestCase):
     def test_only_explicitly_granted_connectable_non_template_databases_are_listed(self):
         with patch.dict(sys.modules, {'odoo': stub_odoo(self.cluster, dict(self.CONFIG))}):
             self.assertEqual(self.module.list_connectable_dbs(True), ['tenant_a', 'tenant_b'])
+
+    def test_the_postgres_database_is_excluded_by_the_name_list_not_by_its_grant(self):
+        grant = self.cluster.sql('postgres', "SELECT count(*) FROM pg_database d, LATERAL aclexplode(d.datacl) a WHERE d.datname = 'postgres' "
+                                 "AND a.privilege_type = 'CONNECT' AND a.grantee = (SELECT oid FROM pg_roles WHERE rolname = 'odoo')")
+        self.assertEqual(grant, '1')  # the runtime role holds the explicit CONNECT the init script gives it
+        sql = self.module.CONNECTABLE_DATABASES_SQL
+        without_the_name = self.cluster.sql('postgres', sql.replace('%s', "('template0')"), role='odoo').splitlines()
+        self.assertIn('postgres', without_the_name)  # not a template, allows connections, explicit grant: only `NOT IN` excludes it
+        with patch.dict(sys.modules, {'odoo': stub_odoo(self.cluster, dict(self.CONFIG))}):
+            self.assertNotIn('postgres', self.module.list_connectable_dbs(True))
 
     def test_the_listing_follows_the_role_that_asks(self):
         output = self.cluster.sql('postgres', self.module.CONNECTABLE_DATABASES_SQL.replace('%s', "('postgres', 'template0')"), role='other_runtime')
@@ -202,6 +214,25 @@ class RealOdooTests(unittest.TestCase):
     def test_stock_odoo_finds_nothing_for_a_role_that_owns_no_database(self):
         odoo.service.db.list_dbs, odoo.service.server.list_dbs = self.saved_functions
         self.assertEqual(odoo.http.db_list(True, host='tenant_a'), [])
+
+    def test_a_host_selects_exactly_its_own_tenant_never_a_neighbour(self):
+        self.wire()
+        self.assertEqual(odoo.http.db_list(True, host='tenant_b'), ['tenant_b'])
+        self.assertEqual(odoo.http.db_list(True, host='tenant_a'), ['tenant_a'])
+        self.assertEqual(odoo.http.db_filter(['tenant_a', 'tenant_b'], host='tenant_b'), ['tenant_b'])
+        self.assertNotIn('tenant_b', odoo.http.db_list(True, host='tenant_a'))
+        # `^%h$` is anchored and the host is escaped: no prefix, suffix, case change, pattern or port tail reaches a neighbour.
+        for host in ('tenant', 'tenant_', 'enant_a', 'tenant_a_', 'xtenant_b', 'TENANT_A', 'tenant_.', 'tenant_a|tenant_b',
+                     '.*', 'tenant_[ab]', ''):
+            with self.subTest(host=host):
+                self.assertEqual(odoo.http.db_list(True, host=host), [])
+        self.assertEqual(odoo.http.db_list(True, host='tenant_b:8069'), ['tenant_b'])  # Odoo drops the port, as the guard's Host has none
+
+    def test_the_postgres_database_is_never_listed_although_the_role_may_connect_to_it(self):
+        self.wire()
+        self.assertNotIn('postgres', odoo.service.db.list_dbs(True))
+        self.assertNotIn('postgres', odoo.service.server.cron_database_list())
+        self.assertEqual(odoo.http.db_list(True, host='postgres'), [])
 
     def test_host_selection_cron_list_and_db_list(self):
         self.wire()

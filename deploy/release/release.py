@@ -342,6 +342,7 @@ class Releaser:
         elif not (target / DEPENDENCY_MARKER).exists():  # a folder made by hand, or by an install that never finished
             self.install_dependencies(target)
             normalize_tree(target)
+        self.require_odoo_config(target)
         self.require_renderable(run, target)
         if run['previous'] is not None:  # before the first image pull and the first size query, both of which assume the admin role
             self.assert_runtime_role(self.paths.current.resolve(), {'tenants': self.tenants(target)})
@@ -543,6 +544,17 @@ class Releaser:
             raise ReleaseError('invalid_shared_env', EXIT_REFUSED, f'{env_path} needs {key} set to an absolute path')
         if not Path(path).is_file():
             raise ReleaseError('invalid_shared_env', EXIT_REFUSED, f'{path} ({key}) is not a file')
+
+    def require_odoo_config(self, checkout: Path) -> None:
+        """The host's Odoo config must pass the candidate's own validator, as the container's launcher will run it: a config the
+        new release rejects makes ``odoo`` exit and restart in a loop after the stop. Only the path is named, never content."""
+        path = self.shared_env()[ODOO_CONFIG_KEY]
+        try:
+            self.run_command(['python3', '-B', str(checkout / 'deploy/shared/validate_odoo_config.py'), path])
+        except CommandFailed:
+            raise ReleaseError('odoo_config_invalid', EXIT_REFUSED,
+                               f'{path} ({ODOO_CONFIG_KEY}) is rejected by deploy/shared/validate_odoo_config.py of '
+                               f'{checkout.name}; fix the file before this release') from None
 
     def require_renderable(self, run: dict, checkout: Path) -> None:
         """Both compose projects of the candidate render as later steps run them, with its own image tag (a temporary env file,

@@ -104,9 +104,21 @@ def acquire_port(cache, ports=PORTS):
 
 
 def local_addons(addons_dir):
-    """Names of every directory under ``addons_dir`` that holds a ``__manifest__.py``."""
+    """Names of every directory under ``addons_dir`` that holds a ``__manifest__.py`` and is installable.
+
+    A server-wide module such as ``liwan_shared_dbselect`` sets ``installable: False``; it cannot be installed into a
+    scratch database, so it is never an addon to test. An unreadable manifest stays listed so ``read_depends`` reports it.
+    """
     root = Path(addons_dir)
-    return {d.name for d in root.iterdir() if (d / '__manifest__.py').is_file()}
+    return {d.name for d in root.iterdir() if (d / '__manifest__.py').is_file() and _installable(d / '__manifest__.py')}
+
+
+def _installable(manifest):
+    try:
+        value = ast.literal_eval(manifest.read_text(encoding='utf-8'))
+    except (OSError, ValueError, SyntaxError):
+        return True
+    return not isinstance(value, dict) or value.get('installable', True) is not False
 
 
 def changed_addons(paths, known):
@@ -542,7 +554,7 @@ def main(argv=None):
     else:
         paths = changed_paths(merge_base)
         for stray in sorted(unmanifested_dirs(paths, known)):
-            warn('changed path under odoo-addons/%s/ which has no __manifest__.py; ignored' % stray)
+            warn('changed path under odoo-addons/%s/ which is not an installable addon (no __manifest__.py or installable False); ignored' % stray)
         selected = changed_addons(paths, known)
         if selected and not args.no_dependents:
             selected = with_dependents(selected, depends)

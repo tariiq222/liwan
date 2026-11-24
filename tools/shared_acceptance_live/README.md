@@ -201,7 +201,8 @@ the `unset LIWAN_COMMERCIAL_CONFIG` precedent used before the service starts in 
 `up.sh` generates `$TMPDIR_BASE/odoo.conf` mode 0400 (chowned to the container uid when
 running as root on Linux) and validates it twice: with the repository validator on the
 host, then inside the image as the runtime uid. Required values:
-`dbfilter=^%h$`, `list_db=False`, `proxy_mode=False`, `workers=2`,
+`dbfilter=^%h$`, `list_db=False`, `proxy_mode=False`,
+`server_wide_modules=base,rpc,web,liwan_shared_dbselect`, `workers=2`,
 `data_dir=/var/lib/odoo`, no `db_name`, no placeholder credentials.
 
 ## Seeding: capabilities are not `base.group_system`
