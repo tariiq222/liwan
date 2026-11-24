@@ -59,6 +59,7 @@ export const moduleUiCapabilities = [
   'hr.payroll.manage',
   'hr.payroll.approve',
   'hr.payroll.config',
+  'hr.payroll.finance.manage',
   'finance.partners.read',
   'finance.partners.manage',
   'finance.invoices.read',

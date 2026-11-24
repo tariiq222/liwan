@@ -32,12 +32,15 @@ class TestPayrollPaymentSnapshot(PayrollCase):
     def setUpClass(cls):
         super().setUpClass()
         base = ['hr.payroll.read', 'hr.employees.read']
-        cls.officer = cls.payroll_user(cls, 'snap_officer', [*base, 'hr.payroll.manage'])
+        cls.officer = cls.payroll_user(cls, 'snap_officer', [*base, 'hr.payroll.manage', 'hr.payroll.finance.manage'])
         # The approve capability depends on the read capabilities; no manage capability.
         cls.approver = cls.payroll_user(cls, 'snap_approver', [*base, 'hr.payroll.approve'])
         cls.reader = cls.payroll_user(cls, 'snap_reader', base)
         cls.own = cls.payroll_user(cls, 'snap_own', ['hr.employees.read'])
-        cls.config = cls.payroll_user(cls, 'snap_config', [*base, 'hr.payroll.config'])
+        # Finance too: the race test deletes a profile inside the finance-gated download request, whose capability
+        # scope the in-request deleting user must satisfy as well.
+        cls.config = cls.payroll_user(cls, 'snap_config', [*base, 'hr.payroll.config', 'hr.payroll.finance.manage'])
+        cls.finance = cls.payroll_user(cls, 'snap_finance', [*base, 'hr.payroll.finance.manage'])
         cls.bank = cls.env['res.bank'].create({'name': 'Snapshot Bank', 'bic': 'RJHISARI'})
         cls.new_bank = cls.env['res.bank'].create({'name': 'Other Bank', 'bic': 'NCBKSAJE'})
         cls.worker = cls.make_employee(cls, 'Snap Worker', user=cls.own)
@@ -246,16 +249,21 @@ class TestPayrollPaymentSnapshot(PayrollCase):
         with self.assertRaises(AccessError):
             self.File.with_user(self.own)._liwan_keep(run, 'bank', self.profile, date(2026, 12, 1), 'x.csv', b'x')
 
-    def test_a_payroll_reader_downloads_and_reads_the_bytes_without_write(self):
-        """The read capability alone generates a file and reads the kept bytes back; it changes nothing."""
+    def test_a_payroll_reader_gets_no_payment_file_and_the_finance_holder_does(self):
+        """Read alone is refused 403 on both files; ``hr.payroll.finance.manage`` generates one and reads the bytes back."""
         run = self._approved_run()
         self._login(self.reader)
+        for route in ('bank-file', 'wps-file'):
+            res = self.api('POST', f'{RUNS}/{run.id}/{route}', json={'profile_id': self.profile.id, 'value_date': '2026-12-01'})
+            self.assertEqual((res.status_code, res.json()['code']), (403, 'forbidden'), route)
+        self.assertEqual(self.File.search_count([('run_id', '=', run.id)]), 0)
+        self._login(self.finance)
         res = self.api('POST', f'{RUNS}/{run.id}/bank-file', json={'profile_id': self.profile.id, 'value_date': '2026-12-01'})
         self.assertEqual(res.status_code, 200, res.text)
-        kept = self.File.with_user(self.reader).search([('run_id', '=', run.id)])
+        kept = self.File.with_user(self.finance).search([('run_id', '=', run.id)])
         self.assertEqual(len(kept), 1)
         self.assertEqual(base64.b64decode(kept.content), res.content)
-        self.assertEqual(self.Event.search([('action', '=', 'payment_file_generated')]).create_uid, self.reader)
+        self.assertEqual(self.Event.search([('action', '=', 'payment_file_generated')]).create_uid, self.finance)
         with self.assertRaises(AccessError):
             kept.write({'filename': 'forged.csv'})
         with self.assertRaises(AccessError):

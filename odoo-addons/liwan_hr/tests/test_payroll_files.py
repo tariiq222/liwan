@@ -36,7 +36,8 @@ class TestPayrollFiles(PayrollCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.officer = cls.payroll_user(
-            cls, 'file_officer', ['hr.payroll.read', 'hr.payroll.manage', 'hr.employees.read'],
+            cls, 'file_officer',
+            ['hr.payroll.read', 'hr.payroll.manage', 'hr.payroll.finance.manage', 'hr.employees.read'],
         )
         cls.approver = cls.payroll_user(
             cls, 'file_approver', ['hr.payroll.read', 'hr.payroll.approve', 'hr.employees.read'],
@@ -115,6 +116,23 @@ class TestPayrollFiles(PayrollCase):
         names = [row[1] for row in self._rows(res)[1:]]
         self.assertNotIn('Zero Net', names)
         self.assertEqual(len(names), 2)
+
+    def test_salary_files_need_the_finance_capability_not_just_payroll_read(self):
+        """HR prepares and approves; only a user with ``hr.payroll.finance.manage`` is handed the payment files."""
+        run_id = self._run()
+        self._login(self.approver)
+        before = self._kept_and_logged(run_id)
+        for route, profile in self._file_routes():
+            with self.subTest(route=route):
+                res = self.api('POST', f'{RUNS}/{run_id}/{route}', json={'profile_id': profile.id})
+                self.assertEqual((res.status_code, res.json()['code']), (403, 'forbidden'))
+                self.assertNotIn(IBAN_ONE, res.text)
+        self.assertEqual(self._kept_and_logged(run_id), before)
+        self._login(self.officer)
+        for route, profile in self._file_routes():
+            with self.subTest(route=route, holder='finance'):
+                res = self.api('POST', f'{RUNS}/{run_id}/{route}', json={'profile_id': profile.id})
+                self.assertEqual(res.status_code, 200, res.text)
 
     def test_a_non_employee_relationship_never_blocks_the_salary_files(self):
         self.env['liwan.hr.compensation'].search([]).write({'relationship_type': 'other_cooperation'})

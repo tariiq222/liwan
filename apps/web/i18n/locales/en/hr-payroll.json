@@ -196,7 +196,8 @@
       "downloadWps": "Download WPS file",
       "noProfiles": "No file profiles. Add them in the payroll settings.",
       "profilesError": "The file profiles could not be loaded.",
-      "readOnly": "The workspace is read-only, so salary files cannot be generated now. Renew the subscription or contact support."
+      "readOnly": "The workspace is read-only, so salary files cannot be generated now. Renew the subscription or contact support.",
+      "financeOnly": "Issuing the bank and WPS files is a finance permission. Ask your finance officer."
     },
     "gosiStatement": {
       "title": "GOSI statement",

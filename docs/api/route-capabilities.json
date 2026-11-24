@@ -12133,7 +12133,7 @@
       "addon": "liwan_hr",
       "auth": "user",
       "capability_keys": [
-        "hr.payroll.read"
+        "hr.payroll.finance.manage"
       ],
       "capability_match": "all",
       "capability_source": "decorator",
@@ -12197,7 +12197,7 @@
       "addon": "liwan_hr",
       "auth": "user",
       "capability_keys": [
-        "hr.payroll.read"
+        "hr.payroll.finance.manage"
       ],
       "capability_match": "all",
       "capability_source": "decorator",
