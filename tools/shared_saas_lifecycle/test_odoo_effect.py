@@ -225,7 +225,12 @@ class PackageAdministratorScriptTests(unittest.TestCase):
     def test_admin_script_saves_the_verified_signup_mobile(self):
         _, writes, admin, _ = self.run_script(mobile='+966555000111')
         self.assertEqual(admin.liwan_mobile, '+966555000111')
-        self.assertIn(('user', {'liwan_mobile': '+966555000111'}, 'access.users.update'), writes)
+        # The number and its verification are one write: a later number without it verifies again.
+        [entry] = [w for w in writes if w[0] == 'user' and 'liwan_mobile' in w[1]]
+        self.assertEqual(entry[2], 'access.users.update')
+        self.assertEqual(set(entry[1]), {'liwan_mobile', 'liwan_mobile_verified_at'})
+        self.assertRegex(entry[1]['liwan_mobile_verified_at'], r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}')
+        self.assertEqual(admin.liwan_mobile_verified_at, entry[1]['liwan_mobile_verified_at'])
 
     def test_admin_script_without_a_mobile_leaves_the_gate(self):
         result, writes, admin, _ = self.run_script()
@@ -742,6 +747,53 @@ class TenantIsolationOrderTests(unittest.TestCase):
                 self.apply(runner)
         self.assertEqual(self.kinds(), ['psql', 'psql', 'psql', 'ai'])
         self.assertNotIn('complete', self.permits)
+
+
+class AdminIdentityResultTests(unittest.TestCase):
+    """What the control plane needs from a finished provision: the administrator the trial belongs to."""
+    DATABASE = 'liwan_scratch_' + 'c' * 32
+    CONTROL_TENANT = '3f2b8c1e-5d4a-4e6f-9a7b-0c1d2e3f4a5b'
+
+    def test_apply_reports_the_administrator_it_verified(self):
+        with tempfile.TemporaryDirectory() as raw:
+            runner = object.__new__(odoo_effect.Runner)
+            runner.root = Path(raw).resolve()
+            runner.config = {'projectName': 'liwan-shared-test'}
+            runner.base = ['docker', 'compose']
+            runner.database = self.DATABASE
+            runner.current_container = None
+            runner.request = {'attemptId': 'a' * 32, 'fence': 1, 'payloadDigest': 'b' * 64,
+                              'admin': {'name': 'Customer administrator', 'login': 'owner@example.test',
+                                        'mobile': '+966555000111'},
+                              'companyName': 'Company', 'host': 'tenant.example.test',
+                              'controlTenantId': self.CONTROL_TENANT,
+                              'job': {'requestId': 'r', 'policy': {'modules': ['liwan_core']}}}
+            runner.reservation = runner.root / 'reservation.json'
+            runner.credential = runner.root / 'credential.json'
+            runner.classification = runner.root / 'classification.json'
+            runner.preflight = lambda: False
+            runner.exists = lambda: False
+            runner.filestore_exists = lambda: False
+            runner.create_isolated_database = lambda: None
+            runner.prepare_ai_state = lambda _enabled: None
+            runner.command = lambda args, **_: ''
+            # The admin step is the only one whose readback names the user.
+            runner.shell = lambda _script, stage, mutate=False: ('LIWAN_SHARED_ADMIN:{"verified":true,"uid":2}'
+                                                                 if stage == 'admin' else '{}')
+            emitted = []
+
+            def reserve(path, _payload):
+                Path(path).write_text('{}')
+            with unittest.mock.patch.object(odoo_effect, 'reserve', reserve), \
+                    unittest.mock.patch.object(odoo_effect, 'permit', lambda stage: None), \
+                    unittest.mock.patch.object(odoo_effect, 'build_policy_script', lambda *args: 'policy'), \
+                    unittest.mock.patch.object(odoo_effect, 'build_credentials_script', lambda *args: 'credentials'), \
+                    unittest.mock.patch.object(odoo_effect, 'parse_snapshot', lambda *args, **kwargs: None), \
+                    unittest.mock.patch.object(odoo_effect, 'parse_credentials', lambda *args, **kwargs: None), \
+                    unittest.mock.patch.object(odoo_effect, 'emit', emitted.append):
+                runner.apply()
+        self.assertEqual(emitted[-1], {'result': {'applied': True, 'admin_user_id': 2}})
+        self.assertEqual([event for event in emitted if 'error_code' in event], [])
 
 
 @unittest.skipUnless(POSTGRES_AVAILABLE, 'initdb, pg_ctl and psql are required for the real PostgreSQL tests')

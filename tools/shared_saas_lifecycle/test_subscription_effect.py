@@ -526,6 +526,17 @@ class ReconfigureTests(Base):
                             apply_result={'applied': True, 'roles_not_granted': True, 'roles_not_granted_reason': 'roles_missing'})
         self.assertEqual(self.effect(runner).reconfigure(request)['roles_not_granted_reason'], 'roles_missing')
 
+    def test_applied_receipt_carries_the_admin_user_the_readback_named(self):
+        request = make_request(admin_login='boss@acme.test')
+        runner = FakeRunner(observation(), apply_state=applied_state(request, admin_user_id=2))
+        receipt = self.effect(runner).reconfigure(request)
+        self.assertEqual(runner.applies, 1)
+        self.assertEqual(receipt['admin_user_id'], 2)
+        # Both readbacks (before the write and the verification after it) ask for the same enrolment login.
+        observes = [item for item in runner.scripts if item[0] == 'observe']
+        self.assertEqual([_script_values(script)['admin_login'] for _, _, script in observes],
+                         ['boss@acme.test', 'boss@acme.test'])
+
     def test_sigterm_handler_ignores_further_sigterm_first(self):
         source = inspect.getsource(se.main)
         body = source[source.index('def terminate'):]
@@ -599,6 +610,37 @@ class ObserveTests(Base):
         request = make_request()
         receipt = self.effect(FakeRunner(applied_state(request, root_company_id=3))).reconfigure(request)
         self.assertEqual(receipt['root_company_id'], 3)
+
+    def test_verified_rerun_receipt_carries_the_admin_user(self):
+        request = make_request(admin_login='boss@acme.test')
+        runner = FakeRunner(applied_state(request, admin_user_id=2))
+        receipt = self.effect(runner).reconfigure(request)
+        self.assertEqual(runner.applies, 0)
+        self.assertEqual(receipt['admin_user_id'], 2)
+        # The verification read the same enrolment login the apply would have used.
+        [observe] = [item for item in runner.scripts if item[0] == 'observe']
+        self.assertEqual(_script_values(observe[2])['admin_login'], 'boss@acme.test')
+
+    def test_receipt_omits_the_admin_user_when_the_readback_names_none(self):
+        # An older tenant whose onboarding record holds no login reports no administrator, never a guess.
+        request = make_request(admin_login='boss@acme.test')
+        receipt = self.effect(FakeRunner(applied_state(request))).reconfigure(request)
+        self.assertNotIn('admin_user_id', receipt)
+
+    def test_observe_script_reads_the_admin_user_by_login(self):
+        script = se.build_observe_script(DB, 'boss@acme.test')
+        self.assertIn('"admin_login": "boss@acme.test"', script)
+        self.assertIn("env['res.users'].search(", script)
+        self.assertNotIn("env['res.users'].create(", script)
+        # An observe request without a login (the usage collector) asks for no administrator.
+        self.assertIn('"admin_login": null', se.build_observe_script(DB))
+
+    def test_observation_admin_user_id_must_be_a_stored_user(self):
+        for bad in (1, None, '2', True, 0, -3):
+            with self.subTest(value=bad), self.assertRaises(EffectError):
+                self.effect(FakeRunner(observation(admin_user_id=bad))).observe({'tenant': {'database': DB, 'host': 'a.test'}})
+        self.assertEqual(self.effect(FakeRunner(observation(admin_user_id=2))).observe(
+            {'tenant': {'database': DB, 'host': 'a.test'}})['admin_user_id'], 2)
 
 
 class SigtermTests(unittest.TestCase):
