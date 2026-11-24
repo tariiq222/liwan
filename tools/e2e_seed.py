@@ -121,7 +121,7 @@ def mobile_of(login):
 
 
 # The stock `admin` login the real-Odoo specs sign in with is not one of the accounts below; it keeps a fixed number.
-env.ref('base.user_admin').write({'liwan_mobile': '+966500000000'})  # noqa: F821
+env.ref('base.user_admin').write({'liwan_mobile': '+966500000000', 'liwan_mobile_verified_at': env.cr.now()})  # noqa: F821
 
 
 for login, name, groups, password_var, default_password in ACCOUNTS:
@@ -129,7 +129,7 @@ for login, name, groups, password_var, default_password in ACCOUNTS:
     group_ids = [env.ref(xmlid).id for xmlid in groups]  # noqa: F821
     user = users.search([('login', '=', login)], limit=1)
     values = {'name': name, 'email': f'{login}@example.test', 'group_ids': [(6, 0, group_ids)], 'password': password,
-              'liwan_mobile': mobile_of(login)}
+              'liwan_mobile': mobile_of(login), 'liwan_mobile_verified_at': env.cr.now()}  # noqa: F821
     if user:
         user.write(values)
     else:
@@ -180,6 +180,7 @@ def ensure_persona(key, name, job_title, home, role_keys, department=False, mana
     password = os.environ.get(f'E2E_USER_{key.upper()}_PASSWORD') or f'liwan-e2e-{key}-2026'
     values = {
         'name': name, 'email': f'{key}@{EMAIL_DOMAIN}', 'password': password, 'liwan_mobile': mobile_of(login),
+        'liwan_mobile_verified_at': env.cr.now(),  # noqa: F821
         'company_id': home.id, 'company_ids': [(6, 0, home.ids)],
         'group_ids': [(6, 0, env.ref('base.group_user').ids)],  # noqa: F821
     }

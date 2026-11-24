@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import requests
 
+from odoo import fields
 from odoo.tests import TransactionCase, new_test_user, tagged
 
 from odoo.addons.liwan_core.models import sms_gateway
@@ -41,7 +42,8 @@ class SmsGatewayCase(TransactionCase):
             cls.env, login='sms_user', password='twelve-chars-ok', name='Sms User',
             groups='liwan_core.group_employee',
         )
-        cls.user.liwan_mobile = MOBILE
+        # A sign-in SMS goes only to a number a code has verified: the fixture holds it verified.
+        cls.user.write({'liwan_mobile': MOBILE, 'liwan_mobile_verified_at': fields.Datetime.now()})
         cls.gateway = cls.env['liwan.sms.gateway']
         cls.codes = cls.env['liwan.login.code']
 

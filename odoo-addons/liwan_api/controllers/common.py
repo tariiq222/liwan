@@ -23,8 +23,11 @@ from odoo.addons.liwan_core.models.access_service import LiwanAccessRule
 from odoo.addons.liwan_platform.models.base import MIRROR_CONTEXT
 
 _logger = logging.getLogger(__name__)
-# Paths a signed-in user without a mobile number may still call: read the profile, save the number, change the password.
-MOBILE_EXEMPT_PATHS = frozenset({'/api/v1/me', '/api/v1/me/mobile', '/api/v1/me/password'})
+# Paths a signed-in user without a verified mobile number may still call: read the profile,
+# save and verify the number, change the password.
+MOBILE_EXEMPT_PATHS = frozenset({
+    '/api/v1/me', '/api/v1/me/mobile/code', '/api/v1/me/mobile/verify', '/api/v1/me/password',
+})
 # Failures Odoo itself replays, never a client answer: its request retry resubmits a serialization,
 # lock or deadlock conflict (``PG_CONCURRENCY_EXCEPTIONS_TO_RETRY`` and ``ConcurrencyError``), and the
 # http layer replays a read-only route that wrote on a read/write cursor. Answering one here would
@@ -85,6 +88,31 @@ def error_response(status, code, message, field=None, details=None):
     if details is not None:
         body['details'] = details
     return request.make_json_response(body, status=status)
+
+
+# The answer a code send or verify answers with, RETURNED and never raised.
+DOUBLE_STEP_REFUSALS = {
+    'invalid_code': (401, 'invalid_code', 'Verification failed, please double-check the 6-digit code'),
+    'invalid_code_format': (422, 'invalid_code_format', 'The code must be 6 digits'),
+    'invalid_device': (401, 'invalid_device', 'This device is no longer remembered'),
+    'channel_unavailable': (503, 'channel_unavailable', 'This channel is not available; use another one'),
+    'invalid_channel': (422, 'invalid_channel', 'Unknown delivery channel'),
+    'send_limit_reached': (429, 'send_limit_reached', 'Too many codes were sent for this account'),
+    'daily_send_cap': (503, 'daily_send_cap', 'The daily code limit was reached; try again tomorrow'),
+    'resend_cooldown': (429, 'resend_cooldown', 'Wait before asking for another code'),
+}
+
+
+def refusal_response(code, resend_after=0):
+    """The answer of a refused code step, RETURNED and never raised.
+
+    ``api_handler`` rolls back the request's savepoint when a controller raises, and a refusal is exactly
+    when this step has something to keep: the wrong-attempt counter that burns a guessed code and the
+    daily-cap alert. A returned response leaves the savepoint released and the request commits it.
+    """
+    status, machine, message = DOUBLE_STEP_REFUSALS[code]
+    details = {'resend_after': resend_after} if resend_after else None
+    return error_response(status, machine, message, details=details)
 
 
 def _check_feature_args(operation, match):

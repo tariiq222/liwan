@@ -55,7 +55,8 @@ PLUMBING_MODELS = frozenset({
 NOTIFICATION_READ_FIELDS = frozenset({'is_read', 'read_date'})
 # A read-only user may keep their own credentials, number and display preferences.
 OWN_USER_FIELDS = frozenset({
-    'password', 'liwan_mobile', 'lang', 'tz', 'liwan_appearance_mode', 'liwan_font_size', 'login_date',
+    'password', 'liwan_mobile', 'liwan_mobile_verified_at', 'lang', 'tz', 'liwan_appearance_mode', 'liwan_font_size',
+    'login_date',
 })
 # The language and time zone of a user are stored on their contact too.
 OWN_PARTNER_FIELDS = frozenset({'lang', 'tz'})

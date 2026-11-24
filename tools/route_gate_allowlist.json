@@ -22,16 +22,17 @@
   ],
   "no_capability": [
     {
-      "reason": "Finishes the login of the caller's own pre-authenticated session or acts only on the caller's own account or profile (/me, language and time zone, remembered devices, password, mobile, appearance, working company); no capability applies.",
+      "reason": "Finishes the login of the caller's own pre-authenticated session or acts only on the caller's own account or profile (/me, language and time zone, remembered devices, password, mobile number and its verification code, appearance, working company); no capability applies.",
       "routes": [
         "liwan_api/controllers/me.py:change_password",
         "liwan_api/controllers/me.py:devices",
         "liwan_api/controllers/me.py:forget_devices",
         "liwan_api/controllers/me.py:me",
         "liwan_api/controllers/me.py:patch_appearance",
-        "liwan_api/controllers/me.py:patch_mobile",
         "liwan_api/controllers/me.py:patch_profile",
-        "liwan_api/controllers/me.py:switch_company"
+        "liwan_api/controllers/me.py:send_mobile_code",
+        "liwan_api/controllers/me.py:switch_company",
+        "liwan_api/controllers/me.py:verify_mobile_code"
       ]
     },
     {

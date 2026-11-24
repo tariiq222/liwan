@@ -136,7 +136,8 @@ class LiwanEntitlementService(models.AbstractModel):
         # working company changes only the session: a read-only account or an expired tenant may still read and
         # export every company's data, so it must be able to move between them.
         return path in {
-            '/api/v1/me/password', '/api/v1/me/mobile', '/api/v1/me/company', '/api/v1/auth/totp',
+            '/api/v1/me/password', '/api/v1/me/mobile/code', '/api/v1/me/mobile/verify', '/api/v1/me/company',
+            '/api/v1/auth/totp',
             '/api/v1/notifications/read-all',
         } \
             or bool(NOTIFICATION_READ_PATH.fullmatch(path))

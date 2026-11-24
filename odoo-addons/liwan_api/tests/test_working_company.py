@@ -3,6 +3,7 @@
 from types import SimpleNamespace
 from unittest import mock
 
+from odoo import fields
 from odoo.fields import Command
 from odoo.http import root
 from odoo.tests import get_db_name, tagged
@@ -214,7 +215,10 @@ class TestWorkingCompany(WorkingCompanyCase):
         self.assertEqual(self.me()['company']['id'], self.branch_a.id)
 
     def test_a_two_step_sign_in_over_a_working_session_starts_in_the_home_company(self):
-        self.roamer.write({'liwan_mobile': '+966590000077', 'email': 'wc_roamer@example.test'})
+        self.roamer.write({
+            'liwan_mobile': '+966590000077', 'liwan_mobile_verified_at': fields.Datetime.now(),
+            'email': 'wc_roamer@example.test',
+        })
         sent = []
         self.patch(
             type(self.env['liwan.sms.gateway']), '_liwan_send',

@@ -23,7 +23,10 @@ class TestReadOnlyUserApi(LiwanApiCase):
         cls.company = cls.env.company
         cls.service = cls.env['liwan.entitlement.service'].sudo()
         cls.profile = cls.env.ref('liwan_platform.tenant_profile')
-        cls.employee.write({'liwan_mobile': '+966590000021', 'email': 'api_emp@example.test'})
+        cls.employee.write({
+            'liwan_mobile': '+966590000021', 'liwan_mobile_verified_at': fields.Datetime.now(),
+            'email': 'api_emp@example.test',
+        })
         cls.admin = new_test_user(
             cls.env, login='ro_admin', password='ro_admin_pass_123', groups='base.group_user',
             company_id=cls.company.id, company_ids=[Command.set(cls.company.ids)],
@@ -77,8 +80,16 @@ class TestReadOnlyUserApi(LiwanApiCase):
 
     def test_credentials_mobile_and_notification_state_stay_writable(self):
         self.authenticate('api_emp', 'api_emp_pass_123')
-        mobile = self.api('PATCH', '/api/v1/me/mobile', {'mobile': '+966590000022'})
-        self.assertEqual((mobile.status_code, mobile.json()['mobile']), (200, '+966590000022'))
+        sent = []
+        self.patch(
+            type(self.env['liwan.sms.gateway']), '_liwan_send',
+            lambda model, channel, destination, body: sent.append(body),
+        )
+        saved = self.api('POST', '/api/v1/me/mobile/code', {'mobile': '+966590000022'})
+        self.assertEqual((saved.status_code, saved.json()['mobile']), (200, '+966590000022'))
+        self.assertTrue(saved.json()['mobile_required'], 'a saved number is verified by its own code')
+        verified = self.api('POST', '/api/v1/me/mobile/verify', {'code': sent[-1]})
+        self.assertEqual((verified.status_code, verified.json()['mobile_required']), (200, False))
         weak = self.api('POST', '/api/v1/me/password', {'current': 'api_emp_pass_123', 'new': 'short'})
         self.assertEqual((weak.status_code, weak.json()['code']), (422, 'weak_password'))
         if 'liwan.notify.service' in self.env:
@@ -269,7 +280,7 @@ class TestSeatAdminApi(LiwanApiCase):
         self._limit('users.limit', used)
         _token, raw = self.env['liwan.access.service']._liwan_tokens()._liwan_issue(invitee, 'invite')
         accepted = self.api('POST', '/api/v1/public/account/invitation/accept', {
-            'token': raw, 'mobile': '+966590000077', 'password': 'a-twelve-chars-pass',
+            'token': raw, 'password': 'a-twelve-chars-pass',
         })
         self.assertEqual((accepted.status_code, accepted.json()), (200, {'login': 'pending.seat@example.com', 'read_only': True}))
 

@@ -106,15 +106,17 @@ class TestAccountInvitations(TransactionCase):
         self.assertEqual(token.token_hash, hash_token(self.sent[0][1]))
         self.assertEqual(self._invitation(user)['state'], 'pending')
 
-    def test_accept_sets_password_and_mobile_once(self):
+    def test_accept_sets_password_once_and_leaves_the_number_to_the_holder(self):
         user = self._invite()
         raw = self.sent[0][1]
-        accepted = self.public._liwan_accept_invitation(raw, MOBILE, PASSWORD)
+        accepted = self.public._liwan_accept_invitation(raw, PASSWORD)
         self.assertEqual(accepted, user)
-        self.assertEqual(user.liwan_mobile, MOBILE)
         self.assertTrue(self._can_sign_in(user, PASSWORD))
+        # The join flow carries no mobile: the signed-in holder saves and verifies it once.
+        self.assertFalse(user.liwan_mobile)
+        self.assertFalse(user.liwan_mobile_verified_at)
         self.assertTrue(self.env['liwan.account.token'].sudo().search([('user_id', '=', user.id)]).consumed_at)
-        self._assert_invalid_token(self.public._liwan_accept_invitation, raw, MOBILE, PASSWORD)
+        self._assert_invalid_token(self.public._liwan_accept_invitation, raw, PASSWORD)
         self.assertIsNone(self._invitation(user))
 
     def test_resend_and_login_change_revoke_previous_link(self):
@@ -123,12 +125,12 @@ class TestAccountInvitations(TransactionCase):
         self.service._liwan_resend_invitation(user, self._version(user))
         second = self.sent[-1][1]
         self.assertNotEqual(first, second)
-        self._assert_invalid_token(self.public._liwan_accept_invitation, first, MOBILE, PASSWORD)
+        self._assert_invalid_token(self.public._liwan_accept_invitation, first, PASSWORD)
         self.service._liwan_change_invitation_login(user, 'fixed@example.com', self._version(user))
         third = self.sent[-1][1]
-        self._assert_invalid_token(self.public._liwan_accept_invitation, second, MOBILE, PASSWORD)
+        self._assert_invalid_token(self.public._liwan_accept_invitation, second, PASSWORD)
         self.assertEqual((user.login, user.email), ('fixed@example.com', 'fixed@example.com'))
-        self.public._liwan_accept_invitation(third, MOBILE, PASSWORD)
+        self.public._liwan_accept_invitation(third, PASSWORD)
         self.assertTrue(self._can_sign_in(user, PASSWORD))
 
     def test_stale_version_refused_and_only_one_link_stays_usable(self):
@@ -154,7 +156,7 @@ class TestAccountInvitations(TransactionCase):
         user = self._invite()
         raw = self.sent[0][1]
         self.service._liwan_cancel_invitation(user, self._version(user))
-        self._assert_invalid_token(self.public._liwan_accept_invitation, raw, MOBILE, PASSWORD)
+        self._assert_invalid_token(self.public._liwan_accept_invitation, raw, PASSWORD)
         self.assertFalse(user.active)
         self.assertFalse(self._stored_password(user))
 
@@ -171,7 +173,7 @@ class TestAccountInvitations(TransactionCase):
 
     def test_existing_login_is_refused(self):
         user = self._invite()
-        self.public._liwan_accept_invitation(self.sent[0][1], MOBILE, PASSWORD)
+        self.public._liwan_accept_invitation(self.sent[0][1], PASSWORD)
         with self.assertRaises(ValidationError) as caught:
             self._invite()
         self.assertEqual((caught.exception.code, caught.exception.status), ('account_exists', 409))
@@ -187,16 +189,16 @@ class TestAccountInvitations(TransactionCase):
         token.expires_at = fields.Datetime.now() - timedelta(minutes=1)
         self.assertEqual(self._invitation(user)['state'], 'expired')
         self.assertEqual(self._seats(), seats + 1)
-        self._assert_invalid_token(self.public._liwan_accept_invitation, self.sent[0][1], MOBILE, PASSWORD)
+        self._assert_invalid_token(self.public._liwan_accept_invitation, self.sent[0][1], PASSWORD)
         self.service._liwan_resend_invitation(user, self._version(user))
         self.assertEqual(self._invitation(user)['state'], 'pending')
 
     def test_reset_token_rejected_on_accept_and_invite_token_rejected_on_reset(self):
         accepted = self._invite()
-        self.public._liwan_accept_invitation(self.sent[0][1], MOBILE, PASSWORD)
+        self.public._liwan_accept_invitation(self.sent[0][1], PASSWORD)
         self.service._liwan_send_reset_link(accepted, self._version(accepted))
         reset_raw = self.sent[-1][1]
-        self._assert_invalid_token(self.public._liwan_accept_invitation, reset_raw, MOBILE, PASSWORD)
+        self._assert_invalid_token(self.public._liwan_accept_invitation, reset_raw, PASSWORD)
         pending = self._invite('pending@example.com')
         invite_raw = self.sent[-1][1]
         self._assert_invalid_token(self.public._liwan_reset_password_with_token, invite_raw, PASSWORD)
@@ -208,7 +210,7 @@ class TestAccountInvitations(TransactionCase):
 
     def test_forgot_password_silent_for_unknown_and_rate_limited(self):
         user = self._invite()
-        self.public._liwan_accept_invitation(self.sent[0][1], MOBILE, PASSWORD)
+        self.public._liwan_accept_invitation(self.sent[0][1], PASSWORD)
         self.sent.clear()
         for email in ('nobody@example.com', '', None, 7, 'not-an-email'):
             self.assertIsNone(self.public._liwan_request_password_reset(email))
@@ -220,7 +222,7 @@ class TestAccountInvitations(TransactionCase):
 
     def test_forgot_password_drops_a_request_whose_account_row_is_locked(self):
         user = self._invite()
-        self.public._liwan_accept_invitation(self.sent[0][1], MOBILE, PASSWORD)
+        self.public._liwan_accept_invitation(self.sent[0][1], PASSWORD)
         self.sent.clear()
 
         def locked(records, **kwargs):
@@ -233,7 +235,7 @@ class TestAccountInvitations(TransactionCase):
 
     def test_issuing_a_link_locks_the_account_row(self):
         user = self._invite()
-        self.public._liwan_accept_invitation(self.sent[0][1], MOBILE, PASSWORD)
+        self.public._liwan_accept_invitation(self.sent[0][1], PASSWORD)
         calls = []
         real_lock = type(user).lock_for_update
 
@@ -247,7 +249,7 @@ class TestAccountInvitations(TransactionCase):
 
     def test_forgot_password_audit_row_has_no_actor(self):
         user = self._invite()
-        self.public._liwan_accept_invitation(self.sent[0][1], MOBILE, PASSWORD)
+        self.public._liwan_accept_invitation(self.sent[0][1], PASSWORD)
         self.public._liwan_request_password_reset(user.login)
         entry = self.env['liwan.access.audit'].search([
             ('action', '=', 'user.reset_link_requested'), ('target_id', '=', user.id),
@@ -267,7 +269,7 @@ class TestAccountInvitations(TransactionCase):
 
     def test_reset_with_token_revokes_other_sessions(self):
         user = self._invite()
-        self.public._liwan_accept_invitation(self.sent[0][1], MOBILE, PASSWORD)
+        self.public._liwan_accept_invitation(self.sent[0][1], PASSWORD)
         before = user._session_token_hash_compute('sid', user._session_token_get_values())
         self.public._liwan_request_password_reset(user.login)
         self.public._liwan_reset_password_with_token(self.sent[-1][1], 'another-twelve-chars')
@@ -280,7 +282,7 @@ class TestAccountInvitations(TransactionCase):
 
     def test_reset_with_token_revokes_every_remembered_device(self):
         user = self._invite()
-        self.public._liwan_accept_invitation(self.sent[0][1], MOBILE, PASSWORD)
+        self.public._liwan_accept_invitation(self.sent[0][1], PASSWORD)
         devices = self.env['liwan.login.device'].sudo()
         _record, raw = devices._liwan_issue(user, 'laptop')
         self.assertTrue(devices._liwan_usable(raw))
@@ -290,29 +292,15 @@ class TestAccountInvitations(TransactionCase):
         audit = self.env['liwan.access.audit'].sudo().search([('action', '=', 'user.password_reset')], limit=1)
         self.assertEqual(audit.after.get('devices_revoked'), 1)
 
-    def test_weak_password_and_bad_mobile_and_duplicate_mobile(self):
-        first = self._invite()
+    def test_accept_refuses_a_weak_password_without_consuming_the_link(self):
+        self._invite()
         raw = self.sent[0][1]
         with self.assertRaises(ValidationError) as caught:
-            self.public._liwan_accept_invitation(raw, MOBILE, 'x' * 11)
+            self.public._liwan_accept_invitation(raw, 'x' * 11)
         self.assertEqual((caught.exception.code, caught.exception.field), ('weak_password', 'password'))
-        for bad in ('0500000001', '+0123456789', '+96650', '+9665000000000000', '٠٥٠٠', None, 12345678):
-            with self.assertRaises(ValidationError) as caught:
-                self.public._liwan_accept_invitation(raw, bad, PASSWORD)
-            self.assertEqual((caught.exception.code, caught.exception.field), ('invalid_mobile', 'mobile'))
         self.assertTrue(self.service._liwan_token_usable(raw, 'invite'))
-        self.public._liwan_accept_invitation(raw, '+966 50-000 0001', PASSWORD)
-        self.assertEqual(first.liwan_mobile, MOBILE)
-
-        second = self._invite('second@example.com')
-        with self.assertRaises(ValidationError) as caught:
-            self.public._liwan_accept_invitation(self.sent[-1][1], MOBILE, PASSWORD)
-        self.assertEqual((caught.exception.code, caught.exception.status), ('mobile_taken', 409))
-        self.assertTrue(self.service._liwan_token_usable(self.sent[-1][1], 'invite'))
-        # An archived user's number does not block.
-        first.sudo().action_archive()
-        self.public._liwan_accept_invitation(self.sent[-1][1], MOBILE, PASSWORD)
-        self.assertEqual(second.liwan_mobile, MOBILE)
+        self.public._liwan_accept_invitation(raw, PASSWORD)
+        self.assertFalse(self.service._liwan_token_usable(raw, 'invite'))
 
     def test_model_refuses_a_malformed_mobile_on_any_path(self):
         user = self._invite()
@@ -322,26 +310,17 @@ class TestAccountInvitations(TransactionCase):
                     user.sudo().write({'liwan_mobile': value})
         user.sudo().write({'liwan_mobile': MOBILE})
         self.assertEqual(user.liwan_mobile, MOBILE)
-
-    def test_set_own_mobile(self):
-        user = self._invite()
-        self.public._liwan_accept_invitation(self.sent[0][1], MOBILE, PASSWORD)
-        self.env['liwan.access.service'].with_user(user)._liwan_set_own_mobile('+966500000002')
-        self.assertEqual(user.liwan_mobile, '+966500000002')
-        # The stock self-write path authorizes the field on the holder's own, unelevated record.
-        user.with_user(user).write({'liwan_mobile': '+966500000004'})
-        self.assertEqual(user.liwan_mobile, '+966500000004')
-        other = self._invite('other@example.com')
-        self.public._liwan_accept_invitation(self.sent[-1][1], '+966500000003', PASSWORD)
-        with self.assertRaises(ValidationError) as caught:
-            self.env['liwan.access.service'].with_user(other)._liwan_set_own_mobile('+966500000004')
-        self.assertEqual(caught.exception.code, 'mobile_taken')
+        # A number saved without its stamp is a number to verify.
+        self.assertFalse(user.liwan_mobile_verified_at)
 
     def test_mobile_required_rules(self):
         service = self.env['liwan.access.service']
         user = self._invite()
         self.assertTrue(service._liwan_mobile_required(user))
-        self.public._liwan_accept_invitation(self.sent[0][1], MOBILE, PASSWORD)
+        self.public._liwan_accept_invitation(self.sent[0][1], PASSWORD)
+        # Joining saves no number: the accepted account still owes a verified one.
+        self.assertTrue(service._liwan_mobile_required(user))
+        user.sudo().write({'liwan_mobile': MOBILE, 'liwan_mobile_verified_at': fields.Datetime.now()})
         self.assertFalse(service._liwan_mobile_required(user))
         self.assertFalse(service._liwan_mobile_required(self.env.ref('base.user_root')))
         vendor = new_test_user(self.env, login='vendor_mobile', groups='liwan_core.group_vendor_support')
@@ -457,7 +436,7 @@ class TestAccountInvitations(TransactionCase):
         self.service._liwan_reactivate_user(pending, self._version(pending))
         self.assertEqual(self.sent[-1][0].purpose, 'invite')
         accepted = self._invite('accepted@example.com')
-        self.public._liwan_accept_invitation(self.sent[-1][1], '+966500000009', PASSWORD)
+        self.public._liwan_accept_invitation(self.sent[-1][1], PASSWORD)
         self.service._liwan_disable_user(accepted, self._version(accepted))
         self.service._liwan_reactivate_user(accepted, self._version(accepted))
         self.assertEqual(self.sent[-1][0].purpose, 'reset')
@@ -465,7 +444,7 @@ class TestAccountInvitations(TransactionCase):
 
     def test_reactivation_does_not_revive_the_old_password(self):
         user = self._invite()
-        self.public._liwan_accept_invitation(self.sent[-1][1], MOBILE, PASSWORD)
+        self.public._liwan_accept_invitation(self.sent[-1][1], PASSWORD)
         self.assertTrue(self._can_sign_in(user, PASSWORD))
         self.service._liwan_disable_user(user, self._version(user))
         self.service._liwan_reactivate_user(user, self._version(user))
@@ -478,7 +457,7 @@ class TestAccountInvitations(TransactionCase):
         recent = fields.Datetime.now() - timedelta(days=5)
         Token = self.env['liwan.account.token'].sudo()
         accepted = self._invite('accepted@example.com')
-        self.public._liwan_accept_invitation(self.sent[-1][1], '+966500000011', PASSWORD)
+        self.public._liwan_accept_invitation(self.sent[-1][1], PASSWORD)
         self.service._liwan_send_reset_link(accepted, self._version(accepted))
         self.service._liwan_send_reset_link(accepted, self._version(accepted))
         invite, revoked_reset, live_reset = Token.search([('user_id', '=', accepted.id)], order='id')
@@ -506,7 +485,7 @@ class TestAccountInvitations(TransactionCase):
 
     def test_admin_actions_need_the_right_capability_and_a_pending_user(self):
         accepted = self._invite()
-        self.public._liwan_accept_invitation(self.sent[0][1], MOBILE, PASSWORD)
+        self.public._liwan_accept_invitation(self.sent[0][1], PASSWORD)
         with self.assertRaises(ValidationError) as caught:
             self.service._liwan_resend_invitation(accepted, self._version(accepted))
         self.assertEqual((caught.exception.code, caught.exception.status), ('invitation_not_pending', 409))

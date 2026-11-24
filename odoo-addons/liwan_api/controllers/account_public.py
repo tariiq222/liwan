@@ -37,9 +37,9 @@ class AccountPublicController(http.Controller):
     )
     @api_handler
     def accept_invitation(self, **payload):
-        require_exact(payload, {'token', 'mobile', 'password'}, {'token', 'mobile', 'password'})
+        require_exact(payload, {'token', 'password'}, {'token', 'password'})
         user = request.env['liwan.access.service']._liwan_accept_invitation(
-            _text(payload, 'token'), payload['mobile'], payload['password'],
+            _text(payload, 'token'), payload['password'],
         )
         return {'login': user.login, 'read_only': bool(user.liwan_read_only)}
 

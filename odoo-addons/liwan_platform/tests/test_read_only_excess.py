@@ -119,7 +119,7 @@ class TestExcessUsersAreReadOnly(ExcessCase):
         self._set_limit('users.limit', full)
         self.assertFalse(invitee.liwan_read_only)
         _token, raw = self.access._liwan_tokens()._liwan_issue(invitee, 'invite')
-        self.access._liwan_accept_invitation(raw, '+966500000091', 'accepted_password_123')
+        self.access._liwan_accept_invitation(raw, 'accepted_password_123')
         self.assertTrue(invitee.liwan_read_only)
         self.assertEqual(self.service._liwan_count_users(), full)
 
@@ -138,7 +138,7 @@ class TestExcessUsersAreReadOnly(ExcessCase):
         self._set_limit('users.limit', full + 1)
         self.assertTrue(promoted.liwan_read_only)
         _token, raw = self.access._liwan_tokens()._liwan_issue(invitee, 'invite')
-        self.access._liwan_accept_invitation(raw, '+966500000094', 'reserved_password_123')
+        self.access._liwan_accept_invitation(raw, 'reserved_password_123')
         self.assertFalse(invitee.liwan_read_only)
 
     def test_settlement_preserves_the_headquarters_admin_ahead_of_a_picked_branch_admin(self):
@@ -191,7 +191,7 @@ class TestExcessUsersAreReadOnly(ExcessCase):
             [{'role_id': self.env.ref(ASSIGNMENT_ROLE).id, 'scope': {'kind': 'company', 'id': self.env.company.id}}],
         )
         _token, raw = self.access._liwan_tokens()._liwan_issue(invitee, 'invite')
-        self.access._liwan_accept_invitation(raw, '+966500000092', 'accepted_password_123')
+        self.access._liwan_accept_invitation(raw, 'accepted_password_123')
         self.assertFalse(invitee.liwan_read_only)
         self.assertEqual(self.service._liwan_count_users(), before + 2)
 

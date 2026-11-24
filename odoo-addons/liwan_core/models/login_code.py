@@ -27,6 +27,9 @@ TENANT_CEILING_USERS = 5
 DAILY_SENDS = USER_DAILY_SENDS * TENANT_CEILING_USERS
 PURGE_AFTER = timedelta(days=30)
 CHANNELS = ('sms', 'email')
+# What a code is for: finishing a sign-in, or verifying the mobile number it is sent to. The two purposes
+# keep separate budgets, cooldowns and usable codes; only the tenant ceiling is shared (it guards the bill).
+PURPOSES = ('signin', 'verify_mobile')
 # A code nobody revoked and nobody consumed is the one a user may enter; the newest one wins.
 ACTIVE = [('revoked_at', '=', False), ('consumed_at', '=', False)]
 # The cooldown follows the newest sent code, consumed or not: a resend inside the minute still waits.
@@ -99,6 +102,7 @@ class LiwanLoginCode(models.Model):
     _order = 'id desc'
 
     user_id = fields.Many2one('res.users', required=True, ondelete='cascade', index=True)
+    purpose = fields.Selection([(value, value.replace('_', ' ')) for value in PURPOSES], required=True, default='signin')
     channel = fields.Selection([('sms', 'SMS'), ('email', 'Email')], required=True)
     destination = fields.Char(required=True)
     code_hash = fields.Char(required=True)
@@ -111,13 +115,13 @@ class LiwanLoginCode(models.Model):
     # -- issuing ---------------------------------------------------------------------------------
 
     @api.model
-    def _liwan_issue(self, user, channel):
-        """Send a new code to USER over CHANNEL and return an :class:`IssueOutcome`.
+    def _liwan_issue(self, user, channel, purpose='signin'):
+        """Send a new code of PURPOSE to USER over CHANNEL and return an :class:`IssueOutcome`.
 
         The user row is locked first, so two overlapping requests for one account run one after the
         other and only the later code stays usable.
         """
-        if channel not in CHANNELS or not user.active or user.share:
+        if channel not in CHANNELS or purpose not in PURPOSES or not user.active or user.share:
             return IssueOutcome(self.browse(), channel, '', 0, 'channel_unavailable')
         user.lock_for_update(allow_referencing=True)
         gateway = self.env['liwan.sms.gateway']
@@ -126,17 +130,21 @@ class LiwanLoginCode(models.Model):
             destination = recipients[0] if len(recipients) == 1 else ''
         else:
             destination = user.liwan_mobile
+            if purpose == 'signin' and not user.liwan_mobile_verified_at:
+                # A number no code has verified is not a sign-in address yet; the pending sign-in falls back to email.
+                return IssueOutcome(self.browse(), channel, '', 0, 'channel_unavailable')
         if not destination or (channel == 'sms' and not gateway._liwan_sms_available()):
             return IssueOutcome(self.browse(), channel, '', 0, 'channel_unavailable')
         self.env.ref('liwan_core.login_code_quota')._liwan_lock()
-        refusal = self._liwan_send_refusal(user, destination, channel)
+        refusal = self._liwan_send_refusal(user, destination, channel, purpose)
         if refusal:
-            return IssueOutcome(self.browse(), channel, '', self._liwan_resend_after(user), refusal)
+            return IssueOutcome(self.browse(), channel, '', self._liwan_resend_after(user, purpose), refusal)
         raw = ''.join(secrets.choice('0123456789') for _ in range(CODE_LENGTH))
-        self._liwan_revoke_user(user)
+        self._liwan_revoke_user(user, purpose=purpose)
         now = fields.Datetime.now()
         record = self.create({
             'user_id': user.id,
+            'purpose': purpose,
             'channel': channel,
             'destination': destination,
             'code_hash': hash_value(raw),
@@ -155,22 +163,28 @@ class LiwanLoginCode(models.Model):
         return IssueOutcome(record, channel, mask_destination(destination), int(RESEND_COOLDOWN.total_seconds()), '')
 
     @api.model
-    def _liwan_send_refusal(self, user, destination, channel):
-        """The refusal code the cooldown or a cap raises for this send, or None when it may go out."""
+    def _liwan_send_refusal(self, user, destination, channel, purpose):
+        """The refusal code the cooldown or a cap raises for this send, or None when it may go out.
+
+        The cooldown and the per-user and per-destination caps count the codes of one purpose; the
+        tenant ceiling counts every send, whatever it is for.
+        """
         now = fields.Datetime.now()
-        latest = self.search([('user_id', '=', user.id), *LIVE], limit=1)
+        latest = self.search([('user_id', '=', user.id), ('purpose', '=', purpose), *LIVE], limit=1)
         if latest and latest.cooldown_until > now:
             return 'resend_cooldown'
         cutoff = now - timedelta(hours=1)
-        if self.search_count([('user_id', '=', user.id), ('create_date', '>=', cutoff)]) >= HOURLY_SENDS:
+        if self.search_count([
+            ('user_id', '=', user.id), ('purpose', '=', purpose), ('create_date', '>=', cutoff),
+        ]) >= HOURLY_SENDS:
             return 'send_limit_reached'
-        if self._liwan_user_daily_sends(user) >= USER_DAILY_SENDS:
+        if self._liwan_user_daily_sends(user, purpose) >= USER_DAILY_SENDS:
             return 'send_limit_reached'
         destination_match = ('destination', '=ilike', escape_psql(destination)) if channel == 'email' else (
             'destination', '=', destination,
         )
         if self.search_count([
-            destination_match, ('channel', '=', channel), ('create_date', '>=', cutoff),
+            destination_match, ('channel', '=', channel), ('purpose', '=', purpose), ('create_date', '>=', cutoff),
         ]) >= HOURLY_SENDS:
             return 'send_limit_reached'
         if self._liwan_daily_sends() >= DAILY_SENDS:
@@ -184,9 +198,11 @@ class LiwanLoginCode(models.Model):
         return self.search_count([('create_date', '>=', self._liwan_midnight())])
 
     @api.model
-    def _liwan_user_daily_sends(self, user):
-        """How many codes went out to USER today."""
-        return self.search_count([('user_id', '=', user.id), ('create_date', '>=', self._liwan_midnight())])
+    def _liwan_user_daily_sends(self, user, purpose):
+        """How many codes of PURPOSE went out to USER today."""
+        return self.search_count([
+            ('user_id', '=', user.id), ('purpose', '=', purpose), ('create_date', '>=', self._liwan_midnight()),
+        ])
 
     @api.model
     def _liwan_midnight(self):
@@ -199,14 +215,19 @@ class LiwanLoginCode(models.Model):
         en = f'Your LiwanOS sign-in code: {raw}'
         return f'{ar}\n{en}' if lang.startswith('ar') else f'{en}\n{ar}'
 
-    def _liwan_revoke_user(self, user):
-        """Revoke every code of USER that is still usable: a new one is about to replace them."""
-        return self.search([('user_id', '=', user.id), *LIVE]).write({'revoked_at': fields.Datetime.now()})
+    def _liwan_revoke_user(self, user, purpose=None):
+        """Revoke every still-usable code of USER (of PURPOSE when given): a new one replaces them."""
+        domain = [('user_id', '=', user.id), *LIVE]
+        if purpose:
+            domain.append(('purpose', '=', purpose))
+        return self.search(domain).write({'revoked_at': fields.Datetime.now()})
 
     @api.model
-    def _liwan_resend_after(self, user):
-        """The seconds left of the cooldown for USER, 0 when a resend may go out now."""
-        latest = self.search([('user_id', '=', user.id), *LIVE], limit=1)
+    def _liwan_resend_after(self, user, purpose='signin'):
+        """The seconds left of the cooldown of USER's codes of PURPOSE, 0 when a resend may go out now."""
+        latest = self.search([
+            ('user_id', '=', user.id), ('purpose', '=', purpose), *LIVE,
+        ], limit=1)
         if not latest:
             return 0
         remaining = (latest.cooldown_until - fields.Datetime.now()).total_seconds()
@@ -215,8 +236,8 @@ class LiwanLoginCode(models.Model):
     # -- verifying ------------------------------------------------------------------------------
 
     @api.model
-    def _liwan_verify(self, user, value):
-        """Consume the newest usable code of USER for VALUE.
+    def _liwan_verify(self, user, value, purpose='signin'):
+        """Consume the newest usable code of USER for VALUE of PURPOSE.
 
         Returns None on success and the refusal code otherwise. A wrong attempt is counted in the
         caller's transaction (no exception, so it survives), and the last allowed one burns the code.
@@ -224,7 +245,9 @@ class LiwanLoginCode(models.Model):
         code = normalize_code(value)
         if code is None:
             return 'invalid_code_format'
-        record = self.search([('user_id', '=', user.id), *ACTIVE], limit=1)
+        record = self.search([
+            ('user_id', '=', user.id), ('purpose', '=', purpose), *ACTIVE,
+        ], limit=1)
         if not record or record.expires_at <= fields.Datetime.now():
             return 'invalid_code'
         try:
