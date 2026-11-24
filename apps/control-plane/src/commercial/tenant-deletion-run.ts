@@ -527,6 +527,7 @@ async function cleanRegistryRows(ctx: Ctx): Promise<Outcome> {
     if (!tenantId) throw Error('tenant_binding_unavailable')
     const removed = async (sql: string, params: unknown[]) => (await client.query(sql, params)).rowCount ?? 0
     const evidence = {
+      slugs_retired: await removed("UPDATE workspace_slugs SET state='retired',retired_at=now() WHERE customer_id=$1 AND state<>'retired'", [row.customer_id]),
       usage_snapshots: await removed('DELETE FROM usage_snapshots WHERE tenant_id=$1', [tenantId]),
       usage_attempts: await removed('DELETE FROM usage_collection_attempts WHERE tenant_id=$1', [tenantId]),
       invitations: await removed('DELETE FROM admin_invitations WHERE tenant_id=$1', [tenantId]),
