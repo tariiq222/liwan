@@ -3,14 +3,15 @@ import { sharedOnboardingRequestSchema } from '@liwan/commercial-contracts'
 import { onboardingIdentity, assertOnboardingReplay, provisionAdmin } from './onboarding.js'
 import { signupAdminMobile } from '../commercial/fulfillment.js'
 import { parseSharedRuntimeConfig } from './runtime-config.js'
-const input = {request_id:'ba91699b-c25b-4a01-8c84-b2d39dc4b873',name:'Example',catalog_version:'v1',catalog_tier:'projects',admin_name:'Administrator',admin_login:'admin@example.test',reason:'Create first customer'}
+const input = {request_id:'ba91699b-c25b-4a01-8c84-b2d39dc4b873',name:'Example',catalog_version:'v1',catalog_tier:'projects',admin_name:'Administrator',admin_login:'admin@example.test',slug:'acme-co',reason:'Create first customer'}
 const actor={issuer:'vendor:vendor-account',actorUid:7}
 describe('shared onboarding identity',()=>{
   it('derives stable scratch resources, ignoring no caller authority',()=>{
     const first=onboardingIdentity(input,'local.test')
     expect(onboardingIdentity(input,'local.test')).toEqual(first)
     expect(first.database).toMatch(/^liwan_scratch_[a-f0-9]{32}$/)
-    expect(first.host).toBe(`${first.slug}.local.test`)
+    expect(first.host).toBe('acme-co.local.test')
+    expect(first.slug).toMatch(/^t[a-f0-9]{32}$/)
     expect(sharedOnboardingRequestSchema.safeParse({...input,password:'secret'}).success).toBe(false)
   })
   it('accepts identical replay and rejects changed administrator or actor',()=>{
@@ -78,7 +79,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, vi } from 'vitest'
 import { onboardSharedTenant } from './onboarding.js'
 describe('Track A is retired for new shared onboarding (owner decision O1)',()=>{
-  const packageInput={request_id:input.request_id,name:'Example',package_revision_id:'11111111-1111-4111-8111-111111111111',admin_name:'Administrator',admin_login:'admin@example.test',reason:'Create first customer'}
+  const packageInput={request_id:input.request_id,name:'Example',package_revision_id:'11111111-1111-4111-8111-111111111111',admin_name:'Administrator',admin_login:'admin@example.test',slug:'acme-co',reason:'Create first customer'}
   let config:never
   let previousMode:string|undefined
   beforeEach(()=>{

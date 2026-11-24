@@ -16,7 +16,7 @@ import { actorHolds, actorLabel } from '../admin-auth/grants.js'
 export function onboardingIdentity(value:unknown,domainSuffix:string){
   const input=sharedOnboardingRequestSchema.parse(value)
   const hex=input.request_id.replaceAll('-','')
-  return {tenantId:input.request_id,slug:`t${hex}`,database:`liwan_scratch_${hex}`,host:`t${hex}.${domainSuffix}`,digest:createHash('sha256').update(JSON.stringify(input)).digest('hex')}
+  return {tenantId:input.request_id,slug:`t${hex}`,database:`liwan_scratch_${hex}`,host:`${input.slug}.${domainSuffix}`,digest:createHash('sha256').update(JSON.stringify(input)).digest('hex')}
 }
 /** The administrator the Odoo effect creates; the mobile is sent only when the sign-up verified one. */
 export function provisionAdmin(row:{admin_name:string;admin_login:string;admin_mobile?:string|null}){
@@ -59,6 +59,11 @@ export async function onboardSharedTenant(pool:Pool,config:Config,actor:Registry
     const catalog=await client.query("SELECT solution FROM catalog_entries WHERE version=$1 AND status='published' FOR SHARE",[version])
     if(!catalog.rowCount)throw Error('published_catalog_missing')
     deriveSharedPolicy(catalog.rows[0].solution,tier)
+    // The host label is the chosen slug: a self-signup's held row turns active, a new one (team company) is inserted active.
+    // A taken, retired or other customer's slug stops the onboarding before anything is reserved.
+    const slug=await client.query(`INSERT INTO workspace_slugs(slug,customer_id,state) VALUES($1,(SELECT id FROM customers WHERE enrollment_request_id=$2),'active')
+      ON CONFLICT(slug) DO UPDATE SET state='active' WHERE workspace_slugs.state IN ('held','active') AND workspace_slugs.customer_id IS NOT DISTINCT FROM excluded.customer_id`,[input.slug,input.request_id])
+    if(!slug.rowCount)throw Error('workspace_slug_unavailable')
     await client.query("INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,catalog_version,catalog_tier,package_revision_id,operations_enabled,status) VALUES($1,$2,'saas','shared_managed',$3,$4,$5,NULL,true,'provisioning')",[identity.tenantId,input.name,`shared-${identity.slug}`,version,tier])
     await client.query('INSERT INTO shared_onboardings(request_id,control_tenant_id,issuer,actor_uid,request_digest,admin_name,admin_login,admin_mobile,host,tenant_slug,database_name) VALUES($1,$1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',[input.request_id,actor.issuer,actor.actorUid,identity.digest,input.admin_name,input.admin_login,input.admin_mobile??null,identity.host,identity.slug,identity.database])
     await client.query('INSERT INTO audit_events(id,actor,action,subject,reason) VALUES($1,$2,$3,$4,$5)',[randomUUID(),actorLabel(actor),'shared_onboarding.reserved',identity.tenantId,input.reason])

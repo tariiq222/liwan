@@ -10,15 +10,17 @@ import { mailAdapterFromEnv } from '../commercial/mail-adapter.js'
 import { transaction } from '../db.js'
 import { AuthenticaSmsAdapter } from './authentica.js'
 import { humanCheckFromEnv } from './human-check.js'
+import { signupCompleteSchema, signupResendSchema, signupStatusRequestSchema, signupVerifySchema, slugCheckSchema } from '@liwan/commercial-contracts'
+import { returnOriginFromEnv } from '../commercial/return-origin.js'
 import { SignupService, signupInput, type LegalSettings } from './service.js'
 
 export const isSignupEndpoint = (pathname: string) => pathname.startsWith('/v1/customer/signup/')
-const requestPath = /^\/v1\/customer\/signup\/(terms|offer|start|verify-sms|send-email|verify-email)$/
+const requestPath = /^\/v1\/customer\/signup\/(terms|offer|check-slug|start|resend|verify|complete|status)$/
 // The start body carries a Turnstile token of up to 2048 characters beside the form fields.
 export const SIGNUP_BODY_LIMIT = 4096
-const challenge = z.strictObject({ signup_id: z.uuid() })
+/** The status wait authenticates with the one-time handoff secret `complete` returned. */
+export const HANDOFF_HEADER = 'x-liwan-signup-handoff'
 const noBody = z.strictObject({})
-const verification = challenge.extend({ code: z.string().regex(/^[0-9]{6}$/) })
 
 // The legal pages live on the marketing site: an https base URL with no query, fragment or trailing slash, and the
 // version string the vendor bumps whenever the texts change. Both are required, so a sign-up never starts without terms.
@@ -47,6 +49,7 @@ export function signupFromEnv(pool: Pool, secret: string | undefined, env: NodeJ
   const mail = mailAdapterFromEnv(env, 8_000)
   return new SignupService(pool, { secret, planId: plan.data, dailyLimit, legal, humanCheck,
     paused: env.LIWAN_SIGNUP_ENROLLMENT_PAUSED === 'true',
+    returnOrigin: returnOriginFromEnv(pool, env) ?? undefined,
     sms: (mobile, code) => sms.send(mobile, code),
     email: async (email, code) => {
       const result = await mail.send({
@@ -78,11 +81,17 @@ export async function signupHttp(pool: Pool, config: { issuer?: string; key?: st
     return { status: 200, data: service.terms() }
   }
   if (match[1] === 'start') return { status: 201, data: await service.start(parseBody(input.raw, signupInput), ip) }
-  if (match[1] === 'send-email') {
-    const { signup_id } = parseBody(input.raw, challenge)
-    return { status: 200, data: await service.sendEmail(signup_id, ip) }
+  if (match[1] === 'check-slug') return { status: 200, data: { result: await service.checkSlug(parseBody(input.raw, slugCheckSchema).slug, ip) } }
+  if (match[1] === 'resend') {
+    const { signup_id, channel } = parseBody(input.raw, signupResendSchema)
+    return { status: 200, data: await service.resend(signup_id, channel, ip) }
   }
-  const { signup_id, code } = parseBody(input.raw, verification)
-  const data = match[1] === 'verify-sms' ? await service.verifySms(signup_id, code) : await service.verifyEmail(signup_id, code)
-  return { status: 200, data }
+  if (match[1] === 'verify') {
+    const { signup_id, channel, code } = parseBody(input.raw, signupVerifySchema)
+    return { status: 200, data: await service.verify(signup_id, channel, code) }
+  }
+  if (match[1] === 'complete') return { status: 200, data: await service.complete(parseBody(input.raw, signupCompleteSchema).signup_id) }
+  const { signup_id } = parseBody(input.raw, signupStatusRequestSchema)
+  const secret = input.headers[HANDOFF_HEADER]
+  return { status: 200, data: await service.status(signup_id, typeof secret === 'string' ? secret : undefined) }
 }

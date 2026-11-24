@@ -16,7 +16,7 @@ const suite=url?describe:describe.skip
 suite('real shared onboarding SQL identity and fail-closed publication',()=>{
   const pool=new Pool({connectionString:url})
   const actor={issuer:vendorActorIssuer(`onboarding-${randomUUID()}`),actorUid:7}
-  const input={request_id:randomUUID(),name:'First tenant',catalog_version:`onboarding-${randomUUID()}`,catalog_tier:'projects',admin_name:'First administrator',admin_login:'first@example.test',reason:'First scratch tenant'}
+  const input={request_id:randomUUID(),name:'First tenant',catalog_version:`onboarding-${randomUUID()}`,catalog_tier:'projects',admin_name:'First administrator',admin_login:'first@example.test',slug:`first${randomUUID().replaceAll('-','').slice(0,12)}`,reason:'First scratch tenant'}
   let config:any
   beforeAll(async()=>{
     vi.stubEnv('LIWAN_TENANCY_MODE','shared')
