@@ -32,7 +32,8 @@ import time
 from tools.shared_saas_lifecycle.effect_schema import SchemaError, validate
 
 EFFECTS = {name: 'tools.shared_saas_lifecycle.' + name for name in (
-    'odoo_effect', 'odoo_backup', 'subscription_effect', 'admin_password_effect', 'tenant_status_effect', 'tenant_drop_effect')}
+    'odoo_effect', 'odoo_backup', 'subscription_effect', 'admin_password_effect', 'tenant_status_effect', 'tenant_drop_effect',
+    'tenant_storage_effect')}
 
 MAX_REQUEST = 65536
 MAX_HEAD_LINE = 1024
@@ -53,7 +54,7 @@ CHILD_ENV = ('PATH', 'HOME', 'LANG', 'LC_ALL', 'TMPDIR', 'DOCKER_HOST', 'DOCKER_
              'LIWAN_RELEASE_ROUTES_DIR', 'LIWAN_RELEASE_HELPER_POOL_ID')
 DEFAULT_PATH = '/usr/bin:/bin'
 EFFECT_STATE_DIRS = ('reservations', 'credentials', 'classifications', 'restore-effects', 'reconfigure',
-                     'runtime-gate-history', 'backups')
+                     'runtime-gate-history', 'tenant-storage', 'backups')
 
 
 class Refusal(Exception):

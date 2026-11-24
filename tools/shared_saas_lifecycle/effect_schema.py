@@ -244,10 +244,16 @@ TENANT_DROP_EFFECT = shape(
          'restoreCopies': list_of(SCRATCH_DATABASE, unique=True), 'backupIds': list_of(UUID, unique=True)})},
     {'dryRun': boolean})
 
+# Resource names are never in the request: the effect derives them from `tenantId`. `requestId` is the id of one run (a fresh uuid per run).
+TENANT_STORAGE_EFFECT = shape(
+    {'schemaVersion': literal(1), 'operation': literal('ensure', 'verify', 'rotate'), 'tenantId': TENANT_ID,
+     'database': RESOURCE, 'requestId': UUID},
+    {'releaseBinding': BINDING})
+
 SCHEMAS = {
     'odoo_effect': ODOO_EFFECT, 'odoo_backup': odoo_backup, 'subscription_effect': subscription_effect,
     'admin_password_effect': ADMIN_PASSWORD_EFFECT, 'tenant_status_effect': TENANT_STATUS_EFFECT,
-    'tenant_drop_effect': TENANT_DROP_EFFECT,
+    'tenant_drop_effect': TENANT_DROP_EFFECT, 'tenant_storage_effect': TENANT_STORAGE_EFFECT,
 }
 
 

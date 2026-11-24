@@ -595,6 +595,12 @@ def drop_request(**over):
     return request
 
 
+def storage_request(**over):
+    request = {'schemaVersion': 1, 'operation': 'ensure', 'tenantId': 'acme', 'database': 'liwan_acme', 'requestId': UUID_A}
+    request.update(over)
+    return request
+
+
 def at(request, path, value):
     """A deep copy of the request with the value at `path` replaced (a key of None removes it)."""
     copy = json.loads(json.dumps(request))
@@ -639,6 +645,8 @@ IDENTIFIER_FIELDS = [
     ('tenant_drop_effect', drop_request, path) for path in (
         ('planDigest',), ('plan', 'requestId'), ('plan', 'controlTenantId'), ('plan', 'tenantId'), ('plan', 'database'), ('plan', 'filestore'),
         ('plan', 'host'), ('plan', 'controlPlaneDatabase'), ('plan', 'restoreCopies', 0), ('plan', 'backupIds', 0), ('action',))
+] + [
+    ('tenant_storage_effect', storage_request, path) for path in (('tenantId',), ('database',), ('requestId',), ('operation',), ('schemaVersion',))
 ]
 
 VALID = [
@@ -661,6 +669,8 @@ VALID = [
 ] + [('tenant_drop_effect', drop_request(action=stage)) for stage in schema.DROP_STAGES] + [
     ('tenant_drop_effect', drop_request(action='drop_database', dryRun=True)),
     ('tenant_drop_effect', at(drop_request(), ('dryRun',), DELETE)),
+] + [('tenant_storage_effect', storage_request(operation=operation)) for operation in ('ensure', 'verify', 'rotate')] + [
+    ('tenant_storage_effect', storage_request(releaseBinding={'tenantId': 'acme', 'database': 'liwan_acme', 'filestore': 'liwan_acme', 'registryRevision': 1})),
 ]
 
 
@@ -705,7 +715,8 @@ class RequestSchemaTests(unittest.TestCase):
     def test_an_unknown_top_level_or_nested_key_is_refused(self):
         for effect, build in (('odoo_effect', provision_request), ('odoo_backup', backup_request), ('odoo_backup', restore_request),
                               ('subscription_effect', subscription_request), ('admin_password_effect', password_request),
-                              ('tenant_status_effect', status_request), ('tenant_drop_effect', drop_request)):
+                              ('tenant_status_effect', status_request), ('tenant_drop_effect', drop_request),
+                              ('tenant_storage_effect', storage_request)):
             with self.subTest(effect=effect):
                 self.refuses(effect, {**build(), 'extra': 1})
                 self.refuses(effect, {**build(), 'config': {}})
@@ -723,7 +734,8 @@ class RequestSchemaTests(unittest.TestCase):
                                     ('odoo_backup', backup_request, ('authority',)), ('odoo_backup', restore_request, ('authority', 'targetDatabase')),
                                     ('subscription_effect', subscription_request, ('tenant',)), ('subscription_effect', subscription_request, ('attemptId',)),
                                     ('admin_password_effect', password_request, ('password',)), ('tenant_status_effect', status_request, ('reason',)),
-                                    ('tenant_drop_effect', drop_request, ('plan',))):
+                                    ('tenant_drop_effect', drop_request, ('plan',)), ('tenant_storage_effect', storage_request, ('operation',)),
+                                    ('tenant_storage_effect', storage_request, ('requestId',))):
             with self.subTest(effect=effect, path=path):
                 self.refuses(effect, at(build(), path, DELETE))
         reconfigure = subscription_request()
@@ -748,12 +760,20 @@ class RequestSchemaTests(unittest.TestCase):
                 ('tenant_status_effect', status_request, ('status',), 'deleted'), ('tenant_status_effect', status_request, ('reason',), 'because'),
                 ('tenant_drop_effect', drop_request, ('dryRun',), 'false'), ('tenant_drop_effect', drop_request, ('dryRun',), 0),
                 ('tenant_drop_effect', drop_request, ('plan', 'schemaVersion'), 2), ('tenant_drop_effect', drop_request, ('plan', 'restoreCopies'), 'x'),
-                ('tenant_drop_effect', drop_request, ('action',), 'drop_everything')):
+                ('tenant_drop_effect', drop_request, ('action',), 'drop_everything'),
+                ('tenant_storage_effect', storage_request, ('operation',), 'drop'), ('tenant_storage_effect', storage_request, ('schemaVersion',), 2),
+                ('tenant_storage_effect', storage_request, ('tenantId',), '../acme'), ('tenant_storage_effect', storage_request, ('tenantId',), 'Acme'),
+                ('tenant_storage_effect', storage_request, ('requestId',), 'not-a-uuid')):
             with self.subTest(effect=effect, path=path, value=value):
                 self.refuses(effect, at(build(), path, value))
         self.refuses('odoo_effect', [])
         self.refuses('odoo_effect', 'x')
         self.refuses('odoo_backup', {})
+
+    def test_tenant_storage_request_cannot_name_a_resource(self):
+        for key in ('bucket', 'bucketName', 'user', 'policy', 'endpointUrl', 'keyId'):
+            with self.subTest(key=key):
+                self.refuses('tenant_storage_effect', {**storage_request(), key: 'lw-0123456789abcdef01234567'})
 
     def test_oversize_values_are_refused(self):
         for effect, build, path, value in (
@@ -827,9 +847,9 @@ class GateRequestSchemaTests(GateCase):
 
 
 class EntryPointTests(unittest.TestCase):
-    def test_effect_map_is_exactly_the_six_modules(self):
+    def test_effect_map_is_exactly_the_seven_modules(self):
         self.assertEqual(sorted(gate.EFFECTS), ['admin_password_effect', 'odoo_backup', 'odoo_effect', 'subscription_effect',
-                                                'tenant_drop_effect', 'tenant_status_effect'])
+                                                'tenant_drop_effect', 'tenant_status_effect', 'tenant_storage_effect'])
         for name, module in gate.EFFECTS.items():
             self.assertEqual(module, 'tools.shared_saas_lifecycle.' + name)
             self.assertTrue((Path(__file__).parent / (name + '.py')).is_file())

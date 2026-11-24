@@ -16,6 +16,8 @@ import { processJobRecoveries } from './shared/job-recovery.js'
 import { processJobAbandonments } from './shared/job-abandon.js'
 import { onShutdownSignal } from './shutdown.js'
 import { createDeletionEffects } from './shared/tenant-deletion-effects-runner.js'
+import { createTenantStorageRunner } from './shared/tenant-storage-runner.js'
+import { runTenantStorageLoop } from './shared/tenant-storage.js'
 import { logText } from './log-text.js'
 import { startWorkerHeartbeat,recordAvailability,type AvailabilityComponent } from './service-health.js'
 import { telegramSenderFromEnv } from './commercial/telegram-adapter.js'
@@ -26,6 +28,7 @@ attachPoolErrorHandler(pool)
 const controller=new AbortController()
 onShutdownSignal(()=>controller.abort())
 let scheduler:ReturnType<typeof createCommercialScheduler>|undefined
+let storageLoop:Promise<void>|undefined
 try{
   await migrate(pool)
   const startedAt=new Date()
@@ -59,6 +62,8 @@ try{
   scheduler=createCommercialScheduler({pool,config,env:process.env,paymentAdapter,mailAdapter,telegramSender:telegramSender??undefined,subscriptionRunner:adapter.subscriptionRunner,usageRunner:adapter.observeUsage,tenantStatusRunner:adapter.setTenantStatus,tenantDeletionEffects:createDeletionEffects(config,loadSharedRuntimeConfig(config.sharedRuntimeConfigPath!),controller.signal),signal:controller.signal})
   const log=(message:string,error?:unknown)=>console.error('%s %s',logText(message),logText(error instanceof Error?error.stack??error.message:error,2000))
   const isStopping=()=>controller.signal.aborted
+  // Per-tenant object storage (bucket, key, fs.storage): off unless the operator turns it on, and only for SaaS tenants.
+  const storageRunner=config.tenantStorageEnabled?createTenantStorageRunner(pool,config):undefined
   const maintenance:MaintenanceStep[]=[
     {name:'job-recoveries',run:()=>processJobRecoveries(pool,adapter,{log})},
     {name:'job-abandonments',run:()=>processJobAbandonments(pool,adapter,{log})},
@@ -66,5 +71,7 @@ try{
     {name:'commercial-scheduler',run:()=>scheduler!.tick()},
     {name:'restore-publication',run:()=>dispatchRestorePublication(pool,loadSharedRuntimeConfig(config.sharedRuntimeConfigPath!),adapter,{runner:adapter.observeRestoreSubscription})},
   ]
+  // Its own loop, beside the job loop: a storage run can last minutes and must not hold back a backup, a restore or a reconfiguration.
+  if(storageRunner)storageLoop=runTenantStorageLoop(pool,storageRunner,{signal:controller.signal,log})
   await runSharedWorker({pool,adapter,signal:controller.signal,afterDispatch:createMaintenanceRunner(maintenance,{isStopping,log,now:Date.now})})
-}finally{await scheduler?.usageIdle().catch(()=>{});await pool.end()}
+}finally{controller.abort();await storageLoop?.catch(()=>{});await scheduler?.usageIdle().catch(()=>{});await pool.end()}

@@ -35,6 +35,7 @@ export const AUDIT_ACTIONS = [
   'tenant_deletion.card_not_deleted', 'tenant_deletion.code_invalidated', 'tenant_deletion.code_sent', 'tenant_deletion.committed', 'tenant_deletion.confirmed', 'tenant_deletion.deleted',
   'tenant_deletion.deleting', 'tenant_deletion.due', 'tenant_deletion.hold_extended', 'tenant_deletion.hold_rearmed', 'tenant_deletion.hold_rearmed_after_restore', 'tenant_deletion.marker_stamped',
   'tenant_deletion.plan_refrozen', 'tenant_deletion.requested', 'tenant_deletion.returned_to_hold_after_restore', 'tenant_deletion.stuck', 'tenant_deletion.withdrawn',
+  'tenant_storage.requested',
   'trial.conversion_reverted', 'trial.converted', 'trial.ended', 'trial.enrolled', 'trial.expiry_push_failed', 'trial.extended', 'trial.lapsed', 'trial.policy_bootstrap_queued', 'trial.reopened', 'trial.started',
   'workspace.lookup.mailed',
 ] as const
