@@ -8,7 +8,7 @@ const meta = {
   component: CustomerLinkBlock,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/components/inbox/InboxContactPanel.vue:120', 'العميل المرتبط بسجل (فرصة أو جهة اتصال)، أو إجراء الربط. عند وجود عملاء بالرقم نفسه تظهر خطوة الاختيار: ربط أحدهم أو إنشاء عميل جديد، ولا دمج صامت.'),
+    ...storyContext('apps/web/app/components/inbox/InboxContactPanel.vue:193', 'العميل المرتبط بسجل (فرصة أو جهة اتصال)، أو إجراء الربط. عند وجود عملاء بالرقم نفسه تظهر خطوة الاختيار: ربط أحدهم أو إنشاء عميل جديد، ولا دمج صامت.'),
   },
   args: { customer: null, canLink: true, canOpen: true, candidates: null, onLink: fn(), onDismiss: fn() },
 } satisfies Meta<typeof CustomerLinkBlock>

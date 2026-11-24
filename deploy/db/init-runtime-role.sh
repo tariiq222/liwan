@@ -4,7 +4,7 @@
 # replication or row-security-bypass power. Runs once, on a fresh db_data volume only, before 20-liwan-ai.sh.
 # It may connect to the `postgres` database (Odoo's cron and health probe do); the grant is made to the role
 # itself, so the PUBLIC revoke in 20-liwan-ai.sh leaves it in place. Each tenant database gets its own grants
-# from deploy/releases/postgres.py.
+# from deploy/release/tenant_postgres.py.
 # The password reaches SQL only through psql's \getenv, quoted with format('%L'); it is never put on a command line.
 set -eu
 

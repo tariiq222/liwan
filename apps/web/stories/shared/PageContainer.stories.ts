@@ -19,7 +19,7 @@ const page: Story['render'] = args => ({
   template: `<main class="liwan-shell-main"><PageContainer v-bind="args"><PageHeader :title="t('tasks.title')" /><PageState :empty="true" /></PageContainer></main>`,
 })
 
-export const List: Story = { name: 'صفحة قائمة', parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:48', 'داخل `main.liwan-shell-main` من `apps/web/app/layouts/default.vue:53`.'), render: page }
-export const Detail: Story = { name: 'صفحة تفاصيل', parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:39'), render: page }
-export const Form: Story = { name: 'صفحة نموذج', parameters: storyContext('apps/web/app/pages/projects/[id]/finance/[entryId]/edit.vue:67'), render: page }
-export const Full: Story = { name: 'صفحة سجل بعرض كامل', parameters: storyContext('apps/web/app/pages/ai/index.vue:166', 'بديل `!max-w-none`: صفحة المساعد محادثة تأخذ عرض مساحة العمل كله.'), render: page }
+export const List: Story = { name: 'صفحة قائمة', parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:54', 'داخل `main.liwan-shell-main` من `apps/web/app/layouts/default.vue:53`.'), render: page }
+export const Detail: Story = { name: 'صفحة تفاصيل', parameters: storyContext('packages/ui/app/components/shared/layout/RecordPage.vue:40'), render: page }
+export const Form: Story = { name: 'صفحة نموذج', parameters: storyContext('apps/web/app/pages/projects/[id]/finance/[entryId]/edit.vue:68'), render: page }
+export const Full: Story = { name: 'صفحة سجل بعرض كامل', parameters: storyContext('apps/web/app/pages/ai/index.vue:190', 'بديل `!max-w-none`: صفحة المساعد محادثة تأخذ عرض مساحة العمل كله.'), render: page }

@@ -6,7 +6,7 @@ import { brokenTemplate, readyTemplate } from './salesTemplateFixtures'
 const meta = {
   title: 'Sales/SalesTemplateLines',
   component: SalesTemplateLines,
-  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/settings/apps/sales/templates/[id]/index.vue:82', 'بنود قالب عرض السعر للقراءة: قسم وملاحظة ومنتجات بكمياتها، وعلامة على المنتج الذي لم يعد متاحًا.') },
+  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/settings/apps/sales/templates/[id]/index.vue:79', 'بنود قالب عرض السعر للقراءة: قسم وملاحظة ومنتجات بكمياتها، وعلامة على المنتج الذي لم يعد متاحًا.') },
   args: { lines: readyTemplate.lines },
 } satisfies Meta<typeof SalesTemplateLines>
 export default meta

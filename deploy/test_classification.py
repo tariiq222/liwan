@@ -96,9 +96,9 @@ class TestClassification(unittest.TestCase):
         for name in ('tenant_schema.sql', 'ensure_secrets.sh', 'egress_hosts.sh', 'write_env_secret.sh'):
             shutil.copy(ROOT / 'deploy' / 'ai' / name, deploy / 'ai' / name)
         (deploy / '__init__.py').write_text('')
-        (deploy / 'releases').mkdir()
-        for name in ('__init__.py', 'postgres.py'):
-            shutil.copy(ROOT / 'deploy' / 'releases' / name, deploy / 'releases' / name)
+        (deploy / 'release').mkdir()
+        for name in ('__init__.py', 'tenant_postgres.py'):
+            shutil.copy(ROOT / 'deploy' / 'release' / name, deploy / 'release' / name)
         (deploy / 'odoo').mkdir()
         (deploy / 'odoo/ODOO_COMMIT').write_text('test-pin')
         (deploy / 'odoo.conf').write_text('[options]\n')

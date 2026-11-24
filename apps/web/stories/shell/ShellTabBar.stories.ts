@@ -5,7 +5,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shell/ShellTabBar',
   component: ShellTabBar,
-  parameters: { layout: 'fullscreen', viewport: { defaultViewport: 'mobile1' }, ...storyContext('apps/web/app/components/shell/AppTabBar.vue:22') },
+  parameters: { layout: 'fullscreen', viewport: { defaultViewport: 'mobile1' }, ...storyContext('apps/web/app/components/shell/AppTabBar.vue:26') },
   args: {
     label: 'التنقل السريع',
     items: [

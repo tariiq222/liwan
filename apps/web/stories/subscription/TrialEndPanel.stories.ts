@@ -22,7 +22,7 @@ const preview = trialEndPreviewSchema.parse({
 const meta = {
   title: 'Subscription/TrialEndPanel',
   component: TrialEndPanel,
-  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/subscription/index.vue:123') },
+  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/subscription/index.vue:129') },
   args: { preview, bundleNames: { [kept]: 'Projects', [locked]: 'Inbox' }, canManageTeam: true, canOpenDocuments: true, canOpenStorage: true, canReadBranches: true },
 } satisfies Meta<typeof TrialEndPanel>
 export default meta

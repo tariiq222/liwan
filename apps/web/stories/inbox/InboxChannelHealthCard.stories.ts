@@ -6,7 +6,7 @@ import { activeHealth } from './inboxHealthFixtures'
 const meta = {
   title: 'Inbox/InboxChannelHealthCard',
   component: InboxChannelHealthCard,
-  parameters: storyContext('apps/web/app/pages/settings/apps/inbox/channels/[id]/health.vue:65', 'مقاييس رقم واتساب كما أبلغت بها ميتا: الجودة والحد والسعة والاسم، مع شريط حالة الحساب عند وجود مشكلة.'),
+  parameters: storyContext('apps/web/app/pages/settings/apps/inbox/channels/[id]/health.vue:71', 'مقاييس رقم واتساب كما أبلغت بها ميتا: الجودة والحد والسعة والاسم، مع شريط حالة الحساب عند وجود مشكلة.'),
   args: { health: activeHealth },
 } satisfies Meta<typeof InboxChannelHealthCard>
 export default meta

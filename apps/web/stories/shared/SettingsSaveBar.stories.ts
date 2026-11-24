@@ -27,7 +27,7 @@ const meta = {
   parameters: {
     layout: 'fullscreen',
     a11y: { test: 'error' },
-    ...storyContext('packages/ui/app/components/shared/layout/SettingsPage.vue:15', 'شريط حفظ واحد أسفل صفحة الإعدادات: يظهر حين يكون في الصفحة بطاقة غير محفوظة، ويعدّها، ويحفظ المعدّل كله بضغطة أو يرجعها كلها بضغطة. خطأ كل بطاقة يبقى داخلها.'),
+    ...storyContext('packages/ui/app/components/shared/layout/SettingsPage.vue:26', 'شريط حفظ واحد أسفل صفحة الإعدادات: يظهر حين يكون في الصفحة بطاقة غير محفوظة، ويعدّها، ويحفظ المعدّل كله بضغطة أو يرجعها كلها بضغطة. خطأ كل بطاقة يبقى داخلها.'),
   },
 } satisfies Meta<typeof SettingsSaveBar>
 export default meta

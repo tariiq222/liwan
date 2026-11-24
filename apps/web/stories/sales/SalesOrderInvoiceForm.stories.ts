@@ -11,7 +11,7 @@ const refused = (status: number, body: object) => http.post('/api/v1/sales/order
 const meta = {
   title: 'Sales/SalesOrderInvoiceForm',
   component: SalesOrderInvoiceForm,
-  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/sales/[id].vue:164', 'إنشاء فاتورة مسودة من طلب مؤكد: الطلب كله أو دفعة مقدمة بنسبة أو بمبلغ، ولا يُعرض إلا ما يسمح به الخادم.'), msw: { handlers: { api: [made] } } },
+  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/sales/[id].vue:171', 'إنشاء فاتورة مسودة من طلب مؤكد: الطلب كله أو دفعة مقدمة بنسبة أو بمبلغ، ولا يُعرض إلا ما يسمح به الخادم.'), msw: { handlers: { api: [made] } } },
   args: { order, invoicing: orderReadyToInvoice },
 } satisfies Meta<typeof SalesOrderInvoiceForm>
 export default meta

@@ -16,7 +16,7 @@ import re
 import signal
 import sys
 
-from deploy.releases.postgres import POSTGRES_ADMIN_ROLE
+from deploy.release.tenant_postgres import POSTGRES_ADMIN_ROLE
 from tools.shared_saas_lifecycle import odoo_effect
 from tools.shared_saas_lifecycle.odoo_effect import EffectError, MAX_OUTPUT
 

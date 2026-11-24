@@ -21,7 +21,7 @@ from tools.shared_saas_lifecycle.odoo_effect import (
     require_new_target, verified_observation, MAX_OUTPUT, OBSERVE_CONTAINER, classify_error,
     install_termination_handler, ignore_termination, block_termination_signals, TERMINATION_SIGNALS, STREAM_REFUSALS, release_routes_enabled, effect_operation, TENANT_DB_ROLE, AI_TENANT_SCHEMA,
 )
-from deploy.releases.postgres import POSTGRES_ADMIN_ROLE, identifier, tenant_bootstrap_sql, tenant_create_database_sql, tenant_isolation_sql
+from deploy.release.tenant_postgres import POSTGRES_ADMIN_ROLE, identifier, tenant_bootstrap_sql, tenant_create_database_sql, tenant_isolation_sql
 AI_ROLE = 'liwan_ai'
 RESTART_TIMEOUT = 30  # the restart after a failure or a termination; with the 25 s cancel it fits the gate's 60 s grace
 MAX_ARCHIVE = 2 * 1024 * 1024 * 1024

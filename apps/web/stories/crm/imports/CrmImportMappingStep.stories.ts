@@ -6,7 +6,7 @@ import { columns, profiles, sources } from './crmImportFixtures'
 const meta = {
   title: 'CRM/CrmImportMappingStep',
   component: CrmImportMappingStep,
-  parameters: storyContext('apps/web/app/components/crm/imports/CrmImportFlow.vue:161', 'ربط أعمدة الملف بالبيانات، والمصدر، والمسؤول عند التوزيع عند الاستيراد.'),
+  parameters: storyContext('apps/web/app/components/crm/imports/CrmImportFlow.vue:164', 'ربط أعمدة الملف بالبيانات، والمصدر، والمسؤول عند التوزيع عند الاستيراد.'),
   args: {
     columns, profiles: [], sources, agentMode: 'none', packageLabel: 'باقة',
     mapping: { name: 'الاسم', phone: 'الهاتف' }, profileId: null, sourceId: undefined, agentId: null, saveProfile: false, profileName: '',

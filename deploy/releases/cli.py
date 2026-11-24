@@ -5,7 +5,8 @@ from pathlib import Path
 import sys
 
 from .engine import ReleaseEngine
-from .manifest import NAME, classify_release, load_manifest, manifest_digest
+from deploy.release.manifest import NAME
+from .manifest import classify_release, load_manifest, manifest_digest
 from .runtime import LocalRuntime
 from .state import ReleaseState, safe_directory, sync_directory, validate_route
 

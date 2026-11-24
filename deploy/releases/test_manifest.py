@@ -4,22 +4,8 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from .manifest import classify_release, load_manifest, validate_manifest
-
-
-def release(**changes):
-    value = {
-        'releaseId': 'r20261016', 'liwanCommit': '1' * 40, 'odooCommit': '2' * 40,
-        'images': {'odoo': 'liwan/odoo@sha256:' + 'a' * 64, 'web': 'liwan/web@sha256:' + 'b' * 64},
-        'assetsId': 'assets-1', 'moduleVersions': {}, 'upgradeModules': [], 'installModules': [],
-        'mode': 'online', 'affectedServices': ['web'], 'aiStateVersion': '1',
-        'compatibilityEvidence': {'reviewer': 'owner', 'reference': 'review-42',
-            'apiCompatible': True, 'sessionCompatible': True, 'concurrentWritesCompatible': True,
-            'jobsCompatible': True, 'aiCompatible': True},
-        'rollbackPolicy': {'oldWritesCompatible': True},
-    }
-    value.update(changes)
-    return value
+from deploy.release.test_manifest import release
+from .manifest import classify_release, load_manifest
 
 
 class ManifestTests(unittest.TestCase):
@@ -32,20 +18,7 @@ class ManifestTests(unittest.TestCase):
             with self.assertRaises(TypeError):
                 result['images']['web'] = 'mutable:latest'
 
-    def test_online_rejects_module_operations(self):
-        for operation in ('upgradeModules', 'installModules'):
-            with self.subTest(operation=operation), self.assertRaises(ValueError):
-                validate_manifest(release(**{operation: ['liwan_core']}))
-
-    def test_rejects_mutable_images_and_missing_evidence(self):
-        for patch in ({'images': {'odoo': 'odoo:latest', 'web': 'web:latest'}},
-                      {'compatibilityEvidence': {}}, {'releaseId': '../secret'}):
-            with self.subTest(patch=patch), self.assertRaises(ValueError):
-                validate_manifest(release(**patch))
-
-    def test_rejects_unknown_fields_and_duplicate_json_keys(self):
-        with self.assertRaises(ValueError):
-            validate_manifest(release(password='secret'))
+    def test_rejects_duplicate_json_keys(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'release.json'
             path.write_text('{"releaseId":"a","releaseId":"b"}')
@@ -114,10 +87,6 @@ class ManifestTests(unittest.TestCase):
             value = release(moduleVersions={'liwan_a': '19.0.1.0.0'}, affectedServices=['odoo'])
             value['compatibilityEvidence']['reviewedPaths'] = [prefix + 'models/a.py']
             self.assertFalse(self.classify(before, after, value)['eligible'])
-
-    def test_manifest_versions_cover_every_declared_module(self):
-        with self.assertRaises(ValueError):
-            validate_manifest(release(mode='tenant_maintenance', upgradeModules=['liwan_a']))
 
     def test_stock_odoo_versions_match_the_canonical_installed_version(self):
         files = {'odoo/addons/base/__manifest__.py': "{'version':'1.3','depends':[]}",

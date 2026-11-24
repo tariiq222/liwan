@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 from . import backup
 from .backup import Deadline, capture_tenant, capture_window, validate_backup, restore_tenant
-from .postgres import tenant_create_database_sql
+from deploy.release.tenant_postgres import tenant_create_database_sql
 
 
 class BackupTests(unittest.TestCase):

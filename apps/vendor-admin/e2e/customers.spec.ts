@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
-import { expectNoSecondH1, fitsWidth, login, mobileRows, navigateClient, open, rows } from './commercial-helpers'
+import { expectNoSecondH1, fitsWidth, hydrated, login, mobileRows, navigateClient, open, rows } from './commercial-helpers'
 
 const fixtures = JSON.parse(readFileSync(new URL('./commercial-fixtures.json', import.meta.url), 'utf8'))
 const GROWTH = fixtures.plans.items[0]
@@ -150,6 +150,10 @@ test.describe('Plan 6e: vendor customers', () => {
     test('a customer with no subscription starts a paid one from its own page and a retry keeps the same order key', async ({ page }) => {
       const { quotes, orders } = await mockOrderFlow(page, [PAID_PLAN], [{ status: 503, body: { code: 'vendor_unavailable', message: 'down' } }, { status: 200, body: { id: 'order-1' } }])
       await open(page, '/customers/cust-gamma?tab=subscription')
+      // An early click would follow the button's href (full navigation) and render /change server-side
+      // against mock-control plans, which an initial customer filters out; wait for hydration so the
+      // click is a client-side navigation and the plan list comes from the intercepted route.
+      await hydrated(page)
       await page.getByTestId('start-first-subscription').click()
       await expect(page).toHaveURL(/\/customers\/cust-gamma\/change/)
       await expect(page.getByRole('heading', { level: 1 })).toHaveText('ابدأ اشتراكًا مدفوعًا')

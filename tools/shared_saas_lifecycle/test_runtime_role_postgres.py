@@ -14,7 +14,7 @@ import unittest
 import uuid
 
 from deploy.release.databases import snapshot_sql, swap_sql
-from deploy.releases.postgres import (
+from deploy.release.tenant_postgres import (
     ODOO_RUNTIME_ROLE, POSTGRES_ADMIN_ROLE, runtime_role_assertion_sql, tenant_bootstrap_sql, tenant_create_database_sql,
     tenant_isolation_sql,
 )

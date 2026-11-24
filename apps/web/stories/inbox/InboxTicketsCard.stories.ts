@@ -18,7 +18,7 @@ const meta = {
   component: InboxTicketsCard,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/components/inbox/InboxContactPanel.vue:199', 'تذاكر الدعم التي رُفعت من المحادثة: الرقم والعنوان والمرحلة مع رابط التذكرة، ورفع تذكرة جديدة بعنوان واحد عندما لا توجد تذكرة مفتوحة.'),
+    ...storyContext('apps/web/app/components/inbox/InboxContactPanel.vue:207', 'تذاكر الدعم التي رُفعت من المحادثة: الرقم والعنوان والمرحلة مع رابط التذكرة، ورفع تذكرة جديدة بعنوان واحد عندما لا توجد تذكرة مفتوحة.'),
     ...answer([], 'helpdesk.tickets.write').parameters,
   },
   args: { conversationId: 3 },

@@ -5,7 +5,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shell/ShellPanelRow',
   component: ShellPanelRow,
-  parameters: storyContext('apps/web/app/components/notifications/NotificationsPanel.vue:22'),
+  parameters: storyContext('apps/web/app/components/notifications/NotificationsPanel.vue:54'),
   args: { title: 'محمد القحطاني', caption: 'راجعت العرض، تمام', lead: 'م', to: '/chat/1' },
   render: args => ({ components: { ShellPanelRow }, setup: () => ({ args }), template: '<div class="liwan-shell" style="width: 364px; padding: 8px"><ShellPanelRow v-bind="args" /></div>' }),
 } satisfies Meta<typeof ShellPanelRow>

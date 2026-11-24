@@ -20,7 +20,7 @@ import threading
 
 from deploy.releases.helper_runtime import verify_helper_runtime
 from deploy.releases.fencing import ReleaseOperationError, release_routes_enabled, tenant_operation
-from deploy.releases.postgres import (
+from deploy.release.tenant_postgres import (
     ODOO_RUNTIME_ROLE, POSTGRES_ADMIN_ROLE, tenant_bootstrap_sql, tenant_create_database_sql, tenant_isolation_sql,
 )
 
@@ -430,7 +430,7 @@ class Runner:
         # Odoo would create the database itself on `-d`, open to every role through PUBLIC. Create it
         # here instead, close it to PUBLIC, and only then let Odoo install into the existing empty
         # database (it initializes any database without ir_module_module). The creation recipe is
-        # Odoo's own (deploy/releases/postgres.py). Any failure raises and the job fails before the
+        # Odoo's own (deploy/release/tenant_postgres.py). Any failure raises and the job fails before the
         # install runs.
         self.psql(tenant_create_database_sql(self.database) + ';\n'
                   + tenant_isolation_sql(self.database, TENANT_DB_ROLE))

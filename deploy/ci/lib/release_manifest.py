@@ -4,11 +4,11 @@
 The document is one JSON file, ``/release.json``, the only file of the scratch image
 ``ghcr.io/tariiq222/liwan-release:<commit>``::
 
-    {"schemaVersion": 1, "commit": "<40 hex>", "release": <deploy/releases/manifest.py document>,
+    {"schemaVersion": 1, "commit": "<40 hex>", "release": <deploy/release/manifest.py document>,
      "images": {"<reference>": "ghcr.io/tariiq222/<reference>@sha256:<digest>", ...},
      "platforms": {"<reference>": {"linux/arm64": "sha256:<digest>", ...}, ...}}
 
-``release`` is validated by ``deploy.releases.manifest`` before anything is printed. The release
+``release`` is validated by ``deploy.release.manifest`` before anything is printed. The release
 manifest format has fields a reviewer normally fills in, which CI cannot judge, so this document
 is conservative: mode ``infrastructure_maintenance``, every LiwanOS module listed for upgrade, and
 compatibility evidence that names this workflow run, not a human review. ``images`` carries every
@@ -38,7 +38,7 @@ import re
 import sys
 from pathlib import Path
 
-from deploy.releases.manifest import validate_manifest
+from deploy.release.manifest import validate_manifest
 
 ROOT = Path(__file__).resolve().parents[3]
 SCHEMA_VERSION = 1

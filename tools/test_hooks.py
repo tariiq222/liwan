@@ -26,6 +26,11 @@ class TestHooks(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertEqual(names([path])[3:], ['ui_policy', 'no_external_refs'])
 
+    def test_root_dependency_files_add_ui_policy_only(self):
+        for path in ('package.json', 'package-lock.json'):
+            with self.subTest(path=path):
+                self.assertEqual(names([path])[3:], ['ui_policy'])
+
     def test_addon_python_adds_ruff_on_those_files_only(self):
         steps = dict(plan_pre_commit(['odoo-addons/liwan_hr/a.py', 'tools/x.py', 'docs/a.md']))
         self.assertEqual(steps['ruff'], ['ruff', 'check', 'odoo-addons/liwan_hr/a.py'])

@@ -13,7 +13,7 @@ import shutil
 import time
 
 from deploy.releases.backup import capture_tenant, validate_backup, restore_tenant
-from deploy.releases.postgres import identifier, runtime_role_fixture, validate_runtime_role, fence_runtime
+from deploy.release.tenant_postgres import identifier, runtime_role_fixture, validate_runtime_role, fence_runtime
 
 ATTACHMENT = b'LiwanOS isolated PostgreSQL infrastructure acceptance attachment\n'
 CHECKS = ('role_valid', 'public_connect_rejected', 'membership_rejected',

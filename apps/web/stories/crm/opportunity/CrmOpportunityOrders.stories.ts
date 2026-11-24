@@ -8,7 +8,7 @@ const rows = [orders[0]!, orders[1]!, orders[2]!]
 const meta = {
   title: 'CRM/CrmOpportunityOrders',
   component: CrmOpportunityOrders,
-  parameters: storyContext('apps/web/app/pages/crm/opportunities/[id].vue:390', 'عروض الأسعار والطلبات على الفرصة (جسر مع المبيعات): الرقم برابط صفحته والحالة والإجمالي والمندوب، وإجراء كتابة عرض سعر للعميل المربوط بالفرصة.'),
+  parameters: storyContext('apps/web/app/pages/crm/opportunities/[id].vue:389', 'عروض الأسعار والطلبات على الفرصة (جسر مع المبيعات): الرقم برابط صفحته والحالة والإجمالي والمندوب، وإجراء كتابة عرض سعر للعميل المربوط بالفرصة.'),
   args: { orders: rows, total: rows.length, canWrite: true, blocked: null, onCreate: fn(), onRetry: fn() },
 } satisfies Meta<typeof CrmOpportunityOrders>
 export default meta

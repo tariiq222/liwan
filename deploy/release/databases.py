@@ -6,7 +6,7 @@ import os
 import shutil
 from pathlib import Path
 
-from deploy.releases.postgres import identifier
+from deploy.release.tenant_postgres import identifier
 
 
 def literal(value: str) -> str:

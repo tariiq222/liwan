@@ -14,7 +14,7 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
-  parameters: storyContext('apps/web/app/pages/hr/onboarding/[runId].vue:2'),
+  parameters: storyContext('apps/web/app/pages/hr/onboarding/[runId].vue:59'),
   render: args => ({ components: { RunSteps, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer><RunSteps v-bind="args" /></PageContainer></main>' }),
 }
 

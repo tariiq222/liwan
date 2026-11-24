@@ -25,7 +25,7 @@ const meta = {
   component: PayrollRunActions,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/hr/payroll/[runId]/index.vue:204', 'إجراءات المسير أسفل رأس الصفحة: احتساب، واعتماد وإلغاء وترحيل بتأكيد مضمّن، وتسجيل الصرف، وتبقى الأزرار معلّقة حتى يردّ الخادم.'),
+    ...storyContext('apps/web/app/pages/hr/payroll/[runId]/index.vue:210', 'إجراءات المسير أسفل رأس الصفحة: احتساب، واعتماد وإلغاء وترحيل بتأكيد مضمّن، وتسجيل الصرف، وتبقى الأزرار معلّقة حتى يردّ الخادم.'),
   },
   args: { run, pending: null },
   render: args => ({

@@ -5,7 +5,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Launcher/LauncherRow',
   component: LauncherRow,
-  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/apps/index.vue:28', 'صف تطبيق في «كل التطبيقات»: البلاطة والاسم والوصف وتثبيت في القائمة الجانبية وزر الفتح.') },
+  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/pages/apps/index.vue:27', 'صف تطبيق في «كل التطبيقات»: البلاطة والاسم والوصف وتثبيت في القائمة الجانبية وزر الفتح.') },
   args: {
     card: { id: 'projects', labelKey: 'nav.projects', icon: 'i-lucide-folder-kanban', to: '/projects', pinnable: true, category: 'team', plan: 'addon', surface: 'indigo', figures: [] },
     description: 'مساحة واحدة لمتابعة المشاريع وحالتها والخطوة التالية.',

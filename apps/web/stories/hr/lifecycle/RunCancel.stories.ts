@@ -16,12 +16,12 @@ type Story = StoryObj<typeof meta>
 
 export const Cancellable: Story = {
   name: 'قابلة للإلغاء',
-  parameters: storyContext('apps/web/app/pages/hr/onboarding/[runId].vue:56'),
+  parameters: storyContext('apps/web/app/pages/hr/onboarding/[runId].vue:57'),
 }
 
 export const Cancelled: Story = {
   name: 'ملغاة',
-  parameters: storyContext('apps/web/app/pages/hr/offboarding/[employeeId].vue:134'),
+  parameters: storyContext('apps/web/app/pages/hr/offboarding/[employeeId].vue:183'),
   args: {
     namespace: 'hrOffboarding',
     run: { ...run, state: 'cancelled', can_cancel: false, cancellation: { by: { id: 7, name: 'Huda' }, on: '2026-10-28T09:30:00Z', reason: 'أُطلقت الخطة لموظف آخر بالخطأ' } },

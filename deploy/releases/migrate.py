@@ -9,9 +9,9 @@ import importlib.util
 import os
 from pathlib import Path
 import shutil
+from deploy.release.manifest import validate_manifest
+from deploy.release.tenant_postgres import identifier
 from .backup import _path, _tool, _run, _quiescent
-from .manifest import validate_manifest
-from .postgres import identifier
 
 MARKER = 'LIWAN_RELEASE_OBSERVATION='
 PROFILE_FIELDS = {'commercial_mode', 'entitlement_source', 'status', 'root_company_id'}

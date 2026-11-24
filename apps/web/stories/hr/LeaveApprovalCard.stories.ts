@@ -13,7 +13,7 @@ const process: NonNullable<HrLeaveApprovalProcess['process']> = {
 const approval: HrLeaveApprovalProcess = { process, href: '/settings/apps/operations/processes/2', can_manage: true }
 const meta = {
   title: 'HR/LeaveApprovalCard', component: LeaveApprovalCard,
-  parameters: { ...storyContext('apps/web/app/pages/settings/apps/hr/index.vue:178', 'مراحل اعتماد الإجازات كما تقرؤها بطاقة إعدادات الموارد البشرية من مسار العمليات؛ التعديل في محرر العمليات.') },
+  parameters: { ...storyContext('apps/web/app/pages/settings/apps/hr/index.vue:216', 'مراحل اعتماد الإجازات كما تقرؤها بطاقة إعدادات الموارد البشرية من مسار العمليات؛ التعديل في محرر العمليات.') },
   args: { approval },
 } satisfies Meta<typeof LeaveApprovalCard>
 export default meta

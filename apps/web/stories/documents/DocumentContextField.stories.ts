@@ -11,7 +11,7 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 export const Default: Story = {
-  parameters: storyContext('apps/web/app/components/documents/DocumentMetadataFields.vue:34'),
+  parameters: storyContext('apps/web/app/components/documents/DocumentMetadataFields.vue:35'),
   render: args => ({ components: { DocumentContextField, PageContainer }, setup: () => ({ args }), template: '<main class="liwan-shell-main"><PageContainer><DocumentContextField v-bind="args" /></PageContainer></main>' }),
 }
 

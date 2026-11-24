@@ -5,7 +5,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shell/ShellOrgCard',
   component: ShellOrgCard,
-  parameters: storyContext('apps/web/app/components/shell/AppSidebar.vue:58'),
+  parameters: storyContext('apps/web/app/components/shell/AppSidebar.vue:73'),
   args: { name: 'شركة الندى للتجارة', initial: 'ن' },
   render: args => ({ components: { ShellOrgCard }, setup: () => ({ args }), template: '<div class="liwan-shell" style="width: 264px; padding: 14px"><ShellOrgCard v-bind="args" /></div>' }),
 } satisfies Meta<typeof ShellOrgCard>

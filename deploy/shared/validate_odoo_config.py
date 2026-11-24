@@ -21,7 +21,7 @@ MAX_DB_MAXCONN = 8
 # Odoo's limit_memory_* options are in bytes, so the ceilings are too.
 MAX_LIMIT_MEMORY_SOFT = 640 * 1024 * 1024
 MAX_LIMIT_MEMORY_HARD = 800 * 1024 * 1024
-# The tooling-only superuser of the cluster (`deploy/releases/postgres.py` POSTGRES_ADMIN_ROLE, copied here for
+# The tooling-only superuser of the cluster (`deploy/release/tenant_postgres.py` POSTGRES_ADMIN_ROLE, copied here for
 # the same standalone reason): Odoo never runs as it, so a config naming it is refused.
 POSTGRES_ADMIN_ROLE = "postgres"
 

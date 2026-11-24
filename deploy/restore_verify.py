@@ -31,7 +31,7 @@ SQL_STUCK = "SELECT count(*) FROM ir_module_module WHERE state IN ('to upgrade',
 SQL_ATTACHMENTS = 'SELECT DISTINCT store_fname FROM ir_attachment WHERE store_fname IS NOT NULL ORDER BY 1'
 
 
-RELEASE_POSTGRES = Path(__file__).resolve().parent / 'releases' / 'postgres.py'
+RELEASE_POSTGRES = Path(__file__).resolve().parent / 'release' / 'tenant_postgres.py'
 
 
 def expected_modules() -> list[str]:
@@ -134,7 +134,7 @@ def _conn(pg_host, pg_port, pg_user) -> list[str]:
 
 
 def _tenant_database_sql(database: str, role: str) -> tuple[str, str]:
-    """The create and PUBLIC-closing scripts of deploy/releases/postgres.py, the one source.
+    """The create and PUBLIC-closing scripts of deploy/release/tenant_postgres.py, the one source.
 
     Loaded by path because this file also runs as a script, where ``deploy`` is not a package.
     """

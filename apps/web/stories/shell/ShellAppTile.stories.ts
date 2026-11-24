@@ -5,7 +5,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shell/ShellAppTile',
   component: ShellAppTile,
-  parameters: storyContext('packages/ui/app/components/shell/ShellNavRow.vue:25'),
+  parameters: storyContext('packages/ui/app/components/shell/ShellNavRow.vue:24'),
   args: { icon: 'i-lucide-handshake', app: 'crm', size: 'md' },
 } satisfies Meta<typeof ShellAppTile>
 export default meta

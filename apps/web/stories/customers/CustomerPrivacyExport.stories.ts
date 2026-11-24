@@ -8,7 +8,7 @@ const meta = {
   component: CustomerPrivacyExport,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/pages/customers/[id]/privacy.vue:96', 'تصدير البيانات الشخصية لعميل واحد: يُسأل عن السبب أولًا ويُحفظ في سجل الخصوصية، ثم ينزل الملف. السبب المرفوض أو فشل التنزيل يظهران تحت الحقل دون مغادرة الصفحة.'),
+    ...storyContext('apps/web/app/pages/customers/[id]/privacy.vue:97', 'تصدير البيانات الشخصية لعميل واحد: يُسأل عن السبب أولًا ويُحفظ في سجل الخصوصية، ثم ينزل الملف. السبب المرفوض أو فشل التنزيل يظهران تحت الحقل دون مغادرة الصفحة.'),
   },
   args: { onSubmit: fn() },
 } satisfies Meta<typeof CustomerPrivacyExport>

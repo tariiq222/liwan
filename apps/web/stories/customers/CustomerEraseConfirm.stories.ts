@@ -8,7 +8,7 @@ const meta = {
   component: CustomerEraseConfirm,
   parameters: {
     layout: 'padded',
-    ...storyContext('apps/web/app/pages/customers/[id]/privacy.vue:113', 'الخطوة الأخيرة لمسح البيانات الشخصية: السبب وكتابة اسم العميل كما هو تمامًا. لا يعمل زر المسح حتى يطابق الاسم، ويعيد الخادم المقارنة. تحت المراجعة مباشرة، لا نافذة.'),
+    ...storyContext('apps/web/app/pages/customers/[id]/privacy.vue:114', 'الخطوة الأخيرة لمسح البيانات الشخصية: السبب وكتابة اسم العميل كما هو تمامًا. لا يعمل زر المسح حتى يطابق الاسم، ويعيد الخادم المقارنة. تحت المراجعة مباشرة، لا نافذة.'),
   },
   args: { customerName: 'منى العتيبي', onConfirm: fn(), onCancel: fn() },
 } satisfies Meta<typeof CustomerEraseConfirm>

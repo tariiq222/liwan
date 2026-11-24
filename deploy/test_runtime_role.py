@@ -10,7 +10,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from deploy.releases.postgres import ODOO_RUNTIME_ROLE, POSTGRES_ADMIN_ROLE
+from deploy.release.tenant_postgres import ODOO_RUNTIME_ROLE, POSTGRES_ADMIN_ROLE
 from deploy.test_container_hardening import services
 
 DEPLOY = Path(__file__).resolve().parent

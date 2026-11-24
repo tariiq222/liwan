@@ -14,7 +14,7 @@ const snapshot: MaintenanceSnapshot = {
 }
 const meta = {
   title: 'Settings/MaintenanceSettings', component: MaintenanceSettings,
-  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/settings/system/index.vue:25'), a11y: { test: 'error' } },
+  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/settings/system/index.vue:26'), a11y: { test: 'error' } },
   args: {
     snapshot,
     savePreference: async value => ({ ...value, id: 1, revision: value.revision + 1 }),

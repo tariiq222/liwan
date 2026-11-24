@@ -7,7 +7,7 @@ import { dependentFixture } from './fixtures'
 const meta = {
   title: 'HR/Insurance/DependentsSection',
   component: DependentsSection,
-  parameters: storyContext('apps/web/app/pages/hr/insurance/enrollments/[enrollmentId].vue:138', 'قسم التابعين في صفحة التسجيل: إضافة وتعديل وإنهاء تغطية داخل الصفحة، ورقم الهوية مقنّع حتى يفتح المدير صف التعديل.'),
+  parameters: storyContext('apps/web/app/pages/hr/insurance/enrollments/[enrollmentId].vue:160', 'قسم التابعين في صفحة التسجيل: إضافة وتعديل وإنهاء تغطية داخل الصفحة، ورقم الهوية مقنّع حتى يفتح المدير صف التعديل.'),
   args: {
     enrollmentId: 5,
     dependents: [dependentFixture(), dependentFixture({ id: 10, name: 'نورة الحربي', relation: 'spouse', state: 'ended', date_to: '2026-05-31' })],

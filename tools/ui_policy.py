@@ -31,6 +31,9 @@ CHARTS = APP + 'components/charts/'
 CATALOG = 'docs/design-system/components.md'
 MANIFESTS = ('package.json', 'apps/web/package.json', 'packages/ui/package.json', 'packages/commercial-ui/package.json',
              'apps/vendor-admin/package.json')
+# The npm lockfile records the installed copy and range of every package, so it is a policy input.
+LOCKFILE = 'package-lock.json'
+POLICY_FILES = (*MANIFESTS, CATALOG, LOCKFILE)
 STORIES = 'apps/web/stories/'
 STORYBOOK = 'apps/web/.storybook/'
 STORY_ROOTS = (STORIES, STORYBOOK)
@@ -139,7 +142,7 @@ STORY_CONTEXT = re.compile(r'''\bstoryContext\(\s*(['"])([^'"]+)\1''')
 META_COMPONENT = re.compile(r'\bcomponent:\s*(\w+)')
 DEFAULT_VUE_IMPORT = re.compile(r'''^\s*import\s+(\w+)\s+from\s+(['"])([^'"]+\.vue)\2''', re.M)
 SCOPE = (*(root.rstrip('/') for root in SOURCE_ROOTS), *(root.rstrip('/') for root in STORY_ROOTS),
-         *(root.rstrip('/') for root in LOCALE_ROOTS), *MANIFESTS, CATALOG)
+         *(root.rstrip('/') for root in LOCALE_ROOTS), *POLICY_FILES)
 THEME_OWNERS = {
     UI + 'assets/css/main.css',
     UI + 'assets/css/tokens.css',
@@ -959,6 +962,45 @@ def baseline_path(path: str) -> str:
     return path
 
 
+def version_tuple(version: str) -> tuple[int, int, int] | None:
+    match = re.fullmatch(r'v?(\d+)(?:\.(\d+))?(?:\.(\d+))?', version.strip())
+    return tuple(int(part or 0) for part in match.groups()) if match else None
+
+
+def range_accepts(spec: str, version: str) -> bool:
+    # Exact, ^ and ~ ranges only; anything else is treated as not accepting, so the override stays.
+    target = version_tuple(version)
+    operator = spec[0] if spec[:1] in '^~' else ''
+    base = version_tuple(spec[len(operator):])
+    if target is None or base is None:
+        return False
+    if not operator:
+        return target == base
+    if target < base:
+        return False
+    if operator == '~':
+        return target[:2] == base[:2]
+    pivot = next((i for i, part in enumerate(base) if part), 2)
+    return target[:pivot + 1] == base[:pivot + 1]
+
+
+def override_errors(current: dict[str, str]) -> list[str]:
+    # @nuxt/ui pins an older tailwind-variants than packages/ui needs; the root override forces one copy.
+    # It must go as soon as @nuxt/ui's own range accepts the override, and must never leave a nested copy.
+    if LOCKFILE not in current:
+        return []
+    errors = []
+    packages = json.loads(current[LOCKFILE]).get('packages', {})
+    copies = sorted(path for path in packages if path == 'node_modules/tailwind-variants' or path.endswith('/node_modules/tailwind-variants'))
+    if len(copies) > 1:
+        errors.append(LOCKFILE + ': more than one tailwind-variants copy: ' + ', '.join(copies))
+    override = json.loads(current.get('package.json', '{}')).get('overrides', {}).get('tailwind-variants')
+    declared = packages.get('node_modules/@nuxt/ui', {}).get('dependencies', {}).get('tailwind-variants')
+    if override and declared and range_accepts(declared, override):
+        errors.append(f'package.json: @nuxt/ui accepts tailwind-variants {override} ({declared}); remove the tailwind-variants override')
+    return errors
+
+
 def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str]) -> list[str]:
     errors = []
     # @nuxt/schema ships inside nuxt itself and is where Nuxt's own docs put
@@ -1027,6 +1069,7 @@ def check(current: dict[str, str], baseline: dict[str, str], head: dict[str, str
     errors.extend(hr_boundary_errors(current))
     errors.extend(toolbar_errors(current))
     errors.extend(template_errors(current))
+    errors.extend(override_errors(current))
     return errors
 
 
@@ -1042,7 +1085,7 @@ def snapshot(root: Path, ref: str) -> dict[str, str]:
         return {entry.name: archive.extractfile(entry).read().decode('utf-8')
                 for entry in archive if entry.isfile()
                 and (source_file(entry.name) or story_file(entry.name) or locale_file(entry.name)
-                     or entry.name in (*MANIFESTS, CATALOG))}
+                     or entry.name in POLICY_FILES)}
 
 
 def current_snapshot(root: Path) -> dict[str, str]:
@@ -1052,14 +1095,14 @@ def current_snapshot(root: Path) -> dict[str, str]:
         if not raw:
             continue
         path = raw.decode('utf-8')
-        if not (source_file(path) or story_file(path) or locale_file(path) or path in (*MANIFESTS, CATALOG)):
+        if not (source_file(path) or story_file(path) or locale_file(path) or path in POLICY_FILES):
             continue
         target = root / path
         if target.is_symlink():
             raise ValueError('source symlink requires review: ' + path)
         if target.is_file():
             current[path] = target.read_text(encoding='utf-8')
-    for required in (*MANIFESTS, CATALOG):
+    for required in POLICY_FILES:
         if required not in current:
             raise ValueError('required policy input missing: ' + required)
     return current

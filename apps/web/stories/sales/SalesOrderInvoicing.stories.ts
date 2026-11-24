@@ -6,7 +6,7 @@ import { orderInvoicing, orderReadyToInvoice } from './salesFixtures'
 const meta = {
   title: 'Sales/SalesOrderInvoicing',
   component: SalesOrderInvoicing,
-  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/sales/[id].vue:172', 'فواتير الطلب في صفحة السجل: حالة الفوترة والمبالغ والفواتير برابط كل منها في المالية، ولا تظهر إلا لمن يقرأ فواتير المالية.') },
+  parameters: { layout: 'padded', ...storyContext('apps/web/app/pages/sales/[id].vue:179', 'فواتير الطلب في صفحة السجل: حالة الفوترة والمبالغ والفواتير برابط كل منها في المالية، ولا تظهر إلا لمن يقرأ فواتير المالية.') },
   args: { invoicing: orderInvoicing, currency: 'SAR', orderId: 2 },
 } satisfies Meta<typeof SalesOrderInvoicing>
 export default meta

@@ -17,7 +17,7 @@ import unittest
 from urllib.parse import urlsplit
 from .backup import Deadline, capture_window, restore_tenant, validate_backup
 from . import backup
-from .postgres import fence_writers, writer_grants
+from deploy.release.tenant_postgres import fence_writers, writer_grants
 from .runtime import LocalRuntime
 from .state import ReleaseState, ReleaseConflict
 

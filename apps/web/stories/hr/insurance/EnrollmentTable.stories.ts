@@ -12,7 +12,7 @@ const meta = {
   component: EnrollmentTable,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/hr/insurance.vue:176', 'جدول تسجيلات التأمين داخل بطاقة القائمة: الموظف والخطة ومزوّدها والتغطية وعدد التابعين وحالة التسجيل.'),
+    ...storyContext('apps/web/app/pages/hr/insurance.vue:179', 'جدول تسجيلات التأمين داخل بطاقة القائمة: الموظف والخطة ومزوّدها والتغطية وعدد التابعين وحالة التسجيل.'),
   },
   args: {
     enrollments: [
