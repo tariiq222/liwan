@@ -4,7 +4,6 @@ import type { MeetingListItem } from '@liwan/contracts'
 import { refDebounced } from '@vueuse/core'
 import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
 import RecordNumber from '@liwan/ui/app/components/shared/data/RecordNumber.vue'
-import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
 import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
 import { formatCalendarDate, formatLiwanTime } from '@liwan/ui/app/composables/calendarDate'
 import { localIsoDay } from '@liwan/ui/app/utils/formatDate'
@@ -163,10 +162,9 @@ function meetingRecordNumber(meeting: { reference: string; id: number }) {
   return meeting.reference.trim() || meeting.id
 }
 
-// Reading order: the record number as a muted `#` reference, then the title (the strongest text), date, organizer, state and resolutions.
+// Reading order: the title (the strongest text) with its muted reference below, then date, organizer, state and resolutions.
 const columns = computed<TableColumn<MeetingListItem>[]>(() => [
-  { id: 'record_number', header: () => recordNumberHeader(t), meta: { class: { th: 'w-12 px-2 text-start', td: 'w-12 px-2 whitespace-nowrap' } } },
-  { accessorKey: 'name', header: t('meetingsUi.title'), meta: { title: true, class: { th: 'min-w-56 w-[30%]', td: 'max-w-0' } } },
+  { accessorKey: 'name', header: t('meetingsUi.title'), meta: { title: true, class: { th: 'min-w-64 w-[38%]', td: 'max-w-0' } } },
   { accessorKey: 'meeting_date', header: t('meetingsUi.date'), meta: { class: { th: 'w-40', td: 'w-40 whitespace-nowrap' } } },
   { accessorKey: 'organizer', header: t('meetingsUi.organizer'), meta: { class: { th: 'w-44', td: 'w-44 max-w-0' } } },
   { accessorKey: 'state', header: t('meetingsUi.stateLabel'), meta: { class: { th: 'w-32', td: 'w-32 whitespace-nowrap' } } },
@@ -369,7 +367,6 @@ function setPage(next: number) {
         :caption="t('nav.meetings')"
         @retry="query.refetch()"
       >
-        <template #record_number-cell="{ row }"><RecordNumber :value="meetingRecordNumber(row.original)" /></template>
         <template #name-cell="{ row }">
           <NuxtLink
             :to="meetingTo(row.original)"
@@ -377,6 +374,9 @@ function setPage(next: number) {
             data-testid="meeting-row"
             class="block min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >{{ row.original.name }}</NuxtLink>
+          <div class="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted">
+            <RecordNumber :value="meetingRecordNumber(row.original)" />
+          </div>
         </template>
         <template #meeting_date-cell="{ row }">
           <div class="grid gap-0.5 whitespace-nowrap">

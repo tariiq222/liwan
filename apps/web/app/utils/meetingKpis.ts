@@ -65,12 +65,17 @@ export function pickNearestUpcomingMeeting<T extends UpcomingCandidate>(
 }
 
 /** The tiles above /meetings; a count that has not arrived yet is `null` and shows "—". */
-export function meetingListTiles(counts: Record<keyof ReturnType<typeof meetingKpiFilters>, number | undefined>, links: Record<keyof ReturnType<typeof meetingKpiFilters>, string>, t: Translate): KpiTile[] {
+export function meetingListTiles(
+  counts: Record<keyof ReturnType<typeof meetingKpiFilters>, number | undefined>,
+  links: Record<keyof ReturnType<typeof meetingKpiFilters>, string>,
+  t: Translate,
+  hints: Partial<Record<keyof ReturnType<typeof meetingKpiFilters>, string>> = {},
+): KpiTile[] {
   return [
-    { id: 'total', label: t('meetingsKpi.total'), icon: 'i-lucide-calendar-days', tone: 'neutral', value: counts.total ?? null, to: links.total },
-    { id: 'upcoming', label: t('meetingsKpi.upcoming'), icon: 'i-lucide-calendar-clock', tone: 'success', value: counts.upcoming ?? null, to: links.upcoming },
-    { id: 'draft', label: t('meetingsKpi.draft'), icon: 'i-lucide-file-pen-line', tone: 'warning', value: counts.draft ?? null, to: links.draft },
-    { id: 'done', label: t('meetingsKpi.doneMonth'), icon: 'i-lucide-circle-check', tone: 'neutral', value: counts.done ?? null, to: links.done },
+    { id: 'total', label: t('meetingsKpi.total'), icon: 'i-lucide-calendar-days', tone: 'neutral', value: counts.total ?? null, hint: hints.total, to: links.total },
+    { id: 'upcoming', label: t('meetingsKpi.upcoming'), icon: 'i-lucide-calendar-clock', tone: 'success', value: counts.upcoming ?? null, hint: hints.upcoming, to: links.upcoming },
+    { id: 'draft', label: t('meetingsKpi.draft'), icon: 'i-lucide-file-pen-line', tone: 'warning', value: counts.draft ?? null, hint: hints.draft ?? (counts.draft ? t('meetingsKpi.draftHint') : undefined), to: links.draft },
+    { id: 'done', label: t('meetingsKpi.doneMonth'), icon: 'i-lucide-circle-check', tone: 'neutral', value: counts.done ?? null, hint: hints.done ?? t('meetingsKpi.doneMonthHint'), to: links.done },
   ]
 }
 

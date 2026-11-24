@@ -1,5 +1,7 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
+import { formatCalendarDate, formatLiwanTime } from '@liwan/ui/app/composables/calendarDate'
+import { localIsoDay } from '@liwan/ui/app/utils/formatDate'
 import { followupKpiStates, meetingFollowupTiles, meetingKpiFilters, meetingListTiles, meetingSeriesTiles, kpiLink, pickNearestUpcomingMeeting, UPCOMING_KPI_LIMIT, type FollowupKpiState } from '@/utils/meetingKpis'
 import { useMeetingFollowup, type MeetingFollowupParams } from './useMeetingWorkspace'
 import { useMeetings, useMeetingSeriesList } from './useMeetings'
@@ -13,6 +15,7 @@ type MeetingScope = { q?: string; mine?: boolean; project_id?: number; organizer
 export function useMeetingListKpis(scope: MaybeRefOrGetter<MeetingScope>, enabled: MaybeRefOrGetter<boolean> = true) {
   const today = new Date()
   const { t } = useI18n()
+  const hydrated = useHydrated()
   const filters = meetingKpiFilters(today)
   const queries = {
     total: useMeetings(() => ({ ...toValue(scope), ...filters.total, limit: 1 }), { enabled }),
@@ -30,13 +33,22 @@ export function useMeetingListKpis(scope: MaybeRefOrGetter<MeetingScope>, enable
       done: kpiLink('/meetings', { ...base, ...filters.done }),
     }
   })
+  const nextUpcoming = computed(() => pickNearestUpcomingMeeting(queries.upcoming.data.value, toValue(enabled)))
+  const upcomingHint = computed(() => {
+    if (!hydrated.value || !nextUpcoming.value) return undefined
+    const next = nextUpcoming.value
+    const parsedTime = next.start_datetime ? new Date(next.start_datetime) : null
+    const time = parsedTime && !Number.isNaN(parsedTime.getTime()) ? formatLiwanTime(parsedTime) : ''
+    if (!next.meeting_date) return time || undefined
+    const dayLabel = next.meeting_date === localIsoDay(new Date()) ? t('meetingsUi.today') : formatCalendarDate(next.meeting_date)
+    return time ? `${dayLabel} · ${time}` : dayLabel
+  })
   const tiles = computed(() => meetingListTiles({
     total: queries.total.data.value?.total,
     upcoming: queries.upcoming.data.value?.total,
     draft: queries.draft.data.value?.total,
     done: queries.done.data.value?.total,
-  }, links.value, t))
-  const nextUpcoming = computed(() => pickNearestUpcomingMeeting(queries.upcoming.data.value, toValue(enabled)))
+  }, links.value, t, { upcoming: upcomingHint.value }))
   const loading = computed(() => Object.values(queries).some(query => query.isLoading.value))
   return { tiles, loading, nextUpcoming }
 }

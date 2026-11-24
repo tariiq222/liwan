@@ -1,6 +1,8 @@
 {
   "meetingsUi": {
     "countTag": "{count} meeting | {count} meetings",
+    "seriesCountTag": "{count} series | {count} series",
+    "followupCountTag": "{count} recommendation | {count} recommendations",
     "attachmentsTitle": "Attachments",
     "uploadAttachment": "Add attachment",
     "attachmentHelp": "Choose a file to attach to this meeting.",
@@ -416,7 +418,9 @@
     "total": "Total meetings",
     "upcoming": "Upcoming confirmed",
     "draft": "Drafts",
+    "draftHint": "Needs confirmation",
     "doneMonth": "Done this month",
+    "doneMonthHint": "This month",
     "series": "Total series",
     "openResolutions": "Active resolutions",
     "overdueResolutions": "Overdue resolutions",

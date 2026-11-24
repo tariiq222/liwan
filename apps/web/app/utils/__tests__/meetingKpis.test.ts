@@ -27,9 +27,13 @@ describe('meeting KPI filters', () => {
 describe('meeting KPI tiles', () => {
   it('show a dash for counts that have not arrived and the server total otherwise', () => {
     const links = { total: '/a', upcoming: '/b', draft: '/c', done: '/d' }
-    const tiles = meetingListTiles({ total: 5, upcoming: 0, draft: undefined, done: 2 }, links, t)
+    const tiles = meetingListTiles({ total: 5, upcoming: 0, draft: undefined, done: 2 }, links, t, { upcoming: 'Today · 10:00' })
     expect(tiles.map(tile => [tile.id, tile.value, tile.to])).toEqual([['total', 5, '/a'], ['upcoming', 0, '/b'], ['draft', null, '/c'], ['done', 2, '/d']])
     expect(tiles[0]?.label).toBe('t:meetingsKpi.total')
+    expect(tiles[1]?.hint).toBe('Today · 10:00')
+    expect(tiles[2]?.hint).toBeUndefined()
+    expect(tiles[3]?.hint).toBe('t:meetingsKpi.doneMonthHint')
+    expect(meetingListTiles({ total: 5, upcoming: 1, draft: 2, done: 0 }, links, t)[2]?.hint).toBe('t:meetingsKpi.draftHint')
   })
 
   it('mark the series resolution tiles as company-wide and link them to the follow-up filters', () => {

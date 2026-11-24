@@ -13,12 +13,14 @@ describe('StatusBadge', () => {
     expect(html).toContain('variant="subtle"')
     expect(html).toContain('>Label<')
     expect(html).toContain('liwan-pill')
+    expect(html).toContain('rounded-full')
   })
 
-  it('takes the outline variant and a decorative icon', async () => {
+  it('takes the outline variant and a decorative icon without a duplicate dot', async () => {
     const html = await render({ tone: 'neutral', label: 'L', variant: 'outline', icon: 'i-lucide-user' })
     expect(html).toContain('variant="outline"')
     expect(html).toContain('icon="i-lucide-user"')
+    expect(html).not.toContain('rounded-full')
   })
 
   it('passes test ids and data attributes through to the badge', async () => {

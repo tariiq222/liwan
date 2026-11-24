@@ -26,21 +26,23 @@ const icons = computed(() => (rtl.value
       :items-per-page="1"
       :sibling-count="1"
       show-edges
-      :ui="{ root: 'min-w-0 max-w-full', list: 'flex-wrap' }"
+      :ui="{ root: 'min-w-0 max-w-full', list: 'flex-wrap gap-1' }"
       color="neutral"
-      variant="ghost"
+      variant="outline"
+      size="sm"
       active-color="primary"
-      active-variant="subtle"
+      active-variant="solid"
       :disabled="props.disabled || !hydrated"
       @update:page="value => emit('update:page', value)"
     >
-      <template #first><UButton color="neutral" variant="ghost" :icon="icons.first" :aria-label="t('app.pageFirst')" /></template>
-      <template #prev><UButton color="neutral" variant="ghost" :icon="icons.prev" :aria-label="t('app.pagePrevious')" /></template>
+      <template #first><UButton color="neutral" variant="outline" size="sm" :icon="icons.first" :aria-label="t('app.pageFirst')" square /></template>
+      <template #prev><UButton color="neutral" variant="outline" size="sm" :icon="icons.prev" :label="t('app.pagePrevious')" :aria-label="t('app.pagePrevious')" /></template>
       <template #item="{ item, page }">
         <UButton
           v-if="item.type === 'page'"
+          size="sm"
           :color="page === item.value ? 'primary' : 'neutral'"
-          :variant="page === item.value ? 'subtle' : 'ghost'"
+          :variant="page === item.value ? 'solid' : 'outline'"
           :label="String(item.value)"
           :aria-label="t('app.pageNumber', { page: item.value })"
           :aria-current="page === item.value ? 'page' : undefined"
@@ -48,8 +50,8 @@ const icons = computed(() => (rtl.value
           square
         />
       </template>
-      <template #next><UButton color="neutral" variant="ghost" :icon="icons.next" :aria-label="t('app.pageNext')" /></template>
-      <template #last><UButton color="neutral" variant="ghost" :icon="icons.last" :aria-label="t('app.pageLast')" /></template>
+      <template #next><UButton color="neutral" variant="outline" size="sm" :trailing-icon="icons.next" :label="t('app.pageNext')" :aria-label="t('app.pageNext')" /></template>
+      <template #last><UButton color="neutral" variant="outline" size="sm" :icon="icons.last" :aria-label="t('app.pageLast')" square /></template>
     </UPagination>
   </nav>
 </template>

@@ -1,6 +1,8 @@
 {
   "meetingsUi": {
     "countTag": "لا اجتماعات | اجتماع واحد | اجتماعان | {count} اجتماعات | {count} اجتماعًا | {count} اجتماع",
+    "seriesCountTag": "لا سلاسل | سلسلة واحدة | سلسلتان | {count} سلاسل | {count} سلسلة | {count} سلسلة",
+    "followupCountTag": "لا توصيات | توصية واحدة | توصيتان | {count} توصيات | {count} توصية | {count} توصية",
     "attachmentsTitle": "المرفقات",
     "uploadAttachment": "إضافة مرفق",
     "attachmentHelp": "اختر ملفًا لإرفاقه بهذا الاجتماع.",
@@ -416,7 +418,9 @@
     "total": "إجمالي الاجتماعات",
     "upcoming": "اجتماعات قادمة مؤكدة",
     "draft": "مسودات",
+    "draftHint": "تحتاج اعتمادًا وجدولة",
     "doneMonth": "منتهية هذا الشهر",
+    "doneMonthHint": "الشهر الحالي",
     "series": "إجمالي السلاسل",
     "openResolutions": "توصيات نشطة",
     "overdueResolutions": "توصيات متأخرة",
