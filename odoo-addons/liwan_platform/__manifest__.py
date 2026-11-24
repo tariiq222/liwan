@@ -2,7 +2,7 @@
 {
     'name': 'liwan Platform',
     'summary': 'liwan platform: tenant profile, entitlements and feature registry',
-    'version': '19.0.1.15.0',
+    'version': '19.0.1.16.0',
     'category': 'Hidden',
     'author': 'Tariq Alwalidi',
     'license': 'LGPL-3',
@@ -16,6 +16,7 @@
         'data/maintenance_permission.xml',
         'data/trial_expiry_cron.xml',
         'data/storage_recount_cron.xml',
+        'data/storage_orphan_check_cron.xml',
     ],
     # Every request line reaches the werkzeug log: the hook masks secret query values before any application is served.
     'post_load': 'post_load',
