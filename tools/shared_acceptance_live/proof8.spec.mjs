@@ -47,8 +47,8 @@ mkdirSync(SCREENSHOT_DIR, { recursive: true })
 const TENANTS = [
   {
     name: 'A',
-    base: 'https://a.accept.liwan.test',
-    login: 'admin@a.accept.liwan.test',
+    base: 'https://a.accept.liwan.localhost',
+    login: 'admin@a.accept.liwan.localhost',
     passwordFile: 'admin_a_password',
     ownProject: 'ACCEPT-A-ONLY',
     otherProject: 'ACCEPT-B-ONLY',
@@ -57,8 +57,8 @@ const TENANTS = [
   },
   {
     name: 'B',
-    base: 'https://b.accept.liwan.test',
-    login: 'admin@b.accept.liwan.test',
+    base: 'https://b.accept.liwan.localhost',
+    login: 'admin@b.accept.liwan.localhost',
     passwordFile: 'admin_b_password',
     ownProject: 'ACCEPT-B-ONLY',
     otherProject: 'ACCEPT-A-ONLY',
@@ -71,7 +71,7 @@ const test = base.extend({
   browser: async ({}, use) => {
     const ctx = await chromium.launch({
       args: [
-        '--host-resolver-rules=MAP a.accept.liwan.test 127.0.0.1, MAP b.accept.liwan.test 127.0.0.1',
+        '--host-resolver-rules=MAP a.accept.liwan.localhost 127.0.0.1, MAP b.accept.liwan.localhost 127.0.0.1',
         `--ignore-certificate-errors-spki-list=${SPKI}`,
       ],
     })
@@ -92,7 +92,7 @@ for (const tenant of TENANTS) {
     const diagFile = resolve(__dirname, `diag-tenant-${tenant.name}.json`)
     const dump = () => { try { writeFileSync(diagFile, JSON.stringify({ tenant: tenant.name, url: page.url(), evidence, httpLog }, null, 2)) } catch {} }
     page.on('response', r => {
-      if (!r.url().includes('.accept.liwan.test')) return
+      if (!r.url().includes('.accept.liwan.localhost')) return
       const line = `${r.status()} ${r.request().method()} ${new URL(r.url()).pathname}`
       httpLog.push(line)
       if (r.status() >= 400 && !line.includes('/api/auth/login')) evidence.push(`http-error: ${line}`)

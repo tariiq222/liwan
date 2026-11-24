@@ -15,8 +15,8 @@ test('guard image includes all runtime import paths and unprivileged native Node
   assert.match(docker, /mkdir -p \/var\/lib\/liwan && chown node:node \/var\/lib\/liwan/)
   assert.match(docker, /HEALTHCHECK.*healthcheck.mjs/)
 })
-test('shared Odoo selection config never names a default database or trusts forwarding', () => {
-  const config = read('odoo.conf')
+test('the shared Odoo config template never names a default database or trusts forwarding', () => {
+  const config = read('../stack/odoo.conf.template')
   assert.match(config, /^dbfilter = \^%h\$$/m)
   assert.match(config, /^proxy_mode = False$/m)
   assert.match(config, /^list_db = False$/m)
@@ -26,7 +26,7 @@ test('rate module is present in actual proxy build recipe and exactly the declar
   const recipe = read('../proxy/Dockerfile')
   assert.match(recipe, /github.com\/mholt\/caddy-ratelimit@v0\.1\.0/)
   assert.match(recipe, /http.handlers.rate_limit/)
-  const config = read('Caddyfile')
+  const config = read('../stack/Caddyfile')
   const zones = ['liwan_auth', 'liwan_provider_hook', 'liwan_account', 'liwan_api', 'liwan_public_appointments_ip', 'liwan_odoo_image', 'liwan_odoo', 'liwan_signup', 'liwan_public_site', 'liwan_web', 'liwan_tiktok']
   const declared = [...config.matchAll(/^\s*zone\s+(\S+)\s*\{/gm)].map(match => match[1])
   assert.equal(declared.length, zones.length)
@@ -48,7 +48,7 @@ test('rate module is present in actual proxy build recipe and exactly the declar
   assert.ok(!webZone.includes('/i18n/*'), 'liwan_web must not exempt the nonexistent /i18n/* prefix')
 })
 test('F5 rate matchers: version probe leaves auth, images keep a limited zone, auth stays 20/min', () => {
-  const config = read('Caddyfile')
+  const config = read('../stack/Caddyfile')
   const zone = n => config.split(`zone liwan_${n} {`)[1].split('\n\t\t\t}')[0]
   assert.match(zone('auth'), /path \/api\/auth\/\* \/api\/v1\/auth\/\* \/web\/session\/\* \/web\/login/)
   assert.match(zone('auth'), /not path \/web\/session\/get_session_info\n/)

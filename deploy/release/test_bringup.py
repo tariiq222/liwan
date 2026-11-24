@@ -33,7 +33,7 @@ USAGE_KEY = 'ab' * 32
 SHARED_TEXT = (f'LIWAN_CONTROL_CONFIG_DIR={SRV}/control/config\nLIWAN_CONTROL_PRIVATE_DIR={SRV}/control/private\n'
                f'LIWAN_TENANT_REGISTRY_DIR={SRV}/state/registry\nLIWAN_AI_PLATFORM_DIR={SRV}/control/state/ai-platform\n'
                f'LIWAN_SHARED_COMPOSE_FILE={SRV}/shared.compose.json\nDB_PASSWORD=runtime-pass\nDB_ADMIN_PASSWORD=admin-pass\n'
-               f'LIWAN_AI_USAGE_KEY={USAGE_KEY}\n')
+               f'LIWAN_AI_USAGE_KEY={USAGE_KEY}\nLIWAN_TENANT_STORAGE_FILES_DIR={SRV}/control/tenant-storage\n')
 CREDENTIAL_TEXT = f'LIWAN_GHCR_READ_USER=reader\nLIWAN_GHCR_READ_TOKEN={SECRET}\nLIWAN_GITHUB_READ_TOKEN={SECRET}\n'
 GIB = 1024 ** 3
 SS_HEADER = 'State Recv-Q Send-Q Local Address:Port Peer Address:Port'
@@ -145,6 +145,10 @@ class FakeHost:
         if str(path) in self.files:
             raise FileExistsError(str(path))
         self.files[str(path)] = regular(mode, text=text)
+
+    def chown(self, path, uid, gid):
+        self.mutations.append(f'chown {path}')
+        self.files[str(path)].st_uid, self.files[str(path)].st_gid = uid, gid
 
     def symlink(self, target, link):
         self.mutations.append(f'symlink {link}')
@@ -370,9 +374,9 @@ class BringupTest(unittest.TestCase):
         self.assertEqual((2, ['bringup: --apply needs root']), (code, lines))
         self.assertEqual([], host.calls)
 
-    def test_unknown_environment_is_refused(self):
+    def test_a_malformed_environment_name_is_refused(self):
         out = io.StringIO()
-        code = bringup.main(['--environment', 'development'], out=out, host=FakeHost())
+        code = bringup.main(['--environment', '../development'], out=out, host=FakeHost())
         self.assertEqual(2, code)
         self.assertEqual(1, len(out.getvalue().splitlines()))
 
@@ -973,6 +977,64 @@ class PostRunTest(unittest.TestCase):
                 host = seeded_host()
                 host.files[f'{SRV}/shared.env'] = regular(0o600, text=text)
                 self.assertEqual(expected, statuses(run(host)[1])['shared-ai-usage-key'])
+
+    # --- A3.2a tenant storage files
+    STORAGE = f'{SRV}/control/tenant-storage'
+
+    def storage_host(self, shared_extra=''):
+        host = seeded_host()
+        host.files[f'{SRV}/shared.env'] = regular(0o600, text=SHARED_TEXT + shared_extra)
+        host.files[f'{SRV}/control'] = directory(0o750)
+        return host
+
+    def test_apply_makes_the_directory_and_a_random_naming_key_owned_by_the_container_user(self):
+        host = self.storage_host()
+        run(host, '--apply')
+        folder, key = host.files[self.STORAGE], host.files[f'{self.STORAGE}/oci_naming_key']
+        self.assertEqual((0o700, 0, 0), (stat.S_IMODE(folder.st_mode), folder.st_uid, folder.st_gid))
+        self.assertEqual((0o400, 10001, 10001), (stat.S_IMODE(key.st_mode), key.st_uid, key.st_gid))
+        self.assertRegex(key.text, r'^[0-9a-f]{64}$')
+        self.assertNotIn(f'{self.STORAGE}/oci_provision_key', host.files)  # bring-up never creates the OCI signing key
+
+    def test_the_naming_key_is_never_replaced_and_never_printed(self):
+        host = self.storage_host()
+        run(host, '--apply')
+        first = host.files[f'{self.STORAGE}/oci_naming_key'].text
+        host.mutations.clear()
+        _, lines = run(host, '--apply')
+        self.assertEqual(first, host.files[f'{self.STORAGE}/oci_naming_key'].text)
+        self.assertEqual([], [m for m in host.mutations if self.STORAGE in m])
+        self.assertNotIn(first, '\n'.join(lines))
+
+    def test_the_signing_key_is_required_only_once_tenant_storage_is_configured(self):
+        host = self.storage_host()
+        run(host, '--apply')
+        self.assertEqual('ok', statuses(run(host)[1])['tenant-storage-files'])
+        configured = self.storage_host('OCI_TENANCY_OCID=ocid1.tenancy.oc1..x\n')
+        run(configured, '--apply')
+        lines = run(configured)[1]
+        self.assertEqual('MISSING', statuses(lines)['tenant-storage-files'])
+        self.assertIn('oci_provision_key absent', '\n'.join(lines))
+        configured.files[f'{self.STORAGE}/oci_provision_key'] = regular(0o400, 10001, 10001, text='synthetic signing key body')
+        self.assertEqual('ok', statuses(run(configured)[1])['tenant-storage-files'])
+        self.assertNotIn('synthetic signing key body', '\n'.join(run(configured)[1]))
+
+    def test_wrong_modes_or_owners_of_the_storage_files_are_reported(self):
+        for name, path, entry_ in (('naming key readable by group', f'{self.STORAGE}/oci_naming_key', regular(0o440, 10001, 10001, text='k')),
+                                   ('naming key owned by root', f'{self.STORAGE}/oci_naming_key', regular(0o400, 0, 0, text='k')),
+                                   ('directory open to others', self.STORAGE, directory(0o755))):
+            with self.subTest(name):
+                host = self.storage_host()
+                run(host, '--apply')
+                host.files[path] = entry_
+                self.assertEqual('MISSING', statuses(run(host)[1])['tenant-storage-files'])
+
+    def test_a_shared_env_without_the_directory_key_is_reported_and_nothing_is_created(self):
+        host = self.storage_host()
+        host.files[f'{SRV}/shared.env'] = regular(0o600, text=SHARED_TEXT.replace(f'LIWAN_TENANT_STORAGE_FILES_DIR={SRV}/control/tenant-storage\n', ''))
+        _, lines = run(host, '--apply')
+        self.assertEqual('MISSING', statuses(lines)['tenant-storage-files'])
+        self.assertEqual([], [m for m in host.mutations if 'tenant-storage' in m])
 
     def test_empty_database_port_keys_mean_the_release_defaults(self):
         host = self.post_host('LIWAN_DB_HOST_PORT=\nLIWAN_CONTROL_DB_HOST_PORT=\n')

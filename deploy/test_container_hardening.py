@@ -4,12 +4,20 @@ import re
 import unittest
 from pathlib import Path
 
-from deploy.release.release import SHARED_COMPOSE_FILES
+from deploy.stack import render as stack_render
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCKERFILES = sorted(p for base in ('apps', 'deploy') for p in (ROOT / base).rglob('Dockerfile')
                      if 'node_modules' not in p.parts)
 COMPOSE_FILES = sorted((ROOT / 'deploy').rglob('*compose*.yml'))
+# Both shapes of the one stack definition: every optional block kept, and every optional block dropped.
+STACK_SHAPES = {'full': True, 'minimal': False}
+
+
+def stack_text(shape='full'):
+    return stack_render.render_template((stack_render.STACK / 'compose.yml').read_text(encoding='utf-8'),
+                                        {name: STACK_SHAPES[shape] for name in stack_render.TOGGLES})
+
 PINNED = re.compile(r'@sha256:[0-9a-f]{64}$')
 # Images the repository builds itself carry a release tag, not a registry digest.
 LOCAL_IMAGE = re.compile(r'^liwan-[a-z-]+:')
@@ -17,14 +25,8 @@ LOCAL_IMAGE = re.compile(r'^liwan-[a-z-]+:')
 LOGGING_ANCHOR = re.compile(
     r'^x-logging: &liwan-logging\n  driver: json-file\n  options: \{ max-size: "\d+[km]", max-file: "\d+" \}$', re.M)
 LOGGING_ALIAS = '    logging: *liwan-logging'
-# The file combinations an operator renders. Compose merges a service's `logging` from the file that introduces it,
-# so an overlay that only overrides a base service needs none of its own.
-STACKS = {
-    'dedicated': ('docker-compose.yml',),
-    'dedicated production': ('docker-compose.yml', 'docker-compose.production.yml'),
-    'shared': ('docker-compose.yml', 'docker-compose.shared.yml'),
-    'shared production': SHARED_COMPOSE_FILES,
-}
+# A service that must not log at all (its output could carry a secret) is the one declared exception.
+UNLOGGED = {'tenant-storage'}
 PROXY_ADMISSION_SETTINGS = {
     'NUXT_ODOO_MAX_CONCURRENCY', 'NUXT_SESSION_CHECK_CACHE_SIZE', 'NUXT_SESSION_CHECK_CONCURRENCY',
     'NUXT_SESSION_CHECK_TTL_MS',
@@ -101,10 +103,10 @@ class TestNonRoot(unittest.TestCase):
 class TestDedicatedCompose(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.services = services((ROOT / 'deploy/docker-compose.yml').read_text())
+        cls.services = services(stack_text())
 
     def test_every_service_drops_all_capabilities(self):
-        for name in ('proxy', 'web', 'odoo', 'ai', 'db'):
+        for name in ('proxy', 'web', 'odoo', 'ai', 'db', 'guard'):
             with self.subTest(service=name):
                 self.assertRegex(self.services[name], r'cap_drop:\s*\[ALL\]')
 
@@ -128,7 +130,7 @@ class TestDedicatedCompose(unittest.TestCase):
                 self.assertIn('tmpfs:', self.services[name])
 
     def test_shared_guard_is_hardened_like_the_rest(self):
-        guard = services((ROOT / 'deploy/docker-compose.shared.yml').read_text())['guard']
+        guard = self.services['guard']
         self.assertRegex(guard, r'cap_drop:\s*\[ALL\]')
         self.assertRegex(guard, r'read_only:\s*true')
 
@@ -139,15 +141,15 @@ class TestDedicatedCompose(unittest.TestCase):
 class TestProxyAdmissionSettings(unittest.TestCase):
     """A ceiling the proxy reads from its environment is useless unless the stack passes it to the container."""
 
-    def passed(self, compose, service):
-        block = services((ROOT / 'deploy' / compose).read_text())[service]
+    def passed(self, service):
+        block = services(stack_text())[service]
         return set(re.findall(r'^      (NUXT_[A-Z_]+): "\$\{\1:-\}"$', block, re.M))
 
     def test_web_receives_every_admission_setting(self):
-        self.assertLessEqual(PROXY_ADMISSION_SETTINGS, self.passed('docker-compose.yml', 'web'))
+        self.assertLessEqual(PROXY_ADMISSION_SETTINGS, self.passed('web'))
 
     def test_guard_receives_the_pool_it_shares_with_web(self):
-        self.assertEqual(self.passed('docker-compose.shared.yml', 'guard'),
+        self.assertEqual(self.passed('guard'),
                          {'NUXT_ODOO_POOL_SESSION_ACTIVE', 'NUXT_ODOO_POOL_SESSION_QUEUED'})
 
     def test_the_listed_settings_are_the_ones_the_proxy_reads(self):
@@ -161,20 +163,25 @@ class TestProxyAdmissionSettings(unittest.TestCase):
 
 
 class TestBoundedLogs(unittest.TestCase):
-    def test_every_service_of_every_stack_rotates_its_json_file_logs(self):
-        for stack, names in STACKS.items():
-            texts = [(ROOT / 'deploy' / name).read_text() for name in names]
-            rotated = {name for text in texts if LOGGING_ANCHOR.search(text)
-                       for name, block in services(text).items() if LOGGING_ALIAS in block.splitlines()}
-            for name in sorted({name for text in texts for name in services(text)}):
-                with self.subTest(stack=stack, service=name):
-                    self.assertIn(name, rotated, 'no bounded json-file logging')
+    def test_every_service_of_the_stack_rotates_its_json_file_logs(self):
+        for shape in STACK_SHAPES:
+            text = stack_text(shape)
+            self.assertRegex(text, LOGGING_ANCHOR)
+            for name, block in services(text).items():
+                if name not in UNLOGGED:
+                    with self.subTest(shape=shape, service=name):
+                        self.assertIn(LOGGING_ALIAS, block.splitlines(), 'no bounded json-file logging')
 
-    def test_no_stack_file_sets_another_logging_configuration(self):
-        for name in sorted({name for names in STACKS.values() for name in names}):
-            for line in re.findall(r'^ +logging:.*$', (ROOT / 'deploy' / name).read_text(), re.M):
-                with self.subTest(compose=name):
-                    self.assertEqual(line, LOGGING_ALIAS)
+    def test_no_line_of_the_stack_sets_another_logging_configuration(self):
+        text = stack_text()
+        for name, block in services(text).items():
+            for line in re.findall(r'^ +logging:.*$', block, re.M):
+                with self.subTest(service=name):
+                    if name in UNLOGGED:
+                        self.assertEqual(line, '    logging:')
+                        self.assertIn('      driver: none', block)
+                    else:
+                        self.assertEqual(line, LOGGING_ALIAS)
 
     def test_guard_rejects_unbounded_logging(self):
         self.assertIsNone(LOGGING_ANCHOR.search('x-logging: &liwan-logging\n  driver: json-file\n'))

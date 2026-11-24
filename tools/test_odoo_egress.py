@@ -1,6 +1,6 @@
-"""The Odoo outbound route of the shared overlay: an allow-listing proxy instance, nothing wider.
+"""The Odoo outbound route of the stack: an allow-listing proxy instance, nothing wider.
 
-Static checks over the overlay text and the rendered Squid configuration; they need neither docker nor a network.
+Static checks over the stack template text and the rendered Squid configuration; they need neither docker nor a network.
 The real-image parse of the Odoo configuration is `tools.test_ai_egress.SquidParseCase`.
 """
 import os
@@ -13,8 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 RENDER = ROOT / 'deploy' / 'ai-egress' / 'render.sh'
 HOSTS = ROOT / 'deploy' / 'ai' / 'egress_hosts.sh'
-SHARED = ROOT / 'deploy' / 'docker-compose.shared.yml'
-BASE = ROOT / 'deploy' / 'docker-compose.yml'
+STACK = ROOT / 'deploy' / 'stack' / 'compose.yml'
 
 # Each host the Odoo addons call, with the call site that makes it necessary (the operator document lists the same).
 EXPECTED_HOSTS = (
@@ -59,8 +58,9 @@ def environment(block):
 
 
 def odoo_default_hosts():
-    value = environment(service_block(SHARED, 'odoo-egress'))['AI_EGRESS_HOSTS']
-    match = re.fullmatch(r'\$\{ODOO_EGRESS_HOSTS:-([^}]*)\}', value)
+    value = environment(service_block(STACK, 'odoo-egress'))['AI_EGRESS_HOSTS']
+    # The object-storage compatibility host of tenant storage joins the list only when it is set.
+    match = re.fullmatch(r'\$\{ODOO_EGRESS_HOSTS:-([^}]*)\}\$\{LIWAN_OBJECT_STORAGE_COMPAT_HOST:\+,\$\{LIWAN_OBJECT_STORAGE_COMPAT_HOST\}\}', value)
     assert match, value
     return match.group(1).split(',')
 
@@ -81,14 +81,12 @@ class OdooHostListCase(unittest.TestCase):
         env = {'PATH': os.environ.get('PATH', '')}
         chat = subprocess.run(['sh', str(HOSTS), 'openrouter'], env=env, capture_output=True, text=True, check=True).stdout.strip()
         self.assertEqual(chat, 'openrouter.ai')
-        ai_environment = environment(service_block(BASE, 'ai-egress'))
+        ai_environment = environment(service_block(STACK, 'ai-egress'))
         self.assertEqual(ai_environment['AI_EGRESS_HOSTS'], '${AI_EGRESS_HOSTS:-}')
         self.assertNotIn('EGRESS_DENY_PRIVATE', ai_environment)
-        # The overlay gives ai-egress a network list and nothing else: no host list, no Odoo variable.
-        shared_ai_egress = '\n'.join(service_block(SHARED, 'ai-egress'))
-        self.assertNotIn('ODOO_EGRESS', shared_ai_egress)
-        self.assertNotIn('AI_EGRESS_HOSTS', shared_ai_egress)
-        self.assertNotIn('ODOO_EGRESS', '\n'.join(service_block(BASE, 'ai')))
+        # The AI instance carries no Odoo variable, and the AI service none either.
+        self.assertNotIn('ODOO_EGRESS', '\n'.join(service_block(STACK, 'ai-egress')))
+        self.assertNotIn('ODOO_EGRESS', '\n'.join(service_block(STACK, 'ai')))
 
 
 class RenderCase(unittest.TestCase):
@@ -147,10 +145,10 @@ class RenderCase(unittest.TestCase):
 
 class OverlayWiringCase(unittest.TestCase):
     def setUp(self):
-        self.odoo = environment(service_block(SHARED, 'odoo'))
-        self.odoo_lines = service_block(SHARED, 'odoo')
-        self.proxy = service_block(SHARED, 'odoo-egress')
-        self.networks_block = SHARED.read_text(encoding='utf-8').split('\nnetworks:\n', 1)[1].split('\nvolumes:', 1)[0]
+        self.odoo = environment(service_block(STACK, 'odoo'))
+        self.odoo_lines = service_block(STACK, 'odoo')
+        self.proxy = service_block(STACK, 'odoo-egress')
+        self.networks_block = STACK.read_text(encoding='utf-8').split('\nnetworks:\n', 1)[1].split('\nvolumes:', 1)[0]
 
     def test_odoo_carries_the_proxy_environment(self):
         self.assertEqual(self.odoo['HTTPS_PROXY'], 'http://odoo-egress:3128')
@@ -166,18 +164,18 @@ class OverlayWiringCase(unittest.TestCase):
         self.assertEqual(self.odoo['LIWAN_TIKTOK_RELAY_URL'], '${LIWAN_TIKTOK_RELAY_URL:-http://tiktok-relay:8090}')
 
     def test_odoo_reaches_the_proxy_over_an_internal_network_and_has_no_routed_one(self):
-        listed = [line.strip()[2:] for line in self.odoo_lines if re.match(r'^ {6}- \w+$', line)]
+        listed = re.search(r'^    networks: \[(.*)\]$', '\n'.join(self.odoo_lines), re.M).group(1).split(', ')
         self.assertEqual(listed, ['guard_odoo', 'database', 'relay_odoo', 'odoo_egress', 'odoo_mail'])
         for name in listed:
             self.assertRegex(self.networks_block, rf'\n  {name}: \{{ internal: true \}}')
 
     def test_the_proxy_has_exactly_one_routed_network_and_odoo_shares_only_the_internal_one(self):
         self.assertIn('    networks: [odoo_egress, edge]', self.proxy)
-        self.assertNotIn('odoo_egress', '\n'.join(service_block(SHARED, 'ai-egress')))
-        self.assertNotIn('odoo_egress', '\n'.join(service_block(SHARED, 'ai')))
+        self.assertNotIn('odoo_egress', '\n'.join(service_block(STACK, 'ai-egress')))
+        self.assertNotIn('odoo_egress', '\n'.join(service_block(STACK, 'ai')))
         # Only odoo and its proxy sit on odoo_egress.
-        members = [name for name in re.findall(r'^  ([\w-]+):\s*$', SHARED.read_text(encoding='utf-8'), re.M)
-                   if 'odoo_egress' in '\n'.join(service_block(SHARED, name)) and name not in ('odoo_egress',)]
+        members = [name for name in re.findall(r'^  ([\w-]+):\s*$', STACK.read_text(encoding='utf-8'), re.M)
+                   if 'odoo_egress' in '\n'.join(service_block(STACK, name)) and name not in ('odoo_egress',)]
         self.assertEqual(sorted(members), ['odoo', 'odoo-egress'])
 
     def test_the_proxy_instance_is_hardened_denies_private_ranges_and_has_no_tenant_files(self):
@@ -192,15 +190,10 @@ class OverlayWiringCase(unittest.TestCase):
         self.assertIn('odoo-egress: { condition: service_started }', '\n'.join(self.odoo_lines))
 
     def test_the_restore_odoo_has_no_outbound_route(self):
-        text = '\n'.join(service_block(SHARED, 'restore-odoo'))
+        text = '\n'.join(service_block(STACK, 'restore-odoo'))
         self.assertNotIn('PROXY', text)
         self.assertNotIn('odoo_egress', text)
         self.assertIn('networks: [guard_restore, restore_database]', text)
-
-    def test_the_single_customer_template_gives_odoo_a_direct_route(self):
-        # No `networks:` key: Odoo sits on the default, routed network, so the template has no gap to close.
-        self.assertNotIn('networks:', '\n'.join(service_block(BASE, 'odoo')))
-        self.assertNotIn('odoo-egress', BASE.read_text(encoding='utf-8'))
 
 
 if __name__ == '__main__':

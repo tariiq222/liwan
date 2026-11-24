@@ -34,16 +34,16 @@ local copy: it pulls the document fresh for the candidate commit on every run an
 
 | Environment | Candidate commit |
 | --- | --- |
-| `staging` | the commit of the highest `release/19.0.X.Y.Z` tag (compared by version, not by text) |
-| `production` | the commit of the one tag given with `--tag release/19.0.X.Y.Z`; it never picks the highest tag itself |
+| `LIWAN_RELEASE_TAG_POLICY=highest` (staging) | the commit of the highest `release/19.0.X.Y.Z` tag (compared by version, not by text) |
+| `LIWAN_RELEASE_TAG_POLICY=explicit` (production) | the commit of the one tag given with `--tag release/19.0.X.Y.Z`; it never picks the highest tag itself |
 
-Staging and production are the only environments and share every rule below. Both run on Arm.
+Every environment shares every rule below; its name and its tag policy come from its config file and shared env file, not from code. Both run on Arm.
 
-The production job command is `release.py run --environment production --tag <tag>`. Without `--tag` the run refuses
-with `RESULT: refused production_tag_required`; a tag that does not match `release/19.0.X.Y.Z` is refused as
+The production job command is `release.py run --environment production --tag <tag>`. Without `--tag` an `explicit` environment refuses
+with `RESULT: refused tag_required`; a tag that does not match `release/19.0.X.Y.Z` is refused as
 `invalid_tag`, and one GitHub does not have as `tag_not_found`, all before any fetch or image pull. The given tag then
 passes every check below unchanged, even when a higher tag exists. This closes "production takes the highest tag".
-`--tag` is refused for staging and for `status` and `rollback`.
+`--tag` is refused for a `highest` environment (`tag_not_allowed`) and for `status` and `rollback`.
 
 An automatic proof that staging already served and passed the tag is still not built: the owner and the coordinator
 confirm it by hand before the word «انشر على الإنتاج». An enforced gate is designed in plan part P7 and is not
@@ -158,6 +158,63 @@ The command never waits for input. A second start while one runs exits 0 at once
 | `docker-config/` | the private docker login |
 | `runs/<commit>/` | backup work files and upgrade logs |
 
+## The stack and the Odoo config
+
+The shared stack is one definition, `deploy/stack/compose.yml`. Each release renders its own: the command runs
+`python3 -B -m deploy.stack.render bundle --env-file <shared env> [--env-file <release.env>] --out <dir>` inside that release's
+checkout (`PYTHONPATH` set to it; `<dir>` is `<state>/stack/<commit>/`, mode 0700, cleared before each render) and reads only the
+`stack.json` manifest it writes (`{"contract": 1, "compose", "envFiles", "odooConf", "projectDirectory"}`, with `compose.yml`,
+`sizing.env` and a 0600 `odoo.conf` beside it). No release's template is read by another release's code, so a candidate may change
+the stack, the toggles or the Odoo config template and the served release is still stopped, and rolled back to, on its own render.
+Every compose command is `docker compose --project-directory <checkout>/deploy -p <project> -f <bundle compose file>` with the env
+files in this order, the last one winning: the bundle's `sizing.env`, the shared env file, `release.env`. A renderer that refuses
+the shared env file (a toggle its own template uses that is missing or not exactly `true`/`false`, a missing secret key; stderr names keys, never values) is
+`invalid_shared_env`; a checkout without `deploy/stack/render.py` is `previous_not_stack` (the served release) or
+`candidate_not_stack`, and a manifest of another contract is `stack_contract_mismatch`, each refused in `prepare` before anything
+stops. A served release that predates the stack definition is moved over once by hand: see "Pre-stack cutover (one time)" below.
+A renderer requires exactly the toggles its own template uses and ignores any other `LIWAN_STACK_*` key (it names them once on stderr as `ignored: <names>`), so a toggle only a newer release uses may sit in the shared env file while the served release is still in charge; a misspelled known toggle still fails because the real one is then missing. Services are started by name, so a profile service such as `tenant-storage` never comes up with `up`.
+
+`LIWAN_RELEASE_TAG_POLICY` in the shared env file is `highest` (the highest `release/19.0.X.Y.Z` tag; `--tag` is refused with
+`tag_not_allowed`) or `explicit` (only the tag `--tag` gives; none is refused with `tag_required`); a missing or other value is
+refused with `invalid_tag_policy`. An environment is any name (lowercase letters, digits, hyphens) with a config file in
+`/etc/liwan-release/`.
+
+`prepare` also takes the candidate's rendered `odoo.conf`, writes it to `<LIWAN_SHARED_ODOO_CONFIG>.next` with the live file's owner,
+group and mode exactly, and validates it with the candidate's `deploy/shared/validate_odoo_config.py` (`odoo_config_invalid`); the
+restore profile's `LIWAN_RESTORE_ODOO_CONFIG` is validated as before. The live file must exist: a missing one is `RESULT: refused
+odoo_config_missing`, because a file the command made as root would not be readable by the container (the operator creates it as row
+A4.7 says). A live file that does not carry the render marker (a hand-written one) must match the render option by option, secrets
+included (compared in constant time) or the run stops with `RESULT: refused odoo_config_drift`, naming the differing option names
+only, never a value. `activate` renames `.next` over the live file after the stop; a resumed run finds nothing left to rename. A
+rollback runs the same install for the previous release (`install_odoo_config`: its own renderer, the same checks, the same owner
+and mode) before it starts it, so there is one mechanism and no `.prev` copy: the previous release always rendered its own config
+(a pre-stack one is refused before the run starts), and a hand-written file was adopted only because it said what the render says,
+so the re-render is equivalent. `prepare` also refuses with `classification_dir_missing` when
+`<LIWAN_CONTROL_STATE_DIR>/classifications` (bind-mounted read-only into Odoo, never created by Docker) is not a directory.
+
+## Pre-stack cutover (one time)
+
+A host whose served release predates the stack definition (it has `deploy/docker-compose*.yml` and no `deploy/stack/render.py`) is
+refused with `previous_not_stack`: the release command could neither stop it nor roll back to it. Move it over by hand, once, as
+root, with the owner's explicit go. This is one ordered list that follows the A4.4a procedure of
+[environment-bringup.md](../../docs/operations/environment-bringup.md) (row A4.4b points here); staging has a `db` volume
+whose bootstrap user is still `odoo`, so A4.4a is part of it. `<c>` is the served (pre-stack) commit, `<n>` the candidate commit,
+`<project>` the compose project, `<state>` is `/var/lib/liwan-release/<env>`.
+
+1. Delete the test tenants through the real deletion path and confirm none is left (A4.4a step 1): `node /opt/liwan/current/deploy/shared/backup-binding.mjs --list "$LIWAN_TENANT_REGISTRY_DIR/registry.json"` prints `[]` and `ls <odoo data dir>/filestore` lists no tenant folder. Stop here if either is not so.
+2. Stop the worker first, so nothing provisions or charges meanwhile: `systemctl stop liwan-shared-worker.service`; `systemctl is-active liwan-shared-worker.service` prints `inactive`.
+3. Keep what the manual rollback needs: `pg_dump` of every database you want to keep, and of the control database, which the first deploy migrates in its upgrade phase and reopens on the candidate's images in its start phase (the control project is `liwan-control`, outside the shared stack): as root, `PGPASSFILE=/etc/liwan-release/pgpass <LIWAN_RELEASE_PG_DUMP> -h 127.0.0.1 -p 15432 -U liwan_control -d liwan_control -f /root/liwan_control.pre-stack.dump`; `cp -p <LIWAN_SHARED_ODOO_CONFIG> <LIWAN_SHARED_ODOO_CONFIG>.pre-stack`; `cp -p <LIWAN_SHARED_COMPOSE_FILE> <LIWAN_SHARED_COMPOSE_FILE>.pre-stack` (the `composeFile` of `shared-runtime.json`; the first new activation overwrites it); `cp -p <state>/release.env <state>/release.env.pre-stack`.
+4. Move the pre-stack release folder out of `releases/`: `mv /opt/liwan/releases/<c> /opt/liwan/pre-stack-<c>`.
+5. Stop the old stack with its own five files and delete the two database volumes, exactly as A4.4a step 3, never `down -v`: `cd /opt/liwan/pre-stack-<c>/deploy && docker compose -p <project> -f docker-compose.yml -f docker-compose.shared.yml -f docker-compose.shared-commercial.yml -f docker-compose.production.yml -f docker-compose.host-link.yml --env-file <shared.env> --env-file <state>/release.env --profile restore down`, then `docker volume rm <project>_db_data` and, when it exists, `docker volume rm <project>_restore_db_data`. Check: `docker volume ls -q | grep -c -E '^<project>_(db_data|restore_db_data)$'` prints `0`.
+6. `DB_ADMIN_PASSWORD` and the pgpass line, exactly as A4.4a step 4: put `DB_ADMIN_PASSWORD` (`openssl rand -hex 32`, different from `DB_PASSWORD`, never printed) in the shared env file and change the pgpass line for port 15433 to `postgres`. Check: `grep -c '^DB_ADMIN_PASSWORD=.' <shared.env>` prints `1`.
+7. Move the release state aside, not deleting it: `mkdir <state>/pre-cutover && mv <state>/served.json <state>/release.env <state>/pre-cutover/` and `failed.json`, `halted.json`, `run.json` when present (`release.env` is already saved as `release.env.pre-stack` by step 3).
+8. Put the candidate in place without building it by hand: `prepare` installs the worker dependencies and normalizes modes itself, so create no dependency marker. As the release user: `git clone --no-checkout https://github.com/tariiq222/liwan.git /tmp/liwan-src && mkdir -p /opt/liwan/releases/<n> && git -C /tmp/liwan-src archive --format=tar <n> | tar -x -C /opt/liwan/releases/<n> && rm -rf /tmp/liwan-src`, then `chmod 0755 /opt/liwan/releases && ln -sfn /opt/liwan/releases/<n> /opt/liwan/current`. Check: `python3 -B /opt/liwan/current/deploy/release/release.py status --environment <env>` prints `"served": null`.
+9. Add the new keys to the shared env file: `LIWAN_RELEASE_TAG_POLICY`, `LIWAN_STACK_COMMERCIAL_EDGE`, `LIWAN_STACK_DB_HOST_LINK`, `LIWAN_ODOO_ADMIN_PASSWD`, `LIWAN_TENANT_STORAGE_FILES_DIR` and the `OCI_*` tenant-storage keys (empty); create `<LIWAN_CONTROL_STATE_DIR>/classifications` when it is missing; then check the host with `python3 -B /opt/liwan/current/deploy/release/bringup.py --environment <env>` (every line `ok <item>` except `MISSING tenant-storage-files`) and create that item as root with `python3 -B /opt/liwan/current/deploy/release/bringup.py --environment <env> --apply` (`created tenant-storage-files`: the directory and the naming key; the OCI signing key stays yours); `--apply` takes no item argument, so it also creates every other missing item it can create, and the check is re-run after it.
+10. Install the Odoo config with the single recipe of row A4.7 (render the bundle from `/opt/liwan/current`, `install -o root -g 999 -m 0440`, validate on the host and in the container). The file from the pre-stack release stays as `.pre-stack`; the release adopts the new one and keeps its owner and mode.
+11. Run the release job: `python3 -B /opt/liwan/current/deploy/release/release.py run --environment <env>`. With no `served.json` it is the first deploy; the `db` init scripts create `postgres` and `odoo` on the empty volume. Check: `RESULT: committed <n>` (the commit step starts the worker again).
+
+Manual rollback (the first deploy failed or you stop before step 11 has committed): `systemctl stop liwan-shared-worker.service`. When `<state>/release.env` does not exist (`ls <state>/release.env`), the run stopped before `activate` wrote it, so nothing of the new stack started and the control database was not migrated: skip the next sentence and go to the state restore. Otherwise stop what the new stack started (`docker compose --project-directory /opt/liwan/current/deploy -p <project> -f <state>/stack/<n>/compose.yml --env-file <state>/stack/<n>/sizing.env --env-file <shared.env> --env-file <state>/release.env down`, without `-v`), then pause the control project, whose database the run migrated and whose services it may have reopened on the candidate's images: `docker compose -p liwan-control -f /opt/liwan/current/deploy/control-plane/compose.production.yml -f /opt/liwan/current/deploy/control-plane/compose.host-link.yml --env-file <shared.env> --env-file <state>/release.env stop control-api vendor-console`, and restore the control dump of step 3, because the old control API does not run on a schema migrated past it: `PGPASSFILE=/etc/liwan-release/pgpass psql -h 127.0.0.1 -p 15432 -U liwan_control -d postgres -v ON_ERROR_STOP=1 -c 'DROP DATABASE liwan_control' -c 'CREATE DATABASE liwan_control'`, then `PGPASSFILE=/etc/liwan-release/pgpass psql -h 127.0.0.1 -p 15432 -U liwan_control -d liwan_control -v ON_ERROR_STOP=1 -f /root/liwan_control.pre-stack.dump`. Restore the state: `rm -f <state>/run.json <state>/halted.json <state>/failed.json /var/lib/liwan-release/maintenance/active`, `mv <state>/pre-cutover/served.json <state>/`, `cp -p <state>/release.env.pre-stack <state>/release.env`; restore the files: `cp -p <LIWAN_SHARED_ODOO_CONFIG>.pre-stack <LIWAN_SHARED_ODOO_CONFIG>` and `cp -p <LIWAN_SHARED_COMPOSE_FILE>.pre-stack <LIWAN_SHARED_COMPOSE_FILE>` (the old `composeFile` of `shared-runtime.json`); put the folder back, `mv /opt/liwan/pre-stack-<c> /opt/liwan/releases/<c>` and `ln -sfn /opt/liwan/releases/<c> /opt/liwan/current`; start the old stack with its five files and `up -d --wait` (same files and env files as step 5); the old stack starts on empty volumes (step 5 deleted them), so when the upgrade phase ran or you need the data, restore the dumps of step 3 into it before the worker starts; start the control project again with the old release's own control files, `docker compose -p liwan-control -f /opt/liwan/releases/<c>/deploy/control-plane/compose.production.yml -f /opt/liwan/releases/<c>/deploy/control-plane/compose.host-link.yml --env-file <shared.env> --env-file <state>/release.env up -d --wait --no-build --pull never control-api vendor-console` (the restored `release.env` puts the old `LIWAN_IMAGE_TAG` back, so this starts the old images and pulls nothing); then `systemctl start liwan-shared-worker.service`. After the first deploy has committed, the normal rollback applies instead.
+
 ## Config
 
 `/etc/liwan-release/<environment>.env`, mode `0600`, owned by the running user. Required keys: `LIWAN_RELEASE_PROJECT`,
@@ -192,17 +249,17 @@ worker's `shared-runtime.json`); it is not a release config key. Before anything
 `RESULT: refused invalid_shared_env` when the key is missing or not an absolute path, when its directory does not exist or is not
 writable, or when the shared env file is owned by root and unreadable by group and others (the effect account, which reads the
 rendered copy through the `docker` group, could never read it). At each activation, after `release.env` is written and before any service or the worker starts, the run renders the
-shared stack (the files of `SHARED_COMPOSE_FILES`, every profile) to that path with `docker compose config --format json`, through
+shared stack (the one stack definition `deploy/stack/compose.yml` of the candidate, every profile) to that path with `docker compose config --format json`, through
 a temporary file and an atomic replace. The file holds the shared env file's secrets, so it takes that file's owner, group and
 mode. A rollback renders it again for the restored release, so the worker and the running stack always describe the same release.
 A failed render fails the run (`shared_compose_render_failed`) and the usual rollback applies. In the rollback the previous
 release's services start first and the maintenance marker goes; only then is the file rendered and the worker started, so a failed
 render there halts the run (exit 5) with the previous release serving and the worker stopped.
 
-Database access for the backup: the tenant `db` is published on `127.0.0.1` by `deploy/docker-compose.host-link.yml`
-(part of the shared compose set), and the control-plane database by `deploy/control-plane/compose.host-link.yml`. The ports are
+Database access for the backup: the tenant `db` is published on `127.0.0.1` by the stack's `LIWAN_STACK_DB_HOST_LINK=true`
+block (`deploy/stack/compose.yml`), and the control-plane database by `deploy/control-plane/compose.host-link.yml`. The ports are
 read from the shared env file, not the release config: `LIWAN_DB_HOST_PORT` (default `15433`) and `LIWAN_CONTROL_DB_HOST_PORT`
-(default `15432`), the same keys the overlays interpolate. Set
+(default `15432`), the same keys the stack interpolates. Set
 
 ```
 LIWAN_RELEASE_PG_HOST=127.0.0.1

@@ -14,29 +14,29 @@ from deploy.release.tenant_postgres import ODOO_RUNTIME_ROLE, POSTGRES_ADMIN_ROL
 from deploy.test_container_hardening import services
 
 DEPLOY = Path(__file__).resolve().parent
-COMPOSE_FILES = ('docker-compose.yml', 'docker-compose.shared.yml')
-DATABASE_SERVICES = {'docker-compose.yml': 'db', 'docker-compose.shared.yml': 'restore-db'}
+STACK = 'stack/compose.yml'
+DATABASE_SERVICES = {'db', 'restore-db'}
 INIT_SCRIPT = DEPLOY / 'db' / 'init-runtime-role.sh'
 STUB_PSQL = '#!/bin/sh\necho "$@" > "$STUB_DIR/args"\ncat > "$STUB_DIR/sql"\n'
 
 
 class ComposeBootstrapTest(unittest.TestCase):
-    def blocks(self, name):
+    def blocks(self, name=STACK):
         return services((DEPLOY / name).read_text())
 
     def test_the_database_services_bootstrap_as_the_admin_role(self):
-        for name, service in DATABASE_SERVICES.items():
-            with self.subTest(file=name):
-                block = self.blocks(name)[service]
+        for service in sorted(DATABASE_SERVICES):
+            with self.subTest(service=service):
+                block = self.blocks()[service]
                 self.assertIn(f'POSTGRES_USER: {POSTGRES_ADMIN_ROLE}\n', block + '\n')
                 self.assertIn('POSTGRES_PASSWORD: "${DB_ADMIN_PASSWORD:?', block)
                 self.assertIn('ODOO_DB_PASSWORD: "${DB_PASSWORD:?', block)
                 self.assertNotIn(f'POSTGRES_USER: {ODOO_RUNTIME_ROLE}', block)
 
     def test_the_runtime_role_script_is_mounted_before_the_ai_script(self):
-        for name, service in DATABASE_SERVICES.items():
-            with self.subTest(file=name):
-                mounts = re.findall(r'\./([\w/.-]+):/docker-entrypoint-initdb\.d/([\w.-]+):ro', self.blocks(name)[service])
+        for service in sorted(DATABASE_SERVICES):
+            with self.subTest(service=service):
+                mounts = re.findall(r'\./([\w/.-]+):/docker-entrypoint-initdb\.d/([\w.-]+):ro', self.blocks()[service])
                 self.assertEqual([('db/init-runtime-role.sh', '10-liwan-runtime-role.sh'),
                                   ('ai/init-db.sh', '20-liwan-ai.sh')], mounts)
 
@@ -47,14 +47,14 @@ class ComposeBootstrapTest(unittest.TestCase):
             for service, block in services(path.read_text()).items():
                 if 'DB_ADMIN_PASSWORD' in block:
                     with self.subTest(file=path.name, service=service):
-                        self.assertEqual(DATABASE_SERVICES.get(path.name), service)
+                        self.assertIn(service, DATABASE_SERVICES)
 
     def test_the_healthchecks_need_the_admin_role_to_log_in_with_its_password(self):
         """`pg_isready` proves nothing, and the image trusts 127.0.0.1 in pg_hba.conf: the check must be a psql login as
         `postgres` over the container's own address, where a missing role or a wrong password fails it."""
-        for name, service in DATABASE_SERVICES.items():
-            with self.subTest(file=name):
-                block = self.blocks(name)[service]
+        for service in sorted(DATABASE_SERVICES):
+            with self.subTest(service=service):
+                block = self.blocks()[service]
                 self.assertIn('POSTGRES_PASSWORD: "${DB_ADMIN_PASSWORD:?', block)
                 check = next(line for line in block.splitlines() if line.strip().startswith('test: ['))
                 self.assertIn('PGPASSWORD=$${POSTGRES_PASSWORD}', check)
@@ -111,8 +111,7 @@ class HarnessSuppliesAdminPasswordTest(unittest.TestCase):
     shared stack must supply it, or `docker compose config|ps|down` fails before anything runs."""
 
     HARNESSES = (
-        'tools/shared_acceptance_live/probe.mjs',
-        'tools/shared_acceptance_live/down.sh',
+        'tools/shared_acceptance_live/up.sh',
         'tools/foundation_acceptance/provision_two_tenants.mjs',
         'apps/control-plane/src/__tests__/shared-topology.test.ts',
     )

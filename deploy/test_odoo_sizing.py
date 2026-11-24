@@ -12,17 +12,20 @@ import contextlib
 import importlib.util
 import io
 import json
+import os
 import re
+import shutil
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 
-import yaml
-
 from deploy import odoo_sizing
+from deploy.stack import render as stack_render
 
 ROOT = Path(__file__).resolve().parents[1]
 SIZING_DOC = ROOT / 'docs/operations/odoo-sizing.md'
+LOCAL_ENV = ROOT / 'deploy/environments/local.env.example'
 
 
 def _validator():
@@ -321,47 +324,36 @@ class TestValidatorBudgetMatches(unittest.TestCase):
                              self.validator.MAX_CLIENT_CONNECTIONS)
 
 
-class _ComposeLoader(yaml.SafeLoader):
-    """Reads the overlay files, which carry `!override` and `!reset` tags."""
+def _rendered_services() -> dict:
+    """The one stack rendered with the plan's sizing values, the services of every profile (compose config as JSON)."""
+    if shutil.which('docker') is None:
+        raise unittest.SkipTest('docker CLI not installed: cannot render the stack')
+    with tempfile.TemporaryDirectory() as tmp:
+        envfile = Path(tmp) / 'sizing.test.env'
+        env = {**stack_render.read_env(LOCAL_ENV), 'LIWAN_IMAGE_TAG': 'test', 'ODOO_COMMIT': 'dummy',
+               'DB_PASSWORD': 'dummy', 'DB_ADMIN_PASSWORD': 'dummy-admin', 'LIWAN_SHARED_PROXY_TOKEN': 'dummy',
+               'LIWAN_SESSION_KEYS': 'dummy', 'LIWAN_SESSION_ACTIVE_KID': 'k1', 'LIWAN_SHARED_ODOO_CONFIG': '/tmp/odoo.conf',
+               'LIWAN_TENANT_REGISTRY_DIR': '/tmp', 'LIWAN_CONTROL_STATE_DIR': '/tmp', 'LIWAN_TENANT_STORAGE_FILES_DIR': '/tmp'}
+        envfile.write_text(''.join(f'{key}={value}\n' for key, value in env.items()), encoding='utf-8')
+        with stack_render.rendered_stack(envfile) as stack:
+            done = subprocess.run(
+                ['docker', 'compose', '--project-directory', str(ROOT / 'deploy'), '--env-file', str(envfile),
+                 '--env-file', str(stack.with_name(stack_render.SIZING_FILE)), '-f', str(stack), '--profile', '*',
+                 'config', '--format', 'json'],
+                capture_output=True, text=True, timeout=120, cwd=ROOT,
+                env={k: v for k, v in os.environ.items() if not k.startswith(('LIWAN_', 'ODOO_', 'DB_'))})
+    if done.returncode:
+        raise AssertionError(done.stderr.strip()[:600])
+    return json.loads(done.stdout)
 
 
-def _construct_tagged(loader, _suffix, node):
-    if isinstance(node, yaml.SequenceNode):
-        return loader.construct_sequence(node, deep=True)
-    if isinstance(node, yaml.MappingNode):
-        return loader.construct_mapping(node, deep=True)
-    return loader.construct_scalar(node)
-
-
-_ComposeLoader.add_multi_constructor('!', _construct_tagged)
-
-
-def _load_compose(path):
-    return yaml.load(path.read_text(encoding='utf-8'), Loader=_ComposeLoader)
-
-
-class TestProductionOverridePinsThePlan(unittest.TestCase):
-    """The production compose override is the one place the plan's numbers are applied."""
+class TestStackPinsThePlan(unittest.TestCase):
+    """The one stack definition is the place the plan's numbers are applied."""
 
     def setUp(self):
         self.sizing = odoo_sizing.compute(odoo_sizing.BOX_JEDDAH_A1, odoo_sizing.Assumptions())
-        self.path = ROOT / 'deploy/docker-compose.production.yml'
-        self.document = yaml.safe_load(self.path.read_text(encoding='utf-8'))
+        self.document = _rendered_services()
         self.services = self.document['services']
-
-    def command_flags(self, service):
-        """Parse `--flag value` pairs from a compose command list."""
-        argv = self.services[service]['command']
-        flags = {}
-        index = 0
-        while index < len(argv) - 1:
-            token = argv[index]
-            if token.startswith('--') and not argv[index + 1].startswith('--'):
-                flags[token.lstrip('-')] = argv[index + 1]
-                index += 2
-            else:
-                index += 1
-        return flags
 
     def test_the_validator_passes_the_rendered_production_fragment(self):
         """The rendered fragment is exactly what the runtime gate accepts."""
@@ -397,17 +389,17 @@ class TestProductionOverridePinsThePlan(unittest.TestCase):
 
     def test_the_odoo_memory_envelope_matches_the_plan(self):
         # The worker budget lives in the config file (the launcher accepts no flags);
-        # this override carries the container envelope for the same plan.
+        # the stack carries the container envelope for the same plan.
         sizing = self.sizing
         ceiling_mib = (sizing.workers + sizing.max_cron_threads) * sizing.limit_memory_hard_mib
         block = self.services['odoo']
         self.assertGreaterEqual(_mem_limit_mib(block['mem_limit']), ceiling_mib)
         self.assertEqual(block['cpu_shares'], 1024)
 
-    def test_the_override_carries_no_odoo_sizing_flags(self):
+    def test_the_stack_carries_no_odoo_sizing_flags(self):
         # launch_odoo.py (outside this package) rejects CLI overrides in shared mode;
         # the plan reaches Odoo through the config file rendered by --render odoo.
-        self.assertNotIn('command', self.services['odoo'])
+        self.assertFalse(self.services['odoo'].get('command'))
 
     def test_postgres_settings_come_from_the_plan(self):
         argv = self.services['db']['command']
@@ -425,16 +417,12 @@ class TestProductionOverridePinsThePlan(unittest.TestCase):
         self.assertEqual(self.services['pgbouncer']['profiles'], ['pgbouncer'])
 
     def test_pgbouncer_shares_the_database_network_with_postgres_and_odoo(self):
-        # Base + shared + production: the shared overlay moves db to `database` only and
-        # Odoo to [guard_odoo, database, relay_odoo]; a pgbouncer with no declaration
-        # would sit on `default` and reach neither.
-        shared = _load_compose(ROOT / 'deploy/docker-compose.shared.yml')
-        shared_services = shared['services']
+        # A pgbouncer with no declaration would sit on `default` and reach neither.
         pgbouncer = set(self.services['pgbouncer']['networks'])
         self.assertTrue(pgbouncer)
-        self.assertTrue(pgbouncer <= set(shared['networks']))
-        self.assertTrue(pgbouncer & set(shared_services['db']['networks']))
-        self.assertTrue(pgbouncer & set(shared_services['odoo']['networks']))
+        self.assertTrue(pgbouncer <= set(self.document['networks']))
+        self.assertTrue(pgbouncer & set(self.services['db']['networks']))
+        self.assertTrue(pgbouncer & set(self.services['odoo']['networks']))
         self.assertNotIn('default', pgbouncer)
 
     def test_pgbouncer_is_hardened_like_the_other_services(self):
@@ -453,14 +441,9 @@ class TestProductionOverridePinsThePlan(unittest.TestCase):
         self.assertEqual(int(env['RESERVE_POOL_SIZE']), expected['reserve_pool_size'])
         self.assertEqual(env['POOL_MODE'], expected['pool_mode'])
 
-    def test_the_override_does_not_take_over_the_config_file_owner(self):
-        # P2 owns deploy/shared/odoo.conf; this override only adds runtime settings.
-        for service in ('odoo', 'db', 'pgbouncer'):
-            with self.subTest(service=service):
-                self.assertNotIn('volumes', self.services[service])
-
-    def test_every_image_in_the_override_is_pinned_by_digest(self):
-        images = re.findall(r'^\s+image:\s*(\S+)', self.path.read_text(encoding='utf-8'), re.M)
+    def test_every_external_image_of_the_stack_is_pinned_by_digest(self):
+        text = (stack_render.STACK / 'compose.yml').read_text(encoding='utf-8')
+        images = [image for image in re.findall(r'^\s+image:\s*(\S+)', text, re.M) if not image.startswith('liwan-')]
         self.assertTrue(images)
         for image in images:
             with self.subTest(image=image):

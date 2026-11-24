@@ -14,17 +14,28 @@ LIWAN_IMAGE_TAG=<matching-built-tag> \
   node --import tsx tools/foundation_acceptance/provision_two_tenants.mjs
 ```
 
-The local images must already exist: `liwan-odoo`, `liwan-web` (shared build),
-`liwan-guard`, `liwan-accept-caddy` (pinned rate-limit module) at that tag,
-plus `postgres:16`. The harness neither builds nor pulls images. Image IDs,
+The local images must already exist at that tag: `liwan-odoo`, `liwan-web` (shared build),
+`liwan-guard`, `liwan-caddy` (pinned rate-limit module), `liwan-ai-egress` and
+`liwan-odoo-mail` (build commands: `tools/shared_acceptance_live/README.md`), plus `postgres:16`. The harness neither builds nor pulls images. Image IDs,
 source commit, commands' exit codes and result rows are recorded. The operator
 must establish that these image IDs were built from that source; a matching tag
 alone is not build provenance.
 
 `FOUNDATION_SOURCE_ROOT` may point at a different clean committed checkout; the
-API, worker, catalog and production Compose files come from that root. Its
-packages/dependencies must be prepared independently. The harness code and its
-override remain those next to this README. `FOUNDATION_OUTPUT_DIR` selects an
+API, worker, catalog and the stack definition (`deploy/stack/compose.yml`) come from that
+root. Its packages/dependencies must be prepared independently. The harness code and
+`control-db.yml` remain those next to this README.
+
+The stack is the one every environment runs: `tools/shared_acceptance_live/stack_render.py`
+renders it from `deploy/environments/local.env.example` plus the harness values (image tag,
+domain, ports, subnets, secrets) and `docker compose config` resolves it into the run's
+`compose.yml`. `control-db.yml` only adds the scratch control database; nothing is layered
+over a stack service, no source file is mounted into a container and there is no Caddyfile of
+the harness. The harness domain is `foundation.liwan.localhost`: a `.localhost` name never
+qualifies for a public certificate, so Caddy issues it from its internal CA. In `--commercial`
+mode the stack's `odoo-mail` relay (STARTTLS only) is replaced by a Mailpit container that
+answers to the `odoo-mail` name on the stack's internal mail network, so the first
+administrator's email code reaches the capture. `FOUNDATION_OUTPUT_DIR` selects an
 existing output parent; a new private per-run directory is always created.
 
 Four free high loopback ports are chosen automatically. To pin reserved values,

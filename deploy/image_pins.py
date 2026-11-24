@@ -27,8 +27,8 @@ the manifest, and every failure is reported with its next action.
 The report carries image references and digests only. Nothing here reads an
 environment variable, a token or a credential, and the CLI must never print one.
 
-The covered stack is every service ``deploy/docker-compose.yml`` declares, with the
-shared-SaaS and production overlays applied, plus the control plane's own production
+The covered stack is every service the one stack definition ``deploy/stack/compose.yml``
+declares (every profile and every optional block), plus the control plane's own production
 compose file (its services and the vendor console). A released image must be named in
 its compose file: a service that only builds would be built on the server instead of
 running the image the deploy script verified and tagged.
@@ -49,11 +49,9 @@ if TYPE_CHECKING:
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = ROOT / 'deploy/production-images.json'
-# The production stack: the base file, the shared SaaS overlay and the sizing override.
+# The production stack: the one stack definition and the control plane's own file.
 COMPOSE_FILES = (
-    ROOT / 'deploy/docker-compose.yml',
-    ROOT / 'deploy/docker-compose.shared.yml',
-    ROOT / 'deploy/docker-compose.production.yml',
+    ROOT / 'deploy/stack/compose.yml',
     ROOT / 'deploy/control-plane/compose.production.yml',
 )
 SCHEMA_VERSION = 1

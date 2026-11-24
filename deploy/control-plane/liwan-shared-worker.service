@@ -2,7 +2,7 @@
 #
 # This process is the only one that runs the commercial scheduler and pushes tenant
 # status to Odoo, so a shared deployment that omits it never applies a suspension or
-# a renewal. It is deliberately NOT a service in deploy/docker-compose.shared.yml:
+# a renewal. It is deliberately NOT a service in deploy/stack/compose.yml:
 # the control plane runs natively next to the Docker socket it drives, and the guard
 # image contains neither the control-plane code nor its Node/tsx dependencies, its
 # Python or a docker client. See docs/operations/saas-commercial-runbook.md.

@@ -50,8 +50,11 @@ class TestPipelineExecution(unittest.TestCase):
         shutil.copy(ROOT / 'deploy/production-images.json', self.root / 'deploy/production-images.json')
         (self.root / 'deploy/odoo').mkdir()
         (self.root / 'deploy/shared').mkdir()
-        (self.root / 'deploy/Caddyfile').write_text(':80\n')
-        (self.root / 'deploy/shared/Caddyfile').write_text(':80\n')
+        (self.root / 'deploy/stack').mkdir()
+        # A placeholder with no default and one with a default, so the proxy environment is built from the local file.
+        (self.root / 'deploy/stack/Caddyfile').write_text('{$DOMAIN} {\n\tbind {$LIWAN_TRUSTED_PROXIES:192.0.2.1/32}\n}\n')
+        (self.root / 'deploy/environments').mkdir()
+        shutil.copy(ROOT / 'deploy/environments/local.env.example', self.root / 'deploy/environments/local.env.example')
         (self.root / 'deploy/odoo/ODOO_COMMIT').write_text('a' * 40)
         self.fake('odoo-python', '''
 log = next((a.split('=',1)[1] for a in args if a.startswith('--logfile=')), None)
@@ -432,7 +435,8 @@ if 'deploy/restore_verify.py' in args:
         self.assertIn('| liwan-odoo:ci-123 | sha256:liwan-odoo:ci-123 | not published | liwan-odoo.cdx.json |', process.stdout)
         proxy = [x for x in calls if x[:2] == ['docker', 'run'] and 'liwan-proxy:ci-123' in x]
         validated = [x for x in calls if x[:2] == ['docker', 'run'] and 'liwan-proxy-files:ci-123' in x and 'validate' in x]
-        self.assertEqual(len(validated), 2)
+        self.assertEqual(len(validated), 1)
+        self.assertIn('--env-file', validated[0])
         self.assertTrue(any('http.handlers.rate_limit' in ' '.join(x) for x in proxy))
         guard = next(x for x in calls if x[:3] == ['docker', 'run', '-d'] and 'liwan-ci-123-guard' in x)
         self.assertIn('LIWAN_TENANCY_MODE=shared', guard)

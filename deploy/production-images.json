@@ -6,82 +6,94 @@
       "service": "odoo",
       "reference": "liwan-odoo",
       "status": "released",
-      "evidence": "deploy/docker-compose.yml:49 runs liwan-odoo:${LIWAN_IMAGE_TAG}; deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-odoo for linux/arm64 on every release tag; its digest per platform is recorded in that commit's release document (liwan-release:<commit>)."
+      "evidence": "deploy/stack/compose.yml runs liwan-odoo:${LIWAN_IMAGE_TAG}; deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-odoo for linux/arm64 on every release tag; its digest per platform is recorded in that commit's release document (liwan-release:<commit>)."
     },
     {
       "service": "web",
       "reference": "liwan-web",
       "status": "released",
-      "evidence": "deploy/docker-compose.yml runs liwan-web:${LIWAN_IMAGE_TAG} for the web service (build kept for local use only); deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-web for linux/arm64 on every release tag; its digest per platform is recorded in that commit's release document (liwan-release:<commit>)."
+      "evidence": "deploy/stack/compose.yml runs liwan-web:${LIWAN_IMAGE_TAG} for the web service (build kept for local use only); deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-web for linux/arm64 on every release tag; its digest per platform is recorded in that commit's release document (liwan-release:<commit>)."
     },
     {
       "service": "proxy",
       "reference": "liwan-caddy",
       "status": "released",
-      "evidence": "deploy/docker-compose.yml:3 runs liwan-caddy:${LIWAN_IMAGE_TAG}; deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-caddy for linux/arm64 on every release tag; its digest per platform is recorded in that commit's release document (liwan-release:<commit>)."
+      "evidence": "deploy/stack/compose.yml runs liwan-caddy:${LIWAN_IMAGE_TAG}; deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-caddy for linux/arm64 on every release tag; its digest per platform is recorded in that commit's release document (liwan-release:<commit>)."
     },
     {
       "service": "guard",
       "reference": "liwan-guard",
       "status": "released",
-      "evidence": "deploy/docker-compose.shared.yml:20 runs liwan-guard:${LIWAN_IMAGE_TAG}; deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-guard for linux/arm64 on every release tag; its digest per platform is recorded in that commit's release document (liwan-release:<commit>)."
+      "evidence": "deploy/stack/compose.yml runs liwan-guard:${LIWAN_IMAGE_TAG}; deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-guard for linux/arm64 on every release tag; its digest per platform is recorded in that commit's release document (liwan-release:<commit>)."
     },
     {
       "service": "tiktok-relay",
       "reference": "liwan-guard",
       "status": "released",
-      "evidence": "deploy/docker-compose.shared.yml:144 runs liwan-guard:${LIWAN_IMAGE_TAG}; deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-guard for linux/arm64 on every release tag; its digest per platform is recorded in that commit's release document (liwan-release:<commit>)."
+      "evidence": "deploy/stack/compose.yml runs liwan-guard:${LIWAN_IMAGE_TAG}; deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-guard for linux/arm64 on every release tag; its digest per platform is recorded in that commit's release document (liwan-release:<commit>)."
     },
     {
       "service": "ai",
       "reference": "liwan-ai-service",
       "status": "released",
-      "evidence": "deploy/docker-compose.yml runs liwan-ai-service:${LIWAN_IMAGE_TAG} for the ai service (build kept for local use only); deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-ai-service for linux/arm64 on every release tag; its digest per platform is recorded in that commit's release document (liwan-release:<commit>)."
+      "evidence": "deploy/stack/compose.yml runs liwan-ai-service:${LIWAN_IMAGE_TAG} for the ai service (build kept for local use only); deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-ai-service for linux/arm64 on every release tag; its digest per platform is recorded in that commit's release document (liwan-release:<commit>)."
     },
     {
       "service": "ai-egress",
       "reference": "liwan-ai-egress",
       "status": "released",
-      "evidence": "deploy/docker-compose.yml runs liwan-ai-egress:${LIWAN_IMAGE_TAG} for the ai-egress service (build kept for local use only); deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-ai-egress for linux/arm64 on every release tag; its digest per platform is recorded in that commit's release document (liwan-release:<commit>)."
+      "evidence": "deploy/stack/compose.yml runs liwan-ai-egress:${LIWAN_IMAGE_TAG} for the ai-egress service (build kept for local use only); deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-ai-egress for linux/arm64 on every release tag; its digest per platform is recorded in that commit's release document (liwan-release:<commit>)."
     },
     {
       "service": "odoo-egress",
       "reference": "liwan-ai-egress",
       "status": "released",
-      "evidence": "deploy/docker-compose.shared.yml runs liwan-ai-egress:${LIWAN_IMAGE_TAG} for the odoo-egress service (build kept for local use only); deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-ai-egress for linux/arm64 on every release tag; its digest per platform is recorded in that commit's release document (liwan-release:<commit>)."
+      "evidence": "deploy/stack/compose.yml runs liwan-ai-egress:${LIWAN_IMAGE_TAG} for the odoo-egress service (build kept for local use only); deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-ai-egress for linux/arm64 on every release tag; its digest per platform is recorded in that commit's release document (liwan-release:<commit>)."
     },
     {
       "service": "odoo-mail",
       "reference": "liwan-odoo-mail",
       "status": "released",
-      "evidence": "deploy/docker-compose.shared.yml runs liwan-odoo-mail:${LIWAN_IMAGE_TAG} for the odoo-mail service (build kept for local use only); deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-odoo-mail for linux/arm64 on every release tag; its digest per platform is recorded in that commit's release document (liwan-release:<commit>)."
+      "evidence": "deploy/stack/compose.yml runs liwan-odoo-mail:${LIWAN_IMAGE_TAG} for the odoo-mail service (build kept for local use only); deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-odoo-mail for linux/arm64 on every release tag; its digest per platform is recorded in that commit's release document (liwan-release:<commit>)."
+    },
+    {
+      "service": "tenant-storage",
+      "reference": "liwan-odoo",
+      "status": "released",
+      "evidence": "deploy/stack/compose.yml runs liwan-odoo:${LIWAN_IMAGE_TAG} for the tenant-storage service (profile tenant-storage); deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-odoo for linux/arm64 on every release tag; its digest per platform is recorded in that commit's release document (liwan-release:<commit>)."
+    },
+    {
+      "service": "tenant-storage-egress",
+      "reference": "liwan-ai-egress",
+      "status": "released",
+      "evidence": "deploy/stack/compose.yml runs liwan-ai-egress:${LIWAN_IMAGE_TAG} for the tenant-storage-egress service (profile tenant-storage); deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-ai-egress for linux/arm64 on every release tag; its digest per platform is recorded in that commit's release document (liwan-release:<commit>)."
     },
     {
       "service": "db",
       "reference": "pgvector/pgvector:pg16",
       "digest": "sha256:0dd3149a06e4579a0d70d8fef9945636cd514005e7237deb27f9b67886f8dc4f",
       "status": "published",
-      "evidence": "docker buildx imagetools inspect pgvector/pgvector:pg16 on 2026-11-08 reported this multi-arch index digest; deploy/docker-compose.yml:157 pins the same digest."
+      "evidence": "docker buildx imagetools inspect pgvector/pgvector:pg16 on 2026-11-08 reported this multi-arch index digest; deploy/stack/compose.yml pins the same digest."
     },
     {
       "service": "pgbouncer",
       "reference": "edoburu/pgbouncer:v1.24.1-p0",
       "digest": "sha256:53d98b3174b0842c475b9842fb0a733b2d9f7ec9da834ec42252aa553f48c628",
       "status": "published",
-      "evidence": "docker buildx imagetools inspect edoburu/pgbouncer:v1.24.1-p0 on 2026-11-08 reported this multi-arch index digest; deploy/docker-compose.production.yml:43 pins the same digest."
+      "evidence": "docker buildx imagetools inspect edoburu/pgbouncer:v1.24.1-p0 on 2026-11-08 reported this multi-arch index digest; deploy/stack/compose.yml pins the same digest."
     },
     {
       "service": "restore-db",
       "reference": "pgvector/pgvector:pg16",
       "digest": "sha256:0dd3149a06e4579a0d70d8fef9945636cd514005e7237deb27f9b67886f8dc4f",
       "status": "published",
-      "evidence": "Same multi-arch index digest as the db service, recorded above; deploy/docker-compose.shared.yml:182 pins it for the restore profile, whose runner refuses a Postgres image that differs from the backup's."
+      "evidence": "Same multi-arch index digest as the db service, recorded above; deploy/stack/compose.yml pins it for the restore profile, whose runner refuses a Postgres image that differs from the backup's."
     },
     {
       "service": "restore-odoo",
       "reference": "liwan-odoo",
       "status": "released",
-      "evidence": "deploy/docker-compose.shared.yml:207 runs liwan-odoo:${LIWAN_IMAGE_TAG}; deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-odoo for linux/arm64 on every release tag; its digest per platform is recorded in that commit's release document (liwan-release:<commit>)."
+      "evidence": "deploy/stack/compose.yml runs liwan-odoo:${LIWAN_IMAGE_TAG}; deploy/ci/publish.sh builds and pushes it to ghcr.io/tariiq222/liwan-odoo for linux/arm64 on every release tag; its digest per platform is recorded in that commit's release document (liwan-release:<commit>)."
     },
     {
       "service": "control-migrate",

@@ -1,6 +1,6 @@
 # Edge rate limit
 
-The customer edge is `deploy/Caddyfile`, served by the image built from
+The customer edge is `deploy/stack/Caddyfile` in front of the guard, served by the image built from
 `deploy/proxy/Dockerfile`. Official `caddy:2` does not include `rate_limit`;
 the image overlays one `xcaddy` build with
 [`github.com/mholt/caddy-ratelimit`](https://github.com/mholt/caddy-ratelimit)
@@ -8,8 +8,8 @@ onto the official Caddy runtime.
 
 ## Zones
 
-The direct dedicated edge keys all zones on `{remote_host}` (the socket peer)
-and uses a one-minute sliding window. It does not trust browser `Forwarded` or
+The edge keys all zones on `{client_ip}` (the socket peer unless a trusted outer edge is configured, see "Shared edge
+behind an outer edge") and uses a one-minute sliding window. It does not trust browser `Forwarded` or
 `X-Forwarded-For`, nor trust every private network as an upstream proxy. IPv6
 clients are grouped by `/64` so one prefix cannot evade the limit by rotating
 addresses. A request matches exactly one zone.
@@ -24,8 +24,9 @@ addresses. A request matches exactly one zone.
 | `liwan_odoo` | other Odoo paths except `/web/health`, including `/web/session/get_session_info` | 600 | Odoo web client, assets, reports |
 | `liwan_web` | Nuxt responses | 600 | customer UI |
 
-The shared edge (`deploy/shared/Caddyfile`) declares the same `liwan_provider_hook` zone on `{client_ip}` over its
-guarded sites; a delivery the TikTok relay forwards reaches Odoo through a tenant host like any other hook.
+A delivery the TikTok relay forwards reaches Odoo through a tenant host like any other hook, so it draws from the
+`liwan_provider_hook` zone too. There is one edge for every environment: a dedicated customer is an environment with one
+pool and one tenant behind this same guarded edge.
 
 `/websocket*` is not counted. `/web/health` is exempt so a probe cannot consume
 a customer's interactive budget. These are abuse boundaries, not billing quotas.
@@ -52,33 +53,16 @@ release, and the document that names them stays `no-store`. Everything else the 
 
 ## Authentication client identity
 
-The dedicated edge overwrites `X-Liwan-Client-IP`, `X-Liwan-Client-Host` and
-`X-Liwan-Client-Proto` on its Nuxt hop after removing Connection-nominated
-headers. The dedicated Compose web service sets
-`NUXT_AUTH_PROXY_CLIENT_IP_HEADER=x-liwan-client-ip`. Login and TOTP validate
-these fields and send them as the three `X-Forwarded-*` headers to Odoo.
-Stock Odoo needs `proxy_mode=True` and `X-Forwarded-Host` to activate ProxyFix;
-this lets its worker-local login cooldown use the real peer instead of Nuxt's IP.
-
-Only Caddy may publish ports. Do not enable this opt-in on publicly reachable
-Nuxt or trust a browser-supplied private header. Without the opt-in, direct local
-Nuxt keeps its original behavior. Missing/invalid fields with the opt-in enabled
-fail with 503 before contacting Odoo. Existing installations must rebuild the web
-server, update the edge, and apply the Compose environment together.
-
-The shared overlay retains its separate guarded Host/database authority and
-`proxy_mode=False`; it does not consume this dedicated identity opt-in. Its
-existing edge auth budget remains unchanged. This change does not claim to fix
-shared Odoo's worker-local client cooldown attribution.
-
-An additional proxy in front of the dedicated edge requires a separately reviewed
-trust configuration; otherwise its socket address becomes the common budget key.
-Clients behind the same NAT also legitimately share one IP budget. The shared edge
-has that configuration, below.
+Odoo behind the guard keeps `proxy_mode=False` and sees the guard's address: the edge, the guard and the web tier remove
+every forwarding header a client sends (`X-Forwarded-*`, `Forwarded`, `X-Liwan-Client-*`), and the client address reaches
+only the routes that need it (`X-Liwan-Client-Ip`, `X-Liwan-Signup-Client`, set by the edge). This change does not claim
+to attribute Odoo's worker-local login cooldown to the real client. Only Caddy may publish ports; do not trust a
+browser-supplied private header. Clients behind the same NAT legitimately share one IP budget. An additional proxy in
+front of the edge requires the trust configuration below; otherwise its socket address becomes the common budget key.
 
 ## Shared edge behind an outer edge
 
-`deploy/shared/Caddyfile` keys every zone on `{client_ip}`. Caddy computes it from the global `servers` block:
+`deploy/stack/Caddyfile` keys every zone on `{client_ip}`. Caddy computes it from the global `servers` block:
 
 | Setting | Value | Effect |
 | --- | --- | --- |
@@ -132,7 +116,7 @@ Before using the template, build and validate the pinned module image:
 ```sh
 docker build -f deploy/proxy/Dockerfile -t liwan-caddy:check .
 docker run --rm liwan-caddy:check list-modules | grep http.handlers.rate_limit
-docker run --rm -v "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" \
+docker run --rm -v "$PWD/deploy/stack/Caddyfile:/etc/caddy/Caddyfile:ro" \
   -e DOMAIN=example.test liwan-caddy:check validate --config /etc/caddy/Caddyfile
 ```
 
@@ -142,12 +126,13 @@ customer deployment has adopted the image.
 Regression commands from the repository root:
 
 ```sh
-python3 -B -m unittest discover -s deploy -p 'test_auth_edge.py'
+python3 -B deploy/security/auth_edge_acceptance.py --output <new private directory>   # live: needs the local images
 python3 -B -m unittest discover -s deploy -p 'test_edge_rate_limit.py'
 npm -w apps/web run test -- server/utils/__tests__/authProxyIdentity.test.ts
 ```
 
-The first command runs real Caddy inside an ephemeral container with two
-loopback socket peers, spoofed/Connection-nominated headers, credential aliases,
-and an exhausted aggregate budget. It publishes no host ports. The web tests
-exercise actual login/TOTP handlers and observe the receiving HTTP wire.
+`auth_edge_acceptance.py` runs the guarded shared stack (the stack Caddyfile, the guard, the shared web build and Odoo
+with one tenant) with independent socket peers: spoofed and Connection-nominated forwarding headers never reach Odoo,
+the 20-per-minute credential budget is aggregate across Nuxt and Odoo paths and path aliases, and the email-code and
+remembered-device sign-in works through the edge. It publishes no host ports. The web tests exercise actual login/TOTP
+handlers and observe the receiving HTTP wire.

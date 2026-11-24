@@ -44,11 +44,12 @@ class Runner:
         self.log = log
 
     def __call__(self, argv: list[str], *, stdin: str | None = None, env: dict | None = None,
-                 check: bool = True, timeout: float | None = None) -> tuple[int, str]:
+                 check: bool = True, timeout: float | None = None,
+                 cwd: Path | None = None) -> tuple[int, str]:
         self.log('$ ' + ' '.join(argv))
         try:
             done = subprocess.run(argv, input=stdin, env=env, text=True, stdout=subprocess.PIPE,
-                                  stderr=subprocess.STDOUT, check=False, timeout=timeout)
+                                  stderr=subprocess.STDOUT, check=False, timeout=timeout, cwd=cwd)
         except subprocess.TimeoutExpired as expired:  # subprocess.run has already killed and reaped the child
             self.log(f'  timed out after {timeout} seconds')
             partial = expired.output  # bytes even with text=True, None when nothing was read

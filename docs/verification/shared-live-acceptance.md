@@ -19,6 +19,14 @@ at the end.
 > through `observe` before publishing the route. The run records below are unchanged: they say what this stack did and
 > did not exercise on 2026-09/10, and none of them proved any control-plane activation gate.
 
+> **Note, 2026-11-24 (one stack definition):** the run records below describe the harness of 2026-09/10, which stacked
+> `acceptance.override.yml`, `acceptance.Caddyfile` and source-mounted Odoo launch files over `docker-compose*.yml`, with
+> the `accept.liwan.test` domain. None of that exists any more. The harness now renders the one stack
+> (`deploy/stack/compose.yml`) from `deploy/environments/local.env.example` plus its own values, runs the images as built
+> and uses the stack Caddyfile unchanged, on the `accept.liwan.localhost` domain (Caddy's internal CA signs `.localhost`
+> names). The current commands, image list and rules are in `tools/shared_acceptance_live/README.md`; the records here are
+> history and are not instructions.
+
 ## 1. Date, revision and dirty state
 
 | Item | Value |

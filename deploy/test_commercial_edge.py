@@ -16,6 +16,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from deploy.stack import render as stack_render
 from deploy.test_edge_rate_limit import ROOT, SHARED_CADDYFILE, _caddy_container, _caddy_image, _docker
 
 DEPLOY = ROOT / 'deploy'
@@ -23,13 +24,13 @@ SNIPPET = ROOT / 'deploy' / 'control-plane' / 'Caddyfile.snippet'
 ADMIN_SNIPPET = ROOT / 'deploy' / 'vendor-admin' / 'Caddyfile.snippet'
 WEBHOOK_TARGET = '/etc/caddy/commercial/control-webhook.caddy'
 ADMIN_TARGET = '/etc/caddy/commercial/vendor-admin.caddy'
-COMPOSE_FILES = ('docker-compose.yml', 'docker-compose.shared.yml', 'docker-compose.shared-commercial.yml',
-                 'docker-compose.production.yml', 'docker-compose.host-link.yml')
+LOCAL_ENV = DEPLOY / 'environments' / 'local.env.example'
 CA_TARGET = '/etc/liwan-control/control-ca.pem'
 HOOK_HOST = 'hooks.example.test'
 HOOK_PATH = '/v1/commercial/payment-events/moyasar'
 ADMIN_HOST = 'admin.example.test'
 
+# Values over local.env.example: the tracked template of an environment leaves its secrets and host paths to the host.
 ENV = {
     'LIWAN_IMAGE_TAG': 'test', 'ODOO_COMMIT': 'dummy', 'LIWAN_SESSION_KEYS': 'dummy', 'LIWAN_SESSION_ACTIVE_KID': 'k1',
     'LIWAN_SHARED_PROXY_TOKEN': 'dummy', 'LIWAN_SHARED_ODOO_CONFIG': '/tmp/dummy-odoo.conf',
@@ -40,8 +41,8 @@ ENV = {
     'CUSTOMER_COMMERCIAL_ISSUER': 'dummy', 'LIWAN_COMMERCIAL_CONTROL_NETWORK': 'liwan-control-test',
     'LIWAN_CONTROL_PRIVATE_DIR': '/srv/control/private',
     'LIWAN_CONTROL_EDGE_NETWORK': 'liwan-control-edge-test', 'LIWAN_ADMIN_EDGE_NETWORK': 'liwan-admin-edge-test',
-    # production and host-link overlays
     'LIWAN_ODOO_DB_PORT': '15433',
+    'CONTROL_WEBHOOK_DOMAIN': '', 'ADMIN_DOMAIN': '', 'LIWAN_ADMIN_ALLOW': '',
 }
 
 
@@ -50,18 +51,24 @@ def _clean_environment() -> dict:
     return {k: v for k, v in os.environ.items() if not k.startswith(('LIWAN_', 'ODOO_', 'POSTGRES_'))}
 
 
-def render(files: tuple[str, ...], extra: dict | None = None) -> dict:
+def _write_env(path: Path, extra: dict | None, commercial: bool) -> None:
+    """local.env.example, the values above and the extras (later wins), with the commercial edge on or off."""
+    env = {**stack_render.read_env(LOCAL_ENV), **ENV, 'LIWAN_STACK_COMMERCIAL_EDGE': 'true' if commercial else 'false',
+           'LIWAN_STACK_DB_HOST_LINK': 'true', **(extra or {})}
+    path.write_text(''.join(f'{k}={v}\n' for k, v in env.items()), encoding='utf-8')
+
+
+def render(extra: dict | None = None, *, commercial: bool = True) -> dict:
     if not shutil.which('docker') or subprocess.run(['docker', 'compose', 'version'], capture_output=True, timeout=60).returncode:
         raise unittest.SkipTest('docker compose unavailable')
-    env = {**ENV, **(extra or {})}
     with tempfile.TemporaryDirectory() as tmp:
         envfile = Path(tmp) / 'dummy.env'
-        envfile.write_text(''.join(f'{k}={v}\n' for k, v in env.items()), encoding='utf-8')
-        result = subprocess.run(
-            ['docker', 'compose', '--env-file', str(envfile), *[a for f in files for a in ('-f', str(DEPLOY / f))],
-             'config', '--format', 'json'],
-            capture_output=True, text=True, timeout=60, cwd=ROOT,
-            env=_clean_environment())
+        _write_env(envfile, extra, commercial)
+        with stack_render.rendered_stack(envfile) as stack:
+            result = subprocess.run(
+                ['docker', 'compose', '--project-directory', str(DEPLOY), '--env-file', str(envfile),
+                 '--env-file', str(stack.with_name(stack_render.SIZING_FILE)), '-f', str(stack), 'config', '--format', 'json'],
+                capture_output=True, text=True, timeout=60, cwd=ROOT, env=_clean_environment())
     if result.returncode:
         raise AssertionError(result.stderr)
     return json.loads(result.stdout)
@@ -73,8 +80,8 @@ def mounts(service: dict) -> dict:
 
 class ComposeWiring(unittest.TestCase):
     def test_web_and_proxy_trust_the_control_ca_and_the_proxy_keeps_its_networks(self) -> None:
-        plain = render(COMPOSE_FILES[:2] + COMPOSE_FILES[3:], {})['services']['proxy']
-        services = render(COMPOSE_FILES, {'CONTROL_WEBHOOK_DOMAIN': HOOK_HOST})['services']
+        plain = render(commercial=False)['services']['proxy']
+        services = render({'CONTROL_WEBHOOK_DOMAIN': HOOK_HOST})['services']
         web, proxy = services['web'], services['proxy']
         for service in (web, proxy):
             ca = mounts(service)[CA_TARGET]
@@ -91,7 +98,7 @@ class ComposeWiring(unittest.TestCase):
         self.assertTrue(CA_TARGET.startswith('/etc/liwan-control/'))
 
     def test_no_mount_target_lies_inside_a_read_only_mount(self) -> None:
-        services = render(COMPOSE_FILES, {'CONTROL_WEBHOOK_DOMAIN': HOOK_HOST})['services']
+        services = render({'CONTROL_WEBHOOK_DOMAIN': HOOK_HOST})['services']
         for name in ('web', 'proxy'):
             targets = mounts(services[name])
             for target in targets:
@@ -104,8 +111,8 @@ class ComposeWiring(unittest.TestCase):
         prints `create_host_path: false`, so only the behavior is asserted: the create fails and no path appears.
         Each case gets a fresh directory: a source deleted after a successful create can stay visible to the Docker file share."""
         image = _caddy_image()
-        sources = {'private/control-ca.pem': ('web', 'proxy'), 'control-plane/Caddyfile.snippet': ('proxy',),
-                   'vendor-admin/Caddyfile.snippet': ('proxy',)}
+        sources = {'private/control-ca.pem': ('web', 'proxy'), 'deploy/control-plane/Caddyfile.snippet': ('proxy',),
+                   'deploy/vendor-admin/Caddyfile.snippet': ('proxy',)}
 
         def create(services: tuple[str, ...], absent: str | None) -> tuple[subprocess.CompletedProcess, bool]:
             with tempfile.TemporaryDirectory() as tmp:
@@ -115,24 +122,35 @@ class ComposeWiring(unittest.TestCase):
                         (project / source).parent.mkdir(parents=True, exist_ok=True)
                         (project / source).write_text('x\n', encoding='utf-8')
                 (project / 'private').mkdir(exist_ok=True)
-                shutil.copy(DEPLOY / 'docker-compose.shared-commercial.yml', project)
-                (project / 'base.yml').write_text('services:\n' + ''.join(
-                    f'  {name}:\n    image: {image}\n    entrypoint: ["true"]\n' for name in ('guard', 'web', 'proxy')), encoding='utf-8')
-                # The overlay's external networks are not what is under test; drop them so `create` reaches the mounts.
-                (project / 'no-networks.yml').write_text(
-                    'services:\n  web:\n    networks: !reset null\n  proxy:\n    networks: !reset null\nnetworks: !reset null\n', encoding='utf-8')
+                for directory in ('registry', 'restore', 'maint'):
+                    (project / directory).mkdir()
+                # The snippets are mounted from beside the stack, so it runs from a copy of deploy/stack with them as the test controls them.
+                deploy = project / 'deploy'
+                shutil.copytree(DEPLOY / 'stack', deploy / 'stack')
+                # The stack's other services are not created; web and proxy lose their dependencies and external networks so `create` reaches the mounts.
+                overrides = ''.join(
+                    f'  {name}:\n    image: {image}\n    entrypoint: ["true"]\n    build: !reset null\n'
+                    '    depends_on: !reset null\n    networks: !reset null\n    healthcheck: {disable: true}\n'
+                    for name in ('web', 'proxy'))
+                (project / 'override.yml').write_text('services:\n' + overrides, encoding='utf-8')
                 envfile = project / 'dummy.env'
-                envfile.write_text(''.join(f'{k}={v}\n' for k, v in
-                                           {**ENV, 'LIWAN_CONTROL_PRIVATE_DIR': str(project / 'private')}.items()), encoding='utf-8')
-                files = [a for f in ('base.yml', 'docker-compose.shared-commercial.yml', 'no-networks.yml') for a in ('-f', str(project / f))]
-                base = ['compose', '--env-file', str(envfile), '-p', f'liwan-edge-mounts-{os.getpid()}', *files]
-                def run(*args: str) -> subprocess.CompletedProcess:
-                    return subprocess.run(['docker', *base, *args], capture_output=True, text=True, timeout=120, env=_clean_environment())
+                _write_env(envfile, {'LIWAN_CONTROL_PRIVATE_DIR': str(project / 'private'),
+                                     'LIWAN_TENANT_REGISTRY_DIR': str(project / 'registry'),
+                                     'LIWAN_RESTORE_REGISTRY_DIR': str(project / 'restore'),
+                                     'LIWAN_MAINTENANCE_DIR': str(project / 'maint')}, True)
+                with stack_render.rendered_stack(envfile) as stack:
+                    base = ['compose', '--project-directory', str(deploy), '--env-file', str(envfile),
+                            '--env-file', str(stack.with_name(stack_render.SIZING_FILE)), '-p', f'liwan-edge-mounts-{os.getpid()}',
+                            '-f', str(stack), '-f', str(project / 'override.yml')]
 
-                try:
-                    result = run('create', *services)
-                finally:
-                    run('down', '--remove-orphans')
+                    def run(*args: str) -> subprocess.CompletedProcess:
+                        return subprocess.run(['docker', *base, *args], capture_output=True, text=True, timeout=120,
+                                              env=_clean_environment())
+
+                    try:
+                        result = run('create', *services)
+                    finally:
+                        run('down', '--remove-orphans')
                 return result, bool(absent) and (project / absent).exists()
 
         present, _ = create(('web', 'proxy'), None)
@@ -154,7 +172,7 @@ class ComposeWiring(unittest.TestCase):
             extra = {'CONTROL_WEBHOOK_DOMAIN': HOOK_HOST, 'LIWAN_TENANT_REGISTRY_DIR': str(tmp / 'registry'),
                      'LIWAN_RESTORE_REGISTRY_DIR': str(tmp / 'restore'), 'LIWAN_CONTROL_PRIVATE_DIR': str(tmp / 'private'),
                      'LIWAN_MAINTENANCE_DIR': str(tmp / 'maint')}
-            services = render(COMPOSE_FILES, extra)['services']
+            services = render(extra)['services']
             for name in ('web', 'proxy'):
                 args = ['run', '--rm', '--read-only', '--entrypoint', 'true']
                 for m in services[name].get('volumes', []):
@@ -167,20 +185,20 @@ class ComposeWiring(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, f'{name}: {result.stderr}')
 
     def test_an_unset_webhook_host_renders_the_reserved_name(self) -> None:
-        proxy = render(COMPOSE_FILES)['services']['proxy']
+        proxy = render()['services']['proxy']
         self.assertEqual(proxy['environment']['CONTROL_WEBHOOK_DOMAIN'], 'control-webhook.invalid')
 
     def test_the_console_host_is_reserved_and_the_allowlist_empty_until_set(self) -> None:
-        environment = render(COMPOSE_FILES)['services']['proxy']['environment']
+        environment = render()['services']['proxy']['environment']
         self.assertEqual(environment['ADMIN_DOMAIN'], 'vendor-admin.invalid')
         self.assertEqual(environment['LIWAN_ADMIN_ALLOW'], '')
-        environment = render(COMPOSE_FILES, {'ADMIN_DOMAIN': ADMIN_HOST, 'LIWAN_ADMIN_ALLOW': '203.0.113.0/24'})['services']['proxy']['environment']
+        environment = render({'ADMIN_DOMAIN': ADMIN_HOST, 'LIWAN_ADMIN_ALLOW': '203.0.113.0/24'})['services']['proxy']['environment']
         self.assertEqual((environment['ADMIN_DOMAIN'], environment['LIWAN_ADMIN_ALLOW']), (ADMIN_HOST, '203.0.113.0/24'))
 
     def test_the_edge_and_the_web_tier_share_no_network_so_the_guard_stays_between_them(self) -> None:
         """The base files give `proxy` only `edge` and `web` only `guard_web`; the guard joins both and is the tenant boundary.
         The overlay adds a network of its own for the control API and one for the console, and none of them is the web tier's."""
-        config = render(COMPOSE_FILES)
+        config = render()
         services = config['services']
         self.assertEqual(set(services['proxy']['networks']) & set(services['web']['networks']), set())
         self.assertEqual(set(services['proxy']['networks']), {'edge', 'control_edge', 'admin_edge'})
@@ -195,7 +213,7 @@ class ComposeWiring(unittest.TestCase):
             self.assertIs(config['networks'][key].get('external'), True, key)
 
     def test_the_stack_without_the_overlay_has_no_control_wiring(self) -> None:
-        services = render(COMPOSE_FILES[:2] + COMPOSE_FILES[3:])['services']
+        services = render(commercial=False)['services']
         self.assertNotIn(CA_TARGET, mounts(services['web']))
         self.assertNotIn(CA_TARGET, mounts(services['proxy']))
         self.assertNotIn('commercial_control', services['proxy']['networks'])
@@ -203,7 +221,7 @@ class ComposeWiring(unittest.TestCase):
         self.assertNotIn(ADMIN_TARGET, mounts(services['proxy']))
 
     def test_the_snippets_are_mounted_where_the_caddyfile_imports_them(self) -> None:
-        proxy = render(COMPOSE_FILES)['services']['proxy']
+        proxy = render()['services']['proxy']
         self.assertEqual(mounts(proxy)[WEBHOOK_TARGET]['source'], str(SNIPPET))
         self.assertEqual(mounts(proxy)[ADMIN_TARGET]['source'], str(ADMIN_SNIPPET))
         self.assertIn('import /etc/caddy/commercial/*.caddy', SHARED_CADDYFILE.read_text(encoding='utf-8'))

@@ -1,0 +1,831 @@
+# The one stack definition: the shared stack of every environment. deploy/stack/render.py turns this template into the
+# compose file the release runs; the only differences between environments are the values of its env file, plus the
+# `# @if LIWAN_STACK_<NAME>` ... `# @endif` blocks below, which render only when that env value is `true`
+# (deploy/environments/README.md). Compose is always run with --project-directory deploy/, so paths here are
+# relative to deploy/. Render and review with:
+#   python3 -B -m deploy.stack.render deploy/environments/<name>.env.example
+# NOT deployment authorization.
+
+# Bounded container logs: without this the json-file driver grows until the disk is full.
+x-logging: &liwan-logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "5" }
+
+services:
+  proxy:
+    image: liwan-caddy:${LIWAN_IMAGE_TAG:?set LIWAN_IMAGE_TAG to the built image tag}
+    build:
+      context: ..
+      dockerfile: deploy/proxy/Dockerfile
+    restart: unless-stopped
+    logging: *liwan-logging
+    ports:
+      # Required, no default: the edge address and ports differ per environment and come from its env file
+      # (deploy/environments/README.md), so a missing value stops the render instead of binding a wrong address.
+      - "${LIWAN_EDGE_BIND:?set LIWAN_EDGE_BIND}:${LIWAN_EDGE_HTTPS_PORT:?set LIWAN_EDGE_HTTPS_PORT}:443"
+      - "${LIWAN_EDGE_BIND}:${LIWAN_EDGE_HTTP_PORT:?set LIWAN_EDGE_HTTP_PORT}:80"
+    environment:
+      DOMAIN: "${DOMAIN}"
+      # Give Caddy a reserved address when the TikTok host is unset or empty.
+      LIWAN_TIKTOK_RELAY_HOST: ${LIWAN_TIKTOK_RELAY_HOST:-invalid.invalid}
+      # The operator allowlist for restore hosts (`client_ip` syntax). Deliberately no default: unset or empty
+      # answers 404 for every `*.restore.<domain>` host, so a stack cannot expose a restored database by omission.
+      LIWAN_RESTORE_ALLOW: ${LIWAN_RESTORE_ALLOW:-}
+      # The restore wildcard's own suffix, which must be the control plane's `domainSuffix`. It is not derived from
+      # `DOMAIN`, a site-address list that may hold several tenant hosts.
+      LIWAN_RESTORE_DOMAIN: ${LIWAN_RESTORE_DOMAIN:-invalid.invalid}
+      # The outer edge whose X-Forwarded-For Caddy believes, as the `edge` network gateway (see the network below).
+      # The default is the reserved TEST-NET-1 address the Caddyfile also defaults to: it trusts no proxy, so
+      # the client address is the socket peer.
+      LIWAN_TRUSTED_PROXIES: ${LIWAN_TRUSTED_PROXIES:-192.0.2.1/32}
+      # Scheme prefix of the restore and relay site addresses: `http://` when an outer edge terminates TLS, empty otherwise.
+      LIWAN_SITE_SCHEME: ${LIWAN_SITE_SCHEME:-}
+      # Caddy's `auto_https` mode; `off` when an outer edge terminates TLS. The default changes nothing.
+      LIWAN_AUTO_HTTPS: ${LIWAN_AUTO_HTTPS:-ignore_loaded_certs}
+      # @if LIWAN_STACK_COMMERCIAL_EDGE
+      # Host of the payment webhook site. The reserved address keeps the site valid and unreachable while it is unset.
+      CONTROL_WEBHOOK_DOMAIN: ${CONTROL_WEBHOOK_DOMAIN:-control-webhook.invalid}
+      # Host of the vendor console site, with its own reserved address while unset.
+      ADMIN_DOMAIN: ${ADMIN_DOMAIN:-vendor-admin.invalid}
+      # The operator allowlist for the console (`client_ip` syntax). Deliberately no default: unset or empty answers 404 for
+      # everyone, so the console is never exposed by omission.
+      LIWAN_ADMIN_ALLOW: ${LIWAN_ADMIN_ALLOW:-}
+      # @endif
+    # Non-root image user; the binary's file capability is the only way it binds 80/443.
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    read_only: true
+    tmpfs: ["/tmp", "/config:uid=10002,gid=10002"]
+    volumes:
+      - ./stack/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      # The release command creates `active` here for the length of an update (deploy/release/README.md); the Caddyfile
+      # shows its maintenance page only while that file exists. The default is a local directory for acceptance runs.
+      - ${LIWAN_MAINTENANCE_DIR:-./data/maintenance}:/srv/liwan-maintenance:ro
+      # @if LIWAN_STACK_COMMERCIAL_EDGE
+      # `proxy` trusts the control API's private CA, read from the operator's control private directory. The mounts are
+      # long-form with create_host_path off, so a missing source file stops `compose up` with an error instead of
+      # Docker creating a directory at that path (which Caddy then refuses).
+      - type: bind
+        source: ${LIWAN_CONTROL_PRIVATE_DIR:?set LIWAN_CONTROL_PRIVATE_DIR}/control-ca.pem
+        target: /etc/liwan-control/control-ca.pem
+        read_only: true
+        bind: { create_host_path: false }
+      # The site blocks of this stack that the Caddyfile does not hold: they exist only where the commercial edge is on,
+      # because they need the control networks and the CA above. The Caddyfile imports every file in this directory.
+      - type: bind
+        source: ./control-plane/Caddyfile.snippet
+        target: /etc/caddy/commercial/control-webhook.caddy
+        read_only: true
+        bind: { create_host_path: false }
+      - type: bind
+        source: ./vendor-admin/Caddyfile.snippet
+        target: /etc/caddy/commercial/vendor-admin.caddy
+        read_only: true
+        bind: { create_host_path: false }
+      # @endif
+    networks:
+      - edge
+      # @if LIWAN_STACK_COMMERCIAL_EDGE
+      - control_edge
+      - admin_edge
+      # @endif
+    depends_on:
+      web: { condition: service_healthy }
+      odoo: { condition: service_healthy }
+      guard: { condition: service_healthy }
+
+  guard:
+    image: liwan-guard:${LIWAN_IMAGE_TAG:?set LIWAN_IMAGE_TAG}
+    build:
+      context: ..
+      dockerfile: deploy/shared/Dockerfile
+    restart: unless-stopped
+    logging: *liwan-logging
+    environment:
+      LIWAN_TENANCY_MODE: shared
+      LIWAN_TENANT_REGISTRY_PATH: /etc/liwan/registry.json
+      # Restore targets, published by the control plane into `<state>/restore-registry`, are served by restore-odoo.
+      LIWAN_RESTORE_REGISTRY_PATH: /etc/liwan-restore/registry.json
+      LIWAN_SHARED_PROXY_TOKEN: ${LIWAN_SHARED_PROXY_TOKEN:?set LIWAN_SHARED_PROXY_TOKEN}
+      LIWAN_SESSION_KEYS: ${LIWAN_SESSION_KEYS:?set LIWAN_SESSION_KEYS}
+      LIWAN_SESSION_ACTIVE_KID: ${LIWAN_SESSION_ACTIVE_KID:?set LIWAN_SESSION_ACTIVE_KID}
+      LIWAN_GUARD_ODOO_URL: http://odoo:8069
+      LIWAN_GUARD_WEB_URL: http://web:3000
+      LIWAN_GUARD_WS_URL: http://odoo:8072
+      LIWAN_GUARD_RESTORE_ODOO_URL: http://restore-odoo:8069
+      # The guard buffers request bodies through the same `session` pool module as web, so both are sized together.
+      NUXT_ODOO_POOL_SESSION_ACTIVE: "${NUXT_ODOO_POOL_SESSION_ACTIVE:-}"
+      NUXT_ODOO_POOL_SESSION_QUEUED: "${NUXT_ODOO_POOL_SESSION_QUEUED:-}"
+      LIWAN_GUARD_RESTORE_WS_URL: http://restore-odoo:8072
+      LIWAN_GUARD_PORT: "8080"
+      # @if LIWAN_STACK_COMMERCIAL_EDGE
+      LIWAN_PROSPECT_HOST: ${LIWAN_PROSPECT_HOST:?set LIWAN_PROSPECT_HOST}
+      # @endif
+    volumes:
+      - ${LIWAN_TENANT_REGISTRY_DIR:?set LIWAN_TENANT_REGISTRY_DIR}:/etc/liwan:ro
+      # The control plane's restore-registry directory (its `<stateDir>/restore-registry`). Read-only, like the tenant registry.
+      - ${LIWAN_RESTORE_REGISTRY_DIR:-./data/restore-registry}:/etc/liwan-restore:ro
+    expose: ["8080"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    networks: [edge, guard_web, guard_odoo, guard_restore]
+    healthcheck:
+      test: ["CMD", "node", "deploy/shared/healthcheck.mjs"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    depends_on:
+      web: { condition: service_healthy }
+      odoo: { condition: service_healthy }
+
+  web:
+    image: liwan-web:${LIWAN_IMAGE_TAG:?set LIWAN_IMAGE_TAG to the built image tag}
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      args:
+        LIWAN_TENANCY_MODE: shared
+    restart: unless-stopped
+    logging: *liwan-logging
+    # The AI service is reachable only through the guard network (see `ai` and `ai-egress`).
+    networks:
+      - guard_web
+      # @if LIWAN_STACK_COMMERCIAL_EDGE
+      - commercial_control
+      # @endif
+    environment:
+      NUXT_ODOO_URL: http://guard:8080
+      NUXT_ODOO_DB: ""
+      NUXT_PUBLIC_WS_URL: ""
+      LIWAN_TENANCY_MODE: shared
+      LIWAN_TENANT_REGISTRY_PATH: /etc/liwan/registry.json
+      LIWAN_RESTORE_REGISTRY_PATH: /etc/liwan-restore/registry.json
+      LIWAN_SHARED_PROXY_TOKEN: ${LIWAN_SHARED_PROXY_TOKEN:?set LIWAN_SHARED_PROXY_TOKEN}
+      NUXT_AUTH_PROXY_CLIENT_IP_HEADER: x-liwan-client-ip
+      NUXT_AI_SERVICE_URL: "${NUXT_AI_SERVICE_URL:-}"
+      NUXT_AI_SERVICE_TOKEN: "${AI_SERVICE_TOKEN:-}"
+      # web only: the ai service must never hold the key that opens the tokens it is given.
+      NUXT_AI_TOKEN_KEY: "${AI_TOKEN_KEY:-}"
+      # The AI usage root secret (64 hex, generated by deploy/ai/ensure_secrets.sh): web and odoo hold it and nothing else does. Each side derives the
+      # per-database recorder bearer from it; without it every AI run is refused 503.
+      LIWAN_AI_USAGE_KEY: "${LIWAN_AI_USAGE_KEY:-}"
+      # Admission ceilings of the API proxy. Unset keeps the defaults in apps/web/server/utils
+      # (tenantTransport.ts, bufferAdmission.mjs, apiSessionAdmission.ts); an invalid value stops the server at start.
+      NUXT_ODOO_MAX_CONCURRENCY: "${NUXT_ODOO_MAX_CONCURRENCY:-}"
+      NUXT_ODOO_POOL_SESSION_ACTIVE: "${NUXT_ODOO_POOL_SESSION_ACTIVE:-}"
+      NUXT_ODOO_POOL_SESSION_QUEUED: "${NUXT_ODOO_POOL_SESSION_QUEUED:-}"
+      NUXT_ODOO_POOL_PUBLIC_ACTIVE: "${NUXT_ODOO_POOL_PUBLIC_ACTIVE:-}"
+      NUXT_ODOO_POOL_PUBLIC_QUEUED: "${NUXT_ODOO_POOL_PUBLIC_QUEUED:-}"
+      NUXT_ODOO_POOL_BOOKING_ACTIVE: "${NUXT_ODOO_POOL_BOOKING_ACTIVE:-}"
+      NUXT_ODOO_POOL_BOOKING_QUEUED: "${NUXT_ODOO_POOL_BOOKING_QUEUED:-}"
+      NUXT_ODOO_POOL_HEAVY_ACTIVE: "${NUXT_ODOO_POOL_HEAVY_ACTIVE:-}"
+      NUXT_ODOO_POOL_HEAVY_QUEUED: "${NUXT_ODOO_POOL_HEAVY_QUEUED:-}"
+      NUXT_ODOO_POOL_PDF_ACTIVE: "${NUXT_ODOO_POOL_PDF_ACTIVE:-}"
+      NUXT_ODOO_POOL_PDF_QUEUED: "${NUXT_ODOO_POOL_PDF_QUEUED:-}"
+      NUXT_SESSION_CHECK_CACHE_SIZE: "${NUXT_SESSION_CHECK_CACHE_SIZE:-}"
+      NUXT_SESSION_CHECK_CONCURRENCY: "${NUXT_SESSION_CHECK_CONCURRENCY:-}"
+      NUXT_SESSION_CHECK_TTL_MS: "${NUXT_SESSION_CHECK_TTL_MS:-}"
+      # Optional error reporting (deploy/OPERATIONS.md, "Error reporting"). Empty DSN: nothing is initialised or sent.
+      NUXT_SENTRY_DSN: "${NUXT_SENTRY_DSN:-}"
+      NUXT_SENTRY_ENVIRONMENT: "${NUXT_SENTRY_ENVIRONMENT:-}"
+      # @if LIWAN_STACK_COMMERCIAL_EDGE
+      NUXT_CUSTOMER_COMMERCIAL_ENABLED: "true"
+      NUXT_PUBLIC_SIGNUP_ENABLED: ${LIWAN_PUBLIC_SIGNUP:-false}
+      NUXT_PUBLIC_CUSTOMER_COMMERCIAL_ENABLED: "true"
+      NUXT_CUSTOMER_COMMERCIAL_PUBLIC_ORIGIN: ${NUXT_CUSTOMER_COMMERCIAL_PUBLIC_ORIGIN:?set NUXT_CUSTOMER_COMMERCIAL_PUBLIC_ORIGIN}
+      NUXT_MARKETING_SITE_ORIGINS: ${NUXT_MARKETING_SITE_ORIGINS:-}
+      NUXT_CUSTOMER_COMMERCIAL_CONTROL_URL: ${NUXT_CUSTOMER_COMMERCIAL_CONTROL_URL:?set NUXT_CUSTOMER_COMMERCIAL_CONTROL_URL}
+      NUXT_CUSTOMER_COMMERCIAL_SERVICE_KEY: ${CUSTOMER_COMMERCIAL_SERVICE_KEY:?set CUSTOMER_COMMERCIAL_SERVICE_KEY}
+      NUXT_CUSTOMER_COMMERCIAL_ISSUER: ${CUSTOMER_COMMERCIAL_ISSUER:?set CUSTOMER_COMMERCIAL_ISSUER}
+      NODE_EXTRA_CA_CERTS: /etc/liwan-control/control-ca.pem
+      # @endif
+    volumes:
+      - ${LIWAN_TENANT_REGISTRY_DIR:?set LIWAN_TENANT_REGISTRY_DIR}:/etc/liwan:ro
+      - ${LIWAN_RESTORE_REGISTRY_DIR:-./data/restore-registry}:/etc/liwan-restore:ro
+      # @if LIWAN_STACK_COMMERCIAL_EDGE
+      # The BFF calls https://control-api:4187, whose certificate the private CA signed; Node does not trust it otherwise.
+      # The CA sits in /etc/liwan-control, outside /etc/liwan: web mounts the tenant registry directory read-only there,
+      # and a file cannot be mounted inside a read-only mount.
+      - type: bind
+        source: ${LIWAN_CONTROL_PRIVATE_DIR:?set LIWAN_CONTROL_PRIVATE_DIR}/control-ca.pem
+        target: /etc/liwan-control/control-ca.pem
+        read_only: true
+        bind: { create_host_path: false }
+      # @endif
+    expose: ["3000"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    # A real HTTP answer from the Nitro server: a public static file, served before the tenant boundary, needs no
+    # proxy token and no upstream, so there is no auth bypass and no guard dependency cycle.
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/favicon.ico', { signal: AbortSignal.timeout(3000) }).then(r => process.exit(r.status === 200 ? 0 : 1), () => process.exit(1))"]
+      # Failures in the first 120s do not count; afterwards three misses in a row (about 30s) mark it unhealthy.
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
+    depends_on:
+      odoo: { condition: service_healthy }
+
+  odoo:
+    image: liwan-odoo:${LIWAN_IMAGE_TAG:?set LIWAN_IMAGE_TAG to the built image tag}
+    build:
+      context: ..
+      dockerfile: deploy/odoo/Dockerfile
+      args:
+        ODOO_COMMIT: ${ODOO_COMMIT:?set ODOO_COMMIT from deploy/odoo/ODOO_COMMIT}
+    restart: unless-stopped
+    logging: *liwan-logging
+    # Validation runs before the existing secure launcher; no CLI overrides. The worker budget reaches Odoo through the
+    # rendered config file (odoo.conf.template), never through a flag.
+    entrypoint: ["/opt/venv/bin/python", "/opt/liwan/shared/launch_odoo.py"]
+    command: []
+    environment:
+      HOST: db
+      USER: odoo
+      PASSWORD: "${DB_PASSWORD}"
+      LIWAN_TENANCY_MODE: shared
+      LIWAN_INBOX_SECRET_KEY: "${LIWAN_INBOX_SECRET_KEY:-}"
+      # The AI usage root secret, the same value as web's: Odoo recomputes the recorder bearer of the database it serves.
+      LIWAN_AI_USAGE_KEY: ${LIWAN_AI_USAGE_KEY:-}
+      # Sign-in SMS through Authentica (operator configuration, never per tenant). Both unset means the sign-in
+      # screen offers email only. See deploy/shared/README.md, "Sign-in SMS (Authentica)".
+      LIWAN_AUTHENTICA_API_KEY: "${LIWAN_AUTHENTICA_API_KEY:-}"
+      LIWAN_AUTHENTICA_TEMPLATE_ID: "${LIWAN_AUTHENTICA_TEMPLATE_ID:-}"
+      # The TikTok app (D1). A shared tenant registers its connected TikTok account with the relay (D13) and exchanges
+      # codes with the platform app; a deployment without these keeps its own direct webhook, so an
+      # empty value must render instead of stopping the stack.
+      LIWAN_TIKTOK_RELAY_URL: ${LIWAN_TIKTOK_RELAY_URL:-http://tiktok-relay:8090}
+      # The relay's own token. Odoo never holds LIWAN_SHARED_PROXY_TOKEN, which makes the guard treat a caller as
+      # internal; Odoo needs only the relay's binding API. Empty leaves the relay unused (the connect still works).
+      LIWAN_TIKTOK_RELAY_TOKEN: ${LIWAN_TIKTOK_RELAY_TOKEN:-}
+      LIWAN_TIKTOK_CLIENT_KEY: ${LIWAN_TIKTOK_CLIENT_KEY:-}
+      LIWAN_TIKTOK_CLIENT_SECRET: ${LIWAN_TIKTOK_CLIENT_SECRET:-}
+      LIWAN_TIKTOK_REDIRECT_URI: ${LIWAN_TIKTOK_RELAY_HOST:+https://${LIWAN_TIKTOK_RELAY_HOST}/tiktok/oauth/callback}
+      # The one way out for the provider calls Odoo makes (sign-in SMS, Customer Messages, the tenant's payment
+      # gateway): `requests` reads these variables, so no addon code names the proxy. NO_PROXY keeps the TikTok relay
+      # (relay_odoo, plain HTTP) and the local health probe direct; the database is not an HTTP client.
+      HTTPS_PROXY: http://odoo-egress:3128
+      HTTP_PROXY: http://odoo-egress:3128
+      NO_PROXY: db,pgbouncer,tiktok-relay,localhost,127.0.0.1
+      # Outgoing mail for every tenant database: Odoo's own server-wide options, read from the environment (they win
+      # over the operator's config file and need no ir.mail_server record per database). SMTP is not HTTP, so it
+      # cannot use the proxy above; it goes to `odoo-mail`, a send-only relay. The sender is the one platform address
+      # the relay also enforces (docs/operations/odoo-mail.md). No credential is set here: the relay holds them.
+      ODOO_SMTP_SERVER: odoo-mail
+      ODOO_SMTP_PORT: "2525"
+      ODOO_EMAIL_FROM: "${ODOO_MAIL_SENDER:-}"
+      # Tenant mail domains: operator secrets for the OCI control calls liwan_notify makes through odoo-egress
+      # (docs/operations/odoo-mail.md). All empty means the provider is not configured. Never stored per tenant.
+      LIWAN_OCI_EMAIL_REGION: "${LIWAN_OCI_EMAIL_REGION:-me-jeddah-1}"
+      LIWAN_OCI_EMAIL_COMPARTMENT_ID: "${LIWAN_OCI_EMAIL_COMPARTMENT_ID:-}"
+      LIWAN_OCI_TENANCY_ID: "${LIWAN_OCI_TENANCY_ID:-}"
+      LIWAN_OCI_USER_ID: "${LIWAN_OCI_USER_ID:-}"
+      LIWAN_OCI_KEY_FINGERPRINT: "${LIWAN_OCI_KEY_FINGERPRINT:-}"
+      LIWAN_OCI_PRIVATE_KEY: "${LIWAN_OCI_PRIVATE_KEY:-}"
+      LIWAN_OCI_LOG_GROUP_ID: "${LIWAN_OCI_LOG_GROUP_ID:-}"
+      LIWAN_OCI_EMAIL_SPF_INCLUDE: "${LIWAN_OCI_EMAIL_SPF_INCLUDE:-}"
+      # Optional error reporting (deploy/OPERATIONS.md, "Error reporting"). Empty DSN: nothing is initialised or sent.
+      LIWAN_SENTRY_DSN: "${LIWAN_SENTRY_DSN:-}"
+      LIWAN_SENTRY_ENVIRONMENT: "${LIWAN_SENTRY_ENVIRONMENT:-}"
+    volumes:
+      - ${LIWAN_SHARED_ODOO_CONFIG:?set LIWAN_SHARED_ODOO_CONFIG to validated external secret config}:/etc/odoo/odoo.conf:ro
+      - odoo_data:/var/lib/odoo
+      # The effect account's classification files (`<state>/classifications/<database>.json`, written by the control plane's
+      # effects), which the one-off `compose run odoo` of each effect names in its own environment. Read-only, the directory
+      # and not a file (the writer replaces files atomically). The running Odoo service sets no classification path,
+      # so it never opens one.
+      - type: bind
+        source: ${LIWAN_CONTROL_STATE_DIR:?set LIWAN_CONTROL_STATE_DIR}/classifications
+        target: /run/liwan-runtime/classifications
+        read_only: true
+        bind: { create_host_path: false }
+    expose: ["8069", "8072"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    # The container's memory ceiling and CPU weight come from deploy/odoo_sizing.py (render.py exports the values).
+    mem_limit: ${LIWAN_ODOO_MEM_LIMIT:?set by render.py from deploy/odoo_sizing.py}
+    cpu_shares: 1024
+    # `relay_odoo` carries the TikTok relay's binding calls (D13). It is internal and reaches only the
+    # relay, so Odoo keeps it whether or not this deployment runs the app. `odoo_egress` is internal too and reaches
+    # only `odoo-egress`.
+    networks: [guard_odoo, database, relay_odoo, odoo_egress, odoo_mail]
+    # dbfilter=^%h$ selects no database for 127.0.0.1, so Odoo answers /web/health (auth='none') without one; the
+    # db_server_status check opens a PostgreSQL connection. The probe fails when no HTTP worker answers or the database
+    # server is unreachable. The venv python exists in the image (deploy/odoo/Dockerfile).
+    healthcheck:
+      test: ["CMD", "/opt/venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8069/web/health?db_server_status=1', timeout=3)"]
+      # Failures in the first 120s do not count; afterwards three misses in a row (about 30s) mark it unhealthy.
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
+    depends_on:
+      db: { condition: service_healthy }
+      odoo-egress: { condition: service_started }
+      odoo-mail: { condition: service_started }
+
+  ai:
+    profiles: [ai]
+    image: liwan-ai-service:${LIWAN_IMAGE_TAG:?set LIWAN_IMAGE_TAG to the built image tag}
+    build: { context: ../apps/ai-service }
+    restart: unless-stopped
+    logging: *liwan-logging
+    # No route off the host: the only way out is the ai-egress allowlist proxy below. The tenant registry maps a tenant id
+    # to its database; no single tenant database here.
+    networks: [guard_web, database, ai_internal]
+    environment:
+      # The platform provider (provider, model, key, endpoint) is read only from this file, never from the environment.
+      # The control plane writes it into LIWAN_AI_PLATFORM_DIR (its LIWAN_AI_PLATFORM_PROVIDER_PATH), one-way and read-only here, like the registry.
+      AI_PLATFORM_PROVIDER_FILE: /etc/liwan-ai/platform-provider.json
+      AI_OPENROUTER_REFERER: "${AI_OPENROUTER_REFERER:-}"
+      AI_OPENROUTER_TITLE: "${AI_OPENROUTER_TITLE:-}"
+      AI_DATABASE_URL: "${AI_DATABASE_URL:-}"
+      # Empty here so a stack without the ai profile still renders; the service refuses to start without it
+      # (Settings), and deploy/ai/ensure_secrets.sh generates it whenever the profile is enabled.
+      AI_SERVICE_TOKEN: "${AI_SERVICE_TOKEN:-}"
+      # Encrypt each tenant's own provider key (generated by ensure_secrets.sh; empty leaves tenant keys unavailable).
+      AI_KEY_ENCRYPTION_KEYS: "${AI_KEY_ENCRYPTION_KEYS:-}"
+      AI_KEY_ENCRYPTION_KEY_ID: "${AI_KEY_ENCRYPTION_KEY_ID:-}"
+      # The window a newly bootstrapped tenant starts with; its administrator changes it in the AI settings.
+      AI_RUN_RETENTION_DAYS: "${AI_RUN_RETENTION_DAYS:-30}"
+      # Knowledge retrieval embeddings; unset AI_EMBEDDING_PROVIDER leaves knowledge off.
+      AI_EMBEDDING_PROVIDER: "${AI_EMBEDDING_PROVIDER:-}"
+      AI_EMBEDDING_MODEL: "${AI_EMBEDDING_MODEL:-}"
+      AI_EMBEDDING_BASE_URL: "${AI_EMBEDDING_BASE_URL:-}"
+      AI_EMBEDDING_API_KEY: "${AI_EMBEDDING_API_KEY:-}"
+      LIWAN_TENANCY_MODE: shared
+      LIWAN_TENANT_REGISTRY_PATH: /etc/liwan/registry.json
+      AI_TENANT_DATABASE: ""
+      # Every provider, Ollama included, leaves through ai-egress: an external Ollama is not on ai_internal.
+      HTTPS_PROXY: http://ai-egress:3128
+      HTTP_PROXY: http://ai-egress:3128
+      NO_PROXY: db,web,localhost,127.0.0.1
+      # The provider host of each tenant's own key is written here for ai-egress (read-only there).
+      AI_TENANT_EGRESS_DIR: /egress
+      # Optional error reporting (deploy/OPERATIONS.md, "Error reporting"). Keep both empty together: an environment
+      # without a DSN stops the service at start. Its host must also be in AI_EGRESS_HOSTS.
+      AI_SENTRY_DSN: "${AI_SENTRY_DSN:-}"
+      AI_SENTRY_ENVIRONMENT: "${AI_SENTRY_ENVIRONMENT:-}"
+    volumes:
+      - ai_tenant_hosts:/egress
+      # The directory, not the file: a bind-mounted file keeps its old inode when the writer replaces it atomically.
+      - ${LIWAN_AI_PLATFORM_DIR:-./data/ai}:/etc/liwan-ai:ro
+      - ${LIWAN_TENANT_REGISTRY_DIR:?set LIWAN_TENANT_REGISTRY_DIR}:/etc/liwan:ro
+    expose: ["8600"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8600/healthz', timeout=3)"]
+      # Failures in the first 120s do not count; afterwards three misses in a row (about 30s) mark it unhealthy.
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
+    depends_on:
+      db: { condition: service_healthy }
+      ai-egress: { condition: service_started }
+
+  # The forward proxy that owns AI's outbound traffic: CONNECT to port 443 for the listed hosts, nothing else.
+  # Egress needs one network with a route off the host: the edge, never a customer-facing service network.
+  ai-egress:
+    profiles: [ai]
+    image: liwan-ai-egress:${LIWAN_IMAGE_TAG:?set LIWAN_IMAGE_TAG to the built image tag}
+    build: { context: ./ai-egress }
+    restart: unless-stopped
+    logging: *liwan-logging
+    # Debian's unprivileged `proxy` user (13:13) on port 3128, no capability, nothing writable beyond a tmpfs.
+    user: proxy
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: ["/run:uid=13,gid=13,mode=0750", "/var/spool/squid:uid=13,gid=13,mode=0750", "/var/log/squid:uid=13,gid=13,mode=0750"]
+    expose: ["3128"]
+    environment:
+      AI_EGRESS_HOSTS: "${AI_EGRESS_HOSTS:-}"
+      # Tenants' own provider hosts (written by `ai`) join the allowlist: CONNECT to port 443, never to a private address.
+      AI_TENANT_EGRESS_DIR: /egress
+    volumes:
+      - ai_tenant_hosts:/egress:ro
+    networks: [ai_internal, edge]
+
+  # The forward proxy that owns Odoo's outbound traffic: the same image as ai-egress, a separate instance with its own
+  # allow-list, so neither service gains the other's hosts and Odoo never joins ai_internal. Exact provider hosts only
+  # (CONNECT to port 443), and no destination in a private, link-local (cloud metadata) or reserved range.
+  # The variable name is the image's (render.sh); the value is Odoo's list. Default: each host an addon calls, with
+  # the call site, in docs/operations/odoo-egress.md. An operator override replaces the default list; the object-storage
+  # compatibility host of tenant storage (LIWAN_OBJECT_STORAGE_COMPAT_HOST, empty while tenant storage is off) is added to either.
+  odoo-egress:
+    image: liwan-ai-egress:${LIWAN_IMAGE_TAG:?set LIWAN_IMAGE_TAG to the built image tag}
+    build: { context: ./ai-egress }
+    restart: unless-stopped
+    logging: *liwan-logging
+    # Debian's unprivileged `proxy` user (13:13) on port 3128, no capability, nothing writable beyond a tmpfs.
+    user: proxy
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: ["/run:uid=13,gid=13,mode=0750", "/var/spool/squid:uid=13,gid=13,mode=0750", "/var/log/squid:uid=13,gid=13,mode=0750"]
+    expose: ["3128"]
+    environment:
+      AI_EGRESS_HOSTS: "${ODOO_EGRESS_HOSTS:-api.authentica.sa,graph.facebook.com,lookaside.fbsbx.com,business-api.tiktok.com,.tiktokcdn.com,.tiktokcdn-us.com,.tiktokv.com,ksa.paymob.com,uae.paymob.com,accept.paymob.com,oman.paymob.com,ctrl.email.me-jeddah-1.oci.oraclecloud.com,logging.me-jeddah-1.oci.oraclecloud.com}${LIWAN_OBJECT_STORAGE_COMPAT_HOST:+,${LIWAN_OBJECT_STORAGE_COMPAT_HOST}}"
+      EGRESS_DENY_PRIVATE: "yes"
+      # No tenant host files: nothing writes a tenant's own hosts for Odoo.
+      AI_TENANT_EGRESS_DIR: ""
+    # The one routed network is the edge; odoo_egress is internal and holds only Odoo and this proxy.
+    networks: [odoo_egress, edge]
+
+  # The send-only SMTP relay: the one way mail leaves Odoo (relay.py states its rules). It listens only on the internal
+  # network it shares with Odoo, relays to the single upstream smarthost over verified STARTTLS and refuses any sender
+  # but the platform address or an address on a domain that is not reserved. Unset ODOO_MAIL_* values start it in refuse-everything mode, never as an open relay.
+  # Credentials come from the env file like DB_PASSWORD; they are never in the image or in git.
+  odoo-mail:
+    image: liwan-odoo-mail:${LIWAN_IMAGE_TAG:?set LIWAN_IMAGE_TAG to the built image tag}
+    build: { context: ./odoo-mail }
+    restart: unless-stopped
+    logging: *liwan-logging
+    environment:
+      ODOO_MAIL_SENDER: "${ODOO_MAIL_SENDER:-}"
+      ODOO_MAIL_RESERVED_DOMAINS: "${ODOO_MAIL_RESERVED_DOMAINS:-}"
+      ODOO_MAIL_UPSTREAM_HOST: "${ODOO_MAIL_UPSTREAM_HOST:-}"
+      ODOO_MAIL_UPSTREAM_PORT: "${ODOO_MAIL_UPSTREAM_PORT:-587}"
+      ODOO_MAIL_UPSTREAM_USER: "${ODOO_MAIL_UPSTREAM_USER:-}"
+      ODOO_MAIL_UPSTREAM_PASSWORD: "${ODOO_MAIL_UPSTREAM_PASSWORD:-}"
+    # The image's numeric user on an unprivileged port, no capability, nothing writable beyond a tmpfs.
+    user: "10002:10002"
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    # At most 8 connections hold a message of up to 10 MB each (a few copies while it is checked and sent).
+    mem_limit: 384m
+    expose: ["2525"]
+    # The one routed network is the edge, for the upstream; the internal one holds only Odoo and this relay.
+    networks: [odoo_mail, edge]
+    healthcheck:
+      test: ["CMD", "python3", "-I", "/usr/local/lib/odoo-mail/relay.py", "--healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # The one-shot tenant-storage provisioner (tools/shared_saas_lifecycle/oci_provision.py): one bucket, IAM user and key per
+  # tenant on OCI. Never started by `up` (profile), run by the control plane's effect with `run --rm --no-deps`. It prints
+  # the new secret key on its stdout once, so its logs go nowhere (`driver: none`); it has no published port and no stdin.
+  # The two files under /run/secrets are mounted, never environment variables. Its only route out is the allowlist proxy
+  # below. Per-tenant storage stays off until LIWAN_TENANT_STORAGE_ENABLED=true in the control plane (OPERATIONS.md there).
+  tenant-storage:
+    profiles: [tenant-storage]
+    image: liwan-odoo:${LIWAN_IMAGE_TAG:?set LIWAN_IMAGE_TAG to the built image tag}
+    restart: "no"
+    logging:
+      driver: none
+    entrypoint: ["python3", "-E", "-s", "-B", "/opt/liwan/oci_provision.py"]
+    command: []
+    stdin_open: false
+    environment:
+      HTTPS_PROXY: http://tenant-storage-egress:3128
+      HTTP_PROXY: http://tenant-storage-egress:3128
+      NO_PROXY: localhost,127.0.0.1
+      OCI_TENANCY_OCID: "${OCI_TENANCY_OCID:-}"
+      OCI_USER_OCID: "${OCI_USER_OCID:-}"
+      OCI_FINGERPRINT: "${OCI_FINGERPRINT:-}"
+      OCI_COMPARTMENT_OCID: "${OCI_COMPARTMENT_OCID:-}"
+      OCI_REGION: "${OCI_REGION:-me-jeddah-1}"
+      OCI_HOME_REGION: "${OCI_HOME_REGION:-me-jeddah-1}"
+      OCI_NAMESPACE: "${OCI_NAMESPACE:-}"
+      OCI_POLICY_MODE: "${OCI_POLICY_MODE:-per_tenant}"
+    volumes:
+      # This release's provisioner, one stdlib-only file from the checkout the release is pinned to: it is not part of any image.
+      - type: bind
+        source: ../tools/shared_saas_lifecycle/oci_provision.py
+        target: /opt/liwan/oci_provision.py
+        read_only: true
+        bind: { create_host_path: false }
+    secrets:
+      - source: oci_provision_key
+      - source: oci_naming_key
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    networks: [tenant_storage]
+    depends_on:
+      tenant-storage-egress: { condition: service_started }
+
+  # The allowlist forward proxy of tenant-storage: CONNECT to port 443 of the OCI IAM and Object Storage hosts of the
+  # region, and nothing else (and no private destination). The same image as ai-egress, a separate instance.
+  tenant-storage-egress:
+    profiles: [tenant-storage]
+    image: liwan-ai-egress:${LIWAN_IMAGE_TAG:?set LIWAN_IMAGE_TAG to the built image tag}
+    build: { context: ./ai-egress }
+    restart: unless-stopped
+    logging: *liwan-logging
+    # Debian's unprivileged `proxy` user (13:13) on port 3128, no capability, nothing writable beyond a tmpfs.
+    user: proxy
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: ["/run:uid=13,gid=13,mode=0750", "/var/spool/squid:uid=13,gid=13,mode=0750", "/var/log/squid:uid=13,gid=13,mode=0750"]
+    expose: ["3128"]
+    environment:
+      AI_EGRESS_HOSTS: "identity.${OCI_HOME_REGION:-me-jeddah-1}.oci.oraclecloud.com,objectstorage.${OCI_REGION:-me-jeddah-1}.oraclecloud.com"
+      EGRESS_DENY_PRIVATE: "yes"
+      AI_TENANT_EGRESS_DIR: ""
+    # The one routed network is the edge; tenant_storage is internal and holds only the provisioner and this proxy.
+    networks: [tenant_storage, edge]
+
+  db:
+    # pgvector/pgvector is the official postgres:16 image plus the `vector` extension (AI knowledge index).
+    image: pgvector/pgvector:pg16@sha256:0dd3149a06e4579a0d70d8fef9945636cd514005e7237deb27f9b67886f8dc4f
+    restart: unless-stopped
+    logging: *liwan-logging
+    # The database sits only on the internal `database` network (and the host-link network when it is on).
+    networks:
+      - database
+      # @if LIWAN_STACK_DB_HOST_LINK
+      - db_host
+      # @endif
+    # @if LIWAN_STACK_DB_HOST_LINK
+    # A host that dumps the tenant database from outside the stack (the release path's pg_dump): one loopback-only port
+    # on a second network; no other service gains a port.
+    ports:
+      - "127.0.0.1:${LIWAN_DB_HOST_PORT:-15433}:5432"
+    # @endif
+    # The postgres user owns the data directory in the image, so the entrypoint never needs root.
+    user: postgres
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: ["/tmp", "/var/run/postgresql:uid=999,gid=999"]
+    environment:
+      POSTGRES_DB: postgres
+      # The bootstrap role is the admin used by tooling only; Odoo connects as the `odoo` role that
+      # db/init-runtime-role.sh creates from ODOO_DB_PASSWORD. DB_ADMIN_PASSWORD reaches no other service.
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "${DB_ADMIN_PASSWORD:?set DB_ADMIN_PASSWORD}"
+      ODOO_DB_PASSWORD: "${DB_PASSWORD:?set DB_PASSWORD}"
+      AI_DB_PASSWORD: "${AI_DB_PASSWORD:-}"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./db/init-runtime-role.sh:/docker-entrypoint-initdb.d/10-liwan-runtime-role.sh:ro
+      - ./ai/init-db.sh:/docker-entrypoint-initdb.d/20-liwan-ai.sh:ro
+    # PostgreSQL's connection ceiling and buffers, and the container's memory ceiling, come from deploy/odoo_sizing.py.
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=${LIWAN_PG_MAX_CONNECTIONS:?set by render.py from deploy/odoo_sizing.py}"
+      - "-c"
+      - "superuser_reserved_connections=${LIWAN_PG_SUPERUSER_RESERVED_CONNECTIONS:?}"
+      - "-c"
+      - "shared_buffers=${LIWAN_PG_SHARED_BUFFERS:?}"
+      - "-c"
+      - "effective_cache_size=${LIWAN_PG_EFFECTIVE_CACHE_SIZE:?}"
+      - "-c"
+      - "work_mem=${LIWAN_PG_WORK_MEM:?}"
+      - "-c"
+      - "maintenance_work_mem=${LIWAN_PG_MAINTENANCE_WORK_MEM:?}"
+    mem_limit: ${LIWAN_DB_MEM_LIMIT:?set by render.py from deploy/odoo_sizing.py}
+    healthcheck:
+      # A real login as the admin role, not `pg_isready`, which exits 0 as soon as the postmaster answers, even when the
+      # role does not exist. The image trusts 127.0.0.1 in pg_hba.conf, so the check connects to the container's own
+      # address, where the password is required: a volume bootstrapped before the two roles existed (no `postgres` role)
+      # or a DB_ADMIN_PASSWORD that does not match the volume never turns healthy, so `up --wait` fails and even a
+      # release command that predates the role assertion rolls back. The password stays in the environment, never argv:
+      # the brace form is a plain shell expansion, and an assignment prefix is not field-split, so no quoting is needed.
+      test: ["CMD-SHELL", "PGPASSWORD=$${POSTGRES_PASSWORD} psql -h \"$$(hostname -i | awk '{print $$1}')\" -U postgres -d postgres -tAc 'SELECT 1' >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # pgbouncer absorbs the concurrency the pool cannot: Odoo's own default of 64 connections per process would exhaust
+  # PostgreSQL on this box. It is opt-in (`--profile pgbouncer`) until the soak test in docs/operations/odoo-sizing.md
+  # §6 passes; without it, Odoo connects to `db` directly and `db_maxconn` is the real ceiling.
+  pgbouncer:
+    profiles: [pgbouncer]
+    # The database sits only on the internal `database` network, and Odoo reaches it there too.
+    networks: [database]
+    # Pinned by the multi-arch index digest resolved on 2026-11-08 with
+    # `docker buildx imagetools inspect`; `deploy/production-images.json` records it
+    # and `deploy/image_pins.py` fails the build when a production image is tag-only.
+    image: edoburu/pgbouncer:v1.24.1-p0@sha256:53d98b3174b0842c475b9842fb0a733b2d9f7ec9da834ec42252aa553f48c628
+    restart: unless-stopped
+    logging: *liwan-logging
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs:
+      - /tmp
+      # The pinned image's postgres user (UID/GID 70) generates its config and userlist.
+      - /etc/pgbouncer:uid=70,gid=70,mode=0700,noexec,nosuid,nodev
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: odoo
+      DB_PASSWORD: "${DB_PASSWORD}"
+      POOL_MODE: ${LIWAN_PGBOUNCER_POOL_MODE:?set by render.py from deploy/odoo_sizing.py}
+      MAX_CLIENT_CONN: "${LIWAN_PGBOUNCER_MAX_CLIENT_CONN:?}"
+      DEFAULT_POOL_SIZE: "${LIWAN_PGBOUNCER_DEFAULT_POOL_SIZE:?}"
+      MAX_DB_CONNECTIONS: "${LIWAN_PGBOUNCER_MAX_DB_CONNECTIONS:?}"
+      RESERVE_POOL_SIZE: "${LIWAN_PGBOUNCER_RESERVE_POOL_SIZE:?}"
+      AUTH_TYPE: scram-sha-256
+    expose: ["5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432 -U odoo"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    depends_on:
+      db: { condition: service_healthy }
+
+  # The platform TikTok app has one webhook and one OAuth redirect for every tenant (D13/D14).
+  # The relay verifies them and reaches the tenant through its public origin; only the edge
+  # reaches the relay's public routes, and only Odoo reaches its internal binding routes.
+  # It needs the app secret, so it belongs to a deployment that runs the app: start it with
+  # `--profile tiktok` (the app is off otherwise and every TikTok route answers
+  # `inbox_tiktok_not_configured`). The relay refuses to start without a secret by design.
+  tiktok-relay:
+    profiles: [tiktok]
+    image: liwan-guard:${LIWAN_IMAGE_TAG:?set LIWAN_IMAGE_TAG}
+    build:
+      context: ..
+      dockerfile: deploy/shared/Dockerfile
+    restart: unless-stopped
+    logging: *liwan-logging
+    command: ["node", "deploy/shared/tiktok-relay.mjs"]
+    environment:
+      LIWAN_TENANCY_MODE: shared
+      LIWAN_TENANT_REGISTRY_PATH: /etc/liwan/registry.json
+      LIWAN_TIKTOK_BINDINGS_PATH: /var/lib/liwan/tiktok-bindings.json
+      # The relay belongs to the `tiktok` profile. An app that is not configured leaves the secret
+      # empty and the relay exits cleanly at start: `createTiktokRelay` refuses an empty secret by
+      # design, so `start()` treats that one refusal as "this deployment runs no TikTok app".
+      LIWAN_TIKTOK_CLIENT_SECRET: ${LIWAN_TIKTOK_CLIENT_SECRET:-}
+      # Only Odoo holds the same value; the relay never sees the guard's LIWAN_SHARED_PROXY_TOKEN. A relay with an
+      # app secret refuses to start while this is shorter than 32 bytes.
+      LIWAN_TIKTOK_RELAY_TOKEN: ${LIWAN_TIKTOK_RELAY_TOKEN:-}
+      LIWAN_TIKTOK_RELAY_PORT: "8090"
+    volumes:
+      - ${LIWAN_TENANT_REGISTRY_DIR:?set LIWAN_TENANT_REGISTRY_DIR}:/etc/liwan:ro
+      - tiktok_bindings:/var/lib/liwan
+    expose: ["8090"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    networks: [edge, relay_odoo]
+    # The relay's own /healthz answer (the edge forwards only /tiktok/*, so it is not public).
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8090/healthz', { signal: AbortSignal.timeout(3000) }).then(r => process.exit(r.status === 200 ? 0 : 1), () => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # The restore profile (`--profile restore`, the only profile tools/shared_saas_lifecycle/odoo_backup.py selects) is
+  # the isolated copy of Postgres and Odoo that a verified backup is restored into. Neither service starts with the
+  # stack. They share no network with `db` or `odoo`, so a restored tenant can reach the live database and the live
+  # database cannot reach it; only the guard reaches restore-odoo, and only for hosts in the restore registry.
+  restore-db:
+    profiles: [restore]
+    # The same pinned image as `db`: the restore runner refuses a Postgres image that differs from the backup's.
+    image: pgvector/pgvector:pg16@sha256:0dd3149a06e4579a0d70d8fef9945636cd514005e7237deb27f9b67886f8dc4f
+    restart: unless-stopped
+    logging: *liwan-logging
+    networks: [restore_database]
+    user: postgres
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: ["/tmp", "/var/run/postgresql:uid=999,gid=999"]
+    environment:
+      POSTGRES_DB: postgres
+      # The bootstrap role is the admin used by tooling only; Odoo connects as the `odoo` role that
+      # db/init-runtime-role.sh creates from ODOO_DB_PASSWORD. DB_ADMIN_PASSWORD reaches no other service.
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "${DB_ADMIN_PASSWORD:?set DB_ADMIN_PASSWORD}"
+      ODOO_DB_PASSWORD: "${DB_PASSWORD:?set DB_PASSWORD}"
+      AI_DB_PASSWORD: "${AI_DB_PASSWORD:-}"
+    volumes:
+      - restore_db_data:/var/lib/postgresql/data
+      - ./db/init-runtime-role.sh:/docker-entrypoint-initdb.d/10-liwan-runtime-role.sh:ro
+      - ./ai/init-db.sh:/docker-entrypoint-initdb.d/20-liwan-ai.sh:ro
+    healthcheck:
+      # The same real login as `db`, see there.
+      test: ["CMD-SHELL", "PGPASSWORD=$${POSTGRES_PASSWORD} psql -h \"$$(hostname -i | awk '{print $$1}')\" -U postgres -d postgres -tAc 'SELECT 1' >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  restore-odoo:
+    profiles: [restore]
+    # The same image as `odoo`: the restore runner refuses an Odoo image that differs from the backup's.
+    image: liwan-odoo:${LIWAN_IMAGE_TAG:?set LIWAN_IMAGE_TAG}
+    restart: unless-stopped
+    logging: *liwan-logging
+    entrypoint: ["/opt/venv/bin/python", "/opt/liwan/shared/launch_odoo.py"]
+    # No scheduled job runs against a recovered database: the validator refuses any other argument set.
+    command: ["--max-cron-threads=0"]
+    environment:
+      # Without LIWAN_TIKTOK_RELAY_TOKEN here, on purpose. Odoo reads it only for the TikTok relay, which restore-odoo cannot reach, and a
+      # live token must never sit in a service that opens restored customer data.
+      LIWAN_TENANCY_MODE: shared
+      # Marks this as the restore role: the validator then enforces `--max-cron-threads=0` and refuses anything else.
+      LIWAN_RESTORE_ROLE: "1"
+    networks: [guard_restore, restore_database]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    expose: ["8069", "8072"]
+    # Same readiness probe as `odoo`: an HTTP worker answers and the restore database server is reachable.
+    healthcheck:
+      test: ["CMD", "/opt/venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8069/web/health?db_server_status=1', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
+    volumes:
+      # A validated external config whose db_host is restore-db, never a copy of the live one. The default is the
+      # incomplete reference file, which the shared startup validator rejects, so the service cannot start unconfigured.
+      - ${LIWAN_RESTORE_ODOO_CONFIG:-./shared/odoo.restore.conf}:/etc/odoo/odoo.conf:ro
+      - restore_odoo_data:/var/lib/odoo
+    depends_on:
+      restore-db: { condition: service_healthy }
+
+networks:
+  # The subnet is pinned so that the gateway Caddy sees as the peer of a connection from the host (a port published
+  # on loopback arrives from the network's gateway, not from 127.0.0.1) is a known address for LIWAN_TRUSTED_PROXIES.
+  # Docker gives the gateway the first address of the subnet, so LIWAN_TRUSTED_PROXIES is that address as a /32.
+  # A second stack from this file on the same Docker host needs a different LIWAN_EDGE_SUBNET (overlapping pools fail).
+  # 172.29.40.0/24 is the control plane's `control_egress`.
+  edge:
+    ipam:
+      config:
+        - subnet: ${LIWAN_EDGE_SUBNET:-172.29.50.0/24}
+  guard_web: { internal: true }
+  guard_odoo: { internal: true }
+  database: { internal: true }
+  # The AI plane: `ai` sits only here, on guard_web and on database. No route off the host.
+  ai_internal: { internal: true }
+  # Odoo's only route off the host runs through `odoo-egress`; nothing else is on this network.
+  odoo_egress: { internal: true }
+  # Odoo submits its mail to `odoo-mail` over this network; nothing else is on it.
+  odoo_mail: { internal: true }
+  # Odoo registers each connected TikTok account with the relay over this internal network.
+  relay_odoo: { internal: true }
+  # The restore profile: the guard reaches restore-odoo, and restore-odoo reaches restore-db, over networks the live
+  # `guard_odoo` and `database` networks never share.
+  guard_restore: { internal: true }
+  restore_database: { internal: true }
+  # Tenant storage: the provisioner reaches only its own allowlist proxy.
+  tenant_storage: { internal: true }
+  # @if LIWAN_STACK_COMMERCIAL_EDGE
+  # Three external networks, each created by the control project (deploy/control-plane/compose.production.yml), so it starts first:
+  #   commercial_control  joins `web` to the control API's private HTTPS ingress (the customer BFF);
+  #   control_edge        joins the edge (`proxy`) to the same ingress for the payment webhook route only;
+  #   admin_edge          joins the edge to the vendor console (`vendor-console`, plain HTTP on that network).
+  # The edge and `web` therefore share no network: the guard stays the only path between the edge and the web tier.
+  commercial_control:
+    external: true
+    name: ${LIWAN_COMMERCIAL_CONTROL_NETWORK:?set LIWAN_COMMERCIAL_CONTROL_NETWORK}
+  control_edge:
+    external: true
+    name: ${LIWAN_CONTROL_EDGE_NETWORK:?set LIWAN_CONTROL_EDGE_NETWORK}
+  admin_edge:
+    external: true
+    name: ${LIWAN_ADMIN_EDGE_NETWORK:?set LIWAN_ADMIN_EDGE_NETWORK}
+  # @endif
+  # @if LIWAN_STACK_DB_HOST_LINK
+  # The bridge routes `db` to the internet, which the internal `database` network denied. Two layers close that:
+  # - no masquerade: a container on this private subnet gets no replies from outside, and the published loopback port is
+  #   unaffected (this file, so it travels with the stack);
+  # - a fixed interface name so the two host firewall rules of docs/operations/environment-bringup.md row A3.6 can match it.
+  #   Those rules stay required: they also stop `db` from reaching host services through the bridge gateway.
+  db_host:
+    driver_opts:
+      com.docker.network.bridge.name: liwan-dbhost
+      com.docker.network.bridge.enable_ip_masquerade: "false"
+  # @endif
+
+volumes:
+  caddy_data: {}
+  odoo_data: {}
+  db_data: {}
+  ai_tenant_hosts: {}
+  tiktok_bindings: {}
+  restore_db_data: {}
+  restore_odoo_data: {}
+
+secrets:
+  # Tenant storage's two files (never environment variables): the OCI provisioning API signing key and the naming key.
+  # The directory is created by bring-up; the files are mode 0400 and owned by the container user.
+  oci_provision_key:
+    file: ${LIWAN_TENANT_STORAGE_FILES_DIR:?set LIWAN_TENANT_STORAGE_FILES_DIR}/oci_provision_key
+  oci_naming_key:
+    file: ${LIWAN_TENANT_STORAGE_FILES_DIR}/oci_naming_key

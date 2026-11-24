@@ -5,7 +5,7 @@ One fact lives here: how many Odoo processes, connections and mebibytes a box
 may spend, given the box and the stated assumptions. The plan is a pure
 function of those inputs, so it can be recomputed for a smaller staging box or
 a larger future server, and its stated invariants are checked before it is
-returned. The rendered settings are applied by ``deploy/docker-compose.production.yml``;
+returned. The rendered settings are applied by ``deploy/stack/compose.yml`` and ``deploy/stack/odoo.conf.template`` (rendered by ``deploy/stack/render.py``);
 ``docs/operations/odoo-sizing.md`` records the arithmetic and the assumptions.
 
 Assumptions that are measurements or policies, not arithmetic, are named
@@ -402,6 +402,34 @@ def _mib_as_postgres_size(mib: int) -> str:
     if mib % 1024 == 0:
         return f'{mib // 1024}GB'
     return f'{mib}MB'
+
+
+def compose_variables(sizing: Sizing) -> dict[str, str]:
+    """The values the one stack template interpolates for sizing: container ceilings and the database settings.
+
+    The container ceilings are the plan's memory rounded up to whole GiB: Odoo's workers and cron threads at their hard
+    limit, PostgreSQL's shared buffers plus every backend.
+    """
+    odoo_mib = (sizing.workers + sizing.max_cron_threads) * sizing.limit_memory_hard_mib
+    postgres_mib = next(item['mib'] for item in sizing.memory_plan if item['item'] == 'PostgreSQL shared buffers') \
+        + sizing.postgres_max_connections * sizing.assumptions.postgres_per_connection_mib
+    postgres = sizing.postgres_settings()
+    pgbouncer = sizing.pgbouncer_settings()
+    return {
+        'LIWAN_ODOO_MEM_LIMIT': f'{_round_up(odoo_mib, 1024)}m',
+        'LIWAN_DB_MEM_LIMIT': f'{_round_up(postgres_mib, 1024)}m',
+        'LIWAN_PG_MAX_CONNECTIONS': str(postgres['max_connections']),
+        'LIWAN_PG_SUPERUSER_RESERVED_CONNECTIONS': str(postgres['superuser_reserved_connections']),
+        'LIWAN_PG_SHARED_BUFFERS': str(postgres['shared_buffers']),
+        'LIWAN_PG_EFFECTIVE_CACHE_SIZE': str(postgres['effective_cache_size']),
+        'LIWAN_PG_WORK_MEM': str(postgres['work_mem']),
+        'LIWAN_PG_MAINTENANCE_WORK_MEM': str(postgres['maintenance_work_mem']),
+        'LIWAN_PGBOUNCER_POOL_MODE': str(pgbouncer['pool_mode']),
+        'LIWAN_PGBOUNCER_MAX_CLIENT_CONN': str(pgbouncer['max_client_conn']),
+        'LIWAN_PGBOUNCER_DEFAULT_POOL_SIZE': str(pgbouncer['default_pool_size']),
+        'LIWAN_PGBOUNCER_MAX_DB_CONNECTIONS': str(pgbouncer['max_db_connections']),
+        'LIWAN_PGBOUNCER_RESERVE_POOL_SIZE': str(pgbouncer['reserve_pool_size']),
+    }
 
 
 def build_parser():

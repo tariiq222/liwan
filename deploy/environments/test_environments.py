@@ -18,7 +18,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from deploy.release.release import SHARED_COMPOSE_FILES
+from deploy.stack import render as stack_render
+from deploy.stack.compose_normalise import flatten
 from deploy.test_edge_rate_limit import (
     RESERVED_PROXY, SHARED_CADDYFILE, _adapt_shared_caddyfile, _probe_config, _probe_requests)
 
@@ -29,8 +30,10 @@ TEMPLATES = {name: ENVIRONMENTS / f'{name}.env.example' for name in ('staging', 
 EDGE_ENVIRONMENTS = ('staging',)
 # Hostname label of each edge environment's base domain (`<label>.example.test`).
 BASE_LABELS = {'staging': 'staging'}
+# The shared stack is the one definition, rendered from the env file; the control plane is its own compose set.
+STACK_TEMPLATE = 'stack/compose.yml'
 STACKS = {
-    'shared': SHARED_COMPOSE_FILES,
+    'shared': (STACK_TEMPLATE,),
     'control': ('control-plane/compose.production.yml', 'control-plane/compose.host-link.yml'),
 }
 # Files the control-plane compose reads at render time (`env_file`); the test points them at empty files.
@@ -47,9 +50,10 @@ VALUE_ALLOWLIST = frozenset({
     'LIWAN_CONTROL_EDGE_NETWORK',
     'LIWAN_CONTROL_CONFIG_DIR', 'LIWAN_CONTROL_STATE_DIR', 'LIWAN_CONTROL_PRIVATE_DIR', 'LIWAN_CONTROL_ENV_FILE',
     'LIWAN_VENDOR_ADMIN_ENV_FILE', 'LIWAN_SHARED_COMPOSE_FILE', 'LIWAN_SHARED_ENV_FILE', 'LIWAN_AI_PLATFORM_DIR',
+    'LIWAN_RELEASE_TAG_POLICY', 'LIWAN_TENANT_STORAGE_FILES_DIR',
 })
 MIN_SUBSTITUTION_LENGTH = 6  # shorter values (k1, ports) are never substituted inside other text
-# The pinned `edge` network of docker-compose.shared.yml: its gateway is the peer Caddy sees for the host's edge.
+# The pinned `edge` network of deploy/stack/compose.yml: its gateway is the peer Caddy sees for the host's edge.
 EDGE_SUBNET, EDGE_GATEWAY = '172.29.50.0/24', '172.29.50.1'
 
 
@@ -62,29 +66,28 @@ def parse_env(path: Path) -> dict[str, str]:
     return values
 
 
-def flatten(node, path: str = '') -> dict[str, object]:
-    """Map every leaf of a rendered compose document to its dotted path."""
-    if isinstance(node, dict):
-        return {leaf: value for key, child in node.items() for leaf, value in flatten(child, f'{path}.{key}' if path else key).items()}
-    if isinstance(node, list):
-        return {leaf: value for index, child in enumerate(node) for leaf, value in flatten(child, f'{path}[{index}]').items()}
-    return {path: node}
-
-
 def render(stack: str, template: Path, workdir: Path) -> dict:
-    command = ['docker', 'compose']
-    for name in STACKS[stack]:
-        command += ['-f', name]
-    command += ['--env-file', str(template), 'config', '--format', 'json']
     env = dict(os.environ)
     for variable in RENDER_FILE_VARIABLES:
         empty = workdir / f'{variable}.env'
         empty.write_text('')
         env[variable] = str(empty)
-    done = subprocess.run(command, cwd=DEPLOY, env=env, capture_output=True, text=True, timeout=120)
+    if stack == 'shared':
+        with stack_render.rendered_stack(template) as stack_file:
+            command = ['docker', 'compose', '--project-directory', str(DEPLOY), '-f', str(stack_file),
+                       '--env-file', str(template), '--env-file', str(stack_file.with_name(stack_render.SIZING_FILE)),
+                       'config', '--format', 'json']
+            done = subprocess.run(command, cwd=DEPLOY, env=env, capture_output=True, text=True, timeout=120)
+    else:
+        command = ['docker', 'compose']
+        for name in STACKS[stack]:
+            command += ['-f', name]
+        command += ['--env-file', str(template), 'config', '--format', 'json']
+        done = subprocess.run(command, cwd=DEPLOY, env=env, capture_output=True, text=True, timeout=120)
     if done.returncode != 0:
         raise AssertionError(f'{stack} render failed for {template.name}: {done.stderr.strip()[:600]}')
     return json.loads(done.stdout)
+
 
 
 def normalise(leaf: str, value: object, replacements: dict[str, str], exact: dict[str, str]) -> object:
@@ -170,6 +173,8 @@ class EnvironmentTemplates(unittest.TestCase):
         for names in STACKS.values():
             for name in names:
                 required |= set(re.findall(r'\$\{([A-Z0-9_]+):\?', (DEPLOY / name).read_text()))
+        # The sizing values are exported by the renderer from deploy/odoo_sizing.py, not set in an env file.
+        required -= set(stack_render.sizing_variables())
         for name in TEMPLATES:
             with self.subTest(template=name):
                 self.assertEqual(set(), required - set(self.values[name]))

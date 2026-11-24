@@ -72,8 +72,7 @@ class SharedConfigTest(unittest.TestCase):
                         validate_config(self.fixture((FIXTURE + extra).replace(line, replacement)))
 
     def test_reference_templates_name_the_module_and_still_fail_the_validator(self):
-        for name in ("odoo.conf", "odoo.restore.conf"):
-            path = Path(__file__).with_name(name)
+        for path in (Path(__file__).with_name("odoo.restore.conf"), Path(__file__).parent.parent / "stack" / "odoo.conf.template"):
             self.assertIn("\nserver_wide_modules = base,rpc,web,liwan_shared_dbselect\n", path.read_text())
             with self.assertRaises(ConfigRejected):
                 validate_config(path)

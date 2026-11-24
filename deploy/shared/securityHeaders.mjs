@@ -1,18 +1,16 @@
 /** The browser-document security headers of the shared edge.
  *
- * The dedicated edge sets these on its Nuxt route in `deploy/Caddyfile`; the shared
- * edge had no equivalent, so a tenant's pages were served without a CSP, HSTS or
- * frame protection (issue #480). The values are the dedicated ones, kept in one
- * place so the two edges cannot drift apart: `deploy/shared/securityHeaders.test.mjs`
- * pins this object's header names to the set the dedicated Caddyfile sets.
+ * The guard sets these on the documents of the Nuxt upstream (the edge in
+ * `deploy/stack/Caddyfile` sets none), so a tenant's pages carry a CSP, HSTS and
+ * frame protection (issue #480). `deploy/shared/securityHeaders.test.mjs` pins the values.
  *
  * Only documents from the Nuxt upstream carry them. Odoo answers JSON, PDF reports
  * and binary downloads, where a document CSP breaks report rendering,
- * exactly as the dedicated edge explains above its own `header` block.
+ * which is why the headers never leave the Nuxt route.
  */
 export const DOCUMENT_SECURITY_HEADERS = Object.freeze({
   'content-security-policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' wss:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self' https:; frame-ancestors 'none'",
-  // '?' semantics on the dedicated edge: a stricter value the app already sent wins.
+  // '?' semantics: a stricter value the app already sent wins.
   // A page that carries a document token sets `no-referrer` itself, so only set this
   // when the upstream did not send one.
   'referrer-policy': 'strict-origin-when-cross-origin',
@@ -38,8 +36,7 @@ const registerPolicy = DOCUMENT_SECURITY_HEADERS['content-security-policy']
  * would call a second origin (`appsignal-endpoint.net`); that stays blocked on purpose. The 3-D Secure pages open by navigating
  * the whole window, which no directive here governs. */
 export const MOYASAR_API_ORIGIN = 'https://api.moyasar.com'
-// Case-sensitive on purpose: the app redirects any other spelling of the path to this one. `deploy/Caddyfile` carries the same
-// expression in its `map` and `deploy/shared/securityHeaders.test.mjs` pins the two together.
+// Case-sensitive on purpose: the app redirects any other spelling of the path to this one. `deploy/shared/securityHeaders.test.mjs` pins it.
 export const PAY_PATH = /^\/subscription\/pay\/[A-Za-z0-9_-]+\/?$/
 const payPolicy = DOCUMENT_SECURITY_HEADERS['content-security-policy']
   .replace("connect-src 'self'", `connect-src 'self' ${MOYASAR_API_ORIGIN}`)

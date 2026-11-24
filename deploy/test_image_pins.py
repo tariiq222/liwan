@@ -24,7 +24,7 @@ from deploy import image_pins
 REGISTRY = 'ghcr.io/tariiq222'
 DIGEST = 'sha256:' + 'a' * 64
 OTHER_DIGEST = 'sha256:' + 'b' * 64
-# The digest deploy/docker-compose.production.yml pins for pgbouncer, resolved
+# The digest deploy/stack/compose.yml pins for pgbouncer, resolved
 # from the multi-arch index. Editing either side silently must fail here.
 PGBOUNCER_DIGEST = 'sha256:53d98b3174b0842c475b9842fb0a733b2d9f7ec9da834ec42252aa553f48c628'
 PGBOUNCER_REFERENCE = 'edoburu/pgbouncer:v1.24.1-p0'
@@ -415,8 +415,9 @@ class TestRecordedRepositoryState(unittest.TestCase):
         self.assertEqual(services_in(self.report),
                          ['ai', 'ai-egress', 'control-admin', 'control-api', 'control-db', 'control-migrate',
                           'control-worker', 'db', 'guard', 'odoo', 'odoo-egress', 'odoo-mail', 'pgbouncer',
-                          'proxy', 'restore-db', 'restore-odoo', 'tiktok-relay', 'vendor-console', 'web'])
-        self.assertEqual(len(self.manifest.entries), 19)
+                          'proxy', 'restore-db', 'restore-odoo', 'tenant-storage', 'tenant-storage-egress', 'tiktok-relay',
+                          'vendor-console', 'web'])
+        self.assertEqual(len(self.manifest.entries), 21)
 
     def test_the_control_plane_and_the_vendor_console_are_released_images(self):
         # compose.production.yml runs them as liwan-control-plane and liwan-vendor-admin, so both are published and
@@ -450,7 +451,7 @@ class TestRecordedRepositoryState(unittest.TestCase):
 
     def test_the_published_web_build_is_the_shared_one(self):
         # Staging and production run the shared stack only; apps/web refuses to start when its compiled tenancy mode
-        # differs from the runtime LIWAN_TENANCY_MODE=shared of docker-compose.shared.yml.
+        # differs from the runtime LIWAN_TENANCY_MODE=shared of deploy/stack/compose.yml.
         web = next(build for build in self.manifest.builds if build.reference == 'liwan-web')
         self.assertTrue(web.published)
         self.assertIn('LIWAN_TENANCY_MODE', web.args)

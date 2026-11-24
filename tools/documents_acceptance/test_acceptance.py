@@ -43,7 +43,7 @@ class AcceptanceEvidenceTests(unittest.TestCase):
         self.assertEqual(choose_subnet(FakeRunner()), "10.246.90.0/24")
 
     def test_wrong_status_wrong_bytes_or_missing_private_headers_fail_the_receipt(self):
-        matrix = Matrix("dedicated")
+        matrix = Matrix()
         matrix.check(
             "reader",
             "file",
@@ -65,7 +65,7 @@ class AcceptanceEvidenceTests(unittest.TestCase):
         self.assertEqual(matrix.summary()["failed"], 3)
         self.assertFalse(matrix.summary()["passed"])
         self.assertEqual(matrix.rows[0]["actor"], "reader")
-        self.assertEqual(matrix.rows[0]["transport"], "dedicated")
+        self.assertNotIn("transport", matrix.rows[0])
         self.assertNotIn("private", json.dumps(matrix.rows))
 
     def test_external_operator_commits_then_signals_persistent_workers(self):
@@ -77,32 +77,21 @@ class AcceptanceEvidenceTests(unittest.TestCase):
         self.assertEqual(script.count("env.registry.signal_changes()"), 1)
 
     def test_partial_content_must_report_the_requested_range(self):
-        matrix = Matrix("direct")
+        matrix = Matrix()
         matrix.check("reader", "range", HttpResult(206, {"content-range": "bytes 1-7/20"}, b"1234567"), 206,
                      response_headers={"content-range": "bytes 0-6/20"})
         self.assertFalse(matrix.summary()["passed"])
         self.assertIn("response_headers", matrix.rows[0]["errors"])
 
-    def test_generic_rpc_is_closed_only_with_not_found_and_no_result(self):
-        matrix = Matrix("dedicated")
-        matrix.check(
-            "outsider", "native-rpc", HttpResult(200, {}, b'{"error":{"code":404}}'), 200,
-            rpc_error=True,
-        )
-        matrix.check(
-            "outsider", "native-rpc-wrong-code", HttpResult(200, {}, b'{"error":{"code":403}}'), 200,
-            rpc_error=True,
-        )
-        matrix.check(
-            "outsider", "native-rpc-result", HttpResult(200, {}, b'{"error":{"code":404},"result":[]}'), 200,
-            rpc_error=True,
-        )
+    def test_a_denied_native_rpc_must_be_refused_at_the_guard(self):
+        matrix = Matrix()
+        matrix.check("outsider", "native-rpc", HttpResult(403, {}, b'{"error":"forbidden"}'), 403, forbidden=b"private")
+        matrix.check("outsider", "native-rpc-open", HttpResult(200, {}, b'{"result":"private"}'), 403, forbidden=b"private")
         self.assertEqual(matrix.rows[0]["errors"], [])
-        self.assertIn("rpc_route_not_closed", matrix.rows[1]["errors"])
-        self.assertIn("rpc_result_present", matrix.rows[2]["errors"])
+        self.assertEqual(sorted(matrix.rows[1]["errors"]), ["content_disclosure", "status"])
 
     def test_denial_and_private_success_are_classified_from_real_response_fields(self):
-        matrix = Matrix("direct")
+        matrix = Matrix()
         matrix.check(
             "reader",
             "file",

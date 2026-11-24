@@ -35,7 +35,7 @@ const validRegistry = {
   snapshotRevision: 1,
   targets: [
     {
-      host: 'a.accept.liwan.test',
+      host: 'a.accept.liwan.localhost',
       tenantId: 'accept-a',
       database: 'liwan_accept_a',
       filestore: 'liwan_accept_a',
@@ -43,7 +43,7 @@ const validRegistry = {
       registryRevision: 1,
     },
     {
-      host: 'b.accept.liwan.test',
+      host: 'b.accept.liwan.localhost',
       tenantId: 'accept-b',
       database: 'liwan_accept_b',
       filestore: 'liwan_accept_b',

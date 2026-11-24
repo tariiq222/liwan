@@ -20,8 +20,7 @@ from unittest import mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SHARED = ROOT / 'deploy' / 'docker-compose.shared.yml'
-BASE = ROOT / 'deploy' / 'docker-compose.yml'
+STACK = ROOT / 'deploy' / 'stack' / 'compose.yml'
 DOCKERFILE = ROOT / 'deploy' / 'odoo-mail' / 'Dockerfile'
 RELAY_PATH = ROOT / 'deploy' / 'odoo-mail' / 'relay.py'
 SPEC = importlib.util.spec_from_file_location('odoo_mail_relay', RELAY_PATH)
@@ -32,7 +31,7 @@ SENDER = 'no-reply@liwanos.com'
 
 
 def service_block(name):
-    lines = SHARED.read_text(encoding='utf-8').splitlines()
+    lines = STACK.read_text(encoding='utf-8').splitlines()
     start = lines.index(f'  {name}:')
     block = []
     for line in lines[start + 1:]:
@@ -54,11 +53,11 @@ class OverlayCase(unittest.TestCase):
 
     def test_only_odoo_and_the_relay_share_the_internal_network_and_odoo_gains_no_routed_one(self):
         self.assertIn('    networks: [odoo_mail, edge]', self.mail)
-        members = [name for name in re.findall(r'^  ([\w-]+):\s*$', SHARED.read_text(encoding='utf-8'), re.M)
+        members = [name for name in re.findall(r'^  ([\w-]+):\s*$', STACK.read_text(encoding='utf-8'), re.M)
                    if re.search(r'\bodoo_mail\b', '\n'.join(service_block(name))) and name != 'odoo_mail']
         self.assertEqual(sorted(members), ['odoo', 'odoo-mail'])
-        self.assertRegex(SHARED.read_text(encoding='utf-8'), r'\n  odoo_mail: \{ internal: true \}')
-        listed = [line.strip()[2:] for line in self.odoo if re.match(r'^ {6}- \w+$', line)]
+        self.assertRegex(STACK.read_text(encoding='utf-8'), r'\n  odoo_mail: \{ internal: true \}')
+        listed = re.search(r'^    networks: \[(.*)\]$', '\n'.join(self.odoo), re.M).group(1).split(', ')
         self.assertEqual(listed, ['guard_odoo', 'database', 'relay_odoo', 'odoo_egress', 'odoo_mail'])
         self.assertNotIn('edge', listed)
 
@@ -91,9 +90,8 @@ class OverlayCase(unittest.TestCase):
         # The same sender feeds Odoo and the relay, so the two cannot disagree.
         self.assertEqual(environment(self.mail)['ODOO_MAIL_SENDER'], '${ODOO_MAIL_SENDER:-}')
 
-    def test_the_restore_odoo_and_the_dedicated_template_are_untouched(self):
+    def test_the_restore_odoo_is_untouched(self):
         self.assertNotIn('odoo-mail', '\n'.join(service_block('restore-odoo')))
-        self.assertNotIn('odoo-mail', BASE.read_text(encoding='utf-8'))
 
     def test_the_image_is_pinned_unprivileged_and_installs_nothing(self):
         text = DOCKERFILE.read_text(encoding='utf-8')

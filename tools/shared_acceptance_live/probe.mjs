@@ -1,6 +1,6 @@
 // probe.mjs — Shared acceptance proofs 1–7 and 9 (proof 8 is proof8.spec.mjs).
 // Reads connection facts from the .state file written by up.sh.
-// DNS: every *.accept.liwan.test name is looked up as 127.0.0.1 (no /etc/hosts edit).
+// DNS: every *.accept.liwan.localhost name is looked up as 127.0.0.1 (no /etc/hosts edit).
 // TLS: rejectUnauthorized=true against the root CA exported from the running Caddy.
 // Each proof records PASS/FAIL plus the raw status codes/headers/subject/issuer/SAN.
 import https from 'node:https'
@@ -33,13 +33,12 @@ const state = readState()
 const TMPDIR = state.TMPDIR_BASE
 if (!TMPDIR) { console.error('No TMPDIR_BASE in state'); process.exit(1) }
 const PROJECT = state.PROJECT_NAME
-const PROJECT_DIR = state.PROJECT_DIR || resolve(__dirname, '../../deploy')
 const IMAGE_TAG = state.LIWAN_IMAGE_TAG || ''
 
 const ca = readFileSync(resolve(TMPDIR, 'root.crt'))
-const HOST_A = 'a.accept.liwan.test'
-const HOST_B = 'b.accept.liwan.test'
-const HOST_UNKNOWN = 'unknown.accept.liwan.test'
+const HOST_A = 'a.accept.liwan.localhost'
+const HOST_B = 'b.accept.liwan.localhost'
+const HOST_UNKNOWN = 'unknown.accept.liwan.localhost'
 
 const RESULTS = []
 function record(proof, passed, detail) {
@@ -49,7 +48,7 @@ function record(proof, passed, detail) {
 
 function customLookup(hostname, options, callback) {
   if (typeof options === 'function') { callback = options; options = {} }
-  if (hostname.endsWith('.accept.liwan.test')) {
+  if (hostname.endsWith('.accept.liwan.localhost')) {
     // Honour the `all` form of the Node lookup contract, otherwise net/tls raises
     // ERR_INVALID_IP_ADDRESS ("Invalid IP address: undefined").
     if (options && options.all) return callback(null, [{ address: '127.0.0.1', family: 4 }], 4)
@@ -143,8 +142,8 @@ async function run() {
   }
 
   // ---- Auth on both tenants (shared by proofs 2 and 6)
-  const authA = await login(HOST_A, 'admin@a.accept.liwan.test', readFileSync(resolve(TMPDIR, 'admin_a_password'), 'utf8').trim())
-  const authB = await login(HOST_B, 'admin@b.accept.liwan.test', readFileSync(resolve(TMPDIR, 'admin_b_password'), 'utf8').trim())
+  const authA = await login(HOST_A, 'admin@a.accept.liwan.localhost', readFileSync(resolve(TMPDIR, 'admin_a_password'), 'utf8').trim())
+  const authB = await login(HOST_B, 'admin@b.accept.liwan.localhost', readFileSync(resolve(TMPDIR, 'admin_b_password'), 'utf8').trim())
   const cookieA = authA.cookieHeader
   const cookieB = authB.cookieHeader
 
@@ -165,8 +164,8 @@ async function run() {
     const items = (r) => (parse(r.body) || {}).items || []
     const names = (r) => items(r).map(i => i.name)
 
-    const meAOwn = meAj.login === 'admin@a.accept.liwan.test'
-    const meBOwn = meBj.login === 'admin@b.accept.liwan.test'
+    const meAOwn = meAj.login === 'admin@a.accept.liwan.localhost'
+    const meBOwn = meBj.login === 'admin@b.accept.liwan.localhost'
     const projAOwn = names(projA).includes('ACCEPT-A-ONLY') && !names(projA).includes('ACCEPT-B-ONLY')
     const projBOwn = names(projB).includes('ACCEPT-B-ONLY') && !names(projB).includes('ACCEPT-A-ONLY')
     const hrAOwn = names(hrA).includes('ACCEPT-A-EMP') && !names(hrA).includes('ACCEPT-B-EMP')
@@ -189,32 +188,6 @@ async function run() {
 
   // ---- Proof 4: only 127.0.0.1:443/80 published; web/odoo/guard/db unreachable
   try {
-    const args = [
-      'compose', '-f', 'docker-compose.yml', '-f', 'docker-compose.shared.yml',
-      '-f', '../tools/shared_acceptance_live/acceptance.override.yml',
-      '-p', PROJECT, 'ps', '--format', 'json',
-    ]
-    // `docker compose config`-time interpolation still runs for `ps`, and the shared
-    // overlay uses `:?` on several variables. Reconstruct the non-secret environment
-    // from the state file so this proof does not depend on the caller's shell.
-    const composeEnv = {
-      ...process.env,
-      LIWAN_IMAGE_TAG: state.LIWAN_IMAGE_TAG || 'unknown',
-      ODOO_COMMIT: state.ODOO_COMMIT || 'unknown',
-      DOMAIN: state.DOMAIN || 'a.accept.liwan.test b.accept.liwan.test',
-      DB_NAME: state.DB_NAME || 'liwan_accept_a_scratch',
-      DB_PASSWORD: process.env.DB_PASSWORD || 'compose-config-only',
-      DB_ADMIN_PASSWORD: process.env.DB_ADMIN_PASSWORD || 'compose-config-only-admin',
-      LIWAN_TENANT_REGISTRY_DIR: state.LIWAN_TENANT_REGISTRY_DIR || '/tmp',
-      LIWAN_SHARED_ODOO_CONFIG: state.LIWAN_SHARED_ODOO_CONFIG || '/tmp/none',
-      LIWAN_COMMERCIAL_CONFIG_DIR: state.LIWAN_COMMERCIAL_CONFIG_DIR || '/tmp',
-      LIWAN_EDGE_BIND: state.LIWAN_EDGE_BIND || '127.0.0.1',
-      LIWAN_EDGE_HTTPS_PORT: state.LIWAN_EDGE_HTTPS_PORT || '443',
-      LIWAN_EDGE_HTTP_PORT: state.LIWAN_EDGE_HTTP_PORT || '80',
-      LIWAN_SHARED_PROXY_TOKEN: process.env.LIWAN_SHARED_PROXY_TOKEN || 'compose-config-only',
-      LIWAN_SESSION_KEYS: process.env.LIWAN_SESSION_KEYS || '{"k1":"composeconfigonlycomposeconfigonlycompose"}',
-      LIWAN_SESSION_ACTIVE_KID: 'k1',
-    }
     // Docker's own view of each container's host bindings is the authoritative
     // answer to "what did this project publish?". A host TCP probe is NOT usable
     // here: this machine already runs unrelated listeners on 127.0.0.1:8080 (a Vite

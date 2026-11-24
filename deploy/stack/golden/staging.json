@@ -1,0 +1,1184 @@
+{
+ "networks": {
+  "admin_edge": {
+   "external": true,
+   "ipam": {},
+   "name": "liwan_staging_admin_edge"
+  },
+  "ai_internal": {
+   "internal": true,
+   "ipam": {},
+   "name": "golden_ai_internal"
+  },
+  "commercial_control": {
+   "external": true,
+   "ipam": {},
+   "name": "liwan_staging_control"
+  },
+  "control_edge": {
+   "external": true,
+   "ipam": {},
+   "name": "liwan_staging_control_edge"
+  },
+  "database": {
+   "internal": true,
+   "ipam": {},
+   "name": "golden_database"
+  },
+  "db_host": {
+   "driver_opts": {
+    "com.docker.network.bridge.enable_ip_masquerade": "false",
+    "com.docker.network.bridge.name": "liwan-dbhost"
+   },
+   "ipam": {},
+   "name": "golden_db_host"
+  },
+  "edge": {
+   "ipam": {
+    "config": [
+     {
+      "subnet": "172.29.50.0/24"
+     }
+    ]
+   },
+   "name": "golden_edge"
+  },
+  "guard_odoo": {
+   "internal": true,
+   "ipam": {},
+   "name": "golden_guard_odoo"
+  },
+  "guard_restore": {
+   "internal": true,
+   "ipam": {},
+   "name": "golden_guard_restore"
+  },
+  "guard_web": {
+   "internal": true,
+   "ipam": {},
+   "name": "golden_guard_web"
+  },
+  "odoo_egress": {
+   "internal": true,
+   "ipam": {},
+   "name": "golden_odoo_egress"
+  },
+  "odoo_mail": {
+   "internal": true,
+   "ipam": {},
+   "name": "golden_odoo_mail"
+  },
+  "relay_odoo": {
+   "internal": true,
+   "ipam": {},
+   "name": "golden_relay_odoo"
+  },
+  "restore_database": {
+   "internal": true,
+   "ipam": {},
+   "name": "golden_restore_database"
+  }
+ },
+ "services": {
+  "ai": {
+   "build": {
+    "context": "<ROOT>/apps/ai-service",
+    "dockerfile": "Dockerfile"
+   },
+   "cap_drop": [
+    "ALL"
+   ],
+   "command": null,
+   "depends_on": {
+    "ai-egress": {
+     "condition": "service_started",
+     "required": true
+    },
+    "db": {
+     "condition": "service_healthy",
+     "required": true
+    }
+   },
+   "entrypoint": null,
+   "environment": {
+    "AI_DATABASE_URL": "postgresql://liwan_ai:REPLACE_WITH_GENERATED_AI_DB_PASSWORD@db:5432/liwan_ai",
+    "AI_EMBEDDING_API_KEY": "",
+    "AI_EMBEDDING_BASE_URL": "",
+    "AI_EMBEDDING_MODEL": "",
+    "AI_EMBEDDING_PROVIDER": "",
+    "AI_KEY_ENCRYPTION_KEYS": "k1:REPLACE_WITH_GENERATED_KEY_ENCRYPTION_SECRET",
+    "AI_KEY_ENCRYPTION_KEY_ID": "k1",
+    "AI_OPENROUTER_REFERER": "",
+    "AI_OPENROUTER_TITLE": "",
+    "AI_PLATFORM_PROVIDER_FILE": "/etc/liwan-ai/platform-provider.json",
+    "AI_RUN_RETENTION_DAYS": "30",
+    "AI_SENTRY_DSN": "",
+    "AI_SENTRY_ENVIRONMENT": "",
+    "AI_SERVICE_TOKEN": "REPLACE_WITH_GENERATED_AI_SERVICE_TOKEN",
+    "AI_TENANT_DATABASE": "",
+    "AI_TENANT_EGRESS_DIR": "/egress",
+    "HTTPS_PROXY": "http://ai-egress:3128",
+    "HTTP_PROXY": "http://ai-egress:3128",
+    "LIWAN_TENANCY_MODE": "shared",
+    "LIWAN_TENANT_REGISTRY_PATH": "/etc/liwan/registry.json",
+    "NO_PROXY": "db,web,localhost,127.0.0.1"
+   },
+   "expose": [
+    "8600"
+   ],
+   "healthcheck": {
+    "interval": "10s",
+    "retries": 3,
+    "start_period": "2m0s",
+    "test": [
+     "CMD",
+     "python",
+     "-c",
+     "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8600/healthz', timeout=3)"
+    ],
+    "timeout": "5s"
+   },
+   "image": "liwan-ai-service:release-placeholder",
+   "logging": {
+    "driver": "json-file",
+    "options": {
+     "max-file": "5",
+     "max-size": "10m"
+    }
+   },
+   "networks": {
+    "ai_internal": null,
+    "database": null,
+    "guard_web": null
+   },
+   "profiles": [
+    "ai"
+   ],
+   "read_only": true,
+   "restart": "unless-stopped",
+   "security_opt": [
+    "no-new-privileges:true"
+   ],
+   "tmpfs": [
+    "/tmp"
+   ],
+   "volumes": [
+    {
+     "source": "ai_tenant_hosts",
+     "target": "/egress",
+     "type": "volume",
+     "volume": {}
+    },
+    {
+     "bind": {},
+     "read_only": true,
+     "source": "/srv/liwan-staging/control/state/ai-platform",
+     "target": "/etc/liwan-ai",
+     "type": "bind"
+    },
+    {
+     "bind": {},
+     "read_only": true,
+     "source": "/srv/liwan-staging/state/registry",
+     "target": "/etc/liwan",
+     "type": "bind"
+    }
+   ]
+  },
+  "ai-egress": {
+   "build": {
+    "context": "<ROOT>/deploy/ai-egress",
+    "dockerfile": "Dockerfile"
+   },
+   "cap_drop": [
+    "ALL"
+   ],
+   "command": null,
+   "entrypoint": null,
+   "environment": {
+    "AI_EGRESS_HOSTS": "",
+    "AI_TENANT_EGRESS_DIR": "/egress"
+   },
+   "expose": [
+    "3128"
+   ],
+   "image": "liwan-ai-egress:release-placeholder",
+   "logging": {
+    "driver": "json-file",
+    "options": {
+     "max-file": "5",
+     "max-size": "10m"
+    }
+   },
+   "networks": {
+    "ai_internal": null,
+    "edge": null
+   },
+   "profiles": [
+    "ai"
+   ],
+   "read_only": true,
+   "restart": "unless-stopped",
+   "security_opt": [
+    "no-new-privileges:true"
+   ],
+   "tmpfs": [
+    "/run:uid=13,gid=13,mode=0750",
+    "/var/spool/squid:uid=13,gid=13,mode=0750",
+    "/var/log/squid:uid=13,gid=13,mode=0750"
+   ],
+   "user": "proxy",
+   "volumes": [
+    {
+     "read_only": true,
+     "source": "ai_tenant_hosts",
+     "target": "/egress",
+     "type": "volume",
+     "volume": {}
+    }
+   ]
+  },
+  "db": {
+   "cap_drop": [
+    "ALL"
+   ],
+   "command": [
+    "postgres",
+    "-c",
+    "max_connections=338",
+    "-c",
+    "superuser_reserved_connections=3",
+    "-c",
+    "shared_buffers=6GB",
+    "-c",
+    "effective_cache_size=12288MB",
+    "-c",
+    "work_mem=4096kB",
+    "-c",
+    "maintenance_work_mem=256MB"
+   ],
+   "entrypoint": null,
+   "environment": {
+    "AI_DB_PASSWORD": "REPLACE_WITH_GENERATED_AI_DB_PASSWORD",
+    "ODOO_DB_PASSWORD": "REPLACE_WITH_GENERATED_DB_PASSWORD",
+    "POSTGRES_DB": "postgres",
+    "POSTGRES_PASSWORD": "REPLACE_WITH_GENERATED_DB_ADMIN_PASSWORD",
+    "POSTGRES_USER": "postgres"
+   },
+   "healthcheck": {
+    "interval": "5s",
+    "retries": 20,
+    "test": [
+     "CMD-SHELL",
+     "PGPASSWORD=$${POSTGRES_PASSWORD} psql -h \"$$(hostname -i | awk '{print $$1}')\" -U postgres -d postgres -tAc 'SELECT 1' >/dev/null"
+    ],
+    "timeout": "5s"
+   },
+   "image": "pgvector/pgvector:pg16@sha256:0dd3149a06e4579a0d70d8fef9945636cd514005e7237deb27f9b67886f8dc4f",
+   "logging": {
+    "driver": "json-file",
+    "options": {
+     "max-file": "5",
+     "max-size": "10m"
+    }
+   },
+   "mem_limit": "10737418240",
+   "networks": {
+    "database": null,
+    "db_host": null
+   },
+   "ports": [
+    {
+     "host_ip": "127.0.0.1",
+     "mode": "ingress",
+     "protocol": "tcp",
+     "published": "15433",
+     "target": 5432
+    }
+   ],
+   "read_only": true,
+   "restart": "unless-stopped",
+   "security_opt": [
+    "no-new-privileges:true"
+   ],
+   "tmpfs": [
+    "/tmp",
+    "/var/run/postgresql:uid=999,gid=999"
+   ],
+   "user": "postgres",
+   "volumes": [
+    {
+     "source": "db_data",
+     "target": "/var/lib/postgresql/data",
+     "type": "volume",
+     "volume": {}
+    },
+    {
+     "bind": {},
+     "read_only": true,
+     "source": "<ROOT>/deploy/db/init-runtime-role.sh",
+     "target": "/docker-entrypoint-initdb.d/10-liwan-runtime-role.sh",
+     "type": "bind"
+    },
+    {
+     "bind": {},
+     "read_only": true,
+     "source": "<ROOT>/deploy/ai/init-db.sh",
+     "target": "/docker-entrypoint-initdb.d/20-liwan-ai.sh",
+     "type": "bind"
+    }
+   ]
+  },
+  "guard": {
+   "build": {
+    "context": "<ROOT>",
+    "dockerfile": "deploy/shared/Dockerfile"
+   },
+   "cap_drop": [
+    "ALL"
+   ],
+   "command": null,
+   "depends_on": {
+    "odoo": {
+     "condition": "service_healthy",
+     "required": true
+    },
+    "web": {
+     "condition": "service_healthy",
+     "required": true
+    }
+   },
+   "entrypoint": null,
+   "environment": {
+    "LIWAN_GUARD_ODOO_URL": "http://odoo:8069",
+    "LIWAN_GUARD_PORT": "8080",
+    "LIWAN_GUARD_RESTORE_ODOO_URL": "http://restore-odoo:8069",
+    "LIWAN_GUARD_RESTORE_WS_URL": "http://restore-odoo:8072",
+    "LIWAN_GUARD_WEB_URL": "http://web:3000",
+    "LIWAN_GUARD_WS_URL": "http://odoo:8072",
+    "LIWAN_PROSPECT_HOST": "app.staging.example.test",
+    "LIWAN_RESTORE_REGISTRY_PATH": "/etc/liwan-restore/registry.json",
+    "LIWAN_SESSION_ACTIVE_KID": "k1",
+    "LIWAN_SESSION_KEYS": "{\"k1\":\"REPLACE_WITH_GENERATED_SESSION_KEY\"}",
+    "LIWAN_SHARED_PROXY_TOKEN": "REPLACE_WITH_GENERATED_PROXY_TOKEN",
+    "LIWAN_TENANCY_MODE": "shared",
+    "LIWAN_TENANT_REGISTRY_PATH": "/etc/liwan/registry.json",
+    "NUXT_ODOO_POOL_SESSION_ACTIVE": "",
+    "NUXT_ODOO_POOL_SESSION_QUEUED": ""
+   },
+   "expose": [
+    "8080"
+   ],
+   "healthcheck": {
+    "interval": "5s",
+    "retries": 20,
+    "test": [
+     "CMD",
+     "node",
+     "deploy/shared/healthcheck.mjs"
+    ],
+    "timeout": "3s"
+   },
+   "image": "liwan-guard:release-placeholder",
+   "logging": {
+    "driver": "json-file",
+    "options": {
+     "max-file": "5",
+     "max-size": "10m"
+    }
+   },
+   "networks": {
+    "edge": null,
+    "guard_odoo": null,
+    "guard_restore": null,
+    "guard_web": null
+   },
+   "read_only": true,
+   "restart": "unless-stopped",
+   "security_opt": [
+    "no-new-privileges:true"
+   ],
+   "tmpfs": [
+    "/tmp"
+   ],
+   "volumes": [
+    {
+     "bind": {},
+     "read_only": true,
+     "source": "/srv/liwan-staging/state/registry",
+     "target": "/etc/liwan",
+     "type": "bind"
+    },
+    {
+     "bind": {},
+     "read_only": true,
+     "source": "<ROOT>/deploy/data/restore-registry",
+     "target": "/etc/liwan-restore",
+     "type": "bind"
+    }
+   ]
+  },
+  "odoo": {
+   "build": {
+    "args": {
+     "ODOO_COMMIT": "REPLACE_WITH_ODOO_COMMIT"
+    },
+    "context": "<ROOT>",
+    "dockerfile": "deploy/odoo/Dockerfile"
+   },
+   "cap_drop": [
+    "ALL"
+   ],
+   "command": [],
+   "cpu_shares": 1024,
+   "depends_on": {
+    "db": {
+     "condition": "service_healthy",
+     "required": true
+    },
+    "odoo-egress": {
+     "condition": "service_started",
+     "required": true
+    },
+    "odoo-mail": {
+     "condition": "service_started",
+     "required": true
+    }
+   },
+   "entrypoint": [
+    "/opt/venv/bin/python",
+    "/opt/liwan/shared/launch_odoo.py"
+   ],
+   "environment": {
+    "HOST": "db",
+    "HTTPS_PROXY": "http://odoo-egress:3128",
+    "HTTP_PROXY": "http://odoo-egress:3128",
+    "LIWAN_AI_USAGE_KEY": "REPLACE_WITH_GENERATED_AI_USAGE_ROOT_SECRET",
+    "LIWAN_AUTHENTICA_API_KEY": "",
+    "LIWAN_AUTHENTICA_TEMPLATE_ID": "",
+    "LIWAN_INBOX_SECRET_KEY": "",
+    "LIWAN_OCI_EMAIL_COMPARTMENT_ID": "",
+    "LIWAN_OCI_EMAIL_REGION": "me-jeddah-1",
+    "LIWAN_OCI_EMAIL_SPF_INCLUDE": "",
+    "LIWAN_OCI_KEY_FINGERPRINT": "",
+    "LIWAN_OCI_LOG_GROUP_ID": "",
+    "LIWAN_OCI_PRIVATE_KEY": "",
+    "LIWAN_OCI_TENANCY_ID": "",
+    "LIWAN_OCI_USER_ID": "",
+    "LIWAN_SENTRY_DSN": "",
+    "LIWAN_SENTRY_ENVIRONMENT": "",
+    "LIWAN_TENANCY_MODE": "shared",
+    "LIWAN_TIKTOK_CLIENT_KEY": "",
+    "LIWAN_TIKTOK_CLIENT_SECRET": "",
+    "LIWAN_TIKTOK_REDIRECT_URI": "",
+    "LIWAN_TIKTOK_RELAY_TOKEN": "",
+    "LIWAN_TIKTOK_RELAY_URL": "http://tiktok-relay:8090",
+    "NO_PROXY": "db,pgbouncer,tiktok-relay,localhost,127.0.0.1",
+    "ODOO_EMAIL_FROM": "",
+    "ODOO_SMTP_PORT": "2525",
+    "ODOO_SMTP_SERVER": "odoo-mail",
+    "PASSWORD": "REPLACE_WITH_GENERATED_DB_PASSWORD",
+    "USER": "odoo"
+   },
+   "expose": [
+    "8069",
+    "8072"
+   ],
+   "healthcheck": {
+    "interval": "10s",
+    "retries": 3,
+    "start_period": "2m0s",
+    "test": [
+     "CMD",
+     "/opt/venv/bin/python",
+     "-c",
+     "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8069/web/health?db_server_status=1', timeout=3)"
+    ],
+    "timeout": "5s"
+   },
+   "image": "liwan-odoo:release-placeholder",
+   "logging": {
+    "driver": "json-file",
+    "options": {
+     "max-file": "5",
+     "max-size": "10m"
+    }
+   },
+   "mem_limit": "9663676416",
+   "networks": {
+    "database": null,
+    "guard_odoo": null,
+    "odoo_egress": null,
+    "odoo_mail": null,
+    "relay_odoo": null
+   },
+   "restart": "unless-stopped",
+   "security_opt": [
+    "no-new-privileges:true"
+   ],
+   "volumes": [
+    {
+     "bind": {},
+     "read_only": true,
+     "source": "/srv/liwan-staging/config/odoo.conf",
+     "target": "/etc/odoo/odoo.conf",
+     "type": "bind"
+    },
+    {
+     "source": "odoo_data",
+     "target": "/var/lib/odoo",
+     "type": "volume",
+     "volume": {}
+    }
+   ]
+  },
+  "odoo-egress": {
+   "build": {
+    "context": "<ROOT>/deploy/ai-egress",
+    "dockerfile": "Dockerfile"
+   },
+   "cap_drop": [
+    "ALL"
+   ],
+   "command": null,
+   "entrypoint": null,
+   "environment": {
+    "AI_EGRESS_HOSTS": "api.authentica.sa,graph.facebook.com,lookaside.fbsbx.com,business-api.tiktok.com,.tiktokcdn.com,.tiktokcdn-us.com,.tiktokv.com,ksa.paymob.com,uae.paymob.com,accept.paymob.com,oman.paymob.com,ctrl.email.me-jeddah-1.oci.oraclecloud.com,logging.me-jeddah-1.oci.oraclecloud.com",
+    "AI_TENANT_EGRESS_DIR": "",
+    "EGRESS_DENY_PRIVATE": "yes"
+   },
+   "expose": [
+    "3128"
+   ],
+   "image": "liwan-ai-egress:release-placeholder",
+   "logging": {
+    "driver": "json-file",
+    "options": {
+     "max-file": "5",
+     "max-size": "10m"
+    }
+   },
+   "networks": {
+    "edge": null,
+    "odoo_egress": null
+   },
+   "read_only": true,
+   "restart": "unless-stopped",
+   "security_opt": [
+    "no-new-privileges:true"
+   ],
+   "tmpfs": [
+    "/run:uid=13,gid=13,mode=0750",
+    "/var/spool/squid:uid=13,gid=13,mode=0750",
+    "/var/log/squid:uid=13,gid=13,mode=0750"
+   ],
+   "user": "proxy"
+  },
+  "odoo-mail": {
+   "build": {
+    "context": "<ROOT>/deploy/odoo-mail",
+    "dockerfile": "Dockerfile"
+   },
+   "cap_drop": [
+    "ALL"
+   ],
+   "command": null,
+   "entrypoint": null,
+   "environment": {
+    "ODOO_MAIL_RESERVED_DOMAINS": "",
+    "ODOO_MAIL_SENDER": "",
+    "ODOO_MAIL_UPSTREAM_HOST": "",
+    "ODOO_MAIL_UPSTREAM_PASSWORD": "",
+    "ODOO_MAIL_UPSTREAM_PORT": "587",
+    "ODOO_MAIL_UPSTREAM_USER": ""
+   },
+   "expose": [
+    "2525"
+   ],
+   "healthcheck": {
+    "interval": "10s",
+    "retries": 3,
+    "start_period": "10s",
+    "test": [
+     "CMD",
+     "python3",
+     "-I",
+     "/usr/local/lib/odoo-mail/relay.py",
+     "--healthcheck"
+    ],
+    "timeout": "5s"
+   },
+   "image": "liwan-odoo-mail:release-placeholder",
+   "logging": {
+    "driver": "json-file",
+    "options": {
+     "max-file": "5",
+     "max-size": "10m"
+    }
+   },
+   "mem_limit": "402653184",
+   "networks": {
+    "edge": null,
+    "odoo_mail": null
+   },
+   "read_only": true,
+   "restart": "unless-stopped",
+   "security_opt": [
+    "no-new-privileges:true"
+   ],
+   "tmpfs": [
+    "/tmp"
+   ],
+   "user": "10002:10002"
+  },
+  "pgbouncer": {
+   "cap_drop": [
+    "ALL"
+   ],
+   "command": null,
+   "depends_on": {
+    "db": {
+     "condition": "service_healthy",
+     "required": true
+    }
+   },
+   "entrypoint": null,
+   "environment": {
+    "AUTH_TYPE": "scram-sha-256",
+    "DB_HOST": "db",
+    "DB_PASSWORD": "REPLACE_WITH_GENERATED_DB_PASSWORD",
+    "DB_PORT": "5432",
+    "DB_USER": "odoo",
+    "DEFAULT_POOL_SIZE": "3",
+    "MAX_CLIENT_CONN": "130",
+    "MAX_DB_CONNECTIONS": "190",
+    "POOL_MODE": "transaction",
+    "RESERVE_POOL_SIZE": "2"
+   },
+   "expose": [
+    "5432"
+   ],
+   "healthcheck": {
+    "interval": "5s",
+    "retries": 20,
+    "test": [
+     "CMD-SHELL",
+     "pg_isready -h 127.0.0.1 -p 5432 -U odoo"
+    ],
+    "timeout": "3s"
+   },
+   "image": "edoburu/pgbouncer:v1.24.1-p0@sha256:53d98b3174b0842c475b9842fb0a733b2d9f7ec9da834ec42252aa553f48c628",
+   "logging": {
+    "driver": "json-file",
+    "options": {
+     "max-file": "5",
+     "max-size": "10m"
+    }
+   },
+   "networks": {
+    "database": null
+   },
+   "profiles": [
+    "pgbouncer"
+   ],
+   "read_only": true,
+   "restart": "unless-stopped",
+   "security_opt": [
+    "no-new-privileges:true"
+   ],
+   "tmpfs": [
+    "/tmp",
+    "/etc/pgbouncer:uid=70,gid=70,mode=0700,noexec,nosuid,nodev"
+   ]
+  },
+  "proxy": {
+   "build": {
+    "context": "<ROOT>",
+    "dockerfile": "deploy/proxy/Dockerfile"
+   },
+   "cap_add": [
+    "NET_BIND_SERVICE"
+   ],
+   "cap_drop": [
+    "ALL"
+   ],
+   "command": null,
+   "depends_on": {
+    "guard": {
+     "condition": "service_healthy",
+     "required": true
+    },
+    "odoo": {
+     "condition": "service_healthy",
+     "required": true
+    },
+    "web": {
+     "condition": "service_healthy",
+     "required": true
+    }
+   },
+   "entrypoint": null,
+   "environment": {
+    "ADMIN_DOMAIN": "vendor-admin.invalid",
+    "CONTROL_WEBHOOK_DOMAIN": "control-webhook.invalid",
+    "DOMAIN": "http://staging.example.test, http://*.staging.example.test",
+    "LIWAN_ADMIN_ALLOW": "",
+    "LIWAN_AUTO_HTTPS": "off",
+    "LIWAN_RESTORE_ALLOW": "",
+    "LIWAN_RESTORE_DOMAIN": "staging.example.test",
+    "LIWAN_SITE_SCHEME": "http://",
+    "LIWAN_TIKTOK_RELAY_HOST": "invalid.invalid",
+    "LIWAN_TRUSTED_PROXIES": "172.29.50.1/32"
+   },
+   "image": "liwan-caddy:release-placeholder",
+   "logging": {
+    "driver": "json-file",
+    "options": {
+     "max-file": "5",
+     "max-size": "10m"
+    }
+   },
+   "networks": {
+    "admin_edge": null,
+    "control_edge": null,
+    "edge": null
+   },
+   "ports": [
+    {
+     "host_ip": "127.0.0.1",
+     "mode": "ingress",
+     "protocol": "tcp",
+     "published": "18443",
+     "target": 443
+    },
+    {
+     "host_ip": "127.0.0.1",
+     "mode": "ingress",
+     "protocol": "tcp",
+     "published": "18080",
+     "target": 80
+    }
+   ],
+   "read_only": true,
+   "restart": "unless-stopped",
+   "tmpfs": [
+    "/tmp",
+    "/config:uid=10002,gid=10002"
+   ],
+   "volumes": [
+    {
+     "bind": {},
+     "read_only": true,
+     "source": "<ROOT>/deploy/stack/Caddyfile",
+     "target": "/etc/caddy/Caddyfile",
+     "type": "bind"
+    },
+    {
+     "source": "caddy_data",
+     "target": "/data",
+     "type": "volume",
+     "volume": {}
+    },
+    {
+     "bind": {},
+     "read_only": true,
+     "source": "/var/lib/liwan-release/maintenance",
+     "target": "/srv/liwan-maintenance",
+     "type": "bind"
+    },
+    {
+     "bind": {
+      "create_host_path": false
+     },
+     "read_only": true,
+     "source": "/srv/liwan-staging/control/private/control-ca.pem",
+     "target": "/etc/liwan-control/control-ca.pem",
+     "type": "bind"
+    },
+    {
+     "bind": {
+      "create_host_path": false
+     },
+     "read_only": true,
+     "source": "<ROOT>/deploy/control-plane/Caddyfile.snippet",
+     "target": "/etc/caddy/commercial/control-webhook.caddy",
+     "type": "bind"
+    },
+    {
+     "bind": {
+      "create_host_path": false
+     },
+     "read_only": true,
+     "source": "<ROOT>/deploy/vendor-admin/Caddyfile.snippet",
+     "target": "/etc/caddy/commercial/vendor-admin.caddy",
+     "type": "bind"
+    }
+   ]
+  },
+  "restore-db": {
+   "cap_drop": [
+    "ALL"
+   ],
+   "command": null,
+   "entrypoint": null,
+   "environment": {
+    "AI_DB_PASSWORD": "REPLACE_WITH_GENERATED_AI_DB_PASSWORD",
+    "ODOO_DB_PASSWORD": "REPLACE_WITH_GENERATED_DB_PASSWORD",
+    "POSTGRES_DB": "postgres",
+    "POSTGRES_PASSWORD": "REPLACE_WITH_GENERATED_DB_ADMIN_PASSWORD",
+    "POSTGRES_USER": "postgres"
+   },
+   "healthcheck": {
+    "interval": "5s",
+    "retries": 20,
+    "test": [
+     "CMD-SHELL",
+     "PGPASSWORD=$${POSTGRES_PASSWORD} psql -h \"$$(hostname -i | awk '{print $$1}')\" -U postgres -d postgres -tAc 'SELECT 1' >/dev/null"
+    ],
+    "timeout": "5s"
+   },
+   "image": "pgvector/pgvector:pg16@sha256:0dd3149a06e4579a0d70d8fef9945636cd514005e7237deb27f9b67886f8dc4f",
+   "logging": {
+    "driver": "json-file",
+    "options": {
+     "max-file": "5",
+     "max-size": "10m"
+    }
+   },
+   "networks": {
+    "restore_database": null
+   },
+   "profiles": [
+    "restore"
+   ],
+   "read_only": true,
+   "restart": "unless-stopped",
+   "security_opt": [
+    "no-new-privileges:true"
+   ],
+   "tmpfs": [
+    "/tmp",
+    "/var/run/postgresql:uid=999,gid=999"
+   ],
+   "user": "postgres",
+   "volumes": [
+    {
+     "source": "restore_db_data",
+     "target": "/var/lib/postgresql/data",
+     "type": "volume",
+     "volume": {}
+    },
+    {
+     "bind": {},
+     "read_only": true,
+     "source": "<ROOT>/deploy/db/init-runtime-role.sh",
+     "target": "/docker-entrypoint-initdb.d/10-liwan-runtime-role.sh",
+     "type": "bind"
+    },
+    {
+     "bind": {},
+     "read_only": true,
+     "source": "<ROOT>/deploy/ai/init-db.sh",
+     "target": "/docker-entrypoint-initdb.d/20-liwan-ai.sh",
+     "type": "bind"
+    }
+   ]
+  },
+  "restore-odoo": {
+   "cap_drop": [
+    "ALL"
+   ],
+   "command": [
+    "--max-cron-threads=0"
+   ],
+   "depends_on": {
+    "restore-db": {
+     "condition": "service_healthy",
+     "required": true
+    }
+   },
+   "entrypoint": [
+    "/opt/venv/bin/python",
+    "/opt/liwan/shared/launch_odoo.py"
+   ],
+   "environment": {
+    "LIWAN_RESTORE_ROLE": "1",
+    "LIWAN_TENANCY_MODE": "shared"
+   },
+   "expose": [
+    "8069",
+    "8072"
+   ],
+   "healthcheck": {
+    "interval": "10s",
+    "retries": 3,
+    "start_period": "2m0s",
+    "test": [
+     "CMD",
+     "/opt/venv/bin/python",
+     "-c",
+     "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8069/web/health?db_server_status=1', timeout=3)"
+    ],
+    "timeout": "5s"
+   },
+   "image": "liwan-odoo:release-placeholder",
+   "logging": {
+    "driver": "json-file",
+    "options": {
+     "max-file": "5",
+     "max-size": "10m"
+    }
+   },
+   "networks": {
+    "guard_restore": null,
+    "restore_database": null
+   },
+   "profiles": [
+    "restore"
+   ],
+   "restart": "unless-stopped",
+   "security_opt": [
+    "no-new-privileges:true"
+   ],
+   "volumes": [
+    {
+     "bind": {},
+     "read_only": true,
+     "source": "<ROOT>/deploy/shared/odoo.restore.conf",
+     "target": "/etc/odoo/odoo.conf",
+     "type": "bind"
+    },
+    {
+     "source": "restore_odoo_data",
+     "target": "/var/lib/odoo",
+     "type": "volume",
+     "volume": {}
+    }
+   ]
+  },
+  "tiktok-relay": {
+   "build": {
+    "context": "<ROOT>",
+    "dockerfile": "deploy/shared/Dockerfile"
+   },
+   "cap_drop": [
+    "ALL"
+   ],
+   "command": [
+    "node",
+    "deploy/shared/tiktok-relay.mjs"
+   ],
+   "entrypoint": null,
+   "environment": {
+    "LIWAN_TENANCY_MODE": "shared",
+    "LIWAN_TENANT_REGISTRY_PATH": "/etc/liwan/registry.json",
+    "LIWAN_TIKTOK_BINDINGS_PATH": "/var/lib/liwan/tiktok-bindings.json",
+    "LIWAN_TIKTOK_CLIENT_SECRET": "",
+    "LIWAN_TIKTOK_RELAY_PORT": "8090",
+    "LIWAN_TIKTOK_RELAY_TOKEN": ""
+   },
+   "expose": [
+    "8090"
+   ],
+   "healthcheck": {
+    "interval": "10s",
+    "retries": 3,
+    "start_period": "30s",
+    "test": [
+     "CMD",
+     "node",
+     "-e",
+     "fetch('http://127.0.0.1:8090/healthz', { signal: AbortSignal.timeout(3000) }).then(r => process.exit(r.status === 200 ? 0 : 1), () => process.exit(1))"
+    ],
+    "timeout": "5s"
+   },
+   "image": "liwan-guard:release-placeholder",
+   "logging": {
+    "driver": "json-file",
+    "options": {
+     "max-file": "5",
+     "max-size": "10m"
+    }
+   },
+   "networks": {
+    "edge": null,
+    "relay_odoo": null
+   },
+   "profiles": [
+    "tiktok"
+   ],
+   "read_only": true,
+   "restart": "unless-stopped",
+   "security_opt": [
+    "no-new-privileges:true"
+   ],
+   "tmpfs": [
+    "/tmp"
+   ],
+   "volumes": [
+    {
+     "bind": {},
+     "read_only": true,
+     "source": "/srv/liwan-staging/state/registry",
+     "target": "/etc/liwan",
+     "type": "bind"
+    },
+    {
+     "source": "tiktok_bindings",
+     "target": "/var/lib/liwan",
+     "type": "volume",
+     "volume": {}
+    }
+   ]
+  },
+  "web": {
+   "build": {
+    "args": {
+     "LIWAN_TENANCY_MODE": "shared"
+    },
+    "context": "<ROOT>",
+    "dockerfile": "apps/web/Dockerfile"
+   },
+   "cap_drop": [
+    "ALL"
+   ],
+   "command": null,
+   "depends_on": {
+    "odoo": {
+     "condition": "service_healthy",
+     "required": true
+    }
+   },
+   "entrypoint": null,
+   "environment": {
+    "LIWAN_AI_USAGE_KEY": "REPLACE_WITH_GENERATED_AI_USAGE_ROOT_SECRET",
+    "LIWAN_RESTORE_REGISTRY_PATH": "/etc/liwan-restore/registry.json",
+    "LIWAN_SHARED_PROXY_TOKEN": "REPLACE_WITH_GENERATED_PROXY_TOKEN",
+    "LIWAN_TENANCY_MODE": "shared",
+    "LIWAN_TENANT_REGISTRY_PATH": "/etc/liwan/registry.json",
+    "NODE_EXTRA_CA_CERTS": "/etc/liwan-control/control-ca.pem",
+    "NUXT_AI_SERVICE_TOKEN": "REPLACE_WITH_GENERATED_AI_SERVICE_TOKEN",
+    "NUXT_AI_SERVICE_URL": "http://ai:8600",
+    "NUXT_AI_TOKEN_KEY": "REPLACE_WITH_GENERATED_AI_TOKEN_KEY",
+    "NUXT_AUTH_PROXY_CLIENT_IP_HEADER": "x-liwan-client-ip",
+    "NUXT_CUSTOMER_COMMERCIAL_CONTROL_URL": "https://control-api:4187",
+    "NUXT_CUSTOMER_COMMERCIAL_ENABLED": "true",
+    "NUXT_CUSTOMER_COMMERCIAL_ISSUER": "liwan-web",
+    "NUXT_CUSTOMER_COMMERCIAL_PUBLIC_ORIGIN": "https://app.staging.example.test",
+    "NUXT_CUSTOMER_COMMERCIAL_SERVICE_KEY": "REPLACE_WITH_GENERATED_SERVICE_KEY",
+    "NUXT_MARKETING_SITE_ORIGINS": "",
+    "NUXT_ODOO_DB": "",
+    "NUXT_ODOO_MAX_CONCURRENCY": "",
+    "NUXT_ODOO_POOL_BOOKING_ACTIVE": "",
+    "NUXT_ODOO_POOL_BOOKING_QUEUED": "",
+    "NUXT_ODOO_POOL_HEAVY_ACTIVE": "",
+    "NUXT_ODOO_POOL_HEAVY_QUEUED": "",
+    "NUXT_ODOO_POOL_PDF_ACTIVE": "",
+    "NUXT_ODOO_POOL_PDF_QUEUED": "",
+    "NUXT_ODOO_POOL_PUBLIC_ACTIVE": "",
+    "NUXT_ODOO_POOL_PUBLIC_QUEUED": "",
+    "NUXT_ODOO_POOL_SESSION_ACTIVE": "",
+    "NUXT_ODOO_POOL_SESSION_QUEUED": "",
+    "NUXT_ODOO_URL": "http://guard:8080",
+    "NUXT_PUBLIC_CUSTOMER_COMMERCIAL_ENABLED": "true",
+    "NUXT_PUBLIC_SIGNUP_ENABLED": "false",
+    "NUXT_PUBLIC_WS_URL": "",
+    "NUXT_SENTRY_DSN": "",
+    "NUXT_SENTRY_ENVIRONMENT": "",
+    "NUXT_SESSION_CHECK_CACHE_SIZE": "",
+    "NUXT_SESSION_CHECK_CONCURRENCY": "",
+    "NUXT_SESSION_CHECK_TTL_MS": ""
+   },
+   "expose": [
+    "3000"
+   ],
+   "healthcheck": {
+    "interval": "10s",
+    "retries": 3,
+    "start_period": "2m0s",
+    "test": [
+     "CMD",
+     "node",
+     "-e",
+     "fetch('http://127.0.0.1:3000/favicon.ico', { signal: AbortSignal.timeout(3000) }).then(r => process.exit(r.status === 200 ? 0 : 1), () => process.exit(1))"
+    ],
+    "timeout": "5s"
+   },
+   "image": "liwan-web:release-placeholder",
+   "logging": {
+    "driver": "json-file",
+    "options": {
+     "max-file": "5",
+     "max-size": "10m"
+    }
+   },
+   "networks": {
+    "commercial_control": null,
+    "guard_web": null
+   },
+   "read_only": true,
+   "restart": "unless-stopped",
+   "security_opt": [
+    "no-new-privileges:true"
+   ],
+   "tmpfs": [
+    "/tmp"
+   ],
+   "volumes": [
+    {
+     "bind": {},
+     "read_only": true,
+     "source": "/srv/liwan-staging/state/registry",
+     "target": "/etc/liwan",
+     "type": "bind"
+    },
+    {
+     "bind": {},
+     "read_only": true,
+     "source": "<ROOT>/deploy/data/restore-registry",
+     "target": "/etc/liwan-restore",
+     "type": "bind"
+    },
+    {
+     "bind": {
+      "create_host_path": false
+     },
+     "read_only": true,
+     "source": "/srv/liwan-staging/control/private/control-ca.pem",
+     "target": "/etc/liwan-control/control-ca.pem",
+     "type": "bind"
+    }
+   ]
+  }
+ },
+ "volumes": {
+  "ai_tenant_hosts": {
+   "name": "golden_ai_tenant_hosts"
+  },
+  "caddy_data": {
+   "name": "golden_caddy_data"
+  },
+  "db_data": {
+   "name": "golden_db_data"
+  },
+  "odoo_data": {
+   "name": "golden_odoo_data"
+  },
+  "restore_db_data": {
+   "name": "golden_restore_db_data"
+  },
+  "restore_odoo_data": {
+   "name": "golden_restore_odoo_data"
+  },
+  "tiktok_bindings": {
+   "name": "golden_tiktok_bindings"
+  }
+ },
+ "x-logging": {
+  "driver": "json-file",
+  "options": {
+   "max-file": "5",
+   "max-size": "10m"
+  }
+ }
+}

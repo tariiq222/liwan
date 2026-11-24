@@ -1,0 +1,25 @@
+# Add-only network pins for the acceptance harnesses; it defines no service. The stack's `edge` subnet is its own
+# LIWAN_EDGE_SUBNET. The host daemon's default address pools can be fully subnetted by unrelated projects, so a harness
+# gives every other network of the stack an explicit subnet (accepted regardless of pool exhaustion). The networks keep
+# the `internal: true` of the stack definition. Every variable is required: the harness sets all of them.
+networks:
+  guard_web:
+    ipam: { config: [{ subnet: "${LIWAN_HARNESS_SUBNET_GUARD_WEB:?}" }] }
+  guard_odoo:
+    ipam: { config: [{ subnet: "${LIWAN_HARNESS_SUBNET_GUARD_ODOO:?}" }] }
+  database:
+    ipam: { config: [{ subnet: "${LIWAN_HARNESS_SUBNET_DATABASE:?}" }] }
+  ai_internal:
+    ipam: { config: [{ subnet: "${LIWAN_HARNESS_SUBNET_AI_INTERNAL:?}" }] }
+  odoo_egress:
+    ipam: { config: [{ subnet: "${LIWAN_HARNESS_SUBNET_ODOO_EGRESS:?}" }] }
+  odoo_mail:
+    ipam: { config: [{ subnet: "${LIWAN_HARNESS_SUBNET_ODOO_MAIL:?}" }] }
+  relay_odoo:
+    ipam: { config: [{ subnet: "${LIWAN_HARNESS_SUBNET_RELAY_ODOO:?}" }] }
+  guard_restore:
+    ipam: { config: [{ subnet: "${LIWAN_HARNESS_SUBNET_GUARD_RESTORE:?}" }] }
+  restore_database:
+    ipam: { config: [{ subnet: "${LIWAN_HARNESS_SUBNET_RESTORE_DATABASE:?}" }] }
+  tenant_storage:
+    ipam: { config: [{ subnet: "${LIWAN_HARNESS_SUBNET_TENANT_STORAGE:?}" }] }

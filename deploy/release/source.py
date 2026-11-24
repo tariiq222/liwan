@@ -24,8 +24,11 @@ RELEASE_FILE = '/release.json'
 USER_VAR, TOKEN_VAR = 'LIWAN_GHCR_READ_USER', 'LIWAN_GHCR_READ_TOKEN'
 GITHUB_TOKEN_VAR = 'LIWAN_GITHUB_READ_TOKEN'
 GITHUB_USER = 'x-access-token'
-# staging follows the highest release tag; production applies only the tag it is given.
-ENVIRONMENTS = ('staging', 'production')
+# An environment's tag policy (LIWAN_RELEASE_TAG_POLICY in its env file): `highest` follows the highest release tag;
+# `explicit` applies only the tag it is given. An environment exists when `<config root>/<name>.env` does.
+TAG_POLICY_KEY = 'LIWAN_RELEASE_TAG_POLICY'
+TAG_POLICIES = ('highest', 'explicit')
+ENVIRONMENT_NAME = re.compile(r'^[a-z][a-z0-9-]{0,30}$')
 ARCHITECTURES = {'x86_64': 'amd64', 'amd64': 'amd64', 'aarch64': 'arm64', 'arm64': 'arm64'}
 RELEASE_PLATFORM = 'linux/arm64'
 VERSION_PART = r'(0|[1-9][0-9]*)'  # ASCII digits, no leading zero
@@ -83,15 +86,17 @@ def tag_order(tag: str) -> tuple[int, int, int]:
     return release_version(tag) or (-1, -1, -1)
 
 
-def explicit_tag(environment: str, tag: str | None) -> str | None:
-    """The release tag production was told to apply. Production never picks one itself; no other environment takes one."""
-    if environment != 'production':
+def explicit_tag(policy: str | None, tag: str | None) -> str | None:
+    """The release tag an `explicit` environment was told to apply. It never picks one itself; a `highest` one takes none."""
+    if policy not in TAG_POLICIES:
+        raise ReleaseError('invalid_tag_policy', EXIT_REFUSED, f'set {TAG_POLICY_KEY} to one of {list(TAG_POLICIES)}')
+    if policy == 'highest':
         if tag is not None:
-            raise ReleaseError('tag_not_allowed', EXIT_REFUSED, f'--tag is only for production, not {environment}')
+            raise ReleaseError('tag_not_allowed', EXIT_REFUSED, f'--tag is only for an environment with {TAG_POLICY_KEY}=explicit')
         return None
     if tag is None:
-        raise ReleaseError('production_tag_required', EXIT_REFUSED,
-                           'production applies only a named release: pass --tag release/19.0.X.Y.Z')
+        raise ReleaseError('tag_required', EXIT_REFUSED,
+                           'this environment applies only a named release: pass --tag release/19.0.X.Y.Z')
     if release_version(tag) is None:
         raise ReleaseError('invalid_tag', EXIT_REFUSED, f'{tag!r} is not a release/19.0.X.Y.Z tag')
     return tag
@@ -108,7 +113,7 @@ def required_platforms(host: str) -> list[str]:
 class Source:
     def __init__(self, tag: str | None, state: Path, credential: Credential, github_token: str | None,
                  runner, log, child_env: dict):
-        self.tag = tag  # set for production only (``explicit_tag``)
+        self.tag = tag  # set for an `explicit` environment only (``explicit_tag``)
         self.repository = state / 'repo.git'
         self.credential = credential
         self.run_command = runner
@@ -130,7 +135,7 @@ class Source:
         return code, output.strip()
 
     def candidate(self) -> dict | None:
-        """The highest ``release/19.0.X.Y.Z`` tag (staging; None when no tag exists) or exactly the tag production was given."""
+        """The highest ``release/19.0.X.Y.Z`` tag (None when no tag exists) or exactly the tag an `explicit` environment was given."""
         try:
             refs = self.listing(*self.tag_patterns())
         except CommandFailed:

@@ -18,16 +18,16 @@ import tempfile
 import unittest
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-CADDYFILE = ROOT / 'deploy' / 'Caddyfile'
-DOCKERFILE = ROOT / 'deploy' / 'proxy' / 'Dockerfile'
-COMPOSE = ROOT / 'deploy' / 'docker-compose.yml'
+from deploy.stack import render
 
-DEDICATED_ZONES = ('liwan_auth', 'liwan_provider_hook', 'liwan_account', 'liwan_api', 'liwan_public_appointments_ip', 'liwan_odoo',
-                   'liwan_web')
+ROOT = Path(__file__).resolve().parents[1]
+DOCKERFILE = ROOT / 'deploy' / 'proxy' / 'Dockerfile'
+STACK_COMPOSE = ROOT / 'deploy' / 'stack' / 'compose.yml'
+LOCAL_ENV = ROOT / 'deploy' / 'environments' / 'local.env.example'
+
 ZONES = ('liwan_auth', 'liwan_provider_hook', 'liwan_account', 'liwan_api', 'liwan_public_appointments_ip', 'liwan_odoo_image',
          'liwan_odoo', 'liwan_signup', 'liwan_public_site', 'liwan_web', 'liwan_tiktok')
-SHARED_CADDYFILE = ROOT / 'deploy' / 'shared' / 'Caddyfile'
+SHARED_CADDYFILE = ROOT / 'deploy' / 'stack' / 'Caddyfile'
 RESERVED_PROXY = '192.0.2.1/32'  # TEST-NET-1: the default trusted list trusts no real peer
 CADDY_IMAGE_REPOSITORY = 'liwan-caddy-test'
 DOCKER_UNAVAILABLE = ('cannot connect to the docker daemon', 'is the docker daemon running',
@@ -296,17 +296,6 @@ def _probe_shared_zones(text: str, paths: list[str]) -> list[set[str]]:
 
 
 class TestEdgeRateLimitTemplate(unittest.TestCase):
-    def test_caddyfile_declares_exactly_the_declared_zones(self) -> None:
-        text = CADDYFILE.read_text(encoding='utf-8')
-        declared = re.findall(r'^\s*zone\s+(\S+)\s*\{', text, re.MULTILINE)
-        self.assertEqual(len(declared), len(DEDICATED_ZONES))
-        for zone in DEDICATED_ZONES:
-            with self.subTest(zone=zone):
-                self.assertEqual(declared.count(zone), 1)
-        self.assertIn('key {remote_host}', text)
-        self.assertIn('ipv6_prefix 64', text)
-        self.assertNotIn('caddy:2', COMPOSE.read_text(encoding='utf-8'))
-
     def test_shared_caddyfile_gives_every_server_block_an_address(self) -> None:
         """A block keyed by a bare variable adapts to nothing, and Caddy refuses it.
 
@@ -333,10 +322,11 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
         text = DOCKERFILE.read_text(encoding='utf-8')
         self.assertIn('github.com/mholt/caddy-ratelimit@v0.1.0', text)
         self.assertIn("grep -q 'http.handlers.rate_limit'", text)
-        self.assertIn('deploy/proxy/Dockerfile', COMPOSE.read_text(encoding='utf-8'))
+        self.assertIn('deploy/proxy/Dockerfile', STACK_COMPOSE.read_text(encoding='utf-8'))
+        self.assertNotIn('caddy:2', STACK_COMPOSE.read_text(encoding='utf-8'))
 
-    def test_shared_overlay_resolved_published_ports(self) -> None:
-        """Behavioral: resolve base + shared overlay and inspect published ports."""
+    def test_stack_resolved_published_ports(self) -> None:
+        """Behavioral: resolve the one stack and inspect published ports."""
         rendered = self._render_shared({})
         proxy = rendered['services']['proxy'].get('ports', [])
         self.assertEqual(
@@ -358,7 +348,7 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
             [('127.0.0.1', '8080', 80), ('127.0.0.1', '8443', 443)],
         )
 
-    def test_shared_overlay_supplies_proxy_host_when_relay_host_is_empty(self) -> None:
+    def test_stack_supplies_proxy_host_when_relay_host_is_empty(self) -> None:
         for configured, expected in (('', 'invalid.invalid'), ('hooks.example.test', 'hooks.example.test')):
             with self.subTest(configured=configured):
                 services = self._render_shared({'LIWAN_TIKTOK_RELAY_HOST': configured})['services']
@@ -369,14 +359,12 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
     def test_healthchecks_probe_http_readiness_not_a_tcp_port(self) -> None:
         """Behavioral (AUDIT-058): every Odoo, web and relay probe makes an HTTP request; Odoo's also checks PostgreSQL."""
         shared = self._render_shared({}, profiles=('tiktok', 'restore'))['services']
-        base = self._render_base({})['services']
         probes = {
             ('shared', 'odoo'): shared['odoo'], ('shared', 'web'): shared['web'],
             ('shared', 'restore-odoo'): shared['restore-odoo'], ('shared', 'tiktok-relay'): shared['tiktok-relay'],
-            ('base', 'odoo'): base['odoo'], ('base', 'web'): base['web'],
         }
-        for (overlay, name), service in probes.items():
-            with self.subTest(overlay=overlay, service=name):
+        for (_stack, name), service in probes.items():
+            with self.subTest(service=name):
                 hc = service['healthcheck']
                 test = ' '.join(hc['test'])
                 self.assertNotIn('socket', test)
@@ -492,6 +480,7 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
             self.assertEqual(actual, [expected for _, expected in SHARED_ZONE_CASES])
 
     def _render_shared(self, extra: dict, profiles: tuple = ()) -> dict:
+        """`docker compose config` of the one stack: the local env file plus this test's values, nothing else."""
         if not shutil.which('docker') or subprocess.run(
                 ['docker', 'compose', 'version'], capture_output=True, timeout=60).returncode:
             self.skipTest('docker compose unavailable')
@@ -502,45 +491,29 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
             'LIWAN_TIKTOK_CLIENT_SECRET': 'test-only-client-secret',
             'LIWAN_SESSION_ACTIVE_KID': 'k1', 'LIWAN_SHARED_PROXY_TOKEN': 'dummy', 'LIWAN_TIKTOK_RELAY_TOKEN': 'test-only-relay-token',
             'LIWAN_SHARED_ODOO_CONFIG': '/tmp/dummy-odoo.conf', 'LIWAN_TENANT_REGISTRY_DIR': '/tmp',
-            'DB_PASSWORD': 'dummy', 'DB_ADMIN_PASSWORD': 'dummy-admin', 'LIWAN_DOMAIN': 'example.test',
+            'DB_PASSWORD': 'dummy', 'DB_ADMIN_PASSWORD': 'dummy-admin', 'DOMAIN': 'example.test',
+            # The local env file turns the edge's TLS handling off and trusts nothing; these tests want the defaults.
+            'LIWAN_AUTO_HTTPS': '', 'LIWAN_SITE_SCHEME': '', 'LIWAN_TRUSTED_PROXIES': '', 'LIWAN_RESTORE_DOMAIN': '',
             # The edge address and ports have no default in the compose file; production's values here.
             'LIWAN_EDGE_BIND': '0.0.0.0', 'LIWAN_EDGE_HTTP_PORT': '80', 'LIWAN_EDGE_HTTPS_PORT': '443', **extra,
         }
         with tempfile.TemporaryDirectory() as tmp:
             envfile = Path(tmp) / 'dummy.env'
             envfile.write_text(''.join(f'{k}={v}\n' for k, v in env.items()), encoding='utf-8')
-            res = subprocess.run(
-                ['docker', 'compose', '--env-file', str(envfile),
-                 *[arg for profile in profiles for arg in ('--profile', profile)],
-                 '-f', str(COMPOSE), '-f', str(ROOT / 'deploy' / 'docker-compose.shared.yml'),
-                 'config', '--format', 'json'],
-                capture_output=True, text=True, timeout=60, cwd=ROOT, env={k: v for k, v in os.environ.items() if not k.startswith(('LIWAN_', 'ODOO_', 'POSTGRES_'))},
-            )
+            with render.rendered_stack(LOCAL_ENV, envfile) as compose_file:
+                res = subprocess.run(
+                    ['docker', 'compose', '--project-directory', str(ROOT / 'deploy'),
+                     '--env-file', str(LOCAL_ENV), '--env-file', str(envfile),
+                     '--env-file', str(compose_file.parent / render.SIZING_FILE),
+                     *[arg for profile in profiles for arg in ('--profile', profile)],
+                     '-f', str(compose_file), 'config', '--format', 'json'],
+                    capture_output=True, text=True, timeout=60, cwd=ROOT,
+                    env={k: v for k, v in os.environ.items() if not k.startswith(('LIWAN_', 'ODOO_', 'POSTGRES_'))},
+                )
         self.assertEqual(res.returncode, 0, res.stderr)
         return json.loads(res.stdout)
 
-    def _render_base(self, extra: dict) -> dict:
-        if not shutil.which('docker') or subprocess.run(
-                ['docker', 'compose', 'version'], capture_output=True, timeout=60).returncode:
-            self.skipTest('docker compose unavailable')
-        env = {
-            'LIWAN_IMAGE_TAG': 'test', 'ODOO_COMMIT': 'dummy',
-            'DB_PASSWORD': 'dummy', 'DB_ADMIN_PASSWORD': 'dummy-admin', 'DOMAIN': 'example.test', **extra,
-        }
-        with tempfile.TemporaryDirectory() as tmp:
-            envfile = Path(tmp) / 'dummy.env'
-            envfile.write_text(''.join(f'{k}={v}\n' for k, v in env.items()), encoding='utf-8')
-            res = subprocess.run(
-                ['docker', 'compose', '--env-file', str(envfile),
-                 '-f', str(COMPOSE),
-                 'config', '--format', 'json'],
-                capture_output=True, text=True, timeout=60, cwd=ROOT, env={k: v for k, v in os.environ.items() if not k.startswith(('LIWAN_', 'ODOO_', 'POSTGRES_'))},
-            )
-        self.assertEqual(res.returncode, 0, res.stderr)
-        return json.loads(res.stdout)
-
-
-    def test_shared_overlay_runs_the_tiktok_relay_isolated(self) -> None:
+    def test_stack_runs_the_tiktok_relay_isolated(self) -> None:
         """Behavioral: the relay service owns its registry mount, bindings volume and networks."""
         rendered = self._render_shared({}, profiles=('tiktok',))
         relay = rendered['services']['tiktok-relay']
@@ -737,7 +710,7 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
             self.assertNotIn('disable_redirects', server['automatic_https'])
 
     def test_auth_zone_is_tighter_than_the_api_zone(self) -> None:
-        text = CADDYFILE.read_text(encoding='utf-8')
+        text = SHARED_CADDYFILE.read_text(encoding='utf-8')
         auth = text.split('zone liwan_auth {', 1)[1].split('zone liwan_provider_hook {', 1)[0]
         api = text.split('zone liwan_api {', 1)[1].split('zone liwan_public_appointments_ip {', 1)[0]
         hook = text.split('zone liwan_provider_hook {', 1)[1].split('zone liwan_api {', 1)[0]
@@ -748,8 +721,8 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
         self.assertIn('events 1200', hook)
         self.assertIn('path /api/v1/inbox/hooks/*', hook)
 
-    def test_the_dedicated_edge_keeps_hooks_out_of_the_api_budget(self) -> None:
-        text = CADDYFILE.read_text(encoding='utf-8')
+    def test_the_edge_keeps_hooks_out_of_the_api_budget(self) -> None:
+        text = SHARED_CADDYFILE.read_text(encoding='utf-8')
         hook = text.split('zone liwan_provider_hook {', 1)[1].split('zone liwan_api {', 1)[0]
         api = text.split('zone liwan_api {', 1)[1].split('zone liwan_public_appointments_ip {', 1)[0]
         self.assertIn('path /api/v1/inbox/hooks/*', hook)

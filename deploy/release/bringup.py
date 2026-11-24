@@ -21,6 +21,7 @@ import json
 import os
 import pwd
 import re
+import secrets
 import shlex
 import stat
 import subprocess
@@ -41,7 +42,7 @@ from deploy.release.release import (  # noqa: E402
 from deploy.release.tenant_postgres import (  # noqa: E402
     ODOO_RUNTIME_ROLE, POSTGRES_ADMIN_ROLE, runtime_role_assertion_sql)
 from deploy.release.source import (  # noqa: E402
-    COMMIT as COMMIT_ID, CREDENTIAL_HELPER, ENVIRONMENTS, GITHUB_TOKEN_VAR, REGISTRY as IMAGE_REGISTRY, REGISTRY_HOST,
+    COMMIT as COMMIT_ID, CREDENTIAL_HELPER, ENVIRONMENT_NAME, GITHUB_TOKEN_VAR, REGISTRY as IMAGE_REGISTRY, REGISTRY_HOST,
     RELEASE_IMAGE, REPOSITORY_URL, TOKEN_VAR, USER_VAR, highest_release_tag, parse_listing)
 
 EXIT_INCOMPLETE, EXIT_USAGE = 1, 2
@@ -66,6 +67,17 @@ INIT_HOST_FILES = {
                                   'effect-tls.key', 'effect-tls.crt', 'control-db-password'),
 }
 INIT_HOST_DIRS = ('LIWAN_AI_PLATFORM_DIR',)
+# A3.2a: the two files the `tenant-storage` service mounts as secrets (never environment variables). Mode 0400 and owned by the
+# container user (the `liwan-odoo` image's `odoo`). Bring-up generates the naming key once and never replaces it: changing it changes
+# every tenant's resource names. It never creates the OCI API signing key; that file is required only once the provisioner's
+# settings name a tenancy (OCI_TENANCY_OCID), which is how the shared env file says tenant storage is on.
+TENANT_STORAGE_DIR_KEY = 'LIWAN_TENANT_STORAGE_FILES_DIR'
+TENANT_STORAGE_DIR_MODE = 0o700
+TENANT_STORAGE_FILE_MODE = 0o400
+TENANT_STORAGE_FILE_UID = 10001
+PROVISION_KEY_FILE, NAMING_KEY_FILE = 'oci_provision_key', 'oci_naming_key'
+STORAGE_ENABLED_KEY = 'OCI_TENANCY_OCID'
+NAMING_KEY_BYTES = 32
 # A3.4a: command, minimum major version (0 = any), apt package that provides it. Node 22 comes from NodeSource.
 PACKAGES = (('node', 22, 'nodejs (NodeSource node_22.x repository)'), ('npm', 0, 'nodejs (NodeSource node_22.x repository)'),
             ('pg_dump', 16, 'postgresql-client-16'), ('git', 0, 'git'), ('python3', 0, 'python3'))
@@ -202,6 +214,9 @@ class Host:
                 raise
         finally:
             os.close(parent_fd)
+
+    def chown(self, path, uid: int, gid: int) -> None:
+        os.chown(path, uid, gid, follow_symlinks=False)
 
     def symlink(self, target: str, link) -> None:
         os.symlink(target, link)
@@ -431,6 +446,49 @@ def apply_init_host(ctx: Context) -> None:
     if inspect(ctx.host, script, REGULAR_FILE) is None or not first_bring_up(ctx, shared):
         return
     ctx.must([str(script), config['LIWAN_SHARED_ENV_FILE'], config['LIWAN_RELEASE_PROJECT']])
+
+
+def tenant_storage_files(shared: dict) -> list[tuple[Path, bool]]:
+    """Each secret file and whether it is required now: the naming key always, the signing key once tenant storage is configured."""
+    base = Path(shared[TENANT_STORAGE_DIR_KEY])
+    return [(base / PROVISION_KEY_FILE, bool(shared.get(STORAGE_ENABLED_KEY))), (base / NAMING_KEY_FILE, True)]
+
+
+def check_tenant_storage_files(ctx: Context) -> Status:
+    values, status = shared_values(ctx, TENANT_STORAGE_DIR_KEY)
+    if values is None:
+        return status
+    shared = ctx.shared_env()
+    problems = []
+    directory_path = Path(values[0])
+    info = inspect(ctx.host, directory_path, DIRECTORY)
+    if info is None:
+        problems.append(f'{directory_path} absent')
+    elif stat.S_IMODE(info.st_mode) != TENANT_STORAGE_DIR_MODE:
+        problems.append(f'{directory_path} is {shape(info)}, expected {TENANT_STORAGE_DIR_MODE:04o}')
+    for path, required in tenant_storage_files(shared):
+        file_info = inspect(ctx.host, path, REGULAR_FILE)
+        if file_info is None:
+            if required:
+                problems.append(f'{path} absent' + ('; put the OCI API signing key there, mode 0400' if path.name == PROVISION_KEY_FILE else ''))
+        elif (stat.S_IMODE(file_info.st_mode), file_info.st_uid) != (TENANT_STORAGE_FILE_MODE, TENANT_STORAGE_FILE_UID):
+            problems.append(f'{path} is {shape(file_info)}, expected {TENANT_STORAGE_FILE_MODE:04o} {TENANT_STORAGE_FILE_UID}')
+    return missing('; '.join(problems)) if problems else OK
+
+
+def apply_tenant_storage_files(ctx: Context) -> None:
+    values, _ = shared_values(ctx, TENANT_STORAGE_DIR_KEY)
+    if values is None:
+        return
+    directory_path = Path(values[0])
+    if inspect(ctx.host, directory_path, DIRECTORY) is None:
+        if inspect(ctx.host, directory_path.parent, DIRECTORY) is None:
+            return  # the recheck reports it; init-host.sh makes the parent
+        ctx.host.make_dir(directory_path, TENANT_STORAGE_DIR_MODE, ROOT_UID, ROOT_UID)
+    naming_key = directory_path / NAMING_KEY_FILE
+    if inspect(ctx.host, naming_key, REGULAR_FILE) is None:
+        ctx.host.write_new(naming_key, secrets.token_hex(NAMING_KEY_BYTES), TENANT_STORAGE_FILE_MODE)
+        ctx.host.chown(naming_key, TENANT_STORAGE_FILE_UID, TENANT_STORAGE_FILE_UID)
 
 
 # --- A3.3 directories ------------------------------------------------------------------------------------------------
@@ -937,6 +995,10 @@ REGISTRY: list[Item] = [
     Item('init-host', check_init_host,
          'write the shared env file (A4.1) and make the checkout (A3.4); then run init-host.sh (A3.2) with --apply',
          apply_init_host),
+    Item('tenant-storage-files', check_tenant_storage_files,
+         f'put {TENANT_STORAGE_DIR_KEY} in the shared env file; --apply makes the directory and the naming key, and the OCI API '
+         f'signing key {PROVISION_KEY_FILE} (mode 0400) is yours once tenant storage is configured (A3.2a)',
+         apply_tenant_storage_files),
     *[package_item(*package) for package in PACKAGES],
     Item('disk', check_disk, 'free disk space (A3.5)'),
     Item('memory', size_check(0, MEMORY_KEY, MIN_MEMORY_MIB, 'memory'), 'the host is too small (A3.5)'),
@@ -995,8 +1057,8 @@ def parse_args(argv):
 def main(argv=None, out=sys.stdout, host=None, registry=None, paths=None, repo_dir=None) -> int:
     args = parse_args(argv)
     host = host or Host()
-    if args.environment not in ENVIRONMENTS:
-        out.write(f'bringup: environment must be one of {list(ENVIRONMENTS)}\n')
+    if not ENVIRONMENT_NAME.fullmatch(args.environment):
+        out.write('bringup: an environment name is lowercase letters, digits and hyphens\n')
         return EXIT_USAGE
     if args.apply and host.euid() != ROOT_UID:
         out.write('bringup: --apply needs root\n')

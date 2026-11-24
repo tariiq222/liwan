@@ -107,15 +107,25 @@ class SourceTest(unittest.TestCase):
             subject.candidate()
         self.assertEqual((raised.exception.reason, raised.exception.exit_code), ('tag_not_found', EXIT_REFUSED))
 
-    def test_explicit_tag_rules(self):
-        self.assertEqual(source.explicit_tag('production', 'release/19.0.1.0.7'), 'release/19.0.1.0.7')
-        self.assertIsNone(source.explicit_tag('staging', None))
-        for environment, tag, reason in (('production', None, 'production_tag_required'),
-                                         ('production', 'release/x', 'invalid_tag'),
-                                         ('staging', 'release/19.0.1.0.7', 'tag_not_allowed')):
-            with self.assertRaises(ReleaseError) as raised:
-                source.explicit_tag(environment, tag)
+    def test_tag_policy_rules(self):
+        self.assertEqual(source.explicit_tag('explicit', 'release/19.0.1.0.7'), 'release/19.0.1.0.7')
+        self.assertIsNone(source.explicit_tag('highest', None))
+        for policy, tag, reason in (('explicit', None, 'tag_required'),
+                                    ('explicit', 'release/x', 'invalid_tag'),
+                                    ('highest', 'release/19.0.1.0.7', 'tag_not_allowed'),
+                                    (None, None, 'invalid_tag_policy'),
+                                    ('', 'release/19.0.1.0.7', 'invalid_tag_policy'),
+                                    ('latest', None, 'invalid_tag_policy'),
+                                    ('Explicit', 'release/19.0.1.0.7', 'invalid_tag_policy')):
+            with self.subTest(policy=policy, tag=tag), self.assertRaises(ReleaseError) as raised:
+                source.explicit_tag(policy, tag)
             self.assertEqual((raised.exception.reason, raised.exception.exit_code), (reason, EXIT_REFUSED))
+
+    def test_an_environment_is_any_lowercase_name_not_a_fixed_pair(self):
+        for name in ('staging', 'production', 'acme', 'dedicated-1'):
+            self.assertTrue(source.ENVIRONMENT_NAME.fullmatch(name), name)
+        for name in ('', 'Staging', '../x', 'a b', '1abc', 'x' * 40, 'a_b'):
+            self.assertFalse(source.ENVIRONMENT_NAME.fullmatch(name), name)
 
     def test_credential_needs_both_variables(self):
         self.assertEqual(source.Credential.from_environment({source.USER_VAR: 'u', source.TOKEN_VAR: 't'}),

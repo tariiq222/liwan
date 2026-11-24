@@ -1,0 +1,23 @@
+# Harness-only addition to the stack: the scratch control-plane database. Add-only: it defines no service of the stack
+# (deploy/stack/test_harness_stack.py refuses a redefinition) and rides on the stack render, which is the same stack
+# every environment runs. The subnet and the password come from the harness values (FOUNDATION_*).
+services:
+  control-db:
+    image: postgres:16
+    ports: ["127.0.0.1:${FOUNDATION_CONTROL_DB_PORT:?}:5432"]
+    environment:
+      POSTGRES_USER: foundation
+      POSTGRES_DB: liwan_control_scratch_foundation
+      POSTGRES_PASSWORD: ${FOUNDATION_CONTROL_DB_PASSWORD:?}
+    volumes: [control_data:/var/lib/postgresql/data]
+    networks: [control_database]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "foundation", "-d", "liwan_control_scratch_foundation"]
+      interval: 2s
+      timeout: 3s
+      retries: 60
+networks:
+  control_database:
+    ipam: { config: [{ subnet: "${FOUNDATION_NET_CONTROL:?}" }] }
+volumes:
+  control_data: {}
