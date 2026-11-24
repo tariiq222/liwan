@@ -2,8 +2,8 @@ import {describe,it,expect} from 'vitest'
 import { validateRealBackupManifest, realRestoreHost } from './odoo-backup.js'
 const binding={tenantId:'alpha',database:'liwan_scratch_'+'a'.repeat(32),filestore:'liwan_scratch_'+'a'.repeat(32),registryRevision:2}
 const id='687674dc-5789-4a99-b151-12d69f010cc3'
-const manifest={schemaVersion:1,format:'odoo-pg-filestore-v1',backupId:id,controlTenantId:id,binding,businessKey:'backup-key',payloadDigest:'a'.repeat(64),databaseSha256:'b'.repeat(64),filestoreSha256:'c'.repeat(64),sourceImageId:'sha256:'+'d'.repeat(64),postgresImageId:'sha256:'+'e'.repeat(64),capturedAt:'2026-10-01T00:00:00.000Z',inventory:{databaseAttachments:[],attachments:[],projects:1,tasks:1,modules:[],profile:[]}}
-const encrypted={...manifest,databaseCiphertextSha256:'f'.repeat(64),filestoreCiphertextSha256:'0'.repeat(64),databaseCiphertextBytes:1024,filestoreCiphertextBytes:2048,cipher:'aes-256-cbc-pbkdf2'}
+const unencrypted={schemaVersion:1,format:'odoo-pg-filestore-v1',backupId:id,controlTenantId:id,binding,businessKey:'backup-key',payloadDigest:'a'.repeat(64),databaseSha256:'b'.repeat(64),filestoreSha256:'c'.repeat(64),sourceImageId:'sha256:'+'d'.repeat(64),postgresImageId:'sha256:'+'e'.repeat(64),capturedAt:'2026-10-01T00:00:00.000Z',inventory:{databaseAttachments:[],attachments:[],projects:1,tasks:1,modules:[],profile:[]}}
+const manifest={...unencrypted,databaseCiphertextSha256:'f'.repeat(64),filestoreCiphertextSha256:'0'.repeat(64),databaseCiphertextBytes:1024,filestoreCiphertextBytes:2048,cipher:'aes-256-cbc-pbkdf2'}
 describe('real backup authority',()=>{
  it('rejects synthetic artifacts and a mismatched source before physical execution',()=>{
   expect(validateRealBackupManifest(manifest,{backupId:id,binding,controlTenantId:id}).format).toBe('odoo-pg-filestore-v1')
@@ -11,13 +11,14 @@ describe('real backup authority',()=>{
   expect(()=>validateRealBackupManifest(manifest,{backupId:id,binding:{...binding,database:'other'},controlTenantId:id})).toThrow()
   expect(()=>validateRealBackupManifest(manifest,{backupId:id,binding,controlTenantId:'b'.repeat(36)})).toThrow()
  })
- it('accepts an artifact encrypted per file and still accepts one captured before encryption',()=>{
-  const read=validateRealBackupManifest(encrypted,{backupId:id,binding,controlTenantId:id})
+ it('requires per-file encryption metadata and rejects unencrypted or partial manifests',()=>{
+  const read=validateRealBackupManifest(manifest,{backupId:id,binding,controlTenantId:id})
   expect([read.databaseCiphertextSha256,read.filestoreCiphertextSha256,read.cipher]).toEqual(['f'.repeat(64),'0'.repeat(64),'aes-256-cbc-pbkdf2'])
-  const older=validateRealBackupManifest(manifest,{backupId:id,binding,controlTenantId:id})
-  expect([older.databaseCiphertextSha256,older.filestoreCiphertextSha256,older.cipher]).toEqual([undefined,undefined,undefined])
-  // Half an encrypted artifact is unreadable, so it is refused rather than listed.
-  expect(()=>validateRealBackupManifest({...manifest,databaseCiphertextSha256:'f'.repeat(64)},{backupId:id,binding,controlTenantId:id})).toThrow()
+  expect(()=>validateRealBackupManifest(unencrypted,{backupId:id,binding,controlTenantId:id})).toThrow()
+  expect(()=>validateRealBackupManifest({...unencrypted,databaseCiphertextSha256:'f'.repeat(64)},{backupId:id,binding,controlTenantId:id})).toThrow()
+  expect(()=>validateRealBackupManifest({...manifest,filestoreCiphertextSha256:undefined},{backupId:id,binding,controlTenantId:id})).toThrow()
+  expect(()=>validateRealBackupManifest({...manifest,databaseCiphertextBytes:undefined},{backupId:id,binding,controlTenantId:id})).toThrow()
+  expect(()=>validateRealBackupManifest({...manifest,cipher:undefined},{backupId:id,binding,controlTenantId:id})).toThrow()
   expect(()=>validateRealBackupManifest({...manifest,cipher:'rot13'},{backupId:id,binding,controlTenantId:id})).toThrow()
  })
  it('derives restore host only from a valid approval ID',()=>{

@@ -42,10 +42,10 @@ PLAINTEXT_ARCHIVE = 'filestore.tar'
 CIPHERTEXT_DUMP = PLAINTEXT_DUMP + '.enc'
 CIPHERTEXT_ARCHIVE = PLAINTEXT_ARCHIVE + '.enc'
 PLAINTEXT_DIRECTORY = '.plaintext-'
-# (plaintext digest field, ciphertext name, ciphertext digest field, plaintext name)
+# (plaintext digest field, ciphertext name, ciphertext digest field, ciphertext size field, plaintext name)
 ARTIFACT_FILES = (
-    ('databaseSha256', CIPHERTEXT_DUMP, 'databaseCiphertextSha256', PLAINTEXT_DUMP),
-    ('filestoreSha256', CIPHERTEXT_ARCHIVE, 'filestoreCiphertextSha256', PLAINTEXT_ARCHIVE),
+    ('databaseSha256', CIPHERTEXT_DUMP, 'databaseCiphertextSha256', 'databaseCiphertextBytes', PLAINTEXT_DUMP),
+    ('filestoreSha256', CIPHERTEXT_ARCHIVE, 'filestoreCiphertextSha256', 'filestoreCiphertextBytes', PLAINTEXT_ARCHIVE),
 )
 # The restart safety of the shared Odoo service: one intent file per state directory, and the
 # compose calls that stop and start it. `deploy.backup.quiet` owns the states and the reconcile.
@@ -133,6 +133,20 @@ def sha256_file(path):
 def require_hash(path, expected):
     if not isinstance(expected, str) or not re.fullmatch('[a-f0-9]{64}', expected) or sha256_file(path) != expected:
         raise EffectError('artifact_hash_mismatch')
+
+
+def _require_encrypted_manifest(manifest):
+    """Refuse any manifest that lacks the required per-file encryption metadata."""
+    if not isinstance(manifest, dict) or manifest.get('cipher') != ARTIFACT_CIPHER:
+        raise EffectError('manifest_invalid')
+    for digest_field, _ciphertext, ciphertext_field, size_field, _plaintext in ARTIFACT_FILES:
+        for field in (digest_field, ciphertext_field):
+            value = manifest.get(field)
+            if not isinstance(value, str) or not re.fullmatch('[a-f0-9]{64}', value):
+                raise EffectError('manifest_invalid')
+        size = manifest.get(size_field)
+        if type(size) is not int or size <= 0:
+            raise EffectError('manifest_invalid')
 
 
 def safe_members(archive):
@@ -464,11 +478,11 @@ print('{}')
                 self.verify_odoo_readiness('odoo', target['database'])
 
     def read_artifact(self):
-        """The manifest, after the identity checks and the digests of the bytes on disk.
+        """The manifest, after the identity, encryption metadata and ciphertext digest checks.
 
-        An artifact encrypted per file pins its ciphertext; one captured before that pins the
-        plaintext it holds, so an older artifact stays readable. The plaintext digests are the
-        contract either way: a restore compares them with the authority before decrypting.
+        Every artifact is encrypted per file: a manifest without its cipher, ciphertext digests
+        or ciphertext sizes is refused. The plaintext digests are the contract a restore compares
+        with the authority before decrypting.
         """
         no_symlink(self.artifact / 'manifest.json')
         if (self.artifact/'manifest.json').stat().st_size > MAX_MANIFEST:
@@ -481,42 +495,40 @@ print('{}')
                 or manifest.get('controlTenantId')!=self.authority['controlTenantId']
                 or manifest.get('binding')!=self.request['job']['binding']):
             raise EffectError('artifact_identity_invalid')
-        for digest_field, ciphertext, ciphertext_field, plaintext in ARTIFACT_FILES:
-            expected = manifest.get(digest_field)
-            if self.operation=='restore' and expected!=self.authority[digest_field]:
+        _require_encrypted_manifest(manifest)
+        for digest_field, ciphertext, ciphertext_field, size_field, _plaintext in ARTIFACT_FILES:
+            if self.operation=='restore' and manifest[digest_field]!=self.authority[digest_field]:
                 raise EffectError('artifact_hash_mismatch')
-            encrypted = manifest.get(ciphertext_field) is not None
-            name, field = (ciphertext, ciphertext_field) if encrypted else (plaintext, digest_field)
-            require_hash(self.artifact/name, manifest.get(field))
+            path = self.artifact / ciphertext
+            require_hash(path, manifest[ciphertext_field])
+            if path.stat().st_size != manifest[size_field]:
+                raise EffectError('artifact_hash_mismatch')
         return manifest
 
     @contextmanager
     def artifact_plaintext(self, manifest):
         """The plaintext dump and archive, as owner-only files removed when the block ends.
 
-        Nothing here outlives the restore: a newer artifact is decrypted into a private
-        directory inside the artifact directory, and an older one holds its plaintext already.
-        Every decrypted file is compared with the plaintext digest the manifest pinned before
-        the caller streams it, and the archive is checked for a safe member list.
+        Nothing here outlives the restore: both ciphertext files are decrypted into a private
+        directory inside the artifact directory, every decrypted file is compared with the
+        plaintext digest the manifest pinned before the caller streams it, and the archive is
+        checked for a safe member list.
         """
-        if manifest.get('filestoreCiphertextSha256') is None:
-            archive = self.artifact / PLAINTEXT_ARCHIVE
-            validate_archive(archive)
-            yield self.artifact / PLAINTEXT_DUMP, archive
-            return
+        _require_encrypted_manifest(manifest)
         passphrase = self.passphrase_file()
         with tempfile.TemporaryDirectory(dir=self.artifact, prefix=PLAINTEXT_DIRECTORY) as private:
-            plaintext = {CIPHERTEXT_DUMP: Path(private) / PLAINTEXT_DUMP,
-                         CIPHERTEXT_ARCHIVE: Path(private) / PLAINTEXT_ARCHIVE}
-            for digest_field, ciphertext, _field, _plaintext in ARTIFACT_FILES:
+            plaintext = {}
+            for digest_field, ciphertext, _ciphertext_field, _size_field, plaintext_name in ARTIFACT_FILES:
+                destination = Path(private) / plaintext_name
                 digest = backup_artifact.decrypt_file(
-                    self.artifact / ciphertext, plaintext[ciphertext], passphrase_file=passphrase)
-                plaintext[ciphertext].chmod(0o600)
+                    self.artifact / ciphertext, destination, passphrase_file=passphrase)
+                destination.chmod(0o600)
                 if digest != manifest[digest_field]:
                     raise EffectError('artifact_hash_mismatch')
-            archive = plaintext[CIPHERTEXT_ARCHIVE]
+                plaintext[plaintext_name] = destination
+            archive = plaintext[PLAINTEXT_ARCHIVE]
             validate_archive(archive)
-            yield plaintext[CIPHERTEXT_DUMP], archive
+            yield plaintext[PLAINTEXT_DUMP], archive
 
     def passphrase_file(self):
         """The operator's backup key file, from the one variable the release path already sets."""
@@ -699,7 +711,6 @@ with tarfile.open(fileobj=sys.stdout.buffer,mode='w|') as out:
 
     def encrypt_artifact(self,prepared):
         """Encrypt the staged plaintext and return the manifest the artifact is published with."""
-        # The ciphertext digests and sizes are additive, so an older artifact still reads.
         passphrase=self.passphrase_file()
         database_ciphertext_sha256=backup_artifact.encrypt_file(prepared['dump'],self.artifact/CIPHERTEXT_DUMP,passphrase_file=passphrase)
         filestore_ciphertext_sha256=backup_artifact.encrypt_file(prepared['archive'],self.artifact/CIPHERTEXT_ARCHIVE,passphrase_file=passphrase)

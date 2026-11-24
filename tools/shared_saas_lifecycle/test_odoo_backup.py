@@ -805,26 +805,56 @@ class ArtifactEncryptionTests(unittest.TestCase):
             self.assertEqual(sorted(entry.name for entry in runner.artifact.iterdir()),
                              ['database.dump.enc', 'filestore.tar.enc', 'manifest.json'])
 
-    def test_an_artifact_captured_before_encryption_is_still_readable(self):
+    def test_an_unencrypted_or_partially_encrypted_artifact_is_refused(self):
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw).resolve()
-            runner = self.runner(root)
-            runner.artifact.mkdir(parents=True)
+            runner, encrypted, _dump, _passphrase = self.captured(root)
             (runner.artifact / odoo_backup.PLAINTEXT_DUMP).write_bytes(b'older plaintext dump')
             self.archive(runner.artifact / odoo_backup.PLAINTEXT_ARCHIVE)
-            manifest = {'schemaVersion': 1, 'format': 'odoo-pg-filestore-v1', 'backupId': runner.backup_id,
-                        'controlTenantId': 'tenant', 'binding': {}, 'businessKey': 'b', 'payloadDigest': 'd',
-                        'databaseSha256': hashlib.sha256(b'older plaintext dump').hexdigest(),
-                        'filestoreSha256': hashlib.sha256((runner.artifact / odoo_backup.PLAINTEXT_ARCHIVE).read_bytes()).hexdigest(),
-                        'sourceImageId': 'sha256:' + 'a' * 64, 'postgresImageId': 'sha256:' + 'b' * 64,
-                        'capturedAt': '2026-11-24T00:00:00Z', 'inventory': {}}
-            (runner.artifact / 'manifest.json').write_text(json.dumps(manifest))
+            unencrypted = {
+                key: value for key, value in encrypted.items()
+                if key not in ('databaseCiphertextSha256', 'filestoreCiphertextSha256',
+                               'databaseCiphertextBytes', 'filestoreCiphertextBytes', 'cipher')
+            }
+            cases = {
+                'unencrypted': unencrypted,
+                'database_ciphertext_only': {
+                    **unencrypted,
+                    'databaseCiphertextSha256': encrypted['databaseCiphertextSha256'],
+                    'databaseCiphertextBytes': encrypted['databaseCiphertextBytes'],
+                    'cipher': encrypted['cipher'],
+                },
+                'filestore_ciphertext_only': {
+                    **unencrypted,
+                    'filestoreCiphertextSha256': encrypted['filestoreCiphertextSha256'],
+                    'filestoreCiphertextBytes': encrypted['filestoreCiphertextBytes'],
+                    'cipher': encrypted['cipher'],
+                },
+                'missing_cipher': {k: v for k, v in encrypted.items() if k != 'cipher'},
+                'wrong_cipher': {**encrypted, 'cipher': 'rot13'},
+                'missing_size': {k: v for k, v in encrypted.items() if k != 'databaseCiphertextBytes'},
+                'bool_size': {**encrypted, 'databaseCiphertextBytes': True},
+            }
             runner.operation = 'restore'
-            runner.authority = {'controlTenantId': 'tenant', 'databaseSha256': manifest['databaseSha256'],
-                                'filestoreSha256': manifest['filestoreSha256']}
-            with runner.artifact_plaintext(runner.read_artifact()) as (dump, archive):
-                self.assertEqual(dump, runner.artifact / odoo_backup.PLAINTEXT_DUMP)
-                self.assertEqual(archive, runner.artifact / odoo_backup.PLAINTEXT_ARCHIVE)
+            runner.authority = {'controlTenantId': 'tenant', 'databaseSha256': encrypted['databaseSha256'],
+                                'filestoreSha256': encrypted['filestoreSha256']}
+            for name, candidate in cases.items():
+                with self.subTest(case=name):
+                    (runner.artifact / 'manifest.json').write_text(json.dumps(candidate))
+                    with self.assertRaisesRegex(odoo_effect.EffectError, '^manifest_invalid$'):
+                        runner.read_artifact()
+                    with self.assertRaisesRegex(odoo_effect.EffectError, '^manifest_invalid$'):
+                        with runner.artifact_plaintext(candidate):
+                            pass
+
+    def test_a_ciphertext_size_mismatch_is_refused_before_decryption(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve()
+            runner, manifest, _dump, _passphrase = self.captured(root)
+            manifest['databaseCiphertextBytes'] += 1
+            (runner.artifact / 'manifest.json').write_text(json.dumps(manifest))
+            with self.assertRaisesRegex(odoo_effect.EffectError, '^artifact_hash_mismatch$'):
+                runner.read_artifact()
 
     def test_a_ciphertext_that_changed_is_refused_before_it_is_decrypted(self):
         with tempfile.TemporaryDirectory() as raw:

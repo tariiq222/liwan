@@ -359,10 +359,10 @@ control plane only records the result (`shared_odoo_backups`) once it has read t
 | `reservation.json` | the attempt that took it, mode 0600 |
 
 The manifest keeps the plaintext digests (`databaseSha256`, `filestoreSha256`) a restore compares with its approval,
-and adds the ciphertext digests, sizes and `cipher`. Those fields are optional, so an artifact captured before
-per-file encryption still validates and still restores. The plaintext exists only as mode 0600 files in a private
-directory inside the artifact directory, and that directory is removed when the capture or the restore ends. A restore
-decrypts into it before `restore-db` receives a byte, checks the plaintext digest, and removes it with the block.
+and requires the ciphertext digests, sizes and `cipher`: an artifact without those encryption fields is refused as
+invalid. The plaintext exists only as mode 0600 files in a private directory inside the artifact directory, and that
+directory is removed when the capture or the restore ends. A restore decrypts into it before `restore-db` receives a
+byte, checks the plaintext digest, and removes it with the block.
 
 **The key.** Both paths use `LIWAN_BACKUP_PASSPHRASE_FILE`: an absolute path to a file of mode 0600 or 0400 holding one
 line of 16 to 1022 bytes, the same rule the release backup states in `deploy/OPERATIONS.md`. The effect account reads
