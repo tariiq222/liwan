@@ -38,11 +38,11 @@
     }
   },
   "devDependencies": {
-    "@ai-sdk/openai": "^4.0.117",
-    "@ai-sdk/openai-compatible": "^3.0.92",
-    "@e2e-dev/web": "^0.15.5",
-    "ai": "^7.0.172",
-    "e2e": "^0.23.0",
-    "playwright": "^1.65.0"
+    "@ai-sdk/openai": "^4.0.121",
+    "@ai-sdk/openai-compatible": "^3.0.93",
+    "@e2e-dev/web": "^0.16.1",
+    "ai": "^7.0.177",
+    "e2e": "^0.24.0",
+    "playwright": "^1.65.1"
   }
 }
