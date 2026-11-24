@@ -297,8 +297,8 @@ services:
       - ${LIWAN_SHARED_ODOO_CONFIG:?set LIWAN_SHARED_ODOO_CONFIG to validated external secret config}:/etc/odoo/odoo.conf:ro
       - odoo_data:/var/lib/odoo
       # The effect account's classification files (`<state>/classifications/<database>.json`, written by the control plane's
-      # effects) that `LIWAN_COMMERCIAL_CONFIG` names for the one-off `compose run odoo` of each effect. Read-only, the directory
-      # and not a file (the writer replaces files atomically). The running Odoo service sets no `LIWAN_COMMERCIAL_CONFIG`,
+      # effects), which the one-off `compose run odoo` of each effect names in its own environment. Read-only, the directory
+      # and not a file (the writer replaces files atomically). The running Odoo service sets no classification path,
       # so it never opens one.
       - type: bind
         source: ${LIWAN_CONTROL_STATE_DIR:?set LIWAN_CONTROL_STATE_DIR}/classifications

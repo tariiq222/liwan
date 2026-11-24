@@ -2,9 +2,9 @@
 """The rendered stack of each environment equals the golden capture of the five layered compose files it replaced.
 
 `golden/<env>.json` is `docker compose config --format json` of the old five-file set with that environment's
-template (captured before the files were removed). The one stack definition must render to the same document,
+template (captured before the files were removed, in the commit that removed them). The one stack definition must render to the same document,
 except for the changes listed in `golden/deltas.json`. Nothing is started: compose only renders.
-Refresh a golden file deliberately with `python3 -B -m deploy.stack.test_golden --write`.
+The old files are gone, so a golden file changes only by hand, with the matching entry in `golden/deltas.json`.
 """
 from __future__ import annotations
 
@@ -12,7 +12,6 @@ import json
 import os
 import shutil
 import subprocess
-import sys
 import unittest
 from pathlib import Path
 
@@ -70,22 +69,5 @@ class GoldenStack(unittest.TestCase):
         self.assertEqual(base + ',ns.compat.objectstorage.me-jeddah-1.oraclecloud.com', with_host)
 
 
-def write_golden() -> None:
-    """Capture the golden files from the old five-file set; run only on a tree that still has them."""
-    from deploy.release.release import SHARED_COMPOSE_FILES
-    for environment in ENVIRONMENTS:
-        command = ['docker', 'compose', '-p', PROJECT]
-        for name in SHARED_COMPOSE_FILES:
-            command += ['-f', str(DEPLOY / name)]
-        command += ['--env-file', str(DEPLOY / 'environments' / f'{environment}.env.example'), '--profile', '*',
-                    'config', '--format', 'json']
-        done = subprocess.run(command, capture_output=True, text=True, timeout=120, check=True)
-        document = normalise(json.loads(done.stdout), ROOT)
-        (GOLDEN / f'{environment}.json').write_text(json.dumps(document, indent=1, sort_keys=True) + '\n', encoding='utf-8')
-
-
 if __name__ == '__main__':
-    if sys.argv[1:] == ['--write']:
-        write_golden()
-    else:
-        unittest.main()
+    unittest.main()

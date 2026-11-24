@@ -904,11 +904,11 @@ class RestoreServicesDeclaredTests(unittest.TestCase):
         required = set(re.findall(r"'(restore-(?:odoo|db))'", source))
         self.assertEqual(required, {'restore-odoo', 'restore-db'})
         self.assertIn("'--profile', 'restore'", source)
-        compose = (self.ROOT / 'deploy/docker-compose.shared.yml').read_text(encoding='utf-8')
+        compose = (self.ROOT / 'deploy/stack/compose.yml').read_text(encoding='utf-8')
         for service in required:
             block = re.search(r'^  ' + service + r':\n((?:    .*\n|\n)+)', compose, re.M)
             with self.subTest(service=service):
-                self.assertIsNotNone(block, service + ' is not declared in docker-compose.shared.yml')
+                self.assertIsNotNone(block, service + ' is not declared in deploy/stack/compose.yml')
                 self.assertIn('profiles: [restore]', block.group(1))
 
 

@@ -157,7 +157,7 @@ class PullRequestTest(unittest.TestCase):
 
     def test_a_pull_request_that_changes_an_image_build_input_runs_the_image_stage(self):
         for path in ('deploy/proxy/Dockerfile', 'apps/web/Dockerfile', 'apps/ai-service/Dockerfile', 'deploy/odoo/Dockerfile',
-                     'deploy/Dockerfile.guard', 'deploy/docker-compose.yml', 'deploy/docker-compose.production.yml',
+                     'deploy/Dockerfile.guard', 'deploy/stack/compose.yml',
                      'deploy/shared/compose.shared.yml', '.dockerignore', 'apps/web/.dockerignore', 'deploy/ci/image.sh',
                      'apps/ai-service/requirements.txt', 'apps/ai-service/requirements-build.txt',
                      'deploy/odoo/requirements-python312-linux.txt'):

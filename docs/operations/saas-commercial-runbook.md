@@ -64,7 +64,7 @@
 | خادم оператор | وحدة systemd [liwan-shared-worker.service](../../deploy/control-plane/liwan-shared-worker.service) | `systemctl status liwan-shared-worker` و`journalctl -u liwan-shared-worker`. العامل ليس في مجموعة docker؛ يصل إلى منفّذي دورة حياة المستأجر عبر `liwan-effect.socket` (وحدة [liwan-effect@.service](../../deploy/control-plane/liwan-effect@.service) بحساب `liwan-effect`)، وسجلها `journalctl -u 'liwan-effect@*'` |
 | اختبار قبول | `tools/foundation_acceptance/provision_two_tenants.mjs` و`tools/saas_e12/recovery.mjs` | يراقبان `commercial_scheduler_tick` في سجل العامل |
 
-**لماذا لا يوجد service في `deploy/docker-compose.shared.yml`:** شيفرة لوحة التحكم
+**لماذا لا يوجد service في `deploy/stack/compose.yml`:** شيفرة لوحة التحكم
 ليست داخل صورة `liwan-guard` (ولا Node dependencies لها ولا `tsx` ولا عميل Docker)،
 والعامل يحتاج مقبس Docker ليشغّل تأثيرات Odoo (`tools/shared_saas_lifecycle`). إضافة
 service صحيح تعني صورة كاملة جديدة وعقد أسرار كامل وشبكة تصل إلى كل حاويات المستأجرين

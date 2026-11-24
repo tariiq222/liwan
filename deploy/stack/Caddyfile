@@ -4,7 +4,7 @@
 # Real client address. `{client_ip}` keys every rate-limit zone and feeds the signup and invitation headers below.
 # By default no proxy is trusted, so it is the socket peer and no header can change it. When an outer edge terminates
 # TLS in front of this proxy (the Openship edge on the staging host), `LIWAN_TRUSTED_PROXIES` names that edge as seen
-# from inside the container (the `edge` network gateway, see deploy/docker-compose.shared.yml) and the client is read
+# from inside the container (the `edge` network gateway, see deploy/stack/compose.yml) and the client is read
 # from X-Forwarded-For. `trusted_proxies_strict` reads that header right to left, skipping trusted hops, so an
 # address the client put in the header (the outer edge appends the real peer to it) never becomes `{client_ip}`.
 # The default is an address in TEST-NET-1 (RFC 5737): reserved for documentation, never a peer, trusts nothing.
@@ -260,7 +260,7 @@
 	}
 }
 
-# Sites that only the commercial overlay (deploy/docker-compose.shared-commercial.yml) provides: the payment
+# Sites that only the commercial edge (`LIWAN_STACK_COMMERCIAL_EDGE`, deploy/stack/compose.yml) provides: the payment
 # webhook (deploy/control-plane/Caddyfile.snippet) and the vendor console site (deploy/vendor-admin/Caddyfile.snippet). A glob that matches no file imports nothing, so a stack without the
-# overlay has no such site, needs no control network or CA, and still validates.
+# commercial edge has no such site, needs no control network or CA, and still validates.
 import /etc/caddy/commercial/*.caddy

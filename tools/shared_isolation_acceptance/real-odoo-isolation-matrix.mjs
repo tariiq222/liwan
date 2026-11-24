@@ -5,7 +5,7 @@
 // that file proves the guard+Nuxt routing/session layer against a SYNTHETIC
 // marker-data upstream. This file replaces the synthetic upstream with ONE
 // live Odoo process serving all ten tenant databases via `dbfilter = ^%h$`
-// (the documented shared-mode mechanism in deploy/shared/odoo.conf), with
+// (the documented shared-mode mechanism in deploy/stack/odoo.conf.template), with
 // real ACLs, real sessions, and real liwan_api/liwan_pmo controllers. It proves
 // (or disproves) the explicit "Real Odoo ACLs are not proven" gap recorded in
 // docs/verification/shared-isolation-matrix.md.

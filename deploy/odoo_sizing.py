@@ -5,7 +5,7 @@ One fact lives here: how many Odoo processes, connections and mebibytes a box
 may spend, given the box and the stated assumptions. The plan is a pure
 function of those inputs, so it can be recomputed for a smaller staging box or
 a larger future server, and its stated invariants are checked before it is
-returned. The rendered settings are applied by ``deploy/docker-compose.production.yml``;
+returned. The rendered settings are applied by ``deploy/stack/compose.yml`` and ``deploy/stack/odoo.conf.template`` (rendered by ``deploy/stack/render.py``);
 ``docs/operations/odoo-sizing.md`` records the arithmetic and the assumptions.
 
 Assumptions that are measurements or policies, not arithmetic, are named

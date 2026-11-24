@@ -48,7 +48,7 @@ class TestCiClassification(unittest.TestCase):
     """CI is the GitHub Actions workflow running deploy/ci/<stage>.sh: the same invariants hold there."""
 
     def test_the_base_stack_carries_no_classification_and_ci_targets_are_explicit(self):
-        base = (ROOT / 'deploy/docker-compose.yml').read_text()
+        base = (ROOT / 'deploy/stack/compose.yml').read_text()
         self.assertNotIn('LIWAN_COMMERCIAL_CONFIG', base)
         pipeline = ''.join((ROOT / 'deploy' / 'ci' / (stage + '.sh')).read_text()
                            for stage in ('odoo', 'upgrade', 'restore-drill', 'image'))

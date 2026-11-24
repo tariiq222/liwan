@@ -34,16 +34,16 @@ local copy: it pulls the document fresh for the candidate commit on every run an
 
 | Environment | Candidate commit |
 | --- | --- |
-| `staging` | the commit of the highest `release/19.0.X.Y.Z` tag (compared by version, not by text) |
-| `production` | the commit of the one tag given with `--tag release/19.0.X.Y.Z`; it never picks the highest tag itself |
+| `LIWAN_RELEASE_TAG_POLICY=highest` (staging) | the commit of the highest `release/19.0.X.Y.Z` tag (compared by version, not by text) |
+| `LIWAN_RELEASE_TAG_POLICY=explicit` (production) | the commit of the one tag given with `--tag release/19.0.X.Y.Z`; it never picks the highest tag itself |
 
-Staging and production are the only environments and share every rule below. Both run on Arm.
+Every environment shares every rule below; its name and its tag policy come from its config file and shared env file, not from code. Both run on Arm.
 
-The production job command is `release.py run --environment production --tag <tag>`. Without `--tag` the run refuses
-with `RESULT: refused production_tag_required`; a tag that does not match `release/19.0.X.Y.Z` is refused as
+The production job command is `release.py run --environment production --tag <tag>`. Without `--tag` an `explicit` environment refuses
+with `RESULT: refused tag_required`; a tag that does not match `release/19.0.X.Y.Z` is refused as
 `invalid_tag`, and one GitHub does not have as `tag_not_found`, all before any fetch or image pull. The given tag then
 passes every check below unchanged, even when a higher tag exists. This closes "production takes the highest tag".
-`--tag` is refused for staging and for `status` and `rollback`.
+`--tag` is refused for a `highest` environment (`tag_not_allowed`) and for `status` and `rollback`.
 
 An automatic proof that staging already served and passed the tag is still not built: the owner and the coordinator
 confirm it by hand before the word «انشر على الإنتاج». An enforced gate is designed in plan part P7 and is not
@@ -158,6 +158,29 @@ The command never waits for input. A second start while one runs exits 0 at once
 | `docker-config/` | the private docker login |
 | `runs/<commit>/` | backup work files and upgrade logs |
 
+## The stack and the Odoo config
+
+The shared stack is one definition, `deploy/stack/compose.yml`, rendered by `deploy/stack/render.py` from the environment's
+shared env file (the toggles `LIWAN_STACK_COMMERCIAL_EDGE` and `LIWAN_STACK_DB_HOST_LINK`, exactly `true` or `false`) into the run
+directory (`<state>/stack/compose.yml` and `sizing.env`). Every compose command is `docker compose --project-directory
+<checkout>/deploy -p <project> -f <rendered file>` with the env files in this order, the last one winning: `sizing.env`, the shared
+env file, `release.env`. The candidate's own template is rendered, not the running command's. A missing, unknown or non-boolean
+toggle refuses the run in `prepare` (`invalid_shared_env`). Services are started by name, so a profile service such as
+`tenant-storage` never comes up with `up`.
+
+`LIWAN_RELEASE_TAG_POLICY` in the shared env file is `highest` (the highest `release/19.0.X.Y.Z` tag; `--tag` is refused with
+`tag_not_allowed`) or `explicit` (only the tag `--tag` gives; none is refused with `tag_required`); a missing or other value is
+refused with `invalid_tag_policy`. An environment is any name (lowercase letters, digits, hyphens) with a config file in
+`/etc/liwan-release/`.
+
+`prepare` also renders `deploy/stack/odoo.conf.template` (from `DB_PASSWORD`, `LIWAN_ODOO_ADMIN_PASSWD` and the sizing plan) to
+`<LIWAN_SHARED_ODOO_CONFIG>.next`, mode `0400` (or the live file's `0440`) with the live file's owner, and validates it with the
+candidate's `deploy/shared/validate_odoo_config.py` (`odoo_config_invalid`); the restore profile's `LIWAN_RESTORE_ODOO_CONFIG` is
+validated as before. A live file that does not carry the render marker (a hand-written one) must match the render option by option or
+the run stops with `RESULT: refused odoo_config_drift`, naming the differing option names only (a secret, `db_password` and
+`admin_passwd`, by presence). A missing live file is simply rendered. `activate` renames `.next` over the live file after the stop; a
+resumed run finds nothing left to rename.
+
 ## Config
 
 `/etc/liwan-release/<environment>.env`, mode `0600`, owned by the running user. Required keys: `LIWAN_RELEASE_PROJECT`,
@@ -192,17 +215,17 @@ worker's `shared-runtime.json`); it is not a release config key. Before anything
 `RESULT: refused invalid_shared_env` when the key is missing or not an absolute path, when its directory does not exist or is not
 writable, or when the shared env file is owned by root and unreadable by group and others (the effect account, which reads the
 rendered copy through the `docker` group, could never read it). At each activation, after `release.env` is written and before any service or the worker starts, the run renders the
-shared stack (the files of `SHARED_COMPOSE_FILES`, every profile) to that path with `docker compose config --format json`, through
+shared stack (the one stack definition `deploy/stack/compose.yml` of the candidate, every profile) to that path with `docker compose config --format json`, through
 a temporary file and an atomic replace. The file holds the shared env file's secrets, so it takes that file's owner, group and
 mode. A rollback renders it again for the restored release, so the worker and the running stack always describe the same release.
 A failed render fails the run (`shared_compose_render_failed`) and the usual rollback applies. In the rollback the previous
 release's services start first and the maintenance marker goes; only then is the file rendered and the worker started, so a failed
 render there halts the run (exit 5) with the previous release serving and the worker stopped.
 
-Database access for the backup: the tenant `db` is published on `127.0.0.1` by `deploy/docker-compose.host-link.yml`
-(part of the shared compose set), and the control-plane database by `deploy/control-plane/compose.host-link.yml`. The ports are
+Database access for the backup: the tenant `db` is published on `127.0.0.1` by the stack's `LIWAN_STACK_DB_HOST_LINK=true`
+block (`deploy/stack/compose.yml`), and the control-plane database by `deploy/control-plane/compose.host-link.yml`. The ports are
 read from the shared env file, not the release config: `LIWAN_DB_HOST_PORT` (default `15433`) and `LIWAN_CONTROL_DB_HOST_PORT`
-(default `15432`), the same keys the overlays interpolate. Set
+(default `15432`), the same keys the stack interpolates. Set
 
 ```
 LIWAN_RELEASE_PG_HOST=127.0.0.1

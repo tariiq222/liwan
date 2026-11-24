@@ -194,7 +194,7 @@ networks:
       config:
         - subnet: 172.29.40.0/24
           gateway: 172.29.40.1
-  # Names shared with the shared stack: docker-compose.shared-commercial.yml joins `web` to LIWAN_COMMERCIAL_CONTROL_NETWORK and
+  # Names shared with the shared stack: the stack's commercial edge (`LIWAN_STACK_COMMERCIAL_EDGE` in deploy/stack/compose.yml) joins `web` to LIWAN_COMMERCIAL_CONTROL_NETWORK and
   # `proxy` to LIWAN_CONTROL_EDGE_NETWORK. Only the API joins both here; `web` and `proxy` never meet on one of them.
   control_api_web:
     internal: true

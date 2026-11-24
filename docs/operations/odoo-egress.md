@@ -1,6 +1,6 @@
 # Odoo outbound route (shared overlay)
 
-In the shared deployment (`deploy/docker-compose.shared.yml`) every network Odoo sits on is internal, so Odoo has no
+In the shared deployment (`deploy/stack/compose.yml`) every network Odoo sits on is internal, so Odoo has no
 route off the host. Its provider calls leave through one allow-listing forward proxy, the `odoo-egress` service. This
 page describes the route and how to add a host. It states what the files do; it is not a release or deployment approval.
 
@@ -20,7 +20,7 @@ page describes the route and how to add a host. It states what the files do; it 
   169.254.169.254), CGNAT, multicast or reserved range, checked by Squid when it connects. So a listed name that
   resolves into the host's networks is refused too, and Odoo cannot reach another tenant's service, a database or
   the control plane through the proxy.
-- The single-customer template (`deploy/docker-compose.yml`) needs nothing: Odoo is on the routed `default` network there.
+- The single-customer template (`deploy/stack/compose.yml`) needs nothing: Odoo is on the routed `default` network there.
 
 ## Hosts
 
@@ -42,7 +42,7 @@ listed.
 
 1. Confirm in the code that Odoo itself calls the host. AI provider hosts belong to `AI_EGRESS_HOSTS`, not here.
 2. Set `ODOO_EGRESS_HOSTS` in `deploy/.env` to the whole list (a value replaces the built-in default in
-   `docker-compose.shared.yml`: copy it, then append). Items are comma-separated, lowercase, with no spaces:
+   `deploy/stack/compose.yml`: copy it, then append). Items are comma-separated, lowercase, with no spaces:
    `host` for one exact name, `.domain` for the domain and all its subdomains. Use `.domain` only when the provider
    serves from many names.
 3. Recreate the proxy: `docker compose ... up -d odoo-egress`. A malformed list stops the container at start and

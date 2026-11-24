@@ -5,8 +5,8 @@
   release.py status   --environment <name>   print the served release, the unfinished run and the halt record
   release.py rollback --environment <name>   clear a halt and finish the rollback of an unfinished run
 
-``staging`` follows the highest ``release/19.0.X.Y.Z`` tag; ``production``
-applies only the tag it is given with ``--tag`` and refuses to run without one. The
+An environment with ``LIWAN_RELEASE_TAG_POLICY=highest`` follows the highest ``release/19.0.X.Y.Z`` tag; one with
+``explicit`` applies only the tag it is given with ``--tag`` and refuses to run without one. The
 candidate and its release document (the image ``liwan-release:<commit>`` in the private GHCR registry) are read with
 the read-only credentials in ``LIWAN_GHCR_READ_USER``, ``LIWAN_GHCR_READ_TOKEN`` and, optionally,
 ``LIWAN_GITHUB_READ_TOKEN`` (the source repository is public today). The command never waits for
@@ -40,7 +40,9 @@ from deploy.release.common import (  # noqa: E402
     ReleaseError,
     Runner, free_bytes, make_log, now, read_env_file, sensitive_values, read_json, write_atomic, write_json)
 from deploy.release.source import (  # noqa: E402
-    COMMIT, ENVIRONMENTS, GITHUB_TOKEN_VAR, TOKEN_VAR, USER_VAR, Credential, Source, explicit_tag, host_architecture)
+    COMMIT, ENVIRONMENT_NAME, GITHUB_TOKEN_VAR, TAG_POLICY_KEY, TOKEN_VAR, USER_VAR, Credential, Source, explicit_tag,
+    host_architecture)
+from deploy.stack import render  # noqa: E402
 from deploy.release.tenant_postgres import (  # noqa: E402
     ODOO_RUNTIME_ROLE, POSTGRES_ADMIN_ROLE, RUNTIME_ROLE_RULES, identifier, runtime_role_assertion_sql, tenant_isolation_statements)
 
@@ -91,10 +93,14 @@ VENDOR_ADMIN_ENV_KEY = 'LIWAN_VENDOR_ADMIN_ENV_FILE'
 ALERT_REASON_PREFIX = 'alerts: '  # how deploy/alerts.py starts the reason it writes to stderr
 BACKUP_COPIES = 3  # the encrypted capture stages a dump, a plain tar and a ciphertext under the work root
 DISK_MARGIN = 1.5  # free space must cover every snapshot (database plus filestore) with half again as much
-# The compose files of the shared stack, in merge order, relative to deploy/. The release renders and starts this set;
-# the tests that read the deployed stack import it from here.
-SHARED_COMPOSE_FILES = ('docker-compose.yml', 'docker-compose.shared.yml', 'docker-compose.shared-commercial.yml',
-                        'docker-compose.production.yml', 'docker-compose.host-link.yml')
+# The one stack definition of a release (deploy/stack/): its compose template and Odoo config template, relative to the checkout.
+STACK_COMPOSE_TEMPLATE = 'deploy/stack/compose.yml'
+ODOO_CONFIG_TEMPLATE = 'deploy/stack/odoo.conf.template'
+# The first line of a config this command rendered: a live config without it is a hand-written one, adopted only when it
+# says what the render says (`odoo_config_drift`). Both lines of the template header carry it.
+RENDERED_MARKER = '; Rendered by deploy/stack/render.py'
+# Odoo config keys whose value is a secret: the drift check compares their presence, never their value.
+SECRET_CONFIG_KEYS = ('db_password', 'admin_passwd')
 CONFIG_KEYS = ('LIWAN_RELEASE_PROJECT', 'LIWAN_SHARED_ENV_FILE', 'LIWAN_RELEASE_PG_DUMP', 'LIWAN_RELEASE_PG_HOST',
                'LIWAN_RELEASE_CONTROL_PG_HOST', 'LIWAN_RELEASE_ODOO_DATA_DIR', 'LIWAN_RELEASE_DISK_PATH')
 # The loopback ports the two host-link overlays publish; the shared env file sets them, these are the overlays' defaults.
@@ -118,8 +124,8 @@ class Paths:
 
 def load_config(paths: Paths, environment: str) -> dict[str, str]:
     """The root-only config of one environment; a readable-by-others or foreign-owned file is refused."""
-    if environment not in ENVIRONMENTS:
-        raise ReleaseError('invalid_environment', EXIT_REFUSED, f'environment must be one of {list(ENVIRONMENTS)}')
+    if not ENVIRONMENT_NAME.fullmatch(environment):
+        raise ReleaseError('invalid_environment', EXIT_REFUSED, 'an environment name is lowercase letters, digits and hyphens')
     path = paths.config_root / f'{environment}.env'
     if not path.is_file():
         raise ReleaseError('missing_config', EXIT_REFUSED, f'{path} does not exist')
@@ -218,7 +224,7 @@ class Releaser:
                                f'{current} points at {os.readlink(current)}, which does not exist; relink it to a release folder')
 
     def run(self) -> int:
-        tag = explicit_tag(self.environment, self.tag)
+        tag = explicit_tag(self.shared_env().get(TAG_POLICY_KEY), self.tag)
         self.require_current_symlink()
         halted = read_json(self.file('halted.json'))
         if halted is not None:
@@ -335,7 +341,7 @@ class Releaser:
     def prepare(self, run: dict) -> None:
         """Checkout with the worker's dependencies, every image by digest, and the disk checks; nothing running changes."""
         self.shared_compose_target()  # a render that can only fail after the stop is refused here
-        self.require_host_file(ODOO_CONFIG_KEY)
+        self.require_config_target(ODOO_CONFIG_KEY)
         self.require_host_file(VENDOR_ADMIN_ENV_KEY)
         target = self.checkout(run['commit'])
         if not target.exists():
@@ -343,7 +349,7 @@ class Releaser:
         elif not (target / DEPENDENCY_MARKER).exists():  # a folder made by hand, or by an install that never finished
             self.install_dependencies(target)
             normalize_tree(target)
-        self.require_odoo_config(target)
+        self.prepare_odoo_config(target)
         self.require_renderable(run, target)
         if run['previous'] is not None:  # before the first image pull and the first size query, both of which assume the admin role
             self.assert_runtime_role(self.paths.current.resolve(), {'tenants': self.tenants(target)})
@@ -496,12 +502,34 @@ class Releaser:
         except CommandFailed:
             raise ReleaseError('backup_failed') from None
 
+    def stack_env(self, release_env: Path) -> dict[str, str]:
+        """The values the stack renders and interpolates from: the shared env file, then the release env."""
+        return {**self.shared_env(), **(read_env_file(release_env) if release_env.exists() else {})}
+
+    def render_stack(self, checkout: Path, release_env: Path) -> Path:
+        """The stack of ``checkout`` rendered from the environment's values into the run directory (``stack/``): its compose file and
+        ``sizing.env``. A toggle the env lacks or an unknown one is refused here, before anything stops."""
+        directory = self.file('stack')
+        directory.mkdir(exist_ok=True, mode=0o700)
+        try:
+            text = render.render_template((checkout / STACK_COMPOSE_TEMPLATE).read_text(encoding='utf-8'),
+                                          render.toggles_of(self.stack_env(release_env)))
+        except render.StackError as error:
+            raise ReleaseError('invalid_shared_env', EXIT_REFUSED,
+                               f'{self.config["LIWAN_SHARED_ENV_FILE"]} cannot render the stack of {checkout.name}: {error}') from None
+        write_atomic(directory / 'compose.yml', text)
+        write_atomic(directory / render.SIZING_FILE,
+                     ''.join(f'{name}={value}\n' for name, value in render.sizing_variables().items()))
+        return directory
+
     def compose(self, checkout: Path, release_env: Path | None = None) -> list[str]:
-        command = ['docker', 'compose', '-p', self.config['LIWAN_RELEASE_PROJECT']]
-        for name in SHARED_COMPOSE_FILES:
-            command += ['-f', str(checkout / 'deploy' / name)]
-        return command + ['--env-file', self.config['LIWAN_SHARED_ENV_FILE'],
-                          '--env-file', str(release_env or self.file('release.env'))]
+        """``docker compose`` on the stack of ``checkout``, run from its ``deploy/`` directory so the stack's relative paths
+        resolve. Later ``--env-file`` wins: the sizing plan, the shared env file, then the release env (always last)."""
+        release_env = release_env or self.file('release.env')
+        directory = self.render_stack(checkout, release_env)
+        return ['docker', 'compose', '--project-directory', str(checkout / 'deploy'), '-p', self.config['LIWAN_RELEASE_PROJECT'],
+                '-f', str(directory / 'compose.yml'), '--env-file', str(directory / render.SIZING_FILE),
+                '--env-file', self.config['LIWAN_SHARED_ENV_FILE'], '--env-file', str(release_env)]
 
     def shared_env(self) -> dict[str, str]:
         return read_env_file(Path(self.config['LIWAN_SHARED_ENV_FILE']))
@@ -537,8 +565,7 @@ class Releaser:
         return target
 
     def require_host_file(self, key: str) -> None:
-        """The compose files read or bind-mount the file this shared env key names (Odoo's config, the vendor console's env
-        file); Docker would create a directory at a missing bind path, or fail only after the stop. Only the path is named."""
+        """The compose files read or bind-mount the file this shared env key names (the vendor console's env file); Docker would create a directory at a missing bind path, or fail only after the stop. Only the path is named."""
         env_path = Path(self.config['LIWAN_SHARED_ENV_FILE'])
         path = self.shared_env().get(key)
         if not path or not os.path.isabs(path):
@@ -546,14 +573,80 @@ class Releaser:
         if not Path(path).is_file():
             raise ReleaseError('invalid_shared_env', EXIT_REFUSED, f'{path} ({key}) is not a file')
 
-    def require_odoo_config(self, checkout: Path) -> None:
-        """The host's Odoo config must pass the candidate's own validator, as the container's launcher will run it: a config the
-        new release rejects makes ``odoo`` exit and restart in a loop after the stop. Only the path is named, never content."""
+    def require_config_target(self, key: str) -> None:
+        """The path this shared env key names is where the release writes the rendered Odoo config: absolute, in a writable
+        directory, and a file if it exists (Docker would create a directory at a missing bind path). Only the path is named."""
+        env_path = Path(self.config['LIWAN_SHARED_ENV_FILE'])
+        path = self.shared_env().get(key)
+        if not path or not os.path.isabs(path):
+            raise ReleaseError('invalid_shared_env', EXIT_REFUSED, f'{env_path} needs {key} set to an absolute path')
+        if Path(path).exists() and not Path(path).is_file():
+            raise ReleaseError('invalid_shared_env', EXIT_REFUSED, f'{path} ({key}) is not a file')
+        if not os.access(Path(path).parent, os.W_OK | os.X_OK):
+            raise ReleaseError('invalid_shared_env', EXIT_REFUSED, f'{Path(path).parent} ({key}) does not exist or is not writable')
+
+    def rendered_odoo_config(self, checkout: Path) -> str:
+        """The candidate's Odoo config (``odoo.conf.template``) filled from the shared env file and the sizing plan."""
+        env = self.shared_env()
+        missing = [key for key in ('DB_PASSWORD', 'LIWAN_ODOO_ADMIN_PASSWD') if not env.get(key)]
+        if missing:
+            raise ReleaseError('invalid_shared_env', EXIT_REFUSED,
+                               f'{self.config["LIWAN_SHARED_ENV_FILE"]} lacks {", ".join(missing)} for the Odoo config')
+        try:
+            return render.render_placeholders((checkout / ODOO_CONFIG_TEMPLATE).read_text(encoding='utf-8'), render.odoo_conf_values(env))
+        except render.StackError as error:
+            raise ReleaseError('invalid_shared_env', EXIT_REFUSED, f'the Odoo config of {checkout.name} cannot render: {error}') from None
+
+    @staticmethod
+    def config_options(text: str) -> dict[str, str]:
+        options = {}
+        for line in text.splitlines():
+            line = line.strip()
+            if line and not line.startswith((';', '#', '[')) and '=' in line:
+                name, _, value = line.partition('=')
+                options[name.strip()] = value.strip()
+        return options
+
+    def config_drift(self, live_text: str, rendered_text: str) -> list[str]:
+        """Names of the options the hand-written live config and the render disagree on (a secret by presence only)."""
+        live, rendered = self.config_options(live_text), self.config_options(rendered_text)
+        return sorted(name for name in live.keys() | rendered.keys()
+                      if (name in live) != (name in rendered)
+                      or (name not in SECRET_CONFIG_KEYS and live[name] != rendered[name]))
+
+    def prepare_odoo_config(self, checkout: Path) -> None:
+        """Render the candidate's Odoo config beside the live file (``<file>.next``), validate it with the candidate's own
+        validator as the container's launcher will run it, and refuse a hand-written live file that differs from it. Nothing
+        running changes: ``activate`` renames it into place. A live file this command rendered earlier is replaced freely;
+        one it did not is adopted only when it says what the render says, key by key (names are logged, never values)."""
+        live = Path(self.shared_env()[ODOO_CONFIG_KEY])
+        pending = live.with_name(live.name + '.next')
+        text = self.rendered_odoo_config(checkout)
+        owner = live.stat() if live.exists() else None
+        if owner is not None and RENDERED_MARKER not in live.read_text(encoding='utf-8'):
+            drift = self.config_drift(live.read_text(encoding='utf-8'), text)
+            if drift:
+                raise ReleaseError('odoo_config_drift', EXIT_REFUSED,
+                                   f'{live} ({ODOO_CONFIG_KEY}) was not rendered by this command and differs from the render of '
+                                   f'{checkout.name} in: {", ".join(drift)}; move it aside so the release renders it, or make it match')
+        pending.unlink(missing_ok=True)
+        os.close(os.open(pending, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600))
+        pending.write_text(text, encoding='utf-8')
+        mode = stat.S_IMODE(owner.st_mode) if owner is not None and stat.S_IMODE(owner.st_mode) in (0o400, 0o440) else 0o400
+        pending.chmod(mode)
+        if owner is not None and (owner.st_uid, owner.st_gid) != (pending.stat().st_uid, pending.stat().st_gid):
+            os.chown(pending, owner.st_uid, owner.st_gid)
+        self.require_odoo_config(checkout, pending)
+
+    def require_odoo_config(self, checkout: Path, pending: Path) -> None:
+        """The rendered Odoo config, and the restore profile's external one when it is set, must pass the candidate's own
+        validator: a config the new release rejects makes ``odoo`` exit and restart in a loop after the stop. Only the path is
+        named, never content."""
         validator = str(checkout / 'deploy/shared/validate_odoo_config.py')
         # The restore profile is the external file `restore-odoo` mounts when LIWAN_RESTORE_ODOO_CONFIG is set (the validator
         # picks the profile from LIWAN_RESTORE_ROLE); unset, compose mounts the incomplete reference, which only `--profile restore` starts.
         restore = self.compose_env_value(RESTORE_ODOO_CONFIG_KEY)
-        checks = [(ODOO_CONFIG_KEY, self.shared_env()[ODOO_CONFIG_KEY], self.child_env)]
+        checks = [(ODOO_CONFIG_KEY, str(pending), self.child_env)]
         if restore:
             restore_path = str(Path(restore) if os.path.isabs(restore) else checkout / 'deploy' / restore)
             checks.append((RESTORE_ODOO_CONFIG_KEY, restore_path, {**self.child_env, 'LIWAN_RESTORE_ROLE': '1'}))
@@ -564,6 +657,14 @@ class Releaser:
                 raise ReleaseError('odoo_config_invalid', EXIT_REFUSED,
                                    f'{path} ({key}) is rejected by deploy/shared/validate_odoo_config.py of '
                                    f'{checkout.name}; fix the file before this release') from None
+
+    def adopt_odoo_config(self) -> None:
+        """The rendered config replaces the live one (same owner and mode, set when it was rendered); a second call, after a
+        resume, finds nothing left to rename."""
+        live = Path(self.shared_env()[ODOO_CONFIG_KEY])
+        pending = live.with_name(live.name + '.next')
+        if pending.exists():
+            os.replace(pending, live)
 
     def require_renderable(self, run: dict, checkout: Path) -> None:
         """Both compose projects of the candidate render as later steps run them, with its own image tag (a temporary env file,
@@ -698,6 +799,7 @@ class Releaser:
             write_json(self.file('run.json'), run)
 
     def activate(self, commit: str, odoo_commit: str) -> None:
+        self.adopt_odoo_config()
         write_atomic(self.file('release.env'), release_env_text(commit, odoo_commit))
         self.write_shared_compose(self.checkout(commit))
         self.point_current(self.checkout(commit))

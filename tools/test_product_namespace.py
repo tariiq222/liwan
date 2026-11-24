@@ -22,7 +22,7 @@ class ProductNamespaceTest(unittest.TestCase):
             'tools/checkout-path.conf': '/Users/tariq/code/' + PREVIOUS_NAMESPACE + '/odoo-addons',
             'deploy/repository.conf': 'https://github.com/tariiq222/' + PREVIOUS_NAMESPACE + '.git',
             'tools/new_app_templates/model.py.tmpl': 'from odoo.addons.' + PREVIOUS_NAMESPACE + '_api import common',
-            'deploy/Caddyfile': 'header X-' + PREVIOUS_NAMESPACE + '-Service-Token value',
+            'deploy/stack/Caddyfile': 'header X-' + PREVIOUS_NAMESPACE + '-Service-Token value',
             'apps/web/i18n/locales/ar/common.json': json.dumps({'name': 'نَسَق'}, ensure_ascii=False),
         }
         for name, text in cases.items():

@@ -34,7 +34,7 @@ MODULE_ID = re.compile(r'(?:liwan|customer)_[a-z0-9_]+')
 # The routed tenant host (`t<id>.<domain suffix>`), the same DNS name the routing registry accepts.
 TENANT_HOST = re.compile(r'(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+')
 MAX_OUTPUT = 65536
-TENANT_DB_ROLE = ODOO_RUNTIME_ROLE  # db_user of deploy/shared/odoo.conf: the grantee, never the role that runs DDL
+TENANT_DB_ROLE = ODOO_RUNTIME_ROLE  # db_user of the rendered Odoo config (deploy/stack/odoo.conf.template): the grantee, never the role that runs DDL
 # The AI role's grants and schema in a tenant database: the file the operator also runs.
 AI_TENANT_SCHEMA = Path(__file__).resolve().parents[2] / 'deploy' / 'ai' / 'tenant_schema.sql'
 # System parameter that binds a tenant database to its control-plane tenant. The final deletion of a workspace

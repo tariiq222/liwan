@@ -12,7 +12,7 @@ the deployment files (no service is started):
 * the systemd unit is a real supervisor for `run-shared-worker.sh` and names every
   environment variable that entrypoint or `getConfig()` requires.
 
-Compose is deliberately not covered: `deploy/docker-compose.shared.yml` has no
+Compose is deliberately not covered: `deploy/stack/compose.yml` has no
 control-plane service because the guard image holds neither the control-plane code,
 its Node/tsx dependencies nor a Docker client, and the worker needs the Docker socket
 to run its Odoo effects. `deploy/test_image_pins.py` would fail any service added

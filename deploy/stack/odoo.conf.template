@@ -9,6 +9,7 @@ db_password = {{DB_PASSWORD}}
 admin_passwd = {{LIWAN_ODOO_ADMIN_PASSWD}}
 dbfilter = ^%h$
 list_db = False
+server_wide_modules = base,rpc,web,liwan_shared_dbselect
 proxy_mode = False
 workers = {{ODOO_WORKERS}}
 max_cron_threads = {{ODOO_MAX_CRON_THREADS}}

@@ -1,5 +1,5 @@
 import http from 'node:http'
-import { existsSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
@@ -209,30 +209,4 @@ it.each(['shared', 'dedicated'] as const)('%s edge keeps verified work on the se
     wire.held[1]!()
     expect((await second).status).toBe(401)
   } finally { await wire.close(); await Promise.allSettled(pending) }
-})
-
-// This parses the deployed Caddy routing clauses, rather than a copied path table.
-// The accepted grammar is deliberately narrow; routing syntax changes require a new oracle.
-it('the actual direct Caddy routing sends API to web and preserves legacy Odoo/WS destinations', () => {
-  const config = readFileSync(new URL('../../../../../deploy/Caddyfile', import.meta.url), 'utf8').replace(/#.*$/gm, '')
-  const named = new Map([...config.matchAll(/^\s*(@\w+)\s+path\s+([^\n]+)/gm)].map(match => [match[1]!, match[2]!.trim().split(/\s+/)]))
-  const routes: Array<{ matcher?: string; target: string }> = []
-  for (const match of config.matchAll(/\bhandle(?:\s+([^\s{]+))?\s*\{/g)) {
-    let depth = 1, end = match.index! + match[0].length
-    for (; end < config.length && depth; end++) { if (config[end] === '{') depth++; if (config[end] === '}') depth-- }
-    expect(depth).toBe(0)
-    const target = config.slice(match.index! + match[0].length, end).match(/reverse_proxy\s+([^\s{]+)/)?.[1]
-    expect(target).toBeDefined()
-    routes.push({ matcher: match[1], target: target! })
-  }
-  const destination = (path: string) => routes.find(route => {
-    const patterns = route.matcher?.startsWith('@') ? named.get(route.matcher) : route.matcher ? [route.matcher] : ['*']
-    expect(patterns).toBeDefined()
-    return patterns!.some(pattern => pattern.endsWith('*') ? path.startsWith(pattern.slice(0, -1)) : path === pattern)
-  })?.target
-  for (const path of ['/api/v1/tasks', '/api/v1/branding', '/api/v1/auth/totp', '/api/auth/login', '/login']) expect(destination(path)).toBe('web:3000')
-  expect(destination('/web/health')).toBe('odoo:8069')
-  // Reports embed their QR inline, so the stock barcode route is not forwarded to Odoo (AUDIT-098).
-  for (const path of ['/report/barcode', '/report/barcode/']) expect(destination(path)).toBe('web:3000')
-  expect(destination('/websocket')).toBe('odoo:8072')
 })

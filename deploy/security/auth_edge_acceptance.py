@@ -170,7 +170,7 @@ def main():
     config = (
         '[options]\ndb_host = db\ndb_user = odoo\ndb_password = ' + password
         + '\nadmin_passwd = ' + secrets.token_hex(24)
-        + '\ndbfilter = ^%h$\nlist_db = False\nproxy_mode = False\n'
+        + '\ndbfilter = ^%h$\nlist_db = False\nserver_wide_modules = base,rpc,web,liwan_shared_dbselect\nproxy_mode = False\n'
         + 'workers = 2\nmax_cron_threads = 0\nwithout_demo = True\ndata_dir = /var/lib/odoo\n'
     )
     seed_dir = output / 'seed'

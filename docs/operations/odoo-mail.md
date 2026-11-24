@@ -1,6 +1,6 @@
 # Odoo outgoing mail (shared overlay)
 
-In the shared deployment (`deploy/docker-compose.shared.yml`) every network Odoo sits on is internal, and the HTTP
+In the shared deployment (`deploy/stack/compose.yml`) every network Odoo sits on is internal, and the HTTP
 proxy `odoo-egress` carries only HTTPS. SMTP is not HTTP, so the mail Odoo itself sends leaves through its own route:
 the `odoo-mail` service. This page states what the files do. It is not a release or deployment approval, and no mail
 has been sent through it yet (the protocol tests in `deploy/test_odoo_mail.py` ran, and Odoo mail was sent to the relay once on a scratch database, see below).

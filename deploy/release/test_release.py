@@ -9,6 +9,7 @@ import json
 import os
 import re
 import shutil
+import stat
 import sys
 import tempfile
 import unittest
@@ -52,10 +53,23 @@ def document(commit, platforms=('linux/amd64', 'linux/arm64')):
                           for reference in REFERENCES}}
 
 
+REPOSITORY = Path(release.__file__).resolve().parents[2]
+RENDERED = release.RENDERED_MARKER + '\n'
+POLICY = 'LIWAN_RELEASE_TAG_POLICY=highest\n'
+
+
+def seed_stack(checkout):
+    """The stack definition a real checkout holds: the release renders its own template, not the running code's."""
+    for name in (release.STACK_COMPOSE_TEMPLATE, release.ODOO_CONFIG_TEMPLATE):
+        (checkout / name).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(REPOSITORY / name, checkout / name)
+
+
 def write_smoke(checkout):
     smoke = checkout / 'deploy/odoo/upgrade_smoke.py'
     smoke.parent.mkdir(parents=True, exist_ok=True)
     smoke.write_text("print('UPGRADE_SMOKE_OK')\n")
+    seed_stack(checkout)
 
 
 class FakePostgres:
@@ -320,16 +334,20 @@ class ReleaseTest(unittest.TestCase):
             (root / 'data/filestore' / name / 'f').write_text('old')
         shared_env = root / 'shared.env'
         self.odoo_config = root / 'odoo.conf'
-        self.odoo_config.write_text('[options]\n')
+        self.odoo_config.write_text(RENDERED + '[options]\n')  # a config this command rendered earlier
         self.vendor_env = root / 'vendor-admin.env'
         self.vendor_env.write_text(f'NUXT_SERVICE_KEY={SECRET}\n')
-        shared_env.write_text(f'LIWAN_TENANT_REGISTRY_DIR={root}/registry\nLIWAN_SHARED_COMPOSE_FILE={root}/shared.compose.json\n'
-                              f'LIWAN_SHARED_ODOO_CONFIG={self.odoo_config}\nLIWAN_VENDOR_ADMIN_ENV_FILE={self.vendor_env}\n'
-                              f'DB_PASSWORD={SECRET}\n')
-        for environment in ('staging', 'production'):
-            self.write_config(shared_env, environment)
+        shared_text = (f'LIWAN_TENANT_REGISTRY_DIR={root}/registry\nLIWAN_SHARED_COMPOSE_FILE={root}/shared.compose.json\n'
+                       f'LIWAN_SHARED_ODOO_CONFIG={self.odoo_config}\nLIWAN_VENDOR_ADMIN_ENV_FILE={self.vendor_env}\n'
+                       f'DB_PASSWORD={SECRET}\nLIWAN_ODOO_ADMIN_PASSWD=$pbkdf2-sha512$1$c2FsdA$aGFzaA\n'
+                       'LIWAN_STACK_COMMERCIAL_EDGE=true\nLIWAN_STACK_DB_HOST_LINK=true\n')
+        shared_env.write_text(shared_text + 'LIWAN_RELEASE_TAG_POLICY=highest\n')
+        (root / 'shared-production.env').write_text(shared_text + 'LIWAN_RELEASE_TAG_POLICY=explicit\n')
+        self.write_config(shared_env, 'staging')
+        self.write_config(root / 'shared-production.env', 'production')
         self.paths.releases.mkdir()
         (self.paths.releases / OLD).mkdir()
+        seed_stack(self.paths.releases / OLD)
         self.paths.current.symlink_to(self.paths.releases / OLD)
         self.tags, self.ancestor, self.published, self.fetched = {'release/19.0.1.0.7': NEW}, True, True, True
         self.annotated = set()
@@ -484,9 +502,12 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(self.runner.calls, [])
 
     def test_unknown_environment_and_loose_config_are_refused(self):
-        for name in ('unknown', 'development'):
+        for name in ('Bad_Name', '../staging', 'x' * 40):
             self.assertEqual(self.main('run', '--environment', name), release.EXIT_REFUSED)
             self.assertEqual(self.result(), 'refused invalid_environment')
+        for name in ('unknown', 'development'):  # an environment exists when its config file does
+            self.assertEqual(self.main('run', '--environment', name), release.EXIT_REFUSED)
+            self.assertEqual(self.result(), 'refused missing_config')
         (self.paths.config_root / 'staging.env').chmod(0o644)
         self.assertEqual(self.main(), release.EXIT_REFUSED)
         self.assertEqual(self.result(), 'refused config_not_private')
@@ -586,7 +607,7 @@ class ReleaseTest(unittest.TestCase):
         self.use_production(OLD, [1, 0, 6])
         self.tags = {'release/19.0.1.0.7': NEW}
         self.assertEqual(self.main('run', '--environment', 'production'), release.EXIT_REFUSED)
-        self.assertEqual(self.result(), 'refused production_tag_required')
+        self.assertEqual(self.result(), 'refused tag_required')
         self.assertEqual(self.runner.calls, [])
 
     def test_production_resolves_annotated_and_lightweight_tags_to_their_commit(self):
@@ -1097,13 +1118,6 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(npm[npm.index('--workspace') + 1], 'apps/control-plane')
         self.assertIn('--include=dev', npm)  # tsx is a dev dependency and the worker runs it
 
-    def test_shared_stack_includes_the_host_link_file(self):
-        self.assertEqual(self.main(), release.EXIT_OK)
-        shared = [call for call in self.runner.calls if 'docker-compose.shared.yml' in ' '.join(call)]
-        self.assertTrue(shared)
-        for call in shared:
-            self.assertTrue(any(arg.endswith('deploy/docker-compose.host-link.yml') for arg in call))
-
     def test_pgpassfile_from_the_config_reaches_the_backup_environment(self):
         config = self.paths.config_root / 'staging.env'
         config.write_text(config.read_text() + 'PGPASSFILE=/etc/liwan-release/pgpass\n')
@@ -1124,7 +1138,7 @@ class ReleaseTest(unittest.TestCase):
         render = next(call for call in self.runner.calls if '--output' in call)
         self.assertEqual(render[render.index('--profile') + 1], '*')
         files = [render[index + 1] for index, word in enumerate(render) if word == '-f']
-        self.assertEqual([Path(name).name for name in files], list(release.SHARED_COMPOSE_FILES))
+        self.assertEqual(files, [str(self.state / 'stack/compose.yml')])
         self.assertLess(self.runner.calls.index(render), self.runner.calls.index(['systemctl', 'start', release.SHARED_WORKER_UNIT]))
 
     def test_a_failed_render_of_the_candidate_rolls_back_to_the_served_file(self):
@@ -1146,17 +1160,17 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(self.served(), OLD)
 
     def test_a_shared_env_file_without_the_compose_path_is_refused_before_anything_stops(self):
-        (self.root / 'shared.env').write_text(f'LIWAN_TENANT_REGISTRY_DIR={self.root}/registry\nDB_PASSWORD={SECRET}\n')
+        (self.root / 'shared.env').write_text(f'LIWAN_TENANT_REGISTRY_DIR={self.root}/registry\nDB_PASSWORD={SECRET}\n{POLICY}')
         self.assert_refused_before_anything_stops('LIWAN_SHARED_COMPOSE_FILE')
 
     def test_a_relative_compose_path_is_refused_before_anything_stops(self):
         (self.root / 'shared.env').write_text(f'LIWAN_TENANT_REGISTRY_DIR={self.root}/registry\n'
-                                              'LIWAN_SHARED_COMPOSE_FILE=shared.compose.json\n')
+                                              f'LIWAN_SHARED_COMPOSE_FILE=shared.compose.json\n{POLICY}')
         self.assert_refused_before_anything_stops('absolute path')
 
     def test_a_missing_compose_directory_is_refused_before_anything_stops(self):
         (self.root / 'shared.env').write_text(f'LIWAN_TENANT_REGISTRY_DIR={self.root}/registry\n'
-                                              f'LIWAN_SHARED_COMPOSE_FILE={self.root}/absent/shared.compose.json\n')
+                                              f'LIWAN_SHARED_COMPOSE_FILE={self.root}/absent/shared.compose.json\n{POLICY}')
         self.assert_refused_before_anything_stops('does not exist or is not writable')
 
     def test_a_shared_env_file_the_worker_cannot_read_is_refused_before_anything_stops(self):
@@ -1341,20 +1355,22 @@ class ReleaseTest(unittest.TestCase):
         self.assertIn('alert deploy_failed was not delivered (exit 1)\n', self.log_stream.getvalue())
 
     # --- the shared Odoo config ------------------------------------------------------------------------------
-    def test_a_shared_odoo_config_that_is_not_a_file_is_refused_before_anything_stops(self):
+    @property
+    def pending_config(self):
+        return self.odoo_config.with_name(self.odoo_config.name + '.next')
+
+    def test_a_shared_odoo_config_path_that_cannot_be_written_is_refused_before_anything_stops(self):
         shared = self.root / 'shared.env'
         text = shared.read_text()
         self.odoo_config.unlink()
-        self.assert_refused_before_anything_stops(str(self.odoo_config))
         self.odoo_config.mkdir()  # docker would create this directory itself on a missing bind source
-        self.log_stream.seek(0)
-        self.log_stream.truncate(0)
-        self.assert_refused_before_anything_stops(str(self.odoo_config))
+        self.assert_refused_before_anything_stops('is not a file')
         shared.write_text(text.replace(f'LIWAN_SHARED_ODOO_CONFIG={self.odoo_config}\n', ''))
         self.assert_refused_before_anything_stops('LIWAN_SHARED_ODOO_CONFIG')
         shared.write_text(text.replace(str(self.odoo_config), 'odoo.conf'))
         self.assert_refused_before_anything_stops('absolute path')
-        self.assertNotIn('[options]', self.log_stream.getvalue())
+        shared.write_text(text.replace(str(self.odoo_config), f'{self.root}/absent/odoo.conf'))
+        self.assert_refused_before_anything_stops('does not exist or is not writable')
 
     def test_a_missing_vendor_console_env_file_is_refused_before_anything_stops(self):
         shared = self.root / 'shared.env'
@@ -1375,7 +1391,8 @@ class ReleaseTest(unittest.TestCase):
         self.odoo_config_invalid = True
         self.assertEqual(self.main(), release.EXIT_REFUSED)
         self.assertEqual(self.result(), 'refused odoo_config_invalid')
-        self.assertIn(str(self.odoo_config), self.log_stream.getvalue())
+        self.assertIn(str(self.pending_config), self.log_stream.getvalue())
+        self.assertEqual(self.odoo_config.read_text(), RENDERED + '[options]\n')  # the live file is untouched
         self.assertEqual(self.compose_stops(), [])
         self.assertEqual(self.commands('psql'), [])
         self.assertEqual(self.commands('systemctl'), [])
@@ -1409,13 +1426,13 @@ class ReleaseTest(unittest.TestCase):
         restore = self.set_restore_config()
         self.assertEqual(self.main(), release.EXIT_OK)
         calls = self.validator_calls()
-        self.assertEqual([argv[3] for argv, _ in calls], [str(self.odoo_config), str(restore)])
+        self.assertEqual([argv[3] for argv, _ in calls], [str(self.pending_config), str(restore)])
         self.assertNotIn('LIWAN_RESTORE_ROLE', calls[0][1])
         self.assertEqual(calls[1][1]['LIWAN_RESTORE_ROLE'], '1')
 
     def test_an_unset_restore_config_is_skipped(self):
         self.assertEqual(self.main(), release.EXIT_OK)
-        self.assertEqual([argv[3] for argv, _ in self.validator_calls()], [str(self.odoo_config)])
+        self.assertEqual([argv[3] for argv, _ in self.validator_calls()], [str(self.pending_config)])
 
     def test_a_valid_odoo_config_is_checked_once_by_the_candidates_validator_with_the_hosts_path(self):
         self.assertEqual(self.main(), release.EXIT_OK)
@@ -1423,7 +1440,7 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(len(checks), 1)
         self.assertEqual(checks[0][:2], ['python3', '-B'])
         self.assertTrue(checks[0][2].endswith(f'{NEW}/deploy/shared/validate_odoo_config.py'))
-        self.assertEqual(checks[0][3], str(self.odoo_config))
+        self.assertEqual(checks[0][3], str(self.pending_config))
 
     # --- the candidate's compose files, rendered before the stop ------------------------------------------------
     def test_a_required_key_missing_from_the_shared_env_is_refused_in_prepare_with_nothing_stopped(self):
@@ -1446,6 +1463,138 @@ class ReleaseTest(unittest.TestCase):
 
     def test_a_shared_odoo_config_file_passes(self):
         self.assertEqual(self.main(), release.EXIT_OK)
+
+    # --- the Odoo config the release renders -------------------------------------------------------------------
+    def rendered_config(self):
+        return release.render.render_placeholders(
+            (self.paths.releases / OLD / release.ODOO_CONFIG_TEMPLATE).read_text(),
+            release.render.odoo_conf_values(read_env_file(self.root / 'shared.env')))
+
+    def test_the_rendered_config_replaces_the_live_one_at_activation_with_its_owner_and_mode(self):
+        self.odoo_config.chmod(0o440)
+        before = self.odoo_config.stat()
+        self.assertEqual(self.main(), release.EXIT_OK)
+        live = self.odoo_config.stat()
+        self.assertEqual(self.odoo_config.read_text(), self.rendered_config())
+        self.assertEqual((stat.S_IMODE(live.st_mode), live.st_uid, live.st_gid), (0o440, before.st_uid, before.st_gid))
+        self.assertFalse(self.pending_config.exists())
+        self.assertIn(release.RENDERED_MARKER, self.odoo_config.read_text())
+
+    def test_the_live_config_is_not_touched_until_the_release_stops_and_activates(self):
+        seen = []
+        original = FakeRunner.answer
+
+        def answer(runner, argv, stdin):
+            if argv[:2] == ['docker', 'pull']:
+                seen.append((self.odoo_config.read_text(), self.pending_config.exists()))
+            return original(runner, argv, stdin)
+
+        with mock.patch.object(FakeRunner, 'answer', answer):
+            self.assertEqual(self.main(), release.EXIT_OK)
+        self.assertTrue(seen)
+        self.assertEqual({live for live, _ in seen}, {RENDERED + '[options]\n'})
+        self.assertIn(True, [pending for _, pending in seen])
+
+    def test_a_missing_live_config_is_rendered_on_the_first_release(self):
+        self.odoo_config.unlink()
+        self.assertEqual(self.main(), release.EXIT_OK)
+        self.assertEqual(self.odoo_config.read_text(), self.rendered_config())
+        self.assertEqual(stat.S_IMODE(self.odoo_config.stat().st_mode), 0o400)
+
+    def hand_written_config(self, **changes):
+        options = release.Releaser.config_options(self.rendered_config())
+        options.update(changes)
+        self.odoo_config.write_text('[options]\n' + ''.join(f'{name} = {value}\n' for name, value in options.items()))
+
+    def test_a_hand_written_config_that_differs_from_the_render_is_refused_by_key_name_only(self):
+        self.hand_written_config(workers='2', limit_memory_hard='1', db_password='a-different-secret-never-logged')
+        before = self.odoo_config.read_text()
+        self.assertEqual(self.main(), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused odoo_config_drift')
+        log = self.log_stream.getvalue()
+        self.assertIn('limit_memory_hard, workers', log)
+        self.assertNotIn('db_password', log)  # a secret is compared by presence only
+        self.assertNotIn('a-different-secret-never-logged', log)
+        self.assertNotIn(SECRET, log)
+        self.assertEqual(self.odoo_config.read_text(), before)
+        self.assertFalse(self.pending_config.exists())
+        self.assertEqual(self.compose_stops(), [])
+        self.assertEqual(self.commands('systemctl'), [])
+        self.assertEqual(self.served(), OLD)
+
+    def test_a_hand_written_config_missing_a_key_or_carrying_an_extra_one_is_drift(self):
+        for name, text in (('missing', ''.join(line for line in self.rendered_config().splitlines(True) if not line.startswith('workers'))),
+                           ('extra', self.rendered_config() + 'db_name = a_tenant\n')):
+            with self.subTest(name):
+                self.odoo_config.write_text(text.replace(release.RENDERED_MARKER, ';'))
+                self.assertEqual(self.main(), release.EXIT_REFUSED)
+                self.assertEqual(self.result(), 'refused odoo_config_drift')
+
+    def test_a_hand_written_config_that_says_what_the_render_says_is_adopted(self):
+        self.hand_written_config(db_password='another-secret-only-its-presence-counts')
+        self.assertEqual(self.main(), release.EXIT_OK)
+        self.assertEqual(self.odoo_config.read_text(), self.rendered_config())
+
+    def test_a_missing_secret_for_the_config_is_refused_before_anything_stops(self):
+        shared = self.root / 'shared.env'
+        shared.write_text(shared.read_text().replace('LIWAN_ODOO_ADMIN_PASSWD=$pbkdf2-sha512$1$c2FsdA$aGFzaA\n', ''))
+        self.assert_refused_before_anything_stops('LIWAN_ODOO_ADMIN_PASSWD')
+
+    def test_a_resumed_activation_finds_no_pending_config_and_keeps_the_live_one(self):
+        self.assertEqual(self.main(), release.EXIT_OK)
+        rendered = self.odoo_config.read_text()
+        releaser = release.Releaser('staging', release.load_config(self.paths, 'staging'), self.paths, self.runner,
+                                    lambda *_: None, self.environ, self.machine)
+        releaser.adopt_odoo_config()
+        self.assertEqual(self.odoo_config.read_text(), rendered)
+
+    # --- the stack definition the release renders ----------------------------------------------------------------
+    def test_every_compose_command_runs_the_rendered_stack_from_the_checkouts_deploy_directory(self):
+        self.assertEqual(self.main(), release.EXIT_OK)
+        stack = [call for call in self.runner.calls if call[:2] == ['docker', 'compose'] and '--project-directory' in call
+                 and call[call.index('-p') + 1] == 'liwan']
+        self.assertTrue(stack)
+        for call in stack:
+            self.assertIn(os.path.realpath(call[call.index('--project-directory') + 1]),
+                          [os.path.realpath(self.paths.releases / name / 'deploy') for name in (OLD, NEW)])
+            self.assertEqual(Path(call[call.index('-f') + 1]), self.state / 'stack/compose.yml')
+            files = [call[index + 1] for index, word in enumerate(call) if word == '--env-file']
+            self.assertEqual([Path(files[0]).name, files[1], Path(files[2]).name in ('release.env', 'candidate.env')],
+                             ['sizing.env', str(self.root / 'shared.env'), True])
+        self.assertFalse([call for call in self.runner.calls if call[:2] == ['docker', 'compose'] and '-f' in call
+                          and call[call.index('-f') + 1].endswith('.yml') and 'docker-compose' in call[call.index('-f') + 1]])
+
+    def test_the_toggles_of_the_shared_env_select_the_rendered_blocks(self):
+        shared = self.root / 'shared.env'
+        text = shared.read_text()
+        for value, present in (('true', True), ('false', False)):
+            with self.subTest(db_host_link=value):
+                shared.write_text(text.replace('LIWAN_STACK_DB_HOST_LINK=true', f'LIWAN_STACK_DB_HOST_LINK={value}'))
+                releaser = release.Releaser('staging', release.load_config(self.paths, 'staging'), self.paths, self.runner,
+                                            lambda *_: None, self.environ, self.machine)
+                releaser.state.mkdir(parents=True, exist_ok=True)
+                releaser.compose(self.paths.releases / OLD)
+                self.assertEqual('liwan-dbhost' in (self.state / 'stack/compose.yml').read_text(), present)
+
+    def test_a_shared_env_without_a_toggle_or_with_an_unknown_one_is_refused_before_anything_stops(self):
+        shared = self.root / 'shared.env'
+        text = shared.read_text()
+        for name, changed in (('missing', text.replace('LIWAN_STACK_DB_HOST_LINK=true\n', '')),
+                              ('unknown', text + 'LIWAN_STACK_SOMETHING=true\n'),
+                              ('not a boolean', text.replace('LIWAN_STACK_DB_HOST_LINK=true', 'LIWAN_STACK_DB_HOST_LINK=yes'))):
+            with self.subTest(name):
+                shared.write_text(changed)
+                self.assert_refused_before_anything_stops('cannot render the stack')
+
+    def test_the_release_starts_named_services_so_the_tenant_storage_profile_never_comes_up(self):
+        self.assertEqual(self.main(), release.EXIT_OK)
+        ups = [call for call in self.runner.calls if call[:2] == ['docker', 'compose'] and 'up' in call]
+        self.assertTrue(ups)
+        for call in ups:
+            self.assertIn(call[-1], ('db', 'guard') + release.APP_SERVICES + (release.PROXY_SERVICE,) + release.CONTROL_SERVICES)
+            self.assertNotIn('tenant-storage', ' '.join(call))
+            self.assertNotIn('--profile', call)
+        self.assertNotIn('tenant-storage', release.APP_SERVICES + release.CONTROL_SERVICES + (release.PROXY_SERVICE, release.EDGE_SERVICE))
 
     def test_only_a_root_owned_file_without_group_or_other_read_is_unreadable_by_the_worker(self):
         def info(uid, mode):

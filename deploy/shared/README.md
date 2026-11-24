@@ -133,20 +133,18 @@ HTTP worker answers or PostgreSQL is unreachable; the TikTok relay answers its i
 `/healthz`. There must be no web→guard health dependency cycle. Real routed tenant probes
 remain a separate acceptance gate.
 
-`odoo.conf` is an INCOMPLETE reference, not a runnable secret config. The actual
-`deploy/odoo/entrypoint.sh` invokes `odoo_secure.py` with `/etc/odoo/odoo.conf`;
-neither consumes HOST/USER/PASSWORD nor injects DB credentials. The secure launcher
-preserves the PDF safety adapter; it does not validate shared DB routing settings.
-The earlier t8 entrypoint-secret assumption was incorrect and is superseded here.
-
-Operator must prepare a complete config **outside Git/build context** containing
-`db_host`, `db_user`, `db_password`, `admin_passwd` plus reference shared invariants.
-No secret is passed in argv, buildargs or logs. Bind this file read-only at
-`/etc/odoo/odoo.conf`; do not mount the incomplete repository reference. Require
-0400 or 0440, owner root or runtime UID 10001, with read access for Odoo (for 0440,
-operator assigns the runtime-readable group). Parent directory must be controlled
-by the operator; no untrusted writer. Rotate via controlled replacement and restart;
-validation is pre-start, not a concurrent config mutation defense.
+The shared Odoo config is rendered by the release command from `deploy/stack/odoo.conf.template` (`release.py prepare`
+fills it from the shared env file and the sizing plan into `<LIWAN_SHARED_ODOO_CONFIG>.next`, validates it with
+`validate_odoo_config.py`, and `activate` renames it into place keeping owner and mode). A live file that was not
+rendered by the command is adopted only when it says what the render says; otherwise `prepare` refuses with
+`odoo_config_drift`, naming the differing keys (secrets by presence only, never values). `odoo.restore.conf` is an
+INCOMPLETE reference for the restore profile: the restore role mounts a complete operator config
+(`LIWAN_RESTORE_ODOO_CONFIG`) containing `db_host`, `db_user` and `db_password`, never the repository reference.
+`deploy/odoo/entrypoint.sh` invokes `odoo_secure.py` with `/etc/odoo/odoo.conf`; neither consumes HOST/USER/PASSWORD nor
+injects DB credentials. No secret is passed in argv, buildargs or logs. The file is bound read-only at
+`/etc/odoo/odoo.conf` with mode 0400 or 0440, owner root or runtime UID 10001, with read access for Odoo (for 0440,
+operator assigns the runtime-readable group). Parent directory must be controlled by the operator; no untrusted
+writer. Validation is pre-start, not a concurrent config mutation defense.
 
 Shared startup integration contract for t5: mount `launch_odoo.py` and
 `validate_odoo_config.py` read-only in `/opt/liwan/shared/`, set entrypoint to
@@ -295,7 +293,7 @@ affect a tenant host:
 With release routing on (`LIWAN_RELEASE_ROUTES_DIR`) a restore host is refused (`restore_release_routes_unsupported`):
 a restore target has no release route.
 
-Compose (`deploy/docker-compose.shared.yml`). `LIWAN_RESTORE_REGISTRY_DIR` must be the control plane's
+Compose (`deploy/stack/compose.yml`). `LIWAN_RESTORE_REGISTRY_DIR` must be the control plane's
 `<stateDir>/restore-registry` (mounted read-only into guard and web at `/etc/liwan-restore`; the default
 `./data/restore-registry` is an empty directory, so a stack that does not set it serves no restore host). The
 `restore` profile declares `restore-db` (same pinned image as `db`) and `restore-odoo` (same image as `odoo`), the two
@@ -476,7 +474,7 @@ by a real shared deployment.
 
 ## Public signup on the commercial host
 
-Add `deploy/docker-compose.shared-commercial.yml` after the shared overlay to
+Add `deploy/stack/compose.yml` after the shared overlay to
 expose `/register` on the prospect host. Include that host in Caddy's `DOMAIN`
 and set `LIWAN_PROSPECT_HOST` to the exact host in
 `NUXT_CUSTOMER_COMMERCIAL_PUBLIC_ORIGIN`. Use HTTPS. The overlay connects the
