@@ -7,12 +7,12 @@
 -- tables inside schema liwan_ai.
 --
 -- Inside the tenant database this is one of the two fixed scripts the admin role runs there (the other is the
--- bootstrap, deploy/releases/postgres.py tenant_bootstrap_sql). Both are catalog DDL and ACL statements only: they
+-- bootstrap, deploy/release/tenant_postgres.py tenant_bootstrap_sql). Both are catalog DDL and ACL statements only: they
 -- start with search_path pinned to pg_catalog and name every schema, so a function or operator a tenant plants in
 -- schema public cannot shadow a call made with the admin role's power. Never add a statement here that reads a
 -- tenant table or calls a function outside pg_catalog.
 --
--- The database must already be closed to PUBLIC (deploy/releases/postgres.py, tenant_isolation_sql): that
+-- The database must already be closed to PUBLIC (deploy/release/tenant_postgres.py, tenant_isolation_sql): that
 -- is the one place that revokes CONNECT from PUBLIC, whether or not the AI role exists, and this script
 -- only adds the AI role's own grant. Callers run that step first.
 --

@@ -56,7 +56,7 @@ and the `release/*` tags into a bare repository in the state directory (`repo.gi
 The release document is the image `ghcr.io/tariiq222/liwan-release:<full commit sha>`, built `FROM scratch` with
 one file `/release.json`. The command pulls it, copies the file out with `docker create` and `docker cp`, and removes
 the container and the image. It accepts the document only when its `commit`, its `release.liwanCommit` and every image
-reference (`ghcr.io/tariiq222/liwan-<name>@sha256:...`; any other host or namespace is refused) match, and `release` passes `deploy/releases/manifest.py`
+reference (`ghcr.io/tariiq222/liwan-<name>@sha256:...`; any other host or namespace is refused) match, and `release` passes `deploy/release/manifest.py`
 validation. Each image is pulled by the digest of the host's architecture from the `platforms` map. A document
 without that architecture is refused: an Arm server given an amd64-only document refuses with
 `RESULT: refused document_invalid` (`has no linux/arm64 image`). Staging and production also refuse a tag whose commit is not part of GitHub `main`, a document without `linux/arm64` digests (even on an amd64 host), and refuse
