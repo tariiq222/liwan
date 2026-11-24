@@ -161,7 +161,7 @@ chmod 0644 "$LIWAN_TENANT_REGISTRY_DIR/registry.json"
 # (${DB_ADMIN_PASSWORD}), used here by tooling only.
 # validate_odoo_config.py requires: mode 0400|0440 owned by root or the runtime
 # uid, dbfilter=^%h$, list_db=False, proxy_mode=False, workers=2,
-# data_dir=/var/lib/odoo, no db_name, no placeholders.
+# data_dir=/var/lib/odoo, server_wide_modules=base,web,liwan_shared_dbselect, no db_name, no placeholders.
 cat > "$LIWAN_SHARED_ODOO_CONFIG" << ODOO_EOF
 [options]
 db_host = db
@@ -170,6 +170,7 @@ db_password = ${DB_PASSWORD}
 admin_passwd = ${ADMIN_PASSWD}
 dbfilter = ^%h$
 list_db = False
+server_wide_modules = base,web,liwan_shared_dbselect
 proxy_mode = False
 data_dir = /var/lib/odoo
 workers = 2

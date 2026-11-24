@@ -47,7 +47,7 @@ edge; private HTTP hops are assumed protected. Cookies always Secure in shared.
 Odoo MUST have `proxy_mode=False`, `dbfilter=^%h$`, `list_db=False`. Guard sets Odoo
 Host to the registry's validated database identifier, not user input, and does not
 send X-Odoo-Database. Thus monodb discovery is restricted to that exact name, never
-the sole unrelated DB. No stock Odoo changes or monkey patches. Stock filestore
+the sole unrelated DB. No stock Odoo source changes. One exception: the server-wide module `liwan_shared_dbselect` (`server_wide_modules = base,web,liwan_shared_dbselect`, required by the config validator) replaces only how the database list is built, because stock Odoo lists databases the runtime role owns, while tenant databases are owned by the cluster admin role and the runtime role holds an explicit CONNECT grant (no PUBLIC grant counts). Without it no host selects a database and no cron thread starts. Stock filestore
 layout is `data_dir/filestore/<database>`: runtime registry rejects database != filestore.
 Odoo sessions are unwrapped only on the Odoo hop after tenant binding verification.
 

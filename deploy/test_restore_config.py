@@ -28,6 +28,7 @@ COMPLETE = (
     'list_db = False\n'
     'proxy_mode = False\n'
     'workers = 2\n'
+    'server_wide_modules = base,web,liwan_shared_dbselect\n'
 )
 
 

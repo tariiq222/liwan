@@ -3,6 +3,7 @@
     "liwan_core": 0,
     "liwan_platform": 1,
     "liwan_api": 2,
+    "liwan_shared_dbselect": 2,
     "liwan_directory": 3,
     "liwan_notify": 3,
     "liwan_ai": 3,

@@ -28,6 +28,9 @@ fi
 # single run) executes it.
 if [ -z "$SHARD" ] || [ "${SHARD%/*}" = 1 ]; then
   LIWAN_ODOO_ROOT="$ODOO_ROOT" "$ODOO_PYTHON" -B -m unittest discover -s deploy/security -p 'test_odoo_secure.py' -v
+  # The real-Odoo cases of the shared database selection (liwan_shared_dbselect) need this Python and a throwaway PostgreSQL
+  # server (initdb/pg_ctl/psql, which the case skips without); the static stage runs the rest of that file.
+  PYTHONPATH="$ODOO_ROOT" "$ODOO_PYTHON" -B -m unittest deploy/shared/test_dbselect.py -v
 fi
 SCRATCH_ROOT="$(mktemp -d)"
 mkdir -p "$SCRATCH_ROOT/data" "$SCRATCH_ROOT/logs"
