@@ -40,6 +40,7 @@ from email.utils import formatdate
 
 MAX_REQUEST = 4096
 MAX_RESPONSE = 1 << 20
+# The longest one signed call may take. A drop pass cuts it to the time its own budget still allows.
 HTTP_TIMEOUT = 30
 IAM_API = '/20160918'
 KEY_NAME_PREFIX = 'lw-'
@@ -49,9 +50,12 @@ OPERATIONS = ('ensure', 'issue', 'inspect', 'delete_key', 'drop')
 # A batch delete takes at most this many objects at a time.
 EMPTY_BATCH = 1000
 # One `drop` call drains for at most this long and then answers `emptying`, so a large bucket is drained by repeated calls with the progress of
-# each kept, instead of one call outliving the 120 s the effect gives its container (`run_oci` in tenant_storage_effect.py). The budget must stay
-# well under that timeout: the batch in flight, the multipart aborts and the two closing observation calls still have to fit after it.
+# each kept, instead of one call outliving the 120 s the effect gives its container (`run_oci` in tenant_storage_effect.py).
 DRAIN_SECONDS = 60
+# The hard end of a whole pass, drain and cleanup together (bucket delete, keys, memberships, user). No call starts after it and every call's
+# timeout is cut to what still remains, so the worst case is PASS_SECONDS plus process overhead — 100 s, inside the 120 s container timeout with
+# room for signing and startup. Without this a pass could check its budget, start a 30 s call, and then run the 6-10 cleanup calls past 120 s.
+PASS_SECONDS = 100
 # A hard cap on the object round trips of one pass, so a service that answers without deleting anything cannot hold the pass past its budget.
 DRAIN_CALLS = 50
 # One pass aborts at most this many incomplete multipart uploads: a bucket full of them cannot spend the whole budget on aborts, and the rest
@@ -77,6 +81,10 @@ class OciError(Exception):
     def __init__(self, code):
         super().__init__(code)
         self.code = code
+
+
+class DrainPaused(Exception):
+    """The pass budget is spent: `_drop` turns it into an `emptying` answer with the progress made, never into an error code."""
 
 
 # ---- names --------------------------------------------------------------------------------------------------------
@@ -171,11 +179,11 @@ def openssl_signer(key_file):
     return sign
 
 
-def urllib_transport(method, url, headers, body):
+def urllib_transport(method, url, headers, body, timeout=HTTP_TIMEOUT):
     """(status, bytes). A network failure raises OciError('oci_unreachable'); an HTTP error status is returned."""
     request = urllib.request.Request(url, data=body, method=method, headers=headers)
     try:
-        with urllib.request.urlopen(request, timeout=HTTP_TIMEOUT) as response:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
             return response.status, response.read(MAX_RESPONSE)
     except urllib.error.HTTPError as error:
         return error.code, error.read(MAX_RESPONSE)
@@ -202,9 +210,16 @@ class OciRest:
         self.signer = signer or openssl_signer(config.key_file)
         self.transport, self.clock = transport, clock
         self.key_id = '/'.join((config.tenancy, config.user, config.fingerprint))
+        # The absolute end of the pass in flight (`drop` only): no call starts after it and each one's timeout is cut to the time that remains.
+        self.budget = None
 
-    def _call(self, method, host, path, query=None, payload=None, ok=(200, 201, 204)):
-        """JSON answer, or None for a 404. 409 with a conflict is returned as {'conflict': True}."""
+    def _call(self, method, host, path, query=None, payload=None, ok=(200, 201, 204), timeout=HTTP_TIMEOUT):
+        """JSON answer, or None for a 404. 409 with a conflict is returned as {'conflict': True}. A call never outlives the pass budget."""
+        if self.budget is not None:
+            remaining = self.budget - self.clock()
+            if remaining <= 0:
+                raise DrainPaused()
+            timeout = min(timeout, remaining)
         target = path + ('?' + urllib.parse.urlencode(query) if query else '')
         body = None if payload is None else json.dumps(payload, separators=(',', ':')).encode()
         date = formatdate(self.clock(), usegmt=True)
@@ -215,7 +230,7 @@ class OciRest:
         if body is not None:
             headers.update({'content-type': 'application/json', 'content-length': str(len(body)),
                             'x-content-sha256': base64.b64encode(hashlib.sha256(body).digest()).decode()})
-        status, raw = self.transport(method, 'https://' + host + target, headers, body)
+        status, raw = self.transport(method, 'https://' + host + target, headers, body, timeout)
         if status in ok:
             if not raw:
                 return {}
@@ -330,11 +345,11 @@ class OciRest:
     def add_member(self, user_id, group_id):
         return self._identity('POST', '/userGroupMemberships', payload={'userId': user_id, 'groupId': group_id})
 
-    def find_memberships(self, user_id, group_id):
-        """The membership rows of this user in this group (there is at most one)."""
+    def list_memberships(self, user_id):
+        """The ids of every group membership of this user, in any group: OCI refuses to delete a user that belongs to one (409)."""
         found = self._identity('GET', '/userGroupMemberships', query={
-            'compartmentId': self.config.tenancy, 'userId': user_id, 'groupId': group_id})
-        return [item for item in found if isinstance(item, dict) and isinstance(item.get('id'), str)] if isinstance(found, list) else []
+            'compartmentId': self.config.tenancy, 'userId': user_id})
+        return [item['id'] for item in found if isinstance(item, dict) and isinstance(item.get('id'), str)] if isinstance(found, list) else []
 
     def remove_membership(self, membership_id):
         return self._delete_iam('/userGroupMemberships/' + membership_id)
@@ -486,14 +501,18 @@ class Provisioner:
         return {}
 
     def _drop(self, name, request):
-        """Empty the bucket, then remove the bucket, the policy, the group membership, the keys and the user of THIS name.
+        """Empty the bucket, then remove the bucket, the keys, the group memberships and the user of THIS name.
 
         Every lookup is by `name`, which is derived from the tenant id alone, so no other tenant's resource can be reached.
         Each step is idempotent and treats "already absent" as done; a bucket too large for one call is reported `emptying`
-        and the next call continues. In the fixed policy mode the policy and the group belong to every tenant: they stay.
+        and the next call continues. A pass that reaches its budget stops there and reports `emptying` too: the next call
+        resumes, because every step looks at what is actually left.
+        In the fixed policy mode the policy and the group belong to every tenant: they stay. The user's memberships are removed
+        in both modes: a user still in a group cannot be deleted, and a tenant provisioned under `per_tenant` keeps a group after
+        the mode changes.
         """
-        namespace = self.api.namespace()
-        deadline = self.clock() + DRAIN_SECONDS
+        start = self.clock()
+        drain_until = start + DRAIN_SECONDS
         objects_deleted, bucket_removed = 0, False
 
         def still_going():
@@ -501,59 +520,66 @@ class Provisioner:
             return {'bucket': name, 'state': 'emptying', 'objectsDeleted': objects_deleted, 'keysDeleted': 0,
                     'removed': {'bucket': False, 'policy': False, 'user': False, 'group': False}}
 
-        if self.api.get_bucket(namespace, name) is not None:
-            for _ in range(DRAIN_CALLS):
-                names = self.api.list_objects(namespace, name, EMPTY_BATCH)
-                if not names:
-                    break
-                objects_deleted += self.api.delete_objects(namespace, name, names)
-                if self.clock() >= deadline:
-                    break
-            if self.api.list_objects(namespace, name, 1):
-                return still_going()
-            # Incomplete multipart uploads keep a bucket non-empty in OCI even with no object in it: abort them, then delete the bucket.
-            aborted = 0
-            while aborted < ABORT_LIMIT and self.clock() < deadline:
-                uploads = self.api.list_multipart_uploads(namespace, name, min(EMPTY_BATCH, ABORT_LIMIT - aborted))
-                if not uploads:
-                    break
-                for object_name, upload_id in uploads:
-                    if aborted >= ABORT_LIMIT or self.clock() >= deadline:
-                        break
-                    self.api.abort_multipart_upload(namespace, name, object_name, upload_id)
-                    aborted += 1
-            if self.api.list_multipart_uploads(namespace, name, 1):
-                return still_going()
-            self.api.delete_bucket(namespace, name)
+        self.api.budget = start + PASS_SECONDS
+        try:
+            namespace = self.api.namespace()
             if self.api.get_bucket(namespace, name) is not None:
-                raise OciError('bucket_still_present')
-            bucket_removed = True
-        user = self.api.find_user(name)
-        user_id = user['id'] if user and isinstance(user.get('id'), str) else None
-        keys_deleted = 0
-        if user_id:
-            for key in self._keys(user, every_state=True):
-                self.api.delete_key(user_id, key['id'])
-                keys_deleted += 1
-        policy_removed = group_removed = False
-        if self.config.policy_mode == 'per_tenant':
-            policy = self.api.find_policy(name)
-            if policy and isinstance(policy.get('id'), str):
-                self.api.delete_policy(policy['id'])
-                policy_removed = True
-            group = self.api.find_group(name)
-            if group and isinstance(group.get('id'), str):
-                if user_id:
-                    for membership in self.api.find_memberships(user_id, group['id']):
-                        self.api.remove_membership(membership['id'])
-                self.api.delete_group(group['id'])
-                group_removed = True
-        user_removed = False
-        if user_id:
-            self.api.delete_user(user_id)
-            user_removed = True
-        return {'bucket': name, 'state': 'removed', 'objectsDeleted': objects_deleted, 'keysDeleted': keys_deleted,
-                'removed': {'bucket': bucket_removed, 'policy': policy_removed, 'user': user_removed, 'group': group_removed}}
+                for _ in range(DRAIN_CALLS):
+                    names = self.api.list_objects(namespace, name, EMPTY_BATCH)
+                    if not names:
+                        break
+                    objects_deleted += self.api.delete_objects(namespace, name, names)
+                    if self.clock() >= drain_until:
+                        break
+                if self.api.list_objects(namespace, name, 1):
+                    return still_going()
+                # Incomplete multipart uploads keep a bucket non-empty in OCI even with no object in it: abort them, then delete the bucket.
+                aborted = 0
+                while aborted < ABORT_LIMIT and self.clock() < drain_until:
+                    uploads = self.api.list_multipart_uploads(namespace, name, min(EMPTY_BATCH, ABORT_LIMIT - aborted))
+                    if not uploads:
+                        break
+                    for object_name, upload_id in uploads:
+                        if aborted >= ABORT_LIMIT or self.clock() >= drain_until:
+                            break
+                        self.api.abort_multipart_upload(namespace, name, object_name, upload_id)
+                        aborted += 1
+                if self.api.list_multipart_uploads(namespace, name, 1):
+                    return still_going()
+                self.api.delete_bucket(namespace, name)
+                if self.api.get_bucket(namespace, name) is not None:
+                    raise OciError('bucket_still_present')
+                bucket_removed = True
+            user = self.api.find_user(name)
+            user_id = user['id'] if user and isinstance(user.get('id'), str) else None
+            keys_deleted = 0
+            if user_id:
+                for key in self._keys(user, every_state=True):
+                    self.api.delete_key(user_id, key['id'])
+                    keys_deleted += 1
+                # Whatever group the user is still in: OCI refuses to delete a user that belongs to one (409), and that is not "already gone".
+                for membership_id in self.api.list_memberships(user_id):
+                    self.api.remove_membership(membership_id)
+            policy_removed = group_removed = False
+            if self.config.policy_mode == 'per_tenant':
+                policy = self.api.find_policy(name)
+                if policy and isinstance(policy.get('id'), str):
+                    self.api.delete_policy(policy['id'])
+                    policy_removed = True
+                group = self.api.find_group(name)
+                if group and isinstance(group.get('id'), str):
+                    self.api.delete_group(group['id'])
+                    group_removed = True
+            user_removed = False
+            if user_id:
+                self.api.delete_user(user_id)
+                user_removed = True
+            return {'bucket': name, 'state': 'removed', 'objectsDeleted': objects_deleted, 'keysDeleted': keys_deleted,
+                    'removed': {'bucket': bucket_removed, 'policy': policy_removed, 'user': user_removed, 'group': group_removed}}
+        except DrainPaused:
+            return still_going()
+        finally:
+            self.api.budget = None
 
 
 

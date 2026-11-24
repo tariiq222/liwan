@@ -555,6 +555,13 @@ class DropTest(Case):
         self.assertEqual(2, len(self.world.api.objects[bucket]))
         self.assertEqual([], self.destructive())
 
+    def test_the_dropped_marker_is_truncated_so_it_stays_valid_json(self):
+        self.provisioned(objects=1)
+        self.marker.write_text('{"requestId": "' + 'f' * 400 + '", "droppedAt": 1}')
+        self.assertEqual('removed', self.run_op('drop')['state'])
+        # The rewrite truncated the longer old body instead of leaving its tail behind.
+        self.assertEqual({'requestId': REQUEST_ID, 'droppedAt': int(self.world.clock())}, json.loads(self.marker.read_text()))
+
     def test_a_finished_drop_blocks_every_later_provisioning_of_that_tenant(self):
         self.provisioned(objects=1)
         self.assertEqual('removed', self.run_op('drop')['state'])

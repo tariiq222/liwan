@@ -380,7 +380,7 @@ class TenantStorageEffect:
         body = json.dumps({'requestId': request['requestId'], 'droppedAt': int(self.clock())}).encode()
         try:
             marker.parent.mkdir(mode=0o700, exist_ok=True)
-            fd = os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600)
+            fd = os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600)
         except OSError:
             raise EffectError('runtime_invalid') from None
         try:

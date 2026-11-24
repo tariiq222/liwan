@@ -116,8 +116,8 @@ class FakeOci:
         self.members.add((user_id, group_id))
         self.created.append(('member', user_id))
 
-    def find_memberships(self, user_id, group_id):
-        return [{'id': 'm-' + user_id + '-' + group_id}] if (user_id, group_id) in self.members else []
+    def list_memberships(self, user_id):
+        return [{'id': 'm-' + user_id + '-' + group_id}['id'] for candidate, group_id in sorted(self.members) if candidate == user_id]
 
     def remove_membership(self, membership_id):
         for pair in list(self.members):
@@ -127,6 +127,8 @@ class FakeOci:
 
     def delete_user(self, user_id):
         self._check()
+        if any(candidate == user_id for candidate, _ in self.members):
+            raise oci.OciError('oci_refused')  # 409: the user still belongs to a group
         self.users.pop(user_id, None)
         self.keys.pop(user_id, None)
         self.created.append(('user_delete', user_id))
@@ -464,10 +466,11 @@ class RunTest(unittest.TestCase):
 
 class FakeTransport:
     def __init__(self, status=200, body=b'{}'):
-        self.status, self.body, self.calls = status, body, []
+        self.status, self.body, self.calls, self.timeouts = status, body, [], []
 
-    def __call__(self, method, url, headers, body):
+    def __call__(self, method, url, headers, body, timeout=None):
         self.calls.append((method, url, headers, body))
+        self.timeouts.append(timeout)
         if isinstance(self.status, Exception):
             raise self.status
         return self.status, self.body
@@ -558,6 +561,29 @@ class RestTest(unittest.TestCase):
         rest.abort_multipart_upload('ns', 'lw-x', 'big dir/a b.bin', 'up-2')
         self.assertEqual('https://objectstorage.me-jeddah-1.oraclecloud.com/n/ns/b/lw-x/u/big%20dir/a%20b.bin?uploadId=up-2', transport.calls[0][1])
         self.assertTrue(self.signed[-1].startswith('(request-target): delete /n/ns/b/lw-x/u/big%20dir/a%20b.bin?uploadId=up-2'))
+
+    def test_no_call_outlives_the_pass_budget_and_its_timeout_shrinks_to_the_remainder(self):
+        now = [1_800_000_000]
+        transport = FakeTransport(200, b'{}')
+        rest = oci.OciRest(oci.Config(ENV), signer=lambda message: 'c2ln', transport=transport, clock=lambda: now[0])
+        rest.get_bucket('ns', 'b')
+        self.assertEqual([oci.HTTP_TIMEOUT], transport.timeouts)  # outside a drop: the ordinary timeout
+        rest.budget = now[0] + 12
+        rest.get_bucket('ns', 'b')
+        self.assertEqual(12, transport.timeouts[-1])  # the pass cuts this call to what remains, not 30 s
+        now[0] += 13
+        with self.assertRaises(oci.DrainPaused):
+            rest.get_bucket('ns', 'b')
+        self.assertEqual(2, len(transport.calls))  # past the budget no call starts at all
+        rest.budget = None
+        rest.get_bucket('ns', 'b')
+        self.assertEqual(oci.HTTP_TIMEOUT, transport.timeouts[-1])
+
+    def test_a_pass_budget_is_a_hard_end_under_the_container_timeout(self):
+        # The effect gives its container 120 s (`run_oci`); a pass may not come near it: drain budget + cleanup, plus one call's own time at most.
+        self.assertLess(oci.PASS_SECONDS, 120)
+        self.assertLess(oci.DRAIN_SECONDS, oci.PASS_SECONDS)
+        self.assertLessEqual(oci.PASS_SECONDS - oci.DRAIN_SECONDS, oci.HTTP_TIMEOUT * 2)
 
     def test_a_conflicting_iam_delete_is_an_error_not_a_value(self):
         with self.assertRaises(oci.OciError) as caught:
@@ -691,6 +717,41 @@ class DropTest(unittest.TestCase):
             self.assertEqual('removed', handle(prov, 'drop')['state'])
         self.assertNotIn(bucket, self.api.uploads)
         self.assertNotIn(bucket, self.api.buckets)
+
+    def test_a_user_still_in_a_group_from_the_per_tenant_mode_is_removed_and_deleted_under_fixed(self):
+        # Provisioned while the deployment still used one group per tenant: the user is a member of the tenant's group.
+        prov, bucket, _ = self.provisioned(mode='per_tenant')
+        self.assertTrue(any(user_id == 'u-' + bucket for user_id, _ in self.api.members))
+        fixed = provisioner(self.api, self.clock, 'fixed')
+        result = handle(fixed, 'drop')
+        self.assertEqual('removed', result['state'])
+        self.assertTrue(result['removed']['user'])
+        self.assertFalse(any(user_id == 'u-' + bucket for user_id, _ in self.api.members))
+        self.assertNotIn('u-' + bucket, self.api.users)
+        self.assertNotIn(bucket, self.api.buckets)
+        # The fixed mode never deletes a group or the shared policy: the tenant's own group outlives its member.
+        self.assertIn(bucket, [group['name'] for group in self.api.groups.values()])
+        # Why the memberships must go first: with the lookup blinded, the user delete conflicts after the bucket is already gone.
+        other, other_bucket, _ = self.provisioned('beta', mode='per_tenant')
+        with patch.object(FakeOci, 'list_memberships', lambda api, user_id: []):
+            with self.assertRaises(oci.OciError) as caught:
+                handle(provisioner(self.api, self.clock, 'fixed'), 'drop', 'beta')
+        self.assertEqual('oci_refused', caught.exception.code)
+        self.assertNotIn(other_bucket, self.api.buckets)
+        self.assertIn('u-' + other_bucket, self.api.users)
+
+    def test_a_pass_that_spends_its_budget_reports_emptying_and_touches_nothing_more(self):
+        prov, bucket, _ = self.provisioned(objects=2)
+        # The budget runs out at the bucket delete: the pass answers emptying with the objects it removed and never reaches the user.
+        with patch.object(self.api, 'delete_bucket', side_effect=oci.DrainPaused()):
+            answer = handle(prov, 'drop')
+        self.assertEqual('emptying', answer['state'])
+        self.assertEqual(2, answer['objectsDeleted'])
+        self.assertEqual({'bucket': False, 'policy': False, 'user': False, 'group': False}, answer['removed'])
+        self.assertIn('u-' + bucket, self.api.users)
+        self.assertEqual('removed', handle(prov, 'drop')['state'])
+        self.assertNotIn(bucket, self.api.buckets)
+        self.assertNotIn('u-' + bucket, self.api.users)
 
     def test_an_incomplete_multipart_upload_is_aborted_before_the_bucket_goes(self):
         prov, bucket, _ = self.provisioned()

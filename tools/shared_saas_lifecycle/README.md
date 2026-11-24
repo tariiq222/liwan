@@ -27,9 +27,11 @@ tenant at a time (an advisory lock file in the effect-owned `tenant-storage` sta
 
 `drop` is the other direction of `ensure`, and it belongs to this effect: the tenant deletion runs it as its own step before the
 database goes (`remove_storage` in `docs/operations/tenant-deletion-effects.md`). It empties the tenant's bucket, aborts the incomplete
-multipart uploads that would keep it non-empty, deletes it, then deletes the keys and the IAM user of that name, plus the policy and the
-group in the `per_tenant` mode; the `fixed` policy and group serve every tenant and are never deleted. Every step treats "already
-absent" as done, so a resumed deletion finishes what an earlier run started. The object batch goes to `POST
+multipart uploads that would keep it non-empty, deletes it, then deletes the keys, the user's group memberships and the IAM user of that
+name, plus the policy and the group in the `per_tenant` mode; the `fixed` policy and group serve every tenant and are never deleted.
+Memberships go in both modes, because OCI refuses to delete a user that still belongs to a group (409) and a tenant provisioned under
+`per_tenant` keeps its member group after the mode changes. Every step treats "already absent" as done, so a resumed deletion finishes
+what an earlier run started. The object batch goes to `POST
 /n/<namespace>/b/<bucket>/actions/batchDeleteObjects` (`{"objects": [{"objectName": ...}]}`, answered `deleted` and `failed`; a `failed`
 entry is accepted only with status 404).
 
@@ -47,7 +49,7 @@ would skip the `bucket_mismatch` check over a stale record that points at anothe
 |---|---|
 | `result` with `state: pending_key`, `stage`, `retryAfterSeconds` | the key is stored but a new OCI key needs about 7 minutes; call `verify` (or `ensure`) again after that. No call waits |
 | `result` with `state: active`, `stage: verified` | a real write and read through the stored key worked; only now is the storage the attachment default |
-| `result` with `state: emptying`, `stage: objects_removed`, `objectsDeleted`, `retryAfterSeconds` | a `drop` removed objects for its whole time budget (60 s, well under the effect's 120 s container timeout) or aborted its cap of 200 uploads and the bucket still holds more; the next call continues |
+| `result` with `state: emptying`, `stage: objects_removed`, `objectsDeleted`, `retryAfterSeconds` | a `drop` spent its budgets and the bucket still holds more (the object drain stops at 60 s, the whole pass ends at 100 s and its calls never outlive it, all inside the effect's 120 s container timeout) or aborted its cap of 200 uploads; the next call continues |
 | `result` with `state: removed`, `stage: resources_removed`, `objectsDeleted`, `keysDeleted` | a `drop` emptied the bucket and removed every resource of this tenant |
 | `error_code` | `oci_refused`, `oci_unreachable`, `key_not_valid` (not working 15 minutes after issue), `store_failed`, `limit_reached`, `bucket_mismatch` (the stored record names another bucket: never overwritten), `bucket_still_present` (a `drop` that deleted the bucket and then still saw it), or an effect code (`request_invalid`, `operation_in_progress`, `authority_lost`, `script_failed`) |
 
