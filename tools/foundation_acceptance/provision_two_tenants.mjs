@@ -144,6 +144,7 @@ try {
     LIWAN_SITE_SCHEME: '', LIWAN_AUTO_HTTPS: 'ignore_loaded_certs',
     LIWAN_TENANT_REGISTRY_DIR: registryDir, LIWAN_RESTORE_REGISTRY_DIR: restoreRegistryDir, LIWAN_SHARED_ODOO_CONFIG: odooConfig,
     LIWAN_CONTROL_STATE_DIR: stateDir, LIWAN_MAINTENANCE_DIR: join(runDir, 'maintenance'),
+    LIWAN_RELEASE_PROOF_DIR: join(runDir, 'release-proof'),
     ...(commercial ? {
       LIWAN_RESTORE_ODOO_CONFIG: restoreOdooConfig,
       LIWAN_RESTORE_ALLOW: 'private_ranges 127.0.0.1 ::1',
@@ -153,6 +154,7 @@ try {
     ...Object.fromEntries(networkVariables.map((key, index) => [key, subnets[index]])),
   }
   mkdirSync(harness.LIWAN_MAINTENANCE_DIR, { mode: 0o755 })
+  mkdirSync(harness.LIWAN_RELEASE_PROOF_DIR, { mode: 0o755 })
   writePrivate(join(stackDir, 'harness.env'), dotenv(harness))
   if (!command('render-stack', 'python3', ['-B', join(sourceRoot, 'tools/shared_acceptance_live/stack_render.py'), 'render', stackDir]).ok) throw new Error('stack render failed')
   if (commercial) {

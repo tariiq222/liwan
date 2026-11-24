@@ -25,20 +25,28 @@ COMMIT = 'a' * 40
 TAG_COMMIT = 'c' * 40
 SRV = '/srv/liwan-staging'
 CONFIG = '/etc/liwan-release/staging.env'
+# A4.7a: the signing key and the directory the edge serves; the shared env file names the same directory.
+PROOF_KEY = '/etc/liwan-release/staging-release-proof.key'
+PROOF_DIR = f'{SRV}/release-proof'
+PROOF_URL = 'https://app.staging.example.test/_liwan/release-proof/'
 CONFIG_TEXT = (f'LIWAN_RELEASE_PROJECT=liwan-shared-staging\nLIWAN_SHARED_ENV_FILE={SRV}/shared.env\n'
                'LIWAN_RELEASE_PG_DUMP=/usr/bin/pg_dump\nLIWAN_RELEASE_PG_HOST=127.0.0.1\n'
                'LIWAN_RELEASE_CONTROL_PG_HOST=127.0.0.1\nLIWAN_RELEASE_ODOO_DATA_DIR=/var/lib/docker/volumes/x/_data\n'
-               'LIWAN_RELEASE_DISK_PATH=/var/lib/docker\nPGPASSFILE=/etc/liwan-release/pgpass\n')
+               f'LIWAN_RELEASE_DISK_PATH=/var/lib/docker\nPGPASSFILE=/etc/liwan-release/pgpass\n'
+               f'LIWAN_RELEASE_PROOF_KEY_FILE={PROOF_KEY}\nLIWAN_RELEASE_PROOF_DIR={PROOF_DIR}\n')
 USAGE_KEY = 'ab' * 32
 SHARED_TEXT = (f'LIWAN_CONTROL_CONFIG_DIR={SRV}/control/config\nLIWAN_CONTROL_PRIVATE_DIR={SRV}/control/private\n'
                f'LIWAN_TENANT_REGISTRY_DIR={SRV}/state/registry\nLIWAN_AI_PLATFORM_DIR={SRV}/control/state/ai-platform\n'
                f'LIWAN_SHARED_COMPOSE_FILE={SRV}/shared.compose.json\nDB_PASSWORD=runtime-pass\nDB_ADMIN_PASSWORD=admin-pass\n'
-               f'LIWAN_AI_USAGE_KEY={USAGE_KEY}\nLIWAN_TENANT_STORAGE_FILES_DIR={SRV}/control/tenant-storage\n')
+               f'LIWAN_AI_USAGE_KEY={USAGE_KEY}\nLIWAN_TENANT_STORAGE_FILES_DIR={SRV}/control/tenant-storage\n'
+               f'LIWAN_RELEASE_PROOF_DIR={PROOF_DIR}\n')
 CREDENTIAL_TEXT = f'LIWAN_GHCR_READ_USER=reader\nLIWAN_GHCR_READ_TOKEN={SECRET}\nLIWAN_GITHUB_READ_TOKEN={SECRET}\n'
 GIB = 1024 ** 3
 SS_HEADER = 'State Recv-Q Send-Q Local Address:Port Peer Address:Port'
 SYSTEMD = '/etc/systemd/system'
 STATE = '/var/lib/liwan-release/staging'
+# The fake's scratch directory: a capability probe writes here and nothing it writes is kept or reused.
+SCRATCH = '/scratch/docker-config'
 # The three rules of A3.6, as the arguments after the chain name.
 FIREWALL_RULES = [
     ['DOCKER-USER', '-i', 'liwan-dbhost', '-m', 'conntrack', '--ctstate', 'NEW', '-j', 'DROP'],
@@ -86,6 +94,8 @@ class FakeHost:
         self.overrides: list = []  # (predicate(argv), (code, output)) answered before everything else
         self.disk: dict[str, tuple[int, int]] = {}
         self.memory = (12 * GIB, 4 * GIB)
+        # A host whose openssl can make and use an Ed25519 key; an empty host is the one that may lack it.
+        self.openssl_ed25519 = False
 
     # --- reads
     def euid(self):
@@ -133,7 +143,7 @@ class FakeHost:
 
     @contextlib.contextmanager
     def scratch_dir(self):
-        yield '/scratch/docker-config'
+        yield SCRATCH
 
     # --- changes
     def make_dir(self, path, mode, uid, gid):
@@ -149,6 +159,10 @@ class FakeHost:
     def chown(self, path, uid, gid):
         self.mutations.append(f'chown {path}')
         self.files[str(path)].st_uid, self.files[str(path)].st_gid = uid, gid
+
+    def chmod(self, path, mode):
+        self.mutations.append(f'chmod {path}')
+        self.files[str(path)].st_mode = stat.S_IFREG | mode
 
     def symlink(self, target, link):
         self.mutations.append(f'symlink {link}')
@@ -178,6 +192,8 @@ class FakeHost:
             return self.firewall_script(argv)
         elif command.endswith('init-host.sh'):
             self.init_host(argv)
+        elif command == 'openssl':
+            return self.openssl(argv)
         elif argv[1:] == ['--version']:
             return (0, self.versions[command]) if command in self.versions else (127, '')
         elif command == 'git':
@@ -223,11 +239,21 @@ class FakeHost:
         for key in bringup.INIT_HOST_DIRS:
             self.files[shared[key]] = directory(0o2750)
 
+    def openssl(self, argv):
+        """Ed25519 support, and a `-out` path that holds a made thing; the capability probe's scratch files never persist."""
+        if not self.openssl_ed25519:
+            return 1, 'Algorithm ED25519 not found\n'
+        out = argv[argv.index('-out') + 1] if '-out' in argv else ''
+        if out and not out.startswith(SCRATCH):
+            self.write_new(out, 'openssl-made' if 'genpkey' in argv else 'openssl-public-part', 0o644)
+        return 0, ''
+
 
 def seeded_host(euid: int = 0) -> FakeHost:
     """A host that a human prepared up to the hand-written files; everything the tool may create is still missing."""
     host = FakeHost(euid)
     host.groups['docker'] = [999, ['ubuntu']]
+    host.files['/etc/liwan-release'] = directory(0o700)
     host.files[CONFIG] = regular(0o600, text=CONFIG_TEXT)
     host.files[f'{SRV}/shared.env'] = regular(0o600, text=SHARED_TEXT)
     host.files['/etc/liwan-release/github-read'] = regular(0o600, text=CREDENTIAL_TEXT)
@@ -235,6 +261,7 @@ def seeded_host(euid: int = 0) -> FakeHost:
     host.files['/opt/liwan/current/deploy/control-plane/init-host.sh'] = regular(0o755)  # as seen through the link
     host.versions = {'node': 'v22.3.0', 'npm': '10.8.1', 'pg_dump': 'pg_dump (PostgreSQL) 16.4', 'git': 'git version 2.43.0',
                      'python3': 'Python 3.12.3'}
+    host.openssl_ed25519 = True
     return host
 
 
@@ -1077,6 +1104,101 @@ class PostRunTest(unittest.TestCase):
             with self.subTest(name):
                 host.overrides = [(unit_active, active), (ticking, journal)]
                 self.assertEqual(expected, self.post(host, 'post-run-worker-ticks'))
+
+
+class ReleaseProofTest(unittest.TestCase):
+    """A4.7a/A8.2c: the signing key and its directory, the pinned public key, and the proof transport."""
+
+    def item(self, host, name):
+        return statuses(run(host)[1])[name]
+
+    def test_openssl_must_generate_sign_and_verify_ed25519(self):
+        host = seeded_host()
+        host.openssl_ed25519 = False
+        line = line_of(run(host)[1], 'release-proof-openssl')
+        self.assertTrue(line.startswith('MISSING'))
+        self.assertIn('OpenSSL 3', line)
+        host.openssl_ed25519 = True
+        _, lines = run(host)
+        self.assertEqual('ok', statuses(lines)['release-proof-openssl'])
+        probe = [call for call in host.calls if call[:2] == ['openssl', 'genpkey']][0]
+        self.assertTrue(probe[probe.index('-out') + 1].startswith(f'{SCRATCH}/'))
+        self.assertTrue(any(call[:2] == ['openssl', 'pkeyutl'] for call in host.calls))
+        self.assertNotIn(f'{SCRATCH}/probe', '\n'.join(lines))
+
+    def test_apply_makes_the_directory_and_the_key_pair_once(self):
+        host = seeded_host()
+        self.assertEqual('MISSING', self.item(host, 'release-proof-dir'))
+        code, lines = run(host, '--apply')
+        self.assertEqual(0, code, lines)
+        self.assertEqual({'created'}, {statuses(lines)['release-proof-dir'], statuses(lines)['release-proof-key']})
+        folder, key, public = host.files[PROOF_DIR], host.files[PROOF_KEY], host.files[PROOF_KEY + '.pub']
+        self.assertEqual((0o755, 0, 0), (stat.S_IMODE(folder.st_mode), folder.st_uid, folder.st_gid))
+        self.assertEqual((0o600, 0), (stat.S_IMODE(key.st_mode), key.st_uid))
+        self.assertEqual((0o644, 0), (stat.S_IMODE(public.st_mode), public.st_uid))
+        key.text, public.text = 'existing key', 'existing public part'
+        host.mutations.clear()
+        code, second = run(host, '--apply')
+        self.assertEqual(0, code)
+        self.assertEqual({'ok'}, set(statuses(second).values()))
+        self.assertEqual(('existing key', 'existing public part'),
+                         (host.files[PROOF_KEY].text, host.files[PROOF_KEY + '.pub'].text))
+        self.assertEqual([], [m for m in host.mutations if PROOF_KEY in m or PROOF_DIR in m])
+
+    def test_a_wrong_mode_or_a_directory_the_shared_env_file_disagrees_with_is_reported(self):
+        host = seeded_host()
+        run(host, '--apply')
+        host.files[PROOF_KEY] = regular(0o644, text='k')
+        self.assertIn('expected 0600 0', line_of(run(host)[1], 'release-proof-key'))
+        host.files[PROOF_DIR] = directory(0o750)
+        self.assertIn('expected 0755 0:0', line_of(run(host)[1], 'release-proof-dir'))
+        host.files[f'{SRV}/shared.env'] = regular(0o600, text=SHARED_TEXT.replace(
+            f'LIWAN_RELEASE_PROOF_DIR={PROOF_DIR}\n', 'LIWAN_RELEASE_PROOF_DIR=/srv/elsewhere/proof\n'))
+        self.assertIn('/srv/elsewhere/proof', line_of(run(host)[1], 'release-proof-dir'))
+
+    def test_the_pinned_public_key_is_required_only_where_a_proof_is_required(self):
+        self.assertEqual('ok', self.item(seeded_host(), 'release-proof-public-key'))
+        pinned = '/etc/liwan-release/staging-release-proof.pub'
+        host = seeded_host()
+        with_config(host, f'{bringup.PROOF_URL_KEY}={PROOF_URL}\n{bringup.PROOF_PUBLIC_KEY_KEY}={pinned}\n')
+        line = line_of(run(host)[1], 'release-proof-public-key')
+        self.assertTrue(line.startswith('MISSING'))
+        self.assertIn(f'{pinned} absent', line)
+        self.assertIn('copy the signing environment', line)
+        host.files[pinned] = regular(0o644, text='public key')
+        self.assertEqual('ok', self.item(host, 'release-proof-public-key'))
+        for name, found in (('writable by others', regular(0o666, text='public key')),
+                            ('owned by another user', regular(0o644, 501, 0, text='public key'))):
+            with self.subTest(name):
+                host.files[pinned] = found
+                self.assertEqual('MISSING', self.item(host, 'release-proof-public-key'))
+        url_only = seeded_host()
+        with_config(url_only, f'{bringup.PROOF_URL_KEY}={PROOF_URL}\n')
+        self.assertIn('set together or not at all', line_of(run(url_only)[1], 'release-proof-public-key'))
+
+    def test_the_proof_egress_requires_404_and_not_a_dns_or_tls_failure(self):
+        host = seeded_host()
+        with_config(host, f'{bringup.PROOF_URL_KEY}={PROOF_URL}\n{bringup.PROOF_PUBLIC_KEY_KEY}={PROOF_KEY}.pub\n')
+        for answer, expected in (((0, '404'), 'ok'), ((0, '200'), 'MISSING'), ((0, '502'), 'MISSING'),
+                                 ((6, ''), 'MISSING'), ((0, ''), 'MISSING')):
+            with self.subTest(answer=answer):
+                host.overrides = [(lambda argv: argv[0] == 'curl', answer)]
+                self.assertEqual(expected, statuses(run(host, '--post-run')[1])['release-proof-egress'])
+        probe = [call for call in host.calls if call[0] == 'curl' and call[-1].startswith(PROOF_URL)][0]
+        self.assertEqual(f'{PROOF_URL}{bringup.PROOF_PROBE_COMMIT}.json', probe[-1])
+        self.assertIn('--max-time', probe)
+        # Nothing configured: the environment requires no proof, so the item checks no transport.
+        self.assertEqual('ok', statuses(run(seeded_host(), '--post-run')[1])['release-proof-egress'])
+
+    def test_a_proof_url_that_is_not_https_or_has_no_trailing_slash_is_reported(self):
+        for url in ('http://app.staging.example.test/_liwan/release-proof/',
+                    'https://app.staging.example.test/_liwan/release-proof'):
+            with self.subTest(url=url):
+                host = seeded_host()
+                with_config(host, f'{bringup.PROOF_URL_KEY}={url}\n{bringup.PROOF_PUBLIC_KEY_KEY}={PROOF_KEY}.pub\n')
+                line = line_of(run(host, '--post-run')[1], 'release-proof-egress')
+                self.assertTrue(line.startswith('MISSING'))
+                self.assertIn('ending in /', line)
 
 
 class RealHostTest(unittest.TestCase):

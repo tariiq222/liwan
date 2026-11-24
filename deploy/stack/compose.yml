@@ -84,6 +84,15 @@ services:
         read_only: true
         bind: { create_host_path: false }
       # @endif
+      # The signed release proofs of the commits this environment served (deploy/release/proof.py). The next environment
+      # fetches `/_liwan/release-proof/<commit>.json` from this directory through the route above. Bring-up creates it
+      # (row A4.7a) and the release config names the same path, so a missing one stops `compose up` here instead of
+      # Docker creating an empty directory the release would then fail to publish into.
+      - type: bind
+        source: ${LIWAN_RELEASE_PROOF_DIR:?set LIWAN_RELEASE_PROOF_DIR to the directory the edge serves proofs from}
+        target: /srv/liwan-release-proof
+        read_only: true
+        bind: { create_host_path: false }
     networks:
       - edge
       # @if LIWAN_STACK_COMMERCIAL_EDGE

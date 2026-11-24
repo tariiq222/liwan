@@ -97,9 +97,11 @@ TENANT_DATABASES=("$TENANT_A_DB" "$TENANT_B_DB")
 REGISTRY_DIR="$TMPDIR_BASE/registry"
 CONTROL_STATE_DIR="$TMPDIR_BASE/control-state"
 CLASSIFICATION_DIR="$CONTROL_STATE_DIR/classifications"
-mkdir -p "$REGISTRY_DIR" "$CLASSIFICATION_DIR" "$TMPDIR_BASE/restore-registry" "$TMPDIR_BASE/maintenance"
+# The signed release proof the edge serves (deploy/stack/compose.yml mounts it read-only; the directory must exist).
+PROOF_DIR="$TMPDIR_BASE/release-proof"
+mkdir -p "$REGISTRY_DIR" "$CLASSIFICATION_DIR" "$TMPDIR_BASE/restore-registry" "$TMPDIR_BASE/maintenance" "$PROOF_DIR"
 # Readable by the unprivileged guard/web/odoo users.
-chmod 0755 "$REGISTRY_DIR" "$CONTROL_STATE_DIR" "$CLASSIFICATION_DIR" "$TMPDIR_BASE/restore-registry" "$TMPDIR_BASE/maintenance"
+chmod 0755 "$REGISTRY_DIR" "$CONTROL_STATE_DIR" "$CLASSIFICATION_DIR" "$TMPDIR_BASE/restore-registry" "$TMPDIR_BASE/maintenance" "$PROOF_DIR"
 
 # --- Harness values: the whole difference from local.env.example ---
 # The edge binds 127.0.0.1 on 443/80: the guard resolves the tenant from a Host header without a port, and Caddy
@@ -137,6 +139,7 @@ LIWAN_SHARED_ODOO_CONFIG=$RUN_DIR/odoo.conf
 LIWAN_TENANT_REGISTRY_DIR=$REGISTRY_DIR
 LIWAN_RESTORE_REGISTRY_DIR=$TMPDIR_BASE/restore-registry
 LIWAN_MAINTENANCE_DIR=$TMPDIR_BASE/maintenance
+LIWAN_RELEASE_PROOF_DIR=$PROOF_DIR
 LIWAN_CONTROL_STATE_DIR=$CONTROL_STATE_DIR
 HARNESS_EOF
 chmod 0600 "$RUN_DIR/harness.env"

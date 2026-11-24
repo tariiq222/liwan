@@ -122,7 +122,7 @@ class ComposeWiring(unittest.TestCase):
                         (project / source).parent.mkdir(parents=True, exist_ok=True)
                         (project / source).write_text('x\n', encoding='utf-8')
                 (project / 'private').mkdir(exist_ok=True)
-                for directory in ('registry', 'restore', 'maint'):
+                for directory in ('registry', 'restore', 'maint', 'proof'):
                     (project / directory).mkdir()
                 # The snippets are mounted from beside the stack, so it runs from a copy of deploy/stack with them as the test controls them.
                 deploy = project / 'deploy'
@@ -137,7 +137,8 @@ class ComposeWiring(unittest.TestCase):
                 _write_env(envfile, {'LIWAN_CONTROL_PRIVATE_DIR': str(project / 'private'),
                                      'LIWAN_TENANT_REGISTRY_DIR': str(project / 'registry'),
                                      'LIWAN_RESTORE_REGISTRY_DIR': str(project / 'restore'),
-                                     'LIWAN_MAINTENANCE_DIR': str(project / 'maint')}, True)
+                                     'LIWAN_MAINTENANCE_DIR': str(project / 'maint'),
+                                     'LIWAN_RELEASE_PROOF_DIR': str(project / 'proof')}, True)
                 with stack_render.rendered_stack(envfile) as stack:
                     base = ['compose', '--project-directory', str(deploy), '--env-file', str(envfile),
                             '--env-file', str(stack.with_name(stack_render.SIZING_FILE)), '-p', f'liwan-edge-mounts-{os.getpid()}',
@@ -166,12 +167,12 @@ class ComposeWiring(unittest.TestCase):
         image = _caddy_image()
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
-            for d in ('registry', 'restore', 'private', 'maint'):
+            for d in ('registry', 'restore', 'private', 'maint', 'proof'):
                 (tmp / d).mkdir()
             (tmp / 'private' / 'control-ca.pem').write_text(_test_ca(), encoding='utf-8')
             extra = {'CONTROL_WEBHOOK_DOMAIN': HOOK_HOST, 'LIWAN_TENANT_REGISTRY_DIR': str(tmp / 'registry'),
                      'LIWAN_RESTORE_REGISTRY_DIR': str(tmp / 'restore'), 'LIWAN_CONTROL_PRIVATE_DIR': str(tmp / 'private'),
-                     'LIWAN_MAINTENANCE_DIR': str(tmp / 'maint')}
+                     'LIWAN_MAINTENANCE_DIR': str(tmp / 'maint'), 'LIWAN_RELEASE_PROOF_DIR': str(tmp / 'proof')}
             services = render(extra)['services']
             for name in ('web', 'proxy'):
                 args = ['run', '--rm', '--read-only', '--entrypoint', 'true']

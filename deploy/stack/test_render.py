@@ -210,7 +210,8 @@ class RenderedStack(unittest.TestCase):
         declared = {(name, index) for name, service in services.items()
                     for index, mount in enumerate(service.get('volumes') or [])
                     if isinstance(mount, dict) and (mount.get('bind') or {}).get('create_host_path') is False}
-        self.assertEqual({('odoo', 2), ('proxy', 3), ('proxy', 4), ('proxy', 5), ('tenant-storage', 0), ('web', 2)}, declared)
+        self.assertEqual({('odoo', 2), ('proxy', 3), ('proxy', 4), ('proxy', 5), ('proxy', 6), ('tenant-storage', 0), ('web', 2)},
+                         declared)
 
     def test_the_host_link_adds_the_port_and_the_network_only_when_on(self):
         on = stack({**ENV_ON, 'LIWAN_STACK_COMMERCIAL_EDGE': 'false'})

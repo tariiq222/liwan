@@ -36,7 +36,16 @@ Two other env files stay separate, because the services read them directly: the 
   `liwanos-staging`, apart from production, and follows the highest `release/19.0.X.Y.Z` tag. It waits for the arm64
   build that the release tag starts (arm64 required, like production). A release tag builds arm64 only; nothing follows
   `main`. Production applies only the tag its job command names (`release.py run --environment production --tag <tag>`);
-  it never takes the highest tag by itself. An automatic proof that staging served that tag is not built yet.
+  it never takes the highest tag by itself.
+- The staging proof is built: the environment that serves a release signs `{tag, commit, releaseDocumentDigest,
+  environment, at}` with its own Ed25519 key and publishes `/_liwan/release-proof/<commit>.json` from
+  `LIWAN_RELEASE_PROOF_DIR` through the edge route of `deploy/stack/Caddyfile`. An environment whose config carries both
+  `LIWAN_RELEASE_REQUIRE_PROOF_URL` and `LIWAN_RELEASE_PROOF_PUBLIC_KEY` — production — refuses a run without a valid
+  proof of the candidate as `staging_proof_missing` or `staging_proof_invalid`, before anything stops
+  ([release/README.md](../release/README.md); setup row A4.7a of
+  [environment-bringup.md](../../docs/operations/environment-bringup.md)). The proof establishes that the signing
+  environment served that tag, commit and release document; it does not establish that staging passed its checks, and
+  the owner still confirms that before «انشر على الإنتاج».
 - Each environment reads releases with its own read-only GitHub credentials (`LIWAN_GHCR_READ_USER`,
   `LIWAN_GHCR_READ_TOKEN`, optional `LIWAN_GITHUB_READ_TOKEN`; see `deploy/release/README.md`). Production holds its own
   read token, different from staging, so a leak on one host never reaches the other.
@@ -63,6 +72,10 @@ Two other env files stay separate, because the services read them directly: the 
 
 Where a value comes from: **owner** (typed once), **host** (generated on the host, never copied between
 environments), **release** (written by the release path), **fixed** (the same in both).
+
+`LIWAN_RELEASE_PROOF_DIR` above is the only proof key this file carries: the signing key, the pinned public key and the
+proof URL are release config keys (`/etc/liwan-release/<env>.env`), and
+[release/README.md](../release/README.md) "Config" owns all four rules.
 
 | Variable | Meaning | Staging shape | Production shape | Source | Differs |
 | --- | --- | --- | --- | --- | --- |
@@ -123,6 +136,7 @@ environments), **release** (written by the release path), **fixed** (the same in
 | `LIWAN_OBJECT_STORAGE_COMPAT_HOST` | `<namespace>.compat.objectstorage.<region>.oraclecloud.com`, added to Odoo's egress allowlist; empty while tenant storage is off | empty | empty | owner | no |
 | `LIWAN_DB_HOST_PORT` | Loopback port the tenant database publishes for the host `pg_dump` (`LIWAN_STACK_DB_HOST_LINK`); the release reads it from this file for the backup (the control database's `LIWAN_CONTROL_DB_HOST_PORT` is read the same way and defaults to `15432`) | `15433` | `15433` | fixed | no |
 | `LIWAN_SHARED_COMPOSE_FILE`, `LIWAN_SHARED_ENV_FILE` | Paths the shared worker uses for the rendered stack and this env file | same | same | host | yes |
+| `LIWAN_RELEASE_PROOF_DIR` | Directory the edge serves the signed release proof from: the proxy mounts it read-only at `/srv/liwan-release-proof`, and the release config must name the same path (the release writes `<commit>.json` there after it commits) | `/srv/liwan-staging/release-proof` | `/srv/liwan/release-proof` | host (created by bring-up, 0755 root) | yes |
 
 In hostnames `<env>` is `staging`; in paths, networks and database names `<name>` is `staging`.
 

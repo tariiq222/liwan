@@ -140,8 +140,11 @@ def _caddy_image() -> str:
     return image
 
 
-def _caddy_container(script: str) -> subprocess.CompletedProcess:
-    result = _docker(['run', '--rm', '-i', _caddy_image(), 'sh', '-s'], stdin=script, timeout=60)
+def _caddy_container(script: str, mounts: tuple[tuple[str, str], ...] = ()) -> subprocess.CompletedProcess:
+    args = ['run', '--rm', '-i']
+    for source, target in mounts:
+        args += ['--mount', f'type=bind,source={source},target={target},readonly']
+    result = _docker([*args, _caddy_image(), 'sh', '-s'], stdin=script, timeout=60)
     if result.returncode:
         # Invalid configuration and probe failures are not skips.
         raise AssertionError(f'Caddy container exit {result.returncode}: {result.stderr}')
@@ -209,6 +212,53 @@ def _probe_requests(config: dict, requests: list[tuple[str, dict[str, str]]]) ->
         results.append((int(lines[-1]), '\n'.join(lines[1:-1])))
     if len(results) != len(requests):
         raise AssertionError(f'expected {len(requests)} probe responses, got {len(results)}')
+    return results
+
+
+# The release proof route (`deploy/release/proof.py`): the root the Caddyfile serves and one commit whose file exists.
+PROOF_ROOT = '/srv/liwan-release-proof'
+PROOF_COMMIT = '0123456789abcdef0123456789abcdef01234567'
+PROOF_BODY = b'{"contract":1,"payload":{"commit":"0123456789abcdef0123456789abcdef01234567"},"signature":""}'
+
+
+def _probe_downloads(config: dict, cases: list[tuple[str, dict[str, str], str]],
+                    mounts: tuple[tuple[str, str], ...] = ()) -> list[tuple[int, dict[str, str]]]:
+    """Serve `config` in the real Caddy on container loopback and request each path; return (status, headers).
+
+    `mounts` are host directories bound read-only into the probe container, so a route that serves files reads the
+    fixture the test wrote and the root the adapted configuration names, not a copy of it.
+    """
+    script = (
+        "set -eu\ncat > /tmp/probe.json <<'LIWAN_PROBE'\n" + json.dumps(config)
+        + "\nLIWAN_PROBE\ncaddy run --config /tmp/probe.json >/tmp/caddy.log 2>&1 &\n"
+        + "pid=$!\ntrap 'kill \"$pid\" 2>/dev/null || true' EXIT\n"
+        + "ready=0\nfor attempt in $(seq 1 50); do\n"
+        + f"  if curl -s --max-time 1 --noproxy '*' -o /dev/null http://127.0.0.1:{PROBE_PORT}/; then ready=1; break; fi\n"
+        + "  sleep 0.1\ndone\n[ \"$ready\" = 1 ] || { cat /tmp/caddy.log >&2; exit 1; }\n"
+    )
+    for index, (host, headers, path) in enumerate(cases):
+        script += f"printf 'LIWAN_PROBE_CASE {index}\\n'\n"
+        script += ('curl --silent --max-time 5 --noproxy "*" --path-as-is --dump-header /tmp/headers '
+                   '--output /dev/null --write-out "%{http_code}\\n" '
+                   + ''.join(f'--header {shlex.quote(f"{name}: {value}")} ' for name, value in headers.items())
+                   + f'--header {shlex.quote("Host: " + host)} '
+                   + shlex.quote(f'http://127.0.0.1:{PROBE_PORT}{path}') + '\n'
+                   + 'printf "LIWAN_PROBE_HEADERS\\n"\ncat /tmp/headers\n')
+    records = _caddy_container(script, mounts).stdout.split('LIWAN_PROBE_CASE ')[1:]
+    results = []
+    for index, record in enumerate(records):
+        lines = record.splitlines()
+        if not lines or lines[0] != str(index) or 'LIWAN_PROBE_HEADERS' not in lines:
+            raise AssertionError(f'invalid probe response: {record}')
+        status, marker = int(lines[1]), lines.index('LIWAN_PROBE_HEADERS')
+        headers = {}
+        for line in lines[marker + 1:]:
+            name, separator, value = line.partition(':')
+            if separator:
+                headers[name.strip().lower()] = value.strip()
+        results.append((status, headers))
+    if len(results) != len(cases):
+        raise AssertionError(f'expected {len(cases)} probe responses, got {len(results)}')
     return results
 
 
@@ -727,6 +777,52 @@ class TestEdgeRateLimitTemplate(unittest.TestCase):
         api = text.split('zone liwan_api {', 1)[1].split('zone liwan_public_appointments_ip {', 1)[0]
         self.assertIn('path /api/v1/inbox/hooks/*', hook)
         self.assertIn('/api/v1/inbox/hooks/*', api.split('not path', 1)[1].split('}', 1)[0])
+
+
+class TestReleaseProofRoute(unittest.TestCase):
+    """Behavioral: the edge serves one signed proof per commit and nothing else under that route.
+
+    The proof is what the next environment's release gate fetches (`deploy/release/proof.py`). The route must be exact:
+    one lowercase 40-hex commit and `.json`, served read-only with a short public cache, and every other name answering
+    404 at the edge instead of reaching the guard. A readiness probe keeps its way to the application.
+    """
+
+    HOST = 'a.example.test'
+
+    def probe(self, paths: tuple[str, ...]) -> list[tuple[int, dict[str, str]]]:
+        adapted = _adapt_shared_caddyfile(SHARED_CADDYFILE.read_text(encoding='utf-8'))
+        with tempfile.TemporaryDirectory() as work:
+            proof_dir = Path(work, 'release-proof')
+            proof_dir.mkdir(mode=0o755)
+            Path(proof_dir, f'{PROOF_COMMIT}.json').write_bytes(PROOF_BODY)
+            Path(proof_dir, f'{PROOF_COMMIT}.json').chmod(0o644)
+            # A file in the served directory whose name is not a proof: it must not be reachable either.
+            Path(proof_dir, 'notes.json').write_bytes(PROOF_BODY)
+            config = _probe_config(adapted, self.HOST)
+            return _probe_downloads(config, [(self.HOST, {}, path) for path in paths], ((str(proof_dir), PROOF_ROOT),))
+
+    def test_a_commit_proof_is_served_with_the_declared_cache_and_type(self) -> None:
+        (status, headers), = self.probe((f'/_liwan/release-proof/{PROOF_COMMIT}.json',))
+        self.assertEqual(200, status)
+        self.assertEqual('public, max-age=300', headers.get('cache-control'))
+        self.assertEqual('application/json', headers.get('content-type'))
+
+    def test_every_other_name_answers_404_instead_of_reaching_the_guard(self) -> None:
+        paths = (f'/_liwan/release-proof/{PROOF_COMMIT.upper()}.json',
+                 f'/_liwan/release-proof/{PROOF_COMMIT[:39]}.json',
+                 f'/_liwan/release-proof/{PROOF_COMMIT}.json.txt',
+                 '/_liwan/release-proof/notes.json',
+                 '/_liwan/release-proof/',
+                 f'/_liwan/release-proof/sub/{PROOF_COMMIT}.json')
+        for path, (status, headers) in zip(paths, self.probe(paths)):
+            with self.subTest(path=path):
+                self.assertEqual(404, status)
+                self.assertNotIn('cache-control', headers)
+
+    def test_a_readiness_probe_still_reaches_the_application(self) -> None:
+        # 502 is the guard upstream's answer here: the request reached the proxy handler, not the proof route.
+        (status, _), = self.probe(('/_liwan/release-readiness',))
+        self.assertEqual(502, status)
 
 
 if __name__ == '__main__':
