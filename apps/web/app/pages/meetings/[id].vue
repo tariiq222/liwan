@@ -200,21 +200,35 @@ function displayValue(value: string | null | undefined) {
 
     <template v-if="query.data.value" #main>
       <div class="grid min-w-0 gap-(--liwan-gap-card) lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]" data-slot="record-summary" data-testid="meeting-hero">
-        <SharedRecordSection variant="panel">
-          <div class="grid min-w-0 gap-3">
-            <p class="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xl font-semibold text-highlighted">
-              <span>{{ formatMeetingDate(query.data.value.meeting_date) }}</span>
-              <span v-if="query.data.value.start_datetime" dir="ltr" class="whitespace-nowrap tabular-nums">{{ hydrated ? displayValue(formatMeetingTime(query.data.value.start_datetime)) : '—' }}<span v-if="query.data.value.end_datetime"> – {{ hydrated ? displayValue(meetingEndLabel) : '—' }}</span></span>
-            </p>
-            <div class="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted">
-              <span v-if="query.data.value.organizer" class="inline-flex min-w-0 items-center gap-2"><SharedPersonAvatar :people="[query.data.value.organizer]" /><span class="truncate">{{ t('meetingsUi.organizer') }}: {{ query.data.value.organizer.name }}</span></span>
-              <span v-if="query.data.value.location" class="inline-flex items-center gap-1.5"><UIcon name="i-lucide-map-pin" class="size-4 shrink-0" aria-hidden="true" />{{ query.data.value.location }}</span>
-              <UButton v-if="query.data.value.meeting_url" color="neutral" variant="outline" size="sm" icon="i-lucide-video" :to="query.data.value.meeting_url" external target="_blank" rel="noopener" :label="t('meetingsUi.url')" />
+        <div
+          class="flex flex-col justify-between gap-3 rounded-card px-(--liwan-card-pad) py-4"
+          :class="query.data.value.state === 'cancelled'
+            ? 'bg-elevated/40 ring ring-default'
+            : 'from-info/10 via-info/[0.03] to-default ring ring-info/25 rtl:bg-linear-270 ltr:bg-linear-90 dark:from-info/15 dark:via-info/5 dark:to-default'"
+        >
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex min-w-0 items-center gap-3">
+              <span
+                class="hidden size-10 shrink-0 place-items-center rounded-control sm:grid"
+                :class="query.data.value.state === 'cancelled' ? 'bg-elevated text-muted' : 'bg-info/15 text-status-info-foreground'"
+                aria-hidden="true"
+              >
+                <UIcon name="i-lucide-calendar-clock" class="size-5" />
+              </span>
+              <p class="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-0.5 text-lg font-bold text-highlighted">
+                <span>{{ formatMeetingDate(query.data.value.meeting_date) }}</span>
+                <span v-if="query.data.value.start_datetime" dir="ltr" class="whitespace-nowrap text-base font-semibold text-muted tabular-nums">{{ hydrated ? displayValue(formatMeetingTime(query.data.value.start_datetime)) : '—' }}<span v-if="query.data.value.end_datetime"> – {{ hydrated ? displayValue(meetingEndLabel) : '—' }}</span></span>
+              </p>
             </div>
+            <UButton v-if="query.data.value.meeting_url" color="neutral" variant="outline" size="sm" icon="i-lucide-video" class="shrink-0 bg-default" :to="query.data.value.meeting_url" external target="_blank" rel="noopener" :label="t('meetingsUi.url')" />
           </div>
-        </SharedRecordSection>
+          <div class="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-muted">
+            <span v-if="query.data.value.organizer" class="inline-flex min-w-0 items-center gap-2"><SharedPersonAvatar :people="[query.data.value.organizer]" /><span class="truncate">{{ t('meetingsUi.organizer') }}: {{ query.data.value.organizer.name }}</span></span>
+            <span v-if="query.data.value.location" class="inline-flex items-center gap-1.5"><UIcon name="i-lucide-map-pin" class="size-4 shrink-0" aria-hidden="true" />{{ query.data.value.location }}</span>
+          </div>
+        </div>
         <SharedMetricTile density="compact" icon="i-lucide-users" :label="t('meetingsUi.attendees')" :value="query.data.value.attendees.length" />
-        <SharedMetricTile density="compact" icon="i-lucide-list-checks" :tone="query.data.value.open_resolution_count > 0 ? 'warning' : 'neutral'" :label="t('meetingsUi.openResolutions')" :value="query.data.value.open_resolution_count" :to="resolutionsTabLink" />
+        <SharedMetricTile density="compact" icon="i-lucide-list-checks" :tone="query.data.value.open_resolution_count > 0 ? 'warning' : 'neutral'" :label="t('meetingsUi.openResolutions')" :value="query.data.value.open_resolution_count" :hint="query.data.value.resolutions.length ? t('meetingsUi.totalResolutionsHint', { count: query.data.value.resolutions.length }, query.data.value.resolutions.length) : undefined" :to="resolutionsTabLink" />
       </div>
       <SharedRouteTabs data-testid="meeting-tabs" :items="tabLinks" :ariaLabel="t('meetingsUx.sections')" />
       <div v-if="query.data.value" class="grid min-w-0 gap-(--liwan-gap-card)">
@@ -240,9 +254,22 @@ function displayValue(value: string | null | undefined) {
         <template v-if="activeTab === 'summary'">
           <SharedRecordSection id="meeting-summary" :title="t('meetingsUi.sectionPeople')" variant="panel">
             <div class="liwan-auto-grid gap-4">
-              <div><p class="text-sm text-muted">{{ t('meetingsUi.secretary') }}</p><p class="text-highlighted">{{ displayValue(query.data.value.secretary?.name) }}</p></div>
-              <div><p class="mb-2 text-sm text-muted">{{ t('meetingsUi.attendees') }}</p>
-                <ul v-if="query.data.value.attendees.length" class="flex min-w-0 flex-wrap gap-2"><li v-for="person in query.data.value.attendees" :key="person.id"><UBadge color="neutral" variant="subtle" class="whitespace-normal text-start">{{ person.name }}</UBadge></li></ul>
+              <div>
+                <p class="mb-2 text-sm text-muted">{{ t('meetingsUi.secretary') }}</p>
+                <div v-if="query.data.value.secretary" class="inline-flex items-center gap-2 rounded-control border border-default bg-elevated/40 px-2.5 py-1 text-sm font-medium text-highlighted">
+                  <SharedPersonAvatar :people="[query.data.value.secretary]" />
+                  <span>{{ query.data.value.secretary.name }}</span>
+                </div>
+                <p v-else class="text-sm text-muted">—</p>
+              </div>
+              <div>
+                <p class="mb-2 text-sm text-muted">{{ t('meetingsUi.attendees') }}</p>
+                <ul v-if="query.data.value.attendees.length" class="flex min-w-0 flex-wrap gap-2">
+                  <li v-for="person in query.data.value.attendees" :key="person.id" class="inline-flex items-center gap-2 rounded-control border border-default bg-elevated/40 px-2.5 py-1 text-sm font-medium text-highlighted">
+                    <SharedPersonAvatar :people="[person]" />
+                    <span>{{ person.name }}</span>
+                  </li>
+                </ul>
                 <p v-else class="text-sm text-muted">{{ t('meetingsUi.emptyAttendees') }}</p>
               </div>
             </div>
@@ -338,11 +365,11 @@ function displayValue(value: string | null | undefined) {
       </div>
     </template>
     <template v-if="query.data.value" #aside>
-      <dl class="divide-y divide-default" data-testid="meeting-properties">
+      <SharedPropertiesPanel :title="t('states.details')" data-testid="meeting-properties">
         <SharedPropertyRow :label="t('app.recordNumber')"><SharedRecordNumber :value="query.data.value.reference" /></SharedPropertyRow>
         <SharedPropertyRow v-if="query.data.value.series" :label="t('meetingsUi.series')"><UButton color="primary" variant="link" class="p-0 whitespace-normal text-start" :to="`/meetings/series/${query.data.value.series.id}`">{{ query.data.value.series.name }}</UButton></SharedPropertyRow>
         <SharedPropertyRow v-if="query.data.value.project" :label="t('meetingsUi.project')" :value="query.data.value.project.name" />
-      </dl>
+      </SharedPropertiesPanel>
     </template>
   </SharedRecordWorkspace>
   <NuxtPage />

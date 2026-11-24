@@ -30,6 +30,7 @@
     "secretary": "Secretary",
     "resolutions": "Recommendations",
     "openResolutions": "Open recommendations",
+    "totalResolutionsHint": "of {count} total | of {count} total",
     "emptyResolutions": "This meeting has no recommendations.",
     "newResolution": "New recommendation",
     "editResolution": "Edit recommendation",

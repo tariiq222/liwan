@@ -30,6 +30,7 @@
     "secretary": "كاتب المحضر",
     "resolutions": "التوصيات",
     "openResolutions": "التوصيات المفتوحة",
+    "totalResolutionsHint": "بلا توصيات | من أصل توصية واحدة | من أصل توصيتين | من أصل {count} توصيات | من أصل {count} توصية | من أصل {count} توصية",
     "emptyResolutions": "لا توجد توصيات لهذا الاجتماع.",
     "newResolution": "توصية جديدة",
     "editResolution": "تعديل التوصية",
