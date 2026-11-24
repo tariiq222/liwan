@@ -116,6 +116,22 @@ class FakeHost:
         self.undecodable(path)
         return self.files[str(path)].text
 
+    def read_bytes(self, path):
+        if str(path) not in self.files:
+            raise FileNotFoundError(str(path))
+        return self.files[str(path)].text.encode('utf-8')
+
+    def realpath(self, path):
+        parts = Path(os.path.normpath(str(path))).parts
+        current = Path(parts[0])
+        for part in parts[1:]:
+            current = current / part
+            entry = self.files.get(str(current))
+            if entry is not None and stat.S_ISLNK(entry.st_mode):
+                target = Path(entry.target)
+                current = target if target.is_absolute() else Path(os.path.normpath(str(current.parent / target)))
+        return os.path.normpath(str(current))
+
     def undecodable(self, path):
         if getattr(self.files[str(path)], 'undecodable', False):
             raise bringup.ItemError(f'{path} is not valid UTF-8 text')
@@ -144,7 +160,11 @@ class FakeHost:
 
     @contextlib.contextmanager
     def scratch_dir(self):
-        yield SCRATCH
+        try:
+            yield SCRATCH
+        finally:
+            for key in [k for k in self.files if k.startswith(f'{SCRATCH}/')]:
+                del self.files[key]
 
     # --- changes
     def make_dir(self, path, mode, uid, gid):
@@ -241,12 +261,25 @@ class FakeHost:
             self.files[shared[key]] = directory(0o2750)
 
     def openssl(self, argv):
-        """Ed25519 support, and a `-out` path that holds a made thing; the capability probe's scratch files never persist."""
+        """Ed25519 support, and a `-out` path that holds a made thing; scratch files never record host mutations."""
         if not self.openssl_ed25519:
             return 1, 'Algorithm ED25519 not found\n'
         out = argv[argv.index('-out') + 1] if '-out' in argv else ''
-        if out and not out.startswith(SCRATCH):
-            self.write_new(out, 'openssl-made' if 'genpkey' in argv else 'openssl-public-part', 0o644)
+        if 'genpkey' in argv:
+            content = 'openssl-made'
+        elif 'pkey' in argv and '-pubout' in argv:
+            source = argv[argv.index('-in') + 1]
+            entry = self.files.get(source)
+            if entry is None and not source.startswith(SCRATCH):
+                return 1, 'Unable to load key\n'
+            content = f'pub:{entry.text}' if entry is not None else 'pub:probe'
+        else:
+            content = 'openssl-sig'
+        if out:
+            if out.startswith(SCRATCH):
+                self.files[out] = regular(0o644, text=content)
+            else:
+                self.write_new(out, content, 0o644)
         return 0, ''
 
 
@@ -1138,14 +1171,33 @@ class ReleaseProofTest(unittest.TestCase):
         self.assertEqual((0o755, 0, 0), (stat.S_IMODE(folder.st_mode), folder.st_uid, folder.st_gid))
         self.assertEqual((0o600, 0), (stat.S_IMODE(key.st_mode), key.st_uid))
         self.assertEqual((0o644, 0), (stat.S_IMODE(public.st_mode), public.st_uid))
-        key.text, public.text = 'existing key', 'existing public part'
+        key.text, public.text = 'existing key', 'pub:existing key'
         host.mutations.clear()
         code, second = run(host, '--apply')
         self.assertEqual(0, code)
         self.assertEqual({'ok'}, set(statuses(second).values()))
-        self.assertEqual(('existing key', 'existing public part'),
+        self.assertEqual(('existing key', 'pub:existing key'),
                          (host.files[PROOF_KEY].text, host.files[PROOF_KEY + '.pub'].text))
         self.assertEqual([], [m for m in host.mutations if PROOF_KEY in m or PROOF_DIR in m])
+
+    def test_a_stale_or_mismatched_public_key_is_reported_and_apply_never_mints_a_mismatch(self):
+        host = seeded_host()
+        run(host, '--apply')
+        host.files[PROOF_KEY].text = 'SECRET-PRIVATE-KEY-BODY'
+        host.files[PROOF_KEY + '.pub'].text = 'STALE-PUBLIC-KEY-BODY'
+        line = line_of(run(host)[1], 'release-proof-key')
+        self.assertTrue(line.startswith('MISSING'), line)
+        self.assertIn('does not match', line)
+        self.assertNotIn('SECRET-PRIVATE-KEY-BODY', line)
+        self.assertNotIn('STALE-PUBLIC-KEY-BODY', line)
+        # If the private key is lost while the old .pub remains, --apply must NOT mint a new mismatched key.
+        del host.files[PROOF_KEY]
+        host.mutations.clear()
+        _, applied = run(host, '--apply')
+        self.assertEqual('MISSING', statuses(applied)['release-proof-key'])
+        self.assertNotIn(PROOF_KEY, host.files)
+        self.assertEqual('STALE-PUBLIC-KEY-BODY', host.files[PROOF_KEY + '.pub'].text)
+        self.assertEqual([], [m for m in host.mutations if PROOF_KEY in m])
 
     def test_a_wrong_mode_or_a_directory_the_shared_env_file_disagrees_with_is_reported(self):
         host = seeded_host()
@@ -1157,6 +1209,23 @@ class ReleaseProofTest(unittest.TestCase):
         host.files[f'{SRV}/shared.env'] = regular(0o600, text=SHARED_TEXT.replace(
             f'LIWAN_RELEASE_PROOF_DIR={PROOF_DIR}\n', 'LIWAN_RELEASE_PROOF_DIR=/srv/elsewhere/proof\n'))
         self.assertIn('/srv/elsewhere/proof', line_of(run(host)[1], 'release-proof-dir'))
+
+    def test_proof_dir_missing_from_the_shared_env_file_is_reported_as_missing(self):
+        host = seeded_host()
+        host.files[PROOF_DIR] = directory(0o755)
+        host.files[f'{SRV}/shared.env'] = regular(0o600, text=SHARED_TEXT.replace(
+            f'LIWAN_RELEASE_PROOF_DIR={PROOF_DIR}\n', ''))
+        line = line_of(run(host)[1], 'release-proof-dir')
+        self.assertTrue(line.startswith('MISSING'), line)
+        self.assertIn('absent from the shared env file', line)
+        self.assertIn('both', line)
+        self.assertIn(CONFIG, line)
+        # --apply also refuses to create the directory until shared.env names it too.
+        del host.files[PROOF_DIR]
+        host.mutations.clear()
+        _, applied = run(host, '--apply')
+        self.assertEqual('MISSING', statuses(applied)['release-proof-dir'])
+        self.assertNotIn(PROOF_DIR, host.files)
 
     def test_the_pinned_public_key_is_required_only_where_a_proof_is_required(self):
         self.assertEqual('ok', self.item(seeded_host(), 'release-proof-public-key'))
@@ -1178,17 +1247,48 @@ class ReleaseProofTest(unittest.TestCase):
         with_config(url_only, f'{bringup.PROOF_URL_KEY}={PROOF_URL}\n')
         self.assertIn('set together or not at all', line_of(run(url_only)[1], 'release-proof-public-key'))
 
-    def test_the_proof_egress_requires_404_and_not_a_dns_or_tls_failure(self):
+    def test_pinning_the_environments_own_public_key_is_refused(self):
+        own_pub = PROOF_KEY + '.pub'
+        for name, pinned_path, setup in (
+                ('direct path', own_pub, lambda h: None),
+                ('parent traversal', '/etc/liwan-release/../liwan-release/staging-release-proof.key.pub', lambda h: None),
+                ('symlinked parent dir', '/etc/liwan-link/staging-release-proof.key.pub',
+                 lambda h: h.files.__setitem__('/etc/liwan-link', symlink_entry('/etc/liwan-release'))),
+                ('copied own key bytes', '/etc/liwan-release/copied-own.pub',
+                 lambda h: h.files.__setitem__('/etc/liwan-release/copied-own.pub', regular(0o644, text='pub:openssl-made')))):
+            with self.subTest(name):
+                host = seeded_host()
+                run(host, '--apply')
+                setup(host)
+                with_config(host, f'{bringup.PROOF_URL_KEY}={PROOF_URL}\n{bringup.PROOF_PUBLIC_KEY_KEY}={pinned_path}\n')
+                line = line_of(run(host)[1], 'release-proof-public-key')
+                self.assertTrue(line.startswith('MISSING'), line)
+                self.assertIn('own signing public key', line)
+                self.assertNotIn('pub:openssl-made', line)
+
+    def test_the_proof_egress_requires_404_with_the_route_marker_header(self):
+        pinned = '/etc/liwan-release/source-release-proof.pub'
         host = seeded_host()
-        with_config(host, f'{bringup.PROOF_URL_KEY}={PROOF_URL}\n{bringup.PROOF_PUBLIC_KEY_KEY}={PROOF_KEY}.pub\n')
-        for answer, expected in (((0, '404'), 'ok'), ((0, '200'), 'MISSING'), ((0, '502'), 'MISSING'),
-                                 ((6, ''), 'MISSING'), ((0, ''), 'MISSING')):
+        with_config(host, f'{bringup.PROOF_URL_KEY}={PROOF_URL}\n{bringup.PROOF_PUBLIC_KEY_KEY}={pinned}\n')
+        cases = (
+            ((0, 'HTTP/2 404 \r\nx-liwan-release-proof: 1\r\n\r\n'), 'ok'),
+            ((0, 'HTTP/1.1 404 Not Found\r\nX-Liwan-Release-Proof: 1\r\n\r\n'), 'ok'),
+            # A bare 404 from a wrong host or an older edge without the release-proof route must be MISSING.
+            ((0, 'HTTP/2 404 \r\nserver: Caddy\r\n\r\n'), 'MISSING'),
+            ((0, 'HTTP/2 404 \r\nx-liwan-release-proof: 0\r\n\r\n'), 'MISSING'),
+            ((0, 'HTTP/2 200 \r\nx-liwan-release-proof: 1\r\n\r\n'), 'MISSING'),
+            ((0, 'HTTP/2 502 \r\n\r\n'), 'MISSING'),
+            ((6, ''), 'MISSING'),
+            ((0, ''), 'MISSING'),
+        )
+        for answer, expected in cases:
             with self.subTest(answer=answer):
                 host.overrides = [(lambda argv: argv[0] == 'curl', answer)]
                 self.assertEqual(expected, statuses(run(host, '--post-run')[1])['release-proof-egress'])
         probe = [call for call in host.calls if call[0] == 'curl' and call[-1].startswith(PROOF_URL)][0]
         self.assertEqual(f'{PROOF_URL}{bringup.PROOF_PROBE_COMMIT}.json', probe[-1])
         self.assertIn('--max-time', probe)
+        self.assertIn('-D', probe)
         # The probe speaks HTTPS to the edge itself: no proxy of the host may answer it, and no other scheme is tried.
         self.assertEqual('*', probe[probe.index('--noproxy') + 1])
         self.assertEqual('=https', probe[probe.index('--proto') + 1])
@@ -1197,9 +1297,13 @@ class ReleaseProofTest(unittest.TestCase):
 
     def test_a_message_names_the_key_and_never_the_proof_url(self):
         """The URL is the transport of a private signature; the release path does not print it either."""
+        pinned = '/etc/liwan-release/source-release-proof.pub'
         host = seeded_host()
-        with_config(host, f'{bringup.PROOF_URL_KEY}={PROOF_URL}\n{bringup.PROOF_PUBLIC_KEY_KEY}={PROOF_KEY}.pub\n')
-        for answer, expected in (((0, '200'), 'MISSING'), ((6, ''), 'MISSING'), ((0, ''), 'MISSING')):
+        with_config(host, f'{bringup.PROOF_URL_KEY}={PROOF_URL}\n{bringup.PROOF_PUBLIC_KEY_KEY}={pinned}\n')
+        for answer, expected in (((0, 'HTTP/2 200 \r\n\r\n'), 'MISSING'),
+                                 ((0, 'HTTP/2 404 \r\n\r\n'), 'MISSING'),
+                                 ((6, ''), 'MISSING'),
+                                 ((0, ''), 'MISSING')):
             with self.subTest(answer=answer):
                 host.overrides = [(lambda argv: argv[0] == 'curl', answer)]
                 line = line_of(run(host, '--post-run')[1], 'release-proof-egress')
@@ -1223,15 +1327,16 @@ class ReleaseProofTest(unittest.TestCase):
         with_config(host, f'{bringup.PROOF_URL_KEY}={PROOF_URL}\n{bringup.PROOF_PUBLIC_KEY_KEY}=/etc/liwan-release/s.pub\n')
         host.files['/etc/liwan-release/s.pub'] = regular(0o644, text='public key')
         self.assertEqual('ok', self.item(host, 'release-proof-public-key'))
-        host.overrides = [(lambda argv: argv[0] == 'curl', (0, '404'))]
+        host.overrides = [(lambda argv: argv[0] == 'curl', (0, 'HTTP/2 404 \r\nx-liwan-release-proof: 1\r\n\r\n'))]
         self.assertEqual('ok', statuses(run(host, '--post-run')[1])['release-proof-egress'])
 
     def test_a_proof_url_that_is_not_https_or_has_no_trailing_slash_is_reported(self):
+        pinned = '/etc/liwan-release/source-release-proof.pub'
         for url in ('http://app.staging.example.test/_liwan/release-proof/',
                     'https://app.staging.example.test/_liwan/release-proof'):
             with self.subTest(url=url):
                 host = seeded_host()
-                with_config(host, f'{bringup.PROOF_URL_KEY}={url}\n{bringup.PROOF_PUBLIC_KEY_KEY}={PROOF_KEY}.pub\n')
+                with_config(host, f'{bringup.PROOF_URL_KEY}={url}\n{bringup.PROOF_PUBLIC_KEY_KEY}={pinned}\n')
                 line = line_of(run(host, '--post-run')[1], 'release-proof-egress')
                 self.assertTrue(line.startswith('MISSING'))
                 self.assertIn('ending in /', line)

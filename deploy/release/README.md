@@ -49,7 +49,8 @@ Staging's run is still confirmed by hand by the owner and the coordinator before
 the proof establishes that staging served the commit, not that it passed its checks. The gate around it is built end to
 end. The environment that serves a commit signs `{tag, commit, releaseDocumentDigest, environment, at}` with Ed25519
 (`deploy/release/proof.py`) and publishes `/_liwan/release-proof/<commit>.json` in `LIWAN_RELEASE_PROOF_DIR`; the stack's
-edge serves exactly that name from the directory, read-only and with a five-minute public cache, and answers 404 for any
+edge serves exactly that name from the directory, read-only and with a five-minute public cache, marks every response from
+that route with `X-Liwan-Release-Proof: 1`, and answers 404 for any
 other name (`deploy/stack/Caddyfile`). The requirement follows the tag policy and never the environment name: an
 environment with `LIWAN_RELEASE_TAG_POLICY=explicit` — production — always verifies, fetches the proof of the candidate
 before it pulls the document image, and applies the candidate only when the signature and the signed tag, commit and
@@ -255,17 +256,24 @@ is the fourth and the only one the shared env file also carries (`deploy/environ
 proxy mounts that directory, so the two files must name the same path.
 The two verifying keys — `LIWAN_RELEASE_REQUIRE_PROOF_URL` (the HTTPS proof base URL ending in `/_liwan/release-proof/`)
 and `LIWAN_RELEASE_PROOF_PUBLIC_KEY` (one or more pinned public key files, comma separated for the rotation window, each a
-regular file that group and others cannot write, `0644` root by convention) — are required on an environment with
+readable, non-symlink regular file owned by root under trusted non-writable parent directories that group and others
+cannot write, `0644` root by convention, and never this environment's own `<LIWAN_RELEASE_PROOF_KEY_FILE>.pub`) — are
+required on an environment with
 `LIWAN_RELEASE_TAG_POLICY=explicit` and are a pair wherever they are set. A URL that is not HTTPS, one of the pair alone,
+a pinned key that resolves to this environment's own `.pub`,
 or the pair missing on an `explicit` environment, is `RESULT: refused invalid_config`: no image is pulled and nothing
 stops. An environment with `highest` may leave both unset: it then verifies nothing and logs one line on every release
 saying so.
-The signing side is `LIWAN_RELEASE_PROOF_KEY_FILE` (the Ed25519 private key, mode `0600`, root) with
-`LIWAN_RELEASE_PROOF_DIR` (the directory the edge serves); bring-up generates the key and its `.pub` beside it once and
-never replaces them (row A4.7a). The directory is also the proxy's read-only mount, so the shared env file must name the
-same path: the release writes `<LIWAN_RELEASE_PROOF_DIR>/<commit>.json` and the edge serves only that directory. A
-signing config whose key is set and whose directory is absent is `RESULT: refused proof_dir_missing` in `prepare`, before
-anything stops, and a signature that fails at the last step is `RESULT: incomplete <commit> release_proof_failed`. The
+The signing side is `LIWAN_RELEASE_PROOF_KEY_FILE` (the Ed25519 private key, a readable, non-symlink regular file, mode
+`0600`, owned by root under trusted parent directories) with
+`LIWAN_RELEASE_PROOF_DIR` (the directory the edge serves); bring-up generates the key and its matching `.pub` beside it
+once and never replaces them (row A4.7a). The directory is also the proxy's read-only mount, so the shared env file must
+name the same path: the release writes `<LIWAN_RELEASE_PROOF_DIR>/<commit>.json` and the edge serves only that directory.
+In `prepare`, before anything stops, a missing or invalid signing key is `RESULT: refused proof_key_invalid`, a missing
+directory is `RESULT: refused proof_dir_missing`, and an unset `LIWAN_RELEASE_PROOF_KEY_FILE` logs one line noting that
+this environment signs nothing so no other environment can pin its releases; a signature that fails at the last step is
+`RESULT: incomplete <commit> release_proof_failed`. The fetch enforces one overall deadline (10 seconds) across connect,
+TLS and body reads (`staging_proof_missing` when exceeded) and an 8192-byte body cap (`staging_proof_invalid`). The
 tests of the signer, the transport and every accepted outcome are in `deploy/release/test_proof.py`.
 
 The first deploy of a host skips the backup, so a host can pass its first release and fail its second on any of the items

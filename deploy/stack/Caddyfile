@@ -43,8 +43,11 @@
 		# read-only mount, so no proof request spends a client budget or reaches the application, which is why the route sits
 		# before the zones and the guard. One lowercase 40-hex commit and `.json` is a proof and nothing else is: another
 		# name answers 404 here instead of reaching the guard, and a directory is never listed (`file_server` without
-		# `browse`). `handle_path` strips the prefix, so only `/<commit>.json` under that root can be opened.
+		# `browse`). `handle_path` strips the prefix, so only `/<commit>.json` under that root can be opened. Every response
+		# from this route (both 200 proofs and 404s) carries `X-Liwan-Release-Proof: 1`, so bring-up (`release-proof-egress`,
+		# A8.2c) distinguishes an absent proof from a missing route or a wrong host.
 		handle_path /_liwan/release-proof/* {
+			header X-Liwan-Release-Proof 1
 			@proofName path_regexp ^/[a-f0-9]{40}\.json$
 			handle @proofName {
 				root * /srv/liwan-release-proof

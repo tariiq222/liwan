@@ -18,9 +18,11 @@ import base64
 import hashlib
 import http.client
 import json
+import os
 import re
 import stat
 import tempfile
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -79,45 +81,138 @@ def user_agent(url: str) -> str:
     return USER_AGENT_PREFIX + match.group(1)
 
 
-def https_get(url: str, *, timeout: float = DEFAULT_TIMEOUT_SECONDS, max_bytes: int = MAX_PROOF_BYTES) -> bytes:
-    """Fetch the proof file with the system CA store, no proxy, no credential and no redirect followed."""
+def _response_socket(response):
+    fp = getattr(response, 'fp', None)
+    raw = getattr(fp, 'raw', None)
+    return getattr(raw, '_sock', None)
+
+
+def https_get(url: str, *, timeout: float = DEFAULT_TIMEOUT_SECONDS, max_bytes: int = MAX_PROOF_BYTES,
+              clock=time.monotonic) -> bytes:
+    """Fetch the proof file with the system CA store, no proxy, no credential and no redirect followed.
+
+    ``timeout`` is one whole-request deadline (connect, TLS, headers and body together), not a per-read reset.
+    """
     agent = user_agent(url)
+    if timeout <= 0:
+        raise ProofError(PROOF_MISSING, f'the proof URL timed out after {timeout}s')
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect())
     request = urllib.request.Request(url, headers={'User-Agent': agent})
+    deadline = clock() + timeout
+    chunks: list[bytes] = []
+    total = 0
     try:
         with opener.open(request, timeout=timeout) as response:
-            body = response.read(max_bytes + 1)
+            reader = getattr(response, 'read1', response.read)
+            while True:
+                remaining = deadline - clock()
+                if remaining <= 0:
+                    raise ProofError(PROOF_MISSING, f'the proof URL timed out after {timeout}s')
+                sock = _response_socket(response)
+                if sock is not None and getattr(sock, 'fileno', lambda: 0)() != -1:
+                    sock.settimeout(remaining)
+                chunk = reader(max_bytes + 1 - total)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+                total += len(chunk)
+                if total > max_bytes:
+                    raise ProofError(PROOF_INVALID, f'the proof file is larger than {max_bytes} bytes')
+    except ProofError:
+        raise
     except urllib.error.HTTPError as error:
         raise ProofError(PROOF_MISSING, f'the proof URL answers HTTP {error.code}') from None
     except (urllib.error.URLError, http.client.HTTPException, OSError) as error:
         raise ProofError(PROOF_MISSING, f'the proof URL is unreachable: {getattr(error, "reason", error)}') from None
-    if len(body) > max_bytes:
-        raise ProofError(PROOF_INVALID, f'the proof file is larger than {max_bytes} bytes')
-    return body
+    return b''.join(chunks)
+
+
+def _require_trusted_parents(path: Path, *, label: str) -> None:
+    """Reject any ancestor directory that a non-root user (outside ``{0, euid}``) owns or can write."""
+    trusted = {0, os.geteuid()}
+    absolute = Path(os.path.abspath(path))
+    try:
+        resolved_parent = absolute.parent.resolve(strict=True)
+    except OSError as error:
+        raise ProofError(PROOF_INVALID,
+                         f'a parent directory of {label} {path} cannot be read: {error.strerror or error}') from None
+    direct_parents = {absolute.parent, resolved_parent}
+    seen: set[Path] = set()
+    for chain in (list(absolute.parents), [resolved_parent, *resolved_parent.parents]):
+        for ancestor in chain:
+            if ancestor in seen:
+                continue
+            seen.add(ancestor)
+            try:
+                info = os.lstat(ancestor)
+            except OSError as error:
+                raise ProofError(PROOF_INVALID,
+                                 f'parent directory {ancestor} of {label} {path} cannot be read: '
+                                 f'{error.strerror or error}') from None
+            if info.st_uid not in trusted:
+                raise ProofError(PROOF_INVALID,
+                                 f'parent directory {ancestor} of {label} {path} is owned by uid {info.st_uid}, not root')
+            if stat.S_ISLNK(info.st_mode):
+                # A trusted intermediate symlink (such as /var -> private/var) is allowed only because its owner is
+                # checked here, its own parent is checked in this loop, and its resolved chain is checked too.
+                continue
+            if not stat.S_ISDIR(info.st_mode):
+                raise ProofError(PROOF_INVALID, f'parent {ancestor} of {label} {path} is not a directory')
+            writable = info.st_mode & (stat.S_IWGRP | stat.S_IWOTH)
+            if writable and (ancestor in direct_parents or not (info.st_mode & stat.S_ISVTX)):
+                raise ProofError(PROOF_INVALID,
+                                 f'parent directory {ancestor} of {label} {path} is writable by group or others '
+                                 f'({stat.S_IMODE(info.st_mode):04o})')
+
+
+def _require_trusted_file(path: Path, *, label: str, exact_mode: int | None = None,
+                          forbidden_bits: int = 0) -> Path:
+    """Verify a key file is a readable, non-symlink regular file owned by root (or euid) under trusted parents."""
+    try:
+        info = os.lstat(path)
+    except OSError as error:
+        raise ProofError(PROOF_INVALID, f'{label} {path} cannot be read: {error.strerror or error}') from None
+    if stat.S_ISLNK(info.st_mode):
+        raise ProofError(PROOF_INVALID, f'{label} {path} is a symlink')
+    if not stat.S_ISREG(info.st_mode):
+        raise ProofError(PROOF_INVALID, f'{label} {path} is not a regular file')
+    if info.st_uid not in (0, os.geteuid()):
+        raise ProofError(PROOF_INVALID, f'{label} {path} is owned by uid {info.st_uid}, not root')
+    mode = stat.S_IMODE(info.st_mode)
+    if exact_mode is not None and mode != exact_mode:
+        raise ProofError(PROOF_INVALID, f'{label} {path} is mode {mode:04o}, expected {exact_mode:04o}')
+    if forbidden_bits and (mode & forbidden_bits):
+        raise ProofError(PROOF_INVALID, f'{label} {path} is writable by group or others ({mode:04o})')
+    _require_trusted_parents(path, label=label)
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    except OSError as error:
+        raise ProofError(PROOF_INVALID, f'{label} {path} cannot be read: {error.strerror or error}') from None
+    os.close(fd)
+    return path
 
 
 def public_key_paths(value) -> list[Path]:
     """The pinned public key files: a comma-separated string (the config value) or a sequence of paths.
 
-    Each must be a readable regular file that no unprivileged user can write; a trust anchor this process cannot
-    trust is never skipped silently.
+    Each must be a readable, non-symlink regular file owned by root (or euid) under trusted parent directories that no
+    unprivileged user can write; a trust anchor this process cannot trust is never skipped silently.
     """
     entries = str(value).split(',') if isinstance(value, (str, Path)) else [str(entry) for entry in value]
     paths = [Path(entry.strip()) for entry in entries if entry.strip()]
     if not paths:
         raise ProofError(PROOF_INVALID, 'the proof gate names no public key file')
-    for path in paths:
-        try:
-            mode = path.stat().st_mode
-        except OSError as error:
-            raise ProofError(PROOF_INVALID,
-                             f'the pinned public key {path} cannot be read: {error.strerror or error}') from None
-        if not stat.S_ISREG(mode):
-            raise ProofError(PROOF_INVALID, f'the pinned public key {path} is not a regular file')
-        if mode & (stat.S_IWGRP | stat.S_IWOTH):
-            raise ProofError(PROOF_INVALID,
-                             f'the pinned public key {path} is writable by group or others ({stat.S_IMODE(mode):04o})')
-    return paths
+    return [_require_trusted_file(path, label='the pinned public key', forbidden_bits=stat.S_IWGRP | stat.S_IWOTH)
+            for path in paths]
+
+
+def private_key_path(value) -> Path:
+    """The signing private key file: must be a readable, non-symlink regular file, mode 0600, owned by root (or euid),
+    under trusted parent directories."""
+    raw = str(value).strip()
+    if not raw:
+        raise ProofError(PROOF_INVALID, 'the signing private key path is empty')
+    return _require_trusted_file(Path(raw), label='the signing private key', exact_mode=0o600)
 
 
 def sign(payload: dict, key_file, *, run) -> bytes:

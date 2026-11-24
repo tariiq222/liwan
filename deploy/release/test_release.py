@@ -881,8 +881,12 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(self.served(), NEW)
         self.assertFalse((self.state / 'proof').exists())
         # A `highest` environment may release ungated, but never silently: the run says so once.
-        self.assertIn(f'{release.PROOF_URL_KEY} and {release.PROOF_PUBLIC_KEY_KEY} are unset', self.log_stream.getvalue())
-        self.assertIn('LIWAN_RELEASE_TAG_POLICY=highest', self.log_stream.getvalue())
+        log = self.log_stream.getvalue()
+        self.assertIn(f'{release.PROOF_URL_KEY} and {release.PROOF_PUBLIC_KEY_KEY} are unset', log)
+        self.assertIn('LIWAN_RELEASE_TAG_POLICY=highest', log)
+        # Without a signing key it also states explicitly that it signs nothing so no environment can pin it.
+        self.assertIn(f'{release.PROOF_KEY_FILE_KEY} is unset', log)
+        self.assertIn('signs nothing', log)
 
     def test_an_explicit_environment_is_refused_without_the_proof_pair(self):
         """Production's policy names one tag, so a missing pair would release with the gate silently off."""
@@ -1003,6 +1007,84 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(self.commands('systemctl'), [])
         self.assertFalse((self.state / 'run.json').exists() or (self.state / 'failed.json').exists())
         self.assertEqual(self.served(), OLD)
+
+    def test_a_missing_or_invalid_signing_key_is_refused_in_prepare_before_anything_stops(self):
+        proof_dir = self.root / 'served-proof'
+        proof_dir.mkdir()
+        config = self.paths.config_root / 'staging.env'
+        base = config.read_text()
+        real_key = self.root / 'real-signing.key'
+        real_key.write_text('PRIVATE-KEY-SECRET-NEVER-LOGGED\n', encoding='ascii')
+        real_key.chmod(0o600)
+        symlink_key = self.root / 'link-signing.key'
+        symlink_key.symlink_to(real_key)
+        loose_key = self.root / 'loose-signing.key'
+        loose_key.write_text('PRIVATE-KEY-SECRET-NEVER-LOGGED\n', encoding='ascii')
+        loose_key.chmod(0o644)
+        writable_dir = self.root / 'writable-key-dir'
+        writable_dir.mkdir()
+        writable_key = writable_dir / 'signing.key'
+        writable_key.write_text('PRIVATE-KEY-SECRET-NEVER-LOGGED\n', encoding='ascii')
+        writable_key.chmod(0o600)
+        writable_dir.chmod(0o775)
+        self.addCleanup(writable_dir.chmod, 0o700)
+        cases = (
+            ('absent', self.root / 'absent-signing.key', 'cannot be read'),
+            ('symlink', symlink_key, 'symlink'),
+            ('wrong mode', loose_key, 'expected 0600'),
+            ('writable parent', writable_key, 'parent directory'),
+        )
+        for name, key_path, expected_detail in cases:
+            with self.subTest(name):
+                self.log_stream.truncate(0)
+                self.log_stream.seek(0)
+                self.runner.calls.clear()
+                config.write_text(base + f'{release.PROOF_KEY_FILE_KEY}={key_path}\n'
+                                         f'{release.PROOF_DIR_KEY}={proof_dir}\n')
+                self.assertEqual(self.main(), release.EXIT_REFUSED)
+                self.assertEqual(self.result(), 'refused proof_key_invalid')
+                log = self.log_stream.getvalue()
+                self.assertIn(expected_detail, log)
+                self.assertNotIn('PRIVATE-KEY-SECRET', log)
+                self.assertEqual(self.compose_stops(), [])
+                self.assertEqual(self.commands('systemctl'), [])
+                self.assertFalse((self.state / 'run.json').exists() or (self.state / 'failed.json').exists())
+                self.assertEqual(self.served(), OLD)
+        # A key owned by another user is refused in prepare too.
+        self.log_stream.truncate(0)
+        self.log_stream.seek(0)
+        config.write_text(base + f'{release.PROOF_KEY_FILE_KEY}={real_key}\n{release.PROOF_DIR_KEY}={proof_dir}\n')
+        real_lstat = os.lstat
+        foreign_uid = os.geteuid() + 1
+
+        def fake_lstat(path):
+            info = real_lstat(path)
+            if Path(path) == real_key:
+                return os.stat_result((info.st_mode, info.st_ino, info.st_dev, info.st_nlink,
+                                       foreign_uid, info.st_gid, info.st_size,
+                                       info.st_atime, info.st_mtime, info.st_ctime))
+            return info
+
+        with mock.patch.object(proof.os, 'lstat', side_effect=fake_lstat):
+            self.assertEqual(self.main(), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused proof_key_invalid')
+        self.assertIn(f'owned by uid {foreign_uid}', self.log_stream.getvalue())
+        self.assertEqual(self.compose_stops(), [])
+        self.assertEqual(self.served(), OLD)
+
+    def test_an_environment_refuses_pinning_its_own_signing_public_key(self):
+        self.sign_proof()
+        own_pub = self.root / 'release-proof.key.pub'
+        own_pub.write_text('own-public-key\n', encoding='ascii')
+        own_pub.chmod(0o644)
+        self.add_config(f'{release.PROOF_URL_KEY}=https://staging.example/_liwan/release-proof/\n'
+                        f'{release.PROOF_PUBLIC_KEY_KEY}={own_pub}\n')
+        with mock.patch.object(proof, 'https_get', side_effect=AssertionError('the gate ran')):
+            self.assertEqual(self.main(), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused invalid_config')
+        self.assertIn('own signing public key', self.log_stream.getvalue())
+        self.assertEqual(self.pulls(), [])
+        self.assertFalse((self.state / 'run.json').exists())
 
     def test_the_proof_digest_is_the_sha256_of_the_document_file(self):
         """The contract is sha256 of the raw bytes of `/release.json`, the same value `sha256sum` prints for that file."""

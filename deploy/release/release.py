@@ -309,6 +309,32 @@ class Releaser:
         parsed = urlsplit(url)
         if parsed.scheme != 'https' or not parsed.hostname:
             raise ReleaseError('invalid_config', EXIT_REFUSED, f'{PROOF_URL_KEY} must be an HTTPS URL')
+        key_file = self.config.get(PROOF_KEY_FILE_KEY, '').strip()
+        if key_file:
+            own_pub = Path(key_file).with_name(Path(key_file).name + '.pub')
+            own_real = os.path.realpath(own_pub)
+            try:
+                own_stat = os.lstat(own_pub)
+            except OSError:
+                own_stat = None
+            for entry in public_key.split(','):
+                candidate = entry.strip()
+                if not candidate:
+                    continue
+                same = os.path.realpath(candidate) == own_real
+                if not same and own_stat is not None and stat.S_ISREG(own_stat.st_mode):
+                    try:
+                        cand_stat = os.lstat(candidate)
+                        if stat.S_ISREG(cand_stat.st_mode):
+                            same = (cand_stat.st_dev, cand_stat.st_ino) == (own_stat.st_dev, own_stat.st_ino)
+                            if not same:
+                                same = Path(candidate).read_bytes() == own_pub.read_bytes()
+                    except OSError:
+                        pass
+                if same:
+                    raise ReleaseError('invalid_config', EXIT_REFUSED,
+                                       f'{PROOF_PUBLIC_KEY_KEY} ({candidate}) resolves to this environment\'s own '
+                                       f'signing public key ({own_pub})')
         return url, public_key
 
     def fetch_proof(self, candidate: dict) -> tuple[bytes, str] | None:
@@ -757,10 +783,17 @@ class Releaser:
                                f'create it before this release')
 
     def require_proof_target(self) -> None:
-        """A signing environment publishes into the directory the edge serves. A missing one would only fail at the last
-        step, after customers already write to the new release."""
-        if not self.config.get(PROOF_KEY_FILE_KEY):
+        """A signing environment needs both its private key and the directory the edge serves. Either problem would
+        otherwise fail only at the last step, after customers already write to the new release."""
+        key_file = self.config.get(PROOF_KEY_FILE_KEY, '').strip()
+        if not key_file:
+            self.log(f'{PROOF_KEY_FILE_KEY} is unset: this environment signs nothing, so no other environment can pin '
+                     'its releases')
             return
+        try:
+            proof.private_key_path(key_file)
+        except proof.ProofError as error:
+            raise ReleaseError('proof_key_invalid', EXIT_REFUSED, error.detail) from None
         directory = self.config.get(PROOF_DIR_KEY, '')
         if not directory or not Path(directory).is_dir():
             raise ReleaseError('proof_dir_missing', EXIT_REFUSED,
@@ -1059,7 +1092,7 @@ class Releaser:
     def write_proof(self, run: dict) -> None:
         """Sign last: after the release is recorded and its worker is running, so a proof never vouches for a release that
         failed to start. A failure here is post-open: the next run re-runs this step."""
-        if not self.config.get(PROOF_KEY_FILE_KEY):
+        if not self.config.get(PROOF_KEY_FILE_KEY, '').strip():
             return
         try:
             body = self.signed_proof(run)

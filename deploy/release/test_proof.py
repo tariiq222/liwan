@@ -9,8 +9,12 @@ import base64
 import hashlib
 import http.client
 import json
+import os
+import socket
+import stat
 import subprocess
 import tempfile
+import threading
 import unittest
 import urllib.error
 from pathlib import Path
@@ -58,8 +62,11 @@ class FakeOpenSSL:
 
 
 class FakeResponse:
-    def __init__(self, body):
-        self.body = body
+    def __init__(self, body, *, chunks=None, on_read=None, sock=None):
+        self._chunks = list(chunks) if chunks is not None else ([body] if body else [])
+        self._on_read = on_read
+        if sock is not None:
+            self.fp = mock.Mock(raw=mock.Mock(_sock=sock))
 
     def __enter__(self):
         return self
@@ -68,18 +75,27 @@ class FakeResponse:
         return False
 
     def read(self, size):
-        return self.body[:size]
+        if self._on_read is not None:
+            self._on_read()
+        if not self._chunks:
+            return b''
+        head = self._chunks[0]
+        if len(head) <= size:
+            return self._chunks.pop(0)
+        self._chunks[0] = head[size:]
+        return head[:size]
 
 
 class FakeOpener:
-    def __init__(self, error=None, body=b''):
-        self.error, self.body, self.request, self.timeout = error, body, None, None
+    def __init__(self, error=None, body=b'', response=None):
+        self.error, self.body, self.response = error, body, response
+        self.request, self.timeout = None, None
 
     def open(self, request, timeout=None):
         self.request, self.timeout = request, timeout
         if self.error is not None:
             raise self.error
-        return FakeResponse(self.body)
+        return self.response if self.response is not None else FakeResponse(self.body)
 
 
 class ProofCase(unittest.TestCase):
@@ -186,6 +202,109 @@ class RequireTest(ProofCase):
         self.public.unlink()
         self.assert_refused(proof.PROOF_INVALID, self.proof_file(), FakeOpenSSL())
 
+    def test_a_symlink_public_key_is_refused_before_openssl(self):
+        link = Path(self.work.name, 'link-proof.pub')
+        link.symlink_to(self.public)
+        runner = FakeOpenSSL()
+        with self.assertRaises(proof.ProofError) as caught:
+            proof.require(self.proof_file(), public_key_files=[link], run=runner,
+                          tag=TAG, commit=COMMIT, digest=DIGEST)
+        self.assertEqual(caught.exception.reason, proof.PROOF_INVALID)
+        self.assertIn('symlink', caught.exception.detail)
+        self.assertEqual(runner.calls, [])
+
+    def test_a_public_key_owned_by_another_user_is_refused_before_openssl(self):
+        real_lstat = os.lstat
+        foreign_uid = os.geteuid() + 1
+
+        def fake_lstat(path):
+            info = real_lstat(path)
+            if Path(path) == self.public:
+                return os.stat_result((info.st_mode, info.st_ino, info.st_dev, info.st_nlink,
+                                       foreign_uid, info.st_gid, info.st_size,
+                                       info.st_atime, info.st_mtime, info.st_ctime))
+            return info
+
+        runner = FakeOpenSSL()
+        with mock.patch.object(proof.os, 'lstat', side_effect=fake_lstat):
+            error = self.assert_refused(proof.PROOF_INVALID, self.proof_file(), runner)
+        self.assertIn(f'owned by uid {foreign_uid}', error.detail)
+        self.assertEqual(runner.calls, [])
+
+    def test_a_public_key_in_a_writable_parent_directory_is_refused_before_openssl(self):
+        for name, mode in (('group-writable direct parent', 0o775),
+                           ('world-writable direct parent', 0o777),
+                           ('sticky world-writable direct parent', 0o1777)):
+            with self.subTest(name):
+                parent = Path(self.work.name, name.replace(' ', '_'))
+                parent.mkdir()
+                key = parent / 'release-proof.pub'
+                key.write_text('the fake verifier never reads this\n', encoding='ascii')
+                key.chmod(0o644)
+                parent.chmod(mode)
+                self.addCleanup(parent.chmod, 0o700)
+                runner = FakeOpenSSL()
+                with self.assertRaises(proof.ProofError) as caught:
+                    proof.require(self.proof_file(), public_key_files=[key], run=runner,
+                                  tag=TAG, commit=COMMIT, digest=DIGEST)
+                self.assertEqual(caught.exception.reason, proof.PROOF_INVALID)
+                self.assertIn('parent directory', caught.exception.detail)
+                self.assertEqual(runner.calls, [])
+
+    def test_a_public_key_under_an_unsticky_writable_or_foreign_ancestor_is_refused(self):
+        outer = Path(self.work.name, 'outer')
+        inner = outer / 'inner'
+        inner.mkdir(parents=True)
+        key = inner / 'release-proof.pub'
+        key.write_text('the fake verifier never reads this\n', encoding='ascii')
+        key.chmod(0o644)
+        inner.chmod(0o700)
+        outer.chmod(0o775)
+        self.addCleanup(outer.chmod, 0o700)
+        runner = FakeOpenSSL()
+        with self.assertRaises(proof.ProofError) as caught:
+            proof.require(self.proof_file(), public_key_files=[key], run=runner,
+                          tag=TAG, commit=COMMIT, digest=DIGEST)
+        self.assertEqual(caught.exception.reason, proof.PROOF_INVALID)
+        self.assertIn('parent directory', caught.exception.detail)
+        self.assertEqual(runner.calls, [])
+        # Restoring outer to 0700 lets a foreign-owner ancestor still be caught.
+        outer.chmod(0o700)
+        real_lstat = os.lstat
+        foreign_uid = os.geteuid() + 1
+
+        def fake_lstat(path):
+            info = real_lstat(path)
+            if Path(path) == outer or Path(path) == outer.resolve():
+                return os.stat_result((info.st_mode, info.st_ino, info.st_dev, info.st_nlink,
+                                       foreign_uid, info.st_gid, info.st_size,
+                                       info.st_atime, info.st_mtime, info.st_ctime))
+            return info
+
+        with mock.patch.object(proof.os, 'lstat', side_effect=fake_lstat):
+            with self.assertRaises(proof.ProofError) as caught:
+                proof.require(self.proof_file(), public_key_files=[key], run=runner,
+                              tag=TAG, commit=COMMIT, digest=DIGEST)
+        self.assertEqual(caught.exception.reason, proof.PROOF_INVALID)
+        self.assertIn(f'owned by uid {foreign_uid}', caught.exception.detail)
+
+    def test_private_key_path_requires_a_readable_0600_non_symlink_under_trusted_parents(self):
+        key = Path(self.work.name, 'signing.key')
+        key.write_text('SECRET-KEY-MATERIAL-NEVER-SHOWN\n', encoding='ascii')
+        key.chmod(0o600)
+        self.assertEqual(proof.private_key_path(key), key)
+        key.chmod(0o644)
+        with self.assertRaises(proof.ProofError) as caught:
+            proof.private_key_path(key)
+        self.assertIn('expected 0600', caught.exception.detail)
+        self.assertNotIn('SECRET-KEY-MATERIAL', caught.exception.detail)
+        key.chmod(0o600)
+        link = Path(self.work.name, 'signing-link.key')
+        link.symlink_to(key)
+        with self.assertRaises(proof.ProofError) as caught:
+            proof.private_key_path(link)
+        self.assertIn('symlink', caught.exception.detail)
+
     def test_a_second_pinned_key_still_verifies_within_the_rotation_window(self):
         other = Path(self.work.name, 'previous-release-proof.pub')
         other.write_text('the fake verifier never reads this\n', encoding='ascii')
@@ -234,6 +353,73 @@ class HttpsGetTest(unittest.TestCase):
         with self.assertRaises(proof.ProofError) as caught:
             self.fetch(FakeOpener(body=b'x' * 8193))
         self.assertEqual(caught.exception.reason, proof.PROOF_INVALID)
+
+    def test_a_chunked_response_within_deadline_and_cap_succeeds(self):
+        response = FakeResponse(b'', chunks=[b'{"contract":', b'1}'])
+        self.assertEqual(self.fetch(FakeOpener(response=response)), b'{"contract":1}')
+
+    def test_a_slow_drip_response_fails_as_staging_proof_missing_at_the_overall_deadline(self):
+        now = [100.0]
+        timeouts = []
+
+        class RecordingSocket:
+            def fileno(self):
+                return 3
+
+            def settimeout(self, value):
+                timeouts.append(value)
+
+        def tick():
+            now[0] += 4.0  # each chunk is below the 10s socket timeout, but three chunks exceed 10s overall
+
+        response = FakeResponse(b'', chunks=[b'a', b'b', b'c', b'd'], on_read=tick, sock=RecordingSocket())
+        with self.assertRaises(proof.ProofError) as caught:
+            self.fetch(FakeOpener(response=response), timeout=10.0, clock=lambda: now[0])
+        self.assertEqual(caught.exception.reason, proof.PROOF_MISSING)
+        self.assertIn('timed out', caught.exception.detail)
+        self.assertEqual(timeouts, [10.0, 6.0, 2.0])
+
+    def test_a_real_http_response_handles_closed_socket_and_enforces_overall_deadline(self):
+        # Fast response: socket closes after EOF without raising EBADF on a subsequent settimeout.
+        client, server = socket.socketpair()
+        try:
+            server.sendall(b'HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}')
+            server.close()
+            response = http.client.HTTPResponse(client)
+            response.begin()
+            self.assertEqual(self.fetch(FakeOpener(response=response), timeout=5.0), b'{}')
+        finally:
+            client.close()
+            server.close()
+
+        # Slow-drip response on a real socket: 1 byte every 0.12s exceeds a 0.25s whole-request deadline.
+        client, server = socket.socketpair()
+        stop = threading.Event()
+
+        def drip():
+            try:
+                server.sendall(b'HTTP/1.1 200 OK\r\nContent-Length: 50\r\n\r\n')
+                for _ in range(50):
+                    if stop.wait(0.12):
+                        break
+                    server.sendall(b'x')
+            except OSError:
+                pass
+            finally:
+                server.close()
+
+        worker = threading.Thread(target=drip, daemon=True)
+        worker.start()
+        try:
+            response = http.client.HTTPResponse(client)
+            response.begin()
+            with self.assertRaises(proof.ProofError) as caught:
+                self.fetch(FakeOpener(response=response), timeout=0.25)
+            self.assertEqual(caught.exception.reason, proof.PROOF_MISSING)
+        finally:
+            stop.set()
+            client.close()
+            worker.join(timeout=2)
 
     def test_a_url_that_is_not_the_pinned_https_proof_path_is_staging_proof_invalid(self):
         for url in (PROOF_URL.replace('https', 'http'), PROOF_URL.replace(COMMIT, 'main'),
