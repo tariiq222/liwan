@@ -25,24 +25,7 @@
 
 ## أوامر المشغّل
 
-تثبيت جديد (بعد ملف JSON مطلق مطابق لـ`DB_NAME`):
-
-```sh
-export NASQ_COMMERCIAL_CONFIG=/absolute/operator-owned/classification.json
-deploy/provision.sh app.customer.sa customerdb
-```
-
-فحص ترقية قبل `-u`، مع التاريخ المرصود حاليًا:
-
-```sh
-python3 deploy/classification.py stage \
-  --file /absolute/operator-owned/classification.json \
-  --output /absolute/empty/classification.json \
-  --database customerdb \
-  --expected-valid-until 2026-01-01
-```
-
-لا تخمّن التاريخ. اقرأه من القاعدة المستهدفة أولًا. لا تستخدم fixture على قاعدة عميل.
+أُزيل `deploy/provision.sh` وأمر `classification.py stage` مع التزويد الأحادي؛ يبقى `classification.py fixture` لـ scratch/CI فقط. لا تستخدم fixture على قاعدة عميل.
 
 ## ما ثبت محليًا قبل التسليم
 

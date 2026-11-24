@@ -3,7 +3,6 @@
 import json
 import tempfile
 import unittest
-from datetime import date
 from pathlib import Path
 
 from deploy import classification
@@ -24,34 +23,6 @@ class TestClassification(unittest.TestCase):
             'expected_valid_until': None, 'valid_until_action': 'preserve',
         }
 
-    def stage(self, **updates):
-        self.source.write_text(json.dumps({**self.data, **updates}))
-        classification.stage(self.source, self.output, self.data['database'], None, fresh=True)
-
-    def test_snapshot_is_validated_readonly_and_does_not_follow_later_source_edits(self):
-        self.stage()
-        saved = self.output.read_bytes()
-        self.source.write_text('{}')
-        self.assertEqual(self.output.read_bytes(), saved)
-        self.assertEqual(self.output.stat().st_mode & 0o777, 0o444)
-        with self.assertRaises(FileExistsError):
-            self.stage()
-
-    def test_wrong_database_pairs_and_fresh_clear_leave_no_output(self):
-        for update in ({'database': 'other'}, {'entitlement_source': 'control_plane'},
-                       {'valid_until_action': 'clear'}, {'commercial_mode': 'guess'}):
-            with self.subTest(update=update), self.assertRaises(ValueError):
-                self.stage(**update)
-            self.assertFalse(self.output.exists())
-
-    def test_upgrade_cutoff_must_match_and_explicit_clear_is_required(self):
-        self.data.update(expected_valid_until='2026-01-01', valid_until_action='clear')
-        self.source.write_text(json.dumps(self.data))
-        with self.assertRaises(ValueError):
-            classification.stage(self.source, self.output, self.data['database'], date(2026, 1, 2))
-        classification.stage(self.source, self.output, self.data['database'], date(2026, 1, 1))
-        self.assertTrue(self.output.exists())
-
     def test_fixture_is_explicit_scratch_only_and_never_overwrites(self):
         for db in ('customer', 'odoo19', 'liwan_production_scratch'):
             with self.assertRaises(ValueError):
@@ -61,14 +32,15 @@ class TestClassification(unittest.TestCase):
         with self.assertRaises(FileExistsError):
             classification.fixture('liwan_test_scratch', 'non_saas', self.output)
 
-    def test_missing_and_invalid_json_are_fail_closed(self):
-        with self.assertRaises(FileNotFoundError):
-            classification.stage(self.source, self.output, self.data['database'], None)
+    def test_invalid_json_and_wrong_pairs_are_fail_closed(self):
         for raw in (b'bad', b'{"database":"a","database":"b"}', b'x' * 16385):
-            self.source.write_bytes(raw)
             with self.assertRaises(ValueError):
-                classification.stage(self.source, self.output, self.data['database'], None)
-            self.assertFalse(self.output.exists())
+                classification.validate_bytes(raw, self.data['database'], None)
+        for update in ({'database': 'other'}, {'entitlement_source': 'control_plane'},
+                       {'valid_until_action': 'clear'}, {'commercial_mode': 'guess'}):
+            with self.subTest(update=update), self.assertRaises(ValueError):
+                classification.validate_bytes(json.dumps({**self.data, **update}).encode(),
+                                              self.data['database'], None, fresh=True)
 
 
 class TestCiClassification(unittest.TestCase):

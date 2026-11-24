@@ -37,7 +37,7 @@ class ProviderConfigError(ValueError):
 
 
 def _value_of(raw: str) -> str:
-    """The value of one ``NAME=value`` line as Docker Compose reads it: a quoted value ends at its closing quote (a comment may follow), an unquoted one at a `` #``; a value that is only a comment is empty."""
+    """The value of one ``NAME=value`` line close to how Docker Compose reads it: a quoted value ends at its closing quote (a comment may follow), an unquoted one at a `` #``. A value that is only a comment is treated as empty (Compose would keep it literally), so the writer refuses it."""
     raw = raw.strip()
     if raw.startswith('#'):
         return ''
