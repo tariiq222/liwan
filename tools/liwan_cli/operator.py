@@ -682,23 +682,28 @@ def _candidate_manifest_ok(candidate, database):
 
 def _discard_candidate(candidate):
     """Remove the plaintext copy: the encrypted artifact in its own store is the only durable one."""
-    if candidate is not None:
-        shutil.rmtree(candidate, ignore_errors=True)
+    if candidate is None:
+        return
+    if candidate.is_symlink() or candidate.is_file():
+        candidate.unlink()
+        return
+    if not candidate.exists():
+        return
+    shutil.rmtree(candidate)
 
 
 def _fetch_candidate(entry, runner, operation_id):
     """Fetch one operation's encrypted candidate back as a plaintext directory its caller must discard."""
     candidate = _candidate_plaintext(entry, operation_id)
-    if candidate.exists():
-        # An interrupted fetch left a partial tree; the store still holds the whole artifact.
-        if (candidate / 'manifest.json').is_file():
-            return None
-        shutil.rmtree(candidate, ignore_errors=True)
+    _discard_candidate(candidate)
     code, _ = _run(runner, _backup_argv(
         entry, 'fetch', '--kind', 'candidate', '--tenant', entry['database'],
         '--store-root', str(_candidate_store(entry, operation_id)), '--destination', str(candidate),
     ), entry, **_backup_env())
-    return candidate if code == 0 else None
+    if code != 0:
+        _discard_candidate(candidate)
+        return None
+    return candidate
 
 
 def _candidate_backup(entry, runner, operation_id):

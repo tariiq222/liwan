@@ -788,6 +788,83 @@ class OperatorCase(unittest.TestCase):
         self.assertIn('--pg-host', restore_argv)
         self.assertIn('approved_1', json.dumps(restored))
 
+    def test_restore_discards_leftover_complete_plaintext_copy_and_refetches(self):
+        (self.data / 'filestore' / 'liwan_scratch_demo').mkdir(parents=True)
+        fetched_calls = []
+
+        def runner(argv, env=None, stdin_text=None):
+            if 'deploy.backup' in argv and 'capture' in argv:
+                Path(argv[argv.index('--store-root') + 1]).mkdir(parents=True)
+                return 0, '', ''
+            if 'deploy.backup' in argv and 'fetch' in argv:
+                destination = Path(argv[argv.index('--destination') + 1])
+                self.assertFalse(destination.exists(), 'leftover candidate must be discarded before fetch')
+                fetched_calls.append(destination)
+                write_candidate_artifact(destination)
+                return 0, '', ''
+            if 'deploy.backup' in argv and 'verify' in argv:
+                backup_dir = Path(argv[argv.index('--backup-dir') + 1])
+                destination = argv[argv.index('--target-db') + 1]
+                (backup_dir / 'restore-verification.json').write_text(json.dumps({
+                    'restore_verified': True, 'restored_into': destination,
+                }))
+                return 0, '', ''
+            return 0, '', ''
+
+        code, backup = operator.operation_adapter(self.fields('backup', request_id='backup_leftover'), runner=runner)
+        self.assertEqual(code, 0, backup)
+        # Simulate a prior interrupted restore that left a complete plaintext directory (with manifest.json) behind.
+        leftover = self.backups / backup['operation_id'] / 'candidate'
+        write_candidate_artifact(leftover)
+        self.assertTrue((leftover / 'manifest.json').is_file())
+        restore_code, restored = operator.operation_adapter(
+            self.fields('restore', request_id='restore_leftover',
+                        backup_id=backup['operation_id'], approval_id='approved_leftover'),
+            runner=runner,
+        )
+        self.assertEqual(restore_code, 0, restored)
+        self.assertTrue(restored['restore_verified'])
+        self.assertEqual(len(fetched_calls), 2)
+        self.assertFalse(leftover.exists())
+
+    def test_discard_candidate_surfaces_removal_failure_as_needs_intervention(self):
+        from unittest.mock import patch
+        (self.data / 'filestore' / 'liwan_scratch_demo').mkdir(parents=True)
+        leftover = self.backups / 'stuck_candidate'
+        leftover.mkdir(parents=True)
+        with patch.object(operator.shutil, 'rmtree', side_effect=PermissionError('cannot remove plaintext')):
+            with self.assertRaises(PermissionError):
+                operator._discard_candidate(leftover)
+
+        def runner(argv, env=None, stdin_text=None):
+            if 'deploy.backup' in argv and 'capture' in argv:
+                Path(argv[argv.index('--store-root') + 1]).mkdir(parents=True)
+                return 0, '', ''
+            if 'deploy.backup' in argv and 'fetch' in argv:
+                write_candidate_artifact(Path(argv[argv.index('--destination') + 1]))
+                return 0, '', ''
+            return 0, '', ''
+
+        with patch.object(operator.shutil, 'rmtree', side_effect=PermissionError('cannot remove plaintext')):
+            code, payload = operator.operation_adapter(
+                self.fields('backup', request_id='backup_discard_fail'), runner=runner)
+        self.assertEqual(code, 6, payload)
+        self.assertEqual(payload['status'], 'needs_intervention')
+
+    def test_fetch_candidate_cleans_up_partial_directory_when_fetch_fails(self):
+        entry = {'database': 'liwan_scratch_demo', 'backup_root': str(self.backups),
+                 'python': sys.executable, 'pg_host': '127.0.0.1', 'pg_port': 5432, 'pg_user': 'scratch'}
+
+        def failing_runner(argv, env=None, stdin_text=None):
+            destination = Path(argv[argv.index('--destination') + 1])
+            destination.mkdir(parents=True)
+            (destination / 'database.dump').write_bytes(b'partial')
+            return 2, '', 'fetch failed'
+
+        result = operator._fetch_candidate(entry, failing_runner, 'op_partial_fetch')
+        self.assertIsNone(result)
+        self.assertFalse((self.backups / 'op_partial_fetch' / 'candidate').exists())
+
     def test_upgrade_failed_child_reports_isolated_rollback_only(self):
         (self.data / 'filestore' / 'liwan_scratch_demo').mkdir(parents=True)
         release = self.releases / 'release.json'
