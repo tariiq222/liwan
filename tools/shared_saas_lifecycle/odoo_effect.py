@@ -669,8 +669,9 @@ STREAM_REFUSALS = ('ai_password_missing', 'ai_data_without_role', 'ai_archive_un
 # Refusals raised before any effect; non-secret and distinct for the operator.
 PRE_EFFECT_REFUSALS = frozenset({'inventory_role_fenced'})
 # Backup outcomes the operator must tell apart: the shared Odoo could not be restarted (down for every tenant),
-# and an inventory that cannot fit a valid manifest (refused before any outage when knowable).
-BACKUP_REFUSALS = frozenset({'odoo_restart_failed', 'inventory_too_large'})
+# an inventory that cannot fit a valid manifest (refused before any outage when knowable), and a capture or restore
+# that has no usable passphrase file (the artifacts are encrypted per file; without the key nothing is written).
+BACKUP_REFUSALS = frozenset({'odoo_restart_failed', 'inventory_too_large', 'backup_key_unavailable'})
 
 
 def classify_error(error):

@@ -34,6 +34,10 @@ FORBIDDEN_DB_RE = re.compile(
 )
 DB_NAME_RE = re.compile(r'^[A-Za-z][A-Za-z0-9_]*$')
 PG_USER_RE = re.compile(r'[A-Za-z0-9_]+')
+# A command a database container runs: a bare name on its PATH or an absolute path inside it.
+CONTAINER_COMMAND_RE = re.compile(r'^[A-Za-z0-9][A-Za-z0-9_.-]*$')
+CONTAINER_OUTPUT_TARGETS = ('-', '/dev/stdout', '/dev/stderr')
+PG_DUMP_COMMAND = 'pg_dump'
 
 
 def validate_db_name(name: str) -> str:
@@ -57,21 +61,56 @@ def validate_existing_file(path_str: str | Path, *, what: str) -> Path:
     return resolved
 
 
+def validate_container_command(name: str | None) -> str:
+    """The dump command a database container runs: its own ``pg_dump``, or an absolute path inside it."""
+    command = PG_DUMP_COMMAND if name is None else name
+    require(isinstance(command, str) and bool(command), 'pg_dump is required')
+    if command.startswith('/'):
+        require('..' not in command.split('/'), 'pg_dump container path must not traverse')
+        return command
+    require(bool(CONTAINER_COMMAND_RE.fullmatch(command)), 'pg_dump container command must be a bare name')
+    return command
+
+
+def validate_container_output(target: str) -> str:
+    """Where a container writes the archive: a stream the caller copies back, or a path inside it."""
+    if target in CONTAINER_OUTPUT_TARGETS:
+        return target
+    out = Path(target)
+    require(out.is_absolute(), 'pg_dump output path must be absolute')
+    require('..' not in out.parts, 'pg_dump output path must not traverse')
+    return str(out)
+
+
 def build_pg_dump_argv(
     *,
-    pg_dump: str,
+    pg_dump: str | None = None,
     db_name: str,
     output_file: str,
     pg_host: str | None = None,
     pg_port: str | None = None,
     pg_user: str | None = None,
+    container: bool = False,
 ) -> list[str]:
-    """The only ``pg_dump`` command line in this repository."""
-    dump_bin = validate_existing_file(pg_dump, what='pg_dump')
+    """The only ``pg_dump`` command line in this repository.
+
+    ``container=True`` builds the same archive command for a process inside the database
+    container: the command is a bare name on that container's ``PATH`` (or an absolute path
+    inside it, and it may be omitted), so it need not exist on the machine building the argv,
+    and the output may be ``-``/``/dev/stdout``/``/dev/stderr`` because the caller streams it
+    back. The host form is unchanged: an existing local binary and an absolute output file.
+    """
+    if container:
+        dump_command = validate_container_command(pg_dump)
+        out = validate_container_output(output_file)
+    else:
+        require(pg_dump is not None, 'pg_dump is required')
+        dump_command = str(validate_existing_file(pg_dump, what='pg_dump'))
+        out_path = Path(output_file)
+        require(out_path.is_absolute(), 'pg_dump output path must be absolute')
+        out = str(out_path)
     db = validate_db_name(db_name)
-    out = Path(output_file)
-    require(out.is_absolute(), 'pg_dump output path must be absolute')
-    argv = [str(dump_bin), '-Fc', '--serializable-deferrable', '--no-password', '-d', db, '-f', str(out)]
+    argv = [dump_command, '-Fc', '--serializable-deferrable', '--no-password', '-d', db, '-f', out]
     if pg_host:
         argv.extend(['-h', pg_host])
     if pg_port:

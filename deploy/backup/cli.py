@@ -54,7 +54,7 @@ REGISTRY_ENVIRONMENT_VARIABLE = 'LIWAN_TENANT_REGISTRY_PATH'
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog='backup_pipeline.py',
+        prog='python3 -B -m deploy.backup',
         description=(
             'Encrypted backup pipeline: capture into an S3-compatible bucket, enforce the '
             'retention policy, fetch one artifact back, restore it into scratch and report '

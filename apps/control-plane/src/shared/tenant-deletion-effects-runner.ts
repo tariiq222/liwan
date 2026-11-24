@@ -93,7 +93,7 @@ export function createDeletionEffects(config: Config, runtime: SharedRuntimeConf
     },
     async purgeOffsite({ tenantId, settleSeconds, assertOwned }) {
       await assertOwned()
-      const args = ['-B', 'deploy/backup_pipeline.py', 'purge', '--tenant', tenantId, '--settle-seconds', String(settleSeconds)]
+      const args = ['-B', '-m', 'deploy.backup', 'purge', '--tenant', tenantId, '--settle-seconds', String(settleSeconds)]
       if (env.LIWAN_TENANT_DELETION_OFFSITE_STORE_ROOT) args.push('--store-root', env.LIWAN_TENANT_DELETION_OFFSITE_STORE_ROOT)
       return new Promise((resolve, reject) => {
         const { child, stop } = spawnGrouped(options.spawnChild, config.python, args, { cwd: config.repositoryRoot, stdio: ['ignore', 'pipe', 'ignore'], env: offsiteEnv(env) })

@@ -16,12 +16,18 @@ import {RegistryError} from './registry-store.js'
 import { actorHolds, actorLabel } from '../admin-auth/grants.js'
 
 const hash=z.string().regex(/^[a-f0-9]{64}$/)
+/** A console artifact's manifest. `databaseSha256`/`filestoreSha256` are the plaintext digests a restore
+ * compares with the approval; the ciphertext fields and `cipher` were added when the effect started
+ * encrypting each file, so they are optional and an artifact captured before that stays readable. */
 export const manifestSchema=z.strictObject({
  schemaVersion:z.literal(1),format:z.literal('odoo-pg-filestore-v1'),backupId:z.uuid(),controlTenantId:z.uuid(),binding:tenantBindingSchema,
  businessKey:z.string(),payloadDigest:hash,databaseSha256:hash,filestoreSha256:hash,
+ databaseCiphertextSha256:hash.optional(),filestoreCiphertextSha256:hash.optional(),
+ databaseCiphertextBytes:z.number().int().positive().optional(),filestoreCiphertextBytes:z.number().int().positive().optional(),
+ cipher:z.literal('aes-256-cbc-pbkdf2').optional(),
  sourceImageId:z.string().regex(/^sha256:[a-f0-9]{64}$/),postgresImageId:z.string().regex(/^sha256:[a-f0-9]{64}$/),capturedAt:z.iso.datetime(),
  inventory:z.strictObject({databaseAttachments:z.array(z.tuple([z.number().int(),hash,z.number().int().nonnegative()])),attachments:z.array(z.tuple([z.number().int(),z.string().nullable(),z.string().nullable(),z.number().int()])),projects:z.number().int(),tasks:z.number().int(),modules:z.array(z.unknown()),profile:z.array(z.unknown())}),
-})
+}).refine(manifest=>(manifest.databaseCiphertextSha256===undefined)===(manifest.filestoreCiphertextSha256===undefined),{message:'a manifest pins both ciphertexts or neither'})
 export function validateRealBackupManifest(value:unknown,expected:{backupId:string;binding:TenantBinding;controlTenantId:string}){
  const manifest=manifestSchema.parse(value)
  if(manifest.backupId!==expected.backupId || manifest.controlTenantId!==expected.controlTenantId)throw Error('shared_artifact_mismatch')

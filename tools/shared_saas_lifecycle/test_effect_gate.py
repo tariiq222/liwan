@@ -365,7 +365,8 @@ class RelayTests(GateCase):
     def test_child_environment_is_explicit(self):
         env = dict(self.env, SECRET_TOKEN='S3CRET', CONTROL_DATABASE_URL='postgres://x', LIWAN_TENANT_DELETION_ENABLED='true',
                    DOCKER_HOST='unix:///run/docker.sock', DOCKER_CONFIG='/etc/liwan/docker', HOME='/nonexistent',
-                   LIWAN_RELEASE_ROUTES_DIR='/r', LIWAN_RELEASE_HELPER_POOL_ID='p', PYTHONPATH='/evil')
+                   LIWAN_RELEASE_ROUTES_DIR='/r', LIWAN_RELEASE_HELPER_POOL_ID='p', PYTHONPATH='/evil',
+                   LIWAN_BACKUP_PASSPHRASE_FILE='/run/liwan-backup.passphrase')
         lines, _ = self.converse({'effect': 'env'}, {}, env=env)
         child = lines[0]['env']
         self.assertNotIn('SECRET_TOKEN', child)
@@ -376,6 +377,8 @@ class RelayTests(GateCase):
         self.assertEqual(child['DOCKER_HOST'], 'unix:///run/docker.sock')
         self.assertNotIn('LIWAN_RELEASE_ROUTES_DIR', child)
         self.assertNotIn('LIWAN_RELEASE_HELPER_POOL_ID', child)
+        # The operator's backup key path reaches the backup effect: the artifacts are encrypted per file.
+        self.assertEqual(child['LIWAN_BACKUP_PASSPHRASE_FILE'], '/run/liwan-backup.passphrase')
         self.assertEqual(child['PYTHONUNBUFFERED'], '1')
         self.assertEqual(child['PATH'], '/usr/bin:/bin')
 
@@ -645,7 +648,9 @@ VALID = [
     ('odoo_effect', at(provision_request(), ('admin',), {'name': 'A', 'login': 'a@b.test'})),
     ('odoo_backup', backup_request()),
     ('odoo_backup', at(backup_request(action='observe'), ('authority', 'manifestSha256'), DELETE)),
+    ('odoo_backup', backup_request(action='reconcile')),
     ('odoo_backup', restore_request()),
+    ('odoo_backup', restore_request(action='reconcile')),
     ('odoo_backup', at(restore_request(), ('commercial',), DELETE)),
     ('subscription_effect', subscription_request()),
     ('subscription_effect', subscription_request(previous_revision_id=UUID_A, trial_ends_at=None, ai_push=True, ai_expected_post_trial_digest=DIGEST,
