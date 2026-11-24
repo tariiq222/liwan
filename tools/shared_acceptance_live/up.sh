@@ -253,9 +253,9 @@ echo "Addons installed."
 # deploy/seed_legacy_policy.py is the repository's single canonical seeding
 # script for the tenant policy: installing the addons alone leaves
 # liwan.tenant.profile with policy_revision=0 and no features. Run it once per
-# tenant DB, piped on stdin exactly as deploy/provision.sh does (the container
-# cannot see the repo, but stdin is sufficient — no bind mount needed). The
-# script commits inside odoo shell, so no extra commit handling is required.
+# tenant DB, piped on stdin (the container cannot see the repo, but stdin is
+# sufficient — no bind mount needed). The script commits inside odoo shell, so no
+# extra commit handling is required.
 seed_policy() {
   local DBT="$1"
   # All options precede the service name (see the note in the install step).

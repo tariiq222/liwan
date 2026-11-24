@@ -22,7 +22,6 @@ LOGGING_ALIAS = '    logging: *liwan-logging'
 STACKS = {
     'dedicated': ('docker-compose.yml',),
     'dedicated production': ('docker-compose.yml', 'docker-compose.production.yml'),
-    'dedicated classification': ('docker-compose.yml', 'docker-compose.classification.yml'),
     'shared': ('docker-compose.yml', 'docker-compose.shared.yml'),
     'shared production': SHARED_COMPOSE_FILES,
 }

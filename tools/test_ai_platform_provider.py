@@ -1,7 +1,6 @@
 """deploy/ai/platform_provider.py writes the AI service's platform provider file: mode 600, atomic, revisioned, never printed."""
 import json
 import os
-import shutil
 import stat
 import subprocess
 import sys
@@ -144,6 +143,13 @@ class PlatformProviderWriterTest(unittest.TestCase):
                 self.assertIn(name, self.run_script(expect=1).stderr)
                 self.assertFalse(self.target.exists())
 
+    def test_a_value_that_is_only_a_comment_counts_as_missing(self):
+        # deploy/.env is read like Compose reads it: a `# comment` is not part of the value, and a value that is only
+        # one is empty, so the operator is told which variable is missing instead of the ai service getting a bogus model.
+        self.env_file.write_text(f'AI_PROVIDER=openai\nAI_MODEL=   # fill in\nAI_API_KEY={KEY}\n', encoding='utf-8')
+        self.assertIn('AI_MODEL', self.run_script(expect=1).stderr)
+        self.assertFalse(self.target.exists())
+
     def test_a_missing_variable_stops_provisioning_naming_the_variable_and_writes_nothing(self):
         for values, variable in (
             ({'AI_PROVIDER': 'gemini', 'AI_MODEL': 'm'}, 'AI_PROVIDER'),
@@ -160,60 +166,3 @@ class PlatformProviderWriterTest(unittest.TestCase):
 if __name__ == '__main__':
     unittest.main()
 
-
-@unittest.skipUnless(shutil.which('openssl') and shutil.which('bash'), 'openssl and bash are required')
-class ProvisionPreflightTest(unittest.TestCase):
-    """provision.sh stops before anything starts when the ai profile is on but the platform provider cannot be written."""
-
-    def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.tmp.cleanup)
-        self.deploy = Path(self.tmp.name) / 'deploy'
-        (self.deploy / 'ai').mkdir(parents=True)
-        shutil.copy(DEPLOY / 'provision.sh', self.deploy / 'provision.sh')
-        for name in ('ensure_secrets.sh', 'egress_hosts.sh', 'platform_provider.py'):
-            shutil.copy(DEPLOY / 'ai' / name, self.deploy / 'ai' / name)
-
-    def provision(self, env_text, **environment):
-        (self.deploy / '.env').write_text(env_text, encoding='utf-8')
-        base = {key: value for key, value in os.environ.items() if key != 'LIWAN_AI_PLATFORM_DIR'}
-        return subprocess.run(['bash', str(self.deploy / 'provision.sh'), 'app.example.sa', 'acme'], capture_output=True, text=True, check=False,
-                              env={**base, 'LIWAN_AI_PLATFORM_FILE_UNOWNED': '1', **environment}, cwd=self.deploy)
-
-    def test_a_missing_ai_model_stops_with_a_message_that_names_it(self):
-        completed = self.provision('COMPOSE_PROFILES=ai\nAI_PROVIDER=ollama\nAI_MODEL=\n')
-        self.assertEqual(completed.returncode, 1)
-        self.assertIn('AI_MODEL is not set in deploy/.env', completed.stderr)
-        self.assertFalse((self.deploy / 'data' / 'ai').exists())
-
-    def test_a_model_that_is_only_a_comment_counts_as_missing(self):
-        self.assertIn('AI_MODEL is not set', self.provision('COMPOSE_PROFILES=ai\nAI_MODEL=   # fill in\n').stderr)
-
-    ENV = 'COMPOSE_PROFILES=ai\nAI_PROVIDER=openai\nAI_MODEL=gpt-4o\nAI_API_KEY=sk-operator-secret-0123456789\n'
-
-    def test_the_file_goes_to_data_ai_by_default(self):
-        self.provision(self.ENV)
-        self.assertTrue((self.deploy / 'data' / 'ai' / 'platform-provider.json').is_file())
-
-    def test_the_file_goes_where_compose_mounts_it_when_the_env_file_names_the_directory(self):
-        # Compose reads LIWAN_AI_PLATFORM_DIR from deploy/.env too, and a relative path is relative to deploy/.
-        for line in ('LIWAN_AI_PLATFORM_DIR=./custom/ai', 'LIWAN_AI_PLATFORM_DIR="./custom/ai"  # the mounted directory'):
-            with self.subTest(line=line):
-                shutil.rmtree(self.deploy / 'custom', ignore_errors=True)
-                self.provision(self.ENV + line + '\n')
-                self.assertTrue((self.deploy / 'custom' / 'ai' / 'platform-provider.json').is_file())
-                self.assertFalse((self.deploy / 'data' / 'ai').exists())
-
-    def test_the_shell_environment_wins_over_the_env_file_as_in_compose_and_an_empty_value_means_the_default(self):
-        elsewhere = Path(self.tmp.name) / 'elsewhere'
-        self.provision(self.ENV + 'LIWAN_AI_PLATFORM_DIR=./from-env-file\n', LIWAN_AI_PLATFORM_DIR=str(elsewhere))
-        self.assertTrue((elsewhere / 'platform-provider.json').is_file())
-        self.assertFalse((self.deploy / 'from-env-file').exists())
-        self.provision(self.ENV + 'LIWAN_AI_PLATFORM_DIR=\n')
-        self.assertTrue((self.deploy / 'data' / 'ai' / 'platform-provider.json').is_file())
-
-    def test_a_missing_key_stops_at_the_writer_with_a_message_naming_the_variable(self):
-        completed = self.provision('COMPOSE_PROFILES=ai\nAI_PROVIDER=anthropic\nAI_MODEL=claude-sonnet-4-5\n')
-        self.assertEqual(completed.returncode, 1)
-        self.assertIn('AI_API_KEY is required for provider anthropic', completed.stderr)
-        self.assertIn('provisioning stops here so the ai service is not left without its platform provider', completed.stderr)

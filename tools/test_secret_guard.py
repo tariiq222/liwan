@@ -50,7 +50,7 @@ class TestSecretGuard(unittest.TestCase):
 
     def test_empty_shell_password_default_is_not_a_secret(self):
         text = 'case "${VENDOR_PASSWORD:-}" in\n'
-        self.assertEqual(find_secret_lines('provision.sh', text), [])
+        self.assertEqual(find_secret_lines('deploy.sh', text), [])
 
     def test_credential_fallback_literal_is_a_secret(self):
         # deploy/loadtest/k6 scripts shipped `PASSWORD = ENV.PASSWORD || 'literal'`;

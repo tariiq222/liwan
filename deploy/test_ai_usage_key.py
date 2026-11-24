@@ -1,4 +1,4 @@
-"""The AI usage root secret: how provision.sh generates and stores it, and which services receive it."""
+"""The AI usage root secret: how it is generated and stored, and which services receive it."""
 import os
 import re
 import stat
@@ -56,35 +56,6 @@ class WriteEnvSecretTest(unittest.TestCase):
         self.assertNotEqual(write_secret(self.env_file, KEY, name='bad name').returncode, 0)
         self.assertNotEqual(write_secret(Path(self.dir.name) / 'missing.env', KEY).returncode, 0)
         self.assertEqual(self.env_file.read_text(), 'A=1\n')
-
-
-class ProvisionWiringTest(unittest.TestCase):
-    """provision.sh needs Docker, so what is checked here is the wiring a regression would silently break."""
-
-    def setUp(self):
-        self.script = (DEPLOY / 'provision.sh').read_text()
-
-    def test_the_root_is_generated_locally_and_stored_without_echo(self):
-        self.assertIn('openssl rand -hex 32', self.script)
-        self.assertIn("printf '%s' \"$root\" | sh ai/write_env_secret.sh .env LIWAN_AI_USAGE_KEY", self.script)
-        # No Odoo shell and no seeding script take part in it.
-        self.assertIsNone(re.search(r'seed_ai', self.script))
-        self.assertNotIn('mint_ai_usage_key', self.script)
-        # The value reaches neither a log line nor a command line: no echo expands it, only stdin carries it.
-        for line in self.script.splitlines():
-            if 'echo' in line:
-                self.assertIsNone(re.search(r'echo[^;]*\$\{?(root|LIWAN_AI_USAGE_KEY)', line), line)
-
-    def test_a_root_already_in_the_env_file_is_kept_and_rotation_is_explicit(self):
-        self.assertIn('[ -z "${LIWAN_AI_USAGE_KEY:-}" ]', self.script)
-        self.assertIn('--rotate-ai-usage-key', self.script)
-
-    def test_rotation_recreates_odoo_then_web(self):
-        rotation = self.script[self.script.index('if [ "$MODE" = rotate-ai-usage-key ]'):]
-        rotation = rotation[:rotation.index('exit 0')]
-        self.assertLess(rotation.index('docker compose up -d odoo'), rotation.index('docker compose up -d web'))
-        self.assertIn('generate_ai_usage_key', rotation)
-        self.assertNotIn(' shell ', rotation)
 
 
 class ComposeDeliveryTest(unittest.TestCase):

@@ -167,7 +167,7 @@ class PullRequestTest(unittest.TestCase):
                 self.assertFalse({'upgrade', 'restore-drill'} & set(stages))
 
     def test_other_deploy_files_do_not_pull_the_image_stage_into_a_pull_request(self):
-        for path in ('deploy/ci/odoo.sh', 'deploy/provision.sh', 'deploy/security/odoo_secure.py', 'apps/ai-service/pyproject.toml',
+        for path in ('deploy/ci/odoo.sh', 'deploy/check_isolated.py', 'deploy/security/odoo_secure.py', 'apps/ai-service/pyproject.toml',
                      'apps/web/app/a.vue', 'docs/DockerNotes.md', 'apps/ai-service/requirements-dev.txt',
                      'apps/ai-service/requirements-audit.txt', 'apps/ai-service/requirements-build.in'):
             with self.subTest(path=path):

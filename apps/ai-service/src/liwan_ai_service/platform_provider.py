@@ -3,7 +3,7 @@
 ``AI_PLATFORM_PROVIDER_FILE`` names a file with ``revision``, ``margin_bps``, ``providers`` (each with its endpoint and key),
 ``models`` (a provider, a model name and optional prices) and ``routes`` (a required ``default`` model, and an optional model
 per capability for each quality level). In shared SaaS the control plane writes it from the vendor's provider panel; in a
-dedicated or customer-hosted deployment ``deploy/provision.sh`` writes it from ``deploy/.env``. This module validates it,
+dedicated or customer-hosted deployment ``deploy/ai/platform_provider.py`` writes it from ``deploy/.env``. This module validates it,
 builds the models from it, and watches it: a valid change replaces the configuration whole (a run that already started keeps
 the models it began on), an invalid one is logged by reason only and the configuration in force stays. The file is never
 required to be there after the first start, so the product keeps running on the last configuration whatever happens to its writer.

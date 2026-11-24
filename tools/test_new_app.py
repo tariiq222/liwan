@@ -187,8 +187,8 @@ class TestNewApp(unittest.TestCase):
     def test_release_copies_are_synced(self):
         code, out, _ = run(self.root, *ARGS)
         self.assertEqual(code, 0)
-        self.assertIn('SYNCED deploy/provision.sh', out)
-        self.assertIn('liwan_zzprobe', (self.root / 'deploy/provision.sh').read_text(encoding='utf-8'))
+        self.assertIn('SYNCED deploy/OPERATIONS.md', out)
+        self.assertIn('liwan_zzprobe', (self.root / 'deploy/OPERATIONS.md').read_text(encoding='utf-8'))
 
     def test_rail_order_and_shortcut_are_computed_from_existing_manifests(self):
         self.collapse_shortcut_reservations()

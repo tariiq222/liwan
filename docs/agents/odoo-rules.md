@@ -117,7 +117,7 @@ architecture rules R1-R10, authorization and Git workflow are in `AGENTS.md`.
   `deploy/catalog/solutions/platform_v4.json` (a sellable tier with module `liwan_<app>` and feature
   `boolean:<app>.enabled`) and `packages/contracts/src/index.ts` (one export line). It then runs
   `python3 -B tools/catalog_check.py --sync-release-copies`, which rewrites the release module
-  lists in `deploy/provision.sh`, `deploy/check_isolated.py`, `deploy/OPERATIONS.md`,
+  lists in `deploy/check_isolated.py`, `deploy/OPERATIONS.md`,
   `deploy/verification-checks.json`, `tools/liwan_cli/operator.py` and the other copies named in
   `RELEASE_COPIES` of `tools/catalog_check.py`. Nothing is written when any target exists or a check fails.
   It edits `deploy/catalog/solutions/platform_v4.json` in place only while that catalog is unpublished; after the

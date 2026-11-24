@@ -62,7 +62,7 @@ The OCA path always comes last, after the existing entries, so nothing existing 
   (`deploy/releases/migrate.py`, config key `ocaDir`, verified at the pins);
 - deployments: `deploy/odoo/Dockerfile` fetches the repositories into `/opt/oca` (without `.git`) and
   `deploy/odoo/entrypoint.sh` appends them (the image has no git, so it does not run `--check`; the pins
-  were verified when the image was built). `deploy/provision.sh` and the compose files only build and
+  were verified when the image was built). The compose files only build and
   run that image.
 
 ## What uses them

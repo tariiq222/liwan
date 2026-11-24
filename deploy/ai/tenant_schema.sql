@@ -2,7 +2,7 @@
 --
 -- Run as the PostgreSQL admin role (postgres) against database `postgres`, once per tenant database:
 --   psql -v ON_ERROR_STOP=1 -v tenant_db=<tenant db> -f ai/tenant_schema.sql
--- deploy/provision.sh applies it to every tenant database, and the operator's tenant.create applies it
+-- The shared tenant provisioning applies it to every tenant database, and the operator's tenant.create applies it
 -- when the inventory entry names `ai_python`. The service's own operator bootstrap then creates the
 -- tables inside schema liwan_ai.
 --

@@ -533,8 +533,8 @@ class ReleaseCatalogCase(CatalogFixture, unittest.TestCase):
 
     def test_a_stale_copy_of_the_release_list_is_rejected(self):
         (self.root / 'deploy').mkdir(exist_ok=True)
-        (self.root / 'deploy' / 'provision.sh').write_text('odoo -i demo_core,web_theme_shadcn --stop-after-init\n')
-        self.assert_rejected("deploy/provision.sh: module list ['demo_core'] differs from the release modules")
+        (self.root / 'deploy' / 'OPERATIONS.md').write_text('odoo -i demo_core,web_theme_shadcn --stop-after-init\n')
+        self.assert_rejected("deploy/OPERATIONS.md: module list ['demo_core'] differs from the release modules")
 
     def test_the_newest_release_is_chosen_by_numeric_suffix(self):
         self.write('solutions/demo_v3.json', self.data)
@@ -610,8 +610,6 @@ class SyncReleaseCopiesTest(unittest.TestCase):
             'tiers': [{'id': 'a', 'modules': ['demo_pmo']}, {'id': 'b', 'modules': ['demo_hr']}],
         }))
         (self.root / 'deploy').mkdir(exist_ok=True)
-        self.provision = self.root / 'deploy' / 'provision.sh'
-        self.provision.write_text('odoo -i demo_core,demo_api,demo_pmo,web_theme_shadcn --stop-after-init\n')
         self.operations = self.root / 'deploy' / 'OPERATIONS.md'
         self.operations.write_text('--modules demo_core,demo_api\n--test-tags /demo_core,/demo_api\nuntouched demo_hr,x\n')
         self.isolated = self.root / 'deploy' / 'check_isolated.py'
@@ -619,11 +617,7 @@ class SyncReleaseCopiesTest(unittest.TestCase):
 
     def test_rewrites_only_the_lists_and_keeps_foreign_modules(self):
         changed = catalog_check.sync_release_copies(self.root)
-        self.assertEqual(sorted(changed), ['deploy/OPERATIONS.md', 'deploy/check_isolated.py', 'deploy/provision.sh'])
-        self.assertEqual(
-            self.provision.read_text(),
-            'odoo -i demo_core,demo_api,demo_pmo,demo_hr,web_theme_shadcn --stop-after-init\n',
-        )
+        self.assertEqual(sorted(changed), ['deploy/OPERATIONS.md', 'deploy/check_isolated.py'])
         self.assertEqual(
             self.operations.read_text(),
             '--modules demo_core,demo_api,demo_pmo,demo_hr\n'
@@ -636,7 +630,7 @@ class SyncReleaseCopiesTest(unittest.TestCase):
 
     def test_is_idempotent(self):
         catalog_check.sync_release_copies(self.root)
-        before = {path: path.read_text() for path in (self.provision, self.operations, self.isolated)}
+        before = {path: path.read_text() for path in (self.operations, self.isolated)}
         self.assertEqual(catalog_check.sync_release_copies(self.root), [])
         self.assertEqual(before, {path: path.read_text() for path in before})
 
@@ -651,7 +645,7 @@ class SyncReleaseCopiesTest(unittest.TestCase):
         output = io.StringIO()
         with contextlib.redirect_stdout(output):
             self.assertEqual(catalog_check.main(['--sync-release-copies', '--root', str(self.root)]), 0)
-        self.assertIn('SYNCED deploy/provision.sh', output.getvalue())
+        self.assertIn('SYNCED deploy/OPERATIONS.md', output.getvalue())
 
 if __name__ == '__main__':
     unittest.main()

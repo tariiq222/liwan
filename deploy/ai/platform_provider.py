@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Writes the AI service's platform provider file from the operator variables in deploy/.env (specs 2026-11-04 §6.13, 2026-11-10 §5.8).
 
-    python3 ai/platform_provider.py .env data/ai/platform-provider.json      (provision.sh runs this from deploy/)
+    python3 ai/platform_provider.py .env data/ai/platform-provider.json      (run from deploy/)
 
 The AI service reads its platform provider only from this file (``AI_PLATFORM_PROVIDER_FILE``): ``AI_PROVIDER``, ``AI_MODEL``,
 ``AI_API_KEY``, ``AI_BASE_URL`` and the optional ``AI_STREAM_USAGE``, ``AI_PRICE_INPUT``, ``AI_PRICE_OUTPUT`` (USD per million tokens) and
@@ -37,8 +37,10 @@ class ProviderConfigError(ValueError):
 
 
 def _value_of(raw: str) -> str:
-    """The value of one ``NAME=value`` line as Docker Compose reads it: a quoted value ends at its closing quote (a comment may follow), an unquoted one at a `` #``."""
+    """The value of one ``NAME=value`` line as Docker Compose reads it: a quoted value ends at its closing quote (a comment may follow), an unquoted one at a `` #``; a value that is only a comment is empty."""
     raw = raw.strip()
+    if raw.startswith('#'):
+        return ''
     if raw[:1] in ("'", '"'):
         quote = raw[0]
         end = 1

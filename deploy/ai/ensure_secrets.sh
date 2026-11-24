@@ -1,6 +1,6 @@
 #!/bin/sh
 # Generates the deployment secrets the AI service needs, into the given .env file, once.
-#   sh ai/ensure_secrets.sh .env        (provision.sh runs this from deploy/)
+#   sh ai/ensure_secrets.sh .env        (run from deploy/ when the ai profile is enabled)
 # A name without a non-empty value gets its first value (`<openssl rand -hex 32>` unless stated): an existing
 # empty assignment is replaced in place, otherwise the line is appended. An existing value is never touched or
 # rotated: rotating the service token cuts the web server off from the AI service until both restart together,

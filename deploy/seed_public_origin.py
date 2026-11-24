@@ -1,6 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""Pin the tenant's public origin to https://$DOMAIN and freeze it. Usage, from provision.sh after the
-install and again after every DOMAIN change (``provision.sh --public-origin``):
+"""Pin the tenant's public origin to https://$DOMAIN and freeze it. Usage, after the
+install and again after every DOMAIN change:
 
     DOMAIN=… odoo shell -c /etc/odoo/odoo.conf -d <db> --no-http < seed_public_origin.py
 """

@@ -1,7 +1,7 @@
 #!/bin/sh
 # Prints the AI_EGRESS_HOSTS value for the deployment's providers: the chat provider, and the embedding provider when one is set.
 #   sh ai/egress_hosts.sh <provider> [base url] [embedding provider] [embedding base url]
-#                                                      (provision.sh writes the result into deploy/.env)
+#                                                      (its output is the AI_EGRESS_HOSTS line of the environment file)
 # A bare hostname allows CONNECT to port 443 only; host:port allows exactly that port, which is how a local
 # model server such as ollama:11434 is reached. An explicit base URL replaces the provider default, and its
 # port is included whenever it is not 443. The anthropic provider ignores AI_BASE_URL in the service, so it

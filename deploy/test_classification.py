@@ -1,9 +1,6 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
-"""No Docker/database operations: validate frozen input and provisioning command wiring."""
+"""No Docker/database operations: validate frozen input and the CI classification targets."""
 import json
-import os
-import shutil
-import subprocess
 import tempfile
 import unittest
 from datetime import date
@@ -73,265 +70,13 @@ class TestClassification(unittest.TestCase):
                 classification.stage(self.source, self.output, self.data['database'], None)
             self.assertFalse(self.output.exists())
 
-    def test_provision_resolves_its_inputs_from_its_own_directory_not_the_working_directory(self):
-        """An operator may run the script from anywhere: it stages every seed it uses from beside itself."""
-        deploy, env = self.provision_fixture()
-        elsewhere = self.root / 'elsewhere'
-        elsewhere.mkdir()
-        result = subprocess.run(['bash', str(deploy / 'provision.sh'), '--stage-only'], cwd=elsewhere, env=env, text=True, capture_output=True, check=False)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(sorted(path.name for path in (deploy / 'data/seed').iterdir()),
-                         ['branding.json', 'seed_branding.py', 'seed_legacy_policy.py'])
-        self.assertEqual(list(elsewhere.iterdir()), [])
 
-    def provision_fixture(self):
-        deploy = self.root / 'deploy'
-        deploy.mkdir()
-        for name in ('provision.sh', 'classification.py', 'seed_branding.py', 'seed_legacy_policy.py', 'seed_public_origin.py'):
-            shutil.copy(ROOT / 'deploy' / name, deploy / name)
-        config = self.root / 'odoo-addons/liwan_platform'
-        config.mkdir(parents=True)
-        shutil.copy(classification.PARSER, config / 'commercial_config.py')
-        (deploy / 'ai').mkdir()
-        for name in ('tenant_schema.sql', 'ensure_secrets.sh', 'egress_hosts.sh', 'write_env_secret.sh'):
-            shutil.copy(ROOT / 'deploy' / 'ai' / name, deploy / 'ai' / name)
-        (deploy / '__init__.py').write_text('')
-        (deploy / 'release').mkdir()
-        for name in ('__init__.py', 'tenant_postgres.py'):
-            shutil.copy(ROOT / 'deploy' / 'release' / name, deploy / 'release' / name)
-        (deploy / 'odoo').mkdir()
-        (deploy / 'odoo/ODOO_COMMIT').write_text('test-pin')
-        (deploy / 'odoo.conf').write_text('[options]\n')
-        (deploy / 'branding.json').write_text('{}')
-        self.source.write_text(json.dumps(self.data))
-        (deploy / '.env').write_text(
-            'DB_PASSWORD=long-test-only-password\nDB_ADMIN_PASSWORD=another-test-only-password\nODOO_ADMIN_PASSWORD=long-test-only-password\n'
-            'VENDOR_PASSWORD=long-test-only-password\nVENDOR_EMAIL=operator@example.test\n',
-        )
-        binpath = self.root / 'bin'
-        binpath.mkdir()
-        docker = binpath / 'docker'
-        docker.write_text('''#!/usr/bin/env python3
-import json, os, pathlib, sys
-args = sys.argv[1:]
-record = {'args': args}
-if 'docker-compose.classification.yml' in args:
-    path = pathlib.Path(os.environ['LIWAN_CLASSIFICATION_FILE'])
-    record['snapshot'] = json.loads(path.read_text())
-    record['path'] = str(path)
-if 'psql' in args or 'shell' in args:
-    record['stdin'] = sys.stdin.read()
-    record['domain'] = os.environ.get('DOMAIN')
-with open(os.environ['DOCKER_LOG'], 'a') as f:
-    f.write(json.dumps(record) + '\\n')
-''')
-        docker.chmod(0o755)
-        envsubst = binpath / 'envsubst'
-        envsubst.write_text('#!/bin/sh\nexec cat\n')
-        envsubst.chmod(0o755)
-        env = {**os.environ, 'PATH': str(binpath) + os.pathsep + os.environ['PATH'],
-               'LIWAN_COMMERCIAL_CONFIG': str(self.source), 'LIWAN_IMAGE_TAG': 'test-only',
-               'DOCKER_LOG': str(self.root / 'docker.log')}
-        return deploy, env
+class TestCiClassification(unittest.TestCase):
+    """CI is the GitHub Actions workflow running deploy/ci/<stage>.sh: the same invariants hold there."""
 
-    def test_provision_validates_before_docker_and_mounts_only_during_install(self):
-        deploy, env = self.provision_fixture()
-        result = subprocess.run(['bash', str(deploy / 'provision.sh'), 'test.invalid', self.data['database']],
-                                env=env, text=True, capture_output=True, check=False)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        records = [json.loads(line) for line in (self.root / 'docker.log').read_text().splitlines()]
-        classified = [record for record in records if 'snapshot' in record]
-        self.assertEqual(len(classified), 1)
-        self.assertEqual(classified[0]['snapshot'], self.data)
-        self.assertIn('-i', classified[0]['args'])
-        self.assertFalse(Path(classified[0]['path']).exists())
-        self.assertEqual(records[-1]['args'], ['compose', 'up', '-d'])
-
-    def psql_records(self):
-        records = [json.loads(line) for line in (self.root / 'docker.log').read_text().splitlines()]
-        return [record for record in records if 'psql' in record['args']]
-
-    def provision_records(self, deploy, env):
-        result = subprocess.run(['bash', str(deploy / 'provision.sh'), 'test.invalid', self.data['database']],
-                                env=env, text=True, capture_output=True, check=False)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        return [json.loads(line) for line in (self.root / 'docker.log').read_text().splitlines()]
-
-    def test_provision_creates_and_closes_the_database_to_public_before_the_install(self):
-        deploy, env = self.provision_fixture()
-        records = self.provision_records(deploy, env)
-        db = self.data['database']
-        create = next(i for i, r in enumerate(records) if 'psql' in r['args'] and 'CREATE DATABASE' in r.get('stdin', ''))
-        # Odoo's own creation recipe, from the shared helper: unicode, C collation, template0.
-        self.assertEqual(records[create]['stdin'],
-                         f"CREATE DATABASE \"{db}\" ENCODING 'unicode' LC_COLLATE 'C' TEMPLATE template0;\n")
-        self.assertIn('postgres', records[create]['args'])
-        isolate = next(i for i, r in enumerate(records) if 'psql' in r['args']
-                       and 'public_connect_not_revoked' in r.get('stdin', ''))
-        extension = next(i for i, r in enumerate(records) if 'psql' in r['args']
-                         and 'CREATE EXTENSION IF NOT EXISTS pg_trgm' in r.get('stdin', ''))
-        self.assertEqual(records[extension]['args'][records[extension]['args'].index('-d') + 1], db)
-        install = next(i for i, r in enumerate(records) if 'snapshot' in r)
-        self.assertLess(create, isolate)
-        self.assertLess(isolate, extension)
-        self.assertLess(extension, install)
-        self.assertEqual([r for r in records if 'createdb' in r['args']], [])
-        record = records[isolate]
-        self.assertIn('ON_ERROR_STOP=1', record['args'])
-        # The unconditional revoke does not depend on the AI role: this is the shared helper's script verbatim.
-        db = self.data['database']
-        self.assertIn(f'REVOKE CONNECT ON DATABASE "{db}" FROM PUBLIC;', record['stdin'])
-        self.assertIn(f'GRANT CONNECT ON DATABASE "{db}" TO "odoo";', record['stdin'])
-        self.assertNotIn('liwan_ai', record['stdin'])
-        # Every DDL and grant runs as the admin role, never as the odoo runtime role, which only receives the grants.
-        for psql in (r for r in records if 'psql' in r['args']):
-            self.assertEqual(psql['args'][psql['args'].index('-U') + 1], 'postgres')
-        self.assertTrue(any('GRANT CREATE ON SCHEMA public TO "odoo"' in r.get('stdin', '') and r['args'][r['args'].index('-d') + 1] == db
-                            for r in records if 'psql' in r['args']))
-        self.assertTrue(any('GRANT CONNECT ON DATABASE "postgres" TO "odoo"' in r.get('stdin', '') for r in records if 'psql' in r['args']))
-
-    def test_provision_skips_creation_for_an_existing_database_but_still_isolates_it(self):
-        deploy, env = self.provision_fixture()
-        docker = deploy.parent / 'bin' / 'docker'
-        docker.write_text(docker.read_text().replace(
-            "with open(os.environ['DOCKER_LOG']",
-            "if 'psql' in args and 'pg_database' in record.get('stdin', '') and 'tenant_db' in ' '.join(args):\n"
-            "    print(1)\n"
-            "with open(os.environ['DOCKER_LOG']"))
-        records = self.provision_records(deploy, env)
-        self.assertEqual([r for r in records if 'CREATE DATABASE' in r.get('stdin', '')], [])
-        self.assertTrue(any('public_connect_not_revoked' in r.get('stdin', '') for r in records))
-
-    def test_provision_stops_before_the_install_when_the_isolation_step_fails(self):
-        deploy, env = self.provision_fixture()
-        docker = deploy.parent / 'bin' / 'docker'
-        docker.write_text(docker.read_text().replace(
-            "with open(os.environ['DOCKER_LOG']",
-            "failed = 'public_connect_not_revoked' in record.get('stdin', '')\n"
-            "with open(os.environ['DOCKER_LOG']").rstrip('\n') + '\nsys.exit(1 if failed else 0)\n')
-        result = subprocess.run(['bash', str(deploy / 'provision.sh'), 'test.invalid', self.data['database']],
-                                env=env, text=True, capture_output=True, check=False)
-        self.assertNotEqual(result.returncode, 0)
-        records = [json.loads(line) for line in (self.root / 'docker.log').read_text().splitlines()]
-        self.assertEqual([r for r in records if 'snapshot' in r], [])
-
-    def test_provision_refuses_a_database_name_the_isolation_step_cannot_quote(self):
-        deploy, env = self.provision_fixture()
-        for name in ('Upper', '1db', 'bad-name'):
-            with self.subTest(name=name):
-                result = subprocess.run(['bash', str(deploy / 'provision.sh'), 'test.invalid', name],
-                                        env=env, text=True, capture_output=True, check=False)
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn('db name', result.stderr)
-        self.assertFalse((self.root / 'docker.log').exists())
-
-    def test_provision_grants_the_ai_role_its_schema_after_the_database_is_closed_and_before_the_install(self):
-        deploy, env = self.provision_fixture()
-        records = self.provision_records(deploy, env)
-        schema = [index for index, record in enumerate(records)
-                  if 'psql' in record['args'] and f'tenant_db={self.data["database"]}' in record['args']
-                  and 'REVOKE ALL ON SCHEMA public FROM liwan_ai' in record.get('stdin', '')]
-        self.assertEqual(len(schema), 1)
-        isolate = next(i for i, r in enumerate(records) if 'public_connect_not_revoked' in r.get('stdin', ''))
-        self.assertLess(isolate, schema[0])
-        bootstrap = [i for i, r in enumerate(records) if 'psql' in r['args'] and 'CREATE EXTENSION IF NOT EXISTS pg_trgm' in r.get('stdin', '')]
-        self.assertEqual(len(bootstrap), 1)
-        self.assertLess(isolate, bootstrap[0])
-        bootstrap_sql = records[bootstrap[0]]['stdin']  # the one admin script run inside the tenant database
-        self.assertTrue(bootstrap_sql.startswith('SET search_path = pg_catalog;'), bootstrap_sql)
-        self.assertLess(bootstrap_sql.index('pg_trgm'), bootstrap_sql.index('GRANT CREATE ON SCHEMA public TO "odoo"'))
-        self.assertEqual(records[bootstrap[0]]['args'][records[bootstrap[0]]['args'].index('-d') + 1], self.data['database'])
-        self.assertLess(bootstrap[0], schema[0])
-        self.assertLess(schema[0], min(i for i, r in enumerate(records) if 'snapshot' in r))
-        record = records[schema[0]]
-        self.assertIn('ON_ERROR_STOP=1', record['args'])
-        sql = record['stdin']  # deploy/ai/tenant_schema.sql, the one place that grants the AI role its schema
-        self.assertEqual(sql, (ROOT / 'deploy' / 'ai' / 'tenant_schema.sql').read_text())
-        self.assertIn("rolname = 'liwan_ai'", sql)
-        self.assertNotIn('FROM PUBLIC', sql)  # the PUBLIC revoke lives only in the shared isolation helper
-        self.assertNotIn(self.data['database'], sql)
-        self.assertIn('SET search_path = pg_catalog;', sql)  # pinned for the admin session, again after the connect
-        self.assertEqual(sql.count('SET search_path = pg_catalog;'), 2)
-
-    def origin_records(self):
-        records = [json.loads(line) for line in (self.root / 'docker.log').read_text().splitlines()]
-        return records, [index for index, record in enumerate(records)
-                         if '_liwan_set_public_origin' in record.get('stdin', '')]
-
-    def test_provision_pins_the_public_origin_before_serving(self):
-        deploy, env = self.provision_fixture()
-        result = subprocess.run(['bash', str(deploy / 'provision.sh'), 'test.invalid', self.data['database']],
-                                env=env, text=True, capture_output=True, check=False)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        records, pinned = self.origin_records()
-        self.assertEqual(len(pinned), 1)
-        record = records[pinned[0]]
-        self.assertEqual(record['domain'], 'test.invalid')
-        self.assertIn('DOMAIN', record['args'][record['args'].index('-e') + 1])
-        self.assertLess(max(i for i, r in enumerate(records) if 'snapshot' in r), pinned[0])
-        self.assertEqual(records[-1]['args'], ['compose', 'up', '-d'])
-
-    def test_a_domain_change_repins_only_the_public_origin(self):
-        deploy, env = self.provision_fixture()
-        (deploy / 'data').mkdir()
-        (deploy / 'data/odoo.conf').write_text('[options]\n')
-        result = subprocess.run(['bash', str(deploy / 'provision.sh'), '--public-origin', 'erp.customer.sa', self.data['database']],
-                                env=env, text=True, capture_output=True, check=False)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        records, pinned = self.origin_records()
-        self.assertEqual(pinned, [0])
-        self.assertEqual(len(records), 1)
-        self.assertEqual(records[0]['domain'], 'erp.customer.sa')
-        self.assertIn(self.data['database'], records[0]['args'])
-
-    def test_a_domain_that_is_not_a_lowercase_dns_name_never_calls_docker(self):
-        deploy, env = self.provision_fixture()
-        for domain in ('localhost', 'App.customer.sa', 'app.customer.sa.', 'app.customer.sa:8443'):
-            with self.subTest(domain=domain):
-                result = subprocess.run(['bash', str(deploy / 'provision.sh'), domain, self.data['database']],
-                                        env=env, text=True, capture_output=True, check=False)
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn('domain', result.stderr)
-        self.assertFalse((self.root / 'docker.log').exists())
-
-    def test_a_domain_change_needs_a_provisioned_environment(self):
-        deploy, env = self.provision_fixture()
-        result = subprocess.run(['bash', str(deploy / 'provision.sh'), '--public-origin', 'erp.customer.sa', self.data['database']],
-                                env=env, text=True, capture_output=True, check=False)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn('provision', result.stderr)
-        self.assertFalse((self.root / 'docker.log').exists())
-
-    def test_provision_rejects_an_invalid_vendor_mailbox_before_docker(self):
-        deploy, env = self.provision_fixture()
-        dotenv = deploy / '.env'
-        fixture = dotenv.read_text()
-        for mailbox in ('', 'not-a-mailbox', 'operator@example..test'):
-            with self.subTest(mailbox=mailbox):
-                dotenv.write_text(fixture.replace('operator@example.test', mailbox))
-                result = subprocess.run(['bash', str(deploy / 'provision.sh'), 'test.invalid', self.data['database']],
-                                        env=env, text=True, capture_output=True, check=False)
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn('VENDOR_EMAIL', result.stderr)
-                self.assertNotIn('Traceback', result.stderr)
-                self.assertFalse((self.root / 'docker.log').exists())
-
-    def test_invalid_provision_never_calls_docker(self):
-        deploy, env = self.provision_fixture()
-        self.source.write_text('{}')
-        result = subprocess.run(['bash', str(deploy / 'provision.sh'), 'test.invalid', self.data['database']],
-                                env=env, text=True, capture_output=True, check=False)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertFalse((self.root / 'docker.log').exists())
-
-    def test_compose_overlay_is_readonly_opt_in_and_ci_targets_are_explicit(self):
+    def test_the_base_stack_carries_no_classification_and_ci_targets_are_explicit(self):
         base = (ROOT / 'deploy/docker-compose.yml').read_text()
-        overlay = (ROOT / 'deploy/docker-compose.classification.yml').read_text()
         self.assertNotIn('LIWAN_COMMERCIAL_CONFIG', base)
-        for text in ('read_only: true', 'create_host_path: false', '/run/liwan/classification.json', '${LIWAN_CLASSIFICATION_FILE:?'):
-            self.assertIn(text, overlay)
-        # CI is the GitHub Actions workflow running deploy/ci/<stage>.sh. The same
-        # provisioning invariants must hold in the stage scripts.
         pipeline = ''.join((ROOT / 'deploy' / 'ci' / (stage + '.sh')).read_text()
                            for stage in ('odoo', 'upgrade', 'restore-drill', 'image'))
         # The stage scripts use shell variables for DB names; verify
@@ -358,6 +103,17 @@ with open(os.environ['DOCKER_LOG'], 'a') as f:
         self.assertIn('unset LIWAN_COMMERCIAL_CONFIG', pipeline)
         self.assertIn('negative case passed unexpectedly', pipeline)
         self.assertIn('tools/upgrade_log_guard.py', pipeline)
+
+    def test_the_shared_acceptance_stack_mounts_the_validated_classification_read_only(self):
+        """A tenant install reads one database-bound file from a directory mounted read-only, never a job-local path."""
+        overlay = (ROOT / 'tools/shared_acceptance_live/acceptance.override.yml').read_text()
+        self.assertIn('${LIWAN_COMMERCIAL_CONFIG_DIR:?set LIWAN_COMMERCIAL_CONFIG_DIR}:/etc/liwan-commercial:ro', overlay)
+        self.assertIn('LIWAN_COMMERCIAL_CONFIG: ""', overlay)  # the steady-state server reads none
+        script = (ROOT / 'tools/shared_acceptance_live/up.sh').read_text()
+        # One file per tenant database, generated by the repository's own guarded fixture.
+        self.assertIn('deploy/classification.py" fixture', script)
+        self.assertIn('--output "$LIWAN_COMMERCIAL_CONFIG_DIR/$DBT.json"', script)
+        self.assertIn('-e LIWAN_COMMERCIAL_CONFIG="/etc/liwan-commercial/$DBT.json"', script)
 
 
 if __name__ == '__main__':
