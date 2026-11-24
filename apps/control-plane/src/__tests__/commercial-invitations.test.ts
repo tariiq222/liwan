@@ -1,14 +1,25 @@
-import { describe, expect, it, beforeAll, afterAll, beforeEach } from 'vitest'
+import { describe, expect, it, beforeAll, afterAll, beforeEach, vi } from 'vitest'
 import { Pool } from 'pg'
 import { randomUUID } from 'node:crypto'
 import { url, setup } from './commercial-helpers.js'
-import { acceptInvitation, issueInvitation, sendInvitationOutbox, reissuePendingInvitation, processReissueRequests, REISSUE_REQUEST_KIND, InvitationError, INVITATION_MAX_ATTEMPTS, SELF_REISSUE_ACTOR, SELF_REISSUE_HOURLY_LIMIT } from '../commercial/invitations.js'
+import { acceptInvitation, issueHandoffInvitation, issueInvitation, sendInvitationOutbox, InvitationError, INVITATION_MAX_ATTEMPTS, HANDOFF_INVITATION_TTL_SECONDS } from '../commercial/invitations.js'
+import { applyReceipt } from '../commercial/fulfillment.js'
 import { isAllowedInvitationOrigin } from '../commercial/invitation-tokens.js'
-import { invitationHttp, REISSUE_PATH } from '../commercial/invitation-http.js'
+import { invitationHttp, ACCEPT_PATH } from '../commercial/invitation-http.js'
 import { SmtpMailAdapter, type MailAdapter, type MailMessage } from '../commercial/mail-adapter.js'
 import { createApp } from '../http.js'
 import { signServiceRequest } from '@liwan/commercial-contracts/server'
 import { fixedReturnOrigin, tenantReturnOrigin } from '../commercial/return-origin.js'
+
+/** The accept route builds its setter from the internal effect client in shared mode; a stub records the calls the
+ *  HTTP path makes while the real odooSetPassword still validates and maps its answer. */
+const effectSet = vi.hoisted(() => [] as Array<{ login: string; password: string }>)
+vi.mock('../commercial/invitation-effect-client.js', () => ({
+  internalEffectPasswordAdapter: () => ({ setAdminPassword: async (x: { admin_login: string; password: string }) => {
+    effectSet.push({ login: x.admin_login, password: x.password })
+    return { login: x.admin_login, user_id: 2, changed_at: '2026-10-02T12:00:00Z' }
+  } }),
+}))
 
 const d = url ? describe : describe.skip
 d('admin invitations', () => {
@@ -25,7 +36,7 @@ d('admin invitations', () => {
   })
   afterAll(async () => { await pool.end() })
   beforeEach(async () => {
-    sent.length = 0; set.length = 0
+    sent.length = 0; set.length = 0; effectSet.length = 0
     await pool.query('TRUNCATE admin_invitations, commercial_outbox')
     tenant = randomUUID(); customer = randomUUID()
     await pool.query(`INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'T','saas','dedicated_managed',$2,true)`, [tenant, 'inv-' + tenant])
@@ -145,36 +156,36 @@ d('admin invitations', () => {
   it('single use, sets password once', async () => {
     await issue(); await sendInvitationOutbox(pool, { mail, returnOrigin: fixedReturnOrigin('https://app.liwan.test') })
     const token = tokenOf()
-    await acceptInvitation(pool, { token, password: PW, setPassword })
-    await expect(acceptInvitation(pool, { token, password: PW, setPassword })).rejects.toBeInstanceOf(InvitationError)
+    await acceptInvitation(pool, { token, password: PW, tenant_id: tenant, setPassword })
+    await expect(acceptInvitation(pool, { token, password: PW, tenant_id: tenant, setPassword })).rejects.toBeInstanceOf(InvitationError)
     expect(set).toHaveLength(1)
   })
   it('rejects short passwords, wrong tokens, and expired', async () => {
     await issue(); await sendInvitationOutbox(pool, { mail, returnOrigin: fixedReturnOrigin('https://app.liwan.test') })
     const token = tokenOf()
-    await expect(acceptInvitation(pool, { token, password: 'short', setPassword })).rejects.toThrow('invalid')
-    await expect(acceptInvitation(pool, { token: 'x'.repeat(43), password: PW, setPassword })).rejects.toThrow('invalid')
+    await expect(acceptInvitation(pool, { token, password: 'short', tenant_id: tenant, setPassword })).rejects.toThrow('invalid')
+    await expect(acceptInvitation(pool, { token: 'x'.repeat(43), password: PW, tenant_id: tenant, setPassword })).rejects.toThrow('invalid')
     await pool.query(`UPDATE admin_invitations SET expires_at = now() - interval '1 second'`)
-    await expect(acceptInvitation(pool, { token, password: PW, setPassword })).rejects.toThrow('invalid')
+    await expect(acceptInvitation(pool, { token, password: PW, tenant_id: tenant, setPassword })).rejects.toThrow('invalid')
   })
-  it('reissue revokes the previous token', async () => {
+  it('a new issue revokes the previous token', async () => {
     await issue(); await sendInvitationOutbox(pool, { mail, returnOrigin: fixedReturnOrigin('https://app.liwan.test') }); const old = tokenOf()
     await issue(); await sendInvitationOutbox(pool, { mail, returnOrigin: fixedReturnOrigin('https://app.liwan.test') }); const fresh = tokenOf()
-    await expect(acceptInvitation(pool, { token: old, password: PW, setPassword })).rejects.toThrow('invalid')
-    await acceptInvitation(pool, { token: fresh, password: PW, setPassword })
+    await expect(acceptInvitation(pool, { token: old, password: PW, tenant_id: tenant, setPassword })).rejects.toThrow('invalid')
+    await acceptInvitation(pool, { token: fresh, password: PW, tenant_id: tenant, setPassword })
   })
   it('does not fake success when no password setter exists and keeps invitation usable', async () => {
     await issue(); await sendInvitationOutbox(pool, { mail, returnOrigin: fixedReturnOrigin('https://app.liwan.test') }); const token = tokenOf()
-    await expect(acceptInvitation(pool, { token, password: PW })).rejects.toThrow('password_setter_unavailable')
-    await acceptInvitation(pool, { token, password: PW, setPassword })
+    await expect(acceptInvitation(pool, { token, password: PW, tenant_id: tenant })).rejects.toThrow('password_setter_unavailable')
+    await acceptInvitation(pool, { token, password: PW, tenant_id: tenant, setPassword })
   })
   it('public http returns one generic error', async () => {
     const r = await invitationHttp(pool, { method: 'POST', pathname: '/v1/invitations/accept', raw: JSON.stringify({ token: 'y'.repeat(43), password: PW }), issuer: 'i', actor: 1, capabilities: [] })
       .catch((e) => e)
     expect(r.status).toBe(400); expect(r.code).toBe('invalid_invitation')
   })
-  const accept = (token: string, setter?: (x: any) => Promise<void>) =>
-    invitationHttp(pool, { method: 'POST', pathname: '/v1/invitations/accept', raw: JSON.stringify({ token, password: PW }), issuer: 'i', actor: 1, capabilities: [], setPassword: setter }).catch((e) => e)
+    const accept = (token: string, setter?: (x: any) => Promise<void>, o: { tenant?: string } = {}) =>
+      invitationHttp(pool, { method: 'POST', pathname: '/v1/invitations/accept', raw: JSON.stringify({ token, password: PW }), issuer: 'i', actor: 1, capabilities: [], tenant: o.tenant ?? tenant, setPassword: setter }).catch((e) => e)
   it.each([
     ['password_policy', 422, 'password_rejected'],
     ['user_missing', 409, 'account_unavailable'],
@@ -213,7 +224,7 @@ d('admin invitations', () => {
     await issue(); await sendInvitationOutbox(pool, { mail, returnOrigin: fixedReturnOrigin('https://app.liwan.test') }); const token = tokenOf()
     let called = false
     const watch = async (x: any) => { called = true; await setPassword(x) }
-    const longPassword = await invitationHttp(pool, { method: 'POST', pathname: '/v1/invitations/accept', raw: JSON.stringify({ token, password: 'p'.repeat(257) }), issuer: 'i', actor: 1, capabilities: [], setPassword: watch }).catch((e) => e)
+    const longPassword = await invitationHttp(pool, { method: 'POST', pathname: '/v1/invitations/accept', raw: JSON.stringify({ token, password: 'p'.repeat(257) }), issuer: 'i', actor: 1, capabilities: [], tenant, setPassword: watch }).catch((e) => e)
     expect(longPassword.status).toBe(422); expect(longPassword.code).toBe('password_rejected')
     const longToken = await accept(token + 'x'.repeat(200), watch)
     expect(longToken.status).toBe(400); expect(longToken.code).toBe('invalid_invitation')
@@ -249,7 +260,7 @@ d('admin invitations', () => {
     await pool.query("UPDATE admin_invitations SET expires_at=now() + interval '1 hour', revoked_at=now()")
     expect(await check(token)).toEqual(unusable)
     await pool.query('UPDATE admin_invitations SET revoked_at=NULL')
-    await acceptInvitation(pool, { token, password: PW, setPassword })
+    await acceptInvitation(pool, { token, password: PW, tenant_id: tenant, setPassword })
     expect(await check(token)).toEqual(unusable)
   })
   it('check rejects non-POST and malformed bodies without a token oracle', async () => {
@@ -291,190 +302,110 @@ d('admin invitations', () => {
       expect((await post({ 'x-liwan-client-ip': '198.51.100.99' })).status).toBe(429)
     } finally { await new Promise<void>(resolve => server.close(() => resolve())) }
   })
-  describe('the manager asks for a new invitation', () => {
-    const origin = fixedReturnOrigin('https://app.liwan.test')
-    const deliver = () => sendInvitationOutbox(pool, { mail, returnOrigin: origin })
-    const audits = async () => (await pool.query(`SELECT actor, action, reason, metadata FROM audit_events WHERE action='invitation.reissued' AND metadata->>'tenant_id'=$1 ORDER BY created_at`, [tenant])).rows
-    const ask = (email: string, client_address = '203.0.113.7') => reissuePendingInvitation(pool, { tenant_id: tenant, email, client_address })
+  describe('self-signup handoff invitations', () => {
     beforeEach(async () => { await pool.query(`UPDATE customers SET admin_login='admin@x.test' WHERE id=$1`, [customer]) })
-    const expire = () => pool.query(`UPDATE admin_invitations SET expires_at = now() - interval '1 second', created_at = now() - interval '4 days' WHERE tenant_id=$1`, [tenant])
-
-    it('mails the address on record with a fresh token after the first one expired, and the old token stops working', async () => {
-      await issue(); await deliver(); const old = tokenOf(); await expire(); sent.length = 0
-      expect(await ask(' Admin@X.test ')).toBe(true)
-      await deliver()
-      expect(sent).toHaveLength(1); expect(sent[0].to).toBe('admin@x.test')
-      expect(tokenOf()).not.toBe(old)
-      await expect(acceptInvitation(pool, { token: old, password: PW, setPassword })).rejects.toThrow('invalid')
-      await acceptInvitation(pool, { token: tokenOf(), password: PW, setPassword })
+    const handoff = () => issueHandoffInvitation(pool, customer)
+    it('issues a one-time link that lives 15 minutes and queues no email', async () => {
+      const before = Date.now()
+      const h = await handoff()
+      expect(h.token).toMatch(/^[A-Za-z0-9_-]{43}$/)
+      expect(h.expiresAt.getTime()).toBeGreaterThanOrEqual(before + HANDOFF_INVITATION_TTL_SECONDS * 1000 - 1000)
+      expect(h.expiresAt.getTime()).toBeLessThanOrEqual(before + HANDOFF_INVITATION_TTL_SECONDS * 1000 + 1000)
+      expect((await pool.query('SELECT count(*)::int AS n FROM commercial_outbox')).rows[0].n).toBe(0)
+      const row = (await pool.query('SELECT delivery_status,revoked_at,consumed_at,token_hash FROM admin_invitations')).rows[0]
+      expect(row).toMatchObject({ delivery_status: 'handoff', revoked_at: null, consumed_at: null })
+      expect(row.token_hash).toMatch(/^[0-9a-f]{64}$/)
+      expect(JSON.stringify(row)).not.toContain(h.token)
     })
-    it('records who asked and from where, like the vendor\'s resend', async () => {
-      await issue(); await expire()
-      await ask('admin@x.test', '203.0.113.9')
-      const [row] = await audits()
-      expect(row).toMatchObject({ actor: SELF_REISSUE_ACTOR, action: 'invitation.reissued', metadata: { source: 'customer_request', client_address: '203.0.113.9', tenant_id: tenant } })
+    it('refreshing the waiting page issues again, so only the newest link works', async () => {
+      const first = await handoff(); const second = await handoff()
+      expect(second.token).not.toBe(first.token)
+      await expect(acceptInvitation(pool, { token: first.token, password: PW, tenant_id: tenant, setPassword })).rejects.toThrow('invalid')
+      expect(set).toHaveLength(0)
+      await acceptInvitation(pool, { token: second.token, password: PW, tenant_id: tenant, setPassword })
+      expect(set).toHaveLength(1)
     })
-    it('sends nothing for another address, an unknown tenant or a tenant never invited', async () => {
-      await issue(); await expire(); await deliver(); sent.length = 0
-      expect(await ask('someone@else.test')).toBe(false)
-      expect(await reissuePendingInvitation(pool, { tenant_id: randomUUID(), email: 'admin@x.test' })).toBe(false)
-      await pool.query('TRUNCATE admin_invitations, commercial_outbox')
-      expect(await ask('admin@x.test')).toBe(false)
-      await deliver()
-      expect(sent).toEqual([]); expect(await audits()).toEqual([])
+    it('accept consumes the invitation only for the workspace the verified request names', async () => {
+      const h = await handoff()
+      const wrong = await accept(h.token, undefined, { tenant: randomUUID() })
+      expect(wrong.status).toBe(400); expect(wrong.code).toBe('invalid_invitation')
+      expect(set).toHaveLength(0)
+      expect((await pool.query('SELECT consumed_at FROM admin_invitations')).rows[0].consumed_at).toBeNull()
+      const ok = await accept(h.token, setPassword)
+      expect(ok.status).toBe(200); expect(ok.data).toEqual({ ok: true })
+      expect(set).toHaveLength(1)
     })
-    it('never issues once the manager accepted', async () => {
-      await issue(); await deliver(); await acceptInvitation(pool, { token: tokenOf(), password: PW, setPassword }); await expire(); sent.length = 0
-      expect(await ask('admin@x.test')).toBe(false)
-      await deliver()
-      expect(sent).toEqual([])
-    })
-    it('waits out a cooldown and stops at the hourly limit per tenant', async () => {
-      await issue(); await expire()
-      expect(await ask('admin@x.test')).toBe(true)
-      expect(await ask('admin@x.test')).toBe(false) // just issued
-      for (let n = 1; n < SELF_REISSUE_HOURLY_LIMIT; n++) {
-        await pool.query(`UPDATE admin_invitations SET created_at = now() - interval '5 minutes' WHERE tenant_id=$1`, [tenant])
-        expect(await ask('admin@x.test')).toBe(n < SELF_REISSUE_HOURLY_LIMIT - 1)
-      }
-      await pool.query(`UPDATE admin_invitations SET created_at = now() - interval '5 minutes' WHERE tenant_id=$1`, [tenant])
-      expect(await ask('admin@x.test')).toBe(false)
-    })
-    it('issues exactly one invitation when parallel requests race the cooldown', async () => {
-      await issue(); await expire()
-      const results = await Promise.all(Array.from({ length: 8 }, () => ask('admin@x.test')))
-      expect(results.filter(Boolean)).toHaveLength(1)
-      expect((await pool.query(`SELECT count(*)::int AS n FROM admin_invitations WHERE tenant_id=$1 AND revoked_at IS NULL AND consumed_at IS NULL`, [tenant])).rows[0].n).toBe(1)
-      expect(await audits()).toHaveLength(1)
-    })
-    it('stops at the hourly limit even when the requests arrive together', async () => {
-      await issue()
-      await pool.query(`UPDATE admin_invitations SET created_at = now() - interval '10 minutes', expires_at = now() - interval '1 second' WHERE tenant_id=$1`, [tenant])
-      // Four more already issued in the hour: only the one left in the budget may go through.
-      for (let n = 0; n < SELF_REISSUE_HOURLY_LIMIT - 2; n++) await pool.query(`INSERT INTO admin_invitations(id,customer_id,tenant_id,admin_login,token_hash,expires_at,revoked_at,created_at) VALUES($1,$2,$3,'admin@x.test',$4,now(),now(),now() - interval '10 minutes')`, [randomUUID(), customer, tenant, randomUUID()])
-      const results = await Promise.all(Array.from({ length: 6 }, () => ask('admin@x.test')))
-      expect(results.filter(Boolean)).toHaveLength(1)
-    })
-    it('keeps the vendor resend working through the same issuing function, with its own audit row', async () => {
-      const sub = randomUUID(), revision = randomUUID()
-      await pool.query('INSERT INTO subscriptions(id,customer_id,tenant_id) VALUES($1,$2,$3)', [sub, customer, tenant])
-      await pool.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,1,$3,$4)', [revision, sub, '{}', randomUUID()])
-      await pool.query('UPDATE subscriptions SET applied_revision_id=$1, revision=revision+1 WHERE id=$2', [revision, sub])
-      const resend = (over: Record<string, unknown> = {}) => invitationHttp(pool, { method: 'POST', pathname: `/v1/commercial/customers/${customer}/invitations`, raw: '', issuer: 'vendor', actor: 7, capabilities: ['vendor.subscriptions.manage'] as any, stepUpFresh: true, ...over } as any)
-      const issued = async () => (await pool.query('SELECT count(*)::int AS n FROM admin_invitations WHERE tenant_id=$1', [tenant])).rows[0].n
-      // Refused without a fresh passkey confirmation, and without the capability: nothing is issued.
-      await expect(resend({ stepUpFresh: false })).rejects.toMatchObject({ status: 403, code: 'step_up_required' })
-      await expect(resend({ capabilities: ['vendor.read'] })).rejects.toMatchObject({ status: 403, code: 'forbidden' })
-      expect(await issued()).toBe(0)
-      const res = await resend()
-      expect(res).toMatchObject({ status: 202, data: { delivery_status: 'queued' } })
-      await deliver()
-      expect(sent).toHaveLength(1)
-      expect((await audits())[0]).toMatchObject({ actor: 'vendor:7', metadata: { source: 'vendor' } })
-      // Once the manager accepted, a resend would hand out a link that sets the password again: refused, and nothing new is queued.
-      await pool.query('UPDATE admin_invitations SET consumed_at=now() WHERE tenant_id=$1 AND revoked_at IS NULL', [tenant])
-      await expect(resend()).rejects.toMatchObject({ status: 409, code: 'invitation_accepted' })
-      expect(await issued()).toBe(1)
-    })
-
-    describe('over HTTP', () => {
+    it('over HTTP the accept must carry the signed workspace header: another workspace, unsigned or malformed is 400, the right one succeeds', async () => {
       const key = 'customer-test-key-'.repeat(4)
-      const config = { installationId: 'inv-reissue', key: 'vendor-test-key-'.repeat(4), customerCommercialIssuer: 'i', customerCommercialServiceKey: key,
+      const config = { installationId: 'inv-accept', key: 'vendor-test-key-'.repeat(4), customerCommercialIssuer: 'i', customerCommercialServiceKey: key,
+        internalEffect: { key: 'e'.repeat(32), url: 'https://127.0.0.1:1', ca: Buffer.from('test') },
         inventoryPath: '', repositoryRoot: '', python: 'python3', stateDir: '' }
-      let server: ReturnType<ReturnType<typeof createApp>['listen']>, port = 0
-      beforeAll(async () => {
-        server = createApp(pool, config).listen(0, '127.0.0.1')
-        await new Promise<void>(resolve => server.once('listening', resolve))
-        const addr = server.address(); if (!addr || typeof addr === 'string') throw Error('missing address'); port = addr.port
-      })
-      afterAll(async () => { await new Promise<void>(resolve => server.close(() => resolve())) })
-      const call = (email: string, o: { ip?: string; tenant?: string; signingKey?: string; unsigned?: boolean } = {}) => {
-        const ip = o.ip ?? '198.51.100.20', tid = o.tenant ?? tenant
-        const headers: Record<string, string> = { 'content-type': 'application/json' }
-        if (!o.unsigned) Object.assign(headers, { 'x-liwan-tenant': tid, 'x-liwan-client-ip': ip },
-          signServiceRequest({ method: 'POST', path: REISSUE_PATH, body: `liwan-invitation-reissue:${tid}\n${ip}\n`, actor: 'anonymous', anonymous: true, issuer: 'i', key: o.signingKey ?? key }))
-        return fetch(`http://127.0.0.1:${port}${REISSUE_PATH}`, { method: 'POST', headers, body: JSON.stringify({ email }) })
-      }
-      const queued = async () => (await pool.query(`SELECT status, payload FROM commercial_outbox WHERE kind=$1 AND aggregate_id=$2 ORDER BY created_at`, [REISSUE_REQUEST_KIND, tenant])).rows
-      it('answers 202 {ok:true} alike, does no lookup before answering, and mails only the address on record once the worker ran', async () => {
-        await issue(); await expire(); await deliver(); sent.length = 0
-        const before = (await pool.query('SELECT count(*)::int AS n FROM admin_invitations WHERE tenant_id=$1', [tenant])).rows[0].n
-        const wrong = await call('other@x.test', { ip: '198.51.100.21' })
-        const right = await call('admin@x.test', { ip: '198.51.100.22' })
-        expect([wrong.status, right.status]).toEqual([202, 202])
-        expect(await wrong.json()).toEqual(await right.json())
-        // Both took the same path up to the answer: one queued request each, same shape, nothing looked up or issued yet.
-        const rows = await queued()
-        expect(rows.map(r => r.status)).toEqual(['pending', 'pending'])
-        expect(rows.map(r => Object.keys(r.payload).sort())).toEqual([['client_address', 'email', 'tenant_id'], ['client_address', 'email', 'tenant_id']])
-        expect((await pool.query('SELECT count(*)::int AS n FROM admin_invitations WHERE tenant_id=$1', [tenant])).rows[0].n).toBe(before)
-        expect(await audits()).toEqual([])
-        expect(await processReissueRequests(pool)).toBe(2)
-        await deliver()
-        expect(sent.map(m => m.to)).toEqual(['admin@x.test'])
-        // The address typed is gone once handled.
-        expect((await queued()).map(r => [r.status, 'email' in r.payload])).toEqual([['done', false], ['done', false]])
-      })
-      it('refuses a request the Nuxt server did not sign, or signed with another key or for another tenant', async () => {
-        await issue(); await expire(); await deliver(); sent.length = 0
-        expect((await call('admin@x.test', { unsigned: true })).status).toBe(403)
-        expect((await call('admin@x.test', { signingKey: 'forged-test-key-'.repeat(4) })).status).toBe(403)
-        // Signed for the tenant but without any visitor address: refused, never put in a shared bucket.
-        const noAddress = await fetch(`http://127.0.0.1:${port}${REISSUE_PATH}`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-liwan-tenant': tenant,
-          ...signServiceRequest({ method: 'POST', path: REISSUE_PATH, body: `liwan-invitation-reissue:${tenant}\n\n`, actor: 'anonymous', anonymous: true, issuer: 'i', key }) }, body: JSON.stringify({ email: 'admin@x.test' }) })
-        expect(noAddress.status).toBe(403)
-        expect(await queued()).toEqual([])
-        const other = randomUUID()
-        const forged = await fetch(`http://127.0.0.1:${port}${REISSUE_PATH}`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-liwan-tenant': other, 'x-liwan-client-ip': '198.51.100.23',
-          ...signServiceRequest({ method: 'POST', path: REISSUE_PATH, body: `liwan-invitation-reissue:${tenant}\n198.51.100.23\n`, actor: 'anonymous', anonymous: true, issuer: 'i', key }) }, body: JSON.stringify({ email: 'admin@x.test' }) })
-        expect(forged.status).toBe(403)
-        await processReissueRequests(pool); await deliver(); expect(sent).toEqual([])
-      })
-      it('maps a signed registry slug through its enabled binding to the control tenant, and refuses an unbound, disabled or malformed one', async () => {
-        const bind = (slug: string, enabled: boolean) => pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,$5,1)',
-          [tenant, slug, `${slug}.reissue.test`, slug.replaceAll('-', '_') + '_db', enabled])
-        const slug = 'shared-' + tenant.slice(0, 8)
-        await bind(slug, true)
-        const bound = await call('admin@x.test', { tenant: slug, ip: '198.51.100.50' })
-        expect(bound.status).toBe(202)
-        expect(await bound.json()).toEqual({ ok: true })
-        expect((await queued()).map(r => r.payload.tenant_id)).toEqual([tenant])
-        expect((await call('admin@x.test', { tenant: 'shared-unbound', ip: '198.51.100.51' })).status).toBe(403)
-        expect((await call('admin@x.test', { tenant: 'Not A Slug', ip: '198.51.100.52' })).status).toBe(403)
-        expect((await call('admin@x.test', { tenant: slug, signingKey: 'forged-test-key-'.repeat(4) })).status).toBe(403)
-        await pool.query('UPDATE shared_registry_bindings SET enabled=false, registry_revision=2 WHERE control_tenant_id=$1', [tenant])
-        expect((await call('admin@x.test', { tenant: slug, ip: '198.51.100.53' })).status).toBe(403)
-        expect(await queued()).toHaveLength(1)
-      })
-      it('limits each visitor to 5 requests in ten minutes per workspace, and visitors do not share a bucket', async () => {
-        const statuses: number[] = []
-        for (let n = 0; n < 6; n++) statuses.push((await call('nobody@x.test', { ip: '198.51.100.30' })).status)
-        expect(statuses).toEqual([202, 202, 202, 202, 202, 429])
-        expect((await call('nobody@x.test', { ip: '198.51.100.31' })).status).toBe(202) // another visitor, same workspace
-        const second = randomUUID()
-        await pool.query(`INSERT INTO tenants(id,name,commercial_mode,hosting_model,inventory_target,operations_enabled) VALUES($1,'T2','saas','dedicated_managed',$2,true)`, [second, 'inv-' + second])
-        expect((await call('nobody@x.test', { ip: '198.51.100.30', tenant: second })).status).toBe(202) // same visitor, another workspace
-      })
-      it('resolves a signed control tenant id against the tenants table: unknown and disabled-binding ids are refused, a dedicated tenant and an upper-case id are accepted', async () => {
-        expect((await call('admin@x.test', { tenant: randomUUID(), ip: '198.51.100.60' })).status).toBe(403)
-        expect(await queued()).toEqual([])
-        const dedicated = await call('admin@x.test', { ip: '198.51.100.61' }) // no shared binding at all
-        expect(dedicated.status).toBe(202)
-        const upper = await call('admin@x.test', { tenant: tenant.toUpperCase(), ip: '198.51.100.62' })
-        expect(upper.status).toBe(202)
-        expect((await queued()).map(r => r.payload.tenant_id)).toEqual([tenant, tenant])
-        await pool.query('INSERT INTO shared_registry_bindings(control_tenant_id,tenant_id,host,database_name,filestore,enabled,registry_revision) VALUES($1,$2,$3,$4,$4,false,1)',
-          [tenant, 'shared-' + tenant.slice(0, 8), `off-${tenant.slice(0, 8)}.reissue.test`, 'off_' + tenant.slice(0, 8).replaceAll('-', '_')])
-        expect((await call('admin@x.test', { ip: '198.51.100.63' })).status).toBe(403)
-        expect(await queued()).toHaveLength(2)
-      })
-      it('rejects a non-POST, a body with extra fields and an oversize body', async () => {
-        expect((await fetch(`http://127.0.0.1:${port}${REISSUE_PATH}`)).status).toBe(404)
-        const post = (body: string, ip: string) => fetch(`http://127.0.0.1:${port}${REISSUE_PATH}`, { method: 'POST', body, headers: { 'content-type': 'application/json', 'x-liwan-tenant': tenant, 'x-liwan-client-ip': ip,
-          ...signServiceRequest({ method: 'POST', path: REISSUE_PATH, body: `liwan-invitation-reissue:${tenant}\n${ip}\n`, actor: 'anonymous', anonymous: true, issuer: 'i', key }) } })
-        expect((await post(JSON.stringify({ email: 'a@x.test', tenant_id: tenant }), '198.51.100.40')).status).toBe(400)
-        expect((await post(JSON.stringify({ email: 'a'.repeat(2000) + '@x.test' }), '198.51.100.41')).status).toBe(400)
-      })
+      // In shared mode the route builds its setter from the internal effect client (stubbed at the top of this file).
+      vi.stubEnv('LIWAN_TENANCY_MODE', 'shared')
+      const server = createApp(pool, config).listen(0, '127.0.0.1')
+      await new Promise<void>(resolve => server.once('listening', resolve))
+      try {
+        const addr = server.address(); if (!addr || typeof addr === 'string') throw Error('missing address')
+        const h = await handoff()
+        const post = (headers: Record<string, string>) => fetch(`http://127.0.0.1:${addr.port}${ACCEPT_PATH}`, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify({ token: h.token, password: PW }) })
+        const signed = (tid: string) => ({ 'x-liwan-tenant': tid, ...signServiceRequest({ method: 'POST', path: ACCEPT_PATH, body: `liwan-invitation-accept:${tid}\n`, actor: 'anonymous', anonymous: true, issuer: 'i', key }) })
+        expect((await post(signed(randomUUID()))).status).toBe(400)
+        expect((await post({ 'x-liwan-tenant': tenant })).status).toBe(400)
+        expect((await post(signed('Not A Tenant'))).status).toBe(400)
+        expect(effectSet).toHaveLength(0)
+        expect((await pool.query('SELECT consumed_at FROM admin_invitations')).rows[0].consumed_at).toBeNull()
+        expect((await post(signed(tenant))).status).toBe(200)
+        expect(effectSet).toHaveLength(1)
+        expect((await post(signed(tenant))).status).toBe(400)
+      } finally { await new Promise<void>(resolve => server.close(() => resolve())); vi.unstubAllEnvs() }
+    })
+  })
+
+  describe('first activation on receipt', () => {
+    /** A minimal delivered-provisioning fixture: one subscription with its target revision and the effect row applyReceipt expects. */
+    const firstActivation = async () => {
+      const sub = randomUUID(), rev = randomUUID(), order = randomUUID(), quote = randomUUID()
+      const digest = 'a'.repeat(64)
+      await pool.query('INSERT INTO subscriptions(id,customer_id,tenant_id) VALUES($1,$2,$3)', [sub, customer, tenant])
+      await pool.query('INSERT INTO subscription_revisions(id,subscription_id,revision,snapshot,quote_id) VALUES($1,$2,1,$3,$4)',
+        [rev, sub, { entitlement: { digest, modules: [], features: {} }, period_end: '2027-01-01' }, quote])
+      await pool.query('UPDATE subscriptions SET target_revision_id=$2,revision=revision+1 WHERE id=$1', [sub, rev])
+      await pool.query(`INSERT INTO orders(id,customer_id,subscription_id,kind,quote_id,target_revision_id,payment_state,fulfillment_state,idempotency_key,request_digest,due_now_minor,currency,exponent)
+        VALUES($1,$2,$3,'new',$4,$5,'not_required','queued',$6,'test',0,'SAR',2)`, [order, customer, sub, quote, rev, randomUUID()])
+      await pool.query('INSERT INTO fulfillment_effects(id,order_id,operation_id) VALUES($1,$2,$3)', [randomUUID(), order, 'op-' + randomUUID()])
+      return { sub, order, rev, digest }
+    }
+    const receipt = (s: { order: string; rev: string; digest: string }, adminUserId?: number) => ({
+      order_id: s.order, tenant_id: tenant, target_revision_id: s.rev, observed_entitlement_digest: s.digest,
+      observed_at: new Date().toISOString(), branch_bindings: [], root_company_id: 1,
+      ...(adminUserId === undefined ? {} : { admin_user_id: adminUserId }) })
+    const enqueued = async (sub: string) => (await pool.query("SELECT count(*)::int AS n FROM commercial_outbox WHERE kind='invitation.issue' AND aggregate_id=$1", [sub])).rows[0].n
+    it('enqueues the email invitation for a team-created customer, once, and a replay adds no second one', async () => {
+      const s = await firstActivation()
+      expect(await applyReceipt(pool, { order_id: s.order, receipt: receipt(s) })).toEqual({ applied: true, replay: false })
+      expect(await enqueued(s.sub)).toBe(1)
+      expect(await applyReceipt(pool, { order_id: s.order, receipt: receipt(s) })).toEqual({ applied: true, replay: true })
+      expect(await enqueued(s.sub)).toBe(1)
+    })
+    it('a signup-trial customer gets no email invitation and a receipt without an observed administrator leaves the trial waiting', async () => {
+      const email = `f${customer}@signup.test`, mobile = `+9665${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`
+      await pool.query('INSERT INTO public_signup_trials(customer_id,email,mobile,requires_first_login) VALUES($1,$2,$3,true)', [customer, email, mobile])
+      const s = await firstActivation()
+      await applyReceipt(pool, { order_id: s.order, receipt: receipt(s) })
+      expect(await enqueued(s.sub)).toBe(0)
+      expect((await pool.query('SELECT first_admin_user_id FROM public_signup_trials WHERE customer_id=$1', [customer])).rows[0].first_admin_user_id).toBeNull()
+    })
+    it('accepting the founder invitation writes no first_admin_user_id; only the provisioning receipt does', async () => {
+      const email = `f${customer}@signup.test`, mobile = `+9665${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`
+      await pool.query('INSERT INTO public_signup_trials(customer_id,email,mobile,requires_first_login) VALUES($1,$2,$3,true)', [customer, email, mobile])
+      await pool.query(`UPDATE customers SET admin_login=$2 WHERE id=$1`, [customer, email])
+      const h = await issueHandoffInvitation(pool, customer)
+      await acceptInvitation(pool, { token: h.token, password: PW, tenant_id: tenant, setPassword })
+      expect(set).toHaveLength(1)
+      expect((await pool.query('SELECT first_admin_user_id FROM public_signup_trials WHERE customer_id=$1', [customer])).rows[0].first_admin_user_id).toBeNull()
+      const s = await firstActivation()
+      await applyReceipt(pool, { order_id: s.order, receipt: receipt(s, 7) })
+      expect((await pool.query('SELECT first_admin_user_id FROM public_signup_trials WHERE customer_id=$1', [customer])).rows[0].first_admin_user_id).toBe(7)
     })
   })
   const port = process.env.LIWAN_MAILPIT_SMTP_PORT, api = process.env.LIWAN_MAILPIT_API_PORT

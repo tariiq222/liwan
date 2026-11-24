@@ -64,7 +64,7 @@ export async function trialAuthority(client: PoolClient, subscription: Record<st
     post_trial_modules: entitlement.modules, post_trial_digest: entitlement.digest }
 }
 
-export type SubscriptionReceipt = EffectReceipt & { database?: string; modules_installed?: string[]; root_company_id?: number; archived_branch_ids?: string[]; branch_read_only?: { branch_id: string; read_only: boolean }[]; roles_not_granted?: boolean; roles_not_granted_reason?: 'no_admin_login' | 'admin_not_found' | 'roles_missing' }
+export type SubscriptionReceipt = EffectReceipt & { database?: string; modules_installed?: string[]; root_company_id?: number; admin_user_id?: number; archived_branch_ids?: string[]; branch_read_only?: { branch_id: string; read_only: boolean }[]; roles_not_granted?: boolean; roles_not_granted_reason?: 'no_admin_login' | 'admin_not_found' | 'roles_missing' }
 
 /** Needs a human to read Odoo back: no credit note, the operator settles the money. */
 const INTERVENTION_CODES = ['stale_target', 'observed_mismatch', 'provision_needs_intervention']
@@ -108,7 +108,16 @@ export async function applyReceipt(pool: Pool, input: { order_id: string; receip
       await client.query(`INSERT INTO commercial_branches(id,subscription_id,tenant_id,name,kind,billing,state,odoo_company_id,order_id,activated_at)
         VALUES($1,$2,$3,'المقر الرئيسي','hq','included','active',$4,$5,now()) ON CONFLICT DO NOTHING`,
         [randomUUID(),order.subscription_id,order.tenant_id,receipt.root_company_id,order.id])
-      await enqueueOutbox(client,{kind:'invitation.issue',aggregate_id:order.subscription_id,dedupe_key:'first-activation',payload:{subscription_id:order.subscription_id}})
+      // A team-created company is invited by email on first activation; a self-signup customer already holds
+      // its handoff link and gets no invitation.
+      if(!(await client.query('SELECT 1 FROM public_signup_trials WHERE customer_id=$1',[order.customer_id])).rowCount)
+        await enqueueOutbox(client,{kind:'invitation.issue',aggregate_id:order.subscription_id,dedupe_key:'first-activation',payload:{subscription_id:order.subscription_id}})
+      // The administrator user id provisioning observed binds the trial to its founder's first sign-in
+      // (trial-first-login.ts). A receipt without it leaves the trial waiting; there is no second source to guess from.
+      const adminUserId = receipt.admin_user_id
+      if(typeof adminUserId === 'number' && Number.isSafeInteger(adminUserId) && adminUserId > 1)
+        await client.query(`UPDATE public_signup_trials SET first_admin_user_id=$2
+          WHERE customer_id=$1 AND requires_first_login AND first_admin_user_id IS NULL`,[order.customer_id,adminUserId])
     }
     await activateBranches(client, { order_id: order.id, bindings: receipt.branch_bindings })
     await archiveBranches(client,{subscription_id:order.subscription_id,ids:order.snapshot.branch_archive_ids??order.snapshot.branches?.archive??[]})

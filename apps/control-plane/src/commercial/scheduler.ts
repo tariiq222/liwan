@@ -2,7 +2,7 @@ import type { Pool } from 'pg'
 import type { Config } from '../config.js'
 import { processFulfillmentOutbox } from './fulfillment.js'
 import { claimOutbox, completeOutbox, releaseOutbox } from './outbox.js'
-import { onSubscriptionActivated, processReissueRequests, sendInvitationOutbox, settleFailedInvitationOutbox } from './invitations.js'
+import { onSubscriptionActivated, sendInvitationOutbox, settleFailedInvitationOutbox } from './invitations.js'
 import { runWorkspaceLookups } from './workspace-lookup.js'
 import { reconcileUnknownAttempts } from './payments.js'
 import { recoverInterrupted } from '../shared/subscription-reconcile.js'
@@ -142,7 +142,6 @@ export function createCommercialScheduler(o: CommercialSchedulerOptions) {
           }
         }
       })
-      await job('invitation.reissue', () => processReissueRequests(pool, { signal: o.signal, log }))
       await job('tenant-deletion-due', async () => { await expireDeletionCodes(pool); await markDueDeletions(pool); await queueLastCalls(pool) })
       if (o.mailAdapter) {
         const mail = o.mailAdapter

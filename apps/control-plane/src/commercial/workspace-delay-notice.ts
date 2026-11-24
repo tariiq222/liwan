@@ -11,12 +11,14 @@ export const WORKSPACE_RESOLUTION_WINDOW = { ar: 'خلال يوم عمل', en: '
 
 /**
  * One email per customer when the first workspace is still not delivered WORKSPACE_DELAY_MINUTES after sign-up. A terminal provisioning failure is covered by the same row (it does not depend on the order state). Recovery retries
- * stay silent; the invitation itself goes out as usual once the workspace is delivered. A row that failed or was interrupted is
- * retried on the next run, a completed row is never sent again, and a row is sent by the one worker that leases it.
+ * stay silent; a team-created company is invited by email once its workspace is delivered, a self-signup founder
+ * takes its handoff link from the signup status page. A row that failed or was interrupted is retried on the next
+ * run, a completed row is never sent again, and a row is sent by the one worker that leases it.
  */
 export async function sendWorkspaceDelayNotices(pool: Pool, input: { now: Date; mail: MailAdapter; signal?: AbortSignal }): Promise<number> {
-  const late = (await pool.query(`SELECT c.id AS customer_id,c.admin_login FROM orders o
+  const late = (await pool.query(`SELECT c.id AS customer_id,c.admin_login,t.company_domain FROM orders o
     JOIN subscriptions s ON s.id=o.subscription_id JOIN customers c ON c.id=o.customer_id
+    LEFT JOIN public_signup_trials t ON t.customer_id=c.id
     WHERE o.kind='new' AND o.payment_state='not_required' AND NOT o.cancelled AND s.applied_revision_id IS NULL
       AND c.admin_login IS NOT NULL AND o.created_at <= $1::timestamptz - make_interval(mins => $2::int) ORDER BY o.created_at,o.id`,
   [input.now, WORKSPACE_DELAY_MINUTES])).rows
@@ -29,7 +31,7 @@ export async function sendWorkspaceDelayNotices(pool: Pool, input: { now: Date; 
   return sent
 }
 
-async function noticeOf(pool: Pool, row: { customer_id: string; admin_login: string }, input: { mail: MailAdapter; signal?: AbortSignal }): Promise<number> {
+async function noticeOf(pool: Pool, row: { customer_id: string; admin_login: string; company_domain: string | null }, input: { mail: MailAdapter; signal?: AbortSignal }): Promise<number> {
   const dedupe = `workspace-delay:${row.customer_id}`
   const inserted = await enqueueOutbox(pool, { kind: 'workspace.delay_notice', aggregate_id: row.customer_id, dedupe_key: dedupe, payload: { customer_id: row.customer_id } })
   const existing = (await pool.query("SELECT id,status FROM commercial_outbox WHERE kind='workspace.delay_notice' AND aggregate_id=$1 AND dedupe_key=$2", [row.customer_id, dedupe])).rows[0]
@@ -38,8 +40,10 @@ async function noticeOf(pool: Pool, row: { customer_id: string; admin_login: str
   const leaseUntil = await leaseOutboxRow(pool, existing.id)
   if (!leaseUntil) return 0
   if (input.signal?.aborted) { await releaseOutbox(pool, existing.id, leaseUntil); return 0 }
-  const ar = `مساحة عملك في LiwanOS تستغرق وقتًا أطول من المتوقع. نُبِّه فريقنا وهو يعمل عليها الآن، ونتوقع حل المشكلة ${WORKSPACE_RESOLUTION_WINDOW.ar}. لا تحتاج إلى أي إجراء منك. سنرسل لك دعوة الدخول على هذا البريد بمجرد جاهزيتها، وتبدأ مدة التجربة عند أول دخول لك إلى المساحة.`
-  const en = `Your LiwanOS workspace is taking longer than expected to set up. Our team has been alerted and is working on it, and we expect it to be resolved ${WORKSPACE_RESOLUTION_WINDOW.en}. You do not need to do anything. We will send the sign-in invitation to this address as soon as it is ready, and your trial starts when you first sign in to it.`
+  const place = row.company_domain ? { ar: ` على ${row.company_domain}`, en: ` at ${row.company_domain}` } : { ar: '', en: '' }
+  // No invitation is promised: the founder signs in on the workspace domain itself with "forgot password" once it is ready.
+  const ar = `مساحة عملك في LiwanOS تستغرق وقتًا أطول من المتوقع. نُبِّه فريقنا وهو يعمل عليها الآن، ونتوقع حل المشكلة ${WORKSPACE_RESOLUTION_WINDOW.ar}. لا تحتاج إلى أي إجراء منك الآن: عندما تجهز المساحة${place.ar}، افتح صفحة الدخول واختر «نسيت كلمة المرور» لتعيين كلمة مرورك، وتبدأ مدة التجربة عند أول دخول لك إلى المساحة.`
+  const en = `Your LiwanOS workspace is taking longer than expected to set up. Our team has been alerted and is working on it, and we expect it to be resolved ${WORKSPACE_RESOLUTION_WINDOW.en}. You do not need to do anything. Once the workspace${place.en} is ready, open its sign-in page and choose "Forgot password" to set your password; your trial starts when you first sign in to it.`
   try {
     await input.mail.send({ to: row.admin_login, subject: 'مساحة عملك في LiwanOS تستغرق وقتًا أطول من المتوقع', text: `${ar}\n\n${en}`, message_id: `workspace-delay-${row.customer_id}@liwan` })
     await completeOutbox(pool, existing.id)
