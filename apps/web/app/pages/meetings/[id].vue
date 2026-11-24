@@ -187,10 +187,9 @@ function displayValue(value: string | null | undefined) {
       <SharedStatusBadge data-testid="meeting-state-badge" v-bind="meetingStateBadgeProps(query.data.value.state, t)" />
     </template>
     <template #actions>
-      <UButton v-if="activeTab === 'minutes' && query.data.value?.can_edit && !resolutionsBusy" :color="query.data.value.state === 'draft' ? 'neutral' : 'primary'" :variant="query.data.value.state === 'draft' ? 'outline' : 'solid'" :to="childTo(`/meetings/${id}/minutes`)" :label="t('meetingsUx.editMinutes')" />
       <UButton v-if="query.data.value?.can_edit && !resolutionsBusy" color="neutral" variant="outline" :to="childTo(`/meetings/${id}/edit`)" :label="t('app.edit')" />
       <UButton v-if="query.data.value?.can_edit && query.data.value.state === 'draft'" :disabled="!hydrated || transitioning" :label="t('meetingsUi.confirm')" @click="requestMeetingAction('confirm')" />
-      <UButton v-if="query.data.value?.can_manage && query.data.value.state === 'confirmed'" :disabled="!hydrated || transitioning" :color="activeTab === 'summary' ? undefined : 'neutral'" :variant="activeTab === 'summary' ? 'solid' : 'outline'" :label="t('meetingsUi.complete')" @click="prepareComplete" />
+      <UButton v-if="query.data.value?.can_manage && query.data.value.state === 'confirmed'" :disabled="!hydrated || transitioning" variant="solid" :label="t('meetingsUi.complete')" @click="prepareComplete" />
       <UButton v-if="query.data.value?.can_manage && (query.data.value.state === 'done' || query.data.value.state === 'cancelled')" color="neutral" variant="outline" :disabled="!hydrated || transitioning" :label="t('meetingsUi.reopen')" @click="requestMeetingAction('reopen')" />
       <!-- Secondary and destructive actions live in one menu; cancelling still asks inline below the header. -->
       <UDropdownMenu :items="moreActions" :content="{ align: 'end' }">
@@ -283,7 +282,7 @@ function displayValue(value: string | null | undefined) {
           </SharedRecordSection>
         </template>
         <template v-else-if="activeTab === 'minutes'">
-                  <MeetingMinutesDocument
+          <MeetingMinutesDocument
             v-if="historicalSnapshot || currentMinutesForm"
             :meeting="query.data.value"
             :compact="!historicalSnapshot"
@@ -294,8 +293,15 @@ function displayValue(value: string | null | undefined) {
             :legacy-minutes="historicalSnapshot ? historicalSnapshot.minutes : query.data.value.minutes"
             :legacy-recommendations="historicalSnapshot ? historicalRecommendations : query.data.value.resolutions"
             :title="t('meetingMinutesForm.documentTitle')"
-          />
+          >
+            <template v-if="query.data.value?.can_edit && !resolutionsBusy && !historicalSnapshot" #actions>
+              <UButton size="sm" icon="i-lucide-pen-line" :to="childTo(`/meetings/${id}/minutes`)" :label="t('meetingsUx.editMinutes')" />
+            </template>
+          </MeetingMinutesDocument>
           <SharedRecordSection v-if="!historicalSnapshot && !currentMinutesForm" id="meeting-minutes" variant="panel" :title="t('meetingsUi.minutes')">
+            <template v-if="query.data.value?.can_edit && !resolutionsBusy" #actions>
+              <UButton size="sm" icon="i-lucide-pen-line" :to="childTo(`/meetings/${id}/minutes`)" :label="t('meetingsUx.editMinutes')" />
+            </template>
             <div class="grid min-w-0 gap-3">
               <UAlert v-if="doneWithoutSnapshot" color="neutral" variant="subtle" icon="i-lucide-info" :title="`${t('meetingsUx.historyUnavailable')} ${t('meetingsUx.currentContentAfterMissingHistory')}`" />
               <SharedRichText v-if="richTextHasContent(query.data.value.minutes)" :html="query.data.value.minutes" size="sm" />

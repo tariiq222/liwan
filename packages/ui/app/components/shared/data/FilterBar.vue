@@ -19,8 +19,8 @@
       </div>
     </div>
     <div data-slot="filter-row" class="flex flex-wrap items-center gap-2">
-      <!-- With fields, a narrow workspace (a tablet, or a wide context sidebar) gives the search the whole first row and the chips the row under it. -->
-      <div v-if="$slots.search" data-slot="search" data-shortcut-search class="min-w-0 flex-1 *:w-full md:min-w-55 md:basis-55" :class="$slots.default && 'md:basis-full @4xl/filters:basis-55'">
+      <!-- With fields, a narrow workspace gives the search the whole first row and the chips the row under it. -->
+      <div v-if="$slots.search" data-slot="search" data-shortcut-search class="min-w-0 flex-1 *:w-full md:min-w-55 md:basis-55" :class="$slots.default && 'md:basis-full @lg/filters:basis-55'">
         <slot name="search" />
       </div>
       <UButton v-if="$slots.default" ref="trigger" type="button" color="neutral" :variant="expanded ? 'solid' : 'soft'" square class="md:hidden" icon="i-lucide-list-filter" :aria-label="resolvedTitle" :title="resolvedTitle" :aria-expanded="expanded" :aria-controls="contentId" :disabled="isDisabled" @click="expanded = !expanded" />

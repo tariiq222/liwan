@@ -107,7 +107,7 @@ describe('FilterBar', () => {
   it('gives the search the whole first row in a narrow workspace only when there are fields under it', async () => {
     const withFields = await renderFilter('FilterBar', {}, { search: () => h('input'), default: () => h('select') })
     expect(withFields).toContain('@container/filters')
-    expect(withFields).toContain('md:basis-full @4xl/filters:basis-55')
+    expect(withFields).toContain('md:basis-full @lg/filters:basis-55')
     expect(await renderFilter('FilterBar', {}, { search: () => h('input') })).not.toContain('md:basis-full')
   })
   it('fills the phone row with the view switch', async () => {
