@@ -326,7 +326,7 @@ class IssueTest(unittest.TestCase):
         handle(self.prov, 'delete_key', 'acme', keyId=mine['accessKeyId'])  # repeated: nothing to do
 
     def test_inspect_of_an_unknown_tenant_is_empty(self):
-        self.assertEqual({'bucketExists': False, 'keys': []}, handle(self.prov, 'inspect', 'nobody'))
+        self.assertEqual({'bucket': oci.resource_name('nobody', NAMING_KEY), 'bucketExists': False, 'keys': []}, handle(self.prov, 'inspect', 'nobody'))
 
 
 class RunTest(unittest.TestCase):

@@ -254,7 +254,8 @@ OCI_RESULT_CHECKS = {
                          and isinstance(v['endpointUrl'], str) and _key_list_ok(v['keys'])),
     'issue': lambda v: (set(v) == {'accessKeyId', 'secret', 'createdAt'} and isinstance(v['accessKeyId'], str)
                         and isinstance(v['secret'], str) and type(v['createdAt']) is int),
-    'inspect': lambda v: set(v) == {'bucketExists', 'keys'} and isinstance(v['bucketExists'], bool) and _key_list_ok(v['keys']),
+    'inspect': lambda v: (set(v) == {'bucket', 'bucketExists', 'keys'} and isinstance(v['bucket'], str)
+                          and isinstance(v['bucketExists'], bool) and _key_list_ok(v['keys'])),
     'delete_key': lambda v: v == {},
 }
 
@@ -382,14 +383,18 @@ class TenantStorageEffect:
             issued.pop('secret', None)
         return self._pending(request, issued['createdAt'], 'key_stored')
 
+    def _refuse_other_bucket(self, primary):
+        """A stored record for another bucket (a lost naming key, a record edited by hand) is never overwritten, and nothing is created for it:
+        its key may still be the only way to the files. Read-only, so it runs before `ensure` creates a bucket, a user or a policy."""
+        if primary and primary['bucket'] != self.oci.call('inspect')['bucket']:
+            raise EffectError('bucket_mismatch')
+
     def _ensure(self, request):
         observed = self.odoo.observe()
+        primary, candidate = observed['primary'], observed['candidate']
+        self._refuse_other_bucket(primary)
         resources = self.oci.call('ensure')
         keys = {key['id']: key for key in resources['keys']}
-        primary, candidate = observed['primary'], observed['candidate']
-        # A stored record for another bucket (a lost naming key, a record edited by hand) is never overwritten: its key may still be the only way to the files.
-        if primary and primary['bucket'] != resources['bucket']:
-            raise EffectError('bucket_mismatch')
         if primary and primary['accessKeyId'] in keys:
             self._prune(resources['keys'], {primary['accessKeyId']} | ({candidate['accessKeyId']} if candidate else set()))
             return self._check(request, 'primary', keys[primary['accessKeyId']]['createdAt'])
@@ -400,6 +405,8 @@ class TenantStorageEffect:
         if primary is None:
             raise EffectError('store_failed')
         inspected = self.oci.call('inspect')
+        if primary['bucket'] != inspected['bucket']:
+            raise EffectError('bucket_mismatch')
         keys = {key['id']: key for key in inspected['keys']}
         if not inspected['bucketExists'] or primary['accessKeyId'] not in keys:
             raise EffectError('key_not_valid')
@@ -410,10 +417,9 @@ class TenantStorageEffect:
         primary, candidate = observed['primary'], observed['candidate']
         if primary is None:
             raise EffectError('store_failed')
+        self._refuse_other_bucket(primary)
         resources = self.oci.call('ensure')
         keys = {key['id']: key for key in resources['keys']}
-        if primary['bucket'] != resources['bucket']:
-            raise EffectError('bucket_mismatch')
         if candidate is not None and candidate['accessKeyId'] in keys and candidate['bucket'] == resources['bucket']:
             created_at = keys[candidate['accessKeyId']]['createdAt']
             try:

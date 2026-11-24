@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { actorLabel } from '../admin-auth/grants.js'
 import { transaction } from '../db.js'
 import type { RegistryActor } from './registry-store.js'
+import { MAINTENANCE_FAILURE_LOG_INTERVAL_MS } from './job-loop.js'
 import { TENANT_STORAGE_ERROR_CODES } from './tenant-storage-runner.js'
 
 /**
@@ -17,9 +18,11 @@ export type StorageOutcome = { ok: true; response: StorageResponse } | { ok: fal
 
 /** A claimed run outlasts the effect's timeout; a worker that died mid-run leaves a lease that simply expires. */
 export const STORAGE_LEASE_SECONDS = 20 * 60
+/** Codes that no repeat can cure (a record for another bucket, a request the effect refuses as invalid): the row stops on the first one. */
+export const STORAGE_TERMINAL_CODES: ReadonlySet<string> = new Set(['bucket_mismatch', 'request_invalid'])
 /** Failed runs since the last `active` before the row stops asking and waits for an operator. */
 export const STORAGE_MAX_ATTEMPTS = 6
-/** One tenant per pass: a run holds the shared job loop for as long as its containers take. */
+/** One tenant per pass: the storage loop does one run at a time, however long its containers take. */
 export const STORAGE_RUNS_PER_PASS = 1
 const MIN_RETRY_SECONDS = 30
 
@@ -80,8 +83,8 @@ export async function recordTenantStorageRun(pool: Pool, claim: StorageClaim, ou
       [...identity, rotating ? 'rotate' : 'verify', outcome.response.stage, wait, outcome.response])
   } else {
     const attempts = claim.attempts + 1
-    const stopped = attempts >= STORAGE_MAX_ATTEMPTS
     const code = TENANT_STORAGE_ERROR_CODES.has(outcome.code) ? outcome.code : 'script_failed'
+    const stopped = attempts >= STORAGE_MAX_ATTEMPTS || STORAGE_TERMINAL_CODES.has(code)
     const next = stopped ? 'NULL' : 'clock_timestamp()+make_interval(secs=>$8)'
     result = await pool.query(`UPDATE tenant_storage SET operation=$4,state='failed',error_code=$5,attempts=$6,response=$7,next_run_at=${next},updated_at=clock_timestamp() ${where}`,
       [...identity, rotating ? 'rotate' : 'ensure', code, attempts, { error_code: code }, ...(stopped ? [] : [storageBackoffSeconds(attempts)])])
@@ -142,7 +145,10 @@ export async function requestTenantStorage(pool: Pool, controlTenantId: string, 
  * The storage loop of the shared worker. It runs beside the job loop, never inside it: a run (several container starts, up to ten minutes)
  * must not hold back backups, restores or reconfigurations. One pass at a time; it waits `idleMs` when nothing was due and `busyMs` after a run.
  */
-export async function runTenantStorageLoop(pool: Pool, runner: StorageRunner, opts: { signal: AbortSignal; idleMs?: number; busyMs?: number; wait?: (ms: number) => Promise<void>; log?: (message: string, error?: unknown) => void }): Promise<void> {
+export async function runTenantStorageLoop(pool: Pool, runner: StorageRunner, opts: { signal: AbortSignal; idleMs?: number; busyMs?: number; wait?: (ms: number) => Promise<void>; log?: (message: string, error?: unknown) => void; now?: () => number }): Promise<void> {
+  // A pass that keeps failing (the database is down) is logged at once, then at most once per MAINTENANCE_FAILURE_LOG_INTERVAL_MS, like the maintenance steps.
+  const now = opts.now ?? Date.now
+  let failing: { lastLoggedAt: number; suppressed: number } | undefined
   const wait = opts.wait ?? ((ms: number) => new Promise<void>(resolve => {
     if (opts.signal.aborted) { resolve(); return }
     const done = () => { clearTimeout(timer); opts.signal.removeEventListener('abort', done); resolve() }
@@ -151,8 +157,15 @@ export async function runTenantStorageLoop(pool: Pool, runner: StorageRunner, op
   }))
   while (!opts.signal.aborted) {
     let ran = 0
-    try { ran = (await runTenantStorageDue(pool, runner, { signal: opts.signal })).ran }
-    catch (error) { opts.log?.('tenant-storage pass failed', error) }
+    try {
+      ran = (await runTenantStorageDue(pool, runner, { signal: opts.signal })).ran
+      if (failing) { opts.log?.(`tenant-storage pass recovered; ${failing.suppressed} failures since the last log line were not logged`); failing = undefined }
+    } catch (error) {
+      const at = now()
+      if (!failing) { failing = { lastLoggedAt: at, suppressed: 0 }; opts.log?.('tenant-storage pass failed', error) }
+      else if (at - failing.lastLoggedAt >= MAINTENANCE_FAILURE_LOG_INTERVAL_MS) { opts.log?.(`tenant-storage pass is still failing (${failing.suppressed} failures since the last log line)`, error); failing.lastLoggedAt = at; failing.suppressed = 0 }
+      else failing.suppressed++
+    }
     await wait(ran > 0 ? opts.busyMs ?? 1_000 : opts.idleMs ?? 30_000)
   }
 }

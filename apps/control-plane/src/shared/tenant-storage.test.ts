@@ -79,6 +79,17 @@ describe('recording a run', () => {
     const [sql, params] = query.mock.calls[0]!
     expect(sql).toMatch(/next_run_at=NULL/); expect(params).toHaveLength(8 - 1)
   })
+  it('a code no repeat can cure stops the schedule on the first occurrence', async () => {
+    for (const code of ['bucket_mismatch', 'request_invalid']) {
+      const { pool, query } = poolRecording()
+      await recordTenantStorageRun(pool, claim({ attempts: 0 }), { ok: false, code })
+      const [sql, params] = query.mock.calls[0]!
+      expect(sql).toMatch(/next_run_at=NULL/); expect(params!.slice(3)).toEqual(['ensure', code, 1, { error_code: code }])
+    }
+    const { pool, query } = poolRecording()
+    await recordTenantStorageRun(pool, claim({ attempts: 0 }), { ok: false, code: 'oci_unreachable' })
+    expect(query.mock.calls[0]![0]).toMatch(/make_interval/)  // a retryable code is still scheduled again
+  })
   it('an unknown code is recorded as script_failed', async () => {
     const { pool, query } = poolRecording()
     await recordTenantStorageRun(pool, claim(), { ok: false, code: 'oracle said: secret' })
@@ -204,6 +215,18 @@ describe('the storage loop', () => {
     expect(dispatched).toBe(5)
     expect(runner).toHaveBeenCalledTimes(1)  // still in flight: the dispatches did not wait for it
     controller.abort(); release(pending); await loop
+  })
+  it('logs a failing pass once, then at most once a minute with the count held back, and says when it works again', async () => {
+    let at = 0, passes = 0
+    const controller = new AbortController()
+    const pool = { query: vi.fn(async () => { if (passes < 5) throw Error('database down'); return { rowCount: 0, rows: [] } }) } as unknown as Pool
+    const log = vi.fn()
+    await runTenantStorageLoop(pool, vi.fn(), { signal: controller.signal, log, idleMs: 30_000, now: () => at,
+      wait: async ms => { at += ms; if (++passes === 7) controller.abort() } })
+    // passes fail at t=0, 30s (held back), 60s (logged again, 1 held back), 90s (held back), 120s (logged again, 1 held back); the next pass works
+    expect(log.mock.calls.map(call => call[0])).toEqual([
+      'tenant-storage pass failed', 'tenant-storage pass is still failing (1 failures since the last log line)',
+      'tenant-storage pass is still failing (1 failures since the last log line)', 'tenant-storage pass recovered; 0 failures since the last log line were not logged'])
   })
   it('logs a failing pass and keeps going, and waits longer when nothing was due', async () => {
     const waits: number[] = []

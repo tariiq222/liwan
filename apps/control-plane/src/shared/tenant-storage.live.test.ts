@@ -95,6 +95,14 @@ describe.skipIf(!url)('tenant storage state (live PostgreSQL)', () => {
     expect(await claimTenantStorage(pool, 5)).toHaveLength(1)
   })
 
+  it('a terminal code stops the row on its first occurrence', async () => {
+    const id = await tenant()
+    await runTenantStorageDue(pool, async () => { throw Error('bucket_mismatch') }, { signal })
+    const row = await state(id)
+    expect([row.state, row.error_code, row.attempts, row.next_run_at]).toEqual(['failed', 'bucket_mismatch', 1, null])
+    expect(await claimTenantStorage(pool, 5)).toEqual([])
+  })
+
   it('an operator request supersedes a run in flight: its late answer is not recorded and the rotation runs next', async () => {
     const id = await tenant()
     await discoverTenantStorage(pool)

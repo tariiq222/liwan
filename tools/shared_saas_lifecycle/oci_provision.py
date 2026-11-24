@@ -366,7 +366,7 @@ class Provisioner:
     def _inspect(self, name, request):
         namespace = self.api.namespace()
         user = self.api.find_user(name)
-        return {'bucketExists': self.api.get_bucket(namespace, name) is not None,
+        return {'bucket': name, 'bucketExists': self.api.get_bucket(namespace, name) is not None,
                 'keys': self._keys(user) if user and isinstance(user.get('id'), str) else []}
 
     def _issue(self, name, request):

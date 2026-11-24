@@ -117,6 +117,11 @@ class FakeEnv:
         pass
 
 
+def effect_record(world, code, bucket, key):
+    return FakeRecord(world, {'code': code, 'directory_path': bucket, 'protocol': 's3', 'options': json.dumps({'key': key, 'secret': 's'}),
+                              'use_as_default_for_attachments': False})
+
+
 class World:
     """OCI + the tenant database, shared by the whole run. `fail_write` makes the store step fail (before or after it ran)."""
 
@@ -265,17 +270,24 @@ class BucketMismatchTest(Case):
     def point_primary_elsewhere(self):
         self.run_op('ensure')
         self.world.primary().directory_path = 'lw-someoneelse'
-        return dict(self.world.primary().__dict__), len(self.world.keys()), len(self.world.writes)
+        return dict(self.world.primary().__dict__), len(self.world.keys()), len(self.world.writes), len(self.world.api.created)
+
+    def test_nothing_is_created_when_the_record_names_another_bucket_and_oci_is_still_empty(self):
+        self.world.records.append(effect_record(self.world, effect.PRIMARY_CODE, 'lw-someoneelse', 'k'))
+        for operation in ('ensure', 'rotate', 'verify'):
+            self.assertEqual('bucket_mismatch', self.code_of(operation))
+        self.assertEqual([], self.world.api.created)  # no bucket, user, group, policy or key
+        self.assertEqual([], self.world.writes)
 
     def test_ensure_refuses_to_overwrite_a_record_for_another_bucket(self):
         before = self.point_primary_elsewhere()
         self.assertEqual('bucket_mismatch', self.code_of('ensure'))
-        self.assertEqual(before, (dict(self.world.primary().__dict__), len(self.world.keys()), len(self.world.writes)))
+        self.assertEqual(before, (dict(self.world.primary().__dict__), len(self.world.keys()), len(self.world.writes), len(self.world.api.created)))
 
     def test_rotate_refuses_too_and_writes_no_candidate(self):
         before = self.point_primary_elsewhere()
         self.assertEqual('bucket_mismatch', self.code_of('rotate'))
-        self.assertEqual(before, (dict(self.world.primary().__dict__), len(self.world.keys()), len(self.world.writes)))
+        self.assertEqual(before, (dict(self.world.primary().__dict__), len(self.world.keys()), len(self.world.writes), len(self.world.api.created)))
         self.assertIsNone(self.world.candidate())
 
     def test_the_code_is_one_the_runner_may_report(self):
