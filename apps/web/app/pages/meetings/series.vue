@@ -71,7 +71,7 @@ const total = computed(() => query.data.value?.total ?? 0)
 
 const columns = computed<TableColumn<MeetingSeriesListItem>[]>(() => [
   { id: 'record_number', header: () => recordNumberHeader(t), meta: { class: { th: 'w-12 px-2 text-start', td: 'w-12 px-2 whitespace-nowrap' } } },
-  { accessorKey: 'name', header: t('meetingsUx.seriesName'), meta: { class: { th: 'min-w-56 w-[28%]', td: 'max-w-0' } } },
+  { accessorKey: 'name', header: t('meetingsUx.seriesName'), meta: { title: true, class: { th: 'min-w-56 w-[28%]', td: 'max-w-0' } } },
   { accessorKey: 'recurrence', header: t('meetingsUi.recurrenceLabel'), meta: { class: { th: 'w-36', td: 'w-36 whitespace-nowrap' } } },
   { accessorKey: 'organizer', header: t('meetingsUi.organizer'), meta: { class: { th: 'w-44', td: 'w-44 max-w-0' } } },
   { accessorKey: 'project', header: t('meetingsUi.project'), meta: { class: { th: 'w-44', td: 'w-44 max-w-0' } } },

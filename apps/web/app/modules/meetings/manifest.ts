@@ -3,11 +3,13 @@ import type { AppManifest } from '../types'
 import { overdueFollowupAttention, todayMeetingsAttention } from './attention'
 import { meetingsCoreCount } from './coreCount'
 import { meetingsAppCard } from './appCard'
+import { meetingsSidebar } from './sidebar'
 
 const manifest: AppManifest = {
   id: 'meetings',
   feature: 'meetings.enabled',
   routePrefixes: ['/meetings'],
+  sidebar: meetingsSidebar,
   coreCount: meetingsCoreCount,
   appCard: meetingsAppCard,
   recordListSources: [{ pattern: /^\/meetings\/series\/[1-9]\d*$/, capability: 'meetings.read' }],

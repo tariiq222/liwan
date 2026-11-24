@@ -86,19 +86,19 @@ describe('shared section hierarchy across applications', () => {
 })
 
 describe('unified application navigation', () => {
-  it('keeps all meeting destinations and presets inside their application', () => {
+  it('keeps all meeting destinations flat inside their application with one primary create action', () => {
     const item = build().find(item => item.id === 'meetings')!
     expect(item).toBeDefined()
-    expect(item.sections.flatMap(section => section.items.map(row => row.to))).toEqual(['/meetings', '/meetings/follow-up', '/meetings/calendar', '/meetings/series'])
-    expect(item.sections.flatMap(section => section.items).find(row => row.id === 'meetings')?.children?.map(view => view.to)).toContainEqual({ path: '/meetings', query: { state: 'done' } })
+    expect(item.sections.flatMap(section => section.items.map(row => row.id))).toEqual(['meetings', 'my-meetings', 'meeting-followup', 'meeting-calendar', 'meeting-series'])
+    expect(item.sections.flatMap(section => section.items).every(row => !row.children)).toBe(true)
     expect(item.actions.filter(action => typeof action.to === 'object' && action.to.path === '/meetings/new')).toHaveLength(1)
+    expect(item.actions[0]).toMatchObject({ id: 'new-meeting', primary: true })
   })
   it('does not carry an operations filter into an unopened meetings menu', () => {
-    const item = build('/operations', { state: 'done', project_id: '99' }).find(item => item.id === 'meetings')!
+    const item = build('/operations', { state: 'done', mine: '1', project_id: '99' }).find(item => item.id === 'meetings')!
     expect(item.active).toBe(false)
-    const children = item.sections.flatMap(section => section.items).find(row => row.id === 'meetings')?.children
-    expect(children?.length).toBeGreaterThan(0)
-    expect(children?.every(view => !view.active)).toBe(true)
+    const rows = item.sections.flatMap(section => section.items)
+    expect(rows.find(row => row.id === 'my-meetings')?.active).toBe(false)
     const create = item.actions.find(action => action.id === 'new-meeting')!
     expect(create.to).toEqual({ path: '/meetings/new', query: { returnTo: '/meetings' } })
   })
@@ -108,20 +108,21 @@ describe('unified application navigation', () => {
     expect(meetings.actions).toEqual([])
     expect(items.some(item => item.id === 'operations')).toBe(false)
   })
-  it('marks only the selected meeting preset as active', () => {
-    const item = build('/meetings', { state: 'done' }).find(item => item.id === 'meetings')!
-    expect(item.sections.flatMap(section => section.items).flatMap(row => row.children ?? []).filter(view => view.active).map(view => view.to)).toEqual([{ path: '/meetings', query: { state: 'done' } }])
+  it('lights my-meetings only when mine=1 is active, and keeps meetings lit on other filters', () => {
+    const mine = build('/meetings', { mine: '1' }).find(item => item.id === 'meetings')!
+    expect(mine.sections.flatMap(section => section.items).filter(row => row.active).map(row => row.id)).toEqual(['my-meetings'])
+    const filtered = build('/meetings', { state: 'done' }).find(item => item.id === 'meetings')!
+    expect(filtered.sections.flatMap(section => section.items).filter(row => row.active).map(row => row.id)).toEqual(['meetings'])
   })
-  it('keeps the landing destination under View all without repeating its application name', () => {
-    const item = build().find(item => item.id === 'meetings')!
-    const links = item.sections.flatMap(section => section.items)
-    expect(links.filter(link => link.label === item.label)).toEqual([])
-    expect(links.find(link => link.to === '/meetings')).toMatchObject({ label: 'nav.listOf', active: true })
-    expect(links.find(link => link.to === '/meetings')?.children?.[0]).toMatchObject({ label: 'nav.viewAll', to: '/meetings' })
-  })
-  it('does not mark View all selected while a meeting preset is active', () => {
-    const item = build('/meetings', { state: 'done' }).find(item => item.id === 'meetings')!
-    expect(item.sections.flatMap(section => section.items).find(link => link.to === '/meetings')?.active).toBe(false)
+  it('renders arrived sidebar counts on meetings rows', () => {
+    const item = applicationNavigation({
+      identity, route: route('/meetings'), activeId: 'meetings',
+      contextLinks: contextLinksForModule('meetings', identity, '/meetings'),
+      sidebarCounts: { meetings: 12, 'my-meetings': 4, 'meeting-followup': 2 },
+      translate: key => key,
+    }).find(entry => entry.id === 'meetings')!
+    const counts = item.sections.flatMap(section => section.items).filter(row => row.count !== undefined).map(row => [row.id, row.count])
+    expect(counts).toEqual([['meetings', 12], ['my-meetings', 4], ['meeting-followup', 2]])
   })
   it('reaches its one destination from the sidebar', () => {
     // /work is the application's landing page and its only nav row since the pages merged; the sidebar shows it once

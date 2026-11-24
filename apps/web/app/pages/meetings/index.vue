@@ -166,7 +166,7 @@ function meetingRecordNumber(meeting: { reference: string; id: number }) {
 // Reading order: the record number as a muted `#` reference, then the title (the strongest text), date, organizer, state and resolutions.
 const columns = computed<TableColumn<MeetingListItem>[]>(() => [
   { id: 'record_number', header: () => recordNumberHeader(t), meta: { class: { th: 'w-12 px-2 text-start', td: 'w-12 px-2 whitespace-nowrap' } } },
-  { accessorKey: 'name', header: t('meetingsUi.title'), meta: { class: { th: 'min-w-56 w-[30%]', td: 'max-w-0' } } },
+  { accessorKey: 'name', header: t('meetingsUi.title'), meta: { title: true, class: { th: 'min-w-56 w-[30%]', td: 'max-w-0' } } },
   { accessorKey: 'meeting_date', header: t('meetingsUi.date'), meta: { class: { th: 'w-40', td: 'w-40 whitespace-nowrap' } } },
   { accessorKey: 'organizer', header: t('meetingsUi.organizer'), meta: { class: { th: 'w-44', td: 'w-44 max-w-0' } } },
   { accessorKey: 'state', header: t('meetingsUi.stateLabel'), meta: { class: { th: 'w-32', td: 'w-32 whitespace-nowrap' } } },
