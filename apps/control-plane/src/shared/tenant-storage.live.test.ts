@@ -4,7 +4,7 @@ import { Pool } from 'pg'
 import { randomUUID } from 'node:crypto'
 import { migrate } from '../db.js'
 import { vendorActorIssuer } from '../admin-auth/grants.js'
-import { claimTenantStorage, discoverTenantStorage, readTenantStorage, recordTenantStorageRun, requestTenantStorage, runTenantStorageDue, STORAGE_MAX_ATTEMPTS } from './tenant-storage.js'
+import { beginTenantStorageDrop, claimTenantStorage, discoverTenantStorage, finishTenantStorageDrop, readTenantStorage, recordTenantStorageRun, requestTenantStorage, runTenantStorageDue, STORAGE_MAX_ATTEMPTS } from './tenant-storage.js'
 
 const url = process.env.CONTROL_TEST_DATABASE_URL
 if (url) { const u = new URL(url); if (!['localhost', '127.0.0.1', '::1'].includes(u.hostname) || !/^liwan_control_scratch_[a-z0-9]+$/.test(u.pathname.slice(1))) throw Error('isolated control test database required') }
@@ -174,6 +174,37 @@ describe.skipIf(!url)('tenant storage state (live PostgreSQL)', () => {
     const id = await tenant()
     await discoverTenantStorage(pool)
     await pool.query('UPDATE tenants SET operations_enabled=false WHERE id=$1', [id])
+    expect(await claimTenantStorage(pool, 5)).toEqual([])
+  })
+
+  it('never claims a row the tenant deletion owns with a drop, and a claimed ensure can never record over it', async () => {
+    const id = await tenant()
+    await discoverTenantStorage(pool)
+    // The storage loop claimed this tenant an instant before the deletion started: the ensure is in flight.
+    const [inFlight] = await claimTenantStorage(pool, 1)
+    const claim = await beginTenantStorageDrop(pool, id)
+    // Its late answer is thrown away (run id and revision moved on), so nothing of the ensure survives the drop.
+    expect(await recordTenantStorageRun(pool, inFlight!, { ok: true, response: answer(inFlight!.requestId) as never })).toBe(false)
+    // Even a row the loop would otherwise take now (due, enabled binding, operations on) belongs to the deletion: an `ensure` must not create what it removes.
+    await pool.query('UPDATE tenant_storage SET next_run_at=clock_timestamp() WHERE control_tenant_id=$1', [id])
+    expect(await claimTenantStorage(pool, 5)).toEqual([])
+    // A claimed row would carry a new run id; this one is still the deletion's.
+    expect((await state(id)).request_id).toBe(claim.requestId)
+    expect(await state(id)).toMatchObject({ operation: 'drop', state: 'emptying', stage: null })
+    // A large bucket drains over several runs: `emptying` is recorded and the row still belongs to the deletion.
+    const emptying = { operation: 'drop' as const, tenantId: 'x', requestId: claim.requestId, state: 'emptying' as const, stage: 'objects_removed' as const, objectsDeleted: 3000, retryAfterSeconds: 300 }
+    expect(await finishTenantStorageDrop(pool, claim, id, emptying)).toBe(true)
+    expect(await state(id)).toMatchObject({ operation: 'drop', state: 'emptying', stage: 'objects_removed', next_run_at: null })
+    expect((await state(id)).response).toEqual(emptying)
+    // The next run takes a fresh id: the earlier answer can never be recorded over it.
+    const next = await beginTenantStorageDrop(pool, id)
+    expect(next.revision).toBe(claim.revision + 1)
+    expect(next.requestId).not.toBe(claim.requestId)
+    const removed = { operation: 'drop' as const, tenantId: 'x', requestId: next.requestId, state: 'removed' as const, stage: 'resources_removed' as const, objectsDeleted: 1, keysDeleted: 1 }
+    expect(await finishTenantStorageDrop(pool, claim, id, { ...removed, requestId: claim.requestId })).toBe(false)
+    expect(await finishTenantStorageDrop(pool, next, id, removed)).toBe(true)
+    expect(await state(id)).toMatchObject({ operation: 'drop', state: 'removed', stage: 'resources_removed', next_run_at: null })
+    // A deleted tenant is a row no operator request can revive and no run of the loop can pick up.
     expect(await claimTenantStorage(pool, 5)).toEqual([])
   })
 

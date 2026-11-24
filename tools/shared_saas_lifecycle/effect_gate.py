@@ -46,6 +46,7 @@ REFUSED_EXIT = 2
 CONFIG_ENV = 'LIWAN_SHARED_RUNTIME_CONFIG'
 DELETION_ENV = 'LIWAN_TENANT_DELETION_ENABLED'
 DROP_EFFECT = 'tenant_drop_effect'
+STORAGE_EFFECT = 'tenant_storage_effect'
 # The effects need exactly these; the gate's other variables (the runtime config path, the deletion flag, secrets) stay behind.
 # LIWAN_BACKUP_PASSPHRASE_FILE is the operator's backup key path (a 0600 file the effect account owns): odoo_backup
 # encrypts and decrypts every artifact file with it, and it is a path, never the secret itself.
@@ -220,8 +221,10 @@ def check_request_schema(effect, request, validator=validate):
 
 
 def check_deletion_switch(effect, request, env):
-    """A real drop needs the flag in the gate's own unit; a compromised worker cannot supply it. Dry runs never change anything."""
-    if effect == DROP_EFFECT and request.get('dryRun') is not True and env.get(DELETION_ENV) != 'true':
+    """A real deletion needs the flag in the gate's own unit; a compromised worker cannot supply it. Dry runs never change anything.
+    The storage effect's `drop` removes a tenant's bucket and IAM resources, so it is a deletion too."""
+    destructive = effect == DROP_EFFECT or (effect == STORAGE_EFFECT and request.get('operation') == 'drop')
+    if destructive and request.get('dryRun') is not True and env.get(DELETION_ENV) != 'true':
         raise Refusal('deletion_disabled')
 
 

@@ -3,7 +3,7 @@ import { EventEmitter } from 'node:events'
 import { PassThrough } from 'node:stream'
 import type { Pool } from 'pg'
 import type { Config } from '../config.js'
-import { createTenantStorageRunner, TENANT_STORAGE_ERROR_CODES } from '../shared/tenant-storage-runner.js'
+import { createTenantStorageDropRunner, createTenantStorageRunner, TENANT_STORAGE_ERROR_CODES } from '../shared/tenant-storage-runner.js'
 import { EFFECT_NAMES } from '../shared/effect-channel.js'
 
 const config = { python: 'python3', repositoryRoot: '/repo' } as Config
@@ -52,6 +52,19 @@ describe('tenant storage runner', () => {
       child.stdout.emit('data', JSON.stringify({ error_code: code }) + '\n{"exit":1}\n'); child.emit('close', 1)
       expect((await run)?.message).toBe(TENANT_STORAGE_ERROR_CODES.has(code) ? code : 'script_failed')
     }
+  })
+  it('drops the storage of a tenant being deleted from its frozen plan, with no enabled binding to look up', async () => {
+    const child = fakeChild(); const spawnChild = vi.fn(() => child)
+    const stdin: string[] = []; child.stdin.on('data', c => stdin.push(String(c)))
+    const answer = { operation: 'drop', tenantId: 'acme', requestId: request_id, state: 'removed', stage: 'resources_removed', objectsDeleted: 12, keysDeleted: 1 }
+    const result = createTenantStorageDropRunner(config, { deps: { spawnChild: spawnChild as never } })({ tenantId: 'acme', database: binding.database_name, requestId: request_id, signal: new AbortController().signal })
+    await vi.waitFor(() => expect(spawnChild).toHaveBeenCalled())
+    child.stdout.emit('data', JSON.stringify({ result: answer }) + '\n{"exit":0}\n'); child.emit('close', 0)
+    expect(await result).toEqual(answer)
+    const [header, request] = stdin.join('').split('\n').filter(Boolean).map(line => JSON.parse(line))
+    expect(header).toEqual({ effect: 'tenant_storage_effect' })
+    // The binding is disabled and retired by the time a deletion removes the storage: the plan's own slug and database are sent instead of a lookup.
+    expect(request).toEqual({ schemaVersion: 1, operation: 'drop', tenantId: 'acme', database: binding.database_name, requestId: request_id })
   })
   it('covers every refusal code the Python effect can answer', async () => {
     const { readFile } = await import('node:fs/promises')

@@ -6,6 +6,7 @@ import stat
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
 
 from tools.shared_saas_lifecycle import oci_provision as oci
 
@@ -31,6 +32,8 @@ class FakeOci:
     def __init__(self, clock):
         self.clock = clock
         self.buckets, self.users, self.groups, self.policies, self.members, self.keys = {}, {}, {}, {}, set(), {}
+        self.objects = {}
+        self.uploads = {}
         self.created = []
         self.fail = None  # an OciError code raised by every call
         self.deny_all = False  # the service refuses every key, whatever the policies say
@@ -49,8 +52,39 @@ class FakeOci:
 
     def create_bucket(self, namespace, compartment, name):
         self.buckets[name] = compartment
+        self.objects[name] = set()
         self.created.append(('bucket', name))
         return {'name': name}
+
+    def delete_bucket(self, namespace, name):
+        self._check()
+        if self.uploads.get(name):
+            raise oci.OciError('oci_refused')  # OCI keeps a bucket non-empty while an upload is in progress
+        self.buckets.pop(name, None)
+        self.objects.pop(name, None)
+        self.uploads.pop(name, None)
+        self.created.append(('bucket_delete', name))
+
+    def list_multipart_uploads(self, namespace, name, limit):
+        self._check()
+        return list(self.uploads.get(name, []))[:limit]
+
+    def abort_multipart_upload(self, namespace, name, object_name, upload_id):
+        self._check()
+        self.uploads[name] = [item for item in self.uploads.get(name, []) if item != (object_name, upload_id)]
+        self.created.append(('upload_abort', object_name))
+
+    def list_objects(self, namespace, name, limit):
+        self._check()
+        return sorted(self.objects.get(name, set()))[:limit]
+
+    def delete_objects(self, namespace, name, names):
+        self._check()
+        hold = self.objects.setdefault(name, set())
+        for item in names:
+            hold.discard(item)
+        self.created.append(('objects', len(names)))
+        return len(names)
 
     def _by_name(self, table, name):
         return next((item for item in table.values() if item['name'] == name), None)
@@ -81,6 +115,35 @@ class FakeOci:
     def add_member(self, user_id, group_id):
         self.members.add((user_id, group_id))
         self.created.append(('member', user_id))
+
+    def list_memberships(self, user_id):
+        return [{'id': 'm-' + user_id + '-' + group_id}['id'] for candidate, group_id in sorted(self.members) if candidate == user_id]
+
+    def remove_membership(self, membership_id):
+        for pair in list(self.members):
+            if 'm-' + pair[0] + '-' + pair[1] == membership_id:
+                self.members.discard(pair)
+        self.created.append(('membership_delete', membership_id))
+
+    def delete_user(self, user_id):
+        self._check()
+        if any(candidate == user_id for candidate, _ in self.members):
+            raise oci.OciError('oci_refused')  # 409: the user still belongs to a group
+        self.users.pop(user_id, None)
+        self.keys.pop(user_id, None)
+        self.created.append(('user_delete', user_id))
+
+    def delete_group(self, group_id):
+        self._check()
+        self.groups.pop(group_id, None)
+        self.created.append(('group_delete', group_id))
+
+    def delete_policy(self, policy_id):
+        self._check()
+        for name, policy in list(self.policies.items()):
+            if policy['id'] == policy_id:
+                del self.policies[name]
+                self.created.append(('policy_delete', policy_id))
 
     def find_policy(self, name):
         return self._by_name(self.policies, name)
@@ -138,6 +201,18 @@ class Clock:
         self.now = start
 
     def __call__(self):
+        return self.now
+
+
+class TickingClock(Clock):
+    """A clock that moves `step` seconds on every read, so a time budget is spent by the calls themselves."""
+
+    def __init__(self, step, start=1_800_000_000):
+        super().__init__(start)
+        self.step = step
+
+    def __call__(self):
+        self.now += self.step
         return self.now
 
 
@@ -340,7 +415,7 @@ class RunTest(unittest.TestCase):
     def test_the_answer_is_a_result_and_an_error_never_raises(self):
         ok = self.run_request({'operation': 'ensure', 'tenantId': 'acme', 'requestId': REQUEST_A})
         self.assertEqual({'result'}, set(ok))
-        for bad in ({'operation': 'drop', 'tenantId': 'acme'}, {'operation': 'ensure', 'tenantId': '../x'},
+        for bad in ({'operation': 'destroy', 'tenantId': 'acme'}, {'operation': 'ensure', 'tenantId': '../x'},
                     {'operation': 'ensure', 'tenantId': 5}, []):
             self.assertEqual({'error_code': 'script_failed'}, self.run_request(bad))
         self.assertEqual({'error_code': 'script_failed'}, self.run_request(None, raw='{not json'))
@@ -391,10 +466,11 @@ class RunTest(unittest.TestCase):
 
 class FakeTransport:
     def __init__(self, status=200, body=b'{}'):
-        self.status, self.body, self.calls = status, body, []
+        self.status, self.body, self.calls, self.timeouts = status, body, [], []
 
-    def __call__(self, method, url, headers, body):
+    def __call__(self, method, url, headers, body, timeout=None):
         self.calls.append((method, url, headers, body))
+        self.timeouts.append(timeout)
         if isinstance(self.status, Exception):
             raise self.status
         return self.status, self.body
@@ -447,6 +523,79 @@ class RestTest(unittest.TestCase):
         with self.assertRaises(oci.OciError):
             self.rest(FakeTransport(200, b'<html>')).list_keys('u1')
 
+    def test_a_batch_delete_uses_the_batch_endpoint_and_its_own_body(self):
+        transport = FakeTransport(200, json.dumps({'deleted': [{'objectName': 'a'}, {'objectName': 'b'}], 'failed': []}).encode())
+        self.assertEqual(2, self.rest(transport).delete_objects('tenantns', 'lw-x', ['a', 'b']))
+        method, url, headers, body = transport.calls[0]
+        self.assertEqual('POST', method)
+        self.assertEqual('https://objectstorage.me-jeddah-1.oraclecloud.com/n/tenantns/b/lw-x/actions/batchDeleteObjects', url)
+        self.assertEqual({'objects': [{'objectName': 'a'}, {'objectName': 'b'}]}, json.loads(body))
+        self.assertIn('x-content-sha256 content-type content-length', headers['authorization'])
+
+    def test_a_batch_delete_counts_an_already_absent_object_as_gone_and_any_other_failure_as_a_refusal(self):
+        not_found = FakeTransport(200, json.dumps({'deleted': [{'objectName': 'a'}],
+                                                   'failed': [{'objectName': 'b', 'statusCode': 404, 'errorMessage': 'Not Found'}]}).encode())
+        self.assertEqual(2, self.rest(not_found).delete_objects('ns', 'b', ['a', 'b']))
+        for failed in ([{'objectName': 'b', 'statusCode': 500, 'errorMessage': 'Internal'}],
+                       [{'objectName': 'b', 'statusCode': 409, 'errorMessage': 'Conflict'}], 'x'):
+            with self.subTest(failed=failed):
+                body = json.dumps({'deleted': [{'objectName': 'a'}], 'failed': failed}).encode()
+                with self.assertRaises(oci.OciError) as caught:
+                    self.rest(FakeTransport(200, body)).delete_objects('ns', 'b', ['a', 'b'])
+                self.assertEqual('oci_refused', caught.exception.code)
+        short = json.dumps({'deleted': [{'objectName': 'a'}], 'failed': []}).encode()
+        with self.assertRaises(oci.OciError):
+            self.rest(FakeTransport(200, short)).delete_objects('ns', 'b', ['a', 'b'])
+
+    def test_an_incomplete_upload_is_listed_and_aborted_on_its_own_paths(self):
+        transport = FakeTransport(200, json.dumps([{'object': 'big/a.bin', 'uploadId': 'up-1'}]).encode())
+        rest = self.rest(transport)
+        self.assertEqual([('big/a.bin', 'up-1')], rest.list_multipart_uploads('ns', 'lw-x', 1000))
+        self.assertEqual('https://objectstorage.me-jeddah-1.oraclecloud.com/n/ns/b/lw-x/u?limit=1000', transport.calls[0][1])
+        transport.status, transport.body = 204, b''
+        self.assertEqual({}, rest.abort_multipart_upload('ns', 'lw-x', 'big/a.bin', 'up-1'))
+        self.assertEqual(('DELETE', 'https://objectstorage.me-jeddah-1.oraclecloud.com/n/ns/b/lw-x/u/big/a.bin?uploadId=up-1'),
+                         transport.calls[1][:2])
+        # A name with a space or a special character stays one escaped path segment, and the signature covers the escaped target.
+        transport.calls.clear()
+        rest.abort_multipart_upload('ns', 'lw-x', 'big dir/a b.bin', 'up-2')
+        self.assertEqual('https://objectstorage.me-jeddah-1.oraclecloud.com/n/ns/b/lw-x/u/big%20dir/a%20b.bin?uploadId=up-2', transport.calls[0][1])
+        self.assertTrue(self.signed[-1].startswith('(request-target): delete /n/ns/b/lw-x/u/big%20dir/a%20b.bin?uploadId=up-2'))
+
+    def test_no_call_outlives_the_pass_budget_and_its_timeout_shrinks_to_the_remainder(self):
+        now = [1_800_000_000]
+        transport = FakeTransport(200, b'{}')
+        rest = oci.OciRest(oci.Config(ENV), signer=lambda message: 'c2ln', transport=transport, clock=lambda: now[0])
+        rest.get_bucket('ns', 'b')
+        self.assertEqual([oci.HTTP_TIMEOUT], transport.timeouts)  # outside a drop: the ordinary timeout
+        rest.budget = now[0] + 12
+        rest.get_bucket('ns', 'b')
+        self.assertEqual(12, transport.timeouts[-1])  # the pass cuts this call to what remains, not 30 s
+        now[0] += 13
+        with self.assertRaises(oci.DrainPaused):
+            rest.get_bucket('ns', 'b')
+        self.assertEqual(2, len(transport.calls))  # past the budget no call starts at all
+        rest.budget = None
+        rest.get_bucket('ns', 'b')
+        self.assertEqual(oci.HTTP_TIMEOUT, transport.timeouts[-1])
+
+    def test_a_pass_budget_is_a_hard_end_under_the_container_timeout(self):
+        # The effect gives its container 120 s (`run_oci`); a pass may not come near it: drain budget + cleanup, plus one call's own time at most.
+        self.assertLess(oci.PASS_SECONDS, 120)
+        self.assertLess(oci.DRAIN_SECONDS, oci.PASS_SECONDS)
+        self.assertLessEqual(oci.PASS_SECONDS - oci.DRAIN_SECONDS, oci.HTTP_TIMEOUT * 2)
+
+    def test_a_conflicting_iam_delete_is_an_error_not_a_value(self):
+        with self.assertRaises(oci.OciError) as caught:
+            self.rest(FakeTransport(409)).delete_user('u1')
+        self.assertEqual('oci_refused', caught.exception.code)
+        for method, status, expect in (('remove_membership', 204, {}), ('delete_group', 404, None), ('delete_policy', 204, {})):
+            with self.subTest(method=method):
+                transport = FakeTransport(status, b'' if status == 204 else b'{}')
+                rest = self.rest(transport)
+                answer = getattr(rest, method)('x1')
+                self.assertEqual(expect, answer)
+
     def test_only_the_two_oracle_hosts_are_ever_called(self):
         transport = FakeTransport(200, b'[]')
         rest = self.rest(transport)
@@ -463,6 +612,181 @@ class RestTest(unittest.TestCase):
         self.assertEqual(1_800_000_000, oci.epoch('2027-01-15T08:00:00.123Z', 5))
         self.assertEqual(7, oci.epoch('yesterday', 7))
         self.assertEqual(7, oci.epoch(None, 7))
+
+
+class DropTest(unittest.TestCase):
+    """The other direction of `ensure`: the tenant's own resources go, nothing of another tenant is looked at."""
+
+    def setUp(self):
+        self.clock = Clock()
+        self.api = FakeOci(self.clock)
+
+    def provisioned(self, tenant='acme', objects=0, mode='per_tenant'):
+        prov = provisioner(self.api, self.clock, mode)
+        bucket = handle(prov, 'ensure', tenant)['bucket']
+        key = handle(prov, 'issue', tenant, keepKeyIds=[])
+        self.api.objects[bucket] = {'obj-%03d' % n for n in range(objects)}
+        return prov, bucket, key
+
+    def test_drop_removes_this_tenants_objects_bucket_policy_group_membership_key_and_user(self):
+        prov, bucket, key = self.provisioned(objects=5)
+        other, other_bucket, other_key = self.provisioned('beta', objects=2)
+        result = handle(prov, 'drop')
+        self.assertEqual('removed', result['state'])
+        self.assertEqual(5, result['objectsDeleted'])
+        self.assertEqual(1, result['keysDeleted'])
+        self.assertEqual({'bucket': True, 'policy': True, 'user': True, 'group': True}, result['removed'])
+        self.assertNotIn(bucket, self.api.buckets)
+        self.assertEqual([], [user for user in self.api.users.values() if user['name'] == bucket])
+        self.assertNotIn(bucket, self.api.policies)
+        self.assertFalse(any(user_id == 'u-' + bucket for user_id, _ in self.api.members))
+        # the other tenant and its key are untouched
+        self.assertIn(other_bucket, self.api.buckets)
+        self.assertEqual(2, len(self.api.objects[other_bucket]))
+        self.assertEqual(1, len(handle(other, 'inspect', 'beta')['keys']))
+        self.assertEqual(other_key['accessKeyId'], handle(other, 'inspect', 'beta')['keys'][0]['id'])
+        self.assertIn(other_bucket, self.api.policies)
+
+    def test_a_repeated_drop_finds_nothing_and_still_answers_removed(self):
+        prov, _, _ = self.provisioned(objects=3)
+        handle(prov, 'drop')
+        again = handle(prov, 'drop')
+        self.assertEqual({'bucket': False, 'policy': False, 'user': False, 'group': False}, again['removed'])
+        self.assertEqual((0, 0), (again['objectsDeleted'], again['keysDeleted']))
+
+    def test_drop_removes_an_inactive_key_too(self):
+        prov, bucket, _ = self.provisioned()
+        user = next(user for user in self.api.users.values() if user['name'] == bucket)
+        self.api.keys[user['id']].append({'id': 'ak-inactive', 'displayName': 'old', 'timeCreated': iso(self.clock()), 'lifecycleState': 'INACTIVE', 'key': 'x', 'born': 0})
+        self.assertEqual(2, handle(prov, 'drop')['keysDeleted'])
+        self.assertNotIn(user['id'], self.api.keys)
+
+    def test_the_fixed_policy_and_group_belong_to_every_tenant_and_stay(self):
+        prov, bucket, _ = self.provisioned(mode='fixed')
+        self.provisioned('beta', mode='fixed')
+        # a group left by an earlier per-tenant provisioning is shared by name with this tenant only, but the fixed policy is not:
+        # the policy is the one every tenant uses, so it is never deleted.
+        self.api.create_group(bucket)
+        result = handle(provisioner(self.api, self.clock, 'fixed'), 'drop')
+        self.assertEqual('removed', result['state'])
+        self.assertEqual({'bucket': True, 'policy': False, 'user': True, 'group': False}, result['removed'])
+        self.assertNotIn(bucket, self.api.buckets)
+        self.assertIn(oci.FIXED_POLICY_NAME, self.api.policies)
+        self.assertIn(bucket, [group['name'] for group in self.api.groups.values()])
+
+    def test_a_bucket_too_large_for_one_call_reports_emptying_and_the_next_call_finishes(self):
+        prov, bucket, _ = self.provisioned(objects=5)
+        # A spent budget (zero seconds) after the first batch: the pass keeps what it removed and the next call continues.
+        with patch.object(oci, 'EMPTY_BATCH', 2), patch.object(oci, 'DRAIN_SECONDS', 0):
+            emptying = handle(prov, 'drop')
+        self.assertEqual(('emptying', 2), (emptying['state'], emptying['objectsDeleted']))
+        self.assertIn(bucket, self.api.buckets)
+        self.assertEqual(3, len(self.api.objects[bucket]))
+        done = handle(prov, 'drop')
+        self.assertEqual(('removed', 3), (done['state'], done['objectsDeleted']))
+        self.assertNotIn(bucket, self.api.buckets)
+
+    def test_the_drain_stops_at_the_time_budget_and_keeps_the_progress_it_made(self):
+        # One object per batch and every clock read 25 s on: the 60 s pass fits three batches, the fourth read is past the budget.
+        ticking = TickingClock(25)
+        prov = provisioner(self.api, ticking)
+        bucket = handle(prov, 'ensure')['bucket']
+        self.api.objects[bucket] = {'obj-%03d' % n for n in range(10)}
+        with patch.object(oci, 'EMPTY_BATCH', 1):
+            emptying = handle(prov, 'drop')
+        self.assertEqual('emptying', emptying['state'])
+        self.assertEqual(3, emptying['objectsDeleted'])  # progress is kept, not thrown away with the pass
+        self.assertEqual(7, len(self.api.objects[bucket]))
+        self.assertIn(bucket, self.api.buckets)
+        self.assertNotIn(('bucket_delete', bucket), self.api.created)
+        # A later pass on a spent clock finishes the same bucket.
+        self.assertEqual('removed', handle(provisioner(self.api, self.clock), 'drop')['state'])
+        self.assertNotIn(bucket, self.api.buckets)
+
+    def test_one_pass_aborts_at_most_the_abort_limit_and_the_next_pass_finishes_them(self):
+        prov, bucket, _ = self.provisioned()
+        self.api.uploads[bucket] = [('big/%03d.bin' % n, 'up-%03d' % n) for n in range(250)]
+        # A budget that never runs out isolates the cap: the pass aborts ABORT_LIMIT uploads and reports emptying.
+        with patch.object(oci, 'DRAIN_SECONDS', 10 ** 6):
+            emptying = handle(prov, 'drop')
+            aborts = [call for call in self.api.created if call[0] == 'upload_abort']
+            self.assertEqual(oci.ABORT_LIMIT, len(aborts))
+            self.assertEqual('emptying', emptying['state'])
+            self.assertEqual(50, len(self.api.uploads[bucket]))
+            self.assertIn(bucket, self.api.buckets)
+            self.assertEqual('removed', handle(prov, 'drop')['state'])
+        self.assertNotIn(bucket, self.api.uploads)
+        self.assertNotIn(bucket, self.api.buckets)
+
+    def test_a_user_still_in_a_group_from_the_per_tenant_mode_is_removed_and_deleted_under_fixed(self):
+        # Provisioned while the deployment still used one group per tenant: the user is a member of the tenant's group.
+        prov, bucket, _ = self.provisioned(mode='per_tenant')
+        self.assertTrue(any(user_id == 'u-' + bucket for user_id, _ in self.api.members))
+        fixed = provisioner(self.api, self.clock, 'fixed')
+        result = handle(fixed, 'drop')
+        self.assertEqual('removed', result['state'])
+        self.assertTrue(result['removed']['user'])
+        self.assertFalse(any(user_id == 'u-' + bucket for user_id, _ in self.api.members))
+        self.assertNotIn('u-' + bucket, self.api.users)
+        self.assertNotIn(bucket, self.api.buckets)
+        # The fixed mode never deletes a group or the shared policy: the tenant's own group outlives its member.
+        self.assertIn(bucket, [group['name'] for group in self.api.groups.values()])
+        # Why the memberships must go first: with the lookup blinded, the user delete conflicts after the bucket is already gone.
+        other, other_bucket, _ = self.provisioned('beta', mode='per_tenant')
+        with patch.object(FakeOci, 'list_memberships', lambda api, user_id: []):
+            with self.assertRaises(oci.OciError) as caught:
+                handle(provisioner(self.api, self.clock, 'fixed'), 'drop', 'beta')
+        self.assertEqual('oci_refused', caught.exception.code)
+        self.assertNotIn(other_bucket, self.api.buckets)
+        self.assertIn('u-' + other_bucket, self.api.users)
+
+    def test_a_pass_that_spends_its_budget_reports_emptying_and_touches_nothing_more(self):
+        prov, bucket, _ = self.provisioned(objects=2)
+        # The budget runs out at the bucket delete: the pass answers emptying with the objects it removed and never reaches the user.
+        with patch.object(self.api, 'delete_bucket', side_effect=oci.DrainPaused()):
+            answer = handle(prov, 'drop')
+        self.assertEqual('emptying', answer['state'])
+        self.assertEqual(2, answer['objectsDeleted'])
+        self.assertEqual({'bucket': False, 'policy': False, 'user': False, 'group': False}, answer['removed'])
+        self.assertIn('u-' + bucket, self.api.users)
+        self.assertEqual('removed', handle(prov, 'drop')['state'])
+        self.assertNotIn(bucket, self.api.buckets)
+        self.assertNotIn('u-' + bucket, self.api.users)
+
+    def test_an_incomplete_multipart_upload_is_aborted_before_the_bucket_goes(self):
+        prov, bucket, _ = self.provisioned()
+        self.api.uploads[bucket] = [('big/archive.bin', 'up-1'), ('big/second.bin', 'up-2')]
+        result = handle(prov, 'drop')
+        self.assertEqual('removed', result['state'])
+        self.assertNotIn(bucket, self.api.uploads)
+        dropped = [call for call in self.api.created if call[0] in ('upload_abort', 'bucket_delete')]
+        self.assertEqual([('upload_abort', 'big/archive.bin'), ('upload_abort', 'big/second.bin'), ('bucket_delete', bucket)], dropped)
+
+    def test_an_upload_that_is_still_listed_after_the_abort_reports_emptying_and_keeps_the_bucket(self):
+        prov, bucket, _ = self.provisioned()
+        self.api.uploads[bucket] = [('big/archive.bin', 'up-1')]
+        # The service accepts the abort and still lists it (a slow purge): the bucket is not deleted over it, and the next call continues.
+        with patch.object(self.api, 'abort_multipart_upload', lambda *a: None):
+            result = handle(prov, 'drop')
+        self.assertEqual('emptying', result['state'])
+        self.assertIn(bucket, self.api.buckets)
+        self.assertNotIn(('bucket_delete', bucket), self.api.created)
+        self.api.uploads.pop(bucket, None)
+        self.assertEqual('removed', handle(prov, 'drop')['state'])
+
+    def test_a_bucket_that_is_still_there_after_the_delete_is_a_code(self):
+        prov, bucket, _ = self.provisioned()
+        with patch.object(self.api, 'delete_bucket', lambda *a: None):
+            with self.assertRaises(oci.OciError) as caught:
+                handle(prov, 'drop')
+        self.assertEqual('bucket_still_present', caught.exception.code)
+
+    def test_an_oci_failure_is_a_code_and_nothing_is_reported_as_removed(self):
+        prov, _, _ = self.provisioned(objects=1)
+        self.api.fail = 'oci_unreachable'
+        answer = oci.run(json.dumps({'operation': 'drop', 'tenantId': 'acme', 'requestId': REQUEST_A}), ENV,
+                         api=self.api, naming_key=NAMING_KEY)
+        self.assertEqual({'error_code': 'oci_unreachable'}, answer)
 
 
 if __name__ == '__main__':

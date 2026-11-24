@@ -53,7 +53,7 @@
       "invalidTitle": "The invitation has expired or was already used",
       "invalidBody": "Ask your company administrator to send it again.",
       "title": "Accept invitation",
-      "subtitle": "Enter your mobile number and choose your password to activate your account.",
+      "subtitle": "Choose your password to activate your account.",
       "submit": "Activate account",
       "successTitle": "Your account is active",
       "successBody": "Sign in with the password you chose.",
@@ -79,13 +79,23 @@
     "mobileStep": {
       "title": "Add your mobile number",
       "titleChange": "Mobile number",
-      "subtitle": "Every account needs a mobile number. Your colleagues cannot see it; only user administrators can.",
-      "submit": "Save and continue",
-      "save": "Save",
+      "subtitle": "Every account needs a verified mobile number. We send it a code, and it cannot sign in until you confirm it.",
+      "codeLabel": "Verification code",
+      "codeSubtitle": "We sent a 6-digit code to {mobile}.",
+      "codeValidity": "The code works for 5 minutes.",
+      "sendCode": "Send the code",
+      "verify": "Confirm the number",
+      "resend": "Send the code again",
+      "resendIn": "Send again in {seconds}s",
+      "sendLimitReached": "You have had too many codes this hour. Try again in a moment.",
+      "dailySendCap": "The service reached its daily limit for codes. Try again tomorrow.",
+      "channelUnavailable": "Text messages cannot go out right now. Try again in a moment, or ask your company administrator.",
+      "changeNumber": "Change the number",
+      "invalidCode": "That code is not correct. If it expired or you tried it too many times, send a new one.",
       "back": "Back",
       "signOut": "Sign out",
-      "signOutFailed": "Could not end the session. Try again.",
-      "saved": "Mobile number saved."
+      "signOutFailed": "Could not end the session. Please try again.",
+      "verified": "Your mobile number is verified."
     }
   }
 }

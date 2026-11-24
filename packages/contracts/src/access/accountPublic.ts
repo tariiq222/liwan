@@ -11,7 +11,7 @@ export const AccountTokenCheckInputSchema = z.object({ token: TokenSchema, purpo
 export type AccountTokenCheckInput = z.infer<typeof AccountTokenCheckInputSchema>
 export const AccountTokenCheckSchema = z.object({ usable: z.boolean() }).strict()
 
-export const AcceptInvitationInputSchema = z.object({ token: TokenSchema, mobile: MobileSchema, password: PasswordInputSchema }).strict()
+export const AcceptInvitationInputSchema = z.object({ token: TokenSchema, password: PasswordInputSchema }).strict()
 export type AcceptInvitationInput = z.infer<typeof AcceptInvitationInputSchema>
 
 export const ForgotPasswordInputSchema = z.object({ email: z.string().trim().email() }).strict()

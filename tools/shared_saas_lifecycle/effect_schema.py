@@ -251,7 +251,7 @@ TENANT_DROP_EFFECT = shape(
 
 # Resource names are never in the request: the effect derives them from `tenantId`. `requestId` is the id of one run (a fresh uuid per run).
 TENANT_STORAGE_EFFECT = shape(
-    {'schemaVersion': literal(1), 'operation': literal('ensure', 'verify', 'rotate'), 'tenantId': TENANT_ID,
+    {'schemaVersion': literal(1), 'operation': literal('ensure', 'verify', 'rotate', 'drop'), 'tenantId': TENANT_ID,
      'database': RESOURCE, 'requestId': UUID})
 
 SCHEMAS = {

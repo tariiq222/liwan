@@ -75,7 +75,7 @@ async function mockAdmin(page: Page, options: { seats?: unknown; user?: ReturnTy
 const fieldFor = (page: Page, id: string) => page.locator(`#${id}`)
 
 test.describe('the anonymous account-link pages', () => {
-  test('join: the invitee sets a mobile number and password, and is sent to sign in', async ({ page }) => {
+  test('join: the invitee sets a password and is sent to sign in', async ({ page }) => {
     await page.route('**/api/v1/public/account/token', route => route.fulfill(ok({ usable: true })))
     const accepted: unknown[] = []
     await page.route('**/api/v1/public/account/invitation/accept', (route) => { accepted.push(route.request().postDataJSON()); return route.fulfill(ok({ login: 'sara@example.com', read_only: false })) })
@@ -83,9 +83,8 @@ test.describe('the anonymous account-link pages', () => {
     await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
     await expect(heading(page, 'قبول الدعوة')).toBeVisible()
     const submit = page.getByRole('button', { name: 'تفعيل الحساب', exact: true })
-    await expect(fieldFor(page, 'mobile')).toBeVisible()
+    await expect(fieldFor(page, 'mobile')).toHaveCount(0)
     await expect(submit).toBeDisabled()
-    await fieldFor(page, 'mobile').fill('0500000001')
     await fieldFor(page, 'password').fill(PASSWORD)
     await fieldFor(page, 'confirm').fill(`${PASSWORD}x`)
     await expect(submit).toBeDisabled()
@@ -93,7 +92,7 @@ test.describe('the anonymous account-link pages', () => {
     await expect(submit).toBeEnabled()
     await submit.click()
     await expect(page.getByRole('status').filter({ hasText: 'تم تفعيل حسابك' })).toBeVisible()
-    expect(accepted).toEqual([{ token: 'tok-abc', mobile: '+966500000001', password: PASSWORD }])
+    expect(accepted).toEqual([{ token: 'tok-abc', password: PASSWORD }])
     await expect(page.getByRole('link', { name: 'الانتقال إلى تسجيل الدخول' })).toHaveAttribute('href', '/login?login=sara@example.com')
   })
 
@@ -106,22 +105,17 @@ test.describe('the anonymous account-link pages', () => {
     await expect(page.getByRole('alert').filter({ hasText: 'انتهت صلاحية الدعوة أو استُخدمت' })).toBeVisible()
   })
 
-  test('join: an unavailable service keeps what was typed and the same button retries; a taken number names itself', async ({ page }) => {
+  test('join: an unavailable service keeps what was typed and the same button retries', async ({ page }) => {
     await page.route('**/api/v1/public/account/token', route => route.fulfill(ok({ usable: true })))
-    const answers = [refusal(429, 'rate_limited'), refusal(409, 'mobile_taken', 'taken', 'mobile'), ok({ login: 'sara@example.com', read_only: false })]
+    const answers = [refusal(429, 'rate_limited'), ok({ login: 'sara@example.com', read_only: false })]
     await page.route('**/api/v1/public/account/invitation/accept', route => route.fulfill(answers.shift()!))
     await page.goto('/join?token=tok-abc')
-    await fieldFor(page, 'mobile').fill('+966500000001')
     await fieldFor(page, 'password').fill(PASSWORD)
     await fieldFor(page, 'confirm').fill(PASSWORD)
     await page.getByRole('button', { name: 'تفعيل الحساب', exact: true }).click()
     await expect(page.getByRole('alert').filter({ hasText: 'الخدمة غير متاحة حاليًا' })).toBeVisible()
     await expect(fieldFor(page, 'password')).toHaveValue(PASSWORD)
-    await expect(fieldFor(page, 'mobile')).toHaveValue('+966500000001')
     await page.getByRole('button', { name: 'إعادة المحاولة', exact: true }).click()
-    await expect(page.getByText('رقم الجوال هذا مستخدم في حساب آخر.')).toBeVisible()
-    await expect(fieldFor(page, 'mobile')).toHaveValue('+966500000001')
-    await page.getByRole('button', { name: 'تفعيل الحساب', exact: true }).click()
     await expect(page.getByRole('status').filter({ hasText: 'تم تفعيل حسابك' })).toBeVisible()
   })
 
@@ -272,7 +266,7 @@ test.describe('the administrator screens', () => {
 test.describe('the mobile step', () => {
   test.beforeEach(async ({ page }) => { await login(page) })
 
-  test('a signed-in user without a number is held on the step until it is saved, then returns where they were going', async ({ page }) => {
+  test('a signed-in user without a verified number is held on the step until its code is confirmed, then returns where they were going', async ({ page }) => {
     let required = true
     let base: Record<string, unknown> = {}
     await page.route('**/api/v1/me', async (route) => {
@@ -280,28 +274,49 @@ test.describe('the mobile step', () => {
       base = await (await route.fetch()).json()
       return route.fulfill(ok({ ...base, mobile: required ? null : '+966500000001', mobile_required: required }))
     })
-    const saved: unknown[] = []
-    await page.route('**/api/v1/me/mobile', async (route) => {
-      saved.push(route.request().postDataJSON())
-      if (saved.length === 1) return route.fulfill(refusal(409, 'mobile_taken', 'taken', 'mobile'))
+    const sent: unknown[] = []
+    await page.route('**/api/v1/me/mobile/code', async (route) => {
+      sent.push(route.request().postDataJSON())
+      // The server's own wait, not a local constant: a cooldown names `resend_after` and nothing went out.
+      if (sent.length === 1) return route.fulfill(ok({ code: 'resend_cooldown', message: 'wait', details: { resend_after: 2 } }, 429))
+      if (sent.length === 2) return route.fulfill(refusal(409, 'mobile_taken', 'taken', 'mobile'))
+      return route.fulfill(ok({ ...base, mobile: '+966500000001', mobile_required: true }))
+    })
+    const verified: unknown[] = []
+    await page.route('**/api/v1/me/mobile/verify', async (route) => {
+      verified.push(route.request().postDataJSON())
+      if (verified.length === 1) return route.fulfill(refusal(422, 'invalid_code', 'wrong', 'code'))
       required = false
       return route.fulfill(ok({ ...base, mobile: '+966500000001', mobile_required: false }))
     })
     await open(page, '/account')
-    await page.evaluate(() => (window as unknown as { useNuxtApp: () => { $router: { push: (to: string) => Promise<unknown> } } }).useNuxtApp().$router.push('/tasks'))
-    await expect(page).toHaveURL(/\/account\/mobile\?next=\/tasks$/)
-    await expect(heading(page, 'أضف رقم جوالك')).toBeVisible()
     await page.evaluate(() => (window as unknown as { useNuxtApp: () => { $router: { push: (to: string) => Promise<unknown> } } }).useNuxtApp().$router.push('/projects'))
     await expect(page).toHaveURL(/\/account\/mobile\?next=\/projects$/)
-    const submit = page.getByRole('button', { name: 'حفظ ومتابعة', exact: true })
+    await expect(heading(page, 'أضف رقم جوالك')).toBeVisible()
+    const send = page.getByRole('button', { name: 'أرسل الرمز', exact: true })
     await expect(page.getByRole('button', { name: 'تسجيل الخروج', exact: true })).toBeVisible()
-    await expect(submit).toBeDisabled()
+    await expect(send).toBeDisabled()
     await fieldFor(page, 'mobile').fill('0500000001')
-    await submit.click()
+    await send.click()
+    // The cooldown refused the send: the page repeats the server's wait and holds the button for it.
+    await expect(page.getByRole('alert').filter({ hasText: /إعادة الإرسال بعد [12] ثانية/ })).toBeVisible()
+    await expect(send).toBeDisabled()
+    // The countdown is real and short here: the button frees itself when the server's wait has passed.
+    await expect(send).toBeEnabled({ timeout: 8_000 })
+    await send.click()
     await expect(page.getByText('رقم الجوال هذا مستخدم في حساب آخر.')).toBeVisible()
-    await submit.click()
+    await expect(send).toBeEnabled()
+    await send.click()
+    const confirm = page.getByRole('button', { name: 'تأكيد الرقم', exact: true })
+    await expect(confirm).toBeDisabled()
+    await page.locator('#mobile-code').fill('111111')
+    await confirm.click()
+    await expect(page.getByText('الرمز غير صحيح. إن كانت صلاحيته انتهت أو حاولت كثيرًا فأرسل رمزًا جديدًا.')).toBeVisible()
+    await page.locator('#mobile-code').fill('123456')
+    await confirm.click()
     await expect(page).toHaveURL(/\/projects/)
-    expect(saved).toEqual([{ mobile: '+966500000001' }, { mobile: '+966500000001' }])
+    expect(sent).toEqual([{ mobile: '+966500000001' }, { mobile: '+966500000001' }, { mobile: '+966500000001' }])
+    expect(verified).toEqual([{ code: '111111' }, { code: '123456' }])
   })
 
   test('the step renders in Arabic RTL, light and dark, and fits a phone', async ({ page }, testInfo) => {

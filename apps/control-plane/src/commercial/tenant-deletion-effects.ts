@@ -1,4 +1,5 @@
 import type { EffectPlan } from './tenant-deletion-plan.js'
+import type { StorageDropResponse } from '../shared/tenant-storage.js'
 
 /** The stages of `tools/shared_saas_lifecycle/tenant_drop_effect.py`. */
 export type DropStage = 'verify' | 'stamp_marker' | 'drop_database' | 'remove_filestore' | 'remove_restore_copies' | 'purge_local_backups' | 'remove_side_files'
@@ -17,4 +18,9 @@ export interface DeletionEffects {
   unbindRelay(input: { tenantId: string; assertOwned: AssertOwned }): Promise<{ state: 'not_configured' | 'unbound' | 'absent' }>
   /** Removes the control plane's own backup artifacts of this tenant: each item is a backup id and the path its row holds, which must resolve strictly under the backup root as `<id>` or `<id>.json`. */
   removeBackupArtifacts(items: { id: string; path: string }[]): Promise<{ removed: number }>
+  /**
+   * Empties and removes the tenant's own object storage: every object of its bucket, then the bucket, the keys and the IAM user. The shared policy and
+   * group of the fixed policy mode serve other tenants and stay. A bucket too large for one run answers `emptying` and the next call continues.
+   */
+  removeStorage(input: { tenantId: string; database: string; requestId: string; assertOwned: AssertOwned }): Promise<StorageDropResponse>
 }

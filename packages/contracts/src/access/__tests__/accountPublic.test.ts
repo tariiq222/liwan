@@ -24,13 +24,12 @@ describe('PasswordInputSchema', () => {
 })
 
 describe('public account-link schemas', () => {
-  it('accepts an invitation with a mobile number and a password', () => {
-    expect(AcceptInvitationInputSchema.parse({ token: 'abc', mobile: MOBILE, password: PASSWORD })).toEqual({ token: 'abc', mobile: MOBILE, password: PASSWORD })
-    expect(() => AcceptInvitationInputSchema.parse({ token: 'abc', mobile: '0500000001', password: PASSWORD })).toThrow()
-    expect(() => AcceptInvitationInputSchema.parse({ token: 'abc', mobile: MOBILE, password: 'short' })).toThrow()
-    expect(() => AcceptInvitationInputSchema.parse({ token: 'abc', password: PASSWORD })).toThrow()
-    expect(() => AcceptInvitationInputSchema.parse({ token: '', mobile: MOBILE, password: PASSWORD })).toThrow()
-    expect(() => AcceptInvitationInputSchema.parse({ token: 'abc', mobile: MOBILE, password: PASSWORD, login: 'x@example.com' })).toThrow()
+  it('accepts an invitation with a token and a password, and nothing else', () => {
+    expect(AcceptInvitationInputSchema.parse({ token: 'abc', password: PASSWORD })).toEqual({ token: 'abc', password: PASSWORD })
+    expect(() => AcceptInvitationInputSchema.parse({ token: 'abc', password: 'short' })).toThrow()
+    expect(() => AcceptInvitationInputSchema.parse({ token: 'abc', mobile: MOBILE, password: PASSWORD })).toThrow()
+    expect(() => AcceptInvitationInputSchema.parse({ token: '', password: PASSWORD })).toThrow()
+    expect(() => AcceptInvitationInputSchema.parse({ token: 'abc', password: PASSWORD, login: 'x@example.com' })).toThrow()
   })
 
   it('resets a password with a token and nothing else', () => {
