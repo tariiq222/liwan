@@ -20,6 +20,7 @@ from deploy.release import bringup
 from deploy.release.release import Paths
 
 HERE = Path(bringup.__file__).resolve().parent
+REAL_STACK_COMPOSE = (HERE.parent / 'stack' / 'compose.yml').read_text(encoding='utf-8')
 SECRET = 'SECRET-TOKEN-VALUE-0123456789'
 COMMIT = 'a' * 40
 TAG_COMMIT = 'c' * 40
@@ -233,6 +234,7 @@ def seeded_host(euid: int = 0) -> FakeHost:
     host.files['/etc/liwan-release/github-read'] = regular(0o600, text=CREDENTIAL_TEXT)
     host.files[f'/opt/liwan/releases/{COMMIT}'] = directory()
     host.files['/opt/liwan/current/deploy/control-plane/init-host.sh'] = regular(0o755)  # as seen through the link
+    host.files['/opt/liwan/current/deploy/stack/compose.yml'] = regular(0o644, text=REAL_STACK_COMPOSE)
     host.versions = {'node': 'v22.3.0', 'npm': '10.8.1', 'pg_dump': 'pg_dump (PostgreSQL) 16.4', 'git': 'git version 2.43.0',
                      'python3': 'Python 3.12.3'}
     return host
@@ -1077,6 +1079,115 @@ class PostRunTest(unittest.TestCase):
             with self.subTest(name):
                 host.overrides = [(unit_active, active), (ticking, journal)]
                 self.assertEqual(expected, self.post(host, 'post-run-worker-ticks'))
+
+
+class TenantStorageItemsTest(unittest.TestCase):
+    """A3.2b, A4.13 to A4.15: the settings, stack and flag items of tenant storage."""
+    STORAGE = f'{SRV}/control/tenant-storage'
+    SETTINGS = (('OCI_TENANCY_OCID', 'ocid1.tenancy.oc1..example'), ('OCI_USER_OCID', 'ocid1.user.oc1..example'),
+                ('OCI_FINGERPRINT', 'aa:bb:cc'), ('OCI_COMPARTMENT_OCID', 'ocid1.compartment.oc1..example'))
+    STACK_TEMPLATE = ('services:\n'
+                      '  tenant-storage:\n'
+                      '    profiles: [tenant-storage]\n'
+                      '    environment:\n'
+                      '      HTTPS_PROXY: http://tenant-storage-egress:3128\n'
+                      '  tenant-storage-egress:\n'
+                      '    profiles: [tenant-storage]\n'
+                      'networks:\n'
+                      '  tenant_storage: { internal: true }\n')
+
+    def prepared(self, flag=None, settings=True, files=True, stack=True):
+        host = seeded_host()
+        extra = ''.join(f'{key}={value}\n' for key, value in self.SETTINGS if settings)
+        host.files[f'{SRV}/shared.env'] = regular(0o600, text=SHARED_TEXT + extra)
+        if files:
+            host.files[self.STORAGE] = directory(0o700)
+            host.files[f'{self.STORAGE}/oci_naming_key'] = regular(0o400, 10001, 10001, text='ab' * 32)
+            host.files[f'{self.STORAGE}/oci_provision_key'] = regular(0o400, 10001, 10001, text='synthetic signing key body')
+        if not stack:
+            del host.files['/opt/liwan/current/deploy/stack/compose.yml']
+        host.files['/opt/liwan/current'] = symlink_entry(f'/opt/liwan/releases/{COMMIT}')
+        if flag is not None:
+            host.files[str(bringup.SHARED_WORKER_ENV_FILE)] = regular(0o600, text=f'{bringup.TENANT_STORAGE_FLAG_KEY}={flag}\n')
+        return host
+
+    def found(self, host, *argv):
+        return statuses(run(host, *argv)[1])
+
+    def test_the_oci_settings_are_empty_while_tenant_storage_is_off_and_all_required_once_started(self):
+        self.assertEqual('ok', self.found(self.prepared(settings=False))['tenant-storage-settings'])
+        self.assertEqual('ok', self.found(self.prepared())['tenant-storage-settings'])
+        partial = self.prepared(settings=False)
+        partial.files[f'{SRV}/shared.env'] = regular(0o600, text=SHARED_TEXT + 'OCI_TENANCY_OCID=ocid1.tenancy.oc1..example\n')
+        line = line_of(run(partial)[1], 'tenant-storage-settings')
+        self.assertTrue(line.startswith('MISSING'))
+        for key in ('OCI_USER_OCID', 'OCI_FINGERPRINT', 'OCI_COMPARTMENT_OCID'):
+            self.assertIn(key, line)
+        flagged = self.prepared(flag='true', settings=False)
+        self.assertTrue(line_of(run(flagged)[1], 'tenant-storage-settings').startswith('MISSING'))
+
+    def test_the_stack_item_needs_the_provisioner_and_its_egress_proxy_in_the_served_checkout(self):
+        self.assertEqual([], bringup.storage_stack_problems(bringup.compose_services(REAL_STACK_COMPOSE)))
+        host = self.prepared()
+        self.assertEqual('ok', self.found(host)['tenant-storage-stack'])
+        cases = {'no provisioner': self.STACK_TEMPLATE.replace('  tenant-storage:\n', '  another-service:\n'),
+                 'no egress proxy': self.STACK_TEMPLATE.replace('  tenant-storage-egress:\n', '  another-proxy:\n'),
+                 'no profile': self.STACK_TEMPLATE.replace('profiles: [tenant-storage]', 'profiles: [other]', 1),
+                 'no proxy route': self.STACK_TEMPLATE.replace('http://tenant-storage-egress:3128', 'http://another-proxy:3128')}
+        for name, text in cases.items():
+            with self.subTest(name):
+                host.files['/opt/liwan/current/deploy/stack/compose.yml'] = regular(0o644, text=text)
+                self.assertTrue(line_of(run(host)[1], 'tenant-storage-stack').startswith('MISSING'))
+        del host.files['/opt/liwan/current/deploy/stack/compose.yml']
+        self.assertIn('is absent', line_of(run(host)[1], 'tenant-storage-stack'))
+
+    def test_any_value_but_exactly_true_keeps_the_flag_off(self):
+        for flag in (None, 'false', '1', 'True', 'yes'):
+            with self.subTest(flag):
+                self.assertEqual('ok', self.found(self.prepared(flag=flag, settings=False, files=False))['tenant-storage-enabled'])
+
+    def test_the_flag_is_ok_only_when_the_files_settings_and_stack_are_all_there(self):
+        self.assertEqual('ok', self.found(self.prepared(flag='true'))['tenant-storage-enabled'])
+        for name, host in (('settings', self.prepared(flag='true', settings=False)),
+                           ('files', self.prepared(flag='true', files=False)),
+                           ('stack', self.prepared(flag='true', stack=False))):
+            with self.subTest(name):
+                line = line_of(run(host)[1], 'tenant-storage-enabled')
+                self.assertTrue(line.startswith('MISSING'))
+                self.assertIn(f'{bringup.TENANT_STORAGE_FLAG_KEY}=true in {bringup.SHARED_WORKER_ENV_FILE}', line)
+                self.assertIn(f'set {bringup.TENANT_STORAGE_FLAG_KEY} to false', line)
+
+    def test_the_signing_key_is_required_once_the_flag_turns_storage_on(self):
+        host = self.prepared(flag='true', settings=False, files=False)
+        line = line_of(run(host)[1], 'tenant-storage-files')
+        self.assertIn(f'{self.STORAGE}/oci_provision_key absent', line)
+        self.assertIn('OCI API signing key', line)
+
+    def test_the_control_env_file_the_shared_env_names_carries_the_flag_too(self):
+        host = self.prepared()
+        host.files[f'{SRV}/shared.env'] = regular(0o600, text=SHARED_TEXT + ''.join(f'{k}={v}\n' for k, v in self.SETTINGS)
+                                                   + f'{bringup.CONTROL_ENV_KEY}={SRV}/control/control.env\n')
+        host.files[f'{SRV}/control/control.env'] = regular(0o600, text=f'{bringup.TENANT_STORAGE_FLAG_KEY}=true\n')
+        self.assertEqual('ok', self.found(host)['tenant-storage-enabled'])
+        host.files[f'{SRV}/shared.env'] = regular(0o600, text=SHARED_TEXT + f'{bringup.CONTROL_ENV_KEY}={SRV}/control/control.env\n')
+        line = line_of(run(host)[1], 'tenant-storage-enabled')
+        self.assertTrue(line.startswith('MISSING'))
+        self.assertIn(f'{SRV}/control/control.env', line)
+
+    def test_apply_never_generates_the_signing_key_and_a_second_apply_changes_nothing(self):
+        host = self.prepared(flag='true', files=False)
+        found = self.found(host, '--apply')
+        self.assertEqual(('MISSING', 'MISSING', 'ok', 'ok'),
+                         (found['tenant-storage-files'], found['tenant-storage-enabled'],
+                          found['tenant-storage-settings'], found['tenant-storage-stack']))
+        self.assertNotIn(f'{self.STORAGE}/oci_provision_key', host.files)
+        self.assertEqual((0o700, 0o400), (stat.S_IMODE(host.files[self.STORAGE].st_mode),
+                                          stat.S_IMODE(host.files[f'{self.STORAGE}/oci_naming_key'].st_mode)))
+        host.files[f'{self.STORAGE}/oci_provision_key'] = regular(0o400, 10001, 10001, text='synthetic signing key body')
+        host.mutations.clear()
+        _, second = run(host, '--apply')
+        self.assertEqual({'ok'}, set(statuses(second).values()))
+        self.assertEqual([], host.mutations)
 
 
 class RealHostTest(unittest.TestCase):

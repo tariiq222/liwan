@@ -69,15 +69,26 @@ INIT_HOST_FILES = {
 INIT_HOST_DIRS = ('LIWAN_AI_PLATFORM_DIR',)
 # A3.2a: the two files the `tenant-storage` service mounts as secrets (never environment variables). Mode 0400 and owned by the
 # container user (the `liwan-odoo` image's `odoo`). Bring-up generates the naming key once and never replaces it: changing it changes
-# every tenant's resource names. It never creates the OCI API signing key; that file is required only once the provisioner's
-# settings name a tenancy (OCI_TENANCY_OCID), which is how the shared env file says tenant storage is on.
+# every tenant's resource names. It never creates the OCI API signing key; that file is required only once tenant storage is
+# configured, either by the settings that name a tenancy (OCI_TENANCY_OCID) or by its flag.
 TENANT_STORAGE_DIR_KEY = 'LIWAN_TENANT_STORAGE_FILES_DIR'
 TENANT_STORAGE_DIR_MODE = 0o700
 TENANT_STORAGE_FILE_MODE = 0o400
 TENANT_STORAGE_FILE_UID = 10001
 PROVISION_KEY_FILE, NAMING_KEY_FILE = 'oci_provision_key', 'oci_naming_key'
-STORAGE_ENABLED_KEY = 'OCI_TENANCY_OCID'
+STORAGE_CONFIGURED_KEY = 'OCI_TENANCY_OCID'
 NAMING_KEY_BYTES = 32
+# A3.2b, A4.13 to A4.15: what tenant storage needs before its flag may be on. The four settings are the ones `oci_provision.Config`
+# requires (the region and the policy mode have code defaults); the flag lives in the two env files the control plane reads, and the
+# provisioner and its allowlist proxy are services of the stack template, never started by `up`.
+TENANT_STORAGE_FLAG_KEY = 'LIWAN_TENANT_STORAGE_ENABLED'
+CONTROL_ENV_KEY = 'LIWAN_CONTROL_ENV_FILE'
+SHARED_WORKER_ENV_FILE = Path('/etc/liwan/shared-worker.env')
+OCI_SETTING_KEYS = ('OCI_TENANCY_OCID', 'OCI_USER_OCID', 'OCI_FINGERPRINT', 'OCI_COMPARTMENT_OCID')
+STACK_COMPOSE = ('deploy', 'stack', 'compose.yml')
+TENANT_STORAGE_PROFILE = 'tenant-storage'
+TENANT_STORAGE_EGRESS = 'tenant-storage-egress'
+SERVICE_NAME = re.compile(r'^  ([a-z][a-z0-9-]*):\s*$')
 # A3.4a: command, minimum major version (0 = any), apt package that provides it. Node 22 comes from NodeSource.
 PACKAGES = (('node', 22, 'nodejs (NodeSource node_22.x repository)'), ('npm', 0, 'nodejs (NodeSource node_22.x repository)'),
             ('pg_dump', 16, 'postgresql-client-16'), ('git', 0, 'git'), ('python3', 0, 'python3'))
@@ -448,10 +459,28 @@ def apply_init_host(ctx: Context) -> None:
     ctx.must([str(script), config['LIWAN_SHARED_ENV_FILE'], config['LIWAN_RELEASE_PROJECT']])
 
 
-def tenant_storage_files(shared: dict) -> list[tuple[Path, bool]]:
-    """Each secret file and whether it is required now: the naming key always, the signing key once tenant storage is configured."""
+def tenant_storage_flag(ctx: Context) -> tuple[bool, list[str]]:
+    """Whether tenant storage is switched on, and the files that say so. Only the exact value ``true`` turns it on, as the
+    control plane reads it; an absent flag or any other value leaves the feature off."""
+    on_at = [str(path) for path in flag_sources(ctx)
+             if inspect(ctx.host, path, REGULAR_FILE) is not None
+             and ctx.host.read_env(path).get(TENANT_STORAGE_FLAG_KEY) == 'true']
+    return bool(on_at), on_at
+
+
+def flag_sources(ctx: Context) -> list[Path]:
+    """The two files that carry the flag: the control env file the shared env file names, and the shared worker's own file."""
+    shared = ctx.shared_env()
+    control = Path(shared[CONTROL_ENV_KEY]) if shared and shared.get(CONTROL_ENV_KEY) else None
+    return ([control] if control is not None else []) + [SHARED_WORKER_ENV_FILE]
+
+
+def tenant_storage_files(ctx: Context, shared: dict) -> list[tuple[Path, bool]]:
+    """Each secret file and whether it is required now: the naming key always, the signing key once tenant storage is configured
+    or switched on. Bring-up never creates the signing key either way."""
     base = Path(shared[TENANT_STORAGE_DIR_KEY])
-    return [(base / PROVISION_KEY_FILE, bool(shared.get(STORAGE_ENABLED_KEY))), (base / NAMING_KEY_FILE, True)]
+    configured = bool(shared.get(STORAGE_CONFIGURED_KEY)) or tenant_storage_flag(ctx)[0]
+    return [(base / PROVISION_KEY_FILE, configured), (base / NAMING_KEY_FILE, True)]
 
 
 def check_tenant_storage_files(ctx: Context) -> Status:
@@ -466,7 +495,7 @@ def check_tenant_storage_files(ctx: Context) -> Status:
         problems.append(f'{directory_path} absent')
     elif stat.S_IMODE(info.st_mode) != TENANT_STORAGE_DIR_MODE:
         problems.append(f'{directory_path} is {shape(info)}, expected {TENANT_STORAGE_DIR_MODE:04o}')
-    for path, required in tenant_storage_files(shared):
+    for path, required in tenant_storage_files(ctx, shared):
         file_info = inspect(ctx.host, path, REGULAR_FILE)
         if file_info is None:
             if required:
@@ -489,6 +518,90 @@ def apply_tenant_storage_files(ctx: Context) -> None:
     if inspect(ctx.host, naming_key, REGULAR_FILE) is None:
         ctx.host.write_new(naming_key, secrets.token_hex(NAMING_KEY_BYTES), TENANT_STORAGE_FILE_MODE)
         ctx.host.chown(naming_key, TENANT_STORAGE_FILE_UID, TENANT_STORAGE_FILE_UID)
+
+
+def check_tenant_storage_settings(ctx: Context) -> Status:
+    """A4.13: the OCI settings the provisioner requires, once tenant storage is configured or switched on. Empty while it is off."""
+    values, status = shared_values(ctx)
+    if values is None:
+        return status
+    shared = ctx.shared_env()
+    absent = [key for key in OCI_SETTING_KEYS if not shared.get(key)]
+    if not absent:
+        return OK
+    if not any(shared.get(key) for key in OCI_SETTING_KEYS) and not tenant_storage_flag(ctx)[0]:
+        return OK  # off: the settings stay empty and the provisioner never runs
+    return missing(f'the shared env file lacks {", ".join(absent)} (the OCI provisioning user of '
+                   'tools/shared_saas_lifecycle/README.md, "Tenant storage effect")')
+
+
+def compose_services(text: str) -> dict[str, str]:
+    """Service name to its block, from the top-level ``services:`` map of the stack template: a plain two-space scan, because a
+    host brings up Python and no YAML parser."""
+    services: dict[str, str] = {}
+    current, lines, in_services = None, [], False
+    for line in text.splitlines():
+        if not in_services:
+            in_services = line.rstrip() == 'services:'
+            continue
+        if line.strip() and not line.startswith(' ') and not line.lstrip().startswith('#'):
+            break  # the next top-level key ends the map
+        found = SERVICE_NAME.match(line)
+        if found:
+            if current is not None:
+                services[current] = '\n'.join(lines)
+            current, lines = found.group(1), []
+        elif current is not None:
+            lines.append(line)
+    if current is not None:
+        services[current] = '\n'.join(lines)
+    return services
+
+
+def storage_stack_problems(services: dict[str, str]) -> list[str]:
+    """A4.14: the provisioner and its allowlist proxy, both profile-gated, and the provisioner routed through the proxy."""
+    problems = []
+    provisioner, egress = services.get(TENANT_STORAGE_PROFILE), services.get(TENANT_STORAGE_EGRESS)
+    if provisioner is None:
+        problems.append(f'service {TENANT_STORAGE_PROFILE} is absent')
+    else:
+        if f'profiles: [{TENANT_STORAGE_PROFILE}]' not in provisioner:
+            problems.append(f'service {TENANT_STORAGE_PROFILE} is not in the {TENANT_STORAGE_PROFILE} profile')
+        if f'{TENANT_STORAGE_EGRESS}:3128' not in provisioner:
+            problems.append(f'service {TENANT_STORAGE_PROFILE} has no {TENANT_STORAGE_EGRESS} egress proxy')
+    if egress is None:
+        problems.append(f'service {TENANT_STORAGE_EGRESS} is absent')
+    elif f'profiles: [{TENANT_STORAGE_PROFILE}]' not in egress:
+        problems.append(f'service {TENANT_STORAGE_EGRESS} is not in the {TENANT_STORAGE_PROFILE} profile')
+    return problems
+
+
+def check_tenant_storage_stack(ctx: Context) -> Status:
+    """A4.14: the stack definition of the served checkout carries the provisioner and its allowlist proxy."""
+    if ctx.config() is None:
+        return NEEDS_CONFIG
+    if ctx.host.lstat(ctx.paths.current) is None:
+        return missing(f'{ctx.paths.current} does not exist yet (A3.4)')
+    path = ctx.paths.current.joinpath(*STACK_COMPOSE)
+    if inspect(ctx.host, path, REGULAR_FILE) is None:
+        return missing(f'{path} is absent: the served checkout has no stack definition')
+    problems = storage_stack_problems(compose_services(ctx.host.read_text(path)))
+    return missing('; '.join(problems)) if problems else OK
+
+
+def check_tenant_storage_enabled(ctx: Context) -> Status:
+    """A4.15: the flag stays false until its files, settings and the stack profile are all there; it never hides a gap."""
+    if ctx.config() is None:
+        return NEEDS_CONFIG
+    on, at = tenant_storage_flag(ctx)
+    if not on:
+        return OK
+    problems = [status.detail for status in (check_tenant_storage_files(ctx), check_tenant_storage_settings(ctx),
+                                             check_tenant_storage_stack(ctx)) if not status.ok]
+    if not problems:
+        return OK
+    return missing(f'{TENANT_STORAGE_FLAG_KEY}=true in {", ".join(at)} while ' + ' / '.join(problems)
+                   + f'; set {TENANT_STORAGE_FLAG_KEY} to false until these pass')
 
 
 # --- A3.3 directories ------------------------------------------------------------------------------------------------
@@ -997,8 +1110,17 @@ REGISTRY: list[Item] = [
          apply_init_host),
     Item('tenant-storage-files', check_tenant_storage_files,
          f'put {TENANT_STORAGE_DIR_KEY} in the shared env file; --apply makes the directory and the naming key, and the OCI API '
-         f'signing key {PROVISION_KEY_FILE} (mode 0400) is yours once tenant storage is configured (A3.2a)',
+         f'signing key {PROVISION_KEY_FILE} (mode 0400) is yours once tenant storage is configured (A3.2b)',
          apply_tenant_storage_files),
+    Item('tenant-storage-settings', check_tenant_storage_settings,
+         'put OCI_TENANCY_OCID, OCI_USER_OCID, OCI_FINGERPRINT and OCI_COMPARTMENT_OCID in the shared env file from the dedicated '
+         'OCI provisioning user, or leave every OCI setting empty while tenant storage is off (A4.13)'),
+    Item('tenant-storage-stack', check_tenant_storage_stack,
+         f'the served checkout must carry {"/".join(STACK_COMPOSE)} with the {TENANT_STORAGE_PROFILE} profile and its '
+         f'{TENANT_STORAGE_EGRESS} proxy; release the checkout that has them (A4.14)'),
+    Item('tenant-storage-enabled', check_tenant_storage_enabled,
+         f'{TENANT_STORAGE_FLAG_KEY} may be true only when tenant-storage-files, tenant-storage-settings and tenant-storage-stack '
+         'are ok; keep it false otherwise (A4.15)'),
     *[package_item(*package) for package in PACKAGES],
     Item('disk', check_disk, 'free disk space (A3.5)'),
     Item('memory', size_check(0, MEMORY_KEY, MIN_MEMORY_MIB, 'memory'), 'the host is too small (A3.5)'),
