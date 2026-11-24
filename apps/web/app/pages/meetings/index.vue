@@ -272,7 +272,7 @@ function setPage(next: number) {
     <div
       v-if="hydrated && nextUpcoming && !invalidDateRange && !query.error.value"
       data-testid="meeting-next-up"
-      class="flex flex-wrap items-center justify-between gap-3 rounded-card bg-elevated/40 px-(--liwan-card-pad-dense) py-3 ring ring-default"
+      class="flex flex-wrap items-center justify-between gap-3 rounded-card bg-linear-270 from-info/12 via-info/[0.04] to-default px-(--liwan-card-pad-dense) py-3 ring ring-info/25 dark:from-info/15 dark:via-info/5 dark:to-default"
     >
       <div class="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1.5">
         <UBadge color="info" variant="subtle" size="sm" class="shrink-0">{{ t('meetingsUi.nextUp') }}</UBadge>
@@ -290,11 +290,11 @@ function setPage(next: number) {
       </div>
       <UButton
         size="sm"
-        color="primary"
-        variant="soft"
+        color="neutral"
+        variant="outline"
         :to="meetingTo(nextUpcoming)"
         :label="t('meetingsUi.openMeeting')"
-        class="shrink-0"
+        class="shrink-0 bg-default"
         @click.capture="openRecord($event, nextUpcoming)"
       />
     </div>
