@@ -2,7 +2,7 @@
 """Opt-in real Odoo capture and isolated restore. No generic target commands."""
 from __future__ import annotations
 import hashlib
-from contextlib import closing, contextmanager
+from contextlib import closing, contextmanager, suppress
 import inspect
 import json
 import os
@@ -621,6 +621,12 @@ print('{}')
             raise EffectError('odoo_restart_failed') from restart_error
         finally:
             self.restarting = False
+        # Odoo is back, so the intent must say so: a later reconcile would otherwise start it a second time (the
+        # capture's exception is about to leave `quiescing` behind). Bookkeeping only — a write that fails leaves the
+        # stopped state, and the reconcile's `start` on a running service is a no-op, so that second start is harmless
+        # and must never replace the restart that succeeded.
+        with suppress(EffectError, BackupError, OSError):
+            backup_quiet.record_state(self.intent(), backup_quiet.STATE_RESUMED)
 
     def capture_while_stopped(self,source_image,postgres_image):
         if self.inspect_service('odoo')['State']['Running']:

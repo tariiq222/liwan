@@ -50,7 +50,7 @@ from deploy.backup.capture import CONTROL_PLANE_SOURCE, RetentionPolicy, recover
 from deploy.backup.dump import validate_db_name
 from deploy.backup.errors import BackupError
 from deploy.backup.manifest import as_utc
-from deploy.backup.snapshot import DUMP_NAME
+from deploy.backup.snapshot import DUMP_NAME, MANIFEST_NAME
 from deploy.backup.store import build_store
 
 if TYPE_CHECKING:
@@ -108,6 +108,20 @@ def _target(name: str) -> str:
         raise RestoreError(str(error)) from error
 
 
+def require_database_only(artifact_dir: Path) -> None:
+    """The control plane's artifact holds its database alone: a filestore tree belongs to a tenant.
+
+    A control-plane capture is database-only (its ``CaptureSource.filestore`` is ``None``), so an
+    artifact that also carries ``filestore/`` is a tenant artifact under the wrong source, and a
+    restore must read neither it nor its manifest.
+    """
+    contents = sorted(path.name for path in artifact_dir.iterdir())
+    _require(
+        contents == [DUMP_NAME, MANIFEST_NAME],
+        f'the control plane artifact must hold only {DUMP_NAME} and {MANIFEST_NAME}, not {contents}',
+    )
+
+
 def observe(args: argparse.Namespace, database: str, runner: Callable[..., object]) -> dict[str, object]:
     """Read the verification facts of one database."""
     output = _run(runner, [args.psql, '-X', '-At', '-v', 'ON_ERROR_STOP=1', *_connection(args),
@@ -163,6 +177,7 @@ def restore(args: argparse.Namespace, runner: Callable[..., object]) -> int:
     fetched = recover.fetch_artifact(
         store, ref, scratch / 'fetched', passphrase_file=passphrase_file, runner=runner,
     )
+    require_database_only(fetched.artifact_dir)
     manifest = fetched.manifest
     dump = fetched.artifact_dir / DUMP_NAME
     connection = _connection(args)

@@ -336,6 +336,19 @@ class CaptureRestartTests(unittest.TestCase):
                 self.assertEqual(str(caught.exception), expected)
                 self.assertEqual(len(self.started(runner)), 1)
 
+    def test_the_reconcile_after_a_restart_does_not_start_odoo_a_second_time(self):
+        # The failure restarts odoo in-process and records that, so the worker's recovery action (`reconcile`)
+        # finds a resumed intent and starts nothing. A second start would be harmless; it must not be issued.
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve()
+            runner, _ = self.capture_runner(root, fail_at='dump')
+            with self.assertRaises(odoo_effect.EffectError):
+                self.capture(runner, 'dump')
+            self.assertEqual(len(self.started(runner)), 1)
+            self.assertEqual(backup_quiet.read_state(runner.intent()), backup_quiet.STATE_RESUMED)
+            self.assertEqual(runner.reconcile(), backup_quiet.STATE_RESUMED)
+            self.assertEqual(len(self.started(runner)), 1)
+
     def test_two_termination_signals_in_a_row_still_start_odoo_once_and_complete_it(self):
         # systemd (KillMode=control-group) and the gate both signal the group: the second SIGTERM arrives while the restart runs.
         import os, signal
