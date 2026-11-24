@@ -94,12 +94,12 @@ describe('ShellNavSection', () => {
   const render = (items: unknown[], extra: Record<string, unknown> = {}) => renderShared(file('ShellNavSection'), { label: 'المشاريع', items, ...extra }, {}, { stubs: { ...stubs, ShellNavRow: passthrough('a') } })
 
   it('lists flat rows under a heading with an optional edit link', async () => {
-    const html = await render([row('a'), row('b')], { title: 'تطبيقاتي', action: { label: 'تعديل', to: '/apps', icon: 'i-lucide-pencil' } })
+    const html = await render([row('a'), row('b')], { title: 'تطبيقاتي', action: { label: 'تخصيص الشريط', to: '/apps', icon: 'i-lucide-pencil' } })
     expect(html).toContain('role="group"')
     expect(html).toContain('<h3>تطبيقاتي</h3>')
-    expect(html).toContain('aria-label="تعديل"')
+    expect(html).toContain('aria-label="تخصيص الشريط"')
     expect(html).toContain('data-testid="side-section-action"')
-    expect(html).not.toContain('>تعديل<')
+    expect(html).not.toContain('>تخصيص الشريط<')
   })
 
   it('opens the branch that holds the current page and shows its children', async () => {
