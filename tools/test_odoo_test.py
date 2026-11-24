@@ -138,6 +138,20 @@ class TestAddonTree(TempDirCase):
         self.assertEqual(depends['liwan_meetings'], ['vendor_like'])
         self.assertEqual(with_dependents({'vendor_like'}, depends), {'vendor_like', 'liwan_meetings'})
 
+    def test_non_installable_addons_are_not_local_addons(self):
+        self.addon('liwan_hr', ['base'])
+        folder = self.root / 'liwan_shared_dbselect'
+        folder.mkdir()
+        (folder / '__manifest__.py').write_text("{'name': 'x', 'depends': [], 'installable': False}", encoding='utf-8')
+        broken = self.root / 'broken'
+        broken.mkdir()
+        (broken / '__manifest__.py').write_text('{not python', encoding='utf-8')
+        known = local_addons(self.root)
+        self.assertEqual(known, {'liwan_hr', 'broken'})
+        paths = ['odoo-addons/liwan_shared_dbselect/__init__.py', 'odoo-addons/liwan_hr/models/a.py']
+        self.assertEqual(changed_addons(paths, known), {'liwan_hr'})
+        self.assertEqual(unmanifested_dirs(paths, known), {'liwan_shared_dbselect'})
+
     def test_dependency_closure_follows_non_local_dependencies_and_not_dependents(self):
         self.addon('liwan_hr', ['mail', 'payroll'])
         self.addon('liwan_hr_finance', ['liwan_hr', 'liwan_finance'])

@@ -64,10 +64,20 @@ def modules_of_rank(rank: int, layers: Path = LAYERS) -> list[str]:
     return sorted(module for module, value in ranks(layers).items() if value == rank)
 
 
-def foundation(layers: Path = LAYERS) -> list[str]:
-    """The foundation modules, lowest rank first; the last one is the top that pulls in the others."""
+def installable(module: str, addons: Path = ADDONS) -> bool:
+    """False only for a module whose manifest says ``installable: False`` (a server-wide module such as
+    ``liwan_shared_dbselect``): it keeps its rank for R4 but cannot be installed, so no matrix or test run includes it."""
+    path = addons / module / '__manifest__.py'
+    if not path.is_file():
+        return True
+    return ast.literal_eval(path.read_text(encoding='utf-8')).get('installable', True) is not False
+
+
+def foundation(layers: Path = LAYERS, addons: Path = ADDONS) -> list[str]:
+    """The installable foundation modules, lowest rank first; the last one is the top that pulls in the others."""
     known = ranks(layers)
-    return sorted((module for module, value in known.items() if value in FOUNDATION_RANKS), key=lambda m: (known[m], m))
+    return sorted((module for module, value in known.items() if value in FOUNDATION_RANKS and installable(module, addons)),
+                  key=lambda m: (known[m], m))
 
 
 def standalone_matrix(layers: Path = LAYERS) -> list[str]:

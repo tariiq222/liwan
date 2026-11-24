@@ -47,7 +47,7 @@ edge; private HTTP hops are assumed protected. Cookies always Secure in shared.
 Odoo MUST have `proxy_mode=False`, `dbfilter=^%h$`, `list_db=False`. Guard sets Odoo
 Host to the registry's validated database identifier, not user input, and does not
 send X-Odoo-Database. Thus monodb discovery is restricted to that exact name, never
-the sole unrelated DB. No stock Odoo changes or monkey patches. Stock filestore
+the sole unrelated DB. No stock Odoo source changes. One documented R9 exception, the server-wide module `liwan_shared_dbselect` (`server_wide_modules = base,rpc,web,liwan_shared_dbselect`, required by the config validator); see `docs/agents/odoo-rules.md` "Shared database list (R9 exception)". Stock filestore
 layout is `data_dir/filestore/<database>`: runtime registry rejects database != filestore.
 Odoo sessions are unwrapped only on the Odoo hop after tenant binding verification.
 
@@ -155,7 +155,7 @@ Shared startup integration contract for t5: mount `launch_odoo.py` and
 fixed config path, then execs `/usr/local/bin/liwan-odoo` unchanged. It does not
 replace the secure PDF launcher. Dedicated continues using its original entrypoint.
 The validator requires exact `dbfilter=^%h$`, `list_db=False`, `proxy_mode=False`,
-`workers=2`, `data_dir=/var/lib/odoo`, forbids any `db_name`, and fails missing or
+`server_wide_modules=base,rpc,web,liwan_shared_dbselect`, `workers=2`, `data_dir=/var/lib/odoo`, forbids any `db_name`, and fails missing or
 placeholder credentials. Parser errors and failures emit only
 `shared_config_rejected`, never values or config contents. It is not a credential
 strength/validity check and does not connect to DB.
@@ -302,7 +302,9 @@ Compose (`deploy/docker-compose.shared.yml`). `LIWAN_RESTORE_REGISTRY_DIR` must 
 services `tools/shared_saas_lifecycle/odoo_backup.py` restores into. They start only with `--profile restore`, publish
 no port, share no network with `db` or `odoo`, and use their own volumes. `restore-odoo` mounts
 `LIWAN_RESTORE_ODOO_CONFIG`, a validated external config whose `db_host` is `restore-db`; unset, it mounts
-`deploy/shared/odoo.restore.conf`, an incomplete reference the startup validator rejects.
+`deploy/shared/odoo.restore.conf`, an incomplete reference the startup validator rejects. The external file needs the
+same `server_wide_modules = base,rpc,web,liwan_shared_dbselect` line as the live config (and `max_cron_threads = 0`); the release
+checks it in `prepare` when the key is set.
 
 **Access control: who may reach a restore host (owner decision 2026-11-08).** A restore host is on the public edge and
 is authenticated like a tenant host, by the restored database's own users, so it would otherwise accept the

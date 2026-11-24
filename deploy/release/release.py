@@ -86,6 +86,7 @@ DEPENDENCY_MARKER = 'node_modules/.package-lock.json'
 WORKER_SETTLE_SECONDS = 5
 AI_DATABASE_URL_KEY = 'AI_DATABASE_URL'
 ODOO_CONFIG_KEY = 'LIWAN_SHARED_ODOO_CONFIG'
+RESTORE_ODOO_CONFIG_KEY = 'LIWAN_RESTORE_ODOO_CONFIG'
 VENDOR_ADMIN_ENV_KEY = 'LIWAN_VENDOR_ADMIN_ENV_FILE'
 ALERT_REASON_PREFIX = 'alerts: '  # how deploy/alerts.py starts the reason it writes to stderr
 BACKUP_COPIES = 3  # the encrypted capture stages a dump, a plain tar and a ciphertext under the work root
@@ -342,6 +343,7 @@ class Releaser:
         elif not (target / DEPENDENCY_MARKER).exists():  # a folder made by hand, or by an install that never finished
             self.install_dependencies(target)
             normalize_tree(target)
+        self.require_odoo_config(target)
         self.require_renderable(run, target)
         if run['previous'] is not None:  # before the first image pull and the first size query, both of which assume the admin role
             self.assert_runtime_role(self.paths.current.resolve(), {'tenants': self.tenants(target)})
@@ -543,6 +545,25 @@ class Releaser:
             raise ReleaseError('invalid_shared_env', EXIT_REFUSED, f'{env_path} needs {key} set to an absolute path')
         if not Path(path).is_file():
             raise ReleaseError('invalid_shared_env', EXIT_REFUSED, f'{path} ({key}) is not a file')
+
+    def require_odoo_config(self, checkout: Path) -> None:
+        """The host's Odoo config must pass the candidate's own validator, as the container's launcher will run it: a config the
+        new release rejects makes ``odoo`` exit and restart in a loop after the stop. Only the path is named, never content."""
+        validator = str(checkout / 'deploy/shared/validate_odoo_config.py')
+        # The restore profile is the external file `restore-odoo` mounts when LIWAN_RESTORE_ODOO_CONFIG is set (the validator
+        # picks the profile from LIWAN_RESTORE_ROLE); unset, compose mounts the incomplete reference, which only `--profile restore` starts.
+        restore = self.compose_env_value(RESTORE_ODOO_CONFIG_KEY)
+        checks = [(ODOO_CONFIG_KEY, self.shared_env()[ODOO_CONFIG_KEY], self.child_env)]
+        if restore:
+            restore_path = str(Path(restore) if os.path.isabs(restore) else checkout / 'deploy' / restore)
+            checks.append((RESTORE_ODOO_CONFIG_KEY, restore_path, {**self.child_env, 'LIWAN_RESTORE_ROLE': '1'}))
+        for key, path, env in checks:
+            try:
+                self.run_command(['python3', '-B', validator, path], env=env)
+            except CommandFailed:
+                raise ReleaseError('odoo_config_invalid', EXIT_REFUSED,
+                                   f'{path} ({key}) is rejected by deploy/shared/validate_odoo_config.py of '
+                                   f'{checkout.name}; fix the file before this release') from None
 
     def require_renderable(self, run: dict, checkout: Path) -> None:
         """Both compose projects of the candidate render as later steps run them, with its own image tag (a temporary env file,

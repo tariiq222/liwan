@@ -232,6 +232,7 @@ class TestValidatorBudgetMatches(unittest.TestCase):
             'list_db = False\n'
             'proxy_mode = False\n'
             'data_dir = /var/lib/odoo\n'
+            'server_wide_modules = base,rpc,web,liwan_shared_dbselect\n'
             f'{fragment}'
         )
 
@@ -374,6 +375,7 @@ class TestProductionOverridePinsThePlan(unittest.TestCase):
             'list_db = False\n'
             'proxy_mode = False\n'
             'data_dir = /var/lib/odoo\n'
+            'server_wide_modules = base,rpc,web,liwan_shared_dbselect\n'
             f'{self.sizing.odoo_fragment()}'
         )
         with tempfile.TemporaryDirectory() as tmp:

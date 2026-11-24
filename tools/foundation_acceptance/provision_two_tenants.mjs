@@ -101,7 +101,7 @@ try {
   const mailAlias = 'mailpit'
   const controlDbPassword = secret()
   const odooConfig = join(runDir, 'odoo.conf')
-  writePrivate(odooConfig, `[options]\ndb_host = db\ndb_user = odoo\ndb_password = ${dbPassword}\nadmin_passwd = ${secret()}\ndbfilter = ^%h$\nlist_db = False\nproxy_mode = False\ndata_dir = /var/lib/odoo\nworkers = 2\n${commercial ? `smtp_server = ${mailAlias}\nsmtp_port = 1025\nemail_from = notifications@foundation.test\n` : ''}`)
+  writePrivate(odooConfig, `[options]\ndb_host = db\ndb_user = odoo\ndb_password = ${dbPassword}\nadmin_passwd = ${secret()}\ndbfilter = ^%h$\nlist_db = False\nserver_wide_modules = base,rpc,web,liwan_shared_dbselect\nproxy_mode = False\ndata_dir = /var/lib/odoo\nworkers = 2\n${commercial ? `smtp_server = ${mailAlias}\nsmtp_port = 1025\nemail_from = notifications@foundation.test\n` : ''}`)
   chmodSync(odooConfig, 0o400)
   const restoreOdooConfig = join(runDir, 'restore-odoo.conf')
   if (commercial) {

@@ -31,6 +31,7 @@ application declares its AI agent and tools in its own addon (see `liwan_ai` bel
   built-in `employee`, `system_admin` and `vendor_support` roles, assignments, access audit, migration and identity
   protection. Applications add their capabilities to the catalog through `liwan.access.service` hooks.
 - `odoo-addons/liwan_platform` owns the tenant profile singleton and `root_company_id`.
+- `odoo-addons/liwan_shared_dbselect` (foundation, rank 2, `installable: False`) is a server-wide module of the shared runtime only: its `post_load` replaces how Odoo lists databases (by explicit `CONNECT` grant); the one allowed R9 exception, in `docs/agents/odoo-rules.md`.
 - `odoo-addons/liwan_api` owns shared `/api/v1` plumbing, common serializers,
   authentication, branding, and the shared test fixture. It does not import a
   pillar.
