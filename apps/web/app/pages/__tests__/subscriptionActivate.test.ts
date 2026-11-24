@@ -6,6 +6,7 @@ import ts from 'typescript'
 import * as Vue from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as accessPolicy from '../../utils/accessPolicy'
+import { SETUP_PATH, canUseSetup } from '../../composables/setup/setupSteps'
 
 // The activation page's own script runs here with a mocked API and the Nuxt auto-imports stood in for, and its template is
 // rendered with plain stand-ins for the components. This tests the page's state machine, not the source text.
@@ -28,7 +29,7 @@ async function mountPage(activation: () => Promise<{ state: string; trial_ends_a
   const router = { replace: vi.fn(async () => {}) }
   const mounted: Array<() => void> = []
   const bindings = {
-    ...accessPolicy, _defineComponent: Vue.defineComponent,
+    ...accessPolicy, SETUP_PATH, canUseSetup, _defineComponent: Vue.defineComponent,
     ref: Vue.ref, onMounted: (fn: () => void) => mounted.push(fn), onBeforeUnmount: () => {},
     definePageMeta: () => {}, useState: () => checked, useRouter: () => router,
     formatDateTime: (iso: string) => `on:${iso}`,

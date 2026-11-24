@@ -278,7 +278,7 @@ test.describe('the mobile step', () => {
     await page.route('**/api/v1/me/mobile/code', async (route) => {
       sent.push(route.request().postDataJSON())
       // The server's own wait, not a local constant: a cooldown names `resend_after` and nothing went out.
-      if (sent.length === 1) return route.fulfill(ok({ code: 'resend_cooldown', message: 'wait', details: { resend_after: 30 } }, 429))
+      if (sent.length === 1) return route.fulfill(ok({ code: 'resend_cooldown', message: 'wait', details: { resend_after: 2 } }, 429))
       if (sent.length === 2) return route.fulfill(refusal(409, 'mobile_taken', 'taken', 'mobile'))
       return route.fulfill(ok({ ...base, mobile: '+966500000001', mobile_required: true }))
     })
@@ -293,20 +293,19 @@ test.describe('the mobile step', () => {
     await page.evaluate(() => (window as unknown as { useNuxtApp: () => { $router: { push: (to: string) => Promise<unknown> } } }).useNuxtApp().$router.push('/projects'))
     await expect(page).toHaveURL(/\/account\/mobile\?next=\/projects$/)
     await expect(heading(page, 'أضف رقم جوالك')).toBeVisible()
-    // The cooldown is a real countdown: a fake clock lets the test move past it instead of waiting 30 seconds.
-    await page.clock.install()
     const send = page.getByRole('button', { name: 'أرسل الرمز', exact: true })
     await expect(page.getByRole('button', { name: 'تسجيل الخروج', exact: true })).toBeVisible()
     await expect(send).toBeDisabled()
     await fieldFor(page, 'mobile').fill('0500000001')
     await send.click()
     // The cooldown refused the send: the page repeats the server's wait and holds the button for it.
-    await expect(page.getByRole('alert').filter({ hasText: 'إعادة الإرسال بعد 30 ثانية' })).toBeVisible()
+    await expect(page.getByRole('alert').filter({ hasText: /إعادة الإرسال بعد [12] ثانية/ })).toBeVisible()
     await expect(send).toBeDisabled()
-    await page.clock.fastForward(31_000)
-    await expect(send).toBeEnabled()
+    // The countdown is real and short here: the button frees itself when the server's wait has passed.
+    await expect(send).toBeEnabled({ timeout: 8_000 })
     await send.click()
     await expect(page.getByText('رقم الجوال هذا مستخدم في حساب آخر.')).toBeVisible()
+    await expect(send).toBeEnabled()
     await send.click()
     const confirm = page.getByRole('button', { name: 'تأكيد الرقم', exact: true })
     await expect(confirm).toBeDisabled()
