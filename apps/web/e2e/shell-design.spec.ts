@@ -20,7 +20,7 @@ test.describe('unified application navigation', () => {
     await expect(menu).toHaveAttribute('data-mode', 'app')
     // No back row above the application block: «كل التطبيقات» sits in the footer, so the same link is not printed twice.
     await expect(menu.getByTestId('navigation-app-back')).toHaveCount(0)
-    await expect(menu.getByTestId('navigation-app-apps')).toHaveAttribute('href', '/apps')
+    await expect(menu.getByTestId('footer-tool-apps')).toHaveAttribute('href', '/apps')
     await expect(menu.getByTestId('navigation-app-block')).toHaveText('الاجتماعات')
     // The pinned applications belong to the global mode; the organisation and the core icon row stay in both.
     await expect(menu.getByTestId('navigation-app-projects')).toHaveCount(0)
@@ -35,7 +35,7 @@ test.describe('unified application navigation', () => {
     await menu.getByTestId('context-link-meetings').click()
     await expect(menu.getByTestId('quick-view-done')).toBeVisible()
     expect(page.url()).toBe(initial)
-    await menu.getByTestId('navigation-app-apps').click()
+    await menu.getByTestId('footer-tool-apps').click()
     await expect(page).toHaveURL(/\/apps$/)
     await expect(menu).toHaveAttribute('data-mode', 'global')
   })
@@ -107,11 +107,14 @@ test.describe('sidebar modes and widths', () => {
     await expect(menu.getByTestId('navigation-app-tasks')).toHaveCount(0)
     await expect(menu.getByTestId('navigation-app-projects')).toHaveAttribute('href', '/projects')
     await expect(menu.getByTestId('side-section-action')).toHaveAttribute('href', '/apps')
-    await expect(menu.getByTestId('navigation-app-apps')).toHaveAttribute('href', '/apps')
+    await expect(menu.getByTestId('footer-tool-apps')).toHaveAttribute('href', '/apps')
     await expect(menu.getByTestId('navigation-app-block')).toHaveCount(0)
-    // «كل التطبيقات» and the settings close the sidebar in both modes; the account is in the top bar.
-    await expect(menu.getByTestId('navigation-app-settings')).toBeVisible()
+    // «كل التطبيقات» and the settings close the sidebar in both modes as icon buttons; the named list opens from the chevron; the account is in the top bar.
+    await expect(menu.getByTestId('footer-tool-settings')).toBeVisible()
+    await expect(menu.getByTestId('navigation-app-apps')).toHaveCount(0)
+    await menu.getByTestId('footer-toggle').click()
     await expect(menu.getByTestId('navigation-app-apps')).toHaveCount(1)
+    await expect(menu.getByTestId('navigation-app-apps')).toHaveAttribute('href', '/apps')
     await expect(menu.getByTestId('account-menu')).toHaveCount(0)
     await menu.getByTestId('navigation-app-projects').click()
     await expect(page).toHaveURL(/\/projects/)

@@ -64,14 +64,14 @@ test.describe('core apps icon row', () => {
     })
   }
 
-  test('documents: a click on its footer row opens its own full page, not the slide-over, and lights the row', async ({ page }) => {
+  test('documents: a click on its footer icon opens its own full page, not the slide-over, and lights the icon', async ({ page }) => {
     await open(page, '/apps')
     const menu = page.getByTestId('application-navigation')
     await expect(menu.getByTestId('core-app-documents')).toHaveCount(0)
-    await menu.locator('.liwan-side-footer').getByTestId('navigation-app-documents').click()
+    await menu.locator('.liwan-side-footer').getByTestId('footer-tool-documents').click()
     await expect(page).toHaveURL(/\/documents$/)
     await expect(page.getByTestId('global-search-trigger')).toBeEnabled()
-    await expect(menu.getByTestId('navigation-app-documents')).toHaveAttribute('data-active', 'true')
+    await expect(menu.getByTestId('footer-tool-documents')).toHaveAttribute('data-active', 'true')
     await expect(menu.locator('[data-testid^="core-app-"][aria-current="page"]')).toHaveCount(0)
     await expect(page.locator('[data-testid^="slide-over-"]:visible')).toHaveCount(0)
   })
@@ -175,46 +175,92 @@ test.describe('sidebar footer', () => {
   test.use({ viewport: { width: 1440, height: 900 } })
   test.beforeEach(async ({ page }) => { await login(page) })
 
-  test('the documents, «كل التطبيقات» and the settings close the sidebar once each, below the lists, in both modes', async ({ page }) => {
+  test('the footer is one row of icon buttons in a fixed order, below the lists, in both modes', async ({ page }) => {
     for (const path of ['/apps', '/crm']) {
       await open(page, path)
       const menu = page.getByTestId('application-navigation')
       const footer = menu.locator('.liwan-side-footer')
-      await expect(footer.getByTestId('navigation-app-apps')).toHaveAttribute('href', '/apps')
-      await expect(footer.getByTestId('navigation-app-settings')).toHaveAttribute('href', /^\/settings/)
-      await expect(menu.getByTestId('navigation-app-apps')).toHaveCount(1)
-      // The base applications come first (operations only with its capability), then «كل التطبيقات», then the settings.
-      const ids = await footer.getByRole('link').evaluateAll(links => links.map(link => link.getAttribute('data-testid')))
+      await expect(footer.getByTestId('footer-tool-apps')).toHaveAttribute('href', '/apps')
+      await expect(footer.getByTestId('footer-tool-settings')).toHaveAttribute('href', /^\/settings/)
+      // The named list is closed: no named row exists until the chevron opens it.
+      await expect(menu.getByTestId('navigation-app-apps')).toHaveCount(0)
+      // The base applications come first (operations only with its capability), then «كل التطبيقات», the settings, the support button and the chevron.
+      const ids = await footer.getByTestId('footer-tools').locator('a, button').evaluateAll(items => items.map(item => item.getAttribute('data-testid')))
       expect(ids).toEqual([
-        'navigation-app-documents',
-        ...ids.filter(id => id === 'navigation-app-operations'),
-        'navigation-app-apps',
-        'navigation-app-settings',
+        'footer-tool-documents',
+        ...ids.filter(id => id === 'footer-tool-operations'),
+        'footer-tool-apps',
+        'footer-tool-settings',
+        'footer-tool-support',
+        'footer-toggle',
       ])
       await expect(menu.getByTestId('account-menu')).toHaveCount(0)
-      const apps = (await footer.getByTestId('navigation-app-apps').boundingBox())!
+      const apps = (await footer.getByTestId('footer-tool-apps').boundingBox())!
       const last = (await menu.locator('.liwan-side-body a').last().boundingBox())!
       expect(apps.y).toBeGreaterThan(last.y)
+      const boxes = await footer.getByTestId('footer-tools').locator('a, button').evaluateAll(items => items.map(item => Math.round(item.getBoundingClientRect().top)))
+      expect(new Set(boxes).size).toBe(1)
     }
   })
 
-  test('the settings row enters the settings application menu', async ({ page }) => {
+  test('the support icon is an aria-disabled button, focusable for its tooltip, with no link and no action yet', async ({ page }) => {
     await open(page, '/apps')
     const menu = page.getByTestId('application-navigation')
-    await menu.getByTestId('navigation-app-settings').click()
+    const support = menu.getByTestId('footer-tool-support')
+    await expect(support).toHaveAccessibleName('الدعم الفني (قريبًا)')
+    await expect(support).toHaveAttribute('aria-disabled', 'true')
+    await expect(support).not.toHaveAttribute('disabled', /.*/)
+    await expect(support).not.toHaveAttribute('href', /.+/)
+    await expect(menu.getByTestId('footer-tools')).toHaveAccessibleName('اختصارات عامة')
+    await support.focus()
+    await expect(support).toBeFocused()
+    await expect(page.locator('[role="tooltip"]').filter({ hasText: 'الدعم الفني (قريبًا)' })).toBeVisible()
+    const url = page.url()
+    // Playwright treats aria-disabled as not actionable, so the click is forced: it must still do nothing.
+    await support.click({ force: true })
+    expect(page.url()).toBe(url)
+    await expect(menu.getByTestId('footer-list')).toHaveCount(0)
+  })
+
+  test('the chevron opens the named list above the row and a second click closes it', async ({ page }) => {
+    await open(page, '/settings')
+    const menu = page.getByTestId('application-navigation')
+    const toggle = menu.getByTestId('footer-toggle')
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    await expect(menu.getByTestId('footer-list')).toHaveCount(0)
+    await toggle.click()
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    await expect(menu.getByTestId('footer-list').getByRole('link').first()).toBeFocused()
+    const list = menu.getByTestId('footer-list')
+    await expect(list.getByTestId('navigation-app-apps')).toHaveText('كل التطبيقات')
+    await expect(list.getByTestId('navigation-app-settings')).toHaveAttribute('data-active', 'true')
+    await expect(menu.getByTestId('footer-tool-settings')).toHaveAttribute('data-active', 'true')
+    expect((await list.boundingBox())!.y + (await list.boundingBox())!.height).toBeLessThanOrEqual((await menu.getByTestId('footer-tools').boundingBox())!.y)
+    await list.getByTestId('navigation-app-apps').click()
+    await expect(page).toHaveURL(/\/apps$/)
+    await toggle.click()
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    await expect(menu.getByTestId('footer-list')).toHaveCount(0)
+  })
+
+  test('the settings icon enters the settings application menu', async ({ page }) => {
+    await open(page, '/apps')
+    const menu = page.getByTestId('application-navigation')
+    await menu.getByTestId('footer-tool-settings').click()
     await expect(page).toHaveURL(/\/settings/)
     await expect(menu).toHaveAttribute('data-mode', 'app')
     await expect(menu.getByTestId('navigation-app-block')).toBeVisible()
-    await expect(menu.getByTestId('navigation-app-settings')).toHaveAttribute('data-active', 'true')
+    await expect(menu.getByTestId('footer-tool-settings')).toHaveAttribute('data-active', 'true')
   })
 
-  test('in the 84px strip the footer rows keep their names and show them in a tooltip', async ({ page }) => {
+  test('in the 84px strip the footer icons keep their names, show them in a tooltip and drop the chevron', async ({ page }) => {
     await page.setViewportSize({ width: 900, height: 900 })
     await open(page, '/apps')
     const menu = page.getByTestId('application-navigation')
-    await expect(menu.getByTestId('navigation-app-apps')).toHaveAccessibleName('كل التطبيقات')
-    await expect(menu.getByTestId('navigation-app-settings')).toHaveAccessibleName('الإعدادات')
-    await menu.getByTestId('navigation-app-settings').hover()
+    await expect(menu.getByTestId('footer-tool-apps')).toHaveAccessibleName('كل التطبيقات')
+    await expect(menu.getByTestId('footer-tool-settings')).toHaveAccessibleName('الإعدادات')
+    await expect(menu.getByTestId('footer-toggle')).toBeHidden()
+    await menu.getByTestId('footer-tool-settings').hover()
     await expect(page.locator('[role="tooltip"]').filter({ hasText: 'الإعدادات' })).toBeVisible()
     expect(await fitsWidth(page)).toBe(true)
   })

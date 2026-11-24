@@ -202,7 +202,7 @@ test('mobile navigation opens team roles and preserves the roles page on reload'
   await expect(drawer).toBeVisible()
   await expect(page).toHaveURL(url => url.pathname === '/')
 
-  const settings = drawer.getByTestId('mobile-navigation-app-settings')
+  const settings = drawer.getByTestId('mobile-footer-tool-settings')
   await expect(settings).toHaveAccessibleName('الإعدادات')
   await settings.click()
   await expect(page).toHaveURL(url => url.pathname === '/settings/company')

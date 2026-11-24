@@ -13,7 +13,7 @@ const pinned = [
 const meta = {
   title: 'Shell/ShellAppSwitcher',
   component: ShellAppSwitcher,
-  parameters: storyContext('apps/web/app/components/shell/AppSidebar.vue:76'),
+  parameters: storyContext('apps/web/app/components/shell/AppSidebar.vue:84'),
   args: { app: { id: 'crm', label: 'إدارة العملاء', icon: 'i-lucide-target' }, items: pinned, menuLabel: 'تبديل التطبيق' },
   render: args => ({ components: { ShellAppSwitcher }, setup: () => ({ args }), template: '<div class="liwan-shell" style="width: 264px; padding: 18px 14px"><ShellAppSwitcher v-bind="args" /></div>' }),
 } satisfies Meta<typeof ShellAppSwitcher>
