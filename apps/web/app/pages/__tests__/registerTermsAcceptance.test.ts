@@ -6,6 +6,7 @@ import ts from 'typescript'
 import { describe, expect, it, vi } from 'vitest'
 import { errorCode, errorSeconds, normalizeCode } from '../../components/auth/loginFlow'
 import { normalizeMobileInput } from '../../composables/useMe'
+import { suggestWorkspaceSlug, workspaceSlugShapeOk } from '../../utils/workspaceSlug'
 import ar from '../../../i18n/locales/ar/signup.json'
 import en from '../../../i18n/locales/en/signup.json'
 
@@ -13,7 +14,7 @@ import en from '../../../i18n/locales/en/signup.json'
 const transpile = (s: string) => ts.transpileModule(s, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None } }).outputText
 const stripImports = (s: string) => s.replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '')
 const current = { legal_base_url: 'https://legal.example.test', terms_version: '2026-11-01', human_check: { site_key: 'site-key-fixture', script_url: 'https://widget.example.test/api.js' } }
-const person = { company_name: 'شركة', admin_name: 'مدير', email: 'owner@company.sa', mobile: '0555555555' }
+const person = { company_name: 'شركة', admin_name: 'مدير', email: 'owner@company.sa', mobile: '0555555555', slug: 'acme' }
 
 function mount(fetch: ReturnType<typeof vi.fn>, language = 'ar') {
   const filename = resolve(import.meta.dirname, '../register.vue')
@@ -21,7 +22,7 @@ function mount(fetch: ReturnType<typeof vi.fn>, language = 'ar') {
   const script = stripImports(compileScript(descriptor, { id: 'register-terms' }).content).replace('export default', 'return')
   const mounted: Array<() => unknown> = []
   const bindings = {
-    errorCode, errorSeconds, normalizeCode, normalizeMobileInput,
+    errorCode, errorSeconds, normalizeCode, normalizeMobileInput, suggestWorkspaceSlug, workspaceSlugShapeOk, onBeforeUnmount: () => {},
     ForgotPasswordInputSchema: { safeParse: () => ({ success: true }) },
     _defineComponent: Vue.defineComponent, computed: Vue.computed, onMounted: (fn: () => unknown) => mounted.push(fn),
     reactive: Vue.reactive, ref: Vue.ref, watch: Vue.watch, $fetch: fetch,
@@ -32,6 +33,8 @@ function mount(fetch: ReturnType<typeof vi.fn>, language = 'ar') {
   const state = new Function(...Object.keys(bindings), transpile(script))(...Object.values(bindings)).setup({}, { expose: () => {} })
   Object.assign(state.details, person)
   state.offer.value = { offer_revision: 'test-revision' }
+  // The address check runs on a timer the tests do not drive; the address is taken as checked and free.
+  state.slugState.value = 'available'
   return { state, mounted }
 }
 
@@ -39,11 +42,13 @@ describe('register page, terms acceptance', () => {
   it('refuses the form until the box is ticked', () => {
     const { state } = mount(vi.fn())
     expect(state.validateDetails({ ...person, accept_terms: false }).map((p: { name: string }) => p.name)).toEqual(['accept_terms'])
+    expect(state.validateDetails({ ...person, slug: 'a--b', accept_terms: true }).map((p: { name: string }) => p.name)).toEqual(['slug'])
     expect(state.validateDetails({ ...person, accept_terms: true })).toEqual([])
   })
 
   it('loads the current terms on mount and links the legal pages in the visitor language', async () => {
-    const fetch = vi.fn().mockResolvedValue(current)
+    // No signup to resume: the status call answers not_found and the page loads the form.
+    const fetch = vi.fn((url: string) => url.endsWith('/status') ? Promise.reject({ data: { code: 'not_found' } }) : Promise.resolve(current))
     const arabic = mount(fetch)
     await arabic.mounted[0]!()
     expect(fetch).toHaveBeenCalledWith('/api/commercial/signup/terms', { method: 'POST', body: {} })
@@ -60,10 +65,13 @@ describe('register page, terms acceptance', () => {
     const { state } = mount(fetch)
     state.legal.value = current
     state.humanToken.value = 'tok'
-    await state.startSignup()
+    // The address watcher runs after the fixture set it; the check it starts is settled as free here.
+    await Vue.nextTick()
+    state.slugState.value = 'available'
+    await state.submitDetails()
     expect(fetch).not.toHaveBeenCalled()
     state.details.accept_terms = true
-    await state.startSignup()
+    await state.submitDetails()
     expect(fetch).toHaveBeenCalledWith('/api/commercial/signup/start', { method: 'POST', body: expect.objectContaining({ accept_terms: true, terms_version: '2026-11-01' }) })
   })
 
@@ -74,7 +82,7 @@ describe('register page, terms acceptance', () => {
     state.legal.value = current
     state.humanToken.value = 'tok'
     state.details.accept_terms = true
-    await state.startSignup()
+    await state.submitDetails()
     expect(state.legal.value).toEqual(changed)
     expect(state.details.accept_terms).toBe(false)
     expect(state.errorKey.value).toBe('signup.errors.termsChanged')
@@ -88,9 +96,9 @@ describe('register page, terms acceptance', () => {
     state.details.accept_terms = true
     state.offer.value = { offer_revision: 'test-revision' }
     state.selectedApps.value = ['crm']
-    await state.startSignup()
+    await state.submitDetails()
     expect(fetch).toHaveBeenCalledWith('/api/commercial/signup/start', {
-      method: 'POST', body: expect.objectContaining({ offer_revision: 'test-revision', app_ids: ['crm'] }),
+      method: 'POST', body: expect.objectContaining({ offer_revision: 'test-revision', app_ids: ['crm'], slug: 'acme' }),
     })
   })
 

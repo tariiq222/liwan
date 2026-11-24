@@ -1,12 +1,12 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 import { isIP } from 'node:net'
 import type { H3Event } from 'h3'
-import { publicPricingSchema, signupOfferSchema } from '@liwan/commercial-contracts'
+import { publicPricingSchema, signupOfferSchema, signupStatusSchema } from '@liwan/commercial-contracts'
 import { MeSchema } from '@liwan/contracts'
 import { signServiceRequest } from '@liwan/commercial-contracts/server'
 import { tenantRequest } from './tenantRequest'
 import { boundedTenantBody, tenantTransport, withTenantBody } from './tenantTransport'
-import { FIND_WORKSPACE_API, isProspectRequest, PROSPECT_TENANT, PUBLIC_SITE_API, SIGNUP_API } from './prospectHost'
+import { FIND_WORKSPACE_API, isProspectRequest, PROSPECT_TENANT, PUBLIC_SITE_API, SIGNUP_API, SIGNUP_RESET_PATH } from './prospectHost'
 import { deriveCustomerCapabilities, type CustomerCommercialCapability } from '../../app/utils/customerCapabilities'
 
 type CustomerConfig = {
@@ -289,16 +289,49 @@ export async function forwardCustomerRequest(event: H3Event): Promise<unknown> {
   }
 }
 
+/** The browser's link to its open signup: `<signup_id>.<handoff secret>`, set when the signup completes and read by the
+ *  waiting page's status call. HttpOnly, so the page never sees the secret; it lives exactly as long as the control plane
+ *  keeps the secret's digest. */
+export const SIGNUP_COOKIE = '__Host-liwan_signup'
+const SIGNUP_COOKIE_SECONDS = 24 * 3600
+const SIGNUP_HANDOFF_HEADER = 'x-liwan-signup-handoff'
+const SIGNUP_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const SIGNUP_SECRET = /^[A-Za-z0-9_-]{20,200}$/
+
+function readSignupCookie(event: H3Event): { id: string; secret: string } | null {
+  const [id, secret, ...rest] = (getCookie(event, SIGNUP_COOKIE) ?? '').split('.')
+  return id && secret && !rest.length && SIGNUP_ID.test(id) && SIGNUP_SECRET.test(secret) ? { id: id.toLowerCase(), secret } : null
+}
+
+/** The trust path every sign-up relay shares: the configured public origin, the host binding and the shared proxy token
+ * (checked by `isProspectRequest`), and the request's own origin. */
+function assertSignupRelay(event: H3Event, config: CustomerConfig, pathname: string): void {
+  if (!isProspectRequest({ host: getHeader(event, 'host'), proxyToken: getHeader(event, 'x-liwan-proxy-token'), pathname }, config)) fail(404, 'not_found', 'Not found')
+  const origin = config.customerCommercialPublicOrigin ? new URL(config.customerCommercialPublicOrigin).origin : ''
+  if (!origin || getHeader(event, 'origin') !== origin) fail(403, 'forbidden', 'Origin denied')
+}
+
+/** `POST /api/commercial/signup-reset`: the waiting page's "start a new signup". It only drops this browser's own
+ *  handoff cookie — the same link the completion set — so a visitor whose workspace is stuck, or whose link was already
+ *  used elsewhere, can begin again without a control-plane call. The signup itself stays with the control plane. */
+export function resetSignup(event: H3Event): null {
+  const config = useRuntimeConfig(event) as CustomerConfig
+  const pathname = getRequestURL(event).pathname
+  if (pathname !== SIGNUP_RESET_PATH) fail(404, 'not_found', 'Not found')
+  assertSignupRelay(event, config, pathname)
+  deleteCookie(event, SIGNUP_COOKIE, { path: '/', secure: true })
+  setResponseHeader(event, 'cache-control', 'no-store')
+  setResponseStatus(event, 204)
+  return null
+}
+
 /** Relays only this prospect's anonymous signup operation, with the edge-derived address signed in the body. */
 export async function forwardSignupRequest(event: H3Event): Promise<unknown> {
   const config = useRuntimeConfig(event) as CustomerConfig
   const incoming = getRequestURL(event)
   const action = SIGNUP_API.exec(incoming.pathname)?.[1]
-  if (!action || incoming.search || !isProspectRequest({
-    host: getHeader(event, 'host'), proxyToken: getHeader(event, 'x-liwan-proxy-token'), pathname: incoming.pathname,
-  }, config)) fail(404, 'not_found', 'Not found')
-  const origin = new URL(config.customerCommercialPublicOrigin!).origin
-  if (getHeader(event, 'origin') !== origin) fail(403, 'forbidden', 'Origin denied')
+  if (!action || incoming.search) fail(404, 'not_found', 'Not found')
+  assertSignupRelay(event, config, incoming.pathname)
   const type = getHeader(event, 'content-type')?.split(';', 1)[0]?.trim().toLowerCase()
   if (type !== 'application/json') fail(415, 'invalid', 'JSON is required')
   const ip = getHeader(event, 'x-liwan-signup-client')
@@ -307,7 +340,11 @@ export async function forwardSignupRequest(event: H3Event): Promise<unknown> {
   if (!ip || !isIP(ip) || !key || key.length < 32 || !issuer) fail(503, 'unavailable', 'Signup is unavailable')
 
   const raw = await withTenantBody(event, 'public', () => boundedTenantBody(event, 4096))
-  const body = raw?.toString('utf8')
+  // The waiting page's status call names its signup only through the HttpOnly cookie, so a reload or a new tab resumes it
+  // and the page never holds the secret. Without a usable cookie there is nothing to wait for.
+  const handoff = action === 'status' ? readSignupCookie(event) : null
+  if (action === 'status' && !handoff) fail(404, 'not_found', 'No signup in progress')
+  const body = handoff ? JSON.stringify({ signup_id: handoff.id }) : raw?.toString('utf8')
   if (!body) fail(422, 'invalid', 'JSON is required')
   const target = new URL(`/v1/customer/signup/${action}`, customerControlBase(config))
   const signed = signServiceRequest({
@@ -316,14 +353,16 @@ export async function forwardSignupRequest(event: H3Event): Promise<unknown> {
   setResponseHeader(event, 'cache-control', 'no-store')
   let response
   try {
-    response = await $fetch.raw<{ code?: string }>(target.toString(), {
-      method: 'POST', body, headers: { ...signed, 'x-liwan-signup-client': ip, 'content-type': 'application/json' },
+    response = await $fetch.raw<{ code?: string; handoff_secret?: unknown }>(target.toString(), {
+      method: 'POST', body,
+      headers: { ...signed, 'x-liwan-signup-client': ip, 'content-type': 'application/json', ...(handoff ? { [SIGNUP_HANDOFF_HEADER]: handoff.secret } : {}) },
       redirect: 'error', signal: AbortSignal.timeout(12_000), retry: 0, ignoreResponseError: true,
     })
   } catch { fail(503, 'unavailable', 'Signup is unavailable') }
   if (!response.ok) {
     const code = response._data?.code
-    if (code && ['invalid', 'invalid_code', 'rate_limited', 'trial_already_used', 'signup_expired', 'business_email_required', 'terms_not_accepted', 'terms_changed', 'offer_changed', 'human_check_failed', 'human_check_unavailable'].includes(code)) {
+    if (action === 'status' && response.status === 404) deleteCookie(event, SIGNUP_COOKIE, { path: '/', secure: true })
+    if (code && ['invalid', 'invalid_code', 'rate_limited', 'trial_already_used', 'signup_expired', 'business_email_required', 'terms_not_accepted', 'terms_changed', 'offer_changed', 'human_check_failed', 'human_check_unavailable', 'slug_taken', 'verification_incomplete', 'not_found'].includes(code)) {
       fail(response.status, code, 'Signup request rejected')
     }
     fail(503, 'unavailable', 'Signup is unavailable')
@@ -332,6 +371,19 @@ export async function forwardSignupRequest(event: H3Event): Promise<unknown> {
     const offer = signupOfferSchema.safeParse(response._data)
     if (!offer.success) fail(503, 'unavailable', 'Signup offer is unavailable')
     return offer.data
+  }
+  if (action === 'complete') {
+    // The secret goes into the HttpOnly cookie and nowhere else: the page only learns that the signup completed.
+    const secret = response._data?.handoff_secret
+    const signupId = (JSON.parse(body) as { signup_id?: unknown }).signup_id
+    if (typeof secret !== 'string' || !SIGNUP_SECRET.test(secret) || typeof signupId !== 'string' || !SIGNUP_ID.test(signupId)) fail(503, 'unavailable', 'Signup is unavailable')
+    setCookie(event, SIGNUP_COOKIE, `${signupId.toLowerCase()}.${secret}`, { httpOnly: true, secure: true, sameSite: 'strict', path: '/', maxAge: SIGNUP_COOKIE_SECONDS })
+    return { ok: true }
+  }
+  if (action === 'status') {
+    const status = signupStatusSchema.safeParse(response._data)
+    if (!status.success) fail(503, 'unavailable', 'Signup is unavailable')
+    return status.data
   }
   setResponseStatus(event, response.status)
   return response._data

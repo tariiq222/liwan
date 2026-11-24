@@ -208,12 +208,17 @@ export class SignupService {
   }
 
   /** Both proofs in: reserve the slug, start the trial and hand back the one-time secret that unlocks the status wait. */
-  async complete(id: string) {
+  async complete(id: string, slug?: string) {
     const now = this.now()
     const secret = randomBytes(32).toString('base64url')
     await transaction(this.pool, async client => {
       const row = await this.challenge(client, id, now)
       if (!row.mobile_verified || !row.email_verified) refuse('verification_incomplete', 422)
+      // A new address is accepted only before the workspace exists; afterwards the held slug is the workspace's.
+      if (slug && !row.completed) {
+        await client.query('UPDATE public_signups SET slug=$2 WHERE id=$1', [id, slug])
+        row.slug = slug
+      }
       if (!row.completed) await this.startWorkspace(client, row, now)
       await client.query('UPDATE public_signups SET handoff_digest=$2,handoff_expires_at=$3,expires_at=$3,completed=true WHERE id=$1',
         [id, this.key('handoff', secret), new Date(+now + HANDOFF_TTL_MS)])

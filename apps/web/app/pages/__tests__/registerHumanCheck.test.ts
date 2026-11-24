@@ -6,6 +6,7 @@ import ts from 'typescript'
 import { describe, expect, it, vi } from 'vitest'
 import { errorCode, errorSeconds, normalizeCode } from '../../components/auth/loginFlow'
 import { normalizeMobileInput } from '../../composables/useMe'
+import { suggestWorkspaceSlug, workspaceSlugShapeOk } from '../../utils/workspaceSlug'
 import ar from '../../../i18n/locales/ar/signup.json'
 import en from '../../../i18n/locales/en/signup.json'
 
@@ -19,7 +20,7 @@ function mount(fetch: ReturnType<typeof vi.fn>) {
   const descriptor = parse(page, { filename }).descriptor
   const script = stripImports(compileScript(descriptor, { id: 'register-human' }).content).replace('export default', 'return')
   const bindings = {
-    errorCode, errorSeconds, normalizeCode, normalizeMobileInput,
+    errorCode, errorSeconds, normalizeCode, normalizeMobileInput, suggestWorkspaceSlug, workspaceSlugShapeOk, onBeforeUnmount: () => {},
     ForgotPasswordInputSchema: { safeParse: () => ({ success: true }) },
     _defineComponent: Vue.defineComponent, computed: Vue.computed, onMounted: () => {}, reactive: Vue.reactive, ref: Vue.ref, watch: Vue.watch, $fetch: fetch,
     definePageMeta: () => {}, useHydrated: () => Vue.ref(true),
@@ -40,7 +41,7 @@ describe('register page, bot check', () => {
     const fetch = vi.fn()
     const { state } = mount(fetch)
     expect(state.checkReady.value).toBe(false)
-    await state.startSignup()
+    await state.submitDetails()
     expect(fetch).not.toHaveBeenCalled()
     state.humanToken.value = 'tok'
     expect(state.checkReady.value).toBe(true)
@@ -57,12 +58,14 @@ describe('register page, bot check', () => {
     const fetch = vi.fn().mockResolvedValue({ signup_id: 'id' })
     const { state, reset } = mount(fetch)
     state.humanToken.value = 'tok'
-    await state.startSignup()
+    await state.submitDetails()
     expect(fetch).toHaveBeenCalledWith('/api/commercial/signup/start', { method: 'POST', body: expect.objectContaining({ human_token: 'tok' }) })
     expect(state.humanToken.value).toBeUndefined()
     expect(reset).toHaveBeenCalledTimes(1)
-    // A second start (the resend) needs a fresh check.
-    await state.startSignup()
+    // Starting again from the details step needs a fresh check.
+    state.step.value = 'details'
+    state.signupId.value = undefined
+    await state.submitDetails()
     expect(fetch).toHaveBeenCalledTimes(1)
   })
 
@@ -70,7 +73,7 @@ describe('register page, bot check', () => {
     const fetch = vi.fn().mockRejectedValue({ data: { code: 'human_check_failed' } })
     const { state, reset } = mount(fetch)
     state.humanToken.value = 'tok'
-    await state.startSignup()
+    await state.submitDetails()
     expect(state.errorKey.value).toBe('signup.errors.humanCheckFailed')
     expect(state.humanToken.value).toBeUndefined()
     expect(reset).toHaveBeenCalled()
@@ -80,17 +83,19 @@ describe('register page, bot check', () => {
     const fetch = vi.fn().mockRejectedValue({ data: { code: 'human_check_unavailable' } })
     const { state, reset } = mount(fetch)
     state.humanToken.value = 'tok'
-    await state.startSignup()
+    await state.submitDetails()
     expect(state.errorKey.value).toBe('signup.errors.humanCheckUnavailable')
     expect(reset).toHaveBeenCalled()
   })
 
-  it('does not ask for a token on the email code', async () => {
+  it('resends one channel at a time without asking for a token', async () => {
     const fetch = vi.fn().mockResolvedValue({ ok: true })
     const { state } = mount(fetch)
     state.signupId.value = 'id'
-    await state.sendEmail()
-    expect(fetch).toHaveBeenCalledWith('/api/commercial/signup/send-email', { method: 'POST', body: { signup_id: 'id' } })
+    await state.resendCode('email')
+    expect(fetch).toHaveBeenCalledWith('/api/commercial/signup/resend', { method: 'POST', body: { signup_id: 'id', channel: 'email' } })
+    await state.resendCode('sms')
+    expect(fetch).toHaveBeenLastCalledWith('/api/commercial/signup/resend', { method: 'POST', body: { signup_id: 'id', channel: 'sms' } })
   })
 
   it('words the check and its refusals in both languages and shows the widget before the buttons that send', () => {
@@ -100,6 +105,6 @@ describe('register page, bot check', () => {
       expect(locale.signup.errors.humanCheckUnavailable).toBeTruthy()
     }
     expect(page.indexOf('<AuthTurnstileWidget')).toBeLessThan(page.indexOf(`:label="t('signup.offer.begin')"`))
-    expect(page).toMatch(/step === 'sms' && humanCheck/)
+    expect(page).not.toContain("step === 'sms'")
   })
 })

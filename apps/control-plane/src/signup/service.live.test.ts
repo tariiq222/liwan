@@ -529,6 +529,19 @@ describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
       expect((await pool.query('SELECT count(*)::int AS n FROM workspace_slugs WHERE slug=$1', [a.input.slug])).rows).toEqual([{ n: 1 }])
     })
 
+    it('lets the loser of a slug race complete with another address, keeping both verifications', async () => {
+      const first = fixture()
+      await first.service.complete(await first.reachEmail())
+      const second = fixture()
+      second.input.slug = first.input.slug
+      const id = await second.reachEmail()
+      await expect(second.service.complete(id)).rejects.toMatchObject({ code: 'slug_taken' })
+      const other = `${first.input.slug}-two`
+      await expect(second.service.complete(id, other)).resolves.toHaveProperty('handoff_secret')
+      expect((await pool.query("SELECT state FROM workspace_slugs WHERE slug=$1", [other])).rows).toEqual([{ state: 'held' }])
+      expect((await pool.query('SELECT slug,completed FROM public_signups WHERE id=$1', [id])).rows).toEqual([{ slug: other, completed: true }])
+    })
+
     it('never reuses a retired slug', async () => {
       const first = fixture()
       await first.service.complete(await first.reachEmail())
@@ -591,7 +604,7 @@ describe.skipIf(!url)('public signup on scratch PostgreSQL', () => {
       await pool.query('UPDATE subscriptions SET tenant_id=$2,applied_revision_id=target_revision_id,revision=revision+1 WHERE customer_id=$1', [customer_id, tenantId])
       const ready = await service.status(id, handoff_secret)
       expect(ready.state).toBe('ready')
-      expect(ready.handoff_url).toMatch(/^https:\/\/acme\.example\.test\/invite\/accept\?token=/)
+      expect(ready.handoff_url).toMatch(/^https:\/\/acme\.example\.test\/invite\/accept#token=/)
       await pool.query('UPDATE admin_invitations SET consumed_at=now() WHERE tenant_id=$1', [tenantId])
       await expect(service.status(id, handoff_secret)).resolves.toEqual({ state: 'ready' })
     })

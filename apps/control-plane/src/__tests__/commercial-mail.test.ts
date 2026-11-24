@@ -52,6 +52,7 @@ describe("mime", () => {
   });
   it("redacts urls and tokens", () => {
     expect(redact("fail https://a.test/invite/accept?token=abc123 now")).not.toContain("abc123");
+    expect(redact("fail https://a.test/invite/accept#token=abc123 now")).not.toContain("abc123");
     expect(new MailError("x", "token=SECRET1").message).not.toContain("SECRET1");
   });
 });
@@ -68,7 +69,7 @@ describe("tokens", () => {
     expect(createInvitationToken().token).not.toBe(token);
   });
   it("url allowlist", () => {
-    expect(buildInvitationUrl("https://app.liwanos.com", "t k")).toBe("https://app.liwanos.com/invite/accept?token=t%20k");
+    expect(buildInvitationUrl("https://app.liwanos.com", "t k")).toBe("https://app.liwanos.com/invite/accept#token=t%20k");
     expect(buildInvitationUrl("http://localhost:3000", "t")).toContain("localhost:3000/invite/accept");
     expect(buildInvitationUrl("http://acme.test", "t")).toContain("acme.test");
     expect(() => buildInvitationUrl("http://evil.com", "t")).toThrow();

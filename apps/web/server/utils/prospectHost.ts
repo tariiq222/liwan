@@ -4,6 +4,9 @@ import { ERROR_REPORT_PATH } from '../../shared/utils/errorReportScrub'
 type ProspectConfig = { customerCommercialEnabled?: boolean | string; customerCommercialPublicOrigin?: string; publicSignupEnabled?: boolean | string }
 
 export const SIGNUP_API = /^\/api\/commercial\/signup\/(terms|offer|check-slug|start|resend|verify|complete|status)$/
+/** The waiting page's "start a new signup": drops this browser's handoff cookie only, so it needs no control-plane route
+ *  and no visitor address. Served on the common host beside the sign-up it belongs to. */
+export const SIGNUP_RESET_PATH = '/api/commercial/signup-reset'
 export const isSignupPage = (pathname: string) => /^\/register\/?$/.test(pathname)
 /** The marketing site's two public routes: the published pricing and the contact form. Served on the common host whenever the commercial integration is on. */
 export const PUBLIC_SITE_API = /^\/api\/commercial\/public\/(pricing|contact)$/
@@ -34,7 +37,7 @@ export function isProspectRequest(request: { host?: string; method?: string; pro
   const token = process.env.LIWAN_SHARED_PROXY_TOKEN ?? ''
   const supplied = request.proxyToken ?? ''
   if (token.length < 32 || Buffer.byteLength(token) !== Buffer.byteLength(supplied) || !timingSafeEqual(Buffer.from(token), Buffer.from(supplied))) return false
-  if (isSignupPage(request.pathname) || SIGNUP_API.test(request.pathname) || isFindWorkspacePage(request.pathname) || FIND_WORKSPACE_API.test(request.pathname) || isProspectLogin(request.pathname)) {
+  if (isSignupPage(request.pathname) || SIGNUP_API.test(request.pathname) || request.pathname === SIGNUP_RESET_PATH || isFindWorkspacePage(request.pathname) || FIND_WORKSPACE_API.test(request.pathname) || isProspectLogin(request.pathname)) {
     return config.publicSignupEnabled === true || config.publicSignupEnabled === 'true'
   }
   if (isErrorReportPost(request)) return true

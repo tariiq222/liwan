@@ -90,7 +90,10 @@ export async function signupHttp(pool: Pool, config: { issuer?: string; key?: st
     const { signup_id, channel, code } = parseBody(input.raw, signupVerifySchema)
     return { status: 200, data: await service.verify(signup_id, channel, code) }
   }
-  if (match[1] === 'complete') return { status: 200, data: await service.complete(parseBody(input.raw, signupCompleteSchema).signup_id) }
+  if (match[1] === 'complete') {
+    const { signup_id, slug } = parseBody(input.raw, signupCompleteSchema)
+    return { status: 200, data: await service.complete(signup_id, slug) }
+  }
   const { signup_id } = parseBody(input.raw, signupStatusRequestSchema)
   const secret = input.headers[HANDOFF_HEADER]
   return { status: 200, data: await service.status(signup_id, typeof secret === 'string' ? secret : undefined) }

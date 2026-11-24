@@ -1,15 +1,16 @@
 {
   "signup": {
     "steps": {
-      "details": "Step 1 of 3",
-      "sms": "Step 2 of 3",
-      "email": "Step 3 of 3"
+      "details": "Step 1 of 2",
+      "verify": "Step 2 of 2"
     },
     "headings": {
       "details": "Start your Liwan trial",
-      "sms": "Verify your mobile number",
-      "email": "Verify your email address",
-      "done": "We’re preparing your workspace"
+      "verify": "Confirm your mobile and email",
+      "preparing": "Preparing your workspace",
+      "delayed": "This is taking longer",
+      "failed": "We could not prepare the workspace",
+      "ready": "Your workspace is ready"
     },
     "trial": "Try Liwan free for 14 days. No payment card required.",
     "companyName": "Company name",
@@ -19,19 +20,12 @@
     "acceptTerms": "I accept the {terms} and the {privacy}",
     "termsLink": "Terms of Service",
     "privacyLink": "Privacy Policy",
-    "smsSent": "Enter the code we sent by SMS to {destination}.",
-    "emailSent": "Enter the code we sent to {destination}.",
-    "emailDestination": "We’ll use {destination} to verify your email address.",
-    "code": "Six-digit verification code",
     "verify": "Verify code",
-    "sendEmail": "Send email code",
     "resend": "Resend code",
     "resendIn": "Resend in {seconds} s",
     "editDetails": "Change registration details",
-    "invitation": "You’ll get an invitation at {email} within a few minutes, and you set your password from it.",
-    "invitationLate": "If it hasn’t arrived after ten minutes, wait a little and check your spam folder. We keep preparing your workspace even if it runs late, and we’ll send the invitation to the same address. You don’t need to call us.",
-    "trialStarts": "Your trial starts the first time you sign in to your workspace.",
-    "findLater": "Lost your workspace address later? Find it here",
+    "trialStarts": "Your trial starts the first time you sign in to the workspace.",
+    "findLater": "Find my workspace",
     "errors": {
       "companyRequired": "Enter your company name.",
       "adminRequired": "Enter the administrator’s name.",
@@ -49,7 +43,10 @@
       "expired": "Your registration session has expired. Start again below.",
       "humanCheckFailed": "The security check did not pass. Complete it again, then try once more.",
       "humanCheckUnavailable": "We could not reach the security check, so we cannot send an SMS right now. Try again in a few minutes.",
-      "offerChanged": "The trial offer changed. Review the apps and price before starting signup again."
+      "offerChanged": "The trial offer changed. Review the apps and price before starting signup again.",
+      "slugInvalid": "Use lowercase letters, digits and single hyphens, 3 to 30 characters.",
+      "slugTaken": "Someone just took this address. Pick another one; your confirmations are kept.",
+      "verificationIncomplete": "Confirm both the mobile code and the email code first."
     },
     "humanCheck": "Security check",
     "offer": {
@@ -77,6 +74,37 @@
         "1": "Outgoing messages per month (UTC): {count}",
         "2": "Campaign recipients: {count}"
       }
-    }
+    },
+    "slug": {
+      "label": "Workspace address",
+      "help": "Lowercase letters, digits and hyphens, 3 to 30. It becomes your company sign-in link.",
+      "checking": "Checking the address...",
+      "available": "The address is available.",
+      "unavailable": "This address is not available. Pick another one."
+    },
+    "verifyIntro": "We sent two codes: one by text message and one by email. Enter each in its own field, in any order.",
+    "sent": {
+      "sms": "The mobile code went to {destination}.",
+      "email": "The email code went to {destination}."
+    },
+    "codeLabel": {
+      "sms": "Mobile code",
+      "email": "Email code"
+    },
+    "verified": {
+      "sms": "Mobile confirmed.",
+      "email": "Email confirmed."
+    },
+    "complete": "Start my trial",
+    "preparing": {
+      "body": "We are preparing your workspace. You will move on to set your password automatically when it is ready.",
+      "delayedTitle": "This is slower than usual",
+      "delayedBody": "We are still working on it and will move you on automatically. If you close this page, come back later through \"Find my workspace\" and then \"Forgot password\".",
+      "failedTitle": "We could not prepare the workspace",
+      "failedBody": "The Liwan team has been told and will follow up. You will get an email when it is ready, then sign in through \"Forgot password\".",
+      "readyTitle": "Your workspace is ready",
+      "readyBody": "Sign in to your workspace. If you do not have its link, find it through \"Find my workspace\", then set your password through \"Forgot password\"."
+    },
+    "startOver": "Start a new signup"
   }
 }

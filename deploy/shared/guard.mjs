@@ -69,6 +69,16 @@ export function sessionCodec(keys, activeKid, now = () => Math.floor(Date.now() 
  * Caddy replaces the signup client address with the socket peer. The guard is on the private network.
  */
 const signupApi = /^\/api\/commercial\/signup\/(?:terms|offer|check-slug|start|resend|verify|complete|status)$/
+// The waiting page's "start a new signup": drops the handoff cookie on the common host; no control-plane route.
+const signupResetApi = /^\/api\/commercial\/signup-reset$/
+const signupStatusPath = '/api/commercial/signup/status'
+// The waiting page names its signup only through the HttpOnly cookie the `complete` answer set. The common host keeps no
+// session, so on the status call alone that one pair is passed on and every other cookie is dropped.
+const signupCookiePair = /^__Host-liwan_signup=[A-Za-z0-9_.-]{1,300}$/
+function signupCookie(cookie) {
+  const pairs = (typeof cookie === 'string' ? cookie.split(';') : []).map(value => value.trim()).filter(value => signupCookiePair.test(value))
+  return pairs.length === 1 ? pairs[0] : undefined
+}
 // "Find my workspace" (the page, the common host's /login that leads to it, and its relay, which needs the visitor address).
 const findWorkspaceApi = '/api/invitations/find-workspace'
 // The marketing site's public pricing read and contact form (CORS preflight included); the form needs the visitor address like find-workspace.
@@ -79,6 +89,7 @@ const prospectRoutes = [
   [/^\/api\/invitations\/find-workspace$/, ['POST']],
   [/^\/api\/commercial\/payment-callback$/, ['GET', 'POST']],
   [signupApi, ['POST']],
+  [signupResetApi, ['POST']],
   [/^\/api\/commercial\/public\/pricing$/, ['GET']],
   [/^\/api\/commercial\/public\/contact$/, ['POST', 'OPTIONS']],
   [/^\/_nuxt\/[A-Za-z0-9._\-/]+$/, ['GET', 'HEAD']],
@@ -106,7 +117,10 @@ export function prospectPlan(req, prospectHost, token) {
     headers[CLIENT_ADDRESS_HEADER] = ip
   }
   delete headers.authorization
-  delete headers.cookie
+  // The waiting page resumes through the one HttpOnly cookie its own completion set; every other prospect request carries none.
+  const waiting = url.pathname === signupStatusPath ? signupCookie(req.headers.cookie) : undefined
+  if (waiting) headers.cookie = waiting
+  else delete headers.cookie
   headers['x-liwan-proxy-token'] = token
   return { tenant: null, internal: false, odoo: false, prospect: true, headers, path: url.pathname + url.search, clearSession: false }
 }
