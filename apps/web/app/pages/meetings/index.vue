@@ -15,7 +15,6 @@ import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import { formatLocalDateTime } from '@/utils/meetingDateTime'
 import { meetingStateBadgeProps } from '@/utils/meetingStatus'
 import { clearMeetingListFilters, meetingDateRange, parseMeetingListFilters, patchMeetingListQuery, type MeetingFilterKey, type MeetingFilterPatch } from '@/utils/meetingListFilters'
-import { meetingViewRoute, meetingViewOptions } from '@/utils/meetingRoutes'
 import { parseOffset } from '@/utils/routeQuery'
 
 const route = useRoute()
@@ -272,7 +271,7 @@ function setPage(next: number) {
     <div
       v-if="hydrated && nextUpcoming && !invalidDateRange && !query.error.value"
       data-testid="meeting-next-up"
-      class="flex flex-wrap items-center justify-between gap-3 rounded-card bg-linear-270 from-info/12 via-info/[0.04] to-default px-(--liwan-card-pad) py-3.5 ring ring-info/25 dark:from-info/15 dark:via-info/5 dark:to-default"
+      class="flex flex-wrap items-center justify-between gap-3 rounded-card from-info/12 via-info/[0.04] to-default px-(--liwan-card-pad) py-3.5 ring ring-info/25 rtl:bg-linear-270 ltr:bg-linear-90 dark:from-info/15 dark:via-info/5 dark:to-default"
     >
       <div class="flex min-w-0 flex-1 items-center gap-3.5">
         <span class="hidden size-10 shrink-0 place-items-center rounded-control bg-info/15 text-status-info-foreground sm:grid" aria-hidden="true">
@@ -363,9 +362,6 @@ function setPage(next: number) {
           </template>
           <template #scope>
             <SharedSegmentedControl data-testid="meeting-scope" :label="t('meetingsFilters.scope')" :items="scopeItems" :model-value="mine ? 'mine' : 'all'" :disabled="!hydrated" @update:model-value="onScopeChange" />
-          </template>
-          <template #view>
-            <SharedViewSwitch model-value="list" :options="meetingViewOptions(t)" @update:model-value="value => router.push(meetingViewRoute(liveListQuery(), value === 'calendar' ? 'calendar' : 'list'))" />
           </template>
           <!-- The dropdowns show their own choice; only the series inherited from a link has no control, so it is the one chip. -->
           <template v-if="seriesId" #active>

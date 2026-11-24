@@ -29,7 +29,9 @@ const props = withDefaults(defineProps<{
   emphasis?: boolean
   /** Makes the tile a link to this route. */
   to?: string
-}>(), { density: 'default', tone: 'neutral' })
+  /** Marks the tile as the currently active filter with a clear border. */
+  active?: boolean
+}>(), { density: 'default', tone: 'neutral', active: false })
 const { t } = useI18n()
 // A currency figure from Intl joins the amount and its code with a no-break space; in a tile the code may wrap under the amount.
 const display = computed(() => props.value === null || props.value === undefined || props.value === ''
@@ -46,12 +48,13 @@ const appTile = computed(() => compact.value && props.tone === 'neutral' && !pro
 
 <template>
   <UCard
-    :class="{ 'liwan-lift relative': props.to, 'h-full': compact }"
+    :class="{ 'liwan-lift relative': props.to, 'h-full': compact, 'ring-2 ring-primary bg-primary/[0.03]': props.active }"
     :ui="{ body: compact ? 'flex h-full w-full min-w-0 flex-col justify-between gap-2 px-(--liwan-card-pad-dense) py-3.5 sm:px-(--liwan-card-pad-dense) sm:py-3.5' : 'flex items-start gap-4 p-5 sm:p-5' }"
     data-testid="metric-tile"
     :data-density="props.density"
     :data-tone="props.tone"
     :data-emphasis="props.emphasis || undefined"
+    :data-active="props.active ? 'true' : undefined"
   >
     <template v-if="compact">
       <div class="flex h-full w-full min-w-0 flex-col justify-between gap-2">
@@ -110,6 +113,7 @@ const appTile = computed(() => compact.value && props.tone === 'neutral' && !pro
       v-if="props.to"
       :to="props.to"
       :aria-label="`${props.label}: ${display}`"
+      :aria-current="props.active ? 'true' : undefined"
       data-slot="metric-link"
       class="absolute inset-0 rounded-card focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
     />

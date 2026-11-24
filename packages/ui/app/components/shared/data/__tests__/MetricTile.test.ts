@@ -98,6 +98,16 @@ describe('SharedMetricTile', () => {
     expect(plain).not.toContain('metric-link')
   })
 
+  it('marks an active tile with a primary border, data-active, and aria-current', async () => {
+    const html = await render({ density: 'compact', to: '/meetings?state=draft', active: true })
+    expect(html).toContain('data-active="true"')
+    expect(html).toContain('ring-2 ring-primary')
+    expect(html).toContain('aria-current="true"')
+    const inactive = await render({ density: 'compact', to: '/meetings?state=draft', active: false })
+    expect(inactive).not.toContain('data-active="true"')
+    expect(inactive).not.toContain('aria-current="true"')
+  })
+
   it('anchors an LTR figure to inline-start so it stays aligned under the label in RTL', async () => {
     const html = await render({ value: '1,250 SAR', valueDir: 'ltr' })
     expect(html).toMatch(/<p class="[^"]*w-fit max-w-full justify-self-start[^"]*" dir="ltr">\s*1,250 SAR/)

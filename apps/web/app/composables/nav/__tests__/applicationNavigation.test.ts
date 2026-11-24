@@ -90,8 +90,8 @@ describe('unified application navigation', () => {
     const item = build().find(item => item.id === 'meetings')!
     expect(item).toBeDefined()
     expect(item.sections.map(section => [section.id, section.title, section.items.map(row => row.id)])).toEqual([
-      ['meetings-list', 'meetingsUi.sidebarList', ['meetings', 'my-meetings']],
-      ['meetings-tools', 'meetingsUi.sidebarTools', ['meeting-followup', 'meeting-calendar', 'meeting-series']],
+      ['meetings-list', 'meetingsUi.sidebarList', ['meetings', 'meeting-calendar', 'meeting-followup']],
+      ['meetings-organization', 'meetingsUi.sidebarOrganization', ['meeting-series']],
     ])
     expect(item.sections.flatMap(section => section.items).every(row => !row.children)).toBe(true)
     expect(item.actions.filter(action => typeof action.to === 'object' && action.to.path === '/meetings/new')).toHaveLength(1)
@@ -101,7 +101,7 @@ describe('unified application navigation', () => {
     const item = build('/operations', { state: 'done', mine: '1', project_id: '99' }).find(item => item.id === 'meetings')!
     expect(item.active).toBe(false)
     const rows = item.sections.flatMap(section => section.items)
-    expect(rows.find(row => row.id === 'my-meetings')?.active).toBe(false)
+    expect(rows.filter(row => row.active).map(row => row.id)).toEqual(['meetings'])
     const create = item.actions.find(action => action.id === 'new-meeting')!
     expect(create.to).toEqual({ path: '/meetings/new', query: { returnTo: '/meetings' } })
   })
@@ -111,21 +111,27 @@ describe('unified application navigation', () => {
     expect(meetings.actions).toEqual([])
     expect(items.some(item => item.id === 'operations')).toBe(false)
   })
-  it('lights my-meetings only when mine=1 is active, and keeps meetings lit on other filters', () => {
-    const mine = build('/meetings', { mine: '1' }).find(item => item.id === 'meetings')!
-    expect(mine.sections.flatMap(section => section.items).filter(row => row.active).map(row => row.id)).toEqual(['my-meetings'])
-    const filtered = build('/meetings', { state: 'done' }).find(item => item.id === 'meetings')!
+  it('keeps meetings lit on list filters and lights recent meetings when opened', () => {
+    const filtered = build('/meetings', { state: 'done', mine: '1' }).find(item => item.id === 'meetings')!
     expect(filtered.sections.flatMap(section => section.items).filter(row => row.active).map(row => row.id)).toEqual(['meetings'])
+    const detail = applicationNavigation({
+      identity, route: route('/meetings/7'), activeId: 'meetings',
+      contextLinks: contextLinksForModule('meetings', identity, '/meetings/7'),
+      recents: [{ id: 7, name: 'مراجعة أسبوعية' }],
+      translate: key => key,
+    }).find(entry => entry.id === 'meetings')!
+    const recent = detail.sections.find(section => section.title === 'nav.recentMeetings')!
+    expect(recent.items.map(row => [row.label, row.to, row.active])).toEqual([['مراجعة أسبوعية', '/meetings/7', true]])
   })
   it('renders arrived sidebar counts on meetings rows', () => {
     const item = applicationNavigation({
       identity, route: route('/meetings'), activeId: 'meetings',
       contextLinks: contextLinksForModule('meetings', identity, '/meetings'),
-      sidebarCounts: { meetings: 12, 'my-meetings': 4, 'meeting-followup': 2 },
+      sidebarCounts: { meetings: 12, 'meeting-followup': 2, 'meeting-series': 4 },
       translate: key => key,
     }).find(entry => entry.id === 'meetings')!
     const counts = item.sections.flatMap(section => section.items).filter(row => row.count !== undefined).map(row => [row.id, row.count])
-    expect(counts).toEqual([['meetings', 12], ['my-meetings', 4], ['meeting-followup', 2]])
+    expect(counts).toEqual([['meetings', 12], ['meeting-followup', 2], ['meeting-series', 4]])
   })
   it('reaches its one destination from the sidebar', () => {
     // /work is the application's landing page and its only nav row since the pages merged; the sidebar shows it once

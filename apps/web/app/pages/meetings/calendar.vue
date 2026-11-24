@@ -9,7 +9,6 @@ import { formatLocalDateTime } from '@/utils/meetingDateTime'
 import { parseMeetingListFilters, patchMeetingListQuery, type MeetingFilterPatch } from '@/utils/meetingListFilters'
 import { calendarCoverage } from '@/utils/meetingWorkspace'
 import { meetingStateBadge, meetingStateBadgeProps } from '@/utils/meetingStatus'
-import { meetingViewRoute, meetingViewOptions } from '@/utils/meetingRoutes'
 import { firstQuery } from '@/utils/routeQuery'
 
 const route = useRoute()
@@ -230,9 +229,6 @@ function goToday() {
           </template>
           <template #scope>
             <SharedSegmentedControl data-testid="meeting-scope" :label="t('meetingsFilters.scope')" :items="scopeItems" :model-value="routeFilters.mine ? 'mine' : 'all'" :disabled="!hydrated" @update:model-value="onScopeChange" />
-          </template>
-          <template #view>
-            <SharedViewSwitch model-value="calendar" :options="meetingViewOptions(t)" @update:model-value="value => router.push(meetingViewRoute(route.query, value === 'calendar' ? 'calendar' : 'list'))" />
           </template>
           <!-- The dropdowns show their own choice; only the filters inherited from a link have no control. -->
           <template v-if="routeFilters.organizerId || routeFilters.seriesId" #active>

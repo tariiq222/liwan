@@ -1,17 +1,16 @@
-import { MeetingFollowupListSchema, MeetingListSchema } from '@liwan/contracts'
+import { MeetingFollowupListSchema, MeetingListSchema, MeetingSeriesListSchema } from '@liwan/contracts'
 import { normalizedPath } from '../../utils/routePath'
 import type { AppSearchApi, AppSidebarMenu, AppSidebarRoute } from '../types'
 
 const onPath = (route: AppSidebarRoute, path: string) => normalizedPath(route.path) === path
 const insidePath = (route: AppSidebarRoute, path: string) => onPath(route, path) || normalizedPath(route.path).startsWith(`${path}/`)
-const isMine = (route: AppSidebarRoute) => onPath(route, '/meetings') && (route.query.mine === '1' || route.query.mine === 'true')
 
 const listSection = { id: 'meetings-list', titleKey: 'meetingsUi.sidebarList' } as const
-const toolsSection = { id: 'meetings-tools', titleKey: 'meetingsUi.sidebarTools' } as const
+const organizationSection = { id: 'meetings-organization', titleKey: 'meetingsUi.sidebarOrganization' } as const
 
 /**
  * The meetings sidebar: one flat level matching the projects sidebar pattern, with live server counts for
- * all meetings, my meetings, and active follow-up resolutions.
+ * meetings, active follow-up recommendations, and recurring series, plus recently opened meetings.
  */
 export const meetingsSidebar: AppSidebarMenu = {
   create: 'new-meeting',
@@ -19,26 +18,21 @@ export const meetingsSidebar: AppSidebarMenu = {
     {
       id: 'meetings', labelKey: 'nav.meetings', icon: 'i-lucide-calendar-days', to: { path: '/meetings' },
       capability: 'meetings.read', section: listSection,
-      active: route => (onPath(route, '/meetings') || onPath(route, '/meetings/new')) && !isMine(route),
-    },
-    {
-      id: 'my-meetings', labelKey: 'meetingsUi.mine', icon: 'i-lucide-user', to: { path: '/meetings', query: { mine: '1' } },
-      capability: 'meetings.read', section: listSection,
-      active: isMine,
-    },
-    {
-      id: 'meeting-followup', labelKey: 'nav.meetingFollowup', icon: 'i-lucide-list-checks', to: { path: '/meetings/follow-up' },
-      capability: 'meetings.read', section: toolsSection,
-      active: route => onPath(route, '/meetings/follow-up'),
+      active: route => onPath(route, '/meetings') || onPath(route, '/meetings/new'),
     },
     {
       id: 'meeting-calendar', labelKey: 'nav.meetingCalendar', icon: 'i-lucide-calendar-range', to: { path: '/meetings/calendar' },
-      capability: 'meetings.read', section: toolsSection,
+      capability: 'meetings.read', section: listSection,
       active: route => onPath(route, '/meetings/calendar'),
     },
     {
+      id: 'meeting-followup', labelKey: 'nav.meetingFollowup', icon: 'i-lucide-list-checks', to: { path: '/meetings/follow-up' },
+      capability: 'meetings.read', section: listSection,
+      active: route => onPath(route, '/meetings/follow-up'),
+    },
+    {
       id: 'meeting-series', labelKey: 'nav.meetingSeriesShort', icon: 'i-lucide-repeat', to: { path: '/meetings/series' },
-      capability: 'meetings.read', section: toolsSection,
+      capability: 'meetings.read', section: organizationSection,
       active: route => insidePath(route, '/meetings/series'),
     },
   ],
@@ -47,17 +41,18 @@ export const meetingsSidebar: AppSidebarMenu = {
       capability: 'meetings.read',
       queryKey: ['meetings', 'sidebar', 'counts'],
       async load(api: AppSearchApi) {
-        const [all, mine, followup] = await Promise.all([
+        const [all, followup, series] = await Promise.all([
           api('/api/v1/meetings', { query: { limit: 1 }, schema: MeetingListSchema }),
-          api('/api/v1/meetings', { query: { mine: 1, limit: 1 }, schema: MeetingListSchema }),
           api('/api/v1/meetings/resolutions', { query: { state: 'active', limit: 1 }, schema: MeetingFollowupListSchema }),
+          api('/api/v1/meeting-series', { query: { limit: 1 }, schema: MeetingSeriesListSchema }),
         ])
         return {
           meetings: all.total,
-          'my-meetings': mine.total,
           'meeting-followup': followup.total,
+          'meeting-series': series.total,
         }
       },
     },
   ],
+  recent: { kind: 'meeting', titleKey: 'nav.recentMeetings', icon: 'i-lucide-calendar-days', capability: 'meetings.read', to: id => `/meetings/${id}` },
 }

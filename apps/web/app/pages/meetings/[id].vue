@@ -30,6 +30,10 @@ const isDetail = computed(() => route.path === `/meetings/${route.params.id}` ||
 const query = useMeeting(computed(() => isDetail.value ? id.value : null))
 // An invalid id has no record to load and uses the same not-found state as an unknown positive id.
 const pageError = computed(() => query.error.value ?? (id.value === null ? new ApiError(404, 'not_found', t('errors.generic')) : null))
+const recentMeetings = useRecentRecords('meeting')
+watch(() => [query.data.value?.id, query.data.value?.name] as const, ([meetingId, name]) => {
+  if (meetingId !== undefined && name !== undefined && meetingId === id.value && !pageError.value) recentMeetings.remember({ id: meetingId, name })
+}, { immediate: true })
 const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
 const { actionError, pendingMeetingAction, meetingActionConfirm, requestMeetingAction, confirmMeetingAction, transitioning } = useMeetingTransitions({
   meetingId: id,
@@ -210,7 +214,7 @@ function displayValue(value: string | null | undefined) {
           </div>
         </SharedRecordSection>
         <SharedMetricTile density="compact" icon="i-lucide-users" :label="t('meetingsUi.attendees')" :value="query.data.value.attendees.length" />
-        <SharedMetricTile density="compact" icon="i-lucide-list-checks" :label="t('meetingsUi.openResolutions')" :value="query.data.value.open_resolution_count" :to="resolutionsTabLink" />
+        <SharedMetricTile density="compact" icon="i-lucide-list-checks" :tone="query.data.value.open_resolution_count > 0 ? 'warning' : 'neutral'" :label="t('meetingsUi.openResolutions')" :value="query.data.value.open_resolution_count" :to="resolutionsTabLink" />
       </div>
       <SharedRouteTabs data-testid="meeting-tabs" :items="tabLinks" :ariaLabel="t('meetingsUx.sections')" />
       <div v-if="query.data.value" class="grid min-w-0 gap-(--liwan-gap-card)">
