@@ -5,6 +5,7 @@ import base64
 import contextlib
 import fcntl
 import fnmatch
+import hashlib
 import io
 import json
 import os
@@ -362,7 +363,9 @@ class FakeRunner:
         if argv[1] == 'create':
             return 0, 'container-1\n'
         if argv[1] == 'cp':
-            Path(argv[3]).write_text(json.dumps(case.document))
+            # The release document as the registry published it; `document_raw` lets a test choose the exact bytes.
+            raw = case.document_raw if case.document_raw is not None else json.dumps(case.document).encode()
+            Path(argv[3]).write_bytes(raw)
         return 0, ''
 
 
@@ -418,6 +421,7 @@ class ReleaseTest(unittest.TestCase):
         self.missing_required, self.candidate_renders, self.odoo_config_invalid = None, [], False
         self.restore_config_invalid = False
         self.document = document(NEW)
+        self.document_raw = None  # the exact bytes of the release document, when a test needs them
         self.alerts, self.sql = [], []
         self.builds = BUILDS
         self.external = ''
@@ -645,7 +649,13 @@ class ReleaseTest(unittest.TestCase):
     tag = 'release/19.0.1.0.7'
 
     def use_production(self, commit, version):
+        """Production is `explicit`, so it always verifies a proof: its config holds the staging pair and staging answers
+        with a proof of the candidate. The body is built at fetch time, because a test may replace the document first."""
         self.use_environment('production', commit, version)
+        self.require_proof('production')
+        fetch = mock.patch.object(proof, 'https_get', side_effect=lambda url: self.proof_body())
+        fetch.start()
+        self.addCleanup(fetch.stop)
 
     # --- production candidate -------------------------------------------------------------------------------
     def test_production_applies_exactly_the_given_tag_even_when_a_higher_one_exists(self):
@@ -795,10 +805,10 @@ class ReleaseTest(unittest.TestCase):
         config = self.paths.config_root / f'{environment}.env'
         config.write_text(config.read_text() + lines)
 
-    def require_proof(self):
+    def require_proof(self, environment='staging'):
         """The verifying environment: a proof URL and the pinned public key, as production will hold them."""
         self.add_config(f'{release.PROOF_URL_KEY}=https://staging.example/_liwan/release-proof/\n'
-                        f'{release.PROOF_PUBLIC_KEY_KEY}={self.public_key()}\n')
+                        f'{release.PROOF_PUBLIC_KEY_KEY}={self.public_key()}\n', environment)
 
     def sign_proof(self, directory=None):
         """The signing environment: its private key and the directory the edge serves."""
@@ -870,6 +880,42 @@ class ReleaseTest(unittest.TestCase):
         self.assertFalse([call for call in self.runner.calls if call[0] == 'openssl'])
         self.assertEqual(self.served(), NEW)
         self.assertFalse((self.state / 'proof').exists())
+        # A `highest` environment may release ungated, but never silently: the run says so once.
+        self.assertIn(f'{release.PROOF_URL_KEY} and {release.PROOF_PUBLIC_KEY_KEY} are unset', self.log_stream.getvalue())
+        self.assertIn('LIWAN_RELEASE_TAG_POLICY=highest', self.log_stream.getvalue())
+
+    def test_an_explicit_environment_is_refused_without_the_proof_pair(self):
+        """Production's policy names one tag, so a missing pair would release with the gate silently off."""
+        config = self.paths.config_root / 'production.env'
+        base = config.read_text()
+        cases = {'no pair': '',
+                 'url only': f'{release.PROOF_URL_KEY}=https://staging.example/_liwan/release-proof/\n',
+                 'key only': f'{release.PROOF_PUBLIC_KEY_KEY}={self.public_key()}\n'}
+        for name, lines in cases.items():
+            with self.subTest(name):
+                self.log_stream.truncate(0)
+                self.log_stream.seek(0)
+                self.use_environment('production', OLD, [1, 0, 6])
+                self.tags = {'release/19.0.1.0.7': NEW}
+                config.write_text(base + lines)
+                with mock.patch.object(proof, 'https_get', side_effect=AssertionError('the gate ran')):
+                    self.assertEqual(self.main('run', '--environment', 'production', '--tag', self.tag),
+                                     release.EXIT_REFUSED)
+                self.assertEqual(self.result(), 'refused invalid_config')
+                self.assertEqual(self.pulls(), [])
+                self.assertFalse(self.compose_stops() or (self.state / 'run.json').exists())
+                self.assertIn(release.PROOF_URL_KEY, self.log_stream.getvalue())
+                self.assertIn(release.PROOF_PUBLIC_KEY_KEY, self.log_stream.getvalue())
+
+    def test_an_explicit_environment_with_the_pair_verifies_and_releases(self):
+        """The same production config with both keys is gated: the proof decides, not the environment's name."""
+        self.use_environment('production', OLD, [1, 0, 6])
+        self.require_proof('production')
+        self.tags = {'release/19.0.1.0.7': NEW}
+        with mock.patch.object(proof, 'https_get', return_value=self.proof_body()) as fetch:
+            self.assertEqual(self.main('run', '--environment', 'production', '--tag', self.tag), release.EXIT_OK)
+        self.assertEqual(fetch.call_args[0], (f'https://staging.example/_liwan/release-proof/{NEW}.json',))
+        self.assertEqual(self.served(), NEW)
 
     def test_the_proof_configuration_is_a_pair_of_https_values(self):
         config = self.paths.config_root / 'staging.env'
@@ -957,6 +1003,26 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(self.commands('systemctl'), [])
         self.assertFalse((self.state / 'run.json').exists() or (self.state / 'failed.json').exists())
         self.assertEqual(self.served(), OLD)
+
+    def test_the_proof_digest_is_the_sha256_of_the_document_file(self):
+        """The contract is sha256 of the raw bytes of `/release.json`, the same value `sha256sum` prints for that file."""
+        self.sign_proof()
+        raw = json.dumps(self.document).encode()
+        self.document_raw = raw
+        self.assertEqual(self.main(), release.EXIT_OK)
+        payload = json.loads((self.proof_dir / f'{NEW}.json').read_text())['payload']
+        self.assertEqual(payload['releaseDocumentDigest'], hashlib.sha256(raw).hexdigest())
+
+    def test_a_document_with_crlf_endings_is_digested_as_stored_not_normalised(self):
+        """Decoding with universal newlines would turn CRLF into LF and sign a document the registry never published."""
+        self.sign_proof()
+        raw = json.dumps(self.document, indent=2).replace('\n', '\r\n').encode()
+        self.assertIn(b'\r\n', raw)
+        self.document_raw = raw
+        self.assertEqual(self.main(), release.EXIT_OK)
+        digest = json.loads((self.proof_dir / f'{NEW}.json').read_text())['payload']['releaseDocumentDigest']
+        self.assertEqual(digest, hashlib.sha256(raw).hexdigest())
+        self.assertNotEqual(digest, hashlib.sha256(raw.replace(b'\r\n', b'\n')).hexdigest())
 
     # --- failures and rollback -------------------------------------------------------------------------------
     def test_failed_health_check_rolls_back(self):

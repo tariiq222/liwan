@@ -39,9 +39,12 @@ Two other env files stay separate, because the services read them directly: the 
   it never takes the highest tag by itself.
 - The staging proof is built: the environment that serves a release signs `{tag, commit, releaseDocumentDigest,
   environment, at}` with its own Ed25519 key and publishes `/_liwan/release-proof/<commit>.json` from
-  `LIWAN_RELEASE_PROOF_DIR` through the edge route of `deploy/stack/Caddyfile`. An environment whose config carries both
-  `LIWAN_RELEASE_REQUIRE_PROOF_URL` and `LIWAN_RELEASE_PROOF_PUBLIC_KEY` — production — refuses a run without a valid
-  proof of the candidate as `staging_proof_missing` or `staging_proof_invalid`, before anything stops
+  `LIWAN_RELEASE_PROOF_DIR` through the edge route of `deploy/stack/Caddyfile`. The requirement follows the tag policy,
+  not the environment name: with `LIWAN_RELEASE_TAG_POLICY=explicit` — production — the pair
+  `LIWAN_RELEASE_REQUIRE_PROOF_URL` and `LIWAN_RELEASE_PROOF_PUBLIC_KEY` is required and the run refuses
+  `invalid_config` without it, then refuses a candidate staging did not sign as `staging_proof_missing` or
+  `staging_proof_invalid`, before anything stops; with `highest` — staging — the pair stays optional and a run that
+  applies a candidate logs one line saying it verifies no proof
   ([release/README.md](../release/README.md); setup row A4.7a of
   [environment-bringup.md](../../docs/operations/environment-bringup.md)). The proof establishes that the signing
   environment served that tag, commit and release document; it does not establish that staging passed its checks, and

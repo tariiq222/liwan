@@ -50,14 +50,17 @@ the proof establishes that staging served the commit, not that it passed its che
 end. The environment that serves a commit signs `{tag, commit, releaseDocumentDigest, environment, at}` with Ed25519
 (`deploy/release/proof.py`) and publishes `/_liwan/release-proof/<commit>.json` in `LIWAN_RELEASE_PROOF_DIR`; the stack's
 edge serves exactly that name from the directory, read-only and with a five-minute public cache, and answers 404 for any
-other name (`deploy/stack/Caddyfile`). An environment that holds both `LIWAN_RELEASE_REQUIRE_PROOF_URL` and
-`LIWAN_RELEASE_PROOF_PUBLIC_KEY` — production — fetches that file before it pulls the document image, and applies the
-candidate only when the signature and the signed tag, commit and document digest match exactly. A proof that cannot be
-obtained (404, DNS, TLS, redirect, timeout, 5xx) is `RESULT: refused staging_proof_missing`; one that does not establish
-the candidate is `RESULT: refused staging_proof_invalid`. Nothing skips the gate, no environment name selects it, and a
-resumed run or a `nothing to do` answer never asks for a proof. The signed `environment` is never compared: one
-environment's proof is not another's permission. Both environments sign with their own key, so a dedicated customer
-environment can pin either. Setup is row A4.7a of [environment-bringup.md](../../docs/operations/environment-bringup.md).
+other name (`deploy/stack/Caddyfile`). The requirement follows the tag policy and never the environment name: an
+environment with `LIWAN_RELEASE_TAG_POLICY=explicit` — production — always verifies, fetches the proof of the candidate
+before it pulls the document image, and applies the candidate only when the signature and the signed tag, commit and
+document digest match exactly. A proof that cannot be obtained (404, DNS, TLS, redirect, timeout, 5xx) is
+`RESULT: refused staging_proof_missing`; one that does not establish the candidate is `RESULT: refused
+staging_proof_invalid`; a missing or half-set pair on an `explicit` environment is `RESULT: refused invalid_config`, so
+the gate is never silently off. An environment with `highest` may sign without verifying, and logs one line when it
+applies a candidate without a proof. Nothing skips the gate, no environment name selects it, and a resumed run or a
+`nothing to do` answer never asks for a proof. The signed `environment` is never compared: one environment's proof is not another's permission. Both
+environments sign with their own key, so a dedicated customer environment can pin either. Setup is row A4.7a of
+[environment-bringup.md](../../docs/operations/environment-bringup.md).
 
 The candidate is read with `git ls-remote https://github.com/tariiq222/liwan.git`. The command then fetches `main`
 and the `release/*` tags into a bare repository in the state directory (`repo.git`) for ancestry checks and
@@ -67,7 +70,9 @@ The release document is the image `ghcr.io/tariiq222/liwan-release:<full commit 
 one file `/release.json`. The command pulls it, copies the file out with `docker create` and `docker cp`, and removes
 the container and the image. It accepts the document only when its `commit`, its `release.liwanCommit` and every image
 reference (`ghcr.io/tariiq222/liwan-<name>@sha256:...`; any other host or namespace is refused) match, and `release` passes `deploy/release/manifest.py`
-validation. Each image is pulled by the digest of the host's architecture from the `platforms` map. A document
+validation. The digest the proof signs is `sha256` of the file's own bytes, exactly as published (`sha256sum` of that
+file), so the CRLF or LF endings it was stored with are part of it; the file is decoded only to be parsed.
+Each image is pulled by the digest of the host's architecture from the `platforms` map. A document
 without that architecture is refused: an Arm server given an amd64-only document refuses with
 `RESULT: refused document_invalid` (`has no linux/arm64 image`). Staging and production also refuse a tag whose commit is not part of GitHub `main`, a document without `linux/arm64` digests (even on an amd64 host), and refuse
 a candidate that does not contain the served commit or whose release version is not above the served one.
@@ -248,11 +253,14 @@ The proof keys are three in this file — `LIWAN_RELEASE_REQUIRE_PROOF_URL`, `LI
 `LIWAN_RELEASE_PROOF_KEY_FILE` — because they configure the release command and no stack service. `LIWAN_RELEASE_PROOF_DIR`
 is the fourth and the only one the shared env file also carries (`deploy/environments/*.env.example` lists it alone): the
 proxy mounts that directory, so the two files must name the same path.
-The two verifying keys are a pair, set together or not at all: `LIWAN_RELEASE_REQUIRE_PROOF_URL` (the HTTPS proof base
-URL ending in `/_liwan/release-proof/`) and `LIWAN_RELEASE_PROOF_PUBLIC_KEY` (one or more pinned public key files, comma
-separated for the rotation window, each a regular file that group and others cannot write, `0644` root by convention).
-One of the pair alone, or a URL that is not HTTPS, is `RESULT: refused invalid_config` before anything is fetched. The
-signing side is `LIWAN_RELEASE_PROOF_KEY_FILE` (the Ed25519 private key, mode `0600`, root) with
+The two verifying keys — `LIWAN_RELEASE_REQUIRE_PROOF_URL` (the HTTPS proof base URL ending in `/_liwan/release-proof/`)
+and `LIWAN_RELEASE_PROOF_PUBLIC_KEY` (one or more pinned public key files, comma separated for the rotation window, each a
+regular file that group and others cannot write, `0644` root by convention) — are required on an environment with
+`LIWAN_RELEASE_TAG_POLICY=explicit` and are a pair wherever they are set. A URL that is not HTTPS, one of the pair alone,
+or the pair missing on an `explicit` environment, is `RESULT: refused invalid_config`: no image is pulled and nothing
+stops. An environment with `highest` may leave both unset: it then verifies nothing and logs one line on every release
+saying so.
+The signing side is `LIWAN_RELEASE_PROOF_KEY_FILE` (the Ed25519 private key, mode `0600`, root) with
 `LIWAN_RELEASE_PROOF_DIR` (the directory the edge serves); bring-up generates the key and its `.pub` beside it once and
 never replaces them (row A4.7a). The directory is also the proxy's read-only mount, so the shared env file must name the
 same path: the release writes `<LIWAN_RELEASE_PROOF_DIR>/<commit>.json` and the edge serves only that directory. A

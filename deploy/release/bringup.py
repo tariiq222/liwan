@@ -44,7 +44,7 @@ from deploy.release.tenant_postgres import (  # noqa: E402
     ODOO_RUNTIME_ROLE, POSTGRES_ADMIN_ROLE, runtime_role_assertion_sql)
 from deploy.release.source import (  # noqa: E402
     COMMIT as COMMIT_ID, CREDENTIAL_HELPER, ENVIRONMENT_NAME, GITHUB_TOKEN_VAR, REGISTRY as IMAGE_REGISTRY, REGISTRY_HOST,
-    RELEASE_IMAGE, REPOSITORY_URL, TOKEN_VAR, USER_VAR, highest_release_tag, parse_listing)
+    RELEASE_IMAGE, REPOSITORY_URL, TAG_POLICY_KEY, TOKEN_VAR, USER_VAR, highest_release_tag, parse_listing)
 
 EXIT_INCOMPLETE, EXIT_USAGE = 1, 2
 ROOT_UID = 0
@@ -702,6 +702,18 @@ def proof_public_key_paths(ctx: Context) -> list[Path]:
     return [Path(entry.strip()) for entry in value.split(',') if entry.strip()]
 
 
+def proof_gate_required(ctx: Context) -> bool:
+    """An environment whose tag policy is `explicit` (the production policy) releases only with a proof, so its pair is
+    required; a `highest` environment may sign without verifying one."""
+    policy = (ctx.shared_env() or {}).get(TAG_POLICY_KEY)
+    return policy == 'explicit'
+
+
+def proof_pair_missing(ctx: Context) -> str:
+    return (f'set {PROOF_URL_KEY} and {PROOF_PUBLIC_KEY_KEY} in {release_config_path(ctx)}: an environment with '
+            f'{TAG_POLICY_KEY}=explicit releases only with the proof its source environment served')
+
+
 def check_proof_openssl(ctx: Context) -> Status:
     """A4.7a: this host's openssl signs and verifies Ed25519 (LibreSSL, and an openssl without ``pkeyutl -rawin``, cannot)."""
     with ctx.host.scratch_dir() as work:
@@ -775,14 +787,15 @@ def apply_proof_key(ctx: Context) -> None:
 
 
 def check_proof_public_key(ctx: Context) -> Status:
-    """A4.7a: the pinned key files of the environment whose proof this one requires exist and nothing may write them."""
+    """A4.7a: the pinned key files of the environment whose proof this one requires exist and nothing may write them.
+    An `explicit` environment has no ungated state, so a missing pair is MISSING here too."""
     if ctx.config() is None:
         return NEEDS_CONFIG
     entries = proof_public_key_paths(ctx)
     if bool(proof_setting(ctx, PROOF_URL_KEY)) != bool(entries):
         return missing(f'{PROOF_URL_KEY} and {PROOF_PUBLIC_KEY_KEY} are set together or not at all (A4.7a)')
     if not entries:
-        return OK  # this environment requires no proof
+        return missing(f'{proof_pair_missing(ctx)} (A4.7a)') if proof_gate_required(ctx) else OK
     problems = []
     for path in entries:
         info = inspect(ctx.host, path, REGULAR_FILE)
@@ -795,20 +808,24 @@ def check_proof_public_key(ctx: Context) -> Status:
 
 
 def check_proof_egress(ctx: Context) -> Status:
-    """A8.2c: the proof URL answers 404 for a commit no release served, so the transport works and nothing is faked."""
+    """A8.2c: the proof URL answers 404 for a commit no release served, so the transport works and nothing is faked.
+    Messages name the config key and never the URL: the release path does not print it either."""
     if ctx.config() is None:
         return NEEDS_CONFIG
     url = proof_setting(ctx, PROOF_URL_KEY)
     if url is None:
-        return OK  # this environment requires no proof
+        return missing(f'{proof_pair_missing(ctx)} (A8.2c)') if proof_gate_required(ctx) else OK
     if not url.startswith('https://') or not url.endswith('/'):
         return missing(f'{PROOF_URL_KEY} must be an HTTPS URL ending in / (A4.7a)')
     probe = f'{url}{PROOF_PROBE_COMMIT}.json'
-    code, output = ctx.host.run(['curl', '-sS', '--max-time', PROOF_PROBE_SECONDS, '-o', '/dev/null', '-w', '%{http_code}', probe])
+    # An absent proof is still a request to the edge: no proxy of this host may answer it, and only HTTPS may be spoken.
+    code, output = ctx.host.run(['curl', '-sS', '--noproxy', '*', '--proto', '=https', '--max-time', PROOF_PROBE_SECONDS,
+                                 '-o', '/dev/null', '-w', '%{http_code}', probe])
     if code != 0:
-        return missing(f'{url} is unreachable (DNS, TLS or the edge route): the absent proof must answer 404 (A8.2c)')
+        return missing(f'{PROOF_URL_KEY} is unreachable (DNS, TLS or the edge route): the absent proof must answer 404 (A8.2c)')
     if output.strip() != '404':
-        return missing(f'{probe} answered {output.strip() or "nothing"}, not the 404 an absent proof gets (A8.2c)')
+        return missing(f'the absent proof at {PROOF_URL_KEY} answered {output.strip() or "nothing"}, '
+                       'not the 404 it must get (A8.2c)')
     return OK
 
 

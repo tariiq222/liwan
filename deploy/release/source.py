@@ -219,8 +219,10 @@ class Source:
             container = self.run_command(['docker', 'create', image, RELEASE_FILE], env=self.child_env)[1].strip()
             self.run_command(['docker', 'cp', f'{container}:{RELEASE_FILE}', str(work / 'release.json')],
                              env=self.child_env)
-            text = (work / 'release.json').read_text(encoding='utf-8')
-            self.document_text = text
+            # The bytes as stored: the proof signs the exact document the registry published, so a file with CRLF
+            # endings is digested as it lies on disk, never after a decode that would normalise it.
+            data = (work / 'release.json').read_bytes()
+            self.document_bytes = data
         except (CommandFailed, OSError):
             raise ReleaseError('document_unreadable', EXIT_REFUSED, f'{image} holds no readable {RELEASE_FILE}') from None
         finally:
@@ -229,8 +231,8 @@ class Source:
             self.run_command(['docker', 'rmi', image], env=self.child_env, check=False)
             shutil.rmtree(work, ignore_errors=True)
         try:
-            document = parse_release_document(text, commit, tuple(required_platforms(host)))
-        except ValueError as error:
+            document = parse_release_document(data.decode('utf-8'), commit, tuple(required_platforms(host)))
+        except ValueError as error:  # includes a document that is not UTF-8, named by the decoder's own message
             raise ReleaseError('document_invalid', EXIT_REFUSED, str(error)) from None
         if not document['release'].get('upgradeModules'):
             raise ReleaseError('document_invalid', EXIT_REFUSED, 'the release manifest lists no module to upgrade')

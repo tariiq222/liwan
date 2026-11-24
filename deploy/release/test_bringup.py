@@ -1187,8 +1187,42 @@ class ReleaseProofTest(unittest.TestCase):
         probe = [call for call in host.calls if call[0] == 'curl' and call[-1].startswith(PROOF_URL)][0]
         self.assertEqual(f'{PROOF_URL}{bringup.PROOF_PROBE_COMMIT}.json', probe[-1])
         self.assertIn('--max-time', probe)
+        # The probe speaks HTTPS to the edge itself: no proxy of the host may answer it, and no other scheme is tried.
+        self.assertEqual('*', probe[probe.index('--noproxy') + 1])
+        self.assertEqual('=https', probe[probe.index('--proto') + 1])
         # Nothing configured: the environment requires no proof, so the item checks no transport.
         self.assertEqual('ok', statuses(run(seeded_host(), '--post-run')[1])['release-proof-egress'])
+
+    def test_a_message_names_the_key_and_never_the_proof_url(self):
+        """The URL is the transport of a private signature; the release path does not print it either."""
+        host = seeded_host()
+        with_config(host, f'{bringup.PROOF_URL_KEY}={PROOF_URL}\n{bringup.PROOF_PUBLIC_KEY_KEY}={PROOF_KEY}.pub\n')
+        for answer, expected in (((0, '200'), 'MISSING'), ((6, ''), 'MISSING'), ((0, ''), 'MISSING')):
+            with self.subTest(answer=answer):
+                host.overrides = [(lambda argv: argv[0] == 'curl', answer)]
+                line = line_of(run(host, '--post-run')[1], 'release-proof-egress')
+                self.assertTrue(line.startswith(expected), line)
+                self.assertIn(bringup.PROOF_URL_KEY, line)
+                self.assertNotIn(PROOF_URL, line)
+                self.assertNotIn(bringup.PROOF_PROBE_COMMIT, line)
+
+    def test_an_explicit_environment_must_name_the_proof_pair(self):
+        """Production's policy is `explicit`: an unset pair is a missing item, never a green gate that is off."""
+        host = seeded_host()
+        host.files[f'{SRV}/shared.env'] = regular(0o600, text=SHARED_TEXT + 'LIWAN_RELEASE_TAG_POLICY=explicit\n')
+        for item in ('release-proof-public-key', 'release-proof-egress'):
+            with self.subTest(item):
+                line = line_of(run(host, '--post-run')[1], item)
+                self.assertTrue(line.startswith('MISSING'), line)
+                self.assertIn('LIWAN_RELEASE_TAG_POLICY=explicit', line)
+                self.assertIn(bringup.PROOF_URL_KEY, line)
+                self.assertIn(bringup.PROOF_PUBLIC_KEY_KEY, line)
+        # With the pair, the same host is checked as before.
+        with_config(host, f'{bringup.PROOF_URL_KEY}={PROOF_URL}\n{bringup.PROOF_PUBLIC_KEY_KEY}=/etc/liwan-release/s.pub\n')
+        host.files['/etc/liwan-release/s.pub'] = regular(0o644, text='public key')
+        self.assertEqual('ok', self.item(host, 'release-proof-public-key'))
+        host.overrides = [(lambda argv: argv[0] == 'curl', (0, '404'))]
+        self.assertEqual('ok', statuses(run(host, '--post-run')[1])['release-proof-egress'])
 
     def test_a_proof_url_that_is_not_https_or_has_no_trailing_slash_is_reported(self):
         for url in ('http://app.staging.example.test/_liwan/release-proof/',

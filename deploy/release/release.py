@@ -114,7 +114,9 @@ CONFIG_KEYS = ('LIWAN_RELEASE_PROJECT', 'LIWAN_SHARED_ENV_FILE', 'LIWAN_RELEASE_
 TENANT_DB_PORT = ('LIWAN_DB_HOST_PORT', '15433')
 CONTROL_DB_PORT = ('LIWAN_CONTROL_DB_HOST_PORT', '15432')
 # The staging proof: the environment that serves a commit signs it, and an environment that applies the same commit
-# verifies that signature before it prepares or stops anything. A verifier names both keys, or neither.
+# verifies that signature before it prepares or stops anything. An environment whose tag policy is `explicit` (the
+# production policy) always verifies one, so a config without the pair is refused instead of releasing ungated; one with
+# `highest` (staging) may sign without verifying and says so in the log.
 PROOF_URL_KEY, PROOF_PUBLIC_KEY_KEY = 'LIWAN_RELEASE_REQUIRE_PROOF_URL', 'LIWAN_RELEASE_PROOF_PUBLIC_KEY'
 PROOF_KEY_FILE_KEY, PROOF_DIR_KEY = 'LIWAN_RELEASE_PROOF_KEY_FILE', 'LIWAN_RELEASE_PROOF_DIR'
 
@@ -279,7 +281,7 @@ class Releaser:
         self.source.require_on_main(candidate)
         fetched = self.fetch_proof(candidate)  # before the document image is pulled
         document = self.source.document(candidate, self.platform.removeprefix('linux/'))
-        digest = proof.document_digest(self.source.document_text.encode())
+        digest = proof.document_digest(self.source.document_bytes)
         self.require_proof(candidate, digest, fetched)
         run = {**candidate, 'document': document, 'releaseDocumentDigest': digest, 'previous': served,
                'previousReleaseEnv': self.current_release_env(), 'startedAt': now()}
@@ -288,9 +290,18 @@ class Releaser:
 
     # --- the staging proof ------------------------------------------------------------------------------
     def proof_config(self) -> tuple[str, str] | None:
-        """The proof URL and pinned public key of an environment that verifies one: both set, or neither."""
+        """The proof URL and pinned public key of an environment that verifies one. An `explicit` environment (the
+        production policy) always verifies: without the pair it would release with the gate silently off, so that is a
+        config error refused before the document is pulled. A `highest` one may sign without verifying, and says so."""
         url, public_key = self.config.get(PROOF_URL_KEY, ''), self.config.get(PROOF_PUBLIC_KEY_KEY, '')
+        policy = self.shared_env().get(TAG_POLICY_KEY)
         if not url and not public_key:
+            if policy == 'explicit':
+                raise ReleaseError('invalid_config', EXIT_REFUSED,
+                                   f'set {PROOF_URL_KEY} and {PROOF_PUBLIC_KEY_KEY}: an environment with '
+                                   f'{TAG_POLICY_KEY}=explicit releases only with the proof its source served')
+            self.log(f'{PROOF_URL_KEY} and {PROOF_PUBLIC_KEY_KEY} are unset: this {TAG_POLICY_KEY}={policy} environment '
+                     'releases without requiring a proof from the environment that served the commit')
             return None
         if not url or not public_key:
             raise ReleaseError('invalid_config', EXIT_REFUSED,
