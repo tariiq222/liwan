@@ -45,9 +45,16 @@ with `RESULT: refused tag_required`; a tag that does not match `release/19.0.X.Y
 passes every check below unchanged, even when a higher tag exists. This closes "production takes the highest tag".
 `--tag` is refused for a `highest` environment (`tag_not_allowed`) and for `status` and `rollback`.
 
-An automatic proof that staging already served and passed the tag is still not built: the owner and the coordinator
-confirm it by hand before the word «انشر على الإنتاج». An enforced gate is designed in plan part P7 and is not
-implemented here.
+Staging's run is still confirmed by hand by the owner and the coordinator before the word «انشر على الإنتاج» until
+production's config carries the proof pair below. The gate itself is built: the environment that serves a commit signs
+`{tag, commit, releaseDocumentDigest, environment, at}` with Ed25519 (`deploy/release/proof.py`) and publishes
+`/_liwan/release-proof/<commit>.json`; an environment that holds both `LIWAN_RELEASE_REQUIRE_PROOF_URL` and
+`LIWAN_RELEASE_PROOF_PUBLIC_KEY` fetches that file before it pulls the document image, and applies the candidate only
+when the signature and the signed tag, commit and document digest match exactly. A proof that cannot be obtained (404,
+DNS, TLS, timeout, 5xx) is `RESULT: refused staging_proof_missing`; one that does not establish the candidate is
+`RESULT: refused staging_proof_invalid`. Nothing skips the gate, no environment name selects it, and a resumed run or a
+`nothing to do` answer never asks for a proof. The signed `environment` is never compared: one environment's proof is
+not another's permission.
 
 The candidate is read with `git ls-remote https://github.com/tariiq222/liwan.git`. The command then fetches `main`
 and the `release/*` tags into a bare repository in the state directory (`repo.git`) for ancestry checks and
@@ -81,7 +88,8 @@ directory inside the private state directory. Neither is ever in an argument, a 
 
 Each phase is written to `run.json` before it acts, so a killed run resumes from real state.
 
-1. Resolve the candidate, fetch it, check it is not older, pull and check the release document.
+1. Resolve the candidate, fetch it, check it is not older, verify the candidate's staging proof when the environment
+   requires one, pull and check the release document.
 2. Prepare: extract the commit to `/opt/liwan/releases/<commit>`, install the shared worker's node dependencies
    (`npm ci --ignore-scripts --include=dev --workspace apps/control-plane`; `tsx` is a dev dependency and the worker runs it;
    a release folder that already exists but lacks `node_modules/.package-lock.json`, npm's last write, gets the install too, and a
@@ -116,7 +124,10 @@ Each phase is written to `run.json` before it acts, so a killed run resumes from
    phase `opened` is written, then the maintenance marker is removed. From `opened` on a failure never rolls back
    (customers may have written to the new release); the next run resumes.
 9. Record `served.json`, start the shared worker and check it is active after a 5 second settle (the unit restarts a crashed
-   worker only after `RestartSec=10`, shown as not active until then; `worker_not_ready` otherwise), drop the snapshots, then prune: images and release folders of every
+   worker only after `RestartSec=10`, shown as not active until then; `worker_not_ready` otherwise), then sign the release
+   when `LIWAN_RELEASE_PROOF_KEY_FILE` is set: `proof/<commit>.json` in the state directory and, atomically and mode 0644,
+   `<LIWAN_RELEASE_PROOF_DIR>/<commit>.json`; a failure there is `RESULT: incomplete <commit> release_proof_failed` and the
+   next run re-runs that step. Then drop the snapshots, then prune: images and release folders of every
    release except the served one and the previous one are removed, with their `runs/<commit>/` folders.
 
 A failure from step 5 onward rolls back: every snapshot and filestore copy is swapped back, owners, grants and
@@ -136,6 +147,8 @@ The last log line of every run starts with `RESULT:`.
 | `RESULT: nothing to do ...` | 0 | already serving it, no release tag yet, or another run holds the lock |
 | `RESULT: nothing to do: <commit> failed before (...)` | 3 | that candidate failed after the stop; the job stays red until a new candidate or `rollback` |
 | `RESULT: refused <reason>` | 2 | nothing changed (credential, document, older candidate, architecture, disk) |
+| `RESULT: refused staging_proof_missing` | 2 | no proof of the candidate could be fetched; nothing changed |
+| `RESULT: refused staging_proof_invalid` | 2 | a proof arrived but does not sign this tag, commit and document; nothing changed |
 | `RESULT: halted <reason>` | 3, 4 or 5 | stopped; see Halted |
 | `RESULT: rolled back <reason>` | 4 | the previous release is served again |
 | `RESULT: incomplete <commit> <reason>` | 4 | committed, but a last step failed; the next run resumes it |
@@ -153,6 +166,7 @@ The command never waits for input. A second start while one runs exits 0 at once
 | `run.json` | the unfinished run and its phase |
 | `failed.json` | the candidate that failed after the stop; the same commit is answered `nothing to do` (exit 3) until the candidate changes or `rollback` clears it |
 | `halted.json` | set when a rollback failed or the first deploy failed; no run proceeds while it exists |
+| `proof/<commit>.json` | the signed proof of a served release, written at the commit step and kept for good |
 | `releases/<commit>.json` | the images pulled for a release, read by the prune |
 | `repo.git` | bare repository of the fetched `main` and release tags |
 | `docker-config/` | the private docker login |
@@ -226,6 +240,14 @@ Manual rollback (the first deploy failed or you stop before step 11 has committe
 (`<LIWAN_TENANT_REGISTRY_DIR>/registry.json`, where `LIWAN_TENANT_REGISTRY_DIR` is the shared env file's key of that name) is
 required too: the tenant capture reads the database and filestore binding from it. Other keys in the file reach the backup
 pipeline through its environment.
+
+The staging proof keys are a pair, set together or not at all: `LIWAN_RELEASE_REQUIRE_PROOF_URL` (the HTTPS proof base
+URL ending in `/_liwan/release-proof/`) and `LIWAN_RELEASE_PROOF_PUBLIC_KEY` (one or more pinned public key files, comma
+separated for the rotation window, each readable and not writable by group or others). One of the pair alone, or a URL
+that is not HTTPS, is `RESULT: refused invalid_config` before anything is fetched. The signing side is
+`LIWAN_RELEASE_PROOF_KEY_FILE` (the Ed25519 private key, mode 0600) with `LIWAN_RELEASE_PROOF_DIR` (the directory the
+edge serves); a signing config whose directory is absent is `RESULT: refused proof_dir_missing` in `prepare`, before
+anything stops, and a signature that fails at the last step is `RESULT: incomplete <commit> release_proof_failed`.
 
 The first deploy of a host skips the backup, so a host can pass its first release and fail its second on any of the items
 below. Each one ends the run with `RESULT: rolled back backup_failed`; the job log carries the symptom line.

@@ -14,6 +14,11 @@ input. The last log line is ``RESULT: committed <commit>``, ``RESULT: rolled bac
 ``RESULT: refused <reason>``, ``RESULT: halted <reason>`` or ``RESULT: incomplete <commit> <reason>``; the exit code
 is 0 (committed, nothing to do), 2 (refused), 3 (halted), 4 (rolled back or incomplete) or 5 (rollback failed).
 
+An environment with both ``LIWAN_RELEASE_REQUIRE_PROOF_URL`` and ``LIWAN_RELEASE_PROOF_PUBLIC_KEY`` applies a candidate
+only with the staging proof that another environment served it (``deploy/release/proof.py``): the proof is fetched before
+the document image is pulled and checked before the run records its first phase, and nothing skips it. An environment
+with ``LIWAN_RELEASE_PROOF_KEY_FILE`` signs the release it serves, at the commit step, into ``LIWAN_RELEASE_PROOF_DIR``.
+
 The environment name selects the root-only config ``/etc/liwan-release/<name>.env`` (mode 0600). Every phase is written
 to ``run.json`` before it acts, so a killed run resumes from real state: forward up to ``snapshotted``, rollback from
 ``upgrading`` and ``starting``, forward again from ``opening``. Rollback swaps the pre-upgrade database snapshots and
@@ -33,10 +38,11 @@ import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
-from deploy.release import databases  # noqa: E402 - path set just above
+from deploy.release import databases, proof  # noqa: E402 - path set just above
 from deploy.release.common import (  # noqa: E402
     EXIT_FAILED, EXIT_HALTED, EXIT_OK, EXIT_REFUSED, EXIT_ROLLBACK_FAILED, FAILURE_TAIL_LINES, TIMED_OUT, CommandFailed, Lock,
     ReleaseError,
@@ -107,6 +113,10 @@ CONFIG_KEYS = ('LIWAN_RELEASE_PROJECT', 'LIWAN_SHARED_ENV_FILE', 'LIWAN_RELEASE_
 # The loopback ports the two host-link overlays publish; the shared env file sets them, these are the overlays' defaults.
 TENANT_DB_PORT = ('LIWAN_DB_HOST_PORT', '15433')
 CONTROL_DB_PORT = ('LIWAN_CONTROL_DB_HOST_PORT', '15432')
+# The staging proof: the environment that serves a commit signs it, and an environment that applies the same commit
+# verifies that signature before it prepares or stops anything. A verifier names both keys, or neither.
+PROOF_URL_KEY, PROOF_PUBLIC_KEY_KEY = 'LIWAN_RELEASE_REQUIRE_PROOF_URL', 'LIWAN_RELEASE_PROOF_PUBLIC_KEY'
+PROOF_KEY_FILE_KEY, PROOF_DIR_KEY = 'LIWAN_RELEASE_PROOF_KEY_FILE', 'LIWAN_RELEASE_PROOF_DIR'
 
 
 def runtime_role_failure_output(output: str) -> bool:
@@ -267,11 +277,48 @@ class Releaser:
         self.source.fetch(candidate['commit'])
         self.source.refuse_older(candidate, served)
         self.source.require_on_main(candidate)
+        fetched = self.fetch_proof(candidate)  # before the document image is pulled
         document = self.source.document(candidate, self.platform.removeprefix('linux/'))
-        run = {**candidate, 'document': document, 'previous': served,
+        digest = proof.document_digest(self.source.document_text.encode())
+        self.require_proof(candidate, digest, fetched)
+        run = {**candidate, 'document': document, 'releaseDocumentDigest': digest, 'previous': served,
                'previousReleaseEnv': self.current_release_env(), 'startedAt': now()}
         self.set_phase(run, 'verified')
         return self.forward(run)
+
+    # --- the staging proof ------------------------------------------------------------------------------
+    def proof_config(self) -> tuple[str, str] | None:
+        """The proof URL and pinned public key of an environment that verifies one: both set, or neither."""
+        url, public_key = self.config.get(PROOF_URL_KEY, ''), self.config.get(PROOF_PUBLIC_KEY_KEY, '')
+        if not url and not public_key:
+            return None
+        if not url or not public_key:
+            raise ReleaseError('invalid_config', EXIT_REFUSED,
+                               f'{PROOF_URL_KEY} and {PROOF_PUBLIC_KEY_KEY} are set together or not at all')
+        parsed = urlsplit(url)
+        if parsed.scheme != 'https' or not parsed.hostname:
+            raise ReleaseError('invalid_config', EXIT_REFUSED, f'{PROOF_URL_KEY} must be an HTTPS URL')
+        return url, public_key
+
+    def fetch_proof(self, candidate: dict) -> tuple[bytes, str] | None:
+        """The proof file of the candidate, or None when this environment verifies none. The detail names the commit,
+        never the URL: a proof that cannot be obtained is ``staging_proof_missing``."""
+        config = self.proof_config()
+        if config is None:
+            return None
+        url, public_key = config
+        try:
+            return proof.https_get(f'{url}{candidate["commit"]}.json'), public_key
+        except proof.ProofError as error:
+            raise proof.ProofError(error.reason, f'{candidate["commit"]}: {error.detail}') from None
+
+    def require_proof(self, candidate: dict, digest: str, fetched: tuple[bytes, str] | None) -> None:
+        """The fetched proof must sign exactly this tag, commit and document digest: nothing else establishes the candidate."""
+        if fetched is None:
+            return
+        raw, public_key = fetched
+        proof.require(raw, tag=candidate['ref'].removeprefix('refs/tags/'), commit=candidate['commit'], digest=digest,
+                      public_key_files=public_key, run=self.run_command)
 
     def resume(self, run: dict) -> int:
         self.log(f'resuming {run["commit"]} at {run["phase"]}')
@@ -351,6 +398,7 @@ class Releaser:
 
     def prepare(self, run: dict) -> None:
         """Checkout with the worker's dependencies, every image by digest, and the disk checks; nothing running changes."""
+        self.require_proof_target()  # a signing environment publishes at the very last step, after customers write
         self.shared_compose_target()  # a render that can only fail after the stop is refused here
         self.require_config_target(ODOO_CONFIG_KEY)
         self.require_host_file(VENDOR_ADMIN_ENV_KEY)
@@ -697,6 +745,16 @@ class Releaser:
                                f'{Path(state) / "classifications"} (LIWAN_CONTROL_STATE_DIR) is not a directory; '
                                f'create it before this release')
 
+    def require_proof_target(self) -> None:
+        """A signing environment publishes into the directory the edge serves. A missing one would only fail at the last
+        step, after customers already write to the new release."""
+        if not self.config.get(PROOF_KEY_FILE_KEY):
+            return
+        directory = self.config.get(PROOF_DIR_KEY, '')
+        if not directory or not Path(directory).is_dir():
+            raise ReleaseError('proof_dir_missing', EXIT_REFUSED,
+                               f'{directory or PROOF_DIR_KEY} must be an existing directory for the signed proof')
+
     def require_odoo_config(self, checkout: Path, pending: Path) -> None:
         """The rendered Odoo config, and the restore profile's external one when it is set, must pass the candidate's own
         validator: a config the new release rejects makes ``odoo`` exit and restart in a loop after the stop. Only the path is
@@ -961,10 +1019,49 @@ class Releaser:
         """The phase is written before the marker goes, so a crash here never rolls back customers' new writes."""
         self.leave_maintenance()
 
+    def signed_proof(self, run: dict) -> str:
+        """Sign the release the run serves, exactly as the next environment will read it: tag, commit, the digest of the
+        document this run pulled, this environment and the time. Only a committed release is signed."""
+        digest = run.get('releaseDocumentDigest')
+        if not digest:  # a run recorded by a release command that predates the proof carries no digest to sign
+            raise ReleaseError('release_proof_failed', detail=f'the run of {run["commit"]} recorded no releaseDocumentDigest')
+        payload = {'tag': run['ref'].removeprefix('refs/tags/'), 'commit': run['commit'],
+                   'releaseDocumentDigest': digest, 'environment': self.environment, 'at': now()}
+        return proof.sign(payload, self.config[PROOF_KEY_FILE_KEY], run=self.run_command).decode('ascii')
+
+    def publish_proof(self, commit: str, body: str) -> None:
+        """Write the proof beside its target and rename it, so a reader never sees half a file; the copy in the state
+        directory is kept for good, the published one is what another environment fetches."""
+        directory = self.config.get(PROOF_DIR_KEY, '')
+        if not directory:
+            raise ReleaseError('release_proof_failed', detail=f'{PROOF_DIR_KEY} is not set')
+        target = Path(directory) / f'{commit}.json'
+        temporary = target.with_name(target.name + '.tmp')
+        os.close(os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644))
+        try:
+            temporary.write_text(body, encoding='ascii')
+            temporary.chmod(0o644)
+            os.replace(temporary, target)
+        finally:
+            temporary.unlink(missing_ok=True)
+
+    def write_proof(self, run: dict) -> None:
+        """Sign last: after the release is recorded and its worker is running, so a proof never vouches for a release that
+        failed to start. A failure here is post-open: the next run re-runs this step."""
+        if not self.config.get(PROOF_KEY_FILE_KEY):
+            return
+        try:
+            body = self.signed_proof(run)
+            write_atomic(self.file(f'proof/{run["commit"]}.json'), body)
+            self.publish_proof(run['commit'], body)
+        except (CommandFailed, OSError):
+            raise ReleaseError('release_proof_failed') from None
+
     def commit(self, run: dict) -> None:
         write_json(self.file('served.json'), {'commit': run['commit'], 'ref': run['ref'], 'version': run['version'],
                                               'odooCommit': run['document']['release']['odooCommit'], 'at': now()})
         self.start_worker()
+        self.write_proof(run)
 
     def cleanup(self, run: dict) -> None:
         """Drop the snapshots, then prune everything older than the previous release; the run is over."""
