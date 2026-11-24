@@ -85,7 +85,7 @@ test.describe('Tasmim mobile drawer', () => {
     const area = (await drawer.boundingBox())!
     expect(Math.abs(area.x + area.width - 390)).toBeLessThanOrEqual(1)
     // The drawer holds the sidebar content: the footer's «كل التطبيقات» is the way back (the top back row is gone).
-    await drawer.getByTestId('mobile-navigation-app-apps').click()
+    await drawer.getByTestId('mobile-footer-tool-apps').click()
     await expect(page).toHaveURL(/\/apps$/)
     await expect(drawer).toBeHidden()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)

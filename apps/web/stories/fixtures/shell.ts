@@ -1,5 +1,5 @@
 import { BrandingSchema, MeSchema } from '@liwan/contracts'
-import type { ShellNavigationLink, ShellQuickItem } from '@liwan/ui/app/types/shell'
+import type { ShellFooterTool, ShellNavigationLink, ShellQuickItem } from '@liwan/ui/app/types/shell'
 
 const SHELL_CAPABILITIES = [
   'pmo.projects.read', 'pmo.projects.create', 'pmo.tasks.read', 'pmo.tasks.create', 'pmo.settings.manage',
@@ -51,6 +51,11 @@ export const footerRows: ShellNavigationLink[] = [
   { id: 'operations', label: 'العمليات', icon: 'i-lucide-workflow', to: '/operations', active: false, testId: 'navigation-app-operations' },
   { id: 'apps', label: 'كل التطبيقات', icon: 'i-lucide-layout-grid', to: '/apps', active: false, testId: 'navigation-app-apps' },
   { id: 'settings', label: 'الإعدادات', icon: 'i-lucide-settings', to: '/settings', active: false, testId: 'navigation-app-settings' },
+]
+/** The sidebar footer as one icon row: the four destinations, then the support button (no page yet). */
+export const footerTools: ShellFooterTool[] = [
+  ...footerRows.map(({ id, label, icon, to, active }) => ({ id, label, icon, to, active })),
+  { id: 'support', label: 'الدعم الفني', icon: 'i-lucide-life-buoy' },
 ]
 /** The links of one application (the projects settings of a long list): a create action, then a branch with children. */
 export const appActionRows: ShellNavigationLink[] = [{ id: 'new-project', label: 'مشروع جديد', icon: 'i-lucide-plus', to: '/projects/new', active: false, primary: true, testId: 'quick-action-new-project' }]

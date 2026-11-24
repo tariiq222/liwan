@@ -54,7 +54,7 @@ test('the shell keeps its DOM nodes across home, an application, all application
 
   // «كل التطبيقات» is in the footer now (the back row left the top of the sidebar, DESIGN.md §3): the same
   // destination, one place instead of two.
-  await menu.getByTestId('navigation-app-apps').click()
+  await menu.getByTestId('footer-tool-apps').click()
   await expect(page).toHaveURL(/\/apps$/)
   await expect(menu).toHaveAttribute('data-mode', 'global')
   await expect(page.getByTestId('apps-page')).toBeVisible()

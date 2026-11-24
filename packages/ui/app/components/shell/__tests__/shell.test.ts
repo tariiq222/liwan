@@ -183,6 +183,49 @@ describe('ShellCoreApps', () => {
   })
 })
 
+describe('ShellFooterBar', () => {
+  const tools = [
+    { id: 'documents', label: 'المستندات', icon: 'i-lucide-files', to: '/documents', active: false },
+    { id: 'settings', label: 'الإعدادات', icon: 'i-lucide-settings', to: '/settings', active: true },
+    { id: 'support', label: 'الدعم الفني', icon: 'i-lucide-life-buoy' },
+  ]
+  const render = (props: Record<string, unknown> = {}) =>
+    renderShared(file('ShellFooterBar'), { label: 'روابط عامة', tools, expandLabel: 'عرض القائمة', collapseLabel: 'إخفاء القائمة', ...props }, { default: () => Vue.h('p', 'القائمة الكاملة') }, { stubs })
+
+  it('is a named group of icon-only tools in the order given, then the chevron, with no visible label', async () => {
+    const html = await render()
+    expect(html).toContain('aria-label="روابط عامة"')
+    expect([...html.matchAll(/data-testid="footer-(tool-\w+|toggle)"/g)].map(match => match[1])).toEqual(['tool-documents', 'tool-settings', 'tool-support', 'toggle'])
+    expect(html).toContain('aria-label="المستندات"')
+    expect(html).not.toContain('data-slot="label"')
+  })
+
+  it('makes a tool with a page a link and one without a page a plain button, the open page marked', async () => {
+    const html = await render()
+    expect(html).toContain('to="/settings"')
+    expect(html.match(/aria-current="page"/g)).toHaveLength(1)
+    expect(html).toMatch(/<button[^>]*aria-label="الدعم الفني"/)
+    expect(html).not.toMatch(/<a[^>]*aria-label="الدعم الفني"/)
+  })
+
+  it('keeps the list closed until the chevron opens it, and names the chevron by what it does next', async () => {
+    const closed = await render()
+    expect(closed).toContain('aria-expanded="false"')
+    expect(closed).toContain('aria-label="عرض القائمة"')
+    expect(closed).not.toContain('القائمة الكاملة')
+    const open = await render({ expanded: true })
+    expect(open).toContain('aria-expanded="true"')
+    expect(open).toContain('aria-label="إخفاء القائمة"')
+    expect(open).toContain('القائمة الكاملة')
+    expect(open).toContain('data-testid="footer-list"')
+  })
+
+  it('prefixes the test ids and disables the chevron until hydration', async () => {
+    expect(await render({ testIdPrefix: 'mobile-' })).toContain('data-testid="mobile-footer-tool-documents"')
+    expect(await render({ hydrated: false })).toMatch(/<button[^>]*disabled[^>]*data-testid="footer-toggle"|<button[^>]*data-testid="footer-toggle"[^>]*disabled/)
+  })
+})
+
 describe('ShellTabBar', () => {
   const items = [
     { id: 'home', label: 'يومي', icon: 'i-lucide-house', to: '/', active: true },

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ShellNavigationLink, ShellQuickItem } from '@liwan/ui/app/types/shell'
+import type { ShellFooterTool, ShellNavigationLink, ShellQuickItem } from '@liwan/ui/app/types/shell'
 import { useApplicationNavigation } from '@/composables/useApplicationNavigation'
 import { useCoreApps } from '@/composables/useCoreApps'
 import { useShellModel } from '@/composables/useShellModel'
@@ -8,7 +8,8 @@ import { useShellModel } from '@/composables/useShellModel'
 // (يومي، Liwan AI، مهامي، الاجتماعات، المحادثات), each opening its own page. Global mode (the day page, the
 // start pages, search, notifications) then lists the pinned applications. App mode (an application, settings or the
 // self-service pages): a back row to «كل التطبيقات», the application's block, then its own links (create action first,
-// then sections). The footer carries the documents, the operations, «كل التطبيقات» and the settings in both; the account is in the top bar.
+// then sections). The footer is one icon row (the documents, the operations, «كل التطبيقات», the settings, the support
+// button and a chevron that opens the same four as a list) in both; the account is in the top bar.
 // `surface="drawer"` is the same content inside the phone drawer.
 const props = withDefaults(defineProps<{ surface?: 'sidebar' | 'drawer' }>(), { surface: 'sidebar' })
 const emit = defineEmits<{ navigate: [] }>()
@@ -40,6 +41,13 @@ const footerRows = computed<ShellNavigationLink[]>(() => [
   ...shell.rail.value.footer.map(item => link(item.id, t(item.labelKey), item.icon, item.to, shell.activeModule.value === item.id)),
   link('apps', t('nav.allApps'), 'i-lucide-layout-grid', '/apps', onAppsPage.value),
   ...(settings.value ? [link(settings.value.id, t(settings.value.labelKey), settings.value.icon, settings.value.to, navigation.activeId.value === settings.value.id)] : []),
+])
+// The footer shows as one row of icons: the same four destinations, then the support button (no page yet), and a chevron
+// that opens the vertical list above.
+const footerOpen = ref(false)
+const footerTools = computed<ShellFooterTool[]>(() => [
+  ...footerRows.value,
+  { id: 'support', label: t('nav.support'), icon: 'i-lucide-life-buoy' },
 ])
 // Every pinned application except the open one: the menu lists where the user can go, not where they already are.
 const switchItems = computed(() => pinnedRows.value.filter(row => row.id !== shell.activeModule.value))
@@ -79,7 +87,18 @@ const sections = computed(() => app.value?.sections ?? [])
     </template>
 
     <template #footer>
-      <ShellNavSection :label="t('nav.footer')" :items="footerRows" :test-id-prefix="prefix" :hydrated="hydrated" @navigate="emit('navigate')" />
+      <ShellFooterBar
+        v-model:expanded="footerOpen"
+        :label="t('nav.footer')"
+        :tools="footerTools"
+        :expand-label="t('nav.footerExpand')"
+        :collapse-label="t('nav.footerCollapse')"
+        :test-id-prefix="prefix"
+        :hydrated="hydrated"
+        @navigate="emit('navigate')"
+      >
+        <ShellNavSection :label="t('nav.footer')" :items="footerRows" :test-id-prefix="prefix" :hydrated="hydrated" @navigate="emit('navigate')" />
+      </ShellFooterBar>
     </template>
   </ShellSidebar>
 </template>
