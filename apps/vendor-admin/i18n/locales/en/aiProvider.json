@@ -116,6 +116,7 @@
       "confirmDescription": "Every platform AI request uses the new providers, prices and routes within seconds. The change is audited.",
       "confirm": "Save",
       "saved": "Saved as revision {revision}.",
+      "errorSummary": "Fix these fields before saving",
       "blockers": {
         "noProviders": "Add at least one provider.",
         "providerId": "A provider name is not valid or is used twice.",

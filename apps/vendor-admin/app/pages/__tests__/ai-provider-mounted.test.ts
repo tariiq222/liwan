@@ -56,8 +56,8 @@ async function page(options: { saveFails?: unknown, failFirstLoad?: boolean, del
   const t = (key: string, params?: Record<string, unknown>) => (params ? `${key} ${Object.values(params).join(' ')}` : key)
   const bindings = {
     ...aiUtils, _defineComponent: Vue.defineComponent, _withAsyncContext: (fn: () => unknown) => [fn(), () => {}],
-    computed: Vue.computed, ref: Vue.ref, watch: Vue.watch, reactive: Vue.reactive,
-    formatBusinessDateTime: (value: string) => value, definePageMeta: () => {}, useHydrated: () => Vue.ref(true), useI18n: () => ({ t }), useAiProvider: () => api,
+    computed: Vue.computed, nextTick: Vue.nextTick, ref: Vue.ref, watch: Vue.watch, reactive: Vue.reactive,
+    formatBusinessDateTime: (value: string) => value, definePageMeta: () => {}, useHydrated: () => Vue.ref(true), useI18n: () => ({ t }), useAiProvider: () => api, useVendorContext: () => ({ can: () => true }),
     useAsyncData: async (_key: string, fn: () => Promise<unknown>) => {
       const data = Vue.ref<unknown>(null); const error = Vue.ref<unknown>(null); const pending = Vue.ref(false)
       const refresh = vi.fn(async () => { try { data.value = await fn(); error.value = null } catch (cause) { error.value = cause } })
@@ -125,6 +125,15 @@ describe('AI provider page, mounted', () => {
     expect(p.state.draft.providers.map((x: { api_key: string }) => x.api_key)).toEqual(['', ''])
     expect((await p.rendered()).html).not.toContain('sk-new-secret-123')
     expect(p.state.notice.value).toContain('aiProvider.save.saved')
+  })
+
+  it('refuses a save with blockers, lists each one as a link to its field and opens no confirmation', async () => {
+    const p = await page()
+    p.state.draft.margin_percent = 'abc'
+    expect((await p.rendered()).captured.find(c => c.name === 'SharedErrorSummary')!.attrs.errors).toEqual([])
+    await p.state.startSave()
+    expect(p.state.confirming.value).toBe(false)
+    expect((await p.rendered()).captured.find(c => c.name === 'SharedErrorSummary')!.attrs.errors).toEqual([{ field: 'margin', message: 'aiProvider.save.blockers.margin' }])
   })
 
   it('shows the effective model of a route cell that inherits', async () => {

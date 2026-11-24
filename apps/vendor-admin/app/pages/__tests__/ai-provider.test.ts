@@ -11,7 +11,9 @@ describe('AI provider page', () => {
 
   it('is gated on the AI capability and protects unsaved changes', () => {
     expect(page).toContain("capability: 'vendor.ai.manage'")
-    expect(page).toContain('<SharedUnsavedChanges :dirty="dirty" />')
+    // The save card draws the one unsaved-changes guard from the same `dirty`; the page adds none of its own.
+    expect(page).not.toContain('<SharedUnsavedChanges')
+    expect(page).toContain(':dirty="dirty" :saving="busy === \'save\'"')
   })
 
   it('lists and tests only models of a saved provider and a saved model, and says why when it cannot', () => {
