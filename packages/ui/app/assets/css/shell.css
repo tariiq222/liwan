@@ -1,31 +1,32 @@
 /* The application shell (owner-approved dashboard layout): one fixed sidebar on the inline-start side (264px; an 84px icon-only
    strip between 768px and 1099px), a flat sticky top bar beside it, the page in a centred fluid column (max 1680px), inline-end slide-over panels
    for the personal tools, and below 768px a bottom tab bar with the same sidebar content in a drawer.
-   Geometry is px so the frame does not grow with the user's font size; text inside it uses rem.
+   Geometry is px, multiplied by --liwan-ui-scale, so the frame does not grow with the user's font size but does follow
+   the interface zoom; text inside it uses rem.
    Page and form geometry that is not the shell's lives in layout.css. */
 .liwan-shell {
   --shell-duration: var(--liwan-motion-panel);
   --shell-ease: var(--liwan-motion-ease);
-  --shell-side-width: 264px;
-  --shell-header-height: 68px;
+  --shell-side-width: calc(264px * var(--liwan-ui-scale));
+  --shell-header-height: calc(68px * var(--liwan-ui-scale));
   --shell-top: var(--shell-header-height);
   /* The gap a docked full-height card (SharedListCard fill) keeps above the viewport bottom. */
-  --shell-inset: 12px;
+  --shell-inset: calc(12px * var(--liwan-ui-scale));
   --shell-pad-x: clamp(16px, 3vw, 48px);
   --shell-content-max: 1680px;
   /* Every control of the top bar is the same tile as the sidebar's core-apps row. */
-  --liwan-bar-tile: 44px;
+  --liwan-bar-tile: calc(44px * var(--liwan-ui-scale));
   /* The one corner radius of the top bar's controls: the tools capsule, the AI tile, the search field and the user chip. */
   --liwan-bar-radius: calc(var(--radius-control) + 4px);
-  --shell-tabbar-height: 68px;
+  --shell-tabbar-height: calc(68px * var(--liwan-ui-scale));
   min-height: 100svh;
   background: var(--liwan-canvas);
 }
 @media (min-width: 768px) and (max-width: 1099px) {
-  .liwan-shell { --shell-side-width: 84px; }
+  .liwan-shell { --shell-side-width: calc(84px * var(--liwan-ui-scale)); }
 }
 @media (max-width: 767px) {
-  .liwan-shell { --shell-side-width: 0px; --shell-header-height: 60px; --shell-pad-x: 16px; }
+  .liwan-shell { --shell-side-width: 0px; --shell-header-height: calc(60px * var(--liwan-ui-scale)); --shell-pad-x: 16px; }
 }
 .liwan-shell[data-sidebar="none"] { --shell-side-width: 0px; }
 
@@ -106,7 +107,7 @@
    upright at the top of the 84px strip, 44px in the phone drawer. A tile is a surface with a hairline and an
    ink icon; the open one is the only solid ink tile, with the inverse icon. */
 .liwan-side-core { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 4px; margin-block-end: 6px; }
-.liwan-core-app { --core-size: 34px; position: relative; display: grid; flex: none; place-items: center; width: var(--core-size); height: var(--core-size); border: 1px solid var(--ui-border); border-radius: var(--radius-tile); background: var(--ui-bg); color: var(--liwan-ink); text-decoration: none; transition: background-color var(--liwan-motion-feedback) var(--liwan-motion-color-ease), color var(--liwan-motion-feedback) var(--liwan-motion-color-ease), border-color var(--liwan-motion-feedback) var(--liwan-motion-color-ease); }
+.liwan-core-app { --core-size: calc(34px * var(--liwan-ui-scale)); position: relative; display: grid; flex: none; place-items: center; width: var(--core-size); height: var(--core-size); border: 1px solid var(--ui-border); border-radius: var(--radius-tile); background: var(--ui-bg); color: var(--liwan-ink); text-decoration: none; transition: background-color var(--liwan-motion-feedback) var(--liwan-motion-color-ease), color var(--liwan-motion-feedback) var(--liwan-motion-color-ease), border-color var(--liwan-motion-feedback) var(--liwan-motion-color-ease); }
 .dark .liwan-core-app { background: var(--ui-bg-muted); }
 .liwan-core-app .iconify { width: 17px; height: 17px; }
 .liwan-core-app:hover { background: var(--ui-bg-muted); }
@@ -125,7 +126,7 @@ button.liwan-core-app:disabled { cursor: default; opacity: .6; }
 .liwan-foot-toggle .iconify { transition: rotate var(--shell-duration) var(--shell-ease); }
 .liwan-foot-toggle[aria-expanded="true"] .iconify { rotate: 180deg; }
 .liwan-sidebar[data-surface="drawer"] .liwan-side-core { margin-block-end: 10px; }
-.liwan-sidebar[data-surface="drawer"] .liwan-core-app { --core-size: 44px; }
+.liwan-sidebar[data-surface="drawer"] .liwan-core-app { --core-size: calc(44px * var(--liwan-ui-scale)); }
 .liwan-side-group { display: grid; gap: 2px; }
 .liwan-side-heading { display: flex; align-items: center; justify-content: space-between; padding: 18px 10px 6px; color: var(--ui-text-muted); font-size: var(--text-xs); font-weight: 600; letter-spacing: .02em; }
 .liwan-side-heading h3 { margin: 0; font: inherit; }
@@ -139,7 +140,7 @@ button.liwan-core-app:disabled { cursor: default; opacity: .6; }
   position: relative;
   display: flex;
   width: 100%;
-  height: 40px;
+  height: calc(40px * var(--liwan-ui-scale));
   align-items: center;
   gap: 10px;
   padding-inline: 10px calc(10px + var(--liwan-side-end-reserve, 0px));
@@ -178,17 +179,17 @@ button.liwan-side-row { border: 0; background: transparent; cursor: pointer; }
 }
 /* A nested branch is indented under its parent with a hairline guide on the parent icon centre. */
 .liwan-side-branch { position: relative; display: grid; gap: 2px; margin-inline-start: 22px; padding-inline-start: 6px; border-inline-start: 1px solid var(--liwan-rail-border); }
-.liwan-side-branch .liwan-side-row { height: 36px; }
+.liwan-side-branch .liwan-side-row { height: calc(36px * var(--liwan-ui-scale)); }
 .liwan-side-appblock { display: flex; align-items: center; gap: 10px; margin-block: 10px 6px; padding: 6px 10px; color: var(--ui-text-highlighted); font-size: 1rem; font-weight: 700; }
 .liwan-side-appblock [data-slot="name"] { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* App icon tiles (the colour comes from app-identity.css through data-app; a free application is ink). */
 .liwan-side-tile { box-shadow: none; }
-.liwan-side-tile[data-size="sm"] { width: 26px; height: 26px; }
+.liwan-side-tile[data-size="sm"] { width: calc(26px * var(--liwan-ui-scale)); height: calc(26px * var(--liwan-ui-scale)); }
 .liwan-side-tile[data-size="sm"] .iconify { width: 14px; height: 14px; }
-.liwan-side-tile[data-size="md"] { width: 32px; height: 32px; }
+.liwan-side-tile[data-size="md"] { width: calc(32px * var(--liwan-ui-scale)); height: calc(32px * var(--liwan-ui-scale)); }
 .liwan-side-tile[data-size="md"] .iconify { width: 16px; height: 16px; }
-.liwan-side-tile[data-size="lg"] { width: 44px; height: 44px; box-shadow: 0 6px 14px -4px color-mix(in srgb, var(--app-tile, var(--liwan-ink)) 40%, transparent); }
+.liwan-side-tile[data-size="lg"] { width: calc(44px * var(--liwan-ui-scale)); height: calc(44px * var(--liwan-ui-scale)); box-shadow: 0 6px 14px -4px color-mix(in srgb, var(--app-tile, var(--liwan-ink)) 40%, transparent); }
 .liwan-side-tile[data-size="lg"] .iconify { width: 21px; height: 21px; }
 
 /* Between 768px and 1099px the sidebar is an 84px icon-only strip: brand mark, the core icons upright, icons, avatar. */
@@ -370,7 +371,7 @@ button.liwan-side-row { border: 0; background: transparent; cursor: pointer; }
   inset-inline-end: 28px;
   z-index: 60;
   display: flex;
-  width: 380px;
+  width: calc(380px * var(--liwan-ui-scale));
   max-width: calc(100vw - 20px);
   max-height: calc(100svh - var(--shell-header-height) - 32px);
   flex-direction: column;
