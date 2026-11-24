@@ -90,7 +90,9 @@ test.describe('Plan 6a: register', () => {
       // alone. The shared mock register holds 3 rows, so this test serves its own filtered envelope: 51 matches put
       // exactly one row on page 2, carried by the real filtered record.
       const filtered = await page.request.get('/api/v1/projects/2/register?q=تأخر&kind=risk')
+      expect(filtered.ok()).toBe(true)
       const { items } = await filtered.json()
+      expect(items.map((item: { id: number }) => item.id)).toContain(31)
       await page.route('**/api/v1/projects/2/register*', async route => {
         const url = new URL(route.request().url())
         if (url.searchParams.get('q') === 'تأخر' && url.searchParams.get('kind') === 'risk' && url.searchParams.get('offset') === '50') {
