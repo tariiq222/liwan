@@ -6,7 +6,7 @@ import type { Config } from '../config.js'
 import { createTenantStatusRunner } from '../shared/tenant-status-runner.js'
 
 const config = { python: 'python3', repositoryRoot: '/repo' } as Config
-const binding = { database_name: 'liwan_scratch_' + 'a'.repeat(32), host: 'acme.liwan.test', tenantId: 'acme', filestore: 'acme', registryRevision: 4 }
+const binding = { database_name: 'liwan_scratch_' + 'a'.repeat(32), host: 'acme.liwan.test' }
 const poolWith = (rows: unknown[]) => ({ query: vi.fn(async () => ({ rowCount: rows.length, rows })) }) as unknown as Pool & { query: ReturnType<typeof vi.fn> }
 function fakeChild() {
   const child = new EventEmitter() as EventEmitter & { stdin: PassThrough; stdout: EventEmitter; kill: ReturnType<typeof vi.fn> }
@@ -28,7 +28,7 @@ describe('tenant status runner', () => {
     const [header, request] = stdin.join('').split('\n').filter(Boolean).map(line => JSON.parse(line))
     expect(header).toEqual({ effect: 'tenant_status_effect' })
     expect(request).toEqual({ action: 'set_tenant_status', tenant: { database: binding.database_name, host: binding.host },
-      releaseBinding: { tenantId: 'acme', database: binding.database_name, filestore: 'acme', registryRevision: 4 }, status: 'suspended', reason: 'non_payment' })
+      status: 'suspended', reason: 'non_payment' })
     // The tenant comes from the control tenant id, enabled binding and saas mode only.
     expect(pool.query.mock.calls[0]![1]).toEqual([tenant_id])
     expect(String(pool.query.mock.calls[0]![0])).toMatch(/b\.enabled=true AND t\.commercial_mode='saas'/)

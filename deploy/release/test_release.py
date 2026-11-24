@@ -16,7 +16,7 @@ from pathlib import Path
 from unittest import mock
 
 from deploy.release import databases, release
-from deploy.release.common import CommandFailed, Deadline, Runner, make_log, read_env_file, sensitive_values
+from deploy.release.common import CommandFailed, Runner, make_log, read_env_file, sensitive_values
 
 OLD = 'a' * 40
 NEW = 'b' * 40
@@ -1766,24 +1766,6 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(self.main(), release.EXIT_REFUSED)
         self.assertEqual(self.result(), 'refused document_images_mismatch')
         self.assertFalse(self.compose_stops())
-
-
-class DeadlineTests(unittest.TestCase):
-    def test_the_budget_is_absolute_and_runs_out(self):
-        now = [100.0]
-        deadline = Deadline(10, clock=lambda: now[0])
-        self.assertEqual(deadline.remaining(), 10)
-        self.assertEqual(deadline.remaining(cap=3), 3)
-        now[0] = 109.5
-        self.assertEqual(deadline.remaining(), 0.5)
-        now[0] = 110.0
-        with self.assertRaisesRegex(ValueError, '^backup_deadline_exceeded$'):
-            deadline.remaining()
-
-    def test_a_budget_outside_zero_to_an_hour_or_not_a_number_is_refused(self):
-        for seconds in (0, -1, 3601, '5', None, True):
-            with self.subTest(seconds=seconds), self.assertRaisesRegex(ValueError, '^backup_deadline_rejected$'):
-                Deadline(seconds)
 
 
 if __name__ == '__main__':

@@ -1623,7 +1623,6 @@
             "name_invalid": "The file name is invalid",
             "filestore_ambiguous": "The file folder is ambiguous",
             "remove_failed": "The files could not be removed",
-            "release_operation_blocked": "The workspace release operation is blocked",
             "tenant_drop_failed": "The workspace drop failed for an unclassified reason"
           },
           "checks": {

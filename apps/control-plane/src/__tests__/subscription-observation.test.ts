@@ -3,7 +3,7 @@ import { createOdooAdapter, subscriptionObservationRequest } from '../shared/odo
 describe('source subscription observation binding',()=>{
  const binding={tenantId:'tenant-a',database:'source',filestore:'source',registryRevision:1,host:'a.invalid'}
  it('keeps the exact current source binding',()=>{
-  expect(subscriptionObservationRequest(binding,{database:'source'})).toMatchObject({tenant:{database:'source',host:'a.invalid'},releaseBinding:binding})
+  expect(subscriptionObservationRequest(binding,{database:'source'})).toMatchObject({tenant:{database:'source',host:'a.invalid'}})
  })
  it('refuses an isolated target through the source observer before execution',()=>{
   expect(()=>subscriptionObservationRequest(binding,{database:'restore-target'})).toThrow('tenant_binding_mismatch')
@@ -34,13 +34,10 @@ it('the default adapter refuses a restore observation without exact target autho
     ])
     const config = { sharedRuntimeConfigPath, tenantRegistryPath } as Parameters<typeof createOdooAdapter>[1]
     const signal = new AbortController().signal
-    vi.stubEnv('LIWAN_RELEASE_ROUTES_DIR', undefined)
     const adapter = createOdooAdapter(pool, config, signal)
     expect(adapter.observeRestoreSubscription).toBeTypeOf('function')
     await expect(adapter.observeRestoreSubscription!({ tenant_id: randomUUID(), database: 'liwan_scratch_' + 'a'.repeat(32) }))
       .rejects.toThrow('shared_restore_approval_unavailable')
-    vi.stubEnv('LIWAN_RELEASE_ROUTES_DIR', '/unused/release-routes')
-    expect(createOdooAdapter(pool, config, signal).observeRestoreSubscription).toBeUndefined()
   } finally {
     vi.unstubAllEnvs()
     await pool.end()

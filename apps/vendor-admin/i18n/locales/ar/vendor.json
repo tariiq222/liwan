@@ -1623,7 +1623,6 @@
             "name_invalid": "اسم الملف غير صالح",
             "filestore_ambiguous": "مجلد الملفات غير محدد بوضوح",
             "remove_failed": "تعذّر حذف الملفات",
-            "release_operation_blocked": "عملية إعادة المساحة موقوفة",
             "tenant_drop_failed": "فشل حذف المساحة لسبب غير مصنّف"
           },
           "checks": {

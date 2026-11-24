@@ -173,23 +173,5 @@ class AdminPasswordEffectTest(unittest.TestCase):
         self.assertIn('OPERATOR_CONTEXT', script)
 
 
-
-class ReleaseRoutingIgnoredTests(unittest.TestCase):
-    def test_a_maintenance_marker_in_the_release_routes_directory_no_longer_blocks_the_password_process(self):
-        import os
-        import tempfile
-        from pathlib import Path
-        with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw).resolve()
-            (root / 'tenant_a.maintenance').write_text('{}')
-            payload = request()
-            payload['releaseBinding'] = {'tenantId': 'tenant_a', 'registryRevision': 4, 'database': DATABASE}
-            result = {'login': LOGIN, 'user_id': 2, 'changed_at': CHANGED_AT}
-            runner = FakeRunner(output(result))
-            with patch.dict(os.environ, {'LIWAN_RELEASE_ROUTES_DIR': str(root)}):
-                self.assertEqual(effect.execute(payload, runner), result)
-            self.assertEqual(len(runner.calls), 1)
-
-
 if __name__ == '__main__':
     unittest.main()

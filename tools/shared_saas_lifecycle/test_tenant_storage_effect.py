@@ -650,10 +650,6 @@ class LockAndGateTest(Case):
                 effect.execute(request('ensure'), self.world)
         self.assertEqual('operation_in_progress', str(caught.exception))
 
-    def test_execute_ignores_the_release_routes_environment(self):
-        with patch.dict(os.environ, {'LIWAN_RELEASE_ROUTES_DIR': '/nonexistent/routes'}):
-            self.assertEqual('pending_key', effect.execute(request('ensure'), self.world)['state'])
-
     def test_execute_maps_any_unexpected_failure_to_a_code(self):
         broken = type('Broken', (), {'run_oci': lambda s, p: 1 / 0, 'run_script': lambda s, *a, **k: 1 / 0})()
         with self.assertRaises(EffectError) as caught:

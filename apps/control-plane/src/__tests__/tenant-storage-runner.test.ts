@@ -7,7 +7,7 @@ import { createTenantStorageRunner, TENANT_STORAGE_ERROR_CODES } from '../shared
 import { EFFECT_NAMES } from '../shared/effect-channel.js'
 
 const config = { python: 'python3', repositoryRoot: '/repo' } as Config
-const binding = { database_name: 'liwan_scratch_' + 'a'.repeat(32), tenantId: 'acme', filestore: 'acme', registryRevision: 4 }
+const binding = { database_name: 'liwan_scratch_' + 'a'.repeat(32), tenantId: 'acme' }
 const poolWith = (rows: unknown[]) => ({ query: vi.fn(async () => ({ rowCount: rows.length, rows })) }) as unknown as Pool & { query: ReturnType<typeof vi.fn> }
 function fakeChild() {
   const child = new EventEmitter() as EventEmitter & { stdin: PassThrough; stdout: EventEmitter; kill: ReturnType<typeof vi.fn> }
@@ -33,8 +33,7 @@ describe('tenant storage runner', () => {
     expect(await result).toEqual(answer)
     const [header, request] = stdin.join('').split('\n').filter(Boolean).map(line => JSON.parse(line))
     expect(header).toEqual({ effect: 'tenant_storage_effect' })
-    expect(request).toEqual({ schemaVersion: 1, operation: 'verify', tenantId: 'acme', database: binding.database_name, requestId: request_id,
-      releaseBinding: { tenantId: 'acme', database: binding.database_name, filestore: 'acme', registryRevision: 4 } })
+    expect(request).toEqual({ schemaVersion: 1, operation: 'verify', tenantId: 'acme', database: binding.database_name, requestId: request_id })
     expect(pool.query.mock.calls[0]![1]).toEqual([tenant_id])
     expect(String(pool.query.mock.calls[0]![0])).toMatch(/b\.enabled=true AND t\.commercial_mode='saas'/)
   })

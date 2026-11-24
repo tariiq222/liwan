@@ -636,19 +636,6 @@ class SigtermTests(unittest.TestCase):
         self.assertRegex(killed[0][2], r'^liwan-shared-acme-effect-aaaaaaaa-observe-[0-9a-f]{8}$')
 
 
-
-class ReleaseRoutingIgnoredTests(Base):
-    def test_a_maintenance_marker_in_the_release_routes_directory_no_longer_blocks_subscription_observation(self):
-        import os
-        root = self.dir.parent
-        (root / 'tenant_a.maintenance').write_text('{}')
-        request = make_request(releaseBinding={'tenantId': 'tenant_a', 'registryRevision': 4, 'database': DB})
-        runner = FakeRunner(observation())
-        with mock.patch.dict(os.environ, {'LIWAN_RELEASE_ROUTES_DIR': str(root)}):
-            self.effect(runner).observe(request)
-        self.assertTrue(runner.scripts)
-
-
 if __name__ == '__main__':
     unittest.main()
 
@@ -657,8 +644,7 @@ class RestoreRuntimeTests(unittest.TestCase):
     def request(self, root):
         return make_request(fence=1, attemptId='aaaaaaaa-1111-4111-8111-111111111111',
             config={'schemaVersion':1,'projectName':'liwan-shared-acme','composeFile':str(root/'compose.yml'),
-                    'envFile':str(root/'env'),'stateDir':str(root),'domainSuffix':'example.test',
-                    'releaseBackupConfig':str(root/'release-backup.json')})
+                    'envFile':str(root/'env'),'stateDir':str(root),'domainSuffix':'example.test'})
 
     def test_bridge_configuration_keeps_ordinary_subscription_commands_available(self):
         with tempfile.TemporaryDirectory() as tmp:

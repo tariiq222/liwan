@@ -47,11 +47,8 @@ REFUSED_EXIT = 2
 CONFIG_ENV = 'LIWAN_SHARED_RUNTIME_CONFIG'
 DELETION_ENV = 'LIWAN_TENANT_DELETION_ENABLED'
 DROP_EFFECT = 'tenant_drop_effect'
-PATH_KEY = re.compile(r'(File|Path|Dir|passfile)$')
-URL_PATH_KEYS = frozenset({'httpPath', 'relativePath'})
 # The effects need exactly these; the gate's other variables (the runtime config path, the deletion flag, secrets) stay behind.
-CHILD_ENV = ('PATH', 'HOME', 'LANG', 'LC_ALL', 'TMPDIR', 'DOCKER_HOST', 'DOCKER_CONFIG',
-             'LIWAN_RELEASE_ROUTES_DIR', 'LIWAN_RELEASE_HELPER_POOL_ID')
+CHILD_ENV = ('PATH', 'HOME', 'LANG', 'LC_ALL', 'TMPDIR', 'DOCKER_HOST', 'DOCKER_CONFIG')
 DEFAULT_PATH = '/usr/bin:/bin'
 EFFECT_STATE_DIRS = ('reservations', 'credentials', 'classifications', 'restore-effects', 'reconfigure',
                      'runtime-gate-history', 'tenant-storage', 'backups')
@@ -193,7 +190,7 @@ def check_state_dir(path, euid, lstat=os.lstat):
         raise Refusal('runtime_untrusted')
 
 
-def load_config(env, euid, effect, lstat=os.lstat):
+def load_config(env, euid, lstat=os.lstat):
     """The runtime config from the gate's own file, after the trust rule on every path the effect will use."""
     path = env.get(CONFIG_ENV)
     if not path:
@@ -207,58 +204,10 @@ def load_config(env, euid, effect, lstat=os.lstat):
         raise Refusal('runtime_invalid') from None
     if not isinstance(config, dict) or not all(isinstance(config.get(key), str) for key in ('composeFile', 'envFile', 'stateDir')):
         raise Refusal('runtime_invalid')
-    if effect == DROP_EFFECT:
-        config.pop('releaseBackupConfig', None)
     check_file(config['composeFile'], euid, lstat)
     check_file(config['envFile'], euid, lstat)
     check_state_dir(config['stateDir'], euid, lstat)
-    if 'releaseBackupConfig' in config:
-        check_release_backup_config(config['releaseBackupConfig'], euid, lstat)
     return config
-
-
-def _path_keys(value, key=''):
-    """Every absolute path the operator document names: a string under a key that ends in File, Path, Dir or
-    passfile (the release adapter's `stateDir`, `runtime.postgres.passfile`, `proxyTokenFile`, `filestorePath`...).
-    A URL path such as a probe's `httpPath` is not a host path."""
-    if isinstance(value, dict):
-        for name, item in value.items():
-            yield from _path_keys(item, name)
-    elif isinstance(value, list):
-        for item in value:
-            yield from _path_keys(item, key)
-    elif (isinstance(value, str) and key not in URL_PATH_KEYS and PATH_KEY.search(key)):
-        yield value
-
-
-def check_path(path, euid, lstat=os.lstat):
-    """As check_file, for a path that may be a regular file or a directory (never a link)."""
-    if not isinstance(path, str) or not path.startswith('/') or os.path.normpath(path) != path:
-        raise Refusal('runtime_untrusted')
-    for directory in _ancestors(path):
-        info = _stat(directory, lstat)
-        if not stat.S_ISDIR(info.st_mode) or not _owned(info, euid) or _group_other_writable(info):
-            raise Refusal('runtime_untrusted')
-    info = _stat(path, lstat)
-    if not (stat.S_ISREG(info.st_mode) or stat.S_ISDIR(info.st_mode)) or not _owned(info, euid) or _group_other_writable(info):
-        raise Refusal('runtime_untrusted')
-
-
-def check_release_backup_config(path, euid, lstat=os.lstat):
-    """The operator document named by releaseBackupConfig, and every path it names, meet the rule of the other inputs
-    (the effect reads them as root-equivalent): the document itself, its release state directory, the passfile, token
-    files and each tenant's filestore and session directories."""
-    check_file(path, euid, lstat)
-    try:
-        with open(path, 'rb') as handle:
-            raw = handle.read(MAX_CONFIG + 1)
-        document = json.loads(raw) if len(raw) <= MAX_CONFIG else None
-    except (OSError, ValueError, RecursionError, MemoryError):
-        raise Refusal('runtime_invalid') from None
-    if not isinstance(document, dict):
-        raise Refusal('runtime_invalid')
-    for named in _path_keys(document):
-        check_path(named, euid, lstat)
 
 
 def check_request_schema(effect, request, validator=validate):
@@ -420,7 +369,7 @@ def _run(state, in_fd, out_fd, env, *, stop, effects=EFFECTS, argv=child_argv, g
         request = parse_request(reader.line(MAX_REQUEST))
         check_request_schema(effect, request, validator)
         check_deletion_switch(effect, request, env)
-        request['config'] = load_config(env, euid, effect, lstat)
+        request['config'] = load_config(env, euid, lstat)
         try:
             child = subprocess.Popen(argv(effects[effect]), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                      stderr=subprocess.DEVNULL, env=child_env(env), start_new_session=True)

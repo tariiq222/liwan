@@ -26,14 +26,14 @@ import { resolveOdooBackupAuthority,recordOdooBackup,resolveCommercialOdooRestor
  * and catalog-source codes classify_error allows across the IPC boundary. */
 /** The request the subscription effect receives; `admin_login` is sent only when the control plane stored one. */
 export function subscriptionRequest(input:{job:SharedReconfigureJob;action:'observe'|'reconfigure';attemptId:string;fence:number},adminLogin?:string|null){
-  return {action:input.action,tenant:{database:input.job.binding.database,host:input.job.host},releaseBinding:input.job.binding,...input.job.authority,attemptId:input.attemptId,fence:input.fence,
+  return {action:input.action,tenant:{database:input.job.binding.database,host:input.job.host},...input.job.authority,attemptId:input.attemptId,fence:input.fence,
     ...(typeof adminLogin==='string' && adminLogin.length>0?{admin_login:adminLogin}:{})}
 }
 /** Source usage/subscription observations must match the current source binding.
  * Isolated restores use separately verified authority and never use the source service. */
 export function subscriptionObservationRequest(binding:{tenantId:string;database:string;filestore:string;registryRevision:number;host:string},input:{database:string}){
   if(binding.database!==input.database || binding.filestore!==input.database)throw Error('tenant_binding_mismatch')
-  return {action:'observe',tenant:{database:binding.database,host:binding.host},releaseBinding:binding,attemptId:randomUUID(),fence:0}
+  return {action:'observe',tenant:{database:binding.database,host:binding.host},attemptId:randomUUID(),fence:0}
 }
 export const PROVISION_ERROR_CODES=new Set(['target_mismatch','profile_invalid','classification_conflict','policy_already_initialized','modules_mismatch','features_mismatch','snapshot_invalid','policy_script_failed','catalog_source_unavailable','catalog_source_ambiguous','policy_invalid','policy_too_large','policy_duplicate_key','policy_channel_mismatch','commercial_mode_unsupported','catalog_reference_invalid','catalog_unavailable','catalog_digest_mismatch','catalog_invalid','policy_composition_mismatch','package_authority_invalid','package_authority_mismatch','runtime_writer_present','runtime_writer_after_effect','odoo_restart_failed','inventory_too_large'])
 
@@ -187,8 +187,7 @@ export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):Sh
   const observeUsage:NonNullable<SharedFencedAdapter['observeUsage']>=async input=>await observeSubscription(input) as unknown
   return {
     subscriptionRunner,observeSubscription,observeUsage,
-    // Release routing only attests the live helper topology.
-    ...(!Object.hasOwn(process.env,'LIWAN_RELEASE_ROUTES_DIR')?{observeRestoreSubscription}:{}),
+    observeRestoreSubscription,
     async observe(job){
       try{return sharedObservationSchema.parse(await execute(job,'observe'))}catch{return {state:'unknown'}}
     },

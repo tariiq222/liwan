@@ -489,7 +489,7 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
 
   it('drives the real effect runner through the permit and heartbeat protocol and stops it when ownership is lost', async () => {
     const effectPlan = { schemaVersion: 1 as const, requestId: randomUUID(), controlTenantId: randomUUID(), tenantId: 'tenant_a', database: 'liwan_a', filestore: 'liwan_a', host: 'a.test', customerName: 'A', controlPlaneDatabase: 'cp', restoreCopies: [], backupIds: [] }
-    const runtime = { schemaVersion: 1 as const, projectName: 'liwan-shared-test', composeFile: '/x/compose.yml', envFile: '/x/.env', stateDir: '/x/state', domainSuffix: 'example.test', releaseBackupConfig: '/x/backup.json' }
+    const runtime = { schemaVersion: 1 as const, projectName: 'liwan-shared-test', composeFile: '/x/compose.yml', envFile: '/x/.env', stateDir: '/x/state', domainSuffix: 'example.test' }
     function child(script: (request: any, write: (line: unknown) => void, nextLine: () => Promise<string>) => Promise<void>) {
       const stdin = new PassThrough(), stdout = new PassThrough(), emitter = new EventEmitter()
       const proc: any = Object.assign(emitter, { stdin, stdout, kill: () => { setImmediate(() => emitter.emit('close', 143)); return true } })

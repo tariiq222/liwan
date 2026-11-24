@@ -45,7 +45,7 @@ BLOCKED_DATABASES = frozenset({'postgres', 'template0', 'template1', 'odoo19', '
 PLAN_KEYS = frozenset({'schemaVersion', 'requestId', 'controlTenantId', 'tenantId', 'database', 'filestore', 'host',
                        'customerName', 'controlPlaneDatabase', 'restoreCopies', 'backupIds'})
 CONFIG_KEYS = frozenset({'schemaVersion', 'projectName', 'composeFile', 'envFile', 'stateDir', 'domainSuffix'})
-OPTIONAL_CONFIG_KEYS = frozenset({'aiEgressDir', 'releaseBackupConfig'})
+OPTIONAL_CONFIG_KEYS = frozenset({'aiEgressDir'})
 SERVICES = {'tenant': ('db', 'odoo'), 'restore': ('restore-db', 'restore-odoo')}
 FENCE_WAIT_SECONDS = 30
 

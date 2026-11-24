@@ -107,9 +107,9 @@ describe('effect channel transports', () => {
 describe('effectEnv', () => {
   it('keeps exact allowlisted names only, no prefixes', () => {
     const env = effectEnv({ PATH: '/bin', HOME: '/h', LANG: 'C', LC_ALL: 'C', LC_CTYPE: 'C', TMPDIR: '/t', PYTHONPATH: '/p', DOCKER_HOST: 'unix:///d.sock', DOCKER_CONFIG: '/dc', DOCKER_CERT_PATH: '/c',
-      LIWAN_SHARED_RUNTIME_CONFIG: '/r.json', LIWAN_RELEASE_ROUTES_DIR: '/routes', LIWAN_RELEASE_HELPER_POOL_ID: 'p', LIWAN_BACKUP_S3_KEY: 'k',
+      LIWAN_SHARED_RUNTIME_CONFIG: '/r.json', LIWAN_BACKUP_S3_KEY: 'k',
       CONTROL_DATABASE_URL: 'c', MOYASAR_SECRET_KEY: 'm', NODE_OPTIONS: 'x' })
-    expect(Object.keys(env).sort()).toEqual(['DOCKER_CONFIG', 'DOCKER_HOST', 'HOME', 'LANG', 'LC_ALL', 'LIWAN_RELEASE_HELPER_POOL_ID', 'LIWAN_RELEASE_ROUTES_DIR', 'LIWAN_SHARED_RUNTIME_CONFIG', 'PATH', 'PYTHONUNBUFFERED', 'TMPDIR'])
+    expect(Object.keys(env).sort()).toEqual(['DOCKER_CONFIG', 'DOCKER_HOST', 'HOME', 'LANG', 'LC_ALL', 'LIWAN_SHARED_RUNTIME_CONFIG', 'PATH', 'PYTHONUNBUFFERED', 'TMPDIR'])
   })
 })
 

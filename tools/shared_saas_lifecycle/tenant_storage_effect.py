@@ -69,7 +69,7 @@ FS_STORAGE_OPTIONS = {
 
 
 def validate_request(request):
-    if (not isinstance(request, dict) or not set(request) <= REQUEST_KEYS | {'releaseBinding'}
+    if (not isinstance(request, dict) or not set(request) <= REQUEST_KEYS
             or not REQUEST_KEYS <= set(request) or not isinstance(request['config'], dict) or request['schemaVersion'] != 1
             or request['operation'] not in OPERATIONS
             or not isinstance(request['tenantId'], str) or not TENANT_ID.fullmatch(request['tenantId'])
