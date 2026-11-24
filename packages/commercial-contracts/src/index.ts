@@ -1,7 +1,9 @@
 import { z } from 'zod'
 import { hostingModelSchema } from './hosting.js'
+import { workspaceSlugSchema } from './workspace-slug.js'
 
 export * from './hosting.js'
+export * from './workspace-slug.js'
 export const commercialModeSchema = z.enum(['saas', 'non_saas'])
 export const tenantStatusSchema = z.enum(['registered', 'provisioning', 'active', 'needs_intervention'])
 export const operationStatusSchema = z.enum(['queued', 'running', 'succeeded', 'failed', 'needs_intervention'])
@@ -92,6 +94,8 @@ export const sharedOnboardingRequestSchema = z.strictObject({
   catalog_version: z.string().regex(/^[a-zA-Z0-9._-]{1,100}$/).optional(), catalog_tier: z.string().regex(/^[a-z][a-z0-9._-]{0,63}$/).optional(),
   package_revision_id: z.uuid().optional(),
   admin_name: z.string().trim().min(1).max(120), admin_login: z.email().max(100), admin_mobile: e164MobileSchema.optional(),
+  // The host the customer picked at signup; vendor registration of a dedicated workspace carries one too.
+  slug: workspaceSlugSchema,
   reason: z.string().trim().min(3).max(1000),
 }).refine(input => input.package_revision_id ? !input.catalog_version && !input.catalog_tier : Boolean(input.catalog_version && input.catalog_tier), { path: ['package_revision_id'], message: 'Select exactly one package or catalog source' })
 export const sharedOnboardingResponseSchema = z.strictObject({
