@@ -12,7 +12,7 @@ from odoo.addons.liwan_api.controllers.common import (
     WORKING_COMPANY_KEY,
     ApiError,
     api_handler,
-    error_response,
+    refusal_response,
 )
 from odoo.addons.liwan_api.models.res_users import LOGIN_CHALLENGE, fresh_session_token
 from odoo.addons.liwan_api.serializers.user import dump_me
@@ -25,28 +25,10 @@ DEVICE_COOKIE = 'liwan_device'
 DEVICE_COOKIE_PATH = '/'
 DEVICE_COOKIE_MAX_AGE = 30 * 24 * 60 * 60
 DEVICE_TOKEN_PATTERN = re.compile(r'^[A-Za-z0-9_-]{20,256}$')
-DOUBLE_STEP_REFUSALS = {
-    'invalid_code': (401, 'invalid_code', 'Verification failed, please double-check the 6-digit code'),
-    'invalid_code_format': (422, 'invalid_code_format', 'The code must be 6 digits'),
-    'invalid_device': (401, 'invalid_device', 'This device is no longer remembered'),
-    'channel_unavailable': (503, 'channel_unavailable', 'This channel is not available; use another one'),
-    'invalid_channel': (422, 'invalid_channel', 'Unknown delivery channel'),
-    'send_limit_reached': (429, 'send_limit_reached', 'Too many codes were sent for this account'),
-    'daily_send_cap': (503, 'daily_send_cap', 'The daily code limit was reached; try again tomorrow'),
-    'resend_cooldown': (429, 'resend_cooldown', 'Wait before asking for another code'),
-}
 
 
 def _refusal(code, resend_after=0):
-    """The answer of a refused second step, RETURNED and never raised.
-
-    ``api_handler`` rolls back the request's savepoint when a controller raises, and a refusal is exactly
-    when this step has something to keep: the wrong-attempt counter that burns a guessed code and the
-    daily-cap alert. A returned response leaves the savepoint released and the request commits it.
-    """
-    status, machine, message = DOUBLE_STEP_REFUSALS[code]
-    details = {'resend_after': resend_after} if resend_after else None
-    return error_response(status, machine, message, details=details)
+    return refusal_response(code, resend_after)
 
 
 def _pending_user(*, lock=False):
@@ -109,7 +91,12 @@ class AuthController(http.Controller):
     @http.route('/api/v1/auth/channels', type='json2', auth='public', methods=['GET'], readonly=True)
     @api_handler
     def channels(self):
-        """What a pending sign-in may use: SMS only when a provider is configured, email always."""
+        """What a pending sign-in may use: SMS only when a provider is configured, email always.
+
+        ``has_mobile`` says whether a code may go out by SMS for this account: only a number a code
+        has already verified carries sign-in codes; ``_liwan_issue`` refuses the SMS of a pending
+        sign-in for anything else.
+        """
         user = request.env.user
         if not user or user._is_public():
             user = _pending_user()
@@ -118,7 +105,7 @@ class AuthController(http.Controller):
         return {
             'channels': available,
             'sms_available': gateway._liwan_sms_available(),
-            'has_mobile': bool(user.liwan_mobile),
+            'has_mobile': bool(user.liwan_mobile and user.liwan_mobile_verified_at),
             'has_email': bool(user.email),
         }
 

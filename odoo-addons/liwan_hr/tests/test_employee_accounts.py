@@ -178,7 +178,7 @@ class TestEmployeeAccounts(LiwanApiCase):
         ]), 1)
 
         accepted = self.api('POST', '/api/v1/public/account/invitation/accept', {
-            'token': self._issued_link(created['id'], 'invite'), 'mobile': '+966500000021',
+            'token': self._issued_link(created['id'], 'invite'),
             'password': 'target_password_123',
         })
         self.assertEqual(accepted.status_code, 200, accepted.text)

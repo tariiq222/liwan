@@ -157760,9 +157760,9 @@
         }
       }
     },
-    "/api/v1/me/mobile": {
-      "patch": {
-        "operationId": "liwan_api.MeController.patch_mobile.patch",
+    "/api/v1/me/mobile/code": {
+      "post": {
+        "operationId": "liwan_api.MeController.send_mobile_code.post",
         "responses": {
           "200": {
             "description": "Success (serializer-whitelisted shape)."
@@ -157779,7 +157779,7 @@
             "sessionCookie": []
           }
         ],
-        "summary": "patch_mobile",
+        "summary": "Save the caller's own number and send it the verification code.",
         "tags": [
           "liwan_api"
         ],
@@ -157792,7 +157792,45 @@
           "controller": "MeController",
           "feature_keys": [],
           "feature_operation": null,
-          "handler": "patch_mobile",
+          "handler": "send_mobile_code",
+          "readonly": false,
+          "route_type": "json2"
+        }
+      }
+    },
+    "/api/v1/me/mobile/verify": {
+      "post": {
+        "operationId": "liwan_api.MeController.verify_mobile_code.post",
+        "responses": {
+          "200": {
+            "description": "Success (serializer-whitelisted shape)."
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/Invalid"
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "summary": "Verify the caller's own number with the code of POST /api/v1/me/mobile/code.",
+        "tags": [
+          "liwan_api"
+        ],
+        "x-liwan": {
+          "addon": "liwan_api",
+          "api_handler": true,
+          "auth": "user",
+          "body": "application/json (JSON-RPC style params)",
+          "contract_namespace": "access",
+          "controller": "MeController",
+          "feature_keys": [],
+          "feature_operation": null,
+          "handler": "verify_mobile_code",
           "readonly": false,
           "route_type": "json2"
         }

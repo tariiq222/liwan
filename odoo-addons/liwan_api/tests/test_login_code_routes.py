@@ -22,7 +22,8 @@ class TestLoginCodeRoutes(LiwanApiCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.employee.liwan_mobile = '+966590000011'
+        # A sign-in SMS goes only to a number a code has verified: the fixture holds it verified.
+        cls.employee.write({'liwan_mobile': '+966590000011', 'liwan_mobile_verified_at': fields.Datetime.now()})
         cls.employee.email = 'api_emp@example.test'
 
     def setUp(self):
@@ -160,6 +161,17 @@ class TestLoginCodeRoutes(LiwanApiCase):
         res = self.api('GET', '/api/v1/auth/channels')
         self.assertEqual(res.status_code, 401)
         self.assertEqual(res.json()['code'], 'no_pending_login')
+
+    def test_a_number_nobody_verified_is_not_a_sign_in_channel(self):
+        # Saving a number is half the step: until its own code is consumed the SMS carries no sign-in.
+        self.employee.write({'liwan_mobile': '+966590000099'})
+        self.authenticate()
+        self.assertFalse(self.api('GET', '/api/v1/auth/channels').json()['has_mobile'])
+        refused = self.api('POST', '/api/v1/auth/code', {'channel': 'sms'})
+        self.assertEqual((refused.status_code, refused.json()['code']), (503, 'channel_unavailable'))
+        self.assertEqual(self.sent, [], 'no SMS may carry a sign-in code for an unverified number')
+        allowed = self.api('POST', '/api/v1/auth/code', {'channel': 'email'})
+        self.assertEqual(allowed.status_code, 200, allowed.text)
 
     def _assert_pending_rejected(self, code, status, reason):
         record = self.env['liwan.login.code'].search([('user_id', '=', self.employee.id)], limit=1)

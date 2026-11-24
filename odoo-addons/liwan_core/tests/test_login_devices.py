@@ -1,4 +1,5 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from odoo import fields
 from odoo.exceptions import AccessError
 from odoo.tests import TransactionCase, new_test_user, tagged
 
@@ -22,7 +23,7 @@ class TestSecondStepReset(TransactionCase):
             cls.env, login='reset_emp', password=PASSWORD, name='Reset Employee',
             groups='liwan_core.group_employee',
         )
-        cls.employee.liwan_mobile = '+966590000003'
+        cls.employee.write({'liwan_mobile': '+966590000003', 'liwan_mobile_verified_at': fields.Datetime.now()})
         cls.service = cls.env['liwan.access.service'].with_user(cls.admin)
 
     def setUp(self):

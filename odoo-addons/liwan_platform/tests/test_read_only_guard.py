@@ -74,7 +74,7 @@ class TestReadOnlyUserGuard(ExcessCase):
         self.env['res.users'].with_user(self.readonly).browse(self.readonly.id).read(['name', 'login'])
 
     def test_the_allow_list_keeps_credentials_mobile_and_notification_state(self):
-        self.access.with_user(self.readonly)._liwan_set_own_mobile('+966500000093')
+        self.access.with_user(self.readonly)._liwan_send_mobile_code('+966500000093')
         self.assertEqual(self.readonly.liwan_mobile, '+966500000093')
         own = self.env['res.users'].with_user(self.readonly).browse(self.readonly.id)
         own.write({'lang': 'en_US'})
@@ -360,11 +360,11 @@ class TestAcceptanceConcurrency(TransactionCase):
                 env_b['res.users'].with_context(active_test=False).browse(user_ids).mapped('liwan_read_only')
                 with self.registry.cursor() as cursor_a:
                     env_a = api.Environment(cursor_a, SUPERUSER_ID, {})
-                    env_a['liwan.access.service']._liwan_accept_invitation(tokens[0], '+966500000081', 'accepted_race_123')
+                    env_a['liwan.access.service']._liwan_accept_invitation(tokens[0], 'accepted_race_123')
                     cursor_a.commit()
                 # B's snapshot predates A's commit: its acceptance fails to serialize, or finds the seat taken.
                 try:
-                    env_b['liwan.access.service']._liwan_accept_invitation(tokens[1], '+966500000082', 'accepted_race_123')
+                    env_b['liwan.access.service']._liwan_accept_invitation(tokens[1], 'accepted_race_123')
                 except SerializationFailure:
                     pass
             with self.registry.cursor() as cursor:

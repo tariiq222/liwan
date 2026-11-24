@@ -1,4 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
+from datetime import timedelta
+
+from odoo import fields
 from odoo.tests import new_test_user, tagged
 
 from .common import (
@@ -149,7 +152,7 @@ class TestAccountInvitationRoutes(LiwanApiCase):
     def test_reset_link_route_and_old_password_route_gone(self):
         created = self._create().json()
         accepted = self.api('POST', f'{PUBLIC}/invitation/accept', {
-            'token': self.sent[-1][2], 'mobile': MOBILE, 'password': PASSWORD,
+            'token': self.sent[-1][2], 'password': PASSWORD,
         })
         self.assertEqual(accepted.status_code, 200, accepted.text)
         self._admin()
@@ -184,26 +187,24 @@ class TestAccountInvitationRoutes(LiwanApiCase):
         bad = self.api('POST', f'{PUBLIC}/token', {'token': raw, 'purpose': 'other'})
         self.assertEqual((bad.status_code, bad.json()['field']), (422, 'purpose'))
         accepted = self.api('POST', f'{PUBLIC}/invitation/accept', {
-            'token': raw, 'mobile': MOBILE, 'password': PASSWORD,
+            'token': raw, 'password': PASSWORD,
         })
         self.assertEqual(
             (accepted.status_code, accepted.json()), (200, {'login': 'invitee.api@example.com', 'read_only': False}),
         )
         self.assertNotIn('session_id', accepted.cookies)
         again = self.api('POST', f'{PUBLIC}/invitation/accept', {
-            'token': raw, 'mobile': MOBILE, 'password': PASSWORD,
+            'token': raw, 'password': PASSWORD,
         })
         self.assertEqual((again.status_code, again.json()['code']), (404, 'invalid_token'))
 
     def test_accept_validation_errors_do_not_consume_the_link(self):
         self._create()
         raw = self.sent[-1][2]
-        weak = self.api('POST', f'{PUBLIC}/invitation/accept', {'token': raw, 'mobile': MOBILE, 'password': 'short'})
+        weak = self.api('POST', f'{PUBLIC}/invitation/accept', {'token': raw, 'password': 'short'})
         self.assertEqual((weak.status_code, weak.json()['code']), (422, 'weak_password'))
-        mobile = self.api('POST', f'{PUBLIC}/invitation/accept', {'token': raw, 'mobile': '0500', 'password': PASSWORD})
-        self.assertEqual((mobile.status_code, mobile.json()['code']), (422, 'invalid_mobile'))
         extra = self.api('POST', f'{PUBLIC}/invitation/accept', {
-            'token': raw, 'mobile': MOBILE, 'password': PASSWORD, 'login': 'x',
+            'token': raw, 'password': PASSWORD, 'login': 'x',
         })
         self.assertEqual((extra.status_code, extra.json()['field']), (422, 'login'))
         self.assertEqual(self._usable_invite_tokens(self.env['res.users'].search([('login', '=', 'invitee.api@example.com')]).id), 1)
@@ -221,7 +222,7 @@ class TestAccountInvitationRoutes(LiwanApiCase):
     def test_forgot_and_reset_round_trip(self):
         self._create()
         self.api('POST', f'{PUBLIC}/invitation/accept', {
-            'token': self.sent[-1][2], 'mobile': MOBILE, 'password': PASSWORD,
+            'token': self.sent[-1][2], 'password': PASSWORD,
         })
         response = self.api('POST', f'{PUBLIC}/password/forgot', {'email': 'Invitee.Api@Example.com'})
         self.assertEqual(response.status_code, 202)
@@ -243,12 +244,22 @@ class TestAccountInvitationRoutes(LiwanApiCase):
         user = self.env['res.users'].search([('login', '=', 'invitee.api@example.com')])
         _token, reset_raw = self.env['liwan.account.token'].sudo()._liwan_issue(user, 'reset')
         wrong = self.api('POST', f'{PUBLIC}/invitation/accept', {
-            'token': reset_raw, 'mobile': MOBILE, 'password': PASSWORD,
+            'token': reset_raw, 'password': PASSWORD,
         })
         self.assertEqual((wrong.status_code, wrong.json()['code']), (404, 'invalid_token'))
 
-    def test_mobile_gate_blocks_other_routes_but_not_me_mobile_password_logout(self):
+    def _capture_sms(self):
+        """The delivery seam: no provider exists in a test, so the SMS body (the bare code) is captured here."""
+        sent = []
+        self.patch(
+            type(self.env['liwan.sms.gateway']), '_liwan_send',
+            lambda model, channel, destination, body: sent.append(body),
+        )
+        return sent
+
+    def test_mobile_gate_opens_only_after_the_code_of_the_number_is_consumed(self):
         self._enable_mobile_gate()
+        sms = self._capture_sms()
         blocked = self.api('GET', '/api/v1/admin/roles')
         self.assertEqual((blocked.status_code, blocked.json()['code']), (403, 'mobile_required'))
         me = self.api('GET', '/api/v1/me')
@@ -256,19 +267,36 @@ class TestAccountInvitationRoutes(LiwanApiCase):
         self.assertEqual((me.json()['mobile'], me.json()['mobile_required']), (None, True))
         password = self.api('POST', '/api/v1/me/password', {'current': 'x', 'new': 'short'})
         self.assertEqual((password.status_code, password.json()['code']), (422, 'weak_password'))
-        invalid = self.api('PATCH', '/api/v1/me/mobile', {'mobile': '0500'})
+        invalid = self.api('POST', '/api/v1/me/mobile/code', {'mobile': '0500'})
         self.assertEqual((invalid.status_code, invalid.json()['code']), (422, 'invalid_mobile'))
-        saved = self.api('PATCH', '/api/v1/me/mobile', {'mobile': MOBILE})
+        saved = self.api('POST', '/api/v1/me/mobile/code', {'mobile': MOBILE})
         self.assertEqual(saved.status_code, 200, saved.text)
-        self.assertEqual((saved.json()['mobile'], saved.json()['mobile_required']), (MOBILE, False))
+        self.assertEqual((saved.json()['mobile'], saved.json()['mobile_required']), (MOBILE, True))
+        self.assertEqual(len(sms), 1)
+        # Saved is not verified: the gate stays closed until a code of that number is consumed.
+        self.assertEqual(self.api('GET', '/api/v1/admin/roles').json()['code'], 'mobile_required')
+        # The holder may re-save their own number; it is not another account's.
+        self.env['liwan.login.code'].search([]).write({
+            'cooldown_until': fields.Datetime.now() - timedelta(seconds=1),
+        })
+        again = self.api('POST', '/api/v1/me/mobile/code', {'mobile': MOBILE})
+        self.assertEqual(again.status_code, 200, again.text)
+        self.assertTrue(again.json()['mobile_required'], 'a re-saved number is to be verified again')
+        wrong = '%06d' % ((int(sms[-1]) + 1) % 1000000)
+        refused = self.api('POST', '/api/v1/me/mobile/verify', {'code': wrong})
+        self.assertEqual((refused.status_code, refused.json()['code']), (401, 'invalid_code'))
+        verified = self.api('POST', '/api/v1/me/mobile/verify', {'code': sms[-1]})
+        self.assertEqual(verified.status_code, 200, verified.text)
+        self.assertEqual((verified.json()['mobile'], verified.json()['mobile_required']), (MOBILE, False))
         self.assertEqual(self.api('GET', '/api/v1/admin/roles').status_code, 200)
-        taken = self.api('PATCH', '/api/v1/me/mobile', {'mobile': MOBILE})
-        self.assertEqual(taken.status_code, 200)
+        # Another account cannot claim a number this one holds.
         self.authenticate('api_emp', 'api_emp_pass_123')
-        clash = self.api('PATCH', '/api/v1/me/mobile', {'mobile': MOBILE})
+        clash = self.api('POST', '/api/v1/me/mobile/code', {'mobile': MOBILE})
         self.assertEqual((clash.status_code, clash.json()['code']), (409, 'mobile_taken'))
-        extra = self.api('PATCH', '/api/v1/me/mobile', {'mobile': MOBILE, 'name': 'x'})
+        extra = self.api('POST', '/api/v1/me/mobile/code', {'mobile': MOBILE, 'name': 'x'})
         self.assertEqual((extra.status_code, extra.json()['field']), (422, 'name'))
+        malformed = self.api('POST', '/api/v1/me/mobile/verify', {})
+        self.assertEqual((malformed.status_code, malformed.json()['code']), (422, 'invalid_code_format'))
 
     def test_mobile_gate_skips_root_and_vendor_support(self):
         self._enable_mobile_gate()
@@ -290,7 +318,7 @@ class TestAccountInvitationRoutes(LiwanApiCase):
         self.patch(
             type(self.env['liwan.directory']), '_liwan_directory_feature_keys', lambda model: (PROBE_FEATURE,),
         )
-        self.employee.liwan_mobile = MOBILE
+        self.employee.write({'liwan_mobile': MOBILE, 'liwan_mobile_verified_at': fields.Datetime.now()})
         self.authenticate('api_emp', 'api_emp_pass_123')
         response = self.api('GET', '/api/v1/people?q=Sara')
         self.assertEqual(response.status_code, 200, response.text)

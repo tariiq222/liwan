@@ -12,6 +12,7 @@ from odoo.addons.liwan_api.controllers.common import (
     chooses_company,
     clear_security_caches_after_commit,
     parse_positive_int,
+    refusal_response,
     select_working_company,
 )
 from odoo.addons.liwan_api.models.res_users import (
@@ -135,13 +136,36 @@ class MeController(http.Controller):
         clear_security_caches_after_commit(request.env)
         return dump_me(request.env.user)
 
-    @http.route('/api/v1/me/mobile', type='json2', auth='user', methods=['PATCH'], readonly=False)
+    @http.route('/api/v1/me/mobile/code', type='json2', auth='user', methods=['POST'], readonly=False)
     @api_handler
-    def patch_mobile(self, mobile=None, **extra):
+    def send_mobile_code(self, mobile=None, **extra):
+        """Save the caller's own number and send it the verification code.
+
+        The number is saved unverified; it carries a sign-in code only after the code of this step is
+        consumed. A refused send is RETURNED, not raised, so the attempt counters and the cooldown
+        survive the request.
+        """
         if extra:
             field = next(iter(extra))
             raise ApiError(422, 'invalid', f"field {field!r} is not accepted", field=field)
-        request.env['liwan.access.service']._liwan_set_own_mobile(mobile)
+        outcome = request.env['liwan.access.service']._liwan_send_mobile_code(mobile)
+        if outcome.error:
+            return refusal_response(outcome.error, outcome.resend_after)
+        return dump_me(request.env.user)
+
+    @http.route('/api/v1/me/mobile/verify', type='json2', auth='user', methods=['POST'], readonly=False)
+    @api_handler
+    def verify_mobile_code(self, code=None, **extra):
+        """Verify the caller's own number with the code of POST /api/v1/me/mobile/code.
+
+        A wrong code is RETURNED, not raised, so the attempt counter that burns a guessed code survives.
+        """
+        if extra:
+            field = next(iter(extra))
+            raise ApiError(422, 'invalid', f"field {field!r} is not accepted", field=field)
+        error = request.env['liwan.access.service']._liwan_verify_mobile_code(code)
+        if error:
+            return refusal_response(error)
         return dump_me(request.env.user)
 
     @http.route('/api/v1/me/appearance', type='json2', auth='user', methods=['PATCH'], readonly=False)
