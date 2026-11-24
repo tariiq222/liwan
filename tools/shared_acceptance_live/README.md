@@ -9,7 +9,7 @@ renders it from `deploy/environments/local.env.example` plus the harness's own v
 subnets, secrets; written by `up.sh` into a private run directory as `harness.env`). Nothing is stacked over the
 compose file, no source file is mounted into a container (Odoo runs the launcher and validator its image was built
 with) and the harness has no Caddyfile of its own. `subnets.yml` only pins network subnets and defines no service. A
-harness compose file never redefines a stack service (`tools/test_acceptance_harness_stack.py` refuses it).
+harness compose file never redefines a stack service (`deploy/stack/test_harness_stack.py` refuses it).
 
 ## Exact commands
 

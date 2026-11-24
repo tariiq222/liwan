@@ -1,5 +1,5 @@
 # Harness-only addition to the stack: the scratch control-plane database. Add-only: it defines no service of the stack
-# (tools/test_acceptance_harness_stack.py refuses a redefinition) and rides on the stack render, which is the same stack
+# (deploy/stack/test_harness_stack.py refuses a redefinition) and rides on the stack render, which is the same stack
 # every environment runs. The subnet and the password come from the harness values (FOUNDATION_*).
 services:
   control-db:

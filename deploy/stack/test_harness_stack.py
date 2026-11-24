@@ -24,7 +24,7 @@ import yaml
 from deploy.shared import validate_odoo_config
 from deploy.stack import render
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 LIVE = ROOT / 'tools/shared_acceptance_live'
 FOUNDATION = ROOT / 'tools/foundation_acceptance'
 HARNESS_COMPOSE_FILES = (LIVE / 'subnets.yml', FOUNDATION / 'control-db.yml')

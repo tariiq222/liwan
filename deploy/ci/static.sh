@@ -34,6 +34,8 @@ policies() {
   PYTHONPATH=deploy python3 -B -m unittest discover -s deploy/environments -t . -p 'test_*.py'
   # The release command lives in its own package too (deploy/release/README.md).
   python3 -B -m unittest discover -s deploy/release -t . -p 'test_*.py'
+  # The stack renderer and its golden captures; the cases that need the docker CLI skip when it is absent.
+  python3 -B -m unittest discover -s deploy/stack -t . -p 'test_*.py'
   python3 -B -m unittest tools/shared_saas_lifecycle/test_*.py
   python3 -B tools/catalog_check.py
   python3 -B tools/migration_guard.py --base "$BASE_REF"
