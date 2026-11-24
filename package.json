@@ -35,7 +35,8 @@
     },
     "e2e": {
       "zod": "^4.6.7"
-    }
+    },
+    "tailwind-variants": "3.3.1"
   },
   "devDependencies": {
     "@ai-sdk/openai": "^4.0.117",

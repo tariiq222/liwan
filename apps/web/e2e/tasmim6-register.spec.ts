@@ -86,6 +86,19 @@ test.describe('Plan 6a: register', () => {
     })
 
     test('editing a record returns to it and its filtered list without losing query state', async ({ page }) => {
+      // The return keeps ?offset=50, so the filtered list must really have a page 2 for the paging clamp to leave it
+      // alone. The shared mock register holds 3 rows, so this test serves its own filtered envelope: 51 matches put
+      // exactly one row on page 2, carried by the real filtered record.
+      const filtered = await page.request.get('/api/v1/projects/2/register?q=تأخر&kind=risk')
+      const { items } = await filtered.json()
+      await page.route('**/api/v1/projects/2/register*', async route => {
+        const url = new URL(route.request().url())
+        if (url.searchParams.get('q') === 'تأخر' && url.searchParams.get('kind') === 'risk' && url.searchParams.get('offset') === '50') {
+          await route.fulfill({ status: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ items, total: 51 }) })
+          return
+        }
+        await route.continue()
+      })
       await open(page, '/projects/2/register/31?q=تأخر&offset=50&kind=risk')
       await page.getByTestId('register-detail-edit').click()
       await expect(page).toHaveURL(/\/register\/31\/edit/)
