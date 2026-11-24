@@ -33,7 +33,7 @@
 #                                   group or other, is replaced by a fresh root-owned copy when its content is exactly what this script
 #                                   writes, and refused otherwise (review it: it names the compose file the effect account runs as root)
 #   state dir                       root:<worker group> 3770 (setgid and sticky: the worker cannot rename what the effect account owns)
-#   effect subdirectories           reservations credentials classifications restore-effects reconfigure runtime-gate-history backups,
+#   effect subdirectories           reservations credentials classifications restore-effects reconfigure runtime-gate-history tenant-storage backups,
 #                                   created when absent, owned by the effect account (LIWAN_EFFECT_USER, default liwan-effect), 0700;
 #                                   classifications 0755 (containers read it as another uid), backups 0750 (the worker reads manifests
 #                                   and cannot write there). An existing one must be a real directory owned by the effect account and not
@@ -349,7 +349,7 @@ else printf 'kept    %s\n' "$PRIVATE/control-db-password"; fi
 # initialised before the boundary converges; the effect subdirectories are created when absent and otherwise only checked.
 if [[ "$(id -u)" == 0 ]]; then
   EFFECT_UID="$(id -u "$EFFECT")"
-  for entry in reservations:0700 credentials:0700 classifications:0755 restore-effects:0700 reconfigure:0700 runtime-gate-history:0700 backups:0750; do
+  for entry in reservations:0700 credentials:0700 classifications:0755 restore-effects:0700 reconfigure:0700 runtime-gate-history:0700 tenant-storage:0700 backups:0750; do
     directory="$STATE/${entry%%:*}"
     if [[ -e "$directory" || -L "$directory" ]]; then
       plain "$directory" d

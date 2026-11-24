@@ -9,6 +9,8 @@ export type Config = {
   customerCommercialIssuer?: string
   customerCommercialServiceKey?: string
   sharedRuntimeConfigPath?: string
+  /** `LIWAN_TENANT_STORAGE_ENABLED=true`: the shared worker gives each SaaS tenant its own object-storage bucket and key (tenant_storage_effect). Unset: nothing runs. */
+  tenantStorageEnabled?: true
   /** Authenticated internal channel between control-api (caller) and control-worker (executor) for the admin password effect. */
   internalEffect?: { key: string; url?: string; ca?: Buffer; host?: string; port?: number; tls?: { key: Buffer; cert: Buffer } }
   /** The owner address that is told about each "contact us" request from the marketing site; unset turns the public contact route off. */
@@ -55,7 +57,7 @@ export function getConfig(): Config & { databaseUrl: string; host: string; port:
   const tlsKey = process.env.CONTROL_TLS_KEY
   const tlsCert = process.env.CONTROL_TLS_CERT
   if (!isLoopbackHost(host) && (!tlsKey || !tlsCert)) throw new Error('HTTPS is required outside loopback')
-  return { installationId, key, ...(contactNotifyEmail ? { contactNotifyEmail } : {}), customerCommercialIssuer, customerCommercialServiceKey, ...(sharedRuntimeConfigPath ? { sharedRuntimeConfigPath } : {}), ...(internalEffect ? { internalEffect } : {}), ...(admin ? { admin } : {}), inventoryPath, managedInventoryPath, ...(tenantRegistryPath ? { tenantRegistryPath } : {}), ...(aiPlatformProviderPath ? { aiPlatformProviderPath } : {}), ...(effectSocket ? { effectSocket } : {}), stateDir, repositoryRoot, python: process.env.LIWAN_CLI_PYTHON ?? 'python3', databaseUrl: required('CONTROL_DATABASE_URL'), host, port,
+  return { installationId, key, ...(contactNotifyEmail ? { contactNotifyEmail } : {}), customerCommercialIssuer, customerCommercialServiceKey, ...(sharedRuntimeConfigPath ? { sharedRuntimeConfigPath } : {}), ...(process.env.LIWAN_TENANT_STORAGE_ENABLED === 'true' ? { tenantStorageEnabled: true as const } : {}), ...(internalEffect ? { internalEffect } : {}), ...(admin ? { admin } : {}), inventoryPath, managedInventoryPath, ...(tenantRegistryPath ? { tenantRegistryPath } : {}), ...(aiPlatformProviderPath ? { aiPlatformProviderPath } : {}), ...(effectSocket ? { effectSocket } : {}), stateDir, repositoryRoot, python: process.env.LIWAN_CLI_PYTHON ?? 'python3', databaseUrl: required('CONTROL_DATABASE_URL'), host, port,
     tls: tlsKey && tlsCert ? { key: readFileSync(tlsKey), cert: readFileSync(tlsCert) } : undefined }
 }
 

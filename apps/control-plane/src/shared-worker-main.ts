@@ -16,6 +16,8 @@ import { processJobRecoveries } from './shared/job-recovery.js'
 import { processJobAbandonments } from './shared/job-abandon.js'
 import { onShutdownSignal } from './shutdown.js'
 import { createDeletionEffects } from './shared/tenant-deletion-effects-runner.js'
+import { createTenantStorageRunner } from './shared/tenant-storage-runner.js'
+import { runTenantStorageDue } from './shared/tenant-storage.js'
 import { logText } from './log-text.js'
 import { startWorkerHeartbeat,recordAvailability,type AvailabilityComponent } from './service-health.js'
 import { telegramSenderFromEnv } from './commercial/telegram-adapter.js'
@@ -59,12 +61,15 @@ try{
   scheduler=createCommercialScheduler({pool,config,env:process.env,paymentAdapter,mailAdapter,telegramSender:telegramSender??undefined,subscriptionRunner:adapter.subscriptionRunner,usageRunner:adapter.observeUsage,tenantStatusRunner:adapter.setTenantStatus,tenantDeletionEffects:createDeletionEffects(config,loadSharedRuntimeConfig(config.sharedRuntimeConfigPath!),controller.signal),signal:controller.signal})
   const log=(message:string,error?:unknown)=>console.error('%s %s',logText(message),logText(error instanceof Error?error.stack??error.message:error,2000))
   const isStopping=()=>controller.signal.aborted
+  // Per-tenant object storage (bucket, key, fs.storage): off unless the operator turns it on, and only for SaaS tenants.
+  const storageRunner=config.tenantStorageEnabled?createTenantStorageRunner(pool,config):undefined
   const maintenance:MaintenanceStep[]=[
     {name:'job-recoveries',run:()=>processJobRecoveries(pool,adapter,{log})},
     {name:'job-abandonments',run:()=>processJobAbandonments(pool,adapter,{log})},
     {name:'onboarding-reconcile',run:()=>reconcileOdooOnboardings(pool,config,adapter,log)},
     {name:'commercial-scheduler',run:()=>scheduler!.tick()},
     {name:'restore-publication',run:()=>dispatchRestorePublication(pool,loadSharedRuntimeConfig(config.sharedRuntimeConfigPath!),adapter,{runner:adapter.observeRestoreSubscription})},
+    ...(storageRunner?[{name:'tenant-storage',run:()=>runTenantStorageDue(pool,storageRunner,{signal:controller.signal})}]:[]),
   ]
   await runSharedWorker({pool,adapter,signal:controller.signal,afterDispatch:createMaintenanceRunner(maintenance,{isStopping,log,now:Date.now})})
 }finally{await scheduler?.usageIdle().catch(()=>{});await pool.end()}

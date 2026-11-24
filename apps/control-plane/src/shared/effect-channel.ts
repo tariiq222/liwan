@@ -15,7 +15,7 @@ import { signalGroup, terminateGroup } from '../process-group.js'
  * Transport: `LIWAN_EFFECT_SOCKET` set connects to that unix socket (systemd starts the gate as its own account there, and no worker
  * environment crosses); unset spawns the same gate as a child (local stack and tests).
  */
-export const EFFECT_NAMES = ['odoo_effect', 'odoo_backup', 'subscription_effect', 'admin_password_effect', 'tenant_status_effect', 'tenant_drop_effect'] as const
+export const EFFECT_NAMES = ['odoo_effect', 'odoo_backup', 'subscription_effect', 'admin_password_effect', 'tenant_status_effect', 'tenant_drop_effect', 'tenant_storage_effect'] as const
 export type EffectName = typeof EFFECT_NAMES[number]
 export const EFFECT_GATE_MODULE = 'tools.shared_saas_lifecycle.effect_gate'
 /** The gate itself waits `KILL_GRACE` (60 s) for an effect's cleanup — its `cancel` (25 s) plus the detached odoo restart (30 s) — so SIGKILL comes only after that. */

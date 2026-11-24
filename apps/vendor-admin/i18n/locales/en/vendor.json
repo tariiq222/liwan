@@ -720,6 +720,9 @@
           "stuck": "Workspace deletion stuck",
           "withdrawn": "Workspace deletion withdrawn"
         },
+        "tenant_storage": {
+          "requested": "Workspace file storage key rotation or retry requested"
+        },
         "trial": {
           "conversion_reverted": "Trial restored after the conversion payment was refunded",
           "converted": "Trial converted to a paid subscription after payment",

@@ -341,7 +341,7 @@ class InitHost(unittest.TestCase):
         self.assertEqual(2, len(handed), chowns)
         self.assertIn(f'-h root:docker {shared_env}', chowns)
         modes = {'reservations': 0o700, 'credentials': 0o700, 'classifications': 0o755, 'restore-effects': 0o700,
-                 'reconfigure': 0o700, 'runtime-gate-history': 0o700, 'backups': 0o750}
+                 'reconfigure': 0o700, 'runtime-gate-history': 0o700, 'tenant-storage': 0o700, 'backups': 0o750}
         for name, expected in modes.items():
             with self.subTest(directory=name):
                 self.assertEqual(expected, mode(self.state / name))

@@ -367,6 +367,10 @@ class EffectBoundaryUnits(unittest.TestCase):
         self.assertNotRegex(text, r'(?m)^(?:Environment=)?LIWAN_TENANT_DELETION_ENABLED=')
         self.assertIn('LIWAN_TENANT_DELETION_ENABLED=true', text)  # the header tells the operator what to put in the file
 
+    def test_tenant_storage_is_off_by_default_in_the_worker_environment_example(self):
+        text = (CONTROL / 'shared-worker.env.example').read_text(encoding='utf-8')
+        self.assertEqual(['LIWAN_TENANT_STORAGE_ENABLED=false'], re.findall(r'(?m)^LIWAN_TENANT_STORAGE_ENABLED=.*$', text))
+
     def test_the_effect_service_has_the_common_sandbox_and_its_own_network_and_write_scope(self):
         service = self.effect['Service']
         for entry in COMMON_SANDBOX:

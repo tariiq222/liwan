@@ -31,6 +31,7 @@ import { accountsHttp } from './admin-auth/accounts-http.js'
 import { aiProviderHttp } from './ai-provider/http.js'
 import { defaultWebAuthn, type WebAuthnLib } from './admin-auth/webauthn.js'
 import { enqueueSharedJob } from './shared/job-store.js'
+import { readTenantStorage, requestTenantStorage } from './shared/tenant-storage.js'
 import { listSharedBackups } from './shared/backup-list.js'
 import { requestSharedJobRecovery, UnsupportedRecoveryOperation } from './shared/job-recovery.js'
 import { requestSharedJobAbandon, UnsupportedAbandonOperation } from './shared/job-abandon.js'
@@ -531,6 +532,16 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
         if(realProgress){requireCapability(auth,'vendor.read');return respond(res,200,await odooJobProgress(pool,realProgress[1]!,realProgress[2]!))}
         requireCapability(auth,'vendor.operations.run')
         return respond(res,201,sharedRestoreApprovalSchema.parse(await approveOdooRestore(pool,runtime,{issuer:vendorActorIssuer(config.installationId),actorUid:auth.actor},realApproval![1]!,parseJson(raw,sharedRestoreApprovalRequestSchema))))
+      }
+      const tenantStorage = pathname.match(new RegExp(`^/v1/shared/tenants/(${UUID})/storage$`))
+      if (tenantStorage && ['GET', 'POST'].includes(method)) {
+        if (!config.tenantStorageEnabled) throw new ApiError(503, 'tenant_storage_unavailable', 'Tenant storage is not enabled')
+        if (method === 'GET') { requireCapability(auth, 'vendor.read'); return respond(res, 200, { storage: await readTenantStorage(pool, tenantStorage[1]!) }) }
+        requireCapability(auth, 'vendor.operations.run')
+        const input = parseJson(raw, z.strictObject({ operation: z.enum(['ensure', 'rotate']), reason: z.string().trim().min(3).max(1000) }))
+        try { await requestTenantStorage(pool, tenantStorage[1]!, input.operation, { issuer: vendorActorIssuer(config.installationId), actorUid: auth.actor }, input.reason) }
+        catch (error) { if (error instanceof Error && error.message === 'tenant_operations_unavailable') throw new ApiError(409, 'tenant_operations_unavailable', 'Tenant is not ready for storage'); throw error }
+        return respond(res, 202, { state: 'queued' })
       }
       const sharedQueue = pathname.match(new RegExp(`^/v1/shared/tenants/(${UUID})/jobs$`))
       if (method === 'POST' && sharedQueue) {
