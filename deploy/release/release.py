@@ -526,11 +526,13 @@ class Releaser:
                                f'(deploy/release/README.md, "Pre-stack cutover")')
         directory = self.file(f'stack/{checkout.name}')
         shared_env = Path(self.config['LIWAN_SHARED_ENV_FILE'])
-        # A render is a pure function of the checkout and the two env files, so an unchanged input reuses the files on disk.
-        key = (checkout.name, shared_env.read_bytes(), release_env.read_bytes() if release_env.exists() else None)
-        cached = self.bundles.get(key)
-        if cached is not None and (directory / STACK_MANIFEST).exists():
-            return cached
+        # A render is a pure function of the checkout and the two env files, so unchanged inputs reuse the files on disk. The
+        # directory is one per commit, so one entry per commit: new inputs render over it and replace the entry.
+        inputs = (shared_env.read_bytes(), release_env.read_bytes() if release_env.exists() else None)
+        cached = self.bundles.get(checkout.name)
+        if cached is not None and cached[0] == inputs and (directory / STACK_MANIFEST).exists():
+            return cached[1]
+        self.bundles.pop(checkout.name, None)
         shutil.rmtree(directory, ignore_errors=True)
         directory.mkdir(parents=True, mode=0o700)
         directory.chmod(0o700)
@@ -546,7 +548,8 @@ class Releaser:
                 raise ReleaseError('invalid_shared_env', EXIT_REFUSED,
                                    f'{self.config["LIWAN_SHARED_ENV_FILE"]} cannot render the stack of {checkout.name} (see above)')
             raise ReleaseError('stack_render_failed', EXIT_REFUSED, f'the renderer of {checkout.name} exited {code}')
-        bundle = self.bundles[key] = self.read_bundle(checkout, directory)
+        bundle = self.read_bundle(checkout, directory)
+        self.bundles[checkout.name] = (inputs, bundle)
         return bundle
 
     def read_bundle(self, checkout: Path, directory: Path) -> StackBundle:
@@ -654,13 +657,15 @@ class Releaser:
                       if (name in live) != (name in rendered)
                       or not hmac.compare_digest(live[name].encode(), rendered[name].encode()))
 
-    def prepare_odoo_config(self, checkout: Path) -> None:
+    def prepare_odoo_config(self, checkout: Path, check_drift: bool = True) -> None:
         """Render the candidate's Odoo config beside the live file (``<file>.next``), validate it with the candidate's own
         validator as the container's launcher will run it, and refuse a hand-written live file that differs from it. Nothing
         running changes: ``activate`` renames it into place. The live file must exist (the operator creates it as root with the
         Odoo group, A4.7): a file this command made would not be readable by the container. The render takes the live file's
         owner, group and mode exactly. One this command rendered earlier is replaced freely; a hand-written one is adopted only
-        when it says what the render says, option by option (names are logged, never values)."""
+        when it says what the render says, option by option (names are logged, never values). A rollback skips that guard
+        (``check_drift`` false): it replaces the failed release's config with the previous release's own render, and the
+        validator still runs."""
         live = Path(self.shared_env()[ODOO_CONFIG_KEY])
         pending = live.with_name(live.name + '.next')
         if not live.exists():
@@ -669,7 +674,7 @@ class Releaser:
                                f'(owner root, the Odoo group, mode 0440) before this release')
         text = self.rendered_odoo_config(checkout)
         owner = live.stat()
-        if RENDERED_MARKER not in live.read_text(encoding='utf-8'):
+        if check_drift and RENDERED_MARKER not in live.read_text(encoding='utf-8'):
             drift = self.config_drift(live.read_text(encoding='utf-8'), text)
             if drift:
                 raise ReleaseError('odoo_config_drift', EXIT_REFUSED,
@@ -720,11 +725,11 @@ class Releaser:
         if pending.exists():
             os.replace(pending, live)
 
-    def install_odoo_config(self, checkout: Path) -> None:
+    def install_odoo_config(self, checkout: Path, check_drift: bool = True) -> None:
         """Render, validate and put in place the Odoo config of ``checkout``: ``activate`` does it for the candidate through
         ``prepare`` and ``adopt``, a rollback does it again for the previous release, whose own renderer then decides what its
         Odoo runs with."""
-        self.prepare_odoo_config(checkout)
+        self.prepare_odoo_config(checkout, check_drift)
         self.adopt_odoo_config()
 
     def require_renderable(self, run: dict, checkout: Path) -> None:
@@ -991,6 +996,9 @@ class Releaser:
         for runs in sorted(self.file('runs').glob('*')):
             if runs.name not in keep:
                 shutil.rmtree(runs, ignore_errors=True)
+        for bundle in sorted(self.file('stack').glob('*')):  # each holds a rendered odoo.conf with the database password
+            if bundle.name not in keep:
+                shutil.rmtree(bundle, ignore_errors=True)
         for folder in sorted(self.paths.releases.glob('*')):
             match = RELEASE_FOLDER.match(folder.name)
             if match and match.group(1) not in keep:
@@ -1046,7 +1054,7 @@ class Releaser:
         write_atomic(self.file('release.env'), run['previousReleaseEnv']
                      or release_env_text(previous['commit'], previous['odooCommit']))
         self.point_current(checkout)
-        self.install_odoo_config(checkout)
+        self.install_odoo_config(checkout, check_drift=False)
         self.start_services(checkout, with_edge=True)
         self.leave_maintenance()  # the previous release serves from here on, whatever the worker's file does
         self.shared_compose_target().unlink(missing_ok=True)  # still the failed release's render: a failed render below must leave no file

@@ -1665,6 +1665,27 @@ class ReleaseTest(unittest.TestCase):
                 self.assertEqual(self.served(), OLD)
                 shutil.rmtree(self.paths.releases / NEW, ignore_errors=True)
 
+    def test_a_rollback_over_a_hand_written_live_config_still_starts_the_previous_release(self):
+        stub_renderer(self.paths.releases / OLD, 'old')
+        self.candidate_stack = lambda checkout: stub_renderer(checkout, 'new')
+        self.odoo_config.write_text('[options]\nmarker = new\n')  # adopted at prepare because it says what the candidate renders
+        self.fail_health = True
+        original = release.Releaser.prepare_odoo_config
+        calls = []
+
+        def spy(releaser, checkout, check_drift=True):
+            calls.append((checkout.name, check_drift))
+            if not check_drift:  # the failed release's config is on disk, but a hand edit after activation must not block it
+                self.odoo_config.write_text('[options]\nmarker = edited-by-hand\n')
+            return original(releaser, checkout, check_drift)
+
+        with mock.patch.object(release.Releaser, 'prepare_odoo_config', spy):
+            self.assertEqual(self.main(), release.EXIT_FAILED)
+        self.assertEqual(self.result(), 'rolled back health_check_failed')
+        self.assertEqual(calls, [(NEW, True), (OLD, False)])
+        self.assertIn('marker = old', self.odoo_config.read_text())
+        self.assertEqual(self.markers('up')[-1], 'old')
+
     def test_a_halted_rollback_resumed_renders_the_previous_release_again_without_stale_files(self):
         stub_renderer(self.paths.releases / OLD, 'old')
         self.test_rollback_that_fails_halts_and_keeps_maintenance()
@@ -2031,6 +2052,32 @@ class ReleaseTest(unittest.TestCase):
         self.assertTrue((self.state / f'releases/{OLD}.json').exists() and (self.state / f'releases/{NEW}.json').exists())
         removed = [call for call in self.runner.calls if call[:3] == ['docker', 'image', 'rm']]
         self.assertEqual(removed, [['docker', 'image', 'rm', f'{REGISTRY}/liwan-odoo@sha256:{"1" * 64}']])
+
+    def test_commit_prunes_the_rendered_stacks_of_older_and_refused_releases_with_their_odoo_conf(self):
+        for name in (ANCIENT, 'c' * 40):  # an old release and a candidate that was refused earlier
+            (self.state / 'stack' / name).mkdir(parents=True)
+            (self.state / 'stack' / name / 'odoo.conf').write_text(f'db_password = {SECRET}\n')
+        self.assertEqual(self.main(), release.EXIT_OK)
+        self.assertEqual(sorted(path.name for path in (self.state / 'stack').iterdir()), sorted([OLD, NEW]))
+
+    def test_the_render_cache_follows_the_inputs_of_the_one_directory_a_commit_has(self):
+        releaser = release.Releaser('staging', release.load_config(self.paths, 'staging'), self.paths, self.runner,
+                                    lambda *_: None, self.environ, self.machine)
+        releaser.state.mkdir(parents=True, exist_ok=True)
+        checkout = self.paths.releases / OLD
+        first, second = self.root / 'one.env', self.root / 'two.env'
+        first.write_text('LIWAN_STACK_DB_HOST_LINK=true\n')
+        second.write_text('LIWAN_STACK_DB_HOST_LINK=false\n')
+        rendered = lambda: 'liwan-dbhost' in (self.state / 'stack' / OLD / 'compose.yml').read_text()  # noqa: E731
+        releaser.stack(checkout, first)
+        self.assertTrue(rendered())
+        releaser.stack(checkout, second)
+        self.assertFalse(rendered())
+        releaser.stack(checkout, first)  # back to the first inputs: the files on disk are re-rendered, not the stale entry
+        self.assertTrue(rendered())
+        before = len(self.runner.renders)
+        releaser.stack(checkout, first)
+        self.assertEqual(len(self.runner.renders), before)  # unchanged inputs reuse the render
 
     def test_a_rolled_back_run_prunes_nothing(self):
         (self.paths.releases / ANCIENT).mkdir()
