@@ -131,6 +131,11 @@ class World:
         self.mode = mode
         self.records, self.objects, self.writes, self.events, self.scripts = [], {}, [], [], []
         self.fail_write = None
+        self.database_gone = False
+
+    # the effect's OdooStore asks this before a drop reads the record
+    def database_exists(self):
+        return not self.database_gone
 
     # the effect's OdooStore talks to this
     def run_script(self, script, *, stdin):
@@ -172,6 +177,9 @@ def run(world, operation, **over):
 class Case(unittest.TestCase):
     def setUp(self):
         self.world = World()
+        self.marker = effect.dropped_marker(STATE_DIR, 'acme')
+        self.marker.unlink(missing_ok=True)
+        self.addCleanup(self.marker.unlink, missing_ok=True)
         # OciClient.call(op, **values) -> world.run_oci(payload) through the real parser
         self.effect = effect.TenantStorageEffect(
             effect.OciClient(self.world, 'acme', REQUEST_ID), effect.OdooStore(self.world, DATABASE, REQUEST_ID), self.world.clock)
@@ -465,6 +473,120 @@ class RotateTest(Case):
         self.assertIsNotNone(self.world.candidate())
 
 
+class DropTest(Case):
+    """The tenant's own resources go, a resumed drop finishes what an earlier run started, and nothing is deleted while
+    an operation of the same tenant still runs."""
+
+    def provisioned(self, objects=3):
+        self.run_op('ensure')
+        bucket = self.world.primary().directory_path
+        self.world.api.objects[bucket] = {'obj-%03d' % n for n in range(objects)}
+        return bucket
+
+    def destructive(self):
+        return [call for call in self.world.api.created if call[0] in ('bucket_delete', 'objects', 'user_delete', 'policy_delete', 'group_delete')]
+
+    def test_a_drop_empties_the_bucket_then_removes_every_resource(self):
+        bucket = self.provisioned()
+        # A spent drain budget after the first batch: the answer is `emptying` with what this pass removed, and the next call continues.
+        with patch.object(oci, 'EMPTY_BATCH', 2), patch.object(oci, 'DRAIN_SECONDS', 0):
+            emptying = self.run_op('drop')
+        self.assertEqual(('drop', 'emptying', 'objects_removed'), (emptying['operation'], emptying['state'], emptying['stage']))
+        self.assertEqual(effect.DRAIN_RETRY_SECONDS, emptying['retryAfterSeconds'])
+        self.assertEqual(2, emptying['objectsDeleted'])
+        self.assertIn(bucket, self.world.api.buckets)  # a later call continues
+        answer = self.run_op('drop')
+        self.assertEqual(('removed', 'resources_removed'), (answer['state'], answer['stage']))
+        self.assertEqual(1, answer['objectsDeleted'])
+        self.assertEqual(1, answer['keysDeleted'])
+        self.assertNotIn('retryAfterSeconds', answer)
+        self.assertNotIn(bucket, self.world.api.buckets)
+        self.assertEqual([], self.world.keys())
+        self.assertEqual([], [user for user in self.world.api.users.values() if user['name'] == bucket])
+
+    def test_the_fixed_policy_is_shared_by_every_tenant_so_it_stays(self):
+        self.world.mode = 'fixed'
+        bucket = self.provisioned(objects=1)
+        self.assertEqual('removed', self.run_op('drop')['state'])
+        self.assertNotIn(bucket, self.world.api.buckets)
+        self.assertIn(oci.FIXED_POLICY_NAME, self.world.api.policies)
+        self.assertEqual([], [call for call in self.destructive() if call[0] == 'policy_delete'])
+
+    def test_a_record_for_another_bucket_is_refused_and_nothing_is_deleted(self):
+        bucket = self.provisioned(objects=2)
+        self.world.primary().directory_path = 'lw-someoneelse'
+        self.assertEqual('bucket_mismatch', self.code_of('drop'))
+        self.assertIn(bucket, self.world.api.buckets)
+        self.assertEqual(2, len(self.world.api.objects[bucket]))
+        self.assertEqual([], self.destructive())
+
+    def test_a_drop_that_meets_a_running_operation_is_refused_and_removes_nothing(self):
+        bucket = self.provisioned(objects=2)
+        with effect.tenant_lock(STATE_DIR, 'acme'):
+            with self.assertRaises(EffectError) as caught:
+                effect.execute(request('drop'), self.world)
+            self.assertEqual('operation_in_progress', str(caught.exception))
+            self.assertIn(bucket, self.world.api.buckets)
+            self.assertEqual(2, len(self.world.api.objects[bucket]))
+            self.assertEqual([], self.destructive())
+        self.assertEqual('removed', effect.execute(request('drop'), self.world)['state'])
+        self.assertNotIn(bucket, self.world.api.buckets)
+        self.assertEqual([], self.world.keys())
+
+    def test_a_drop_resumed_after_the_tenant_database_went_still_removes_the_resources(self):
+        bucket = self.provisioned(objects=2)
+        self.world.database_gone = True
+        self.world.run_script = lambda script, *, stdin: effect.SENTINEL + json.dumps({'error_code': 'script_failed'})
+        scripts = len(self.world.scripts)
+        answer = self.run_op('drop')
+        self.assertEqual('removed', answer['state'])
+        self.assertEqual(2, answer['objectsDeleted'])
+        self.assertNotIn(bucket, self.world.api.buckets)
+        self.assertEqual([], self.world.keys())
+        # A database that is gone is not read at all: the names come from the tenant id.
+        self.assertEqual([], [json.loads(stdin)['op'] for _, stdin in self.world.scripts[scripts:]])
+
+    def test_an_observation_that_fails_is_raised_and_nothing_is_deleted(self):
+        bucket = self.provisioned(objects=2)
+        self.world.primary().directory_path = 'lw-someoneelse'  # a stale record the check exists to catch
+        self.world.run_script = lambda script, *, stdin: effect.SENTINEL + json.dumps({'error_code': 'script_failed'})
+        self.assertEqual('script_failed', self.code_of('drop'))
+        self.assertIn(bucket, self.world.api.buckets)
+        self.assertEqual(2, len(self.world.api.objects[bucket]))
+        self.assertEqual([], self.destructive())
+
+    def test_the_dropped_marker_is_truncated_so_it_stays_valid_json(self):
+        self.provisioned(objects=1)
+        self.marker.write_text('{"requestId": "' + 'f' * 400 + '", "droppedAt": 1}')
+        self.assertEqual('removed', self.run_op('drop')['state'])
+        # The rewrite truncated the longer old body instead of leaving its tail behind.
+        self.assertEqual({'requestId': REQUEST_ID, 'droppedAt': int(self.world.clock())}, json.loads(self.marker.read_text()))
+
+    def test_a_finished_drop_blocks_every_later_provisioning_of_that_tenant(self):
+        self.provisioned(objects=1)
+        self.assertEqual('removed', self.run_op('drop')['state'])
+        created, writes = len(self.world.api.created), len(self.world.writes)
+        for operation in ('ensure', 'verify', 'rotate'):
+            self.assertEqual('authority_lost', self.code_of(operation))
+        self.assertEqual((created, writes), (len(self.world.api.created), len(self.world.writes)))  # no bucket, user, key or record came back
+        self.assertTrue(self.marker.exists())
+        self.assertEqual('removed', self.run_op('drop')['state'])  # a resumed drop stays safe and idempotent
+        # The marker is the gate and nothing else hides it: an explicit re-provision the operator starts removes it (documented admin action).
+        self.marker.unlink()
+        self.assertEqual('pending_key', self.run_op('ensure')['state'])
+
+    def test_every_oci_failure_is_an_allowed_code_and_the_bucket_stays(self):
+        bucket = self.provisioned(objects=1)
+        for code in ('oci_refused', 'oci_unreachable', 'limit_reached'):
+            self.world.api.fail = code
+            self.assertEqual(code, self.code_of('drop'))
+            self.assertIn(bucket, self.world.api.buckets)
+        self.world.api.fail = None
+        with patch.object(self.world.api, 'delete_bucket', lambda *a: None):
+            self.assertEqual('bucket_still_present', self.code_of('drop'))
+        self.assertIn('bucket_still_present', effect.ERROR_CODES)
+
+
 class SecretTest(Case):
     """The secret reaches `fs.storage` only: not an answer, a log line, an exception, stderr, a file or any later script input."""
 
@@ -524,6 +646,20 @@ class SecretTest(Case):
         self.secret_free(out.getvalue())
 
 
+    def test_a_drop_answer_and_its_logs_carry_no_secret(self):
+        self.run_op('ensure')
+        secret = json.loads(self.world.primary().options)['secret']
+        with self.assertLogs(level='DEBUG') as logs, contextlib.redirect_stderr(io.StringIO()) as err, \
+                contextlib.redirect_stdout(io.StringIO()) as out:
+            logging.getLogger().debug('start')
+            answer = self.run_op('drop')
+        self.assertEqual('removed', answer['state'])
+        self.assertNotIn(secret, json.dumps(answer) + out.getvalue() + err.getvalue() + '\n'.join(logs.output))
+        for script, stdin in self.world.scripts:
+            if json.loads(stdin)['op'] != 'write':
+                self.assertNotIn(secret, stdin)
+
+
 class ScriptTest(unittest.TestCase):
     def test_the_script_is_static_compiles_and_prints_through_the_sentinel(self):
         script = effect.build_script()
@@ -580,7 +716,7 @@ class RequestTest(unittest.TestCase):
             self.assertEqual(operation, effect.validate_request(request(operation))['operation'])
 
     def test_invalid_requests_are_refused(self):
-        bad = [request('drop'), request(schemaVersion=2), request(tenantId='../x'), request(tenantId='Acme'), request(requestId='nope'),
+        bad = [request('destroy'), request(schemaVersion=2), request(tenantId='../x'), request(tenantId='Acme'), request(requestId='nope'),
                request(database='liwan_acme'), request(bucket='lw-x'), {**request(), 'config': 'x'}, [], 'x',
                {k: v for k, v in request().items() if k != 'tenantId'}, {k: v for k, v in request().items() if k != 'config'}]
         for item in bad:
@@ -589,7 +725,7 @@ class RequestTest(unittest.TestCase):
             self.assertEqual('request_invalid', str(caught.exception))
 
     def test_main_reports_invalid_input_as_a_code(self):
-        for raw in ('', '{broken', '[]', json.dumps({**request(), 'operation': 'drop'}), 'x' * (odoo_effect.MAX_OUTPUT + 2)):
+        for raw in ('', '{broken', '[]', json.dumps({**request(), 'operation': 'destroy'}), 'x' * (odoo_effect.MAX_OUTPUT + 2)):
             out = io.StringIO()
             self.assertEqual(1, effect.main(io.StringIO(raw + '\n'), out))
             self.assertEqual({'error_code': 'request_invalid'}, json.loads(out.getvalue()))

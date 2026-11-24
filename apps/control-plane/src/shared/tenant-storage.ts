@@ -12,6 +12,7 @@ import { TENANT_STORAGE_ERROR_CODES } from './tenant-storage-runner.js'
  * One row of `tenant_storage` per tenant drives it; the effect itself keeps no state and is safe to repeat, so a lost run is only run again.
  * A run answers `pending_key` while the new key cannot work yet (about 7 minutes) and the next run is scheduled for then; nothing waits.
  * The product (odoo-addons, apps/web) knows nothing of this, and a tenant outside SaaS never gets a row (R5, R8).
+ * The deletion of a tenant owns the row with `operation='drop'` (begin/finish below): the storage loop never claims it.
  */
 export type StorageOperation = 'ensure' | 'verify' | 'rotate'
 export type StorageOutcome = { ok: true; response: StorageResponse } | { ok: false; code: string }
@@ -36,6 +37,19 @@ export type StorageResponse = z.infer<typeof storageResponseSchema>
 export type StorageClaim = { tenantId: string; operation: StorageOperation; requestId: string; revision: number; attempts: number }
 export type StorageRunner = (input: { tenant_id: string; operation: StorageOperation; request_id: string; signal: AbortSignal }) => Promise<unknown>
 
+/**
+ * The effect's answer to a `drop`: `emptying` while a large bucket still holds objects (the next run continues), then `removed`. Counts and states only,
+ * never a key or a resource name beyond the tenant's own bucket.
+ */
+export const storageDropResponseSchema = z.discriminatedUnion('state', [
+  z.strictObject({ operation: z.literal('drop'), tenantId: z.string(), requestId: z.uuid(), state: z.literal('emptying'),
+    stage: z.literal('objects_removed'), objectsDeleted: z.number().int().min(0), retryAfterSeconds: z.number().int().min(1).max(3600) }),
+  z.strictObject({ operation: z.literal('drop'), tenantId: z.string(), requestId: z.uuid(), state: z.literal('removed'),
+    stage: z.literal('resources_removed'), objectsDeleted: z.number().int().min(0), keysDeleted: z.number().int().min(0) }),
+])
+export type StorageDropResponse = z.infer<typeof storageDropResponseSchema>
+export type StorageDropClaim = { requestId: string; revision: number }
+
 /** 1 minute, doubling, at most an hour. */
 export const storageBackoffSeconds = (attempts: number) => Math.min(3600, 60 * 2 ** Math.max(0, attempts - 1))
 
@@ -50,17 +64,39 @@ export async function discoverTenantStorage(pool: Pool): Promise<number> {
   return added.rowCount ?? 0
 }
 
-/** Takes the due rows (a lease, a fresh run id) so that no other worker runs the same tenant; only enabled SaaS tenants are ever due. */
+/** Takes the due rows (a lease, a fresh run id) so that no other worker runs the same tenant; only enabled SaaS tenants are ever due, and a row being
+ * dropped (`operation='drop'`, owned by the tenant deletion) is never taken: an `ensure` must not create what the drop is removing. */
 export async function claimTenantStorage(pool: Pool, limit = STORAGE_RUNS_PER_PASS): Promise<StorageClaim[]> {
   const claimed = await pool.query(`WITH due AS (
       SELECT s.control_tenant_id FROM tenant_storage s
       JOIN shared_registry_bindings b ON b.control_tenant_id=s.control_tenant_id AND b.enabled=true
       JOIN tenants t ON t.id=s.control_tenant_id AND t.commercial_mode='saas' AND t.operations_enabled=true
-      WHERE s.next_run_at<=clock_timestamp() ORDER BY s.next_run_at,s.control_tenant_id LIMIT $1 FOR UPDATE OF s SKIP LOCKED)
+      WHERE s.next_run_at<=clock_timestamp() AND s.operation<>'drop' ORDER BY s.next_run_at,s.control_tenant_id LIMIT $1 FOR UPDATE OF s SKIP LOCKED)
     UPDATE tenant_storage s SET request_id=gen_random_uuid(),next_run_at=clock_timestamp()+make_interval(secs=>$2),updated_at=clock_timestamp()
     FROM due WHERE s.control_tenant_id=due.control_tenant_id
     RETURNING s.control_tenant_id AS "tenantId",s.operation,s.request_id AS "requestId",s.revision,s.attempts`, [limit, STORAGE_LEASE_SECONDS])
   return claimed.rows
+}
+
+/**
+ * Starts (or resumes) the storage drop of a tenant being deleted: the row carries a fresh run id and `operation='drop'` with no due time, so the storage loop
+ * never claims it again. The row is created when the tenant has none, because the effect's answer is what the deletion's ledger refers to.
+ */
+export async function beginTenantStorageDrop(pool: Pool, controlTenantId: string): Promise<StorageDropClaim> {
+  z.uuid().parse(controlTenantId)
+  const row = await pool.query(`INSERT INTO tenant_storage(control_tenant_id,operation,state,next_run_at,request_id)
+    VALUES($1,'drop','emptying',NULL,gen_random_uuid())
+    ON CONFLICT (control_tenant_id) DO UPDATE SET operation='drop',state='emptying',stage=NULL,error_code=NULL,attempts=0,next_run_at=NULL,
+      request_id=gen_random_uuid(),revision=tenant_storage.revision+1,updated_at=clock_timestamp()
+    RETURNING request_id AS "requestId",revision`, [controlTenantId])
+  return row.rows[0]
+}
+
+/** Records one drop run, only while the row still belongs to it. `emptying` keeps the row for the next run; `removed` closes it. */
+export async function finishTenantStorageDrop(pool: Pool, claim: StorageDropClaim, controlTenantId: string, response: StorageDropResponse): Promise<boolean> {
+  const result = await pool.query(`UPDATE tenant_storage SET state=$4,stage=$5,error_code=NULL,response=$6,next_run_at=NULL,updated_at=clock_timestamp()
+    WHERE control_tenant_id=$1 AND request_id=$2 AND revision=$3 AND operation='drop'`, [controlTenantId, claim.requestId, claim.revision, response.state, response.stage, response])
+  return (result.rowCount ?? 0) === 1
 }
 
 /**

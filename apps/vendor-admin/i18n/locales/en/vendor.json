@@ -1649,6 +1649,7 @@
             "preflight": "Pre-checks",
             "stop_access": "Stop access",
             "unbind_relay": "Unbind the TikTok relay",
+            "remove_storage": "Remove the object storage",
             "commit": "Point of no return",
             "delete_cards": "Delete saved cards",
             "drop_database": "Drop the database",
