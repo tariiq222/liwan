@@ -20,7 +20,7 @@ export default defineAppConfig({
     // a paid application repaints it in its button shade, app-identity.css). --primary is for fills, icons and rings without text.
     button: {
       slots: { base: 'rounded-control font-semibold transition-[color,background-color,translate,scale,box-shadow,filter] [&:not([disabled],[aria-disabled=true])]:hover:-translate-y-px active:scale-[.97] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100' },
-      variants: { size: { xs: { base: 'rounded-inner' }, sm: { base: 'min-h-[34px] px-3.5 text-(length:--liwan-fs-small-label) rounded-control' }, md: { base: 'min-h-(--liwan-control-h) px-5 gap-2' } } },
+      variants: { size: { xs: { base: 'rounded-inner', leadingIcon: 'size-3.5', trailingIcon: 'size-3.5' }, sm: { base: 'min-h-[34px] px-3.5 text-(length:--liwan-fs-small-label) rounded-control', leadingIcon: 'size-3.5', trailingIcon: 'size-3.5' }, md: { base: 'min-h-(--liwan-control-h) px-5 gap-2', leadingIcon: 'size-4', trailingIcon: 'size-4' } } },
       compoundVariants: [
         { size: 'sm', square: true, class: 'min-w-[34px] justify-center' },
         { size: 'md', square: true, class: 'min-w-(--liwan-control-h) justify-center' },
@@ -70,7 +70,7 @@ export default defineAppConfig({
     toast: { slots: { root: 'rounded-card' } },
     // Alerts are subtle (soft tint) by default: the stock solid fill puts white text on saturated amber/red (about 2:1 for warning).
     // Status text uses the same --status-*-foreground tokens as badges.
-    alert: { slots: { root: 'rounded-card' }, defaultVariants: { variant: 'subtle' }, compoundVariants: [{ color: 'success', variant: 'subtle', class: { root: 'text-status-success-foreground' } }, { color: 'info', variant: 'subtle', class: { root: 'text-status-info-foreground' } }, { color: 'warning', variant: 'subtle', class: { root: 'text-status-warning-foreground' } }, { color: 'error', variant: 'subtle', class: { root: 'text-status-danger-foreground' } }] },
+    alert: { slots: { root: 'rounded-card liwan-span-full' }, defaultVariants: { variant: 'subtle' }, compoundVariants: [{ color: 'success', variant: 'subtle', class: { root: 'text-status-success-foreground' } }, { color: 'info', variant: 'subtle', class: { root: 'text-status-info-foreground' } }, { color: 'warning', variant: 'subtle', class: { root: 'text-status-warning-foreground' } }, { color: 'error', variant: 'subtle', class: { root: 'text-status-danger-foreground' } }] },
     pageCard: { slots: { root: 'rounded-card' } },
     listbox: { slots: { root: 'rounded-control' } },
     fileUpload: { slots: { base: 'rounded-card' } },

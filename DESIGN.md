@@ -114,7 +114,7 @@ Nuxt UI هي مكتبة مكونات واجهة العميل، يشكّلها ث
 | المكوّن | الوصفة | القصد |
 |---|---|---|
 | `colors` | `primary: 'brand'`، `neutral: 'stone'` | لوحة ليوان الثابتة تغذّي الأساسي، والمحايد stone الدافئ؛ لون الشركة للمستندات والتقارير فقط |
-| `UButton` | `rounded-control transition-colors motion-reduce:transition-none`؛ الحجم `xs`: `rounded-inner`؛ الحجم `sm`: `rounded-control`؛ الحجم `md`: `min-h-(--liwan-control-h)`؛ المربع `md`: `min-w-(--liwan-control-h)` | زر 40px وانتقال لطيف، وزر أيقونة مربع بلا ظل |
+| `UButton` | `rounded-control transition-colors motion-reduce:transition-none`؛ الحجم `xs`: `rounded-inner` وأيقونة `size-3.5` (14px)؛ الحجم `sm`: `min-h-[34px] px-3.5 rounded-control` وأيقونة `size-3.5` (14px)؛ الحجم `md`: `min-h-(--liwan-control-h)` وأيقونة `size-4` (16px)؛ المربع `sm`/`md`: `min-w-[34px]` / `min-w-(--liwan-control-h)` | زر 40px (`md`) و34px (`sm`) بأيقونات موحّدة (14px/16px) وانتقال لطيف، وزر أيقونة مربع بلا ظل |
 | `UInput`/`UInputNumber` | `rounded-control bg-default`؛ الحجم `sm`: `rounded-control`؛ الحجم `md`: `min-h-(--liwan-control-h)` | حقل بسطح الصفحة وحد أدنى 40px |
 | `UTextarea` | `rounded-control bg-default` | حقل متعدد الأسطر بنفس شكل الحقول |
 | `USelect`/`USelectMenu` | قاعدة `rounded-control bg-default` والحجم `sm` `rounded-control` والحجم `md` `min-h-(--liwan-control-h)`؛ المحتوى `rounded-control shadow-lg ring ring-default` وطبقة القوائم | قائمة عائمة هي طبقة الظل الوحيدة هنا |
