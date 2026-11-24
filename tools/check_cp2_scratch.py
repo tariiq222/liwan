@@ -86,6 +86,11 @@ def prepare(args):
     releases = evidence / 'releases'
     for folder in (state, data, backups, releases):
         folder.mkdir(mode=0o700)
+    # The operator's candidate capture is encrypted: one random line, mode 0600, never an argument.
+    passphrase = evidence / 'backup-passphrase'
+    descriptor = os.open(passphrase, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(descriptor, 'w', encoding='utf-8') as stream:
+        stream.write(os.urandom(32).hex() + '\n')
     targets = {}
     for mode, channel in (('saas', 'control_plane'), ('non_saas', 'local_policy')):
         database = args.db_prefix + '_' + mode
@@ -118,7 +123,8 @@ def prepare(args):
     release = releases / 'platform-upgrade.json'
     _write_private(release, {'schema_version': 1, 'modules': ['liwan_platform']})
     return {'evidence_dir': str(evidence), 'inventory': str(inventory),
-            'state': str(state), 'targets': targets, 'release': str(release)}
+            'state': str(state), 'targets': targets, 'release': str(release),
+            'backup_passphrase': str(passphrase)}
 
 
 def run_prepared(prepared, args):
@@ -126,6 +132,7 @@ def run_prepared(prepared, args):
     out_file = evidence / 'operations.jsonl'
     env = {**os.environ, 'LIWAN_CLI_INVENTORY': prepared['inventory'],
            'LIWAN_CLI_STATE_DIR': prepared['state'], 'PYTHONDONTWRITEBYTECODE': '1',
+           'LIWAN_BACKUP_PASSPHRASE_FILE': prepared['backup_passphrase'],
            'PYTHONPATH': str(ROOT / 'tools')}
 
     def invoke(argv):
@@ -176,7 +183,7 @@ def run_prepared(prepared, args):
                                  '--request-id', request('entitle')])
         if code != 0 or entitled.get('status') != 'ok':
             raise RuntimeError(f'{target}: entitlement did not commit; inspect evidence')
-        # Empty fresh installs may have no attachment yet. The backup wrapper
+        # Empty fresh installs may have no attachment yet. The backup package
         # requires a correctly named filestore directory, even when empty.
         filestore = Path(entry['data_dir']) / 'filestore' / entry['database']
         filestore.mkdir(mode=0o700, parents=True, exist_ok=True)

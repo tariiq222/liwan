@@ -367,10 +367,13 @@ if '--stop-after-init' not in args:
 if args[0] in ('-', '-c'): os.execv(sys.executable, [sys.executable, *args])
 if 'tools/catalog_check.py' in args: print('liwan_tasks')
 if 'deploy/classification.py' in args: Path(args[args.index('--output')+1]).write_text('{}')
-if 'deploy/backup.py' in args:
- backup=Path(args[args.index('--output-dir')+1]); (backup/'filestore/aa').mkdir(parents=True)
+if 'deploy.backup' in args and 'capture' in args:
+ store=Path(args[args.index('--store-root')+1]); tenant=args[args.index('--tenant')+1]
+ (store/tenant/'hourly'/'20260101T000000Z').mkdir(parents=True)
+if 'deploy.backup' in args and 'fetch' in args:
+ backup=Path(args[args.index('--destination')+1]); (backup/'filestore/aa').mkdir(parents=True)
  (backup/'filestore/aa/attachment').write_text('data'); (backup/'manifest.json').write_text('{}')
-if 'deploy/restore_verify.py' in args:
+if 'deploy.backup' in args and 'verify' in args:
  backup=Path(args[args.index('--backup-dir')+1])
  if not (backup/'filestore/aa/attachment').exists():
   (backup/'restore-verification.json').write_text(json.dumps({'restore_verified':False,'checks':{'missing_attachment_files':['aa/attachment']}}))
@@ -381,11 +384,13 @@ if 'deploy/restore_verify.py' in args:
         calls = [json.loads(line) for line in self.calls.read_text().splitlines()]
         for command in (x for x in calls if x[0] == 'odoo-python'):
             self.assertIn('--db_port=55432', command)
-        scripts = [x for x in calls if x[0] == 'python3'
-                   and any(script in x for script in ('deploy/backup.py', 'deploy/restore_verify.py'))]
-        self.assertEqual(len(scripts), 3)
+        scripts = [x for x in calls if x[0] == 'python3' and 'deploy.backup' in x]
+        self.assertEqual(len(scripts), 4)
         for command in scripts:
-            self.assertEqual(command[command.index('--pg-port') + 1], '55432')
+            if command[command.index('deploy.backup') + 1] == 'fetch':
+                self.assertNotIn('--pg-port', command)
+            else:
+                self.assertEqual(command[command.index('--pg-port') + 1], '55432')
 
     def test_image_gate_builds_and_checks_with_owned_names_and_scratch_files(self):
         process = self.execute('image')

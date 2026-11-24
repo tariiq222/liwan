@@ -37,7 +37,7 @@ INVENTORY_VERSION = 1
 INVENTORY_KEYS = frozenset({'version', 'targets'})
 INVENTORY_ENTRY_KEYS = frozenset({'database', 'kind', 'odoo_bin', 'odoo_conf'})
 INVENTORY_KINDS = frozenset({'scratch', 'customer'})
-# Same forbidden-name rule as deploy/backup.py: exact names plus bounded tokens.
+# Same forbidden-name rule as the backup package (deploy/backup/dump.py): exact names plus bounded tokens.
 FORBIDDEN_DB_EXACT = frozenset({
     'odoo19', 'production', 'prod', 'postgres', 'template0', 'template1',
 })

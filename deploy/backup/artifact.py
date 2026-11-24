@@ -25,10 +25,10 @@ from deploy.backup.dump import run_checked
 from deploy.backup.errors import BackupError, require
 from deploy.backup.manifest import (
     BACKUP_KINDS,
+    CAPTURE_KINDS,
     STAMP_FORMAT,
     as_utc,
     parse_stamp,
-    require_backup_kind,
     require_kind,
     require_tenant,
 )
@@ -92,9 +92,13 @@ def artifact_prefix(tenant: str, kind: str, captured_at: datetime) -> str:
 
 
 def kind_of(tenant: str, key: str) -> tuple[str, datetime] | None:
-    """Split ``<tenant>/<kind>/<stamp>/<name>`` into its kind and capture time."""
+    """Split ``<tenant>/<kind>/<stamp>/<name>`` into its kind and capture time.
+
+    Every capture kind is recognised, so an operator's ``candidate`` copy is found when it
+    is asked for; which kinds an operation acts on is the caller's ``kinds``, not this split.
+    """
     parts = key.split('/')
-    if len(parts) != 4 or parts[0] != tenant or parts[1] not in BACKUP_KINDS:
+    if len(parts) != 4 or parts[0] != tenant or parts[1] not in CAPTURE_KINDS:
         return None
     try:
         return parts[1], parse_stamp(parts[2])
@@ -103,15 +107,18 @@ def kind_of(tenant: str, key: str) -> tuple[str, datetime] | None:
 
 
 def footprints(store: ObjectStore, tenant: str, *, kinds: Sequence[str] = BACKUP_KINDS) -> dict[str, list[ArtifactRef]]:
-    """Every complete artifact of the tenant, newest first inside each kind.
+    """Every complete artifact of the requested kinds, newest first inside each kind.
 
     The manifest is uploaded last, so only an artifact whose manifest exists counts:
     ciphertext whose manifest upload failed is a partial capture. It is neither a restore
     candidate nor a copy that justifies pruning an older complete one.
+
+    The default is the two retention kinds, so retention and the drill never see an
+    operator's ``candidate`` copy; asking for that kind is how a fetch gets it back.
     """
     require_tenant(tenant)
     for kind in kinds:
-        require_backup_kind(kind)
+        require_kind(kind)
     keys = set(store.list(f'{tenant}/'))
     found: dict[str, dict[str, ArtifactRef]] = {kind: {} for kind in kinds}
     for key in keys:

@@ -71,9 +71,11 @@ STUCK_SQL = ("SELECT count(*) FROM ir_module_module "
              "WHERE state IN ('to upgrade', 'to install', 'to remove')")
 SESSIONS_SQL = ("SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() "
                 "AND pid <> pg_backend_pid()")
-BACKUP_WRAPPER = Path(__file__).resolve().parents[2] / 'deploy' / 'backup.py'
-RESTORE_WRAPPER = Path(__file__).resolve().parents[2] / 'deploy' / 'restore_verify.py'
-RELEASE_POSTGRES = Path(__file__).resolve().parents[2] / 'deploy' / 'release' / 'tenant_postgres.py'
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+# One backup package, called as a module of this checkout; ``PYTHONPATH`` carries the repository to the child.
+BACKUP_COMMAND = ['-B', '-m', 'deploy.backup']
+BACKUP_PASSPHRASE_VARIABLE = 'LIWAN_BACKUP_PASSPHRASE_FILE'
+RELEASE_POSTGRES = REPOSITORY_ROOT / 'deploy' / 'release' / 'tenant_postgres.py'
 
 # The row lock and revision check are in the same Odoo transaction as the ORM
 # update. The read-only psql snapshot used by preflight cannot authorize a write.
@@ -638,23 +640,42 @@ def _validate_module_closure(entry, modules):
         _fail(2, 'invalid_input', 'inventory', 'selected modules omit a required LiwanOS dependency')
 
 
+def _backup_argv(entry, *arguments):
+    return [entry['python'], *BACKUP_COMMAND, *arguments]
+
+
+def _backup_env():
+    """The package's child environment: this checkout on the path, and the one key when the operator holds it."""
+    env = {'PYTHONPATH': str(REPOSITORY_ROOT)}
+    if os.environ.get(BACKUP_PASSPHRASE_VARIABLE):
+        env[BACKUP_PASSPHRASE_VARIABLE] = os.environ[BACKUP_PASSPHRASE_VARIABLE]
+    return env
+
+
 def _candidate_backup(entry, runner, operation_id):
     store = Path(entry['data_dir']) / 'filestore' / entry['database']
     if not store.is_dir():
         return None
-    destination = Path(entry['backup_root']) / operation_id
-    argv = [entry['python'], str(BACKUP_WRAPPER), '--opt-in', 'MANUAL_BACKUP_OPT_IN',
-            '--acknowledge-unverified', 'CANDIDATE_BACKUP_UNVERIFIED',
-            '--db-name', entry['database'], '--filestore', str(store),
-            '--output-dir', str(destination), '--pg-dump', entry['pg_dump'],
-            '--pg-host', entry['pg_host'], '--pg-port', str(entry['pg_port']),
-            '--pg-user', entry['pg_user']]
-    code, _ = _run(runner, argv, entry)
-    manifest = destination / 'manifest.json'
-    if code != 0 or not manifest.is_file():
+    root = Path(entry['backup_root'])
+    store_root = root / 'store'
+    destination = root / operation_id
+    env = _backup_env()
+    code, _ = _run(runner, _backup_argv(
+        entry, 'capture', '--kind', 'candidate', '--tenant', entry['database'],
+        '--db-name', entry['database'], '--filestore', str(store), '--store-root', str(store_root),
+        '--work-root', str(root / 'work'), '--pg-dump', entry['pg_dump'],
+        '--pg-host', entry['pg_host'], '--pg-port', str(entry['pg_port']), '--pg-user', entry['pg_user'],
+    ), entry, **env)
+    if code != 0:
+        return None
+    code, _ = _run(runner, _backup_argv(
+        entry, 'fetch', '--kind', 'candidate', '--tenant', entry['database'],
+        '--store-root', str(store_root), '--destination', str(destination),
+    ), entry, **env)
+    if code != 0:
         return None
     try:
-        value = json.loads(manifest.read_bytes())
+        value = json.loads((destination / 'manifest.json').read_bytes())
     except (OSError, ValueError):
         return None
     if (not isinstance(value, dict) or value.get('db_name') != entry['database']
@@ -671,12 +692,12 @@ def _restore_candidate(entry, runner, backup_dir, operation_id, purpose):
     destination = Path(entry['data_dir']) / 'filestore' / target_db
     if destination.exists() or not (backup_dir / 'database.dump').is_file():
         return target_db, False
-    argv = [entry['python'], str(RESTORE_WRAPPER), '--backup-dir', str(backup_dir),
-            '--target-db', target_db, '--target-filestore', str(destination),
-            '--pg-restore', entry['pg_restore'],
-            '--psql', entry['psql'], '--pg-host', entry['pg_host'],
-            '--pg-port', str(entry['pg_port']), '--pg-user', entry['pg_user']]
-    code, _ = _run(runner, argv, entry)
+    argv = _backup_argv(entry, 'verify', '--backup-dir', str(backup_dir),
+                        '--target-db', target_db, '--target-filestore', str(destination),
+                        '--pg-restore', entry['pg_restore'],
+                        '--psql', entry['psql'], '--pg-host', entry['pg_host'],
+                        '--pg-port', str(entry['pg_port']), '--pg-user', entry['pg_user'])
+    code, _ = _run(runner, argv, entry, PYTHONPATH=str(REPOSITORY_ROOT))
     record = backup_dir / 'restore-verification.json'
     if code != 0 or not record.is_file():
         return target_db, False

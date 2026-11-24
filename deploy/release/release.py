@@ -484,7 +484,7 @@ class Releaser:
         return [self.checked_tenant(item) for item in items]
 
     def checked_tenant(self, item: dict) -> dict:
-        """The registry names the filestore like the database; backup_pipeline.py places it at <data>/filestore/<name>."""
+        """The registry names the filestore like the database; the backup package places it at <data>/filestore/<name>."""
         if not isinstance(item, dict) or not isinstance(item.get('tenantId'), str) or not item['tenantId']:
             raise ReleaseError('invalid_tenant_registry', EXIT_REFUSED, 'a registry entry has no tenantId')
         database, name = str(item.get('database', '')), str(item.get('filestore', ''))
@@ -502,17 +502,19 @@ class Releaser:
         common = ['--kind', 'hourly', '--work-root', str(work), '--pg-dump', self.config['LIWAN_RELEASE_PG_DUMP']]
         if self.config.get('LIWAN_RELEASE_BACKUP_STORE_ROOT'):
             common += ['--store-root', self.config['LIWAN_RELEASE_BACKUP_STORE_ROOT']]
-        pipeline = ['python3', '-B', str(ROOT / 'deploy/backup_pipeline.py'), 'capture']
+        pipeline = ['python3', '-B', '-m', 'deploy.backup', 'capture']
+        # The package is a module of this checkout, so the child imports it from ROOT wherever it is started.
+        env = {**self.child_env, 'PYTHONPATH': str(ROOT)}
         try:
             for tenant in run['tenants']:
                 self.run_command(pipeline + common + [
                     '--tenant', tenant['tenantId'], '--data-dir', self.config['LIWAN_RELEASE_ODOO_DATA_DIR'],
                     '--pg-host', self.config['LIWAN_RELEASE_PG_HOST'], '--pg-port', self.db_port(TENANT_DB_PORT),
-                    '--pg-user', POSTGRES_ADMIN_ROLE], env=self.child_env)
+                    '--pg-user', POSTGRES_ADMIN_ROLE], env=env)
             self.run_command(pipeline + common + [
                 '--control-plane', '--db-name', CONTROL_DB, '--pg-host', self.config['LIWAN_RELEASE_CONTROL_PG_HOST'],
                 '--pg-port', self.db_port(CONTROL_DB_PORT), '--pg-user', CONTROL_DB_USER],
-                env=self.child_env)
+                env=env)
         except CommandFailed:
             raise ReleaseError('backup_failed') from None
 

@@ -28,7 +28,9 @@ from restore_control_plane import (
     main,
 )
 
-from deploy import backup_pipeline as bp
+from deploy.backup.artifact import ARTIFACT_CIPHERTEXT_NAME, PASSPHRASE_ENVIRONMENT_VARIABLE
+from deploy.backup.capture import CONTROL_PLANE_SOURCE, capture
+from deploy.backup.snapshot import CaptureSource
 from deploy.s3_client import FilesystemStore
 
 PASSPHRASE = 'correct horse battery staple for liwan'
@@ -92,14 +94,14 @@ class RestoreCase(unittest.TestCase):
         self.bucket = self.root / 'bucket'
         pg_dump = self.root / 'pg_dump'
         pg_dump.write_text('', encoding='utf-8')
-        bp.capture(
-            store=FilesystemStore(self.bucket), tenant=bp.CONTROL_PLANE_SOURCE,
-            source=bp.CaptureSource('liwan_control', None, pg_dump), kind='hourly',
+        capture(
+            store=FilesystemStore(self.bucket), tenant=CONTROL_PLANE_SOURCE,
+            source=CaptureSource('liwan_control', None, pg_dump), kind='hourly',
             work_root=self.root / 'work', passphrase_file=self.passphrase,
             now=datetime.now(timezone.utc), runner=ScriptedTools(),
         )
         self._environment = dict(os.environ)
-        os.environ[bp.PASSPHRASE_ENVIRONMENT_VARIABLE] = str(self.passphrase)
+        os.environ[PASSPHRASE_ENVIRONMENT_VARIABLE] = str(self.passphrase)
 
     def tearDown(self) -> None:
         os.environ.clear()
@@ -181,7 +183,7 @@ class TestRestore(RestoreCase):
         self.assertEqual(tools.calls_to('pg_restore'), [])
 
     def test_a_tampered_artifact_is_refused_before_any_database_is_touched(self):
-        (artifact,) = self.bucket.rglob(bp.ARTIFACT_CIPHERTEXT_NAME)
+        (artifact,) = self.bucket.rglob(ARTIFACT_CIPHERTEXT_NAME)
         data = bytearray(artifact.read_bytes())
         data[40] ^= 0xFF
         artifact.write_bytes(bytes(data))

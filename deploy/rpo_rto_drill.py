@@ -8,14 +8,16 @@ a near-empty database). This script instead:
   1. Boots Odoo on an isolated scratch database and seeds a medium-sized
      tenant (configurable employee/project/task/attachment counts) through
      `odoo-bin shell`, never through the customer UI.
-  2. Stops Odoo (quiescence), then runs the real `deploy/backup.py` candidate
-     copy and times it -> this elapsed time is the *measured* backup window,
-     which bounds achievable RPO (data younger than this window since the
-     last backup is at risk).
+  2. Stops Odoo (quiescence), then runs the real encrypted capture
+     (`python3 -B -m deploy.backup capture`) and times it -> this elapsed time
+     is the *measured* backup window, which bounds achievable RPO (data younger
+     than this window since the last backup is at risk).
   3. Simulates a failure by dropping the source database and its filestore.
-  4. Times the full recovery path: `deploy/restore_verify.py` (DB + filestore
-     restore) + Odoo boot + first authenticated read returning expected row
-     counts -> this elapsed time is the *measured* RTO.
+  4. Times the full recovery path: fetching the artifact back
+     (`python3 -B -m deploy.backup fetch`) and verifying its restore
+     (`... verify`, DB + filestore restore) + Odoo boot + first authenticated
+     read returning expected row counts -> this elapsed time is the *measured*
+     RTO.
   5. Writes a dated JSON+Markdown report with the actual numbers, the data
      scale used, and the explicit boundaries that remain (single node, single
      site, no concurrent load, no network failure injection).
@@ -29,7 +31,7 @@ available locally, matching the restore-drill stage, `deploy/ci/restore-drill.sh
         --output-dir /tmp/liwan-rpo-rto-drill-<date>
 
 Never run against `odoo19` or any non-scratch database; the script enforces
-the same forbidden-name guard as `deploy/backup.py`.
+the same forbidden-name guard as the backup package.
 """
 from __future__ import annotations
 
@@ -51,7 +53,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FORBIDDEN_DB = {'odoo19', 'production', 'prod', 'postgres', 'template0', 'template1'}
-# The same boundary `deploy/backup.py` and `deploy/restore_verify.py` apply: a live-looking segment
+# The same boundary the backup package applies: a live-looking segment
 # anywhere in the name is refused, not only a name that is exactly one of the six.
 FORBIDDEN_DB_RE = re.compile(r'(?:^|_)(odoo19|production|prod|postgres|template0|template1)(?:_|$)', re.IGNORECASE)
 DB_NAME_RE = re.compile(r'^[A-Za-z][A-Za-z0-9_]*$')
@@ -247,6 +249,12 @@ def pg_env(cfg: DrillConfig) -> dict:
     return env
 
 
+def write_passphrase(path: Path) -> None:
+    """The drill's own backup key: one random line in a mode-0600 file, never echoed."""
+    path.write_text(os.urandom(32).hex() + '\n', encoding='utf-8')
+    path.chmod(0o600)
+
+
 def dropdb(cfg: DrillConfig, name: str) -> None:
     validate_db_name(name, 'database to drop')
     run(['dropdb', '-h', cfg.pg_host, '-U', cfg.pg_user, '--if-exists', name], env=pg_env(cfg), check=False)
@@ -374,11 +382,14 @@ def run_drill(cfg: DrillConfig) -> dict:
     data_dir = cfg.work_dir / 'data'
     restored_dir = cfg.work_dir / 'restored'
     backup_dir = cfg.work_dir / 'backup'
+    store_root = cfg.work_dir / 'store'
+    passphrase_file = cfg.work_dir / 'backup-passphrase'
     logs_dir = cfg.work_dir / 'logs'
     for d in (data_dir, restored_dir, logs_dir):
         d.mkdir(parents=True, exist_ok=True)
     if backup_dir.exists():
         shutil.rmtree(backup_dir)
+    write_passphrase(passphrase_file)
 
     require_absent(cfg, cfg.db)
     require_absent(cfg, cfg.restored_db)
@@ -416,23 +427,29 @@ def run_drill(cfg: DrillConfig) -> dict:
     ).stdout.strip())
     filestore_bytes = sum(f.stat().st_size for f in filestore_dir.rglob('*') if f.is_file()) if filestore_dir.is_dir() else 0
 
-    log('stopping Odoo for quiescent backup (closed port is observational only, per deploy/backup.py)')
+    log('stopping Odoo for quiescent backup (closed port is observational only, per the backup package)')
 
     pg_dump_path = shutil.which('pg_dump')
     pg_restore_path = shutil.which('pg_restore')
     psql_path = shutil.which('psql')
 
-    # --- RPO measurement: time the real backup.py candidate copy ---
+    # --- RPO measurement: time the real encrypted capture, then fetch it back ---
+    backup_env = {**pg_env(cfg), 'LIWAN_BACKUP_PASSPHRASE_FILE': str(passphrase_file)}
     backup_t0 = time.monotonic()
     run([
-        sys.executable, 'deploy/backup.py',
-        '--opt-in', 'MANUAL_BACKUP_OPT_IN', '--acknowledge-unverified', 'CANDIDATE_BACKUP_UNVERIFIED',
+        sys.executable, '-B', '-m', 'deploy.backup', 'capture',
+        '--kind', 'hourly', '--tenant', cfg.db,
         '--db-name', cfg.db, '--filestore', str(filestore_dir),
-        '--output-dir', str(backup_dir),
+        '--store-root', str(store_root), '--work-root', str(cfg.work_dir / 'capture-work'),
         '--pg-dump', pg_dump_path, '--pg-host', cfg.pg_host, '--pg-user', cfg.pg_user,
-    ], cwd=str(cfg.repo_root), env=pg_env(cfg))
+    ], cwd=str(cfg.repo_root), env=backup_env)
+    run([
+        sys.executable, '-B', '-m', 'deploy.backup', 'fetch',
+        '--kind', 'hourly', '--tenant', cfg.db,
+        '--store-root', str(store_root), '--destination', str(backup_dir),
+    ], cwd=str(cfg.repo_root), env=backup_env)
     backup_elapsed_s = time.monotonic() - backup_t0
-    log(f'RPO window (backup elapsed): {backup_elapsed_s:.1f}s')
+    log(f'RPO window (capture + fetch elapsed): {backup_elapsed_s:.1f}s')
 
     with (backup_dir / 'manifest.json').open(encoding='utf-8') as fh:
         manifest = json.load(fh)
@@ -447,7 +464,7 @@ def run_drill(cfg: DrillConfig) -> dict:
     # --- RTO measurement: restore DB+filestore, boot Odoo, confirm data readable ---
     restored_filestore = restored_dir / 'filestore' / cfg.restored_db
     verify_completed = run([
-        sys.executable, 'deploy/restore_verify.py',
+        sys.executable, '-B', '-m', 'deploy.backup', 'verify',
         '--backup-dir', str(backup_dir), '--target-db', cfg.restored_db,
         '--target-filestore', str(restored_filestore),
         '--pg-restore', pg_restore_path, '--psql', psql_path,
@@ -500,12 +517,12 @@ def run_drill(cfg: DrillConfig) -> dict:
         'restored_counts': restored_counts,
         'not_covered': [
             'multi-node / HA failover', 'network partition injection', 'second site / cross-region replication',
-            'concurrent production write load during backup', 'encryption at rest/in transit for the backup artifact',
+            'concurrent production write load during backup', 'offsite transport of the backup artifact',
             'retention policy enforcement', 'automated failure detection (this drill times from a manual drop)',
             'point-in-time recovery (WAL-based); this is full dump/restore only',
-            # This drill measures one local capture/restore. The scheduled encrypted
+            # This drill measures one local encrypted capture/restore. The scheduled
             # pipeline, its offsite transport and its drill are separate and are
-            # proven offline today: deploy/backup_pipeline.py, deploy/restore_drill.py.
+            # proven offline today: deploy/backup (capture, prune, age, drill).
         ],
     }
 
@@ -538,6 +555,7 @@ def main(argv=None) -> int:
         print(error, file=sys.stderr)
         return 2
 
+    args.output_dir = args.output_dir.resolve()
     args.output_dir.mkdir(parents=True, exist_ok=True)
     runs = []
     for i in range(args.repeat):

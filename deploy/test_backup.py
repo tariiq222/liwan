@@ -63,6 +63,7 @@ from deploy.backup.manifest import (
     parse_stamp,
 )
 from deploy.backup.snapshot import CaptureSource, filestore_digest, validate_filestore
+from deploy.backup.verify import SQL_ATTACHMENTS, SQL_INSTALLED_NAMES, SQL_STUCK, expected_modules
 from deploy.s3_client import FilesystemStore, StorageError
 
 def drill_record_verified(record: Path, now: datetime | None = None) -> bool:
@@ -118,28 +119,6 @@ class Runner:
 def _no_command(argv, **_kwargs) -> Completed:
     message = f'no command was expected in this test: {argv}'
     raise AssertionError(message)
-
-
-def fake_backup(writes: bool = True):
-    """A stand-in for ``deploy/backup.py``: it writes what a real capture writes."""
-
-    def handler(argv, **_kwargs) -> Completed:
-        if '--output-dir' not in argv:
-            return Completed(returncode=1)
-        output = Path(argv[argv.index('--output-dir') + 1])
-        if not writes:
-            return Completed(returncode=2)
-        # The real backup.perform_backup contract: an existing destination is refused
-        # and only the output directory itself is created (its parent must exist).
-        if output.exists() or not output.parent.is_dir():
-            return Completed(returncode=1)
-        output.mkdir(parents=False)
-        (output / 'filestore' / 'ab').mkdir(parents=True)
-        (output / 'database.dump').write_bytes(DUMP_BYTES)
-        (output / 'filestore' / 'ab' / 'cdef').write_bytes(ATTACHMENT_BYTES)
-        return Completed()
-
-    return handler
 
 
 def fake_pg_dump(writes: bool = True):
@@ -834,6 +813,68 @@ class TestLatestArtifact(PipelineCase):
         partial = artifact.artifact_prefix(TENANT, 'daily', datetime(2026, 11, 8, tzinfo=timezone.utc))
         self.store.put(partial + artifact.ARTIFACT_CIPHERTEXT_NAME, b'ciphertext, manifest upload failed')
         self.assertIsNone(recover.latest_artifact(self.store, TENANT))
+
+
+class TestCandidateArtifact(PipelineCase):
+    """The operator's one-off copy: encrypted like the scheduled ones, and fetched back to verify it.
+
+    ``fetch --kind candidate`` is the documented way an operator gets their copy back, and
+    ``verify`` then proves the plaintext tree. Retention and the drill must never see it.
+    """
+
+    def test_a_candidate_capture_fetches_back_and_verifies(self):
+        manifest = self.capture(kind='candidate')
+        self.assertEqual(manifest.kind, 'candidate')
+        # Retention and the drill restore the scheduled stream, never an operator's copy.
+        self.assertIsNone(recover.latest_artifact(self.store, TENANT))
+        candidate = recover.newest_of_kind(self.store, TENANT, 'candidate')
+        self.assertIsNotNone(candidate)
+        self.assertEqual(candidate.captured_at, manifest.captured_at)
+
+        destination = self.root / 'fetched'
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with _environment({PASSPHRASE_ENVIRONMENT_VARIABLE: str(self.passphrase_file)}), \
+                contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            code = main(['fetch', '--tenant', TENANT, '--kind', 'candidate',
+                         '--store-root', str(self.root / 'bucket'), '--destination', str(destination)],
+                        runner=self.runner)
+        self.assertEqual((code, stderr.getvalue()), (EXIT_OK, ''))
+        self.assertEqual(sorted(path.name for path in destination.iterdir()), sorted(
+            (snapshot.DUMP_NAME, snapshot.FILESTORE_NAME, snapshot.MANIFEST_NAME)))
+
+        modules = expected_modules()
+
+        def sql(argv, **_kwargs):
+            arguments = [str(argument) for argument in argv]
+            if Path(arguments[0]).name == 'pg_restore':
+                return Completed()
+            if SQL_STUCK in arguments:
+                return Completed(stdout='0\n')
+            if SQL_ATTACHMENTS in arguments:
+                return Completed(stdout='')
+            if SQL_INSTALLED_NAMES in arguments:
+                return Completed(stdout='\n'.join(modules) + '\n')
+            return Completed()
+
+        tools = {}
+        for name in ('pg_restore', 'psql'):
+            tools[name] = self.root / name
+            tools[name].write_text('', encoding='utf-8')
+        target = 'liwan_scratch_candidate_rt'
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            code = main(['verify', '--backup-dir', str(destination), '--target-db', target,
+                         '--target-filestore', str(self.root / 'restored' / target),
+                         '--pg-restore', str(tools['pg_restore']), '--psql', str(tools['psql']),
+                         '--pg-user', 'scratch_user'], runner=Runner(sql))
+        self.assertEqual((code, stderr.getvalue()), (EXIT_OK, ''))
+        record = json.loads((destination / 'restore-verification.json').read_text(encoding='utf-8'))
+        self.assertTrue(record['restore_verified'])
+        self.assertEqual(record['restored_into'], target)
+        # The operator's own checks: the copy names the database it took, and claims no consistency.
+        self.assertEqual(record['source_manifest']['db_name'], 'liwan_scratch')
+        self.assertEqual(record['source_manifest']['consistency'], 'UNVERIFIED')
+        self.assertEqual(record['checks']['backup_integrity_mismatches'], [])
 
 
 class TestRestoreVerified(PipelineCase):

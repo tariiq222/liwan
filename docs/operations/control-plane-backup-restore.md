@@ -1,6 +1,6 @@
 # Control plane database: backup and restore
 
-The control plane's own PostgreSQL database holds every customer, subscription, order, invoice, payment attempt, invoice adjustment (credit and debit notes), audit event, the commercial outbox, the tenant registry bindings and the vendor accounts. Tenant backups (`deploy/backup_pipeline.py`, described in `deploy/OPERATIONS.md`) cover only each tenant's Odoo database and filestore. This runbook covers the other database.
+The control plane's own PostgreSQL database holds every customer, subscription, order, invoice, payment attempt, invoice adjustment (credit and debit notes), audit event, the commercial outbox, the tenant registry bindings and the vendor accounts. Tenant backups (`python3 -B -m deploy.backup`, described in `deploy/OPERATIONS.md`) cover only each tenant's Odoo database and filestore. This runbook covers the other database.
 
 Status: implemented and proven locally against scratch PostgreSQL 16 with a filesystem store. No real bucket has been written, no schedule is installed, and no production restore has been timed. Those are listed at the end.
 
@@ -10,7 +10,7 @@ Status: implemented and proven locally against scratch PostgreSQL 16 with a file
 | --- | --- |
 | Source | The control plane database (`liwan_control` in the local harness; the production name is the operator's). |
 | Source name in the bucket | `control-plane`. Keys are `control-plane/<hourly or daily>/<UTC stamp>/`. A tenant of that name is refused. |
-| Capture | `pg_dump -Fc --serializable-deferrable`, run by `deploy/backup_pipeline.py capture --control-plane`. One transaction-consistent snapshot of this one database, so no quiescence step is needed. The manifest still carries the pipeline's fixed word `UNVERIFIED`; it is never upgraded. |
+| Capture | `pg_dump -Fc --serializable-deferrable`, run by `python3 -B -m deploy.backup capture --control-plane`. One transaction-consistent snapshot of this one database, so no quiescence step is needed. The manifest still carries the pipeline's fixed word `UNVERIFIED`; it is never upgraded. |
 | Artifact | `database.dump` alone, in the same reproducible archive as a tenant artifact, encrypted with AES-256-CBC and PBKDF2 through `openssl`. Three objects per capture (ciphertext, `checksums.sha256`, keyed manifest), the manifest last. |
 | Not in the artifact | Secrets held outside the database: `CONTROL_SERVICE_KEY`, `CUSTOMER_COMMERCIAL_SERVICE_KEY`, `ADMIN_SECRET_KEY`, the payment provider keys, the tenant registry file and the shared runtime config. Keep them in the operator's secret store; a restored database is useless to a control plane that cannot read its keys. |
 
@@ -27,7 +27,7 @@ Run the script on the host that can reach the control plane database, from the r
 */10 * * * *  deploy/control-plane/backup-control-plane.sh check
 ```
 
-The script captures, then prunes with the pipeline's retention rule (hourly 7 days, daily 30 days, the newest of each kind always kept), and on any failure runs `deploy/alerts.py backup_failed --database control-plane --reason ...` (email and Telegram). `check` runs `backup_pipeline.py age --control-plane` and runs `backup_stale --database control-plane` when the newest complete backup is older than 3600 seconds.
+The script captures, then prunes with the pipeline's retention rule (hourly 7 days, daily 30 days, the newest of each kind always kept), and on any failure runs `deploy/alerts.py backup_failed --database control-plane --reason ...` (email and Telegram). `check` runs `python3 -B -m deploy.backup age --control-plane` and runs `backup_stale --database control-plane` when the newest complete backup is older than 3600 seconds.
 
 RPO. The owner's target is one hour. A dump loses everything written after the newest capture started, so the worst case is the cadence plus the capture duration. At an hourly cadence that is more than one hour, and the age (measured from the capture start) crosses 3600 seconds every hour while the next capture is still running, so `backup_stale` would fire. The 30 minute cadence above keeps the worst case near 30 minutes plus the dump time. This is a property of the schedule, not something the code enforces: the cadence is the operator's entry.
 
@@ -103,7 +103,7 @@ PYTHONPATH=. python3 -B deploy/control-plane/restore_control_plane.py restore \
 
 `--compare-with` also requires the counts, the sequence and the migration version to equal the live database. They differ by whatever was written since the capture, so a drill on a live system reads the difference, not a pass. Drop the scratch database afterwards. The record holds `backup_age_seconds_at_start`, `elapsed_seconds`, `rpo_ok` and `rto_ok` against the 1 hour and 4 hour budgets, from the same functions the tenant drill uses.
 
-Offline checks: `PYTHONPATH=deploy python3 -B -m unittest deploy/test_backup_pipeline.py` and `python3 -B -m unittest deploy/control-plane/test_restore_control_plane.py` (both run in the CI `static` stage).
+Offline checks: `PYTHONPATH=deploy python3 -B -m unittest deploy/test_backup.py` and `python3 -B -m unittest deploy/control-plane/test_restore_control_plane.py` (both run in the CI `static` stage).
 
 ## Not covered and still open
 

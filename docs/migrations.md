@@ -50,7 +50,7 @@ addon محذوف من الشجرة يترك في قاعدة مثبّتة ساب�
 
 ## ما لا نفعله
 
-- لا downgrade migrations. التراجع = استرجاع DB + filestore (`deploy/restore_verify.py`).
+- لا downgrade migrations. التراجع = استرجاع DB + filestore (`python3 -B -m deploy.backup verify`).
 - لا تعديل ترحيل بعد صدور وسمه. الإصلاح = إصدار جديد.
 
 ## الإصدارات المدعومة للترقية

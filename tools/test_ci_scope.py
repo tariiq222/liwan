@@ -79,7 +79,7 @@ class StagesForTest(unittest.TestCase):
         for path in ('deploy/alerts.py', 'deploy/test_alerts.py', 'deploy/test_ci_stages.py'):
             self.assert_stages(path, ('static',))
         # Only these two files are static-only; the rest of deploy/ still feeds the images and the stages.
-        for path in ('deploy/backup.py', 'deploy/alerts_helper.py', 'deploy/ci/odoo.sh', 'deploy/shared/guard.mjs',
+        for path in ('deploy/backup/cli.py', 'deploy/alerts_helper.py', 'deploy/ci/odoo.sh', 'deploy/shared/guard.mjs',
                      'deploy/shared/guard.test.mjs', 'deploy/control-plane/test_resource_guard.py', 'deploy/environments/test_x.py'):
             self.assert_stages(path, ALL)
 
