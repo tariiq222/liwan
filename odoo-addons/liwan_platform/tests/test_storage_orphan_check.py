@@ -10,18 +10,16 @@ import os
 import shutil
 import tempfile
 import time
+from datetime import timedelta
 from unittest.mock import patch
 
-from odoo import api
+from odoo import fields
 from odoo.tests import TransactionCase, tagged
 
 from odoo.addons.base.models.ir_autovacuum import is_autovacuum
 from odoo.addons.liwan_platform.models.storage_orphan_check import (
     GRACE_HOURS,
     KEPT_RUNS,
-    ListingIncomplete,
-    StorageAuthFailed,
-    StorageUnreachable,
 )
 
 STORAGE_CODE = 'liwan_test_orphans'
@@ -60,27 +58,6 @@ class OrphanCheckCase(TransactionCase):
     def _run_check(self):
         self.Run._liwan_cron_check_orphans()
         return self._latest_run()
-
-    def _failure_rows(self, state):
-        """Read, then clear, the run a failure committed on its own cursor.
-
-        ``assertRaises`` rolls its savepoint back, so nothing written in this transaction survives it, and this
-        test's repeatable-read snapshot predates the commit: the row is read and removed on a fresh cursor.
-        """
-        with self.env.registry.cursor() as cursor:
-            runs = api.Environment(cursor, self.env.uid, {})['liwan.storage.orphan.check'].search([
-                ('fs_storage_code', '=', STORAGE_CODE), ('state', '=', state),
-            ])
-            values = {
-                'ids': runs.ids,
-                'objects_listed': runs.mapped('objects_listed'),
-                'children': len(runs.object_ids),
-                'fields': str(runs.read([
-                    'fs_storage_code', 'state', 'objects_listed', 'orphan_count', 'missing_count',
-                ])),
-            }
-            runs.unlink()
-        return values
 
     def _latest_run(self):
         return self.Run.search([('fs_storage_code', '=', STORAGE_CODE)], order='id desc', limit=1)
@@ -198,12 +175,50 @@ class TestOrphanObjects(OrphanCheckCase):
         self.assertEqual((run.state, run.objects_listed, run.orphan_count, run.missing_count), ('ok', 1, 0, 0))
         self.assertEqual(run.object_ids.mapped('key'), [])
 
+    def _aged(self, attachment):
+        """A record old enough for its missing object to be reported instead of waiting out the grace period."""
+        self.env.flush_all()
+        # create_date is a magic column the ORM ignores on write, so the test backdates it directly.
+        self.env.cr.execute(
+            'UPDATE ir_attachment SET create_date = %s WHERE id = %s',
+            [fields.Datetime.now() - timedelta(hours=GRACE_HOURS + 1), attachment.id],
+        )
+        self.env.invalidate_all()
+        return attachment
+
     def test_b6_a_record_without_an_object_is_counted_missing(self):
+        attachment = self._aged(self._create_attachment())
+        os.unlink(self._object_path(attachment))
+        run = self._run_check()
+        self.assertEqual((run.state, run.objects_listed, run.missing_count), ('missing_found', 0, 1))
+        self.assertEqual(run.orphan_count, 0)
+
+    def test_b6_a_record_inside_the_grace_period_is_not_missing_yet(self):
         attachment = self._create_attachment()
         os.unlink(self._object_path(attachment))
         run = self._run_check()
-        self.assertEqual((run.state, run.objects_listed, run.missing_count), ('ok', 0, 1))
-        self.assertEqual(run.orphan_count, 0)
+        self.assertEqual((run.state, run.missing_count), ('ok', 0))
+
+    def test_b6_a_field_attachment_is_neither_an_orphan_nor_missed(self):
+        """``ir.attachment._search`` hides ``res_field`` rows from a plain domain unless both sides are named."""
+        partner = self.env['res.partner'].create({'name': 'field carrier'})
+        attachment = self.Attachment.create({
+            'name': 'field.bin',
+            'raw': os.urandom(60000),
+            'mimetype': 'application/octet-stream',
+            'res_model': 'res.partner',
+            'res_id': partner.id,
+            'res_field': 'image_1920',
+        })
+        self.assertEqual(attachment.res_field, 'image_1920')
+        self.assertGreater(attachment.file_size, 51200)
+        self.assertTrue(attachment.store_fname.startswith(f'{STORAGE_CODE}://'))
+        run = self._run_check()
+        self.assertEqual((run.state, run.orphan_count, run.missing_count), ('ok', 0, 0))
+        self._aged(attachment)
+        os.unlink(self._object_path(attachment))
+        run = self._run_check()
+        self.assertEqual((run.state, run.missing_count), ('missing_found', 1))
 
     def test_b7_without_a_storage_nothing_runs_and_no_row_is_written(self):
         before = self.Run.search_count([])
@@ -212,45 +227,53 @@ class TestOrphanObjects(OrphanCheckCase):
         self.Run._liwan_cron_check_orphans()
         self.assertEqual(self.Run.search_count([]), before)
 
-    def test_b8_each_failure_records_its_state_and_writes_no_orphan_row(self):
+    def test_b8_each_failure_records_its_state_without_raising_or_an_orphan_row(self):
         self._write_object('old-orphan', b'x' * 5, age_days=3)
         cases = [
-            (PermissionError('denied'), StorageAuthFailed, 'auth_failed'),
-            (OSError('connection reset'), StorageUnreachable, 'unreachable'),
-            (Exception('a botocore connection error is not an OSError'), StorageUnreachable, 'unreachable'),
+            (PermissionError('denied'), 'auth_failed'),
+            (OSError('connection reset'), 'unreachable'),
+            (Exception('a botocore connection error is not an OSError'), 'unreachable'),
         ]
-        for error, expected, state in cases:
+        for error, state in cases:
             with self.subTest(state=state), patch('fsspec.implementations.dirfs.DirFileSystem.walk', side_effect=error):
-                with self.assertRaises(expected):
-                    self._run_check()
-                failed = self._failure_rows(state)
-                self.assertTrue(failed['ids'])
-                self.assertEqual(failed['objects_listed'], [0] * len(failed['ids']))
-                self.assertFalse(failed['children'])
+                run = self._run_check()
+                self.assertEqual((run.state, run.objects_listed), (state, 0))
+                self.assertFalse(run.object_ids)
 
     def test_b9_an_incomplete_listing_is_a_state_and_writes_no_orphan_row(self):
         self._write_object('old-orphan', b'x' * 5, age_days=3)
         incomplete = [('', {}, {'blob': {'name': 'blob', 'size': None, 'mtime': time.time()}})]
         with patch('fsspec.implementations.dirfs.DirFileSystem.walk', return_value=incomplete):
-            with self.assertRaises(ListingIncomplete):
-                self._run_check()
-        failed = self._failure_rows('incomplete')
-        self.assertEqual((len(failed['ids']), failed['objects_listed'], failed['children']), (1, [0], 0))
+            run = self._run_check()
+        self.assertEqual((run.state, run.objects_listed), ('incomplete', 0))
+        self.assertFalse(run.object_ids)
 
     def test_b10_no_option_or_exception_text_reaches_the_row_or_the_log(self):
         self.storage.write({'options': json.dumps({'key': SECRET, 'secret': SECRET})})
         with patch('fsspec.implementations.dirfs.DirFileSystem.walk', side_effect=OSError(f'reset {SECRET}')):
             with self.assertLogs('odoo.addons.liwan_platform.models.storage_orphan_check', level='WARNING') as logs:
-                with self.assertRaises(StorageUnreachable):
-                    self._run_check()
+                run = self._run_check()
+        self.assertEqual(run.state, 'unreachable')
         output = '\n'.join(logs.output)
         self.assertNotIn(SECRET, output)
         self.assertIn(STORAGE_CODE, output)
         self.assertIn('unreachable', output)
-        failed = self._failure_rows('unreachable')
-        self.assertTrue(failed['ids'])
-        self.assertNotIn(SECRET, failed['fields'])
-        self.assertNotIn('options', failed['fields'])
+        values = str(run.read(['fs_storage_code', 'state', 'objects_listed', 'orphan_count', 'missing_count']))
+        self.assertNotIn(SECRET, values)
+        self.assertNotIn('options', values)
+
+    def test_b13_the_listing_asks_the_filesystem_for_a_fresh_walk(self):
+        with patch('fsspec.implementations.dirfs.DirFileSystem.walk', return_value=[]) as walk:
+            run = self._run_check()
+        self.assertEqual((run.state, run.objects_listed), ('ok', 0))
+        walk.assert_called_once_with('', detail=True, on_error='raise', refresh=True)
+
+    def test_b14_a_failing_run_never_raises_so_the_cron_survives(self):
+        """Odoo deactivates a cron after five failures over seven days; the row is the report, not the exception."""
+        with patch('fsspec.implementations.dirfs.DirFileSystem.walk', side_effect=OSError('connection reset')):
+            self.assertIsNone(self.Run._liwan_cron_check_orphans())
+        run = self._latest_run()
+        self.assertEqual(run.state, 'unreachable')
 
     def test_b11_each_run_owns_its_objects_and_the_last_thirty_runs_are_kept(self):
         path = self._write_object('old-orphan', b'x' * 5, age_days=3)
