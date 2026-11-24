@@ -27,7 +27,7 @@ function source(root, name, files) {
   return path
 }
 function publish(publicDir, store, release) {
-  const done = spawnSync('python3', ['-B', '-c', 'from deploy.releases.assets import publish_assets; import sys; publish_assets(*sys.argv[1:])', publicDir, store, release], { cwd: repository, encoding: 'utf8' })
+  const done = spawnSync('python3', ['-B', '-c', 'from deploy.shared.assets import publish_assets; import sys; publish_assets(*sys.argv[1:])', publicDir, store, release], { cwd: repository, encoding: 'utf8' })
   assert.equal(done.status, 0, 'asset publisher failed')
 }
 async function fixture(t) {

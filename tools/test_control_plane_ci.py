@@ -46,8 +46,7 @@ class ControlPlaneCiTest(unittest.TestCase):
             python = [call['args'] for call in calls if call['tool'] == 'python3']
             gate = next(args for args in python if args[1:2] == ['deploy/control-plane/vitest_skip_gate.py'])
             self.assertEqual([Path(report).name for report in gate[2:]], [f'group{n}.json' for n in (1, 2, 3, 4)])
-            self.assertIn(['-B', 'deploy/control-plane/unittest_no_skip.py', 'deploy.releases.test_backup_live'], python)
-            self.assertIn('liwan_scratch_backup_ci', [call['args'][-1] for call in calls if call['tool'] == 'createdb'])
+            self.assertNotIn('liwan_scratch_backup_ci', [call['args'][-1] for call in calls if call['tool'] == 'createdb'])
 
     def test_stage_refuses_to_start_without_mailpit(self):
         environment = {key: value for key, value in os.environ.items() if not key.startswith('LIWAN_MAILPIT_')}

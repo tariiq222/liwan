@@ -253,7 +253,7 @@ class _BudgetedConnection:
 def bounded_connection(connector, database, deadline):
     """Admin connection whose connect wait and every statement are bounded by ``deadline``.
 
-    ``deadline`` is the caller's absolute budget (``backup.Deadline``): its
+    ``deadline`` is the caller's absolute budget (``common.Deadline``): its
     ``remaining()`` raises ``backup_deadline_exceeded`` once spent. The connection
     is always closed on exit, including when the budget ran out while connecting.
     """

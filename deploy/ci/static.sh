@@ -56,17 +56,14 @@ policies() {
   if ! git diff --quiet "$(git merge-base "$BASE_REF" HEAD)" HEAD -- package.json package-lock.json ':(glob)**/package.json'; then
     npm run check:audit
   fi
-  python3 -B -m unittest discover -s deploy/releases -t . -p 'test_*.py'
   # Every deploy/shared/*.test.mjs runs (a new one is picked up by the glob); the isolation acceptance files that need a
   # built Nuxt server (isolation-matrix, operational-ssr, build-mode) run in the e2e-mock stage (deploy/ci/lib/tenancy-isolation.sh).
-  node --test deploy/shared/*.test.mjs deploy/releases/test_dedicated_guard.mjs \
+  node --test deploy/shared/*.test.mjs \
     tools/shared_isolation_acceptance/ssr-boundary.test.mjs tools/shared_isolation_acceptance/acceptance.test.mjs \
     tools/shared_isolation_acceptance/known-regressions.test.mjs tools/shared_isolation_acceptance/t17-image-negative.test.mjs
-  PYTHONPATH=deploy/shared python3 -B -m unittest deploy/shared/test_odoo_config.py
+  PYTHONPATH=deploy/shared python3 -B -m unittest deploy/shared/test_odoo_config.py deploy/shared/test_assets.py
   # The control-plane runtime tests drive the local-runtime scripts with fake docker/lsof/npm/curl and the Node on PATH (no Docker, database or fixed port).
   python3 -B -m unittest deploy/control-plane/test_*.py
-  # test_live_postgres.py is local operator proof (fixed trust-auth role, never dropped): registered in tools/ci_not_run.json.
-  python3 -B -m unittest tools/continuous_updates_acceptance/test_postgres_scratch.py tools/continuous_updates_acceptance/test_source_process.py
   PYTHONPATH=tools/documents_acceptance python3 -B -m unittest tools/documents_acceptance/test_acceptance.py
 }
 

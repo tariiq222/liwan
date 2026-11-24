@@ -5,7 +5,7 @@ from deploy.release.tenant_postgres import (validate_runtime_role, fence_runtime
                                             tenant_create_database_sql, tenant_isolation_sql, tenant_isolation_statements,
                                             POSTGRES_ADMIN_ROLE, ODOO_RUNTIME_ROLE, RUNTIME_ROLE_RULES,
                                             runtime_role_assertion_sql, tenant_bootstrap_sql, session_role, cluster_connect_grant_sql)
-from deploy.releases.backup import Deadline
+from deploy.release.common import Deadline
 
 
 class Cursor:

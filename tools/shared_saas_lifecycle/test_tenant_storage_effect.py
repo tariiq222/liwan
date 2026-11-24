@@ -515,8 +515,7 @@ class SecretTest(Case):
 
     def test_main_prints_one_line_without_the_secret(self):
         out = io.StringIO()
-        with patch.object(effect, 'ComposeRunner', lambda *_a: self.world), \
-                patch.object(effect, 'effect_operation', lambda *_a, **_k: contextlib.nullcontext()):
+        with patch.object(effect, 'ComposeRunner', lambda *_a: self.world):
             status = effect.main(io.StringIO(json.dumps(request('ensure')) + '\n'), out)
         self.assertEqual(0, status)
         lines = out.getvalue().splitlines()
@@ -645,25 +644,20 @@ class LockAndGateTest(Case):
                 pass
 
     def test_execute_runs_under_the_lock_and_maps_a_busy_tenant(self):
-        with patch.object(effect, 'effect_operation', lambda *_a, **_k: contextlib.nullcontext()):
-            self.assertEqual('pending_key', effect.execute(request('ensure'), self.world)['state'])
-            with effect.tenant_lock(STATE_DIR, 'acme'):
-                with self.assertRaises(EffectError) as caught:
-                    effect.execute(request('ensure'), self.world)
-            self.assertEqual('operation_in_progress', str(caught.exception))
-
-    def test_execute_needs_the_release_binding_when_release_routes_are_on(self):
-        with patch.object(odoo_effect, 'release_routes_enabled', lambda: True):
+        self.assertEqual('pending_key', effect.execute(request('ensure'), self.world)['state'])
+        with effect.tenant_lock(STATE_DIR, 'acme'):
             with self.assertRaises(EffectError) as caught:
                 effect.execute(request('ensure'), self.world)
-        self.assertEqual('release_operation_blocked', str(caught.exception))
-        self.assertEqual([], self.world.records)
+        self.assertEqual('operation_in_progress', str(caught.exception))
+
+    def test_execute_ignores_the_release_routes_environment(self):
+        with patch.dict(os.environ, {'LIWAN_RELEASE_ROUTES_DIR': '/nonexistent/routes'}):
+            self.assertEqual('pending_key', effect.execute(request('ensure'), self.world)['state'])
 
     def test_execute_maps_any_unexpected_failure_to_a_code(self):
         broken = type('Broken', (), {'run_oci': lambda s, p: 1 / 0, 'run_script': lambda s, *a, **k: 1 / 0})()
-        with patch.object(effect, 'effect_operation', lambda *_a, **_k: contextlib.nullcontext()):
-            with self.assertRaises(EffectError) as caught:
-                effect.execute(request('ensure'), broken)
+        with self.assertRaises(EffectError) as caught:
+            effect.execute(request('ensure'), broken)
         self.assertEqual('script_failed', str(caught.exception))
 
     def test_the_compose_runner_runs_the_oci_service_one_shot_and_reads_stdout_only(self):

@@ -84,7 +84,7 @@ class StaticStageTest(unittest.TestCase):
         'policies': ('ruff check odoo-addons', 'unittest deploy/test_*.py', 'discover -s deploy/environments',
                      'unittest tools/shared_saas_lifecycle/test_*.py', 'tools/catalog_check.py', 'tools/migration_guard.py',
                      'tools/git_policy.py', 'tools/arch_policy.py', 'tools/semgrep_gate.py', 'tools/forbidden_terms.py',
-                     'deploy/image_pins.py', 'npm run check:audit', 'discover -s deploy/releases', 'node --test'),
+                     'deploy/image_pins.py', 'npm run check:audit', 'discover -s deploy/release', 'node --test'),
         'tests': ('npm -w apps/web run postinstall', 'npm -w apps/vendor-admin run postinstall',
                   'npx playwright install chromium', 'npm test'),
         'types': ('npm -w apps/web run postinstall', 'max-old-space-size=8192 npm -w apps/web run lint'),

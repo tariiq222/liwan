@@ -30,7 +30,7 @@ async function fixture(mode: 'shared' | 'dedicated') {
   vi.stubEnv('LIWAN_DEDICATED_PROXY_TOKEN', token)
   vi.stubEnv('LIWAN_RELEASE_POOL_ID', 'blue')
   const shared = await import('../../../../../deploy/shared/guard.mjs')
-  const dedicated = await import('../../../../../deploy/releases/dedicated_guard.mjs')
+  const dedicated = await import('../../../../../deploy/shared/dedicated_guard.mjs')
   const codec = shared.sessionCodec(keys, 'test')
   const observed: Array<{ path: string; headers: http.IncomingHttpHeaders; body: Buffer }> = []
   const webHops: Array<{ path: string; headers: http.IncomingHttpHeaders; request: http.IncomingMessage }> = []

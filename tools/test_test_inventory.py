@@ -441,7 +441,7 @@ class InventoryTest(unittest.TestCase):
 
     def test_the_readers_find_the_runners(self):
         # A reader that silently lost a runner would register nothing and pass; these anchors fail first.
-        for anchor in ('tools/test_ci_scope.py', 'deploy/test_alerts.py', 'deploy/releases/test_dedicated_guard.mjs',
+        for anchor in ('tools/test_ci_scope.py', 'deploy/test_alerts.py', 'deploy/shared/dedicated_guard.test.mjs',
                        'deploy/shared/guard.test.mjs', 'tools/foundation_acceptance/lib.test.mjs',
                        'apps/web/app/composables/useAuth.test.ts', 'apps/control-plane/src/__tests__/app.test.ts',
                        'apps/ai-service/tests/test_app.py'):

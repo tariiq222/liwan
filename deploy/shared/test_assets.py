@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
-from .assets import publish_assets
+from deploy.shared.assets import publish_assets
 
 
 class AssetsTests(unittest.TestCase):

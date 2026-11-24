@@ -99,7 +99,7 @@ class TestSecretGuard(unittest.TestCase):
     def test_a_self_described_fixture_is_only_allowed_in_a_test_file(self):
         text = "const token = 'synthetic-local-token-'\n"
         self.assertEqual(find_credential_fallbacks(text, 'deploy/x.test.mjs'), [])
-        self.assertEqual(find_credential_fallbacks(text, 'deploy/releases/test_guard.mjs'), [])
+        self.assertEqual(find_credential_fallbacks(text, 'deploy/shared/test_guard.mjs'), [])
         self.assertEqual(find_credential_fallbacks(text, 'deploy/x.mjs'), [1])
 
 

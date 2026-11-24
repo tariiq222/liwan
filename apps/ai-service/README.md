@@ -300,9 +300,7 @@ it is never replayed or aged out merely to make retirement green. Use the existi
 recovery after investigating the effect. Memory-mode evidence is explicitly `memory_only` and cannot
 prove cross-process retirement.
 
-The coordinator must close admission and observe every old process, wait for durable tenant effect leases and active AI work in every tenant, then retire the generation. Configure one directly observed HTTP process per generation id; do not hide several independently admitting workers behind one sampled readiness endpoint. Counts are deliberately conservative: activity in another generation can delay retirement. Its AI-only durable barrier is separate from Odoo tenant barriers.
-
-In `AiMaintenanceCoordinator` operator configuration, `sharedStateId` must equal the actual control `state_id` returned by the service; each `oldServices`/`newServices` entry's `id` must equal that runtime's `AI_GENERATION_ID`. The coordinator checks both on every observation and preflights all old/new endpoints before closing admission or invoking a migration adapter. A candidate attached to a different initialized control database with the same state version is rejected. Read actual identity using the token-protected readiness endpoint and record only `state_id`/`generation_id` in the reviewed operator configuration, never connection credentials. Changing labels cannot substitute for an actual state identity.
+The Python release engine and its `AiMaintenanceCoordinator` are removed; the drain and readiness endpoints above stay, and what drives them is decided with the release routing (deploy-unification part 9).
 
 This pre-release metadata schema has no compatibility branch for earlier unrecognized metadata or a missing generation table. Use a newly authorized empty scratch schema for development proof; existing development state requires a separately reviewed offline migration. Never stamp an old database with a guessed identity or silently initialize it during startup.
 

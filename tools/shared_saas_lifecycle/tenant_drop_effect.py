@@ -61,7 +61,7 @@ ERROR_CODES = frozenset({
     'database_command_failed', 'database_fence_failed', 'database_drop_failed', 'database_still_present',
     'files_command_failed', 'files_still_present',
     'path_invalid', 'path_symlink', 'name_invalid', 'filestore_ambiguous', 'remove_failed',
-    'authority_lost', 'release_operation_blocked',
+    'authority_lost',
 })
 
 

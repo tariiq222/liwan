@@ -310,8 +310,7 @@ class CaptureRestartTests(unittest.TestCase):
             if stage == 'resume' and fail_at == 'resume_permit':
                 raise odoo_effect.EffectError('boom')
         with patch.object(odoo_backup, 'permit', permit), patch.object(odoo_backup, 'reserve', lambda path, _value: Path(path).write_text('{}')), \
-                patch.object(odoo_backup, 'validate_archive', validate), patch.object(odoo_backup, 'sha256_file', sha), \
-                patch.object(odoo_backup, 'release_routes_enabled', lambda: False):
+                patch.object(odoo_backup, 'validate_archive', validate), patch.object(odoo_backup, 'sha256_file', sha):
             runner.capture()
 
     def started(self, runner):
@@ -612,8 +611,7 @@ class ArtifactModeTests(unittest.TestCase):
         try:
             with patch.object(odoo_backup, 'permit', lambda _stage: None), \
                     patch.object(odoo_backup, 'validate_archive', lambda _path: None), \
-                    patch.object(odoo_backup, 'sha256_file', lambda _path: 'a' * 64), \
-                    patch.object(odoo_backup, 'release_routes_enabled', lambda: False):
+                    patch.object(odoo_backup, 'sha256_file', lambda _path: 'a' * 64):
                 runner.capture()
         finally:
             os.umask(old)
@@ -735,21 +733,6 @@ class ReportedErrorCodeTests(unittest.TestCase):
         self.assertEqual(self.emitted('boom'), (1, {'error_code': 'shared_effect_unverified'}))
 
 
-class ReleaseBackupBoundaryTests(unittest.TestCase):
-    def test_enabled_release_capture_refuses_before_shared_stop_or_reservation(self):
-        import os
-        with tempfile.TemporaryDirectory() as raw:
-            root = Path(raw).resolve()
-            runner = object.__new__(odoo_backup.BackupRunner)
-            runner.config = {}
-            calls = []
-            runner.assert_no_effect_containers = lambda **kwargs: calls.append('runtime')
-            with patch.dict(os.environ, {'LIWAN_RELEASE_ROUTES_DIR': str(root)}):
-                with self.assertRaisesRegex(odoo_effect.EffectError, '^release_backup_requires_quiescence$'):
-                    runner.capture()
-            self.assertEqual(calls, [])
-
-
 class RestoreIsolationTests(unittest.TestCase):
     DATABASE = 'liwan_scratch_' + 'b' * 32
 
@@ -831,7 +814,7 @@ class RestoreIsolationTests(unittest.TestCase):
             with patch.object(odoo_backup, 'permit', lambda stage: None), \
                     patch.object(odoo_backup, 'reserve', lambda path, payload: Path(path).write_text('{}')):
                 with self.assertRaisesRegex(odoo_effect.EffectError, '^restore_stopped_after_database$'):
-                    runner._restore_operation()
+                    runner.restore()
         # The failing first stage is followed by the drop of the fresh target; the AI stage never starts.
         self.assertEqual(streams, [('restore-create', odoo_backup.create_database_script(self.DATABASE), self.DATABASE),
                                    ('restore-db', odoo_backup.restore_database_script(self.DATABASE), self.DATABASE),
@@ -857,7 +840,7 @@ class RestoreIsolationTests(unittest.TestCase):
             with patch.object(odoo_backup, 'permit', lambda stage: None), \
                     patch.object(odoo_backup, 'reserve', lambda path, payload: Path(path).write_text('{}')):
                 with self.assertRaisesRegex(odoo_effect.EffectError, '^artifact_command_failed$'):
-                    runner._restore_operation()
+                    runner.restore()
         self.assertEqual(streams, ['restore-create'])
 
     def test_both_restore_stages_run_in_order_and_a_failing_ai_stage_drops_the_target(self):
@@ -883,7 +866,7 @@ class RestoreIsolationTests(unittest.TestCase):
             with patch.object(odoo_backup, 'permit', lambda stage: None), \
                     patch.object(odoo_backup, 'reserve', lambda path, payload: Path(path).write_text('{}')):
                 with self.assertRaisesRegex(odoo_effect.EffectError, '^artifact_command_failed$'):
-                    runner._restore_operation()
+                    runner.restore()
         self.assertEqual(streams, [('restore-db', 'restore-create', False), ('restore-db', 'restore-db', True), ('restore-db', 'restore-ai', True),
                                    ('restore-db', 'restore-drop', False)])
 

@@ -1,5 +1,7 @@
 # تحديث ليوان والإضافات مع استمرار خدمة العملاء
 
+**ملاحظة 2026-11-24:** أُزيل محرك النشر بلغة Python (`deploy/releases/`) ومختبر القبول الحي (`tools/continuous_updates_acceptance/`) من الشجرة؛ أمر الإصدار الوحيد هو `deploy/release/`. ما يخص توجيه الإصدارات في الحافة (`guard.mjs` وملفات الويب المرتبطة به) يُحسم في الجزء 9 من خطة توحيد النشر. الأقسام أدناه تصف التصميم التاريخي ولا تصف الشجرة الحالية.
+
 **LiwanOS preparation, 2026-10-17:** candidate `codex/deploy-liwan-updates` starts at main8125ab8c. The 16 October acceptance remains historical; see current preparation results. No merge or deployment.
 
 **الحالة:** اعتمد المالك التنفيذ المحلي في 2026-10-16. نُفّذ واختُبر في فرع معزول؛ نتائج القبول في [التقرير](../../verification/2026-10-16-continuous-updates.html). النشر والدمج ينتظران مراجعة المالك؛ لا اعتماد إنتاج أو وعد توافر.

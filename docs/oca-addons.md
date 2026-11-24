@@ -57,9 +57,7 @@ The OCA path always comes last, after the existing entries, so nothing existing 
 - other launchers: `deploy/check_isolated.py` (`--with-oca` on `odoo`, `upgrade` and `runtime`; the `odoo-isolated`
   check of `deploy/verification-checks.json` and the `deploy/OPERATIONS.md` examples pass it),
   `deploy/rpo_rto_drill.py`, `tools/shared_isolation_acceptance/real-odoo-isolation-matrix.mjs`,
-  `tools/shared_saas_lifecycle/admin_password_effect.py` (image path `/opt/oca`), the acceptance image
-  overlay of `tools/continuous_updates_acceptance/docker_odoo.py`, and the local release migration
-  (`deploy/releases/migrate.py`, config key `ocaDir`, verified at the pins);
+  `tools/shared_saas_lifecycle/admin_password_effect.py` (image path `/opt/oca`);
 - deployments: `deploy/odoo/Dockerfile` fetches the repositories into `/opt/oca` (without `.git`) and
   `deploy/odoo/entrypoint.sh` appends them (the image has no git, so it does not run `--check`; the pins
   were verified when the image was built). The compose files only build and

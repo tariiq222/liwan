@@ -137,7 +137,7 @@ async function fixture(mode: 'shared' | 'dedicated' | 'legacy') {
   const webUrl = await listen(web)
   writeFileSync(join(root, 'pools.json'), JSON.stringify({ schemaVersion: 1, pools: { blue: { poolId: 'blue', releaseId: 'r1', odooUrl: upstreamUrl, webUrl, wsUrl: upstreamUrl } } }))
   const shared = await import('../../../../../deploy/shared/guard.mjs')
-  const dedicated = await import('../../../../../deploy/releases/dedicated_guard.mjs')
+  const dedicated = await import('../../../../../deploy/shared/dedicated_guard.mjs')
   const guard = mode === 'legacy' ? undefined : track(mode === 'shared'
     ? shared.createGuard({ registryPath: join(root, 'registry.json'), proxyToken: token, keys, activeKid: 'test', odooUrl: upstreamUrl, webUrl, releaseRoutesDir: root, releaseAssetsDir: undefined })
     : dedicated.createDedicatedGuard({ bindingPath: join(root, 'binding.json'), releaseRoutesDir: root, proxyToken: token, releaseAssetsDir: undefined }))

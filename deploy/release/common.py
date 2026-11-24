@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -25,6 +26,23 @@ class ReleaseError(Exception):
         self.reason = reason
         self.exit_code = exit_code
         self.detail = detail
+
+
+class Deadline:
+    """One absolute monotonic budget for a whole step; never renewed.
+
+    ``remaining`` raises once the budget is spent, so every caller that asks
+    before a query, child process, block or fsync stops at the same instant.
+    """
+    def __init__(self, seconds, clock=None):
+        if type(seconds) not in (int, float) or not 0 < seconds <= 3600: raise ValueError('backup_deadline_rejected')
+        self.clock = clock or time.monotonic
+        self.end = self.clock() + seconds
+
+    def remaining(self, cap=None):
+        left = self.end - self.clock()
+        if left <= 0: raise ValueError('backup_deadline_exceeded')
+        return left if cap is None else min(left, cap)
 
 
 class CommandFailed(Exception):

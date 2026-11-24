@@ -14,7 +14,7 @@ import signal
 import sys
 
 from tools import oca_addons
-from tools.shared_saas_lifecycle.odoo_effect import EffectError, MAX_OUTPUT, validate_database, effect_operation
+from tools.shared_saas_lifecycle.odoo_effect import EffectError, MAX_OUTPUT, validate_database
 from tools.shared_saas_lifecycle.subscription_effect import ComposeRunner as SubscriptionComposeRunner, validate_tenant
 
 SENTINEL = 'LIWAN_ADMIN_PASSWORD:'
@@ -161,8 +161,7 @@ def execute(request, runner=None):
     data = {key: request[key] for key in ('login', 'password')}
     data['database'] = request['tenant']['database']
     try:
-        with effect_operation(request, 'admin_password'):
-            output = runner.run_script(build_script(), stdin=json.dumps(data, ensure_ascii=True))
+        output = runner.run_script(build_script(), stdin=json.dumps(data, ensure_ascii=True))
         return parse_output(output, request['login'])
     except EffectError as exc:
         code = str(exc)

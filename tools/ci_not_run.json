@@ -97,12 +97,6 @@
       "files": [
         "apps/control-plane/src/__tests__/packages-acceptance.live.test.ts"
       ]
-    },
-    {
-      "reason": "local operator proof: connects as the hard-coded trust-auth role tariq on 127.0.0.1:5432 with password-less runtime roles and never drops its fixed-name databases and roles, so no CI stage runs it (opt in with LIWAN_RUN_PG_SCRATCH=1)",
-      "files": [
-        "tools/continuous_updates_acceptance/test_live_postgres.py"
-      ]
     }
   ]
 }

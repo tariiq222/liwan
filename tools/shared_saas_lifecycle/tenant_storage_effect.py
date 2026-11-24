@@ -38,12 +38,12 @@ import sys
 import time
 
 from tools.shared_saas_lifecycle import odoo_effect
-from tools.shared_saas_lifecycle.odoo_effect import EffectError, MAX_OUTPUT, effect_operation, validate_database
+from tools.shared_saas_lifecycle.odoo_effect import EffectError, MAX_OUTPUT, validate_database
 from tools.shared_saas_lifecycle.tenant_status_effect import ComposeRunner as OdooComposeRunner
 
 OPERATIONS = ('ensure', 'verify', 'rotate')
 FAILURE_CODES = frozenset({'oci_refused', 'oci_unreachable', 'key_not_valid', 'store_failed', 'limit_reached', 'bucket_mismatch'})
-EFFECT_CODES = frozenset({'request_invalid', 'operation_in_progress', 'release_operation_blocked', 'authority_lost',
+EFFECT_CODES = frozenset({'request_invalid', 'operation_in_progress', 'authority_lost',
                           'script_failed', 'runtime_invalid', 'runtime_command_failed', 'runtime_timeout'})
 ERROR_CODES = FAILURE_CODES | EFFECT_CODES
 OCI_CODES = frozenset({'oci_refused', 'oci_unreachable', 'limit_reached', 'script_failed'})
@@ -458,12 +458,9 @@ def execute(request, runner=None, clock=time.time):
     runner = runner or ComposeRunner({'tenant': {'database': request['database']}, 'config': request['config']})
     effect = TenantStorageEffect(OciClient(runner, request['tenantId'], request['requestId']),
                                  OdooStore(runner, request['database'], request['requestId']), clock)
-    operation_request = {'tenant': {'database': request['database']}, 'config': request['config'],
-                         'releaseBinding': request.get('releaseBinding')}
     try:
         with tenant_lock(request['config']['stateDir'], request['tenantId']):
-            with effect_operation(operation_request, 'tenant_storage'):
-                return effect.run(request)
+            return effect.run(request)
     except EffectError as exc:
         code = str(exc)
         raise EffectError(code if code in ERROR_CODES else 'script_failed') from None

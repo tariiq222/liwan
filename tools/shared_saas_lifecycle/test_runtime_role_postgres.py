@@ -54,7 +54,7 @@ def run_stage(cluster, script, target, dump):
 
 
 def restore_stages(cluster, dump, target):
-    """The real stages of BackupRunner._restore_operation, in order; returns the completed processes."""
+    """The real stages of BackupRunner.restore, in order; returns the completed processes."""
     return [run_stage(cluster, script, target, dump) for script in (odoo_backup.create_database_script(target), odoo_backup.restore_database_script(target), odoo_backup.restore_ai_script())]
 
 

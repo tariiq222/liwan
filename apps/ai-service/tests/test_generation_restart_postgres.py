@@ -7,7 +7,6 @@ import sys
 from pathlib import Path
 from uuid import uuid4
 
-import httpx
 import psycopg
 import pytest
 from psycopg import sql
@@ -18,7 +17,6 @@ from liwan_ai_service.store import initialize_tenant
 
 pytestmark = pytest.mark.skipif(os.environ.get("AI_DURABLE_RELEASE_TEST") != "1", reason="explicit local scratch acceptance only")
 TOKEN = "synthetic-durable-test-token-" * 2
-ADMIN = {"x-liwan-service-token": TOKEN}
 CHILD = """
 import asyncio, importlib.util, json, os, sys
 from pathlib import Path
@@ -172,92 +170,3 @@ async def test_real_process_restart_preserves_generation_drain_and_database_iden
             }
         )
     )
-
-
-async def test_actual_different_database_identity_is_refused_before_migration(scratch_states, tmp_path):
-    from deploy.releases.ai_maintenance import AiMaintenanceCoordinator, ReviewedAiMigration
-    from deploy.releases.manifest import manifest_digest
-    from deploy.releases.state import ReleaseConflict, ReleaseState, atomic_json
-    from deploy.releases.test_ai_maintenance import manifest
-
-    old_state, wrong_state = scratch_states
-    processes = []
-    try:
-        old, old_url = await server(old_state, "identity-old")
-        processes.append(old)
-        wrong, wrong_url = await server(wrong_state, "identity-new")
-        processes.append(wrong)
-        state = ReleaseState(tmp_path.resolve() / "release")
-        state.register(
-            {"tenantId": "a", "database": "liwan_scratch_a", "filestore": "liwan_scratch_a", "registryRevision": 1},
-            {
-                "schemaVersion": 1,
-                "tenantId": "a",
-                "identityRevision": 1,
-                "routeRevision": 1,
-                "releaseId": "r1",
-                "poolId": "blue",
-                "fence": 1,
-                "state": "serving",
-            },
-        )
-        atomic_json(
-            state.routes / "pools.json",
-            {
-                "schemaVersion": 1,
-                "pools": {
-                    "blue": {
-                        "poolId": "blue",
-                        "releaseId": "r1",
-                        "odooUrl": "http://odoo.test",
-                        "webUrl": "http://web.test",
-                        "wsUrl": "http://ws.test",
-                        "aiUrl": old_url,
-                        "aiStateVersion": "1",
-                    }
-                },
-            },
-        )
-        token_file = tmp_path / "token"
-        token_file.write_text(TOKEN)
-        token_file.chmod(0o600)
-        state_id = old_state["state_id"]
-        config = {
-            "sharedStateId": state_id,
-            "tenantIds": ["a"],
-            "tokenFile": str(token_file),
-            "timeoutSeconds": 2,
-            "oldServices": [{"id": "identity-old", "url": old_url, "sharedStateId": state_id, "aiStateVersion": "1"}],
-            "newServices": [{"id": "identity-new", "url": wrong_url, "sharedStateId": state_id, "aiStateVersion": "1"}],
-            "poolTargets": {"blue": "identity-new"},
-        }
-        migrations = []
-        migration = ReviewedAiMigration(state_id, "1", "1", "review", "a" * 64, lambda context: migrations.append(context))
-        release = manifest()
-        request = {
-            "requestId": "wrong-identity",
-            "manifestDigest": manifest_digest(release),
-            "approvedMode": "service_maintenance",
-            "tenantIds": ["a"],
-            "expectedRoutes": {"a": 1},
-        }
-        with pytest.raises(ReleaseConflict, match="ai_service_observation_failed"):
-            AiMaintenanceCoordinator(state, config, migration).apply(request, release)
-        assert migrations == [] and not (state.routes / "ai.maintenance").exists()
-        async with httpx.AsyncClient() as client:
-            ready = (await client.get(old_url + "/internal/release/readiness", headers=ADMIN)).json()
-            assert ready["accepting"] and ready["state_id"] == state_id
-        print(
-            json.dumps(
-                {
-                    "proof": "actual-state-identity-negative",
-                    "schemas": [s["schema"] for s in scratch_states],
-                    "state_ids": [s["state_id"] for s in scratch_states],
-                    "migration_calls": 0,
-                    "old_still_accepting": True,
-                }
-            )
-        )
-    finally:
-        for process in processes:
-            await stop(process)
