@@ -1034,8 +1034,9 @@ class PostRunTest(unittest.TestCase):
                 self.assertEqual('MISSING', self.post(host, 'post-run-shared-files'))
         host = prepared(regular(0o664, 990, 990), owned)
         line = line_of(run(host, '--post-run')[1], 'post-run-shared-files')
-        self.assertIn(f'{SRV}/shared.compose.json is 0664 990:990', line)
+        self.assertIn(f'{SRV}/shared.compose.json must be owned by root or {bringup.WORKER_USER}', line)
         self.assertIn('0640 root:docker', line)
+        self.assertIn('found 0664 990:990', line)
 
     def test_ai_role_and_container_must_both_be_there(self):
         def host_with(role, containers):

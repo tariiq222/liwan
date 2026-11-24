@@ -1500,8 +1500,9 @@ REGISTRY: list[Item] = [
     Item('shared-ai-usage-key', check_ai_usage_key, 'put LIWAN_AI_USAGE_KEY (64 hex) in the shared env file (A4.8)'),
     Item('shared-worker-unit', check_worker_unit, f'install and enable {SHARED_WORKER_UNIT} without starting it (A6.1)',
          apply_worker_unit),
-    Item('post-run-shared-files', check_shared_file_owners, 'shared.compose.json and shared.env must be 0600, owned by the worker (A8.2a)',
-         post_run=True),
+    Item('post-run-shared-files', check_shared_file_owners,
+         f'shared.compose.json and shared.env must be 0640 root:{DOCKER_GROUP} (or 0600 root or {WORKER_USER}), '
+         'writable by neither group nor other (A8.2a)', post_run=True),
     Item('post-run-ai-role', check_ai_role, 'the liwan_ai role and a healthy ai container (A8.2b)', post_run=True),
     Item('release-proof-egress', check_proof_egress,
          f'{PROOF_URL_KEY} must answer 404 with {PROOF_ROUTE_HEADER}: {PROOF_ROUTE_HEADER_VALUE} for a commit no release served (A8.2c)', post_run=True),
