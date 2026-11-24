@@ -7,6 +7,7 @@ claim validation. Interrupted attempts can only be independently observed.
 """
 from __future__ import annotations
 from contextlib import contextmanager, suppress
+from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
@@ -510,16 +511,20 @@ class Runner:
         credentials_script = 'import os\nos.environ["LIWAN_ADMIN_PASSWORD"] = ' + repr(secret) + '\n' + build_credentials_script(self.database)
         parse_credentials(self.shell(credentials_script, 'password', mutate=True), self.database)
         output = self.shell(self.admin_script(secret, snapshot=False), 'admin', mutate=True)
-        self.parse_admin(output)
+        admin_user_id = self.parse_admin(output)
         permit('complete')
         reserve(self.root / 'reservations' / (self.database + '.complete'), {'digest': self.request['payloadDigest'], 'attemptId': self.request['attemptId']})
-        emit({'result': {'applied': True}})
+        # The control plane starts the trial for the administrator this tenant was born with.
+        emit({'result': {'applied': True, 'admin_user_id': admin_user_id}})
 
     def admin_script(self, secret, *, snapshot):
         values = {'database': self.database, 'name': self.request['admin']['name'], 'login': self.request['admin']['login'],
                   'companyName': self.request['companyName'], 'host': self.request['host'],
                   'controlTenantId': self.request['controlTenantId'], 'markerParameter': TENANT_MARKER_PARAMETER,
                   'mobile': self.request['admin'].get('mobile')}
+        if not snapshot:
+            # The sign-up verified this number by SMS; provisioning stamps that verification with the time it runs.
+            values['mobileVerifiedAt'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         prefix = 'import json\nvalues = json.loads(' + repr(json.dumps(values)) + ')\nsecret = ' + repr(secret) + '\nsnapshot = ' + repr(snapshot) + '\n'
         return prefix + '''
 result = {'verified': False}
@@ -567,7 +572,8 @@ try:
             access = env['liwan.access.service']
             try:
                 with access._liwan_mobile_guard():
-                    admin._liwan_access_write({'liwan_mobile': access._liwan_normalize_mobile(values['mobile'])}, 'access.users.update')
+                    admin._liwan_access_write({'liwan_mobile': access._liwan_normalize_mobile(values['mobile']),
+                                               'liwan_mobile_verified_at': values['mobileVerifiedAt']}, 'access.users.update')
             except LiwanAccessRule:
                 pass
         env.flush_all()

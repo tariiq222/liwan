@@ -35,7 +35,7 @@ SCRIPT_ERRORS = frozenset({
 BRANCH_LIMIT = 'branches.extra_limit'
 TRIAL_POLICY_KEYS = ('trial_ends_at', 'post_trial_features', 'post_trial_modules', 'post_trial_digest')
 EXCESS_LIMITS = frozenset({'users.limit', 'storage.limit_mb', BRANCH_LIMIT})
-OPTIONAL_OBSERVATION_KEYS = frozenset({'post_trial_supported', 'excess_supported', 'excess_settled', 'excess', 'storage_bytes', 'over_limit_storage_bytes', *TRIAL_POLICY_KEYS})
+OPTIONAL_OBSERVATION_KEYS = frozenset({'admin_user_id', 'post_trial_supported', 'excess_supported', 'excess_settled', 'excess', 'storage_bytes', 'over_limit_storage_bytes', *TRIAL_POLICY_KEYS})
 BRANCH_ITEM_KEYS = frozenset({'branch_id', 'state', 'odoo_company_id', 'active', 'parent_is_root'})
 
 
@@ -264,6 +264,13 @@ def collect(profile):
             'commercial_expiry_supported': (hasattr(profile, 'commercial_valid_until')
                                             and hasattr(profile, 'commercial_valid_until_revision')),
             'features': feats, 'modules': modules, 'branches': branches, 'usage': usage, 'limit_gates': gates}
+    # The enrolment administrator provisioning created: the control plane binds the first trial to it. A tenant
+    # whose login is not stored reports no id instead of a guess.
+    if values.get('admin_login'):
+        admin = env['res.users'].search(
+            [('login', '=', values['admin_login']), ('active', '=', True), ('share', '=', False)], limit=1)
+        if admin:
+            result['admin_user_id'] = admin.id
     trial_keys = ('trial_ends_at', 'post_trial_features', 'post_trial_modules', 'post_trial_digest')
     result['post_trial_supported'] = all(key in profile._fields for key in trial_keys) and hasattr(profile, '_liwan_apply_post_trial')
     excess_keys = {'users.limit', 'storage.limit_mb', 'branches.extra_limit'}
@@ -419,9 +426,9 @@ def _prefix(values):
     return 'import json\nvalues = json.loads(' + repr(json.dumps(values, ensure_ascii=True)) + ')\nresult = {"error_code": "subscription_script_failed"}\n'
 
 
-def build_observe_script(database):
+def build_observe_script(database, admin_login=None):
     odoo_effect.validate_database(database)
-    return _prefix({'database': database}) + _COMMON + _OBSERVE_BODY + _TAIL
+    return _prefix({'database': database, 'admin_login': admin_login}) + _COMMON + _OBSERVE_BODY + _TAIL
 
 
 def build_apply_script(request):
@@ -472,6 +479,9 @@ def validate_observation(value):
     for key in ('storage_bytes', 'over_limit_storage_bytes'):
         if key in value and (type(value[key]) is not int or not 0 <= value[key] <= 9007199254740991):
             raise EffectError('observation_invalid')
+    # The administrator provisioning created is a real user (id 1 is the root) or absent for a tenant without a login.
+    if 'admin_user_id' in value and (type(value['admin_user_id']) is not int or value['admin_user_id'] < 2):
+        raise EffectError('observation_invalid')
     trial_policy = {key: value[key] for key in TRIAL_POLICY_KEYS if key in value}
     if trial_policy:
         if trial_policy.get('post_trial_digest') is None:
@@ -723,11 +733,11 @@ class SubscriptionEffect:
     def __init__(self, runner, journal_dir, clock=utc_now):
         self.runner, self.journal_dir, self.clock = runner, journal_dir, clock
 
-    def _observe(self, database):
+    def _observe(self, database, admin_login=None):
         if self.runner.database_exists() is not True:
             raise EffectError('database_missing')
         return validate_observation(parse_output(
-            self.runner.run_script(build_observe_script(database), 'observe')))
+            self.runner.run_script(build_observe_script(database, admin_login), 'observe')))
 
     def observe(self, request):
         database = validate_tenant(request['tenant'])['database']
@@ -738,6 +748,10 @@ class SubscriptionEffect:
         by_id = {b['branch_id']: b for b in observed['branches']}
         extra = {'roles_not_granted': True, 'roles_not_granted_reason': not_granted} if not_granted else {}
         extra.update({key: observed[key] for key in ('post_trial_supported', 'excess_supported', 'excess', 'storage_bytes', 'over_limit_storage_bytes') if key in observed})
+        # The administrator provisioning created travels with every receipt, the applied one and the one a verified
+        # rerun returns: the control plane binds the first trial to it, and never creates a second user to learn it.
+        if 'admin_user_id' in observed:
+            extra['admin_user_id'] = observed['admin_user_id']
         if observed.get('excess_supported') is True:
             extra['branch_read_only'] = [{'branch_id': branch['branch_id'], 'read_only': branch['read_only']}
                                        for branch in observed['branches'] if 'read_only' in branch]
@@ -756,7 +770,7 @@ class SubscriptionEffect:
     def reconfigure(self, request):
         validate_reconfigure(request)
         database, target = request['tenant']['database'], request['target_revision_id']
-        observed = self._observe(database)
+        observed = self._observe(database, request.get('admin_login'))
         request = _complete_trial_policy(request, observed)
         if any(key in request for key in TRIAL_POLICY_KEYS) and observed.get('post_trial_supported') is not True:
             if request.get('trial_ends_at') is not None or any(key in request for key in TRIAL_POLICY_KEYS[1:]):
@@ -805,7 +819,7 @@ class SubscriptionEffect:
             self.runner.install_modules(missing)
         applied = parse_output(self.runner.run_script(build_apply_script(request), 'apply', mutate=True))
         not_granted = applied.get('roles_not_granted_reason') if applied.get('roles_not_granted') is True else None
-        after = self._observe(database)
+        after = self._observe(database, request.get('admin_login'))
         if not verify(request, after, now=self.clock()):
             raise EffectError('observed_mismatch')
         journal.done()
