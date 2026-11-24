@@ -30,7 +30,7 @@ const tableColumns = computed<TableColumn<MeetingListItem>[]>(() => [
   { accessorKey: 'meeting_date', header: t('meetingsUi.date'), meta: { class: { th: 'w-44', td: 'w-44 whitespace-nowrap' } } },
   { accessorKey: 'state', header: t('meetingsUi.stateLabel'), meta: { class: { th: 'w-40', td: 'w-40 whitespace-nowrap' } } },
   { accessorKey: 'open_resolution_count', header: t('meetingsUi.resolutions'), meta: { class: { th: 'w-28', td: 'w-28 whitespace-nowrap' } } },
-  { id: 'actions', header: t('app.actions'), meta: { class: { th: 'w-28', td: 'w-28 whitespace-nowrap' } } },
+  { id: 'actions', header: t('app.actions'), meta: { class: { td: 'whitespace-nowrap' } } },
 ])
 
 function phase(meeting: MeetingListItem) {

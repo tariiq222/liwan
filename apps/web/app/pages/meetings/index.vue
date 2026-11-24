@@ -312,7 +312,7 @@ function setPage(next: number) {
           </template>
           <template #view>
             <SharedSegmentedControl data-testid="meeting-scope" :label="t('meetingsFilters.scope')" :items="scopeItems" :model-value="mine ? 'mine' : 'all'" :disabled="!hydrated" @update:model-value="onScopeChange" />
-            <span class="hidden h-5 w-px bg-default md:block" aria-hidden="true" /><SharedViewSwitch model-value="list" :options="meetingViewOptions(t)" @update:model-value="value => router.push(meetingViewRoute(liveListQuery(), value === 'calendar' ? 'calendar' : 'list'))" />
+            <span class="hidden h-5 w-px bg-accented md:block" aria-hidden="true" /><SharedViewSwitch model-value="list" :options="meetingViewOptions(t)" @update:model-value="value => router.push(meetingViewRoute(liveListQuery(), value === 'calendar' ? 'calendar' : 'list'))" />
           </template>
           <!-- The dropdowns show their own choice; only the series inherited from a link has no control, so it is the one chip. -->
           <template v-if="seriesId" #active>

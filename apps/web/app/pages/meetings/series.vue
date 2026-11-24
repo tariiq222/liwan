@@ -160,7 +160,7 @@ function setPage(next: number) {
           <div v-if="row.original.organizer" class="flex min-w-0 items-center gap-2"><SharedPersonAvatar :people="[row.original.organizer]" /><span class="min-w-0 truncate text-muted">{{ row.original.organizer.name }}</span></div>
           <span v-else class="text-muted">—</span>
         </template>
-        <template #project-cell="{ row }"><span class="text-muted">{{ row.original.project?.name || '—' }}</span></template>
+        <template #project-cell="{ row }"><span class="block truncate text-muted">{{ row.original.project?.name || '—' }}</span></template>
         <template #open_resolution_count-cell="{ row }">
           <div class="flex flex-wrap items-center gap-2">
             <span class="text-muted">{{ row.original.open_resolution_count ? t('meetingsUi.openCount', { count: row.original.open_resolution_count }, row.original.open_resolution_count) : '—' }}</span>

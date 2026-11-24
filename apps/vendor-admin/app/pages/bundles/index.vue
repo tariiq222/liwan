@@ -85,7 +85,7 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
 <p v-if="data" class="text-sm text-muted" data-testid="bundles-result-count">{{ t('vendor.pagination.total', { count: data.bundles.total }, data.bundles.total) }}</p>
 
 <SharedDataTable  :rows="items" :columns="columns" row-key="id" :row-to="path" :loading="pending" :error="error" :empty-text="t(q || status !== 'all' ? 'vendor.bundles.noResults' : 'vendor.bundles.empty')" :caption="t('vendor.bundles.title')" @retry="refresh" :page="page" :pages="pages" @update:page="value => patch({ page: value })">
-  <template #name-cell="{ row: { original: b } }"><NuxtLink :to="path(b)" data-testid="bundle-row" class="font-medium hover:underline">{{ b.name }}</NuxtLink> <SharedRecordNumber :value="`v${b.version}`" /></template>
+  <template #name-cell="{ row: { original: b } }"><div class="flex min-w-0 items-center gap-1.5"><NuxtLink :to="path(b)" data-testid="bundle-row" class="min-w-0 truncate font-medium hover:underline">{{ b.name }}</NuxtLink><SharedRecordNumber class="shrink-0" :value="`v${b.version}`" /></div></template>
   <template #status-cell="{ row: { original: b } }"><SharedStatusBadge data-slot="lifecycle-badge" :tone="lifecycleBadge(b).tone" :label="lifecycleBadge(b).labelKey ? t(lifecycleBadge(b).labelKey) : b.status" /></template>
   <template #apps-cell="{ row: { original: b } }"><div class="flex flex-wrap gap-1"><UBadge v-for="a in apps(b)" :key="a" color="neutral" variant="subtle">{{ a }}</UBadge></div></template>
   <template #limits-cell="{ row: { original: b } }">{{ limits(b).join(' · ') }}</template>

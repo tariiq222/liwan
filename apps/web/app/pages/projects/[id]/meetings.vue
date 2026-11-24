@@ -83,7 +83,7 @@ function setPage(next: number) {
       >
         <template #id-cell="{ row }"><RecordNumber :value="row.original.reference.trim() || row.original.id" /></template>
         <template #name-cell="{ row }">
-          <NuxtLink :to="meetingTo(row.original)" class="font-medium text-highlighted hover:underline">{{ row.original.name }}</NuxtLink>
+          <NuxtLink :to="meetingTo(row.original)" class="block min-w-0 truncate font-medium text-highlighted hover:underline">{{ row.original.name }}</NuxtLink>
         </template>
         <template #meeting_date-cell="{ row }"><bdi>{{ dateLabel(row.original.meeting_date) }}</bdi></template>
         <template #organizer-cell="{ row }"><SharedPersonAvatar :people="row.original.organizer ? [row.original.organizer] : []" /></template>

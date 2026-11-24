@@ -32,7 +32,7 @@ const columns = computed<TableColumn<TeamAccount>[]>(() => [
   { id: 'roles', header: t('team.columns.roles'), meta: { class: { th: 'w-40', td: 'w-40' } } },
   { id: 'status', header: t('team.columns.status'), meta: { class: { th: 'w-32', td: 'w-32 whitespace-nowrap' } } },
   { id: 'lastSeen', header: t('team.columns.lastSeen'), meta: { class: { th: 'w-44', td: 'w-44 whitespace-nowrap' } } },
-  { id: 'actions', header: t('team.columns.actions'), meta: { class: { th: 'w-56', td: 'w-56' } } },
+  { id: 'actions', header: t('team.columns.actions') },
 ])
 </script>
 
@@ -46,10 +46,10 @@ const columns = computed<TableColumn<TeamAccount>[]>(() => [
     <SharedDataTable :rows="items" :columns="columns" row-key="id" :loading="pending" :error="error" :empty-text="t('team.empty')" :caption="t('team.title')" @retry="refresh">
       <template #person-cell="{ row: { original: account } }">
         <div class="min-w-0">
-          <p class="font-medium text-highlighted">
+          <p class="truncate font-medium text-highlighted">
             {{ account.display_name }}<span v-if="isMe(account)" class="ms-2 text-xs font-normal text-muted">({{ t('team.you') }})</span>
           </p>
-          <p class="text-sm text-muted" dir="ltr">
+          <p class="truncate text-sm text-muted" dir="ltr">
             {{ account.email }}
           </p>
         </div>
