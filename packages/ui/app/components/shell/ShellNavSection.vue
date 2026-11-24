@@ -4,7 +4,7 @@ import type { ShellNavigationLink, ShellQuickItem } from '../../types/shell'
 
 // A run of sidebar rows under an optional heading. A row with `children` is a branch: its button opens and closes
 // the nested rows, and the branch that holds the current page opens by itself. Props only: the app supplies the rows.
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   /** Accessible name of the group (the heading when there is one). */
   label: string
   title?: string
@@ -13,8 +13,9 @@ const props = defineProps<{
   items: ShellNavigationLink[]
   /** Prefix of every row's test id, so the drawer copy and the column never share one. */
   testIdPrefix?: string
+  /** False only while the page is still hydrating; branch buttons stay disabled until then. */
   hydrated?: boolean
-}>()
+}>(), { hydrated: true })
 const emit = defineEmits<{ navigate: [item: ShellQuickItem] }>()
 const [DefineRows, ReuseRows] = createReusableTemplate<{ rows: ShellNavigationLink[]; path: string[] }>()
 const selected = (row: ShellNavigationLink): boolean => !!row.active || !!row.children?.some(selected)
@@ -50,7 +51,7 @@ const testId = (row: ShellNavigationLink) => `${props.testIdPrefix ?? ''}${row.t
             :aria-expanded="opened.has(keyOf([...path, row.id]))"
             :aria-label="row.label"
             :data-testid="testId(row)"
-            :disabled="props.hydrated === false"
+            :disabled="!props.hydrated"
             @click="toggle([...path, row.id])"
           >
             <span data-slot="icon" aria-hidden="true"><UIcon :name="row.icon" class="liwan-shell-icon" /></span>
