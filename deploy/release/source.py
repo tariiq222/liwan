@@ -220,6 +220,7 @@ class Source:
             self.run_command(['docker', 'cp', f'{container}:{RELEASE_FILE}', str(work / 'release.json')],
                              env=self.child_env)
             text = (work / 'release.json').read_text(encoding='utf-8')
+            self.document_text = text
         except (CommandFailed, OSError):
             raise ReleaseError('document_unreadable', EXIT_REFUSED, f'{image} holds no readable {RELEASE_FILE}') from None
         finally:
