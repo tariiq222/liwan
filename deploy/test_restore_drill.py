@@ -229,7 +229,7 @@ class TestSuccessfulDrill(DrillCase):
         )
         self.assertEqual(pinned['filestore_file_count'], 1)
         self.assertEqual(pinned['consistency'], 'UNVERIFIED')
-        self.assertEqual(pinned['quiesce'], 'not_required')
+        self.assertNotIn('quiesce', pinned)
 
     def test_the_rpo_uses_the_artifact_capture_time(self):
         record = self.run_drill(now=datetime.fromisoformat(STAMP) + timedelta(minutes=30))

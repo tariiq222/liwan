@@ -18,7 +18,7 @@ from deploy.backup import snapshot as backup_snapshot
 
 def write_candidate_artifact(destination: Path) -> None:
     """The plaintext tree an operator fetch leaves behind: the dump, the filestore and the snapshot manifest."""
-    destination.mkdir()
+    destination.mkdir(parents=True)
     (destination / 'database.dump').write_bytes(b'dump')
     (destination / 'filestore').mkdir()
     backup_snapshot.write_manifest(destination / 'manifest.json', {
@@ -755,7 +755,7 @@ class OperatorCase(unittest.TestCase):
         def runner(argv, env=None, stdin_text=None):
             commands.append(argv)
             if 'deploy.backup' in argv and 'capture' in argv:
-                Path(argv[argv.index('--store-root') + 1]).mkdir()
+                Path(argv[argv.index('--store-root') + 1]).mkdir(parents=True)
                 return 0, '', ''
             if 'deploy.backup' in argv and 'fetch' in argv:
                 write_candidate_artifact(Path(argv[argv.index('--destination') + 1]))
@@ -773,12 +773,17 @@ class OperatorCase(unittest.TestCase):
         self.assertEqual(backup_code, 0, backup)
         self.assertEqual(backup['consistency'], 'UNVERIFIED')
         self.assertFalse(backup['recovery_ready'])
+        # Only the encrypted artifact stays: the plaintext copy exists while a check needs it, never after.
+        self.assertTrue((self.backups / backup['operation_id'] / 'store').is_dir())
+        self.assertFalse((self.backups / backup['operation_id'] / 'candidate').exists())
         restore_fields = self.fields('restore', request_id='restore_1',
                                      backup_id=backup['operation_id'], approval_id='approved_1')
         restore_code, restored = operator.operation_adapter(restore_fields, runner=runner)
         self.assertEqual(restore_code, 0, restored)
         self.assertTrue(restored['restore_verified'])
         self.assertNotEqual(restored['restored_into'], 'liwan_scratch_demo')
+        # The restore fetched its own copy from that store and removed it again.
+        self.assertFalse((self.backups / backup['operation_id'] / 'candidate').exists())
         restore_argv = next(c for c in commands if 'deploy.backup' in c and 'verify' in c)
         self.assertIn('--pg-host', restore_argv)
         self.assertIn('approved_1', json.dumps(restored))
@@ -794,7 +799,7 @@ class OperatorCase(unittest.TestCase):
                     return 0, 'liwan_platform\n', ''
                 return 0, '0\n', ''
             if 'deploy.backup' in argv and 'capture' in argv:
-                Path(argv[argv.index('--store-root') + 1]).mkdir()
+                Path(argv[argv.index('--store-root') + 1]).mkdir(parents=True)
                 return 0, '', ''
             if 'deploy.backup' in argv and 'fetch' in argv:
                 write_candidate_artifact(Path(argv[argv.index('--destination') + 1]))
@@ -816,6 +821,9 @@ class OperatorCase(unittest.TestCase):
         self.assertTrue(payload['rollback_restore_verified'])
         self.assertNotEqual(payload['rollback_destination'], 'liwan_scratch_demo')
         self.assertNotIn('hidden-password', json.dumps(payload))
+        # The rollback's plaintext copy is gone; the encrypted candidate in its store is what remains.
+        self.assertFalse((self.backups / payload['candidate_backup_id'] / 'candidate').exists())
+        self.assertTrue((self.backups / payload['candidate_backup_id'] / 'store').is_dir())
 
     def test_upgrade_success_reports_module_health_scope_without_application_claim(self):
         store = self.data / 'filestore' / 'liwan_scratch_demo'
@@ -829,7 +837,7 @@ class OperatorCase(unittest.TestCase):
                     return 0, 'liwan_platform\n', ''
                 return 0, '0\n', ''
             if 'deploy.backup' in argv and 'capture' in argv:
-                Path(argv[argv.index('--store-root') + 1]).mkdir()
+                Path(argv[argv.index('--store-root') + 1]).mkdir(parents=True)
                 return 0, '', ''
             if 'deploy.backup' in argv and 'fetch' in argv:
                 write_candidate_artifact(Path(argv[argv.index('--destination') + 1]))

@@ -150,15 +150,12 @@ def capture(
     passphrase_file: Path,
     now: datetime | None = None,
     runner: Callable[..., object] = subprocess.run,
-    quiesce: str | None = None,
 ) -> BackupManifest:
     """Capture, encrypt and upload one artifact; the manifest is uploaded last.
 
     Everything is staged under ``work_root`` in a private directory and the store only ever
     receives fully encrypted bytes. A failure at any step raises and leaves no manifest
     behind, so the presence of a manifest in the bucket means the whole artifact arrived.
-    ``quiesce`` is the outcome :func:`deploy.backup.quiesce` recorded; the host path passes
-    none, and the snapshot says that no service stop was required.
     """
     require_tenant(tenant)
     require_kind(kind)
@@ -175,7 +172,7 @@ def capture(
     with tempfile.TemporaryDirectory(prefix='capture-', dir=work_root) as private:
         staging = Path(private) / 'snapshot'
         plain_tar = Path(private) / artifact.ARTIFACT_NAME
-        snapshot.snapshot(source, staging, runner=runner, quiesce=quiesce)
+        snapshot.snapshot(source, staging, runner=runner)
         plaintext_sha256 = artifact.archive_snapshot(staging, plain_tar)
 
         ciphertext = Path(private) / artifact.ARTIFACT_CIPHERTEXT_NAME

@@ -12,6 +12,7 @@ import importlib.util
 import json
 import os
 import re
+import shutil
 import stat
 import subprocess
 import sys
@@ -652,53 +653,87 @@ def _backup_env():
     return env
 
 
-def _candidate_backup(entry, runner, operation_id):
-    store = Path(entry['data_dir']) / 'filestore' / entry['database']
-    if not store.is_dir():
-        return None
-    root = Path(entry['backup_root'])
-    store_root = root / 'store'
-    destination = root / operation_id
-    env = _backup_env()
-    code, _ = _run(runner, _backup_argv(
-        entry, 'capture', '--kind', 'candidate', '--tenant', entry['database'],
-        '--db-name', entry['database'], '--filestore', str(store), '--store-root', str(store_root),
-        '--work-root', str(root / 'work'), '--pg-dump', entry['pg_dump'],
-        '--pg-host', entry['pg_host'], '--pg-port', str(entry['pg_port']), '--pg-user', entry['pg_user'],
-    ), entry, **env)
-    if code != 0:
-        return None
+def _candidate_store(entry, operation_id):
+    """The encrypted artifact of one operation: a store of its own, so a fetch can name it exactly."""
+    return Path(entry['backup_root']) / operation_id / 'store'
+
+
+def _candidate_plaintext(entry, operation_id):
+    """Where one operation's artifact is fetched back to, for as long as a check needs it."""
+    return Path(entry['backup_root']) / operation_id / 'candidate'
+
+
+def _scratch_target(operation_id, purpose):
+    return 'liwan_scratch_' + purpose + '_' + operation_id[-12:]
+
+
+def _candidate_manifest_ok(candidate, database):
+    """The fetched manifest names this database and claims no more than the capture wrote."""
+    try:
+        value = json.loads((candidate / 'manifest.json').read_bytes())
+    except (OSError, ValueError):
+        return False
+    return (isinstance(value, dict) and value.get('db_name') == database
+            and value.get('database_dump') == 'database.dump'
+            and value.get('filestore_copy') == 'filestore'
+            and value.get('consistency') == 'UNVERIFIED'
+            and value.get('recovery_ready') is False)
+
+
+def _discard_candidate(candidate):
+    """Remove the plaintext copy: the encrypted artifact in its own store is the only durable one."""
+    if candidate is not None:
+        shutil.rmtree(candidate, ignore_errors=True)
+
+
+def _fetch_candidate(entry, runner, operation_id):
+    """Fetch one operation's encrypted candidate back as a plaintext directory its caller must discard."""
+    candidate = _candidate_plaintext(entry, operation_id)
+    if candidate.exists():
+        # An interrupted fetch left a partial tree; the store still holds the whole artifact.
+        if (candidate / 'manifest.json').is_file():
+            return None
+        shutil.rmtree(candidate, ignore_errors=True)
     code, _ = _run(runner, _backup_argv(
         entry, 'fetch', '--kind', 'candidate', '--tenant', entry['database'],
-        '--store-root', str(store_root), '--destination', str(destination),
-    ), entry, **env)
+        '--store-root', str(_candidate_store(entry, operation_id)), '--destination', str(candidate),
+    ), entry, **_backup_env())
+    return candidate if code == 0 else None
+
+
+def _candidate_backup(entry, runner, operation_id):
+    """Capture one encrypted candidate into the operation's own store; no plaintext outlives the check."""
+    filestore = Path(entry['data_dir']) / 'filestore' / entry['database']
+    if not filestore.is_dir():
+        return False
+    code, _ = _run(runner, _backup_argv(
+        entry, 'capture', '--kind', 'candidate', '--tenant', entry['database'],
+        '--db-name', entry['database'], '--filestore', str(filestore),
+        '--store-root', str(_candidate_store(entry, operation_id)),
+        '--work-root', str(Path(entry['backup_root']) / 'work'), '--pg-dump', entry['pg_dump'],
+        '--pg-host', entry['pg_host'], '--pg-port', str(entry['pg_port']), '--pg-user', entry['pg_user'],
+    ), entry, **_backup_env())
     if code != 0:
-        return None
+        return False
+    candidate = _fetch_candidate(entry, runner, operation_id)
     try:
-        value = json.loads((destination / 'manifest.json').read_bytes())
-    except (OSError, ValueError):
-        return None
-    if (not isinstance(value, dict) or value.get('db_name') != entry['database']
-            or value.get('database_dump') != 'database.dump'
-            or value.get('filestore_copy') != 'filestore'
-            or value.get('consistency') != 'UNVERIFIED'
-            or value.get('recovery_ready') is not False):
-        return None
-    return destination
+        return candidate is not None and _candidate_manifest_ok(candidate, entry['database'])
+    finally:
+        _discard_candidate(candidate)
 
 
-def _restore_candidate(entry, runner, backup_dir, operation_id, purpose):
-    target_db = 'liwan_scratch_' + purpose + '_' + operation_id[-12:]
+def _restore_candidate(entry, runner, candidate, operation_id, purpose):
+    target_db = _scratch_target(operation_id, purpose)
     destination = Path(entry['data_dir']) / 'filestore' / target_db
-    if destination.exists() or not (backup_dir / 'database.dump').is_file():
+    if candidate is None or destination.exists() or not (candidate / 'database.dump').is_file():
         return target_db, False
-    argv = _backup_argv(entry, 'verify', '--backup-dir', str(backup_dir),
+    argv = _backup_argv(entry, 'verify', '--backup-dir', str(candidate),
                         '--target-db', target_db, '--target-filestore', str(destination),
                         '--pg-restore', entry['pg_restore'],
                         '--psql', entry['psql'], '--pg-host', entry['pg_host'],
                         '--pg-port', str(entry['pg_port']), '--pg-user', entry['pg_user'])
     code, _ = _run(runner, argv, entry, PYTHONPATH=str(REPOSITORY_ROOT))
-    record = backup_dir / 'restore-verification.json'
+    record = candidate / 'restore-verification.json'
     if code != 0 or not record.is_file():
         return target_db, False
     try:
@@ -840,19 +875,20 @@ def _other_mutation(fields, entry, fingerprint, runner, store):
                             policy_verified=True, deployment_ready=False)
 
         if operation == 'backup':
-            destination = _candidate_backup(entry, runner, operation_id)
-            if destination is None:
+            if not _candidate_backup(entry, runner, operation_id):
                 return _payload(fields, 'needs_intervention', 'backup_capture', changed=True,
                                 error={'code': 'backup_failed',
                                        'message': 'Candidate backup outcome requires inspection'})
             return _payload(fields, 'ok', 'candidate_backup', changed=True,
-                            backup_id=operation_id, backup_dir=str(destination),
-                            consistency='UNVERIFIED', recovery_ready=False)
+                            backup_id=operation_id, consistency='UNVERIFIED', recovery_ready=False)
 
         if operation == 'restore':
-            backup_dir = Path(entry['backup_root']) / fields['backup_id']
-            target_db, verified = _restore_candidate(entry, runner, backup_dir,
-                                                      operation_id, 'restore')
+            candidate = _fetch_candidate(entry, runner, fields['backup_id'])
+            try:
+                target_db, verified = _restore_candidate(entry, runner, candidate,
+                                                         operation_id, 'restore')
+            finally:
+                _discard_candidate(candidate)
             if not verified:
                 return _payload(fields, 'needs_intervention', 'restore_verification', changed=True,
                                 restored_into=target_db,
@@ -867,8 +903,7 @@ def _other_mutation(fields, entry, fingerprint, runner, store):
             return _payload(fields, 'needs_intervention', 'upgrade_preflight', changed=False,
                             error={'code': 'quiescence_unverified',
                                    'message': 'Scratch target has active sessions or pending modules'})
-        backup_dir = _candidate_backup(entry, runner, operation_id)
-        if backup_dir is None:
+        if not _candidate_backup(entry, runner, operation_id):
             return _payload(fields, 'needs_intervention', 'candidate_backup', changed=True,
                             error={'code': 'backup_failed',
                                    'message': 'Candidate backup failed before upgrade'})
@@ -896,8 +931,12 @@ def _other_mutation(fields, entry, fingerprint, runner, store):
             except OperatorFailure:
                 healthy = False
         if not healthy:
-            rollback_db, verified = _restore_candidate(entry, runner, backup_dir,
-                                                        operation_id, 'rollback')
+            candidate = _fetch_candidate(entry, runner, operation_id)
+            try:
+                rollback_db, verified = _restore_candidate(entry, runner, candidate,
+                                                           operation_id, 'rollback')
+            finally:
+                _discard_candidate(candidate)
             return _payload(fields, 'needs_intervention', 'upgrade_restore_verification',
                             changed=True, candidate_backup_id=operation_id,
                             rollback_destination=rollback_db,

@@ -29,7 +29,7 @@ FORBIDDEN_DB_EXACT = frozenset({
     'template1',
 })
 FORBIDDEN_DB_RE = re.compile(
-    r'(?:^|_)(odoo19|production|postgres|template0|template1)(?:_|$)',
+    r'(?:^|_)(odoo19|production|prod|postgres|template0|template1)(?:_|$)',
     re.IGNORECASE,
 )
 DB_NAME_RE = re.compile(r'^[A-Za-z][A-Za-z0-9_]*$')

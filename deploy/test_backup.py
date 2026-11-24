@@ -1481,7 +1481,7 @@ class TestDump(PipelineCase):
 
     def test_a_live_looking_or_unsafe_database_name_is_refused(self):
         for name in ('odoo19', 'production', 'prod', 'postgres', 'template0', 'template1',
-                     'acme_production', '9acme', 'acme-1', ''):
+                     'acme_production', 'acme_prod_copy', '9acme', 'acme-1', ''):
             with self.subTest(name=name), self.assertRaises(BackupError):
                 validate_db_name(name)
         self.assertEqual(validate_db_name('liwan_scratch'), 'liwan_scratch')
@@ -1534,7 +1534,7 @@ class TestSnapshot(PipelineCase):
         self.assertEqual(payload['filestore_file_count'], 1)
         self.assertEqual(payload['consistency'], 'UNVERIFIED')
         self.assertFalse(payload['recovery_ready'])
-        self.assertEqual(payload['quiesce'], 'not_required')
+        self.assertNotIn('quiesce', payload)
 
     def test_a_staged_snapshot_directory_that_exists_is_refused(self):
         destination = self.root / 'snapshot'

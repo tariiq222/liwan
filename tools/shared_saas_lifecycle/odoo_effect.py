@@ -156,11 +156,14 @@ def block_termination_signals():
         signal.pthread_sigmask(signal.SIG_SETMASK, previous)
 
 
+GATE_NAME = 'runtime-gate'
+
+
 class RuntimeGate:
     """Persistent project-wide ownership. Never reclaimed after unknown failure."""
     def __init__(self, root, identity):
         self.root = no_symlink(Path(root))
-        self.path = self.root / 'runtime-gate'
+        self.path = self.root / GATE_NAME
         self.identity = identity
 
     def acquire(self):
@@ -186,6 +189,24 @@ class RuntimeGate:
             os.fsync(fd)
         finally:
             os.close(fd)
+
+
+def gate_owner(root):
+    """The attempt that owns the project gate: ``None`` when there is none, ``'unknown'`` when it cannot be read.
+
+    A gate left behind means an attempt never released the project; its occupant is the only one that may
+    repair what it stopped, so a reader that cannot name the occupant treats it as somebody else's.
+    """
+    gate = no_symlink(Path(root)) / GATE_NAME
+    if not gate.exists():
+        return None
+    no_symlink(gate)
+    try:
+        owner = json.loads((gate / 'owner.json').read_text())
+    except (OSError, ValueError):
+        return 'unknown'
+    attempt = owner.get('attemptId') if isinstance(owner, dict) else None
+    return attempt if isinstance(attempt, str) and attempt else 'unknown'
 
 
 def verified_observation(request, verified):
@@ -452,11 +473,15 @@ class Runner:
         finally:
             self.current_container = None
 
-    def assert_no_effect_containers(self, *, ignore_observe=False, code='runtime_writer_present'):
+    def assert_no_effect_containers(self, *, ignore_observe=False, ignore_attempt=None, code='runtime_writer_present'):
         rows = self.command(['docker', 'ps', '--filter', 'label=com.docker.compose.project=' + self.config['projectName'], '--format', '{{.Names}}']).splitlines()
+        own = '-effect-' + ignore_attempt[:8] + '-' if ignore_attempt else None
         for name in rows:
-            if '-effect-' in name and not (ignore_observe and OBSERVE_CONTAINER.search(name)):
-                raise EffectError(code)
+            if '-effect-' not in name or (ignore_observe and OBSERVE_CONTAINER.search(name)):
+                continue
+            if own and own in name:
+                continue
+            raise EffectError(code)
 
     def apply_owned(self):
         permit('runtime')

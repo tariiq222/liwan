@@ -15,7 +15,6 @@ file records that the copy was actually restored and what was checked.
 from __future__ import annotations
 
 import json
-import re
 import shutil
 import subprocess
 import sys
@@ -26,7 +25,7 @@ from typing import TYPE_CHECKING
 
 from deploy.backup import snapshot
 from deploy.backup.artifact import sha256_file
-from deploy.backup.dump import validate_existing_file
+from deploy.backup.dump import validate_db_name, validate_existing_file
 from deploy.backup.errors import BackupError, require
 from deploy.backup.manifest import CONSISTENCY_UNVERIFIED, SHA256_RE
 from deploy.release.tenant_postgres import tenant_create_database_sql, tenant_isolation_sql
@@ -36,8 +35,6 @@ if TYPE_CHECKING:
 
 VERIFICATION_NAME = 'restore-verification.json'
 RESTORE_TOOLS = ('pg_restore', 'psql')
-FORBIDDEN_DB_RE = re.compile(r'(?:^|_)(odoo19|production|prod|postgres|template0|template1)(?:_|$)', re.IGNORECASE)
-DB_NAME_RE = re.compile(r'^[A-Za-z][A-Za-z0-9_]*$')
 SQL_INSTALLED_NAMES = "SELECT name FROM ir_module_module WHERE name LIKE 'liwan\\_%' AND state = 'installed' ORDER BY name"
 SQL_STUCK = "SELECT count(*) FROM ir_module_module WHERE state IN ('to upgrade', 'to install', 'to remove')"
 SQL_ATTACHMENTS = 'SELECT DISTINCT store_fname FROM ir_attachment WHERE store_fname IS NOT NULL ORDER BY 1'
@@ -172,11 +169,17 @@ def check_backup_integrity(manifest: dict[str, object], dump: Path, store: Path)
 
 
 def validate_target_db(name: str) -> str:
-    """A new scratch database name that does not resemble a live one."""
-    require(
-        bool(DB_NAME_RE.match(name)) and not FORBIDDEN_DB_RE.search(name) and 'scratch' in name.lower(),
-        'target database must be a new scratch name and must not resemble a live database',
-    )
+    """A new scratch database name that does not resemble a live one.
+
+    The live-looking rule is :func:`deploy.backup.dump.validate_db_name`, the one every capture
+    also applies; a restore target only adds that it must be a scratch name.
+    """
+    try:
+        validate_db_name(name)
+    except BackupError as error:
+        raise BackupError('target database must be a new scratch name and must not resemble a live database') from error
+    require('scratch' in name.lower(),
+            'target database must be a new scratch name and must not resemble a live database')
     return name
 
 

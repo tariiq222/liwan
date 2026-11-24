@@ -9,6 +9,7 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 import shlex
+import shutil
 import signal
 import subprocess
 import sys
@@ -23,8 +24,8 @@ from deploy.backup.errors import BackupError
 from deploy.backup.manifest import CIPHER as ARTIFACT_CIPHER
 from tools.shared_saas_lifecycle.odoo_effect import (
     Runner, EffectError, no_symlink, reserve, permit, emit, validate_database,
-    require_new_target, verified_observation, MAX_OUTPUT, OBSERVE_CONTAINER, classify_error,
-    install_termination_handler, ignore_termination, block_termination_signals, TERMINATION_SIGNALS, STREAM_REFUSALS, TENANT_DB_ROLE, AI_TENANT_SCHEMA,
+    require_new_target, verified_observation, MAX_OUTPUT, OBSERVE_CONTAINER, classify_error, gate_owner,
+    install_termination_handler, ignore_termination, block_termination_signals, TERMINATION_SIGNALS, STREAM_REFUSALS, TENANT_DB_ROLE, AI_TENANT_SCHEMA, GATE_NAME,
 )
 from deploy.release.tenant_postgres import POSTGRES_ADMIN_ROLE, identifier, tenant_bootstrap_sql, tenant_create_database_sql, tenant_isolation_sql
 AI_ROLE = 'liwan_ai'
@@ -546,22 +547,50 @@ print('{}')
         path = self.root / INTENT_NAME
         # A planted symlink would make the effect write, as its own account, a file the worker chose.
         no_symlink(path)
-        return backup_quiet.Intent(path, self.database, INTENT_SERVICE)
+        return backup_quiet.Intent(path, self.database, INTENT_SERVICE, self.request.get('attemptId') or '')
 
     def service_control(self):
         return ComposeOdoo(self)
 
     def reconcile(self):
-        """Start Odoo if a previous attempt left a stop behind; idempotent, and silent with no intent."""
-        return backup_quiet.reconcile(self.intent(), self.service_control())
+        """Start the shared Odoo this attempt's own intent stopped, and only when nothing else is live.
+
+        The intent file is shared by every tenant of this state directory, so an intent written by another
+        attempt (or a live effect container, or a gate another attempt left) means somebody else may be
+        effecting right now: starting Odoo then would resume writers mid-dump. Both refusals leave the
+        artifact and the intent untouched for the run that owns them.
+        """
+        attempt = self.request.get('attemptId') or ''
+        owner = gate_owner(self.root)
+        if owner not in (None, attempt):
+            raise EffectError('runtime_requires_intervention')
+        self.assert_no_effect_containers(ignore_attempt=attempt, code='runtime_requires_intervention')
+        self.remove_plaintext_orphans()
+        return backup_quiet.reconcile(self.intent(), self.service_control(), attempt=attempt)
+
+    def remove_plaintext_orphans(self):
+        """Delete the plaintext a killed attempt left behind.
+
+        A SIGKILL inside the artifact block leaves ``.plaintext-*`` under ``backups/<id>/`` with a dump and
+        an archive in it, and its TemporaryDirectory never runs. Only a caller that holds the runtime gate,
+        or a reconcile that proved nothing else is live, sweeps: those directories hold tenant data.
+        """
+        backups = self.root / 'backups'
+        if backups.is_symlink() or not backups.is_dir():
+            return
+        for artifact_dir in backups.glob('*'):
+            if artifact_dir.is_symlink() or not artifact_dir.is_dir():
+                continue
+            for orphan in artifact_dir.glob(PLAINTEXT_DIRECTORY + '*'):
+                if orphan.is_symlink() or not orphan.is_dir():
+                    continue
+                shutil.rmtree(orphan, ignore_errors=True)
 
     def capture(self):
         # Refuse a busy project before anything is reserved or stopped (a usage observation opens
         # DB sessions); the check after the stop below still closes the race with a late starter.
         self.assert_no_effect_containers()
-        # A previous attempt may have been killed between the stop and the start; its intent is
-        # still there, and Odoo is shared by every tenant.
-        self.reconcile()
+        self.remove_plaintext_orphans()
         # Without the key no artifact can be written, and that is knowable before the stop: a
         # missing or unusable passphrase must not cost the shared Odoo an outage for nothing.
         self.passphrase_file()
@@ -572,26 +601,27 @@ print('{}')
         source_image=self.inspect_service('odoo')['Image'];postgres_image=self.inspect_service('db')['Image']
         permit('drain')
         intent = self.intent()
+        started = False
         try:
             backup_quiet.quiesce(intent, self.service_control())
-            manifest=self.capture_while_stopped(source_image,postgres_image)
-            backup_quiet.record_state(intent, backup_quiet.STATE_CAPTURED)
-            permit('resume')
+            with tempfile.TemporaryDirectory(dir=self.artifact, prefix=PLAINTEXT_DIRECTORY) as private:
+                prepared = self.capture_while_stopped(source_image, postgres_image, Path(private))
+                backup_quiet.record_state(intent, backup_quiet.STATE_CAPTURED)
+                permit('resume')
+                # Odoo serves its tenants again before the archive is encrypted: the shared outage covers the
+                # dump and the archive only, and both digests were taken from the plaintext above.
+                self.command(self.base+['start','odoo'],timeout=60)
+                started = True
+                backup_quiet.record_state(intent, backup_quiet.STATE_RESUMED)
+                manifest = self.encrypt_artifact(prepared)
         except BaseException:
-            # Odoo is shared by every tenant: whatever failed, never leave it stopped. No permit here;
-            # the authority may be gone and the restart must not wait for it. A termination signal landing
-            # in this cleanup path is held pending until the restart is done, then aborts the run.
-            with block_termination_signals():
-                self.restart_after_failure()
+            # Odoo is shared by every tenant: whatever failed before it was started, never leave it stopped.
+            # No permit here; the authority may be gone and the restart must not wait for it. A termination
+            # signal landing in this cleanup path is held pending until the restart is done, then aborts the run.
+            if not started:
+                with block_termination_signals():
+                    self.restart_after_failure()
             raise
-        try:
-            self.command(self.base+['start','odoo'],timeout=60)
-        except BaseException:
-            # A termination during the normal start must not leave odoo stopped either.
-            with block_termination_signals():
-                self.restart_after_failure()
-            raise
-        backup_quiet.record_state(intent, backup_quiet.STATE_RESUMED)
         self.wait_healthy('odoo');self.verify_originals()
         permit('complete')
         reserve(self.artifact/'manifest.json',manifest);(self.artifact/'manifest.json').chmod(0o640)
@@ -628,7 +658,7 @@ print('{}')
         with suppress(EffectError, BackupError, OSError):
             backup_quiet.record_state(self.intent(), backup_quiet.STATE_RESUMED)
 
-    def capture_while_stopped(self,source_image,postgres_image):
+    def capture_while_stopped(self,source_image,postgres_image,private):
         if self.inspect_service('odoo')['State']['Running']:
             raise EffectError('writers_not_stopped')
         self.drain_observers()
@@ -640,11 +670,10 @@ print('{}')
         if sessions!='0':raise EffectError('writers_not_stopped')
         permit('capture')
         # The plaintext lives only here, inside the artifact directory and under 0600, and the
-        # directory is removed when the block ends however it ends.
-        with tempfile.TemporaryDirectory(dir=self.artifact, prefix=PLAINTEXT_DIRECTORY) as private:
-            dump, archive = Path(private) / PLAINTEXT_DUMP, Path(private) / PLAINTEXT_ARCHIVE
-            self.dump_database_to(dump)
-            pack='''import os,sys,tarfile
+        # capture's block removes the directory however it ends.
+        dump, archive = Path(private) / PLAINTEXT_DUMP, Path(private) / PLAINTEXT_ARCHIVE
+        self.dump_database_to(dump)
+        pack='''import os,sys,tarfile
 from pathlib import Path
 root=Path('/var/lib/odoo/filestore') / database
 if root.is_symlink() or not root.is_dir(): raise Exception('filestore_missing')
@@ -653,26 +682,31 @@ with tarfile.open(fileobj=sys.stdout.buffer,mode='w|') as out:
   if p.is_symlink() or not(p.is_file() or p.is_dir()) or p.resolve()!=p: raise Exception('filestore_link')
   out.add(p,arcname=p.relative_to(root).as_posix(),recursive=False)
 '''
-            self.stream(self.helper_args('odoo','pack','database='+repr(self.database)+'\n'+pack),destination=archive)
-            inventory=self.inventory('odoo',self.database)
-            self.check_files('odoo',self.database,inventory)
-            validate_archive(archive)
-            # The manifest keeps the plaintext digests a restore compares with its authority; the
-            # ciphertext digests and sizes are additive, so an older artifact still reads.
-            database_sha256=sha256_file(dump)
-            filestore_sha256=sha256_file(archive)
-            passphrase=self.passphrase_file()
-            database_ciphertext_sha256=backup_artifact.encrypt_file(dump,self.artifact/CIPHERTEXT_DUMP,passphrase_file=passphrase)
-            filestore_ciphertext_sha256=backup_artifact.encrypt_file(archive,self.artifact/CIPHERTEXT_ARCHIVE,passphrase_file=passphrase)
-            for name in (CIPHERTEXT_DUMP,CIPHERTEXT_ARCHIVE):
-                (self.artifact/name).chmod(0o600)
-            manifest={'schemaVersion':1,'format':'odoo-pg-filestore-v1','backupId':self.backup_id,'controlTenantId':self.authority['controlTenantId'],
-                'binding':self.request['job']['binding'],'businessKey':self.request['businessKey'],'payloadDigest':self.request['payloadDigest'],
-                'databaseSha256':database_sha256,'filestoreSha256':filestore_sha256,
-                'databaseCiphertextSha256':database_ciphertext_sha256,'filestoreCiphertextSha256':filestore_ciphertext_sha256,
-                'databaseCiphertextBytes':(self.artifact/CIPHERTEXT_DUMP).stat().st_size,'filestoreCiphertextBytes':(self.artifact/CIPHERTEXT_ARCHIVE).stat().st_size,
-                'cipher':ARTIFACT_CIPHER,
-                'sourceImageId':source_image,'postgresImageId':postgres_image,'capturedAt':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),'inventory':inventory}
+        self.stream(self.helper_args('odoo','pack','database='+repr(self.database)+'\n'+pack),destination=archive)
+        inventory=self.inventory('odoo',self.database)
+        self.check_files('odoo',self.database,inventory)
+        validate_archive(archive)
+        # The plaintext digests are the contract a restore compares with its authority. They are taken here,
+        # before the restart, so the encryption can run while Odoo already serves its tenants again.
+        return {'dump':dump,'archive':archive,'inventory':inventory,
+            'databaseSha256':sha256_file(dump),'filestoreSha256':sha256_file(archive),
+            'sourceImageId':source_image,'postgresImageId':postgres_image}
+
+    def encrypt_artifact(self,prepared):
+        """Encrypt the staged plaintext and return the manifest the artifact is published with."""
+        # The ciphertext digests and sizes are additive, so an older artifact still reads.
+        passphrase=self.passphrase_file()
+        database_ciphertext_sha256=backup_artifact.encrypt_file(prepared['dump'],self.artifact/CIPHERTEXT_DUMP,passphrase_file=passphrase)
+        filestore_ciphertext_sha256=backup_artifact.encrypt_file(prepared['archive'],self.artifact/CIPHERTEXT_ARCHIVE,passphrase_file=passphrase)
+        for name in (CIPHERTEXT_DUMP,CIPHERTEXT_ARCHIVE):
+            (self.artifact/name).chmod(0o600)
+        manifest={'schemaVersion':1,'format':'odoo-pg-filestore-v1','backupId':self.backup_id,'controlTenantId':self.authority['controlTenantId'],
+            'binding':self.request['job']['binding'],'businessKey':self.request['businessKey'],'payloadDigest':self.request['payloadDigest'],
+            'databaseSha256':prepared['databaseSha256'],'filestoreSha256':prepared['filestoreSha256'],
+            'databaseCiphertextSha256':database_ciphertext_sha256,'filestoreCiphertextSha256':filestore_ciphertext_sha256,
+            'databaseCiphertextBytes':(self.artifact/CIPHERTEXT_DUMP).stat().st_size,'filestoreCiphertextBytes':(self.artifact/CIPHERTEXT_ARCHIVE).stat().st_size,
+            'cipher':ARTIFACT_CIPHER,
+            'sourceImageId':prepared['sourceImageId'],'postgresImageId':prepared['postgresImageId'],'capturedAt':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),'inventory':prepared['inventory']}
         # reserve() writes json.dump (ASCII escapes can outgrow the raw inventory): refuse here, not after the manifest is unverifiable.
         if len(json.dumps(manifest).encode()) > MAX_MANIFEST:
             raise EffectError('inventory_too_large')
@@ -684,8 +718,9 @@ with tarfile.open(fileobj=sys.stdout.buffer,mode='w|') as out:
             raise EffectError('restore_image_mismatch')
         for service in ('odoo','restore-odoo'):
             require_new_target(self.database_exists(service,self.target),self.files_exist(service,self.target))
-        # A capture killed after stopping Odoo leaves the intent behind; the restore attempt starts it again.
-        self.reconcile()
+        # A new restore may follow a capture that a signal killed inside its artifact block: the plaintext it
+        # left is this attempt's to remove, because the runtime gate is held from here on.
+        self.remove_plaintext_orphans()
         permit('reserve')
         reservations=self.root/'restore-effects';reservations.mkdir(mode=0o700,exist_ok=True);no_symlink(reservations)
         reserve(reservations/(self.target+'.json'),{'approvalId':self.authority['approvalId'],'backupId':self.backup_id,'digest':self.request['payloadDigest'],'attemptId':self.request['attemptId'],'fence':self.request['fence']})
@@ -747,7 +782,7 @@ with tempfile.TemporaryFile() as source:
 
     def observe(self):
         self.preflight()
-        if (self.root/'runtime-gate').exists(): return {'state':'unknown'}
+        if (self.root/GATE_NAME).exists(): return {'state':'unknown'}
         if self.operation=='backup':
             if not self.artifact.exists(): return {'state':'absent'}
             if not self.authority.get('manifestSha256'): return {'state':'unknown'}

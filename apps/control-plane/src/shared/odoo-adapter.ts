@@ -37,15 +37,25 @@ export function subscriptionObservationRequest(binding:{tenantId:string;database
 }
 export const PROVISION_ERROR_CODES=new Set(['target_mismatch','profile_invalid','classification_conflict','policy_already_initialized','modules_mismatch','features_mismatch','snapshot_invalid','policy_script_failed','catalog_source_unavailable','catalog_source_ambiguous','policy_invalid','policy_too_large','policy_duplicate_key','policy_channel_mismatch','commercial_mode_unsupported','catalog_reference_invalid','catalog_unavailable','catalog_digest_mismatch','catalog_invalid','policy_composition_mismatch','package_authority_invalid','package_authority_mismatch','runtime_writer_present','runtime_writer_after_effect','odoo_restart_failed','inventory_too_large','backup_key_unavailable'])
 
+/** Whether a failed apply may have left the shared Odoo stopped, so that a reconcile repairs it.
+ * A refusal that ran no effect repairs nothing, and its job need not be the tenant whose intent the reconcile
+ * reads: starting the shared Odoo there would resume that tenant's writers mid-capture. Provision never touches
+ * the shared Odoo at all. */
+export function reconcileAfterFailure(operation:SharedJob['operation'],error:unknown):boolean{
+  if(operation==='provision')return false
+  const code=error instanceof Error?error.message:''
+  return code!=='runtime_writer_present' && code!=='runtime_requires_intervention'
+}
+
 /** Non-reclaimable physical reservation + current durable claim per stage.
  * Losing the control connection cancels the owned child and cannot activate.
  * Unknown physical state always remains quarantined. */
-export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):SharedFencedAdapter & Required<import('../commercial/invitation-odoo.js').OdooPasswordAdapter> & {setTenantStatus:import('../commercial/suspension.js').TenantStatusRunner;reconcileBackup(job:SharedJob):Promise<'done'|'resumed'>} {
+export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):SharedFencedAdapter & Required<import('../commercial/invitation-odoo.js').OdooPasswordAdapter> & {setTenantStatus:import('../commercial/suspension.js').TenantStatusRunner;reconcileBackup(job:SharedJob,attemptId?:string):Promise<'done'|'resumed'>} {
   if(!config.sharedRuntimeConfigPath || !config.tenantRegistryPath)throw Error('shared_adapter_unavailable')
   const runtime=loadSharedRuntimeConfig(config.sharedRuntimeConfigPath)
   const adminPasswordRunner=createAdminPasswordRunner(pool,config)
   const tenantStatusRunner=createTenantStatusRunner(pool,config,signal)
-  const execute=async(job:SharedJob,action:'observe'|'apply'|'reconcile',claim?:{attemptId:string;fence:number;assertOwned:()=>Promise<void>})=>{
+  const execute=async(job:SharedJob,action:'observe'|'apply'|'reconcile',claim?:{attemptId:string;fence:number;assertOwned:()=>Promise<void>},attemptId?:string)=>{
     const packageAuthority=job.operation==='provision'?await resolvePackageJobAuthority(pool,job):undefined
     const authority=job.operation==='provision'?null:await resolveOdooBackupAuthority(pool,runtime,job,{starting:action==='apply'})
     const commercial = job.operation==='restore' && action==='observe' && authority && 'targetDatabase' in authority && typeof authority.targetDatabase==='string'
@@ -75,7 +85,7 @@ export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):Sh
       let result:unknown,failed=false,checking=false,chain=Promise.resolve(),errorCode:string|undefined
       const fail=()=>{if(!failed){failed=true;channel.stop()}}
       const channel=openEffectChannel({config,effect:job.operation==='provision'?'odoo_effect':'odoo_backup',
-        request:{action,job,businessKey:businessKey(job),payloadDigest:payloadDigest(job),...(job.operation==='provision'?{admin:provisionAdmin(row),companyName:row.name,host:row.host,controlTenantId:row.control_tenant_id,...(packageAuthority?{packageAuthority}:{})}:{authority,...(commercial?{commercial}:{})}),...(claim?{attemptId:claim.attemptId,fence:claim.fence}:{})},
+        request:{action,job,businessKey:businessKey(job),payloadDigest:payloadDigest(job),...(job.operation==='provision'?{admin:provisionAdmin(row),companyName:row.name,host:row.host,controlTenantId:row.control_tenant_id,...(packageAuthority?{packageAuthority}:{})}:{authority,...(commercial?{commercial}:{})}),...(claim?{attemptId:claim.attemptId,fence:claim.fence}:attemptId?{attemptId,fence:0}:{})},
         onFault:fail,
         onLine:line=>{
           chain=chain.then(async()=>{
@@ -186,11 +196,11 @@ export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):Sh
   }
   // The same read-only observe action; the collector validates every field it keeps.
   const observeUsage:NonNullable<SharedFencedAdapter['observeUsage']>=async input=>await observeSubscription(input) as unknown
-  /** Start the shared Odoo a killed backup or restore attempt left stopped: the package's intent names it, and
-   * the reconcile that repairs it is idempotent. It takes no permit and mutates no tenant data. */
-  const reconcileBackup=async(job:SharedJob)=>{
+  /** Start the shared Odoo the intent of one attempt left stopped: the effect starts it only for the intent that
+   * names that attempt, and refuses while another attempt's container or gate is still live. */
+  const reconcileBackup=async(job:SharedJob,attemptId?:string)=>{
     if(job.operation==='provision')throw Error('unexpected_job')
-    const result=z.object({state:z.enum(['done','resumed'])}).parse(await execute(job,'reconcile'))
+    const result=z.object({state:z.enum(['done','resumed'])}).parse(await execute(job,'reconcile',undefined,attemptId))
     return result.state
   }
   return {
@@ -207,9 +217,10 @@ export function createOdooAdapter(pool:Pool,config:Config,signal:AbortSignal):Sh
         await input.assertOwned()
         if(input.job.operation==='backup')await recordOdooBackup(pool,runtime,input.job,input)
       }catch(error){
-        // The effect was killed between its stop and its start, or its own cleanup failed: the intent is still
-        // there, so a reconcile starts the shared Odoo. Best effort; the job reports the original failure.
-        if(input.job.operation!=='provision')await reconcileBackup(input.job).catch(()=>undefined)
+        // A failure may have been killed between its stop and its start, or its own cleanup may have failed: this
+        // attempt's intent is still there, so a reconcile starts the shared Odoo. Best effort; the job reports the
+        // original failure. A refusal that ran no effect is left alone (see `reconcileAfterFailure`).
+        if(reconcileAfterFailure(input.job.operation,error))await reconcileBackup(input.job,input.attemptId).catch(()=>undefined)
         throw error
       }
     },

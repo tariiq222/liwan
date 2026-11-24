@@ -24,7 +24,6 @@ from deploy.backup.dump import build_pg_dump_argv, run_checked, validate_db_name
 from deploy.backup.errors import BackupError, require
 from deploy.backup.lock import database_lock
 from deploy.backup.manifest import CONSISTENCY_UNVERIFIED
-from deploy.backup.quiet import QUIESCE_NOT_REQUIRED
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -110,7 +109,6 @@ def snapshot(
     destination: Path,
     *,
     runner: Callable[..., object],
-    quiesce: str | None = None,
 ) -> dict[str, object]:
     """Copy the source into the new ``destination`` and write the snapshot manifest.
 
@@ -154,7 +152,6 @@ def snapshot(
         'filestore_file_count': filestore_file_count,
         'consistency': CONSISTENCY_UNVERIFIED,
         'recovery_ready': RECOVERY_READY,
-        'quiesce': quiesce or QUIESCE_NOT_REQUIRED,
     }
     write_manifest(destination / MANIFEST_NAME, payload)
     return payload
