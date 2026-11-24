@@ -10,7 +10,7 @@ import { routesB, paymentEventsHttp } from './commercial/routes-b.js'
 import { paymentAdapterFromEnv } from './commercial/payment-adapter.js'
 import { expectBeats, readHealth, recordAvailability } from './service-health.js'
 import { CommercialHttpError } from './commercial/lifecycle.js'
-import { invitationPublicHttp, invitationVendorHttp, REISSUE_PATH, verifiedReissueContext } from './commercial/invitation-http.js'
+import { invitationPublicHttp, invitationVendorHttp, verifiedAcceptTenant } from './commercial/invitation-http.js'
 import { FIND_WORKSPACE_BODY_LIMIT, FIND_WORKSPACE_PATH, workspaceLookupHandler } from './commercial/workspace-lookup-http.js'
 import { humanCheckFromEnv, type HumanCheck } from './signup/human-check.js'
 import { odooSetPassword } from './commercial/invitation-odoo.js'
@@ -78,11 +78,10 @@ function operationSource(url: URL, allowed: string[]): string {
   return values[0] ?? 'legacy'
 }
 
-/** Per client address: accept and check 10 a minute each; a new-invitation request 5 every ten minutes. */
+/** Per client address: accept and check 10 a minute each. */
 const INVITATION_LIMITS: Record<string, { max: number; windowMs: number }> = {
   '/v1/invitations/accept': { max: 10, windowMs: 60000 },
   '/v1/invitations/check': { max: 10, windowMs: 60000 },
-  [REISSUE_PATH]: { max: 5, windowMs: 600000 },
 }
 
 const INVITATION_MESSAGES = {
@@ -403,22 +402,19 @@ export function createApp(pool: Pool, config: Config & { tls?: { key: Buffer; ce
       if (!path.startsWith('/v1/')) throw new ApiError(404, 'not_found', 'Endpoint not found')
       const url = new URL(path, 'http://localhost')
       const pathname = url.pathname
-      if (pathname === '/v1/invitations/accept' || pathname === '/v1/invitations/check' || pathname === REISSUE_PATH) {
+      if (pathname === '/v1/invitations/accept' || pathname === '/v1/invitations/check') {
         if (method !== 'POST') return respond(res, 404, { code: 'not_found', message: 'Endpoint not found' })
-        // The tenant and visitor address of a reissue are trusted only as signed by the Nuxt server; the tenant is never read from the body.
-        const reissue = pathname === REISSUE_PATH ? await verifiedReissueContext(pool, req.headers, bffService) ?? undefined : undefined
-        if (pathname === REISSUE_PATH && !reissue) return respond(res, 403, { code: 'forbidden', message: 'Request not accepted' })
+        // The workspace an accept is bound to is trusted only as signed by the Nuxt server; the tenant is never read from the body.
+        const tenant = pathname === '/v1/invitations/accept' ? (await verifiedAcceptTenant(pool, req.headers, bffService))?.tenant_id : undefined
         // Unsigned forwarding headers are never trusted for this public limit.
         // accept and check count separately so a page-load check never uses up the accept budget.
         const limit = INVITATION_LIMITS[pathname]!
-        // A reissue is budgeted per workspace and per signed visitor address, so one visitor cannot spend another's.
-        const visitor = reissue ? `${reissue.tenant_id}|${clientAddressBucket(reissue.client_address)}` : clientAddressBucket(invitationClientAddress(req, pathname, bffService))
-        const ip = `${pathname}|${visitor}`
+        const ip = `${pathname}|${clientAddressBucket(invitationClientAddress(req, pathname, bffService))}`
         if (overLimit(ip, limit)) return respond(res, 429, { code: 'rate_limited', message: 'Too many requests' })
         if (invitationsInFlight >= 4) return respond(res, 503, { code: 'unavailable', message: INVITATION_MESSAGES.unavailable })
         invitationsInFlight++
         try {
-          const response = await invitationPublicHttp(pool, { method, pathname, raw: await bodyBytes(req, pathname === REISSUE_PATH ? 1024 : undefined), setPassword, reissue })
+          const response = await invitationPublicHttp(pool, { method, pathname, raw: await bodyBytes(req), setPassword, tenant })
           return respond(res, response!.status, response!.data)
         } catch (error) {
           // Fixed table only: never error text, which could carry request material.
