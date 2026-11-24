@@ -1,7 +1,7 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 """Initialize legacy full-product entitlements after a first install.
 
-Usage, from provision.sh after ``-i`` and before branding:
+Usage, after the addons are installed (``-i``) and before branding:
 
     odoo shell -d <db> --no-http < /seed/seed_legacy_policy.py
 """

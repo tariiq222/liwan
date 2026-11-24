@@ -124,7 +124,7 @@ The models LiwanOS pays for are read from one JSON file, `AI_PLATFORM_PROVIDER_F
 - The file may be up to 64 KiB.
 
 In shared SaaS the control plane writes the file from the vendor's provider panel; in a dedicated or
-customer-hosted deployment `deploy/provision.sh` writes a single-model file from `deploy/.env`. Mount the directory, not the file, so an atomic
+customer-hosted deployment `deploy/ai/platform_provider.py` writes a single-model file from `deploy/.env`. Mount the directory, not the file, so an atomic
 replacement is seen. The dedicated file is mode 600 owned by uid 10001; the control plane's is mode 640 in a directory of group 10001.
 
 - At start an invalid file stops the boot, naming the field (never a value). A missing file does not: on a fresh shared-SaaS server the control plane

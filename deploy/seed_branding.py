@@ -52,8 +52,8 @@ if raw_logo_path:
         vals['logo'] = base64.b64encode(f.read())
 company.write(vals)
 
-# A freshly installed database ships admin/admin; provision.sh refuses to run
-# without a real VENDOR_PASSWORD, so the environment never stays on the default.
+# A freshly installed database ships admin/admin; this refuses to run without a real
+# VENDOR_PASSWORD, so the environment never stays on the default.
 vendor_password = os.environ.get('VENDOR_PASSWORD') or ''
 if not vendor_password or vendor_password == 'change-me':
     sys.exit('VENDOR_PASSWORD must be set to a real password')

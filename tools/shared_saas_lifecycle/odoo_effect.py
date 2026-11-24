@@ -37,7 +37,7 @@ MODULE_ID = re.compile(r'(?:liwan|customer)_[a-z0-9_]+')
 TENANT_HOST = re.compile(r'(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+')
 MAX_OUTPUT = 65536
 TENANT_DB_ROLE = ODOO_RUNTIME_ROLE  # db_user of deploy/shared/odoo.conf: the grantee, never the role that runs DDL
-# The AI role's grants and schema in a tenant database: the file deploy/provision.sh and the operator also run.
+# The AI role's grants and schema in a tenant database: the file the operator also runs.
 AI_TENANT_SCHEMA = Path(__file__).resolve().parents[2] / 'deploy' / 'ai' / 'tenant_schema.sql'
 # System parameter that binds a tenant database to its control-plane tenant. The final deletion of a workspace
 # refuses any database whose marker differs from the tenant it was asked to delete.
@@ -440,9 +440,9 @@ class Runner:
     def prepare_ai_state(self, ai_enabled):
         # The AI role needs its grants and schema (a no-op without the role) and, when the deployment
         # runs the ai service, its tables: the runtime only validates them (`ai_state_uninitialized`).
-        # The release control state comes first, once per deployment (deploy/provision.sh does the same,
-        # for `ai_control_state_uninitialized`), then the tenant state. All depend on the isolated empty
-        # database only, not on the Odoo install, so they run first and a failure costs no install.
+        # The release control state comes first, once per deployment (for `ai_control_state_uninitialized`),
+        # then the tenant state. All depend on the isolated empty database only, not on the Odoo install,
+        # so they run first and a failure costs no install.
         # All are idempotent.
         self.psql(AI_TENANT_SCHEMA.read_text(), variables=[('tenant_db', self.database)])
         if not ai_enabled:

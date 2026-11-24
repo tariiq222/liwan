@@ -6,6 +6,8 @@
 شرائح الحقول والترحيل و`/me` محفوظة؛ هذه الشريحة تربط مدخل التصنيف بأدوات التثبيت دون فوترة أو شبكة أو نشر.
 لا commit/merge/push/deploy ولا تشغيل Compose حي على عميل. ليست موافقة إطلاق إنتاج.
 
+ملاحظة: هذا الملف سجل تلك المرحلة لا حالة المجموعة الحالية؛ أُزيلت مع `deploy/provision.sh` حالة overlay ومحاكاة التثبيت (ضمن نتيجة 8/8) وترتيب التحقق «قبل أي Docker» اللذان يذكران أدناه، ولم يبق لهما مستدعٍ.
+
 ## السلوك
 
 1. `deploy/classification.py` يعيد استخدام `commercial_config.load_classification` على **نسخة بايتات مجمّدة** قبل أي Docker.
@@ -25,24 +27,7 @@
 
 ## أوامر المشغّل
 
-تثبيت جديد (بعد ملف JSON مطلق مطابق لـ`DB_NAME`):
-
-```sh
-export NASQ_COMMERCIAL_CONFIG=/absolute/operator-owned/classification.json
-deploy/provision.sh app.customer.sa customerdb
-```
-
-فحص ترقية قبل `-u`، مع التاريخ المرصود حاليًا:
-
-```sh
-python3 deploy/classification.py stage \
-  --file /absolute/operator-owned/classification.json \
-  --output /absolute/empty/classification.json \
-  --database customerdb \
-  --expected-valid-until 2026-01-01
-```
-
-لا تخمّن التاريخ. اقرأه من القاعدة المستهدفة أولًا. لا تستخدم fixture على قاعدة عميل.
+أُزيل `deploy/provision.sh` وأمر `classification.py stage` مع التزويد الأحادي؛ يبقى `classification.py fixture` لـ scratch/CI فقط. لا تستخدم fixture على قاعدة عميل.
 
 ## ما ثبت محليًا قبل التسليم
 

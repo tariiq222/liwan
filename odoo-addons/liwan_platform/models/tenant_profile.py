@@ -198,8 +198,7 @@ class LiwanTenantProfile(models.Model):
     def _liwan_set_public_origin(self, host):
         """Pin `web.base.url` to the tenant's https host and freeze it (trusted operator only).
 
-        Callers: dedicated provisioning and every `DOMAIN` change (`deploy/seed_public_origin.py`),
-        and the shared provision effect with the tenant's routed host.
+        Caller: the shared provision effect (`tools/shared_saas_lifecycle/odoo_effect.py`) with the tenant's routed host.
         """
         self._liwan_require_operator()
         if not isinstance(host, str) or not PUBLIC_HOST_PATTERN.fullmatch(host):

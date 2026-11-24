@@ -64,8 +64,7 @@ employee = env['hr.employee'].create({
 
 # The tenant feature policy is initialized separately by piping the repository's
 # single canonical seeding script (deploy/seed_legacy_policy.py) into `odoo shell`
-# on stdin, exactly as deploy/provision.sh does. This script stays free of any
-# policy logic; the post-seed readback in up.sh verifies the policy was written.
+# on stdin; the post-seed readback in up.sh verifies the policy was written.
 
 # Commit explicitly AFTER EACH STEP. The odoo shell rolls the transaction back on
 # exit unless a commit has already been reached: a script that only relies on a
