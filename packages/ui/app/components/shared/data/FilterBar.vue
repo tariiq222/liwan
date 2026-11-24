@@ -1,6 +1,7 @@
 <template>
   <div v-if="props.inline" class="min-w-0 space-y-2" data-slot="inline-filter-bar">
     <div class="flex min-w-0 flex-wrap items-center gap-2">
+      <slot name="scope" />
       <div v-if="$slots.search" data-shortcut-search class="min-w-48 flex-1 *:w-full"><slot name="search" /></div>
       <slot />
       <slot name="view" />
@@ -10,6 +11,13 @@
     <div v-if="activeCount > 0 && $slots.active" class="flex flex-wrap items-center gap-2"><slot name="active" /></div>
   </div>
   <div v-else data-slot="filter-root" :data-variant="props.embedded ? 'embedded' : undefined" class="@container/filters min-w-0 space-y-2">
+    <div v-if="$slots.scope" data-slot="filter-scope-row" class="flex flex-wrap items-center justify-between gap-2 border-b border-default pb-3">
+      <div class="flex min-w-0 flex-wrap items-center gap-2"><slot name="scope" /></div>
+      <div v-if="$slots.view || listView?.view.value" data-slot="view" class="flex min-w-0 flex-wrap items-center gap-2">
+        <slot name="view" />
+        <ViewSwitch v-if="listView?.view.value" :model-value="listView.view.value" :options="[...listView.options]" @update:model-value="listView.setView" />
+      </div>
+    </div>
     <div data-slot="filter-row" class="flex flex-wrap items-center gap-2">
       <!-- With fields, a narrow workspace (a tablet, or a wide context sidebar) gives the search the whole first row and the chips the row under it. -->
       <div v-if="$slots.search" data-slot="search" data-shortcut-search class="min-w-0 flex-1 *:w-full md:min-w-55 md:basis-55" :class="$slots.default && 'md:basis-full @4xl/filters:basis-55'">
@@ -22,7 +30,7 @@
         <div data-slot="controls" class="flex min-w-0 flex-wrap items-start gap-x-6 gap-y-3 md:contents"><slot /></div>
       </div>
       <UButton v-if="activeCount > 0" type="button" color="neutral" variant="ghost" icon="i-lucide-rotate-ccw" :label="resolvedClearLabel" :aria-label="resolvedClearLabel" :title="resolvedClearLabel" :disabled="isDisabled" @click="$emit('clear')" />
-      <div v-if="$slots.view || listView?.view.value" data-slot="view" class="flex w-full min-w-0 flex-wrap items-center gap-2 md:ms-auto md:w-auto">
+      <div v-if="!$slots.scope && ($slots.view || listView?.view.value)" data-slot="view" class="flex w-full min-w-0 flex-wrap items-center gap-2 md:ms-auto md:w-auto">
         <slot name="view" />
         <ViewSwitch v-if="listView?.view.value" :model-value="listView.view.value" :options="[...listView.options]" @update:model-value="listView.setView" />
       </div>

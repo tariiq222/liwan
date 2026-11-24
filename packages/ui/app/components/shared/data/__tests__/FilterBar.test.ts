@@ -10,6 +10,7 @@ const field = () => h('input', { value: 'Project A' })
 describe('FilterBar', () => {
   it('keeps inline project tools visible once without a collapsed card', async () => {
     const html = await renderFilter('FilterBar', { inline: true, activeCount: 1 }, {
+      scope: () => h('button', 'All meetings'),
       search: () => h('input', { 'aria-label': 'Task search' }),
       default: () => h('button', 'Task states'),
       view: () => h('button', 'Timeline'),
@@ -18,7 +19,7 @@ describe('FilterBar', () => {
     })
     expect(html).not.toContain('aria-expanded')
     expect(html).toContain('aria-label="Clear filters"')
-    for (const text of ['Task search', 'Task states', 'Timeline', 'New task', 'Selected state']) expect(html.split(text)).toHaveLength(2)
+    for (const text of ['All meetings', 'Task search', 'Task states', 'Timeline', 'New task', 'Selected state']) expect(html.split(text)).toHaveLength(2)
   })
   it('embedded keeps the fields in the row from md up and collapsible on phones', async () => {
     const html = await renderFilter('FilterBar', { embedded: true, activeCount: 1 }, {
@@ -112,6 +113,19 @@ describe('FilterBar', () => {
   it('fills the phone row with the view switch', async () => {
     const html = await renderFilter('FilterBar', {}, { search: () => h('input'), view: () => h('button', 'Board') })
     expect(html).toMatch(/data-slot="view" class="[^"]*\bw-full\b[^"]*md:w-auto/)
+  })
+  it('places #scope and #view in a dedicated top row above #search without duplicating #view', async () => {
+    const html = await renderFilter('FilterBar', { embedded: true }, {
+      scope: () => h('div', { 'data-testid': 'scope' }, 'All | Mine'),
+      view: () => h('button', 'Calendar'),
+      search: () => h('input', { 'aria-label': 'Search' }),
+      default: () => h('select'),
+    })
+    expect(html).toContain('data-slot="filter-scope-row"')
+    expect(html.indexOf('data-slot="filter-scope-row"')).toBeLessThan(html.indexOf('data-slot="filter-row"'))
+    expect(html.indexOf('data-testid="scope"')).toBeLessThan(html.indexOf('data-slot="view"'))
+    expect(html.indexOf('data-slot="view"')).toBeLessThan(html.indexOf('data-slot="filter-row"'))
+    expect(html.match(/data-slot="view"/g)).toHaveLength(1)
   })
   it('styles every select, picker and date trigger in the row as a soft 40px chip with a 44px touch target', () => {
     const css = readFileSync(resolve(import.meta.dirname, '../../../../assets/css/components.css'), 'utf8')

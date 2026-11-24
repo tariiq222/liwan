@@ -1,6 +1,6 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
-import { followupKpiStates, meetingFollowupTiles, meetingKpiFilters, meetingListTiles, meetingSeriesTiles, kpiLink, type FollowupKpiState } from '@/utils/meetingKpis'
+import { followupKpiStates, meetingFollowupTiles, meetingKpiFilters, meetingListTiles, meetingSeriesTiles, kpiLink, pickNearestUpcomingMeeting, UPCOMING_KPI_LIMIT, type FollowupKpiState } from '@/utils/meetingKpis'
 import { useMeetingFollowup, type MeetingFollowupParams } from './useMeetingWorkspace'
 import { useMeetings, useMeetingSeriesList } from './useMeetings'
 
@@ -16,7 +16,7 @@ export function useMeetingListKpis(scope: MaybeRefOrGetter<MeetingScope>, enable
   const filters = meetingKpiFilters(today)
   const queries = {
     total: useMeetings(() => ({ ...toValue(scope), ...filters.total, limit: 1 }), { enabled }),
-    upcoming: useMeetings(() => ({ ...toValue(scope), ...filters.upcoming, limit: 1 }), { enabled }),
+    upcoming: useMeetings(() => ({ ...toValue(scope), ...filters.upcoming, limit: UPCOMING_KPI_LIMIT }), { enabled }),
     draft: useMeetings(() => ({ ...toValue(scope), ...filters.draft, limit: 1 }), { enabled }),
     done: useMeetings(() => ({ ...toValue(scope), ...filters.done, limit: 1 }), { enabled }),
   }
@@ -36,8 +36,9 @@ export function useMeetingListKpis(scope: MaybeRefOrGetter<MeetingScope>, enable
     draft: queries.draft.data.value?.total,
     done: queries.done.data.value?.total,
   }, links.value, t))
+  const nextUpcoming = computed(() => pickNearestUpcomingMeeting(queries.upcoming.data.value, toValue(enabled)))
   const loading = computed(() => Object.values(queries).some(query => query.isLoading.value))
-  return { tiles, loading }
+  return { tiles, loading, nextUpcoming }
 }
 
 /** The tiles of /meetings/series: the series total and the company-wide open and overdue resolution totals (the series list has no filter for them). */

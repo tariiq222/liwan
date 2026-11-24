@@ -7,6 +7,7 @@ import RecordNumber from '@liwan/ui/app/components/shared/data/RecordNumber.vue'
 import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
 import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
 import { formatCalendarDate, formatLiwanTime } from '@liwan/ui/app/composables/calendarDate'
+import { localIsoDay } from '@liwan/ui/app/utils/formatDate'
 import { useMeetingListQuerySync } from '@/composables/useMeetingListQuerySync'
 import { usePeople } from '@/composables/usePeople'
 import { useMeetings } from '@/composables/useMeetings'
@@ -108,6 +109,8 @@ const kpis = useMeetingListKpis(() => ({
   organizer_id: routeFilters.value.organizerId,
   series_id: routeFilters.value.seriesId,
 }), kpisShown)
+const nextUpcoming = computed(() => kpis.nextUpcoming?.value ?? null)
+const todayIso = computed(() => hydrated.value ? localIsoDay(new Date()) : '')
 const rows = computed(() => query.data.value?.items ?? [])
 const total = computed(() => query.data.value?.total ?? 0)
 // The list's total as a tag in the heading, once the first page has arrived.
@@ -268,6 +271,35 @@ function setPage(next: number) {
     @click.capture="openCreate"
   >
     <SharedKpiStrip v-if="hydrated" :tiles="kpis.tiles.value" :loading="kpis.loading.value" :label="t('meetingsKpi.label')" data-testid="meeting-kpi-strip" />
+    <div
+      v-if="hydrated && nextUpcoming && !invalidDateRange && !query.error.value"
+      data-testid="meeting-next-up"
+      class="flex flex-wrap items-center justify-between gap-3 rounded-card bg-elevated/40 px-(--liwan-card-pad-dense) py-3 ring ring-default"
+    >
+      <div class="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1.5">
+        <UBadge color="info" variant="subtle" size="sm" class="shrink-0">{{ t('meetingsUi.nextUp') }}</UBadge>
+        <NuxtLink
+          :to="meetingTo(nextUpcoming)"
+          @click.capture="openRecord($event, nextUpcoming)"
+          class="min-w-0 truncate text-sm font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >{{ nextUpcoming.name }}</NuxtLink>
+        <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+          <RecordNumber :value="meetingRecordNumber(nextUpcoming)" />
+          <span v-if="nextUpcoming.meeting_date">{{ formatCalendarDate(nextUpcoming.meeting_date) }}</span>
+          <span v-if="nextUpcoming.start_datetime">{{ localTime(nextUpcoming.start_datetime) }}</span>
+          <span v-if="nextUpcoming.organizer" class="truncate">{{ nextUpcoming.organizer.name }}</span>
+        </div>
+      </div>
+      <UButton
+        size="sm"
+        color="primary"
+        variant="soft"
+        :to="meetingTo(nextUpcoming)"
+        :label="t('meetingsUi.openMeeting')"
+        class="shrink-0"
+        @click.capture="openRecord($event, nextUpcoming)"
+      />
+    </div>
     <SharedListCard>
       <template #filters>
         <FilterBar embedded class="w-full" :active-count="activeFilterCount" :clear-label="t('meetingsUi.clear')" :disabled="!hydrated" @clear="clearFilters">
@@ -310,9 +342,11 @@ function setPage(next: number) {
             <SharedDateField id="meeting-date-from" v-model="dateFromField" class="w-full md:w-40" :label="dateFromField ? undefined : t('meetingsFilters.fromDateLabel')" :aria-label="t('meetingsFilters.fromDateLabel')" :disabled="!hydrated" />
             <SharedDateField id="meeting-date-to" v-model="dateToField" class="w-full md:w-40" :label="dateToField ? undefined : t('meetingsFilters.toDateLabel')" :aria-label="t('meetingsFilters.toDateLabel')" :disabled="!hydrated" />
           </template>
-          <template #view>
+          <template #scope>
             <SharedSegmentedControl data-testid="meeting-scope" :label="t('meetingsFilters.scope')" :items="scopeItems" :model-value="mine ? 'mine' : 'all'" :disabled="!hydrated" @update:model-value="onScopeChange" />
-            <span class="hidden h-5 w-px bg-accented md:block" aria-hidden="true" /><SharedViewSwitch model-value="list" :options="meetingViewOptions(t)" @update:model-value="value => router.push(meetingViewRoute(liveListQuery(), value === 'calendar' ? 'calendar' : 'list'))" />
+          </template>
+          <template #view>
+            <SharedViewSwitch model-value="list" :options="meetingViewOptions(t)" @update:model-value="value => router.push(meetingViewRoute(liveListQuery(), value === 'calendar' ? 'calendar' : 'list'))" />
           </template>
           <!-- The dropdowns show their own choice; only the series inherited from a link has no control, so it is the one chip. -->
           <template v-if="seriesId" #active>
@@ -344,13 +378,24 @@ function setPage(next: number) {
             class="block min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >{{ row.original.name }}</NuxtLink>
         </template>
-        <template #meeting_date-cell="{ row }"><div class="grid gap-0.5 whitespace-nowrap"><span>{{ row.original.meeting_date ? formatCalendarDate(row.original.meeting_date) : '—' }}</span><span class="text-xs text-muted">{{ row.original.start_datetime ? localTime(row.original.start_datetime) : t('meetingsUx.timeUnavailable') }}</span></div></template>
+        <template #meeting_date-cell="{ row }">
+          <div class="grid gap-0.5 whitespace-nowrap">
+            <div class="flex items-center gap-1.5">
+              <span>{{ row.original.meeting_date ? formatCalendarDate(row.original.meeting_date) : '—' }}</span>
+              <UBadge v-if="row.original.meeting_date === todayIso" color="info" variant="subtle" size="xs">{{ t('meetingsUi.today') }}</UBadge>
+            </div>
+            <span class="text-xs text-muted">{{ row.original.start_datetime ? localTime(row.original.start_datetime) : t('meetingsUx.timeUnavailable') }}</span>
+          </div>
+        </template>
         <template #organizer-cell="{ row }">
           <div v-if="row.original.organizer" class="flex min-w-0 items-center gap-2"><SharedPersonAvatar :people="[row.original.organizer]" /><span class="min-w-0 truncate text-muted">{{ row.original.organizer.name }}</span></div>
           <span v-else class="text-muted">—</span>
         </template>
         <template #state-cell="{ row }"><SharedStatusBadge v-bind="meetingStateBadgeProps(row.original.state, t)" data-testid="meeting-row-state" /></template>
-        <template #open_resolution_count-cell="{ row }"><span class="text-muted">{{ row.original.open_resolution_count ? t('meetingsUi.openCount', { count: row.original.open_resolution_count }, row.original.open_resolution_count) : '—' }}</span></template>
+        <template #open_resolution_count-cell="{ row }">
+          <UBadge v-if="row.original.open_resolution_count > 0" color="warning" variant="subtle" size="xs">{{ t('meetingsUi.openCount', { count: row.original.open_resolution_count }, row.original.open_resolution_count) }}</UBadge>
+          <span v-else class="text-muted">—</span>
+        </template>
         <template #mobile-row="{ row }">
           <NuxtLink :to="meetingTo(row)" @click.capture="openRecord($event, row)" class="grid min-w-0 gap-2 focus-visible:outline-none">
             <div class="flex min-w-0 items-start justify-between gap-2">

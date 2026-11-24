@@ -47,35 +47,65 @@ const appTile = computed(() => compact.value && props.tone === 'neutral' && !pro
 <template>
   <UCard
     :class="{ 'liwan-lift relative': props.to }"
-    :ui="{ body: compact ? 'flex items-center gap-3 px-5 py-[18px] sm:px-5 sm:py-[18px]' : 'flex items-start gap-4 p-5 sm:p-5' }"
+    :ui="{ body: compact ? 'flex px-(--liwan-card-pad-dense) py-3.5 sm:px-(--liwan-card-pad-dense) sm:py-3.5' : 'flex items-start gap-4 p-5 sm:p-5' }"
     data-testid="metric-tile"
     :data-density="props.density"
     :data-tone="props.tone"
     :data-emphasis="props.emphasis || undefined"
   >
-    <span
-      v-if="props.icon"
-      class="shrink-0 items-center justify-center"
-      :class="compact ? 'order-last hidden sm:flex' : 'flex'"
-      aria-hidden="true"
-    >
-      <span :class="[appTile ? 'liwan-app-tile liwan-app-tile-md' : ['flex items-center justify-center', chip, compact ? 'size-8 rounded-control' : 'size-10 rounded-control']]">
-        <UIcon :name="props.icon" :class="compact ? 'size-4' : 'size-5'" />
-      </span>
-    </span>
-    <div class="grid min-w-0 flex-1" :class="compact ? 'gap-0.5' : 'gap-1'">
-      <p class="text-(length:--liwan-fs-small-label)/5 text-muted">{{ props.label }}</p>
-      <p
-        class="w-fit max-w-full justify-self-start wrap-break-word font-bold tracking-[-0.02em] tabular-nums"
-        :class="['font-display', figureSize, props.tone === 'danger' ? 'text-status-danger-foreground' : 'text-highlighted']"
-        :dir="props.valueDir"
+    <template v-if="compact">
+      <div class="flex w-full min-w-0 flex-col gap-2">
+        <div class="flex min-w-0 items-center justify-between gap-3">
+          <p class="min-w-0 text-(length:--liwan-fs-small-label)/5 text-muted">{{ props.label }}</p>
+          <span
+            v-if="props.icon"
+            class="hidden shrink-0 items-center justify-center sm:flex"
+            aria-hidden="true"
+          >
+            <span :class="[appTile ? 'liwan-app-tile liwan-app-tile-md' : ['flex size-8 items-center justify-center rounded-control', chip]]">
+              <UIcon :name="props.icon" class="size-4" />
+            </span>
+          </span>
+        </div>
+        <div class="flex min-w-0 flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
+          <p
+            class="w-fit max-w-full wrap-break-word font-bold tracking-[-0.02em] tabular-nums"
+            :class="['font-display', figureSize, props.tone === 'danger' ? 'text-status-danger-foreground' : 'text-highlighted']"
+            :dir="props.valueDir"
+          >
+            {{ display }}<span v-if="known && props.unit" class="ms-1 text-sm font-normal tracking-normal text-muted">{{ props.unit }}</span>
+          </p>
+          <p v-if="props.hint && props.progress === undefined" class="min-w-0 truncate text-xs text-muted">{{ props.hint }}</p>
+        </div>
+        <p v-if="props.hint && props.progress !== undefined" class="truncate text-xs text-muted">{{ props.hint }}</p>
+        <SharedProgress v-if="props.progress !== undefined" class="mt-0.5" :value="props.progress" :tone="PROGRESS_TONE[props.tone]" :label="props.label" data-slot="metric-progress" />
+        <slot />
+      </div>
+    </template>
+    <template v-else>
+      <span
+        v-if="props.icon"
+        class="flex shrink-0 items-center justify-center"
+        aria-hidden="true"
       >
-        {{ display }}<span v-if="known && props.unit" class="ms-1 text-sm font-normal tracking-normal text-muted">{{ props.unit }}</span>
-      </p>
-      <p v-if="props.hint" class="text-xs text-muted">{{ props.hint }}</p>
-      <SharedProgress v-if="props.progress !== undefined" class="mt-1.5" :value="props.progress" :tone="PROGRESS_TONE[props.tone]" :label="props.label" data-slot="metric-progress" />
-      <slot />
-    </div>
+        <span :class="['flex size-10 items-center justify-center rounded-control', chip]">
+          <UIcon :name="props.icon" class="size-5" />
+        </span>
+      </span>
+      <div class="grid min-w-0 flex-1 gap-1">
+        <p class="text-(length:--liwan-fs-small-label)/5 text-muted">{{ props.label }}</p>
+        <p
+          class="w-fit max-w-full justify-self-start wrap-break-word font-bold tracking-[-0.02em] tabular-nums"
+          :class="['font-display', figureSize, props.tone === 'danger' ? 'text-status-danger-foreground' : 'text-highlighted']"
+          :dir="props.valueDir"
+        >
+          {{ display }}<span v-if="known && props.unit" class="ms-1 text-sm font-normal tracking-normal text-muted">{{ props.unit }}</span>
+        </p>
+        <p v-if="props.hint" class="text-xs text-muted">{{ props.hint }}</p>
+        <SharedProgress v-if="props.progress !== undefined" class="mt-1.5" :value="props.progress" :tone="PROGRESS_TONE[props.tone]" :label="props.label" data-slot="metric-progress" />
+        <slot />
+      </div>
+    </template>
     <NuxtLink
       v-if="props.to"
       :to="props.to"
