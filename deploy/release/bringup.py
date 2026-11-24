@@ -541,10 +541,12 @@ def resolved_compose_path(ctx: Context, shared: dict) -> Path | None:
     return Path(compose) if isinstance(compose, str) and compose else None
 
 
-def release_command(ctx: Context) -> str:
-    """The release the operator runs to render the resolved compose file again."""
-    return shlex.join(['python3', '-B', str(ctx.paths.current / 'deploy' / 'release' / 'release.py'), 'run',
-                       '--environment', ctx.environment])
+def release_hint(ctx: Context) -> str:
+    """How to render the resolved compose file again: the release job of A7.1, or its command with the read credential loaded."""
+    command = shlex.join(['python3', '-B', str(ctx.paths.current / 'deploy' / 'release' / 'release.py'), 'run',
+                          '--environment', ctx.environment])
+    return (f'trigger the liwan-{ctx.environment}-release job (A7.1), or run the command with the github-read env loaded: '
+            f'set -a; . {credential_path(ctx)}; set +a; {command}')
 
 
 def resolved_storage_problems(ctx: Context, path: Path, shared: dict) -> list[str]:
@@ -587,9 +589,9 @@ def check_tenant_storage_settings(ctx: Context) -> Status:
     path = resolved_compose_path(ctx, shared)
     if path is None:
         return missing(f'the shared env file names no {SHARED_COMPOSE_KEY} and no {SHARED_RUNTIME_FILE} names a composeFile; '
-                       f'run {release_command(ctx)}')
+                       f'{release_hint(ctx)}')
     if inspect(ctx.host, path, REGULAR_FILE) is None:
-        return missing(f'{path} is absent; run {release_command(ctx)}')
+        return missing(f'{path} is absent; {release_hint(ctx)}')
     problems = resolved_storage_problems(ctx, path, shared)
     if problems:
         return missing('; '.join(problems) + '; release again so the rendered compose file carries the settings')

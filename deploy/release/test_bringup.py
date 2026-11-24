@@ -1154,12 +1154,14 @@ class TenantStorageItemsTest(unittest.TestCase):
         host.files[f'{SRV}/shared.compose.json'] = regular(0o600, text=json.dumps(resolved))
         self.assertIn(f'has no service {bringup.TENANT_STORAGE_EGRESS}', line_of(run(host)[1], 'tenant-storage-settings'))
 
-    def test_a_missing_resolved_compose_file_names_the_release_command(self):
+    def test_a_missing_resolved_compose_file_names_the_release_hint(self):
         host = self.prepared()
         del host.files[f'{SRV}/shared.compose.json']
         line = line_of(run(host)[1], 'tenant-storage-settings')
         self.assertTrue(line.startswith('MISSING'))
         self.assertIn(f'{SRV}/shared.compose.json is absent', line)
+        self.assertIn('trigger the liwan-staging-release job (A7.1)', line)
+        self.assertIn('. /etc/liwan-release/github-read', line)
         self.assertIn('/opt/liwan/current/deploy/release/release.py run --environment staging', line)
 
     def test_the_runtime_config_compose_file_is_used_when_the_shared_env_names_none(self):
@@ -1174,7 +1176,7 @@ class TenantStorageItemsTest(unittest.TestCase):
         del host.files[f'{SRV}/control/config/shared-runtime.json']
         line = line_of(run(host)[1], 'tenant-storage-settings')
         self.assertIn(f'names no {bringup.SHARED_COMPOSE_KEY}', line)
-        self.assertIn('release.py run --environment staging', line)
+        self.assertIn('trigger the liwan-staging-release job (A7.1)', line)
 
     def test_the_flag_guard_sees_a_stale_resolved_compose_file(self):
         host = self.prepared(flag='true')
