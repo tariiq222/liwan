@@ -374,11 +374,18 @@ host, because without it every artifact in the bucket and under `<stateDir>` is 
 
 **Restart safety, one mechanism.** The dump runs inside the `db` container through the package's one `pg_dump` argv
 (`deploy/backup/dump.py`, container form), with the admin role as the C1 rule requires. The capture writes
-`<stateDir>/backup-intent.json` before `compose stop odoo`, records `captured` and `resumed` as it goes, and starts Odoo
-again in its own failure path; that in-process restart is the immediate guarantee. The package's `reconcile` covers a
-run that was killed outright: every capture and restore attempt calls it first, and the worker can send the effect the
-`reconcile` action, which `applyFenced` does after a failed backup or restore. It starts Odoo only when the intent says a
-stop may have been left behind, and it is idempotent.
+`<stateDir>/backup-intent.json` before `compose stop odoo`, records the attempt and the tenant in it, records `captured`
+and `resumed` as it goes, and starts Odoo again in its own failure path; that in-process restart is the immediate
+guarantee. The package's `reconcile` covers a run that was killed outright: it starts Odoo only for an intent that names
+the attempt and tenant of the request, and only when no other attempt owns the `runtime-gate` and no other attempt's
+effect container is live, so it can never resume writers in the middle of another tenant's capture. The worker can send
+the effect the `reconcile` action with the failed attempt's id, which `applyFenced` does after a failed backup or
+restore. An intent that is absent, already resumed, or names another attempt or tenant is left alone.
+
+The cost is availability: a worker killed between `compose stop odoo` and the start leaves the intent behind for an
+attempt that will never ask again, so nothing restarts Odoo by itself and the shared Odoo stays down for every tenant.
+The operator has to start it again by hand, or the next capture records its own attempt over the intent and starts Odoo
+at its resume stage.
 
 ## Session and route contract
 

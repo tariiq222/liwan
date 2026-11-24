@@ -52,10 +52,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-FORBIDDEN_DB = {'odoo19', 'production', 'prod', 'postgres', 'template0', 'template1'}
-# The same boundary the backup package applies: a live-looking segment
-# anywhere in the name is refused, not only a name that is exactly one of the six.
-FORBIDDEN_DB_RE = re.compile(r'(?:^|_)(odoo19|production|prod|postgres|template0|template1)(?:_|$)', re.IGNORECASE)
+sys.path.insert(0, str(REPO_ROOT))
+# The backup package owns the forbidden-name boundary; the drill repeats no copy of it.
+from deploy.backup.dump import FORBIDDEN_DB_RE  # noqa: E402 - path set just above
+
 DB_NAME_RE = re.compile(r'^[A-Za-z][A-Za-z0-9_]*$')
 # A drill database is one this repository owns and may drop: a `liwan_` prefix and a
 # `_scratch` segment with something of its own before it. A copy of a live tenant cannot

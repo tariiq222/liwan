@@ -40,11 +40,13 @@ export const PROVISION_ERROR_CODES=new Set(['target_mismatch','profile_invalid',
 /** Whether a failed apply may have left the shared Odoo stopped, so that a reconcile repairs it.
  * A refusal that ran no effect repairs nothing, and its job need not be the tenant whose intent the reconcile
  * reads: starting the shared Odoo there would resume that tenant's writers mid-capture. Provision never touches
- * the shared Odoo at all. */
+ * the shared Odoo at all. A reconcile refused because another attempt owns the gate or has a live container is
+ * reported as `shared_effect_unverified`, which does arrive here: the effect's own reconcile check refuses it
+ * before starting anything, so it is reconciled and repairs nothing. */
 export function reconcileAfterFailure(operation:SharedJob['operation'],error:unknown):boolean{
   if(operation==='provision')return false
   const code=error instanceof Error?error.message:''
-  return code!=='runtime_writer_present' && code!=='runtime_requires_intervention'
+  return code!=='runtime_writer_present'
 }
 
 /** Non-reclaimable physical reservation + current durable claim per stage.

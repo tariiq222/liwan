@@ -584,7 +584,12 @@ print('{}')
             for orphan in artifact_dir.glob(PLAINTEXT_DIRECTORY + '*'):
                 if orphan.is_symlink() or not orphan.is_dir():
                     continue
-                shutil.rmtree(orphan, ignore_errors=True)
+                try:
+                    shutil.rmtree(orphan)
+                except OSError:
+                    # A removal that fails leaves tenant data in plaintext. Name the path, never what it
+                    # holds, and keep going: one stuck directory must not block the capture or the restart.
+                    sys.stderr.write(f'liwan backup: plaintext directory left in place: {orphan}\n')
 
     def capture(self):
         # Refuse a busy project before anything is reserved or stopped (a usage observation opens

@@ -371,6 +371,27 @@ class CaptureRestartTests(unittest.TestCase):
             self.assertFalse(abandoned.exists())
             self.assertTrue(runner.artifact.exists())
 
+    def test_a_plaintext_directory_that_cannot_be_removed_is_named_and_the_capture_goes_on(self):
+        # A delete that fails silently would leave a plaintext tenant dump on disk with no trace.
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve()
+            runner, _ = self.capture_runner(root)
+            abandoned = runner.root / 'backups' / '11111111-1111-4111-8111-111111111111' / (odoo_backup.PLAINTEXT_DIRECTORY + 'abc123')
+            abandoned.mkdir(parents=True)
+            (abandoned / odoo_backup.PLAINTEXT_DUMP).write_bytes(b'plaintext tenant dump')
+            real_rmtree = shutil.rmtree
+            def rmtree(path, *args, **kwargs):
+                if Path(path) == abandoned:
+                    raise OSError('directory busy')
+                return real_rmtree(path, *args, **kwargs)
+            stderr = io.StringIO()
+            with patch.object(odoo_backup.shutil, 'rmtree', rmtree), contextlib.redirect_stderr(stderr):
+                self.capture(runner, 'never')
+            # The warning names the path and never what the directory holds.
+            self.assertIn(f'plaintext directory left in place: {abandoned}', stderr.getvalue())
+            self.assertNotIn('plaintext tenant dump', stderr.getvalue())
+            self.assertTrue(runner.artifact.exists())
+
     def test_two_termination_signals_in_a_row_still_start_odoo_once_and_complete_it(self):
         # systemd (KillMode=control-group) and the gate both signal the group: the second SIGTERM arrives while the restart runs.
         import os, signal

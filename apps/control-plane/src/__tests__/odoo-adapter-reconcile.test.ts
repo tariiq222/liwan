@@ -9,12 +9,12 @@ describe('reconcile after a failed shared apply',()=>{
   })
 
   it('never repairs a refusal that ran no effect',()=>{
-    // These refusals happen before the runtime gate, and their job is not necessarily the tenant whose intent
+    // This refusal happens before the runtime gate, and its job is not necessarily the tenant whose intent
     // the effect would read: reconciling there would start the shared Odoo in the middle of another capture.
-    for(const code of ['runtime_writer_present','runtime_requires_intervention']){
-      expect(reconcileAfterFailure('backup',Error(code))).toBe(false)
-      expect(reconcileAfterFailure('restore',Error(code))).toBe(false)
-    }
+    // The effect's own reconcile refuses another attempt's gate or live container and reports
+    // `shared_effect_unverified`, so that code is deliberately reconciled and repairs nothing.
+    expect(reconcileAfterFailure('backup',Error('runtime_writer_present'))).toBe(false)
+    expect(reconcileAfterFailure('restore',Error('runtime_writer_present'))).toBe(false)
   })
 
   it('never reconciles a provision job',()=>{
