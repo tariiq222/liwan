@@ -32,7 +32,7 @@ services:
       # Caddy's `auto_https` mode; `off` when an outer edge terminates TLS. The default changes nothing.
       LIWAN_AUTO_HTTPS: ${LIWAN_AUTO_HTTPS:-ignore_loaded_certs}
     volumes:
-      - ./shared/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./stack/Caddyfile:/etc/caddy/Caddyfile:ro
       # The release command creates `active` here for the length of an update (deploy/release/README.md); the Caddyfile
       # shows its maintenance page only while that file exists. The default is a local directory for acceptance runs.
       - ${LIWAN_MAINTENANCE_DIR:-./data/maintenance}:/srv/liwan-maintenance:ro

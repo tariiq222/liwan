@@ -1,22 +1,27 @@
-# Environments: staging and production
+# Environments: staging, production and local
 
-Staging and production run the same compose set. The env file is the only per-environment input.
+Every environment runs the one stack definition in `deploy/stack/`. The env file is the only per-environment input.
 
 | Project | Files, in order |
 | --- | --- |
-| Shared stack | `deploy/docker-compose.yml`, `docker-compose.shared.yml`, `docker-compose.shared-commercial.yml`, `docker-compose.production.yml`, `docker-compose.host-link.yml` |
+| Shared stack | `deploy/stack/compose.yml` (a template, rendered by `deploy/stack/render.py`), `deploy/stack/Caddyfile`, `deploy/stack/odoo.conf.template` |
 | Control plane | `deploy/control-plane/compose.production.yml`, `compose.host-link.yml` |
 | Shared worker | `deploy/control-plane/liwan-shared-worker.service`, which reads `shared-worker.env.example` (the same values as the control-plane env, see that file). The worker has no docker access: it reaches the tenant effects through `liwan-effect.socket` and `liwan-effect@.service` in the same folder, which run as the `liwan-effect` account, the only `docker` member (see the bring-up guide, A3 and A6) |
 
-Render without starting anything:
+Render without starting anything (the stack toggles below are read from the env file; `sizing.env` beside the rendered
+file carries the values of `deploy/odoo_sizing.py`):
 
 ```sh
-docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.shared.yml \
-  -f deploy/docker-compose.shared-commercial.yml -f deploy/docker-compose.production.yml \
-  --env-file <env file> config --quiet
+python3 -B -m deploy.stack.render <env file> > /tmp/liwan-compose.yml
+docker compose --project-directory deploy -f /tmp/liwan-compose.yml --env-file <env file> \
+  --env-file <sizing.env> config --quiet
 ```
 
-`staging.env.example` and `production.env.example` declare the same variable names. Copy one to a root-only file
+`deploy/stack/test_golden.py` renders staging and production and compares them with the captured render of the five
+layered files the stack replaced (`deploy/stack/golden/`); `golden/deltas.json` lists every intended difference.
+
+`staging.env.example` and `production.env.example` declare the same variable names; `local.env.example` is the same
+set with loopback values and both stack toggles off, for a developer machine or an acceptance harness. Copy one to a root-only file
 (mode 0600, outside the checkout) on the host and replace every `REPLACE_WITH_...` value there. Nothing in the
 repository is a secret. `test_environments.py` renders both projects with both templates and fails when the
 staging rendering differs from production anywhere except the variables marked "differs" below.
@@ -35,7 +40,7 @@ Two other env files stay separate, because the services read them directly: the 
 - Each environment reads releases with its own read-only GitHub credentials (`LIWAN_GHCR_READ_USER`,
   `LIWAN_GHCR_READ_TOKEN`, optional `LIWAN_GITHUB_READ_TOKEN`; see `deploy/release/README.md`). Production holds its own
   read token, different from staging, so a leak on one host never reaches the other.
-- No code or compose file tests which environment it runs in. A difference between environments is a variable.
+- No code or compose file tests which environment it runs in. A difference between environments is a variable or a stack toggle.
 - The compose set carries hard memory ceilings (about 9 GB for
   Odoo and 10 GB for PostgreSQL, plus the small services and the control plane, 24 GB in total), sized for the
   production Arm server. They are ceilings, not reservations. The staging host has 12 GB and also hosts the Openship
@@ -109,7 +114,14 @@ environments), **release** (written by the release path), **fixed** (the same in
 | `LIWAN_AI_PLATFORM_DIR` | Directory the control plane writes the AI platform provider file into and the `ai` service reads; `<LIWAN_CONTROL_STATE_DIR>/ai-platform`, created by `init-host.sh`. The control env file's `LIWAN_AI_PLATFORM_PROVIDER_PATH` is `<this>/platform-provider.json`. Unset, compose uses `./data/ai` in the per-commit checkout and the file is lost at the next release | under that environment's state directory | under the production state directory | host | yes |
 | `LIWAN_CONTROL_ENV_FILE` | Path of the control-plane env file | same | same | host | yes |
 | `LIWAN_VENDOR_ADMIN_ENV_FILE` | Path of the vendor console env file | same | same | host | yes |
-| `LIWAN_DB_HOST_PORT` | Loopback port the tenant database publishes for the host `pg_dump` (`docker-compose.host-link.yml`); the release reads it from this file for the backup (the control database's `LIWAN_CONTROL_DB_HOST_PORT` is read the same way and defaults to `15432`) | `15433` | `15433` | fixed | no |
+| `LIWAN_STACK_COMMERCIAL_EDGE` | Stack toggle, exactly `true` or `false`: the public commercial host, the customer BFF and the vendor console host (the three control networks, the control CA mount and the two Caddy snippets) | `true` | `true` | fixed | no |
+| `LIWAN_STACK_DB_HOST_LINK` | Stack toggle, exactly `true` or `false`: the tenant database's loopback port and `db_host` network for the release path's `pg_dump` | `true` | `true` | fixed | no |
+| `LIWAN_RELEASE_TAG_POLICY` | `highest` follows the highest release tag; `explicit` applies only the tag it is given | `highest` | `explicit` | fixed | yes |
+| `LIWAN_ODOO_ADMIN_PASSWD` | The `$pbkdf2-sha512$...` hash of Odoo's master password, rendered into the Odoo config (`odoo.conf.template`) with `DB_PASSWORD`; never the plain password | generated | generated | host | yes |
+| `LIWAN_TENANT_STORAGE_FILES_DIR` | Directory with the files `oci_provision_key` and `oci_naming_key` (mode 0400) that the `tenant-storage` service mounts as secrets; bring-up creates them | under that environment's control directory | under the production control directory | host | yes |
+| `OCI_TENANCY_OCID`, `OCI_USER_OCID`, `OCI_FINGERPRINT`, `OCI_COMPARTMENT_OCID`, `OCI_REGION`, `OCI_HOME_REGION`, `OCI_NAMESPACE`, `OCI_POLICY_MODE` | Settings of the `tenant-storage` provisioner (`tools/shared_saas_lifecycle/README.md`); no secret. Empty `OCI_REGION`, `OCI_HOME_REGION` and `OCI_POLICY_MODE` keep the defaults `me-jeddah-1` and `per_tenant` | empty | empty | owner | no |
+| `LIWAN_OBJECT_STORAGE_COMPAT_HOST` | `<namespace>.compat.objectstorage.<region>.oraclecloud.com`, added to Odoo's egress allowlist; empty while tenant storage is off | empty | empty | owner | no |
+| `LIWAN_DB_HOST_PORT` | Loopback port the tenant database publishes for the host `pg_dump` (`LIWAN_STACK_DB_HOST_LINK`); the release reads it from this file for the backup (the control database's `LIWAN_CONTROL_DB_HOST_PORT` is read the same way and defaults to `15432`) | `15433` | `15433` | fixed | no |
 | `LIWAN_SHARED_COMPOSE_FILE`, `LIWAN_SHARED_ENV_FILE` | Paths the shared worker uses for the rendered stack and this env file | same | same | host | yes |
 
 In hostnames `<env>` is `staging`; in paths, networks and database names `<name>` is `staging`.

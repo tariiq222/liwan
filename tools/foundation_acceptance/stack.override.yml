@@ -4,7 +4,7 @@ services:
     image: liwan-accept-caddy:${LIWAN_IMAGE_TAG:?}
     volumes:
       - ${FOUNDATION_CADDYFILE:?}:/etc/caddy/Caddyfile:ro
-      - ./shared/Caddyfile:/etc/caddy/production.Caddyfile:ro
+      - ./stack/Caddyfile:/etc/caddy/production.Caddyfile:ro
       - caddy_data:/data
     environment:
       DOMAIN: "*.${FOUNDATION_DOMAIN_SUFFIX:?}"

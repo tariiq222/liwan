@@ -27,7 +27,7 @@ DEDICATED_ZONES = ('liwan_auth', 'liwan_provider_hook', 'liwan_account', 'liwan_
                    'liwan_web')
 ZONES = ('liwan_auth', 'liwan_provider_hook', 'liwan_account', 'liwan_api', 'liwan_public_appointments_ip', 'liwan_odoo_image',
          'liwan_odoo', 'liwan_signup', 'liwan_public_site', 'liwan_web', 'liwan_tiktok')
-SHARED_CADDYFILE = ROOT / 'deploy' / 'shared' / 'Caddyfile'
+SHARED_CADDYFILE = ROOT / 'deploy' / 'stack' / 'Caddyfile'
 RESERVED_PROXY = '192.0.2.1/32'  # TEST-NET-1: the default trusted list trusts no real peer
 CADDY_IMAGE_REPOSITORY = 'liwan-caddy-test'
 DOCKER_UNAVAILABLE = ('cannot connect to the docker daemon', 'is the docker daemon running',

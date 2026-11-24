@@ -152,7 +152,7 @@ SMOKE_TAG="$(files_tag_of guard)" smoke_started guard \
 # proxy: both Caddyfiles validate against the image's Caddy, which has the rate-limit module compiled in.
 # Caddy runs as an unprivileged user; ports 80/443 are bound through its NET_BIND_SERVICE file capability.
 mkdir -p "$IMAGE_ROOT/proxy-files"
-for caddyfile in deploy/Caddyfile deploy/shared/Caddyfile; do
+for caddyfile in deploy/Caddyfile deploy/stack/Caddyfile; do
   cp "$caddyfile" "$IMAGE_ROOT/proxy-files/Caddyfile"
   chmod 644 "$IMAGE_ROOT/proxy-files/Caddyfile"
   derive proxy "$(tag_of proxy)" Caddyfile:/etc/caddy/Caddyfile

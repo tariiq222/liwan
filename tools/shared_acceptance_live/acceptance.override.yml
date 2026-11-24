@@ -29,7 +29,7 @@ services:
       DOMAIN: "a.accept.liwan.test b.accept.liwan.test"
     volumes:
       - ../tools/shared_acceptance_live/acceptance.Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./shared/Caddyfile:/etc/caddy/production.Caddyfile:ro
+      - ./stack/Caddyfile:/etc/caddy/production.Caddyfile:ro
       - caddy_data:/data
     # No healthcheck exists for proxy in the base or shared files. A TLS request to
     # the bare loopback IP cannot work: Caddy serves certificates for the registry

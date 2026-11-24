@@ -51,7 +51,8 @@ class TestPipelineExecution(unittest.TestCase):
         (self.root / 'deploy/odoo').mkdir()
         (self.root / 'deploy/shared').mkdir()
         (self.root / 'deploy/Caddyfile').write_text(':80\n')
-        (self.root / 'deploy/shared/Caddyfile').write_text(':80\n')
+        (self.root / 'deploy/stack').mkdir()
+        (self.root / 'deploy/stack/Caddyfile').write_text(':80\n')
         (self.root / 'deploy/odoo/ODOO_COMMIT').write_text('a' * 40)
         self.fake('odoo-python', '''
 log = next((a.split('=',1)[1] for a in args if a.startswith('--logfile=')), None)

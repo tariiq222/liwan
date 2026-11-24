@@ -19,6 +19,7 @@ import unittest
 from pathlib import Path
 
 from deploy.release.release import SHARED_COMPOSE_FILES
+from deploy.stack.compose_normalise import flatten
 from deploy.test_edge_rate_limit import (
     RESERVED_PROXY, SHARED_CADDYFILE, _adapt_shared_caddyfile, _probe_config, _probe_requests)
 
@@ -47,6 +48,7 @@ VALUE_ALLOWLIST = frozenset({
     'LIWAN_CONTROL_EDGE_NETWORK',
     'LIWAN_CONTROL_CONFIG_DIR', 'LIWAN_CONTROL_STATE_DIR', 'LIWAN_CONTROL_PRIVATE_DIR', 'LIWAN_CONTROL_ENV_FILE',
     'LIWAN_VENDOR_ADMIN_ENV_FILE', 'LIWAN_SHARED_COMPOSE_FILE', 'LIWAN_SHARED_ENV_FILE', 'LIWAN_AI_PLATFORM_DIR',
+    'LIWAN_RELEASE_TAG_POLICY', 'LIWAN_TENANT_STORAGE_FILES_DIR',
 })
 MIN_SUBSTITUTION_LENGTH = 6  # shorter values (k1, ports) are never substituted inside other text
 # The pinned `edge` network of docker-compose.shared.yml: its gateway is the peer Caddy sees for the host's edge.
@@ -60,15 +62,6 @@ def parse_env(path: Path) -> dict[str, str]:
             name, _, value = line.partition('=')
             values[name] = value
     return values
-
-
-def flatten(node, path: str = '') -> dict[str, object]:
-    """Map every leaf of a rendered compose document to its dotted path."""
-    if isinstance(node, dict):
-        return {leaf: value for key, child in node.items() for leaf, value in flatten(child, f'{path}.{key}' if path else key).items()}
-    if isinstance(node, list):
-        return {leaf: value for index, child in enumerate(node) for leaf, value in flatten(child, f'{path}[{index}]').items()}
-    return {path: node}
 
 
 def render(stack: str, template: Path, workdir: Path) -> dict:

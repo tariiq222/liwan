@@ -508,7 +508,7 @@ def start(args):
                 "127.0.0.1:" + state["shared_edge_url"].rsplit(":", 1)[1] + ":80",
             ],
             "volumes": [
-                str(worktree / "deploy/shared/Caddyfile") + ":/etc/caddy/Caddyfile:ro",
+                str(worktree / "deploy/stack/Caddyfile") + ":/etc/caddy/Caddyfile:ro",
             ],
             "depends_on": ["guard"],
         },
