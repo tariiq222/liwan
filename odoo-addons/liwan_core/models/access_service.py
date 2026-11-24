@@ -1079,8 +1079,10 @@ class LiwanAccessService(models.AbstractModel):
                 raise LiwanAccessRule(msg, status=404)
             user._liwan_access_write(vals, 'access.users.reset_password')
         user.flush_recordset(['password'])
+        devices_revoked = self._liwan_devices()._liwan_revoke_user(user)
         self.env['liwan.access.audit']._liwan_log(
-            audit_action, user, before=None, after={'sessions_revoked': True}, actor=user,
+            audit_action, user, before=None,
+            after={'sessions_revoked': True, 'devices_revoked': devices_revoked}, actor=user,
         )
         self.env.cr.postcommit.add(self.env.registry.clear_cache)
         return user

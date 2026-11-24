@@ -128,6 +128,9 @@ class MeController(http.Controller):
             raise ApiError(422, 'wrong_password', 'current password is incorrect', field='current') from None
 
         request.env.user.flush_recordset(['password'])
+        service = request.env['liwan.access.service']
+        keep = service._liwan_devices()._liwan_usable(request.httprequest.cookies.get(DEVICE_COOKIE))
+        service._liwan_forget_devices(request.env.user, keep=keep)
         request.session.session_token = fresh_session_token(request.env.user, request.session.sid)
         clear_security_caches_after_commit(request.env)
         return dump_me(request.env.user)

@@ -231,4 +231,4 @@ class TestLiwanAccessSecurity(TransactionCase):
             ('target_id', '=', target.id),
         ])
         self.assertEqual(len(audit), 1)
-        self.assertEqual(audit.after, {'sessions_revoked': True})
+        self.assertEqual(audit.after, {'sessions_revoked': True, 'devices_revoked': 0})

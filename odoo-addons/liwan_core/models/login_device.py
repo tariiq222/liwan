@@ -77,11 +77,13 @@ class LiwanLoginDevice(models.Model):
 
     @api.model
     def _liwan_revoke_user(self, user, keep=None):
-        """Revoke every device of USER except KEEP (the one the caller is using right now)."""
+        """Revoke every device of USER except KEEP (the one the caller is using right now); returns the count."""
         domain = [('user_id', '=', user.id), ('revoked_at', '=', False)]
         if keep:
             domain.append(('id', '!=', keep.id))
-        return self.search(domain).write({'revoked_at': fields.Datetime.now()})
+        devices = self.search(domain)
+        devices.write({'revoked_at': fields.Datetime.now()})
+        return len(devices)
 
     @api.model
     def _liwan_purge(self):

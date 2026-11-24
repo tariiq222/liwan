@@ -334,6 +334,35 @@ class TestChangePassword(HttpCase):
         self.env.cr.postcommit.run()
         self.assertNotEqual(self.user._compute_session_token(sid), old_token)
 
+    def test_success_revokes_other_devices_and_keeps_the_current_browser(self):
+        devices = self.env['liwan.login.device'].sudo()
+        _current, current_raw = devices._liwan_issue(self.user, 'current')
+        _other, other_raw = devices._liwan_issue(self.user, 'other')
+        self.authenticate('password_change_user', 'old_password_123')
+        self.opener.cookies.set('liwan_device', current_raw, domain=HOST)
+
+        response = self.api('POST', '/api/v1/me/password', {
+            'current': 'old_password_123',
+            'new': 'new_password_123',
+        })
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertTrue(devices._liwan_usable(current_raw))
+        self.assertFalse(devices._liwan_usable(other_raw))
+
+    def test_success_without_a_device_cookie_revokes_every_device(self):
+        devices = self.env['liwan.login.device'].sudo()
+        _record, raw = devices._liwan_issue(self.user, 'laptop')
+        self.authenticate('password_change_user', 'old_password_123')
+
+        response = self.api('POST', '/api/v1/me/password', {
+            'current': 'old_password_123',
+            'new': 'new_password_123',
+        })
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertFalse(devices._liwan_usable(raw))
+
     def test_success_preserves_caller_session_and_invalidates_other_sessions(self):
         old_session = self.authenticate('password_change_user', 'old_password_123')
         old_sid = old_session.sid

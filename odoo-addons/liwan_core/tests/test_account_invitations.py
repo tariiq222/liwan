@@ -278,6 +278,18 @@ class TestAccountInvitations(TransactionCase):
         self.assertFalse(self._can_sign_in(user, PASSWORD))
         self._assert_invalid_token(self.public._liwan_reset_password_with_token, self.sent[-1][1], PASSWORD + 'x')
 
+    def test_reset_with_token_revokes_every_remembered_device(self):
+        user = self._invite()
+        self.public._liwan_accept_invitation(self.sent[0][1], MOBILE, PASSWORD)
+        devices = self.env['liwan.login.device'].sudo()
+        _record, raw = devices._liwan_issue(user, 'laptop')
+        self.assertTrue(devices._liwan_usable(raw))
+        self.public._liwan_request_password_reset(user.login)
+        self.public._liwan_reset_password_with_token(self.sent[-1][1], 'another-twelve-chars')
+        self.assertFalse(devices._liwan_usable(raw))
+        audit = self.env['liwan.access.audit'].sudo().search([('action', '=', 'user.password_reset')], limit=1)
+        self.assertEqual(audit.after.get('devices_revoked'), 1)
+
     def test_weak_password_and_bad_mobile_and_duplicate_mobile(self):
         first = self._invite()
         raw = self.sent[0][1]
