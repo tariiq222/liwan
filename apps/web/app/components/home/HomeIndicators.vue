@@ -38,7 +38,7 @@ const tiles = computed(() => WORK_KINDS.map(kind => ({
     >
       <div>
         <USkeleton v-if="tile.loading" class="h-9 w-12 max-md:h-[1.875rem]" data-slot="indicator-skeleton" />
-        <b v-else class="liwan-soft-in block font-display text-4xl font-bold leading-none tracking-tight tabular-nums text-highlighted max-md:text-3xl" dir="ltr">{{ tile.value ?? '—' }}</b>
+        <b v-else class="liwan-soft-in block w-fit max-w-full font-display text-(length:--liwan-fs-display) font-bold leading-none tracking-tight tabular-nums text-highlighted" dir="ltr">{{ tile.value ?? '—' }}</b>
         <span class="mt-1 block text-sm text-muted">{{ tile.label }}</span>
       </div>
       <span class="liwan-app-tile ms-auto size-9 max-md:order-first max-md:ms-0" aria-hidden="true"><UIcon :name="tile.icon" class="size-4.5" /></span>

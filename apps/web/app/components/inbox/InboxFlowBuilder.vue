@@ -71,9 +71,9 @@ defineExpose({ draft, submit, dirty, problems, validation, serverError, addScree
 </script>
 
 <template>
-  <form class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]" novalidate data-testid="inbox-flow-builder" @submit.prevent="submit">
+  <form class="grid gap-(--liwan-gap-section) lg:grid-cols-[minmax(0,1fr)_20rem]" novalidate data-testid="inbox-flow-builder" @submit.prevent="submit">
     <SharedUnsavedChanges :dirty="dirty" />
-    <div class="min-w-0 space-y-6">
+    <div class="min-w-0 space-y-(--liwan-gap-section)">
       <UAlert v-if="serverError" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="serverError.status === 502 ? t('inbox.flows.metaUnreachableTitle') : t('inbox.flows.serverError')" :description="serverError.message" data-testid="inbox-flow-server-error" />
       <UAlert v-if="props.readonly" color="info" variant="subtle" icon="i-lucide-lock" :title="t('inbox.flows.readonlyTitle')" :description="props.flow.supported ? t('inbox.flows.readonlyDescription') : t('inbox.flows.externalDescription')" data-testid="inbox-flow-readonly" />
       <UAlert v-if="props.flow.version_warning" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="t('inbox.flows.versionWarning')" :description="props.flow.version_warning" data-testid="inbox-flow-version-warning" />

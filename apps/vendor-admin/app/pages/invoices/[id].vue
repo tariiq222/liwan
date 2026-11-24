@@ -234,7 +234,7 @@ const badge = computed(() => (data.value ? invoiceStatusBadge(data.value.status,
     </div>
   </template>
 
-  <div v-if="data && !unavailable" class="space-y-6">
+  <div v-if="data && !unavailable" class="space-y-(--liwan-gap-section)">
     <UAlert color="neutral" variant="subtle" icon="i-lucide-info" :title="t('vendor.invoices.notOfficial')" :description="t('vendor.invoices.notOfficialHint')" data-testid="not-official" />
     <SharedRecordSection :title="t('vendor.invoices.lines')"><SharedInvoiceLines :lines="vendorInvoiceLineViews(data.lines, t, locale)" :totals="totals" /></SharedRecordSection>
 

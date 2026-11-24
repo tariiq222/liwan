@@ -34,7 +34,7 @@ function removeHoliday(index: number) {
 </script>
 
 <template>
-  <div class="flex flex-col gap-5" data-testid="inbox-hours-editor">
+  <div class="flex flex-col gap-(--liwan-gap-card)" data-testid="inbox-hours-editor">
     <UFormField v-if="!props.rangesOnly" :label="t('inbox.automation.hours.timezone')">
       <USelect v-model="draft.timezone" :items="zoneItems" class="w-full sm:w-72" :disabled="off" dir="ltr" data-testid="inbox-hours-timezone" />
     </UFormField>

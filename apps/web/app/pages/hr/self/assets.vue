@@ -13,9 +13,9 @@ const items = computed(() => mine.data.value?.items ?? [])
 const showEmpty = computed(() => !mine.isLoading.value && !mine.error.value && items.value.length === 0)
 
 const columns = computed<TableColumn<HrEquipment>[]>(() => [
-  { accessorKey: 'name', header: t('hrAssets.columns.name') },
-  { accessorKey: 'category', header: t('hrAssets.columns.category') },
-  { accessorKey: 'assign_date', header: t('hrAssets.columns.assignDate') },
+  { accessorKey: 'name', header: t('hrAssets.columns.name'), meta: { class: { th: 'min-w-56', td: 'max-w-0' } } },
+  { accessorKey: 'category', header: t('hrAssets.columns.category'), meta: { class: { th: 'w-48', td: 'w-48 max-w-0' } } },
+  { accessorKey: 'assign_date', header: t('hrAssets.columns.assignDate'), meta: { class: { th: 'w-36', td: 'w-36 whitespace-nowrap' } } },
 ])
 
 </script>
@@ -39,10 +39,10 @@ const columns = computed<TableColumn<HrEquipment>[]>(() => [
           data-testid="hr-my-assets-table"
         >
           <template #name-cell="{ row }">
-            <span class="font-semibold text-highlighted">{{ row.original.name }}</span>
-            <span v-if="row.original.serial_no" class="block text-xs text-muted"><bdi>{{ row.original.serial_no }}</bdi></span>
+            <span class="block min-w-0 truncate font-semibold text-highlighted">{{ row.original.name }}</span>
+            <span v-if="row.original.serial_no" class="block min-w-0 truncate text-xs text-muted"><bdi>{{ row.original.serial_no }}</bdi></span>
           </template>
-          <template #category-cell="{ row }">{{ row.original.category?.name || t('hrAssets.noCategory') }}</template>
+          <template #category-cell="{ row }"><span class="block min-w-0 truncate">{{ row.original.category?.name || t('hrAssets.noCategory') }}</span></template>
           <template #assign_date-cell="{ row }">
             <span v-if="row.original.assign_date" class="tabular-nums">{{ formatDate(row.original.assign_date) }}</span>
             <span v-else class="text-muted">—</span>

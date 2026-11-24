@@ -16,7 +16,7 @@ const categories = useHrAssetCategories()
 
 const items = computed(() => categories.data.value?.items ?? [])
 const columns = computed<TableColumn<HrRef>[]>(() => [
-  { accessorKey: 'name', header: t('hrAssets.categories.columns.name') },
+  { accessorKey: 'name', header: t('hrAssets.categories.columns.name'), meta: { class: { th: 'w-full', td: 'max-w-0' } } },
 ])
 const showEmpty = computed(() => !categories.isLoading.value && !categories.error.value && !items.value.length)
 
@@ -51,7 +51,7 @@ const createTo = computed(() => canManage.value ? { path: '/hr/assets/categories
           :loading="categories.isLoading.value"
           :caption="t('hrAssets.categories.title')"
         >
-          <template #name-cell="{ row }"><span class="font-semibold text-highlighted">{{ row.original.name }}</span></template>
+          <template #name-cell="{ row }"><span class="block min-w-0 truncate font-semibold text-highlighted">{{ row.original.name }}</span></template>
           <template #mobile-row="{ row }"><p class="font-semibold text-highlighted">{{ row.name }}</p></template>
         </SharedDataTable>
       </SharedPageState>

@@ -32,7 +32,7 @@ function revisionDetail(revision: NonNullable<SubscriptionView['applied']>): str
 <template>
   <div data-slot="subscription-timeline">
     <p v-if="!events.length" class="text-sm text-muted">{{ t('vendor.customers.history.empty') }}</p>
-    <ol v-else class="relative space-y-5 border-s border-default ps-5" data-testid="subscription-timeline">
+    <ol v-else class="relative space-y-(--liwan-gap-card) border-s border-default ps-5" data-testid="subscription-timeline">
       <li v-for="event in events" :key="event.key" class="relative">
         <span class="absolute -start-[1.9rem] top-0.5 flex size-5 items-center justify-center rounded-full bg-default ring ring-default"><UIcon :name="event.icon" class="size-3.5 text-muted" aria-hidden="true" /></span>
         <p class="text-sm font-medium text-highlighted">{{ event.title }}</p>

@@ -27,7 +27,7 @@ const blockedByApp = (reason: string) => blockedByOwner(blockers.value, reason).
 </script>
 
 <template>
-  <div class="space-y-5" data-testid="customer-erase-preview">
+  <div class="space-y-(--liwan-gap-card)" data-testid="customer-erase-preview">
     <UAlert v-if="blockers.length" color="error" variant="subtle" icon="i-lucide-octagon-alert" role="alert" :title="t('customers.privacy.erase.blocked')" data-testid="customer-erase-blocked">
       <template #description>
         <p>{{ t('customers.privacy.erase.blockedHint') }}</p>

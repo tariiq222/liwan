@@ -42,7 +42,7 @@ function submit() {
 defineExpose({ draft })
 </script>
 <template>
-  <form class="space-y-6" novalidate data-slot="customer-terms-form" @submit.prevent="submit">
+  <form class="space-y-(--liwan-gap-section)" novalidate data-slot="customer-terms-form" @submit.prevent="submit">
     <SharedUnsavedChanges :dirty="dirty" guard-route-updates />
     <UAlert color="info" variant="subtle" icon="i-lucide-shield-check" :title="t('vendor.customers.terms.isolation')" :description="t('vendor.customers.terms.isolationHint')" />
     <p class="text-sm text-muted">{{ t('vendor.customers.terms.blankHint') }}</p>

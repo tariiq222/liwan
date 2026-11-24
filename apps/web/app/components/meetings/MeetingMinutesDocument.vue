@@ -70,7 +70,7 @@ const unassignedRecommendations = computed(() => props.recommendations.filter(it
 
 <template>
   <SharedRecordSection data-testid="meeting-minutes-document" variant="panel" :title="title || t('meetingMinutesForm.documentTitle')">
-    <div class="grid gap-5">
+    <div class="grid gap-(--liwan-gap-card)">
       <dl :class="compact ? 'hidden print:grid' : 'grid'" class="min-w-0 gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
         <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.name') }}</dt><dd class="break-words">{{ displayMeeting.name || '—' }}</dd></div>
         <div><dt class="text-xs text-muted">{{ t('meetingMinutesForm.reference') }}</dt><dd dir="ltr">{{ displayMeeting.reference || '—' }}</dd></div>

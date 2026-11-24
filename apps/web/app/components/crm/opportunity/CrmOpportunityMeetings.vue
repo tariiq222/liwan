@@ -62,7 +62,7 @@ defineExpose({ reset })
         <UFormField :label="t('crm.opportunities.meetings.name')" name="meeting-name" required :error="attempted && !name.trim() ? t('crm.opportunities.meetings.nameRequired') : undefined">
           <UInput id="crm-meeting-name" v-model="name" class="w-full" :disabled="locked" />
         </UFormField>
-        <div class="liwan-auto-grid gap-5">
+        <div class="liwan-auto-grid gap-(--liwan-gap-card)">
           <UFormField :label="t('crm.opportunities.meetings.date')" name="meeting-date">
             <SharedDateField id="crm-meeting-date" v-model="day" :aria-label="t('crm.opportunities.meetings.date')" :disabled="locked" />
           </UFormField>

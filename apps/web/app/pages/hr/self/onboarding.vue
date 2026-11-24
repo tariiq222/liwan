@@ -18,9 +18,9 @@ const actionError = ref('')
 const pendingId = ref<number | null>(null)
 
 const columns = computed<TableColumn<HrOwnOnboardingStep>[]>(() => [
-  { id: 'summary', header: t('hr.self.onboardingColumns.summary') },
-  { id: 'date_deadline', header: t('hr.self.onboardingColumns.deadline') },
-  { id: 'action', header: '' },
+  { id: 'summary', header: t('hr.self.onboardingColumns.summary'), meta: { class: { th: 'min-w-56', td: 'max-w-0' } } },
+  { id: 'date_deadline', header: t('hr.self.onboardingColumns.deadline'), meta: { class: { th: 'w-36', td: 'w-36 whitespace-nowrap' } } },
+  { id: 'action', header: '', meta: { class: { th: 'w-32', td: 'w-32 whitespace-nowrap text-end' } } },
 ])
 const stateTone = (state: HrOwnOnboardingStep['state']): StatusTone => (state === 'overdue' ? 'destructive' : state === 'today' ? 'warning' : 'neutral')
 
@@ -43,7 +43,7 @@ async function finish(step: HrOwnOnboardingStep) {
       <SharedPageState :error="steps.error.value" :keep-content="items.length > 0" @retry="steps.refetch">
         <SharedEmptyState icon="i-lucide-user-plus" v-if="showEmpty" class="m-(--liwan-card-pad-dense)" :title="t('hr.self.onboardingEmptyTitle')" :description="t('hr.self.onboardingEmptyHint')" />
         <SharedDataTable v-else bare :rows="items" :columns="columns" row-key="id" :loading="steps.isLoading.value" :caption="t('hr.self.onboarding')" data-testid="hr-onboarding-mine-table">
-          <template #summary-cell="{ row }"><span class="font-semibold text-highlighted">{{ row.original.summary }}</span></template>
+          <template #summary-cell="{ row }"><span class="block min-w-0 truncate font-semibold text-highlighted">{{ row.original.summary }}</span></template>
           <template #date_deadline-cell="{ row }">
             <SharedStatusBadge size="sm" :tone="stateTone(row.original.state)" :label="formatDate(row.original.date_deadline)" />
           </template>

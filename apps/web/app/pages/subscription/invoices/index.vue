@@ -14,11 +14,11 @@ const printTo = (inv: (typeof items.value)[number]) => `/subscription/invoices/p
 const printLabel = (inv: (typeof items.value)[number]) => t('subscription.invoices.print.rowAction', { number: inv.number ?? inv.id })
 
 const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
-  { id: 'number', header: t('commercial.invoice.number') },
-  { id: 'period', header: t('commercial.invoice.period') },
-  { id: 'status', header: t('commercial.invoice.status') },
-  { id: 'total', header: t('commercial.invoice.total') },
-  { id: 'download', header: t('subscription.invoices.print.download') },
+  { id: 'number', header: t('commercial.invoice.number'), meta: { class: { th: 'min-w-40', td: 'max-w-0' } } },
+  { id: 'period', header: t('commercial.invoice.period'), meta: { class: { th: 'w-52', td: 'w-52 whitespace-nowrap' } } },
+  { id: 'status', header: t('commercial.invoice.status'), meta: { class: { th: 'w-32', td: 'w-32 whitespace-nowrap' } } },
+  { id: 'total', header: t('commercial.invoice.total'), meta: { class: { th: 'w-36', td: 'w-36 whitespace-nowrap' } } },
+  { id: 'download', header: t('subscription.invoices.print.download'), meta: { class: { th: 'w-20 text-end', td: 'w-20 whitespace-nowrap text-end' } } },
 ])
 </script>
 <template>
@@ -27,7 +27,7 @@ const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
 <SharedForbiddenState v-if="!allowed" />
 <SharedListCard v-if="allowed">
 <SharedDataTable bare :rows="items" :columns="columns" row-key="id" :row-to="invoiceTo" :loading="pending" :error="error" :empty-text="t('subscription.invoices.empty')" :caption="t('subscription.invoices.title')" @retry="refresh">
-  <template #number-cell="{ row: { original: inv } }"><NuxtLink :to="invoiceTo(inv)" data-testid="invoice-row" class="font-medium hover:underline">{{ inv.number ?? inv.id }}</NuxtLink></template>
+  <template #number-cell="{ row: { original: inv } }"><NuxtLink :to="invoiceTo(inv)" data-testid="invoice-row" class="block min-w-0 truncate font-medium hover:underline">{{ inv.number ?? inv.id }}</NuxtLink></template>
   <template #period-cell="{ row: { original: inv } }"><bdi dir="ltr">{{ inv.period_start }} → {{ inv.period_end }}</bdi></template>
   <template #status-cell="{ row: { original: inv } }"><SharedStatusBadge  :tone="invoiceStatusBadge(inv.status, 'commercial.invoice.statuses').tone" :label="invoiceStatusBadge(inv.status, 'commercial.invoice.statuses').labelKey ? t(invoiceStatusBadge(inv.status, 'commercial.invoice.statuses').labelKey) : inv.status" /></template>
   <template #total-cell="{ row: { original: inv } }"><bdi dir="ltr" class="font-semibold tabular-nums">{{ formatSubscriptionMoney(inv.total,locale) }}</bdi></template>

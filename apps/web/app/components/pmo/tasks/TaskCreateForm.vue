@@ -269,7 +269,7 @@ async function submit() {
     >
       <UButton v-if="projectQuick" type="button" color="neutral" variant="ghost" class="w-full justify-between font-semibold" trailing-icon="i-lucide-chevron-down" :ui="{ trailingIcon: 'transition-transform group-data-[state=open]:rotate-180' }">{{ t('tasks.quick.optional') }}</UButton>
       <template #content>
-        <div class="grid gap-6" :class="projectQuick && 'pt-4'">
+        <div class="grid gap-(--liwan-gap-card)" :class="projectQuick && 'pt-4'">
           <UFormField :label="t('tasks.drawer.description')" name="description" class="liwan-span-full">
             <UTextarea id="new-task-description" v-model="description" class="w-full" :rows="4" :placeholder="t('tasks.descriptionField.placeholder')" :disabled="!hydrated || isPending" />
           </UFormField>

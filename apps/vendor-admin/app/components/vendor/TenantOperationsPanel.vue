@@ -127,7 +127,7 @@ const operationTime = (op: OperationFeed) => formatBusinessDateTime(op.source ==
 
 <template>
   <SharedPageState :loading="tenantPending && !data" :error="tenantError" @retry="refresh">
-  <div v-if="data" class="space-y-6">
+  <div v-if="data" class="space-y-(--liwan-gap-section)">
     <SharedRecordSection variant="panel" :title="t('vendor.tenants.operationsTitle')" :description="t('vendor.tenants.operationsHint')">
       <template #actions><SharedStatusBadge :tone="data.operations_enabled ? 'success' : 'neutral'" :label="data.operations_enabled ? t('vendor.tenants.operationsOn') : t('vendor.tenants.operationsOff')" /></template>
       <UAlert v-if="operationsNeedEnabling" color="neutral" variant="subtle" icon="i-lucide-lock" :title="t('vendor.tenants.operationsDisabledHint')" />

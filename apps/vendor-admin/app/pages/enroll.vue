@@ -30,7 +30,7 @@ onMounted(start)
       </div>
     </template>
 
-    <div class="grid gap-5">
+    <div class="grid gap-(--liwan-gap-card)">
       <UAlert v-if="errorKey" role="alert" color="error" variant="subtle" :title="t(errorKey)" />
 
       <p v-if="step === 'checking'" class="text-center text-sm text-muted" role="status">
@@ -78,7 +78,7 @@ onMounted(start)
           </p>
         </div>
         <TotpSetup :uri="totpUri" :secret="totpSecret" :loading="pending" @retry="loadTotp" />
-        <UForm v-if="totpUri" novalidate :state="form" class="grid gap-5" @submit="complete">
+        <UForm v-if="totpUri" novalidate :state="form" class="grid gap-(--liwan-gap-card)" @submit="complete">
           <UFormField :label="t('adminAuth.enroll.password')" :help="t('adminAuth.enroll.passwordHint')" name="password" required>
             <UInput id="new-password" v-model="form.password" type="password" autocomplete="new-password" dir="ltr" class="w-full" />
           </UFormField>

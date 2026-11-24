@@ -9,7 +9,7 @@ const { sharedOnboardingEnabled } = useVendorContext()
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-(--liwan-gap-section)">
     <SharedRecordSection v-if="sharedOnboardingEnabled" variant="panel" :title="t('vendor.tenants.provisioning.title')">
       <template #actions>
         <UButton v-if="progress.loginUrl" :to="progress.loginUrl" external target="_blank" rel="noopener noreferrer" size="sm" icon="i-lucide-external-link">{{ t('vendor.tenants.provisioning.open') }}</UButton>

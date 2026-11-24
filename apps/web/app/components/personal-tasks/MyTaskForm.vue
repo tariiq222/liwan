@@ -101,7 +101,7 @@ watch(() => props.error, async error => {
     <UFormField :label="t('myTasks.form.description')" name="description" :error="serverError('description')">
       <UTextarea id="my-task-description" v-model="values.description" class="w-full" :rows="4" :disabled="!hydrated || pending" />
     </UFormField>
-    <div class="liwan-auto-grid gap-5">
+    <div class="liwan-auto-grid gap-(--liwan-gap-card)">
       <UFormField :label="t('myTasks.form.deadline')" name="date_deadline" :error="serverError('date_deadline')">
         <SharedDateField id="my-task-deadline" v-model="values.deadline" :aria-label="t('myTasks.form.deadline')" :disabled="!hydrated || pending" />
       </UFormField>

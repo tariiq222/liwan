@@ -43,7 +43,7 @@ async function submit() {
   <SharedRecordPage :title="t('vendor.aiBillingSettings.title')" :description="t('vendor.aiBillingSettings.hint')">
     <SharedUnsavedChanges :dirty="dirty" guard-route-updates />
     <SharedPageState :loading="pending" :error="error" @retry="refresh">
-      <form v-if="data" class="mx-auto grid max-w-2xl gap-6" novalidate @submit.prevent="submit">
+      <form v-if="data" class="mx-auto grid max-w-2xl gap-(--liwan-gap-section)" novalidate @submit.prevent="submit">
         <UAlert v-if="failure" color="error" variant="subtle" :title="t(commercialErrorKey(failure))" data-testid="ai-billing-settings-failure" />
         <UAlert v-if="saved" color="success" variant="subtle" :title="t('vendor.aiBillingSettings.saved')" :description="pushed > 0 ? t('vendor.aiBillingSettings.pushed', { count: pushed }, pushed) : undefined" data-testid="ai-billing-settings-saved" />
         <SharedFormSection panel :title="t('vendor.aiBillingSettings.sections.topup')" :description="t('vendor.aiBillingSettings.sections.topupHint')">

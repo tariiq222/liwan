@@ -28,11 +28,11 @@ const showEmpty = computed(() => !allocations.isLoading.value && !allocations.er
 const countTags = computed(() => allocations.data.value ? [{ label: t('hr.leave.allocation.countTag', { count: total.value }, total.value), kind: 'count' as const }] : [])
 
 const columns = computed<TableColumn<HrLeaveAllocation>[]>(() => [
-  { accessorKey: 'employee', header: t('hr.leave.allocation.employee') },
-  { accessorKey: 'leave_type', header: t('hr.leave.form.type') },
-  { accessorKey: 'number_of_days', header: t('hr.leave.allocation.days') },
-  { accessorKey: 'date_from', header: t('hr.leave.allocation.validity') },
-  { accessorKey: 'state', header: t('hr.leave.allocation.state') },
+  { accessorKey: 'employee', header: t('hr.leave.allocation.employee'), meta: { class: { th: 'min-w-48 w-[28%]', td: 'max-w-0' } } },
+  { accessorKey: 'leave_type', header: t('hr.leave.form.type'), meta: { class: { th: 'w-44', td: 'w-44 max-w-0' } } },
+  { accessorKey: 'number_of_days', header: t('hr.leave.allocation.days'), meta: { class: { th: 'w-28', td: 'w-28 whitespace-nowrap' } } },
+  { accessorKey: 'date_from', header: t('hr.leave.allocation.validity'), meta: { class: { th: 'w-44', td: 'w-44 whitespace-nowrap' } } },
+  { accessorKey: 'state', header: t('hr.leave.allocation.state'), meta: { class: { th: 'w-32', td: 'w-32 whitespace-nowrap' } } },
 ])
 
 function allocationTo(allocation: HrLeaveAllocation) {
@@ -74,9 +74,9 @@ const createTo = computed(() => ({ path: '/hr/leave/allocations/new', query: ret
           data-testid="hr-allocations-table"
         >
           <template #employee-cell="{ row }">
-            <NuxtLink :to="allocationTo(row.original)" class="font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" @click="!hydrated && $event.preventDefault()">{{ row.original.employee.name }}</NuxtLink>
+            <NuxtLink :to="allocationTo(row.original)" class="block min-w-0 truncate font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" @click="!hydrated && $event.preventDefault()">{{ row.original.employee.name }}</NuxtLink>
           </template>
-          <template #leave_type-cell="{ row }">{{ row.original.leave_type.name }}</template>
+          <template #leave_type-cell="{ row }"><span class="block min-w-0 truncate">{{ row.original.leave_type.name }}</span></template>
           <template #number_of_days-cell="{ row }"><span class="tabular-nums">{{ days(row.original.number_of_days) }}</span></template>
           <template #date_from-cell="{ row }"><bdi class="tabular-nums">{{ validity(row.original) }}</bdi></template>
           <template #state-cell="{ row }">

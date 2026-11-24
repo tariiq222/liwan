@@ -13,11 +13,11 @@ const { t, te, locale } = useI18n()
 
 const amount = (value: number) => formatPayrollAmount(value, locale.value)
 const columns = computed<TableColumn<Line>[]>(() => [
-  { id: 'account', header: t('hrPayroll.finance.preview.columns.account') },
-  { id: 'analytic', header: t('hrPayroll.finance.preview.columns.analytic') },
-  { id: 'employee', header: t('hrPayroll.finance.preview.columns.employee') },
-  { id: 'debit', header: t('hrPayroll.finance.preview.columns.debit') },
-  { id: 'credit', header: t('hrPayroll.finance.preview.columns.credit') },
+  { id: 'account', header: t('hrPayroll.finance.preview.columns.account'), meta: { class: { th: 'min-w-52 w-[32%]', td: 'max-w-0' } } },
+  { id: 'analytic', header: t('hrPayroll.finance.preview.columns.analytic'), meta: { class: { th: 'w-44', td: 'w-44 max-w-0' } } },
+  { id: 'employee', header: t('hrPayroll.finance.preview.columns.employee'), meta: { class: { th: 'w-44', td: 'w-44 max-w-0' } } },
+  { id: 'debit', header: t('hrPayroll.finance.preview.columns.debit'), meta: { class: { th: 'w-32', td: 'w-32 whitespace-nowrap' } } },
+  { id: 'credit', header: t('hrPayroll.finance.preview.columns.credit'), meta: { class: { th: 'w-32', td: 'w-32 whitespace-nowrap' } } },
 ])
 const warnings = computed(() => props.preview.warnings.map(warning => ({
   key: `${warning.code}:${warning.employee.id}`,
@@ -55,9 +55,9 @@ const lineKey = (line: Line) => `${line.account.id}:${line.analytic_account?.id 
       :empty-text="t('hrPayroll.finance.preview.empty')"
       :caption="t('hrPayroll.finance.preview.title')"
     >
-      <template #account-cell="{ row }"><span class="tabular-nums text-muted">{{ row.original.account.code }}</span> {{ row.original.account.name }}</template>
-      <template #analytic-cell="{ row }">{{ row.original.analytic_account?.name ?? '—' }}</template>
-      <template #employee-cell="{ row }">{{ row.original.employee?.name ?? '—' }}</template>
+      <template #account-cell="{ row }"><span class="block min-w-0 truncate"><span class="tabular-nums text-muted">{{ row.original.account.code }}</span> {{ row.original.account.name }}</span></template>
+      <template #analytic-cell="{ row }"><span class="block min-w-0 truncate">{{ row.original.analytic_account?.name ?? '—' }}</span></template>
+      <template #employee-cell="{ row }"><span class="block min-w-0 truncate">{{ row.original.employee?.name ?? '—' }}</span></template>
       <template #debit-cell="{ row }"><span class="tabular-nums">{{ row.original.debit ? amount(row.original.debit) : '—' }}</span></template>
       <template #credit-cell="{ row }"><span class="tabular-nums">{{ row.original.credit ? amount(row.original.credit) : '—' }}</span></template>
       <template #mobile-row="{ row }">

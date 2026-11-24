@@ -35,7 +35,7 @@ const { rows } = useAttention(() => props.card.id, { limit: PREVIEW_ROWS })
     </div>
     <ul v-if="props.card.figures.length" class="mb-3.5 flex min-h-14 gap-4.5" data-testid="home-app-figures">
       <li v-for="figure in figures" :key="figure.labelKey">
-        <b class="block font-display text-4xl font-bold leading-none tabular-nums" dir="ltr">{{ figure.value }}</b>
+        <b class="block w-fit max-w-full font-display text-(length:--liwan-fs-display) font-bold leading-none tabular-nums" dir="ltr">{{ figure.value }}</b>
         <small class="text-xs opacity-75">{{ t(figure.labelKey) }}</small>
       </li>
     </ul>

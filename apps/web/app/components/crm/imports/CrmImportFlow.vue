@@ -155,7 +155,7 @@ const submit = () => (step.value === 'mapping' ? toPreview() : step.value === 'p
 <template>
   <UForm novalidate :state="{}" class="liwan-form" data-testid="crm-import-flow" @submit="submit">
     <SharedUnsavedChanges :dirty="dirty && !checking" />
-    <div class="grid gap-5">
+    <div class="grid gap-(--liwan-gap-card)">
       <div class="grid gap-1">
         <p class="text-sm font-semibold text-highlighted" data-testid="crm-import-step">{{ stepTitle }}</p>
         <p v-if="fileInfo" class="text-sm text-muted" data-testid="crm-import-file-info"><bdi>{{ fileInfo }}</bdi></p>

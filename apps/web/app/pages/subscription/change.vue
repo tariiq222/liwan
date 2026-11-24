@@ -190,7 +190,7 @@ definePageMeta({ middleware: 'customer-commercial' })
       <form v-if="!orderBlocked" class="grid items-start gap-(--liwan-gap-card) lg:grid-cols-[minmax(0,1fr)_22rem]" @submit.prevent="accept">
         <div class="grid gap-(--liwan-gap-card)">
           <SharedFormSection panel :title="t('subscription.change.plan')">
-            <div class="space-y-5">
+            <div class="space-y-(--liwan-gap-card)">
               <UFormField :label="t('subscription.change.plan')"><USelect v-model="planId" :items="plans.map(p => ({ value: p.id, label: p.name }))" :disabled="!hydrated" class="w-full" /></UFormField>
               <UFormField :label="t('subscription.change.cadence')"><USelect v-model="cadenceKey" :items="cadenceOptions" :disabled="!hydrated" class="w-full" /></UFormField>
             </div>
@@ -202,7 +202,7 @@ definePageMeta({ middleware: 'customer-commercial' })
             </div>
           </SharedFormSection>
           <SharedFormSection panel :title="t('subscription.change.quantities')">
-            <div class="liwan-auto-grid gap-5">
+            <div class="liwan-auto-grid gap-(--liwan-gap-card)">
               <UFormField :label="t('subscription.change.users')" :help="`${t('subscription.change.included', { count: minUsers })} · ${t('subscription.change.perUser', { price: userUnit ? money(userUnit.amount) : '—' })}`">
                 <UInputNumber v-model="users" :min="minUsers" :max="100" :disabled="!hydrated" class="w-full" />
                 <p class="mt-1 text-sm" :class="overCap ? 'text-error' : 'text-muted'">{{ t('subscription.change.usersCapNote') }}</p>

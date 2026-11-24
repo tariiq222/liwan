@@ -36,7 +36,7 @@ async function createRelease() {
   <SharedCreatePanel :title="t('vendor.bundles.create')" :back-to="backTo">
     <SharedPageState :loading="pending || versionsPending" :error="error ?? versionsError" @retry="retry">
       <p v-if="!can('vendor.catalog.manage')">{{ t('vendor.forbidden') }}</p>
-      <form v-else-if="!releases.length && published.length" class="space-y-5" novalidate data-testid="release-create" @submit.prevent="createRelease">
+      <form v-else-if="!releases.length && published.length" class="space-y-(--liwan-gap-card)" novalidate data-testid="release-create" @submit.prevent="createRelease">
         <div class="space-y-2">
           <h2 class="text-lg font-semibold text-highlighted">{{ t('vendor.bundles.guide.title') }}</h2>
           <p class="text-sm leading-6 text-muted">{{ t('vendor.bundles.guide.why') }}</p>
