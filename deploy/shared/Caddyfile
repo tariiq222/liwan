@@ -65,18 +65,28 @@
 				window 1m
 				ipv6_prefix 64
 			}
+			# Reset-mail flooding: the anonymous account links (forgot, token check, reset, accept) get
+			# their own tight budget per client address, kept out of the general API's 300.
+			zone liwan_account {
+				match {
+					path /api/v1/public/account/*
+				}
+				key {client_ip}
+				events 20
+				window 1m
+				ipv6_prefix 64
+			}
 			zone liwan_api {
 				match {
 					path /api/v1/*
-					not path /api/v1/auth/* /api/v1/inbox/hooks/*
+					not path /api/v1/auth/* /api/v1/public/account/* /api/v1/public/appointments/* /api/v1/inbox/hooks/*
 				}
 				key {client_ip}
 				events 300
 				window 1m
 				ipv6_prefix 64
 			}
-			# An invited requester's token routes have no session to throttle: one budget per
-			# client address, on top of the general API budget.
+			# An invited requester's token routes have no session to throttle: their own budget.
 			zone liwan_public_appointments_ip {
 				match {
 					path /api/v1/public/appointments/*

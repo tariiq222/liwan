@@ -18,7 +18,8 @@ addresses. A request matches exactly one zone.
 | --- | --- | --- | --- |
 | `liwan_auth` | `/api/auth/*`, `/api/v1/auth/*`, `/web/session/*` except `get_session_info`, `/web/login` and `/web/login/*` | 20 total | credential attempts across Nuxt and Odoo |
 | `liwan_provider_hook` | `/api/v1/inbox/hooks/*` (Meta and TikTok deliveries) | 1200 | a provider's burst after an outage must not be refused with 429 |
-| `liwan_api` | other `/api/v1/*` except `/api/v1/public/appointments/*` and `/api/v1/inbox/hooks/*` | 300 | authenticated product API |
+| `liwan_account` | `/api/v1/public/account/*` (forgot password, token check, reset, accept link) | 20 | anonymous reset-mail flooding across many accounts |
+| `liwan_api` | other `/api/v1/*` except `/api/v1/public/account/*`, `/api/v1/public/appointments/*` and `/api/v1/inbox/hooks/*` | 300 | authenticated product API |
 | `liwan_public_appointments_ip` | `/api/v1/public/appointments/*` | 60 | an invited requester's token routes (no session) |
 | `liwan_odoo` | other Odoo paths except `/web/health`, including `/web/session/get_session_info` | 600 | Odoo web client, assets, reports |
 | `liwan_web` | Nuxt responses | 600 | customer UI |
