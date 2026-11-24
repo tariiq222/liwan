@@ -5,6 +5,8 @@
 template (captured before the files were removed, in the commit that removed them). The one stack definition must render to the same document,
 except for the changes listed in `golden/deltas.json`. Nothing is started: compose only renders.
 The old files are gone, so a golden file changes only by hand, with the matching entry in `golden/deltas.json`.
+Both documents go through `compose_normalise.normalise` before the comparison, so a leaf the compose build itself decides
+to print or omit is not what the capture fixes.
 """
 from __future__ import annotations
 
@@ -47,13 +49,31 @@ def apply_deltas(golden: dict, deltas: dict) -> dict:
     return flat
 
 
+class VersionDefaults(unittest.TestCase):
+    """The leaves compose prints or omits by its own build are normalised away before anything is compared."""
+
+    def test_the_default_create_host_path_normalises_equal_to_the_bind_that_names_no_option(self):
+        # Compose 2.38 prints `bind: {create_host_path: true}` where Compose 5 prints `bind: {}` for the same mount.
+        with_default = {'services': {'x': {'volumes': [
+            {'type': 'bind', 'source': '/host/state', 'target': '/state', 'bind': {'create_host_path': True}},
+            {'source': 'data', 'target': '/data', 'type': 'volume', 'volume': {}}]}}}
+        without_leaf = {'services': {'x': {'volumes': [
+            {'type': 'bind', 'source': '/host/state', 'target': '/state', 'bind': {}},
+            {'source': 'data', 'target': '/data', 'type': 'volume', 'volume': {}}]}}}
+        normalised = flatten(normalise(with_default, ROOT))
+        self.assertEqual(normalised, flatten(normalise(without_leaf, ROOT)))
+        self.assertEqual({'services.x.volumes[0].source': '/host/state', 'services.x.volumes[0].target': '/state',
+                          'services.x.volumes[0].type': 'bind', 'services.x.volumes[1].source': 'data',
+                          'services.x.volumes[1].target': '/data', 'services.x.volumes[1].type': 'volume'}, normalised)
+
+
 class GoldenStack(unittest.TestCase):
     @unittest.skipIf(shutil.which('docker') is None, 'docker CLI not installed: cannot render the stack')
     def test_each_environment_renders_the_golden_document_plus_the_declared_deltas(self):
         deltas = json.loads((GOLDEN / 'deltas.json').read_text(encoding='utf-8'))
         for environment in ENVIRONMENTS:
             with self.subTest(environment=environment):
-                expected = apply_deltas(json.loads((GOLDEN / f'{environment}.json').read_text(encoding='utf-8')),
+                expected = apply_deltas(normalise(json.loads((GOLDEN / f'{environment}.json').read_text(encoding='utf-8')), ROOT),
                                         deltas[environment])
                 actual = flatten(render(environment))
                 self.assertEqual(sorted(set(expected) - set(actual)), [], 'leaves the golden has and the stack lacks')

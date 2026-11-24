@@ -204,6 +204,14 @@ class RenderedStack(unittest.TestCase):
         self.assertNotIn('LIWAN_PROSPECT_HOST', off['services']['guard']['environment'])
         self.assertNotIn('NUXT_CUSTOMER_COMMERCIAL_ENABLED', off['services']['web']['environment'])
 
+    def test_the_mounts_that_must_not_create_a_host_path_declare_it_in_the_file(self):
+        """`compose config` prints or drops this value by its own version, so the rendered file is what is asserted."""
+        services = stack(ENV_ON)['services']
+        declared = {(name, index) for name, service in services.items()
+                    for index, mount in enumerate(service.get('volumes') or [])
+                    if isinstance(mount, dict) and (mount.get('bind') or {}).get('create_host_path') is False}
+        self.assertEqual({('odoo', 2), ('proxy', 3), ('proxy', 4), ('proxy', 5), ('tenant-storage', 0), ('web', 2)}, declared)
+
     def test_the_host_link_adds_the_port_and_the_network_only_when_on(self):
         on = stack({**ENV_ON, 'LIWAN_STACK_COMMERCIAL_EDGE': 'false'})
         off = stack({key: 'false' for key in ENV_ON})
