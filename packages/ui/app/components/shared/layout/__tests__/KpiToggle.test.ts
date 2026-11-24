@@ -8,7 +8,7 @@ const options = (shown: boolean): SharedRenderOptions => ({
 })
 
 describe('SharedKpiToggle', () => {
-  it('is a 42px soft icon button with a 1.5px border, pressed while the figures are shown, whose tooltip offers to hide them', async () => {
+  it('is a 40px soft icon button with a 1.5px border, pressed while the figures are shown, whose tooltip offers to hide them', async () => {
     const html = await renderShared('KpiToggle', {}, {}, options(true))
     expect(html).toContain('data-testid="kpi-toggle"')
     expect(html).toContain('aria-pressed="true"')

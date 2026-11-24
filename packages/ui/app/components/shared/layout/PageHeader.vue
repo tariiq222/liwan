@@ -33,7 +33,7 @@ usePageHeader(() => props.title)
 // title shows the same target as its nearest step, so the keyboard route out and
 // the visible one still cannot drift apart.
 useEscapeBack(() => props.backTo)
-// The 64px tile before the title: the icon of the application the shell published, or the `icon` override, in the application colour.
+// The 48px tile before the title: the icon of the application the shell published, or the `icon` override, in the application colour.
 // Outside a shell (vendor-admin) nothing is published, so a header without an `icon` draws no tile.
 const pageApp = usePageApp()
 const chip = computed(() => {
@@ -79,7 +79,7 @@ const trail = computed<HeaderTrailStep[]>(() => {
     data-slot="page-header"
     data-empty="false"
     class="min-w-0"
-    :class="props.hideTitle ? 'flex flex-wrap items-center justify-end gap-3' : ['grid gap-3 border-b border-default', $slots.tabs ? 'pb-0' : 'pb-5']"
+    :class="props.hideTitle ? 'flex flex-wrap items-center justify-end gap-3' : ['grid gap-3 border-b border-default', $slots.tabs ? 'pb-0' : 'pb-4']"
   >
     <template v-if="!props.hideTitle">
       <div v-if="trail.length || $slots.back" class="flex min-w-0 items-center gap-x-2 text-(length:--liwan-fs-small-label)/5 text-muted">

@@ -88,4 +88,9 @@ describe('SharedMetricTile', () => {
     expect(plain).not.toContain('<a')
     expect(plain).not.toContain('metric-link')
   })
+
+  it('anchors an LTR figure to inline-start so it stays aligned under the label in RTL', async () => {
+    const html = await render({ value: '1,250 SAR', valueDir: 'ltr' })
+    expect(html).toMatch(/<p class="[^"]*w-fit max-w-full justify-self-start[^"]*" dir="ltr">\s*1,250 SAR/)
+  })
 })

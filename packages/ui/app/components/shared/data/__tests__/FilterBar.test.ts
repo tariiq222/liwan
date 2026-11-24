@@ -117,7 +117,7 @@ describe('FilterBar', () => {
     const css = readFileSync(resolve(import.meta.dirname, '../../../../assets/css/components.css'), 'utf8')
     const trigger = String.raw`button\[data-slot="base"\]:is\(\[role="combobox"\], \[aria-haspopup="listbox"\], \[aria-haspopup="dialog"\]\)`
     expect(css).toMatch(new RegExp(String.raw`\[data-slot="filter-root"\] ${trigger} \{[^}]*background-color: var\(--ui-bg-elevated\)`))
-    expect(css).toMatch(/min-height: var\(--liwan-filter-h, 40px\)/)
+    expect(css).toMatch(/min-height: var\(--liwan-filter-h, var\(--liwan-control-h\)\)/)
     expect(css).toMatch(/@media \(pointer: coarse\) \{\s*\[data-slot="filter-root"\][^}]*min-height: 44px/)
   })
   it('Esc in the panel closes it and returns focus to the trigger', () => {

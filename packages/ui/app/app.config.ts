@@ -4,7 +4,7 @@ export default defineAppConfig({
     icons: { loading: 'i-sadu-loader' },
     // Tasmim recipes (DESIGN.md «وصفات الثيم المعتمدة»). Colours: the fixed
     // LiwanOS ink primary (the company colour is for documents only), stone neutral, LiwanOS ink/charcoal in
-    // tokens.css. Sizes come from tokens: --liwan-control-h (42px; a small control is 34px), --liwan-row-h, --liwan-card-pad and the one radius
+    // tokens.css. Sizes come from tokens: --liwan-control-h (40px; a small control is 34px), --liwan-row-h, --liwan-card-pad and the one radius
     // system, four steps: rounded-tile (28% of the side: app tiles), rounded-card and rounded-surface (18px: cards, table
     // containers, banners, panels, modals), rounded-control (12px: every button, input, select, chip and menu), rounded-inner
     // (8px: segments, tags, badges, tooltips). Progress bars stay rounded-full. --ui-radius (8px) drives the stock scale.
@@ -15,7 +15,7 @@ export default defineAppConfig({
     // in the same conflict group as every rounded-* utility (the later class wins).
     tv: { twMergeConfig: { extend: { theme: { radius: ['tile', 'inner', 'control', 'card', 'surface'] } } } },
 
-    // The 42px control floor applies to the default (md) size, 34px to sm; xs stays compact. Buttons are 600 weight and lift 1px on hover.
+    // The 40px control floor applies to the default (md) size, 34px to sm; xs stays compact. Buttons are 600 weight and lift 1px on hover.
     // The solid primary paints from --primary-solid (ink with a white label in light mode, #f3f3f6 with a dark label in dark mode;
     // a paid application repaints it in its button shade, app-identity.css). --primary is for fills, icons and rings without text.
     button: {

@@ -63,10 +63,10 @@ const appTile = computed(() => compact.value && props.tone === 'neutral' && !pro
         <UIcon :name="props.icon" :class="compact ? 'size-4' : 'size-5'" />
       </span>
     </span>
-    <div class="grid min-w-0 flex-1" :class="compact ? 'gap-0' : 'gap-1'">
+    <div class="grid min-w-0 flex-1" :class="compact ? 'gap-0.5' : 'gap-1'">
       <p class="text-(length:--liwan-fs-small-label)/5 text-muted">{{ props.label }}</p>
       <p
-        class="wrap-break-word font-bold tracking-[-0.02em] tabular-nums"
+        class="w-fit max-w-full justify-self-start wrap-break-word font-bold tracking-[-0.02em] tabular-nums"
         :class="['font-display', figureSize, props.tone === 'danger' ? 'text-status-danger-foreground' : 'text-highlighted']"
         :dir="props.valueDir"
       >

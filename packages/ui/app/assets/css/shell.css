@@ -145,7 +145,7 @@ button.liwan-core-app:disabled { cursor: default; opacity: .6; }
   padding-inline: 10px calc(10px + var(--liwan-side-end-reserve, 0px));
   border-radius: var(--radius-control);
   color: color-mix(in srgb, var(--ui-text) 82%, var(--ui-bg));
-  font-size: .875rem;
+  font-size: var(--text-base);
   font-weight: 500;
   text-align: start;
   text-decoration: none;
@@ -230,7 +230,7 @@ button.liwan-side-row { border: 0; background: transparent; cursor: pointer; }
 .liwan-shell-header[data-start="always"] .liwan-shell-header-start { display: flex; flex: 1; }
 .liwan-shell-header-search { min-width: 160px; flex: 0 1 380px; }
 .liwan-shell-header-end { display: flex; flex: none; align-items: center; gap: 10px; margin-inline-start: auto; }
-.liwan-shell-header .liwan-search-trigger { width: 100%; min-width: 0; height: var(--liwan-bar-tile); justify-content: space-between; padding-inline: 14px; border-radius: var(--liwan-bar-radius); background: var(--ui-bg); box-shadow: inset 0 0 0 1px var(--ui-border); font-size: .875rem; font-weight: 400; color: var(--ui-text-muted); }
+.liwan-shell-header .liwan-search-trigger { width: 100%; min-width: 0; height: var(--liwan-bar-tile); justify-content: space-between; padding-inline: 14px; border-radius: var(--liwan-bar-radius); background: var(--ui-bg); box-shadow: inset 0 0 0 1px var(--ui-border); font-size: var(--text-sm); font-weight: 400; color: var(--ui-text-muted); }
 .liwan-shell-header .liwan-search-trigger:hover { background: var(--ui-bg-muted); }
 .liwan-shell-header .liwan-search-trigger kbd { border-radius: var(--radius-inner); }
 @media (hover: none) { .liwan-shell-header .liwan-search-trigger kbd { display: none; } }
@@ -344,7 +344,7 @@ button.liwan-side-row { border: 0; background: transparent; cursor: pointer; }
   border-radius: var(--liwan-bar-radius);
   background: var(--ui-bg-muted);
   color: var(--liwan-ink);
-  font-size: .875rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;

@@ -88,16 +88,16 @@ html:has([data-slot="settings-save-bar"]) { scroll-padding-block-end: 5.5rem; }
 .schedule-gantt { overflow-x: auto; }
 /* max-content: the grid must span every track, or its sticky name column stops at the scroller's width. */
 .schedule-gantt-grid { display: grid; width: max-content; min-width: max(720px, 100%); }
-.schedule-gantt-name { position: sticky; inset-inline-start: 0; z-index: 2; display: flex; min-height: 48px; align-items: center; padding: 8px 12px; background: var(--card); border-block-end: 1px solid var(--border); box-shadow: -8px 0 16px -12px color-mix(in srgb, var(--foreground) 18%, transparent); font-size: 0.8125rem; color: var(--muted-foreground); }
+.schedule-gantt-name { position: sticky; inset-inline-start: 0; z-index: 2; display: flex; min-height: 48px; align-items: center; padding: 8px 12px; background: var(--card); border-block-end: 1px solid var(--border); box-shadow: -8px 0 16px -12px color-mix(in srgb, var(--foreground) 18%, transparent); font-size: var(--text-sm); color: var(--muted-foreground); }
 html[dir="rtl"] .schedule-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in srgb, var(--foreground) 18%, transparent); }
-.schedule-gantt-corner { min-height: 40px; font-size: 0.75rem; font-weight: 500; border-block-end: 0; }
+.schedule-gantt-corner { min-height: 40px; font-size: var(--text-xs); font-weight: 500; border-block-end: 0; }
 .schedule-gantt-task { min-width: 0; color: var(--foreground); font-weight: 500; }
 .schedule-gantt-task:hover { background: var(--muted); }
 .schedule-gantt-head { position: relative; display: grid; grid-template-columns: repeat(var(--gantt-cols, 6), minmax(0, 1fr)); min-height: 40px; direction: ltr; background: var(--muted); color: var(--muted-foreground); border-block-end: 1px solid var(--border); }
-.schedule-gantt-head > span:not(.schedule-gantt-focus) { display: flex; align-items: center; justify-content: center; padding: 8px 4px; font-size: 0.75rem; font-weight: 500; box-shadow: inset -1px 0 0 var(--border); }
+.schedule-gantt-head > span:not(.schedule-gantt-focus) { display: flex; align-items: center; justify-content: center; padding: 8px 4px; font-size: var(--text-xs); font-weight: 500; box-shadow: inset -1px 0 0 var(--border); }
 .schedule-gantt-focus { position: absolute; inset-block: 0; width: 0; pointer-events: none; }
 .schedule-gantt-track { position: relative; direction: ltr; min-height: 64px; border-block-end: 1px solid var(--border); background-image: linear-gradient(to right, var(--border) 1px, transparent 1px); background-size: calc(100% / var(--gantt-cols, 6)) 100%; background-repeat: repeat-x; }
-.schedule-gantt-dates { position: absolute; inset-inline-start: 10px; inset-block-end: 3px; font-size: 0.6875rem; color: var(--muted-foreground); }
+.schedule-gantt-dates { position: absolute; inset-inline-start: 10px; inset-block-end: 3px; font-size: var(--text-xs); color: var(--muted-foreground); }
 .schedule-gantt-bar { position: absolute; top: 50%; height: 18px; min-width: 8px; border-radius: 999px; transform: translateY(-50%); }
 .schedule-gantt-bar-info { background: var(--status-info); }
 .schedule-gantt-bar-success { background: var(--status-success); }
@@ -107,8 +107,8 @@ html[dir="rtl"] .schedule-gantt-name { box-shadow: 8px 0 16px -12px color-mix(in
 .schedule-gantt-baseline { position: absolute; top: calc(50% + 14px); height: 5px; min-width: 6px; border-radius: 999px; background: color-mix(in srgb, var(--foreground) 55%, transparent); }
 .schedule-gantt-baseline-key { width: 16px; height: 5px; flex: none; border-radius: 999px; background: color-mix(in srgb, var(--foreground) 55%, transparent); }
 .schedule-gantt-mark { position: absolute; top: 50%; width: 10px; height: 10px; border-radius: 2px; transform: translate(-50%, -50%) rotate(45deg); }
-.schedule-gantt-empty { grid-column: 1 / -1; padding: 32px 16px; text-align: center; font-size: 0.875rem; color: var(--muted-foreground); }
-.schedule-gantt-legend { display: flex; flex-wrap: wrap; gap: 10px 18px; margin: 0; padding: 14px 16px; border-block-start: 1px solid var(--border); list-style: none; font-size: 0.75rem; color: var(--muted-foreground); }
+.schedule-gantt-empty { grid-column: 1 / -1; padding: 32px 16px; text-align: center; font-size: var(--text-base); color: var(--muted-foreground); }
+.schedule-gantt-legend { display: flex; flex-wrap: wrap; gap: 10px 18px; margin: 0; padding: 14px 16px; border-block-start: 1px solid var(--border); list-style: none; font-size: var(--text-xs); color: var(--muted-foreground); }
 .schedule-gantt-legend li { display: inline-flex; align-items: center; gap: 8px; }
 .schedule-gantt-swatch { width: 8px; height: 8px; flex: none; border-radius: 999px; }
 

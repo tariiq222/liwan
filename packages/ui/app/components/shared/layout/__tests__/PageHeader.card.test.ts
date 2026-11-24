@@ -2,7 +2,7 @@ import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import { renderShared, type SharedRenderOptions } from '../../../../../test/helpers/renderShared'
 
-// The open header (DESIGN.md §3): no card, the 64px tile comes from the application the shell published, the tags follow the title,
+// The open header (DESIGN.md §3): no card, the 48px tile comes from the application the shell published, the tags follow the title,
 // the tagline sits under it, the actions close the row on the inline end and the tabs sit on the divider.
 function options(app: { icon: string; id?: string; tagline?: string } | null = null): SharedRenderOptions {
   return {
