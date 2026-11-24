@@ -15,14 +15,21 @@ Operations (all idempotent, none waits):
   than the window, failure `key_not_valid` after it. The tenant's storage becomes the default for attachments only here.
 - `rotate`: a candidate record (`tenant_files_next`) takes a new key beside the live one, so the tenant is never without a
   working key; a later call verifies the candidate, makes it the live record, then deletes the old key.
+- `drop`: the tenant is being deleted (the control plane runs this while it runs the tenant drop): every object of the
+  bucket, then the bucket, the IAM policy, the group membership, the keys and the user are removed. The answer is
+  `emptying` while a large bucket still holds objects (each call drains for a fixed time budget, well under this effect's own
+  container timeout, and the next call continues), then
+  `removed`. It is idempotent, so a resumed deletion finishes what an earlier run started.
 
 State is not kept here: OCI (resources, key ids, creation times) and the tenant's `fs.storage` records are the truth, and
-each call reconciles them. The answer carries `state` (`pending_key` or `active`) and `stage` (`key_stored` while pending,
-`verified` when active); a failure is `{"error_code": ...}` with one of `oci_refused`, `oci_unreachable`, `key_not_valid`,
-`store_failed`, `limit_reached`, `bucket_mismatch`, or an effect code. The control plane records the answer on its row
-(the request's `requestId` is the id of this one run, a fresh uuid per run). The secret is passed from the container's stdout to the Odoo script's stdin in memory
+each call reconciles them. The answer carries `state` (`pending_key`, `active`, `emptying` or `removed`) and `stage`
+(`key_stored` while pending, `verified` when active, `objects_removed` while emptying, `resources_removed` when removed);
+a failure is `{"error_code": ...}` with one of `oci_refused`, `oci_unreachable`, `key_not_valid`,
+`store_failed`, `limit_reached`, `bucket_mismatch`, `bucket_still_present`, or an effect code. The control plane records
+the answer on its row (the request's `requestId` is the id of this one run, a fresh uuid per run). The secret is passed from the container's stdout to the Odoo script's stdin in memory
 and appears in no answer, log or exception; the gate relays this effect's stdout to the worker, so it never prints it.
-Dropping the resources belongs to the tenant drop effect, not to this one.
+Every operation runs under one advisory lock per tenant: a `drop` that meets a run in flight answers `operation_in_progress`
+and is retried, so no `ensure` can create resources after the drop removed them.
 """
 from __future__ import annotations
 
@@ -41,12 +48,13 @@ from tools.shared_saas_lifecycle import odoo_effect
 from tools.shared_saas_lifecycle.odoo_effect import EffectError, MAX_OUTPUT, validate_database
 from tools.shared_saas_lifecycle.tenant_status_effect import ComposeRunner as OdooComposeRunner
 
-OPERATIONS = ('ensure', 'verify', 'rotate')
-FAILURE_CODES = frozenset({'oci_refused', 'oci_unreachable', 'key_not_valid', 'store_failed', 'limit_reached', 'bucket_mismatch'})
+OPERATIONS = ('ensure', 'verify', 'rotate', 'drop')
+FAILURE_CODES = frozenset({'oci_refused', 'oci_unreachable', 'key_not_valid', 'store_failed', 'limit_reached', 'bucket_mismatch',
+                           'bucket_still_present'})
 EFFECT_CODES = frozenset({'request_invalid', 'operation_in_progress', 'authority_lost',
                           'script_failed', 'runtime_invalid', 'runtime_command_failed', 'runtime_timeout'})
 ERROR_CODES = FAILURE_CODES | EFFECT_CODES
-OCI_CODES = frozenset({'oci_refused', 'oci_unreachable', 'limit_reached', 'script_failed'})
+OCI_CODES = frozenset({'oci_refused', 'oci_unreachable', 'limit_reached', 'script_failed', 'bucket_still_present'})
 SCRIPT_CODES = frozenset({'script_failed', 'store_failed', 'key_not_valid'})
 SENTINEL = 'LIWAN_TENANT_STORAGE:'
 OCI_SERVICE = 'tenant-storage'
@@ -58,6 +66,8 @@ CANDIDATE_CODE = 'tenant_files_next'
 KEY_READY_SECONDS = 480
 KEY_WINDOW_SECONDS = 900
 MIN_RETRY_SECONDS = 30
+# A `drop` that spent its drain budget but did not empty the bucket is looked at again after this long.
+DRAIN_RETRY_SECONDS = 300
 TENANT_ID = re.compile(r'[a-z][a-z0-9_-]{0,62}')
 UUID = re.compile(r'[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}')
 REQUEST_KEYS = {'schemaVersion', 'operation', 'tenantId', 'database', 'requestId', 'config'}
@@ -221,6 +231,10 @@ class OdooStore:
     def __init__(self, runner, database, request_id):
         self.runner, self.database, self.request_id = runner, database, request_id
 
+    def database_exists(self):
+        """Whether the tenant database is there. A failed observation raises; it is never read as "gone"."""
+        return self.runner.database_exists()
+
     def _call(self, op, **values):
         data = {'database': self.database, 'op': op, 'requestId': self.request_id, **values}
         return parse_output(self.runner.run_script(build_script(), stdin=json.dumps(data, ensure_ascii=True)), op)
@@ -258,6 +272,11 @@ OCI_RESULT_CHECKS = {
     'inspect': lambda v: (set(v) == {'bucket', 'bucketExists', 'keys'} and isinstance(v['bucket'], str)
                           and isinstance(v['bucketExists'], bool) and _key_list_ok(v['keys'])),
     'delete_key': lambda v: v == {},
+    'drop': lambda v: (set(v) == {'bucket', 'state', 'objectsDeleted', 'keysDeleted', 'removed'} and isinstance(v['bucket'], str)
+                       and v['state'] in ('emptying', 'removed') and type(v['objectsDeleted']) is int and type(v['keysDeleted']) is int
+                       and v['objectsDeleted'] >= 0 and v['keysDeleted'] >= 0 and isinstance(v['removed'], dict)
+                       and set(v['removed']) == {'bucket', 'policy', 'user', 'group'}
+                       and all(type(flag) is bool for flag in v['removed'].values())),
 }
 
 
@@ -309,6 +328,14 @@ class OciClient:
 # ---- the state machine ---------------------------------------------------------------------------------------------
 
 
+def dropped_marker(state_dir, tenant_id):
+    """The marker a finished `drop` leaves: once a tenant's resources are gone, no `ensure` may create them again for that tenant id.
+    Only an explicit re-provision the operator starts clears it: a documented admin action (delete this file, then `ensure`), or a new
+    tenant id, which never shares the name."""
+    directory = odoo_effect.no_symlink(os.path.join(state_dir, STATE_DIRECTORY))
+    return odoo_effect.no_symlink(directory / (tenant_id + '.dropped'))
+
+
 @contextmanager
 def tenant_lock(state_dir, tenant_id):
     """One operation per tenant at a time, across processes: an advisory lock the kernel drops when the effect dies."""
@@ -338,7 +365,28 @@ class TenantStorageEffect:
         self.oci, self.odoo, self.clock = oci, odoo, clock
 
     def run(self, request):
-        return getattr(self, '_' + request['operation'])(request)
+        marker = dropped_marker(request['config']['stateDir'], request['tenantId'])
+        # A tenant whose storage was removed is not provisioned again by the loop: only an explicit re-provision clears the marker.
+        if request['operation'] != 'drop' and marker.exists():
+            raise EffectError('authority_lost')
+        answer = getattr(self, '_' + request['operation'])(request)
+        if request['operation'] == 'drop' and answer['state'] == 'removed':
+            self._mark_dropped(marker, request)
+        return answer
+
+    def _mark_dropped(self, marker, request):
+        """Written under the same lock the drop ran under, before the answer leaves: a crash before this line leaves the row `emptying` and the
+        next run repeats the drop, which is idempotent."""
+        body = json.dumps({'requestId': request['requestId'], 'droppedAt': int(self.clock())}).encode()
+        try:
+            marker.parent.mkdir(mode=0o700, exist_ok=True)
+            fd = os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600)
+        except OSError:
+            raise EffectError('runtime_invalid') from None
+        try:
+            os.write(fd, body)
+        finally:
+            os.close(fd)
 
     def _answer(self, request, state, stage, retry_after=None):
         answer = {'operation': request['operation'], 'tenantId': request['tenantId'], 'requestId': request['requestId'],
@@ -451,6 +499,25 @@ class TenantStorageEffect:
             self._prune(resources['keys'], {primary['accessKeyId']})
             return self._check(request, 'primary', live['createdAt'])
         return self._issue_and_store(request, resources, 'candidate', [primary['accessKeyId']])
+
+    def _primary_for_drop(self):
+        """The stored record, or None when the tenant database is gone (a drop resumed after it went): the OCI names come from the tenant id,
+        and the record is only read to refuse a foreign bucket. An observation that fails for any other reason is raised, because reading it as
+        "absent" would skip that check over a stale record that points at another bucket."""
+        if not self.odoo.database_exists():
+            return None
+        return self.odoo.observe()['primary']
+
+    def _drop(self, request):
+        """Empty the bucket and remove everything `ensure` created, under the tenant lock the whole effect runs under."""
+        self._refuse_other_bucket(self._primary_for_drop())
+        result = self.oci.call('drop')
+        answer = {'operation': 'drop', 'tenantId': request['tenantId'], 'requestId': request['requestId'],
+                  'objectsDeleted': result['objectsDeleted']}
+        if result['state'] == 'emptying':
+            return {**answer, 'state': 'emptying', 'stage': 'objects_removed', 'retryAfterSeconds': DRAIN_RETRY_SECONDS}
+        return {**answer, 'state': 'removed', 'stage': 'resources_removed', 'keysDeleted': result['keysDeleted']}
+
 
 
 # ---- entry point ---------------------------------------------------------------------------------------------------

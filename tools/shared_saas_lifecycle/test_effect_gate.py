@@ -384,6 +384,7 @@ class DeletionSwitchTests(GateCase):
     def setUp(self):
         super().setUp()
         self.effects['tenant_drop_effect'] = 'echo'
+        self.effects['tenant_storage_effect'] = 'echo'
 
     def test_real_drop_refused_without_the_flag(self):
         for request in ({'action': 'drop_database'}, {'action': 'drop_database', 'dryRun': False}, {'action': 'x', 'dryRun': 'true'},
@@ -413,6 +414,31 @@ class DeletionSwitchTests(GateCase):
         self.assertIn('request', conn.read_line())
         conn.send({'proceed': True})
         conn.finish()
+
+    def test_a_storage_drop_is_a_deletion_and_needs_the_flag(self):
+        # the storage effect removes a bucket and an IAM user: the same switch guards it
+        lines, _ = self.converse({'effect': 'tenant_storage_effect'},
+                                 {'schemaVersion': 1, 'operation': 'drop', 'tenantId': 'acme',
+                                  'database': 'liwan_scratch_' + 'a' * 32, 'requestId': '687674dc-5789-4a99-b151-12d69f010cc3'})
+        self.assertEqual([{'error_code': 'deletion_disabled'}, {'exit': 2}], lines)
+
+    def test_a_storage_drop_passes_with_the_flag(self):
+        conn = self.connect({'effect': 'tenant_storage_effect'},
+                            {'schemaVersion': 1, 'operation': 'drop', 'tenantId': 'acme',
+                             'database': 'liwan_scratch_' + 'a' * 32, 'requestId': '687674dc-5789-4a99-b151-12d69f010cc3'},
+                            env=dict(self.env, **{gate.DELETION_ENV: 'true'}))
+        self.assertIn('request', conn.read_line())
+        conn.send({'proceed': True})
+        conn.finish()
+
+    def test_the_storage_operations_that_change_nothing_need_no_flag(self):
+        for operation in ('ensure', 'verify', 'rotate'):
+            conn = self.connect({'effect': 'tenant_storage_effect'},
+                                {'schemaVersion': 1, 'operation': operation, 'tenantId': 'acme',
+                                 'database': 'liwan_scratch_' + 'a' * 32, 'requestId': '687674dc-5789-4a99-b151-12d69f010cc3'})
+            self.assertIn('request', conn.read_line(), operation)
+            conn.send({'proceed': True})
+            conn.finish()
 
 
 def alive(pid):
@@ -748,7 +774,7 @@ class RequestSchemaTests(unittest.TestCase):
                 ('tenant_drop_effect', drop_request, ('dryRun',), 'false'), ('tenant_drop_effect', drop_request, ('dryRun',), 0),
                 ('tenant_drop_effect', drop_request, ('plan', 'schemaVersion'), 2), ('tenant_drop_effect', drop_request, ('plan', 'restoreCopies'), 'x'),
                 ('tenant_drop_effect', drop_request, ('action',), 'drop_everything'),
-                ('tenant_storage_effect', storage_request, ('operation',), 'drop'), ('tenant_storage_effect', storage_request, ('schemaVersion',), 2),
+                ('tenant_storage_effect', storage_request, ('operation',), 'destroy'), ('tenant_storage_effect', storage_request, ('schemaVersion',), 2),
                 ('tenant_storage_effect', storage_request, ('tenantId',), '../acme'), ('tenant_storage_effect', storage_request, ('tenantId',), 'Acme'),
                 ('tenant_storage_effect', storage_request, ('requestId',), 'not-a-uuid')):
             with self.subTest(effect=effect, path=path, value=value):

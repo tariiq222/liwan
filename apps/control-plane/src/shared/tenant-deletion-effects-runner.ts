@@ -4,6 +4,8 @@ import type { Config } from '../config.js'
 import type { AssertOwned, DeletionEffects, DropStage } from '../commercial/tenant-deletion-effects.js'
 import { planDigestOf, type EffectPlan } from '../commercial/tenant-deletion-plan.js'
 import { effectEnv, openEffectChannel, spawnGrouped, type ChannelDeps, type Spawner } from './effect-channel.js'
+import { createTenantStorageDropRunner } from './tenant-storage-runner.js'
+import { storageDropResponseSchema } from './tenant-storage.js'
 import type { SharedRuntimeConfig } from './runtime-config.js'
 
 /** Refusal codes of the drop effect that may reach the ledger by name; anything else is `script_failed`. They name a check, never a value. */
@@ -85,6 +87,7 @@ export function createDeletionEffects(config: Config, runtime: SharedRuntimeConf
   const deps: ChannelDeps = { spawnChild: options.spawnChild }
   const env = options.env ?? process.env
   const backupRoot = options.backupRoot ?? join(runtime.stateDir, 'backups')
+  const storageDrop = createTenantStorageDropRunner(config, { deps })
   return {
     stage: ({ stage, plan, planDigest, dryRun, assertOwned }) => {
       if (planDigestOf(plan) !== planDigest) throw Error('plan_digest_mismatch')
@@ -145,6 +148,28 @@ export function createDeletionEffects(config: Config, runtime: SharedRuntimeConf
         await rm(path, { recursive: entry.isDirectory(), force: true }); removed++
       }
       return { removed }
+    },
+    async removeStorage({ tenantId, database, requestId, assertOwned }) {
+      // The drain can run long: the ownership is re-checked on a heartbeat and the effect is stopped the moment it is lost, like the off-site purge.
+      const owned = new AbortController()
+      const abort = () => owned.abort()
+      signal.addEventListener('abort', abort, { once: true })
+      let lost = false, checking = false
+      const heartbeat = setInterval(() => {
+        if (checking) return
+        checking = true
+        assertOwned().catch(() => { lost = true; owned.abort() }).finally(() => { checking = false })
+      }, options.heartbeatMs ?? HEARTBEAT_MS)
+      try {
+        await assertOwned()
+        return storageDropResponseSchema.parse(await storageDrop({ tenantId, database, requestId, signal: owned.signal }))
+      } catch (error) {
+        if (lost) throw Error('deletion_lease_lost')
+        throw error
+      } finally {
+        clearInterval(heartbeat)
+        signal.removeEventListener('abort', abort)
+      }
     },
   }
 }
