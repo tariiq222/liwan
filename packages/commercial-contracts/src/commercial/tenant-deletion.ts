@@ -11,7 +11,7 @@ export const TENANT_DELETION_HOLD_HOURS = 72
 /** The "last call" notice goes this long before the hold ends. */
 export const TENANT_DELETION_LAST_CALL_HOURS = 24
 /** The steps of the deletion in order (`reinstate` undoes the access stop of a request withdrawn before the point of no return). */
-export const tenantDeletionStepNames = ['preflight', 'stop_access', 'commit', 'unbind_relay', 'drop_database', 'delete_cards', 'remove_filestore', 'remove_restore_copies',
+export const tenantDeletionStepNames = ['preflight', 'stop_access', 'commit', 'unbind_relay', 'remove_storage', 'drop_database', 'delete_cards', 'remove_filestore', 'remove_restore_copies',
   'purge_local_backups', 'purge_offsite', 'remove_side_files', 'clean_registry_rows', 'finish', 'anonymise_contacts', 'reinstate'] as const
 export const tenantDeletionStepSchema = z.enum(tenantDeletionStepNames)
 /** The days between the confirmation and the day the deletion falls due: the window in which the request can be withdrawn. Owner decision 2026-11-13: 90, because a customer may come back at any time. Nobody can shorten it. */

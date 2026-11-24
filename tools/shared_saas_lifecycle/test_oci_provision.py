@@ -6,6 +6,7 @@ import stat
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
 
 from tools.shared_saas_lifecycle import oci_provision as oci
 
@@ -31,6 +32,7 @@ class FakeOci:
     def __init__(self, clock):
         self.clock = clock
         self.buckets, self.users, self.groups, self.policies, self.members, self.keys = {}, {}, {}, {}, set(), {}
+        self.objects = {}
         self.created = []
         self.fail = None  # an OciError code raised by every call
         self.deny_all = False  # the service refuses every key, whatever the policies say
@@ -49,8 +51,27 @@ class FakeOci:
 
     def create_bucket(self, namespace, compartment, name):
         self.buckets[name] = compartment
+        self.objects[name] = set()
         self.created.append(('bucket', name))
         return {'name': name}
+
+    def delete_bucket(self, namespace, name):
+        self._check()
+        self.buckets.pop(name, None)
+        self.objects.pop(name, None)
+        self.created.append(('bucket_delete', name))
+
+    def list_objects(self, namespace, name, limit):
+        self._check()
+        return sorted(self.objects.get(name, set()))[:limit]
+
+    def delete_objects(self, namespace, name, names):
+        self._check()
+        hold = self.objects.setdefault(name, set())
+        for item in names:
+            hold.discard(item)
+        self.created.append(('objects', len(names)))
+        return len(names)
 
     def _by_name(self, table, name):
         return next((item for item in table.values() if item['name'] == name), None)
@@ -81,6 +102,33 @@ class FakeOci:
     def add_member(self, user_id, group_id):
         self.members.add((user_id, group_id))
         self.created.append(('member', user_id))
+
+    def find_memberships(self, user_id, group_id):
+        return [{'id': 'm-' + user_id + '-' + group_id}] if (user_id, group_id) in self.members else []
+
+    def remove_membership(self, membership_id):
+        for pair in list(self.members):
+            if 'm-' + pair[0] + '-' + pair[1] == membership_id:
+                self.members.discard(pair)
+        self.created.append(('membership_delete', membership_id))
+
+    def delete_user(self, user_id):
+        self._check()
+        self.users.pop(user_id, None)
+        self.keys.pop(user_id, None)
+        self.created.append(('user_delete', user_id))
+
+    def delete_group(self, group_id):
+        self._check()
+        self.groups.pop(group_id, None)
+        self.created.append(('group_delete', group_id))
+
+    def delete_policy(self, policy_id):
+        self._check()
+        for name, policy in list(self.policies.items()):
+            if policy['id'] == policy_id:
+                del self.policies[name]
+                self.created.append(('policy_delete', policy_id))
 
     def find_policy(self, name):
         return self._by_name(self.policies, name)
@@ -340,7 +388,7 @@ class RunTest(unittest.TestCase):
     def test_the_answer_is_a_result_and_an_error_never_raises(self):
         ok = self.run_request({'operation': 'ensure', 'tenantId': 'acme', 'requestId': REQUEST_A})
         self.assertEqual({'result'}, set(ok))
-        for bad in ({'operation': 'drop', 'tenantId': 'acme'}, {'operation': 'ensure', 'tenantId': '../x'},
+        for bad in ({'operation': 'destroy', 'tenantId': 'acme'}, {'operation': 'ensure', 'tenantId': '../x'},
                     {'operation': 'ensure', 'tenantId': 5}, []):
             self.assertEqual({'error_code': 'script_failed'}, self.run_request(bad))
         self.assertEqual({'error_code': 'script_failed'}, self.run_request(None, raw='{not json'))
@@ -463,6 +511,92 @@ class RestTest(unittest.TestCase):
         self.assertEqual(1_800_000_000, oci.epoch('2027-01-15T08:00:00.123Z', 5))
         self.assertEqual(7, oci.epoch('yesterday', 7))
         self.assertEqual(7, oci.epoch(None, 7))
+
+
+class DropTest(unittest.TestCase):
+    """The other direction of `ensure`: the tenant's own resources go, nothing of another tenant is looked at."""
+
+    def setUp(self):
+        self.clock = Clock()
+        self.api = FakeOci(self.clock)
+
+    def provisioned(self, tenant='acme', objects=0, mode='per_tenant'):
+        prov = provisioner(self.api, self.clock, mode)
+        bucket = handle(prov, 'ensure', tenant)['bucket']
+        key = handle(prov, 'issue', tenant, keepKeyIds=[])
+        self.api.objects[bucket] = {'obj-%03d' % n for n in range(objects)}
+        return prov, bucket, key
+
+    def test_drop_removes_this_tenants_objects_bucket_policy_group_membership_key_and_user(self):
+        prov, bucket, key = self.provisioned(objects=5)
+        other, other_bucket, other_key = self.provisioned('beta', objects=2)
+        result = handle(prov, 'drop')
+        self.assertEqual('removed', result['state'])
+        self.assertEqual(5, result['objectsDeleted'])
+        self.assertEqual(1, result['keysDeleted'])
+        self.assertEqual({'bucket': True, 'policy': True, 'user': True, 'group': True}, result['removed'])
+        self.assertNotIn(bucket, self.api.buckets)
+        self.assertEqual([], [user for user in self.api.users.values() if user['name'] == bucket])
+        self.assertNotIn(bucket, self.api.policies)
+        self.assertFalse(any(user_id == 'u-' + bucket for user_id, _ in self.api.members))
+        # the other tenant and its key are untouched
+        self.assertIn(other_bucket, self.api.buckets)
+        self.assertEqual(2, len(self.api.objects[other_bucket]))
+        self.assertEqual(1, len(handle(other, 'inspect', 'beta')['keys']))
+        self.assertEqual(other_key['accessKeyId'], handle(other, 'inspect', 'beta')['keys'][0]['id'])
+        self.assertIn(other_bucket, self.api.policies)
+
+    def test_a_repeated_drop_finds_nothing_and_still_answers_removed(self):
+        prov, _, _ = self.provisioned(objects=3)
+        handle(prov, 'drop')
+        again = handle(prov, 'drop')
+        self.assertEqual({'bucket': False, 'policy': False, 'user': False, 'group': False}, again['removed'])
+        self.assertEqual((0, 0), (again['objectsDeleted'], again['keysDeleted']))
+
+    def test_drop_removes_an_inactive_key_too(self):
+        prov, bucket, _ = self.provisioned()
+        user = next(user for user in self.api.users.values() if user['name'] == bucket)
+        self.api.keys[user['id']].append({'id': 'ak-inactive', 'displayName': 'old', 'timeCreated': iso(self.clock()), 'lifecycleState': 'INACTIVE', 'key': 'x', 'born': 0})
+        self.assertEqual(2, handle(prov, 'drop')['keysDeleted'])
+        self.assertNotIn(user['id'], self.api.keys)
+
+    def test_the_fixed_policy_and_group_belong_to_every_tenant_and_stay(self):
+        prov, bucket, _ = self.provisioned(mode='fixed')
+        self.provisioned('beta', mode='fixed')
+        # a group left by an earlier per-tenant provisioning is shared by name with this tenant only, but the fixed policy is not:
+        # the policy is the one every tenant uses, so it is never deleted.
+        self.api.create_group(bucket)
+        result = handle(provisioner(self.api, self.clock, 'fixed'), 'drop')
+        self.assertEqual('removed', result['state'])
+        self.assertEqual({'bucket': True, 'policy': False, 'user': True, 'group': False}, result['removed'])
+        self.assertNotIn(bucket, self.api.buckets)
+        self.assertIn(oci.FIXED_POLICY_NAME, self.api.policies)
+        self.assertIn(bucket, [group['name'] for group in self.api.groups.values()])
+
+    def test_a_bucket_too_large_for_one_call_reports_emptying_and_the_next_call_finishes(self):
+        prov, bucket, _ = self.provisioned(objects=5)
+        with patch.object(oci, 'EMPTY_BATCH', 2), patch.object(oci, 'EMPTY_BATCHES', 2):
+            emptying = handle(prov, 'drop')
+            self.assertEqual(('emptying', 4), (emptying['state'], emptying['objectsDeleted']))
+            self.assertIn(bucket, self.api.buckets)
+            self.assertEqual(1, len(self.api.objects[bucket]))
+            done = handle(prov, 'drop')
+        self.assertEqual(('removed', 1), (done['state'], done['objectsDeleted']))
+        self.assertNotIn(bucket, self.api.buckets)
+
+    def test_a_bucket_that_is_still_there_after_the_delete_is_a_code(self):
+        prov, bucket, _ = self.provisioned()
+        with patch.object(self.api, 'delete_bucket', lambda *a: None):
+            with self.assertRaises(oci.OciError) as caught:
+                handle(prov, 'drop')
+        self.assertEqual('bucket_still_present', caught.exception.code)
+
+    def test_an_oci_failure_is_a_code_and_nothing_is_reported_as_removed(self):
+        prov, _, _ = self.provisioned(objects=1)
+        self.api.fail = 'oci_unreachable'
+        answer = oci.run(json.dumps({'operation': 'drop', 'tenantId': 'acme', 'requestId': REQUEST_A}), ENV,
+                         api=self.api, naming_key=NAMING_KEY)
+        self.assertEqual({'error_code': 'oci_unreachable'}, answer)
 
 
 if __name__ == '__main__':

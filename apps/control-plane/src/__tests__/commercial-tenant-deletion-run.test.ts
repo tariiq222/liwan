@@ -27,7 +27,7 @@ import type { PaymentAdapter } from '../commercial/payment-adapter.js'
 import { removePaymentMethod } from '../commercial/payment-method-removal.js'
 
 const suite = url ? describe : describe.skip
-const config = { installationId: 'del-run', key: 'vendor-test-key-'.repeat(4), customerCommercialIssuer: 'del-customer', customerCommercialServiceKey: 'customer-test-key-'.repeat(4), inventoryPath: '', repositoryRoot: '', python: 'python3', stateDir: '' } as any
+const config = { installationId: 'del-run', key: 'vendor-test-key-'.repeat(4), customerCommercialIssuer: 'del-customer', customerCommercialServiceKey: 'customer-test-key-'.repeat(4), tenantStorageEnabled: true as const, inventoryPath: '', repositoryRoot: '', python: 'python3', stateDir: '' } as any
 const who = { actor: 'tester', client_address: null }
 
 /** Effects that record every call, can fail a named call once, and re-check ownership before a mutation as the real runner does at a permit. */
@@ -55,6 +55,10 @@ class FakeEffects implements DeletionEffects {
   }
   purgeOffsite: DeletionEffects['purgeOffsite'] = async input => { await input.assertOwned(); await this.hit('purge_offsite'); return { state: 'empty' } }
   unbindRelay: DeletionEffects['unbindRelay'] = async () => { await this.hit('unbind_relay'); return { state: 'not_configured' } }
+  removeStorage: DeletionEffects['removeStorage'] = async input => {
+    await input.assertOwned(); await this.hit('remove_storage')
+    return { operation: 'drop', tenantId: input.tenantId, requestId: input.requestId, state: 'removed', stage: 'resources_removed', objectsDeleted: 0, keysDeleted: 0 }
+  }
   removeBackupArtifacts: DeletionEffects['removeBackupArtifacts'] = async items => { await this.hit('remove_artifacts'); return { removed: items.length } }
 }
 
@@ -116,12 +120,12 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
     expect(row).toMatchObject({ state: 'deleted', stuck_code: null })
     expect(row.committed_at).toBeInstanceOf(Date); expect(row.deleted_at).toBeInstanceOf(Date)
     const ledger = await steps(f)
-    expect(Object.keys(ledger).sort()).toEqual(['clean_registry_rows', 'commit', 'delete_cards', 'drop_database', 'finish', 'preflight', 'purge_local_backups', 'purge_offsite', 'remove_filestore', 'remove_restore_copies', 'remove_side_files', 'stop_access', 'unbind_relay', 'anonymise_contacts'].sort())
+    expect(Object.keys(ledger).sort()).toEqual(['clean_registry_rows', 'commit', 'delete_cards', 'drop_database', 'finish', 'preflight', 'purge_local_backups', 'purge_offsite', 'remove_filestore', 'remove_restore_copies', 'remove_side_files', 'remove_storage', 'stop_access', 'unbind_relay', 'anonymise_contacts'].sort())
     expect(ledger.unbind_relay).toMatchObject({ state: 'skipped', error_code: 'relay_not_configured' })
     for (const [name, step] of Object.entries(ledger)) if (name !== 'unbind_relay' && name !== 'anonymise_contacts') expect(step, name).toMatchObject({ state: 'done', failures: 0 })
     expect(ledger.anonymise_contacts).toMatchObject({ state: 'pending', error_code: 'final_mail_pending' })
     // The database goes before any backup, and the off-site purge comes after the local one.
-    expect(effects.calls.filter(c => !c.startsWith('dry:'))).toEqual(['unbind_relay', 'drop_database', 'delete_card', 'remove_filestore', 'remove_restore_copies', 'purge_local_backups', 'remove_artifacts', 'purge_offsite', 'remove_side_files'])
+    expect(effects.calls.filter(c => !c.startsWith('dry:'))).toEqual(['unbind_relay', 'remove_storage', 'drop_database', 'delete_card', 'remove_filestore', 'remove_restore_copies', 'purge_local_backups', 'remove_artifacts', 'purge_offsite', 'remove_side_files'])
     expect(cardCalls).toEqual([`tok_${f.card}`])
     expect((await pool.query('SELECT status,provider_token FROM payment_methods WHERE id=$1', [f.card])).rows[0]).toEqual({ status: 'removed', provider_token: null })
     expect(await binding(f)).toMatchObject({ enabled: false, retired: true })
@@ -137,6 +141,26 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
     const view = await tenantDeletionRunOf(pool, f.customer, { enabled: true, reason: null })
     expect(view).toMatchObject({ enabled: true, request: { state: 'deleted' }, plan: { database: f.database, backups: 1, cards: 1 } })
     expect(view!.steps.map(s => s.step)).toContain('purge_offsite')
+  })
+
+  it('removes the tenant storage before the database, and the storage row belongs to the deletion while it does', async () => {
+    const f = await fixture()
+    const storageRow = async () => (await pool.query('SELECT operation,state,stage,request_id,next_run_at FROM tenant_storage WHERE control_tenant_id=$1', [f.tenant])).rows[0]
+    let beforeStorageDrop: any, atDatabaseDrop: any
+    effects.after = async name => {
+      if (name === 'remove_storage') beforeStorageDrop = await storageRow()  // the row is the deletion's before the effect runs
+      if (name === 'drop_database') atDatabaseDrop = await storageRow()      // and the removal is recorded before the database goes
+    }
+    await run()
+    expect((await req(f)).state).toBe('deleted')
+    const order = effects.calls.filter(c => !c.startsWith('dry:'))
+    expect(order.slice(0, 3)).toEqual(['unbind_relay', 'remove_storage', 'drop_database'])
+    // The storage loop can never `ensure` what this step removes: the row is `drop` with no due time, and it answers the effect's own run.
+    expect(beforeStorageDrop).toMatchObject({ operation: 'drop', state: 'emptying', stage: null, next_run_at: null })
+    expect(beforeStorageDrop.request_id).toBeTruthy()
+    expect(atDatabaseDrop).toMatchObject({ operation: 'drop', state: 'removed', stage: 'resources_removed', next_run_at: null })
+    expect(atDatabaseDrop.request_id).toBe(beforeStorageDrop.request_id)
+    expect((await steps(f)).remove_storage).toMatchObject({ state: 'done', failures: 0 })
   })
 
   it('clears a requested renewal cancellation when the workspace is deleted, so no resumable cancellation is left on a deleted customer', async () => {
@@ -274,7 +298,7 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
     expect(await refused(requestDeletion(pool, { ...who, customer_id: g.customer, secret: 'x'.repeat(32) }))).toEqual({ code: 'tenant_retired', status: 409 })
   })
 
-  const effectNames = ['drop_database', 'remove_filestore', 'remove_restore_copies', 'purge_local_backups', 'purge_offsite', 'remove_side_files']
+  const effectNames = ['remove_storage', 'drop_database', 'remove_filestore', 'remove_restore_copies', 'purge_local_backups', 'purge_offsite', 'remove_side_files']
   it.each(effectNames)('resumes exactly after a failure at %s: a finished effect is never repeated and the failed one runs again', async failing => {
     effects = new FakeEffects()
     await pool.query('TRUNCATE tenant_deletion_steps, tenant_deletion_requests')

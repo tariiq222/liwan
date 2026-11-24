@@ -4,7 +4,7 @@ import { runEffectChild, type EffectRunOptions } from './admin-password-runner.j
 
 /** Everything tenant_storage_effect.py can answer with: its own failure states and the codes of the effect gate and the shared runner. They name a check, never a value. */
 export const TENANT_STORAGE_ERROR_CODES: ReadonlySet<string> = new Set([
-  'oci_refused', 'oci_unreachable', 'key_not_valid', 'store_failed', 'limit_reached', 'bucket_mismatch',
+  'oci_refused', 'oci_unreachable', 'key_not_valid', 'store_failed', 'limit_reached', 'bucket_mismatch', 'bucket_still_present',
   'request_invalid', 'operation_in_progress', 'authority_lost', 'script_failed',
   'runtime_invalid', 'runtime_command_failed', 'runtime_timeout',
 ])
@@ -25,4 +25,14 @@ export function createTenantStorageRunner(pool: Pool, config: Config, opts: Effe
     return runEffectChild({ config, effect: 'tenant_storage_effect', signal: input.signal, allowedCodes: TENANT_STORAGE_ERROR_CODES, timeoutMs: TENANT_STORAGE_TIMEOUT_MS, ...opts,
       request: { schemaVersion: 1, operation: input.operation, tenantId: row.tenantId, database: row.database_name, requestId: input.request_id } })
   }
+}
+
+/**
+ * The same effect for the `drop` of a tenant being deleted. The slug and the database come from the deletion's frozen plan, not from the registry binding:
+ * the binding is disabled and retired by then, and no enabled binding may be required to remove what is already gone.
+ */
+export function createTenantStorageDropRunner(config: Config, opts: EffectRunOptions = {}) {
+  return async (input: { tenantId: string; database: string; requestId: string; signal: AbortSignal }): Promise<unknown> =>
+    runEffectChild({ config, effect: 'tenant_storage_effect', signal: input.signal, allowedCodes: TENANT_STORAGE_ERROR_CODES, timeoutMs: TENANT_STORAGE_TIMEOUT_MS, ...opts,
+      request: { schemaVersion: 1, operation: 'drop', tenantId: input.tenantId, database: input.database, requestId: input.requestId } })
 }

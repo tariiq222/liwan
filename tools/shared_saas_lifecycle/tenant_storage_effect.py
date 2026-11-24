@@ -15,14 +15,20 @@ Operations (all idempotent, none waits):
   than the window, failure `key_not_valid` after it. The tenant's storage becomes the default for attachments only here.
 - `rotate`: a candidate record (`tenant_files_next`) takes a new key beside the live one, so the tenant is never without a
   working key; a later call verifies the candidate, makes it the live record, then deletes the old key.
+- `drop`: the tenant is being deleted (the control plane runs this while it runs the tenant drop): every object of the
+  bucket, then the bucket, the IAM policy, the group membership, the keys and the user are removed. The answer is
+  `emptying` while a large bucket still holds objects (about ten thousand go per call; the next call continues), then
+  `removed`. It is idempotent, so a resumed deletion finishes what an earlier run started.
 
 State is not kept here: OCI (resources, key ids, creation times) and the tenant's `fs.storage` records are the truth, and
-each call reconciles them. The answer carries `state` (`pending_key` or `active`) and `stage` (`key_stored` while pending,
-`verified` when active); a failure is `{"error_code": ...}` with one of `oci_refused`, `oci_unreachable`, `key_not_valid`,
-`store_failed`, `limit_reached`, `bucket_mismatch`, or an effect code. The control plane records the answer on its row
-(the request's `requestId` is the id of this one run, a fresh uuid per run). The secret is passed from the container's stdout to the Odoo script's stdin in memory
+each call reconciles them. The answer carries `state` (`pending_key`, `active`, `emptying` or `removed`) and `stage`
+(`key_stored` while pending, `verified` when active, `objects_removed` while emptying, `resources_removed` when removed);
+a failure is `{"error_code": ...}` with one of `oci_refused`, `oci_unreachable`, `key_not_valid`,
+`store_failed`, `limit_reached`, `bucket_mismatch`, `bucket_still_present`, or an effect code. The control plane records
+the answer on its row (the request's `requestId` is the id of this one run, a fresh uuid per run). The secret is passed from the container's stdout to the Odoo script's stdin in memory
 and appears in no answer, log or exception; the gate relays this effect's stdout to the worker, so it never prints it.
-Dropping the resources belongs to the tenant drop effect, not to this one.
+Every operation runs under one advisory lock per tenant: a `drop` that meets a run in flight answers `operation_in_progress`
+and is retried, so no `ensure` can create resources after the drop removed them.
 """
 from __future__ import annotations
 
@@ -41,12 +47,13 @@ from tools.shared_saas_lifecycle import odoo_effect
 from tools.shared_saas_lifecycle.odoo_effect import EffectError, MAX_OUTPUT, validate_database
 from tools.shared_saas_lifecycle.tenant_status_effect import ComposeRunner as OdooComposeRunner
 
-OPERATIONS = ('ensure', 'verify', 'rotate')
-FAILURE_CODES = frozenset({'oci_refused', 'oci_unreachable', 'key_not_valid', 'store_failed', 'limit_reached', 'bucket_mismatch'})
+OPERATIONS = ('ensure', 'verify', 'rotate', 'drop')
+FAILURE_CODES = frozenset({'oci_refused', 'oci_unreachable', 'key_not_valid', 'store_failed', 'limit_reached', 'bucket_mismatch',
+                           'bucket_still_present'})
 EFFECT_CODES = frozenset({'request_invalid', 'operation_in_progress', 'authority_lost',
                           'script_failed', 'runtime_invalid', 'runtime_command_failed', 'runtime_timeout'})
 ERROR_CODES = FAILURE_CODES | EFFECT_CODES
-OCI_CODES = frozenset({'oci_refused', 'oci_unreachable', 'limit_reached', 'script_failed'})
+OCI_CODES = frozenset({'oci_refused', 'oci_unreachable', 'limit_reached', 'script_failed', 'bucket_still_present'})
 SCRIPT_CODES = frozenset({'script_failed', 'store_failed', 'key_not_valid'})
 SENTINEL = 'LIWAN_TENANT_STORAGE:'
 OCI_SERVICE = 'tenant-storage'
@@ -58,6 +65,8 @@ CANDIDATE_CODE = 'tenant_files_next'
 KEY_READY_SECONDS = 480
 KEY_WINDOW_SECONDS = 900
 MIN_RETRY_SECONDS = 30
+# A `drop` that emptied its batch budget but not the bucket is looked at again after this long.
+DRAIN_RETRY_SECONDS = 300
 TENANT_ID = re.compile(r'[a-z][a-z0-9_-]{0,62}')
 UUID = re.compile(r'[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}')
 REQUEST_KEYS = {'schemaVersion', 'operation', 'tenantId', 'database', 'requestId', 'config'}
@@ -258,6 +267,11 @@ OCI_RESULT_CHECKS = {
     'inspect': lambda v: (set(v) == {'bucket', 'bucketExists', 'keys'} and isinstance(v['bucket'], str)
                           and isinstance(v['bucketExists'], bool) and _key_list_ok(v['keys'])),
     'delete_key': lambda v: v == {},
+    'drop': lambda v: (set(v) == {'bucket', 'state', 'objectsDeleted', 'keysDeleted', 'removed'} and isinstance(v['bucket'], str)
+                       and v['state'] in ('emptying', 'removed') and type(v['objectsDeleted']) is int and type(v['keysDeleted']) is int
+                       and v['objectsDeleted'] >= 0 and v['keysDeleted'] >= 0 and isinstance(v['removed'], dict)
+                       and set(v['removed']) == {'bucket', 'policy', 'user', 'group'}
+                       and all(type(flag) is bool for flag in v['removed'].values())),
 }
 
 
@@ -451,6 +465,25 @@ class TenantStorageEffect:
             self._prune(resources['keys'], {primary['accessKeyId']})
             return self._check(request, 'primary', live['createdAt'])
         return self._issue_and_store(request, resources, 'candidate', [primary['accessKeyId']])
+
+    def _primary_for_drop(self):
+        """The stored record when the tenant database can still be read. A drop resumed after the database went answers
+        nothing: the OCI names come from the tenant id, and the record is only read to refuse a foreign bucket."""
+        try:
+            return self.odoo.observe()['primary']
+        except EffectError:
+            return None
+
+    def _drop(self, request):
+        """Empty the bucket and remove everything `ensure` created, under the tenant lock the whole effect runs under."""
+        self._refuse_other_bucket(self._primary_for_drop())
+        result = self.oci.call('drop')
+        answer = {'operation': 'drop', 'tenantId': request['tenantId'], 'requestId': request['requestId'],
+                  'objectsDeleted': result['objectsDeleted']}
+        if result['state'] == 'emptying':
+            return {**answer, 'state': 'emptying', 'stage': 'objects_removed', 'retryAfterSeconds': DRAIN_RETRY_SECONDS}
+        return {**answer, 'state': 'removed', 'stage': 'resources_removed', 'keysDeleted': result['keysDeleted']}
+
 
 
 # ---- entry point ---------------------------------------------------------------------------------------------------

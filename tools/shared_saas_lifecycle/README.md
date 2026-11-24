@@ -12,7 +12,7 @@ and `apps/control-plane/src/shared/admin-password-runner.ts`.
 | `admin_password_effect.py` | Set the tenant administrator password for one accepted invitation. |
 | `tenant_status_effect.py` | Set the tenant profile status (`active` or `suspended`) so a suspended subscription stops the tenant's users. |
 | `tenant_drop_effect.py` | Final deletion of a tenant workspace in separate idempotent stages (see `docs/operations/tenant-deletion-effects.md`). `tenant_drop_files.py` is its stdlib-only file removal, also run inside the Odoo containers. |
-| `tenant_storage_effect.py` | Provision one tenant's object storage: bucket, IAM user, policy and secret key on OCI, wired into the tenant's `fs.storage` record (see "Tenant storage effect"). `oci_provision.py` is the OCI side, run only inside the one-shot `tenant-storage` container. |
+| `tenant_storage_effect.py` | Provision one tenant's object storage: bucket, IAM user, policy and secret key on OCI, wired into the tenant's `fs.storage` record (see "Tenant storage effect"). Its `drop` removes the same resources of a tenant being deleted. `oci_provision.py` is the OCI side, run only inside the one-shot `tenant-storage` container. |
 | `effect_gate.py` | The only entry to the seven effects above (see below). |
 | `effect_schema.py` | The gate's per-effect request schemas: allowed keys, exact types, strict identifier patterns. |
 | `scratch_effect.py` | Scratch-only driver used by the packages acceptance test. |
@@ -20,18 +20,26 @@ and `apps/control-plane/src/shared/admin-password-runner.ts`.
 
 ## Tenant storage effect
 
-`tenant_storage_effect` (operations `ensure`, `verify`, `rotate`; dropping the resources belongs to the tenant drop effect) keeps no
+`tenant_storage_effect` (operations `ensure`, `verify`, `rotate` and `drop`) keeps no
 state of its own: OCI (resources, key ids and ages) and the tenant's `fs.storage` records (`tenant_files`, and `tenant_files_next`
 during a rotation) are the truth, and every call reconciles them, so a repeated or interrupted call is safe. One operation per
 tenant at a time (an advisory lock file in the effect-owned `tenant-storage` state directory, created by `init-host.sh`; a second call answers `operation_in_progress`).
+
+`drop` is the other direction of `ensure`, and it belongs to this effect: the tenant deletion runs it as its own step before the
+database goes (`remove_storage` in `docs/operations/tenant-deletion-effects.md`). It empties the tenant's bucket, deletes it, then
+deletes the keys and the IAM user of that name, plus the policy and the group in the `per_tenant` mode; the `fixed` policy and group
+serve every tenant and are never deleted. Every step treats "already absent" as done, so a resumed deletion finishes what an earlier
+run started.
 
 | Answer | Meaning |
 |---|---|
 | `result` with `state: pending_key`, `stage`, `retryAfterSeconds` | the key is stored but a new OCI key needs about 7 minutes; call `verify` (or `ensure`) again after that. No call waits |
 | `result` with `state: active`, `stage: verified` | a real write and read through the stored key worked; only now is the storage the attachment default |
-| `error_code` | `oci_refused`, `oci_unreachable`, `key_not_valid` (not working 15 minutes after issue), `store_failed`, `limit_reached`, `bucket_mismatch` (the stored record names another bucket: never overwritten), or an effect code (`request_invalid`, `operation_in_progress`, `authority_lost`, `script_failed`) |
+| `result` with `state: emptying`, `stage: objects_removed`, `objectsDeleted`, `retryAfterSeconds` | a `drop` deleted its batch budget of objects and the bucket still holds more; the next call continues |
+| `result` with `state: removed`, `stage: resources_removed`, `objectsDeleted`, `keysDeleted` | a `drop` emptied the bucket and removed every resource of this tenant |
+| `error_code` | `oci_refused`, `oci_unreachable`, `key_not_valid` (not working 15 minutes after issue), `store_failed`, `limit_reached`, `bucket_mismatch` (the stored record names another bucket: never overwritten), `bucket_still_present` (a `drop` that deleted the bucket and then still saw it), or an effect code (`request_invalid`, `operation_in_progress`, `authority_lost`, `script_failed`) |
 
-Stages: `key_stored` (pending) and `verified` (active). The control plane records the answer on the tenant's row (`requestId` is the id of one
+Stages: `key_stored` (pending), `verified` (active), `objects_removed` (emptying) and `resources_removed` (removed). The control plane records the answer on the tenant's row (`requestId` is the id of one
 run, a fresh uuid per run). The request carries no resource name: the container derives `lw-<24 hex>` from an HMAC of the tenant id with the
 naming key, and uses it for the bucket, the IAM user and (per tenant) the group and policy. Policy mode `OCI_POLICY_MODE`:
 `per_tenant` (default; one group and one policy per tenant, `target.bucket.name = '<bucket>'`) or `fixed` (one shared policy comparing
@@ -84,8 +92,8 @@ tests spawn it with pipes. Wire protocol, JSON lines on stdin and stdout:
 - trust rule: the config file, `composeFile`, `envFile` and all their ancestor directories belong to root or the gate's
   account and are not group or other writable; `stateDir` may be group-writable only with the sticky bit and its effect
   subdirectories belong to the gate's account and are not writable by group or other (`backups` is 0750: the worker
-  reads manifests there and cannot write; `classifications` is 0755). A real `tenant_drop_effect` run (`dryRun` not `true`) also needs
-  `LIWAN_TENANT_DELETION_ENABLED=true` in the gate's own environment.
+  reads manifests there and cannot write; `classifications` is 0755). A real `tenant_drop_effect` run (`dryRun` not `true`) and a real
+  `tenant_storage_effect` `drop` also need `LIWAN_TENANT_DELETION_ENABLED=true` in the gate's own environment: both destroy a tenant's resources.
 - the effect runs with an explicit minimal environment in its own process group; on hang-up or SIGTERM the group gets
   SIGTERM, then SIGKILL after 20 seconds.
 

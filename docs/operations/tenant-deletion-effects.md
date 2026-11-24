@@ -9,6 +9,7 @@ The final deletion of a tenant's workspace is a set of separate stages. Each one
 | Stages | `tools/shared_saas_lifecycle/tenant_drop_effect.py` |
 | File removal (also run inside the Odoo containers) | `tools/shared_saas_lifecycle/tenant_drop_files.py` |
 | Off-site backup purge | `deploy/backup_pipeline.py purge` |
+| Tenant object storage removal | `tools/shared_saas_lifecycle/tenant_storage_effect.py` (`operation: drop`) |
 | Tenant marker written at provisioning | `tools/shared_saas_lifecycle/odoo_effect.py` (`liwan.control.tenant_id`) |
 
 ## The plan and its digest
@@ -94,6 +95,14 @@ It writes only when the marker is absent and the other checks pass: base URL equ
 
 Provisioning (`odoo_effect.py`) writes the system parameter `liwan.control.tenant_id` with the control tenant id, in the same transaction that pins `web.base.url`, and the read-back after provisioning requires it. The provision request must carry `controlTenantId` at its top level (beside `host` and `companyName`), a lowercase UUID; the provision job schema itself does not carry it. Odoo system parameters are writable only by `base.group_system` and Odoo's generic endpoints are closed (the `ir.http` guard), and no LiwanOS API takes a parameter key from a caller. This was read in code; it was not attacked.
 
+## Tenant object storage
+
+`remove_storage` is a step of the runner, not a stage of the drop effect: it runs the tenant storage effect with `operation: 'drop'` (see `tools/shared_saas_lifecycle/README.md`). It empties the tenant's bucket, deletes the bucket, then the keys and the IAM user whose name is derived from the tenant id, and in the `per_tenant` policy mode the policy and the group too. In the `fixed` policy mode the policy and the group are shared by every tenant and are **never** deleted; the decision is final. Every step treats "already absent" as done, so a resumed deletion finishes what an earlier run started.
+
+The step is skipped as `storage_not_configured` when tenant storage is off, and it runs before `drop_database`: a bucket too large for one run answers `emptying` and the step defers (`defer: storage_emptying`) until the next pass, so the database is never dropped while its objects are still there.
+
+The `tenant_storage` row is what makes the removal safe against the storage loop: the step marks it `operation='drop'` with no due time before it calls the effect, and a row with that operation is never claimed by the loop, so no `ensure` can recreate a bucket or a user that the drop already removed. The effect's own answer (`emptying` or `removed`) is recorded on that row with the run id and revision the step claimed. An effect answer for another run or another tenant is a `script_failed`, not a recorded result.
+
 ## Off-site backups
 
 `python3 deploy/backup_pipeline.py purge --tenant <registry id> --settle-seconds <n>` lists every key under `<id>/`, deletes, waits, lists and deletes again, then lists once more and fails (exit 3, `status: incomplete`) unless the prefix is empty. It refuses an empty id, a slash, anything outside `^[a-z][a-z0-9_-]{0,62}$` and `control-plane`. It is not `prune`: nothing is kept. The report holds counts only.
@@ -118,11 +127,12 @@ A clean dry run of all stages proves: the plan and its digest, every name guard,
 - Production-size data: no timing, no large filestore, no large prefix on S3 (pagination was proven with a capped fake listing and the S3 client's own tests).
 - `docker compose exec` into `db`, `restore-db`, `odoo` and `restore-odoo`: the argument lists are tested, no container was started.
 - Backup artifacts the control plane writes as `<backupRoot>/<id>.json` (`shared-backup.ts`) are not under `<stateDir>/backups/` and are not removed here.
+- A real `drop` of a bucket and an IAM user: the OCI calls of the storage effect (bulk object delete, bucket delete, key, membership, user, policy and group) are proven against the fake OCI in `test_oci_provision.py` and `test_tenant_storage_effect.py`, not against the account.
 - A capture that started before the retirement may still be running outside the settle wait.
 
 ## Order of the steps and what the control plane gates (second review)
 
-The runner calls these stages in this order: the identity gate (`verify`, then a dry run of every destructive stage) in the preflight and again before `commit`; after `commit` the relay purge, then `drop_database`, then the provider card deletion, then `remove_filestore`, `remove_restore_copies`, `purge_local_backups`, the off-site purge and `remove_side_files`. The relay purge and the card deletion are irreversible, so neither precedes the commit and the cards never precede the identity checks of `drop_database`.
+The runner calls these stages in this order: the identity gate (`verify`, then a dry run of every destructive stage) in the preflight and again before `commit`; after `commit` the relay purge, then `remove_storage`, then `drop_database`, then the provider card deletion, then `remove_filestore`, `remove_restore_copies`, `purge_local_backups`, the off-site purge and `remove_side_files`. The relay purge, the storage removal and the card deletion are irreversible, so none of them precedes the commit, and the cards never precede the identity checks of `drop_database`.
 
 `stamp_marker` is called by the runner only for a tenant created before `control_plane_state.marker_required_since` (written by the migration that introduced the marker requirement), only after its own dry run is clean, and its result and the plan digest are written to the audit trail and the step ledger. A newer tenant without a marker is a refusal (`marker_missing_needs_operator`) and nothing is written.
 

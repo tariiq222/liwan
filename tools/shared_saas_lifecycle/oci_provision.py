@@ -9,6 +9,10 @@ from the line and a non-zero exit would hide it.
 The customer secret key can be read once, when it is created. It leaves this process only in the `issue` answer, on
 stdout, to the effect that started it. Nothing here logs, formats an exception with request data, or writes the secret.
 
+`drop` is the other direction of `ensure`: every object of the bucket, then the bucket, the policy, the group membership,
+the keys and the IAM user whose name is derived from this tenant id. Nothing else is looked at or removed, and every step
+treats "already absent" as done.
+
 Configuration comes from the container's environment (names only, set by the compose service of the bring-up) and from
 two files: the provisioning API key and the naming key. The naming key makes the opaque resource names deterministic
 (HMAC of the tenant id), so a repeated call finds what an earlier call created without any stored mapping.
@@ -41,7 +45,11 @@ IAM_API = '/20160918'
 KEY_NAME_PREFIX = 'lw-'
 FIXED_POLICY_NAME = 'lw-tenant-bucket-access'
 POLICY_MODES = ('per_tenant', 'fixed')
-OPERATIONS = ('ensure', 'issue', 'inspect', 'delete_key')
+OPERATIONS = ('ensure', 'issue', 'inspect', 'delete_key', 'drop')
+# A bulk delete takes at most this many objects; one `drop` call deletes at most EMPTY_BATCHES of them and then reports the
+# bucket as still emptying, so a large bucket is drained by repeated calls instead of one call that outlives its timeout.
+EMPTY_BATCH = 1000
+EMPTY_BATCHES = 50
 
 TENANT_ID = re.compile(r'[a-z][a-z0-9_-]{0,62}')
 UUID = re.compile(r'[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}')
@@ -239,6 +247,31 @@ class OciRest:
         return self._call('POST', self.config.object_storage_host, f'/n/{namespace}/b/', payload={
             'name': name, 'compartmentId': compartment, 'publicAccessType': 'NoPublicAccess', 'storageTier': 'Standard'})
 
+    def delete_bucket(self, namespace, name):
+        return self._call('DELETE', self.config.object_storage_host, f'/n/{namespace}/b/{name}')
+
+    def list_objects(self, namespace, name, limit):
+        """The names of up to `limit` objects, or [] for a bucket that is gone (404)."""
+        found = self._call('GET', self.config.object_storage_host, f'/n/{namespace}/b/{name}/o', query={'limit': limit})
+        if found is None:
+            return []
+        objects = found.get('objects') if isinstance(found, dict) else None
+        if not isinstance(objects, list):
+            raise OciError('oci_refused')
+        return [item['name'] for item in objects if isinstance(item, dict) and isinstance(item.get('name'), str)]
+
+    def delete_objects(self, namespace, name, names):
+        """One bulk delete; returns how many of `names` the service reports deleted or already gone."""
+        found = self._call('POST', self.config.object_storage_host, f'/n/{namespace}/b/{name}/o', query={'delete': ''},
+                           payload={'objects': [{'name': item} for item in names]})
+        if not isinstance(found, dict):
+            raise OciError('oci_refused')
+        deleted, missing = found.get('deleted'), found.get('notFound')
+        count = sum(len(value) for value in (deleted, missing) if isinstance(value, list))
+        if count != len(names):
+            raise OciError('oci_refused')
+        return count
+
     # IAM
     def _find(self, kind, compartment, name):
         found = self._identity('GET', '/' + kind, query={'compartmentId': compartment, 'name': name})
@@ -265,6 +298,24 @@ class OciRest:
 
     def add_member(self, user_id, group_id):
         return self._identity('POST', '/userGroupMemberships', payload={'userId': user_id, 'groupId': group_id})
+
+    def find_memberships(self, user_id, group_id):
+        """The membership rows of this user in this group (there is at most one)."""
+        found = self._identity('GET', '/userGroupMemberships', query={
+            'compartmentId': self.config.tenancy, 'userId': user_id, 'groupId': group_id})
+        return [item for item in found if isinstance(item, dict) and isinstance(item.get('id'), str)] if isinstance(found, list) else []
+
+    def remove_membership(self, membership_id):
+        return self._identity('DELETE', '/userGroupMemberships/' + membership_id)
+
+    def delete_user(self, user_id):
+        return self._identity('DELETE', '/users/' + user_id)
+
+    def delete_group(self, group_id):
+        return self._identity('DELETE', '/groups/' + group_id)
+
+    def delete_policy(self, policy_id):
+        return self._identity('DELETE', '/policies/' + policy_id)
 
     def find_policy(self, name):
         return self._find('policies', self.config.tenancy, name)
@@ -394,6 +445,59 @@ class Provisioner:
         if user and isinstance(user.get('id'), str) and any(k['id'] == key_id for k in self._keys(user, every_state=True)):
             self.api.delete_key(user['id'], key_id)
         return {}
+
+    def _drop(self, name, request):
+        """Empty the bucket, then remove the bucket, the policy, the group membership, the keys and the user of THIS name.
+
+        Every lookup is by `name`, which is derived from the tenant id alone, so no other tenant's resource can be reached.
+        Each step is idempotent and treats "already absent" as done; a bucket too large for one call is reported `emptying`
+        and the next call continues. In the fixed policy mode the policy and the group belong to every tenant: they stay.
+        """
+        namespace = self.api.namespace()
+        objects_deleted, bucket_removed = 0, False
+        if self.api.get_bucket(namespace, name) is not None:
+            for _ in range(EMPTY_BATCHES):
+                names = self.api.list_objects(namespace, name, EMPTY_BATCH)
+                if not names:
+                    break
+                objects_deleted += self.api.delete_objects(namespace, name, names)
+            else:
+                return {'bucket': name, 'state': 'emptying', 'objectsDeleted': objects_deleted, 'keysDeleted': 0,
+                        'removed': {'bucket': False, 'policy': False, 'user': False, 'group': False}}
+            if self.api.list_objects(namespace, name, 1):
+                return {'bucket': name, 'state': 'emptying', 'objectsDeleted': objects_deleted, 'keysDeleted': 0,
+                        'removed': {'bucket': False, 'policy': False, 'user': False, 'group': False}}
+            self.api.delete_bucket(namespace, name)
+            if self.api.get_bucket(namespace, name) is not None:
+                raise OciError('bucket_still_present')
+            bucket_removed = True
+        user = self.api.find_user(name)
+        user_id = user['id'] if user and isinstance(user.get('id'), str) else None
+        keys_deleted = 0
+        if user_id:
+            for key in self._keys(user, every_state=True):
+                self.api.delete_key(user_id, key['id'])
+                keys_deleted += 1
+        policy_removed = group_removed = False
+        if self.config.policy_mode == 'per_tenant':
+            policy = self.api.find_policy(name)
+            if policy and isinstance(policy.get('id'), str):
+                self.api.delete_policy(policy['id'])
+                policy_removed = True
+            group = self.api.find_group(name)
+            if group and isinstance(group.get('id'), str):
+                if user_id:
+                    for membership in self.api.find_memberships(user_id, group['id']):
+                        self.api.remove_membership(membership['id'])
+                self.api.delete_group(group['id'])
+                group_removed = True
+        user_removed = False
+        if user_id:
+            self.api.delete_user(user_id)
+            user_removed = True
+        return {'bucket': name, 'state': 'removed', 'objectsDeleted': objects_deleted, 'keysDeleted': keys_deleted,
+                'removed': {'bucket': bucket_removed, 'policy': policy_removed, 'user': user_removed, 'group': group_removed}}
+
 
 
 # ---- entry point --------------------------------------------------------------------------------------------------

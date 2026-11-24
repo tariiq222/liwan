@@ -6,6 +6,7 @@ import { transaction } from '../db.js'
 import { publishRegistryMutation } from '../shared/registry-store.js'
 import { tenantDeletionActor, type DeletionAuthorityMode } from '../shared/tenant-deletion-authority.js'
 import { lockTenantJobs } from '../shared/job-store.js'
+import { beginTenantStorageDrop, finishTenantStorageDrop } from '../shared/tenant-storage.js'
 import { enqueueOutbox } from './outbox.js'
 import { isLocalCapture } from './mail-adapter.js'
 import type { PaymentAdapter } from './payment-adapter.js'
@@ -68,9 +69,9 @@ class LeaseLost extends Error { constructor() { super('deletion_lease_lost') } }
 class StateChanged extends Error { constructor() { super('deletion_state_changed') } }
 
 const STEP_STATES: Record<TenantDeletionStepName, string[]> = {
-  preflight: ['due', 'deleting'], stop_access: ['deleting'], unbind_relay: ['deleting'], commit: ['deleting'], delete_cards: ['deleting'], drop_database: ['deleting'],
-  remove_filestore: ['deleting'], remove_restore_copies: ['deleting'], purge_local_backups: ['deleting'], purge_offsite: ['deleting'], remove_side_files: ['deleting'],
-  clean_registry_rows: ['deleting'], finish: ['deleting', 'deleted'], anonymise_contacts: ['deleted'], reinstate: ['withdrawn'],
+  preflight: ['due', 'deleting'], stop_access: ['deleting'], unbind_relay: ['deleting'], commit: ['deleting'], delete_cards: ['deleting'], remove_storage: ['deleting'],
+  drop_database: ['deleting'], remove_filestore: ['deleting'], remove_restore_copies: ['deleting'], purge_local_backups: ['deleting'], purge_offsite: ['deleting'],
+  remove_side_files: ['deleting'], clean_registry_rows: ['deleting'], finish: ['deleting', 'deleted'], anonymise_contacts: ['deleted'], reinstate: ['withdrawn'],
 }
 const codeOf = (error: unknown) => error instanceof Error && /^[a-z0-9_]{1,64}$/.test(error.message) ? error.message : 'step_failed'
 const planOf = (row: Row): DeletionPlan => row.plan as DeletionPlan
@@ -504,6 +505,23 @@ async function dropStage(ctx: Ctx, stage: Exclude<DropStage, 'verify'>): Promise
   return { evidence: await ctx.effects.stage({ stage, plan: effect, planDigest: planDigestOf(effect), dryRun: false, assertOwned: ownership(ctx, row.plan_digest, true) }) }
 }
 
+/**
+ * The tenant's own object storage goes before its database: every object of its bucket, then the bucket, the keys and the IAM user. The storage row is marked
+ * `drop` first, so the storage loop can never `ensure` what this step removes; the shared policy and group of the fixed policy mode serve other tenants and
+ * stay. A bucket too large for one run answers `emptying` and the next pass continues.
+ */
+async function removeStorage(ctx: Ctx): Promise<Outcome> {
+  if (!ctx.config.tenantStorageEnabled) return { skip: 'storage_not_configured' }
+  const row = await currentRow(ctx), effect = planOf(row).effect
+  const claim = await beginTenantStorageDrop(ctx.pool, effect.controlTenantId)
+  const answer = await ctx.effects.removeStorage({ tenantId: effect.tenantId, database: effect.database, requestId: claim.requestId,
+    assertOwned: ownership(ctx, row.plan_digest, true) })
+  if (answer.requestId !== claim.requestId || answer.tenantId !== effect.tenantId) throw Error('script_failed')
+  await finishTenantStorageDrop(ctx.pool, claim, effect.controlTenantId, answer)
+  return answer.state === 'emptying' ? { defer: 'storage_emptying', evidence: { objects_deleted: answer.objectsDeleted } }
+    : { evidence: { objects_deleted: answer.objectsDeleted, keys_deleted: answer.keysDeleted } }
+}
+
 /** S9: the local backups named by the plan and the control plane's own artifact files go, then the backup records are stamped purged. */
 async function purgeLocalBackups(ctx: Ctx): Promise<Outcome> {
   const row = await currentRow(ctx)
@@ -638,10 +656,12 @@ const BEFORE_COMMIT: [TenantDeletionStepName, string, (ctx: Ctx, info: StepInfo)
   ['stop_access', 'publish the registry target disabled and retired, switch operations off', stopAccess],
   ['commit', 'cross the point of no return', commit],
 ]
-// Everything irreversible comes after the commit. The relay purge goes first (access is stopped, the relay ignores a disabled tenant); the database is dropped, with its own
-// identity gate, BEFORE the provider cards are deleted: a refusal inside `drop_database` must never find the cards already gone.
+// Everything irreversible comes after the commit. The relay purge goes first (access is stopped, the relay ignores a disabled tenant); the tenant's object
+// storage is removed, then the database is dropped, with its own identity gate, BEFORE the provider cards are deleted: a refusal inside `drop_database` must
+// never find the cards already gone.
 const AFTER_COMMIT: [TenantDeletionStepName, string, (ctx: Ctx, info: StepInfo) => Promise<Outcome>][] = [
   ['unbind_relay', 'remove the tenant bindings from the shared relay', unbindRelay],
+  ['remove_storage', 'empty and remove the tenant object storage', removeStorage],
   ['drop_database', 'drop the tenant database', ctx => dropStage(ctx, 'drop_database')],
   ['delete_cards', 'delete the saved cards at the provider, then mark them removed', deleteCards],
   ['remove_filestore', 'remove the tenant filestore', ctx => dropStage(ctx, 'remove_filestore')],
