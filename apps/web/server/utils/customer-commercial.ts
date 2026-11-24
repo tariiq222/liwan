@@ -515,17 +515,16 @@ export function invitationClientHeaders(event: H3Event, config: Pick<CustomerCon
   return { ...signed, [INVITATION_CLIENT_HEADER]: ip }
 }
 
-/** Signed headers for the public "send me a new invitation" call: the tenant this host is bound to and the visitor's address under one
- * signature (domain-separated from the client-address one). The tenant comes from the host binding, never from the browser;
- * the address comes from the edge (deploy/shared/Caddyfile, the dedicated edge). */
-export function invitationReissueHeaders(event: H3Event, config: CustomerConfig, target: URL): Record<string, string> {
+/** Signed headers for the public accept call: the tenant this host is bound to and the visitor's address under one signature.
+ *  The tenant comes from the host binding, never from the browser; the address comes from the edge (deploy/shared/Caddyfile,
+ *  the dedicated edge). The control plane refuses the accept without both, so a missing one stops here. */
+export function invitationAcceptHeaders(event: H3Event, config: CustomerConfig, target: URL): Record<string, string> {
   const tenantId = boundTenantId(tenantRequest(event), config)
   const { customerCommercialIssuer: issuer, customerCommercialServiceKey: key } = config
   if (!tenantId || !issuer || !key || Buffer.byteLength(key) < MIN_SERVICE_KEY_LENGTH) fail(503, 'unavailable', 'Service unavailable')
-  // The control plane budgets this route per visitor and refuses it without a signed address, so a missing one stops here too.
   const ip = getHeader(event, INVITATION_CLIENT_HEADER)
   if (!ip || !isIP(ip)) fail(503, 'unavailable', 'Service unavailable')
-  const signed = signServiceRequest({ method: 'POST', path: target.pathname, body: `liwan-invitation-reissue:${tenantId}\n${ip}\n`, actor: 'anonymous', anonymous: true, issuer, key })
+  const signed = signServiceRequest({ method: 'POST', path: target.pathname, body: `liwan-invitation-accept:${tenantId}\n${ip}\n`, actor: 'anonymous', anonymous: true, issuer, key })
   return { ...signed, 'x-liwan-tenant': tenantId, [INVITATION_CLIENT_HEADER]: ip }
 }
 
