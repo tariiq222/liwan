@@ -119,6 +119,10 @@ describe('ShellNavSection', () => {
   it('disables a branch button until hydration', async () => {
     expect(await render([branch], { hydrated: false })).toMatch(/<button[^>]*disabled/)
   })
+
+  it('enables a branch button when hydrated is omitted', async () => {
+    expect(await render([branch])).not.toMatch(/<button[^>]*disabled/)
+  })
 })
 
 describe('ShellCoreApps', () => {
