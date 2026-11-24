@@ -1,9 +1,9 @@
 import { acceptOutcome, assertPublicMutationOrigin, pickAcceptBody } from '../../utils/invitation-accept'
-import { customerControlBase, invitationClientHeaders } from '../../utils/customer-commercial'
+import { customerControlBase, invitationAcceptHeaders } from '../../utils/customer-commercial'
 import { boundedTenantBody, withTenantBody } from '../../utils/tenantTransport'
 
-// Public route: no user signature. Only the visitor's edge-derived address is signed, for the control plane's rate limit.
-// Never log or echo the token or password.
+// Public route: no user signature. The workspace binding and the visitor's edge-derived address are signed for the
+// control plane's tenant check and its per-visitor budget. Never log or echo the token or password.
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig(event) as { customerCommercialPublicOrigin?: string; customerCommercialControlUrl?: string; customerCommercialIssuer?: string; customerCommercialServiceKey?: string }
   setResponseHeader(event, 'cache-control', 'no-store')
@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
   try {
     const target = new URL('/v1/invitations/accept', base)
     const response = await $fetch.raw(target.toString(), {
-      method: 'POST', body: JSON.stringify(body), headers: { ...invitationClientHeaders(event, config, target), 'content-type': 'application/json', accept: 'application/json' },
+      method: 'POST', body: JSON.stringify(body), headers: { ...invitationAcceptHeaders(event, config, target), 'content-type': 'application/json', accept: 'application/json' },
       // Longer than control-api's own effect wait (215s), so a slow Odoo effect that still succeeds is not reported
       // to the browser as a failure after the password has already changed.
       redirect: 'error', signal: AbortSignal.timeout(230000),

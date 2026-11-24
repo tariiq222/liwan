@@ -68,7 +68,7 @@ export function sessionCodec(keys, activeKid, now = () => Math.floor(Date.now() 
  * The prospect origin belongs to no tenant. Only the listed public flows and built assets reach Nuxt.
  * Caddy replaces the signup client address with the socket peer. The guard is on the private network.
  */
-const signupApi = /^\/api\/commercial\/signup\/(?:terms|offer|start|verify-sms|send-email|verify-email)$/
+const signupApi = /^\/api\/commercial\/signup\/(?:terms|offer|check-slug|start|resend|verify|complete|status)$/
 // "Find my workspace" (the page, the common host's /login that leads to it, and its relay, which needs the visitor address).
 const findWorkspaceApi = '/api/invitations/find-workspace'
 // The marketing site's public pricing read and contact form (CORS preflight included); the form needs the visitor address like find-workspace.

@@ -8,12 +8,14 @@ const read = (p: string) => readFileSync(resolve(root, p), 'utf8')
 const page = read('app/pages/invite/accept.vue')
 
 describe('invite accept page', () => {
-  it('is public, reads ?token, validates length and uses UFormField', () => {
+  it('is public, reads the token from the hash and uses UFormField', () => {
     expect(page).toContain('<SharedStandalonePage')
     expect(page).not.toContain('<main')
-    expect(page).toContain('route.query.token')
+    expect(page).toContain('window.location.hash')
+    expect(page).toContain('history.replaceState')
+    expect(page).not.toContain('route.query.token')
     expect(page).toContain('MIN_LENGTH = 12')
-    expect(page.match(/<UFormField/g)?.length).toBe(3)
+    expect(page.match(/<UFormField/g)?.length).toBe(2)
     expect(page).toContain('useHydrated')
     expect(page).toContain("access: 'public'")
   })
@@ -41,22 +43,19 @@ describe('invite accept page', () => {
     expect(page).toContain("v-if=\"state === 'checking'\"")
     expect(page).toMatch(/<form v-else-if="state === 'form'"/)
   })
-  it('offers a new invitation, sign-in and forgot-password when the link cannot be used or is missing', () => {
-    expect(page).toContain("ref<'checking' | 'form' | 'invalid' | 'resend' | 'accountUnavailable' | 'success'>(token.value ? 'checking' : 'resend')")
-    expect(page).toContain("state === 'invalid' || state === 'resend'")
-    expect(page).toContain("'/api/invitations/reissue'")
-    expect(page).toContain('body: { email: email.value.trim() }')
+  it('offers sign-in and forgot-password when the link cannot be used, and no new-invitation form', () => {
+    expect(page).toContain("ref<'checking' | 'form' | 'invalid' | 'accountUnavailable' | 'success'>(token.value ? 'checking' : 'invalid')")
+    expect(page).toContain("state === 'invalid'")
+    expect(page).not.toContain("'/api/invitations/reissue'")
+    expect(page).not.toContain('invite.resend')
     expect(page).toContain('to="/login"')
     expect(page).toContain('to="/forgot-password"')
-    // One answer whatever the address, so the page never says whether it matched.
-    expect(page).toContain("t('invite.resendSentBody')")
-    expect(page).toContain("status === 429 ? 'rateLimited' : 'unavailable'")
     expect(page).not.toMatch(/console\./)
   })
-  it('links the sign-in page to the new-invitation request only where the commercial pages exist', () => {
+  it('no longer links the sign-in page to a new-invitation request', () => {
     const login = read('app/pages/login.vue')
-    expect(login).toContain("String(useRuntimeConfig().public.customerCommercialEnabled) === 'true'")
-    expect(login).toMatch(/v-if="inviteRequestable" to="\/invite\/accept"/)
+    expect(login).not.toContain('inviteRequestable')
+    expect(login).not.toContain('invite.didNotReceive')
   })
   it('prefills the login page username from ?login, sanitized', () => {
     const login = read('app/pages/login.vue')

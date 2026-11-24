@@ -50,7 +50,8 @@ afterAll(async () => {
   for (const server of [app, upstream]) { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())) }
   vi.unstubAllGlobals(); vi.unstubAllEnvs()
 })
-const headers = { 'content-type': 'application/json', origin: 'https://app.example.test', cookie: `session_id=valid; liwan_csrf=${csrf}`, 'x-liwan-csrf': csrf }
+// The edge supplies the visitor address the accept route signs with its workspace.
+const headers = { 'content-type': 'application/json', origin: 'https://app.example.test', cookie: `session_id=valid; liwan_csrf=${csrf}`, 'x-liwan-csrf': csrf, 'x-liwan-client-ip': '203.0.113.7' }
 const routes = [['/check', 2048], ['/accept', 8192], ['/api/commercial/v1/quotes', 65536]] as const
 
 it.each(routes)('rejects a chunked body exceeding %s budget without forwarding it', async (path, limit) => {

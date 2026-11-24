@@ -8,11 +8,14 @@ let app: http.Server
 let base: string
 let controlUrl = ''
 let seen: http.IncomingHttpHeaders = {}
+let calls = 0
 const KEY = 'k'.repeat(40)
+const TENANT = '11111111-2222-4333-8444-555555555555'
+const IP = '203.0.113.7'
 
 beforeAll(async () => {
   for (const [name, value] of Object.entries({ createError, defineEventHandler, getHeader, readRawBody, setResponseHeader, setResponseStatus })) vi.stubGlobal(name, value)
-  vi.stubGlobal('useRuntimeConfig', () => ({ customerCommercialPublicOrigin: 'https://app.example.test', customerCommercialControlUrl: controlUrl, customerCommercialIssuer: 'liwan-web', customerCommercialServiceKey: KEY }))
+  vi.stubGlobal('useRuntimeConfig', () => ({ customerCommercialPublicOrigin: 'https://app.example.test', customerCommercialControlUrl: controlUrl, customerCommercialIssuer: 'liwan-web', customerCommercialServiceKey: KEY, customerCommercialTenantId: TENANT }))
   vi.stubGlobal('$fetch', {
     raw: async (url: string, options: RequestInit) => {
       const res = await fetch(url, options)
@@ -26,6 +29,7 @@ beforeAll(async () => {
     const chunks: Buffer[] = []
     for await (const chunk of req) chunks.push(Buffer.from(chunk))
     seen = req.headers
+    calls++
     const status = Number(JSON.parse(Buffer.concat(chunks).toString()).token.split('-')[1])
     res.writeHead(status, { 'content-type': 'application/json' })
     res.end(JSON.stringify(status === 200 ? { login: 'invitee@example.test' } : { code: 'refused', message: 'refused' }))
@@ -43,7 +47,8 @@ afterAll(async () => {
   vi.unstubAllGlobals()
 })
 
-async function accept(upstreamStatus: number, extra: Record<string, string> = {}) {
+// The edge always supplies the visitor address on a tenant host; a request without one is the case the last test covers.
+async function accept(upstreamStatus: number, extra: Record<string, string> = { 'x-liwan-client-ip': IP }) {
   const res = await fetch(`${base}/accept`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', origin: 'https://app.example.test', 'sec-fetch-site': 'same-origin', ...extra },
@@ -64,15 +69,17 @@ describe('invitation accept route', () => {
     expect(status).toBe(400)
   })
 
-  it('signs the edge-derived visitor address for the control plane', async () => {
-    await accept(200, { 'x-liwan-client-ip': '203.0.113.7' })
-    expect(seen['x-liwan-client-ip']).toBe('203.0.113.7')
-    expect(verifyServiceRequest({ method: 'POST', path: '/v1/invitations/accept', body: 'liwan-invitation-client:203.0.113.7\n', headers: seen, key: KEY, anonymous: true })).toMatchObject({ issuer: 'liwan-web' })
+  it('signs the workspace and the edge-derived visitor address together for the control plane', async () => {
+    await accept(200)
+    expect(seen['x-liwan-tenant']).toBe(TENANT)
+    expect(seen['x-liwan-client-ip']).toBe(IP)
+    expect(verifyServiceRequest({ method: 'POST', path: '/v1/invitations/accept', body: `liwan-invitation-accept:${TENANT}\n${IP}\n`, headers: seen, key: KEY, anonymous: true })).toMatchObject({ issuer: 'liwan-web' })
   })
 
-  it('sends no address or signature when the edge supplied none', async () => {
-    await accept(200)
-    expect(seen['x-liwan-client-ip']).toBeUndefined()
-    expect(seen['x-liwan-signature']).toBeUndefined()
+  it('refuses as unavailable, without forwarding, when the edge supplied no address', async () => {
+    const before = calls
+    const { status } = await accept(200, {})
+    expect(status).toBe(503)
+    expect(calls).toBe(before)
   })
 })
