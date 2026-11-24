@@ -46,10 +46,17 @@ KEY_NAME_PREFIX = 'lw-'
 FIXED_POLICY_NAME = 'lw-tenant-bucket-access'
 POLICY_MODES = ('per_tenant', 'fixed')
 OPERATIONS = ('ensure', 'issue', 'inspect', 'delete_key', 'drop')
-# A bulk delete takes at most this many objects; one `drop` call deletes at most EMPTY_BATCHES of them and then reports the
-# bucket as still emptying, so a large bucket is drained by repeated calls instead of one call that outlives its timeout.
+# A batch delete takes at most this many objects at a time.
 EMPTY_BATCH = 1000
-EMPTY_BATCHES = 50
+# One `drop` call drains for at most this long and then answers `emptying`, so a large bucket is drained by repeated calls with the progress of
+# each kept, instead of one call outliving the 120 s the effect gives its container (`run_oci` in tenant_storage_effect.py). The budget must stay
+# well under that timeout: the batch in flight, the multipart aborts and the two closing observation calls still have to fit after it.
+DRAIN_SECONDS = 60
+# A hard cap on the object round trips of one pass, so a service that answers without deleting anything cannot hold the pass past its budget.
+DRAIN_CALLS = 50
+# One pass aborts at most this many incomplete multipart uploads: a bucket full of them cannot spend the whole budget on aborts, and the rest
+# are aborted by the next call.
+ABORT_LIMIT = 200
 
 TENANT_ID = re.compile(r'[a-z][a-z0-9_-]{0,62}')
 UUID = re.compile(r'[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}')
@@ -486,30 +493,37 @@ class Provisioner:
         and the next call continues. In the fixed policy mode the policy and the group belong to every tenant: they stay.
         """
         namespace = self.api.namespace()
+        deadline = self.clock() + DRAIN_SECONDS
         objects_deleted, bucket_removed = 0, False
+
+        def still_going():
+            """`emptying`: what this pass removed is kept and the next call continues."""
+            return {'bucket': name, 'state': 'emptying', 'objectsDeleted': objects_deleted, 'keysDeleted': 0,
+                    'removed': {'bucket': False, 'policy': False, 'user': False, 'group': False}}
+
         if self.api.get_bucket(namespace, name) is not None:
-            for _ in range(EMPTY_BATCHES):
+            for _ in range(DRAIN_CALLS):
                 names = self.api.list_objects(namespace, name, EMPTY_BATCH)
                 if not names:
                     break
                 objects_deleted += self.api.delete_objects(namespace, name, names)
-            else:
-                return {'bucket': name, 'state': 'emptying', 'objectsDeleted': objects_deleted, 'keysDeleted': 0,
-                        'removed': {'bucket': False, 'policy': False, 'user': False, 'group': False}}
+                if self.clock() >= deadline:
+                    break
             if self.api.list_objects(namespace, name, 1):
-                return {'bucket': name, 'state': 'emptying', 'objectsDeleted': objects_deleted, 'keysDeleted': 0,
-                        'removed': {'bucket': False, 'policy': False, 'user': False, 'group': False}}
+                return still_going()
             # Incomplete multipart uploads keep a bucket non-empty in OCI even with no object in it: abort them, then delete the bucket.
-            for _ in range(EMPTY_BATCHES):
-                uploads = self.api.list_multipart_uploads(namespace, name, EMPTY_BATCH)
+            aborted = 0
+            while aborted < ABORT_LIMIT and self.clock() < deadline:
+                uploads = self.api.list_multipart_uploads(namespace, name, min(EMPTY_BATCH, ABORT_LIMIT - aborted))
                 if not uploads:
                     break
                 for object_name, upload_id in uploads:
+                    if aborted >= ABORT_LIMIT or self.clock() >= deadline:
+                        break
                     self.api.abort_multipart_upload(namespace, name, object_name, upload_id)
+                    aborted += 1
             if self.api.list_multipart_uploads(namespace, name, 1):
-                # More uploads than one call may abort: a later call continues, exactly like the object drain.
-                return {'bucket': name, 'state': 'emptying', 'objectsDeleted': objects_deleted, 'keysDeleted': 0,
-                        'removed': {'bucket': False, 'policy': False, 'user': False, 'group': False}}
+                return still_going()
             self.api.delete_bucket(namespace, name)
             if self.api.get_bucket(namespace, name) is not None:
                 raise OciError('bucket_still_present')

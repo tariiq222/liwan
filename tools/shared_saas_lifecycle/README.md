@@ -47,7 +47,7 @@ would skip the `bucket_mismatch` check over a stale record that points at anothe
 |---|---|
 | `result` with `state: pending_key`, `stage`, `retryAfterSeconds` | the key is stored but a new OCI key needs about 7 minutes; call `verify` (or `ensure`) again after that. No call waits |
 | `result` with `state: active`, `stage: verified` | a real write and read through the stored key worked; only now is the storage the attachment default |
-| `result` with `state: emptying`, `stage: objects_removed`, `objectsDeleted`, `retryAfterSeconds` | a `drop` deleted its batch budget of objects and the bucket still holds more; the next call continues |
+| `result` with `state: emptying`, `stage: objects_removed`, `objectsDeleted`, `retryAfterSeconds` | a `drop` removed objects for its whole time budget (60 s, well under the effect's 120 s container timeout) or aborted its cap of 200 uploads and the bucket still holds more; the next call continues |
 | `result` with `state: removed`, `stage: resources_removed`, `objectsDeleted`, `keysDeleted` | a `drop` emptied the bucket and removed every resource of this tenant |
 | `error_code` | `oci_refused`, `oci_unreachable`, `key_not_valid` (not working 15 minutes after issue), `store_failed`, `limit_reached`, `bucket_mismatch` (the stored record names another bucket: never overwritten), `bucket_still_present` (a `drop` that deleted the bucket and then still saw it), or an effect code (`request_invalid`, `operation_in_progress`, `authority_lost`, `script_failed`) |
 

@@ -488,12 +488,13 @@ class DropTest(Case):
 
     def test_a_drop_empties_the_bucket_then_removes_every_resource(self):
         bucket = self.provisioned()
-        with patch.object(oci, 'EMPTY_BATCH', 2), patch.object(oci, 'EMPTY_BATCHES', 1):
+        # A spent drain budget after the first batch: the answer is `emptying` with what this pass removed, and the next call continues.
+        with patch.object(oci, 'EMPTY_BATCH', 2), patch.object(oci, 'DRAIN_SECONDS', 0):
             emptying = self.run_op('drop')
-            self.assertEqual(('drop', 'emptying', 'objects_removed'), (emptying['operation'], emptying['state'], emptying['stage']))
-            self.assertEqual(effect.DRAIN_RETRY_SECONDS, emptying['retryAfterSeconds'])
-            self.assertEqual(2, emptying['objectsDeleted'])
-            self.assertIn(bucket, self.world.api.buckets)  # a later call continues
+        self.assertEqual(('drop', 'emptying', 'objects_removed'), (emptying['operation'], emptying['state'], emptying['stage']))
+        self.assertEqual(effect.DRAIN_RETRY_SECONDS, emptying['retryAfterSeconds'])
+        self.assertEqual(2, emptying['objectsDeleted'])
+        self.assertIn(bucket, self.world.api.buckets)  # a later call continues
         answer = self.run_op('drop')
         self.assertEqual(('removed', 'resources_removed'), (answer['state'], answer['stage']))
         self.assertEqual(1, answer['objectsDeleted'])

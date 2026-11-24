@@ -17,7 +17,8 @@ Operations (all idempotent, none waits):
   working key; a later call verifies the candidate, makes it the live record, then deletes the old key.
 - `drop`: the tenant is being deleted (the control plane runs this while it runs the tenant drop): every object of the
   bucket, then the bucket, the IAM policy, the group membership, the keys and the user are removed. The answer is
-  `emptying` while a large bucket still holds objects (about ten thousand go per call; the next call continues), then
+  `emptying` while a large bucket still holds objects (each call drains for a fixed time budget, well under this effect's own
+  container timeout, and the next call continues), then
   `removed`. It is idempotent, so a resumed deletion finishes what an earlier run started.
 
 State is not kept here: OCI (resources, key ids, creation times) and the tenant's `fs.storage` records are the truth, and
@@ -65,7 +66,7 @@ CANDIDATE_CODE = 'tenant_files_next'
 KEY_READY_SECONDS = 480
 KEY_WINDOW_SECONDS = 900
 MIN_RETRY_SECONDS = 30
-# A `drop` that emptied its batch budget but not the bucket is looked at again after this long.
+# A `drop` that spent its drain budget but did not empty the bucket is looked at again after this long.
 DRAIN_RETRY_SECONDS = 300
 TENANT_ID = re.compile(r'[a-z][a-z0-9_-]{0,62}')
 UUID = re.compile(r'[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}')

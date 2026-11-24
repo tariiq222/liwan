@@ -202,6 +202,18 @@ class Clock:
         return self.now
 
 
+class TickingClock(Clock):
+    """A clock that moves `step` seconds on every read, so a time budget is spent by the calls themselves."""
+
+    def __init__(self, step, start=1_800_000_000):
+        super().__init__(start)
+        self.step = step
+
+    def __call__(self):
+        self.now += self.step
+        return self.now
+
+
 def provisioner(api, clock, mode='per_tenant'):
     config = oci.Config({**ENV, 'OCI_POLICY_MODE': mode})
     return oci.Provisioner(api, config, NAMING_KEY, clock)
@@ -638,13 +650,46 @@ class DropTest(unittest.TestCase):
 
     def test_a_bucket_too_large_for_one_call_reports_emptying_and_the_next_call_finishes(self):
         prov, bucket, _ = self.provisioned(objects=5)
-        with patch.object(oci, 'EMPTY_BATCH', 2), patch.object(oci, 'EMPTY_BATCHES', 2):
+        # A spent budget (zero seconds) after the first batch: the pass keeps what it removed and the next call continues.
+        with patch.object(oci, 'EMPTY_BATCH', 2), patch.object(oci, 'DRAIN_SECONDS', 0):
             emptying = handle(prov, 'drop')
-            self.assertEqual(('emptying', 4), (emptying['state'], emptying['objectsDeleted']))
+        self.assertEqual(('emptying', 2), (emptying['state'], emptying['objectsDeleted']))
+        self.assertIn(bucket, self.api.buckets)
+        self.assertEqual(3, len(self.api.objects[bucket]))
+        done = handle(prov, 'drop')
+        self.assertEqual(('removed', 3), (done['state'], done['objectsDeleted']))
+        self.assertNotIn(bucket, self.api.buckets)
+
+    def test_the_drain_stops_at_the_time_budget_and_keeps_the_progress_it_made(self):
+        # One object per batch and every clock read 25 s on: the 60 s pass fits three batches, the fourth read is past the budget.
+        ticking = TickingClock(25)
+        prov = provisioner(self.api, ticking)
+        bucket = handle(prov, 'ensure')['bucket']
+        self.api.objects[bucket] = {'obj-%03d' % n for n in range(10)}
+        with patch.object(oci, 'EMPTY_BATCH', 1):
+            emptying = handle(prov, 'drop')
+        self.assertEqual('emptying', emptying['state'])
+        self.assertEqual(3, emptying['objectsDeleted'])  # progress is kept, not thrown away with the pass
+        self.assertEqual(7, len(self.api.objects[bucket]))
+        self.assertIn(bucket, self.api.buckets)
+        self.assertNotIn(('bucket_delete', bucket), self.api.created)
+        # A later pass on a spent clock finishes the same bucket.
+        self.assertEqual('removed', handle(provisioner(self.api, self.clock), 'drop')['state'])
+        self.assertNotIn(bucket, self.api.buckets)
+
+    def test_one_pass_aborts_at_most_the_abort_limit_and_the_next_pass_finishes_them(self):
+        prov, bucket, _ = self.provisioned()
+        self.api.uploads[bucket] = [('big/%03d.bin' % n, 'up-%03d' % n) for n in range(250)]
+        # A budget that never runs out isolates the cap: the pass aborts ABORT_LIMIT uploads and reports emptying.
+        with patch.object(oci, 'DRAIN_SECONDS', 10 ** 6):
+            emptying = handle(prov, 'drop')
+            aborts = [call for call in self.api.created if call[0] == 'upload_abort']
+            self.assertEqual(oci.ABORT_LIMIT, len(aborts))
+            self.assertEqual('emptying', emptying['state'])
+            self.assertEqual(50, len(self.api.uploads[bucket]))
             self.assertIn(bucket, self.api.buckets)
-            self.assertEqual(1, len(self.api.objects[bucket]))
-            done = handle(prov, 'drop')
-        self.assertEqual(('removed', 1), (done['state'], done['objectsDeleted']))
+            self.assertEqual('removed', handle(prov, 'drop')['state'])
+        self.assertNotIn(bucket, self.api.uploads)
         self.assertNotIn(bucket, self.api.buckets)
 
     def test_an_incomplete_multipart_upload_is_aborted_before_the_bucket_goes(self):
