@@ -75,8 +75,8 @@ tests spawn it with pipes. Wire protocol, JSON lines on stdin and stdout:
   bytes, no `config` field, matching the effect's schema in `effect_schema.py`: only the keys the control plane sends,
   exact types and sizes, a strict full-match pattern for every identifier, and no `/`, backslash, NUL or `.`/`..`
   value outside the named free-text fields (names, logins, the password, the issuer); anything else is `request_invalid`
-  and no effect starts). The gate adds `config` from the file named by its own `LIWAN_SHARED_RUNTIME_CONFIG`
- . Later lines, such as `{"proceed": true}`, go to the effect.
+  and no effect starts). The gate adds `config` from the file named by its own `LIWAN_SHARED_RUNTIME_CONFIG`.
+  Later lines, such as `{"proceed": true}`, go to the effect.
   The peer keeps the connection open until the final line: stdin EOF means it hung up.
 - out: the effect's lines unchanged, then `{"exit": <code>}` (128 plus the signal number when a signal ended it).
 - refusal: `{"error_code": <code>}` then `{"exit": 2}`, with `request_invalid`, `effect_unknown`, `config_forbidden`,
