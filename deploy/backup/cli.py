@@ -35,7 +35,7 @@ from deploy.backup.capture import (
 from deploy.backup.drill import run_drill
 from deploy.backup.dump import validate_db_name
 from deploy.backup.errors import BackupError, PurgeIncompleteError, TenantRetiredError, require
-from deploy.backup.manifest import CAPTURE_KINDS, require_tenant
+from deploy.backup.manifest import CAPTURE_KINDS, KIND_CANDIDATE, require_tenant
 from deploy.backup.recover import fetch_artifact, latest_artifact, newest_of_kind
 from deploy.backup.snapshot import CaptureSource, validate_filestore
 from deploy.backup.store import build_store
@@ -181,12 +181,14 @@ def _capture_source(args: argparse.Namespace) -> CaptureSource:
         return CaptureSource(args.db_name, None, args.pg_dump, args.pg_host, args.pg_port, args.pg_user)
     require_tenant(args.tenant)
     if args.filestore is not None:
+        require(args.kind == KIND_CANDIDATE,
+                '--filestore and --db-name are allowed only with --kind candidate')
         require(args.db_name is not None, '--filestore needs --db-name: the two name one copy')
         require(args.data_dir is None, '--data-dir and --filestore name two different sources')
         filestore = validate_filestore(args.filestore, args.db_name)
         return CaptureSource(args.db_name, filestore, args.pg_dump, args.pg_host, args.pg_port, args.pg_user)
-    require(args.data_dir is not None, 'a tenant capture needs --data-dir')
     require(args.db_name is None, 'a tenant capture takes its database from the registry, not --db-name')
+    require(args.data_dir is not None, 'a tenant capture needs --data-dir')
     return _registry_source(args)
 
 

@@ -434,12 +434,25 @@ def run_drill(cfg: DrillConfig) -> dict:
     psql_path = shutil.which('psql')
 
     # --- RPO measurement: time the real encrypted capture, then fetch it back ---
-    backup_env = {**pg_env(cfg), 'LIWAN_BACKUP_PASSPHRASE_FILE': str(passphrase_file)}
+    registry_path = cfg.work_dir / 'registry.json'
+    registry_path.write_text(json.dumps({
+        'schemaVersion': 1, 'snapshotRevision': 1,
+        'targets': [{
+            'host': 'drill.invalid', 'tenantId': cfg.db,
+            'database': cfg.db, 'filestore': cfg.db,
+            'enabled': True, 'registryRevision': 1,
+        }],
+    }), encoding='utf-8')
+    backup_env = {
+        **pg_env(cfg),
+        'LIWAN_BACKUP_PASSPHRASE_FILE': str(passphrase_file),
+        'LIWAN_TENANT_REGISTRY_PATH': str(registry_path),
+    }
     backup_t0 = time.monotonic()
     run([
         sys.executable, '-B', '-m', 'deploy.backup', 'capture',
         '--kind', 'hourly', '--tenant', cfg.db,
-        '--db-name', cfg.db, '--filestore', str(filestore_dir),
+        '--data-dir', str(data_dir),
         '--store-root', str(store_root), '--work-root', str(cfg.work_dir / 'capture-work'),
         '--pg-dump', pg_dump_path, '--pg-host', cfg.pg_host, '--pg-user', cfg.pg_user,
     ], cwd=str(cfg.repo_root), env=backup_env)

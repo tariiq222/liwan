@@ -31,10 +31,13 @@ python3 deploy/classification.py fixture --database "$SRC_DB" --mode non_saas --
 export LIWAN_BACKUP_PASSPHRASE_FILE="$W/backup-passphrase"
 (umask 077 && openssl rand -hex 32 > "$LIWAN_BACKUP_PASSPHRASE_FILE")
 backup() { python3 -B -m deploy.backup "$@"; }
-# Captured encrypted into a local store, then fetched back as the plaintext artifact this stage restores.
-# The kind is the one the schedule writes: the drill restores the same artifact the hourly capture produces.
-backup capture --kind hourly --tenant "$SRC_DB" --db-name "$SRC_DB" \
-  --filestore "$W/data/filestore/$SRC_DB" --store-root "$W/store" --work-root "$W/work" \
+# Captured encrypted into a local store through the same registry-bound path a release runs,
+# then fetched back as the plaintext artifact this stage restores.
+export LIWAN_TENANT_REGISTRY_PATH="$W/registry.json"
+printf '{"schemaVersion":1,"snapshotRevision":1,"targets":[{"host":"drill.invalid","tenantId":"%s","database":"%s","filestore":"%s","enabled":true,"registryRevision":1}]}\n' \
+  "$SRC_DB" "$SRC_DB" "$SRC_DB" > "$LIWAN_TENANT_REGISTRY_PATH"
+backup capture --kind hourly --tenant "$SRC_DB" --data-dir "$W/data" \
+  --store-root "$W/store" --work-root "$W/work" \
   --pg-dump "$B/pg_dump" --pg-host "$PGHOST" --pg-port "$PGPORT" --pg-user "$PGUSER"
 backup fetch --tenant "$SRC_DB" --kind hourly --store-root "$W/store" --destination "$W/backup"
 cp "$W/backup/manifest.json" "$W/original-manifest.json"

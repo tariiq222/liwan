@@ -368,6 +368,9 @@ if args[0] in ('-', '-c'): os.execv(sys.executable, [sys.executable, *args])
 if 'tools/catalog_check.py' in args: print('liwan_tasks')
 if 'deploy/classification.py' in args: Path(args[args.index('--output')+1]).write_text('{}')
 if 'deploy.backup' in args and 'capture' in args:
+ registry=json.loads(Path(os.environ['LIWAN_TENANT_REGISTRY_PATH']).read_text())
+ assert registry['targets'][0]['tenantId']==args[args.index('--tenant')+1]
+ assert '--data-dir' in args and '--db-name' not in args and '--filestore' not in args
  store=Path(args[args.index('--store-root')+1]); tenant=args[args.index('--tenant')+1]
  (store/tenant/'hourly'/'20260101T000000Z').mkdir(parents=True)
 if 'deploy.backup' in args and 'fetch' in args:

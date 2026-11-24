@@ -1187,6 +1187,67 @@ class TestCommandLine(PipelineCase):
         self.assertEqual(code, EXIT_REFUSED)
         self.assertIn('--db-name', stderr)
 
+    def test_explicit_db_name_and_filestore_are_refused_for_retention_kinds(self):
+        source = self.source()
+        other_store = self.root / 'data' / 'filestore' / 'liwan_other'
+        other_store.mkdir(parents=True, exist_ok=True)
+        environ = {PASSPHRASE_ENVIRONMENT_VARIABLE: str(self.passphrase_file), **self.registry_environment()}
+        for kind in ('hourly', 'daily'):
+            for tenant in (TENANT, 'gone'):
+                argv = [
+                    'capture', '--tenant', tenant, '--kind', kind,
+                    '--work-root', str(self.work_root),
+                    '--db-name', 'liwan_other', '--filestore', str(other_store),
+                    '--pg-dump', str(source.pg_dump), '--store-root', str(self.root / 'cli-bucket'),
+                    '--now', STAMP,
+                ]
+                with self.subTest(kind=kind, tenant=tenant), _environment(environ):
+                    code, _stdout, stderr = self.run_main(argv)
+                self.assertEqual(code, EXIT_REFUSED)
+                self.assertIn('--kind candidate', stderr)
+        self.assertEqual(self.runner.calls, [])
+        self.assertEqual(FilesystemStore(self.root / 'cli-bucket').list(f'{TENANT}/'), [])
+        self.assertEqual(FilesystemStore(self.root / 'cli-bucket').list('gone/'), [])
+
+    def test_candidate_capture_accepts_explicit_db_name_and_filestore_without_a_registry(self):
+        source = self.source()
+        argv = [
+            'capture', '--tenant', TENANT, '--kind', 'candidate',
+            '--work-root', str(self.work_root),
+            '--db-name', source.db_name, '--filestore', str(source.filestore),
+            '--pg-dump', str(source.pg_dump), '--store-root', str(self.root / 'cli-bucket'),
+            '--now', STAMP,
+        ]
+        environ = {PASSPHRASE_ENVIRONMENT_VARIABLE: str(self.passphrase_file)}
+        with _environment(environ, clear=(REGISTRY_ENVIRONMENT_VARIABLE,)):
+            code, stdout, stderr = self.run_main(argv)
+        self.assertEqual((code, stderr), (EXIT_OK, ''))
+        self.assertEqual(json.loads(stdout)['kind'], 'candidate')
+        store = FilesystemStore(self.root / 'cli-bucket')
+        self.assertEqual(len(store.list(f'{TENANT}/candidate/')), 3)
+        self.assertIsNone(recover.latest_artifact(store, TENANT))
+
+    def test_candidate_capture_refuses_incomplete_or_conflicting_source_flags(self):
+        source = self.source()
+        base = [
+            'capture', '--tenant', TENANT, '--kind', 'candidate',
+            '--work-root', str(self.work_root), '--pg-dump', str(source.pg_dump),
+            '--store-root', str(self.root / 'cli-bucket'), '--now', STAMP,
+        ]
+        cases = (
+            (['--filestore', str(source.filestore)], '--db-name'),
+            (['--filestore', str(source.filestore), '--db-name', source.db_name,
+              '--data-dir', str(source.filestore.parent.parent)], '--data-dir'),
+            (['--db-name', source.db_name], '--db-name'),
+        )
+        environ = {PASSPHRASE_ENVIRONMENT_VARIABLE: str(self.passphrase_file)}
+        for extra, expected in cases:
+            with self.subTest(extra=extra), _environment(environ, clear=(REGISTRY_ENVIRONMENT_VARIABLE,)):
+                code, _stdout, stderr = self.run_main([*base, *extra])
+            self.assertEqual(code, EXIT_REFUSED)
+            self.assertIn(expected, stderr)
+        self.assertEqual(self.runner.calls, [])
+
     def test_a_tenant_named_like_the_control_plane_cannot_write_its_prefix(self):
         source = self.source()
         registry = self.root / 'registry.json'
@@ -1671,7 +1732,7 @@ class TestLock(PipelineCase):
     def test_the_command_line_refuses_a_held_lock_with_a_message_and_exit_code_two(self):
         source = self.source()
         argv = [
-            'capture', '--tenant', TENANT, '--kind', 'daily', '--work-root', str(self.work_root),
+            'capture', '--tenant', TENANT, '--kind', 'candidate', '--work-root', str(self.work_root),
             '--db-name', source.db_name, '--filestore', str(source.filestore),
             '--pg-dump', str(source.pg_dump), '--store-root', str(self.root / 'bucket'),
         ]
