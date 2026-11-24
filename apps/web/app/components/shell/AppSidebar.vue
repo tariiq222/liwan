@@ -5,12 +5,12 @@ import { useCoreApps } from '@/composables/useCoreApps'
 import { useShellModel } from '@/composables/useShellModel'
 
 // The one sidebar. Under the brand, in both modes, the organisation card and the icon row of the core applications
-// (يومي، Liwan AI، مهامي، الاجتماعات، المحادثات), each opening its own page. Global mode (the day page, the
-// start pages, search, notifications) then lists the pinned applications. App mode (an application, settings or the
-// self-service pages): a back row to «كل التطبيقات», the application's block, then its own links (create action first,
-// then sections). The footer is one icon row (the documents, the operations, «كل التطبيقات», the settings, the support
-// button and a chevron that opens the same four as a list) in both; the account is in the top bar.
-// `surface="drawer"` is the same content inside the phone drawer.
+// (يومي، Liwan AI، أعمالي، المحادثات), each opening its own page. Global mode (the day page, the start pages, search,
+// notifications) then lists the pinned applications. App mode (an application, settings or the self-service pages):
+// the application switcher block (listing Meetings first, Documents and Operations, then the remaining pinned
+// applications), then its own links (create action first, then sections). The footer is one icon row (the documents,
+// the operations, «كل التطبيقات», the settings, the support button and a chevron that opens the same four as a list)
+// in both; the account is in the top bar. `surface="drawer"` is the same content inside the phone drawer.
 const props = withDefaults(defineProps<{ surface?: 'sidebar' | 'drawer' }>(), { surface: 'sidebar' })
 const emit = defineEmits<{ navigate: [] }>()
 const { t } = useI18n()
@@ -49,8 +49,21 @@ const footerTools = computed<ShellFooterTool[]>(() => [
   ...footerRows.value,
   { id: 'support', label: t('nav.supportSoon'), icon: 'i-lucide-life-buoy', disabled: true },
 ])
-// Every pinned application except the open one: the menu lists where the user can go, not where they already are.
-const switchItems = computed(() => pinnedRows.value.filter(row => row.id !== shell.activeModule.value))
+const footerSwitchRows = computed<ShellNavigationLink[]>(() =>
+  shell.rail.value.footer.map(item => link(item.id, t(item.labelKey), item.icon, item.to, shell.activeModule.value === item.id, item.id)),
+)
+// Every switchable application except the open one: Meetings first, then Documents and Operations, then the remaining pinned applications (owner decision 2026-11-25).
+const switchItems = computed(() => {
+  const seen = new Set<string>()
+  const add = (rows: readonly ShellNavigationLink[]) => rows.filter((row) => {
+    if (row.id === shell.activeModule.value || seen.has(row.id)) return false
+    seen.add(row.id)
+    return true
+  })
+  const meetingsItem = shell.rail.value.applications.find(item => item.id === 'meetings')
+  const meetingsRow = meetingsItem ? [link(meetingsItem.id, t(meetingsItem.labelKey), meetingsItem.icon, meetingsItem.to, shell.activeModule.value === meetingsItem.id, meetingsItem.id)] : []
+  return [...add(meetingsRow), ...add(footerSwitchRows.value), ...add(pinnedRows.value)]
+})
 
 // App mode: the create action first, then the application's own sections.
 const app = computed(() => navigation.item.value)

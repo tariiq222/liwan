@@ -309,14 +309,14 @@ function setPage(next: number) {
             </UInput>
           </template>
           <template #default>
-            <USelect data-testid="meeting-state" class="w-full md:w-32" icon="i-lucide-activity" :items="stateOptions" :model-value="stateSelect" :disabled="!hydrated" :aria-label="t('meetingsUi.stateLabel')" @update:model-value="onStateChange" />
-            <MeetingProjectFilter v-if="hasProjectFilter" id="meeting-project" hide-label class="w-full md:w-32" :model-value="projectId" @update:model-value="setProject" @resolved-name="projectName = $event" />
-            <div class="grid w-full gap-1 md:w-32">
+            <USelect data-testid="meeting-state" class="w-full md:w-36" icon="i-lucide-activity" :items="stateOptions" :model-value="stateSelect" :disabled="!hydrated" :aria-label="t('meetingsUi.stateLabel')" @update:model-value="onStateChange" />
+            <MeetingProjectFilter v-if="hasProjectFilter" id="meeting-project" hide-label class="w-full md:w-36" :model-value="projectId" @update:model-value="setProject" @resolved-name="projectName = $event" />
+            <div class="grid w-full min-w-0 gap-1 md:w-36">
               <USelectMenu
                 id="meeting-organizer"
                 v-model:search-term="organizerSearch"
                 :ignore-filter="true"
-                class="w-full"
+                class="w-full min-w-0"
                 icon="i-lucide-user"
                 value-key="value"
                 :model-value="routeFilters.organizerId ? String(routeFilters.organizerId) : 'all'"

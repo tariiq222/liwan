@@ -39,7 +39,7 @@ function selectProject(value: unknown) {
 </script>
 
 <template>
-  <div v-if="canReadProjects" class="grid min-w-44 gap-1">
+  <div v-if="canReadProjects" class="grid min-w-0 gap-1">
     <label v-if="id && !hideLabel" :for="id" class="text-sm font-medium text-highlighted">{{ label || t('meetingsFilters.project') }}</label>
     <USelectMenu
       :id="id"
@@ -48,7 +48,7 @@ function selectProject(value: unknown) {
       :items="items"
       :ignore-filter="true"
       value-key="value"
-      class="w-full"
+      class="w-full min-w-0"
       :disabled="!hydrated || disabled || projectQuery.isLoading.value"
       :placeholder="t('meetingsFilters.allProjects')"
       :search-input="{ placeholder: t('meetingsFilters.projectSearch') }"

@@ -1,7 +1,6 @@
 import { MeetingNotificationSchema } from '@liwan/contracts'
 import type { AppManifest } from '../types'
 import { overdueFollowupAttention, todayMeetingsAttention } from './attention'
-import { meetingsCoreCount } from './coreCount'
 import { meetingsAppCard } from './appCard'
 import { meetingsSidebar } from './sidebar'
 
@@ -10,7 +9,6 @@ const manifest: AppManifest = {
   feature: 'meetings.enabled',
   routePrefixes: ['/meetings'],
   sidebar: meetingsSidebar,
-  coreCount: meetingsCoreCount,
   appCard: meetingsAppCard,
   recordListSources: [{ pattern: /^\/meetings\/series\/[1-9]\d*$/, capability: 'meetings.read' }],
   // The application's settings are one page under Settings > Applications; who may schedule is its first card.
@@ -20,7 +18,7 @@ const manifest: AppManifest = {
       { id: 'schedule', labelKey: 'meetingsSettings.schedule.title', icon: 'i-lucide-calendar-plus', capability: 'meetings.settings.manage' },
     ],
   },
-  rail: [{ id: 'meetings', labelKey: 'nav.meetings', icon: 'i-lucide-calendar-days', to: '/meetings', order: 30, core: 3 }],
+  rail: [{ id: 'meetings', labelKey: 'nav.meetings', icon: 'i-lucide-calendar-days', to: '/meetings', order: 30 }],
   nav: [
     { to: '/meetings', labelKey: 'nav.meetings', icon: 'i-lucide-calendar-days', shortcut: 'm', goKey: 'm', capability: 'meetings.read' },
     { to: '/meetings/follow-up', labelKey: 'nav.meetingFollowup', icon: 'i-lucide-list-checks', shortcut: 'f', capability: 'meetings.read' },
