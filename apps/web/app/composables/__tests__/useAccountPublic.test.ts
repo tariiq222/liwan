@@ -57,12 +57,11 @@ describe('accountLinkFailure', () => {
 
   it('names a refused field', () => {
     expect(accountLinkFailure(new ApiError(422, 'weak_password', 'short', 'password'))).toBe('weak_password')
-    expect(accountLinkFailure(new ApiError(422, 'invalid_mobile', 'bad', 'mobile'))).toBe('invalid_mobile')
-    expect(accountLinkFailure(new ApiError(409, 'mobile_taken', 'taken', 'mobile'))).toBe('mobile_taken')
   })
 
   it('treats every other refusal as a link that can no longer be used', () => {
     expect(accountLinkFailure(new ApiError(404, 'invalid_token', 'gone'))).toBe('invalid_link')
     expect(accountLinkFailure(new ApiError(422, 'invalid', 'bad body'))).toBe('invalid_link')
+    expect(accountLinkFailure(new ApiError(409, 'account_exists', 'taken'))).toBe('invalid_link')
   })
 })

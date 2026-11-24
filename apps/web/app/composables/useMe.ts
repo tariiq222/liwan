@@ -102,12 +102,15 @@ export function normalizeMobileInput(raw: string): string {
   return international.replace(/^\+9660/, '+966')
 }
 
-/** Asks the server to send a verification code to the signed-in user's own mobile, saving the number unverified. */
+/** Asks the server to send a verification code to the signed-in user's own mobile, saving the number unverified.
+ * The save clears the verified stamp of the number it replaces, so `me` is read again rather than kept. */
 export function useRequestMobileCode() {
   const { $api } = useApi()
   return async (mobile: string): Promise<Me> => {
     const body = MobileInputSchema.parse({ mobile })
-    return await $api('/api/v1/me/mobile/code', { method: 'POST', body, schema: MeSchema })
+    const saved = await $api('/api/v1/me/mobile/code', { method: 'POST', body, schema: MeSchema })
+    await refreshNuxtData('me')
+    return saved
   }
 }
 

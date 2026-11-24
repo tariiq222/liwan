@@ -75,7 +75,7 @@ async function mockAdmin(page: Page, options: { seats?: unknown; user?: ReturnTy
 const fieldFor = (page: Page, id: string) => page.locator(`#${id}`)
 
 test.describe('the anonymous account-link pages', () => {
-  test('join: the invitee sets a mobile number and password, and is sent to sign in', async ({ page }) => {
+  test('join: the invitee sets a password and is sent to sign in', async ({ page }) => {
     await page.route('**/api/v1/public/account/token', route => route.fulfill(ok({ usable: true })))
     const accepted: unknown[] = []
     await page.route('**/api/v1/public/account/invitation/accept', (route) => { accepted.push(route.request().postDataJSON()); return route.fulfill(ok({ login: 'sara@example.com', read_only: false })) })
@@ -105,22 +105,17 @@ test.describe('the anonymous account-link pages', () => {
     await expect(page.getByRole('alert').filter({ hasText: 'انتهت صلاحية الدعوة أو استُخدمت' })).toBeVisible()
   })
 
-  test('join: an unavailable service keeps what was typed and the same button retries; a taken number names itself', async ({ page }) => {
+  test('join: an unavailable service keeps what was typed and the same button retries', async ({ page }) => {
     await page.route('**/api/v1/public/account/token', route => route.fulfill(ok({ usable: true })))
-    const answers = [refusal(429, 'rate_limited'), refusal(409, 'mobile_taken', 'taken', 'mobile'), ok({ login: 'sara@example.com', read_only: false })]
+    const answers = [refusal(429, 'rate_limited'), ok({ login: 'sara@example.com', read_only: false })]
     await page.route('**/api/v1/public/account/invitation/accept', route => route.fulfill(answers.shift()!))
     await page.goto('/join?token=tok-abc')
-    await fieldFor(page, 'mobile').fill('+966500000001')
     await fieldFor(page, 'password').fill(PASSWORD)
     await fieldFor(page, 'confirm').fill(PASSWORD)
     await page.getByRole('button', { name: 'تفعيل الحساب', exact: true }).click()
     await expect(page.getByRole('alert').filter({ hasText: 'الخدمة غير متاحة حاليًا' })).toBeVisible()
     await expect(fieldFor(page, 'password')).toHaveValue(PASSWORD)
-    await expect(fieldFor(page, 'mobile')).toHaveValue('+966500000001')
     await page.getByRole('button', { name: 'إعادة المحاولة', exact: true }).click()
-    await expect(page.getByText('رقم الجوال هذا مستخدم في حساب آخر.')).toBeVisible()
-    await expect(fieldFor(page, 'mobile')).toHaveValue('+966500000001')
-    await page.getByRole('button', { name: 'تفعيل الحساب', exact: true }).click()
     await expect(page.getByRole('status').filter({ hasText: 'تم تفعيل حسابك' })).toBeVisible()
   })
 
@@ -282,7 +277,9 @@ test.describe('the mobile step', () => {
     const sent: unknown[] = []
     await page.route('**/api/v1/me/mobile/code', async (route) => {
       sent.push(route.request().postDataJSON())
-      if (sent.length === 1) return route.fulfill(refusal(409, 'mobile_taken', 'taken', 'mobile'))
+      // The server's own wait, not a local constant: a cooldown names `resend_after` and nothing went out.
+      if (sent.length === 1) return route.fulfill(ok({ code: 'resend_cooldown', message: 'wait', details: { resend_after: 30 } }, 429))
+      if (sent.length === 2) return route.fulfill(refusal(409, 'mobile_taken', 'taken', 'mobile'))
       return route.fulfill(ok({ ...base, mobile: '+966500000001', mobile_required: true }))
     })
     const verified: unknown[] = []
@@ -296,10 +293,18 @@ test.describe('the mobile step', () => {
     await page.evaluate(() => (window as unknown as { useNuxtApp: () => { $router: { push: (to: string) => Promise<unknown> } } }).useNuxtApp().$router.push('/projects'))
     await expect(page).toHaveURL(/\/account\/mobile\?next=\/projects$/)
     await expect(heading(page, 'أضف رقم جوالك')).toBeVisible()
+    // The cooldown is a real countdown: a fake clock lets the test move past it instead of waiting 30 seconds.
+    await page.clock.install()
     const send = page.getByRole('button', { name: 'أرسل الرمز', exact: true })
     await expect(page.getByRole('button', { name: 'تسجيل الخروج', exact: true })).toBeVisible()
     await expect(send).toBeDisabled()
     await fieldFor(page, 'mobile').fill('0500000001')
+    await send.click()
+    // The cooldown refused the send: the page repeats the server's wait and holds the button for it.
+    await expect(page.getByRole('alert').filter({ hasText: 'إعادة الإرسال بعد 30 ثانية' })).toBeVisible()
+    await expect(send).toBeDisabled()
+    await page.clock.fastForward(31_000)
+    await expect(send).toBeEnabled()
     await send.click()
     await expect(page.getByText('رقم الجوال هذا مستخدم في حساب آخر.')).toBeVisible()
     await send.click()
@@ -307,11 +312,11 @@ test.describe('the mobile step', () => {
     await expect(confirm).toBeDisabled()
     await page.locator('#mobile-code').fill('111111')
     await confirm.click()
-    await expect(page.getByText('الرمز غير صحيح.')).toBeVisible()
+    await expect(page.getByText('الرمز غير صحيح. إن كانت صلاحيته انتهت أو حاولت كثيرًا فأرسل رمزًا جديدًا.')).toBeVisible()
     await page.locator('#mobile-code').fill('123456')
     await confirm.click()
     await expect(page).toHaveURL(/\/projects/)
-    expect(sent).toEqual([{ mobile: '+966500000001' }, { mobile: '+966500000001' }])
+    expect(sent).toEqual([{ mobile: '+966500000001' }, { mobile: '+966500000001' }, { mobile: '+966500000001' }])
     expect(verified).toEqual([{ code: '111111' }, { code: '123456' }])
   })
 
