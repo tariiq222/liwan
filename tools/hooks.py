@@ -30,6 +30,9 @@ from worktree_lanes import LaneError, commit_refusal, read_take
 # Customer-facing UI sources that ui_policy and no_external_refs scan.
 UI_SOURCE_ROOTS = ('apps/web/', 'apps/vendor-admin/', 'packages/ui/', 'packages/commercial-ui/')
 
+# Root dependency files that ui_policy reads (override and duplicate-copy gates).
+ROOT_DEPENDENCY_FILES = ('package.json', 'package-lock.json')
+
 REPO = Path(__file__).resolve().parents[1]
 MARKER = '# liwan-hook'
 HOOKS = ('pre-commit', 'commit-msg')
@@ -52,6 +55,8 @@ def plan_pre_commit(staged):
     if any(path.startswith(UI_SOURCE_ROOTS) for path in staged):
         steps.append(('ui_policy', ['python3', '-B', 'tools/ui_policy.py']))
         steps.append(('no_external_refs', ['python3', '-B', 'tools/no_external_refs.py']))
+    elif any(path in ROOT_DEPENDENCY_FILES for path in staged):
+        steps.append(('ui_policy', ['python3', '-B', 'tools/ui_policy.py']))
     addon_files = [p for p in staged if p.endswith('.py') and p.startswith('odoo-addons/')]
     if addon_files:
         steps.append(('ruff', ['ruff', 'check', *addon_files]))

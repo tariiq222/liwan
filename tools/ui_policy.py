@@ -1085,7 +1085,7 @@ def snapshot(root: Path, ref: str) -> dict[str, str]:
         return {entry.name: archive.extractfile(entry).read().decode('utf-8')
                 for entry in archive if entry.isfile()
                 and (source_file(entry.name) or story_file(entry.name) or locale_file(entry.name)
-                     or entry.name in (*MANIFESTS, CATALOG))}
+                     or entry.name in POLICY_FILES)}
 
 
 def current_snapshot(root: Path) -> dict[str, str]:
