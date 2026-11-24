@@ -12,6 +12,7 @@ SUBJECTS = {
     'invite': 'دعوة للانضمام إلى ليوان | Invitation to join LiwanOS',
     'reset': 'إعادة تعيين كلمة المرور | Reset your LiwanOS password',
     'login_code': 'رمز الدخول إلى ليوان | Your LiwanOS sign-in code',
+    'login_throttled': 'محاولات دخول فاشلة على حسابك | Failed sign-in attempts on your LiwanOS account',
 }
 LINES = {
     'invite': (
@@ -25,6 +26,12 @@ LINES = {
          'الرابط صالح لمدة 60 دقيقة ويعمل مرة واحدة. إن لم تطلب ذلك فتجاهل هذه الرسالة.'),
         ('Hello {name}, we received a request to reset your password. Open the link below to choose a new '
          'one. The link is valid for 60 minutes and works once. If you did not ask for it, ignore this message.'),
+    ),
+    'login_throttled': (
+        ('مرحبًا {name}، سُجلت محاولات دخول فاشلة متعددة على حسابك، ولذلك أُبطئ الدخول إليه مؤقتًا. '
+         'إن لم تكن أنت، فأعد تعيين كلمة المرور من صفحة الدخول.'),
+        ('Hello {name}, we recorded multiple failed sign-in attempts on your account, so sign-in to it was '
+         'temporarily slowed. If this was not you, reset your password from the sign-in page.'),
     ),
 }
 
@@ -72,7 +79,16 @@ class LiwanAccountMail(models.AbstractModel):
         def build(env):
             return self._liwan_compose_code(env, recipient, (ar, en))
 
-        self.env['liwan.outbound.mail']._liwan_send_after_commit('login code mail', SUPERUSER_ID, build)
+        self._liwan_queue('login code mail', build)
+
+    @api.model
+    def _liwan_send_notice(self, recipient, name, purpose):
+        """Queue one link-less notice (``purpose`` is a key of SUBJECTS and LINES) for RECIPIENT after the commit."""
+        self._liwan_queue(f'{purpose} mail', lambda env: self._liwan_message(env, recipient, name, purpose, None))
+
+    @api.model
+    def _liwan_queue(self, label, build):
+        self.env['liwan.outbound.mail']._liwan_send_after_commit(label, SUPERUSER_ID, build)
 
     @api.model
     def _liwan_compose_code(self, env, recipient, lines):
