@@ -28,7 +28,7 @@ export type Spawner = typeof spawn
 export type ChannelDeps = { spawnChild?: Spawner; connect?: (path: string) => Socket }
 
 /** Exact names only, no prefixes: a spawned gate sees the settings it needs to find Python and Docker and none of the worker's secrets. */
-const EFFECT_ENV_NAMES = ['PATH', 'HOME', 'LANG', 'LC_ALL', 'TMPDIR', 'DOCKER_HOST', 'DOCKER_CONFIG', 'LIWAN_SHARED_RUNTIME_CONFIG', 'LIWAN_RELEASE_ROUTES_DIR', 'LIWAN_RELEASE_HELPER_POOL_ID'] as const
+const EFFECT_ENV_NAMES = ['PATH', 'HOME', 'LANG', 'LC_ALL', 'TMPDIR', 'DOCKER_HOST', 'DOCKER_CONFIG', 'LIWAN_SHARED_RUNTIME_CONFIG'] as const
 
 export function effectEnv(env: NodeJS.ProcessEnv = process.env): Record<string, string> {
   const out: Record<string, string> = {}

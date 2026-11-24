@@ -355,9 +355,7 @@ the bridge's own tests. Run one locally with the environment of `deploy/ci/odoo.
 control-plane PostgreSQL suites run serially because they share their isolated scratch databases. The stage also runs
 a Mailpit service (`LIWAN_MAILPIT_SMTP_PORT`, `LIWAN_MAILPIT_API_PORT`; locally
 `docker run --rm -p 1025:1025 -p 8025:8025 axllent/mailpit:v1.27.10`) and fails when it is missing. Each vitest group writes a
-JSON report and `deploy/control-plane/vitest_skip_gate.py` fails the stage on any skipped, pending or todo test. The
-`deploy/releases/test_backup_live.py` live test runs here on `liwan_scratch_backup_ci` through
-`deploy/control-plane/unittest_no_skip.py` (superuser `PGUSER`, psycopg2). The packages acceptance suite needs a scratch Odoo tenant
+JSON report and `deploy/control-plane/vitest_skip_gate.py` fails the stage on any skipped, pending or todo test. The packages acceptance suite needs a scratch Odoo tenant
 and is out of the default run (`tools/ci_not_run.json`): `npm -w apps/control-plane run test:packages-acceptance`.
 `vendor-admin` has its own prepare, types, tests and build checks, then runs its Playwright specs against that build and
 the mock control service. The `image` stage builds every production image
@@ -637,30 +635,18 @@ Local evidence only; it does not establish deployment readiness.
 ## Continuous release verification
 
 The thirteen-stage pipeline remains unchanged in scope; the `ci` workflow selects from it as described under "Change-scoped stages". The static stage
-runs canonical release unit discovery after dependency installation (the real H3
-handler probes load jiti), and shared/dedicated guard regressions. Root deployment
-tests run separately with `PYTHONPATH=deploy` for their existing top-level helper imports, to avoid importing the same package as `releases.*` instead
-of `deploy.releases.*`. No default unit test may connect to PostgreSQL or start
+runs the release command's unit discovery (`deploy/release`) after dependency installation and the shared/dedicated guard regressions
+(`deploy/shared/*.test.mjs`, which include `deploy/shared/dedicated_guard.test.mjs` and `deploy/shared/release-assets.test.mjs`). Root deployment
+tests run separately with `PYTHONPATH=deploy` for their existing top-level helper imports. No default unit test may connect to PostgreSQL or start
 Docker/Odoo. Focused checks from the selected worktree:
 
 ```sh
-python3 -B -m unittest discover -s deploy/releases -t . -p 'test_*.py'
-node --test deploy/shared/release-guard.test.mjs deploy/shared/release-assets.test.mjs deploy/shared/release-routes.test.mjs deploy/releases/test_dedicated_guard.mjs
+python3 -B -m unittest discover -s deploy/release -t . -p 'test_*.py'
+node --test deploy/shared/*.test.mjs
 ```
 
-Live release acceptance remains an explicit separate local operator command,
-not a thirteenth pipeline stage or a condition that weakens the `ci` workflow:
-
-```sh
-python3 -m tools.continuous_updates_acceptance.run --config /absolute/operator/local.json --output /absolute/operator/report.json
-```
-
-The prepared configuration requires scratch database bindings, actual source
-process/config/role identities, existing sessions/attachments and loopback URLs.
-Never use `liwan_dev`. Reports distinguish source-process, PostgreSQL, Odoo upgrade,
-HTTP/session/attachment and concurrent tenant evidence from Docker/production
-proof. `tools/continuous_updates_acceptance/docker_odoo.py` is a separate scoped
-image experiment, not fresh product Dockerfile acceptance.
+The Python release engine and its live acceptance lab are removed.
+The guard's release-routing side stays until its fate is decided (deploy-unification part 9).
 
 Maintenance model/API checks use test tag `liwan_maintenance`: authorization,
 company isolation, operator notices, immutable events, preference/booking CAS,

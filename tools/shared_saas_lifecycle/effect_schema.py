@@ -207,7 +207,7 @@ _BRANCHES = shape(
 _ENTITLEMENT = shape({'modules': MODULES, 'features': FEATURES, 'digest': DIGEST, 'compiler_version': COMPILER_VERSION})
 _RESTORE_BINDING = shape({'requestId': UUID, 'approvalId': UUID, 'backupId': UUID, 'digest': DIGEST, 'manifestSha256': DIGEST})
 _SUBSCRIPTION_OPTIONAL = {
-    'releaseBinding': BINDING, 'restore': _RESTORE_BINDING, 'admin_login': free_text(1, 254),
+    'restore': _RESTORE_BINDING, 'admin_login': free_text(1, 254),
     'commercial_valid_until': nullable(DATE), 'commercial_valid_until_revision': integer(),
     'trial_ends_at': nullable(DATETIME), 'post_trial_features': FEATURES, 'post_trial_modules': list_of(MODULE, 1024, unique=True),
     'post_trial_digest': DIGEST, 'excess_settle': literal(True),
@@ -229,11 +229,11 @@ def subscription_effect(request):
 
 
 ADMIN_PASSWORD_EFFECT = shape(
-    {'action': literal('set_admin_password'), 'tenant': TENANT, 'releaseBinding': BINDING,
+    {'action': literal('set_admin_password'), 'tenant': TENANT,
      'login': free_text(1, 256), 'password': secret_text(1, 256)})
 
 TENANT_STATUS_EFFECT = shape(
-    {'action': literal('set_tenant_status'), 'tenant': TENANT, 'releaseBinding': BINDING,
+    {'action': literal('set_tenant_status'), 'tenant': TENANT,
      'status': literal('active', 'suspended'), 'reason': nullable(literal('non_payment', 'vendor'))})
 
 DROP_STAGES = ('verify', 'stamp_marker', 'drop_database', 'remove_filestore', 'remove_restore_copies', 'purge_local_backups', 'remove_side_files')
@@ -247,8 +247,7 @@ TENANT_DROP_EFFECT = shape(
 # Resource names are never in the request: the effect derives them from `tenantId`. `requestId` is the id of one run (a fresh uuid per run).
 TENANT_STORAGE_EFFECT = shape(
     {'schemaVersion': literal(1), 'operation': literal('ensure', 'verify', 'rotate'), 'tenantId': TENANT_ID,
-     'database': RESOURCE, 'requestId': UUID},
-    {'releaseBinding': BINDING})
+     'database': RESOURCE, 'requestId': UUID})
 
 SCHEMAS = {
     'odoo_effect': ODOO_EFFECT, 'odoo_backup': odoo_backup, 'subscription_effect': subscription_effect,

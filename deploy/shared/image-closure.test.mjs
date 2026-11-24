@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const dockerfile = readFileSync(join(root, 'deploy/shared/Dockerfile'), 'utf8')
 // The files the image starts or imports directly: the Dockerfile's own import check, its CMD, HEALTHCHECK and the dedicated start.
-const entries = ['deploy/shared/guard.mjs', 'deploy/releases/dedicated_guard.mjs', 'deploy/shared/tiktok-relay.mjs', 'deploy/shared/start.mjs', 'deploy/shared/healthcheck.mjs', 'deploy/releases/start_dedicated.mjs']
+const entries = ['deploy/shared/guard.mjs', 'deploy/shared/dedicated_guard.mjs', 'deploy/shared/tiktok-relay.mjs', 'deploy/shared/start.mjs', 'deploy/shared/healthcheck.mjs', 'deploy/shared/start_dedicated.mjs']
 const SPECIFIER = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)(['"])(\.{1,2}\/[^'"]+)\1/g
 
 /** What a COPY line puts in the image: source path -> directory it lands in. */

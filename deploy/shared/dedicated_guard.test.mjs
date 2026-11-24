@@ -223,7 +223,7 @@ test('dedicated retained assets survive pool switch, latest follows active web a
     return path
   }
   const publish = (path, release) => {
-    const done = spawnSync('python3', ['-B', '-c', 'from deploy.releases.assets import publish_assets; import sys; publish_assets(*sys.argv[1:])', path, store, release], { cwd: fileURLToPath(new URL('../..', import.meta.url)), encoding: 'utf8' })
+    const done = spawnSync('python3', ['-B', '-c', 'from deploy.shared.assets import publish_assets; import sys; publish_assets(*sys.argv[1:])', path, store, release], { cwd: fileURLToPath(new URL('../..', import.meta.url)), encoding: 'utf8' })
     assert.equal(done.status, 0, 'actual asset publication failed')
   }
   const meta = '/_nuxt/builds/meta/11111111-1111-4111-8111-111111111111.json'

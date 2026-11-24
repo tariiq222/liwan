@@ -63,13 +63,11 @@ class GateCase(unittest.TestCase):
         self.script.write_text(FAKE_EFFECT)
         self.compose = self.write('shared.compose.json', '{}')
         self.envfile = self.write('shared.env', '')
-        self.release_config = self.write('release.json', '{}')
         self.state = self.root / 'state'
         self.state.mkdir(mode=0o755)
         os.chmod(self.state, 0o755)
         self.config = {'schemaVersion': 1, 'projectName': 'liwan-shared-x', 'composeFile': str(self.compose),
-                       'envFile': str(self.envfile), 'stateDir': str(self.state), 'domainSuffix': 'x.test',
-                       'releaseBackupConfig': str(self.root / 'release.json')}
+                       'envFile': str(self.envfile), 'stateDir': str(self.state), 'domainSuffix': 'x.test'}
         self.config_file = self.write('shared-runtime.json', json.dumps(self.config))
         self.env = {gate.CONFIG_ENV: str(self.config_file), 'PATH': '/usr/bin:/bin'}
         self.effects = {name: name for name in ('echo', 'env', 'ignoreterm', 'termexit', 'partial', 'chatter', 'tenant_drop_effect')}
@@ -349,21 +347,11 @@ class RelayTests(GateCase):
         first = conn.read_line()
         self.assertEqual(first['request']['action'], 'observe')
         self.assertEqual(first['request']['config']['composeFile'], str(self.compose))
-        self.assertEqual(first['request']['config']['releaseBackupConfig'], str(self.root / 'release.json'))
         self.assertEqual(conn.read_line(), {'permit': 'stage'})
         conn.send({'proceed': True})
         lines, status = conn.finish()
         self.assertEqual(lines, [{'got': {'proceed': True}}, {'exit': 3}])
         self.assertEqual(status, 3)
-
-    def test_release_backup_config_stripped_for_the_drop_effect(self):
-        self.effects['tenant_drop_effect'] = 'echo'
-        conn = self.connect({'effect': 'tenant_drop_effect'}, {'action': 'verify', 'dryRun': True})
-        config = conn.read_line()['request']['config']
-        self.assertNotIn('releaseBackupConfig', config)
-        self.assertEqual(config['projectName'], 'liwan-shared-x')
-        conn.send({'proceed': True})
-        conn.finish()
 
     def test_bytes_sent_with_the_request_reach_the_effect(self):
         lines, _ = self.converse({'effect': 'echo'}, json.dumps({'a': 1}).encode() + b'\n{"proceed":true}\n')
@@ -386,7 +374,8 @@ class RelayTests(GateCase):
         self.assertNotIn(gate.DELETION_ENV, child)
         self.assertNotIn('PYTHONPATH', child)
         self.assertEqual(child['DOCKER_HOST'], 'unix:///run/docker.sock')
-        self.assertEqual(child['LIWAN_RELEASE_HELPER_POOL_ID'], 'p')
+        self.assertNotIn('LIWAN_RELEASE_ROUTES_DIR', child)
+        self.assertNotIn('LIWAN_RELEASE_HELPER_POOL_ID', child)
         self.assertEqual(child['PYTHONUNBUFFERED'], '1')
         self.assertEqual(child['PATH'], '/usr/bin:/bin')
 
@@ -552,7 +541,7 @@ def restore_request(**over):
 
 
 def subscription_request(**over):
-    request = {'action': 'reconfigure', 'tenant': {'database': SCRATCH, 'host': 'tacme.example.test'}, 'releaseBinding': BINDING,
+    request = {'action': 'reconfigure', 'tenant': {'database': SCRATCH, 'host': 'tacme.example.test'},
                'order_id': UUID_A, 'operation_id': UUID_B, 'previous_revision_id': None, 'target_revision_id': UUID_C,
                'entitlement': {'modules': ['liwan_core', 'liwan_pmo'], 'features': {'users.limit': 10, 'pmo.enabled': True}, 'digest': DIGEST,
                                'compiler_version': 1},
@@ -566,21 +555,21 @@ def subscription_request(**over):
 
 
 def subscription_observe(**over):
-    request = {'action': 'observe', 'tenant': {'database': SCRATCH, 'host': 'tacme.example.test'}, 'releaseBinding': BINDING,
+    request = {'action': 'observe', 'tenant': {'database': SCRATCH, 'host': 'tacme.example.test'},
                'attemptId': UUID_A, 'fence': 0}
     request.update(over)
     return request
 
 
 def password_request(**over):
-    request = {'action': 'set_admin_password', 'tenant': {'database': SCRATCH, 'host': 'tacme.example.test'}, 'releaseBinding': BINDING,
+    request = {'action': 'set_admin_password', 'tenant': {'database': SCRATCH, 'host': 'tacme.example.test'},
                'login': 'admin@example.test', 'password': 'a long Passw0rd / with symbols'}
     request.update(over)
     return request
 
 
 def status_request(**over):
-    request = {'action': 'set_tenant_status', 'tenant': {'database': SCRATCH, 'host': 'tacme.example.test'}, 'releaseBinding': BINDING,
+    request = {'action': 'set_tenant_status', 'tenant': {'database': SCRATCH, 'host': 'tacme.example.test'},
                'status': 'suspended', 'reason': 'non_payment'}
     request.update(over)
     return request
@@ -633,14 +622,14 @@ IDENTIFIER_FIELDS = [
         ('authority', 'approvalId'), ('authority', 'backupId'), ('commercial', 'revisionId'), ('commercial', 'digest'))
 ] + [
     ('subscription_effect', subscription_request, path) for path in (
-        ('tenant', 'database'), ('tenant', 'host'), ('releaseBinding', 'tenantId'), ('order_id',), ('operation_id',), ('target_revision_id',),
+        ('tenant', 'database'), ('tenant', 'host'), ('order_id',), ('operation_id',), ('target_revision_id',),
         ('entitlement', 'digest'), ('entitlement', 'modules', 0), ('branches', 'archive', 0), ('branches', 'apply', 0, 'branch_id'),
         ('post_trial_digest',), ('post_trial_modules', 0), ('attemptId',), ('commercial_valid_until',),
         ('restore', 'requestId'), ('restore', 'backupId'), ('restore', 'approvalId'), ('restore', 'digest'), ('restore', 'manifestSha256'))
 ] + [
-    ('admin_password_effect', password_request, path) for path in (('tenant', 'database'), ('tenant', 'host'), ('releaseBinding', 'database'))
+    ('admin_password_effect', password_request, path) for path in (('tenant', 'database'), ('tenant', 'host'))
 ] + [
-    ('tenant_status_effect', status_request, path) for path in (('tenant', 'database'), ('tenant', 'host'), ('releaseBinding', 'filestore'))
+    ('tenant_status_effect', status_request, path) for path in (('tenant', 'database'), ('tenant', 'host'))
 ] + [
     ('tenant_drop_effect', drop_request, path) for path in (
         ('planDigest',), ('plan', 'requestId'), ('plan', 'controlTenantId'), ('plan', 'tenantId'), ('plan', 'database'), ('plan', 'filestore'),
@@ -662,16 +651,14 @@ VALID = [
     ('subscription_effect', subscription_request(previous_revision_id=UUID_A, trial_ends_at=None, ai_push=True, ai_expected_post_trial_digest=DIGEST,
                                                  recoverable_predecessors=[{'revision_id': UUID_A, 'digest': DIGEST}])),
     ('subscription_effect', subscription_observe()),
-    ('subscription_effect', subscription_observe(restore=subscription_request()['restore'], releaseBinding=DELETE)),
+    ('subscription_effect', subscription_observe(restore=subscription_request()['restore'])),
     ('admin_password_effect', password_request()),
     ('tenant_status_effect', status_request()),
     ('tenant_status_effect', status_request(status='active', reason=None)),
 ] + [('tenant_drop_effect', drop_request(action=stage)) for stage in schema.DROP_STAGES] + [
     ('tenant_drop_effect', drop_request(action='drop_database', dryRun=True)),
     ('tenant_drop_effect', at(drop_request(), ('dryRun',), DELETE)),
-] + [('tenant_storage_effect', storage_request(operation=operation)) for operation in ('ensure', 'verify', 'rotate')] + [
-    ('tenant_storage_effect', storage_request(releaseBinding={'tenantId': 'acme', 'database': 'liwan_acme', 'filestore': 'liwan_acme', 'registryRevision': 1})),
-]
+] + [('tenant_storage_effect', storage_request(operation=operation)) for operation in ('ensure', 'verify', 'rotate')]
 
 
 def drop_marked(request):
@@ -837,6 +824,12 @@ class GateRequestSchemaTests(GateCase):
     def test_the_schema_runs_before_the_deletion_switch(self):
         self.refused({'effect': 'tenant_drop_effect'}, {**drop_request(), 'x': 1})
 
+    def test_the_removed_release_binding_is_refused_by_every_effect_that_took_it(self):
+        for effect, request in (('subscription_effect', subscription_observe()), ('admin_password_effect', password_request()),
+                                ('tenant_status_effect', status_request()), ('tenant_storage_effect', storage_request())):
+            with self.subTest(effect=effect), self.assertRaises(schema.SchemaError):
+                schema.validate(effect, dict(request, releaseBinding=BINDING))
+
     def test_a_valid_request_reaches_the_effect_with_the_config_injected(self):
         conn = self.connect({'effect': 'tenant_status_effect'}, status_request(), validator=schema.validate)
         message = conn.read_line()
@@ -859,44 +852,6 @@ class EntryPointTests(unittest.TestCase):
 
     def test_grace_default_is_twenty_seconds(self):
         self.assertEqual(gate.KILL_GRACE, 60)
-
-
-class ReleaseBackupConfigTests(GateCase):
-    def write_document(self, document):
-        path = self.write('release.json', json.dumps(document))
-        return str(path)
-
-    def test_every_path_the_document_names_meets_the_trust_rule(self):
-        document = {'stateDir': str(self.state), 'runtime': {'postgres': {'passfile': str(self.compose)}, 'proxyTokenFile': str(self.envfile),
-                                                            'tenants': {'t': {'filestorePath': str(self.state)}}}}
-        self.assertIsNone(gate.check_release_backup_config(self.write_document(document), self.euid, self.lstat))
-        target = str(self.state)
-        real = self.lstat
-        for bad in (stat_of(stat.S_IFDIR | 0o777, self.euid), stat_of(stat.S_IFDIR | 0o755, self.euid + 1), stat_of(stat.S_IFLNK | 0o755, self.euid)):
-            self.lstat = lambda path, bad=bad: bad if path == target else real(path)
-            for document in ({'stateDir': target}, {'runtime': {'tenants': {'t': {'filestorePath': target}}}}):
-                with self.subTest(document=document), self.assertRaises(gate.Refusal) as caught:
-                    gate.check_release_backup_config(self.write_document(document), self.euid, self.lstat)
-                self.assertEqual('runtime_untrusted', caught.exception.code)
-
-    def test_a_missing_named_path_is_untrusted_and_a_url_path_is_not_a_host_path(self):
-        with self.assertRaises(gate.Refusal) as caught:
-            gate.check_release_backup_config(self.write_document({'stateDir': str(self.root / 'missing')}), self.euid, self.lstat)
-        self.assertEqual('runtime_untrusted', caught.exception.code)
-        gate.check_release_backup_config(self.write_document({'runtime': {'probe': {'httpPath': '/api/v1/x', 'relativePath': 'a/b'}}}), self.euid, self.lstat)
-
-    def test_a_document_that_is_not_an_object_or_not_json_is_invalid(self):
-        for text in ('[]', '{', '[' * 5000):
-            self.write('release.json', text)
-            with self.subTest(text=text[:5]), self.assertRaises(gate.Refusal) as caught:
-                gate.check_release_backup_config(str(self.release_config), self.euid, self.lstat)
-            self.assertEqual('runtime_invalid', caught.exception.code)
-
-    def test_load_config_applies_it_but_not_for_the_drop_effect(self):
-        self.write_document({'stateDir': str(self.root / 'missing')})
-        with self.assertRaises(gate.Refusal):
-            gate.load_config(self.env, self.euid, 'echo', self.lstat)
-        self.assertNotIn('releaseBackupConfig', gate.load_config(self.env, self.euid, gate.DROP_EFFECT, self.lstat))
 
 
 class NeverACrashTests(GateCase):
@@ -954,20 +909,6 @@ class NeverACrashTests(GateCase):
 
 class TesterFindingTests(GateCase):
     """Defects found by the independent tester: both fail until the gate closes them."""
-
-    def test_untrusted_release_backup_config_is_refused(self):
-        # releaseBackupConfig names an operator document the effect reads as root-equivalent (its stateDir, runtime, filestorePath);
-        # a worker-writable one must meet the same trust rule as the compose and env files.
-        target = str(self.root / 'release.json')
-        real = self.lstat
-        self.lstat = lambda path: stat_of(stat.S_IFREG | 0o664, self.euid + 1) if path == target else real(path)
-        conn = self.connect({'effect': 'echo'}, {})
-        try:
-            first = conn.read_line()  # a bounded read: an accepted request starts the effect and would wait for ever
-        except AssertionError:
-            first = None
-        os.close(conn.in_w)  # hang up so a started effect stops
-        self.assertEqual(first, {'error_code': 'runtime_untrusted'})
 
     def test_deeply_nested_json_is_a_refusal_not_a_crash(self):
         # json.loads raises RecursionError (not ValueError) on deep nesting; the gate must answer request_invalid.

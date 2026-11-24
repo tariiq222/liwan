@@ -101,7 +101,7 @@ async function fixture(mode: 'shared' | 'dedicated', guarded = false) {
   if (guarded) {
     writeFileSync(join(root, 'pools.json'), JSON.stringify({ schemaVersion: 1, pools: { blue: { poolId: 'blue', releaseId: 'r1', odooUrl: upstreamUrl, webUrl: url, wsUrl: upstreamUrl } } }))
     const { createGuard, sessionCodec } = await import('../../../../../deploy/shared/guard.mjs')
-    const { createDedicatedGuard } = await import('../../../../../deploy/releases/dedicated_guard.mjs')
+    const { createDedicatedGuard } = await import('../../../../../deploy/shared/dedicated_guard.mjs')
     const keys = { test: 'synthetic-public-body-cookie-'.repeat(3) }
     guard = mode === 'shared'
       ? createGuard({ registryPath: join(root, 'registry.json'), proxyToken: token, keys, activeKid: 'test', odooUrl: upstreamUrl, webUrl: url, releaseRoutesDir: root, releaseAssetsDir: undefined })

@@ -117,7 +117,6 @@ A clean dry run of all stages proves: the plan and its digest, every name guard,
 - A real bucket: versioning, object lock or cross-region replication keep earlier versions this purge cannot see; `list` shows current keys only.
 - Production-size data: no timing, no large filestore, no large prefix on S3 (pagination was proven with a capped fake listing and the S3 client's own tests).
 - `docker compose exec` into `db`, `restore-db`, `odoo` and `restore-odoo`: the argument lists are tested, no container was started.
-- Release-route admission (`effect_operation`) is not asked: a retiring tenant has no route. The runner must retire the route before calling the stages.
 - Backup artifacts the control plane writes as `<backupRoot>/<id>.json` (`shared-backup.ts`) are not under `<stateDir>/backups/` and are not removed here.
 - A capture that started before the retirement may still be running outside the settle wait.
 

@@ -18,8 +18,7 @@ type StartRefusal = 'operations_unavailable' | 'job_in_progress'
  * Starting a backup is a short outage for every workspace on the shared stack, not only this one. The worker
  * (`tools/shared_saas_lifecycle/odoo_backup.py`, `capture`) refuses a project with a running effect container, then runs
  * `compose stop odoo`, checks that Odoo stopped and no writer session remains, dumps the database and filestore, and runs
- * `compose start odoo` and waits for it to be healthy. When release routes are enabled the capture goes through the
- * tenant-only release quiescence instead (`release_backup.py`); the stop of the shared service is the default path.
+ * `compose start odoo` and waits for it to be healthy.
  */
 export async function listSharedBackups(pool: Pool, controlTenantId: string) {
   z.uuid().parse(controlTenantId)

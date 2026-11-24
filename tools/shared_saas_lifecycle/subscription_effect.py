@@ -730,10 +730,6 @@ class SubscriptionEffect:
             self.runner.run_script(build_observe_script(database), 'observe')))
 
     def observe(self, request):
-        with odoo_effect.effect_operation(request, 'observe'):
-            return self._observe_operation(request)
-
-    def _observe_operation(self, request):
         database = validate_tenant(request['tenant'])['database']
         observed = self._observe(database)
         return {**observed, 'observed_at': self.clock()}
@@ -758,10 +754,6 @@ class SubscriptionEffect:
                 'modules_installed': installed}
 
     def reconfigure(self, request):
-        with odoo_effect.effect_operation(request, 'reconfigure'):
-            return self._reconfigure_operation(request)
-
-    def _reconfigure_operation(self, request):
         validate_reconfigure(request)
         database, target = request['tenant']['database'], request['target_revision_id']
         observed = self._observe(database)
@@ -826,14 +818,12 @@ class ComposeRunner(odoo_effect.Runner):
 
     def __init__(self, request, permit=None):
         config = request['config']
-        if (set(config) - {'releaseBackupConfig'} != {'schemaVersion', 'projectName', 'composeFile', 'envFile', 'stateDir', 'domainSuffix'}
+        if (set(config) != {'schemaVersion', 'projectName', 'composeFile', 'envFile', 'stateDir', 'domainSuffix'}
                 or config['schemaVersion'] != 1
                 or not re.fullmatch(r'liwan-(?:saas|shared)-[a-z0-9-]{3,48}', config['projectName'])):
             raise EffectError('runtime_invalid')
         for key in ('composeFile', 'envFile', 'stateDir'):
             odoo_effect.no_symlink(config[key])
-        if config.get('releaseBackupConfig'):
-            odoo_effect.no_symlink(config['releaseBackupConfig'])
         self.request, self.config = request, config
         self.database = odoo_effect.validate_database(request['tenant']['database'])
         self.restore = 'restore' in request
@@ -849,8 +839,6 @@ class ComposeRunner(odoo_effect.Runner):
     def _bind_restore(self, binding):
         # The existing release verifier only attests the source helper. Until it
         # can attest the restore topology, refuse before any Compose invocation.
-        if odoo_effect.release_routes_enabled():
-            raise EffectError('release_operation_blocked')
         if not isinstance(binding, dict) or set(binding) != {'requestId', 'approvalId', 'backupId', 'digest', 'manifestSha256'}:
             raise EffectError('restore_target_unverified')
         for key in ('requestId', 'approvalId', 'backupId'):

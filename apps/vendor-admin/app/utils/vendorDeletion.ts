@@ -83,7 +83,6 @@ const DELETION_CODES = [
   'plan_digest_mismatch',
   'plan_invalid',
   'relay_not_configured',
-  'release_operation_blocked',
   'remove_failed',
   'restore_copy_marker_mismatch',
   'restore_copy_marker_missing',

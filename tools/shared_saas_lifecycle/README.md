@@ -29,7 +29,7 @@ tenant at a time (an advisory lock file in the effect-owned `tenant-storage` sta
 |---|---|
 | `result` with `state: pending_key`, `stage`, `retryAfterSeconds` | the key is stored but a new OCI key needs about 7 minutes; call `verify` (or `ensure`) again after that. No call waits |
 | `result` with `state: active`, `stage: verified` | a real write and read through the stored key worked; only now is the storage the attachment default |
-| `error_code` | `oci_refused`, `oci_unreachable`, `key_not_valid` (not working 15 minutes after issue), `store_failed`, `limit_reached`, `bucket_mismatch` (the stored record names another bucket: never overwritten), or an effect code (`request_invalid`, `operation_in_progress`, `release_operation_blocked`, `authority_lost`, `script_failed`) |
+| `error_code` | `oci_refused`, `oci_unreachable`, `key_not_valid` (not working 15 minutes after issue), `store_failed`, `limit_reached`, `bucket_mismatch` (the stored record names another bucket: never overwritten), or an effect code (`request_invalid`, `operation_in_progress`, `authority_lost`, `script_failed`) |
 
 Stages: `key_stored` (pending) and `verified` (active). The control plane records the answer on the tenant's row (`requestId` is the id of one
 run, a fresh uuid per run). The request carries no resource name: the container derives `lw-<24 hex>` from an HMAC of the tenant id with the
@@ -75,8 +75,8 @@ tests spawn it with pipes. Wire protocol, JSON lines on stdin and stdout:
   bytes, no `config` field, matching the effect's schema in `effect_schema.py`: only the keys the control plane sends,
   exact types and sizes, a strict full-match pattern for every identifier, and no `/`, backslash, NUL or `.`/`..`
   value outside the named free-text fields (names, logins, the password, the issuer); anything else is `request_invalid`
-  and no effect starts). The gate adds `config` from the file named by its own `LIWAN_SHARED_RUNTIME_CONFIG`
-  (`releaseBackupConfig` removed for `tenant_drop_effect`). Later lines, such as `{"proceed": true}`, go to the effect.
+  and no effect starts). The gate adds `config` from the file named by its own `LIWAN_SHARED_RUNTIME_CONFIG`.
+  Later lines, such as `{"proceed": true}`, go to the effect.
   The peer keeps the connection open until the final line: stdin EOF means it hung up.
 - out: the effect's lines unchanged, then `{"exit": <code>}` (128 plus the signal number when a signal ended it).
 - refusal: `{"error_code": <code>}` then `{"exit": 2}`, with `request_invalid`, `effect_unknown`, `config_forbidden`,

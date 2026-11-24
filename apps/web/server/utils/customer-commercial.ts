@@ -500,7 +500,7 @@ export async function forwardWorkspaceLookup(event: H3Event): Promise<unknown> {
   return { ok: true }
 }
 
-/** The dedicated edge sets this from the socket peer (deploy/Caddyfile, deploy/releases/Caddyfile.dedicated); the shared
+/** The dedicated edge sets this from the socket peer (deploy/Caddyfile); the shared
  * guard strips it. The control plane reads the same name, with the signature, to key its invitation rate limit. */
 export const INVITATION_CLIENT_HEADER = 'x-liwan-client-ip'
 const MIN_SERVICE_KEY_LENGTH = 32

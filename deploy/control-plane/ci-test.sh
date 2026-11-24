@@ -6,17 +6,14 @@
 # commercial restore suite connects to liwan_control_scratch_restorec, and the
 # analytics suite requires liwan_control_scratch_analytics, and the AI provider suite
 # requires liwan_control_scratch_aiprovider. This script creates five scratch
-# databases (plus liwan_scratch_backup_ci for the release backup live test), runs the
-# suites serially in four groups, and drops the databases on exit. It refuses a
-# non-loopback host.
+# databases, runs the suites serially in four groups, and drops the databases on exit.
+# It refuses a non-loopback host.
 #
 # No suite may skip here: each vitest group writes a JSON report and vitest_skip_gate.py
-# fails the stage on any skipped, pending or todo test. The mail suites need Mailpit, and
-# deploy/releases/test_backup_live.py needs a superuser PGUSER, psycopg2 and a trust-auth server
-# (its fixture roles have no password): LIWAN_BACKUP_PGPORT names one, default PGPORT.
+# fails the stage on any skipped, pending or todo test. The mail suites need Mailpit.
 #
 # Environment: PGHOST (127.0.0.1), PGPORT (5432), PGUSER (liwan_test), PGPASSWORD (required),
-# LIWAN_BACKUP_PGPORT (optional, default PGPORT), LIWAN_MAILPIT_SMTP_PORT and LIWAN_MAILPIT_API_PORT (required, a local Mailpit; start one with
+# LIWAN_MAILPIT_SMTP_PORT and LIWAN_MAILPIT_API_PORT (required, a local Mailpit; start one with
 # docker run --rm -p 1025:1025 -p 8025:8025 axllent/mailpit:v1.27.10).
 set -euo pipefail
 
@@ -37,19 +34,15 @@ PAYMENT_DB=liwan_control_scratch_payfinal
 RESTORE_DB=liwan_control_scratch_restorec
 ANALYTICS_DB=liwan_control_scratch_analytics
 AI_PROVIDER_DB=liwan_control_scratch_aiprovider
-BACKUP_DB=liwan_scratch_backup_ci
-BACKUP_PORT="${LIWAN_BACKUP_PGPORT:-$PORT}"
 DBS=("$MAIN_DB" "$PAYMENT_DB" "$RESTORE_DB" "$ANALYTICS_DB" "$AI_PROVIDER_DB")
 REPORTS="$(mktemp -d)"
 
 drop_all() {
   for db in "${DBS[@]}"; do dropdb -h "$HOST" -p "$PORT" -U "$USER_NAME" --if-exists "$db" 2>/dev/null || true; done
-  dropdb -h "$HOST" -p "$BACKUP_PORT" -U "$USER_NAME" --if-exists "$BACKUP_DB" 2>/dev/null || true
 }
 trap 'drop_all; rm -rf "$REPORTS"' EXIT
 drop_all
 for db in "${DBS[@]}"; do createdb -h "$HOST" -p "$PORT" -U "$USER_NAME" "$db"; done
-createdb -h "$HOST" -p "$BACKUP_PORT" -U "$USER_NAME" "$BACKUP_DB"
 
 url() { printf 'postgres://%s:%s@%s:%s/%s' "$USER_NAME" "$PGPASSWORD" "$HOST" "$PORT" "$1"; }
 
@@ -87,13 +80,6 @@ CONTROL_TEST_DATABASE_URL="$(url "$AI_PROVIDER_DB")" vitest_group 4 ai-provider.
 
 # No skipped, pending or todo test in any group.
 python3 -B deploy/control-plane/vitest_skip_gate.py "$REPORTS"/group{1,2,3,4}.json
-
-# The release backup live test on its own scratch database (loopback, superuser to create its fixture roles).
-if [ "${GITHUB_ACTIONS:-}" = true ]; then
-  python3 -m pip install --quiet psycopg2-binary==2.9.10
-fi
-# The test builds role connections from a DSN without credentials (trust auth), so PGUSER/PGPASSWORD carry the admin login.
-LIWAN_BACKUP_TEST_DSN="postgresql://$HOST:$BACKUP_PORT/$BACKUP_DB" PGUSER="$USER_NAME" PYTHONPATH=. python3 -B deploy/control-plane/unittest_no_skip.py deploy.releases.test_backup_live
 
 npm -w packages/commercial-contracts run build
 npm -w apps/control-plane run build

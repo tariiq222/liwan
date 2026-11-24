@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 from tools.shared_saas_lifecycle.odoo_effect import (
     Runner, EffectError, no_symlink, reserve, permit, emit, validate_database,
     require_new_target, verified_observation, MAX_OUTPUT, OBSERVE_CONTAINER, classify_error,
-    install_termination_handler, ignore_termination, block_termination_signals, TERMINATION_SIGNALS, STREAM_REFUSALS, release_routes_enabled, effect_operation, TENANT_DB_ROLE, AI_TENANT_SCHEMA,
+    install_termination_handler, ignore_termination, block_termination_signals, TERMINATION_SIGNALS, STREAM_REFUSALS, TENANT_DB_ROLE, AI_TENANT_SCHEMA,
 )
 from deploy.release.tenant_postgres import POSTGRES_ADMIN_ROLE, identifier, tenant_bootstrap_sql, tenant_create_database_sql, tenant_isolation_sql
 AI_ROLE = 'liwan_ai'
@@ -440,19 +440,7 @@ print('{}')
             # The observer may exit between the listing and the kill; the writer check decides.
             subprocess.run(['docker', 'kill', name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15, check=False)
 
-    def apply_owned(self):
-        if self.operation == 'backup' and release_routes_enabled() and self.config.get('releaseBackupConfig'):
-            # This operation owns the admission barrier and must not count itself
-            # as an admitted application writer while draining that same barrier.
-            return self._apply_owned()
-        return super().apply_owned()
-
     def capture(self):
-        if release_routes_enabled():
-            if not self.config.get('releaseBackupConfig'):
-                raise EffectError('release_backup_requires_quiescence')
-            from .release_backup import capture_release_backup
-            return capture_release_backup(self)
         # Refuse a busy project before anything is reserved or stopped (a usage observation opens
         # DB sessions); the check after the stop below still closes the race with a late starter.
         self.assert_no_effect_containers()
@@ -543,10 +531,6 @@ with tarfile.open(fileobj=sys.stdout.buffer,mode='w|') as out:
         return manifest
 
     def restore(self):
-        with effect_operation(self.request, 'restore'):
-            return self._restore_operation()
-
-    def _restore_operation(self):
         manifest=self.read_artifact()  # ALL archive/hash checks precede mutations.
         if self.inspect_service('restore-odoo')['Image']!=manifest['sourceImageId'] or self.inspect_service('restore-db')['Image']!=manifest['postgresImageId']:
             raise EffectError('restore_image_mismatch')
@@ -611,10 +595,6 @@ with tempfile.TemporaryFile() as source:
         emit({'result':{'applied':True}})
 
     def observe(self):
-        with effect_operation(self.request, 'backup_observe'):
-            return self._observe_operation()
-
-    def _observe_operation(self):
         self.preflight()
         if (self.root/'runtime-gate').exists(): return {'state':'unknown'}
         if self.operation=='backup':

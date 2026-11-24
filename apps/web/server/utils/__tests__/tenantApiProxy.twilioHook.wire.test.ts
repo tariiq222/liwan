@@ -63,7 +63,7 @@ async function fixture(mode: 'shared' | 'dedicated', guarded: boolean) {
   if (guarded) {
     writeFileSync(join(root, 'pools.json'), JSON.stringify({ schemaVersion: 1, pools: { blue: { poolId: 'blue', releaseId: 'r1', odooUrl: upstreamUrl, webUrl, wsUrl: upstreamUrl } } }))
     const { createGuard } = await import('../../../../../deploy/shared/guard.mjs')
-    const { createDedicatedGuard } = await import('../../../../../deploy/releases/dedicated_guard.mjs')
+    const { createDedicatedGuard } = await import('../../../../../deploy/shared/dedicated_guard.mjs')
     guard = mode === 'shared'
       ? createGuard({ registryPath: join(root, 'registry.json'), proxyToken: token, keys: { test: 'synthetic-twilio-hook-cookie-'.repeat(3) }, activeKid: 'test', odooUrl: upstreamUrl, webUrl, releaseRoutesDir: root, releaseAssetsDir: undefined })
       : createDedicatedGuard({ bindingPath: join(root, 'binding.json'), releaseRoutesDir: root, proxyToken: token, releaseAssetsDir: undefined })
