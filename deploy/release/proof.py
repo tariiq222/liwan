@@ -19,16 +19,18 @@ import hashlib
 import http.client
 import json
 import os
+import queue
 import re
 import stat
 import tempfile
+import threading
 import time
 import urllib.error
 import urllib.request
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from deploy.release.common import EXIT_REFUSED, ReleaseError
+from deploy.release.common import EXIT_REFUSED, CommandFailed, ReleaseError
 
 CONTRACT = 1
 PROOF_MISSING, PROOF_INVALID = 'staging_proof_missing', 'staging_proof_invalid'
@@ -87,18 +89,8 @@ def _response_socket(response):
     return getattr(raw, '_sock', None)
 
 
-def https_get(url: str, *, timeout: float = DEFAULT_TIMEOUT_SECONDS, max_bytes: int = MAX_PROOF_BYTES,
-              clock=time.monotonic) -> bytes:
-    """Fetch the proof file with the system CA store, no proxy, no credential and no redirect followed.
-
-    ``timeout`` is one whole-request deadline (connect, TLS, headers and body together), not a per-read reset.
-    """
-    agent = user_agent(url)
-    if timeout <= 0:
-        raise ProofError(PROOF_MISSING, f'the proof URL timed out after {timeout}s')
-    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect())
-    request = urllib.request.Request(url, headers={'User-Agent': agent})
-    deadline = clock() + timeout
+def _download(opener, request, *, deadline: float, timeout: float, max_bytes: int, clock) -> bytes:
+    """One request and its body, in the worker thread: every read is bounded by the deadline the caller set."""
     chunks: list[bytes] = []
     total = 0
     try:
@@ -125,6 +117,41 @@ def https_get(url: str, *, timeout: float = DEFAULT_TIMEOUT_SECONDS, max_bytes: 
     except (urllib.error.URLError, http.client.HTTPException, OSError) as error:
         raise ProofError(PROOF_MISSING, f'the proof URL is unreachable: {getattr(error, "reason", error)}') from None
     return b''.join(chunks)
+
+
+def https_get(url: str, *, timeout: float = DEFAULT_TIMEOUT_SECONDS, max_bytes: int = MAX_PROOF_BYTES,
+              clock=time.monotonic) -> bytes:
+    """Fetch the proof file with the system CA store, no proxy, no credential and no redirect followed.
+
+    ``timeout`` is one whole-request deadline (connect, TLS, headers and body together), not a per-read reset: a socket
+    timeout alone cannot enforce that, because ``http.client`` restarts it on every read and a server that sends one
+    header byte at a time would keep the release run — and its lock — waiting. The fetch therefore runs in a worker
+    thread this call stops waiting for at the deadline, so a stall anywhere on the path is ``staging_proof_missing``.
+    """
+    agent = user_agent(url)
+    if timeout <= 0:
+        raise ProofError(PROOF_MISSING, f'the proof URL timed out after {timeout}s')
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect())
+    request = urllib.request.Request(url, headers={'User-Agent': agent})
+    deadline = clock() + timeout
+    outcome: queue.Queue = queue.Queue(maxsize=1)
+
+    def fetch() -> None:
+        try:
+            outcome.put_nowait(_download(opener, request, deadline=deadline, timeout=timeout,
+                                         max_bytes=max_bytes, clock=clock))
+        except Exception as error:  # handed to the caller, which raises it as its own
+            outcome.put_nowait(error)
+
+    worker = threading.Thread(target=fetch, name='liwan-proof-fetch', daemon=True)
+    worker.start()
+    try:
+        fetched = outcome.get(timeout=max(0.0, deadline - clock()))
+    except queue.Empty:
+        raise ProofError(PROOF_MISSING, f'the proof URL timed out after {timeout}s') from None
+    if isinstance(fetched, Exception):
+        raise fetched
+    return fetched
 
 
 def _require_trusted_parents(path: Path, *, label: str) -> None:
@@ -213,6 +240,31 @@ def private_key_path(value) -> Path:
     if not raw:
         raise ProofError(PROOF_INVALID, 'the signing private key path is empty')
     return _require_trusted_file(Path(raw), label='the signing private key', exact_mode=0o600)
+
+
+def public_key_der(key_file, out: Path, *, run, private: bool = False, read_bytes=Path.read_bytes) -> bytes | None:
+    """The DER encoding of ``key_file``'s public half, or None when openssl cannot read it as such a key.
+
+    DER names the key itself rather than the text it happens to be stored in, so two files hold the same key exactly when
+    these bytes match: an extra trailing newline, CRLF line endings or a DER file instead of PEM cannot pass for a
+    different key. ``private`` derives the public half out of a private key (``-pubout``), so an environment learns its
+    own public key from the key it signs with and never depends on a ``.pub`` beside it existing. ``read_bytes`` reads
+    the output for a caller whose files are not on this filesystem.
+    """
+    if private:
+        argv = ['openssl', 'pkey', '-in', str(key_file), '-pubout', '-outform', 'DER', '-out', str(out)]
+    else:
+        argv = ['openssl', 'pkey', '-pubin', '-in', str(key_file), '-outform', 'DER', '-out', str(out)]
+    try:
+        code, _ = run(argv)
+    except (OSError, CommandFailed):
+        return None
+    if code != 0:
+        return None
+    try:
+        return read_bytes(out)
+    except OSError:
+        return None
 
 
 def sign(payload: dict, key_file, *, run) -> bytes:

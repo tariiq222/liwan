@@ -35,6 +35,7 @@ import re
 import shutil
 import stat
 import sys
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -46,7 +47,8 @@ from deploy.release import databases, proof  # noqa: E402 - path set just above
 from deploy.release.common import (  # noqa: E402
     EXIT_FAILED, EXIT_HALTED, EXIT_OK, EXIT_REFUSED, EXIT_ROLLBACK_FAILED, FAILURE_TAIL_LINES, TIMED_OUT, CommandFailed, Lock,
     ReleaseError,
-    Runner, free_bytes, make_log, now, read_env_file, sensitive_values, read_json, write_atomic, write_json)
+    Runner, free_bytes, make_log, now, read_env_file, sensitive_values, read_json, unreadable_by_worker, write_atomic,
+    write_json)
 from deploy.release.source import (  # noqa: E402
     COMMIT, ENVIRONMENT_NAME, GITHUB_TOKEN_VAR, TAG_POLICY_KEY, TOKEN_VAR, USER_VAR, Credential, Source, explicit_tag,
     host_architecture)
@@ -159,11 +161,6 @@ def load_config(paths: Paths, environment: str) -> dict[str, str]:
     if missing:
         raise ReleaseError('invalid_config', EXIT_REFUSED, f'{path} lacks {", ".join(missing)}')
     return config
-
-
-def unreadable_by_worker(info: os.stat_result) -> bool:
-    """A root-owned file that group and others cannot read: the worker account could never read what is copied from it."""
-    return info.st_uid == 0 and not info.st_mode & 0o044
 
 
 def release_env_text(commit: str, odoo_commit: str) -> str:
@@ -311,31 +308,69 @@ class Releaser:
             raise ReleaseError('invalid_config', EXIT_REFUSED, f'{PROOF_URL_KEY} must be an HTTPS URL')
         key_file = self.config.get(PROOF_KEY_FILE_KEY, '').strip()
         if key_file:
-            own_pub = Path(key_file).with_name(Path(key_file).name + '.pub')
-            own_real = os.path.realpath(own_pub)
-            try:
-                own_stat = os.lstat(own_pub)
-            except OSError:
-                own_stat = None
+            self.refuse_own_public_key(key_file, public_key)
+        return url, public_key
+
+    def refuse_own_public_key(self, key_file: str, public_key: str) -> None:
+        """Refuse a pinned key that is this environment's own signing key, whatever encoding either file uses.
+
+        The literal same-file pin is caught cheaply first, before any openssl call. Everything else is compared as DER
+        derived from the private key, so an extra trailing newline, CRLF line endings or a DER file cannot pass as
+        another environment's key, and the ``.pub`` beside the private key does not have to exist for the refusal to
+        fire. A signing key that cannot be read is refused rather than trusted: without it no pin can be shown not to be
+        this environment's own.
+        """
+        own_pub = Path(key_file).with_name(Path(key_file).name + '.pub')
+        own_real = os.path.realpath(own_pub)
+        try:
+            own_stat = os.lstat(own_pub)
+        except OSError:
+            own_stat = None
+        own_regular = own_stat is not None and stat.S_ISREG(own_stat.st_mode)
+        try:
+            key_stat = os.lstat(key_file)
+        except OSError:
+            return  # `prepare` refuses the missing or malformed signing key as proof_key_invalid before anything stops
+        if not stat.S_ISREG(key_stat.st_mode):
+            return  # a symlink or a directory is refused there too; only a real file can be derived from
+        with tempfile.TemporaryDirectory(prefix='liwan-proof-key-') as work:
+            own_der: bytes | None = None
+            derived = False
             for entry in public_key.split(','):
                 candidate = entry.strip()
                 if not candidate:
                     continue
                 same = os.path.realpath(candidate) == own_real
-                if not same and own_stat is not None and stat.S_ISREG(own_stat.st_mode):
+                if not same and own_regular:
                     try:
                         cand_stat = os.lstat(candidate)
-                        if stat.S_ISREG(cand_stat.st_mode):
-                            same = (cand_stat.st_dev, cand_stat.st_ino) == (own_stat.st_dev, own_stat.st_ino)
-                            if not same:
-                                same = Path(candidate).read_bytes() == own_pub.read_bytes()
                     except OSError:
-                        pass
+                        cand_stat = None
+                    if cand_stat is not None and stat.S_ISREG(cand_stat.st_mode):
+                        same = (cand_stat.st_dev, cand_stat.st_ino) == (own_stat.st_dev, own_stat.st_ino)
+                if not same:
+                    if not derived:
+                        own_der = self.own_public_key_der(Path(key_file), Path(work, 'own.der'))
+                        derived = True
+                    pinned = proof.public_key_der(candidate, Path(work, 'pinned.der'), run=self.run_command)
+                    same = pinned is not None and pinned == own_der
                 if same:
                     raise ReleaseError('invalid_config', EXIT_REFUSED,
-                                       f'{PROOF_PUBLIC_KEY_KEY} ({candidate}) resolves to this environment\'s own '
-                                       f'signing public key ({own_pub})')
-        return url, public_key
+                                       f'{PROOF_PUBLIC_KEY_KEY} ({candidate}) is this environment\'s own signing public '
+                                       f'key ({key_file}): pin the source environment\'s key instead')
+
+    def own_public_key_der(self, key_file: Path, out: Path) -> bytes:
+        """This environment's own public key as DER, derived from the private key it signs with.
+
+        A key it cannot read is a refusal, not a skipped check: without the derived key no pinned key can be shown not to
+        be this environment's own. The message names the file and never its contents.
+        """
+        own_der = proof.public_key_der(key_file, out, run=self.run_command, private=True)
+        if own_der is None:
+            raise ReleaseError('invalid_config', EXIT_REFUSED,
+                               f'{PROOF_KEY_FILE_KEY} ({key_file}) cannot be read as a private key: '
+                               f'{PROOF_PUBLIC_KEY_KEY} cannot be checked against it')
+        return own_der
 
     def fetch_proof(self, candidate: dict) -> tuple[bytes, str] | None:
         """The proof file of the candidate, or None when this environment verifies none. The detail names the commit,

@@ -21,7 +21,8 @@ from unittest import mock
 
 from deploy.release import databases, proof, release
 from deploy.stack import render as stack_render
-from deploy.release.common import CommandFailed, Runner, make_log, read_env_file, sensitive_values
+from deploy.release.common import CommandFailed, Runner, make_log, read_env_file, sensitive_values, unsafe_shared_file
+from deploy.release.test_proof import fake_owner_lstat
 
 OLD = 'a' * 40
 NEW = 'b' * 40
@@ -262,6 +263,12 @@ class FakeRunner:
                 if case.proof_sign_fails:
                     return 1, 'signing failed\n'
                 Path(argv[argv.index('-out') + 1]).write_bytes(b'fake-signature')
+                return 0, ''
+            if '-outform' in argv:  # a key as DER: the same key in another encoding is the same bytes
+                source = Path(argv[argv.index('-in') + 1])
+                body = source.read_bytes().replace(b'\r\n', b'\n').strip()
+                pinned = body if body.startswith(b'pub:') else b'pub:' + body
+                Path(argv[argv.index('-out') + 1]).write_bytes(b'der:' + pinned)
                 return 0, ''
             if case.proof_verify_fails:
                 return 1, 'Signature Verification Failure\n'
@@ -1054,18 +1061,8 @@ class ReleaseTest(unittest.TestCase):
         self.log_stream.truncate(0)
         self.log_stream.seek(0)
         config.write_text(base + f'{release.PROOF_KEY_FILE_KEY}={real_key}\n{release.PROOF_DIR_KEY}={proof_dir}\n')
-        real_lstat = os.lstat
         foreign_uid = os.geteuid() + 1
-
-        def fake_lstat(path):
-            info = real_lstat(path)
-            if Path(path) == real_key:
-                return os.stat_result((info.st_mode, info.st_ino, info.st_dev, info.st_nlink,
-                                       foreign_uid, info.st_gid, info.st_size,
-                                       info.st_atime, info.st_mtime, info.st_ctime))
-            return info
-
-        with mock.patch.object(proof.os, 'lstat', side_effect=fake_lstat):
+        with mock.patch.object(proof.os, 'lstat', side_effect=fake_owner_lstat({os.fspath(real_key)}, foreign_uid)):
             self.assertEqual(self.main(), release.EXIT_REFUSED)
         self.assertEqual(self.result(), 'refused proof_key_invalid')
         self.assertIn(f'owned by uid {foreign_uid}', self.log_stream.getvalue())
@@ -1075,7 +1072,7 @@ class ReleaseTest(unittest.TestCase):
     def test_an_environment_refuses_pinning_its_own_signing_public_key(self):
         self.sign_proof()
         own_pub = self.root / 'release-proof.key.pub'
-        own_pub.write_text('own-public-key\n', encoding='ascii')
+        own_pub.write_text('pub:the fake signer never reads this\n', encoding='ascii')
         own_pub.chmod(0o644)
         self.add_config(f'{release.PROOF_URL_KEY}=https://staging.example/_liwan/release-proof/\n'
                         f'{release.PROOF_PUBLIC_KEY_KEY}={own_pub}\n')
@@ -1083,6 +1080,57 @@ class ReleaseTest(unittest.TestCase):
             self.assertEqual(self.main(), release.EXIT_REFUSED)
         self.assertEqual(self.result(), 'refused invalid_config')
         self.assertIn('own signing public key', self.log_stream.getvalue())
+        self.assertEqual(self.pulls(), [])
+        self.assertFalse((self.state / 'run.json').exists())
+
+    def test_a_pinned_copy_of_the_own_key_is_refused_whatever_its_encoding(self):
+        """The refusal is about the key, not the file: a copy in another encoding is still this environment's own key,
+        and it fires with no `.pub` beside the private key (which is what a deleted or renamed one leaves behind)."""
+        self.sign_proof()
+        config = self.paths.config_root / 'staging.env'
+        base = config.read_text()
+        cases = (
+            ('crlf line endings', 'pub:the fake signer never reads this\r\n'),
+            ('an extra trailing newline', 'pub:the fake signer never reads this\n\n'),
+            ('the public half alone', 'the fake signer never reads this'),
+        )
+        for name, body in cases:
+            with self.subTest(name):
+                self.log_stream.truncate(0)
+                self.log_stream.seek(0)
+                pinned = self.root / 'copied-own.pub'
+                pinned.write_text(body, encoding='ascii')
+                pinned.chmod(0o644)
+                config.write_text(base + f'{release.PROOF_URL_KEY}=https://staging.example/_liwan/release-proof/\n'
+                                         f'{release.PROOF_PUBLIC_KEY_KEY}={pinned}\n')
+                with mock.patch.object(proof, 'https_get', side_effect=AssertionError('the gate ran')):
+                    self.assertEqual(self.main(), release.EXIT_REFUSED)
+                self.assertEqual(self.result(), 'refused invalid_config')
+                log = self.log_stream.getvalue()
+                self.assertIn('own signing public key', log)
+                self.assertNotIn('the fake signer never reads this', log)
+                self.assertEqual(self.pulls(), [])
+
+    def test_a_signing_environment_may_pin_another_key(self):
+        """The comparison must not over-refuse: another environment's key is exactly what the gate wants pinned."""
+        self.sign_proof()
+        self.require_proof()
+        with mock.patch.object(proof, 'https_get', return_value=self.proof_body()):
+            self.assertEqual(self.main(), release.EXIT_OK)
+        self.assertEqual(self.served(), NEW)
+
+    def test_a_signing_key_openssl_cannot_read_is_refused_rather_than_trusted(self):
+        """Without the derived key no pin can be shown not to be this environment's own, so the run refuses."""
+        self.sign_proof()
+        pinned = self.public_key()
+        self.add_config(f'{release.PROOF_URL_KEY}=https://staging.example/_liwan/release-proof/\n'
+                        f'{release.PROOF_PUBLIC_KEY_KEY}={pinned}\n')
+        with mock.patch.object(proof, 'public_key_der', return_value=None):
+            self.assertEqual(self.main(), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused invalid_config')
+        log = self.log_stream.getvalue()
+        self.assertIn(release.PROOF_KEY_FILE_KEY, log)
+        self.assertNotIn('the fake signer never reads this', log)
         self.assertEqual(self.pulls(), [])
         self.assertFalse((self.state / 'run.json').exists())
 
@@ -2159,6 +2207,19 @@ class ReleaseTest(unittest.TestCase):
         self.assertFalse(release.unreadable_by_worker(info(0, 0o640)))
         self.assertFalse(release.unreadable_by_worker(info(0, 0o644)))
         self.assertFalse(release.unreadable_by_worker(info(990, 0o600)))
+
+    def test_a_shared_env_is_unsafe_when_owned_outside_the_trust_set_or_writable_by_it(self):
+        def info(uid, mode, gid=0):
+            return os.stat_result((0o100000 | mode, 0, 0, 1, uid, gid, 0, 0, 0, 0))
+        owners = {0, 990}
+        self.assertFalse(unsafe_shared_file(info(0, 0o600), owners))
+        self.assertFalse(unsafe_shared_file(info(0, 0o640, gid=999), owners, {0, 999}))  # A4.1: 640 root:docker
+        self.assertFalse(unsafe_shared_file(info(990, 0o600), owners))
+        self.assertTrue(unsafe_shared_file(info(0, 0o640, gid=1000), owners, {0, 999}))
+        self.assertTrue(unsafe_shared_file(info(0, 0o660), owners, {0, 999}))
+        self.assertTrue(unsafe_shared_file(info(0, 0o664), owners, {0, 999}))
+        self.assertTrue(unsafe_shared_file(info(0, 0o644), owners, {0, 999}))
+        self.assertTrue(unsafe_shared_file(info(1000, 0o600), owners, {0, 999}))
 
     def test_the_temporary_file_is_removed_when_the_owner_cannot_be_applied(self):
         with mock.patch.object(release.os, 'chown', side_effect=PermissionError('chown')):

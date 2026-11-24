@@ -265,11 +265,17 @@ class FakeHost:
         if not self.openssl_ed25519:
             return 1, 'Algorithm ED25519 not found\n'
         out = argv[argv.index('-out') + 1] if '-out' in argv else ''
+        source = argv[argv.index('-in') + 1] if '-in' in argv else ''
+        entry = self.files.get(source) if source else None
         if 'genpkey' in argv:
             content = 'openssl-made'
+        elif 'pkey' in argv and '-outform' in argv:
+            # DER names the key, not the text it is stored in: a private key's public half is the `pub:` body its .pub holds
+            if entry is None:
+                return 1, 'Unable to load key\n'
+            body = entry.text.replace('\r\n', '\n').strip()
+            content = 'der:' + (body if body.startswith('pub:') else 'pub:' + body)
         elif 'pkey' in argv and '-pubout' in argv:
-            source = argv[argv.index('-in') + 1]
-            entry = self.files.get(source)
             if entry is None and not source.startswith(SCRATCH):
                 return 1, 'Unable to load key\n'
             content = f'pub:{entry.text}' if entry is not None else 'pub:probe'
@@ -720,15 +726,49 @@ class SafetyTest(unittest.TestCase):
         self.assertNotIn(f'{SRV}/control/config/shared-runtime.json,', line)
         self.assertIn('run as root:', line)
 
-    def test_shared_env_must_be_a_private_regular_file_owned_by_root_or_the_worker(self):
-        cases = {'group readable': regular(0o640, text=SHARED_TEXT), 'foreign owner': regular(0o600, uid=1000, text=SHARED_TEXT),
-                 'symlink': symlink_entry('/etc/passwd')}
+    def test_shared_env_must_be_a_regular_file_and_not_a_symlink(self):
+        host = seeded_host()
+        host.files[f'{SRV}/shared.env'] = symlink_entry('/etc/passwd')
+        _, lines = run(host, '--apply')
+        self.assertEqual('FAILED', statuses(lines)['init-host'])
+        self.assertNotIn('init-host', host.mutations)
+
+    def test_a_0640_root_docker_or_a_0600_root_shared_env_is_accepted(self):
+        """A4.1: 640 root:docker is the documented state, because the effect account reads it through the docker group."""
+        cases = {'0640 root:docker': regular(0o640, gid=999, text=SHARED_TEXT),
+                 '0600 root:root': regular(0o600, text=SHARED_TEXT)}
+        for name, entry_ in cases.items():
+            with self.subTest(name):
+                host = seeded_host()
+                host.files[f'{SRV}/shared.env'] = entry_
+                run(host, '--apply')
+                _, lines = run(host)
+                self.assertEqual('ok', statuses(lines)['init-host'])
+                self.assertEqual('ok', statuses(lines)['shared-db-passwords'])
+                self.assertEqual('ok', statuses(lines)['shared-ai-usage-key'])
+
+    def test_a_shared_env_group_readable_by_a_group_that_does_not_need_it_is_refused(self):
+        host = seeded_host()
+        host.files[f'{SRV}/shared.env'] = regular(0o640, gid=1000, text=SHARED_TEXT)
+        _, lines = run(host)
+        self.assertEqual('FAILED', statuses(lines)['init-host'])
+        self.assertIn('a group other than root or docker', line_of(lines, 'init-host'))
+
+    def test_a_shared_env_writable_by_group_or_other_owned_by_a_stranger_or_readable_by_other_is_refused(self):
+        cases = {'0660 group writable': regular(0o660, gid=999, text=SHARED_TEXT),
+                 '0664 group and other writable': regular(0o664, gid=999, text=SHARED_TEXT),
+                 '0602 other writable': regular(0o602, text=SHARED_TEXT),
+                 '0644 readable by other': regular(0o644, text=SHARED_TEXT),
+                 'foreign owner': regular(0o600, uid=1000, text=SHARED_TEXT)}
         for name, entry_ in cases.items():
             with self.subTest(name):
                 host = seeded_host()
                 host.files[f'{SRV}/shared.env'] = entry_
                 _, lines = run(host, '--apply')
-                self.assertEqual('FAILED', statuses(lines)['init-host'])
+                found = statuses(lines)
+                self.assertEqual('FAILED', found['init-host'])
+                self.assertEqual('FAILED', found['shared-ai-usage-key'])
+                self.assertIn(f'{SRV}/shared.env must be owned by root or {bringup.WORKER_USER}', line_of(lines, 'init-host'))
                 self.assertNotIn('init-host', host.mutations)
 
     def test_a_worker_owned_private_shared_env_is_accepted(self):
@@ -960,7 +1000,9 @@ class PostRunTest(unittest.TestCase):
     def only(self, host, prefix, answer):
         host.overrides = [(lambda argv: argv[:len(prefix)] == prefix, answer)]
 
-    def test_shared_files_must_be_private_and_owned_by_the_worker(self):
+    def test_shared_files_take_the_shape_of_the_shared_env_file(self):
+        """A8.2a: the render takes the shared env file's own owner, group and mode (A4.1: 0640 root:docker), so both files
+        carry one shape; 0600 owned by root or the worker is the narrower form the release also produces and reads."""
         def prepared(compose, env):
             host = self.post_host()
             host.users['liwan-worker'] = (990, 990)
@@ -969,15 +1011,31 @@ class PostRunTest(unittest.TestCase):
             return host
 
         owned = regular(0o600, 990, 990, text=SHARED_TEXT)
-        self.assertEqual('ok', self.post(prepared(regular(0o600, 990, 990), owned), 'post-run-shared-files'))
-        for name, compose, env in (('mode', regular(0o644, 990, 990), owned), ('owner', regular(0o600, 0, 0), owned),
-                                   ('env owner', regular(0o600, 990, 990), regular(0o600, 0, 0, text=SHARED_TEXT)),
-                                   ('absent', None, owned)):
+        accepted = {'0600 liwan-worker': (regular(0o600, 990, 990), owned),
+                    '0640 root:docker': (regular(0o640, 0, 999), regular(0o640, 0, 999, text=SHARED_TEXT)),
+                    '0600 root:root': (regular(0o600, 0, 0), regular(0o600, 0, 0, text=SHARED_TEXT))}
+        for name, (compose, env) in accepted.items():
+            with self.subTest(name):
+                self.assertEqual('ok', self.post(prepared(compose, env), 'post-run-shared-files'))
+        refused = {'other readable': (regular(0o644, 990, 990), owned),
+                   '0664': (regular(0o664, 990, 990), owned),
+                   '0660': (regular(0o660, 990, 990), owned),
+                   'other writable': (regular(0o602, 990, 990), owned),
+                   'unrelated owner': (regular(0o600, 1000, 1000), owned),
+                   'group that does not need it': (regular(0o640, 0, 1000), owned),
+                   'env 0664': (regular(0o600, 990, 990), regular(0o664, 0, 999, text=SHARED_TEXT)),
+                   'env unrelated owner': (regular(0o600, 990, 990), regular(0o600, 1000, 1000, text=SHARED_TEXT)),
+                   'absent': (None, owned)}
+        for name, (compose, env) in refused.items():
             with self.subTest(name):
                 host = prepared(compose or regular(), env)
                 if compose is None:
                     del host.files[f'{SRV}/shared.compose.json']
                 self.assertEqual('MISSING', self.post(host, 'post-run-shared-files'))
+        host = prepared(regular(0o664, 990, 990), owned)
+        line = line_of(run(host, '--post-run')[1], 'post-run-shared-files')
+        self.assertIn(f'{SRV}/shared.compose.json is 0664 990:990', line)
+        self.assertIn('0640 root:docker', line)
 
     def test_ai_role_and_container_must_both_be_there(self):
         def host_with(role, containers):
@@ -1249,13 +1307,26 @@ class ReleaseProofTest(unittest.TestCase):
 
     def test_pinning_the_environments_own_public_key_is_refused(self):
         own_pub = PROOF_KEY + '.pub'
+        copied = '/etc/liwan-release/copied-own.pub'
+
+        def copied_key(text):
+            return lambda h: h.files.__setitem__(copied, regular(0o644, text=text))
+
+        def copied_without_pub(text):
+            def setup(h):
+                del h.files[PROOF_KEY + '.pub']  # a deleted .pub must not disable the refusal
+                h.files[copied] = regular(0o644, text=text)
+            return setup
+
         for name, pinned_path, setup in (
                 ('direct path', own_pub, lambda h: None),
                 ('parent traversal', '/etc/liwan-release/../liwan-release/staging-release-proof.key.pub', lambda h: None),
                 ('symlinked parent dir', '/etc/liwan-link/staging-release-proof.key.pub',
                  lambda h: h.files.__setitem__('/etc/liwan-link', symlink_entry('/etc/liwan-release'))),
-                ('copied own key bytes', '/etc/liwan-release/copied-own.pub',
-                 lambda h: h.files.__setitem__('/etc/liwan-release/copied-own.pub', regular(0o644, text='pub:openssl-made')))):
+                ('copied own key bytes', copied, copied_key('pub:openssl-made')),
+                ('copied own key with an extra newline', copied, copied_key('pub:openssl-made\n')),
+                ('copied own key with crlf line endings', copied, copied_key('pub:openssl-made\r\n')),
+                ('copied own key without the .pub beside it', copied, copied_without_pub('pub:openssl-made'))):
             with self.subTest(name):
                 host = seeded_host()
                 run(host, '--apply')
@@ -1265,6 +1336,20 @@ class ReleaseProofTest(unittest.TestCase):
                 self.assertTrue(line.startswith('MISSING'), line)
                 self.assertIn('own signing public key', line)
                 self.assertNotIn('pub:openssl-made', line)
+                self.assertNotIn('openssl-made', line)
+
+    def test_a_signing_key_openssl_cannot_read_blocks_a_pinned_key(self):
+        """No derived key means no pinned key can be shown not to be this environment's own, so the item is MISSING."""
+        host = seeded_host()
+        run(host, '--apply')
+        host.openssl_ed25519 = False  # openssl reads no key on this host at all
+        pinned = '/etc/liwan-release/source-release-proof.pub'
+        host.files[pinned] = regular(0o644, text='pub:someone-else')
+        with_config(host, f'{bringup.PROOF_URL_KEY}={PROOF_URL}\n{bringup.PROOF_PUBLIC_KEY_KEY}={pinned}\n')
+        line = line_of(run(host)[1], 'release-proof-public-key')
+        self.assertTrue(line.startswith('MISSING'), line)
+        self.assertIn('cannot be read as a private key', line)
+        self.assertNotIn('openssl-made', line)
 
     def test_the_proof_egress_requires_404_with_the_route_marker_header(self):
         pinned = '/etc/liwan-release/source-release-proof.pub'

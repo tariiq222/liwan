@@ -36,7 +36,7 @@ from typing import Callable
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
-from deploy.release import common  # noqa: E402 - path set just above
+from deploy.release import common, proof  # noqa: E402 - path set just above
 from deploy.release.release import (  # noqa: E402
     CONFIG_KEYS, CONTROL_DB_PORT, PROOF_DIR_KEY, PROOF_KEY_FILE_KEY, PROOF_PUBLIC_KEY_KEY, PROOF_URL_KEY, RELEASE_FOLDER,
     SHARED_WORKER_UNIT, TENANT_DB_PORT, Paths)
@@ -351,10 +351,9 @@ class Context:
         info = inspect(self.host, path, REGULAR_FILE)
         if info is None:
             return None
-        worker = self.host.user(WORKER_USER)
-        owners = {ROOT_UID} | ({worker[0]} if worker else set())
-        if info.st_uid not in owners or stat.S_IMODE(info.st_mode) & 0o077:
-            raise ItemError(f'{path} must be owned by root or {WORKER_USER} with no group or other permissions')
+        problem = shared_file_problem(info, self.host.user(WORKER_USER), self.host.group(DOCKER_GROUP))
+        if problem:
+            raise ItemError(f'{path} {problem}')
         return self.host.read_env(path)
 
     def must(self, argv: list[str], env: dict | None = None, cwd=None) -> None:
@@ -381,6 +380,23 @@ def inspect(host, path, kind: str):
 
 def shape(info) -> str:
     return f'{stat.S_IMODE(info.st_mode):04o} {info.st_uid}:{info.st_gid}'
+
+
+def shared_file_problem(info, worker, docker) -> str:
+    """Why the shared env file, or the composed file rendered from it, has a shape the host may not keep: empty when it may.
+
+    One rule for both files (A4.1, A8.2a), because ``release.py`` renders the compose file with the env file's own owner,
+    group and mode: root or the worker account owns it, group and other cannot write it, other cannot read it, and only
+    the docker group may read it by group (``0640 root:docker``; ``0600`` owned by root or the worker is the narrower
+    form). The effect account reads both files through that group.
+    """
+    owners = {ROOT_UID} | ({worker[0]} if worker else set())
+    group_readers = {ROOT_UID} | ({docker[0]} if docker else set())
+    if not common.unsafe_shared_file(info, owners, group_readers):
+        return ''
+    return (f'must be owned by root or {WORKER_USER}, writable by neither group nor other, and not readable by other or by a '
+            f'group other than root or {DOCKER_GROUP} (0640 root:{DOCKER_GROUP}, or 0600 owned by root or {WORKER_USER}); '
+            f'found {shape(info)}')
 
 
 # --- A3.1 worker account ---------------------------------------------------------------------------------------------
@@ -952,7 +968,11 @@ def apply_proof_dir(ctx: Context) -> None:
 
 
 def check_proof_key(ctx: Context) -> Status:
-    """A4.7a: the signing key and the ``.pub`` beside it are present with their modes and match byte-for-byte."""
+    """A4.7a: the signing key and the ``.pub`` beside it are present with their modes and hold one key.
+
+    The two are compared as DER, which names the key and not the text it is stored in, so a ``.pub`` saved with another
+    line ending or as DER is still the same key.
+    """
     if ctx.config() is None:
         return NEEDS_CONFIG
     key = proof_key_path(ctx)
@@ -969,11 +989,11 @@ def check_proof_key(ctx: Context) -> Status:
     if problems:
         return missing('; '.join(problems))
     with ctx.host.scratch_dir() as work:
-        derived = Path(work, 'derived.pub')
-        code, _ = ctx.host.run(['openssl', 'pkey', '-in', str(key), '-pubout', '-out', str(derived)])
-        if code != 0:
+        read = ctx.host.read_bytes
+        derived = proof.public_key_der(key, Path(work, 'derived.der'), run=ctx.host.run, private=True, read_bytes=read)
+        if derived is None:
             return missing(f'{key} cannot be read as a private key by openssl')
-        if ctx.host.read_bytes(derived) != ctx.host.read_bytes(public):
+        if derived != proof.public_key_der(public, Path(work, 'public.der'), run=ctx.host.run, read_bytes=read):
             return missing(f'{public} does not match {key}')
     return OK
 
@@ -1000,24 +1020,27 @@ def apply_proof_key(ctx: Context) -> None:
         ctx.host.chmod(public, PROOF_PUBLIC_KEY_MODE)
 
 
-def _is_own_public_key(ctx: Context, path: Path, own_pub: Path, path_info) -> bool:
-    """Whether ``path`` resolves to, shares an inode with, or duplicates this environment's own signing ``.pub``."""
+def _is_own_public_key(ctx: Context, path: Path, own_pub: Path, own_der: bytes | None, path_info, work: Path) -> bool:
+    """Whether ``path`` resolves to, shares an inode with, or holds the same key as this environment's own signing key.
+
+    The cheap identity checks come first, before any openssl call. The key itself is then compared as DER derived from
+    the private key, so an extra trailing newline, CRLF line endings or a DER file instead of PEM cannot pass for another
+    environment's key, and the ``.pub`` beside the private key does not have to exist for the refusal to fire.
+    """
     if ctx.host.realpath(path) == ctx.host.realpath(own_pub):
         return True
-    own_info = ctx.host.lstat(own_pub)
-    if own_info is None or not stat.S_ISREG(own_info.st_mode):
+    if path_info is None:
         return False
-    if path_info is not None:
+    own_info = ctx.host.lstat(own_pub)
+    if own_info is not None and stat.S_ISREG(own_info.st_mode):
         p_ino, o_ino = getattr(path_info, 'st_ino', 0), getattr(own_info, 'st_ino', 0)
         p_dev, o_dev = getattr(path_info, 'st_dev', 0), getattr(own_info, 'st_dev', 0)
         if p_ino and o_ino and (p_dev, p_ino) == (o_dev, o_ino):
             return True
-        try:
-            if ctx.host.read_bytes(path) == ctx.host.read_bytes(own_pub):
-                return True
-        except OSError:
-            pass
-    return False
+    if own_der is None:
+        return False
+    pinned = proof.public_key_der(path, Path(work, 'pinned.der'), run=ctx.host.run, read_bytes=ctx.host.read_bytes)
+    return pinned is not None and pinned == own_der
 
 
 def check_proof_public_key(ctx: Context) -> Status:
@@ -1033,16 +1056,24 @@ def check_proof_public_key(ctx: Context) -> Status:
     own_key = proof_key_path(ctx)
     own_pub = proof_public_key_beside(own_key) if own_key is not None else None
     problems = []
-    for path in entries:
-        info = inspect(ctx.host, path, REGULAR_FILE)
-        if own_pub is not None and _is_own_public_key(ctx, path, own_pub, info):
-            problems.append(f'{path} resolves to this environment\'s own signing public key ({own_pub}): '
-                            f'pin the source environment\'s {PROOF_PUBLIC_KEY_SUFFIX} instead')
-        elif info is None:
-            problems.append(f'{path} absent: copy the signing environment\'s {PROOF_PUBLIC_KEY_SUFFIX} there, '
-                            f'mode {PROOF_PUBLIC_KEY_MODE:04o} {ROOT_UID}')
-        elif info.st_uid != ROOT_UID or stat.S_IMODE(info.st_mode) & 0o022:
-            problems.append(f'{path} is {shape(info)}, expected {PROOF_PUBLIC_KEY_MODE:04o} {ROOT_UID}')
+    with ctx.host.scratch_dir() as work:
+        own_der = None
+        if own_key is not None and inspect(ctx.host, own_key, REGULAR_FILE) is not None:
+            own_der = proof.public_key_der(own_key, Path(work, 'own.der'), run=ctx.host.run, private=True,
+                                           read_bytes=ctx.host.read_bytes)
+            if own_der is None:
+                problems.append(f'{own_key} cannot be read as a private key by openssl: no pinned key can be shown not '
+                                f'to be this environment\'s own (A4.7a)')
+        for path in entries:
+            info = inspect(ctx.host, path, REGULAR_FILE)
+            if own_pub is not None and _is_own_public_key(ctx, path, own_pub, own_der, info, work):
+                problems.append(f'{path} is this environment\'s own signing public key ({own_key}): '
+                                f'pin the source environment\'s {PROOF_PUBLIC_KEY_SUFFIX} instead')
+            elif info is None:
+                problems.append(f'{path} absent: copy the signing environment\'s {PROOF_PUBLIC_KEY_SUFFIX} there, '
+                                f'mode {PROOF_PUBLIC_KEY_MODE:04o} {ROOT_UID}')
+            elif info.st_uid != ROOT_UID or stat.S_IMODE(info.st_mode) & 0o022:
+                problems.append(f'{path} is {shape(info)}, expected {PROOF_PUBLIC_KEY_MODE:04o} {ROOT_UID}')
     return missing('; '.join(problems)) if problems else OK
 
 
@@ -1203,19 +1234,25 @@ def shared_values(ctx: Context, *keys: str) -> tuple[list[str] | None, Status]:
 
 
 def check_shared_file_owners(ctx: Context) -> Status:
-    values, status = shared_values(ctx, 'LIWAN_SHARED_COMPOSE_FILE')
+    """A8.2a: the shared env file, and the compose file the release rendered from it, keep the shape ``release.py`` gives
+    the render (the env file's own owner, group and mode). Both are checked by the one rule of ``shared_file_problem``."""
+    try:
+        values, status = shared_values(ctx, 'LIWAN_SHARED_COMPOSE_FILE')
+    except ItemError as error:  # the shared env file itself is in a shape the release refuses
+        return missing(str(error))
     if values is None:
         return status
     worker = ctx.host.user(WORKER_USER)
     if worker is None:
         return missing(f'account {WORKER_USER} does not exist')
+    docker = ctx.host.group(DOCKER_GROUP)
     problems = []
     for path in (values[0], ctx.config()['LIWAN_SHARED_ENV_FILE']):
         info = inspect(ctx.host, path, REGULAR_FILE)
         if info is None:
             problems.append(f'{path} does not exist')
-        elif (stat.S_IMODE(info.st_mode), info.st_uid, info.st_gid) != (PRIVATE_FILE_MODE, *worker):
-            problems.append(f'{path} is {shape(info)}, expected 0600 {worker[0]}:{worker[1]}')
+        elif problem := shared_file_problem(info, worker, docker):
+            problems.append(f'{path} {problem}')
     return missing('; '.join(problems)) if problems else OK
 
 

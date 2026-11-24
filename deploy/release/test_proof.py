@@ -15,6 +15,7 @@ import stat
 import subprocess
 import tempfile
 import threading
+import time
 import unittest
 import urllib.error
 from pathlib import Path
@@ -37,6 +38,24 @@ DOCUMENT = b'{"release":{"odooCommit":"1"}}\n'
 DOCUMENT_SHA256 = '4240880fb4ed9b086a6b057406d16660b64ca8fd74f9a98d3139cb3158b9048f'
 PROOF_URL = f'https://staging.example/_liwan/release-proof/{COMMIT}.json'
 FAKE_SIGNATURE = b'fake-ed25519-signature'
+
+
+def fake_owner_lstat(paths, uid):
+    """An ``os.lstat`` that reports ``uid`` as the owner of the exact ``paths`` (strings) and is real elsewhere.
+
+    Patching ``os.lstat`` reaches every caller (``Path.resolve``, ``shutil.rmtree`` with ``dir_fd``), so the
+    fake forwards every argument untouched and builds no ``Path``, which would recurse through ``resolve``.
+    """
+    real_lstat = os.lstat
+
+    def fake(path, *args, **kwargs):
+        info = real_lstat(path, *args, **kwargs)
+        if args or kwargs or not isinstance(path, (str, os.PathLike)) or os.fspath(path) not in paths:
+            return info
+        return os.stat_result((info.st_mode, info.st_ino, info.st_dev, info.st_nlink, uid, info.st_gid,
+                               info.st_size, info.st_atime, info.st_mtime, info.st_ctime))
+
+    return fake
 
 
 class FakeOpenSSL:
@@ -214,19 +233,10 @@ class RequireTest(ProofCase):
         self.assertEqual(runner.calls, [])
 
     def test_a_public_key_owned_by_another_user_is_refused_before_openssl(self):
-        real_lstat = os.lstat
         foreign_uid = os.geteuid() + 1
-
-        def fake_lstat(path):
-            info = real_lstat(path)
-            if Path(path) == self.public:
-                return os.stat_result((info.st_mode, info.st_ino, info.st_dev, info.st_nlink,
-                                       foreign_uid, info.st_gid, info.st_size,
-                                       info.st_atime, info.st_mtime, info.st_ctime))
-            return info
-
         runner = FakeOpenSSL()
-        with mock.patch.object(proof.os, 'lstat', side_effect=fake_lstat):
+        foreign = fake_owner_lstat({os.fspath(self.public)}, foreign_uid)
+        with mock.patch.object(proof.os, 'lstat', side_effect=foreign):
             error = self.assert_refused(proof.PROOF_INVALID, self.proof_file(), runner)
         self.assertIn(f'owned by uid {foreign_uid}', error.detail)
         self.assertEqual(runner.calls, [])
@@ -268,20 +278,15 @@ class RequireTest(ProofCase):
         self.assertEqual(caught.exception.reason, proof.PROOF_INVALID)
         self.assertIn('parent directory', caught.exception.detail)
         self.assertEqual(runner.calls, [])
+        # A sticky writable grandparent (like /tmp) is accepted.
+        outer.chmod(0o1777)
+        self.assertEqual(proof.require(self.proof_file(), public_key_files=[key], run=FakeOpenSSL(),
+                                       tag=TAG, commit=COMMIT, digest=DIGEST), PAYLOAD)
         # Restoring outer to 0700 lets a foreign-owner ancestor still be caught.
         outer.chmod(0o700)
-        real_lstat = os.lstat
         foreign_uid = os.geteuid() + 1
-
-        def fake_lstat(path):
-            info = real_lstat(path)
-            if Path(path) == outer or Path(path) == outer.resolve():
-                return os.stat_result((info.st_mode, info.st_ino, info.st_dev, info.st_nlink,
-                                       foreign_uid, info.st_gid, info.st_size,
-                                       info.st_atime, info.st_mtime, info.st_ctime))
-            return info
-
-        with mock.patch.object(proof.os, 'lstat', side_effect=fake_lstat):
+        foreign = fake_owner_lstat({os.fspath(outer), os.fspath(outer.resolve())}, foreign_uid)
+        with mock.patch.object(proof.os, 'lstat', side_effect=foreign):
             with self.assertRaises(proof.ProofError) as caught:
                 proof.require(self.proof_file(), public_key_files=[key], run=runner,
                               tag=TAG, commit=COMMIT, digest=DIGEST)
@@ -421,6 +426,66 @@ class HttpsGetTest(unittest.TestCase):
             client.close()
             worker.join(timeout=2)
 
+    def test_a_request_that_never_answers_its_headers_is_staging_proof_missing_at_the_deadline(self):
+        """The deadline covers connect, TLS and headers: a server that accepts the connection and then says nothing must
+        not keep the caller (and the release lock) waiting, on any single socket operation."""
+        release = threading.Event()
+
+        class SilentOpener:
+            def open(self, request, timeout=None):
+                release.wait(3)  # a server that sends no header at all
+                return FakeResponse(b'{}')
+
+        started = time.monotonic()
+        try:
+            with self.assertRaises(proof.ProofError) as caught:
+                self.fetch(SilentOpener(), timeout=0.2)
+            elapsed = time.monotonic() - started
+        finally:
+            release.set()
+        self.assertEqual(caught.exception.reason, proof.PROOF_MISSING)
+        self.assertIn('timed out', caught.exception.detail)
+        self.assertLess(elapsed, 1.5)  # returned at its deadline, not when the server finally answered
+
+    def test_headers_sent_one_byte_at_a_time_are_cut_at_the_overall_deadline(self):
+        """`http.client` restarts a socket timeout on every read, so a header drip would hold a per-read timeout for as
+        long as it likes; the deadline has to bound the whole fetch instead."""
+        client, server = socket.socketpair()
+        stop = threading.Event()
+
+        def drip():
+            try:
+                server.sendall(b'HTTP/1.1 200 OK\r\nX-Slow: ')
+                for _ in range(50):  # 50 bytes at 50ms each: 2.5s of headers, well past a 0.25s deadline
+                    if stop.wait(0.05):
+                        break
+                    server.sendall(b'x')
+            except OSError:
+                pass
+            finally:
+                server.close()
+
+        class HeaderOpener:
+            def open(self, request, timeout=None):
+                response = http.client.HTTPResponse(client)
+                response.begin()  # reads the headers, where a drip keeps restarting the socket timeout
+                return response
+
+        worker = threading.Thread(target=drip, daemon=True)
+        worker.start()
+        started = time.monotonic()
+        try:
+            with self.assertRaises(proof.ProofError) as caught:
+                self.fetch(HeaderOpener(), timeout=0.25)
+            elapsed = time.monotonic() - started
+        finally:
+            stop.set()
+            client.close()
+            worker.join(timeout=5)
+        self.assertEqual(caught.exception.reason, proof.PROOF_MISSING)
+        self.assertIn('timed out', caught.exception.detail)
+        self.assertLess(elapsed, 1.5)
+
     def test_a_url_that_is_not_the_pinned_https_proof_path_is_staging_proof_invalid(self):
         for url in (PROOF_URL.replace('https', 'http'), PROOF_URL.replace(COMMIT, 'main'),
                     f'https://user:secret@staging.example/_liwan/release-proof/{COMMIT}.json'):
@@ -442,6 +507,61 @@ def openssl_ed25519() -> bool:
 
 
 HAS_OPENSSL_ED25519 = openssl_ed25519()
+
+
+def openssl_key_der() -> bool:
+    """Whether this host's openssl writes a key's DER form. RSA on purpose: it needs no Ed25519, and DER is the same
+    transformation for every key type."""
+    with tempfile.TemporaryDirectory(prefix='liwan-openssl-probe-') as work:
+        key, der = Path(work, 'probe.key'), Path(work, 'probe.der')
+        try:
+            made = subprocess.run(['openssl', 'genrsa', '-out', str(key), '2048'],
+                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
+            converted = subprocess.run(['openssl', 'pkey', '-in', str(key), '-pubout', '-outform', 'DER', '-out', str(der)],
+                                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
+        except OSError:
+            return False
+        return made.returncode == 0 and converted.returncode == 0 and der.is_file() and der.stat().st_size > 0
+
+
+HAS_OPENSSL_KEY_DER = openssl_key_der()
+
+
+@unittest.skipUnless(HAS_OPENSSL_KEY_DER, 'openssl is required to write a key and its DER form')
+class PublicKeyDerTest(unittest.TestCase):
+    """DER names the key itself, so one key is one byte string however the file that holds it is encoded."""
+
+    def setUp(self):
+        self.work = tempfile.TemporaryDirectory(prefix='liwan-der-test-')
+        self.addCleanup(self.work.cleanup)
+        self.run = Runner(lambda _: None)
+        self.key = Path(self.work.name, 'staging-release-proof.key')
+        self.public = Path(self.work.name, 'staging-release-proof.pub')
+        self.run(['openssl', 'genrsa', '-out', str(self.key), '2048'])
+        self.run(['openssl', 'pkey', '-in', str(self.key), '-pubout', '-out', str(self.public)])
+
+    def der(self, path, *, private: bool = False) -> bytes | None:
+        return proof.public_key_der(path, Path(self.work.name, 'out.der'), run=self.run, private=private)
+
+    def test_a_private_key_and_its_pub_are_one_der_however_the_pub_is_encoded(self):
+        own = self.der(self.key, private=True)  # derived from the private key, so no .pub has to exist
+        self.assertEqual(own, self.der(self.public))
+        body = self.public.read_bytes()
+        for name, encoded in (('extra trailing newlines', body + b'\n\n'),
+                              ('crlf line endings', body.replace(b'\n', b'\r\n')),
+                              ('no trailing newline', body.rstrip(b'\n'))):
+            with self.subTest(name):
+                path = Path(self.work.name, f'{name.replace(" ", "-")}.pub')
+                path.write_bytes(encoded)
+                self.assertEqual(own, self.der(path))
+
+    def test_another_key_and_a_file_that_is_no_key_never_match(self):
+        other = Path(self.work.name, 'other.key')
+        self.run(['openssl', 'genrsa', '-out', str(other), '2048'])
+        self.assertNotEqual(self.der(self.key, private=True), self.der(other, private=True))
+        junk = Path(self.work.name, 'junk.pub')
+        junk.write_text('not a key\n', encoding='ascii')
+        self.assertIsNone(self.der(junk))
 
 
 @unittest.skipUnless(HAS_OPENSSL_ED25519, 'openssl 3 with Ed25519 is required (LibreSSL and macOS skip; CI runs it)')

@@ -257,10 +257,11 @@ proxy mounts that directory, so the two files must name the same path.
 The two verifying keys — `LIWAN_RELEASE_REQUIRE_PROOF_URL` (the HTTPS proof base URL ending in `/_liwan/release-proof/`)
 and `LIWAN_RELEASE_PROOF_PUBLIC_KEY` (one or more pinned public key files, comma separated for the rotation window, each a
 readable, non-symlink regular file owned by root under trusted non-writable parent directories that group and others
-cannot write, `0644` root by convention, and never this environment's own `<LIWAN_RELEASE_PROOF_KEY_FILE>.pub`) — are
+cannot write, `0644` root by convention, and never this environment's own signing key) — are
 required on an environment with
 `LIWAN_RELEASE_TAG_POLICY=explicit` and are a pair wherever they are set. A URL that is not HTTPS, one of the pair alone,
-a pinned key that resolves to this environment's own `.pub`,
+a pinned key that is this environment's own key — the same key, whatever encoding its file uses, which the release derives
+from `LIWAN_RELEASE_PROOF_KEY_FILE` itself rather than from the `.pub` beside it —
 or the pair missing on an `explicit` environment, is `RESULT: refused invalid_config`: no image is pulled and nothing
 stops. An environment with `highest` may leave both unset: it then verifies nothing and logs one line on every release
 saying so.
@@ -273,8 +274,10 @@ In `prepare`, before anything stops, a missing or invalid signing key is `RESULT
 directory is `RESULT: refused proof_dir_missing`, and an unset `LIWAN_RELEASE_PROOF_KEY_FILE` logs one line noting that
 this environment signs nothing so no other environment can pin its releases; a signature that fails at the last step is
 `RESULT: incomplete <commit> release_proof_failed`. The fetch enforces one overall deadline (10 seconds) across connect,
-TLS and body reads (`staging_proof_missing` when exceeded) and an 8192-byte body cap (`staging_proof_invalid`). The
-tests of the signer, the transport and every accepted outcome are in `deploy/release/test_proof.py`.
+TLS, headers and body reads (`staging_proof_missing` when exceeded): it runs in a worker thread the command stops waiting
+for at that deadline, so a server that drips its headers cannot hold the run and its lock. The body cap is 8192 bytes
+(`staging_proof_invalid`). The tests of the signer, the transport and every accepted outcome are in
+`deploy/release/test_proof.py`.
 
 The first deploy of a host skips the backup, so a host can pass its first release and fail its second on any of the items
 below. Each one ends the run with `RESULT: rolled back backup_failed`; the job log carries the symptom line.
