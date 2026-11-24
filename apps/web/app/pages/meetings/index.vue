@@ -163,11 +163,11 @@ function meetingRecordNumber(meeting: { reference: string; id: number }) {
 // Reading order: the record number as a muted `#` reference, then the title (the strongest text), date, organizer, state and resolutions.
 const columns = computed<TableColumn<MeetingListItem>[]>(() => [
   { id: 'record_number', header: () => recordNumberHeader(t), meta: { class: { th: 'w-12 px-2 text-start', td: 'w-12 px-2 whitespace-nowrap' } } },
-  { accessorKey: 'name', header: t('meetingsUi.title'), meta: { class: { th: 'w-2/5', td: 'max-w-0' } } },
-  { accessorKey: 'meeting_date', header: t('meetingsUi.date') },
-  { accessorKey: 'organizer', header: t('meetingsUi.organizer') },
-  { accessorKey: 'state', header: t('meetingsUi.stateLabel') },
-  { accessorKey: 'open_resolution_count', header: t('meetingsUi.resolutions') },
+  { accessorKey: 'name', header: t('meetingsUi.title'), meta: { class: { th: 'min-w-56 w-[30%]', td: 'max-w-0' } } },
+  { accessorKey: 'meeting_date', header: t('meetingsUi.date'), meta: { class: { th: 'w-40', td: 'w-40 whitespace-nowrap' } } },
+  { accessorKey: 'organizer', header: t('meetingsUi.organizer'), meta: { class: { th: 'w-44', td: 'w-44 max-w-0' } } },
+  { accessorKey: 'state', header: t('meetingsUi.stateLabel'), meta: { class: { th: 'w-32', td: 'w-32 whitespace-nowrap' } } },
+  { accessorKey: 'open_resolution_count', header: t('meetingsUi.resolutions'), meta: { class: { th: 'w-28', td: 'w-28 whitespace-nowrap' } } },
 ])
 
 function meetingTo(meeting: { id: number }) {
@@ -279,9 +279,9 @@ function setPage(next: number) {
             </UInput>
           </template>
           <template #default>
-            <USelect data-testid="meeting-state" class="w-full md:w-44" icon="i-lucide-activity" :items="stateOptions" :model-value="stateSelect" :disabled="!hydrated" :aria-label="t('meetingsUi.stateLabel')" @update:model-value="onStateChange" />
-            <MeetingProjectFilter v-if="hasProjectFilter" id="meeting-project" hide-label class="w-full md:w-44" :model-value="projectId" @update:model-value="setProject" @resolved-name="projectName = $event" />
-            <div class="grid w-full gap-1 md:w-44">
+            <USelect data-testid="meeting-state" class="w-full md:w-40" icon="i-lucide-activity" :items="stateOptions" :model-value="stateSelect" :disabled="!hydrated" :aria-label="t('meetingsUi.stateLabel')" @update:model-value="onStateChange" />
+            <MeetingProjectFilter v-if="hasProjectFilter" id="meeting-project" hide-label class="w-full md:w-40" :model-value="projectId" @update:model-value="setProject" @resolved-name="projectName = $event" />
+            <div class="grid w-full gap-1 md:w-40">
               <USelectMenu
                 id="meeting-organizer"
                 v-model:search-term="organizerSearch"
@@ -307,12 +307,12 @@ function setPage(next: number) {
               <p v-if="organizerQuery.isLoading.value" class="text-xs text-muted" role="status">{{ t('meetingsFilters.organizersLoading') }}</p>
               <div v-else-if="organizerQuery.error.value" class="flex items-center gap-2 text-xs text-error" role="alert"><span>{{ t('meetingsFilters.organizersError') }}</span><UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated" :label="t('meetingsFilters.retry')" @click="organizerQuery.refetch()" /></div>
             </div>
-            <SharedDateField id="meeting-date-from" v-model="dateFromField" class="w-full md:w-44" :label="dateFromField ? undefined : t('meetingsFilters.fromDateLabel')" :aria-label="t('meetingsFilters.fromDateLabel')" :disabled="!hydrated" />
-            <SharedDateField id="meeting-date-to" v-model="dateToField" class="w-full md:w-44" :label="dateToField ? undefined : t('meetingsFilters.toDateLabel')" :aria-label="t('meetingsFilters.toDateLabel')" :disabled="!hydrated" />
+            <SharedDateField id="meeting-date-from" v-model="dateFromField" class="w-full md:w-40" :label="dateFromField ? undefined : t('meetingsFilters.fromDateLabel')" :aria-label="t('meetingsFilters.fromDateLabel')" :disabled="!hydrated" />
+            <SharedDateField id="meeting-date-to" v-model="dateToField" class="w-full md:w-40" :label="dateToField ? undefined : t('meetingsFilters.toDateLabel')" :aria-label="t('meetingsFilters.toDateLabel')" :disabled="!hydrated" />
           </template>
           <template #view>
             <SharedSegmentedControl data-testid="meeting-scope" :label="t('meetingsFilters.scope')" :items="scopeItems" :model-value="mine ? 'mine' : 'all'" :disabled="!hydrated" @update:model-value="onScopeChange" />
-            <SharedViewSwitch model-value="list" :options="meetingViewOptions(t)" @update:model-value="value => router.push(meetingViewRoute(liveListQuery(), value === 'calendar' ? 'calendar' : 'list'))" />
+            <span class="hidden h-5 w-px bg-default md:block" aria-hidden="true" /><SharedViewSwitch model-value="list" :options="meetingViewOptions(t)" @update:model-value="value => router.push(meetingViewRoute(liveListQuery(), value === 'calendar' ? 'calendar' : 'list'))" />
           </template>
           <!-- The dropdowns show their own choice; only the series inherited from a link has no control, so it is the one chip. -->
           <template v-if="seriesId" #active>

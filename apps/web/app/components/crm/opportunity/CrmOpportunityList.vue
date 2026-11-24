@@ -92,10 +92,10 @@ const statusTone = (item: CrmOpportunity) => (item.status === 'won' ? 'success' 
       <template #search>
         <form @submit.prevent="update({ q: search.trim() || undefined, page: undefined })"><UInput v-model="search" class="w-full" icon="i-lucide-search" :placeholder="t('crm.opportunities.list.search')" :aria-label="t('crm.opportunities.list.search')" :disabled="!hydrated" /></form>
       </template>
-      <USelect variant="soft" class="w-full md:w-44" :model-value="String(filters.stage_id ?? ALL)" :items="stageItems" :aria-label="t('crm.opportunities.list.stage')" :disabled="!hydrated" @update:model-value="value => update({ stage_id: choice(value), page: undefined })" />
-      <USelect variant="soft" class="w-full md:w-44" :model-value="String(filters.source_id ?? ALL)" :items="sourceItems" :aria-label="t('crm.opportunities.list.source')" :disabled="!hydrated" @update:model-value="value => update({ source_id: choice(value), page: undefined })" />
+      <USelect variant="soft" class="w-full md:w-40" :model-value="String(filters.stage_id ?? ALL)" :items="stageItems" :aria-label="t('crm.opportunities.list.stage')" :disabled="!hydrated" @update:model-value="value => update({ stage_id: choice(value), page: undefined })" />
+      <USelect variant="soft" class="w-full md:w-40" :model-value="String(filters.source_id ?? ALL)" :items="sourceItems" :aria-label="t('crm.opportunities.list.source')" :disabled="!hydrated" @update:model-value="value => update({ source_id: choice(value), page: undefined })" />
       <USelect variant="soft" class="w-full md:w-40" :model-value="filters.status ?? 'open'" :items="statusItems" :aria-label="t('crm.opportunities.list.statusFilter')" :disabled="!hydrated" data-testid="crm-filter-status" @update:model-value="value => update({ status: value === 'open' ? undefined : String(value), page: undefined })" />
-      <SharedPersonPicker v-if="canAssign" v-model="agent" value-key="user_id" class="w-full md:w-52" :placeholder="t('crm.opportunities.list.agentPicker')" :aria-label="t('crm.opportunities.list.agent')" :disabled="!hydrated" />
+      <SharedPersonPicker v-if="canAssign" v-model="agent" value-key="user_id" class="w-full md:w-44" :placeholder="t('crm.opportunities.list.agentPicker')" :aria-label="t('crm.opportunities.list.agent')" :disabled="!hydrated" />
       <USwitch v-model="due" :label="t('crm.opportunities.list.due')" :disabled="!hydrated" data-testid="crm-filter-due" />
       <template v-if="canAssign">
         <USwitch v-model="unassigned" :label="t('crm.opportunities.list.unassigned')" :disabled="!hydrated" />

@@ -28,11 +28,11 @@ const actionsOf = (account: TeamAccount) => (account.status === 'disabled'
   : isMe(account) ? ['roles'] as const : ['roles', 'reset', 'disable'] as const).map(kind => ({ kind, label: t(`team.actions.${kind}`), icon: ICONS[kind] }))
 
 const columns = computed<TableColumn<TeamAccount>[]>(() => [
-  { id: 'person', header: t('team.columns.person') },
-  { id: 'roles', header: t('team.columns.roles') },
-  { id: 'status', header: t('team.columns.status') },
-  { id: 'lastSeen', header: t('team.columns.lastSeen') },
-  { id: 'actions', header: t('team.columns.actions') },
+  { id: 'person', header: t('team.columns.person'), meta: { class: { th: 'min-w-56 w-[28%]', td: 'max-w-0' } } },
+  { id: 'roles', header: t('team.columns.roles'), meta: { class: { th: 'w-40', td: 'w-40' } } },
+  { id: 'status', header: t('team.columns.status'), meta: { class: { th: 'w-32', td: 'w-32 whitespace-nowrap' } } },
+  { id: 'lastSeen', header: t('team.columns.lastSeen'), meta: { class: { th: 'w-44', td: 'w-44 whitespace-nowrap' } } },
+  { id: 'actions', header: t('team.columns.actions'), meta: { class: { th: 'w-56', td: 'w-56' } } },
 ])
 </script>
 

@@ -66,11 +66,11 @@ const cancelExport = () => { if (!exportRecording.value) exportController?.abort
 onBeforeUnmount(cancelExport)
 
 const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
-  { id: 'number', header: t('vendor.invoices.details') },
-  { id: 'customer', header: t('vendor.invoices.customer') },
-  { id: 'status', header: t('vendor.common.status') },
-  { id: 'due', header: t('vendor.invoices.dueAt') },
-  { id: 'total', header: t('vendor.invoices.total') },
+  { id: 'number', header: t('vendor.invoices.details'), meta: { class: { th: 'w-40', td: 'w-40 whitespace-nowrap' } } },
+  { id: 'customer', header: t('vendor.invoices.customer'), meta: { class: { th: 'min-w-48', td: 'max-w-0' } } },
+  { id: 'status', header: t('vendor.common.status'), meta: { class: { th: 'w-36', td: 'w-36 whitespace-nowrap' } } },
+  { id: 'due', header: t('vendor.invoices.dueAt'), meta: { class: { th: 'w-36', td: 'w-36 whitespace-nowrap' } } },
+  { id: 'total', header: t('vendor.invoices.total'), meta: { class: { th: 'w-36 text-end', td: 'w-36 whitespace-nowrap text-end' } } },
 ])
 </script>
 <template>

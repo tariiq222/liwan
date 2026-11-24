@@ -29,12 +29,12 @@ const modeText = (row: ClientRow) => (row.commercial_mode && row.hosting_model ?
 const workspaceLabel = (row: ClientRow) => (row.tenant_status ? (operationStatusBadge(row.tenant_status).labelKey ? t(operationStatusBadge(row.tenant_status).labelKey) : row.tenant_status) : '')
 
 const columns = computed<TableColumn<ClientRow>[]>(() => [
-  { id: 'name', header: t('vendor.customers.title') },
-  { id: 'status', header: t('vendor.common.status') },
-  { id: 'plan', header: t('vendor.customers.plan') },
-  { id: 'workspace', header: t('vendor.customers.workspace') },
-  { id: 'mode', header: t('vendor.customers.modeHosting') },
-  { id: 'renewal', header: t('vendor.customers.renewal') },
+  { id: 'name', header: t('vendor.customers.title'), meta: { class: { th: 'min-w-52 w-[26%]', td: 'max-w-0' } } },
+  { id: 'status', header: t('vendor.common.status'), meta: { class: { th: 'w-40', td: 'w-40 whitespace-nowrap' } } },
+  { id: 'plan', header: t('vendor.customers.plan'), meta: { class: { th: 'w-40', td: 'w-40' } } },
+  { id: 'workspace', header: t('vendor.customers.workspace'), meta: { class: { th: 'w-36', td: 'w-36 whitespace-nowrap' } } },
+  { id: 'mode', header: t('vendor.customers.modeHosting'), meta: { class: { th: 'w-44', td: 'w-44' } } },
+  { id: 'renewal', header: t('vendor.customers.renewal'), meta: { class: { th: 'w-36', td: 'w-36 whitespace-nowrap' } } },
 ])
 </script>
 <template>

@@ -9,12 +9,12 @@ const props = defineProps<{ documents: DocumentSummary[]; loading?: boolean; ret
 const router = useRouter()
 const { t } = useI18n()
 const columns = computed<TableColumn<DocumentSummary>[]>(() => [
-  { accessorKey: 'name', header: t('documents.columns.name') },
-  { accessorKey: 'context', header: t('documents.context') },
-  { accessorKey: 'file_count', header: t('documents.files') },
-  { accessorKey: 'visibility', header: t('documents.visibility') },
+  { accessorKey: 'name', header: t('documents.columns.name'), meta: { class: { th: 'min-w-56 w-[34%]', td: 'max-w-0' } } },
+  { accessorKey: 'context', header: t('documents.context'), meta: { class: { th: 'w-44', td: 'w-44 max-w-0' } } },
+  { accessorKey: 'file_count', header: t('documents.files'), meta: { class: { th: 'w-24', td: 'w-24 whitespace-nowrap' } } },
+  { accessorKey: 'visibility', header: t('documents.visibility'), meta: { class: { th: 'w-36', td: 'w-36 whitespace-nowrap' } } },
   // The list has an «expired» filter but showed no expiry, so a user could filter by a date the table never printed.
-  { accessorKey: 'expiry_date', header: t('documents.columns.expiry') },
+  { accessorKey: 'expiry_date', header: t('documents.columns.expiry'), meta: { class: { th: 'w-32', td: 'w-32 whitespace-nowrap' } } },
 ])
 const target = (document: DocumentSummary) => ({ path: `${props.recordBase ?? '/documents'}/${document.id}`, query: returnToQuery(typeof props.returnTo === 'function' ? props.returnTo() : props.returnTo) })
 // Runs in the capture phase so the link's own navigation, built at the last render, does not go first.

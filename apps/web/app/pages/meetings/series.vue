@@ -71,11 +71,11 @@ const total = computed(() => query.data.value?.total ?? 0)
 
 const columns = computed<TableColumn<MeetingSeriesListItem>[]>(() => [
   { id: 'record_number', header: () => recordNumberHeader(t), meta: { class: { th: 'w-12 px-2 text-start', td: 'w-12 px-2 whitespace-nowrap' } } },
-  { accessorKey: 'name', header: t('meetingsUx.seriesName') },
-  { accessorKey: 'recurrence', header: t('meetingsUi.recurrenceLabel') },
-  { accessorKey: 'organizer', header: t('meetingsUi.organizer') },
-  { accessorKey: 'project', header: t('meetingsUi.project') },
-  { accessorKey: 'open_resolution_count', header: t('meetingsUi.resolutions') },
+  { accessorKey: 'name', header: t('meetingsUx.seriesName'), meta: { class: { th: 'min-w-56 w-[28%]', td: 'max-w-0' } } },
+  { accessorKey: 'recurrence', header: t('meetingsUi.recurrenceLabel'), meta: { class: { th: 'w-36', td: 'w-36 whitespace-nowrap' } } },
+  { accessorKey: 'organizer', header: t('meetingsUi.organizer'), meta: { class: { th: 'w-44', td: 'w-44 max-w-0' } } },
+  { accessorKey: 'project', header: t('meetingsUi.project'), meta: { class: { th: 'w-44', td: 'w-44 max-w-0' } } },
+  { accessorKey: 'open_resolution_count', header: t('meetingsUi.resolutions'), meta: { class: { th: 'w-32', td: 'w-32 whitespace-nowrap' } } },
 ])
 
 function seriesTo(series: { id: number }) {

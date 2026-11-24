@@ -174,8 +174,8 @@ function setView(value: string) {
   update({}, value)
 }
 const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
-  { id: 'name', header: t('tasks.columns.title'), meta: { class: { th: 'w-1/2 min-w-64', td: 'py-3' } } },
-  { id: 'state', header: t('tasks.columns.state'), meta: { class: { th: 'w-28', td: 'py-3' } } },
+  { id: 'name', header: t('tasks.columns.title'), meta: { class: { th: 'min-w-64 w-[38%]', td: 'py-3' } } },
+  { id: 'state', header: t('tasks.columns.state'), meta: { class: { th: 'w-32', td: 'py-3' } } },
   { id: 'deadline', header: t('tasks.columns.deadline'), meta: { class: { th: 'w-44', td: 'py-3' } } },
   { id: 'assignees', header: t('tasks.columns.assignees'), meta: { class: { th: 'w-40', td: 'py-3' } } },
 ])

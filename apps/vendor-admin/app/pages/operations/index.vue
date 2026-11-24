@@ -49,11 +49,11 @@ function operationTime(op: OperationFeed) {
 }
 
 const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
-  { id: 'type', header: t('vendor.operations.type') },
-  { id: 'status', header: t('vendor.common.status') },
-  { id: 'stage', header: t('vendor.operations.stage') },
-  { id: 'target', header: t('vendor.operations.target') },
-  { id: 'time', header: t('vendor.operations.updated') },
+  { id: 'type', header: t('vendor.operations.type'), meta: { class: { th: 'min-w-44', td: 'max-w-0' } } },
+  { id: 'status', header: t('vendor.common.status'), meta: { class: { th: 'w-36', td: 'w-36 whitespace-nowrap' } } },
+  { id: 'stage', header: t('vendor.operations.stage'), meta: { class: { th: 'w-36', td: 'w-36 whitespace-nowrap' } } },
+  { id: 'target', header: t('vendor.operations.target'), meta: { class: { th: 'w-44', td: 'w-44 max-w-0' } } },
+  { id: 'time', header: t('vendor.operations.updated'), meta: { class: { th: 'w-52', td: 'w-52 whitespace-nowrap' } } },
 ])
 </script>
 <template>

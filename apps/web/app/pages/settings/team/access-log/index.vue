@@ -56,10 +56,10 @@ function setDate(key: 'from' | 'to', value: string | null) { filters[key] = valu
             <template #default>
               <SharedFilterField :label="t('access.audit.filters.from')" for="access-log-from"><SharedDateField id="access-log-from" :model-value="filters.from ?? null" :max-value="filters.to ?? null" :disabled="!hydrated" @update:model-value="setDate('from', $event)" /></SharedFilterField>
               <SharedFilterField :label="t('access.audit.filters.to')" for="access-log-to"><SharedDateField id="access-log-to" :model-value="filters.to ?? null" :min-value="filters.from ?? null" :disabled="!hydrated" @update:model-value="setDate('to', $event)" /></SharedFilterField>
-              <USelect class="w-full md:w-48" :items="actorOptions" :model-value="filters.actor_id ? String(filters.actor_id) : allValue" :aria-label="t('access.audit.columns.actor')" :disabled="!hydrated || actors.isLoading.value" @update:model-value="onActorChange" />
+              <USelect class="w-full md:w-40" :items="actorOptions" :model-value="filters.actor_id ? String(filters.actor_id) : allValue" :aria-label="t('access.audit.columns.actor')" :disabled="!hydrated || actors.isLoading.value" @update:model-value="onActorChange" />
               <USelect class="w-full md:w-40" :items="targetTypeOptions" :model-value="filters.target_type ?? allValue" :aria-label="t('access.roles.columns.type')" :disabled="!hydrated" @update:model-value="onTargetTypeChange" />
-              <USelect class="w-full md:w-48" :items="targetIdOptions" :model-value="filters.target_id ? String(filters.target_id) : allValue" :aria-label="t('access.audit.columns.target')" :disabled="!hydrated || !filters.target_type" @update:model-value="onTargetIdChange" />
-              <USelect class="w-full md:w-48" :items="actionSelectOptions" :model-value="filters.action ?? allValue" :aria-label="t('access.audit.columns.action')" :disabled="!hydrated" @update:model-value="onActionChange" />
+              <USelect class="w-full md:w-40" :items="targetIdOptions" :model-value="filters.target_id ? String(filters.target_id) : allValue" :aria-label="t('access.audit.columns.target')" :disabled="!hydrated || !filters.target_type" @update:model-value="onTargetIdChange" />
+              <USelect class="w-full md:w-40" :items="actionSelectOptions" :model-value="filters.action ?? allValue" :aria-label="t('access.audit.columns.action')" :disabled="!hydrated" @update:model-value="onActionChange" />
             </template>
           </FilterBar>
         </div>

@@ -23,12 +23,12 @@ const statusItems = computed(() => STATUS_FILTERS.map(value => ({ value, label: 
 const nextKey = (p: PlanView) => (p.status === 'draft' ? 'validate' : p.status === 'validated' ? 'publish' : p.available ? 'view' : 'restore')
 
 const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
-  { id: 'name', header: t('vendor.plans.title') },
-  { id: 'status', header: t('vendor.common.status') },
-  { id: 'prices', header: t('vendor.pricing.sections.prices') },
-  { id: 'limits', header: t('vendor.pricing.sections.limits') },
-  { id: 'bundles', header: t('vendor.pricing.sections.bundles') },
-  { id: 'customers', header: t('vendor.customers.title') },
+  { id: 'name', header: t('vendor.plans.title'), meta: { class: { th: 'min-w-48 w-[24%]', td: 'max-w-0' } } },
+  { id: 'status', header: t('vendor.common.status'), meta: { class: { th: 'w-32', td: 'w-32 whitespace-nowrap' } } },
+  { id: 'prices', header: t('vendor.pricing.sections.prices'), meta: { class: { th: 'w-44', td: 'w-44' } } },
+  { id: 'limits', header: t('vendor.pricing.sections.limits'), meta: { class: { th: 'w-44', td: 'w-44' } } },
+  { id: 'bundles', header: t('vendor.pricing.sections.bundles'), meta: { class: { th: 'w-36', td: 'w-36' } } },
+  { id: 'customers', header: t('vendor.customers.title'), meta: { class: { th: 'w-28', td: 'w-28 whitespace-nowrap' } } },
 ])
 </script>
 <template>

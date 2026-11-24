@@ -34,12 +34,12 @@ const notFound = computed(() => projectId.value === null || (projectError.value 
 const canCreate = computed(() => can('meetings.create') && project.value?.active === true)
 
 const columns = computed<TableColumn<MeetingListItem>[]>(() => [
-  { accessorKey: 'id', header: () => recordNumberHeader(t) },
-  { accessorKey: 'name', header: t('meetingsUi.title') },
-  { accessorKey: 'meeting_date', header: t('meetingsUi.date') },
-  { accessorKey: 'organizer', header: t('meetingsUi.organizer') },
-  { accessorKey: 'state', header: t('meetingsUi.stateLabel') },
-  { accessorKey: 'open_resolution_count', header: t('meetingsUi.resolutions') },
+  { accessorKey: 'id', header: () => recordNumberHeader(t), meta: { class: { th: 'w-12 px-2 text-start', td: 'w-12 px-2 whitespace-nowrap' } } },
+  { accessorKey: 'name', header: t('meetingsUi.title'), meta: { class: { th: 'min-w-56 w-[32%]', td: 'max-w-0' } } },
+  { accessorKey: 'meeting_date', header: t('meetingsUi.date'), meta: { class: { th: 'w-36', td: 'w-36 whitespace-nowrap' } } },
+  { accessorKey: 'organizer', header: t('meetingsUi.organizer'), meta: { class: { th: 'w-28', td: 'w-28 whitespace-nowrap' } } },
+  { accessorKey: 'state', header: t('meetingsUi.stateLabel'), meta: { class: { th: 'w-32', td: 'w-32 whitespace-nowrap' } } },
+  { accessorKey: 'open_resolution_count', header: t('meetingsUi.resolutions'), meta: { class: { th: 'w-28', td: 'w-28 whitespace-nowrap' } } },
 ])
 
 function meetingTo(meeting: MeetingListItem) {

@@ -56,11 +56,11 @@ const total = computed(() => query.data.value?.total ?? 0)
 const hasTaskColumn = computed(() => rows.value.some(row => row.task_id))
 const columns = computed<TableColumn<Row>[]>(() => [
   { id: 'record_number', header: () => recordNumberHeader(t), meta: { class: { th: 'w-12 px-2 text-start', td: 'w-12 px-2 whitespace-nowrap' } } },
-  { accessorKey: 'name', header: t('meetingsUi.resolutionTitle'), meta: { class: { th: 'w-2/5', td: 'max-w-0' } } },
-  { accessorKey: 'responsible', header: t('meetingsUi.responsible') },
-  { accessorKey: 'deadline', header: t('meetingsUi.deadline') },
-  { accessorKey: 'execution_state', header: t('meetingsUi.stateLabel') },
-  ...(hasTaskColumn.value ? [{ id: 'task', header: t('meetingsUx.openTaskNewTab') }] : []),
+  { accessorKey: 'name', header: t('meetingsUi.resolutionTitle'), meta: { class: { th: 'min-w-56 w-[32%]', td: 'max-w-0' } } },
+  { accessorKey: 'responsible', header: t('meetingsUi.responsible'), meta: { class: { th: 'w-44', td: 'w-44 max-w-0' } } },
+  { accessorKey: 'deadline', header: t('meetingsUi.deadline'), meta: { class: { th: 'w-36', td: 'w-36 whitespace-nowrap' } } },
+  { accessorKey: 'execution_state', header: t('meetingsUi.stateLabel'), meta: { class: { th: 'w-32', td: 'w-32 whitespace-nowrap' } } },
+  ...(hasTaskColumn.value ? [{ id: 'task', header: t('meetingsUx.openTaskNewTab'), meta: { class: { th: 'w-32', td: 'w-32 whitespace-nowrap' } } }] : []),
 ])
 function meetingTo(row: Row) {
   const origin = router.resolve({ path: '/meetings/follow-up', query: { ...route.query, q: search.value.trim() || undefined } }).fullPath

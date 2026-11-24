@@ -46,12 +46,12 @@ const path = (b: BundleView) => ({ path: `/bundles/${encodeURIComponent(b.id)}`,
 const statusItems = computed(() => STATUS_FILTERS.map(value => ({ value, label: t(`vendor.pricing.filter.${value}`) })))
 
 const columns = computed<TableColumn<(typeof items.value)[number]>[]>(() => [
-  { id: 'name', header: t('vendor.bundles.title') },
-  { id: 'status', header: t('vendor.common.status') },
-  { id: 'apps', header: t('vendor.pricing.sections.included') },
-  { id: 'limits', header: t('vendor.pricing.sections.limits') },
-  { id: 'prices', header: t('vendor.pricing.sections.prices') },
-  { id: 'customers', header: t('vendor.customers.title') },
+  { id: 'name', header: t('vendor.bundles.title'), meta: { class: { th: 'min-w-48 w-[22%]', td: 'max-w-0' } } },
+  { id: 'status', header: t('vendor.common.status'), meta: { class: { th: 'w-32', td: 'w-32 whitespace-nowrap' } } },
+  { id: 'apps', header: t('vendor.pricing.sections.included'), meta: { class: { th: 'w-48', td: 'w-48' } } },
+  { id: 'limits', header: t('vendor.pricing.sections.limits'), meta: { class: { th: 'w-44', td: 'w-44' } } },
+  { id: 'prices', header: t('vendor.pricing.sections.prices'), meta: { class: { th: 'w-40', td: 'w-40' } } },
+  { id: 'customers', header: t('vendor.customers.title'), meta: { class: { th: 'w-28', td: 'w-28 whitespace-nowrap' } } },
 ])
 </script>
 <template>
