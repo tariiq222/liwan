@@ -164,6 +164,16 @@ class ActualRuntimeLifecycle(unittest.TestCase):
         except ValueError:
             return None
 
+    def wait_for_entry(self, name, timeout=10):
+        # The inert Node entrypoint records its identity asynchronously after boot,
+        # so the readiness line can precede the file; poll instead of asserting at once.
+        deadline = time.monotonic() + timeout
+        record = self.entry(name)
+        while record is None and time.monotonic() < deadline:
+            time.sleep(.02)
+            record = self.entry(name)
+        return record
+
     def env(self):
         env = {**os.environ,
                'LIWAN_CONTROL_HOME': str(self.home),
@@ -225,7 +235,7 @@ class ActualRuntimeLifecycle(unittest.TestCase):
     def test_real_lifecycle_status_stop_restart_and_free_lock(self):
         supervisor = self.start_runtime()
         self.assertTrue(self.lock_is_free(), 'lifecycle lock must be free once the runtime is ready')
-        api, worker = self.entry('api'), self.entry('worker')
+        api, worker = self.wait_for_entry('api'), self.wait_for_entry('worker')
         self.assertIsNotNone(api, 'api entrypoint did not record its identity')
         self.assertIsNotNone(worker, 'worker entrypoint did not record its identity')
 
