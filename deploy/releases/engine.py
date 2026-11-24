@@ -2,7 +2,8 @@
 """Rollout state machine. Runtime observations are required at every irreversible boundary."""
 from __future__ import annotations
 
-from .manifest import validate_manifest, manifest_digest
+from deploy.release.manifest import validate_manifest
+from .manifest import manifest_digest
 from .state import ReleaseConflict, name, digest
 
 

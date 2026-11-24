@@ -26,7 +26,7 @@ import sys
 import time
 import unicodedata
 
-from deploy.releases.postgres import session_role
+from deploy.release.tenant_postgres import session_role
 from tools.shared_saas_lifecycle import tenant_drop_files as files
 from tools.shared_saas_lifecycle.odoo_effect import (
     EffectError, MAX_OUTPUT, TENANT_DB_ROLE, TENANT_MARKER_PARAMETER, no_symlink, permit, validate_host,

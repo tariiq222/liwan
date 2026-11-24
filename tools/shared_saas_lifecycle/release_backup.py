@@ -4,7 +4,7 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from deploy.releases.cli import document
-from deploy.releases.postgres import POSTGRES_ADMIN_ROLE, session_role
+from deploy.release.tenant_postgres import POSTGRES_ADMIN_ROLE, session_role
 from deploy.releases.state import ReleaseState
 from deploy.releases.runtime import LocalRuntime
 from deploy.releases.backup_operation import backup_current

@@ -18,7 +18,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-from .manifest import manifest_digest, validate_manifest
+from deploy.release.manifest import validate_manifest
+from .manifest import manifest_digest
 from .state import ReleaseConflict, atomic_json, digest, name, sync_directory
 
 KNOWN_STATE_VERSIONS = frozenset({'1'})

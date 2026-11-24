@@ -213,7 +213,7 @@ docker compose exec -T db pg_isready -U odoo >/dev/null 2>&1 || { echo "db not r
 # Create the tenant database the way Odoo would (unicode, C collation, template0, then pg_trgm; without them Odoo
 # disables its trigram indexes) and close it to PUBLIC before anything is installed into it. A new database is open
 # to every role through PUBLIC; the SQL (REVOKE CONNECT FROM PUBLIC, GRANT CONNECT to the Odoo role, then an
-# assertion that fails the script when PUBLIC still holds CONNECT) comes from deploy/releases/postgres.py, the
+# assertion that fails the script when PUBLIC still holds CONNECT) comes from deploy/release/tenant_postgres.py, the
 # one source, and psql stops on the first error. Isolation runs whether or not the AI role exists, and on a rerun too.
 # All of this DDL runs as the admin role (postgres, the db image's bootstrap superuser, over the container's local
 # socket); Odoo itself connects as the plain role odoo, which is only the grantee below.
@@ -222,19 +222,19 @@ tenant_psql() { docker compose exec -T db psql -U postgres -v ON_ERROR_STOP=1 -q
 db_exists="$(printf '%s\n' "SELECT 1 FROM pg_database WHERE datname = :'tenant_db'" \
   | docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v tenant_db="$DB_NAME" -tA)"
 if [ -z "$db_exists" ]; then
-  repo_python 'import sys; from deploy.releases.postgres import tenant_create_database_sql; sys.stdout.write(tenant_create_database_sql(sys.argv[1]) + ";\n")' "$DB_NAME" \
+  repo_python 'import sys; from deploy.release.tenant_postgres import tenant_create_database_sql; sys.stdout.write(tenant_create_database_sql(sys.argv[1]) + ";\n")' "$DB_NAME" \
     | tenant_psql -d postgres
 fi
-repo_python 'import sys; from deploy.releases.postgres import tenant_isolation_sql; sys.stdout.write(tenant_isolation_sql(sys.argv[1], sys.argv[2]))' "$DB_NAME" odoo \
+repo_python 'import sys; from deploy.release.tenant_postgres import tenant_isolation_sql; sys.stdout.write(tenant_isolation_sql(sys.argv[1], sys.argv[2]))' "$DB_NAME" odoo \
   | tenant_psql -d postgres
 # Inside the tenant database the admin role runs two fixed scripts and nothing else (deploy/OPERATIONS.md, "Database
 # roles"): this bootstrap (search_path pinned, pg_trgm, then the CREATE grant) and ai/tenant_schema.sql below, both on
 # the still empty database. The runtime role is not a superuser: it needs CREATE on the tenant's public schema
 # (PostgreSQL 15 and later give it to the database owner only) and CONNECT on the postgres database, which Odoo's cron
 # and health probe use.
-repo_python 'import sys; from deploy.releases.postgres import tenant_bootstrap_sql; sys.stdout.write(tenant_bootstrap_sql(sys.argv[1]))' odoo \
+repo_python 'import sys; from deploy.release.tenant_postgres import tenant_bootstrap_sql; sys.stdout.write(tenant_bootstrap_sql(sys.argv[1]))' odoo \
   | tenant_psql -d "$DB_NAME"
-repo_python 'import sys; from deploy.releases.postgres import cluster_connect_grant_sql; sys.stdout.write(cluster_connect_grant_sql(sys.argv[1]) + ";\n")' odoo \
+repo_python 'import sys; from deploy.release.tenant_postgres import cluster_connect_grant_sql; sys.stdout.write(cluster_connect_grant_sql(sys.argv[1]) + ";\n")' odoo \
   | tenant_psql -d postgres
 
 # Give LiwanOS AI's role CONNECT and its own schema in the tenant database, with no access to schema public, and the

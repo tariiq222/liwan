@@ -24,7 +24,7 @@ from .engine import ReleaseEngine
 from .manifest import manifest_digest
 from .migrate import MARKER as OBSERVATION
 from .odoo_gateway import MARKER, OdooBookingGateway
-from .postgres import fence_runtime
+from deploy.release.tenant_postgres import fence_runtime
 from .runtime import LocalRuntime
 from .scheduler import MaintenanceScheduler, ReleaseEngineAdapter, ReleaseTarget
 from .state import ReleaseConflict, ReleaseState, atomic_json
@@ -486,7 +486,7 @@ class RuntimeTests(unittest.TestCase):
 
         for scope, expected in [('old_role', True), ('tenant', False)]:
             connection = Connection()
-            with self.subTest(scope=scope), patch('deploy.releases.postgres.validate_runtime_role', return_value={'valid': True}):
+            with self.subTest(scope=scope), patch('deploy.release.tenant_postgres.validate_runtime_role', return_value={'valid': True}):
                 result = fence_runtime({**self.binding, 'fence': 1, 'gateClosed': True,
                                         'admittedWriters': 0, 'transactionScope': scope},
                                        'runtime_blue', 'runtime_green', lambda _: connection, deadline_seconds=0)

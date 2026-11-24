@@ -41,7 +41,7 @@ from deploy.release.common import (  # noqa: E402
     Runner, free_bytes, make_log, now, read_env_file, sensitive_values, read_json, write_atomic, write_json)
 from deploy.release.source import (  # noqa: E402
     COMMIT, ENVIRONMENTS, GITHUB_TOKEN_VAR, TOKEN_VAR, USER_VAR, Credential, Source, explicit_tag, host_architecture)
-from deploy.releases.postgres import (  # noqa: E402
+from deploy.release.tenant_postgres import (  # noqa: E402
     ODOO_RUNTIME_ROLE, POSTGRES_ADMIN_ROLE, RUNTIME_ROLE_RULES, identifier, runtime_role_assertion_sql, tenant_isolation_statements)
 
 TENANT_DATABASE = re.compile(r'^[a-z][a-z0-9_]{0,62}$')

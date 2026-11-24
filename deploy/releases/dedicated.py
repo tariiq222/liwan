@@ -4,7 +4,7 @@ Consumes a trusted local binding only; no remote registry lookup, cookie
 rewriting or customer-selected upstream is part of this adapter.
 """
 import re
-from .manifest import MODULE, NAME
+from deploy.release.manifest import MODULE, NAME
 from .compose import VOLUME
 
 HOST = re.compile(r'^(?=.{1,253}$)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$')

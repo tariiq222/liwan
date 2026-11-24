@@ -60,8 +60,8 @@ def run_script(database):
 
 
 def tenant_isolation_statements(database):
-    """Provisioning closes every tenant database to PUBLIC before tenant_schema.sql runs (deploy/releases/postgres.py)."""
-    spec = importlib.util.spec_from_file_location("release_postgres", REPO / "deploy" / "releases" / "postgres.py")
+    """Provisioning closes every tenant database to PUBLIC before tenant_schema.sql runs (deploy/release/tenant_postgres.py)."""
+    spec = importlib.util.spec_from_file_location("release_postgres", REPO / "deploy" / "release" / "tenant_postgres.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module.tenant_isolation_statements(database, conninfo_to_dict(BASE_URL)["user"])

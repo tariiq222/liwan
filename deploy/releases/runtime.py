@@ -19,7 +19,7 @@ from .manifest import load_manifest, manifest_digest
 from .migrate import migrate_tenant, verify_tenant
 from .runtime_identity import inspect_odoo_runtime
 from .source_gate import verify_sources, snapshot_digest
-from .postgres import WRITER_LOGINS, bounded_connection, fence_runtime, fence_writers, session_role, validate_runtime_role, identifier, writer_grants
+from deploy.release.tenant_postgres import WRITER_LOGINS, bounded_connection, fence_runtime, fence_writers, session_role, validate_runtime_role, identifier, writer_grants
 from .state import ReleaseConflict, atomic_json, name, safe_directory
 
 

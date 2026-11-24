@@ -7,8 +7,8 @@ import re
 import subprocess
 import tarfile
 import time
-from .manifest import IMAGE
-from .postgres import identifier, tenant_create_database_sql, tenant_isolation_sql
+from deploy.release.manifest import IMAGE
+from deploy.release.tenant_postgres import identifier, tenant_create_database_sql, tenant_isolation_sql
 
 
 def _path(value, *, exists=False, directory=False):
