@@ -55,7 +55,7 @@ export const footerRows: ShellNavigationLink[] = [
 /** The sidebar footer as one icon row: the four destinations, then the support button (no page yet). */
 export const footerTools: ShellFooterTool[] = [
   ...footerRows.map(({ id, label, icon, to, active }) => ({ id, label, icon, to, active })),
-  { id: 'support', label: 'الدعم الفني', icon: 'i-lucide-life-buoy' },
+  { id: 'support', label: 'الدعم الفني (قريبًا)', icon: 'i-lucide-life-buoy', disabled: true },
 ]
 /** The links of one application (the projects settings of a long list): a create action, then a branch with children. */
 export const appActionRows: ShellNavigationLink[] = [{ id: 'new-project', label: 'مشروع جديد', icon: 'i-lucide-plus', to: '/projects/new', active: false, primary: true, testId: 'quick-action-new-project' }]

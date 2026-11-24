@@ -203,14 +203,23 @@ test.describe('sidebar footer', () => {
     }
   })
 
-  test('the support icon is a plain button with no link and no action yet', async ({ page }) => {
+  test('the support icon is an aria-disabled button, focusable for its tooltip, with no link and no action yet', async ({ page }) => {
     await open(page, '/apps')
-    const support = page.getByTestId('application-navigation').getByTestId('footer-tool-support')
-    await expect(support).toHaveAccessibleName('الدعم الفني')
+    const menu = page.getByTestId('application-navigation')
+    const support = menu.getByTestId('footer-tool-support')
+    await expect(support).toHaveAccessibleName('الدعم الفني (قريبًا)')
+    await expect(support).toHaveAttribute('aria-disabled', 'true')
+    await expect(support).not.toHaveAttribute('disabled', /.*/)
     await expect(support).not.toHaveAttribute('href', /.+/)
+    await expect(menu.getByTestId('footer-tools')).toHaveAccessibleName('اختصارات عامة')
+    await support.focus()
+    await expect(support).toBeFocused()
+    await expect(page.locator('[role="tooltip"]').filter({ hasText: 'الدعم الفني (قريبًا)' })).toBeVisible()
     const url = page.url()
-    await support.click()
+    // Playwright treats aria-disabled as not actionable, so the click is forced: it must still do nothing.
+    await support.click({ force: true })
     expect(page.url()).toBe(url)
+    await expect(menu.getByTestId('footer-list')).toHaveCount(0)
   })
 
   test('the chevron opens the named list above the row and a second click closes it', async ({ page }) => {
@@ -221,6 +230,7 @@ test.describe('sidebar footer', () => {
     await expect(menu.getByTestId('footer-list')).toHaveCount(0)
     await toggle.click()
     await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    await expect(menu.getByTestId('footer-list').getByRole('link').first()).toBeFocused()
     const list = menu.getByTestId('footer-list')
     await expect(list.getByTestId('navigation-app-apps')).toHaveText('كل التطبيقات')
     await expect(list.getByTestId('navigation-app-settings')).toHaveAttribute('data-active', 'true')

@@ -187,7 +187,7 @@ describe('ShellFooterBar', () => {
   const tools = [
     { id: 'documents', label: 'المستندات', icon: 'i-lucide-files', to: '/documents', active: false },
     { id: 'settings', label: 'الإعدادات', icon: 'i-lucide-settings', to: '/settings', active: true },
-    { id: 'support', label: 'الدعم الفني', icon: 'i-lucide-life-buoy' },
+    { id: 'support', label: 'الدعم الفني (قريبًا)', icon: 'i-lucide-life-buoy', disabled: true },
   ]
   const render = (props: Record<string, unknown> = {}) =>
     renderShared(file('ShellFooterBar'), { label: 'روابط عامة', tools, expandLabel: 'عرض القائمة', collapseLabel: 'إخفاء القائمة', ...props }, { default: () => Vue.h('p', 'القائمة الكاملة') }, { stubs })
@@ -204,8 +204,9 @@ describe('ShellFooterBar', () => {
     const html = await render()
     expect(html).toContain('to="/settings"')
     expect(html.match(/aria-current="page"/g)).toHaveLength(1)
-    expect(html).toMatch(/<button[^>]*aria-label="الدعم الفني"/)
-    expect(html).not.toMatch(/<a[^>]*aria-label="الدعم الفني"/)
+    expect(html).toMatch(/<button[^>]*aria-label="الدعم الفني \(قريبًا\)"[^>]*aria-disabled="true"/)
+    expect(html).not.toMatch(/<button[^>]*aria-label="الدعم الفني \(قريبًا\)"[^>]*\sdisabled/)
+    expect(html).not.toMatch(/<a[^>]*aria-label="الدعم الفني/)
   })
 
   it('keeps the list closed until the chevron opens it, and names the chevron by what it does next', async () => {

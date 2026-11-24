@@ -47,7 +47,7 @@ const footerRows = computed<ShellNavigationLink[]>(() => [
 const footerOpen = ref(false)
 const footerTools = computed<ShellFooterTool[]>(() => [
   ...footerRows.value,
-  { id: 'support', label: t('nav.support'), icon: 'i-lucide-life-buoy' },
+  { id: 'support', label: t('nav.supportSoon'), icon: 'i-lucide-life-buoy', disabled: true },
 ])
 // Every pinned application except the open one: the menu lists where the user can go, not where they already are.
 const switchItems = computed(() => pinnedRows.value.filter(row => row.id !== shell.activeModule.value))
@@ -89,7 +89,7 @@ const sections = computed(() => app.value?.sections ?? [])
     <template #footer>
       <ShellFooterBar
         v-model:expanded="footerOpen"
-        :label="t('nav.footer')"
+        :label="t('nav.footerShortcuts')"
         :tools="footerTools"
         :expand-label="t('nav.footerExpand')"
         :collapse-label="t('nav.footerCollapse')"

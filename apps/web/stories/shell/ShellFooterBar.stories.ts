@@ -8,7 +8,7 @@ const meta = {
   title: 'Shell/ShellFooterBar',
   component: ShellFooterBar,
   parameters: storyContext('apps/web/app/components/shell/AppSidebar.vue:90'),
-  args: { label: 'روابط عامة', tools: footerTools, expandLabel: 'عرض القائمة بالأسماء', collapseLabel: 'إخفاء الأسماء' },
+  args: { label: 'اختصارات عامة', tools: footerTools, expandLabel: 'عرض القائمة بالأسماء', collapseLabel: 'إخفاء الأسماء' },
   render: args => ({
     components: { ShellFooterBar, ShellNavSection },
     setup: () => ({ args, footerRows }),

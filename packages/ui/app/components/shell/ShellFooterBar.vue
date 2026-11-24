@@ -2,7 +2,7 @@
 import type { ShellFooterTool } from '../../types/shell'
 
 // The sidebar's bottom group: one row of icon-only buttons (a link when the tool has `to`, a plain button when it has none),
-// and a last chevron button that opens the full vertical list (the default slot) above the row and closes it again.
+// (a tool marked `disabled` is `aria-disabled` and stays focusable for its tooltip), and a last chevron button that opens the full vertical list (the default slot) above the row and closes it again.
 // Every button carries its name as its accessible name and an always-on tooltip, because the row has no labels. Between
 // 768px and 1099px the sidebar is an icon strip: the row stands upright and the chevron and the list drop out.
 // Presentational: the tools, the names and the open flag come in as props, the list as a slot.
@@ -22,12 +22,21 @@ const emit = defineEmits<{ navigate: [tool: ShellFooterTool] }>()
 const expanded = defineModel<boolean>('expanded', { default: false })
 const listId = useId()
 const prefix = computed(() => props.testIdPrefix ?? '')
+const list = ref<HTMLElement | null>(null)
+// Opening by the chevron moves focus to the first link of the list, so a keyboard user lands inside what just appeared.
+async function toggle() {
+  const next = !expanded.value
+  expanded.value = next
+  if (!next) return
+  await nextTick()
+  list.value?.querySelector<HTMLElement>('a')?.focus()
+}
 const toggleLabel = computed(() => (expanded.value ? props.collapseLabel : props.expandLabel))
 </script>
 
 <template>
   <div class="liwan-side-foot">
-    <div v-if="expanded" :id="listId" class="liwan-side-foot-list" :data-testid="`${prefix}footer-list`">
+    <div v-if="expanded" :id="listId" ref="list" class="liwan-side-foot-list" :data-testid="`${prefix}footer-list`">
       <slot />
     </div>
     <div class="liwan-side-foot-bar" role="group" :aria-label="props.label" :data-testid="`${prefix}footer-tools`">
@@ -44,7 +53,7 @@ const toggleLabel = computed(() => (expanded.value ? props.collapseLabel : props
         >
           <UIcon :name="tool.icon" aria-hidden="true" />
         </NuxtLink>
-        <button v-else type="button" class="liwan-core-app" :aria-label="tool.label" :data-testid="`${prefix}footer-tool-${tool.id}`">
+        <button v-else type="button" class="liwan-core-app" :aria-label="tool.label" :aria-disabled="tool.disabled ? 'true' : undefined" :data-testid="`${prefix}footer-tool-${tool.id}`">
           <UIcon :name="tool.icon" aria-hidden="true" />
         </button>
       </ShellTip>
@@ -57,7 +66,7 @@ const toggleLabel = computed(() => (expanded.value ? props.collapseLabel : props
           :aria-label="toggleLabel"
           :disabled="!props.hydrated"
           :data-testid="`${prefix}footer-toggle`"
-          @click="expanded = !expanded"
+          @click="toggle"
         >
           <UIcon name="i-lucide-chevron-up" aria-hidden="true" />
         </button>

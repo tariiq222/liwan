@@ -17,7 +17,7 @@ export interface ShellRailGroups { top: ShellRailItem[]; applications: ShellRail
 export interface ShellQuickItem { id: string; label: string; icon: string; to: RouteLocationRaw; active?: boolean; count?: number; primary?: boolean; app?: string }
 
 /** One icon button of the sidebar's bottom row: a link when `to` is set, a plain button otherwise. */
-export interface ShellFooterTool { id: string; label: string; icon: string; to?: RouteLocationRaw; active?: boolean }
+export interface ShellFooterTool { id: string; label: string; icon: string; to?: RouteLocationRaw; active?: boolean; /** A button that is announced as disabled yet stays focusable, so its tooltip shows. */ disabled?: boolean }
 
 /** A link row of the sidebar, optionally with nested rows; `testId` is the full Playwright hook of the row. */
 export interface ShellNavigationLink extends ShellQuickItem {

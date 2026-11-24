@@ -121,6 +121,7 @@
 .liwan-side-foot-bar { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
 button.liwan-core-app { padding: 0; cursor: pointer; }
 button.liwan-core-app:disabled { cursor: default; opacity: .6; }
+.liwan-core-app[aria-disabled="true"] { opacity: .6; cursor: default; }
 .liwan-foot-toggle .iconify { transition: rotate var(--shell-duration) var(--shell-ease); }
 .liwan-foot-toggle[aria-expanded="true"] .iconify { rotate: 180deg; }
 .liwan-sidebar[data-surface="drawer"] .liwan-side-core { margin-block-end: 10px; }
@@ -451,6 +452,9 @@ button.liwan-side-row { border: 0; background: transparent; cursor: pointer; }
 /* Touch: every shell control keeps a 44px target. */
 @media (pointer: coarse) {
   .liwan-shell :is(.liwan-tool, .liwan-user, .liwan-slideover-close, .liwan-search-trigger, .liwan-ai-button, .liwan-side-row, .liwan-tabbar-item) { min-height: 44px; min-width: 44px; }
+  .liwan-side-foot-bar .liwan-core-app { min-height: 44px; min-width: 44px; }
+  /* Six 44px tiles are wider than the 235px of the 264px column, so there the tiles share the row and keep the 44px height. */
+  @media (min-width: 1100px) { .liwan-sidebar[data-surface="sidebar"] .liwan-side-foot-bar .liwan-core-app { flex: 1 1 0; min-width: 0; max-width: 44px; } }
   /* The page's own buttons, links and selects too (a switch keeps its own track). */
   .liwan-shell-main :is(button[data-slot="base"]:not([role="switch"]), a[data-slot="base"], [data-slot="select-trigger"]) { min-height: 44px; min-width: 44px; }
 }

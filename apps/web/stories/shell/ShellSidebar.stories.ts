@@ -19,7 +19,7 @@ type Story = StoryObj<typeof meta>
 
 const components = { ShellSidebar, ShellNavSection, ShellOrgCard, ShellCoreApps, ShellAppTile, ShellFooterBar }
 const context = storyContext('apps/web/app/components/shell/AppSidebar.vue:63')
-const footer = `<template #footer><ShellFooterBar label="روابط عامة" :tools="footerTools" expand-label="عرض القائمة بالأسماء" collapse-label="إخفاء الأسماء"><ShellNavSection label="روابط عامة" :items="footerRows" /></ShellFooterBar></template>`
+const footer = `<template #footer><ShellFooterBar label="اختصارات عامة" :tools="footerTools" expand-label="عرض القائمة بالأسماء" collapse-label="إخفاء الأسماء"><ShellNavSection label="روابط عامة" :items="footerRows" /></ShellFooterBar></template>`
 
 export const Global: Story = {
   name: 'عام',
