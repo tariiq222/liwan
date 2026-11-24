@@ -160,29 +160,55 @@ The command never waits for input. A second start while one runs exits 0 at once
 
 ## The stack and the Odoo config
 
-The shared stack is one definition, `deploy/stack/compose.yml`, rendered by `deploy/stack/render.py` from the environment's
-shared env file (the toggles `LIWAN_STACK_COMMERCIAL_EDGE` and `LIWAN_STACK_DB_HOST_LINK`, exactly `true` or `false`) into the run
-directory (`<state>/stack/compose.yml` and `sizing.env`). Every compose command is `docker compose --project-directory
-<checkout>/deploy -p <project> -f <rendered file>` with the env files in this order, the last one winning: `sizing.env`, the shared
-env file, `release.env`. The candidate's own template is rendered, not the running command's. A missing, unknown or non-boolean
-toggle refuses the run in `prepare` (`invalid_shared_env`). Services are started by name, so a profile service such as
-`tenant-storage` never comes up with `up`.
+The shared stack is one definition, `deploy/stack/compose.yml`. Each release renders its own: the command runs
+`python3 -B -m deploy.stack.render bundle --env-file <shared env> [--env-file <release.env>] --out <dir>` inside that release's
+checkout (`PYTHONPATH` set to it; `<dir>` is `<state>/stack/<commit>/`, mode 0700, cleared before each render) and reads only the
+`stack.json` manifest it writes (`{"contract": 1, "compose", "envFiles", "odooConf", "projectDirectory"}`, with `compose.yml`,
+`sizing.env` and a 0600 `odoo.conf` beside it). No release's template is read by another release's code, so a candidate may change
+the stack, the toggles or the Odoo config template and the served release is still stopped, and rolled back to, on its own render.
+Every compose command is `docker compose --project-directory <checkout>/deploy -p <project> -f <bundle compose file>` with the env
+files in this order, the last one winning: the bundle's `sizing.env`, the shared env file, `release.env`. A renderer that refuses
+the shared env file (a toggle its own template uses that is missing or not exactly `true`/`false`, a missing secret key; stderr names keys, never values) is
+`invalid_shared_env`; a checkout without `deploy/stack/render.py` is `previous_not_stack` (the served release) or
+`candidate_not_stack`, and a manifest of another contract is `stack_contract_mismatch`, each refused in `prepare` before anything
+stops. A served release that predates the stack definition is moved over once by hand: see "Pre-stack cutover (one time)" below.
+A renderer requires exactly the toggles its own template uses and ignores any other `LIWAN_STACK_*` key (it names them once on stderr as `ignored: <names>`), so a toggle only a newer release uses may sit in the shared env file while the served release is still in charge; a misspelled known toggle still fails because the real one is then missing. Services are started by name, so a profile service such as `tenant-storage` never comes up with `up`.
 
 `LIWAN_RELEASE_TAG_POLICY` in the shared env file is `highest` (the highest `release/19.0.X.Y.Z` tag; `--tag` is refused with
 `tag_not_allowed`) or `explicit` (only the tag `--tag` gives; none is refused with `tag_required`); a missing or other value is
 refused with `invalid_tag_policy`. An environment is any name (lowercase letters, digits, hyphens) with a config file in
 `/etc/liwan-release/`.
 
-`prepare` also renders `deploy/stack/odoo.conf.template` (from `DB_PASSWORD`, `LIWAN_ODOO_ADMIN_PASSWD` and the sizing plan) to
-`<LIWAN_SHARED_ODOO_CONFIG>.next` with the live file's owner, group and mode exactly, and validates it with the candidate's
-`deploy/shared/validate_odoo_config.py` (`odoo_config_invalid`); the restore profile's `LIWAN_RESTORE_ODOO_CONFIG` is validated as
-before. The live file must exist: a missing one is `RESULT: refused odoo_config_missing`, because a file the command made as root
-would not be readable by the container (the operator creates it as row A4.7 says). A live file that does not carry the render marker
-(a hand-written one) must match the render option by option, secrets included (compared in constant time) or the run stops with
-`RESULT: refused odoo_config_drift`, naming the differing option names only, never a value. `activate` keeps the live file as
-`<file>.prev` (same owner and mode) and renames `.next` over it after the stop; a resumed run finds nothing left to rename. A
-rollback puts `.prev` back before it starts the previous release. `prepare` also refuses with `classification_dir_missing` when
+`prepare` also takes the candidate's rendered `odoo.conf`, writes it to `<LIWAN_SHARED_ODOO_CONFIG>.next` with the live file's owner,
+group and mode exactly, and validates it with the candidate's `deploy/shared/validate_odoo_config.py` (`odoo_config_invalid`); the
+restore profile's `LIWAN_RESTORE_ODOO_CONFIG` is validated as before. The live file must exist: a missing one is `RESULT: refused
+odoo_config_missing`, because a file the command made as root would not be readable by the container (the operator creates it as row
+A4.7 says). A live file that does not carry the render marker (a hand-written one) must match the render option by option, secrets
+included (compared in constant time) or the run stops with `RESULT: refused odoo_config_drift`, naming the differing option names
+only, never a value. `activate` renames `.next` over the live file after the stop; a resumed run finds nothing left to rename. A
+rollback runs the same install for the previous release (`install_odoo_config`: its own renderer, the same checks, the same owner
+and mode) before it starts it, so there is one mechanism and no `.prev` copy: the previous release always rendered its own config
+(a pre-stack one is refused before the run starts), and a hand-written file was adopted only because it said what the render says,
+so the re-render is equivalent. `prepare` also refuses with `classification_dir_missing` when
 `<LIWAN_CONTROL_STATE_DIR>/classifications` (bind-mounted read-only into Odoo, never created by Docker) is not a directory.
+
+## Pre-stack cutover (one time)
+
+A host whose served release predates the stack definition (it has `deploy/docker-compose*.yml`, no `deploy/stack/render.py`) is
+refused with `previous_not_stack`: the release command could neither stop it nor roll back to it. Move it over by hand, once,
+as root, with the owner's go. Staging had no registry targets and no tenant databases when this was written (checked
+2026-11-24; confirm with step 0), and its `db` bootstrap user is still `odoo`, so the A4.4a empty-volume cutover is due at the same time.
+
+0. Confirm the registry is empty: `ls <LIWAN_TENANT_REGISTRY_DIR>` shows no tenant targets and `docker exec <project>-db-1 psql -U odoo -d postgres -tAc "select datname from pg_database"` lists no tenant database. Stop here if either is not empty.
+1. Dump what you want to keep (`pg_dump` of every database listed) and copy the live Odoo config: `cp -p <LIWAN_SHARED_ODOO_CONFIG> <LIWAN_SHARED_ODOO_CONFIG>.pre-stack; chown root:999 <file>.pre-stack; chmod 0440 <file>.pre-stack`.
+2. Move the pre-stack release folder out of the way: `mv /opt/liwan/releases/<served commit> /opt/liwan/pre-stack-<served commit>`.
+3. Stop the old stack with its own five compose files, from that moved folder, with the project and env files it ran with: `cd /opt/liwan/pre-stack-<commit>/deploy && docker compose -p <project> -f docker-compose.yml -f docker-compose.shared.yml -f docker-compose.shared-commercial.yml -f docker-compose.production.yml -f docker-compose.host-link.yml --env-file <shared.env> --env-file /var/lib/liwan-release/<env>/release.env down`. Add `-v` only when doing the A4.4a empty-volume cutover now (staging needs it); never otherwise.
+4. Move the state aside and make the candidate current: `mv /var/lib/liwan-release/<env>/served.json /var/lib/liwan-release/<env>/served.json.pre-stack`; clone the candidate commit into `/opt/liwan/releases/<candidate commit>` (checkout, `npm ci` and the dependency marker, as `extract` does), then `ln -sfn /opt/liwan/releases/<candidate commit> /opt/liwan/current`.
+5. Add the new keys to the shared env file: `LIWAN_RELEASE_TAG_POLICY`, `LIWAN_STACK_COMMERCIAL_EDGE`, `LIWAN_STACK_DB_HOST_LINK`, `LIWAN_ODOO_ADMIN_PASSWD` (an Odoo hash), `LIWAN_TENANT_STORAGE_FILES_DIR`, and the `OCI_*` tenant-storage keys empty; create `<LIWAN_CONTROL_STATE_DIR>/classifications` if it is missing; run `bringup.py --apply` for the tenant-storage directory.
+6. Render and install the Odoo config from the candidate: `D=$(mktemp -d); chmod 0700 $D; (cd /opt/liwan/current && PYTHONPATH=. python3 -B -m deploy.stack.render bundle --env-file <shared.env> --out $D)`; `install -o root -g 999 -m 0440 $D/odoo.conf <LIWAN_SHARED_ODOO_CONFIG>`; validate on the host (`python3 -B /opt/liwan/current/deploy/shared/validate_odoo_config.py <LIWAN_SHARED_ODOO_CONFIG>`) and in the container (`docker run --rm --entrypoint /opt/venv/bin/python -v <LIWAN_SHARED_ODOO_CONFIG>:/etc/odoo/odoo.conf:ro liwan-odoo:<candidate tag> /opt/liwan/shared/validate_odoo_config.py /etc/odoo/odoo.conf`, once the image is pulled); delete `$D`.
+7. Run the release job. With no `served.json` it is the first deploy: it runs `prepare`, starts the stack and writes `served.json`.
+
+Manual rollback, before step 7 has committed: `ln -sfn /opt/liwan/pre-stack-<commit> /opt/liwan/current` is not needed (the old folder is not under `releases/`); put the files back with `mv /opt/liwan/pre-stack-<commit> /opt/liwan/releases/<commit>`, `mv served.json.pre-stack served.json`, `cp -p <config>.pre-stack <LIWAN_SHARED_ODOO_CONFIG>`, `ln -sfn /opt/liwan/releases/<commit> /opt/liwan/current`, and start the old stack with its five files and `up -d`. After the first deploy has committed, the normal rollback applies.
 
 ## Config
 

@@ -10,6 +10,7 @@ import os
 import re
 import shutil
 import stat
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -17,6 +18,7 @@ from pathlib import Path
 from unittest import mock
 
 from deploy.release import databases, release
+from deploy.stack import render as stack_render
 from deploy.release.common import CommandFailed, Runner, make_log, read_env_file, sensitive_values
 
 OLD = 'a' * 40
@@ -60,9 +62,41 @@ POLICY = 'LIWAN_RELEASE_TAG_POLICY=highest\n'
 
 def seed_stack(checkout):
     """The stack definition a real checkout holds: the release renders its own template, not the running code's."""
-    for name in (release.STACK_COMPOSE_TEMPLATE, release.ODOO_CONFIG_TEMPLATE):
+    for name in STACK_FILES:
         (checkout / name).parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(REPOSITORY / name, checkout / name)
+
+
+def seed_pre_stack(checkout):
+    """A release folder made before the stack definition existed: no renderer, only its old compose files."""
+    (checkout / 'deploy').mkdir(parents=True, exist_ok=True)
+    (checkout / 'deploy/docker-compose.yml').write_text('services: {}\n')
+
+
+def stub_renderer(checkout, marker, contract=1, require=None, manifest_name='stack.json'):
+    """A renderer of its own that writes distinct markers into the bundle, as that release's code would."""
+    render = checkout / 'deploy/stack/render.py'
+    render.parent.mkdir(parents=True, exist_ok=True)
+    for init in (checkout / 'deploy/__init__.py', checkout / 'deploy/stack/__init__.py'):
+        init.write_text('')
+    render.write_text(f"""import json, os, pathlib, sys
+argv = sys.argv[1:]
+out = pathlib.Path(argv[argv.index('--out') + 1])
+env = [pathlib.Path(argv[i + 1]) for i, word in enumerate(argv) if word == '--env-file']
+text = ''.join(path.read_text() for path in env)
+if {require!r} and {require!r} not in text:
+    sys.stderr.write('render: {require} is missing from the env file (true or false)\\n')
+    raise SystemExit(1)
+(out / 'compose.yml').write_text('marker {marker}\\n')
+(out / 'sizing.env').write_text('SIZING_MARKER={marker}\\n')
+(out / 'odoo.conf').write_text({release.RENDERED_MARKER!r} + '\\n[options]\\nmarker = {marker}\\n')
+(out / {manifest_name!r}).write_text(json.dumps(dict(contract={contract!r}, compose='compose.yml', envFiles=['sizing.env'],
+                                          odooConf='odoo.conf', projectDirectory='deploy')))
+""")
+
+
+STACK_FILES = ('deploy/__init__.py', 'deploy/odoo_sizing.py', 'deploy/release/__init__.py', 'deploy/release/common.py',
+               'deploy/stack/__init__.py', 'deploy/stack/render.py', 'deploy/stack/compose.yml', 'deploy/stack/odoo.conf.template')
 
 
 def write_smoke(checkout):
@@ -193,9 +227,15 @@ class FakeRunner:
         self.stdins = []
         self.envs = []
         self.timeouts = []
+        self.cwds = []
+        self.renders = []
+        self.compose_files = []
 
-    def __call__(self, argv, *, stdin=None, env=None, check=True, timeout=None):
+    def __call__(self, argv, *, stdin=None, env=None, check=True, timeout=None, cwd=None):
         self.calls.append(argv)
+        self.cwds.append(cwd)
+        if argv[:2] == ['docker', 'compose'] and '-f' in argv and Path(argv[argv.index('-f') + 1]).parent.parent.name == 'stack':
+            self.compose_files.append((argv, Path(argv[argv.index('-f') + 1]).read_text()))  # the render each command ran on
         self.stdins.append(stdin)
         self.envs.append(env)
         self.timeouts.append(timeout)
@@ -208,6 +248,11 @@ class FakeRunner:
     def answer(self, argv, stdin):
         case = self.case
         joined = ' '.join(argv)
+        if argv[:4] == ['python3', '-B', '-m', 'deploy.stack.render']:  # the checkout's own renderer, really run
+            self.renders.append((Path(self.cwds[-1]).name, argv, self.last_env['PYTHONPATH']))
+            done = subprocess.run(argv, cwd=self.cwds[-1], env={**self.last_env, 'PATH': os.environ['PATH']}, text=True,
+                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
+            return done.returncode, done.stdout
         if argv[0] == 'git':
             return self.git(argv)
         if argv[0] == 'docker' and argv[1] in ('login', 'pull', 'create', 'cp', 'rm', 'rmi', 'image'):
@@ -236,7 +281,10 @@ class FakeRunner:
             marker.write_text('{}')
             return 0, ''
         if argv[0] == 'tar':
-            write_smoke(Path(argv[argv.index('-C') + 1]))
+            checkout = Path(argv[argv.index('-C') + 1])
+            write_smoke(checkout)
+            if case.candidate_stack is not None:
+                case.candidate_stack(checkout)
             return 0, ''
         if argv[0] == 'cp':  # cp -al <filestore> <filestore>.pre
             shutil.copytree(argv[2], argv[3])
@@ -355,6 +403,7 @@ class ReleaseTest(unittest.TestCase):
         self.annotated = set()
         self.on_main = True
         self.fail_health, self.fail_upgrade_of = False, None
+        self.candidate_stack = None  # a hook that dresses the extracted candidate checkout (a stub renderer, say)
         self.fail_render, self.fail_restore_render = False, False
         self.missing_required, self.candidate_renders, self.odoo_config_invalid = None, [], False
         self.restore_config_invalid = False
@@ -1140,7 +1189,7 @@ class ReleaseTest(unittest.TestCase):
         render = next(call for call in self.runner.calls if '--output' in call)
         self.assertEqual(render[render.index('--profile') + 1], '*')
         files = [render[index + 1] for index, word in enumerate(render) if word == '-f']
-        self.assertEqual(files, [str(self.state / 'stack/compose.yml')])
+        self.assertEqual(files, [str(self.state / 'stack' / NEW / 'compose.yml')])
         self.assertLess(self.runner.calls.index(render), self.runner.calls.index(['systemctl', 'start', release.SHARED_WORKER_UNIT]))
 
     def test_a_failed_render_of_the_candidate_rolls_back_to_the_served_file(self):
@@ -1468,9 +1517,7 @@ class ReleaseTest(unittest.TestCase):
 
     # --- the Odoo config the release renders -------------------------------------------------------------------
     def rendered_config(self):
-        return release.render.render_placeholders(
-            (self.paths.releases / OLD / release.ODOO_CONFIG_TEMPLATE).read_text(),
-            release.render.odoo_conf_values(read_env_file(self.root / 'shared.env')))
+        return stack_render.odoo_conf(read_env_file(self.root / 'shared.env'))
 
     def test_the_rendered_config_replaces_the_live_one_at_activation_with_its_owner_and_mode(self):
         self.odoo_config.chmod(0o440)
@@ -1515,36 +1562,123 @@ class ReleaseTest(unittest.TestCase):
         after = self.odoo_config.stat()
         self.assertEqual((stat.S_IMODE(after.st_mode), after.st_uid, after.st_gid), (0o440, before.st_uid, before.st_gid))
 
-    def test_a_rollback_puts_back_the_config_the_previous_release_ran_with_owner_and_mode_included(self):
-        self.hand_written_config()
+    # --- each release renders its own stack ------------------------------------------------------------------
+    def markers(self, *words):
+        """The render marker each compose command ran on, for the commands that carry every word."""
+        return [text.split()[1] for argv, text in self.runner.compose_files if all(word in argv for word in words)]
+
+    def stub_old_and_new(self, **new_options):
+        stub_renderer(self.paths.releases / OLD, 'old')
+        self.candidate_stack = lambda checkout: stub_renderer(checkout, 'new', **new_options)
+
+    def test_the_forward_run_renders_the_candidate_with_the_candidates_own_renderer(self):
+        self.stub_old_and_new()
+        self.assertEqual(self.main(), release.EXIT_OK)
+        self.assertIn('new', self.markers('up'))
+        self.assertEqual(set(self.markers('stop')), {'old'})  # the served release is stopped on its own render
+        self.assertIn('marker = new', self.odoo_config.read_text())
+        self.assertEqual({(name, os.path.realpath(path)) for name, _, path in self.runner.renders},
+                         {(OLD, os.path.realpath(self.paths.releases / OLD)), (NEW, os.path.realpath(self.paths.releases / NEW))})
+        for (_, argv, _), cwd in zip(self.runner.renders, [c for c in self.runner.cwds if c is not None]):
+            self.assertEqual(argv[:5], ['python3', '-B', '-m', 'deploy.stack.render', 'bundle'])
+            self.assertEqual(Path(argv[argv.index('--out') + 1]).parent, self.state / 'stack')
+            self.assertEqual(stat.S_IMODE(Path(argv[argv.index('--out') + 1]).stat().st_mode), 0o700)
+
+    def test_a_rollback_stops_on_the_failed_release_render_and_starts_on_the_previous_ones_with_its_own_odoo_conf(self):
+        self.stub_old_and_new()
+        self.odoo_config.write_text('[options]\nmarker = new\n')  # hand-written, and saying what the candidate renders
         self.odoo_config.chmod(0o440)
-        original = self.odoo_config.read_text()
         before = self.odoo_config.stat()
-        seen = []
-        original_answer = FakeRunner.answer
-
-        def answer(runner, argv, stdin):
-            if argv[:2] == ['docker', 'pull'] or 'up' in argv:
-                seen.append(self.odoo_config.read_text())
-            return original_answer(runner, argv, stdin)
-
-        self.fail_health = True
-        with mock.patch.object(FakeRunner, 'answer', answer):
-            self.assertEqual(self.main(), release.EXIT_FAILED)
-        self.assertEqual(self.result(), 'rolled back health_check_failed')
-        self.assertIn(self.rendered_config(), seen)  # the failed release ran with the rendered one
-        after = self.odoo_config.stat()
-        self.assertEqual(self.odoo_config.read_text(), original)
-        self.assertEqual((stat.S_IMODE(after.st_mode), after.st_uid, after.st_gid), (0o440, before.st_uid, before.st_gid))
-        self.assertFalse(self.odoo_config.with_name('odoo.conf.prev').exists())
-        self.assertFalse(self.pending_config.exists())
-
-    def test_a_stale_previous_config_of_an_earlier_release_is_never_restored(self):
-        stale = self.odoo_config.with_name('odoo.conf.prev')
-        stale.write_text('[options]\nstale = yes\n')
         self.fail_health = True
         self.assertEqual(self.main(), release.EXIT_FAILED)
-        self.assertNotIn('stale', self.odoo_config.read_text())
+        self.assertEqual(self.result(), 'rolled back health_check_failed')
+        self.assertIn('new', self.markers('stop'))  # the failed release is stopped by its own code
+        self.assertEqual(self.markers('up')[-1], 'old')
+        after = self.odoo_config.stat()
+        self.assertIn('marker = old', self.odoo_config.read_text())
+        self.assertEqual((stat.S_IMODE(after.st_mode), after.st_uid, after.st_gid), (0o440, before.st_uid, before.st_gid))
+        self.assertFalse(self.pending_config.exists())
+
+    def future_candidate(self, checkout):
+        """The real renderer and template with one more toggle of its own, which the served renderer has never heard of."""
+        render = checkout / 'deploy/stack/render.py'
+        text = render.read_text()
+        self.assertIn("{'LIWAN_STACK_COMMERCIAL_EDGE', 'LIWAN_STACK_DB_HOST_LINK'}", text)
+        render.write_text(text.replace("{'LIWAN_STACK_COMMERCIAL_EDGE', 'LIWAN_STACK_DB_HOST_LINK'}",
+                                       "{'LIWAN_STACK_COMMERCIAL_EDGE', 'LIWAN_STACK_DB_HOST_LINK', 'LIWAN_STACK_FUTURE'}"))
+        compose = checkout / 'deploy/stack/compose.yml'
+        compose.write_text(compose.read_text() + '# @if LIWAN_STACK_FUTURE\n# future-block\n# @endif\n')
+
+    def test_a_toggle_only_the_candidate_uses_is_ignored_by_the_served_renderer_and_the_release_commits(self):
+        (self.root / 'shared.env').write_text((self.root / 'shared.env').read_text() + 'LIWAN_STACK_FUTURE=true\n')
+        self.candidate_stack = self.future_candidate
+        self.assertEqual(self.main(), release.EXIT_OK)
+        self.assertEqual(self.result(), f'committed {NEW}')
+        self.assertNotIn('future-block', (self.state / 'stack' / OLD / 'compose.yml').read_text())  # the served one ignored it
+        self.assertIn('future-block', (self.state / 'stack' / NEW / 'compose.yml').read_text())  # the candidate rendered with it
+
+    def test_a_candidate_whose_new_toggle_the_env_lacks_is_refused_before_anything_stops_naming_it(self):
+        self.candidate_stack = self.future_candidate
+        self.assertEqual(self.main(), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused invalid_shared_env')
+        self.assertIn('LIWAN_STACK_FUTURE is missing', self.log_stream.getvalue())
+        self.assertEqual(self.compose_stops(), [])
+        self.assertEqual(self.served(), OLD)
+
+    def test_a_candidate_renderer_that_refuses_the_env_values_is_refused_before_anything_stops_naming_keys_only(self):
+        stub_renderer(self.paths.releases / OLD, 'old')
+        self.candidate_stack = lambda checkout: stub_renderer(checkout, 'new', require='LIWAN_STACK_NEEDED')
+        self.assertEqual(self.main(), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused invalid_shared_env')
+        self.assertIn('LIWAN_STACK_NEEDED', self.log_stream.getvalue())
+        self.assertNotIn(SECRET, self.log_stream.getvalue())
+        self.assertEqual(self.compose_stops(), [])
+        self.assertEqual(self.served(), OLD)
+
+    def test_a_pre_stack_served_release_is_refused_before_anything_stops_is_pulled_or_recorded(self):
+        shutil.rmtree(self.paths.releases / OLD / 'deploy/stack')
+        seed_pre_stack(self.paths.releases / OLD)
+        self.assertEqual(self.main(), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused previous_not_stack')
+        self.assertIn('Pre-stack cutover', self.log_stream.getvalue())
+        self.assertEqual(self.compose_stops(), [])
+        self.assertEqual([call for call in self.runner.calls if call[:2] == ['docker', 'pull'] and 'liwan-release' not in call[-1]], [])  # only the release document's image
+        self.assertEqual(self.commands('systemctl'), [])
+        self.assertFalse((self.state / 'run.json').exists() or (self.state / 'halted.json').exists())
+        self.assertEqual(self.served(), OLD)
+
+    def test_a_candidate_without_a_renderer_is_refused_before_anything_stops(self):
+        self.candidate_stack = lambda checkout: (checkout / 'deploy/stack/render.py').unlink()
+        self.assertEqual(self.main(), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused candidate_not_stack')
+        self.assertEqual(self.compose_stops(), [])
+        self.assertEqual(self.served(), OLD)
+
+    def test_a_stack_contract_the_command_does_not_read_is_refused_before_anything_stops(self):
+        for name, options in (('newer contract', {'contract': 2}), ('no manifest', {'manifest_name': 'other.json'})):
+            with self.subTest(name):
+                self.stub_old_and_new(**options)
+                self.assertEqual(self.main(), release.EXIT_REFUSED)
+                self.assertEqual(self.result(), 'refused stack_contract_mismatch')
+                self.assertEqual(self.compose_stops(), [])
+                self.assertEqual(self.commands('systemctl'), [])
+                self.assertEqual(self.served(), OLD)
+                shutil.rmtree(self.paths.releases / NEW, ignore_errors=True)
+
+    def test_a_halted_rollback_resumed_renders_the_previous_release_again_without_stale_files(self):
+        stub_renderer(self.paths.releases / OLD, 'old')
+        self.test_rollback_that_fails_halts_and_keeps_maintenance()
+        stale = self.state / 'stack' / OLD / 'stale.txt'
+        stale.parent.mkdir(parents=True, exist_ok=True)
+        stale.write_text('left by the failed attempt')
+        self.runner.answer = FakeRunner.answer.__get__(self.runner)
+        self.runner.compose_files.clear()
+        self.assertEqual(self.main('rollback', '--environment', 'staging'), release.EXIT_FAILED)
+        self.assertFalse(stale.exists())
+        self.assertEqual(set(self.markers('up')), {'old'})
+        self.assertIn('marker = old', self.odoo_config.read_text())
+        self.assertEqual(sorted(path.name for path in (self.state / 'stack' / OLD).iterdir()),
+                         ['compose.yml', 'odoo.conf', 'sizing.env', 'stack.json'])
 
     def test_a_missing_classification_directory_is_refused_before_anything_stops(self):
         (self.root / 'control-state/classifications').rmdir()
@@ -1622,10 +1756,12 @@ class ReleaseTest(unittest.TestCase):
         for call in stack:
             self.assertIn(os.path.realpath(call[call.index('--project-directory') + 1]),
                           [os.path.realpath(self.paths.releases / name / 'deploy') for name in (OLD, NEW)])
-            self.assertEqual(Path(call[call.index('-f') + 1]), self.state / 'stack/compose.yml')
+            compose = Path(call[call.index('-f') + 1])
+            self.assertEqual(compose.parent.parent, self.state / 'stack')
+            self.assertIn(compose.parent.name, (OLD, NEW))
             files = [call[index + 1] for index, word in enumerate(call) if word == '--env-file']
-            self.assertEqual([Path(files[0]).name, files[1], Path(files[2]).name in ('release.env', 'candidate.env')],
-                             ['sizing.env', str(self.root / 'shared.env'), True])
+            self.assertEqual([Path(files[0]), files[1], Path(files[2]).name in ('release.env', 'candidate.env')],
+                             [compose.parent / 'sizing.env', str(self.root / 'shared.env'), True])
         self.assertFalse([call for call in self.runner.calls if call[:2] == ['docker', 'compose'] and '-f' in call
                           and call[call.index('-f') + 1].endswith('.yml') and 'docker-compose' in call[call.index('-f') + 1]])
 
@@ -1639,13 +1775,13 @@ class ReleaseTest(unittest.TestCase):
                                             lambda *_: None, self.environ, self.machine)
                 releaser.state.mkdir(parents=True, exist_ok=True)
                 releaser.compose(self.paths.releases / OLD)
-                self.assertEqual('liwan-dbhost' in (self.state / 'stack/compose.yml').read_text(), present)
+                self.assertEqual('liwan-dbhost' in (self.state / 'stack' / OLD / 'compose.yml').read_text(), present)
 
-    def test_a_shared_env_without_a_toggle_or_with_an_unknown_one_is_refused_before_anything_stops(self):
+    def test_a_shared_env_without_a_toggle_or_with_a_misspelled_one_is_refused_before_anything_stops(self):
         shared = self.root / 'shared.env'
         text = shared.read_text()
         for name, changed in (('missing', text.replace('LIWAN_STACK_DB_HOST_LINK=true\n', '')),
-                              ('unknown', text + 'LIWAN_STACK_SOMETHING=true\n'),
+                              ('misspelled', text.replace('LIWAN_STACK_DB_HOST_LINK=true', 'LIWAN_STACK_DB_HOST_LNK=true')),
                               ('not a boolean', text.replace('LIWAN_STACK_DB_HOST_LINK=true', 'LIWAN_STACK_DB_HOST_LINK=yes'))):
             with self.subTest(name):
                 shared.write_text(changed)

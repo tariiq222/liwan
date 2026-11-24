@@ -31,6 +31,7 @@ import shutil
 import stat
 import sys
 import time
+from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -43,7 +44,6 @@ from deploy.release.common import (  # noqa: E402
 from deploy.release.source import (  # noqa: E402
     COMMIT, ENVIRONMENT_NAME, GITHUB_TOKEN_VAR, TAG_POLICY_KEY, TOKEN_VAR, USER_VAR, Credential, Source, explicit_tag,
     host_architecture)
-from deploy.stack import render  # noqa: E402
 from deploy.release.tenant_postgres import (  # noqa: E402
     ODOO_RUNTIME_ROLE, POSTGRES_ADMIN_ROLE, RUNTIME_ROLE_RULES, identifier, runtime_role_assertion_sql, tenant_isolation_statements)
 
@@ -94,9 +94,11 @@ VENDOR_ADMIN_ENV_KEY = 'LIWAN_VENDOR_ADMIN_ENV_FILE'
 ALERT_REASON_PREFIX = 'alerts: '  # how deploy/alerts.py starts the reason it writes to stderr
 BACKUP_COPIES = 3  # the encrypted capture stages a dump, a plain tar and a ciphertext under the work root
 DISK_MARGIN = 1.5  # free space must cover every snapshot (database plus filestore) with half again as much
-# The one stack definition of a release (deploy/stack/): its compose template and Odoo config template, relative to the checkout.
-STACK_COMPOSE_TEMPLATE = 'deploy/stack/compose.yml'
-ODOO_CONFIG_TEMPLATE = 'deploy/stack/odoo.conf.template'
+# Each release renders its own stack: `python3 -B -m deploy.stack.render bundle` run inside its checkout writes the files and the
+# `stack.json` manifest this command reads, so no release's template is ever read by another release's code.
+STACK_RENDERER = 'deploy/stack/render.py'
+STACK_MANIFEST = 'stack.json'
+STACK_CONTRACT = 1
 # The first line of a config this command rendered: a live config without it is a hand-written one, adopted only when it
 # says what the render says (`odoo_config_drift`). Both lines of the template header carry it.
 RENDERED_MARKER = '; Rendered by deploy/stack/render.py'
@@ -111,6 +113,15 @@ def runtime_role_failure_output(output: str) -> bool:
     """Whether a failed role check names a problem with the host's volume — a rule of RUNTIME_ROLE_RULES, or a missing,
     unloggable or wrongly authenticated admin role — rather than a transient connection error the next run can retry."""
     return any(reason in output for reason, _ in RUNTIME_ROLE_RULES) or bool(ROLE_PROBLEM_OUTPUT.search(output))
+
+
+@dataclass(frozen=True)
+class StackBundle:
+    """What a release's renderer wrote for one environment (``stack.json`` names every file, relative to its directory)."""
+    compose: Path
+    env_files: list
+    odoo_conf: Path
+    project_directory: Path
 
 
 class Paths:
@@ -177,6 +188,7 @@ class Releaser:
                           'DOCKER_CONFIG': str(self.docker_config)}
         self.platform = ''
         self.source: Source | None = None
+        self.bundles: dict = {}
 
     def run_command(self, argv: list[str], *, env: dict | None = None, **options) -> tuple[int, str]:
         """Every subprocess gets an explicit environment: a call that names none gets ``child_env``, which holds no token."""
@@ -343,6 +355,8 @@ class Releaser:
         self.require_config_target(ODOO_CONFIG_KEY)
         self.require_host_file(VENDOR_ADMIN_ENV_KEY)
         self.require_classification_dir()
+        if run['previous'] is not None:  # a served release that cannot render its own stack cannot be stopped or rolled back to
+            self.stack(self.paths.current.resolve(), self.file('release.env'), 'previous_not_stack')
         target = self.checkout(run['commit'])
         if not target.exists():
             self.extract(run['commit'], target)
@@ -502,34 +516,67 @@ class Releaser:
         except CommandFailed:
             raise ReleaseError('backup_failed') from None
 
-    def stack_env(self, release_env: Path) -> dict[str, str]:
-        """The values the stack renders and interpolates from: the shared env file, then the release env."""
-        return {**self.shared_env(), **(read_env_file(release_env) if release_env.exists() else {})}
+    def stack(self, checkout: Path, release_env: Path, missing: str = 'candidate_not_stack') -> StackBundle:
+        """The stack of ``checkout`` for this environment, rendered by that checkout's own renderer into ``stack/<commit>/`` of the
+        state directory (cleared first, so a refused or older render leaves nothing behind). A checkout without a renderer is
+        ``missing`` (refused before anything stops); a renderer that cannot render the environment's values is
+        ``invalid_shared_env``; a manifest of another contract is ``stack_contract_mismatch``."""
+        if not (checkout / STACK_RENDERER).is_file():
+            raise ReleaseError(missing, EXIT_REFUSED, f'{checkout.name} has no {STACK_RENDERER}; it predates the stack definition '
+                               f'(deploy/release/README.md, "Pre-stack cutover")')
+        directory = self.file(f'stack/{checkout.name}')
+        shared_env = Path(self.config['LIWAN_SHARED_ENV_FILE'])
+        # A render is a pure function of the checkout and the two env files, so an unchanged input reuses the files on disk.
+        key = (checkout.name, shared_env.read_bytes(), release_env.read_bytes() if release_env.exists() else None)
+        cached = self.bundles.get(key)
+        if cached is not None and (directory / STACK_MANIFEST).exists():
+            return cached
+        shutil.rmtree(directory, ignore_errors=True)
+        directory.mkdir(parents=True, mode=0o700)
+        directory.chmod(0o700)
+        command = ['python3', '-B', '-m', 'deploy.stack.render', 'bundle', '--env-file', self.config['LIWAN_SHARED_ENV_FILE']]
+        if release_env.exists():
+            command += ['--env-file', str(release_env)]
+        code, output = self.run_command(command + ['--out', str(directory)], env={**self.child_env, 'PYTHONPATH': str(checkout)},
+                                        cwd=checkout, check=False)
+        if code != 0:
+            for line in output.splitlines()[-FAILURE_TAIL_LINES:]:
+                self.log('  ' + line)
+            if code == 1:
+                raise ReleaseError('invalid_shared_env', EXIT_REFUSED,
+                                   f'{self.config["LIWAN_SHARED_ENV_FILE"]} cannot render the stack of {checkout.name} (see above)')
+            raise ReleaseError('stack_render_failed', EXIT_REFUSED, f'the renderer of {checkout.name} exited {code}')
+        bundle = self.bundles[key] = self.read_bundle(checkout, directory)
+        return bundle
 
-    def render_stack(self, checkout: Path, release_env: Path) -> Path:
-        """The stack of ``checkout`` rendered from the environment's values into the run directory (``stack/``): its compose file and
-        ``sizing.env``. A toggle the env lacks or an unknown one is refused here, before anything stops."""
-        directory = self.file('stack')
-        directory.mkdir(exist_ok=True, mode=0o700)
+    def read_bundle(self, checkout: Path, directory: Path) -> StackBundle:
         try:
-            text = render.render_template((checkout / STACK_COMPOSE_TEMPLATE).read_text(encoding='utf-8'),
-                                          render.toggles_of(self.stack_env(release_env)))
-        except render.StackError as error:
-            raise ReleaseError('invalid_shared_env', EXIT_REFUSED,
-                               f'{self.config["LIWAN_SHARED_ENV_FILE"]} cannot render the stack of {checkout.name}: {error}') from None
-        write_atomic(directory / 'compose.yml', text)
-        write_atomic(directory / render.SIZING_FILE,
-                     ''.join(f'{name}={value}\n' for name, value in render.sizing_variables().items()))
-        return directory
+            manifest = json.loads((directory / STACK_MANIFEST).read_text(encoding='utf-8'))
+            contract = manifest.get('contract')
+            names = [manifest['compose'], manifest['odooConf'], *manifest['envFiles']]
+            project = manifest['projectDirectory']
+        except (OSError, ValueError, KeyError, TypeError, AttributeError):
+            raise ReleaseError('stack_contract_mismatch', EXIT_REFUSED, f'{checkout.name} wrote no readable {STACK_MANIFEST}') from None
+        if contract != STACK_CONTRACT:
+            raise ReleaseError('stack_contract_mismatch', EXIT_REFUSED,
+                               f'{checkout.name} renders stack contract {contract!r}, this command reads {STACK_CONTRACT}')
+        if not all(isinstance(name, str) and name and '/' not in name and name != '..' for name in names + [project.replace('/', '')]) \
+                or Path(project).is_absolute() or '..' in Path(project).parts \
+                or not all((directory / name).is_file() for name in names):
+            raise ReleaseError('stack_contract_mismatch', EXIT_REFUSED, f'{checkout.name} wrote an invalid {STACK_MANIFEST}')
+        return StackBundle(compose=directory / manifest['compose'], env_files=[directory / name for name in manifest['envFiles']],
+                           odoo_conf=directory / manifest['odooConf'], project_directory=checkout / project)
 
     def compose(self, checkout: Path, release_env: Path | None = None) -> list[str]:
-        """``docker compose`` on the stack of ``checkout``, run from its ``deploy/`` directory so the stack's relative paths
-        resolve. Later ``--env-file`` wins: the sizing plan, the shared env file, then the release env (always last)."""
+        """``docker compose`` on the stack ``checkout`` rendered, run from the project directory its manifest names so the
+        stack's relative paths resolve. Later ``--env-file`` wins: the bundle's own, the shared env file, then the release env."""
         release_env = release_env or self.file('release.env')
-        directory = self.render_stack(checkout, release_env)
-        return ['docker', 'compose', '--project-directory', str(checkout / 'deploy'), '-p', self.config['LIWAN_RELEASE_PROJECT'],
-                '-f', str(directory / 'compose.yml'), '--env-file', str(directory / render.SIZING_FILE),
-                '--env-file', self.config['LIWAN_SHARED_ENV_FILE'], '--env-file', str(release_env)]
+        bundle = self.stack(checkout, release_env)
+        command = ['docker', 'compose', '--project-directory', str(bundle.project_directory), '-p', self.config['LIWAN_RELEASE_PROJECT'],
+                   '-f', str(bundle.compose)]
+        for env_file in bundle.env_files:
+            command += ['--env-file', str(env_file)]
+        return command + ['--env-file', self.config['LIWAN_SHARED_ENV_FILE'], '--env-file', str(release_env)]
 
     def shared_env(self) -> dict[str, str]:
         return read_env_file(Path(self.config['LIWAN_SHARED_ENV_FILE']))
@@ -586,16 +633,8 @@ class Releaser:
             raise ReleaseError('invalid_shared_env', EXIT_REFUSED, f'{Path(path).parent} ({key}) does not exist or is not writable')
 
     def rendered_odoo_config(self, checkout: Path) -> str:
-        """The candidate's Odoo config (``odoo.conf.template``) filled from the shared env file and the sizing plan."""
-        env = self.shared_env()
-        missing = [key for key in ('DB_PASSWORD', 'LIWAN_ODOO_ADMIN_PASSWD') if not env.get(key)]
-        if missing:
-            raise ReleaseError('invalid_shared_env', EXIT_REFUSED,
-                               f'{self.config["LIWAN_SHARED_ENV_FILE"]} lacks {", ".join(missing)} for the Odoo config')
-        try:
-            return render.render_placeholders((checkout / ODOO_CONFIG_TEMPLATE).read_text(encoding='utf-8'), render.odoo_conf_values(env))
-        except render.StackError as error:
-            raise ReleaseError('invalid_shared_env', EXIT_REFUSED, f'the Odoo config of {checkout.name} cannot render: {error}') from None
+        """The Odoo config the candidate's own renderer wrote for this environment."""
+        return self.stack(checkout, self.file('release.env')).odoo_conf.read_text(encoding='utf-8')
 
     @staticmethod
     def config_options(text: str) -> dict[str, str]:
@@ -637,7 +676,6 @@ class Releaser:
                                    f'{live} ({ODOO_CONFIG_KEY}) was not rendered by this command and differs from the render of '
                                    f'{checkout.name} in: {", ".join(drift)}; move it aside so the release renders it, or make it match')
         pending.unlink(missing_ok=True)
-        live.with_name(live.name + '.prev').unlink(missing_ok=True)  # only the run in flight may leave one for its rollback
         os.close(os.open(pending, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600))
         pending.write_text(text, encoding='utf-8')
         pending.chmod(stat.S_IMODE(owner.st_mode))
@@ -675,24 +713,19 @@ class Releaser:
                                    f'{checkout.name}; fix the file before this release') from None
 
     def adopt_odoo_config(self) -> None:
-        """The rendered config replaces the live one, which is kept as ``<file>.prev`` with its owner and mode for a rollback;
-        a second call, after a resume, finds nothing left to rename and leaves ``.prev`` alone."""
+        """The rendered config replaces the live one (owner, group and mode were set when it was rendered); a second call, after
+        a resume, finds nothing left to rename."""
         live = Path(self.shared_env()[ODOO_CONFIG_KEY])
         pending = live.with_name(live.name + '.next')
         if pending.exists():
-            previous = live.with_name(live.name + '.prev')
-            if live.exists():
-                shutil.copy2(live, previous)
-                owner = live.stat()
-                os.chown(previous, owner.st_uid, owner.st_gid)
             os.replace(pending, live)
 
-    def restore_odoo_config(self) -> None:
-        """A rollback puts back the config the previous release ran with (kept at adoption), before it starts."""
-        live = Path(self.shared_env()[ODOO_CONFIG_KEY])
-        previous = live.with_name(live.name + '.prev')
-        if previous.exists():
-            os.replace(previous, live)
+    def install_odoo_config(self, checkout: Path) -> None:
+        """Render, validate and put in place the Odoo config of ``checkout``: ``activate`` does it for the candidate through
+        ``prepare`` and ``adopt``, a rollback does it again for the previous release, whose own renderer then decides what its
+        Odoo runs with."""
+        self.prepare_odoo_config(checkout)
+        self.adopt_odoo_config()
 
     def require_renderable(self, run: dict, checkout: Path) -> None:
         """Both compose projects of the candidate render as later steps run them, with its own image tag (a temporary env file,
@@ -1013,7 +1046,7 @@ class Releaser:
         write_atomic(self.file('release.env'), run['previousReleaseEnv']
                      or release_env_text(previous['commit'], previous['odooCommit']))
         self.point_current(checkout)
-        self.restore_odoo_config()
+        self.install_odoo_config(checkout)
         self.start_services(checkout, with_edge=True)
         self.leave_maintenance()  # the previous release serves from here on, whatever the worker's file does
         self.shared_compose_target().unlink(missing_ok=True)  # still the failed release's render: a failed render below must leave no file

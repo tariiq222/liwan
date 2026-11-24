@@ -3,8 +3,9 @@
 
 ``compose.yml`` is a compose template. Its only structural variation is a block between ``# @if LIWAN_STACK_<NAME>``
 and ``# @endif`` lines: it stays when that key of the env file is exactly ``true`` and goes when it is ``false``. Blocks
-do not nest, every block is closed, every key is a known toggle, and a toggle is exactly ``true`` or ``false``; anything
-else is refused before a file is written. Everything else is compose's own ``${VAR}`` interpolation. Nothing here reads
+do not nest, every block is closed, every block's key is a toggle of this template (``TOGGLES``), and each of those is present in
+the env file and exactly ``true`` or ``false``; anything else is refused before a file is written. Another ``LIWAN_STACK_`` key
+is ignored and named once on stderr (``ignored: <names>``): it belongs to a newer or older stack. Everything else is compose's own ``${VAR}`` interpolation. Nothing here reads
 or tests the name of an environment: the env file is the whole difference between environments.
 
 Sizing comes from ``deploy/odoo_sizing.py``: ``sizing.env`` (beside the rendered compose file) carries the values the
@@ -16,7 +17,10 @@ template interpolates, and ``odoo_conf`` renders the Odoo config with the same p
 from __future__ import annotations
 
 import contextlib
+import json
+import os
 import re
+import stat
 import sys
 import tempfile
 from pathlib import Path
@@ -48,10 +52,9 @@ def read_env(*paths: Path) -> dict[str, str]:
 
 
 def toggles_of(env: dict[str, str]) -> dict[str, bool]:
-    """The stack toggles of an env file: every known one present and ``true`` or ``false``, no other ``LIWAN_STACK_`` key."""
-    unknown = sorted(name for name in env if name.startswith(TOGGLE_PREFIX) and name not in TOGGLES)
-    if unknown:
-        raise StackError(f'unknown stack toggle in the env file: {", ".join(unknown)}')
+    """The toggles this template uses (``TOGGLES``), each present and exactly ``true`` or ``false``. Another ``LIWAN_STACK_`` key
+    belongs to a newer or older stack and is ignored here (``ignored_toggles`` names it); a misspelled known one fails because the
+    real toggle is then missing."""
     result = {}
     for name in sorted(TOGGLES):
         if name not in env:
@@ -60,6 +63,17 @@ def toggles_of(env: dict[str, str]) -> dict[str, bool]:
             raise StackError(f'{name} must be exactly true or false')
         result[name] = BOOLEANS[env[name]]
     return result
+
+
+def ignored_toggles(env: dict[str, str]) -> list[str]:
+    """The ``LIWAN_STACK_`` keys of the env that this template does not use, by name only."""
+    return sorted(name for name in env if name.startswith(TOGGLE_PREFIX) and name not in TOGGLES)
+
+
+def note_ignored(env: dict[str, str]) -> None:
+    ignored = ignored_toggles(env)
+    if ignored:
+        sys.stderr.write(f'render: ignored: {", ".join(ignored)}\n')
 
 
 def render_template(text: str, toggles: dict[str, bool]) -> str:
@@ -137,26 +151,83 @@ def rendered_stack(*env_files: Path):
         yield compose
 
 
-def main(argv: list[str]) -> int:
+BUNDLE_CONTRACT = 1
+BUNDLE_COMPOSE, BUNDLE_ODOO_CONF, BUNDLE_MANIFEST = 'compose.yml', 'odoo.conf', 'stack.json'
+BUNDLE_DIRECTORY_MODE = 0o700
+BUNDLE_FILE_MODE = 0o600
+EXIT_USAGE = 2
+
+
+def write_private(path: Path, text: str) -> None:
+    """A new file at mode 0600 from its first byte; a bundle file holds interpolated secrets or sits beside one."""
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, BUNDLE_FILE_MODE)
+    with os.fdopen(descriptor, 'w', encoding='utf-8') as handle:
+        handle.write(text)
+    path.chmod(BUNDLE_FILE_MODE)
+
+
+def write_bundle(env_files: list[Path], out: Path) -> None:
+    """The whole stack of this checkout for one environment, in ``out``: the compose file, the sizing values (an extra
+    ``--env-file``), the Odoo config and ``stack.json``, the manifest the release command reads (it never reads this
+    checkout's templates itself, so each release renders with its own code)."""
+    env = read_env(*env_files)
+    compose, odoo = render_stack(env), odoo_conf(env)
+    note_ignored(env)
+    write_private(out / BUNDLE_COMPOSE, compose)
+    write_private(out / SIZING_FILE, ''.join(f'{name}={value}\n' for name, value in sizing_variables().items()))
+    write_private(out / BUNDLE_ODOO_CONF, odoo)
+    write_private(out / BUNDLE_MANIFEST, json.dumps({
+        'contract': BUNDLE_CONTRACT, 'compose': BUNDLE_COMPOSE, 'envFiles': [SIZING_FILE], 'odooConf': BUNDLE_ODOO_CONF,
+        'projectDirectory': 'deploy'}, indent=2) + '\n')
+
+
+def bundle_main(argv: list[str]) -> int:
+    env_files: list[Path] = []
     out = None
-    if argv[:1] == ['--out']:
-        out, argv = (Path(argv[1]) if len(argv) > 1 else None), argv[2:]
-        if out is None:
-            argv = []
-    if not argv:
-        sys.stderr.write('usage: render.py [--out <directory>] <env file> [<env file> ...]\n')
-        return 2
+    arguments = iter(argv)
+    for argument in arguments:
+        value = next(arguments, None)
+        if value is None or argument not in ('--env-file', '--out'):
+            sys.stderr.write(USAGE)
+            return EXIT_USAGE
+        if argument == '--env-file':
+            env_files.append(Path(value))
+        else:
+            out = Path(value)
+    if out is None or not env_files:
+        sys.stderr.write(USAGE)
+        return EXIT_USAGE
+    if not out.is_dir() or stat.S_IMODE(out.stat().st_mode) != BUNDLE_DIRECTORY_MODE:
+        sys.stderr.write(f'render: {out} must be an existing directory with mode 0700\n')
+        return EXIT_USAGE
     try:
-        text = render_stack(read_env(*(Path(path) for path in argv)))
+        write_bundle(env_files, out)
     except StackError as error:
         sys.stderr.write(f'render: {error}\n')
         return 1
-    if out is None:
-        sys.stdout.write(text)
-        return 0
-    out.mkdir(parents=True, exist_ok=True, mode=0o700)
-    (out / 'compose.yml').write_text(text, encoding='utf-8')
-    (out / SIZING_FILE).write_text(''.join(f'{name}={value}\n' for name, value in sizing_variables().items()), encoding='utf-8')
+    except OSError as error:
+        sys.stderr.write(f'render: {error.filename or "a file"}: {error.strerror}\n')
+        return 1
+    return 0
+
+
+USAGE = ('usage: render.py bundle --env-file <env file> [--env-file <env file> ...] --out <directory 0700>\n'
+         '       render.py <env file> [<env file> ...]   (the compose file on stdout)\n')
+
+
+def main(argv: list[str]) -> int:
+    if argv[:1] == ['bundle']:
+        return bundle_main(argv[1:])
+    if not argv or argv[0].startswith('--'):
+        sys.stderr.write(USAGE)
+        return EXIT_USAGE
+    try:
+        env = read_env(*(Path(path) for path in argv))
+        sys.stdout.write(render_stack(env))
+        note_ignored(env)
+    except StackError as error:
+        sys.stderr.write(f'render: {error}\n')
+        return 1
     return 0
 
 

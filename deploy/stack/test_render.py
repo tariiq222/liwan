@@ -2,11 +2,15 @@
 """The stack renderer: toggle blocks, their refusals, the Odoo config template and the tenant-storage service."""
 from __future__ import annotations
 
+import io
+import json
 import os
 import re
+import stat
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import yaml
 
@@ -52,9 +56,16 @@ class ToggleBlocks(unittest.TestCase):
         with self.assertRaisesRegex(render.StackError, 'unknown toggle'):
             render.render_template('# @if LIWAN_STACK_NOPE\nx\n# @endif\n', TOGGLES_ON)
 
-    def test_an_unknown_stack_key_in_the_env_file_is_refused(self):
-        with self.assertRaisesRegex(render.StackError, 'unknown stack toggle'):
-            render.toggles_of({**ENV_ON, 'LIWAN_STACK_NOPE': 'true'})
+    def test_another_stack_key_in_the_env_file_is_ignored_and_named(self):
+        env = {**ENV_ON, 'LIWAN_STACK_NOPE': 'true', 'LIWAN_STACK_ALSO': 'x'}
+        self.assertEqual(TOGGLES_ON, render.toggles_of(env))
+        self.assertEqual(['LIWAN_STACK_ALSO', 'LIWAN_STACK_NOPE'], render.ignored_toggles(env))
+        self.assertEqual([], render.ignored_toggles(ENV_ON))
+
+    def test_a_misspelled_known_toggle_is_refused_because_the_real_one_is_missing(self):
+        env = {key: value for key, value in ENV_ON.items() if key != 'LIWAN_STACK_DB_HOST_LINK'}
+        with self.assertRaisesRegex(render.StackError, 'LIWAN_STACK_DB_HOST_LINK is missing'):
+            render.toggles_of({**env, 'LIWAN_STACK_DB_HOST_LNK': 'true'})
 
     def test_a_missing_toggle_is_refused(self):
         with self.assertRaisesRegex(render.StackError, 'missing'):
@@ -85,14 +96,96 @@ class EnvParsing(unittest.TestCase):
         self.assertEqual({True, False}, set(render.toggles_of(values).values()))
 
 
-class OutDirectory(unittest.TestCase):
-    def test_out_writes_the_compose_file_and_the_sizing_values_beside_it(self):
-        env = Path(__file__).resolve().parents[1] / 'environments' / 'local.env.example'
+class Bundle(unittest.TestCase):
+    ENV = Path(__file__).resolve().parents[1] / 'environments' / 'local.env.example'
+
+    def run_bundle(self, *arguments):
+        with mock.patch('sys.stderr', new_callable=io.StringIO) as stderr:
+            return render.main(['bundle', *arguments]), stderr.getvalue()
+
+    def private_directory(self, directory):
+        out = Path(directory) / 'out'
+        out.mkdir(mode=0o700)
+        out.chmod(0o700)
+        return out
+
+    def test_it_writes_the_four_files_private_and_a_manifest_the_release_command_reads(self):
         with tempfile.TemporaryDirectory() as directory:
-            self.assertEqual(0, render.main(['--out', str(Path(directory) / 'r'), str(env)]))
-            self.assertEqual(render.render_stack(render.read_env(env)), (Path(directory) / 'r/compose.yml').read_text())
-            self.assertIn('LIWAN_ODOO_MEM_LIMIT=', (Path(directory) / 'r' / render.SIZING_FILE).read_text())
-            self.assertEqual(2, render.main(['--out']))
+            out = self.private_directory(directory)
+            self.assertEqual((0, ''), self.run_bundle('--env-file', str(self.ENV), '--out', str(out)))
+            self.assertEqual(['compose.yml', 'odoo.conf', 'sizing.env', 'stack.json'], sorted(path.name for path in out.iterdir()))
+            for path in out.iterdir():
+                self.assertEqual(0o600, stat.S_IMODE(path.stat().st_mode), path.name)
+            self.assertEqual({'contract': 1, 'compose': 'compose.yml', 'envFiles': ['sizing.env'], 'odooConf': 'odoo.conf',
+                              'projectDirectory': 'deploy'}, json.loads((out / 'stack.json').read_text()))
+            self.assertEqual(render.render_stack(render.read_env(self.ENV)), (out / 'compose.yml').read_text())
+            self.assertIn('; Rendered by deploy/stack/render.py', (out / 'odoo.conf').read_text())
+            self.assertIn('LIWAN_ODOO_MEM_LIMIT=', (out / 'sizing.env').read_text())
+
+    def test_a_later_env_file_wins_as_the_release_env_does(self):
+        with tempfile.TemporaryDirectory() as directory:
+            out = self.private_directory(directory)
+            override = Path(directory) / 'release.env'
+            override.write_text('LIWAN_STACK_DB_HOST_LINK=false\n')
+            self.assertEqual(0, self.run_bundle('--env-file', str(self.ENV), '--env-file', str(override), '--out', str(out))[0])
+            self.assertNotIn('liwan-dbhost', (out / 'compose.yml').read_text())
+
+    def test_a_refused_render_exits_1_names_the_key_and_never_a_secret_value(self):
+        with tempfile.TemporaryDirectory() as directory:
+            out = self.private_directory(directory)
+            bad = Path(directory) / 'bad.env'
+            bad.write_text(self.ENV.read_text().replace('LIWAN_STACK_DB_HOST_LINK=', 'LIWAN_STACK_DB_HOST_LNK=')
+                           + 'DB_PASSWORD=hunter2-secret-value\n')  # a misspelled toggle
+            code, error = self.run_bundle('--env-file', str(bad), '--out', str(out))
+            self.assertEqual(1, code)
+            self.assertIn('LIWAN_STACK_DB_HOST_LINK', error)
+            self.assertNotIn('hunter2', error)
+            self.assertEqual([], list(out.iterdir()))
+            lacking = Path(directory) / 'lacking.env'
+            lacking.write_text(''.join(line + '\n' for line in self.ENV.read_text().splitlines() if not line.startswith('DB_PASSWORD=')))
+            code, error = self.run_bundle('--env-file', str(lacking), '--out', str(out))
+            self.assertEqual(1, code)
+            self.assertIn('DB_PASSWORD', error)
+
+    def test_another_stack_key_is_ignored_naming_it_once_by_name_only(self):
+        with tempfile.TemporaryDirectory() as directory:
+            out = self.private_directory(directory)
+            extra = Path(directory) / 'extra.env'
+            extra.write_text(self.ENV.read_text() + 'LIWAN_STACK_FUTURE=hunter2-secret-value\n')
+            code, error = self.run_bundle('--env-file', str(extra), '--out', str(out))
+            self.assertEqual(0, code)
+            self.assertEqual('render: ignored: LIWAN_STACK_FUTURE\n', error)
+            self.assertTrue((out / 'stack.json').exists())
+
+    def test_a_missing_env_file_exits_1_naming_the_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            code, error = self.run_bundle('--env-file', str(Path(directory) / 'absent.env'), '--out', str(self.private_directory(directory)))
+            self.assertEqual(1, code)
+            self.assertIn('absent.env', error)
+
+    def test_a_bad_command_line_or_output_directory_exits_2(self):
+        with tempfile.TemporaryDirectory() as directory:
+            out = self.private_directory(directory)
+            loose = Path(directory) / 'loose'
+            loose.mkdir(mode=0o755)
+            loose.chmod(0o755)
+            for arguments in ((), ('--out', str(out)), ('--env-file', str(self.ENV)), ('--env-file', str(self.ENV), '--out'),
+                              ('--bogus', 'x', '--env-file', str(self.ENV), '--out', str(out)),
+                              ('--env-file', str(self.ENV), '--out', str(loose)),
+                              ('--env-file', str(self.ENV), '--out', str(Path(directory) / 'missing'))):
+                with self.subTest(arguments=arguments):
+                    code, error = self.run_bundle(*arguments)
+                    self.assertEqual(2, code)
+                    self.assertTrue(error)
+            self.assertEqual([], list(out.iterdir()))
+            self.assertEqual([], list(loose.iterdir()))
+
+    def test_the_stdout_mode_still_prints_the_compose_file(self):
+        with mock.patch('sys.stdout', new_callable=io.StringIO) as stdout:
+            self.assertEqual(0, render.main([str(self.ENV)]))
+        self.assertEqual(render.render_stack(render.read_env(self.ENV)), stdout.getvalue())
+        with mock.patch('sys.stderr', new_callable=io.StringIO):
+            self.assertEqual(2, render.main([]))
 
 
 class RenderedStack(unittest.TestCase):
