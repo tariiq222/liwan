@@ -110,7 +110,7 @@ test.describe('Plan 6b: the employee record', () => {
       if (await compensation.count()) await expect(compensation).toBeVisible()
       const order = await page.evaluate(() => {
         const card = document.querySelector('[data-slot="identity-card"]')
-        const properties = document.querySelector('[role="complementary"][aria-label="الخصائص"]')
+        const properties = document.querySelector('[data-slot="record-aside"]')
         if (!card || !properties) return { cardAboveAside: false, asideAfterCard: false }
         return {
           cardAboveAside: card.getBoundingClientRect().top < properties.getBoundingClientRect().top,
