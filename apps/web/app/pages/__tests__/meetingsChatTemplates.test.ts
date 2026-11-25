@@ -9,18 +9,35 @@ const read = (path: string) => readFileSync(resolve(app, path), 'utf8')
 
 describe('the meetings pages stay on their templates', () => {
   it.each([
-    ['pages/meetings/index.vue', ['<SharedListPage', '<SharedDataTable', 'create-test-id="meeting-new"']],
-    ['pages/meetings/series.vue', ['<SharedListPage', '<SharedDataTable', 'create-test-id="meeting-series-new"']],
-    ['pages/meetings/calendar.vue', ['<SharedTimelineFrame']],
+    ['pages/meetings/index.vue', ['<SharedListPage', '<template #kpis>', 'data-testid="meeting-kpi-strip"', '<SharedDataTable', 'create-test-id="meeting-new"']],
+    ['pages/meetings/series.vue', ['<SharedListPage', '<template #kpis>', 'data-testid="meeting-series-kpi-strip"', '<SharedDataTable', 'create-test-id="meeting-series-new"']],
+    ['pages/meetings/follow-up.vue', ['<SharedListPage', '<template #kpis>', 'data-testid="meeting-followup-kpi-strip"', '<SharedDataTable']],
+    ['pages/meetings/calendar.vue', ['<SharedTimelineFrame', '<FilterBar embedded', '#scope', 'data-testid="meeting-scope"']],
     // The record's five tabs are the shared route tabs (one line, scrolling, with the log tab after a separator).
-    ['pages/meetings/[id].vue', ['<SharedRecordWorkspace', '<SharedRouteTabs data-testid="meeting-tabs"', 'separatorBefore', 'data-testid="meeting-properties"', '<SharedRecordSection']],
-    ['pages/meetings/series/[id].vue', ['<SharedRecordPage', '<SharedRouteTabs', '<SharedPropertiesPanel']],
+    ['pages/meetings/[id].vue', ['<SharedRecordWorkspace', '<SharedRecordHero', 'data-testid="meeting-hero"', '<SharedRouteTabs data-testid="meeting-tabs"', 'separatorBefore', 'data-testid="meeting-properties"', '<SharedRecordSection']],
+    ['pages/meetings/series/[id].vue', ['<SharedRecordPage', '<SharedRecordHero', 'data-testid="meeting-series-hero"', '<SharedRouteTabs data-testid="meeting-series-tabs"', '#aside', '<SharedPropertiesPanel']],
     ['pages/meetings/[id]/print.vue', ['<SharedStandalonePage', 'variant="print"', 'liwan-print-landscape']],
   ])('%s uses its template', (file, needles) => {
     const source = read(file)
     for (const needle of needles) expect(source, needle).toContain(needle)
     expect(source, 'no hand-made page header').not.toContain('<SharedPageHeader')
     expect(source, 'no hand-made page container').not.toContain('<SharedPageContainer')
+  })
+
+  it('the meetings list pages rely on #kpis instead of an explicit kpi-toggle prop', () => {
+    for (const file of ['pages/meetings/index.vue', 'pages/meetings/series.vue', 'pages/meetings/follow-up.vue']) {
+      expect(read(file), file).not.toMatch(/<SharedListPage[^>]*\bkpi-toggle\b/)
+    }
+  })
+
+  it('the series record places the hero above the tabs and properties in the aside', () => {
+    const source = read('pages/meetings/series/[id].vue')
+    expect(source.indexOf('<SharedRecordHero')).toBeLessThan(source.indexOf('<SharedRouteTabs'))
+    const summarySlot = source.match(/<template[^>]*#summary>[\s\S]*?<\/SharedRecordHero>\s*<\/template>/)?.[0] ?? ''
+    const asideSlot = source.match(/<template[^>]*#aside>[\s\S]*?<\/template>/)?.[0] ?? ''
+    expect(summarySlot).toContain('<SharedRecordHero')
+    expect(summarySlot).not.toContain('<SharedPropertiesPanel')
+    expect(asideSlot).toContain('<SharedPropertiesPanel')
   })
 
   it('the resolutions and attachments tabs stay mounted behind v-show', () => {
