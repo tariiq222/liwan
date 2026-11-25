@@ -49,7 +49,7 @@ LAYER_COMPONENTS = frozenset(
     ['shared/feedback/' + name + '.vue' for name in ('EmptyState', 'ErrorState', 'ForbiddenState', 'LoadingSkeleton', 'NotFoundState', 'PageState')]
     + ['shared/layout/' + name + '.vue' for name in (
         'BrandWordmark', 'ConversationLayout', 'CreatePanel', 'DashboardPage', 'FormSection', 'KpiStrip', 'KpiToggle', 'ListPage', 'PageContainer',
-        'PageHeader', 'ListCard', 'PropertiesPanel', 'PropertyRow', 'RecordPage', 'RecordSection', 'RecordWorkspace', 'RouteTabs', 'SettingRow', 'SettingsCard', 'SettingsSection', 'TimelineControls', 'SettingsList', 'SettingsListRow', 'SettingsPage',
+        'PageHeader', 'ListCard', 'PropertiesPanel', 'PropertyRow', 'RecordHero', 'RecordPage', 'RecordSection', 'RecordWorkspace', 'RouteTabs', 'SettingRow', 'SettingsCard', 'SettingsSection', 'TimelineControls', 'SettingsList', 'SettingsListRow', 'SettingsPage',
         'SettingsSaveBar',
         'StandalonePage', 'SubCard', 'TimelineFrame', 'LinkCard', 'IdentityCard', 'HeaderTags')]
     + ['shared/data/' + name + '.vue' for name in (
@@ -105,7 +105,7 @@ STORYBOOK_COMPONENTS: tuple[str, ...] = tuple(component_file(path) for path in (
     'ai/AiSheet.vue', 'shell/AssistantButton.vue', 'shell/AppUserMenu.vue',
     'shared/layout/PageHeader.vue', 'shared/feedback/PageState.vue', 'shared/layout/PageContainer.vue', 'shared/form/UnsavedChanges.vue',
     'shared/feedback/LoadingSkeleton.vue', 'shared/feedback/ErrorState.vue', 'shared/feedback/ForbiddenState.vue', 'shared/feedback/NotFoundState.vue',
-    'shared/layout/RecordPage.vue', 'shared/layout/RecordWorkspace.vue', 'shared/form/InlineText.vue', 'shared/layout/PropertiesPanel.vue', 'shared/layout/PropertyRow.vue', 'shared/layout/RecordSection.vue',
+    'shared/layout/RecordPage.vue', 'shared/layout/RecordWorkspace.vue', 'shared/layout/RecordHero.vue', 'shared/form/InlineText.vue', 'shared/layout/PropertiesPanel.vue', 'shared/layout/PropertyRow.vue', 'shared/layout/RecordSection.vue',
     'shared/data/StatusBadge.vue',
     'shared/layout/CreatePanel.vue',
     'shared/layout/StandalonePage.vue',

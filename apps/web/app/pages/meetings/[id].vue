@@ -198,36 +198,26 @@ function displayValue(value: string | null | undefined) {
     </template>
 
     <template v-if="query.data.value" #main>
-      <div class="grid min-w-0 gap-(--liwan-gap-card) lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]" data-slot="record-summary" data-testid="meeting-hero">
-        <div
-          class="flex flex-col justify-between gap-3 rounded-card px-(--liwan-card-pad) py-4"
-          :class="query.data.value.state === 'cancelled'
-            ? 'bg-elevated/40 ring ring-default'
-            : 'from-info/10 via-info/[0.03] to-default ring ring-info/25 rtl:bg-linear-270 ltr:bg-linear-90 dark:from-info/15 dark:via-info/5 dark:to-default'"
+      <div data-slot="record-summary" class="min-w-0">
+        <SharedRecordHero
+          :tone="query.data.value.state === 'cancelled' ? 'neutral' : 'info'"
+          icon="i-lucide-calendar-clock"
+          data-testid="meeting-hero"
         >
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div class="flex min-w-0 items-center gap-3">
-              <span
-                class="hidden size-10 shrink-0 place-items-center rounded-control sm:grid"
-                :class="query.data.value.state === 'cancelled' ? 'bg-elevated text-muted' : 'bg-info/15 text-status-info-foreground'"
-                aria-hidden="true"
-              >
-                <UIcon name="i-lucide-calendar-clock" class="size-5" />
-              </span>
-              <p class="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-0.5 text-lg font-bold text-highlighted">
-                <span>{{ formatMeetingDate(query.data.value.meeting_date) }}</span>
-                <span v-if="query.data.value.start_datetime" dir="ltr" class="whitespace-nowrap text-base font-semibold text-muted tabular-nums">{{ hydrated ? displayValue(formatMeetingTime(query.data.value.start_datetime)) : '—' }}<span v-if="query.data.value.end_datetime"> – {{ hydrated ? displayValue(meetingEndLabel) : '—' }}</span></span>
-              </p>
-            </div>
-            <UButton v-if="query.data.value.meeting_url" color="neutral" variant="outline" size="sm" icon="i-lucide-video" class="shrink-0 bg-default" :to="query.data.value.meeting_url" external target="_blank" rel="noopener" :label="t('meetingsUi.url')" />
-          </div>
-          <div class="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-muted">
+          <template #title>
+            <span>{{ formatMeetingDate(query.data.value.meeting_date) }}</span>
+            <span v-if="query.data.value.start_datetime" dir="ltr" class="whitespace-nowrap text-base font-semibold text-muted tabular-nums">{{ hydrated ? displayValue(formatMeetingTime(query.data.value.start_datetime)) : '—' }}<span v-if="query.data.value.end_datetime"> – {{ hydrated ? displayValue(meetingEndLabel) : '—' }}</span></span>
+          </template>
+          <template v-if="query.data.value.meeting_url" #actions>
+            <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-video" class="shrink-0 bg-default" :to="query.data.value.meeting_url" external target="_blank" rel="noopener" :label="t('meetingsUi.url')" />
+          </template>
+          <template v-if="query.data.value.organizer || query.data.value.location" #meta>
             <span v-if="query.data.value.organizer" class="inline-flex min-w-0 items-center gap-2"><SharedPersonAvatar :people="[query.data.value.organizer]" /><span class="truncate">{{ t('meetingsUi.organizer') }}: {{ query.data.value.organizer.name }}</span></span>
             <span v-if="query.data.value.location" class="inline-flex items-center gap-1.5"><UIcon name="i-lucide-map-pin" class="size-4 shrink-0" aria-hidden="true" />{{ query.data.value.location }}</span>
-          </div>
-        </div>
-        <SharedMetricTile density="compact" icon="i-lucide-users" :label="t('meetingsUi.attendees')" :value="query.data.value.attendees.length" />
-        <SharedMetricTile density="compact" icon="i-lucide-list-checks" :tone="query.data.value.open_resolution_count > 0 ? 'warning' : 'neutral'" :label="t('meetingsUi.openResolutions')" :value="query.data.value.open_resolution_count" :hint="query.data.value.resolutions.length ? t('meetingsUi.totalResolutionsHint', { count: query.data.value.resolutions.length }, query.data.value.resolutions.length) : undefined" :to="resolutionsTabLink" />
+          </template>
+          <SharedMetricTile density="compact" icon="i-lucide-users" :label="t('meetingsUi.attendees')" :value="query.data.value.attendees.length" />
+          <SharedMetricTile density="compact" icon="i-lucide-list-checks" :tone="query.data.value.open_resolution_count > 0 ? 'warning' : 'neutral'" :label="t('meetingsUi.openResolutions')" :value="query.data.value.open_resolution_count" :hint="query.data.value.resolutions.length ? t('meetingsUi.totalResolutionsHint', { count: query.data.value.resolutions.length }, query.data.value.resolutions.length) : undefined" :to="resolutionsTabLink" />
+        </SharedRecordHero>
       </div>
       <SharedRouteTabs data-testid="meeting-tabs" :items="tabLinks" :ariaLabel="t('meetingsUx.sections')" />
       <div v-if="query.data.value" class="grid min-w-0 gap-(--liwan-gap-card)">

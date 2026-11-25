@@ -264,10 +264,11 @@ function setPage(next: number) {
     :create-to="can('meetings.create') ? createTo : undefined"
     :create-label="t('nav.newMeeting')"
     create-test-id="meeting-new"
-    kpi-toggle
     @click.capture="openCreate"
   >
-    <SharedKpiStrip v-if="hydrated" :tiles="kpis.tiles.value" :loading="kpis.loading.value" :label="t('meetingsKpi.label')" data-testid="meeting-kpi-strip" />
+    <template #kpis>
+      <SharedKpiStrip v-if="hydrated" :tiles="kpis.tiles.value" :loading="kpis.loading.value" :label="t('meetingsKpi.label')" data-testid="meeting-kpi-strip" />
+    </template>
     <div
       v-if="hydrated && nextUpcoming && !invalidDateRange && !query.error.value"
       data-testid="meeting-next-up"

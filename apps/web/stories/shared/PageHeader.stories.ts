@@ -25,7 +25,7 @@ type Story = StoryObj<typeof meta>
 
 export const WithActions: Story = {
   name: 'مع إجراءات الصفحة',
-  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:34'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:56'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
@@ -35,7 +35,7 @@ export const WithActions: Story = {
 
 export const WithKpiToggle: Story = {
   name: 'مع زر المؤشرات',
-  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:34', '`kpi-toggle` يرسم قبل الإجراءات زر أيقونة دائريًا واحدًا يخفي شريط المؤشرات `SharedKpiStrip` أو يظهره؛ الاختيار عام ويُحفظ في الكوكي `liwan-kpis`.'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:56', '`kpi-toggle` يرسم قبل الإجراءات زر أيقونة دائريًا واحدًا يخفي شريط المؤشرات `SharedKpiStrip` أو يظهره؛ الاختيار عام ويُحفظ في الكوكي `liwan-kpis`.'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => ({ t: useI18n().t }),
@@ -93,7 +93,7 @@ export const WithBack: Story = {
 // stays quiet and the reader still sees where the page sits.
 export const TrailUnderTitle: Story = {
   name: 'مسار الأسلاف فوق العنوان',
-  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:34', 'المسار من الغلاف: ينشر الغلاف سلسلة الأسلاف ويستقبلها رأس الصفحة ويرسمها فوق العنوان، ويُسقط العنوان الحالي والخطوة التي تشير إلى الصفحة نفسها.'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:56', 'المسار من الغلاف: ينشر الغلاف سلسلة الأسلاف ويستقبلها رأس الصفحة ويرسمها فوق العنوان، ويُسقط العنوان الحالي والخطوة التي تشير إلى الصفحة نفسها.'),
   render: () => ({
     components: { PageContainer, PageHeader },
     setup: () => {
@@ -122,7 +122,7 @@ export const TitleAndDescription: Story = {
 // The open header over the page toolbar: filters, quick choices, the scope and view switches and the active filter chips.
 export const UnifiedHeaderWithFilters: Story = {
   name: 'الترويسة والفلاتر الموحدة (شامل المكونات)',
-  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:34', 'الترويسة الموحدة لجميع الصفحات: عنوان ووصف مع زر الرجوع، إجراءات الصفحة الأساسية، وشريط الفلاتر المدمج (بحث، منسدلة متعددة، خيارات سريعة، نطاق الحالات، تبديل العرض، وشرائح التصفية النشطة).'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:56', 'الترويسة الموحدة لجميع الصفحات: عنوان ووصف مع زر الرجوع، إجراءات الصفحة الأساسية، وشريط الفلاتر المدمج (بحث، منسدلة متعددة، خيارات سريعة، نطاق الحالات، تبديل العرض، وشرائح التصفية النشطة).'),
   render: () => ({
     components: { FilterBar, FilterChip, PageContainer, PageHeader, RecordSection, SegmentedControl, ViewSwitch },
     setup: () => {
@@ -226,7 +226,7 @@ export const UnifiedHeaderWithFilters: Story = {
 // inline end in the application's button colour, and the views tabs on the 1px divider (the active one underlined 2.5px with its count).
 export const WithTaglineAndTabs: Story = {
   name: 'وصف وتبويبات العروض',
-  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:34', 'الترويسة المفتوحة كما في النموذج: مسار، بلاطة 64px بلون التطبيق، العنوان بخط Rubik وتحته سطر وصف، الإجراءات عند نهاية السطر بلون زر التطبيق، وفي الأسفل تبويبات العروض فوق الخط الفاصل (الفتحة `tabs`).'),
+  parameters: storyContext('packages/ui/app/components/shared/layout/ListPage.vue:56', 'الترويسة المفتوحة كما في النموذج: مسار، بلاطة 64px بلون التطبيق، العنوان بخط Rubik وتحته سطر وصف، الإجراءات عند نهاية السطر بلون زر التطبيق، وفي الأسفل تبويبات العروض فوق الخط الفاصل (الفتحة `tabs`).'),
   render: () => ({
     components: { PageContainer, PageHeader, RouteTabs },
     setup: () => {

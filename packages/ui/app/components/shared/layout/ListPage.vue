@@ -7,7 +7,8 @@ import type { PageHeaderTag } from '../../../utils/pageHeaderTag'
 import ViewSwitch from '../data/ViewSwitch.vue'
 
 /*
- * The list template (Tasmim spec §6, template 1): the open header with the page's own create button, then the tools row (filters),
+ * The list template (Tasmim spec §6, template 1): the open header with the page's own create button, an optional `#kpis`
+ * strip directly below it (which automatically turns on the header's KPI show/hide toggle), then the tools row (filters),
  * a view switch bound to the route query `view`, and the list. The create button carries
  * data-shortcut-create, so `C` presses it; the search inside the caller's SharedFilterBar carries
  * data-shortcut-search, so `/` focuses it. On a ListPage, filters go in its #filters slot, not in
@@ -52,7 +53,7 @@ if (props.viewsInFilters && props.views?.length) provide(LIST_VIEW_KEY, { view, 
 
 <template>
   <PageContainer data-template="list">
-    <PageHeader :title="props.title" :description="props.description" :tags="props.tags" :back-to="props.backTo" :back-label="props.backLabel" :hide-title="props.hideHeader" :kpi-toggle="props.kpiToggle && !actionsInFrame">
+    <PageHeader :title="props.title" :description="props.description" :tags="props.tags" :back-to="props.backTo" :back-label="props.backLabel" :hide-title="props.hideHeader" :kpi-toggle="(props.kpiToggle || !!$slots.kpis) && !actionsInFrame">
       <template v-if="!actionsInFrame && (props.createTo || $slots.actions)" #actions>
         <UButton
           v-if="props.createTo"
@@ -66,6 +67,7 @@ if (props.viewsInFilters && props.views?.length) provide(LIST_VIEW_KEY, { view, 
         <slot name="actions" />
       </template>
     </PageHeader>
+    <div v-if="$slots.kpis" data-slot="list-page-kpis" class="min-w-0 empty:hidden"><slot name="kpis" /></div>
     <div v-if="$slots.filters || (view && !props.viewsInFilters)" data-slot="list-page-toolbar" class="flex min-w-0 flex-wrap items-center gap-2">
       <div v-if="$slots.filters" class="min-w-0 flex-1 max-md:basis-full"><slot name="filters" /></div>
       <!-- On a phone the switch fills its own row with equal segments. -->
