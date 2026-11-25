@@ -140,6 +140,13 @@ def asterisk_matches(pattern, extension):
     return re.fullmatch(''.join(pieces), extension) is not None
 
 
+class ComposeLoader(yaml.SafeLoader):
+    """A safe loader that understands the Compose `!override` tag the local overlay uses."""
+
+
+ComposeLoader.add_constructor('!override', lambda loader, node: loader.construct_sequence(node))
+
+
 def write_env(directory, values=None):
     path = Path(directory) / 'telephony.env'
     path.write_text(''.join(f'{name}={value}\n' for name, value in (values or FIXED).items()), encoding='utf-8')
@@ -154,7 +161,7 @@ def run(*arguments):
 
 
 class RenderedPackage(unittest.TestCase):
-    def test_every_file_is_written_private_and_every_secret_reaches_only_its_own_file(self):
+    def test_files_are_readable_inside_a_private_directory_and_every_secret_reaches_its_own_file(self):
         with tempfile.TemporaryDirectory() as directory:
             out = Path(directory) / 'package'
             code, stdout, stderr = run('--env', write_env(directory), '--out', out)
@@ -162,11 +169,20 @@ class RenderedPackage(unittest.TestCase):
             self.assertEqual(EXPECTED, sorted(path.relative_to(out).as_posix() for path in out.rglob('*') if path.is_file()))
             for path in out.rglob('*'):
                 if path.is_file():
-                    self.assertEqual(0o600, stat.S_IMODE(path.stat().st_mode), path)
+                    # The container's non-root Asterisk user reads its configuration; the 0700 directory is the boundary.
+                    self.assertEqual(0o644, stat.S_IMODE(path.stat().st_mode), path)
             self.assertEqual(0o700, stat.S_IMODE(out.stat().st_mode))
             self.assertTrue(stdout.splitlines()[-1].startswith('render: 12 files written to '), stdout)
             self.assertIn('secret-101-value', (out / 'asterisk/pjsip.conf').read_text())
             self.assertIn('turn-secret-value', (out / 'coturn/turnserver.conf').read_text())
+
+    def test_an_existing_output_directory_is_tightened_to_private(self):
+        with tempfile.TemporaryDirectory() as directory:
+            out = Path(directory) / 'package'
+            out.mkdir()
+            out.chmod(0o755)
+            self.assertEqual(0, run('--env', write_env(directory), '--out', out)[0])
+            self.assertEqual(0o700, stat.S_IMODE(out.stat().st_mode))
 
     def test_a_secret_never_appears_on_stdout(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -312,6 +328,38 @@ class ComposeShape(unittest.TestCase):
         self.assertIn(f':{environment["PBX_LISTEN_PORT"]}/health', healthcheck)
         self.assertEqual(environment['PBX_LISTEN_PORT'], service['expose'][0])
 
+    def test_the_asterisk_service_runs_non_root_and_capability_free(self):
+        with tempfile.TemporaryDirectory() as directory:
+            compose = self.compose(directory)
+        asterisk = compose['services']['asterisk']
+        self.assertEqual('10002:10002', asterisk['user'])
+        self.assertEqual(['ALL'], asterisk['cap_drop'])
+        self.assertNotIn('cap_add', asterisk)
+        self.assertIn('telephony_asterisk_state:/var/lib/asterisk', asterisk['volumes'])
+        self.assertEqual(['/var/run/asterisk:uid=10002,gid=10002,mode=0755'], asterisk['tmpfs'])
+        self.assertEqual(['/usr/sbin/asterisk', '-f', '-p'], asterisk['command'])
+        # The check is the CLI as the container user (it owns its socket), not a root process that cannot open it.
+        self.assertEqual(['CMD', '/usr/sbin/asterisk', '-rx', 'core show uptime'], asterisk['healthcheck']['test'])
+        self.assertEqual({'volumes-init': {'condition': 'service_completed_successfully'}}, asterisk['depends_on'])
+
+    def test_the_volume_preparation_job_hands_every_directory_to_the_service_uid(self):
+        with tempfile.TemporaryDirectory() as directory:
+            compose = self.compose(directory)
+        init = compose['services']['volumes-init']
+        self.assertEqual('0:0', init['user'])
+        self.assertEqual(['ALL'], init['cap_drop'])
+        self.assertEqual(['CHOWN', 'DAC_OVERRIDE'], init['cap_add'])
+        self.assertEqual('no', init['restart'])
+        self.assertEqual('none', init['network_mode'])
+        self.assertTrue(init['read_only'])
+        self.assertEqual(['telephony_recordings:/var/spool/asterisk', 'telephony_logs:/var/log/asterisk',
+                          'telephony_asterisk_state:/var/lib/asterisk', 'telephony_agent_state:/var/lib/pbx-agent'],
+                         init['volumes'])
+        self.assertIn('chown -R 10002:10002', init['command'][0])
+        self.assertEqual({'condition': 'service_completed_successfully'},
+                         compose['services']['pbx-agent']['depends_on']['volumes-init'])
+        self.assertIn('telephony_asterisk_state', compose['volumes'])
+
     def test_coturn_has_a_route_off_the_host_when_turn_is_published(self):
         with tempfile.TemporaryDirectory() as directory:
             compose = self.compose(directory)
@@ -320,14 +368,16 @@ class ComposeShape(unittest.TestCase):
         # A container only on an internal network has no path back to the internet, so its published relay cannot work.
         self.assertFalse(all(compose['networks'][name].get('internal') for name in networks))
 
-    def test_the_package_has_three_services_on_the_company_networks(self):
+    def test_the_three_runtime_services_share_the_company_networks(self):
         with tempfile.TemporaryDirectory() as directory:
             compose = self.compose(directory)
-        self.assertEqual(['asterisk', 'coturn', 'pbx-agent'], sorted(compose['services']))
+        self.assertEqual(['asterisk', 'coturn', 'pbx-agent'],
+                         sorted(name for name in compose['services'] if name != 'volumes-init'))
         self.assertTrue(compose['networks']['telephony_internal']['internal'])
         self.assertNotIn('ports', compose['services']['pbx-agent'])
-        for service in compose['services'].values():
-            self.assertRegex(' '.join(service['networks']), 'telephony_internal')
+        for name in ('asterisk', 'coturn', 'pbx-agent'):
+            self.assertIn('telephony_internal', compose['services'][name]['networks'])
+        self.assertNotIn('networks', compose['services']['volumes-init'])
 
 
 class CelReconciliation(unittest.TestCase):
@@ -478,6 +528,29 @@ class AsteriskShape(unittest.TestCase):
         self.assertIn('tlsenable=no', http)
         self.assertIn('bindport=8088', http)
         self.assertEqual(['5060', '8088'], compose['services']['asterisk']['expose'])
+
+
+class LocalOverride(unittest.TestCase):
+    """compose.local.yml: loopback only, no coturn, and the same WebSocket port as the template."""
+
+    def local(self):
+        return yaml.load((PACKAGE / 'compose.local.yml').read_text(), Loader=ComposeLoader)
+
+    def test_every_listener_is_loopback_and_the_ws_port_matches_the_template(self):
+        overlay = self.local()
+        ports = overlay['services']['asterisk']['ports']
+        self.assertTrue(ports)
+        self.assertTrue(all(port.startswith('127.0.0.1:') for port in ports), ports)
+        self.assertIn('127.0.0.1:8088:8088/tcp', ports)
+        self.assertNotIn('8089', (PACKAGE / 'compose.local.yml').read_text())
+        self.assertIn('bindport=8088', (PACKAGE / 'asterisk/http.conf.template').read_text())
+        # The base healthcheck is the one that runs; the overlay must not shadow it again.
+        self.assertNotIn('healthcheck', overlay['services']['asterisk'])
+
+    def test_coturn_is_dropped_and_the_agent_health_stays_on_loopback(self):
+        overlay = self.local()
+        self.assertEqual(0, overlay['services']['coturn']['deploy']['replicas'])
+        self.assertEqual(['127.0.0.1:8601:8601/tcp'], overlay['services']['pbx-agent']['ports'])
 
 
 class Templates(unittest.TestCase):

@@ -15,6 +15,33 @@ x-logging: &liwan-logging
   options: { max-size: "10m", max-file: "5" }
 
 services:
+  volumes-init:
+    # One-shot preparation of the company volumes before either process starts. A fresh named volume is created with the
+    # ownership of the image path it shadows, and the Asterisk image's spool is mode 0750 owned by its own user, so the
+    # processes that run as uid/gid 10002 cannot write it. This job runs as root with the two capabilities it needs —
+    # CHOWN to set the owner, DAC_OVERRIDE to reach into the image's 0750 spool to do so — prepares every directory
+    # both services use, and exits 0; nothing else in the package runs as root or keeps a capability.
+    image: andrius/asterisk:22.11.0_debian-trixie@sha256:d4aa1629e92b24e42c3b4555db8e3b2b54eca29e2c9ce7a56653d4257381e3c4
+    restart: "no"
+    logging: *liwan-logging
+    user: "0:0"
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    network_mode: "none"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        mkdir -p /var/lib/pbx-agent
+        chown -R 10002:10002 /var/spool/asterisk /var/log/asterisk /var/lib/asterisk /var/lib/pbx-agent
+    volumes:
+      - telephony_recordings:/var/spool/asterisk
+      - telephony_logs:/var/log/asterisk
+      - telephony_asterisk_state:/var/lib/asterisk
+      - telephony_agent_state:/var/lib/pbx-agent
+
   asterisk:
     # Asterisk 22 LTS, the version the design pins (section 3). No official image exists, so this is the community
     # image built from Asterisk's own sources; the tag is the exact LTS release and the digest was resolved on
@@ -23,22 +50,24 @@ services:
     image: andrius/asterisk:22.11.0_debian-trixie@sha256:d4aa1629e92b24e42c3b4555db8e3b2b54eca29e2c9ce7a56653d4257381e3c4
     restart: unless-stopped
     logging: *liwan-logging
-    # The image's own entrypoint gives the `asterisk` user the uid/gid below and hands it the volumes; Asterisk then
-    # drops root itself. CHOWN, SETUID and SETGID are exactly what those two steps need, and nothing gains privileges.
+    # The process runs as the agent image's uid/gid (apps/pbx-agent/Dockerfile) and drops every capability: the image's
+    # default command starts Asterisk as root and drops to its own user, which needs SETUID and SETGID, so the command
+    # below is Asterisk itself and no root step is left. /var/run/asterisk is a tmpfs owned by the same uid because it
+    # is not a volume; /var/lib/asterisk (astdb, sounds) is a volume volumes-init prepares.
+    user: "10002:10002"
     cap_drop: [ALL]
-    cap_add: [CHOWN, SETUID, SETGID]
     security_opt: ["no-new-privileges:true"]
+    # The CLI complains when its working directory is not accessible to the user; `/` is.
+    working_dir: /
+    command: ["/usr/sbin/asterisk", "-f", "-p"]
     environment:
-      # uid/gid 10002 is the agent image's user (apps/pbx-agent/Dockerfile), so the recordings volume is written by
-      # Asterisk and pruned by the agent under one uid and needs no shared-group trick.
-      PUID: "10002"
-      PGID: "10002"
       # Asterisk's CEL eventtime is a wall clock and the agent reads it as UTC (apps/pbx-agent/Dockerfile), so both
       # containers of the package share the zone.
       TZ: "UTC"
     volumes:
       # Rendered by deploy/telephony/render.py and read-only: a running PBX cannot rewrite its own configuration. The
-      # files the image ships for everything else (modules.conf, indications.conf, ...) stay in the image.
+      # files the image ships for everything else (modules.conf, indications.conf, ...) stay in the image. The rendered
+      # files are 0644 inside the 0700 render directory, so this non-root process can read them.
       - ./asterisk/pjsip.conf:/etc/asterisk/pjsip.conf:ro
       - ./asterisk/extensions.conf:/etc/asterisk/extensions.conf:ro
       - ./asterisk/http.conf:/etc/asterisk/http.conf:ro
@@ -48,16 +77,17 @@ services:
       # CEL on, and the CSV the agent tails for reconciliation (design 4.6).
       - ./asterisk/cel.conf:/etc/asterisk/cel.conf:ro
       - ./asterisk/cel_custom.conf:/etc/asterisk/cel_custom.conf:ro
-      # Recordings, on their own named volume so they survive `down` (design 4.4, 11.1). The mount point is the image's
-      # own spool directory, so a fresh volume inherits the ownership Asterisk writes with (and the entrypoint hands it
-      # to uid/gid 10002 above); MixMonitor writes /var/spool/asterisk/monitor/<linkedid>.wav there, the directory the
-      # agent serves and prunes.
+      # Recordings, on their own named volume so they survive `down` (design 4.4, 11.1); volumes-init made it writable
+      # by uid 10002. MixMonitor writes /var/spool/asterisk/monitor/<linkedid>.wav there, the directory the agent
+      # serves and prunes.
       - telephony_recordings:/var/spool/asterisk
-      # The shared log directory. The image's /var/log/asterisk is 0755 owned by the asterisk user, and the entrypoint
-      # above hands it (and a fresh volume) to 10002:10002, the agent's uid; Asterisk creates cel-custom.csv 0644 under
-      # its umask. Both containers mount it read-write, so a truncation needs no remount, and no other file is logged
-      # there (logger.conf writes only to stdout).
+      # The shared log directory, prepared by volumes-init: Asterisk creates cel-custom.csv 0644 under its umask and the
+      # agent reads it. No other file is logged there (logger.conf writes only to stdout).
       - telephony_logs:/var/log/asterisk
+      # astdb and the sound files; a volume so the image's content is copied once and the process can write astdb.
+      - telephony_asterisk_state:/var/lib/asterisk
+    # The control socket and pid file live here; it is not a volume, so a tmpfs hands it to the service's uid.
+    tmpfs: ["/var/run/asterisk:uid=10002,gid=10002,mode=0755"]
     expose: ["5060", "8088"]
     ports:
       # The company's fixed RTP block is published in every mode: the provider's media arrives there in the credentials
@@ -74,12 +104,17 @@ services:
     # else is attached to it.
     networks: [telephony_internal, telephony_uplink]
     healthcheck:
-      # The CLI answers only when the core is up and its control socket is writable.
-      test: ["CMD-SHELL", "asterisk -rx 'core show uptime' >/dev/null 2>&1"]
+      # The container runs as the asterisk user with every capability dropped, so it owns the 0660 control socket the
+      # CLI talks to and this check passes; a root healthcheck cannot open that socket without DAC_OVERRIDE, and `su`
+      # cannot switch user under no-new-privileges, which is why the earlier root check never turned healthy and held
+      # pbx-agent behind `service_healthy`.
+      test: ["CMD", "/usr/sbin/asterisk", "-rx", "core show uptime"]
       interval: 10s
       timeout: 5s
       retries: 3
       start_period: 30s
+    depends_on:
+      volumes-init: { condition: service_completed_successfully }
 
   coturn:
     # coturn 4.19.2, pinned by version and index digest (resolved 2026-11-25 with
@@ -189,6 +224,7 @@ services:
       retries: 3
       start_period: 30s
     depends_on:
+      volumes-init: { condition: service_completed_successfully }
       asterisk: { condition: service_healthy }
 
 networks:
@@ -209,6 +245,9 @@ volumes:
   # The agent's durable event queue (design 4.6), separate from the call audio.
   telephony_agent_state:
     name: ${LIWAN_TELEPHONY_COMPANY_ID:?}-telephony-agent-state
+  # Asterisk's own state (astdb, the sound files copied from the image), prepared by volumes-init.
+  telephony_asterisk_state:
+    name: ${LIWAN_TELEPHONY_COMPANY_ID:?}-telephony-asterisk-state
   # The CEL CSV Asterisk writes and the agent tails (design 4.6); named for the company like the other volumes.
   telephony_logs:
     name: ${LIWAN_TELEPHONY_COMPANY_ID:?}-telephony-logs

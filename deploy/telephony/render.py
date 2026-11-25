@@ -82,7 +82,7 @@ SECRETS = (
     'LIWAN_TELEPHONY_REVERSE_KEY',
 )
 DIRECTORY_MODE = 0o700
-FILE_MODE = 0o600
+FILE_MODE = 0o644
 EXIT_USAGE = 2
 USAGE = ('usage: render.py --env <env file> --out <directory> [--force]\n')
 
@@ -283,8 +283,9 @@ def package_files(env: dict[str, str]) -> dict[str, str]:
     return files
 
 
-def write_private(path: Path, text: str) -> None:
-    """A new file at mode 0600 from its first byte: every rendered file can hold a secret."""
+def write_file(path: Path, text: str) -> None:
+    """A rendered file at mode 0644 from its first byte, inside a 0700 directory: the container's Asterisk user reads its
+    configuration, and no other host user can traverse the directory to reach the secrets it holds."""
     descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, FILE_MODE)
     with os.fdopen(descriptor, 'w', encoding='utf-8') as handle:
         handle.write(text)
@@ -299,14 +300,16 @@ def write_package(out: Path, files: dict[str, str], force: bool) -> list[Path]:
         raise RenderError(f'{out} is not empty: pass --force to overwrite the package files')
     if not out.is_dir():
         out.mkdir(parents=True)
-        out.chmod(DIRECTORY_MODE)
+    # The directory is the boundary that keeps the rendered secrets from other host users, so it is 0700 whether it was
+    # created here or handed over empty.
+    out.chmod(DIRECTORY_MODE)
     written = []
     for target, text in files.items():
         path = out / target
         if not path.parent.is_dir():
             path.parent.mkdir(parents=True)
             path.parent.chmod(DIRECTORY_MODE)
-        write_private(path, text)
+        write_file(path, text)
         written.append(path)
     return written
 

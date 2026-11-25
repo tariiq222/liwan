@@ -24,10 +24,12 @@ browser leg and coturn's path to Asterisk; `telephony_uplink` carries the trunk,
 relayed TURN traffic back to the browser. ARI, the HTTP server and the agent's health port are never published
 (design 11.2); TURN is published only when this package is the TURN server (see "Ports").
 
-Asterisk adopts uid/gid `10002`, the agent image's own user, so the recordings volume is written by one process and
-served and pruned by the other without a shared-group arrangement. The agent's contract is exactly the variable set of
-`apps/pbx-agent/src/pbx_agent/settings.py`: every name is passed, and the values come from this env file or name this
-package's own Asterisk objects (`transport-ws`, `from-extension`, `from-trunk`, `trunk`) and internal paths.
+Asterisk and `pbx-agent` run as uid/gid `10002` (the agent image's own user) with every capability dropped, so the
+recordings volume is written by one process and read by the other without a shared-group arrangement. A one-shot
+`volumes-init` job runs first: it owns the four company volumes long enough to hand them to `10002:10002` and exits 0,
+and both services wait for it to complete (the agent also waits for Asterisk to be healthy). The agent's contract is
+exactly the variable set of `apps/pbx-agent/src/pbx_agent/settings.py`: every name is passed, and the values come from
+this env file or name this package's own Asterisk objects (`from-trunk`, `trunk`) and internal paths.
 
 ## Static configuration first (the phase-1 choice)
 
@@ -80,9 +82,16 @@ docker compose --project-directory /var/lib/liwan-telephony --env-file /etc/liwa
 ```
 
 The renderer validates every fact before writing anything (company tag, addresses, ports, ranges, secrets, the
-comment characters) and refuses a non-empty target directory unless `--force` is given. The rendered files are mode
-0600 in a 0700 directory because they hold the ARI, extension and trunk passwords, and the command prints file names
-only, never a value. Re-render with `--force` after changing the env file, then `docker compose up -d` again.
+comment characters) and refuses a non-empty target directory unless `--force` is given. The rendered directory is
+0700 and the files inside are 0644: the container's non-root Asterisk process has to read its configuration, and the
+directory is the boundary that keeps the ARI, extension and trunk passwords from other host users. The command prints
+file names only, never a value. Re-render with `--force` after changing the env file, then `docker compose up -d`
+again.
+
+The first start runs `volumes-init` before anything else: it prepares the recordings, CEL/log, Asterisk-state and
+agent-queue volumes for uid/gid `10002` with only `CHOWN` and `DAC_OVERRIDE`, then exits. Asterisk and the agent then
+start non-root with no capabilities; Asterisk's control socket lives on a tmpfs the same uid owns, which is why its
+healthcheck (the CLI run as that user) can pass and `pbx-agent` can wait for `service_healthy`.
 
 Useful checks:
 
@@ -189,10 +198,10 @@ stream lost (design 4.6). This package wires the whole path; nothing about it is
   zero. A queue with no stored state adopts the file as it stands, because history from before the agent existed is
   never replayed: that would mint new event ids for calls Odoo may already hold. The offset never moves past the first
   row of a leg that has not ended, so a call spanning two passes is rebuilt whole.
-- **Where the file lives.** The `telephony_logs` volume is mounted read-write at `/var/log/asterisk` in both Asterisk
-  and `pbx-agent`, under one uid: the Asterisk entrypoint hands the directory to `10002:10002` (the agent's user) on
-  first start, the image's mode is `0755`, and Asterisk creates the CSV `0644`. No other file is logged there
-  (`logger.conf` writes only to stdout), so the volume holds the CEL CSV alone.
+- **Where the file lives.** The `telephony_logs` volume is mounted at `/var/log/asterisk` in both Asterisk and
+  `pbx-agent`, under one uid: `volumes-init` hands the directory to `10002:10002` before either starts, and Asterisk
+  creates the CSV `0644`. No other file is logged there (`logger.conf` writes only to stdout), so the volume holds the
+  CEL CSV alone.
 - **Size and rotation.** CEL has no built-in limit, so the package ships a logrotate policy
   (`logrotate/telephony-cel`, rendered for the company): daily, `maxsize 50M`, seven copies, `copytruncate`. Install it
   as `/etc/logrotate.d/liwan-telephony-<company>` on the package host; the path is Docker's default volume root
@@ -221,7 +230,7 @@ stream lost (design 4.6). This package wires the whole path; nothing about it is
 
 | Path | What |
 | --- | --- |
-| `compose.yml` | the three services, the company networks and the three company volumes (recordings, queue, CEL log) |
+| `compose.yml` | the four services (including the one-shot `volumes-init`), the company networks and the four company volumes (recordings, queue, CEL log, Asterisk state) |
 | `render.py` | renders every template from one env file, validates, refuses a non-empty target, prints names only |
 | `env.example` | every variable with a safe placeholder and a one-line comment; the only input |
 | `asterisk/pjsip.conf.template` | transports (udp, tcp, ws), the WebRTC template with 101/102, the plain SIP 103, the trunk |
@@ -235,7 +244,8 @@ stream lost (design 4.6). This package wires the whole path; nothing about it is
 
 ## Secrets and safety
 
-No secret is in this directory: `env.example` holds placeholders, and a rendered file with a real value is mode 0600
-outside the checkout. `LIWAN_TELEPHONY_KEY` never exists on a PBX host; only the two derived keys do. ARI and AMI are on
-the private network only, and no management port is published. The recordings, queue and CEL log volumes are named for the company
-and are the only writable state.
+No secret is in this directory: `env.example` holds placeholders, and a rendered file with a real value sits in a 0700
+directory outside the checkout (the files inside are 0644 so the non-root container can read them).
+`LIWAN_TELEPHONY_KEY` never exists on a PBX host; only the two derived keys do. ARI and AMI are on the private network
+only, and no management port is published. The recordings, queue, CEL log and Asterisk-state volumes are named for the
+company and are the only writable state.
