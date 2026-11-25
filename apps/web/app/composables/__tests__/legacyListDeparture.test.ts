@@ -10,6 +10,7 @@ import { refDebounced } from '@vueuse/core'
 import { createHooks } from 'hookable'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as myTaskList from '../../utils/myTaskList'
+import * as routeQuery from '../../utils/routeQuery'
 import { rootedNode } from '../../../tests/hostNode'
 
 // The personal task list moved from pages/my-tasks/index.vue into components/personal-tasks/MyTasksWorkspace.vue
@@ -30,7 +31,7 @@ async function mountList(testCase: typeof cases[number], guard: (to: RouteLocati
   const hooks = createHooks<{ 'liwan:navigation:start': (to: RouteLocationNormalized) => void }>()
   const nuxt = { hook: hooks.hook, callHook: (to: RouteLocationNormalized) => Promise.resolve().then(() => hooks.callHook('liwan:navigation:start', to)) }
   const bindings = {
-    ...myTaskList, currentListView, listViewQuery, useRowNavigation: () => {}, _defineComponent: Vue.defineComponent, h: Vue.h, ref: Vue.ref, shallowRef: Vue.shallowRef, computed: Vue.computed, reactive: Vue.reactive, watch: Vue.watch,
+    ...myTaskList, ...routeQuery, currentListView, listViewQuery, useRowNavigation: () => {}, _defineComponent: Vue.defineComponent, h: Vue.h, ref: Vue.ref, shallowRef: Vue.shallowRef, computed: Vue.computed, reactive: Vue.reactive, watch: Vue.watch,
     onMounted: Vue.onMounted, onBeforeUnmount: Vue.onBeforeUnmount, onScopeDispose: Vue.onScopeDispose, useRoute, useRouter, refDebounced,
     useI18n: () => ({ t: (key: string) => key }), useHydrated: () => Vue.ref(true), useKpiVisibility: () => ({ shown: Vue.ref(true) }), localIsoDay, useAccess: () => ({ can: () => true }), useNuxtApp: () => nuxt,
     useMyTaskList: () => ({ data: Vue.ref({ items: [], total: 0 }), isFetching: Vue.ref(false), error: Vue.ref(null) }),
