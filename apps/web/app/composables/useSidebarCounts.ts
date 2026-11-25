@@ -1,12 +1,14 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { CancelledError, useQueries, useQueryClient } from '@tanstack/vue-query'
+import { hasFeature } from '../modules/registry'
 import type { AppSidebarMenu } from '../modules/types'
 
 const COUNT_STALE_MS = 30_000
 
 /**
  * The numbers beside the rows of a flat sidebar menu, by row id, through the caller's own session. A loader whose
- * capability the caller lacks is never asked; a number that is pending or failed is left out (never a wrong zero).
+ * capability the caller lacks, or whose extra feature is off, is never asked; a number that is pending or failed
+ * is left out (never a wrong zero).
  */
 export function useSidebarCounts(menu: MaybeRefOrGetter<AppSidebarMenu | undefined>) {
   const { $api } = useApi()
@@ -16,7 +18,7 @@ export function useSidebarCounts(menu: MaybeRefOrGetter<AppSidebarMenu | undefin
   const client = useQueryClient()
   const owner = computed(() => ({ companyId: me.value?.company.id ?? null, userId: me.value?.id ?? null }))
   const ready = computed(() => hydrated.value && !!owner.value.companyId && !!owner.value.userId)
-  const visible = computed(() => (toValue(menu)?.counts ?? []).filter(counts => can(counts.capability)))
+  const visible = computed(() => (toValue(menu)?.counts ?? []).filter(counts => can(counts.capability) && hasFeature(me.value, counts.feature ?? null)))
   const queries = computed(() => visible.value.map((counts) => {
     const asked = owner.value
     const current = () => ready.value && asked.companyId === owner.value.companyId && asked.userId === owner.value.userId

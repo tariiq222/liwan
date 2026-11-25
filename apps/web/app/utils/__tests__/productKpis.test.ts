@@ -28,4 +28,9 @@ describe('productKpiTiles', () => {
     ])
     expect(tiles.map(tile => tile.clearTo)).toEqual(['/products', '/products', '/products'])
   })
+
+  it('leaves the tile reusing the list total null while that total is a placeholder', () => {
+    const tiles = productKpiTiles({ total: undefined, goods: 15, services: 10 }, { q: 'plan' }, t)
+    expect(tiles.map(tile => tile.value)).toEqual([null, 15, 10])
+  })
 })

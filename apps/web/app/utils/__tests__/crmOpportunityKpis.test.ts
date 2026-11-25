@@ -79,4 +79,9 @@ describe('CRM opportunity KPI helpers', () => {
     const pending = crmOpportunityKpiTiles({}, {}, t)
     expect(pending.map(tile => tile.value)).toEqual([null, null, null, null])
   })
+
+  it('leaves the tile reusing the list total null while that total is a placeholder', () => {
+    const tiles = crmOpportunityKpiTiles({ open: undefined, won: 5, lost: 2, due: 3 }, {}, t)
+    expect(tiles.map(tile => tile.value)).toEqual([null, 5, 2, 3])
+  })
 })

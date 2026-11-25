@@ -313,6 +313,8 @@ export interface AppSidebarRow {
 export interface AppSidebarCounts {
   /** Capability the numbers need; without it nothing is asked. */
   capability: string
+  /** An extra sub-feature key the numbers need, like a row's own `feature`; without it nothing is asked. */
+  feature?: string
   /** Vue-query key; the sidebar appends the owner. */
   queryKey: readonly unknown[]
   /** Runs through useApi(); the count of each row id, null when the endpoint has nothing to say. */

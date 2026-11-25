@@ -354,10 +354,10 @@ const heroAmount = computed(() => {
           </UPopover>
         </template>
         <template #meta>
-          <span v-if="record.stage && !canWork" class="inline-flex items-center gap-1.5"><UIcon name="i-lucide-columns-3" class="size-4 shrink-0" aria-hidden="true" /><span>{{ record.stage.name }}</span></span>
-          <span class="inline-flex items-center gap-1.5"><UIcon name="i-lucide-user" class="size-4 shrink-0" aria-hidden="true" /><span>{{ record.user?.name ?? t('crm.opportunities.tag.pool') }}</span></span>
+          <span v-if="record.stage && !canWork" class="inline-flex items-center gap-1.5"><UIcon name="i-lucide-columns-3" class="size-4 shrink-0" aria-hidden="true" /><span><span class="sr-only">{{ t('crm.opportunities.record.stage') }}: </span>{{ record.stage.name }}</span></span>
+          <span class="inline-flex items-center gap-1.5"><UIcon name="i-lucide-user" class="size-4 shrink-0" aria-hidden="true" /><span><span class="sr-only">{{ t('crm.opportunities.record.agent') }}: </span>{{ record.user?.name ?? t('crm.opportunities.tag.pool') }}</span></span>
           <span v-if="!canWork" class="inline-flex items-center gap-1.5" data-testid="crm-probability"><UIcon name="i-lucide-percent" class="size-4 shrink-0" aria-hidden="true" /><span>{{ t('crm.opportunities.record.probability') }}: {{ record.probability }}%</span></span>
-          <a :href="`tel:${record.phone}`" class="inline-flex items-center gap-1.5 font-medium text-primary hover:underline" data-testid="crm-phone"><UIcon name="i-lucide-phone" class="size-4 shrink-0" aria-hidden="true" /><bdi dir="ltr">{{ record.phone }}</bdi></a>
+          <a :href="`tel:${record.phone}`" class="inline-flex items-center gap-1.5 font-medium text-primary hover:underline" data-testid="crm-phone"><UIcon name="i-lucide-phone" class="size-4 shrink-0" aria-hidden="true" /><span><span class="sr-only">{{ t('crm.opportunities.record.phone') }}: </span><bdi dir="ltr">{{ record.phone }}</bdi></span></a>
         </template>
         <SharedMetricTile
           v-if="pending"

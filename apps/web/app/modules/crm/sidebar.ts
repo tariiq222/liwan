@@ -5,6 +5,10 @@ import type { AppSearchApi, AppSidebarMenu, AppSidebarRoute } from '../types'
 const onPath = (route: AppSidebarRoute, path: string) => normalizedPath(route.path) === path
 const insidePath = (route: AppSidebarRoute, path: string) => onPath(route, path) || normalizedPath(route.path).startsWith(`${path}/`)
 
+// The package sub-feature the server also requires for imports (`controllers/imports.py`), on top of `crm.leads.import`.
+// The create command carries no key of its own: the palette gates it by its target route's rule.
+export const IMPORT_FEATURE = 'crm.import'
+
 /**
  * The CRM sidebar: pinned create action (`new-opportunity`), flat rows for dashboard, opportunities and imports,
  * and live server counts loaded with `limit: 1` under the `crm` query-key root.
@@ -39,6 +43,7 @@ export const crmSidebar: AppSidebarMenu = {
     },
     {
       capability: 'crm.leads.import',
+      feature: IMPORT_FEATURE,
       queryKey: ['crm', 'imports', 'batches', 'sidebar'],
       async load(api: AppSearchApi) {
         const result = await api('/api/v1/crm/imports', { query: { limit: 1 }, schema: CrmImportBatchListSchema })

@@ -31,4 +31,9 @@ describe('salesKpiTiles', () => {
       '/sales?state=cancelled',
     ])
   })
+
+  it('leaves the tile reusing the list total null while that total is a placeholder', () => {
+    const tiles = salesKpiTiles({ quotations: undefined, orders: 14, cancelled: 2 }, { q: 'S00' }, t)
+    expect(tiles.map(tile => tile.value)).toEqual([null, 14, 2])
+  })
 })

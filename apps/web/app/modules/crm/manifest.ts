@@ -3,11 +3,7 @@ import { crmBellTitleInApp } from '../../utils/crmBell'
 import type { AppManifest } from '../types'
 import { crmAppCard } from './appCard'
 import { opportunitiesSearch } from './search'
-import { crmSidebar } from './sidebar'
-
-// The package sub-feature the server also requires for imports (`controllers/imports.py`), on top of `crm.leads.import`.
-// The create command carries no key of its own: the palette gates it by its target route's rule.
-const IMPORT_FEATURE = 'crm.import'
+import { crmSidebar, IMPORT_FEATURE } from './sidebar'
 
 const manifest: AppManifest = {
   id: 'crm',

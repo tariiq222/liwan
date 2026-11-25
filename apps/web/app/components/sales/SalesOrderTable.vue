@@ -34,9 +34,6 @@ const salesperson = (order: SalesOrderListItem) => order.salesperson?.name ?? t(
     <SharedDataTable bare :rows="props.rows" :columns="columns" row-key="id" :row-to="props.recordTo" :loading="props.loading" :error="props.error" :caption="t('sales.title')" @retry="emit('retry')">
       <template #number-cell="{ row }">
         <NuxtLink :to="props.recordTo(row.original)" :class="NUMBER_LINK" data-testid="sales-order-link"><bdi dir="ltr">{{ row.original.number }}</bdi></NuxtLink>
-        <div class="mt-0.5 text-xs text-muted">
-          <SharedRecordNumber :value="row.original.id" />
-        </div>
       </template>
       <template #customer-cell="{ row }">{{ row.original.customer.name }}</template>
       <template #salesperson-cell="{ row }">{{ salesperson(row.original) }}</template>

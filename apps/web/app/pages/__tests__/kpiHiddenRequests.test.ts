@@ -29,6 +29,10 @@ describe('hidden KPIs ask nothing', () => {
     ['pages/meetings/index.vue', ['}), kpisShown)']],
     ['pages/meetings/series.vue', ['useMeetingSeriesKpis(kpisShown)']],
     ['pages/meetings/follow-up.vue', ['}), kpisShown)']],
+    ['pages/customers/index.vue', ['useCustomerKpis(listState, listTotal, computed(() => kpisShown.value && canRead.value))']],
+    ['pages/products/index.vue', ['useProductListKpis(listState, listTotal, computed(() => kpisShown.value && canRead.value))']],
+    ['pages/sales/index.vue', ['useSalesListKpis(listState, listTotal, computed(() => kpisShown.value && canRead.value))']],
+    ['pages/crm/opportunities/index.vue', ['useCrmOpportunityKpis(listFilters, listTotal, computed(() => kpisShown.value && canRead.value), activeView)']],
   ])('%s passes the visibility as the tile queries enabled flag', (file, needles) => {
     const source = read(file)
     expect(source).toContain('useKpiVisibility()')

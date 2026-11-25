@@ -16,7 +16,8 @@ type Translate = (key: string) => string
 /**
  * The three tiles above `/customers`: total (active + archived), active, and archived.
  * Only one extra `limit: 1` query is needed because the page's own list total supplies whichever
- * bucket (`active` or `archived`) is currently open.
+ * bucket (`active` or `archived`) is currently open. The total is one number no single list filter
+ * represents, so its tile is not a link.
  */
 export function customerKpiTiles(counts: CustomerKpiCounts, scope: CustomerKpiScope, t: Translate): KpiTile[] {
   const baseScope = { q: scope.q || undefined }
@@ -29,8 +30,6 @@ export function customerKpiTiles(counts: CustomerKpiCounts, scope: CustomerKpiSc
       icon: 'i-lucide-users',
       tone: 'neutral',
       value: total,
-      to: base,
-      clearTo: base,
       active: false,
     },
     {
