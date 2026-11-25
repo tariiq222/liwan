@@ -19,4 +19,8 @@ describe('the register stays on its templates', () => {
     for (const needle of ['<SharedRecordPage', '<SharedPropertiesPanel', 'data-testid="register-detail-edit"', '#aside']) expect(record).toContain(needle)
     expect(read('pages/projects/[id]/register/[registerId]/edit.vue')).not.toContain('rounded-lg ring ring-default')
   })
+  it('the change request is a record page with its properties in the aside', () => {
+    const change = read('pages/projects/[id]/changes/[changeId].vue')
+    for (const needle of ['<SharedRecordPage', '#aside', 'aside-first', 'data-testid="change-detail-edit"']) expect(change).toContain(needle)
+  })
 })

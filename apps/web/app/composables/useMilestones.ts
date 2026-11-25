@@ -26,11 +26,12 @@ export function useMilestones(projectId: Ref<number | null>) {
 
   // A project's milestones are one bounded plan that pickers, the table and deep links read whole, so
   // every page is loaded. A failed page stops the walk and leaves the error to the caller; `refetch`
-  // retries it, so the query's own retry policy stays the only automatic retry.
+  // retries it, so the query's own retry policy stays the only automatic retry. The page and the table
+  // each watch the same shared query, so a walk in progress is never cancelled by the sibling watcher.
   watch(
     () => [query.hasNextPage.value, query.isFetchingNextPage.value, query.isError.value] as const,
     ([more, fetching, failed]) => {
-      if (more && !fetching && !failed) void query.fetchNextPage()
+      if (more && !fetching && !failed) void query.fetchNextPage({ cancelRefetch: false })
     },
     { immediate: true },
   )
