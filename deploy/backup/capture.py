@@ -16,7 +16,7 @@ for a fresh drill record that met both objectives.
 
 The control plane's own PostgreSQL database is one more source of this pipeline, under the
 reserved source name :data:`CONTROL_PLANE_SOURCE`: a database-only capture (``pg_dump -Fc``,
-no filestore) with the same encryption, key layout, retention, manifest and drill rules as
+no bucket) with the same encryption, key layout, retention, manifest and drill rules as
 a tenant.
 """
 from __future__ import annotations
@@ -159,8 +159,12 @@ def capture(
     """
     require_tenant(tenant)
     require_kind(kind)
+    # P6 condition: this check rejects `bucket=None` for a tenant, but an empty BucketSource
+    # listing still produces `contents_object_count=0` (same shape as database-only). P6 must
+    # compare the `store_fname` keys the database references against the index and refuse a
+    # shortfall, so a tenant capture can never pass as database-only.
     require(
-        (source.filestore is None) == (tenant == CONTROL_PLANE_SOURCE),
+        (source.bucket is None) == (tenant == CONTROL_PLANE_SOURCE),
         f'{CONTROL_PLANE_SOURCE!r} is the one database-only source, and only it is database-only',
     )
     captured_at = as_utc(now)
@@ -172,7 +176,7 @@ def capture(
     with tempfile.TemporaryDirectory(prefix='capture-', dir=work_root) as private:
         staging = Path(private) / 'snapshot'
         plain_tar = Path(private) / artifact.ARTIFACT_NAME
-        snapshot.snapshot(source, staging, runner=runner)
+        snapshot_payload = snapshot.snapshot(source, staging, runner=runner)
         plaintext_sha256 = artifact.archive_snapshot(staging, plain_tar)
 
         ciphertext = Path(private) / artifact.ARTIFACT_CIPHERTEXT_NAME
@@ -187,6 +191,10 @@ def capture(
             ciphertext_sha256=ciphertext_sha256,
             plaintext_bytes=plain_tar.stat().st_size,
             ciphertext_bytes=ciphertext.stat().st_size,
+            database_sha256=snapshot_payload['database_sha256'],
+            contents_sha256=snapshot_payload['contents_sha256'],
+            contents_object_count=snapshot_payload['contents_object_count'],
+            contents_object_bytes=snapshot_payload['contents_object_bytes'],
         )
         manifest_bytes = manifest.to_json(passphrase_file).encode('utf-8')
         listing = artifact.checksums(

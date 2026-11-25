@@ -25,12 +25,21 @@ from restore_control_plane import (
     STAMP_PRESENT_SQL,
     STAMP_SQL,
     VERIFY_SQL,
+    RestoreError,
     checks_for,
     main,
+    require_database_only,
 )
 
 from deploy.backup import snapshot
-from deploy.backup.artifact import ARTIFACT_CIPHERTEXT_NAME, PASSPHRASE_ENVIRONMENT_VARIABLE
+from deploy.backup.artifact import (
+    ARTIFACT_CIPHERTEXT_NAME,
+    CONTENTS_MEMBER,
+    DATABASE_MEMBER,
+    MANIFEST_NAME,
+    OBJECTS_DIRECTORY,
+    PASSPHRASE_ENVIRONMENT_VARIABLE,
+)
 from deploy.backup.capture import CONTROL_PLANE_SOURCE, capture
 from deploy.backup.snapshot import CaptureSource
 from deploy.s3_client import FilesystemStore
@@ -195,17 +204,18 @@ class TestRestore(RestoreCase):
         self.assertIn('does not match its manifest', stderr)
         self.assertEqual(tools.calls_to('psql') + tools.calls_to('pg_restore'), [])
 
-    def test_an_artifact_carrying_a_filestore_tree_is_refused(self):
-        """The control plane has no filestore: an artifact that carries one is a tenant's copy."""
+    def test_an_artifact_carrying_tenant_objects_is_refused(self):
+        """The control plane has no bucket: an artifact that carries object bytes is a tenant's copy."""
         pg_dump = self.root / 'pg_dump'
         write_snapshot = snapshot.snapshot
 
-        def with_a_filestore(source, destination, **options):
+        def with_tenant_objects(source, destination, **options):
             payload = write_snapshot(source, destination, **options)
-            (destination / snapshot.FILESTORE_NAME).mkdir()
+            (destination / OBJECTS_DIRECTORY / 'ab').mkdir(parents=True)
+            (destination / OBJECTS_DIRECTORY / 'ab' / 'cdef').write_bytes(b'tenant file')
             return payload
 
-        with mock.patch.object(snapshot, 'snapshot', with_a_filestore):
+        with mock.patch.object(snapshot, 'snapshot', with_tenant_objects):
             capture(
                 store=FilesystemStore(self.bucket), tenant=CONTROL_PLANE_SOURCE,
                 source=CaptureSource('liwan_control', None, pg_dump), kind='hourly',
@@ -215,9 +225,44 @@ class TestRestore(RestoreCase):
         tools = ScriptedTools()
         code, _stdout, stderr = self.run_restore(tools)
         self.assertEqual(code, EXIT_REFUSED)
-        self.assertIn('must hold only database.dump and manifest.json', stderr)
-        self.assertIn('filestore', stderr)
+        self.assertIn('carries no tenant objects', stderr)
+        self.assertIn('ab/cdef', stderr)
         self.assertEqual(tools.calls_to('psql') + tools.calls_to('pg_restore'), [])
+
+    def test_an_artifact_with_a_nonempty_or_missing_contents_index_is_refused(self):
+        """A control-plane artifact must hold an empty objects.index, not a non-empty or absent one."""
+        pg_dump = self.root / 'pg_dump'
+        write_snapshot = snapshot.snapshot
+
+        def with_nonempty_index(source, destination, **options):
+            payload = write_snapshot(source, destination, **options)
+            (destination / CONTENTS_MEMBER).write_bytes(f"{'a' * 64}  ab/cdef\n".encode('ascii'))
+            return payload
+
+        with mock.patch.object(snapshot, 'snapshot', with_nonempty_index):
+            capture(
+                store=FilesystemStore(self.bucket), tenant=CONTROL_PLANE_SOURCE,
+                source=CaptureSource('liwan_control', None, pg_dump), kind='hourly',
+                work_root=self.root / 'work', passphrase_file=self.passphrase,
+                now=datetime.now(timezone.utc) + timedelta(seconds=5), runner=ScriptedTools(),
+            )
+        tools = ScriptedTools()
+        code, _stdout, stderr = self.run_restore(tools)
+        self.assertEqual(code, EXIT_REFUSED)
+        self.assertIn(f'empty {CONTENTS_MEMBER}', stderr)
+        self.assertEqual(tools.calls_to('psql') + tools.calls_to('pg_restore'), [])
+
+        # Missing objects.index (with empty objects/) is also refused directly.
+        artifact_dir = self.root / 'missing-index'
+        (artifact_dir / OBJECTS_DIRECTORY).mkdir(parents=True)
+        (artifact_dir / DATABASE_MEMBER).write_bytes(DUMP)
+        (artifact_dir / MANIFEST_NAME).write_text('{}', encoding='utf-8')
+        with self.assertRaisesRegex(RestoreError, f'empty {CONTENTS_MEMBER}'):
+            require_database_only(artifact_dir)
+        # And a non-empty objects.index with empty objects/ is refused directly too.
+        (artifact_dir / CONTENTS_MEMBER).write_bytes(f"{'a' * 64}  ab/cdef\n".encode('ascii'))
+        with self.assertRaisesRegex(RestoreError, f'empty {CONTENTS_MEMBER}'):
+            require_database_only(artifact_dir)
 
     def test_a_wrong_passphrase_is_refused(self):
         self.passphrase.write_text('another passphrase of enough length\n', encoding='utf-8')

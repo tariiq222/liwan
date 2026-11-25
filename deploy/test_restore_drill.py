@@ -4,7 +4,7 @@
 Each rule is checked by a test that fails when the rule is removed: an artifact whose
 ciphertext or plaintext disagrees with its manifest is refused before a database is
 created, a non-scratch or forbidden target is refused before anything is fetched, the
-snapshot manifest frozen inside the artifact still pins its dump, filestore tree and file
+snapshot manifest frozen inside the artifact still pins its dump, object index and object
 count, and the record is written atomically with the RPO/RTO verdicts computed from the
 artifact's own capture time and the measured elapsed seconds.
 
@@ -27,7 +27,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
 
-from deploy.backup import artifact, recover, snapshot, verify
+from deploy.backup import artifact, bucket, recover, snapshot, verify
 from deploy.backup.capture import RPO_SECONDS, RTO_SECONDS, capture, status
 from deploy.backup.cli import EXIT_NOT_VERIFIED, EXIT_OK, EXIT_REFUSED, main
 from deploy.backup.drill import (
@@ -149,7 +149,8 @@ class DrillCase(unittest.TestCase):
             store=self.store,
             tenant=TENANT,
             source=snapshot.CaptureSource(
-                db_name='liwan_scratch', filestore=self.filestore, pg_dump=self.pg_dump,
+                db_name='liwan_scratch', bucket=bucket.DirectoryBucket(self.filestore),
+                pg_dump=self.pg_dump,
             ),
             kind=kind,
             work_root=self.root / 'capture-work' / kind,
@@ -214,20 +215,22 @@ class TestSuccessfulDrill(DrillCase):
             hashlib.sha256(self.store.get(self.manifest_key())).hexdigest(),
         )
 
-    def test_the_inner_manifest_still_pins_the_dump_the_filestore_and_the_count(self):
+    def test_the_inner_manifest_still_pins_the_dump_the_index_and_the_count(self):
         (self.root / 'fetched').mkdir()
         destination = self.root / 'fetched' / 'artifact'
         fetched = recover.fetch_artifact(
             self.store, recover.latest_artifact(self.store, TENANT), destination,
             passphrase_file=self.passphrase_file, runner=OpensslRunner(),
         )
-        pinned = json.loads((fetched.artifact_dir / snapshot.MANIFEST_NAME).read_text(encoding='utf-8'))
-        self.assertEqual(pinned['database_dump_sha256'], hashlib.sha256(DUMP_BYTES).hexdigest())
+        pinned = json.loads((fetched.artifact_dir / artifact.MANIFEST_NAME).read_text(encoding='utf-8'))
+        contents = bucket.tree_manifest(fetched.artifact_dir / artifact.OBJECTS_DIRECTORY)
+        self.assertEqual(pinned['database_sha256'], hashlib.sha256(DUMP_BYTES).hexdigest())
         self.assertEqual(
-            (pinned['filestore_sha256'], pinned['filestore_file_count']),
-            snapshot.filestore_digest(fetched.artifact_dir / snapshot.FILESTORE_NAME),
+            (pinned['contents_sha256'], pinned['contents_object_count']),
+            (contents.index_sha256, contents.object_count),
         )
-        self.assertEqual(pinned['filestore_file_count'], 1)
+        self.assertEqual(pinned['contents_object_bytes'], len(ATTACHMENT_BYTES))
+        self.assertEqual(pinned['contents_object_count'], 1)
         self.assertEqual(pinned['consistency'], 'UNVERIFIED')
         self.assertNotIn('quiesce', pinned)
 
@@ -335,6 +338,29 @@ class TestRefusals(DrillCase):
         with self.assertRaisesRegex(BackupError, 'did not pin'):
             self.run_drill()
         self.assertEqual(self.postgres.calls, [])
+
+    def test_an_outer_manifest_that_disagrees_with_the_inner_manifest_is_refused(self):
+        for field_name, bad_value in (
+            ('database_sha256', 'f' * 64),
+            ('contents_sha256', 'f' * 64),
+            ('contents_object_count', 99),
+            ('contents_object_bytes', 999),
+        ):
+            with self.subTest(field=field_name):
+                wrong = replace(self.manifest, **{field_name: bad_value})
+                self.store.delete(self.manifest_key())
+                self.store.put(self.manifest_key(), wrong.to_json(self.passphrase_file).encode('utf-8'))
+                destination = self.root / f'mismatch-{field_name}'
+                with self.assertRaisesRegex(BackupError, 'inner manifest disagrees') as refused:
+                    recover.fetch_artifact(
+                        self.store, recover.latest_artifact(self.store, TENANT), destination,
+                        passphrase_file=self.passphrase_file, runner=OpensslRunner(),
+                    )
+                self.assertIn(field_name, str(refused.exception))
+                self.assertEqual(list(destination.iterdir()), [])
+                with self.assertRaisesRegex(BackupError, 'inner manifest disagrees'):
+                    self.run_drill(scratch_root=self.root / f'drill-mismatch-{field_name}')
+                self.assertEqual(self.postgres.calls, [])
 
     def test_a_transplanted_manifest_for_another_tenant_is_refused_before_download(self):
         class ObservableStore(FilesystemStore):
@@ -449,7 +475,8 @@ class TestStatusAfterADrill(DrillCase):
             return Completed()
 
         capture(store=self.store, tenant='fresh', source=snapshot.CaptureSource(
-            db_name='liwan_scratch', filestore=self.filestore, pg_dump=self.pg_dump,
+            db_name='liwan_scratch', bucket=bucket.DirectoryBucket(self.filestore),
+            pg_dump=self.pg_dump,
         ), kind='hourly', work_root=self.root / 'fresh-work',
             passphrase_file=self.passphrase_file, now=started_at,
             runner=OpensslRunner(fake_pg_dump))

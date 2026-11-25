@@ -45,12 +45,17 @@ from typing import TYPE_CHECKING
 
 from deploy import s3_client
 from deploy.backup import recover
-from deploy.backup.artifact import passphrase_from_environment
+from deploy.backup.artifact import (
+    CONTENTS_MEMBER,
+    DATABASE_MEMBER,
+    MANIFEST_NAME,
+    OBJECTS_DIRECTORY,
+    passphrase_from_environment,
+)
 from deploy.backup.capture import CONTROL_PLANE_SOURCE, RetentionPolicy, recovery_objectives
 from deploy.backup.dump import validate_db_name
 from deploy.backup.errors import BackupError
 from deploy.backup.manifest import as_utc
-from deploy.backup.snapshot import DUMP_NAME, MANIFEST_NAME
 from deploy.backup.store import build_store
 
 if TYPE_CHECKING:
@@ -109,17 +114,29 @@ def _target(name: str) -> str:
 
 
 def require_database_only(artifact_dir: Path) -> None:
-    """The control plane's artifact holds its database alone: a filestore tree belongs to a tenant.
+    """The control plane's artifact holds its database and no tenant objects.
 
-    A control-plane capture is database-only (its ``CaptureSource.filestore`` is ``None``), so an
-    artifact that also carries ``filestore/`` is a tenant artifact under the wrong source, and a
-    restore must read neither it nor its manifest.
+    A control-plane capture is database-only (its ``CaptureSource.bucket`` is ``None``), so its
+    contents half is the empty index: an artifact that carries object bytes is a tenant artifact
+    under the wrong source, and a restore must read neither it nor its manifest.
     """
     contents = sorted(path.name for path in artifact_dir.iterdir())
+    unexpected = [name for name in contents
+                  if name not in (DATABASE_MEMBER, CONTENTS_MEMBER, MANIFEST_NAME, OBJECTS_DIRECTORY)]
     _require(
-        contents == [DUMP_NAME, MANIFEST_NAME],
-        f'the control plane artifact must hold only {DUMP_NAME} and {MANIFEST_NAME}, not {contents}',
+        not unexpected,
+        f'the control plane artifact must hold only {DATABASE_MEMBER}, {CONTENTS_MEMBER} and '
+        f'{MANIFEST_NAME}, not {unexpected}',
     )
+    index = artifact_dir / CONTENTS_MEMBER
+    _require(
+        index.is_file() and not index.is_symlink() and index.read_bytes() == b'',
+        f'the control plane artifact must carry an empty {CONTENTS_MEMBER}',
+    )
+    objects = artifact_dir / OBJECTS_DIRECTORY
+    held = sorted(path.relative_to(objects).as_posix()
+                  for path in objects.rglob('*') if path.is_file()) if objects.is_dir() else []
+    _require(not held, f'the control plane artifact carries no tenant objects, not {held}')
 
 
 def observe(args: argparse.Namespace, database: str, runner: Callable[..., object]) -> dict[str, object]:
@@ -179,7 +196,7 @@ def restore(args: argparse.Namespace, runner: Callable[..., object]) -> int:
     )
     require_database_only(fetched.artifact_dir)
     manifest = fetched.manifest
-    dump = fetched.artifact_dir / DUMP_NAME
+    dump = fetched.artifact_dir / DATABASE_MEMBER
     connection = _connection(args)
     _run(runner, [args.psql, '-X', '-v', 'ON_ERROR_STOP=1', *connection, '-d', 'postgres',
                   '-c', f'CREATE DATABASE "{target}"'], f'creating {target}')
