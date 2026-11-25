@@ -166,8 +166,7 @@ const attendanceTone = computed(() => {
         data-testid="appointments-hero"
       >
         <template #title>
-          <span>{{ record.requester_name }}</span>
-          <span dir="ltr" class="whitespace-nowrap text-base font-semibold text-muted tabular-nums">
+          <span dir="ltr" class="whitespace-nowrap tabular-nums">
             {{ record.start ? formatDateTime(record.start) : t('appointments.list.unscheduled') }}
           </span>
         </template>

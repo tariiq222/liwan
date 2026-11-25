@@ -20,6 +20,7 @@ export const helpdeskSidebar: AppSidebarMenu = {
       icon: 'i-lucide-life-buoy',
       to: { path: '/helpdesk' },
       capability: 'helpdesk.requests.read',
+      anyCapabilities: ['helpdesk.tickets.read'],
       active: route => (onPath(route, '/helpdesk') || onPath(route, '/helpdesk/new')) && !isUnassigned(route) && !isMine(route),
     },
     {

@@ -304,6 +304,8 @@ export interface AppSidebarRow {
   /** Query keys of the open page carried over when it is already on `to.path` (the layout switch, `view`). */
   keep?: readonly string[]
   capability: string
+  /** Further capabilities that also open the row: it is reachable when `capability` or any of these passes (a queue that serves agents and requesters). */
+  anyCapabilities?: readonly string[]
   /** Optional section heading grouping consecutive rows; rows without one share a single untitled section. */
   section?: { id: string; titleKey: string }
   /** Whether the open page belongs to this row. */

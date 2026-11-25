@@ -1,6 +1,6 @@
 import type { ShellNavigationLink, ShellQuickItem, ShellSubListSection } from '@liwan/ui/app/types/shell'
 // Relative imports: this module is unit-tested directly under plain vitest.
-import type { AppSidebarMenu, AppSidebarRoute } from '../../modules/types'
+import type { AppSidebarMenu, AppSidebarRoute, AppSidebarRow } from '../../modules/types'
 import { normalizedPath } from '../../utils/routePath'
 import type { RecentRecord } from './recentRecords'
 
@@ -32,7 +32,10 @@ const insidePath = (path: string, target: string) => path === target || path.sta
 export function flatSidebar(input: FlatSidebarInput): FlatSidebar {
   const { menu, route } = input
   const currentPath = normalizedPath(route.path)
-  const visible = menu.rows.filter(row => input.canOpen(row.capability, row.to.path))
+  const canOpenRow = (row: AppSidebarRow) =>
+    input.canOpen(row.capability, row.to.path)
+    || (row.anyCapabilities ?? []).some(capability => input.canOpen(capability, row.to.path))
+  const visible = menu.rows.filter(canOpenRow)
   const toLink = (row: typeof visible[number]): ShellNavigationLink => {
     const kept = currentPath === row.to.path
       ? Object.fromEntries((row.keep ?? []).flatMap((key) => { const value = firstValue(route.query[key]); return value === undefined ? [] : [[key, value] as const] }))

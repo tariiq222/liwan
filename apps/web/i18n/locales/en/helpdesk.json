@@ -38,7 +38,6 @@
       "unassigned": "Unassigned"
     },
     "columns": {
-      "number": "Number",
       "subject": "Subject",
       "requester": "Requester",
       "stage": "Stage",

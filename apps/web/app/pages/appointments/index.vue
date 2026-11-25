@@ -7,6 +7,7 @@ import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import { useAppointmentBookings, useAppointmentTypes } from '@/composables/appointments/useAppointments'
 import { useAppointmentListKpis } from '@/composables/appointments/useAppointmentKpis'
 import { appointmentStateTone } from '@/utils/appointmentKpis'
+import { APPOINTMENT_PAGE_SIZE, appointmentListQuery, lastAppointmentPageOffset } from '@/utils/appointmentList'
 import { parseOffset } from '@/utils/routeQuery'
 
 // The staff bookings list: the appointments of the chosen day, KPI summary strip from limit=1 totals,
@@ -19,7 +20,7 @@ const hydrated = useHydrated()
 const { shown: kpisShown } = useKpiVisibility()
 
 const ALL = '__all__'
-const PAGE_SIZE = 25
+const PAGE_SIZE = APPOINTMENT_PAGE_SIZE
 
 // The day lives in the URL, so refresh, back and a shared link all show the same day.
 const day = computed(() => {
@@ -50,6 +51,7 @@ const bookings = useAppointmentBookings(() => ({
 const kpis = useAppointmentListKpis(
   () => ({ day: day.value, type_id: typeId.value }),
   computed(() => canRead.value && kpisShown.value),
+  { wholeDay: computed(() => !state.value), total: computed(() => bookings.data.value?.total) },
 )
 
 const items = computed(() => bookings.data.value?.items ?? [])
@@ -79,10 +81,7 @@ const columns = computed<TableColumn<AppointmentBookingRow>[]>(() => [
 ])
 
 function writeQuery(patch: Record<string, string | null | undefined>, resetOffset = true) {
-  const next: Record<string, unknown> = { ...route.query, ...patch }
-  if (resetOffset && !('offset' in patch)) delete next.offset
-  for (const [key, value] of Object.entries(patch)) if (!value) delete next[key]
-  void router.replace({ query: next as Record<string, string | string[]> })
+  void router.replace({ query: appointmentListQuery(route.query, patch, resetOffset) as Record<string, string | string[]> })
 }
 
 const step = (days: number) => {
@@ -100,6 +99,15 @@ function setPage(nextPage: number) {
   const nextOffset = (nextPage - 1) * PAGE_SIZE
   writeQuery({ offset: nextOffset > 0 ? String(nextOffset) : undefined }, false)
 }
+
+// A day or filter that shrank can leave the URL on an offset past the last page, and the footer is drawn only with
+// rows: move back to the last page that still has rows instead of showing an empty list.
+watch([total, offset, () => bookings.data.value, () => bookings.isFetching.value], () => {
+  if (!bookings.data.value || bookings.isFetching.value) return
+  if (total.value === 0 || offset.value === 0 || items.value.length > 0) return
+  const next = lastAppointmentPageOffset(total.value)
+  writeQuery({ offset: next > 0 ? String(next) : undefined }, false)
+})
 
 const listReturnTo = computed(() => kpiLink('/appointments', {
   day: typeof route.query.day === 'string' ? route.query.day : undefined,

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import manifest from '../manifest'
 import { helpdeskSidebar } from '../sidebar'
+import { flatSidebar } from '../../../composables/nav/flatSidebar'
 import type { AppSearchApi, AppSidebarRoute } from '../../types'
 
 const route = (path: string, query: Record<string, unknown> = {}): AppSidebarRoute => ({ path, query })
@@ -20,6 +21,24 @@ describe('the helpdesk sidebar menu', () => {
       ['helpdesk-mine', 'helpdesk.tickets.read', { path: '/helpdesk', query: { assignee: 'me' } }],
       ['helpdesk-reports', 'helpdesk.reports.read', { path: '/helpdesk/reports' }],
     ])
+  })
+
+  it('shows the tickets row to an agent holding only helpdesk.tickets.read', () => {
+    const canOpen = vi.fn((capability: string) => capability === 'helpdesk.tickets.read')
+    const menu = flatSidebar({
+      menu: helpdeskSidebar,
+      route: route('/helpdesk'),
+      canOpen,
+      create: null,
+      counts: {},
+      recents: [],
+      translate: key => key,
+    })
+    const ids = menu.sections.flatMap(section => section.items.map(item => item.id))
+
+    expect(ids).toContain('helpdesk-tickets')
+    expect(canOpen).toHaveBeenCalledWith('helpdesk.requests.read', '/helpdesk')
+    expect(canOpen).toHaveBeenCalledWith('helpdesk.tickets.read', '/helpdesk')
   })
 
   it('lights one row per helpdesk destination', () => {
