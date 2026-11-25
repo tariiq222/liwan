@@ -1,4 +1,4 @@
-import type { HrLeaveState } from '@liwan/contracts'
+import type { HrLeaveState, HrPayrollRunState } from '@liwan/contracts'
 import type { KpiTile } from '@liwan/ui/app/utils/kpiTile'
 
 type Translate = (key: string, named?: Record<string, unknown>, plural?: number) => string
@@ -106,5 +106,43 @@ export function hrLeaveKpiTiles(counts: { pending?: number; approved?: number },
       tone: 'success',
       value: counts.approved ?? null,
     },
+  ]
+}
+
+/** The run states that carry a tile: the runs still to compute, those awaiting approval and those approved. */
+export const HR_PAYROLL_KPI_STATES = ['draft', 'computed', 'approved'] as const satisfies readonly HrPayrollRunState[]
+export type HrPayrollKpiState = typeof HR_PAYROLL_KPI_STATES[number]
+
+/**
+ * The `limit: 1` run-list requests behind the payroll tiles, shaped like the list's own params: each tile reads only the
+ * list `total`, never a run's amounts. `all` counts every run and is asked only when the list itself is narrowed.
+ */
+export function hrPayrollRunKpiQueries(): Record<'all' | HrPayrollKpiState, { state?: HrPayrollKpiState; limit: number; offset: number }> {
+  return {
+    all: { limit: 1, offset: 0 },
+    draft: { state: 'draft', limit: 1, offset: 0 },
+    computed: { state: 'computed', limit: 1, offset: 0 },
+    approved: { state: 'approved', limit: 1, offset: 0 },
+  }
+}
+
+/**
+ * The payroll runs list's tiles: counts of runs only. Each state tile filters the list by its state and clears back to
+ * every run; `null` is a figure still loading and shows "—".
+ */
+export function hrPayrollRunKpiTiles(counts: Record<'all' | HrPayrollKpiState, number | null>, t: Translate): KpiTile[] {
+  return [
+    { id: 'all', label: t('hrPayroll.kpi.all'), icon: 'i-lucide-banknote', tone: 'neutral', value: counts.all, to: '/hr/payroll' },
+    { id: 'draft', label: t('hrPayroll.kpi.draft'), icon: 'i-lucide-file-pen', tone: 'neutral', value: counts.draft, to: '/hr/payroll?state=draft', clearTo: '/hr/payroll' },
+    {
+      id: 'computed',
+      label: t('hrPayroll.kpi.computed'),
+      icon: 'i-lucide-clock',
+      tone: counts.computed ? 'warning' : 'neutral',
+      value: counts.computed,
+      to: '/hr/payroll?state=computed',
+      clearTo: '/hr/payroll',
+    },
+    { id: 'approved', label: t('hrPayroll.kpi.approved'), icon: 'i-lucide-circle-check', tone: 'success', value: counts.approved, to: '/hr/payroll?state=approved', clearTo: '/hr/payroll' },
   ]
 }

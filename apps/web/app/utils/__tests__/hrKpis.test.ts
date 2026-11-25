@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { isKpiTileActive, resolveKpiTileTo } from '@liwan/ui/app/utils/kpiTile'
-import { departmentKpiTiles, employeeKpiTiles, hrLeaveKpiQueries, hrLeaveKpiTiles } from '../hrKpis'
+import { departmentKpiTiles, employeeKpiTiles, hrLeaveKpiQueries, hrLeaveKpiTiles, hrPayrollRunKpiQueries, hrPayrollRunKpiTiles } from '../hrKpis'
 
 const t = (key: string) => key
 const n = (value: number) => String(value)
@@ -71,5 +71,36 @@ describe('leave KPI tiles', () => {
     const pending = tiles[0]!
     expect(isKpiTileActive(pending, '/hr/leave?scope=all')).toBe(false)
     expect(resolveKpiTileTo(pending, false, tiles)).toBe('/hr/leave')
+  })
+})
+
+describe('payroll run KPI tiles', () => {
+  it('counts the runs with one row per request and no other filter', () => {
+    expect(hrPayrollRunKpiQueries()).toEqual({
+      all: { limit: 1, offset: 0 },
+      draft: { state: 'draft', limit: 1, offset: 0 },
+      computed: { state: 'computed', limit: 1, offset: 0 },
+      approved: { state: 'approved', limit: 1, offset: 0 },
+    })
+  })
+
+  it('filters the list by state and clears back to every run', () => {
+    const tiles = hrPayrollRunKpiTiles({ all: 9, draft: 2, computed: 3, approved: 4 }, t)
+    expect(tiles.map(tile => [tile.id, tile.value, tile.to, tile.clearTo])).toEqual([
+      ['all', 9, '/hr/payroll', undefined],
+      ['draft', 2, '/hr/payroll?state=draft', '/hr/payroll'],
+      ['computed', 3, '/hr/payroll?state=computed', '/hr/payroll'],
+      ['approved', 4, '/hr/payroll?state=approved', '/hr/payroll'],
+    ])
+    expect(tiles.find(tile => tile.id === 'computed')?.tone).toBe('warning')
+    const computed = tiles.find(tile => tile.id === 'computed')!
+    expect(isKpiTileActive(computed, '/hr/payroll?state=computed')).toBe(true)
+    expect(resolveKpiTileTo(computed, true, tiles)).toBe('/hr/payroll')
+  })
+
+  it('shows dashes while loading and a quiet tone with nothing awaiting approval', () => {
+    const tiles = hrPayrollRunKpiTiles({ all: null, draft: null, computed: 0, approved: null }, t)
+    expect(tiles.map(tile => tile.value)).toEqual([null, null, 0, null])
+    expect(tiles.find(tile => tile.id === 'computed')?.tone).toBe('neutral')
   })
 })

@@ -2,6 +2,13 @@
   "hrPayroll": {
     "currency": "SAR",
     "title": "Payroll",
+    "kpi": {
+      "label": "Payroll run figures",
+      "all": "All runs",
+      "draft": "Drafts",
+      "computed": "Awaiting approval",
+      "approved": "Approved"
+    },
     "runs": {
       "new": "New payroll run",
       "create": "Create run",

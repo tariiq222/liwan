@@ -23,6 +23,7 @@ describe('hidden KPIs ask nothing', () => {
     ['pages/documents.vue', ['const kpiEnabled = computed(() => isListRoute.value && kpisShown.value)', 'useDocuments({ limit: 1 }, kpiEnabled)']],
     // The headcount reuses the directory's own total while it shows the plain active list; it asks only when narrowed.
     ['pages/hr/index.vue', ['useHrEmployees({ limit: 1 }, computed(() => kpisShown.value && !reuseListTotal.value))', 'kpisShown.value && canManage.value']],
+    ['pages/hr/payroll.vue', ['const kpisEnabled = computed(() => isListRoute.value && kpisShown.value && canRead.value)', 'useHrPayrollRuns(kpiQueries.all, computed(() => kpisEnabled.value && !reuseListTotal.value))', 'useHrPayrollRuns(kpiQueries.draft, kpisEnabled)', 'useHrPayrollRuns(kpiQueries.computed, kpisEnabled)', 'useHrPayrollRuns(kpiQueries.approved, kpisEnabled)']],
     ['components/hr/LeaveList.vue', ['const kpisEnabled = computed(() => !props.personal && isListRoute.value && kpisShown.value)', 'useHrLeaveRequests(kpiQueries.pending, kpisEnabled)', 'useHrLeaveRequests(kpiQueries.approved, kpisEnabled)']],
     ['pages/finance/index.vue', ["useFinanceAging('receivable', computed(() => kpisShown.value && canStatements.value))", 'useFinancePartners({ limit: 1 }, computed(() => kpisShown.value && canPartners.value))']],
     ['components/finance/invoices/useInvoiceListPage.ts', ['useFinanceInvoiceSummary(() => invoiceSummaryParams(moveType, filters.value), () => shown.value && allowed.value)']],
