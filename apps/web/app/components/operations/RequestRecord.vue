@@ -12,7 +12,7 @@ const basePath = computed(() => props.personal ? '/account/requests' : '/operati
 const route = useRoute()
 const router = useRouter()
 const sourcePaths = useRecordListPaths(() => props.personal ? ['/account/requests', '/account'] : ['/operations', '/operations/pending', '/operations/monitoring'])
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const hydrated = useHydrated()
 const id = computed(() => operationId(route.params.id))
 const query = useOperationRequest(id, !!props.personal)
@@ -83,12 +83,12 @@ const eventKinds = ['submitted', 'approved', 'rejected', 'returned', 'withdrawn'
       <SharedUnsavedChanges :dirty="!!comment.trim()" />
       <UAlert v-if="error" role="alert" color="error" :title="t(`operations.errors.${operationErrorKey(error)}`)"><template #actions><UButton color="neutral" variant="outline" :disabled="disabled" :label="t('operations.refresh')" @click="refresh" /></template></UAlert>
       <SharedRecordSection v-if="visibleActions.length" variant="action" :title="t(reviewing ? 'operations.decisionNeeded' : 'operations.nextStep')">
-        <div class="space-y-4">
-          <div class="flex flex-wrap items-center gap-2"><UButton v-for="action in visibleActions" :key="action" :disabled="disabled" :color="action === 'reject' || action === 'withdraw' ? 'error' : action === 'approve' || action === 'submit' ? 'primary' : 'neutral'" :variant="action === 'approve' || action === 'submit' ? 'solid' : 'outline'" :label="t(`operations.actions.${action}`)" @click="choose(action)" /></div>
-          <SharedInlineConfirm v-if="selected" :title="t(`operations.confirm.${selected}`)" :description="t(selected === 'approve' ? 'operations.approveHelp' : selected === 'submit' ? 'operations.submitHelp' : 'operations.reasonHelp')" :confirm-label="t(`operations.actions.${selected}`)" :color="selected === 'reject' || selected === 'withdraw' ? 'error' : 'primary'" :pending="pending" :disabled="disabled" @confirm="confirmDecision" @cancel="cancel">
-            <UFormField v-if="selected !== 'submit'" name="comment" :label="t('operations.comment')" :required="commentRequired" :error="attempted && commentRequired && !comment.trim() ? t('operations.errors.required') : undefined"><UTextarea v-model="comment" class="w-full" :rows="3" :disabled="disabled" :maxlength="4000" /></UFormField>
-          </SharedInlineConfirm>
-        </div>
+        <template #actions>
+          <UButton v-for="action in visibleActions" :key="action" :disabled="disabled" :color="action === 'reject' || action === 'withdraw' ? 'error' : action === 'approve' || action === 'submit' ? 'primary' : 'neutral'" :variant="action === 'approve' || action === 'submit' ? 'solid' : 'outline'" :label="t(`operations.actions.${action}`)" @click="choose(action)" />
+        </template>
+        <SharedInlineConfirm v-if="selected" :title="t(`operations.confirm.${selected}`)" :description="t(selected === 'approve' ? 'operations.approveHelp' : selected === 'submit' ? 'operations.submitHelp' : 'operations.reasonHelp')" :confirm-label="t(`operations.actions.${selected}`)" :color="selected === 'reject' || selected === 'withdraw' ? 'error' : 'primary'" :pending="pending" :disabled="disabled" @confirm="confirmDecision" @cancel="cancel">
+          <UFormField v-if="selected !== 'submit'" name="comment" :label="t('operations.comment')" :required="commentRequired" :error="attempted && commentRequired && !comment.trim() ? t('operations.errors.required') : undefined"><UTextarea v-model="comment" class="w-full" :rows="3" :disabled="disabled" :maxlength="4000" /></UFormField>
+        </SharedInlineConfirm>
       </SharedRecordSection>
       <SharedRecordSection variant="panel" :title="t('operations.description')">
         <p class="whitespace-pre-wrap text-sm leading-7">{{ record.description || t('operations.noDescription') }}</p>
@@ -99,8 +99,10 @@ const eventKinds = ['submitted', 'approved', 'rejected', 'returned', 'withdrawn'
         <ol v-else class="space-y-3"><OperationStepRow v-for="step in record.steps" :key="step.sequence" :number="step.sequence" :name="step.name" :reviewers="step.reviewers" :status="step.status" :resolver-label="step.resolver_label" /></ol>
       </SharedRecordSection>
       <SharedRecordSection variant="panel" :title="t('operations.attachments')">
+        <template v-if="record.allowed_actions.edit" #actions>
+          <SharedFileField ref="fileField" :label="t('operations.addAttachment')" :aria-label="t('operations.addAttachment')" :show-file-name="false" :disabled="disabled || selected !== null || removal !== null" @change="upload" />
+        </template>
         <div class="space-y-3">
-          <SharedFileField v-if="record.allowed_actions.edit" ref="fileField" :disabled="disabled || selected !== null || removal !== null" :aria-label="t('operations.addAttachment')" @change="upload" />
           <p v-if="!record.attachments.length" class="text-sm text-muted">{{ t('operations.noAttachments') }}</p>
           <ul v-else class="divide-y divide-default"><li v-for="attachment in record.attachments" :key="attachment.id" class="flex min-w-0 items-center justify-between gap-2 py-2"><UButton :to="attachment.url" target="_blank" color="neutral" variant="link" class="min-w-0 text-start" :disabled="disabled" :label="attachment.name" icon="i-lucide-paperclip" /><UButton v-if="record.allowed_actions.edit" color="error" variant="ghost" square icon="i-lucide-trash-2" :aria-label="t('operations.removeAttachment')" :disabled="disabled" @click="cancel(); removal = attachment.id" /></li></ul>
           <SharedInlineConfirm v-if="removal !== null" :title="t('operations.removeAttachment')" :confirm-label="t('operations.remove')" :pending="pending" :disabled="disabled" @confirm="removeAttachment" @cancel="removal = null" />
@@ -112,9 +114,11 @@ const eventKinds = ['submitted', 'approved', 'rejected', 'returned', 'withdrawn'
       </SharedRecordSection>
     </template>
     <template v-if="record" #aside>
-      <SharedPropertiesPanel>
+      <SharedPropertiesPanel :title="t('operations.requestInformation')">
         <SharedPropertyRow :label="t('operations.requester')"><span class="inline-flex items-center gap-2"><SharedPersonAvatar :people="[record.requester]" />{{ record.requester.name }}</span></SharedPropertyRow>
         <SharedPropertyRow :label="t('operations.createdAt')"><time :datetime="record.created_at">{{ date(record.created_at) }}</time></SharedPropertyRow>
+        <SharedPropertyRow :label="t('operations.purpose')" :value="t(`operations.purposes.${record.purpose}`)" />
+        <SharedPropertyRow :label="t('operations.stages')" :value="record.steps.length ? t('operations.stageCount', { count: record.steps.length }, record.steps.length) : null" />
       </SharedPropertiesPanel>
     </template>
   </SharedRecordPage>
