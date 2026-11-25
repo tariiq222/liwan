@@ -1,5 +1,6 @@
 import { InboxAudienceListSchema, InboxCampaignListSchema, InboxConversationListSchema } from '@liwan/contracts'
 import { normalizedPath } from '../../utils/routePath'
+import { inboxQueueCountsKey } from '../../utils/inboxKpis'
 import type { AppSearchApi, AppSidebarMenu, AppSidebarRoute } from '../types'
 
 const onPath = (route: AppSidebarRoute, path: string) => normalizedPath(route.path) === path
@@ -13,18 +14,8 @@ const workSection = { id: 'inbox-work', titleKey: 'inbox.sidebar.work' } as cons
 const outreachSection = { id: 'inbox-outreach', titleKey: 'inbox.sidebar.outreach' } as const
 const insightSection = { id: 'inbox-insight', titleKey: 'inbox.sidebar.insight' } as const
 
-/**
- * The query root of the two open queues (`unassigned`, `mine`) as one counts query. The conversation KPI tiles open the
- * same key over the same filter pair, so the page and the menu ask for each number once; the caller appends its owner.
- */
-export const INBOX_QUEUE_COUNTS_KEY = ['inbox', 'conversations', 'queues'] as const
-
 /** One open queue's `limit=1` count; its row opens the same list without the limit. */
 const queueFilters = (assignee: 'unassigned' | 'me') => ({ state: 'open', assignee, limit: 1 })
-
-/** The counts query of the two open queues, with the filter pair that tells one scope from another. */
-export const inboxQueueCountsKey = (unassigned: Record<string, string | number>, mine: Record<string, string | number>) =>
-  [...INBOX_QUEUE_COUNTS_KEY, unassigned, mine] as const
 
 /**
  * The inbox sidebar: pinned create action (`inbox-new-campaign`), the conversations workspace with the agent's two

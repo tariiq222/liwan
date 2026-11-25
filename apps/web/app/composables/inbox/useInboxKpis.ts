@@ -2,12 +2,11 @@ import type { MaybeRefOrGetter } from 'vue'
 import { computed, toValue } from 'vue'
 import { InboxCampaignListSchema, InboxConversationListSchema } from '@liwan/contracts'
 import { useQuery } from '@tanstack/vue-query'
-import { inboxQueueCountsKey } from '../../modules/inbox/sidebar'
 import {
   INBOX_CAMPAIGN_KPI_KEYS, INBOX_ORDER_KPI_KEYS,
   inboxCampaignKpiFilters, inboxCampaignKpiLinks, inboxCampaignTiles,
   inboxConversationKpiFilters, inboxConversationKpiLinks, inboxConversationTiles,
-  inboxOrderKpiFilters, inboxOrderKpiLinks, inboxOrderTiles,
+  inboxOrderKpiFilters, inboxOrderKpiLinks, inboxOrderTiles, inboxQueueCountsKey,
   type InboxCampaignKpiScope, type InboxConversationKpiScope, type InboxOrderKpiScope,
 } from '../../utils/inboxKpis'
 import type { KpiTile } from '@liwan/ui/app/utils/kpiTile'

@@ -78,6 +78,14 @@ export function inboxConversationKpiFilters(scope: InboxConversationKpiScope): R
   }
 }
 
+/**
+ * The key of the two open queue counts (`unassigned`, `mine`) as one query: the tiles and the sidebar rows ask the same
+ * server question under the same key, so a page and its menu fetch each number once. The caller appends its owner (or
+ * whatever else separates one caller's session from another).
+ */
+export const inboxQueueCountsKey = (unassigned: Query, mine: Query) =>
+  ['inbox', 'conversations', 'queues', unassigned, mine] as const
+
 /** The inbox list link of each tile, keeping the scope filters; `base` clears the tile's own filters. */
 export function inboxConversationKpiLinks(scope: InboxConversationKpiScope): Record<InboxConversationKpiKey | 'base', string> {
   const base = conversationLinkScope(scope)
