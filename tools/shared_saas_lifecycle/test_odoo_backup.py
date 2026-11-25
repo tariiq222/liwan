@@ -1,11 +1,13 @@
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 import hashlib
+import contextlib
 import io
 import os
 import stat
 import subprocess
 import json
 import re
+import shutil
 import sys
 import tarfile
 import tempfile
@@ -13,6 +15,8 @@ import unittest
 import unittest.mock
 from pathlib import Path
 from unittest.mock import patch
+from deploy.backup import artifact as backup_artifact
+from deploy.backup import quiet as backup_quiet
 from tools.shared_saas_lifecycle import odoo_effect
 try:
     from tools.shared_saas_lifecycle import odoo_backup
@@ -258,7 +262,7 @@ class StdinWriteTests(unittest.TestCase):
 class CaptureRestartTests(unittest.TestCase):
     """Odoo is shared by every tenant: once stopped, a capture must always start it again."""
     STEPS = ('stop', 'writers_not_stopped', 'drain_observers', 'assert_no_effect_containers', 'drain_check',
-             'dump', 'pack', 'inventory', 'check_files', 'validate_archive', 'sha256_file', 'resume_permit')
+             'dump', 'pack', 'inventory', 'check_files', 'validate_archive', 'sha256_file', 'encrypt', 'resume_permit')
 
     def capture_runner(self, root, fail_at=None, fail_start=False):
         runner = object.__new__(odoo_backup.BackupRunner)
@@ -289,10 +293,11 @@ class CaptureRestartTests(unittest.TestCase):
         runner.assert_no_effect_containers = lambda **_: maybe('assert_no_effect_containers') if runner.commands else None
         runner.inspect_service = lambda _service: {'Image': 'image', 'State': {'Running': fail_at == 'writers_not_stopped'}}
         runner.drain_observers = lambda: maybe('drain_observers')
-        runner.pg_stream = lambda *_, **__: maybe('dump')
+        runner.dump_database_to = lambda _destination: maybe('dump')
         runner.stream = lambda *_, **__: maybe('pack')
         runner.inventory = lambda *_: maybe('inventory') or {'attachments': []}
         runner.check_files = lambda *_: maybe('check_files')
+        runner.passphrase_file = lambda: Path(root) / 'passphrase'
         runner.wait_healthy = lambda _service: None
         runner.verify_originals = lambda: None
         runner.read_artifact = lambda: None
@@ -309,8 +314,16 @@ class CaptureRestartTests(unittest.TestCase):
         def permit(stage):
             if stage == 'resume' and fail_at == 'resume_permit':
                 raise odoo_effect.EffectError('boom')
+        def encrypt(_plaintext, ciphertext, **_kwargs):
+            # Where in the command stream the encryption ran: it must follow the normal `start odoo`.
+            runner.encrypt_at = len(runner.commands)
+            if fail_at == 'encrypt':
+                raise odoo_effect.EffectError('boom')
+            Path(ciphertext).write_bytes(b'ciphertext')
+            return 'b' * 64
         with patch.object(odoo_backup, 'permit', permit), patch.object(odoo_backup, 'reserve', lambda path, _value: Path(path).write_text('{}')), \
-                patch.object(odoo_backup, 'validate_archive', validate), patch.object(odoo_backup, 'sha256_file', sha):
+                patch.object(odoo_backup, 'validate_archive', validate), patch.object(odoo_backup, 'sha256_file', sha), \
+                patch.object(odoo_backup.backup_artifact, 'encrypt_file', encrypt):
             runner.capture()
 
     def started(self, runner):
@@ -325,6 +338,59 @@ class CaptureRestartTests(unittest.TestCase):
                 expected = 'writers_not_stopped' if step == 'writers_not_stopped' else 'boom'
                 self.assertEqual(str(caught.exception), expected)
                 self.assertEqual(len(self.started(runner)), 1)
+
+    def test_the_reconcile_after_a_restart_does_not_start_odoo_a_second_time(self):
+        # The failure restarts odoo in-process and records that, so the worker's recovery action (`reconcile`)
+        # finds a resumed intent and starts nothing. A second start would be harmless; it must not be issued.
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve()
+            runner, _ = self.capture_runner(root, fail_at='dump')
+            with self.assertRaises(odoo_effect.EffectError):
+                self.capture(runner, 'dump')
+            self.assertEqual(len(self.started(runner)), 1)
+            self.assertEqual(backup_quiet.read_intent(runner.intent())['state'], backup_quiet.STATE_RESUMED)
+            self.assertEqual(runner.reconcile(), backup_quiet.STATE_RESUMED)
+            self.assertEqual(len(self.started(runner)), 1)
+
+    def test_the_artifact_is_encrypted_after_odoo_is_serving_its_tenants_again(self):
+        # The shared outage covers the dump and the archive: encryption runs after the normal start.
+        with tempfile.TemporaryDirectory() as raw:
+            runner, _ = self.capture_runner(Path(raw).resolve())
+            self.capture(runner, 'never')
+            start = next(index for index, call in enumerate(runner.commands) if call[-2:] == ['start', 'odoo'])
+            self.assertGreater(runner.encrypt_at, start)
+
+    def test_a_plaintext_directory_a_killed_attempt_left_is_removed_by_the_next_capture(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve()
+            runner, _ = self.capture_runner(root)
+            abandoned = runner.root / 'backups' / '11111111-1111-4111-8111-111111111111' / (odoo_backup.PLAINTEXT_DIRECTORY + 'abc123')
+            abandoned.mkdir(parents=True)
+            (abandoned / odoo_backup.PLAINTEXT_DUMP).write_bytes(b'plaintext tenant dump')
+            self.capture(runner, 'never')
+            self.assertFalse(abandoned.exists())
+            self.assertTrue(runner.artifact.exists())
+
+    def test_a_plaintext_directory_that_cannot_be_removed_is_named_and_the_capture_goes_on(self):
+        # A delete that fails silently would leave a plaintext tenant dump on disk with no trace.
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve()
+            runner, _ = self.capture_runner(root)
+            abandoned = runner.root / 'backups' / '11111111-1111-4111-8111-111111111111' / (odoo_backup.PLAINTEXT_DIRECTORY + 'abc123')
+            abandoned.mkdir(parents=True)
+            (abandoned / odoo_backup.PLAINTEXT_DUMP).write_bytes(b'plaintext tenant dump')
+            real_rmtree = shutil.rmtree
+            def rmtree(path, *args, **kwargs):
+                if Path(path) == abandoned:
+                    raise OSError('directory busy')
+                return real_rmtree(path, *args, **kwargs)
+            stderr = io.StringIO()
+            with patch.object(odoo_backup.shutil, 'rmtree', rmtree), contextlib.redirect_stderr(stderr):
+                self.capture(runner, 'never')
+            # The warning names the path and never what the directory holds.
+            self.assertIn(f'plaintext directory left in place: {abandoned}', stderr.getvalue())
+            self.assertNotIn('plaintext tenant dump', stderr.getvalue())
+            self.assertTrue(runner.artifact.exists())
 
     def test_two_termination_signals_in_a_row_still_start_odoo_once_and_complete_it(self):
         # systemd (KillMode=control-group) and the gate both signal the group: the second SIGTERM arrives while the restart runs.
@@ -346,7 +412,7 @@ class CaptureRestartTests(unittest.TestCase):
                     return ''
                 return plain(args, **kwargs)
             runner.command = command
-            runner.pg_stream = lambda *_, **__: os.kill(os.getpid(), signal.SIGTERM)  # the first signal, during the dump
+            runner.dump_database_to = lambda _destination: os.kill(os.getpid(), signal.SIGTERM)  # the first signal, during the dump
             odoo_effect.install_termination_handler(runner)
             with self.assertRaises(odoo_effect.EffectError) as caught:
                 self.capture(runner, None)
@@ -605,13 +671,18 @@ class ArtifactModeTests(unittest.TestCase):
         def create(*_args, destination=None, **_kwargs):
             if destination:
                 os.close(os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600))
+        def encrypt(_plaintext, ciphertext, **_kwargs):
+            # What openssl writes with this umask; the capture itself tightens it to 0600.
+            Path(ciphertext).write_bytes(b'ciphertext')
+            return 'b' * 64
         runner.stream = create
-        runner.pg_stream = create
+        runner.dump_database_to = create
         old = os.umask(0o007)
         try:
             with patch.object(odoo_backup, 'permit', lambda _stage: None), \
                     patch.object(odoo_backup, 'validate_archive', lambda _path: None), \
-                    patch.object(odoo_backup, 'sha256_file', lambda _path: 'a' * 64):
+                    patch.object(odoo_backup, 'sha256_file', lambda _path: 'a' * 64), \
+                    patch.object(odoo_backup.backup_artifact, 'encrypt_file', encrypt):
                 runner.capture()
         finally:
             os.umask(old)
@@ -619,7 +690,344 @@ class ArtifactModeTests(unittest.TestCase):
         self.assertEqual(stat.S_IMODE(runner.artifact.stat().st_mode), 0o750)
         self.assertEqual(modes['manifest.json'], 0o640)
         self.assertEqual({name: mode for name, mode in modes.items() if name != 'manifest.json'},
-                         {'database.dump': 0o600, 'filestore.tar': 0o600, 'reservation.json': 0o600})
+                         {'database.dump.enc': 0o600, 'filestore.tar.enc': 0o600, 'reservation.json': 0o600})
+
+
+class ArtifactEncryptionTests(unittest.TestCase):
+    """Console artifacts are encrypted per file: only ciphertext outlives a capture or a restore."""
+
+    PASSPHRASE = 'one console backup passphrase'
+    DATABASE = 'liwan_scratch_' + 'a' * 32
+
+    def runner(self, root):
+        runner = object.__new__(odoo_backup.BackupRunner)
+        runner.root = root
+        runner.database = self.DATABASE
+        runner.base = ['compose']
+        runner.config = {'projectName': 'liwan-shared-test'}
+        runner.backup_id = '00000000-0000-4000-8000-000000000000'
+        runner.artifact = root / 'backups' / runner.backup_id
+        runner.authority = {'controlTenantId': 'tenant'}
+        runner.request = {'payloadDigest': 'd', 'attemptId': 'attempt01', 'businessKey': 'b', 'job': {'binding': {}}}
+        runner.operation = 'backup'
+        runner.current_container = None
+        runner.child = None
+        return runner
+
+    def passphrase(self, root):
+        path = root / 'passphrase'
+        path.write_text(self.PASSPHRASE + '\n', encoding='utf-8')
+        path.chmod(0o600)
+        return path
+
+    def archive(self, destination):
+        with tarfile.open(destination, 'w') as out:
+            payload = b'abc'
+            info = tarfile.TarInfo('ab/file')
+            info.size = len(payload)
+            out.addfile(info, io.BytesIO(payload))
+
+    def captured(self, root):
+        """One capture_while_stopped through the package's real encryption."""
+        runner = self.runner(root)
+        passphrase = self.passphrase(root)
+        runner.artifact.mkdir(parents=True, mode=0o750)
+        dump = b'custom format archive' * 128
+        runner.inspect_service = lambda _service: {'State': {'Running': False}}
+        runner.drain_observers = lambda: None
+        runner.assert_no_effect_containers = lambda **_kwargs: None
+        runner.command = lambda *_args, **_kwargs: '0\n'
+        runner.dump_database_to = lambda destination: Path(destination).write_bytes(dump)
+        runner.stream = lambda _args, destination=None, **_kwargs: self.archive(destination)
+        runner.inventory = lambda *_args: {'attachments': []}
+        runner.check_files = lambda *_args: None
+        runner.passphrase_file = lambda: passphrase
+        private = root / 'plaintext'
+        private.mkdir()
+        with patch.object(odoo_backup, 'permit', lambda _stage: None):
+            prepared = runner.capture_while_stopped('sha256:' + 'a' * 64, 'sha256:' + 'b' * 64, private)
+            manifest = runner.encrypt_artifact(prepared)
+        return runner, manifest, dump, passphrase
+
+    def test_the_dump_runs_the_package_argv_inside_the_db_container(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve()
+            runner = self.runner(root)
+            calls = []
+            runner.stream = lambda args, **kwargs: calls.append((args, kwargs))
+            destination = root / 'database.dump'
+            runner.dump_database_to(destination)
+        args, kwargs = calls[0]
+        self.assertEqual(args[:9], ['compose', 'run', '--rm', '--no-deps', '-T', '--name',
+                                    'liwan-shared-test-effect-attempt0-dump', '--entrypoint', '/bin/sh'])
+        self.assertEqual(args[9:13], ['db', '-c', odoo_backup.DUMP_SCRIPT, 'sh'])
+        self.assertEqual(args[13:], ['pg_dump', '-Fc', '--serializable-deferrable', '--no-password',
+                                     '-d', self.DATABASE, '-f', '-', '-h', 'db', '-U', 'postgres'])
+        self.assertEqual(kwargs['destination'], destination)
+        # The secret travels through the service environment: never a password flag, never a value.
+        self.assertFalse({'-W', '--password'} & set(args))
+        self.assertEqual(args.count(odoo_backup.DUMP_SCRIPT), 1)
+
+    def test_a_capture_writes_ciphertext_and_keeps_the_plaintext_digests_it_promised(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve()
+            runner, manifest, dump, passphrase = self.captured(root)
+            self.assertEqual(sorted(entry.name for entry in runner.artifact.iterdir()),
+                             ['database.dump.enc', 'filestore.tar.enc'])
+            self.assertEqual(manifest['databaseSha256'], hashlib.sha256(dump).hexdigest())
+            self.assertEqual(manifest['cipher'], 'aes-256-cbc-pbkdf2')
+            for name, digest_field, size_field in ((odoo_backup.CIPHERTEXT_DUMP, 'databaseCiphertextSha256', 'databaseCiphertextBytes'),
+                                                   (odoo_backup.CIPHERTEXT_ARCHIVE, 'filestoreCiphertextSha256', 'filestoreCiphertextBytes')):
+                ciphertext = runner.artifact / name
+                self.assertEqual(manifest[digest_field], hashlib.sha256(ciphertext.read_bytes()).hexdigest())
+                self.assertEqual(manifest[size_field], ciphertext.stat().st_size)
+                self.assertEqual(stat.S_IMODE(ciphertext.stat().st_mode), 0o600)
+            # The ciphertext decrypts back to exactly the plaintext the manifest pinned.
+            roundtrip = root / 'roundtrip.dump'
+            digest = backup_artifact.decrypt_file(
+                runner.artifact / odoo_backup.CIPHERTEXT_DUMP, roundtrip, passphrase_file=passphrase)
+            self.assertEqual((digest, roundtrip.read_bytes()), (manifest['databaseSha256'], dump))
+
+    def test_a_restore_decrypts_into_a_0600_file_that_is_gone_when_the_block_ends(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve()
+            runner, manifest, dump, _passphrase = self.captured(root)
+            (runner.artifact / 'manifest.json').write_text(json.dumps(manifest))
+            runner.operation = 'restore'
+            runner.authority = {'controlTenantId': 'tenant', 'databaseSha256': manifest['databaseSha256'],
+                                'filestoreSha256': manifest['filestoreSha256']}
+            with runner.artifact_plaintext(runner.read_artifact()) as (plain_dump, plain_archive):
+                self.assertEqual(stat.S_IMODE(plain_dump.stat().st_mode), 0o600)
+                self.assertEqual(stat.S_IMODE(plain_archive.stat().st_mode), 0o600)
+                self.assertEqual(plain_dump.read_bytes(), dump)
+                self.assertEqual(odoo_backup.validate_archive(plain_archive), 1)
+                self.assertNotEqual(plain_dump.parent, runner.artifact)
+            self.assertEqual(sorted(entry.name for entry in runner.artifact.iterdir()),
+                             ['database.dump.enc', 'filestore.tar.enc', 'manifest.json'])
+
+    def test_an_unencrypted_or_partially_encrypted_artifact_is_refused(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve()
+            runner, encrypted, _dump, _passphrase = self.captured(root)
+            (runner.artifact / odoo_backup.PLAINTEXT_DUMP).write_bytes(b'older plaintext dump')
+            self.archive(runner.artifact / odoo_backup.PLAINTEXT_ARCHIVE)
+            unencrypted = {
+                key: value for key, value in encrypted.items()
+                if key not in ('databaseCiphertextSha256', 'filestoreCiphertextSha256',
+                               'databaseCiphertextBytes', 'filestoreCiphertextBytes', 'cipher')
+            }
+            cases = {
+                'unencrypted': unencrypted,
+                'database_ciphertext_only': {
+                    **unencrypted,
+                    'databaseCiphertextSha256': encrypted['databaseCiphertextSha256'],
+                    'databaseCiphertextBytes': encrypted['databaseCiphertextBytes'],
+                    'cipher': encrypted['cipher'],
+                },
+                'filestore_ciphertext_only': {
+                    **unencrypted,
+                    'filestoreCiphertextSha256': encrypted['filestoreCiphertextSha256'],
+                    'filestoreCiphertextBytes': encrypted['filestoreCiphertextBytes'],
+                    'cipher': encrypted['cipher'],
+                },
+                'missing_cipher': {k: v for k, v in encrypted.items() if k != 'cipher'},
+                'wrong_cipher': {**encrypted, 'cipher': 'rot13'},
+                'missing_size': {k: v for k, v in encrypted.items() if k != 'databaseCiphertextBytes'},
+                'bool_size': {**encrypted, 'databaseCiphertextBytes': True},
+            }
+            runner.operation = 'restore'
+            runner.authority = {'controlTenantId': 'tenant', 'databaseSha256': encrypted['databaseSha256'],
+                                'filestoreSha256': encrypted['filestoreSha256']}
+            for name, candidate in cases.items():
+                with self.subTest(case=name):
+                    (runner.artifact / 'manifest.json').write_text(json.dumps(candidate))
+                    with self.assertRaisesRegex(odoo_effect.EffectError, '^manifest_invalid$'):
+                        runner.read_artifact()
+                    with self.assertRaisesRegex(odoo_effect.EffectError, '^manifest_invalid$'):
+                        with runner.artifact_plaintext(candidate):
+                            pass
+
+    def test_a_ciphertext_size_mismatch_is_refused_before_decryption(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve()
+            runner, manifest, _dump, _passphrase = self.captured(root)
+            manifest['databaseCiphertextBytes'] += 1
+            (runner.artifact / 'manifest.json').write_text(json.dumps(manifest))
+            with self.assertRaisesRegex(odoo_effect.EffectError, '^artifact_hash_mismatch$'):
+                runner.read_artifact()
+
+    def test_a_ciphertext_that_changed_is_refused_before_it_is_decrypted(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve()
+            runner, manifest, _dump, _passphrase = self.captured(root)
+            ciphertext = runner.artifact / odoo_backup.CIPHERTEXT_DUMP
+            ciphertext.write_bytes(ciphertext.read_bytes() + b'x')
+            (runner.artifact / 'manifest.json').write_text(json.dumps(manifest))
+            with self.assertRaisesRegex(odoo_effect.EffectError, '^artifact_hash_mismatch$'):
+                runner.read_artifact()
+
+    def test_a_capture_without_a_usable_key_is_refused_before_odoo_is_stopped(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve()
+            runner = self.runner(root)
+            commands = []
+            runner.assert_no_effect_containers = lambda **_kwargs: None
+            runner.command = lambda args, **_kwargs: commands.append(args) or ''
+            def missing_key():
+                raise odoo_effect.EffectError('backup_key_unavailable')
+            runner.passphrase_file = missing_key
+            with patch.object(odoo_backup, 'permit', lambda _stage: None), \
+                    self.assertRaisesRegex(odoo_effect.EffectError, '^backup_key_unavailable$'):
+                runner.capture()
+            # Nothing was written and the shared odoo was never stopped for a capture that could not run.
+            self.assertEqual(commands, [])
+            self.assertFalse(runner.artifact.exists())
+
+
+class RestartReconcileTests(unittest.TestCase):
+    """One intent file records the stop; only the attempt that wrote it may start the service again."""
+
+    def runner(self, root, calls, attempt='attempt-a'):
+        runner = object.__new__(odoo_backup.BackupRunner)
+        runner.root = root
+        runner.database = 'liwan_scratch_a'
+        runner.base = ['compose']
+        runner.config = {'projectName': 'liwan-shared-test'}
+        runner.request = {'attemptId': attempt}
+        runner.command = lambda args, **_kwargs: calls.append(args) or ''
+        return runner
+
+    def test_a_crash_between_the_stop_and_the_start_is_repaired_by_that_attempt(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve()
+            stopped = []
+            crashed = self.runner(root, stopped)
+            self.assertIsNone(backup_quiet.quiesce(crashed.intent(), crashed.service_control()))
+            self.assertEqual(stopped, [['compose', 'stop', '--timeout', '30', 'odoo']])
+            self.assertEqual(backup_quiet.read_intent(crashed.intent())['state'], backup_quiet.STATE_QUIESCING)
+            started = []
+            same_attempt = self.runner(root, started)
+            self.assertEqual(same_attempt.reconcile(), backup_quiet.STATE_RESUMED)
+            self.assertIn(['compose', 'start', 'odoo'], started)
+            self.assertEqual(backup_quiet.read_intent(same_attempt.intent())['state'], backup_quiet.STATE_RESUMED)
+            # A resumed intent is never started again.
+            started.clear()
+            self.assertEqual(same_attempt.reconcile(), backup_quiet.STATE_RESUMED)
+            self.assertNotIn(['compose', 'start', 'odoo'], started)
+
+    def test_another_tenants_refused_job_never_starts_the_service_this_attempt_stopped(self):
+        # The state directory holds one intent for every tenant: a refused job of tenant B reuses the same
+        # file, and starting odoo on it would resume tenant A's writers mid-dump.
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve()
+            capturing = []
+            owner = self.runner(root, capturing, attempt='attempt-a')
+            backup_quiet.quiesce(owner.intent(), owner.service_control())
+            refused = []
+            other = self.runner(root, refused, attempt='attempt-b')
+            other.database = 'liwan_scratch_b'
+            self.assertEqual(other.reconcile(), backup_quiet.STATE_DONE)
+            self.assertNotIn(['compose', 'start', 'odoo'], refused)
+            self.assertEqual(backup_quiet.read_intent(owner.intent())['state'], backup_quiet.STATE_QUIESCING)
+
+    def test_a_gate_another_attempt_left_refuses_the_start(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve()
+            calls = []
+            attempt = self.runner(root, calls, attempt='attempt-a')
+            backup_quiet.quiesce(attempt.intent(), attempt.service_control())
+            calls.clear()
+            gate = root / odoo_effect.GATE_NAME
+            gate.mkdir(mode=0o700)
+            odoo_effect.reserve(gate / 'owner.json', {'attemptId': 'attempt-b', 'fence': 1, 'digest': 'd'})
+            # Even the attempt whose intent it is refuses to start while another attempt holds the project.
+            with self.assertRaisesRegex(odoo_effect.EffectError, '^runtime_requires_intervention$'):
+                attempt.reconcile()
+            self.assertNotIn(['compose', 'start', 'odoo'], calls)
+            shutil.rmtree(gate)
+            calls.clear()
+            self.assertEqual(attempt.reconcile(), backup_quiet.STATE_RESUMED)
+            self.assertIn(['compose', 'start', 'odoo'], calls)
+
+    def test_a_live_effect_container_of_another_attempt_refuses_the_start(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve()
+            calls = []
+            attempt = self.runner(root, calls, attempt='aaaa1111')
+            backup_quiet.quiesce(attempt.intent(), attempt.service_control())
+            calls.clear()
+
+            def command(args, **_kwargs):
+                calls.append(args)
+                return 'liwan-shared-test-effect-bbbb2222-capture\n' if args[:2] == ['docker', 'ps'] else ''
+
+            attempt.command = command
+            with self.assertRaisesRegex(odoo_effect.EffectError, '^runtime_requires_intervention$'):
+                attempt.reconcile()
+            self.assertNotIn(['compose', 'start', 'odoo'], calls)
+
+    def test_its_own_effect_container_does_not_block_the_repair(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve()
+            calls = []
+            attempt = self.runner(root, calls, attempt='aaaa1111')
+            backup_quiet.quiesce(attempt.intent(), attempt.service_control())
+            calls.clear()
+
+            def command(args, **_kwargs):
+                calls.append(args)
+                return 'liwan-shared-test-effect-aaaa1111-capture\n' if args[:2] == ['docker', 'ps'] else ''
+
+            attempt.command = command
+            self.assertEqual(attempt.reconcile(), backup_quiet.STATE_RESUMED)
+            self.assertIn(['compose', 'start', 'odoo'], calls)
+
+    def test_a_reconcile_removes_the_plaintext_a_killed_attempt_left(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve()
+            calls = []
+            attempt = self.runner(root, calls, attempt='attempt-a')
+            backup_quiet.quiesce(attempt.intent(), attempt.service_control())
+            abandoned = root / 'backups' / '22222222-2222-4222-8222-222222222222' / (odoo_backup.PLAINTEXT_DIRECTORY + 'dead')
+            abandoned.mkdir(parents=True)
+            (abandoned / odoo_backup.PLAINTEXT_ARCHIVE).write_bytes(b'plaintext tenant archive')
+            self.assertEqual(attempt.reconcile(), backup_quiet.STATE_RESUMED)
+            self.assertFalse(abandoned.exists())
+
+    def test_a_capture_never_starts_the_service_for_another_attempts_intent(self):
+        case = CaptureRestartTests()
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve()
+            foreign = self.runner(root, [], attempt='attempt-b')
+            backup_quiet.quiesce(foreign.intent(), foreign.service_control())
+            runner, _boom = case.capture_runner(root, fail_at='inventory')
+            with self.assertRaises(odoo_effect.EffectError):
+                case.capture(runner, 'inventory')
+        starts = [args for args in runner.commands if args[-2:] == ['start', 'odoo']]
+        stops = [args for args in runner.commands if 'stop' in args]
+        self.assertEqual(len(stops), 1)
+        # The capture's own restart, and never a start that repairs the other attempt's stop.
+        self.assertEqual(len(starts), 1)
+        self.assertLess(runner.commands.index(stops[0]), runner.commands.index(starts[0]))
+
+    def test_main_reconciles_on_the_reconcile_action(self):
+        class Reconciling:
+            def __init__(self, _request): pass
+            def reconcile(self): return backup_quiet.STATE_RESUMED
+        out = io.StringIO()
+        with patch.object(odoo_backup, 'BackupRunner', Reconciling), \
+                patch.object(odoo_backup, 'install_termination_handler', lambda _runner: None), \
+                patch.object(sys, 'stdin', io.StringIO('{"action":"reconcile"}\n')), patch.object(sys, 'stdout', out):
+            status = odoo_backup.main()
+        self.assertEqual((status, json.loads(out.getvalue())), (0, {'result': {'state': 'resumed'}}))
+
+    def test_a_symlinked_intent_is_refused_before_it_is_written(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve()
+            (root / odoo_backup.INTENT_NAME).symlink_to(root / 'elsewhere')
+            runner = self.runner(root, [])
+            with self.assertRaisesRegex(odoo_effect.EffectError, '^runtime_path_invalid$'):
+                runner.intent()
 
 
 class InventoryChannelTests(unittest.TestCase):
@@ -705,11 +1113,17 @@ class InventoryManifestLimitTests(unittest.TestCase):
         case = CaptureRestartTests()
         with tempfile.TemporaryDirectory() as raw:
             runner, _ = case.capture_runner(Path(raw).resolve())
+            runner.artifact.mkdir(parents=True)
             runner.inventory = lambda *_: {'attachments': [], 'note': '\u00e9' * 600}
+            def encrypt(_plaintext, ciphertext, **_kwargs):
+                Path(ciphertext).write_bytes(b'ciphertext')
+                return 'b' * 64
             with patch.object(odoo_backup, 'permit', lambda _stage: None), patch.object(odoo_backup, 'validate_archive', lambda _p: None), \
-                    patch.object(odoo_backup, 'sha256_file', lambda _p: 'a' * 64), patch.object(odoo_backup, 'MAX_MANIFEST', 1024):
+                    patch.object(odoo_backup, 'sha256_file', lambda _p: 'a' * 64), patch.object(odoo_backup, 'MAX_MANIFEST', 1024), \
+                    patch.object(odoo_backup.backup_artifact, 'encrypt_file', encrypt):
+                prepared = runner.capture_while_stopped('img', 'pg', runner.artifact)
                 with self.assertRaises(odoo_effect.EffectError) as caught:
-                    runner.capture_while_stopped('img', 'pg')
+                    runner.encrypt_artifact(prepared)
         self.assertEqual(str(caught.exception), 'inventory_too_large')
 
 
@@ -726,7 +1140,7 @@ class ReportedErrorCodeTests(unittest.TestCase):
         return status, json.loads(out.getvalue().strip())
 
     def test_main_emits_the_restart_and_inventory_codes_as_they_are(self):
-        for code in ('odoo_restart_failed', 'inventory_too_large'):
+        for code in ('odoo_restart_failed', 'inventory_too_large', 'backup_key_unavailable'):
             self.assertEqual(self.emitted(code), (1, {'error_code': code}))
 
     def test_an_unlisted_code_stays_opaque(self):
@@ -805,6 +1219,10 @@ class RestoreIsolationTests(unittest.TestCase):
             runner.inspect_service = lambda service: {'Image': 'i' if service == 'restore-odoo' else 'p'}
             runner.database_exists = lambda *_: False
             runner.files_exist = lambda *_: False
+            runner.database = 'liwan_scratch_a'
+            # The plaintext of the artifact is opened by the restore; these tests stub the artifact directory.
+            runner.artifact_plaintext = lambda _manifest: contextlib.nullcontext(
+                (runner.artifact / odoo_backup.PLAINTEXT_DUMP, runner.artifact / odoo_backup.PLAINTEXT_ARCHIVE))
             streams = []
             def pg_stream(service, stage, script, database, **kwargs):
                 streams.append((stage, script, database))
@@ -832,6 +1250,10 @@ class RestoreIsolationTests(unittest.TestCase):
             runner.inspect_service = lambda service: {'Image': 'i' if service == 'restore-odoo' else 'p'}
             runner.database_exists = lambda *_: False
             runner.files_exist = lambda *_: False
+            runner.database = 'liwan_scratch_a'
+            # The plaintext of the artifact is opened by the restore; these tests stub the artifact directory.
+            runner.artifact_plaintext = lambda _manifest: contextlib.nullcontext(
+                (runner.artifact / odoo_backup.PLAINTEXT_DUMP, runner.artifact / odoo_backup.PLAINTEXT_ARCHIVE))
             streams = []
             def pg_stream(service, stage, script, database, **kwargs):
                 streams.append(stage)
@@ -855,6 +1277,10 @@ class RestoreIsolationTests(unittest.TestCase):
             runner.inspect_service = lambda service: {'Image': 'i' if service == 'restore-odoo' else 'p'}
             runner.database_exists = lambda *_: False
             runner.files_exist = lambda *_: False
+            runner.database = 'liwan_scratch_a'
+            # The plaintext of the artifact is opened by the restore; these tests stub the artifact directory.
+            runner.artifact_plaintext = lambda _manifest: contextlib.nullcontext(
+                (runner.artifact / odoo_backup.PLAINTEXT_DUMP, runner.artifact / odoo_backup.PLAINTEXT_ARCHIVE))
             streams = []
             def pg_stream(service, stage, script, database, **kwargs):
                 streams.append((service, stage, kwargs.get('source') is not None))

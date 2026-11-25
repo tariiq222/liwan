@@ -3,9 +3,10 @@
 
 One fact lives here: whether the newest ``control-plane`` artifact of the backup
 pipeline restores into a NEW database and carries the billing truth it should. The
-artifact is authenticated and decrypted by :func:`deploy.backup_pipeline.fetch_verified_dump`,
-restored with ``pg_restore`` into a database this run creates (an existing database is
-refused, never overwritten), then read back:
+artifact is authenticated, decrypted and extracted by
+:func:`deploy.backup.recover.fetch_artifact`, restored with ``pg_restore`` into a
+database this run creates (an existing database is refused, never overwritten), then
+read back:
 
 * row counts of the key tables (customers, subscriptions, orders, invoices, payment
   attempts and events, credit and debit notes, the outbox, the audit log, the tenant
@@ -42,12 +43,15 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-try:  # imported as deploy.<module> (PYTHONPATH=.)
-    from deploy import backup, backup_pipeline, s3_client
-except ImportError:  # executed with PYTHONPATH=deploy
-    import backup
-    import backup_pipeline
-    import s3_client
+from deploy import s3_client
+from deploy.backup import recover
+from deploy.backup.artifact import passphrase_from_environment
+from deploy.backup.capture import CONTROL_PLANE_SOURCE, RetentionPolicy, recovery_objectives
+from deploy.backup.dump import validate_db_name
+from deploy.backup.errors import BackupError
+from deploy.backup.manifest import as_utc
+from deploy.backup.snapshot import DUMP_NAME, MANIFEST_NAME
+from deploy.backup.store import build_store
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
@@ -99,9 +103,23 @@ def _run(runner: Callable[..., object], argv: list[str], what: str) -> str:
 
 def _target(name: str) -> str:
     try:
-        return backup.validate_db_name(name)
-    except backup.BackupError as error:
+        return validate_db_name(name)
+    except BackupError as error:
         raise RestoreError(str(error)) from error
+
+
+def require_database_only(artifact_dir: Path) -> None:
+    """The control plane's artifact holds its database alone: a filestore tree belongs to a tenant.
+
+    A control-plane capture is database-only (its ``CaptureSource.filestore`` is ``None``), so an
+    artifact that also carries ``filestore/`` is a tenant artifact under the wrong source, and a
+    restore must read neither it nor its manifest.
+    """
+    contents = sorted(path.name for path in artifact_dir.iterdir())
+    _require(
+        contents == [DUMP_NAME, MANIFEST_NAME],
+        f'the control plane artifact must hold only {DUMP_NAME} and {MANIFEST_NAME}, not {contents}',
+    )
 
 
 def observe(args: argparse.Namespace, database: str, runner: Callable[..., object]) -> dict[str, object]:
@@ -146,16 +164,22 @@ def checks_for(observed: Mapping[str, object], compare: Mapping[str, object] | N
 
 
 def restore(args: argparse.Namespace, runner: Callable[..., object]) -> int:
-    started_at = backup_pipeline.as_utc(None)
+    started_at = as_utc(None)
     began = time.monotonic()
     target = _target(args.target_db)
     scratch = args.scratch_root
     _require(scratch.is_absolute() and not scratch.exists(), '--scratch-root must be a new absolute directory')
     scratch.mkdir(mode=0o700, parents=True)
-    store = backup_pipeline.build_store(args.store_root, os.environ)
-    passphrase_file = backup_pipeline.passphrase_from_environment(os.environ)
-    ref, manifest, dump = backup_pipeline.fetch_verified_dump(
-        store, backup_pipeline.CONTROL_PLANE_SOURCE, scratch / 'fetched', passphrase_file, runner)
+    store = build_store(args.store_root, os.environ)
+    passphrase_file = passphrase_from_environment(os.environ)
+    ref = recover.latest_artifact(store, CONTROL_PLANE_SOURCE)
+    _require(ref is not None, f'the store holds no complete {CONTROL_PLANE_SOURCE} artifact to restore')
+    fetched = recover.fetch_artifact(
+        store, ref, scratch / 'fetched', passphrase_file=passphrase_file, runner=runner,
+    )
+    require_database_only(fetched.artifact_dir)
+    manifest = fetched.manifest
+    dump = fetched.artifact_dir / DUMP_NAME
     connection = _connection(args)
     _run(runner, [args.psql, '-X', '-v', 'ON_ERROR_STOP=1', *connection, '-d', 'postgres',
                   '-c', f'CREATE DATABASE "{target}"'], f'creating {target}')
@@ -168,8 +192,8 @@ def restore(args: argparse.Namespace, runner: Callable[..., object]) -> int:
     compare = observe(args, args.compare_with, runner) if args.compare_with else None
     checks = checks_for(observed, compare, args.expect_migration)
     elapsed = time.monotonic() - began
-    rpo_ok, rto_ok = backup_pipeline.recovery_objectives(
-        manifest.captured_at, started_at, elapsed, backup_pipeline.RetentionPolicy())
+    rpo_ok, rto_ok = recovery_objectives(
+        manifest.captured_at, started_at, elapsed, RetentionPolicy())
     verified = all(checks.values())
     record = {
         'restore_verified': verified,
@@ -241,7 +265,7 @@ def main(argv: Sequence[str] | None = None, runner: Callable[..., object] = subp
             if hasattr(args, tool):
                 _require(bool(getattr(args, tool)), f'{tool} is not on PATH; pass --{tool.replace("_", "-")}')
         return {'restore': restore, 'verify': verify}[args.command](args, runner)
-    except (RestoreError, backup_pipeline.PipelineError, s3_client.StorageError) as error:
+    except (RestoreError, BackupError, s3_client.StorageError) as error:
         sys.stderr.write(f'restore_control_plane: {error}\n')
         return EXIT_REFUSED
 

@@ -48,7 +48,9 @@ DELETION_ENV = 'LIWAN_TENANT_DELETION_ENABLED'
 DROP_EFFECT = 'tenant_drop_effect'
 STORAGE_EFFECT = 'tenant_storage_effect'
 # The effects need exactly these; the gate's other variables (the runtime config path, the deletion flag, secrets) stay behind.
-CHILD_ENV = ('PATH', 'HOME', 'LANG', 'LC_ALL', 'TMPDIR', 'DOCKER_HOST', 'DOCKER_CONFIG')
+# LIWAN_BACKUP_PASSPHRASE_FILE is the operator's backup key path (a 0600 file the effect account owns): odoo_backup
+# encrypts and decrypts every artifact file with it, and it is a path, never the secret itself.
+CHILD_ENV = ('PATH', 'HOME', 'LANG', 'LC_ALL', 'TMPDIR', 'DOCKER_HOST', 'DOCKER_CONFIG', 'LIWAN_BACKUP_PASSPHRASE_FILE')
 DEFAULT_PATH = '/usr/bin:/bin'
 EFFECT_STATE_DIRS = ('reservations', 'credentials', 'classifications', 'restore-effects', 'reconfigure',
                      'runtime-gate-history', 'tenant-storage', 'backups')

@@ -27,8 +27,10 @@ export type Spawner = typeof spawn
 /** Replaced only by tests. */
 export type ChannelDeps = { spawnChild?: Spawner; connect?: (path: string) => Socket }
 
-/** Exact names only, no prefixes: a spawned gate sees the settings it needs to find Python and Docker and none of the worker's secrets. */
-const EFFECT_ENV_NAMES = ['PATH', 'HOME', 'LANG', 'LC_ALL', 'TMPDIR', 'DOCKER_HOST', 'DOCKER_CONFIG', 'LIWAN_SHARED_RUNTIME_CONFIG'] as const
+/** Exact names only, no prefixes: a spawned gate sees the settings it needs to find Python and Docker and none of the worker's secrets.
+ * `LIWAN_BACKUP_PASSPHRASE_FILE` is the backup key's path (a 0600 file the effect account reads), never the key itself, so the
+ * local gate gets the same value the systemd `effect.env` gives the production one. */
+const EFFECT_ENV_NAMES = ['PATH', 'HOME', 'LANG', 'LC_ALL', 'TMPDIR', 'DOCKER_HOST', 'DOCKER_CONFIG', 'LIWAN_SHARED_RUNTIME_CONFIG', 'LIWAN_BACKUP_PASSPHRASE_FILE'] as const
 
 export function effectEnv(env: NodeJS.ProcessEnv = process.env): Record<string, string> {
   const out: Record<string, string> = {}

@@ -8,7 +8,7 @@ The final deletion of a tenant's workspace is a set of separate stages. Each one
 | --- | --- |
 | Stages | `tools/shared_saas_lifecycle/tenant_drop_effect.py` |
 | File removal (also run inside the Odoo containers) | `tools/shared_saas_lifecycle/tenant_drop_files.py` |
-| Off-site backup purge | `deploy/backup_pipeline.py purge` |
+| Off-site backup purge | `python3 -B -m deploy.backup purge` |
 | Tenant object storage removal | `tools/shared_saas_lifecycle/tenant_storage_effect.py` (`operation: drop`) |
 | Tenant marker written at provisioning | `tools/shared_saas_lifecycle/odoo_effect.py` (`liwan.control.tenant_id`) |
 
@@ -109,7 +109,7 @@ A finished drop also leaves `<tenant-storage>/<tenantId>.dropped` in the effect'
 
 ## Off-site backups
 
-`python3 deploy/backup_pipeline.py purge --tenant <registry id> --settle-seconds <n>` lists every key under `<id>/`, deletes, waits, lists and deletes again, then lists once more and fails (exit 3, `status: incomplete`) unless the prefix is empty. It refuses an empty id, a slash, anything outside `^[a-z][a-z0-9_-]{0,62}$` and `control-plane`. It is not `prune`: nothing is kept. The report holds counts only.
+`python3 -B -m deploy.backup purge --tenant <registry id> --settle-seconds <n>` lists every key under `<id>/`, deletes, waits, lists and deletes again, then lists once more and fails (exit 3, `status: incomplete`) unless the prefix is empty. It refuses an empty id, a slash, anything outside `^[a-z][a-z0-9_-]{0,62}$` and `control-plane`. It is not `prune`: nothing is kept. The report holds counts only.
 
 ## What is never touched
 

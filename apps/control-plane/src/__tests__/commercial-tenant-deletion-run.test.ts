@@ -1013,7 +1013,9 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
     expect(plan).toBe(0)
     // The off-site purge re-checks ownership on a heartbeat and is stopped when it is lost.
     let checks = 0
-    const slow = ((_cmd: string, _args: string[]) => {
+    let purgeArgs: string[] = []
+    const slow = ((_cmd: string, args: string[]) => {
+      purgeArgs = args
       const emitter = new EventEmitter(), stdout = new PassThrough()
       return Object.assign(emitter, { stdout, kill: () => { setImmediate(() => emitter.emit('close', 143)); return true } })
     }) as any
@@ -1021,6 +1023,8 @@ suite('the final deletion of a workspace: the runner, its ledger, its guards and
     const lost = await refused(effectsHeartbeat.purgeOffsite({ tenantId: 'tenant_a', settleSeconds: 1, assertOwned: async () => { checks++; if (checks > 2) throw new Error('lease') } }))
     expect(lost).toMatchObject({ code: 'deletion_lease_lost' })
     expect(checks).toBeGreaterThan(2)
+    // The off-site purge is the backup package's own command, not a script the fold removed.
+    expect(purgeArgs.slice(0, 4)).toEqual(['-B', '-m', 'deploy.backup', 'purge'])
   })
 
   it('stops quietly when a withdrawal lands between the relay call and the write that follows, keeps a commit already recorded in place, and leaves the tombstone of a deleted tenant', async () => {

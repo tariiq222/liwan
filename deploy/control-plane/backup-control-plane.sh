@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Scheduled backup of the control plane database through deploy/backup_pipeline.py.
+# Scheduled backup of the control plane database through the backup package (python3 -B -m deploy.backup).
 #   backup-control-plane.sh hourly|daily   capture, then prune
 #   backup-control-plane.sh check          alert when the newest backup is older than the RPO
 # Every failure raises the existing backup_failed / backup_stale alert labelled "control-plane".
@@ -20,7 +20,7 @@ if [ -n "${LIWAN_CONTROL_BACKUP_PG_USER:-}" ]; then connection+=(--pg-user "$LIW
 
 alert() { python3 -B deploy/alerts.py "$@" || echo "backup-control-plane: the alert was not delivered" >&2; }
 fail() { alert backup_failed --database control-plane --reason "$1"; echo "backup-control-plane: $1" >&2; exit 1; }
-pipeline() { python3 -B deploy/backup_pipeline.py "$@"; }
+pipeline() { python3 -B -m deploy.backup "$@"; }
 
 if [ "$mode" = check ]; then
   rc=0

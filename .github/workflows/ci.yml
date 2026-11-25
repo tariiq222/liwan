@@ -433,9 +433,12 @@ jobs:
           --health-retries 12
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # deploy.backup resolves the tenant registry via deploy/shared/backup-binding.mjs,
+      # which imports apps/web/server/utils/tenantRegistry.ts and needs Node from .nvmrc for TS type stripping.
       - uses: ./.github/actions/setup
         with:
-          node: 'false'
+          node: 'true'
+          npm-ci: 'false'
           odoo: 'true'
       - run: deploy/ci/restore-drill.sh
         env:

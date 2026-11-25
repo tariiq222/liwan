@@ -904,9 +904,19 @@ class ReleaseTest(unittest.TestCase):
 
     def test_failed_backup_restarts_the_worker_and_changes_nothing_else(self):
         original = self.runner.answer
-        self.runner.answer = lambda argv, stdin: (1, 'store down') if 'capture' in argv else original(argv, stdin)
+
+        def fail_the_tenant_capture(argv, stdin):
+            # Only the exact package command fails: a typo in the module or the subcommand would run instead.
+            if argv[:5] == ['python3', '-B', '-m', 'deploy.backup', 'capture'] and '--tenant' in argv:
+                return 1, 'store down'
+            return original(argv, stdin)
+
+        self.runner.answer = fail_the_tenant_capture
         self.assertEqual(self.main(), release.EXIT_FAILED)
         self.assertEqual(self.result(), 'rolled back backup_failed')
+        capture = self.commands('capture')[0]
+        self.assertEqual(capture[:5], ['python3', '-B', '-m', 'deploy.backup', 'capture'])
+        self.assertEqual(self.runner.envs[self.runner.calls.index(capture)]['PYTHONPATH'], str(release.ROOT))
         self.assertTrue([call for call in self.runner.calls if call[:2] == ['systemctl', 'start']])
         self.assertFalse(self.compose_stops())
 

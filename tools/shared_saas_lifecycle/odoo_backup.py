@@ -2,13 +2,14 @@
 """Opt-in real Odoo capture and isolated restore. No generic target commands."""
 from __future__ import annotations
 import hashlib
-from contextlib import closing
+from contextlib import closing, contextmanager, suppress
 import inspect
 import json
 import os
 from pathlib import Path, PurePosixPath
 import re
 import shlex
+import shutil
 import signal
 import subprocess
 import sys
@@ -16,10 +17,15 @@ import tarfile
 import tempfile
 import time
 from datetime import datetime, timezone
+from deploy.backup import artifact as backup_artifact
+from deploy.backup import quiet as backup_quiet
+from deploy.backup.dump import build_pg_dump_argv as build_dump_argv
+from deploy.backup.errors import BackupError
+from deploy.backup.manifest import CIPHER as ARTIFACT_CIPHER
 from tools.shared_saas_lifecycle.odoo_effect import (
     Runner, EffectError, no_symlink, reserve, permit, emit, validate_database,
-    require_new_target, verified_observation, MAX_OUTPUT, OBSERVE_CONTAINER, classify_error,
-    install_termination_handler, ignore_termination, block_termination_signals, TERMINATION_SIGNALS, STREAM_REFUSALS, TENANT_DB_ROLE, AI_TENANT_SCHEMA,
+    require_new_target, verified_observation, MAX_OUTPUT, OBSERVE_CONTAINER, classify_error, gate_owner,
+    install_termination_handler, ignore_termination, block_termination_signals, TERMINATION_SIGNALS, STREAM_REFUSALS, TENANT_DB_ROLE, AI_TENANT_SCHEMA, GATE_NAME,
 )
 from deploy.release.tenant_postgres import POSTGRES_ADMIN_ROLE, identifier, tenant_bootstrap_sql, tenant_create_database_sql, tenant_isolation_sql
 AI_ROLE = 'liwan_ai'
@@ -30,6 +36,25 @@ MAX_MANIFEST = 16 * 1024 * 1024  # what read_artifact accepts; the inventory is 
 MANIFEST_OVERHEAD = 64 * 1024  # the manifest's other fields (hashes, ids, binding, business key)
 MAX_INVENTORY = MAX_MANIFEST - MANIFEST_OVERHEAD
 RESTORE_HOST = '-h restore-db'
+# The artifact's files: the plaintext a capture streams, and the ciphertext the store keeps.
+PLAINTEXT_DUMP = 'database.dump'
+PLAINTEXT_ARCHIVE = 'filestore.tar'
+CIPHERTEXT_DUMP = PLAINTEXT_DUMP + '.enc'
+CIPHERTEXT_ARCHIVE = PLAINTEXT_ARCHIVE + '.enc'
+PLAINTEXT_DIRECTORY = '.plaintext-'
+# (plaintext digest field, ciphertext name, ciphertext digest field, ciphertext size field, plaintext name)
+ARTIFACT_FILES = (
+    ('databaseSha256', CIPHERTEXT_DUMP, 'databaseCiphertextSha256', 'databaseCiphertextBytes', PLAINTEXT_DUMP),
+    ('filestoreSha256', CIPHERTEXT_ARCHIVE, 'filestoreCiphertextSha256', 'filestoreCiphertextBytes', PLAINTEXT_ARCHIVE),
+)
+# The restart safety of the shared Odoo service: one intent file per state directory, and the
+# compose calls that stop and start it. `deploy.backup.quiet` owns the states and the reconcile.
+INTENT_NAME = 'backup-intent.json'
+INTENT_SERVICE = 'odoo'
+DB_SERVICE = 'db'
+DUMP_SCRIPT = 'set -eu; export PGPASSWORD="$POSTGRES_PASSWORD"; exec "$@"'
+DUMP_STDOUT = '-'
+
 
 
 def create_database_script(database):
@@ -108,6 +133,20 @@ def sha256_file(path):
 def require_hash(path, expected):
     if not isinstance(expected, str) or not re.fullmatch('[a-f0-9]{64}', expected) or sha256_file(path) != expected:
         raise EffectError('artifact_hash_mismatch')
+
+
+def _require_encrypted_manifest(manifest):
+    """Refuse any manifest that lacks the required per-file encryption metadata."""
+    if not isinstance(manifest, dict) or manifest.get('cipher') != ARTIFACT_CIPHER:
+        raise EffectError('manifest_invalid')
+    for digest_field, _ciphertext, ciphertext_field, size_field, _plaintext in ARTIFACT_FILES:
+        for field in (digest_field, ciphertext_field):
+            value = manifest.get(field)
+            if not isinstance(value, str) or not re.fullmatch('[a-f0-9]{64}', value):
+                raise EffectError('manifest_invalid')
+        size = manifest.get(size_field)
+        if type(size) is not int or size <= 0:
+            raise EffectError('manifest_invalid')
 
 
 def safe_members(archive):
@@ -249,6 +288,24 @@ def restore_inventory_matches(original, current, commercial=None):
                for key in ('modules', 'attachments', 'databaseAttachments'))
 
 
+class ComposeOdoo(backup_quiet.ServiceControl):
+    """The shared Odoo service as the package's ``ServiceControl``: the compose project's stop and start.
+
+    ``start`` is the ordinary start a :func:`deploy.backup.reconcile` runs. The in-process
+    restart after a failure keeps its own detached command in ``restart_after_failure``: it is
+    the immediate guarantee that Odoo comes back even when the authority is already gone.
+    """
+
+    def __init__(self, runner):
+        self.runner = runner
+
+    def stop(self):
+        self.runner.command(self.runner.base + ['stop', '--timeout', '30', 'odoo'], timeout=45)
+
+    def start(self):
+        self.runner.command(self.runner.base + ['start', 'odoo'], timeout=60)
+
+
 class BackupRunner(Runner):
     def __init__(self, request):
         super().__init__(request)
@@ -264,11 +321,13 @@ class BackupRunner(Runner):
             raise EffectError('existing_target_refused')
         self.complete_path = self.root / 'restore-effects' / (request['job']['requestId'] + '.complete')
 
-    def helper_args(self, service, stage, script):
+    def attempt_name(self, stage):
         attempt = self.request.get('attemptId') or self.request['job']['requestId']
-        name = self.config['projectName'] + '-effect-' + attempt[:8] + '-' + stage
-        self.current_container = name
-        return self.base + ['run', '--rm', '--no-deps', '-T', '--name', name,
+        return self.config['projectName'] + '-effect-' + attempt[:8] + '-' + stage
+
+    def helper_args(self, service, stage, script):
+        self.current_container = self.attempt_name(stage)
+        return self.base + ['run', '--rm', '--no-deps', '-T', '--name', self.current_container,
                             '--entrypoint', '/opt/venv/bin/python', service, '-c', script]
 
     def helper(self, service, stage, script, *, stdin=''):
@@ -312,12 +371,25 @@ class BackupRunner(Runner):
             self.current_container = None
 
     def pg_stream(self, service, stage, script, database, *, destination=None, source=None):
-        name = self.config['projectName'] + '-effect-' + self.request['attemptId'][:8] + '-' + stage
-        self.current_container = name
+        self.current_container = self.attempt_name(stage)
         # Fixed script, validated positional DB argument. Password stays in service env.
-        args = self.base + ['run', '--rm', '--no-deps', '-T', '--name', name,
+        args = self.base + ['run', '--rm', '--no-deps', '-T', '--name', self.current_container,
             '--entrypoint', '/bin/sh', service, '-c', script, 'liwan-backup', database]
         self.stream(args, destination=destination, source=source)
+
+    def dump_database_to(self, destination):
+        """Stream a custom-format archive of the tenant database out of the ``db`` container.
+
+        The argv is the package's one ``pg_dump`` line in its container form, so the flags
+        stay a single fact; the command runs inside the container through ``exec``, and the
+        password reaches libpq through the service environment only.
+        """
+        argv = build_dump_argv(db_name=self.database, output_file=DUMP_STDOUT, pg_host=DB_SERVICE,
+                               pg_user=POSTGRES_ADMIN_ROLE, container=True)
+        self.current_container = self.attempt_name('dump')
+        self.stream(self.base + ['run', '--rm', '--no-deps', '-T', '--name', self.current_container,
+                                 '--entrypoint', '/bin/sh', DB_SERVICE, '-c', DUMP_SCRIPT, 'sh', *argv],
+                    destination=destination)
 
     def inspect_service(self, service):
         ids = self.command(self.base + ['ps', '-a', '-q', service]).strip().splitlines()
@@ -406,6 +478,12 @@ print('{}')
                 self.verify_odoo_readiness('odoo', target['database'])
 
     def read_artifact(self):
+        """The manifest, after the identity, encryption metadata and ciphertext digest checks.
+
+        Every artifact is encrypted per file: a manifest without its cipher, ciphertext digests
+        or ciphertext sizes is refused. The plaintext digests are the contract a restore compares
+        with the authority before decrypting.
+        """
         no_symlink(self.artifact / 'manifest.json')
         if (self.artifact/'manifest.json').stat().st_size > MAX_MANIFEST:
             raise EffectError('manifest_invalid')
@@ -417,12 +495,47 @@ print('{}')
                 or manifest.get('controlTenantId')!=self.authority['controlTenantId']
                 or manifest.get('binding')!=self.request['job']['binding']):
             raise EffectError('artifact_identity_invalid')
-        for field,file in [('databaseSha256','database.dump'),('filestoreSha256','filestore.tar')]:
-            require_hash(self.artifact/file,manifest[field])
-            if self.operation=='restore' and manifest[field]!=self.authority[field]:
+        _require_encrypted_manifest(manifest)
+        for digest_field, ciphertext, ciphertext_field, size_field, _plaintext in ARTIFACT_FILES:
+            if self.operation=='restore' and manifest[digest_field]!=self.authority[digest_field]:
                 raise EffectError('artifact_hash_mismatch')
-        validate_archive(self.artifact/'filestore.tar')
+            path = self.artifact / ciphertext
+            require_hash(path, manifest[ciphertext_field])
+            if path.stat().st_size != manifest[size_field]:
+                raise EffectError('artifact_hash_mismatch')
         return manifest
+
+    @contextmanager
+    def artifact_plaintext(self, manifest):
+        """The plaintext dump and archive, as owner-only files removed when the block ends.
+
+        Nothing here outlives the restore: both ciphertext files are decrypted into a private
+        directory inside the artifact directory, every decrypted file is compared with the
+        plaintext digest the manifest pinned before the caller streams it, and the archive is
+        checked for a safe member list.
+        """
+        _require_encrypted_manifest(manifest)
+        passphrase = self.passphrase_file()
+        with tempfile.TemporaryDirectory(dir=self.artifact, prefix=PLAINTEXT_DIRECTORY) as private:
+            plaintext = {}
+            for digest_field, ciphertext, _ciphertext_field, _size_field, plaintext_name in ARTIFACT_FILES:
+                destination = Path(private) / plaintext_name
+                digest = backup_artifact.decrypt_file(
+                    self.artifact / ciphertext, destination, passphrase_file=passphrase)
+                destination.chmod(0o600)
+                if digest != manifest[digest_field]:
+                    raise EffectError('artifact_hash_mismatch')
+                plaintext[plaintext_name] = destination
+            archive = plaintext[PLAINTEXT_ARCHIVE]
+            validate_archive(archive)
+            yield plaintext[PLAINTEXT_DUMP], archive
+
+    def passphrase_file(self):
+        """The operator's backup key file, from the one variable the release path already sets."""
+        try:
+            return backup_artifact.passphrase_from_environment(os.environ)
+        except BackupError:
+            raise EffectError('backup_key_unavailable') from None
 
     def drain_observers(self, wait=35, sleep=None, clock=None):
         # A usage observation that started before odoo stopped is a one-off container that
@@ -440,38 +553,98 @@ print('{}')
             # The observer may exit between the listing and the kill; the writer check decides.
             subprocess.run(['docker', 'kill', name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15, check=False)
 
+    def intent(self):
+        """The one intent file this state directory keeps: what a stopped Odoo may need started."""
+        no_symlink(self.root)
+        path = self.root / INTENT_NAME
+        # A planted symlink would make the effect write, as its own account, a file the worker chose.
+        no_symlink(path)
+        return backup_quiet.Intent(path, self.database, INTENT_SERVICE, self.request.get('attemptId') or '')
+
+    def service_control(self):
+        return ComposeOdoo(self)
+
+    def reconcile(self):
+        """Start the shared Odoo this attempt's own intent stopped, and only when nothing else is live.
+
+        The intent file is shared by every tenant of this state directory, so an intent written by another
+        attempt (or a live effect container, or a gate another attempt left) means somebody else may be
+        effecting right now: starting Odoo then would resume writers mid-dump. Both refusals leave the
+        artifact and the intent untouched for the run that owns them.
+        """
+        attempt = self.request.get('attemptId') or ''
+        owner = gate_owner(self.root)
+        if owner not in (None, attempt):
+            raise EffectError('runtime_requires_intervention')
+        self.assert_no_effect_containers(ignore_attempt=attempt, code='runtime_requires_intervention')
+        self.remove_plaintext_orphans()
+        return backup_quiet.reconcile(self.intent(), self.service_control(), attempt=attempt)
+
+    def remove_plaintext_orphans(self):
+        """Delete the plaintext a killed attempt left behind.
+
+        A SIGKILL inside the artifact block leaves ``.plaintext-*`` under ``backups/<id>/`` with a dump and
+        an archive in it, and its TemporaryDirectory never runs. Only a caller that holds the runtime gate,
+        or a reconcile that proved nothing else is live, sweeps: those directories hold tenant data.
+        """
+        backups = self.root / 'backups'
+        if backups.is_symlink() or not backups.is_dir():
+            return
+        for artifact_dir in backups.glob('*'):
+            if artifact_dir.is_symlink() or not artifact_dir.is_dir():
+                continue
+            for orphan in artifact_dir.glob(PLAINTEXT_DIRECTORY + '*'):
+                if orphan.is_symlink() or not orphan.is_dir():
+                    continue
+                try:
+                    shutil.rmtree(orphan)
+                except OSError:
+                    # A removal that fails leaves tenant data in plaintext. Name the path, never what it
+                    # holds, and keep going: one stuck directory must not block the capture or the restart.
+                    sys.stderr.write(f'liwan backup: plaintext directory left in place: {orphan}\n')
+
     def capture(self):
         # Refuse a busy project before anything is reserved or stopped (a usage observation opens
         # DB sessions); the check after the stop below still closes the race with a late starter.
         self.assert_no_effect_containers()
+        self.remove_plaintext_orphans()
+        # Without the key no artifact can be written, and that is knowable before the stop: a
+        # missing or unusable passphrase must not cost the shared Odoo an outage for nothing.
+        self.passphrase_file()
         permit('reserve')
         backups=self.root/'backups';backups.mkdir(mode=0o700,exist_ok=True);no_symlink(backups)
-        self.artifact.mkdir(mode=0o700);self.artifact.chmod(0o750)  # explicit: UMask=0077 masks mkdir's mode; the worker's group reads the manifest, the dump and the archive stay 0600
+        self.artifact.mkdir(mode=0o700);self.artifact.chmod(0o750)  # explicit: UMask=0077 masks mkdir's mode; the worker's group reads the manifest, the ciphertext stays 0600
         reserve(self.artifact/'reservation.json',{'digest':self.request['payloadDigest'],'attemptId':self.request['attemptId']})
         source_image=self.inspect_service('odoo')['Image'];postgres_image=self.inspect_service('db')['Image']
         permit('drain')
+        intent = self.intent()
+        started = False
         try:
-            self.command(self.base+['stop','--timeout','30','odoo'],timeout=45)
-            manifest=self.capture_while_stopped(source_image,postgres_image)
-            permit('resume')
+            backup_quiet.quiesce(intent, self.service_control())
+            with tempfile.TemporaryDirectory(dir=self.artifact, prefix=PLAINTEXT_DIRECTORY) as private:
+                prepared = self.capture_while_stopped(source_image, postgres_image, Path(private))
+                backup_quiet.record_state(intent, backup_quiet.STATE_CAPTURED)
+                permit('resume')
+                # Odoo serves its tenants again before the archive is encrypted: the shared outage covers the
+                # dump and the archive only, and both digests were taken from the plaintext above.
+                self.command(self.base+['start','odoo'],timeout=60)
+                started = True
+                backup_quiet.record_state(intent, backup_quiet.STATE_RESUMED)
+                manifest = self.encrypt_artifact(prepared)
         except BaseException:
-            # Odoo is shared by every tenant: whatever failed, never leave it stopped. No permit here;
-            # the authority may be gone and the restart must not wait for it. A termination signal landing
-            # in this cleanup path is held pending until the restart is done, then aborts the run.
-            with block_termination_signals():
-                self.restart_after_failure()
-            raise
-        try:
-            self.command(self.base+['start','odoo'],timeout=60)
-        except BaseException:
-            # A termination during the normal start must not leave odoo stopped either.
-            with block_termination_signals():
-                self.restart_after_failure()
+            # Odoo is shared by every tenant: whatever failed before it was started, never leave it stopped.
+            # No permit here; the authority may be gone and the restart must not wait for it. A termination
+            # signal landing in this cleanup path is held pending until the restart is done, then aborts the run.
+            if not started:
+                with block_termination_signals():
+                    self.restart_after_failure()
             raise
         self.wait_healthy('odoo');self.verify_originals()
         permit('complete')
         reserve(self.artifact/'manifest.json',manifest);(self.artifact/'manifest.json').chmod(0o640)
+        backup_quiet.record_state(intent, backup_quiet.STATE_DONE)
         self.read_artifact()
+
 
     def restart_after_failure(self):
         # Runs under the caller's `block_termination_signals`: a signal that landed between entering the cleanup and
@@ -495,8 +668,14 @@ print('{}')
             raise EffectError('odoo_restart_failed') from restart_error
         finally:
             self.restarting = False
+        # Odoo is back, so the intent must say so: a later reconcile would otherwise start it a second time (the
+        # capture's exception is about to leave `quiescing` behind). Bookkeeping only — a write that fails leaves the
+        # stopped state, and the reconcile's `start` on a running service is a no-op, so that second start is harmless
+        # and must never replace the restart that succeeded.
+        with suppress(EffectError, BackupError, OSError):
+            backup_quiet.record_state(self.intent(), backup_quiet.STATE_RESUMED)
 
-    def capture_while_stopped(self,source_image,postgres_image):
+    def capture_while_stopped(self,source_image,postgres_image,private):
         if self.inspect_service('odoo')['State']['Running']:
             raise EffectError('writers_not_stopped')
         self.drain_observers()
@@ -507,7 +686,10 @@ print('{}')
             "SELECT count(*) FROM pg_stat_activity WHERE datname LIKE 'liwan_scratch_%' AND backend_type='client backend'"]).strip()
         if sessions!='0':raise EffectError('writers_not_stopped')
         permit('capture')
-        self.pg_stream('db','dump','set -eu; export PGPASSWORD="$POSTGRES_PASSWORD"; exec pg_dump -h db -U '+POSTGRES_ADMIN_ROLE+' --format=custom "$1"',self.database,destination=self.artifact/'database.dump')
+        # The plaintext lives only here, inside the artifact directory and under 0600, and the
+        # capture's block removes the directory however it ends.
+        dump, archive = Path(private) / PLAINTEXT_DUMP, Path(private) / PLAINTEXT_ARCHIVE
+        self.dump_database_to(dump)
         pack='''import os,sys,tarfile
 from pathlib import Path
 root=Path('/var/lib/odoo/filestore') / database
@@ -517,14 +699,30 @@ with tarfile.open(fileobj=sys.stdout.buffer,mode='w|') as out:
   if p.is_symlink() or not(p.is_file() or p.is_dir()) or p.resolve()!=p: raise Exception('filestore_link')
   out.add(p,arcname=p.relative_to(root).as_posix(),recursive=False)
 '''
-        self.stream(self.helper_args('odoo','pack','database='+repr(self.database)+'\n'+pack),destination=self.artifact/'filestore.tar')
+        self.stream(self.helper_args('odoo','pack','database='+repr(self.database)+'\n'+pack),destination=archive)
         inventory=self.inventory('odoo',self.database)
         self.check_files('odoo',self.database,inventory)
-        validate_archive(self.artifact/'filestore.tar')
+        validate_archive(archive)
+        # The plaintext digests are the contract a restore compares with its authority. They are taken here,
+        # before the restart, so the encryption can run while Odoo already serves its tenants again.
+        return {'dump':dump,'archive':archive,'inventory':inventory,
+            'databaseSha256':sha256_file(dump),'filestoreSha256':sha256_file(archive),
+            'sourceImageId':source_image,'postgresImageId':postgres_image}
+
+    def encrypt_artifact(self,prepared):
+        """Encrypt the staged plaintext and return the manifest the artifact is published with."""
+        passphrase=self.passphrase_file()
+        database_ciphertext_sha256=backup_artifact.encrypt_file(prepared['dump'],self.artifact/CIPHERTEXT_DUMP,passphrase_file=passphrase)
+        filestore_ciphertext_sha256=backup_artifact.encrypt_file(prepared['archive'],self.artifact/CIPHERTEXT_ARCHIVE,passphrase_file=passphrase)
+        for name in (CIPHERTEXT_DUMP,CIPHERTEXT_ARCHIVE):
+            (self.artifact/name).chmod(0o600)
         manifest={'schemaVersion':1,'format':'odoo-pg-filestore-v1','backupId':self.backup_id,'controlTenantId':self.authority['controlTenantId'],
             'binding':self.request['job']['binding'],'businessKey':self.request['businessKey'],'payloadDigest':self.request['payloadDigest'],
-            'databaseSha256':sha256_file(self.artifact/'database.dump'),'filestoreSha256':sha256_file(self.artifact/'filestore.tar'),
-            'sourceImageId':source_image,'postgresImageId':postgres_image,'capturedAt':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),'inventory':inventory}
+            'databaseSha256':prepared['databaseSha256'],'filestoreSha256':prepared['filestoreSha256'],
+            'databaseCiphertextSha256':database_ciphertext_sha256,'filestoreCiphertextSha256':filestore_ciphertext_sha256,
+            'databaseCiphertextBytes':(self.artifact/CIPHERTEXT_DUMP).stat().st_size,'filestoreCiphertextBytes':(self.artifact/CIPHERTEXT_ARCHIVE).stat().st_size,
+            'cipher':ARTIFACT_CIPHER,
+            'sourceImageId':prepared['sourceImageId'],'postgresImageId':prepared['postgresImageId'],'capturedAt':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),'inventory':prepared['inventory']}
         # reserve() writes json.dump (ASCII escapes can outgrow the raw inventory): refuse here, not after the manifest is unverifiable.
         if len(json.dumps(manifest).encode()) > MAX_MANIFEST:
             raise EffectError('inventory_too_large')
@@ -536,6 +734,9 @@ with tarfile.open(fileobj=sys.stdout.buffer,mode='w|') as out:
             raise EffectError('restore_image_mismatch')
         for service in ('odoo','restore-odoo'):
             require_new_target(self.database_exists(service,self.target),self.files_exist(service,self.target))
+        # A new restore may follow a capture that a signal killed inside its artifact block: the plaintext it
+        # left is this attempt's to remove, because the runtime gate is held from here on.
+        self.remove_plaintext_orphans()
         permit('reserve')
         reservations=self.root/'restore-effects';reservations.mkdir(mode=0o700,exist_ok=True);no_symlink(reservations)
         reserve(reservations/(self.target+'.json'),{'approvalId':self.authority['approvalId'],'backupId':self.backup_id,'digest':self.request['payloadDigest'],'attemptId':self.request['attemptId'],'fence':self.request['fence']})
@@ -544,17 +745,18 @@ with tarfile.open(fileobj=sys.stdout.buffer,mode='w|') as out:
         reserve(classification,{'schema_version':1,'database':self.target,'commercial_mode':'saas','entitlement_source':'control_plane','expected_valid_until':None,'valid_until_action':'preserve'})
         classification.chmod(0o644)
         permit('restore-database')
-        self.pg_stream('restore-db','restore-create',create_database_script(self.target),self.target)
-        try:
-            self.pg_stream('restore-db','restore-db',restore_database_script(self.target),self.target,source=self.artifact/'database.dump')
-            self.pg_stream('restore-db','restore-ai',restore_ai_script(),self.target,source=self.artifact/'database.dump')
-        except BaseException:
-            # The stages are not one transaction: this operation created the target, so a failed phase drops it whole.
-            self.pg_stream('restore-db','restore-drop',drop_target_script(self.target),self.target)
-            raise
-        permit('restore-filestore')
-        # Validation is repeated INSIDE the destination before writing its first file.
-        unpack='import os,sys,tarfile,tempfile,shutil\nfrom pathlib import Path,PurePosixPath\nclass EffectError(Exception): pass\nMAX_ARCHIVE='+str(MAX_ARCHIVE)+'\nMAX_MEMBERS='+str(MAX_MEMBERS)+'\n'+inspect.getsource(safe_members)+'''
+        with self.artifact_plaintext(manifest) as (dump, archive):
+            self.pg_stream('restore-db','restore-create',create_database_script(self.target),self.target)
+            try:
+                self.pg_stream('restore-db','restore-db',restore_database_script(self.target),self.target,source=dump)
+                self.pg_stream('restore-db','restore-ai',restore_ai_script(),self.target,source=dump)
+            except BaseException:
+                # The stages are not one transaction: this operation created the target, so a failed phase drops it whole.
+                self.pg_stream('restore-db','restore-drop',drop_target_script(self.target),self.target)
+                raise
+            permit('restore-filestore')
+            # Validation is repeated INSIDE the destination before writing its first file.
+            unpack='import os,sys,tarfile,tempfile,shutil\nfrom pathlib import Path,PurePosixPath\nclass EffectError(Exception): pass\nMAX_ARCHIVE='+str(MAX_ARCHIVE)+'\nMAX_MEMBERS='+str(MAX_MEMBERS)+'\n'+inspect.getsource(safe_members)+'''
 root=Path('/var/lib/odoo/filestore') / database
 if root.exists() or root.is_symlink() or root.parent.is_symlink(): raise Exception('target_exists')
 with tempfile.TemporaryFile() as source:
@@ -574,7 +776,7 @@ with tempfile.TemporaryFile() as source:
    dest.parent.mkdir(parents=True,exist_ok=True)
    with dest.open('xb') as output, archive.extractfile(member) as content: shutil.copyfileobj(content,output)
 '''
-        self.stream(self.helper_args('restore-odoo','unpack','database='+repr(self.target)+'\n'+unpack),source=self.artifact/'filestore.tar')
+            self.stream(self.helper_args('restore-odoo','unpack','database='+repr(self.target)+'\n'+unpack),source=archive)
         permit('verify')
         self.verify_restore(manifest)
         permit('complete')
@@ -596,7 +798,7 @@ with tempfile.TemporaryFile() as source:
 
     def observe(self):
         self.preflight()
-        if (self.root/'runtime-gate').exists(): return {'state':'unknown'}
+        if (self.root/GATE_NAME).exists(): return {'state':'unknown'}
         if self.operation=='backup':
             if not self.artifact.exists(): return {'state':'absent'}
             if not self.authority.get('manifestSha256'): return {'state':'unknown'}
@@ -624,6 +826,7 @@ def main():
         request=json.loads(raw);runner=BackupRunner(request)
         install_termination_handler(runner)
         if request['action']=='observe':emit({'result':runner.observe()})
+        elif request['action']=='reconcile':emit({'result':{'state':runner.reconcile()}})
         elif request['action']=='apply':runner.apply_owned()
         else:raise EffectError('operation_unavailable')
         return 0

@@ -27,11 +27,21 @@ python3 deploy/classification.py fixture --database "$SRC_DB" --mode non_saas --
   --addons-path="$ODOO_ROOT/odoo/addons,$ODOO_ROOT/addons,$PWD/odoo-addons,$OCA_PATH" --data-dir="$W/data" \
   -d "$SRC_DB" -i "$MODULES" \
   --without-demo=all --http-port="$ODOO_PORT" --workers=0 --max-cron-threads=0 --stop-after-init
-python3 deploy/backup.py --opt-in MANUAL_BACKUP_OPT_IN --acknowledge-unverified CANDIDATE_BACKUP_UNVERIFIED \
-  --db-name "$SRC_DB" --filestore "$W/data/filestore/$SRC_DB" \
-  --output-dir "$W/backup" --pg-dump "$B/pg_dump" --pg-host "$PGHOST" --pg-port "$PGPORT" --pg-user "$PGUSER"
+# The backup package's only key: one random line in a mode-0600 file, never an argument.
+export LIWAN_BACKUP_PASSPHRASE_FILE="$W/backup-passphrase"
+(umask 077 && openssl rand -hex 32 > "$LIWAN_BACKUP_PASSPHRASE_FILE")
+backup() { python3 -B -m deploy.backup "$@"; }
+# Captured encrypted into a local store through the same registry-bound path a release runs,
+# then fetched back as the plaintext artifact this stage restores.
+export LIWAN_TENANT_REGISTRY_PATH="$W/registry.json"
+printf '{"schemaVersion":1,"snapshotRevision":1,"targets":[{"host":"drill.invalid","tenantId":"%s","database":"%s","filestore":"%s","enabled":true,"registryRevision":1}]}\n' \
+  "$SRC_DB" "$SRC_DB" "$SRC_DB" > "$LIWAN_TENANT_REGISTRY_PATH"
+backup capture --kind hourly --tenant "$SRC_DB" --data-dir "$W/data" \
+  --store-root "$W/store" --work-root "$W/work" \
+  --pg-dump "$B/pg_dump" --pg-host "$PGHOST" --pg-port "$PGPORT" --pg-user "$PGUSER"
+backup fetch --tenant "$SRC_DB" --kind hourly --store-root "$W/store" --destination "$W/backup"
 cp "$W/backup/manifest.json" "$W/original-manifest.json"
-verify() { python3 deploy/restore_verify.py --backup-dir "$W/backup" --target-db "$1" \
+verify() { backup verify --backup-dir "$W/backup" --target-db "$1" \
   --target-filestore "$W/restored/filestore/$1" --pg-restore "$B/pg_restore" \
   --psql "$B/psql" --pg-host "$PGHOST" --pg-port "$PGPORT" --pg-user "$PGUSER"; }
 verify "$RST_DB"

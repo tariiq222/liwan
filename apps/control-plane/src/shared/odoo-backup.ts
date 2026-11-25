@@ -16,9 +16,15 @@ import {RegistryError} from './registry-store.js'
 import { actorHolds, actorLabel } from '../admin-auth/grants.js'
 
 const hash=z.string().regex(/^[a-f0-9]{64}$/)
+/** A console artifact's manifest. `databaseSha256`/`filestoreSha256` are the plaintext digests a restore
+ * compares with the approval; every artifact is encrypted per file, so the ciphertext digests, sizes and
+ * `cipher` are required and a manifest without them is rejected. */
 export const manifestSchema=z.strictObject({
  schemaVersion:z.literal(1),format:z.literal('odoo-pg-filestore-v1'),backupId:z.uuid(),controlTenantId:z.uuid(),binding:tenantBindingSchema,
  businessKey:z.string(),payloadDigest:hash,databaseSha256:hash,filestoreSha256:hash,
+ databaseCiphertextSha256:hash,filestoreCiphertextSha256:hash,
+ databaseCiphertextBytes:z.number().int().positive(),filestoreCiphertextBytes:z.number().int().positive(),
+ cipher:z.literal('aes-256-cbc-pbkdf2'),
  sourceImageId:z.string().regex(/^sha256:[a-f0-9]{64}$/),postgresImageId:z.string().regex(/^sha256:[a-f0-9]{64}$/),capturedAt:z.iso.datetime(),
  inventory:z.strictObject({databaseAttachments:z.array(z.tuple([z.number().int(),hash,z.number().int().nonnegative()])),attachments:z.array(z.tuple([z.number().int(),z.string().nullable(),z.string().nullable(),z.number().int()])),projects:z.number().int(),tasks:z.number().int(),modules:z.array(z.unknown()),profile:z.array(z.unknown())}),
 })

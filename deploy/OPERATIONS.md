@@ -177,7 +177,7 @@ Knowledge retrieval (AI phase 5): the assistant can search company records throu
 
 Retention: each tenant keeps runs for its own `retention_days` (1 to 365, AI settings page). `AI_RUN_RETENTION_DAYS` is only the window a tenant starts with when its schema is bootstrapped; the scheduled cleanup deletes each tenant's runs past its own window.
 
-Database isolation: the service connects as the dedicated role `liwan_ai`, which owns the `liwan_ai` control database and can connect to each tenant database with USAGE and CREATE on schema `liwan_ai` only. It is neither the `postgres` admin role nor `odoo`, and holds no grant on any Odoo table or sequence, having lost its own schema-`public` privileges, so it can read no Odoo table; PostgreSQL still gives every role USAGE on schema `public` and EXECUTE on functions through `PUBLIC`, and Odoo grants nothing on its tables to `PUBLIC`. `deploy/ai/init-db.sh` (mounted into `/docker-entrypoint-initdb.d/20-liwan-ai.sh`) runs on a fresh `db_data` volume only and, when `AI_DB_PASSWORD` is non-empty, creates the role and database, revokes `CONNECT` on `liwan_ai` from `PUBLIC`, and revokes `CONNECT` on every other existing database from `PUBLIC` and from `liwan_ai`. Every tenant database is closed to `PUBLIC` by the shared isolation step above on every creation path: the operator `tenant.create`, shared provisioning and restore in `tools/shared_saas_lifecycle` and the restore check in `deploy/restore_verify.py`. Each creates the database with the same recipe as Odoo (`tenant_create_database_sql`: `unicode`, `LC_COLLATE 'C'`, `template0`). `deploy/ai/tenant_schema.sql` then grants `CONNECT` selectively: when the `liwan_ai` role exists it grants `CONNECT` there, creates schema `liwan_ai`, grants `odoo` `USAGE` on it (the AI bootstrap, which runs as `liwan_ai`, grants the two queue tables `ai_outbox` and `ai_knowledge_queue` to the one role besides the owner that holds that `USAGE`, so Odoo can append to them; the database owner is the admin role and never receives them), and revokes `public` from the role; it does nothing when the role does not exist. Its `search_path` is pinned to `pg_catalog` (rule two of "Database roles"). A tenant database created by another route needs the isolation step first, then the same script once: `docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v tenant_db="<tenant_db>" < ai/tenant_schema.sql`, then the tenant bootstrap below.
+Database isolation: the service connects as the dedicated role `liwan_ai`, which owns the `liwan_ai` control database and can connect to each tenant database with USAGE and CREATE on schema `liwan_ai` only. It is neither the `postgres` admin role nor `odoo`, and holds no grant on any Odoo table or sequence, having lost its own schema-`public` privileges, so it can read no Odoo table; PostgreSQL still gives every role USAGE on schema `public` and EXECUTE on functions through `PUBLIC`, and Odoo grants nothing on its tables to `PUBLIC`. `deploy/ai/init-db.sh` (mounted into `/docker-entrypoint-initdb.d/20-liwan-ai.sh`) runs on a fresh `db_data` volume only and, when `AI_DB_PASSWORD` is non-empty, creates the role and database, revokes `CONNECT` on `liwan_ai` from `PUBLIC`, and revokes `CONNECT` on every other existing database from `PUBLIC` and from `liwan_ai`. Every tenant database is closed to `PUBLIC` by the shared isolation step above on every creation path: the operator `tenant.create`, shared provisioning and restore in `tools/shared_saas_lifecycle` and the restore check in `python3 -B -m deploy.backup verify`. Each creates the database with the same recipe as Odoo (`tenant_create_database_sql`: `unicode`, `LC_COLLATE 'C'`, `template0`). `deploy/ai/tenant_schema.sql` then grants `CONNECT` selectively: when the `liwan_ai` role exists it grants `CONNECT` there, creates schema `liwan_ai`, grants `odoo` `USAGE` on it (the AI bootstrap, which runs as `liwan_ai`, grants the two queue tables `ai_outbox` and `ai_knowledge_queue` to the one role besides the owner that holds that `USAGE`, so Odoo can append to them; the database owner is the admin role and never receives them), and revokes `public` from the role; it does nothing when the role does not exist. Its `search_path` is pinned to `pg_catalog` (rule two of "Database roles"). A tenant database created by another route needs the isolation step first, then the same script once: `docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v tenant_db="<tenant_db>" < ai/tenant_schema.sql`, then the tenant bootstrap below.
 
 Existing `db_data` volume (init scripts do not rerun): create the role and database once, by hand, with the password passed as a psql variable:
 
@@ -265,14 +265,17 @@ Quality integration: merge `deploy/verification-checks.json` only after replacin
 every `REPLACE_WITH_*` token. Leave `required: true`. Do not introduce `${ENV}`
 substitution.
 
-## Manual backup (`deploy/backup.py`)
+## Manual candidate copy (`capture --kind candidate`)
 
-Opt-in candidate copy only. Produces `database.dump` (pg_dump `-Fc
---serializable-deferrable`), a `filestore/` copy, and `manifest.json` with
-`consistency: "UNVERIFIED"` and `recovery_ready: false`, or fails without a
-success manifest. `--serializable-deferrable` makes the dump one snapshot of
-the database; the filestore is still copied separately and the result stays
-`UNVERIFIED`.
+A one-off copy of one database, produced by the same package as the scheduled
+backups and encrypted the same way. `capture` stages the dump and the filestore
+under `--work-root`, encrypts the archive with the passphrase, uploads it to the
+store, and writes the manifest last; `fetch` brings it back as `database.dump`,
+`filestore/` and `manifest.json`. The snapshot manifest carries
+`consistency: "UNVERIFIED"` and `recovery_ready: false`, or the capture fails
+without a success manifest. `--serializable-deferrable` makes the dump one
+snapshot of the database; the filestore is still copied separately and the
+result stays `UNVERIFIED`.
 
 This is **not** a consistent backup and **not** recovery-ready. A closed HTTP
 port (`connect_ex != 0`) is not proof that Odoo, cron, remote writers, or
@@ -280,35 +283,39 @@ PostgreSQL sessions have stopped. This tool does not inspect processes or
 database sessions and does not stop anything.
 
 ```sh
-python3 deploy/backup.py \
-  --opt-in MANUAL_BACKUP_OPT_IN \
-  --acknowledge-unverified CANDIDATE_BACKUP_UNVERIFIED \
+export LIWAN_BACKUP_PASSPHRASE_FILE=/absolute/path/to/passphrase   # mode 0600 or 0400
+python3 -B -m deploy.backup capture --tenant <source-name> --kind candidate \
   --db-name customerdb \
   --filestore /absolute/data_dir/filestore/customerdb \
-  --output-dir /absolute/empty-parent/backup-id \
+  --store-root /absolute/storage \
+  --work-root /absolute/private/capture-volume \
   --pg-dump /opt/homebrew/bin/pg_dump \
   --pg-host 127.0.0.1 \
   --pg-port 5432 \
   --pg-user tariq
+python3 -B -m deploy.backup fetch --tenant <source-name> --kind candidate \
+  --store-root /absolute/storage --destination /absolute/empty-parent/backup-id
 ```
 
-Optional `--lock-dir DIR` moves the lock file directory (see "One backup per
-database" below). Optional `--observe-http-port HOST:PORT` records TCP reachability. If that port
-accepts connections, the candidate copy is refused. If it does not accept
-connections, the manifest still stays `UNVERIFIED`. `--verify-port`,
-`--pid-file`, `--consistent`, `--quiesced`, `--assume-stopped`, and `--live`
-are declined.
+`--tenant` is the source name the artifact is stored under
+(`<source-name>/candidate/<UTC stamp>/`), a lowercase registry-shaped id
+(`^[a-z0-9][a-z0-9_-]{0,62}$`); with `--db-name` and `--filestore` the database
+and filestore are the ones named, never the registry's. Omit `--store-root` to
+use the bucket and its `LIWAN_BACKUP_S3_*` credentials. A `candidate` artifact
+is outside the retention windows: `prune` keeps it as an unrecognised object and
+only `purge` deletes it.
 
 ### Operator evidence required
 
-1. `--opt-in MANUAL_BACKUP_OPT_IN`. `true` / `yes` / `1` is rejected.
-2. `--acknowledge-unverified CANDIDATE_BACKUP_UNVERIFIED`. This is an admission
-   that the artifact is a non-atomic candidate, not a certified snapshot.
-3. Independently verified maintenance window and a restore test, outside this
-   tool. The wrapper will not claim those were done.
-4. Filestore path must be `<data_dir>/filestore/<db_name>`.
-5. Output directory must not already exist (no overwrite/delete).
-6. No password flag. Do not put secrets on the argv list.
+1. `LIWAN_BACKUP_PASSPHRASE_FILE`, mode `0600` or `0400`, holding one line of 16
+   to 1022 bytes. It is the only key: without it the artifact cannot be fetched.
+2. Independently verified maintenance window and a restore test, outside this
+   tool. The package will not claim those were done.
+3. Filestore path must be `<data_dir>/filestore/<db_name>`.
+4. `--work-root` and `--store-root` must be absolute, and the fetch destination
+   must not already exist (no overwrite/delete).
+5. No password flag. Do not put secrets on the argv list: libpq reads
+   `PGPASSFILE` and `PGPASSWORD` from the environment.
 
 ### What the manifest pins
 
@@ -332,42 +339,36 @@ find . -type f | sed 's|^\./||' | LC_ALL=C sort | while read -r f; do echo "$(sh
 ```
 
 A manifest without these three fields is not a backup manifest and is refused
-by `restore_verify.py`.
+by `verify`.
 
 The filestore must hold only regular files and directories. A symlink (to a
 file, to a directory, or dangling), a special file (fifo, socket, device) or a
 filestore path that is itself a symlink is refused before anything is copied:
 a restore cannot reproduce it, and a link can point outside the copy. The copy
-never carries links. `restore_verify.py` refuses the same entries in a backup
+never carries links. `verify` refuses the same entries in a backup
 directory and refuses a symlinked `database.dump`.
 
 ### One backup per database
 
 A run takes a non-blocking `flock` on `<db_name>.lock` and holds it until it
 exits, on every path including failure. A second run for the same database,
-whatever its output directory, is refused at once with `another backup of
-database <db_name> is already running` and exit code 2. Runs for different
-databases do not wait on each other. The lock is released if the process dies.
+whatever its store, is refused at once with `another backup of database
+<db_name> is already running (lock <path>); refusing a concurrent run` and exit
+code 2. Runs for different databases do not wait on each other. The lock is
+released if the process dies.
 
 The lock file lives in `liwan-backup-locks/` under the system temporary
-directory, created `0700`; it is refused unless the current user owns it. Two
-users, or a service with a private `/tmp`, do not share that directory: give
-every caller the same absolute `--lock-dir`.
-
-A shared `--lock-dir` must be an existing directory on a local filesystem that
-every caller can create files in (for example a group-writable directory with
-the sticky bit). The lock file is created `0644`, whatever the umask, and is
-opened read-only, because `flock` needs no write access; the file holds no
-data. So the first caller creates it and every other user can lock it later,
-whoever created it. Callers need read access to the file: if another user
-left it unreadable, or replaced it with a symlink, a FIFO or any non-regular
-file, the run stops with `cannot open the backup lock` or `is not a regular
-file` instead of waiting. NFS is not supported for the lock directory, since
-an exclusive `flock` on NFS needs a file opened for writing.
+directory, created `0700`; the directory is refused unless the current user owns
+it, and the lock file itself is created `0644` and opened read-only because
+`flock` needs no write access. Two callers on one host share that path; a
+service with a private `/tmp` (systemd `PrivateTmp`) sees its own, so run every
+capture for a host from the same service or turn that option off. NFS is not
+supported for the lock directory, since an exclusive `flock` on NFS needs a file
+opened for writing.
 
 ### Verifying the copy
 
-`restore_verify.py` compares `database.dump` and `filestore/` with the
+`verify` compares `database.dump` and `filestore/` with the
 manifest before it can report `restore_verified: true`. A mismatch is listed
 in `checks.backup_integrity_mismatches` (`database_dump_sha256`,
 `filestore_sha256`, `filestore_file_count`), the file counts are in
@@ -379,15 +380,16 @@ The manifest never sets `writer_stop_verified`, `consistency_verified`, or
 
 ### What this tool will not do
 
-- restore or declare recovery-ready
-- schedule / cron / retention jobs
-- delete backups or databases
+- restore over the live database (`verify` restores into a new scratch database)
+- schedule itself; retention runs only when `prune` is invoked
+- delete artifacts except beyond the retention windows (`prune`) or for a
+  retired tenant (`purge`)
 - stop or start Odoo, PostgreSQL, Nuxt, Caddy, or Compose
 - drain sessions or certify quiescence
 - backup `odoo19` / `production` / `postgres`
-- claim encryption, offsite copy, RPO, RTO, or live/stopped consistency
+- claim quiescence, RPO, or RTO; a verified restore is `verify`'s separate record
 
-## Restore and verification (`deploy/restore_verify.py`)
+## Restore and verification (`verify`)
 
 Restore a candidate backup into a new scratch database and a new filestore
 directory. Supply absolute paths to the PostgreSQL client tools:
@@ -413,20 +415,25 @@ OCA_PATH=$(cd "$WORKTREE" && python3 -B tools/oca_addons.py path --check)
   --data-dir="$WORK/data" --without-demo=all \
   -i liwan_core,liwan_platform,liwan_api,liwan_document_service,liwan_directory,liwan_documents,liwan_approval_service,liwan_notify,liwan_operations,liwan_ai,liwan_chat,liwan_integrations_sa,liwan_meetings,liwan_payments,liwan_tasks,liwan_ai_notify,liwan_integrations_payments,liwan_orders,liwan_customers,liwan_products,liwan_crm,liwan_crm_meetings,liwan_crm_tasks,liwan_payments_customers,liwan_inbox,liwan_crm_inbox,liwan_pmo,liwan_meetings_pmo,liwan_operations_pmo,liwan_tasks_pmo,liwan_hr,liwan_finance,liwan_api_account,liwan_hr_finance,liwan_pmo_finance,liwan_products_account,liwan_appointments,liwan_sales,liwan_sales_crm,liwan_sales_finance,liwan_helpdesk,liwan_helpdesk_sales,liwan_helpdesk_inbox,liwan_helpdesk_documents,liwan_helpdesk_crm,liwan_helpdesk_tasks \
   --http-port=8169 --http-interface=127.0.0.1 --workers=0 --max-cron-threads=0 --stop-after-init
-python3 deploy/backup.py --opt-in MANUAL_BACKUP_OPT_IN --acknowledge-unverified CANDIDATE_BACKUP_UNVERIFIED \
+export LIWAN_BACKUP_PASSPHRASE_FILE="$WORK/backup-passphrase"
+(umask 077 && openssl rand -hex 32 > "$LIWAN_BACKUP_PASSPHRASE_FILE")
+python3 -B -m deploy.backup capture --tenant liwan_drill_src_scratch --kind candidate \
   --db-name liwan_drill_src_scratch --filestore "$WORK/data/filestore/liwan_drill_src_scratch" \
-  --output-dir "$WORK/backup" --pg-dump "$PGBIN/pg_dump" \
+  --store-root "$WORK/store" --work-root "$WORK/capture" --pg-dump "$PGBIN/pg_dump" \
   --pg-host "$PGHOST" --pg-port "$PGPORT" --pg-user "$PGUSER"
-python3 deploy/restore_verify.py --backup-dir "$WORK/backup" --target-db liwan_drill_restored_scratch \
+python3 -B -m deploy.backup fetch --tenant liwan_drill_src_scratch --kind candidate \
+  --store-root "$WORK/store" --destination "$WORK/backup"
+python3 -B -m deploy.backup verify --backup-dir "$WORK/backup" --target-db liwan_drill_restored_scratch \
   --target-filestore "$WORK/restored-data/filestore/liwan_drill_restored_scratch" \
   --pg-restore "$PGBIN/pg_restore" --psql "$PGBIN/psql" \
   --pg-host "$PGHOST" --pg-port "$PGPORT" --pg-user "$PGUSER"; echo exit=$?
 ```
 
 Success writes `restore-verification.json` beside the backup with
-`"restore_verified": true` and no missing attachment files. This is a
-separate verification record; the tool never changes `manifest.json`, so its
-capture-time `consistency: "UNVERIFIED"` claim remains unchanged.
+`"restore_verified": true` and no missing attachment files, and exits `0`; a
+copy that cannot be verified exits `3`. This is a separate verification record;
+the tool never changes `manifest.json`, so its capture-time
+`consistency: "UNVERIFIED"` claim remains unchanged.
 
 Start Odoo against the restored scratch database without `-i`, `-u`, or
 `--stop-after-init`, then check its health endpoint:
@@ -444,8 +451,8 @@ sleep 25; curl -fsS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8169/web/h
 
 The expected response is `200`. Stop only that process with
 `kill "$RESTORED_PID"; wait "$RESTORED_PID"` after the check. Delete one
-SQL-referenced attachment from the candidate filestore and repeat the restore
-into another scratch database to prove the verifier returns exit `1` and names
+SQL-referenced attachment from the fetched filestore and repeat the restore
+into another scratch database to prove the verifier returns exit `3` and names
 the missing file in `missing_attachment_files`:
 
 ```sh
@@ -454,7 +461,7 @@ STORE_FNAME=$("$PGBIN/psql" --host="$PGHOST" --port="$PGPORT" --username="$PGUSE
   -c "SELECT store_fname FROM ir_attachment WHERE store_fname IS NOT NULL ORDER BY store_fname LIMIT 1")
 test -n "$STORE_FNAME"
 rm -- "$WORK/backup/filestore/$STORE_FNAME"
-python3 deploy/restore_verify.py --backup-dir "$WORK/backup" --target-db liwan_drill_restored2_scratch \
+python3 -B -m deploy.backup verify --backup-dir "$WORK/backup" --target-db liwan_drill_restored2_scratch \
   --target-filestore "$WORK/restored-data/filestore/liwan_drill_restored2_scratch" \
   --pg-restore "$PGBIN/pg_restore" --psql "$PGBIN/psql" \
   --pg-host "$PGHOST" --pg-port "$PGPORT" --pg-user "$PGUSER"; echo exit=$?
@@ -465,19 +472,20 @@ the temporary `$WORK` directory. Never reuse an existing database or filestore.
 
 ## Automated encrypted backups (owner decisions 2026-11-06)
 
-The scheduled path is `deploy/backup_pipeline.py`; the manual `deploy/backup.py`
-above stays the capture primitive it calls, and keeps its own `UNVERIFIED`
-contract. The owner decided (2026-11-06): **RPO 1 hour, RTO 4 hours**, hourly
+The scheduled path is `python3 -B -m deploy.backup`: `capture` in the two
+retention kinds (`hourly`, `daily`), `prune` for retention, `age` for the RPO
+check and `status` for the drill record. The manual candidate above is the same
+package with `--kind candidate`. The owner decided (2026-11-06): **RPO 1 hour, RTO 4 hours**, hourly
 backups kept **7 days**, daily backups kept **30 days**, **encrypted before they
 leave the server**, stored in an **S3-compatible bucket in Riyadh** (Oracle Object
 Storage), and restore is performed by support on request.
 
 | Concern | Where it lives |
 | --- | --- |
-| Schedule and retention | `deploy/backup_pipeline.py` (`capture`, `prune`, `status`) |
-| Encryption | `deploy/backup_pipeline.py` (`encrypt_file`/`decrypt_file` through the `openssl` CLI) |
+| Schedule and retention | `python3 -B -m deploy.backup` (`capture`, `prune`, `status`) |
+| Encryption | `deploy/backup/artifact.py` (`encrypt_file`/`decrypt_file` through the `openssl` CLI) |
 | Offsite transport | `deploy/s3_client.py` (SigV4; a real S3 store and a filesystem store) |
-| Restore drill | `deploy/restore_drill.py` (restores the newest artifact into a scratch database) |
+| Restore drill | `python3 -B -m deploy.backup drill` (restores the newest artifact into a scratch database) |
 | Alerts | `deploy/alerts.py` (email and Telegram; seven events) |
 
 Every credential is an environment variable, never a repository file:
@@ -500,7 +508,7 @@ The CLI refuses a missing or pending registry, a missing tenant, and a linked fi
 For example:
 
 ```sh
-python3 -B deploy/backup_pipeline.py capture --tenant <tenant-id> --kind hourly \
+python3 -B -m deploy.backup capture --tenant <tenant-id> --kind hourly \
   --work-root /path/to/private/capture-volume --data-dir /path/to/odoo-data \
   --pg-dump /path/to/pg_dump --pg-host <host> --pg-user <role>
 ```
@@ -514,20 +522,20 @@ no-overwrite condition against the selected provider before scheduling captures.
 
 ## Restore drill
 
-`deploy/restore_drill.py` authenticates the newest manifest for one tenant before
-downloading its artifact, then restores it
-into a **new scratch database** through `deploy/restore_verify.py` (same checks: Liwan
+`python3 -B -m deploy.backup drill` authenticates the newest manifest for one
+tenant before downloading its artifact, then restores it
+into a **new scratch database** (same checks: Liwan
 modules installed, none stuck mid-transition, every referenced attachment present, and
 the dump and filestore matching the digests in the artifact's own `manifest.json`),
 measures the backup's age at drill start against the 1-hour RPO and the elapsed
 restore time against the 4-hour RTO, and writes an atomic record. Both budgets must
-pass for a verified result. The status command also requires a record that finished
+pass for a verified result. `status --record` also requires a record that finished
 in the last hour; it reports the backup's current age separately. Use a fresh private
 scratch directory and an explicit PostgreSQL role with permission to create the
 scratch database. The scratch database and restored files remain for inspection.
 
 ```sh
-python3 -B deploy/restore_drill.py run --tenant <tenant-id> \
+python3 -B -m deploy.backup drill --tenant <tenant-id> \
   --scratch-root /path/to/private/drill --target-db liwan_restore_scratch \
   --pg-host <scratch-host> --pg-user <scratch-role>
 ```
@@ -570,7 +578,7 @@ proxies, so the Sentry host must be added to each allowlist before a DSN is set 
 
 | Topic | Status |
 | --- | --- |
-| Retention | Decided by the owner (hourly 7 days, daily 30 days) and enforced by `deploy/backup_pipeline.py prune`; not yet exercised against a real bucket. |
+| Retention | Decided by the owner (hourly 7 days, daily 30 days) and enforced by `python3 -B -m deploy.backup prune`; not yet exercised against a real bucket. |
 | Encryption at rest / in transit for backup files | Implemented as AES-256-CBC with PBKDF2 through the `openssl` CLI, with SHA-256 of plaintext and ciphertext pinned in the manifest. The manifest's HMAC authenticates its metadata and checksums before the drill reads the archive. The HMAC uses a separate key derived from the passphrase. |
 | Offsite / object-storage replication | Implemented (`deploy/s3_client.py`); no real bucket has been written yet, so it is unproven live. |
 | RPO | Decided: 1 hour. Proven by a drill only when the drill record exists. |
@@ -585,9 +593,9 @@ Use mock tests only. Do not run a real dump, restore, or Odoo/E2E wrapper except
 
 ```sh
 python3 -m unittest discover -s deploy -p test_operations.py
-ruff check deploy/check_isolated.py deploy/backup.py deploy/test_operations.py
+ruff check deploy/check_isolated.py deploy/test_operations.py
 python3 deploy/check_isolated.py --help
-python3 deploy/backup.py --help
+python3 -B -m deploy.backup --help
 ```
 
 The production sizing, the backup pipeline, the restore drill, the alerts and the
@@ -595,6 +603,6 @@ image pins have their own offline suites:
 
 ```sh
 PYTHONPATH=deploy python3 -m unittest deploy.test_odoo_sizing deploy.test_s3_client \
-  deploy.test_backup_pipeline deploy.test_restore_drill deploy.test_alerts \
+  deploy.test_backup deploy.test_restore_drill deploy.test_alerts \
   deploy.test_image_pins deploy.environments.test_environments
 ```

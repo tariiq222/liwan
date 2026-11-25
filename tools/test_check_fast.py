@@ -80,8 +80,8 @@ class TestCheckFast(unittest.TestCase):
         self.assertEqual(dict(plan(['tools/e2e_isolated.mjs'], 'main'))['e2e_isolated_test'], ['node', '--test', 'tools/test_e2e_isolated.mjs'])
 
     def test_deploy_change_runs_catalog_and_deploy_tests(self):
-        self.assertEqual(extra(['deploy/backup.py']), {'catalog_check', 'deploy_unittest'})
-        steps = dict(plan(['deploy/backup.py'], 'main'))
+        self.assertEqual(extra(['deploy/backup/cli.py']), {'catalog_check', 'deploy_unittest'})
+        steps = dict(plan(['deploy/backup/cli.py'], 'main'))
         self.assertEqual(steps['catalog_check'], ['python3', '-B', 'tools/catalog_check.py'])
         self.assertIn('-t',steps['deploy_unittest'])
         self.assertEqual(steps['deploy_unittest'][steps['deploy_unittest'].index('-t')+1],'.')
@@ -95,7 +95,7 @@ class TestCheckFast(unittest.TestCase):
             extra(['deploy/catalog/solutions/platform.json']),
             {'catalog_check', 'deploy_unittest', 'commercial_contracts_test'},
         )
-        self.assertNotIn('commercial_contracts_test', extra(['deploy/backup.py']))
+        self.assertNotIn('commercial_contracts_test', extra(['deploy/backup/cli.py']))
 
     def test_root_manifests_and_ci_run_the_full_test(self):
         for path in ('package.json', 'package-lock.json', '.github/workflows/ci.yml'):

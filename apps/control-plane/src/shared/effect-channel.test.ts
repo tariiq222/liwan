@@ -95,11 +95,14 @@ describe('effect channel transports', () => {
 
   it('hands a spawned gate none of the worker secrets', async () => {
     vi.stubEnv('CONTROL_DATABASE_URL', 'postgres://secret'); vi.stubEnv('MOYASAR_SECRET_KEY', 'sk_live_x'); vi.stubEnv('LIWAN_SHARED_RUNTIME_CONFIG', '/c.json'); vi.stubEnv('PYTHONPATH', '/evil')
+    vi.stubEnv('LIWAN_BACKUP_S3_KEY', 's3cr3t'); vi.stubEnv('LIWAN_BACKUP_PASSPHRASE_FILE', '/run/liwan-backup.passphrase')
     try {
       const { lines } = await drive(config(), { mode: 'env' })
       const names = ((lines[0] as { result: { env: string[] } }).result.env)
       expect(names).not.toContain('CONTROL_DATABASE_URL'); expect(names).not.toContain('MOYASAR_SECRET_KEY'); expect(names).not.toContain('PYTHONPATH')
       expect(names).toContain('LIWAN_SHARED_RUNTIME_CONFIG'); expect(names).toContain('PYTHONUNBUFFERED')
+      // The backup key's path reaches a locally spawned gate; the key itself and the store secret never do.
+      expect(names).toContain('LIWAN_BACKUP_PASSPHRASE_FILE'); expect(names).not.toContain('LIWAN_BACKUP_S3_KEY')
     } finally { vi.unstubAllEnvs() }
   })
 })
@@ -107,9 +110,11 @@ describe('effect channel transports', () => {
 describe('effectEnv', () => {
   it('keeps exact allowlisted names only, no prefixes', () => {
     const env = effectEnv({ PATH: '/bin', HOME: '/h', LANG: 'C', LC_ALL: 'C', LC_CTYPE: 'C', TMPDIR: '/t', PYTHONPATH: '/p', DOCKER_HOST: 'unix:///d.sock', DOCKER_CONFIG: '/dc', DOCKER_CERT_PATH: '/c',
-      LIWAN_SHARED_RUNTIME_CONFIG: '/r.json', LIWAN_BACKUP_S3_KEY: 'k',
+      LIWAN_SHARED_RUNTIME_CONFIG: '/r.json', LIWAN_BACKUP_S3_KEY: 'k', LIWAN_BACKUP_PASSPHRASE_FILE: '/run/liwan-backup.passphrase',
       CONTROL_DATABASE_URL: 'c', MOYASAR_SECRET_KEY: 'm', NODE_OPTIONS: 'x' })
-    expect(Object.keys(env).sort()).toEqual(['DOCKER_CONFIG', 'DOCKER_HOST', 'HOME', 'LANG', 'LC_ALL', 'LIWAN_SHARED_RUNTIME_CONFIG', 'PATH', 'PYTHONUNBUFFERED', 'TMPDIR'])
+    expect(Object.keys(env).sort()).toEqual(['DOCKER_CONFIG', 'DOCKER_HOST', 'HOME', 'LANG', 'LC_ALL', 'LIWAN_BACKUP_PASSPHRASE_FILE', 'LIWAN_SHARED_RUNTIME_CONFIG', 'PATH', 'PYTHONUNBUFFERED', 'TMPDIR'])
+    expect(env.LIWAN_BACKUP_PASSPHRASE_FILE).toBe('/run/liwan-backup.passphrase')
+    expect(env.LIWAN_BACKUP_S3_KEY).toBeUndefined()
   })
 })
 

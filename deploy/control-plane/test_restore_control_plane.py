@@ -13,8 +13,9 @@ import sys
 import tempfile
 import unittest
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from restore_control_plane import (
@@ -28,7 +29,10 @@ from restore_control_plane import (
     main,
 )
 
-from deploy import backup_pipeline as bp
+from deploy.backup import snapshot
+from deploy.backup.artifact import ARTIFACT_CIPHERTEXT_NAME, PASSPHRASE_ENVIRONMENT_VARIABLE
+from deploy.backup.capture import CONTROL_PLANE_SOURCE, capture
+from deploy.backup.snapshot import CaptureSource
 from deploy.s3_client import FilesystemStore
 
 PASSPHRASE = 'correct horse battery staple for liwan'
@@ -92,14 +96,14 @@ class RestoreCase(unittest.TestCase):
         self.bucket = self.root / 'bucket'
         pg_dump = self.root / 'pg_dump'
         pg_dump.write_text('', encoding='utf-8')
-        bp.capture(
-            store=FilesystemStore(self.bucket), tenant=bp.CONTROL_PLANE_SOURCE,
-            source=bp.CaptureSource('liwan_control', None, pg_dump), kind='hourly',
+        capture(
+            store=FilesystemStore(self.bucket), tenant=CONTROL_PLANE_SOURCE,
+            source=CaptureSource('liwan_control', None, pg_dump), kind='hourly',
             work_root=self.root / 'work', passphrase_file=self.passphrase,
             now=datetime.now(timezone.utc), runner=ScriptedTools(),
         )
         self._environment = dict(os.environ)
-        os.environ[bp.PASSPHRASE_ENVIRONMENT_VARIABLE] = str(self.passphrase)
+        os.environ[PASSPHRASE_ENVIRONMENT_VARIABLE] = str(self.passphrase)
 
     def tearDown(self) -> None:
         os.environ.clear()
@@ -181,7 +185,7 @@ class TestRestore(RestoreCase):
         self.assertEqual(tools.calls_to('pg_restore'), [])
 
     def test_a_tampered_artifact_is_refused_before_any_database_is_touched(self):
-        (artifact,) = self.bucket.rglob(bp.ARTIFACT_CIPHERTEXT_NAME)
+        (artifact,) = self.bucket.rglob(ARTIFACT_CIPHERTEXT_NAME)
         data = bytearray(artifact.read_bytes())
         data[40] ^= 0xFF
         artifact.write_bytes(bytes(data))
@@ -189,6 +193,30 @@ class TestRestore(RestoreCase):
         code, _stdout, stderr = self.run_restore(tools)
         self.assertEqual(code, EXIT_REFUSED)
         self.assertIn('does not match its manifest', stderr)
+        self.assertEqual(tools.calls_to('psql') + tools.calls_to('pg_restore'), [])
+
+    def test_an_artifact_carrying_a_filestore_tree_is_refused(self):
+        """The control plane has no filestore: an artifact that carries one is a tenant's copy."""
+        pg_dump = self.root / 'pg_dump'
+        write_snapshot = snapshot.snapshot
+
+        def with_a_filestore(source, destination, **options):
+            payload = write_snapshot(source, destination, **options)
+            (destination / snapshot.FILESTORE_NAME).mkdir()
+            return payload
+
+        with mock.patch.object(snapshot, 'snapshot', with_a_filestore):
+            capture(
+                store=FilesystemStore(self.bucket), tenant=CONTROL_PLANE_SOURCE,
+                source=CaptureSource('liwan_control', None, pg_dump), kind='hourly',
+                work_root=self.root / 'work', passphrase_file=self.passphrase,
+                now=datetime.now(timezone.utc) + timedelta(seconds=5), runner=ScriptedTools(),
+            )
+        tools = ScriptedTools()
+        code, _stdout, stderr = self.run_restore(tools)
+        self.assertEqual(code, EXIT_REFUSED)
+        self.assertIn('must hold only database.dump and manifest.json', stderr)
+        self.assertIn('filestore', stderr)
         self.assertEqual(tools.calls_to('psql') + tools.calls_to('pg_restore'), [])
 
     def test_a_wrong_passphrase_is_refused(self):

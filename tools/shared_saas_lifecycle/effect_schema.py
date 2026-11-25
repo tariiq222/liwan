@@ -189,7 +189,12 @@ _COMMERCIAL = shape({'revisionId': UUID, 'digest': DIGEST})
 
 
 def odoo_backup(request):
-    """The job decides the operation, and the operation decides the authority and the other keys."""
+    """The job decides the operation, and the operation decides the authority and the other keys.
+
+    ``reconcile`` is the recovery action, not an operation: it starts the shared Odoo a killed
+    attempt may have left stopped, and it carries the same job and authority so the effect can
+    name the tenant and the intent it is repairing.
+    """
     operation = request.get('job', {}).get('operation') if isinstance(request.get('job'), dict) else None
     if operation == 'backup':
         job, authority, optional = _BACKUP_JOB, _BACKUP_AUTHORITY, {}
@@ -197,7 +202,7 @@ def odoo_backup(request):
         job, authority, optional = _RESTORE_JOB, _RESTORE_AUTHORITY, {'commercial': _COMMERCIAL}
     else:
         raise SchemaError
-    return shape({'action': literal('observe', 'apply'), 'job': job, 'authority': authority, **FIXED},
+    return shape({'action': literal('observe', 'apply', 'reconcile'), 'job': job, 'authority': authority, **FIXED},
                  {**optional, **ATTEMPT})(request)
 
 

@@ -135,7 +135,7 @@ limit_memory_hard = 838860800
 | موقع النسخ | الرياض | مشفّرة قبل مغادرة خادم جدة |
 
 الأرقام تُقاس بتمرين `deploy/rpo_rto_drill.py` وسجل تمرين الاستعادة
-`deploy/restore_drill.py`؛ لا تُعلن قبل نجاح تمرين حقيقي.
+`python3 -B -m deploy.backup drill`؛ لا تُعلن قبل نجاح تمرين حقيقي.
 
 ## 6. pgpouncer: ما لم يُثبَت بعد
 

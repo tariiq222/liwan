@@ -345,6 +345,48 @@ restore config. That is a server-side invariant, not advice in a reference file.
 Not verified: no shared stack was started for this change, so serving a restored tenant end to end (DNS, TLS, guard to
 `restore-odoo`, Nuxt login) is unproven until an operator runs it with the wildcard certificate in place.
 
+## Console backups (the effect's artifact)
+
+A backup started from the console is taken by `tools/shared_saas_lifecycle/odoo_backup.py`, the lifecycle effect; the
+control plane only records the result (`shared_odoo_backups`) once it has read the manifest back. One artifact is
+`<stateDir>/backups/<backup id>/`:
+
+| File | What it is |
+| --- | --- |
+| `database.dump.enc` | `pg_dump -Fc` of the tenant database, encrypted per file with the package's cipher (`aes-256-cbc-pbkdf2`, `openssl -pass file:`) |
+| `filestore.tar.enc` | the tenant filestore as a tar archive, encrypted the same way |
+| `manifest.json` | written last, mode 0640 so the worker's group can read it; the success marker of the capture |
+| `reservation.json` | the attempt that took it, mode 0600 |
+
+The manifest keeps the plaintext digests (`databaseSha256`, `filestoreSha256`) a restore compares with its approval,
+and requires the ciphertext digests, sizes and `cipher`: an artifact without those encryption fields is refused as
+invalid. The plaintext exists only as mode 0600 files in a private directory inside the artifact directory, and that
+directory is removed when the capture or the restore ends. A restore decrypts into it before `restore-db` receives a
+byte, checks the plaintext digest, and removes it with the block.
+
+**The key.** Both paths use `LIWAN_BACKUP_PASSPHRASE_FILE`: an absolute path to a file of mode 0600 or 0400 holding one
+line of 16 to 1022 bytes, the same rule the release backup states in `deploy/OPERATIONS.md`. The effect account reads
+it, so the file belongs to `liwan-effect` (for example `/etc/liwan/backup.passphrase`, owner `liwan-effect`, mode 0600)
+and `/etc/liwan/effect.env`, the `EnvironmentFile=-` of `liwan-effect@.service`, carries the path. The gate forwards
+that one name to the effect's environment, and so does a gate the worker spawns itself on a local stack. A missing or
+unusable key fails the job with `backup_key_unavailable` before anything is written; keep a copy of the key off the
+host, because without it every artifact in the bucket and under `<stateDir>` is unreadable.
+
+**Restart safety, one mechanism.** The dump runs inside the `db` container through the package's one `pg_dump` argv
+(`deploy/backup/dump.py`, container form), with the admin role as the C1 rule requires. The capture writes
+`<stateDir>/backup-intent.json` before `compose stop odoo`, records the attempt and the tenant in it, records `captured`
+and `resumed` as it goes, and starts Odoo again in its own failure path; that in-process restart is the immediate
+guarantee. The package's `reconcile` covers a run that was killed outright: it starts Odoo only for an intent that names
+the attempt and tenant of the request, and only when no other attempt owns the `runtime-gate` and no other attempt's
+effect container is live, so it can never resume writers in the middle of another tenant's capture. The worker can send
+the effect the `reconcile` action with the failed attempt's id, which `applyFenced` does after a failed backup or
+restore. An intent that is absent, already resumed, or names another attempt or tenant is left alone.
+
+The cost is availability: a worker killed between `compose stop odoo` and the start leaves the intent behind for an
+attempt that will never ask again, so nothing restarts Odoo by itself and the shared Odoo stays down for every tenant.
+The operator has to start it again by hand, or the next capture records its own attempt over the intent and starts Odoo
+at its resume stage.
+
 ## Session and route contract
 
 Cookie name `session_id` replaces raw SID. Value is base64url(JSON array

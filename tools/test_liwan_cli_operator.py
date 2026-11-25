@@ -13,7 +13,18 @@ from pathlib import Path
 import check_cp2_scratch
 from liwan_cli import journal, operator
 
-from deploy import backup as backup_wrapper
+from deploy.backup import snapshot as backup_snapshot
+
+
+def write_candidate_artifact(destination: Path) -> None:
+    """The plaintext tree an operator fetch leaves behind: the dump, the filestore and the snapshot manifest."""
+    destination.mkdir(parents=True)
+    (destination / 'database.dump').write_bytes(b'dump')
+    (destination / 'filestore').mkdir()
+    backup_snapshot.write_manifest(destination / 'manifest.json', {
+        'db_name': 'liwan_scratch_demo', 'database_dump': 'database.dump',
+        'filestore_copy': 'filestore', 'consistency': 'UNVERIFIED', 'recovery_ready': False,
+    })
 
 
 class JournalCase(unittest.TestCase):
@@ -743,18 +754,13 @@ class OperatorCase(unittest.TestCase):
 
         def runner(argv, env=None, stdin_text=None):
             commands.append(argv)
-            if str(operator.BACKUP_WRAPPER) in argv:
-                destination = Path(argv[argv.index('--output-dir') + 1])
-                destination.mkdir()
-                (destination / 'database.dump').write_bytes(b'dump')
-                (destination / 'filestore').mkdir()
-                (destination / 'manifest.json').write_text(json.dumps(
-                    backup_wrapper.candidate_manifest_payload(
-                        db='liwan_scratch_demo', store=store,
-                        backup_dir=destination, http_observation=None,
-                    )))
+            if 'deploy.backup' in argv and 'capture' in argv:
+                Path(argv[argv.index('--store-root') + 1]).mkdir(parents=True)
                 return 0, '', ''
-            if str(operator.RESTORE_WRAPPER) in argv:
+            if 'deploy.backup' in argv and 'fetch' in argv:
+                write_candidate_artifact(Path(argv[argv.index('--destination') + 1]))
+                return 0, '', ''
+            if 'deploy.backup' in argv and 'verify' in argv:
                 backup_dir = Path(argv[argv.index('--backup-dir') + 1])
                 destination = argv[argv.index('--target-db') + 1]
                 (backup_dir / 'restore-verification.json').write_text(json.dumps({
@@ -767,15 +773,97 @@ class OperatorCase(unittest.TestCase):
         self.assertEqual(backup_code, 0, backup)
         self.assertEqual(backup['consistency'], 'UNVERIFIED')
         self.assertFalse(backup['recovery_ready'])
+        # Only the encrypted artifact stays: the plaintext copy exists while a check needs it, never after.
+        self.assertTrue((self.backups / backup['operation_id'] / 'store').is_dir())
+        self.assertFalse((self.backups / backup['operation_id'] / 'candidate').exists())
         restore_fields = self.fields('restore', request_id='restore_1',
                                      backup_id=backup['operation_id'], approval_id='approved_1')
         restore_code, restored = operator.operation_adapter(restore_fields, runner=runner)
         self.assertEqual(restore_code, 0, restored)
         self.assertTrue(restored['restore_verified'])
         self.assertNotEqual(restored['restored_into'], 'liwan_scratch_demo')
-        restore_argv = next(c for c in commands if str(operator.RESTORE_WRAPPER) in c)
+        # The restore fetched its own copy from that store and removed it again.
+        self.assertFalse((self.backups / backup['operation_id'] / 'candidate').exists())
+        restore_argv = next(c for c in commands if 'deploy.backup' in c and 'verify' in c)
         self.assertIn('--pg-host', restore_argv)
         self.assertIn('approved_1', json.dumps(restored))
+
+    def test_restore_discards_leftover_complete_plaintext_copy_and_refetches(self):
+        (self.data / 'filestore' / 'liwan_scratch_demo').mkdir(parents=True)
+        fetched_calls = []
+
+        def runner(argv, env=None, stdin_text=None):
+            if 'deploy.backup' in argv and 'capture' in argv:
+                Path(argv[argv.index('--store-root') + 1]).mkdir(parents=True)
+                return 0, '', ''
+            if 'deploy.backup' in argv and 'fetch' in argv:
+                destination = Path(argv[argv.index('--destination') + 1])
+                self.assertFalse(destination.exists(), 'leftover candidate must be discarded before fetch')
+                fetched_calls.append(destination)
+                write_candidate_artifact(destination)
+                return 0, '', ''
+            if 'deploy.backup' in argv and 'verify' in argv:
+                backup_dir = Path(argv[argv.index('--backup-dir') + 1])
+                destination = argv[argv.index('--target-db') + 1]
+                (backup_dir / 'restore-verification.json').write_text(json.dumps({
+                    'restore_verified': True, 'restored_into': destination,
+                }))
+                return 0, '', ''
+            return 0, '', ''
+
+        code, backup = operator.operation_adapter(self.fields('backup', request_id='backup_leftover'), runner=runner)
+        self.assertEqual(code, 0, backup)
+        # Simulate a prior interrupted restore that left a complete plaintext directory (with manifest.json) behind.
+        leftover = self.backups / backup['operation_id'] / 'candidate'
+        write_candidate_artifact(leftover)
+        self.assertTrue((leftover / 'manifest.json').is_file())
+        restore_code, restored = operator.operation_adapter(
+            self.fields('restore', request_id='restore_leftover',
+                        backup_id=backup['operation_id'], approval_id='approved_leftover'),
+            runner=runner,
+        )
+        self.assertEqual(restore_code, 0, restored)
+        self.assertTrue(restored['restore_verified'])
+        self.assertEqual(len(fetched_calls), 2)
+        self.assertFalse(leftover.exists())
+
+    def test_discard_candidate_surfaces_removal_failure_as_needs_intervention(self):
+        from unittest.mock import patch
+        (self.data / 'filestore' / 'liwan_scratch_demo').mkdir(parents=True)
+        leftover = self.backups / 'stuck_candidate'
+        leftover.mkdir(parents=True)
+        with patch.object(operator.shutil, 'rmtree', side_effect=PermissionError('cannot remove plaintext')):
+            with self.assertRaises(PermissionError):
+                operator._discard_candidate(leftover)
+
+        def runner(argv, env=None, stdin_text=None):
+            if 'deploy.backup' in argv and 'capture' in argv:
+                Path(argv[argv.index('--store-root') + 1]).mkdir(parents=True)
+                return 0, '', ''
+            if 'deploy.backup' in argv and 'fetch' in argv:
+                write_candidate_artifact(Path(argv[argv.index('--destination') + 1]))
+                return 0, '', ''
+            return 0, '', ''
+
+        with patch.object(operator.shutil, 'rmtree', side_effect=PermissionError('cannot remove plaintext')):
+            code, payload = operator.operation_adapter(
+                self.fields('backup', request_id='backup_discard_fail'), runner=runner)
+        self.assertEqual(code, 6, payload)
+        self.assertEqual(payload['status'], 'needs_intervention')
+
+    def test_fetch_candidate_cleans_up_partial_directory_when_fetch_fails(self):
+        entry = {'database': 'liwan_scratch_demo', 'backup_root': str(self.backups),
+                 'python': sys.executable, 'pg_host': '127.0.0.1', 'pg_port': 5432, 'pg_user': 'scratch'}
+
+        def failing_runner(argv, env=None, stdin_text=None):
+            destination = Path(argv[argv.index('--destination') + 1])
+            destination.mkdir(parents=True)
+            (destination / 'database.dump').write_bytes(b'partial')
+            return 2, '', 'fetch failed'
+
+        result = operator._fetch_candidate(entry, failing_runner, 'op_partial_fetch')
+        self.assertIsNone(result)
+        self.assertFalse((self.backups / 'op_partial_fetch' / 'candidate').exists())
 
     def test_upgrade_failed_child_reports_isolated_rollback_only(self):
         (self.data / 'filestore' / 'liwan_scratch_demo').mkdir(parents=True)
@@ -787,21 +875,15 @@ class OperatorCase(unittest.TestCase):
                 if "state = 'installed'" in argv[-1]:
                     return 0, 'liwan_platform\n', ''
                 return 0, '0\n', ''
-            if str(operator.BACKUP_WRAPPER) in argv:
-                destination = Path(argv[argv.index('--output-dir') + 1])
-                destination.mkdir()
-                (destination / 'database.dump').write_bytes(b'dump')
-                (destination / 'filestore').mkdir()
-                (destination / 'manifest.json').write_text(json.dumps(
-                    backup_wrapper.candidate_manifest_payload(
-                        db='liwan_scratch_demo',
-                        store=self.data / 'filestore' / 'liwan_scratch_demo',
-                        backup_dir=destination, http_observation=None,
-                    )))
+            if 'deploy.backup' in argv and 'capture' in argv:
+                Path(argv[argv.index('--store-root') + 1]).mkdir(parents=True)
+                return 0, '', ''
+            if 'deploy.backup' in argv and 'fetch' in argv:
+                write_candidate_artifact(Path(argv[argv.index('--destination') + 1]))
                 return 0, '', ''
             if '-u' in argv:
                 return 1, '', 'password=hidden-password'
-            if str(operator.RESTORE_WRAPPER) in argv:
+            if 'deploy.backup' in argv and 'verify' in argv:
                 backup_dir = Path(argv[argv.index('--backup-dir') + 1])
                 destination = argv[argv.index('--target-db') + 1]
                 (backup_dir / 'restore-verification.json').write_text(json.dumps({
@@ -816,6 +898,9 @@ class OperatorCase(unittest.TestCase):
         self.assertTrue(payload['rollback_restore_verified'])
         self.assertNotEqual(payload['rollback_destination'], 'liwan_scratch_demo')
         self.assertNotIn('hidden-password', json.dumps(payload))
+        # The rollback's plaintext copy is gone; the encrypted candidate in its store is what remains.
+        self.assertFalse((self.backups / payload['candidate_backup_id'] / 'candidate').exists())
+        self.assertTrue((self.backups / payload['candidate_backup_id'] / 'store').is_dir())
 
     def test_upgrade_success_reports_module_health_scope_without_application_claim(self):
         store = self.data / 'filestore' / 'liwan_scratch_demo'
@@ -828,16 +913,11 @@ class OperatorCase(unittest.TestCase):
                 if "state = 'installed'" in argv[-1]:
                     return 0, 'liwan_platform\n', ''
                 return 0, '0\n', ''
-            if str(operator.BACKUP_WRAPPER) in argv:
-                destination = Path(argv[argv.index('--output-dir') + 1])
-                destination.mkdir()
-                (destination / 'database.dump').write_bytes(b'dump')
-                (destination / 'filestore').mkdir()
-                (destination / 'manifest.json').write_text(json.dumps(
-                    backup_wrapper.candidate_manifest_payload(
-                        db='liwan_scratch_demo', store=store,
-                        backup_dir=destination, http_observation=None,
-                    )))
+            if 'deploy.backup' in argv and 'capture' in argv:
+                Path(argv[argv.index('--store-root') + 1]).mkdir(parents=True)
+                return 0, '', ''
+            if 'deploy.backup' in argv and 'fetch' in argv:
+                write_candidate_artifact(Path(argv[argv.index('--destination') + 1]))
                 return 0, '', ''
             if '-u' in argv:
                 return 0, '', ''
@@ -873,6 +953,10 @@ class OperatorCase(unittest.TestCase):
         self.assertEqual(Path(prepared['inventory']).stat().st_mode & 0o777, 0o600)
         databases = {entry['database'] for entry in prepared['targets'].values()}
         self.assertEqual(len(databases), 2)
+        passphrase = Path(prepared['backup_passphrase'])
+        self.assertTrue(passphrase.is_file())
+        self.assertEqual(passphrase.stat().st_mode & 0o777, 0o600)
+        self.assertGreaterEqual(len(passphrase.read_text(encoding='utf-8').strip()), 16)
         for name, entry in prepared['targets'].items():
             policy = json.loads((self.root / 'evidence' /
                                  f"{'non_saas' if name.endswith('non_saas') else 'saas'}-create-policy.json").read_text())

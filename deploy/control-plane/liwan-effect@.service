@@ -9,9 +9,14 @@
 # LIWAN_SHARED_RUNTIME_CONFIG and ReadWritePaths=. Adjust the /opt/liwan/current prefix to
 # the host. Install with the socket and the worker unit (see liwan-shared-worker.service).
 #
-# Optional /etc/liwan/effect.env (operator-owned, mode 0600, plain KEY=value lines): the
-# gate refuses a real tenant drop unless it holds LIWAN_TENANT_DELETION_ENABLED=true here,
-# in addition to the worker's own setting. Absent, a drop stays a dry run.
+# /etc/liwan/effect.env (root-owned, mode 0600, plain KEY=value lines; read by systemd
+# before dropping to liwan-effect; init-host.sh does not create it):
+# - LIWAN_BACKUP_PASSPHRASE_FILE=/etc/liwan/backup.passphrase (a mode 0600 or 0400 file
+#   owned by liwan-effect holding one 16..1022 byte line): required for console backups
+#   and restores; without it every console backup fails with backup_key_unavailable.
+# - LIWAN_TENANT_DELETION_ENABLED=true (optional): the gate refuses a real tenant drop
+#   unless this line is set here in addition to the worker's own setting; absent, a drop
+#   stays a dry run.
 [Unit]
 Description=Liwan tenant lifecycle effect (one connection)
 Documentation=file:///opt/liwan/current/docs/operations/environment-bringup.md

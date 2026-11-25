@@ -7,12 +7,23 @@ simulated. The guard was an exact-match set of six names, so ``--db odoo19_copy`
 the boundary that replaces it: a drill name is a plain identifier, carries no
 live-looking segment, and both starts with ``liwan_`` and ends with ``_scratch``.
 """
+import stat
+import tempfile
 import unittest
 
 from deploy import rpo_rto_drill as drill
 
 
 class TestDrillDatabaseGuard(unittest.TestCase):
+    def test_the_drill_writes_its_own_encrypted_capture_key(self) -> None:
+        """The capture is encrypted, so the drill owns a mode-0600 key of the package's minimum length."""
+        target = drill.Path(tempfile.mkdtemp()) / 'passphrase'
+        drill.write_passphrase(target)
+        self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o600)
+        lines = target.read_text(encoding='utf-8').splitlines()
+        self.assertEqual(len(lines), 1)
+        self.assertGreaterEqual(len(lines[0]), 16)
+
     def test_the_defaults_of_the_cli_are_drill_names(self) -> None:
         args = drill.build_parser().parse_args(['--odoo-root', '/tmp/odoo', '--output-dir', '/tmp/out'])
         self.assertEqual(drill.validate_db_name(args.db, '--db'), args.db)
