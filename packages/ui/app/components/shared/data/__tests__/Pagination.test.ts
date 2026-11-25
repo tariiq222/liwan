@@ -27,6 +27,8 @@ describe('SharedPagination', () => {
     }
     expect(html).not.toMatch(/Next Page|Last Page|Page \d/)
     expect(html).toContain('aria-current="page"')
+    expect(html).toContain('variant="solid"')
+    expect(html).toContain('variant="outline"')
   })
 
   it('points the chevrons along the reading direction (RTL here)', async () => {

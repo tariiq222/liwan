@@ -14,7 +14,7 @@ test('the saved appearance belongs to the signed-in user, not the browser', asyn
   await page.request.patch('/api/v1/me/appearance', { data: { mode: 'dark', font_size: 'large' } })
   await page.goto('/projects')
   await expect(page.locator('html')).toHaveClass(/dark/)
-  await expect(page.locator('html')).toHaveCSS('font-size', '18px')
+  await expect(page.locator('html')).toHaveCSS('font-size', '16.2px')
 
   await page.goto('/account/settings')
   // Sign-out ends the session on the server and lands on the sign-in page. The 401 below proves the session really
@@ -45,5 +45,5 @@ test('the saved appearance belongs to the signed-in user, not the browser', asyn
   // preference shows.
   await openShell(page, '/account/settings')
   await expect(page.locator('html')).not.toHaveClass(/dark/)
-  await expect(page.locator('html')).toHaveCSS('font-size', '14px')
+  await expect(page.locator('html')).toHaveCSS('font-size', '12.6px')
 })

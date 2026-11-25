@@ -8,14 +8,16 @@ const options = (shown: boolean): SharedRenderOptions => ({
 })
 
 describe('SharedKpiToggle', () => {
-  it('is a 40px soft icon button with a 1.5px border, pressed while the figures are shown, whose tooltip offers to hide them', async () => {
+  it('is a 40px soft button with a 1.5px border, visible label on sm+, pressed while the figures are shown, whose tooltip offers to hide them', async () => {
     const html = await renderShared('KpiToggle', {}, {}, options(true))
     expect(html).toContain('data-testid="kpi-toggle"')
     expect(html).toContain('aria-pressed="true"')
     expect(html).toContain('aria-label="app.toggleKpis"')
     expect(html).toContain('data-tip="app.hideKpis"')
     expect(html).toContain('i-lucide-chart-no-axes-column')
-    expect(html).toContain('size-(--liwan-control-h)')
+    expect(html).toContain('h-(--liwan-control-h)')
+    expect(html).toContain('sm:px-3')
+    expect(html).toContain('app.kpis')
     expect(html).toContain('border-[1.5px]')
     expect(html).toContain('aria-pressed:bg-accented')
   })

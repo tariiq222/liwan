@@ -23,12 +23,15 @@ const props = defineProps<{
   disabled?: boolean
   iconOnly?: boolean
   block?: boolean
+  /** `md` (default): 32px segments in a 4px container. `sm`: compact 26px segments in a 3px container (e.g. menus). */
+  size?: 'sm' | 'md'
   /** `toggle` (default): a v-model choice. `actions`: plain buttons and links without a selected state. */
   mode?: 'toggle' | 'actions'
 }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string]; select: [value: string] }>()
 const hydrated = useHydrated()
 const isActions = computed(() => props.mode === 'actions')
+const compact = computed(() => props.size === 'sm')
 
 function isSelected(item: SegmentedItem) { return !isActions.value && item.value === props.modelValue }
 
@@ -43,18 +46,23 @@ function choose(item: SegmentedItem) {
     role="group"
     :aria-label="props.label"
     data-slot="segmented-control"
-    :class="['gap-0.5 rounded-control bg-elevated p-[4px]', props.block ? 'grid grid-flow-col auto-cols-fr' : 'inline-flex items-center']"
+    :class="['gap-0.5 rounded-control bg-elevated', compact ? 'p-[3px]' : 'p-[4px]', props.block ? 'grid w-full grid-flow-col auto-cols-fr' : 'inline-flex items-center']"
   >
     <UTooltip v-for="item in props.items" :key="item.value" :text="props.iconOnly ? item.label : undefined">
       <UButton
         type="button"
         color="neutral"
-        size="sm"
+        :size="compact ? 'xs' : 'sm'"
         :block="props.block"
         :square="props.iconOnly"
         :to="isActions ? item.to : undefined"
         variant="ghost"
-        :class="['h-[32px] min-h-[32px] rounded-inner text-(length:--liwan-fs-small-label) font-medium transition-[background-color,color,box-shadow] pointer-coarse:h-[36px] pointer-coarse:min-h-[36px] [&:not([disabled],[aria-disabled=true])]:hover:translate-y-0 active:scale-100', props.iconOnly ? 'min-w-[32px] px-0 pointer-coarse:min-w-[36px]' : 'px-3.5', isSelected(item) ? 'bg-default font-semibold text-highlighted shadow-xs ring ring-default hover:bg-default' : 'text-muted']"
+        :class="[
+          compact ? 'h-[26px] min-h-[26px] text-xs' : 'h-[32px] min-h-[32px] text-(length:--liwan-fs-small-label)',
+          'rounded-inner font-medium transition-[background-color,color,box-shadow] pointer-coarse:h-[36px] pointer-coarse:min-h-[36px] [&:not([disabled],[aria-disabled=true])]:hover:translate-y-0 active:scale-100',
+          props.iconOnly ? (compact ? 'min-w-[26px] px-0 pointer-coarse:min-w-[36px]' : 'min-w-[32px] px-0 pointer-coarse:min-w-[36px]') : (compact ? 'px-2.5' : 'px-3.5'),
+          isSelected(item) ? 'bg-default font-semibold text-highlighted shadow-xs ring ring-default hover:bg-default' : 'text-muted',
+        ]"
         :icon="item.icon"
         :label="props.iconOnly ? undefined : item.label"
         :aria-label="props.iconOnly ? item.label : undefined"

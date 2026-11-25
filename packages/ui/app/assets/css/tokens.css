@@ -2,7 +2,8 @@
    shape on Nuxt UI's stock theme: the Arabic font and its size modes, the fixed ink primary
    (the company colour never themes the interface), the fixed shell rail, the chart
    palette, 40px controls, 48px rows, the one radius system (four steps: 18 card and surface / 12 control / 8 inner, tiles 28% of the side, max 18px) and the 4px spacing
-   grid (8px steps). */
+   grid (8px steps). Every rem follows the root font, and --liwan-ui-scale multiplies the root and the fixed px
+   geometry, so one value zooms the whole interface (0.9 is 10% smaller). */
 @theme {
   --font-sans: "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif;
   /* Rubik (600-800) is for large display text only: page titles and big numbers. Never buttons, nav, tables or small text. */
@@ -29,7 +30,10 @@
 }
 :root {
   color-scheme: light;
-  font-size: 14px;
+  /* The one interface knob. Multiplies the root font (so every rem unit: type, spacing, radii, control and row
+     heights) and the fixed px geometry below and in shell.css. 0.9 is a 10% zoom-out; 1 is the design size. */
+  --liwan-ui-scale: 0.9;
+  font-size: calc(14px * var(--liwan-ui-scale));
   /* Shared motion also reaches portaled controls outside the shell. */
   --liwan-motion-feedback: 150ms;
   --liwan-motion-panel: 200ms;
@@ -49,12 +53,12 @@
   --liwan-fs-tab-count: 0.785714rem;
   --liwan-fs-small-label: 0.928571rem;
   --liwan-fs-avatar-initials: 0.714286rem;
-  /* Fixed geometry in conversation rows and CRM cards. */
-  --liwan-conversation-avatar: 42px;
-  --liwan-conversation-unread-dot: 9px;
-  --liwan-conversation-channel-icon: 15px;
-  --liwan-card-action-size: 36px;
-  --liwan-card-avatar: 22px;
+  /* Fixed geometry in conversation rows and CRM cards; the px stays fixed against the font-size modes but follows the interface knob. */
+  --liwan-conversation-avatar: calc(42px * var(--liwan-ui-scale));
+  --liwan-conversation-unread-dot: calc(9px * var(--liwan-ui-scale));
+  --liwan-conversation-channel-icon: calc(15px * var(--liwan-ui-scale));
+  --liwan-card-action-size: calc(36px * var(--liwan-ui-scale));
+  --liwan-card-avatar: calc(22px * var(--liwan-ui-scale));
   --liwan-message-edge: inset 0 0 0 1px rgb(255 255 255 / 5%);
   --liwan-card-highlight: inset 0 1px 0 rgb(255 255 255 / 4%);
   --liwan-tile-lg: clamp(2.571rem, 2.35rem + 0.85vw, 3.429rem);
@@ -67,10 +71,10 @@
   --default-transition-duration: var(--liwan-motion-feedback);
   --default-transition-timing-function: var(--liwan-motion-color-ease);
   /* Shared navigation geometry keeps the submenu guide on the parent icon centre in either direction. */
-  --liwan-nav-row-inset: 8px;
-  --liwan-nav-chip-size: 28px;
-  --liwan-nav-submenu-chip-size: 20px;
-  --liwan-nav-submenu-indent: 20px;
+  --liwan-nav-row-inset: calc(8px * var(--liwan-ui-scale));
+  --liwan-nav-chip-size: calc(28px * var(--liwan-ui-scale));
+  --liwan-nav-submenu-chip-size: calc(20px * var(--liwan-ui-scale));
+  --liwan-nav-submenu-indent: calc(20px * var(--liwan-ui-scale));
   /* Official Nuxt UI radius token, 8px base, so stock components that keep their own rounded-sm = 8px (inner) and rounded-md = 12px (control). */
   --ui-radius: 0.571429rem;
   /* Fixed LiwanOS primary family; nothing overwrites it at runtime. */
@@ -137,6 +141,7 @@
      the card padding; the dense list variant (default) pads cells 16px, the comfortable variant (home and
      overview pages) 20px and a 52px row. Cards pad 20px. Cards sit 16px apart and page sections 24px apart. */
   --liwan-control-h: 2.857143rem;
+  --liwan-control-h-sm: 2.428571rem;
   --liwan-row-h: 3.428571rem;
   --liwan-row-h-comfortable: 3.714286rem;
   --liwan-card-pad: 1.428571rem;
@@ -254,11 +259,11 @@
 }
 :root[dir="rtl"] { --liwan-inline-sign: -1; }
 
-:root[data-font-size="medium"] { font-size: 16px; }
-:root[data-font-size="large"] { font-size: 18px; }
-:root:lang(en) { font-size: 13px; }
-:root:lang(en)[data-font-size="medium"] { font-size: 15px; }
-:root:lang(en)[data-font-size="large"] { font-size: 17px; }
+:root[data-font-size="medium"] { font-size: calc(16px * var(--liwan-ui-scale)); }
+:root[data-font-size="large"] { font-size: calc(18px * var(--liwan-ui-scale)); }
+:root:lang(en) { font-size: calc(13px * var(--liwan-ui-scale)); }
+:root:lang(en)[data-font-size="medium"] { font-size: calc(15px * var(--liwan-ui-scale)); }
+:root:lang(en)[data-font-size="large"] { font-size: calc(17px * var(--liwan-ui-scale)); }
 /* Dark mode: charcoal surfaces (page #1c1e24, sidebar #21242b, cards #262a33), light ink text and a light solid primary. */
 .dark {
   color-scheme: dark;

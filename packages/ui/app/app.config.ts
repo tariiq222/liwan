@@ -20,9 +20,9 @@ export default defineAppConfig({
     // a paid application repaints it in its button shade, app-identity.css). --primary is for fills, icons and rings without text.
     button: {
       slots: { base: 'rounded-control font-semibold transition-[color,background-color,translate,scale,box-shadow,filter] [&:not([disabled],[aria-disabled=true])]:hover:-translate-y-px active:scale-[.97] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100' },
-      variants: { size: { xs: { base: 'rounded-inner' }, sm: { base: 'min-h-[34px] px-3.5 text-(length:--liwan-fs-small-label) rounded-control' }, md: { base: 'min-h-(--liwan-control-h) px-5 gap-2' } } },
+      variants: { size: { xs: { base: 'rounded-inner', leadingIcon: 'size-3.5', trailingIcon: 'size-3.5' }, sm: { base: 'min-h-(--liwan-control-h-sm) px-3.5 text-(length:--liwan-fs-small-label) rounded-control', leadingIcon: 'size-3.5', trailingIcon: 'size-3.5' }, md: { base: 'min-h-(--liwan-control-h) px-5 gap-2', leadingIcon: 'size-4', trailingIcon: 'size-4' } } },
       compoundVariants: [
-        { size: 'sm', square: true, class: 'min-w-[34px] justify-center' },
+        { size: 'sm', square: true, class: 'min-w-(--liwan-control-h-sm) justify-center' },
         { size: 'md', square: true, class: 'min-w-(--liwan-control-h) justify-center' },
         { color: 'primary', variant: 'solid', class: 'bg-(--primary-solid) text-(--primary-solid-foreground) shadow-[0_6px_14px_-6px_color-mix(in_srgb,var(--primary-solid)_45%,transparent)] hover:bg-(--primary-solid-hover) hover:text-(--primary-solid-hover-foreground) hover:shadow-[0_10px_20px_-8px_color-mix(in_srgb,var(--primary-solid)_50%,transparent)] active:bg-(--primary-solid-active) active:text-(--primary-solid-active-foreground) disabled:bg-(--primary-solid) aria-disabled:bg-(--primary-solid) dark:hover:brightness-110' },
       ],
@@ -70,7 +70,7 @@ export default defineAppConfig({
     toast: { slots: { root: 'rounded-card' } },
     // Alerts are subtle (soft tint) by default: the stock solid fill puts white text on saturated amber/red (about 2:1 for warning).
     // Status text uses the same --status-*-foreground tokens as badges.
-    alert: { slots: { root: 'rounded-card' }, defaultVariants: { variant: 'subtle' }, compoundVariants: [{ color: 'success', variant: 'subtle', class: { root: 'text-status-success-foreground' } }, { color: 'info', variant: 'subtle', class: { root: 'text-status-info-foreground' } }, { color: 'warning', variant: 'subtle', class: { root: 'text-status-warning-foreground' } }, { color: 'error', variant: 'subtle', class: { root: 'text-status-danger-foreground' } }] },
+    alert: { slots: { root: 'rounded-card liwan-span-full' }, defaultVariants: { variant: 'subtle' }, compoundVariants: [{ color: 'success', variant: 'subtle', class: { root: 'text-status-success-foreground' } }, { color: 'info', variant: 'subtle', class: { root: 'text-status-info-foreground' } }, { color: 'warning', variant: 'subtle', class: { root: 'text-status-warning-foreground' } }, { color: 'error', variant: 'subtle', class: { root: 'text-status-danger-foreground' } }] },
     pageCard: { slots: { root: 'rounded-card' } },
     listbox: { slots: { root: 'rounded-control' } },
     fileUpload: { slots: { base: 'rounded-card' } },

@@ -114,6 +114,47 @@ describe('shared composition rendered contracts', () => {
     expect(activeRowMarker).toBeGreaterThan(controlsMarker)
   })
 
+  it('renders FilterBar #scope and #view in a dedicated top row above #search and controls without duplicating #view', async () => {
+    const html = await renderShared('FilterBar', { activeCount: 0 }, {
+      scope: () => h('div', { 'data-testid': 'scope-switcher' }, 'All | Mine'),
+      view: () => h('button', { type: 'button' }, 'Calendar'),
+      search: () => h('input', { 'aria-label': 'Search' }),
+      default: () => h('button', { type: 'button' }, 'All states'),
+    })
+
+    const scopeRowMarker = html.indexOf('data-slot="filter-scope-row"')
+    const scopeContentMarker = html.indexOf('data-testid="scope-switcher"')
+    const viewMarker = html.indexOf('data-slot="view"')
+    const filterRowMarker = html.indexOf('data-slot="filter-row"')
+    const searchMarker = html.indexOf('data-slot="search"')
+
+    expect(scopeRowMarker).toBeGreaterThanOrEqual(0)
+    expect(scopeContentMarker).toBeGreaterThan(scopeRowMarker)
+    expect(viewMarker).toBeGreaterThan(scopeContentMarker)
+    expect(filterRowMarker).toBeGreaterThan(viewMarker)
+    expect(searchMarker).toBeGreaterThan(filterRowMarker)
+    expect(html.match(/data-slot="view"/g)).toHaveLength(1)
+  })
+
+  it('renders MetricTile compact density with label, figure, hint, progress, and link', async () => {
+    const html = await renderCompiled('MetricTile', {
+      label: 'Upcoming',
+      value: 6,
+      icon: 'i-lucide-calendar-clock',
+      hint: 'Confirmed',
+      density: 'compact',
+      tone: 'success',
+      to: '/meetings?state=confirmed',
+    })
+
+    expect(html).toContain('data-testid="metric-tile"')
+    expect(html).toContain('data-density="compact"')
+    expect(html).toContain('data-tone="success"')
+    expect(html).toContain('Upcoming')
+    expect(html).toContain('Confirmed')
+    expect(html).toContain('data-slot="metric-link"')
+  })
+
   it('renders every page at the full workspace width, with no width band', async () => {
     const html = await renderShared('PageContainer', {}, { default: () => h('p', 'محتوى') })
     expect(html).toContain('liwan-page-stack')

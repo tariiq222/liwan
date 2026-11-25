@@ -28,11 +28,11 @@ test.describe('Tasmim sidebar', () => {
     const sidebar = page.getByTestId('application-navigation')
     const hydrate = await beforeHydration(page, '/tasks')
     await expect(sidebar).toBeVisible()
-    expect((await sidebar.boundingBox())!.width).toBe(264)
+    expect((await sidebar.boundingBox())!.width).toBeCloseTo(237.6, 0)
     await expect(sidebar).toHaveAttribute('data-mode', 'app')
     hydrate()
     await expect(page.getByTestId('global-search-trigger')).toBeEnabled()
-    expect((await sidebar.boundingBox())!.width).toBe(264)
+    expect((await sidebar.boundingBox())!.width).toBeCloseTo(237.6, 0)
   })
 
   test('[ has no action: the sidebar neither folds nor stores a preference, also on an Arabic layout', async ({ page, context }) => {

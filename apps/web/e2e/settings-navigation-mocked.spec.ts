@@ -294,7 +294,7 @@ test('project settings sections are separate bordered cards with clear headers',
   for (const card of [reminders, catalogs]) {
     await expect(card).toBeVisible()
     await expect(card).toHaveAttribute('data-slot', 'record-section')
-    await expect.poll(() => card.evaluate(element => Number.parseFloat(getComputedStyle(element).borderRadius))).toBeCloseTo(18, 2)
+    await expect.poll(() => card.evaluate(element => Number.parseFloat(getComputedStyle(element).borderRadius))).toBeCloseTo(16.2, 1)
     await expect(card.locator(':scope > header')).toHaveCSS('border-bottom-width', '1px')
   }
   const remindersBox = await reminders.boundingBox()

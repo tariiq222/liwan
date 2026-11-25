@@ -96,7 +96,7 @@ async function save() {
     </div>
     <form ref="formElement" novalidate v-else-if="query.data.value" class="liwan-form" @submit.prevent="save">
       <SharedUnsavedChanges :dirty="dirty" />
-      <UAlert v-if="editorContext" color="neutral" variant="subtle" icon="i-lucide-info" :title="t('meetingsUx.recommendationEditorContext', { name: query.data.value.name })" />
+      <UAlert v-if="editorContext" class="liwan-span-full" color="neutral" variant="subtle" icon="i-lucide-info" :title="t('meetingsUx.recommendationEditorContext', { name: query.data.value.name })" />
       <SharedFormSection panel :title="t('meetingsUi.resolutions')">
         <div class="liwan-auto-grid">
           <UFormField :label="t('meetingsUi.resolutionTitle')" name="name" required :error="visibleErrors.name">
@@ -133,8 +133,8 @@ async function save() {
           </UFormField>
         </div>
       </SharedFormSection>
-      <UAlert v-if="attemptedSubmit && Object.keys(formErrors).length > 1" color="error" variant="subtle" role="alert" :title="t('meetingsUx.validationSummary', { count: Object.keys(formErrors).length })" />
-      <UAlert v-if="error && !responsibleServerError" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error.message" />
+      <UAlert v-if="attemptedSubmit && Object.keys(formErrors).length > 1" class="liwan-span-full" color="error" variant="subtle" role="alert" :title="t('meetingsUx.validationSummary', { count: Object.keys(formErrors).length })" />
+      <UAlert v-if="error && !responsibleServerError" class="liwan-span-full" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error.message" />
 <SharedFormActions>
         <p class="text-xs text-muted">{{ t('meetingsUx.requiredHint') }}</p>
         <div class="ms-auto flex flex-wrap items-center gap-2">

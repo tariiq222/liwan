@@ -44,7 +44,7 @@ test('risk list shows understandable filters, no one-page pager, and readable te
   await expect(page.getByRole('group', { name: 'النوع', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'التالي', exact: true })).toHaveCount(0)
   await expect(page.getByRole('columnheader', { name: 'درجة الخطر' })).toBeVisible()
-  expect(await page.locator('th').first().evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(12)
+  expect(await page.locator('th').first().evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(10.7)
   await page.getByRole('textbox', { name: 'بحث عن خطر أو مشكلة' }).fill('اعتماد')
   await expect(page).toHaveURL(/q=/)
   await page.getByRole('link', { name: 'تأخر اعتماد المتطلبات', exact: true }).click()

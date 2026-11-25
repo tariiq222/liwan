@@ -197,7 +197,7 @@ async function confirmResolutionAction() {
             <UButton v-if="actionsFor(item).includes('complete')" size="sm" :disabled="!hydrated || pendingResolutionAction?.resolutionId === item.id || pendingResolutionIds.has(item.id)" :label="t('meetingsUi.complete')" @click="requestResolutionAction(item.id, 'complete')" />
             <UButton v-if="actionsFor(item).includes('cancel')" size="sm" color="neutral" variant="outline" :disabled="!hydrated || pendingResolutionAction?.resolutionId === item.id || pendingResolutionIds.has(item.id)" :label="t('meetingsUi.cancelMeeting')" @click="requestResolutionAction(item.id, 'cancel')" />
           </template>
-          <UButton v-if="item.task_id" color="primary" variant="link" size="sm" class="p-0" :to="`/tasks/${item.task_id}`" target="_blank" rel="noopener" :label="t('meetingsUx.openTaskNewTab')" />
+          <UButton v-if="item.task_id" color="neutral" variant="outline" size="sm" icon="i-lucide-external-link" :to="`/tasks/${item.task_id}`" target="_blank" rel="noopener" :label="t('meetingsUx.openTaskNewTab')" />
           <span v-else-if="taskLinked(item)" class="text-xs text-muted">{{ t('meetingsUx.taskLinkedUnavailable') }}</span>
           <UButton v-if="!taskLinked(item) && (item.can_edit_decision || item.can_update_execution) && !pendingResolutionIds.has(item.id)" color="neutral" variant="outline" size="sm" :to="childTo(`/meetings/${meetingId}/resolutions/${item.id}/edit`)" :label="t('meetingsUi.editResolution')" />
           <UButton v-if="resolutionCanReopen(item)" size="sm" color="neutral" variant="outline" :disabled="!hydrated || pendingResolutionIds.has(item.id)" :label="t('meetingsUi.reopen')" @click="requestResolutionAction(item.id, 'reopen')" />
@@ -231,15 +231,25 @@ async function confirmResolutionAction() {
     </template>
   </SharedRecordSection>
   <SharedRecordSection v-if="meeting.previous_resolutions.length" id="meeting-follow-up" variant="list" :title="t('meetingsUi.previousResolutions')" :description="t('meetingsUx.currentPreviousFollowUp')">
-    <article v-for="item in meeting.previous_resolutions" :key="item.id" class="grid min-w-0 gap-2 px-(--liwan-card-pad) py-3">
-      <UButton color="primary" variant="link" class="w-fit p-0 font-semibold whitespace-normal text-start" :to="`/meetings/${item.meeting_id}`">{{ item.meeting_name }}</UButton>
-      <div class="flex min-w-0 flex-wrap items-center gap-2 text-sm">
-        <span class="text-highlighted">{{ item.name }}</span>
-        <SharedStatusBadge v-bind="resolutionStateBadgeProps(item.state, t)" />
-        <span class="text-muted">{{ formatMeetingDate(item.deadline) }}</span>
+    <article v-for="item in meeting.previous_resolutions" :key="item.id" class="flex flex-wrap items-start justify-between gap-3 px-(--liwan-card-pad) py-3.5">
+      <div class="grid min-w-0 flex-1 gap-1.5">
+        <div class="flex min-w-0 flex-wrap items-center gap-2">
+          <span class="font-semibold text-highlighted">{{ item.name }}</span>
+          <SharedStatusBadge v-bind="resolutionStateBadgeProps(item.state, t)" />
+        </div>
+        <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+          <NuxtLink :to="`/meetings/${item.meeting_id}`" class="inline-flex items-center gap-1 hover:text-highlighted hover:underline">
+            <UIcon name="i-lucide-calendar-days" class="size-3.5 shrink-0" aria-hidden="true" />
+            <span>{{ item.meeting_name }}</span>
+          </NuxtLink>
+          <span v-if="item.deadline" class="inline-flex items-center gap-1 whitespace-nowrap">
+            <UIcon name="i-lucide-calendar" class="size-3.5 shrink-0" aria-hidden="true" />
+            <span>{{ formatMeetingDate(item.deadline) }}</span>
+          </span>
+        </div>
+        <SharedRichText v-if="richTextHasContent(item.result)" :html="item.result" size="sm" />
       </div>
-      <SharedRichText v-if="richTextHasContent(item.result)" :html="item.result" size="sm" />
-      <UButton v-if="item.task_id" color="primary" variant="link" size="sm" class="w-fit p-0" :to="`/tasks/${item.task_id}`" target="_blank" rel="noopener" :label="t('meetingsUx.openTaskNewTab')" />
+      <UButton v-if="item.task_id" color="neutral" variant="outline" size="sm" icon="i-lucide-external-link" class="shrink-0" :to="`/tasks/${item.task_id}`" target="_blank" rel="noopener" :label="t('meetingsUx.openTaskNewTab')" />
     </article>
   </SharedRecordSection>
 </template>

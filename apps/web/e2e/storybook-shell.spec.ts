@@ -27,19 +27,19 @@ test.describe('Tasmim shell (desktop)', () => {
         const header = await box(page, 'shell-header')
         const sidebar = await box(page, 'application-navigation')
         const main = await box(page, 'shell-main')
-        expect(header.height).toBeCloseTo(68, 0)
+        expect(header.height).toBeCloseTo(61.2, 0)
         expect(header.y).toBeCloseTo(0, 0)
-        expect(sidebar.width).toBeCloseTo(264, 0)
+        expect(sidebar.width).toBeCloseTo(237.6, 0)
         expect(sidebar.y).toBeCloseTo(0, 0)
         expect(sidebar.height).toBeCloseTo(900, 0)
         if (dir === 'rtl') {
           expect(sidebar.x + sidebar.width).toBeCloseTo(1440, 0)
-          expect(header.x + header.width).toBeCloseTo(1440 - 264, 0)
-          expect(main.x + main.width).toBeCloseTo(1440 - 264, 0)
+          expect(header.x + header.width).toBeCloseTo(1440 - 237.6, 0)
+          expect(main.x + main.width).toBeCloseTo(1440 - 237.6, 0)
         } else {
           expect(sidebar.x).toBeCloseTo(0, 0)
-          expect(header.x).toBeCloseTo(264, 0)
-          expect(main.x).toBeCloseTo(264, 0)
+          expect(header.x).toBeCloseTo(237.6, 0)
+          expect(main.x).toBeCloseTo(237.6, 0)
         }
         await expect(page.getByTestId('module-rail')).toHaveCount(0)
       })
@@ -109,8 +109,8 @@ test.describe('Tasmim shell (desktop)', () => {
     const search = page.getByTestId('global-search-trigger')
     await expect(search).toBeEnabled()
     await expect(search).toHaveAccessibleName('بحث')
-    // Every icon button of the capsule is one 34px button (DESIGN.md, top bar).
-    for (const [id, size] of [['notification-bell', 34]] as const) {
+    // Every icon button of the capsule is 28px inside the 36px (40px * 0.9) bar tile (DESIGN.md, top bar).
+    for (const [id, size] of [['notification-bell', 28]] as const) {
       const area = await box(page, id)
       expect(area.width).toBeCloseTo(size, 0)
       expect(area.height).toBeCloseTo(size, 0)
@@ -124,7 +124,7 @@ test.describe('Tasmim shell (desktop)', () => {
     await bell.click()
     const panel = page.getByTestId('slide-over-notifications')
     await expect(panel).toBeVisible()
-    expect((await panel.boundingBox())!.width).toBeCloseTo(380, 0)
+    expect((await panel.boundingBox())!.width).toBeCloseTo(342, 0)
     await page.keyboard.press('Escape')
     await expect(panel).toBeHidden()
     await expect(bell).toBeFocused()
@@ -152,15 +152,15 @@ test.describe('Tasmim shell (tablet 900px)', () => {
   for (const [locale, dir] of LOCALES) {
     test(`the sidebar is an 84px icon column with hidden labels (${locale})`, async ({ page }) => {
       await open(page, 'shell-shellframe--day', `locale:${locale};appearance:light`)
-      expect((await box(page, 'application-navigation')).width).toBeCloseTo(84, 0)
+      expect((await box(page, 'application-navigation')).width).toBeCloseTo(75.6, 0)
       await expect(page.getByTestId('navigation-app-projects')).toHaveAccessibleName(locale === 'ar' ? 'المشاريع' : 'Projects')
       await expect(page.getByTestId('navigation-app-projects').locator('[data-slot="label"]')).toBeHidden()
       const main = await box(page, 'shell-main')
       if (dir === 'rtl') {
         expect(main.x).toBeCloseTo(0, 0)
-        expect(main.x + main.width).toBeCloseTo(900 - 84, 0)
+        expect(main.x + main.width).toBeCloseTo(900 - 75.6, 0)
       } else {
-        expect(main.x).toBeCloseTo(84, 0)
+        expect(main.x).toBeCloseTo(75.6, 0)
         expect(main.x + main.width).toBeCloseTo(900, 0)
       }
     })
@@ -181,7 +181,7 @@ test.describe('Tasmim shell (390px)', () => {
         const header = await box(page, 'shell-header')
         expect(header.x).toBeCloseTo(0, 0)
         expect(header.width).toBeCloseTo(390, 0)
-        expect(header.height).toBeCloseTo(60, 0)
+        expect(header.height).toBeCloseTo(54, 0)
         // The search stays as an icon button and the bell stays; the tools the tab bar covers drop out.
         await expect(page.getByTestId('global-search-trigger')).toBeVisible()
         await expect(page.getByTestId('notification-bell')).toBeVisible()

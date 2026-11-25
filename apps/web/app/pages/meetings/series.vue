@@ -4,7 +4,6 @@ import type { MeetingSeriesListItem } from '@liwan/contracts'
 import { refDebounced } from '@vueuse/core'
 import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
 import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
-import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
 import { useMeetingListQuerySync } from '@/composables/useMeetingListQuerySync'
 import { useMeetingSeriesList } from '@/composables/useMeetings'
 import { useMeetingSeriesKpis } from '@/composables/useMeetingKpis'
@@ -68,10 +67,10 @@ const page = computed(() => Math.floor(offset.value / limit) + 1)
 const pages = computed(() => Math.max(1, Math.ceil((query.data.value?.total ?? 0) / limit)))
 const rows = computed(() => query.data.value?.items ?? [])
 const total = computed(() => query.data.value?.total ?? 0)
+const countTags = computed(() => query.data.value ? [{ label: t('meetingsUi.seriesCountTag', { count: total.value }, total.value), kind: 'count' as const }] : [])
 
 const columns = computed<TableColumn<MeetingSeriesListItem>[]>(() => [
-  { id: 'record_number', header: () => recordNumberHeader(t), meta: { class: { th: 'w-12 px-2 text-start', td: 'w-12 px-2 whitespace-nowrap' } } },
-  { accessorKey: 'name', header: t('meetingsUx.seriesName'), meta: { class: { th: 'min-w-56 w-[28%]', td: 'max-w-0' } } },
+  { accessorKey: 'name', header: t('meetingsUx.seriesName'), meta: { title: true, class: { th: 'min-w-64 w-[36%]', td: 'max-w-0' } } },
   { accessorKey: 'recurrence', header: t('meetingsUi.recurrenceLabel'), meta: { class: { th: 'w-36', td: 'w-36 whitespace-nowrap' } } },
   { accessorKey: 'organizer', header: t('meetingsUi.organizer'), meta: { class: { th: 'w-44', td: 'w-44 max-w-0' } } },
   { accessorKey: 'project', header: t('meetingsUi.project'), meta: { class: { th: 'w-44', td: 'w-44 max-w-0' } } },
@@ -112,6 +111,7 @@ function setPage(next: number) {
   <SharedListPage
     v-if="isListRoute"
     :title="t('nav.meetingSeries')"
+    :tags="countTags"
     :create-to="can('meetings.create') ? createTo : undefined"
     :create-label="t('meetingsUi.newSeries')"
     create-test-id="meeting-series-new"
@@ -146,9 +146,11 @@ function setPage(next: number) {
         :caption="t('nav.meetingSeries')"
         @retry="query.refetch()"
       >
-        <template #record_number-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
         <template #name-cell="{ row }">
           <NuxtLink :to="seriesTo(row.original)" class="block min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" @click.capture="openRecord($event, row.original)">{{ row.original.name }}</NuxtLink>
+          <div class="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted">
+            <RecordNumber :value="row.original.id" />
+          </div>
         </template>
         <template #recurrence-cell="{ row }">
           <div class="flex flex-wrap items-center gap-2">
@@ -162,9 +164,10 @@ function setPage(next: number) {
         </template>
         <template #project-cell="{ row }"><span class="block truncate text-muted">{{ row.original.project?.name || '—' }}</span></template>
         <template #open_resolution_count-cell="{ row }">
-          <div class="flex flex-wrap items-center gap-2">
-            <span class="text-muted">{{ row.original.open_resolution_count ? t('meetingsUi.openCount', { count: row.original.open_resolution_count }, row.original.open_resolution_count) : '—' }}</span>
-            <SharedStatusBadge v-if="row.original.overdue_resolution_count" tone="destructive" :label="t('meetingsUi.overdueCount', { count: row.original.overdue_resolution_count })" />
+          <div class="flex flex-wrap items-center gap-1.5">
+            <UBadge v-if="row.original.open_resolution_count > 0" color="warning" variant="subtle" size="xs">{{ t('meetingsUi.openCount', { count: row.original.open_resolution_count }, row.original.open_resolution_count) }}</UBadge>
+            <span v-else class="text-muted">—</span>
+            <SharedStatusBadge v-if="row.original.overdue_resolution_count" tone="destructive" size="sm" :label="t('meetingsUi.overdueCount', { count: row.original.overdue_resolution_count })" />
           </div>
         </template>
         <template #mobile-row="{ row: series }">

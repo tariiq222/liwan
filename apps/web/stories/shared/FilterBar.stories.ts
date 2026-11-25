@@ -91,4 +91,20 @@ export const Mobile: Story = {
   parameters: { viewport: { defaultViewport: 'mobile1' } },
   render: args => ({ components: { FilterBar, PageContainer, SegmentedControl }, setup: () => ({ args, ...narrowSetup() }), template: tabletTemplate }),
 }
+export const WithScopeRow: Story = {
+  name: 'مع صف النطاق والعرض في الأعلى',
+  render: args => ({
+    components: { FilterBar, PageContainer, SegmentedControl },
+    setup() {
+      const base = narrowSetup()
+      const scope = ref('all')
+      const scopeItems = computed(() => [
+        { value: 'all', label: base.t('meetingsFilters.allMeetings') },
+        { value: 'mine', label: base.t('meetingsUi.mine') },
+      ])
+      return { args, ...base, scope, scopeItems }
+    },
+    template: `<main class="liwan-shell-main"><PageContainer><div class="liwan-card overflow-hidden rounded-card"><div class="border-b border-default px-(--liwan-card-pad-dense) py-3"><FilterBar class="w-full" embedded v-bind="args"><template #scope><SegmentedControl :label="t('meetingsFilters.scope')" :items="scopeItems" v-model="scope" /></template><template #view><SegmentedControl :label="t('states.view')" :items="views" v-model="view" /></template><template #search><UInput v-model="search" :placeholder="t('tasks.filters.search')" :aria-label="t('tasks.filters.search')" icon="i-lucide-search" class="w-full" /></template><template #default><USelect v-model="priority" multiple icon="i-lucide-flag" :items="priorityItems" :placeholder="t('tasks.filters.priorityLabel')" :aria-label="t('tasks.filters.priorityLabel')" class="w-full md:w-40" /><USelect v-model="assignee" icon="i-lucide-user" :items="assigneeItems" :placeholder="t('tasks.filters.assigneeLabel')" :aria-label="t('tasks.filters.assigneeLabel')" class="w-full md:w-40" /></template></FilterBar></div></div></PageContainer></main>`,
+  }),
+}
 export const Disabled: Story = { name: 'معطّل', args: { disabled: true, activeCount: 1 } }

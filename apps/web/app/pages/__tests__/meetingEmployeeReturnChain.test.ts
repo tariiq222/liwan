@@ -44,7 +44,7 @@ async function load(file: string, url: RouteLocationRaw) {
     useI18n: () => ({ t: (key: string) => key, locale: Vue.ref('ar') }), useHydrated: () => Vue.ref(true), localIsoDay,
     useAccess: () => ({ can: () => true }), useRecordPickerAvailable: () => Vue.computed(() => true),
     useRecordPicker: () => ({ available: Vue.computed(() => true), query: { data: Vue.ref([]), isLoading: Vue.ref(false), error: Vue.ref(null) } }), useMe: () => ({ me: Vue.ref({}) }), useToast: () => ({ add: vi.fn() }),
-    useBranding: () => ({ branding: Vue.ref({}) }), useSsrQuerySeed: () => {}, navigateTo: navigate,
+    useBranding: () => ({ branding: Vue.ref({}) }), useSsrQuerySeed: () => {}, useRecentRecords: () => ({ remember: () => {} }), navigateTo: navigate,
     refDebounced: (value: unknown) => value, createMeetingMinutesForm: () => ({}),
   }
   for (let tries = 0; tries < 80; tries++) {

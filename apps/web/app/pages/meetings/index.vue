@@ -4,9 +4,9 @@ import type { MeetingListItem } from '@liwan/contracts'
 import { refDebounced } from '@vueuse/core'
 import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
 import RecordNumber from '@liwan/ui/app/components/shared/data/RecordNumber.vue'
-import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
 import MeetingProjectFilter from '@/components/meetings/MeetingProjectFilter.vue'
 import { formatCalendarDate, formatLiwanTime } from '@liwan/ui/app/composables/calendarDate'
+import { localIsoDay } from '@liwan/ui/app/utils/formatDate'
 import { useMeetingListQuerySync } from '@/composables/useMeetingListQuerySync'
 import { usePeople } from '@/composables/usePeople'
 import { useMeetings } from '@/composables/useMeetings'
@@ -15,7 +15,6 @@ import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import { formatLocalDateTime } from '@/utils/meetingDateTime'
 import { meetingStateBadgeProps } from '@/utils/meetingStatus'
 import { clearMeetingListFilters, meetingDateRange, parseMeetingListFilters, patchMeetingListQuery, type MeetingFilterKey, type MeetingFilterPatch } from '@/utils/meetingListFilters'
-import { meetingViewRoute, meetingViewOptions } from '@/utils/meetingRoutes'
 import { parseOffset } from '@/utils/routeQuery'
 
 const route = useRoute()
@@ -108,6 +107,8 @@ const kpis = useMeetingListKpis(() => ({
   organizer_id: routeFilters.value.organizerId,
   series_id: routeFilters.value.seriesId,
 }), kpisShown)
+const nextUpcoming = computed(() => kpis.nextUpcoming?.value ?? null)
+const todayIso = computed(() => hydrated.value ? localIsoDay(new Date()) : '')
 const rows = computed(() => query.data.value?.items ?? [])
 const total = computed(() => query.data.value?.total ?? 0)
 // The list's total as a tag in the heading, once the first page has arrived.
@@ -160,10 +161,9 @@ function meetingRecordNumber(meeting: { reference: string; id: number }) {
   return meeting.reference.trim() || meeting.id
 }
 
-// Reading order: the record number as a muted `#` reference, then the title (the strongest text), date, organizer, state and resolutions.
+// Reading order: the title (the strongest text) with its muted reference below, then date, organizer, state and resolutions.
 const columns = computed<TableColumn<MeetingListItem>[]>(() => [
-  { id: 'record_number', header: () => recordNumberHeader(t), meta: { class: { th: 'w-12 px-2 text-start', td: 'w-12 px-2 whitespace-nowrap' } } },
-  { accessorKey: 'name', header: t('meetingsUi.title'), meta: { class: { th: 'min-w-56 w-[30%]', td: 'max-w-0' } } },
+  { accessorKey: 'name', header: t('meetingsUi.title'), meta: { title: true, class: { th: 'min-w-64 w-[38%]', td: 'max-w-0' } } },
   { accessorKey: 'meeting_date', header: t('meetingsUi.date'), meta: { class: { th: 'w-40', td: 'w-40 whitespace-nowrap' } } },
   { accessorKey: 'organizer', header: t('meetingsUi.organizer'), meta: { class: { th: 'w-44', td: 'w-44 max-w-0' } } },
   { accessorKey: 'state', header: t('meetingsUi.stateLabel'), meta: { class: { th: 'w-32', td: 'w-32 whitespace-nowrap' } } },
@@ -268,6 +268,56 @@ function setPage(next: number) {
     @click.capture="openCreate"
   >
     <SharedKpiStrip v-if="hydrated" :tiles="kpis.tiles.value" :loading="kpis.loading.value" :label="t('meetingsKpi.label')" data-testid="meeting-kpi-strip" />
+    <div
+      v-if="hydrated && nextUpcoming && !invalidDateRange && !query.error.value"
+      data-testid="meeting-next-up"
+      class="flex flex-wrap items-center justify-between gap-3 rounded-card from-info/12 via-info/[0.04] to-default px-(--liwan-card-pad) py-3.5 ring ring-info/25 rtl:bg-linear-270 ltr:bg-linear-90 dark:from-info/15 dark:via-info/5 dark:to-default"
+    >
+      <div class="flex min-w-0 flex-1 items-center gap-3.5">
+        <span class="hidden size-10 shrink-0 place-items-center rounded-control bg-info/15 text-status-info-foreground sm:grid" aria-hidden="true">
+          <UIcon name="i-lucide-calendar-clock" class="size-5" />
+        </span>
+        <div class="grid min-w-0 gap-1">
+          <div class="flex min-w-0 flex-wrap items-center gap-2">
+            <UBadge color="info" variant="subtle" size="xs" class="shrink-0 gap-1.5">
+              <span class="size-1.5 rounded-full bg-info" aria-hidden="true" />
+              <span>{{ t('meetingsUi.nextUp') }}</span>
+            </UBadge>
+            <NuxtLink
+              :to="meetingTo(nextUpcoming)"
+              @click.capture="openRecord($event, nextUpcoming)"
+              class="min-w-0 truncate text-base font-bold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >{{ nextUpcoming.name }}</NuxtLink>
+            <RecordNumber :value="meetingRecordNumber(nextUpcoming)" class="shrink-0" />
+          </div>
+          <div class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+            <span v-if="nextUpcoming.meeting_date" class="inline-flex items-center gap-1 whitespace-nowrap">
+              <UIcon name="i-lucide-calendar" class="size-3.5 shrink-0" aria-hidden="true" />
+              <span>{{ formatCalendarDate(nextUpcoming.meeting_date) }}</span>
+              <UBadge v-if="todayIso && nextUpcoming.meeting_date === todayIso" color="info" variant="subtle" size="xs">{{ t('meetingsUi.today') }}</UBadge>
+            </span>
+            <span v-if="nextUpcoming.start_datetime" class="inline-flex items-center gap-1 whitespace-nowrap">
+              <UIcon name="i-lucide-clock" class="size-3.5 shrink-0" aria-hidden="true" />
+              <span>{{ localTime(nextUpcoming.start_datetime) }}</span>
+            </span>
+            <span v-if="nextUpcoming.organizer" class="inline-flex min-w-0 items-center gap-1">
+              <UIcon name="i-lucide-user" class="size-3.5 shrink-0" aria-hidden="true" />
+              <span class="truncate">{{ nextUpcoming.organizer.name }}</span>
+            </span>
+          </div>
+        </div>
+      </div>
+      <UButton
+        size="sm"
+        color="neutral"
+        variant="outline"
+        icon="i-lucide-file-text"
+        :to="meetingTo(nextUpcoming)"
+        :label="t('meetingsUi.openMeeting')"
+        class="shrink-0 bg-default"
+        @click.capture="openRecord($event, nextUpcoming)"
+      />
+    </div>
     <SharedListCard>
       <template #filters>
         <FilterBar embedded class="w-full" :active-count="activeFilterCount" :clear-label="t('meetingsUi.clear')" :disabled="!hydrated" @clear="clearFilters">
@@ -279,14 +329,14 @@ function setPage(next: number) {
             </UInput>
           </template>
           <template #default>
-            <USelect data-testid="meeting-state" class="w-full md:w-40" icon="i-lucide-activity" :items="stateOptions" :model-value="stateSelect" :disabled="!hydrated" :aria-label="t('meetingsUi.stateLabel')" @update:model-value="onStateChange" />
-            <MeetingProjectFilter v-if="hasProjectFilter" id="meeting-project" hide-label class="w-full md:w-40" :model-value="projectId" @update:model-value="setProject" @resolved-name="projectName = $event" />
-            <div class="grid w-full gap-1 md:w-40">
+            <USelect data-testid="meeting-state" class="w-full md:w-36" icon="i-lucide-activity" :items="stateOptions" :model-value="stateSelect" :disabled="!hydrated" :aria-label="t('meetingsUi.stateLabel')" @update:model-value="onStateChange" />
+            <MeetingProjectFilter v-if="hasProjectFilter" id="meeting-project" hide-label class="w-full md:w-36" :model-value="projectId" @update:model-value="setProject" @resolved-name="projectName = $event" />
+            <div class="grid w-full min-w-0 gap-1 md:w-36">
               <USelectMenu
                 id="meeting-organizer"
                 v-model:search-term="organizerSearch"
                 :ignore-filter="true"
-                class="w-full"
+                class="w-full min-w-0"
                 icon="i-lucide-user"
                 value-key="value"
                 :model-value="routeFilters.organizerId ? String(routeFilters.organizerId) : 'all'"
@@ -307,12 +357,11 @@ function setPage(next: number) {
               <p v-if="organizerQuery.isLoading.value" class="text-xs text-muted" role="status">{{ t('meetingsFilters.organizersLoading') }}</p>
               <div v-else-if="organizerQuery.error.value" class="flex items-center gap-2 text-xs text-error" role="alert"><span>{{ t('meetingsFilters.organizersError') }}</span><UButton type="button" color="neutral" variant="outline" size="sm" :disabled="!hydrated" :label="t('meetingsFilters.retry')" @click="organizerQuery.refetch()" /></div>
             </div>
-            <SharedDateField id="meeting-date-from" v-model="dateFromField" class="w-full md:w-40" :label="dateFromField ? undefined : t('meetingsFilters.fromDateLabel')" :aria-label="t('meetingsFilters.fromDateLabel')" :disabled="!hydrated" />
-            <SharedDateField id="meeting-date-to" v-model="dateToField" class="w-full md:w-40" :label="dateToField ? undefined : t('meetingsFilters.toDateLabel')" :aria-label="t('meetingsFilters.toDateLabel')" :disabled="!hydrated" />
+            <SharedDateField id="meeting-date-from" v-model="dateFromField" class="w-full md:w-32" :label="dateFromField ? undefined : t('meetingsFilters.fromDateLabel')" :aria-label="t('meetingsFilters.fromDateLabel')" :disabled="!hydrated" />
+            <SharedDateField id="meeting-date-to" v-model="dateToField" class="w-full md:w-32" :label="dateToField ? undefined : t('meetingsFilters.toDateLabel')" :aria-label="t('meetingsFilters.toDateLabel')" :disabled="!hydrated" />
           </template>
-          <template #view>
+          <template #scope>
             <SharedSegmentedControl data-testid="meeting-scope" :label="t('meetingsFilters.scope')" :items="scopeItems" :model-value="mine ? 'mine' : 'all'" :disabled="!hydrated" @update:model-value="onScopeChange" />
-            <span class="hidden h-5 w-px bg-accented md:block" aria-hidden="true" /><SharedViewSwitch model-value="list" :options="meetingViewOptions(t)" @update:model-value="value => router.push(meetingViewRoute(liveListQuery(), value === 'calendar' ? 'calendar' : 'list'))" />
           </template>
           <!-- The dropdowns show their own choice; only the series inherited from a link has no control, so it is the one chip. -->
           <template v-if="seriesId" #active>
@@ -335,7 +384,6 @@ function setPage(next: number) {
         :caption="t('nav.meetings')"
         @retry="query.refetch()"
       >
-        <template #record_number-cell="{ row }"><RecordNumber :value="meetingRecordNumber(row.original)" /></template>
         <template #name-cell="{ row }">
           <NuxtLink
             :to="meetingTo(row.original)"
@@ -343,14 +391,28 @@ function setPage(next: number) {
             data-testid="meeting-row"
             class="block min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >{{ row.original.name }}</NuxtLink>
+          <div class="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted">
+            <RecordNumber :value="meetingRecordNumber(row.original)" />
+          </div>
         </template>
-        <template #meeting_date-cell="{ row }"><div class="grid gap-0.5 whitespace-nowrap"><span>{{ row.original.meeting_date ? formatCalendarDate(row.original.meeting_date) : '—' }}</span><span class="text-xs text-muted">{{ row.original.start_datetime ? localTime(row.original.start_datetime) : t('meetingsUx.timeUnavailable') }}</span></div></template>
+        <template #meeting_date-cell="{ row }">
+          <div class="grid gap-0.5 whitespace-nowrap">
+            <div class="flex items-center gap-1.5">
+              <span>{{ row.original.meeting_date ? formatCalendarDate(row.original.meeting_date) : '—' }}</span>
+              <UBadge v-if="row.original.meeting_date === todayIso" color="info" variant="subtle" size="xs">{{ t('meetingsUi.today') }}</UBadge>
+            </div>
+            <span class="text-xs text-muted">{{ row.original.start_datetime ? localTime(row.original.start_datetime) : t('meetingsUx.timeUnavailable') }}</span>
+          </div>
+        </template>
         <template #organizer-cell="{ row }">
           <div v-if="row.original.organizer" class="flex min-w-0 items-center gap-2"><SharedPersonAvatar :people="[row.original.organizer]" /><span class="min-w-0 truncate text-muted">{{ row.original.organizer.name }}</span></div>
           <span v-else class="text-muted">—</span>
         </template>
         <template #state-cell="{ row }"><SharedStatusBadge v-bind="meetingStateBadgeProps(row.original.state, t)" data-testid="meeting-row-state" /></template>
-        <template #open_resolution_count-cell="{ row }"><span class="text-muted">{{ row.original.open_resolution_count ? t('meetingsUi.openCount', { count: row.original.open_resolution_count }, row.original.open_resolution_count) : '—' }}</span></template>
+        <template #open_resolution_count-cell="{ row }">
+          <UBadge v-if="row.original.open_resolution_count > 0" color="warning" variant="subtle" size="xs">{{ t('meetingsUi.openCount', { count: row.original.open_resolution_count }, row.original.open_resolution_count) }}</UBadge>
+          <span v-else class="text-muted">—</span>
+        </template>
         <template #mobile-row="{ row }">
           <NuxtLink :to="meetingTo(row)" @click.capture="openRecord($event, row)" class="grid min-w-0 gap-2 focus-visible:outline-none">
             <div class="flex min-w-0 items-start justify-between gap-2">

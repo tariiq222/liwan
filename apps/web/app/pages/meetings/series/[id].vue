@@ -315,7 +315,7 @@ function setHistoryPage(page: number) {
       <section v-if="activeTab === 'sessions'" class="grid gap-(--liwan-gap-card)" data-testid="meeting-series-sessions">
         <SharedRecordSection :title="t('meetingTimeline.scheduleSummary')" :description="t('meetingTimeline.scheduleSummaryHint')">
           <div class="grid w-full min-w-0 gap-(--liwan-gap-card) sm:grid-cols-2 xl:grid-cols-4">
-            <SharedMetricTile density="compact" icon="i-lucide-list-checks" :label="t('meetingTimeline.openTile')" :value="query.data.value.open_resolution_count" :to="followupLink('active')" />
+            <SharedMetricTile density="compact" icon="i-lucide-list-checks" :tone="query.data.value.open_resolution_count > 0 ? 'warning' : 'neutral'" :label="t('meetingTimeline.openTile')" :value="query.data.value.open_resolution_count" :to="followupLink('active')" />
             <SharedMetricTile density="compact" icon="i-lucide-triangle-alert" :tone="query.data.value.overdue_resolution_count ? 'danger' : 'neutral'" :label="t('meetingTimeline.overdueTile')" :value="query.data.value.overdue_resolution_count" :to="followupLink('overdue')" />
             <SharedMetricTile density="compact" icon="i-lucide-calendar-clock" :label="t('meetingsUi.nextMeeting')" :value="upcoming ? occurrenceLabel(upcoming) : '—'" :hint="upcoming ? upcoming.name : t('meetingsUx.noNextMeeting')" :to="upcoming ? meetingLink(upcoming) : undefined" />
             <SharedMetricTile density="compact" icon="i-lucide-calendar-check" :label="t('meetingTimeline.lastCompleted')" :value="previous ? occurrenceLabel(previous) : '—'" :hint="previous ? previous.name : t('meetingTimeline.noCompletedMeeting')" :to="previous ? meetingLink(previous) : undefined" />

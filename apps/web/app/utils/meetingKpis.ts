@@ -33,13 +33,49 @@ export function kpiLink(path: string, filters: Scope): string {
   return text ? `${path}?${text}` : path
 }
 
+/** Maximum rows requested for the upcoming KPI query (matches `MAX_MEETINGS` in `liwan_meetings`). */
+export const UPCOMING_KPI_LIMIT = 200
+
+type UpcomingCandidate = { id: number; meeting_date: string | null; start_datetime: string | null }
+
+/** Picks the earliest upcoming meeting from a `meeting_date desc`-ordered response; returns `null` when disabled or when the server result is truncated (`total > items.length`). */
+export function pickNearestUpcomingMeeting<T extends UpcomingCandidate>(
+  data: { items: readonly T[]; total: number } | undefined,
+  enabled = true,
+): T | null {
+  if (!enabled || !data || !data.items.length || data.total > data.items.length) return null
+  let best = data.items[0]!
+  for (let i = 1; i < data.items.length; i++) {
+    const item = data.items[i]!
+    const itemDate = item.meeting_date ?? ''
+    const bestDate = best.meeting_date ?? ''
+    if (itemDate !== bestDate) {
+      if (itemDate < bestDate) best = item
+      continue
+    }
+    const itemStart = item.start_datetime ?? ''
+    const bestStart = best.start_datetime ?? ''
+    if (itemStart !== bestStart) {
+      if (itemStart < bestStart) best = item
+      continue
+    }
+    if (item.id < best.id) best = item
+  }
+  return best
+}
+
 /** The tiles above /meetings; a count that has not arrived yet is `null` and shows "—". */
-export function meetingListTiles(counts: Record<keyof ReturnType<typeof meetingKpiFilters>, number | undefined>, links: Record<keyof ReturnType<typeof meetingKpiFilters>, string>, t: Translate): KpiTile[] {
+export function meetingListTiles(
+  counts: Record<keyof ReturnType<typeof meetingKpiFilters>, number | undefined>,
+  links: Record<keyof ReturnType<typeof meetingKpiFilters>, string>,
+  t: Translate,
+  hints: Partial<Record<keyof ReturnType<typeof meetingKpiFilters>, string>> = {},
+): KpiTile[] {
   return [
-    { id: 'total', label: t('meetingsKpi.total'), icon: 'i-lucide-calendar-days', tone: 'neutral', value: counts.total ?? null, to: links.total },
-    { id: 'upcoming', label: t('meetingsKpi.upcoming'), icon: 'i-lucide-calendar-clock', tone: 'success', value: counts.upcoming ?? null, to: links.upcoming },
-    { id: 'draft', label: t('meetingsKpi.draft'), icon: 'i-lucide-file-pen-line', tone: 'warning', value: counts.draft ?? null, to: links.draft },
-    { id: 'done', label: t('meetingsKpi.doneMonth'), icon: 'i-lucide-circle-check', tone: 'neutral', value: counts.done ?? null, to: links.done },
+    { id: 'total', label: t('meetingsKpi.total'), icon: 'i-lucide-calendar-days', tone: 'neutral', value: counts.total ?? null, hint: hints.total, to: links.total },
+    { id: 'upcoming', label: t('meetingsKpi.upcoming'), icon: 'i-lucide-calendar-clock', tone: 'success', value: counts.upcoming ?? null, hint: hints.upcoming, to: links.upcoming, clearTo: links.total },
+    { id: 'draft', label: t('meetingsKpi.draft'), icon: 'i-lucide-file-pen-line', tone: 'warning', value: counts.draft ?? null, hint: hints.draft ?? (counts.draft ? t('meetingsKpi.draftHint') : undefined), to: links.draft, clearTo: links.total },
+    { id: 'done', label: t('meetingsKpi.doneMonth'), icon: 'i-lucide-circle-check', tone: 'neutral', value: counts.done ?? null, hint: hints.done ?? t('meetingsKpi.doneMonthHint'), to: links.done, clearTo: links.total },
   ]
 }
 
@@ -61,8 +97,8 @@ export function meetingFollowupTiles(counts: Partial<Record<FollowupKpiState, nu
   const link = (state: FollowupKpiState) => kpiLink('/meetings/follow-up', { ...scope, state })
   return [
     { id: 'all', label: t('meetingsKpi.followupTotal'), icon: 'i-lucide-list-checks', tone: 'neutral', value: counts.all ?? null, to: link('all') },
-    { id: 'active', label: t('meetingsKpi.followupActive'), icon: 'i-lucide-clock', tone: 'warning', value: counts.active ?? null, to: link('active') },
-    { id: 'overdue', label: t('meetingsKpi.followupOverdue'), icon: 'i-lucide-circle-alert', tone: 'danger', value: counts.overdue ?? null, to: link('overdue') },
-    { id: 'done', label: t('meetingsKpi.followupDone'), icon: 'i-lucide-circle-check', tone: 'success', value: counts.done ?? null, to: link('done') },
+    { id: 'active', label: t('meetingsKpi.followupActive'), icon: 'i-lucide-clock', tone: 'warning', value: counts.active ?? null, to: link('active'), clearTo: link('all') },
+    { id: 'overdue', label: t('meetingsKpi.followupOverdue'), icon: 'i-lucide-circle-alert', tone: 'danger', value: counts.overdue ?? null, to: link('overdue'), clearTo: link('all') },
+    { id: 'done', label: t('meetingsKpi.followupDone'), icon: 'i-lucide-circle-check', tone: 'success', value: counts.done ?? null, to: link('done'), clearTo: link('all') },
   ]
 }

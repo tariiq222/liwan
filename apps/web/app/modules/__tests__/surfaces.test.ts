@@ -85,10 +85,10 @@ describe('manifest bell kinds', () => {
 })
 
 describe('manifest core counts', () => {
-  it('gives chat, tasks and meetings a badge and no other application one', () => {
+  it('gives chat and tasks a badge and no other application one', () => {
     // The tool panels left the top bar (2026-11-21); the numbers stayed, as one loader per application for the
-    // sidebar's core row and the phone tab bar.
-    expect(coreCounts().map(entry => entry.id).sort()).toEqual(['chat', 'meetings', 'tasks'])
+    // sidebar's core row and the phone tab bar (meetings moved out of the core row on 2026-11-25).
+    expect(coreCounts().map(entry => entry.id).sort()).toEqual(['chat', 'tasks'])
     for (const entry of coreCounts()) {
       expect(typeof entry.count).toBe('function')
       expect(entry.to).toMatch(/^\//)

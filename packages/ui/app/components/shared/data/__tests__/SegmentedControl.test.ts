@@ -48,6 +48,18 @@ describe('SharedSegmentedControl', () => {
     expect(html).toContain('auto-cols-fr')
   })
 
+  it('supports compact size="sm" with shorter segments and touch target fallback', async () => {
+    const html = await render({ size: 'sm', block: true })
+    expect(html).toContain('p-[3px]')
+    expect(html).toContain('h-[26px]')
+    expect(html).toContain('min-h-[26px]')
+    expect(html).toContain('px-2.5')
+    expect(html).toContain('text-xs')
+    expect(html).toContain('pointer-coarse:h-[36px]')
+    const iconHtml = await render({ size: 'sm', iconOnly: true, items: [{ value: 'table', label: 'Table view', icon: 'i-lucide-list' }] })
+    expect(iconHtml).toContain('min-w-[26px]')
+  })
+
   it('emits the chosen value on click', async () => {
     const onUpdate = vi.fn()
     const clicks = new Map<string, () => void>()

@@ -75,7 +75,7 @@ for (const mode of ['light', 'dark']) {
     expect(measurements.length).toBeGreaterThan(15)
     for (const item of measurements) {
       expect(item.ratio, JSON.stringify(item)).toBeGreaterThanOrEqual(4.5)
-      expect(item.fontSize, item.text).toBeGreaterThanOrEqual(11.99)
+      expect(item.fontSize, item.text).toBeGreaterThanOrEqual(10.79)
     }
     await info.attach('rendered-contrast', { body: JSON.stringify(measurements, null, 2), contentType: 'application/json' })
     await writeFile(info.outputPath('contrast.json'), JSON.stringify(measurements, null, 2))
@@ -86,7 +86,7 @@ for (const mode of ['light', 'dark']) {
 test('project typography scales with preference and releases its scope on client navigation', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 1000 })
   await appearance(page, 'light', 'small')
-  for (const [size, root, label] of [['small', 14, 'صغير'], ['medium', 16, 'وسط'], ['large', 18, 'كبير']] as const) {
+  for (const [size, root, label] of [['small', 12.6, 'صغير'], ['medium', 14.4, 'وسط'], ['large', 16.2, 'كبير']] as const) {
     if (size !== 'small') {
       await page.goto('/account/settings')
       const item = page.getByRole('radio', { name: label, exact: true })
@@ -106,7 +106,7 @@ test('project typography scales with preference and releases its scope on client
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   }
   await page.getByTestId('notification-bell').click()
-  expect(await page.locator('[data-testid="notification-preview"] [data-slot="caption"]').first().evaluate(e => parseFloat(getComputedStyle(e).fontSize))).toBeCloseTo(18 * 12 / 14, 1)
+  expect(await page.locator('[data-testid="notification-preview"] [data-slot="caption"]').first().evaluate(e => parseFloat(getComputedStyle(e).fontSize))).toBeCloseTo(16.2 * 12 / 14, 1)
   await page.getByTestId('slide-over-notifications-all').click()
   await expect(page).toHaveURL(/\/notifications$/)
   await expect(page.locator('html')).not.toHaveAttribute('data-project-theme')

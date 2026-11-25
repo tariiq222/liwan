@@ -53,14 +53,10 @@ test('the meeting has five sections and existing agenda and version links still 
   await expect(page.getByTestId('meeting-minutes-document')).toBeVisible()
 })
 
-test('list and calendar preserve filters and a chosen day seeds creation', async ({ page }) => {
-  await open(page, '/meetings?q=متابعة&mine=1&state=confirmed&date_from=2026-09-01')
-  await page.getByTestId('meeting-view-calendar').click()
-  await expect(page).toHaveURL(/\/meetings\/calendar\?/)
-  const calendar = new URL(page.url())
-  expect(calendar.searchParams.get('q')).toBe('متابعة')
-  expect(calendar.searchParams.get('mine')).toBe('1')
-  expect(calendar.searchParams.get('month')).toBe('9')
+test('calendar opens as a standalone sidebar page and a chosen day seeds creation', async ({ page }) => {
+  await open(page, '/meetings')
+  await page.getByTestId('context-link-meeting-calendar').click()
+  await expect(page).toHaveURL(/\/meetings\/calendar\b/)
   await open(page, '/meetings/calendar?year=2026&month=9&day=2026-09-15')
   await page.getByTestId('meeting-calendar-new').click()
   await expect(page.getByRole('dialog')).toBeVisible()

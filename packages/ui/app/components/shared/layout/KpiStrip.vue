@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { KpiTile } from '../../../utils/kpiTile'
+import { isKpiTileActive, resolveKpiTileTo, type KpiTile } from '../../../utils/kpiTile'
 
 // The row of metric tiles above a main or list page: compact `SharedMetricTile`s that share the row evenly (`liwan-kpi-grid`: at least 220px each, up to four across; two on a phone).
 // Tiles are information, never buttons (a tile with `to` is a link). While `loading` the row is skeletons of the same size, so the
@@ -14,6 +14,12 @@ const props = withDefaults(defineProps<{
 }>(), { tiles: () => [] })
 const { t } = useI18n()
 const { shown } = useKpiVisibility()
+const route = useRoute()
+const currentTarget = computed(() => route.fullPath ?? route.path ?? '')
+const resolvedTiles = computed(() => props.tiles.map((tile) => {
+  const active = isKpiTileActive(tile, currentTarget.value)
+  return { ...tile, active, to: resolveKpiTileTo(tile, active, props.tiles) }
+}))
 const skeletons = computed(() => props.skeletonCount ?? (props.tiles.length || 4))
 </script>
 
@@ -21,7 +27,7 @@ const skeletons = computed(() => props.skeletonCount ?? (props.tiles.length || 4
   <section v-if="shown" data-slot="kpi-strip" class="liwan-kpi-grid" :aria-label="props.label ?? t('states.metrics')">
     <template v-if="!props.loading">
       <SharedMetricTile
-        v-for="tile in props.tiles"
+        v-for="tile in resolvedTiles"
         :key="tile.id"
         density="compact"
         :tone="tile.tone"
@@ -31,6 +37,7 @@ const skeletons = computed(() => props.skeletonCount ?? (props.tiles.length || 4
         :hint="tile.hint"
         :progress="tile.progress"
         :to="tile.to"
+        :active="tile.active"
         value-dir="ltr"
       />
     </template>

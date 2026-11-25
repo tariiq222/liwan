@@ -4,7 +4,7 @@ import type { z } from 'zod'
 import type { MeetingPreviousResolutionSchema } from '@liwan/contracts'
 import FilterBar from '@liwan/ui/app/components/shared/data/FilterBar.vue'
 import RecordNumber from '@liwan/ui/app/components/shared/data/RecordNumber.vue'
-import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
+import { localIsoDay } from '@liwan/ui/app/utils/formatDate'
 import { refDebounced } from '@vueuse/core'
 import { useMeetingFollowup, type MeetingFollowupParams } from '@/composables/useMeetingWorkspace'
 import { useMeetingFollowupKpis } from '@/composables/useMeetingKpis'
@@ -51,14 +51,15 @@ function clearFilters() {
   patch({ q: undefined, mine: undefined, state: undefined })
 }
 const total = computed(() => query.data.value?.total ?? 0)
+const countTags = computed(() => query.data.value ? [{ label: t('meetingsUi.followupCountTag', { count: total.value }, total.value), kind: 'count' as const }] : [])
+const todayIso = computed(() => hydrated.value ? localIsoDay(new Date()) : '')
 // The task column only earns its place when at least one visible row carries a task; an all-empty
 // action column under an action heading reads as a broken table.
 const hasTaskColumn = computed(() => rows.value.some(row => row.task_id))
 const columns = computed<TableColumn<Row>[]>(() => [
-  { id: 'record_number', header: () => recordNumberHeader(t), meta: { class: { th: 'w-12 px-2 text-start', td: 'w-12 px-2 whitespace-nowrap' } } },
-  { accessorKey: 'name', header: t('meetingsUi.resolutionTitle'), meta: { class: { th: 'min-w-56 w-[32%]', td: 'max-w-0' } } },
+  { accessorKey: 'name', header: t('meetingsUi.resolutionTitle'), meta: { title: true, class: { th: 'min-w-64 w-[38%]', td: 'max-w-0' } } },
   { accessorKey: 'responsible', header: t('meetingsUi.responsible'), meta: { class: { th: 'w-44', td: 'w-44 max-w-0' } } },
-  { accessorKey: 'deadline', header: t('meetingsUi.deadline'), meta: { class: { th: 'w-36', td: 'w-36 whitespace-nowrap' } } },
+  { accessorKey: 'deadline', header: t('meetingsUi.deadline'), meta: { class: { th: 'w-40', td: 'w-40 whitespace-nowrap' } } },
   { accessorKey: 'execution_state', header: t('meetingsUi.stateLabel'), meta: { class: { th: 'w-32', td: 'w-32 whitespace-nowrap' } } },
   ...(hasTaskColumn.value ? [{ id: 'task', header: t('meetingsUx.openTaskNewTab'), meta: { class: { th: 'w-32', td: 'w-32 whitespace-nowrap' } } }] : []),
 ])
@@ -70,7 +71,7 @@ function setPage(value: number) { if (value >= 1 && value <= pages.value) patch(
 </script>
 
 <template>
-  <SharedListPage :title="t('nav.meetingFollowup')" kpi-toggle>
+  <SharedListPage :title="t('nav.meetingFollowup')" :tags="countTags" kpi-toggle>
     <SharedKpiStrip v-if="hydrated" :tiles="kpis.tiles.value" :loading="kpis.loading.value" :label="t('meetingsKpi.label')" data-testid="meeting-followup-kpi-strip" />
     <SharedListCard>
       <template #filters>
@@ -85,19 +86,31 @@ function setPage(value: number) { if (value >= 1 && value <= pages.value) patch(
           <template #default>
             <USelect class="w-full md:w-48" icon="i-lucide-activity" :items="stateOptions" :model-value="filters.state" :disabled="!hydrated" :aria-label="t('meetingsUi.stateLabel')" @update:model-value="patch({ state: String($event) })" />
           </template>
-          <template #view>
+          <template #scope>
             <SharedSegmentedControl :label="t('meetingsUi.responsible')" :items="scopeItems" :model-value="filters.mine ? 'mine' : 'all'" :disabled="!hydrated" @update:model-value="patch({ mine: $event === 'mine' ? '1' : undefined })" />
           </template>
         </FilterBar>
       </template>
       <SharedDataTable bare :rows="rows" :columns="columns" row-key="id" :row-to="meetingTo" :loading="query.isLoading.value" :error="query.error.value" :empty-text="t(activeFilterCount ? 'app.noResults' : 'meetingsUi.emptyResolutions')" :caption="t('nav.meetingFollowup')" @retry="query.refetch()">
-        <template #record_number-cell="{ row }"><RecordNumber :value="row.original.id" /></template>
-        <template #name-cell="{ row }"><NuxtLink :to="meetingTo(row.original)" class="block break-words text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.original.name }}</NuxtLink><p class="mt-0.5 break-words text-xs text-muted">{{ row.original.meeting_name }}</p></template>
+        <template #name-cell="{ row }">
+          <NuxtLink :to="meetingTo(row.original)" class="block truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">{{ row.original.name }}</NuxtLink>
+          <div class="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted">
+            <RecordNumber :value="row.original.id" />
+            <span v-if="row.original.meeting_name" aria-hidden="true">·</span>
+            <span v-if="row.original.meeting_name" class="min-w-0 truncate">{{ row.original.meeting_name }}</span>
+          </div>
+        </template>
         <template #responsible-cell="{ row }">
           <div v-if="row.original.responsible" class="flex min-w-0 items-center gap-2"><SharedPersonAvatar :people="[row.original.responsible]" /><span class="min-w-0 truncate text-muted">{{ row.original.responsible.name }}</span></div>
           <span v-else class="text-muted">—</span>
         </template>
-        <template #deadline-cell="{ row }"><span v-if="row.original.deadline" class="whitespace-nowrap">{{ formatMeetingDate(row.original.deadline) }}</span><span v-else>{{ row.original.execution_period || '—' }}</span></template>
+        <template #deadline-cell="{ row }">
+          <div v-if="row.original.deadline" class="flex items-center gap-1.5 whitespace-nowrap">
+            <span>{{ formatMeetingDate(row.original.deadline) }}</span>
+            <UBadge v-if="row.original.deadline === todayIso" color="info" variant="subtle" size="xs">{{ t('meetingsUi.today') }}</UBadge>
+          </div>
+          <span v-else>{{ row.original.execution_period || '—' }}</span>
+        </template>
         <template #execution_state-cell="{ row }"><SharedStatusBadge v-bind="resolutionStateBadgeProps(row.original.execution_state ?? row.original.state, t)" /></template>
         <template #task-cell="{ row }"><UButton v-if="row.original.task_id" :to="`/tasks/${row.original.task_id}`" target="_blank" rel="noopener" color="neutral" variant="link" icon="i-lucide-external-link" :label="t('meetingsUx.openTaskNewTab')" /></template>
         <template #mobile-row="{ row }"><div class="grid min-w-0 gap-2"><NuxtLink :to="meetingTo(row)" class="break-words font-semibold text-highlighted">{{ row.name }}</NuxtLink><p class="break-words text-xs text-muted">{{ row.meeting_name }}</p><div class="flex flex-wrap items-center gap-2 text-sm"><SharedStatusBadge v-bind="resolutionStateBadgeProps(row.execution_state ?? row.state, t)" /><span>{{ row.responsible?.name || '—' }}</span><span>{{ row.deadline ? formatMeetingDate(row.deadline) : row.execution_period || '—' }}</span></div><UButton v-if="row.task_id" :to="`/tasks/${row.task_id}`" target="_blank" rel="noopener" variant="link" :label="t('meetingsUx.openTaskNewTab')" /></div></template>

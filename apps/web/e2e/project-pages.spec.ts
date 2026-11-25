@@ -87,8 +87,8 @@ test('project priority controls fit their cells on a 1024px desktop', async ({ p
     return { contained: control.x >= cell.x && control.right <= cell.right, width: control.width }
   })
   expect(geometry.contained).toBe(true)
-  // The pill's own minimum (min-w-25) is 87.5px at the 14px root.
-  expect(geometry.width).toBeGreaterThanOrEqual(87)
+  // The pill's own minimum (min-w-25) is 78.75px at the 12.6px (14px * 0.9) root.
+  expect(geometry.width).toBeGreaterThanOrEqual(78)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 })
 
@@ -156,7 +156,7 @@ test('desktop sidebar keeps project navigation at a fixed width through the proj
     await expect(page.getByTestId(`context-link-${id}`)).toHaveCount(0)
   }
   await expect(page.getByTestId('project-tab-settings')).toHaveCount(0)
-  expect((await sidebar.boundingBox())!.width).toBe(264)
+  expect((await sidebar.boundingBox())!.width).toBeCloseTo(237.6, 0)
   await (await projectMenuItem(page, PROJECT_SETTINGS_ITEM)).click()
   await expect(page).toHaveURL(/\/projects\/1\/settings/)
   await expect(page.getByRole('heading', { name: 'إعدادات المشروع', level: 2 })).toBeVisible()
@@ -167,7 +167,7 @@ test('desktop sidebar keeps project navigation at a fixed width through the proj
   // The sidebar has no fold state: «[» does nothing and the width never changes.
   await page.getByRole('heading', { level: 1 }).click()
   await page.keyboard.press('[')
-  expect((await sidebar.boundingBox())!.width).toBe(264)
+  expect((await sidebar.boundingBox())!.width).toBeCloseTo(237.6, 0)
   await page.screenshot({ path: testInfo.outputPath('project-sidebar.png'), fullPage: true })
 })
 

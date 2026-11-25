@@ -10,11 +10,12 @@ test.describe('Tasmim density', () => {
   test.beforeAll(async () => { ({ base, close } = await startStorybookServer()) })
   test.afterAll(async () => { await close() })
 
+  const UI_SCALE = 0.9
   for (const [globals, root] of [
-    ['locale:ar;appearance:light;fontSize:small', 14],
-    ['locale:en;appearance:light;fontSize:small', 13],
-    ['locale:ar;appearance:dark;fontSize:large', 18],
-    ['locale:en;appearance:light;fontSize:large', 17],
+    ['locale:ar;appearance:light;fontSize:small', 14 * UI_SCALE],
+    ['locale:en;appearance:light;fontSize:small', 13 * UI_SCALE],
+    ['locale:ar;appearance:dark;fontSize:large', 18 * UI_SCALE],
+    ['locale:en;appearance:light;fontSize:large', 17 * UI_SCALE],
   ] as const) {
     test(`controls and rows scale with a ${root}px root (${globals})`, async ({ page }) => {
       await page.goto(url('foundations-density--controls', globals))

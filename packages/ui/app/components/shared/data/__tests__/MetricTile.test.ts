@@ -24,14 +24,23 @@ describe('SharedMetricTile', () => {
     expect(html).not.toContain('order-last')
   })
 
-  it('compact puts a 32px chip at the end from sm, pads 18px/20px and shrinks the figure on a phone', async () => {
-    const html = await render({ density: 'compact', tone: 'success' })
+  it('compact stacks label + 32px chip on the top row over the figure with dense vertical padding', async () => {
+    const html = await render({ density: 'compact', tone: 'success', hint: 'Confirmed' })
     expect(html).toContain('data-density="compact"')
-    expect(html).toContain('order-last hidden sm:flex')
-    expect(html).toContain('size-8 rounded-control')
+    expect(html).toContain('flex h-full w-full min-w-0 flex-col justify-between gap-2')
+    expect(html).toContain('hidden shrink-0 items-center justify-center sm:flex')
+    expect(html).toContain('size-8')
+    expect(html).toContain('rounded-control')
     expect(html).toContain('text-(length:--liwan-fs-figure)')
     expect(html).toContain('bg-status-success-soft text-status-success-foreground')
-    expect(html).toContain('py-[18px]')
+    expect(html).toContain('px-(--liwan-card-pad-dense) py-3.5')
+    expect(html).toContain('Confirmed')
+  })
+
+  it('compact places hint below the figure when progress is present', async () => {
+    const html = await render({ density: 'compact', tone: 'success', hint: '50% done', progress: 50 })
+    expect(html.indexOf('50% done')).toBeGreaterThan(html.indexOf('18'))
+    expect(html.indexOf('role="progressbar"')).toBeGreaterThan(html.indexOf('50% done'))
   })
 
   it('compact draws the neutral tone as the application tile, and the status tones as soft chips', async () => {
@@ -87,6 +96,16 @@ describe('SharedMetricTile', () => {
     const plain = await render({})
     expect(plain).not.toContain('<a')
     expect(plain).not.toContain('metric-link')
+  })
+
+  it('marks an active tile with a primary border, data-active, and aria-current', async () => {
+    const html = await render({ density: 'compact', to: '/meetings?state=draft', active: true })
+    expect(html).toContain('data-active="true"')
+    expect(html).toContain('ring-2 ring-primary')
+    expect(html).toContain('aria-current="true"')
+    const inactive = await render({ density: 'compact', to: '/meetings?state=draft', active: false })
+    expect(inactive).not.toContain('data-active="true"')
+    expect(inactive).not.toContain('aria-current="true"')
   })
 
   it('anchors an LTR figure to inline-start so it stays aligned under the label in RTL', async () => {

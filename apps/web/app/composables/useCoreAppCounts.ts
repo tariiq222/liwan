@@ -5,8 +5,8 @@ import { canReach, canReachPath } from '../utils/accessPolicy'
 export interface CoreCount { id: string, count: number | null }
 
 /**
- * The badge numbers of the core applications (conversations, tasks, meetings), from the count loaders the applications
- * declare in `core` of their manifest. One loader feeds both places a number appears — the sidebar's core-app row and
+ * The badge numbers of the core applications (conversations, tasks), from the count loaders the applications
+ * declare in `coreCount` of their manifest. One loader feeds both places a number appears — the sidebar's core-app row and
  * the phone tab bar — so the two can never disagree.
  *
  * This replaced the top bar's `quickPanel` loaders when those slide-overs were removed (DESIGN.md §3, 2026-11-21): the

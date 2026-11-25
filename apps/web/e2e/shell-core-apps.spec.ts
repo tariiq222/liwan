@@ -7,12 +7,11 @@ async function open(page: Page, path: string) {
   await expect(page.getByTestId('global-search-trigger')).toBeEnabled({ timeout: 30_000 })
 }
 
-// The core free applications as one icon row under the organisation, in the order the owner asked for.
+// The core free applications as one icon row under the organisation, in the order the owner asked for (DESIGN.md §3).
 const CORE = [
   { id: 'home', route: /\/$/, name: 'يومي' },
   { id: 'ai', route: /\/ai$/, name: 'Liwan AI' },
   { id: 'tasks', route: /\/work$/, name: 'أعمالي' },
-  { id: 'meetings', route: /\/meetings$/, name: 'الاجتماعات' },
   { id: 'chat', route: /\/chat$/, name: 'المحادثات' },
 ] as const
 
@@ -20,7 +19,7 @@ test.describe('core apps icon row', () => {
   test.use({ viewport: { width: 1440, height: 900 } })
   test.beforeEach(async ({ page }) => { await login(page) })
 
-  test('lists the five core applications in order under the organisation, each named by its label', async ({ page }) => {
+  test('lists the four core applications in order under the organisation, each named by its label', async ({ page }) => {
     await open(page, '/apps')
     const menu = page.getByTestId('application-navigation')
     const row = menu.getByTestId('core-apps')
@@ -29,25 +28,28 @@ test.describe('core apps icon row', () => {
     const ids = await row.locator('a').evaluateAll(links => links.map(link => link.getAttribute('data-testid')))
     expect(ids).toEqual(CORE.map(item => `core-app-${item.id}`))
     for (const item of CORE) await expect(row.getByTestId(`core-app-${item.id}`)).toHaveAccessibleName(new RegExp(`^${item.name}`))
-    // The row sits under the organisation card, and no tile wraps: all five share one line.
+    // The row sits under the organisation card, and no tile wraps: all four share one line.
     const org = (await menu.getByTestId('shell-org').boundingBox())!
     const tops = await row.locator('a').evaluateAll(links => links.map(link => Math.round(link.getBoundingClientRect().top)))
     expect(new Set(tops).size).toBe(1)
     expect(tops[0]!).toBeGreaterThan(org.y + org.height)
     const box = (await row.boundingBox())!
-    expect(box.width).toBeLessThanOrEqual(264)
+    expect(box.width).toBeLessThanOrEqual(238)
   })
 
-  test('the list «تطبيقاتي» no longer carries the day, the assistant, the free applications, the documents or the operations', async ({ page }) => {
+  test('the list «تطبيقاتي» excludes the core and footer applications while carrying meetings as a regular application', async ({ page }) => {
     await open(page, '/apps')
     const menu = page.getByTestId('application-navigation')
     const lists = menu.locator('.liwan-side-body')
-    for (const id of ['home', 'ai', 'tasks', 'meetings', 'chat', 'documents', 'operations']) await expect(lists.getByTestId(`navigation-app-${id}`)).toHaveCount(0)
+    await expect(menu.getByTestId('core-app-meetings')).toHaveCount(0)
+    for (const id of ['home', 'ai', 'tasks', 'chat', 'documents', 'operations']) await expect(lists.getByTestId(`navigation-app-${id}`)).toHaveCount(0)
+    await expect(lists.getByTestId('navigation-app-meetings')).toBeVisible()
     await expect(lists.getByTestId('navigation-app-projects')).toBeVisible()
-    // The all-applications page offers no pin for a free application.
+    // The all-applications page offers no pin for a core or footer application, while meetings is pinnable.
     for (const card of await page.getByTestId('launcher-row').all()) {
       const app = await card.getAttribute('data-app')
-      if (['ai', 'tasks', 'meetings', 'chat', 'documents', 'operations'].includes(app!)) await expect(card.getByTestId('launcher-pin')).toHaveCount(0)
+      if (['ai', 'tasks', 'chat', 'documents', 'operations'].includes(app!)) await expect(card.getByTestId('launcher-pin')).toHaveCount(0)
+      if (app === 'meetings') await expect(card.getByTestId('launcher-pin')).toHaveCount(1)
     }
   })
 
@@ -80,15 +82,15 @@ test.describe('core apps icon row', () => {
     await open(page, '/projects')
     // The panels left the bar with the 2026-11-21 shell decision (DESIGN.md §3); the core row is the single way in.
     for (const gone of ['chat-tool', 'tasks-tool', 'meetings-tool']) await expect(page.getByTestId(gone)).toHaveCount(0)
-    await page.getByTestId('application-navigation').getByTestId('core-app-meetings').click()
-    await expect(page).toHaveURL(/\/meetings$/)
+    await page.getByTestId('application-navigation').getByTestId('core-app-chat').click()
+    await expect(page).toHaveURL(/\/chat$/)
   })
 
   test('a hover shows the name in a tooltip below the tile, with no second description', async ({ page }) => {
     await open(page, '/apps')
-    const tile = page.getByTestId('application-navigation').getByTestId('core-app-meetings')
+    const tile = page.getByTestId('application-navigation').getByTestId('core-app-chat')
     await tile.hover()
-    const tip = page.locator('[role="tooltip"]').filter({ hasText: 'الاجتماعات' })
+    const tip = page.locator('[role="tooltip"]').filter({ hasText: 'المحادثات' })
     await expect(tip).toBeVisible()
     await page.waitForTimeout(200)
     await expect(tile).not.toHaveAttribute('aria-describedby', /.+/)
@@ -134,7 +136,7 @@ test.describe('core apps icon row', () => {
     await expect(page.locator('html')).toHaveAttribute('dir', 'ltr')
     const tops = await row.locator('a').evaluateAll(links => links.map(link => Math.round(link.getBoundingClientRect().top)))
     expect(new Set(tops).size).toBe(1)
-    expect((await row.boundingBox())!.x + (await row.boundingBox())!.width).toBeLessThanOrEqual(264)
+    expect((await row.boundingBox())!.x + (await row.boundingBox())!.width).toBeLessThanOrEqual(238)
     expect(await fitsWidth(page)).toBe(true)
   })
 
@@ -142,7 +144,7 @@ test.describe('core apps icon row', () => {
     await page.setViewportSize({ width: 900, height: 900 })
     await open(page, '/apps')
     const menu = page.getByTestId('application-navigation')
-    expect((await menu.boundingBox())!.width).toBe(84)
+    expect((await menu.boundingBox())!.width).toBeCloseTo(75.6, 0)
     const lefts = await menu.getByTestId('core-apps').locator('a').evaluateAll(links => links.map(link => Math.round(link.getBoundingClientRect().left)))
     const tops = await menu.getByTestId('core-apps').locator('a').evaluateAll(links => links.map(link => Math.round(link.getBoundingClientRect().top)))
     expect(new Set(lefts).size).toBe(1)
@@ -165,8 +167,8 @@ test.describe('core apps icon row', () => {
     await expect(drawer.getByTestId('mobile-core-apps')).toBeVisible()
     await expect(drawer.getByTestId('mobile-core-apps').locator('a')).toHaveCount(CORE.length)
     for (const link of await drawer.getByTestId('mobile-core-apps').locator('a').all()) expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44)
-    await drawer.getByTestId('mobile-core-app-meetings').click()
-    await expect(page).toHaveURL(/\/meetings$/)
+    await drawer.getByTestId('mobile-core-app-chat').click()
+    await expect(page).toHaveURL(/\/chat$/)
     await expect(drawer).toBeHidden()
   })
 })

@@ -9,7 +9,6 @@ import { formatLocalDateTime } from '@/utils/meetingDateTime'
 import { parseMeetingListFilters, patchMeetingListQuery, type MeetingFilterPatch } from '@/utils/meetingListFilters'
 import { calendarCoverage } from '@/utils/meetingWorkspace'
 import { meetingStateBadge, meetingStateBadgeProps } from '@/utils/meetingStatus'
-import { meetingViewRoute, meetingViewOptions } from '@/utils/meetingRoutes'
 import { firstQuery } from '@/utils/routeQuery'
 
 const route = useRoute()
@@ -228,9 +227,8 @@ function goToday() {
             <USelect data-testid="meeting-state" class="w-full md:w-44" icon="i-lucide-activity" :items="stateOptions" :model-value="selectedState || ALL_STATES" :disabled="!hydrated" :aria-label="t('meetingsUi.stateLabel')" @update:model-value="onStateChange" />
             <MeetingProjectFilter v-if="hasProjectFilter" id="meeting-project" hide-label class="w-full md:w-44" :model-value="projectId" @update:model-value="patchFilters({ project_id: $event })" @resolved-name="projectName = $event" />
           </template>
-          <template #view>
+          <template #scope>
             <SharedSegmentedControl data-testid="meeting-scope" :label="t('meetingsFilters.scope')" :items="scopeItems" :model-value="routeFilters.mine ? 'mine' : 'all'" :disabled="!hydrated" @update:model-value="onScopeChange" />
-            <SharedViewSwitch model-value="calendar" :options="meetingViewOptions(t)" @update:model-value="value => router.push(meetingViewRoute(route.query, value === 'calendar' ? 'calendar' : 'list'))" />
           </template>
           <!-- The dropdowns show their own choice; only the filters inherited from a link have no control. -->
           <template v-if="routeFilters.organizerId || routeFilters.seriesId" #active>
@@ -292,8 +290,8 @@ function goToday() {
                     />
                     <span
                       v-if="cell.day"
-                      class="pointer-events-none relative inline-flex size-6 items-center justify-center rounded-full text-xs tabular-nums"
-                      :class="cell.today ? 'bg-primary/15 font-semibold text-primary' : 'text-muted'"
+                      class="pointer-events-none relative inline-flex size-6 items-center justify-center rounded-inner text-xs tabular-nums"
+                      :class="cell.today ? 'bg-primary font-semibold text-inverted' : 'text-muted'"
                       :aria-current="cell.today ? 'date' : undefined"
                       aria-hidden="true"
                     >{{ cell.day }}</span>

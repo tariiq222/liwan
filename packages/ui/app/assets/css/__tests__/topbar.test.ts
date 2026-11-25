@@ -19,10 +19,10 @@ describe('top bar icon buttons', () => {
     expect(shell).toContain('.liwan-tool:focus-visible { outline: 2px solid var(--ring);')
   })
 
-  it('share one soft filled capsule with the same height as the other bar controls', () => {
+  it('share one bordered capsule with the same height as the other bar controls', () => {
     const tools = rule('.liwan-tools')
     expect(tools).toMatch(/height: var\(--liwan-bar-tile\);/)
-    expect(tools).toMatch(/background: var\(--ui-bg-muted\);/)
+    expect(tools).toMatch(/background: var\(--ui-bg\);/)
     expect(tools).toMatch(/border: 1px solid var\(--ui-border\);/)
     expect(shell).not.toContain('data-variant="outline"')
     expect(shell).not.toContain('.liwan-app-grid')
@@ -54,12 +54,12 @@ describe('top bar corner radius', () => {
 })
 
 describe('top bar user button', () => {
-  it('is the same soft filled capsule as the tools, the same height, darker on hover and while its menu is open', () => {
+  it('is the same bordered capsule as the tools, the same height, tinted on hover and while its menu is open', () => {
     const user = rule('.liwan-user')
     expect(user).toMatch(/height: var\(--liwan-bar-tile\);/)
     expect(user).toMatch(/border: 1px solid var\(--ui-border\);/)
-    expect(user).toMatch(/background: var\(--ui-bg-muted\);/)
-    expect(shell).toContain('.liwan-user:hover, .liwan-user[data-state="open"] { background: color-mix(in srgb, var(--liwan-ink) 9%, var(--ui-bg-muted)); }')
+    expect(user).toMatch(/background: var\(--ui-bg\);/)
+    expect(shell).toContain('.liwan-user:hover, .liwan-user[data-state="open"] { background: var(--ui-bg-muted); }')
   })
 
   it('keeps the avatar alone below 1100px', () => {

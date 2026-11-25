@@ -1,4 +1,3 @@
-import { meetingViewRoute, meetingViewOptions } from '../../utils/meetingRoutes'
 import { readFileSync } from 'node:fs'
 import { compileScript, compileTemplate, parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
@@ -32,7 +31,7 @@ async function mountList(file: 'index.vue' | 'series.vue', base: string, auth: (
   const descriptor = parse(readFileSync(filename, 'utf8'), { filename }).descriptor
   const script = compileScript(descriptor, { id: 'meeting-list-departure' }).content
     .replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replace('export default', 'return')
-  const bindings = { meetingViewRoute, meetingViewOptions,
+  const bindings = {
     ...filters, parseOffset, _defineComponent: Vue.defineComponent, defineComponent: Vue.defineComponent,
     ref: Vue.ref, computed: Vue.computed, reactive: Vue.reactive, watch: Vue.watch, onScopeDispose: Vue.onScopeDispose,
     useRoute: deferPageRoute ? () => deferredRoute : useRoute, useRouter, onBeforeRouteLeave, onBeforeRouteUpdate, refDebounced, returnToQuery,
@@ -41,9 +40,9 @@ async function mountList(file: 'index.vue' | 'series.vue', base: string, auth: (
     useAccess: () => ({ can: () => permission.value }), useRecordPickerAvailable: () => Vue.computed(() => permission.value),
     usePeople: () => ({ data: Vue.ref([]), isLoading: Vue.ref(false), error: Vue.ref(null) }),
     useMeetings: () => ({ data: Vue.ref({ items: [], total: 120 }), isLoading: Vue.ref(false), isFetching: Vue.ref(false), error: Vue.ref(null) }),
-    useMeetingListKpis: () => ({ tiles: Vue.ref([]), loading: Vue.ref(false) }), useMeetingSeriesKpis: () => ({ tiles: Vue.ref([]), loading: Vue.ref(false) }),
+    useMeetingListKpis: () => ({ tiles: Vue.ref([]), loading: Vue.ref(false), nextUpcoming: Vue.ref(null) }), useMeetingSeriesKpis: () => ({ tiles: Vue.ref([]), loading: Vue.ref(false) }),
     useMeetingSeriesList: () => ({ data: Vue.ref({ items: [], total: 120 }), isLoading: Vue.ref(false), isFetching: Vue.ref(false), error: Vue.ref(null) }),
-    formatCalendarDate: () => '', formatLiwanTime: () => '', formatLocalDateTime: () => '', meetingStateBadgeProps: () => ({}),
+    formatCalendarDate: () => '', formatLiwanTime: () => '', formatLocalDateTime: () => '', localIsoDay: () => '2026-10-20', meetingStateBadgeProps: () => ({}),
     FilterBar: {}, RecordNumber: {}, MeetingProjectFilter: {},
   }
   const code = ts.transpileModule(script, { compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2022 } }).outputText
@@ -53,7 +52,7 @@ async function mountList(file: 'index.vue' | 'series.vue', base: string, auth: (
   if (renderedLink) {
     // Compile the actual owned link attributes so a click/capture regression
     // exercises RouterLink's merged listener order, not a manually called handler.
-    const links = [...descriptor.template!.content.matchAll(/<NuxtLink\b[\s\S]*?<\/NuxtLink>/g)]
+    const links = [...descriptor.template!.content.matchAll(/<NuxtLink\b[\s\S]*?<\/NuxtLink>/g)].filter(match => !match[0].includes('nextUpcoming'))
     const link = links[renderedLink === 'desktop' ? 0 : 1]![0]
     const fragment = link.slice(0, link.indexOf('>') + 1) + 'record</NuxtLink>'
     const template = compileTemplate({ source: fragment, filename, id: 'meeting-real-link', compilerOptions: { mode: 'function' } })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { followupKpiStates, kpiLink, meetingFollowupTiles, meetingKpiFilters, meetingListTiles, meetingSeriesTiles, monthDayRange } from '../meetingKpis'
+import { followupKpiStates, kpiLink, meetingFollowupTiles, meetingKpiFilters, meetingListTiles, meetingSeriesTiles, monthDayRange, pickNearestUpcomingMeeting } from '../meetingKpis'
 
 const t = (key: string) => `t:${key}`
 
@@ -27,9 +27,13 @@ describe('meeting KPI filters', () => {
 describe('meeting KPI tiles', () => {
   it('show a dash for counts that have not arrived and the server total otherwise', () => {
     const links = { total: '/a', upcoming: '/b', draft: '/c', done: '/d' }
-    const tiles = meetingListTiles({ total: 5, upcoming: 0, draft: undefined, done: 2 }, links, t)
+    const tiles = meetingListTiles({ total: 5, upcoming: 0, draft: undefined, done: 2 }, links, t, { upcoming: 'Today · 10:00' })
     expect(tiles.map(tile => [tile.id, tile.value, tile.to])).toEqual([['total', 5, '/a'], ['upcoming', 0, '/b'], ['draft', null, '/c'], ['done', 2, '/d']])
     expect(tiles[0]?.label).toBe('t:meetingsKpi.total')
+    expect(tiles[1]?.hint).toBe('Today · 10:00')
+    expect(tiles[2]?.hint).toBeUndefined()
+    expect(tiles[3]?.hint).toBe('t:meetingsKpi.doneMonthHint')
+    expect(meetingListTiles({ total: 5, upcoming: 1, draft: 2, done: 0 }, links, t)[2]?.hint).toBe('t:meetingsKpi.draftHint')
   })
 
   it('mark the series resolution tiles as company-wide and link them to the follow-up filters', () => {
@@ -45,5 +49,31 @@ describe('meeting KPI tiles', () => {
     expect(tiles.map(tile => tile.id)).toEqual([...followupKpiStates])
     expect(tiles.map(tile => tile.value)).toEqual([9, 4, 1, null])
     expect(tiles[2]?.to).toBe('/meetings/follow-up?q=x&mine=1&state=overdue')
+  })
+})
+
+describe('pickNearestUpcomingMeeting', () => {
+  const descItems = [
+    { id: 30, meeting_date: '2026-11-15', start_datetime: '2026-11-15T10:00:00Z' },
+    { id: 22, meeting_date: '2026-10-20', start_datetime: '2026-10-20T14:00:00Z' },
+    { id: 19, meeting_date: '2026-10-20', start_datetime: '2026-10-20T09:00:00Z' },
+    { id: 18, meeting_date: '2026-10-20', start_datetime: '2026-10-20T09:00:00Z' },
+  ]
+
+  it('picks the earliest upcoming meeting from a meeting_date desc response', () => {
+    expect(pickNearestUpcomingMeeting({ items: descItems, total: descItems.length })).toEqual(descItems[3])
+  })
+
+  it('returns null when disabled even if cached data exists', () => {
+    expect(pickNearestUpcomingMeeting({ items: descItems, total: descItems.length }, false)).toBeNull()
+  })
+
+  it('returns null when the server response is truncated so it never guesses the wrong meeting', () => {
+    expect(pickNearestUpcomingMeeting({ items: descItems, total: descItems.length + 1 })).toBeNull()
+  })
+
+  it('returns null for missing or empty data', () => {
+    expect(pickNearestUpcomingMeeting(undefined)).toBeNull()
+    expect(pickNearestUpcomingMeeting({ items: [], total: 0 })).toBeNull()
   })
 })
