@@ -69,13 +69,16 @@ def render_run(run_dir: Path) -> dict[str, Path]:
     """Write the compose file, `sizing.env` and `odoo.conf` of `<run dir>/harness.env` on top of the local env file."""
     run_dir = Path(run_dir)
     env = {name: unquoted(value) for name, value in render.read_env(LOCAL_ENV, run_dir / HARNESS_ENV).items()}
+    compose_text = render.render_stack(env)
+    sizing_text = ''.join(f'{name}={value}\n' for name, value in render.sizing_variables(env).items())
+    odoo_text = render.odoo_conf(env)
     paths = {name: run_dir / name for name in (COMPOSE_FILE, SIZING_FILE, ODOO_CONF)}
-    paths[COMPOSE_FILE].write_text(render.render_stack(env), encoding='utf-8')
-    paths[SIZING_FILE].write_text(''.join(f'{name}={value}\n' for name, value in render.sizing_variables().items()), encoding='utf-8')
+    paths[COMPOSE_FILE].write_text(compose_text, encoding='utf-8')
+    paths[SIZING_FILE].write_text(sizing_text, encoding='utf-8')
     paths[ODOO_CONF].unlink(missing_ok=True)
     descriptor = os.open(paths[ODOO_CONF], os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(descriptor, 'w', encoding='utf-8') as stream:
-        stream.write(render.odoo_conf(env))
+        stream.write(odoo_text)
     os.chmod(paths[ODOO_CONF], 0o400)
     return paths
 

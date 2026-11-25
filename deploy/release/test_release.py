@@ -99,7 +99,8 @@ if {require!r} and {require!r} not in text:
 
 
 STACK_FILES = ('deploy/__init__.py', 'deploy/odoo_sizing.py', 'deploy/release/__init__.py', 'deploy/release/common.py',
-               'deploy/stack/__init__.py', 'deploy/stack/render.py', 'deploy/stack/compose.yml', 'deploy/stack/odoo.conf.template')
+               'deploy/release/pools.py', 'deploy/stack/__init__.py', 'deploy/stack/render.py', 'deploy/stack/compose.yml',
+               'deploy/stack/odoo.conf.template')
 
 
 def write_smoke(checkout):
@@ -376,6 +377,31 @@ class FakeRunner:
         return 0, ''
 
 
+class FakePoolRelease:
+    """One pool's release as ``run_pools`` drives it: a lock in its own state directory, ``run`` and ``finish``.
+
+    ``run`` records what the pool is left serving: the new release when it returns EXIT_OK, the one it served before
+    when it fails, which is what ``Releaser.run`` does by rolling back only that pool.
+    """
+    def __init__(self, pool, outcome):
+        self.pool = pool
+        self.outcome = outcome
+        self.starts = []
+        self.served = 'old'
+
+    def file(self, name):
+        return self.pool.state / name
+
+    def run(self):
+        self.starts.append(self.pool.id)
+        if self.outcome == release.EXIT_OK:
+            self.served = 'new'
+        return self.outcome
+
+    def finish(self, code, result):
+        return code
+
+
 class ReleaseTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -394,8 +420,10 @@ class ReleaseTest(unittest.TestCase):
         self.addCleanup(sleeper.stop)
         self.environ = {'PATH': '/usr/bin', 'LIWAN_GHCR_READ_USER': USER, 'LIWAN_GHCR_READ_TOKEN': TOKEN}
         self.paths = release.Paths(config_root=root / 'etc', state_root=root / 'state', releases=root / 'releases',
-                                   current=root / 'current', maintenance=root / 'maintenance/active')
-        self.state = self.paths.state_root / 'staging'
+                                   current=root / 'current')
+        self.plan = release.pools.plan({}, 'staging', self.paths.state_root)
+        self.pool = self.plan.paths('default')
+        self.state = self.pool.state
         self.tenant_names = ['tenant_one']
         for name in ('tenant_one', 'tenant_two'):
             (root / 'data/filestore' / name).mkdir(parents=True)
@@ -481,6 +509,9 @@ class ReleaseTest(unittest.TestCase):
         release.write_json(self.state / 'served.json', {'commit': commit, 'ref': 'refs/tags/release/19.0.1.0.6', 'version': list(version),
                                                         'odooCommit': 'e' * 40})
         release.write_atomic(self.state / 'release.env', release.release_env_text(commit, 'e' * 40))
+        if not self.pool.current.is_symlink():  # the pool's own link, which the release reads as its previous checkout
+            self.pool.current.parent.mkdir(parents=True, exist_ok=True)
+            self.pool.current.symlink_to(self.paths.releases / commit)
 
     def main(self, *argv, environ=None):
         log = make_log([USER, TOKEN], self.log_stream)
@@ -650,7 +681,8 @@ class ReleaseTest(unittest.TestCase):
         self.assertFalse(self.compose_stops())
 
     def use_environment(self, environment, commit, version):
-        self.state = self.paths.state_root / environment
+        self.pool = release.pools.plan({}, environment, self.paths.state_root).paths('default')
+        self.state = self.pool.state
         self.serve(commit, version=version)
 
     tag = 'release/19.0.1.0.7'
@@ -1165,7 +1197,7 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(self.alert_events(), ['deploy_failed'])
         self.assertTrue(self.renames())
         self.assertFalse((self.state / 'run.json').exists() or (self.state / 'halted.json').exists())
-        self.assertFalse(self.paths.maintenance.exists())
+        self.assertFalse(self.pool.marker.exists())
 
     def test_failed_upgrade_of_the_second_tenant_rolls_back_code_and_data_of_both(self):
         self.tenant_names = ['tenant_one', 'tenant_two']
@@ -1187,7 +1219,7 @@ class ReleaseTest(unittest.TestCase):
                           'odoo': {('CREATE', False), ('TEMPORARY', False), ('CONNECT', False)}})
         self.assertFalse(self.commands('control-migrate'))
         self.assertEqual(self.alert_events(), ['deploy_failed'])
-        self.assertFalse(self.paths.maintenance.exists())
+        self.assertFalse(self.pool.marker.exists())
 
     def test_rollback_that_fails_halts_and_keeps_maintenance(self):
         self.interrupted('starting')
@@ -1195,7 +1227,7 @@ class ReleaseTest(unittest.TestCase):
         self.runner.answer = lambda argv, stdin: (1, 'unhealthy') if 'up' in argv else original(argv, stdin)
         self.assertEqual(self.main(), release.EXIT_ROLLBACK_FAILED)
         self.assertEqual(self.result(), 'halted rollback_command_failed')
-        self.assertTrue(self.paths.maintenance.exists())
+        self.assertTrue(self.pool.marker.exists())
         self.assertEqual(self.alert_events(), ['deploy_rollback_failed'])
         self.assertEqual(self.main(), release.EXIT_HALTED)
         self.assertEqual(self.result(), 'halted rollback_command_failed')
@@ -1205,7 +1237,7 @@ class ReleaseTest(unittest.TestCase):
         self.runner.answer = FakeRunner.answer.__get__(self.runner)
         self.assertEqual(self.main('rollback', '--environment', 'staging'), release.EXIT_FAILED)
         self.assertEqual(self.result(), 'rolled back interrupted')
-        self.assertFalse((self.state / 'halted.json').exists() or self.paths.maintenance.exists())
+        self.assertFalse((self.state / 'halted.json').exists() or self.pool.marker.exists())
         self.assertEqual(self.served(), OLD)
 
     def test_rollback_command_without_an_unfinished_run_only_clears_the_halt(self):
@@ -1235,7 +1267,7 @@ class ReleaseTest(unittest.TestCase):
                     self.assertTrue(self.result().startswith(f'cancelled {NEW}'))
                     self.assertFalse(self.compose_stops() or self.commands('-u') or self.renames())
                     self.assertFalse([call for call in self.runner.calls if call[:2] == ['systemctl', 'stop']])
-                    self.assertFalse(self.paths.maintenance.exists())
+                    self.assertFalse(self.pool.marker.exists())
                     self.assertFalse((self.state / 'run.json').exists() or (self.state / 'failed.json').exists())
                     self.assertEqual(self.served(), OLD)
                     self.assertEqual(self.main(), release.EXIT_OK)
@@ -1263,7 +1295,7 @@ class ReleaseTest(unittest.TestCase):
                 self.assertNotIn('tenants', run)
                 self.runner.calls.clear()
                 self.assertEqual(self.main('rollback', '--environment', 'staging'), release.EXIT_OK)
-                self.assertFalse(self.compose_stops() or self.renames() or self.paths.maintenance.exists())
+                self.assertFalse(self.compose_stops() or self.renames() or self.pool.marker.exists())
                 self.assertFalse((self.state / 'run.json').exists())
                 self.assertEqual(self.main(), release.EXIT_OK)
                 self.assertEqual(self.served(), NEW)
@@ -1272,7 +1304,7 @@ class ReleaseTest(unittest.TestCase):
         release.write_json(self.state / 'halted.json', {'reason': 'x'})
         with mock.patch('sys.stdout', new=io.StringIO()) as out:
             self.assertEqual(self.main('status', '--environment', 'staging'), release.EXIT_HALTED)
-        self.assertEqual(json.loads(out.getvalue())['served']['commit'], OLD)
+        self.assertEqual(json.loads(out.getvalue())['pools']['default']['served']['commit'], OLD)
 
     def test_worker_not_ready_after_commit_is_incomplete_and_the_next_run_resumes(self):
         self.worker_ready = False
@@ -1522,12 +1554,12 @@ class ReleaseTest(unittest.TestCase):
 
         def watch(argv, stdin):
             if 'control-migrate' in argv:
-                seen.append(self.paths.maintenance.exists())
+                seen.append(self.pool.marker.exists())
             return original(argv, stdin)
         self.runner.answer = watch
         self.assertEqual(self.main(), release.EXIT_OK)
         self.assertEqual(seen, [True])
-        self.assertFalse(self.paths.maintenance.exists())
+        self.assertFalse(self.pool.marker.exists())
 
     def test_worker_starts_only_after_served_is_written(self):
         self.assertEqual(self.main(), release.EXIT_OK)
@@ -2249,7 +2281,7 @@ class ReleaseTest(unittest.TestCase):
         restarted = [call for call in self.runner.calls if 'up' in call and f'{self.paths.releases / OLD}/deploy' in ' '.join(call)]
         self.assertTrue(restarted)
         self.assertTrue(any(call[-1] == 'guard' for call in restarted))  # the previous release serves customers again
-        self.assertFalse(self.paths.maintenance.exists())
+        self.assertFalse(self.pool.marker.exists())
         self.assertNotIn(['systemctl', 'start', release.SHARED_WORKER_UNIT], self.runner.calls)
         self.assertEqual(self.paths.current.resolve(), (self.paths.releases / OLD).resolve())
         self.assertFalse((self.root / 'shared.compose.json').exists())  # the failed release's render is gone: the worker fails closed
@@ -2340,7 +2372,7 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(self.compose_stops(), [])
         self.assertEqual(self.commands('capture'), [])
         self.assertEqual(self.commands('-u'), [])
-        self.assertFalse(self.paths.maintenance.exists())
+        self.assertFalse(self.pool.marker.exists())
         self.assertEqual(self.alert_events(), ['deploy_failed'])
         self.assertEqual(len(self.assertion_runs()), 1)
         self.assertEqual(os.readlink(self.paths.current), str(self.paths.releases / OLD))
@@ -2440,7 +2472,7 @@ class ReleaseTest(unittest.TestCase):
         self.fail_health = True
         self.assertEqual(self.main(), release.EXIT_FAILED)
         self.assertEqual(self.result(), 'halted health_check_failed')
-        self.assertTrue(self.compose_stops() and self.paths.maintenance.exists())
+        self.assertTrue(self.compose_stops() and self.pool.marker.exists())
         self.assertEqual(self.alert_events(), ['deploy_failed'])
         self.assertEqual(self.main(), release.EXIT_HALTED)
 
@@ -2552,7 +2584,7 @@ class ReleaseTest(unittest.TestCase):
             fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
             with mock.patch('sys.stdout', new=io.StringIO()) as out:
                 self.assertEqual(self.main('status', '--environment', 'staging'), release.EXIT_OK)
-        self.assertEqual(json.loads(out.getvalue())['served']['commit'], OLD)
+        self.assertEqual(json.loads(out.getvalue())['pools']['default']['served']['commit'], OLD)
 
     def test_commit_prunes_run_folders_of_older_releases(self):
         for commit in (ANCIENT, OLD):
@@ -2627,6 +2659,202 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(self.main(), release.EXIT_REFUSED)
         self.assertEqual(self.result(), 'refused document_images_mismatch')
         self.assertFalse(self.compose_stops())
+
+    # --- pools: the config, per-pool state, the marker and the migration -----------------------------------
+    def write_pool_config(self, **values):
+        """Add pool keys to the staging release config, which the fixture keeps mode 0600 and owned by this user."""
+        config = self.paths.config_root / 'staging.env'
+        config.write_text(config.read_text() + ''.join(f'{key}={value}\n' for key, value in values.items()))
+        config.chmod(0o600)
+
+    def two_pool_plan(self):
+        """A plan of two pools, built directly: a config that declares two is refused until the host renders one stack each."""
+        return release.pools.Plan(ids=('a', 'b'), owner='a', order=('a', 'b'), root=self.root / 'pools')
+
+    def legacy_state(self):
+        """The state layout of a host that predates pools: directly in the environment directory, with the host's link."""
+        environment = self.paths.state_root / 'staging'
+        self.legacy_entries = sorted(entry.name for entry in self.state.iterdir())
+        for entry in sorted(self.state.iterdir()):
+            os.replace(entry, environment / entry.name)
+        shutil.rmtree(self.pool.root)
+        self.assertFalse(self.pool.current.is_symlink())
+
+    def test_a_config_that_declares_two_pools_is_refused_before_any_command(self):
+        self.write_pool_config(LIWAN_RELEASE_POOLS='a,b')
+        self.assertEqual(self.main(), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused pools_per_host_unsupported')
+        self.assertEqual(self.runner.calls, [])
+
+    def test_an_owner_pool_outside_the_list_is_refused_before_any_command(self):
+        self.write_pool_config(LIWAN_RELEASE_OWNER_POOL='b')
+        self.assertEqual(self.main(), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused owner_pool_missing')
+        self.assertEqual(self.runner.calls, [])
+
+    def test_run_refuses_a_pool_argument_and_status_refuses_an_unknown_one(self):
+        self.assertEqual(self.main('run', '--environment', 'staging', '--pool', 'default'), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused pool_not_allowed')
+        self.assertEqual(self.runner.calls, [])
+        with mock.patch('sys.stdout', new=io.StringIO()):
+            self.assertEqual(self.main('status', '--environment', 'staging', '--pool', 'other'), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused unknown_pool')
+
+    def test_the_maintenance_marker_lives_in_the_pool_state_and_is_removed_once_opened(self):
+        seen = []
+        original = self.runner.answer
+
+        def watch(argv, stdin):
+            if 'control-migrate' in argv:
+                seen.append(self.pool.marker.exists())
+            return original(argv, stdin)
+        self.runner.answer = watch
+        self.assertEqual(self.main(), release.EXIT_OK)
+        self.assertEqual(seen, [True])
+        self.assertFalse(self.pool.marker.exists())
+
+    def test_every_compose_command_of_a_pool_mounts_its_own_maintenance_directory(self):
+        self.assertEqual(self.main(), release.EXIT_OK)
+        envs = [env for call, env in zip(self.runner.calls, self.runner.envs) if call[:2] == ['docker', 'compose']]
+        self.assertTrue(envs)
+        for env in envs:
+            self.assertEqual(env['LIWAN_MAINTENANCE_DIR'], str(self.pool.maintenance))
+
+    def test_a_host_that_predates_pools_is_migrated_once_before_its_state_is_read(self):
+        self.legacy_state()
+        self.assertEqual(self.main(), release.EXIT_OK)
+        self.assertEqual(self.result(), f'committed {NEW}')
+        # The served record was read as served: the run backed up and stopped what it would otherwise have skipped.
+        self.assertTrue(self.commands('capture') and self.compose_stops())
+        self.assertEqual(self.served(), NEW)
+        self.assertTrue((self.state / 'served.json').exists())
+        self.assertFalse((self.paths.state_root / 'staging/served.json').exists())
+        self.assertIn(f'migrated served.json -> {self.state / "served.json"}', self.log_stream.getvalue())
+        self.assertEqual(os.readlink(self.pool.current), str(self.paths.releases / NEW))
+        self.assertEqual(self.main(), release.EXIT_OK)  # nothing left to migrate
+        self.assertEqual(self.result(), f'nothing to do: serving {NEW}')
+        self.assertEqual(self.log_stream.getvalue().count('migrated '), len(self.legacy_entries))
+
+    def test_a_served_pool_state_without_a_current_link_anywhere_is_refused_before_any_command(self):
+        # The migration seeds the pool's link from the host's, so a refused pool current is one neither can supply: the
+        # served release would be read and stopped through a link that is not there.
+        self.pool.current.unlink()
+        self.paths.current.unlink()
+        self.assertEqual(self.main(), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused current_missing')
+        self.assertEqual(self.runner.calls, [])
+
+    def test_an_unfinished_run_that_predates_pools_blocks_run_until_rollback_finishes_it(self):
+        self.interrupted('upgrading')
+        self.legacy_state()
+        self.assertEqual(self.main(), release.EXIT_REFUSED)
+        self.assertEqual(self.result(), 'refused legacy_state_ambiguous')
+        self.assertFalse(self.compose_stops())
+        self.runner.calls.clear()
+        self.assertEqual(self.main('rollback', '--environment', 'staging'), release.EXIT_FAILED)
+        self.assertTrue(self.result().startswith('rolled back'))
+        self.assertEqual(self.served(), OLD)
+        self.assertFalse((self.paths.state_root / 'staging/run.json').exists())
+        self.assertTrue((self.state / 'served.json').exists())
+
+    def test_prune_keeps_a_commit_another_pool_still_serves(self):
+        plan = self.two_pool_plan()
+        releaser = release.Releaser('staging', release.load_config(self.paths, 'staging'), self.paths, self.runner,
+                                    make_log([USER, TOKEN], self.log_stream), self.environ, self.machine,
+                                    plan=plan, pool=plan.paths('a'))
+        other = 'c' * 40
+        releaser.state.mkdir(parents=True)
+        for name in (NEW, ANCIENT, other):
+            (self.paths.releases / name).mkdir()
+            release.write_json(releaser.state / f'releases/{name}.json', {'images': []})
+        plan.paths('b').state.mkdir(parents=True)
+        release.write_json(plan.paths('b').state / 'served.json',
+                           {'commit': other, 'ref': 'refs/tags/release/19.0.1.0.8', 'version': [1, 0, 8]})
+        releaser.prune({'commit': NEW, 'previous': None})
+        self.assertTrue((self.paths.releases / other).exists())  # pool b serves it
+        self.assertFalse((self.paths.releases / ANCIENT).exists())  # no pool serves it
+        self.assertTrue((releaser.state / f'releases/{other}.json').exists())
+        self.assertFalse((releaser.state / f'releases/{ANCIENT}.json').exists())
+
+    def pool_releases(self, plan, failing=()):
+        """One fake release per pool of ``plan`` and in its order, the pools in ``failing`` returning a failure."""
+        return [FakePoolRelease(plan.paths(pool_id), release.EXIT_FAILED if pool_id in failing else release.EXIT_OK)
+                for pool_id in plan.order]
+
+    def test_run_pools_upgrades_the_owner_first_and_then_the_rest_in_the_plans_order(self):
+        plan = release.pools.Plan(ids=('a', 'b', 'c'), owner='b', order=('b', 'a', 'c'), root=self.root / 'pools')
+        releasers = self.pool_releases(plan)
+        self.assertEqual(release.run_pools(releasers), release.EXIT_OK)
+        self.assertEqual([pool_id for releaser in releasers for pool_id in releaser.starts], ['b', 'a', 'c'])
+        self.assertEqual([releaser.served for releaser in releasers], ['new'] * 3)
+
+    def test_run_pools_stops_at_a_failing_pool_and_keeps_the_committed_ones(self):
+        plan = release.pools.Plan(ids=('a', 'b', 'c'), owner='b', order=('b', 'a', 'c'), root=self.root / 'pools')
+        releasers = self.pool_releases(plan, failing=('a',))
+        self.assertEqual(release.run_pools(releasers), release.EXIT_FAILED)
+        self.assertEqual([pool_id for releaser in releasers for pool_id in releaser.starts], ['b', 'a'])
+        owner, failed, after = releasers
+        self.assertEqual(owner.served, 'new')  # the pool that committed keeps the new release
+        self.assertEqual(failed.served, 'old')  # the failing pool rolled back only itself
+        self.assertEqual(after.starts, [])  # nothing after the failing pool started
+
+    def test_status_reports_every_pool_in_order_and_exits_3_when_halted(self):
+        release.write_json(self.state / 'halted.json', {'reason': 'x'})
+        with mock.patch('sys.stdout', new=io.StringIO()) as out:
+            self.assertEqual(self.main('status', '--environment', 'staging'), release.EXIT_HALTED)
+        report = json.loads(out.getvalue())
+        self.assertEqual(report['order'], ['default'])
+        self.assertEqual(sorted(report['pools']), ['default'])
+        entry = report['pools']['default']
+        self.assertEqual(sorted(entry), ['halted', 'run', 'served'])
+        self.assertEqual(entry['served']['commit'], OLD)
+        self.assertIsNone(entry['run'])
+        self.assertEqual(entry['halted']['reason'], 'x')
+
+    def test_status_of_one_pool_prints_only_that_pool(self):
+        plan = self.two_pool_plan()
+        for pool_id, commit in (('a', OLD), ('b', NEW)):
+            pool = plan.paths(pool_id)
+            pool.state.mkdir(parents=True)
+            release.write_json(pool.state / 'served.json', {'commit': commit, 'ref': 'refs/tags/x', 'version': [1, 0, 6]})
+            release.write_json(pool.state / 'run.json', {'commit': 'd' * 40, 'ref': 'refs/tags/y', 'phase': 'upgrading',
+                                                         'updatedAt': 'now', 'previous': None})
+        report = release.status_report(plan)
+        self.assertEqual((report['order'], sorted(report['pools'])), (['a', 'b'], ['a', 'b']))
+        self.assertEqual(report['pools']['b']['served']['commit'], NEW)
+        only = release.status_report(plan, 'b')
+        self.assertEqual(sorted(only['pools']), ['b'])
+        self.assertEqual(only['pools']['b']['run'], {'commit': 'd' * 40, 'ref': 'refs/tags/y', 'phase': 'upgrading',
+                                                     'updatedAt': 'now'})
+        with self.assertRaises(release.ReleaseError) as caught:
+            release.status_report(plan, 'c')
+        self.assertEqual(caught.exception.reason, 'unknown_pool')
+
+    def test_rollback_of_one_pool_clears_only_that_pools_records(self):
+        plan = self.two_pool_plan()
+        for pool_id in ('a', 'b'):
+            pool = plan.paths(pool_id)
+            pool.state.mkdir(parents=True)
+            release.write_json(pool.state / 'halted.json', {'reason': f'{pool_id}-halt'})
+            release.write_json(pool.state / 'failed.json', {'commit': NEW, 'reason': f'{pool_id}-failed', 'at': 'now'})
+            pool.current.symlink_to(self.paths.releases / OLD)
+        releaser = release.Releaser('staging', release.load_config(self.paths, 'staging'), self.paths, self.runner,
+                                    make_log([USER, TOKEN], self.log_stream), self.environ, self.machine,
+                                    plan=plan, pool=plan.paths('a'))
+        self.assertEqual(releaser.rollback(), release.EXIT_OK)
+        self.assertFalse((plan.paths('a').state / 'halted.json').exists())
+        self.assertFalse((plan.paths('a').state / 'failed.json').exists())
+        self.assertTrue((plan.paths('b').state / 'halted.json').exists())
+        self.assertTrue((plan.paths('b').state / 'failed.json').exists())
+
+    def test_rollback_without_a_pool_refuses_when_the_host_serves_several(self):
+        plan = self.two_pool_plan()
+        with self.assertRaises(release.ReleaseError) as caught:
+            release.rollback_target(plan, None)
+        self.assertEqual((caught.exception.reason, caught.exception.exit_code),
+                         ('rollback_ambiguous_pool', release.EXIT_REFUSED))
+        self.assertEqual(release.rollback_target(plan, 'b'), plan.paths('b'))
+        self.assertEqual(release.rollback_target(self.plan, None), self.pool)
 
 
 if __name__ == '__main__':

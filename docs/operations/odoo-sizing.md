@@ -24,7 +24,7 @@ python3 -B deploy/odoo_sizing.py --render json
 الإقلاع إذا كانت ميزانية العمال ناقصة أو غير متسقة: عدد عمال أكبر من اثنين بلا
 `db_maxconn` وحدود ذاكرة يُرفض، والافتراضي 64 اتصالًا لكل عملية يُرفض، وزوج
 الذاكرة المقلوب يُرفض. الشكل المحلي الصغير (عاملان بلا ميزانية) مقبول لسبب
-محسوب: `(2 + 2) × 64 = 256` اتصالًا تبقى داخل `max_connections = 338` التي
+محسوب: `(2 + 2) × 64 = 256` اتصالًا تبقى داخل `max_connections = 318` التي
 تحجزها الخطة، بينما `(9 + 2) × 64 = 704` تتجاوزها، ويُثبت
 `test_the_unsized_local_shape_is_bounded_by_the_same_pool_the_plan_reserves`
 هذا الحساب. الاختبار
@@ -34,7 +34,7 @@ python3 -B deploy/odoo_sizing.py --render json
 | البند | القيمة |
 | --- | --- |
 | الخادم | Oracle A1.Flex في جدة، 4 OCPU، 24 GB (24576 MiB) |
-| العملاء المستهدفون | 50 عميلًا خلال أول 3 أشهر |
+| العملاء المستهدفون | 40 عميلًا في المجمع الواحد (LIWAN_TENANT_CAPACITY)، ومجمعات أخرى على خوادم لاحقة |
 | سياسة قاعدة البيانات | قاعدة بيانات لكل عميل (بلا تغيير) |
 | التوسع لاحقًا | توزيع العملاء على عدة خوادم تطبيق (sharding)، لا تكبير خادم واحد |
 
@@ -57,11 +57,11 @@ limit_memory_hard = 838860800
 | `limit_memory_hard` | 800 MiB | سقف العملية قبل أن تصبح خطرًا على الخادم |
 | اتصالات عملاء Odoo | 88 | `(9 + 2) × 8` |
 | `pgbouncer max_client_conn` | `130` | `88 × 1.25 + 20` مرفوعًا إلى مضاعف 10 |
-| `pgbouncer max_db_connections` | `190` | `50 عميلًا × 2 + 88` |
-| `pgbouncer default_pool_size` | `3` | `190 ÷ 50` لكل قاعدة |
-| `pgbouncer reserve_pool_size` | `2` | `3 ÷ 4` بحد أدنى 2 |
+| `pgbouncer max_db_connections` | `170` | `40 عميلًا × 2 + 88` |
+| `pgbouncer default_pool_size` | `4` | `170 ÷ 40` لكل قاعدة |
+| `pgbouncer reserve_pool_size` | `2` | `4 ÷ 4` بحد أدنى 2 |
 | `pgbouncer pool_mode` | `transaction` | الوضع الذي يسمح بعملاء أكثر من backends |
-| PostgreSQL `max_connections` | `338` | `190 + 20 محجوزة + 128 هامش` |
+| PostgreSQL `max_connections` | `318` | `170 + 20 محجوزة + 128 هامش` |
 | PostgreSQL `shared_buffers` | 6GB | ربع ذاكرة الخادم تقريبًا (العُرف المتّبع) |
 | فاصل الذاكرة المتبقي | 1024 MiB | احتياط إلزامي للخادم بعد كل البنود |
 
@@ -74,15 +74,15 @@ limit_memory_hard = 838860800
 | --- | --- |
 | نظام التشغيل وDocker وpage cache | 2048 |
 | PostgreSQL shared buffers | 6144 |
-| PostgreSQL 338 backendًا × 10 MiB | 3380 |
+| PostgreSQL 318 backendًا × 10 MiB | 3180 |
 | 9 عمال HTTP × 800 MiB | 7200 |
 | خيطا cron × 800 MiB | 1600 |
 | خادم Nuxt | 1024 |
 | guard والحافة وAI في وضع الخمول | 512 |
-| **المجموع المحجوز** | **21908** |
-| **المتبقي من 24576** | **2668** |
+| **المجموع المحجوز** | **21708** |
+| **المتبقي من 24576** | **2868** |
 
-المتبقي (2668 MiB) أكبر من الاحتياط الإلزامي (1024 MiB)، لذلك يمرّ التخطيط.
+المتبقي (2868 MiB) أكبر من الاحتياط الإلزامي (1024 MiB)، لذلك يمرّ التخطيط.
 الاختبار `test_total_reservation_fits_the_box_with_headroom` يفرض هذا الشرط،
 و`test_a_memory_tight_box_shrinks_workers_instead_of_overcommitting` يثبت أن
 خادمًا أصغر يُنقص عدد العمال بدل تجاوز الذاكرة.
@@ -94,8 +94,8 @@ limit_memory_hard = 838860800
 ```
 (9 workers + 2 cron) × 8 db_maxconn  =  88  اتصال عميل Odoo
 88 × 1.25 + 20                       = 130  pgbouncer max_client_conn   (88 ≤ 130)
-50 × 2 + 88                          = 190  pgbouncer max_db_connections
-190 + 20 محجوزة + 128 هامش           = 338  PostgreSQL max_connections
+40 × 2 + 88                          = 170  pgbouncer max_db_connections
+170 + 20 محجوزة + 128 هامش           = 318  PostgreSQL max_connections
 ```
 
 القواعد المفروضة في `compute()`:
@@ -116,7 +116,7 @@ limit_memory_hard = 838860800
 
 | الفرضية | القيمة | ما يغيّرها |
 | --- | --- | --- |
-| عدد العملاء | 50 | قرار المالك عند تجاوز 50 عميلًا |
+| عدد العملاء | 40 | سعة المجمع الواحدة (`LIWAN_TENANT_CAPACITY`)؛ رفعها يحتاج قياس staging |
 | ذروة العامل | 800 MiB | قياس فعلي على staging بعد أول 10 عملاء |
 | مساحة PostgreSQL للـbackend | 10 MiB | قياس فعلي عند الحمل |
 | `shared_buffers` | 6 GiB | تغيير حجم الخادم |

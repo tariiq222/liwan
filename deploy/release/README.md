@@ -7,8 +7,15 @@ polling). The same file runs on staging and production.
 python3 -B /opt/liwan/current/deploy/release/release.py run      --environment staging
 python3 -B /opt/liwan/current/deploy/release/release.py run      --environment production --tag release/19.0.X.Y.Z
 python3 -B /opt/liwan/current/deploy/release/release.py status   --environment staging   # exit 3 when halted
-python3 -B /opt/liwan/current/deploy/release/release.py rollback --environment staging
+python3 -B /opt/liwan/current/deploy/release/release.py status   --environment staging --pool default
+python3 -B /opt/liwan/current/deploy/release/release.py rollback --environment staging --pool default
 ```
+
+`run` applies every pool the environment declares, in order, the owner's pool first (`deploy/release/pools.py`): a pool that
+fails stops the remaining ones and rolls back only itself, and a pool that already committed keeps the new release. `status`
+reports every pool, `{"order": [...], "pools": {"<id>": {"served", "run", "halted"}}}`, and `--pool` narrows it to one;
+`rollback` names its pool with `--pool` once the environment declares several. One host renders one stack today, so a config
+that declares two pools is refused `pools_per_host_unsupported` until the stack has a service set and ports per pool.
 
 **Status: the command has run for real on staging, not on production yet.** `release/19.0.1.0.6` was served on staging on
 2026-11-21 after one halt caused by the wrong group on the shared `odoo.conf` (row A4.7 of the bring-up guide). The tests use fake docker, git and psql commands
@@ -117,8 +124,13 @@ Each phase is written to `run.json` before it acts, so a killed run resumes from
    every tenant database, the control-plane database and every filestore (the snapshots all exist at once).
 3. Quiesce: stop the shared worker, read the tenant list with `deploy/shared/backup-binding.mjs --list`.
 4. Capture: first the database role check (below), then an encrypted `python3 -B -m deploy.backup capture` of every tenant and the control plane.
-5. Maintenance: create `<state root>/maintenance/active` (Caddy shows its maintenance page only while it exists), stop
-   `guard`, `web`, `ai`, `odoo`, `control-api` and `vendor-console`.
+5. Maintenance: create `<pool state>/maintenance/active` (the pool's Caddy shows its maintenance page only while it exists;
+   the release passes `LIWAN_MAINTENANCE_DIR=<pool state>/maintenance` to every compose invocation, so no other pool's edge
+   shows it), stop `guard`, `web`, `ai`, `odoo`, `control-api` and `vendor-console`. Compose binds `LIWAN_MAINTENANCE_DIR`
+   when it creates a container, so on the first update of a host that predates pools the proxy still running from the old
+   release mounts `/var/lib/liwan-release/maintenance` while this run writes the pool's marker: the maintenance page does
+   not appear until step 8 starts the new `proxy`, and visitors get the edge's errors for that window instead. The window
+   ends with that first release; from then on the running proxy mounts its pool's own directory.
 6. Snapshot every database (`CREATE DATABASE ... TEMPLATE`) and hard-link every filestore.
 7. Upgrade every tenant database (`tools/upgrade_log_guard.py` on its log, then `deploy/odoo/upgrade_smoke.py`), then
    migrate the control plane, then create the AI service's control tables
@@ -165,21 +177,34 @@ The last log line of every run starts with `RESULT:`.
 The command never waits for input. A second start while one runs exits 0 at once; `status` takes no lock and always answers. An unexpected error ends with
 `RESULT: failed unexpected_error <type>` (exit 4) and leaves `run.json` so the next run resumes.
 
-## State: `/var/lib/liwan-release/<environment>/`
+## State: one directory per pool
 
-| File | Meaning |
+`LIWAN_RELEASE_POOL_ROOT` (default `/var/lib/liwan-release/<environment>/pools`) holds one directory per pool,
+`<pool root>/<id>/`, with that pool's `state/` beside its own `current` link. `/opt/liwan/current` stays the host-wide path
+the job command runs from and follows the owner pool's checkout. `<environment>/lock` stays at the environment level, so two
+runs of one environment never overlap, and each pool also takes `<pool state>/lock`.
+
+| File in `<pool state>/` | Meaning |
 | --- | --- |
-| `lock` | one run at a time |
-| `served.json` | the release currently served |
+| `lock` | one run at a time of that pool |
+| `served.json` | the release that pool currently serves |
 | `release.env` | `LIWAN_IMAGE_TAG` and `ODOO_COMMIT` of that release, read by Compose |
 | `run.json` | the unfinished run and its phase |
 | `failed.json` | the candidate that failed after the stop; the same commit is answered `nothing to do` (exit 3) until the candidate changes or `rollback` clears it |
 | `halted.json` | set when a rollback failed or the first deploy failed; no run proceeds while it exists |
+| `maintenance/active` | this pool's maintenance marker, mounted by its own render |
 | `proof/<commit>.json` | the signed proof of a served release, written at the commit step and kept for good |
-| `releases/<commit>.json` | the images pulled for a release, read by the prune |
+| `releases/<commit>.json` | the images pulled for a release, read by the prune (which keeps the union of every pool's served and previous commit) |
 | `repo.git` | bare repository of the fetched `main` and release tags |
 | `docker-config/` | the private docker login |
 | `runs/<commit>/` | backup work files and upgrade logs |
+
+A host that predates pools is migrated once, at the start of the first run of the new command (`run`, or `rollback` to finish
+an interrupted run first): its `<environment>/served.json`, `release.env`, records and caches move into the one pool's
+`state/`, its `/opt/liwan/current` seeds that pool's `current`, and every move is logged by name. A second pool in the config,
+a pool state file that would be overwritten, or an unfinished legacy run blocks the migration with
+`RESULT: refused legacy_state_ambiguous`, before anything stops. `status` writes nothing, so until that first run it reports
+the unmigrated host as empty; run `run` (or `rollback` when a run is unfinished) before relying on it.
 
 ## The stack and the Odoo config
 
@@ -222,7 +247,7 @@ refused with `previous_not_stack`: the release command could neither stop it nor
 root, with the owner's explicit go. This is one ordered list that follows the A4.4a procedure of
 [environment-bringup.md](../../docs/operations/environment-bringup.md) (row A4.4b points here); staging has a `db` volume
 whose bootstrap user is still `odoo`, so A4.4a is part of it. `<c>` is the served (pre-stack) commit, `<n>` the candidate commit,
-`<project>` the compose project, `<state>` is `/var/lib/liwan-release/<env>`.
+`<project>` the compose project, `<state>` the owner pool's state directory, `/var/lib/liwan-release/<env>/pools/<pool>/state` (README "State: one directory per pool"); a host that has not run a pool-aware release yet still keeps it directly in `/var/lib/liwan-release/<env>`, and the first `run` moves it (A3.3 of the bring-up guide).
 
 1. Delete the test tenants through the real deletion path and confirm none is left (A4.4a step 1): `node /opt/liwan/current/deploy/shared/backup-binding.mjs --list "$LIWAN_TENANT_REGISTRY_DIR/registry.json"` prints `[]` and `ls <odoo data dir>/filestore` lists no tenant folder. Stop here if either is not so.
 2. Stop the worker first, so nothing provisions or charges meanwhile: `systemctl stop liwan-shared-worker.service`; `systemctl is-active liwan-shared-worker.service` prints `inactive`.
@@ -236,7 +261,7 @@ whose bootstrap user is still `odoo`, so A4.4a is part of it. `<c>` is the serve
 10. Install the Odoo config with the single recipe of row A4.7 (render the bundle from `/opt/liwan/current`, `install -o root -g 999 -m 0440`, validate on the host and in the container). The file from the pre-stack release stays as `.pre-stack`; the release adopts the new one and keeps its owner and mode.
 11. Run the release job: `python3 -B /opt/liwan/current/deploy/release/release.py run --environment <env>`. With no `served.json` it is the first deploy; the `db` init scripts create `postgres` and `odoo` on the empty volume. Check: `RESULT: committed <n>` (the commit step starts the worker again).
 
-Manual rollback (the first deploy failed or you stop before step 11 has committed): `systemctl stop liwan-shared-worker.service`. When `<state>/release.env` does not exist (`ls <state>/release.env`), the run stopped before `activate` wrote it, so nothing of the new stack started and the control database was not migrated: skip the next sentence and go to the state restore. Otherwise stop what the new stack started (`docker compose --project-directory /opt/liwan/current/deploy -p <project> -f <state>/stack/<n>/compose.yml --env-file <state>/stack/<n>/sizing.env --env-file <shared.env> --env-file <state>/release.env down`, without `-v`), then pause the control project, whose database the run migrated and whose services it may have reopened on the candidate's images: `docker compose -p liwan-control -f /opt/liwan/current/deploy/control-plane/compose.production.yml -f /opt/liwan/current/deploy/control-plane/compose.host-link.yml --env-file <shared.env> --env-file <state>/release.env stop control-api vendor-console`, and restore the control dump of step 3, because the old control API does not run on a schema migrated past it: `PGPASSFILE=/etc/liwan-release/pgpass psql -h 127.0.0.1 -p 15432 -U liwan_control -d postgres -v ON_ERROR_STOP=1 -c 'DROP DATABASE liwan_control' -c 'CREATE DATABASE liwan_control'`, then `PGPASSFILE=/etc/liwan-release/pgpass psql -h 127.0.0.1 -p 15432 -U liwan_control -d liwan_control -v ON_ERROR_STOP=1 -f /root/liwan_control.pre-stack.dump`. Restore the state: `rm -f <state>/run.json <state>/halted.json <state>/failed.json /var/lib/liwan-release/maintenance/active`, `mv <state>/pre-cutover/served.json <state>/`, `cp -p <state>/release.env.pre-stack <state>/release.env`; restore the files: `cp -p <LIWAN_SHARED_ODOO_CONFIG>.pre-stack <LIWAN_SHARED_ODOO_CONFIG>` and `cp -p <LIWAN_SHARED_COMPOSE_FILE>.pre-stack <LIWAN_SHARED_COMPOSE_FILE>` (the old `composeFile` of `shared-runtime.json`); put the folder back, `mv /opt/liwan/pre-stack-<c> /opt/liwan/releases/<c>` and `ln -sfn /opt/liwan/releases/<c> /opt/liwan/current`; start the old stack with its five files and `up -d --wait` (same files and env files as step 5); the old stack starts on empty volumes (step 5 deleted them), so when the upgrade phase ran or you need the data, restore the dumps of step 3 into it before the worker starts; start the control project again with the old release's own control files, `docker compose -p liwan-control -f /opt/liwan/releases/<c>/deploy/control-plane/compose.production.yml -f /opt/liwan/releases/<c>/deploy/control-plane/compose.host-link.yml --env-file <shared.env> --env-file <state>/release.env up -d --wait --no-build --pull never control-api vendor-console` (the restored `release.env` puts the old `LIWAN_IMAGE_TAG` back, so this starts the old images and pulls nothing); then `systemctl start liwan-shared-worker.service`. After the first deploy has committed, the normal rollback applies instead.
+Manual rollback (the first deploy failed or you stop before step 11 has committed): `systemctl stop liwan-shared-worker.service`. When `<state>/release.env` does not exist (`ls <state>/release.env`), the run stopped before `activate` wrote it, so nothing of the new stack started and the control database was not migrated: skip the next sentence and go to the state restore. Otherwise stop what the new stack started (`docker compose --project-directory /opt/liwan/current/deploy -p <project> -f <state>/stack/<n>/compose.yml --env-file <state>/stack/<n>/sizing.env --env-file <shared.env> --env-file <state>/release.env down`, without `-v`), then pause the control project, whose database the run migrated and whose services it may have reopened on the candidate's images: `docker compose -p liwan-control -f /opt/liwan/current/deploy/control-plane/compose.production.yml -f /opt/liwan/current/deploy/control-plane/compose.host-link.yml --env-file <shared.env> --env-file <state>/release.env stop control-api vendor-console`, and restore the control dump of step 3, because the old control API does not run on a schema migrated past it: `PGPASSFILE=/etc/liwan-release/pgpass psql -h 127.0.0.1 -p 15432 -U liwan_control -d postgres -v ON_ERROR_STOP=1 -c 'DROP DATABASE liwan_control' -c 'CREATE DATABASE liwan_control'`, then `PGPASSFILE=/etc/liwan-release/pgpass psql -h 127.0.0.1 -p 15432 -U liwan_control -d liwan_control -v ON_ERROR_STOP=1 -f /root/liwan_control.pre-stack.dump`. Restore the state: `rm -f <state>/run.json <state>/halted.json <state>/failed.json <state>/maintenance/active`, `mv <state>/pre-cutover/served.json <state>/`, `cp -p <state>/release.env.pre-stack <state>/release.env`; restore the files: `cp -p <LIWAN_SHARED_ODOO_CONFIG>.pre-stack <LIWAN_SHARED_ODOO_CONFIG>` and `cp -p <LIWAN_SHARED_COMPOSE_FILE>.pre-stack <LIWAN_SHARED_COMPOSE_FILE>` (the old `composeFile` of `shared-runtime.json`); put the folder back, `mv /opt/liwan/pre-stack-<c> /opt/liwan/releases/<c>` and `ln -sfn /opt/liwan/releases/<c> /opt/liwan/current`; start the old stack with its five files and `up -d --wait` (same files and env files as step 5); the old stack starts on empty volumes (step 5 deleted them), so when the upgrade phase ran or you need the data, restore the dumps of step 3 into it before the worker starts; start the control project again with the old release's own control files, `docker compose -p liwan-control -f /opt/liwan/releases/<c>/deploy/control-plane/compose.production.yml -f /opt/liwan/releases/<c>/deploy/control-plane/compose.host-link.yml --env-file <shared.env> --env-file <state>/release.env up -d --wait --no-build --pull never control-api vendor-console` (the restored `release.env` puts the old `LIWAN_IMAGE_TAG` back, so this starts the old images and pulls nothing); then `systemctl start liwan-shared-worker.service`. After the first deploy has committed, the normal rollback applies instead.
 
 ## Config
 
@@ -351,7 +376,7 @@ both compose files requires the `postgres` role to log in (`psql -U postgres -d 
 ## Bootstrap (first run on a fresh host)
 
 `/opt/liwan/current` is always a symlink into `/opt/liwan/releases/<commit>`. `run` and `rollback` refuse with
-`RESULT: refused current_not_symlink` when the path exists and is a real directory, and `RESULT: refused current_dangling` when it is a symlink to a folder that does not exist, before anything changes. Clone the
+`RESULT: refused current_not_symlink` when the path exists and is a real directory, with `RESULT: refused current_dangling` when it is a symlink to a folder that does not exist, and with `RESULT: refused current_missing` when the pool state records a served release but `<pool>/current` is not there at all (the migration seeds that link from `/opt/liwan/current`; with neither there, link it by hand to what the pool serves), before anything changes. Clone the
 bootstrap commit into `/opt/liwan/releases/<commit>`, then `ln -s /opt/liwan/releases/<commit> /opt/liwan/current`.
 The Openship job command path stays `/opt/liwan/current/deploy/release/release.py`; later runs move the symlink.
 

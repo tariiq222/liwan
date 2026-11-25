@@ -26,7 +26,8 @@ import tempfile
 from pathlib import Path
 
 from deploy import odoo_sizing
-from deploy.release.common import parse_env_text
+from deploy.release import pools
+from deploy.release.common import ReleaseError, parse_env_text
 
 STACK = Path(__file__).resolve().parent
 CADDYFILE = STACK / 'Caddyfile'  # the one edge of every environment
@@ -104,8 +105,18 @@ def render_stack(env: dict[str, str]) -> str:
     return render_template((STACK / 'compose.yml').read_text(encoding='utf-8'), toggles_of(env))
 
 
-def sizing_variables() -> dict[str, str]:
-    return odoo_sizing.compose_variables(odoo_sizing.compute(odoo_sizing.BOX_JEDDAH_A1, odoo_sizing.Assumptions()))
+def sizing_plan(env: dict[str, str]) -> odoo_sizing.Sizing:
+    """The sizing plan of one env file: the tenants it may serve come from ``LIWAN_TENANT_CAPACITY`` through the reader
+    ``deploy/release/pools.py`` validates, and without that key the plan's own default applies."""
+    try:
+        tenants = pools.capacity(env)
+    except ReleaseError as error:
+        raise StackError(error.detail or error.reason) from None
+    return odoo_sizing.compute(odoo_sizing.BOX_JEDDAH_A1, odoo_sizing.Assumptions(tenants=tenants))
+
+
+def sizing_variables(env: dict[str, str]) -> dict[str, str]:
+    return odoo_sizing.compose_variables(sizing_plan(env))
 
 
 def render_placeholders(template: str, values: dict[str, str]) -> str:
@@ -119,7 +130,7 @@ def render_placeholders(template: str, values: dict[str, str]) -> str:
 
 def odoo_conf_values(env: dict[str, str]) -> dict[str, str]:
     """The placeholder values of ``odoo.conf.template``: the two secrets of the env file and the sizing plan's Odoo budget."""
-    sizing = odoo_sizing.compute(odoo_sizing.BOX_JEDDAH_A1, odoo_sizing.Assumptions())
+    sizing = sizing_plan(env)
     return {
         'DB_PASSWORD': env['DB_PASSWORD'],
         'LIWAN_ODOO_ADMIN_PASSWD': env['LIWAN_ODOO_ADMIN_PASSWD'],
@@ -142,12 +153,13 @@ def odoo_conf(env: dict[str, str]) -> str:
 @contextlib.contextmanager
 def rendered_stack(*env_files: Path):
     """Yield the path of the rendered compose file, with ``sizing.env`` beside it (pass it as an extra ``--env-file``)."""
-    text = render_stack(read_env(*env_files))
+    env = read_env(*env_files)
+    text = render_stack(env)
     with tempfile.TemporaryDirectory() as directory:
         compose = Path(directory) / 'compose.yml'
         compose.write_text(text, encoding='utf-8')
         (Path(directory) / SIZING_FILE).write_text(
-            ''.join(f'{name}={value}\n' for name, value in sizing_variables().items()), encoding='utf-8')
+            ''.join(f'{name}={value}\n' for name, value in sizing_variables(env).items()), encoding='utf-8')
         yield compose
 
 
@@ -174,7 +186,7 @@ def write_bundle(env_files: list[Path], out: Path) -> None:
     compose, odoo = render_stack(env), odoo_conf(env)
     note_ignored(env)
     write_private(out / BUNDLE_COMPOSE, compose)
-    write_private(out / SIZING_FILE, ''.join(f'{name}={value}\n' for name, value in sizing_variables().items()))
+    write_private(out / SIZING_FILE, ''.join(f'{name}={value}\n' for name, value in sizing_variables(env).items()))
     write_private(out / BUNDLE_ODOO_CONF, odoo)
     write_private(out / BUNDLE_MANIFEST, json.dumps({
         'contract': BUNDLE_CONTRACT, 'compose': BUNDLE_COMPOSE, 'envFiles': [SIZING_FILE], 'odooConf': BUNDLE_ODOO_CONF,
