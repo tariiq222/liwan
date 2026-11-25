@@ -1,5 +1,16 @@
 {
   "hrOffboarding": {
+    "kpi": {
+      "label": "مؤشرات الإخلاء",
+      "runs": {
+        "cleared": "مكتملة الإخلاء",
+        "uncleared": "غير مكتملة"
+      },
+      "plans": {
+        "active": "خطط نشطة",
+        "inactive": "خطط معطّلة"
+      }
+    },
     "runs": {
       "title": "عمليات الإخلاء",
       "empty": "لا عمليات إخلاء بعد",

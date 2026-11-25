@@ -21,12 +21,12 @@ const WIDTH = {
 }
 const NAME_LINK = 'block min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary'
 
-function column(id: string, header: string, width: string, fit = true): TableColumn<HrPlanRun> {
+function column(id: string, header: string, width: string, fit = true, title = false): TableColumn<HrPlanRun> {
   const cell = fit ? 'whitespace-nowrap' : 'max-w-0 overflow-hidden text-ellipsis whitespace-nowrap'
-  return { id, header, meta: { class: { th: `text-start ${width}`, td: `${cell} ${width}` } } as TableColumn<HrPlanRun>['meta'] }
+  return { id, header, meta: { ...(title ? { title: true } : {}), class: { th: `text-start ${width}`, td: `${cell} ${width}` } } as TableColumn<HrPlanRun>['meta'] }
 }
 const columns = computed<TableColumn<HrPlanRun>[]>(() => [
-  column('employee', t(`${props.namespace}.runs.employee`), WIDTH.employee, false),
+  column('employee', t(`${props.namespace}.runs.employee`), WIDTH.employee, false, true),
   column('plan', t(`${props.namespace}.runs.plan`), WIDTH.plan, false),
   column('date', t(`${props.namespace}.runs.planDate`), WIDTH.date),
   column('progress', t(`${props.namespace}.runs.progress`), WIDTH.progress),
@@ -51,6 +51,7 @@ function stateTone(run: HrPlanRun) {
     >
       <template #employee-cell="{ row }">
         <NuxtLink :to="toFor(row.original)" :class="NAME_LINK" @click="!hydrated && $event.preventDefault()">{{ row.original.employee.name }}</NuxtLink>
+        <div class="mt-0.5"><SharedRecordNumber :value="row.original.id" /></div>
       </template>
       <template #plan-cell="{ row }"><span class="truncate text-muted">{{ row.original.plan.name }}</span></template>
       <template #date-cell="{ row }"><span class="tabular-nums text-muted">{{ row.original.plan_date }}</span></template>
@@ -63,7 +64,10 @@ function stateTone(run: HrPlanRun) {
       <template #mobile-row="{ row }">
         <div class="min-w-0">
           <NuxtLink :to="toFor(row)" :class="NAME_LINK" @click="!hydrated && $event.preventDefault()">{{ row.employee.name }}</NuxtLink>
-          <p class="mt-1 truncate text-xs text-muted">{{ row.plan.name }} · {{ row.done }} / {{ row.total }}</p>
+          <p class="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted">
+            <SharedRecordNumber :value="row.id" />
+            <span class="truncate">{{ row.plan.name }} · {{ row.done }} / {{ row.total }}</span>
+          </p>
         </div>
       </template>
     </SharedDataTable>

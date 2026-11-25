@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import RecordNumber from '@liwan/ui/app/components/shared/data/RecordNumber.vue'
-import { recordNumberHeader } from '@liwan/ui/app/utils/recordNumberHeader'
 import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 import {
   HR_RECRUITMENT_PAGE_SIZE,
   type HrRecruitmentActiveFilter,
   type HrRecruitmentJob,
 } from '@/composables/useHrRecruitment'
+import { hrJobKpiQueries, hrJobKpiTiles } from '@/utils/hrStaffingKpis'
 
 const route = useRoute()
 const router = useRouter()
@@ -48,6 +47,28 @@ const pages = computed(() => Math.max(1, Math.ceil(total.value / LIMIT)))
 const showEmpty = computed(() => !jobs.isLoading.value && !jobs.error.value && items.value.length === 0)
 const activeFilterCount = computed(() => [search.value.trim(), active.value === 'true' ? null : active.value].filter(Boolean).length)
 
+// The tiles count the open and the closed positions the endpoint filters by; the tile the list is showing reads
+// the list's own total, and the other asks one row.
+const { shown: kpisShown } = useKpiVisibility()
+const kpiQueries = hrJobKpiQueries()
+const kpisEnabled = computed(() => isJobsRoute.value && kpisShown.value)
+const openReused = computed(() => active.value === 'true')
+const closedReused = computed(() => active.value === 'false')
+const openCount = useHrRecruitmentJobList(
+  computed(() => ({ ...kpiQueries.open, q: search.value.trim() || undefined })),
+  computed(() => kpisEnabled.value && !openReused.value),
+)
+const closedCount = useHrRecruitmentJobList(
+  computed(() => ({ ...kpiQueries.closed, q: search.value.trim() || undefined })),
+  computed(() => kpisEnabled.value && !closedReused.value),
+)
+const kpiCounts = computed(() => ({
+  open: openReused.value ? total.value : openCount.data.value?.total ?? null,
+  closed: closedReused.value ? total.value : closedCount.data.value?.total ?? null,
+}))
+const kpiTiles = computed(() => hrJobKpiTiles(kpiCounts.value, t))
+const kpiLoading = computed(() => jobs.isLoading.value || openCount.isLoading.value || closedCount.isLoading.value)
+
 const activeOptions = computed(() => ACTIVE_FILTERS.map(value => ({
   value,
   label: t(`hrRecruitment.jobs.filter.${value}`),
@@ -55,7 +76,6 @@ const activeOptions = computed(() => ACTIVE_FILTERS.map(value => ({
 })))
 
 const columns = computed<TableColumn<HrRecruitmentJob>[]>(() => [
-  { accessorKey: 'id', header: () => recordNumberHeader(t), meta: { class: { th: 'w-[48px] min-w-[48px] px-2', td: 'w-[48px] min-w-[48px] px-2' } } },
   { accessorKey: 'name', header: t('hrRecruitment.jobs.columns.name'), meta: { title: true } },
   { accessorKey: 'department', header: t('hrRecruitment.jobs.columns.department') },
   { accessorKey: 'no_of_recruitment', header: t('hrRecruitment.jobs.columns.target'), meta: { class: { th: 'w-[96px]', td: 'w-[96px]' } } },
@@ -103,6 +123,9 @@ function jobTo(job: HrRecruitmentJob) {
     :create-label="t('hrRecruitment.jobs.new')"
     create-test-id="hr-recruitment-job-new"
   >
+    <template #kpis>
+      <SharedKpiStrip :tiles="kpiTiles" :loading="kpiLoading" :label="t('hrRecruitment.jobs.kpi.label')" data-testid="hr-recruitment-jobs-kpi-strip" />
+    </template>
     <SharedListCard>
       <template #filters>
         <SharedFilterBar inline class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="writeQuery({ q: '', active: 'true', offset: 0 })">
@@ -141,8 +164,10 @@ function jobTo(job: HrRecruitmentJob) {
           :loading="jobs.isLoading.value"
           :caption="t('hrRecruitment.jobs.title')"
         >
-          <template #id-cell="{ row }"><RecordNumber :value="row.original.id" :data-testid="`hr-recruitment-job-row-${row.original.id}`" /></template>
-          <template #name-cell="{ row }"><span class="font-semibold text-highlighted">{{ row.original.name }}</span></template>
+          <template #name-cell="{ row }">
+            <span class="font-semibold text-highlighted">{{ row.original.name }}</span>
+            <div class="mt-0.5"><SharedRecordNumber :value="row.original.id" :data-testid="`hr-recruitment-job-row-${row.original.id}`" /></div>
+          </template>
           <template #department-cell="{ row }">{{ row.original.department?.name || t('hrRecruitment.noDepartment') }}</template>
           <template #no_of_recruitment-cell="{ row }"><span class="tabular-nums">{{ row.original.no_of_recruitment }}</span></template>
           <template #application_count-cell="{ row }"><span class="tabular-nums">{{ row.original.application_count }}</span></template>

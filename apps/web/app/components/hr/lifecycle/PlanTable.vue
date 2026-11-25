@@ -24,12 +24,12 @@ const WIDTH = {
 }
 const NAME_LINK = 'block min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary'
 
-function column(id: string, header: string, width: string, fit = true): TableColumn<HrActivityPlan> {
+function column(id: string, header: string, width: string, fit = true, title = false): TableColumn<HrActivityPlan> {
   const cell = fit ? 'whitespace-nowrap' : 'max-w-0 overflow-hidden text-ellipsis whitespace-nowrap'
-  return { id, header, meta: { class: { th: `text-start ${width}`, td: `${cell} ${width}` } } as TableColumn<HrActivityPlan>['meta'] }
+  return { id, header, meta: { ...(title ? { title: true } : {}), class: { th: `text-start ${width}`, td: `${cell} ${width}` } } as TableColumn<HrActivityPlan>['meta'] }
 }
 const columns = computed<TableColumn<HrActivityPlan>[]>(() => [
-  column('name', t(`${props.namespace}.form.name`), WIDTH.name, false),
+  column('name', t(`${props.namespace}.form.name`), WIDTH.name, false, true),
   column('department', t(`${props.namespace}.form.department`), WIDTH.department),
   column('steps', t(`${props.namespace}.plans.steps`), WIDTH.steps),
   column('active', t(`${props.namespace}.form.active`), WIDTH.active),
@@ -62,6 +62,7 @@ function actionsFor(plan: HrActivityPlan): RowAction[] {
     >
       <template #name-cell="{ row }">
         <NuxtLink :to="toFor(row.original)" :class="NAME_LINK" @click="!hydrated && $event.preventDefault()">{{ row.original.name }}</NuxtLink>
+        <div class="mt-0.5"><SharedRecordNumber :value="row.original.id" /></div>
       </template>
       <template #department-cell="{ row }">
         <span class="truncate text-muted">{{ row.original.department?.name || t(`${namespace}.form.anyDepartment`) }}</span>
@@ -77,7 +78,10 @@ function actionsFor(plan: HrActivityPlan): RowAction[] {
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
             <NuxtLink :to="toFor(row)" :class="NAME_LINK" @click="!hydrated && $event.preventDefault()">{{ row.name }}</NuxtLink>
-            <p class="mt-1 truncate text-xs text-muted">{{ row.department?.name || t(`${namespace}.form.anyDepartment`) }} · {{ row.steps.length }}</p>
+            <p class="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted">
+              <SharedRecordNumber :value="row.id" />
+              <span class="truncate">{{ row.department?.name || t(`${namespace}.form.anyDepartment`) }} · {{ row.steps.length }}</span>
+            </p>
           </div>
           <SharedRowActions v-if="canManage" :actions="actionsFor(row)" :label="t(`${namespace}.actions.edit`)" />
         </div>

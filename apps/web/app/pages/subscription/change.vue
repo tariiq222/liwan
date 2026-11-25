@@ -220,7 +220,7 @@ definePageMeta({ middleware: 'customer-commercial' })
             <UCheckbox v-model="onboarding" :label="t('subscription.change.onboardingChoice')" :description="t('subscription.change.onboardingHint')" :disabled="!hydrated" data-testid="onboarding-choice" />
           </SharedFormSection>
         </div>
-        <aside class="grid gap-4 self-start lg:sticky lg:top-6">
+        <aside class="grid gap-(--liwan-gap-card) self-start lg:sticky lg:top-6">
           <SharedRecordSection variant="panel" :title="t('subscription.change.liveTotal')" :description="t('subscription.change.liveHint')">
             <SharedCommercePriceBreakdown :quote="quote" :pending="previewPending" :error="previewError" @retry="retryPreview" />
           </SharedRecordSection>

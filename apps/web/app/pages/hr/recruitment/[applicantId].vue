@@ -247,7 +247,7 @@ async function confirmHire() {
       </div>
     </SharedRecordSection>
 
-    <SharedRecordSection v-if="applicant" variant="panel" :title="t('hrRecruitment.detail.contact')">
+    <template v-if="applicant" #aside>
       <SharedPropertiesPanel>
         <SharedPropertyRow :label="t('hrRecruitment.form.email')" :value="applicant.email_from || t('hrRecruitment.detail.empty')" />
         <SharedPropertyRow :label="t('hrRecruitment.form.phone')" :value="applicant.partner_phone || t('hrRecruitment.detail.empty')" />
@@ -255,11 +255,6 @@ async function confirmHire() {
         <SharedPropertyRow :label="t('hrRecruitment.detail.appliedOn')">
           <time :datetime="applicant.applied_on">{{ formatDateTime(applicant.applied_on) }}</time>
         </SharedPropertyRow>
-      </SharedPropertiesPanel>
-    </SharedRecordSection>
-
-    <template v-if="applicant" #aside>
-      <SharedPropertiesPanel>
         <SharedPropertyRow :label="t('hrRecruitment.columns.job')" :value="applicant.job?.name || t('hrRecruitment.noJob')" />
         <SharedPropertyRow :label="t('hrRecruitment.detail.department')" :value="applicant.department?.name || t('hrRecruitment.noDepartment')" />
         <SharedPropertyRow :label="t('hrRecruitment.detail.employee')">

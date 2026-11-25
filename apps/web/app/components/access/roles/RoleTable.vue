@@ -34,7 +34,7 @@ function actionsFor(role: RoleSummary): RowAction[] {
 
 const columns = computed<TableColumn<RoleSummary>[]>(() => [
   { accessorKey: 'id', header: () => recordNumberHeader(t), meta: { class: { th: 'w-[48px] min-w-[48px] px-2', td: 'w-[48px] min-w-[48px] px-2' } } },
-  { accessorKey: 'name', header: t('access.roles.columns.name') },
+  { accessorKey: 'name', header: t('access.roles.columns.name'), meta: { title: true } },
   { accessorKey: 'description', header: t('access.roles.columns.description') },
   { accessorKey: 'type', header: t('access.roles.columns.type') },
   { accessorKey: 'user_count', header: t('access.roles.columns.users') },
