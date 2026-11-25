@@ -17,16 +17,22 @@ const expiringCount = computed(() => expiring.data.value?.total ?? 0)
 // Hidden tiles ask nothing; the expiring report stays because the alert below reads it too.
 const { shown: kpisShown } = useKpiVisibility()
 const canArchive = computed(() => can('hr.employees.archive'))
-const headcount = useHrEmployees({ limit: 1 }, kpisShown)
+// The directory reports its own server total and whether a filter narrows it (the v-model below). While it shows the plain
+// active directory, that total is the headcount tile's figure and no second query is asked; any narrowing restores it.
+const listTotal = ref<number | null>(null)
+const listFiltered = ref(Boolean(route.query.q || route.query.department_id || route.query.archived))
+const reuseListTotal = computed(() => !listFiltered.value)
+const headcount = useHrEmployees({ limit: 1 }, computed(() => kpisShown.value && !reuseListTotal.value))
 const archivedHeadcount = useHrEmployees({ limit: 1, archived: true }, computed(() => kpisShown.value && canArchive.value))
 const saudization = useHrSaudization(computed(() => kpisShown.value && canManage.value))
 const kpiTiles = computed(() => employeeKpiTiles({
-  headcount: headcount.data.value?.total ?? null,
+  headcount: reuseListTotal.value ? listTotal.value : headcount.data.value?.total ?? null,
   archived: canArchive.value ? archivedHeadcount.data.value?.total ?? null : undefined,
   saudiPercent: canManage.value ? saudization.data.value?.overall.saudi_percent ?? null : undefined,
   expiring: canManage.value ? expiring.data.value?.total ?? null : undefined,
   expiryDays: HR_EXPIRY_WINDOWS[0],
 }, t, n))
+const kpiLoading = computed(() => !reuseListTotal.value && headcount.isLoading.value)
 const initialDepartmentId = typeof route.query.department_id === 'string' ? Number(route.query.department_id) : NaN
 const selectedDepartmentId = ref<number | null>(Number.isSafeInteger(initialDepartmentId) && initialDepartmentId > 0 ? initialDepartmentId : null)
 // The create panel's own back trip is literal (employees/new.vue drops a referrer's returnTo and keeps
@@ -45,10 +51,11 @@ function editEmployee(id: number) { void navigateTo({ path: `/hr/employees/${id}
     :create-to="createTo"
     :create-label="t('hr.directory.newEmployee')"
     create-test-id="hr-employee-new"
-    kpi-toggle
   >
+    <template #kpis>
+      <SharedKpiStrip :tiles="kpiTiles" :loading="kpiLoading" :label="t('hr.kpi.label')" data-testid="hr-kpi-strip" />
+    </template>
     <div class="liwan-page-stack">
-      <SharedKpiStrip :tiles="kpiTiles" :loading="headcount.isLoading.value" :label="t('hr.kpi.label')" data-testid="hr-kpi-strip" />
       <UAlert
         v-if="expiringCount > 0"
         color="warning"
@@ -58,7 +65,7 @@ function editEmployee(id: number) { void navigateTo({ path: `/hr/employees/${id}
         :actions="[{ label: t('hr.reports.expiring.viewReports'), to: '/hr/reports', color: 'neutral', variant: 'outline' }]"
         data-testid="hr-expiring-alert"
       />
-      <DirectoryTable v-model:department-id="selectedDepartmentId" @manage="editEmployee" />
+      <DirectoryTable v-model:department-id="selectedDepartmentId" v-model:total="listTotal" v-model:filtered="listFiltered" @manage="editEmployee" />
     </div>
   </SharedListPage>
 </template>

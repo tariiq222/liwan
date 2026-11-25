@@ -4,6 +4,7 @@ import { EMPLOYEE_LIST_PATHS } from '@/modules/hr/navigation'
 import EmployeeCard from '@/components/hr/EmployeeCard.vue'
 import EmployeeProperties from '@/components/hr/EmployeeProperties.vue'
 import CompensationSection from '@/components/hr/payroll/CompensationSection.vue'
+import { hrAccessBadge } from '@/utils/hrAccessBadge'
 import type { PageHeaderTag } from '@liwan/ui/app/utils/pageHeaderTag'
 import type { RowAction } from '@liwan/ui/app/components/shared/data/RowActions.vue'
 import { useHrCompensation } from '@/composables/useHrPayrollCompensation'
@@ -19,6 +20,8 @@ const pageError = computed(() => query.error.value ?? (validId.value ? null : ne
 const backTo = computed(() => owningListBack(route.query, sourcePaths.value, route.hash))
 // Compensation is payroll data: it is neither fetched nor shown without `hr.payroll.read` (which carries the `hr.payroll` sub-feature gate).
 const canReadCompensation = computed(() => can('hr.payroll.read'))
+// The account status is shown (never changed: access is managed in settings) only to a reader who may see it.
+const canSeeAccess = computed(() => can('hr.employees.access_status.read'))
 const compensation = useHrCompensation(computed(() => isDetail.value && validId.value ? id.value : 0))
 const confirmArchive = ref(false)
 const { mutateAsync: archive, isPending: archiving, error: archiveError, reset: resetArchive } = useArchiveHrEmployee()
@@ -92,11 +95,17 @@ const menuActions = computed<RowAction[]>(() => {
       @cancel="confirmArchive = false"
     />
     <EmployeeCard v-if="query.data.value" :employee="query.data.value" />
-    <SharedPageState v-if="query.data.value && canReadCompensation" :loading="compensation.isLoading.value" :error="compensation.error.value" :keep-content="compensation.data.value !== undefined" @retry="compensation.refetch">
-      <CompensationSection :compensation="compensation.data.value ?? null" :can-manage="can('hr.payroll.manage')" :edit-to="recordChildTo(`/hr/employees/${id}/compensation`, route.query, sourcePaths, route.hash)" />
-    </SharedPageState>
     <template v-if="query.data.value" #aside>
       <EmployeeProperties :employee="query.data.value" />
+      <SharedRecordSection v-if="canSeeAccess" variant="tinted" :title="t('hr.card.account')">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <p class="text-sm text-muted">{{ t('hr.employee.accessManagedInSettings') }}</p>
+          <SharedStatusBadge data-testid="hr-access-badge" :tone="hrAccessBadge(query.data.value.access).tone" :label="t(hrAccessBadge(query.data.value.access).labelKey)" />
+        </div>
+      </SharedRecordSection>
+      <SharedPageState v-if="canReadCompensation" :loading="compensation.isLoading.value" :error="compensation.error.value" :keep-content="compensation.data.value !== undefined" @retry="compensation.refetch">
+        <CompensationSection :compensation="compensation.data.value ?? null" :can-manage="can('hr.payroll.manage')" :edit-to="recordChildTo(`/hr/employees/${id}/compensation`, route.query, sourcePaths, route.hash)" />
+      </SharedPageState>
     </template>
   </SharedRecordPage>
   <NuxtPage v-else />

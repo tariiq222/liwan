@@ -22,7 +22,9 @@ describe('hidden KPIs ask nothing', () => {
 
   it.each([
     ['pages/documents.vue', ['const kpiEnabled = computed(() => isListRoute.value && kpisShown.value)', 'useDocuments({ limit: 1 }, kpiEnabled)']],
-    ['pages/hr/index.vue', ['useHrEmployees({ limit: 1 }, kpisShown)', 'kpisShown.value && canManage.value']],
+    // The headcount reuses the directory's own total while it shows the plain active list; it asks only when narrowed.
+    ['pages/hr/index.vue', ['useHrEmployees({ limit: 1 }, computed(() => kpisShown.value && !reuseListTotal.value))', 'kpisShown.value && canManage.value']],
+    ['components/hr/LeaveList.vue', ['const kpisEnabled = computed(() => !props.personal && isListRoute.value && kpisShown.value)', 'useHrLeaveRequests(kpiQueries.pending, kpisEnabled)', 'useHrLeaveRequests(kpiQueries.approved, kpisEnabled)']],
     ['pages/finance/index.vue', ["useFinanceAging('receivable', computed(() => kpisShown.value && canStatements.value))", 'useFinancePartners({ limit: 1 }, computed(() => kpisShown.value && canPartners.value))']],
     // The personal task list moved into the shared workspace when /my-tasks became a redirect (2026-11-21).
     ['components/personal-tasks/MyTasksWorkspace.vue', ['}, kpisShown)']],

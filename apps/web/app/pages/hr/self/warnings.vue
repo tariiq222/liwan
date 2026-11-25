@@ -38,7 +38,7 @@ async function answer(id: number, action: () => Promise<unknown>) {
 </script>
 
 <template>
-  <SharedListPage :title="t('nav.myWarnings')" :create-to="canIssue ? '/hr/warnings/new' : undefined" :create-label="t('hrWarnings.new')" create-test-id="hr-warning-new">
+  <SharedListPage :title="t('nav.myWarnings')" back-to="/account" :back-label="t('nav.account')" :create-to="canIssue ? '/hr/warnings/new' : undefined" :create-label="t('hrWarnings.new')" create-test-id="hr-warning-new">
     <SharedPageState :loading="profile.isLoading.value" :error="profile.error.value" @retry="profile.refetch">
       <SharedEmptyState icon="i-lucide-user-x" v-if="profile.data.value === null" bordered :title="t('hr.self.noEmployee')" :description="t('hr.self.noEmployeeHint')" />
     </SharedPageState>

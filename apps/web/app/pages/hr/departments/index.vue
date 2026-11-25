@@ -39,8 +39,8 @@ const createTo = computed(() => {
   return { path: '/hr/departments/new', query: listQuery }
 })
 const departments = computed(() => query.data.value?.items ?? [])
-// The list is fetched page by page until the server total is reached, so the tiles count the complete list.
-const kpiTiles = computed(() => departmentKpiTiles(query.data.value?.items ?? null, t))
+// The endpoint answers a `total` and the list is fetched page by page until it is reached, so the tiles read the complete list.
+const kpiTiles = computed(() => departmentKpiTiles(query.data.value ?? null, t))
 const roots = computed(() => buildDepartmentTree(departments.value))
 const filtered = computed(() => departments.value.filter(d => `${d.name} ${d.manager?.name ?? ''}`.toLocaleLowerCase().includes(search.value.trim().toLocaleLowerCase())))
 const activeFilterCount = computed(() => Number(Boolean(search.value.trim())))
@@ -66,9 +66,10 @@ async function confirmDelete() {
     create-test-id="hr-department-new"
     :views="views"
     views-in-filters
-    kpi-toggle
   >
-    <SharedKpiStrip :tiles="kpiTiles" :loading="query.isLoading.value" :label="t('hr.kpi.departmentsLabel')" data-testid="hr-department-kpi-strip" />
+    <template #kpis>
+      <SharedKpiStrip :tiles="kpiTiles" :loading="query.isLoading.value" :label="t('hr.kpi.departmentsLabel')" data-testid="hr-department-kpi-strip" />
+    </template>
     <!-- The org chart is a screen-sized surface, so its card docks and fills the viewport; the list and tree are ordinary cards. -->
     <SharedListCard :fill="canvasView">
       <template #filters>

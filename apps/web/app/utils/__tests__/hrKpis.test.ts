@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { departmentKpiTiles, employeeKpiTiles } from '../hrKpis'
+import { departmentKpiTiles, employeeKpiTiles, hrLeaveKpiQueries, hrLeaveKpiTiles } from '../hrKpis'
 
 const t = (key: string) => key
 const n = (value: number) => String(value)
@@ -11,7 +11,8 @@ describe('employeeKpiTiles', () => {
     expect(tiles.map(tile => tile.value)).toEqual([42, 3, '62.5%', 4])
     expect(tiles.find(tile => tile.id === 'saudization')).toMatchObject({ progress: 62.5, to: '/hr/reports' })
     expect(tiles.find(tile => tile.id === 'expiring')).toMatchObject({ tone: 'warning', to: '/hr/reports', hint: 'hr.kpi.expiringHint' })
-    expect(tiles.find(tile => tile.id === 'archived')?.to).toBe('/hr?archived=1')
+    expect(tiles.find(tile => tile.id === 'archived')).toMatchObject({ to: '/hr?archived=1', clearTo: '/hr' })
+    expect(tiles.find(tile => tile.id === 'headcount')).not.toHaveProperty('to')
   })
 
   it('omits the tiles behind a capability the viewer lacks', () => {
@@ -28,12 +29,30 @@ describe('employeeKpiTiles', () => {
 })
 
 describe('departmentKpiTiles', () => {
-  it('counts departments without a manager from the complete list', () => {
-    const tiles = departmentKpiTiles([{ manager: { id: 1 } }, { manager: null }, { manager: null }], t)
-    expect(tiles.map(tile => [tile.id, tile.value, tile.tone])).toEqual([['departments', 3, 'neutral'], ['unmanaged', 2, 'warning']])
+  it('counts the departments from the server total and the unmanaged ones from the complete list', () => {
+    const tiles = departmentKpiTiles({ total: 5, items: [{ manager: { id: 1 } }, { manager: null }, { manager: null }] }, t)
+    expect(tiles.map(tile => [tile.id, tile.value, tile.tone])).toEqual([['departments', 5, 'neutral'], ['unmanaged', 2, 'warning']])
   })
 
   it('shows dashes while the list loads', () => {
     expect(departmentKpiTiles(null, t).map(tile => tile.value)).toEqual([null, null])
+  })
+})
+
+describe('leave KPI tiles', () => {
+  it('counts the pending queue and the approved requests with one row each', () => {
+    const queries = hrLeaveKpiQueries()
+    expect(queries.pending).toEqual({ scope: 'pending', limit: 1, offset: 0 })
+    expect(queries.approved).toEqual({ scope: 'all', state: ['validate'], limit: 1, offset: 0 })
+  })
+
+  it('links the pending tile to the list default and clears it to every request', () => {
+    const tiles = hrLeaveKpiTiles({ pending: 3, approved: undefined }, t)
+    expect(tiles.map(tile => [tile.id, tile.value, tile.to, tile.clearTo])).toEqual([
+      ['pending', 3, '/hr/leave', '/hr/leave?scope=all'],
+      ['approved', null, undefined, undefined],
+    ])
+    expect(tiles[0]?.tone).toBe('warning')
+    expect(hrLeaveKpiTiles({ pending: 0, approved: 4 }, t)[0]?.tone).toBe('neutral')
   })
 })

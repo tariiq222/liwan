@@ -21,7 +21,7 @@ const columns = computed<TableColumn<HrEquipment>[]>(() => [
 </script>
 
 <template>
-  <SharedListPage :title="t('nav.myAssets')">
+  <SharedListPage :title="t('nav.myAssets')" back-to="/account" :back-label="t('nav.account')">
     <SharedPageState :loading="profile.isLoading.value" :error="profile.error.value" @retry="profile.refetch">
       <SharedEmptyState icon="i-lucide-user-x" v-if="profile.data.value === null" bordered :title="t('hr.self.noEmployee')" :description="t('hr.self.noEmployeeHint')" />
     </SharedPageState>

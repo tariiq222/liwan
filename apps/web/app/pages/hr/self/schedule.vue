@@ -16,7 +16,7 @@ const items = computed(() => assignments.data.value?.items ?? [])
 </script>
 
 <template>
-  <SharedListPage :title="t('hr.self.schedule')">
+  <SharedListPage :title="t('hr.self.schedule')" back-to="/account" :back-label="t('nav.account')">
     <SharedPageState :loading="profile.isLoading.value" :error="profile.error.value" @retry="profile.refetch">
       <SharedEmptyState icon="i-lucide-user-x" v-if="profile.data.value === null" bordered :title="t('hr.self.noEmployee')" :description="t('hr.self.noEmployeeHint')" />
     </SharedPageState>

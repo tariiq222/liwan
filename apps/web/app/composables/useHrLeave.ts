@@ -31,6 +31,8 @@ export interface HrLeaveListParams {
   limit: number
   offset: number
   cancellation_state?: 'pending'
+  /** An explicit state filter (a KPI count); the scope's own states apply when it is absent. */
+  state?: readonly HrLeaveState[]
 }
 
 export interface HrLeaveAllocationListParams {
@@ -57,9 +59,10 @@ const SCOPE_STATE: Record<HrLeaveScope, string | undefined> = { mine: undefined,
 
 /** The query string of one scope: the caller's own list, the queue waiting for a decision, or every request. */
 export function hrLeaveRequestQuery(params: HrLeaveListParams) {
+  const states = params.state?.length ? params.state.join(',') : SCOPE_STATE[params.scope]
   return {
     mine: params.scope === 'mine' ? '1' : undefined,
-    state: params.cancellation_state ? undefined : SCOPE_STATE[params.scope],
+    state: params.cancellation_state ? undefined : states,
     cancellation_state: params.cancellation_state,
     limit: params.limit,
     offset: params.offset,

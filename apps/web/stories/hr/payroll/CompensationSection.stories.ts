@@ -10,7 +10,7 @@ const meta = {
   component: CompensationSection,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/hr/employees/[employeeId].vue:96', 'قسم التعويضات في سجل الموظف: الأجر الأساسي والبدلات والأجر الثابت والآيبان والبنك ورقم التأمينات والجنسية، وزر التعديل لمن يملك صلاحية الإدارة فقط.'),
+    ...storyContext('apps/web/app/pages/hr/employees/[employeeId].vue:107', 'قسم التعويضات في سجل الموظف: الأجر الأساسي والبدلات والأجر الثابت والآيبان والبنك ورقم التأمينات والجنسية، وزر التعديل لمن يملك صلاحية الإدارة فقط.'),
   },
   args: {
     compensation: {
