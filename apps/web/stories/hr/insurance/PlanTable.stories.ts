@@ -12,7 +12,7 @@ const meta = {
   component: PlanTable,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/hr/insurance.vue:207', 'جدول خطط التأمين داخل بطاقة القائمة: الخطة ومزوّدها وصلاحيتها وحالتها، وتنبيه الخطة القريبة من الانتهاء.'),
+    ...storyContext('apps/web/app/pages/hr/insurance.vue:211', 'جدول خطط التأمين داخل بطاقة القائمة: الخطة ومزوّدها وصلاحيتها وحالتها، وتنبيه الخطة القريبة من الانتهاء.'),
   },
   args: {
     plans: [

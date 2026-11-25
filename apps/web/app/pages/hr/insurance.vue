@@ -156,45 +156,49 @@ async function reloadProviders() {
       />
     </template>
 
-    <SharedSegmentedControl :model-value="section" :items="sectionItems" :label="t('hrInsurance.sectionLabel')" :disabled="!hydrated" @update:model-value="writeQuery({ section: $event as Section })" />
-
     <template v-if="section === 'providers'">
+      <SharedSegmentedControl :model-value="section" :items="sectionItems" :label="t('hrInsurance.sectionLabel')" :disabled="!hydrated" @update:model-value="writeQuery({ section: $event as Section })" />
       <SharedPageState empty-icon="i-lucide-heart-pulse" :loading="providers.isLoading.value" :error="providers.data.value ? null : providers.error.value" :empty="!providers.data.value" @retry="providers.refetch">
         <InsuranceProvidersCard v-if="providers.data.value" :providers="providers.data.value.items" :can-edit="canManage" :reload-providers="reloadProviders" />
       </SharedPageState>
     </template>
     <SharedListCard v-else>
       <template #filters>
-        <SharedFilterBar inline class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+        <SharedFilterBar embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+          <template #scope>
+            <SharedSegmentedControl :model-value="section" :items="sectionItems" :label="t('hrInsurance.sectionLabel')" :disabled="!hydrated" @update:model-value="writeQuery({ section: $event as Section })" />
+            <div class="max-w-full overflow-x-auto">
+              <SharedSegmentedControl
+                v-if="section === 'enrollments'"
+                :model-value="enrollmentState"
+                :items="enrollmentStateItems"
+                :label="t('hrInsurance.filter.state')"
+                :disabled="!hydrated"
+                @update:model-value="writeQuery({ state: $event, offset: 0 })"
+              />
+              <SharedSegmentedControl
+                v-else
+                :model-value="planState"
+                :items="planStateItems"
+                :label="t('hrInsurance.filter.state')"
+                :disabled="!hydrated"
+                @update:model-value="writeQuery({ planState: $event, offset: 0 })"
+              />
+            </div>
+          </template>
           <template v-if="section === 'enrollments'" #search>
             <EmployeeSearchSelect id="hr-insurance-filter-employee" :model-value="employeeId" :any-label="t('hrInsurance.anyEmployee')" :placeholder="t('hr.employeePicker.search')" :disabled="!hydrated" test-id="hr-insurance-filter-employee" @update:model-value="writeQuery({ employee: $event, offset: 0 })" />
           </template>
-          <SharedFilterPopover v-if="section === 'enrollments'" :count="(planId ? 1 : 0) + (expiring ? 1 : 0)" :disabled="!hydrated">
-            <SharedFilterField :label="t('hrInsurance.columns.plan')" for="hr-insurance-filter-plan">
-              <USelect id="hr-insurance-filter-plan" class="w-full" :model-value="planId ? String(planId) : undefined" :items="planOptions" :placeholder="t('hrInsurance.anyPlan')" :disabled="!hydrated || planChoices.isLoading.value" data-testid="hr-insurance-filter-plan" @update:model-value="writeQuery({ plan: $event ? Number($event) : null, offset: 0 })" />
-            </SharedFilterField>
-            <SharedFilterField :label="t('hrInsurance.filter.expiringLabel')" for="hr-insurance-filter-expiring">
-              <USwitch id="hr-insurance-filter-expiring" :model-value="expiring" :label="t('hrInsurance.filter.expiring', { days: alertDays }, alertDays)" :disabled="!hydrated" data-testid="hr-insurance-filter-expiring" @update:model-value="writeQuery({ expiring: Boolean($event), offset: 0 })" />
-            </SharedFilterField>
-          </SharedFilterPopover>
-          <div class="max-w-full overflow-x-auto">
-            <SharedSegmentedControl
-              v-if="section === 'enrollments'"
-              :model-value="enrollmentState"
-              :items="enrollmentStateItems"
-              :label="t('hrInsurance.filter.state')"
-              :disabled="!hydrated"
-              @update:model-value="writeQuery({ state: $event, offset: 0 })"
-            />
-            <SharedSegmentedControl
-              v-else
-              :model-value="planState"
-              :items="planStateItems"
-              :label="t('hrInsurance.filter.state')"
-              :disabled="!hydrated"
-              @update:model-value="writeQuery({ planState: $event, offset: 0 })"
-            />
-          </div>
+          <template v-if="section === 'enrollments'" #default>
+            <SharedFilterPopover :count="(planId ? 1 : 0) + (expiring ? 1 : 0)" :disabled="!hydrated">
+              <SharedFilterField :label="t('hrInsurance.columns.plan')" for="hr-insurance-filter-plan">
+                <USelect id="hr-insurance-filter-plan" class="w-full" :model-value="planId ? String(planId) : undefined" :items="planOptions" :placeholder="t('hrInsurance.anyPlan')" :disabled="!hydrated || planChoices.isLoading.value" data-testid="hr-insurance-filter-plan" @update:model-value="writeQuery({ plan: $event ? Number($event) : null, offset: 0 })" />
+              </SharedFilterField>
+              <SharedFilterField :label="t('hrInsurance.filter.expiringLabel')" for="hr-insurance-filter-expiring">
+                <USwitch id="hr-insurance-filter-expiring" :model-value="expiring" :label="t('hrInsurance.filter.expiring', { days: alertDays }, alertDays)" :disabled="!hydrated" data-testid="hr-insurance-filter-expiring" @update:model-value="writeQuery({ expiring: Boolean($event), offset: 0 })" />
+              </SharedFilterField>
+            </SharedFilterPopover>
+          </template>
           <template v-if="section === 'enrollments'" #active>
             <SharedFilterChip v-if="planId" :label="planName" @remove="writeQuery({ plan: null, offset: 0 })" />
             <SharedFilterChip v-if="expiring" :label="t('hrInsurance.filter.expiring', { days: alertDays }, alertDays)" @remove="writeQuery({ expiring: false, offset: 0 })" />

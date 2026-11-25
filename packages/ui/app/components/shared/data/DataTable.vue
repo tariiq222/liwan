@@ -309,6 +309,7 @@ function clear() {
               :key="rowId(row)"
               data-shortcut-row
               :data-row-index="index"
+              :data-row-opens="props.rowTo ? '' : undefined"
               tabindex="-1"
               class="p-4 outline-none focus-visible:bg-elevated/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
               :class="{ 'cursor-pointer': props.rowTo }"

@@ -170,7 +170,18 @@ function applicantTo(applicant: HrApplicant) {
 
     <SharedListCard>
       <template #filters>
-        <SharedFilterBar inline class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+        <SharedFilterBar embedded class="w-full" :active-count="activeFilterCount" :disabled="!hydrated" @clear="clearFilters">
+          <template #scope>
+            <div class="max-w-full overflow-x-auto">
+              <SharedSegmentedControl
+                :model-value="status"
+                :items="statusOptions"
+                :label="t('hrRecruitment.columns.status')"
+                :disabled="!hydrated"
+                @update:model-value="writeQuery({ status: statusParam($event), offset: 0 })"
+              />
+            </div>
+          </template>
           <template #search>
             <UInput
               :model-value="search"
@@ -208,15 +219,6 @@ function applicantTo(applicant: HrApplicant) {
               />
             </SharedFilterField>
           </SharedFilterPopover>
-          <div class="max-w-full overflow-x-auto">
-            <SharedSegmentedControl
-              :model-value="status"
-              :items="statusOptions"
-              :label="t('hrRecruitment.columns.status')"
-              :disabled="!hydrated"
-              @update:model-value="writeQuery({ status: statusParam($event), offset: 0 })"
-            />
-          </div>
           <template #active>
             <SharedFilterChip v-if="jobId" :label="jobName" @remove="writeQuery({ job: null, stage: null, offset: 0 })" />
             <SharedFilterChip v-if="stageId" :label="stageName" @remove="writeQuery({ stage: null, offset: 0 })" />
