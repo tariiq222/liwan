@@ -34,14 +34,33 @@ async function apply() {
 </script>
 
 <template>
-  <SharedRecordSection id="preset" class="liwan-settings-anchor" :title="t('appointments.settings.preset.title')" :description="t('appointments.settings.preset.hint')" data-testid="appointments-preset">
-    <div class="grid gap-3">
-      <SharedSettingRow :label="t('appointments.settings.preset.label')" name="sector_preset" :description="t('appointments.settings.preset.warning')">
-        <USelect id="appointments-preset" v-model="chosen" class="w-full" :items="items" :disabled="locked" />
-      </SharedSettingRow>
-      <UAlert v-if="failure" color="error" variant="subtle" role="alert" :description="failure" />
-      <div v-if="canEdit" class="flex justify-end">
-        <UButton type="button" :loading="isPending" :disabled="locked" :label="t('appointments.settings.preset.apply')" data-testid="appointments-preset-apply" @click="apply" />
+  <SharedRecordSection
+    id="preset"
+    variant="panel"
+    class="liwan-settings-anchor"
+    :title="t('appointments.settings.preset.title')"
+    :description="t('appointments.settings.preset.hint')"
+    data-testid="appointments-preset"
+  >
+    <template #actions>
+      <UBadge v-if="!canEdit" color="neutral" variant="subtle" :label="t('app.viewOnly')" />
+      <UButton
+        v-else
+        type="button"
+        size="sm"
+        :loading="isPending"
+        :disabled="locked"
+        :label="t('appointments.settings.preset.apply')"
+        data-testid="appointments-preset-apply"
+        @click="apply"
+      />
+    </template>
+    <div class="grid gap-4">
+      <UAlert v-if="failure" color="error" variant="subtle" role="alert" :title="t('app.saveFailed')" :description="failure" />
+      <div class="liwan-setting-rows">
+        <SharedSettingRow :label="t('appointments.settings.preset.label')" name="sector_preset" :description="t('appointments.settings.preset.warning')">
+          <USelect id="appointments-preset" v-model="chosen" class="w-full" :items="items" :disabled="locked" />
+        </SharedSettingRow>
       </div>
     </div>
   </SharedRecordSection>

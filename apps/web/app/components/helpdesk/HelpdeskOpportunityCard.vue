@@ -48,6 +48,10 @@ const stageOf = (item: { stage: { name: string } | null }) => item.stage?.name ?
 
 <template>
   <SharedRecordSection v-if="visible" variant="panel" :title="t('helpdesk.opportunity.title')" data-testid="helpdesk-opportunity">
+    <template v-if="access.write.value && !picking" #actions>
+      <UButton size="sm" :color="opportunity || hidden ? 'neutral' : 'primary'" variant="outline" :icon="opportunity || hidden ? 'i-lucide-replace' : 'i-lucide-link'" :label="opportunity || hidden ? t('helpdesk.opportunity.change') : t('helpdesk.opportunity.link')" :disabled="locked" data-testid="helpdesk-opportunity-link" @click="picking = true" />
+      <UButton v-if="opportunity || hidden" size="sm" color="neutral" variant="outline" icon="i-lucide-unlink" :label="t('helpdesk.opportunity.unlink')" :loading="unlink.isPending.value" :disabled="locked" data-testid="helpdesk-opportunity-unlink" @click="remove" />
+    </template>
     <div class="grid gap-3 text-sm">
       <div v-if="opportunity" class="grid gap-1" data-testid="helpdesk-opportunity-linked">
         <NuxtLink :to="`/crm/opportunities/${opportunity.id}`" class="min-w-0 truncate font-semibold text-primary hover:underline">{{ opportunity.contact_name }}</NuxtLink>
@@ -59,10 +63,6 @@ const stageOf = (item: { stage: { name: string } | null }) => item.stage?.name ?
       </div>
       <p v-else-if="hidden" class="text-muted" data-testid="helpdesk-opportunity-hidden">{{ t('helpdesk.opportunity.hidden') }}</p>
       <p v-else class="text-muted" data-testid="helpdesk-opportunity-none">{{ t('helpdesk.opportunity.none') }}</p>
-      <div v-if="access.write.value && !picking" class="flex flex-wrap gap-2">
-        <UButton size="xs" :color="opportunity || hidden ? 'neutral' : 'primary'" variant="outline" :icon="opportunity || hidden ? 'i-lucide-replace' : 'i-lucide-link'" :label="opportunity || hidden ? t('helpdesk.opportunity.change') : t('helpdesk.opportunity.link')" :disabled="locked" data-testid="helpdesk-opportunity-link" @click="picking = true" />
-        <UButton v-if="opportunity || hidden" size="xs" color="neutral" variant="outline" icon="i-lucide-unlink" :label="t('helpdesk.opportunity.unlink')" :loading="unlink.isPending.value" :disabled="locked" data-testid="helpdesk-opportunity-unlink" @click="remove" />
-      </div>
       <div v-if="access.write.value && picking" class="grid gap-3" data-testid="helpdesk-opportunity-picker">
         <SharedPickList
           v-model="chosen"

@@ -16,13 +16,19 @@ const emit = defineEmits<{ retry: [] }>()
 const { t } = useI18n()
 
 const SUBJECT_LINK = 'block min-w-0 truncate text-base font-semibold text-highlighted hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary'
-function column(id: string, header: string, width: string, fit = true): TableColumn<HelpdeskTicketRow> {
+function column(id: string, header: string, width: string, fit = true, title = false): TableColumn<HelpdeskTicketRow> {
   const cell = fit ? 'whitespace-nowrap' : 'max-w-0 overflow-hidden text-ellipsis whitespace-nowrap'
-  return { id, header, meta: { class: { th: `text-start ${width}`, td: `${cell} ${width}` } } as TableColumn<HelpdeskTicketRow>['meta'] }
+  return {
+    id,
+    header,
+    meta: {
+      ...(title ? { title: true } : {}),
+      class: { th: `text-start ${width}`, td: `${title ? 'max-w-0' : cell} ${width}` },
+    } as TableColumn<HelpdeskTicketRow>['meta'],
+  }
 }
 const columns = computed<TableColumn<HelpdeskTicketRow>[]>(() => [
-  column('number', t('helpdesk.columns.number'), 'w-[124px] min-w-[124px]'),
-  column('subject', t('helpdesk.columns.subject'), 'min-w-[220px]', false),
+  column('subject', t('helpdesk.columns.subject'), 'min-w-[260px]', false, true),
   column('requester', t('helpdesk.columns.requester'), 'w-[168px] min-w-[168px]', false),
   column('stage', t('helpdesk.columns.stage'), 'w-[132px] min-w-[132px]'),
   column('priority', t('helpdesk.columns.priority'), 'w-[104px] min-w-[104px]'),
@@ -36,10 +42,12 @@ const slaLabel = (row: HelpdeskTicketRow) => row.sla.state === 'none' ? t('helpd
 <template>
   <div class="min-w-0 [&_table]:w-full [&_table]:min-w-[max(100%,1080px)] [&_table]:table-fixed">
     <SharedDataTable bare :rows="props.rows" :columns="columns" row-key="id" :row-to="props.recordTo" :loading="props.loading" :error="props.error" :caption="t('helpdesk.title')" @retry="emit('retry')">
-      <template #number-cell="{ row }">
-        <NuxtLink :to="props.recordTo(row.original)" :class="SUBJECT_LINK" data-testid="helpdesk-ticket-link"><bdi dir="ltr">{{ row.original.number }}</bdi></NuxtLink>
+      <template #subject-cell="{ row }">
+        <NuxtLink :to="props.recordTo(row.original)" :class="SUBJECT_LINK" data-testid="helpdesk-ticket-link">{{ row.original.subject }}</NuxtLink>
+        <div class="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted">
+          <SharedRecordNumber :value="row.original.number" />
+        </div>
       </template>
-      <template #subject-cell="{ row }">{{ row.original.subject }}</template>
       <template #requester-cell="{ row }">{{ row.original.requester.name }}</template>
       <template #stage-cell="{ row }">
         <SharedStatusBadge :tone="row.original.stage.closed ? 'neutral' : 'info'" :label="row.original.stage.name" size="sm" />
@@ -56,11 +64,13 @@ const slaLabel = (row: HelpdeskTicketRow) => row.sla.state === 'none' ? t('helpd
       <template #mobile-row="{ row }">
         <NuxtLink :to="props.recordTo(row)" class="flex min-w-0 flex-col gap-1">
           <span class="flex min-w-0 items-center justify-between gap-2">
-            <span class="min-w-0 truncate font-semibold text-highlighted"><bdi dir="ltr">{{ row.number }}</bdi></span>
-            <SharedStatusBadge :tone="row.stage.closed ? 'neutral' : 'info'" :label="row.stage.name" size="sm" />
+            <span class="min-w-0 truncate font-semibold text-highlighted">{{ row.subject }}</span>
+            <SharedStatusBadge :tone="row.stage.closed ? 'neutral' : 'info'" :label="row.stage.name" size="sm" class="shrink-0" />
           </span>
-          <span class="truncate text-sm text-muted">{{ row.subject }}</span>
-          <span class="truncate text-sm text-muted">{{ row.requester.name }} · {{ row.assignee?.name ?? t('helpdesk.unassigned') }}</span>
+          <span class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-muted">
+            <SharedRecordNumber :value="row.number" />
+            <span class="truncate">{{ row.requester.name }} · {{ row.assignee?.name ?? t('helpdesk.unassigned') }}</span>
+          </span>
         </NuxtLink>
       </template>
     </SharedDataTable>

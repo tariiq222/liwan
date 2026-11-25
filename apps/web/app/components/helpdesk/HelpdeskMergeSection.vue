@@ -11,6 +11,7 @@ const emit = defineEmits<{ merged: [] }>()
 const { t } = useI18n()
 const { $api } = useApi()
 const qc = useQueryClient()
+const hydrated = useHydrated()
 const search = ref('')
 const term = refDebounced(search, 250)
 const selected = ref<number[]>([])
@@ -49,6 +50,9 @@ async function submit() {
 
 <template>
   <SharedRecordSection variant="panel" :title="t('helpdesk.merge.title')" data-testid="helpdesk-merge">
+    <template #actions>
+      <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-git-merge" :disabled="!hydrated || !selected.length" :loading="merge.isPending.value" :label="t('helpdesk.merge.submit', { count: selected.length })" data-testid="helpdesk-merge-submit" @click="submit" />
+    </template>
     <p class="text-sm text-muted">{{ t('helpdesk.merge.hint') }}</p>
     <UInput v-model="search" class="mt-2 w-full" icon="i-lucide-search" :placeholder="t('helpdesk.merge.search')" :aria-label="t('helpdesk.merge.search')" data-testid="helpdesk-merge-search" />
     <ul v-if="rows.length" class="mt-2 flex max-h-56 flex-col divide-y divide-default overflow-y-auto rounded-control border border-default">
@@ -59,6 +63,5 @@ async function submit() {
     </ul>
     <p v-else-if="term" class="mt-2 text-sm text-muted">{{ t('app.noResults') }}</p>
     <p v-if="failure" class="mt-2 text-sm text-error" role="alert" data-testid="helpdesk-merge-error">{{ failure }}</p>
-    <UButton class="mt-3" icon="i-lucide-git-merge" :disabled="!selected.length" :loading="merge.isPending.value" :label="t('helpdesk.merge.submit', { count: selected.length })" data-testid="helpdesk-merge-submit" @click="submit" />
   </SharedRecordSection>
 </template>

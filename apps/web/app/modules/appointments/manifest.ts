@@ -1,4 +1,5 @@
 import type { AppManifest } from '../types'
+import { appointmentsSidebar } from './sidebar'
 
 const manifest: AppManifest = {
   id: 'appointments',
@@ -7,12 +8,12 @@ const manifest: AppManifest = {
   appCard: { category: 'sales', plan: 'addon', surface: 'lime' },
   rail: [{ id: 'appointments', labelKey: 'appointments.title', icon: 'i-lucide-calendar-clock', to: '/appointments', order: 80 }],
   nav: [
-    { to: '/appointments', labelKey: 'appointments.nav.types', icon: 'i-lucide-calendar-clock', shortcut: 'd', capability: 'appointments.bookings.read' },
+    { to: '/appointments', labelKey: 'appointments.nav.bookings', icon: 'i-lucide-calendar-clock', shortcut: 'd', capability: 'appointments.bookings.read' },
   ],
   contextLinks: () => [
     { id: 'appointments-new', labelKey: 'appointments.list.new', icon: 'i-lucide-plus', to: '/appointments/new', capability: 'appointments.bookings.manage', pinned: true },
-    { id: 'appointments-types', labelKey: 'appointments.nav.types', icon: 'i-lucide-calendar-clock', to: '/appointments', capability: 'appointments.bookings.read' },
   ],
+  sidebar: appointmentsSidebar,
   landing: [{ path: '/appointments', capability: 'appointments.bookings.read' }],
   settings: {
     id: 'appointments', labelKey: 'appointments.settings.title', icon: 'i-lucide-calendar-cog', to: '/settings/apps/appointments',

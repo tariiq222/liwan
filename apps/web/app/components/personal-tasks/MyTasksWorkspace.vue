@@ -25,7 +25,6 @@ function layoutQuery(query: LocationQueryRaw, value: string): LocationQueryRaw {
 }
 import { useRowNavigation } from '@liwan/ui/app/composables/useRowNavigation'
 import {
-  lastPageOffset,
   listPatch,
   MY_TASK_SCOPES,
   MY_TASK_SORTS,
@@ -35,6 +34,7 @@ import {
   toListParams,
   type MyTaskListState,
 } from '@/utils/myTaskList'
+import { lastPageOffset } from '@/utils/routeQuery'
 
 const route = useRoute()
 const router = useRouter()
@@ -114,7 +114,7 @@ onScopeDispose(() => { disposed = true; stopNavigationStart(); stopAfterEach(); 
 // server render never changes `data` or `isFetching` on the client, so a plain watcher would never see it.
 watch([query.data, query.isFetching, hydrated], ([data, fetching, ready]) => {
   if (!data || fetching || !ready) return
-  const last = lastPageOffset(data.total)
+  const last = lastPageOffset(data.total, MY_TASK_PAGE_SIZE)
   if (state.value.offset > last) update({ offset: last })
 }, { immediate: true })
 function flushSearch() {
