@@ -279,31 +279,9 @@ function setHistoryPage(page: number) {
         <UButton color="neutral" variant="outline" square icon="i-lucide-ellipsis" :aria-label="t('app.actions')" :disabled="!hydrated" data-testid="meeting-series-more-actions" />
       </UDropdownMenu>
     </template>
-    <template v-if="query.data.value" #summary>
-      <SharedRecordHero
-        :tone="query.data.value.active ? 'info' : 'neutral'"
-        icon="i-lucide-repeat"
-        data-testid="meeting-series-hero"
-      >
-        <template #title>
-          <span>{{ query.data.value.name }}</span>
-        </template>
-        <template v-if="query.data.value.meeting_url" #actions>
-          <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-video" class="shrink-0 bg-default" :to="query.data.value.meeting_url" external target="_blank" rel="noopener" :label="t('meetingsUi.url')" />
-        </template>
-        <template #meta>
-          <span class="inline-flex items-center gap-1.5"><UIcon name="i-lucide-repeat" class="size-4 shrink-0" aria-hidden="true" />{{ t(`meetingsUi.recurrence.${query.data.value.recurrence}`) }}</span>
-          <span v-if="upcoming" class="inline-flex items-center gap-1.5"><UIcon name="i-lucide-calendar-clock" class="size-4 shrink-0" aria-hidden="true" />{{ t('meetingsUi.nextMeeting') }}: {{ occurrenceLabel(upcoming) }}</span>
-          <span v-else class="inline-flex items-center gap-1.5"><UIcon name="i-lucide-calendar-clock" class="size-4 shrink-0" aria-hidden="true" />{{ t('meetingsUx.noNextMeeting') }}</span>
-          <span v-if="query.data.value.organizer" class="inline-flex min-w-0 items-center gap-2"><SharedPersonAvatar :people="[query.data.value.organizer]" /><span class="truncate">{{ t('meetingsUi.organizer') }}: {{ query.data.value.organizer.name }}</span></span>
-        </template>
-        <SharedMetricTile density="compact" icon="i-lucide-calendar-days" :label="t('meetingTimeline.tabs.sessions')" :value="query.data.value.meetings.length" />
-        <SharedMetricTile density="compact" icon="i-lucide-users" :label="t('meetingsUi.attendees')" :value="query.data.value.attendees.length" />
-      </SharedRecordHero>
-    </template>
+    <template #tabs><SharedRouteTabs data-testid="meeting-series-tabs" :items="tabLinks" :ariaLabel="t('meetingTimeline.sections')" /></template>
 
     <div v-if="query.data.value" class="grid min-w-0 gap-(--liwan-gap-card)">
-      <SharedRouteTabs data-testid="meeting-series-tabs" :items="tabLinks" :ariaLabel="t('meetingTimeline.sections')" />
       <UAlert v-if="endError" role="alert" color="error" variant="subtle" :title="endError" />
       <SharedInlineConfirm v-if="confirmingEnd && canEndSeries" color="error" :title="t('meetingsUx.confirmEndSeries')" :confirm-label="t('meetingsUx.endSeriesConfirmLabel')" :pending="cancelSeries.isPending.value" @cancel="confirmingEnd = false" @confirm="endSeries" />
       <form v-if="addingOccurrence && canAddOccurrence" ref="occurrenceForm" novalidate data-testid="meeting-occurrence-form" @submit.prevent="submitOccurrence">

@@ -15,7 +15,7 @@ describe('the meetings pages stay on their templates', () => {
     ['pages/meetings/calendar.vue', ['<SharedTimelineFrame', '<FilterBar embedded', '#scope', 'data-testid="meeting-scope"']],
     // The record's five tabs are the shared route tabs (one line, scrolling, with the log tab after a separator).
     ['pages/meetings/[id].vue', ['<SharedRecordWorkspace', '<SharedRecordHero', 'data-testid="meeting-hero"', '<SharedRouteTabs data-testid="meeting-tabs"', 'separatorBefore', 'data-testid="meeting-properties"', '<SharedRecordSection']],
-    ['pages/meetings/series/[id].vue', ['<SharedRecordPage', '<SharedRecordHero', 'data-testid="meeting-series-hero"', '<SharedRouteTabs data-testid="meeting-series-tabs"', '#aside', '<SharedPropertiesPanel']],
+    ['pages/meetings/series/[id].vue', ['<SharedRecordPage', '<SharedRouteTabs data-testid="meeting-series-tabs"', '#aside', '<SharedPropertiesPanel']],
     ['pages/meetings/[id]/print.vue', ['<SharedStandalonePage', 'variant="print"', 'liwan-print-landscape']],
   ])('%s uses its template', (file, needles) => {
     const source = read(file)
@@ -30,14 +30,21 @@ describe('the meetings pages stay on their templates', () => {
     }
   })
 
-  it('the series record places the hero above the tabs and properties in the aside', () => {
+  it('the series record keeps the properties panel in the aside and nothing in the summary slot', () => {
     const source = read('pages/meetings/series/[id].vue')
-    expect(source.indexOf('<SharedRecordHero')).toBeLessThan(source.indexOf('<SharedRouteTabs'))
-    const summarySlot = source.match(/<template[^>]*#summary>[\s\S]*?<\/SharedRecordHero>\s*<\/template>/)?.[0] ?? ''
+    const summarySlot = source.match(/<template[^>]*#summary>[\s\S]*?<\/template>/)?.[0] ?? ''
     const asideSlot = source.match(/<template[^>]*#aside>[\s\S]*?<\/template>/)?.[0] ?? ''
-    expect(summarySlot).toContain('<SharedRecordHero')
     expect(summarySlot).not.toContain('<SharedPropertiesPanel')
+    expect(source).not.toContain('#summary')
     expect(asideSlot).toContain('<SharedPropertiesPanel')
+  })
+
+  it('the calendar create button keeps the C shortcut and waits for hydration', () => {
+    const source = read('pages/meetings/calendar.vue')
+    const button = source.match(/<UButton[^>]*data-testid="meeting-calendar-new"[^>]*\/>/)?.[0] ?? ''
+    expect(button).toContain('data-shortcut-create')
+    expect(button).toContain('aria-keyshortcuts="c"')
+    expect(button).toContain(':disabled="!hydrated"')
   })
 
   it('the resolutions and attachments tabs stay mounted behind v-show', () => {
