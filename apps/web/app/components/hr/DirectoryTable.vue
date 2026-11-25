@@ -11,6 +11,10 @@ import { hasPendingHrSearch, hrCommittedListParams } from '@/composables/useHrSe
 import { refDebounced } from '@vueuse/core'
 
 const departmentId = defineModel<number | null>('departmentId', { default: null })
+// The list's own server total and whether a filter narrows it: the page's KPI strip reuses the total while the list is
+// the plain directory instead of asking the same question a second time.
+const reportedTotal = defineModel<number | null>('total')
+const reportedFiltered = defineModel<boolean>('filtered')
 const emit = defineEmits<{ manage: [id: number] }>()
 
 const { t } = useI18n()
@@ -68,7 +72,7 @@ const params = computed(() => {
   }
 })
 
-const { data, isLoading, error, refetch } = useHrEmployees(params)
+const { data, isLoading, isPlaceholderData, error, refetch } = useHrEmployees(params)
 const { data: deptData } = useHrDepartments()
 
 const items = computed<HrEmployee[]>(() => data.value?.items ?? [])
@@ -78,14 +82,25 @@ const departmentOptions = computed(() => [{ value: 'all', label: t('hr.directory
 const activeFilterCount = computed(() => Number(Boolean(search.value.trim())) + Number(departmentId.value !== null))
 const hasActiveFilters = computed(() => activeFilterCount.value > 0)
 const page = computed(() => Math.floor(committedListParams.value.offset / 25) + 1)
-const total = computed(() => data.value?.total ?? 0)
-const pages = computed(() => Math.max(1, Math.ceil(total.value / 25)))
+const listTotal = computed(() => data.value?.total ?? 0)
+const pages = computed(() => Math.max(1, Math.ceil(listTotal.value / 25)))
 const showEmpty = computed(() => !isLoading.value && !error.value && items.value.length === 0)
 const scopes = computed(() => [
   { value: 'active', label: t('hr.directory.scopeActive') },
   { value: 'archived', label: t('hr.directory.scopeArchived') },
 ])
 const showActions = computed(() => canManage.value || canArchive.value)
+
+// Report the list's state to the page: its server total once the first page arrives, and whether the committed query
+// narrows it (a search, a department, or the archived scope) so the page asks for a separate headcount only when it
+// must. The figure comes from the committed route query, not the search box's live text, and a placeholder page (the
+// previous result kept while the next loads) reports no total at all: the tile never shows a count the current query
+// no longer matches.
+const committedFiltered = computed(() => params.value.q !== undefined || params.value.department_id !== undefined || params.value.archived !== undefined)
+watch([data, isPlaceholderData, committedFiltered], () => {
+  reportedTotal.value = data.value && !isPlaceholderData.value ? listTotal.value : null
+  reportedFiltered.value = committedFiltered.value
+}, { immediate: true })
 
 watch(() => [route.query.q, route.query.department_id, route.query.archived, route.query.offset], ([q, department, archivedQuery, nextOffset]) => {
   search.value = String(q ?? '')
@@ -271,7 +286,7 @@ function clearFilters() {
       </SharedDataTable>
     </div>
     <template v-if="data && !showEmpty" #footer>
-      <SharedListFooter :count-label="t('hr.directory.footer.results', { shown: items.length, total }, total)" :page="page" :pages="pages" :disabled="isLoading" @update:page="setPage" />
+      <SharedListFooter :count-label="t('hr.directory.footer.results', { shown: items.length, total: listTotal }, listTotal)" :page="page" :pages="pages" :disabled="isLoading" @update:page="setPage" />
     </template>
   </SharedListCard>
 </template>

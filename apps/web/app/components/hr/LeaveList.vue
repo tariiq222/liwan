@@ -15,6 +15,7 @@ import {
   type HrLeaveScope,
 } from '@/composables/useHrLeave'
 import { useHrLeaveFormat } from '@/composables/useHrLeaveFormat'
+import { hrLeaveKpiQueries, hrLeaveKpiTiles } from '@/utils/hrKpis'
 import { hrLeaveBadge } from '@/utils/hrLeaveBadge'
 import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
 
@@ -59,6 +60,13 @@ const page = computed(() => Math.floor(offset.value / LIMIT) + 1)
 const pages = computed(() => Math.max(1, Math.ceil(total.value / LIMIT)))
 const showEmpty = computed(() => !requests.isLoading.value && !requests.error.value && items.value.length === 0)
 const balanceItems = computed(() => balances.data.value?.items ?? [])
+// The management list's tiles: one `limit: 1` request each, asked only while the strip is shown.
+const kpiQueries = hrLeaveKpiQueries()
+const kpisEnabled = computed(() => !props.personal && isListRoute.value && kpisShown.value)
+const pendingCount = useHrLeaveRequests(kpiQueries.pending, kpisEnabled)
+const approvedCount = useHrLeaveRequests(kpiQueries.approved, kpisEnabled)
+const kpiTiles = computed(() => hrLeaveKpiTiles({ pending: pendingCount.data.value?.total, approved: approvedCount.data.value?.total }, t))
+const kpiLoading = computed(() => pendingCount.isLoading.value || approvedCount.isLoading.value)
 
 const scopeItems = computed(() => props.personal ? [] : [
   { value: 'pending', label: t('hr.leave.scope.pending'), testId: 'hr-leave-scope-pending' },
@@ -176,12 +184,17 @@ const allocationsTo = { path: '/hr/leave/allocations' }
   <SharedListPage
     v-if="isListRoute"
     :title="t(props.personal ? 'hr.self.leave' : 'nav.leave')"
+    :back-to="props.personal ? '/account' : undefined"
+    :back-label="props.personal ? t('nav.account') : undefined"
     :tags="countTags"
     :create-to="createTo"
     :create-label="t('hr.leave.new')"
     create-test-id="hr-leave-new"
     :kpi-toggle="props.personal && ready"
   >
+    <template v-if="!props.personal" #kpis>
+      <SharedKpiStrip :tiles="kpiTiles" :loading="kpiLoading" :label="t('hr.leave.kpi.label')" data-testid="hr-leave-kpi-strip" />
+    </template>
     <template v-if="canAllocate" #actions>
       <UButton color="neutral" variant="ghost" icon="i-lucide-wallet" :to="allocationsTo" :disabled="!hydrated" :label="t('hr.leave.allocation.listTitle')" data-testid="hr-leave-allocations" />
       <UButton color="neutral" variant="outline" icon="i-lucide-calendar-plus" :to="allocateTo" :disabled="!hydrated" :label="t('hr.leave.allocate')" data-testid="hr-leave-allocate" />

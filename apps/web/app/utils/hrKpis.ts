@@ -1,3 +1,4 @@
+import type { HrLeaveState } from '@liwan/contracts'
 import type { KpiTile } from '@liwan/ui/app/utils/kpiTile'
 
 type Translate = (key: string, named?: Record<string, unknown>, plural?: number) => string
@@ -22,7 +23,7 @@ export interface EmployeeKpiFigures {
 export function employeeKpiTiles(figures: EmployeeKpiFigures, t: Translate, n: FormatNumber): KpiTile[] {
   const tiles: Array<KpiTile | null> = [
     figures.headcount === undefined ? null : { id: 'headcount', label: t('hr.kpi.headcount'), icon: 'i-lucide-users', tone: 'neutral', value: figures.headcount },
-    figures.archived === undefined ? null : { id: 'archived', label: t('hr.kpi.archived'), icon: 'i-lucide-archive', tone: 'neutral', value: figures.archived, to: '/hr?archived=1' },
+    figures.archived === undefined ? null : { id: 'archived', label: t('hr.kpi.archived'), icon: 'i-lucide-archive', tone: 'neutral', value: figures.archived, to: '/hr?archived=1', clearTo: '/hr' },
     figures.saudiPercent === undefined ? null : {
       id: 'saudization',
       label: t('hr.kpi.saudization'),
@@ -46,18 +47,64 @@ export function employeeKpiTiles(figures: EmployeeKpiFigures, t: Translate, n: F
 }
 
 /**
- * The tiles above the department list. `departments` is the complete list (it is fetched page by page until the server
- * total is reached), so the counts are exact; `null` while it loads.
+ * The tiles above the department list. The endpoint answers a `total` and the client fetches every page, so the
+ * department count is the server total and the unmanaged count is exact over the complete list; `null` while loading.
  */
-export function departmentKpiTiles(departments: ReadonlyArray<{ manager: unknown }> | null, t: Translate): KpiTile[] {
+export function departmentKpiTiles(
+  departments: { items: ReadonlyArray<{ manager: unknown }>; total: number } | null,
+  t: Translate,
+): KpiTile[] {
   return [
-    { id: 'departments', label: t('hr.kpi.departments'), icon: 'i-lucide-network', tone: 'neutral', value: departments ? departments.length : null },
+    { id: 'departments', label: t('hr.kpi.departments'), icon: 'i-lucide-network', tone: 'neutral', value: departments?.total ?? null },
     {
       id: 'unmanaged',
       label: t('hr.kpi.unmanaged'),
       icon: 'i-lucide-user-x',
-      tone: departments?.some(department => !department.manager) ? 'warning' : 'neutral',
-      value: departments ? departments.filter(department => !department.manager).length : null,
+      tone: departments?.items.some(department => !department.manager) ? 'warning' : 'neutral',
+      value: departments ? departments.items.filter(department => !department.manager).length : null,
+    },
+  ]
+}
+
+/** One `limit: 1` leave request behind a tile, shaped like the list's own params. */
+export interface HrLeaveKpiQuery {
+  scope: 'pending' | 'all'
+  state?: readonly HrLeaveState[]
+  limit: number
+  offset: number
+}
+
+/**
+ * The requests behind the leave list's tiles. The contract has no date filter, so "this month" is not counted: pending
+ * is the approver queue and approved is every request already validated.
+ */
+export function hrLeaveKpiQueries(): Record<'pending' | 'approved', HrLeaveKpiQuery> {
+  return {
+    pending: { scope: 'pending', limit: 1, offset: 0 },
+    approved: { scope: 'all', state: ['validate'], limit: 1, offset: 0 },
+  }
+}
+
+/**
+ * The leave list's tiles: the pending queue and the approved requests. Pending is the list's own default view, so its
+ * tile is active there and carries no `clearTo`: clicking it keeps the pending list instead of clearing to every request.
+ */
+export function hrLeaveKpiTiles(counts: { pending?: number; approved?: number }, t: Translate): KpiTile[] {
+  return [
+    {
+      id: 'pending',
+      label: t('hr.leave.kpi.pending'),
+      icon: 'i-lucide-clock',
+      tone: counts.pending ? 'warning' : 'neutral',
+      value: counts.pending ?? null,
+      to: '/hr/leave',
+    },
+    {
+      id: 'approved',
+      label: t('hr.leave.kpi.approved'),
+      icon: 'i-lucide-circle-check',
+      tone: 'success',
+      value: counts.approved ?? null,
     },
   ]
 }

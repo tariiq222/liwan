@@ -39,7 +39,7 @@ const DataTable = Vue.defineComponent({
 
 function load(can: (capability: string) => boolean): Vue.Component {
   const route = { path: '/hr', fullPath: '/hr', query: {}, hash: '' }
-  const query = (data: unknown) => ({ data: Vue.ref(data), isLoading: Vue.ref(false), error: Vue.ref(null), refetch: () => undefined })
+  const query = (data: unknown) => ({ data: Vue.ref(data), isLoading: Vue.ref(false), isPlaceholderData: Vue.ref(false), error: Vue.ref(null), refetch: () => undefined })
   const mutation = () => ({ mutateAsync: async () => undefined, isPending: Vue.ref(false) })
   const modules: Record<string, unknown> = {
     'vue': Vue,

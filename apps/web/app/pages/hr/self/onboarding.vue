@@ -37,7 +37,7 @@ async function finish(step: HrOwnOnboardingStep) {
 </script>
 
 <template>
-  <SharedListPage :title="t('hr.self.onboarding')">
+  <SharedListPage :title="t('hr.self.onboarding')" back-to="/account" :back-label="t('nav.account')">
     <UAlert v-if="actionError" role="alert" color="error" variant="subtle" :title="actionError" data-testid="hr-onboarding-mine-error" />
     <SharedListCard>
       <SharedPageState :error="steps.error.value" :keep-content="items.length > 0" @retry="steps.refetch">

@@ -6,7 +6,7 @@ import { storyContext } from '../support/context'
 const meta = {
   title: 'Shared/IdentityCard',
   component: IdentityCard,
-  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/components/hr/EmployeeCard.vue:15', 'بطاقة هوية سجل الشخص أو الوحدة (موظف، قسم، مستخدم): أفاتار `xl` والاسم `text-base` 600 وحبّة حالة في `#badge` وسطر فرعي نصّي (`subtitle`) أو بعلامات في `#subtitle`، داخل `SharedRecordSection variant="panel"`. الحقائق في لوحة الخصائص الجانبية.') },
+  parameters: { layout: 'padded', a11y: { test: 'error' }, ...storyContext('apps/web/app/components/hr/EmployeeCard.vue:10', 'بطاقة هوية سجل الشخص أو الوحدة (موظف، قسم، مستخدم): أفاتار `xl` والاسم `text-base` 600 وحبّة حالة في `#badge` وسطر فرعي نصّي (`subtitle`) أو بعلامات في `#subtitle`، داخل `SharedRecordSection variant="panel"`. الحقائق في لوحة الخصائص الجانبية.') },
   args: { id: 7, name: 'سارة القحطاني', subtitle: 'مهندسة برمجيات · التقنية' },
   render: args => ({
     components: { IdentityCard, StatusBadge },

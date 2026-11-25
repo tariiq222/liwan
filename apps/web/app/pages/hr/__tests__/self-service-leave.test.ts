@@ -4,6 +4,7 @@ import { compileScript, parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
 import * as Vue from 'vue'
 import { describe, expect, it, vi } from 'vitest'
+import { hrLeaveKpiQueries, hrLeaveKpiTiles } from '../../../utils/hrKpis'
 
 function load(path: string, personal: boolean, capabilities = ['hr.leave.read', 'hr.leave.approve'], profileData: unknown = {id:1}) {
   const root = resolve(import.meta.dirname, '../../..')
@@ -14,14 +15,16 @@ function load(path: string, personal: boolean, capabilities = ['hr.leave.read', 
   const code = compileScript(descriptor, { id: 'leave-scope' }).content.replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '').replace('export default', 'return')
   const route = { path: path.split('?')[0], fullPath: path, query: Object.fromEntries(new URLSearchParams(path.split('?')[1])), hash: '' }
   const response = () => ({ data: Vue.ref({items: [], total: 0}), error: Vue.ref(null), isLoading: Vue.ref(false), isFetching: Vue.ref(false), refetch: vi.fn() })
-  let requested: any; let balancesEnabled: any
+  // The list asks one page of 25; the KPI tiles each ask one row, so the two are told apart by their limit.
+  let requested: any; let balancesEnabled: any; const tileQueries: Array<{params: any; enabled: any}> = []
   const bindings = {
     RecordNumber: {}, hrLeaveBadge: () => ({}), recordNumberHeader: () => ({}), _defineComponent: Vue.defineComponent, computed: Vue.computed, ref: Vue.ref, h: Vue.h,
     useRoute: () => route, useRouter: () => ({ replace: vi.fn() }),
     useI18n: () => ({ t: (key: string) => key, n: String }), useHrLeaveFormat: () => ({ period: String, days: String }),
     useHydrated: () => Vue.ref(true), useKpiVisibility: () => ({shown: Vue.ref(true)}),
     useAccess: () => ({can: (capability: string) => capabilities.includes(capability)}),
-    useHrLeaveRequests: (params: any) => { requested = params; return response() },
+    useHrLeaveRequests: (params: any, enabled: any) => { if (Vue.toValue(params).limit === 1) tileQueries.push({params, enabled}); else requested = params; return response() },
+    hrLeaveKpiQueries, hrLeaveKpiTiles,
     useHrLeaveBalances: (_id: any, enabled: any) => { balancesEnabled = enabled; return response() },
     useMyHrProfile: () => ({ ...response(), data: Vue.ref(profileData) }),
     useCancellationDecision: () => ({isPending: Vue.ref(false)}), useLeaveDecision: () => ({isPending: Vue.ref(false)}), useWithdrawLeaveRequest: () => ({isPending: Vue.ref(false)}),
@@ -30,7 +33,7 @@ function load(path: string, personal: boolean, capabilities = ['hr.leave.read', 
   const js = ts.transpileModule(code, { compilerOptions: {target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.None} }).outputText
   const component = new Function(...Object.keys(bindings), js)(...Object.values(bindings))
   const state = component.setup({personal}, {expose: () => {}})
-  return {state, params: Vue.toValue(requested), balances: Vue.toValue(balancesEnabled)}
+  return {state, params: Vue.toValue(requested), balances: Vue.toValue(balancesEnabled), tiles: tileQueries.map(query => ({params: Vue.toValue(query.params), enabled: Vue.toValue(query.enabled)}))}
 }
 
 describe('employee leave ownership', () => {
@@ -69,6 +72,22 @@ describe('employee leave ownership', () => {
   })
 })
 
+
+describe('leave KPI tiles', () => {
+  it('asks the pending and approved counts with one row each beside the 25-row management list', () => {
+    const loaded = load('/hr/leave', false)
+    expect(loaded.params).toMatchObject({scope: 'pending', limit: 25})
+    expect(loaded.tiles).toEqual([
+      {params: {scope: 'pending', limit: 1, offset: 0}, enabled: true},
+      {params: {scope: 'all', state: ['validate'], limit: 1, offset: 0}, enabled: true},
+    ])
+  })
+  it('asks no tile count in Self-service', () => {
+    const loaded = load('/account/leave', true)
+    expect(loaded.params).toMatchObject({scope: 'mine', limit: 25})
+    expect(loaded.tiles.map(tile => tile.enabled)).toEqual([false, false])
+  })
+})
 
 it('admin cancellation filter round trips URL without narrowing native approval states', () => {
   const loaded = load('/hr/leave?cancellation_state=pending', false)

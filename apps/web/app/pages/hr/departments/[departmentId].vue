@@ -29,15 +29,13 @@ const editTo = computed(() => ({ path: `/hr/departments/${id.value}/edit`, query
         <SharedStatusBadge size="sm" tone="neutral" :label="t('hr.depts.employeeReason', { count: department.employee_count }, department.employee_count)" />
       </template>
     </SharedIdentityCard>
-    <SharedRecordSection v-if="department && me?.capabilities?.includes('documents.items.read')" :title="t('hr.depts.viewDocuments')">
-      <UButton color="neutral" variant="outline" icon="i-lucide-files" :disabled="!hydrated" :to="`/hr/documents/department-${id}`" :label="t('hr.depts.viewDocuments')" />
-    </SharedRecordSection>
     <template v-if="department" #aside>
       <SharedPropertiesPanel>
         <SharedPropertyRow :label="t('hr.tabs.employees')" :value="department.employee_count" />
         <SharedPropertyRow :label="t('hr.depts.manager')" :value="department.manager?.name || t('hr.depts.noManager')" />
         <SharedPropertyRow :label="t('hr.depts.children')" :value="department.child_ids.length" />
       </SharedPropertiesPanel>
+      <UButton v-if="me?.capabilities?.includes('documents.items.read')" block color="neutral" variant="outline" size="sm" icon="i-lucide-files" :disabled="!hydrated" :to="`/hr/documents/department-${id}`" :label="t('hr.depts.viewDocuments')" />
     </template>
   </SharedRecordPage>
   <NuxtPage />

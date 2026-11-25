@@ -259,6 +259,11 @@
     },
     "leave": {
       "countTag": "{count} request | {count} requests",
+      "kpi": {
+        "label": "Leave figures",
+        "pending": "Awaiting a decision",
+        "approved": "Approved"
+      },
       "record": "Leave request",
       "new": "Request leave",
       "allocate": "Grant balance",
