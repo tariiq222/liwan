@@ -58,7 +58,11 @@
       "membersHint": "Employees: {enrollments} · Dependents: {dependents}",
       "expiring": "Plans ending soon",
       "expiringHint": "Within 1 day | Within {days} days",
-      "uncovered": "Employees without insurance"
+      "uncovered": "Employees without insurance",
+      "planLabel": "Plan figures",
+      "plans": "All plans",
+      "plansActive": "Active plans",
+      "plansExpired": "Expired plans"
     },
     "form": {
       "coverage": "Coverage",

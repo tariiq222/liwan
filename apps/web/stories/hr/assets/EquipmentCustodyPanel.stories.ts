@@ -11,7 +11,7 @@ const meta = {
   component: EquipmentCustodyPanel,
   parameters: {
     layout: 'fullscreen',
-    ...storyContext('apps/web/app/pages/hr/assets/[equipmentId].vue:209', 'كتلة العهدة في سجل الأصل: المُسلَّم إليه وتاريخ آخر تسليم، وضبط التسليم (الموظف والتاريخ) حين يكون الأصل غير مُسلَّم.'),
+    ...storyContext('apps/web/app/pages/hr/assets/[equipmentId].vue:260', 'كتلة العهدة في سجل الأصل: المُسلَّم إليه وتاريخ آخر تسليم، وضبط التسليم (الموظف والتاريخ) حين يكون الأصل غير مُسلَّم.'),
   },
   args: {
     equipment: {

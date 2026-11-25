@@ -17,6 +17,11 @@
     "schedulesEmpty": "No work schedules yet",
     "schedulesEmptyHint": "Create a work schedule, then assign it to employees.",
     "footer": "{shown} of {total}",
+    "kpi": {
+      "label": "Shift figures",
+      "planned": "Planned shifts",
+      "today": "Shifts today"
+    },
     "range": "{from} — {to}",
     "rangeFrom": "From {from}",
     "rangeUntil": "Until {to}",

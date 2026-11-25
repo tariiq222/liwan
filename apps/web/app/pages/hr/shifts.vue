@@ -7,10 +7,12 @@ import {
   useDeleteHrShiftAssignment,
   useHrShiftAssignments,
   useHrShiftSchedules,
+  useHrShiftSettings,
 } from '@/composables/useHrShifts'
 import EmployeeSearchSelect from '@/components/hr/EmployeeSearchSelect.vue'
 import ShiftAssignmentTable from '@/components/hr/shifts/ShiftAssignmentTable.vue'
 import { returnToQuery } from '@liwan/ui/app/utils/safeReturnTo'
+import { hrShiftKpiQueries, hrShiftKpiTiles } from '@/utils/hrOpsKpis'
 
 const ALL = '__all__'
 
@@ -19,6 +21,7 @@ const router = useRouter()
 const { t } = useI18n()
 const { can } = useAccess()
 const hydrated = useHydrated()
+const { shown: kpisShown } = useKpiVisibility()
 
 const canRead = computed(() => can('hr.shifts.read'))
 const canManage = computed(() => can('hr.shifts.manage'))
@@ -57,6 +60,21 @@ const scheduleOptions = computed(() => [
 ])
 const activeFilterCount = computed(() => Number(Boolean(employeeId.value)) + Number(Boolean(scheduleId.value)) + Number(Boolean(onDate.value)))
 const showFilters = computed(() => canRead.value)
+
+// The tiles: every planned assignment, and the ones running on the company's calendar day. The planned tile reuses the
+// unfiltered list's own total; the day's tile needs the shift settings' day and asks only once it has arrived.
+const kpisEnabled = computed(() => canRead.value && kpisShown.value)
+const settings = useHrShiftSettings(kpisEnabled)
+const today = computed(() => settings.data.value?.today ?? '')
+const kpiQueries = computed(() => hrShiftKpiQueries(today.value))
+const listFiltered = computed(() => activeFilterCount.value > 0)
+const plannedKpi = useHrShiftAssignments(computed(() => kpiQueries.value.planned), computed(() => kpisEnabled.value && listFiltered.value))
+const todayKpi = useHrShiftAssignments(computed(() => kpiQueries.value.today), computed(() => kpisEnabled.value && !!today.value))
+const kpiTiles = computed(() => hrShiftKpiTiles({
+  planned: listFiltered.value ? plannedKpi.data.value?.total ?? null : source.data.value?.total ?? null,
+  today: today.value ? todayKpi.data.value?.total ?? null : undefined,
+}, today.value, t))
+const kpiLoading = computed(() => (listFiltered.value ? plannedKpi.isLoading.value : !source.data.value) || todayKpi.isLoading.value)
 
 function writeQuery(next: { employee_id?: number | null; schedule_id?: number | null; on_date?: string | null; offset?: number }) {
   const nextEmployee = next.employee_id === undefined ? employeeId.value : next.employee_id
@@ -148,6 +166,10 @@ async function confirmRemove() {
         :label="t('hrShifts.week')"
         data-testid="hr-shifts-roster-link"
       />
+    </template>
+
+    <template v-if="canRead" #kpis>
+      <SharedKpiStrip :tiles="kpiTiles" :loading="kpiLoading" :skeleton-count="2" :label="t('hrShifts.kpi.label')" data-testid="hr-shifts-kpis" />
     </template>
 
     <div class="liwan-page-stack">

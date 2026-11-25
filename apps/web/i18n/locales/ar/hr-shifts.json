@@ -17,6 +17,11 @@
     "schedulesEmpty": "لا جداول عمل بعد",
     "schedulesEmptyHint": "أنشئ جدول عمل ثم أسنده للموظفين.",
     "footer": "{shown} من {total}",
+    "kpi": {
+      "label": "مؤشرات الورديات",
+      "planned": "الورديات المُخطّطة",
+      "today": "ورديات اليوم"
+    },
     "range": "{from} — {to}",
     "rangeFrom": "من {from}",
     "rangeUntil": "حتى {to}",

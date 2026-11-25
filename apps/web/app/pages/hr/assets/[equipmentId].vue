@@ -206,14 +206,6 @@ async function submit() {
       </template>
     </SharedIdentityCard>
 
-    <EquipmentCustodyPanel
-      v-if="equipment"
-      :equipment="equipment"
-      :can-manage="canManage"
-      :pending="writing"
-      @assign="assign"
-    />
-
     <SharedRecordSection v-if="equipment" variant="panel" :title="t('hrAssets.form.details')">
       <UForm novalidate :state="form" class="liwan-form" method="post" data-testid="hr-asset-edit" @submit="submit">
         <SharedUnsavedChanges :dirty="dirty" />
@@ -265,6 +257,12 @@ async function submit() {
     </SharedRecordSection>
 
     <template v-if="equipment" #aside>
+      <EquipmentCustodyPanel
+        :equipment="equipment"
+        :can-manage="canManage"
+        :pending="writing"
+        @assign="assign"
+      />
       <SharedPropertiesPanel>
         <SharedPropertyRow :label="t('hrAssets.form.serialNo')" :value="equipment.serial_no || t('hrAssets.detail.empty')" />
         <SharedPropertyRow :label="t('hrAssets.form.model')" :value="equipment.model || t('hrAssets.detail.empty')" />

@@ -58,7 +58,11 @@
       "membersHint": "الموظفون: {enrollments} · التابعون: {dependents}",
       "expiring": "خطط تنتهي قريبًا",
       "expiringHint": "اليوم | خلال يوم | خلال يومين | خلال {days} أيام | خلال {days} يومًا | خلال {days} يوم",
-      "uncovered": "موظفون بلا تأمين"
+      "uncovered": "موظفون بلا تأمين",
+      "planLabel": "مؤشرات الخطط",
+      "plans": "كل الخطط",
+      "plansActive": "خطط سارية",
+      "plansExpired": "خطط منتهية"
     },
     "form": {
       "coverage": "التغطية",

@@ -59,14 +59,18 @@ async function applyWeek(employeeId: number, scheduleId: number) {
 </script>
 
 <template>
-  <SharedListPage :title="t('hrShifts.weekTitle')" :back-to="{ path: '/hr/shifts' }" :back-label="t('hrShifts.title')">
+  <SharedListPage
+    :title="t('hrShifts.weekTitle')"
+    :description="t('hrShifts.weekOf', { date: weekStart })"
+    :back-to="{ path: '/hr/shifts' }"
+    :back-label="t('hrShifts.title')"
+  >
     <template #actions>
       <UButton color="neutral" variant="outline" icon="i-lucide-chevron-right" :label="t('hrShifts.prevWeek')" :disabled="!hydrated" @click="goWeek(-1)" />
       <UButton color="neutral" variant="outline" :label="t('hrShifts.thisWeek')" :disabled="!hydrated" @click="goToday" />
       <UButton color="neutral" variant="outline" trailing-icon="i-lucide-chevron-left" :label="t('hrShifts.nextWeek')" :disabled="!hydrated" @click="goWeek(1)" />
     </template>
     <div class="liwan-page-stack">
-      <p class="text-sm text-muted">{{ t('hrShifts.weekOf', { date: weekStart }) }}</p>
       <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" />
       <UAlert v-else-if="saved" role="status" color="success" variant="subtle" :title="t('hrShifts.weekSaved')" />
       <SharedListCard>
