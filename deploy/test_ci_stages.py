@@ -374,13 +374,19 @@ if 'deploy.backup' in args and 'capture' in args:
  store=Path(args[args.index('--store-root')+1]); tenant=args[args.index('--tenant')+1]
  (store/tenant/'hourly'/'20260101T000000Z').mkdir(parents=True)
 if 'deploy.backup' in args and 'fetch' in args:
- backup=Path(args[args.index('--destination')+1]); (backup/'filestore/aa').mkdir(parents=True)
- (backup/'filestore/aa/attachment').write_text('data'); (backup/'manifest.json').write_text('{}')
+ backup=Path(args[args.index('--destination')+1]); (backup/'objects/aa').mkdir(parents=True)
+ (backup/'objects/aa/attachment').write_text('data')
+ (backup/'objects.index').write_text('a'*64 + '  aa/attachment\\n')
+ (backup/'manifest.json').write_text('{}')
 if 'deploy.backup' in args and 'verify' in args:
  backup=Path(args[args.index('--backup-dir')+1])
- if not (backup/'filestore/aa/attachment').exists():
-  (backup/'restore-verification.json').write_text(json.dumps({'restore_verified':False,'checks':{'missing_attachment_files':['aa/attachment']}}))
-  sys.exit(1)
+ assert (backup/'objects.index').is_file()
+ if not (backup/'objects/aa/attachment').exists():
+  (backup/'restore-verification.json').write_text(json.dumps({
+   'restore_verified':False,
+   'checks':{'missing_objects':['aa/attachment'],'missing_attachment_files':['aa/attachment']},
+  }))
+  sys.exit(3)
 ''')
         process = self.execute('restore-drill')
         self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
@@ -390,10 +396,47 @@ if 'deploy.backup' in args and 'verify' in args:
         scripts = [x for x in calls if x[0] == 'python3' and 'deploy.backup' in x]
         self.assertEqual(len(scripts), 4)
         for command in scripts:
-            if command[command.index('deploy.backup') + 1] == 'fetch':
+            subcommand = command[command.index('deploy.backup') + 1]
+            if subcommand == 'fetch':
                 self.assertNotIn('--pg-port', command)
             else:
                 self.assertEqual(command[command.index('--pg-port') + 1], '55432')
+            if subcommand == 'verify':
+                target_db = command[command.index('--target-db') + 1]
+                self.assertTrue(command[command.index('--target-filestore') + 1].endswith('/filestore/' + target_db))
+
+    def test_restore_drill_fails_when_negative_verification_omits_missing_objects(self):
+        self.fake('curl', '')
+        self.fake('pg_dump', '')
+        self.fake('odoo-python', '''
+if '--stop-after-init' not in args:
+ import time
+ time.sleep(10)
+''')
+        self.fake('psql', "print('aa/attachment')\n")
+        self.fake('python3', '''
+if args[0] in ('-', '-c'): os.execv(sys.executable, [sys.executable, *args])
+if 'tools/catalog_check.py' in args: print('liwan_tasks')
+if 'deploy/classification.py' in args: Path(args[args.index('--output')+1]).write_text('{}')
+if 'deploy.backup' in args and 'capture' in args:
+ store=Path(args[args.index('--store-root')+1]); tenant=args[args.index('--tenant')+1]
+ (store/tenant/'hourly'/'20260101T000000Z').mkdir(parents=True)
+if 'deploy.backup' in args and 'fetch' in args:
+ backup=Path(args[args.index('--destination')+1]); (backup/'objects/aa').mkdir(parents=True)
+ (backup/'objects/aa/attachment').write_text('data')
+ (backup/'objects.index').write_text('a'*64 + '  aa/attachment\\n')
+ (backup/'manifest.json').write_text('{}')
+if 'deploy.backup' in args and 'verify' in args:
+ backup=Path(args[args.index('--backup-dir')+1])
+ if not (backup/'objects/aa/attachment').exists():
+  (backup/'restore-verification.json').write_text(json.dumps({
+   'restore_verified':False,
+   'checks':{'missing_objects':[],'missing_attachment_files':['aa/attachment']},
+  }))
+  sys.exit(3)
+''')
+        process = self.execute('restore-drill')
+        self.assertNotEqual(process.returncode, 0)
 
     def test_image_gate_builds_and_checks_with_owned_names_and_scratch_files(self):
         process = self.execute('image')
